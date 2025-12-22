@@ -63,6 +63,7 @@ DEFAULT_ARGS=( "run" \
                "-v" "$(pwd)/config/zellij:/root/.config/zellij" \
                "-v" "$(pwd)/config/opencode:/root/.config/opencode" \
                "-v" "$(pwd)/config/lazygit:/root/.config/lazygit" \
+               "-v" "$(pwd)/config/yazi:/root/.config/yazi" \
                "-e" "TERM=$TERM" \
             )
 # Combine: runtime + defaults + pre-args + image + post-args
