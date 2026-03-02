@@ -2,15 +2,15 @@
 // "dev" layout — default layout for the dev-container
 //
 // Structure:
-//   ┌──────────────────────────────────────┐
-//   │  tab-bar                             │
-//   ├────────────┬─────────────────────────┤
-//   │            │  editor / main pane      │
-//   │  strider   ├─────────────────────────┤
-//   │ (filepick) │  terminal               │
-//   └────────────┴─────────────────────────┘
-//   │  status-bar                          │
-//   └──────────────────────────────────────┘
+//   ┌──────────────────────────────────────────┐
+//   │  tab-bar                                 │
+//   ├──────────┬───────────────────────────────┤
+//   │          │  editor / main pane           │
+//   │ strider  ├────────────────┬──────────────┤
+//   │  (15%)   │  terminal (20%)│  claude (20%)│
+//   └──────────┴────────────────┴──────────────┘
+//   │  status-bar                              │
+//   └──────────────────────────────────────────┘
 // =============================================================================
 
 layout {
@@ -27,27 +27,34 @@ layout {
     tab name="dev" focus=true {
         pane split_direction="vertical" {
 
-            // Left column: Strider file picker (20% width)
-            pane size="20%" {
+            // Left column: Strider file picker (15% width)
+            pane size="15%" {
                 plugin location="zellij:strider" {
-                    // Start strider in the workspace directory
                     cwd "/workspace"
+                    show_hidden_files true
                 }
             }
 
-            // Right column: editor on top, shell below
+            // Right column: editor on top, tools row below
             pane split_direction="horizontal" {
-                // Main editor pane (70% of right column height)
-                pane size="70%" name="editor" focus=true {
+
+                // Main editor pane (80% of right column height) — no args so
+                // vim opens a blank buffer instead of triggering netrw
+                pane size="80%" name="editor" focus=true {
                     command "vim"
-                    args "."
                     cwd "/workspace"
                 }
 
-                // Terminal pane (30% of right column height)
-                pane name="terminal" {
-                    command "bash"
-                    cwd "/workspace"
+                // Bottom tool row: terminal | claude (each 50% of row width)
+                pane split_direction="vertical" {
+                    pane name="terminal" {
+                        command "bash"
+                        cwd "/workspace"
+                    }
+                    pane name="claude" {
+                        command "claude"
+                        cwd "/workspace"
+                    }
                 }
             }
         }

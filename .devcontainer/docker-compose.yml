@@ -16,26 +16,34 @@ services:
         target: /workspace
 
       # ── Persisted configuration (all live under .root/ on the host) ───────
+      # Paths are relative to the docker-compose.yml location (.devcontainer/),
+      # so the default ../.root resolves to .root/ in the project root — matching
+      # how WORKSPACE_DIR already uses .. as its default.
       # SSH keys — read-only; manage keys only on the host
       - type: bind
-        source: ${HOST_ROOT:-.root}/.ssh
+        source: ${HOST_ROOT:-../.root}/.ssh
         target: /root/.ssh
         read_only: true
 
       # Vim: config file + undo history + netrw bookmarks
       - type: bind
-        source: ${HOST_ROOT:-.root}/.vim
+        source: ${HOST_ROOT:-../.root}/.vim
         target: /root/.vim
 
       # Zellij: config.kdl, themes/, layouts/, plugins cache
       - type: bind
-        source: ${HOST_ROOT:-.root}/.config/zellij
+        source: ${HOST_ROOT:-../.root}/.config/zellij
         target: /root/.config/zellij
 
       # Git: global config + credentials helper store
       - type: bind
-        source: ${HOST_ROOT:-.root}/.config/git
+        source: ${HOST_ROOT:-../.root}/.config/git
         target: /root/.config/git
+
+      # Claude: global config + memory
+      - type: bind
+        source: ${HOST_ROOT:-../.root}/.claude
+        target: /root/.claude
 
     environment:
       - TZ=Europe/Berlin

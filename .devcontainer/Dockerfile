@@ -92,6 +92,10 @@ COPY config/zellij/layouts/dev.kdl     /root/.config/zellij/layouts/dev.kdl
 RUN mkdir -p /root/.config/git
 COPY config/gitconfig /root/.config/git/config
 
+# Install code assistants
+ENV PATH="/root/.local/bin:${PATH}"
+RUN curl -fsSL https://claude.ai/install.sh | bash
+
 # ── Entrypoint ────────────────────────────────────────────────────────────────
 WORKDIR /workspace
 

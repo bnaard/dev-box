@@ -22,15 +22,18 @@
                 // Start zellij automatically when a new VS Code terminal is opened
                 "terminal.integrated.defaultProfile.linux": "zellij",
                 "terminal.integrated.profiles.linux": {
+                    "bash": {
+                        "path": "/bin/bash"
+                    },
+                    "claude": {
+                        "path": "/root/.local/bin/claude"
+                    },
                     "zellij": {
                         "path": "/usr/local/bin/zellij",
                         "args": [
                         "--layout",
                         "dev"
                         ]
-                    },
-                    "bash": {
-                        "path": "/bin/bash"
                     }
                 }
             }

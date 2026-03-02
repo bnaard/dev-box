@@ -271,7 +271,13 @@ cmd_stop() {
     exit 0
   fi
   info "Stopping container…"
-  ${COMPOSE_BIN} -f "${COMPOSE_FILE}" stop "${SERVICE_NAME}"
+  # Prefer compose stop so companion services (databases etc.) are stopped too.
+  # Fall back to runtime stop when the container was started outside this
+  # compose project (e.g. by VS Code), in which case compose would error.
+  if ! ${COMPOSE_BIN} -f "${COMPOSE_FILE}" stop "${SERVICE_NAME}" 2>/dev/null; then
+    warn "Compose stop unavailable (container not owned by this project) — stopping directly."
+    ${RUNTIME_BIN} stop "${CONTAINER_NAME}"
+  fi
   ok "Container stopped. Your work in .root/ and workspace/ is preserved."
 }
 
@@ -284,8 +290,9 @@ cmd_attach() {
   fi
   info "Attaching — launching zellij…"
   echo ""
-  ${COMPOSE_BIN} -f "${COMPOSE_FILE}" exec "${SERVICE_NAME}" \
-    zellij --layout dev
+  # Use the runtime directly (not compose) so this works regardless of which
+  # tool started the container (VS Code, dev.sh, etc.).
+  ${RUNTIME_BIN} exec -it "${CONTAINER_NAME}" zellij --layout dev
 }
 
 cmd_status() {
