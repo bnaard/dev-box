@@ -26,8 +26,7 @@ const PRODUCT_BACKLOG: &str = include_str!("../../templates/product/BACKLOG.md")
 const PRODUCT_STANDUPS: &str = include_str!("../../templates/product/STANDUPS.md");
 const PRODUCT_PROJECTS: &str = include_str!("../../templates/product/PROJECTS.md");
 const PRODUCT_PRD: &str = include_str!("../../templates/product/PRD.md");
-const PRODUCT_GENERAL: &str =
-    include_str!("../../templates/product/work-instructions/GENERAL.md");
+const PRODUCT_GENERAL: &str = include_str!("../../templates/product/work-instructions/GENERAL.md");
 const PRODUCT_DEVELOPMENT: &str =
     include_str!("../../templates/product/work-instructions/DEVELOPMENT.md");
 const PRODUCT_TEAM: &str = include_str!("../../templates/product/work-instructions/TEAM.md");
@@ -63,10 +62,7 @@ Then re-run `dev-box init` — it will be symlinked automatically.
 /// - Creates .dev-box-version file
 /// - Updates .gitignore with generated file entries
 pub fn scaffold_context(process: &ProcessFlavor, project_name: &str) -> Result<()> {
-    output::info(&format!(
-        "Scaffolding context for '{}' process...",
-        process
-    ));
+    output::info(&format!("Scaffolding context for '{}' process...", process));
 
     match process {
         ProcessFlavor::Minimal => scaffold_minimal(project_name)?,
@@ -76,19 +72,13 @@ pub fn scaffold_context(process: &ProcessFlavor, project_name: &str) -> Result<(
     }
 
     // Create .dev-box-version
-    write_if_missing(
-        Path::new(".dev-box-version"),
-        env!("CARGO_PKG_VERSION"),
-    )?;
+    write_if_missing(Path::new(".dev-box-version"), env!("CARGO_PKG_VERSION"))?;
     output::ok("Created .dev-box-version");
 
     // Update .gitignore
     update_gitignore()?;
 
-    output::ok(&format!(
-        "Context scaffolded ({} process)",
-        process
-    ));
+    output::ok(&format!("Context scaffolded ({} process)", process));
     Ok(())
 }
 
@@ -136,10 +126,8 @@ fn scaffold_managed(project_name: &str) -> Result<()> {
 /// Scaffold research process.
 fn scaffold_research(project_name: &str) -> Result<()> {
     let context = Path::new("context");
-    fs::create_dir_all(context.join("research"))
-        .context("Failed to create context/research")?;
-    fs::create_dir_all(context.join("analysis"))
-        .context("Failed to create context/analysis")?;
+    fs::create_dir_all(context.join("research")).context("Failed to create context/research")?;
+    fs::create_dir_all(context.join("analysis")).context("Failed to create context/analysis")?;
 
     // CLAUDE.md at root
     let claude_md = render(RESEARCH_CLAUDE_MD, project_name);
@@ -168,8 +156,7 @@ fn scaffold_product(project_name: &str) -> Result<()> {
         .context("Failed to create context/work-instructions")?;
     fs::create_dir_all(context.join("project-notes"))
         .context("Failed to create context/project-notes")?;
-    fs::create_dir_all(context.join("ideas"))
-        .context("Failed to create context/ideas")?;
+    fs::create_dir_all(context.join("ideas")).context("Failed to create context/ideas")?;
 
     // CLAUDE.md at root
     let claude_md = render(PRODUCT_CLAUDE_MD, project_name);
@@ -230,20 +217,18 @@ fn setup_owner_md(context: &Path) -> Result<()> {
         return Ok(());
     }
 
-    let global_owner = dirs::config_dir()
-        .map(|d| d.join("dev-box").join("OWNER.md"));
+    let global_owner = dirs::config_dir().map(|d| d.join("dev-box").join("OWNER.md"));
 
     if let Some(ref global) = global_owner
         && global.exists()
     {
-        std::os::unix::fs::symlink(global, &owner_path)
-            .with_context(|| {
-                format!(
-                    "Failed to symlink {} -> {}",
-                    owner_path.display(),
-                    global.display()
-                )
-            })?;
+        std::os::unix::fs::symlink(global, &owner_path).with_context(|| {
+            format!(
+                "Failed to symlink {} -> {}",
+                owner_path.display(),
+                global.display()
+            )
+        })?;
         output::ok(&format!(
             "Symlinked context/OWNER.md -> {}",
             global.display()
@@ -312,8 +297,7 @@ pub(crate) fn write_if_missing(path: &Path, content: &str) -> Result<()> {
         fs::create_dir_all(parent)?;
     }
 
-    fs::write(path, content)
-        .with_context(|| format!("Failed to write: {}", path.display()))?;
+    fs::write(path, content).with_context(|| format!("Failed to write: {}", path.display()))?;
     Ok(())
 }
 
@@ -330,8 +314,7 @@ pub(crate) fn update_gitignore() -> Result<()> {
     ];
 
     let existing = if gitignore_path.exists() {
-        fs::read_to_string(gitignore_path)
-            .context("Failed to read .gitignore")?
+        fs::read_to_string(gitignore_path).context("Failed to read .gitignore")?
     } else {
         String::new()
     };
@@ -358,8 +341,7 @@ pub(crate) fn update_gitignore() -> Result<()> {
     content.push_str(&additions.join("\n"));
     content.push('\n');
 
-    fs::write(gitignore_path, content)
-        .context("Failed to write .gitignore")?;
+    fs::write(gitignore_path, content).context("Failed to write .gitignore")?;
     output::ok("Updated .gitignore with dev-box entries");
 
     Ok(())
@@ -424,7 +406,10 @@ mod tests {
         in_temp_dir(|| {
             scaffold_context(&ProcessFlavor::Minimal, "test-proj").unwrap();
             assert!(Path::new("CLAUDE.md").exists(), "CLAUDE.md should exist");
-            assert!(Path::new(".dev-box-version").exists(), ".dev-box-version should exist");
+            assert!(
+                Path::new(".dev-box-version").exists(),
+                ".dev-box-version should exist"
+            );
             // Minimal should NOT create context/ directory
             // (it only creates CLAUDE.md at root)
         });
@@ -485,7 +470,10 @@ mod tests {
         in_temp_dir(|| {
             scaffold_context(&ProcessFlavor::Minimal, "awesome-project").unwrap();
             let content = fs::read_to_string("CLAUDE.md").unwrap();
-            assert!(content.contains("awesome-project"), "CLAUDE.md should contain project name");
+            assert!(
+                content.contains("awesome-project"),
+                "CLAUDE.md should contain project name"
+            );
         });
     }
 

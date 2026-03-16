@@ -196,17 +196,28 @@ pub fn seed_root_dir(config: &DevBoxConfig) -> Result<()> {
 
     // Seed config files (never overwrite)
     seed_file(&root.join(".vim").join("vimrc"), DEFAULT_VIMRC)?;
-    seed_file(&root.join(".config").join("git").join("config"), DEFAULT_GITCONFIG)?;
+    seed_file(
+        &root.join(".config").join("git").join("config"),
+        DEFAULT_GITCONFIG,
+    )?;
     seed_file(
         &root.join(".config").join("zellij").join("config.kdl"),
         DEFAULT_ZELLIJ_CONFIG,
     )?;
     seed_file(
-        &root.join(".config").join("zellij").join("themes").join("gruvbox.kdl"),
+        &root
+            .join(".config")
+            .join("zellij")
+            .join("themes")
+            .join("gruvbox.kdl"),
         DEFAULT_ZELLIJ_THEME,
     )?;
     seed_file(
-        &root.join(".config").join("zellij").join("layouts").join("dev.kdl"),
+        &root
+            .join(".config")
+            .join("zellij")
+            .join("layouts")
+            .join("dev.kdl"),
         DEFAULT_ZELLIJ_LAYOUT,
     )?;
 
@@ -244,7 +255,9 @@ mod tests {
 
     fn make_config(audio_enabled: bool, root_dir: std::path::PathBuf) -> DevBoxConfig {
         // We override DEV_BOX_HOST_ROOT to point to our temp root
-        unsafe { std::env::set_var("DEV_BOX_HOST_ROOT", root_dir.to_str().unwrap()); }
+        unsafe {
+            std::env::set_var("DEV_BOX_HOST_ROOT", root_dir.to_str().unwrap());
+        }
         DevBoxConfig {
             dev_box: DevBoxSection {
                 version: "0.1.0".to_string(),
@@ -282,7 +295,9 @@ mod tests {
         assert!(root.join(".config").join("git").is_dir());
         assert!(root.join(".claude").is_dir());
 
-        unsafe { std::env::remove_var("DEV_BOX_HOST_ROOT"); }
+        unsafe {
+            std::env::remove_var("DEV_BOX_HOST_ROOT");
+        }
     }
 
     #[test]
@@ -295,11 +310,30 @@ mod tests {
 
         assert!(root.join(".vim").join("vimrc").exists());
         assert!(root.join(".config").join("git").join("config").exists());
-        assert!(root.join(".config").join("zellij").join("config.kdl").exists());
-        assert!(root.join(".config").join("zellij").join("themes").join("gruvbox.kdl").exists());
-        assert!(root.join(".config").join("zellij").join("layouts").join("dev.kdl").exists());
+        assert!(
+            root.join(".config")
+                .join("zellij")
+                .join("config.kdl")
+                .exists()
+        );
+        assert!(
+            root.join(".config")
+                .join("zellij")
+                .join("themes")
+                .join("gruvbox.kdl")
+                .exists()
+        );
+        assert!(
+            root.join(".config")
+                .join("zellij")
+                .join("layouts")
+                .join("dev.kdl")
+                .exists()
+        );
 
-        unsafe { std::env::remove_var("DEV_BOX_HOST_ROOT"); }
+        unsafe {
+            std::env::remove_var("DEV_BOX_HOST_ROOT");
+        }
     }
 
     #[test]
@@ -314,9 +348,14 @@ mod tests {
         seed_root_dir(&config).unwrap();
 
         let content = fs::read_to_string(root.join(".vim").join("vimrc")).unwrap();
-        assert_eq!(content, "custom vimrc", "should not overwrite existing file");
+        assert_eq!(
+            content, "custom vimrc",
+            "should not overwrite existing file"
+        );
 
-        unsafe { std::env::remove_var("DEV_BOX_HOST_ROOT"); }
+        unsafe {
+            std::env::remove_var("DEV_BOX_HOST_ROOT");
+        }
     }
 
     #[test]
@@ -327,9 +366,14 @@ mod tests {
         let config = make_config(true, root.clone());
         seed_root_dir(&config).unwrap();
 
-        assert!(root.join(".asoundrc").exists(), ".asoundrc should be created when audio enabled");
+        assert!(
+            root.join(".asoundrc").exists(),
+            ".asoundrc should be created when audio enabled"
+        );
 
-        unsafe { std::env::remove_var("DEV_BOX_HOST_ROOT"); }
+        unsafe {
+            std::env::remove_var("DEV_BOX_HOST_ROOT");
+        }
     }
 
     #[test]
@@ -340,9 +384,14 @@ mod tests {
         let config = make_config(false, root.clone());
         seed_root_dir(&config).unwrap();
 
-        assert!(!root.join(".asoundrc").exists(), ".asoundrc should not exist when audio disabled");
+        assert!(
+            !root.join(".asoundrc").exists(),
+            ".asoundrc should not exist when audio disabled"
+        );
 
-        unsafe { std::env::remove_var("DEV_BOX_HOST_ROOT"); }
+        unsafe {
+            std::env::remove_var("DEV_BOX_HOST_ROOT");
+        }
     }
 
     #[test]

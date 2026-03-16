@@ -185,7 +185,10 @@ fn check_extra_files(dir: &str, expected: &[&str], diag: &mut DiagResult) {
         let normalized = rel.replace('\\', "/");
         if !expected.iter().any(|e| normalized == *e) {
             // Don't warn about OWNER.md if it's a symlink (it's always expected via the list)
-            output::warn(&format!("Extra file: {} (not in {} schema)", normalized, "context"));
+            output::warn(&format!(
+                "Extra file: {} (not in {} schema)",
+                normalized, "context"
+            ));
             diag.warnings += 1;
         }
     }
@@ -202,9 +205,7 @@ fn check_schema_version(config: &DevBoxConfig, diag: &mut DiagResult) -> Result<
         return Ok(());
     }
 
-    let current_version = std::fs::read_to_string(version_file)?
-        .trim()
-        .to_string();
+    let current_version = std::fs::read_to_string(version_file)?.trim().to_string();
 
     if current_version == *target_version {
         output::ok(&format!(

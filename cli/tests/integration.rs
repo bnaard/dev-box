@@ -40,7 +40,10 @@ fn init_help_exits_zero() {
     let output = run(&["init", "--help"]);
     assert!(output.status.success(), "dev-box init --help should exit 0");
     let stdout = String::from_utf8_lossy(&output.stdout);
-    assert!(stdout.contains("--name") || stdout.contains("name"), "init help should mention --name");
+    assert!(
+        stdout.contains("--name") || stdout.contains("name"),
+        "init help should mention --name"
+    );
 }
 
 #[test]
@@ -73,7 +76,15 @@ fn init_creates_expected_files() {
     let dir = tempfile::tempdir().unwrap();
     let output = run_in_dir(
         dir.path(),
-        &["init", "--name", "test-project", "--image", "python", "--process", "minimal"],
+        &[
+            "init",
+            "--name",
+            "test-project",
+            "--image",
+            "python",
+            "--process",
+            "minimal",
+        ],
     );
     assert!(
         output.status.success(),
@@ -81,7 +92,10 @@ fn init_creates_expected_files() {
         String::from_utf8_lossy(&output.stderr)
     );
 
-    assert!(dir.path().join("dev-box.toml").exists(), "dev-box.toml should be created");
+    assert!(
+        dir.path().join("dev-box.toml").exists(),
+        "dev-box.toml should be created"
+    );
     assert!(
         dir.path().join(".devcontainer/Dockerfile").exists(),
         "Dockerfile should be created"
@@ -94,7 +108,10 @@ fn init_creates_expected_files() {
         dir.path().join(".devcontainer/devcontainer.json").exists(),
         "devcontainer.json should be created"
     );
-    assert!(dir.path().join("CLAUDE.md").exists(), "CLAUDE.md should be created");
+    assert!(
+        dir.path().join("CLAUDE.md").exists(),
+        "CLAUDE.md should be created"
+    );
     assert!(
         dir.path().join(".dev-box-version").exists(),
         ".dev-box-version should be created"
@@ -107,12 +124,28 @@ fn init_existing_config_exits_nonzero() {
     // First init
     run_in_dir(
         dir.path(),
-        &["init", "--name", "test", "--image", "base", "--process", "minimal"],
+        &[
+            "init",
+            "--name",
+            "test",
+            "--image",
+            "base",
+            "--process",
+            "minimal",
+        ],
     );
     // Second init should fail
     let output = run_in_dir(
         dir.path(),
-        &["init", "--name", "test", "--image", "base", "--process", "minimal"],
+        &[
+            "init",
+            "--name",
+            "test",
+            "--image",
+            "base",
+            "--process",
+            "minimal",
+        ],
     );
     assert!(
         !output.status.success(),
@@ -131,7 +164,15 @@ fn generate_after_init_succeeds() {
     // Init first
     let init_output = run_in_dir(
         dir.path(),
-        &["init", "--name", "gen-test", "--image", "base", "--process", "minimal"],
+        &[
+            "init",
+            "--name",
+            "gen-test",
+            "--image",
+            "base",
+            "--process",
+            "minimal",
+        ],
     );
     assert!(init_output.status.success(), "init should succeed");
 
@@ -149,7 +190,15 @@ fn init_invalid_image_exits_nonzero() {
     let dir = tempfile::tempdir().unwrap();
     let output = run_in_dir(
         dir.path(),
-        &["init", "--name", "test", "--image", "invalid-flavor", "--process", "minimal"],
+        &[
+            "init",
+            "--name",
+            "test",
+            "--image",
+            "invalid-flavor",
+            "--process",
+            "minimal",
+        ],
     );
     assert!(
         !output.status.success(),
@@ -168,7 +217,15 @@ fn init_invalid_process_exits_nonzero() {
     let dir = tempfile::tempdir().unwrap();
     let output = run_in_dir(
         dir.path(),
-        &["init", "--name", "test", "--image", "base", "--process", "invalid-process"],
+        &[
+            "init",
+            "--name",
+            "test",
+            "--image",
+            "base",
+            "--process",
+            "invalid-process",
+        ],
     );
     assert!(
         !output.status.success(),
@@ -184,11 +241,26 @@ fn init_invalid_process_exits_nonzero() {
 
 #[test]
 fn init_with_all_image_flavors() {
-    for flavor in &["base", "python", "latex", "rust", "python-latex", "rust-latex"] {
+    for flavor in &[
+        "base",
+        "python",
+        "latex",
+        "rust",
+        "python-latex",
+        "rust-latex",
+    ] {
         let dir = tempfile::tempdir().unwrap();
         let output = run_in_dir(
             dir.path(),
-            &["init", "--name", "test", "--image", flavor, "--process", "minimal"],
+            &[
+                "init",
+                "--name",
+                "test",
+                "--image",
+                flavor,
+                "--process",
+                "minimal",
+            ],
         );
         assert!(
             output.status.success(),
@@ -205,7 +277,15 @@ fn init_with_all_process_flavors() {
         let dir = tempfile::tempdir().unwrap();
         let output = run_in_dir(
             dir.path(),
-            &["init", "--name", "test", "--image", "base", "--process", flavor],
+            &[
+                "init",
+                "--name",
+                "test",
+                "--image",
+                "base",
+                "--process",
+                flavor,
+            ],
         );
         assert!(
             output.status.success(),
@@ -221,11 +301,20 @@ fn init_generated_toml_is_parseable() {
     let dir = tempfile::tempdir().unwrap();
     run_in_dir(
         dir.path(),
-        &["init", "--name", "parse-test", "--image", "python", "--process", "managed"],
+        &[
+            "init",
+            "--name",
+            "parse-test",
+            "--image",
+            "python",
+            "--process",
+            "managed",
+        ],
     );
     let content = std::fs::read_to_string(dir.path().join("dev-box.toml")).unwrap();
     // Should be valid TOML
-    let _: toml::Value = toml::from_str(&content).expect("generated dev-box.toml should be valid TOML");
+    let _: toml::Value =
+        toml::from_str(&content).expect("generated dev-box.toml should be valid TOML");
 }
 
 #[test]

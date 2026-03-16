@@ -49,7 +49,10 @@ impl ImageFlavor {
             "rust" => Ok(ImageFlavor::Rust),
             "python-latex" => Ok(ImageFlavor::PythonLatex),
             "rust-latex" => Ok(ImageFlavor::RustLatex),
-            _ => bail!("Unknown image flavor: '{}'. Valid: base, python, latex, rust, python-latex, rust-latex", s),
+            _ => bail!(
+                "Unknown image flavor: '{}'. Valid: base, python, latex, rust, python-latex, rust-latex",
+                s
+            ),
         }
     }
 
@@ -58,7 +61,10 @@ impl ImageFlavor {
     }
 
     pub fn contains_latex(&self) -> bool {
-        matches!(self, ImageFlavor::Latex | ImageFlavor::PythonLatex | ImageFlavor::RustLatex)
+        matches!(
+            self,
+            ImageFlavor::Latex | ImageFlavor::PythonLatex | ImageFlavor::RustLatex
+        )
     }
 
     pub fn contains_rust(&self) -> bool {
@@ -94,7 +100,10 @@ impl ProcessFlavor {
             "managed" => Ok(ProcessFlavor::Managed),
             "research" => Ok(ProcessFlavor::Research),
             "product" => Ok(ProcessFlavor::Product),
-            _ => bail!("Unknown process flavor: '{}'. Valid: minimal, managed, research, product", s),
+            _ => bail!(
+                "Unknown process flavor: '{}'. Valid: minimal, managed, research, product",
+                s
+            ),
         }
     }
 }
@@ -221,19 +230,29 @@ impl DevBoxConfig {
         if path.exists() {
             Self::load(&path)
         } else {
-            bail!("No dev-box.toml found in the current directory. Run 'dev-box init' to create one.")
+            bail!(
+                "No dev-box.toml found in the current directory. Run 'dev-box init' to create one."
+            )
         }
     }
 
     /// Validate the config values.
     fn validate(&self) -> Result<()> {
         // Validate version is valid semver
-        semver::Version::parse(&self.dev_box.version)
-            .with_context(|| format!("Invalid version '{}': must be valid semver", self.dev_box.version))?;
+        semver::Version::parse(&self.dev_box.version).with_context(|| {
+            format!(
+                "Invalid version '{}': must be valid semver",
+                self.dev_box.version
+            )
+        })?;
 
         // Validate schema_version is valid semver
-        semver::Version::parse(&self.context.schema_version)
-            .with_context(|| format!("Invalid schema_version '{}': must be valid semver", self.context.schema_version))?;
+        semver::Version::parse(&self.context.schema_version).with_context(|| {
+            format!(
+                "Invalid schema_version '{}': must be valid semver",
+                self.context.schema_version
+            )
+        })?;
 
         // Validate container name is non-empty
         if self.container.name.is_empty() {
@@ -308,8 +327,7 @@ name = "my-project"
     }
 
     fn parse_toml(s: &str) -> Result<DevBoxConfig> {
-        let config: DevBoxConfig = toml::from_str(s)
-            .context("Failed to parse TOML")?;
+        let config: DevBoxConfig = toml::from_str(s).context("Failed to parse TOML")?;
         config.validate()?;
         Ok(config)
     }
@@ -341,7 +359,10 @@ name = "my-project"
         assert_eq!(config.dev_box.image, ImageFlavor::Base);
         assert_eq!(config.dev_box.process, ProcessFlavor::Minimal);
         assert_eq!(config.container.name, "my-project");
-        assert_eq!(config.container.hostname, "dev-box", "hostname should default");
+        assert_eq!(
+            config.container.hostname, "dev-box",
+            "hostname should default"
+        );
         assert!(config.container.ports.is_empty());
         assert!(config.container.extra_packages.is_empty());
         assert!(config.container.extra_volumes.is_empty());
@@ -414,12 +435,30 @@ name = ""
 
     #[test]
     fn image_flavor_from_str_loose_all_valid() {
-        assert_eq!(ImageFlavor::from_str_loose("base").unwrap(), ImageFlavor::Base);
-        assert_eq!(ImageFlavor::from_str_loose("python").unwrap(), ImageFlavor::Python);
-        assert_eq!(ImageFlavor::from_str_loose("latex").unwrap(), ImageFlavor::Latex);
-        assert_eq!(ImageFlavor::from_str_loose("rust").unwrap(), ImageFlavor::Rust);
-        assert_eq!(ImageFlavor::from_str_loose("python-latex").unwrap(), ImageFlavor::PythonLatex);
-        assert_eq!(ImageFlavor::from_str_loose("rust-latex").unwrap(), ImageFlavor::RustLatex);
+        assert_eq!(
+            ImageFlavor::from_str_loose("base").unwrap(),
+            ImageFlavor::Base
+        );
+        assert_eq!(
+            ImageFlavor::from_str_loose("python").unwrap(),
+            ImageFlavor::Python
+        );
+        assert_eq!(
+            ImageFlavor::from_str_loose("latex").unwrap(),
+            ImageFlavor::Latex
+        );
+        assert_eq!(
+            ImageFlavor::from_str_loose("rust").unwrap(),
+            ImageFlavor::Rust
+        );
+        assert_eq!(
+            ImageFlavor::from_str_loose("python-latex").unwrap(),
+            ImageFlavor::PythonLatex
+        );
+        assert_eq!(
+            ImageFlavor::from_str_loose("rust-latex").unwrap(),
+            ImageFlavor::RustLatex
+        );
     }
 
     #[test]
@@ -427,7 +466,10 @@ name = ""
         let result = ImageFlavor::from_str_loose("java");
         assert!(result.is_err());
         let err_msg = result.unwrap_err().to_string();
-        assert!(err_msg.contains("java"), "error should mention the invalid value");
+        assert!(
+            err_msg.contains("java"),
+            "error should mention the invalid value"
+        );
     }
 
     #[test]
@@ -462,10 +504,22 @@ name = ""
 
     #[test]
     fn process_flavor_from_str_loose_all_valid() {
-        assert_eq!(ProcessFlavor::from_str_loose("minimal").unwrap(), ProcessFlavor::Minimal);
-        assert_eq!(ProcessFlavor::from_str_loose("managed").unwrap(), ProcessFlavor::Managed);
-        assert_eq!(ProcessFlavor::from_str_loose("research").unwrap(), ProcessFlavor::Research);
-        assert_eq!(ProcessFlavor::from_str_loose("product").unwrap(), ProcessFlavor::Product);
+        assert_eq!(
+            ProcessFlavor::from_str_loose("minimal").unwrap(),
+            ProcessFlavor::Minimal
+        );
+        assert_eq!(
+            ProcessFlavor::from_str_loose("managed").unwrap(),
+            ProcessFlavor::Managed
+        );
+        assert_eq!(
+            ProcessFlavor::from_str_loose("research").unwrap(),
+            ProcessFlavor::Research
+        );
+        assert_eq!(
+            ProcessFlavor::from_str_loose("product").unwrap(),
+            ProcessFlavor::Product
+        );
     }
 
     #[test]
@@ -495,7 +549,9 @@ name = ""
     #[test]
     #[serial]
     fn host_root_dir_default() {
-        unsafe { std::env::remove_var("DEV_BOX_HOST_ROOT"); }
+        unsafe {
+            std::env::remove_var("DEV_BOX_HOST_ROOT");
+        }
         let config = parse_toml(minimal_toml()).unwrap();
         assert_eq!(config.host_root_dir(), PathBuf::from(".root"));
     }
@@ -503,16 +559,22 @@ name = ""
     #[test]
     #[serial]
     fn host_root_dir_env_override() {
-        unsafe { std::env::set_var("DEV_BOX_HOST_ROOT", "/custom/root"); }
+        unsafe {
+            std::env::set_var("DEV_BOX_HOST_ROOT", "/custom/root");
+        }
         let config = parse_toml(minimal_toml()).unwrap();
         assert_eq!(config.host_root_dir(), PathBuf::from("/custom/root"));
-        unsafe { std::env::remove_var("DEV_BOX_HOST_ROOT"); }
+        unsafe {
+            std::env::remove_var("DEV_BOX_HOST_ROOT");
+        }
     }
 
     #[test]
     #[serial]
     fn workspace_dir_default() {
-        unsafe { std::env::remove_var("DEV_BOX_WORKSPACE_DIR"); }
+        unsafe {
+            std::env::remove_var("DEV_BOX_WORKSPACE_DIR");
+        }
         let config = parse_toml(minimal_toml()).unwrap();
         assert_eq!(config.workspace_dir(), "..");
     }
@@ -520,10 +582,14 @@ name = ""
     #[test]
     #[serial]
     fn workspace_dir_env_override() {
-        unsafe { std::env::set_var("DEV_BOX_WORKSPACE_DIR", "/my/workspace"); }
+        unsafe {
+            std::env::set_var("DEV_BOX_WORKSPACE_DIR", "/my/workspace");
+        }
         let config = parse_toml(minimal_toml()).unwrap();
         assert_eq!(config.workspace_dir(), "/my/workspace");
-        unsafe { std::env::remove_var("DEV_BOX_WORKSPACE_DIR"); }
+        unsafe {
+            std::env::remove_var("DEV_BOX_WORKSPACE_DIR");
+        }
     }
 
     #[test]
@@ -557,7 +623,10 @@ name = "test"
 schema_version = "bad"
 "#;
         let result = parse_toml(toml);
-        assert!(result.is_err(), "should reject invalid schema_version semver");
+        assert!(
+            result.is_err(),
+            "should reject invalid schema_version semver"
+        );
     }
 
     #[test]

@@ -97,7 +97,10 @@ pub fn cmd_attach(config_path: &Option<String>) -> Result<()> {
 
     let state = runtime.container_status(name)?;
     if state != ContainerState::Running {
-        bail!("Container '{}' is not running. Run 'dev-box start' first.", name);
+        bail!(
+            "Container '{}' is not running. Run 'dev-box start' first.",
+            name
+        );
     }
 
     output::info("Attaching via zellij...");
@@ -136,8 +139,8 @@ pub fn cmd_init(
     process: Option<String>,
 ) -> Result<()> {
     use crate::config::{
-        AudioSection, ContainerSection, ContextSection, DevBoxConfig, DevBoxSection,
-        ImageFlavor, ProcessFlavor,
+        AudioSection, ContainerSection, ContextSection, DevBoxConfig, DevBoxSection, ImageFlavor,
+        ProcessFlavor,
     };
 
     let toml_path = config_path
@@ -214,4 +217,3 @@ pub fn cmd_generate(config_path: &Option<String>) -> Result<()> {
     output::ok("Generation complete");
     Ok(())
 }
-

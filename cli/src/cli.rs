@@ -1,7 +1,10 @@
 use clap::{Parser, Subcommand};
 
 #[derive(Parser)]
-#[command(name = "dev-box", about = "Manage AI-ready development container environments")]
+#[command(
+    name = "dev-box",
+    about = "Manage AI-ready development container environments"
+)]
 pub struct Cli {
     /// Path to dev-box.toml (default: ./dev-box.toml)
     #[arg(long, global = true)]

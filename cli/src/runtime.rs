@@ -114,7 +114,10 @@ impl Runtime {
             .context("Failed to exec into container")?;
 
         if !status.success() {
-            bail!("Exec into container failed (exit code: {:?})", status.code());
+            bail!(
+                "Exec into container failed (exit code: {:?})",
+                status.code()
+            );
         }
         Ok(())
     }
@@ -148,7 +151,10 @@ impl Runtime {
             1 => (self.compose_bin[0].as_str(), vec![]),
             _ => (
                 self.compose_bin[0].as_str(),
-                self.compose_bin[1..].iter().map(|s| s.as_str()).collect::<Vec<_>>(),
+                self.compose_bin[1..]
+                    .iter()
+                    .map(|s| s.as_str())
+                    .collect::<Vec<_>>(),
             ),
         };
 
