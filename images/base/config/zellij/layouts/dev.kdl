@@ -1,0 +1,78 @@
+// =============================================================================
+// "dev" layout — default layout for the dev-container
+//
+// Structure:
+//   ┌──────────────────────────────────────────┐
+//   │  tab-bar                                 │
+//   ├──────────┬───────────────────────────────┤
+//   │          │  editor / main pane           │
+//   │ strider  ├────────────────┬──────────────┤
+//   │  (15%)   │  terminal (20%)│  claude (20%)│
+//   └──────────┴────────────────┴──────────────┘
+//   │  status-bar                              │
+//   └──────────────────────────────────────────┘
+// =============================================================================
+
+layout {
+
+    // ── Chrome ────────────────────────────────────────────────────────────────
+    default_tab_template {
+        children
+        pane size=1 borderless=true {
+            plugin location="zellij:status-bar"
+        }
+    }
+
+    // ── Tab: Dev ──────────────────────────────────────────────────────────────
+    tab name="dev" focus=true {
+        pane split_direction="vertical" {
+
+            // Left column: Strider file picker (15% width)
+            pane size="15%" {
+                plugin location="zellij:strider" {
+                    cwd "/workspace"
+                    show_hidden_files true
+                }
+            }
+
+            // Right column: editor on top, tools row below
+            pane split_direction="horizontal" {
+
+                // Main editor pane (80% of right column height) — no args so
+                // vim opens a blank buffer instead of triggering netrw
+                pane size="80%" name="editor" focus=true {
+                    command "vim"
+                    cwd "/workspace"
+                }
+
+                // Bottom tool row: terminal | claude (each 50% of row width)
+                pane split_direction="vertical" {
+                    pane name="terminal" {
+                        command "bash"
+                        cwd "/workspace"
+                    }
+                    pane name="claude" {
+                        command "claude"
+                        cwd "/workspace"
+                    }
+                }
+            }
+        }
+    }
+
+    // ── Tab: Git (lazygit) ────────────────────────────────────────────────────
+    tab name="git" {
+        pane name="lazygit" {
+            command "lazygit"
+            cwd "/workspace"
+        }
+    }
+
+    // ── Tab: Shell — extra terminals ──────────────────────────────────────────
+    tab name="shell" {
+        pane name="bash" {
+            command "bash"
+            cwd "/workspace"
+        }
+    }
+}
