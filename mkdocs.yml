@@ -61,6 +61,8 @@ nav:
     - Configuration: cli/configuration.md
   - Contributing:
     - contributing.md
+  - Maintenance:
+    - maintenance.md
   - Roadmap:
     - roadmap.md
   - Changelog:
