@@ -197,8 +197,13 @@ fn generate_devcontainer_json(config: &DevBoxConfig, dir: &Path) -> Result<bool>
         extensions.push("myriad-dreamin.tinymist".to_string());
     }
 
+    // Append user-specified VS Code extensions
+    for ext in &config.container.vscode_extensions {
+        extensions.push(ext.clone());
+    }
+
     // Use serde_json for proper JSON formatting
-    let devcontainer = serde_json::json!({
+    let mut devcontainer = serde_json::json!({
         "name": name,
         "dockerComposeFile": "docker-compose.yml",
         "service": name,
@@ -226,6 +231,14 @@ fn generate_devcontainer_json(config: &DevBoxConfig, dir: &Path) -> Result<bool>
             }
         }
     });
+
+    // Insert postCreateCommand if configured
+    if let Some(cmd) = &config.container.post_create_command {
+        devcontainer
+            .as_object_mut()
+            .unwrap()
+            .insert("postCreateCommand".to_string(), serde_json::json!(cmd));
+    }
 
     // Serialize with pretty formatting
     let json_str = serde_json::to_string_pretty(&devcontainer)
@@ -264,6 +277,8 @@ mod tests {
                 extra_packages: vec![],
                 extra_volumes: vec![],
                 environment: HashMap::new(),
+                post_create_command: None,
+                vscode_extensions: vec![],
             },
             context: ContextSection::default(),
             audio: AudioSection {
@@ -515,6 +530,36 @@ mod tests {
         let content = fs::read_to_string(dir.path().join("devcontainer.json")).unwrap();
         assert!(content.contains("ms-python.python"));
         assert!(content.contains("myriad-dreamin.tinymist"));
+    }
+
+    #[test]
+    fn devcontainer_json_includes_post_create_command() {
+        let dir = tempfile::tempdir().unwrap();
+        let mut config = make_config(ImageFlavor::Base, false);
+        config.container.post_create_command = Some("pip install foo".to_string());
+        generate_devcontainer_json(&config, dir.path()).unwrap();
+        let content = fs::read_to_string(dir.path().join("devcontainer.json")).unwrap();
+        assert!(
+            content.contains("postCreateCommand"),
+            "should contain postCreateCommand key"
+        );
+        assert!(
+            content.contains("pip install foo"),
+            "should contain the command value"
+        );
+    }
+
+    #[test]
+    fn devcontainer_json_includes_custom_extensions() {
+        let dir = tempfile::tempdir().unwrap();
+        let mut config = make_config(ImageFlavor::Base, false);
+        config.container.vscode_extensions = vec!["eamodio.gitlens".to_string()];
+        generate_devcontainer_json(&config, dir.path()).unwrap();
+        let content = fs::read_to_string(dir.path().join("devcontainer.json")).unwrap();
+        assert!(
+            content.contains("eamodio.gitlens"),
+            "should contain custom extension"
+        );
     }
 
     #[test]

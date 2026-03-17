@@ -271,6 +271,8 @@ mod tests {
                 extra_packages: vec![],
                 extra_volumes: vec![],
                 environment: HashMap::new(),
+                post_create_command: None,
+                vscode_extensions: vec![],
             },
             context: ContextSection::default(),
             audio: AudioSection {

@@ -248,6 +248,8 @@ pub fn cmd_init(
             extra_packages: vec![],
             extra_volumes: vec![],
             environment: std::collections::HashMap::new(),
+            post_create_command: None,
+            vscode_extensions: vec![],
         },
         context: ContextSection::default(),
         audio: AudioSection::default(),

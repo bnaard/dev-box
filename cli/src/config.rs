@@ -152,6 +152,10 @@ pub struct ContainerSection {
     pub extra_volumes: Vec<ExtraVolume>,
     #[serde(default)]
     pub environment: HashMap<String, String>,
+    #[serde(default)]
+    pub post_create_command: Option<String>,
+    #[serde(default)]
+    pub vscode_extensions: Vec<String>,
 }
 
 fn default_hostname() -> String {

@@ -91,7 +91,7 @@ COPY --from=ghcr.io/astral-sh/uv:latest /uv /usr/local/bin/uv
 COPY --from=ghcr.io/astral-sh/uv:latest /uvx /usr/local/bin/uvx
 
 # MkDocs Material (installed via uv into a global tool environment)
-RUN uv tool install mkdocs --with mkdocs-material
+RUN uv tool install 'mkdocs<2' --with mkdocs-material
 
 # ── Rust toolchain via rustup ─────────────────────────────────────────────────
 RUN curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | \
