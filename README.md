@@ -21,7 +21,7 @@ scaffolding, AI context structure, and work process management.
 
 ```bash
 # Install
-curl -fsSL https://raw.githubusercontent.com/bnaard/dev-box/main/scripts/install.sh | bash
+curl -fsSL https://raw.githubusercontent.com/projectious-work/dev-box/main/scripts/install.sh | bash
 
 # Or from source (requires Rust)
 # cargo install --path cli

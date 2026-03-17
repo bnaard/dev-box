@@ -3,7 +3,7 @@
 # install.sh — install dev-box CLI from GitHub releases
 #
 # Usage:
-#   curl -fsSL https://raw.githubusercontent.com/bnaard/dev-box/main/scripts/install.sh | bash
+#   curl -fsSL https://raw.githubusercontent.com/projectious-work/dev-box/main/scripts/install.sh | bash
 #
 # Options (via environment variables):
 #   VERSION=0.2.0    Install a specific version (default: latest)
@@ -21,7 +21,7 @@
 # =============================================================================
 set -euo pipefail
 
-REPO="bnaard/dev-box"
+REPO="projectious-work/dev-box"
 BINARY_NAME="dev-box"
 DEFAULT_INSTALL_DIR="${HOME}/.local/bin"
 

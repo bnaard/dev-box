@@ -22,6 +22,8 @@ theme:
   features:
     - content.code.copy
     - content.code.annotate
+    - navigation.tabs
+    - navigation.tabs.sticky
     - navigation.sections
     - navigation.expand
     - navigation.top
@@ -40,7 +42,8 @@ markdown_extensions:
       permalink: true
 
 nav:
-  - Home: index.md
+  - Home:
+    - index.md
   - Getting Started:
     - Installation: getting-started/installation.md
     - New Project: getting-started/new-project.md
@@ -56,4 +59,9 @@ nav:
   - CLI Reference:
     - Commands: cli/commands.md
     - Configuration: cli/configuration.md
-  - Changelog: changelog.md
+  - Contributing:
+    - contributing.md
+  - Roadmap:
+    - roadmap.md
+  - Changelog:
+    - changelog.md

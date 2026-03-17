@@ -4,8 +4,8 @@ version = "0.1.0"
 edition = "2024"
 description = "dev-box — manage AI-ready development container environments"
 license = "MIT"
-repository = "https://github.com/bnaard/dev-box"
-homepage = "https://github.com/bnaard/dev-box"
+repository = "https://github.com/projectious-work/dev-box"
+homepage = "https://github.com/projectious-work/dev-box"
 
 [[bin]]
 name = "dev-box"

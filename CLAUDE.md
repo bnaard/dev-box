@@ -433,6 +433,39 @@ published base image (to avoid circular dependencies).
 
 ---
 
+## Deployment & Release Process
+
+### No GitHub Actions
+
+GitHub Actions are avoided due to cost. All builds and deploys are local.
+
+### CLI Releases
+
+1. Build binaries locally (or via `scripts/build-macos.sh <version>`)
+2. Create GitHub release: `gh release create v<X.Y.Z> dist/*.tar.gz --notes-file dist/RELEASE-NOTES.md`
+3. v0.1.0 ships binaries for: aarch64-apple-darwin, x86_64-apple-darwin, aarch64-unknown-linux-gnu
+
+### Documentation
+
+- Built and deployed locally with `mkdocs gh-deploy`
+- Pushes to `gh-pages` branch, served by GitHub Pages
+- No CI pipeline — run manually after doc changes
+
+### Container Images
+
+- Built and pushed locally to GHCR (`ghcr.io/projectious-work/dev-box`)
+- `scripts/maintain.sh` handles multi-image builds
+
+### GitHub Organization
+
+- Repository owner: `projectious-work` GitHub org
+- GHCR registry: `ghcr.io/projectious-work/dev-box`
+- GitHub Pages: `https://projectious-work.github.io/dev-box/`
+- The repo was originally under `bnaard` and transferred to `projectious-work`
+  (GitHub maintains redirects from the old URL)
+
+---
+
 ## Known Issues and Gotchas
 
 - **Podman compose** output format varies by version; always use `inspect`
@@ -561,16 +594,19 @@ and MkDocs documentation.
 #### 2.5 MkDocs Documentation
 
 - [x] Created `mkdocs.yml` — Material theme with light/dark toggle, code copy,
-      navigation sections, admonition support
-- [x] Created 13 documentation pages under `docs/`:
+      navigation tabs (top menu bar), admonition support
+- [x] Created 15 documentation pages under `docs/`:
   - `index.md` — overview, "uv for AI work environments" vision
   - `getting-started/{installation, new-project, existing-project}.md`
   - `container/{base-image, flavors, audio}.md`
   - `context/{overview, work-processes, migration}.md`
   - `cli/{commands, configuration}.md`
-  - `changelog.md`
-- Note: MkDocs build not testable in current session (Python not installed
-  in running container). Will work after container rebuild.
+  - `contributing.md`, `roadmap.md`, `changelog.md`
+- [x] Top menu bar: Home, Getting Started, Container Images, Context System,
+      CLI Reference, Contributing, Roadmap, Changelog
+- [x] Deployment: `mkdocs gh-deploy` from local machine (no GitHub Actions).
+      Builds locally and pushes to `gh-pages` branch. GitHub Pages serves
+      static files from that branch.
 
 ### Phase 3 — Doctor + Update + CI (COMPLETED 2026-03-16)
 
@@ -605,13 +641,14 @@ and MkDocs documentation.
 - [x] Default mode: shows manual update instructions
 - [x] Registry checking marked as future work (prints informative message)
 
-#### 3.3 GitHub Actions CI
+#### 3.3 CI & Deployment
 
-- [x] `.github/workflows/images.yml` — builds all 6 images (base first, then
-      derived, then compound) for linux/amd64+arm64, pushes to GHCR on tag
-- [x] `.github/workflows/cli.yml` — cross-compiles CLI for 4 targets
-      (x86_64/aarch64 linux + macOS), creates GitHub release with binaries
-- [x] `.github/workflows/test.yml` — runs fmt, clippy, tests on push/PR to main
+- **No GitHub Actions workflows** — avoided due to cost. All builds and
+  deploys are run locally.
+- CLI binaries: built locally (or via `scripts/build-macos.sh`), attached
+  to GitHub releases manually via `gh release create`
+- Container images: built and pushed locally
+- Documentation: `mkdocs gh-deploy` builds locally and pushes to `gh-pages` branch
 
 ### Phase 4 — Migration + Polish (COMPLETED 2026-03-16)
 

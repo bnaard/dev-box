@@ -38,7 +38,7 @@ dev-box requires a container runtime on your host machine.
 ### Install script (recommended)
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/bnaard/dev-box/main/scripts/install.sh | bash
+curl -fsSL https://raw.githubusercontent.com/projectious-work/dev-box/main/scripts/install.sh | bash
 ```
 
 This downloads the correct pre-built binary for your platform (Linux or macOS, x86_64 or ARM64) and installs it to `~/.local/bin/`.
@@ -54,7 +54,7 @@ curl -fsSL .../install.sh | INSTALL_DIR=/usr/local/bin sudo -E bash
 ```
 
 !!! note "Requires a GitHub release"
-    The install script downloads from [GitHub releases](https://github.com/bnaard/dev-box/releases). If no release exists yet, use the "from source" method below.
+    The install script downloads from [GitHub releases](https://github.com/projectious-work/dev-box/releases). If no release exists yet, use the "from source" method below.
 
 ### From source
 
@@ -62,7 +62,7 @@ If you have Rust installed, you can build from source:
 
 ```bash
 # Clone the repository
-git clone https://github.com/bnaard/dev-box.git
+git clone https://github.com/projectious-work/dev-box.git
 cd dev-box
 
 # Build and install
