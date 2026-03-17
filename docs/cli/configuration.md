@@ -117,6 +117,38 @@ When a field is omitted from `dev-box.toml`, these defaults apply:
 | `audio.enabled` | `false` |
 | `audio.pulse_server` | `"tcp:host.docker.internal:4714"` |
 
+## Custom Dockerfile Layers (Dockerfile.local)
+
+For project-specific build steps that go beyond `extra_packages`, create `.devcontainer/Dockerfile.local`. This file is appended to the generated Dockerfile by `dev-box generate` and is never overwritten.
+
+`dev-box init` creates a placeholder with usage examples. The generated base image is aliased as the `dev-box` stage, which you can reference in multi-stage builds.
+
+### Simple usage — append layers
+
+```dockerfile
+# .devcontainer/Dockerfile.local
+RUN npx playwright install --with-deps chromium
+RUN pip install some-special-package
+```
+
+### Advanced usage — multi-stage build
+
+```dockerfile
+# .devcontainer/Dockerfile.local
+FROM node:20 AS node-builder
+WORKDIR /app
+COPY package*.json ./
+RUN npm ci && npm run build
+
+FROM dev-box
+COPY --from=node-builder /app/dist /workspace/dist
+```
+
+The `FROM dev-box` line references the generated base stage. This lets you bring in artifacts from other build stages while keeping the final image based on your dev-box configuration.
+
+!!! note
+    `Dockerfile.local` is your file — `dev-box generate` never modifies it. If the file doesn't exist or is empty, no extra layers are added.
+
 ## The .dev-box-version File
 
 A plain text file at the project root containing the context schema version that was last applied:

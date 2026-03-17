@@ -78,6 +78,29 @@ pub fn scaffold_context(process: &ProcessFlavor, project_name: &str) -> Result<(
     // Update .gitignore
     update_gitignore()?;
 
+    // Create Dockerfile.local placeholder
+    let local_dockerfile = Path::new(crate::config::DEVCONTAINER_DIR).join("Dockerfile.local");
+    write_if_missing(
+        &local_dockerfile,
+        "# Project-specific Dockerfile layers.\n\
+         # This file is appended to the generated Dockerfile by `dev-box generate`.\n\
+         # It is never overwritten — you own this file.\n\
+         #\n\
+         # The generated base image is available as the \"dev-box\" stage:\n\
+         #   FROM ghcr.io/projectious-work/dev-box:<image>-v<version> AS dev-box\n\
+         #\n\
+         # Simple usage — add layers directly:\n\
+         #   RUN apt-get update && apt-get install -y some-package\n\
+         #   RUN npx playwright install --with-deps chromium\n\
+         #\n\
+         # Advanced usage — multi-stage build referencing the dev-box stage:\n\
+         #   FROM node:20 AS builder\n\
+         #   RUN npm ci && npm run build\n\
+         #\n\
+         #   FROM dev-box\n\
+         #   COPY --from=builder /app/dist /workspace/dist\n",
+    )?;
+
     output::ok(&format!("Context scaffolded ({} process)", process));
     Ok(())
 }

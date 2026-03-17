@@ -51,7 +51,7 @@ fn generate_dockerfile(config: &DevBoxConfig, dir: &Path) -> Result<bool> {
 
     let mut content = format!(
         "{header}\
-FROM {registry}:{image}-v{version}\n",
+FROM {registry}:{image}-v{version} AS dev-box\n",
         header = header,
         registry = crate::config::IMAGE_REGISTRY,
         image = image,
@@ -71,6 +71,20 @@ FROM {registry}:{image}-v{version}\n",
         content.push_str("    && rm -rf /var/lib/apt/lists/*\n");
     }
 
+    // Append Dockerfile.local if it exists (project-specific layers)
+    let local_dockerfile = dir.join("Dockerfile.local");
+    if local_dockerfile.exists() {
+        let local_content = fs::read_to_string(&local_dockerfile)
+            .with_context(|| format!("Failed to read {}", local_dockerfile.display()))?;
+        if !local_content.trim().is_empty() {
+            content.push_str("\n# Project-specific layers (from Dockerfile.local)\n");
+            content.push_str(&local_content);
+            if !local_content.ends_with('\n') {
+                content.push('\n');
+            }
+        }
+    }
+
     write_if_changed(&dir.join("Dockerfile"), &content)
 }
 
@@ -80,8 +94,14 @@ fn generate_docker_compose(config: &DevBoxConfig, dir: &Path) -> Result<bool> {
     let name = &config.container.name;
     let hostname = &config.container.hostname;
     let workspace_dir = config.workspace_dir();
+    // Compose file lives in .devcontainer/, so paths must be relative to that dir.
+    // host_root_dir() returns ".root" (relative to project root), so we prepend "../".
     let host_root = config.host_root_dir();
-    let host_root_str = host_root.to_string_lossy();
+    let host_root_str = if host_root.is_relative() {
+        format!("../{}", host_root.to_string_lossy())
+    } else {
+        host_root.to_string_lossy().into_owned()
+    };
 
     // Build volumes list
     let mut volumes = vec![
@@ -299,11 +319,11 @@ mod tests {
         let content = fs::read_to_string(dir.path().join("Dockerfile")).unwrap();
         assert!(
             content.contains(&format!(
-                "FROM {}:python-v{}",
+                "FROM {}:python-v{} AS dev-box",
                 crate::config::IMAGE_REGISTRY,
                 config.dev_box.version
             )),
-            "Dockerfile should reference python image with correct tag format"
+            "Dockerfile should reference python image with correct tag format and stage alias"
         );
     }
 
@@ -397,6 +417,68 @@ mod tests {
         generate_docker_compose(&config, dir.path()).unwrap();
         let content = fs::read_to_string(dir.path().join("docker-compose.yml")).unwrap();
         assert!(content.contains("FOO: \"bar\""));
+    }
+
+    #[test]
+    fn dockerfile_appends_local_when_present() {
+        let dir = tempfile::tempdir().unwrap();
+        let config = make_config(ImageFlavor::Base, false);
+        fs::write(
+            dir.path().join("Dockerfile.local"),
+            "RUN npx playwright install --with-deps chromium\n",
+        )
+        .unwrap();
+        generate_dockerfile(&config, dir.path()).unwrap();
+        let content = fs::read_to_string(dir.path().join("Dockerfile")).unwrap();
+        assert!(
+            content.contains("# Project-specific layers (from Dockerfile.local)"),
+            "should have local layers comment"
+        );
+        assert!(
+            content.contains("playwright"),
+            "should include Dockerfile.local content"
+        );
+    }
+
+    #[test]
+    fn dockerfile_skips_empty_local() {
+        let dir = tempfile::tempdir().unwrap();
+        let config = make_config(ImageFlavor::Base, false);
+        fs::write(dir.path().join("Dockerfile.local"), "  \n").unwrap();
+        generate_dockerfile(&config, dir.path()).unwrap();
+        let content = fs::read_to_string(dir.path().join("Dockerfile")).unwrap();
+        assert!(
+            !content.contains("Project-specific layers"),
+            "should not include local layers comment for empty file"
+        );
+    }
+
+    #[test]
+    fn dockerfile_works_without_local() {
+        let dir = tempfile::tempdir().unwrap();
+        let config = make_config(ImageFlavor::Base, false);
+        generate_dockerfile(&config, dir.path()).unwrap();
+        let content = fs::read_to_string(dir.path().join("Dockerfile")).unwrap();
+        assert!(
+            !content.contains("Project-specific layers"),
+            "should not include local layers comment when no Dockerfile.local"
+        );
+    }
+
+    #[test]
+    fn dockerfile_local_with_multistage() {
+        let dir = tempfile::tempdir().unwrap();
+        let config = make_config(ImageFlavor::Python, false);
+        fs::write(
+            dir.path().join("Dockerfile.local"),
+            "FROM node:20 AS node-builder\nRUN npm ci\n\nFROM dev-box\nCOPY --from=node-builder /app /app\n",
+        )
+        .unwrap();
+        generate_dockerfile(&config, dir.path()).unwrap();
+        let content = fs::read_to_string(dir.path().join("Dockerfile")).unwrap();
+        assert!(content.contains("FROM node:20 AS node-builder"));
+        assert!(content.contains("FROM dev-box"));
+        assert!(content.contains("COPY --from=node-builder"));
     }
 
     #[test]
