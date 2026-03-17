@@ -21,25 +21,25 @@ The current release includes:
 
 ## Recently Completed
 
-### Shell Completions (v0.3.1)
+### postCreateCommand and vscode_extensions (v0.3.1)
+
+`post_create_command` and `vscode_extensions` fields in `[container]` config, generated into devcontainer.json. Pinned MkDocs dependency to `<2`.
+
+### Shell Completions (v0.3.0)
 
 `dev-box completions <shell>` generates completion scripts for all major shells.
 
-### Interactive Init (v0.3.1)
+### Interactive Init (v0.3.0)
 
 `dev-box init` prompts for name, image, and process when flags are omitted in interactive terminals.
 
-### Registry-Based Update Checking (v0.3.1)
+### Registry-Based Update Checking (v0.3.0)
 
 `dev-box update --check` queries GHCR for the latest image tag and GitHub Releases for the latest CLI version.
 
-### Template Engine Migration (v0.3.1)
+### Template Engine Migration (v0.3.0)
 
 Replaced string formatting in `generate.rs` with minijinja templates for better maintainability and extensibility.
-
-### postCreateCommand and vscode_extensions (v0.3.1)
-
-`post_create_command` and `vscode_extensions` fields in `[container]` config, generated into devcontainer.json.
 
 ### Dockerfile.local (v0.2.3)
 

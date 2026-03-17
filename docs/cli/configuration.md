@@ -6,7 +6,7 @@
 
 ```toml
 [dev-box]
-version = "0.3.0"                    # Project version (semver)
+version = "0.3.1"                    # Project version (semver)
 image = "python"                      # Image flavor
 process = "product"                   # Work process flavor
 
@@ -16,6 +16,11 @@ hostname = "my-app"                   # Container hostname
 ports = ["8000:8000", "5432:5432"]    # Port mappings (host:container)
 extra_packages = ["ripgrep", "fzf"]   # Additional apt packages
 environment = { MY_VAR = "value" }    # Environment variables
+post_create_command = "npm install"   # Command to run after container creation
+vscode_extensions = [                 # VS Code extensions to install
+    "ms-python.python",
+    "ms-python.vscode-pylance",
+]
 
 [container.extra_volumes]
 # Additional volume mounts (beyond the standard ones)
@@ -56,6 +61,8 @@ Container configuration. Controls the generated `docker-compose.yml` and `Docker
 | `extra_packages` | Array of strings | No | `[]` | Additional apt packages to install |
 | `extra_volumes` | Array of objects | No | `[]` | Additional volume mounts (see below) |
 | `environment` | Map of strings | No | `{}` | Environment variables set in the container |
+| `post_create_command` | String | No | -- | Command to run after container creation (devcontainer.json `postCreateCommand`) |
+| `vscode_extensions` | Array of strings | No | `[]` | VS Code extensions to install (added to devcontainer.json `customizations.vscode.extensions`) |
 
 #### Extra Volumes
 
@@ -112,6 +119,8 @@ When a field is omitted from `dev-box.toml`, these defaults apply:
 | `container.extra_packages` | `[]` |
 | `container.extra_volumes` | `[]` |
 | `container.environment` | `{}` |
+| `container.post_create_command` | -- (not set) |
+| `container.vscode_extensions` | `[]` |
 | `context.owner` | `"~/.config/dev-box/OWNER.md"` |
 | `context.schema_version` | `"1.0.0"` |
 | `audio.enabled` | `false` |
@@ -165,7 +174,7 @@ This is created by `dev-box init` and compared against `context.schema_version` 
 
 ```toml
 [dev-box]
-version = "0.3.0"
+version = "0.3.1"
 image = "python"
 process = "product"
 
@@ -188,7 +197,7 @@ enabled = false
 
 ```toml
 [dev-box]
-version = "0.3.0"
+version = "0.3.1"
 image = "rust"
 process = "managed"
 
@@ -209,7 +218,7 @@ enabled = false
 
 ```toml
 [dev-box]
-version = "0.3.0"
+version = "0.3.1"
 image = "latex"
 process = "research"
 
@@ -229,7 +238,7 @@ enabled = false
 
 ```toml
 [dev-box]
-version = "0.3.0"
+version = "0.3.1"
 image = "python-latex"
 process = "research"
 

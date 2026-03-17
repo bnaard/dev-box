@@ -2,6 +2,15 @@
 
 All notable changes to dev-box are documented here.
 
+## v0.3.1 — 2026-03-17
+
+### Added
+- `post_create_command` field in `[container]` config, generated into devcontainer.json
+- `vscode_extensions` field in `[container]` config, generated into devcontainer.json
+
+### Changed
+- Pinned MkDocs dependency to `<2` to avoid breaking changes from MkDocs 2.0
+
 ## v0.3.0 — 2026-03-17
 
 ### Added

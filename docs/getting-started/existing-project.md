@@ -18,7 +18,7 @@ If you prefer to write it by hand:
 
 ```toml
 [dev-box]
-version = "0.3.0"
+version = "0.3.1"
 image = "python"
 process = "managed"
 
@@ -92,7 +92,7 @@ Example output:
 
 ```
 ==> Running diagnostics...
- ✓ Config version: 0.3.0
+ ✓ Config version: 0.3.1
  ✓ Image: python
  ✓ Process: managed
  ✓ Container name: my-existing-project
@@ -122,8 +122,8 @@ The `migrations/` directory in the dev-box repository contains ready-made
 ### Common gaps to watch for
 
 - **Node.js version pinning** -- `extra_packages` installs the Debian version, not NodeSource LTS. Pin via a post-create script if needed.
-- **postCreateCommand** -- dev-box does not yet support this. Move git identity config to `.root/.config/git/config`.
-- **VS Code extensions/settings** -- dev-box generates basic devcontainer.json extensions per image flavor. For project-specific settings, keep a `.vscode/settings.json`.
+- **postCreateCommand** -- use `post_create_command` in `[container]` config. For git identity, use `.root/.config/git/config` instead.
+- **VS Code extensions/settings** -- use `vscode_extensions` in `[container]` config to add project-specific extensions. For project-specific settings, keep a `.vscode/settings.json`.
 - **Third-party CLI tools** (Gemini, Jules) -- install via extra_packages or mount from host via extra_volumes.
 
 ## Build and Start
