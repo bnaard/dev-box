@@ -77,10 +77,7 @@ impl ImageFlavor {
     }
 
     pub fn contains_typst(&self) -> bool {
-        matches!(
-            self,
-            ImageFlavor::Typst | ImageFlavor::PythonTypst
-        )
+        matches!(self, ImageFlavor::Typst | ImageFlavor::PythonTypst)
     }
 
     pub fn contains_rust(&self) -> bool {
