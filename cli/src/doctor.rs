@@ -62,12 +62,14 @@ pub fn cmd_doctor(config_path: &Option<String>) -> Result<()> {
         }
     };
 
-    // 2. Check container runtime
+    // 2. Check container runtime (informational — not required for init/generate/doctor)
     match Runtime::detect() {
         Ok(rt) => output::ok(&format!("Container runtime: {} detected", rt.runtime_bin)),
         Err(_) => {
-            output::error("No container runtime found (need podman or docker)");
-            diag.errors += 1;
+            output::warn(
+                "No container runtime found (podman or docker needed for build/start/stop/attach)",
+            );
+            diag.warnings += 1;
         }
     }
 

@@ -81,6 +81,7 @@ ${bold}Usage:${reset}
 ${bold}Development:${reset}
   test                     Run cargo fmt check, clippy, and tests
   build-images [--no-cache] Build all 8 published images locally
+  push-images <version>    Push images to GHCR (requires ghcr.io login)
   docs-serve               Serve MkDocs locally (http://localhost:8000)
   docs-deploy [--dry-run]  Build MkDocs and push to gh-pages branch
 
@@ -187,6 +188,67 @@ cmd_build_images() {
   done
 
   ok "All 8 images built"
+}
+
+cmd_push_images() {
+  _require_runtime
+  local version="${1:-}"
+  [[ -z "${version}" ]] && die "Usage: ./scripts/maintain.sh push-images <version>  (e.g. 0.2.0)"
+
+  if ! [[ "${version}" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+    die "Version must be semver: X.Y.Z (got: ${version})"
+  fi
+
+  # Verify GHCR login — try gh auth first, then fall back to manual instructions
+  if ! ${RUNTIME_BIN} login ghcr.io --get-login &>/dev/null 2>&1; then
+    if command -v gh &>/dev/null && gh auth status &>/dev/null; then
+      info "Logging into ghcr.io via gh auth..."
+      gh auth token | ${RUNTIME_BIN} login ghcr.io -u "$(gh api user --jq .login)" --password-stdin \
+        || die "Failed to log in to ghcr.io via gh. Ensure your gh token has write:packages scope."
+      ok "Logged in to ghcr.io"
+    else
+      echo ""
+      info "Not logged in to ghcr.io. Either:"
+      echo ""
+      echo "  1. Install and authenticate gh CLI: gh auth login"
+      echo "  2. Or log in manually:"
+      echo "     echo \$GITHUB_TOKEN | ${RUNTIME_BIN} login ghcr.io -u <username> --password-stdin"
+      echo ""
+      echo "  Your token needs the write:packages scope."
+      echo ""
+      die "GHCR authentication required."
+    fi
+  fi
+
+  local flavors=("base" "python" "rust" "latex" "typst" "python-latex" "python-typst" "rust-latex")
+
+  # Verify all latest images exist and create versioned tags
+  for flavor in "${flavors[@]}"; do
+    local latest="${IMAGE_REGISTRY}:${flavor}-latest"
+    local versioned="${IMAGE_REGISTRY}:${flavor}-v${version}"
+    if ! ${RUNTIME_BIN} image exists "${latest}" 2>/dev/null && \
+       ! ${RUNTIME_BIN} inspect "${latest}" &>/dev/null; then
+      die "Image ${latest} not found locally. Run 'build-images' first."
+    fi
+    ${RUNTIME_BIN} tag "${latest}" "${versioned}"
+  done
+
+  ok "All images found and tagged for v${version}"
+
+  # Push versioned and latest tags
+  for flavor in "${flavors[@]}"; do
+    local versioned="${IMAGE_REGISTRY}:${flavor}-v${version}"
+    local latest="${IMAGE_REGISTRY}:${flavor}-latest"
+
+    info "Pushing ${flavor}..."
+    ${RUNTIME_BIN} push "${versioned}" || die "Failed to push ${versioned}"
+    ${RUNTIME_BIN} push "${latest}" || die "Failed to push ${latest}"
+    ok "Pushed ${flavor}-v${version} + ${flavor}-latest"
+  done
+
+  echo ""
+  ok "All 8 images pushed to ${IMAGE_REGISTRY}"
+  info "Verify at: https://github.com/orgs/projectious-work/packages"
 }
 
 cmd_docs_serve() {
@@ -386,9 +448,7 @@ cmd_release() {
     echo "### Step 2: Push container images to GHCR"
     echo ""
     echo "\`\`\`bash"
-    for flavor in base python latex typst rust python-latex python-typst rust-latex; do
-      echo "${RUNTIME_BIN:-podman} push ${IMAGE_REGISTRY}:${flavor}-v${version}"
-    done
+    echo "./scripts/maintain.sh push-images ${version}"
     echo "\`\`\`"
     echo ""
     echo "### Step 3: Create the GitHub release with artifacts"
@@ -536,6 +596,7 @@ shift || true
 case "${COMMAND}" in
   test)         cmd_test ;;
   build-images) cmd_build_images "$@" ;;
+  push-images)  cmd_push_images "$@" ;;
   docs-serve)   cmd_docs_serve ;;
   docs-deploy)  cmd_docs_deploy "$@" ;;
   release)      cmd_release "$@" ;;

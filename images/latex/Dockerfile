@@ -6,15 +6,18 @@ FROM debian:trixie-slim AS texlive-builder
 ENV DEBIAN_FRONTEND=noninteractive
 
 RUN apt-get update && apt-get install -y --no-install-recommends \
+    ca-certificates \
     perl \
     wget \
     fontconfig \
     && rm -rf /var/lib/apt/lists/*
 
 # Install TeX Live from CTAN (basic scheme, then add packages)
+# Uses a direct CTAN mirror to avoid redirect issues in minimal containers
+ARG CTAN_MIRROR=https://ftp.math.utah.edu/pub/tex/historic/systems/texlive/2025/tlnet-final
 RUN mkdir -p /tmp/texlive-installer && cd /tmp/texlive-installer \
-    && wget -q https://mirror.ctan.org/systems/texlive/tlnet/install-tl-unix.tar.gz \
-    && tar -xzf install-tl-unix.tar.gz --strip-components=1 \
+    && wget -q "${CTAN_MIRROR}/install-tl-unx.tar.gz" \
+    && tar -xzf install-tl-unx.tar.gz --strip-components=1 \
     && echo "selected_scheme scheme-basic" > texlive.profile \
     && echo "TEXDIR /usr/local/texlive" >> texlive.profile \
     && echo "TEXMFLOCAL /usr/local/texlive/texmf-local" >> texlive.profile \
@@ -26,14 +29,16 @@ RUN mkdir -p /tmp/texlive-installer && cd /tmp/texlive-installer \
     && echo "tlpdbopt_install_docfiles 0" >> texlive.profile \
     && echo "tlpdbopt_install_srcfiles 0" >> texlive.profile \
     && ./install-tl --profile=texlive.profile --no-interaction \
+       --repository "${CTAN_MIRROR}" \
     && rm -rf /tmp/texlive-installer
 
-# Create version-independent symlink
-RUN ln -s /usr/local/texlive/*/bin/* /usr/local/texlive/bin
-
-ENV PATH="/usr/local/texlive/bin:${PATH}"
+# Symlink all TeX Live binaries into /usr/local/bin (arch-independent)
+RUN ln -sf /usr/local/texlive/bin/*/* /usr/local/bin/
 
 # Install LaTeX packages (comprehensive set for academic and technical documents)
+# Note: some packages are bundled inside others in TL2025 and not listed separately:
+#   amsthm→amscls, array/longtable/multicol→tools, fontenc/graphicx→latex/graphics,
+#   nameref→hyperref, pgfplotstable→pgfplots, subcaption→caption, titletoc→titlesec
 RUN tlmgr install --no-execute-actions \
     # LuaTeX engine and fonts
     luatex luaotfload luatexbase luacolor lua-ul fontspec unicode-math \
@@ -41,15 +46,15 @@ RUN tlmgr install --no-execute-actions \
     # Core packages
     latex latex-bin latexmk collection-latexrecommended \
     # Page layout and geometry
-    geometry fancyhdr lastpage multicol multirow adjustbox \
+    geometry fancyhdr lastpage multirow adjustbox \
     # Typography
-    microtype parskip setspace titlesec titletoc \
+    microtype parskip setspace titlesec \
     # Tables
-    tabularray booktabs longtable tabu array colortbl \
+    tabularray booktabs tabu colortbl \
     # Colors and graphics
-    xcolor graphicx graphics epstopdf svg \
+    xcolor graphics epstopdf svg \
     # TikZ/PGF
-    pgf tikz-cd tikzmark pgfplots pgfplotstable \
+    pgf tikz-cd tikzmark pgfplots \
     # Boxes
     tcolorbox pdfcol environ etoolbox \
     # Bibliography
@@ -57,14 +62,14 @@ RUN tlmgr install --no-execute-actions \
     # Code listings
     minted fvextra fancyvrb upquote lineno catchfile xstring framed float \
     # Math
-    amsmath amscls mathtools amsthm \
+    amsmath amscls mathtools \
     # Hyperlinks and references
-    hyperref bookmark nameref cleveref url \
+    hyperref bookmark cleveref url \
     # Fonts
-    fontenc lm lm-math sourcecodepro sourcesanspro tex-gyre \
-    freetype2 gnu-freefont \
+    lm lm-math sourcecodepro sourcesanspro tex-gyre \
+    gnu-freefont \
     # Misc utilities
-    caption subcaption enumitem listings wrapfig \
+    caption enumitem listings wrapfig \
     footmisc appendix pdfpages pdflscape xkeyval iftex \
     babel babel-english \
     tools oberdiek amsfonts symbol zapfding \
@@ -102,10 +107,9 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     libunicode-linebreak-perl \
     && rm -rf /var/lib/apt/lists/*
 
-# Copy TeX Live tree from builder
+# Copy TeX Live tree from builder and symlink binaries
 COPY --from=texlive-builder /usr/local/texlive /usr/local/texlive
-
-ENV PATH="/usr/local/texlive/bin:${PATH}"
+RUN ln -sf /usr/local/texlive/bin/*/* /usr/local/bin/
 
 WORKDIR /workspace
 CMD ["sleep", "infinity"]

@@ -43,6 +43,15 @@ curl -fsSL https://raw.githubusercontent.com/projectious-work/dev-box/main/scrip
 
 This downloads the correct pre-built binary for your platform (Linux or macOS, x86_64 or ARM64) and installs it to `~/.local/bin/`.
 
+!!! tip "Manual download"
+    If you prefer to download manually from the [releases page](https://github.com/projectious-work/dev-box/releases), each tarball (e.g., `dev-box-v0.2.0-aarch64-apple-darwin.tar.gz`) contains a single binary named `dev-box-v0.2.0-aarch64-apple-darwin`. After extracting, rename it to `dev-box` and move it to a directory in your `PATH`:
+
+    ```bash
+    tar xzf dev-box-v0.2.0-aarch64-apple-darwin.tar.gz
+    mv dev-box-v0.2.0-aarch64-apple-darwin ~/.local/bin/dev-box
+    chmod +x ~/.local/bin/dev-box
+    ```
+
 **Options:**
 
 ```bash
@@ -74,32 +83,19 @@ This places the `dev-box` binary in `~/.cargo/bin/`, which should already be in 
 ## Verifying Installation
 
 ```bash
-dev-box --help
+dev-box --version
 ```
 
 Expected output:
 
 ```
-Manage AI-ready development container environments
+dev-box 0.2.0
+```
 
-Usage: dev-box [OPTIONS] <COMMAND>
+To see all available commands:
 
-Commands:
-  init      Initialize a new project with dev-box.toml and generated files
-  generate  Re-generate devcontainer files from dev-box.toml
-  build     Build the container image
-  start     Start container and attach via zellij
-  stop      Stop the container
-  attach    Attach to running container
-  status    Show container status
-  doctor    Validate context structure and produce migration artifacts
-  update    Check for or apply version updates
-  help      Print this message or the help of the given subcommand(s)
-
-Options:
-      --config <CONFIG>      Path to dev-box.toml (default: ./dev-box.toml)
-      --log-level <LOG_LEVEL>  Log level (trace, debug, info, warn, error) [default: info]
-  -h, --help                 Print help
+```bash
+dev-box --help
 ```
 
 ## Shell Completions (planned)
