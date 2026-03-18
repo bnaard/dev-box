@@ -60,7 +60,9 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     gh \
     # Audio support (for Claude Code voice)
     sox \
+    libsox-fmt-pulse \
     pulseaudio-utils \
+    libasound2-plugins \
     # Build essentials (for Rust compilation)
     build-essential \
     pkg-config \

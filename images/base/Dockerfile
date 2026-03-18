@@ -60,7 +60,9 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     gh \
     # Audio support (for Claude Code voice)
     sox \
+    libsox-fmt-pulse \
     pulseaudio-utils \
+    libasound2-plugins \
     && sed -i '/en_US.UTF-8/s/^# //g' /etc/locale.gen \
     && locale-gen \
     && ln -snf /usr/share/zoneinfo/${TZ} /etc/localtime \
