@@ -513,7 +513,13 @@ proceeding with the release.
 2. **Update documentation** — review and update all MkDocs pages for
    accuracy with the new release. New features need docs.
 
-3. **Commit version bump** — single commit: `chore: bump version to vX.Y.Z, update docs`
+3. **Commit and push version bump**:
+   ```bash
+   git add cli/Cargo.toml docs/
+   git commit -m "chore: bump version to vX.Y.Z, update docs"
+   git push origin main
+   ```
+   Push before tagging so the tag points to a commit already on remote.
 
 4. **Run `./scripts/maintain.sh release X.Y.Z`** — this:
    - Runs fmt check, clippy, and all tests (fails if dirty tree)
