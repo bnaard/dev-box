@@ -38,16 +38,39 @@ When `enabled = true`, the generated `docker-compose.yml` sets `PULSE_SERVER` in
 
 ## Host Setup
 
-### macOS with Docker Desktop
+The fastest way to set up audio on your host is the built-in CLI command:
 
-Docker Desktop provides `host.docker.internal` automatically.
+```bash
+# Check if your host is ready
+dev-box audio check
+
+# Automatic setup (macOS: installs PulseAudio, configures TCP, creates launchd agent)
+dev-box audio setup
+```
+
+`dev-box audio setup` handles:
+
+- Installing PulseAudio via Homebrew (macOS) if not present
+- Configuring `~/.config/pulse/default.pa` with the TCP module on port 4714
+- Creating a launchd agent with `KeepAlive` so PulseAudio auto-starts and restarts on crash (macOS)
+- Loading the TCP module immediately
+
+`dev-box audio check` diagnoses: PulseAudio installation, daemon status, TCP module, persistence config, port listening, launchd agent (macOS), and connectivity.
+
+Both commands accept `--port` to override the default port (4714).
+
+### Manual setup
+
+If you prefer manual configuration:
+
+#### macOS
 
 1. Install PulseAudio:
    ```bash
    brew install pulseaudio
    ```
 
-2. Enable the TCP module. Edit `/opt/homebrew/etc/pulse/default.pa` (Apple Silicon) or `/usr/local/etc/pulse/default.pa` (Intel) and add:
+2. Enable the TCP module. Add to `~/.config/pulse/default.pa`:
    ```
    load-module module-native-protocol-tcp port=4714 auth-anonymous=1
    ```
@@ -62,36 +85,24 @@ Docker Desktop provides `host.docker.internal` automatically.
    lsof -i :4714
    ```
 
-### macOS with Podman
+Docker Desktop and OrbStack provide `host.docker.internal` automatically. For Podman, check your machine's network configuration — you may need to use the host IP directly:
 
-Podman on macOS runs containers in a Linux VM, so `host.docker.internal` may not resolve by default.
+```toml
+[audio]
+enabled = true
+pulse_server = "tcp:192.168.64.1:4714"
+```
 
-1. Install and configure PulseAudio as described above for Docker Desktop.
-
-2. Ensure the Podman machine can reach the host. Check your Podman machine's network configuration:
-   ```bash
-   podman machine ssh -- ping host.docker.internal
-   ```
-
-3. If `host.docker.internal` does not resolve, use your host's IP address instead:
-   ```toml
-   [audio]
-   enabled = true
-   pulse_server = "tcp:192.168.64.1:4714"
-   ```
-
-### Linux with Docker
-
-On Linux, the container can reach the host directly.
+#### Linux
 
 1. PulseAudio is likely already running. Enable the TCP module:
    ```bash
-   pactl load-module module-native-protocol-tcp port=4714 auth-ip-acl=127.0.0.1;172.16.0.0/12
+   pactl load-module module-native-protocol-tcp port=4714 auth-ip-acl=127.0.0.1;172.16.0.0/12;10.0.0.0/8;192.168.0.0/16
    ```
 
    To make this persistent, add to `~/.config/pulse/default.pa`:
    ```
-   load-module module-native-protocol-tcp port=4714 auth-ip-acl=127.0.0.1;172.16.0.0/12
+   load-module module-native-protocol-tcp port=4714 auth-ip-acl=127.0.0.1;172.16.0.0/12;10.0.0.0/8;192.168.0.0/16
    ```
 
 2. Use `host.docker.internal` (Docker 20.10+) or the Docker bridge IP:
@@ -104,23 +115,14 @@ On Linux, the container can reach the host directly.
 !!! warning "Firewall"
     Ensure port 4714 is accessible from the container network. On systems with strict firewalls, you may need to allow traffic from the Docker/Podman bridge interface.
 
-### Linux with Podman
+## Claude Code OAuth in Containers
 
-Similar to Linux with Docker. Podman uses a different bridge network by default.
+When running `claude auth` inside a container with bridge networking (OrbStack, Docker Desktop), the OAuth callback may fail. Claude Code starts a temporary HTTP server on a random ephemeral port to receive the callback, but that port isn't forwarded to the host browser.
 
-1. Enable the PulseAudio TCP module as shown above.
+**Workaround:** Use `claude setup-token` to authenticate manually, or authenticate on the host first — the `.claude` directory is bind-mounted into the container, so credentials are shared.
 
-2. Find the host IP visible from the container:
-   ```bash
-   podman run --rm alpine ip route | grep default | awk '{print $3}'
-   ```
-
-3. Set the `pulse_server` accordingly:
-   ```toml
-   [audio]
-   enabled = true
-   pulse_server = "tcp:10.0.2.2:4714"
-   ```
+!!! info "Upstream tracking"
+    This is tracked at [anthropics/claude-code#14528](https://github.com/anthropics/claude-code/issues/14528). A fix on the Claude Code side (e.g., configurable callback port) would resolve this properly without compromising container network isolation.
 
 ## The .asoundrc File
 

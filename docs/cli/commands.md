@@ -423,3 +423,73 @@ dev-box update
 |------|---------|
 | 0 | Success |
 | 1 | Config error |
+
+---
+
+## dev-box audio
+
+Host-side audio diagnostics and setup for PulseAudio over TCP.
+
+### Subcommands
+
+#### dev-box audio check
+
+Check if the host is correctly configured for container audio.
+
+```bash
+dev-box audio check [--port <PORT>]
+```
+
+Runs diagnostics:
+
+- PulseAudio installation and version
+- Daemon status
+- TCP module (`module-native-protocol-tcp`) loaded on the expected port
+- Persistent configuration in `default.pa`
+- Port listening
+- macOS launchd agent status
+- TCP connectivity test
+
+#### dev-box audio setup
+
+Automatically install and configure PulseAudio on the host.
+
+```bash
+dev-box audio setup [--port <PORT>]
+```
+
+On macOS:
+
+1. Installs PulseAudio via Homebrew (if not present)
+2. Configures `~/.config/pulse/default.pa` with the TCP module
+3. Creates a launchd agent (`com.devbox.pulseaudio`) with `KeepAlive` for auto-start
+4. Loads the service immediately
+5. Runs `audio check` to verify
+
+On Linux, prints manual setup instructions with the correct `auth-ip-acl` settings.
+
+### Options
+
+| Option | Default | Description |
+|--------|---------|-------------|
+| `--port <PORT>` | `4714` | PulseAudio TCP port |
+
+### Examples
+
+```bash
+# Diagnose audio issues
+dev-box audio check
+
+# Full automated setup (macOS)
+dev-box audio setup
+
+# Use a custom port
+dev-box audio setup --port 4715
+```
+
+### Exit Codes
+
+| Code | Meaning |
+|------|---------|
+| 0 | Success (check passed or setup completed) |
+| 1 | Setup failed (e.g., brew install failed) |

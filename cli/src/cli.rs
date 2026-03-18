@@ -63,4 +63,25 @@ pub enum Commands {
         #[arg(long)]
         check: bool,
     },
+    /// Host-side audio diagnostics and setup for PulseAudio
+    Audio {
+        #[command(subcommand)]
+        action: AudioAction,
+    },
+}
+
+#[derive(Subcommand)]
+pub enum AudioAction {
+    /// Check if host audio is correctly configured
+    Check {
+        /// PulseAudio TCP port (default: 4714)
+        #[arg(long)]
+        port: Option<u16>,
+    },
+    /// Install and configure PulseAudio on the host
+    Setup {
+        /// PulseAudio TCP port (default: 4714)
+        #[arg(long)]
+        port: Option<u16>,
+    },
 }

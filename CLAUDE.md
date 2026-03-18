@@ -494,6 +494,16 @@ When asked to release, Claude must:
 - **Zellij pinned to 0.43.1**: change `ARG ZELLIJ_VERSION` to upgrade
 - **`host.docker.internal`**: works on Docker Desktop and Podman pasta;
   bare Linux Docker may need `--add-host`
+- **OrbStack virtiofs**: files mounted from macOS may lose execute permissions.
+  Affects plugin cache scripts. Workaround: `chmod +x` inside container.
+- **Claude Code OAuth in containers**: `claude auth` uses a random ephemeral
+  port for the OAuth callback, which isn't forwarded from bridge-networked
+  containers. Workaround: use `claude setup-token` or authenticate on the host
+  (credentials shared via `.claude` mount). Upstream tracking:
+  [anthropics/claude-code#14528](https://github.com/anthropics/claude-code/issues/14528)
+  — check periodically for a fix (e.g., configurable callback port).
+  **Decision: do NOT use `network_mode: host` as a workaround** — it breaks
+  container network isolation.
 
 ---
 
