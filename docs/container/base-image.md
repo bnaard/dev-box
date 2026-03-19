@@ -15,6 +15,7 @@ The base image is the foundation for all dev-box container flavors. It provides 
 | curl | Debian package | HTTP client |
 | jq | Debian package | JSON processor |
 | less | Debian package | Pager |
+| unzip | Debian package | Archive extraction |
 | bash-completion | Debian package | Shell completions |
 | sox | Debian package | Audio processing |
 | pulseaudio-utils | Debian package | Audio bridging |
@@ -103,18 +104,18 @@ The base image includes `sox` and `pulseaudio-utils` for audio bridging, enablin
 
 ## Configuration Persistence
 
-All user configuration is persisted on the host under `.root/` and bind-mounted into the container:
+All user configuration is persisted on the host under `.dev-box-home/` and bind-mounted into the container:
 
 | Host Path | Container Path | Contents |
 |-----------|---------------|----------|
-| `.root/.ssh/` | `/root/.ssh` (read-only) | SSH keys |
-| `.root/.vim/` | `/root/.vim` | Vim config, undo history, plugins |
-| `.root/.config/git/` | `/root/.config/git` | Git config and credentials |
-| `.root/.config/zellij/` | `/root/.config/zellij` | Zellij config, themes, layouts, plugin cache |
+| `.dev-box-home/.ssh/` | `/root/.ssh` (read-only) | SSH keys |
+| `.dev-box-home/.vim/` | `/root/.vim` | Vim config, undo history, plugins |
+| `.dev-box-home/.config/git/` | `/root/.config/git` | Git config and credentials |
+| `.dev-box-home/.config/zellij/` | `/root/.config/zellij` | Zellij config, themes, layouts, plugin cache |
 
 The Dockerfile bakes identical defaults into the image as a fallback. If no mounts are present, the container still works out of the box.
 
-On first `dev-box start`, the `.root/` directory is auto-seeded from built-in templates. Existing files are never overwritten.
+On first `dev-box init` or `dev-box start`, the `.dev-box-home/` directory is auto-seeded from built-in templates. Existing files are never overwritten.
 
 ## Container Entrypoint
 

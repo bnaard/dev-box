@@ -84,7 +84,7 @@ This checks:
 
 - Config file validity and version
 - Container runtime availability (podman or docker)
-- `.root/` directory existence
+- `.dev-box-home/` directory existence
 - `.devcontainer/` directory existence
 - Image and process settings
 
@@ -97,7 +97,7 @@ Example output:
  ✓ Process: managed
  ✓ Container name: my-existing-project
  ✓ Container runtime: podman
- ✓ .root/ directory exists at .root
+ ✓ .dev-box-home/ directory exists at .dev-box-home
  ✓ .devcontainer/ directory exists
  ✓ Diagnostics complete
 ```
@@ -122,7 +122,7 @@ The `migrations/` directory in the dev-box repository contains ready-made
 ### Common gaps to watch for
 
 - **Node.js version pinning** -- `extra_packages` installs the Debian version, not NodeSource LTS. Pin via a post-create script if needed.
-- **postCreateCommand** -- use `post_create_command` in `[container]` config. For git identity, use `.root/.config/git/config` instead.
+- **postCreateCommand** -- use `post_create_command` in `[container]` config. For git identity, use `.dev-box-home/.config/git/config` instead.
 - **VS Code extensions/settings** -- use `vscode_extensions` in `[container]` config to add project-specific extensions. For project-specific settings, keep a `.vscode/settings.json`.
 - **Third-party CLI tools** (Gemini, Jules) -- install via extra_packages or mount from host via extra_volumes.
 

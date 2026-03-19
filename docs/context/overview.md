@@ -28,26 +28,20 @@ dev-box scaffolds a `context/` directory based on your chosen work process flavo
 
 The `context/` directory contains structured project knowledge: what has been decided, what needs to be done, what happened in recent sessions. AI agents reference these files to understand project state, but the files are also useful for human developers.
 
-## OWNER.md -- Shared Identity
+## OWNER.md -- Developer Identity
 
-`OWNER.md` captures the developer's identity and preferences that apply across all projects:
+`OWNER.md` captures the developer's identity and preferences. It is created as a local file in `context/OWNER.md` during `dev-box init`, with fields that help AI agents understand who they are working with:
 
-- Name and working style
-- Communication preferences
-- Common conventions
-- Timezone and availability
+- **Name** -- how the developer prefers to be addressed
+- **Domain expertise** -- areas of knowledge and experience
+- **Primary languages** -- programming languages used most often
+- **Communication language** -- natural language for responses (e.g., English, German)
+- **Timezone** -- for scheduling and availability context
+- **Working hours** -- typical availability window
+- **Current focus** -- what the developer is currently working on or learning
+- **Communication preferences** -- style and conventions for AI interactions
 
-This file lives outside the project, typically at `~/.config/dev-box/OWNER.md`, and is referenced via `dev-box.toml`:
-
-```toml
-[context]
-owner = "~/.config/dev-box/OWNER.md"
-```
-
-During context scaffolding, the `OWNER.md` path is included in generated `CLAUDE.md` templates so AI agents know where to find it.
-
-!!! tip "One OWNER.md for all projects"
-    Updating your preferences in one place propagates to every project. No more duplicating the same instructions across repositories.
+Each project gets its own `OWNER.md`, allowing you to tailor the developer context per project (for example, different "current focus" or "domain expertise" entries for different repositories).
 
 ## Work Process Flavors
 

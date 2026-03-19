@@ -26,7 +26,7 @@ Doctor performs the following checks:
 
 - Validates `dev-box.toml` syntax and field values
 - Detects the container runtime (podman or docker)
-- Checks for `.root/` and `.devcontainer/` directories
+- Checks for `.dev-box-home/` and `.devcontainer/` directories
 - Compares `.dev-box-version` against `context.schema_version`
 - Validates that expected context files exist for the chosen process flavor
 
@@ -39,7 +39,7 @@ Example output when migration is needed:
  ✓ Process: product
  ✓ Container name: my-app
  ✓ Container runtime: podman
- ✓ .root/ directory exists at .root
+ ✓ .dev-box-home/ directory exists at .dev-box-home
  ✓ .devcontainer/ directory exists
  ! Schema version mismatch: .dev-box-version says 0.9.0, config says 1.0.0
  ✓ Diagnostics complete

@@ -26,11 +26,14 @@ After running `init`, your project looks like this:
 ```
 my-app/
 ├── dev-box.toml              # Single source of truth
+├── .gitignore                 # Generated — language-specific blocks
+├── .dev-box-home/             # Persistent config (git-ignored)
 ├── .devcontainer/
 │   ├── Dockerfile             # Generated — references the chosen image
 │   ├── docker-compose.yml     # Generated — volume mounts, env vars
 │   └── devcontainer.json      # Generated — VS Code integration
 └── context/                   # Scaffolded based on --process
+    ├── OWNER.md
     ├── DECISIONS.md
     ├── BACKLOG.md
     ├── STANDUPS.md
@@ -65,8 +68,9 @@ extra_packages = ["ripgrep", "fd-find"]
 environment = { PYTHONDONTWRITEBYTECODE = "1" }
 
 [context]
-owner = "~/.config/dev-box/OWNER.md"
 schema_version = "1.0.0"
+
+[ai]
 
 [audio]
 enabled = true
@@ -91,7 +95,7 @@ dev-box start
 
 On first `start`, dev-box:
 
-1. Creates the `.root/` directory for persistent configuration
+1. Creates the `.dev-box-home/` directory for persistent configuration
 2. Seeds default configs (vim, git, zellij) from built-in templates
 3. Generates `.devcontainer/` files from `dev-box.toml`
 4. Starts the container via docker/podman compose
@@ -106,7 +110,7 @@ You land in a Zellij session with three tabs:
 - **git** -- Full-screen lazygit
 - **shell** -- Clean bash terminal
 
-The project root is mounted at `/workspace`. Your persistent configuration lives in `.root/` on the host, mounted into the container at the appropriate paths.
+The project root is mounted at `/workspace`. Your persistent configuration lives in `.dev-box-home/` on the host, mounted into the container at the appropriate paths.
 
 ## VS Code Integration
 
@@ -122,15 +126,15 @@ You can also open a plain bash terminal from the VS Code terminal profile dropdo
 !!! note "Parallel usage"
     Both `dev-box start` (terminal) and VS Code can use the same container simultaneously. The container stays alive via `sleep infinity` and both tools exec into it.
 
-## Adding to .gitignore
+## .gitignore
 
-Add these entries to `.gitignore`:
+`dev-box init` automatically creates a comprehensive `.gitignore` with:
 
-```gitignore
-.root/
-```
+- **dev-box entries** -- `.dev-box-home/`, `.dev-box/`, and other dev-box internals
+- **Language-specific blocks** -- based on your chosen image flavor (e.g., Python bytecode and virtualenv patterns for `python`, `target/` for `rust`)
+- **Project-specific section** -- a clearly marked area for your own additions
 
-The `.root/` directory contains SSH keys and personal configuration -- it must never be committed. The `.devcontainer/` directory should be committed so team members get the same environment.
+The `.dev-box-home/` directory contains SSH keys and personal configuration -- it must never be committed. The `.devcontainer/` directory should be committed so team members get the same environment.
 
 ## Next Steps
 

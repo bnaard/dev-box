@@ -139,7 +139,7 @@ image = "typst"
 - Compile with `typst compile document.typ`
 - Watch mode: `typst watch document.typ` (recompiles on save)
 - Packages are downloaded automatically on first use from [Typst Universe](https://typst.app/universe/) — no manual install step
-- Package cache lives at `~/.cache/typst/packages/` — persist it via `.root/.cache/typst` in compose mounts
+- Package cache lives at `~/.cache/typst/packages/` — persist it via `.dev-box-home/.cache/typst` in compose mounts
 - Import packages in your `.typ` files: `#import "@preview/package-name:1.0.0"`
 
 ## python-typst

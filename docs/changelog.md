@@ -2,6 +2,32 @@
 
 All notable changes to dev-box are documented here.
 
+## v0.3.5 — 2026-03-19
+
+### Added
+- `[ai]` config section with `providers` field — controls which AI tool directories are mounted (currently: `claude`, more planned)
+- `container.user` field — run containers as non-root user, adjusts all mount paths automatically
+- `--ai` and `--user` flags on `dev-box init`
+- CLI help: usage examples in main help text, `--image` and `--process` show valid values via value_enum
+- `.gitignore` scaffolding: language-specific blocks (Python, LaTeX, Typst, Rust) based on image flavor, project-specific section at top
+- `dev-box doctor` checks: .gitignore entry validation, mount source path verification, .root/ → .dev-box-home/ migration suggestion
+- `dev-box generate` now re-seeds `.dev-box-home/` to stay consistent with config changes
+- OWNER.md extended fields: domain expertise, primary languages, communication language, timezone, working hours, current focus
+- Base image: added `unzip` to standard packages (fixes #5)
+- TeX Live images: added `algorithms`, `algorithmicx`, `algorithm2e`, `tikzfill` packages (fixes #7, fixes #8)
+
+### Changed
+- Renamed `.root/` to `.dev-box-home/` — backward compatible (falls back to `.root/` if it exists)
+- `dev-box init` now creates `.dev-box-home/` directory (previously only done on `start`)
+- OWNER.md created locally in `context/` — removed `~/.config/dev-box/` symlink pattern
+- Removed `owner` field from `[context]` config section
+- Generated `dev-box.toml` now includes comprehensive comments explaining all options
+- Generated `docker-compose.yml` includes comments on each mount and AI provider-conditional volumes
+- This project's CLAUDE.md migrated from 965-line monolith to context/ structure
+
+### Fixed
+- `dev-box generate` without prior `start` could produce compose files referencing non-existent mount directories
+
 ## v0.3.4 — 2026-03-18
 
 ### Fixed

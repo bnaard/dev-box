@@ -57,7 +57,7 @@ Structured context files that give AI agents the information they need:
 - **DECISIONS.md** -- architectural decisions with rationale
 - **BACKLOG.md** -- prioritized work items
 - **STANDUPS.md** -- session-by-session progress
-- **OWNER.md** -- shared identity and preferences across projects
+- **OWNER.md** -- per-project identity and preferences for AI agents
 
 Four process flavors (`minimal`, `managed`, `research`, `product`) scale from simple scripts to full product development.
 
@@ -92,9 +92,11 @@ After `dev-box start`, you are inside a Zellij session with three tabs:
 
 **Composable.** Start with `base`, add language support when you need it. Extend with `extra_packages` in `dev-box.toml` without forking images.
 
+**AI-configurable.** Declare which AI providers your project uses via the `[ai]` section, and dev-box ensures their CLIs and credentials are available inside the container.
+
 ## Project Status
 
-dev-box is at version 0.3.4. The core workflow (init, generate, build, start, stop, attach, status, doctor) is functional, along with shell completions (`dev-box completions bash/zsh/fish`), interactive init prompts, registry-based version checking via `dev-box update --check`, `post_create_command`/`vscode_extensions` support in devcontainer.json, and host-side audio diagnostics via `dev-box audio check/setup`.
+dev-box is at version 0.3.4. The core workflow (init, generate, build, start, stop, attach, status, doctor) is functional, along with shell completions (`dev-box completions bash/zsh/fish`), interactive init prompts, registry-based version checking via `dev-box update --check`, `post_create_command`/`vscode_extensions` support in devcontainer.json, and host-side audio diagnostics via `dev-box audio check/setup`. Recent additions include AI provider configuration (`[ai]` section), non-root user support (`container.user`), renamed `.dev-box-home/` for persistent config (with `.root/` backward compatibility), and language-specific `.gitignore` blocks generated per image flavor.
 
 ## Next Steps
 

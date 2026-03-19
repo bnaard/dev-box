@@ -57,7 +57,7 @@ my-project/
     ├── DECISIONS.md
     ├── BACKLOG.md
     ├── STANDUPS.md
-    ├── OWNER.md → (symlink or reference to ~/.config/dev-box/OWNER.md)
+    ├── OWNER.md
     └── work-instructions/
         └── GENERAL.md
 ```
@@ -121,7 +121,7 @@ my-project/
 ├── CLAUDE.md
 └── context/
     ├── PROGRESS.md
-    ├── OWNER.md → (reference)
+    ├── OWNER.md
     ├── research/
     └── analysis/
 ```
@@ -187,7 +187,7 @@ my-project/
     ├── STANDUPS.md
     ├── PROJECTS.md
     ├── PRD.md
-    ├── OWNER.md → (reference)
+    ├── OWNER.md
     ├── work-instructions/
     │   ├── GENERAL.md
     │   ├── DEVELOPMENT.md

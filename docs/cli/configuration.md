@@ -13,6 +13,7 @@ process = "product"                   # Work process flavor
 [container]
 name = "my-app"                       # Container name
 hostname = "my-app"                   # Container hostname
+user = "root"                         # Container user
 ports = ["8000:8000", "5432:5432"]    # Port mappings (host:container)
 extra_packages = ["ripgrep", "fzf"]   # Additional apt packages
 environment = { MY_VAR = "value" }    # Environment variables
@@ -29,8 +30,10 @@ vscode_extensions = [                 # VS Code extensions to install
 # read_only = false
 
 [context]
-owner = "~/.config/dev-box/OWNER.md"  # Path to OWNER.md
 schema_version = "1.0.0"             # Context schema version (semver)
+
+[ai]
+providers = ["claude"]                # AI providers to configure
 
 [audio]
 enabled = true                        # Enable audio bridging
@@ -57,6 +60,7 @@ Container configuration. Controls the generated `docker-compose.yml` and `Docker
 |-------|------|----------|---------|-------------|
 | `name` | String | Yes | -- | Container name (used by compose and runtime inspect) |
 | `hostname` | String | No | `"dev-box"` | Container hostname |
+| `user` | String | No | `"root"` | Container user |
 | `ports` | Array of strings | No | `[]` | Port mappings in `host:container` format |
 | `extra_packages` | Array of strings | No | `[]` | Additional apt packages to install |
 | `extra_volumes` | Array of objects | No | `[]` | Additional volume mounts (see below) |
@@ -80,8 +84,15 @@ Context system configuration.
 
 | Field | Type | Required | Default | Description |
 |-------|------|----------|---------|-------------|
-| `owner` | String | No | `"~/.config/dev-box/OWNER.md"` | Path to shared OWNER.md file |
 | `schema_version` | String (semver) | No | `"1.0.0"` | Context schema version |
+
+### [ai]
+
+AI provider configuration.
+
+| Field | Type | Required | Default | Description |
+|-------|------|----------|---------|-------------|
+| `providers` | Array of strings | No | `["claude"]` | AI providers to configure (e.g., `"claude"`, `"gemini"`) |
 
 ### [audio]
 
@@ -98,7 +109,7 @@ Some settings can be overridden via environment variables:
 
 | Variable | Overrides | Description |
 |----------|-----------|-------------|
-| `DEV_BOX_HOST_ROOT` | `.root/` path | Host directory for persistent config |
+| `DEV_BOX_HOST_ROOT` | `.dev-box-home/` path | Host directory for persistent config (default: `.dev-box-home/`) |
 | `DEV_BOX_WORKSPACE_DIR` | Workspace mount source | Host directory mounted as `/workspace` |
 | `DEV_BOX_LOG_LEVEL` | `--log-level` | Log verbosity (`trace`, `debug`, `info`, `warn`, `error`) |
 
@@ -108,6 +119,9 @@ Example:
 DEV_BOX_HOST_ROOT=/tmp/dev-root dev-box start
 ```
 
+!!! note "Backward compatibility with `.root/`"
+    If your project uses the legacy `.root/` directory name, dev-box will continue to work with it. `dev-box doctor` will suggest renaming it to `.dev-box-home/` for consistency with the current convention.
+
 ## Default Values Summary
 
 When a field is omitted from `dev-box.toml`, these defaults apply:
@@ -115,14 +129,15 @@ When a field is omitted from `dev-box.toml`, these defaults apply:
 | Field | Default |
 |-------|---------|
 | `container.hostname` | `"dev-box"` |
+| `container.user` | `"root"` |
 | `container.ports` | `[]` |
 | `container.extra_packages` | `[]` |
 | `container.extra_volumes` | `[]` |
 | `container.environment` | `{}` |
 | `container.post_create_command` | -- (not set) |
 | `container.vscode_extensions` | `[]` |
-| `context.owner` | `"~/.config/dev-box/OWNER.md"` |
 | `context.schema_version` | `"1.0.0"` |
+| `ai.providers` | `["claude"]` |
 | `audio.enabled` | `false` |
 | `audio.pulse_server` | `"tcp:host.docker.internal:4714"` |
 
@@ -186,8 +201,10 @@ extra_packages = ["postgresql-client"]
 environment = { DATABASE_URL = "postgresql://localhost:5432/mydb" }
 
 [context]
-owner = "~/.config/dev-box/OWNER.md"
 schema_version = "1.0.0"
+
+[ai]
+providers = ["claude"]
 
 [audio]
 enabled = false
@@ -207,8 +224,10 @@ hostname = "my-cli"
 extra_packages = ["musl-tools"]
 
 [context]
-owner = "~/.config/dev-box/OWNER.md"
 schema_version = "1.0.0"
+
+[ai]
+providers = ["claude"]
 
 [audio]
 enabled = false
@@ -227,8 +246,10 @@ name = "thesis"
 hostname = "thesis"
 
 [context]
-owner = "~/.config/dev-box/OWNER.md"
 schema_version = "1.0.0"
+
+[ai]
+providers = ["claude"]
 
 [audio]
 enabled = false
@@ -250,8 +271,10 @@ extra_packages = ["graphviz"]
 environment = { JUPYTER_TOKEN = "dev" }
 
 [context]
-owner = "~/.config/dev-box/OWNER.md"
 schema_version = "1.0.0"
+
+[ai]
+providers = ["claude"]
 
 [audio]
 enabled = true

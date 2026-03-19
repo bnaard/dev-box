@@ -28,14 +28,18 @@ dev-box init [OPTIONS]
 | Option | Default | Description |
 |--------|---------|-------------|
 | `--name <NAME>` | Current directory name | Project and container name |
-| `--image <FLAVOR>` | `base` | Image flavor |
-| `--process <FLAVOR>` | `product` | Work process flavor |
+| `--image <FLAVOR>` | `base` | Image flavor: `base`, `python`, `latex`, `typst`, `rust`, `python-latex`, `python-typst`, `rust-latex` |
+| `--process <FLAVOR>` | `product` | Work process flavor: `minimal`, `managed`, `research`, `product` |
+| `--ai <PROVIDER>` | `claude` | AI provider(s) to configure (can be specified multiple times) |
+| `--user <USER>` | `root` | Container user |
 
 ### What It Does
 
 1. Creates `dev-box.toml` with the specified settings
-2. Generates `.devcontainer/Dockerfile`, `docker-compose.yml`, and `devcontainer.json`
-3. Scaffolds context files based on the chosen process flavor
+2. Creates `.dev-box-home/` directory with default configuration files
+3. Generates `.devcontainer/Dockerfile`, `docker-compose.yml`, and `devcontainer.json`
+4. Scaffolds context files based on the chosen process flavor
+5. Updates `.gitignore` with required entries (`.dev-box-home/`, `.devcontainer/`, etc.)
 
 ### Examples
 
@@ -48,6 +52,12 @@ dev-box init --name my-api --image python --process managed
 
 # Rust project with minimal context
 dev-box init --image rust --process minimal
+
+# Specify a non-root user
+dev-box init --name my-api --image python --user devuser
+
+# Configure AI providers
+dev-box init --ai claude --ai gemini
 ```
 
 ### Exit Codes
@@ -85,6 +95,8 @@ Reads `dev-box.toml` and regenerates:
 - `.devcontainer/Dockerfile`
 - `.devcontainer/docker-compose.yml`
 - `.devcontainer/devcontainer.json`
+
+It also re-seeds `.dev-box-home/` with any missing default configuration files (vim, git, zellij, etc.), ensuring new config templates introduced in later versions are picked up.
 
 This is useful after editing `dev-box.toml` to apply changes without rebuilding the container.
 
@@ -163,7 +175,7 @@ dev-box start
 
 This is the primary command for daily use. It handles the full lifecycle:
 
-1. Seeds `.root/` directory with default configs (first run only)
+1. Seeds `.dev-box-home/` directory with default configs (first run only)
 2. Generates devcontainer files from `dev-box.toml`
 3. Checks container state:
    - **Running:** Skips to attach
@@ -200,7 +212,7 @@ dev-box stop
 
 ### What It Does
 
-Stops the container via `docker compose stop` (or `podman compose stop`). All data in `.root/` and the workspace is preserved. The container can be restarted with `dev-box start`.
+Stops the container via `docker compose stop` (or `podman compose stop`). All data in `.dev-box-home/` and the workspace is preserved. The container can be restarted with `dev-box start`.
 
 ### Examples
 
@@ -300,10 +312,12 @@ dev-box doctor
 
 1. Validates `dev-box.toml` (syntax, field values, semver versions)
 2. Detects the container runtime
-3. Checks for `.root/` directory
+3. Checks for `.dev-box-home/` directory (suggests renaming `.root/` if found for backward compatibility)
 4. Checks for `.devcontainer/` directory
-5. Reports image flavor, process flavor, and container name
-6. Compares schema versions for migration needs
+5. Validates `.gitignore` contains required entries (`.dev-box-home/`, `.devcontainer/`)
+6. Validates mount source paths exist on the host
+7. Reports image flavor, process flavor, and container name
+8. Compares schema versions for migration needs
 
 ### Examples
 
@@ -320,8 +334,10 @@ Output:
  ✓ Process: product
  ✓ Container name: my-app
  ✓ Container runtime: podman
- ✓ .root/ directory exists at .root
+ ✓ .dev-box-home/ directory exists
  ✓ .devcontainer/ directory exists
+ ✓ .gitignore contains required entries
+ ✓ Mount source paths exist
  ✓ Diagnostics complete
 ```
 

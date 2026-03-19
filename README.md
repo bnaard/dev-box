@@ -47,6 +47,7 @@ All images include:
 | gh | GitHub CLI |
 | claude | Claude Code CLI |
 | sox + pulseaudio | Audio support (Claude voice) |
+| unzip | Archive extraction |
 | curl, jq, less | Utilities |
 
 ## Image flavors
@@ -75,13 +76,17 @@ All images include:
 
 ```toml
 [dev-box]
-version = "0.1.0"
+version = "0.3.4"
 image = "python"
 process = "product"
 
 [container]
 name = "my-project"
 hostname = "my-project"
+# user = "devuser"  # optional: run as non-root user
+
+[ai]
+providers = ["claude"]
 
 [audio]
 enabled = true
@@ -102,6 +107,7 @@ dev-box attach     # Reattach to running container
 dev-box status     # Show container state
 dev-box doctor     # Validate context structure
 dev-box update     # Check for updates
+dev-box audio      # Audio diagnostics (check/setup)
 ```
 
 ## Documentation
