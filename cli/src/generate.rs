@@ -125,11 +125,6 @@ fn generate_docker_compose(config: &DevBoxConfig, dir: &Path) -> Result<bool> {
     env_vars.insert("LANG".to_string(), "en_US.UTF-8".to_string());
     env_vars.insert("COLORTERM".to_string(), "truecolor".to_string());
     env_vars.insert("TERM".to_string(), "xterm-256color".to_string());
-    env_vars.insert(
-        "GIT_CONFIG_GLOBAL".to_string(),
-        "/root/.config/git/config".to_string(),
-    );
-
     if config.audio.enabled {
         env_vars.insert(
             "PULSE_SERVER".to_string(),
@@ -141,6 +136,18 @@ fn generate_docker_compose(config: &DevBoxConfig, dir: &Path) -> Result<bool> {
     for (k, v) in &config.container.environment {
         env_vars.insert(k.clone(), v.clone());
     }
+
+    // Build list of AI provider strings for template
+    let ai_providers: Vec<String> = config.ai.providers.iter().map(|p| p.to_string()).collect();
+
+    // Container home path
+    let container_home = config.container_home();
+
+    // GIT_CONFIG_GLOBAL must use the container home path
+    env_vars.insert(
+        "GIT_CONFIG_GLOBAL".to_string(),
+        format!("{}/.config/git/config", container_home),
+    );
 
     // Escape values for YAML double-quoted strings
     let escaped_env: BTreeMap<String, String> = env_vars
@@ -165,7 +172,9 @@ fn generate_docker_compose(config: &DevBoxConfig, dir: &Path) -> Result<bool> {
             hostname => config.container.hostname,
             workspace_dir => workspace_dir,
             host_root => host_root_str,
+            container_home => container_home,
             audio_enabled => config.audio.enabled,
+            ai_providers => ai_providers,
             extra_volumes => config.container.extra_volumes,
             env_keys => env_keys,
             env_vals => escaped_env,
@@ -209,7 +218,7 @@ fn generate_devcontainer_json(config: &DevBoxConfig, dir: &Path) -> Result<bool>
         "service": name,
         "workspaceFolder": "/workspace",
         "overrideCommand": true,
-        "remoteUser": "root",
+        "remoteUser": config.container.user,
         "customizations": {
             "vscode": {
                 "extensions": extensions,
@@ -273,6 +282,7 @@ mod tests {
             container: ContainerSection {
                 name: "test-ctr".to_string(),
                 hostname: "test-host".to_string(),
+                user: "root".to_string(),
                 ports: vec![],
                 extra_packages: vec![],
                 extra_volumes: vec![],
@@ -281,6 +291,7 @@ mod tests {
                 vscode_extensions: vec![],
             },
             context: ContextSection::default(),
+            ai: crate::config::AiSection::default(),
             audio: AudioSection {
                 enabled: audio_enabled,
                 pulse_server: "tcp:localhost:4714".to_string(),

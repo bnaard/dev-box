@@ -56,7 +56,7 @@ RUN tlmgr install --no-execute-actions \
     # TikZ/PGF
     pgf tikz-cd tikzmark pgfplots \
     # Boxes
-    tcolorbox pdfcol environ etoolbox \
+    tcolorbox tikzfill pdfcol environ etoolbox \
     # Bibliography
     biblatex biber csquotes \
     # Code listings
@@ -68,6 +68,8 @@ RUN tlmgr install --no-execute-actions \
     # Fonts
     lm lm-math sourcecodepro sourcesanspro tex-gyre \
     gnu-freefont \
+    # Algorithms
+    algorithms algorithmicx algorithm2e \
     # Misc utilities
     caption enumitem listings wrapfig \
     footmisc appendix pdfpages pdflscape xkeyval iftex \

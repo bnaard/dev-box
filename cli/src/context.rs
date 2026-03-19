@@ -2,7 +2,7 @@ use anyhow::{Context, Result};
 use std::fs;
 use std::path::Path;
 
-use crate::config::ProcessFlavor;
+use crate::config::{DevBoxConfig, ImageFlavor, ProcessFlavor};
 use crate::output;
 
 // --- Minimal templates ---
@@ -13,7 +13,8 @@ const MANAGED_CLAUDE_MD: &str = include_str!("../../templates/managed/CLAUDE.md.
 const MANAGED_DECISIONS: &str = include_str!("../../templates/managed/DECISIONS.md");
 const MANAGED_BACKLOG: &str = include_str!("../../templates/managed/BACKLOG.md");
 const MANAGED_STANDUPS: &str = include_str!("../../templates/managed/STANDUPS.md");
-const MANAGED_GENERAL: &str = include_str!("../../templates/managed/work-instructions/GENERAL.md");
+const MANAGED_GENERAL: &str =
+    include_str!("../../templates/managed/work-instructions/GENERAL.md");
 
 // --- Research templates ---
 const RESEARCH_CLAUDE_MD: &str = include_str!("../../templates/research/CLAUDE.md.template");
@@ -26,20 +27,17 @@ const PRODUCT_BACKLOG: &str = include_str!("../../templates/product/BACKLOG.md")
 const PRODUCT_STANDUPS: &str = include_str!("../../templates/product/STANDUPS.md");
 const PRODUCT_PROJECTS: &str = include_str!("../../templates/product/PROJECTS.md");
 const PRODUCT_PRD: &str = include_str!("../../templates/product/PRD.md");
-const PRODUCT_GENERAL: &str = include_str!("../../templates/product/work-instructions/GENERAL.md");
+const PRODUCT_GENERAL: &str =
+    include_str!("../../templates/product/work-instructions/GENERAL.md");
 const PRODUCT_DEVELOPMENT: &str =
     include_str!("../../templates/product/work-instructions/DEVELOPMENT.md");
 const PRODUCT_TEAM: &str = include_str!("../../templates/product/work-instructions/TEAM.md");
 
-/// Default OWNER.md placeholder content.
-const OWNER_PLACEHOLDER: &str = r#"# Owner Profile
+/// Default OWNER.md content — created locally in each project's context/ directory.
+const OWNER_CONTENT: &str = r#"# Owner Profile
 
-This file describes the project owner and is shared across projects.
-
-To share this file across projects, create it at:
-  ~/.config/dev-box/OWNER.md
-
-Then re-run `dev-box init` — it will be symlinked automatically.
+This file describes the project owner. It helps AI agents understand who they
+are working with and tailor their communication and technical approach accordingly.
 
 ## About
 
@@ -47,11 +45,24 @@ Then re-run `dev-box init` — it will be symlinked automatically.
 - **Role:**
 - **Contact:**
 
+## Background
+
+- **Domain expertise:** <!-- e.g., backend systems, data science, DevOps -->
+- **Primary languages:** <!-- e.g., Python, Rust, TypeScript -->
+- **Years of experience:**
+
 ## Preferences
 
-- **Communication style:**
-- **Code style preferences:**
-- **Review preferences:**
+- **Communication style:** <!-- e.g., concise and direct, detailed explanations -->
+- **Communication language:** <!-- e.g., English, German, prefer English for code comments -->
+- **Code style preferences:** <!-- e.g., minimal comments, explicit types, functional style -->
+- **Review preferences:** <!-- e.g., prefer small PRs, want tests for every change -->
+
+## Working Context
+
+- **Timezone:** <!-- e.g., Europe/Berlin -->
+- **Working hours:** <!-- e.g., 09:00-18:00 CET -->
+- **Current focus:** <!-- e.g., migrating auth system, learning Kubernetes -->
 "#;
 
 /// Scaffold the context/ directory based on the chosen work process flavor.
@@ -60,8 +71,12 @@ Then re-run `dev-box init` — it will be symlinked automatically.
 /// - Creates CLAUDE.md at project root from the template
 /// - Replaces {{project_name}} placeholders with the actual project name
 /// - Creates .dev-box-version file
-/// - Updates .gitignore with generated file entries
-pub fn scaffold_context(process: &ProcessFlavor, project_name: &str) -> Result<()> {
+/// - Updates .gitignore with generated file entries and language-specific blocks
+pub fn scaffold_context(config: &DevBoxConfig) -> Result<()> {
+    let process = &config.dev_box.process;
+    let project_name = &config.container.name;
+    let image = &config.dev_box.image;
+
     output::info(&format!("Scaffolding context for '{}' process...", process));
 
     match process {
@@ -75,8 +90,8 @@ pub fn scaffold_context(process: &ProcessFlavor, project_name: &str) -> Result<(
     write_if_missing(Path::new(".dev-box-version"), env!("CARGO_PKG_VERSION"))?;
     output::ok("Created .dev-box-version");
 
-    // Update .gitignore
-    update_gitignore()?;
+    // Update .gitignore with dev-box entries and language-specific blocks
+    update_gitignore(image)?;
 
     // Create Dockerfile.local placeholder
     let local_dockerfile = Path::new(crate::config::DEVCONTAINER_DIR).join("Dockerfile.local");
@@ -140,7 +155,7 @@ fn scaffold_managed(project_name: &str) -> Result<()> {
     )?;
     output::ok("Created context/work-instructions/GENERAL.md");
 
-    // OWNER.md (symlink or placeholder)
+    // OWNER.md (local copy)
     setup_owner_md(context)?;
 
     Ok(())
@@ -166,7 +181,7 @@ fn scaffold_research(project_name: &str) -> Result<()> {
     write_if_missing(&context.join("analysis").join(".gitkeep"), "")?;
     output::ok("Created context/research/ and context/analysis/");
 
-    // OWNER.md (symlink or placeholder)
+    // OWNER.md (local copy)
     setup_owner_md(context)?;
 
     Ok(())
@@ -225,14 +240,13 @@ fn scaffold_product(project_name: &str) -> Result<()> {
     write_if_missing(&context.join("ideas").join(".gitkeep"), "")?;
     output::ok("Created context/project-notes/ and context/ideas/");
 
-    // OWNER.md (symlink or placeholder)
+    // OWNER.md (local copy)
     setup_owner_md(context)?;
 
     Ok(())
 }
 
-/// Set up OWNER.md: symlink from ~/.config/dev-box/OWNER.md if it exists,
-/// otherwise create a placeholder with instructions.
+/// Create OWNER.md as a local file in the project's context/ directory.
 fn setup_owner_md(context: &Path) -> Result<()> {
     let owner_path = context.join("OWNER.md");
     if owner_path.exists() || owner_path.symlink_metadata().is_ok() {
@@ -240,30 +254,9 @@ fn setup_owner_md(context: &Path) -> Result<()> {
         return Ok(());
     }
 
-    let global_owner = dirs::config_dir().map(|d| d.join("dev-box").join("OWNER.md"));
-
-    if let Some(ref global) = global_owner
-        && global.exists()
-    {
-        std::os::unix::fs::symlink(global, &owner_path).with_context(|| {
-            format!(
-                "Failed to symlink {} -> {}",
-                owner_path.display(),
-                global.display()
-            )
-        })?;
-        output::ok(&format!(
-            "Symlinked context/OWNER.md -> {}",
-            global.display()
-        ));
-        return Ok(());
-    }
-
-    // No global OWNER.md found — create placeholder
-    fs::write(&owner_path, OWNER_PLACEHOLDER)
+    fs::write(&owner_path, OWNER_CONTENT)
         .with_context(|| format!("Failed to write {}", owner_path.display()))?;
-    output::ok("Created context/OWNER.md (placeholder)");
-    output::info("Tip: create ~/.config/dev-box/OWNER.md to share your profile across projects");
+    output::ok("Created context/OWNER.md");
 
     Ok(())
 }
@@ -324,28 +317,131 @@ pub(crate) fn write_if_missing(path: &Path, content: &str) -> Result<()> {
     Ok(())
 }
 
-/// Ensure .gitignore contains entries for generated devcontainer files.
-pub(crate) fn update_gitignore() -> Result<()> {
+/// Generate a .gitignore with dev-box entries, project-specific section,
+/// and language-specific blocks based on the image flavor.
+pub(crate) fn update_gitignore(image: &ImageFlavor) -> Result<()> {
     let gitignore_path = Path::new(".gitignore");
+
+    // If .gitignore already exists, just ensure dev-box entries are present
+    if gitignore_path.exists() {
+        return ensure_devbox_entries(gitignore_path);
+    }
+
+    // Create a new .gitignore with full structure
+    let mut content = String::new();
+
+    // Project-specific section
+    content.push_str("# ── Project-specific ─────────────────────────────────────────────────────────\n");
+    content.push_str("# Add your project-specific ignore patterns here.\n\n\n");
+
+    // dev-box generated
+    content.push_str("# ── dev-box generated ────────────────────────────────────────────────────────\n");
+    content.push_str("# Files generated by dev-box — do not remove these entries.\n");
+    content.push_str(".devcontainer/Dockerfile\n");
+    content.push_str(".devcontainer/docker-compose.yml\n");
+    content.push_str(".devcontainer/devcontainer.json\n");
+    content.push_str(".dev-box-home/\n");
+    content.push_str(".root/\n");
+    content.push_str(".dev-box-version\n");
+    content.push_str(".dev-box/\n\n");
+
+    // OS generated
+    content.push_str("# ── OS generated files ───────────────────────────────────────────────────────\n");
+    content.push_str(".DS_Store\n");
+    content.push_str(".DS_Store?\n");
+    content.push_str("._*\n");
+    content.push_str(".Spotlight-V100\n");
+    content.push_str(".Trashes\n");
+    content.push_str("Thumbs.db\n");
+    content.push_str("ehthumbs.db\n\n");
+
+    // Editor/IDE
+    content.push_str("# ── Editor / IDE ─────────────────────────────────────────────────────────────\n");
+    content.push_str("*.swp\n");
+    content.push_str("*.swo\n");
+    content.push_str("*~\n");
+    content.push_str(".idea/\n\n");
+
+    // Language-specific blocks based on image flavor
+    if image.contains_python() {
+        content.push_str("# ── Python ───────────────────────────────────────────────────────────────────\n");
+        content.push_str("__pycache__/\n");
+        content.push_str("*.py[cod]\n");
+        content.push_str("*$py.class\n");
+        content.push_str("*.egg-info/\n");
+        content.push_str("*.egg\n");
+        content.push_str("dist/\n");
+        content.push_str("build/\n");
+        content.push_str(".eggs/\n");
+        content.push_str(".venv/\n");
+        content.push_str("venv/\n");
+        content.push_str(".pytest_cache/\n");
+        content.push_str(".mypy_cache/\n");
+        content.push_str(".ruff_cache/\n");
+        content.push_str("htmlcov/\n");
+        content.push_str(".coverage\n");
+        content.push_str(".coverage.*\n");
+        content.push_str("site/\n\n");
+    }
+
+    if image.contains_latex() {
+        content.push_str("# ── LaTeX ────────────────────────────────────────────────────────────────────\n");
+        content.push_str("*.aux\n");
+        content.push_str("*.bbl\n");
+        content.push_str("*.blg\n");
+        content.push_str("*.fdb_latexmk\n");
+        content.push_str("*.fls\n");
+        content.push_str("*.lof\n");
+        content.push_str("*.log\n");
+        content.push_str("*.lot\n");
+        content.push_str("*.out\n");
+        content.push_str("*.toc\n");
+        content.push_str("*.synctex.gz\n");
+        content.push_str("*.nav\n");
+        content.push_str("*.snm\n");
+        content.push_str("*.vrb\n");
+        content.push_str("*.bcf\n");
+        content.push_str("*.run.xml\n\n");
+    }
+
+    if image.contains_typst() {
+        content.push_str("# ── Typst ────────────────────────────────────────────────────────────────────\n");
+        content.push_str("# Typst produces PDFs directly — ignore build outputs if applicable\n\n");
+    }
+
+    if image.contains_rust() {
+        content.push_str("# ── Rust ─────────────────────────────────────────────────────────────────────\n");
+        content.push_str("target/\n");
+        content.push_str("Cargo.lock\n\n");
+    }
+
+    fs::write(gitignore_path, content).context("Failed to write .gitignore")?;
+    output::ok("Created .gitignore with dev-box and language-specific entries");
+
+    Ok(())
+}
+
+/// Ensure dev-box entries exist in an existing .gitignore.
+fn ensure_devbox_entries(gitignore_path: &Path) -> Result<()> {
     let required_entries = [
         "# dev-box generated",
         crate::config::DOCKERFILE,
         crate::config::COMPOSE_FILE,
         crate::config::DEVCONTAINER_JSON,
-        ".root/",
+        ".dev-box-home/",
         ".dev-box-version",
     ];
 
-    let existing = if gitignore_path.exists() {
-        fs::read_to_string(gitignore_path).context("Failed to read .gitignore")?
-    } else {
-        String::new()
-    };
-
+    let existing = fs::read_to_string(gitignore_path).context("Failed to read .gitignore")?;
     let existing_lines: Vec<&str> = existing.lines().map(|l| l.trim()).collect();
+
     let mut additions = Vec::new();
     for entry in &required_entries {
         if !existing_lines.contains(entry) {
+            // Also check for .root/ (backward compat)
+            if *entry == ".dev-box-home/" && existing_lines.contains(&".root/") {
+                continue;
+            }
             additions.push(*entry);
         }
     }
@@ -369,6 +465,56 @@ pub(crate) fn update_gitignore() -> Result<()> {
     output::ok("Updated .gitignore with dev-box entries");
 
     Ok(())
+}
+
+/// Check that .gitignore has required entries. Used by doctor.
+pub fn check_gitignore_entries() -> Vec<String> {
+    let gitignore_path = Path::new(".gitignore");
+    let mut warnings = Vec::new();
+
+    if !gitignore_path.exists() {
+        warnings.push(".gitignore not found — run 'dev-box init' or create one".to_string());
+        return warnings;
+    }
+
+    let content = match fs::read_to_string(gitignore_path) {
+        Ok(c) => c,
+        Err(_) => {
+            warnings.push("Could not read .gitignore".to_string());
+            return warnings;
+        }
+    };
+
+    let lines: Vec<&str> = content.lines().map(|l| l.trim()).collect();
+
+    let required = [
+        (".devcontainer/Dockerfile", "generated Dockerfile"),
+        (
+            ".devcontainer/docker-compose.yml",
+            "generated docker-compose",
+        ),
+        (
+            ".devcontainer/devcontainer.json",
+            "generated devcontainer.json",
+        ),
+        (".dev-box-version", "version lockfile"),
+    ];
+
+    for (entry, desc) in &required {
+        if !lines.contains(entry) {
+            warnings.push(format!(
+                ".gitignore missing '{}' ({})",
+                entry, desc
+            ));
+        }
+    }
+
+    // Check for .dev-box-home/ or .root/
+    if !lines.contains(&".dev-box-home/") && !lines.contains(&".root/") {
+        warnings.push(".gitignore missing '.dev-box-home/' (persisted config directory)".to_string());
+    }
+
+    warnings
 }
 
 #[cfg(test)]
@@ -428,14 +574,13 @@ mod tests {
     #[serial]
     fn scaffold_minimal_creates_claude_md_and_version() {
         in_temp_dir(|| {
-            scaffold_context(&ProcessFlavor::Minimal, "test-proj").unwrap();
+            let config = test_config(ProcessFlavor::Minimal, ImageFlavor::Base);
+            scaffold_context(&config).unwrap();
             assert!(Path::new("CLAUDE.md").exists(), "CLAUDE.md should exist");
             assert!(
                 Path::new(".dev-box-version").exists(),
                 ".dev-box-version should exist"
             );
-            // Minimal should NOT create context/ directory
-            // (it only creates CLAUDE.md at root)
         });
     }
 
@@ -443,7 +588,8 @@ mod tests {
     #[serial]
     fn scaffold_managed_creates_expected_files() {
         in_temp_dir(|| {
-            scaffold_context(&ProcessFlavor::Managed, "test-proj").unwrap();
+            let config = test_config(ProcessFlavor::Managed, ImageFlavor::Base);
+            scaffold_context(&config).unwrap();
             assert!(Path::new("CLAUDE.md").exists());
             assert!(Path::new(".dev-box-version").exists());
             assert!(Path::new("context/DECISIONS.md").exists());
@@ -458,7 +604,8 @@ mod tests {
     #[serial]
     fn scaffold_research_creates_expected_files() {
         in_temp_dir(|| {
-            scaffold_context(&ProcessFlavor::Research, "test-proj").unwrap();
+            let config = test_config(ProcessFlavor::Research, ImageFlavor::Base);
+            scaffold_context(&config).unwrap();
             assert!(Path::new("CLAUDE.md").exists());
             assert!(Path::new("context/PROGRESS.md").exists());
             assert!(Path::new("context/research/.gitkeep").exists());
@@ -471,7 +618,8 @@ mod tests {
     #[serial]
     fn scaffold_product_creates_all_expected_files() {
         in_temp_dir(|| {
-            scaffold_context(&ProcessFlavor::Product, "test-proj").unwrap();
+            let config = test_config(ProcessFlavor::Product, ImageFlavor::Base);
+            scaffold_context(&config).unwrap();
             assert!(Path::new("CLAUDE.md").exists());
             assert!(Path::new(".dev-box-version").exists());
             assert!(Path::new("context/DECISIONS.md").exists());
@@ -492,10 +640,11 @@ mod tests {
     #[serial]
     fn claude_md_contains_project_name() {
         in_temp_dir(|| {
-            scaffold_context(&ProcessFlavor::Minimal, "awesome-project").unwrap();
+            let config = test_config(ProcessFlavor::Minimal, ImageFlavor::Base);
+            scaffold_context(&config).unwrap();
             let content = fs::read_to_string("CLAUDE.md").unwrap();
             assert!(
-                content.contains("awesome-project"),
+                content.contains("test-proj"),
                 "CLAUDE.md should contain project name"
             );
         });
@@ -503,27 +652,45 @@ mod tests {
 
     #[test]
     #[serial]
-    fn update_gitignore_adds_entries() {
+    fn gitignore_includes_python_block() {
         in_temp_dir(|| {
-            update_gitignore().unwrap();
+            update_gitignore(&ImageFlavor::Python).unwrap();
             let content = fs::read_to_string(".gitignore").unwrap();
-            assert!(content.contains(".devcontainer/Dockerfile"));
-            assert!(content.contains(".devcontainer/docker-compose.yml"));
-            assert!(content.contains(".devcontainer/devcontainer.json"));
-            assert!(content.contains(".root/"));
-            assert!(content.contains(".dev-box-version"));
+            assert!(content.contains("__pycache__/"));
+            assert!(content.contains("*.py[cod]"));
+            assert!(content.contains(".dev-box-home/"));
         });
     }
 
     #[test]
     #[serial]
-    fn update_gitignore_idempotent() {
+    fn gitignore_includes_latex_block() {
         in_temp_dir(|| {
-            update_gitignore().unwrap();
-            let first = fs::read_to_string(".gitignore").unwrap();
-            update_gitignore().unwrap();
-            let second = fs::read_to_string(".gitignore").unwrap();
-            assert_eq!(first, second, ".gitignore should not change on second run");
+            update_gitignore(&ImageFlavor::Latex).unwrap();
+            let content = fs::read_to_string(".gitignore").unwrap();
+            assert!(content.contains("*.aux"));
+            assert!(content.contains("*.synctex.gz"));
+        });
+    }
+
+    #[test]
+    #[serial]
+    fn gitignore_includes_rust_block() {
+        in_temp_dir(|| {
+            update_gitignore(&ImageFlavor::Rust).unwrap();
+            let content = fs::read_to_string(".gitignore").unwrap();
+            assert!(content.contains("target/"));
+        });
+    }
+
+    #[test]
+    #[serial]
+    fn gitignore_combined_flavor() {
+        in_temp_dir(|| {
+            update_gitignore(&ImageFlavor::PythonLatex).unwrap();
+            let content = fs::read_to_string(".gitignore").unwrap();
+            assert!(content.contains("__pycache__/"));
+            assert!(content.contains("*.aux"));
         });
     }
 
@@ -532,11 +699,48 @@ mod tests {
     fn update_gitignore_preserves_existing_content() {
         in_temp_dir(|| {
             fs::write(".gitignore", "node_modules/\n*.log\n").unwrap();
-            update_gitignore().unwrap();
+            update_gitignore(&ImageFlavor::Base).unwrap();
             let content = fs::read_to_string(".gitignore").unwrap();
             assert!(content.contains("node_modules/"));
             assert!(content.contains("*.log"));
-            assert!(content.contains(".root/"));
+            assert!(content.contains(".dev-box-home/") || content.contains(".root/"));
         });
+    }
+
+    #[test]
+    #[serial]
+    fn owner_md_has_extended_fields() {
+        in_temp_dir(|| {
+            let config = test_config(ProcessFlavor::Managed, ImageFlavor::Base);
+            scaffold_context(&config).unwrap();
+            let content = fs::read_to_string("context/OWNER.md").unwrap();
+            assert!(content.contains("Domain expertise"));
+            assert!(content.contains("Timezone"));
+            assert!(content.contains("Communication language"));
+        });
+    }
+
+    fn test_config(process: ProcessFlavor, image: ImageFlavor) -> DevBoxConfig {
+        DevBoxConfig {
+            dev_box: crate::config::DevBoxSection {
+                version: "0.1.0".to_string(),
+                image,
+                process,
+            },
+            container: crate::config::ContainerSection {
+                name: "test-proj".to_string(),
+                hostname: "test-proj".to_string(),
+                user: "root".to_string(),
+                ports: vec![],
+                extra_packages: vec![],
+                extra_volumes: vec![],
+                environment: std::collections::HashMap::new(),
+                post_create_command: None,
+                vscode_extensions: vec![],
+            },
+            context: crate::config::ContextSection::default(),
+            ai: crate::config::AiSection::default(),
+            audio: crate::config::AudioSection::default(),
+        }
     }
 }

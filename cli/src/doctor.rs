@@ -82,14 +82,27 @@ pub fn cmd_doctor(config_path: &Option<String>) -> Result<()> {
         }
     };
 
-    // 3. Check .root/ directory
+    // 3. Check .dev-box-home/ directory (or legacy .root/)
     let root = config.host_root_dir();
+    let root_label = root.display().to_string();
     if root.exists() {
-        output::ok(".root/ directory exists");
+        output::ok(&format!("{} directory exists", root_label));
         // Check expected subdirectories
-        check_root_subdirs(&root, &mut diag);
+        check_root_subdirs(&root, &root_label, &mut diag);
+
+        // Suggest migration from .root/ to .dev-box-home/
+        if root_label == ".root" && !std::path::Path::new(".dev-box-home").exists() {
+            output::warn(
+                ".root/ is the legacy name — consider renaming to .dev-box-home/ \
+                 (mv .root .dev-box-home)",
+            );
+            diag.warnings += 1;
+        }
     } else {
-        output::warn(".root/ directory not found -- run 'dev-box start' to create it");
+        output::warn(&format!(
+            "{} directory not found -- run 'dev-box init' or 'dev-box start' to create it",
+            root_label
+        ));
         diag.warnings += 1;
     }
 
@@ -103,7 +116,19 @@ pub fn cmd_doctor(config_path: &Option<String>) -> Result<()> {
     ));
     check_context_structure(&config.dev_box.process, &mut diag);
 
-    // 6. Schema version check
+    // 6. Check .gitignore
+    output::info("Checking .gitignore...");
+    let gitignore_warnings = crate::context::check_gitignore_entries();
+    if gitignore_warnings.is_empty() {
+        output::ok(".gitignore has all required entries");
+    } else {
+        for warning in &gitignore_warnings {
+            output::warn(warning);
+            diag.warnings += 1;
+        }
+    }
+
+    // 7. Schema version check
     output::info("Schema version check");
     check_schema_version(&config, &mut diag)?;
 
@@ -111,15 +136,15 @@ pub fn cmd_doctor(config_path: &Option<String>) -> Result<()> {
     Ok(())
 }
 
-/// Check .root/ subdirectories.
-fn check_root_subdirs(root: &Path, diag: &mut DiagResult) {
+/// Check home directory subdirectories.
+fn check_root_subdirs(root: &Path, root_label: &str, diag: &mut DiagResult) {
     let expected_dirs = [".ssh", ".vim", ".config/zellij", ".config/git"];
     for dir in &expected_dirs {
         let path = root.join(dir);
         if path.exists() {
-            output::ok(&format!(".root/{} exists", dir));
+            output::ok(&format!("{}/{} exists", root_label, dir));
         } else {
-            output::warn(&format!(".root/{} missing", dir));
+            output::warn(&format!("{}/{} missing", root_label, dir));
             diag.warnings += 1;
         }
     }

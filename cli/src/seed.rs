@@ -177,7 +177,8 @@ ctl.!default {
 pub fn seed_root_dir(config: &DevBoxConfig) -> Result<()> {
     let root = config.host_root_dir();
 
-    output::info("Seeding .root/ directory...");
+    let root_display = root.display();
+    output::info(&format!("Seeding {} directory...", root_display));
 
     // Create directory structure
     let dirs = [
@@ -232,7 +233,10 @@ pub fn seed_root_dir(config: &DevBoxConfig) -> Result<()> {
         let entries = fs::read_dir(&ssh_dir)
             .with_context(|| format!("Failed to read .ssh directory: {}", ssh_dir.display()))?;
         if entries.count() == 0 {
-            output::warn("No SSH keys found in .root/.ssh/ — copy your keys manually if needed");
+            output::warn(&format!(
+                "No SSH keys found in {}/.ssh/ — copy your keys manually if needed",
+                root_display
+            ));
         }
     }
 
@@ -267,6 +271,7 @@ mod tests {
             container: ContainerSection {
                 name: "test".to_string(),
                 hostname: "test".to_string(),
+                user: "root".to_string(),
                 ports: vec![],
                 extra_packages: vec![],
                 extra_volumes: vec![],
@@ -275,6 +280,7 @@ mod tests {
                 vscode_extensions: vec![],
             },
             context: ContextSection::default(),
+            ai: crate::config::AiSection::default(),
             audio: AudioSection {
                 enabled: audio_enabled,
                 pulse_server: "tcp:localhost:4714".to_string(),

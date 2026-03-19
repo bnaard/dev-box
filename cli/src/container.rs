@@ -1,7 +1,7 @@
 use anyhow::{Result, bail};
 use std::path::PathBuf;
 
-use crate::config::{DevBoxConfig, ImageFlavor, ProcessFlavor};
+use crate::config::{AiProvider, DevBoxConfig, ImageFlavor, ProcessFlavor};
 use crate::context;
 use crate::generate;
 use crate::output;
@@ -35,8 +35,8 @@ fn default_project_name() -> String {
 /// the corresponding argument is `None`.
 pub fn resolve_init_values(
     name: Option<String>,
-    image: Option<String>,
-    process: Option<String>,
+    image: Option<ImageFlavor>,
+    process: Option<ProcessFlavor>,
     interactive: bool,
 ) -> Result<(String, ImageFlavor, ProcessFlavor)> {
     // --- project name ---
@@ -54,7 +54,7 @@ pub fn resolve_init_values(
 
     // --- image flavor ---
     let image_flavor = match image {
-        Some(s) => ImageFlavor::from_str_loose(&s)?,
+        Some(f) => f,
         None if interactive => {
             let idx = dialoguer::Select::new()
                 .with_prompt("Image flavor")
@@ -68,7 +68,7 @@ pub fn resolve_init_values(
 
     // --- process flavor ---
     let process_flavor = match process {
-        Some(s) => ProcessFlavor::from_str_loose(&s)?,
+        Some(f) => f,
         None if interactive => {
             let idx = dialoguer::Select::new()
                 .with_prompt("Work process")
@@ -108,7 +108,7 @@ pub fn cmd_start(config_path: &Option<String>) -> Result<()> {
     let runtime = Runtime::detect()?;
     let name = &config.container.name;
 
-    // Seed .root/ directory
+    // Seed .dev-box-home/ directory
     seed::seed_root_dir(&config)?;
 
     // Generate devcontainer files
@@ -206,15 +206,131 @@ pub fn cmd_status(config_path: &Option<String>) -> Result<()> {
     Ok(())
 }
 
+/// Serialize config to TOML with comprehensive comments.
+fn serialize_config_with_comments(config: &DevBoxConfig) -> String {
+    let mut out = String::new();
+
+    // [dev-box] section
+    out.push_str("# dev-box.toml — project configuration for dev-box.\n");
+    out.push_str("# All generated files (.devcontainer/) derive from this file.\n");
+    out.push_str("# Run `dev-box generate` after editing to regenerate.\n");
+    out.push_str("#\n");
+    out.push_str("# Full documentation: https://projectious-work.github.io/dev-box/cli/configuration/\n\n");
+    out.push_str("[dev-box]\n");
+    out.push_str(&format!("version = \"{}\"\n", config.dev_box.version));
+    out.push_str(&format!(
+        "# Container image flavor. Options: base, python, latex, typst, rust,\n\
+         # python-latex, python-typst, rust-latex\n\
+         image = \"{}\"\n",
+        config.dev_box.image
+    ));
+    out.push_str(&format!(
+        "# Work process flavor. Controls which context files are scaffolded.\n\
+         # Options: minimal (CLAUDE.md only), managed (backlog + decisions),\n\
+         #          research (progress + notes), product (full: PRD + backlog + standups)\n\
+         process = \"{}\"\n",
+        config.dev_box.process
+    ));
+
+    // [container] section
+    out.push_str("\n[container]\n");
+    out.push_str(&format!("name = \"{}\"\n", config.container.name));
+    out.push_str(&format!("hostname = \"{}\"\n", config.container.hostname));
+    if config.container.user != "root" {
+        out.push_str(&format!(
+            "# Container user. Determines mount paths inside container.\n\
+             user = \"{}\"\n",
+            config.container.user
+        ));
+    } else {
+        out.push_str("# user = \"root\"  # Container user (default: root). Change to run as non-root.\n");
+    }
+    out.push_str("# ports = [\"8080:80\"]  # Host:container port forwarding\n");
+    if !config.container.ports.is_empty() {
+        out.push_str(&format!(
+            "ports = [{}]\n",
+            config
+                .container
+                .ports
+                .iter()
+                .map(|p| format!("\"{}\"", p))
+                .collect::<Vec<_>>()
+                .join(", ")
+        ));
+    }
+    out.push_str("# extra_packages = [\"ripgrep\", \"fd-find\"]  # Additional apt packages\n");
+    if !config.container.extra_packages.is_empty() {
+        out.push_str(&format!(
+            "extra_packages = [{}]\n",
+            config
+                .container
+                .extra_packages
+                .iter()
+                .map(|p| format!("\"{}\"", p))
+                .collect::<Vec<_>>()
+                .join(", ")
+        ));
+    }
+    out.push_str(
+        "# vscode_extensions = [\"eamodio.gitlens\"]  # Additional VS Code extensions\n",
+    );
+    out.push_str("# post_create_command = \"npm install\"  # Run after container creation\n");
+    out.push_str("#\n");
+    out.push_str("# Extra volumes: [[container.extra_volumes]]\n");
+    out.push_str("# source = \"/host/path\"\n");
+    out.push_str("# target = \"/container/path\"\n");
+    out.push_str("# read_only = false\n");
+    out.push_str("#\n");
+    out.push_str("# Extra environment: [container.environment]\n");
+    out.push_str("# MY_VAR = \"value\"\n");
+
+    // [context] section
+    out.push_str("\n[context]\n");
+    out.push_str(&format!("schema_version = \"{}\"\n", config.context.schema_version));
+
+    // [ai] section
+    out.push_str("\n# AI tool providers. Controls which AI CLI tools are mounted/configured.\n");
+    out.push_str("# Options: claude (more providers planned)\n");
+    out.push_str("[ai]\n");
+    out.push_str(&format!(
+        "providers = [{}]\n",
+        config
+            .ai
+            .providers
+            .iter()
+            .map(|p| format!("\"{}\"", p))
+            .collect::<Vec<_>>()
+            .join(", ")
+    ));
+
+    // [audio] section
+    out.push_str("\n# Audio support for PulseAudio bridging (e.g., Claude Code voice).\n");
+    out.push_str("# Requires host-side PulseAudio setup: run `dev-box audio setup`\n");
+    out.push_str("[audio]\n");
+    out.push_str(&format!("enabled = {}\n", config.audio.enabled));
+    if config.audio.enabled {
+        out.push_str(&format!(
+            "pulse_server = \"{}\"\n",
+            config.audio.pulse_server
+        ));
+    } else {
+        out.push_str("# pulse_server = \"tcp:host.docker.internal:4714\"\n");
+    }
+
+    out
+}
+
 /// Init command: create a dev-box.toml and generate files.
 pub fn cmd_init(
     config_path: &Option<String>,
     name: Option<String>,
-    image: Option<String>,
-    process: Option<String>,
+    image: Option<ImageFlavor>,
+    process: Option<ProcessFlavor>,
+    ai: Option<Vec<AiProvider>>,
+    user: Option<String>,
 ) -> Result<()> {
     use crate::config::{
-        AudioSection, ContainerSection, ContextSection, DevBoxConfig, DevBoxSection,
+        AiSection, AudioSection, ContainerSection, ContextSection, DevBoxConfig, DevBoxSection,
     };
 
     let toml_path = config_path
@@ -235,6 +351,9 @@ pub fn cmd_init(
     let (project_name, image_flavor, process_flavor) =
         resolve_init_values(name, image, process, interactive)?;
 
+    let container_user = user.unwrap_or_else(|| "root".to_string());
+    let ai_providers = ai.unwrap_or_else(|| vec![AiProvider::Claude]);
+
     let config = DevBoxConfig {
         dev_box: DevBoxSection {
             version: env!("CARGO_PKG_VERSION").to_string(),
@@ -244,6 +363,7 @@ pub fn cmd_init(
         container: ContainerSection {
             name: project_name.clone(),
             hostname: project_name,
+            user: container_user,
             ports: vec![],
             extra_packages: vec![],
             extra_volumes: vec![],
@@ -252,13 +372,15 @@ pub fn cmd_init(
             vscode_extensions: vec![],
         },
         context: ContextSection::default(),
+        ai: AiSection {
+            providers: ai_providers,
+        },
         audio: AudioSection::default(),
     };
 
     config.validate()?;
 
-    let toml_str = toml::to_string_pretty(&config)
-        .map_err(|e| anyhow::anyhow!("Failed to serialize config: {}", e))?;
+    let toml_str = serialize_config_with_comments(&config);
 
     std::fs::write(&toml_path, toml_str)
         .map_err(|e| anyhow::anyhow!("Failed to write {}: {}", toml_path.display(), e))?;
@@ -269,7 +391,10 @@ pub fn cmd_init(
     generate::generate_all(&config)?;
 
     // Scaffold context directory based on process flavor
-    context::scaffold_context(&config.dev_box.process, &config.container.name)?;
+    context::scaffold_context(&config)?;
+
+    // Seed .dev-box-home/ directory with default configs
+    seed::seed_root_dir(&config)?;
 
     output::ok("Project initialized. Edit dev-box.toml to customize, then run: dev-box start");
 
@@ -305,8 +430,8 @@ mod tests {
         // Even with interactive=true, explicit values should be used without prompting
         let (name, image, process) = resolve_init_values(
             Some("my-app".to_string()),
-            Some("python-latex".to_string()),
-            Some("research".to_string()),
+            Some(ImageFlavor::PythonLatex),
+            Some(ProcessFlavor::Research),
             true,
         )
         .expect("should succeed with explicit args");
@@ -320,8 +445,8 @@ mod tests {
     fn resolve_init_values_explicit_args_non_interactive() {
         let (name, image, process) = resolve_init_values(
             Some("test-proj".to_string()),
-            Some("rust".to_string()),
-            Some("minimal".to_string()),
+            Some(ImageFlavor::Rust),
+            Some(ProcessFlavor::Minimal),
             false,
         )
         .expect("should succeed");
@@ -329,27 +454,5 @@ mod tests {
         assert_eq!(name, "test-proj");
         assert_eq!(image, ImageFlavor::Rust);
         assert_eq!(process, ProcessFlavor::Minimal);
-    }
-
-    #[test]
-    fn resolve_init_values_invalid_image_rejected() {
-        let result = resolve_init_values(
-            Some("x".to_string()),
-            Some("golang".to_string()),
-            None,
-            false,
-        );
-        assert!(result.is_err(), "should reject unknown image flavor");
-    }
-
-    #[test]
-    fn resolve_init_values_invalid_process_rejected() {
-        let result = resolve_init_values(
-            Some("x".to_string()),
-            None,
-            Some("waterfall".to_string()),
-            false,
-        );
-        assert!(result.is_err(), "should reject unknown process flavor");
     }
 }

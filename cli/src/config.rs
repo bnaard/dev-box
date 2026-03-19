@@ -16,8 +16,9 @@ pub const DOCKERFILE: &str = ".devcontainer/Dockerfile";
 pub const DEVCONTAINER_JSON: &str = ".devcontainer/devcontainer.json";
 
 /// Image flavors corresponding to images/ subdirectories.
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, clap::ValueEnum)]
 #[serde(rename_all = "kebab-case")]
+#[clap(rename_all = "kebab-case")]
 pub enum ImageFlavor {
     Base,
     Python,
@@ -86,8 +87,9 @@ impl ImageFlavor {
 }
 
 /// Work process flavors.
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, clap::ValueEnum)]
 #[serde(rename_all = "kebab-case")]
+#[clap(rename_all = "kebab-case")]
 pub enum ProcessFlavor {
     Minimal,
     Managed,
@@ -144,6 +146,9 @@ pub struct ContainerSection {
     pub name: String,
     #[serde(default = "default_hostname")]
     pub hostname: String,
+    /// Container user (default: "root"). Determines mount paths inside container.
+    #[serde(default = "default_user")]
+    pub user: String,
     #[serde(default)]
     pub ports: Vec<String>,
     #[serde(default)]
@@ -158,6 +163,10 @@ pub struct ContainerSection {
     pub vscode_extensions: Vec<String>,
 }
 
+fn default_user() -> String {
+    "root".to_string()
+}
+
 fn default_hostname() -> String {
     "dev-box".to_string()
 }
@@ -165,14 +174,8 @@ fn default_hostname() -> String {
 /// [context] section.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ContextSection {
-    #[serde(default = "default_owner_path")]
-    pub owner: String,
     #[serde(default = "default_schema_version")]
     pub schema_version: String,
-}
-
-fn default_owner_path() -> String {
-    "~/.config/dev-box/OWNER.md".to_string()
 }
 
 fn default_schema_version() -> String {
@@ -182,8 +185,43 @@ fn default_schema_version() -> String {
 impl Default for ContextSection {
     fn default() -> Self {
         Self {
-            owner: default_owner_path(),
             schema_version: default_schema_version(),
+        }
+    }
+}
+
+/// AI tool providers supported in dev-box containers.
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, clap::ValueEnum)]
+#[serde(rename_all = "kebab-case")]
+#[clap(rename_all = "kebab-case")]
+pub enum AiProvider {
+    Claude,
+    // Future: Gemini, Copilot, etc.
+}
+
+impl std::fmt::Display for AiProvider {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            AiProvider::Claude => write!(f, "claude"),
+        }
+    }
+}
+
+fn default_ai_tools() -> Vec<AiProvider> {
+    vec![AiProvider::Claude]
+}
+
+/// [ai] section — AI tool provider configuration.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct AiSection {
+    #[serde(default = "default_ai_tools")]
+    pub providers: Vec<AiProvider>,
+}
+
+impl Default for AiSection {
+    fn default() -> Self {
+        Self {
+            providers: default_ai_tools(),
         }
     }
 }
@@ -243,6 +281,8 @@ pub struct DevBoxConfig {
     pub container: ContainerSection,
     #[serde(default)]
     pub context: ContextSection,
+    #[serde(default)]
+    pub ai: AiSection,
     #[serde(default)]
     pub audio: AudioSection,
 }
@@ -330,12 +370,28 @@ impl DevBoxConfig {
         Ok(())
     }
 
-    /// Get the host root path (.root/ directory), respecting env override.
+    /// Get the host root path (.dev-box-home/ directory), respecting env override.
+    /// Falls back to `.root/` if that directory exists (backward compatibility).
     pub fn host_root_dir(&self) -> PathBuf {
         if let Ok(val) = std::env::var("DEV_BOX_HOST_ROOT") {
-            PathBuf::from(val)
+            return PathBuf::from(val);
+        }
+        // Backward compat: use .root/ if it exists and .dev-box-home/ doesn't
+        let new_path = PathBuf::from(".dev-box-home");
+        let old_path = PathBuf::from(".root");
+        if old_path.exists() && !new_path.exists() {
+            old_path
         } else {
-            PathBuf::from(".root")
+            new_path
+        }
+    }
+
+    /// Get the container-side home directory based on the configured user.
+    pub fn container_home(&self) -> String {
+        if self.container.user == "root" {
+            "/root".to_string()
+        } else {
+            format!("/home/{}", self.container.user)
         }
     }
 
@@ -343,6 +399,7 @@ impl DevBoxConfig {
     pub fn workspace_dir(&self) -> String {
         std::env::var("DEV_BOX_WORKSPACE_DIR").unwrap_or_else(|_| "..".to_string())
     }
+
 }
 
 #[cfg(test)]
@@ -373,7 +430,6 @@ target = "/data"
 read_only = true
 
 [context]
-owner = "~/my-owner.md"
 schema_version = "2.0.0"
 
 [audio]
@@ -415,7 +471,6 @@ name = "my-project"
         assert_eq!(config.container.extra_volumes[0].source, "/host/data");
         assert_eq!(config.container.extra_volumes[0].target, "/data");
         assert!(config.container.extra_volumes[0].read_only);
-        assert_eq!(config.context.owner, "~/my-owner.md");
         assert_eq!(config.context.schema_version, "2.0.0");
         assert!(config.audio.enabled);
         assert_eq!(config.audio.pulse_server, "tcp:localhost:4714");
@@ -435,7 +490,6 @@ name = "my-project"
         assert!(config.container.extra_packages.is_empty());
         assert!(config.container.extra_volumes.is_empty());
         assert!(config.container.environment.is_empty());
-        assert_eq!(config.context.owner, "~/.config/dev-box/OWNER.md");
         assert_eq!(config.context.schema_version, "1.0.0");
         assert!(!config.audio.enabled);
         assert_eq!(config.audio.pulse_server, "tcp:host.docker.internal:4714");
@@ -649,7 +703,8 @@ name = ""
             std::env::remove_var("DEV_BOX_HOST_ROOT");
         }
         let config = parse_toml(minimal_toml()).unwrap();
-        assert_eq!(config.host_root_dir(), PathBuf::from(".root"));
+        // Default is .dev-box-home when neither .root nor .dev-box-home exist
+        assert_eq!(config.host_root_dir(), PathBuf::from(".dev-box-home"));
     }
 
     #[test]

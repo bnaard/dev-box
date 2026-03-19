@@ -1,4 +1,8 @@
-{{ header }}services:
+{{ header }}#
+# Volume mounts map host-side .dev-box-home/ into the container home directory.
+# Edit dev-box.toml to add extra_volumes, extra environment, or ports.
+#
+services:
   {{ name }}:
     build:
       context: .
@@ -9,16 +13,28 @@
     tty: true
     working_dir: /workspace
     volumes:
+      # Workspace (project root)
       - ${WORKSPACE_DIR:-{{ workspace_dir }}}:/workspace
-      - {{ host_root }}/.ssh:/root/.ssh:ro
-      - {{ host_root }}/.vim:/root/.vim
-      - {{ host_root }}/.config/zellij:/root/.config/zellij
-      - {{ host_root }}/.config/git:/root/.config/git
-      - {{ host_root }}/.claude:/root/.claude
+      # SSH keys (read-only — mount from host)
+      - {{ host_root }}/.ssh:{{ container_home }}/.ssh:ro
+      # Vim configuration
+      - {{ host_root }}/.vim:{{ container_home }}/.vim
+      # Zellij terminal multiplexer config
+      - {{ host_root }}/.config/zellij:{{ container_home }}/.config/zellij
+      # Git configuration
+      - {{ host_root }}/.config/git:{{ container_home }}/.config/git
+{% for provider in ai_providers %}
+{% if provider == "claude" %}
+      # Claude Code configuration and memory
+      - {{ host_root }}/.claude:{{ container_home }}/.claude
+{% endif %}
+{% endfor %}
 {% if audio_enabled %}
-      - {{ host_root }}/.asoundrc:/root/.asoundrc
+      # ALSA → PulseAudio bridge config
+      - {{ host_root }}/.asoundrc:{{ container_home }}/.asoundrc
 {% endif %}
 {% for vol in extra_volumes %}
+      # Extra volume from dev-box.toml
       - {{ vol.source }}:{{ vol.target }}{% if vol.read_only %}:ro{% endif %}
 
 {% endfor %}

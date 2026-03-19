@@ -55,6 +55,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     lazygit \
     # Shell quality-of-life
     less \
+    unzip \
     bash-completion \
     # GitHub CLI
     gh \
