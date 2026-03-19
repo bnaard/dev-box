@@ -294,7 +294,10 @@ fn generate_devcontainer_json(config: &DevBoxConfig, dir: &Path) -> Result<bool>
             ]
         });
         for (k, v) in latex_settings.as_object().unwrap() {
-            settings.as_object_mut().unwrap().insert(k.clone(), v.clone());
+            settings
+                .as_object_mut()
+                .unwrap()
+                .insert(k.clone(), v.clone());
         }
     }
 

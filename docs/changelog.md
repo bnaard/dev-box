@@ -2,6 +2,19 @@
 
 All notable changes to dev-box are documented here.
 
+## v0.3.7 — 2026-03-20
+
+### Added
+- LaTeX Workshop settings in generated `devcontainer.json`: latexmk recipes (lualatex, pdflatex, lualatex+biber), `--shell-escape`, output to `./out`, PDF viewer in tab, biber tool, auto-build on save, clean file types
+- `out/` added to LaTeX `.gitignore` block
+
+### Fixed
+- Runtime detection: prefer docker over podman, verify daemon is responsive via `docker info` / `podman info` — fixes OrbStack compatibility where podman is on PATH but not running
+- Better error messages when runtime is on PATH but daemon not responding
+
+### Changed
+- Bumped Typst 0.13.1 → 0.14.2
+
 ## v0.3.6 — 2026-03-19
 
 ### Fixed
