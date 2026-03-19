@@ -399,7 +399,6 @@ impl DevBoxConfig {
     pub fn workspace_dir(&self) -> String {
         std::env::var("DEV_BOX_WORKSPACE_DIR").unwrap_or_else(|_| "..".to_string())
     }
-
 }
 
 #[cfg(test)]

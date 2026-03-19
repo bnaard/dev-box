@@ -153,7 +153,10 @@ fn check_mount_sources(
         };
         let path = root.join(dir_name);
         if path.exists() {
-            output::ok(&format!("{}/{} exists ({})", root_label, dir_name, provider));
+            output::ok(&format!(
+                "{}/{} exists ({})",
+                root_label, dir_name, provider
+            ));
         } else {
             output::warn(&format!(
                 "{}/{} missing — run 'dev-box generate' to create it",

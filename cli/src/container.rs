@@ -215,7 +215,9 @@ fn serialize_config_with_comments(config: &DevBoxConfig) -> String {
     out.push_str("# All generated files (.devcontainer/) derive from this file.\n");
     out.push_str("# Run `dev-box generate` after editing to regenerate.\n");
     out.push_str("#\n");
-    out.push_str("# Full documentation: https://projectious-work.github.io/dev-box/cli/configuration/\n\n");
+    out.push_str(
+        "# Full documentation: https://projectious-work.github.io/dev-box/cli/configuration/\n\n",
+    );
     out.push_str("[dev-box]\n");
     out.push_str(&format!("version = \"{}\"\n", config.dev_box.version));
     out.push_str(&format!(
@@ -243,7 +245,9 @@ fn serialize_config_with_comments(config: &DevBoxConfig) -> String {
             config.container.user
         ));
     } else {
-        out.push_str("# user = \"root\"  # Container user (default: root). Change to run as non-root.\n");
+        out.push_str(
+            "# user = \"root\"  # Container user (default: root). Change to run as non-root.\n",
+        );
     }
     out.push_str("# ports = [\"8080:80\"]  # Host:container port forwarding\n");
     if !config.container.ports.is_empty() {
@@ -271,9 +275,7 @@ fn serialize_config_with_comments(config: &DevBoxConfig) -> String {
                 .join(", ")
         ));
     }
-    out.push_str(
-        "# vscode_extensions = [\"eamodio.gitlens\"]  # Additional VS Code extensions\n",
-    );
+    out.push_str("# vscode_extensions = [\"eamodio.gitlens\"]  # Additional VS Code extensions\n");
     out.push_str("# post_create_command = \"npm install\"  # Run after container creation\n");
     out.push_str("#\n");
     out.push_str("# Extra volumes: [[container.extra_volumes]]\n");
@@ -286,7 +288,10 @@ fn serialize_config_with_comments(config: &DevBoxConfig) -> String {
 
     // [context] section
     out.push_str("\n[context]\n");
-    out.push_str(&format!("schema_version = \"{}\"\n", config.context.schema_version));
+    out.push_str(&format!(
+        "schema_version = \"{}\"\n",
+        config.context.schema_version
+    ));
 
     // [ai] section
     out.push_str("\n# AI tool providers. Controls which AI CLI tools are mounted/configured.\n");
