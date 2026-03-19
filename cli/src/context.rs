@@ -411,7 +411,8 @@ pub(crate) fn update_gitignore(image: &ImageFlavor) -> Result<()> {
         content.push_str("*.snm\n");
         content.push_str("*.vrb\n");
         content.push_str("*.bcf\n");
-        content.push_str("*.run.xml\n\n");
+        content.push_str("*.run.xml\n");
+        content.push_str("out/\n\n");
     }
 
     if image.contains_typst() {

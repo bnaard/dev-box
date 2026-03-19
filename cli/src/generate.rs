@@ -211,6 +211,93 @@ fn generate_devcontainer_json(config: &DevBoxConfig, dir: &Path) -> Result<bool>
         extensions.push(ext.clone());
     }
 
+    // Build VS Code settings — start with base, add flavor-specific
+    let mut settings = serde_json::json!({
+        "terminal.integrated.defaultProfile.linux": "zellij",
+        "terminal.integrated.profiles.linux": {
+            "bash": {
+                "path": "/bin/bash"
+            },
+            "claude": {
+                "path": "/usr/local/bin/claude"
+            },
+            "zellij": {
+                "path": "/usr/local/bin/zellij",
+                "args": ["--layout", "dev"]
+            }
+        }
+    });
+
+    // LaTeX Workshop settings — matches proven setup from derived projects
+    if image.contains_latex() {
+        let latex_settings = serde_json::json!({
+            "latex-workshop.latex.outDir": "./out",
+            "latex-workshop.view.pdf.viewer": "tab",
+            "latex-workshop.latex.tools": [
+                {
+                    "name": "latexmk-lualatex",
+                    "command": "latexmk",
+                    "args": [
+                        "--shell-escape",
+                        "-synctex=1",
+                        "-interaction=nonstopmode",
+                        "-file-line-error",
+                        "-pdflatex=lualatex",
+                        "-pdf",
+                        "-aux-directory=./out",
+                        "-output-directory=./out",
+                        "%DOC%"
+                    ]
+                },
+                {
+                    "name": "latexmk-pdflatex",
+                    "command": "latexmk",
+                    "args": [
+                        "-synctex=1",
+                        "-interaction=nonstopmode",
+                        "-file-line-error",
+                        "-pdf",
+                        "-aux-directory=./out",
+                        "-output-directory=./out",
+                        "%DOC%"
+                    ]
+                },
+                {
+                    "name": "biber",
+                    "command": "biber",
+                    "args": [
+                        "--input-directory=out",
+                        "--output-directory=out",
+                        "%DOCFILE%"
+                    ]
+                }
+            ],
+            "latex-workshop.latex.recipes": [
+                {
+                    "name": "latexmk (lualatex)",
+                    "tools": ["latexmk-lualatex"]
+                },
+                {
+                    "name": "latexmk (pdflatex)",
+                    "tools": ["latexmk-pdflatex"]
+                },
+                {
+                    "name": "latexmk (lualatex) + biber",
+                    "tools": ["latexmk-lualatex", "biber", "latexmk-lualatex"]
+                }
+            ],
+            "latex-workshop.latex.autoBuild.run": "onSave",
+            "latex-workshop.latex.clean.fileTypes": [
+                "*.aux", "*.bbl", "*.blg", "*.fdb_latexmk", "*.fls",
+                "*.log", "*.out", "*.synctex.gz", "*.toc", "*.lof",
+                "*.lot", "*.nav", "*.snm", "*.vrb", "*.bcf", "*.run.xml"
+            ]
+        });
+        for (k, v) in latex_settings.as_object().unwrap() {
+            settings.as_object_mut().unwrap().insert(k.clone(), v.clone());
+        }
+    }
+
     // Use serde_json for proper JSON formatting
     let mut devcontainer = serde_json::json!({
         "name": name,
@@ -222,21 +309,7 @@ fn generate_devcontainer_json(config: &DevBoxConfig, dir: &Path) -> Result<bool>
         "customizations": {
             "vscode": {
                 "extensions": extensions,
-                "settings": {
-                    "terminal.integrated.defaultProfile.linux": "zellij",
-                    "terminal.integrated.profiles.linux": {
-                        "bash": {
-                            "path": "/bin/bash"
-                        },
-                        "claude": {
-                            "path": "/usr/local/bin/claude"
-                        },
-                        "zellij": {
-                            "path": "/usr/local/bin/zellij",
-                            "args": ["--layout", "dev"]
-                        }
-                    }
-                }
+                "settings": settings
             }
         }
     });
