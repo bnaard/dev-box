@@ -7,6 +7,7 @@ The base image is the foundation for all dev-box container flavors. It provides 
 | Tool | Version / Source | Purpose |
 |------|-----------------|---------|
 | Zellij | 0.43.1 (prebuilt binary from GitHub releases) | Terminal multiplexer |
+| Yazi | 25.4.8 (prebuilt binary from GitHub releases) | Terminal file manager |
 | Vim | Debian package (`vim` + `vim-runtime`) | Editor |
 | Git | Debian package | Version control |
 | lazygit | Debian package | Git TUI |
@@ -42,7 +43,7 @@ All primary bindings use `Alt` as modifier to avoid conflicts with Vim and other
 
 | Key | Action |
 |-----|--------|
-| `Alt s` | Open Strider file picker (floating) |
+| `Alt s` | Open Strider file picker (floating pane) |
 | `Alt m` | Open session manager (floating) |
 | `Alt h/j/k/l` | Navigate panes (vim-style) |
 | `Alt n` | New pane |
@@ -62,13 +63,57 @@ All primary bindings use `Alt` as modifier to avoid conflicts with Vim and other
 | `Alt /` | Search scrollback |
 | `Ctrl q` | Quit Zellij |
 
-### Default Layout
+### Layouts
 
-Three tabs open on startup:
+dev-box ships three IDE layouts. Select one when attaching via `zellij --layout <name>` (the default is `dev`). All layouts include shared tabs for **git** (lazygit), **shell** (extra bash), and **help** (cheatsheet).
 
-- **dev** -- Strider sidebar (file picker) | Vim editor | bottom row with bash terminal and Claude Code
-- **git** -- Full-pane lazygit
-- **shell** -- Clean bash terminal
+#### dev (default, VS Code-like)
+
+```
+┌──────────┬───────────────────────────────┐
+│          │         vim editor            │
+│  yazi    │                               │
+│  (20%)   ├───────────────────────────────┤
+│          │  ┊bash┊claude┊  stacked       │
+├──────────┴───────────────────────────────┤
+│  status-bar                              │
+└──────────────────────────────────────────┘
+```
+
+Yazi file manager on the left, Vim on the top right, bash and Claude Code stacked below.
+
+#### focus (minimal distraction)
+
+```
+┌──────────┬───────────────────────────────┐
+│          │                               │
+│  yazi    │  ┊bash┊claude┊vim┊            │
+│  (20%)   │  stacked (one visible)        │
+│          │                               │
+├──────────┴───────────────────────────────┤
+│  status-bar                              │
+└──────────────────────────────────────────┘
+```
+
+Yazi on the left, three tools stacked on the right (bash, Claude Code, Vim) with only one visible at a time.
+
+#### assist (Claude-focused)
+
+```
+┌──────────┬──────────────┬────────────────┐
+│          │              │                │
+│  yazi    │  ┊bash┊      │    vim         │
+│  (20%)   │  ┊claude┊    │               │
+│          │  stacked     │                │
+├──────────┴──────────────┴────────────────┤
+│  status-bar                              │
+└──────────────────────────────────────────┘
+```
+
+Yazi on the left, stacked bash/Claude Code in the center, Vim on the right. Emphasizes the Claude interface for AI-assisted workflows.
+
+!!! note "Strider vs Yazi"
+    `Alt s` opens the built-in **Strider** file picker as a floating overlay (Zellij plugin). The sidebar file manager in all layouts is **Yazi**, an external terminal file manager with richer features (preview, bulk operations, async I/O).
 
 ### Theme
 
@@ -112,6 +157,7 @@ All user configuration is persisted on the host under `.dev-box-home/` and bind-
 | `.dev-box-home/.vim/` | `/root/.vim` | Vim config, undo history, plugins |
 | `.dev-box-home/.config/git/` | `/root/.config/git` | Git config and credentials |
 | `.dev-box-home/.config/zellij/` | `/root/.config/zellij` | Zellij config, themes, layouts, plugin cache |
+| `.dev-box-home/.config/yazi/` | `/root/.config/yazi` | Yazi file manager config and keymap |
 
 The Dockerfile bakes identical defaults into the image as a fallback. If no mounts are present, the container still works out of the box.
 

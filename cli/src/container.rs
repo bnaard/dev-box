@@ -103,7 +103,7 @@ pub fn cmd_build(config_path: &Option<String>, no_cache: bool) -> Result<()> {
 }
 
 /// Start command: seed, generate, ensure running, attach.
-pub fn cmd_start(config_path: &Option<String>) -> Result<()> {
+pub fn cmd_start(config_path: &Option<String>, layout: &str) -> Result<()> {
     let config = DevBoxConfig::from_cli_option(config_path)?;
     let runtime = Runtime::detect()?;
     let name = &config.container.name;
@@ -134,8 +134,8 @@ pub fn cmd_start(config_path: &Option<String>) -> Result<()> {
     }
 
     // Attach via zellij
-    output::info("Attaching via zellij...");
-    runtime.exec_interactive(name, &["zellij", "--layout", "dev"])?;
+    output::info(&format!("Attaching via zellij (layout: {})...", layout));
+    runtime.exec_interactive(name, &["zellij", "--layout", layout])?;
 
     Ok(())
 }
@@ -165,7 +165,7 @@ pub fn cmd_stop(config_path: &Option<String>) -> Result<()> {
 }
 
 /// Attach command.
-pub fn cmd_attach(config_path: &Option<String>) -> Result<()> {
+pub fn cmd_attach(config_path: &Option<String>, layout: &str) -> Result<()> {
     let config = DevBoxConfig::from_cli_option(config_path)?;
     let runtime = Runtime::detect()?;
     let name = &config.container.name;
@@ -178,8 +178,8 @@ pub fn cmd_attach(config_path: &Option<String>) -> Result<()> {
         );
     }
 
-    output::info("Attaching via zellij...");
-    runtime.exec_interactive(name, &["zellij", "--layout", "dev"])?;
+    output::info(&format!("Attaching via zellij (layout: {})...", layout));
+    runtime.exec_interactive(name, &["zellij", "--layout", layout])?;
 
     Ok(())
 }

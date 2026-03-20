@@ -168,8 +168,14 @@ Start the container and attach via Zellij.
 ### Usage
 
 ```bash
-dev-box start
+dev-box start [OPTIONS]
 ```
+
+### Options
+
+| Option | Default | Description |
+|--------|---------|-------------|
+| `--layout <LAYOUT>` | `dev` | Zellij layout: `dev`, `focus`, or `assist` |
 
 ### What It Does
 
@@ -182,13 +188,29 @@ This is the primary command for daily use. It handles the full lifecycle:
    - **Stopped:** Starts the existing container
    - **Missing:** Builds the image (if needed) and creates the container
 4. Waits for the container to be ready (up to 7.5 seconds)
-5. Attaches via `zellij --layout dev`
+5. Attaches via `zellij --layout <LAYOUT>`
+
+### Available Layouts
+
+| Layout | Description |
+|--------|-------------|
+| `dev` | VS Code-like: Yazi sidebar, Vim editor, stacked terminals (default) |
+| `focus` | Minimal distraction: Yazi sidebar, single stacked pane |
+| `assist` | Claude-focused: Yazi sidebar, stacked bash/Claude center, Vim right |
+
+All layouts include shared tabs for **git** (lazygit), **shell** (extra bash), and **help** (cheatsheet).
 
 ### Examples
 
 ```bash
-# Start working (handles everything)
+# Start working with default layout
 dev-box start
+
+# Start with focus layout (minimal distraction)
+dev-box start --layout focus
+
+# Start with Claude-focused layout
+dev-box start --layout assist
 ```
 
 ### Exit Codes
@@ -236,18 +258,29 @@ Attach to a running container via Zellij.
 ### Usage
 
 ```bash
-dev-box attach
+dev-box attach [OPTIONS]
 ```
+
+### Options
+
+| Option | Default | Description |
+|--------|---------|-------------|
+| `--layout <LAYOUT>` | `dev` | Zellij layout: `dev`, `focus`, or `assist` |
 
 ### What It Does
 
-Execs into the container and launches `zellij --layout dev`. Unlike `start`, this command does not create or start the container -- it must already be running.
+Execs into the container and launches `zellij --layout <LAYOUT>`. Unlike `start`, this command does not create or start the container -- it must already be running.
+
+See [dev-box start](#dev-box-start) for available layouts.
 
 ### Examples
 
 ```bash
 # Attach from a second terminal
 dev-box attach
+
+# Attach with focus layout
+dev-box attach --layout focus
 ```
 
 ### Exit Codes
@@ -416,22 +449,28 @@ dev-box update [OPTIONS]
 | Option | Description |
 |--------|-------------|
 | `--check` | Only check for updates, do not apply |
+| `--dry-run` | Preview what would change without writing files |
 
 ### What It Does
 
-Checks the current version against the latest available release. Without `--check`, applies the update.
+Checks the current version against the latest available release. Without flags, upgrades the image version in `dev-box.toml` and regenerates container files.
+
+- **`--check`** — Queries GHCR for the latest image tag and GitHub Releases for the latest CLI version. Reports whether updates are available without changing anything.
+- **No flags** — Fetches the latest image version, updates `version` in `dev-box.toml`, regenerates `.devcontainer/` files, and updates `.dev-box-version`. You still need to rebuild the container to apply changes.
+- **`--dry-run`** — Shows what would change without writing any files.
 
 ### Examples
 
 ```bash
-# Check for updates
+# Check for updates (read-only)
 dev-box update --check
 
-# Apply updates
+# Preview upgrade without applying
+dev-box update --dry-run
+
+# Upgrade image version and regenerate files
 dev-box update
 ```
-
-`dev-box update --check` queries GHCR for the latest image tag and GitHub Releases for the latest CLI version, comparing against current versions. Without `--check`, it displays manual update instructions.
 
 ### Exit Codes
 

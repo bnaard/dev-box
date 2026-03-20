@@ -45,9 +45,9 @@ fn dispatch(cli: cli::Cli) -> anyhow::Result<()> {
         } => container::cmd_init(config_path, name, image, process, ai, user),
         cli::Commands::Generate => container::cmd_generate(config_path),
         cli::Commands::Build { no_cache } => container::cmd_build(config_path, no_cache),
-        cli::Commands::Start => container::cmd_start(config_path),
+        cli::Commands::Start { layout } => container::cmd_start(config_path, &layout.to_string()),
         cli::Commands::Stop => container::cmd_stop(config_path),
-        cli::Commands::Attach => container::cmd_attach(config_path),
+        cli::Commands::Attach { layout } => container::cmd_attach(config_path, &layout.to_string()),
         cli::Commands::Status => container::cmd_status(config_path),
         cli::Commands::Doctor => doctor::cmd_doctor(config_path),
         cli::Commands::Completions { shell } => {

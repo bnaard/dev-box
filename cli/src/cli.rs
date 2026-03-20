@@ -1,6 +1,27 @@
-use clap::{Parser, Subcommand};
+use clap::{Parser, Subcommand, ValueEnum};
 
 use crate::config::{AiProvider, ImageFlavor, ProcessFlavor};
+
+/// Available Zellij IDE layouts.
+#[derive(Clone, Debug, ValueEnum)]
+pub enum Layout {
+    /// VS Code-like: Yazi sidebar, Vim editor, stacked terminals
+    Dev,
+    /// Minimal distraction: Yazi sidebar, single stacked pane
+    Focus,
+    /// Claude-focused: Yazi sidebar, stacked bash/Claude center, Vim right
+    Assist,
+}
+
+impl std::fmt::Display for Layout {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Layout::Dev => write!(f, "dev"),
+            Layout::Focus => write!(f, "focus"),
+            Layout::Assist => write!(f, "assist"),
+        }
+    }
+}
 
 #[derive(Parser)]
 #[command(
@@ -18,7 +39,8 @@ Examples:
   dev-box init --image rust --process minimal  Rust project, minimal context
   dev-box generate                             Regenerate files from dev-box.toml
   dev-box build                                Build the container image
-  dev-box start                                Start and attach to container
+  dev-box start                                Start and attach (dev layout)
+  dev-box start --layout focus                 Start with focus layout
   dev-box doctor                               Validate project structure
   dev-box update --check                       Check for newer versions
   dev-box audio check                          Diagnose host audio setup",
@@ -83,11 +105,23 @@ pub enum Commands {
     ///
     /// Seeds .dev-box-home/ if needed, generates devcontainer files,
     /// creates/starts the container, then attaches via zellij.
-    Start,
+    ///
+    /// Available layouts: dev (default), focus, assist.
+    Start {
+        /// Zellij layout to use (dev, focus, assist)
+        #[arg(long, value_enum, default_value = "dev")]
+        layout: Layout,
+    },
     /// Stop the container
     Stop,
     /// Attach to running container
-    Attach,
+    ///
+    /// Available layouts: dev (default), focus, assist.
+    Attach {
+        /// Zellij layout to use (dev, focus, assist)
+        #[arg(long, value_enum, default_value = "dev")]
+        layout: Layout,
+    },
     /// Show container status
     Status,
     /// Validate context structure and produce migration artifacts

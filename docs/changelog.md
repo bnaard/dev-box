@@ -2,9 +2,20 @@
 
 All notable changes to dev-box are documented here.
 
+## v0.3.8 — 2026-03-21
+
+### Added
+- `--layout` flag on `dev-box start` and `dev-box attach` — choose between `dev` (default), `focus`, or `assist` layouts
+- Layout descriptions in CLI help text (`--help` shows what each layout looks like)
+
+### Fixed
+- Comprehensive docs update: Strider→Yazi references, documented 3 IDE layouts, updated `update` command with `--dry-run`, updated roadmap to v0.3.8, corrected test counts
+
 ## v0.3.7 — 2026-03-20
 
 ### Added
+- **Yazi file manager** replaces Strider as the default sidebar file manager in all layouts (Strider remains available as `Alt s` floating overlay)
+- **Three IDE layouts**: `dev` (VS Code-like, default), `focus` (single-task, stacked panes), `assist` (Claude-focused with center stage) — all with shared git, shell, and help tabs
 - LaTeX Workshop settings in generated `devcontainer.json`: latexmk recipes (lualatex, pdflatex, lualatex+biber), `--shell-escape`, output to `./out`, PDF viewer in tab, biber tool, auto-build on save, clean file types
 - `out/` added to LaTeX `.gitignore` block
 

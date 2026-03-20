@@ -182,5 +182,5 @@ cargo clippy -- -D warnings
 cargo test
 ```
 
-The test suite includes 68 unit tests and 13 integration tests.
+The test suite includes 87 unit tests and 16 integration tests.
 Integration tests run the `dev-box` binary as a subprocess.

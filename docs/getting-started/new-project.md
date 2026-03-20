@@ -106,9 +106,11 @@ On first `start`, dev-box:
 
 You land in a Zellij session with three tabs:
 
-- **dev** -- Strider file picker, Vim editor, terminal panes
+- **dev** -- Yazi file manager, Vim editor, terminal panes (default)
 - **git** -- Full-screen lazygit
 - **shell** -- Clean bash terminal
+
+Two additional layouts are available: **focus** (single-task, stacked panes) and **assist** (Claude-focused with center stage). See [Base Image — Layouts](../container/base-image.md#layouts) for details.
 
 The project root is mounted at `/workspace`. Your persistent configuration lives in `.dev-box-home/` on the host, mounted into the container at the appropriate paths.
 
