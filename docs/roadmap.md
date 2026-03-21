@@ -2,7 +2,7 @@
 
 This page outlines planned features and improvements for dev-box.
 
-## Current — v0.3.9
+## Current — v0.4.0
 
 The current release includes:
 
@@ -26,6 +26,9 @@ The current release includes:
 - LaTeX Workshop settings in generated devcontainer.json
 - Research/experiments folder scaffolding for research and product flavors
 - `post_create_command` and `vscode_extensions` in devcontainer.json
+- Named environment management (`dev-box env create/switch/list/delete/status`)
+- `context/shared/` for cross-environment shared files
+- `dev-box backup` and `dev-box reset` commands
 
 ## Recently Completed
 

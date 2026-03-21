@@ -2,6 +2,22 @@
 
 All notable changes to dev-box are documented here.
 
+## v0.4.0 — 2026-03-21
+
+### Added
+- **Environment management** — `dev-box env` command with 5 subcommands:
+  - `dev-box env create <name>` — snapshot current state as a named environment
+  - `dev-box env switch <name>` — save current, restore target, regenerate container files
+  - `dev-box env list` — show available environments with current marker
+  - `dev-box env delete <name>` — remove a saved environment
+  - `dev-box env status` — show current environment and config summary
+- **`context/shared/` directory** — files here are shared across all environments (not copied on switch). `OWNER.md` is seeded here by default. Move any file into `shared/` to share it.
+- **`.dev-box-env/` storage** — per-environment snapshots of dev-box.toml, CLAUDE.md, and context/ (excluding shared/)
+
+### Changed
+- `OWNER.md` now scaffolded at `context/shared/OWNER.md` (backward compatible — existing `context/OWNER.md` is preserved)
+- `.dev-box-env/` added to generated `.gitignore`
+
 ## v0.3.9 — 2026-03-21
 
 ### Added
