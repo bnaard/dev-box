@@ -30,7 +30,8 @@ layout {
         pane split_direction="vertical" {
             pane size="50%" split_direction="horizontal" {
                 pane size="40%" name="files" focus=true {
-                    command "yazi"
+                    command "bash"
+                    args "-c" "DEVBOX_EDITOR_DIR=down exec yazi"
                     cwd "/workspace"
                 }
                 pane size="60%" name="editor" {
