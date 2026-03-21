@@ -233,7 +233,8 @@ const DEFAULT_ZELLIJ_FOCUS_LAYOUT: &str = r#"layout {
     }
     tab name="editor" {
         pane name="vim" {
-            command "vim-loop"
+            command "bash"
+            args "-c" "DEVBOX_EDITOR_DIR=tab exec vim-loop"
             cwd "/workspace"
         }
     }
@@ -275,7 +276,8 @@ const DEFAULT_ZELLIJ_COWORK_LAYOUT: &str = r#"layout {
                     cwd "/workspace"
                 }
                 pane size="60%" name="editor" {
-                    command "vim-loop"
+                    command "bash"
+                    args "-c" "DEVBOX_EDITOR_DIR=down exec vim-loop"
                     cwd "/workspace"
                 }
             }

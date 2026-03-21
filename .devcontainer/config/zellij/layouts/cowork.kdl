@@ -35,7 +35,8 @@ layout {
                     cwd "/workspace"
                 }
                 pane size="60%" name="editor" {
-                    command "vim-loop"
+                    command "bash"
+                    args "-c" "DEVBOX_EDITOR_DIR=down exec vim-loop"
                     cwd "/workspace"
                 }
             }
