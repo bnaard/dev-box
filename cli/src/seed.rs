@@ -64,28 +64,28 @@ rounded_corners true
 simplified_ui false
 pane_frames true
 
-// Leader: Ctrl+g (press Ctrl+g, release, then press the action key)
+// Leader: Ctrl+b (press Ctrl+b, release, then press the action key)
 // Quick reference:
-//   Ctrl+g → h/j/k/l    Navigate panes
-//   Ctrl+g → n/d/r       New pane / split down / split right
-//   Ctrl+g → x           Close pane
-//   Ctrl+g → f           Toggle fullscreen
-//   Ctrl+g → z           Toggle pane frames
-//   Ctrl+g → t/w         New tab / close tab
-//   Ctrl+g → [/]         Previous/next tab
-//   Ctrl+g → 1-5         Jump to tab
-//   Ctrl+g → s           Strider file picker
-//   Ctrl+g → u           Scroll mode
-//   Ctrl+g → /           Search scrollback
+//   Ctrl+b → h/j/k/l    Navigate panes
+//   Ctrl+b → n/d/r       New pane / split down / split right
+//   Ctrl+b → x           Close pane
+//   Ctrl+b → f           Toggle fullscreen
+//   Ctrl+b → z           Toggle pane frames
+//   Ctrl+b → t/w         New tab / close tab
+//   Ctrl+b → [/]         Previous/next tab
+//   Ctrl+b → 1-5         Jump to tab
+//   Ctrl+b → s           Strider file picker
+//   Ctrl+b → u           Scroll mode
+//   Ctrl+b → /           Search scrollback
 //   Ctrl+q               Quit zellij
 keybinds clear-defaults=true {
     normal {
-        bind "Ctrl g" { SwitchToMode "Locked"; }
+        bind "Ctrl b" { SwitchToMode "Tmux"; }
         bind "Ctrl q" { Quit; }
     }
-    locked {
-        bind "Ctrl g" { SwitchToMode "Normal"; }
-        bind "Escape" { SwitchToMode "Normal"; }
+    tmux {
+        bind "Ctrl b" { SwitchToMode "Normal"; }
+        bind "Esc" { SwitchToMode "Normal"; }
         bind "h" "Left"  { MoveFocus "Left"; SwitchToMode "Normal"; }
         bind "j" "Down"  { MoveFocus "Down"; SwitchToMode "Normal"; }
         bind "k" "Up"    { MoveFocus "Up"; SwitchToMode "Normal"; }
@@ -126,10 +126,11 @@ keybinds clear-defaults=true {
         }
         bind "u" { SwitchToMode "Scroll"; }
         bind "/" { SwitchToMode "EnterSearch"; SearchInput 0; }
+        bind "q" { Quit; }
     }
     scroll {
-        bind "Ctrl g" { SwitchToMode "Normal"; }
-        bind "Ctrl c" "Escape" "q" { SwitchToMode "Normal"; }
+        bind "Ctrl b" { SwitchToMode "Normal"; }
+        bind "Ctrl c" "Esc" "q" { SwitchToMode "Normal"; }
         bind "j" "Down"  { ScrollDown; }
         bind "k" "Up"    { ScrollUp; }
         bind "d"         { HalfPageScrollDown; }
@@ -141,8 +142,8 @@ keybinds clear-defaults=true {
         bind "/"         { SwitchToMode "EnterSearch"; SearchInput 0; }
     }
     search {
-        bind "Ctrl g" { SwitchToMode "Normal"; }
-        bind "Ctrl c" "Escape" { SwitchToMode "Normal"; }
+        bind "Ctrl b" { SwitchToMode "Normal"; }
+        bind "Ctrl c" "Esc" { SwitchToMode "Normal"; }
         bind "n"     { Search "down"; }
         bind "N"     { Search "up"; }
         bind "c"     { SearchToggleOption "CaseSensitivity"; }
@@ -150,7 +151,7 @@ keybinds clear-defaults=true {
         bind "o"     { SearchToggleOption "WholeWord"; }
     }
     entersearch {
-        bind "Ctrl c" "Escape" { SwitchToMode "Normal"; }
+        bind "Ctrl c" "Esc" { SwitchToMode "Normal"; }
         bind "Enter" { SwitchToMode "Search"; }
     }
 }
@@ -368,21 +369,21 @@ prepend_keymap = [
 /// Quick reference cheatsheet.
 const DEFAULT_CHEATSHEET: &str = r#"  dev-box Quick Reference
   ───────────────────────────────────────────────
-  ZELLIJ (leader: Ctrl+g)    YAZI (file manager)
-  Ctrl+g h/j/k/l  Move       h/j/k/l  Navigate
-  Ctrl+g [/]       Prev/next  Enter    Open in vim
-  Ctrl+g 1-5       Jump tab   q        Quit yazi
-  Ctrl+g f         Fullscreen /        Search
-  Ctrl+g x         Close pane .        Hidden files
-  Ctrl+g n/d/r     New pane   Space    Select
-  Ctrl+g t/w       Tab +/-
-  Ctrl+g s         Strider
-  Ctrl+g u         Scroll
-  Ctrl+g /         Search
-  Ctrl+q           QUIT ALL
+  ZELLIJ (leader: Ctrl+b)    YAZI (file manager)
+  Ctrl+b h/j/k/l  Move       h/j/k/l  Navigate
+  Ctrl+b [/]       Prev/next  Enter    Open in vim
+  Ctrl+b 1-5       Jump tab   q        Quit yazi
+  Ctrl+b f         Fullscreen /        Search
+  Ctrl+b x         Close pane .        Hidden files
+  Ctrl+b n/d/r     New pane   Space    Select
+  Ctrl+b t/w       Tab +/-
+  Ctrl+b s         Strider
+  Ctrl+b u         Scroll
+  Ctrl+b /         Search
+  Ctrl+b q         QUIT (or Ctrl+q)
 
   LAYOUTS: dev-box start --layout dev|assist|focus
-  TABS: Ctrl+g 1 dev  2 git  3 shell  4 help
+  TABS: Ctrl+b 1 dev  2 git  3 shell  4 help
 "#;
 
 /// Default .asoundrc for PulseAudio over TCP.

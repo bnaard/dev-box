@@ -33,43 +33,49 @@ pane_frames true
 // =============================================================================
 // Key bindings
 //
-// Leader: Ctrl+g (press Ctrl+g, release, then press the action key)
-// This avoids conflicts with macOS Option key (which produces special chars)
-// and with Vim/bash Ctrl bindings.
+// Leader: Ctrl+b (press Ctrl+b, release, then press the action key)
+// Uses Zellij's built-in "Tmux" mode for reliable leader-key behavior.
+// Avoids conflicts with macOS Option key and Vim/bash Ctrl bindings.
 //
 // Quick reference:
-//   Ctrl+g → h/j/k/l    Navigate panes
-//   Ctrl+g → n           New pane
-//   Ctrl+g → d           Split down
-//   Ctrl+g → r           Split right
-//   Ctrl+g → x           Close pane
-//   Ctrl+g → f           Toggle fullscreen
-//   Ctrl+g → z           Toggle pane frames
-//   Ctrl+g → e           Toggle embed/floating
-//   Ctrl+g → t           New tab
-//   Ctrl+g → w           Close tab
-//   Ctrl+g → [/]         Previous/next tab
-//   Ctrl+g → 1-5         Jump to tab
-//   Ctrl+g → s           Strider file picker (floating)
-//   Ctrl+g → m           Session manager
-//   Ctrl+g → u           Scroll mode
-//   Ctrl+g → /           Search scrollback
-//   Ctrl+g → =/-         Resize pane
+//   Ctrl+b → h/j/k/l    Navigate panes
+//   Ctrl+b → n           New pane
+//   Ctrl+b → d           Split down
+//   Ctrl+b → r           Split right
+//   Ctrl+b → x           Close pane
+//   Ctrl+b → f           Toggle fullscreen
+//   Ctrl+b → z           Toggle pane frames
+//   Ctrl+b → e           Toggle embed/floating
+//   Ctrl+b → t           New tab
+//   Ctrl+b → w           Close tab
+//   Ctrl+b → [/]         Previous/next tab
+//   Ctrl+b → 1-5         Jump to tab
+//   Ctrl+b → s           Strider file picker (floating)
+//   Ctrl+b → m           Session manager
+//   Ctrl+b → u           Scroll mode
+//   Ctrl+b → /           Search scrollback
+//   Ctrl+b → =/-         Resize pane
+//   Ctrl+b → q           Quit zellij (VS Code compatible)
 //   Ctrl+q               Quit zellij
 // =============================================================================
 keybinds clear-defaults=true {
 
-    // ── Normal mode — Ctrl+g enters locked (leader) mode ─────────────────────
+    // ── Normal mode — Ctrl+b enters tmux (leader) mode ───────────────────────
     normal {
-        bind "Ctrl g" { SwitchToMode "Locked"; }
+        bind "Ctrl b" { SwitchToMode "Tmux"; }
         bind "Ctrl q" { Quit; }
     }
 
-    // ── Locked mode — acts as the leader key layer ───────────────────────────
-    // Press Ctrl+g, then one of these keys to perform the action.
-    locked {
-        bind "Ctrl g" { SwitchToMode "Normal"; }
-        bind "Escape" { SwitchToMode "Normal"; }
+    // ── Shared — Ctrl+q always quits (fallback for terminals that catch Ctrl+q)
+    shared_except "normal" {
+        bind "Ctrl q" { Quit; }
+    }
+
+    // ── Tmux mode — leader key layer ─────────────────────────────────────────
+    // Press Ctrl+b, then one of these keys to perform the action.
+    tmux {
+        bind "Ctrl b" { SwitchToMode "Normal"; }
+        bind "Esc" { SwitchToMode "Normal"; }
 
         // Pane navigation
         bind "h" "Left"  { MoveFocus "Left"; SwitchToMode "Normal"; }
@@ -126,12 +132,15 @@ keybinds clear-defaults=true {
         // Scroll / search
         bind "u" { SwitchToMode "Scroll"; }
         bind "/" { SwitchToMode "EnterSearch"; SearchInput 0; }
+
+        // Quit (alternative to Ctrl+q for VS Code compatibility)
+        bind "q" { Quit; }
     }
 
     // ── Scroll mode ──────────────────────────────────────────────────────────
     scroll {
-        bind "Ctrl g" { SwitchToMode "Normal"; }
-        bind "Ctrl c" "Escape" "q" { SwitchToMode "Normal"; }
+        bind "Ctrl b" { SwitchToMode "Normal"; }
+        bind "Ctrl c" "Esc" "q" { SwitchToMode "Normal"; }
         bind "j" "Down"  { ScrollDown; }
         bind "k" "Up"    { ScrollUp; }
         bind "d"         { HalfPageScrollDown; }
@@ -145,8 +154,8 @@ keybinds clear-defaults=true {
 
     // ── Search mode ──────────────────────────────────────────────────────────
     search {
-        bind "Ctrl g" { SwitchToMode "Normal"; }
-        bind "Ctrl c" "Escape" { SwitchToMode "Normal"; }
+        bind "Ctrl b" { SwitchToMode "Normal"; }
+        bind "Ctrl c" "Esc" { SwitchToMode "Normal"; }
         bind "n"     { Search "down"; }
         bind "N"     { Search "up"; }
         bind "c"     { SearchToggleOption "CaseSensitivity"; }
@@ -156,14 +165,14 @@ keybinds clear-defaults=true {
 
     // ── Enter search mode ────────────────────────────────────────────────────
     entersearch {
-        bind "Ctrl c" "Escape" { SwitchToMode "Normal"; }
+        bind "Ctrl c" "Esc" { SwitchToMode "Normal"; }
         bind "Enter" { SwitchToMode "Search"; }
     }
 
-    // ── Resize mode (stay in resize until Escape/Ctrl+g) ─────────────────────
+    // ── Resize mode (stay in resize until Esc/Ctrl+b) ────────────────────────
     resize {
-        bind "Ctrl g" { SwitchToMode "Normal"; }
-        bind "Escape" { SwitchToMode "Normal"; }
+        bind "Ctrl b" { SwitchToMode "Normal"; }
+        bind "Esc" { SwitchToMode "Normal"; }
         bind "h" "Left"  { Resize "Increase Left"; }
         bind "j" "Down"  { Resize "Increase Down"; }
         bind "k" "Up"    { Resize "Increase Up"; }
