@@ -226,7 +226,8 @@ const DEFAULT_ZELLIJ_FOCUS_LAYOUT: &str = r#"layout {
     }
     tab name="files" focus=true {
         pane name="yazi" {
-            command "yazi"
+            command "bash"
+            args "-c" "DEVBOX_EDITOR_DIR=tab exec yazi"
             cwd "/workspace"
         }
     }
