@@ -2,7 +2,7 @@
 
 This page outlines planned features and improvements for dev-box.
 
-## Current — v0.4.0
+## Current — v0.4.1
 
 The current release includes:
 
@@ -20,7 +20,7 @@ The current release includes:
 - Dockerfile.local support for project-specific build layers
 - AI provider configuration (`[ai]` section with `providers` field)
 - Non-root user support (`container.user` field)
-- Yazi file manager (replaced Strider) with three IDE layouts (dev, focus, assist)
+- Yazi file manager (replaced Strider) with three IDE layouts (dev, focus, cowork)
 - Language-specific `.gitignore` blocks per image flavor
 - `.dev-box-home/` for persistent config (with `.root/` backward compatibility)
 - LaTeX Workshop settings in generated devcontainer.json
@@ -34,7 +34,7 @@ The current release includes:
 
 ### Yazi File Manager and IDE Layouts (v0.3.7)
 
-Replaced Strider with Yazi as the default file manager in all layouts. Added three IDE layouts: **dev** (VS Code-like, default), **focus** (single-task, stacked panes), and **assist** (Claude-focused with center stage). LaTeX Workshop extension settings for LaTeX images.
+Replaced Strider with Yazi as the default file manager. Three IDE layouts: **dev** (Yazi+Vim side by side, default), **focus** (one tool per tab, fullscreen), **cowork** (Yazi+Vim left, Claude right). LaTeX Workshop extension settings for LaTeX images.
 
 ### Update Upgrade Command (v0.3.6)
 

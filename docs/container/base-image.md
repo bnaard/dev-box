@@ -67,52 +67,49 @@ Press `Escape` or `Ctrl+b` again to cancel the leader and return to normal mode.
 
 ### Layouts
 
-dev-box ships three IDE layouts. Select one when attaching via `zellij --layout <name>` (the default is `dev`). All layouts include shared tabs for **git** (lazygit), **shell** (extra bash), and **help** (cheatsheet).
+dev-box ships three IDE layouts. Select one with `dev-box start --layout <name>` (the default is `dev`). All layouts include shared tabs for **git** (lazygit) and **shell** (extra bash).
 
-#### dev (default, VS Code-like)
-
-```
-┌──────────┬───────────────────────────────┐
-│          │         vim editor            │
-│  yazi    │                               │
-│  (20%)   ├───────────────────────────────┤
-│          │  ┊bash┊claude┊  stacked       │
-├──────────┴───────────────────────────────┤
-│  status-bar                              │
-└──────────────────────────────────────────┘
-```
-
-Yazi file manager on the left, Vim on the top right, bash and Claude Code stacked below.
-
-#### focus (minimal distraction)
+#### dev (default) -- file browser + editor
 
 ```
-┌──────────┬───────────────────────────────┐
-│          │                               │
-│  yazi    │  ┊bash┊claude┊vim┊            │
-│  (20%)   │  stacked (one visible)        │
-│          │                               │
-├──────────┴───────────────────────────────┤
-│  status-bar                              │
-└──────────────────────────────────────────┘
+┌──────────────────┬────────────────────────────┐
+│                  │                            │
+│  yazi (40%)      │  vim (60%)                 │
+│                  │                            │
+│                  │                            │
+├──────────────────┴────────────────────────────┤
+│  status-bar                                   │
+└───────────────────────────────────────────────┘
 ```
 
-Yazi on the left, three tools stacked on the right (bash, Claude Code, Vim) with only one visible at a time.
+Yazi file manager on the left, Vim on the right. Claude Code, git, and shell in separate tabs.
 
-#### assist (Claude-focused)
+#### focus -- one tool per tab, fullscreen
+
+Each tool gets the entire screen in its own tab. Switch with `Ctrl+b [/]` or `Ctrl+b 1-5`.
+
+Tabs: **files** (yazi) | **editor** (vim) | **claude** | **git** (lazygit) | **shell**
+
+#### cowork -- side-by-side coding with AI
 
 ```
-┌──────────┬──────────────┬────────────────┐
-│          │              │                │
-│  yazi    │  ┊bash┊      │    vim         │
-│  (20%)   │  ┊claude┊    │               │
-│          │  stacked     │                │
-├──────────┴──────────────┴────────────────┤
-│  status-bar                              │
-└──────────────────────────────────────────┘
+┌──────────────────────┬────────────────────────┐
+│  yazi (40%)          │                        │
+│                      │  claude (50%)          │
+├──────────────────────┤                        │
+│  vim (60%)           │                        │
+│                      │                        │
+├──────────────────────┴────────────────────────┤
+│  status-bar                                   │
+└───────────────────────────────────────────────┘
 ```
 
-Yazi on the left, stacked bash/Claude Code in the center, Vim on the right. Emphasizes the Claude interface for AI-assisted workflows.
+Yazi and Vim stacked on the left, Claude Code on the right. Git and shell in separate tabs.
+
+### Opening Files from Yazi
+
+- **`Enter`** -- opens file in vim in-place (suspends Yazi, `:q` returns to Yazi). Works in all layouts.
+- **`e`** -- opens file in the adjacent vim pane and focuses it. Works in dev (vim is right), cowork (vim is below), and focus (switches to editor tab).
 
 !!! note "Strider vs Yazi"
     `Ctrl+b` then `s` opens the built-in **Strider** file picker as a floating overlay (Zellij plugin). The sidebar file manager in all layouts is **Yazi**, an external terminal file manager with richer features (preview, bulk operations, async I/O).

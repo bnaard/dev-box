@@ -104,13 +104,9 @@ On first `start`, dev-box:
 
 ## Inside the Container
 
-You land in a Zellij session with three tabs:
+You land in a Zellij session with the **dev** layout: Yazi file browser (40%) and Vim editor (60%) side by side, plus tabs for Claude Code, git, and shell.
 
-- **dev** -- Yazi file manager, Vim editor, terminal panes (default)
-- **git** -- Full-screen lazygit
-- **shell** -- Clean bash terminal
-
-Two additional layouts are available: **focus** (single-task, stacked panes) and **assist** (Claude-focused with center stage). See [Base Image — Layouts](../container/base-image.md#layouts) for details.
+Two additional layouts are available: **focus** (one tool per tab, fullscreen) and **cowork** (Yazi+Vim left, Claude right). See [Base Image — Layouts](../container/base-image.md#layouts) for details.
 
 The project root is mounted at `/workspace`. Your persistent configuration lives in `.dev-box-home/` on the host, mounted into the container at the appropriate paths.
 

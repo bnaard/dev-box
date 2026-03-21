@@ -76,13 +76,9 @@ dev-box build
 dev-box start
 ```
 
-After `dev-box start`, you are inside a Zellij session with three tabs:
+After `dev-box start`, you are inside a Zellij session with the **dev** layout: Yazi file browser (40%) and Vim editor (60%) side by side, plus tabs for Claude Code, lazygit, and shell.
 
-- **dev** -- Yazi file manager, Vim editor, terminal panes, Claude Code (default layout)
-- **git** -- lazygit for version control
-- **shell** -- clean bash terminal
-
-Two additional layouts (`focus` and `assist`) are available for different workflows. See [Base Image — Layouts](container/base-image.md#layouts).
+Two additional layouts are available: **focus** (one tool per tab, fullscreen) and **cowork** (Yazi+Vim left, Claude right for AI-assisted coding). See [Base Image — Layouts](container/base-image.md#layouts).
 
 ## Why dev-box?
 
@@ -98,7 +94,7 @@ Two additional layouts (`focus` and `assist`) are available for different workfl
 
 ## Project Status
 
-dev-box is at version 0.4.0. The core workflow (init, generate, build, start, stop, attach, status, doctor) is functional, along with shell completions (`dev-box completions bash/zsh/fish`), interactive init prompts, registry-based update with upgrade (`dev-box update`), `post_create_command`/`vscode_extensions` support in devcontainer.json, and host-side audio diagnostics via `dev-box audio check/setup`. Recent additions include Yazi file manager with three IDE layouts (dev, focus, assist), AI provider configuration (`[ai]` section), non-root user support (`container.user`), renamed `.dev-box-home/` for persistent config (with `.root/` backward compatibility), and language-specific `.gitignore` blocks generated per image flavor.
+dev-box is at version 0.4.1. The core workflow (init, generate, build, start, stop, attach, status, doctor) is functional, along with shell completions (`dev-box completions bash/zsh/fish`), interactive init prompts, registry-based update with upgrade (`dev-box update`), `post_create_command`/`vscode_extensions` support in devcontainer.json, and host-side audio diagnostics via `dev-box audio check/setup`. Recent additions include Yazi file manager with three IDE layouts (dev, focus, assist), AI provider configuration (`[ai]` section), non-root user support (`container.user`), renamed `.dev-box-home/` for persistent config (with `.root/` backward compatibility), and language-specific `.gitignore` blocks generated per image flavor.
 
 ## Next Steps
 

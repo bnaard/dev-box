@@ -175,7 +175,7 @@ dev-box start [OPTIONS]
 
 | Option | Default | Description |
 |--------|---------|-------------|
-| `--layout <LAYOUT>` | `dev` | Zellij layout: `dev`, `focus`, or `assist` |
+| `--layout <LAYOUT>` | `dev` | Zellij layout: `dev`, `focus`, or `cowork` |
 
 ### What It Does
 
@@ -194,11 +194,11 @@ This is the primary command for daily use. It handles the full lifecycle:
 
 | Layout | Description |
 |--------|-------------|
-| `dev` | VS Code-like: Yazi sidebar, Vim editor, stacked terminals (default) |
-| `focus` | Minimal distraction: Yazi sidebar, single stacked pane |
-| `assist` | Claude-focused: Yazi sidebar, stacked bash/Claude center, Vim right |
+| `dev` | Yazi (40%) + Vim (60%) side by side (default) |
+| `focus` | One tool per tab, fullscreen |
+| `cowork` | Yazi+Vim left, Claude right — side-by-side AI collaboration |
 
-All layouts include shared tabs for **git** (lazygit), **shell** (extra bash), and **help** (cheatsheet).
+All layouts include shared tabs for **git** (lazygit) and **shell** (extra bash).
 
 ### Examples
 
@@ -206,11 +206,11 @@ All layouts include shared tabs for **git** (lazygit), **shell** (extra bash), a
 # Start working with default layout
 dev-box start
 
-# Start with focus layout (minimal distraction)
+# Start with focus layout (one tool per tab)
 dev-box start --layout focus
 
-# Start with Claude-focused layout
-dev-box start --layout assist
+# Start with cowork layout (side-by-side with Claude)
+dev-box start --layout cowork
 ```
 
 ### Exit Codes
@@ -265,7 +265,7 @@ dev-box attach [OPTIONS]
 
 | Option | Default | Description |
 |--------|---------|-------------|
-| `--layout <LAYOUT>` | `dev` | Zellij layout: `dev`, `focus`, or `assist` |
+| `--layout <LAYOUT>` | `dev` | Zellij layout: `dev`, `focus`, or `cowork` |
 
 ### What It Does
 

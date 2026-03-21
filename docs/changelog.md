@@ -2,6 +2,33 @@
 
 All notable changes to dev-box are documented here.
 
+## v0.4.1 — 2026-03-22
+
+### Added
+- **`dev-box remove` command** (alias `rm`) — stop and remove container (like `docker rm`), for Docker/kubectl naming consistency
+- **`cowork` layout** — Yazi+Vim stacked left, Claude right, for side-by-side AI collaboration
+- **`vim-loop`** — editor pane restarts vim on `:q` (use `:cq` to truly exit), keeping the pane alive for repeated file opens
+- **Yazi `e` key** — opens file in the adjacent vim pane and focuses it (works per-layout: right in dev, down in cowork, tab switch in focus)
+- Vim `:q` now returns focus to Yazi automatically
+- Nerd Font fallback chain in generated `devcontainer.json` for Yazi/Zellij icon support
+
+### Changed
+- **Keybindings redesigned** — `Ctrl+b` leader key (Zellij Tmux mode) replaces `Alt` bindings that conflicted with macOS Option key special characters (`@`, `€`, `|`)
+- **`Ctrl+b q`** added as quit alternative (for VS Code where `Ctrl+q` is caught)
+- **Layouts redesigned**: removed `assist`, added `cowork`
+  - `dev` (default): Yazi 40% + Vim 60% side by side, tabs for claude/git/shell
+  - `focus`: one tool per tab fullscreen (yazi, vim, claude, git, shell)
+  - `cowork`: Yazi+Vim left column, Claude right (50/50), tabs for git/shell
+- VS Code default terminal changed from zellij to bash
+- Pane borders enabled by default (`pane_frames true`, `rounded_corners true`)
+- Yazi ratio restored to `[1, 3, 4]` (parent, file list, preview)
+- Yazi Enter opens vim in-place (suspends yazi, `:q` returns) — works in all layouts
+
+### Fixed
+- Missing TeX Live packages: ninecolors, transparent, spath3, nicematrix, lipsum (fixes #13)
+- TeX Live OpenType fonts registered with fontconfig via symlink + `fc-cache`
+- Zellij `Escape` → `Esc` key name fix
+
 ## v0.4.0 — 2026-03-21
 
 ### Added
