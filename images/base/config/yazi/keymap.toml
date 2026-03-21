@@ -5,10 +5,10 @@
 
 [manager]
 prepend_keymap = [
-    # Open file in the adjacent vim pane (default Enter behavior)
-    { on = "<Enter>", run = "open",          desc = "Open in editor pane" },
-    # Open file in yazi's own pane (fallback)
+    # Enter: open in vim in-place (suspends yazi, :q returns)
+    { on = "<Enter>", run = "open",              desc = "Edit in-place" },
+    # e: open in the adjacent vim pane (stays in yazi)
+    { on = "e",       run = "shell 'open-in-editor \"$0\"' --confirm", desc = "Open in vim pane" },
+    # O: interactive opener selection
     { on = "O",       run = "open --interactive", desc = "Open interactively" },
-    # Quick preview toggle
-    { on = "T",       run = "plugin --sync hide-preview", desc = "Toggle preview" },
 ]

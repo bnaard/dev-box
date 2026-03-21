@@ -269,7 +269,8 @@ const DEFAULT_ZELLIJ_COWORK_LAYOUT: &str = r#"layout {
         pane split_direction="vertical" {
             pane size="50%" split_direction="horizontal" {
                 pane size="40%" name="files" focus=true {
-                    command "yazi"
+                    command "bash"
+                    args "-c" "DEVBOX_EDITOR_DIR=down exec yazi"
                     cwd "/workspace"
                 }
                 pane size="60%" name="editor" {
@@ -314,6 +315,9 @@ max_height = 900
 [opener]
 edit = [
     { run = '${EDITOR:-vim} "$@"', desc = "Edit in-place", block = true },
+]
+edit-pane = [
+    { run = 'open-in-editor "$1"', desc = "Open in vim pane", block = false },
 ]
 
 [open]
