@@ -434,6 +434,113 @@ dev-box completions fish | source
 
 ---
 
+## dev-box backup
+
+Back up dev-box files to a timestamped directory.
+
+### Usage
+
+```bash
+dev-box backup [OPTIONS]
+```
+
+### Options
+
+| Option | Default | Description |
+|--------|---------|-------------|
+| `--output-dir <DIR>` | `.dev-box-backup/` | Output directory for backup |
+| `--dry-run` | -- | Preview what would be backed up without copying |
+
+### What It Does
+
+Copies all dev-box managed files to a timestamped subdirectory:
+
+- `dev-box.toml`
+- `.devcontainer/`
+- `.dev-box-home/`
+- `.dev-box-version`
+- `context/`
+- `CLAUDE.md`
+- `.gitignore`
+
+The backup directory is named `dev-box-<version>-backup-<date>-<time>` (e.g., `dev-box-0.3.8-backup-2026-03-21-1430`).
+
+### Examples
+
+```bash
+# Back up current state
+dev-box backup
+
+# Preview without copying
+dev-box backup --dry-run
+
+# Back up to a custom directory
+dev-box backup --output-dir /tmp/my-backup
+```
+
+### Exit Codes
+
+| Code | Meaning |
+|------|---------|
+| 0 | Success |
+| 1 | Config error or no files found |
+
+---
+
+## dev-box reset
+
+Remove all dev-box files and reset the project to its pre-init state.
+
+!!! danger "Danger zone"
+    This command deletes dev-box.toml, .devcontainer/, .dev-box-home/, context/, CLAUDE.md, and .dev-box-version. By default a backup is created first. `.gitignore` is backed up but **not** deleted.
+
+### Usage
+
+```bash
+dev-box reset [OPTIONS]
+```
+
+### Options
+
+| Option | Description |
+|--------|-------------|
+| `--no-backup` | Skip backup — permanently delete without saving |
+| `--dry-run` | Preview what would happen without modifying anything |
+| `--yes` | Skip confirmation prompt |
+
+### What It Does
+
+1. Displays a table of files showing backup and deletion status
+2. Prompts for confirmation (type `reset` or `DELETE` with `--no-backup`)
+3. Stops any running container
+4. Creates a backup (unless `--no-backup`)
+5. Deletes all dev-box files except `.gitignore`
+
+### Examples
+
+```bash
+# Reset with backup (safe default)
+dev-box reset
+
+# Preview what would happen
+dev-box reset --dry-run
+
+# Delete without backup (requires typing "DELETE" to confirm)
+dev-box reset --no-backup
+
+# Non-interactive reset with backup
+dev-box reset --yes
+```
+
+### Exit Codes
+
+| Code | Meaning |
+|------|---------|
+| 0 | Success or user aborted |
+| 1 | Config error or deletion failed |
+
+---
+
 ## dev-box update
 
 Check for or apply updates.

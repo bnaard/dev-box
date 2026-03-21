@@ -325,6 +325,23 @@ fn generate_devcontainer_json(config: &DevBoxConfig, dir: &Path) -> Result<bool>
             .insert("postCreateCommand".to_string(), serde_json::json!(cmd));
     }
 
+    // Prevent VS Code from auto-forwarding the PulseAudio port (fixes #11)
+    if config.audio.enabled {
+        // Extract port from pulse_server string (e.g., "tcp:host.docker.internal:4714")
+        let port = config
+            .audio
+            .pulse_server
+            .rsplit(':')
+            .next()
+            .unwrap_or("4714");
+        devcontainer.as_object_mut().unwrap().insert(
+            "portsAttributes".to_string(),
+            serde_json::json!({
+                port: { "onAutoForward": "ignore" }
+            }),
+        );
+    }
+
     // Serialize with pretty formatting
     let json_str = serde_json::to_string_pretty(&devcontainer)
         .context("Failed to serialize devcontainer.json")?;

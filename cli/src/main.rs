@@ -6,6 +6,7 @@ mod context;
 mod doctor;
 mod generate;
 mod output;
+mod reset;
 mod runtime;
 mod seed;
 mod update;
@@ -59,6 +60,15 @@ fn dispatch(cli: cli::Cli) -> anyhow::Result<()> {
         cli::Commands::Update { check, dry_run } => {
             update::cmd_update(config_path, check, dry_run)
         }
+        cli::Commands::Backup {
+            output_dir,
+            dry_run,
+        } => reset::cmd_backup(config_path, output_dir, dry_run),
+        cli::Commands::Reset {
+            no_backup,
+            dry_run,
+            yes,
+        } => reset::cmd_reset(config_path, no_backup, dry_run, yes),
         cli::Commands::Audio { action } => match action {
             cli::AudioAction::Check { port } => audio::cmd_audio_check(port),
             cli::AudioAction::Setup { port } => audio::cmd_audio_setup(port),

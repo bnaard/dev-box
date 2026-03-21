@@ -377,7 +377,8 @@ pub(crate) fn update_gitignore(image: &ImageFlavor) -> Result<()> {
     content.push_str(".dev-box-home/\n");
     content.push_str(".root/\n");
     content.push_str(".dev-box-version\n");
-    content.push_str(".dev-box/\n\n");
+    content.push_str(".dev-box/\n");
+    content.push_str(".dev-box-backup/\n\n");
 
     // OS generated
     content.push_str(
@@ -477,6 +478,7 @@ fn ensure_devbox_entries(gitignore_path: &Path) -> Result<()> {
         crate::config::DEVCONTAINER_JSON,
         ".dev-box-home/",
         ".dev-box-version",
+        ".dev-box-backup/",
     ];
 
     let existing = fs::read_to_string(gitignore_path).context("Failed to read .gitignore")?;

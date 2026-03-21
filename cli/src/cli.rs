@@ -153,6 +153,36 @@ pub enum Commands {
         #[arg(long)]
         dry_run: bool,
     },
+    /// Back up dev-box files to a timestamped directory
+    ///
+    /// Copies dev-box.toml, .devcontainer/, .dev-box-home/, context/,
+    /// CLAUDE.md, .dev-box-version, and .gitignore to a backup directory.
+    Backup {
+        /// Output directory for backup (default: .dev-box-backup/)
+        #[arg(long)]
+        output_dir: Option<String>,
+        /// Preview what would be backed up without copying
+        #[arg(long)]
+        dry_run: bool,
+    },
+    /// Remove all dev-box files and reset project to pre-init state
+    ///
+    /// DANGER ZONE: Deletes dev-box.toml, .devcontainer/, .dev-box-home/,
+    /// context/, CLAUDE.md, and .dev-box-version. Backs up first by default.
+    /// .gitignore is backed up but NOT deleted.
+    ///
+    /// Stops any running container before deleting.
+    Reset {
+        /// Skip backup — permanently delete without saving
+        #[arg(long)]
+        no_backup: bool,
+        /// Preview what would happen without modifying anything
+        #[arg(long)]
+        dry_run: bool,
+        /// Skip confirmation prompt
+        #[arg(long)]
+        yes: bool,
+    },
     /// Host-side audio diagnostics and setup for PulseAudio
     ///
     /// Manages PulseAudio configuration on the host machine for
