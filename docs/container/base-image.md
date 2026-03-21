@@ -39,29 +39,31 @@ The Dockerfile uses a multi-stage build:
 
 ### Key Bindings
 
-All primary bindings use `Alt` as modifier to avoid conflicts with Vim and other TUI applications:
+All bindings use `Ctrl+g` as a leader key — press `Ctrl+g`, release, then press the action key. This avoids conflicts with macOS Option key (which produces special characters like `@`, `€`, `|`) and with Vim/bash Ctrl bindings.
 
 | Key | Action |
 |-----|--------|
-| `Alt s` | Open Strider file picker (floating pane) |
-| `Alt m` | Open session manager (floating) |
-| `Alt h/j/k/l` | Navigate panes (vim-style) |
-| `Alt n` | New pane |
-| `Alt d` | Split down |
-| `Alt r` | Split right |
-| `Alt x` | Close focused pane |
-| `Alt f` | Toggle fullscreen |
-| `Alt z` | Toggle pane frames |
-| `Alt e` | Toggle embed/floating |
-| `Alt t` | New tab |
-| `Alt w` | Close tab |
-| `Alt [` / `Alt ]` | Previous / next tab |
-| `Alt 1-5` | Jump to tab N |
-| `Alt =` / `Alt -` | Resize pane (increase / decrease) |
-| `Alt i` / `Alt o` | Move tab left / right |
-| `Alt u` | Enter scroll mode |
-| `Alt /` | Search scrollback |
-| `Ctrl q` | Quit Zellij |
+| `Ctrl+g` then `h/j/k/l` | Navigate panes (vim-style) |
+| `Ctrl+g` then `n` | New pane |
+| `Ctrl+g` then `d` | Split down |
+| `Ctrl+g` then `r` | Split right |
+| `Ctrl+g` then `x` | Close focused pane |
+| `Ctrl+g` then `f` | Toggle fullscreen |
+| `Ctrl+g` then `z` | Toggle pane frames |
+| `Ctrl+g` then `e` | Toggle embed/floating |
+| `Ctrl+g` then `=` / `-` | Resize pane (increase / decrease) |
+| `Ctrl+g` then `t` | New tab |
+| `Ctrl+g` then `w` | Close tab |
+| `Ctrl+g` then `[` / `]` | Previous / next tab |
+| `Ctrl+g` then `1-5` | Jump to tab N |
+| `Ctrl+g` then `i` / `o` | Move tab left / right |
+| `Ctrl+g` then `s` | Open Strider file picker (floating) |
+| `Ctrl+g` then `m` | Session manager |
+| `Ctrl+g` then `u` | Enter scroll mode |
+| `Ctrl+g` then `/` | Search scrollback |
+| `Ctrl+q` | Quit Zellij |
+
+Press `Escape` or `Ctrl+g` again to cancel the leader and return to normal mode.
 
 ### Layouts
 
@@ -113,7 +115,7 @@ Yazi on the left, three tools stacked on the right (bash, Claude Code, Vim) with
 Yazi on the left, stacked bash/Claude Code in the center, Vim on the right. Emphasizes the Claude interface for AI-assisted workflows.
 
 !!! note "Strider vs Yazi"
-    `Alt s` opens the built-in **Strider** file picker as a floating overlay (Zellij plugin). The sidebar file manager in all layouts is **Yazi**, an external terminal file manager with richer features (preview, bulk operations, async I/O).
+    `Ctrl+g` then `s` opens the built-in **Strider** file picker as a floating overlay (Zellij plugin). The sidebar file manager in all layouts is **Yazi**, an external terminal file manager with richer features (preview, bulk operations, async I/O).
 
 ### Theme
 

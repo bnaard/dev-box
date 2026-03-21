@@ -54,62 +54,104 @@ const DEFAULT_GITCONFIG: &str = r#"[core]
 
 /// Default zellij config.kdl content.
 const DEFAULT_ZELLIJ_CONFIG: &str = r#"// dev-box zellij configuration
-theme "gruvbox-dark"
+theme "gruvbox"
 default_layout "dev"
 default_shell "bash"
-pane_frames false
-simplified_ui true
+mouse_mode true
 copy_on_select true
+scroll_buffer_size 10000
+rounded_corners true
+simplified_ui false
+pane_frames true
 
+// Leader: Ctrl+g (press Ctrl+g, release, then press the action key)
+// Quick reference:
+//   Ctrl+g → h/j/k/l    Navigate panes
+//   Ctrl+g → n/d/r       New pane / split down / split right
+//   Ctrl+g → x           Close pane
+//   Ctrl+g → f           Toggle fullscreen
+//   Ctrl+g → z           Toggle pane frames
+//   Ctrl+g → t/w         New tab / close tab
+//   Ctrl+g → [/]         Previous/next tab
+//   Ctrl+g → 1-5         Jump to tab
+//   Ctrl+g → s           Strider file picker
+//   Ctrl+g → u           Scroll mode
+//   Ctrl+g → /           Search scrollback
+//   Ctrl+q               Quit zellij
 keybinds clear-defaults=true {
-    shared {
-        bind "Alt h" { MoveFocusOrTab "Left"; }
-        bind "Alt j" { MoveFocus "Down"; }
-        bind "Alt k" { MoveFocus "Up"; }
-        bind "Alt l" { MoveFocusOrTab "Right"; }
-        bind "Alt n" { NewPane; }
-        bind "Alt d" { NewPane "Down"; }
-        bind "Alt r" { NewPane "Right"; }
-        bind "Alt x" { CloseFocus; }
-        bind "Alt f" { ToggleFocusFullscreen; }
-        bind "Alt t" { NewTab; }
-        bind "Alt w" { CloseTab; }
-        bind "Alt [" { GoToPreviousTab; }
-        bind "Alt ]" { GoToNextTab; }
-        bind "Alt 1" { GoToTab 1; }
-        bind "Alt 2" { GoToTab 2; }
-        bind "Alt 3" { GoToTab 3; }
-        bind "Alt 4" { GoToTab 4; }
-        bind "Alt 5" { GoToTab 5; }
-        bind "Alt u" { SwitchToMode "scroll"; }
-        bind "Alt /" { SwitchToMode "entersearch"; }
-        bind "Alt s" {
-            LaunchOrFocusPlugin "strider" {
-                floating true
-            }
-        }
-        bind "Alt m" {
-            LaunchOrFocusPlugin "session-manager" {
-                floating true
-            }
-        }
+    normal {
+        bind "Ctrl g" { SwitchToMode "Locked"; }
         bind "Ctrl q" { Quit; }
     }
-    scroll {
-        bind "j" "Down" { ScrollDown; }
-        bind "k" "Up" { ScrollUp; }
-        bind "d" { HalfPageScrollDown; }
-        bind "u" { HalfPageScrollUp; }
-        bind "Esc" "q" { SwitchToMode "normal"; }
+    locked {
+        bind "Ctrl g" { SwitchToMode "Normal"; }
+        bind "Escape" { SwitchToMode "Normal"; }
+        bind "h" "Left"  { MoveFocus "Left"; SwitchToMode "Normal"; }
+        bind "j" "Down"  { MoveFocus "Down"; SwitchToMode "Normal"; }
+        bind "k" "Up"    { MoveFocus "Up"; SwitchToMode "Normal"; }
+        bind "l" "Right" { MoveFocus "Right"; SwitchToMode "Normal"; }
+        bind "n"     { NewPane; SwitchToMode "Normal"; }
+        bind "d"     { NewPane "Down"; SwitchToMode "Normal"; }
+        bind "r"     { NewPane "Right"; SwitchToMode "Normal"; }
+        bind "x"     { CloseFocus; SwitchToMode "Normal"; }
+        bind "f"     { ToggleFocusFullscreen; SwitchToMode "Normal"; }
+        bind "z"     { TogglePaneFrames; SwitchToMode "Normal"; }
+        bind "e"     { TogglePaneEmbedOrFloating; SwitchToMode "Normal"; }
+        bind "=" { Resize "Increase"; }
+        bind "-" { Resize "Decrease"; }
+        bind "t"     { NewTab; SwitchToMode "Normal"; }
+        bind "w"     { CloseTab; SwitchToMode "Normal"; }
+        bind "["     { GoToPreviousTab; SwitchToMode "Normal"; }
+        bind "]"     { GoToNextTab; SwitchToMode "Normal"; }
+        bind "1"     { GoToTab 1; SwitchToMode "Normal"; }
+        bind "2"     { GoToTab 2; SwitchToMode "Normal"; }
+        bind "3"     { GoToTab 3; SwitchToMode "Normal"; }
+        bind "4"     { GoToTab 4; SwitchToMode "Normal"; }
+        bind "5"     { GoToTab 5; SwitchToMode "Normal"; }
+        bind "i"     { MoveTab "Left"; SwitchToMode "Normal"; }
+        bind "o"     { MoveTab "Right"; SwitchToMode "Normal"; }
+        bind "s" {
+            LaunchOrFocusPlugin "zellij:strider" {
+                floating true
+                move_to_focused_tab true
+            }
+            SwitchToMode "Normal"
+        }
+        bind "m" {
+            LaunchOrFocusPlugin "zellij:session-manager" {
+                floating true
+                move_to_focused_tab true
+            }
+            SwitchToMode "Normal"
+        }
+        bind "u" { SwitchToMode "Scroll"; }
+        bind "/" { SwitchToMode "EnterSearch"; SearchInput 0; }
     }
-    entersearch {
-        bind "Enter" { SwitchToMode "search"; }
-        bind "Esc" { SwitchToMode "normal"; }
+    scroll {
+        bind "Ctrl g" { SwitchToMode "Normal"; }
+        bind "Ctrl c" "Escape" "q" { SwitchToMode "Normal"; }
+        bind "j" "Down"  { ScrollDown; }
+        bind "k" "Up"    { ScrollUp; }
+        bind "d"         { HalfPageScrollDown; }
+        bind "u"         { HalfPageScrollUp; }
+        bind "f" "PageDown" { PageScrollDown; }
+        bind "b" "PageUp"   { PageScrollUp; }
+        bind "g"         { ScrollToTop; }
+        bind "G"         { ScrollToBottom; }
+        bind "/"         { SwitchToMode "EnterSearch"; SearchInput 0; }
     }
     search {
-        bind "n" { Search "down"; }
-        bind "N" { Search "up"; }
-        bind "Esc" "q" { SwitchToMode "normal"; }
+        bind "Ctrl g" { SwitchToMode "Normal"; }
+        bind "Ctrl c" "Escape" { SwitchToMode "Normal"; }
+        bind "n"     { Search "down"; }
+        bind "N"     { Search "up"; }
+        bind "c"     { SearchToggleOption "CaseSensitivity"; }
+        bind "w"     { SearchToggleOption "Wrap"; }
+        bind "o"     { SearchToggleOption "WholeWord"; }
+    }
+    entersearch {
+        bind "Ctrl c" "Escape" { SwitchToMode "Normal"; }
+        bind "Enter" { SwitchToMode "Search"; }
     }
 }
 "#;
@@ -326,16 +368,21 @@ prepend_keymap = [
 /// Quick reference cheatsheet.
 const DEFAULT_CHEATSHEET: &str = r#"  dev-box Quick Reference
   ───────────────────────────────────────────────
-  ZELLIJ                     YAZI (file manager)
-  Alt+h/j/k/l  Move panes   h/j/k/l  Navigate
-  Alt+[/]       Prev/next    Enter    Open in vim
-  Alt+1-5       Jump tab     q        Quit yazi
-  Alt+f         Fullscreen   /        Search
-  Alt+x         Close pane   .        Hidden files
-  Ctrl+q        QUIT ALL     Space    Select
+  ZELLIJ (leader: Ctrl+g)    YAZI (file manager)
+  Ctrl+g h/j/k/l  Move       h/j/k/l  Navigate
+  Ctrl+g [/]       Prev/next  Enter    Open in vim
+  Ctrl+g 1-5       Jump tab   q        Quit yazi
+  Ctrl+g f         Fullscreen /        Search
+  Ctrl+g x         Close pane .        Hidden files
+  Ctrl+g n/d/r     New pane   Space    Select
+  Ctrl+g t/w       Tab +/-
+  Ctrl+g s         Strider
+  Ctrl+g u         Scroll
+  Ctrl+g /         Search
+  Ctrl+q           QUIT ALL
 
-  LAYOUTS: zellij --layout dev|assist|focus
-  TABS: Alt+1 dev  Alt+2 git  Alt+3 shell  Alt+4 help
+  LAYOUTS: dev-box start --layout dev|assist|focus
+  TABS: Ctrl+g 1 dev  2 git  3 shell  4 help
 "#;
 
 /// Default .asoundrc for PulseAudio over TCP.

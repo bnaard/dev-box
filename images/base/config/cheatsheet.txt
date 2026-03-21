@@ -2,38 +2,38 @@
 ║                     dev-box — Quick Reference                              ║
 ╠══════════════════════════════════════════════════════════════════════════════╣
 ║                                                                            ║
-║  ZELLIJ                              YAZI (file manager)                   ║
+║  ZELLIJ (leader: Ctrl+g)            YAZI (file manager)                   ║
 ║  ───────────────────────────         ──────────────────────────────        ║
-║  Alt+h/j/k/l   Move between panes   h/j/k/l    Navigate                  ║
-║  Alt+[  Alt+]   Prev/next tab        Enter      Open in vim pane          ║
-║  Alt+1 … Alt+5  Jump to tab          O          Open in-place (fallback)  ║
-║  Alt+f           Fullscreen pane      .          Toggle hidden files       ║
-║  Alt+n           New pane             /          Search files              ║
-║  Alt+x           Close pane           q          Quit yazi                 ║
-║  Alt+d           New pane (down)      Space      Select file               ║
-║  Alt+r           New pane (right)     d          Trash selected            ║
-║  Alt+t           New tab              r          Rename                    ║
-║  Alt+w           Close tab            a          Create file               ║
-║  Alt+s           Strider (floating)   ~          Go to home                ║
-║  Alt+m           Session manager      Tab        Preview next              ║
-║  Alt+u           Scroll mode                                               ║
-║  Alt+/           Search scrollback   VIM                                   ║
-║  Ctrl+q          QUIT zellij         ──────────────────────────────        ║
-║                                       Space+e    Netrw file explorer       ║
-║  STACKED PANES (tabbed)               Space+w    Save                     ║
-║  ───────────────────────────          Space+q    Quit                     ║
-║  Alt+j/k in stack  Switch pane        Space+n/p  Next/prev buffer         ║
-║  Click header      Switch pane        :e <file>  Open file                ║
-║                                       :wq        Save and quit            ║
-║  LAYOUTS (start with)                 :q!        Quit without saving      ║
-║  ───────────────────────────          Ctrl+h/j/k/l  Navigate splits       ║
-║  zellij --layout dev                                                       ║
-║  zellij --layout assist              TABS                                  ║
-║  zellij --layout focus               ──────────────────────────────        ║
-║                                       Alt+1  dev  (files+editor+term)      ║
-║                                       Alt+2  git  (lazygit)                ║
-║                                       Alt+3  shell (extra terminal)        ║
-║                                       Alt+4  help (this cheatsheet)        ║
-║                                                                            ║
+║  Ctrl+g h/j/k/l  Move panes        h/j/k/l    Navigate                  ║
+║  Ctrl+g [  ]      Prev/next tab     Enter      Open in vim pane          ║
+║  Ctrl+g 1 … 5     Jump to tab       O          Open in-place (fallback)  ║
+║  Ctrl+g f          Fullscreen        .          Toggle hidden files       ║
+║  Ctrl+g n          New pane          /          Search files              ║
+║  Ctrl+g x          Close pane        q          Quit yazi                 ║
+║  Ctrl+g d          Split down        Space      Select file               ║
+║  Ctrl+g r          Split right       d          Trash selected            ║
+║  Ctrl+g t          New tab           r          Rename                    ║
+║  Ctrl+g w          Close tab         a          Create file               ║
+║  Ctrl+g s          Strider           ~          Go to home                ║
+║  Ctrl+g m          Session manager   Tab        Preview next              ║
+║  Ctrl+g u          Scroll mode                                            ║
+║  Ctrl+g /          Search           VIM                                   ║
+║  Ctrl+g z          Toggle borders   ──────────────────────────────        ║
+║  Ctrl+g e          Embed/float       Space+e    Netrw file explorer       ║
+║  Ctrl+g =/-        Resize pane       Space+w    Save                     ║
+║  Ctrl+q            QUIT zellij       Space+q    Quit                     ║
+║                                      Space+n/p  Next/prev buffer         ║
+║  STACKED PANES (tabbed)              :e <file>  Open file                ║
+║  ───────────────────────────         :wq        Save and quit            ║
+║  Ctrl+g j/k in stack  Switch         :q!        Quit without saving      ║
+║  Click header          Switch        Ctrl+h/j/k/l  Navigate splits       ║
+║                                                                           ║
+║  LAYOUTS                            TABS                                  ║
+║  ───────────────────────────        ──────────────────────────────        ║
+║  dev-box start --layout dev         Ctrl+g 1  dev  (files+editor+term)   ║
+║  dev-box start --layout assist      Ctrl+g 2  git  (lazygit)             ║
+║  dev-box start --layout focus       Ctrl+g 3  shell (extra terminal)     ║
+║                                     Ctrl+g 4  help (this cheatsheet)     ║
+║                                                                           ║
 ╚══════════════════════════════════════════════════════════════════════════════╝
   Press q to exit this help screen.
