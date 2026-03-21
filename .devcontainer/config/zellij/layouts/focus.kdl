@@ -1,21 +1,11 @@
 // =============================================================================
-// "focus" layout — single-task focus, minimal distraction
+// "focus" layout — one tool per tab, fullscreen, zero distraction
 //
-// Select with: zellij --layout focus
+// Select with: dev-box start --layout focus
 //
-// Structure:
-//   ┌──────────┬───────────────────────────────┐
-//   │          │                               │
-//   │  yazi    │  ┊bash┊claude┊vim┊            │
-//   │  (20%)   │  stacked (one visible)        │
-//   │          │                               │
-//   │          │                               │
-//   ├──────────┴───────────────────────────────┤
-//   │  status-bar                              │
-//   └──────────────────────────────────────────┘
+// Each tool gets the entire screen. Switch with Ctrl+b [/] or Ctrl+b 1-5.
 //
-// All main tools are stacked — only one visible at a time.
-// Use Alt+j/k or click the stacked headers to switch.
+//   Tab 1: yazi   Tab 2: vim   Tab 3: claude   Tab 4: git   Tab 5: shell
 // =============================================================================
 
 layout {
@@ -27,30 +17,24 @@ layout {
         }
     }
 
-    tab name="focus" focus=true {
-        pane split_direction="vertical" {
+    tab name="files" focus=true {
+        pane name="yazi" {
+            command "yazi"
+            cwd "/workspace"
+        }
+    }
 
-            // Left: Yazi file manager
-            pane size="20%" name="files" {
-                command "yazi"
-                cwd "/workspace"
-            }
+    tab name="editor" {
+        pane name="vim" {
+            command "vim"
+            cwd "/workspace"
+        }
+    }
 
-            // Right: stacked main panes (one visible at a time)
-            pane stacked=true {
-                pane name="terminal" focus=true {
-                    command "bash"
-                    cwd "/workspace"
-                }
-                pane name="claude" {
-                    command "claude"
-                    cwd "/workspace"
-                }
-                pane name="editor" {
-                    command "vim"
-                    cwd "/workspace"
-                }
-            }
+    tab name="claude" {
+        pane name="claude" {
+            command "claude"
+            cwd "/workspace"
         }
     }
 
@@ -65,13 +49,6 @@ layout {
         pane name="bash" {
             command "bash"
             cwd "/workspace"
-        }
-    }
-
-    tab name="help" {
-        pane name="cheatsheet" {
-            command "less"
-            args "-R" "/root/.config/cheatsheet.txt"
         }
     }
 }

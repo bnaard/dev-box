@@ -7,10 +7,10 @@ use crate::config::{AiProvider, ImageFlavor, ProcessFlavor};
 pub enum Layout {
     /// VS Code-like: Yazi sidebar, Vim editor, stacked terminals
     Dev,
-    /// Minimal distraction: Yazi sidebar, single stacked pane
+    /// One tool per tab, fullscreen, zero distraction
     Focus,
-    /// Claude-focused: Yazi sidebar, stacked bash/Claude center, Vim right
-    Assist,
+    /// Side-by-side coding with AI: yazi+vim left, claude right
+    Cowork,
 }
 
 impl std::fmt::Display for Layout {
@@ -18,7 +18,7 @@ impl std::fmt::Display for Layout {
         match self {
             Layout::Dev => write!(f, "dev"),
             Layout::Focus => write!(f, "focus"),
-            Layout::Assist => write!(f, "assist"),
+            Layout::Cowork => write!(f, "cowork"),
         }
     }
 }

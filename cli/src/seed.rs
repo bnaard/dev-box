@@ -175,7 +175,7 @@ const DEFAULT_ZELLIJ_THEME: &str = r##"themes {
 }
 "##;
 
-/// Default zellij dev layout — VS Code-like.
+/// Default zellij dev layout — file browser + editor.
 const DEFAULT_ZELLIJ_LAYOUT: &str = r#"layout {
     default_tab_template {
         children
@@ -185,79 +185,22 @@ const DEFAULT_ZELLIJ_LAYOUT: &str = r#"layout {
     }
     tab name="dev" focus=true {
         pane split_direction="vertical" {
-            pane size="20%" name="files" {
+            pane size="40%" name="files" {
                 command "yazi"
                 cwd "/workspace"
             }
-            pane split_direction="horizontal" {
-                pane size="60%" name="editor" focus=true {
-                    command "vim"
-                    cwd "/workspace"
-                }
-                pane stacked=true size="40%" {
-                    pane name="terminal" {
-                        command "bash"
-                        cwd "/workspace"
-                    }
-                    pane name="claude" {
-                        command "claude"
-                        cwd "/workspace"
-                    }
-                }
-            }
-        }
-    }
-    tab name="git" {
-        pane name="lazygit" {
-            command "lazygit"
-            cwd "/workspace"
-        }
-    }
-    tab name="shell" {
-        pane name="bash" {
-            command "bash"
-            cwd "/workspace"
-        }
-    }
-    tab name="help" {
-        pane name="cheatsheet" {
-            command "less"
-            args "-R" "/root/.config/cheatsheet.txt"
-        }
-    }
-}
-"#;
-
-/// Zellij assist layout — Claude-focused.
-const DEFAULT_ZELLIJ_ASSIST_LAYOUT: &str = r#"layout {
-    default_tab_template {
-        children
-        pane size=1 borderless=true {
-            plugin location="zellij:status-bar"
-        }
-    }
-    tab name="assist" focus=true {
-        pane split_direction="vertical" {
-            pane size="20%" name="files" {
-                command "yazi"
-                cwd "/workspace"
-            }
-            pane stacked=true size="40%" {
-                pane name="claude" focus=true {
-                    command "claude"
-                    cwd "/workspace"
-                }
-                pane name="terminal" {
-                    command "bash"
-                    cwd "/workspace"
-                }
-            }
-            pane name="editor" {
+            pane size="60%" name="editor" focus=true {
                 command "vim"
                 cwd "/workspace"
             }
         }
     }
+    tab name="claude" {
+        pane name="claude" {
+            command "claude"
+            cwd "/workspace"
+        }
+    }
     tab name="git" {
         pane name="lazygit" {
             command "lazygit"
@@ -270,16 +213,10 @@ const DEFAULT_ZELLIJ_ASSIST_LAYOUT: &str = r#"layout {
             cwd "/workspace"
         }
     }
-    tab name="help" {
-        pane name="cheatsheet" {
-            command "less"
-            args "-R" "/root/.config/cheatsheet.txt"
-        }
-    }
 }
 "#;
 
-/// Zellij focus layout — minimal, stacked main panes.
+/// Zellij focus layout — one tool per tab, fullscreen.
 const DEFAULT_ZELLIJ_FOCUS_LAYOUT: &str = r#"layout {
     default_tab_template {
         children
@@ -287,25 +224,62 @@ const DEFAULT_ZELLIJ_FOCUS_LAYOUT: &str = r#"layout {
             plugin location="zellij:status-bar"
         }
     }
-    tab name="focus" focus=true {
+    tab name="files" focus=true {
+        pane name="yazi" {
+            command "yazi"
+            cwd "/workspace"
+        }
+    }
+    tab name="editor" {
+        pane name="vim" {
+            command "vim"
+            cwd "/workspace"
+        }
+    }
+    tab name="claude" {
+        pane name="claude" {
+            command "claude"
+            cwd "/workspace"
+        }
+    }
+    tab name="git" {
+        pane name="lazygit" {
+            command "lazygit"
+            cwd "/workspace"
+        }
+    }
+    tab name="shell" {
+        pane name="bash" {
+            command "bash"
+            cwd "/workspace"
+        }
+    }
+}
+"#;
+
+/// Zellij cowork layout — side-by-side coding with AI.
+const DEFAULT_ZELLIJ_COWORK_LAYOUT: &str = r#"layout {
+    default_tab_template {
+        children
+        pane size=1 borderless=true {
+            plugin location="zellij:status-bar"
+        }
+    }
+    tab name="cowork" focus=true {
         pane split_direction="vertical" {
-            pane size="20%" name="files" {
-                command "yazi"
-                cwd "/workspace"
-            }
-            pane stacked=true {
-                pane name="terminal" focus=true {
-                    command "bash"
+            pane size="50%" split_direction="horizontal" {
+                pane size="40%" name="files" {
+                    command "yazi"
                     cwd "/workspace"
                 }
-                pane name="claude" {
-                    command "claude"
-                    cwd "/workspace"
-                }
-                pane name="editor" {
+                pane size="60%" name="editor" {
                     command "vim"
                     cwd "/workspace"
                 }
+            }
+            pane size="50%" name="claude" focus=true {
+                command "claude"
+                cwd "/workspace"
             }
         }
     }
@@ -321,18 +295,12 @@ const DEFAULT_ZELLIJ_FOCUS_LAYOUT: &str = r#"layout {
             cwd "/workspace"
         }
     }
-    tab name="help" {
-        pane name="cheatsheet" {
-            command "less"
-            args "-R" "/root/.config/cheatsheet.txt"
-        }
-    }
 }
 "#;
 
 /// Default yazi config.
 const DEFAULT_YAZI_CONFIG: &str = r#"[manager]
-ratio = [1, 4, 0]
+ratio = [1, 3, 4]
 sort_by = "natural"
 sort_sensitive = false
 sort_dir_first = true
@@ -382,7 +350,7 @@ const DEFAULT_CHEATSHEET: &str = r#"  dev-box Quick Reference
   Ctrl+b /         Search
   Ctrl+b q         QUIT (or Ctrl+q)
 
-  LAYOUTS: dev-box start --layout dev|assist|focus
+  LAYOUTS: dev-box start --layout dev|focus|cowork
   TABS: Ctrl+b 1 dev  2 git  3 shell  4 help
 "#;
 
@@ -458,16 +426,16 @@ pub fn seed_root_dir(config: &DevBoxConfig) -> Result<()> {
             .join(".config")
             .join("zellij")
             .join("layouts")
-            .join("assist.kdl"),
-        DEFAULT_ZELLIJ_ASSIST_LAYOUT,
+            .join("focus.kdl"),
+        DEFAULT_ZELLIJ_FOCUS_LAYOUT,
     )?;
     seed_file(
         &root
             .join(".config")
             .join("zellij")
             .join("layouts")
-            .join("focus.kdl"),
-        DEFAULT_ZELLIJ_FOCUS_LAYOUT,
+            .join("cowork.kdl"),
+        DEFAULT_ZELLIJ_COWORK_LAYOUT,
     )?;
 
     // Yazi config
@@ -607,14 +575,14 @@ mod tests {
             root.join(".config")
                 .join("zellij")
                 .join("layouts")
-                .join("assist.kdl")
+                .join("focus.kdl")
                 .exists()
         );
         assert!(
             root.join(".config")
                 .join("zellij")
                 .join("layouts")
-                .join("focus.kdl")
+                .join("cowork.kdl")
                 .exists()
         );
         assert!(root.join(".config").join("yazi").join("yazi.toml").exists());

@@ -39,31 +39,31 @@ The Dockerfile uses a multi-stage build:
 
 ### Key Bindings
 
-All bindings use `Ctrl+g` as a leader key — press `Ctrl+g`, release, then press the action key. This avoids conflicts with macOS Option key (which produces special characters like `@`, `€`, `|`) and with Vim/bash Ctrl bindings.
+All bindings use `Ctrl+b` as a leader key — press `Ctrl+b`, release, then press the action key. This avoids conflicts with macOS Option key (which produces special characters like `@`, `€`, `|`) and with Vim/bash Ctrl bindings.
 
 | Key | Action |
 |-----|--------|
-| `Ctrl+g` then `h/j/k/l` | Navigate panes (vim-style) |
-| `Ctrl+g` then `n` | New pane |
-| `Ctrl+g` then `d` | Split down |
-| `Ctrl+g` then `r` | Split right |
-| `Ctrl+g` then `x` | Close focused pane |
-| `Ctrl+g` then `f` | Toggle fullscreen |
-| `Ctrl+g` then `z` | Toggle pane frames |
-| `Ctrl+g` then `e` | Toggle embed/floating |
-| `Ctrl+g` then `=` / `-` | Resize pane (increase / decrease) |
-| `Ctrl+g` then `t` | New tab |
-| `Ctrl+g` then `w` | Close tab |
-| `Ctrl+g` then `[` / `]` | Previous / next tab |
-| `Ctrl+g` then `1-5` | Jump to tab N |
-| `Ctrl+g` then `i` / `o` | Move tab left / right |
-| `Ctrl+g` then `s` | Open Strider file picker (floating) |
-| `Ctrl+g` then `m` | Session manager |
-| `Ctrl+g` then `u` | Enter scroll mode |
-| `Ctrl+g` then `/` | Search scrollback |
+| `Ctrl+b` then `h/j/k/l` | Navigate panes (vim-style) |
+| `Ctrl+b` then `n` | New pane |
+| `Ctrl+b` then `d` | Split down |
+| `Ctrl+b` then `r` | Split right |
+| `Ctrl+b` then `x` | Close focused pane |
+| `Ctrl+b` then `f` | Toggle fullscreen |
+| `Ctrl+b` then `z` | Toggle pane frames |
+| `Ctrl+b` then `e` | Toggle embed/floating |
+| `Ctrl+b` then `=` / `-` | Resize pane (increase / decrease) |
+| `Ctrl+b` then `t` | New tab |
+| `Ctrl+b` then `w` | Close tab |
+| `Ctrl+b` then `[` / `]` | Previous / next tab |
+| `Ctrl+b` then `1-5` | Jump to tab N |
+| `Ctrl+b` then `i` / `o` | Move tab left / right |
+| `Ctrl+b` then `s` | Open Strider file picker (floating) |
+| `Ctrl+b` then `m` | Session manager |
+| `Ctrl+b` then `u` | Enter scroll mode |
+| `Ctrl+b` then `/` | Search scrollback |
 | `Ctrl+q` | Quit Zellij |
 
-Press `Escape` or `Ctrl+g` again to cancel the leader and return to normal mode.
+Press `Escape` or `Ctrl+b` again to cancel the leader and return to normal mode.
 
 ### Layouts
 
@@ -115,7 +115,7 @@ Yazi on the left, three tools stacked on the right (bash, Claude Code, Vim) with
 Yazi on the left, stacked bash/Claude Code in the center, Vim on the right. Emphasizes the Claude interface for AI-assisted workflows.
 
 !!! note "Strider vs Yazi"
-    `Ctrl+g` then `s` opens the built-in **Strider** file picker as a floating overlay (Zellij plugin). The sidebar file manager in all layouts is **Yazi**, an external terminal file manager with richer features (preview, bulk operations, async I/O).
+    `Ctrl+b` then `s` opens the built-in **Strider** file picker as a floating overlay (Zellij plugin). The sidebar file manager in all layouts is **Yazi**, an external terminal file manager with richer features (preview, bulk operations, async I/O).
 
 ### Theme
 

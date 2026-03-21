@@ -4,7 +4,7 @@
 # =============================================================================
 
 [manager]
-ratio = [1, 4, 0]           # small parent column, full file list, no preview
+ratio = [1, 3, 4]           # parent : current : preview
 sort_by = "natural"
 sort_sensitive = false
 sort_dir_first = true

@@ -1,28 +1,24 @@
 // =============================================================================
-// "dev" layout — VS Code-like IDE layout (default)
+// "dev" layout — file browser + editor (default)
 //
-// Select with: zellij --layout dev
+// Select with: dev-box start --layout dev
 //
 // Structure:
-//   ┌──────────┬───────────────────────────────┐
-//   │          │         vim editor (60%)       │
-//   │  yazi    │                               │
-//   │  (20%)   ├───────────────────────────────┤
-//   │          │  ┊bash┊claude┊  stacked (40%) │
-//   ├──────────┴───────────────────────────────┤
-//   │  status-bar                              │
-//   └──────────────────────────────────────────┘
+//   ┌──────────────────┬────────────────────────────┐
+//   │                  │                            │
+//   │  yazi (40%)      │  vim (60%)                 │
+//   │                  │                            │
+//   │                  │                            │
+//   │                  │                            │
+//   ├──────────────────┴────────────────────────────┤
+//   │  status-bar                                   │
+//   └───────────────────────────────────────────────┘
 //
-// Navigation:
-//   Alt+h/j/k/l  — move between panes
-//   Alt+[/]       — previous/next tab
-//   Alt+1-5       — jump to tab
-//   Ctrl+q        — quit zellij
+//   Tab 1: dev   Tab 2: claude   Tab 3: git   Tab 4: shell
 // =============================================================================
 
 layout {
 
-    // ── Chrome ────────────────────────────────────────────────────────────────
     default_tab_template {
         children
         pane size=1 borderless=true {
@@ -30,41 +26,26 @@ layout {
         }
     }
 
-    // ── Tab: Dev ──────────────────────────────────────────────────────────────
     tab name="dev" focus=true {
         pane split_direction="vertical" {
-
-            // Left column: Yazi file manager (20% width, full height)
-            pane size="20%" name="files" {
+            pane size="40%" name="files" {
                 command "yazi"
                 cwd "/workspace"
             }
-
-            // Right column: editor on top, stacked terminals below
-            pane split_direction="horizontal" {
-
-                // Main editor pane (60% of height)
-                pane size="60%" name="editor" focus=true {
-                    command "vim"
-                    cwd "/workspace"
-                }
-
-                // Bottom panel: stacked (tabbed) terminals (40% of height)
-                pane stacked=true size="40%" {
-                    pane name="terminal" {
-                        command "bash"
-                        cwd "/workspace"
-                    }
-                    pane name="claude" {
-                        command "claude"
-                        cwd "/workspace"
-                    }
-                }
+            pane size="60%" name="editor" focus=true {
+                command "vim"
+                cwd "/workspace"
             }
         }
     }
 
-    // ── Tab: Git (lazygit) ────────────────────────────────────────────────────
+    tab name="claude" {
+        pane name="claude" {
+            command "claude"
+            cwd "/workspace"
+        }
+    }
+
     tab name="git" {
         pane name="lazygit" {
             command "lazygit"
@@ -72,19 +53,10 @@ layout {
         }
     }
 
-    // ── Tab: Shell — extra terminals ──────────────────────────────────────────
     tab name="shell" {
         pane name="bash" {
             command "bash"
             cwd "/workspace"
-        }
-    }
-
-    // ── Tab: Help — quick reference ───────────────────────────────────────────
-    tab name="help" {
-        pane name="cheatsheet" {
-            command "less"
-            args "-R" "/root/.config/cheatsheet.txt"
         }
     }
 }

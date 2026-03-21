@@ -1,0 +1,61 @@
+// =============================================================================
+// "cowork" layout — side-by-side coding with AI
+//
+// Select with: dev-box start --layout cowork
+//
+// Structure:
+//   ┌──────────────────────┬────────────────────────┐
+//   │  yazi (40%)          │                        │
+//   │                      │  claude (50%)          │
+//   ├──────────────────────┤                        │
+//   │  vim (60%)           │                        │
+//   │                      │                        │
+//   ├──────────────────────┴────────────────────────┤
+//   │  status-bar                                   │
+//   └───────────────────────────────────────────────┘
+//
+//   Tab 1: cowork   Tab 2: git   Tab 3: shell
+// =============================================================================
+
+layout {
+
+    default_tab_template {
+        children
+        pane size=1 borderless=true {
+            plugin location="zellij:status-bar"
+        }
+    }
+
+    tab name="cowork" focus=true {
+        pane split_direction="vertical" {
+            pane size="50%" split_direction="horizontal" {
+                pane size="40%" name="files" {
+                    command "yazi"
+                    cwd "/workspace"
+                }
+                pane size="60%" name="editor" {
+                    command "vim"
+                    cwd "/workspace"
+                }
+            }
+            pane size="50%" name="claude" focus=true {
+                command "claude"
+                cwd "/workspace"
+            }
+        }
+    }
+
+    tab name="git" {
+        pane name="lazygit" {
+            command "lazygit"
+            cwd "/workspace"
+        }
+    }
+
+    tab name="shell" {
+        pane name="bash" {
+            command "bash"
+            cwd "/workspace"
+        }
+    }
+}
