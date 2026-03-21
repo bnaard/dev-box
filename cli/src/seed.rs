@@ -152,15 +152,36 @@ const DEFAULT_ZELLIJ_LAYOUT: &str = r#"layout {
                     cwd "/workspace"
                 }
                 pane stacked=true size="40%" {
-                    pane name="terminal" { command "bash"; cwd "/workspace" }
-                    pane name="claude" { command "claude"; cwd "/workspace" }
+                    pane name="terminal" {
+                        command "bash"
+                        cwd "/workspace"
+                    }
+                    pane name="claude" {
+                        command "claude"
+                        cwd "/workspace"
+                    }
                 }
             }
         }
     }
-    tab name="git" { pane command="lazygit" { cwd "/workspace" } }
-    tab name="shell" { pane command="bash" { cwd "/workspace" } }
-    tab name="help" { pane command="less" { args "-R" "/root/.config/cheatsheet.txt" } }
+    tab name="git" {
+        pane name="lazygit" {
+            command "lazygit"
+            cwd "/workspace"
+        }
+    }
+    tab name="shell" {
+        pane name="bash" {
+            command "bash"
+            cwd "/workspace"
+        }
+    }
+    tab name="help" {
+        pane name="cheatsheet" {
+            command "less"
+            args "-R" "/root/.config/cheatsheet.txt"
+        }
+    }
 }
 "#;
 
@@ -179,8 +200,14 @@ const DEFAULT_ZELLIJ_ASSIST_LAYOUT: &str = r#"layout {
                 cwd "/workspace"
             }
             pane stacked=true size="40%" {
-                pane name="claude" focus=true { command "claude"; cwd "/workspace" }
-                pane name="terminal" { command "bash"; cwd "/workspace" }
+                pane name="claude" focus=true {
+                    command "claude"
+                    cwd "/workspace"
+                }
+                pane name="terminal" {
+                    command "bash"
+                    cwd "/workspace"
+                }
             }
             pane name="editor" {
                 command "vim"
@@ -188,9 +215,24 @@ const DEFAULT_ZELLIJ_ASSIST_LAYOUT: &str = r#"layout {
             }
         }
     }
-    tab name="git" { pane command="lazygit" { cwd "/workspace" } }
-    tab name="shell" { pane command="bash" { cwd "/workspace" } }
-    tab name="help" { pane command="less" { args "-R" "/root/.config/cheatsheet.txt" } }
+    tab name="git" {
+        pane name="lazygit" {
+            command "lazygit"
+            cwd "/workspace"
+        }
+    }
+    tab name="shell" {
+        pane name="bash" {
+            command "bash"
+            cwd "/workspace"
+        }
+    }
+    tab name="help" {
+        pane name="cheatsheet" {
+            command "less"
+            args "-R" "/root/.config/cheatsheet.txt"
+        }
+    }
 }
 "#;
 
@@ -209,15 +251,39 @@ const DEFAULT_ZELLIJ_FOCUS_LAYOUT: &str = r#"layout {
                 cwd "/workspace"
             }
             pane stacked=true {
-                pane name="terminal" focus=true { command "bash"; cwd "/workspace" }
-                pane name="claude" { command "claude"; cwd "/workspace" }
-                pane name="editor" { command "vim"; cwd "/workspace" }
+                pane name="terminal" focus=true {
+                    command "bash"
+                    cwd "/workspace"
+                }
+                pane name="claude" {
+                    command "claude"
+                    cwd "/workspace"
+                }
+                pane name="editor" {
+                    command "vim"
+                    cwd "/workspace"
+                }
             }
         }
     }
-    tab name="git" { pane command="lazygit" { cwd "/workspace" } }
-    tab name="shell" { pane command="bash" { cwd "/workspace" } }
-    tab name="help" { pane command="less" { args "-R" "/root/.config/cheatsheet.txt" } }
+    tab name="git" {
+        pane name="lazygit" {
+            command "lazygit"
+            cwd "/workspace"
+        }
+    }
+    tab name="shell" {
+        pane name="bash" {
+            command "bash"
+            cwd "/workspace"
+        }
+    }
+    tab name="help" {
+        pane name="cheatsheet" {
+            command "less"
+            args "-R" "/root/.config/cheatsheet.txt"
+        }
+    }
 }
 "#;
 
