@@ -2,6 +2,36 @@
 
 Inverse chronological. Each decision has a rationale and alternatives considered.
 
+## DEC-010 — context/shared/ directory for cross-environment files (2026-03-21)
+
+**Decision:** The `context/` directory has a `shared/` subdirectory that is NOT copied during environment switches. Everything else in `context/` is per-environment. Default scaffolding places only `OWNER.md` in `shared/`. Users can move any file into `shared/` to share it across environments.
+
+**Rationale:** Rather than hardcoding which files are shared (e.g., only OWNER.md) or adding include/exclude flags, a directory boundary lets the user decide. No templating, no merge logic. The AI agent sees all files under `context/` as usual — `shared/` is just a subdirectory. Inspired by Kustomize's base/overlay pattern, but simplified because our content is narrative markdown, not structured YAML that can be mechanically merged.
+
+**Alternatives:** Hardcoded shared file list (inflexible), include/exclude flags in config (complexity), structural split into two parallel directories with merge (authoring nightmare for markdown content).
+
+## DEC-009 — Environment switching uses plain directory copying (2026-03-21)
+
+**Decision:** For Phase 2 environment management (`dev-box env`), per-environment state (dev-box.toml, CLAUDE.md, context/) is stored as plain file copies in `.dev-box-env/<name>/`. Switching copies files to/from the project root. `.devcontainer/` is regenerated (derived), `.dev-box-home/` is shared (user prefs).
+
+**Rationale:** Evaluated four approaches:
+- **uv-style** (config-only, environment disposable) — fails because `context/` contains irreplaceable user-written state, not just derived artifacts
+- **Nix-style** (content-addressed store + symlinks) — symlinks break in container bind mounts, Nix assumes immutable store items but context files are mutable
+- **OCI-style** (overlay filesystem layers) — OverlayFS is a Linux kernel feature, not portable to macOS host
+- **Git branches** (nested repo for context) — a nested `.git` inside an already git-tracked project confuses VS Code, lazygit, and CLI git; hiding in `.tar.gz` defeats atomic switching
+
+Plain copying wins because: context files are tiny (< 50 KB total), no tooling interference (gitignored directory), fully portable, debuggable (plain files), AI-agent friendly. The Nix/OCI models solve problems we don't have (deduplicating large binaries).
+
+**Alternatives considered:** See rationale above.
+
+## DEC-008 — backup and reset as standalone commands (2026-03-21)
+
+**Decision:** `dev-box backup` and `dev-box reset` implemented as standalone commands (Phase 1). Backup saves timestamped snapshots to `.dev-box-backup/`. Reset backs up then deletes all dev-box files. `.gitignore` is backed up but not deleted. Container is stopped before reset.
+
+**Rationale:** Safety nets for destructive experiments, major upgrades, and complete dev-box removal. Phase 2 environment management builds on different storage (`.dev-box-env/`) — backup remains useful as disaster recovery independent of environments.
+
+**Alternatives:** Combining backup into env management — rejected because backup serves a different purpose (safety net vs. workflow switching).
+
 ## DEC-007 — Rename .root/ to .dev-box-home/ (2026-03-19)
 
 **Decision:** Rename the host-side persisted config directory from `.root/` to `.dev-box-home/` for clarity. Backward compat: CLI falls back to `.root/` if it exists and `.dev-box-home/` doesn't.

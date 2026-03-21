@@ -6,7 +6,7 @@
 
 ```toml
 [dev-box]
-version = "0.3.8"                    # Project version (semver)
+version = "0.3.9"                    # Project version (semver)
 image = "python"                      # Image flavor
 process = "product"                   # Work process flavor
 

@@ -393,6 +393,7 @@ name = "test-project"
     }
 
     #[test]
+    #[serial_test::serial]
     fn discover_items_finds_existing() {
         let dir = TempDir::new().unwrap();
         let original_dir = std::env::current_dir().unwrap();
@@ -408,6 +409,7 @@ name = "test-project"
     }
 
     #[test]
+    #[serial_test::serial]
     fn discover_items_gitignore_not_deleted() {
         let dir = TempDir::new().unwrap();
         let original_dir = std::env::current_dir().unwrap();

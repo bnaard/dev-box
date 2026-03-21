@@ -2,6 +2,18 @@
 
 All notable changes to dev-box are documented here.
 
+## v0.3.9 — 2026-03-21
+
+### Added
+- `dev-box backup` command — save dev-box files to timestamped backup directory (`.dev-box-backup/`)
+- `dev-box reset` command — danger zone: backup + delete all dev-box files, with `--no-backup`, `--dry-run`, `--yes` flags, interactive confirmation, table output showing backup/delete status
+- `.dev-box-backup/` added to generated `.gitignore`
+
+### Fixed
+- VS Code auto-forwarding PulseAudio TCP port: `portsAttributes` now added to `devcontainer.json` when audio is enabled (fixes #11)
+- Embedded Zellij layouts: use multi-line KDL syntax (fixes parse errors on Zellij 0.43.1)
+- Builder stage: added `unzip` for Yazi download
+
 ## v0.3.8 — 2026-03-21
 
 ### Added
