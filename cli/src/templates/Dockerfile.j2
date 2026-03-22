@@ -12,6 +12,18 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 {% endfor %}
     && rm -rf /var/lib/apt/lists/*
 {% endif %}
+{% for provider in ai_providers %}
+{% if provider == "aider" %}
+
+# Aider AI coding assistant
+RUN uv tool install aider-chat
+{% endif %}
+{% if provider == "gemini" %}
+
+# Gemini CLI
+RUN npm install -g @google/generative-ai-cli || pip install google-generativeai
+{% endif %}
+{% endfor %}
 {% if local_content %}
 
 # Project-specific layers (from Dockerfile.local)

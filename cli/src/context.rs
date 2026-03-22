@@ -33,6 +33,20 @@ const PRODUCT_DEVELOPMENT: &str =
     include_str!("../../templates/product/work-instructions/DEVELOPMENT.md");
 const PRODUCT_TEAM: &str = include_str!("../../templates/product/work-instructions/TEAM.md");
 
+// --- Process templates ---
+const PROCESS_README: &str = include_str!("../../templates/processes/README.md");
+const PROCESS_RELEASE: &str = include_str!("../../templates/processes/release.md");
+const PROCESS_CODE_REVIEW: &str = include_str!("../../templates/processes/code-review.md");
+const PROCESS_FEATURE_DEV: &str = include_str!("../../templates/processes/feature-development.md");
+const PROCESS_BUG_FIX: &str = include_str!("../../templates/processes/bug-fix.md");
+
+// --- Skill templates ---
+const SKILL_BACKLOG_CONTEXT: &str =
+    include_str!("../../templates/skills/backlog-context/SKILL.md");
+const SKILL_DECISIONS_ADR: &str = include_str!("../../templates/skills/decisions-adr/SKILL.md");
+const SKILL_STANDUP_CONTEXT: &str =
+    include_str!("../../templates/skills/standup-context/SKILL.md");
+
 /// Default OWNER.md content — created locally in each project's context/ directory.
 const OWNER_CONTENT: &str = r#"# Owner Profile
 
@@ -155,6 +169,10 @@ fn scaffold_managed(project_name: &str) -> Result<()> {
     )?;
     output::ok("Created context/work-instructions/GENERAL.md");
 
+    // Process declarations and skills
+    scaffold_processes(context)?;
+    scaffold_skills()?;
+
     // OWNER.md (local copy)
     setup_owner_md(context)?;
 
@@ -192,6 +210,10 @@ fn scaffold_research(project_name: &str) -> Result<()> {
     fs::create_dir_all(experiments).context("Failed to create experiments/")?;
     write_if_missing(&experiments.join("README.md"), EXPERIMENTS_README)?;
     output::ok("Created experiments/README.md");
+
+    // Process declarations and skills
+    scaffold_processes(context)?;
+    scaffold_skills()?;
 
     // OWNER.md (local copy)
     setup_owner_md(context)?;
@@ -267,8 +289,52 @@ fn scaffold_product(project_name: &str) -> Result<()> {
     write_if_missing(&experiments.join("README.md"), EXPERIMENTS_README)?;
     output::ok("Created experiments/README.md");
 
+    // Process declarations and skills
+    scaffold_processes(context)?;
+    scaffold_skills()?;
+
     // OWNER.md (local copy)
     setup_owner_md(context)?;
+
+    Ok(())
+}
+
+/// Scaffold process declaration files into context/processes/.
+fn scaffold_processes(context: &Path) -> Result<()> {
+    let processes = context.join("processes");
+    fs::create_dir_all(&processes).context("Failed to create context/processes")?;
+
+    write_if_missing(&processes.join("README.md"), PROCESS_README)?;
+    write_if_missing(&processes.join("release.md"), PROCESS_RELEASE)?;
+    write_if_missing(&processes.join("code-review.md"), PROCESS_CODE_REVIEW)?;
+    write_if_missing(
+        &processes.join("feature-development.md"),
+        PROCESS_FEATURE_DEV,
+    )?;
+    write_if_missing(&processes.join("bug-fix.md"), PROCESS_BUG_FIX)?;
+    output::ok("Created context/processes/");
+
+    Ok(())
+}
+
+/// Scaffold the .claude/skills/ directory with example skill templates.
+fn scaffold_skills() -> Result<()> {
+    let skills_dir = Path::new(".claude").join("skills");
+    fs::create_dir_all(&skills_dir).context("Failed to create .claude/skills")?;
+
+    let backlog_dir = skills_dir.join("backlog-context");
+    fs::create_dir_all(&backlog_dir).context("Failed to create .claude/skills/backlog-context")?;
+    write_if_missing(&backlog_dir.join("SKILL.md"), SKILL_BACKLOG_CONTEXT)?;
+
+    let decisions_dir = skills_dir.join("decisions-adr");
+    fs::create_dir_all(&decisions_dir).context("Failed to create .claude/skills/decisions-adr")?;
+    write_if_missing(&decisions_dir.join("SKILL.md"), SKILL_DECISIONS_ADR)?;
+
+    let standup_dir = skills_dir.join("standup-context");
+    fs::create_dir_all(&standup_dir).context("Failed to create .claude/skills/standup-context")?;
+    write_if_missing(&standup_dir.join("SKILL.md"), SKILL_STANDUP_CONTEXT)?;
+
+    output::ok("Created .claude/skills/");
 
     Ok(())
 }
@@ -311,6 +377,14 @@ pub fn expected_context_files(process: &ProcessFlavor) -> Vec<&'static str> {
             "context/BACKLOG.md",
             "context/STANDUPS.md",
             "context/work-instructions/GENERAL.md",
+            "context/processes/README.md",
+            "context/processes/release.md",
+            "context/processes/code-review.md",
+            "context/processes/feature-development.md",
+            "context/processes/bug-fix.md",
+            ".claude/skills/backlog-context/SKILL.md",
+            ".claude/skills/decisions-adr/SKILL.md",
+            ".claude/skills/standup-context/SKILL.md",
         ],
         ProcessFlavor::Research => vec![
             "CLAUDE.md",
@@ -319,6 +393,14 @@ pub fn expected_context_files(process: &ProcessFlavor) -> Vec<&'static str> {
             "context/research/_template.md",
             "context/analysis/.gitkeep",
             "experiments/README.md",
+            "context/processes/README.md",
+            "context/processes/release.md",
+            "context/processes/code-review.md",
+            "context/processes/feature-development.md",
+            "context/processes/bug-fix.md",
+            ".claude/skills/backlog-context/SKILL.md",
+            ".claude/skills/decisions-adr/SKILL.md",
+            ".claude/skills/standup-context/SKILL.md",
         ],
         ProcessFlavor::Product => vec![
             "CLAUDE.md",
@@ -335,6 +417,14 @@ pub fn expected_context_files(process: &ProcessFlavor) -> Vec<&'static str> {
             "context/ideas/.gitkeep",
             "context/research/_template.md",
             "experiments/README.md",
+            "context/processes/README.md",
+            "context/processes/release.md",
+            "context/processes/code-review.md",
+            "context/processes/feature-development.md",
+            "context/processes/bug-fix.md",
+            ".claude/skills/backlog-context/SKILL.md",
+            ".claude/skills/decisions-adr/SKILL.md",
+            ".claude/skills/standup-context/SKILL.md",
         ],
     }
 }
@@ -658,6 +748,14 @@ mod tests {
             assert!(Path::new("context/STANDUPS.md").exists());
             assert!(Path::new("context/work-instructions/GENERAL.md").exists());
             assert!(Path::new("context/shared/OWNER.md").exists());
+            assert!(Path::new("context/processes/README.md").exists());
+            assert!(Path::new("context/processes/release.md").exists());
+            assert!(Path::new("context/processes/code-review.md").exists());
+            assert!(Path::new("context/processes/feature-development.md").exists());
+            assert!(Path::new("context/processes/bug-fix.md").exists());
+            assert!(Path::new(".claude/skills/backlog-context/SKILL.md").exists());
+            assert!(Path::new(".claude/skills/decisions-adr/SKILL.md").exists());
+            assert!(Path::new(".claude/skills/standup-context/SKILL.md").exists());
         });
     }
 
@@ -673,6 +771,11 @@ mod tests {
             assert!(Path::new("context/analysis/.gitkeep").exists());
             assert!(Path::new("context/shared/OWNER.md").exists());
             assert!(Path::new("experiments/README.md").exists());
+            assert!(Path::new("context/processes/README.md").exists());
+            assert!(Path::new("context/processes/release.md").exists());
+            assert!(Path::new(".claude/skills/backlog-context/SKILL.md").exists());
+            assert!(Path::new(".claude/skills/decisions-adr/SKILL.md").exists());
+            assert!(Path::new(".claude/skills/standup-context/SKILL.md").exists());
         });
     }
 
@@ -697,6 +800,14 @@ mod tests {
             assert!(Path::new("context/research/_template.md").exists());
             assert!(Path::new("experiments/README.md").exists());
             assert!(Path::new("context/shared/OWNER.md").exists());
+            assert!(Path::new("context/processes/README.md").exists());
+            assert!(Path::new("context/processes/release.md").exists());
+            assert!(Path::new("context/processes/code-review.md").exists());
+            assert!(Path::new("context/processes/feature-development.md").exists());
+            assert!(Path::new("context/processes/bug-fix.md").exists());
+            assert!(Path::new(".claude/skills/backlog-context/SKILL.md").exists());
+            assert!(Path::new(".claude/skills/decisions-adr/SKILL.md").exists());
+            assert!(Path::new(".claude/skills/standup-context/SKILL.md").exists());
         });
     }
 

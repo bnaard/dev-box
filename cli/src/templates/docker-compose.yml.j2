@@ -30,6 +30,14 @@ services:
       # Claude Code configuration and memory
       - {{ host_root }}/.claude:{{ container_home }}/.claude
 {% endif %}
+{% if provider == "aider" %}
+      # Aider configuration
+      - {{ host_root }}/.aider:{{ container_home }}/.aider
+{% endif %}
+{% if provider == "gemini" %}
+      # Gemini CLI configuration
+      - {{ host_root }}/.gemini:{{ container_home }}/.gemini
+{% endif %}
 {% endfor %}
 {% if audio_enabled %}
       # ALSA → PulseAudio bridge config
