@@ -154,7 +154,7 @@ When a field is omitted from `dev-box.toml`, these defaults apply:
 
 ## Custom Dockerfile Layers (Dockerfile.local)
 
-For project-specific build steps that go beyond `extra_packages`, create `.devcontainer/Dockerfile.local`. This file is appended to the generated Dockerfile by `dev-box generate` and is never overwritten.
+For project-specific build steps that go beyond `extra_packages`, create `.devcontainer/Dockerfile.local`. This file is appended to the generated Dockerfile by `dev-box sync` and is never overwritten.
 
 `dev-box init` creates a placeholder with usage examples. The generated base image is aliased as the `dev-box` stage, which you can reference in multi-stage builds.
 
@@ -182,7 +182,7 @@ COPY --from=node-builder /app/dist /workspace/dist
 The `FROM dev-box` line references the generated base stage. This lets you bring in artifacts from other build stages while keeping the final image based on your dev-box configuration.
 
 !!! note
-    `Dockerfile.local` is your file — `dev-box generate` never modifies it. If the file doesn't exist or is empty, no extra layers are added.
+    `Dockerfile.local` is your file — `dev-box sync` never modifies it. If the file doesn't exist or is empty, no extra layers are added.
 
 ## The .dev-box-version File
 

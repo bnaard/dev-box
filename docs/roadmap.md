@@ -6,15 +6,21 @@ This page outlines planned features and improvements for dev-box.
 
 The current release includes:
 
-- Rust CLI with full container lifecycle (init, generate, build, start, stop, remove, attach, status, doctor, update)
+- Rust CLI with full container lifecycle (init, sync, build, start, stop, remove, attach, status, doctor, update)
+- `dev-box sync` command — reconcile config changes, re-seed, regenerate without manual file deletion (#25)
+- `generate` deprecated in favor of `sync`
 - 8 container image flavors (base, python, latex, typst, rust, python-latex, python-typst, rust-latex)
 - `dev-box.toml` configuration system
 - 4 work process flavors (minimal, managed, research, product)
 - Context scaffolding with `context/shared/` for cross-environment files
 - Named environment management (`dev-box env create/switch/list/delete/status`)
-- Color theming across Zellij, Vim, Yazi, and lazygit (6 themes)
+- Color theming across Zellij, Vim, Yazi, and lazygit (6 themes) with theme switching via sync
 - Three IDE layouts: dev, focus, cowork
 - Yazi file manager with vim-loop integration (Enter/e to open files)
+- Shell enhancement tools in base image: ripgrep, fd, bat, eza, zoxide, fzf, delta
+- Shell aliases (`ls`→`eza`, `cat`→`bat`, etc.)
+- Starship prompt with themed presets matching appearance setting (#28)
+- Keyboard shortcuts cheatsheet in docs (#16)
 - Audio support (PulseAudio bridging) with `dev-box audio check/setup`
 - `dev-box backup` and `dev-box reset` commands
 - Shell completions, interactive init, registry-based update/upgrade
@@ -22,21 +28,19 @@ The current release includes:
 - AI provider configuration (`[ai]` section)
 - Non-root user support (`container.user`)
 
-## In Progress
-
-### Consistent Color Theming (#14)
-
-Infrastructure complete: 6 themes (gruvbox-dark, catppuccin-mocha, catppuccin-latte, dracula, tokyo-night, nord) applied across Zellij, Vim, Yazi, and lazygit. Remaining: screenshot gallery in docs, theme switching without manual file deletion.
-
 ## Planned — Near Term
 
-### Shell Enhancement Tools
+### Zensical Migration (#26)
 
-Install modern CLI tools in the base image: ripgrep, fd, bat, eza, zoxide, fzf, delta, Starship prompt. Shell aliases (`ls→eza`, `cat→bat`). Starship prompt themed to match `[appearance]` setting.
+Migrate docs from MkDocs to Zensical before MkDocs EOL Nov 2026. Research complete: Zensical reads mkdocs.yml natively, MIT licensed, actively developed by the same team.
 
-### Keyboard Shortcuts Cheatsheet Page (#16)
+### Dockerfile Optimization (#27)
 
-Comprehensive, compact reference page in docs covering all keybindings for Zellij (`Ctrl+b` leader), Yazi, Vim, and lazygit.
+Cache mounts for apt, layer reduction, version pinning (digest for base images), binary checksum verification.
+
+### Theming Screenshots (#14)
+
+Screenshot gallery in docs showing all 6 themes across all tools.
 
 ### AI Provider Flexibility (#19)
 

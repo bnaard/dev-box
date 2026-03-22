@@ -93,13 +93,13 @@ enabled = true
 ```
 
 All devcontainer files (Dockerfile, docker-compose.yml, devcontainer.json)
-are generated from this config via `dev-box generate`.
+are generated from this config via `dev-box sync`.
 
 ## CLI commands
 
 ```
 dev-box init       # Create new project
-dev-box generate   # Re-generate devcontainer files
+dev-box sync       # Sync devcontainer files with config
 dev-box build      # Build container image
 dev-box start      # Start + attach via zellij
 dev-box stop       # Stop container

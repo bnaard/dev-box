@@ -232,7 +232,7 @@ fn serialize_config_with_comments(config: &DevBoxConfig) -> String {
     // [dev-box] section
     out.push_str("# dev-box.toml — project configuration for dev-box.\n");
     out.push_str("# All generated files (.devcontainer/) derive from this file.\n");
-    out.push_str("# Run `dev-box generate` after editing to regenerate.\n");
+    out.push_str("# Run `dev-box sync` after editing to regenerate.\n");
     out.push_str("#\n");
     out.push_str(
         "# Full documentation: https://projectious-work.github.io/dev-box/cli/configuration/\n\n",

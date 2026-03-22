@@ -39,12 +39,12 @@ providers = ["claude"]
 enabled = false
 ```
 
-## Generate Devcontainer Files
+## Sync Devcontainer Files
 
-Run `generate` to create the `.devcontainer/` directory from your config:
+Run `sync` to create the `.devcontainer/` directory from your config:
 
 ```bash
-dev-box generate
+dev-box sync
 ```
 
 This creates:
@@ -63,7 +63,7 @@ If your project already has a `.devcontainer/` directory with hand-written files
    ```bash
    cp -r .devcontainer .devcontainer.bak
    ```
-2. Run `dev-box generate` -- it will overwrite the existing files
+2. Run `dev-box sync` -- it will overwrite the existing files
 3. Move any custom configuration into `dev-box.toml`:
    - Extra apt packages go in `container.extra_packages`
    - Port mappings go in `container.ports`

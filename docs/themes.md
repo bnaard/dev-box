@@ -99,7 +99,7 @@ To switch themes in an existing project:
 
 3. Regenerate:
    ```bash
-   dev-box generate
+   dev-box sync
    dev-box build --no-cache
    dev-box start
    ```

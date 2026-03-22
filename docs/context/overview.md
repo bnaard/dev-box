@@ -78,7 +78,7 @@ The `process` field in `[dev-box]` determines which context files are scaffolded
 process = "product"
 ```
 
-Changing this field after initialization does not automatically add or remove files. Use `dev-box doctor` to identify gaps and `dev-box generate` to reconcile.
+Changing this field after initialization does not automatically add or remove files. Use `dev-box doctor` to identify gaps and `dev-box sync` to reconcile.
 
 ## Design Principles
 

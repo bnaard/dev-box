@@ -98,7 +98,7 @@ pub fn scaffold_context(config: &DevBoxConfig) -> Result<()> {
     write_if_missing(
         &local_dockerfile,
         "# Project-specific Dockerfile layers.\n\
-         # This file is appended to the generated Dockerfile by `dev-box generate`.\n\
+         # This file is appended to the generated Dockerfile by `dev-box sync`.\n\
          # It is never overwritten — you own this file.\n\
          #\n\
          # The generated base image is available as the \"dev-box\" stage:\n\

@@ -77,10 +77,10 @@ enabled = true
 pulse_server = "tcp:host.docker.internal:4714"
 ```
 
-After editing, regenerate the devcontainer files:
+After editing, sync the devcontainer files:
 
 ```bash
-dev-box generate
+dev-box sync
 ```
 
 ## Build and Start

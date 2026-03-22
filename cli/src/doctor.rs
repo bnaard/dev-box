@@ -159,7 +159,7 @@ fn check_mount_sources(
             ));
         } else {
             output::warn(&format!(
-                "{}/{} missing — run 'dev-box generate' to create it",
+                "{}/{} missing — run 'dev-box sync' to create it",
                 root_label, dir_name
             ));
             diag.warnings += 1;
@@ -173,7 +173,7 @@ fn check_mount_sources(
             output::ok(&format!("{}/.asoundrc exists", root_label));
         } else {
             output::warn(&format!(
-                "{}/.asoundrc missing — run 'dev-box generate' to create it",
+                "{}/.asoundrc missing — run 'dev-box sync' to create it",
                 root_label
             ));
             diag.warnings += 1;
@@ -206,7 +206,7 @@ fn check_devcontainer_files(diag: &mut DiagResult) {
     let mut all_present = true;
     for f in &files {
         if !Path::new(f).exists() {
-            output::warn(&format!("{} missing -- run 'dev-box generate'", f));
+            output::warn(&format!("{} missing -- run 'dev-box sync'", f));
             diag.warnings += 1;
             all_present = false;
         }
