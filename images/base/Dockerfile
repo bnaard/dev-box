@@ -1,5 +1,5 @@
 # =============================================================================
-# Stage 1: Builder — fetch official Zellij release binary
+# Stage 1: Builder — fetch static binaries for shell tools
 # =============================================================================
 FROM debian:trixie-slim AS builder
 
@@ -14,20 +14,76 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 
 ARG ZELLIJ_VERSION=0.43.1
 ARG YAZI_VERSION=25.4.8
+ARG RIPGREP_VERSION=14.1.1
+ARG FD_VERSION=10.2.0
+ARG BAT_VERSION=0.25.0
+ARG EZA_VERSION=0.20.18
+ARG ZOXIDE_VERSION=0.9.6
+ARG FZF_VERSION=0.60.3
+ARG DELTA_VERSION=0.18.2
+ARG STARSHIP_VERSION=1.22.1
 
 # Use uname -m for arch detection — works reliably across Docker, Podman, Buildah
 RUN ARCH=$(uname -m) && \
+    # ── Zellij ──────────────────────────────────────────────────────────────
     curl -fsSL \
       "https://github.com/zellij-org/zellij/releases/download/v${ZELLIJ_VERSION}/zellij-${ARCH}-unknown-linux-musl.tar.gz" \
       | tar -xz -C /usr/local/bin && \
     chmod +x /usr/local/bin/zellij && \
+    # ── Yazi ────────────────────────────────────────────────────────────────
     curl -fsSL \
       "https://github.com/sxyazi/yazi/releases/download/v${YAZI_VERSION}/yazi-${ARCH}-unknown-linux-musl.zip" \
       -o /tmp/yazi.zip && \
     unzip -q /tmp/yazi.zip -d /tmp/yazi && \
     mv /tmp/yazi/yazi-${ARCH}-unknown-linux-musl/yazi /usr/local/bin/yazi && \
     chmod +x /usr/local/bin/yazi && \
-    rm -rf /tmp/yazi /tmp/yazi.zip
+    rm -rf /tmp/yazi /tmp/yazi.zip && \
+    # ── ripgrep (rg) ────────────────────────────────────────────────────────
+    curl -fsSL \
+      "https://github.com/BurntSushi/ripgrep/releases/download/${RIPGREP_VERSION}/ripgrep-${RIPGREP_VERSION}-${ARCH}-unknown-linux-musl.tar.gz" \
+      | tar -xz --strip-components=1 -C /usr/local/bin \
+        "ripgrep-${RIPGREP_VERSION}-${ARCH}-unknown-linux-musl/rg" && \
+    chmod +x /usr/local/bin/rg && \
+    # ── fd ──────────────────────────────────────────────────────────────────
+    curl -fsSL \
+      "https://github.com/sharkdp/fd/releases/download/v${FD_VERSION}/fd-v${FD_VERSION}-${ARCH}-unknown-linux-musl.tar.gz" \
+      | tar -xz --strip-components=1 -C /usr/local/bin \
+        "fd-v${FD_VERSION}-${ARCH}-unknown-linux-musl/fd" && \
+    chmod +x /usr/local/bin/fd && \
+    # ── bat ─────────────────────────────────────────────────────────────────
+    curl -fsSL \
+      "https://github.com/sharkdp/bat/releases/download/v${BAT_VERSION}/bat-v${BAT_VERSION}-${ARCH}-unknown-linux-musl.tar.gz" \
+      | tar -xz --strip-components=1 -C /usr/local/bin \
+        "bat-v${BAT_VERSION}-${ARCH}-unknown-linux-musl/bat" && \
+    chmod +x /usr/local/bin/bat && \
+    # ── eza (musl for x86_64, gnu for aarch64 — no aarch64 musl build) ────
+    EZA_SUFFIX=$(case $ARCH in x86_64) echo "unknown-linux-musl";; aarch64) echo "unknown-linux-gnu";; esac) && \
+    curl -fsSL \
+      "https://github.com/eza-community/eza/releases/download/v${EZA_VERSION}/eza_${ARCH}-${EZA_SUFFIX}.tar.gz" \
+      | tar -xz -C /usr/local/bin && \
+    chmod +x /usr/local/bin/eza && \
+    # ── zoxide ──────────────────────────────────────────────────────────────
+    curl -fsSL \
+      "https://github.com/ajeetdsouza/zoxide/releases/download/v${ZOXIDE_VERSION}/zoxide-${ZOXIDE_VERSION}-${ARCH}-unknown-linux-musl.tar.gz" \
+      | tar -xz -C /usr/local/bin zoxide && \
+    chmod +x /usr/local/bin/zoxide && \
+    # ── fzf (uses amd64/arm64 instead of x86_64/aarch64) ───────────────────
+    FZF_ARCH=$(case $ARCH in aarch64) echo arm64;; x86_64) echo amd64;; esac) && \
+    curl -fsSL \
+      "https://github.com/junegunn/fzf/releases/download/v${FZF_VERSION}/fzf-${FZF_VERSION}-linux_${FZF_ARCH}.tar.gz" \
+      | tar -xz -C /usr/local/bin && \
+    chmod +x /usr/local/bin/fzf && \
+    # ── delta ───────────────────────────────────────────────────────────────
+    curl -fsSL \
+      "https://github.com/dandavison/delta/releases/download/${DELTA_VERSION}/delta-${DELTA_VERSION}-${ARCH}-unknown-linux-musl.tar.gz" \
+      | tar -xz --strip-components=1 -C /usr/local/bin \
+        "delta-${DELTA_VERSION}-${ARCH}-unknown-linux-musl/delta" && \
+    chmod +x /usr/local/bin/delta && \
+    # ── starship ────────────────────────────────────────────────────────────
+    curl -fsSL \
+      "https://github.com/starship/starship/releases/download/v${STARSHIP_VERSION}/starship-${ARCH}-unknown-linux-musl.tar.gz" \
+      | tar -xz -C /usr/local/bin && \
+    chmod +x /usr/local/bin/starship
 
 # =============================================================================
 # Stage 2: Runtime — minimal dev-container base image
@@ -91,6 +147,14 @@ ENV LANG=en_US.UTF-8 \
 # Copy binaries from builder stage
 COPY --from=builder /usr/local/bin/zellij /usr/local/bin/zellij
 COPY --from=builder /usr/local/bin/yazi /usr/local/bin/yazi
+COPY --from=builder /usr/local/bin/rg /usr/local/bin/rg
+COPY --from=builder /usr/local/bin/fd /usr/local/bin/fd
+COPY --from=builder /usr/local/bin/bat /usr/local/bin/bat
+COPY --from=builder /usr/local/bin/eza /usr/local/bin/eza
+COPY --from=builder /usr/local/bin/zoxide /usr/local/bin/zoxide
+COPY --from=builder /usr/local/bin/fzf /usr/local/bin/fzf
+COPY --from=builder /usr/local/bin/delta /usr/local/bin/delta
+COPY --from=builder /usr/local/bin/starship /usr/local/bin/starship
 
 # ── Bake default configs into the image ───────────────────────────────────────
 # These act as fallback defaults when no host directory is mounted.
@@ -146,6 +210,9 @@ COPY config/gitconfig /root/.config/git/config
 
 # Audio — PulseAudio config for Claude Code voice support
 COPY config/asoundrc /root/.asoundrc
+
+# Shell — bashrc with aliases and tool integrations
+COPY config/bashrc /root/.bashrc
 
 # Install code assistants
 ENV PATH="/root/.local/bin:${PATH}"

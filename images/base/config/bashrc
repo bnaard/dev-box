@@ -1,0 +1,28 @@
+# ~/.bashrc — dev-box base image shell configuration
+
+# If not running interactively, don't do anything
+case $- in
+    *i*) ;;
+      *) return;;
+esac
+
+# ── History ─────────────────────────────────────────────────────────────────
+HISTCONTROL=ignoreboth
+HISTSIZE=10000
+HISTFILESIZE=20000
+shopt -s histappend
+
+# ── Shell options ───────────────────────────────────────────────────────────
+shopt -s checkwinsize
+shopt -s globstar 2>/dev/null
+
+# ── Aliases (modern replacements) ──────────────────────────────────────────
+alias ls='eza --icons'
+alias cat='bat --paging=never'
+alias find='fd'
+alias grep='rg'
+
+# ── Tool integrations ──────────────────────────────────────────────────────
+eval "$(starship init bash)"
+eval "$(zoxide init bash)"
+eval "$(fzf --bash)"
