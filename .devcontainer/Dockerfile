@@ -76,8 +76,9 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     build-essential \
     pkg-config \
     libssl-dev \
-    # Cross-compilation linker (x86_64 Linux binary from aarch64 host)
+    # Cross-compilation for x86_64 Linux binary from aarch64 host
     gcc-x86-64-linux-gnu \
+    libc6-dev-amd64-cross \
     # Python
     python3 \
     python3-pip \
