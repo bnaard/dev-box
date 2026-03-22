@@ -1,33 +1,50 @@
 # dev-box
 
-**Manage AI-ready development container environments.**
+**Containerized development environments for AI-assisted work.**
 
-dev-box is to AI development environments what [uv](https://github.com/astral-sh/uv) is to Python packaging: a single tool that eliminates duplication, enforces consistency, and gets out of your way.
+AI-assisted development works best on the console and inside containers — for security, reproducibility, and control. But setting up a proper containerized environment with the right tools, AI integrations, structured context, and work processes is tedious boilerplate that drifts across projects.
 
-## The Problem
+dev-box eliminates that boilerplate. One config file, one CLI, one command to go from empty directory to a fully equipped development environment with terminal multiplexer, file manager, editor, AI assistants, and curated agent skills — all inside a container.
 
-Every AI-assisted project needs the same boilerplate:
+## The gap dev-box fills
 
-- A Dockerfile with the right tools (editor, multiplexer, git, Claude CLI)
-- A `docker-compose.yml` with volume mounts for persistence
-- A `devcontainer.json` for VS Code integration
-- Structured context files so AI agents understand the project
-- Audio bridging so voice features work inside the container
+The market is split: **environment tools** (DevPod, Codespaces, Coder) know nothing about AI context. **AI tools** (Cursor, Windsurf, Claude Code) know nothing about environment management. **Context standards** (AGENTS.md, SKILL.md) are files without a management layer.
 
-Copying and maintaining these files across projects is tedious and error-prone. When you improve one project's setup, the others fall behind.
+dev-box bridges this gap — it unifies environment definition, AI context structure, and terminal-first tooling into a single coherent system:
 
-## The Solution
+- **Environment tools** give you a container. dev-box gives you a container that knows your AI providers, skills, work processes, and theming.
+- **AI IDEs** lock you into a GUI. dev-box works with any terminal-based AI tool (Claude Code, Aider, Codex CLI, Gemini CLI) without IDE lock-in.
+- **Curated quality over marketplace chaos.** Community skill hubs have 97K+ entries, but nearly half are duplicates. dev-box ships 83 vetted skills with reference files — tested, composable, and safe.
 
-dev-box provides three integrated pillars:
+## How it works
 
-### 1. Published Container Images
+```bash
+# Install
+curl -fsSL https://raw.githubusercontent.com/projectious-work/dev-box/main/scripts/install.sh | bash
 
-Ten pre-built images based on Debian Trixie Slim, each with a complete development environment:
+# Create a project
+mkdir my-project && cd my-project
+dev-box init --name my-project --image python --process managed
+
+# Build and start
+dev-box build
+dev-box start
+```
+
+After `dev-box start`, you're inside a Zellij terminal session with Yazi file browser, Vim editor, Claude Code, lazygit, and a shell — all themed consistently and ready to work.
+
+Two additional layouts are available: **focus** (one tool per tab, fullscreen) and **cowork** (Yazi+Vim left, Claude right for pair programming). See [Layouts](container/base-image.md#layouts).
+
+## What dev-box manages
+
+### Container images
+
+Ten pre-built images on Debian Trixie Slim, published to GHCR:
 
 | Image | What it adds |
 |-------|-------------|
-| `base` | Zellij, Vim, Git, lazygit, Claude CLI, audio support |
-| `python` | Python 3.13, uv, MkDocs Material |
+| `base` | Zellij, Vim, Git, lazygit, Claude CLI, modern shell tools |
+| `python` | Python 3.13, uv |
 | `latex` | TeX Live with common packages |
 | `typst` | Typst (modern typesetting) |
 | `rust` | Rust toolchain via rustup |
@@ -37,71 +54,77 @@ Ten pre-built images based on Debian Trixie Slim, each with a complete developme
 | `python-typst` | Python + Typst combined |
 | `rust-latex` | Rust + TeX Live combined |
 
-### 2. A Rust CLI
+Every image includes: Zellij, Yazi, Vim, Git, lazygit, GitHub CLI, ripgrep, fd, bat, eza, zoxide, fzf, delta, Starship prompt, and configurable AI assistants. See [Base Image](container/base-image.md) and [Image Flavors](container/flavors.md).
 
-A single binary that manages the full lifecycle:
+### Project configuration
 
-```bash
-# Initialize a new project
-dev-box init --name my-app --image python --process product
+A single `dev-box.toml` drives everything. The CLI generates `.devcontainer/` files from this config. Change the config, run `dev-box sync`, done.
 
-# Build and start
-dev-box build
-dev-box start
+```toml
+[dev-box]
+version = "0.8.0"
+image = "python"
+process = "managed"
+
+[container]
+name = "my-project"
+
+[ai]
+providers = ["claude", "aider"]
+
+[appearance]
+theme = "catppuccin-mocha"
+
+[addons]
+bundles = ["infrastructure", "kubernetes"]
 ```
 
-The CLI reads `dev-box.toml` as the single source of truth, generates all devcontainer files, manages container lifecycle, and validates project structure.
+See [Configuration](cli/configuration.md) for the full specification.
 
-### 3. Context Schemas for AI Work Processes
+### AI context structure
 
-Structured context files that give AI agents the information they need:
+Structured context files give AI agents project knowledge instead of relying on ad-hoc prompts:
 
-- **DECISIONS.md** -- architectural decisions with rationale
-- **BACKLOG.md** -- prioritized work items
-- **STANDUPS.md** -- session-by-session progress
-- **OWNER.md** -- per-project identity and preferences for AI agents
+- **DECISIONS.md** — architectural decisions with rationale
+- **BACKLOG.md** — prioritized work items
+- **STANDUPS.md** — session-by-session progress
+- **OWNER.md** — project identity and preferences for AI agents
 
-Four process flavors (`minimal`, `managed`, `research`, `product`) scale from simple scripts to full product development.
+Four process flavors (`minimal`, `managed`, `research`, `product`) scale from quick scripts to full product development. See [Work Processes](context/work-processes.md).
 
-## Quick Start
+### 83 curated agent skills
 
-```bash
-# Install dev-box
-curl -fsSL https://raw.githubusercontent.com/projectious-work/dev-box/main/scripts/install.sh | bash
+Instructions following the open [SKILL.md standard](https://agentskills.io/specification) across 14 categories: from Kubernetes and SQL patterns to RAG engineering and prompt design. Skills use progressive disclosure — concise instructions load first, detailed reference files on demand.
 
-# Create a new project
-mkdir my-project && cd my-project
-dev-box init --name my-project --image python --process managed
+Browse the full catalog in the [Skills Library](skills/index.md).
 
-# Build the container image and start working
-dev-box build
-dev-box start
-```
+### Addon packages
 
-After `dev-box start`, you are inside a Zellij session with the **dev** layout: Yazi file browser (40%) and Vim editor (60%) side by side, plus tabs for Claude Code, lazygit, and shell.
+Selectable tool bundles added via config without forking images:
 
-Two additional layouts are available: **focus** (one tool per tab, fullscreen) and **cowork** (Yazi+Vim left, Claude right for AI-assisted coding). See [Base Image — Layouts](container/base-image.md#layouts).
+- `infrastructure` — OpenTofu, Ansible, Packer
+- `kubernetes` — kubectl, Helm, k9s, Kustomize
+- `cloud-aws`, `cloud-gcp`, `cloud-azure` — cloud CLIs
+- Documentation tools — MkDocs, Hugo, mdBook, Zensical, and more
 
-## Why dev-box?
+### 6 color themes
 
-**Reproducibility.** Every team member gets the same environment. No "works on my machine."
+Gruvbox Dark, Catppuccin Mocha/Latte, Dracula, Tokyo Night, Nord — applied consistently across Zellij, Vim, Yazi, lazygit, and Starship. See [Themes](themes.md).
 
-**AI-native.** Context schemas give AI agents structured project knowledge instead of relying on ad-hoc prompts.
+## Why containers?
 
-**Zero lock-in.** dev-box generates standard devcontainer files. Stop using the CLI any time -- your `.devcontainer/` directory still works.
+**Security.** AI agents run in an isolated environment, not on your host. Container boundaries control what the AI can access.
 
-**Composable.** Start with `base`, add language support when you need it. Extend with `extra_packages` in `dev-box.toml` without forking images.
+**Reproducibility.** Every team member gets the same tools and versions. No "works on my machine."
 
-**AI-flexible.** Declare which AI providers your project uses (Claude, Aider, Gemini) via the `[ai]` section, and dev-box ensures their CLIs and credentials are available inside the container. Mix and match providers as needed.
+**Control.** You define the environment declaratively. Changes go through `dev-box.toml`, not manual installs.
 
-## Project Status
+**Zero lock-in.** dev-box generates standard devcontainer files. Stop using the CLI any time — your `.devcontainer/` directory still works with VS Code, GitHub Codespaces, or any devcontainer-compatible tool.
 
-dev-box is at version 0.8.0 with 16 CLI commands, 10 container image flavors, and 11 addon bundles. The core workflow (init, sync, build, start, stop, remove, attach, status, doctor) is functional, along with shell completions, interactive init prompts, registry-based update with upgrade (`dev-box update`), named environments (`dev-box env`), backup/reset lifecycle management, and host-side audio diagnostics via `dev-box audio check/setup`. The project includes Yazi file manager with three IDE layouts (dev, focus, cowork), AI provider flexibility with support for multiple providers (Claude, Aider, Gemini) via the `[ai]` section, addon bundles for infrastructure, cloud, and documentation tools via the `[addons]` section, process templates for standard workflows (release, code review, feature development, bug fix), SKILL.md support for executable AI agent instructions following the [open standard](https://agentskills.io/specification), modern shell tools (ripgrep, fd, bat, eza, zoxide, fzf, delta, starship) in the base image, six color themes across all tools, security scanning (`dev-box audit`), non-root user support (`container.user`), and language-specific `.gitignore` blocks generated per image flavor.
-
-## Next Steps
+## Get started
 
 - [Install dev-box](getting-started/installation.md)
 - [Create your first project](getting-started/new-project.md)
-- [Explore container images](container/base-image.md)
-- [Understand the context system](context/overview.md)
+- [Add dev-box to an existing project](getting-started/existing-project.md)
+- [Browse the Skills Library](skills/index.md)
 - [CLI reference](cli/commands.md)
