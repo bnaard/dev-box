@@ -307,7 +307,9 @@ fn serialize_config_with_comments(config: &DevBoxConfig) -> String {
 
     // [addons] section
     out.push_str("\n# Addon bundles install additional tool sets into the container.\n");
-    out.push_str("# Options: infrastructure, kubernetes, cloud-aws, cloud-gcp, cloud-azure\n");
+    out.push_str("# Options: infrastructure, kubernetes, cloud-aws, cloud-gcp, cloud-azure,\n");
+    out.push_str("#          docs-mkdocs, docs-zensical, docs-docusaurus, docs-starlight,\n");
+    out.push_str("#          docs-mdbook, docs-hugo\n");
     out.push_str("[addons]\n");
     if config.addons.bundles.is_empty() {
         out.push_str("# bundles = [\"infrastructure\", \"kubernetes\"]\n");

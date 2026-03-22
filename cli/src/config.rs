@@ -261,6 +261,12 @@ pub enum AddonBundle {
     CloudAws,       // AWS CLI v2
     CloudGcp,       // Google Cloud CLI
     CloudAzure,     // Azure CLI
+    DocsMkdocs,     // MkDocs + Material theme
+    DocsZensical,   // Zensical (MkDocs successor)
+    DocsDocusaurus, // Docusaurus (React-based)
+    DocsStarlight,  // Starlight (Astro-based)
+    DocsMdbook,     // mdBook (Rust)
+    DocsHugo,       // Hugo (Go)
 }
 
 impl std::fmt::Display for AddonBundle {
@@ -271,6 +277,12 @@ impl std::fmt::Display for AddonBundle {
             AddonBundle::CloudAws => write!(f, "cloud-aws"),
             AddonBundle::CloudGcp => write!(f, "cloud-gcp"),
             AddonBundle::CloudAzure => write!(f, "cloud-azure"),
+            AddonBundle::DocsMkdocs => write!(f, "docs-mkdocs"),
+            AddonBundle::DocsZensical => write!(f, "docs-zensical"),
+            AddonBundle::DocsDocusaurus => write!(f, "docs-docusaurus"),
+            AddonBundle::DocsStarlight => write!(f, "docs-starlight"),
+            AddonBundle::DocsMdbook => write!(f, "docs-mdbook"),
+            AddonBundle::DocsHugo => write!(f, "docs-hugo"),
         }
     }
 }

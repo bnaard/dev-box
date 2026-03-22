@@ -40,6 +40,34 @@ RUN curl -fsSL https://packages.cloud.google.com/apt/doc/apt-key.gpg | gpg --dea
             r#"# Addon: cloud-azure (Azure CLI)
 RUN pip3 install --no-cache-dir azure-cli"#
         }
+        AddonBundle::DocsMkdocs => {
+            r#"# Addon: docs-mkdocs (MkDocs + Material theme)
+RUN uv tool install 'mkdocs<2' --with mkdocs-material"#
+        }
+        AddonBundle::DocsZensical => {
+            r#"# Addon: docs-zensical (Zensical — Material for MkDocs successor)
+RUN uv tool install zensical"#
+        }
+        AddonBundle::DocsDocusaurus => {
+            r#"# Addon: docs-docusaurus (Docusaurus — React-based docs)
+RUN npm install -g docusaurus"#
+        }
+        AddonBundle::DocsStarlight => {
+            r#"# Addon: docs-starlight (Starlight — Astro-based docs)
+RUN npm install -g create-starlight"#
+        }
+        AddonBundle::DocsMdbook => {
+            r#"# Addon: docs-mdbook (mdBook — Rust book generator)
+RUN ARCH="$(uname -m)" && \
+    curl -fsSL "https://github.com/rust-lang/mdBook/releases/latest/download/mdbook-v0.4.43-${ARCH}-unknown-linux-musl.tar.gz" \
+    | tar -xz -C /usr/local/bin"#
+        }
+        AddonBundle::DocsHugo => {
+            r#"# Addon: docs-hugo (Hugo — fast static site generator)
+RUN ARCH="$(dpkg --print-architecture)" && \
+    curl -fsSL "https://github.com/gohugoio/hugo/releases/latest/download/hugo_extended_0.141.0_linux-${ARCH}.tar.gz" \
+    | tar -xz -C /usr/local/bin hugo"#
+        }
     }
 }
 
@@ -83,6 +111,31 @@ mod tests {
     }
 
     #[test]
+    fn docs_mkdocs_commands() {
+        let cmds = dockerfile_commands(&AddonBundle::DocsMkdocs);
+        assert!(cmds.contains("mkdocs"));
+        assert!(cmds.contains("mkdocs-material"));
+    }
+
+    #[test]
+    fn docs_zensical_commands() {
+        let cmds = dockerfile_commands(&AddonBundle::DocsZensical);
+        assert!(cmds.contains("zensical"));
+    }
+
+    #[test]
+    fn docs_mdbook_commands() {
+        let cmds = dockerfile_commands(&AddonBundle::DocsMdbook);
+        assert!(cmds.contains("mdbook") || cmds.contains("mdBook"));
+    }
+
+    #[test]
+    fn docs_hugo_commands() {
+        let cmds = dockerfile_commands(&AddonBundle::DocsHugo);
+        assert!(cmds.contains("hugo"));
+    }
+
+    #[test]
     fn all_commands_start_with_comment() {
         let bundles = [
             AddonBundle::Infrastructure,
@@ -90,6 +143,12 @@ mod tests {
             AddonBundle::CloudAws,
             AddonBundle::CloudGcp,
             AddonBundle::CloudAzure,
+            AddonBundle::DocsMkdocs,
+            AddonBundle::DocsZensical,
+            AddonBundle::DocsDocusaurus,
+            AddonBundle::DocsStarlight,
+            AddonBundle::DocsMdbook,
+            AddonBundle::DocsHugo,
         ];
         for bundle in &bundles {
             let cmds = dockerfile_commands(bundle);

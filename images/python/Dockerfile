@@ -15,9 +15,6 @@ ARG UV_VERSION=0.7.12
 COPY --from=ghcr.io/astral-sh/uv:0.7.12 /uv /usr/local/bin/uv
 COPY --from=ghcr.io/astral-sh/uv:0.7.12 /uvx /usr/local/bin/uvx
 
-# MkDocs Material (installed via uv into a global tool environment)
-RUN uv tool install 'mkdocs<2' --with mkdocs-material
-
 ENV PATH="/root/.local/bin:${PATH}"
 
 WORKDIR /workspace
