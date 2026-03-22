@@ -2,6 +2,17 @@
 
 All notable changes to dev-box are documented here.
 
+## v0.5.0 — 2026-03-22
+
+### Added
+- **`dev-box sync` command** — reconcile project state with dev-box.toml. Force-updates theme configs (vimrc, zellij, lazygit, yazi) and regenerates .devcontainer/ files. Primary command for applying config changes. `generate` is now an alias for `sync`.
+- **Shell enhancement tools in base image** — ripgrep (rg), fd, bat, eza, zoxide, fzf, delta, starship. All version-pinned, downloaded in builder stage.
+- **`.bashrc` with aliases** — `ls`→eza, `cat`→bat, `find`→fd, `grep`→rg + starship prompt, zoxide, fzf keybindings
+- **Keyboard shortcuts cheatsheet** — new docs page with tabbed reference for Zellij, Yazi, Vim, lazygit
+
+### Changed
+- **`generate` deprecated** — replaced by `sync` (still works as alias). `sync` is a superset: it applies config changes (themes) AND regenerates container files.
+
 ## v0.4.2 — 2026-03-22
 
 ### Added

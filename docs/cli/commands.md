@@ -78,34 +78,43 @@ In non-interactive environments (scripts, CI pipelines), omitted flags silently 
 
 ---
 
-## dev-box generate
+## dev-box sync
 
-Re-generate devcontainer files from `dev-box.toml`.
+Reconcile project state with `dev-box.toml`. The primary command for applying config changes.
 
 ### Usage
 
 ```bash
-dev-box generate
+dev-box sync
 ```
 
 ### What It Does
 
-Reads `dev-box.toml` and regenerates:
+1. **Force-updates theme-dependent config files** in `.dev-box-home/`:
+   - `.vim/vimrc` (colorscheme and background)
+   - `.config/zellij/config.kdl` (theme name)
+   - `.config/zellij/themes/<theme>.kdl` (theme colors)
+   - `.config/lazygit/config.yml` (theme colors)
+   - `.config/yazi/theme.toml` (theme colors)
 
-- `.devcontainer/Dockerfile`
-- `.devcontainer/docker-compose.yml`
-- `.devcontainer/devcontainer.json`
+2. **Regenerates `.devcontainer/` files** from `dev-box.toml`:
+   - `.devcontainer/Dockerfile`
+   - `.devcontainer/docker-compose.yml`
+   - `.devcontainer/devcontainer.json`
 
-It also re-seeds `.dev-box-home/` with any missing default configuration files (vim, git, zellij, etc.), ensuring new config templates introduced in later versions are picked up.
-
-This is useful after editing `dev-box.toml` to apply changes without rebuilding the container.
+Only files whose content has actually changed are written. Reports what was updated.
 
 ### Examples
 
 ```bash
-# Edit config, then regenerate
+# Change theme, then apply
 vim dev-box.toml
-dev-box generate
+dev-box sync
+
+# After any config change
+dev-box sync
+dev-box build
+dev-box start
 ```
 
 ### Exit Codes
@@ -115,8 +124,8 @@ dev-box generate
 | 0 | Success |
 | 1 | No `dev-box.toml` found, or invalid config |
 
-!!! note "Overwrites generated files"
-    `generate` always overwrites the devcontainer files. Do not hand-edit files in `.devcontainer/` if you are using `dev-box generate` -- your changes will be lost.
+!!! note "`generate` is an alias"
+    `dev-box generate` still works as an alias for `sync`. New projects should use `sync`.
 
 ---
 

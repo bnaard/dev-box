@@ -37,8 +37,7 @@ Examples:
   dev-box init                                 Interactive project setup
   dev-box init --name my-app --image python --process product
   dev-box init --image rust --process minimal  Rust project, minimal context
-  dev-box generate                             Regenerate files from dev-box.toml
-  dev-box sync                                 Re-apply theme and config changes
+  dev-box sync                                 Apply config changes (theme, etc.)
   dev-box build                                Build the container image
   dev-box start                                Start and attach (dev layout)
   dev-box start --layout focus                 Start with focus layout
@@ -94,17 +93,12 @@ pub enum Commands {
         #[arg(long, value_enum)]
         theme: Option<Theme>,
     },
-    /// Re-generate devcontainer files from dev-box.toml
-    ///
-    /// Regenerates .devcontainer/Dockerfile, docker-compose.yml, and
-    /// devcontainer.json from the current dev-box.toml configuration.
-    /// Does not touch context files or .dev-box-home/.
-    Generate,
     /// Reconcile project state with dev-box.toml configuration
     ///
     /// Re-seeds config files that depend on settings (theme, AI providers),
-    /// regenerates .devcontainer/ files. Unlike generate, this overwrites
-    /// existing config files when the configuration has changed.
+    /// regenerates .devcontainer/ files, and updates .dev-box-home/ configs.
+    /// The primary command for applying config changes.
+    #[command(alias = "generate")]
     Sync,
     /// Build the container image
     Build {

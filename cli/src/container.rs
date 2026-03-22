@@ -436,23 +436,11 @@ pub fn cmd_init(
     Ok(())
 }
 
-/// Generate command.
-pub fn cmd_generate(config_path: &Option<String>) -> Result<()> {
-    let config = DevBoxConfig::from_cli_option(config_path)?;
-
-    // Re-seed .dev-box-home/ in case config changed (e.g., new AI provider,
-    // audio toggled). seed_root_dir is idempotent — never overwrites.
-    seed::seed_root_dir(&config)?;
-
-    generate::generate_all(&config)?;
-    output::ok("Generation complete");
-    Ok(())
-}
-
-/// Sync command: force-seed theme-dependent files, then regenerate .devcontainer/.
+/// Sync command: force-seed theme-dependent files, seed missing configs, regenerate .devcontainer/.
 pub fn cmd_sync(config_path: &Option<String>) -> Result<()> {
     let config = DevBoxConfig::from_cli_option(config_path)?;
 
+    // Force-update theme-dependent files (overwrites when changed)
     output::info("Syncing config files...");
     let updated = seed::sync_theme_files(&config)?;
 
@@ -464,6 +452,10 @@ pub fn cmd_sync(config_path: &Option<String>) -> Result<()> {
         }
     }
 
+    // Seed any missing config files (never overwrites — picks up new defaults)
+    seed::seed_root_dir(&config)?;
+
+    // Regenerate .devcontainer/ files
     generate::generate_all(&config)?;
     output::ok("Sync complete");
 
