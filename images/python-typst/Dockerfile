@@ -1,3 +1,4 @@
+# syntax=docker/dockerfile:1
 FROM ghcr.io/projectious-work/dev-box:python-latest AS runtime
 # For local builds, use: FROM dev-box-python:latest
 

@@ -1,3 +1,4 @@
+# syntax=docker/dockerfile:1
 # =============================================================================
 # Stage 1: Builder — fetch static binaries for shell tools
 # =============================================================================
@@ -159,10 +160,12 @@ COPY --from=builder /usr/local/bin/zellij /usr/local/bin/yazi \
 # over these paths, the host copy takes full precedence.
 
 # Vim — place vimrc inside ~/.vim/ so the single mount covers config + undo
-RUN mkdir -p /root/.vim/undo /root/.vim/colors
-
-# Download Vim colorschemes for all supported themes
-RUN curl -fsSL -o /root/.vim/colors/gruvbox.vim \
+# Download all colorschemes in one layer; use curl for dracula instead of
+# git clone to avoid pulling the entire repo (~4 MB savings)
+RUN mkdir -p /root/.vim/undo /root/.vim/colors \
+      /root/.vim/pack/themes/start/dracula/colors \
+      /root/.vim/pack/themes/start/dracula/autoload && \
+    curl -fsSL -o /root/.vim/colors/gruvbox.vim \
       https://raw.githubusercontent.com/morhetz/gruvbox/master/colors/gruvbox.vim && \
     curl -fsSL -o /root/.vim/colors/catppuccin_mocha.vim \
       https://raw.githubusercontent.com/catppuccin/vim/main/colors/catppuccin_mocha.vim && \
@@ -172,14 +175,19 @@ RUN curl -fsSL -o /root/.vim/colors/gruvbox.vim \
       https://raw.githubusercontent.com/ghifarit53/tokyonight-vim/master/colors/tokyonight.vim && \
     curl -fsSL -o /root/.vim/colors/nord.vim \
       https://raw.githubusercontent.com/nordtheme/vim/main/colors/nord.vim && \
-    mkdir -p /root/.vim/pack/themes/start && \
-    git clone --depth 1 https://github.com/dracula/vim.git \
-      /root/.vim/pack/themes/start/dracula
+    curl -fsSL -o /root/.vim/pack/themes/start/dracula/colors/dracula.vim \
+      https://raw.githubusercontent.com/dracula/vim/master/colors/dracula.vim && \
+    curl -fsSL -o /root/.vim/pack/themes/start/dracula/autoload/dracula.vim \
+      https://raw.githubusercontent.com/dracula/vim/master/autoload/dracula.vim
 
 COPY config/vimrc /root/.vim/vimrc
 
+# Create config directories in a single layer
+RUN mkdir -p /root/.config/zellij/themes /root/.config/zellij/layouts \
+             /root/.config/yazi \
+             /root/.config/git
+
 # Zellij
-RUN mkdir -p /root/.config/zellij/themes /root/.config/zellij/layouts
 COPY config/zellij/config.kdl          /root/.config/zellij/config.kdl
 COPY config/zellij/themes/             /root/.config/zellij/themes/
 COPY config/zellij/layouts/dev.kdl     /root/.config/zellij/layouts/dev.kdl
@@ -187,22 +195,19 @@ COPY config/zellij/layouts/focus.kdl   /root/.config/zellij/layouts/focus.kdl
 COPY config/zellij/layouts/cowork.kdl  /root/.config/zellij/layouts/cowork.kdl
 
 # Yazi
-RUN mkdir -p /root/.config/yazi
 COPY config/yazi/yazi.toml             /root/.config/yazi/yazi.toml
 COPY config/yazi/keymap.toml           /root/.config/yazi/keymap.toml
 COPY config/yazi/theme.toml            /root/.config/yazi/theme.toml
 COPY config/yazi/themes/               /root/.config/yazi/themes/
 
-# Helper scripts
-COPY config/bin/open-in-editor.sh      /usr/local/bin/open-in-editor
-COPY config/bin/vim-loop.sh            /usr/local/bin/vim-loop
-RUN chmod +x /usr/local/bin/open-in-editor /usr/local/bin/vim-loop
+# Helper scripts (chmod via COPY --chmod to avoid extra layer)
+COPY --chmod=755 config/bin/open-in-editor.sh /usr/local/bin/open-in-editor
+COPY --chmod=755 config/bin/vim-loop.sh       /usr/local/bin/vim-loop
 
 # Quick reference cheatsheet
 COPY config/cheatsheet.txt             /root/.config/cheatsheet.txt
 
 # Git — use XDG path so the mount target is a directory, not a single file
-RUN mkdir -p /root/.config/git
 COPY config/gitconfig /root/.config/git/config
 
 # Audio — PulseAudio config for Claude Code voice support

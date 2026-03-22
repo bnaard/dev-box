@@ -1,5 +1,12 @@
+# syntax=docker/dockerfile:1
 # =============================================================================
 # Stage 1: TeX Live builder — install from CTAN with basic scheme + packages
+#
+# NOTE: This builder stage is intentionally duplicated across latex/,
+# python-latex/, and rust-latex/ Dockerfiles. Each image must be independently
+# buildable without cross-image dependencies, and a shared texlive-builder
+# intermediate image would add pipeline complexity for no runtime benefit.
+# When updating TeX Live packages, update all three files.
 # =============================================================================
 FROM debian:trixie-slim AS texlive-builder
 
@@ -30,10 +37,8 @@ RUN mkdir -p /tmp/texlive-installer && cd /tmp/texlive-installer \
     && echo "tlpdbopt_install_srcfiles 0" >> texlive.profile \
     && ./install-tl --profile=texlive.profile --no-interaction \
        --repository "${CTAN_MIRROR}" \
-    && rm -rf /tmp/texlive-installer
-
-# Symlink all TeX Live binaries into /usr/local/bin (arch-independent)
-RUN ln -sf /usr/local/texlive/bin/*/* /usr/local/bin/
+    && rm -rf /tmp/texlive-installer \
+    && ln -sf /usr/local/texlive/bin/*/* /usr/local/bin/
 
 # Install LaTeX packages (comprehensive set for academic and technical documents)
 # Note: some packages are bundled inside others in TL2025 and not listed separately:
