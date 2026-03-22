@@ -18,13 +18,21 @@ Source of truth — GitHub issues are for external visibility.
 - [x] **Zensical migration** — Config + maintain.sh support (#26)
 - [x] **Dockerfile optimization** — Pinned versions, fontconfig fix, COPY consolidation (#27)
 - [x] **Version in docs header** — site_name includes version (#12)
+- [x] **Starship prompt presets** — 6 presets with theme-aware colors (#17)
+- [x] **Additional image flavors** — Node.js + Go (10 images total)
+- [x] **Code review for simplification** — Dedup, test helpers, dead code (#22)
+- [x] **Curated skill library** — 83 skills across 14 categories with 57 reference files (#30)
+- [x] **Skills Library docs** — 15 category pages, search with autocomplete
+- [x] **assist→cowork cleanup** — Removed all stale assist.kdl references
+- [x] **Vim colorscheme fix** — Granular .vim mounts so image colors survive
+- [x] **Remove mkdocs.yml** — Fully migrated to zensical.toml
 
 ## Next Up
 
 - [ ] **Theming screenshots** — Gallery for all 6 themes in docs (#14)
-- [ ] **Starship prompt presets** — Configurable presets in dev-box.toml (#17)
-- [ ] **Additional image flavors** — node, go, python-rust
-- [ ] **Curated skill library** — Expand to 50-100 vetted skills (#30)
+- [ ] **Security review** — Input validation, container security, supply chain (#23)
+- [ ] **`dev-box skill install` command** — Install skills from external sources
+- [ ] **Skill eval framework** — Test/benchmark skills per Anthropic's skill-creator pattern
 
 ## Planned — Architecture
 
@@ -33,17 +41,18 @@ Source of truth — GitHub issues are for external visibility.
 - [ ] **Automated context migration** — Safe auto-migration + AI-assisted prompts
 - [ ] **Multi-service support** — Additional docker-compose services, dev-box ps/logs
 - [ ] **Remote development** — Environments on remote hosts
+- [ ] **Session handover format** — Standard process template for AI session continuity
 
 ## Quality & Security
 
-- [ ] **Code review for simplification** — Dedup, test helpers, dead code (#22)
-- [ ] **Security review** — Input validation, container security, supply chain (#23)
 - [ ] **TeX Live builder deduplication** — 3 Dockerfiles share identical 90-line stage
 - [ ] **Binary checksum verification** — Downloaded binaries in base Dockerfile
 - [ ] **Image signing** — sigstore/cosign for published images
+- [ ] **Skill security vetting** — Hash verification, allowed-tools audit
 
 ## Ideas
 
 - [ ] LaTeX addon package groups (music, chemistry, linguistics)
-- [ ] Agent orchestration tools — too volatile, revisit later
 - [ ] AIUC-1 compliance alignment (awareness for dev-box)
+- [ ] Skill marketplace integration (ClawHub, Skills.sh)
+- [ ] `dev-box doctor` skill consistency checking
