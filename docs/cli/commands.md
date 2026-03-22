@@ -30,7 +30,8 @@ dev-box init [OPTIONS]
 | `--name <NAME>` | Current directory name | Project and container name |
 | `--image <FLAVOR>` | `base` | Image flavor: `base`, `python`, `latex`, `typst`, `rust`, `python-latex`, `python-typst`, `rust-latex` |
 | `--process <FLAVOR>` | `product` | Work process flavor: `minimal`, `managed`, `research`, `product` |
-| `--ai <PROVIDER>` | `claude` | AI provider(s) to configure (can be specified multiple times) |
+| `--ai <PROVIDER>` | `claude` | AI provider(s) to configure: `claude`, `aider`, `gemini` (can be specified multiple times) |
+| `--theme <THEME>` | `gruvbox-dark` | Color theme: `gruvbox-dark`, `catppuccin-mocha`, `catppuccin-latte`, `dracula`, `tokyo-night`, `nord` |
 | `--user <USER>` | `root` | Container user |
 
 ### What It Does
@@ -56,8 +57,14 @@ dev-box init --image rust --process minimal
 # Specify a non-root user
 dev-box init --name my-api --image python --user devuser
 
-# Configure AI providers
-dev-box init --ai claude --ai gemini
+# Configure multiple AI providers
+dev-box init --ai claude --ai aider
+
+# All three providers
+dev-box init --ai claude --ai aider --ai gemini
+
+# Choose a color theme
+dev-box init --name my-app --image python --theme catppuccin-mocha
 ```
 
 ### Exit Codes

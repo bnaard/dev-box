@@ -14,6 +14,7 @@ dev-box provides four work process flavors that determine which context files ar
 | Work instructions | No | Yes | No | Yes |
 | Research artifacts | No | No | Yes | Yes |
 | Product planning | No | No | No | Yes |
+| Process templates | No | Yes | Yes | Yes |
 
 ## minimal
 
@@ -58,8 +59,13 @@ my-project/
     ├── BACKLOG.md
     ├── STANDUPS.md
     ├── OWNER.md
-    └── work-instructions/
-        └── GENERAL.md
+    ├── work-instructions/
+    │   └── GENERAL.md
+    └── processes/
+        ├── release.md
+        ├── code-review.md
+        ├── feature-development.md
+        └── bug-fix.md
 ```
 
 ### When to Use
@@ -126,7 +132,12 @@ my-project/
     ├── OWNER.md
     ├── research/
     │   └── _template.md
-    └── analysis/
+    ├── analysis/
+    └── processes/
+        ├── release.md
+        ├── code-review.md
+        ├── feature-development.md
+        └── bug-fix.md
 ```
 
 ### When to Use
@@ -213,8 +224,13 @@ my-project/
     │   └── TEAM.md
     ├── project-notes/
     ├── ideas/
-    └── research/
-        └── _template.md
+    ├── research/
+    │   └── _template.md
+    └── processes/
+        ├── release.md
+        ├── code-review.md
+        ├── feature-development.md
+        └── bug-fix.md
 ```
 
 ### When to Use

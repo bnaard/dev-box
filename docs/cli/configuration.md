@@ -33,7 +33,7 @@ vscode_extensions = [                 # VS Code extensions to install
 schema_version = "1.0.0"             # Context schema version (semver)
 
 [ai]
-providers = ["claude"]                # AI providers to configure
+providers = ["claude", "aider", "gemini"]  # AI providers to configure
 
 [appearance]
 theme = "gruvbox-dark"               # Color theme for all tools
@@ -95,7 +95,12 @@ AI provider configuration.
 
 | Field | Type | Required | Default | Description |
 |-------|------|----------|---------|-------------|
-| `providers` | Array of strings | No | `["claude"]` | AI providers to configure (e.g., `"claude"`, `"gemini"`) |
+| `providers` | Array of strings | No | `["claude"]` | AI providers: `"claude"` (Claude Code CLI), `"aider"` (Aider CLI), `"gemini"` (Gemini CLI). Can combine multiple. |
+
+### [addons]
+
+!!! note "Coming soon"
+    The `[addons]` section is planned for a future release. It will allow declaring addon packages (e.g., infrastructure tools, Kubernetes utilities, cloud CLIs) directly in `dev-box.toml`.
 
 ### [appearance]
 

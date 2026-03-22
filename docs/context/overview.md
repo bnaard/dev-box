@@ -80,6 +80,39 @@ process = "product"
 
 Changing this field after initialization does not automatically add or remove files. Use `dev-box doctor` to identify gaps and `dev-box sync` to reconcile.
 
+## Process Templates
+
+dev-box ships four process templates in `context/processes/` that define standard workflows for common development activities:
+
+| Template | Purpose |
+|----------|---------|
+| `release.md` | Release process steps and checklist |
+| `code-review.md` | Code review workflow and standards |
+| `feature-development.md` | Feature development lifecycle |
+| `bug-fix.md` | Bug investigation and fix workflow |
+
+Process templates declare **WHAT** your project does -- the steps, roles, and definition of done for each workflow. They are intentionally thin. The executable details (how an AI agent should format entries, which tools to use, integration specifics) live in **skills** (see [Skills](../skills.md)).
+
+Process templates are scaffolded for `managed`, `research`, and `product` flavors. The `minimal` flavor does not include process templates.
+
+You can customize process templates freely: edit them, add new ones, or remove ones you do not use.
+
+## SKILL.md Support
+
+Skills complement processes by providing the **HOW** -- executable instructions for AI agents. A skill is a `SKILL.md` file installed at `.claude/skills/<name>/SKILL.md` that tells the AI agent how to perform a specific task.
+
+dev-box bundles three example skills:
+
+| Skill | Description |
+|-------|-------------|
+| `backlog-context` | Manages BACKLOG.md -- adding, prioritizing, and tracking work items |
+| `decisions-adr` | Manages DECISIONS.md using Architecture Decision Record format |
+| `standup-context` | Manages STANDUPS.md with session progress notes |
+
+This separation of **WHAT** (processes) from **HOW** (skills) is a core architectural decision (DEC-011). It enables swappable implementations -- for example, you could replace `backlog-context` (which manages a Markdown file) with a `backlog-github` skill that manages GitHub Issues instead, without changing your process declarations.
+
+See [Skills](../skills.md) for full documentation on installing and using skills.
+
 ## Design Principles
 
 **Convention over configuration.** File names and locations are standardized so AI agents can find them without special instructions.
