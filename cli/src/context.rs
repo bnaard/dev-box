@@ -94,6 +94,266 @@ const SKILL_DEPENDENCY_AUDIT: &str =
 const SKILL_SECRET_MANAGEMENT: &str =
     include_str!("../../templates/skills/secret-management/SKILL.md");
 
+// --- Reference files for existing skills ---
+const SKILL_REFACTORING_REF_CODE_SMELLS: &str =
+    include_str!("../../templates/skills/refactoring/references/code-smells.md");
+const SKILL_REFACTORING_REF_GOF_PATTERNS: &str =
+    include_str!("../../templates/skills/refactoring/references/gof-patterns.md");
+const SKILL_LATEX_AUTHORING_REF_PACKAGES: &str =
+    include_str!("../../templates/skills/latex-authoring/references/packages.md");
+const SKILL_LATEX_AUTHORING_REF_MATH: &str =
+    include_str!("../../templates/skills/latex-authoring/references/math-reference.md");
+const SKILL_LATEX_AUTHORING_REF_TIKZ: &str =
+    include_str!("../../templates/skills/latex-authoring/references/tikz-reference.md");
+const SKILL_EXCALIDRAW_REF_JSON_SCHEMA: &str =
+    include_str!("../../templates/skills/excalidraw/references/json-schema.md");
+const SKILL_FRONTEND_DESIGN_REF_A11Y: &str =
+    include_str!("../../templates/skills/frontend-design/references/accessibility-checklist.md");
+const SKILL_INFOGRAPHICS_REF_BEST_PRACTICES: &str =
+    include_str!("../../templates/skills/infographics/references/best-practices.md");
+const SKILL_LOGO_DESIGN_REF_DESIGN_PRINCIPLES: &str =
+    include_str!("../../templates/skills/logo-design/references/design-principles.md");
+const SKILL_TAILWIND_REF_CHEATSHEET: &str =
+    include_str!("../../templates/skills/tailwind/references/cheatsheet.md");
+const SKILL_SOFTWARE_ARCHITECTURE_REF_PATTERNS: &str =
+    include_str!("../../templates/skills/software-architecture/references/patterns.md");
+
+// --- New skills (Phase 1-4) ---
+
+// Process skills (new)
+const SKILL_AGENT_MANAGEMENT: &str =
+    include_str!("../../templates/skills/agent-management/SKILL.md");
+const SKILL_AGENT_MANAGEMENT_REF_COORDINATION: &str =
+    include_str!("../../templates/skills/agent-management/references/coordination-patterns.md");
+const SKILL_ESTIMATION_PLANNING: &str =
+    include_str!("../../templates/skills/estimation-planning/SKILL.md");
+const SKILL_POSTMORTEM_WRITING: &str =
+    include_str!("../../templates/skills/postmortem-writing/SKILL.md");
+
+// Development skills (new)
+const SKILL_TDD_WORKFLOW: &str = include_str!("../../templates/skills/tdd-workflow/SKILL.md");
+const SKILL_INTEGRATION_TESTING: &str =
+    include_str!("../../templates/skills/integration-testing/SKILL.md");
+const SKILL_INTEGRATION_TESTING_REF_FIXTURES: &str =
+    include_str!("../../templates/skills/integration-testing/references/test-fixtures.md");
+const SKILL_ERROR_HANDLING: &str =
+    include_str!("../../templates/skills/error-handling/SKILL.md");
+const SKILL_DEPENDENCY_MANAGEMENT: &str =
+    include_str!("../../templates/skills/dependency-management/SKILL.md");
+const SKILL_CODE_GENERATION: &str =
+    include_str!("../../templates/skills/code-generation/SKILL.md");
+
+// Language skills (new)
+const SKILL_GO_CONVENTIONS: &str =
+    include_str!("../../templates/skills/go-conventions/SKILL.md");
+const SKILL_GO_CONVENTIONS_REF_PATTERNS: &str =
+    include_str!("../../templates/skills/go-conventions/references/go-patterns.md");
+const SKILL_JAVA_PATTERNS: &str =
+    include_str!("../../templates/skills/java-patterns/SKILL.md");
+const SKILL_SQL_STYLE_GUIDE: &str =
+    include_str!("../../templates/skills/sql-style-guide/SKILL.md");
+
+// Infrastructure skills (new)
+const SKILL_KUBERNETES_BASICS: &str =
+    include_str!("../../templates/skills/kubernetes-basics/SKILL.md");
+const SKILL_KUBERNETES_REF_ARCHITECTURE: &str =
+    include_str!("../../templates/skills/kubernetes-basics/references/cluster-architecture.md");
+const SKILL_KUBERNETES_REF_RESOURCES: &str =
+    include_str!("../../templates/skills/kubernetes-basics/references/resource-cheatsheet.md");
+const SKILL_KUBERNETES_REF_TROUBLESHOOTING: &str =
+    include_str!("../../templates/skills/kubernetes-basics/references/troubleshooting.md");
+const SKILL_DNS_NETWORKING: &str =
+    include_str!("../../templates/skills/dns-networking/SKILL.md");
+const SKILL_DNS_NETWORKING_REF_PROTOCOL: &str =
+    include_str!("../../templates/skills/dns-networking/references/protocol-reference.md");
+const SKILL_DNS_NETWORKING_REF_TOOLS: &str =
+    include_str!("../../templates/skills/dns-networking/references/troubleshooting-tools.md");
+const SKILL_TERRAFORM_BASICS: &str =
+    include_str!("../../templates/skills/terraform-basics/SKILL.md");
+const SKILL_CONTAINER_ORCHESTRATION: &str =
+    include_str!("../../templates/skills/container-orchestration/SKILL.md");
+const SKILL_CONTAINER_ORCHESTRATION_REF_COMPOSE: &str =
+    include_str!("../../templates/skills/container-orchestration/references/compose-patterns.md");
+const SKILL_LINUX_ADMINISTRATION: &str =
+    include_str!("../../templates/skills/linux-administration/SKILL.md");
+const SKILL_LINUX_ADMINISTRATION_REF_COMMANDS: &str =
+    include_str!("../../templates/skills/linux-administration/references/commands-cheatsheet.md");
+const SKILL_LINUX_ADMINISTRATION_REF_SYSTEMD: &str =
+    include_str!("../../templates/skills/linux-administration/references/systemd-reference.md");
+const SKILL_SHELL_SCRIPTING: &str =
+    include_str!("../../templates/skills/shell-scripting/SKILL.md");
+const SKILL_SHELL_SCRIPTING_REF_PATTERNS: &str =
+    include_str!("../../templates/skills/shell-scripting/references/bash-patterns.md");
+
+// Architecture skills (new)
+const SKILL_EVENT_DRIVEN_ARCHITECTURE: &str =
+    include_str!("../../templates/skills/event-driven-architecture/SKILL.md");
+const SKILL_EVENT_DRIVEN_REF_MESSAGING: &str =
+    include_str!("../../templates/skills/event-driven-architecture/references/messaging-patterns.md");
+const SKILL_DOMAIN_DRIVEN_DESIGN: &str =
+    include_str!("../../templates/skills/domain-driven-design/SKILL.md");
+const SKILL_DDD_REF_BUILDING_BLOCKS: &str =
+    include_str!("../../templates/skills/domain-driven-design/references/ddd-building-blocks.md");
+const SKILL_SYSTEM_DESIGN: &str =
+    include_str!("../../templates/skills/system-design/SKILL.md");
+const SKILL_SYSTEM_DESIGN_REF_ESTIMATION: &str =
+    include_str!("../../templates/skills/system-design/references/estimation-cheatsheet.md");
+
+// Design & visual skills (new)
+const SKILL_PIXIJS_GAMEDEV: &str =
+    include_str!("../../templates/skills/pixijs-gamedev/SKILL.md");
+const SKILL_PIXIJS_REF_API: &str =
+    include_str!("../../templates/skills/pixijs-gamedev/references/api-cheatsheet.md");
+const SKILL_MOBILE_APP_DESIGN: &str =
+    include_str!("../../templates/skills/mobile-app-design/SKILL.md");
+const SKILL_MOBILE_APP_DESIGN_REF_PLATFORM: &str =
+    include_str!("../../templates/skills/mobile-app-design/references/platform-guidelines.md");
+
+// Data & Analytics skills
+const SKILL_DATA_SCIENCE: &str =
+    include_str!("../../templates/skills/data-science/SKILL.md");
+const SKILL_DATA_SCIENCE_REF_TIDY: &str =
+    include_str!("../../templates/skills/data-science/references/tidy-data-principles.md");
+const SKILL_DATA_SCIENCE_REF_STATS: &str =
+    include_str!("../../templates/skills/data-science/references/statistical-methods.md");
+const SKILL_DATA_SCIENCE_REF_VIZ: &str =
+    include_str!("../../templates/skills/data-science/references/visualization-guidelines.md");
+const SKILL_DATA_PIPELINE: &str =
+    include_str!("../../templates/skills/data-pipeline/SKILL.md");
+const SKILL_DATA_VISUALIZATION: &str =
+    include_str!("../../templates/skills/data-visualization/SKILL.md");
+const SKILL_DATA_VISUALIZATION_REF_CHARTS: &str =
+    include_str!("../../templates/skills/data-visualization/references/chart-selection.md");
+const SKILL_FEATURE_ENGINEERING: &str =
+    include_str!("../../templates/skills/feature-engineering/SKILL.md");
+const SKILL_DATA_QUALITY: &str =
+    include_str!("../../templates/skills/data-quality/SKILL.md");
+
+// AI & ML skills
+const SKILL_AI_FUNDAMENTALS: &str =
+    include_str!("../../templates/skills/ai-fundamentals/SKILL.md");
+const SKILL_AI_FUNDAMENTALS_REF_ML: &str =
+    include_str!("../../templates/skills/ai-fundamentals/references/ml-concepts.md");
+const SKILL_AI_FUNDAMENTALS_REF_MATH: &str =
+    include_str!("../../templates/skills/ai-fundamentals/references/math-foundations.md");
+const SKILL_RAG_ENGINEERING: &str =
+    include_str!("../../templates/skills/rag-engineering/SKILL.md");
+const SKILL_RAG_REF_CHUNKING: &str =
+    include_str!("../../templates/skills/rag-engineering/references/chunking-strategies.md");
+const SKILL_RAG_REF_RETRIEVAL: &str =
+    include_str!("../../templates/skills/rag-engineering/references/retrieval-patterns.md");
+const SKILL_RAG_REF_EVALUATION: &str =
+    include_str!("../../templates/skills/rag-engineering/references/evaluation.md");
+const SKILL_PROMPT_ENGINEERING: &str =
+    include_str!("../../templates/skills/prompt-engineering/SKILL.md");
+const SKILL_PROMPT_ENGINEERING_REF_TECHNIQUES: &str =
+    include_str!("../../templates/skills/prompt-engineering/references/techniques-catalog.md");
+const SKILL_LLM_EVALUATION: &str =
+    include_str!("../../templates/skills/llm-evaluation/SKILL.md");
+const SKILL_EMBEDDING_VECTORDB: &str =
+    include_str!("../../templates/skills/embedding-vectordb/SKILL.md");
+const SKILL_ML_PIPELINE: &str =
+    include_str!("../../templates/skills/ml-pipeline/SKILL.md");
+const SKILL_ML_PIPELINE_REF_STAGES: &str =
+    include_str!("../../templates/skills/ml-pipeline/references/pipeline-stages.md");
+
+// API & Integration skills
+const SKILL_API_DESIGN: &str = include_str!("../../templates/skills/api-design/SKILL.md");
+const SKILL_API_DESIGN_REF_REST: &str =
+    include_str!("../../templates/skills/api-design/references/rest-conventions.md");
+const SKILL_API_DESIGN_REF_OPENAPI: &str =
+    include_str!("../../templates/skills/api-design/references/openapi-patterns.md");
+const SKILL_GRAPHQL_PATTERNS: &str =
+    include_str!("../../templates/skills/graphql-patterns/SKILL.md");
+const SKILL_GRPC_PROTOBUF: &str =
+    include_str!("../../templates/skills/grpc-protobuf/SKILL.md");
+const SKILL_GRPC_REF_PROTO: &str =
+    include_str!("../../templates/skills/grpc-protobuf/references/proto-conventions.md");
+const SKILL_WEBHOOK_INTEGRATION: &str =
+    include_str!("../../templates/skills/webhook-integration/SKILL.md");
+
+// Security skills (new)
+const SKILL_AUTH_PATTERNS: &str =
+    include_str!("../../templates/skills/auth-patterns/SKILL.md");
+const SKILL_AUTH_REF_OAUTH: &str =
+    include_str!("../../templates/skills/auth-patterns/references/oauth-flows.md");
+const SKILL_AUTH_REF_JWT: &str =
+    include_str!("../../templates/skills/auth-patterns/references/jwt-reference.md");
+const SKILL_SECURE_CODING: &str =
+    include_str!("../../templates/skills/secure-coding/SKILL.md");
+const SKILL_SECURE_CODING_REF_OWASP: &str =
+    include_str!("../../templates/skills/secure-coding/references/owasp-checklist.md");
+const SKILL_THREAT_MODELING: &str =
+    include_str!("../../templates/skills/threat-modeling/SKILL.md");
+
+// Observability skills
+const SKILL_LOGGING_STRATEGY: &str =
+    include_str!("../../templates/skills/logging-strategy/SKILL.md");
+const SKILL_LOGGING_REF_STRUCTURED: &str =
+    include_str!("../../templates/skills/logging-strategy/references/structured-logging.md");
+const SKILL_METRICS_MONITORING: &str =
+    include_str!("../../templates/skills/metrics-monitoring/SKILL.md");
+const SKILL_METRICS_REF_TYPES: &str =
+    include_str!("../../templates/skills/metrics-monitoring/references/metric-types.md");
+const SKILL_DISTRIBUTED_TRACING: &str =
+    include_str!("../../templates/skills/distributed-tracing/SKILL.md");
+const SKILL_ALERTING_ONCALL: &str =
+    include_str!("../../templates/skills/alerting-oncall/SKILL.md");
+
+// Database skills
+const SKILL_SQL_PATTERNS: &str =
+    include_str!("../../templates/skills/sql-patterns/SKILL.md");
+const SKILL_SQL_PATTERNS_REF_QUERIES: &str =
+    include_str!("../../templates/skills/sql-patterns/references/query-patterns.md");
+const SKILL_SQL_PATTERNS_REF_SCHEMA: &str =
+    include_str!("../../templates/skills/sql-patterns/references/schema-design.md");
+const SKILL_DATABASE_MODELING: &str =
+    include_str!("../../templates/skills/database-modeling/SKILL.md");
+const SKILL_DATABASE_MODELING_REF_PATTERNS: &str =
+    include_str!("../../templates/skills/database-modeling/references/modeling-patterns.md");
+const SKILL_NOSQL_PATTERNS: &str =
+    include_str!("../../templates/skills/nosql-patterns/SKILL.md");
+const SKILL_DATABASE_MIGRATION: &str =
+    include_str!("../../templates/skills/database-migration/SKILL.md");
+
+// Performance skills
+const SKILL_PERFORMANCE_PROFILING: &str =
+    include_str!("../../templates/skills/performance-profiling/SKILL.md");
+const SKILL_PERFORMANCE_REF_TOOLS: &str =
+    include_str!("../../templates/skills/performance-profiling/references/profiling-tools.md");
+const SKILL_CACHING_STRATEGIES: &str =
+    include_str!("../../templates/skills/caching-strategies/SKILL.md");
+const SKILL_CONCURRENCY_PATTERNS: &str =
+    include_str!("../../templates/skills/concurrency-patterns/SKILL.md");
+const SKILL_CONCURRENCY_REF_CATALOG: &str =
+    include_str!("../../templates/skills/concurrency-patterns/references/patterns-catalog.md");
+const SKILL_LOAD_TESTING: &str =
+    include_str!("../../templates/skills/load-testing/SKILL.md");
+
+// Framework-specific skills
+const SKILL_REFLEX_PYTHON: &str =
+    include_str!("../../templates/skills/reflex-python/SKILL.md");
+const SKILL_REFLEX_REF_COMPONENTS: &str =
+    include_str!("../../templates/skills/reflex-python/references/component-reference.md");
+const SKILL_FASTAPI_PATTERNS: &str =
+    include_str!("../../templates/skills/fastapi-patterns/SKILL.md");
+const SKILL_FASTAPI_REF_ENDPOINTS: &str =
+    include_str!("../../templates/skills/fastapi-patterns/references/endpoint-patterns.md");
+const SKILL_PANDAS_POLARS: &str =
+    include_str!("../../templates/skills/pandas-polars/SKILL.md");
+const SKILL_PANDAS_POLARS_REF_COMPARISON: &str =
+    include_str!("../../templates/skills/pandas-polars/references/api-comparison.md");
+const SKILL_FLUTTER_DEVELOPMENT: &str =
+    include_str!("../../templates/skills/flutter-development/SKILL.md");
+const SKILL_FLUTTER_REF_WIDGETS: &str =
+    include_str!("../../templates/skills/flutter-development/references/widget-catalog.md");
+
+// SEO & Marketing skills
+const SKILL_SEO_OPTIMIZATION: &str =
+    include_str!("../../templates/skills/seo-optimization/SKILL.md");
+const SKILL_SEO_REF_CHECKLIST: &str =
+    include_str!("../../templates/skills/seo-optimization/references/technical-seo-checklist.md");
+
 /// Default OWNER.md content — created locally in each project's context/ directory.
 const OWNER_CONTENT: &str = r#"# Owner Profile
 
@@ -364,54 +624,236 @@ fn scaffold_processes(context: &Path) -> Result<()> {
     Ok(())
 }
 
+/// A skill definition: (directory_name, skill_content, reference_files).
+type SkillDef = (&'static str, &'static str, &'static [(&'static str, &'static str)]);
+
 /// Scaffold the .claude/skills/ directory with curated skill templates.
 fn scaffold_skills() -> Result<()> {
     let skills_dir = Path::new(".claude").join("skills");
     fs::create_dir_all(&skills_dir).context("Failed to create .claude/skills")?;
 
-    // All available skills: (directory_name, content)
-    let skills: &[(&str, &str)] = &[
+    // All available skills: (directory_name, skill_content, reference_files)
+    // Reference files are deployed to .claude/skills/<name>/references/<filename>
+    let skills: &[SkillDef] = &[
         // Core process skills
-        ("backlog-context", SKILL_BACKLOG_CONTEXT),
-        ("decisions-adr", SKILL_DECISIONS_ADR),
-        ("standup-context", SKILL_STANDUP_CONTEXT),
+        ("backlog-context", SKILL_BACKLOG_CONTEXT, &[]),
+        ("decisions-adr", SKILL_DECISIONS_ADR, &[]),
+        ("standup-context", SKILL_STANDUP_CONTEXT, &[]),
         // Development skills
-        ("code-review", SKILL_CODE_REVIEW),
-        ("testing-strategy", SKILL_TESTING_STRATEGY),
-        ("refactoring", SKILL_REFACTORING),
-        ("documentation", SKILL_DOCUMENTATION),
-        ("debugging", SKILL_DEBUGGING),
+        ("code-review", SKILL_CODE_REVIEW, &[]),
+        ("testing-strategy", SKILL_TESTING_STRATEGY, &[]),
+        ("refactoring", SKILL_REFACTORING, &[
+            ("code-smells.md", SKILL_REFACTORING_REF_CODE_SMELLS),
+            ("gof-patterns.md", SKILL_REFACTORING_REF_GOF_PATTERNS),
+        ]),
+        ("documentation", SKILL_DOCUMENTATION, &[]),
+        ("debugging", SKILL_DEBUGGING, &[]),
         // Process skills
-        ("release-semver", SKILL_RELEASE_SEMVER),
-        ("incident-response", SKILL_INCIDENT_RESPONSE),
-        ("retrospective", SKILL_RETROSPECTIVE),
+        ("release-semver", SKILL_RELEASE_SEMVER, &[]),
+        ("incident-response", SKILL_INCIDENT_RESPONSE, &[]),
+        ("retrospective", SKILL_RETROSPECTIVE, &[]),
         // Language-specific skills
-        ("python-best-practices", SKILL_PYTHON_BEST_PRACTICES),
-        ("rust-conventions", SKILL_RUST_CONVENTIONS),
-        ("latex-authoring", SKILL_LATEX_AUTHORING),
-        ("typescript-patterns", SKILL_TYPESCRIPT_PATTERNS),
+        ("python-best-practices", SKILL_PYTHON_BEST_PRACTICES, &[]),
+        ("rust-conventions", SKILL_RUST_CONVENTIONS, &[]),
+        ("latex-authoring", SKILL_LATEX_AUTHORING, &[
+            ("packages.md", SKILL_LATEX_AUTHORING_REF_PACKAGES),
+            ("math-reference.md", SKILL_LATEX_AUTHORING_REF_MATH),
+            ("tikz-reference.md", SKILL_LATEX_AUTHORING_REF_TIKZ),
+        ]),
+        ("typescript-patterns", SKILL_TYPESCRIPT_PATTERNS, &[]),
         // Infrastructure skills
-        ("dockerfile-review", SKILL_DOCKERFILE_REVIEW),
-        ("git-workflow", SKILL_GIT_WORKFLOW),
-        ("ci-cd-setup", SKILL_CI_CD_SETUP),
+        ("dockerfile-review", SKILL_DOCKERFILE_REVIEW, &[]),
+        ("git-workflow", SKILL_GIT_WORKFLOW, &[]),
+        ("ci-cd-setup", SKILL_CI_CD_SETUP, &[]),
         // Design & visual skills
-        ("excalidraw", SKILL_EXCALIDRAW),
-        ("frontend-design", SKILL_FRONTEND_DESIGN),
-        ("infographics", SKILL_INFOGRAPHICS),
-        ("logo-design", SKILL_LOGO_DESIGN),
-        ("tailwind", SKILL_TAILWIND),
+        ("excalidraw", SKILL_EXCALIDRAW, &[
+            ("json-schema.md", SKILL_EXCALIDRAW_REF_JSON_SCHEMA),
+        ]),
+        ("frontend-design", SKILL_FRONTEND_DESIGN, &[
+            ("accessibility-checklist.md", SKILL_FRONTEND_DESIGN_REF_A11Y),
+        ]),
+        ("infographics", SKILL_INFOGRAPHICS, &[
+            ("best-practices.md", SKILL_INFOGRAPHICS_REF_BEST_PRACTICES),
+        ]),
+        ("logo-design", SKILL_LOGO_DESIGN, &[
+            ("design-principles.md", SKILL_LOGO_DESIGN_REF_DESIGN_PRINCIPLES),
+        ]),
+        ("tailwind", SKILL_TAILWIND, &[
+            ("cheatsheet.md", SKILL_TAILWIND_REF_CHEATSHEET),
+        ]),
         // Architecture skills
-        ("software-architecture", SKILL_SOFTWARE_ARCHITECTURE),
+        ("software-architecture", SKILL_SOFTWARE_ARCHITECTURE, &[
+            ("patterns.md", SKILL_SOFTWARE_ARCHITECTURE_REF_PATTERNS),
+        ]),
         // Security skills
-        ("dependency-audit", SKILL_DEPENDENCY_AUDIT),
-        ("secret-management", SKILL_SECRET_MANAGEMENT),
+        ("dependency-audit", SKILL_DEPENDENCY_AUDIT, &[]),
+        ("secret-management", SKILL_SECRET_MANAGEMENT, &[]),
+        ("auth-patterns", SKILL_AUTH_PATTERNS, &[
+            ("oauth-flows.md", SKILL_AUTH_REF_OAUTH),
+            ("jwt-reference.md", SKILL_AUTH_REF_JWT),
+        ]),
+        ("secure-coding", SKILL_SECURE_CODING, &[
+            ("owasp-checklist.md", SKILL_SECURE_CODING_REF_OWASP),
+        ]),
+        ("threat-modeling", SKILL_THREAT_MODELING, &[]),
+        // Process skills (new)
+        ("agent-management", SKILL_AGENT_MANAGEMENT, &[
+            ("coordination-patterns.md", SKILL_AGENT_MANAGEMENT_REF_COORDINATION),
+        ]),
+        ("estimation-planning", SKILL_ESTIMATION_PLANNING, &[]),
+        ("postmortem-writing", SKILL_POSTMORTEM_WRITING, &[]),
+        // Development skills (new)
+        ("tdd-workflow", SKILL_TDD_WORKFLOW, &[]),
+        ("integration-testing", SKILL_INTEGRATION_TESTING, &[
+            ("test-fixtures.md", SKILL_INTEGRATION_TESTING_REF_FIXTURES),
+        ]),
+        ("error-handling", SKILL_ERROR_HANDLING, &[]),
+        ("dependency-management", SKILL_DEPENDENCY_MANAGEMENT, &[]),
+        ("code-generation", SKILL_CODE_GENERATION, &[]),
+        // Language skills (new)
+        ("go-conventions", SKILL_GO_CONVENTIONS, &[
+            ("go-patterns.md", SKILL_GO_CONVENTIONS_REF_PATTERNS),
+        ]),
+        ("java-patterns", SKILL_JAVA_PATTERNS, &[]),
+        ("sql-style-guide", SKILL_SQL_STYLE_GUIDE, &[]),
+        // Infrastructure skills (new)
+        ("kubernetes-basics", SKILL_KUBERNETES_BASICS, &[
+            ("cluster-architecture.md", SKILL_KUBERNETES_REF_ARCHITECTURE),
+            ("resource-cheatsheet.md", SKILL_KUBERNETES_REF_RESOURCES),
+            ("troubleshooting.md", SKILL_KUBERNETES_REF_TROUBLESHOOTING),
+        ]),
+        ("dns-networking", SKILL_DNS_NETWORKING, &[
+            ("protocol-reference.md", SKILL_DNS_NETWORKING_REF_PROTOCOL),
+            ("troubleshooting-tools.md", SKILL_DNS_NETWORKING_REF_TOOLS),
+        ]),
+        ("terraform-basics", SKILL_TERRAFORM_BASICS, &[]),
+        ("container-orchestration", SKILL_CONTAINER_ORCHESTRATION, &[
+            ("compose-patterns.md", SKILL_CONTAINER_ORCHESTRATION_REF_COMPOSE),
+        ]),
+        ("linux-administration", SKILL_LINUX_ADMINISTRATION, &[
+            ("commands-cheatsheet.md", SKILL_LINUX_ADMINISTRATION_REF_COMMANDS),
+            ("systemd-reference.md", SKILL_LINUX_ADMINISTRATION_REF_SYSTEMD),
+        ]),
+        ("shell-scripting", SKILL_SHELL_SCRIPTING, &[
+            ("bash-patterns.md", SKILL_SHELL_SCRIPTING_REF_PATTERNS),
+        ]),
+        // Architecture skills (new)
+        ("event-driven-architecture", SKILL_EVENT_DRIVEN_ARCHITECTURE, &[
+            ("messaging-patterns.md", SKILL_EVENT_DRIVEN_REF_MESSAGING),
+        ]),
+        ("domain-driven-design", SKILL_DOMAIN_DRIVEN_DESIGN, &[
+            ("ddd-building-blocks.md", SKILL_DDD_REF_BUILDING_BLOCKS),
+        ]),
+        ("system-design", SKILL_SYSTEM_DESIGN, &[
+            ("estimation-cheatsheet.md", SKILL_SYSTEM_DESIGN_REF_ESTIMATION),
+        ]),
+        // Design & visual skills (new)
+        ("pixijs-gamedev", SKILL_PIXIJS_GAMEDEV, &[
+            ("api-cheatsheet.md", SKILL_PIXIJS_REF_API),
+        ]),
+        ("mobile-app-design", SKILL_MOBILE_APP_DESIGN, &[
+            ("platform-guidelines.md", SKILL_MOBILE_APP_DESIGN_REF_PLATFORM),
+        ]),
+        // Data & Analytics skills
+        ("data-science", SKILL_DATA_SCIENCE, &[
+            ("tidy-data-principles.md", SKILL_DATA_SCIENCE_REF_TIDY),
+            ("statistical-methods.md", SKILL_DATA_SCIENCE_REF_STATS),
+            ("visualization-guidelines.md", SKILL_DATA_SCIENCE_REF_VIZ),
+        ]),
+        ("data-pipeline", SKILL_DATA_PIPELINE, &[]),
+        ("data-visualization", SKILL_DATA_VISUALIZATION, &[
+            ("chart-selection.md", SKILL_DATA_VISUALIZATION_REF_CHARTS),
+        ]),
+        ("feature-engineering", SKILL_FEATURE_ENGINEERING, &[]),
+        ("data-quality", SKILL_DATA_QUALITY, &[]),
+        // AI & ML skills
+        ("ai-fundamentals", SKILL_AI_FUNDAMENTALS, &[
+            ("ml-concepts.md", SKILL_AI_FUNDAMENTALS_REF_ML),
+            ("math-foundations.md", SKILL_AI_FUNDAMENTALS_REF_MATH),
+        ]),
+        ("rag-engineering", SKILL_RAG_ENGINEERING, &[
+            ("chunking-strategies.md", SKILL_RAG_REF_CHUNKING),
+            ("retrieval-patterns.md", SKILL_RAG_REF_RETRIEVAL),
+            ("evaluation.md", SKILL_RAG_REF_EVALUATION),
+        ]),
+        ("prompt-engineering", SKILL_PROMPT_ENGINEERING, &[
+            ("techniques-catalog.md", SKILL_PROMPT_ENGINEERING_REF_TECHNIQUES),
+        ]),
+        ("llm-evaluation", SKILL_LLM_EVALUATION, &[]),
+        ("embedding-vectordb", SKILL_EMBEDDING_VECTORDB, &[]),
+        ("ml-pipeline", SKILL_ML_PIPELINE, &[
+            ("pipeline-stages.md", SKILL_ML_PIPELINE_REF_STAGES),
+        ]),
+        // API & Integration skills
+        ("api-design", SKILL_API_DESIGN, &[
+            ("rest-conventions.md", SKILL_API_DESIGN_REF_REST),
+            ("openapi-patterns.md", SKILL_API_DESIGN_REF_OPENAPI),
+        ]),
+        ("graphql-patterns", SKILL_GRAPHQL_PATTERNS, &[]),
+        ("grpc-protobuf", SKILL_GRPC_PROTOBUF, &[
+            ("proto-conventions.md", SKILL_GRPC_REF_PROTO),
+        ]),
+        ("webhook-integration", SKILL_WEBHOOK_INTEGRATION, &[]),
+        // Observability skills
+        ("logging-strategy", SKILL_LOGGING_STRATEGY, &[
+            ("structured-logging.md", SKILL_LOGGING_REF_STRUCTURED),
+        ]),
+        ("metrics-monitoring", SKILL_METRICS_MONITORING, &[
+            ("metric-types.md", SKILL_METRICS_REF_TYPES),
+        ]),
+        ("distributed-tracing", SKILL_DISTRIBUTED_TRACING, &[]),
+        ("alerting-oncall", SKILL_ALERTING_ONCALL, &[]),
+        // Database skills
+        ("sql-patterns", SKILL_SQL_PATTERNS, &[
+            ("query-patterns.md", SKILL_SQL_PATTERNS_REF_QUERIES),
+            ("schema-design.md", SKILL_SQL_PATTERNS_REF_SCHEMA),
+        ]),
+        ("database-modeling", SKILL_DATABASE_MODELING, &[
+            ("modeling-patterns.md", SKILL_DATABASE_MODELING_REF_PATTERNS),
+        ]),
+        ("nosql-patterns", SKILL_NOSQL_PATTERNS, &[]),
+        ("database-migration", SKILL_DATABASE_MIGRATION, &[]),
+        // Performance skills
+        ("performance-profiling", SKILL_PERFORMANCE_PROFILING, &[
+            ("profiling-tools.md", SKILL_PERFORMANCE_REF_TOOLS),
+        ]),
+        ("caching-strategies", SKILL_CACHING_STRATEGIES, &[]),
+        ("concurrency-patterns", SKILL_CONCURRENCY_PATTERNS, &[
+            ("patterns-catalog.md", SKILL_CONCURRENCY_REF_CATALOG),
+        ]),
+        ("load-testing", SKILL_LOAD_TESTING, &[]),
+        // Framework-specific skills
+        ("reflex-python", SKILL_REFLEX_PYTHON, &[
+            ("component-reference.md", SKILL_REFLEX_REF_COMPONENTS),
+        ]),
+        ("fastapi-patterns", SKILL_FASTAPI_PATTERNS, &[
+            ("endpoint-patterns.md", SKILL_FASTAPI_REF_ENDPOINTS),
+        ]),
+        ("pandas-polars", SKILL_PANDAS_POLARS, &[
+            ("api-comparison.md", SKILL_PANDAS_POLARS_REF_COMPARISON),
+        ]),
+        ("flutter-development", SKILL_FLUTTER_DEVELOPMENT, &[
+            ("widget-catalog.md", SKILL_FLUTTER_REF_WIDGETS),
+        ]),
+        // SEO & Marketing
+        ("seo-optimization", SKILL_SEO_OPTIMIZATION, &[
+            ("technical-seo-checklist.md", SKILL_SEO_REF_CHECKLIST),
+        ]),
     ];
 
-    for (name, content) in skills {
+    for (name, content, refs) in skills {
         let skill_dir = skills_dir.join(name);
         fs::create_dir_all(&skill_dir)
             .with_context(|| format!("Failed to create .claude/skills/{}", name))?;
         write_if_missing(&skill_dir.join("SKILL.md"), content)?;
+        if !refs.is_empty() {
+            let refs_dir = skill_dir.join("references");
+            fs::create_dir_all(&refs_dir)
+                .with_context(|| format!("Failed to create .claude/skills/{}/references", name))?;
+            for (ref_name, ref_content) in *refs {
+                write_if_missing(&refs_dir.join(ref_name), ref_content)?;
+            }
+        }
     }
 
     output::ok("Created .claude/skills/");
