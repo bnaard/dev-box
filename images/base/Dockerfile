@@ -38,11 +38,12 @@ RUN ARCH=$(uname -m) && \
     mv /tmp/yazi/yazi-${ARCH}-unknown-linux-musl/yazi /usr/local/bin/yazi && \
     chmod +x /usr/local/bin/yazi && \
     rm -rf /tmp/yazi /tmp/yazi.zip && \
-    # ── ripgrep (rg) ────────────────────────────────────────────────────────
+    # ── ripgrep (rg) — no aarch64 musl build, use gnu ───────────────────────
+    RG_LIBC=$(case $ARCH in x86_64) echo musl;; *) echo gnu;; esac) && \
     curl -fsSL \
-      "https://github.com/BurntSushi/ripgrep/releases/download/${RIPGREP_VERSION}/ripgrep-${RIPGREP_VERSION}-${ARCH}-unknown-linux-musl.tar.gz" \
+      "https://github.com/BurntSushi/ripgrep/releases/download/${RIPGREP_VERSION}/ripgrep-${RIPGREP_VERSION}-${ARCH}-unknown-linux-${RG_LIBC}.tar.gz" \
       | tar -xz --strip-components=1 -C /usr/local/bin \
-        "ripgrep-${RIPGREP_VERSION}-${ARCH}-unknown-linux-musl/rg" && \
+        "ripgrep-${RIPGREP_VERSION}-${ARCH}-unknown-linux-${RG_LIBC}/rg" && \
     chmod +x /usr/local/bin/rg && \
     # ── fd ──────────────────────────────────────────────────────────────────
     curl -fsSL \
@@ -73,11 +74,12 @@ RUN ARCH=$(uname -m) && \
       "https://github.com/junegunn/fzf/releases/download/v${FZF_VERSION}/fzf-${FZF_VERSION}-linux_${FZF_ARCH}.tar.gz" \
       | tar -xz -C /usr/local/bin && \
     chmod +x /usr/local/bin/fzf && \
-    # ── delta ───────────────────────────────────────────────────────────────
+    # ── delta — no aarch64 musl build, use gnu ───────────────────────────────
+    DELTA_LIBC=$(case $ARCH in x86_64) echo musl;; *) echo gnu;; esac) && \
     curl -fsSL \
-      "https://github.com/dandavison/delta/releases/download/${DELTA_VERSION}/delta-${DELTA_VERSION}-${ARCH}-unknown-linux-musl.tar.gz" \
+      "https://github.com/dandavison/delta/releases/download/${DELTA_VERSION}/delta-${DELTA_VERSION}-${ARCH}-unknown-linux-${DELTA_LIBC}.tar.gz" \
       | tar -xz --strip-components=1 -C /usr/local/bin \
-        "delta-${DELTA_VERSION}-${ARCH}-unknown-linux-musl/delta" && \
+        "delta-${DELTA_VERSION}-${ARCH}-unknown-linux-${DELTA_LIBC}/delta" && \
     chmod +x /usr/local/bin/delta && \
     # ── starship ────────────────────────────────────────────────────────────
     curl -fsSL \
