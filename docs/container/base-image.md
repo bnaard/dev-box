@@ -13,6 +13,14 @@ The base image is the foundation for all dev-box container flavors. It provides 
 | lazygit | Debian package | Git TUI |
 | GitHub CLI (`gh`) | Debian package | GitHub integration |
 | Claude CLI | Official install script | AI assistant |
+| ripgrep (`rg`) | Debian package | Fast recursive search (grep replacement) |
+| fd | Debian package | Fast file finder (find replacement) |
+| bat | Debian package | Syntax-highlighting cat replacement |
+| eza | Debian package | Modern ls replacement with git integration |
+| zoxide | Debian package | Smarter cd that learns your habits |
+| fzf | Debian package | Fuzzy finder for files, history, and more |
+| delta | Debian package | Syntax-highlighting diff viewer (used by git) |
+| starship | Prebuilt binary | Minimal, fast shell prompt with context |
 | curl | Debian package | HTTP client |
 | jq | Debian package | JSON processor |
 | less | Debian package | Pager |

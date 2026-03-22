@@ -90,11 +90,11 @@ Two additional layouts are available: **focus** (one tool per tab, fullscreen) a
 
 **Composable.** Start with `base`, add language support when you need it. Extend with `extra_packages` in `dev-box.toml` without forking images.
 
-**AI-configurable.** Declare which AI providers your project uses via the `[ai]` section, and dev-box ensures their CLIs and credentials are available inside the container.
+**AI-flexible.** Declare which AI providers your project uses (Claude, Aider, Gemini) via the `[ai]` section, and dev-box ensures their CLIs and credentials are available inside the container. Mix and match providers as needed.
 
 ## Project Status
 
-dev-box is at version 0.6.0. The core workflow (init, sync, build, start, stop, attach, status, doctor) is functional, along with shell completions (`dev-box completions bash/zsh/fish`), interactive init prompts, registry-based update with upgrade (`dev-box update`), `post_create_command`/`vscode_extensions` support in devcontainer.json, and host-side audio diagnostics via `dev-box audio check/setup`. Recent additions include Yazi file manager with three IDE layouts (dev, focus, assist), AI provider configuration (`[ai]` section), non-root user support (`container.user`), renamed `.dev-box-home/` for persistent config (with `.root/` backward compatibility), and language-specific `.gitignore` blocks generated per image flavor.
+dev-box is at version 0.6.0. The core workflow (init, sync, build, start, stop, attach, status, doctor) is functional, along with shell completions (`dev-box completions bash/zsh/fish`), interactive init prompts, registry-based update with upgrade (`dev-box update`), `post_create_command`/`vscode_extensions` support in devcontainer.json, and host-side audio diagnostics via `dev-box audio check/setup`. Recent additions include Yazi file manager with three IDE layouts (dev, focus, cowork), AI provider flexibility with support for multiple providers (Claude, Aider, Gemini) via the `[ai]` section, process templates for standard workflows (release, code review, feature development, bug fix), SKILL.md support for executable AI agent instructions following the [open standard](https://agentskills.io/specification), modern shell tools (ripgrep, fd, bat, eza, zoxide, fzf, delta, starship) in the base image, non-root user support (`container.user`), renamed `.dev-box-home/` for persistent config (with `.root/` backward compatibility), and language-specific `.gitignore` blocks generated per image flavor.
 
 ## Next Steps
 

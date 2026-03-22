@@ -55,6 +55,7 @@ nav:
   - Context System:
     - Overview: context/overview.md
     - Work Processes: context/work-processes.md
+    - Skills: skills.md
     - Migration: context/migration.md
   - CLI Reference:
     - Commands: cli/commands.md
