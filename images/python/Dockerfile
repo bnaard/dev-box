@@ -8,12 +8,12 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     python3 \
     python3-pip \
     python3-venv \
-    unzip \
     && rm -rf /var/lib/apt/lists/*
 
-# uv — fast Python package manager
-COPY --from=ghcr.io/astral-sh/uv:latest /uv /usr/local/bin/uv
-COPY --from=ghcr.io/astral-sh/uv:latest /uvx /usr/local/bin/uvx
+# uv — fast Python package manager (pinned version)
+ARG UV_VERSION=0.7.12
+COPY --from=ghcr.io/astral-sh/uv:0.7.12 /uv /usr/local/bin/uv
+COPY --from=ghcr.io/astral-sh/uv:0.7.12 /uvx /usr/local/bin/uvx
 
 # MkDocs Material (installed via uv into a global tool environment)
 RUN uv tool install 'mkdocs<2' --with mkdocs-material

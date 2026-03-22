@@ -111,7 +111,9 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 
 # Copy TeX Live tree from builder and symlink binaries
 COPY --from=texlive-builder /usr/local/texlive /usr/local/texlive
-RUN ln -sf /usr/local/texlive/bin/*/* /usr/local/bin/
+RUN ln -sf /usr/local/texlive/bin/*/* /usr/local/bin/ && \
+    ln -sf /usr/local/texlive/texmf-dist/fonts/opentype /usr/share/fonts/opentype-texlive && \
+    fc-cache -f
 
 WORKDIR /workspace
 CMD ["sleep", "infinity"]

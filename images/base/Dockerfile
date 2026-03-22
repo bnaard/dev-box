@@ -147,16 +147,11 @@ ENV LANG=en_US.UTF-8 \
     COLORTERM=truecolor
 
 # Copy binaries from builder stage
-COPY --from=builder /usr/local/bin/zellij /usr/local/bin/zellij
-COPY --from=builder /usr/local/bin/yazi /usr/local/bin/yazi
-COPY --from=builder /usr/local/bin/rg /usr/local/bin/rg
-COPY --from=builder /usr/local/bin/fd /usr/local/bin/fd
-COPY --from=builder /usr/local/bin/bat /usr/local/bin/bat
-COPY --from=builder /usr/local/bin/eza /usr/local/bin/eza
-COPY --from=builder /usr/local/bin/zoxide /usr/local/bin/zoxide
-COPY --from=builder /usr/local/bin/fzf /usr/local/bin/fzf
-COPY --from=builder /usr/local/bin/delta /usr/local/bin/delta
-COPY --from=builder /usr/local/bin/starship /usr/local/bin/starship
+# Copy all tool binaries from builder (single layer)
+COPY --from=builder /usr/local/bin/zellij /usr/local/bin/yazi \
+    /usr/local/bin/rg /usr/local/bin/fd /usr/local/bin/bat \
+    /usr/local/bin/eza /usr/local/bin/zoxide /usr/local/bin/fzf \
+    /usr/local/bin/delta /usr/local/bin/starship /usr/local/bin/
 
 # ── Bake default configs into the image ───────────────────────────────────────
 # These act as fallback defaults when no host directory is mounted.
