@@ -196,13 +196,16 @@ impl Default for ContextSection {
 #[clap(rename_all = "kebab-case")]
 pub enum AiProvider {
     Claude,
-    // Future: Gemini, Copilot, etc.
+    Aider,
+    Gemini,
 }
 
 impl std::fmt::Display for AiProvider {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
             AiProvider::Claude => write!(f, "claude"),
+            AiProvider::Aider => write!(f, "aider"),
+            AiProvider::Gemini => write!(f, "gemini"),
         }
     }
 }
@@ -825,6 +828,58 @@ schema_version = "bad"
             result.is_err(),
             "should reject invalid schema_version semver"
         );
+    }
+
+    #[test]
+    fn ai_provider_display() {
+        assert_eq!(format!("{}", AiProvider::Claude), "claude");
+        assert_eq!(format!("{}", AiProvider::Aider), "aider");
+        assert_eq!(format!("{}", AiProvider::Gemini), "gemini");
+    }
+
+    #[test]
+    fn parse_ai_providers_from_toml() {
+        let toml = r#"
+[dev-box]
+version = "0.1.0"
+image = "base"
+process = "minimal"
+
+[container]
+name = "test"
+
+[ai]
+providers = ["claude", "aider", "gemini"]
+"#;
+        let config = parse_toml(toml).unwrap();
+        assert_eq!(config.ai.providers.len(), 3);
+        assert_eq!(config.ai.providers[0], AiProvider::Claude);
+        assert_eq!(config.ai.providers[1], AiProvider::Aider);
+        assert_eq!(config.ai.providers[2], AiProvider::Gemini);
+    }
+
+    #[test]
+    fn parse_empty_ai_providers() {
+        let toml = r#"
+[dev-box]
+version = "0.1.0"
+image = "base"
+process = "minimal"
+
+[container]
+name = "test"
+
+[ai]
+providers = []
+"#;
+        let config = parse_toml(toml).unwrap();
+        assert!(config.ai.providers.is_empty());
+    }
+
+    #[test]
+    fn default_ai_providers_is_claude() {
+        let config = parse_toml(minimal_toml()).unwrap();
+        assert_eq!(config.ai.providers, vec![AiProvider::Claude]);
     }
 
     #[test]

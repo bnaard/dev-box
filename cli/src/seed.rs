@@ -159,92 +159,166 @@ keybinds clear-defaults=true {
 }
 "#;
 
-/// Default zellij dev layout — file browser + editor.
-const DEFAULT_ZELLIJ_LAYOUT: &str = r#"layout {
-    default_tab_template {
-        children
-        pane size=1 borderless=true {
-            plugin location="zellij:status-bar"
-        }
+/// Generate the KDL snippet for AI provider panes in a tab.
+/// Returns empty string if no providers are configured.
+fn ai_pane_kdl(providers: &[crate::config::AiProvider]) -> String {
+    if providers.is_empty() {
+        return String::new();
     }
-    tab name="dev" focus=true {
-        pane split_direction="vertical" {
-            pane size="40%" name="files" focus=true {
-                command "yazi"
-                cwd "/workspace"
-            }
-            pane size="60%" name="editor" {
-                command "vim-loop"
-                cwd "/workspace"
-            }
-        }
+
+    let mut panes = Vec::new();
+    for provider in providers {
+        let cmd = match provider {
+            crate::config::AiProvider::Claude => "claude",
+            crate::config::AiProvider::Aider => "aider",
+            crate::config::AiProvider::Gemini => "gemini",
+        };
+        panes.push(format!(
+            "        pane name=\"{cmd}\" {{\n\
+             \x20           command \"{cmd}\"\n\
+             \x20           cwd \"/workspace\"\n\
+             \x20       }}"
+        ));
     }
-    tab name="claude" {
-        pane name="claude" {
-            command "claude"
-            cwd "/workspace"
-        }
-    }
-    tab name="git" {
-        pane name="lazygit" {
-            command "lazygit"
-            cwd "/workspace"
-        }
-    }
-    tab name="shell" {
-        pane name="bash" {
-            command "bash"
-            cwd "/workspace"
-        }
+
+    if panes.len() == 1 {
+        // Single provider — just one pane
+        panes[0].clone()
+    } else {
+        // Multiple providers — use stacked panes
+        format!(
+            "        pane stacked=true {{\n{}\n        }}",
+            panes.join("\n")
+        )
     }
 }
-"#;
 
-/// Zellij focus layout — one tool per tab, fullscreen.
-const DEFAULT_ZELLIJ_FOCUS_LAYOUT: &str = r#"layout {
-    default_tab_template {
-        children
-        pane size=1 borderless=true {
-            plugin location="zellij:status-bar"
-        }
+/// Generate AI tab(s) for layouts that use separate tabs per tool.
+fn ai_tabs_kdl(providers: &[crate::config::AiProvider]) -> String {
+    if providers.is_empty() {
+        return String::new();
     }
-    tab name="files" focus=true {
-        pane name="yazi" {
+
+    let mut tabs = Vec::new();
+    for provider in providers {
+        let cmd = match provider {
+            crate::config::AiProvider::Claude => "claude",
+            crate::config::AiProvider::Aider => "aider",
+            crate::config::AiProvider::Gemini => "gemini",
+        };
+        tabs.push(format!(
+            "    tab name=\"{cmd}\" {{\n\
+             \x20       pane name=\"{cmd}\" {{\n\
+             \x20           command \"{cmd}\"\n\
+             \x20           cwd \"/workspace\"\n\
+             \x20       }}\n\
+             \x20   }}"
+        ));
+    }
+    tabs.join("\n")
+}
+
+/// Generate the zellij dev layout dynamically based on configured AI providers.
+fn generate_dev_layout(providers: &[crate::config::AiProvider]) -> String {
+    let ai_tabs = ai_tabs_kdl(providers);
+    let ai_section = if ai_tabs.is_empty() {
+        String::new()
+    } else {
+        format!("\n{}", ai_tabs)
+    };
+
+    format!(
+        r#"layout {{
+    default_tab_template {{
+        children
+        pane size=1 borderless=true {{
+            plugin location="zellij:status-bar"
+        }}
+    }}
+    tab name="dev" focus=true {{
+        pane split_direction="vertical" {{
+            pane size="40%" name="files" focus=true {{
+                command "yazi"
+                cwd "/workspace"
+            }}
+            pane size="60%" name="editor" {{
+                command "vim-loop"
+                cwd "/workspace"
+            }}
+        }}
+    }}{ai_section}
+    tab name="git" {{
+        pane name="lazygit" {{
+            command "lazygit"
+            cwd "/workspace"
+        }}
+    }}
+    tab name="shell" {{
+        pane name="bash" {{
+            command "bash"
+            cwd "/workspace"
+        }}
+    }}
+}}
+"#
+    )
+}
+
+/// Generate the zellij focus layout dynamically based on configured AI providers.
+fn generate_focus_layout(providers: &[crate::config::AiProvider]) -> String {
+    let ai_tabs = ai_tabs_kdl(providers);
+    let ai_section = if ai_tabs.is_empty() {
+        String::new()
+    } else {
+        format!("\n{}", ai_tabs)
+    };
+
+    format!(
+        r#"layout {{
+    default_tab_template {{
+        children
+        pane size=1 borderless=true {{
+            plugin location="zellij:status-bar"
+        }}
+    }}
+    tab name="files" focus=true {{
+        pane name="yazi" {{
             command "bash"
             args "-c" "DEVBOX_EDITOR_DIR=tab exec yazi"
             cwd "/workspace"
-        }
-    }
-    tab name="editor" {
-        pane name="vim" {
+        }}
+    }}
+    tab name="editor" {{
+        pane name="vim" {{
             command "bash"
             args "-c" "DEVBOX_EDITOR_DIR=tab exec vim-loop"
             cwd "/workspace"
-        }
-    }
-    tab name="claude" {
-        pane name="claude" {
-            command "claude"
-            cwd "/workspace"
-        }
-    }
-    tab name="git" {
-        pane name="lazygit" {
+        }}
+    }}{ai_section}
+    tab name="git" {{
+        pane name="lazygit" {{
             command "lazygit"
             cwd "/workspace"
-        }
-    }
-    tab name="shell" {
-        pane name="bash" {
+        }}
+    }}
+    tab name="shell" {{
+        pane name="bash" {{
             command "bash"
             cwd "/workspace"
-        }
-    }
+        }}
+    }}
+}}
+"#
+    )
 }
-"#;
 
-/// Zellij cowork layout — side-by-side coding with AI.
-const DEFAULT_ZELLIJ_COWORK_LAYOUT: &str = r#"layout {
+/// Generate the zellij cowork layout dynamically based on configured AI providers.
+fn generate_cowork_layout(providers: &[crate::config::AiProvider]) -> String {
+    let ai_pane = ai_pane_kdl(providers);
+
+    if ai_pane.is_empty() {
+        // No AI providers — full-width editor layout
+        return r#"layout {
     default_tab_template {
         children
         pane size=1 borderless=true {
@@ -253,20 +327,14 @@ const DEFAULT_ZELLIJ_COWORK_LAYOUT: &str = r#"layout {
     }
     tab name="cowork" focus=true {
         pane split_direction="vertical" {
-            pane size="50%" split_direction="horizontal" {
-                pane size="40%" name="files" focus=true {
-                    command "bash"
-                    args "-c" "DEVBOX_EDITOR_DIR=down exec yazi"
-                    cwd "/workspace"
-                }
-                pane size="60%" name="editor" {
-                    command "bash"
-                    args "-c" "DEVBOX_EDITOR_DIR=down exec vim-loop"
-                    cwd "/workspace"
-                }
+            pane size="40%" name="files" focus=true {
+                command "bash"
+                args "-c" "DEVBOX_EDITOR_DIR=down exec yazi"
+                cwd "/workspace"
             }
-            pane size="50%" name="claude" {
-                command "claude"
+            pane size="60%" name="editor" {
+                command "bash"
+                args "-c" "DEVBOX_EDITOR_DIR=down exec vim-loop"
                 cwd "/workspace"
             }
         }
@@ -284,7 +352,53 @@ const DEFAULT_ZELLIJ_COWORK_LAYOUT: &str = r#"layout {
         }
     }
 }
-"#;
+"#
+        .to_string();
+    }
+
+    format!(
+        r#"layout {{
+    default_tab_template {{
+        children
+        pane size=1 borderless=true {{
+            plugin location="zellij:status-bar"
+        }}
+    }}
+    tab name="cowork" focus=true {{
+        pane split_direction="vertical" {{
+            pane size="50%" split_direction="horizontal" {{
+                pane size="40%" name="files" focus=true {{
+                    command "bash"
+                    args "-c" "DEVBOX_EDITOR_DIR=down exec yazi"
+                    cwd "/workspace"
+                }}
+                pane size="60%" name="editor" {{
+                    command "bash"
+                    args "-c" "DEVBOX_EDITOR_DIR=down exec vim-loop"
+                    cwd "/workspace"
+                }}
+            }}
+            pane size="50%" {{
+{ai_pane}
+            }}
+        }}
+    }}
+    tab name="git" {{
+        pane name="lazygit" {{
+            command "lazygit"
+            cwd "/workspace"
+        }}
+    }}
+    tab name="shell" {{
+        pane name="bash" {{
+            command "bash"
+            cwd "/workspace"
+        }}
+    }}
+}}
+"#
+    )
+}
 
 /// Default yazi config.
 const DEFAULT_YAZI_CONFIG: &str = r#"[manager]
@@ -376,6 +490,14 @@ pub fn seed_root_dir(config: &DevBoxConfig) -> Result<()> {
             crate::config::AiProvider::Claude => {
                 dirs.push(root.join(".claude"));
             }
+            crate::config::AiProvider::Aider => {
+                // Aider uses ~/.aider for config
+                dirs.push(root.join(".aider"));
+            }
+            crate::config::AiProvider::Gemini => {
+                // Gemini CLI uses ~/.gemini for config
+                dirs.push(root.join(".gemini"));
+            }
         }
     }
 
@@ -413,13 +535,15 @@ pub fn seed_root_dir(config: &DevBoxConfig) -> Result<()> {
             .join(&theme_filename),
         crate::themes::zellij_theme(theme),
     )?;
+    // Zellij layouts — generated dynamically based on AI providers
+    let providers = &config.ai.providers;
     seed_file(
         &root
             .join(".config")
             .join("zellij")
             .join("layouts")
             .join("dev.kdl"),
-        DEFAULT_ZELLIJ_LAYOUT,
+        &generate_dev_layout(providers),
     )?;
     seed_file(
         &root
@@ -427,7 +551,7 @@ pub fn seed_root_dir(config: &DevBoxConfig) -> Result<()> {
             .join("zellij")
             .join("layouts")
             .join("focus.kdl"),
-        DEFAULT_ZELLIJ_FOCUS_LAYOUT,
+        &generate_focus_layout(providers),
     )?;
     seed_file(
         &root
@@ -435,7 +559,7 @@ pub fn seed_root_dir(config: &DevBoxConfig) -> Result<()> {
             .join("zellij")
             .join("layouts")
             .join("cowork.kdl"),
-        DEFAULT_ZELLIJ_COWORK_LAYOUT,
+        &generate_cowork_layout(providers),
     )?;
 
     // Yazi config + theme
@@ -513,11 +637,12 @@ pub fn force_seed_file(path: &Path, content: &str) -> Result<bool> {
     Ok(true)
 }
 
-/// Force-seed all theme-dependent config files from the current config.
+/// Force-seed all theme-dependent and AI-provider-dependent config files.
 /// Overwrites existing files when content has changed. Used by `dev-box sync`.
 pub fn sync_theme_files(config: &DevBoxConfig) -> Result<Vec<String>> {
     let root = config.host_root_dir();
     let theme = &config.appearance.theme;
+    let providers = &config.ai.providers;
     let mut updated = Vec::new();
 
     // vimrc — colorscheme and background
@@ -549,6 +674,38 @@ pub fn sync_theme_files(config: &DevBoxConfig) -> Result<Vec<String>> {
         crate::themes::zellij_theme(theme),
     )? {
         updated.push(format!(".config/zellij/themes/{}", theme_filename));
+    }
+
+    // Zellij layouts — depend on AI providers
+    if force_seed_file(
+        &root
+            .join(".config")
+            .join("zellij")
+            .join("layouts")
+            .join("dev.kdl"),
+        &generate_dev_layout(providers),
+    )? {
+        updated.push(".config/zellij/layouts/dev.kdl".to_string());
+    }
+    if force_seed_file(
+        &root
+            .join(".config")
+            .join("zellij")
+            .join("layouts")
+            .join("focus.kdl"),
+        &generate_focus_layout(providers),
+    )? {
+        updated.push(".config/zellij/layouts/focus.kdl".to_string());
+    }
+    if force_seed_file(
+        &root
+            .join(".config")
+            .join("zellij")
+            .join("layouts")
+            .join("cowork.kdl"),
+        &generate_cowork_layout(providers),
+    )? {
+        updated.push(".config/zellij/layouts/cowork.kdl".to_string());
     }
 
     // lazygit config
@@ -761,5 +918,130 @@ mod tests {
         fs::write(&path, "original").unwrap();
         seed_file(&path, "new content").unwrap();
         assert_eq!(fs::read_to_string(&path).unwrap(), "original");
+    }
+
+    #[test]
+    fn dev_layout_claude_only() {
+        let providers = vec![AiProvider::Claude];
+        let layout = generate_dev_layout(&providers);
+        assert!(layout.contains("tab name=\"claude\""), "should have claude tab");
+        assert!(layout.contains("command \"claude\""), "should have claude command");
+        assert!(!layout.contains("aider"), "should not have aider");
+    }
+
+    #[test]
+    fn dev_layout_aider_only() {
+        let providers = vec![AiProvider::Aider];
+        let layout = generate_dev_layout(&providers);
+        assert!(layout.contains("tab name=\"aider\""), "should have aider tab");
+        assert!(layout.contains("command \"aider\""), "should have aider command");
+        assert!(!layout.contains("claude"), "should not have claude");
+    }
+
+    #[test]
+    fn dev_layout_multiple_providers() {
+        let providers = vec![AiProvider::Claude, AiProvider::Aider];
+        let layout = generate_dev_layout(&providers);
+        assert!(layout.contains("tab name=\"claude\""), "should have claude tab");
+        assert!(layout.contains("tab name=\"aider\""), "should have aider tab");
+    }
+
+    #[test]
+    fn dev_layout_no_providers() {
+        let providers: Vec<AiProvider> = vec![];
+        let layout = generate_dev_layout(&providers);
+        assert!(!layout.contains("claude"), "should not have claude");
+        assert!(!layout.contains("aider"), "should not have aider");
+        assert!(!layout.contains("gemini"), "should not have gemini");
+        assert!(layout.contains("tab name=\"dev\""), "should still have dev tab");
+        assert!(layout.contains("tab name=\"git\""), "should still have git tab");
+    }
+
+    #[test]
+    fn focus_layout_gemini() {
+        let providers = vec![AiProvider::Gemini];
+        let layout = generate_focus_layout(&providers);
+        assert!(layout.contains("tab name=\"gemini\""), "should have gemini tab");
+        assert!(layout.contains("command \"gemini\""), "should have gemini command");
+    }
+
+    #[test]
+    fn cowork_layout_single_provider() {
+        let providers = vec![AiProvider::Claude];
+        let layout = generate_cowork_layout(&providers);
+        assert!(layout.contains("command \"claude\""), "should have claude pane");
+        assert!(!layout.contains("stacked"), "single provider should not be stacked");
+    }
+
+    #[test]
+    fn cowork_layout_multiple_providers_stacked() {
+        let providers = vec![AiProvider::Claude, AiProvider::Aider];
+        let layout = generate_cowork_layout(&providers);
+        assert!(layout.contains("stacked=true"), "multiple providers should be stacked");
+        assert!(layout.contains("command \"claude\""), "should have claude");
+        assert!(layout.contains("command \"aider\""), "should have aider");
+    }
+
+    #[test]
+    fn cowork_layout_no_providers() {
+        let providers: Vec<AiProvider> = vec![];
+        let layout = generate_cowork_layout(&providers);
+        assert!(!layout.contains("claude"), "should not have claude");
+        assert!(layout.contains("tab name=\"cowork\""), "should still have cowork tab");
+    }
+
+    #[test]
+    fn ai_pane_kdl_empty() {
+        let result = ai_pane_kdl(&[]);
+        assert!(result.is_empty(), "empty providers should produce empty string");
+    }
+
+    #[test]
+    fn ai_pane_kdl_single() {
+        let result = ai_pane_kdl(&[AiProvider::Claude]);
+        assert!(result.contains("command \"claude\""));
+        assert!(!result.contains("stacked"));
+    }
+
+    #[test]
+    fn ai_pane_kdl_multiple() {
+        let result = ai_pane_kdl(&[AiProvider::Claude, AiProvider::Aider, AiProvider::Gemini]);
+        assert!(result.contains("stacked=true"));
+        assert!(result.contains("command \"claude\""));
+        assert!(result.contains("command \"aider\""));
+        assert!(result.contains("command \"gemini\""));
+    }
+
+    #[test]
+    #[serial]
+    fn seed_root_dir_creates_aider_dir_when_configured() {
+        let dir = tempfile::tempdir().unwrap();
+        let root = dir.path().join("root");
+        let mut config = make_config(false, root.clone());
+        config.ai.providers = vec![AiProvider::Aider];
+        seed_root_dir(&config).unwrap();
+
+        assert!(root.join(".aider").is_dir(), ".aider directory should be created");
+        assert!(!root.join(".claude").exists(), ".claude should not exist");
+
+        unsafe {
+            std::env::remove_var("DEV_BOX_HOST_ROOT");
+        }
+    }
+
+    #[test]
+    #[serial]
+    fn seed_root_dir_creates_gemini_dir_when_configured() {
+        let dir = tempfile::tempdir().unwrap();
+        let root = dir.path().join("root");
+        let mut config = make_config(false, root.clone());
+        config.ai.providers = vec![AiProvider::Gemini];
+        seed_root_dir(&config).unwrap();
+
+        assert!(root.join(".gemini").is_dir(), ".gemini directory should be created");
+
+        unsafe {
+            std::env::remove_var("DEV_BOX_HOST_ROOT");
+        }
     }
 }

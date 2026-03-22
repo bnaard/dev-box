@@ -313,8 +313,8 @@ fn serialize_config_with_comments(config: &DevBoxConfig) -> String {
     ));
 
     // [ai] section
-    out.push_str("\n# AI tool providers. Controls which AI CLI tools are mounted/configured.\n");
-    out.push_str("# Options: claude (more providers planned)\n");
+    out.push_str("\n# AI tool providers. Controls which AI CLI tools are installed and configured.\n");
+    out.push_str("# Options: claude, aider, gemini\n");
     out.push_str("[ai]\n");
     out.push_str(&format!(
         "providers = [{}]\n",

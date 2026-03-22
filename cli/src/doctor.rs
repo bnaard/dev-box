@@ -150,6 +150,8 @@ fn check_mount_sources(
     for provider in &config.ai.providers {
         let dir_name = match provider {
             crate::config::AiProvider::Claude => ".claude",
+            crate::config::AiProvider::Aider => ".aider",
+            crate::config::AiProvider::Gemini => ".gemini",
         };
         let path = root.join(dir_name);
         if path.exists() {
