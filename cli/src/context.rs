@@ -2,7 +2,7 @@ use anyhow::{Context, Result};
 use std::fs;
 use std::path::Path;
 
-use crate::config::{AddonsSection, DevBoxConfig};
+use crate::config::{AddonsSection, AiProvider, DevBoxConfig};
 use crate::output;
 use crate::process_registry;
 
@@ -1310,6 +1310,197 @@ fn ensure_devbox_entries(gitignore_path: &Path) -> Result<()> {
     Ok(())
 }
 
+/// Reconcile skills on disk with the effective skill set from config.
+///
+/// - Deploys missing skills from the effective set (write_if_missing)
+/// - Reports orphan skills (on disk but not in the effective set)
+pub fn reconcile_skills(config: &DevBoxConfig) -> Result<()> {
+    let packages = process_registry::resolve_packages(&config.process.packages)
+        .map_err(|e| anyhow::anyhow!(e))?;
+    let effective = process_registry::resolve_skills(
+        &packages,
+        &config.skills.include,
+        &config.skills.exclude,
+    )
+    .map_err(|e| anyhow::anyhow!(e))?;
+
+    let skills_dir = Path::new(".claude").join("skills");
+    if !skills_dir.exists() {
+        fs::create_dir_all(&skills_dir)?;
+    }
+
+    let mut deployed = 0u32;
+    let mut skipped_orphans = Vec::new();
+
+    // Deploy missing skills from effective set
+    for (name, content, refs) in ALL_SKILL_DEFS.iter() {
+        if effective.contains(&name.to_string()) {
+            let skill_dir = skills_dir.join(name);
+            fs::create_dir_all(&skill_dir)?;
+            let skill_path = skill_dir.join("SKILL.md");
+            if !skill_path.exists() {
+                write_if_missing(&skill_path, content)?;
+                deployed += 1;
+            }
+            // Deploy reference files
+            if !refs.is_empty() {
+                let refs_dir = skill_dir.join("references");
+                fs::create_dir_all(&refs_dir)?;
+                for (ref_name, ref_content) in *refs {
+                    write_if_missing(&refs_dir.join(ref_name), ref_content)?;
+                }
+            }
+        }
+    }
+
+    // Check for orphan skills (on disk but not in effective set)
+    if let Ok(entries) = fs::read_dir(&skills_dir) {
+        for entry in entries.flatten() {
+            if entry.file_type().map(|t| t.is_dir()).unwrap_or(false) {
+                let name = entry.file_name().to_string_lossy().to_string();
+                if !effective.contains(&name) {
+                    skipped_orphans.push(name);
+                }
+            }
+        }
+    }
+
+    if deployed > 0 {
+        output::ok(&format!("Deployed {} missing skills", deployed));
+    }
+    for orphan in &skipped_orphans {
+        output::info(&format!(
+            "Skill '{}' is installed but not in your declared set — consider removing or adding to [skills] include",
+            orphan
+        ));
+    }
+
+    Ok(())
+}
+
+/// Generate the universal baseline document at `context/DEVBOX.md`.
+///
+/// This file is OWNED by dev-box — always overwritten on sync (unlike other
+/// context files which use write_if_missing).
+pub fn generate_devbox_md(config: &DevBoxConfig) -> Result<()> {
+    let context_dir = Path::new("context");
+    if !context_dir.exists() {
+        // No context directory = minimal setup, skip
+        return Ok(());
+    }
+
+    let packages = &config.process.packages;
+    let version = &config.dev_box.version;
+    let base = &config.dev_box.base;
+
+    // Build addon list
+    let mut addon_list: Vec<String> = config.addons.addons.keys().cloned().collect();
+    addon_list.sort();
+
+    // Build content
+    let content = format!(
+        r#"# dev-box Baseline
+
+> This file is managed by dev-box. Do not edit manually — changes will be
+> overwritten on `dev-box sync`.
+
+## Quick Reference
+
+- **Process packages:** {packages}
+- **Base image:** {base}
+- **Add-ons:** {addons}
+- **CLI version:** {version}
+
+## Session Protocol
+
+1. Check for migration documents in `context/migrations/`. If any exist with
+   status "pending", discuss with the user before proceeding with other work.
+2. Read this file and any work instructions in `context/work-instructions/`.
+3. Follow the process-specific context files listed below.
+
+## Safety Rules
+
+- Never execute migration scripts automatically. Always discuss with the user.
+- Never modify dev-box.toml without user confirmation.
+- Never delete context files.
+- Always check `.dev-box-version` matches expectations.
+
+## Context Layout
+
+{context_layout}
+"#,
+        packages = packages.join(", "),
+        base = base,
+        addons = if addon_list.is_empty() {
+            "none".to_string()
+        } else {
+            addon_list.join(", ")
+        },
+        version = version,
+        context_layout = generate_context_layout(packages),
+    );
+
+    let devbox_path = context_dir.join("DEVBOX.md");
+    fs::write(&devbox_path, content)?;
+    output::ok("Updated context/DEVBOX.md");
+
+    Ok(())
+}
+
+/// Generate a context layout description based on the resolved packages.
+fn generate_context_layout(packages: &[String]) -> String {
+    let resolved = match process_registry::resolve_packages(packages) {
+        Ok(pkgs) => pkgs,
+        Err(_) => return "Unable to resolve packages.".to_string(),
+    };
+
+    let mut lines = Vec::new();
+    lines.push("```".to_string());
+
+    for pkg in &resolved {
+        lines.push(format!("# {} package", pkg.name));
+        for cf in pkg.context_files {
+            lines.push(format!("  {}", cf.path));
+        }
+        for dir in pkg.directories {
+            lines.push(format!("  {}", dir));
+        }
+    }
+
+    lines.push("```".to_string());
+    lines.join("\n")
+}
+
+/// Check that agent entry point files contain a pointer to `context/DEVBOX.md`.
+///
+/// Warns (but does not fail) when an entry point file exists but does not
+/// reference the baseline document.
+pub fn check_agent_entry_points(config: &DevBoxConfig) -> Result<()> {
+    let devbox_pointer = "context/DEVBOX.md";
+
+    for provider in &config.ai.providers {
+        let entry_file = match provider {
+            AiProvider::Claude => "CLAUDE.md",
+            AiProvider::Aider => ".aider.conf.yml",
+            AiProvider::Gemini => ".gemini/settings.json",
+            AiProvider::Mistral => ".mistral/config.json",
+        };
+
+        let path = Path::new(entry_file);
+        if path.exists() {
+            let content = fs::read_to_string(path)?;
+            if !content.contains(devbox_pointer) {
+                output::warn(&format!(
+                    "{} does not reference {} — consider adding a pointer",
+                    entry_file, devbox_pointer
+                ));
+            }
+        }
+    }
+
+    Ok(())
+}
+
 /// Check that .gitignore has required entries. Used by doctor.
 pub fn check_gitignore_entries() -> Vec<String> {
     let gitignore_path = Path::new(".gitignore");
@@ -1721,5 +1912,156 @@ mod tests {
     fn expected_context_files_with_operations_package() {
         let files = expected_context_files(&["operations".to_string()]);
         assert!(files.contains(&"context/work-instructions/TEAM.md"));
+    }
+
+    // -- reconcile_skills tests --
+
+    #[test]
+    #[serial]
+    fn reconcile_skills_deploys_missing_skills() {
+        in_temp_dir(|| {
+            // Set up skills dir but leave it empty
+            fs::create_dir_all(".claude/skills").unwrap();
+            let config = test_config_with_packages(vec!["core".to_string(), "tracking".to_string()]);
+            reconcile_skills(&config).unwrap();
+            // agent-management is a core skill with a template
+            assert!(
+                Path::new(".claude/skills/agent-management/SKILL.md").exists(),
+                "agent-management should be deployed"
+            );
+            // backlog-context is a tracking skill with a template
+            assert!(
+                Path::new(".claude/skills/backlog-context/SKILL.md").exists(),
+                "backlog-context should be deployed"
+            );
+        });
+    }
+
+    #[test]
+    #[serial]
+    fn reconcile_skills_does_not_overwrite_existing() {
+        in_temp_dir(|| {
+            // Pre-create a skill with custom content
+            let skill_dir = Path::new(".claude/skills/agent-management");
+            fs::create_dir_all(skill_dir).unwrap();
+            fs::write(skill_dir.join("SKILL.md"), "custom content").unwrap();
+
+            let config = test_config_with_packages(vec!["core".to_string()]);
+            reconcile_skills(&config).unwrap();
+
+            let content = fs::read_to_string(skill_dir.join("SKILL.md")).unwrap();
+            assert_eq!(content, "custom content", "Should not overwrite existing skill");
+        });
+    }
+
+    #[test]
+    #[serial]
+    fn reconcile_skills_detects_orphans() {
+        in_temp_dir(|| {
+            // Create a skill that is NOT in core's effective set
+            let orphan_dir = Path::new(".claude/skills/some-unknown-skill");
+            fs::create_dir_all(orphan_dir).unwrap();
+            fs::write(orphan_dir.join("SKILL.md"), "orphan").unwrap();
+
+            let config = test_config_with_packages(vec!["core".to_string()]);
+            // Should not error, just print info notices
+            reconcile_skills(&config).unwrap();
+            // The orphan dir should still exist (not deleted)
+            assert!(orphan_dir.exists());
+        });
+    }
+
+    // -- generate_devbox_md tests --
+
+    #[test]
+    #[serial]
+    fn generate_devbox_md_creates_file() {
+        in_temp_dir(|| {
+            fs::create_dir_all("context").unwrap();
+            let config = test_config_with_packages(vec!["core".to_string()]);
+            generate_devbox_md(&config).unwrap();
+            let path = Path::new("context/DEVBOX.md");
+            assert!(path.exists(), "DEVBOX.md should be created");
+            let content = fs::read_to_string(path).unwrap();
+            assert!(content.contains("dev-box Baseline"));
+            assert!(content.contains("core"));
+            assert!(content.contains("debian"));
+        });
+    }
+
+    #[test]
+    #[serial]
+    fn generate_devbox_md_overwrites_existing() {
+        in_temp_dir(|| {
+            fs::create_dir_all("context").unwrap();
+            fs::write("context/DEVBOX.md", "old content").unwrap();
+            let config = test_config_with_packages(vec!["core".to_string()]);
+            generate_devbox_md(&config).unwrap();
+            let content = fs::read_to_string("context/DEVBOX.md").unwrap();
+            assert!(
+                content.contains("dev-box Baseline"),
+                "DEVBOX.md should be overwritten with new content"
+            );
+            assert!(!content.contains("old content"));
+        });
+    }
+
+    #[test]
+    #[serial]
+    fn generate_devbox_md_skips_without_context_dir() {
+        in_temp_dir(|| {
+            let config = test_config_with_packages(vec!["core".to_string()]);
+            // No context/ directory — should not error
+            generate_devbox_md(&config).unwrap();
+            assert!(!Path::new("context/DEVBOX.md").exists());
+        });
+    }
+
+    #[test]
+    #[serial]
+    fn generate_devbox_md_includes_addon_list() {
+        in_temp_dir(|| {
+            fs::create_dir_all("context").unwrap();
+            let mut config = test_config_with_packages(vec!["core".to_string()]);
+            config.addons = addons_with(&["python", "node"]);
+            generate_devbox_md(&config).unwrap();
+            let content = fs::read_to_string("context/DEVBOX.md").unwrap();
+            assert!(content.contains("node"));
+            assert!(content.contains("python"));
+        });
+    }
+
+    // -- check_agent_entry_points tests --
+
+    #[test]
+    #[serial]
+    fn check_agent_entry_points_no_error_when_pointer_present() {
+        in_temp_dir(|| {
+            fs::write("CLAUDE.md", "# My Project\n\nRead context/DEVBOX.md first.\n").unwrap();
+            let config = test_config_with_packages(vec!["core".to_string()]);
+            // Should not error
+            check_agent_entry_points(&config).unwrap();
+        });
+    }
+
+    #[test]
+    #[serial]
+    fn check_agent_entry_points_warns_when_pointer_missing() {
+        in_temp_dir(|| {
+            fs::write("CLAUDE.md", "# My Project\n\nNo pointer here.\n").unwrap();
+            let config = test_config_with_packages(vec!["core".to_string()]);
+            // Should warn but not error
+            check_agent_entry_points(&config).unwrap();
+        });
+    }
+
+    #[test]
+    #[serial]
+    fn check_agent_entry_points_skips_missing_files() {
+        in_temp_dir(|| {
+            // No CLAUDE.md exists — should not error
+            let config = test_config_with_packages(vec!["core".to_string()]);
+            check_agent_entry_points(&config).unwrap();
+        });
     }
 }
