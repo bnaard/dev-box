@@ -1,3 +1,5 @@
+#[allow(dead_code)]
+mod addon_registry;
 mod addons;
 mod audit;
 mod audio;
@@ -9,6 +11,8 @@ mod doctor;
 mod env;
 mod generate;
 mod output;
+#[allow(dead_code)]
+mod process_registry;
 mod reset;
 mod runtime;
 mod seed;
@@ -42,7 +46,7 @@ fn dispatch(cli: cli::Cli) -> anyhow::Result<()> {
     match cli.command {
         cli::Commands::Init {
             name,
-            image,
+            base,
             process,
             ai,
             user,
@@ -53,7 +57,7 @@ fn dispatch(cli: cli::Cli) -> anyhow::Result<()> {
             config_path,
             container::InitParams {
                 name,
-                image,
+                base,
                 process,
                 ai,
                 user,

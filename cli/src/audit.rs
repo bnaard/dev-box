@@ -77,7 +77,7 @@ fn check_trivy(config: &Option<DevBoxConfig>) -> Result<()> {
 
     let image = format!(
         "ghcr.io/projectious-work/dev-box/{}:latest",
-        config.dev_box.image
+        config.dev_box.base
     );
 
     output::info(&format!("Running trivy image scan on {}...", image));

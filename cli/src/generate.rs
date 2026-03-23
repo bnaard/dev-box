@@ -84,22 +84,20 @@ fn generate_dockerfile(
     // Build list of AI provider strings for Dockerfile template
     let ai_providers: Vec<String> = config.ai.providers.iter().map(|p| p.to_string()).collect();
 
-    // Build addon bundle install commands
-    let addon_commands: Vec<&str> = config
-        .addons
-        .bundles
-        .iter()
-        .map(|b| crate::addons::dockerfile_commands(b))
-        .collect();
+    // Build addon Dockerfile content (builder stages + runtime commands)
+    let addon_output = crate::addons::generate_dockerfile_content(&config.addons);
+    let addon_builder_stages = addon_output.builder_stages;
+    let addon_commands = addon_output.runtime_commands;
 
     let content = tmpl
         .render(context! {
             header => header,
             registry => crate::config::IMAGE_REGISTRY,
-            image => config.dev_box.image.to_string(),
+            image => config.dev_box.base.to_string(),
             version => config.dev_box.version,
             extra_packages => config.container.extra_packages,
             ai_providers => ai_providers,
+            addon_builder_stages => addon_builder_stages,
             addon_commands => addon_commands,
             local_content => local_content,
         })
@@ -194,27 +192,27 @@ fn generate_docker_compose(
 /// Generate devcontainer.json. Returns true if file was written.
 fn generate_devcontainer_json(config: &DevBoxConfig, dir: &Path) -> Result<bool> {
     let name = &config.container.name;
-    let image = &config.dev_box.image;
+    let addons = &config.addons;
 
     // Build extensions list
     let mut extensions: Vec<String> = vec![];
-    if image.contains_python() {
+    if addons.has_python() {
         extensions.push("ms-python.python".to_string());
     }
-    if image.contains_rust() {
+    if addons.has_rust() {
         extensions.push("rust-lang.rust-analyzer".to_string());
     }
-    if image.contains_latex() {
+    if addons.has_latex() {
         extensions.push("james-yu.latex-workshop".to_string());
         extensions.push("mblode.zotero".to_string());
     }
-    if image.contains_typst() {
+    if addons.has_addon("typst") {
         extensions.push("myriad-dreamin.tinymist".to_string());
     }
-    if image.contains_node() {
+    if addons.has_node() {
         extensions.push("dbaeumer.vscode-eslint".to_string());
     }
-    if image.contains_go() {
+    if addons.has_addon("go") {
         extensions.push("golang.go".to_string());
     }
 
@@ -239,6 +237,7 @@ fn generate_devcontainer_json(config: &DevBoxConfig, dir: &Path) -> Result<bool>
             crate::config::AiProvider::Claude => ("claude", "/usr/local/bin/claude"),
             crate::config::AiProvider::Aider => ("aider", "/usr/local/bin/aider"),
             crate::config::AiProvider::Gemini => ("gemini", "/usr/local/bin/gemini"),
+            crate::config::AiProvider::Mistral => ("mistral", "/usr/local/bin/mistral"),
         };
         terminal_profiles.as_object_mut().unwrap().insert(
             name.to_string(),
@@ -254,7 +253,7 @@ fn generate_devcontainer_json(config: &DevBoxConfig, dir: &Path) -> Result<bool>
     });
 
     // LaTeX Workshop settings — matches proven setup from derived projects
-    if image.contains_latex() {
+    if addons.has_latex() {
         let latex_settings = serde_json::json!({
             "latex-workshop.latex.outDir": "./out",
             "latex-workshop.view.pdf.viewer": "tab",
@@ -350,6 +349,17 @@ fn generate_devcontainer_json(config: &DevBoxConfig, dir: &Path) -> Result<bool>
             .insert("postCreateCommand".to_string(), serde_json::json!(cmd));
     }
 
+    // Network keepalive — lightweight DNS lookup every 2 min to prevent
+    // OrbStack/VM NAT from dropping idle connections.
+    if config.container.keepalive {
+        devcontainer.as_object_mut().unwrap().insert(
+            "postStartCommand".to_string(),
+            serde_json::json!(
+                "nohup bash -c 'while true; do nslookup example.com > /dev/null 2>&1; sleep 120; done' > /dev/null 2>&1 &"
+            ),
+        );
+    }
+
     // Prevent VS Code from auto-forwarding the PulseAudio port (fixes #11)
     if config.audio.enabled {
         // Extract port from pulse_server string (e.g., "tcp:host.docker.internal:4714")
@@ -393,11 +403,27 @@ mod tests {
         create_template_env()
     }
 
-    fn make_config(image: ImageFlavor, audio_enabled: bool) -> DevBoxConfig {
-        let mut config = crate::config::test_config(image, ProcessFlavor::Minimal);
+    fn addons_with(names: &[&str]) -> crate::config::AddonsSection {
+        use crate::config::{AddonToolsSection, AddonsSection};
+        use std::collections::HashMap;
+        let mut addons = HashMap::new();
+        for name in names {
+            addons.insert(
+                name.to_string(),
+                AddonToolsSection {
+                    tools: HashMap::new(),
+                },
+            );
+        }
+        AddonsSection { addons }
+    }
+
+    fn make_config(addon_names: &[&str], audio_enabled: bool) -> DevBoxConfig {
+        let mut config = crate::config::test_config();
         config.dev_box.version = "1.2.3".to_string();
         config.container.name = "test-ctr".to_string();
         config.container.hostname = "test-host".to_string();
+        config.addons = addons_with(addon_names);
         config.audio = AudioSection {
             enabled: audio_enabled,
             pulse_server: "tcp:localhost:4714".to_string(),
@@ -412,7 +438,7 @@ mod tests {
         // We need to run generate functions directly on the temp dir
         // Since generate_all uses relative paths, we test the individual generators
         fs::create_dir_all(&devcontainer).unwrap();
-        let config = make_config(ImageFlavor::Base, false);
+        let config = make_config(&[], false);
         generate_dockerfile(&config, &devcontainer, &test_env()).unwrap();
         generate_docker_compose(&config, &devcontainer, &test_env()).unwrap();
         generate_devcontainer_json(&config, &devcontainer).unwrap();
@@ -425,23 +451,23 @@ mod tests {
     #[test]
     fn dockerfile_contains_correct_from_image() {
         let dir = tempfile::tempdir().unwrap();
-        let config = make_config(ImageFlavor::Python, false);
+        let config = make_config(&["python"], false);
         generate_dockerfile(&config, dir.path(), &test_env()).unwrap();
         let content = fs::read_to_string(dir.path().join("Dockerfile")).unwrap();
         assert!(
             content.contains(&format!(
-                "FROM {}:python-v{} AS dev-box",
+                "FROM {}:debian-v{} AS dev-box",
                 crate::config::IMAGE_REGISTRY,
                 config.dev_box.version
             )),
-            "Dockerfile should reference python image with correct tag format and stage alias"
+            "Dockerfile should reference debian base image with correct tag format and stage alias"
         );
     }
 
     #[test]
     fn dockerfile_includes_extra_packages() {
         let dir = tempfile::tempdir().unwrap();
-        let mut config = make_config(ImageFlavor::Base, false);
+        let mut config = make_config(&[], false);
         config.container.extra_packages = vec!["ripgrep".to_string(), "fd-find".to_string()];
         generate_dockerfile(&config, dir.path(), &test_env()).unwrap();
         let content = fs::read_to_string(dir.path().join("Dockerfile")).unwrap();
@@ -456,7 +482,7 @@ mod tests {
     #[test]
     fn dockerfile_no_extra_run_when_no_packages() {
         let dir = tempfile::tempdir().unwrap();
-        let config = make_config(ImageFlavor::Base, false);
+        let config = make_config(&[], false);
         generate_dockerfile(&config, dir.path(), &test_env()).unwrap();
         let content = fs::read_to_string(dir.path().join("Dockerfile")).unwrap();
         assert!(
@@ -468,7 +494,7 @@ mod tests {
     #[test]
     fn compose_contains_container_name_and_hostname() {
         let dir = tempfile::tempdir().unwrap();
-        let config = make_config(ImageFlavor::Base, false);
+        let config = make_config(&[], false);
         generate_docker_compose(&config, dir.path(), &test_env()).unwrap();
         let content = fs::read_to_string(dir.path().join("docker-compose.yml")).unwrap();
         assert!(content.contains("container_name: test-ctr"));
@@ -478,7 +504,7 @@ mod tests {
     #[test]
     fn compose_includes_audio_when_enabled() {
         let dir = tempfile::tempdir().unwrap();
-        let config = make_config(ImageFlavor::Base, true);
+        let config = make_config(&[], true);
         generate_docker_compose(&config, dir.path(), &test_env()).unwrap();
         let content = fs::read_to_string(dir.path().join("docker-compose.yml")).unwrap();
         assert!(
@@ -495,7 +521,7 @@ mod tests {
     #[test]
     fn compose_excludes_audio_when_disabled() {
         let dir = tempfile::tempdir().unwrap();
-        let config = make_config(ImageFlavor::Base, false);
+        let config = make_config(&[], false);
         generate_docker_compose(&config, dir.path(), &test_env()).unwrap();
         let content = fs::read_to_string(dir.path().join("docker-compose.yml")).unwrap();
         assert!(!content.contains("PULSE_SERVER"));
@@ -506,7 +532,7 @@ mod tests {
     #[test]
     fn compose_includes_extra_volumes() {
         let dir = tempfile::tempdir().unwrap();
-        let mut config = make_config(ImageFlavor::Base, false);
+        let mut config = make_config(&[], false);
         config.container.extra_volumes = vec![ExtraVolume {
             source: "/host/data".to_string(),
             target: "/container/data".to_string(),
@@ -520,7 +546,7 @@ mod tests {
     #[test]
     fn compose_includes_extra_environment() {
         let dir = tempfile::tempdir().unwrap();
-        let mut config = make_config(ImageFlavor::Base, false);
+        let mut config = make_config(&[], false);
         config
             .container
             .environment
@@ -533,7 +559,7 @@ mod tests {
     #[test]
     fn dockerfile_appends_local_when_present() {
         let dir = tempfile::tempdir().unwrap();
-        let config = make_config(ImageFlavor::Base, false);
+        let config = make_config(&[], false);
         fs::write(
             dir.path().join("Dockerfile.local"),
             "RUN npx playwright install --with-deps chromium\n",
@@ -554,7 +580,7 @@ mod tests {
     #[test]
     fn dockerfile_skips_empty_local() {
         let dir = tempfile::tempdir().unwrap();
-        let config = make_config(ImageFlavor::Base, false);
+        let config = make_config(&[], false);
         fs::write(dir.path().join("Dockerfile.local"), "  \n").unwrap();
         generate_dockerfile(&config, dir.path(), &test_env()).unwrap();
         let content = fs::read_to_string(dir.path().join("Dockerfile")).unwrap();
@@ -567,7 +593,7 @@ mod tests {
     #[test]
     fn dockerfile_works_without_local() {
         let dir = tempfile::tempdir().unwrap();
-        let config = make_config(ImageFlavor::Base, false);
+        let config = make_config(&[], false);
         generate_dockerfile(&config, dir.path(), &test_env()).unwrap();
         let content = fs::read_to_string(dir.path().join("Dockerfile")).unwrap();
         assert!(
@@ -579,7 +605,7 @@ mod tests {
     #[test]
     fn dockerfile_local_with_multistage() {
         let dir = tempfile::tempdir().unwrap();
-        let config = make_config(ImageFlavor::Python, false);
+        let config = make_config(&["python"], false);
         fs::write(
             dir.path().join("Dockerfile.local"),
             "FROM node:20 AS node-builder\nRUN npm ci\n\nFROM dev-box\nCOPY --from=node-builder /app /app\n",
@@ -595,7 +621,7 @@ mod tests {
     #[test]
     fn devcontainer_json_python_extension() {
         let dir = tempfile::tempdir().unwrap();
-        let config = make_config(ImageFlavor::Python, false);
+        let config = make_config(&["python"], false);
         generate_devcontainer_json(&config, dir.path()).unwrap();
         let content = fs::read_to_string(dir.path().join("devcontainer.json")).unwrap();
         assert!(content.contains("ms-python.python"));
@@ -604,7 +630,7 @@ mod tests {
     #[test]
     fn devcontainer_json_latex_extensions() {
         let dir = tempfile::tempdir().unwrap();
-        let config = make_config(ImageFlavor::Latex, false);
+        let config = make_config(&["latex"], false);
         generate_devcontainer_json(&config, dir.path()).unwrap();
         let content = fs::read_to_string(dir.path().join("devcontainer.json")).unwrap();
         assert!(content.contains("james-yu.latex-workshop"));
@@ -614,7 +640,7 @@ mod tests {
     #[test]
     fn devcontainer_json_rust_extension() {
         let dir = tempfile::tempdir().unwrap();
-        let config = make_config(ImageFlavor::Rust, false);
+        let config = make_config(&["rust"], false);
         generate_devcontainer_json(&config, dir.path()).unwrap();
         let content = fs::read_to_string(dir.path().join("devcontainer.json")).unwrap();
         assert!(content.contains("rust-lang.rust-analyzer"));
@@ -623,7 +649,7 @@ mod tests {
     #[test]
     fn devcontainer_json_python_latex_extensions() {
         let dir = tempfile::tempdir().unwrap();
-        let config = make_config(ImageFlavor::PythonLatex, false);
+        let config = make_config(&["python", "latex"], false);
         generate_devcontainer_json(&config, dir.path()).unwrap();
         let content = fs::read_to_string(dir.path().join("devcontainer.json")).unwrap();
         assert!(content.contains("ms-python.python"));
@@ -633,7 +659,7 @@ mod tests {
     #[test]
     fn devcontainer_json_typst_extension() {
         let dir = tempfile::tempdir().unwrap();
-        let config = make_config(ImageFlavor::Typst, false);
+        let config = make_config(&["typst"], false);
         generate_devcontainer_json(&config, dir.path()).unwrap();
         let content = fs::read_to_string(dir.path().join("devcontainer.json")).unwrap();
         assert!(content.contains("myriad-dreamin.tinymist"));
@@ -642,7 +668,7 @@ mod tests {
     #[test]
     fn devcontainer_json_python_typst_extensions() {
         let dir = tempfile::tempdir().unwrap();
-        let config = make_config(ImageFlavor::PythonTypst, false);
+        let config = make_config(&["python", "typst"], false);
         generate_devcontainer_json(&config, dir.path()).unwrap();
         let content = fs::read_to_string(dir.path().join("devcontainer.json")).unwrap();
         assert!(content.contains("ms-python.python"));
@@ -652,7 +678,7 @@ mod tests {
     #[test]
     fn devcontainer_json_includes_post_create_command() {
         let dir = tempfile::tempdir().unwrap();
-        let mut config = make_config(ImageFlavor::Base, false);
+        let mut config = make_config(&[], false);
         config.container.post_create_command = Some("pip install foo".to_string());
         generate_devcontainer_json(&config, dir.path()).unwrap();
         let content = fs::read_to_string(dir.path().join("devcontainer.json")).unwrap();
@@ -667,9 +693,38 @@ mod tests {
     }
 
     #[test]
+    fn devcontainer_json_includes_keepalive() {
+        let dir = tempfile::tempdir().unwrap();
+        let mut config = make_config(&[], false);
+        config.container.keepalive = true;
+        generate_devcontainer_json(&config, dir.path()).unwrap();
+        let content = fs::read_to_string(dir.path().join("devcontainer.json")).unwrap();
+        assert!(
+            content.contains("postStartCommand"),
+            "should contain postStartCommand key"
+        );
+        assert!(
+            content.contains("nslookup"),
+            "should contain keepalive nslookup command"
+        );
+    }
+
+    #[test]
+    fn devcontainer_json_excludes_keepalive_when_disabled() {
+        let dir = tempfile::tempdir().unwrap();
+        let config = make_config(&[], false);
+        generate_devcontainer_json(&config, dir.path()).unwrap();
+        let content = fs::read_to_string(dir.path().join("devcontainer.json")).unwrap();
+        assert!(
+            !content.contains("postStartCommand"),
+            "should not contain postStartCommand when keepalive is disabled"
+        );
+    }
+
+    #[test]
     fn devcontainer_json_includes_custom_extensions() {
         let dir = tempfile::tempdir().unwrap();
-        let mut config = make_config(ImageFlavor::Base, false);
+        let mut config = make_config(&[], false);
         config.container.vscode_extensions = vec!["eamodio.gitlens".to_string()];
         generate_devcontainer_json(&config, dir.path()).unwrap();
         let content = fs::read_to_string(dir.path().join("devcontainer.json")).unwrap();
@@ -682,7 +737,7 @@ mod tests {
     #[test]
     fn devcontainer_json_base_no_extra_extensions() {
         let dir = tempfile::tempdir().unwrap();
-        let config = make_config(ImageFlavor::Base, false);
+        let config = make_config(&[], false);
         generate_devcontainer_json(&config, dir.path()).unwrap();
         let content = fs::read_to_string(dir.path().join("devcontainer.json")).unwrap();
         assert!(!content.contains("ms-python.python"));
@@ -693,7 +748,7 @@ mod tests {
     #[test]
     fn dockerfile_starts_with_header_comment() {
         let dir = tempfile::tempdir().unwrap();
-        let config = make_config(ImageFlavor::Base, false);
+        let config = make_config(&[], false);
         generate_dockerfile(&config, dir.path(), &test_env()).unwrap();
         let content = fs::read_to_string(dir.path().join("Dockerfile")).unwrap();
         assert!(content.starts_with("# Generated by dev-box v1.2.3"));
@@ -702,7 +757,7 @@ mod tests {
     #[test]
     fn compose_starts_with_header_comment() {
         let dir = tempfile::tempdir().unwrap();
-        let config = make_config(ImageFlavor::Base, false);
+        let config = make_config(&[], false);
         generate_docker_compose(&config, dir.path(), &test_env()).unwrap();
         let content = fs::read_to_string(dir.path().join("docker-compose.yml")).unwrap();
         assert!(content.starts_with("# Generated by dev-box v1.2.3"));
@@ -711,7 +766,7 @@ mod tests {
     #[test]
     fn devcontainer_json_starts_with_header_comment() {
         let dir = tempfile::tempdir().unwrap();
-        let config = make_config(ImageFlavor::Base, false);
+        let config = make_config(&[], false);
         generate_devcontainer_json(&config, dir.path()).unwrap();
         let content = fs::read_to_string(dir.path().join("devcontainer.json")).unwrap();
         assert!(content.starts_with("// Generated by dev-box v1.2.3"));
@@ -720,7 +775,7 @@ mod tests {
     #[test]
     fn devcontainer_json_claude_terminal_profile() {
         let dir = tempfile::tempdir().unwrap();
-        let config = make_config(ImageFlavor::Base, false);
+        let config = make_config(&[], false);
         generate_devcontainer_json(&config, dir.path()).unwrap();
         let content = fs::read_to_string(dir.path().join("devcontainer.json")).unwrap();
         assert!(content.contains("claude"), "default config should include claude profile");
@@ -729,7 +784,7 @@ mod tests {
     #[test]
     fn devcontainer_json_no_ai_terminal_profiles_when_empty() {
         let dir = tempfile::tempdir().unwrap();
-        let mut config = make_config(ImageFlavor::Base, false);
+        let mut config = make_config(&[], false);
         config.ai.providers = vec![];
         generate_devcontainer_json(&config, dir.path()).unwrap();
         let content = fs::read_to_string(dir.path().join("devcontainer.json")).unwrap();
@@ -741,7 +796,7 @@ mod tests {
     #[test]
     fn devcontainer_json_aider_terminal_profile() {
         let dir = tempfile::tempdir().unwrap();
-        let mut config = make_config(ImageFlavor::Base, false);
+        let mut config = make_config(&[], false);
         config.ai.providers = vec![crate::config::AiProvider::Aider];
         generate_devcontainer_json(&config, dir.path()).unwrap();
         let content = fs::read_to_string(dir.path().join("devcontainer.json")).unwrap();
@@ -752,7 +807,7 @@ mod tests {
     #[test]
     fn dockerfile_includes_aider_install() {
         let dir = tempfile::tempdir().unwrap();
-        let mut config = make_config(ImageFlavor::Base, false);
+        let mut config = make_config(&[], false);
         config.ai.providers = vec![crate::config::AiProvider::Aider];
         generate_dockerfile(&config, dir.path(), &test_env()).unwrap();
         let content = fs::read_to_string(dir.path().join("Dockerfile")).unwrap();
@@ -763,7 +818,7 @@ mod tests {
     #[test]
     fn dockerfile_no_extra_ai_install_for_claude_only() {
         let dir = tempfile::tempdir().unwrap();
-        let config = make_config(ImageFlavor::Base, false);
+        let config = make_config(&[], false);
         generate_dockerfile(&config, dir.path(), &test_env()).unwrap();
         let content = fs::read_to_string(dir.path().join("Dockerfile")).unwrap();
         // Claude is installed in the base image, not via Dockerfile template
@@ -774,7 +829,7 @@ mod tests {
     #[test]
     fn compose_includes_aider_volume() {
         let dir = tempfile::tempdir().unwrap();
-        let mut config = make_config(ImageFlavor::Base, false);
+        let mut config = make_config(&[], false);
         config.ai.providers = vec![crate::config::AiProvider::Aider];
         generate_docker_compose(&config, dir.path(), &test_env()).unwrap();
         let content = fs::read_to_string(dir.path().join("docker-compose.yml")).unwrap();
@@ -784,7 +839,7 @@ mod tests {
     #[test]
     fn compose_includes_gemini_volume() {
         let dir = tempfile::tempdir().unwrap();
-        let mut config = make_config(ImageFlavor::Base, false);
+        let mut config = make_config(&[], false);
         config.ai.providers = vec![crate::config::AiProvider::Gemini];
         generate_docker_compose(&config, dir.path(), &test_env()).unwrap();
         let content = fs::read_to_string(dir.path().join("docker-compose.yml")).unwrap();
@@ -794,7 +849,7 @@ mod tests {
     #[test]
     fn compose_no_ai_volumes_when_empty() {
         let dir = tempfile::tempdir().unwrap();
-        let mut config = make_config(ImageFlavor::Base, false);
+        let mut config = make_config(&[], false);
         config.ai.providers = vec![];
         generate_docker_compose(&config, dir.path(), &test_env()).unwrap();
         let content = fs::read_to_string(dir.path().join("docker-compose.yml")).unwrap();

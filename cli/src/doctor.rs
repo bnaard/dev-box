@@ -1,7 +1,7 @@
 use anyhow::Result;
 use std::path::Path;
 
-use crate::config::{DevBoxConfig, ProcessFlavor};
+use crate::config::DevBoxConfig;
 use crate::output;
 use crate::runtime::Runtime;
 
@@ -23,10 +23,10 @@ impl DiagResult {
     }
 }
 
-/// Return the list of expected files for a given process flavor.
+/// Return the list of expected files for a given set of process packages.
 /// Delegates to the shared list in context.rs and adds infrastructure files.
-fn expected_files(process: &ProcessFlavor) -> Vec<&'static str> {
-    let mut files = crate::context::expected_context_files(process);
+fn expected_files(packages: &[String]) -> Vec<&'static str> {
+    let mut files = crate::context::expected_context_files(packages);
     // Doctor also checks infrastructure files
     files.extend_from_slice(&[".dev-box-version", ".gitignore"]);
     files
@@ -50,8 +50,8 @@ pub fn cmd_doctor(config_path: &Option<String>) -> Result<()> {
     let config = match DevBoxConfig::from_cli_option(config_path) {
         Ok(c) => {
             output::ok(&format!(
-                "Config: valid (v{}, {}, {})",
-                c.dev_box.version, c.dev_box.image, c.dev_box.process
+                "Config: valid (v{}, {}, {:?})",
+                c.dev_box.version, c.dev_box.base, c.process.packages
             ));
             Some(c)
         }
@@ -114,10 +114,10 @@ pub fn cmd_doctor(config_path: &Option<String>) -> Result<()> {
 
     // 5. Check context structure
     output::info(&format!(
-        "Checking context structure ({})...",
-        config.dev_box.process
+        "Checking context structure ({:?})...",
+        config.process.packages
     ));
-    check_context_structure(&config.dev_box.process, &mut diag);
+    check_context_structure(&config.process.packages, &mut diag);
 
     // 6. Check .gitignore
     output::info("Checking .gitignore...");
@@ -155,6 +155,7 @@ fn check_mount_sources(
             crate::config::AiProvider::Claude => ".claude",
             crate::config::AiProvider::Aider => ".aider",
             crate::config::AiProvider::Gemini => ".gemini",
+            crate::config::AiProvider::Mistral => ".mistral",
         };
         let path = root.join(dir_name);
         if path.exists() {
@@ -222,9 +223,9 @@ fn check_devcontainer_files(diag: &mut DiagResult) {
     }
 }
 
-/// Check context structure against the process flavor.
-fn check_context_structure(process: &ProcessFlavor, diag: &mut DiagResult) {
-    let expected = expected_files(process);
+/// Check context structure against the process packages.
+fn check_context_structure(packages: &[String], diag: &mut DiagResult) {
+    let expected = expected_files(packages);
 
     for file in &expected {
         let path = Path::new(file);
@@ -349,7 +350,7 @@ fn generate_migration_artifacts(
          You are migrating the project context structure for **{}**.\n\n\
          ## Current State\n\n\
          - Schema version: {}\n\
-         - Process flavor: {}\n\
+         - Process packages: {:?}\n\
          - Container name: {}\n\n\
          ## Target State\n\n\
          - Schema version: {}\n\n\
@@ -371,7 +372,7 @@ fn generate_migration_artifacts(
          - `CLAUDE.md` (project root)\n",
         config.container.name,
         current_version,
-        config.dev_box.process,
+        config.process.packages,
         config.container.name,
         target_version,
     );

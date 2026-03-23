@@ -80,10 +80,10 @@ fn init_creates_expected_files() {
             "init",
             "--name",
             "test-project",
-            "--image",
-            "python",
+            "--base",
+            "debian",
             "--process",
-            "minimal",
+            "core",
         ],
     );
     assert!(
@@ -128,10 +128,10 @@ fn init_existing_config_exits_nonzero() {
             "init",
             "--name",
             "test",
-            "--image",
-            "base",
+            "--base",
+            "debian",
             "--process",
-            "minimal",
+            "core",
         ],
     );
     // Second init should fail
@@ -141,10 +141,10 @@ fn init_existing_config_exits_nonzero() {
             "init",
             "--name",
             "test",
-            "--image",
-            "base",
+            "--base",
+            "debian",
             "--process",
-            "minimal",
+            "core",
         ],
     );
     assert!(
@@ -168,10 +168,10 @@ fn generate_after_init_succeeds() {
             "init",
             "--name",
             "gen-test",
-            "--image",
-            "base",
+            "--base",
+            "debian",
             "--process",
-            "minimal",
+            "core",
         ],
     );
     assert!(init_output.status.success(), "init should succeed");
@@ -186,7 +186,7 @@ fn generate_after_init_succeeds() {
 }
 
 #[test]
-fn init_invalid_image_exits_nonzero() {
+fn init_invalid_base_exits_nonzero() {
     let dir = tempfile::tempdir().unwrap();
     let output = run_in_dir(
         dir.path(),
@@ -194,20 +194,20 @@ fn init_invalid_image_exits_nonzero() {
             "init",
             "--name",
             "test",
-            "--image",
-            "invalid-flavor",
+            "--base",
+            "invalid-base",
             "--process",
-            "minimal",
+            "core",
         ],
     );
     assert!(
         !output.status.success(),
-        "init with invalid image should fail"
+        "init with invalid base should fail"
     );
     let stderr = String::from_utf8_lossy(&output.stderr);
     assert!(
-        stderr.contains("Unknown image flavor") || stderr.contains("invalid"),
-        "error should mention invalid image: {}",
+        stderr.contains("invalid") || stderr.contains("Invalid") || stderr.contains("error"),
+        "error should mention invalid base: {}",
         stderr
     );
 }
@@ -221,10 +221,10 @@ fn init_invalid_process_exits_nonzero() {
             "init",
             "--name",
             "test",
-            "--image",
-            "base",
+            "--base",
+            "debian",
             "--process",
-            "invalid-process",
+            "invalid-process!",
         ],
     );
     assert!(
@@ -233,24 +233,16 @@ fn init_invalid_process_exits_nonzero() {
     );
     let stderr = String::from_utf8_lossy(&output.stderr);
     assert!(
-        stderr.contains("Unknown process flavor") || stderr.contains("invalid"),
+        stderr.contains("invalid") || stderr.contains("Invalid") || stderr.contains("error"),
         "error should mention invalid process: {}",
         stderr
     );
 }
 
 #[test]
-fn init_with_all_image_flavors() {
-    for flavor in &[
-        "base",
-        "python",
-        "latex",
-        "typst",
-        "rust",
-        "python-latex",
-        "python-typst",
-        "rust-latex",
-    ] {
+fn init_with_all_base_images() {
+    // Currently only "debian" is supported
+    for base in &["debian"] {
         let dir = tempfile::tempdir().unwrap();
         let output = run_in_dir(
             dir.path(),
@@ -258,24 +250,24 @@ fn init_with_all_image_flavors() {
                 "init",
                 "--name",
                 "test",
-                "--image",
-                flavor,
+                "--base",
+                base,
                 "--process",
-                "minimal",
+                "core",
             ],
         );
         assert!(
             output.status.success(),
-            "init with image '{}' should succeed: {}",
-            flavor,
+            "init with base '{}' should succeed: {}",
+            base,
             String::from_utf8_lossy(&output.stderr)
         );
     }
 }
 
 #[test]
-fn init_with_all_process_flavors() {
-    for flavor in &["minimal", "managed", "research", "product"] {
+fn init_with_all_process_packages() {
+    for pkg in &["core", "managed", "research", "product"] {
         let dir = tempfile::tempdir().unwrap();
         let output = run_in_dir(
             dir.path(),
@@ -283,16 +275,16 @@ fn init_with_all_process_flavors() {
                 "init",
                 "--name",
                 "test",
-                "--image",
-                "base",
+                "--base",
+                "debian",
                 "--process",
-                flavor,
+                pkg,
             ],
         );
         assert!(
             output.status.success(),
             "init with process '{}' should succeed: {}",
-            flavor,
+            pkg,
             String::from_utf8_lossy(&output.stderr)
         );
     }
@@ -307,8 +299,8 @@ fn init_generated_toml_is_parseable() {
             "init",
             "--name",
             "parse-test",
-            "--image",
-            "python",
+            "--base",
+            "debian",
             "--process",
             "managed",
         ],

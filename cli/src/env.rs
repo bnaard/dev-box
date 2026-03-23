@@ -372,8 +372,8 @@ pub fn cmd_env_status(config_path: &Option<String>) -> Result<()> {
 
             // Show config summary if available
             if let Ok(config) = DevBoxConfig::from_cli_option(config_path) {
-                eprintln!("  Image:   {}", config.dev_box.image);
-                eprintln!("  Process: {}", config.dev_box.process);
+                eprintln!("  Base:    {}", config.dev_box.base);
+                eprintln!("  Process: {:?}", config.process.packages);
                 eprintln!("  Version: {}", config.dev_box.version);
             }
         }

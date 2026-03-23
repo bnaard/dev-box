@@ -2,6 +2,33 @@
 
 Inverse chronological. Each decision has a rationale and alternatives considered.
 
+## DEC-016 — Declarative config + minimal base images (2026-03-23)
+
+**Decision:** Redesign dev-box around a single published base image (base-debian), unified add-on system with per-tool version selection, 13 composable process packages replacing 4 monolithic levels, and declarative skill management. No backward compatibility — clean break.
+
+**Rationale:** The 10 pre-compiled image architecture creates maintenance burden (TeX Live duplicated 3x across 3 Dockerfiles), limits composability (can't combine Node+Go without a dedicated image), and gives users no control over which skills they deploy. The 4 monolithic process levels (minimal/managed/research/product) don't fit non-software projects (document, research, data). Moving everything to add-ons + composable process packages gives users full control while reducing our maintenance surface from 10 images to 1.
+
+**Key decisions within:**
+- Abstract base contract (Debian now, Alpine later) — not tied to specific distro
+- LaTeX becomes an add-on with multi-stage builder (no dedicated base-latex image)
+- Add-ons have internal recipe versioning; users select per-tool versions from curated lists
+- 13 atomic process packages + 4 convenience presets, freely composable
+- Core package (always present): agent-management + owner-profile skills, DEVBOX.md + OWNER.md
+- Content-addressed skill updates on sync
+- AI providers: Claude, Aider, Gemini, Mistral (bring-your-own-model deferred)
+
+**Alternatives:** Keep base-latex image for build speed (rejected — Docker layer caching + future GHCR cache image sufficient), keep 4 monolithic processes (rejected — too rigid for non-software projects), maintain backward compat (rejected — too few users, baggage not worth carrying).
+
+## DEC-015 — Dogfood the product process template (2026-03-23)
+
+**Decision:** Align dev-box's own `context/` with the product process template it ships to users. Adopt BACK-NNN IDs in BACKLOG.md, add PROJECTS.md and PRD.md, install 8 product-relevant skills in `.claude/skills/`, close 13 completed GitHub issues, and update the public roadmap.
+
+**Rationale:** dev-box promotes structured work processes but wasn't fully following its own product template. Eating our own dogfood validates the template and reveals friction. The existing context/ was close but used a different backlog format (checkboxes vs BACK-NNN table) and lacked structured project tracking. GitHub had 16 open issues, 13 of which were already done — creating a false impression of outstanding work.
+
+**Deviations from template:** STANDUPS.md omitted — session handovers in `project-notes/session-*.md` are more detailed and serve the same purpose. OWNER.md kept (not in product template but useful). Extra work-instructions kept (DOCKERFILE-PRACTICES.md, SCREENCASTS.md) as project-specific extensions. `backlog-context` skill customized for table format with BACK-NNN IDs.
+
+**Alternatives:** Full template adoption including STANDUPS.md (redundant with session handovers), keep current format (misses dogfooding opportunity), automated migration tool (over-engineering for a one-time task).
+
 ## DEC-014 — Skills Library: curated quality over marketplace quantity (2026-03-22)
 
 **Decision:** Ship 83 curated skills with reference files rather than providing a marketplace integration or a smaller "starter" set. Skills are embedded in the binary via `include_str!` and scaffolded on `dev-box init`. No external download step.

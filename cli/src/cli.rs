@@ -1,6 +1,6 @@
 use clap::{Parser, Subcommand, ValueEnum};
 
-use crate::config::{AddonBundle, AiProvider, ImageFlavor, ProcessFlavor, StarshipPreset, Theme};
+use crate::config::{AiProvider, BaseImage, StarshipPreset, Theme};
 
 /// Available Zellij IDE layouts.
 #[derive(Clone, Debug, ValueEnum)]
@@ -73,13 +73,13 @@ pub enum Commands {
         #[arg(long)]
         name: Option<String>,
 
-        /// Container image flavor
+        /// Base image (default: debian)
         #[arg(long, value_enum)]
-        image: Option<ImageFlavor>,
+        base: Option<BaseImage>,
 
-        /// Work process flavor (default: product)
-        #[arg(long, value_enum)]
-        process: Option<ProcessFlavor>,
+        /// Process packages (comma-separated, e.g., "managed,code")
+        #[arg(long, num_args = 1..)]
+        process: Option<Vec<String>>,
 
         /// AI tool providers to configure (default: claude)
         #[arg(long, value_enum, num_args = 1..)]
@@ -97,9 +97,9 @@ pub enum Commands {
         #[arg(long, value_enum)]
         prompt: Option<StarshipPreset>,
 
-        /// Addon bundles to install (e.g., infrastructure, kubernetes, cloud-aws)
-        #[arg(long, value_enum, num_args = 1..)]
-        addons: Option<Vec<AddonBundle>>,
+        /// Addon names to enable (e.g., python, infrastructure, kubernetes)
+        #[arg(long, num_args = 1..)]
+        addons: Option<Vec<String>>,
     },
     /// Reconcile project state with dev-box.toml configuration
     ///

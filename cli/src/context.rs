@@ -2,7 +2,7 @@ use anyhow::{Context, Result};
 use std::fs;
 use std::path::Path;
 
-use crate::config::{DevBoxConfig, ImageFlavor, ProcessFlavor};
+use crate::config::{AddonsSection, DevBoxConfig};
 use crate::output;
 
 // --- Minimal templates ---
@@ -394,17 +394,23 @@ are working with and tailor their communication and technical approach according
 /// - Creates .dev-box-version file
 /// - Updates .gitignore with generated file entries and language-specific blocks
 pub fn scaffold_context(config: &DevBoxConfig) -> Result<()> {
-    let process = &config.dev_box.process;
+    let packages = &config.process.packages;
     let project_name = &config.container.name;
-    let image = &config.dev_box.image;
+    let addons = &config.addons;
 
-    output::info(&format!("Scaffolding context for '{}' process...", process));
+    output::info(&format!("Scaffolding context for {:?} packages...", packages));
 
-    match process {
-        ProcessFlavor::Minimal => scaffold_minimal(project_name)?,
-        ProcessFlavor::Managed => scaffold_managed(project_name)?,
-        ProcessFlavor::Research => scaffold_research(project_name)?,
-        ProcessFlavor::Product => scaffold_product(project_name)?,
+    // Dispatch based on which packages are present.
+    // "product" is the most comprehensive, then "research", then "managed".
+    // If none of those are present, fall back to minimal.
+    if packages.iter().any(|p| p == "product") {
+        scaffold_product(project_name)?;
+    } else if packages.iter().any(|p| p == "research") {
+        scaffold_research(project_name)?;
+    } else if packages.iter().any(|p| p == "managed") {
+        scaffold_managed(project_name)?;
+    } else {
+        scaffold_minimal(project_name)?;
     }
 
     // Create .dev-box-version
@@ -412,7 +418,7 @@ pub fn scaffold_context(config: &DevBoxConfig) -> Result<()> {
     output::ok("Created .dev-box-version");
 
     // Update .gitignore with dev-box entries and language-specific blocks
-    update_gitignore(image)?;
+    update_gitignore(addons)?;
 
     // Create Dockerfile.local placeholder
     let local_dockerfile = Path::new(crate::config::DEVCONTAINER_DIR).join("Dockerfile.local");
@@ -437,7 +443,7 @@ pub fn scaffold_context(config: &DevBoxConfig) -> Result<()> {
          #   COPY --from=builder /app/dist /workspace/dist\n",
     )?;
 
-    output::ok(&format!("Context scaffolded ({} process)", process));
+    output::ok(&format!("Context scaffolded ({:?} packages)", packages));
     Ok(())
 }
 
@@ -888,43 +894,10 @@ fn setup_owner_md(context: &Path) -> Result<()> {
     Ok(())
 }
 
-/// Returns the list of expected context files for a given process flavor.
-pub fn expected_context_files(process: &ProcessFlavor) -> Vec<&'static str> {
-    match process {
-        ProcessFlavor::Minimal => vec!["CLAUDE.md"],
-        ProcessFlavor::Managed => vec![
-            "CLAUDE.md",
-            "context/shared/OWNER.md",
-            "context/DECISIONS.md",
-            "context/BACKLOG.md",
-            "context/STANDUPS.md",
-            "context/work-instructions/GENERAL.md",
-            "context/processes/README.md",
-            "context/processes/release.md",
-            "context/processes/code-review.md",
-            "context/processes/feature-development.md",
-            "context/processes/bug-fix.md",
-            ".claude/skills/backlog-context/SKILL.md",
-            ".claude/skills/decisions-adr/SKILL.md",
-            ".claude/skills/standup-context/SKILL.md",
-        ],
-        ProcessFlavor::Research => vec![
-            "CLAUDE.md",
-            "context/shared/OWNER.md",
-            "context/PROGRESS.md",
-            "context/research/_template.md",
-            "context/analysis/.gitkeep",
-            "experiments/README.md",
-            "context/processes/README.md",
-            "context/processes/release.md",
-            "context/processes/code-review.md",
-            "context/processes/feature-development.md",
-            "context/processes/bug-fix.md",
-            ".claude/skills/backlog-context/SKILL.md",
-            ".claude/skills/decisions-adr/SKILL.md",
-            ".claude/skills/standup-context/SKILL.md",
-        ],
-        ProcessFlavor::Product => vec![
+/// Returns the list of expected context files for a given set of process packages.
+pub fn expected_context_files(packages: &[String]) -> Vec<&'static str> {
+    if packages.iter().any(|p| p == "product") {
+        vec![
             "CLAUDE.md",
             "context/shared/OWNER.md",
             "context/DECISIONS.md",
@@ -947,7 +920,44 @@ pub fn expected_context_files(process: &ProcessFlavor) -> Vec<&'static str> {
             ".claude/skills/backlog-context/SKILL.md",
             ".claude/skills/decisions-adr/SKILL.md",
             ".claude/skills/standup-context/SKILL.md",
-        ],
+        ]
+    } else if packages.iter().any(|p| p == "research") {
+        vec![
+            "CLAUDE.md",
+            "context/shared/OWNER.md",
+            "context/PROGRESS.md",
+            "context/research/_template.md",
+            "context/analysis/.gitkeep",
+            "experiments/README.md",
+            "context/processes/README.md",
+            "context/processes/release.md",
+            "context/processes/code-review.md",
+            "context/processes/feature-development.md",
+            "context/processes/bug-fix.md",
+            ".claude/skills/backlog-context/SKILL.md",
+            ".claude/skills/decisions-adr/SKILL.md",
+            ".claude/skills/standup-context/SKILL.md",
+        ]
+    } else if packages.iter().any(|p| p == "managed") {
+        vec![
+            "CLAUDE.md",
+            "context/shared/OWNER.md",
+            "context/DECISIONS.md",
+            "context/BACKLOG.md",
+            "context/STANDUPS.md",
+            "context/work-instructions/GENERAL.md",
+            "context/processes/README.md",
+            "context/processes/release.md",
+            "context/processes/code-review.md",
+            "context/processes/feature-development.md",
+            "context/processes/bug-fix.md",
+            ".claude/skills/backlog-context/SKILL.md",
+            ".claude/skills/decisions-adr/SKILL.md",
+            ".claude/skills/standup-context/SKILL.md",
+        ]
+    } else {
+        // minimal / core
+        vec!["CLAUDE.md"]
     }
 }
 
@@ -990,8 +1000,8 @@ pub(crate) fn write_if_changed(path: &Path, content: &str) -> Result<bool> {
 }
 
 /// Generate a .gitignore with dev-box entries, project-specific section,
-/// and language-specific blocks based on the image flavor.
-pub(crate) fn update_gitignore(image: &ImageFlavor) -> Result<()> {
+/// and language-specific blocks based on the configured addons.
+pub(crate) fn update_gitignore(addons: &AddonsSection) -> Result<()> {
     let gitignore_path = Path::new(".gitignore");
 
     // If .gitignore already exists, just ensure dev-box entries are present
@@ -1045,7 +1055,7 @@ pub(crate) fn update_gitignore(image: &ImageFlavor) -> Result<()> {
     content.push_str(".idea/\n\n");
 
     // Language-specific blocks based on image flavor
-    if image.contains_python() {
+    if addons.has_python() {
         content.push_str(
             "# ── Python ───────────────────────────────────────────────────────────────────\n",
         );
@@ -1068,7 +1078,7 @@ pub(crate) fn update_gitignore(image: &ImageFlavor) -> Result<()> {
         content.push_str("site/\n\n");
     }
 
-    if image.contains_latex() {
+    if addons.has_latex() {
         content.push_str(
             "# ── LaTeX ────────────────────────────────────────────────────────────────────\n",
         );
@@ -1091,14 +1101,14 @@ pub(crate) fn update_gitignore(image: &ImageFlavor) -> Result<()> {
         content.push_str("out/\n\n");
     }
 
-    if image.contains_typst() {
+    if addons.has_addon("typst") {
         content.push_str(
             "# ── Typst ────────────────────────────────────────────────────────────────────\n",
         );
         content.push_str("# Typst produces PDFs directly — ignore build outputs if applicable\n\n");
     }
 
-    if image.contains_rust() {
+    if addons.has_rust() {
         content.push_str(
             "# ── Rust ─────────────────────────────────────────────────────────────────────\n",
         );
@@ -1106,7 +1116,7 @@ pub(crate) fn update_gitignore(image: &ImageFlavor) -> Result<()> {
         content.push_str("Cargo.lock\n\n");
     }
 
-    if image.contains_node() {
+    if addons.has_node() {
         content.push_str(
             "# ── Node.js ──────────────────────────────────────────────────────────────────\n",
         );
@@ -1276,11 +1286,32 @@ mod tests {
         assert_eq!(fs::read_to_string(&path).unwrap(), "deep");
     }
 
+    fn test_config_with_packages(packages: Vec<String>) -> DevBoxConfig {
+        let mut config = crate::config::test_config();
+        config.process.packages = packages;
+        config
+    }
+
+    fn addons_with(names: &[&str]) -> AddonsSection {
+        use crate::config::AddonToolsSection;
+        use std::collections::HashMap;
+        let mut addons = HashMap::new();
+        for name in names {
+            addons.insert(
+                name.to_string(),
+                AddonToolsSection {
+                    tools: HashMap::new(),
+                },
+            );
+        }
+        AddonsSection { addons }
+    }
+
     #[test]
     #[serial]
     fn scaffold_minimal_creates_claude_md_and_version() {
         in_temp_dir(|| {
-            let config = test_config(ProcessFlavor::Minimal, ImageFlavor::Base);
+            let config = test_config_with_packages(vec!["core".to_string()]);
             scaffold_context(&config).unwrap();
             assert!(Path::new("CLAUDE.md").exists(), "CLAUDE.md should exist");
             assert!(
@@ -1294,7 +1325,7 @@ mod tests {
     #[serial]
     fn scaffold_managed_creates_expected_files() {
         in_temp_dir(|| {
-            let config = test_config(ProcessFlavor::Managed, ImageFlavor::Base);
+            let config = test_config_with_packages(vec!["managed".to_string()]);
             scaffold_context(&config).unwrap();
             assert!(Path::new("CLAUDE.md").exists());
             assert!(Path::new(".dev-box-version").exists());
@@ -1318,7 +1349,7 @@ mod tests {
     #[serial]
     fn scaffold_research_creates_expected_files() {
         in_temp_dir(|| {
-            let config = test_config(ProcessFlavor::Research, ImageFlavor::Base);
+            let config = test_config_with_packages(vec!["research".to_string()]);
             scaffold_context(&config).unwrap();
             assert!(Path::new("CLAUDE.md").exists());
             assert!(Path::new("context/PROGRESS.md").exists());
@@ -1338,7 +1369,7 @@ mod tests {
     #[serial]
     fn scaffold_product_creates_all_expected_files() {
         in_temp_dir(|| {
-            let config = test_config(ProcessFlavor::Product, ImageFlavor::Base);
+            let config = test_config_with_packages(vec!["product".to_string()]);
             scaffold_context(&config).unwrap();
             assert!(Path::new("CLAUDE.md").exists());
             assert!(Path::new(".dev-box-version").exists());
@@ -1370,7 +1401,7 @@ mod tests {
     #[serial]
     fn claude_md_contains_project_name() {
         in_temp_dir(|| {
-            let config = test_config(ProcessFlavor::Minimal, ImageFlavor::Base);
+            let config = test_config_with_packages(vec!["core".to_string()]);
             scaffold_context(&config).unwrap();
             let content = fs::read_to_string("CLAUDE.md").unwrap();
             assert!(
@@ -1384,7 +1415,7 @@ mod tests {
     #[serial]
     fn gitignore_includes_python_block() {
         in_temp_dir(|| {
-            update_gitignore(&ImageFlavor::Python).unwrap();
+            update_gitignore(&addons_with(&["python"])).unwrap();
             let content = fs::read_to_string(".gitignore").unwrap();
             assert!(content.contains("__pycache__/"));
             assert!(content.contains("*.py[cod]"));
@@ -1396,7 +1427,7 @@ mod tests {
     #[serial]
     fn gitignore_includes_latex_block() {
         in_temp_dir(|| {
-            update_gitignore(&ImageFlavor::Latex).unwrap();
+            update_gitignore(&addons_with(&["latex"])).unwrap();
             let content = fs::read_to_string(".gitignore").unwrap();
             assert!(content.contains("*.aux"));
             assert!(content.contains("*.synctex.gz"));
@@ -1407,7 +1438,7 @@ mod tests {
     #[serial]
     fn gitignore_includes_rust_block() {
         in_temp_dir(|| {
-            update_gitignore(&ImageFlavor::Rust).unwrap();
+            update_gitignore(&addons_with(&["rust"])).unwrap();
             let content = fs::read_to_string(".gitignore").unwrap();
             assert!(content.contains("target/"));
         });
@@ -1415,9 +1446,9 @@ mod tests {
 
     #[test]
     #[serial]
-    fn gitignore_combined_flavor() {
+    fn gitignore_combined_addons() {
         in_temp_dir(|| {
-            update_gitignore(&ImageFlavor::PythonLatex).unwrap();
+            update_gitignore(&addons_with(&["python", "latex"])).unwrap();
             let content = fs::read_to_string(".gitignore").unwrap();
             assert!(content.contains("__pycache__/"));
             assert!(content.contains("*.aux"));
@@ -1429,7 +1460,7 @@ mod tests {
     fn update_gitignore_preserves_existing_content() {
         in_temp_dir(|| {
             fs::write(".gitignore", "node_modules/\n*.log\n").unwrap();
-            update_gitignore(&ImageFlavor::Base).unwrap();
+            update_gitignore(&AddonsSection::default()).unwrap();
             let content = fs::read_to_string(".gitignore").unwrap();
             assert!(content.contains("node_modules/"));
             assert!(content.contains("*.log"));
@@ -1441,16 +1472,12 @@ mod tests {
     #[serial]
     fn owner_md_has_extended_fields() {
         in_temp_dir(|| {
-            let config = test_config(ProcessFlavor::Managed, ImageFlavor::Base);
+            let config = test_config_with_packages(vec!["managed".to_string()]);
             scaffold_context(&config).unwrap();
             let content = fs::read_to_string("context/shared/OWNER.md").unwrap();
             assert!(content.contains("Domain expertise"));
             assert!(content.contains("Timezone"));
             assert!(content.contains("Communication language"));
         });
-    }
-
-    fn test_config(process: ProcessFlavor, image: ImageFlavor) -> DevBoxConfig {
-        crate::config::test_config(image, process)
     }
 }

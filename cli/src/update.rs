@@ -135,7 +135,7 @@ fn check_updates(config: &DevBoxConfig) -> Result<()> {
     }
 
     // --- Image version ---
-    let flavor = config.dev_box.image.to_string();
+    let flavor = config.dev_box.base.to_string();
     output::ok(&format!(
         "Current config image version: {} ({})",
         config.dev_box.version, flavor
@@ -206,7 +206,7 @@ fn update_toml_version(toml_path: &Path, old_version: &str, new_version: &str) -
 /// Perform the upgrade: fetch latest image version, update dev-box.toml, regenerate files.
 fn do_upgrade(config_path: &Option<String>, dry_run: bool) -> Result<()> {
     let config = DevBoxConfig::from_cli_option(config_path)?;
-    let flavor = config.dev_box.image.to_string();
+    let flavor = config.dev_box.base.to_string();
     let current_version = &config.dev_box.version;
 
     output::info(&format!(

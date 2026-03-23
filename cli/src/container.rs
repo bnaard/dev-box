@@ -2,7 +2,7 @@ use anyhow::{Result, bail};
 use std::path::PathBuf;
 
 use crate::config::{
-    AddonBundle, AiProvider, DevBoxConfig, ImageFlavor, ProcessFlavor, StarshipPreset, Theme,
+    AiProvider, BaseImage, DevBoxConfig, StarshipPreset, Theme,
 };
 use crate::context;
 use crate::generate;
@@ -13,13 +13,13 @@ use crate::seed;
 /// Parameters for the init command, grouping all optional CLI arguments.
 pub struct InitParams {
     pub name: Option<String>,
-    pub image: Option<ImageFlavor>,
-    pub process: Option<ProcessFlavor>,
+    pub base: Option<BaseImage>,
+    pub process: Option<Vec<String>>,
     pub ai: Option<Vec<AiProvider>>,
     pub user: Option<String>,
     pub theme: Option<Theme>,
     pub prompt: Option<StarshipPreset>,
-    pub addons: Option<Vec<AddonBundle>>,
+    pub addons: Option<Vec<String>>,
 }
 
 /// Labels for image flavor selection (order matters — matches ImageFlavor variants).
@@ -51,10 +51,10 @@ fn default_project_name() -> String {
 /// the corresponding argument is `None`.
 pub fn resolve_init_values(
     name: Option<String>,
-    image: Option<ImageFlavor>,
-    process: Option<ProcessFlavor>,
+    base: Option<BaseImage>,
+    process: Option<Vec<String>>,
     interactive: bool,
-) -> Result<(String, ImageFlavor, ProcessFlavor)> {
+) -> Result<(String, BaseImage, Vec<String>)> {
     // --- project name ---
     let project_name = match name {
         Some(n) => n,
@@ -68,35 +68,37 @@ pub fn resolve_init_values(
         None => default_project_name(),
     };
 
-    // --- image flavor ---
-    let image_flavor = match image {
-        Some(f) => f,
+    // --- base image ---
+    let base_image = match base {
+        Some(b) => b,
         None if interactive => {
             let idx = dialoguer::Select::new()
-                .with_prompt("Image flavor")
+                .with_prompt("Base image")
                 .items(IMAGE_FLAVOR_ITEMS)
                 .default(0)
                 .interact()?;
-            ImageFlavor::from_str_loose(IMAGE_FLAVOR_ITEMS[idx])?
+            // For now only debian is supported; ignore the selection index
+            let _ = idx;
+            BaseImage::Debian
         }
-        None => ImageFlavor::Base,
+        None => BaseImage::Debian,
     };
 
-    // --- process flavor ---
-    let process_flavor = match process {
-        Some(f) => f,
+    // --- process packages ---
+    let process_packages = match process {
+        Some(p) => p,
         None if interactive => {
             let idx = dialoguer::Select::new()
                 .with_prompt("Work process")
                 .items(PROCESS_FLAVOR_ITEMS)
                 .default(3)
                 .interact()?;
-            ProcessFlavor::from_str_loose(PROCESS_FLAVOR_ITEMS[idx])?
+            vec![PROCESS_FLAVOR_ITEMS[idx].to_string()]
         }
-        None => ProcessFlavor::Product,
+        None => vec!["core".to_string()],
     };
 
-    Ok((project_name, image_flavor, process_flavor))
+    Ok((project_name, base_image, process_packages))
 }
 
 /// Build command: load config, generate files, run compose build.
@@ -242,17 +244,9 @@ fn serialize_config_with_comments(config: &DevBoxConfig) -> String {
     out.push_str("[dev-box]\n");
     out.push_str(&format!("version = \"{}\"\n", config.dev_box.version));
     out.push_str(&format!(
-        "# Container image flavor. Options: base, python, latex, typst, rust, node, go,\n\
-         # python-latex, python-typst, rust-latex\n\
-         image = \"{}\"\n",
-        config.dev_box.image
-    ));
-    out.push_str(&format!(
-        "# Work process flavor. Controls which context files are scaffolded.\n\
-         # Options: minimal (CLAUDE.md only), managed (backlog + decisions),\n\
-         #          research (progress + notes), product (full: PRD + backlog + standups)\n\
-         process = \"{}\"\n",
-        config.dev_box.process
+        "# Base image. Options: debian\n\
+         base = \"{}\"\n",
+        config.dev_box.base
     ));
 
     // [container] section
@@ -298,6 +292,7 @@ fn serialize_config_with_comments(config: &DevBoxConfig) -> String {
     }
     out.push_str("# vscode_extensions = [\"eamodio.gitlens\"]  # Additional VS Code extensions\n");
     out.push_str("# post_create_command = \"npm install\"  # Run after container creation\n");
+    out.push_str("# keepalive = true                       # Network keepalive (prevents OrbStack/VM NAT idle dropout)\n");
     out.push_str("#\n");
     out.push_str("# Extra volumes: [[container.extra_volumes]]\n");
     out.push_str("# source = \"/host/path\"\n");
@@ -307,25 +302,37 @@ fn serialize_config_with_comments(config: &DevBoxConfig) -> String {
     out.push_str("# Extra environment: [container.environment]\n");
     out.push_str("# MY_VAR = \"value\"\n");
 
+    // [process] section
+    out.push_str("\n# Process packages control which context files are scaffolded.\n");
+    out.push_str("[process]\n");
+    out.push_str(&format!(
+        "packages = [{}]\n",
+        config
+            .process
+            .packages
+            .iter()
+            .map(|p| format!("\"{}\"", p))
+            .collect::<Vec<_>>()
+            .join(", ")
+    ));
+
     // [addons] section
-    out.push_str("\n# Addon bundles install additional tool sets into the container.\n");
-    out.push_str("# Options: infrastructure, kubernetes, cloud-aws, cloud-gcp, cloud-azure,\n");
-    out.push_str("#          docs-mkdocs, docs-zensical, docs-docusaurus, docs-starlight,\n");
-    out.push_str("#          docs-mdbook, docs-hugo\n");
-    out.push_str("[addons]\n");
-    if config.addons.bundles.is_empty() {
-        out.push_str("# bundles = [\"infrastructure\", \"kubernetes\"]\n");
+    out.push_str("\n# Addons install additional tool sets into the container.\n");
+    out.push_str("# Example:\n");
+    out.push_str("# [addons.python.tools]\n");
+    out.push_str("# python = { version = \"3.13\" }\n");
+    if config.addons.addons.is_empty() {
+        out.push_str("# (no addons configured)\n");
     } else {
-        out.push_str(&format!(
-            "bundles = [{}]\n",
-            config
-                .addons
-                .bundles
-                .iter()
-                .map(|b| format!("\"{}\"", b))
-                .collect::<Vec<_>>()
-                .join(", ")
-        ));
+        for (addon_name, addon_tools) in &config.addons.addons {
+            out.push_str(&format!("\n[addons.{}.tools]\n", addon_name));
+            for (tool_name, tool_entry) in &addon_tools.tools {
+                match &tool_entry.version {
+                    Some(v) => out.push_str(&format!("{} = {{ version = \"{}\" }}\n", tool_name, v)),
+                    None => out.push_str(&format!("{} = {{}}\n", tool_name)),
+                }
+            }
+        }
     }
 
     // [context] section
@@ -337,7 +344,7 @@ fn serialize_config_with_comments(config: &DevBoxConfig) -> String {
 
     // [ai] section
     out.push_str("\n# AI tool providers. Controls which AI CLI tools are installed and configured.\n");
-    out.push_str("# Options: claude, aider, gemini\n");
+    out.push_str("# Options: claude, aider, gemini, mistral\n");
     out.push_str("[ai]\n");
     out.push_str(&format!(
         "providers = [{}]\n",
@@ -382,7 +389,7 @@ fn serialize_config_with_comments(config: &DevBoxConfig) -> String {
 pub fn cmd_init(config_path: &Option<String>, params: InitParams) -> Result<()> {
     use crate::config::{
         AddonsSection, AiSection, AppearanceSection, AudioSection, ContainerSection,
-        ContextSection, DevBoxConfig, DevBoxSection,
+        ContextSection, DevBoxConfig, DevBoxSection, ProcessSection, SkillsSection,
     };
 
     let toml_path = config_path
@@ -399,18 +406,17 @@ pub fn cmd_init(config_path: &Option<String>, params: InitParams) -> Result<()> 
 
     let interactive = std::io::IsTerminal::is_terminal(&std::io::stdin());
 
-    let (project_name, image_flavor, process_flavor) =
-        resolve_init_values(params.name, params.image, params.process, interactive)?;
+    let (project_name, base_image, process_packages) =
+        resolve_init_values(params.name, params.base, params.process, interactive)?;
 
     let container_user = params.user.unwrap_or_else(|| "root".to_string());
     let ai_providers = params.ai.unwrap_or_else(|| vec![AiProvider::Claude]);
-    let addon_bundles = params.addons.unwrap_or_default();
+    let _addon_names = params.addons.unwrap_or_default();
 
     let config = DevBoxConfig {
         dev_box: DevBoxSection {
             version: env!("CARGO_PKG_VERSION").to_string(),
-            image: image_flavor,
-            process: process_flavor,
+            base: base_image,
         },
         container: ContainerSection {
             name: project_name.clone(),
@@ -422,14 +428,17 @@ pub fn cmd_init(config_path: &Option<String>, params: InitParams) -> Result<()> 
             environment: std::collections::HashMap::new(),
             post_create_command: None,
             vscode_extensions: vec![],
+            keepalive: false,
         },
         context: ContextSection::default(),
         ai: AiSection {
             providers: ai_providers,
         },
-        addons: AddonsSection {
-            bundles: addon_bundles,
+        process: ProcessSection {
+            packages: process_packages,
         },
+        addons: AddonsSection::default(),
+        skills: SkillsSection::default(),
         appearance: AppearanceSection {
             theme: params.theme.unwrap_or_default(),
             prompt: params.prompt.unwrap_or_default(),
@@ -483,44 +492,44 @@ mod tests {
 
     #[test]
     fn resolve_init_values_non_interactive_defaults() {
-        let (name, image, process) =
+        let (name, base, process) =
             resolve_init_values(None, None, None, false).expect("should succeed");
 
         // Name defaults to current directory name (or "my-project" fallback)
         assert!(!name.is_empty(), "name should not be empty");
 
-        assert_eq!(image, ImageFlavor::Base);
-        assert_eq!(process, ProcessFlavor::Product);
+        assert_eq!(base, BaseImage::Debian);
+        assert_eq!(process, vec!["core".to_string()]);
     }
 
     #[test]
     fn resolve_init_values_explicit_args_override() {
         // Even with interactive=true, explicit values should be used without prompting
-        let (name, image, process) = resolve_init_values(
+        let (name, base, process) = resolve_init_values(
             Some("my-app".to_string()),
-            Some(ImageFlavor::PythonLatex),
-            Some(ProcessFlavor::Research),
+            Some(BaseImage::Debian),
+            Some(vec!["research".to_string()]),
             true,
         )
         .expect("should succeed with explicit args");
 
         assert_eq!(name, "my-app");
-        assert_eq!(image, ImageFlavor::PythonLatex);
-        assert_eq!(process, ProcessFlavor::Research);
+        assert_eq!(base, BaseImage::Debian);
+        assert_eq!(process, vec!["research".to_string()]);
     }
 
     #[test]
     fn resolve_init_values_explicit_args_non_interactive() {
-        let (name, image, process) = resolve_init_values(
+        let (name, base, process) = resolve_init_values(
             Some("test-proj".to_string()),
-            Some(ImageFlavor::Rust),
-            Some(ProcessFlavor::Minimal),
+            Some(BaseImage::Debian),
+            Some(vec!["minimal".to_string()]),
             false,
         )
         .expect("should succeed");
 
         assert_eq!(name, "test-proj");
-        assert_eq!(image, ImageFlavor::Rust);
-        assert_eq!(process, ProcessFlavor::Minimal);
+        assert_eq!(base, BaseImage::Debian);
+        assert_eq!(process, vec!["minimal".to_string()]);
     }
 }

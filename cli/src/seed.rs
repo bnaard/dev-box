@@ -491,6 +491,9 @@ pub fn seed_root_dir(config: &DevBoxConfig) -> Result<()> {
                 // Gemini CLI uses ~/.gemini for config
                 dirs.push(root.join(".gemini"));
             }
+            crate::config::AiProvider::Mistral => {
+                dirs.push(root.join(".mistral"));
+            }
         }
     }
 
@@ -734,7 +737,7 @@ mod tests {
         unsafe {
             std::env::set_var("DEV_BOX_HOST_ROOT", root_dir.to_str().unwrap());
         }
-        let mut config = crate::config::test_config(ImageFlavor::Base, ProcessFlavor::Minimal);
+        let mut config = crate::config::test_config();
         config.container.name = "test".to_string();
         config.container.hostname = "test".to_string();
         config.audio = AudioSection {

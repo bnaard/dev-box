@@ -1,5 +1,5 @@
 use anyhow::{Context, Result, bail};
-use serde::{Deserialize, Serialize};
+use serde::{Deserialize, Deserializer, Serialize};
 use std::collections::HashMap;
 use std::path::{Path, PathBuf};
 
@@ -15,127 +15,32 @@ pub const DOCKERFILE: &str = ".devcontainer/Dockerfile";
 /// Standard devcontainer.json name.
 pub const DEVCONTAINER_JSON: &str = ".devcontainer/devcontainer.json";
 
-/// Image flavors corresponding to images/ subdirectories.
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, clap::ValueEnum)]
+// ---------------------------------------------------------------------------
+// Base image
+// ---------------------------------------------------------------------------
+
+/// Base image for the dev-box container. Currently only Debian is supported;
+/// Alpine is planned for later.
+#[derive(Debug, Clone, Default, Serialize, Deserialize, PartialEq, clap::ValueEnum)]
 #[serde(rename_all = "kebab-case")]
 #[clap(rename_all = "kebab-case")]
-pub enum ImageFlavor {
-    Base,
-    Python,
-    Latex,
-    Typst,
-    Rust,
-    Node,
-    Go,
-    PythonLatex,
-    PythonTypst,
-    RustLatex,
+pub enum BaseImage {
+    #[default]
+    Debian,
+    // Alpine, // planned
 }
 
-impl std::fmt::Display for ImageFlavor {
+impl std::fmt::Display for BaseImage {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
-            ImageFlavor::Base => write!(f, "base"),
-            ImageFlavor::Python => write!(f, "python"),
-            ImageFlavor::Latex => write!(f, "latex"),
-            ImageFlavor::Typst => write!(f, "typst"),
-            ImageFlavor::Rust => write!(f, "rust"),
-            ImageFlavor::Node => write!(f, "node"),
-            ImageFlavor::Go => write!(f, "go"),
-            ImageFlavor::PythonLatex => write!(f, "python-latex"),
-            ImageFlavor::PythonTypst => write!(f, "python-typst"),
-            ImageFlavor::RustLatex => write!(f, "rust-latex"),
+            BaseImage::Debian => write!(f, "debian"),
         }
     }
 }
 
-impl ImageFlavor {
-    pub fn from_str_loose(s: &str) -> Result<Self> {
-        match s {
-            "base" => Ok(ImageFlavor::Base),
-            "python" => Ok(ImageFlavor::Python),
-            "latex" => Ok(ImageFlavor::Latex),
-            "typst" => Ok(ImageFlavor::Typst),
-            "rust" => Ok(ImageFlavor::Rust),
-            "node" => Ok(ImageFlavor::Node),
-            "go" => Ok(ImageFlavor::Go),
-            "python-latex" => Ok(ImageFlavor::PythonLatex),
-            "python-typst" => Ok(ImageFlavor::PythonTypst),
-            "rust-latex" => Ok(ImageFlavor::RustLatex),
-            _ => bail!(
-                "Unknown image flavor: '{}'. Valid: base, python, latex, typst, rust, node, go, python-latex, python-typst, rust-latex",
-                s
-            ),
-        }
-    }
-
-    pub fn contains_python(&self) -> bool {
-        matches!(
-            self,
-            ImageFlavor::Python | ImageFlavor::PythonLatex | ImageFlavor::PythonTypst
-        )
-    }
-
-    pub fn contains_latex(&self) -> bool {
-        matches!(
-            self,
-            ImageFlavor::Latex | ImageFlavor::PythonLatex | ImageFlavor::RustLatex
-        )
-    }
-
-    pub fn contains_typst(&self) -> bool {
-        matches!(self, ImageFlavor::Typst | ImageFlavor::PythonTypst)
-    }
-
-    pub fn contains_rust(&self) -> bool {
-        matches!(self, ImageFlavor::Rust | ImageFlavor::RustLatex)
-    }
-
-    pub fn contains_node(&self) -> bool {
-        matches!(self, ImageFlavor::Node)
-    }
-
-    pub fn contains_go(&self) -> bool {
-        matches!(self, ImageFlavor::Go)
-    }
-}
-
-/// Work process flavors.
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, clap::ValueEnum)]
-#[serde(rename_all = "kebab-case")]
-#[clap(rename_all = "kebab-case")]
-pub enum ProcessFlavor {
-    Minimal,
-    Managed,
-    Research,
-    Product,
-}
-
-impl std::fmt::Display for ProcessFlavor {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        match self {
-            ProcessFlavor::Minimal => write!(f, "minimal"),
-            ProcessFlavor::Managed => write!(f, "managed"),
-            ProcessFlavor::Research => write!(f, "research"),
-            ProcessFlavor::Product => write!(f, "product"),
-        }
-    }
-}
-
-impl ProcessFlavor {
-    pub fn from_str_loose(s: &str) -> Result<Self> {
-        match s {
-            "minimal" => Ok(ProcessFlavor::Minimal),
-            "managed" => Ok(ProcessFlavor::Managed),
-            "research" => Ok(ProcessFlavor::Research),
-            "product" => Ok(ProcessFlavor::Product),
-            _ => bail!(
-                "Unknown process flavor: '{}'. Valid: minimal, managed, research, product",
-                s
-            ),
-        }
-    }
-}
+// ---------------------------------------------------------------------------
+// Extra volume mount
+// ---------------------------------------------------------------------------
 
 /// Extra volume mount specification.
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -146,13 +51,21 @@ pub struct ExtraVolume {
     pub read_only: bool,
 }
 
+// ---------------------------------------------------------------------------
+// [dev-box] section
+// ---------------------------------------------------------------------------
+
 /// Top-level [dev-box] section.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct DevBoxSection {
     pub version: String,
-    pub image: ImageFlavor,
-    pub process: ProcessFlavor,
+    #[serde(default)]
+    pub base: BaseImage,
 }
+
+// ---------------------------------------------------------------------------
+// [container] section — UNCHANGED
+// ---------------------------------------------------------------------------
 
 /// [container] section.
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -175,6 +88,9 @@ pub struct ContainerSection {
     pub post_create_command: Option<String>,
     #[serde(default)]
     pub vscode_extensions: Vec<String>,
+    /// Network keepalive — prevents OrbStack/VM NAT from dropping idle connections.
+    #[serde(default)]
+    pub keepalive: bool,
 }
 
 fn default_user() -> String {
@@ -184,6 +100,10 @@ fn default_user() -> String {
 fn default_hostname() -> String {
     "dev-box".to_string()
 }
+
+// ---------------------------------------------------------------------------
+// [context] section — UNCHANGED
+// ---------------------------------------------------------------------------
 
 /// [context] section.
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -204,6 +124,10 @@ impl Default for ContextSection {
     }
 }
 
+// ---------------------------------------------------------------------------
+// [ai] section
+// ---------------------------------------------------------------------------
+
 /// AI tool providers supported in dev-box containers.
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, clap::ValueEnum)]
 #[serde(rename_all = "kebab-case")]
@@ -212,6 +136,7 @@ pub enum AiProvider {
     Claude,
     Aider,
     Gemini,
+    Mistral,
 }
 
 impl std::fmt::Display for AiProvider {
@@ -220,6 +145,7 @@ impl std::fmt::Display for AiProvider {
             AiProvider::Claude => write!(f, "claude"),
             AiProvider::Aider => write!(f, "aider"),
             AiProvider::Gemini => write!(f, "gemini"),
+            AiProvider::Mistral => write!(f, "mistral"),
         }
     }
 }
@@ -243,70 +169,149 @@ impl Default for AiSection {
     }
 }
 
-/// [audio] section.
+// ---------------------------------------------------------------------------
+// [process] section — NEW
+// ---------------------------------------------------------------------------
+
+fn default_process_packages() -> Vec<String> {
+    vec!["core".to_string()]
+}
+
+/// [process] section — composable process packages.
 #[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct AudioSection {
-    #[serde(default)]
-    pub enabled: bool,
-    #[serde(default = "default_pulse_server")]
-    pub pulse_server: String,
+pub struct ProcessSection {
+    #[serde(default = "default_process_packages")]
+    pub packages: Vec<String>,
 }
 
-fn default_pulse_server() -> String {
-    "tcp:host.docker.internal:4714".to_string()
-}
-
-impl Default for AudioSection {
+impl Default for ProcessSection {
     fn default() -> Self {
         Self {
-            enabled: false,
-            pulse_server: default_pulse_server(),
+            packages: default_process_packages(),
         }
     }
 }
 
-/// Addon bundles for installing additional tool sets into the container.
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, clap::ValueEnum)]
-#[serde(rename_all = "kebab-case")]
-#[clap(rename_all = "kebab-case")]
-pub enum AddonBundle {
-    Infrastructure, // OpenTofu, Ansible, Packer
-    Kubernetes,     // kubectl, Helm, k9s, Kustomize
-    CloudAws,       // AWS CLI v2
-    CloudGcp,       // Google Cloud CLI
-    CloudAzure,     // Azure CLI
-    DocsMkdocs,     // MkDocs + Material theme
-    DocsZensical,   // Zensical (MkDocs successor)
-    DocsDocusaurus, // Docusaurus (React-based)
-    DocsStarlight,  // Starlight (Astro-based)
-    DocsMdbook,     // mdBook (Rust)
-    DocsHugo,       // Hugo (Go)
+// ---------------------------------------------------------------------------
+// [addons] section — REWRITTEN
+// ---------------------------------------------------------------------------
+
+/// Configuration for a single tool within an addon.
+///
+/// In TOML this appears as e.g. `python = { version = "3.13" }` or `clippy = {}`.
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+pub struct ToolEntry {
+    /// Tool version. `None` when no version is specified (e.g. `clippy = {}`).
+    pub version: Option<String>,
 }
 
-impl std::fmt::Display for AddonBundle {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        match self {
-            AddonBundle::Infrastructure => write!(f, "infrastructure"),
-            AddonBundle::Kubernetes => write!(f, "kubernetes"),
-            AddonBundle::CloudAws => write!(f, "cloud-aws"),
-            AddonBundle::CloudGcp => write!(f, "cloud-gcp"),
-            AddonBundle::CloudAzure => write!(f, "cloud-azure"),
-            AddonBundle::DocsMkdocs => write!(f, "docs-mkdocs"),
-            AddonBundle::DocsZensical => write!(f, "docs-zensical"),
-            AddonBundle::DocsDocusaurus => write!(f, "docs-docusaurus"),
-            AddonBundle::DocsStarlight => write!(f, "docs-starlight"),
-            AddonBundle::DocsMdbook => write!(f, "docs-mdbook"),
-            AddonBundle::DocsHugo => write!(f, "docs-hugo"),
-        }
-    }
-}
-
-/// [addons] section — addon bundle configuration.
-#[derive(Debug, Clone, Default, Serialize, Deserialize)]
-pub struct AddonsSection {
+/// The `tools` sub-table of an addon, e.g. `[addons.python.tools]`.
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+pub struct AddonToolsSection {
     #[serde(default)]
-    pub bundles: Vec<AddonBundle>,
+    pub tools: HashMap<String, ToolEntry>,
 }
+
+/// [addons] section — each key is an addon name mapping to its tools table.
+///
+/// In TOML:
+/// ```toml
+/// [addons.python.tools]
+/// python = { version = "3.13" }
+/// uv = { version = "0.7" }
+/// ```
+///
+/// Deserialized as `HashMap<String, AddonToolsSection>` where the outer key
+/// is the addon name (e.g. "python") and the inner map contains tool entries.
+#[derive(Debug, Clone, Serialize, Default, PartialEq)]
+pub struct AddonsSection {
+    pub addons: HashMap<String, AddonToolsSection>,
+}
+
+// Custom deserialization: the TOML section `[addons]` is a table where each
+// key is an addon name and each value is an `AddonToolsSection`. Serde by
+// default would look for a field called `addons` inside the `[addons]` table,
+// but in our TOML the addon names ARE the keys of the `[addons]` table. We
+// use `deserialize_with` at the DevBoxConfig level via a transparent wrapper.
+impl<'de> Deserialize<'de> for AddonsSection {
+    fn deserialize<D>(deserializer: D) -> std::result::Result<Self, D::Error>
+    where
+        D: Deserializer<'de>,
+    {
+        let addons = HashMap::<String, AddonToolsSection>::deserialize(deserializer)?;
+        Ok(AddonsSection { addons })
+    }
+}
+
+#[allow(dead_code)]
+impl AddonsSection {
+    /// Check whether a specific addon is configured.
+    pub fn has_addon(&self, name: &str) -> bool {
+        self.addons.contains_key(name)
+    }
+
+    /// Get the tools section for a specific addon, if present.
+    pub fn get_addon(&self, name: &str) -> Option<&AddonToolsSection> {
+        self.addons.get(name)
+    }
+
+    /// Iterate over all configured addons.
+    pub fn iter(&self) -> impl Iterator<Item = (&String, &AddonToolsSection)> {
+        self.addons.iter()
+    }
+
+    /// Check whether a specific addon contains a specific tool.
+    pub fn has_tool(&self, addon: &str, tool: &str) -> bool {
+        self.addons
+            .get(addon)
+            .is_some_and(|a| a.tools.contains_key(tool))
+    }
+
+    /// Get the version of a specific tool in an addon, if configured.
+    pub fn tool_version(&self, addon: &str, tool: &str) -> Option<&str> {
+        self.addons
+            .get(addon)
+            .and_then(|a| a.tools.get(tool))
+            .and_then(|t| t.version.as_deref())
+    }
+
+    /// Convenience: check if the python addon is configured.
+    pub fn has_python(&self) -> bool {
+        self.has_addon("python")
+    }
+
+    /// Convenience: check if the rust addon is configured.
+    pub fn has_rust(&self) -> bool {
+        self.has_addon("rust")
+    }
+
+    /// Convenience: check if the node addon is configured.
+    pub fn has_node(&self) -> bool {
+        self.has_addon("node")
+    }
+
+    /// Convenience: check if the latex addon is configured.
+    pub fn has_latex(&self) -> bool {
+        self.has_addon("latex")
+    }
+}
+
+// ---------------------------------------------------------------------------
+// [skills] section — NEW
+// ---------------------------------------------------------------------------
+
+/// [skills] section — include/exclude overrides for skill deployment.
+#[derive(Debug, Clone, Serialize, Deserialize, Default, PartialEq)]
+pub struct SkillsSection {
+    #[serde(default)]
+    pub include: Vec<String>,
+    #[serde(default)]
+    pub exclude: Vec<String>,
+}
+
+// ---------------------------------------------------------------------------
+// [appearance] section — UNCHANGED
+// ---------------------------------------------------------------------------
 
 /// Color themes available across all tools (Zellij, Vim, Yazi, lazygit).
 #[derive(Debug, Clone, Default, Serialize, Deserialize, PartialEq, clap::ValueEnum)]
@@ -388,6 +393,36 @@ impl Default for AppearanceSection {
     }
 }
 
+// ---------------------------------------------------------------------------
+// [audio] section — UNCHANGED
+// ---------------------------------------------------------------------------
+
+/// [audio] section.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct AudioSection {
+    #[serde(default)]
+    pub enabled: bool,
+    #[serde(default = "default_pulse_server")]
+    pub pulse_server: String,
+}
+
+fn default_pulse_server() -> String {
+    "tcp:host.docker.internal:4714".to_string()
+}
+
+impl Default for AudioSection {
+    fn default() -> Self {
+        Self {
+            enabled: false,
+            pulse_server: default_pulse_server(),
+        }
+    }
+}
+
+// ---------------------------------------------------------------------------
+// Validation helpers
+// ---------------------------------------------------------------------------
+
 /// Check that a string is a safe container/hostname identifier.
 /// Must start with alphanumeric and contain only [a-zA-Z0-9._-].
 fn is_safe_identifier(s: &str) -> bool {
@@ -413,6 +448,19 @@ fn is_safe_package_name(s: &str) -> bool {
     chars.all(|c| c.is_ascii_alphanumeric() || c == '.' || c == '+' || c == '-')
 }
 
+/// Check that an addon/tool/skill name uses only safe characters: [a-zA-Z0-9_-].
+fn is_safe_name(s: &str) -> bool {
+    if s.is_empty() {
+        return false;
+    }
+    s.chars()
+        .all(|c| c.is_ascii_alphanumeric() || c == '-' || c == '_')
+}
+
+// ---------------------------------------------------------------------------
+// Root config — DevBoxConfig
+// ---------------------------------------------------------------------------
+
 /// Root config structure mapping dev-box.toml.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct DevBoxConfig {
@@ -424,7 +472,11 @@ pub struct DevBoxConfig {
     #[serde(default)]
     pub ai: AiSection,
     #[serde(default)]
+    pub process: ProcessSection,
+    #[serde(default)]
     pub addons: AddonsSection,
+    #[serde(default)]
+    pub skills: SkillsSection,
     #[serde(default)]
     pub appearance: AppearanceSection,
     #[serde(default)]
@@ -460,6 +512,15 @@ impl DevBoxConfig {
                 "No dev-box.toml found in the current directory. Run 'dev-box init' to create one."
             )
         }
+    }
+
+    /// Parse config from a TOML string. Useful for testing and programmatic use.
+    #[allow(dead_code)]
+    pub fn from_str(toml_str: &str) -> Result<Self> {
+        let config: DevBoxConfig =
+            toml::from_str(toml_str).context("Failed to parse TOML config")?;
+        config.validate()?;
+        Ok(config)
     }
 
     /// Validate the config values. Called internally by `load`, but also
@@ -511,6 +572,61 @@ impl DevBoxConfig {
             }
         }
 
+        // Validate process packages have safe names
+        if self.process.packages.is_empty() {
+            bail!("process.packages must not be empty (at minimum ['core'] is required)");
+        }
+        for pkg in &self.process.packages {
+            if !is_safe_name(pkg) {
+                bail!(
+                    "process.packages entry '{}' contains invalid characters. \
+                     Must contain only [a-zA-Z0-9_-]",
+                    pkg
+                );
+            }
+        }
+
+        // Validate addon names and tool names are safe identifiers
+        for (addon_name, addon_tools) in &self.addons.addons {
+            if !is_safe_name(addon_name) {
+                bail!(
+                    "addon name '{}' contains invalid characters. \
+                     Must contain only [a-zA-Z0-9_-]",
+                    addon_name
+                );
+            }
+            for tool_name in addon_tools.tools.keys() {
+                if !is_safe_name(tool_name) {
+                    bail!(
+                        "tool name '{}' in addon '{}' contains invalid characters. \
+                         Must contain only [a-zA-Z0-9_-]",
+                        tool_name,
+                        addon_name
+                    );
+                }
+            }
+        }
+
+        // Validate skill names are safe
+        for skill in &self.skills.include {
+            if !is_safe_name(skill) {
+                bail!(
+                    "skills.include entry '{}' contains invalid characters. \
+                     Must contain only [a-zA-Z0-9_-]",
+                    skill
+                );
+            }
+        }
+        for skill in &self.skills.exclude {
+            if !is_safe_name(skill) {
+                bail!(
+                    "skills.exclude entry '{}' contains invalid characters. \
+                     Must contain only [a-zA-Z0-9_-]",
+                    skill
+                );
+            }
+        }
+
         Ok(())
     }
 
@@ -545,15 +661,18 @@ impl DevBoxConfig {
     }
 }
 
+// ---------------------------------------------------------------------------
+// Test helper
+// ---------------------------------------------------------------------------
+
 /// Create a `DevBoxConfig` for testing with sensible defaults.
 /// Only available in test builds to reduce boilerplate across test modules.
 #[cfg(test)]
-pub fn test_config(image: ImageFlavor, process: ProcessFlavor) -> DevBoxConfig {
+pub fn test_config() -> DevBoxConfig {
     DevBoxConfig {
         dev_box: DevBoxSection {
-            version: "0.1.0".to_string(),
-            image,
-            process,
+            version: "0.9.0".to_string(),
+            base: BaseImage::Debian,
         },
         container: ContainerSection {
             name: "test-proj".to_string(),
@@ -562,17 +681,24 @@ pub fn test_config(image: ImageFlavor, process: ProcessFlavor) -> DevBoxConfig {
             ports: vec![],
             extra_packages: vec![],
             extra_volumes: vec![],
-            environment: std::collections::HashMap::new(),
+            environment: HashMap::new(),
             post_create_command: None,
             vscode_extensions: vec![],
+            keepalive: false,
         },
         context: ContextSection::default(),
         ai: AiSection::default(),
+        process: ProcessSection::default(),
         addons: AddonsSection::default(),
+        skills: SkillsSection::default(),
         appearance: AppearanceSection::default(),
         audio: AudioSection::default(),
     }
 }
+
+// ---------------------------------------------------------------------------
+// Tests
+// ---------------------------------------------------------------------------
 
 #[cfg(test)]
 mod tests {
@@ -580,18 +706,23 @@ mod tests {
     use serial_test::serial;
     use std::io::Write;
 
-    fn valid_toml() -> &'static str {
+    // -- TOML fixtures ------------------------------------------------------
+
+    fn full_toml() -> &'static str {
         r#"
 [dev-box]
-version = "0.1.0"
-image = "python"
-process = "managed"
+version = "0.9.0"
+base = "debian"
 
 [container]
-name = "test-project"
-hostname = "test-host"
+name = "my-project"
+hostname = "my-project"
+user = "root"
 ports = ["8080:80"]
-extra_packages = ["ripgrep", "fd-find"]
+extra_packages = ["ffmpeg"]
+vscode_extensions = ["ms-python.python"]
+keepalive = false
+post_create_command = "npm install"
 
 [container.environment]
 MY_VAR = "hello"
@@ -604,18 +735,60 @@ read_only = true
 [context]
 schema_version = "2.0.0"
 
+[ai]
+providers = ["claude", "aider", "mistral"]
+
+[process]
+packages = ["managed", "code", "documentation"]
+
+[addons.python.tools]
+python = { version = "3.13" }
+uv = { version = "0.7" }
+
+[addons.node.tools]
+node = { version = "22" }
+pnpm = { version = "10" }
+
+[addons.rust.tools]
+rustc = { version = "1.87" }
+clippy = {}
+rustfmt = {}
+
+[addons.latex.tools]
+texlive-core = {}
+texlive-recommended = {}
+
+[addons.infrastructure.tools]
+opentofu = {}
+ansible = {}
+
+[addons.kubernetes.tools]
+kubectl = {}
+helm = {}
+
+[addons.cloud-aws.tools]
+aws-cli = {}
+
+[addons.docs-docusaurus.tools]
+docusaurus = { version = "3" }
+
+[skills]
+exclude = ["standup-context"]
+include = ["flutter-development"]
+
+[appearance]
+theme = "gruvbox-dark"
+prompt = "default"
+
 [audio]
-enabled = true
-pulse_server = "tcp:localhost:4714"
+enabled = false
 "#
     }
 
     fn minimal_toml() -> &'static str {
         r#"
 [dev-box]
-version = "0.1.0"
-image = "base"
-process = "minimal"
+version = "0.9.0"
 
 [container]
 name = "my-project"
@@ -628,82 +801,118 @@ name = "my-project"
         Ok(config)
     }
 
+    // -- Full config parsing ------------------------------------------------
+
     #[test]
-    fn parse_valid_toml_all_fields() {
-        let config = parse_toml(valid_toml()).expect("should parse valid toml");
-        assert_eq!(config.dev_box.version, "0.1.0");
-        assert_eq!(config.dev_box.image, ImageFlavor::Python);
-        assert_eq!(config.dev_box.process, ProcessFlavor::Managed);
-        assert_eq!(config.container.name, "test-project");
-        assert_eq!(config.container.hostname, "test-host");
+    fn parse_full_toml_all_fields() {
+        let config = parse_toml(full_toml()).expect("should parse full toml");
+
+        // [dev-box]
+        assert_eq!(config.dev_box.version, "0.9.0");
+        assert_eq!(config.dev_box.base, BaseImage::Debian);
+
+        // [container]
+        assert_eq!(config.container.name, "my-project");
+        assert_eq!(config.container.hostname, "my-project");
+        assert_eq!(config.container.user, "root");
         assert_eq!(config.container.ports, vec!["8080:80"]);
-        assert_eq!(config.container.extra_packages, vec!["ripgrep", "fd-find"]);
+        assert_eq!(config.container.extra_packages, vec!["ffmpeg"]);
         assert_eq!(config.container.environment.get("MY_VAR").unwrap(), "hello");
         assert_eq!(config.container.extra_volumes.len(), 1);
         assert_eq!(config.container.extra_volumes[0].source, "/host/data");
-        assert_eq!(config.container.extra_volumes[0].target, "/data");
         assert!(config.container.extra_volumes[0].read_only);
+        assert_eq!(
+            config.container.post_create_command.as_deref(),
+            Some("npm install")
+        );
+        assert_eq!(
+            config.container.vscode_extensions,
+            vec!["ms-python.python"]
+        );
+        assert!(!config.container.keepalive);
+
+        // [context]
         assert_eq!(config.context.schema_version, "2.0.0");
-        assert!(config.audio.enabled);
-        assert_eq!(config.audio.pulse_server, "tcp:localhost:4714");
+
+        // [ai]
+        assert_eq!(config.ai.providers.len(), 3);
+        assert_eq!(config.ai.providers[0], AiProvider::Claude);
+        assert_eq!(config.ai.providers[1], AiProvider::Aider);
+        assert_eq!(config.ai.providers[2], AiProvider::Mistral);
+
+        // [process]
+        assert_eq!(
+            config.process.packages,
+            vec!["managed", "code", "documentation"]
+        );
+
+        // [addons]
+        assert_eq!(config.addons.addons.len(), 8);
+        assert!(config.addons.has_addon("python"));
+        assert!(config.addons.has_addon("node"));
+        assert!(config.addons.has_addon("rust"));
+        assert!(config.addons.has_addon("latex"));
+        assert!(config.addons.has_addon("infrastructure"));
+        assert!(config.addons.has_addon("kubernetes"));
+        assert!(config.addons.has_addon("cloud-aws"));
+
+        // Check specific tool versions
+        assert_eq!(
+            config.addons.tool_version("python", "python"),
+            Some("3.13")
+        );
+        assert_eq!(config.addons.tool_version("python", "uv"), Some("0.7"));
+        assert_eq!(config.addons.tool_version("rust", "rustc"), Some("1.87"));
+        assert_eq!(config.addons.tool_version("rust", "clippy"), None);
+        assert_eq!(config.addons.tool_version("rust", "rustfmt"), None);
+        assert!(config.addons.has_tool("kubernetes", "kubectl"));
+        assert!(config.addons.has_tool("kubernetes", "helm"));
+        assert_eq!(
+            config.addons.tool_version("docs-docusaurus", "docusaurus"),
+            Some("3")
+        );
+
+        // [skills]
+        assert_eq!(config.skills.exclude, vec!["standup-context"]);
+        assert_eq!(config.skills.include, vec!["flutter-development"]);
+
+        // [appearance]
+        assert_eq!(config.appearance.theme, Theme::GruvboxDark);
+        assert_eq!(config.appearance.prompt, StarshipPreset::Default);
+
+        // [audio]
+        assert!(!config.audio.enabled);
     }
+
+    // -- Minimal config with defaults ---------------------------------------
 
     #[test]
     fn parse_minimal_toml_defaults() {
         let config = parse_toml(minimal_toml()).expect("should parse minimal toml");
-        assert_eq!(config.dev_box.image, ImageFlavor::Base);
-        assert_eq!(config.dev_box.process, ProcessFlavor::Minimal);
+        assert_eq!(config.dev_box.base, BaseImage::Debian);
         assert_eq!(config.container.name, "my-project");
-        assert_eq!(
-            config.container.hostname, "dev-box",
-            "hostname should default"
-        );
+        assert_eq!(config.container.hostname, "dev-box");
         assert!(config.container.ports.is_empty());
         assert!(config.container.extra_packages.is_empty());
         assert!(config.container.extra_volumes.is_empty());
         assert!(config.container.environment.is_empty());
         assert_eq!(config.context.schema_version, "1.0.0");
+        assert_eq!(config.ai.providers, vec![AiProvider::Claude]);
+        assert_eq!(config.process.packages, vec!["core"]);
+        assert!(config.addons.addons.is_empty());
+        assert!(config.skills.include.is_empty());
+        assert!(config.skills.exclude.is_empty());
         assert!(!config.audio.enabled);
         assert_eq!(config.audio.pulse_server, "tcp:host.docker.internal:4714");
     }
 
-    #[test]
-    fn parse_invalid_image_flavor() {
-        let toml = r#"
-[dev-box]
-version = "0.1.0"
-image = "golang"
-process = "minimal"
-
-[container]
-name = "test"
-"#;
-        let result = parse_toml(toml);
-        assert!(result.is_err(), "should reject unknown image flavor");
-    }
-
-    #[test]
-    fn parse_invalid_process_flavor() {
-        let toml = r#"
-[dev-box]
-version = "0.1.0"
-image = "base"
-process = "waterfall"
-
-[container]
-name = "test"
-"#;
-        let result = parse_toml(toml);
-        assert!(result.is_err(), "should reject unknown process flavor");
-    }
+    // -- Validation errors --------------------------------------------------
 
     #[test]
     fn parse_invalid_semver_version() {
         let toml = r#"
 [dev-box]
 version = "not-a-version"
-image = "base"
-process = "minimal"
 
 [container]
 name = "test"
@@ -716,9 +925,7 @@ name = "test"
     fn parse_empty_container_name() {
         let toml = r#"
 [dev-box]
-version = "0.1.0"
-image = "base"
-process = "minimal"
+version = "0.9.0"
 
 [container]
 name = ""
@@ -728,163 +935,356 @@ name = ""
     }
 
     #[test]
-    fn image_flavor_from_str_loose_all_valid() {
-        assert_eq!(
-            ImageFlavor::from_str_loose("base").unwrap(),
-            ImageFlavor::Base
-        );
-        assert_eq!(
-            ImageFlavor::from_str_loose("python").unwrap(),
-            ImageFlavor::Python
-        );
-        assert_eq!(
-            ImageFlavor::from_str_loose("latex").unwrap(),
-            ImageFlavor::Latex
-        );
-        assert_eq!(
-            ImageFlavor::from_str_loose("typst").unwrap(),
-            ImageFlavor::Typst
-        );
-        assert_eq!(
-            ImageFlavor::from_str_loose("rust").unwrap(),
-            ImageFlavor::Rust
-        );
-        assert_eq!(
-            ImageFlavor::from_str_loose("node").unwrap(),
-            ImageFlavor::Node
-        );
-        assert_eq!(
-            ImageFlavor::from_str_loose("go").unwrap(),
-            ImageFlavor::Go
-        );
-        assert_eq!(
-            ImageFlavor::from_str_loose("python-latex").unwrap(),
-            ImageFlavor::PythonLatex
-        );
-        assert_eq!(
-            ImageFlavor::from_str_loose("python-typst").unwrap(),
-            ImageFlavor::PythonTypst
-        );
-        assert_eq!(
-            ImageFlavor::from_str_loose("rust-latex").unwrap(),
-            ImageFlavor::RustLatex
-        );
-    }
+    fn invalid_schema_version_semver() {
+        let toml = r#"
+[dev-box]
+version = "0.9.0"
 
-    #[test]
-    fn image_flavor_from_str_loose_invalid() {
-        let result = ImageFlavor::from_str_loose("java");
-        assert!(result.is_err());
-        let err_msg = result.unwrap_err().to_string();
+[container]
+name = "test"
+
+[context]
+schema_version = "bad"
+"#;
+        let result = parse_toml(toml);
         assert!(
-            err_msg.contains("java"),
-            "error should mention the invalid value"
+            result.is_err(),
+            "should reject invalid schema_version semver"
         );
     }
 
     #[test]
-    fn image_flavor_contains_python() {
-        assert!(!ImageFlavor::Base.contains_python());
-        assert!(ImageFlavor::Python.contains_python());
-        assert!(!ImageFlavor::Latex.contains_python());
-        assert!(!ImageFlavor::Typst.contains_python());
-        assert!(!ImageFlavor::Rust.contains_python());
-        assert!(!ImageFlavor::Node.contains_python());
-        assert!(!ImageFlavor::Go.contains_python());
-        assert!(ImageFlavor::PythonLatex.contains_python());
-        assert!(ImageFlavor::PythonTypst.contains_python());
-        assert!(!ImageFlavor::RustLatex.contains_python());
+    fn invalid_container_name_chars() {
+        let toml = r#"
+[dev-box]
+version = "0.9.0"
+
+[container]
+name = "my project!"
+"#;
+        let result = parse_toml(toml);
+        assert!(result.is_err(), "should reject invalid container name");
     }
 
     #[test]
-    fn image_flavor_contains_latex() {
-        assert!(!ImageFlavor::Base.contains_latex());
-        assert!(!ImageFlavor::Python.contains_latex());
-        assert!(ImageFlavor::Latex.contains_latex());
-        assert!(!ImageFlavor::Typst.contains_latex());
-        assert!(!ImageFlavor::Rust.contains_latex());
-        assert!(!ImageFlavor::Node.contains_latex());
-        assert!(!ImageFlavor::Go.contains_latex());
-        assert!(ImageFlavor::PythonLatex.contains_latex());
-        assert!(!ImageFlavor::PythonTypst.contains_latex());
-        assert!(ImageFlavor::RustLatex.contains_latex());
+    fn invalid_extra_package_name() {
+        let toml = r#"
+[dev-box]
+version = "0.9.0"
+
+[container]
+name = "test"
+extra_packages = ["good-pkg", "bad pkg!"]
+"#;
+        let result = parse_toml(toml);
+        assert!(result.is_err(), "should reject invalid package name");
     }
 
     #[test]
-    fn image_flavor_contains_typst() {
-        assert!(!ImageFlavor::Base.contains_typst());
-        assert!(!ImageFlavor::Python.contains_typst());
-        assert!(!ImageFlavor::Latex.contains_typst());
-        assert!(ImageFlavor::Typst.contains_typst());
-        assert!(!ImageFlavor::Rust.contains_typst());
-        assert!(!ImageFlavor::Node.contains_typst());
-        assert!(!ImageFlavor::Go.contains_typst());
-        assert!(!ImageFlavor::PythonLatex.contains_typst());
-        assert!(ImageFlavor::PythonTypst.contains_typst());
-        assert!(!ImageFlavor::RustLatex.contains_typst());
+    fn empty_process_packages_rejected() {
+        let toml = r#"
+[dev-box]
+version = "0.9.0"
+
+[container]
+name = "test"
+
+[process]
+packages = []
+"#;
+        let result = parse_toml(toml);
+        assert!(result.is_err(), "should reject empty process packages");
     }
 
     #[test]
-    fn image_flavor_contains_rust() {
-        assert!(!ImageFlavor::Base.contains_rust());
-        assert!(!ImageFlavor::Python.contains_rust());
-        assert!(!ImageFlavor::Latex.contains_rust());
-        assert!(!ImageFlavor::Typst.contains_rust());
-        assert!(ImageFlavor::Rust.contains_rust());
-        assert!(!ImageFlavor::Node.contains_rust());
-        assert!(!ImageFlavor::Go.contains_rust());
-        assert!(!ImageFlavor::PythonLatex.contains_rust());
-        assert!(!ImageFlavor::PythonTypst.contains_rust());
-        assert!(ImageFlavor::RustLatex.contains_rust());
+    fn invalid_skill_name_rejected() {
+        let toml = r#"
+[dev-box]
+version = "0.9.0"
+
+[container]
+name = "test"
+
+[skills]
+include = ["valid-skill", "bad skill!"]
+"#;
+        let result = parse_toml(toml);
+        assert!(result.is_err(), "should reject invalid skill name");
     }
 
     #[test]
-    fn process_flavor_from_str_loose_all_valid() {
+    fn invalid_addon_name_rejected() {
+        let toml = r#"
+[dev-box]
+version = "0.9.0"
+
+[container]
+name = "test"
+
+[addons."bad addon!".tools]
+tool = {}
+"#;
+        let result = parse_toml(toml);
+        assert!(result.is_err(), "should reject invalid addon name");
+    }
+
+    // -- AI providers -------------------------------------------------------
+
+    #[test]
+    fn ai_provider_display() {
+        assert_eq!(format!("{}", AiProvider::Claude), "claude");
+        assert_eq!(format!("{}", AiProvider::Aider), "aider");
+        assert_eq!(format!("{}", AiProvider::Gemini), "gemini");
+        assert_eq!(format!("{}", AiProvider::Mistral), "mistral");
+    }
+
+    #[test]
+    fn parse_all_ai_providers() {
+        let toml = r#"
+[dev-box]
+version = "0.9.0"
+
+[container]
+name = "test"
+
+[ai]
+providers = ["claude", "aider", "gemini", "mistral"]
+"#;
+        let config = parse_toml(toml).unwrap();
+        assert_eq!(config.ai.providers.len(), 4);
+        assert_eq!(config.ai.providers[3], AiProvider::Mistral);
+    }
+
+    #[test]
+    fn parse_empty_ai_providers() {
+        let toml = r#"
+[dev-box]
+version = "0.9.0"
+
+[container]
+name = "test"
+
+[ai]
+providers = []
+"#;
+        let config = parse_toml(toml).unwrap();
+        assert!(config.ai.providers.is_empty());
+    }
+
+    #[test]
+    fn default_ai_providers_is_claude() {
+        let config = parse_toml(minimal_toml()).unwrap();
+        assert_eq!(config.ai.providers, vec![AiProvider::Claude]);
+    }
+
+    // -- Base image ---------------------------------------------------------
+
+    #[test]
+    fn base_image_display() {
+        assert_eq!(format!("{}", BaseImage::Debian), "debian");
+    }
+
+    #[test]
+    fn base_image_default_is_debian() {
+        let config = parse_toml(minimal_toml()).unwrap();
+        assert_eq!(config.dev_box.base, BaseImage::Debian);
+    }
+
+    // -- Addons helpers -----------------------------------------------------
+
+    #[test]
+    fn addons_convenience_methods() {
+        let config = parse_toml(full_toml()).unwrap();
+        assert!(config.addons.has_python());
+        assert!(config.addons.has_rust());
+        assert!(config.addons.has_node());
+        assert!(config.addons.has_latex());
+    }
+
+    #[test]
+    fn addons_tool_lookup() {
+        let config = parse_toml(full_toml()).unwrap();
+        assert!(config.addons.has_tool("python", "python"));
+        assert!(config.addons.has_tool("python", "uv"));
+        assert!(!config.addons.has_tool("python", "poetry"));
+        assert_eq!(config.addons.tool_version("node", "node"), Some("22"));
+        assert_eq!(config.addons.tool_version("node", "pnpm"), Some("10"));
+        assert_eq!(config.addons.tool_version("cloud-aws", "aws-cli"), None);
+    }
+
+    #[test]
+    fn addons_empty_by_default() {
+        let config = parse_toml(minimal_toml()).unwrap();
+        assert!(config.addons.addons.is_empty());
+        assert!(!config.addons.has_python());
+        assert!(!config.addons.has_rust());
+    }
+
+    #[test]
+    fn addon_with_only_versionless_tools() {
+        let toml = r#"
+[dev-box]
+version = "0.9.0"
+
+[container]
+name = "test"
+
+[addons.rust.tools]
+clippy = {}
+rustfmt = {}
+"#;
+        let config = parse_toml(toml).unwrap();
+        assert!(config.addons.has_rust());
+        assert!(config.addons.has_tool("rust", "clippy"));
+        assert_eq!(config.addons.tool_version("rust", "clippy"), None);
+    }
+
+    // -- Process section ----------------------------------------------------
+
+    #[test]
+    fn process_packages_default_is_core() {
+        let config = parse_toml(minimal_toml()).unwrap();
+        assert_eq!(config.process.packages, vec!["core"]);
+    }
+
+    #[test]
+    fn process_packages_custom() {
+        let toml = r#"
+[dev-box]
+version = "0.9.0"
+
+[container]
+name = "test"
+
+[process]
+packages = ["managed", "code", "research"]
+"#;
+        let config = parse_toml(toml).unwrap();
         assert_eq!(
-            ProcessFlavor::from_str_loose("minimal").unwrap(),
-            ProcessFlavor::Minimal
-        );
-        assert_eq!(
-            ProcessFlavor::from_str_loose("managed").unwrap(),
-            ProcessFlavor::Managed
-        );
-        assert_eq!(
-            ProcessFlavor::from_str_loose("research").unwrap(),
-            ProcessFlavor::Research
-        );
-        assert_eq!(
-            ProcessFlavor::from_str_loose("product").unwrap(),
-            ProcessFlavor::Product
+            config.process.packages,
+            vec!["managed", "code", "research"]
         );
     }
 
+    // -- Skills section -----------------------------------------------------
+
     #[test]
-    fn process_flavor_from_str_loose_invalid() {
-        let result = ProcessFlavor::from_str_loose("waterfall");
+    fn skills_default_empty() {
+        let config = parse_toml(minimal_toml()).unwrap();
+        assert!(config.skills.include.is_empty());
+        assert!(config.skills.exclude.is_empty());
+    }
+
+    #[test]
+    fn skills_include_only() {
+        let toml = r#"
+[dev-box]
+version = "0.9.0"
+
+[container]
+name = "test"
+
+[skills]
+include = ["flutter-development", "rust-conventions"]
+"#;
+        let config = parse_toml(toml).unwrap();
+        assert_eq!(
+            config.skills.include,
+            vec!["flutter-development", "rust-conventions"]
+        );
+        assert!(config.skills.exclude.is_empty());
+    }
+
+    #[test]
+    fn skills_exclude_only() {
+        let toml = r#"
+[dev-box]
+version = "0.9.0"
+
+[container]
+name = "test"
+
+[skills]
+exclude = ["standup-context"]
+"#;
+        let config = parse_toml(toml).unwrap();
+        assert!(config.skills.include.is_empty());
+        assert_eq!(config.skills.exclude, vec!["standup-context"]);
+    }
+
+    // -- Appearance ---------------------------------------------------------
+
+    #[test]
+    fn appearance_all_themes() {
+        for (input, expected) in [
+            ("gruvbox-dark", Theme::GruvboxDark),
+            ("catppuccin-mocha", Theme::CatppuccinMocha),
+            ("catppuccin-latte", Theme::CatppuccinLatte),
+            ("dracula", Theme::Dracula),
+            ("tokyo-night", Theme::TokyoNight),
+            ("nord", Theme::Nord),
+        ] {
+            let toml = format!(
+                r#"
+[dev-box]
+version = "0.9.0"
+
+[container]
+name = "test"
+
+[appearance]
+theme = "{input}"
+"#
+            );
+            let config = parse_toml(&toml).unwrap();
+            assert_eq!(config.appearance.theme, expected);
+        }
+    }
+
+    // -- Extra volumes ------------------------------------------------------
+
+    #[test]
+    fn extra_volume_read_only_defaults_false() {
+        let toml = r#"
+[dev-box]
+version = "0.9.0"
+
+[container]
+name = "test"
+
+[[container.extra_volumes]]
+source = "/a"
+target = "/b"
+"#;
+        let config = parse_toml(toml).unwrap();
+        assert!(!config.container.extra_volumes[0].read_only);
+    }
+
+    // -- File loading -------------------------------------------------------
+
+    #[test]
+    fn load_from_file() {
+        let dir = tempfile::tempdir().unwrap();
+        let path = dir.path().join("dev-box.toml");
+        let mut f = std::fs::File::create(&path).unwrap();
+        f.write_all(minimal_toml().as_bytes()).unwrap();
+        let config = DevBoxConfig::load(&path).expect("should load from file");
+        assert_eq!(config.container.name, "my-project");
+    }
+
+    #[test]
+    fn load_missing_file() {
+        let result = DevBoxConfig::load(Path::new("/nonexistent/dev-box.toml"));
         assert!(result.is_err());
     }
 
     #[test]
-    fn process_flavor_display() {
-        assert_eq!(format!("{}", ProcessFlavor::Minimal), "minimal");
-        assert_eq!(format!("{}", ProcessFlavor::Managed), "managed");
-        assert_eq!(format!("{}", ProcessFlavor::Research), "research");
-        assert_eq!(format!("{}", ProcessFlavor::Product), "product");
+    fn from_str_parses_and_validates() {
+        let config = DevBoxConfig::from_str(minimal_toml()).unwrap();
+        assert_eq!(config.container.name, "my-project");
     }
 
-    #[test]
-    fn image_flavor_display() {
-        assert_eq!(format!("{}", ImageFlavor::Base), "base");
-        assert_eq!(format!("{}", ImageFlavor::Python), "python");
-        assert_eq!(format!("{}", ImageFlavor::Latex), "latex");
-        assert_eq!(format!("{}", ImageFlavor::Typst), "typst");
-        assert_eq!(format!("{}", ImageFlavor::Rust), "rust");
-        assert_eq!(format!("{}", ImageFlavor::Node), "node");
-        assert_eq!(format!("{}", ImageFlavor::Go), "go");
-        assert_eq!(format!("{}", ImageFlavor::PythonLatex), "python-latex");
-        assert_eq!(format!("{}", ImageFlavor::PythonTypst), "python-typst");
-        assert_eq!(format!("{}", ImageFlavor::RustLatex), "rust-latex");
-    }
+    // -- Host/container path helpers ----------------------------------------
 
     #[test]
     #[serial]
@@ -893,7 +1293,6 @@ name = ""
             std::env::remove_var("DEV_BOX_HOST_ROOT");
         }
         let config = parse_toml(minimal_toml()).unwrap();
-        // Default is .dev-box-home when neither .root nor .dev-box-home exist
         assert_eq!(config.host_root_dir(), PathBuf::from(".dev-box-home"));
     }
 
@@ -933,111 +1332,11 @@ name = ""
         }
     }
 
-    #[test]
-    fn load_from_file() {
-        let dir = tempfile::tempdir().unwrap();
-        let path = dir.path().join("dev-box.toml");
-        let mut f = std::fs::File::create(&path).unwrap();
-        f.write_all(minimal_toml().as_bytes()).unwrap();
-        let config = DevBoxConfig::load(&path).expect("should load from file");
-        assert_eq!(config.container.name, "my-project");
-    }
+    // -- test_config helper -------------------------------------------------
 
     #[test]
-    fn load_missing_file() {
-        let result = DevBoxConfig::load(Path::new("/nonexistent/dev-box.toml"));
-        assert!(result.is_err());
-    }
-
-    #[test]
-    fn invalid_schema_version_semver() {
-        let toml = r#"
-[dev-box]
-version = "0.1.0"
-image = "base"
-process = "minimal"
-
-[container]
-name = "test"
-
-[context]
-schema_version = "bad"
-"#;
-        let result = parse_toml(toml);
-        assert!(
-            result.is_err(),
-            "should reject invalid schema_version semver"
-        );
-    }
-
-    #[test]
-    fn ai_provider_display() {
-        assert_eq!(format!("{}", AiProvider::Claude), "claude");
-        assert_eq!(format!("{}", AiProvider::Aider), "aider");
-        assert_eq!(format!("{}", AiProvider::Gemini), "gemini");
-    }
-
-    #[test]
-    fn parse_ai_providers_from_toml() {
-        let toml = r#"
-[dev-box]
-version = "0.1.0"
-image = "base"
-process = "minimal"
-
-[container]
-name = "test"
-
-[ai]
-providers = ["claude", "aider", "gemini"]
-"#;
-        let config = parse_toml(toml).unwrap();
-        assert_eq!(config.ai.providers.len(), 3);
-        assert_eq!(config.ai.providers[0], AiProvider::Claude);
-        assert_eq!(config.ai.providers[1], AiProvider::Aider);
-        assert_eq!(config.ai.providers[2], AiProvider::Gemini);
-    }
-
-    #[test]
-    fn parse_empty_ai_providers() {
-        let toml = r#"
-[dev-box]
-version = "0.1.0"
-image = "base"
-process = "minimal"
-
-[container]
-name = "test"
-
-[ai]
-providers = []
-"#;
-        let config = parse_toml(toml).unwrap();
-        assert!(config.ai.providers.is_empty());
-    }
-
-    #[test]
-    fn default_ai_providers_is_claude() {
-        let config = parse_toml(minimal_toml()).unwrap();
-        assert_eq!(config.ai.providers, vec![AiProvider::Claude]);
-    }
-
-    #[test]
-    fn extra_volume_read_only_defaults_false() {
-        let toml = r#"
-[dev-box]
-version = "0.1.0"
-image = "base"
-process = "minimal"
-
-[container]
-name = "test"
-
-[[container.extra_volumes]]
-source = "/a"
-target = "/b"
-"#;
-        let config = parse_toml(toml).unwrap();
-        assert!(!config.container.extra_volumes[0].read_only);
+    fn test_config_validates() {
+        let config = test_config();
+        config.validate().expect("test_config should be valid");
     }
 }
