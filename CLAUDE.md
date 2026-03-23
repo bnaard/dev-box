@@ -3,8 +3,8 @@
 **dev-box** is a CLI tool analogous to **uv for AI work environments**. It unifies
 reproducible containerized development environments with built-in AI context structure.
 
-**Key facts:** Rust CLI (`cli/`), 8 published container images (`images/`),
-4 work process flavors (`templates/`), MkDocs docs (`docs/`).
+**Key facts:** Rust CLI (`cli/`), 10 container image flavors (`images/`),
+4 work process flavors (`templates/`), Zensical docs (`docs/`).
 No GitHub Actions — all builds and deploys are local.
 
 ## Critical: .devcontainer/ vs images/
@@ -28,10 +28,13 @@ See `context/work-instructions/DEVELOPMENT.md` for detailed structure and config
 
 ## Context Files
 
-The `context/` directory contains structured project management files:
+The `context/` directory follows the **product** process template:
 
-- `context/OWNER.md` — Profile of the project owner
+- `context/BACKLOG.md` — Task registry with BACK-NNN IDs (source of truth)
+- `context/PROJECTS.md` — Project registry with PROJ-NNN IDs
+- `context/PRD.md` — Product requirements document
 - `context/DECISIONS.md` — Decision log (inverse chronological, DEC-NNN)
+- `context/OWNER.md` — Profile of the project owner
 - `context/work-instructions/GENERAL.md` — General rules, known issues, gotchas
 - `context/work-instructions/DEVELOPMENT.md` — Build, test, project structure, config spec
 - `context/work-instructions/TEAM.md` — Agent strategy, release process summary

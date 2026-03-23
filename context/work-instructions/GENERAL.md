@@ -40,3 +40,4 @@ Never confuse these two. Changes to `.devcontainer/` affect our development. Cha
 - **`host.docker.internal`**: works on Docker Desktop and Podman pasta; bare Linux Docker may need `--add-host`
 - **OrbStack virtiofs**: files mounted from macOS may lose execute permissions. Workaround: `chmod +x` inside container.
 - **Claude Code OAuth in containers**: use `claude setup-token` or authenticate on host (credentials shared via `.claude` mount). See [anthropics/claude-code#14528](https://github.com/anthropics/claude-code/issues/14528). Do NOT use `network_mode: host`.
+- **OrbStack network dropout**: After ~20 minutes of idle, OrbStack's VM NAT can drop connections — breaking Telegram plugins and other long-lived network features. Fix: set `keepalive = true` in `[container]` of `dev-box.toml`. This adds a lightweight DNS lookup every 2 minutes via `postStartCommand`.

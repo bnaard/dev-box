@@ -1,6 +1,8 @@
 # Roadmap
 
 This page outlines planned features and improvements for dev-box.
+The internal source of truth is `context/BACKLOG.md` (BACK-NNN IDs);
+this page is the public-facing summary.
 
 ## Current — v0.8.0
 
@@ -13,10 +15,11 @@ The current release includes:
 - Context scaffolding with `context/shared/` for cross-environment files
 - Named environment management (`dev-box env create/switch/list/delete/status`)
 - `dev-box sync` — reconcile config changes (themes, AI, etc.) without manual file deletion
-- Color theming across Zellij, Vim, Yazi, and lazygit (6 themes)
+- Color theming across Zellij, Vim, Yazi, and lazygit (6 themes) with 6 starship prompt presets
 - Three IDE layouts: dev, focus, cowork (Ctrl+b leader keybindings)
 - AI provider flexibility: Claude, Aider, Gemini — optional, stackable, dynamic layouts
 - Process templates (release, code-review, feature-dev, bug-fix) with SKILL.md support
+- 83 curated skills across 14 categories with 57 reference files
 - Addon bundles (11 total): infrastructure, kubernetes, cloud-aws/gcp/azure, docs-mkdocs/zensical/docusaurus/starlight/mdbook/hugo
 - `dev-box audit` — security scanning (cargo audit, pip-audit, trivy)
 - Shell tools: ripgrep, fd, bat, eza, zoxide, fzf, delta, starship + aliases
@@ -27,50 +30,50 @@ The current release includes:
 
 ## Planned — Near Term
 
-### Theming Screenshots (#14)
+### Theming Screenshots (BACK-001)
 
-Screenshot gallery in docs showing all 6 themes across all 4 tools.
+Interactive asciinema recordings and screenshot gallery showing all 6 themes across all tools in docs.
 
-### Starship Prompt Presets (#17)
+### Security Review (BACK-002)
 
-Configurable prompt presets in `dev-box.toml`, themed to match the selected color theme.
+Comprehensive input validation, container security audit, and supply chain review.
 
-### Additional Image Flavors
+### Skill Install Command (BACK-003)
 
-- **python-rust** — Python + Rust combined
+`dev-box skill install` — install skills from external sources into project `.claude/skills/`.
 
-### Curated Skill Library (#30)
+### CLI Simplification (BACK-005)
 
-Expand from 3 example skills to 50-100 vetted skills covering development, process, language-specific, infrastructure, and security categories. `dev-box skill install` command.
+Merge `build`/`attach` into `start` to reduce command surface area.
 
 ## Planned — Medium Term
 
-### Plugin / Extension System (#20)
+### Skill Eval Framework (BACK-004)
+
+Test and benchmark skills per Anthropic's skill-creator pattern.
+
+### Plugin / Extension System (BACK-007)
 
 Hook system, custom template overrides, community-distributed features.
 
-### Zellij Plugin Integration (#21)
-
-zjstatus (configurable status bar), custom dev-box status plugin.
-
-### Automated Context Migration
+### Automated Context Migration (BACK-009)
 
 AI-assisted prompts for schema version upgrades with safe auto-migration for additive changes.
 
-### Multi-Service Support
+### Multi-Service Support (BACK-010)
 
 Additional docker-compose services, `dev-box ps`/`dev-box logs` commands.
 
 ## Planned — Long Term
 
-### Remote Development
+### Remote Development (BACK-011)
 
 Run dev-box environments on remote hosts with local CLI as thin client.
 
-### Dockerfile Best Practices (#27)
+### Image Signing (BACK-015)
 
-Cache mounts, digest pinning, binary checksum verification, SBOM generation.
+sigstore/cosign for published container images.
 
-### Security Hardening (#23)
+### Zellij Plugin Integration (BACK-008)
 
-Container image signing (cosign), comprehensive input validation audit, supply chain verification.
+zjstatus (configurable status bar), custom dev-box status plugin.
