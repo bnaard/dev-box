@@ -30,7 +30,7 @@ Priority values: `must`, `should`, `could`, `wont`
 | BACK-014 | Binary checksum verification | todo | must | Verify downloaded binaries in base Dockerfile. Sequenced after architecture overhaul |
 | BACK-015 | Image signing (cosign) | todo | must | sigstore/cosign for published images. Sequenced after architecture overhaul |
 | BACK-016 | Skill security vetting | todo | must | Hash verification, allowed-tools audit. Sequenced after architecture overhaul |
-| BACK-017 | LaTeX addon package groups | todo | could | Music, chemistry, linguistics; keep until base image decision in BACK-022 is resolved |
+| BACK-017 | LaTeX addon package groups | todo | could | Add music (lilypond, musixtex), chemistry (chemfig, mhchem), linguistics tool groups to the latex add-on definition in addon_registry.rs |
 | BACK-018 | AIUC-1 compliance alignment | todo | could | Awareness for dev-box |
 | BACK-019 | Skill marketplace integration | todo | could | ClawHub, Skills.sh |
 | BACK-020 | `dev-box doctor` skill consistency | todo | could | Check installed vs declared skills |

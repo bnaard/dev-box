@@ -128,6 +128,11 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     bash-completion \
     # GitHub CLI
     gh \
+    # Yazi preview dependencies
+    chafa \
+    poppler-utils \
+    ffmpeg \
+    imagemagick \
     # Audio support (for Claude Code voice)
     sox \
     libsox-fmt-pulse \

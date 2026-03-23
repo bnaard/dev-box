@@ -6,6 +6,10 @@ case $- in
       *) return;;
 esac
 
+# ── Editor ─────────────────────────────────────────────────────────────────
+export EDITOR=vim
+export VISUAL=vim
+
 # ── History ─────────────────────────────────────────────────────────────────
 HISTCONTROL=ignoreboth
 HISTSIZE=10000
