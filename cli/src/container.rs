@@ -481,6 +481,16 @@ pub fn cmd_sync(config_path: &Option<String>) -> Result<()> {
 
     seed::seed_root_dir(&config)?;
     generate::generate_all(&config)?;
+
+    // Skill reconciliation
+    context::reconcile_skills(&config)?;
+
+    // Generate DEVBOX.md (universal baseline)
+    context::generate_devbox_md(&config)?;
+
+    // Check agent entry points
+    context::check_agent_entry_points(&config)?;
+
     output::ok("Sync complete");
 
     Ok(())
