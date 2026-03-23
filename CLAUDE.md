@@ -4,14 +4,14 @@
 reproducible containerized development environments with built-in AI context structure.
 
 **Key facts:** Rust CLI (`cli/`), 10 container image flavors (`images/`),
-4 work process flavors (`templates/`), Zensical docs (`docs/`).
+4 work process flavors (`templates/`), Docusaurus docs (`docs-site/`).
 No GitHub Actions — all builds and deploys are local.
 
 ## Critical: .devcontainer/ vs images/
 
 We are in a dev-container building dev-containers. **Never confuse these two:**
 
-- **`.devcontainer/`** — THIS project's own dev environment (Rust + Python/uv + MkDocs)
+- **`.devcontainer/`** — THIS project's own dev environment (Rust + Python/uv + Docusaurus)
 - **`images/`** — Published images for OTHER projects (pushed to GHCR)
 
 ## Building and Testing
@@ -30,7 +30,8 @@ See `context/work-instructions/DEVELOPMENT.md` for detailed structure and config
 
 The `context/` directory follows the **product** process template:
 
-- `context/BACKLOG.md` — Task registry with BACK-NNN IDs (source of truth)
+- `context/BACKLOG.md` — Active task registry with BACK-NNN IDs (source of truth)
+- `context/BACKLOG-ARCHIVE.md` — Completed/archived items (history)
 - `context/PROJECTS.md` — Project registry with PROJ-NNN IDs
 - `context/PRD.md` — Product requirements document
 - `context/DECISIONS.md` — Decision log (inverse chronological, DEC-NNN)
