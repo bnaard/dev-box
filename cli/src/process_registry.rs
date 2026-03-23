@@ -67,7 +67,7 @@ static PACKAGES: &[ProcessPackage] = &[
     ProcessPackage {
         name: "tracking",
         description: "Backlog, decisions, and event tracking",
-        skills: &["backlog-context", "decisions-adr", "event-log"],
+        skills: &["backlog-context", "decisions-adr", "event-log", "context-archiving"],
         context_files: &[
             ContextFileDef {
                 path: "context/BACKLOG.md",
@@ -81,8 +81,16 @@ static PACKAGES: &[ProcessPackage] = &[
                 path: "context/EVENTLOG.md",
                 template_key: "eventlog_md",
             },
+            ContextFileDef {
+                path: "context/archive/BACKLOG.md",
+                template_key: "archive_backlog_md",
+            },
+            ContextFileDef {
+                path: "context/archive/DECISIONS.md",
+                template_key: "archive_decisions_md",
+            },
         ],
-        directories: &["context/"],
+        directories: &["context/", "context/archive/"],
     },
     // 3. standups
     ProcessPackage {
@@ -104,7 +112,7 @@ static PACKAGES: &[ProcessPackage] = &[
             path: "context/project-notes/session-template.md",
             template_key: "session_template_md",
         }],
-        directories: &["context/project-notes/"],
+        directories: &["context/project-notes/", "context/archive/project-notes/"],
     },
     // 5. product
     ProcessPackage {
@@ -120,8 +128,12 @@ static PACKAGES: &[ProcessPackage] = &[
                 path: "context/PROJECTS.md",
                 template_key: "projects_md",
             },
+            ContextFileDef {
+                path: "context/archive/PROJECTS.md",
+                template_key: "archive_projects_md",
+            },
         ],
-        directories: &["context/"],
+        directories: &["context/", "context/archive/"],
     },
     // 6. code
     ProcessPackage {

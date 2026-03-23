@@ -61,8 +61,13 @@ decision tracking and a task backlog.
 - `context/BACKLOG.md`
 - `context/STANDUPS.md`
 - `context/work-instructions/GENERAL.md`
+- `context/archive/BACKLOG.md`
+- `context/archive/DECISIONS.md`
 - `.aibox-version`
 - `.gitignore` (with aibox entries)
+
+**Required directories:**
+- `context/archive/` — archived items (completed backlog, old decisions)
 
 ### research
 
@@ -101,12 +106,40 @@ project tracking, PRD, and team collaboration rules.
 - `context/work-instructions/TEAM.md`
 - `context/project-notes/.gitkeep`
 - `context/ideas/.gitkeep`
+- `context/archive/BACKLOG.md`
+- `context/archive/DECISIONS.md`
+- `context/archive/PROJECTS.md`
 - `.aibox-version`
 - `.gitignore` (with aibox entries)
 
 **Required directories:**
 - `context/project-notes/` — deep research on specific topics
 - `context/ideas/` — future direction research
+- `context/archive/` — archived items (completed backlog, old decisions, completed projects)
+- `context/archive/project-notes/` — old session handovers
+
+---
+
+## Archive Convention
+
+The `context/archive/` directory mirrors the parent `context/` structure for
+completed, superseded, or historical items. It keeps active context files
+focused while preserving full history.
+
+**Used by:** managed, product
+
+**Rules:**
+- Each archive file has the same name and format as its active counterpart
+- Archive files include a back-link to the active version (`[../X.md](../X.md)`)
+- Active files include a forward-link to the archive (`[archive/X.md](archive/X.md)`)
+- Items are **moved** (not copied) from active to archive
+- Items are **never deleted** — only moved between active and archive
+
+**Archiving criteria:**
+- Backlog items: status = `done` or `archived`
+- Decisions: older than the most recent ~6 entries, or explicitly superseded
+- Projects: status = `complete` or `archived`
+- Session notes: older than the 3 most recent sessions
 
 ---
 

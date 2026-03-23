@@ -45,6 +45,8 @@ const PROCESS_BUG_FIX: &str = include_str!("../../templates/processes/bug-fix.md
 const SKILL_BACKLOG_CONTEXT: &str =
     include_str!("../../templates/skills/backlog-context/SKILL.md");
 const SKILL_DECISIONS_ADR: &str = include_str!("../../templates/skills/decisions-adr/SKILL.md");
+const SKILL_CONTEXT_ARCHIVING: &str =
+    include_str!("../../templates/skills/context-archiving/SKILL.md");
 const SKILL_STANDUP_CONTEXT: &str =
     include_str!("../../templates/skills/standup-context/SKILL.md");
 
@@ -556,6 +558,28 @@ fn template_content_for_key(key: &str, project_name: &str) -> String {
         // code
         "development_md" => PRODUCT_DEVELOPMENT.to_string(),
 
+        // archive
+        "archive_backlog_md" => {
+            "# Backlog Archive\n\n\
+             Completed and archived items. Active backlog: [../BACKLOG.md](../BACKLOG.md)\n\n\
+             ---\n\n\
+             | ID | Title | Status | Priority | Notes |\n\
+             |----|-------|--------|----------|-------|\n"
+                .to_string()
+        }
+        "archive_decisions_md" => {
+            "# Decisions Archive\n\n\
+             Older and superseded decisions. Active decisions: [../DECISIONS.md](../DECISIONS.md)\n"
+                .to_string()
+        }
+        "archive_projects_md" => {
+            "# Projects Archive\n\n\
+             Completed and archived projects. Active projects: [../PROJECTS.md](../PROJECTS.md)\n\n\
+             | ID | Name | Status | Description |\n\
+             |----|------|--------|-------------|\n"
+                .to_string()
+        }
+
         // research
         "progress_md" => RESEARCH_PROGRESS.to_string(),
 
@@ -805,6 +829,7 @@ static ALL_SKILL_DEFS: &[SkillDef] = &[
         // Core process skills
         ("backlog-context", SKILL_BACKLOG_CONTEXT, &[]),
         ("decisions-adr", SKILL_DECISIONS_ADR, &[]),
+        ("context-archiving", SKILL_CONTEXT_ARCHIVING, &[]),
         ("standup-context", SKILL_STANDUP_CONTEXT, &[]),
         // Development skills
         ("code-review", SKILL_CODE_REVIEW, &[]),
@@ -1669,9 +1694,13 @@ mod tests {
             assert!(Path::new("context/processes/code-review.md").exists());
             assert!(Path::new("context/processes/feature-development.md").exists());
             assert!(Path::new("context/processes/bug-fix.md").exists());
+            // Archive scaffolding from tracking package
+            assert!(Path::new("context/archive/BACKLOG.md").exists());
+            assert!(Path::new("context/archive/DECISIONS.md").exists());
             // Skills from packages (only those with templates get deployed)
             assert!(Path::new(".claude/skills/backlog-context/SKILL.md").exists());
             assert!(Path::new(".claude/skills/decisions-adr/SKILL.md").exists());
+            assert!(Path::new(".claude/skills/context-archiving/SKILL.md").exists());
             assert!(Path::new(".claude/skills/standup-context/SKILL.md").exists());
             assert!(Path::new(".claude/skills/agent-management/SKILL.md").exists());
         });
@@ -1720,6 +1749,7 @@ mod tests {
             // product
             assert!(Path::new("context/PROJECTS.md").exists());
             assert!(Path::new("context/PRD.md").exists());
+            assert!(Path::new("context/archive/PROJECTS.md").exists());
             // code
             assert!(Path::new("context/work-instructions/DEVELOPMENT.md").exists());
             // operations

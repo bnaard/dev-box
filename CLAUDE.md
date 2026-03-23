@@ -31,7 +31,7 @@ See `context/work-instructions/DEVELOPMENT.md` for detailed structure and config
 The `context/` directory follows the **product** process template:
 
 - `context/BACKLOG.md` — Active task registry with BACK-NNN IDs (source of truth)
-- `context/BACKLOG-ARCHIVE.md` — Completed/archived items (history)
+- `context/archive/` — Archived items (completed backlog, old decisions, completed projects, old session notes)
 - `context/PROJECTS.md` — Project registry with PROJ-NNN IDs
 - `context/PRD.md` — Product requirements document
 - `context/DECISIONS.md` — Decision log (inverse chronological, DEC-NNN)

@@ -1,6 +1,6 @@
 # Backlog Archive
 
-Completed, merged, and archived items. Active backlog: [BACKLOG.md](BACKLOG.md)
+Completed, merged, and archived items. Active backlog: [../BACKLOG.md](../BACKLOG.md)
 
 ---
 

@@ -2,7 +2,7 @@
 
 Central task registry. Each item has a unique ID for cross-referencing.
 Source of truth — GitHub issues are for external visibility.
-Archive of completed/merged items: [BACKLOG-ARCHIVE.md](BACKLOG-ARCHIVE.md)
+Archive of completed/merged items: [archive/BACKLOG.md](archive/BACKLOG.md)
 
 ## Next ID: BACK-043
 

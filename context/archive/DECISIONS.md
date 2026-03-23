@@ -1,0 +1,83 @@
+# Decisions Archive
+
+Foundational and older decisions. Active decisions: [../DECISIONS.md](../DECISIONS.md)
+
+---
+
+## DEC-010 — context/shared/ directory for cross-environment files (2026-03-21)
+
+**Decision:** The `context/` directory has a `shared/` subdirectory that is NOT copied during environment switches. Everything else in `context/` is per-environment. Default scaffolding places only `OWNER.md` in `shared/`. Users can move any file into `shared/` to share it across environments.
+
+**Rationale:** Rather than hardcoding which files are shared (e.g., only OWNER.md) or adding include/exclude flags, a directory boundary lets the user decide. No templating, no merge logic. The AI agent sees all files under `context/` as usual — `shared/` is just a subdirectory. Inspired by Kustomize's base/overlay pattern, but simplified because our content is narrative markdown, not structured YAML that can be mechanically merged.
+
+**Alternatives:** Hardcoded shared file list (inflexible), include/exclude flags in config (complexity), structural split into two parallel directories with merge (authoring nightmare for markdown content).
+
+## DEC-009 — Environment switching uses plain directory copying (2026-03-21)
+
+**Decision:** For Phase 2 environment management (`aibox env`), per-environment state (aibox.toml, CLAUDE.md, context/) is stored as plain file copies in `.aibox-env/<name>/`. Switching copies files to/from the project root. `.devcontainer/` is regenerated (derived), `.aibox-home/` is shared (user prefs).
+
+**Rationale:** Evaluated four approaches:
+- **uv-style** (config-only, environment disposable) — fails because `context/` contains irreplaceable user-written state, not just derived artifacts
+- **Nix-style** (content-addressed store + symlinks) — symlinks break in container bind mounts, Nix assumes immutable store items but context files are mutable
+- **OCI-style** (overlay filesystem layers) — OverlayFS is a Linux kernel feature, not portable to macOS host
+- **Git branches** (nested repo for context) — a nested `.git` inside an already git-tracked project confuses VS Code, lazygit, and CLI git; hiding in `.tar.gz` defeats atomic switching
+
+Plain copying wins because: context files are tiny (< 50 KB total), no tooling interference (gitignored directory), fully portable, debuggable (plain files), AI-agent friendly. The Nix/OCI models solve problems we don't have (deduplicating large binaries).
+
+**Alternatives considered:** See rationale above.
+
+## DEC-008 — backup and reset as standalone commands (2026-03-21)
+
+**Decision:** `aibox backup` and `aibox reset` implemented as standalone commands (Phase 1). Backup saves timestamped snapshots to `.aibox-backup/`. Reset backs up then deletes all aibox files. `.gitignore` is backed up but not deleted. Container is stopped before reset.
+
+**Rationale:** Safety nets for destructive experiments, major upgrades, and complete aibox removal. Phase 2 environment management builds on different storage (`.aibox-env/`) — backup remains useful as disaster recovery independent of environments.
+
+**Alternatives:** Combining backup into env management — rejected because backup serves a different purpose (safety net vs. workflow switching).
+
+## DEC-007 — Rename .root/ to .aibox-home/ (2026-03-19)
+
+**Decision:** Rename the host-side persisted config directory from `.root/` to `.aibox-home/` for clarity. Backward compat: CLI falls back to `.root/` if it exists and `.aibox-home/` doesn't.
+
+**Rationale:** `.root/` is ambiguous — doesn't convey purpose. `.aibox-home/` clearly indicates it's the container user's home directory content.
+
+**Alternatives:** `.aibox-config/`, `.config-mount/`, `.container-home/`
+
+## DEC-006 — OWNER.md created locally, no symlink (2026-03-19)
+
+**Decision:** OWNER.md is always created as a local file in `context/`, not symlinked from `~/.config/aibox/`. The `owner` field was removed from `[context]` in aibox.toml.
+
+**Rationale:** The symlink pattern was confusing. Users can still share OWNER.md content across projects manually if they want.
+
+## DEC-005 — No GitHub Actions (2026-03-16)
+
+**Decision:** All builds and deploys are local. No GitHub Actions workflows.
+
+**Rationale:** Cost avoidance. Local builds are fast enough for the project's scale.
+
+## DEC-004 — Multi-stage TeX Live build (2026-03-16)
+
+**Decision:** TeX Live installed via multi-stage Docker build from CTAN. Builder stage discarded (~2GB install).
+
+**Rationale:** Keeps runtime image size manageable. CTAN install gives full control over package selection.
+
+**Alternatives:** Debian texlive packages (too large, less control), TinyTeX (too minimal)
+
+## DEC-003 — `uname -m` for arch detection (2026-03-16)
+
+**Decision:** Use `uname -m` instead of `TARGETARCH` for architecture detection in Dockerfiles.
+
+**Rationale:** Podman doesn't inject `TARGETARCH` build arg. `uname -m` works everywhere.
+
+## DEC-002 — Alt-based zellij keybindings (2026-03-16)
+
+**Decision:** All zellij keybindings use `Alt` modifier.
+
+**Rationale:** Avoids conflicts with vim and TUI applications that use Ctrl.
+
+## DEC-001 — Rust for CLI, not Python (2026-03-16)
+
+**Decision:** aibox CLI written in Rust, not Python.
+
+**Rationale:** Single static binary, no runtime dependencies, fast cold start. Matches the "uv" inspiration.
+
+**Alternatives:** Python (runtime dependency), Go (viable but less familiar to owner)
