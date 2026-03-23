@@ -466,6 +466,9 @@ pub fn cmd_init(config_path: &Option<String>, params: InitParams) -> Result<()> 
 
 /// Sync command: force-seed theme-dependent files, seed missing configs, regenerate .devcontainer/.
 pub fn cmd_sync(config_path: &Option<String>) -> Result<()> {
+    // Check for version migration before any other sync steps
+    crate::migration::check_and_generate_migration()?;
+
     let config = DevBoxConfig::from_cli_option(config_path)?;
 
     output::info("Syncing config files...");

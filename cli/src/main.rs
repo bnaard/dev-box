@@ -10,6 +10,7 @@ mod context;
 mod doctor;
 mod env;
 mod generate;
+mod migration;
 mod output;
 #[allow(dead_code)]
 mod process_registry;
