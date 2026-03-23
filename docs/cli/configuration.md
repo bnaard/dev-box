@@ -73,6 +73,7 @@ Container configuration. Controls the generated `docker-compose.yml` and `Docker
 | `environment` | Map of strings | No | `{}` | Environment variables set in the container |
 | `post_create_command` | String | No | -- | Command to run after container creation (devcontainer.json `postCreateCommand`) |
 | `vscode_extensions` | Array of strings | No | `[]` | VS Code extensions to install (added to devcontainer.json `customizations.vscode.extensions`) |
+| `keepalive` | Boolean | No | `false` | Network keepalive — sends a lightweight DNS lookup every 2 minutes to prevent OrbStack/VM NAT from dropping idle connections |
 
 #### Extra Volumes
 
@@ -181,6 +182,7 @@ When a field is omitted from `dev-box.toml`, these defaults apply:
 | `container.environment` | `{}` |
 | `container.post_create_command` | -- (not set) |
 | `container.vscode_extensions` | `[]` |
+| `container.keepalive` | `false` |
 | `context.schema_version` | `"1.0.0"` |
 | `ai.providers` | `["claude"]` |
 | `addons.bundles` | `[]` |

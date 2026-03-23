@@ -44,5 +44,8 @@
     "forwardPorts": [],
 
     // Run once after the container is created
-    "postCreateCommand": ""
+    "postCreateCommand": "",
+
+    // Keep OrbStack NAT alive — prevents network dropout after ~20min idle
+    "postStartCommand": "nohup bash -c 'while true; do nslookup example.com > /dev/null 2>&1; sleep 120; done' > /dev/null 2>&1 &"
 }
