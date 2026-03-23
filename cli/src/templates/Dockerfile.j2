@@ -2,10 +2,10 @@
 {{ stage }}
 
 {% endfor %}
-FROM {{ registry }}:{{ image }}-v{{ version }} AS dev-box
+FROM {{ registry }}:{{ image }}-v{{ version }} AS aibox
 {% if extra_packages %}
 
-# Extra packages from dev-box.toml
+# Extra packages from aibox.toml
 RUN apt-get update && apt-get install -y --no-install-recommends \
 {% for pkg in extra_packages %}
 {% if not loop.last %}

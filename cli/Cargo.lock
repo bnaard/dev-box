@@ -18,6 +18,28 @@ dependencies = [
 ]
 
 [[package]]
+name = "aibox"
+version = "0.8.0"
+dependencies = [
+ "anyhow",
+ "chrono",
+ "clap",
+ "clap_complete",
+ "dialoguer",
+ "dirs",
+ "minijinja",
+ "semver",
+ "serde",
+ "serde_json",
+ "serial_test",
+ "tempfile",
+ "toml",
+ "tracing",
+ "tracing-subscriber",
+ "ureq",
+]
+
+[[package]]
 name = "android_system_properties"
 version = "0.1.5"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -222,28 +244,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "9481c1c90cbf2ac953f07c8d4a58aa3945c425b7185c9154d67a65e4230da511"
 dependencies = [
  "cfg-if",
-]
-
-[[package]]
-name = "dev-box"
-version = "0.8.0"
-dependencies = [
- "anyhow",
- "chrono",
- "clap",
- "clap_complete",
- "dialoguer",
- "dirs",
- "minijinja",
- "semver",
- "serde",
- "serde_json",
- "serial_test",
- "tempfile",
- "toml",
- "tracing",
- "tracing-subscriber",
- "ureq",
 ]
 
 [[package]]

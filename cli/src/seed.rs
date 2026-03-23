@@ -2,11 +2,11 @@ use anyhow::{Context, Result};
 use std::fs;
 use std::path::Path;
 
-use crate::config::DevBoxConfig;
+use crate::config::AiboxConfig;
 use crate::output;
 
 /// Default vimrc content (embedded fallback).
-const DEFAULT_VIMRC: &str = r#"" dev-box default vimrc
+const DEFAULT_VIMRC: &str = r#"" aibox default vimrc
 set nocompatible
 let mapleader=" "
 
@@ -38,9 +38,9 @@ let g:netrw_liststyle=3
 let g:netrw_banner=0
 let g:netrw_winsize=25
 
-set background=DEVBOX_VIM_BG
+set background=AIBOX_VIM_BG
 set termguicolors
-colorscheme DEVBOX_VIM_COLORSCHEME
+colorscheme AIBOX_VIM_COLORSCHEME
 syntax on
 filetype plugin indent on
 "#;
@@ -55,8 +55,8 @@ const DEFAULT_GITCONFIG: &str = r#"[core]
 "#;
 
 /// Default zellij config.kdl content. Theme name is replaced at seed time.
-const DEFAULT_ZELLIJ_CONFIG: &str = r#"// dev-box zellij configuration
-theme "DEVBOX_THEME"
+const DEFAULT_ZELLIJ_CONFIG: &str = r#"// aibox zellij configuration
+theme "AIBOX_THEME"
 default_layout "dev"
 default_shell "bash"
 mouse_mode true
@@ -277,14 +277,14 @@ fn generate_focus_layout(providers: &[crate::config::AiProvider]) -> String {
     tab name="files" focus=true {{
         pane name="yazi" {{
             command "bash"
-            args "-c" "DEVBOX_EDITOR_DIR=tab exec yazi"
+            args "-c" "AIBOX_EDITOR_DIR=tab exec yazi"
             cwd "/workspace"
         }}
     }}
     tab name="editor" {{
         pane name="vim" {{
             command "bash"
-            args "-c" "DEVBOX_EDITOR_DIR=tab exec vim-loop"
+            args "-c" "AIBOX_EDITOR_DIR=tab exec vim-loop"
             cwd "/workspace"
         }}
     }}{ai_section}
@@ -322,12 +322,12 @@ fn generate_cowork_layout(providers: &[crate::config::AiProvider]) -> String {
         pane split_direction="vertical" {
             pane size="40%" name="files" focus=true {
                 command "bash"
-                args "-c" "DEVBOX_EDITOR_DIR=down exec yazi"
+                args "-c" "AIBOX_EDITOR_DIR=down exec yazi"
                 cwd "/workspace"
             }
             pane size="60%" name="editor" {
                 command "bash"
-                args "-c" "DEVBOX_EDITOR_DIR=down exec vim-loop"
+                args "-c" "AIBOX_EDITOR_DIR=down exec vim-loop"
                 cwd "/workspace"
             }
         }
@@ -362,12 +362,12 @@ fn generate_cowork_layout(providers: &[crate::config::AiProvider]) -> String {
             pane size="50%" split_direction="horizontal" {{
                 pane size="40%" name="files" focus=true {{
                     command "bash"
-                    args "-c" "DEVBOX_EDITOR_DIR=down exec yazi"
+                    args "-c" "AIBOX_EDITOR_DIR=down exec yazi"
                     cwd "/workspace"
                 }}
                 pane size="60%" name="editor" {{
                     command "bash"
-                    args "-c" "DEVBOX_EDITOR_DIR=down exec vim-loop"
+                    args "-c" "AIBOX_EDITOR_DIR=down exec vim-loop"
                     cwd "/workspace"
                 }}
             }}
@@ -430,7 +430,7 @@ prepend_keymap = [
 "#;
 
 /// Quick reference cheatsheet.
-const DEFAULT_CHEATSHEET: &str = r#"  dev-box Quick Reference
+const DEFAULT_CHEATSHEET: &str = r#"  aibox Quick Reference
   ───────────────────────────────────────────────
   ZELLIJ (leader: Ctrl+b)    YAZI (file manager)
   Ctrl+b h/j/k/l  Move       h/j/k/l  Navigate
@@ -445,7 +445,7 @@ const DEFAULT_CHEATSHEET: &str = r#"  dev-box Quick Reference
   Ctrl+b /         Search
   Ctrl+b q         QUIT (or Ctrl+q)
 
-  LAYOUTS: dev-box start --layout dev|focus|cowork
+  LAYOUTS: aibox start --layout dev|focus|cowork
   TABS: Ctrl+b 1 dev  2 git  3 shell  4 help
 "#;
 
@@ -460,7 +460,7 @@ ctl.!default {
 
 /// Seed the .root/ directory structure and default config files.
 /// Never overwrites existing files.
-pub fn seed_root_dir(config: &DevBoxConfig) -> Result<()> {
+pub fn seed_root_dir(config: &AiboxConfig) -> Result<()> {
     let root = config.host_root_dir();
 
     let root_display = root.display();
@@ -505,8 +505,8 @@ pub fn seed_root_dir(config: &DevBoxConfig) -> Result<()> {
     // Seed config files (never overwrite)
     let theme = &config.appearance.theme;
     let vimrc = DEFAULT_VIMRC
-        .replace("DEVBOX_VIM_COLORSCHEME", crate::themes::vim_colorscheme(theme))
-        .replace("DEVBOX_VIM_BG", crate::themes::vim_background(theme));
+        .replace("AIBOX_VIM_COLORSCHEME", crate::themes::vim_colorscheme(theme))
+        .replace("AIBOX_VIM_BG", crate::themes::vim_background(theme));
     seed_file(&root.join(".vim").join("vimrc"), &vimrc)?;
     seed_file(
         &root.join(".config").join("git").join("config"),
@@ -515,7 +515,7 @@ pub fn seed_root_dir(config: &DevBoxConfig) -> Result<()> {
 
     // Zellij config — apply selected theme
     let zellij_config = DEFAULT_ZELLIJ_CONFIG
-        .replace("DEVBOX_THEME", &theme.to_string());
+        .replace("AIBOX_THEME", &theme.to_string());
     seed_file(
         &root.join(".config").join("zellij").join("config.kdl"),
         &zellij_config,
@@ -628,8 +628,8 @@ pub fn force_seed_file(path: &Path, content: &str) -> Result<bool> {
 }
 
 /// Force-seed all theme-dependent and AI-provider-dependent config files.
-/// Overwrites existing files when content has changed. Used by `dev-box sync`.
-pub fn sync_theme_files(config: &DevBoxConfig) -> Result<Vec<String>> {
+/// Overwrites existing files when content has changed. Used by `aibox sync`.
+pub fn sync_theme_files(config: &AiboxConfig) -> Result<Vec<String>> {
     let root = config.host_root_dir();
     let theme = &config.appearance.theme;
     let providers = &config.ai.providers;
@@ -637,15 +637,15 @@ pub fn sync_theme_files(config: &DevBoxConfig) -> Result<Vec<String>> {
 
     // vimrc — colorscheme and background
     let vimrc = DEFAULT_VIMRC
-        .replace("DEVBOX_VIM_COLORSCHEME", crate::themes::vim_colorscheme(theme))
-        .replace("DEVBOX_VIM_BG", crate::themes::vim_background(theme));
+        .replace("AIBOX_VIM_COLORSCHEME", crate::themes::vim_colorscheme(theme))
+        .replace("AIBOX_VIM_BG", crate::themes::vim_background(theme));
     if force_seed_file(&root.join(".vim").join("vimrc"), &vimrc)? {
         updated.push(".vim/vimrc".to_string());
     }
 
     // Zellij config — theme name
     let zellij_config = DEFAULT_ZELLIJ_CONFIG
-        .replace("DEVBOX_THEME", &theme.to_string());
+        .replace("AIBOX_THEME", &theme.to_string());
     if force_seed_file(
         &root.join(".config").join("zellij").join("config.kdl"),
         &zellij_config,
@@ -733,9 +733,9 @@ mod tests {
     use crate::config::*;
     use serial_test::serial;
 
-    fn make_config(audio_enabled: bool, root_dir: std::path::PathBuf) -> DevBoxConfig {
+    fn make_config(audio_enabled: bool, root_dir: std::path::PathBuf) -> AiboxConfig {
         unsafe {
-            std::env::set_var("DEV_BOX_HOST_ROOT", root_dir.to_str().unwrap());
+            std::env::set_var("AIBOX_HOST_ROOT", root_dir.to_str().unwrap());
         }
         let mut config = crate::config::test_config();
         config.container.name = "test".to_string();
@@ -764,7 +764,7 @@ mod tests {
         assert!(root.join(".claude").is_dir());
 
         unsafe {
-            std::env::remove_var("DEV_BOX_HOST_ROOT");
+            std::env::remove_var("AIBOX_HOST_ROOT");
         }
     }
 
@@ -822,7 +822,7 @@ mod tests {
         assert!(root.join(".config").join("cheatsheet.txt").exists());
 
         unsafe {
-            std::env::remove_var("DEV_BOX_HOST_ROOT");
+            std::env::remove_var("AIBOX_HOST_ROOT");
         }
     }
 
@@ -844,7 +844,7 @@ mod tests {
         );
 
         unsafe {
-            std::env::remove_var("DEV_BOX_HOST_ROOT");
+            std::env::remove_var("AIBOX_HOST_ROOT");
         }
     }
 
@@ -862,7 +862,7 @@ mod tests {
         );
 
         unsafe {
-            std::env::remove_var("DEV_BOX_HOST_ROOT");
+            std::env::remove_var("AIBOX_HOST_ROOT");
         }
     }
 
@@ -880,7 +880,7 @@ mod tests {
         );
 
         unsafe {
-            std::env::remove_var("DEV_BOX_HOST_ROOT");
+            std::env::remove_var("AIBOX_HOST_ROOT");
         }
     }
 
@@ -1006,7 +1006,7 @@ mod tests {
         assert!(!root.join(".claude").exists(), ".claude should not exist");
 
         unsafe {
-            std::env::remove_var("DEV_BOX_HOST_ROOT");
+            std::env::remove_var("AIBOX_HOST_ROOT");
         }
     }
 
@@ -1022,7 +1022,7 @@ mod tests {
         assert!(root.join(".gemini").is_dir(), ".gemini directory should be created");
 
         unsafe {
-            std::env::remove_var("DEV_BOX_HOST_ROOT");
+            std::env::remove_var("AIBOX_HOST_ROOT");
         }
     }
 }

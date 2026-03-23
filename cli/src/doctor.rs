@@ -1,7 +1,7 @@
 use anyhow::Result;
 use std::path::Path;
 
-use crate::config::DevBoxConfig;
+use crate::config::AiboxConfig;
 use crate::output;
 use crate::runtime::Runtime;
 
@@ -28,7 +28,7 @@ impl DiagResult {
 fn expected_files(packages: &[String]) -> Vec<&'static str> {
     let mut files = crate::context::expected_context_files(packages);
     // Doctor also checks infrastructure files
-    files.extend_from_slice(&[".dev-box-version", ".gitignore"]);
+    files.extend_from_slice(&[".aibox-version", ".gitignore"]);
     files
 }
 
@@ -47,11 +47,11 @@ pub fn cmd_doctor(config_path: &Option<String>) -> Result<()> {
     output::info("Running diagnostics...");
 
     // 1. Load and validate config
-    let config = match DevBoxConfig::from_cli_option(config_path) {
+    let config = match AiboxConfig::from_cli_option(config_path) {
         Ok(c) => {
             output::ok(&format!(
                 "Config: valid (v{}, {}, {:?})",
-                c.dev_box.version, c.dev_box.base, c.process.packages
+                c.aibox.version, c.aibox.base, c.process.packages
             ));
             Some(c)
         }
@@ -82,7 +82,7 @@ pub fn cmd_doctor(config_path: &Option<String>) -> Result<()> {
         }
     };
 
-    // 3. Check .dev-box-home/ directory (or legacy .root/)
+    // 3. Check .aibox-home/ directory (or legacy .root/)
     let root = config.host_root_dir();
     let root_label = root.display().to_string();
     if root.exists() {
@@ -93,17 +93,17 @@ pub fn cmd_doctor(config_path: &Option<String>) -> Result<()> {
         // Check mount source paths match config (AI providers, audio)
         check_mount_sources(&root, &root_label, &config, &mut diag);
 
-        // Suggest migration from .root/ to .dev-box-home/
-        if root_label == ".root" && !std::path::Path::new(".dev-box-home").exists() {
+        // Suggest migration from .root/ to .aibox-home/
+        if root_label == ".root" && !std::path::Path::new(".aibox-home").exists() {
             output::warn(
-                ".root/ is the legacy name — consider renaming to .dev-box-home/ \
-                 (mv .root .dev-box-home)",
+                ".root/ is the legacy name — consider renaming to .aibox-home/ \
+                 (mv .root .aibox-home)",
             );
             diag.warnings += 1;
         }
     } else {
         output::warn(&format!(
-            "{} directory not found -- run 'dev-box init' or 'dev-box start' to create it",
+            "{} directory not found -- run 'aibox init' or 'aibox start' to create it",
             root_label
         ));
         diag.warnings += 1;
@@ -146,7 +146,7 @@ pub fn cmd_doctor(config_path: &Option<String>) -> Result<()> {
 fn check_mount_sources(
     root: &Path,
     root_label: &str,
-    config: &DevBoxConfig,
+    config: &AiboxConfig,
     diag: &mut DiagResult,
 ) {
     // AI providers
@@ -165,7 +165,7 @@ fn check_mount_sources(
             ));
         } else {
             output::warn(&format!(
-                "{}/{} missing — run 'dev-box sync' to create it",
+                "{}/{} missing — run 'aibox sync' to create it",
                 root_label, dir_name
             ));
             diag.warnings += 1;
@@ -179,7 +179,7 @@ fn check_mount_sources(
             output::ok(&format!("{}/.asoundrc exists", root_label));
         } else {
             output::warn(&format!(
-                "{}/.asoundrc missing — run 'dev-box sync' to create it",
+                "{}/.asoundrc missing — run 'aibox sync' to create it",
                 root_label
             ));
             diag.warnings += 1;
@@ -212,7 +212,7 @@ fn check_devcontainer_files(diag: &mut DiagResult) {
     let mut all_present = true;
     for f in &files {
         if !Path::new(f).exists() {
-            output::warn(&format!("{} missing -- run 'dev-box sync'", f));
+            output::warn(&format!("{} missing -- run 'aibox sync'", f));
             diag.warnings += 1;
             all_present = false;
         }
@@ -273,12 +273,12 @@ fn check_extra_files(dir: &str, expected: &[&str], diag: &mut DiagResult) {
 }
 
 /// Check schema version and generate migration artifacts if needed.
-fn check_schema_version(config: &DevBoxConfig, diag: &mut DiagResult) -> Result<()> {
-    let version_file = Path::new(".dev-box-version");
+fn check_schema_version(config: &AiboxConfig, diag: &mut DiagResult) -> Result<()> {
+    let version_file = Path::new(".aibox-version");
     let target_version = &config.context.schema_version;
 
     if !version_file.exists() {
-        output::warn(".dev-box-version file not found -- run 'dev-box init' to create it");
+        output::warn(".aibox-version file not found -- run 'aibox init' to create it");
         diag.warnings += 1;
         return Ok(());
     }
@@ -306,22 +306,22 @@ fn check_schema_version(config: &DevBoxConfig, diag: &mut DiagResult) -> Result<
 fn generate_migration_artifacts(
     current_version: &str,
     target_version: &str,
-    config: &DevBoxConfig,
+    config: &AiboxConfig,
 ) -> Result<()> {
-    let migration_dir = Path::new(".dev-box/migration");
+    let migration_dir = Path::new(".aibox/migration");
     std::fs::create_dir_all(migration_dir)?;
 
     // Write schema-current.md
     let current_schema = schema_for_version(current_version)
         .unwrap_or("# Unknown Schema Version\n\nNo embedded schema found for this version.\n");
     std::fs::write(migration_dir.join("schema-current.md"), current_schema)?;
-    output::ok("Generated .dev-box/migration/schema-current.md");
+    output::ok("Generated .aibox/migration/schema-current.md");
 
     // Write schema-target.md
     let target_schema = schema_for_version(target_version)
         .unwrap_or("# Unknown Schema Version\n\nNo embedded schema found for this version.\n");
     std::fs::write(migration_dir.join("schema-target.md"), target_schema)?;
-    output::ok("Generated .dev-box/migration/schema-target.md");
+    output::ok("Generated .aibox/migration/schema-target.md");
 
     // Write diff.md
     let diff_content = format!(
@@ -342,7 +342,7 @@ fn generate_migration_artifacts(
         }
     );
     std::fs::write(migration_dir.join("diff.md"), diff_content)?;
-    output::ok("Generated .dev-box/migration/diff.md");
+    output::ok("Generated .aibox/migration/diff.md");
 
     // Write migration-prompt.md
     let prompt_content = format!(
@@ -365,9 +365,9 @@ fn generate_migration_artifacts(
             - Preserves all existing formatting and IDs\n\
             - Marks each change as \"required\" or \"recommended\"\n\n\
          ## Files to Reference\n\n\
-         - `.dev-box/migration/schema-current.md`\n\
-         - `.dev-box/migration/schema-target.md`\n\
-         - `.dev-box/migration/diff.md`\n\
+         - `.aibox/migration/schema-current.md`\n\
+         - `.aibox/migration/schema-target.md`\n\
+         - `.aibox/migration/diff.md`\n\
          - `context/` directory (current project files)\n\
          - `CLAUDE.md` (project root)\n",
         config.container.name,
@@ -377,7 +377,7 @@ fn generate_migration_artifacts(
         target_version,
     );
     std::fs::write(migration_dir.join("migration-prompt.md"), prompt_content)?;
-    output::ok("Generated .dev-box/migration/migration-prompt.md");
+    output::ok("Generated .aibox/migration/migration-prompt.md");
 
     output::info(&format!(
         "Migration artifacts written to {}",

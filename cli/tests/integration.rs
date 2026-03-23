@@ -1,44 +1,44 @@
 use std::process::Command;
 
 /// Get the path to the built binary.
-fn dev_box_bin() -> String {
+fn aibox_bin() -> String {
     // Use the debug binary built by cargo test
     let manifest_dir = env!("CARGO_MANIFEST_DIR");
-    format!("{}/target/debug/dev-box", manifest_dir)
+    format!("{}/target/debug/aibox", manifest_dir)
 }
 
-/// Run the dev-box binary with the given args and return the output.
+/// Run the aibox binary with the given args and return the output.
 fn run(args: &[&str]) -> std::process::Output {
-    Command::new(dev_box_bin())
+    Command::new(aibox_bin())
         .args(args)
         .output()
-        .expect("failed to execute dev-box binary")
+        .expect("failed to execute aibox binary")
 }
 
-/// Run the dev-box binary in a specific directory.
+/// Run the aibox binary in a specific directory.
 fn run_in_dir(dir: &std::path::Path, args: &[&str]) -> std::process::Output {
-    Command::new(dev_box_bin())
+    Command::new(aibox_bin())
         .args(args)
         .current_dir(dir)
         .output()
-        .expect("failed to execute dev-box binary")
+        .expect("failed to execute aibox binary")
 }
 
 #[test]
 fn help_exits_zero() {
     let output = run(&["--help"]);
-    assert!(output.status.success(), "dev-box --help should exit 0");
+    assert!(output.status.success(), "aibox --help should exit 0");
     let stdout = String::from_utf8_lossy(&output.stdout);
     assert!(
-        stdout.contains("dev-box") || stdout.contains("development container"),
-        "help output should mention dev-box"
+        stdout.contains("aibox") || stdout.contains("development container"),
+        "help output should mention aibox"
     );
 }
 
 #[test]
 fn init_help_exits_zero() {
     let output = run(&["init", "--help"]);
-    assert!(output.status.success(), "dev-box init --help should exit 0");
+    assert!(output.status.success(), "aibox init --help should exit 0");
     let stdout = String::from_utf8_lossy(&output.stdout);
     assert!(
         stdout.contains("--name") || stdout.contains("name"),
@@ -52,11 +52,11 @@ fn generate_without_config_exits_nonzero() {
     let output = run_in_dir(dir.path(), &["generate"]);
     assert!(
         !output.status.success(),
-        "dev-box generate without dev-box.toml should fail"
+        "aibox generate without aibox.toml should fail"
     );
     let stderr = String::from_utf8_lossy(&output.stderr);
     assert!(
-        stderr.contains("dev-box.toml") || stderr.contains("No dev-box.toml"),
+        stderr.contains("aibox.toml") || stderr.contains("No aibox.toml"),
         "error should mention missing config file"
     );
 }
@@ -67,7 +67,7 @@ fn status_without_config_exits_nonzero() {
     let output = run_in_dir(dir.path(), &["status"]);
     assert!(
         !output.status.success(),
-        "dev-box status without dev-box.toml should fail"
+        "aibox status without aibox.toml should fail"
     );
 }
 
@@ -93,8 +93,8 @@ fn init_creates_expected_files() {
     );
 
     assert!(
-        dir.path().join("dev-box.toml").exists(),
-        "dev-box.toml should be created"
+        dir.path().join("aibox.toml").exists(),
+        "aibox.toml should be created"
     );
     assert!(
         dir.path().join(".devcontainer/Dockerfile").exists(),
@@ -113,8 +113,8 @@ fn init_creates_expected_files() {
         "CLAUDE.md should be created"
     );
     assert!(
-        dir.path().join(".dev-box-version").exists(),
-        ".dev-box-version should be created"
+        dir.path().join(".aibox-version").exists(),
+        ".aibox-version should be created"
     );
 }
 
@@ -149,7 +149,7 @@ fn init_existing_config_exits_nonzero() {
     );
     assert!(
         !output.status.success(),
-        "init with existing dev-box.toml should fail"
+        "init with existing aibox.toml should fail"
     );
     let stderr = String::from_utf8_lossy(&output.stderr);
     assert!(
@@ -305,10 +305,10 @@ fn init_generated_toml_is_parseable() {
             "managed",
         ],
     );
-    let content = std::fs::read_to_string(dir.path().join("dev-box.toml")).unwrap();
+    let content = std::fs::read_to_string(dir.path().join("aibox.toml")).unwrap();
     // Should be valid TOML
     let _: toml::Value =
-        toml::from_str(&content).expect("generated dev-box.toml should be valid TOML");
+        toml::from_str(&content).expect("generated aibox.toml should be valid TOML");
 }
 
 #[test]
@@ -316,12 +316,12 @@ fn completions_bash_exits_zero() {
     let output = run(&["completions", "bash"]);
     assert!(
         output.status.success(),
-        "dev-box completions bash should exit 0"
+        "aibox completions bash should exit 0"
     );
     let stdout = String::from_utf8_lossy(&output.stdout);
     assert!(
-        stdout.contains("dev-box"),
-        "bash completions should contain dev-box"
+        stdout.contains("aibox"),
+        "bash completions should contain aibox"
     );
 }
 
@@ -330,7 +330,7 @@ fn completions_zsh_exits_zero() {
     let output = run(&["completions", "zsh"]);
     assert!(
         output.status.success(),
-        "dev-box completions zsh should exit 0"
+        "aibox completions zsh should exit 0"
     );
 }
 
@@ -339,7 +339,7 @@ fn completions_invalid_shell_exits_nonzero() {
     let output = run(&["completions", "tcsh"]);
     assert!(
         !output.status.success(),
-        "dev-box completions tcsh should fail"
+        "aibox completions tcsh should fail"
     );
 }
 
@@ -351,7 +351,7 @@ fn doctor_without_config_reports_errors() {
     assert!(output.status.success(), "doctor should always exit 0");
     let stderr = String::from_utf8_lossy(&output.stderr);
     assert!(
-        stderr.contains("dev-box.toml") || stderr.contains("Config"),
+        stderr.contains("aibox.toml") || stderr.contains("Config"),
         "doctor should report missing config"
     );
 }

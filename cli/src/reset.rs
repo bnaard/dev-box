@@ -2,27 +2,27 @@ use anyhow::{Context, Result, bail};
 use std::fs;
 use std::path::{Path, PathBuf};
 
-use crate::config::DevBoxConfig;
+use crate::config::AiboxConfig;
 use crate::output;
 use crate::runtime::{ContainerState, Runtime};
 
 /// Backup directory name.
-const BACKUP_DIR: &str = ".dev-box-backup";
+const BACKUP_DIR: &str = ".aibox-backup";
 
-/// Files and directories managed by dev-box.
+/// Files and directories managed by aibox.
 /// Each entry: (path, should_delete_on_reset)
 /// .gitignore is backed up but not deleted.
 const MANAGED_ITEMS: &[(&str, bool)] = &[
-    ("dev-box.toml", true),
+    ("aibox.toml", true),
     (".devcontainer", true),
-    (".dev-box-home", true),
-    (".dev-box-version", true),
+    (".aibox-home", true),
+    (".aibox-version", true),
     ("context", true),
     ("CLAUDE.md", true),
     (".gitignore", false),
     // Backward compat
     (".root", true),
-    (".dev-box", true),
+    (".aibox", true),
 ];
 
 /// Represents an item to be processed during backup/reset.
@@ -100,11 +100,11 @@ fn print_table(items: &[ManagedItem]) {
     eprintln!();
 }
 
-/// Generate the backup subdirectory name: dev-box-<version>-backup-<date>-<time>
+/// Generate the backup subdirectory name: aibox-<version>-backup-<date>-<time>
 fn backup_subdir_name(version: &str) -> String {
     let now = chrono::Local::now();
     format!(
-        "dev-box-{}-backup-{}-{}",
+        "aibox-{}-backup-{}-{}",
         version,
         now.format("%Y-%m-%d"),
         now.format("%H%M"),
@@ -164,7 +164,7 @@ pub fn delete_item(path: &Path) -> Result<()> {
 }
 
 /// Stop the container if it's running.
-pub fn ensure_container_stopped(config: &DevBoxConfig) -> Result<()> {
+pub fn ensure_container_stopped(config: &AiboxConfig) -> Result<()> {
     let runtime = match Runtime::detect() {
         Ok(r) => r,
         Err(_) => return Ok(()), // No runtime available, nothing to stop
@@ -196,14 +196,14 @@ pub fn confirm(prompt: &str, confirm_word: &str) -> Result<bool> {
 // Public commands
 // =============================================================================
 
-/// Backup command: save current dev-box state to a timestamped backup.
+/// Backup command: save current aibox state to a timestamped backup.
 pub fn cmd_backup(
     config_path: &Option<String>,
     output_dir: Option<String>,
     dry_run: bool,
 ) -> Result<()> {
-    let config = DevBoxConfig::from_cli_option(config_path)?;
-    let version = &config.dev_box.version;
+    let config = AiboxConfig::from_cli_option(config_path)?;
+    let version = &config.aibox.version;
 
     let base_dir = output_dir
         .map(PathBuf::from)
@@ -217,7 +217,7 @@ pub fn cmd_backup(
 
     let existing_count = items.iter().filter(|i| i.exists).count();
     if existing_count == 0 {
-        output::warn("No dev-box files found to back up.");
+        output::warn("No aibox files found to back up.");
         return Ok(());
     }
 
@@ -245,15 +245,15 @@ pub fn cmd_backup(
     Ok(())
 }
 
-/// Reset command: backup (unless --no-backup) then delete all dev-box files.
+/// Reset command: backup (unless --no-backup) then delete all aibox files.
 pub fn cmd_reset(
     config_path: &Option<String>,
     no_backup: bool,
     dry_run: bool,
     yes: bool,
 ) -> Result<()> {
-    let config = DevBoxConfig::from_cli_option(config_path)?;
-    let version = &config.dev_box.version;
+    let config = AiboxConfig::from_cli_option(config_path)?;
+    let version = &config.aibox.version;
 
     let backup_path = if no_backup {
         None
@@ -267,7 +267,7 @@ pub fn cmd_reset(
 
     let existing_count = items.iter().filter(|i| i.exists).count();
     if existing_count == 0 {
-        output::warn("No dev-box files found. Nothing to reset.");
+        output::warn("No aibox files found. Nothing to reset.");
         return Ok(());
     }
 
@@ -306,11 +306,11 @@ pub fn cmd_reset(
     if !yes {
         let confirm_word = if no_backup { "DELETE" } else { "reset" };
         let prompt = if no_backup {
-            "\x1b[1;31m  This will permanently delete all dev-box files WITHOUT backup.\x1b[0m"
+            "\x1b[1;31m  This will permanently delete all aibox files WITHOUT backup.\x1b[0m"
                 .to_string()
         } else {
             format!(
-                "  This will back up to {} and then delete dev-box files.",
+                "  This will back up to {} and then delete aibox files.",
                 backup_path.as_ref().unwrap().display()
             )
         };
@@ -346,7 +346,7 @@ pub fn cmd_reset(
         }
     }
 
-    output::ok("Reset complete. Project is back to pre-dev-box state.");
+    output::ok("Reset complete. Project is back to pre-aibox state.");
     if let Some(bp) = &backup_path {
         output::info(&format!("Backup saved at: {}", bp.display()));
     }
@@ -360,10 +360,10 @@ mod tests {
     use tempfile::TempDir;
 
     fn setup_project(dir: &Path) {
-        // Create a minimal dev-box project structure
+        // Create a minimal aibox project structure
         fs::write(
-            dir.join("dev-box.toml"),
-            r#"[dev-box]
+            dir.join("aibox.toml"),
+            r#"[aibox]
 version = "0.3.8"
 image = "base"
 process = "minimal"
@@ -375,19 +375,19 @@ name = "test-project"
         .unwrap();
         fs::create_dir_all(dir.join(".devcontainer")).unwrap();
         fs::write(dir.join(".devcontainer/Dockerfile"), "FROM debian").unwrap();
-        fs::create_dir_all(dir.join(".dev-box-home/.vim")).unwrap();
-        fs::write(dir.join(".dev-box-home/.vim/vimrc"), "set nocp").unwrap();
-        fs::write(dir.join(".dev-box-version"), "0.3.8").unwrap();
+        fs::create_dir_all(dir.join(".aibox-home/.vim")).unwrap();
+        fs::write(dir.join(".aibox-home/.vim/vimrc"), "set nocp").unwrap();
+        fs::write(dir.join(".aibox-version"), "0.3.8").unwrap();
         fs::create_dir_all(dir.join("context")).unwrap();
         fs::write(dir.join("context/DECISIONS.md"), "# Decisions").unwrap();
         fs::write(dir.join("CLAUDE.md"), "# Project").unwrap();
-        fs::write(dir.join(".gitignore"), ".dev-box-home/\n").unwrap();
+        fs::write(dir.join(".gitignore"), ".aibox-home/\n").unwrap();
     }
 
     #[test]
     fn backup_subdir_name_format() {
         let name = backup_subdir_name("0.3.8");
-        assert!(name.starts_with("dev-box-0.3.8-backup-"));
+        assert!(name.starts_with("aibox-0.3.8-backup-"));
         // Should match YYYY-MM-DD-HHMM pattern
         assert!(name.len() > 30);
     }

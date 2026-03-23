@@ -2,7 +2,7 @@ use anyhow::Result;
 use std::path::Path;
 use std::process::Command;
 
-use crate::config::DevBoxConfig;
+use crate::config::AiboxConfig;
 use crate::output;
 
 /// Check Rust dependencies with cargo audit.
@@ -64,7 +64,7 @@ fn check_pip_audit() -> Result<()> {
 }
 
 /// Scan the project's container image with trivy.
-fn check_trivy(config: &Option<DevBoxConfig>) -> Result<()> {
+fn check_trivy(config: &Option<AiboxConfig>) -> Result<()> {
     let config = match config {
         Some(c) => c,
         None => return Ok(()), // No config, can't determine image
@@ -76,8 +76,8 @@ fn check_trivy(config: &Option<DevBoxConfig>) -> Result<()> {
     }
 
     let image = format!(
-        "ghcr.io/projectious-work/dev-box/{}:latest",
-        config.dev_box.base
+        "ghcr.io/projectious-work/aibox/{}:latest",
+        config.aibox.base
     );
 
     output::info(&format!("Running trivy image scan on {}...", image));
@@ -99,7 +99,7 @@ fn check_trivy(config: &Option<DevBoxConfig>) -> Result<()> {
 pub fn cmd_audit(config_path: &Option<String>) -> Result<()> {
     output::info("Running security audit...");
 
-    let config = DevBoxConfig::from_cli_option(config_path).ok();
+    let config = AiboxConfig::from_cli_option(config_path).ok();
 
     check_cargo_audit()?;
     check_pip_audit()?;

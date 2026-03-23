@@ -4,7 +4,7 @@ use std::collections::HashMap;
 use std::path::{Path, PathBuf};
 
 /// Container image registry base URL.
-pub const IMAGE_REGISTRY: &str = "ghcr.io/projectious-work/dev-box";
+pub const IMAGE_REGISTRY: &str = "ghcr.io/projectious-work/aibox";
 
 /// Standard devcontainer directory name.
 pub const DEVCONTAINER_DIR: &str = ".devcontainer";
@@ -19,7 +19,7 @@ pub const DEVCONTAINER_JSON: &str = ".devcontainer/devcontainer.json";
 // Base image
 // ---------------------------------------------------------------------------
 
-/// Base image for the dev-box container. Currently only Debian is supported;
+/// Base image for the aibox container. Currently only Debian is supported;
 /// Alpine is planned for later.
 #[derive(Debug, Clone, Default, Serialize, Deserialize, PartialEq, clap::ValueEnum)]
 #[serde(rename_all = "kebab-case")]
@@ -52,12 +52,12 @@ pub struct ExtraVolume {
 }
 
 // ---------------------------------------------------------------------------
-// [dev-box] section
+// [aibox] section
 // ---------------------------------------------------------------------------
 
-/// Top-level [dev-box] section.
+/// Top-level [aibox] section.
 #[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct DevBoxSection {
+pub struct AiboxSection {
     pub version: String,
     #[serde(default)]
     pub base: BaseImage,
@@ -98,7 +98,7 @@ fn default_user() -> String {
 }
 
 fn default_hostname() -> String {
-    "dev-box".to_string()
+    "aibox".to_string()
 }
 
 // ---------------------------------------------------------------------------
@@ -128,7 +128,7 @@ impl Default for ContextSection {
 // [ai] section
 // ---------------------------------------------------------------------------
 
-/// AI tool providers supported in dev-box containers.
+/// AI tool providers supported in aibox containers.
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, clap::ValueEnum)]
 #[serde(rename_all = "kebab-case")]
 #[clap(rename_all = "kebab-case")]
@@ -232,7 +232,7 @@ pub struct AddonsSection {
 // key is an addon name and each value is an `AddonToolsSection`. Serde by
 // default would look for a field called `addons` inside the `[addons]` table,
 // but in our TOML the addon names ARE the keys of the `[addons]` table. We
-// use `deserialize_with` at the DevBoxConfig level via a transparent wrapper.
+// use `deserialize_with` at the AiboxConfig level via a transparent wrapper.
 impl<'de> Deserialize<'de> for AddonsSection {
     fn deserialize<D>(deserializer: D) -> std::result::Result<Self, D::Error>
     where
@@ -458,14 +458,14 @@ fn is_safe_name(s: &str) -> bool {
 }
 
 // ---------------------------------------------------------------------------
-// Root config — DevBoxConfig
+// Root config — AiboxConfig
 // ---------------------------------------------------------------------------
 
-/// Root config structure mapping dev-box.toml.
+/// Root config structure mapping aibox.toml.
 #[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct DevBoxConfig {
-    #[serde(rename = "dev-box")]
-    pub dev_box: DevBoxSection,
+pub struct AiboxConfig {
+    #[serde(rename = "aibox")]
+    pub aibox: AiboxSection,
     pub container: ContainerSection,
     #[serde(default)]
     pub context: ContextSection,
@@ -483,12 +483,12 @@ pub struct DevBoxConfig {
     pub audio: AudioSection,
 }
 
-impl DevBoxConfig {
+impl AiboxConfig {
     /// Load configuration from a specific file path.
     pub fn load(path: &Path) -> Result<Self> {
         let content = std::fs::read_to_string(path)
             .with_context(|| format!("Failed to read config file: {}", path.display()))?;
-        let config: DevBoxConfig = toml::from_str(&content)
+        let config: AiboxConfig = toml::from_str(&content)
             .with_context(|| format!("Failed to parse config file: {}", path.display()))?;
         config.validate()?;
         Ok(config)
@@ -502,14 +502,14 @@ impl DevBoxConfig {
         }
     }
 
-    /// Load from ./dev-box.toml or return an error if not found.
+    /// Load from ./aibox.toml or return an error if not found.
     pub fn load_or_default() -> Result<Self> {
-        let path = PathBuf::from("dev-box.toml");
+        let path = PathBuf::from("aibox.toml");
         if path.exists() {
             Self::load(&path)
         } else {
             bail!(
-                "No dev-box.toml found in the current directory. Run 'dev-box init' to create one."
+                "No aibox.toml found in the current directory. Run 'aibox init' to create one."
             )
         }
     }
@@ -517,7 +517,7 @@ impl DevBoxConfig {
     /// Parse config from a TOML string. Useful for testing and programmatic use.
     #[allow(dead_code)]
     pub fn from_str(toml_str: &str) -> Result<Self> {
-        let config: DevBoxConfig =
+        let config: AiboxConfig =
             toml::from_str(toml_str).context("Failed to parse TOML config")?;
         config.validate()?;
         Ok(config)
@@ -527,10 +527,10 @@ impl DevBoxConfig {
     /// available for validating programmatically-constructed configs.
     pub fn validate(&self) -> Result<()> {
         // Validate version is valid semver
-        semver::Version::parse(&self.dev_box.version).with_context(|| {
+        semver::Version::parse(&self.aibox.version).with_context(|| {
             format!(
                 "Invalid version '{}': must be valid semver",
-                self.dev_box.version
+                self.aibox.version
             )
         })?;
 
@@ -630,14 +630,14 @@ impl DevBoxConfig {
         Ok(())
     }
 
-    /// Get the host root path (.dev-box-home/ directory), respecting env override.
+    /// Get the host root path (.aibox-home/ directory), respecting env override.
     /// Falls back to `.root/` if that directory exists (backward compatibility).
     pub fn host_root_dir(&self) -> PathBuf {
-        if let Ok(val) = std::env::var("DEV_BOX_HOST_ROOT") {
+        if let Ok(val) = std::env::var("AIBOX_HOST_ROOT") {
             return PathBuf::from(val);
         }
-        // Backward compat: use .root/ if it exists and .dev-box-home/ doesn't
-        let new_path = PathBuf::from(".dev-box-home");
+        // Backward compat: use .root/ if it exists and .aibox-home/ doesn't
+        let new_path = PathBuf::from(".aibox-home");
         let old_path = PathBuf::from(".root");
         if old_path.exists() && !new_path.exists() {
             old_path
@@ -657,7 +657,7 @@ impl DevBoxConfig {
 
     /// Get the workspace directory, respecting env override.
     pub fn workspace_dir(&self) -> String {
-        std::env::var("DEV_BOX_WORKSPACE_DIR").unwrap_or_else(|_| "..".to_string())
+        std::env::var("AIBOX_WORKSPACE_DIR").unwrap_or_else(|_| "..".to_string())
     }
 }
 
@@ -665,12 +665,12 @@ impl DevBoxConfig {
 // Test helper
 // ---------------------------------------------------------------------------
 
-/// Create a `DevBoxConfig` for testing with sensible defaults.
+/// Create a `AiboxConfig` for testing with sensible defaults.
 /// Only available in test builds to reduce boilerplate across test modules.
 #[cfg(test)]
-pub fn test_config() -> DevBoxConfig {
-    DevBoxConfig {
-        dev_box: DevBoxSection {
+pub fn test_config() -> AiboxConfig {
+    AiboxConfig {
+        aibox: AiboxSection {
             version: "0.9.0".to_string(),
             base: BaseImage::Debian,
         },
@@ -710,7 +710,7 @@ mod tests {
 
     fn full_toml() -> &'static str {
         r#"
-[dev-box]
+[aibox]
 version = "0.9.0"
 base = "debian"
 
@@ -787,7 +787,7 @@ enabled = false
 
     fn minimal_toml() -> &'static str {
         r#"
-[dev-box]
+[aibox]
 version = "0.9.0"
 
 [container]
@@ -795,8 +795,8 @@ name = "my-project"
 "#
     }
 
-    fn parse_toml(s: &str) -> Result<DevBoxConfig> {
-        let config: DevBoxConfig = toml::from_str(s).context("Failed to parse TOML")?;
+    fn parse_toml(s: &str) -> Result<AiboxConfig> {
+        let config: AiboxConfig = toml::from_str(s).context("Failed to parse TOML")?;
         config.validate()?;
         Ok(config)
     }
@@ -807,9 +807,9 @@ name = "my-project"
     fn parse_full_toml_all_fields() {
         let config = parse_toml(full_toml()).expect("should parse full toml");
 
-        // [dev-box]
-        assert_eq!(config.dev_box.version, "0.9.0");
-        assert_eq!(config.dev_box.base, BaseImage::Debian);
+        // [aibox]
+        assert_eq!(config.aibox.version, "0.9.0");
+        assert_eq!(config.aibox.base, BaseImage::Debian);
 
         // [container]
         assert_eq!(config.container.name, "my-project");
@@ -889,9 +889,9 @@ name = "my-project"
     #[test]
     fn parse_minimal_toml_defaults() {
         let config = parse_toml(minimal_toml()).expect("should parse minimal toml");
-        assert_eq!(config.dev_box.base, BaseImage::Debian);
+        assert_eq!(config.aibox.base, BaseImage::Debian);
         assert_eq!(config.container.name, "my-project");
-        assert_eq!(config.container.hostname, "dev-box");
+        assert_eq!(config.container.hostname, "aibox");
         assert!(config.container.ports.is_empty());
         assert!(config.container.extra_packages.is_empty());
         assert!(config.container.extra_volumes.is_empty());
@@ -911,7 +911,7 @@ name = "my-project"
     #[test]
     fn parse_invalid_semver_version() {
         let toml = r#"
-[dev-box]
+[aibox]
 version = "not-a-version"
 
 [container]
@@ -924,7 +924,7 @@ name = "test"
     #[test]
     fn parse_empty_container_name() {
         let toml = r#"
-[dev-box]
+[aibox]
 version = "0.9.0"
 
 [container]
@@ -937,7 +937,7 @@ name = ""
     #[test]
     fn invalid_schema_version_semver() {
         let toml = r#"
-[dev-box]
+[aibox]
 version = "0.9.0"
 
 [container]
@@ -956,7 +956,7 @@ schema_version = "bad"
     #[test]
     fn invalid_container_name_chars() {
         let toml = r#"
-[dev-box]
+[aibox]
 version = "0.9.0"
 
 [container]
@@ -969,7 +969,7 @@ name = "my project!"
     #[test]
     fn invalid_extra_package_name() {
         let toml = r#"
-[dev-box]
+[aibox]
 version = "0.9.0"
 
 [container]
@@ -983,7 +983,7 @@ extra_packages = ["good-pkg", "bad pkg!"]
     #[test]
     fn empty_process_packages_rejected() {
         let toml = r#"
-[dev-box]
+[aibox]
 version = "0.9.0"
 
 [container]
@@ -999,7 +999,7 @@ packages = []
     #[test]
     fn invalid_skill_name_rejected() {
         let toml = r#"
-[dev-box]
+[aibox]
 version = "0.9.0"
 
 [container]
@@ -1015,7 +1015,7 @@ include = ["valid-skill", "bad skill!"]
     #[test]
     fn invalid_addon_name_rejected() {
         let toml = r#"
-[dev-box]
+[aibox]
 version = "0.9.0"
 
 [container]
@@ -1041,7 +1041,7 @@ tool = {}
     #[test]
     fn parse_all_ai_providers() {
         let toml = r#"
-[dev-box]
+[aibox]
 version = "0.9.0"
 
 [container]
@@ -1058,7 +1058,7 @@ providers = ["claude", "aider", "gemini", "mistral"]
     #[test]
     fn parse_empty_ai_providers() {
         let toml = r#"
-[dev-box]
+[aibox]
 version = "0.9.0"
 
 [container]
@@ -1087,7 +1087,7 @@ providers = []
     #[test]
     fn base_image_default_is_debian() {
         let config = parse_toml(minimal_toml()).unwrap();
-        assert_eq!(config.dev_box.base, BaseImage::Debian);
+        assert_eq!(config.aibox.base, BaseImage::Debian);
     }
 
     // -- Addons helpers -----------------------------------------------------
@@ -1123,7 +1123,7 @@ providers = []
     #[test]
     fn addon_with_only_versionless_tools() {
         let toml = r#"
-[dev-box]
+[aibox]
 version = "0.9.0"
 
 [container]
@@ -1150,7 +1150,7 @@ rustfmt = {}
     #[test]
     fn process_packages_custom() {
         let toml = r#"
-[dev-box]
+[aibox]
 version = "0.9.0"
 
 [container]
@@ -1178,7 +1178,7 @@ packages = ["managed", "code", "research"]
     #[test]
     fn skills_include_only() {
         let toml = r#"
-[dev-box]
+[aibox]
 version = "0.9.0"
 
 [container]
@@ -1198,7 +1198,7 @@ include = ["flutter-development", "rust-conventions"]
     #[test]
     fn skills_exclude_only() {
         let toml = r#"
-[dev-box]
+[aibox]
 version = "0.9.0"
 
 [container]
@@ -1226,7 +1226,7 @@ exclude = ["standup-context"]
         ] {
             let toml = format!(
                 r#"
-[dev-box]
+[aibox]
 version = "0.9.0"
 
 [container]
@@ -1246,7 +1246,7 @@ theme = "{input}"
     #[test]
     fn extra_volume_read_only_defaults_false() {
         let toml = r#"
-[dev-box]
+[aibox]
 version = "0.9.0"
 
 [container]
@@ -1265,22 +1265,22 @@ target = "/b"
     #[test]
     fn load_from_file() {
         let dir = tempfile::tempdir().unwrap();
-        let path = dir.path().join("dev-box.toml");
+        let path = dir.path().join("aibox.toml");
         let mut f = std::fs::File::create(&path).unwrap();
         f.write_all(minimal_toml().as_bytes()).unwrap();
-        let config = DevBoxConfig::load(&path).expect("should load from file");
+        let config = AiboxConfig::load(&path).expect("should load from file");
         assert_eq!(config.container.name, "my-project");
     }
 
     #[test]
     fn load_missing_file() {
-        let result = DevBoxConfig::load(Path::new("/nonexistent/dev-box.toml"));
+        let result = AiboxConfig::load(Path::new("/nonexistent/aibox.toml"));
         assert!(result.is_err());
     }
 
     #[test]
     fn from_str_parses_and_validates() {
-        let config = DevBoxConfig::from_str(minimal_toml()).unwrap();
+        let config = AiboxConfig::from_str(minimal_toml()).unwrap();
         assert_eq!(config.container.name, "my-project");
     }
 
@@ -1290,22 +1290,22 @@ target = "/b"
     #[serial]
     fn host_root_dir_default() {
         unsafe {
-            std::env::remove_var("DEV_BOX_HOST_ROOT");
+            std::env::remove_var("AIBOX_HOST_ROOT");
         }
         let config = parse_toml(minimal_toml()).unwrap();
-        assert_eq!(config.host_root_dir(), PathBuf::from(".dev-box-home"));
+        assert_eq!(config.host_root_dir(), PathBuf::from(".aibox-home"));
     }
 
     #[test]
     #[serial]
     fn host_root_dir_env_override() {
         unsafe {
-            std::env::set_var("DEV_BOX_HOST_ROOT", "/custom/root");
+            std::env::set_var("AIBOX_HOST_ROOT", "/custom/root");
         }
         let config = parse_toml(minimal_toml()).unwrap();
         assert_eq!(config.host_root_dir(), PathBuf::from("/custom/root"));
         unsafe {
-            std::env::remove_var("DEV_BOX_HOST_ROOT");
+            std::env::remove_var("AIBOX_HOST_ROOT");
         }
     }
 
@@ -1313,7 +1313,7 @@ target = "/b"
     #[serial]
     fn workspace_dir_default() {
         unsafe {
-            std::env::remove_var("DEV_BOX_WORKSPACE_DIR");
+            std::env::remove_var("AIBOX_WORKSPACE_DIR");
         }
         let config = parse_toml(minimal_toml()).unwrap();
         assert_eq!(config.workspace_dir(), "..");
@@ -1323,12 +1323,12 @@ target = "/b"
     #[serial]
     fn workspace_dir_env_override() {
         unsafe {
-            std::env::set_var("DEV_BOX_WORKSPACE_DIR", "/my/workspace");
+            std::env::set_var("AIBOX_WORKSPACE_DIR", "/my/workspace");
         }
         let config = parse_toml(minimal_toml()).unwrap();
         assert_eq!(config.workspace_dir(), "/my/workspace");
         unsafe {
-            std::env::remove_var("DEV_BOX_WORKSPACE_DIR");
+            std::env::remove_var("AIBOX_WORKSPACE_DIR");
         }
     }
 

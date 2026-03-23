@@ -1,0 +1,17 @@
+  aibox Quick Reference
+  ───────────────────────────────────────────────
+  ZELLIJ (leader: Ctrl+b)    YAZI (file manager)
+  Ctrl+b h/j/k/l  Move       h/j/k/l  Navigate
+  Ctrl+b [/]       Prev/next  Enter    Open in vim
+  Ctrl+b 1-5       Jump tab   q        Quit yazi
+  Ctrl+b f         Fullscreen /        Search
+  Ctrl+b x         Close pane .        Hidden files
+  Ctrl+b n/d/r     New pane   Space    Select
+  Ctrl+b t/w       Tab +/-
+  Ctrl+b s         Strider
+  Ctrl+b u         Scroll
+  Ctrl+b /         Search
+  Ctrl+b q         QUIT (or Ctrl+q)
+
+  LAYOUTS: aibox start --layout dev|focus|cowork
+  TABS: Ctrl+b 1 dev  2 git  3 shell  4 help

@@ -1,0 +1,5 @@
+[manager]
+prepend_keymap = [
+    { on = "<Enter>", run = "open", desc = "Open in editor pane" },
+    { on = "O", run = "open --interactive", desc = "Open interactively" },
+]

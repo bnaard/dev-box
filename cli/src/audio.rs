@@ -9,7 +9,7 @@ use anyhow::Result;
 use std::process::Command;
 
 const DEFAULT_PORT: u16 = 4714;
-const PLIST_LABEL: &str = "com.devbox.pulseaudio";
+const PLIST_LABEL: &str = "com.aibox.pulseaudio";
 
 /// Outcome counters for the summary line.
 struct Tally {
@@ -57,7 +57,7 @@ fn has_cmd(cmd: &str) -> bool {
 
 // ── Public entry points ──────────────────────────────────────────────────────
 
-/// `dev-box audio check` — diagnose host audio readiness.
+/// `aibox audio check` — diagnose host audio readiness.
 pub fn cmd_audio_check(port: Option<u16>) -> Result<()> {
     let port = port.unwrap_or(DEFAULT_PORT);
     let mut t = Tally::new();
@@ -123,7 +123,7 @@ pub fn cmd_audio_check(port: Option<u16>) -> Result<()> {
     Ok(())
 }
 
-/// `dev-box audio setup` — install and configure PulseAudio on the host.
+/// `aibox audio setup` — install and configure PulseAudio on the host.
 pub fn cmd_audio_setup(port: Option<u16>) -> Result<()> {
     let port = port.unwrap_or(DEFAULT_PORT);
     let os = std::env::consts::OS;
@@ -307,11 +307,11 @@ fn check_tcp_persistence(t: &mut Tally, port: u16, os: &str) {
             t.fail(&format!(
                 "TCP module not in {pa_conf} (won't survive reboot)"
             ));
-            output::info("  Run: dev-box audio setup");
+            output::info("  Run: aibox audio setup");
         }
     } else {
         t.fail(&format!("Config not found: {pa_conf}"));
-        output::info("  Run: dev-box audio setup");
+        output::info("  Run: aibox audio setup");
     }
 }
 
@@ -348,18 +348,18 @@ fn check_port_listening(t: &mut Tally, port: u16, tcp_loaded: bool) {
 fn check_macos_launchd(t: &mut Tally) {
     if let Some(list) = run("launchctl", &["list"]) {
         if list.contains(PLIST_LABEL) {
-            t.pass("dev-box PulseAudio launch agent loaded (auto-starts, KeepAlive)");
+            t.pass("aibox PulseAudio launch agent loaded (auto-starts, KeepAlive)");
             return;
         }
         if list.contains("homebrew.mxcl.pulseaudio") {
             t.pass("Homebrew PulseAudio launch agent loaded");
-            output::info("  Consider: dev-box audio setup (for KeepAlive support)");
+            output::info("  Consider: aibox audio setup (for KeepAlive support)");
             return;
         }
     }
 
     t.warn("PulseAudio does not auto-start on login");
-    output::info("  Fix: dev-box audio setup");
+    output::info("  Fix: aibox audio setup");
 }
 
 fn check_connectivity(t: &mut Tally, port: u16) {
@@ -418,7 +418,7 @@ fn append_tcp_to_config(path: &str, tcp_line: &str) -> Result<()> {
         .append(true)
         .open(path)?;
     writeln!(file)?;
-    writeln!(file, "# dev-box: enable PulseAudio TCP for container audio")?;
+    writeln!(file, "# aibox: enable PulseAudio TCP for container audio")?;
     writeln!(file, "{tcp_line}")?;
     output::ok(&format!("Added TCP module config to {path}"));
     Ok(())
@@ -452,7 +452,7 @@ fn setup_launchd_plist(port: u16) -> Result<()> {
   </array>
   <key>RunAtLoad</key><true/>
   <key>KeepAlive</key><true/>
-  <key>StandardErrorPath</key><string>/tmp/pulseaudio-devbox.err</string>
+  <key>StandardErrorPath</key><string>/tmp/pulseaudio-aibox.err</string>
 </dict>
 </plist>"#
     );

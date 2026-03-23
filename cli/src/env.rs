@@ -3,18 +3,18 @@ use serde::{Deserialize, Serialize};
 use std::fs;
 use std::path::{Path, PathBuf};
 
-use crate::config::DevBoxConfig;
+use crate::config::AiboxConfig;
 use crate::generate;
 use crate::output;
 use crate::reset;
 
 /// Environment storage directory.
-const ENV_DIR: &str = ".dev-box-env";
+const ENV_DIR: &str = ".aibox-env";
 /// State file tracking current environment.
 const STATE_FILE: &str = "state.toml";
 
 /// Per-environment files to save/restore.
-const ENV_FILES: &[&str] = &["dev-box.toml", "CLAUDE.md"];
+const ENV_FILES: &[&str] = &["aibox.toml", "CLAUDE.md"];
 /// Per-environment directory (excluding shared/).
 const ENV_CONTEXT_DIR: &str = "context";
 /// Shared subdirectory name — excluded from env copy.
@@ -47,7 +47,7 @@ fn load_state() -> Result<EnvState> {
 
 fn save_state(state: &EnvState) -> Result<()> {
     let path = state_path();
-    fs::create_dir_all(ENV_DIR).context("Failed to create .dev-box-env directory")?;
+    fs::create_dir_all(ENV_DIR).context("Failed to create .aibox-env directory")?;
     let content = toml::to_string_pretty(state).context("Failed to serialize state")?;
     fs::write(&path, content).with_context(|| format!("Failed to write {}", path.display()))?;
     Ok(())
@@ -57,14 +57,14 @@ fn save_state(state: &EnvState) -> Result<()> {
 // Environment save/restore
 // =============================================================================
 
-/// List existing environment names from .dev-box-env/ subdirectories.
+/// List existing environment names from .aibox-env/ subdirectories.
 fn list_env_names() -> Result<Vec<String>> {
     let env_dir = PathBuf::from(ENV_DIR);
     if !env_dir.exists() {
         return Ok(vec![]);
     }
     let mut names = Vec::new();
-    for entry in fs::read_dir(&env_dir).context("Failed to read .dev-box-env/")? {
+    for entry in fs::read_dir(&env_dir).context("Failed to read .aibox-env/")? {
         let entry = entry?;
         if entry.path().is_dir()
             && let Some(name) = entry.file_name().to_str()
@@ -198,13 +198,13 @@ fn validate_env_name(name: &str) -> Result<()> {
 /// Create a named environment from the current project state.
 pub fn cmd_env_create(config_path: &Option<String>, name: &str) -> Result<()> {
     // Validate config exists
-    let _config = DevBoxConfig::from_cli_option(config_path)?;
+    let _config = AiboxConfig::from_cli_option(config_path)?;
     validate_env_name(name)?;
 
     let env_path = PathBuf::from(ENV_DIR).join(name);
     if env_path.exists() {
         bail!(
-            "Environment '{}' already exists. Delete it first with: dev-box env delete {}",
+            "Environment '{}' already exists. Delete it first with: aibox env delete {}",
             name,
             name
         );
@@ -227,7 +227,7 @@ pub fn cmd_env_create(config_path: &Option<String>, name: &str) -> Result<()> {
 
 /// Switch to a named environment.
 pub fn cmd_env_switch(config_path: &Option<String>, name: &str, yes: bool) -> Result<()> {
-    let config = DevBoxConfig::from_cli_option(config_path)?;
+    let config = AiboxConfig::from_cli_option(config_path)?;
     validate_env_name(name)?;
 
     let env_path = PathBuf::from(ENV_DIR).join(name);
@@ -284,11 +284,11 @@ pub fn cmd_env_switch(config_path: &Option<String>, name: &str, yes: bool) -> Re
     save_state(&new_state)?;
 
     // Regenerate .devcontainer/ from restored config
-    let restored_config = DevBoxConfig::from_cli_option(config_path)?;
+    let restored_config = AiboxConfig::from_cli_option(config_path)?;
     generate::generate_all(&restored_config)?;
 
     output::ok(&format!("Switched to environment '{}'", name));
-    output::info("Run 'dev-box build' then 'dev-box start' to apply changes.");
+    output::info("Run 'aibox build' then 'aibox start' to apply changes.");
 
     Ok(())
 }
@@ -300,7 +300,7 @@ pub fn cmd_env_list() -> Result<()> {
 
     if names.is_empty() {
         output::info("No environments created yet.");
-        output::info("Create one with: dev-box env create <name>");
+        output::info("Create one with: aibox env create <name>");
         return Ok(());
     }
 
@@ -371,10 +371,10 @@ pub fn cmd_env_status(config_path: &Option<String>) -> Result<()> {
             output::ok(&format!("Current environment: {}", name));
 
             // Show config summary if available
-            if let Ok(config) = DevBoxConfig::from_cli_option(config_path) {
-                eprintln!("  Base:    {}", config.dev_box.base);
+            if let Ok(config) = AiboxConfig::from_cli_option(config_path) {
+                eprintln!("  Base:    {}", config.aibox.base);
                 eprintln!("  Process: {:?}", config.process.packages);
-                eprintln!("  Version: {}", config.dev_box.version);
+                eprintln!("  Version: {}", config.aibox.version);
             }
         }
         None => {
@@ -399,8 +399,8 @@ mod tests {
 
     fn setup_project(dir: &Path) {
         fs::write(
-            dir.join("dev-box.toml"),
-            r#"[dev-box]
+            dir.join("aibox.toml"),
+            r#"[aibox]
 version = "0.3.9"
 image = "python"
 process = "research"
@@ -482,7 +482,7 @@ name = "test-project"
 
         // Verify saved files
         let env_path = dir.path().join(ENV_DIR).join("research");
-        assert!(env_path.join("dev-box.toml").exists());
+        assert!(env_path.join("aibox.toml").exists());
         assert!(env_path.join("CLAUDE.md").exists());
         assert!(env_path.join("context/PROGRESS.md").exists());
         assert!(!env_path.join("context/shared").exists()); // shared not copied

@@ -1,6 +1,6 @@
-//! Migration system for dev-box version changes.
+//! Migration system for aibox version changes.
 //!
-//! On `dev-box sync`, compares `.dev-box-version` file content against the
+//! On `aibox sync`, compares `.aibox-version` file content against the
 //! running CLI version. If they differ, generates a migration document at
 //! `context/migrations/{from}-to-{to}.md`.
 
@@ -11,7 +11,7 @@ use std::path::Path;
 use crate::output;
 
 /// Check for version mismatch and generate migration document if needed.
-/// Called during `dev-box sync`. Operates in the current working directory.
+/// Called during `aibox sync`. Operates in the current working directory.
 pub fn check_and_generate_migration() -> Result<()> {
     check_and_generate_migration_in(Path::new("."))
 }
@@ -20,7 +20,7 @@ pub fn check_and_generate_migration() -> Result<()> {
 /// Operates relative to the given `root` directory.
 fn check_and_generate_migration_in(root: &Path) -> Result<()> {
     let current_version = env!("CARGO_PKG_VERSION");
-    let version_file = root.join(".dev-box-version");
+    let version_file = root.join(".aibox-version");
 
     // If no version file, this is a fresh project — no migration needed
     if !version_file.exists() {
@@ -28,7 +28,7 @@ fn check_and_generate_migration_in(root: &Path) -> Result<()> {
     }
 
     let stored_version = fs::read_to_string(&version_file)
-        .context("Failed to read .dev-box-version")?
+        .context("Failed to read .aibox-version")?
         .trim()
         .to_string();
 
@@ -44,8 +44,8 @@ fn check_and_generate_migration_in(root: &Path) -> Result<()> {
     // Generate migration document
     generate_migration_doc(root, &stored_version, current_version)?;
 
-    // Update .dev-box-version to current
-    fs::write(&version_file, current_version).context("Failed to update .dev-box-version")?;
+    // Update .aibox-version to current
+    fs::write(&version_file, current_version).context("Failed to update .aibox-version")?;
 
     Ok(())
 }
@@ -113,11 +113,11 @@ static KNOWN_MIGRATIONS: &[MigrationEntry] = &[
     //     from: "0.8.0",
     //     to: "0.9.0",
     //     breaking_changes: &[
-    //         "`[dev-box] image` renamed to `[dev-box] base` — only \"debian\" is valid",
+    //         "`[aibox] image` renamed to `[aibox] base` — only \"debian\" is valid",
     //         "Process packages replace monolithic process levels",
     //     ],
     //     action_items: &[
-    //         "Update dev-box.toml: change `image = \"python\"` to `base = \"debian\"` and add `[addons.python.tools]`",
+    //         "Update aibox.toml: change `image = \"python\"` to `base = \"debian\"` and add `[addons.python.tools]`",
     //     ],
     // },
 ];
@@ -146,7 +146,7 @@ fn format_migration_doc(from: &str, to: &str, date: &str) -> String {
             .join("\n")
     } else {
         format!(
-            "- Review the [changelog](https://github.com/projectious-work/dev-box/releases) \
+            "- Review the [changelog](https://github.com/projectious-work/aibox/releases) \
              for breaking changes between v{} and v{}.",
             from, to
         )
@@ -160,8 +160,8 @@ fn format_migration_doc(from: &str, to: &str, date: &str) -> String {
             .collect();
         // Always include standard items
         items.push("- [ ] Review this migration document with the project owner".to_string());
-        items.push("- [ ] Run `dev-box sync` to regenerate container files".to_string());
-        items.push("- [ ] Rebuild the container: `dev-box build`".to_string());
+        items.push("- [ ] Run `aibox sync` to regenerate container files".to_string());
+        items.push("- [ ] Rebuild the container: `aibox build`".to_string());
         items.push("- [ ] Verify all context files are intact".to_string());
         items.push(
             "- [ ] Mark this migration as completed (change Status to \"completed\")".to_string(),
@@ -170,8 +170,8 @@ fn format_migration_doc(from: &str, to: &str, date: &str) -> String {
     } else {
         "\
 - [ ] Review this migration document with the project owner
-- [ ] Run `dev-box sync` to regenerate container files
-- [ ] Rebuild the container: `dev-box build`
+- [ ] Run `aibox sync` to regenerate container files
+- [ ] Rebuild the container: `aibox build`
 - [ ] Verify all context files are intact
 - [ ] Mark this migration as completed (change Status to \"completed\")"
             .to_string()
@@ -183,15 +183,15 @@ fn format_migration_doc(from: &str, to: &str, date: &str) -> String {
 
 > **SAFETY: Do not execute any actions in this document automatically.**
 > **Discuss each item with the project owner before proceeding.**
-> **Do not modify dev-box.toml without explicit user confirmation.**
+> **Do not modify aibox.toml without explicit user confirmation.**
 
 **Generated:** {date}
 **Status:** pending
-**dev-box CLI version:** v{to}
+**aibox CLI version:** v{to}
 
 ## Summary
 
-dev-box has been updated from v{from} to v{to}. Review the changes below
+aibox has been updated from v{from} to v{to}. Review the changes below
 and discuss each action item with the project owner.
 
 ## Breaking Changes
@@ -205,11 +205,11 @@ and discuss each action item with the project owner.
 ## New Skills Available
 
 Check the skills catalog for new skills added in v{to}. Add desired skills
-to `[skills] include` in dev-box.toml.
+to `[skills] include` in aibox.toml.
 
 ## Changed Skills
 
-Skills with updated content will be automatically updated on next `dev-box sync`
+Skills with updated content will be automatically updated on next `aibox sync`
 if the local file has not been modified. Modified skills are left untouched.
 
 ## Deprecated Skills
@@ -218,27 +218,27 @@ Check the release notes for any removed or renamed skills.
 
 ## Context File Changes
 
-Review `context/DEVBOX.md` for the updated baseline document.
+Review `context/AIBOX.md` for the updated baseline document.
 
 ## Verification Checklist
 
-- [ ] `dev-box sync` completes without errors
-- [ ] Container builds successfully (`dev-box build`)
+- [ ] `aibox sync` completes without errors
+- [ ] Container builds successfully (`aibox build`)
 - [ ] Context files are intact
 - [ ] Skills are correctly deployed
-- [ ] Agent entry point (CLAUDE.md etc.) points to context/DEVBOX.md
+- [ ] Agent entry point (CLAUDE.md etc.) points to context/AIBOX.md
 
 ## Rollback
 
 To revert this migration:
 ```
-git checkout HEAD -- .dev-box-version context/ .devcontainer/
-dev-box sync
+git checkout HEAD -- .aibox-version context/ .devcontainer/
+aibox sync
 ```
 
 ## Known Issues
 
-Check https://github.com/projectious-work/dev-box/issues for known issues
+Check https://github.com/projectious-work/aibox/issues for known issues
 with v{to}.
 "
     )
@@ -254,7 +254,7 @@ mod tests {
     fn test_no_migration_when_versions_match() {
         let tmp = TempDir::new().unwrap();
         let current = env!("CARGO_PKG_VERSION");
-        fs::write(tmp.path().join(".dev-box-version"), current).unwrap();
+        fs::write(tmp.path().join(".aibox-version"), current).unwrap();
         fs::create_dir_all(tmp.path().join("context/migrations")).unwrap();
 
         check_and_generate_migration_in(tmp.path()).unwrap();
@@ -271,7 +271,7 @@ mod tests {
     fn test_no_migration_when_no_version_file() {
         let tmp = TempDir::new().unwrap();
 
-        // No .dev-box-version file exists — fresh project
+        // No .aibox-version file exists — fresh project
         check_and_generate_migration_in(tmp.path()).unwrap();
 
         // context/migrations/ should not even be created
@@ -285,7 +285,7 @@ mod tests {
     fn test_migration_doc_generated_on_version_change() {
         let tmp = TempDir::new().unwrap();
         let current = env!("CARGO_PKG_VERSION");
-        fs::write(tmp.path().join(".dev-box-version"), "0.0.1").unwrap();
+        fs::write(tmp.path().join(".aibox-version"), "0.0.1").unwrap();
 
         check_and_generate_migration_in(tmp.path()).unwrap();
 
@@ -299,8 +299,8 @@ mod tests {
         assert!(content.contains(&format!("v0.0.1 \u{2192} v{}", current)));
         assert!(content.contains("**Status:** pending"));
 
-        // .dev-box-version should be updated
-        let updated = fs::read_to_string(tmp.path().join(".dev-box-version")).unwrap();
+        // .aibox-version should be updated
+        let updated = fs::read_to_string(tmp.path().join(".aibox-version")).unwrap();
         assert_eq!(updated, current);
     }
 
@@ -316,7 +316,7 @@ mod tests {
         let existing_content = "# User-edited migration doc\nStatus: in-progress\n";
         fs::write(&filepath, existing_content).unwrap();
 
-        fs::write(tmp.path().join(".dev-box-version"), "0.0.1").unwrap();
+        fs::write(tmp.path().join(".aibox-version"), "0.0.1").unwrap();
 
         check_and_generate_migration_in(tmp.path()).unwrap();
 
@@ -335,26 +335,26 @@ mod tests {
         // Safety header
         assert!(doc.contains("SAFETY: Do not execute any actions in this document automatically."));
         assert!(doc.contains("Discuss each item with the project owner before proceeding."));
-        assert!(doc.contains("Do not modify dev-box.toml without explicit user confirmation."));
+        assert!(doc.contains("Do not modify aibox.toml without explicit user confirmation."));
 
         // Status
         assert!(doc.contains("**Status:** pending"));
 
         // Action items with checkboxes
         assert!(doc.contains("- [ ] Review this migration document with the project owner"));
-        assert!(doc.contains("- [ ] Run `dev-box sync` to regenerate container files"));
-        assert!(doc.contains("- [ ] Rebuild the container: `dev-box build`"));
+        assert!(doc.contains("- [ ] Run `aibox sync` to regenerate container files"));
+        assert!(doc.contains("- [ ] Rebuild the container: `aibox build`"));
 
         // Verification checklist
         assert!(doc.contains("## Verification Checklist"));
-        assert!(doc.contains("- [ ] `dev-box sync` completes without errors"));
+        assert!(doc.contains("- [ ] `aibox sync` completes without errors"));
         assert!(doc.contains("- [ ] Container builds successfully"));
         assert!(doc
-            .contains("- [ ] Agent entry point (CLAUDE.md etc.) points to context/DEVBOX.md"));
+            .contains("- [ ] Agent entry point (CLAUDE.md etc.) points to context/AIBOX.md"));
 
         // Rollback section
         assert!(doc.contains("## Rollback"));
-        assert!(doc.contains("git checkout HEAD -- .dev-box-version context/ .devcontainer/"));
+        assert!(doc.contains("git checkout HEAD -- .aibox-version context/ .devcontainer/"));
 
         // Other required sections
         assert!(doc.contains("## Breaking Changes"));
@@ -371,7 +371,7 @@ mod tests {
 
         assert!(doc.contains("# Migration: v1.2.3 \u{2192} v2.0.0"));
         assert!(doc.contains("**Generated:** 2026-01-15"));
-        assert!(doc.contains("**dev-box CLI version:** v2.0.0"));
+        assert!(doc.contains("**aibox CLI version:** v2.0.0"));
         assert!(doc.contains("from v1.2.3 to v2.0.0"));
     }
 

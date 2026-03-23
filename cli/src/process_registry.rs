@@ -1,7 +1,7 @@
 // Composable process packages and convenience presets.
 //
 // Each package bundles a set of skills and optional context artifacts.
-// Users compose packages freely via `[process] packages` in dev-box.toml.
+// Users compose packages freely via `[process] packages` in aibox.toml.
 // Presets expand to a list of packages for common workflows.
 
 use std::collections::HashSet;
@@ -53,8 +53,8 @@ static PACKAGES: &[ProcessPackage] = &[
         skills: &["agent-management", "owner-profile"],
         context_files: &[
             ContextFileDef {
-                path: "context/DEVBOX.md",
-                template_key: "devbox_md",
+                path: "context/AIBOX.md",
+                template_key: "aibox_md",
             },
             ContextFileDef {
                 path: "context/OWNER.md",
@@ -680,7 +680,7 @@ mod tests {
     fn test_core_context_files() {
         let core = get_package("core").unwrap();
         assert_eq!(core.context_files.len(), 2);
-        assert_eq!(core.context_files[0].path, "context/DEVBOX.md");
+        assert_eq!(core.context_files[0].path, "context/AIBOX.md");
         assert_eq!(core.context_files[1].path, "context/OWNER.md");
     }
 
