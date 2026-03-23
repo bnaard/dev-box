@@ -27,7 +27,6 @@ Priority values: `must`, `should`, `could`, `wont`
 | BACK-010 | Evaluate multi-service support approach | todo | could | Analysis only: should we support multi-service or leave to user? Factor in SSH/remote dev plans |
 | BACK-011 | Remote development | todo | should | Environments on remote hosts, local thin client |
 | BACK-012 | Session handover format | todo | should | Standard process template for AI session continuity; may already be done — needs review and gap analysis |
-| BACK-013 | TeX Live builder deduplication | todo | should | 3 Dockerfiles share identical 90-line build stage; keep until base image decision in BACK-022 is resolved |
 | BACK-014 | Binary checksum verification | todo | must | Verify downloaded binaries in base Dockerfile. Sequenced after architecture overhaul |
 | BACK-015 | Image signing (cosign) | todo | must | sigstore/cosign for published images. Sequenced after architecture overhaul |
 | BACK-016 | Skill security vetting | todo | must | Hash verification, allowed-tools audit. Sequenced after architecture overhaul |
@@ -36,7 +35,6 @@ Priority values: `must`, `should`, `could`, `wont`
 | BACK-019 | Skill marketplace integration | todo | could | ClawHub, Skills.sh |
 | BACK-020 | `dev-box doctor` skill consistency | todo | could | Check installed vs declared skills |
 | BACK-021 | Investigate migration from Zensical to Docusaurus | todo | must | Analyze docs/ structure, evaluate Docusaurus fit, plan migration path |
-| BACK-022 | Investigate shift to declarative config + minimal base images | todo | must | Most urgent. Major architecture revision — see expanded scope below |
 | BACK-024 | External skill installation | todo | could | Allow installing skills from sources outside curated list. Deprioritized. |
 | BACK-025 | Skills gap analysis — internet research | todo | should | Research most-used agent skills/categories externally; research common SE/infra/docs/research tasks; compare with our 83 skills; identify gaps |
 | BACK-026 | Existing skills quality review | todo | should | Audit all skills for missing examples, code snippets, and tools per SKILL.md format. Evaluate where tools would improve reliability (algorithmic vs probabilistic) |
@@ -51,21 +49,6 @@ Priority values: `must`, `should`, `could`, `wont`
 | BACK-035 | New skill: microservice creation & orchestration | todo | should | Skill on creating new services/microservices and orchestrating them. Service boundaries, inter-service communication, deployment patterns |
 | BACK-036 | Bug: Yazi "e" key does not open files in vim | todo | must | Pressing "e" in yazi does nothing. Enter opens file in vim but in yazi's own pane (not the layout vim pane) and with wrong theme settings. Likely open-in-editor.sh or yazi keymap issue in v0.8.0 |
 | BACK-037 | Bug: Yazi preview broken for images/PDF/GIF | todo | must | PNG/SVG preview shows nothing; PDF fills screen with binary data; GIF preview also broken. Likely missing preview dependencies (ueberzugpp, file, poppler-utils) in base image |
-
-### BACK-022 Expanded Scope
-
-This is the central architecture investigation for the project revision:
-
-1. **Base images**: Reduce from 10 flavors to 2–3 stock base images. Consider: a general base + a LaTeX base (LaTeX builds are slow, pre-baking saves users significant time). Evaluate whether build-time cost justifies dedicated base images vs pure add-on approach.
-2. **Add-on system**: Everything currently baked into images or offered as add-ons becomes a declarative add-on in dev-box.toml. Each add-on (e.g., Python) specifies what to inject into the derived Dockerfile via `dev-box sync`. Users can select/deselect individual packages within an add-on. Curated version selection per add-on (e.g., Python 3.13 vs 3.14) — opinionated, small supported set.
-3. **Process packages**: A process (minimal, managed, product, research) = collection of skills + context document templates, selectable in dev-box.toml. Users can override defaults (deselect skills from a process).
-4. **Skills in dev-box.toml**: Declarative skill selection/deselection, independent of process package.
-5. **Investigate context vs skills boundary**: Is context purely artifacts? Or does some "how" knowledge need to live there? Working hypothesis: skills hold procedural knowledge, context holds artifacts + light structural conventions — but edge cases (backlog column definitions, standup cadence) may blur the line.
-6. **dev-box sync as single reconciliation command**: Generates/updates Dockerfiles, context files, skill files from declarative dev-box.toml state. May produce migration scripts for derived project agents.
-7. **Universal baseline document**: Agent-independent root document (e.g., `context/DEVBOX.md`) that is always present and not deselectable. Three-level layout (intro → overview → details). Defines: where context lives, how processes work, migration pickup protocol, safety rules. This is the main entry point for any agent at any session.
-8. **Agent entry point scaffolding**: When user selects providers in `[ai]`, scaffold/update each agent's native entry point (CLAUDE.md, `.aider.conf.yml`, Gemini equivalent) with a pointer to the universal baseline document in context/.
-9. **Migration document system** (absorbed from BACK-009): On `dev-box sync`, detect version differences and generate a migration markdown for the derived project. Standardized format includes: safety header ("never execute automatically, always discuss with user"), auto-generated diff from git history of template changes, description of what changed and why. Derived project agents must check for and pick up migration documents at session start — enforced via the universal baseline document.
-10. **Non-deselectable base process**: A minimal process layer always present in every dev-box project that ensures agents check for migrations, follow the baseline contract, and respect safety rules. This sits beneath all selectable process packages.
 
 ### BACK-028 Expanded Scope
 
@@ -87,6 +70,8 @@ Complete CLI/UX overhaul with kubectl as the reference model:
 | BACK-003 | `dev-box skill install` command | archived | — | Split into BACK-023 (skill command) and BACK-024 (external skills) |
 | BACK-005 | CLI simplification | archived | — | Merged into BACK-028 (CLI/UX overhaul) |
 | BACK-009 | Automated context migration | archived | — | Merged into BACK-022 (items 9–10) |
+| BACK-013 | TeX Live builder deduplication | done | — | Resolved by BACK-022 — LaTeX is now a single add-on |
+| BACK-022 | Declarative config + minimal base images | done | — | DEC-016. 5 phases: addon registry, single base image, process packages, sync expansion, migration system |
 | BACK-023 | `dev-box skill` command | archived | — | Merged into BACK-028 (CLI/UX overhaul) |
 | — | dev-box sync | done | — | #25 — theme switching without manual file deletion |
 | — | Shell enhancement tools | done | — | ripgrep, fd, bat, eza, zoxide, fzf, delta + aliases |
