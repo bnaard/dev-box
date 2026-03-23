@@ -2,7 +2,7 @@ use anyhow::{Result, bail};
 use std::path::PathBuf;
 
 use crate::config::{
-    AiProvider, BaseImage, DevBoxConfig, StarshipPreset, Theme,
+    AiProvider, BaseImage, AiboxConfig, StarshipPreset, Theme,
 };
 use crate::context;
 use crate::generate;
@@ -103,7 +103,7 @@ pub fn resolve_init_values(
 
 /// Build command: load config, generate files, run compose build.
 pub fn cmd_build(config_path: &Option<String>, no_cache: bool) -> Result<()> {
-    let config = DevBoxConfig::from_cli_option(config_path)?;
+    let config = AiboxConfig::from_cli_option(config_path)?;
     let runtime = Runtime::detect()?;
 
     generate::generate_all(&config)?;
@@ -117,7 +117,7 @@ pub fn cmd_build(config_path: &Option<String>, no_cache: bool) -> Result<()> {
 
 /// Start command: seed, generate, ensure running, attach.
 pub fn cmd_start(config_path: &Option<String>, layout: &str) -> Result<()> {
-    let config = DevBoxConfig::from_cli_option(config_path)?;
+    let config = AiboxConfig::from_cli_option(config_path)?;
     let runtime = Runtime::detect()?;
     let name = &config.container.name;
 
@@ -149,7 +149,7 @@ pub fn cmd_start(config_path: &Option<String>, layout: &str) -> Result<()> {
 }
 
 pub fn cmd_stop(config_path: &Option<String>) -> Result<()> {
-    let config = DevBoxConfig::from_cli_option(config_path)?;
+    let config = AiboxConfig::from_cli_option(config_path)?;
     let runtime = Runtime::detect()?;
     let name = &config.container.name;
 
@@ -172,7 +172,7 @@ pub fn cmd_stop(config_path: &Option<String>) -> Result<()> {
 }
 
 pub fn cmd_remove(config_path: &Option<String>) -> Result<()> {
-    let config = DevBoxConfig::from_cli_option(config_path)?;
+    let config = AiboxConfig::from_cli_option(config_path)?;
     let runtime = Runtime::detect()?;
     let name = &config.container.name;
 
@@ -190,14 +190,14 @@ pub fn cmd_remove(config_path: &Option<String>) -> Result<()> {
 }
 
 pub fn cmd_attach(config_path: &Option<String>, layout: &str) -> Result<()> {
-    let config = DevBoxConfig::from_cli_option(config_path)?;
+    let config = AiboxConfig::from_cli_option(config_path)?;
     let runtime = Runtime::detect()?;
     let name = &config.container.name;
 
     let state = runtime.container_status(name)?;
     if state != ContainerState::Running {
         bail!(
-            "Container '{}' is not running. Run 'dev-box start' first.",
+            "Container '{}' is not running. Run 'aibox start' first.",
             name
         );
     }
@@ -209,7 +209,7 @@ pub fn cmd_attach(config_path: &Option<String>, layout: &str) -> Result<()> {
 }
 
 pub fn cmd_status(config_path: &Option<String>) -> Result<()> {
-    let config = DevBoxConfig::from_cli_option(config_path)?;
+    let config = AiboxConfig::from_cli_option(config_path)?;
     let runtime = Runtime::detect()?;
     let name = &config.container.name;
 
@@ -230,23 +230,23 @@ pub fn cmd_status(config_path: &Option<String>) -> Result<()> {
 }
 
 /// Serialize config to TOML with comprehensive comments.
-fn serialize_config_with_comments(config: &DevBoxConfig) -> String {
+fn serialize_config_with_comments(config: &AiboxConfig) -> String {
     let mut out = String::new();
 
-    // [dev-box] section
-    out.push_str("# dev-box.toml — project configuration for dev-box.\n");
+    // [aibox] section
+    out.push_str("# aibox.toml — project configuration for aibox.\n");
     out.push_str("# All generated files (.devcontainer/) derive from this file.\n");
-    out.push_str("# Run `dev-box sync` after editing to regenerate.\n");
+    out.push_str("# Run `aibox sync` after editing to regenerate.\n");
     out.push_str("#\n");
     out.push_str(
-        "# Full documentation: https://projectious-work.github.io/dev-box/cli/configuration/\n\n",
+        "# Full documentation: https://projectious-work.github.io/aibox/cli/configuration/\n\n",
     );
-    out.push_str("[dev-box]\n");
-    out.push_str(&format!("version = \"{}\"\n", config.dev_box.version));
+    out.push_str("[aibox]\n");
+    out.push_str(&format!("version = \"{}\"\n", config.aibox.version));
     out.push_str(&format!(
         "# Base image. Options: debian\n\
          base = \"{}\"\n",
-        config.dev_box.base
+        config.aibox.base
     ));
 
     // [container] section
@@ -370,7 +370,7 @@ fn serialize_config_with_comments(config: &DevBoxConfig) -> String {
 
     // [audio] section
     out.push_str("\n# Audio support for PulseAudio bridging (e.g., Claude Code voice).\n");
-    out.push_str("# Requires host-side PulseAudio setup: run `dev-box audio setup`\n");
+    out.push_str("# Requires host-side PulseAudio setup: run `aibox audio setup`\n");
     out.push_str("[audio]\n");
     out.push_str(&format!("enabled = {}\n", config.audio.enabled));
     if config.audio.enabled {
@@ -385,17 +385,17 @@ fn serialize_config_with_comments(config: &DevBoxConfig) -> String {
     out
 }
 
-/// Init command: create a dev-box.toml and generate files.
+/// Init command: create a aibox.toml and generate files.
 pub fn cmd_init(config_path: &Option<String>, params: InitParams) -> Result<()> {
     use crate::config::{
         AddonsSection, AiSection, AppearanceSection, AudioSection, ContainerSection,
-        ContextSection, DevBoxConfig, DevBoxSection, ProcessSection, SkillsSection,
+        ContextSection, AiboxConfig, AiboxSection, ProcessSection, SkillsSection,
     };
 
     let toml_path = config_path
         .as_ref()
         .map(PathBuf::from)
-        .unwrap_or_else(|| PathBuf::from("dev-box.toml"));
+        .unwrap_or_else(|| PathBuf::from("aibox.toml"));
 
     if toml_path.exists() {
         bail!(
@@ -413,8 +413,8 @@ pub fn cmd_init(config_path: &Option<String>, params: InitParams) -> Result<()> 
     let ai_providers = params.ai.unwrap_or_else(|| vec![AiProvider::Claude]);
     let _addon_names = params.addons.unwrap_or_default();
 
-    let config = DevBoxConfig {
-        dev_box: DevBoxSection {
+    let config = AiboxConfig {
+        aibox: AiboxSection {
             version: env!("CARGO_PKG_VERSION").to_string(),
             base: base_image,
         },
@@ -459,7 +459,7 @@ pub fn cmd_init(config_path: &Option<String>, params: InitParams) -> Result<()> 
     context::scaffold_context(&config)?;
     seed::seed_root_dir(&config)?;
 
-    output::ok("Project initialized. Edit dev-box.toml to customize, then run: dev-box start");
+    output::ok("Project initialized. Edit aibox.toml to customize, then run: aibox start");
 
     Ok(())
 }
@@ -469,7 +469,7 @@ pub fn cmd_sync(config_path: &Option<String>) -> Result<()> {
     // Check for version migration before any other sync steps
     crate::migration::check_and_generate_migration()?;
 
-    let config = DevBoxConfig::from_cli_option(config_path)?;
+    let config = AiboxConfig::from_cli_option(config_path)?;
 
     output::info("Syncing config files...");
     let updated = seed::sync_theme_files(&config)?;
@@ -488,8 +488,8 @@ pub fn cmd_sync(config_path: &Option<String>) -> Result<()> {
     // Skill reconciliation
     context::reconcile_skills(&config)?;
 
-    // Generate DEVBOX.md (universal baseline)
-    context::generate_devbox_md(&config)?;
+    // Generate AIBOX.md (universal baseline)
+    context::generate_aibox_md(&config)?;
 
     // Check agent entry points
     context::check_agent_entry_points(&config)?;

@@ -1,7 +1,7 @@
 use anyhow::{Context, Result};
 use std::path::{Path, PathBuf};
 
-use crate::config::DevBoxConfig;
+use crate::config::AiboxConfig;
 use crate::{generate, output};
 
 // --- Response structs for JSON deserialization ---
@@ -29,7 +29,7 @@ struct GhRelease {
 /// Bearer token via the token endpoint, then retry with the token.
 fn ghcr_get_json<T: serde::de::DeserializeOwned>(url: &str) -> Result<T> {
     // First, try the request directly — it will almost certainly 401.
-    let result = ureq::get(url).header("User-Agent", "dev-box-cli").call();
+    let result = ureq::get(url).header("User-Agent", "aibox-cli").call();
 
     match result {
         Ok(response) => {
@@ -40,16 +40,16 @@ fn ghcr_get_json<T: serde::de::DeserializeOwned>(url: &str) -> Result<T> {
         }
         Err(ureq::Error::StatusCode(401)) | Err(ureq::Error::StatusCode(403)) => {
             // Expected: exchange for anonymous Bearer token.
-            let token_url = "https://ghcr.io/token?service=ghcr.io&scope=repository:projectious-work/dev-box:pull";
+            let token_url = "https://ghcr.io/token?service=ghcr.io&scope=repository:projectious-work/aibox:pull";
             let token_resp = ureq::get(token_url)
-                .header("User-Agent", "dev-box-cli")
+                .header("User-Agent", "aibox-cli")
                 .call()?;
             let token_body = token_resp.into_body().read_to_string()?;
             let token_data: TokenResponse = serde_json::from_str(&token_body)?;
 
             // Retry with token.
             let authed_resp = ureq::get(url)
-                .header("User-Agent", "dev-box-cli")
+                .header("User-Agent", "aibox-cli")
                 .header("Authorization", &format!("Bearer {}", token_data.token))
                 .call()?;
             let authed_body = authed_resp.into_body().read_to_string()?;
@@ -65,7 +65,7 @@ fn ghcr_get_json<T: serde::de::DeserializeOwned>(url: &str) -> Result<T> {
 /// Query the GHCR tags list for the given image flavor and return the highest
 /// semver version found.
 fn fetch_latest_image_version(flavor: &str) -> Result<semver::Version> {
-    let url = "https://ghcr.io/v2/projectious-work/dev-box/tags/list";
+    let url = "https://ghcr.io/v2/projectious-work/aibox/tags/list";
     let tags_list: TagsList = ghcr_get_json(url)?;
 
     let prefix = format!("{}-v", flavor);
@@ -91,9 +91,9 @@ fn fetch_latest_image_version(flavor: &str) -> Result<semver::Version> {
 /// Query the GitHub releases API for the latest release tag and parse it as
 /// a semver version.
 fn fetch_latest_cli_version() -> Result<semver::Version> {
-    let url = "https://api.github.com/repos/projectious-work/dev-box/releases/latest";
+    let url = "https://api.github.com/repos/projectious-work/aibox/releases/latest";
     let response = ureq::get(url)
-        .header("User-Agent", "dev-box-cli")
+        .header("User-Agent", "aibox-cli")
         .header("Accept", "application/vnd.github+json")
         .call()?;
     let body = response.into_body().read_to_string()?;
@@ -108,7 +108,7 @@ fn fetch_latest_cli_version() -> Result<semver::Version> {
 }
 
 /// Check for available updates (CLI + image versions).
-fn check_updates(config: &DevBoxConfig) -> Result<()> {
+fn check_updates(config: &AiboxConfig) -> Result<()> {
     output::info("Checking for updates...");
 
     // --- CLI version ---
@@ -122,7 +122,7 @@ fn check_updates(config: &DevBoxConfig) -> Result<()> {
             if latest > current {
                 output::warn(&format!(
                     "New CLI version available: {} -> {} \
-                     (https://github.com/projectious-work/dev-box/releases/latest)",
+                     (https://github.com/projectious-work/aibox/releases/latest)",
                     current, latest
                 ));
             } else {
@@ -135,20 +135,20 @@ fn check_updates(config: &DevBoxConfig) -> Result<()> {
     }
 
     // --- Image version ---
-    let flavor = config.dev_box.base.to_string();
+    let flavor = config.aibox.base.to_string();
     output::ok(&format!(
         "Current config image version: {} ({})",
-        config.dev_box.version, flavor
+        config.aibox.version, flavor
     ));
 
     match fetch_latest_image_version(&flavor) {
         Ok(latest) => {
-            let current = semver::Version::parse(&config.dev_box.version)
+            let current = semver::Version::parse(&config.aibox.version)
                 .unwrap_or_else(|_| semver::Version::new(0, 0, 0));
             if latest > current {
                 output::warn(&format!(
                     "New image version available for '{}': {} -> {} \
-                     (run 'dev-box update' to upgrade)",
+                     (run 'aibox update' to upgrade)",
                     flavor, current, latest
                 ));
             } else {
@@ -176,38 +176,38 @@ fn check_updates(config: &DevBoxConfig) -> Result<()> {
 fn resolve_config_path(config_path: &Option<String>) -> PathBuf {
     match config_path {
         Some(p) => PathBuf::from(p),
-        None => PathBuf::from("dev-box.toml"),
+        None => PathBuf::from("aibox.toml"),
     }
 }
 
-/// Update the version field in dev-box.toml using string replacement to preserve comments.
+/// Update the version field in aibox.toml using string replacement to preserve comments.
 fn update_toml_version(toml_path: &Path, old_version: &str, new_version: &str) -> Result<()> {
     let content =
-        std::fs::read_to_string(toml_path).context("Failed to read dev-box.toml for upgrade")?;
+        std::fs::read_to_string(toml_path).context("Failed to read aibox.toml for upgrade")?;
 
-    // Replace the version value in the [dev-box] section.
-    // Match `version = "X.Y.Z"` pattern — only the first occurrence (in [dev-box]).
+    // Replace the version value in the [aibox] section.
+    // Match `version = "X.Y.Z"` pattern — only the first occurrence (in [aibox]).
     let old_pattern = format!("version = \"{}\"", old_version);
     let new_pattern = format!("version = \"{}\"", new_version);
 
     if !content.contains(&old_pattern) {
         anyhow::bail!(
-            "Could not find '{}' in dev-box.toml — manual edit may be needed",
+            "Could not find '{}' in aibox.toml — manual edit may be needed",
             old_pattern
         );
     }
 
     let updated = content.replacen(&old_pattern, &new_pattern, 1);
-    std::fs::write(toml_path, updated).context("Failed to write updated dev-box.toml")?;
+    std::fs::write(toml_path, updated).context("Failed to write updated aibox.toml")?;
 
     Ok(())
 }
 
-/// Perform the upgrade: fetch latest image version, update dev-box.toml, regenerate files.
+/// Perform the upgrade: fetch latest image version, update aibox.toml, regenerate files.
 fn do_upgrade(config_path: &Option<String>, dry_run: bool) -> Result<()> {
-    let config = DevBoxConfig::from_cli_option(config_path)?;
-    let flavor = config.dev_box.base.to_string();
-    let current_version = &config.dev_box.version;
+    let config = AiboxConfig::from_cli_option(config_path)?;
+    let flavor = config.aibox.base.to_string();
+    let current_version = &config.aibox.version;
 
     output::info(&format!(
         "Current image version: {} ({})",
@@ -235,13 +235,13 @@ fn do_upgrade(config_path: &Option<String>, dry_run: bool) -> Result<()> {
     ));
 
     if dry_run {
-        output::info("[dry-run] Would update version in dev-box.toml");
+        output::info("[dry-run] Would update version in aibox.toml");
         output::info("[dry-run] Would regenerate .devcontainer/ files");
-        output::info("[dry-run] Would update .dev-box-version");
+        output::info("[dry-run] Would update .aibox-version");
         return Ok(());
     }
 
-    // 1. Update version in dev-box.toml
+    // 1. Update version in aibox.toml
     let toml_path = resolve_config_path(config_path);
     update_toml_version(&toml_path, current_version, &latest_str)?;
     output::ok(&format!(
@@ -252,13 +252,13 @@ fn do_upgrade(config_path: &Option<String>, dry_run: bool) -> Result<()> {
     ));
 
     // 2. Reload config with updated version and regenerate container files
-    let updated_config = DevBoxConfig::from_cli_option(config_path)?;
+    let updated_config = AiboxConfig::from_cli_option(config_path)?;
     generate::generate_all(&updated_config)?;
 
-    // 3. Update .dev-box-version
-    let version_file = Path::new(".dev-box-version");
-    std::fs::write(version_file, &latest_str).context("Failed to update .dev-box-version")?;
-    output::ok("Updated .dev-box-version");
+    // 3. Update .aibox-version
+    let version_file = Path::new(".aibox-version");
+    std::fs::write(version_file, &latest_str).context("Failed to update .aibox-version")?;
+    output::ok("Updated .aibox-version");
 
     output::ok(&format!(
         "Upgrade complete: {} -> {} — rebuild your container to apply changes",
@@ -271,7 +271,7 @@ fn do_upgrade(config_path: &Option<String>, dry_run: bool) -> Result<()> {
 /// Update command implementation.
 pub fn cmd_update(config_path: &Option<String>, check: bool, dry_run: bool) -> Result<()> {
     if check {
-        let config = DevBoxConfig::from_cli_option(config_path)?;
+        let config = AiboxConfig::from_cli_option(config_path)?;
         check_updates(&config)
     } else {
         do_upgrade(config_path, dry_run)
@@ -285,8 +285,8 @@ mod tests {
     #[test]
     fn update_toml_version_replaces_version() {
         let dir = tempfile::tempdir().unwrap();
-        let toml_path = dir.path().join("dev-box.toml");
-        let content = r#"[dev-box]
+        let toml_path = dir.path().join("aibox.toml");
+        let content = r#"[aibox]
 version = "0.3.5"
 image = "python"
 process = "research"
@@ -309,9 +309,9 @@ name = "my-project"
     #[test]
     fn update_toml_version_preserves_comments() {
         let dir = tempfile::tempdir().unwrap();
-        let toml_path = dir.path().join("dev-box.toml");
+        let toml_path = dir.path().join("aibox.toml");
         let content = r#"# My project config
-[dev-box]
+[aibox]
 # Image version from GHCR
 version = "0.2.1"
 image = "base"
@@ -330,8 +330,8 @@ process = "minimal"
     #[test]
     fn update_toml_version_fails_on_missing_version() {
         let dir = tempfile::tempdir().unwrap();
-        let toml_path = dir.path().join("dev-box.toml");
-        std::fs::write(&toml_path, "[dev-box]\nimage = \"base\"\n").unwrap();
+        let toml_path = dir.path().join("aibox.toml");
+        std::fs::write(&toml_path, "[aibox]\nimage = \"base\"\n").unwrap();
 
         let result = update_toml_version(&toml_path, "0.3.5", "0.3.7");
         assert!(result.is_err());
@@ -340,9 +340,9 @@ process = "minimal"
     #[test]
     fn update_toml_version_only_replaces_first_occurrence() {
         let dir = tempfile::tempdir().unwrap();
-        let toml_path = dir.path().join("dev-box.toml");
+        let toml_path = dir.path().join("aibox.toml");
         // Hypothetical: version appears in a comment too
-        let content = r#"[dev-box]
+        let content = r#"[aibox]
 version = "0.3.5"
 image = "base"
 process = "minimal"

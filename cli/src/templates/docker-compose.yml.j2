@@ -1,6 +1,6 @@
 {{ header }}#
-# Volume mounts map host-side .dev-box-home/ into the container home directory.
-# Edit dev-box.toml to add extra_volumes, extra environment, or ports.
+# Volume mounts map host-side .aibox-home/ into the container home directory.
+# Edit aibox.toml to add extra_volumes, extra environment, or ports.
 #
 services:
   {{ name }}:
@@ -45,7 +45,7 @@ services:
       - {{ host_root }}/.asoundrc:{{ container_home }}/.asoundrc
 {% endif %}
 {% for vol in extra_volumes %}
-      # Extra volume from dev-box.toml
+      # Extra volume from aibox.toml
       - {{ vol.source }}:{{ vol.target }}{% if vol.read_only %}:ro{% endif %}
 
 {% endfor %}

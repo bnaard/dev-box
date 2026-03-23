@@ -24,7 +24,7 @@ pub struct ToolDef {
     pub default_version: &'static str,
 }
 
-/// Per-tool configuration coming from the parsed `dev-box.toml`.
+/// Per-tool configuration coming from the parsed `aibox.toml`.
 pub struct ToolConfig {
     pub enabled: bool,
     pub version: String,

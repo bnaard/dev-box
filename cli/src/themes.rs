@@ -304,8 +304,8 @@ pub fn starship_config(preset: &StarshipPreset, theme: &Theme) -> String {
 
     match preset {
         StarshipPreset::Default => format!(
-r#"# dev-box starship config — default preset
-palette = "devbox"
+r#"# aibox starship config — default preset
+palette = "aibox"
 
 format = "$directory$git_branch$git_status$python$rust$nodejs$golang$cmd_duration$line_break$character"
 
@@ -343,14 +343,14 @@ min_time = 2_000
 success_symbol = "[❯](bold fg:{green})"
 error_symbol = "[❯](bold fg:red)"
 
-[palettes.devbox]
+[palettes.aibox]
 bg = "{bg}"
 fg = "{fg}"
 accent = "{accent}"
 "#),
 
         StarshipPreset::Plain => format!(
-r#"# dev-box starship config — plain preset (no Nerd Font needed)
+r#"# aibox starship config — plain preset (no Nerd Font needed)
 format = "$directory$git_branch$git_status$cmd_duration$line_break$character"
 
 [directory]
@@ -378,7 +378,7 @@ symbol = "go "
 "#),
 
         StarshipPreset::Minimal => format!(
-r#"# dev-box starship config — minimal preset
+r#"# aibox starship config — minimal preset
 format = "$directory$git_branch$line_break$character"
 
 [directory]
@@ -395,8 +395,8 @@ error_symbol = "[❯](bold fg:red)"
 "#),
 
         StarshipPreset::NerdFont => format!(
-r#"# dev-box starship config — nerd-font preset
-palette = "devbox"
+r#"# aibox starship config — nerd-font preset
+palette = "aibox"
 
 format = "$os$directory$git_branch$git_status$python$rust$nodejs$golang$docker_context$cmd_duration$line_break$character"
 
@@ -433,15 +433,15 @@ style = "fg:#928374"
 success_symbol = "[❯](bold fg:{green})"
 error_symbol = "[❯](bold fg:red)"
 
-[palettes.devbox]
+[palettes.aibox]
 bg = "{bg}"
 fg = "{fg}"
 accent = "{accent}"
 "#),
 
         StarshipPreset::Pastel => format!(
-r#"# dev-box starship config — pastel powerline preset
-palette = "devbox"
+r#"# aibox starship config — pastel powerline preset
+palette = "aibox"
 
 format = """
 [](fg:{accent})\
@@ -469,14 +469,14 @@ style = "bg:{green} fg:{bg}"
 success_symbol = "[❯](bold fg:{accent})"
 error_symbol = "[❯](bold fg:red)"
 
-[palettes.devbox]
+[palettes.aibox]
 bg = "{bg}"
 fg = "{fg}"
 accent = "{accent}"
 "#),
 
         StarshipPreset::Bracketed => format!(
-r#"# dev-box starship config — bracketed segments preset
+r#"# aibox starship config — bracketed segments preset
 format = "$directory$git_branch$git_status$python$rust$nodejs$golang$cmd_duration$line_break$character"
 
 [directory]

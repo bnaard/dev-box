@@ -25,34 +25,34 @@ impl std::fmt::Display for Layout {
 
 #[derive(Parser)]
 #[command(
-    name = "dev-box",
+    name = "aibox",
     about = "Manage AI-ready development container environments",
     long_about = "\
-dev-box — manage AI-ready development container environments
+aibox — manage AI-ready development container environments
 
-dev-box creates reproducible, containerized development environments with
+aibox creates reproducible, containerized development environments with
 built-in AI context structure and work process management.
 
 Examples:
-  dev-box init                                 Interactive project setup
-  dev-box init --name my-app --image python --process product
-  dev-box init --image rust --process minimal  Rust project, minimal context
-  dev-box sync                                 Apply config changes (theme, etc.)
-  dev-box build                                Build the container image
-  dev-box start                                Start and attach (dev layout)
-  dev-box start --layout focus                 Start with focus layout
-  dev-box doctor                               Validate project structure
-  dev-box update --check                       Check for newer versions
-  dev-box audio check                          Diagnose host audio setup",
+  aibox init                                 Interactive project setup
+  aibox init --name my-app --image python --process product
+  aibox init --image rust --process minimal  Rust project, minimal context
+  aibox sync                                 Apply config changes (theme, etc.)
+  aibox build                                Build the container image
+  aibox start                                Start and attach (dev layout)
+  aibox start --layout focus                 Start with focus layout
+  aibox doctor                               Validate project structure
+  aibox update --check                       Check for newer versions
+  aibox audio check                          Diagnose host audio setup",
     version
 )]
 pub struct Cli {
-    /// Path to dev-box.toml (default: ./dev-box.toml)
+    /// Path to aibox.toml (default: ./aibox.toml)
     #[arg(long, global = true)]
     pub config: Option<String>,
 
     /// Log level (trace, debug, info, warn, error)
-    #[arg(long, global = true, env = "DEV_BOX_LOG_LEVEL", default_value = "info")]
+    #[arg(long, global = true, env = "AIBOX_LOG_LEVEL", default_value = "info")]
     pub log_level: String,
 
     #[command(subcommand)]
@@ -61,10 +61,10 @@ pub struct Cli {
 
 #[derive(Subcommand)]
 pub enum Commands {
-    /// Initialize a new project with dev-box.toml and generated files
+    /// Initialize a new project with aibox.toml and generated files
     ///
-    /// Creates dev-box.toml, generates .devcontainer/ files, scaffolds
-    /// context directory, seeds .dev-box-home/ with default configs, and
+    /// Creates aibox.toml, generates .devcontainer/ files, scaffolds
+    /// context directory, seeds .aibox-home/ with default configs, and
     /// sets up .gitignore.
     ///
     /// Without flags, runs interactively. With all flags, runs non-interactively.
@@ -101,10 +101,10 @@ pub enum Commands {
         #[arg(long, num_args = 1..)]
         addons: Option<Vec<String>>,
     },
-    /// Reconcile project state with dev-box.toml configuration
+    /// Reconcile project state with aibox.toml configuration
     ///
     /// Re-seeds config files that depend on settings (theme, AI providers),
-    /// regenerates .devcontainer/ files, and updates .dev-box-home/ configs.
+    /// regenerates .devcontainer/ files, and updates .aibox-home/ configs.
     /// The primary command for applying config changes.
     #[command(alias = "generate")]
     Sync,
@@ -116,7 +116,7 @@ pub enum Commands {
     },
     /// Start container and attach via zellij
     ///
-    /// Seeds .dev-box-home/ if needed, generates devcontainer files,
+    /// Seeds .aibox-home/ if needed, generates devcontainer files,
     /// creates/starts the container, then attaches via zellij.
     ///
     /// Available layouts: dev (default), focus, cowork.
@@ -146,13 +146,13 @@ pub enum Commands {
     Status,
     /// Validate context structure and produce migration artifacts
     ///
-    /// Checks: config validity, container runtime, .dev-box-home/ directories,
+    /// Checks: config validity, container runtime, .aibox-home/ directories,
     /// .devcontainer/ files, context structure, .gitignore entries, and
     /// schema version. Generates migration artifacts when versions differ.
     Doctor,
     /// Generate shell completion script
     ///
-    /// Example: dev-box completions bash > ~/.bash_completion.d/dev-box
+    /// Example: aibox completions bash > ~/.bash_completion.d/aibox
     Completions {
         /// Shell to generate completions for
         #[arg(value_enum)]
@@ -163,7 +163,7 @@ pub enum Commands {
     /// Checks the latest CLI version on GitHub and the latest image
     /// version on GHCR for your configured image flavor.
     ///
-    /// Without flags: upgrades image version in dev-box.toml and regenerates
+    /// Without flags: upgrades image version in aibox.toml and regenerates
     /// container files. Use --check for a dry check, --dry-run to preview changes.
     Update {
         /// Only check versions, don't apply any changes
@@ -175,29 +175,29 @@ pub enum Commands {
     },
     /// Manage named environments for switching between configurations
     ///
-    /// Environments save dev-box.toml, CLAUDE.md, and context/ (excluding
-    /// context/shared/) to .dev-box-env/<name>/. Switch between them to
+    /// Environments save aibox.toml, CLAUDE.md, and context/ (excluding
+    /// context/shared/) to .aibox-env/<name>/. Switch between them to
     /// use different images, processes, and context within one project.
     Env {
         #[command(subcommand)]
         action: EnvAction,
     },
-    /// Back up dev-box files to a timestamped directory
+    /// Back up aibox files to a timestamped directory
     ///
-    /// Copies dev-box.toml, .devcontainer/, .dev-box-home/, context/,
-    /// CLAUDE.md, .dev-box-version, and .gitignore to a backup directory.
+    /// Copies aibox.toml, .devcontainer/, .aibox-home/, context/,
+    /// CLAUDE.md, .aibox-version, and .gitignore to a backup directory.
     Backup {
-        /// Output directory for backup (default: .dev-box-backup/)
+        /// Output directory for backup (default: .aibox-backup/)
         #[arg(long)]
         output_dir: Option<String>,
         /// Preview what would be backed up without copying
         #[arg(long)]
         dry_run: bool,
     },
-    /// Remove all dev-box files and reset project to pre-init state
+    /// Remove all aibox files and reset project to pre-init state
     ///
-    /// DANGER ZONE: Deletes dev-box.toml, .devcontainer/, .dev-box-home/,
-    /// context/, CLAUDE.md, and .dev-box-version. Backs up first by default.
+    /// DANGER ZONE: Deletes aibox.toml, .devcontainer/, .aibox-home/,
+    /// context/, CLAUDE.md, and .aibox-version. Backs up first by default.
     /// .gitignore is backed up but NOT deleted.
     ///
     /// Stops any running container before deleting.
@@ -254,8 +254,8 @@ pub enum AudioAction {
 pub enum EnvAction {
     /// Save current project state as a named environment
     ///
-    /// Copies dev-box.toml, CLAUDE.md, and context/ (excluding context/shared/)
-    /// to .dev-box-env/<name>/.
+    /// Copies aibox.toml, CLAUDE.md, and context/ (excluding context/shared/)
+    /// to .aibox-env/<name>/.
     Create {
         /// Environment name (alphanumeric, hyphens, underscores)
         name: String,

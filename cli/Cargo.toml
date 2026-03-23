@@ -1,14 +1,14 @@
 [package]
-name = "dev-box"
+name = "aibox"
 version = "0.8.0"
 edition = "2024"
-description = "dev-box — manage AI-ready development container environments"
+description = "aibox — manage AI-ready development container environments"
 license = "MIT"
-repository = "https://github.com/projectious-work/dev-box"
-homepage = "https://github.com/projectious-work/dev-box"
+repository = "https://github.com/projectious-work/aibox"
+homepage = "https://github.com/projectious-work/aibox"
 
 [[bin]]
-name = "dev-box"
+name = "aibox"
 path = "src/main.rs"
 
 [dependencies]

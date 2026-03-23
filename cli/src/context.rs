@@ -2,7 +2,7 @@ use anyhow::{Context, Result};
 use std::fs;
 use std::path::Path;
 
-use crate::config::{AddonsSection, AiProvider, DevBoxConfig};
+use crate::config::{AddonsSection, AiProvider, AiboxConfig};
 use crate::output;
 use crate::process_registry;
 
@@ -394,9 +394,9 @@ are working with and tailor their communication and technical approach according
 /// - Creates CLAUDE.md at project root from the template
 /// - Replaces {{project_name}} placeholders with the actual project name
 /// - Deploys only the skills that belong to the resolved package set
-/// - Creates .dev-box-version file
+/// - Creates .aibox-version file
 /// - Updates .gitignore with generated file entries and language-specific blocks
-pub fn scaffold_context(config: &DevBoxConfig) -> Result<()> {
+pub fn scaffold_context(config: &AiboxConfig) -> Result<()> {
     let packages = process_registry::resolve_packages(&config.process.packages)
         .map_err(|e| anyhow::anyhow!(e))?;
     let effective_skills = process_registry::resolve_skills(
@@ -439,11 +439,11 @@ pub fn scaffold_context(config: &DevBoxConfig) -> Result<()> {
     // but setup_owner_md handles the shared/ location and backward compat
     setup_owner_md(context)?;
 
-    // Create .dev-box-version
-    write_if_missing(Path::new(".dev-box-version"), env!("CARGO_PKG_VERSION"))?;
-    output::ok("Created .dev-box-version");
+    // Create .aibox-version
+    write_if_missing(Path::new(".aibox-version"), env!("CARGO_PKG_VERSION"))?;
+    output::ok("Created .aibox-version");
 
-    // Update .gitignore with dev-box entries and language-specific blocks
+    // Update .gitignore with aibox entries and language-specific blocks
     update_gitignore(addons)?;
 
     // Create Dockerfile.local placeholder
@@ -451,21 +451,21 @@ pub fn scaffold_context(config: &DevBoxConfig) -> Result<()> {
     write_if_missing(
         &local_dockerfile,
         "# Project-specific Dockerfile layers.\n\
-         # This file is appended to the generated Dockerfile by `dev-box sync`.\n\
+         # This file is appended to the generated Dockerfile by `aibox sync`.\n\
          # It is never overwritten — you own this file.\n\
          #\n\
-         # The generated base image is available as the \"dev-box\" stage:\n\
-         #   FROM ghcr.io/projectious-work/dev-box:<image>-v<version> AS dev-box\n\
+         # The generated base image is available as the \"aibox\" stage:\n\
+         #   FROM ghcr.io/projectious-work/aibox:<image>-v<version> AS aibox\n\
          #\n\
          # Simple usage — add layers directly:\n\
          #   RUN apt-get update && apt-get install -y some-package\n\
          #   RUN npx playwright install --with-deps chromium\n\
          #\n\
-         # Advanced usage — multi-stage build referencing the dev-box stage:\n\
+         # Advanced usage — multi-stage build referencing the aibox stage:\n\
          #   FROM node:20 AS builder\n\
          #   RUN npm ci && npm run build\n\
          #\n\
-         #   FROM dev-box\n\
+         #   FROM aibox\n\
          #   COPY --from=builder /app/dist /workspace/dist\n",
     )?;
 
@@ -517,10 +517,10 @@ fn scaffold_package_context(
 fn template_content_for_key(key: &str, project_name: &str) -> String {
     match key {
         // core
-        "devbox_md" => format!(
-            "# dev-box Configuration Notes\n\n\
+        "aibox_md" => format!(
+            "# aibox Configuration Notes\n\n\
              Project: {}\n\n\
-             This file contains notes about the dev-box configuration for this project.\n",
+             This file contains notes about the aibox configuration for this project.\n",
             project_name
         ),
         "owner_md" => OWNER_CONTENT.to_string(),
@@ -1124,14 +1124,14 @@ pub(crate) fn write_if_changed(path: &Path, content: &str) -> Result<bool> {
     Ok(true)
 }
 
-/// Generate a .gitignore with dev-box entries, project-specific section,
+/// Generate a .gitignore with aibox entries, project-specific section,
 /// and language-specific blocks based on the configured addons.
 pub(crate) fn update_gitignore(addons: &AddonsSection) -> Result<()> {
     let gitignore_path = Path::new(".gitignore");
 
-    // If .gitignore already exists, just ensure dev-box entries are present
+    // If .gitignore already exists, just ensure aibox entries are present
     if gitignore_path.exists() {
-        return ensure_devbox_entries(gitignore_path);
+        return ensure_aibox_entries(gitignore_path);
     }
 
     // Create a new .gitignore with full structure
@@ -1143,20 +1143,20 @@ pub(crate) fn update_gitignore(addons: &AddonsSection) -> Result<()> {
     );
     content.push_str("# Add your project-specific ignore patterns here.\n\n\n");
 
-    // dev-box generated
+    // aibox generated
     content.push_str(
-        "# ── dev-box generated ────────────────────────────────────────────────────────\n",
+        "# ── aibox generated ────────────────────────────────────────────────────────\n",
     );
-    content.push_str("# Files generated by dev-box — do not remove these entries.\n");
+    content.push_str("# Files generated by aibox — do not remove these entries.\n");
     content.push_str(".devcontainer/Dockerfile\n");
     content.push_str(".devcontainer/docker-compose.yml\n");
     content.push_str(".devcontainer/devcontainer.json\n");
-    content.push_str(".dev-box-home/\n");
+    content.push_str(".aibox-home/\n");
     content.push_str(".root/\n");
-    content.push_str(".dev-box-version\n");
-    content.push_str(".dev-box/\n");
-    content.push_str(".dev-box-backup/\n");
-    content.push_str(".dev-box-env/\n\n");
+    content.push_str(".aibox-version\n");
+    content.push_str(".aibox/\n");
+    content.push_str(".aibox-backup/\n");
+    content.push_str(".aibox-env/\n\n");
 
     // OS generated
     content.push_str(
@@ -1257,22 +1257,22 @@ pub(crate) fn update_gitignore(addons: &AddonsSection) -> Result<()> {
     }
 
     fs::write(gitignore_path, content).context("Failed to write .gitignore")?;
-    output::ok("Created .gitignore with dev-box and language-specific entries");
+    output::ok("Created .gitignore with aibox and language-specific entries");
 
     Ok(())
 }
 
-/// Ensure dev-box entries exist in an existing .gitignore.
-fn ensure_devbox_entries(gitignore_path: &Path) -> Result<()> {
+/// Ensure aibox entries exist in an existing .gitignore.
+fn ensure_aibox_entries(gitignore_path: &Path) -> Result<()> {
     let required_entries = [
-        "# dev-box generated",
+        "# aibox generated",
         crate::config::DOCKERFILE,
         crate::config::COMPOSE_FILE,
         crate::config::DEVCONTAINER_JSON,
-        ".dev-box-home/",
-        ".dev-box-version",
-        ".dev-box-backup/",
-        ".dev-box-env/",
+        ".aibox-home/",
+        ".aibox-version",
+        ".aibox-backup/",
+        ".aibox-env/",
     ];
 
     let existing = fs::read_to_string(gitignore_path).context("Failed to read .gitignore")?;
@@ -1282,7 +1282,7 @@ fn ensure_devbox_entries(gitignore_path: &Path) -> Result<()> {
     for entry in &required_entries {
         if !existing_lines.contains(entry) {
             // Also check for .root/ (backward compat)
-            if *entry == ".dev-box-home/" && existing_lines.contains(&".root/") {
+            if *entry == ".aibox-home/" && existing_lines.contains(&".root/") {
                 continue;
             }
             additions.push(*entry);
@@ -1305,7 +1305,7 @@ fn ensure_devbox_entries(gitignore_path: &Path) -> Result<()> {
     content.push('\n');
 
     fs::write(gitignore_path, content).context("Failed to write .gitignore")?;
-    output::ok("Updated .gitignore with dev-box entries");
+    output::ok("Updated .gitignore with aibox entries");
 
     Ok(())
 }
@@ -1314,7 +1314,7 @@ fn ensure_devbox_entries(gitignore_path: &Path) -> Result<()> {
 ///
 /// - Deploys missing skills from the effective set (write_if_missing)
 /// - Reports orphan skills (on disk but not in the effective set)
-pub fn reconcile_skills(config: &DevBoxConfig) -> Result<()> {
+pub fn reconcile_skills(config: &AiboxConfig) -> Result<()> {
     let packages = process_registry::resolve_packages(&config.process.packages)
         .map_err(|e| anyhow::anyhow!(e))?;
     let effective = process_registry::resolve_skills(
@@ -1378,11 +1378,11 @@ pub fn reconcile_skills(config: &DevBoxConfig) -> Result<()> {
     Ok(())
 }
 
-/// Generate the universal baseline document at `context/DEVBOX.md`.
+/// Generate the universal baseline document at `context/AIBOX.md`.
 ///
-/// This file is OWNED by dev-box — always overwritten on sync (unlike other
+/// This file is OWNED by aibox — always overwritten on sync (unlike other
 /// context files which use write_if_missing).
-pub fn generate_devbox_md(config: &DevBoxConfig) -> Result<()> {
+pub fn generate_aibox_md(config: &AiboxConfig) -> Result<()> {
     let context_dir = Path::new("context");
     if !context_dir.exists() {
         // No context directory = minimal setup, skip
@@ -1390,8 +1390,8 @@ pub fn generate_devbox_md(config: &DevBoxConfig) -> Result<()> {
     }
 
     let packages = &config.process.packages;
-    let version = &config.dev_box.version;
-    let base = &config.dev_box.base;
+    let version = &config.aibox.version;
+    let base = &config.aibox.base;
 
     // Build addon list
     let mut addon_list: Vec<String> = config.addons.addons.keys().cloned().collect();
@@ -1399,10 +1399,10 @@ pub fn generate_devbox_md(config: &DevBoxConfig) -> Result<()> {
 
     // Build content
     let content = format!(
-        r#"# dev-box Baseline
+        r#"# aibox Baseline
 
-> This file is managed by dev-box. Do not edit manually — changes will be
-> overwritten on `dev-box sync`.
+> This file is managed by aibox. Do not edit manually — changes will be
+> overwritten on `aibox sync`.
 
 ## Quick Reference
 
@@ -1421,9 +1421,9 @@ pub fn generate_devbox_md(config: &DevBoxConfig) -> Result<()> {
 ## Safety Rules
 
 - Never execute migration scripts automatically. Always discuss with the user.
-- Never modify dev-box.toml without user confirmation.
+- Never modify aibox.toml without user confirmation.
 - Never delete context files.
-- Always check `.dev-box-version` matches expectations.
+- Always check `.aibox-version` matches expectations.
 
 ## Context Layout
 
@@ -1440,9 +1440,9 @@ pub fn generate_devbox_md(config: &DevBoxConfig) -> Result<()> {
         context_layout = generate_context_layout(packages),
     );
 
-    let devbox_path = context_dir.join("DEVBOX.md");
-    fs::write(&devbox_path, content)?;
-    output::ok("Updated context/DEVBOX.md");
+    let aibox_path = context_dir.join("AIBOX.md");
+    fs::write(&aibox_path, content)?;
+    output::ok("Updated context/AIBOX.md");
 
     Ok(())
 }
@@ -1471,12 +1471,12 @@ fn generate_context_layout(packages: &[String]) -> String {
     lines.join("\n")
 }
 
-/// Check that agent entry point files contain a pointer to `context/DEVBOX.md`.
+/// Check that agent entry point files contain a pointer to `context/AIBOX.md`.
 ///
 /// Warns (but does not fail) when an entry point file exists but does not
 /// reference the baseline document.
-pub fn check_agent_entry_points(config: &DevBoxConfig) -> Result<()> {
-    let devbox_pointer = "context/DEVBOX.md";
+pub fn check_agent_entry_points(config: &AiboxConfig) -> Result<()> {
+    let aibox_pointer = "context/AIBOX.md";
 
     for provider in &config.ai.providers {
         let entry_file = match provider {
@@ -1489,10 +1489,10 @@ pub fn check_agent_entry_points(config: &DevBoxConfig) -> Result<()> {
         let path = Path::new(entry_file);
         if path.exists() {
             let content = fs::read_to_string(path)?;
-            if !content.contains(devbox_pointer) {
+            if !content.contains(aibox_pointer) {
                 output::warn(&format!(
                     "{} does not reference {} — consider adding a pointer",
-                    entry_file, devbox_pointer
+                    entry_file, aibox_pointer
                 ));
             }
         }
@@ -1507,7 +1507,7 @@ pub fn check_gitignore_entries() -> Vec<String> {
     let mut warnings = Vec::new();
 
     if !gitignore_path.exists() {
-        warnings.push(".gitignore not found — run 'dev-box init' or create one".to_string());
+        warnings.push(".gitignore not found — run 'aibox init' or create one".to_string());
         return warnings;
     }
 
@@ -1531,7 +1531,7 @@ pub fn check_gitignore_entries() -> Vec<String> {
             ".devcontainer/devcontainer.json",
             "generated devcontainer.json",
         ),
-        (".dev-box-version", "version lockfile"),
+        (".aibox-version", "version lockfile"),
     ];
 
     for (entry, desc) in &required {
@@ -1540,10 +1540,10 @@ pub fn check_gitignore_entries() -> Vec<String> {
         }
     }
 
-    // Check for .dev-box-home/ or .root/
-    if !lines.contains(&".dev-box-home/") && !lines.contains(&".root/") {
+    // Check for .aibox-home/ or .root/
+    if !lines.contains(&".aibox-home/") && !lines.contains(&".root/") {
         warnings
-            .push(".gitignore missing '.dev-box-home/' (persisted config directory)".to_string());
+            .push(".gitignore missing '.aibox-home/' (persisted config directory)".to_string());
     }
 
     warnings
@@ -1602,7 +1602,7 @@ mod tests {
         assert_eq!(fs::read_to_string(&path).unwrap(), "deep");
     }
 
-    fn test_config_with_packages(packages: Vec<String>) -> DevBoxConfig {
+    fn test_config_with_packages(packages: Vec<String>) -> AiboxConfig {
         let mut config = crate::config::test_config();
         config.process.packages = packages;
         config
@@ -1631,11 +1631,11 @@ mod tests {
             scaffold_context(&config).unwrap();
             assert!(Path::new("CLAUDE.md").exists(), "CLAUDE.md should exist");
             assert!(
-                Path::new(".dev-box-version").exists(),
-                ".dev-box-version should exist"
+                Path::new(".aibox-version").exists(),
+                ".aibox-version should exist"
             );
-            // Core package creates DEVBOX.md and OWNER.md
-            assert!(Path::new("context/DEVBOX.md").exists());
+            // Core package creates AIBOX.md and OWNER.md
+            assert!(Path::new("context/AIBOX.md").exists());
             // Core skills are deployed
             assert!(Path::new(".claude/skills/agent-management/SKILL.md").exists());
         });
@@ -1649,9 +1649,9 @@ mod tests {
             let config = test_config_with_packages(vec!["managed".to_string()]);
             scaffold_context(&config).unwrap();
             assert!(Path::new("CLAUDE.md").exists());
-            assert!(Path::new(".dev-box-version").exists());
+            assert!(Path::new(".aibox-version").exists());
             // core package
-            assert!(Path::new("context/DEVBOX.md").exists());
+            assert!(Path::new("context/AIBOX.md").exists());
             // tracking package
             assert!(Path::new("context/DECISIONS.md").exists());
             assert!(Path::new("context/BACKLOG.md").exists());
@@ -1711,7 +1711,7 @@ mod tests {
             let config = test_config_with_packages(vec!["full-product".to_string()]);
             scaffold_context(&config).unwrap();
             assert!(Path::new("CLAUDE.md").exists());
-            assert!(Path::new(".dev-box-version").exists());
+            assert!(Path::new(".aibox-version").exists());
             // tracking
             assert!(Path::new("context/DECISIONS.md").exists());
             assert!(Path::new("context/BACKLOG.md").exists());
@@ -1812,7 +1812,7 @@ mod tests {
             let content = fs::read_to_string(".gitignore").unwrap();
             assert!(content.contains("__pycache__/"));
             assert!(content.contains("*.py[cod]"));
-            assert!(content.contains(".dev-box-home/"));
+            assert!(content.contains(".aibox-home/"));
         });
     }
 
@@ -1857,7 +1857,7 @@ mod tests {
             let content = fs::read_to_string(".gitignore").unwrap();
             assert!(content.contains("node_modules/"));
             assert!(content.contains("*.log"));
-            assert!(content.contains(".dev-box-home/") || content.contains(".root/"));
+            assert!(content.contains(".aibox-home/") || content.contains(".root/"));
         });
     }
 
@@ -1880,7 +1880,7 @@ mod tests {
     fn expected_context_files_core_only() {
         let files = expected_context_files(&["core".to_string()]);
         assert!(files.contains(&"CLAUDE.md"));
-        assert!(files.contains(&"context/DEVBOX.md"));
+        assert!(files.contains(&"context/AIBOX.md"));
         assert!(files.contains(&"context/OWNER.md"));
     }
 
@@ -1971,19 +1971,19 @@ mod tests {
         });
     }
 
-    // -- generate_devbox_md tests --
+    // -- generate_aibox_md tests --
 
     #[test]
     #[serial]
-    fn generate_devbox_md_creates_file() {
+    fn generate_aibox_md_creates_file() {
         in_temp_dir(|| {
             fs::create_dir_all("context").unwrap();
             let config = test_config_with_packages(vec!["core".to_string()]);
-            generate_devbox_md(&config).unwrap();
-            let path = Path::new("context/DEVBOX.md");
-            assert!(path.exists(), "DEVBOX.md should be created");
+            generate_aibox_md(&config).unwrap();
+            let path = Path::new("context/AIBOX.md");
+            assert!(path.exists(), "AIBOX.md should be created");
             let content = fs::read_to_string(path).unwrap();
-            assert!(content.contains("dev-box Baseline"));
+            assert!(content.contains("aibox Baseline"));
             assert!(content.contains("core"));
             assert!(content.contains("debian"));
         });
@@ -1991,16 +1991,16 @@ mod tests {
 
     #[test]
     #[serial]
-    fn generate_devbox_md_overwrites_existing() {
+    fn generate_aibox_md_overwrites_existing() {
         in_temp_dir(|| {
             fs::create_dir_all("context").unwrap();
-            fs::write("context/DEVBOX.md", "old content").unwrap();
+            fs::write("context/AIBOX.md", "old content").unwrap();
             let config = test_config_with_packages(vec!["core".to_string()]);
-            generate_devbox_md(&config).unwrap();
-            let content = fs::read_to_string("context/DEVBOX.md").unwrap();
+            generate_aibox_md(&config).unwrap();
+            let content = fs::read_to_string("context/AIBOX.md").unwrap();
             assert!(
-                content.contains("dev-box Baseline"),
-                "DEVBOX.md should be overwritten with new content"
+                content.contains("aibox Baseline"),
+                "AIBOX.md should be overwritten with new content"
             );
             assert!(!content.contains("old content"));
         });
@@ -2008,24 +2008,24 @@ mod tests {
 
     #[test]
     #[serial]
-    fn generate_devbox_md_skips_without_context_dir() {
+    fn generate_aibox_md_skips_without_context_dir() {
         in_temp_dir(|| {
             let config = test_config_with_packages(vec!["core".to_string()]);
             // No context/ directory — should not error
-            generate_devbox_md(&config).unwrap();
-            assert!(!Path::new("context/DEVBOX.md").exists());
+            generate_aibox_md(&config).unwrap();
+            assert!(!Path::new("context/AIBOX.md").exists());
         });
     }
 
     #[test]
     #[serial]
-    fn generate_devbox_md_includes_addon_list() {
+    fn generate_aibox_md_includes_addon_list() {
         in_temp_dir(|| {
             fs::create_dir_all("context").unwrap();
             let mut config = test_config_with_packages(vec!["core".to_string()]);
             config.addons = addons_with(&["python", "node"]);
-            generate_devbox_md(&config).unwrap();
-            let content = fs::read_to_string("context/DEVBOX.md").unwrap();
+            generate_aibox_md(&config).unwrap();
+            let content = fs::read_to_string("context/AIBOX.md").unwrap();
             assert!(content.contains("node"));
             assert!(content.contains("python"));
         });
@@ -2037,7 +2037,7 @@ mod tests {
     #[serial]
     fn check_agent_entry_points_no_error_when_pointer_present() {
         in_temp_dir(|| {
-            fs::write("CLAUDE.md", "# My Project\n\nRead context/DEVBOX.md first.\n").unwrap();
+            fs::write("CLAUDE.md", "# My Project\n\nRead context/AIBOX.md first.\n").unwrap();
             let config = test_config_with_packages(vec!["core".to_string()]);
             // Should not error
             check_agent_entry_points(&config).unwrap();
