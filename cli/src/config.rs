@@ -73,7 +73,7 @@ pub struct ContainerSection {
     pub name: String,
     #[serde(default = "default_hostname")]
     pub hostname: String,
-    /// Container user (default: "root"). Determines mount paths inside container.
+    /// Container user (default: "aibox"). Determines mount paths inside container.
     #[serde(default = "default_user")]
     pub user: String,
     #[serde(default)]
@@ -94,7 +94,7 @@ pub struct ContainerSection {
 }
 
 fn default_user() -> String {
-    "root".to_string()
+    "aibox".to_string()
 }
 
 fn default_hostname() -> String {

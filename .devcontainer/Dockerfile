@@ -57,6 +57,8 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     tzdata \
     locales \
     jq \
+    sudo \
+    gosu \
     # Editor
     vim \
     # Version control
@@ -98,13 +100,70 @@ ENV LANG=en_US.UTF-8 \
     TERM=xterm-256color \
     COLORTERM=truecolor
 
-# Copy binaries from builder stage
+# ── Non-root user ───────────────────────────────────────────────────────────
+RUN groupadd --gid 1000 aibox \
+    && useradd --uid 1000 --gid aibox --shell /bin/bash --create-home aibox \
+    && echo "aibox ALL=(ALL) NOPASSWD:ALL" > /etc/sudoers.d/aibox \
+    && chmod 0440 /etc/sudoers.d/aibox
+
+# Copy binaries from builder stage (system paths, must happen as root)
 COPY --from=builder /usr/local/bin/zellij /usr/local/bin/zellij
 COPY --from=builder /usr/local/bin/yazi /usr/local/bin/yazi
 
 # ── uv — fast Python package manager ─────────────────────────────────────────
 COPY --from=ghcr.io/astral-sh/uv:latest /uv /usr/local/bin/uv
 COPY --from=ghcr.io/astral-sh/uv:latest /uvx /usr/local/bin/uvx
+
+# ── Node.js (for Docusaurus docs build) — multi-stage copy, no headers ──────
+COPY --from=node:22-slim /usr/local/bin/node /usr/local/bin/node
+COPY --from=node:22-slim /usr/local/lib/node_modules /usr/local/lib/node_modules
+RUN ln -s ../lib/node_modules/npm/bin/npm-cli.js /usr/local/bin/npm \
+    && ln -s ../lib/node_modules/npm/bin/npx-cli.js /usr/local/bin/npx
+
+# ── Bake default configs into the image ───────────────────────────────────────
+# These act as fallback defaults when no host directory is mounted.
+# When docker-compose mounts .aibox-home/.vim / .aibox-home/.config/zellij etc.
+# over these paths, the host copy takes full precedence.
+
+# Vim — place vimrc inside ~/.vim/ so the single mount covers config + undo
+RUN mkdir -p /home/aibox/.vim/undo
+COPY config/vimrc /home/aibox/.vim/vimrc
+
+# Zellij
+RUN mkdir -p /home/aibox/.config/zellij/themes /home/aibox/.config/zellij/layouts
+COPY config/zellij/config.kdl          /home/aibox/.config/zellij/config.kdl
+COPY config/zellij/themes/gruvbox.kdl  /home/aibox/.config/zellij/themes/gruvbox.kdl
+COPY config/zellij/layouts/dev.kdl     /home/aibox/.config/zellij/layouts/dev.kdl
+COPY config/zellij/layouts/focus.kdl   /home/aibox/.config/zellij/layouts/focus.kdl
+
+# Yazi
+RUN mkdir -p /home/aibox/.config/yazi
+COPY config/yazi/yazi.toml             /home/aibox/.config/yazi/yazi.toml
+COPY config/yazi/keymap.toml           /home/aibox/.config/yazi/keymap.toml
+COPY config/yazi/theme.toml            /home/aibox/.config/yazi/theme.toml
+
+# Helper scripts
+COPY config/bin/open-in-editor.sh      /usr/local/bin/open-in-editor
+RUN chmod +x /usr/local/bin/open-in-editor
+
+# Quick reference cheatsheet
+COPY config/cheatsheet.txt             /home/aibox/.config/cheatsheet.txt
+
+# Git — use XDG path so the mount target is a directory, not a single file
+RUN mkdir -p /home/aibox/.config/git
+COPY config/gitconfig /home/aibox/.config/git/config
+
+# Audio — PulseAudio config for Claude Code voice support
+COPY config/asoundrc /home/aibox/.asoundrc
+
+# Fix ownership of all config files copied as root
+RUN chown -R aibox:aibox /home/aibox
+
+# ── Entrypoint for UID/GID remapping ───────────────────────────────────────
+COPY --chmod=755 config/entrypoint.sh /usr/local/bin/entrypoint.sh
+
+# ── Switch to non-root user for user-space installs ────────────────────────
+USER aibox
 
 # asciinema for terminal recordings (installed via uv)
 RUN uv tool install asciinema
@@ -116,54 +175,15 @@ RUN curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | \
     --component clippy \
     --component rustfmt
 
-# ── Bake default configs into the image ───────────────────────────────────────
-# These act as fallback defaults when no host directory is mounted.
-# When docker-compose mounts .root/.vim / .root/.config/zellij / .root/.config/git
-# over these paths, the host copy takes full precedence.
-
-# Vim — place vimrc inside ~/.vim/ so the single mount covers config + undo
-RUN mkdir -p /root/.vim/undo
-COPY config/vimrc /root/.vim/vimrc
-
-# Zellij
-RUN mkdir -p /root/.config/zellij/themes /root/.config/zellij/layouts
-COPY config/zellij/config.kdl          /root/.config/zellij/config.kdl
-COPY config/zellij/themes/gruvbox.kdl  /root/.config/zellij/themes/gruvbox.kdl
-COPY config/zellij/layouts/dev.kdl     /root/.config/zellij/layouts/dev.kdl
-COPY config/zellij/layouts/focus.kdl   /root/.config/zellij/layouts/focus.kdl
-
-# Yazi
-RUN mkdir -p /root/.config/yazi
-COPY config/yazi/yazi.toml             /root/.config/yazi/yazi.toml
-COPY config/yazi/keymap.toml           /root/.config/yazi/keymap.toml
-COPY config/yazi/theme.toml            /root/.config/yazi/theme.toml
-
-# Helper scripts
-COPY config/bin/open-in-editor.sh      /usr/local/bin/open-in-editor
-RUN chmod +x /usr/local/bin/open-in-editor
-
-# Quick reference cheatsheet
-COPY config/cheatsheet.txt             /root/.config/cheatsheet.txt
-
-# Git — use XDG path so the mount target is a directory, not a single file
-RUN mkdir -p /root/.config/git
-COPY config/gitconfig /root/.config/git/config
-
-# Audio — PulseAudio config for Claude Code voice support
-COPY config/asoundrc /root/.asoundrc
-
-# ── Node.js (for Docusaurus docs build) ─────────────────────────────────────
-RUN curl -fsSL https://deb.nodesource.com/setup_22.x | bash - \
-    && apt-get install -y --no-install-recommends nodejs \
-    && rm -rf /var/lib/apt/lists/* \
-    && npm install -g npm@latest
-
 # Install code assistants and runtimes
-ENV PATH="/root/.cargo/bin:/root/.local/bin:/root/.bun/bin:${PATH}"
+ENV PATH="/home/aibox/.cargo/bin:/home/aibox/.local/bin:/home/aibox/.bun/bin:${PATH}"
 RUN curl -fsSL https://claude.ai/install.sh | bash
 RUN curl -fsSL https://bun.sh/install | bash
 
 # ── Entrypoint ────────────────────────────────────────────────────────────────
+# Switch back to root so the entrypoint can remap UID/GID if needed
+USER root
+ENTRYPOINT ["/usr/local/bin/entrypoint.sh"]
 WORKDIR /workspace
 
 # Keep the container alive — VS Code execs into it; zellij is launched via the terminal profile

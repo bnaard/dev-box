@@ -8,15 +8,15 @@
     // Zellij is launched manually once inside, not as the container entrypoint.
     "overrideCommand": true,
 
-    // Shell to use for the integrated terminal and exec sessions
-    "remoteUser": "root",
-
+    // Run as non-root user; updateRemoteUserUID syncs UID with host on Linux
+    "remoteUser": "aibox",
+    "updateRemoteUserUID": true,
 
     // Useful VS Code extensions to install into the container
     "customizations": {
         "vscode": {
             "extensions": [
-                
+
             ],
             "settings": {
                 // Start zellij automatically when a new VS Code terminal is opened
@@ -26,7 +26,7 @@
                         "path": "/bin/bash"
                     },
                     "claude": {
-                        "path": "/root/.local/bin/claude"
+                        "path": "/home/aibox/.local/bin/claude"
                     },
                     "zellij": {
                         "path": "/usr/local/bin/zellij",

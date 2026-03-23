@@ -442,7 +442,7 @@ RUN curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | \
     sh -s -- -y \
     --default-toolchain {rust_ver}{component_flags}
 
-ENV PATH="/root/.cargo/bin:${{PATH}}"
+ENV PATH="/home/aibox/.cargo/bin:${{PATH}}"
 "#
     )
 }
@@ -753,7 +753,7 @@ fn generate_python_runtime(tools: &HashMap<String, ToolConfig>) -> String {
         ));
     }
 
-    parts.push("ENV PATH=\"/root/.local/bin:${PATH}\"".to_string());
+    parts.push("ENV PATH=\"/home/aibox/.local/bin:${PATH}\"".to_string());
     parts.join("\n\n")
 }
 
@@ -763,9 +763,9 @@ fn generate_rust_runtime(_tools: &HashMap<String, ToolConfig>) -> String {
     // The heavy lifting happens in the builder stage.  The runtime stage
     // copies the installed toolchain over.
     "# Addon: rust (runtime — copy from builder)\n\
-     COPY --from=rust-builder /root/.cargo /root/.cargo\n\
-     COPY --from=rust-builder /root/.rustup /root/.rustup\n\n\
-     ENV PATH=\"/root/.cargo/bin:${PATH}\""
+     COPY --from=rust-builder /home/aibox/.cargo /home/aibox/.cargo\n\
+     COPY --from=rust-builder /home/aibox/.rustup /home/aibox/.rustup\n\n\
+     ENV PATH=\"/home/aibox/.cargo/bin:${PATH}\""
         .to_string()
 }
 
@@ -818,7 +818,7 @@ fn generate_go_runtime(tools: &HashMap<String, ToolConfig>) -> String {
              curl -fsSL \"https://go.dev/dl/go{go_ver}.linux-${{ARCH}}.tar.gz\" \\\n    \
              | tar -xz -C /usr/local && \\\n    \
              ln -sf /usr/local/go/bin/* /usr/local/bin/\n\n\
-         ENV GOPATH=\"/root/go\"\n\
+         ENV GOPATH=\"/home/aibox/go\"\n\
          ENV PATH=\"${{GOPATH}}/bin:${{PATH}}\""
     )
 }

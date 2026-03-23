@@ -12,7 +12,7 @@ let mapleader=" "
 
 set number relativenumber
 set tabstop=4 shiftwidth=4 expandtab smartindent
-set undofile undodir=/root/.vim/undo
+set undofile undodir=~/.vim/undo
 set noswapfile
 set colorcolumn=88
 set scrolloff=8

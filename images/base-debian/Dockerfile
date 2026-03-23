@@ -116,6 +116,8 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     tzdata \
     locales \
     jq \
+    sudo \
+    gosu \
     # Editor
     vim \
     # Version control
@@ -152,8 +154,13 @@ ENV LANG=en_US.UTF-8 \
     TERM=xterm-256color \
     COLORTERM=truecolor
 
-# Copy binaries from builder stage
-# Copy all tool binaries from builder (single layer)
+# ── Non-root user ───────────────────────────────────────────────────────────
+RUN groupadd --gid 1000 aibox \
+    && useradd --uid 1000 --gid aibox --shell /bin/bash --create-home aibox \
+    && echo "aibox ALL=(ALL) NOPASSWD:ALL" > /etc/sudoers.d/aibox \
+    && chmod 0440 /etc/sudoers.d/aibox
+
+# Copy binaries from builder stage (system paths, must happen as root)
 COPY --from=builder /usr/local/bin/zellij /usr/local/bin/yazi \
     /usr/local/bin/rg /usr/local/bin/fd /usr/local/bin/bat \
     /usr/local/bin/eza /usr/local/bin/zoxide /usr/local/bin/fzf \
@@ -161,71 +168,83 @@ COPY --from=builder /usr/local/bin/zellij /usr/local/bin/yazi \
 
 # ── Bake default configs into the image ───────────────────────────────────────
 # These act as fallback defaults when no host directory is mounted.
-# When docker-compose mounts .root/.vim / .root/.config/zellij / .root/.config/git
+# When docker-compose mounts .aibox-home/.vim / .aibox-home/.config/zellij etc.
 # over these paths, the host copy takes full precedence.
 
 # Vim — place vimrc inside ~/.vim/ so the single mount covers config + undo
 # Download all colorschemes in one layer; use curl for dracula instead of
 # git clone to avoid pulling the entire repo (~4 MB savings)
-RUN mkdir -p /root/.vim/undo /root/.vim/colors \
-      /root/.vim/pack/themes/start/dracula/colors \
-      /root/.vim/pack/themes/start/dracula/autoload && \
-    curl -fsSL -o /root/.vim/colors/gruvbox.vim \
+RUN mkdir -p /home/aibox/.vim/undo /home/aibox/.vim/colors \
+      /home/aibox/.vim/pack/themes/start/dracula/colors \
+      /home/aibox/.vim/pack/themes/start/dracula/autoload && \
+    curl -fsSL -o /home/aibox/.vim/colors/gruvbox.vim \
       https://raw.githubusercontent.com/morhetz/gruvbox/master/colors/gruvbox.vim && \
-    curl -fsSL -o /root/.vim/colors/catppuccin_mocha.vim \
+    curl -fsSL -o /home/aibox/.vim/colors/catppuccin_mocha.vim \
       https://raw.githubusercontent.com/catppuccin/vim/main/colors/catppuccin_mocha.vim && \
-    curl -fsSL -o /root/.vim/colors/catppuccin_latte.vim \
+    curl -fsSL -o /home/aibox/.vim/colors/catppuccin_latte.vim \
       https://raw.githubusercontent.com/catppuccin/vim/main/colors/catppuccin_latte.vim && \
-    curl -fsSL -o /root/.vim/colors/tokyonight.vim \
+    curl -fsSL -o /home/aibox/.vim/colors/tokyonight.vim \
       https://raw.githubusercontent.com/ghifarit53/tokyonight-vim/master/colors/tokyonight.vim && \
-    curl -fsSL -o /root/.vim/colors/nord.vim \
+    curl -fsSL -o /home/aibox/.vim/colors/nord.vim \
       https://raw.githubusercontent.com/nordtheme/vim/main/colors/nord.vim && \
-    curl -fsSL -o /root/.vim/pack/themes/start/dracula/colors/dracula.vim \
+    curl -fsSL -o /home/aibox/.vim/pack/themes/start/dracula/colors/dracula.vim \
       https://raw.githubusercontent.com/dracula/vim/master/colors/dracula.vim && \
-    curl -fsSL -o /root/.vim/pack/themes/start/dracula/autoload/dracula.vim \
+    curl -fsSL -o /home/aibox/.vim/pack/themes/start/dracula/autoload/dracula.vim \
       https://raw.githubusercontent.com/dracula/vim/master/autoload/dracula.vim
 
-COPY config/vimrc /root/.vim/vimrc
+COPY config/vimrc /home/aibox/.vim/vimrc
 
 # Create config directories in a single layer
-RUN mkdir -p /root/.config/zellij/themes /root/.config/zellij/layouts \
-             /root/.config/yazi \
-             /root/.config/git
+RUN mkdir -p /home/aibox/.config/zellij/themes /home/aibox/.config/zellij/layouts \
+             /home/aibox/.config/yazi \
+             /home/aibox/.config/git
 
 # Zellij
-COPY config/zellij/config.kdl          /root/.config/zellij/config.kdl
-COPY config/zellij/themes/             /root/.config/zellij/themes/
-COPY config/zellij/layouts/dev.kdl     /root/.config/zellij/layouts/dev.kdl
-COPY config/zellij/layouts/focus.kdl   /root/.config/zellij/layouts/focus.kdl
-COPY config/zellij/layouts/cowork.kdl  /root/.config/zellij/layouts/cowork.kdl
+COPY config/zellij/config.kdl          /home/aibox/.config/zellij/config.kdl
+COPY config/zellij/themes/             /home/aibox/.config/zellij/themes/
+COPY config/zellij/layouts/dev.kdl     /home/aibox/.config/zellij/layouts/dev.kdl
+COPY config/zellij/layouts/focus.kdl   /home/aibox/.config/zellij/layouts/focus.kdl
+COPY config/zellij/layouts/cowork.kdl  /home/aibox/.config/zellij/layouts/cowork.kdl
 
 # Yazi
-COPY config/yazi/yazi.toml             /root/.config/yazi/yazi.toml
-COPY config/yazi/keymap.toml           /root/.config/yazi/keymap.toml
-COPY config/yazi/theme.toml            /root/.config/yazi/theme.toml
-COPY config/yazi/themes/               /root/.config/yazi/themes/
+COPY config/yazi/yazi.toml             /home/aibox/.config/yazi/yazi.toml
+COPY config/yazi/keymap.toml           /home/aibox/.config/yazi/keymap.toml
+COPY config/yazi/theme.toml            /home/aibox/.config/yazi/theme.toml
+COPY config/yazi/themes/               /home/aibox/.config/yazi/themes/
 
 # Helper scripts (chmod via COPY --chmod to avoid extra layer)
 COPY --chmod=755 config/bin/open-in-editor.sh /usr/local/bin/open-in-editor
 COPY --chmod=755 config/bin/vim-loop.sh       /usr/local/bin/vim-loop
 
 # Quick reference cheatsheet
-COPY config/cheatsheet.txt             /root/.config/cheatsheet.txt
+COPY config/cheatsheet.txt             /home/aibox/.config/cheatsheet.txt
 
 # Git — use XDG path so the mount target is a directory, not a single file
-COPY config/gitconfig /root/.config/git/config
+COPY config/gitconfig /home/aibox/.config/git/config
 
 # Audio — PulseAudio config for Claude Code voice support
-COPY config/asoundrc /root/.asoundrc
+COPY config/asoundrc /home/aibox/.asoundrc
 
 # Shell — bashrc with aliases and tool integrations
-COPY config/bashrc /root/.bashrc
+COPY config/bashrc /home/aibox/.bashrc
+
+# Fix ownership of all config files copied as root
+RUN chown -R aibox:aibox /home/aibox
+
+# ── Entrypoint for UID/GID remapping ───────────────────────────────────────
+COPY --chmod=755 config/entrypoint.sh /usr/local/bin/entrypoint.sh
+
+# ── Switch to non-root user for user-space installs ────────────────────────
+USER aibox
 
 # Install code assistants
-ENV PATH="/root/.local/bin:${PATH}"
+ENV PATH="/home/aibox/.local/bin:${PATH}"
 RUN curl -fsSL https://claude.ai/install.sh | bash
 
 # ── Entrypoint ────────────────────────────────────────────────────────────────
+# Switch back to root so the entrypoint can remap UID/GID if needed
+USER root
+ENTRYPOINT ["/usr/local/bin/entrypoint.sh"]
 WORKDIR /workspace
 
 # Keep the container alive — VS Code execs into it; zellij is launched via the terminal profile

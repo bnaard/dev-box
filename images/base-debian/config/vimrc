@@ -64,8 +64,8 @@ set mouse=a                  " mouse support
 set noswapfile               " no .swp clutter in containers
 set nobackup
 set undofile                 " persistent undo
-set undodir=/root/.vim/undo
-silent !mkdir -p /root/.vim/undo
+set undodir=~/.vim/undo
+silent !mkdir -p ~/.vim/undo
 
 " ── Clipboard ─────────────────────────────────────────────────────────────────
 " Use system clipboard when available (e.g. clipboard forwarding in dev containers)

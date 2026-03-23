@@ -22,38 +22,38 @@ services:
       # SSH keys — read-only; manage keys only on the host
       - type: bind
         source: ${HOST_ROOT:-../.aibox-home}/.ssh
-        target: /root/.ssh
+        target: /home/aibox/.ssh
         read_only: true
 
       # Vim: config file + undo history + netrw bookmarks
       - type: bind
         source: ${HOST_ROOT:-../.aibox-home}/.vim
-        target: /root/.vim
+        target: /home/aibox/.vim
 
       # Zellij: config.kdl, themes/, layouts/, plugins cache
       - type: bind
         source: ${HOST_ROOT:-../.aibox-home}/.config/zellij
-        target: /root/.config/zellij
+        target: /home/aibox/.config/zellij
 
       # Yazi: file manager config
       - type: bind
         source: ${HOST_ROOT:-../.aibox-home}/.config/yazi
-        target: /root/.config/yazi
+        target: /home/aibox/.config/yazi
 
       # Git: global config + credentials helper store
       - type: bind
         source: ${HOST_ROOT:-../.aibox-home}/.config/git
-        target: /root/.config/git
+        target: /home/aibox/.config/git
 
       # Claude: global config + memory
       - type: bind
         source: ${HOST_ROOT:-../.aibox-home}/.claude
-        target: /root/.claude
+        target: /home/aibox/.claude
 
       # Audio: PulseAudio config for Claude Code voice
       - type: bind
         source: ${HOST_ROOT:-../.aibox-home}/.asoundrc
-        target: /root/.asoundrc
+        target: /home/aibox/.asoundrc
 
     environment:
       - PULSE_SERVER=tcp:host.docker.internal:4714
@@ -63,7 +63,7 @@ services:
       - COLORTERM=truecolor
       - TERM=xterm-256color
       # Tell git to look for its config in XDG location (matches mount above)
-      - GIT_CONFIG_GLOBAL=/root/.config/git/config
+      - GIT_CONFIG_GLOBAL=/home/aibox/.config/git/config
     working_dir: /workspace
 
 volumes: {}
