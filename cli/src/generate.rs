@@ -84,7 +84,7 @@ fn generate_dockerfile(
     // Build addon Dockerfile content (builder stages + runtime commands).
     // AI providers are resolved into addons at config load time, so they
     // flow through this pipeline automatically — no hardcoded template logic.
-    let addon_output = crate::addons::generate_dockerfile_content(&config.addons);
+    let addon_output = crate::addons::generate_dockerfile_content(&config.addons)?;
     let addon_builder_stages = addon_output.builder_stages;
     let addon_commands = addon_output.runtime_commands;
 

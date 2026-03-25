@@ -1,4 +1,6 @@
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
+
+use anyhow::{Result, bail};
 
 use crate::addon_loader;
 use crate::addon_registry::{self, ToolConfig};
@@ -20,19 +22,102 @@ fn builder_order_key(name: &str) -> usize {
         .unwrap_or(3)
 }
 
+/// Topologically sort addon names so dependencies come first.
+/// Falls back to alphabetical order for addons at the same depth.
+fn topological_sort(
+    addon_names: &[String],
+    get_requires: impl Fn(&str) -> Vec<String>,
+) -> Result<Vec<String>> {
+    let name_set: HashSet<&str> = addon_names.iter().map(|s| s.as_str()).collect();
+
+    // Validate: all required addons must be present
+    for name in addon_names {
+        for req in get_requires(name) {
+            if !name_set.contains(req.as_str()) {
+                bail!(
+                    "Addon '{}' requires '{}' addon. Add [addons.{}] to your aibox.toml.",
+                    name, req, req
+                );
+            }
+        }
+    }
+
+    // Kahn's algorithm
+    let mut in_degree: HashMap<&str, usize> = HashMap::new();
+    let mut dependents: HashMap<&str, Vec<&str>> = HashMap::new();
+    for name in addon_names {
+        in_degree.entry(name.as_str()).or_insert(0);
+        for req in get_requires(name) {
+            if name_set.contains(req.as_str()) {
+                *in_degree.entry(name.as_str()).or_insert(0) += 1;
+                dependents
+                    .entry(addon_names.iter().find(|n| n.as_str() == req).unwrap().as_str())
+                    .or_default()
+                    .push(name.as_str());
+            }
+        }
+    }
+
+    let mut queue: std::collections::VecDeque<&str> = in_degree
+        .iter()
+        .filter(|&(_, &deg)| deg == 0)
+        .map(|(&name, _)| name)
+        .collect::<Vec<_>>()
+        .into_iter()
+        .collect();
+    queue.make_contiguous().sort();
+
+    let mut sorted = Vec::new();
+    while let Some(name) = queue.pop_front() {
+        sorted.push(name.to_string());
+        if let Some(deps) = dependents.get(name) {
+            let mut newly_free: Vec<&str> = Vec::new();
+            for &dep in deps {
+                let deg = in_degree.get_mut(dep).unwrap();
+                *deg -= 1;
+                if *deg == 0 {
+                    newly_free.push(dep);
+                }
+            }
+            newly_free.sort();
+            for f in newly_free {
+                queue.push_back(f);
+            }
+            // Re-sort to maintain alphabetical order among same-depth items
+            queue.make_contiguous().sort();
+        }
+    }
+
+    if sorted.len() != addon_names.len() {
+        bail!("Circular dependency detected among addons");
+    }
+
+    Ok(sorted)
+}
+
 /// Process all enabled addons and generate Dockerfile content.
 ///
 /// For each addon listed in `addons.addons`:
-///   1. Look up the addon definition in the registry.
-///   2. Merge user tool entries with registry defaults via [`to_tool_configs`].
-///   3. Call the registry's builder-stage generator (if the addon has one).
-///   4. Call the registry's runtime-commands generator.
-///   5. Collect results, ordering builder stages heavy-first.
-pub fn generate_dockerfile_content(addons: &AddonsSection) -> DockerfileAddonOutput {
+///   1. Topologically sort addons by `requires` dependencies.
+///   2. Look up the addon definition in the registry.
+///   3. Merge user tool entries with registry defaults via [`to_tool_configs`].
+///   4. Call the registry's builder-stage generator (if the addon has one).
+///   5. Call the registry's runtime-commands generator.
+///   6. Collect results, ordering builder stages heavy-first.
+pub fn generate_dockerfile_content(addons: &AddonsSection) -> Result<DockerfileAddonOutput> {
+    let addon_names: Vec<String> = addons.addons.keys().cloned().collect();
+
+    let sorted_names = topological_sort(&addon_names, |name| {
+        addon_loader::get_addon(name)
+            .map(|a| a.requires.clone())
+            .unwrap_or_default()
+    })?;
+
     let mut builder_entries: Vec<(usize, String)> = Vec::new();
     let mut runtime_commands: Vec<String> = Vec::new();
 
-    for (addon_name, addon_tools_section) in &addons.addons {
+    for addon_name in &sorted_names {
+        let addon_tools_section = &addons.addons[addon_name];
         let addon_def = match addon_registry::get_addon(addon_name) {
             Some(def) => def,
             None => {
@@ -63,10 +148,10 @@ pub fn generate_dockerfile_content(addons: &AddonsSection) -> DockerfileAddonOut
     // Sort builder stages: heavy builds first (latex, rust), then lighter ones.
     builder_entries.sort_by_key(|(order, _)| *order);
 
-    DockerfileAddonOutput {
+    Ok(DockerfileAddonOutput {
         builder_stages: builder_entries.into_iter().map(|(_, s)| s).collect(),
         runtime_commands,
-    }
+    })
 }
 
 /// Convert TOML tool entries to the [`ToolConfig`] format the registry expects.
@@ -239,7 +324,7 @@ mod tests {
         let addons = AddonsSection {
             addons: HashMap::new(),
         };
-        let output = generate_dockerfile_content(&addons);
+        let output = generate_dockerfile_content(&addons).unwrap();
         assert!(output.builder_stages.is_empty());
         assert!(output.runtime_commands.is_empty());
     }
@@ -254,11 +339,69 @@ mod tests {
             },
         );
         let addons = AddonsSection { addons: addons_map };
-        let output = generate_dockerfile_content(&addons);
+        let output = generate_dockerfile_content(&addons).unwrap();
 
         assert!(output.builder_stages.is_empty());
         assert_eq!(output.runtime_commands.len(), 1);
         assert!(output.runtime_commands[0].contains("WARNING"));
         assert!(output.runtime_commands[0].contains("nonexistent-addon"));
+    }
+
+    // ── topological_sort tests ──────────────────────────────────────────
+
+    #[test]
+    fn topo_sort_no_deps_is_alphabetical() {
+        let names = vec!["c".to_string(), "a".to_string(), "b".to_string()];
+        let sorted = topological_sort(&names, |_| vec![]).unwrap();
+        assert_eq!(sorted, vec!["a", "b", "c"]);
+    }
+
+    #[test]
+    fn topo_sort_respects_dependencies() {
+        let names = vec![
+            "docs-docusaurus".to_string(),
+            "node".to_string(),
+            "latex".to_string(),
+        ];
+        let sorted = topological_sort(&names, |name| match name {
+            "docs-docusaurus" => vec!["node".to_string()],
+            _ => vec![],
+        })
+        .unwrap();
+
+        let node_pos = sorted.iter().position(|n| n == "node").unwrap();
+        let docu_pos = sorted.iter().position(|n| n == "docs-docusaurus").unwrap();
+        assert!(
+            node_pos < docu_pos,
+            "node ({}) must come before docs-docusaurus ({})",
+            node_pos,
+            docu_pos
+        );
+    }
+
+    #[test]
+    fn topo_sort_missing_dependency_errors() {
+        let names = vec!["docs-docusaurus".to_string()];
+        let result = topological_sort(&names, |name| match name {
+            "docs-docusaurus" => vec!["node".to_string()],
+            _ => vec![],
+        });
+        assert!(result.is_err());
+        let err = result.unwrap_err().to_string();
+        assert!(err.contains("requires 'node'"), "error: {}", err);
+        assert!(err.contains("[addons.node]"), "error: {}", err);
+    }
+
+    #[test]
+    fn topo_sort_circular_dependency_errors() {
+        let names = vec!["a".to_string(), "b".to_string()];
+        let result = topological_sort(&names, |name| match name {
+            "a" => vec!["b".to_string()],
+            "b" => vec!["a".to_string()],
+            _ => vec![],
+        });
+        assert!(result.is_err());
+        let err = result.unwrap_err().to_string();
+        assert!(err.contains("Circular"), "error: {}", err);
     }
 }

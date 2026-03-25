@@ -35,6 +35,8 @@ pub struct AddonYaml {
     #[serde(default)]
     pub tools: Vec<ToolYaml>,
     #[serde(default)]
+    pub requires: Vec<String>,
+    #[serde(default)]
     pub skills: Vec<String>,
     #[serde(default)]
     pub builder: Option<String>,
@@ -69,6 +71,7 @@ pub struct LoadedAddon {
     pub addon_version: String,
     pub builder_weight: Option<String>,
     pub tools: Vec<LoadedTool>,
+    pub requires: Vec<String>,
     pub skills: Vec<String>,
     pub builder_template: Option<String>,
     pub runtime_template: Option<String>,
@@ -162,6 +165,7 @@ fn load_yaml_file(path: &Path) -> Result<LoadedAddon> {
         name: yaml.name,
         addon_version: yaml.version,
         builder_weight: yaml.builder_weight,
+        requires: yaml.requires,
         tools: yaml
             .tools
             .into_iter()
@@ -390,6 +394,33 @@ runtime: |
         assert_eq!(addons[0].tools.len(), 1);
         assert_eq!(addons[0].tools[0].name, "test-tool");
         assert_eq!(addons[0].tools[0].default_version, "1.0");
+        assert!(addons[0].requires.is_empty());
+    }
+
+    #[test]
+    fn load_addon_with_requires() {
+        let dir = tempfile::tempdir().unwrap();
+        write_test_yaml(
+            dir.path(),
+            "docs",
+            "test-docs",
+            r#"
+name: test-docs
+version: "1.0.0"
+requires:
+  - node
+tools:
+  - name: docusaurus
+    default_enabled: true
+    default_version: "3"
+    supported_versions: ["3"]
+runtime: |
+  RUN npm install -g create-docusaurus@latest
+"#,
+        );
+
+        let addons = load_from_dir(dir.path()).unwrap();
+        assert_eq!(addons[0].requires, vec!["node"]);
     }
 
     #[test]
@@ -398,6 +429,7 @@ runtime: |
             name: "test".to_string(),
             addon_version: "1.0.0".to_string(),
             builder_weight: None,
+            requires: vec![],
             tools: vec![LoadedTool {
                 name: "mytool".to_string(),
                 default_enabled: true,
@@ -428,6 +460,7 @@ runtime: |
             name: "test".to_string(),
             addon_version: "1.0.0".to_string(),
             builder_weight: None,
+            requires: vec![],
             tools: vec![
                 LoadedTool {
                     name: "required".to_string(),
@@ -473,6 +506,7 @@ runtime: |
             addon_version: "1.0.0".to_string(),
             builder_weight: Some("heavy".to_string()),
             tools: vec![],
+            requires: vec![],
             skills: vec![],
             builder_template: Some("FROM debian".to_string()),
             runtime_template: None,
@@ -482,6 +516,7 @@ runtime: |
             addon_version: "1.0.0".to_string(),
             builder_weight: Some("medium".to_string()),
             tools: vec![],
+            requires: vec![],
             skills: vec![],
             builder_template: Some("FROM debian".to_string()),
             runtime_template: None,
@@ -491,6 +526,7 @@ runtime: |
             addon_version: "1.0.0".to_string(),
             builder_weight: None,
             tools: vec![],
+            requires: vec![],
             skills: vec![],
             builder_template: None,
             runtime_template: None,
