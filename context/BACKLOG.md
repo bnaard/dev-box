@@ -4,7 +4,7 @@ Central task registry. Each item has a unique ID for cross-referencing.
 Source of truth — GitHub issues are for external visibility.
 Archive of completed/merged items: [archive/BACKLOG.md](archive/BACKLOG.md)
 
-## Next ID: BACK-047
+## Next ID: BACK-048
 
 ## Format
 
@@ -54,3 +54,4 @@ Priority values: `must`, `should`, `could`, `wont`
 | BACK-044 | Evaluate Mozilla cq integration | todo | should | Analyze https://github.com/mozilla-ai/cq and plan how to integrate it into aibox. Understand what cq does (code quality / context for AI agents?), how it relates to our skill and context system, whether it should be an addon, a skill, or a standalone tool. Research scope: architecture, integration points, value for aibox users, implementation plan |
 | BACK-045 | E2E testing environment design | todo | must | Design a secure end-to-end testing environment for CLI integration tests. **Approach:** docker-compose companion container accessible via SSH (preseeded keys) that simulates a user's host machine. Test scenarios: init→sync→edit→reset lifecycle, migration from earlier versions, file preservation (CLAUDE.md not deleted on reset), generated vs user-owned file boundaries. **Key constraint:** no docker socket exposure, no sibling containers from dev-container. **Open question:** how to securely simulate container creation from the companion (nested containers? podman rootless? mock runtime?). Needs architecture analysis |
 | BACK-046 | Issue handling skill + agent architecture | todo | should | Investigate and design an issue handling system for aibox. **Skill scope:** When a user/customer reports a problem mid-work, the skill documents the issue properly and delegates to a separate issue-handling agent, interrupting ongoing work only if necessary. **Agent architecture:** Issue-handling agent runs independently, could handle customer communication, acts as sub-coordinator for per-customer issue agents (customer-specific treatment). **CLI integration:** Model-independent `/issue` command to trigger the workflow — report issue, assign priority, hand off to issue agent. **Research:** How to implement agent-to-agent handoff, per-customer agent instances, interrupt vs async handling, integration with existing backlog/tracking process package. Touches kaits orchestration boundary |
+| BACK-047 | Investigate Docusaurus addon improvements | todo | could | The current docs-docusaurus addon installs `create-docusaurus` globally. Investigate: should it instead be a project-level `npx` pattern? Should the addon also scaffold a basic docs-site structure? How does it interact with the node addon (Docusaurus needs Node.js)? Should the addon auto-add the node addon as a dependency? |

@@ -1005,7 +1005,7 @@ fn generate_docs_zensical_runtime(_tools: &HashMap<String, ToolConfig>) -> Strin
 
 fn generate_docs_docusaurus_runtime(_tools: &HashMap<String, ToolConfig>) -> String {
     "# Addon: docs-docusaurus\n\
-     RUN npm install -g docusaurus"
+     RUN npm install -g create-docusaurus@latest"
         .to_string()
 }
 

@@ -20,18 +20,16 @@ This file provides guidance to Claude Code when working with this repository.
 
 ## Context Files
 
+Read `context/AIBOX.md` for the full project baseline (auto-generated from aibox.toml).
+
 The `context/` directory contains structured project management files:
 
-- `context/OWNER.md` — Profile of the project owner (shared across projects)
-- `context/DECISIONS.md` — Decision log (inverse chronological)
+- `context/AIBOX.md` — Project baseline: addons, skills, process packages (auto-generated)
+- `context/OWNER.md` — Profile of the project owner
 - `context/BACKLOG.md` — Task registry with unique IDs (BACK-NNN)
+- `context/DECISIONS.md` — Decision log (inverse chronological)
 - `context/PROJECTS.md` — Project registry with unique IDs (PROJ-NNN)
 - `context/STANDUPS.md` — Daily standup template and log
 - `context/PRD.md` — Product requirements document
-- `context/work-instructions/GENERAL.md` — General rules for AI agents
-- `context/work-instructions/DEVELOPMENT.md` — Development-specific rules
-- `context/work-instructions/TEAM.md` — Team collaboration rules
-- `context/project-notes/` — Deep research on specific topics
-- `context/ideas/` — Future direction research
-- `context/research/` — Research notes and source material (see `_template.md` for format)
-- `experiments/` — Hands-on prototypes, benchmarks, and technical evaluations (see `experiments/README.md`)
+- `context/work-instructions/` — Rules and reference docs for AI agents
+- `context/research/` — Research notes and source material
