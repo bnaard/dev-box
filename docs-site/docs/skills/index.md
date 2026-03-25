@@ -5,7 +5,7 @@ title: "Skills Library"
 
 # Skills Library
 
-aibox ships **84 curated skills** across 14 categories. Every skill follows the open [SKILL.md standard](https://agentskills.io/specification) and is automatically scaffolded into `.claude/skills/` when you run `aibox init`.
+aibox ships **84 curated skills** across 14 categories. Every skill follows the open [SKILL.md standard](https://agentskills.io/specification) and is deployed into `.claude/skills/` based on your process packages and addons.
 
 ## What Are Skills?
 
@@ -47,34 +47,97 @@ A skill is a directory containing a `SKILL.md` file (and optional `references/` 
 | [Performance](performance.md) | 4 | Profiling, caching, concurrency, load testing |
 | [Framework & SEO](framework.md) | 5 | FastAPI, Reflex, pandas/polars, Flutter, SEO |
 
-## Installing and Managing Skills
+## How Skills Are Deployed
 
-### Automatic Scaffolding
+Skills are deployed based on three sources, merged in order:
 
-All 84 skills are scaffolded automatically when you create a new project:
+### 1. Process Packages
 
-```bash
-aibox init --process managed
-# Skills appear in .claude/skills/
+Your `[process].packages` config determines the base skill set. Each package bundles related skills:
+
+```toml
+[process]
+packages = ["managed"]  # Expands to: core, tracking, standups, handover
 ```
 
-### Enabling/Disabling Skills
+The **13 packages** and their skills:
 
-Skills are file-based -- enable or disable them by adding or removing directories:
+| Package | Skills |
+|---------|--------|
+| `core` | agent-management, owner-profile |
+| `tracking` | backlog-context, decisions-adr, event-log, context-archiving |
+| `standups` | standup-context |
+| `handover` | session-handover, inter-agent-handover |
+| `product` | estimation-planning, retrospective |
+| `code` | code-review, testing-strategy, debugging, refactoring, tdd-workflow, error-handling, git-workflow, integration-testing |
+| `research` | data-science, data-visualization, feature-engineering |
+| `documentation` | documentation, latex-authoring |
+| `design` | excalidraw, infographics, logo-design, frontend-design, mobile-app-design |
+| `architecture` | software-architecture, system-design, domain-driven-design, event-driven-architecture |
+| `security` | secure-coding, threat-modeling, dependency-audit, auth-patterns, secret-management, dependency-management |
+| `data` | data-pipeline, data-quality, pandas-polars, embedding-vectordb |
+| `operations` | ci-cd-setup, dockerfile-review, container-orchestration, logging-strategy, metrics-monitoring, incident-response, alerting-oncall, performance-profiling |
+
+**4 convenience presets** expand to multiple packages:
+
+| Preset | Expands to |
+|--------|-----------|
+| `managed` | core, tracking, standups, handover |
+| `software` | core, tracking, standups, handover, code, architecture |
+| `research-project` | core, tracking, standups, handover, research, documentation |
+| `full-product` | core, tracking, standups, handover, code, architecture, design, product, security, operations |
+
+### 2. Addon Skills (automatic)
+
+When you add an addon, its recommended skills are automatically included. No manual `[skills].include` needed:
+
+| Addon | Auto-deployed skills |
+|-------|---------------------|
+| `python` | python-best-practices, fastapi-patterns, pandas-polars |
+| `rust` | rust-conventions, concurrency-patterns |
+| `go` | go-conventions, concurrency-patterns |
+| `node` | typescript-patterns, tailwind |
+| `latex` | latex-authoring, documentation |
+| `typst` | documentation |
+| `kubernetes` | kubernetes-basics, container-orchestration |
+| `infrastructure` | terraform-basics |
+| `docs-*` (all 6) | documentation |
+
+For example, adding the `python` addon to a `managed` project automatically deploys `python-best-practices`, `fastapi-patterns`, and `pandas-polars` alongside the managed package skills.
+
+### 3. Manual Include/Exclude
+
+Fine-tune with `[skills]` in `aibox.toml`:
+
+```toml
+[skills]
+include = ["flutter-development", "seo-optimization"]  # Add extra skills
+exclude = ["standup-context"]                            # Remove unwanted ones
+```
+
+Core skills (`agent-management`, `owner-profile`) cannot be excluded.
+
+## Managing Skills via CLI
 
 ```bash
-# Disable a skill
-rm -rf .claude/skills/kubernetes-basics/
+# List all skills and their deploy status
+aibox skill list
 
-# Re-enable by running sync (restores missing skills)
-aibox sync
+# Add a skill (updates aibox.toml skills.include)
+aibox skill add flutter-development
+
+# Remove a skill (adds to skills.exclude)
+aibox skill remove standup-context
+
+# View skill details
+aibox skill info rust-conventions
 ```
 
 ### Updating Skills
 
 When you upgrade aibox, new skills are added automatically on the next `aibox sync`. Existing skills are never overwritten -- only missing ones are created.
 
-### Custom Skills
+## Custom Skills
 
 Create your own skills alongside the bundled ones:
 

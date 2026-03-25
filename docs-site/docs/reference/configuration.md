@@ -11,7 +11,7 @@ title: Configuration
 
 ```toml
 [aibox]
-version = "0.10.1"                    # Project version (semver)
+version = "0.11.0"                    # aibox version used to generate this project
 base = "debian"                       # Base image
 
 [container]
@@ -134,16 +134,20 @@ Run `aibox addon list` to see all 21 available addons, or `aibox addon info <nam
 
 ### [skills]
 
-Skill management. Skills are determined by process packages, then modified by include/exclude.
+Skill management. The effective skill set is built from three sources in order:
+
+1. **Process packages** -- skills bundled with the packages listed in `[process].packages`
+2. **Addon skills** -- skills recommended by active addons (e.g., `python` addon auto-deploys `python-best-practices`)
+3. **Include/exclude** -- manual overrides from this section
 
 | Field | Type | Required | Default | Description |
 |-------|------|----------|---------|-------------|
-| `include` | Array of strings | No | `[]` | Additional skills to deploy beyond those from packages |
+| `include` | Array of strings | No | `[]` | Additional skills to deploy beyond those from packages and addons |
 | `exclude` | Array of strings | No | `[]` | Skills to remove from the active set |
 
 Core skills (`agent-management`, `owner-profile`) cannot be excluded.
 
-Run `aibox skill list` to see all 84 available skills and their deploy status.
+Run `aibox skill list` to see all 84 available skills and their deploy status. See the [Skills Library](../skills/index.md) for the full deployment model.
 
 ### [context]
 

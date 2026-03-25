@@ -18,9 +18,10 @@ fn toml_path(config_path: &Option<String>) -> PathBuf {
 fn effective_skills(config: &AiboxConfig) -> Result<Vec<String>> {
     let packages = process_registry::resolve_packages(&config.process.packages)
         .map_err(|e| anyhow::anyhow!(e))?;
+    let skill_includes = config.effective_skill_includes();
     let skills = process_registry::resolve_skills(
         &packages,
-        &config.skills.include,
+        &skill_includes,
         &config.skills.exclude,
     )
     .map_err(|e| anyhow::anyhow!(e))?;

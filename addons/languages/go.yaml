@@ -2,6 +2,10 @@ name: go
 version: "1.0.0"
 builder_weight: null
 
+skills:
+  - go-conventions
+  - concurrency-patterns
+
 tools:
   - name: go
     default_enabled: true

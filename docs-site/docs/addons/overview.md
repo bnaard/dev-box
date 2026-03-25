@@ -103,18 +103,41 @@ providers = ["claude", "aider"]
 # aider = {}
 ```
 
+## Addon Skills
+
+Each addon can recommend skills that are automatically deployed when the addon is active. No manual `[skills].include` needed -- adding an addon brings the right skills with it:
+
+| Addon | Auto-deployed skills |
+|-------|---------------------|
+| `python` | python-best-practices, fastapi-patterns, pandas-polars |
+| `rust` | rust-conventions, concurrency-patterns |
+| `go` | go-conventions, concurrency-patterns |
+| `node` | typescript-patterns, tailwind |
+| `latex` | latex-authoring, documentation |
+| `typst` | documentation |
+| `kubernetes` | kubernetes-basics, container-orchestration |
+| `infrastructure` | terraform-basics |
+| `docs-*` (all 6) | documentation |
+
+See the [Skills Library](../skills/index.md) for the full skill deployment model.
+
 ## How Addons Work
 
 When you run `aibox sync`, the CLI:
 
 1. Reads `[addons]` from `aibox.toml`
-2. Looks up each addon in the built-in registry
-3. Merges your tool selections with registry defaults
-4. Generates Dockerfile builder stages (for heavy builds like Rust, LaTeX)
-5. Generates runtime `RUN`/`COPY` commands
-6. Builds the container image
+2. Looks up each addon definition from YAML files in `~/.config/aibox/addons/`
+3. Merges your tool selections with addon defaults
+4. Collects recommended skills from active addons and deploys them
+5. Generates Dockerfile builder stages (for heavy builds like Rust, LaTeX)
+6. Generates runtime `RUN`/`COPY` commands
+7. Builds the container image
 
-Addons that need compilation (Rust, LaTeX, infrastructure, Kubernetes) use **multi-stage Docker builds** — heavy compilation happens in isolated builder stages, and only the final binaries are copied into the runtime image.
+Addons that need compilation (Rust, LaTeX, infrastructure, Kubernetes) use **multi-stage Docker builds** -- heavy compilation happens in isolated builder stages, and only the final binaries are copied into the runtime image.
+
+### Addon Definition Format
+
+Addon definitions are YAML files stored in `~/.config/aibox/addons/` with category subdirectories (`languages/`, `tools/`, `docs/`, `ai/`). They are installed automatically by the install script and updated when you upgrade aibox.
 
 ## Extra Packages
 

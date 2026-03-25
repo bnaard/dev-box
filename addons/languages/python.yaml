@@ -2,6 +2,11 @@ name: python
 version: "1.0.0"
 builder_weight: null
 
+skills:
+  - python-best-practices
+  - fastapi-patterns
+  - pandas-polars
+
 tools:
   - name: python
     default_enabled: true

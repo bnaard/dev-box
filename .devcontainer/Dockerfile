@@ -12,8 +12,8 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     unzip \
     && rm -rf /var/lib/apt/lists/*
 
-ARG ZELLIJ_VERSION=0.43.1
-ARG YAZI_VERSION=25.4.8
+ARG ZELLIJ_VERSION=0.44.0
+ARG YAZI_VERSION=26.1.22
 
 # Use uname -m for arch detection — works reliably across Docker, Podman, Buildah
 RUN ARCH=$(uname -m) && \

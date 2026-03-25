@@ -401,9 +401,10 @@ are working with and tailor their communication and technical approach according
 pub fn scaffold_context(config: &AiboxConfig) -> Result<()> {
     let packages = process_registry::resolve_packages(&config.process.packages)
         .map_err(|e| anyhow::anyhow!(e))?;
+    let skill_includes = config.effective_skill_includes();
     let effective_skills = process_registry::resolve_skills(
         &packages,
-        &config.skills.include,
+        &skill_includes,
         &config.skills.exclude,
     )
     .map_err(|e| anyhow::anyhow!(e))?;
@@ -1355,9 +1356,10 @@ fn ensure_aibox_entries(gitignore_path: &Path) -> Result<()> {
 pub fn reconcile_skills(config: &AiboxConfig) -> Result<()> {
     let packages = process_registry::resolve_packages(&config.process.packages)
         .map_err(|e| anyhow::anyhow!(e))?;
+    let skill_includes = config.effective_skill_includes();
     let effective = process_registry::resolve_skills(
         &packages,
-        &config.skills.include,
+        &skill_includes,
         &config.skills.exclude,
     )
     .map_err(|e| anyhow::anyhow!(e))?;
