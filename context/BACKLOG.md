@@ -4,7 +4,7 @@ Central task registry. Each item has a unique ID for cross-referencing.
 Source of truth — GitHub issues are for external visibility.
 Archive of completed/merged items: [archive/BACKLOG.md](archive/BACKLOG.md)
 
-## Next ID: BACK-044
+## Next ID: BACK-045
 
 ## Format
 
@@ -51,3 +51,4 @@ Priority values: `must`, `should`, `could`, `wont`
 | BACK-040 | Analyse base image Dockerfile for multistage build optimization | done | should | All phases complete. Non-root user "aibox" + gosu entrypoint (session 2026-03-23b). Node multi-stage COPY in .devcontainer (session 2026-03-23b). Published image: 12 parallel BuildKit stages (10 tools + vim colors + fetch-base), per-tool cache invalidation, vim colorschemes in builder stage, apt groups documented with size estimates (~490 MB total). Apt kept as single RUN (splitting hurts more than helps). |
 | BACK-042 | Internal project site for context documents | todo | could | Investigate and design a project-internal site that renders all markdown files in `./context/` as a browsable, nicely formatted site. Could be extended to a GitHub-independent wiki. **Intent:** collaboration for future multiple human workers, better readability of context files. Options: lightweight static site generator (e.g., Docusaurus second instance, mdBook, wiki.js), or extend existing docs-site with a context section. Should be simple to start — just rendered markdown with navigation |
 | BACK-043 | Research additional AI provider integrations | todo | should | Research which additional AI coding agents/providers should be supported as addons. Minimum: **OpenAI Codex CLI** (open source, npm-based), **GitHub Copilot CLI**. Also evaluate: Cline, Continue.dev, Cursor CLI, Amazon Q Developer CLI, Cody. For each candidate: installation method, config directory, binary name, maturity level, license. Output: decision on which to add to addon_registry.rs |
+| BACK-044 | Evaluate Mozilla cq integration | todo | should | Analyze https://github.com/mozilla-ai/cq and plan how to integrate it into aibox. Understand what cq does (code quality / context for AI agents?), how it relates to our skill and context system, whether it should be an addon, a skill, or a standalone tool. Research scope: architecture, integration points, value for aibox users, implementation plan |
