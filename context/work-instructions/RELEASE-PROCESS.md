@@ -6,60 +6,91 @@ When asked to release version X.Y.Z, follow ALL steps in order.
 
 Before every release, check ALL upstream dependencies for updates.
 
-**Base image:**
+**Base image (`images/base-debian/Dockerfile`):**
 
 | Dependency | Current | How to check |
 |-----------|---------|-------------|
 | `debian:trixie-slim` | trixie (Debian 13) | Docker Hub — check if trixie is still the right target |
 
-**Pinned tool versions (in `images/` Dockerfiles and `.devcontainer/Dockerfile`):**
+**Pinned tool versions (in `images/base-debian/Dockerfile` and `.devcontainer/Dockerfile`):**
 
 | Tool | Current | Pin location | How to check |
 |------|---------|-------------|-------------|
 | Zellij | 0.43.1 | `ARG ZELLIJ_VERSION` in base + .devcontainer | `gh api repos/zellij-org/zellij/releases/latest --jq .tag_name` |
-| Typst | 0.13.1 | `ARG TYPST_VERSION` in typst + python-typst | `gh api repos/typst/typst/releases/latest --jq .tag_name` |
-| TeX Live | 2025/tlnet-final | `ARG CTAN_MIRROR` in latex + python-latex + rust-latex | Check CTAN yearly release |
-| Rust | stable (unpinned) | rustup in rust + .devcontainer | Verify stable works |
+| Yazi | 25.4.8 | `ARG YAZI_VERSION` | `gh api repos/sxyazi/yazi/releases/latest --jq .tag_name` |
+| ripgrep | 14.1.1 | `ARG RIPGREP_VERSION` | `gh api repos/BurntSushi/ripgrep/releases/latest --jq .tag_name` |
+| fd | 10.2.0 | `ARG FD_VERSION` | `gh api repos/sharkdp/fd/releases/latest --jq .tag_name` |
+| bat | 0.25.0 | `ARG BAT_VERSION` | `gh api repos/sharkdp/bat/releases/latest --jq .tag_name` |
+| eza | 0.20.18 | `ARG EZA_VERSION` | `gh api repos/eza-community/eza/releases/latest --jq .tag_name` |
+| fzf | 0.60.3 | `ARG FZF_VERSION` | `gh api repos/junegunn/fzf/releases/latest --jq .tag_name` |
+| delta | 0.18.2 | `ARG DELTA_VERSION` | `gh api repos/dandavison/delta/releases/latest --jq .tag_name` |
+| starship | 1.22.1 | `ARG STARSHIP_VERSION` | `gh api repos/starship/starship/releases/latest --jq .tag_name` |
+| zoxide | 0.9.6 | `ARG ZOXIDE_VERSION` | `gh api repos/ajeetdsouza/zoxide/releases/latest --jq .tag_name` |
+| Rust | stable (unpinned) | rustup in .devcontainer | Verify stable works |
 | uv | latest (unpinned) | `COPY --from=ghcr.io/astral-sh/uv:latest` | `gh api repos/astral-sh/uv/releases/latest --jq .tag_name` |
-| Claude CLI | unpinned | `curl claude.ai/install.sh` | Always gets latest |
-| Zensical | unpinned | `uv tool install zensical` | `pip index versions zensical` |
+| Node.js | 22 | `COPY --from=node:22-slim` in .devcontainer | Check LTS status |
 
-**Actions:** If pinned version has update, propose bump. Report all findings before proceeding.
+**Actions:** If a pinned version has an update, propose bump. Report all findings before proceeding.
 
-## Phase 1 — Prep (inside dev-container)
+## Phase 1 — In container (Claude does this)
 
-1. **Version bump**: `cli/Cargo.toml`, `docs/changelog.md`, `docs/cli/configuration.md`
+1. **Version bump**: `cli/Cargo.toml`
 2. **Update documentation** for new features
-3. **Commit and push**:
+3. **Run tests and clippy**:
    ```bash
-   cargo generate-lockfile --manifest-path cli/Cargo.toml
-   git add cli/Cargo.toml cli/Cargo.lock docs/
-   git commit -m "chore: bump version to vX.Y.Z, update docs"
-   git push origin main
+   cd cli && cargo test && cargo clippy -- -D warnings
    ```
-4. **Visual smoke tests**: `./scripts/maintain.sh test-visual`
-5. **Build**: `./scripts/maintain.sh release X.Y.Z`
-5. **Cross-compile x86_64**:
+4. **Build release binaries** (both architectures):
    ```bash
    cd cli
+   cargo build --release
    CARGO_TARGET_X86_64_UNKNOWN_LINUX_GNU_LINKER=x86_64-linux-gnu-gcc \
      cargo build --release --target x86_64-unknown-linux-gnu
-   cp target/x86_64-unknown-linux-gnu/release/aibox ../dist/aibox-vX.Y.Z-x86_64-unknown-linux-gnu
-   cd ../dist && tar -czf aibox-vX.Y.Z-x86_64-unknown-linux-gnu.tar.gz aibox-vX.Y.Z-x86_64-unknown-linux-gnu
-   rm aibox-vX.Y.Z-x86_64-unknown-linux-gnu
    ```
-6. **Push tag**: `git push origin main && git push origin vX.Y.Z`
-7. **GitHub release**: `gh release create vX.Y.Z --repo projectious-work/aibox --title "aibox vX.Y.Z" --notes-file dist/RELEASE-NOTES.md dist/aibox-vX.Y.Z-*.tar.gz`
+5. **Package binaries**:
+   ```bash
+   mkdir -p dist
+   ARCH=$(uname -m)
+   cp cli/target/release/aibox dist/aibox-vX.Y.Z-${ARCH}-unknown-linux-gnu
+   tar -czf dist/aibox-vX.Y.Z-${ARCH}-unknown-linux-gnu.tar.gz -C dist aibox-vX.Y.Z-${ARCH}-unknown-linux-gnu
+   rm dist/aibox-vX.Y.Z-${ARCH}-unknown-linux-gnu
+   cp cli/target/x86_64-unknown-linux-gnu/release/aibox dist/aibox-vX.Y.Z-x86_64-unknown-linux-gnu
+   tar -czf dist/aibox-vX.Y.Z-x86_64-unknown-linux-gnu.tar.gz -C dist aibox-vX.Y.Z-x86_64-unknown-linux-gnu
+   rm dist/aibox-vX.Y.Z-x86_64-unknown-linux-gnu
+   ```
+6. **Write release notes** to `dist/RELEASE-NOTES.md`
+7. **Commit, tag, push**:
+   ```bash
+   git add cli/Cargo.toml cli/Cargo.lock
+   git commit -m "chore: bump version to vX.Y.Z"
+   git tag vX.Y.Z
+   git push origin main && git push origin vX.Y.Z
+   ```
+8. **Create GitHub release**:
+   ```bash
+   gh release create vX.Y.Z --repo projectious-work/aibox \
+     --title "aibox vX.Y.Z" --notes-file dist/RELEASE-NOTES.md \
+     dist/aibox-vX.Y.Z-*.tar.gz
+   ```
    Note: Always use `--notes-file`, never `--generate-notes`.
-8. **Deploy docs**: `./scripts/maintain.sh docs-deploy`
 
-## Phase 2 — Host commands (user runs on macOS)
+## Phase 2 — On macOS host (user runs one command)
 
 ```bash
 cd /path/to/aibox
-./scripts/build-macos.sh X.Y.Z
-gh release upload vX.Y.Z dist/aibox-vX.Y.Z-*-apple-darwin.tar.gz
-./scripts/maintain.sh push-images X.Y.Z
+./scripts/maintain.sh release-host X.Y.Z
 ```
 
-Prerequisites: Rust toolchain on macOS, `gh` with `write:packages` scope, Docker/OrbStack running.
+This single command does everything:
+1. Builds macOS binaries (arm64 + x86_64) via `build-macos.sh`
+2. Uploads macOS binaries to the existing GitHub release
+3. Builds container images
+4. Pushes container images to GHCR
+5. Deploys documentation to gh-pages
+
+**Prerequisites:** Rust toolchain on macOS, `gh` authenticated with `write:packages` scope, Docker/OrbStack running.
+
+**Note:** If `gh` is missing `read:packages` or `write:packages` scopes (happens after `/login` in Claude Code), run:
+```bash
+gh auth refresh -s read:packages,delete:packages
+```
