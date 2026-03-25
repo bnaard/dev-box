@@ -2,6 +2,9 @@ name: infrastructure
 version: "1.0.0"
 builder_weight: "medium"
 
+skills:
+  - terraform-basics
+
 tools:
   - name: opentofu
     default_enabled: true

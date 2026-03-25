@@ -5,24 +5,23 @@
 //!   - Cache:   $XDG_CACHE_HOME/aibox   (default: ~/.cache/aibox)
 //!   - Data:    $XDG_DATA_HOME/aibox    (default: ~/.local/share/aibox)
 //!
-//! On macOS, the `dirs` crate maps these to:
-//!   - Config:  ~/Library/Application Support/aibox
-//!   - Cache:   ~/Library/Caches/aibox
-//!   - Data:    ~/Library/Application Support/aibox
-//!
-//! To keep cross-platform consistency, we prefer the XDG env vars when set,
-//! and fall back to `dirs::config_dir()` etc. otherwise.
+//! We always use XDG-style paths (~/.config, ~/.cache, ~/.local/share)
+//! even on macOS, for cross-platform consistency and to match the install
+//! script which places addon definitions at ~/.config/aibox/addons.
 
 use std::path::PathBuf;
 
 const APP_NAME: &str = "aibox";
 
 /// Global config directory: $XDG_CONFIG_HOME/aibox or ~/.config/aibox
+///
+/// We always use XDG-style paths (even on macOS) for cross-platform consistency
+/// and to match the install script which places addons at ~/.config/aibox/addons.
 pub fn config_dir() -> Option<PathBuf> {
     if let Ok(xdg) = std::env::var("XDG_CONFIG_HOME") {
         Some(PathBuf::from(xdg).join(APP_NAME))
     } else {
-        dirs::config_dir().map(|d| d.join(APP_NAME))
+        dirs::home_dir().map(|d| d.join(".config").join(APP_NAME))
     }
 }
 
@@ -31,7 +30,7 @@ pub fn cache_dir() -> Option<PathBuf> {
     if let Ok(xdg) = std::env::var("XDG_CACHE_HOME") {
         Some(PathBuf::from(xdg).join(APP_NAME))
     } else {
-        dirs::cache_dir().map(|d| d.join(APP_NAME))
+        dirs::home_dir().map(|d| d.join(".cache").join(APP_NAME))
     }
 }
 
@@ -40,7 +39,7 @@ pub fn data_dir() -> Option<PathBuf> {
     if let Ok(xdg) = std::env::var("XDG_DATA_HOME") {
         Some(PathBuf::from(xdg).join(APP_NAME))
     } else {
-        dirs::data_dir().map(|d| d.join(APP_NAME))
+        dirs::home_dir().map(|d| d.join(".local").join("share").join(APP_NAME))
     }
 }
 

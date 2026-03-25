@@ -22,22 +22,36 @@ pub struct InitParams {
     pub addons: Option<Vec<String>>,
 }
 
-/// Labels for image flavor selection (order matters — matches ImageFlavor variants).
-const IMAGE_FLAVOR_ITEMS: &[&str] = &[
-    "base",
-    "python",
-    "latex",
-    "typst",
-    "rust",
-    "node",
-    "go",
-    "python-latex",
-    "python-typst",
-    "rust-latex",
-];
+/// Build process selection items for the interactive prompt.
+/// Shows presets first (with description), then individual packages.
+fn process_selection_items() -> (Vec<String>, Vec<String>) {
+    let presets = crate::process_registry::all_presets();
+    let packages = crate::process_registry::all_packages();
 
-/// Labels for process flavor selection (order matters — matches ProcessFlavor variants).
-const PROCESS_FLAVOR_ITEMS: &[&str] = &["minimal", "managed", "research", "product"];
+    let mut labels = Vec::new();
+    let mut values = Vec::new();
+
+    // Presets first — these are the common choices
+    for p in presets {
+        labels.push(format!("{} — {}", p.name, p.description));
+        values.push(p.name.to_string());
+    }
+
+    // Then individual packages for power users
+    for p in packages {
+        if p.name == "core" {
+            continue; // core is always included, no need to show
+        }
+        // Skip if a preset already has this exact name
+        if presets.iter().any(|pr| pr.name == p.name) {
+            continue;
+        }
+        labels.push(format!("{} (package)", p.name));
+        values.push(p.name.to_string());
+    }
+
+    (labels, values)
+}
 
 /// Determine the default project name from the current directory.
 fn default_project_name() -> String {
@@ -47,14 +61,25 @@ fn default_project_name() -> String {
         .unwrap_or_else(|| "my-project".to_string())
 }
 
+/// Build the list of addon names available for interactive selection,
+/// excluding AI provider addons (those are handled via `[ai].providers`).
+fn selectable_addon_names() -> Vec<String> {
+    crate::addon_loader::all_addons()
+        .iter()
+        .filter(|a| !a.name.starts_with("ai-"))
+        .map(|a| a.name.clone())
+        .collect()
+}
+
 /// Resolve init values, prompting interactively when `interactive` is true and
 /// the corresponding argument is `None`.
 pub fn resolve_init_values(
     name: Option<String>,
     base: Option<BaseImage>,
     process: Option<Vec<String>>,
+    addons: Option<Vec<String>>,
     interactive: bool,
-) -> Result<(String, BaseImage, Vec<String>)> {
+) -> Result<(String, BaseImage, Vec<String>, Vec<String>)> {
     // --- project name ---
     let project_name = match name {
         Some(n) => n,
@@ -68,37 +93,43 @@ pub fn resolve_init_values(
         None => default_project_name(),
     };
 
-    // --- base image ---
-    let base_image = match base {
-        Some(b) => b,
-        None if interactive => {
-            let idx = dialoguer::Select::new()
-                .with_prompt("Base image")
-                .items(IMAGE_FLAVOR_ITEMS)
-                .default(0)
-                .interact()?;
-            // For now only debian is supported; ignore the selection index
-            let _ = idx;
-            BaseImage::Debian
-        }
-        None => BaseImage::Debian,
-    };
+    // --- base image (only debian for now, skip prompt) ---
+    let base_image = base.unwrap_or(BaseImage::Debian);
 
     // --- process packages ---
     let process_packages = match process {
         Some(p) => p,
         None if interactive => {
+            let (labels, values) = process_selection_items();
             let idx = dialoguer::Select::new()
                 .with_prompt("Work process")
-                .items(PROCESS_FLAVOR_ITEMS)
-                .default(3)
+                .items(&labels)
+                .default(0)
                 .interact()?;
-            vec![PROCESS_FLAVOR_ITEMS[idx].to_string()]
+            vec![values[idx].clone()]
         }
         None => vec!["core".to_string()],
     };
 
-    Ok((project_name, base_image, process_packages))
+    // --- addons ---
+    let addon_names = match addons {
+        Some(a) => a,
+        None if interactive => {
+            let available = selectable_addon_names();
+            if available.is_empty() {
+                vec![]
+            } else {
+                let selections = dialoguer::MultiSelect::new()
+                    .with_prompt("Addons (space to select, enter to confirm)")
+                    .items(&available)
+                    .interact()?;
+                selections.into_iter().map(|i| available[i].clone()).collect()
+            }
+        }
+        None => vec![],
+    };
+
+    Ok((project_name, base_image, process_packages, addon_names))
 }
 
 /// Build command: load config, generate files, run compose build.
@@ -374,12 +405,11 @@ pub fn cmd_init(config_path: &Option<String>, params: InitParams) -> Result<()> 
 
     let interactive = std::io::IsTerminal::is_terminal(&std::io::stdin());
 
-    let (project_name, base_image, process_packages) =
-        resolve_init_values(params.name, params.base, params.process, interactive)?;
+    let (project_name, base_image, process_packages, addon_names) =
+        resolve_init_values(params.name, params.base, params.process, params.addons, interactive)?;
 
     let container_user = params.user.unwrap_or_else(|| "root".to_string());
     let ai_providers = params.ai.unwrap_or_else(|| vec![AiProvider::Claude]);
-    let _addon_names = params.addons.unwrap_or_default();
 
     let mut config = AiboxConfig {
         aibox: AiboxSection {
@@ -405,7 +435,17 @@ pub fn cmd_init(config_path: &Option<String>, params: InitParams) -> Result<()> 
         process: ProcessSection {
             packages: process_packages,
         },
-        addons: AddonsSection::default(),
+        addons: {
+            let mut section = AddonsSection::default();
+            for name in &addon_names {
+                section.addons.entry(name.clone()).or_insert_with(|| {
+                    crate::config::AddonToolsSection {
+                        tools: std::collections::HashMap::new(),
+                    }
+                });
+            }
+            section
+        },
         skills: SkillsSection::default(),
         appearance: AppearanceSection {
             theme: params.theme.unwrap_or_default(),
@@ -485,23 +525,25 @@ mod tests {
 
     #[test]
     fn resolve_init_values_non_interactive_defaults() {
-        let (name, base, process) =
-            resolve_init_values(None, None, None, false).expect("should succeed");
+        let (name, base, process, addons) =
+            resolve_init_values(None, None, None, None, false).expect("should succeed");
 
         // Name defaults to current directory name (or "my-project" fallback)
         assert!(!name.is_empty(), "name should not be empty");
 
         assert_eq!(base, BaseImage::Debian);
         assert_eq!(process, vec!["core".to_string()]);
+        assert!(addons.is_empty());
     }
 
     #[test]
     fn resolve_init_values_explicit_args_override() {
         // Even with interactive=true, explicit values should be used without prompting
-        let (name, base, process) = resolve_init_values(
+        let (name, base, process, addons) = resolve_init_values(
             Some("my-app".to_string()),
             Some(BaseImage::Debian),
             Some(vec!["research".to_string()]),
+            Some(vec!["latex".to_string()]),
             true,
         )
         .expect("should succeed with explicit args");
@@ -509,14 +551,16 @@ mod tests {
         assert_eq!(name, "my-app");
         assert_eq!(base, BaseImage::Debian);
         assert_eq!(process, vec!["research".to_string()]);
+        assert_eq!(addons, vec!["latex".to_string()]);
     }
 
     #[test]
     fn resolve_init_values_explicit_args_non_interactive() {
-        let (name, base, process) = resolve_init_values(
+        let (name, base, process, addons) = resolve_init_values(
             Some("test-proj".to_string()),
             Some(BaseImage::Debian),
             Some(vec!["minimal".to_string()]),
+            Some(vec!["python".to_string(), "latex".to_string()]),
             false,
         )
         .expect("should succeed");
@@ -524,5 +568,6 @@ mod tests {
         assert_eq!(name, "test-proj");
         assert_eq!(base, BaseImage::Debian);
         assert_eq!(process, vec!["minimal".to_string()]);
+        assert_eq!(addons, vec!["python".to_string(), "latex".to_string()]);
     }
 }

@@ -2,6 +2,10 @@ name: node
 version: "1.0.0"
 builder_weight: null
 
+skills:
+  - typescript-patterns
+  - tailwind
+
 tools:
   - name: node
     default_enabled: true

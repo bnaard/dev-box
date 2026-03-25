@@ -2,6 +2,10 @@ name: kubernetes
 version: "1.0.0"
 builder_weight: "medium"
 
+skills:
+  - kubernetes-basics
+  - container-orchestration
+
 tools:
   - name: kubectl
     default_enabled: true

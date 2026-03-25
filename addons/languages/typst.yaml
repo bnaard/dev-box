@@ -2,6 +2,9 @@ name: typst
 version: "1.0.0"
 builder_weight: null
 
+skills:
+  - documentation
+
 tools:
   - name: typst
     default_enabled: true

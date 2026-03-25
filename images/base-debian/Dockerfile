@@ -12,7 +12,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 
 # ── Zellij ───────────────────────────────────────────────────────────────────
 FROM fetch-base AS fetch-zellij
-ARG ZELLIJ_VERSION=0.43.1
+ARG ZELLIJ_VERSION=0.44.0
 RUN ARCH=$(uname -m) && \
     curl -fsSL \
       "https://github.com/zellij-org/zellij/releases/download/v${ZELLIJ_VERSION}/zellij-${ARCH}-unknown-linux-musl.tar.gz" \
@@ -21,7 +21,7 @@ RUN ARCH=$(uname -m) && \
 
 # ── Yazi ─────────────────────────────────────────────────────────────────────
 FROM fetch-base AS fetch-yazi
-ARG YAZI_VERSION=25.4.8
+ARG YAZI_VERSION=26.1.22
 RUN ARCH=$(uname -m) && \
     curl -fsSL \
       "https://github.com/sxyazi/yazi/releases/download/v${YAZI_VERSION}/yazi-${ARCH}-unknown-linux-musl.zip" \
@@ -33,7 +33,7 @@ RUN ARCH=$(uname -m) && \
 
 # ── ripgrep (no aarch64 musl build — use gnu) ────────────────────────────────
 FROM fetch-base AS fetch-ripgrep
-ARG RIPGREP_VERSION=14.1.1
+ARG RIPGREP_VERSION=15.1.0
 RUN ARCH=$(uname -m) && \
     RG_LIBC=$(case $ARCH in x86_64) echo musl;; *) echo gnu;; esac) && \
     curl -fsSL \
@@ -44,7 +44,7 @@ RUN ARCH=$(uname -m) && \
 
 # ── fd ───────────────────────────────────────────────────────────────────────
 FROM fetch-base AS fetch-fd
-ARG FD_VERSION=10.2.0
+ARG FD_VERSION=10.4.2
 RUN ARCH=$(uname -m) && \
     curl -fsSL \
       "https://github.com/sharkdp/fd/releases/download/v${FD_VERSION}/fd-v${FD_VERSION}-${ARCH}-unknown-linux-musl.tar.gz" \
@@ -54,7 +54,7 @@ RUN ARCH=$(uname -m) && \
 
 # ── bat ──────────────────────────────────────────────────────────────────────
 FROM fetch-base AS fetch-bat
-ARG BAT_VERSION=0.25.0
+ARG BAT_VERSION=0.26.1
 RUN ARCH=$(uname -m) && \
     curl -fsSL \
       "https://github.com/sharkdp/bat/releases/download/v${BAT_VERSION}/bat-v${BAT_VERSION}-${ARCH}-unknown-linux-musl.tar.gz" \
@@ -64,7 +64,7 @@ RUN ARCH=$(uname -m) && \
 
 # ── eza (no aarch64 musl build — use gnu) ────────────────────────────────────
 FROM fetch-base AS fetch-eza
-ARG EZA_VERSION=0.20.18
+ARG EZA_VERSION=0.23.4
 RUN ARCH=$(uname -m) && \
     EZA_SUFFIX=$(case $ARCH in x86_64) echo "unknown-linux-musl";; aarch64) echo "unknown-linux-gnu";; esac) && \
     curl -fsSL \
@@ -74,7 +74,7 @@ RUN ARCH=$(uname -m) && \
 
 # ── zoxide ───────────────────────────────────────────────────────────────────
 FROM fetch-base AS fetch-zoxide
-ARG ZOXIDE_VERSION=0.9.6
+ARG ZOXIDE_VERSION=0.9.9
 RUN ARCH=$(uname -m) && \
     curl -fsSL \
       "https://github.com/ajeetdsouza/zoxide/releases/download/v${ZOXIDE_VERSION}/zoxide-${ZOXIDE_VERSION}-${ARCH}-unknown-linux-musl.tar.gz" \
@@ -83,7 +83,7 @@ RUN ARCH=$(uname -m) && \
 
 # ── fzf (uses amd64/arm64 instead of x86_64/aarch64) ────────────────────────
 FROM fetch-base AS fetch-fzf
-ARG FZF_VERSION=0.60.3
+ARG FZF_VERSION=0.70.0
 RUN ARCH=$(uname -m) && \
     FZF_ARCH=$(case $ARCH in aarch64) echo arm64;; x86_64) echo amd64;; esac) && \
     curl -fsSL \
@@ -93,7 +93,7 @@ RUN ARCH=$(uname -m) && \
 
 # ── delta (no aarch64 musl build — use gnu) ──────────────────────────────────
 FROM fetch-base AS fetch-delta
-ARG DELTA_VERSION=0.18.2
+ARG DELTA_VERSION=0.19.1
 RUN ARCH=$(uname -m) && \
     DELTA_LIBC=$(case $ARCH in x86_64) echo musl;; *) echo gnu;; esac) && \
     curl -fsSL \
@@ -104,7 +104,7 @@ RUN ARCH=$(uname -m) && \
 
 # ── starship ─────────────────────────────────────────────────────────────────
 FROM fetch-base AS fetch-starship
-ARG STARSHIP_VERSION=1.22.1
+ARG STARSHIP_VERSION=1.24.2
 RUN ARCH=$(uname -m) && \
     curl -fsSL \
       "https://github.com/starship/starship/releases/download/v${STARSHIP_VERSION}/starship-${ARCH}-unknown-linux-musl.tar.gz" \
