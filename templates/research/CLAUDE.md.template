@@ -20,10 +20,9 @@ This file provides guidance to Claude Code when working with this repository.
 
 ## Context Files
 
-The `context/` directory contains structured project files:
+Read `context/AIBOX.md` for the full project baseline (auto-generated from aibox.toml).
 
-- `context/OWNER.md` — Profile of the project owner (shared across projects)
+- `context/AIBOX.md` — Project baseline: addons, skills, process packages (auto-generated)
+- `context/OWNER.md` — Profile of the project owner
 - `context/PROGRESS.md` — Tracks completion across chapters/sections
-- `context/research/` — Research notes and source material (see `_template.md` for format)
-- `context/analysis/` — Structural analysis and design documents
-- `experiments/` — Hands-on prototypes, benchmarks, and technical evaluations (see `experiments/README.md`)
+- `context/research/` — Research notes and source material
