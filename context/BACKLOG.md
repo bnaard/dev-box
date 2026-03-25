@@ -4,7 +4,7 @@ Central task registry. Each item has a unique ID for cross-referencing.
 Source of truth — GitHub issues are for external visibility.
 Archive of completed/merged items: [archive/BACKLOG.md](archive/BACKLOG.md)
 
-## Next ID: BACK-045
+## Next ID: BACK-046
 
 ## Format
 
@@ -52,3 +52,4 @@ Priority values: `must`, `should`, `could`, `wont`
 | BACK-042 | Internal project site for context documents | todo | could | Investigate and design a project-internal site that renders all markdown files in `./context/` as a browsable, nicely formatted site. Could be extended to a GitHub-independent wiki. **Intent:** collaboration for future multiple human workers, better readability of context files. Options: lightweight static site generator (e.g., Docusaurus second instance, mdBook, wiki.js), or extend existing docs-site with a context section. Should be simple to start — just rendered markdown with navigation |
 | BACK-043 | Research additional AI provider integrations | todo | should | Research which additional AI coding agents/providers should be supported as addons. Minimum: **OpenAI Codex CLI** (open source, npm-based), **GitHub Copilot CLI**. Also evaluate: Cline, Continue.dev, Cursor CLI, Amazon Q Developer CLI, Cody. For each candidate: installation method, config directory, binary name, maturity level, license. Output: decision on which to add to addon_registry.rs |
 | BACK-044 | Evaluate Mozilla cq integration | todo | should | Analyze https://github.com/mozilla-ai/cq and plan how to integrate it into aibox. Understand what cq does (code quality / context for AI agents?), how it relates to our skill and context system, whether it should be an addon, a skill, or a standalone tool. Research scope: architecture, integration points, value for aibox users, implementation plan |
+| BACK-045 | E2E testing environment design | todo | must | Design a secure end-to-end testing environment for CLI integration tests. **Approach:** docker-compose companion container accessible via SSH (preseeded keys) that simulates a user's host machine. Test scenarios: init→sync→edit→reset lifecycle, migration from earlier versions, file preservation (CLAUDE.md not deleted on reset), generated vs user-owned file boundaries. **Key constraint:** no docker socket exposure, no sibling containers from dev-container. **Open question:** how to securely simulate container creation from the companion (nested containers? podman rootless? mock runtime?). Needs architecture analysis |
