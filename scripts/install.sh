@@ -137,6 +137,54 @@ main() {
   chmod +x "${install_dir}/${BINARY_NAME}"
   ok "Installed to ${install_dir}/${BINARY_NAME}"
 
+  # Install addon definitions (YAML files from the repo)
+  local addons_dir="${XDG_CONFIG_HOME:-${HOME}/.config}/aibox/addons"
+  local addons_base_url="https://raw.githubusercontent.com/${REPO}/v${version}/addons"
+
+  info "Installing addon definitions to ${addons_dir}..."
+  local categories="languages tools docs ai"
+  for category in ${categories}; do
+    mkdir -p "${addons_dir}/${category}"
+  done
+
+  # Download each addon YAML file
+  local addon_files="
+    languages/python.yaml
+    languages/rust.yaml
+    languages/node.yaml
+    languages/go.yaml
+    languages/typst.yaml
+    languages/latex.yaml
+    tools/infrastructure.yaml
+    tools/kubernetes.yaml
+    tools/cloud-aws.yaml
+    tools/cloud-gcp.yaml
+    tools/cloud-azure.yaml
+    docs/docs-mkdocs.yaml
+    docs/docs-zensical.yaml
+    docs/docs-docusaurus.yaml
+    docs/docs-starlight.yaml
+    docs/docs-mdbook.yaml
+    docs/docs-hugo.yaml
+    ai/ai-claude.yaml
+    ai/ai-aider.yaml
+    ai/ai-gemini.yaml
+    ai/ai-mistral.yaml
+  "
+  local failed=0
+  for file in ${addon_files}; do
+    if ! curl -fsSL -o "${addons_dir}/${file}" "${addons_base_url}/${file}" 2>/dev/null; then
+      warn "Failed to download addon: ${file}"
+      failed=$((failed + 1))
+    fi
+  done
+
+  if [[ "${failed}" -eq 0 ]]; then
+    ok "Installed 21 addon definitions"
+  else
+    warn "Installed with ${failed} addon download failures — re-run to retry"
+  fi
+
   # Verify
   if "${install_dir}/${BINARY_NAME}" --help &>/dev/null; then
     ok "aibox v${version} is ready"
