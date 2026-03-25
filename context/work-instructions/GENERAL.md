@@ -13,6 +13,15 @@ This repo has TWO separate sets of container definitions:
 
 Never confuse these two. Changes to `.devcontainer/` affect our development. Changes to `images/` affect downstream projects.
 
+## Provider Independence
+
+All project state must be stored in `./context/` — never in provider-specific locations (e.g., `.claude/memory/`, `.aider/`). This ensures:
+- Any AI agent (Claude, Aider, Gemini, etc.) can pick up where another left off
+- Session handovers, decisions, and project notes are committed to git
+- No lock-in to a specific AI provider's memory system
+
+**Session handovers** go to `context/archive/sessions/` (use the session-handover skill format).
+
 ## Communication
 
 - Be concise and direct
