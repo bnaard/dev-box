@@ -99,7 +99,7 @@ fn dispatch(cli: cli::Cli) -> anyhow::Result<()> {
             Ok(())
         }
         cli::Commands::Update { check, dry_run } => {
-            update::cmd_update(config_path, check, dry_run)
+            update::cmd_update(config_path, check, dry_run, global_yes)
         }
         cli::Commands::Env { action } => match action {
             cli::EnvAction::Create { name } => env::cmd_env_create(config_path, &name),

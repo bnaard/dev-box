@@ -2,7 +2,7 @@ use anyhow::{Context, Result};
 use std::path::{Path, PathBuf};
 
 use crate::config::AiboxConfig;
-use crate::{generate, output};
+use crate::{context, generate, output, seed};
 
 // --- Response structs for JSON deserialization ---
 
@@ -203,8 +203,33 @@ fn update_toml_version(toml_path: &Path, old_version: &str, new_version: &str) -
     Ok(())
 }
 
+/// Shared helper: seed + generate + reconcile skills + generate AIBOX.md.
+///
+/// Used by both `do_upgrade` and any other flow that needs a full config sync.
+fn sync_config_files(config: &AiboxConfig) -> Result<()> {
+    seed::seed_root_dir(config)?;
+    generate::generate_all(config)?;
+    context::reconcile_skills(config)?;
+    context::generate_aibox_md(config)?;
+    Ok(())
+}
+
+/// Prompt the user with a yes/no question. Returns true if they answer yes.
+/// If `auto_yes` is set, returns true without prompting.
+fn ask_yes_no(question: &str, auto_yes: bool) -> bool {
+    if auto_yes {
+        return true;
+    }
+    eprint!("{} [y/N] ", question);
+    let mut input = String::new();
+    if std::io::stdin().read_line(&mut input).is_err() {
+        return false;
+    }
+    matches!(input.trim().to_lowercase().as_str(), "y" | "yes")
+}
+
 /// Perform the upgrade: fetch latest image version, update aibox.toml, regenerate files.
-fn do_upgrade(config_path: &Option<String>, dry_run: bool) -> Result<()> {
+fn do_upgrade(config_path: &Option<String>, dry_run: bool, global_yes: bool) -> Result<()> {
     let config = AiboxConfig::from_cli_option(config_path)?;
     let flavor = config.aibox.base.to_string();
     let current_version = &config.aibox.version;
@@ -247,7 +272,15 @@ fn do_upgrade(config_path: &Option<String>, dry_run: bool) -> Result<()> {
     if dry_run {
         output::info("[dry-run] Would update version in aibox.toml");
         output::info("[dry-run] Would regenerate .devcontainer/ files");
-        output::info("[dry-run] Would update .aibox-version");
+        return Ok(());
+    }
+
+    // Confirm before applying
+    if !ask_yes_no(
+        &format!("Upgrade image from {} to {}?", current, latest_str),
+        global_yes,
+    ) {
+        output::info("Upgrade cancelled");
         return Ok(());
     }
 
@@ -261,30 +294,49 @@ fn do_upgrade(config_path: &Option<String>, dry_run: bool) -> Result<()> {
         latest_str
     ));
 
-    // 2. Reload config with updated version and regenerate container files
+    // 2. Reload config with updated version and sync all config files
     let updated_config = AiboxConfig::from_cli_option(config_path)?;
-    generate::generate_all(&updated_config)?;
-
-    // 3. Update .aibox-version
-    let version_file = Path::new(".aibox-version");
-    std::fs::write(version_file, &latest_str).context("Failed to update .aibox-version")?;
-    output::ok("Updated .aibox-version");
+    sync_config_files(&updated_config)?;
 
     output::ok(&format!(
-        "Upgrade complete: {} -> {} — rebuild your container to apply changes",
+        "Upgrade complete: {} -> {}",
         current, latest_str
     ));
+
+    // 3. Offer to rebuild the container image
+    if ask_yes_no("Rebuild container image now?", global_yes) {
+        match crate::runtime::Runtime::detect() {
+            Ok(runtime) => {
+                output::info("Building container image...");
+                runtime.compose_build(crate::config::COMPOSE_FILE, false)?;
+                output::ok("Container image rebuilt");
+            }
+            Err(e) => {
+                output::warn(&format!(
+                    "No container runtime available: {}. Run `aibox sync` to rebuild later.",
+                    e
+                ));
+            }
+        }
+    } else {
+        output::info("Run `aibox sync` to rebuild the container image when ready.");
+    }
 
     Ok(())
 }
 
 /// Update command implementation.
-pub fn cmd_update(config_path: &Option<String>, check: bool, dry_run: bool) -> Result<()> {
+pub fn cmd_update(
+    config_path: &Option<String>,
+    check: bool,
+    dry_run: bool,
+    global_yes: bool,
+) -> Result<()> {
     if check {
         let config = AiboxConfig::from_cli_option(config_path)?;
         check_updates(&config)
     } else {
-        do_upgrade(config_path, dry_run)
+        do_upgrade(config_path, dry_run, global_yes)
     }
 }
 

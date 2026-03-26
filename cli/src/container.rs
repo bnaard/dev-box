@@ -124,6 +124,23 @@ pub fn cmd_start(config_path: &Option<String>, layout: &str) -> Result<()> {
     generate::generate_all(&config)?;
 
     let state = runtime.container_status(name)?;
+
+    // Version mismatch check: if container exists, ensure its image version matches config.
+    // No label = pre-BACK-060 image; allow start without check (backward compat).
+    if state != ContainerState::Missing
+        && let Ok(Some(container_version)) = runtime.get_container_image_version(name)
+        && container_version != config.aibox.version
+    {
+        bail!(
+            "Version mismatch: the existing container was built from image v{} \
+             but aibox.toml pins v{}.\n\
+             Run `aibox sync` to rebuild the image at the configured version, \
+             then try again.",
+            container_version,
+            config.aibox.version
+        );
+    }
+
     match state {
         ContainerState::Running => {
             output::info("Container already running");
