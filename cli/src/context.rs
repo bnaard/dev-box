@@ -544,11 +544,36 @@ fn template_content_for_key(key: &str, project_name: &str) -> String {
 
         // handover
         "session_template_md" => {
-            "# Session Handover Template\n\n\
-             ## Context\n\n\
-             ## What was done\n\n\
-             ## Open items\n\n\
-             ## Next steps\n"
+            "# Session Handover — YYYY-MM-DD\n\n\
+             <!-- Fill in this document at the end of a work session. Target: 5-10 minutes. -->\n\
+             <!-- Save to context/archive/sessions/session-handover-YYYY-MM-DD.md -->\n\n\
+             ## Summary\n\n\
+             <!-- What was accomplished this session? One bullet per meaningful unit of work. -->\n\n\
+             -\n\n\
+             ## Open Threads\n\n\
+             <!-- Things started but not finished. Each entry needs a clear next action. -->\n\n\
+             <!-- Format: - [BACK-NNN / description] — next action: ... -->\n\n\
+             -\n\n\
+             ## Decisions Made\n\n\
+             <!-- Key choices made this session. Include rationale so the next agent understands why. -->\n\n\
+             <!-- Format: - Decision: ... Rationale: ... -->\n\n\
+             -\n\n\
+             ## Blockers\n\n\
+             <!-- Anything preventing progress. Who or what can unblock it? -->\n\n\
+             <!-- Format: - Blocker: ... Unblocked by: ... -->\n\n\
+             None.\n\n\
+             ## Next Steps\n\n\
+             <!-- Prioritised list of what to do in the next session. Most important first. -->\n\n\
+             1.\n\
+             2.\n\
+             3.\n\n\
+             ## Context for Next Agent\n\n\
+             <!-- Key facts the next AI agent must know to pick up without re-reading everything. -->\n\
+             <!-- Include: files changed, current state of in-progress work, gotchas, assumptions. -->\n\n\
+             **Branch / version:**\n\
+             **Files changed this session:**\n\
+             **Current state:**\n\
+             **Gotchas:**\n"
                 .to_string()
         }
 
