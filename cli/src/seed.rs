@@ -393,6 +393,101 @@ fn generate_cowork_layout(providers: &[crate::config::AiProvider]) -> String {
     )
 }
 
+/// Generate the zellij browse layout dynamically based on configured AI providers.
+///
+/// Browse layout: yazi-focused with large preview.
+///   Tab 1 ("browse"): top 60% yazi, bottom 40% AI agent pane
+///   Tab 2 ("editor"): fullscreen vim
+///   Tab 3 ("git"):    fullscreen lazygit
+///   Tab 4 ("shell"):  fullscreen bash
+///
+/// When no AI providers are configured, the browse tab is fullscreen yazi.
+fn generate_browse_layout(providers: &[crate::config::AiProvider]) -> String {
+    let ai_pane = ai_pane_kdl(providers);
+
+    if ai_pane.is_empty() {
+        return r#"layout {
+    default_tab_template {
+        children
+        pane size=1 borderless=true {
+            plugin location="zellij:status-bar"
+        }
+    }
+    tab name="browse" focus=true {
+        pane name="files" focus=true {
+            command "bash"
+            args "-c" "AIBOX_EDITOR_DIR=tab exec yazi"
+            cwd "/workspace"
+        }
+    }
+    tab name="editor" {
+        pane name="vim" {
+            command "bash"
+            args "-c" "AIBOX_EDITOR_DIR=tab exec vim-loop"
+            cwd "/workspace"
+        }
+    }
+    tab name="git" {
+        pane name="lazygit" {
+            command "lazygit"
+            cwd "/workspace"
+        }
+    }
+    tab name="shell" {
+        pane name="bash" {
+            command "bash"
+            cwd "/workspace"
+        }
+    }
+}
+"#
+        .to_string();
+    }
+
+    format!(
+        r#"layout {{
+    default_tab_template {{
+        children
+        pane size=1 borderless=true {{
+            plugin location="zellij:status-bar"
+        }}
+    }}
+    tab name="browse" focus=true {{
+        pane split_direction="horizontal" {{
+            pane size="60%" name="files" focus=true {{
+                command "bash"
+                args "-c" "AIBOX_EDITOR_DIR=tab exec yazi"
+                cwd "/workspace"
+            }}
+            pane size="40%" {{
+{ai_pane}
+            }}
+        }}
+    }}
+    tab name="editor" {{
+        pane name="vim" {{
+            command "bash"
+            args "-c" "AIBOX_EDITOR_DIR=tab exec vim-loop"
+            cwd "/workspace"
+        }}
+    }}
+    tab name="git" {{
+        pane name="lazygit" {{
+            command "lazygit"
+            cwd "/workspace"
+        }}
+    }}
+    tab name="shell" {{
+        pane name="bash" {{
+            command "bash"
+            cwd "/workspace"
+        }}
+    }}
+}}
+"#
+    )
+}
+
 /// Default yazi config.
 const DEFAULT_YAZI_CONFIG: &str = r#"[manager]
 ratio = [1, 3, 4]
@@ -664,6 +759,14 @@ pub fn seed_root_dir(config: &AiboxConfig) -> Result<()> {
             .join("cowork.kdl"),
         &generate_cowork_layout(providers),
     )?;
+    seed_file(
+        &root
+            .join(".config")
+            .join("zellij")
+            .join("layouts")
+            .join("browse.kdl"),
+        &generate_browse_layout(providers),
+    )?;
 
     // Yazi config + theme
     seed_file(
@@ -822,6 +925,16 @@ pub fn sync_theme_files(config: &AiboxConfig) -> Result<Vec<String>> {
         &generate_cowork_layout(providers),
     )? {
         updated.push(".config/zellij/layouts/cowork.kdl".to_string());
+    }
+    if force_seed_file(
+        &root
+            .join(".config")
+            .join("zellij")
+            .join("layouts")
+            .join("browse.kdl"),
+        &generate_browse_layout(providers),
+    )? {
+        updated.push(".config/zellij/layouts/browse.kdl".to_string());
     }
 
     // lazygit config
@@ -1095,6 +1208,79 @@ mod tests {
         let layout = generate_cowork_layout(&providers);
         assert!(!layout.contains("claude"), "should not have claude");
         assert!(layout.contains("tab name=\"cowork\""), "should still have cowork tab");
+    }
+
+    #[test]
+    fn browse_layout_single_provider() {
+        let providers = vec![AiProvider::Claude];
+        let layout = generate_browse_layout(&providers);
+        assert!(
+            layout.contains("tab name=\"browse\""),
+            "should have browse tab"
+        );
+        assert!(
+            layout.contains("command \"claude\""),
+            "should have claude pane"
+        );
+        assert!(
+            layout.contains("tab name=\"editor\""),
+            "should have editor tab"
+        );
+        assert!(
+            layout.contains("tab name=\"git\""),
+            "should have git tab"
+        );
+        assert!(
+            layout.contains("AIBOX_EDITOR_DIR=tab"),
+            "should use tab editor direction"
+        );
+        assert!(
+            !layout.contains("stacked"),
+            "single provider should not be stacked"
+        );
+    }
+
+    #[test]
+    fn browse_layout_multiple_providers_stacked() {
+        let providers = vec![AiProvider::Claude, AiProvider::Aider];
+        let layout = generate_browse_layout(&providers);
+        assert!(
+            layout.contains("stacked=true"),
+            "multiple providers should be stacked"
+        );
+        assert!(layout.contains("command \"claude\""), "should have claude");
+        assert!(layout.contains("command \"aider\""), "should have aider");
+    }
+
+    #[test]
+    fn browse_layout_no_providers() {
+        let providers: Vec<AiProvider> = vec![];
+        let layout = generate_browse_layout(&providers);
+        assert!(
+            layout.contains("tab name=\"browse\""),
+            "should still have browse tab"
+        );
+        assert!(!layout.contains("claude"), "should not have claude");
+        assert!(
+            layout.contains("tab name=\"editor\""),
+            "should still have editor tab"
+        );
+    }
+
+    #[test]
+    fn browse_layout_yazi_above_ai() {
+        let providers = vec![AiProvider::Claude];
+        let layout = generate_browse_layout(&providers);
+        let yazi_pos = layout.find("yazi").unwrap();
+        let claude_pos = layout.find("command \"claude\"").unwrap();
+        assert!(
+            yazi_pos < claude_pos,
+            "yazi should appear before AI pane (top position)"
+        );
+        assert!(
+            layout.contains("size=\"60%\""),
+            "yazi pane should be 60%"
+        );
     }
 
     #[test]

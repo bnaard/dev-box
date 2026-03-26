@@ -37,6 +37,10 @@ Completed, merged, and archived items. Active backlog: [../BACKLOG.md](../BACKLO
 | BACK-058 | Fix `aibox update` 401 error in derived projects | done | — | `do_upgrade` now matches on fetch_latest_image_version error and warns + exits Ok. E2E tests in tests/e2e/update.rs. |
 | BACK-059 | Upgrade e2e keybinding tests to zellij 0.44 native CLI automation | done | — | `send-keys --pane-id <terminal_id>` + `dump-screen --pane-id` + session discovery via `zellij list-sessions`. All 8 visual keybinding tests pass. |
 | BACK-061 | Improve seeded config file comments — show all options inline | done | — | `serialize_config_with_comments` rewritten with `===` section separators, inline trailing comments, every option present. Dockerfile.j2 and docker-compose.yml.j2 headers added. |
+| BACK-010 | Evaluate multi-service support approach | done | — | Resolved via BACK-066: `docker-compose.override.yml` support. Users add extra services via standard Docker Compose override mechanism. |
+| BACK-012 | Session handover format | done | — | Templates + skill implemented. 6-section fill-in-the-blanks format with git log review and backlog check. |
+| BACK-052 | Addon dependency tree — investigate and prototype | done | — | Depth-1 tree confirmed. Kahn's algorithm circular detection verified. `aibox addon info` shows `Requires:` line. `conflicts` not needed. |
+| BACK-066 | Compose override support (`docker-compose.override.yml`) | done | — | Scaffold during `aibox init`, auto-detect in `aibox sync`, wire into `devcontainer.json` as array. Shipped in v0.13.1. |
 | — | aibox sync | done | — | #25 — theme switching without manual file deletion |
 | — | Shell enhancement tools | done | — | ripgrep, fd, bat, eza, zoxide, fzf, delta + aliases |
 | — | Starship prompt | done | — | #28 — installed in base image |
