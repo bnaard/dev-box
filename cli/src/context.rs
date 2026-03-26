@@ -472,6 +472,36 @@ pub fn scaffold_context(config: &AiboxConfig) -> Result<()> {
          #   COPY --from=builder /app/dist /workspace/dist\n",
     )?;
 
+    // Create docker-compose.override.yml placeholder
+    let compose_override =
+        Path::new(crate::config::DEVCONTAINER_DIR).join("docker-compose.override.yml");
+    write_if_missing(
+        &compose_override,
+        "# Docker Compose override — project-specific services and overrides.\n\
+         # This file is never overwritten by `aibox sync`. You own it.\n\
+         #\n\
+         # Docker Compose automatically merges this with the generated\n\
+         # docker-compose.yml (strategic merge by service name).\n\
+         # When present, `aibox sync` wires it into devcontainer.json.\n\
+         #\n\
+         # Example — add a PostgreSQL sidecar:\n\
+         #\n\
+         #   services:\n\
+         #     postgres:\n\
+         #       image: postgres:16\n\
+         #       environment:\n\
+         #         POSTGRES_PASSWORD: dev\n\
+         #       ports:\n\
+         #         - \"5432:5432\"\n\
+         #\n\
+         # Example — add depends_on to the main service:\n\
+         #\n\
+         #   services:\n\
+         #     my-project:            # must match [container] name in aibox.toml\n\
+         #       depends_on:\n\
+         #         - postgres\n",
+    )?;
+
     output::ok(&format!(
         "Context scaffolded ({:?} packages, {} skills)",
         config.process.packages,

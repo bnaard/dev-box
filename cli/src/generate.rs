@@ -323,10 +323,19 @@ fn generate_devcontainer_json(config: &AiboxConfig, dir: &Path) -> Result<bool> 
         }
     }
 
+    // Detect docker-compose.override.yml — if present, VS Code needs both
+    // files listed explicitly. Docker Compose CLI auto-merges overrides, but
+    // devcontainer.json requires the array form to pick them up.
+    let compose_file: serde_json::Value = if dir.join("docker-compose.override.yml").exists() {
+        serde_json::json!(["docker-compose.yml", "docker-compose.override.yml"])
+    } else {
+        serde_json::json!("docker-compose.yml")
+    };
+
     // Use serde_json for proper JSON formatting
     let mut devcontainer = serde_json::json!({
         "name": name,
-        "dockerComposeFile": "docker-compose.yml",
+        "dockerComposeFile": compose_file,
         "service": name,
         "workspaceFolder": "/workspace",
         "overrideCommand": true,
@@ -741,6 +750,64 @@ mod tests {
         assert!(!content.contains("ms-python.python"));
         assert!(!content.contains("rust-lang.rust-analyzer"));
         assert!(!content.contains("james-yu.latex-workshop"));
+    }
+
+    #[test]
+    fn devcontainer_json_compose_override_array() {
+        let dir = tempfile::tempdir().unwrap();
+        let config = make_config(&[], false);
+        // Create an override file
+        fs::write(
+            dir.path().join("docker-compose.override.yml"),
+            "services:\n  postgres:\n    image: postgres:16\n",
+        )
+        .unwrap();
+        generate_devcontainer_json(&config, dir.path()).unwrap();
+        let content = fs::read_to_string(dir.path().join("devcontainer.json")).unwrap();
+        let json: serde_json::Value = serde_json::from_str(
+            content
+                .lines()
+                .filter(|l| !l.starts_with("//"))
+                .collect::<Vec<_>>()
+                .join("\n")
+                .as_str(),
+        )
+        .unwrap();
+        let compose_file = &json["dockerComposeFile"];
+        assert!(
+            compose_file.is_array(),
+            "dockerComposeFile should be an array when override exists, got: {}",
+            compose_file
+        );
+        let arr = compose_file.as_array().unwrap();
+        assert_eq!(arr.len(), 2);
+        assert_eq!(arr[0], "docker-compose.yml");
+        assert_eq!(arr[1], "docker-compose.override.yml");
+    }
+
+    #[test]
+    fn devcontainer_json_compose_no_override() {
+        let dir = tempfile::tempdir().unwrap();
+        let config = make_config(&[], false);
+        // No override file created
+        generate_devcontainer_json(&config, dir.path()).unwrap();
+        let content = fs::read_to_string(dir.path().join("devcontainer.json")).unwrap();
+        let json: serde_json::Value = serde_json::from_str(
+            content
+                .lines()
+                .filter(|l| !l.starts_with("//"))
+                .collect::<Vec<_>>()
+                .join("\n")
+                .as_str(),
+        )
+        .unwrap();
+        let compose_file = &json["dockerComposeFile"];
+        assert!(
+            compose_file.is_string(),
+            "dockerComposeFile should be a string when no override exists, got: {}",
+            compose_file
+        );
+        assert_eq!(compose_file, "docker-compose.yml");
     }
 
     #[test]
