@@ -3,7 +3,7 @@ use std::path::Path;
 
 use crate::config::AiboxConfig;
 use crate::output;
-use crate::runtime::Runtime;
+use crate::runtime::{ContainerState, Runtime};
 
 /// Embedded schema document for v1.0.0.
 const SCHEMA_V1_0_0: &str = include_str!("../../schemas/v1.0.0/context-schema.md");
@@ -137,6 +137,14 @@ pub fn cmd_doctor(config_path: &Option<String>) -> Result<()> {
     // 8. Schema version check
     output::info("Schema version check");
     check_schema_version(&config, &mut diag)?;
+
+    // 9. Container image version check (only if a runtime is available)
+    if let Ok(runtime) = Runtime::detect() {
+        check_container_image_version(&runtime, &config, &mut diag);
+    }
+
+    // 10. CLI version file check
+    check_cli_version_file(&mut diag);
 
     print_summary(&diag);
     Ok(())
@@ -385,6 +393,74 @@ fn generate_migration_artifacts(
     ));
 
     Ok(())
+}
+
+/// Check that the running container's image version matches the config version.
+///
+/// Reads the `aibox.version` Docker label set at build time. Skips silently
+/// if the container is missing or has no label (pre-BACK-060 image).
+fn check_container_image_version(runtime: &Runtime, config: &AiboxConfig, diag: &mut DiagResult) {
+    let name = &config.container.name;
+    let state = match runtime.container_status(name) {
+        Ok(s) => s,
+        Err(_) => return,
+    };
+    if state == ContainerState::Missing {
+        return;
+    }
+
+    match runtime.get_container_image_version(name) {
+        Ok(Some(container_ver)) => {
+            if container_ver == config.aibox.version {
+                output::ok(&format!(
+                    "Container image version: {} (matches config)",
+                    container_ver
+                ));
+            } else {
+                output::warn(&format!(
+                    "Container image version mismatch: container={} config={} — \
+                     run `aibox sync` to rebuild",
+                    container_ver, config.aibox.version
+                ));
+                diag.warnings += 1;
+            }
+        }
+        Ok(None) => {
+            // Pre-BACK-060 image: no label — informational only
+            output::ok("Container image version: no label (pre-v0.13 image, rebuild recommended)");
+        }
+        Err(_) => {} // inspect failed — skip silently
+    }
+}
+
+/// Warn if `.aibox-version` doesn't match the current CLI version.
+///
+/// `.aibox-version` is written at init time and updated by `aibox sync`.
+/// A mismatch means generated files may be stale for this CLI version.
+fn check_cli_version_file(diag: &mut DiagResult) {
+    let version_file = Path::new(".aibox-version");
+    if !version_file.exists() {
+        // Already reported by check_schema_version — skip.
+        return;
+    }
+
+    let file_version = match std::fs::read_to_string(version_file) {
+        Ok(v) => v.trim().to_string(),
+        Err(_) => return,
+    };
+
+    let cli_version = env!("CARGO_PKG_VERSION");
+
+    // Only warn if file looks like a semver CLI version (not a schema version like "1.0.0").
+    // We compare directly; a mismatch likely means `aibox sync` hasn't been run since upgrade.
+    if file_version != cli_version {
+        output::warn(&format!(
+            "CLI version mismatch: .aibox-version={} current={} — \
+             run `aibox sync` to update generated files",
+            file_version, cli_version
+        ));
+        diag.warnings += 1;
+    }
 }
 
 /// Print final summary.

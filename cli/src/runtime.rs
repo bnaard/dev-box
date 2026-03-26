@@ -67,6 +67,33 @@ impl Runtime {
         }
     }
 
+    /// Read the `aibox.version` label from a container image.
+    ///
+    /// Returns `None` if the container doesn't exist or the label is absent
+    /// (e.g. containers built before BACK-060).
+    pub fn get_container_image_version(&self, container_name: &str) -> Result<Option<String>> {
+        let output = Command::new(&self.runtime_bin)
+            .args([
+                "inspect",
+                "--format",
+                "{{index .Config.Labels \"aibox.version\"}}",
+                container_name,
+            ])
+            .output()
+            .context("Failed to inspect container for version label")?;
+
+        if !output.status.success() {
+            return Ok(None);
+        }
+
+        let label = String::from_utf8_lossy(&output.stdout).trim().to_string();
+        if label.is_empty() {
+            Ok(None)
+        } else {
+            Ok(Some(label))
+        }
+    }
+
     /// Get the container state by inspecting it directly.
     pub fn container_status(&self, name: &str) -> Result<ContainerState> {
         let output = Command::new(&self.runtime_bin)
@@ -287,6 +314,28 @@ mod tests {
         };
         assert_eq!(rt.runtime_bin, "docker");
         assert_eq!(rt.compose_bin.len(), 2);
+    }
+
+    #[test]
+    fn get_container_image_version_for_nonexistent_container() {
+        let rt = if runtime_is_responsive("docker") {
+            Runtime {
+                compose_bin: vec!["docker".to_string(), "compose".to_string()],
+                runtime_bin: "docker".to_string(),
+            }
+        } else if runtime_is_responsive("podman") {
+            Runtime {
+                compose_bin: vec!["podman".to_string(), "compose".to_string()],
+                runtime_bin: "podman".to_string(),
+            }
+        } else {
+            return;
+        };
+        // Nonexistent container should return None (inspect fails)
+        let version = rt
+            .get_container_image_version("nonexistent_container_xyz123")
+            .unwrap();
+        assert_eq!(version, None);
     }
 
     #[test]

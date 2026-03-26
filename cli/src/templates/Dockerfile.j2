@@ -16,6 +16,7 @@
 
 {% endfor %}
 FROM {{ registry }}:{{ image }}-v{{ version }} AS aibox
+LABEL aibox.version="{{ version }}"
 {% if extra_packages %}
 
 # Extra packages from aibox.toml [container.extra_packages]
@@ -38,3 +39,6 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 # Project-specific layers (from Dockerfile.local — not managed by aibox sync)
 {{ local_content }}
 {% endif %}
+
+# Record image version inside container for runtime checks
+RUN echo "{{ version }}" > /etc/aibox-version
