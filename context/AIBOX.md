@@ -8,7 +8,7 @@
 - **Process packages:** full-product, handover
 - **Base image:** debian
 - **Add-ons:** ai-claude, docs-docusaurus, node, python
-- **CLI version:** 0.13.1
+- **CLI version:** 0.14.1
 
 ## Session Protocol
 
