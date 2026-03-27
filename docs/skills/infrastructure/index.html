@@ -1,0 +1,226 @@
+<!doctype html>
+<html lang="en" dir="ltr" class="docs-wrapper plugin-docs plugin-id-default docs-version-current docs-doc-page docs-doc-id-skills/infrastructure" data-has-hydrated="false">
+<head>
+<meta charset="UTF-8">
+<meta name="generator" content="Docusaurus v3.9.2">
+<title data-rh="true">Infrastructure Skills | aibox</title><meta data-rh="true" name="viewport" content="width=device-width,initial-scale=1"><meta data-rh="true" name="twitter:card" content="summary_large_image"><meta data-rh="true" property="og:url" content="https://projectious-work.github.io/aibox/docs/skills/infrastructure"><meta data-rh="true" property="og:locale" content="en"><meta data-rh="true" name="docusaurus_locale" content="en"><meta data-rh="true" name="docsearch:language" content="en"><meta data-rh="true" name="docusaurus_version" content="current"><meta data-rh="true" name="docusaurus_tag" content="docs-default-current"><meta data-rh="true" name="docsearch:version" content="current"><meta data-rh="true" name="docsearch:docusaurus_tag" content="docs-default-current"><meta data-rh="true" property="og:title" content="Infrastructure Skills | aibox"><meta data-rh="true" name="description" content="Skills for containers, orchestration, networking, system administration, and CI/CD."><meta data-rh="true" property="og:description" content="Skills for containers, orchestration, networking, system administration, and CI/CD."><link data-rh="true" rel="icon" href="/aibox/img/favicon.ico"><link data-rh="true" rel="canonical" href="https://projectious-work.github.io/aibox/docs/skills/infrastructure"><link data-rh="true" rel="alternate" href="https://projectious-work.github.io/aibox/docs/skills/infrastructure" hreflang="en"><link data-rh="true" rel="alternate" href="https://projectious-work.github.io/aibox/docs/skills/infrastructure" hreflang="x-default"><script data-rh="true" type="application/ld+json">{"@context":"https://schema.org","@type":"BreadcrumbList","itemListElement":[{"@type":"ListItem","position":1,"name":"Infrastructure Skills","item":"https://projectious-work.github.io/aibox/docs/skills/infrastructure"}]}</script><link rel="icon" type="image/png" sizes="32x32" href="/aibox/img/favicon.png">
+<link rel="icon" type="image/png" sizes="16x16" href="/aibox/img/favicon-16.png">
+<link rel="apple-touch-icon" sizes="180x180" href="/aibox/img/apple-touch-icon.png"><link rel="stylesheet" href="/aibox/assets/css/styles.ab1a9c31.css">
+<script src="/aibox/assets/js/runtime~main.4df450c1.js" defer="defer"></script>
+<script src="/aibox/assets/js/main.bb30ad47.js" defer="defer"></script>
+</head>
+<body class="navigation-with-keyboard">
+<svg style="display: none;"><defs>
+<symbol id="theme-svg-external-link" viewBox="0 0 24 24"><path fill="currentColor" d="M21 13v10h-21v-19h12v2h-10v15h17v-8h2zm3-12h-10.988l4.035 4-6.977 7.07 2.828 2.828 6.977-7.07 4.125 4.172v-11z"/></symbol>
+</defs></svg>
+<script>!function(){var t=function(){try{return new URLSearchParams(window.location.search).get("docusaurus-theme")}catch(t){}}()||function(){try{return window.localStorage.getItem("theme")}catch(t){}}();document.documentElement.setAttribute("data-theme",t||(window.matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light")),document.documentElement.setAttribute("data-theme-choice",t||"system")}(),function(){try{const c=new URLSearchParams(window.location.search).entries();for(var[t,e]of c)if(t.startsWith("docusaurus-data-")){var a=t.replace("docusaurus-data-","data-");document.documentElement.setAttribute(a,e)}}catch(t){}}()</script><div id="__docusaurus"><link rel="preload" as="image" href="/aibox/img/logo-light.svg"><link rel="preload" as="image" href="/aibox/img/logo-dark.svg"><div role="region" aria-label="Skip to main content"><a class="skipToContent_fXgn" href="#__docusaurus_skipToContent_fallback">Skip to main content</a></div><nav aria-label="Main" class="theme-layout-navbar navbar navbar--fixed-top"><div class="navbar__inner"><div class="theme-layout-navbar-left navbar__items"><button aria-label="Toggle navigation bar" aria-expanded="false" class="navbar__toggle clean-btn" type="button"><svg width="30" height="30" viewBox="0 0 30 30" aria-hidden="true"><path stroke="currentColor" stroke-linecap="round" stroke-miterlimit="10" stroke-width="2" d="M4 7h22M4 15h22M4 23h22"></path></svg></button><a class="navbar__brand" href="/aibox/"><div class="navbar__logo"><img src="/aibox/img/logo-light.svg" alt="aibox logo" class="themedComponent_mlkZ themedComponent--light_NVdE" height="32" width="32"><img src="/aibox/img/logo-dark.svg" alt="aibox logo" class="themedComponent_mlkZ themedComponent--dark_xIcU" height="32" width="32"></div><b class="navbar__title text--truncate">aibox</b></a><a aria-current="page" class="navbar__item navbar__link navbar__link--active" href="/aibox/docs/getting-started/installation">Docs</a><a class="navbar__item navbar__link" href="/aibox/features">Features</a><a class="navbar__item navbar__link" href="/aibox/changelog">Changelog</a></div><div class="theme-layout-navbar-right navbar__items navbar__items--right"><a href="https://github.com/projectious-work/aibox" target="_blank" rel="noopener noreferrer" class="navbar__item navbar__link">GitHub<svg width="13.5" height="13.5" aria-label="(opens in new tab)" class="iconExternalLink_nPIU"><use href="#theme-svg-external-link"></use></svg></a><div class="toggle_vylO colorModeToggle_DEke"><button class="clean-btn toggleButton_gllP toggleButtonDisabled_aARS" type="button" disabled="" title="system mode" aria-label="Switch between dark and light mode (currently system mode)"><svg viewBox="0 0 24 24" width="24" height="24" aria-hidden="true" class="toggleIcon_g3eP lightToggleIcon_pyhR"><path fill="currentColor" d="M12,9c1.65,0,3,1.35,3,3s-1.35,3-3,3s-3-1.35-3-3S10.35,9,12,9 M12,7c-2.76,0-5,2.24-5,5s2.24,5,5,5s5-2.24,5-5 S14.76,7,12,7L12,7z M2,13l2,0c0.55,0,1-0.45,1-1s-0.45-1-1-1l-2,0c-0.55,0-1,0.45-1,1S1.45,13,2,13z M20,13l2,0c0.55,0,1-0.45,1-1 s-0.45-1-1-1l-2,0c-0.55,0-1,0.45-1,1S19.45,13,20,13z M11,2v2c0,0.55,0.45,1,1,1s1-0.45,1-1V2c0-0.55-0.45-1-1-1S11,1.45,11,2z M11,20v2c0,0.55,0.45,1,1,1s1-0.45,1-1v-2c0-0.55-0.45-1-1-1C11.45,19,11,19.45,11,20z M5.99,4.58c-0.39-0.39-1.03-0.39-1.41,0 c-0.39,0.39-0.39,1.03,0,1.41l1.06,1.06c0.39,0.39,1.03,0.39,1.41,0s0.39-1.03,0-1.41L5.99,4.58z M18.36,16.95 c-0.39-0.39-1.03-0.39-1.41,0c-0.39,0.39-0.39,1.03,0,1.41l1.06,1.06c0.39,0.39,1.03,0.39,1.41,0c0.39-0.39,0.39-1.03,0-1.41 L18.36,16.95z M19.42,5.99c0.39-0.39,0.39-1.03,0-1.41c-0.39-0.39-1.03-0.39-1.41,0l-1.06,1.06c-0.39,0.39-0.39,1.03,0,1.41 s1.03,0.39,1.41,0L19.42,5.99z M7.05,18.36c0.39-0.39,0.39-1.03,0-1.41c-0.39-0.39-1.03-0.39-1.41,0l-1.06,1.06 c-0.39,0.39-0.39,1.03,0,1.41s1.03,0.39,1.41,0L7.05,18.36z"></path></svg><svg viewBox="0 0 24 24" width="24" height="24" aria-hidden="true" class="toggleIcon_g3eP darkToggleIcon_wfgR"><path fill="currentColor" d="M9.37,5.51C9.19,6.15,9.1,6.82,9.1,7.5c0,4.08,3.32,7.4,7.4,7.4c0.68,0,1.35-0.09,1.99-0.27C17.45,17.19,14.93,19,12,19 c-3.86,0-7-3.14-7-7C5,9.07,6.81,6.55,9.37,5.51z M12,3c-4.97,0-9,4.03-9,9s4.03,9,9,9s9-4.03,9-9c0-0.46-0.04-0.92-0.1-1.36 c-0.98,1.37-2.58,2.26-4.4,2.26c-2.98,0-5.4-2.42-5.4-5.4c0-1.81,0.89-3.42,2.26-4.4C12.92,3.04,12.46,3,12,3L12,3z"></path></svg><svg viewBox="0 0 24 24" width="24" height="24" aria-hidden="true" class="toggleIcon_g3eP systemToggleIcon_QzmC"><path fill="currentColor" d="m12 21c4.971 0 9-4.029 9-9s-4.029-9-9-9-9 4.029-9 9 4.029 9 9 9zm4.95-13.95c1.313 1.313 2.05 3.093 2.05 4.95s-0.738 3.637-2.05 4.95c-1.313 1.313-3.093 2.05-4.95 2.05v-14c1.857 0 3.637 0.737 4.95 2.05z"></path></svg></button></div><div class="navbarSearchContainer_Bca1"></div></div></div><div role="presentation" class="navbar-sidebar__backdrop"></div></nav><div id="__docusaurus_skipToContent_fallback" class="theme-layout-main main-wrapper mainWrapper_z2l0"><div class="docsWrapper_hBAB"><button aria-label="Scroll back to top" class="clean-btn theme-back-to-top-button backToTopButton_sjWU" type="button"></button><div class="docRoot_UBD9"><aside class="theme-doc-sidebar-container docSidebarContainer_YfHR"><div class="sidebarViewport_aRkj"><div class="sidebar_njMd"><nav aria-label="Docs sidebar" class="menu thin-scrollbar menu_SIkG"><ul class="theme-doc-sidebar-menu menu__list"><li class="theme-doc-sidebar-item-category theme-doc-sidebar-item-category-level-1 menu__list-item"><div class="menu__list-item-collapsible"><a class="categoryLink_byQd menu__link menu__link--sublist menu__link--sublist-caret" role="button" aria-expanded="true" href="/aibox/docs/getting-started/installation"><span title="Getting Started" class="categoryLinkLabel_W154">Getting Started</span></a></div><ul class="menu__list"><li class="theme-doc-sidebar-item-link theme-doc-sidebar-item-link-level-2 menu__list-item"><a class="menu__link" tabindex="0" href="/aibox/docs/getting-started/installation"><span title="Installation" class="linkLabel_WmDU">Installation</span></a></li><li class="theme-doc-sidebar-item-link theme-doc-sidebar-item-link-level-2 menu__list-item"><a class="menu__link" tabindex="0" href="/aibox/docs/getting-started/new-project"><span title="New Project" class="linkLabel_WmDU">New Project</span></a></li><li class="theme-doc-sidebar-item-link theme-doc-sidebar-item-link-level-2 menu__list-item"><a class="menu__link" tabindex="0" href="/aibox/docs/getting-started/existing-project"><span title="Existing Project" class="linkLabel_WmDU">Existing Project</span></a></li></ul></li><li class="theme-doc-sidebar-item-category theme-doc-sidebar-item-category-level-1 menu__list-item menu__list-item--collapsed"><div class="menu__list-item-collapsible"><a class="categoryLink_byQd menu__link menu__link--sublist menu__link--sublist-caret" role="button" aria-expanded="false" href="/aibox/docs/container/base-image"><span title="Container" class="categoryLinkLabel_W154">Container</span></a></div></li><li class="theme-doc-sidebar-item-category theme-doc-sidebar-item-category-level-1 menu__list-item menu__list-item--collapsed"><div class="menu__list-item-collapsible"><a class="categoryLink_byQd menu__link menu__link--sublist menu__link--sublist-caret" role="button" aria-expanded="false" href="/aibox/docs/addons/overview"><span title="Addons" class="categoryLinkLabel_W154">Addons</span></a></div></li><li class="theme-doc-sidebar-item-category theme-doc-sidebar-item-category-level-1 menu__list-item menu__list-item--collapsed"><div class="menu__list-item-collapsible"><a class="categoryLink_byQd menu__link menu__link--sublist menu__link--sublist-caret" role="button" aria-expanded="false" href="/aibox/docs/providers/ai-claude"><span title="AI Providers" class="categoryLinkLabel_W154">AI Providers</span></a></div></li><li class="theme-doc-sidebar-item-category theme-doc-sidebar-item-category-level-1 menu__list-item menu__list-item--collapsed"><div class="menu__list-item-collapsible"><a class="categoryLink_byQd menu__link menu__link--sublist menu__link--sublist-caret" role="button" aria-expanded="false" href="/aibox/docs/context/overview"><span title="Context System" class="categoryLinkLabel_W154">Context System</span></a></div></li><li class="theme-doc-sidebar-item-category theme-doc-sidebar-item-category-level-1 menu__list-item"><div class="menu__list-item-collapsible"><a class="categoryLink_byQd menu__link menu__link--sublist menu__link--sublist-caret menu__link--active" role="button" aria-expanded="true" href="/aibox/docs/skills/"><span title="Skills Library" class="categoryLinkLabel_W154">Skills Library</span></a></div><ul class="menu__list"><li class="theme-doc-sidebar-item-link theme-doc-sidebar-item-link-level-2 menu__list-item"><a class="menu__link" tabindex="0" href="/aibox/docs/skills/"><span title="Skills Library" class="linkLabel_WmDU">Skills Library</span></a></li><li class="theme-doc-sidebar-item-link theme-doc-sidebar-item-link-level-2 menu__list-item"><a class="menu__link" tabindex="0" href="/aibox/docs/skills/process"><span title="Process Skills" class="linkLabel_WmDU">Process Skills</span></a></li><li class="theme-doc-sidebar-item-link theme-doc-sidebar-item-link-level-2 menu__list-item"><a class="menu__link" tabindex="0" href="/aibox/docs/skills/development"><span title="Development Skills" class="linkLabel_WmDU">Development Skills</span></a></li><li class="theme-doc-sidebar-item-link theme-doc-sidebar-item-link-level-2 menu__list-item"><a class="menu__link" tabindex="0" href="/aibox/docs/skills/language"><span title="Language Skills" class="linkLabel_WmDU">Language Skills</span></a></li><li class="theme-doc-sidebar-item-link theme-doc-sidebar-item-link-level-2 menu__list-item"><a class="menu__link menu__link--active" aria-current="page" tabindex="0" href="/aibox/docs/skills/infrastructure"><span title="Infrastructure Skills" class="linkLabel_WmDU">Infrastructure Skills</span></a></li><li class="theme-doc-sidebar-item-link theme-doc-sidebar-item-link-level-2 menu__list-item"><a class="menu__link" tabindex="0" href="/aibox/docs/skills/architecture"><span title="Architecture Skills" class="linkLabel_WmDU">Architecture Skills</span></a></li><li class="theme-doc-sidebar-item-link theme-doc-sidebar-item-link-level-2 menu__list-item"><a class="menu__link" tabindex="0" href="/aibox/docs/skills/design"><span title="Design &amp; Visual Skills" class="linkLabel_WmDU">Design &amp; Visual Skills</span></a></li><li class="theme-doc-sidebar-item-link theme-doc-sidebar-item-link-level-2 menu__list-item"><a class="menu__link" tabindex="0" href="/aibox/docs/skills/data"><span title="Data &amp; Analytics Skills" class="linkLabel_WmDU">Data &amp; Analytics Skills</span></a></li><li class="theme-doc-sidebar-item-link theme-doc-sidebar-item-link-level-2 menu__list-item"><a class="menu__link" tabindex="0" href="/aibox/docs/skills/ai-ml"><span title="AI &amp; ML Skills" class="linkLabel_WmDU">AI &amp; ML Skills</span></a></li><li class="theme-doc-sidebar-item-link theme-doc-sidebar-item-link-level-2 menu__list-item"><a class="menu__link" tabindex="0" href="/aibox/docs/skills/api"><span title="API &amp; Integration Skills" class="linkLabel_WmDU">API &amp; Integration Skills</span></a></li><li class="theme-doc-sidebar-item-link theme-doc-sidebar-item-link-level-2 menu__list-item"><a class="menu__link" tabindex="0" href="/aibox/docs/skills/security"><span title="Security Skills" class="linkLabel_WmDU">Security Skills</span></a></li><li class="theme-doc-sidebar-item-link theme-doc-sidebar-item-link-level-2 menu__list-item"><a class="menu__link" tabindex="0" href="/aibox/docs/skills/observability"><span title="Observability Skills" class="linkLabel_WmDU">Observability Skills</span></a></li><li class="theme-doc-sidebar-item-link theme-doc-sidebar-item-link-level-2 menu__list-item"><a class="menu__link" tabindex="0" href="/aibox/docs/skills/database"><span title="Database Skills" class="linkLabel_WmDU">Database Skills</span></a></li><li class="theme-doc-sidebar-item-link theme-doc-sidebar-item-link-level-2 menu__list-item"><a class="menu__link" tabindex="0" href="/aibox/docs/skills/performance"><span title="Performance Skills" class="linkLabel_WmDU">Performance Skills</span></a></li><li class="theme-doc-sidebar-item-link theme-doc-sidebar-item-link-level-2 menu__list-item"><a class="menu__link" tabindex="0" href="/aibox/docs/skills/framework"><span title="Framework &amp; SEO Skills" class="linkLabel_WmDU">Framework &amp; SEO Skills</span></a></li></ul></li><li class="theme-doc-sidebar-item-category theme-doc-sidebar-item-category-level-1 menu__list-item menu__list-item--collapsed"><div class="menu__list-item-collapsible"><a class="categoryLink_byQd menu__link menu__link--sublist menu__link--sublist-caret" role="button" aria-expanded="false" href="/aibox/docs/customization/themes"><span title="Customization" class="categoryLinkLabel_W154">Customization</span></a></div></li><li class="theme-doc-sidebar-item-category theme-doc-sidebar-item-category-level-1 menu__list-item menu__list-item--collapsed"><div class="menu__list-item-collapsible"><a class="categoryLink_byQd menu__link menu__link--sublist menu__link--sublist-caret" role="button" aria-expanded="false" href="/aibox/docs/reference/cli-commands"><span title="Reference" class="categoryLinkLabel_W154">Reference</span></a></div></li><li class="theme-doc-sidebar-item-link theme-doc-sidebar-item-link-level-1 menu__list-item"><a class="menu__link" href="/aibox/docs/roadmap"><span title="Roadmap" class="linkLabel_WmDU">Roadmap</span></a></li><li class="theme-doc-sidebar-item-category theme-doc-sidebar-item-category-level-1 menu__list-item menu__list-item--collapsed"><div class="menu__list-item-collapsible"><a class="categoryLink_byQd menu__link menu__link--sublist menu__link--sublist-caret" role="button" aria-expanded="false" href="/aibox/docs/contributing/"><span title="Contributing" class="categoryLinkLabel_W154">Contributing</span></a></div></li></ul></nav></div></div></aside><main class="docMainContainer_TBSr"><div class="container padding-top--md padding-bottom--lg"><div class="row"><div class="col docItemCol_VOVn"><div class="docItemContainer_Djhp"><article><nav class="theme-doc-breadcrumbs breadcrumbsContainer_Z_bl" aria-label="Breadcrumbs"><ul class="breadcrumbs"><li class="breadcrumbs__item"><a aria-label="Home page" class="breadcrumbs__link" href="/aibox/"><svg viewBox="0 0 24 24" class="breadcrumbHomeIcon_YNFT"><path d="M10 19v-5h4v5c0 .55.45 1 1 1h3c.55 0 1-.45 1-1v-7h1.7c.46 0 .68-.57.33-.87L12.67 3.6c-.38-.34-.96-.34-1.34 0l-8.36 7.53c-.34.3-.13.87.33.87H5v7c0 .55.45 1 1 1h3c.55 0 1-.45 1-1z" fill="currentColor"></path></svg></a></li><li class="breadcrumbs__item"><span class="breadcrumbs__link">Skills Library</span></li><li class="breadcrumbs__item breadcrumbs__item--active"><span class="breadcrumbs__link">Infrastructure Skills</span></li></ul></nav><div class="tocCollapsible_ETCw theme-doc-toc-mobile tocMobile_ITEo"><button type="button" class="clean-btn tocCollapsibleButton_TO0P">On this page</button></div><div class="theme-doc-markdown markdown"><header><h1>Infrastructure Skills</h1></header>
+<p>Skills for containers, orchestration, networking, system administration, and CI/CD.</p>
+<hr>
+<h3 class="anchor anchorTargetStickyNavbar_Vzrq" id="dockerfile-review">dockerfile-review<a href="#dockerfile-review" class="hash-link" aria-label="Direct link to dockerfile-review" title="Direct link to dockerfile-review" translate="no">​</a></h3>
+<blockquote>
+<p>Dockerfile best practices review -- layer optimization, caching, security, image size. Use when writing or reviewing Dockerfiles.</p>
+</blockquote>
+<p><strong>Triggers:</strong> When the user asks to review a Dockerfile, optimize an image, or says &quot;why is my image so big?&quot;, &quot;is this Dockerfile correct?&quot;, or &quot;help me with Docker&quot;.
+<strong>Tools:</strong> None
+<strong>References:</strong> None</p>
+<p>Key capabilities:</p>
+<ul>
+<li class="">Layer optimization: combine related <code>RUN</code> commands, order from least to most frequently changing</li>
+<li class="">Caching: copy dependency manifests first, install, then copy source</li>
+<li class="">Security: don&#x27;t run as root, never <code>COPY</code> secrets, pin base images with digest, remove package caches</li>
+<li class="">Size reduction: slim/alpine base images, multi-stage builds, <code>--no-install-recommends</code></li>
+<li class="">Correctness: use <code>COPY</code> over <code>ADD</code>, set <code>WORKDIR</code> instead of <code>cd</code>, exec form for <code>CMD</code>/<code>ENTRYPOINT</code></li>
+</ul>
+<details class="details_lb9f alert alert--info details_b_Ee" data-collapsed="true"><summary>Example usage</summary><div><div class="collapsibleContent_i85q">
+<p>User says &quot;Review my Dockerfile.&quot; The agent reads it and identifies that dependency installation and source copy are in the same layer (cache-busting), apt lists aren&#x27;t cleaned up, and the container runs as root. Provides specific fixes for each issue.</p>
+</div></div></details>
+<hr>
+<h3 class="anchor anchorTargetStickyNavbar_Vzrq" id="ci-cd-setup">ci-cd-setup<a href="#ci-cd-setup" class="hash-link" aria-label="Direct link to ci-cd-setup" title="Direct link to ci-cd-setup" translate="no">​</a></h3>
+<blockquote>
+<p>CI/CD pipeline setup -- GitHub Actions, testing, linting, deployment. Use when setting up or improving continuous integration and deployment.</p>
+</blockquote>
+<p><strong>Triggers:</strong> When the user asks to &quot;set up CI&quot;, &quot;add GitHub Actions&quot;, &quot;automate tests&quot;, &quot;add deployment&quot;, or wants to improve their build pipeline.
+<strong>Tools:</strong> None
+<strong>References:</strong> None</p>
+<p>Key capabilities:</p>
+<ul>
+<li class="">Pipeline stages in order: lint (fastest feedback), test (unit then integration), build, deploy</li>
+<li class="">GitHub Actions basics: trigger on push/PR, specific action versions, cache dependencies, set timeouts</li>
+<li class="">Testing in CI: same commands as local dev, matrix builds when needed, fail fast</li>
+<li class="">Security: use GitHub Secrets, <code>permissions</code> key for token scope, pin third-party actions to SHA</li>
+<li class="">Best practices: keep CI under 5 minutes for PRs, require CI pass before merge, run expensive checks only on main</li>
+</ul>
+<details class="details_lb9f alert alert--info details_b_Ee" data-collapsed="true"><summary>Example usage</summary><div><div class="collapsibleContent_i85q">
+<p>User asks to set up CI for a Rust project. The agent creates <code>.github/workflows/ci.yml</code> with lint (clippy), test (cargo test), and build steps, with cargo caching for faster runs.</p>
+</div></div></details>
+<hr>
+<h3 class="anchor anchorTargetStickyNavbar_Vzrq" id="kubernetes-basics">kubernetes-basics<a href="#kubernetes-basics" class="hash-link" aria-label="Direct link to kubernetes-basics" title="Direct link to kubernetes-basics" translate="no">​</a></h3>
+<blockquote>
+<p>Kubernetes cluster management, resource definitions, networking, storage, Helm, and troubleshooting. Use when working with Kubernetes manifests, kubectl commands, Helm charts, or debugging pod/service issues.</p>
+</blockquote>
+<p><strong>Triggers:</strong> When writing or editing Kubernetes YAML manifests, running kubectl or helm commands, debugging pods/services/networking/storage, or managing Helm charts.
+<strong>Tools:</strong> <code>Bash(kubectl:*)</code>, <code>Bash(helm:*)</code>, <code>Bash(k9s:*)</code>, <code>Read</code>, <code>Write</code>
+<strong>References:</strong> <code>references/resource-cheatsheet.md</code>, <code>references/cluster-architecture.md</code>, <code>references/troubleshooting.md</code></p>
+<p>Key capabilities:</p>
+<ul>
+<li class="">Cluster context management: confirm active cluster and namespace before changes</li>
+<li class="">Core resources: Deployments (stateless), StatefulSets (stateful), DaemonSets (per-node), Jobs/CronJobs</li>
+<li class="">Networking: ClusterIP, NodePort, LoadBalancer services; Ingress for HTTP routing; Network Policies</li>
+<li class="">Storage: PersistentVolumes, PersistentVolumeClaims, StorageClasses, <code>volumeClaimTemplates</code></li>
+<li class="">Configuration: ConfigMaps and Secrets, prefer volume mounts over env vars</li>
+<li class="">Helm: repo management, install/upgrade/rollback, <code>helm template</code> for inspection, pin chart versions</li>
+<li class="">Troubleshooting workflow: events, describe, logs, exec, top</li>
+<li class="">Safe changes: <code>kubectl diff</code> before <code>apply</code>, <code>--dry-run=client</code> for validation, <code>rollout undo</code> for rollback</li>
+</ul>
+<details class="details_lb9f alert alert--info details_b_Ee" data-collapsed="true"><summary>Example usage</summary><div><div class="collapsibleContent_i85q">
+<p>User has a pod stuck in CrashLoopBackOff. The agent runs <code>kubectl describe pod</code> to check events for OOM or probe failures, <code>kubectl logs --previous</code> to see logs from the crashed container, and inspects the pod YAML for resource limits and command issues.</p>
+</div></div></details>
+<hr>
+<h3 class="anchor anchorTargetStickyNavbar_Vzrq" id="dns-networking">dns-networking<a href="#dns-networking" class="hash-link" aria-label="Direct link to dns-networking" title="Direct link to dns-networking" translate="no">​</a></h3>
+<blockquote>
+<p>DNS resolution, IP addressing, subnetting, network protocols, and diagnostic tools. Use when configuring DNS records, debugging connectivity, setting up networking, or troubleshooting network issues.</p>
+</blockquote>
+<p><strong>Triggers:</strong> When setting up or modifying DNS records, debugging DNS resolution or connectivity, configuring firewalls, analyzing HTTP/TLS issues, calculating subnets, or diagnosing latency and routing problems.
+<strong>Tools:</strong> <code>Bash(dig:*)</code>, <code>Bash(nslookup:*)</code>, <code>Bash(traceroute:*)</code>, <code>Bash(curl:*)</code>, <code>Bash(ss:*)</code>, <code>Read</code>, <code>Write</code>
+<strong>References:</strong> <code>references/protocol-reference.md</code>, <code>references/troubleshooting-tools.md</code></p>
+<p>Key capabilities:</p>
+<ul>
+<li class="">DNS fundamentals: record types (A, AAAA, CNAME, MX, TXT, SRV, NS, SOA, PTR), TTL management</li>
+<li class="">IP addressing and subnetting: CIDR notation, private ranges (RFC 1918), quick subnet math</li>
+<li class="">Common protocols: TCP vs UDP, HTTP/HTTPS, DNS, SSH, SMTP/IMAP</li>
+<li class="">TLS and HTTPS: handshake process, debugging expired certificates and hostname mismatches</li>
+<li class="">Port management: listing listeners with <code>ss</code>, well-known vs ephemeral port ranges</li>
+<li class="">Firewall basics with <code>ufw</code> and <code>iptables</code></li>
+<li class="">Load balancing concepts: round-robin DNS, reverse proxy (Layer 7), Layer 4 LB</li>
+<li class="">Diagnostic workflow: DNS resolution, reachability, route tracing, port checks, application testing</li>
+</ul>
+<details class="details_lb9f alert alert--info details_b_Ee" data-collapsed="true"><summary>Example usage</summary><div><div class="collapsibleContent_i85q">
+<p>User reports a DNS record not propagating after a change. The agent checks the current authoritative answer vs cached answer with <code>dig @ns1.provider.com</code> and <code>dig @8.8.8.8</code>, runs <code>dig +trace</code> for the full resolution chain, and advises waiting for the old TTL to expire if the authoritative server shows the new value.</p>
+</div></div></details>
+<hr>
+<h3 class="anchor anchorTargetStickyNavbar_Vzrq" id="terraform-basics">terraform-basics<a href="#terraform-basics" class="hash-link" aria-label="Direct link to terraform-basics" title="Direct link to terraform-basics" translate="no">​</a></h3>
+<blockquote>
+<p>Infrastructure-as-code with Terraform/OpenTofu. Resources, providers, state, modules, and plan/apply workflow. Use when writing Terraform configs, managing cloud infrastructure, or reviewing IaC code.</p>
+</blockquote>
+<p><strong>Triggers:</strong> When writing or editing <code>.tf</code> files, planning/applying/destroying infrastructure, managing state and backends, creating modules, or reviewing IaC for best practices.
+<strong>Tools:</strong> <code>Bash(terraform:*)</code>, <code>Bash(tofu:*)</code>, <code>Read</code>, <code>Write</code>
+<strong>References:</strong> None</p>
+<p>Key capabilities:</p>
+<ul>
+<li class="">Resources and providers: pin provider versions in <code>required_providers</code>, descriptive resource names</li>
+<li class="">Variables with types, descriptions, and validation; outputs with descriptions</li>
+<li class="">Data sources to reference existing infrastructure without managing it</li>
+<li class="">State management: remote backends (S3 + DynamoDB), never edit state manually, <code>terraform import</code></li>
+<li class="">Modules for reuse: focused on single concern, pin versions in production</li>
+<li class="">Plan/apply/destroy workflow: <code>init</code>, <code>fmt</code>, <code>validate</code>, <code>plan -out</code>, <code>apply</code></li>
+<li class="">Best practices: one state per environment, <code>prevent_destroy</code> on critical resources, tag all resources, <code>moved</code> blocks for refactoring</li>
+</ul>
+<details class="details_lb9f alert alert--info details_b_Ee" data-collapsed="true"><summary>Example usage</summary><div><div class="collapsibleContent_i85q">
+<p>User needs to provision an EC2 instance. The agent writes Terraform config with a security group, AMI data source, typed variables, and outputs. Uses <code>terraform plan -out=tfplan</code> followed by <code>terraform apply tfplan</code> for safe deployment.</p>
+</div></div></details>
+<hr>
+<h3 class="anchor anchorTargetStickyNavbar_Vzrq" id="container-orchestration">container-orchestration<a href="#container-orchestration" class="hash-link" aria-label="Direct link to container-orchestration" title="Direct link to container-orchestration" translate="no">​</a></h3>
+<blockquote>
+<p>Docker Compose patterns for multi-service architectures. Health checks, networking, volumes, and service dependencies. Use when designing docker-compose files, debugging container networking, or managing multi-container applications.</p>
+</blockquote>
+<p><strong>Triggers:</strong> When writing Docker Compose files, designing multi-service architectures, debugging container networking, setting up health checks, managing volumes, or configuring environment variables.
+<strong>Tools:</strong> <code>Bash(docker:*)</code>, <code>Bash(docker-compose:*)</code>, <code>Read</code>, <code>Write</code>
+<strong>References:</strong> <code>references/compose-patterns.md</code></p>
+<p>Key capabilities:</p>
+<ul>
+<li class="">Compose file structure: services, networks, and volumes at top level</li>
+<li class="">Build vs image: <code>build</code> for developed services, <code>image</code> for third-party</li>
+<li class="">Health checks with <code>depends_on: condition: service_healthy</code> for proper startup ordering</li>
+<li class="">Networking: custom networks for traffic isolation, service name as hostname, <code>expose</code> vs <code>ports</code></li>
+<li class="">Volume strategies: named volumes (persistent), bind mounts (dev), tmpfs (sensitive/cache)</li>
+<li class="">Environment management: <code>.env</code> files with overrides, never put secrets in <code>docker-compose.yml</code></li>
+<li class="">Profiles for optional services (e.g., debug tools)</li>
+<li class="">Common commands: <code>up -d</code>, <code>logs -f</code>, <code>exec</code>, <code>down -v</code>, <code>config</code> for validation</li>
+</ul>
+<details class="details_lb9f alert alert--info details_b_Ee" data-collapsed="true"><summary>Example usage</summary><div><div class="collapsibleContent_i85q">
+<p>User has a service that cannot connect to the database. The agent checks both services are on the same network, verifies the db is healthy with <code>docker compose exec db pg_isready</code>, tests connectivity from the app container, and inspects environment variables for correct database host configuration.</p>
+</div></div></details>
+<hr>
+<h3 class="anchor anchorTargetStickyNavbar_Vzrq" id="linux-administration">linux-administration<a href="#linux-administration" class="hash-link" aria-label="Direct link to linux-administration" title="Direct link to linux-administration" translate="no">​</a></h3>
+<blockquote>
+<p>Essential Linux system administration for developers. File permissions, process management, systemd, journald, cron, and disk management. Use when managing Linux servers, debugging system issues, or writing system scripts.</p>
+</blockquote>
+<p><strong>Triggers:</strong> When managing file permissions, investigating processes, creating systemd services, querying logs with journalctl, setting up cron jobs, diagnosing disk issues, managing users, or installing packages.
+<strong>Tools:</strong> <code>Bash</code>, <code>Read</code>, <code>Write</code>
+<strong>References:</strong> <code>references/commands-cheatsheet.md</code>, <code>references/systemd-reference.md</code></p>
+<p>Key capabilities:</p>
+<ul>
+<li class="">File permissions and ownership: rwx model, numeric and symbolic notation, special bits (setuid, setgid, sticky)</li>
+<li class="">Process management: <code>ps aux</code>, <code>pgrep</code>, <code>kill</code> with SIGTERM before SIGKILL, <code>lsof</code>, <code>ss</code></li>
+<li class="">User and group management: <code>useradd</code>, <code>usermod -aG</code>, prefer <code>useradd</code> for scripting</li>
+<li class="">Systemd services: create unit files, <code>systemctl</code> commands, always <code>daemon-reload</code> after edits</li>
+<li class="">Journald logging: <code>journalctl -u</code>, filter by time and priority, manage journal size</li>
+<li class="">Cron jobs: crontab format, common schedules, always redirect output</li>
+<li class="">Disk and filesystem management: <code>df -h</code>, <code>du -sh</code>, <code>lsblk</code>, emergency disk space cleanup</li>
+<li class="">Package management with apt (Debian/Ubuntu) and dnf (RHEL/Fedora)</li>
+</ul>
+<details class="details_lb9f alert alert--info details_b_Ee" data-collapsed="true"><summary>Example usage</summary><div><div class="collapsibleContent_i85q">
+<p>User needs to diagnose high disk usage on a server. The agent runs <code>df -h</code> to check filesystem usage, <code>du -sh /* | sort -rh</code> to find the largest directories, drills into the biggest directory, and cleans up old logs with <code>journalctl --vacuum-size</code> and <code>apt autoremove</code>.</p>
+</div></div></details>
+<hr>
+<h3 class="anchor anchorTargetStickyNavbar_Vzrq" id="shell-scripting">shell-scripting<a href="#shell-scripting" class="hash-link" aria-label="Direct link to shell-scripting" title="Direct link to shell-scripting" translate="no">​</a></h3>
+<blockquote>
+<p>Bash scripting best practices including error handling, argument parsing, and shellcheck compliance. Use when writing shell scripts, reviewing bash code, or automating tasks with shell commands.</p>
+</blockquote>
+<p><strong>Triggers:</strong> When writing new shell scripts, reviewing bash code, adding error handling, parsing command-line arguments, or fixing shellcheck warnings.
+<strong>Tools:</strong> <code>Bash(shellcheck:*)</code>, <code>Bash(bash:*)</code>, <code>Read</code>, <code>Write</code>
+<strong>References:</strong> <code>references/bash-patterns.md</code></p>
+<p>Key capabilities:</p>
+<ul>
+<li class="">Script header: shebang (<code>#!/usr/bin/env bash</code>) and strict mode (<code>set -euo pipefail</code>)</li>
+<li class="">Variable quoting: always double-quote expansions, <code>${var:-default}</code> for defaults, <code>${var:?error}</code> for required</li>
+<li class="">Argument parsing with positional args and <code>getopts</code> for options</li>
+<li class="">Functions with <code>local</code> variables, return values via stdout</li>
+<li class="">Error handling and cleanup with <code>trap cleanup EXIT</code></li>
+<li class="">Arrays for safe file path handling with <code>find -print0</code> and <code>read -d &#x27;&#x27;</code></li>
+<li class="">Common pitfalls: never parse <code>ls</code>, use <code>[[ ]]</code> over <code>[ ]</code>, <code>$(command)</code> over backticks</li>
+<li class="">Shellcheck compliance: run on every script, disable warnings locally with comments, never globally</li>
+</ul>
+<details class="details_lb9f alert alert--info details_b_Ee" data-collapsed="true"><summary>Example usage</summary><div><div class="collapsibleContent_i85q">
+<p>User needs a script with argument parsing. The agent writes a script with shebang, strict mode, a usage function, <code>getopts</code> for options, input validation, and a trap for temp file cleanup on exit.</p>
+</div></div></details>
+<hr>
+<h3 class="anchor anchorTargetStickyNavbar_Vzrq" id="dependency-audit">dependency-audit<a href="#dependency-audit" class="hash-link" aria-label="Direct link to dependency-audit" title="Direct link to dependency-audit" translate="no">​</a></h3>
+<blockquote>
+<p>Audits project dependencies for vulnerabilities and outdated packages. Use when checking security posture or planning dependency updates.</p>
+</blockquote>
+<p><strong>Triggers:</strong> When the user asks to &quot;check dependencies&quot;, &quot;audit security&quot;, &quot;update packages&quot;, &quot;are my dependencies safe?&quot;, or before a release to verify dependency health.
+<strong>Tools:</strong> None
+<strong>References:</strong> None</p>
+<p>Key capabilities:</p>
+<ul>
+<li class="">Identify the package manager and run its audit tool: <code>cargo audit</code>, <code>pip-audit</code>, <code>npm audit</code>, <code>govulncheck</code></li>
+<li class="">Review findings by severity: critical/high (fix immediately), medium (plan for current sprint), low (track)</li>
+<li class="">Update strategy: one dependency at a time, full test suite after each, check changelogs for breaking changes</li>
+<li class="">Check for outdated packages: <code>cargo outdated</code>, <code>pip list --outdated</code>, <code>npm outdated</code></li>
+<li class="">Ongoing maintenance: monthly reviews, Dependabot/Renovate for automated PRs, document pinned versions</li>
+</ul>
+<details class="details_lb9f alert alert--info details_b_Ee" data-collapsed="true"><summary>Example usage</summary><div><div class="collapsibleContent_i85q">
+<p>User asks &quot;Are my dependencies secure?&quot; The agent runs the appropriate audit tool, summarizes findings by severity, and recommends specific version bumps for vulnerable packages. Flags any dependencies with no maintained alternatives.</p>
+</div></div></details>
+<hr>
+<h3 class="anchor anchorTargetStickyNavbar_Vzrq" id="secret-management">secret-management<a href="#secret-management" class="hash-link" aria-label="Direct link to secret-management" title="Direct link to secret-management" translate="no">​</a></h3>
+<blockquote>
+<p>Guides secure handling of secrets -- env vars, .env files, vault patterns. Use when dealing with API keys, passwords, tokens, or credentials.</p>
+</blockquote>
+<p><strong>Triggers:</strong> When the user needs to handle API keys, passwords, tokens, database credentials, or asks &quot;where should I put this secret?&quot;, &quot;is this safe?&quot;, or &quot;how do I manage credentials?&quot;.
+<strong>Tools:</strong> None
+<strong>References:</strong> None</p>
+<p>Key capabilities:</p>
+<ul>
+<li class="">Never commit secrets to git: add <code>.env</code> to <code>.gitignore</code>, check history for leaked secrets, rotate if compromised</li>
+<li class="">Local development: <code>.env</code> files with dotenv pattern, <code>.env.example</code> with placeholder values committed</li>
+<li class="">CI/CD: platform secret stores (GitHub Secrets, GitLab CI Variables), OIDC tokens over long-lived credentials</li>
+<li class="">Production: secrets managers (Vault, AWS Secrets Manager), rotate on 90-day schedule, short-lived tokens, least privilege</li>
+<li class="">Code patterns: read from environment variables, never hardcode, never log secrets, separate secrets per environment</li>
+</ul>
+<details class="details_lb9f alert alert--info details_b_Ee" data-collapsed="true"><summary>Example usage</summary><div><div class="collapsibleContent_i85q">
+<p>User needs to add an API key for the payment provider. The agent adds <code>PAYMENT_API_KEY=</code> to <code>.env.example</code>, updates <code>.gitignore</code> to include <code>.env</code>, reads the key from <code>os.environ[&quot;PAYMENT_API_KEY&quot;]</code> in code, and documents the required variable.</p>
+</div></div></details></div><footer class="theme-doc-footer docusaurus-mt-lg"><div class="row margin-top--sm theme-doc-footer-edit-meta-row"><div class="col noPrint_WFHX"><a href="https://github.com/projectious-work/aibox/tree/main/docs-site/docs/skills/infrastructure.md" target="_blank" rel="noopener noreferrer" class="theme-edit-this-page"><svg fill="currentColor" height="20" width="20" viewBox="0 0 40 40" class="iconEdit_Z9Sw" aria-hidden="true"><g><path d="m34.5 11.7l-3 3.1-6.3-6.3 3.1-3q0.5-0.5 1.2-0.5t1.1 0.5l3.9 3.9q0.5 0.4 0.5 1.1t-0.5 1.2z m-29.5 17.1l18.4-18.5 6.3 6.3-18.4 18.4h-6.3v-6.2z"></path></g></svg>Edit this page</a></div><div class="col lastUpdated_JAkA"></div></div></footer></article><nav class="docusaurus-mt-lg pagination-nav" aria-label="Docs pages"><a class="pagination-nav__link pagination-nav__link--prev" href="/aibox/docs/skills/language"><div class="pagination-nav__sublabel">Previous</div><div class="pagination-nav__label">Language Skills</div></a><a class="pagination-nav__link pagination-nav__link--next" href="/aibox/docs/skills/architecture"><div class="pagination-nav__sublabel">Next</div><div class="pagination-nav__label">Architecture Skills</div></a></nav></div></div><div class="col col--3"><div class="tableOfContents_bqdL thin-scrollbar theme-doc-toc-desktop"><ul class="table-of-contents table-of-contents__left-border"><li><a href="#dockerfile-review" class="table-of-contents__link toc-highlight">dockerfile-review</a></li><li><a href="#ci-cd-setup" class="table-of-contents__link toc-highlight">ci-cd-setup</a></li><li><a href="#kubernetes-basics" class="table-of-contents__link toc-highlight">kubernetes-basics</a></li><li><a href="#dns-networking" class="table-of-contents__link toc-highlight">dns-networking</a></li><li><a href="#terraform-basics" class="table-of-contents__link toc-highlight">terraform-basics</a></li><li><a href="#container-orchestration" class="table-of-contents__link toc-highlight">container-orchestration</a></li><li><a href="#linux-administration" class="table-of-contents__link toc-highlight">linux-administration</a></li><li><a href="#shell-scripting" class="table-of-contents__link toc-highlight">shell-scripting</a></li><li><a href="#dependency-audit" class="table-of-contents__link toc-highlight">dependency-audit</a></li><li><a href="#secret-management" class="table-of-contents__link toc-highlight">secret-management</a></li></ul></div></div></div></div></main></div></div></div><footer class="theme-layout-footer footer footer--dark"><div class="container container-fluid"><div class="row footer__links"><div class="theme-layout-footer-column col footer__col"><div class="footer__title">Docs</div><ul class="footer__items clean-list"><li class="footer__item"><a class="footer__link-item" href="/aibox/docs/getting-started/installation">Getting Started</a></li><li class="footer__item"><a class="footer__link-item" href="/aibox/docs/reference/configuration">Configuration</a></li><li class="footer__item"><a class="footer__link-item" href="/aibox/docs/skills/">Skills Library</a></li></ul></div><div class="theme-layout-footer-column col footer__col"><div class="footer__title">Project</div><ul class="footer__items clean-list"><li class="footer__item"><a href="https://github.com/projectious-work/aibox" target="_blank" rel="noopener noreferrer" class="footer__link-item">GitHub<svg width="13.5" height="13.5" aria-label="(opens in new tab)" class="iconExternalLink_nPIU"><use href="#theme-svg-external-link"></use></svg></a></li><li class="footer__item"><a class="footer__link-item" href="/aibox/changelog">Changelog</a></li></ul></div></div><div class="footer__bottom text--center"><div class="footer__copyright">© 2026 projectious.work</div></div></div></footer></div>
+</body>
+</html>
