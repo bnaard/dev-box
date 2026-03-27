@@ -16,7 +16,7 @@ fn toml_path(config_path: &Option<String>) -> PathBuf {
 
 /// Compute the effective skill set from a loaded config.
 fn effective_skills(config: &AiboxConfig) -> Result<Vec<String>> {
-    let packages = process_registry::resolve_packages(&config.process.packages)
+    let packages = process_registry::resolve_packages(&config.context.packages)
         .map_err(|e| anyhow::anyhow!(e))?;
     let skill_includes = config.effective_skill_includes();
     let skills = process_registry::resolve_skills(

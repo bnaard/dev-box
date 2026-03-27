@@ -213,6 +213,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     gh \
     # ── Yazi preview dependencies (~150 MB — heaviest group) ──
     chafa \
+    librsvg2-bin \
     poppler-utils \
     ffmpeg \
     imagemagick \

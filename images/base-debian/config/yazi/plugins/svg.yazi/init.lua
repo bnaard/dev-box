@@ -1,27 +1,19 @@
 -- svg.yazi — SVG previewer for yazi
--- Converts SVG to PNG using resvg, then renders via the built-in image previewer.
--- Requires: resvg in PATH.
--- Falls back to chafa (via image previewer) if conversion fails.
-
-local function fail(msg)
-	return Err(msg)
-end
+-- Converts SVG to PNG using resvg (x86_64) or rsvg-convert (aarch64 fallback).
 
 return {
 	entry = function(self, job)
 		local cache = ya.file_cache(job)
 		if not cache then
-			return fail("No cache path")
+			return Err("No cache path")
 		end
 
-		-- Only render if the cache file does not already exist
 		if cache:exists() then
 			return Image:new(job, cache):show()
 		end
 
-		-- Convert SVG → PNG via resvg
-		-- --width / --height: cap output to preview dimensions
-		local ok, err, code = Command("resvg")
+		-- Try resvg first (high quality, static binary — available on x86_64)
+		local ok = Command("resvg")
 			:args({
 				"--width",
 				tostring(job.area.w * 4),
@@ -34,10 +26,27 @@ return {
 			:stderr(Command.NULL)
 			:status()
 
-		if not ok then
-			return fail("resvg not found or failed (code " .. tostring(code) .. "): " .. tostring(err))
+		if ok then
+			return Image:new(job, cache):show()
 		end
 
-		return Image:new(job, cache):show()
+		-- Fallback: rsvg-convert (from librsvg2-bin, available on all architectures)
+		ok = Command("rsvg-convert")
+			:args({
+				"--width", tostring(job.area.w * 4),
+				"--height", tostring(job.area.h * 4),
+				"--keep-aspect-ratio",
+				"--output", tostring(cache),
+				tostring(job.file.url),
+			})
+			:stdout(Command.NULL)
+			:stderr(Command.NULL)
+			:status()
+
+		if ok then
+			return Image:new(job, cache):show()
+		end
+
+		return Err("SVG preview failed: install resvg or librsvg2-bin")
 	end,
 }

@@ -76,10 +76,10 @@ See [Migration](migration.md) for details on how upgrades work.
 
 ## Relationship to aibox.toml
 
-The `[process]` section in `aibox.toml` determines which context files are scaffolded during `aibox init`:
+The `[context]` section in `aibox.toml` determines which context files are scaffolded during `aibox init`:
 
 ```toml
-[process]
+[context]
 packages = ["managed"]
 ```
 

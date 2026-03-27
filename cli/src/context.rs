@@ -399,7 +399,7 @@ are working with and tailor their communication and technical approach according
 /// - Creates .aibox-version file
 /// - Updates .gitignore with generated file entries and language-specific blocks
 pub fn scaffold_context(config: &AiboxConfig) -> Result<()> {
-    let packages = process_registry::resolve_packages(&config.process.packages)
+    let packages = process_registry::resolve_packages(&config.context.packages)
         .map_err(|e| anyhow::anyhow!(e))?;
     let skill_includes = config.effective_skill_includes();
     let effective_skills = process_registry::resolve_skills(
@@ -414,7 +414,7 @@ pub fn scaffold_context(config: &AiboxConfig) -> Result<()> {
 
     output::info(&format!(
         "Scaffolding context for {:?} packages ({} skills)...",
-        config.process.packages,
+        config.context.packages,
         effective_skills.len()
     ));
 
@@ -504,7 +504,7 @@ pub fn scaffold_context(config: &AiboxConfig) -> Result<()> {
 
     output::ok(&format!(
         "Context scaffolded ({:?} packages, {} skills)",
-        config.process.packages,
+        config.context.packages,
         effective_skills.len()
     ));
     Ok(())
@@ -1409,7 +1409,7 @@ fn ensure_aibox_entries(gitignore_path: &Path) -> Result<()> {
 /// - Deploys missing skills from the effective set (write_if_missing)
 /// - Reports orphan skills (on disk but not in the effective set)
 pub fn reconcile_skills(config: &AiboxConfig) -> Result<()> {
-    let packages = process_registry::resolve_packages(&config.process.packages)
+    let packages = process_registry::resolve_packages(&config.context.packages)
         .map_err(|e| anyhow::anyhow!(e))?;
     let skill_includes = config.effective_skill_includes();
     let effective = process_registry::resolve_skills(
@@ -1484,7 +1484,7 @@ pub fn generate_aibox_md(config: &AiboxConfig) -> Result<()> {
         return Ok(());
     }
 
-    let packages = &config.process.packages;
+    let packages = &config.context.packages;
     let version = &config.aibox.version;
     let base = &config.aibox.base;
 
@@ -1699,7 +1699,7 @@ mod tests {
 
     fn test_config_with_packages(packages: Vec<String>) -> AiboxConfig {
         let mut config = crate::config::test_config();
-        config.process.packages = packages;
+        config.context.packages = packages;
         config
     }
 

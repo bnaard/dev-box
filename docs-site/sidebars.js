@@ -16,11 +16,11 @@ const sidebars = {
         'addons/language-runtimes',
         'addons/tool-bundles',
         'addons/documentation',
-        'addons/ai-claude',
-        'addons/ai-aider',
-        'addons/ai-gemini',
-        'addons/ai-mistral',
       ],
+    },
+    {
+      type: 'category', label: 'AI Providers',
+      items: ['providers/ai-claude', 'providers/ai-aider', 'providers/ai-gemini', 'providers/ai-mistral'],
     },
     {
       type: 'category', label: 'Context System',
@@ -32,7 +32,7 @@ const sidebars = {
     },
     {
       type: 'category', label: 'Customization',
-      items: ['customization/themes', 'customization/prompts', 'customization/custom-themes', 'customization/custom-prompts'],
+      items: ['customization/themes', 'customization/prompts', 'customization/layouts', 'customization/custom-themes', 'customization/custom-prompts'],
     },
     {
       type: 'category', label: 'Reference',

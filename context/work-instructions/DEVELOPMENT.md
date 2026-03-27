@@ -86,7 +86,7 @@ will SCP the updated binary.
 ### Key Files
 
 - `.devcontainer/Dockerfile.e2e` — Companion container image (debian + podman + sshd)
-- `.devcontainer/ssh-e2e/` — Pre-seeded ed25519 test SSH keys
+- `.aibox-e2e-runner-home/.ssh/` — Ed25519 test SSH keys (gitignored, generated locally)
 - `cli/tests/e2e/runner.rs` — SSH+SCP test harness (`E2eRunner`)
 - `cli/tests/e2e/mock_runtime.rs` — Mock docker/podman for command validation
 - `cli/tests/e2e/infra/mock-docker.sh` / `mock-podman.sh` — Mock runtime scripts

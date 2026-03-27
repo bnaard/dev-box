@@ -14,13 +14,16 @@ services:
   # No shared volumes — the test harness SCPs the aibox binary + addons into
   # the companion, making it a realistic simulation of a user's host machine.
   # Accessible from aibox-devcontainer via:
-  #   ssh -i /workspace/.devcontainer/ssh-e2e/id_ed25519 testuser@aibox-e2e-testrunner
+  #   ssh -i /workspace/.aibox-e2e-runner-home/.ssh/id_ed25519 testuser@aibox-e2e-testrunner
   aibox-e2e-testrunner:
     build:
       context: .
       dockerfile: Dockerfile.e2e
     container_name: aibox-e2e-testrunner
     hostname: aibox-e2e-testrunner
+    volumes:
+      # SSH keys — mounted from host (never committed to git)
+      - ../.aibox-e2e-runner-home/.ssh:/home/testuser/.ssh:ro
     # Podman rootless inside a container needs:
     #   seccomp=unconfined  — allows syscalls used by user-namespace creation
     #   SYS_ADMIN           — allows newuidmap to write /proc/PID/uid_map

@@ -11,6 +11,8 @@ pub enum Layout {
     Focus,
     /// Side-by-side coding with AI: yazi+vim left, claude right
     Cowork,
+    /// Yazi-focused with large preview and AI pane
+    Browse,
 }
 
 impl std::fmt::Display for Layout {
@@ -19,6 +21,7 @@ impl std::fmt::Display for Layout {
             Layout::Dev => write!(f, "dev"),
             Layout::Focus => write!(f, "focus"),
             Layout::Cowork => write!(f, "cowork"),
+            Layout::Browse => write!(f, "browse"),
         }
     }
 }
@@ -40,7 +43,7 @@ Examples:
   aibox sync                                 Reconcile config + build image
   aibox sync --no-cache                      Force full rebuild
   aibox start                                Start and attach (dev layout)
-  aibox start --layout focus                 Start with focus layout
+  aibox start --layout focus                 Start with a specific layout
   aibox doctor                               Validate project structure
   aibox update --check                       Check for newer versions
   aibox audio check                          Diagnose host audio setup",
@@ -126,11 +129,11 @@ pub enum Commands {
     /// creates/starts the container, then attaches via zellij.
     /// If already running, just attaches.
     ///
-    /// Available layouts: dev (default), focus, cowork.
+    /// Available layouts: dev (default), focus, cowork, browse.
     Start {
-        /// Zellij layout to use (dev, focus, cowork)
-        #[arg(long, value_enum, default_value = "dev")]
-        layout: Layout,
+        /// Zellij layout to use (dev, focus, cowork, browse)
+        #[arg(long, value_enum)]
+        layout: Option<Layout>,
     },
     /// Stop the container
     Stop,

@@ -94,7 +94,6 @@ fn generate_dockerfile(
             registry => crate::config::IMAGE_REGISTRY,
             image => format!("base-{}", config.aibox.base),
             version => config.aibox.version,
-            extra_packages => config.container.extra_packages,
             addon_builder_stages => addon_builder_stages,
             addon_commands => addon_commands,
             local_content => local_content,
@@ -136,10 +135,6 @@ fn generate_docker_compose(
         env_vars.insert("AUDIODRIVER".to_string(), "pulseaudio".to_string());
     }
 
-    for (k, v) in &config.container.environment {
-        env_vars.insert(k.clone(), v.clone());
-    }
-
     // Build list of AI provider strings for template
     let ai_providers: Vec<String> = config.ai.providers.iter().map(|p| p.to_string()).collect();
 
@@ -177,10 +172,8 @@ fn generate_docker_compose(
             container_home => container_home,
             audio_enabled => config.audio.enabled,
             ai_providers => ai_providers,
-            extra_volumes => config.container.extra_volumes,
             env_keys => env_keys,
             env_vals => escaped_env,
-            ports => config.container.ports,
         })
         .context("Failed to render docker-compose template")?;
 
@@ -212,11 +205,6 @@ fn generate_devcontainer_json(config: &AiboxConfig, dir: &Path) -> Result<bool> 
     }
     if addons.has_addon("go") {
         extensions.push("golang.go".to_string());
-    }
-
-    // Append user-specified VS Code extensions
-    for ext in &config.container.vscode_extensions {
-        extensions.push(ext.clone());
     }
 
     // Build VS Code terminal profiles — include configured AI providers
@@ -472,33 +460,6 @@ mod tests {
     }
 
     #[test]
-    fn dockerfile_includes_extra_packages() {
-        let dir = tempfile::tempdir().unwrap();
-        let mut config = make_config(&[], false);
-        config.container.extra_packages = vec!["ripgrep".to_string(), "fd-find".to_string()];
-        generate_dockerfile(&config, dir.path(), &test_env()).unwrap();
-        let content = fs::read_to_string(dir.path().join("Dockerfile")).unwrap();
-        assert!(content.contains("ripgrep"), "should include ripgrep");
-        assert!(content.contains("fd-find"), "should include fd-find");
-        assert!(
-            content.contains("apt-get install"),
-            "should have apt-get install"
-        );
-    }
-
-    #[test]
-    fn dockerfile_no_extra_run_when_no_packages() {
-        let dir = tempfile::tempdir().unwrap();
-        let config = make_config(&[], false);
-        generate_dockerfile(&config, dir.path(), &test_env()).unwrap();
-        let content = fs::read_to_string(dir.path().join("Dockerfile")).unwrap();
-        assert!(
-            !content.contains("apt-get"),
-            "should not have apt-get when no extra packages"
-        );
-    }
-
-    #[test]
     fn compose_contains_container_name_and_hostname() {
         let dir = tempfile::tempdir().unwrap();
         let config = make_config(&[], false);
@@ -534,33 +495,6 @@ mod tests {
         assert!(!content.contains("PULSE_SERVER"));
         assert!(!content.contains("AUDIODRIVER"));
         assert!(!content.contains(".asoundrc"));
-    }
-
-    #[test]
-    fn compose_includes_extra_volumes() {
-        let dir = tempfile::tempdir().unwrap();
-        let mut config = make_config(&[], false);
-        config.container.extra_volumes = vec![ExtraVolume {
-            source: "/host/data".to_string(),
-            target: "/container/data".to_string(),
-            read_only: true,
-        }];
-        generate_docker_compose(&config, dir.path(), &test_env()).unwrap();
-        let content = fs::read_to_string(dir.path().join("docker-compose.yml")).unwrap();
-        assert!(content.contains("/host/data:/container/data:ro"));
-    }
-
-    #[test]
-    fn compose_includes_extra_environment() {
-        let dir = tempfile::tempdir().unwrap();
-        let mut config = make_config(&[], false);
-        config
-            .container
-            .environment
-            .insert("FOO".to_string(), "bar".to_string());
-        generate_docker_compose(&config, dir.path(), &test_env()).unwrap();
-        let content = fs::read_to_string(dir.path().join("docker-compose.yml")).unwrap();
-        assert!(content.contains("FOO: \"bar\""));
     }
 
     #[test]
@@ -725,19 +659,6 @@ mod tests {
         assert!(
             !content.contains("postStartCommand"),
             "should not contain postStartCommand when keepalive is disabled"
-        );
-    }
-
-    #[test]
-    fn devcontainer_json_includes_custom_extensions() {
-        let dir = tempfile::tempdir().unwrap();
-        let mut config = make_config(&[], false);
-        config.container.vscode_extensions = vec!["eamodio.gitlens".to_string()];
-        generate_devcontainer_json(&config, dir.path()).unwrap();
-        let content = fs::read_to_string(dir.path().join("devcontainer.json")).unwrap();
-        assert!(
-            content.contains("eamodio.gitlens"),
-            "should contain custom extension"
         );
     }
 

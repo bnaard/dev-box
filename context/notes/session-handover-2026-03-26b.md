@@ -55,6 +55,6 @@ None — waiting on container rebuild to validate.
 ## Context for next agent
 
 - The `.devcontainer/config/` directory still exists and is needed — it's used by the base image build (`images/base-debian/Dockerfile`), not the devcontainer itself.
-- The `ssh-e2e/` directory in `.devcontainer/` is used by both `Dockerfile.e2e` and the e2e test runner (`cli/tests/e2e/runner.rs`).
+- E2E SSH keys are in `.aibox-e2e-runner-home/.ssh/` (gitignored, mounted into companion container). Previously in `.devcontainer/ssh-e2e/` which was a security issue (private key in VCS).
 - `aibox sync --no-build` was used because no container runtime is available inside this Claude Code session.
 - The `docs-docusaurus` addon requires the `node` addon explicitly (`requires: [node]` in YAML).

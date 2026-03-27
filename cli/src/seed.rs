@@ -578,27 +578,23 @@ return {
 }
 "#;
 
-/// SVG previewer plugin — converts SVG to PNG via resvg.
+/// SVG previewer plugin — converts SVG to PNG via resvg or rsvg-convert.
 const DEFAULT_YAZI_PLUGIN_SVG: &str = r#"-- svg.yazi — SVG previewer for yazi
--- Converts SVG to PNG using resvg, then renders via the built-in image previewer.
--- Requires: resvg in PATH.
-
-local function fail(msg)
-	return Err(msg)
-end
+-- Converts SVG to PNG using resvg (x86_64) or rsvg-convert (aarch64 fallback).
 
 return {
 	entry = function(self, job)
 		local cache = ya.file_cache(job)
 		if not cache then
-			return fail("No cache path")
+			return Err("No cache path")
 		end
 
 		if cache:exists() then
 			return Image:new(job, cache):show()
 		end
 
-		local ok, err, code = Command("resvg")
+		-- Try resvg first (high quality, static binary — available on x86_64)
+		local ok = Command("resvg")
 			:args({
 				"--width",
 				tostring(job.area.w * 4),
@@ -611,11 +607,28 @@ return {
 			:stderr(Command.NULL)
 			:status()
 
-		if not ok then
-			return fail("resvg not found or failed (code " .. tostring(code) .. "): " .. tostring(err))
+		if ok then
+			return Image:new(job, cache):show()
 		end
 
-		return Image:new(job, cache):show()
+		-- Fallback: rsvg-convert (from librsvg2-bin, available on all architectures)
+		ok = Command("rsvg-convert")
+			:args({
+				"--width", tostring(job.area.w * 4),
+				"--height", tostring(job.area.h * 4),
+				"--keep-aspect-ratio",
+				"--output", tostring(cache),
+				tostring(job.file.url),
+			})
+			:stdout(Command.NULL)
+			:stderr(Command.NULL)
+			:status()
+
+		if ok then
+			return Image:new(job, cache):show()
+		end
+
+		return Err("SVG preview failed: install resvg or librsvg2-bin")
 	end,
 }
 "#;
@@ -705,7 +718,7 @@ pub fn seed_root_dir(config: &AiboxConfig) -> Result<()> {
     }
 
     // Seed config files (never overwrite)
-    let theme = &config.appearance.theme;
+    let theme = &config.customization.theme;
     let vimrc = DEFAULT_VIMRC
         .replace("AIBOX_VIM_COLORSCHEME", crate::themes::vim_colorscheme(theme))
         .replace("AIBOX_VIM_BG", crate::themes::vim_background(theme));
@@ -808,7 +821,7 @@ pub fn seed_root_dir(config: &AiboxConfig) -> Result<()> {
     )?;
 
     // Starship prompt config
-    let prompt = &config.appearance.prompt;
+    let prompt = &config.customization.prompt;
     let starship_content = crate::themes::starship_config(prompt, theme);
     seed_file(
         &root.join(".config").join("starship.toml"),
@@ -860,7 +873,7 @@ pub fn force_seed_file(path: &Path, content: &str) -> Result<bool> {
 /// Overwrites existing files when content has changed. Used by `aibox sync`.
 pub fn sync_theme_files(config: &AiboxConfig) -> Result<Vec<String>> {
     let root = config.host_root_dir();
-    let theme = &config.appearance.theme;
+    let theme = &config.customization.theme;
     let providers = &config.ai.providers;
     let mut updated = Vec::new();
 
@@ -954,7 +967,7 @@ pub fn sync_theme_files(config: &AiboxConfig) -> Result<Vec<String>> {
     }
 
     // Starship prompt
-    let prompt = &config.appearance.prompt;
+    let prompt = &config.customization.prompt;
     let starship_content = crate::themes::starship_config(prompt, theme);
     if force_seed_file(
         &root.join(".config").join("starship.toml"),

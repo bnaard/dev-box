@@ -39,19 +39,6 @@ impl std::fmt::Display for BaseImage {
 }
 
 // ---------------------------------------------------------------------------
-// Extra volume mount
-// ---------------------------------------------------------------------------
-
-/// Extra volume mount specification.
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct ExtraVolume {
-    pub source: String,
-    pub target: String,
-    #[serde(default)]
-    pub read_only: bool,
-}
-
-// ---------------------------------------------------------------------------
 // [aibox] section
 // ---------------------------------------------------------------------------
 
@@ -77,17 +64,7 @@ pub struct ContainerSection {
     #[serde(default = "default_user")]
     pub user: String,
     #[serde(default)]
-    pub ports: Vec<String>,
-    #[serde(default)]
-    pub extra_packages: Vec<String>,
-    #[serde(default)]
-    pub extra_volumes: Vec<ExtraVolume>,
-    #[serde(default)]
-    pub environment: HashMap<String, String>,
-    #[serde(default)]
     pub post_create_command: Option<String>,
-    #[serde(default)]
-    pub vscode_extensions: Vec<String>,
     /// Network keepalive — prevents OrbStack/VM NAT from dropping idle connections.
     #[serde(default)]
     pub keepalive: bool,
@@ -102,26 +79,41 @@ fn default_hostname() -> String {
 }
 
 // ---------------------------------------------------------------------------
-// [context] section — UNCHANGED
+// [context] section — merged with former [process]
 // ---------------------------------------------------------------------------
 
-/// [context] section.
+/// [context] section — context system versioning and process packages.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ContextSection {
     #[serde(default = "default_schema_version")]
     pub schema_version: String,
+    #[serde(default = "default_context_packages")]
+    pub packages: Vec<String>,
 }
 
 fn default_schema_version() -> String {
     "1.0.0".to_string()
 }
 
+fn default_context_packages() -> Vec<String> {
+    vec!["core".to_string()]
+}
+
 impl Default for ContextSection {
     fn default() -> Self {
         Self {
             schema_version: default_schema_version(),
+            packages: default_context_packages(),
         }
     }
+}
+
+/// Legacy [process] section for backward compatibility.
+/// If present, packages are merged into [context].packages during load.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct LegacyProcessSection {
+    #[serde(default)]
+    pub packages: Vec<String>,
 }
 
 // ---------------------------------------------------------------------------
@@ -169,28 +161,6 @@ impl Default for AiSection {
     }
 }
 
-// ---------------------------------------------------------------------------
-// [process] section — NEW
-// ---------------------------------------------------------------------------
-
-fn default_process_packages() -> Vec<String> {
-    vec!["core".to_string()]
-}
-
-/// [process] section — composable process packages.
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct ProcessSection {
-    #[serde(default = "default_process_packages")]
-    pub packages: Vec<String>,
-}
-
-impl Default for ProcessSection {
-    fn default() -> Self {
-        Self {
-            packages: default_process_packages(),
-        }
-    }
-}
 
 // ---------------------------------------------------------------------------
 // [addons] section — REWRITTEN
@@ -379,20 +349,54 @@ fn default_prompt() -> StarshipPreset {
     StarshipPreset::default()
 }
 
-/// [appearance] section — color theme and prompt configuration.
+/// Default zellij layout for `aibox start`.
+#[derive(Debug, Clone, Default, Serialize, Deserialize, PartialEq, clap::ValueEnum)]
+#[serde(rename_all = "kebab-case")]
+#[clap(rename_all = "kebab-case")]
+pub enum ConfigLayout {
+    /// VS Code-like: Yazi sidebar, Vim editor, stacked terminals
+    #[default]
+    Dev,
+    /// One tool per tab, fullscreen, zero distraction
+    Focus,
+    /// Side-by-side coding with AI: yazi+vim left, claude right
+    Cowork,
+    /// Yazi-focused with large preview and AI pane
+    Browse,
+}
+
+impl std::fmt::Display for ConfigLayout {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            ConfigLayout::Dev => write!(f, "dev"),
+            ConfigLayout::Focus => write!(f, "focus"),
+            ConfigLayout::Cowork => write!(f, "cowork"),
+            ConfigLayout::Browse => write!(f, "browse"),
+        }
+    }
+}
+
+fn default_layout() -> ConfigLayout {
+    ConfigLayout::default()
+}
+
+/// [customization] section — color theme, shell prompt, and zellij layout.
 #[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct AppearanceSection {
+pub struct CustomizationSection {
     #[serde(default = "default_theme")]
     pub theme: Theme,
     #[serde(default = "default_prompt")]
     pub prompt: StarshipPreset,
+    #[serde(default = "default_layout")]
+    pub layout: ConfigLayout,
 }
 
-impl Default for AppearanceSection {
+impl Default for CustomizationSection {
     fn default() -> Self {
         Self {
             theme: default_theme(),
             prompt: default_prompt(),
+            layout: default_layout(),
         }
     }
 }
@@ -438,20 +442,6 @@ fn is_safe_identifier(s: &str) -> bool {
     chars.all(|c| c.is_ascii_alphanumeric() || c == '.' || c == '_' || c == '-')
 }
 
-/// Check that a string is a valid Debian package name.
-/// Must start with alphanumeric and contain only [a-zA-Z0-9.+\-].
-fn is_safe_package_name(s: &str) -> bool {
-    if s.is_empty() {
-        return false;
-    }
-    let mut chars = s.chars();
-    match chars.next() {
-        Some(c) if c.is_ascii_alphanumeric() => {}
-        _ => return false,
-    }
-    chars.all(|c| c.is_ascii_alphanumeric() || c == '.' || c == '+' || c == '-')
-}
-
 /// Check that an addon/tool/skill name uses only safe characters: [a-zA-Z0-9_-].
 fn is_safe_name(s: &str) -> bool {
     if s.is_empty() {
@@ -469,25 +459,6 @@ fn is_safe_version(s: &str) -> bool {
             .all(|c| c.is_alphanumeric() || matches!(c, '.' | '-' | '_' | '+'))
 }
 
-/// Check that a port string matches `\d+:\d+(/tcp|/udp)?` or `\d+(/tcp|/udp)?`.
-fn is_valid_port_string(s: &str) -> bool {
-    // Strip optional /tcp or /udp suffix
-    let s = if let Some(stripped) = s.strip_suffix("/tcp").or_else(|| s.strip_suffix("/udp")) {
-        stripped
-    } else {
-        s
-    };
-    // Must be digits or digits:digits
-    if let Some((host, container)) = s.split_once(':') {
-        !host.is_empty()
-            && host.chars().all(|c| c.is_ascii_digit())
-            && !container.is_empty()
-            && container.chars().all(|c| c.is_ascii_digit())
-    } else {
-        !s.is_empty() && s.chars().all(|c| c.is_ascii_digit())
-    }
-}
-
 // ---------------------------------------------------------------------------
 // Root config — AiboxConfig
 // ---------------------------------------------------------------------------
@@ -503,15 +474,17 @@ pub struct AiboxConfig {
     #[serde(default)]
     pub ai: AiSection,
     #[serde(default)]
-    pub process: ProcessSection,
-    #[serde(default)]
     pub addons: AddonsSection,
     #[serde(default)]
     pub skills: SkillsSection,
-    #[serde(default)]
-    pub appearance: AppearanceSection,
+    #[serde(default, alias = "appearance")]
+    pub customization: CustomizationSection,
     #[serde(default)]
     pub audio: AudioSection,
+
+    /// Legacy [process] section — if present, packages are merged into [context].
+    #[serde(default, skip_serializing)]
+    pub(crate) process: Option<LegacyProcessSection>,
 }
 
 impl AiboxConfig {
@@ -521,9 +494,26 @@ impl AiboxConfig {
             .with_context(|| format!("Failed to read config file: {}", path.display()))?;
         let mut config: AiboxConfig = toml::from_str(&content)
             .with_context(|| format!("Failed to parse config file: {}", path.display()))?;
+        config.migrate_legacy_sections();
         config.resolve_ai_provider_addons();
         config.validate()?;
         Ok(config)
+    }
+
+    /// Migrate legacy [process] section into [context].packages.
+    fn migrate_legacy_sections(&mut self) {
+        if let Some(legacy) = self.process.take()
+            && !legacy.packages.is_empty()
+        {
+            // Only override if context.packages is still at the default
+            if self.context.packages == default_context_packages() {
+                self.context.packages = legacy.packages;
+            }
+            crate::output::warn(
+                "Deprecated: [process] section found in aibox.toml. \
+                 Please move 'packages' into the [context] section.",
+            );
+        }
     }
 
     /// Load config from an optional CLI path argument.
@@ -551,6 +541,7 @@ impl AiboxConfig {
     pub fn from_str(toml_str: &str) -> Result<Self> {
         let mut config: AiboxConfig =
             toml::from_str(toml_str).context("Failed to parse TOML config")?;
+        config.migrate_legacy_sections();
         config.resolve_ai_provider_addons();
         config.validate()?;
         Ok(config)
@@ -594,84 +585,14 @@ impl AiboxConfig {
             );
         }
 
-        // Validate extra_packages contain only safe package names
-        for pkg in &self.container.extra_packages {
-            if !is_safe_package_name(pkg) {
-                bail!(
-                    "extra_packages entry '{}' contains invalid characters. \
-                     Must match Debian package naming: [a-zA-Z0-9][a-zA-Z0-9.+\\-]+",
-                    pkg
-                );
-            }
+        // Validate context packages have safe names
+        if self.context.packages.is_empty() {
+            bail!("context.packages must not be empty (at minimum ['core'] is required)");
         }
-
-        // Validate environment variable key names: ^[A-Za-z_][A-Za-z0-9_]*$
-        for key in self.container.environment.keys() {
-            let valid = {
-                let mut chars = key.chars();
-                match chars.next() {
-                    Some(c) if c.is_ascii_alphabetic() || c == '_' => {
-                        chars.all(|c| c.is_ascii_alphanumeric() || c == '_')
-                    }
-                    _ => false,
-                }
-            };
-            if !valid {
-                bail!(
-                    "Invalid environment variable name '{}': must match [A-Za-z_][A-Za-z0-9_]*",
-                    key
-                );
-            }
-        }
-
-        // Validate port strings: \d+:\d+(/tcp|/udp)? or \d+(/tcp|/udp)?
-        for port in &self.container.ports {
-            if port.contains('\n') || port.contains('\r') || port.contains(' ') {
-                bail!(
-                    "Invalid port '{}': must not contain whitespace or newlines",
-                    port
-                );
-            }
-            let valid = is_valid_port_string(port);
-            if !valid {
-                bail!(
-                    "Invalid port '{}': must match <host>:<container>[/tcp|/udp] or <port>[/tcp|/udp]",
-                    port
-                );
-            }
-        }
-
-        // Validate extra_volumes source and target paths
-        for vol in &self.container.extra_volumes {
-            for (field, path) in [("source", &vol.source), ("target", &vol.target)] {
-                if path.is_empty() {
-                    bail!("extra_volumes {} path must not be empty", field);
-                }
-                if path.contains('\n') || path.contains('\0') {
-                    bail!(
-                        "extra_volumes {} path '{}' must not contain newlines or null bytes",
-                        field,
-                        path
-                    );
-                }
-                if path.starts_with("..") {
-                    bail!(
-                        "extra_volumes {} path '{}' must not start with '..' (relative traversal)",
-                        field,
-                        path
-                    );
-                }
-            }
-        }
-
-        // Validate process packages have safe names
-        if self.process.packages.is_empty() {
-            bail!("process.packages must not be empty (at minimum ['core'] is required)");
-        }
-        for pkg in &self.process.packages {
+        for pkg in &self.context.packages {
             if !is_safe_name(pkg) {
                 bail!(
-                    "process.packages entry '{}' contains invalid characters. \
+                    "context.packages entry '{}' contains invalid characters. \
                      Must contain only [a-zA-Z0-9_-]",
                     pkg
                 );
@@ -811,21 +732,16 @@ pub fn test_config() -> AiboxConfig {
             name: "test-proj".to_string(),
             hostname: "test-proj".to_string(),
             user: "root".to_string(),
-            ports: vec![],
-            extra_packages: vec![],
-            extra_volumes: vec![],
-            environment: HashMap::new(),
             post_create_command: None,
-            vscode_extensions: vec![],
             keepalive: false,
         },
         context: ContextSection::default(),
         ai: AiSection::default(),
-        process: ProcessSection::default(),
         addons: AddonsSection::default(),
         skills: SkillsSection::default(),
-        appearance: AppearanceSection::default(),
+        customization: CustomizationSection::default(),
         audio: AudioSection::default(),
+        process: None,
     };
     config.resolve_ai_provider_addons();
     config
@@ -853,19 +769,8 @@ base = "debian"
 name = "my-project"
 hostname = "my-project"
 user = "root"
-ports = ["8080:80"]
-extra_packages = ["ffmpeg"]
-vscode_extensions = ["ms-python.python"]
 keepalive = false
 post_create_command = "npm install"
-
-[container.environment]
-MY_VAR = "hello"
-
-[[container.extra_volumes]]
-source = "/host/data"
-target = "/data"
-read_only = true
 
 [context]
 schema_version = "2.0.0"
@@ -931,7 +836,8 @@ name = "my-project"
     }
 
     fn parse_toml(s: &str) -> Result<AiboxConfig> {
-        let config: AiboxConfig = toml::from_str(s).context("Failed to parse TOML")?;
+        let mut config: AiboxConfig = toml::from_str(s).context("Failed to parse TOML")?;
+        config.migrate_legacy_sections();
         config.validate()?;
         Ok(config)
     }
@@ -950,19 +856,9 @@ name = "my-project"
         assert_eq!(config.container.name, "my-project");
         assert_eq!(config.container.hostname, "my-project");
         assert_eq!(config.container.user, "root");
-        assert_eq!(config.container.ports, vec!["8080:80"]);
-        assert_eq!(config.container.extra_packages, vec!["ffmpeg"]);
-        assert_eq!(config.container.environment.get("MY_VAR").unwrap(), "hello");
-        assert_eq!(config.container.extra_volumes.len(), 1);
-        assert_eq!(config.container.extra_volumes[0].source, "/host/data");
-        assert!(config.container.extra_volumes[0].read_only);
         assert_eq!(
             config.container.post_create_command.as_deref(),
             Some("npm install")
-        );
-        assert_eq!(
-            config.container.vscode_extensions,
-            vec!["ms-python.python"]
         );
         assert!(!config.container.keepalive);
 
@@ -975,9 +871,9 @@ name = "my-project"
         assert_eq!(config.ai.providers[1], AiProvider::Aider);
         assert_eq!(config.ai.providers[2], AiProvider::Mistral);
 
-        // [process]
+        // [context].packages (migrated from legacy [process])
         assert_eq!(
-            config.process.packages,
+            config.context.packages,
             vec!["managed", "code", "documentation"]
         );
 
@@ -1011,9 +907,9 @@ name = "my-project"
         assert_eq!(config.skills.exclude, vec!["standup-context"]);
         assert_eq!(config.skills.include, vec!["flutter-development"]);
 
-        // [appearance]
-        assert_eq!(config.appearance.theme, Theme::GruvboxDark);
-        assert_eq!(config.appearance.prompt, StarshipPreset::Default);
+        // [customization] (parsed from legacy [appearance] via serde alias)
+        assert_eq!(config.customization.theme, Theme::GruvboxDark);
+        assert_eq!(config.customization.prompt, StarshipPreset::Default);
 
         // [audio]
         assert!(!config.audio.enabled);
@@ -1027,13 +923,9 @@ name = "my-project"
         assert_eq!(config.aibox.base, BaseImage::Debian);
         assert_eq!(config.container.name, "my-project");
         assert_eq!(config.container.hostname, "aibox");
-        assert!(config.container.ports.is_empty());
-        assert!(config.container.extra_packages.is_empty());
-        assert!(config.container.extra_volumes.is_empty());
-        assert!(config.container.environment.is_empty());
         assert_eq!(config.context.schema_version, "1.0.0");
         assert_eq!(config.ai.providers, vec![AiProvider::Claude]);
-        assert_eq!(config.process.packages, vec!["core"]);
+        assert_eq!(config.context.packages, vec!["core"]);
         assert!(config.addons.addons.is_empty());
         assert!(config.skills.include.is_empty());
         assert!(config.skills.exclude.is_empty());
@@ -1102,21 +994,23 @@ name = "my project!"
     }
 
     #[test]
-    fn invalid_extra_package_name() {
+    fn empty_context_packages_rejected() {
         let toml = r#"
 [aibox]
 version = "0.9.0"
 
 [container]
 name = "test"
-extra_packages = ["good-pkg", "bad pkg!"]
+
+[context]
+packages = []
 "#;
         let result = parse_toml(toml);
-        assert!(result.is_err(), "should reject invalid package name");
+        assert!(result.is_err(), "should reject empty context packages");
     }
 
     #[test]
-    fn empty_process_packages_rejected() {
+    fn legacy_process_section_migrated() {
         let toml = r#"
 [aibox]
 version = "0.9.0"
@@ -1125,10 +1019,32 @@ version = "0.9.0"
 name = "test"
 
 [process]
-packages = []
+packages = ["managed", "code"]
+
+[context]
+schema_version = "2.0.0"
 "#;
-        let result = parse_toml(toml);
-        assert!(result.is_err(), "should reject empty process packages");
+        let config = parse_toml(toml).unwrap();
+        assert_eq!(config.context.packages, vec!["managed", "code"]);
+        assert_eq!(config.context.schema_version, "2.0.0");
+    }
+
+    #[test]
+    fn legacy_appearance_alias_works() {
+        let toml = r#"
+[aibox]
+version = "0.9.0"
+
+[container]
+name = "test"
+
+[appearance]
+theme = "dracula"
+prompt = "minimal"
+"#;
+        let config = parse_toml(toml).unwrap();
+        assert_eq!(config.customization.theme, Theme::Dracula);
+        assert_eq!(config.customization.prompt, StarshipPreset::Minimal);
     }
 
     #[test]
@@ -1274,16 +1190,16 @@ rustfmt = {}
         assert_eq!(config.addons.tool_version("rust", "clippy"), None);
     }
 
-    // -- Process section ----------------------------------------------------
+    // -- Context packages ---------------------------------------------------
 
     #[test]
-    fn process_packages_default_is_core() {
+    fn context_packages_default_is_core() {
         let config = parse_toml(minimal_toml()).unwrap();
-        assert_eq!(config.process.packages, vec!["core"]);
+        assert_eq!(config.context.packages, vec!["core"]);
     }
 
     #[test]
-    fn process_packages_custom() {
+    fn context_packages_custom_via_legacy_process() {
         let toml = r#"
 [aibox]
 version = "0.9.0"
@@ -1296,7 +1212,7 @@ packages = ["managed", "code", "research"]
 "#;
         let config = parse_toml(toml).unwrap();
         assert_eq!(
-            config.process.packages,
+            config.context.packages,
             vec!["managed", "code", "research"]
         );
     }
@@ -1372,27 +1288,8 @@ theme = "{input}"
 "#
             );
             let config = parse_toml(&toml).unwrap();
-            assert_eq!(config.appearance.theme, expected);
+            assert_eq!(config.customization.theme, expected);
         }
-    }
-
-    // -- Extra volumes ------------------------------------------------------
-
-    #[test]
-    fn extra_volume_read_only_defaults_false() {
-        let toml = r#"
-[aibox]
-version = "0.9.0"
-
-[container]
-name = "test"
-
-[[container.extra_volumes]]
-source = "/a"
-target = "/b"
-"#;
-        let config = parse_toml(toml).unwrap();
-        assert!(!config.container.extra_volumes[0].read_only);
     }
 
     // -- File loading -------------------------------------------------------

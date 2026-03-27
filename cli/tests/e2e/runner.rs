@@ -34,7 +34,7 @@ impl E2eRunner {
     pub fn new() -> Self {
         let manifest_dir = env!("CARGO_MANIFEST_DIR");
         Self {
-            ssh_key: format!("{}/../.devcontainer/ssh-e2e/id_ed25519", manifest_dir),
+            ssh_key: format!("{}/../.aibox-e2e-runner-home/.ssh/id_ed25519", manifest_dir),
             host: std::env::var("E2E_HOST").unwrap_or_else(|_| "aibox-e2e-testrunner".to_string()),
             port: std::env::var("E2E_PORT")
                 .ok()

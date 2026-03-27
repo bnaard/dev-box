@@ -47,13 +47,13 @@ fn init_with_appearance(dir: &std::path::Path, theme: &str, prompt: &str) {
     );
 }
 
-/// Replace the appearance section in aibox.toml and re-sync.
+/// Replace the customization section in aibox.toml and re-sync.
 fn change_appearance(dir: &std::path::Path, theme: &str, prompt: &str) {
     let toml_path = dir.join("aibox.toml");
     let content = fs::read_to_string(&toml_path).unwrap();
 
-    // Replace [appearance] section — search for header at start of line to avoid matching comments.
-    let section_header = "[appearance]";
+    // Replace [customization] section — search for header at start of line to avoid matching comments.
+    let section_header = "[customization]";
     let needle = format!("\n{}", section_header);
     if let Some(needle_pos) = content.find(&needle) {
         let start = needle_pos + 1; // position of '[' in section header

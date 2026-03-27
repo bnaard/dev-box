@@ -276,57 +276,6 @@ fn serialize_config_with_comments(config: &AiboxConfig) -> String {
         out.push_str("#                                  # Controls mount paths (e.g. /root vs /home/<user>/.vim)\n");
     }
 
-    // --- Ports ---
-    out.push_str("\n# --- Ports ---\n");
-    if !config.container.ports.is_empty() {
-        out.push_str(&format!(
-            "ports = [{}]                   # Host:container port forwarding\n",
-            config
-                .container
-                .ports
-                .iter()
-                .map(|p| format!("\"{}\"", p))
-                .collect::<Vec<_>>()
-                .join(", ")
-        ));
-    } else {
-        out.push_str("# ports = [\"8080:80\", \"5432:5432\"]  # Host:container port forwarding (can list multiple)\n");
-    }
-
-    // --- Extra packages ---
-    out.push_str("\n# --- Extra packages ---\n");
-    if !config.container.extra_packages.is_empty() {
-        out.push_str(&format!(
-            "extra_packages = [{}]          # Additional apt packages installed at build time\n",
-            config
-                .container
-                .extra_packages
-                .iter()
-                .map(|p| format!("\"{}\"", p))
-                .collect::<Vec<_>>()
-                .join(", ")
-        ));
-    } else {
-        out.push_str("# extra_packages = [\"ripgrep\", \"fd-find\", \"jq\"]  # Additional apt packages installed at build time\n");
-    }
-
-    // --- VS Code ---
-    out.push_str("\n# --- VS Code ---\n");
-    if !config.container.vscode_extensions.is_empty() {
-        out.push_str(&format!(
-            "vscode_extensions = [{}]       # Auto-installed in Dev Containers\n",
-            config
-                .container
-                .vscode_extensions
-                .iter()
-                .map(|e| format!("\"{}\"", e))
-                .collect::<Vec<_>>()
-                .join(", ")
-        ));
-    } else {
-        out.push_str("# vscode_extensions = [\"eamodio.gitlens\", \"rust-lang.rust-analyzer\"]  # Auto-installed in Dev Containers\n");
-    }
-
     // --- Lifecycle ---
     out.push_str("\n# --- Lifecycle ---\n");
     if let Some(cmd) = &config.container.post_create_command {
@@ -343,46 +292,16 @@ fn serialize_config_with_comments(config: &AiboxConfig) -> String {
         out.push_str("# keepalive           = true           # Send periodic keepalive (prevents NAT idle dropout in OrbStack/VMs)\n");
     }
 
-    // --- Extra volumes ---
-    out.push_str("\n# --- Extra volumes ---\n");
-    if !config.container.extra_volumes.is_empty() {
-        for vol in &config.container.extra_volumes {
-            out.push_str("[[container.extra_volumes]]\n");
-            out.push_str(&format!("source    = \"{}\"", vol.source));
-            out.push_str("                # Absolute path on the host\n");
-            out.push_str(&format!("target    = \"{}\"", vol.target));
-            out.push_str("                # Absolute path inside the container\n");
-            out.push_str(&format!("read_only = {}                # Mount read-only (default: false)\n", vol.read_only));
-        }
-    } else {
-        out.push_str("# [[container.extra_volumes]]\n");
-        out.push_str("# source    = \"/host/path\"       # Absolute path on the host\n");
-        out.push_str("# target    = \"/container/path\"  # Absolute path inside the container\n");
-        out.push_str("# read_only = false               # Mount read-only (default: false)\n");
-    }
-
-    // --- Extra environment ---
-    out.push_str("\n# --- Extra environment ---\n");
-    if !config.container.environment.is_empty() {
-        out.push_str("[container.environment]\n");
-        let mut env_keys: Vec<_> = config.container.environment.keys().collect();
-        env_keys.sort();
-        for key in env_keys {
-            out.push_str(&format!(
-                "{} = \"{}\"                # Injected as environment variable into the container\n",
-                key, config.container.environment[key]
-            ));
-        }
-    } else {
-        out.push_str("# [container.environment]\n");
-        out.push_str("# MY_API_KEY = \"value\"           # Injected as environment variable into the container\n");
-    }
-
-    // [process] section
+    // [context] section
     out.push('\n');
     out.push_str(sep);
-    out.push_str("# [process] — context files and skills scaffolded for this project\n");
+    out.push_str("# [context] — context system and process packages\n");
     out.push_str(sep);
+    out.push_str("[context]\n");
+    out.push_str(&format!(
+        "schema_version = {:12} # Context schema version — updated automatically by `aibox sync`\n",
+        format!("\"{}\"", config.context.schema_version)
+    ));
     out.push_str("# Presets (use one of these):\n");
     out.push_str("#   managed          core + tracking + standups + handover  (recommended default)\n");
     out.push_str("#   software         managed + code + architecture\n");
@@ -390,17 +309,53 @@ fn serialize_config_with_comments(config: &AiboxConfig) -> String {
     out.push_str("#   full-product     managed + code + architecture + design + product + security + operations\n");
     out.push_str("# Individual packages (advanced): core, tracking, standups, handover, code, architecture,\n");
     out.push_str("#   design, product, security, data, operations, research, documentation\n");
-    out.push_str("[process]\n");
     out.push_str(&format!(
         "packages = [{}]\n",
         config
-            .process
+            .context
             .packages
             .iter()
             .map(|p| format!("\"{}\"", p))
             .collect::<Vec<_>>()
             .join(", ")
     ));
+
+    // [skills] section
+    out.push('\n');
+    out.push_str(sep);
+    if config.skills.include.is_empty() && config.skills.exclude.is_empty() {
+        out.push_str("# [skills] — fine-tune which skills are deployed\n");
+        out.push_str(sep);
+        out.push_str("# Skills are automatically selected from process packages and addons.\n");
+        out.push_str("# Use include/exclude to override.\n");
+        out.push_str("# [skills]\n");
+        out.push_str("# include = [\"skill-name\"]    # Explicitly add skills beyond defaults\n");
+        out.push_str("# exclude = [\"skill-name\"]    # Remove skills you don't need\n");
+    } else {
+        out.push_str("# [skills] — fine-tune which skills are deployed\n");
+        out.push_str(sep);
+        out.push_str("[skills]\n");
+        out.push_str(&format!(
+            "include = [{}]\n",
+            config
+                .skills
+                .include
+                .iter()
+                .map(|s| format!("\"{}\"", s))
+                .collect::<Vec<_>>()
+                .join(", ")
+        ));
+        out.push_str(&format!(
+            "exclude = [{}]\n",
+            config
+                .skills
+                .exclude
+                .iter()
+                .map(|s| format!("\"{}\"", s))
+                .collect::<Vec<_>>()
+                .join(", ")
+        ));
+    }
 
     // [addons] section
     out.push('\n');
@@ -439,17 +394,6 @@ fn serialize_config_with_comments(config: &AiboxConfig) -> String {
         }
     }
 
-    // [context] section
-    out.push('\n');
-    out.push_str(sep);
-    out.push_str("# [context] — context system versioning\n");
-    out.push_str(sep);
-    out.push_str("[context]\n");
-    out.push_str(&format!(
-        "schema_version = {:12} # Context schema version — updated automatically by `aibox sync`\n",
-        format!("\"{}\"", config.context.schema_version)
-    ));
-
     // [ai] section
     out.push('\n');
     out.push_str(sep);
@@ -469,18 +413,20 @@ fn serialize_config_with_comments(config: &AiboxConfig) -> String {
             .join(", ")
     ));
 
-    // [appearance] section
+    // [customization] section
     out.push('\n');
     out.push_str(sep);
-    out.push_str("# [appearance] — color theme and shell prompt\n");
+    out.push_str("# [customization] — color theme, shell prompt, and zellij layout\n");
     out.push_str(sep);
     out.push_str("# Theme is applied consistently across Zellij, Vim, Yazi, lazygit, and bat.\n");
     out.push_str("# Options: gruvbox-dark | catppuccin-mocha | catppuccin-latte | dracula | tokyo-night | nord | projectious\n");
-    out.push_str("[appearance]\n");
-    out.push_str(&format!("theme  = \"{}\"\n", config.appearance.theme));
+    out.push_str("[customization]\n");
+    out.push_str(&format!("theme  = \"{}\"\n", config.customization.theme));
     out.push_str("# Starship prompt preset.\n");
-    out.push_str("# Options: default | minimal | nerd-font | pastel | bracketed\n");
-    out.push_str(&format!("prompt = \"{}\"\n", config.appearance.prompt));
+    out.push_str("# Options: default | plain | minimal | nerd-font | pastel | bracketed | arrow\n");
+    out.push_str(&format!("prompt = \"{}\"\n", config.customization.prompt));
+    out.push_str("# Default zellij layout. Options: dev | focus | cowork | browse\n");
+    out.push_str(&format!("layout = \"{}\"\n", config.customization.layout));
 
     // [audio] section
     out.push('\n');
@@ -505,8 +451,8 @@ fn serialize_config_with_comments(config: &AiboxConfig) -> String {
 /// Init command: create a aibox.toml and generate files.
 pub fn cmd_init(config_path: &Option<String>, params: InitParams) -> Result<()> {
     use crate::config::{
-        AddonsSection, AiSection, AppearanceSection, AudioSection, ContainerSection,
-        ContextSection, AiboxConfig, AiboxSection, ProcessSection, SkillsSection,
+        AddonsSection, AiSection, AudioSection, ContainerSection,
+        ContextSection, CustomizationSection, AiboxConfig, AiboxSection, SkillsSection,
     };
 
     let toml_path = config_path
@@ -538,21 +484,17 @@ pub fn cmd_init(config_path: &Option<String>, params: InitParams) -> Result<()> 
             name: project_name.clone(),
             hostname: project_name,
             user: container_user,
-            ports: vec![],
-            extra_packages: vec![],
-            extra_volumes: vec![],
-            environment: std::collections::HashMap::new(),
             post_create_command: None,
-            vscode_extensions: vec![],
             keepalive: false,
         },
-        context: ContextSection::default(),
+        context: ContextSection {
+            packages: process_packages,
+            ..ContextSection::default()
+        },
         ai: AiSection {
             providers: ai_providers,
         },
-        process: ProcessSection {
-            packages: process_packages,
-        },
+        process: None,
         addons: {
             let mut section = AddonsSection::default();
             for name in &addon_names {
@@ -565,9 +507,10 @@ pub fn cmd_init(config_path: &Option<String>, params: InitParams) -> Result<()> 
             section
         },
         skills: SkillsSection::default(),
-        appearance: AppearanceSection {
+        customization: CustomizationSection {
             theme: params.theme.unwrap_or_default(),
             prompt: params.prompt.unwrap_or_default(),
+            layout: crate::config::ConfigLayout::default(),
         },
         audio: AudioSection::default(),
     };

@@ -87,7 +87,13 @@ fn dispatch(cli: cli::Cli) -> anyhow::Result<()> {
             },
         ),
         cli::Commands::Sync { no_cache, no_build } => container::cmd_sync(config_path, no_cache, no_build),
-        cli::Commands::Start { layout } => container::cmd_start(config_path, &layout.to_string()),
+        cli::Commands::Start { layout } => {
+            let config = crate::config::AiboxConfig::from_cli_option(config_path)?;
+            let resolved_layout = layout
+                .map(|l| l.to_string())
+                .unwrap_or_else(|| config.customization.layout.to_string());
+            container::cmd_start(config_path, &resolved_layout)
+        }
         cli::Commands::Stop => container::cmd_stop(config_path),
         cli::Commands::Remove => container::cmd_remove(config_path),
         cli::Commands::Status => container::cmd_status(config_path),

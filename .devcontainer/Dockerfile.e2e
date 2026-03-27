@@ -130,10 +130,10 @@ RUN groupadd --gid 1000 testuser \
     && echo "testuser ALL=(ALL) NOPASSWD:ALL" > /etc/sudoers.d/testuser \
     && chmod 0440 /etc/sudoers.d/testuser
 
-# ── Pre-seed SSH authorized keys ──────────────────────────────────────────────
-RUN mkdir -p /home/testuser/.ssh && chmod 700 /home/testuser/.ssh
-COPY ssh-e2e/authorized_keys /home/testuser/.ssh/authorized_keys
-RUN chmod 600 /home/testuser/.ssh/authorized_keys \
+# ── SSH directory for authorized keys (mounted at runtime) ───────────────────
+# The .ssh directory is mounted from .aibox-e2e-runner-home/.ssh/ via
+# docker-compose.override.yml. Keys are generated locally and never committed.
+RUN mkdir -p /home/testuser/.ssh && chmod 700 /home/testuser/.ssh \
     && chown -R testuser:testuser /home/testuser/.ssh
 
 # ── Podman rootless configuration ─────────────────────────────────────────────

@@ -257,7 +257,7 @@ Individual packages are not shown in the interactive selection menu — pass the
 You can change the process at any time by editing `aibox.toml`:
 
 ```toml
-[process]
+[context]
 packages = ["full-product"]  # was ["managed"]
 ```
 
@@ -265,7 +265,7 @@ Then run `aibox sync` to regenerate container files and deploy the new skill set
 
 However, changing packages does **not** automatically create or remove context files. To reconcile:
 
-1. Update `packages` in the `[process]` section of `aibox.toml`
+1. Update `packages` in the `[context]` section of `aibox.toml`
 2. Run `aibox doctor` to see what files are missing or extra
 3. Create missing files manually or re-run `aibox init` in a temporary directory and copy the templates
 

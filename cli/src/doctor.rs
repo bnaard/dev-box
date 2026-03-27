@@ -51,7 +51,7 @@ pub fn cmd_doctor(config_path: &Option<String>) -> Result<()> {
         Ok(c) => {
             output::ok(&format!(
                 "Config: valid (v{}, {}, {:?})",
-                c.aibox.version, c.aibox.base, c.process.packages
+                c.aibox.version, c.aibox.base, c.context.packages
             ));
             Some(c)
         }
@@ -115,9 +115,9 @@ pub fn cmd_doctor(config_path: &Option<String>) -> Result<()> {
     // 5. Check context structure
     output::info(&format!(
         "Checking context structure ({:?})...",
-        config.process.packages
+        config.context.packages
     ));
-    check_context_structure(&config.process.packages, &mut diag);
+    check_context_structure(&config.context.packages, &mut diag);
 
     // 6. Check .gitignore
     output::info("Checking .gitignore...");
@@ -380,7 +380,7 @@ fn generate_migration_artifacts(
          - `CLAUDE.md` (project root)\n",
         config.container.name,
         current_version,
-        config.process.packages,
+        config.context.packages,
         config.container.name,
         target_version,
     );

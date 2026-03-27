@@ -13,12 +13,13 @@ providers = ["claude"]
 [audio]
 enabled = false
 
-[process]
+[context]
 packages = ["core"]
 
-[appearance]
+[customization]
 theme = "gruvbox-dark"
 prompt = "default"
+layout = "dev"
 
 [addons.python.tools]
 python = { version = "3.13" }
