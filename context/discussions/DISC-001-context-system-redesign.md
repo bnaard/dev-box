@@ -16,6 +16,8 @@ research:
   - context/research/file-per-entity-scaling-2026-03.md
   - context/research/competitive-landscape-2026-03.md
   - context/research/competitive-tools-2026-03.md
+  - context/research/primitive-mapping-exercise-2026-03.md
+  - context/research/primitive-skills-mapping-2026-03.md
 ---
 
 # DISC-001: Context System Redesign
@@ -224,20 +226,670 @@ since they're rare and human-authored).
 Rationale: no coordination needed for multi-collaborator, collision probability negligible
 at 100K items (~0.0002%), human-readable enough. Lock files and prefixes rejected as brittle.
 
+### 2.10 Primitive mapping exercise
+
+Completed in `context/research/primitive-mapping-exercise-2026-03.md`. Mapped all 16
+primitives to file locations, YAML schemas, state machines, and storage tiers. Identified
+three storage patterns: file-per-entity markdown (11 primitives), JSONL append-only
+(events), and YAML configuration (state machines, categories). Plus two structural
+primitives with no dedicated storage (cross-references inline, context = directory itself).
+
+### 2.11 Open questions resolved (session 2026-03-27 continued)
+
+**Q1 — ID migration:** Full migration of all existing IDs (BACK-001..099, DEC-NNN,
+PROJ-NNN) to new format. No backward compatibility, no mixed formats. Clean break.
+
+**Q2 — People vs Roles (OWNER.md / TEAM.md):** Owner identified a gap in the ontology:
+the Role primitive says "roles are not people," but OWNER.md and TEAM.md describe PEOPLE
+so that AI agents know who they're working with. Two distinct concepts identified:
+- **Role** = a hat (responsibilities, permissions). "Product Owner" is a role.
+- **Actor** = a person or agent (preferences, expertise, working style). "@alice" is an actor.
+Relationship: actors FILL roles. One actor, many roles. One role, many actors.
+
+**Decision (tentative):** Actor becomes a 17th primitive. Justification: the separation is
+real, kaits needs rich actor profiles for simulated humans/agents, and "who can fill this
+role" vs "what is this person like" are fundamentally different questions. Content from
+OWNER.md and TEAM.md migrates to Actor entities. OWNER.md and TEAM.md are retired — no
+legacy files, full migration.
+
+**Q3 — Event log format:** JSONL confirmed. Industry standard for log files. Owner raised
+archiving implications: when events move from hot (JSONL files) to cold (tar.gz archives),
+the SQLite index must be updated to point to the archive location. Agreed approach:
+- Index retains event METADATA (id, timestamp, type, subject) permanently
+- Storage location field updated to point to archive path
+- Full event payload requires archive extraction (slow, acceptable for history queries)
+- Rotating logfile practices (space savings) covered by directory sharding + archiving
+
+**Q4 — Artifact self-description:** Owner concern: "today I go to context/research/ and
+find everything. In future, do I need the index?" Resolution: TWO kinds of artifacts:
+1. **Content-primary** (research, work instructions, PRD) — stay in semantic directories
+   (research/, work-instructions/), gain frontmatter, index picks them up by scanning
+2. **Metadata-primary** (build records, external references) — go to items/artifact/
+The directory structure serves BOTH purposes: index storage AND human-browsable organization.
+Not everything moves to items/. Semantic paths are preserved for human discoverability.
+
+**Q5 — Process definitions vs instances:** Confirmed class/object analogy. Definitions
+(stable, low-volume) stay in items/process/ or templates/processes/. Instances (ephemeral,
+high-volume) are modeled as Work Items with `subtype: process-instance` and
+`process_def: PROC-xxx` reference. Avoids duplicating Work Item lifecycle machinery.
+
+**Q6 — ID prefix consistency:** Deferred — folded into broader ID format discussion (§2.12).
+
+### 2.12 ID format: word-based identifiers
+
+Owner requested investigation of human-readable alternatives to hex UUIDs. Motivated by:
+readability, memorability, speakability in standups. References: zellij session naming,
+what3words.
+
+**Analysis of hex UUID minimum lengths:**
+- 6 hex chars (16M combinations): ~0.03% collision at 100K items — practical minimum
+- 7 hex chars: ~0.002% — comfortable
+- 8 hex chars: ~0.0001% — very safe at 1M items
+
+**Word-based alternative:** A curated wordlist of ~2,000 short English words (3-6 chars):
+- 2 words: 4M combinations (≈ 6 hex chars) — `BACK-swift-oak`
+- 3 words: 8B combinations (≈ 8 hex chars) — `BACK-swift.oak.bell`
+- 2 words + 2-3 hex suffix: 16B combinations — `BACK-swift-oak-7f`
+
+**Decision (tentative):** 2-word IDs from a curated wordlist. `BACK-swift-oak` is vastly
+more usable than `BACK-a7f3b2c1`. Wordlist: ~10KB embedded in CLI binary, filtered for
+short, common, non-offensive, unambiguously spelled words. 4M combinations sufficient for
+any single project. Collision handling: if collision detected on generation, regenerate.
+
+### 2.13 Kubernetes-inspired object model
+
+Owner proposed adopting Kubernetes patterns: `apiVersion`, `kind`, metadata/spec separation.
+Already precedent in codebase — addon YAML system uses declarative patterns, and
+ARCHITECTURE.md describes a "declare desired state, let controllers reconcile" philosophy.
+
+**Adopted patterns:**
+- `apiVersion: aibox/v1` — schema versioning. Enables migration when schemas change.
+  Old files declare their version, can be migrated programmatically.
+- `kind: WorkItem` — unambiguous type declaration. PascalCase per Kubernetes convention.
+- `metadata:` — system fields (id, timestamps, labels/tags, annotations/custom)
+- `spec:` — entity-specific fields (title, state, owner, refs, etc.)
+
+**Not adopted:**
+- `namespace:` — we use `scope:` which is more general
+- `status:` as separate section — agents update state directly in spec
+- `metadata.managedFields` — too complex for file-based storage
+
+**Key insight — declarative reconciliation model:**
+- Entity files = declared desired state
+- `aibox sync` = reconciliation loop (rebuild index, validate refs, enforce state machines)
+- Events = imperative record of what actually happened
+- The gap between desired state and actual state is what agents work to close
+
+### 2.14 State machines: agent-driven vs server-driven
+
+Owner insight: Jira executes state machines as a deterministic server automaton. In
+aibox/kaits, agents are probabilistic — they INTERPRET the state machine as guidance.
+This is a genuine advantage:
+- State machine YAML defines what is ALLOWED, not what will happen
+- Agent decides WHEN and HOW to transition based on context
+- Guards are advisory checks, not hard server-side gates
+- The system is more flexible/reliable than Jira's rigid automation
+
+**Transition hooks — two mechanisms agreed:**
+1. **Shell command field** (Kubernetes pod-spec `command:` style): runs a shell command
+   on transition. stdout → event data, stderr → logged, exit code → success/failure.
+   Enables webhooks via curl. No embedded scripting languages (too slow, hard to debug).
+2. **Minijinja for guard expressions:** Already a dependency (used for Dockerfile/compose
+   generation). Entity frontmatter fields become template variables. Easy to implement,
+   understand, and debug — render the template to see the result.
+
+Owner explicitly rejected: arbitrary Groovy-style scripting. Rationale: slow, complicated
+to debug even for agents. Shell commands + minijinja cover the needed functionality.
+
+### 2.15 Filesystem sharding configurability
+
+Agreed: sharding granularity configurable per entity type in aibox.toml. Strategies:
+none, yearly, monthly, weekly, daily. Changing strategy is non-destructive — existing
+files stay in place, new files use new strategy, index knows actual paths. `aibox
+migrate-shards` can reorganize existing files optionally.
+
+### 2.16 Three-level rule + directory INDEX.md
+
+All entity markdown files must follow the three-level rule from SKILL.md pattern:
+YAML frontmatter → Level 1 intro (1-3 sentences) → Level 2 overview → Level 3 details.
+
+Additionally, each directory gets an INDEX.md (or _index.md) serving as "Level 0":
+- Describes the directory's content and purpose
+- Lists contents with one-line descriptions
+- Allows AI agents to decide whether to drill deeper before reading files
+- Auto-generated/updated by `aibox sync`, with human-authored overrides supported
+
+### 2.17 Filename conventions
+
+Owner practices that should become standard:
+1. **Inverse date prefix** for temporal sorting: `20260327-` or `20260327-1234-`
+   Applies to: research reports, session notes, events — anything where "when" matters.
+2. **Content slug** for human scanning: `-process-ontology-primitives.md`
+   Applies to: research, discussions, work instructions.
+3. **For entity files with word-IDs:** The word-ID IS the content hint.
+   `BACK-swift-oak.md` is already memorable. Optionally add title slug:
+   `BACK-swift-oak-implement-oauth.md` — ID + slug for browsing.
+
+### 2.18 Template overrides (Kubernetes-inspired)
+
+How to manage project-specific adaptations of base templates:
+- **Template** (base) lives in `templates/processes/code-review.md`
+- **Project override** declares `extends: templates/processes/code-review` and specifies
+  only the delta (Kustomize overlay pattern)
+- **Effective process** = base + overlay, computed at read time
+- For agent migration briefings: diff `apiVersion: aibox/v1` vs `aibox/v2` schemas
+  to produce a migration guide of what changed
+
+### 2.19 Primitive overlaps and layering
+
+Owner asked about overlaps between Work Item, Log Entry, Decision Record. Resolution:
+not overlap but INHERITANCE. All primitives share a base schema (id, type, title,
+description, state, timestamps, owner, tags, refs, custom). Each primitive extends with
+type-specific fields. Distinguished by semantics and lifecycle, not data structure.
+
+**Primitive layers (from ontology research §6):**
+- Layer 0 (irreducible core): Work Item, Log Entry, State Machine, Role, Actor*
+- Layer 1 (structural): Scope, Cross-Reference, Category
+- Layer 2 (process): Process, Checkpoint, Artifact, Schedule
+- Layer 3 (governance): Decision Record, Metric, Constraint, Context, Discussion
+
+*Actor added as new primitive.
+
+**Risk handling:** Not a new primitive. A risk = Work Item (subtype: risk) + Decision
+Record for mitigation choice + Category dimensions for probability/impact.
+
+**Artifact scope clarified:** Primary artifacts = project outputs (CLI binary, container
+images, docs). Context documents = secondary artifacts (working documents that support the
+process). Both get frontmatter, but research/work-instructions stay in semantic directories.
+
+### 2.20 Actor primitive — multi-actor roles confirmed
+
+Owner confirmed: a Role can be filled by multiple Actors simultaneously. "Julie and David
+share PM responsibilities without exact delineation" is a valid real-world pattern. The
+`filled_by:` field is an array, no sub-division required. If actors want to split
+explicitly, they create sub-roles. If they share fuzzily, one role with multiple actors.
+
+Actor types: `human` | `ai-agent`. For kaits, Actor profiles for AI agents would describe
+capabilities, model, context window size, tool access — the agent equivalent of expertise
+and working style.
+
+### 2.21 Word-based IDs — petname crate and wordlist sizing
+
+Research found the `petname` Rust crate (1.16M downloads) as the best candidate:
+- Supports custom word lists, configurable separators, word count
+- Default nouns are animal names (inherently safe/non-offensive)
+- Adjectives curated toward positive/neutral words
+- Already in Rust ecosystem, well-maintained
+
+**Wordlist sizing with 3-8 char words:**
+- ~5,000 adjectives x ~4,000 nouns = **20M combinations** with just 2 words
+- Far exceeds the 4M+ target — no hex suffix or third word needed
+
+**Decision (tentative):** Use `petname` crate with custom filtered wordlist. 2-word IDs
+from 3-8 char words. Format: `BACK-swift-oak`. ~20M combinations per prefix type.
+
+**Content slugs rejected as default:** Owner concern about slug staleness (content changes,
+slug doesn't match). Word-ID IS the stable identifier. Title field in frontmatter is the
+living description. INDEX.md per directory provides browsability. No slug in filename.
+
+### 2.22 ~~Guard expression execution — aibox CLI as controller~~ (SUPERSEDED by §2.25)
+
+Owner challenge: who evaluates minijinja guard expressions? Agents don't have minijinja.
+
+**Resolution:** The aibox CLI is the execution point. New command:
+
+```
+aibox transition BACK-swift-oak --to in-review
+```
+
+The CLI: (1) reads entity frontmatter, (2) finds applicable state machine, (3) renders
+minijinja guard with entity fields as context, (4) if guard passes: updates state, emits
+event, runs on_transition shell command, (5) if guard fails: returns error with reason.
+
+The agent doesn't need to know minijinja exists. It calls `aibox transition` and gets
+yes/no. This fits the Kubernetes analogy: agent = user running `kubectl apply`, aibox CLI =
+API server + controller that validates and reconciles.
+
+Shell commands on transitions: also executed by `aibox transition` as subprocess after
+state change. stdout → event data, stderr → logged, exit code → success/failure.
+
+Fallback for agents without CLI access: guard expressions are readable as natural language
+intent documentation. Agent can evaluate `{{ blocked_count == 0 }}` by reading refs and
+counting blocks — probabilistic but functional.
+
+### 2.23 ~~Template overrides — materialization, not read-time computation~~ (SUPERSEDED by §2.26)
+
+Owner challenge: "computed at read time" assumes an on_file_read handler. Agents read raw
+files. Many LLMs have <200K context. There is no middleware between the agent and the file.
+
+**Revised model — materialization by `aibox sync`:**
+
+```
+templates/processes/code-review.md            ← base (shipped with aibox)
+context/overrides/processes/code-review.md    ← project delta (user-authored)
+context/items/process/PROC-swift-oak.md       ← MATERIALIZED effective process
+                                                (generated by aibox sync)
+```
+
+`aibox sync` reads base + overlay, resolves, writes the effective file. The agent ONLY
+reads the materialized file. This is how Kustomize works — you run `kustomize build` to
+produce rendered YAML; the API server never reads kustomization.yaml.
+
+**Override as entity (tentative):**
+```yaml
+apiVersion: aibox/v1
+kind: Override
+metadata:
+  id: OVR-calm-pine
+spec:
+  base: templates/processes/code-review
+  patches:
+    - path: spec.gates
+      op: add
+      value: [GATE-bold-river]
+```
+
+**Is override a primitive?** No — it's an operation (`aibox sync`), not a data concept.
+Kubernetes doesn't treat "overlay" as a resource kind. The Override entity is a
+configuration input, not a process primitive.
+
+**Key separation:** Authoring time (human works with overrides) vs execution time (agent
+reads materialized files). The override machinery is invisible to agents at runtime.
+
+### 2.24 Architectural boundary: aibox is infrastructure, not application
+
+Owner's fundamental insight: aibox is like Kubernetes — it deploys and manages the context
+infrastructure. It does NOT reach inside the derived project to execute process logic.
+
+**The boundary:**
+- aibox = scaffolding + schema + validation + migration (infrastructure)
+- Derived project agents = process execution + state management (application)
+
+Once scaffolded, context files belong to the derived project. Agents read, interpret, and
+modify them with full autonomy. aibox doesn't enforce, it observes and validates.
+
+**aibox commands (infrastructure):**
+- `aibox init` — create context structure from templates
+- `aibox sync` — rebuild index from files
+- `aibox lint` — post-facto validate schema, references, state machine compliance
+- `aibox validate` — check required fields, broken refs
+- `aibox migrate` — generate migration diffs + prompts for schema updates
+- `aibox id generate` — create new word-based IDs
+
+**NOT in aibox (process layer):**
+- Guard evaluation (agents interpret guards probabilistically)
+- Transition enforcement (agents edit state directly; lint catches violations after)
+- Hook/script execution (agents have their own tool access)
+- Process orchestration
+- RBAC enforcement (agents interpret permissions probabilistically)
+
+### 2.25 Guards in plain English, not minijinja
+
+Owner challenge: minijinja guards are deterministic thinking — we're building a workflow
+engine when we have agents. If aibox is a differentiator to "old world" tools, we should
+lean into the probabilistic model fully.
+
+**Decision (revised):** Guard expressions are written in plain English, not minijinja
+pseudo-code:
+
+```yaml
+transitions:
+  - from: in-progress
+    to: in-review
+    guard: "Only transition when all blocking items are resolved and work is tested."
+    on_transition:
+      suggest: "Notify the reviewer role that a review is ready."
+```
+
+The agent reads this, evaluates it using judgment, and edits the entity file. This is:
+- Simpler (no expression language to implement)
+- More flexible (agents apply judgment, handle edge cases)
+- Consistent with agent-driven model (§2.14)
+- A real differentiator (Jira can't do fuzzy guard evaluation)
+
+Minijinja remains in aibox for template rendering (Dockerfiles, compose files) — its
+existing use case. But NOT for process logic.
+
+### 2.26 Overrides eliminated — direct editing + migration prompts
+
+Owner challenge: if derived project agents can edit files directly, why have an override
+mechanism? It adds deterministic complexity where probabilistic simplicity suffices.
+
+**Revised workflow:**
+1. `aibox init` generates process definitions from templates into project's context/
+2. Project owner tells agent: "Our code review requires 2 reviewers"
+3. Agent edits the process file directly — it owns the file
+4. No overlay, no base+delta, no materialization
+
+**On aibox version updates:**
+- `aibox migrate` generates a diff (old template → new template)
+- Produces a migration prompt with instructions for the derived project's agent
+- Agent applies changes with human approval
+- Prompt includes: "Never edit without asking the user"
+
+This mirrors real infrastructure upgrades: release notes + migration guide, not automatic
+in-place patching. The derived project's customizations are respected because the agent
+reviews the diff against the current state.
+
+### 2.27 Shell commands as suggestions, not guarantees
+
+In the probabilistic model, `on_transition.suggest` is guidance the agent MAY follow:
+- Agent has autonomy — it might execute the curl, or might not
+- Derived project owner may have denied bash access
+- Agent can substitute an equivalent action
+- The event log records what actually happened, regardless
+
+For deterministic needs (event recording), aibox provides dumb infrastructure commands
+(`aibox event append`) that agents can call — but these are infrastructure utilities, not
+process enforcement.
+
+### 2.28 ~~Bash scripts / event append~~ (SUPERSEDED by §2.30)
+
+Earlier proposals for `aibox event append` and skill-wrapped bash scripts are superseded.
+See §2.30 for the clean model.
+
+### 2.29 RBAC in plain English
+
+Owner raised: who is allowed to edit what? User A (admin) can change the release process,
+User B (developer) cannot. Should this be deterministic or probabilistic?
+
+**Decision (tentative):** Probabilistic RBAC via plain English in Role definitions.
+
+```yaml
+kind: Role
+spec:
+  name: "Developer"
+  permissions:
+    - "Can create and edit work items assigned to you"
+    - "Can comment on any work item"
+    - "Can create and edit research documents"
+  restrictions:
+    - "Cannot modify process definitions, state machines, or gate criteria"
+    - "Cannot change role assignments or role definitions"
+    - "Cannot modify constraints or scheduling"
+  escalation: "Ask an Admin role holder for changes outside your permissions"
+```
+
+The derived project's agent reads this, checks the requesting user's actor profile →
+roles → permissions/restrictions, and makes a judgment call. This works because:
+- Real organizations are already probabilistic about authority
+- Agents can handle edge cases (typo fix in process doc = probably fine)
+- Deterministic RBAC can be routed around anyway (ask an admin to do it)
+- The event log provides accountability for every decision
+
+**Consequences and liability:**
+- `aibox lint` flags permission anomalies post-facto ("PROC-xxx was modified by @user-b
+  who holds Developer role, which restricts process modification")
+- aibox assumes zero liability — RBAC definitions are guidance, not enforcement
+- Derived project owner is responsible for consequences of their agents' decisions
+- Event log provides full audit trail
+
+**Permissions reference kind:** Restrictions naturally map to entity kinds:
+"Cannot modify kind: Process, StateMachine, Gate, Constraint, Role"
+
+### 2.30 Bash scripts and event recording — agents ARE the execution layer
+
+Owner challenge: what's the point of `aibox event append`? And creating a skill per bash
+script is unrealistic.
+
+**Resolution: there is no hook execution infrastructure.** The agent IS the execution layer.
+
+When the state machine says `suggest: "Notify the reviewer"`, the agent decides how to
+act on it. Maybe it posts a comment, sends a message, runs a curl command, or does nothing.
+The agent already has its own tools (bash, file editing, etc.) based on what the derived
+project owner has granted. No aibox infrastructure needed.
+
+If the suggestion says `suggest: "Run: curl -X POST https://deploy.example.com/trigger"`,
+the agent either has bash access and runs it, or doesn't and tells the user to run it
+manually. This is exactly what a human team member would do without the right credentials.
+
+**Event recording — REVISED in §2.32.** The sync-based approach was wrong (deterministic
+thinking). See §2.32 for the correct model.
+
+### 2.31 Filename conventions refined
+
+**Content-primary long-lived files** (research, decisions, discussions):
+`<inverse-datetime>-<KIND>-<word-ID>-<content-slug>.md`
+Example: `20260327-ART-swift-oak-process-ontology-primitives.md`
+Slug acceptable because these files rarely change after creation.
+
+**High-volume entity files** (work items, roles, schedules):
+`<KIND>-<word-ID>.md`
+Example: `BACK-swift-oak.md`
+No slug, no date — date is in frontmatter + sharding path.
+
+### 2.32 Event recording — agent logs via skill, aibox logs infrastructure
+
+Owner correction: `aibox sync` detecting state changes is deterministic thinking again.
+Problems: (1) nothing runs sync deterministically, (2) multiple state changes between syncs
+means intermediate events are lost (draft→ready→in-progress seen as only draft→in-progress).
+Sync can't reconstruct history it didn't witness.
+
+**Correct model: two event sources.**
+
+**Process events** (state changes, decisions, gate checks, comments):
+- Agent logs these using an **event-log skill** (to be created by aibox)
+- The skill is simple: append a JSONL line to the current month's event file
+- The instruction to always log is placed prominently in scaffolded process documentation
+- Whether the agent actually logs every time is probabilistic — derived project's responsibility
+- If the derived project creates RBAC rules that trick the agent out of logging, that's on them
+
+**Infrastructure events** (inconsistencies, lint warnings, schema errors, sync results):
+- `aibox sync` / `aibox lint` write these deterministically
+- "Detected broken reference: BACK-swift-oak → BACK-bold-river (not found)"
+- "Schema validation failed on PROC-calm-pine: missing required field 'kind'"
+- "Index rebuilt: 347 entities, 12 warnings"
+
+**The clean separation:**
+
+| What | Who | How |
+|---|---|---|
+| Process events | Agent | Event-log skill (probabilistic) |
+| Infrastructure events | aibox sync/lint | Direct JSONL append (deterministic) |
+| Entity file edits | Agent | Direct file editing |
+| Index maintenance | aibox sync | SQLite rebuild from files |
+
+This makes the event log richer and more auditable: you see both what the agent did (or
+claims it did) AND what aibox infrastructure observed. Discrepancies between the two are
+themselves informative.
+
+### 2.33 Skills as agent API to primitives
+
+Every primitive needs a corresponding skill — the skill is the agent's API that encodes
+mechanical correctness (file naming, frontmatter schema, JSONL format, sharding path,
+three-level rule) so the agent can focus on judgment.
+
+Full research in `context/research/primitive-skills-mapping-2026-03.md`.
+
+**17 skills mapped to 17 primitives:**
+
+| Primitive | Skill | Status |
+|---|---|---|
+| Work Item | `workitem` | Rewrite of `backlog-context` |
+| Log Entry | `event-log` | New (critical, foundation) |
+| Decision Record | `decision` | Rewrite of `decisions-adr` |
+| Artifact | `artifact-tracking` | New |
+| Actor | `actor-profile` | Rewrite of `owner-profile` |
+| Role | `role-management` | New |
+| Process | `process-management` | New |
+| State Machine | `state-machine-management` | New |
+| Category | `taxonomy-management` | New |
+| Cross-Reference | (embedded in other skills) | N/A |
+| Checkpoint | `gate-management` | New (extends `code-review`) |
+| Metric | `metrics` | New |
+| Schedule | `schedule-management` | New (extends `standup-context`) |
+| Scope | `scope-management` | New |
+| Constraint | `constraint-management` | New |
+| Context | `context-archiving` | Existing (needs update) |
+| Discussion | `discussion-management` | New |
+
+**Cross-cutting concerns (not separate skills, embedded in all entity-modifying skills):**
+- RBAC checking: read actor → roles → permissions before every modification
+- Event logging: log every action via `event-log` skill
+- INDEX.md maintenance: update directory indexes after file changes
+
+**Revised packages:** core (actor, role, event-log), tracking (workitem, decision,
+archiving), processes (process, state-machine, gate), planning (scope, schedule,
+estimation), governance (constraint, metrics, taxonomy), collaboration (discussion,
+standup, handover, retro), artifacts (artifact-tracking, documentation).
+
+**Presets:** minimal (core), managed (core+tracking+collaboration), software
+(managed+processes+code+architecture), full-product (everything).
+
+**Implementation order:** event-log → workitem → decision → actor-profile → role-management
+→ process layer → planning/governance → collaboration/lifecycle.
+
+### 2.34 Skill design refinements
+
+**Skill naming:** Use longer descriptive names (`workitem-management` not `workitem`).
+Pattern: `<noun>-management` for CRUD skills, `<noun>-<verb>` for action-specific skills.
+
+**Skill hierarchy via instruction references:** Skills reference lower-layer skills by
+name. `workitem-management` says "use event-log-management to log this" and "use
+role-management to check permissions." The agent follows the chain. Dependency is
+strictly downward — lower-layer skills never reference higher-layer skills. Hierarchy
+documented in skill frontmatter via `uses:` field.
+
+```
+Layer 0: event-log-management (foundation)
+Layer 1: role-management, actor-profile-management
+Layer 2: workitem-management, decision-record-management, scope-management
+Layer 3: process-management, gate-management, schedule-management
+Layer 4: discussion-management, metrics-management
+```
+
+**Skill size:** Keep one skill per primitive. Target 100-200 lines. Current skills range
+17-244 lines; 140 lines is the sweet spot (comparable to `agent-management`). The three-
+level rule ensures agents read only what they need. Split only if a skill exceeds ~250
+lines.
+
+**Human vocabulary mapping:** Each skill's "When to Use" section must list all common human
+terms that map to the primitive. "Backlog item", "task", "ticket", "issue", "bug",
+"story" all map to `workitem-management`. This ensures a human saying "add a backlog item"
+triggers the right skill.
+
+### 2.35 Template originals — scaffold + keep copies
+
+`aibox init` creates project files AND stores original template copies:
+
+```
+context/.aibox/templates/
+  v1.0.0/                     # originals from scaffold time
+  v1.1.0/                     # downloaded by aibox update
+context/.aibox/migration/
+  v1.0.0-to-v1.1.0.md         # auto-generated diff + migration instructions
+```
+
+Derived project's agent can diff originals vs current files to understand customizations.
+Migration prompts generated by `aibox migrate` reference these copies. No deterministic
+override mechanism — just files the agent reads and reasons about.
+
+**Derived project skill customization:** Same principle — direct editing after scaffolding.
+The originals in `.aibox/templates/` let the agent understand what was changed if analysis
+is ever needed.
+
+### 2.36 aibox / kaits logical split
+
+**aibox = single-project infrastructure + process primitives + curated skills**
+- Container environment, process ontology (17 primitives), skill library, CLI tooling
+- Defines the WHAT (primitives), a little HOW (starter processes), and the vocabulary
+  (apiVersion/kind, JSONL format, three-level rule, file naming)
+- Single project scope: one git repo, one context directory, one team
+- Terminal only
+
+**kaits = multi-project orchestration + agent teams + company simulation**
+- Orchestrates across many aibox repos (repo-per-project)
+- Agent spawning, lifecycle, coordination
+- Company structure (departments, OKRs, budgets, hiring)
+- Cross-project database, analytics, portfolio view
+- Graphical UI (dashboards, Kanban boards, agent status)
+- Persistent processes (daemons for cadences, monitoring)
+- Higher-level processes (PI planning, portfolio management, capacity allocation)
+
+**Key insight:** aibox provides atoms (primitives), kaits builds molecules (company
+processes) from those atoms. Solo developer uses aibox directly, never needs kaits.
+
+### 2.37 Process packages in the new primitive-based system
+
+Packages define which primitives and skills are active. They don't define processes —
+they activate the skills that enable processes.
+
+| Package | Primitives/Skills active | Target user |
+|---|---|---|
+| minimal | Actor, Role, Event log | Quick experiments, throwaway |
+| managed | + Work items, Decisions, Archiving, Standups, Handover | Solo dev, ongoing project |
+| software | + Processes, State machines, Gates, Code/Arch skills | Solo/small team, software |
+| research | + Artifact tracking, Documentation skills | Research, writing, analysis |
+| full-product | + Scopes, Schedules, Constraints, Metrics, Taxonomy, Governance | Team, product dev, kaits |
+
+aibox ships starter processes (code-review, bug-fix, feature-dev, release) with the
+software and full-product packages. These are scaffolded as Process entity files with
+plain English steps. Derived project customizes them.
+
+### 2.38 The Process Paradox — resolved
+
+**Paradox:** If aibox is infrastructure, it shouldn't define process. But primitives without
+process are useless. Having work items implies SOME workflow. Resolution:
+
+**Three layers of process:**
+1. **Primitive mechanics** (aibox — always): HOW to create/update files, log events, check
+   RBAC. Skills encode this. Framework-agnostic. Like SQL is to a database.
+2. **Micro-processes** (aibox — optionally): Code review, bug fix, release, feature dev.
+   Small, self-contained, framework-neutral workflows. Every project needs these regardless
+   of whether they call themselves "Scrum" or "Kanban."
+3. **Macro-processes / frameworks** (kaits territory): SAFe, LeSS, Scrum@Scale, PMBOK,
+   Disciplined Agile. Company-level operating models. Require multi-team coordination.
+
+**Process packages are primitive activation tiers, NOT framework choices:**
+- minimal = "you exist and can log" (almost no process implied)
+- managed = "track work, record decisions" (no opinion on sprints vs flow)
+- software = "do code review, handle bugs, manage releases" (micro-processes, not frameworks)
+- full-product = all primitives active, ready for ANY framework on top
+
+**aibox does NOT ship SAFe, Scrum, Kanban, etc.** Reasons: scope explosion, too opinionated,
+wrong granularity (frameworks are organizational choices, not project infrastructure),
+composability is more powerful. However, optional community-contributed framework packages
+could be installed: `aibox process install scrum-basic`.
+
+**Personas and user stories fit existing primitives:**
+- Persona = Actor (subtype: persona) — fictional user profile
+- User story = Work Item (subtype: story) — "As X, I want Y, to achieve Z"
+- These practices are universal (XP, Design Thinking), not SAFe-specific
+
+### 2.39 Validation scenarios identified
+
+10 scenarios to walk through and validate the design:
+1. Solo dev starts new project (`aibox init`)
+2. User has an idea for a feature (work item creation)
+3. User asks "what am I working on?" (query/status)
+4. Work item lifecycle across multiple sessions (handover)
+5. Two humans collaborate with RBAC
+6. Design discussion → decision
+7. Setting up a weekly cadence
+8. aibox v1→v2 schema migration
+9. Project grows to 5,000 items (scaling)
+10. kaits spins up a simulated company project
+
 ## 3. Open Questions (for continued discussion)
 
 1. ~~**Scaling**: resolved — see §2.7~~
-2. **Primitive mapping**: Map each of the 16 primitives to concrete storage decisions.
-3. **Directory structure**: Design the new `context/` layout with sharding.
-4. **Migration**: How do we migrate from current BACKLOG.md table format to file-per-entity?
-5. **Event log**: JSONL append-only vs individual event files?
-6. **Narrative vs structured**: Where exactly is the boundary? (Some primitives like
-   Decision Records are mostly narrative with light structure; others like Events are
-   mostly structured with light narrative.)
-7. **Process templates**: How do the 4 presets (minimal/managed/research/product) map
-   to the new primitive-based system?
+2. ~~**Primitive mapping**: resolved — see §2.10~~
+3. **Directory structure**: Design the new `context/` layout with sharding. (Partially
+   addressed in mapping exercise, needs finalization.)
+4. **Migration plan**: Concrete steps to migrate from current format to file-per-entity.
+   All IDs migrate, all files restructure. Need a migration script/command.
+5. ~~**Event log**: resolved — JSONL, see §2.11 Q3~~
+6. ~~**Narrative vs structured**: resolved — content-primary vs metadata-primary, see §2.11 Q4~~
+7. ~~**Process templates**: resolved — packages are primitive activation tiers, not framework
+   choices. Micro-processes in aibox, macro-frameworks in kaits. See §2.38~~
 8. **Git repo as a primitive**: Owner noted that taking a git repository as granted is
    itself a precondition/primitive. Accepted for now to keep things simple.
+9. ~~**Wordlist curation**: resolved — use `petname` crate with custom filtered list from
+   large wordlist, 3-8 char words, ~5K adj x ~4K nouns = 20M combos. See §2.21~~
+10. **Archive indexing depth**: How deep does the SQLite index go into archived content?
+    Metadata always indexed, full payload requires extraction. Need to define the boundary.
+11. **INDEX.md generation**: What exactly goes into auto-generated directory index files?
+    How does human override work? When does `aibox sync` regenerate them?
 
 ## 4. Decisions Made (tentative, pending formal DEC-NNN)
 
@@ -246,15 +898,87 @@ at 100K items (~0.0002%), human-readable enough. Lock files and prefixes rejecte
 2. **Scaling**: Three-tier hot/warm/cold. Directory sharding. Sparse checkout for large repos.
 3. **kaits boundary**: Repo-per-project. aibox handles per-project context (up to 100K items).
    kaits orchestrates across repos with its own database.
-4. **IDs**: Short UUID (8 hex chars). No coordination needed.
-5. **Discussions**: Are a primitive. Stored in `context/discussions/`.
+4. **IDs**: 2-word IDs from `petname` crate with custom wordlist (3-8 char words).
+   Format: `BACK-swift-oak`. ~20M combinations per prefix type (no hex suffix needed).
+   Full migration from sequential IDs. No content slugs in filenames.
+5. **Discussions**: Are a primitive. Stored in `context/discussions/` (migrates to items/).
+6. **Actor primitive**: 17th primitive added. Describes people/agents (preferences, expertise,
+   working style). Distinct from Role (responsibilities, permissions). OWNER.md/TEAM.md
+   content migrates to Actor entities.
+7. **Kubernetes-inspired object model**: All entity frontmatter uses `apiVersion`, `kind`,
+   `metadata`/`spec` structure. Enables schema versioning, migration, and declarative
+   reconciliation.
+8. **Events**: JSONL files, monthly sharded by default, configurable. Index retains metadata
+   permanently; payload requires extraction from archives.
+9. **State machine guards**: Plain English, not minijinja. Agents evaluate probabilistically.
+   Shell commands are suggestions (`on_transition.suggest`), not guaranteed. No `aibox
+   transition` command — agents edit state directly, `aibox lint` validates after the fact.
+10. **Sharding**: Configurable per entity type (none/yearly/monthly/weekly/daily). Non-destructive
+    strategy changes.
+15. **Multi-actor roles**: A role can be filled by multiple actors simultaneously. No
+    forced sub-division. `filled_by:` is an array.
+16. **aibox is infrastructure, not application**: aibox inits, syncs, lints, migrates.
+    It does NOT enforce process logic (guards, transitions, hooks). Agents have full autonomy.
+17. **Word-IDs without content slugs for entities**: `BACK-swift-oak.md` for work items.
+    Content-primary files (research, decisions) MAY keep slugs: `20260327-ART-swift-oak-process-ontology.md`.
+18. **Minijinja stays for infrastructure** (Dockerfile/compose rendering), NOT for process
+    logic. Guard expressions and process guidance written in plain English for agents.
+19. **RBAC via plain English**: Role permissions/restrictions written as natural language in
+    Role definitions. Agents interpret probabilistically. `aibox lint` flags anomalies.
+    aibox assumes zero liability.
+20. **Dual event sources**: Process events logged by agent via event-log skill (probabilistic).
+    Infrastructure events logged by aibox sync/lint (deterministic). Both in same JSONL files.
+21. **No hook execution infrastructure**: Agents ARE the execution layer. Process suggestions
+    are guidance; agents use their own tool access to act on them.
+22. **Event-log skill**: aibox ships a skill that agents use to append process events. Simple
+    JSONL append. Instruction to use it is prominent in scaffolded process documentation.
+23. **Skills as agent API**: Every primitive gets a corresponding skill. 17 skills mapped.
+    Skills encode mechanical correctness; agents provide judgment. Cross-cutting concerns
+    (RBAC, event logging, INDEX.md) embedded in each entity-modifying skill.
+24. **Revised skill packages**: core/tracking/processes/planning/governance/collaboration/
+    artifacts. Four presets: minimal, managed, software, full-product.
+25. **Skill naming**: Long descriptive names (`workitem-management`, `decision-record-management`).
+    Pattern: `<noun>-management` for CRUD, `<noun>-<verb>` for actions.
+26. **Skill hierarchy**: Skills reference lower-layer skills by name in their instructions.
+    `uses:` field in frontmatter documents dependencies. Strictly downward.
+27. **Skill size**: One skill per primitive, ~100-200 lines. Split only above ~250 lines.
+28. **Template originals**: `aibox init` stores originals in `context/.aibox/templates/`.
+    Each `aibox update` adds new version. `aibox migrate` generates diffs + migration prompts.
+    Derived project customization via direct editing — originals available for comparison.
+29. **Three layers of process**: Primitive mechanics (aibox, always), micro-processes (aibox,
+    optional), macro-frameworks (kaits/community). aibox does NOT ship SAFe, Scrum, etc.
+    Optional community framework packages via `aibox process install`.
+30. **Process packages = primitive activation tiers**: minimal/managed/software/research/
+    full-product activate progressively more primitives. They are NOT framework choices.
+31. **Personas and user stories**: Fit existing primitives. Persona = Actor (subtype: persona).
+    User story = Work Item (subtype: story). No new primitives needed.
+11. **Three-level rule**: All entity .md files follow Level 1 (intro) → Level 2 (overview) →
+    Level 3 (details). Directory INDEX.md files provide Level 0.
+12. **Filename conventions**: Inverse date prefix for temporal files + content slug for human
+    browsing. Word-IDs serve as natural content hints.
+13. **No override mechanism**: Derived project owns its files after scaffolding. Direct
+    editing by agents. Schema updates via `aibox migrate` producing diffs + migration prompts.
+14. **Content-primary artifacts**: Research, work instructions, PRD stay in semantic directories
+    with added frontmatter. Only metadata-primary artifacts go to items/artifact/.
 
 ## 5. Next Steps
 
 - [x] Research: scaling limits of file-per-entity in git repos — **done**
-- [ ] Map 16 primitives to storage structure
+- [x] Map 16 primitives to storage structure — **done** (`context/research/primitive-mapping-exercise-2026-03.md`)
+- [x] Resolve open questions Q1-Q5 from mapping exercise — **done** (§2.11)
+- [x] Investigate word-based IDs — **done** (§2.12)
+- [x] Investigate Kubernetes-inspired object model — **done** (§2.13)
+- [x] Analyze state machine agent-driven model — **done** (§2.14)
+- [x] Resolve Actor multi-fill, word-ID sizing, guard execution, override materialization — **done** (§2.20-2.23)
+- [x] Establish infrastructure/application boundary — **done** (§2.24-2.28)
+- [x] Map primitives to skills — **done** (`context/research/primitive-skills-mapping-2026-03.md`)
+- [ ] Update mapping exercise document with all accumulated decisions
 - [ ] Design new `context/` directory layout with sharding
-- [ ] Design YAML frontmatter schemas per primitive type
+- [ ] Design YAML frontmatter schemas per primitive type (now with apiVersion/kind/metadata/spec)
+- [ ] Curate word list for petname-based IDs
+- [ ] Implement `event-log` skill (Phase 1 foundation)
+- [ ] Implement `workitem` skill (Phase 1, rewrite backlog-context)
+- [ ] Implement `decision` skill (Phase 1, rewrite decisions-adr)
 - [ ] Prototype: convert BACKLOG.md to file-per-entity format
 - [ ] Record formal decisions in DECISIONS.md
 - [ ] Session handover: capture full context for next session
