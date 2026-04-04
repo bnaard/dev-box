@@ -1737,6 +1737,11 @@ process repo architecture and per-file authorization enforcement. Key outcomes:
   (meta-process, process, product) map to three trust levels. Enforcement via repo push
   permissions — universal across all git platforms, no enterprise features needed. aibox
   commands become convenience, not enforcement. Repo separation IS the security.
+- **Git-native authorization reality check** (§2.63): Git has no cert-based RBAC.
+  Platform teams are the enforcement; aibox RoleBindings are the audit/advisory layer.
+  Two parallel systems bridged via `platform_mapping` field and `aibox lint --audit`
+  alignment checks. Within-repo RBAC is advisory, acceptable because repo separation
+  aligns actors to trust levels.
 
 Full research: `context/research/aiadm-aictl-architecture-2026-03.md`
 
@@ -1959,6 +1964,105 @@ here for historical context. The Phase 3 resolutions below replace them.
 71. **Trust anchor termination**: Meta-process repo has no submodule above it. Self-governs
     via push permissions (governance board only). The recursion terminates at authority.
     Confirms §2.57 decision: two levels of submodules is the maximum needed.
+72. **Git has no native RBAC**: No git platform reads certificate CN/O for authorization.
+    Push permissions are user/team-based only. Signed commit verification checks validity,
+    not identity attributes. This is a fundamental platform limitation, not solvable by
+    aibox.
+73. **Platform teams = enforcement, aibox RoleBindings = audit**: Repo-level push
+    permissions (via platform team membership) are the real enforcement mechanism.
+    aibox RoleBindings document the intended role assignments, bridge to platform teams
+    via `platform_mapping` field, and enable `aibox lint --audit` to verify alignment.
+    Two parallel systems, kept in sync.
+74. **Within-repo RBAC is advisory**: Fine-grained file-level authorization within a
+    single repo (e.g., which process architect can modify which process file) is enforced
+    by aibox verification manifests + lint --audit, not by git natively. This is acceptable
+    because the three-repo architecture means within-repo actors share the same trust level.
+
+### 2.63 Git-native authorization reality check (session 2026-04-04)
+
+Owner asked whether git natively supports certificate-attribute-based authorization
+(reading CN/O from signed commits for role-based access control, Kubernetes-style).
+
+**Answer: No.** Git's native access control is strictly user/team-based. No git platform
+reads certificate CN/O fields for authorization decisions.
+
+**What git platforms actually enforce:**
+
+| Mechanism | Based on | Reads cert CN/O? |
+|-----------|----------|------------------|
+| SSH key authentication | SSH key → platform user account | No |
+| Push permissions | Platform username / team | No |
+| Branch protection | Platform username / team | No |
+| CODEOWNERS | Platform username / team | No |
+| Required signed commits | Valid signature exists (yes/no) | No — checks validity, ignores content |
+
+**Consequence: two parallel identity systems exist:**
+
+```
+Git platform world:              aibox world:
+  GitHub user "alice123"           Certificate CN=alice
+  Team "process-architects"        RoleBinding ACTOR-alice → ROLE-process-architect
+  Repo permission: write           authorization-policy.toml rules
+```
+
+The platform doesn't know about aibox roles. aibox doesn't control platform permissions.
+
+**Resolution: platform teams ARE the enforcement; aibox RoleBindings are the audit layer.**
+
+The three-repo architecture works because repo-level push permissions (platform teams)
+align with trust levels. The mapping:
+
+```
+meta-process-repo  → GitHub/GitLab team "governance-board"      → push access
+process-repo       → GitHub/GitLab team "process-architects"    → push access
+product-repo       → GitHub/GitLab team "developers"            → push access
+```
+
+Platform team membership IS the role binding in practice for repo-level enforcement.
+
+**Bridging the two systems:**
+
+RoleBinding entities document the platform mapping:
+```yaml
+# context/rolebindings/BIND-alice-process-architect.md
+spec:
+  actor: ACTOR-alice
+  role: ROLE-process-architect
+  platform_mapping:
+    github_team: "process-architects"
+    gitlab_group: "process-architects"
+```
+
+`aibox lint --audit` verifies alignment: "BIND-alice-process-architect exists, but alice
+is not in GitHub team process-architects → WARNING: platform enforcement not in sync."
+
+An admin skill or script can sync: when a RoleBinding is created, it invites the user
+to the corresponding platform team (or documents that this must be done manually).
+
+**Where each system enforces:**
+
+| Scope | Enforcement | Mechanism |
+|-------|-------------|-----------|
+| Who can push to which repo | **Real** (server-side) | Platform teams (synced with aibox roles) |
+| Who must approve PRs for which files | **Real** (server-side) | CODEOWNERS + platform teams |
+| Which role can modify which files within a repo | **Advisory + audit** (aibox) | RoleBindings + verification manifests + lint --audit |
+| Signed commits prove authorship | **Real** (cryptographic) | Git standard |
+| Signed commits enforce role-based access | **Not a git feature** | aibox advisory layer only |
+
+**Why this is actually fine for the three-repo architecture:**
+
+- Repo boundary = trust level boundary → platform enforced (real)
+- Within product repo = all developers have same trust level (same push access)
+- Within process repo = all process architects have same trust level
+- Fine-grained within-repo RBAC (process-architect-A can modify release.md but not
+  code-review.md) = aibox advisory + audit. This is a rare scenario and acceptable
+  as a non-mechanically-enforced policy.
+
+**Self-hosted option for full cert-based auth:** Organizations running their own git
+server (Gitea, Forgejo) can configure SSH certificate authentication with custom
+extensions containing role claims. This enables true cert-based push authorization
+but breaks "any git platform" universality. Documented as an optional hardening path,
+not a requirement.
 11. **Three-level rule**: All entity .md files follow Level 1 (intro) → Level 2 (overview) →
     Level 3 (details). Directory INDEX.md files provide Level 0.
 12. **Filename conventions**: Inverse date prefix for temporal files + content slug for human
