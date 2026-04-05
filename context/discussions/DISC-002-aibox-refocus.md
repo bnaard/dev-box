@@ -708,39 +708,31 @@ Does this generalization feel right? The trade-off:
 | **Three-level skill rewrite** | Existing 83 skills need review for three-level structure. Many are already close. | processkit |
 | **mcp.json scaffolding** | `aibox init` should generate MCP server config entries for installed skills | aibox CLI |
 
-### Key decision needed: what happens to existing 83 skills?
+### Resolved: all 85 skills move to processkit (Option A)
 
-The current 83 skills in `templates/skills/` are technical coding skills (rust-conventions,
-python-best-practices, database-modeling, etc.) — NOT process primitive skills (workitem-
-management, decision-record, event-log, etc.).
+All skills — both technical (rust-conventions, python-best-practices) and process
+(workitem-management, decision-record) — live in processkit. The distinction between
+"coding skill" and "process skill" is blurry and not worth splitting across repos.
 
-These are two different categories:
-
-| Category | Examples | Where they live |
-|---|---|---|
-| **Process skills** (primitive management) | workitem-management, event-log, decision-record | processkit |
-| **Technical skills** (coding practices) | rust-conventions, python-best-practices, sql-patterns | ? |
-
-**Options:**
-- **(a)** Technical skills move to processkit too (one place for all skills)
-- **(b)** Technical skills stay in aibox (they're tied to addons — rust-conventions ships with the rust addon)
-- **(c)** Technical skills become a separate package/addon in aibox (not in processkit)
-
-Option (b) makes sense: technical skills are addon-specific. The rust-conventions skill
-ships when you enable the rust addon. Process skills are project-management-specific and
-ship from processkit when you choose a package tier.
-
-**Recommendation: (b)** — technical skills stay in aibox, tied to addons.
-
-Awaiting owner input. This is the last blocking decision before the implementation plan.
+**Design:**
+- processkit ships an **opinionated base set** of skills (all current 85 + new process
+  primitive skills). Good coverage out of the box.
+- `aibox init` installs ALL base skills from the processkit tag into the project.
+  No selective installation — opinionated defaults.
+- Users can **add more skills from any GitHub repo** using `use templates` pattern
+  (git tag as release mechanism). This is how community/custom skills get added.
+- aibox = infrastructure (containers). processkit = content (skills, primitives,
+  processes, MCP servers). Clean separation.
 
 ## 13. Next Steps
 
 - [x] ~~Owner review: Binding as generalized primitive (§11)~~ — approved
 - [x] ~~Name the process repo (Q1)~~ — resolved: **processkit** (projectious-work/processkit)
 - [x] ~~Decide where SQLite index logic lives (Q2)~~ — resolved: Option B (process repo MCP servers)
+- [x] ~~Decide where existing 85 skills live~~ — resolved: Option A (all in processkit)
+- [ ] Create implementation plan
 - [ ] Record formal decisions in DECISIONS.md
-- [ ] Create process repo and scaffold it with aibox
+- [ ] Create processkit repo and scaffold it
 
 ## 14. SQLite Index Logic — Where Does It Live?
 
