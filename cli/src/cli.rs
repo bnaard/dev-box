@@ -13,6 +13,8 @@ pub enum Layout {
     Cowork,
     /// Yazi-focused with large preview and AI pane
     Browse,
+    /// AI-first: Yazi left, AI agent right (horizontal split, no editor on first screen)
+    Ai,
 }
 
 impl std::fmt::Display for Layout {
@@ -22,6 +24,7 @@ impl std::fmt::Display for Layout {
             Layout::Focus => write!(f, "focus"),
             Layout::Cowork => write!(f, "cowork"),
             Layout::Browse => write!(f, "browse"),
+            Layout::Ai => write!(f, "ai"),
         }
     }
 }
@@ -129,9 +132,9 @@ pub enum Commands {
     /// creates/starts the container, then attaches via zellij.
     /// If already running, just attaches.
     ///
-    /// Available layouts: dev (default), focus, cowork, browse.
+    /// Available layouts: dev (default), focus, cowork, browse, ai.
     Start {
-        /// Zellij layout to use (dev, focus, cowork, browse)
+        /// Zellij layout to use (dev, focus, cowork, browse, ai)
         #[arg(long, value_enum)]
         layout: Option<Layout>,
     },

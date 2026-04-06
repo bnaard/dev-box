@@ -425,7 +425,7 @@ fn serialize_config_with_comments(config: &AiboxConfig) -> String {
     out.push_str("# Starship prompt preset.\n");
     out.push_str("# Options: default | plain | minimal | nerd-font | pastel | bracketed | arrow\n");
     out.push_str(&format!("prompt = \"{}\"\n", config.customization.prompt));
-    out.push_str("# Default zellij layout. Options: dev | focus | cowork | browse\n");
+    out.push_str("# Default zellij layout. Options: dev | focus | cowork | browse | ai\n");
     out.push_str(&format!("layout = \"{}\"\n", config.customization.layout));
 
     // [audio] section

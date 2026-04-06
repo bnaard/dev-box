@@ -54,10 +54,10 @@ const DEFAULT_GITCONFIG: &str = r#"[core]
     rebase = true
 "#;
 
-/// Default zellij config.kdl content. Theme name is replaced at seed time.
+/// Default zellij config.kdl content. Theme name and layout are replaced at seed time.
 const DEFAULT_ZELLIJ_CONFIG: &str = r#"// aibox zellij configuration
 theme "AIBOX_THEME"
-default_layout "dev"
+default_layout "AIBOX_LAYOUT"
 default_shell "bash"
 mouse_mode true
 copy_on_select true
@@ -393,6 +393,103 @@ fn generate_cowork_layout(providers: &[crate::config::AiProvider]) -> String {
     )
 }
 
+/// Generate the zellij ai layout dynamically based on configured AI providers.
+///
+/// AI layout: yazi-first, AI-first.
+///   Tab 1 ("ai"):     left 40% yazi, right 60% AI agent pane (vertical split, no editor)
+///   Tab 2 ("editor"): fullscreen vim
+///   Tab 3 ("git"):    fullscreen lazygit
+///   Tab 4 ("shell"):  fullscreen bash
+///
+/// When no AI providers are configured, the ai tab is fullscreen yazi (the
+/// editor still lives in tab 2; opening files via `e` from yazi works as
+/// usual).
+fn generate_ai_layout(providers: &[crate::config::AiProvider]) -> String {
+    let ai_pane = ai_pane_kdl(providers);
+
+    if ai_pane.is_empty() {
+        return r#"layout {
+    default_tab_template {
+        children
+        pane size=1 borderless=true {
+            plugin location="zellij:status-bar"
+        }
+    }
+    tab name="ai" focus=true {
+        pane name="files" {
+            command "bash"
+            args "-c" "AIBOX_EDITOR_DIR=tab exec yazi"
+            cwd "/workspace"
+        }
+    }
+    tab name="editor" {
+        pane name="vim" {
+            command "bash"
+            args "-c" "AIBOX_EDITOR_DIR=tab exec vim-loop"
+            cwd "/workspace"
+        }
+    }
+    tab name="git" {
+        pane name="lazygit" {
+            command "lazygit"
+            cwd "/workspace"
+        }
+    }
+    tab name="shell" {
+        pane name="bash" {
+            command "bash"
+            cwd "/workspace"
+        }
+    }
+}
+"#
+        .to_string();
+    }
+
+    format!(
+        r#"layout {{
+    default_tab_template {{
+        children
+        pane size=1 borderless=true {{
+            plugin location="zellij:status-bar"
+        }}
+    }}
+    tab name="ai" focus=true {{
+        pane split_direction="vertical" {{
+            pane size="40%" name="files" focus=true {{
+                command "bash"
+                args "-c" "AIBOX_EDITOR_DIR=tab exec yazi"
+                cwd "/workspace"
+            }}
+            pane size="60%" {{
+{ai_pane}
+            }}
+        }}
+    }}
+    tab name="editor" {{
+        pane name="vim" {{
+            command "bash"
+            args "-c" "AIBOX_EDITOR_DIR=tab exec vim-loop"
+            cwd "/workspace"
+        }}
+    }}
+    tab name="git" {{
+        pane name="lazygit" {{
+            command "lazygit"
+            cwd "/workspace"
+        }}
+    }}
+    tab name="shell" {{
+        pane name="bash" {{
+            command "bash"
+            cwd "/workspace"
+        }}
+    }}
+}}
+"#
+    )
+}
+
 /// Generate the zellij browse layout dynamically based on configured AI providers.
 ///
 /// Browse layout: yazi-focused with large preview.
@@ -654,7 +751,7 @@ const DEFAULT_CHEATSHEET: &str = r#"  aibox Quick Reference
   Ctrl+b /         Search
   Ctrl+b q         QUIT (or Ctrl+q)
 
-  LAYOUTS: aibox start --layout dev|focus|cowork
+  LAYOUTS: aibox start --layout dev|focus|cowork|browse|ai
   TABS: Ctrl+b 1 dev  2 git  3 shell  4 help
 "#;
 
@@ -724,9 +821,10 @@ pub fn seed_root_dir(config: &AiboxConfig) -> Result<()> {
         DEFAULT_GITCONFIG,
     )?;
 
-    // Zellij config — apply selected theme
+    // Zellij config — apply selected theme and default layout
     let zellij_config = DEFAULT_ZELLIJ_CONFIG
-        .replace("AIBOX_THEME", &theme.to_string());
+        .replace("AIBOX_THEME", &theme.to_string())
+        .replace("AIBOX_LAYOUT", &config.customization.layout.to_string());
     seed_file(
         &root.join(".config").join("zellij").join("config.kdl"),
         &zellij_config,
@@ -775,6 +873,14 @@ pub fn seed_root_dir(config: &AiboxConfig) -> Result<()> {
             .join("layouts")
             .join("browse.kdl"),
         &generate_browse_layout(providers),
+    )?;
+    seed_file(
+        &root
+            .join(".config")
+            .join("zellij")
+            .join("layouts")
+            .join("ai.kdl"),
+        &generate_ai_layout(providers),
     )?;
 
     // Yazi config + theme
@@ -881,9 +987,10 @@ pub fn sync_theme_files(config: &AiboxConfig) -> Result<Vec<String>> {
         updated.push(".vim/vimrc".to_string());
     }
 
-    // Zellij config — theme name
+    // Zellij config — theme name and default layout
     let zellij_config = DEFAULT_ZELLIJ_CONFIG
-        .replace("AIBOX_THEME", &theme.to_string());
+        .replace("AIBOX_THEME", &theme.to_string())
+        .replace("AIBOX_LAYOUT", &config.customization.layout.to_string());
     if force_seed_file(
         &root.join(".config").join("zellij").join("config.kdl"),
         &zellij_config,
@@ -944,6 +1051,16 @@ pub fn sync_theme_files(config: &AiboxConfig) -> Result<Vec<String>> {
         &generate_browse_layout(providers),
     )? {
         updated.push(".config/zellij/layouts/browse.kdl".to_string());
+    }
+    if force_seed_file(
+        &root
+            .join(".config")
+            .join("zellij")
+            .join("layouts")
+            .join("ai.kdl"),
+        &generate_ai_layout(providers),
+    )? {
+        updated.push(".config/zellij/layouts/ai.kdl".to_string());
     }
 
     // lazygit config
@@ -1058,6 +1175,20 @@ mod tests {
                 .join("zellij")
                 .join("layouts")
                 .join("cowork.kdl")
+                .exists()
+        );
+        assert!(
+            root.join(".config")
+                .join("zellij")
+                .join("layouts")
+                .join("browse.kdl")
+                .exists()
+        );
+        assert!(
+            root.join(".config")
+                .join("zellij")
+                .join("layouts")
+                .join("ai.kdl")
                 .exists()
         );
         assert!(root.join(".config").join("yazi").join("yazi.toml").exists());
@@ -1289,6 +1420,64 @@ mod tests {
         assert!(
             layout.contains("size=\"60%\""),
             "yazi pane should be 60%"
+        );
+    }
+
+    #[test]
+    fn ai_layout_single_provider() {
+        let providers = vec![AiProvider::Claude];
+        let layout = generate_ai_layout(&providers);
+        assert!(layout.contains("tab name=\"ai\""), "should have ai tab");
+        assert!(layout.contains("command \"claude\""), "should have claude pane");
+        assert!(layout.contains("tab name=\"editor\""), "should have editor tab");
+        assert!(layout.contains("tab name=\"git\""), "should have git tab");
+        assert!(layout.contains("tab name=\"shell\""), "should have shell tab");
+        assert!(layout.contains("split_direction=\"vertical\""), "should split vertically");
+        assert!(layout.contains("size=\"40%\""), "yazi pane should be 40%");
+        assert!(layout.contains("size=\"60%\""), "ai pane should be 60%");
+        assert!(!layout.contains("stacked"), "single provider should not be stacked");
+    }
+
+    #[test]
+    fn ai_layout_multiple_providers_stacked() {
+        let providers = vec![AiProvider::Claude, AiProvider::Aider];
+        let layout = generate_ai_layout(&providers);
+        assert!(layout.contains("stacked=true"), "multiple providers should be stacked");
+        assert!(layout.contains("command \"claude\""), "should have claude");
+        assert!(layout.contains("command \"aider\""), "should have aider");
+    }
+
+    #[test]
+    fn ai_layout_no_providers() {
+        let providers: Vec<AiProvider> = vec![];
+        let layout = generate_ai_layout(&providers);
+        assert!(layout.contains("tab name=\"ai\""), "should still have ai tab");
+        assert!(!layout.contains("claude"), "should not have claude");
+        assert!(layout.contains("tab name=\"editor\""), "should still have editor tab");
+        assert!(layout.contains("yazi"), "should still have yazi pane");
+    }
+
+    #[test]
+    fn ai_layout_yazi_left_of_ai() {
+        let providers = vec![AiProvider::Claude];
+        let layout = generate_ai_layout(&providers);
+        let yazi_pos = layout.find("yazi").unwrap();
+        let claude_pos = layout.find("command \"claude\"").unwrap();
+        assert!(yazi_pos < claude_pos, "yazi should appear left of (before) AI pane");
+    }
+
+    #[test]
+    fn zellij_config_substitutes_layout() {
+        // Regression test for the layout-sync bug fixed in v0.14.2:
+        // DEFAULT_ZELLIJ_CONFIG must contain the AIBOX_LAYOUT placeholder
+        // that seed_root_dir / sync_theme_files replace with the configured layout.
+        assert!(
+            DEFAULT_ZELLIJ_CONFIG.contains("AIBOX_LAYOUT"),
+            "config template must contain AIBOX_LAYOUT placeholder"
+        );
+        assert!(
+            !DEFAULT_ZELLIJ_CONFIG.contains("default_layout \"dev\""),
+            "config template must not hard-code dev as default_layout"
         );
     }
 

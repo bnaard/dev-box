@@ -363,6 +363,8 @@ pub enum ConfigLayout {
     Cowork,
     /// Yazi-focused with large preview and AI pane
     Browse,
+    /// AI-first: Yazi left, AI agent right (horizontal split, no editor on first screen)
+    Ai,
 }
 
 impl std::fmt::Display for ConfigLayout {
@@ -372,6 +374,7 @@ impl std::fmt::Display for ConfigLayout {
             ConfigLayout::Focus => write!(f, "focus"),
             ConfigLayout::Cowork => write!(f, "cowork"),
             ConfigLayout::Browse => write!(f, "browse"),
+            ConfigLayout::Ai => write!(f, "ai"),
         }
     }
 }

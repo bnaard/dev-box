@@ -207,14 +207,17 @@ fn generate_devcontainer_json(config: &AiboxConfig, dir: &Path) -> Result<bool> 
         extensions.push("golang.go".to_string());
     }
 
-    // Build VS Code terminal profiles — include configured AI providers
+    // Build VS Code terminal profiles — include configured AI providers.
+    // The zellij profile uses the layout from [customization] in aibox.toml
+    // so VS Code terminals match `aibox start`'s default.
+    let layout = config.customization.layout.to_string();
     let mut terminal_profiles = serde_json::json!({
         "bash": {
             "path": "/bin/bash"
         },
         "zellij": {
             "path": "/usr/local/bin/zellij",
-            "args": ["--layout", "dev"]
+            "args": ["--layout", layout]
         }
     });
 
