@@ -1102,11 +1102,590 @@ with frontmatter? (2) Guard evaluation: trust agent assertion or evaluate mechan
 (3) Solo dev certificate complexity — is `--no-auth` mode sufficient? (4) Rename timing.
 (5) Structured vs plain-English permissions. (6) Daemon vs CLI-only.
 
-## 3. Current State (as of 2026-03-29)
+### 2.51 Authorization design — process protection (session 2026-04-01)
+
+Owner review of aiadm/aictl proposal identified a critical attack vector: a developer
+modifies process definitions locally (e.g., `process/release.md` → "no approvals needed"),
+the AI agent reads the modified process and executes accordingly, then the developer
+reverts the process files. Git history looks clean. Filesystem write-blocking would
+prevent this, but the research showed that intra-container filesystem protection is
+fundamentally limited against agents with root shell access.
+
+**Key realization:** In the classic world, process documents (wiki pages, Confluence)
+never enforced anything. Enforcement came from CI/CD pipelines (compiled logic),
+branch protection (server-side), required approvals (server-side state), and deployment
+keys (held by the pipeline). The process document was documentation of what the pipeline
+enforces, not the enforcement itself.
+
+**The root problem in aibox:** Process definitions (markdown) and enforcement mechanism
+(agent reading that markdown) live in the same trust domain. The agent reads its
+instructions from a location the governed party can edit. This is like letting the CI/CD
+pipeline download its rules from a wiki page the developer can edit mid-run.
+
+**Resolution — signed process definitions + hash pinning:**
+
+Process definitions remain markdown in git (human-readable, versioned, recoverable).
+But they are consumed through a verification layer, not trusted raw.
+
+| Layer | Mechanism | Purpose |
+|-------|-----------|---------|
+| Signing | `aibox process sign release.md` | Process-admin signs with their cert |
+| Pinning | `.aibox/process-pins.toml` (signed) | Records expected hash per process file |
+| Verification | `aibox release start` | Verifies process file hash against pin |
+| Audit | Event log | Records which process hash was used at execution time |
+
+The local-modify-then-revert attack fails because the modified file's hash doesn't
+match the signed pin. `aibox` refuses to execute against an unsigned or hash-mismatched
+process definition. The developer CAN modify the file locally — aibox just won't trust it.
+
+**Separation aligns with volume classification (Decision 40):**
+
+| Category | Entities | Authorization |
+|----------|----------|---------------|
+| Governance (low-volume) | Process, Role, Gate, Constraint, Scope | Signed by process-admin, pinned hash |
+| Governed (high-volume) | WorkItem, Decision, Discussion, Artifact | Normal RBAC (create/edit/delete per role) |
+| Audit (append-only) | Event log entries | Append only, signed, hash-chained |
+
+The low-volume/high-volume distinction already made for naming conventions (Decision 40)
+turns out to be the same distinction needed for the trust model.
+
+**Git submodules as escalation path:** For teams, governance files (processes, roles,
+gates, constraints) can live in a separate repo with different push permissions. The
+submodule pin (commit hash) is the version reference. Updating the pin requires a visible
+commit. This is the natural Tier 1→2 scaling step (see §2.52).
+
+### 2.52 Event log scaling — tiered architecture (session 2026-04-01)
+
+Owner challenged the git-based event log design at scale. With 10 developers generating
+events concurrently, the push-pull cycle creates cascade failures:
+
+```
+Developer A pushes → success
+Developer B pushes → rejected (not fast-forward)
+Developer B pulls, rebases, pushes → rejected (C pushed)
+Developer C pushes → rejected (B just pushed)
+... cascade of rebase-push-retry
+```
+
+Even per-actor JSONL sharding (each actor appends to their own file) doesn't solve this:
+the push frequency problem remains for all shared files. Git was designed for
+collaborative authoring (low-frequency edits to existing content), not event streaming
+(high-frequency appends of new content).
+
+**Principle reframe:** The actual principle is "everything is auditable and recoverable,"
+not "everything is in git." Git is the zero-infrastructure default implementation that
+provides auditability for free. A properly configured database with WAL archiving,
+replication, and access controls provides the same five properties:
+
+1. Auditable — every mutation attributable and immutable
+2. Recoverable — nothing permanently lost
+3. Versionable — can see what changed and roll back
+4. Human-readable — exportable to readable format
+5. Portable — no vendor lock-in, no mandatory infrastructure
+
+**Tiered architecture:**
+
+| Tier | Target | Event storage | Governance | Artifacts | CLI |
+|------|--------|---------------|------------|-----------|-----|
+| 0 (Solo) | Alex persona | JSONL in git (per-actor) | Same repo | Same repo | `aibox` |
+| 1 (Small team) | Maria persona | JSONL in git (per-actor) | Separate repo (submodule/pin) | Project repo | `aibox` |
+| 2 (Medium team) | Growing company | External store (Redis/Postgres/ClickHouse) | Governance repo | Project repo | `aibox` |
+| 3 (Enterprise/kaits) | CIO persona | Full event infrastructure | Company-wide governance repo | Per-team repos | `aibox` + kaits |
+
+**The "everything in git" principle bends at Tier 2.** But it bends at exactly the point
+where git's write pattern stops matching the data's write pattern. Governance and artifacts
+are low-frequency, high-semantic — git is ideal. Events are high-frequency, low-semantic —
+git is the wrong tool.
+
+**Append-only in git (Tiers 0-1):**
+
+Per-actor JSONL sharding avoids merge conflicts:
+```
+context/events/
+  actor-alice.jsonl     ← Alice's agent only appends here
+  actor-bob.jsonl       ← Bob's agent only appends here
+  infrastructure.jsonl  ← aibox system events
+```
+
+Server-side pre-receive hooks enforce: lines can only be appended, never removed
+(diff must be pure additions). Each line signed. Works for up to ~10 concurrent actors.
+
+### 2.53 Responsibility boundaries — pluggable backends (session 2026-04-01)
+
+Owner question: if event logs move to a database at Tier 2, does that break aibox's
+design? Resolution: aibox defines interfaces, backends are pluggable.
+
+**aibox's responsibility:** Define schemas, provide git-based defaults, define the
+interface that alternative backends must implement, provide skills that work against
+the interface (not the backend).
+
+**Derived project's responsibility:** Choose which backends to use, configure
+infrastructure. A skill says `aibox event create ...` and aibox routes to the
+configured backend.
+
+```toml
+# aibox.toml
+[events]
+backend = "git"                     # default: JSONL in git
+# backend = "redis"                 # scaled: Redis Streams
+# backend = "postgres"              # alternative
+
+[search]
+backend = "sqlite"                  # default: local SQLite FTS
+# backend = "meilisearch"           # scaled
+
+[identity]
+backend = "local"                   # default: auto-generated cert
+# backend = "ca"                    # team: project CA
+# backend = "oidc"                  # enterprise: SSO
+```
+
+**Critical property:** Skills don't change between tiers. A skill says "log this event"
+— whether it lands in JSONL or Redis is a deployment concern, not a process concern.
+This means process definitions remain portable across all tiers.
+
+### 2.54 CLI tool count — one binary (session 2026-04-01)
+
+The aiadm/aictl split was modeled on kubeadm/kubectl, but the Kubernetes split exists
+because the admin and the user are typically different people on different machines. In
+aibox Tier 0-1, they're the same person on the same machine.
+
+**Resolution:** One CLI binary (`aibox`) with subcommand grouping. No rename.
+
+```
+aibox init             ← project scaffolding
+aibox admin cert       ← certificate management (was aiadm cert)
+aibox admin image      ← container management (was aiadm image)
+aibox create           ← CRUD operations (was aictl create)
+aibox transition       ← state machine (was aictl transition)
+aibox auth             ← identity/RBAC (was aictl auth)
+aibox events           ← event queries
+aibox lint             ← validation
+aibox config           ← backend configuration
+```
+
+If enterprise needs warrant it later, `aibox admin` can be extracted into a separate
+binary — but that's a packaging decision, not an architectural one.
+
+**Impact on aiadm/aictl research:** The command mapping (§2.50 research section 2) remains
+valid — the commands are the same, just grouped under one binary instead of two. The
+40 aictl commands become `aibox <command>`, the aiadm commands become `aibox admin <command>`.
+
+### 2.55 kaits relationship clarified (session 2026-04-01)
+
+kaits enters at Tier 3 as:
+
+- **Multi-project orchestrator** (backend): manages governance across repos, provisions
+  shared infrastructure (event store, search, CA), schedules agents across projects
+- **Dashboard** (frontend): visualizes processes, events, metrics across projects.
+  Could also serve as a GUI for process configuration ("this is how logging is done" =
+  defining the event backend, configuring the MCP server)
+
+kaits does not replace aibox — it's the layer above. Each project still has aibox.
+kaits coordinates between them and provides the shared infrastructure that individual
+projects connect to via pluggable backends (§2.53).
+
+**Boundary clarification:**
+
+| Concern | aibox | kaits |
+|---------|-------|-------|
+| Single-project context management | Yes | No |
+| Process definition authoring | Yes (markdown + signing) | GUI for viewing/editing |
+| Event logging interface | Yes (defines schema + skill) | Provides scaled backend |
+| Agent orchestration | No (single agent) | Yes (multi-agent scheduling) |
+| Cross-project queries | No | Yes |
+| Infrastructure provisioning | Container images only | Full stack (DB, search, CA) |
+
+### 2.57 Process repo as aibox-managed project — two levels, not three (session 2026-04-04)
+
+Owner explored the implications of splitting process definitions into a separate repo
+at Tier 1+. Key insight: if the process repo is itself an aibox-managed project, then
+there needs to be a way to define how processes are changed — a "meta-process."
+
+**The recursive submodule question:** If a meta-process repo is a submodule in the process
+repo, and the process repo is a submodule in the product repo, do submodules cascade?
+Answer: **yes**, `git clone --recurse-submodules` recursively clones all levels. Each
+level pins a specific commit hash. But multi-level submodules add real friction —
+every `git pull` potentially requires updating two pins, and developers frequently
+forget `--recurse-submodules`.
+
+**Resolution: two levels, not three.** The meta-process collapses into the process repo's
+own governance. The process repo is an aibox-managed project with its own `context/`:
+
+```
+process-repo/                          ← aibox-managed project
+  context/
+    processes/
+      how-we-change-processes.md       ← THIS is the "meta-process"
+      release-process.md
+      code-review-process.md
+    roles/
+      process-architect.md             ← can modify process definitions
+      process-reviewer.md              ← can approve process changes
+    items/                             ← tracks process change requests as work items
+  aibox.toml
+
+product-repo/                          ← aibox-managed project
+  context/
+    items/                             ← work items, decisions, etc.
+  processes/ (submodule → process-repo)
+  src/
+  aibox.toml
+```
+
+The recursion terminates at authority, not at more rules. Like Kubernetes: you can have
+RBAC rules governing who can create RBAC rules, but at the top the CA key holder has
+unchecked power. That's the trust anchor — not rules all the way down.
+
+**Process repo event log can be purely probabilistic.** Because:
+- Process changes are low-frequency (no push-frequency problem)
+- Every change is a git commit (deterministic audit trail for free)
+- Git commit records who, when, what changed
+- Git signatures add authorization proof
+- The event-log skill captures reasoning ("why did we change this?") — probabilistic layer
+- The commit history captures facts ("what changed?") — deterministic layer
+
+Together they satisfy audit requirements without external infrastructure.
+
+### 2.58 Per-file authorization policy (session 2026-04-04)
+
+Within the process repo, different files need different authorization levels. The
+meta-process file (`how-we-change-processes.md`) needs stronger protection than regular
+process definitions.
+
+**Mechanism: signed authorization policy file** (like GitHub CODEOWNERS, enforced by aibox).
+
+```toml
+# .aibox/authorization-policy.toml (signed by governance-board)
+
+# Rules evaluated top-to-bottom, first match wins
+[[rules]]
+pattern = ".aibox/authorization-policy.toml"
+required_role = "governance-board"
+min_approvals = 2
+
+[[rules]]
+pattern = "context/processes/how-we-change-processes.md"
+required_role = "governance-board"
+min_approvals = 1
+
+[[rules]]
+pattern = "context/processes/*.md"
+required_role = "process-architect"
+
+[[rules]]
+pattern = "context/roles/*.md"
+required_role = "process-architect"
+
+[[rules]]
+pattern = "context/items/**"
+required_role = "developer"
+```
+
+**Bootstrap protection:** Auth rules live in a separate signed policy file, not in the
+files themselves. Otherwise someone could modify the auth level AND the content in the
+same commit. The policy file's first rule protects itself (requires governance-board).
+
+**Three enforcement points, layered:**
+
+| Point | Mechanism | Strength | When |
+|-------|-----------|----------|------|
+| 1. Local CLI | `aibox edit` checks policy before writing | Advisory (agent can bypass via direct edit) | Before write |
+| 2. Git pre-receive hook | Server rejects pushes without matching signed cert | Mechanical (cannot bypass without server access) | Before push |
+| 3. Post-facto audit | `aibox lint --audit` verifies all commits against policy | Detective (compliance reviews) | Anytime |
+
+**The server-side hook is where real enforcement lives:**
+```
+Developer pushes commit modifying release-process.md
+  → Hook reads .aibox/authorization-policy.toml
+  → Finds rule: "context/processes/*.md" requires "process-architect"
+  → Checks commit signature → extracts cert → extracts roles
+  → Role includes "process-architect"? → ALLOW
+  → Role is only "developer"? → REJECT
+```
+
+**Approval requirements** (`min_approvals`) cannot be enforced by git alone — git has
+no concept of "this commit was approved by N people." Two options:
+
+- **Git platform PR rules (practical):** Map `min_approvals` to required reviewers.
+  GitHub/GitLab enforces this. aibox documents the requirement; the platform enforces it.
+  `aibox lint --audit` verifies compliance after the fact.
+- **Co-signed commits (portable):** Commit carries N signatures via git trailers.
+  aibox's hook verifies all required signatures are present. More portable but awkward UX.
+
+For practical purposes, teams will use PR-based approvals. The authorization policy
+documents the requirement, the git platform enforces it, `aibox lint --audit` verifies.
+
+### 2.59 RoleBinding indirection — identity ≠ roles (session 2026-04-04)
+
+Owner identified that embedding roles in certificates (Kubernetes-style `O=` field) is
+too rigid. Adding/removing a role would require reissuing the certificate. Kubernetes
+itself suffers from this — no certificate revocation means old certs with old roles
+remain valid until expiry.
+
+**Resolution: certificates carry identity only. Roles are bound via RoleBinding entities.**
+
+Certificate contains only identity:
+```
+Certificate:
+  Subject: CN=alice                    ← identity only, no roles
+  Issuer:  CN=aibox-project-ca
+```
+
+Role assignments are separate entities:
+```yaml
+# context/rolebindings/BIND-calm-fox.md
+---
+apiVersion: aibox/v1
+kind: RoleBinding
+metadata:
+  id: BIND-calm-fox
+spec:
+  actor: ACTOR-alice
+  role: ROLE-process-architect
+  scope: "*"
+---
+```
+
+**Authorization flow:**
+```
+Commit signature
+  → verify against CA → extract CN=alice
+  → look up Actor by CN → ACTOR-alice
+  → find all RoleBindings where actor = ACTOR-alice
+  → collect roles: [developer, process-architect]
+  → check against authorization policy for modified files
+```
+
+Adding a role = creating a RoleBinding file. Removing = deleting it. No certificate
+reissue. Certificate is long-lived (identity stable); role assignments are dynamic
+(permissions change frequently). RoleBinding files themselves are protected by
+authorization-policy.toml (requires `role-admin` or `governance-board` to modify).
+
+**New primitive:** RoleBinding becomes the 18th primitive. It is a governance entity
+(low-volume, Pattern A naming: `BIND-alice-process-architect.md`).
+
+### 2.60 Verification manifests — provider-agnostic enforcement (session 2026-04-04)
+
+Owner identified that server-side pre-receive hooks are not universally available across
+git providers (GitHub Enterprise only, GitLab Premium+, etc.). The enforcement mechanism
+must work with bare git.
+
+**Resolution: signed verification manifests embedded in commits.**
+
+Every commit created through `aibox commit` includes a verification manifest entry:
+
+```jsonl
+# .aibox/verification-log.jsonl (append-only, in the commit)
+{"commit":"def456","files":["context/processes/release-process.md"],"actor":"alice","fingerprint":"ABCD1234","roles_claimed":["process-architect"],"rolebindings":["BIND-calm-fox"],"policy_rule":"context/processes/*.md → process-architect","policy_hash":"sha256:abc...","timestamp":"2026-04-04T10:00:00Z","signature":"base64:..."}
+```
+
+Each entry is signed by the committer's key. The entry proves: "I, alice, claim I hold
+these roles, and I'm modifying these files under this policy rule."
+
+**Verification happens on read, not on write:**
+
+```
+aibox lint --audit
+  → For each commit in history:
+    1. Read verification manifest entry
+    2. Verify entry signature (was this written by the claimed actor?)
+    3. Look up actor's RoleBindings AT THAT POINT IN TIME (git history)
+    4. Check: did claimed roles match actual RoleBindings at that commit?
+    5. Check: do claimed roles satisfy authorization policy for modified files?
+    6. Flag any mismatches as violations
+```
+
+RoleBinding files are also in git, also signed. Verification can reconstruct exact
+authorization state at any historical point. If alice claims `process-architect` but
+the RoleBinding didn't exist at that commit, the audit catches it.
+
+**Enforcement spectrum (weakest to strongest):**
+
+| Layer | Mechanism | Bypass risk | Provider requirement |
+|-------|-----------|-------------|---------------------|
+| Client pre-commit hook | Local check, skippable with `--no-verify` | High | None (git standard) |
+| Verification manifest | Tamper-evident, signed, in commit | Medium (delayed detection) | None (git standard) |
+| CI audit pipeline | `aibox lint --audit` in CI, blocks merge | Low | CI + branch protection |
+| External audit from governance repo | Audit runs from trusted repo developer can't modify | Very low | CI + separate repo |
+| Server pre-receive hook | Rejects push mechanically | Very low | Enterprise git tier |
+
+Every team gets layers 1-3 regardless of provider. Layers 4-5 are available for
+higher-security environments.
+
+### 2.61 CI pipeline protection — governance repo as trust anchor (session 2026-04-04)
+
+Owner identified that if the CI pipeline definition lives in the product repo, a
+developer can modify the audit pipeline to be a no-op, then commit unauthorized changes.
+The tampered CI "passes," branch protection is satisfied.
+
+**Fundamental principle: there must be at least one enforcement point outside the
+developer's control.** This is not an aibox limitation — it's a universal security
+principle. Even Kubernetes depends on the API server binary being something the user
+can't rewrite at runtime.
+
+**Resolution: the governance repo is the external trust anchor.**
+
+The audit pipeline runs from the governance repo, not the product repo. The developer
+cannot modify it because they have no push access to the governance repo.
+
+```yaml
+# governance-repo/.github/workflows/audit-product-repos.yml
+# Triggered by product repo push events (webhook)
+audit:
+  steps:
+    - checkout: governance-repo        # trusted policy source
+    - checkout: product-repo           # untrusted, being audited
+    - run: aibox lint --audit
+           --policy governance-repo/.aibox/authorization-policy.toml
+           --rolebindings governance-repo/context/rolebindings/
+           --repo product-repo/
+```
+
+**Platform-specific alternatives:**
+- GitHub: "Required workflows" at org level (defined in separate repo, developer can't skip)
+- GitLab: "Compliance pipelines" (org-level, injected into all project pipelines)
+- Self-hosted: Webhook triggers audit in governance repo CI
+
+**The minimal trust anchors for the entire system:**
+
+| Trust anchor | What it provides | Who controls it |
+|--------------|-----------------|-----------------|
+| Governance repo | Authorization policy, RoleBindings, audit pipeline | Governance board (not developers) |
+| Git platform settings | Branch protection, required status checks | Platform admin |
+| aibox binary | Signature verification, manifest creation | Distributed/compiled |
+
+Everything else is derived from these three. The product repo, including its CI files,
+is explicitly untrusted.
+
+**Even if ALL real-time enforcement is bypassed:** The verification manifests in git
+history create a permanent, immutable evidence trail. A developer can bypass CI but
+cannot erase the evidence from git's DAG (force-push is prevented by branch protection).
+Any later audit — quarterly compliance review, team lead spot-check, incident
+investigation — will catch violations.
+
+### 2.62 Three-repo trust architecture — pure git enforcement (session 2026-04-04)
+
+Owner proposed the definitive architecture: three repos mapping to three trust levels,
+with git push permissions as the enforcement mechanism. This eliminates the need for
+custom server-side hooks, enterprise-tier features, or CI-dependent enforcement.
+
+**Structure:**
+
+```
+meta-process-repo/              ← PUSH: governance board only
+  processes/                    ← how processes are changed
+  roles/                        ← role definitions
+  rolebindings/                 ← role assignments
+  authorization-policy.toml     ← governs process-repo
+
+process-repo/                   ← PUSH: process architects only
+  meta/ (submodule → meta-process-repo @ pinned commit)
+  processes/                    ← "code" = process definitions for product repos
+  roles/
+  rolebindings/
+  authorization-policy.toml     ← governs product repos
+
+product-repo/                   ← PUSH: developers
+  processes/ (submodule → process-repo @ pinned commit)
+  context/                      ← governed artifacts (items, decisions, events)
+  src/                          ← actual source code
+```
+
+All three repos are aibox-managed. Each repo's "code" is what it governs:
+- Meta-process repo's "code" = meta-process definitions (how processes are changed)
+- Process repo's "code" = process definitions (how products are built)
+- Product repo's code = actual source code
+
+Each repo's "context" comes from the repo above it via submodule.
+
+**Why this works:** The fundamental problem — enforcement rules and governed content in
+the same repo — is eliminated by construction. Process definitions live in a repo the
+developer physically cannot push to. There's nothing to work around.
+
+**Enforcement uses only universal git platform features:**
+
+| Feature | Purpose | Platform support |
+|---------|---------|-----------------|
+| Push permissions per repo | Trust domain separation | All platforms, all tiers |
+| Signed commits required | Authorship proof | GitHub/GitLab/Gitea, free tier |
+| Branch protection + PR reviews | Change approval | GitHub/GitLab/Gitea, free tier |
+| CODEOWNERS | Protect `.gitmodules` from submodule URL tampering | GitHub/GitLab, free tier |
+| Submodule commit pinning | Governance version control | Git standard |
+
+No custom hooks. No enterprise tier. No CI dependency for enforcement.
+
+**Submodule tampering defense:** A developer could modify `.gitmodules` to point to a
+fork with relaxed process definitions. Three defenses:
+1. CODEOWNERS marks `.gitmodules` as requiring process-architect approval
+2. `aibox lint` verifies submodule URLs against canonical list in process-repo policy
+   (which the developer can't modify — it's in the submodule)
+3. The attack is inherently visible in diffs, PRs, and git log
+
+**aibox commands become pure convenience, not enforcement:**
+
+| Command | Purpose | Enforcement? |
+|---------|---------|-------------|
+| `aibox init` | Scaffold with submodule | No (convenience) |
+| `aibox commit` | Signed commit + verification manifest | No (convenience) |
+| `aibox lint --audit` | Verify history against policy | No (detective) |
+| `aibox edit` | Local RBAC check | No (advisory) |
+| `aibox transition` | State change with manifest | No (convenience) |
+
+Removing aibox doesn't remove the security properties — the repo separation does.
+
+**Horizontal scaling:** 50 product repos submodule the same process repo. Updating a
+company-wide process = push to process repo + each product repo updates its submodule
+pin (automatable via bot PR).
+
+**Recursive audit:** `aibox lint --audit` walks the entire submodule chain: verifies
+product repo against process-repo policy, process-repo against meta-process-repo policy.
+
+**Trust anchor termination:** The meta-process repo has no submodule above it. It
+self-governs via push permissions (governance board only). This is the trust anchor —
+authority, not more rules. Like Kubernetes CA key holder.
+
+**Revised trust model (supersedes §2.61):**
+
+| Trust anchor | What it provides | Universal? |
+|--------------|-----------------|------------|
+| Repo push permissions | Trust domain separation | Yes — all git platforms |
+| Branch protection | Require signed commits + PR approval | Yes — all major platforms, free tier |
+| CODEOWNERS | Protect .gitmodules | Yes — GitHub/GitLab free tier |
+| aibox binary | Convenience + audit verification | Yes — distributed, compiled |
+
+No platform-specific dependencies (enterprise hooks, compliance pipelines) required.
+These become optional hardening layers for organizations that have them.
+
+**Q-A (Scope of governance):** Entity files with frontmatter go through aibox RBAC.
+Narrative content (research, work instructions) can be directly edited — they're authored
+content, not process state. The boundary: does this file represent a state machine entity?
+If yes, aibox governs it. If no, it's unrestricted.
+
+**Q-B (Guard evaluation):** Option (a) — trust the agent's assertion. Guards are the
+probabilistic layer. The deterministic layer is: "did an authorized actor invoke this
+transition through aibox?" not "are the guards actually satisfied?"
+
+**Q-C (Solo dev certificates):** Auto-generated self-signed cert at `aibox init`. No CSR
+workflow, no CA management. The user never thinks about certs — it's `git commit
+--gpg-sign` under the hood. `--no-auth` mode available for truly zero-friction use.
+
+**Q-D (Rename timing):** No rename. Keep `aibox` as the single binary. Subcommand
+grouping (`aibox admin ...`) instead of binary splitting. See §2.54.
+
+**Q-E (Structured vs plain-English permissions):** Hybrid — structured rules for
+enforcement + plain English as documentation. The structured rules are the source of
+truth; the English is a human-readable gloss. See Decision 19-revised below.
+
+**Q-F (Daemon vs CLI-only):** CLI-only. Git is the persistence layer, each invocation
+reads certs, validates, writes, exits. Overhead ~5-20ms per command (negligible vs LLM
+inference). Daemon is a kaits concern if needed at Tier 3.
+
+## 3. Current State (as of 2026-04-01)
 
 ### 3.1 Where we are
 
-DISC-001 has progressed through two major phases:
+DISC-001 has progressed through three major phases:
 
 **Phase 1 (§2.1–§2.49): Context system design.** Complete. 17 primitives identified and
 mapped to storage. File-per-entity markdown+frontmatter as source of truth, SQLite as
@@ -1114,86 +1693,68 @@ derived index. Word-based IDs via petname. Kubernetes-inspired object model (api
 kind/metadata/spec). 17 skills mapped to 17 primitives. 7 process packages defined.
 6 personas validated across 10 scenarios. 50 tentative decisions recorded.
 
-**Phase 2 (§2.50): aiadm/aictl proposal.** Research complete, awaiting owner review.
+**Phase 2 (§2.50): aiadm/aictl proposal.** Research complete, owner reviewed.
 The purely probabilistic RBAC model (Decision 19) was identified as insufficient for
 enterprise users who need deterministic enforcement and tamper-proof audit logs. Research
 covered OS-level lockdown mechanisms, kubectl-to-aictl command mapping, impact on all 50
-decisions, and Kubernetes certificate/RBAC mechanics.
+decisions, and Kubernetes certificate/RBAC mechanics. Key finding: architecturally sound,
+probabilistic paradigm survives as a layer on a deterministic base.
 
-Key research finding: the proposal is architecturally sound. Of 50 decisions, 14 are
-unchanged, 17 need modification, 7 are superseded (clustered around identity/RBAC and
-the execution model), and 12 are strengthened. The probabilistic paradigm survives as a
-LAYER on top of a deterministic base — aictl handles mechanical correctness while agents
-retain judgment authority. Skills would shrink by 60-70%.
+**Phase 3 (§2.51–§2.58): Authorization design + scaling architecture.** Complete.
+Owner reviewed the aiadm/aictl proposal and resolved all 6 open questions. Then explored
+process repo architecture and per-file authorization enforcement. Key outcomes:
+
+- **Process protection via signed definitions + hash pinning** (§2.51): Process files
+  remain in git but are verified against signed pins before execution. Tampering is
+  detectable and rejectable, without filesystem lockdown.
+- **Tiered scaling architecture** (§2.52): Four tiers from solo (all-git) to enterprise
+  (pluggable backends). Event logs leave git at Tier 2 — the principle is "auditable and
+  recoverable," not "everything in git."
+- **Pluggable backends** (§2.53): aibox defines interfaces (event, search, identity).
+  Git-based defaults, alternative backends configurable in aibox.toml. Skills are
+  backend-agnostic.
+- **One CLI binary** (§2.54): No aiadm/aictl split. `aibox` with subcommand grouping.
+  `aibox admin` for infrastructure commands.
+- **kaits as Tier 3 layer** (§2.55): Multi-project orchestrator + dashboard above aibox.
+  Provides shared infrastructure (event store, search, CA) that aibox projects connect to.
+- **Two-level repo architecture** (§2.57): Process repo is an aibox-managed project
+  with its own governance. No meta-process repo needed — meta-process is a file in the
+  process repo with higher authorization requirements.
+- **Per-file authorization policy** (§2.58): Signed `.aibox/authorization-policy.toml`
+  maps file patterns to required roles and approval counts. Enforced at three layers:
+  local CLI (advisory), git pre-receive hooks (mechanical), post-facto audit (detective).
+- **RoleBinding indirection** (§2.59): Certificates carry identity only, not roles.
+  Roles assigned via RoleBinding entities. No certificate reissue on role changes.
+  RoleBinding is the 18th primitive.
+- **Verification manifests** (§2.60): Every commit carries a signed verification log
+  entry proving authorization. Enforcement is provider-agnostic — verification happens
+  on read (audit), not on write (push). Works with bare git.
+- **Governance repo as trust anchor** (§2.61): Audit pipeline runs from governance repo,
+  not product repo. Developer cannot tamper with enforcement because they can't push to
+  governance repo. Three minimal trust anchors: governance repo, platform settings,
+  aibox binary.
+- **Three-repo trust architecture** (§2.62): Definitive enforcement model. Three repos
+  (meta-process, process, product) map to three trust levels. Enforcement via repo push
+  permissions — universal across all git platforms, no enterprise features needed. aibox
+  commands become convenience, not enforcement. Repo separation IS the security.
+- **Git-native authorization reality check** (§2.63): Git has no cert-based RBAC.
+  Platform teams are the enforcement; aibox RoleBindings are the audit/advisory layer.
+  Two parallel systems bridged via `platform_mapping` field and `aibox lint --audit`
+  alignment checks. Within-repo RBAC is advisory, acceptable because repo separation
+  aligns actors to trust levels.
 
 Full research: `context/research/aiadm-aictl-architecture-2026-03.md`
 
-### 3.2 Open questions — aiadm/aictl proposal (need owner input)
+### 3.2 Open questions — aiadm/aictl proposal (resolved 2026-04-01)
 
-**Q-A: Scope of aictl governance.** Does aictl govern ALL files in `context/`, or only
-entity files with YAML frontmatter? Research reports, work instructions, and PRD are
-"narrative content" — some have frontmatter, some don't. If aictl governs everything,
-agents cannot create/edit research reports without going through aictl. If aictl governs
-only entities, narrative content remains unprotected but also unrestricted. The boundary
-needs to be explicit: which files does the RBAC model cover?
+All 6 questions resolved by owner in §2.56. Summary:
 
-**Q-B: Guard evaluation model.** When an agent calls `aictl transition BACK-xxx --to
-in-review`, how does aictl handle the plain English guard ("all blocking items must be
-resolved")? Two options:
-- **(a) Trust the agent's assertion.** The agent says "I've checked the guards," aictl
-  records the transition with a note that guards were self-attested. The guard text is
-  logged for audit but not mechanically evaluated. Preserves the probabilistic philosophy.
-- **(b) Evaluate mechanically.** aictl parses the guard into checkable conditions and
-  blocks the transition if they fail. Requires a guard expression language (contradicts
-  the "plain English, not minijinja" decision).
-- **(c) Hybrid.** Some guards are tagged as `enforceable: true` with structured criteria
-  alongside the plain English. aictl enforces the structured part, logs the English part.
-
-**Q-C: Solo developer certificate complexity.** The Alex persona (solo dev, weekend
-projects) does not need certificate-based auth. Options:
-- `--no-auth` mode where aictl skips authentication entirely (simplest, no enforcement)
-- Auto-generated self-signed cert on `aiadm init` (transparent to user, but adds files)
-- Passphrase-based local auth (simpler than certificates, but weaker)
-- Tiered: solo mode = no auth, team mode = certificates enabled via `aiadm auth init`
-
-**Q-D: Rename timing.** The rename from `aibox` to `aiadm` is a breaking change affecting
-all documentation, CLAUDE.md templates, skill references, CLI binary name, GHCR paths,
-and user muscle memory. Options:
-- Rename now (before v1, while user base is small — clean break)
-- Rename at v1 release (bigger impact but bigger audience)
-- Keep `aibox` as the umbrella brand, `aiadm`/`aictl` as subcommands (`aibox adm init`,
-  `aibox ctl create workitem`) — avoids shipping two separate binaries
-
-**Q-E: Structured vs plain-English permissions.** Decision 19 uses plain English for
-role permissions. The aiadm/aictl model needs something machine-evaluable. Options:
-- **(a) Structured only.** Role files use verb+kind rules (like K8s RBAC). Machine-
-  enforceable but less flexible, harder for non-technical users to write.
-  ```yaml
-  permissions:
-    - action: [create, edit] kinds: [WorkItem, Decision]
-  ```
-- **(b) Plain English only, parsed by aictl.** aictl uses an LLM or rule engine to
-  interpret natural language permissions. Flexible but non-deterministic.
-- **(c) Hybrid.** Structured rules for enforcement + plain English as documentation.
-  The structured rules are the source of truth; the English is a human-readable gloss.
-  ```yaml
-  permissions:
-    - action: [create, edit]
-      kinds: [WorkItem, Decision]
-      description: "Can create and edit work items and decisions"
-  ```
-
-**Q-F: Daemon vs CLI-only.** Should aictl be a long-lived background daemon or a
-stateless CLI invoked per-command?
-- **CLI-only:** Simpler, no process management, familiar UX. Each invocation reads certs,
-  validates, writes, exits. Overhead ~5-20ms per command (negligible vs LLM inference).
-  No real-time watch/subscribe capability.
-- **Daemon:** Enables `aictl watch` (real-time entity change notifications), persistent
-  auth session (verify cert once), incremental index updates (no `aictl sync` needed),
-  file locking (prevent concurrent writes). More complex to manage but more capable.
-- **Hybrid:** CLI by default, optional `aictl daemon start` for advanced scenarios
-  (kaits, team environments). CLI commands connect to daemon if running, fall back to
-  direct file access if not.
+- ~~**Q-A (Scope):** Entity files with frontmatter = governed. Narrative content = unrestricted.~~
+- ~~**Q-B (Guards):** Option (a) — trust agent assertion. Guards are probabilistic layer.~~
+- ~~**Q-C (Solo certs):** Auto-generated self-signed cert at init. `--no-auth` available.~~
+- ~~**Q-D (Rename):** No rename. One binary `aibox` with subcommand grouping.~~
+- ~~**Q-E (Permissions):** Hybrid — structured rules for enforcement + plain English as docs.~~
+- ~~**Q-F (Daemon):** CLI-only. Daemon is a kaits/Tier 3 concern.~~
 
 ### 3.3 Open questions — earlier (still open)
 
@@ -1322,10 +1883,186 @@ stateless CLI invoked per-command?
     permissions, restrictions, active provider. Inspired by kubectl auth whoami.
 
 **NOTE:** Decisions 9, 19, 20, 21, 35, 43, 47, 48 are **superseded** by the aiadm/aictl
-proposal (§2.50). They remain listed here for historical context. The proposal introduces
-certificate-based auth, mechanical RBAC enforcement, and deterministic audit logging.
-Full impact analysis: `context/research/aiadm-aictl-architecture-2026-03.md`.
-Awaiting owner review — see §3.2 for the 6 open questions.
+proposal (§2.50) and the authorization design session (§2.51–§2.56). They remain listed
+here for historical context. The Phase 3 resolutions below replace them.
+
+**Phase 3 decisions (2026-04-01):**
+
+51. **Signed process definitions**: Process files remain markdown in git but are signed
+    by process-admin cert and hash-pinned in `.aibox/process-pins.toml`. aibox verifies
+    hash before trusting process definitions. Tampering is detectable without filesystem
+    lockdown. Supersedes the OS-level lockdown approach from §2.50.
+52. **Governance vs governed separation**: Low-volume entities (Process, Role, Gate,
+    Constraint, Scope) are governance — require process-admin signature. High-volume
+    entities (WorkItem, Decision, Discussion, Artifact) are governed — normal RBAC.
+    Aligns with Decision 40 (two filename patterns).
+53. **Principle: auditable and recoverable, not everything-in-git**: Git is the
+    zero-infrastructure default. The actual principle is auditability (attributable,
+    immutable, queryable, recoverable, portable). Alternative backends that satisfy
+    these properties are valid at scale.
+54. **Tiered scaling**: Four tiers (Solo → Small team → Medium team → Enterprise).
+    Events leave git at Tier 2. Governance and artifacts stay in git at all tiers.
+    See §2.52 for full tier table.
+55. **Pluggable backends**: aibox defines interfaces for events, search, and identity.
+    Git-based defaults. Alternative backends (Redis, Postgres, Meilisearch, OIDC)
+    configurable in aibox.toml. Skills are backend-agnostic.
+56. **One CLI binary**: No aiadm/aictl split. `aibox` with subcommand grouping.
+    Infrastructure commands under `aibox admin`. The 40 aictl commands become
+    `aibox <command>`, the aiadm commands become `aibox admin <command>`.
+57. **kaits is Tier 3**: Multi-project orchestrator + dashboard. Sits above aibox.
+    Provides shared infrastructure (event store, search, CA). Each project still
+    uses aibox. kaits coordinates between them.
+58. **RBAC permissions: structured + documented**: Role definitions use structured
+    verb+kind rules for mechanical enforcement, with plain English `description`
+    fields as human-readable documentation. Supersedes Decision 19.
+59. **Guards: trust agent assertion**: aibox records the transition with a note that
+    guards were self-attested. Guard text logged for audit but not mechanically
+    evaluated. Supersedes Decision 9.
+60. **Event log append-only in git**: Per-actor JSONL sharding (each actor appends to
+    own file). Server-side pre-receive hooks enforce append-only. Works at Tiers 0-1.
+    At Tier 2+, events move to configured backend. Supersedes Decision 20.
+61. **Two-level repo architecture**: Process repo is an aibox-managed project (self-governing).
+    No separate meta-process repo — the meta-process is a file in the process repo with
+    higher authorization requirements. Submodules cascade recursively but three levels
+    adds friction without proportional benefit. Recursion terminates at authority (trust
+    anchor), not at more rules.
+62. **Per-file authorization policy**: `.aibox/authorization-policy.toml` maps file glob
+    patterns to required roles and minimum approval counts. Policy file is signed by
+    governance-board role. First rule protects the policy file itself (bootstrap protection).
+    Enforcement: local CLI (advisory) + git pre-receive hooks (mechanical) + post-facto
+    audit (detective). Approval counts enforced via git platform PR rules or co-signed commits.
+63. **Process repo event log is probabilistic**: Low-frequency changes mean no git scaling
+    problem. Git commit history IS the deterministic audit trail. Event-log skill captures
+    reasoning (probabilistic). No external event infrastructure needed for governance repos.
+64. **RoleBinding as 18th primitive**: Certificates carry identity only (CN=username), not
+    roles. Roles bound via RoleBinding entities (actor + role + scope). Adding/removing
+    roles requires no certificate reissue. RoleBinding files are governance entities
+    (low-volume, Pattern A naming). Protected by authorization-policy.toml.
+65. **Verification manifests in commits**: Every `aibox commit` appends a signed entry to
+    `.aibox/verification-log.jsonl` recording: files changed, actor, roles claimed,
+    policy rule matched. Verification happens on read (`aibox lint --audit`), not on
+    write. Provider-agnostic — works with bare git, no server-side hook required.
+66. **Governance repo as external trust anchor**: The audit pipeline runs from the governance
+    repo, which the developer cannot push to. This is the minimal external dependency for
+    enforcement. Three trust anchors: governance repo, git platform settings, aibox binary.
+    Product repo (including its CI files) is explicitly untrusted.
+67. **Enforcement is layered, not single-point**: Five layers from weakest to strongest:
+    client hook (advisory) → verification manifest (tamper-evident) → CI audit (blocks
+    merge) → external audit from governance repo (tamper-proof) → server pre-receive hook
+    (mechanical). Every team gets layers 1-3. Layers 4-5 for higher security.
+68. **Three-repo trust architecture**: Three repos = three trust levels. Meta-process repo
+    (governance board push), process repo (process architect push), product repo (developer
+    push). Enforcement via repo push permissions — universal, no custom hooks. Submodule
+    pins version governance. Each repo is aibox-managed. Supersedes single-repo models.
+    This is the definitive enterprise architecture.
+69. **aibox commands are convenience, not enforcement**: Repo separation provides security.
+    aibox provides pleasant UX (scaffolding, signed commits, verification manifests,
+    recursive audit) but removing aibox doesn't remove the security properties.
+70. **Submodule tampering defense**: CODEOWNERS on `.gitmodules` (requires process-architect
+    approval) + `aibox lint` verifies canonical URLs from submodule policy + inherent
+    visibility of `.gitmodules` changes in diffs/PRs.
+71. **Trust anchor termination**: Meta-process repo has no submodule above it. Self-governs
+    via push permissions (governance board only). The recursion terminates at authority.
+    Confirms §2.57 decision: two levels of submodules is the maximum needed.
+72. **Git has no native RBAC**: No git platform reads certificate CN/O for authorization.
+    Push permissions are user/team-based only. Signed commit verification checks validity,
+    not identity attributes. This is a fundamental platform limitation, not solvable by
+    aibox.
+73. **Platform teams = enforcement, aibox RoleBindings = audit**: Repo-level push
+    permissions (via platform team membership) are the real enforcement mechanism.
+    aibox RoleBindings document the intended role assignments, bridge to platform teams
+    via `platform_mapping` field, and enable `aibox lint --audit` to verify alignment.
+    Two parallel systems, kept in sync.
+74. **Within-repo RBAC is advisory**: Fine-grained file-level authorization within a
+    single repo (e.g., which process architect can modify which process file) is enforced
+    by aibox verification manifests + lint --audit, not by git natively. This is acceptable
+    because the three-repo architecture means within-repo actors share the same trust level.
+
+### 2.63 Git-native authorization reality check (session 2026-04-04)
+
+Owner asked whether git natively supports certificate-attribute-based authorization
+(reading CN/O from signed commits for role-based access control, Kubernetes-style).
+
+**Answer: No.** Git's native access control is strictly user/team-based. No git platform
+reads certificate CN/O fields for authorization decisions.
+
+**What git platforms actually enforce:**
+
+| Mechanism | Based on | Reads cert CN/O? |
+|-----------|----------|------------------|
+| SSH key authentication | SSH key → platform user account | No |
+| Push permissions | Platform username / team | No |
+| Branch protection | Platform username / team | No |
+| CODEOWNERS | Platform username / team | No |
+| Required signed commits | Valid signature exists (yes/no) | No — checks validity, ignores content |
+
+**Consequence: two parallel identity systems exist:**
+
+```
+Git platform world:              aibox world:
+  GitHub user "alice123"           Certificate CN=alice
+  Team "process-architects"        RoleBinding ACTOR-alice → ROLE-process-architect
+  Repo permission: write           authorization-policy.toml rules
+```
+
+The platform doesn't know about aibox roles. aibox doesn't control platform permissions.
+
+**Resolution: platform teams ARE the enforcement; aibox RoleBindings are the audit layer.**
+
+The three-repo architecture works because repo-level push permissions (platform teams)
+align with trust levels. The mapping:
+
+```
+meta-process-repo  → GitHub/GitLab team "governance-board"      → push access
+process-repo       → GitHub/GitLab team "process-architects"    → push access
+product-repo       → GitHub/GitLab team "developers"            → push access
+```
+
+Platform team membership IS the role binding in practice for repo-level enforcement.
+
+**Bridging the two systems:**
+
+RoleBinding entities document the platform mapping:
+```yaml
+# context/rolebindings/BIND-alice-process-architect.md
+spec:
+  actor: ACTOR-alice
+  role: ROLE-process-architect
+  platform_mapping:
+    github_team: "process-architects"
+    gitlab_group: "process-architects"
+```
+
+`aibox lint --audit` verifies alignment: "BIND-alice-process-architect exists, but alice
+is not in GitHub team process-architects → WARNING: platform enforcement not in sync."
+
+An admin skill or script can sync: when a RoleBinding is created, it invites the user
+to the corresponding platform team (or documents that this must be done manually).
+
+**Where each system enforces:**
+
+| Scope | Enforcement | Mechanism |
+|-------|-------------|-----------|
+| Who can push to which repo | **Real** (server-side) | Platform teams (synced with aibox roles) |
+| Who must approve PRs for which files | **Real** (server-side) | CODEOWNERS + platform teams |
+| Which role can modify which files within a repo | **Advisory + audit** (aibox) | RoleBindings + verification manifests + lint --audit |
+| Signed commits prove authorship | **Real** (cryptographic) | Git standard |
+| Signed commits enforce role-based access | **Not a git feature** | aibox advisory layer only |
+
+**Why this is actually fine for the three-repo architecture:**
+
+- Repo boundary = trust level boundary → platform enforced (real)
+- Within product repo = all developers have same trust level (same push access)
+- Within process repo = all process architects have same trust level
+- Fine-grained within-repo RBAC (process-architect-A can modify release.md but not
+  code-review.md) = aibox advisory + audit. This is a rare scenario and acceptable
+  as a non-mechanically-enforced policy.
+
+**Self-hosted option for full cert-based auth:** Organizations running their own git
+server (Gitea, Forgejo) can configure SSH certificate authentication with custom
+extensions containing role claims. This enables true cert-based push authorization
+but breaks "any git platform" universality. Documented as an optional hardening path,
+not a requirement.
 11. **Three-level rule**: All entity .md files follow Level 1 (intro) → Level 2 (overview) →
     Level 3 (details). Directory INDEX.md files provide Level 0.
 12. **Filename conventions**: Inverse date prefix for temporal files + content slug for human
@@ -1347,8 +2084,8 @@ Awaiting owner review — see §3.2 for the 6 open questions.
 - [x] Establish infrastructure/application boundary — **done** (§2.24-2.28)
 - [x] Map primitives to skills — **done** (`context/research/primitive-skills-mapping-2026-03.md`)
 - [x] Research aiadm/aictl proposal — **done** (`context/research/aiadm-aictl-architecture-2026-03.md`)
-- [ ] **Owner review: aiadm/aictl proposal** — 6 open questions need owner input (§2.50)
-- [ ] Re-walk 10 validation scenarios under aiadm/aictl model
+- [x] **Owner review: aiadm/aictl proposal** — all 6 open questions resolved (§2.56)
+- [ ] Re-walk 10 validation scenarios under single-binary + tiered model
 - [ ] Update mapping exercise document with all accumulated decisions
 - [ ] Design new `context/` directory layout with sharding
 - [ ] Design YAML frontmatter schemas per primitive type (now with apiVersion/kind/metadata/spec)
