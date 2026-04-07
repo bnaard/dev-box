@@ -76,3 +76,17 @@ texlive-math = {}               # Math packages
 ```
 
 Installs TeX Live via a multi-stage Docker build. The full TeX Live installation happens in a builder stage and only the final tree is copied to the runtime image, keeping layer sizes manageable.
+
+### Emoji rendering with LuaLaTeX
+
+The runtime image ships `fonts-noto-color-emoji` so emoji glyphs render
+correctly in LuaLaTeX documents. To wire it up, add the following to
+your preamble:
+
+```latex
+\directlua{luaotfload.add_fallback("emojifallback",{"NotoColorEmoji:mode=harf;"})}
+\setmainfont{FreeSans}[Scale=0.95,RawFeature={fallback=emojifallback}]
+```
+
+Without the fallback configured, emoji characters render as
+missing-glyph boxes even though the font is installed.

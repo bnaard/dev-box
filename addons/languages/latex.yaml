@@ -139,9 +139,17 @@ builder: |
 
 runtime: |
   # Addon: latex (runtime — copy from builder)
+  # fonts-noto-color-emoji enables emoji rendering in LuaLaTeX via the
+  # luaotfload fallback mechanism. Wire it up in your preamble with:
+  #
+  #   \directlua{luaotfload.add_fallback("emojifallback",{"NotoColorEmoji:mode=harf;"})}
+  #   \setmainfont{FreeSans}[Scale=0.95,RawFeature={fallback=emojifallback}]
+  #
+  # See https://github.com/projectious-work/aibox/issues/32
   RUN apt-get update && apt-get install -y --no-install-recommends \
       perl \
       fontconfig \
+      fonts-noto-color-emoji \
       inkscape \
       poppler-utils \
       libfile-homedir-perl \
