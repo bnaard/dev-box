@@ -22,6 +22,7 @@ mod output;
 mod process_registry;
 #[allow(dead_code)]
 mod processkit_install;
+mod processkit_migration;
 #[allow(dead_code)]
 mod processkit_source;
 mod reset;
@@ -151,5 +152,22 @@ fn dispatch(cli: cli::Cli) -> anyhow::Result<()> {
             cli::SkillAction::Remove { name } => skill_cmd::cmd_skill_remove(config_path, &name),
             cli::SkillAction::Info { name } => skill_cmd::cmd_skill_info(&name),
         },
+        cli::Commands::Migrate { action } => {
+            let cwd = std::env::current_dir()?;
+            match action {
+                cli::MigrateAction::Continue => {
+                    processkit_migration::cmd_migrate_continue(&cwd)
+                }
+                cli::MigrateAction::Start { id } => {
+                    processkit_migration::cmd_migrate_start(&cwd, &id)
+                }
+                cli::MigrateAction::Apply { id } => {
+                    processkit_migration::cmd_migrate_apply(&cwd, &id)
+                }
+                cli::MigrateAction::Reject { id, reason } => {
+                    processkit_migration::cmd_migrate_reject(&cwd, &id, &reason)
+                }
+            }
+        }
     }
 }
