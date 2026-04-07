@@ -64,6 +64,15 @@ detect_platform() {
 }
 
 # ── Resolve version ─────────────────────────────────────────────────────────
+#
+# Strategy:
+#   1. Honor VERSION=x.y.z env override (no network).
+#   2. Follow the HTML redirect from github.com/<repo>/releases/latest →
+#      github.com/<repo>/releases/tag/v<version>. The HTML page is NOT
+#      rate-limited (unlike api.github.com which is capped at 60/hour
+#      per IP for unauthenticated requests — the source of issue #N).
+#   3. Fall back to the GitHub API as a last resort, with a clear
+#      message explaining how to set VERSION= manually if both fail.
 resolve_version() {
   if [[ -n "${VERSION:-}" ]]; then
     echo "${VERSION}"
@@ -71,14 +80,43 @@ resolve_version() {
   fi
 
   info "Fetching latest release..." >&2
-  local latest
-  latest=$(curl -fsSL "https://api.github.com/repos/${REPO}/releases/latest" \
-    | grep '"tag_name"' \
-    | head -1 \
-    | sed -E 's/.*"tag_name":[ ]*"v?([^"]+)".*/\1/')
+  local latest=""
+
+  # Strategy 1: redirect-based discovery (no API rate limit).
+  # `releases/latest` 302s to `releases/tag/v<version>`. We capture the
+  # final URL after following redirects and extract the tag.
+  local final_url
+  final_url=$(curl -sI -o /dev/null -w '%{url_effective}' -L \
+    "https://github.com/${REPO}/releases/latest" 2>/dev/null || true)
+  if [[ -n "${final_url}" && "${final_url}" == *"/releases/tag/"* ]]; then
+    latest="${final_url##*/releases/tag/}"
+    latest="${latest#v}"  # strip leading v
+  fi
+
+  # Strategy 2: GitHub API fallback. May 403 on rate-limited IPs; if so
+  # we surface a useful error rather than the bare HTTP code.
+  if [[ -z "${latest}" ]]; then
+    local api_body api_status
+    api_body=$(curl -sS -w '\n__HTTP_STATUS__:%{http_code}' \
+      "https://api.github.com/repos/${REPO}/releases/latest" 2>/dev/null || true)
+    api_status="${api_body##*__HTTP_STATUS__:}"
+    api_body="${api_body%__HTTP_STATUS__:*}"
+    if [[ "${api_status}" == "200" ]]; then
+      latest=$(echo "${api_body}" \
+        | grep '"tag_name"' \
+        | head -1 \
+        | sed -E 's/.*"tag_name":[ ]*"v?([^"]+)".*/\1/')
+    elif [[ "${api_status}" == "403" ]]; then
+      die "GitHub API rate limit hit (HTTP 403) and the redirect-based fallback also failed.
+    Pin a version manually:
+      curl -fsSL https://raw.githubusercontent.com/${REPO}/main/scripts/install.sh | VERSION=0.16.1 bash
+    Or check https://github.com/${REPO}/releases for the latest tag."
+    fi
+  fi
 
   if [[ -z "${latest}" ]]; then
-    die "Could not determine latest version. Set VERSION=x.y.z to install a specific version."
+    die "Could not determine latest version. Set VERSION=x.y.z to install a specific version.
+    Releases: https://github.com/${REPO}/releases"
   fi
 
   echo "${latest}"
