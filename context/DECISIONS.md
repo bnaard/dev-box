@@ -2,6 +2,21 @@
 
 Inverse chronological. Each decision has a rationale and alternatives considered.
 
+## DEC-025 — Consume processkit via release-asset tarballs (2026-04-07)
+
+**Decision:** Going forward, aibox consumes processkit primarily via a `src/`-only release-asset tarball (`processkit-<version>.tar.gz`) attached to each processkit GitHub Release, with bit-exact reproducibility via a sibling `.sha256` checksum file. Git tarball + git clone remain as fallback paths for users who pin to a branch or an unreleased commit.
+
+**Rationale:** The current "fetch the git auto-tarball, walk the entire repo, skip `.git`/`__pycache__`/`tests`/dotfiles" approach pushes the "what counts as shippable?" decision into aibox's walker. That logic belongs to processkit. A purpose-built release artifact gives an explicit shippable contract, dramatically smaller downloads (no `tests/`, `docs-site/`, `.git/`), no skip rules in the consumer at all on the happy path, and a clean place to attach checksums and signatures. The templates dir at `context/templates/processkit/<version>/` becomes a verbatim mirror of *exactly* what the producer chose to ship — nothing more, nothing less — which is the "transparent reference" property the consumer relies on.
+
+**Alternatives:**
+- *Keep git-tarball-only* — works today, but couples consumer-side correctness to producer-side repo hygiene; every new top-level file in processkit risks accidentally landing in consumer projects unless aibox's walker is updated.
+- *Replace git fetch entirely* — loses the ability to test against `version = "main"` or a SHA before a release is cut. Rejected: the dev/test ergonomics are worth the modest fetcher complexity.
+- *Pin via Cargo-style registry* — too heavyweight for one consumer. The release-asset path is the lightest-weight thing that provides the explicit-contract guarantee.
+
+**Implementation:** BACK-106. Hybrid fetcher (release asset → git tarball → git clone), `release_asset_sha256` recorded in `aibox.lock` when used, `release_asset_url_template` configurable in `[processkit]` for non-GitHub hosts.
+
+**Source:** Discussion 2026-04-07 following the full-templates rework (commit `4c8bde3`). Briefing handed to the processkit-side agent the same day.
+
 ## DEC-024 — Directory sharding per entity type (2026-04-06)
 
 **Decision:** Projects may shard entity directories by time, state, or other axes on a per-primitive basis. Default is flat (one directory per primitive kind). Sharding is configured in `aibox.toml` under `[context.sharding.<kind>]`.
