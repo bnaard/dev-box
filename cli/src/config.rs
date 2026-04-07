@@ -464,6 +464,63 @@ impl Default for ProcessKitSection {
 }
 
 // ---------------------------------------------------------------------------
+// [agents] section — canonical AGENTS.md + provider pointer files
+// ---------------------------------------------------------------------------
+
+/// How aibox scaffolds provider-specific agent entry files (e.g.
+/// `CLAUDE.md`) when both `AGENTS.md` and a provider file exist.
+///
+/// - `Pointer` (default): provider files are thin pointers that say
+///   "see `AGENTS.md`". Canonical instructions live exclusively in
+///   `AGENTS.md`. This is the recommended mode and matches the
+///   `agents.md` ecosystem convention.
+/// - `Full`: provider files contain the rich, provider-flavoured
+///   content. Use only when a project genuinely needs different
+///   instructions per harness.
+#[derive(Debug, Clone, Default, Serialize, Deserialize, PartialEq, Eq)]
+#[serde(rename_all = "kebab-case")]
+pub enum AgentsProviderMode {
+    #[default]
+    Pointer,
+    Full,
+}
+
+/// `[agents]` section — controls how aibox scaffolds the canonical
+/// agent entry file (`AGENTS.md`) and the provider-specific pointer
+/// files (`CLAUDE.md`, future `CODEX.md`, …).
+///
+/// The principle is provider neutrality: every agent harness reads the
+/// same `AGENTS.md` so projects don't have to keep N versions of the
+/// same instructions in sync. Provider files exist only to satisfy the
+/// auto-load convention of specific harnesses (Claude Code auto-loads
+/// `CLAUDE.md` at startup, etc.).
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+pub struct AgentsSection {
+    /// Filename of the canonical agent entry document. Almost no one
+    /// should override this — the default `AGENTS.md` matches the
+    /// growing ecosystem convention at <https://agents.md/>.
+    #[serde(default = "default_agents_canonical")]
+    pub canonical: String,
+
+    /// How provider-specific files are scaffolded. See [`AgentsProviderMode`].
+    #[serde(default)]
+    pub provider_mode: AgentsProviderMode,
+}
+
+fn default_agents_canonical() -> String {
+    "AGENTS.md".to_string()
+}
+
+impl Default for AgentsSection {
+    fn default() -> Self {
+        Self {
+            canonical: default_agents_canonical(),
+            provider_mode: AgentsProviderMode::default(),
+        }
+    }
+}
+
+// ---------------------------------------------------------------------------
 // [audio] section — UNCHANGED
 // ---------------------------------------------------------------------------
 
@@ -541,6 +598,8 @@ pub struct AiboxConfig {
     pub skills: SkillsSection,
     #[serde(default)]
     pub processkit: ProcessKitSection,
+    #[serde(default)]
+    pub agents: AgentsSection,
     #[serde(default, alias = "appearance")]
     pub customization: CustomizationSection,
     #[serde(default)]
@@ -875,6 +934,7 @@ pub fn test_config() -> AiboxConfig {
         addons: AddonsSection::default(),
         skills: SkillsSection::default(),
         processkit: ProcessKitSection::default(),
+        agents: AgentsSection::default(),
         customization: CustomizationSection::default(),
         audio: AudioSection::default(),
         process: None,

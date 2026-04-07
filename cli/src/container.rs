@@ -435,6 +435,28 @@ fn serialize_config_with_comments(config: &AiboxConfig) -> String {
         None => out.push_str("# branch = \"main\"   # optional — for tracking a moving branch (discouraged)\n"),
     }
 
+    // [agents] section
+    out.push('\n');
+    out.push_str(sep);
+    out.push_str("# [agents] — canonical AGENTS.md + provider-specific entry files\n");
+    out.push_str(sep);
+    out.push_str("# AGENTS.md is the canonical, provider-neutral instruction document for AI\n");
+    out.push_str("# coding agents. Provider files (CLAUDE.md, future CODEX.md, …) are thin\n");
+    out.push_str("# pointers that simply say \"see AGENTS.md\". This matches the agents.md\n");
+    out.push_str("# ecosystem convention and avoids keeping N copies of the same instructions.\n");
+    out.push_str("#\n");
+    out.push_str("# `provider_mode` options:\n");
+    out.push_str("#   pointer (default) — provider files are thin pointers to AGENTS.md\n");
+    out.push_str("#   full              — provider files contain rich provider-flavored content\n");
+    out.push_str("#                       (use only when you genuinely need different content per harness)\n");
+    out.push_str("[agents]\n");
+    out.push_str(&format!("canonical     = \"{}\"\n", config.agents.canonical));
+    let mode_str = match config.agents.provider_mode {
+        crate::config::AgentsProviderMode::Pointer => "pointer",
+        crate::config::AgentsProviderMode::Full => "full",
+    };
+    out.push_str(&format!("provider_mode = \"{}\"\n", mode_str));
+
     // [customization] section
     out.push('\n');
     out.push_str(sep);
@@ -536,6 +558,7 @@ pub fn cmd_init(config_path: &Option<String>, params: InitParams) -> Result<()> 
             prompt: params.prompt.unwrap_or_default(),
             layout: crate::config::ConfigLayout::default(),
         },
+        agents: crate::config::AgentsSection::default(),
         audio: AudioSection::default(),
     };
     config.resolve_ai_provider_addons();

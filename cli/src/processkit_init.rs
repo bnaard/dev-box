@@ -393,6 +393,7 @@ mod tests {
                 version: version.to_string(),
                 ..ProcessKitSection::default()
             },
+            agents: crate::config::AgentsSection::default(),
             customization: CustomizationSection::default(),
             audio: AudioSection::default(),
         }

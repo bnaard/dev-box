@@ -134,6 +134,31 @@ AI provider configuration. Providers listed here are automatically installed as 
 |-------|------|----------|---------|-------------|
 | `providers` | Array of strings | No | `["claude"]` | AI providers: `claude`, `aider`, `gemini`, `mistral` |
 
+### [agents]
+
+Controls how `aibox init` scaffolds the canonical agent entry document
+(`AGENTS.md`) and the provider-specific entry files (`CLAUDE.md`, future
+`CODEX.md`, …). The principle is **provider neutrality**: every agent
+harness reads the same `AGENTS.md` so a project doesn't have to keep
+N copies of the same instructions in sync. Provider files exist only
+to satisfy specific harnesses' auto-load conventions (Claude Code
+auto-loads `CLAUDE.md` at startup, etc.).
+
+| Field | Type | Required | Default | Description |
+|-------|------|----------|---------|-------------|
+| `canonical` | String | No | `"AGENTS.md"` | Filename of the canonical agent entry document. Almost no one should override this — the default matches the [agents.md](https://agents.md/) ecosystem convention. |
+| `provider_mode` | String | No | `"pointer"` | How provider files are scaffolded. `pointer` (recommended): provider files are thin pointers that say "see AGENTS.md". `full`: provider files contain the rich provider-flavoured content — use only when a project genuinely needs different instructions per harness. |
+
+`aibox init` always creates `AGENTS.md` (write-if-missing — never
+overwrites). When the Claude provider is enabled, it also creates
+`CLAUDE.md`, either as a thin pointer (default) or with the full rich
+content (`provider_mode = "full"`). Other providers (Aider, Gemini,
+Mistral) use config files rather than markdown entries and are not
+affected by this section.
+
+Existing files are never overwritten. If you already have a hand-written
+`AGENTS.md` or `CLAUDE.md`, `aibox init` leaves it alone.
+
 ### [customization]
 
 Visual and layout configuration. See [Themes](../customization/themes.md) and [Layouts](../customization/layouts.md) for details.

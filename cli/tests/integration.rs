@@ -117,8 +117,17 @@ fn init_creates_expected_files() {
         "devcontainer.json should be created"
     );
     assert!(
+        dir.path().join("AGENTS.md").exists(),
+        "AGENTS.md (canonical) should be created"
+    );
+    assert!(
         dir.path().join("CLAUDE.md").exists(),
-        "CLAUDE.md should be created"
+        "CLAUDE.md (thin pointer in default mode) should be created"
+    );
+    let claude_body = std::fs::read_to_string(dir.path().join("CLAUDE.md")).unwrap();
+    assert!(
+        claude_body.contains("AGENTS.md"),
+        "default-mode CLAUDE.md should reference AGENTS.md"
     );
     assert!(
         dir.path().join(".aibox-version").exists(),

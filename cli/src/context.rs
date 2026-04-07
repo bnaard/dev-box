@@ -24,6 +24,11 @@ const EXPERIMENTS_README: &str = include_str!("../../templates/research/experime
 
 // --- Product templates ---
 const PRODUCT_CLAUDE_MD: &str = include_str!("../../templates/product/CLAUDE.md.template");
+const PRODUCT_AGENTS_MD: &str = include_str!("../../templates/product/AGENTS.md.template");
+
+// --- Provider pointer template (used in AgentsProviderMode::Pointer) ---
+const CLAUDE_POINTER_MD: &str =
+    include_str!("../../templates/agents/CLAUDE.md.pointer.template");
 const PRODUCT_DECISIONS: &str = include_str!("../../templates/product/DECISIONS.md");
 const PRODUCT_BACKLOG: &str = include_str!("../../templates/product/BACKLOG.md");
 const PRODUCT_STANDUPS: &str = include_str!("../../templates/product/STANDUPS.md");
@@ -389,11 +394,67 @@ are working with and tailor their communication and technical approach according
 - **Current focus:** <!-- e.g., migrating auth system, learning Kubernetes -->
 "#;
 
+/// Scaffold canonical AGENTS.md and any provider-specific entry files
+/// (CLAUDE.md, …) according to the `[agents]` config block.
+///
+/// Behavior:
+///
+/// - **Always** scaffolds `<canonical>` (default `AGENTS.md`) with the
+///   provider-neutral template content. Never overwrites an existing
+///   file — the user's content is preserved.
+/// - For each AI provider that has a markdown entry file convention
+///   (currently only Claude Code → `CLAUDE.md`), scaffolds the entry
+///   file based on `agents.provider_mode`:
+///   - `Pointer` (default): writes a thin pointer file that says
+///     "see AGENTS.md". The recommended mode.
+///   - `Full`: writes the existing rich provider-specific template.
+///     Use only when a project genuinely needs provider-flavored
+///     instructions distinct from AGENTS.md.
+///
+/// Other providers (Aider, Gemini, Mistral) use config files
+/// (`.aider.conf.yml`, `.gemini/settings.json`, `.mistral/config.json`)
+/// rather than markdown entries; they are not scaffolded by this
+/// function.
+fn scaffold_agent_entry_files(config: &AiboxConfig, project_name: &str) -> Result<()> {
+    // 1. Canonical AGENTS.md — always written (write-if-missing).
+    let canonical_filename = config.agents.canonical.as_str();
+    let canonical_template = render(PRODUCT_AGENTS_MD, project_name);
+    write_if_missing(Path::new(canonical_filename), &canonical_template)?;
+    output::ok(&format!("Created {}", canonical_filename));
+
+    // 2. Provider-specific entry files. Currently only Claude Code has
+    //    a markdown convention; other providers use their own config
+    //    files which are scaffolded elsewhere.
+    let claude_enabled = config
+        .ai
+        .providers
+        .iter()
+        .any(|p| matches!(p, AiProvider::Claude));
+
+    if claude_enabled {
+        match config.agents.provider_mode {
+            crate::config::AgentsProviderMode::Pointer => {
+                let body = render(CLAUDE_POINTER_MD, project_name);
+                write_if_missing(Path::new("CLAUDE.md"), &body)?;
+                output::ok("Created CLAUDE.md (pointer to AGENTS.md)");
+            }
+            crate::config::AgentsProviderMode::Full => {
+                let body = render(PRODUCT_CLAUDE_MD, project_name);
+                write_if_missing(Path::new("CLAUDE.md"), &body)?;
+                output::ok("Created CLAUDE.md (full)");
+            }
+        }
+    }
+
+    Ok(())
+}
+
 /// Scaffold the context/ directory using the process registry and selective skill deployment.
 ///
 /// - Resolves process packages and effective skills from config
 /// - Creates context/ directory and populates it with template files per package
-/// - Creates CLAUDE.md at project root from the template
+/// - Creates AGENTS.md (canonical) and provider entry files (e.g. CLAUDE.md
+///   as a thin pointer) according to the [agents] config block
 /// - Replaces {{project_name}} placeholders with the actual project name
 /// - Deploys only the skills that belong to the resolved package set
 /// - Creates .aibox-version file
@@ -418,10 +479,11 @@ pub fn scaffold_context(config: &AiboxConfig) -> Result<()> {
         effective_skills.len()
     ));
 
-    // Always create CLAUDE.md (use product template as most complete)
-    let claude_md = render(PRODUCT_CLAUDE_MD, project_name);
-    write_if_missing(Path::new("CLAUDE.md"), &claude_md)?;
-    output::ok("Created CLAUDE.md");
+    // Scaffold canonical AGENTS.md + provider entry files according to
+    // [agents] policy. The canonical file holds the actual instructions;
+    // provider files (CLAUDE.md, future CODEX.md, …) are thin pointers
+    // by default. This is provider-neutral by design — see issue #33.
+    scaffold_agent_entry_files(config, project_name)?;
 
     // Create context/ directory
     let context = Path::new("context");
@@ -1569,10 +1631,30 @@ fn generate_context_layout(packages: &[String]) -> String {
 /// Check that agent entry point files contain a pointer to `context/AIBOX.md`.
 ///
 /// Warns (but does not fail) when an entry point file exists but does not
-/// reference the baseline document.
+/// reference the baseline document. Also checks the canonical `AGENTS.md`
+/// (if present) and warns if it does not reference the baseline either.
+///
+/// In `Pointer` mode, a provider-specific file (`CLAUDE.md`) is allowed
+/// to reference `AGENTS.md` instead of `context/AIBOX.md` directly — the
+/// indirection is intentional. We accept either.
 pub fn check_agent_entry_points(config: &AiboxConfig) -> Result<()> {
     let aibox_pointer = "context/AIBOX.md";
+    let agents_pointer = config.agents.canonical.as_str();
 
+    // Check the canonical AGENTS.md (if present) — must reference AIBOX.md.
+    let canonical_path = Path::new(agents_pointer);
+    if canonical_path.exists() {
+        let content = fs::read_to_string(canonical_path)?;
+        if !content.contains(aibox_pointer) {
+            output::warn(&format!(
+                "{} does not reference {} — consider adding a pointer",
+                agents_pointer, aibox_pointer
+            ));
+        }
+    }
+
+    // Check provider-specific files. In pointer mode, they may
+    // legitimately reference AGENTS.md instead of context/AIBOX.md.
     for provider in &config.ai.providers {
         let entry_file = match provider {
             AiProvider::Claude => "CLAUDE.md",
@@ -1584,10 +1666,12 @@ pub fn check_agent_entry_points(config: &AiboxConfig) -> Result<()> {
         let path = Path::new(entry_file);
         if path.exists() {
             let content = fs::read_to_string(path)?;
-            if !content.contains(aibox_pointer) {
+            let references_aibox = content.contains(aibox_pointer);
+            let references_agents = content.contains(agents_pointer);
+            if !references_aibox && !references_agents {
                 output::warn(&format!(
-                    "{} does not reference {} — consider adding a pointer",
-                    entry_file, aibox_pointer
+                    "{} does not reference {} or {} — consider adding a pointer",
+                    entry_file, aibox_pointer, agents_pointer
                 ));
             }
         }
@@ -1733,6 +1817,123 @@ mod tests {
             assert!(Path::new("context/AIBOX.md").exists());
             // Core skills are deployed
             assert!(Path::new(".claude/skills/agent-management/SKILL.md").exists());
+        });
+    }
+
+    // ── AGENTS.md scaffolding (issue #33) ─────────────────────────────────
+
+    #[test]
+    #[serial]
+    fn scaffold_creates_agents_md_canonical() {
+        in_temp_dir(|| {
+            let config = test_config_with_packages(vec!["core".to_string()]);
+            scaffold_context(&config).unwrap();
+            // Canonical AGENTS.md is always written.
+            assert!(Path::new("AGENTS.md").exists(), "AGENTS.md should exist");
+            let body = fs::read_to_string("AGENTS.md").unwrap();
+            assert!(
+                body.contains("# AGENTS.md"),
+                "should have the AGENTS.md heading"
+            );
+            assert!(
+                body.contains("provider-neutral"),
+                "should announce its provider neutrality"
+            );
+            assert!(
+                body.contains("context/AIBOX.md"),
+                "should point at the universal baseline"
+            );
+        });
+    }
+
+    #[test]
+    #[serial]
+    fn scaffold_default_writes_thin_claude_pointer_when_claude_enabled() {
+        in_temp_dir(|| {
+            let config = test_config_with_packages(vec!["core".to_string()]);
+            // Default AI providers include Claude; default provider_mode = Pointer.
+            scaffold_context(&config).unwrap();
+            let body = fs::read_to_string("CLAUDE.md").unwrap();
+            assert!(
+                body.contains("Pointer file"),
+                "default mode should write a thin pointer CLAUDE.md"
+            );
+            assert!(
+                body.contains("AGENTS.md"),
+                "thin pointer must reference AGENTS.md"
+            );
+            assert!(
+                !body.contains("## Project Overview"),
+                "thin pointer must not contain the rich content sections"
+            );
+        });
+    }
+
+    #[test]
+    #[serial]
+    fn scaffold_full_mode_writes_rich_claude_md() {
+        in_temp_dir(|| {
+            let mut config = test_config_with_packages(vec!["core".to_string()]);
+            config.agents.provider_mode = crate::config::AgentsProviderMode::Full;
+            scaffold_context(&config).unwrap();
+            // Both AGENTS.md (canonical) and the rich CLAUDE.md exist.
+            assert!(Path::new("AGENTS.md").exists());
+            let body = fs::read_to_string("CLAUDE.md").unwrap();
+            assert!(
+                body.contains("## Project Overview"),
+                "full mode should write the rich CLAUDE.md content"
+            );
+            assert!(
+                !body.contains("Pointer file"),
+                "full mode CLAUDE.md should not be a pointer"
+            );
+        });
+    }
+
+    #[test]
+    #[serial]
+    fn scaffold_does_not_overwrite_existing_agents_md() {
+        in_temp_dir(|| {
+            let user_content = "# AGENTS.md — my-app\n\nMy hand-written instructions.\n";
+            fs::write("AGENTS.md", user_content).unwrap();
+            let config = test_config_with_packages(vec!["core".to_string()]);
+            scaffold_context(&config).unwrap();
+            let after = fs::read_to_string("AGENTS.md").unwrap();
+            assert_eq!(after, user_content, "user AGENTS.md must be preserved");
+        });
+    }
+
+    #[test]
+    #[serial]
+    fn scaffold_does_not_overwrite_existing_claude_md() {
+        in_temp_dir(|| {
+            let user_content = "# CLAUDE.md\n\nLegacy hand-written content.\n";
+            fs::write("CLAUDE.md", user_content).unwrap();
+            let config = test_config_with_packages(vec!["core".to_string()]);
+            scaffold_context(&config).unwrap();
+            let after = fs::read_to_string("CLAUDE.md").unwrap();
+            assert_eq!(after, user_content, "user CLAUDE.md must be preserved");
+        });
+    }
+
+    #[test]
+    #[serial]
+    fn scaffold_skips_claude_md_when_claude_provider_disabled() {
+        in_temp_dir(|| {
+            let mut config = test_config_with_packages(vec!["core".to_string()]);
+            config.ai.providers = vec![AiProvider::Aider];
+            // After clearing Claude, the addon resolution still sees the new
+            // set, so re-resolve before scaffolding.
+            config.resolve_ai_provider_addons();
+            scaffold_context(&config).unwrap();
+            assert!(
+                Path::new("AGENTS.md").exists(),
+                "AGENTS.md should always be written"
+            );
+            assert!(
+                !Path::new("CLAUDE.md").exists(),
+                "CLAUDE.md should not be created when Claude provider is disabled"
+            );
         });
     }
 
