@@ -413,6 +413,28 @@ fn serialize_config_with_comments(config: &AiboxConfig) -> String {
             .join(", ")
     ));
 
+    // [processkit] section
+    out.push('\n');
+    out.push_str(sep);
+    out.push_str("# [processkit] — content layer source (skills, primitives, processes)\n");
+    out.push_str(sep);
+    out.push_str("# processkit ships the skills and primitives that aibox installs into the\n");
+    out.push_str("# project. The default upstream is the canonical projectious-work/processkit\n");
+    out.push_str("# repo. Companies can fork processkit and have their projects consume the fork\n");
+    out.push_str("# by changing `source` to point at their fork.\n");
+    out.push_str("#\n");
+    out.push_str("# `version` is the git tag of the processkit source to consume. The sentinel\n");
+    out.push_str("# value \"unset\" means \"no version pinned yet\" — the project doesn't yet\n");
+    out.push_str("# consume processkit content.\n");
+    out.push_str("[processkit]\n");
+    out.push_str(&format!("source   = \"{}\"\n", config.processkit.source));
+    out.push_str(&format!("version  = \"{}\"\n", config.processkit.version));
+    out.push_str(&format!("src_path = \"{}\"\n", config.processkit.src_path));
+    match &config.processkit.branch {
+        Some(branch) => out.push_str(&format!("branch   = \"{}\"\n", branch)),
+        None => out.push_str("# branch = \"main\"   # optional — for tracking a moving branch (discouraged)\n"),
+    }
+
     // [customization] section
     out.push('\n');
     out.push_str(sep);
@@ -452,7 +474,8 @@ fn serialize_config_with_comments(config: &AiboxConfig) -> String {
 pub fn cmd_init(config_path: &Option<String>, params: InitParams) -> Result<()> {
     use crate::config::{
         AddonsSection, AiSection, AudioSection, ContainerSection,
-        ContextSection, CustomizationSection, AiboxConfig, AiboxSection, SkillsSection,
+        ContextSection, CustomizationSection, AiboxConfig, AiboxSection, ProcessKitSection,
+        SkillsSection,
     };
 
     let toml_path = config_path
@@ -507,6 +530,7 @@ pub fn cmd_init(config_path: &Option<String>, params: InitParams) -> Result<()> 
             section
         },
         skills: SkillsSection::default(),
+        processkit: ProcessKitSection::default(),
         customization: CustomizationSection {
             theme: params.theme.unwrap_or_default(),
             prompt: params.prompt.unwrap_or_default(),

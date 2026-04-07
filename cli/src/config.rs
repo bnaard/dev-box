@@ -408,6 +408,62 @@ impl Default for CustomizationSection {
 }
 
 // ---------------------------------------------------------------------------
+// [processkit] section — content layer source (skills, primitives, processes)
+// ---------------------------------------------------------------------------
+
+/// [processkit] section — configures the processkit-compatible source
+/// the project consumes content from.
+///
+/// processkit ships skills and primitives that aibox installs into the
+/// project. The default upstream is the canonical projectious-work/processkit
+/// repo. Companies can fork processkit and have projects consume the fork by
+/// changing `source` to point at their fork.
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+pub struct ProcessKitSection {
+    /// Git URL of the processkit-compatible source.
+    #[serde(default = "default_processkit_source")]
+    pub source: String,
+    /// Semver tag of the processkit source to consume. The sentinel value
+    /// `"unset"` means "no version pinned yet" — downstream code can detect
+    /// this and skip processkit fetching until a real version is set.
+    #[serde(default = "default_processkit_version")]
+    pub version: String,
+    /// Subdirectory within the source repo containing the processkit content.
+    #[serde(default = "default_processkit_src_path")]
+    pub src_path: String,
+    /// Optional branch name. If set, tracks a moving branch instead of a
+    /// pinned tag (discouraged but supported).
+    #[serde(default)]
+    pub branch: Option<String>,
+}
+
+fn default_processkit_source() -> String {
+    "https://github.com/projectious-work/processkit.git".to_string()
+}
+
+fn default_processkit_version() -> String {
+    "unset".to_string()
+}
+
+fn default_processkit_src_path() -> String {
+    "src".to_string()
+}
+
+/// Sentinel version value meaning "no processkit version pinned yet".
+pub const PROCESSKIT_VERSION_UNSET: &str = "unset";
+
+impl Default for ProcessKitSection {
+    fn default() -> Self {
+        Self {
+            source: default_processkit_source(),
+            version: default_processkit_version(),
+            src_path: default_processkit_src_path(),
+            branch: None,
+        }
+    }
+}
+
+// ---------------------------------------------------------------------------
 // [audio] section — UNCHANGED
 // ---------------------------------------------------------------------------
 
@@ -483,6 +539,8 @@ pub struct AiboxConfig {
     pub addons: AddonsSection,
     #[serde(default)]
     pub skills: SkillsSection,
+    #[serde(default)]
+    pub processkit: ProcessKitSection,
     #[serde(default, alias = "appearance")]
     pub customization: CustomizationSection,
     #[serde(default)]
@@ -657,6 +715,77 @@ impl AiboxConfig {
             }
         }
 
+        // Validate [processkit]
+        self.validate_processkit()?;
+
+        Ok(())
+    }
+
+    /// Validate the [processkit] section. Split out for testability.
+    fn validate_processkit(&self) -> Result<()> {
+        let pk = &self.processkit;
+
+        // source must be a non-empty URL-ish string
+        if pk.source.trim().is_empty() {
+            bail!("processkit.source must not be empty");
+        }
+        if !(pk.source.starts_with("http://")
+            || pk.source.starts_with("https://")
+            || pk.source.starts_with("git@")
+            || pk.source.starts_with("file://")
+            || pk.source.starts_with("ssh://"))
+        {
+            bail!(
+                "processkit.source '{}' does not look like a URL. \
+                 Expected one of: http://, https://, git@, ssh://, file://",
+                pk.source
+            );
+        }
+
+        // version: allow the "unset" sentinel, OR a leading-`v` semver-ish
+        // tag, OR a bare semver string. We don't pin to strict semver because
+        // git tags vary; just sanity check.
+        if pk.version != PROCESSKIT_VERSION_UNSET {
+            let stripped = pk.version.strip_prefix('v').unwrap_or(&pk.version);
+            // Either parses as semver, or matches a relaxed `numbers + dots`
+            // shape (e.g. "0.4", "1.0.0-rc1").
+            let semver_ok = semver::Version::parse(stripped).is_ok();
+            let relaxed_ok = !stripped.is_empty()
+                && stripped.chars().all(|c| {
+                    c.is_ascii_alphanumeric() || matches!(c, '.' | '-' | '_' | '+')
+                })
+                && stripped.chars().any(|c| c.is_ascii_digit());
+            if !semver_ok && !relaxed_ok {
+                bail!(
+                    "processkit.version '{}' is not a valid version tag. \
+                     Use the sentinel \"unset\", a semver string like \"0.4.0\", \
+                     or a tag like \"v0.4.0\".",
+                    pk.version
+                );
+            }
+        }
+
+        // src_path: no traversal, no absolute paths
+        if pk.src_path.contains("..") {
+            bail!(
+                "processkit.src_path '{}' must not contain '..'",
+                pk.src_path
+            );
+        }
+        if pk.src_path.starts_with('/') {
+            bail!(
+                "processkit.src_path '{}' must not be an absolute path",
+                pk.src_path
+            );
+        }
+
+        // branch: if set, must not be empty
+        if let Some(branch) = &pk.branch
+            && branch.trim().is_empty()
+        {
+            bail!("processkit.branch is set but empty; remove it or provide a name");
+        }
+
         Ok(())
     }
 
@@ -745,6 +874,7 @@ pub fn test_config() -> AiboxConfig {
         ai: AiSection::default(),
         addons: AddonsSection::default(),
         skills: SkillsSection::default(),
+        processkit: ProcessKitSection::default(),
         customization: CustomizationSection::default(),
         audio: AudioSection::default(),
         process: None,
@@ -1419,6 +1549,203 @@ theme = "{input}"
         let config = AiboxConfig::from_str(toml).unwrap();
         assert!(!config.addons.has_addon("ai-claude"));
         assert!(!config.addons.has_addon("ai-aider"));
+    }
+
+    // -- ProcessKit section -------------------------------------------------
+
+    #[test]
+    fn processkit_section_default_values() {
+        let pk = ProcessKitSection::default();
+        assert_eq!(
+            pk.source,
+            "https://github.com/projectious-work/processkit.git"
+        );
+        assert_eq!(pk.version, "unset");
+        assert_eq!(pk.src_path, "src");
+        assert_eq!(pk.branch, None);
+    }
+
+    #[test]
+    fn processkit_section_parses_from_toml() {
+        let toml = r#"
+[aibox]
+version = "0.9.0"
+
+[container]
+name = "test"
+
+[processkit]
+source = "https://example.com/forks/processkit.git"
+version = "v0.4.0"
+src_path = "content"
+branch = "develop"
+"#;
+        let config = parse_toml(toml).expect("should parse processkit section");
+        assert_eq!(
+            config.processkit.source,
+            "https://example.com/forks/processkit.git"
+        );
+        assert_eq!(config.processkit.version, "v0.4.0");
+        assert_eq!(config.processkit.src_path, "content");
+        assert_eq!(config.processkit.branch.as_deref(), Some("develop"));
+    }
+
+    #[test]
+    fn processkit_section_parses_with_only_source() {
+        let toml = r#"
+[aibox]
+version = "0.9.0"
+
+[container]
+name = "test"
+
+[processkit]
+source = "https://example.com/forks/processkit.git"
+"#;
+        let config = parse_toml(toml).unwrap();
+        assert_eq!(
+            config.processkit.source,
+            "https://example.com/forks/processkit.git"
+        );
+        assert_eq!(config.processkit.version, "unset");
+        assert_eq!(config.processkit.src_path, "src");
+        assert_eq!(config.processkit.branch, None);
+    }
+
+    #[test]
+    fn processkit_section_parses_when_section_missing() {
+        // An old-style aibox.toml with no [processkit] block should parse
+        // cleanly with all defaults filled in.
+        let config = parse_toml(minimal_toml()).unwrap();
+        assert_eq!(
+            config.processkit.source,
+            "https://github.com/projectious-work/processkit.git"
+        );
+        assert_eq!(config.processkit.version, "unset");
+        assert_eq!(config.processkit.src_path, "src");
+        assert_eq!(config.processkit.branch, None);
+    }
+
+    #[test]
+    fn processkit_validate_rejects_empty_source() {
+        let toml = r#"
+[aibox]
+version = "0.9.0"
+
+[container]
+name = "test"
+
+[processkit]
+source = ""
+"#;
+        let result = parse_toml(toml);
+        assert!(result.is_err(), "should reject empty source");
+    }
+
+    #[test]
+    fn processkit_validate_rejects_non_url_source() {
+        let toml = r#"
+[aibox]
+version = "0.9.0"
+
+[container]
+name = "test"
+
+[processkit]
+source = "not-a-url"
+"#;
+        let result = parse_toml(toml);
+        assert!(result.is_err(), "should reject non-URL source");
+    }
+
+    #[test]
+    fn processkit_validate_rejects_path_traversal_in_src_path() {
+        let toml = r#"
+[aibox]
+version = "0.9.0"
+
+[container]
+name = "test"
+
+[processkit]
+source = "https://github.com/projectious-work/processkit.git"
+src_path = "../etc"
+"#;
+        let result = parse_toml(toml);
+        assert!(result.is_err(), "should reject path traversal in src_path");
+    }
+
+    #[test]
+    fn processkit_validate_rejects_absolute_src_path() {
+        let toml = r#"
+[aibox]
+version = "0.9.0"
+
+[container]
+name = "test"
+
+[processkit]
+source = "https://github.com/projectious-work/processkit.git"
+src_path = "/etc"
+"#;
+        let result = parse_toml(toml);
+        assert!(result.is_err(), "should reject absolute src_path");
+    }
+
+    #[test]
+    fn processkit_validate_accepts_unset_version() {
+        let toml = r#"
+[aibox]
+version = "0.9.0"
+
+[container]
+name = "test"
+
+[processkit]
+source = "https://github.com/projectious-work/processkit.git"
+version = "unset"
+"#;
+        let config = parse_toml(toml).expect("unset sentinel should validate");
+        assert_eq!(config.processkit.version, "unset");
+    }
+
+    #[test]
+    fn processkit_validate_accepts_semver_version() {
+        for ver in ["v0.4.0", "0.4.0", "v1.0.0-rc1", "v0.4"] {
+            let toml = format!(
+                r#"
+[aibox]
+version = "0.9.0"
+
+[container]
+name = "test"
+
+[processkit]
+source = "https://github.com/projectious-work/processkit.git"
+version = "{ver}"
+"#
+            );
+            parse_toml(&toml).unwrap_or_else(|e| {
+                panic!("version {ver} should validate, but got error: {e}")
+            });
+        }
+    }
+
+    #[test]
+    fn processkit_validate_rejects_empty_branch() {
+        let toml = r#"
+[aibox]
+version = "0.9.0"
+
+[container]
+name = "test"
+
+[processkit]
+source = "https://github.com/projectious-work/processkit.git"
+branch = ""
+"#;
+        let result = parse_toml(toml);
+        assert!(result.is_err(), "should reject empty branch");
     }
 
     #[test]
