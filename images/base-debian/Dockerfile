@@ -102,6 +102,20 @@ RUN ARCH=$(uname -m) && \
         "delta-${DELTA_VERSION}-${ARCH}-unknown-linux-${DELTA_LIBC}/delta" && \
     chmod +x /usr/local/bin/delta
 
+# ── ouch (universal archive CLI) ─────────────────────────────────────────────
+# Single-binary alternative to remembering tar/unzip/7z/unxz incantations.
+# Used as a shell convenience; archive *previewing* in yazi goes through
+# yazi's built-in archive previewer, which calls 7z (provided by the
+# p7zip-full apt package below).
+FROM fetch-base AS fetch-ouch
+ARG OUCH_VERSION=0.5.1
+RUN ARCH=$(uname -m) && \
+    curl -fsSL \
+      "https://github.com/ouch-org/ouch/releases/download/${OUCH_VERSION}/ouch-${ARCH}-unknown-linux-musl.tar.gz" \
+      | tar -xz --strip-components=1 -C /usr/local/bin \
+        "ouch-${ARCH}-unknown-linux-musl/ouch" && \
+    chmod +x /usr/local/bin/ouch
+
 # ── starship ─────────────────────────────────────────────────────────────────
 FROM fetch-base AS fetch-starship
 ARG STARSHIP_VERSION=1.24.2
@@ -162,12 +176,13 @@ RUN mkdir -p /vim-colors/colors \
 #   debian:trixie-slim base .............. ~75 MB
 #   Core apt (curl, git, vim, etc.) ...... ~120 MB
 #   Preview deps (ffmpeg, imagemagick, ghostscript, timg, mupdf-tools, entr) ~175 MB
+#   Archive support (p7zip-full) ......... ~5 MB
 #   Audio (sox, pulseaudio) .............. ~25 MB
-#   Static binaries (11 tools) ........... ~97 MB
+#   Static binaries (12 tools) ........... ~100 MB
 #   Vim colorschemes ..................... ~0.1 MB
 #   Config files ......................... ~0.1 MB
 #   ─────────────────────────────────────────────
-#   Total estimate ....................... ~465 MB
+#   Total estimate ....................... ~470 MB
 # =============================================================================
 FROM debian:trixie-slim AS runtime
 
@@ -219,6 +234,12 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     timg \
     mupdf-tools \
     entr \
+    # ── Archive support (~5 MB) ──
+    # p7zip-full feeds yazi's built-in archive previewer (selecting a
+    # zip / 7z / tar / tar.gz / tar.bz2 / tar.xz / iso shows the file
+    # tree in the preview pane, no plugin required). The `ouch` static
+    # binary in /usr/local/bin/ouch is for shell-side extraction.
+    p7zip-full \
     # ── Audio support for Claude Code voice (~25 MB) ──
     sox \
     libsox-fmt-pulse \
@@ -254,6 +275,7 @@ COPY --from=fetch-eza      /usr/local/bin/eza      /usr/local/bin/
 COPY --from=fetch-zoxide   /usr/local/bin/zoxide   /usr/local/bin/
 COPY --from=fetch-fzf      /usr/local/bin/fzf      /usr/local/bin/
 COPY --from=fetch-delta    /usr/local/bin/delta    /usr/local/bin/
+COPY --from=fetch-ouch     /usr/local/bin/ouch     /usr/local/bin/
 COPY --from=fetch-starship /usr/local/bin/starship /usr/local/bin/
 COPY --from=fetch-resvg    /usr/local/bin/resvg    /usr/local/bin/
 
