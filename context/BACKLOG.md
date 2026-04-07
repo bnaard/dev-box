@@ -4,7 +4,7 @@ Central task registry. Each item has a unique ID for cross-referencing.
 Source of truth — GitHub issues are for external visibility.
 Archive of completed/merged items: [archive/BACKLOG.md](archive/BACKLOG.md)
 
-## Next ID: BACK-110
+## Next ID: BACK-112
 
 ## Format
 
@@ -20,6 +20,8 @@ Priority values: `must`, `should`, `could`, `wont`
 
 | ID | Title | Status | Priority | Notes |
 |----|-------|--------|----------|-------|
+| BACK-110 | v0.16.1 — `aibox sync` auto-installs processkit content | done | must | **Bug:** v0.16.0 only installed processkit content from `cmd_init`. A user who ran `aibox init` with `[processkit].version = "unset"` (the default) and then edited `aibox.toml` to pin a real version would run `aibox sync` and get an empty `context/` with no error. **Fix:** new pure gating fn `container::sync_should_install_processkit(config_version, config_source, lock_pair)` returning true when config != unset AND (no lock OR lock disagrees with `(source, version)`). Wired into `cmd_sync` before the existing three-way diff. Five unit tests cover the gating decision. See DEC-028. |
+| BACK-111 | v0.16.1 — `aibox init` interactive processkit version picker + CLI flags | done | should | New `content_source::list_versions(source) -> Result<Vec<String>>` (GitHub Releases API + `git ls-remote --tags` fallback, semver filter + sort). New `aibox init` flags: `--processkit-source`, `--processkit-version`, `--processkit-branch`. Resolver shows a `dialoguer::Select` with the latest at the top + an `unset — skip processkit install (configure later)` escape hatch at the bottom; non-interactive picks the latest; listing failure falls back to `unset` with a warning. Six unit tests cover the filter/sort/dedupe helpers. See DEC-028. |
 | BACK-107 | v0.16.0 — rip bundled process layer | done | must | **Landed:** removed `cli/src/process_registry.rs`, `cli/src/skill_cmd.rs`, the entire `aibox skill` subcommand, the bundled `templates/` tree (~85 skills + context-doc scaffolds + processes + agents pointer), `context/AIBOX.md`, `ALL_SKILL_DEFS` and 141 `include_str!` calls in `cli/src/context.rs` (~2000 lines), `reconcile_skills`/`generate_aibox_md`/`check_agent_entry_points`, `effective_skill_includes`, `skills_for_addons`. Added `scaffolding/` install branch in `content_install.rs` so processkit's `scaffolding/AGENTS.md` lands at the project root. Inlined provider thin-pointer scaffolding (CLAUDE.md → AGENTS.md). Updated sync_perimeter to drop `context/AIBOX.md` and `.claude/skills/`. Bumped `[aibox].version` and `cli/Cargo.toml` to 0.16.0. See DEC-027. |
 | BACK-108 | v0.16.0 — pin processkit v0.5.1 in this repo | done | must | Added `[processkit] version = "v0.5.1"` to the repo's own `aibox.toml`, switched `[context].packages` to `["product"]` (real processkit package). Replaced `templates/`-era preset names with the five processkit packages (`minimal`, `managed`, `software`, `research`, `product`). |
 | BACK-109 | v0.16.0 — bump container deps queued from v0.15.0 | done | should | zellij `0.44.0 → 0.44.1`, fzf `0.70.0 → 0.71.0`, delta `0.19.1 → 0.19.2`, ouch `0.5.1 → 0.6.1`. Updated `images/base-debian/Dockerfile`, `.devcontainer/Dockerfile.e2e`, and `context/work-instructions/RELEASE-PROCESS.md`. |

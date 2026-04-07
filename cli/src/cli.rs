@@ -113,6 +113,25 @@ pub enum Commands {
         /// Addon names to enable (e.g., python, infrastructure, kubernetes)
         #[arg(long, num_args = 1..)]
         addons: Option<Vec<String>>,
+
+        /// processkit source URL (default: projectious-work/processkit upstream).
+        /// Use this to point at a fork or a compatible alternative repo.
+        #[arg(long)]
+        processkit_source: Option<String>,
+
+        /// processkit version tag to pin. If omitted, aibox lists the
+        /// available versions at the source and (interactively) lets you
+        /// pick one or (non-interactively) defaults to the latest.
+        #[arg(long)]
+        processkit_version: Option<String>,
+
+        /// processkit branch override. Tracks the moving HEAD of a branch
+        /// instead of a pinned tag — discouraged for production use, fine
+        /// for testing pre-release work. Mutually informative with
+        /// `--processkit-version`: when both are set the branch wins at
+        /// fetch time but the version is still recorded in aibox.toml.
+        #[arg(long)]
+        processkit_branch: Option<String>,
     },
     /// Reconcile project state with aibox.toml configuration
     ///

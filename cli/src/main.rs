@@ -81,6 +81,9 @@ fn dispatch(cli: cli::Cli) -> anyhow::Result<()> {
             theme,
             prompt,
             addons,
+            processkit_source,
+            processkit_version,
+            processkit_branch,
         } => container::cmd_init(
             config_path,
             container::InitParams {
@@ -92,6 +95,9 @@ fn dispatch(cli: cli::Cli) -> anyhow::Result<()> {
                 theme,
                 prompt,
                 addons,
+                processkit_source,
+                processkit_version,
+                processkit_branch,
             },
         ),
         cli::Commands::Sync { no_cache, no_build } => container::cmd_sync(config_path, no_cache, no_build),

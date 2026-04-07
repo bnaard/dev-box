@@ -20,6 +20,16 @@ pub struct InitParams {
     pub theme: Option<Theme>,
     pub prompt: Option<StarshipPreset>,
     pub addons: Option<Vec<String>>,
+    /// Override the processkit source URL. `None` → use the default
+    /// upstream from `ProcessKitSection::default()`.
+    pub processkit_source: Option<String>,
+    /// Pin a specific processkit tag. `None` → list versions at the
+    /// configured source and pick interactively (or pick latest in
+    /// non-interactive mode; fall back to "unset" if listing fails).
+    pub processkit_version: Option<String>,
+    /// Track a moving processkit branch. Wins over `processkit_version`
+    /// at fetch time per the existing fetcher contract.
+    pub processkit_branch: Option<String>,
 }
 
 /// Build processkit-package selection items for the interactive prompt.
@@ -41,6 +51,126 @@ fn process_selection_items() -> (Vec<String>, Vec<String>) {
         .collect();
     let values = PRESETS.iter().map(|(n, _)| n.to_string()).collect();
     (labels, values)
+}
+
+/// Pure decision: should `cmd_sync` (re-)install processkit content?
+///
+/// Returns true when the configured version is real (not the `unset`
+/// sentinel) AND either there is no lock yet, or the lock disagrees
+/// with the config on `(source, version)`. Used by the auto-install
+/// path that lets users pin a version after `aibox init` and have
+/// `aibox sync` materialize the content (closes the v0.16.0 bug
+/// reported in BACK-110).
+fn sync_should_install_processkit(
+    config_version: &str,
+    config_source: &str,
+    lock_pair: Option<(&str, &str)>,
+) -> bool {
+    if config_version == crate::config::PROCESSKIT_VERSION_UNSET {
+        return false;
+    }
+    match lock_pair {
+        None => true,
+        Some((src, ver)) => src != config_source || ver != config_version,
+    }
+}
+
+/// Build the `[processkit]` section from CLI overrides + interactive
+/// version picker.
+///
+/// Strategy:
+/// 1. Source: `--processkit-source` if given, else the upstream default
+///    from `ProcessKitSection::default()`.
+/// 2. Branch: `--processkit-branch` if given, else `None`. A branch
+///    override wins over the version at fetch time, but the version
+///    field is still recorded so the project can drop the branch later
+///    and have a sensible pin to fall back to.
+/// 3. Version:
+///    - `--processkit-version` if given → use as-is
+///    - else: list available versions at the source.
+///      - Interactive: show a `dialoguer::Select` with the latest as the
+///        default. Includes an "unset (skip processkit install)" entry
+///        as the escape hatch when the user explicitly wants no install.
+///      - Non-interactive: pick the first (latest) entry. If listing
+///        fails or returns nothing, fall back to the `unset` sentinel
+///        and warn — the user can edit aibox.toml + re-run sync.
+fn resolve_processkit_section(
+    source_override: Option<&str>,
+    version_override: Option<&str>,
+    branch_override: Option<&str>,
+    interactive: bool,
+) -> Result<crate::config::ProcessKitSection> {
+    use crate::config::{PROCESSKIT_VERSION_UNSET, ProcessKitSection};
+
+    let mut section = ProcessKitSection::default();
+    if let Some(s) = source_override {
+        section.source = s.to_string();
+    }
+    if let Some(b) = branch_override {
+        section.branch = Some(b.to_string());
+    }
+
+    if let Some(v) = version_override {
+        section.version = v.to_string();
+        return Ok(section);
+    }
+
+    // No version override — list available versions from the configured source.
+    output::info(&format!(
+        "Querying available processkit versions at {}...",
+        section.source
+    ));
+    let versions = match crate::content_source::list_versions(&section.source) {
+        Ok(v) if !v.is_empty() => v,
+        Ok(_) => {
+            output::warn(&format!(
+                "No semver-tagged versions found at {}. Leaving processkit.version = \"{}\"; \
+                 edit aibox.toml later and re-run `aibox sync` to install content.",
+                section.source, PROCESSKIT_VERSION_UNSET
+            ));
+            return Ok(section);
+        }
+        Err(e) => {
+            output::warn(&format!(
+                "Could not list processkit versions at {}: {}. Leaving processkit.version = \"{}\"; \
+                 edit aibox.toml later and re-run `aibox sync` to install content.",
+                section.source, e, PROCESSKIT_VERSION_UNSET
+            ));
+            return Ok(section);
+        }
+    };
+
+    if interactive {
+        // Build the menu with the latest at the top + an explicit
+        // "skip" escape hatch at the bottom.
+        let mut items: Vec<String> = versions.iter().enumerate().map(|(i, v)| {
+            if i == 0 {
+                format!("{} (latest)", v)
+            } else {
+                v.clone()
+            }
+        }).collect();
+        items.push(format!("{} — skip processkit install (configure later)", PROCESSKIT_VERSION_UNSET));
+        let idx = dialoguer::Select::new()
+            .with_prompt("processkit version")
+            .items(&items)
+            .default(0)
+            .interact()?;
+        if idx == versions.len() {
+            section.version = PROCESSKIT_VERSION_UNSET.to_string();
+        } else {
+            section.version = versions[idx].clone();
+        }
+    } else {
+        // Non-interactive: pick the latest.
+        section.version = versions[0].clone();
+        output::ok(&format!(
+            "Pinned processkit.version = \"{}\" (latest at {})",
+            section.version, section.source
+        ));
+    }
+
+    Ok(section)
 }
 
 /// Determine the default project name from the current directory.
@@ -514,7 +644,7 @@ fn serialize_config_with_comments(config: &AiboxConfig) -> String {
 pub fn cmd_init(config_path: &Option<String>, params: InitParams) -> Result<()> {
     use crate::config::{
         AddonsSection, AiSection, AudioSection, ContainerSection,
-        ContextSection, CustomizationSection, AiboxConfig, AiboxSection, ProcessKitSection,
+        ContextSection, CustomizationSection, AiboxConfig, AiboxSection,
         SkillsSection,
     };
 
@@ -570,7 +700,12 @@ pub fn cmd_init(config_path: &Option<String>, params: InitParams) -> Result<()> 
             section
         },
         skills: SkillsSection::default(),
-        processkit: ProcessKitSection::default(),
+        processkit: resolve_processkit_section(
+            params.processkit_source.as_deref(),
+            params.processkit_version.as_deref(),
+            params.processkit_branch.as_deref(),
+            interactive,
+        )?,
         customization: CustomizationSection {
             theme: params.theme.unwrap_or_default(),
             prompt: params.prompt.unwrap_or_default(),
@@ -669,8 +804,67 @@ pub fn cmd_sync(config_path: &Option<String>, no_cache: bool, no_build: bool) ->
     generate::generate_all(&config)?;
 
     // Skills, AGENTS.md, and the universal baseline are owned by
-    // processkit since v0.16.0. They are installed at `aibox init`
-    // time by content_init and refreshed via the three-way diff below.
+    // processkit since v0.16.0. The first time we see a real
+    // [processkit].version (i.e. not the "unset" sentinel) we install
+    // the content here so the user can pin a version after the initial
+    // `aibox init` and have `aibox sync` materialize it. The install is
+    // skipped when the lock already pins the same (source, version)
+    // pair as aibox.toml — the existing three-way diff path further
+    // down handles drift detection in that case.
+    match std::env::current_dir() {
+        Ok(cwd) => {
+            let lock_pair = match crate::lock::read_lock(&cwd) {
+                Ok(Some(lock)) => Some((lock.source.clone(), lock.version.clone())),
+                Ok(None) => None,
+                Err(e) => {
+                    output::warn(&format!(
+                        "Failed to read aibox.lock; will re-install processkit: {}",
+                        e
+                    ));
+                    None
+                }
+            };
+            if sync_should_install_processkit(
+                &config.processkit.version,
+                &config.processkit.source,
+                lock_pair.as_ref().map(|(s, v)| (s.as_str(), v.as_str())),
+            ) {
+                {
+                    output::info(&format!(
+                        "Installing processkit {}@{}...",
+                        config.processkit.source, config.processkit.version
+                    ));
+                    match crate::content_init::install_content_source(&cwd, &config) {
+                        Ok(report) if report.skipped_due_to_unset => {
+                            // Defensive — we already gated on version != unset.
+                        }
+                        Ok(report) => {
+                            output::ok(&format!(
+                                "Installed {} files from processkit {}@{} ({} groups, {} skipped)",
+                                report.files_installed,
+                                report.fetched_from,
+                                report.fetched_version,
+                                report.groups_touched,
+                                report.files_skipped,
+                            ));
+                        }
+                        Err(e) => {
+                            output::warn(&format!(
+                                "Processkit install failed: {}. Sync will continue without \
+                                 fresh content; fix the [processkit] section and re-run \
+                                 `aibox sync` to retry.",
+                                e
+                            ));
+                        }
+                    }
+                }
+            }
+        }
+        Err(e) => output::warn(&format!(
+            "Failed to determine working directory; skipping processkit install: {}",
+            e
+        )),
+    }
 
     // Three-way processkit diff (A6).
     //
@@ -769,6 +963,72 @@ mod tests {
         assert_eq!(base, BaseImage::Debian);
         assert_eq!(process, vec!["research".to_string()]);
         assert_eq!(addons, vec!["latex".to_string()]);
+    }
+
+    // ── sync_should_install_processkit ──────────────────────────────────────
+
+    #[test]
+    fn sync_install_skipped_when_version_is_unset() {
+        // The "unset" sentinel always disables the auto-install — even if a
+        // stale lock from an earlier real version exists, sync should leave
+        // it alone. The user has explicitly opted out by typing "unset".
+        assert!(!sync_should_install_processkit(
+            crate::config::PROCESSKIT_VERSION_UNSET,
+            "https://github.com/projectious-work/processkit.git",
+            None,
+        ));
+        assert!(!sync_should_install_processkit(
+            crate::config::PROCESSKIT_VERSION_UNSET,
+            "https://github.com/projectious-work/processkit.git",
+            Some(("https://github.com/projectious-work/processkit.git", "v0.5.1")),
+        ));
+    }
+
+    #[test]
+    fn sync_install_runs_when_version_pinned_and_no_lock() {
+        // The reported bug: `aibox init` left version="unset", user edited
+        // aibox.toml to v0.5.1, ran `aibox sync`, nothing happened. Fix:
+        // sync must auto-install when there's no lock yet.
+        assert!(sync_should_install_processkit(
+            "v0.5.1",
+            "https://github.com/projectious-work/processkit.git",
+            None,
+        ));
+    }
+
+    #[test]
+    fn sync_install_skipped_when_lock_matches_config() {
+        // Steady state: the install already ran, lock matches config →
+        // sync should NOT re-install. The downstream three-way diff path
+        // handles drift detection from here on.
+        assert!(!sync_should_install_processkit(
+            "v0.5.1",
+            "https://github.com/projectious-work/processkit.git",
+            Some(("https://github.com/projectious-work/processkit.git", "v0.5.1")),
+        ));
+    }
+
+    #[test]
+    fn sync_install_runs_when_lock_version_stale() {
+        // User bumped processkit.version in aibox.toml from v0.5.0 → v0.5.1.
+        // Sync must re-install so the new version's content lands.
+        assert!(sync_should_install_processkit(
+            "v0.5.1",
+            "https://github.com/projectious-work/processkit.git",
+            Some(("https://github.com/projectious-work/processkit.git", "v0.5.0")),
+        ));
+    }
+
+    #[test]
+    fn sync_install_runs_when_lock_source_changed() {
+        // User switched from upstream processkit to a fork (or vice versa).
+        // Sync must re-install from the new source even if the version tag
+        // happens to match.
+        assert!(sync_should_install_processkit(
+            "v0.5.1",
+            "https://github.com/acme/processkit-acme.git",
+            Some(("https://github.com/projectious-work/processkit.git", "v0.5.1")),
+        ));
     }
 
     #[test]

@@ -2,6 +2,46 @@
 
 Inverse chronological. Each decision has a rationale and alternatives considered.
 
+## DEC-028 — aibox sync auto-installs processkit; init offers a version picker (2026-04-08)
+
+**Decision:** v0.16.1 closes a v0.16.0 bug and adds two related ergonomics.
+
+1. **`aibox sync` auto-installs processkit content** when `[processkit].version != "unset"` AND (no `aibox.lock` yet OR the lock disagrees with the current `aibox.toml` on `(source, version)`). The decision is a pure function `container::sync_should_install_processkit(config_version, config_source, lock_pair)` so it can be unit-tested without I/O. Five tests cover: unset sentinel, no-lock + pinned, lock matches, lock version stale, lock source changed.
+
+2. **`aibox init` offers an interactive `processkit.version` picker.** It calls `content_source::list_versions(source)` and presents a `dialoguer::Select` with the latest at the top and an explicit `unset — skip processkit install (configure later)` escape hatch at the bottom. Non-interactive mode picks the latest. If listing fails (network, no semver tags), it falls back to `unset` with a warning — preserving v0.16.0 behavior in the failure case.
+
+3. **Three new CLI flags on `aibox init`**: `--processkit-source`, `--processkit-version`, `--processkit-branch`. The first two are independent; the third tracks a moving branch and wins over the version at fetch time per the existing fetcher contract. The version is still recorded in `aibox.toml` so the project can drop the branch later and have a sensible pin to fall back to.
+
+4. **New `content_source::list_versions(source) -> Result<Vec<String>>`** API. GitHub-hosted sources (host == `github.com`) use the GitHub Releases API; everything else uses `git ls-remote --tags --refs <source>`. Filtering: only tags that parse as semver (optional leading `v`) are kept. Sort descending by semver, dedupe by the stripped form. Six unit tests cover the filter/sort/dedupe helpers without network.
+
+**Rationale:**
+
+The reported bug was a real footgun: a brand-new project with `[processkit].version = "unset"` (the v0.16.0 default) had no obvious recovery path. The user edited `aibox.toml` to pin a version, ran `aibox sync`, and got an empty `context/` with no error. The only call site for `install_content_source` in v0.16.0 was `cmd_init`, and `cmd_init` errors out if `aibox.toml` already exists, so there was no in-place way to fix it.
+
+The picker addresses the upstream cause: there was no good reason to default to `unset` in the first place. The default was a relic of the v0.16.0 plan, where I knew aibox couldn't yet auto-pick a version because there was no version-listing helper. With `list_versions` in place, the resolver can do the right thing — pick the latest by default, let the user pick a specific version interactively, and only fall back to `unset` when listing genuinely fails.
+
+The branch flag is for symmetry with `[processkit].branch` and serves the "test against pre-release work" use case the existing fetcher already supports.
+
+**Alternatives:**
+
+- *Always re-install on every sync, regardless of lock state.* Rejected: would re-fetch the tarball on every sync (the fetcher is cached by `(source, version)` so the network cost is zero, but the templates dir wipe-and-recopy is wasteful and the install report is noisy). The lock-pair gate is a one-line cost in the steady state.
+- *Only auto-install when there's no lock at all (skip the source/version mismatch check).* Rejected: would mean `aibox sync` doesn't react to a version bump in `aibox.toml`. The user would have to delete the lock manually. That's the same class of footgun as the original bug, just one step removed.
+- *Default to a hard-coded latest at compile time.* Rejected: every aibox release would need to know the current processkit release, creating a coupling and a release-ordering hazard. The runtime list keeps the projects independent.
+- *Use the GitHub tags API (`/repos/<org>/<name>/tags`) instead of releases.* Rejected: tags include lightweight tags, draft refs, and feature-branch markers. Releases are explicitly published artifacts and map cleanly to `[processkit].version`. Falls back to `git ls-remote` for non-GitHub hosts where the releases concept doesn't exist.
+- *Make `list_versions` async / parallelize the GitHub call.* Rejected: it's one HTTP GET; the existing `ureq` blocking client is fine and adds no async runtime.
+
+**Implementation:**
+
+- `cli/src/content_source.rs::list_versions` (+ private `list_github_releases`, `list_git_tags`, `filter_and_sort_semver_tags`, `parse_loose_semver`)
+- `cli/src/container.rs::sync_should_install_processkit` (pure gating fn) and the wired call in `cmd_sync` before the existing three-way diff
+- `cli/src/container.rs::resolve_processkit_section` (interactive picker + flag resolution)
+- New CLI flags `--processkit-source`, `--processkit-version`, `--processkit-branch` in `cli/src/cli.rs::Init`, threaded through `main.rs` and `container::InitParams`
+- 5 + 6 = 11 new unit tests; full suite 438/438 passing
+
+**Migration impact:** **Backwards compatible.** No config schema changes, no breaking API changes. Existing v0.16.0 projects pick up the new behavior on the next `aibox sync` (which will install content if a version is now pinned).
+
+**Source:** Session 2026-04-08, user reported `aibox init` + manual edit + `aibox sync` left `context/` empty; user requested both the sync auto-install AND a version picker (with optional source/branch overrides) in init. Both shipped together.
+
 ## DEC-027 — aibox v0.16.0: rip the bundled process layer (2026-04-08)
 
 **Decision:** v0.16.0 removes every process-related artefact from the aibox repo and reduces aibox to two responsibilities: (1) managing AI-ready devcontainers, (2) installing a pinned `processkit` release into the consuming project. Specifically, this release deletes:

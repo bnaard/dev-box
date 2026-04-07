@@ -257,6 +257,110 @@ fn base_cache_dir() -> Result<PathBuf> {
 }
 
 // ---------------------------------------------------------------------------
+// Version listing
+// ---------------------------------------------------------------------------
+
+/// List the versions available at `source`, newest first.
+///
+/// For GitHub-hosted sources (host == `github.com`) the GitHub Releases
+/// API is used so that draft and prerelease tags can be filtered later
+/// if needed. For any other host the path is `git ls-remote --tags
+/// <source>`, which works against GitLab, Gitea, self-hosted, file://,
+/// and SSH URLs without needing host-specific API knowledge.
+///
+/// Filtering: only tags that parse as semver (with an optional leading
+/// `v`) are returned. Sorted descending by semver. Duplicates after the
+/// `v` strip are deduplicated. Empty result is `Ok(vec![])`, not an error.
+///
+/// Used by `aibox init`'s interactive picker (and the
+/// `--processkit-version` flag's "default to latest" path).
+pub fn list_versions(source: &str) -> Result<Vec<String>> {
+    let parsed = parse_source(source)?;
+    if parsed.host == "github.com" {
+        list_github_releases(&parsed.org, &parsed.name)
+    } else {
+        list_git_tags(source)
+    }
+}
+
+fn list_github_releases(org: &str, name: &str) -> Result<Vec<String>> {
+    let url = format!(
+        "https://api.github.com/repos/{}/{}/releases?per_page=100",
+        org, name
+    );
+    let resp = ureq::get(&url)
+        .header("User-Agent", "aibox-cli")
+        .header("Accept", "application/vnd.github+json")
+        .call()
+        .with_context(|| format!("HTTP GET {} failed", url))?;
+    if !resp.status().is_success() {
+        bail!("{} returned status {}", url, resp.status());
+    }
+    let mut body = String::new();
+    resp.into_body()
+        .into_reader()
+        .read_to_string(&mut body)
+        .with_context(|| format!("failed to read body from {}", url))?;
+    let json: serde_json::Value =
+        serde_json::from_str(&body).context("failed to parse GitHub releases JSON")?;
+    let arr = json
+        .as_array()
+        .ok_or_else(|| anyhow!("GitHub releases response was not a JSON array"))?;
+    let tags: Vec<String> = arr
+        .iter()
+        .filter_map(|r| r.get("tag_name").and_then(|t| t.as_str()).map(String::from))
+        .collect();
+    Ok(filter_and_sort_semver_tags(tags))
+}
+
+fn list_git_tags(source: &str) -> Result<Vec<String>> {
+    let output = Command::new("git")
+        .args(["ls-remote", "--tags", "--refs", source])
+        .output()
+        .with_context(|| format!("failed to spawn `git ls-remote --tags {}`", source))?;
+    if !output.status.success() {
+        bail!(
+            "git ls-remote --tags {} failed: {}",
+            source,
+            String::from_utf8_lossy(&output.stderr)
+        );
+    }
+    let stdout = String::from_utf8_lossy(&output.stdout);
+    let tags: Vec<String> = stdout
+        .lines()
+        .filter_map(|line| line.split_whitespace().nth(1))
+        .filter_map(|ref_path| ref_path.strip_prefix("refs/tags/"))
+        .map(String::from)
+        .collect();
+    Ok(filter_and_sort_semver_tags(tags))
+}
+
+/// Keep only semver-looking tags, sort descending, and dedupe by the
+/// stripped semver form (so `v1.2.3` and `1.2.3` collapse to one entry,
+/// preferring the input that came first).
+fn filter_and_sort_semver_tags(tags: Vec<String>) -> Vec<String> {
+    let mut keep: Vec<(semver::Version, String)> = tags
+        .into_iter()
+        .filter_map(|t| parse_loose_semver(&t).map(|v| (v, t)))
+        .collect();
+    keep.sort_by(|a, b| b.0.cmp(&a.0));
+    let mut seen = std::collections::HashSet::new();
+    let mut out = Vec::with_capacity(keep.len());
+    for (v, raw) in keep {
+        if seen.insert(v.to_string()) {
+            out.push(raw);
+        }
+    }
+    out
+}
+
+/// Parse a tag string as semver, allowing an optional leading `v`.
+fn parse_loose_semver(tag: &str) -> Option<semver::Version> {
+    let stripped = tag.strip_prefix('v').unwrap_or(tag);
+    semver::Version::parse(stripped).ok()
+}
+
+// ---------------------------------------------------------------------------
 // Public fetch entry point
 // ---------------------------------------------------------------------------
 
@@ -950,6 +1054,81 @@ mod tests {
     use super::*;
     use std::fs;
     use tempfile::TempDir;
+
+    // -- Version listing helpers (no network) ------------------------------
+
+    #[test]
+    fn parse_loose_semver_accepts_v_prefix_and_bare() {
+        assert_eq!(
+            parse_loose_semver("v0.5.1").unwrap(),
+            semver::Version::new(0, 5, 1)
+        );
+        assert_eq!(
+            parse_loose_semver("0.5.1").unwrap(),
+            semver::Version::new(0, 5, 1)
+        );
+    }
+
+    #[test]
+    fn parse_loose_semver_rejects_non_semver() {
+        assert!(parse_loose_semver("latest").is_none());
+        assert!(parse_loose_semver("v0.5").is_none()); // missing patch
+        assert!(parse_loose_semver("not-a-tag").is_none());
+    }
+
+    #[test]
+    fn filter_and_sort_drops_non_semver_tags() {
+        let raw = vec![
+            "v0.5.1".to_string(),
+            "latest".to_string(),
+            "v0.4.0".to_string(),
+            "release-candidate".to_string(),
+        ];
+        let out = filter_and_sort_semver_tags(raw);
+        assert_eq!(out, vec!["v0.5.1", "v0.4.0"]);
+    }
+
+    #[test]
+    fn filter_and_sort_returns_descending() {
+        let raw = vec![
+            "v0.4.0".to_string(),
+            "v0.5.1".to_string(),
+            "v0.5.0".to_string(),
+            "v0.4.1".to_string(),
+        ];
+        let out = filter_and_sort_semver_tags(raw);
+        assert_eq!(out, vec!["v0.5.1", "v0.5.0", "v0.4.1", "v0.4.0"]);
+    }
+
+    #[test]
+    fn filter_and_sort_dedupes_v_prefixed_and_bare() {
+        // GitHub may include both "0.5.1" (rare) and "v0.5.1" tags. After
+        // semver normalization they collide; we keep the first occurrence.
+        let raw = vec![
+            "v0.5.1".to_string(),
+            "0.5.1".to_string(),
+            "v0.4.0".to_string(),
+        ];
+        let out = filter_and_sort_semver_tags(raw);
+        assert_eq!(out, vec!["v0.5.1", "v0.4.0"]);
+    }
+
+    #[test]
+    fn filter_and_sort_handles_prerelease() {
+        let raw = vec![
+            "v1.0.0".to_string(),
+            "v1.0.0-rc1".to_string(),
+            "v0.9.0".to_string(),
+        ];
+        let out = filter_and_sort_semver_tags(raw);
+        // Per semver, 1.0.0 > 1.0.0-rc1, so the stable comes first.
+        assert_eq!(out, vec!["v1.0.0", "v1.0.0-rc1", "v0.9.0"]);
+    }
+
+    #[test]
+    fn filter_and_sort_empty_in_empty_out() {
+        assert!(filter_and_sort_semver_tags(vec![]).is_empty());
+    }
 
     // -- URL parsing --------------------------------------------------------
 
