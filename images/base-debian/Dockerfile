@@ -245,6 +245,15 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     libsox-fmt-pulse \
     pulseaudio-utils \
     libasound2-plugins \
+    # ── Python (~50 MB) ──
+    # Debian Trixie ships python3 = 3.13.x as the default. python3
+    # and python3-venv are unconditionally installed in the base image
+    # since v0.16.5 (DEC-036) so processkit's PEP 723 MCP server scripts
+    # work via `uv run` regardless of whether the python addon is
+    # enabled. The python addon (addons/languages/python.yaml) now
+    # provides ADDITIONAL Python tooling on top of this minimum.
+    python3 \
+    python3-venv \
     && sed -i '/en_US.UTF-8/s/^# //g' /etc/locale.gen \
     && locale-gen \
     && ln -snf /usr/share/zoneinfo/${TZ} /etc/localtime \
@@ -277,6 +286,12 @@ COPY --from=fetch-fzf      /usr/local/bin/fzf      /usr/local/bin/
 COPY --from=fetch-delta    /usr/local/bin/delta    /usr/local/bin/
 COPY --from=fetch-ouch     /usr/local/bin/ouch     /usr/local/bin/
 COPY --from=fetch-starship /usr/local/bin/starship /usr/local/bin/
+# ── uv (Python package/project manager — ~25 MB) ────────────────────────────
+# Distroless image ships only the static binaries. Pulled into the base
+# image since v0.16.5 (DEC-036) so processkit's PEP 723 MCP server
+# scripts run via `uv run` out of the box. Works against the
+# externally-installed python3 from apt above.
+COPY --from=ghcr.io/astral-sh/uv:latest /uv /uvx /usr/local/bin/
 COPY --from=fetch-resvg    /usr/local/bin/resvg    /usr/local/bin/
 
 # ── Bake default configs into the image ───────────────────────────────────────

@@ -44,18 +44,171 @@
 //! ran. The templates dir for the version is wiped and re-copied so it
 //! always reflects the current cache exactly.
 
-use std::collections::{BTreeSet, HashMap};
+use std::collections::{BTreeSet, HashMap, HashSet, VecDeque};
 use std::fs;
 use std::path::{Path, PathBuf};
 
 use anyhow::{Context, Result};
 use chrono::Utc;
+use serde::Deserialize;
 
 use crate::config::{AiboxConfig, PROCESSKIT_VERSION_UNSET};
 use crate::lock::{self, AiboxLock, group_for_path, should_skip_entry};
 use crate::content_install::{InstallAction, install_action_for};
 use crate::content_source;
 use crate::context;
+
+// ---------------------------------------------------------------------------
+// [skills].include / [skills].exclude activation (BACK-118 / DEC-035)
+// ---------------------------------------------------------------------------
+
+/// Shape of a processkit `packages/<name>.yaml` file. Only the fields
+/// aibox needs to compute the effective skill set are deserialized.
+#[derive(Debug, Deserialize)]
+struct PackageYaml {
+    spec: PackageSpec,
+}
+
+#[derive(Debug, Deserialize)]
+struct PackageSpec {
+    #[serde(default)]
+    extends: Vec<String>,
+    #[serde(default)]
+    includes: PackageIncludes,
+}
+
+#[derive(Debug, Default, Deserialize)]
+struct PackageIncludes {
+    #[serde(default)]
+    skills: Vec<String>,
+}
+
+/// Compute the effective skill set for a project from the templates
+/// mirror at the currently-pinned processkit version.
+///
+/// Composition rule (DEC-035 / BACK-118):
+///
+/// 1. Start with the union of every selected `[context].packages` package's
+///    skill list, recursively expanding `extends:` (cycles → error).
+/// 2. Add anything in `[skills].include`.
+/// 3. Remove anything in `[skills].exclude`.
+///
+/// Returns `Ok(None)` when the templates mirror is missing (e.g.
+/// processkit version is "unset" — no install has happened yet). Real
+/// callers treat `None` as "install everything" (the v0.16.4 behavior).
+///
+/// Returns `Ok(Some(set))` when the mirror is present, even if the set
+/// happens to be empty (e.g. user has only an `[skills].exclude` that
+/// removes everything — silly but supported).
+pub fn build_effective_skill_set(
+    project_root: &Path,
+    config: &AiboxConfig,
+) -> Result<Option<HashSet<String>>> {
+    if config.processkit.version == PROCESSKIT_VERSION_UNSET {
+        return Ok(None);
+    }
+    let packages_dir = project_root
+        .join("context/templates/processkit")
+        .join(&config.processkit.version)
+        .join("packages");
+    if !packages_dir.is_dir() {
+        return Ok(None);
+    }
+
+    // Step 1: walk every selected [context].packages package, recursively
+    // expand `extends:`, collect the union of skill names.
+    let mut effective: HashSet<String> = HashSet::new();
+    let mut queue: VecDeque<String> =
+        config.context.packages.iter().cloned().collect();
+    let mut visited: HashSet<String> = HashSet::new();
+    while let Some(pkg_name) = queue.pop_front() {
+        if !visited.insert(pkg_name.clone()) {
+            // Already processed — cycle protection.
+            continue;
+        }
+        let pkg_path = packages_dir.join(format!("{}.yaml", pkg_name));
+        if !pkg_path.is_file() {
+            anyhow::bail!(
+                "package '{}' selected in [context].packages does not exist at {}",
+                pkg_name,
+                pkg_path.display()
+            );
+        }
+        let body = fs::read_to_string(&pkg_path)
+            .with_context(|| format!("failed to read {}", pkg_path.display()))?;
+        let parsed: PackageYaml = serde_yaml::from_str(&body)
+            .with_context(|| format!("failed to parse package YAML {}", pkg_path.display()))?;
+
+        for skill in parsed.spec.includes.skills {
+            effective.insert(skill);
+        }
+        for parent in parsed.spec.extends {
+            queue.push_back(parent);
+        }
+    }
+
+    // Step 2: add user includes.
+    for skill in &config.skills.include {
+        effective.insert(skill.clone());
+    }
+
+    // Step 3: remove user excludes.
+    for skill in &config.skills.exclude {
+        effective.remove(skill);
+    }
+
+    Ok(Some(effective))
+}
+
+/// Validate that every name in `[skills].include` and `[skills].exclude`
+/// corresponds to a real skill that some selected package would have
+/// pulled in. Returns the list of unknown names (empty if all OK).
+/// Used by `aibox doctor` to surface typos.
+pub fn validate_skill_overrides(
+    project_root: &Path,
+    config: &AiboxConfig,
+) -> Result<Vec<String>> {
+    let effective = match build_effective_skill_set(project_root, config)? {
+        Some(set) => set,
+        None => return Ok(Vec::new()),
+    };
+    // Build the universe = set BEFORE applying user overrides.
+    // Anything in user `include` that isn't already in the package
+    // expansion AND isn't a known skill name in the templates mirror
+    // is suspicious. Same for `exclude`.
+    let mirror_skills_dir = project_root
+        .join("context/templates/processkit")
+        .join(&config.processkit.version)
+        .join("skills");
+    if !mirror_skills_dir.is_dir() {
+        return Ok(Vec::new());
+    }
+    let mut all_skills: HashSet<String> = HashSet::new();
+    if let Ok(entries) = fs::read_dir(&mirror_skills_dir) {
+        for entry in entries.flatten() {
+            if let Some(name) = entry.file_name().to_str()
+                && !name.starts_with('_')
+                && !name.starts_with('.')
+                && entry.path().is_dir()
+            {
+                all_skills.insert(name.to_string());
+            }
+        }
+    }
+
+    let mut unknown = Vec::new();
+    for name in &config.skills.include {
+        if !all_skills.contains(name) {
+            unknown.push(format!("[skills].include = \"{}\" — not a known processkit skill", name));
+        }
+    }
+    for name in &config.skills.exclude {
+        if !all_skills.contains(name) && !effective.contains(name) {
+            unknown.push(format!("[skills].exclude = \"{}\" — not a known processkit skill", name));
+        }
+    }
+    Ok(unknown)
+}
 
 /// Result of a content-source install run, for reporting.
 #[derive(Debug, Default, Clone)]
@@ -107,15 +260,38 @@ pub fn install_content_source(
 
     // 3. Walk cache and install live files. Templated files are
     //    rendered through the Class A substitution vocabulary at copy
-    //    time — see DEC-032.
+    //    time — see DEC-032. Skill files are filtered through the
+    //    effective skill set computed from [context].packages plus
+    //    [skills].include/exclude — see DEC-035 / BACK-118.
     let template_vars = context::build_substitution_map(config);
+    // The effective skill set requires the templates mirror, which
+    // doesn't exist on the FIRST install (it's about to be created
+    // below). For the very first install, we install ALL skills the
+    // cache ships and let the next sync's filter take effect once the
+    // mirror is in place. Subsequent installs read the OLD mirror
+    // (still on disk from the previous install) for filtering.
+    let effective_skills = build_effective_skill_set(project_root, config).ok().flatten();
     let (files_installed, files_skipped, groups_touched) =
-        install_files_from_cache_with_vars(&fetched.src_path, project_root, &template_vars)?;
+        install_files_from_cache_with_vars(
+            &fetched.src_path,
+            project_root,
+            &template_vars,
+            effective_skills.as_ref(),
+        )?;
 
-    // 4. Copy the full cache verbatim into context/templates/processkit/<version>/
+    // 4. Copy the full cache into context/templates/processkit/<version>/
     //    so the 3-way diff has an immutable "as-installed" reference.
-    copy_templates_from_cache(&fetched.src_path, project_root, &pk.version)
-        .context("failed to copy cache to templates dir")?;
+    //    Templated files (e.g. scaffolding/AGENTS.md) are rendered
+    //    through the SAME Class A vocabulary that the live install
+    //    used, so the mirror's templated content matches the live
+    //    file SHA-for-SHA. See DEC-034.
+    copy_templates_from_cache_with_vars(
+        &fetched.src_path,
+        project_root,
+        &pk.version,
+        &template_vars,
+    )
+    .context("failed to copy cache to templates dir")?;
 
     // 5. Write the top-level aibox.lock (always — fresh installed_at every run).
     let aibox_lock = AiboxLock {
@@ -156,17 +332,24 @@ pub fn install_files_from_cache(
     project_root: &Path,
 ) -> Result<(usize, usize, usize)> {
     let empty: HashMap<&'static str, String> = HashMap::new();
-    install_files_from_cache_with_vars(cache_src_path, project_root, &empty)
+    install_files_from_cache_with_vars(cache_src_path, project_root, &empty, None)
 }
 
 /// Walk `cache_src_path` recursively, consult the install mapping for
 /// each file, copy `Install` files verbatim, and render `InstallTemplated`
 /// files through `template_vars` before writing. Returns
 /// `(files_installed, files_skipped, groups_touched)`.
+///
+/// When `effective_skills` is `Some(set)`, skill files (anything
+/// under `skills/<name>/`) are filtered by the set: skills whose
+/// directory name is not in the set are skipped without writing
+/// (counted as `files_skipped`). When `effective_skills` is `None`,
+/// every skill the cache ships is installed (the v0.16.4 behavior).
 pub fn install_files_from_cache_with_vars(
     cache_src_path: &Path,
     project_root: &Path,
     template_vars: &HashMap<&'static str, String>,
+    effective_skills: Option<&HashSet<String>>,
 ) -> Result<(usize, usize, usize)> {
     if !cache_src_path.is_dir() {
         anyhow::bail!(
@@ -184,6 +367,7 @@ pub fn install_files_from_cache_with_vars(
         cache_src_path,
         project_root,
         template_vars,
+        effective_skills,
         &mut files_installed,
         &mut files_skipped,
         &mut groups,
@@ -207,10 +391,37 @@ pub fn templates_dir_for_version(project_root: &Path, version: &str) -> PathBuf 
 /// tree is preserved (including `INDEX.md`, `FORMAT.md`, `packages/...`,
 /// and `PROVENANCE.toml`) so users can browse the reference directly with
 /// any file viewer — no tooling required to see "what shipped".
+///
+/// **Templated files (DEC-034):** files that `install_action_for`
+/// classifies as `InstallTemplated` (today: only `scaffolding/AGENTS.md`)
+/// are **rendered through the Class A vocabulary** before being written
+/// into the mirror, using the same substitution map as the live install.
+/// This ensures the mirror's templated files contain the same rendered
+/// content as their live counterparts, so the SHA-based three-way diff
+/// in `content_diff::run_content_sync` works correctly for them. Pre-v0.16.5
+/// the mirror held unrendered cache content, which caused all templated
+/// files to false-positive as "ChangedLocally" forever — see DEC-032 for
+/// the v0.16.4 limitation that this fix closes.
+#[allow(dead_code)] // back-compat shim used by tests
 pub fn copy_templates_from_cache(
     cache_src_path: &Path,
     project_root: &Path,
     version: &str,
+) -> Result<()> {
+    let empty: HashMap<&'static str, String> = HashMap::new();
+    copy_templates_from_cache_with_vars(cache_src_path, project_root, version, &empty)
+}
+
+/// Same as [`copy_templates_from_cache`] but with an explicit Class A
+/// substitution vocabulary used to render templated files into the
+/// mirror. Real callers (i.e. `install_content_source`) use this form;
+/// tests can pass an empty map to keep templated files unrendered
+/// (matching the v0.16.4 behaviour for back-compat with existing tests).
+pub fn copy_templates_from_cache_with_vars(
+    cache_src_path: &Path,
+    project_root: &Path,
+    version: &str,
+    template_vars: &HashMap<&'static str, String>,
 ) -> Result<()> {
     if !cache_src_path.is_dir() {
         anyhow::bail!(
@@ -226,12 +437,24 @@ pub fn copy_templates_from_cache(
     fs::create_dir_all(&dest)
         .with_context(|| format!("failed to create templates dir {}", dest.display()))?;
 
-    copy_dir_recursive(cache_src_path, &dest)?;
+    copy_dir_recursive_with_render(cache_src_path, cache_src_path, &dest, template_vars)?;
     Ok(())
 }
 
-/// Recursive directory copy that honours [`should_skip_entry`].
-fn copy_dir_recursive(src: &Path, dst: &Path) -> Result<()> {
+/// Recursive directory copy that honours [`should_skip_entry`] AND
+/// dispatches on [`install_action_for`] for templated files.
+///
+/// - Files matching `InstallTemplated` are read, rendered through
+///   `template_vars`, and written to the mirror destination.
+/// - Files matching `Install` or `Skip` are copied verbatim (the
+///   mirror is the FULL upstream reference; nothing is filtered out
+///   here).
+fn copy_dir_recursive_with_render(
+    root: &Path,
+    src: &Path,
+    dst: &Path,
+    template_vars: &HashMap<&'static str, String>,
+) -> Result<()> {
     for entry in fs::read_dir(src)
         .with_context(|| format!("failed to read directory {}", src.display()))?
     {
@@ -249,15 +472,40 @@ fn copy_dir_recursive(src: &Path, dst: &Path) -> Result<()> {
         if ft.is_dir() {
             fs::create_dir_all(&to)
                 .with_context(|| format!("failed to create {}", to.display()))?;
-            copy_dir_recursive(&from, &to)?;
+            copy_dir_recursive_with_render(root, &from, &to, template_vars)?;
         } else if ft.is_file() {
             if let Some(parent) = to.parent() {
                 fs::create_dir_all(parent)
                     .with_context(|| format!("failed to create {}", parent.display()))?;
             }
-            fs::copy(&from, &to).with_context(|| {
-                format!("failed to copy {} -> {}", from.display(), to.display())
-            })?;
+            // Compute the relative-to-cache-root path so we can
+            // consult install_action_for for the templating decision.
+            let rel = from
+                .strip_prefix(root)
+                .with_context(|| {
+                    format!("failed to relativize {} against {}", from.display(), root.display())
+                })?
+                .to_path_buf();
+            match install_action_for(&rel) {
+                InstallAction::InstallTemplated(_) => {
+                    let source = fs::read_to_string(&from).with_context(|| {
+                        format!("failed to read templated source {}", from.display())
+                    })?;
+                    let rendered = context::render(&source, template_vars);
+                    fs::write(&to, rendered).with_context(|| {
+                        format!(
+                            "failed to write rendered template into mirror {} -> {}",
+                            from.display(),
+                            to.display()
+                        )
+                    })?;
+                }
+                InstallAction::Install(_) | InstallAction::Skip => {
+                    fs::copy(&from, &to).with_context(|| {
+                        format!("failed to copy {} -> {}", from.display(), to.display())
+                    })?;
+                }
+            }
         }
         // symlinks/fifos: ignore
     }
@@ -265,11 +513,13 @@ fn copy_dir_recursive(src: &Path, dst: &Path) -> Result<()> {
 }
 
 /// Recursive walker mirroring the diff walker's skip rules.
+#[allow(clippy::too_many_arguments)]
 fn walk_and_install(
     root: &Path,
     dir: &Path,
     project_root: &Path,
     template_vars: &HashMap<&'static str, String>,
+    effective_skills: Option<&HashSet<String>>,
     files_installed: &mut usize,
     files_skipped: &mut usize,
     groups: &mut BTreeSet<String>,
@@ -295,6 +545,7 @@ fn walk_and_install(
                 &path,
                 project_root,
                 template_vars,
+                effective_skills,
                 files_installed,
                 files_skipped,
                 groups,
@@ -316,6 +567,29 @@ fn walk_and_install(
                 )
             })?
             .to_path_buf();
+
+        // [skills] filter (DEC-035): if the rel path is under
+        // skills/<name>/ AND we have an effective set AND <name>
+        // isn't in it, skip the file. _lib/ and the top-level
+        // FORMAT.md / INDEX.md under skills/ are NOT filtered (they
+        // belong to "skills as a system", not to any specific skill).
+        if let Some(set) = effective_skills {
+            let parts: Vec<&str> = rel
+                .components()
+                .filter_map(|c| match c {
+                    std::path::Component::Normal(s) => s.to_str(),
+                    _ => None,
+                })
+                .collect();
+            if parts.len() >= 2 && parts[0] == "skills" {
+                let skill_name = parts[1];
+                // _lib is the shared lib, never filtered.
+                if !skill_name.starts_with('_') && !set.contains(skill_name) {
+                    *files_skipped += 1;
+                    continue;
+                }
+            }
+        }
 
         match install_action_for(&rel) {
             InstallAction::Install(target_rel) => {
@@ -402,6 +676,177 @@ mod tests {
     use super::*;
     use std::fs;
     use tempfile::TempDir;
+
+    // ── build_effective_skill_set / [skills] activation (BACK-118) ─────
+
+    fn write_synth_packages_dir(
+        project_root: &Path,
+        version: &str,
+        packages: &[(&str, &[&str], &[&str])],
+    ) {
+        // (package_name, extends, skills)
+        let dir = project_root
+            .join("context/templates/processkit")
+            .join(version)
+            .join("packages");
+        fs::create_dir_all(&dir).unwrap();
+        for (name, extends, skills) in packages {
+            let extends_yaml = if extends.is_empty() {
+                String::new()
+            } else {
+                format!("  extends: [{}]\n", extends.join(", "))
+            };
+            let skills_yaml = if skills.is_empty() {
+                "    skills: []\n".to_string()
+            } else {
+                let lines: Vec<String> = skills.iter().map(|s| format!("      - {}", s)).collect();
+                format!("    skills:\n{}\n", lines.join("\n"))
+            };
+            let body = format!(
+                "apiVersion: processkit.projectious.work/v1\n\
+                 kind: Package\n\
+                 metadata:\n  name: {}\n\
+                 spec:\n  description: test\n{}  includes:\n{}",
+                name, extends_yaml, skills_yaml
+            );
+            fs::write(dir.join(format!("{}.yaml", name)), body).unwrap();
+        }
+    }
+
+    fn config_with_packages_and_skills(
+        version: &str,
+        packages: &[&str],
+        include: &[&str],
+        exclude: &[&str],
+    ) -> AiboxConfig {
+        let mut config = crate::config::test_config();
+        config.processkit.version = version.to_string();
+        config.context.packages = packages.iter().map(|s| s.to_string()).collect();
+        config.skills.include = include.iter().map(|s| s.to_string()).collect();
+        config.skills.exclude = exclude.iter().map(|s| s.to_string()).collect();
+        config
+    }
+
+    #[test]
+    fn effective_skill_set_returns_none_when_version_unset() {
+        let tmp = TempDir::new().unwrap();
+        let config = config_with_packages_and_skills(
+            crate::config::PROCESSKIT_VERSION_UNSET,
+            &["managed"],
+            &[],
+            &[],
+        );
+        let result = build_effective_skill_set(tmp.path(), &config).unwrap();
+        assert!(result.is_none());
+    }
+
+    #[test]
+    fn effective_skill_set_returns_none_when_mirror_missing() {
+        let tmp = TempDir::new().unwrap();
+        let config = config_with_packages_and_skills("v0.5.1", &["managed"], &[], &[]);
+        let result = build_effective_skill_set(tmp.path(), &config).unwrap();
+        assert!(result.is_none());
+    }
+
+    #[test]
+    fn effective_skill_set_collects_single_package() {
+        let tmp = TempDir::new().unwrap();
+        write_synth_packages_dir(
+            tmp.path(),
+            "v0.5.1",
+            &[("minimal", &[], &["workitem-management", "decision-record"])],
+        );
+        let config = config_with_packages_and_skills("v0.5.1", &["minimal"], &[], &[]);
+        let set = build_effective_skill_set(tmp.path(), &config).unwrap().unwrap();
+        assert_eq!(set.len(), 2);
+        assert!(set.contains("workitem-management"));
+        assert!(set.contains("decision-record"));
+    }
+
+    #[test]
+    fn effective_skill_set_expands_extends_chain() {
+        let tmp = TempDir::new().unwrap();
+        write_synth_packages_dir(
+            tmp.path(),
+            "v0.5.1",
+            &[
+                ("minimal", &[], &["workitem-management"]),
+                ("managed", &["minimal"], &["decision-record", "scope-management"]),
+                ("software", &["managed"], &["code-review"]),
+            ],
+        );
+        let config = config_with_packages_and_skills("v0.5.1", &["software"], &[], &[]);
+        let set = build_effective_skill_set(tmp.path(), &config).unwrap().unwrap();
+        assert_eq!(set.len(), 4);
+        assert!(set.contains("workitem-management")); // from minimal
+        assert!(set.contains("decision-record")); // from managed
+        assert!(set.contains("scope-management")); // from managed
+        assert!(set.contains("code-review")); // from software
+    }
+
+    #[test]
+    fn effective_skill_set_user_include_adds() {
+        let tmp = TempDir::new().unwrap();
+        write_synth_packages_dir(
+            tmp.path(),
+            "v0.5.1",
+            &[("minimal", &[], &["workitem-management"])],
+        );
+        let config =
+            config_with_packages_and_skills("v0.5.1", &["minimal"], &["latex-authoring"], &[]);
+        let set = build_effective_skill_set(tmp.path(), &config).unwrap().unwrap();
+        assert_eq!(set.len(), 2);
+        assert!(set.contains("workitem-management"));
+        assert!(set.contains("latex-authoring"));
+    }
+
+    #[test]
+    fn effective_skill_set_user_exclude_removes() {
+        let tmp = TempDir::new().unwrap();
+        write_synth_packages_dir(
+            tmp.path(),
+            "v0.5.1",
+            &[("minimal", &[], &["workitem-management", "decision-record"])],
+        );
+        let config =
+            config_with_packages_and_skills("v0.5.1", &["minimal"], &[], &["decision-record"]);
+        let set = build_effective_skill_set(tmp.path(), &config).unwrap().unwrap();
+        assert_eq!(set.len(), 1);
+        assert!(set.contains("workitem-management"));
+        assert!(!set.contains("decision-record"));
+    }
+
+    #[test]
+    fn effective_skill_set_handles_diamond_extends() {
+        // package D extends both B and C; B and C both extend A.
+        // A's skills should appear once, not twice (no double-include).
+        let tmp = TempDir::new().unwrap();
+        write_synth_packages_dir(
+            tmp.path(),
+            "v0.5.1",
+            &[
+                ("a", &[], &["from-a"]),
+                ("b", &["a"], &["from-b"]),
+                ("c", &["a"], &["from-c"]),
+                ("d", &["b", "c"], &["from-d"]),
+            ],
+        );
+        let config = config_with_packages_and_skills("v0.5.1", &["d"], &[], &[]);
+        let set = build_effective_skill_set(tmp.path(), &config).unwrap().unwrap();
+        assert_eq!(set.len(), 4);
+        for skill in &["from-a", "from-b", "from-c", "from-d"] {
+            assert!(set.contains(*skill), "missing: {}", skill);
+        }
+    }
+
+    #[test]
+    fn effective_skill_set_errors_on_unknown_package() {
+        let tmp = TempDir::new().unwrap();
+        write_synth_packages_dir(tmp.path(), "v0.5.1", &[("minimal", &[], &["x"])]);
+        let config = config_with_packages_and_skills("v0.5.1", &["nonexistent"], &[], &[]);
+        let err = build_effective_skill_set(tmp.path(), &config).unwrap_err();
+        assert!(format!("{}", err).contains("nonexistent"));
+    }
 
     /// Build a synthetic processkit-shaped src tree under `root`. Includes
     /// extras to exercise skip rules (INDEX.md, skills/FORMAT.md, packages/).

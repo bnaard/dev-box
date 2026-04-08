@@ -134,6 +134,26 @@ pub fn cmd_doctor(config_path: &Option<String>) -> Result<()> {
         }
     }
 
+    // 6b. [skills].include / [skills].exclude validation (DEC-035)
+    output::info("Validating [skills] overrides...");
+    if let Ok(cwd) = std::env::current_dir() {
+        match crate::content_init::validate_skill_overrides(&cwd, &config) {
+            Ok(unknown) if unknown.is_empty() => {
+                output::ok("[skills] overrides reference known skills");
+            }
+            Ok(unknown) => {
+                for u in &unknown {
+                    output::warn(u);
+                    diag.warnings += 1;
+                }
+            }
+            Err(e) => {
+                output::warn(&format!("[skills] override validation failed: {}", e));
+                diag.warnings += 1;
+            }
+        }
+    }
+
     // 7. Security audit tools
     crate::audit::doctor_check_audit_tools();
 
@@ -160,13 +180,19 @@ fn check_mount_sources(
     config: &AiboxConfig,
     diag: &mut DiagResult,
 ) {
-    // AI providers
+    // AI providers — check the .aibox-home/<provider>/ persistence dir
+    // for the in-container CLI tools that have one. Cursor, Codex, and
+    // Continue are host-side editors with no in-container persistence
+    // dir, so they're not checked here.
     for provider in &config.ai.providers {
         let dir_name = match provider {
             crate::config::AiProvider::Claude => ".claude",
             crate::config::AiProvider::Aider => ".aider",
             crate::config::AiProvider::Gemini => ".gemini",
             crate::config::AiProvider::Mistral => ".mistral",
+            crate::config::AiProvider::Cursor
+            | crate::config::AiProvider::Codex
+            | crate::config::AiProvider::Continue => continue,
         };
         let path = root.join(dir_name);
         if path.exists() {

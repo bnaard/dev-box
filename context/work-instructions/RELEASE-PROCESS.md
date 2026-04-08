@@ -25,6 +25,8 @@ Before every release, check ALL upstream dependencies for updates.
 | fzf | 0.71.0 | `ARG FZF_VERSION` | `gh api repos/junegunn/fzf/releases/latest --jq .tag_name` |
 | delta | 0.19.2 | `ARG DELTA_VERSION` | `gh api repos/dandavison/delta/releases/latest --jq .tag_name` |
 | ouch | 0.6.1 | `ARG OUCH_VERSION` | `gh api repos/ouch-org/ouch/releases/latest --jq .tag_name` |
+| python3 | Debian Trixie default (3.13.x) | apt `python3` package | `apt-cache madison python3 \| head -1` (in trixie chroot) |
+| uv | latest (unpinned) | `COPY --from=ghcr.io/astral-sh/uv:latest` | `gh api repos/astral-sh/uv/releases/latest --jq .tag_name` |
 | starship | 1.24.2 | `ARG STARSHIP_VERSION` | `gh api repos/starship/starship/releases/latest --jq .tag_name` |
 | zoxide | 0.9.9 | `ARG ZOXIDE_VERSION` | `gh api repos/ajeetdsouza/zoxide/releases/latest --jq .tag_name` |
 | Rust | stable (unpinned) | rustup in .devcontainer | Verify stable works |

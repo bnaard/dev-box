@@ -37,6 +37,11 @@
 //! | `context/processes/`                          | processkit process definitions (v0.16.1+)                        |
 //! | `context/templates/`                          | Immutable upstream cache mirror; baseline for the 3-way diff     |
 //! | `context/migrations/`                         | Migration documents (additive; never overwrites)                 |
+//! | `.mcp.json`                                   | Claude Code (and Mistral SDK) MCP server registration (v0.16.5+) |
+//! | `.cursor/`                                    | Cursor MCP server registration directory (v0.16.5+)              |
+//! | `.gemini/`                                    | Gemini CLI settings directory (v0.16.5+)                         |
+//! | `.codex/`                                     | Codex CLI config directory (v0.16.5+)                            |
+//! | `.continue/`                                  | Continue MCP servers directory (v0.16.5+)                        |
 //!
 //! The perimeter expanded in v0.16.1 because `aibox sync` now
 //! auto-installs processkit content when `[processkit].version` is
@@ -120,6 +125,17 @@ pub const SYNC_PERIMETER: &[&str] = &[
     "context/templates/",
     // ── Migration documents (additive) ─────────────────────────────────
     "context/migrations/",
+    // ── MCP server registration files (v0.16.5+ DEC-033) ────────────────
+    // Each is gated on the corresponding [ai].providers value at write
+    // time; SYNC_PERIMETER lists them as in-perimeter regardless of
+    // whether the current config emits them, because the perimeter is a
+    // STATIC contract about which paths sync MAY touch (not which it
+    // WILL touch on this run).
+    ".mcp.json",
+    ".cursor/",
+    ".gemini/",
+    ".codex/",
+    ".continue/",
 ];
 
 /// Normalize a path to its forward-slash, project-root-relative string
@@ -409,6 +425,21 @@ mod tests {
     }
 
     #[test]
+    fn mcp_registration_files_are_in_perimeter() {
+        // v0.16.5+ DEC-033: MCP server registration files for each
+        // supported harness. The .mcp.json case is gated on Claude
+        // OR Mistral being in [ai].providers; the others on their
+        // own provider value. The perimeter lists them all because
+        // it's a STATIC contract (paths sync MAY touch), not a
+        // dynamic statement of which paths it will touch this run.
+        assert!(within(".mcp.json"));
+        assert!(within(".cursor/mcp.json"));
+        assert!(within(".gemini/settings.json"));
+        assert!(within(".codex/config.toml"));
+        assert!(within(".continue/mcpServers/processkit-workitem-management.json"));
+    }
+
+    #[test]
     fn processkit_templates_mirror_is_in_perimeter() {
         // The immutable upstream cache mirror lives under
         // context/templates/processkit/<version>/ and is the baseline
@@ -468,14 +499,28 @@ mod tests {
     }
 
     #[test]
-    fn provider_dirs_are_out_of_perimeter() {
-        // Since v0.16.0 nothing under .claude/, .gemini/, .aider/ is
-        // aibox-managed. The full provider directories are user state
-        // and sync never touches them.
+    fn claude_internal_files_are_out_of_perimeter() {
+        // Since v0.16.0 nothing under .claude/ is aibox-managed.
+        // (Note: .mcp.json at the project root IS in perimeter as of
+        // v0.16.5 — it's a file Claude Code reads, but it's at the
+        // project root, not under .claude/.)
         assert!(!within(".claude/settings.json"));
         assert!(!within(".claude/cache/foo"));
         assert!(!within(".claude/skills/agent-management/SKILL.md"));
-        assert!(!within(".gemini/settings.json"));
+    }
+
+    #[test]
+    fn provider_mcp_directories_are_in_perimeter_v0_16_5() {
+        // v0.16.5+ DEC-033: aibox writes MCP registration files under
+        // these provider directories. The directories themselves were
+        // out-of-perimeter in v0.16.4 (the user owned everything
+        // under provider dirs); v0.16.5 brings them in. The .claude/
+        // tree stays out (Claude Code's MCP file lives at project
+        // root as .mcp.json, not under .claude/).
+        assert!(within(".gemini/settings.json"));
+        assert!(within(".cursor/mcp.json"));
+        assert!(within(".codex/config.toml"));
+        assert!(within(".continue/mcpServers/processkit-x.json"));
     }
 
     #[test]
@@ -586,6 +631,12 @@ mod tests {
             "context/processes/release.md",
             "context/templates/processkit/v0.5.1/PROVENANCE.toml",
             "context/templates/processkit/v0.5.1/skills/event-log/SKILL.md",
+            // mcp_registration::regenerate_mcp_configs (v0.16.5+ DEC-033)
+            ".mcp.json",
+            ".cursor/mcp.json",
+            ".gemini/settings.json",
+            ".codex/config.toml",
+            ".continue/mcpServers/processkit-workitem-management.json",
         ];
 
         for path in &known_sync_writes {

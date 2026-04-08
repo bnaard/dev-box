@@ -2,6 +2,12 @@ name: python
 version: "1.0.0"
 builder_weight: null
 
+# As of aibox v0.16.5 (DEC-036), python3 (Debian Trixie default, 3.13.x)
+# and uv (latest from ghcr.io/astral-sh/uv) are unconditionally present
+# in the base-debian image. This addon now provides ADDITIONAL Python
+# tooling beyond that minimum: alternative Python versions (3.12, 3.14),
+# poetry, pdm, and the recommended skills below.
+
 skills:
   - python-best-practices
   - fastapi-patterns

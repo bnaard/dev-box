@@ -504,7 +504,7 @@ fn generate_cowork_swap_layout(providers: &[crate::config::AiProvider]) -> Strin
 /// Generate the zellij ai layout dynamically based on configured AI providers.
 ///
 /// AI layout: yazi-first, AI-first.
-///   Tab 1 ("ai"):     left 53% yazi, right 47% AI agent pane (vertical split, no editor)
+///   Tab 1 ("ai"):     left 50% yazi, right 50% AI agent pane (vertical split, no editor)
 ///   Tab 2 ("editor"): fullscreen vim
 ///   Tab 3 ("git"):    fullscreen lazygit
 ///   Tab 4 ("shell"):  fullscreen bash
@@ -564,12 +564,12 @@ fn generate_ai_layout(providers: &[crate::config::AiProvider]) -> String {
     }}
     tab name="ai" focus=true {{
         pane split_direction="vertical" {{
-            pane size="53%" name="files" focus=true {{
+            pane size="50%" name="files" focus=true {{
                 command "bash"
                 args "-c" "AIBOX_EDITOR_DIR=tab exec yazi"
                 cwd "/workspace"
             }}
-            pane size="47%" {{
+            pane size="50%" {{
 {ai_pane}
             }}
         }}
@@ -916,6 +916,14 @@ pub fn seed_root_dir(config: &AiboxConfig) -> Result<()> {
             crate::config::AiProvider::Mistral => {
                 dirs.push(root.join(".mistral"));
             }
+            // Cursor/Codex/Continue are host-side editors. They have no
+            // in-container persistence directory under .aibox-home/.
+            // Their MCP registration files are written by
+            // mcp_registration.rs at the project root, not under
+            // .aibox-home/.
+            crate::config::AiProvider::Cursor
+            | crate::config::AiProvider::Codex
+            | crate::config::AiProvider::Continue => {}
         }
     }
 
@@ -1625,9 +1633,9 @@ mod tests {
         assert!(layout.contains("tab name=\"git\""), "should have git tab");
         assert!(layout.contains("tab name=\"shell\""), "should have shell tab");
         assert!(layout.contains("split_direction=\"vertical\""), "should split vertically");
-        // v0.14.5: yazi gets 53%, AI pane gets 47% (was 60/40 in v0.14.4)
-        assert!(layout.contains("size=\"53%\" name=\"files\""), "yazi pane should be 53%");
-        assert!(layout.contains("size=\"47%\""), "ai pane should be 47%");
+        // v0.16.5: yazi gets 50%, AI pane gets 50% (was 53/47 in v0.14.5+)
+        assert!(layout.contains("size=\"50%\" name=\"files\""), "yazi pane should be 50%");
+        assert!(layout.contains("size=\"50%\""), "ai pane should be 50%");
         assert!(!layout.contains("stacked"), "single provider should not be stacked");
     }
 

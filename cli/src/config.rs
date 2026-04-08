@@ -121,7 +121,26 @@ pub struct LegacyProcessSection {
 // ---------------------------------------------------------------------------
 
 /// AI tool providers supported in aibox containers.
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, clap::ValueEnum)]
+///
+/// MCP-capable providers (have a built-in MCP client and a project-level
+/// config file aibox can write to):
+/// - `Claude` — `.mcp.json` at project root
+/// - `Cursor` — `.cursor/mcp.json` at project root
+/// - `Gemini` — `.gemini/settings.json` (Gemini CLI)
+/// - `Codex` — `.codex/config.toml` (Codex CLI)
+/// - `Continue` — `.continue/mcpServers/<name>.json` (one file per server)
+///
+/// Special MCP routing:
+/// - `Mistral` — has MCP client capability via Python SDK and Le Chat,
+///   but no local file-based config. aibox writes `.mcp.json` (the
+///   Claude shape) when Mistral is selected so a custom Mistral
+///   SDK-based CLI tool can read MCP server registrations from there.
+///
+/// Non-MCP providers (no built-in MCP client; aibox cannot register
+/// processkit MCP servers; sync emits a warning):
+/// - `Aider` — no native MCP client. Third-party experimental bridges
+///   exist but are not yet stable.
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, Hash, clap::ValueEnum)]
 #[serde(rename_all = "kebab-case")]
 #[clap(rename_all = "kebab-case")]
 pub enum AiProvider {
@@ -129,6 +148,9 @@ pub enum AiProvider {
     Aider,
     Gemini,
     Mistral,
+    Cursor,
+    Codex,
+    Continue,
 }
 
 impl std::fmt::Display for AiProvider {
@@ -138,6 +160,9 @@ impl std::fmt::Display for AiProvider {
             AiProvider::Aider => write!(f, "aider"),
             AiProvider::Gemini => write!(f, "gemini"),
             AiProvider::Mistral => write!(f, "mistral"),
+            AiProvider::Cursor => write!(f, "cursor"),
+            AiProvider::Codex => write!(f, "codex"),
+            AiProvider::Continue => write!(f, "continue"),
         }
     }
 }

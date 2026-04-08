@@ -950,6 +950,15 @@ pub fn cmd_init(config_path: &Option<String>, params: InitParams) -> Result<()> 
                 report.groups_touched,
                 report.files_skipped,
             ));
+            // After install, regenerate per-harness MCP config files.
+            // Best-effort: any failure is warned-and-continued so an
+            // MCP-registration glitch doesn't break the rest of init.
+            if let Err(e) = crate::mcp_registration::regenerate_mcp_configs(
+                &config,
+                &project_root,
+            ) {
+                output::warn(&format!("MCP registration failed: {}", e));
+            }
         }
         Err(e) => {
             output::warn(&format!(
@@ -1060,6 +1069,19 @@ pub fn cmd_sync(config_path: &Option<String>, no_cache: bool, no_build: bool) ->
             "Failed to determine working directory; skipping processkit install: {}",
             e
         )),
+    }
+
+    // Regenerate per-harness MCP config files (.mcp.json,
+    // .cursor/mcp.json, .gemini/settings.json, .codex/config.toml,
+    // .continue/mcpServers/*.json) based on the currently-pinned
+    // processkit version and the [ai].providers list. Idempotent —
+    // re-running on a stable (version, providers, skills) set
+    // produces byte-identical output. Best-effort: any failure is
+    // warned-and-continued. See DEC-033.
+    if let Ok(cwd) = std::env::current_dir()
+        && let Err(e) = crate::mcp_registration::regenerate_mcp_configs(&config, &cwd)
+    {
+        output::warn(&format!("MCP registration failed: {}", e));
     }
 
     // Three-way processkit diff (A6).

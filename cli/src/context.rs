@@ -291,7 +291,14 @@ fn scaffold_provider_pointers(config: &AiboxConfig) -> Result<()> {
                 output::ok("Created CLAUDE.md (pointer to AGENTS.md)");
             }
             // Aider/Gemini/Mistral don't use a top-level markdown file.
-            AiProvider::Aider | AiProvider::Gemini | AiProvider::Mistral => {}
+            // Cursor/Codex/Continue are host-side IDE tools with their
+            // own configuration mechanisms; no project-root pointer.
+            AiProvider::Aider
+            | AiProvider::Gemini
+            | AiProvider::Mistral
+            | AiProvider::Cursor
+            | AiProvider::Codex
+            | AiProvider::Continue => {}
         }
     }
     Ok(())

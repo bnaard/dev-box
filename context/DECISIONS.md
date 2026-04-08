@@ -2,6 +2,156 @@
 
 Inverse chronological. Each decision has a rationale and alternatives considered.
 
+## DEC-036 — python3 + uv unconditionally in the base-debian image (2026-04-08)
+
+**Decision:** v0.16.5 bakes `python3` (from Debian Trixie's apt repo, which ships 3.13.x as default) and `uv` (from `ghcr.io/astral-sh/uv:latest` via a `COPY --from=` line) into the base-debian image. Both are present unconditionally, regardless of whether the user enables the python addon. The python addon's purpose shifts from "Python at all" to "additional Python tooling beyond the base minimum" (poetry, pdm, alternative Python versions, the recommended skills).
+
+**Rationale:** processkit's MCP servers are PEP 723 scripts (`# /// script` inline-metadata) that run via `uv run script.py`. uv resolves the inline dependency declaration, creates an ephemeral venv, and runs the script. For this to work, both `python3` and `uv` MUST be present in the container — *every aibox project consumes processkit, processkit ships MCP-based skills, therefore python+uv are always needed*. Gating them on a separate addon (the v0.16.4 state) was a footgun: a user who skipped the python addon got "MCP servers fail to launch" with no obvious diagnosis. Baking them into the base image eliminates the footgun.
+
+Size impact: python3 (~50 MB apt) + uv (~25-40 MB single binary) = ~75-100 MB added to a base image that's currently ~800 MB. ~10% growth, acceptable.
+
+**Alternatives:**
+- *Auto-add the python addon at sync time when any installed skill has `mcp/`* (the "transitive requires" pattern from v0.16.3 applied at the skill→addon boundary). Considered. Rejected: introduces a new coupling direction (skills influence addon selection), the python addon is more than just python+uv (poetry/pdm/etc.), and the auto-add still requires the user to wait for an addon-build step on first use. Baking into the base is faster and simpler.
+- *Use `python:3.13-slim-trixie` upstream image as the base instead of `debian:trixie-slim`*. Considered. Rejected: would replace the base image's identity (debian → python), break the "we are debian-based with extras" mental model, and complicate the "other languages also need a base" story for future addons. Apt's `python3` package is the right interface.
+- *Use a multi-stage builder for uv*. Rejected: uv ships as a static binary in the official `ghcr.io/astral-sh/uv` distroless image; a single `COPY --from=` is sufficient. No build step needed. The uv docs explicitly recommend this pattern.
+- *Manage python via `uv python install`* (uv's built-in python management). Rejected: would still need uv to be present unconditionally, and `uv python install` downloads python at runtime, slowing first launch. apt-installed python3 is faster, smaller, and works against externally-installed python which is uv's documented happy path.
+
+**Implementation:**
+- `images/base-debian/Dockerfile` adds `python3` + `python3-venv` to the existing single apt install layer (alongside core utilities, vim, git, lazygit, etc.). Adds a `COPY --from=ghcr.io/astral-sh/uv:latest /uv /uvx /usr/local/bin/` line right after the existing tool COPY layers.
+- `addons/languages/python.yaml` updated with a header comment explaining that python+uv are now baseline; the addon provides additional tooling. No code change in the addon.
+- `context/work-instructions/RELEASE-PROCESS.md` Phase 0 dependency table extended with `python3` and `uv` entries.
+- Min Python supported by uv is 3.9; Debian Trixie ships 3.13; comfortably above.
+
+**Migration impact:** **Backwards compatible.** The base image is ~10% bigger; first `aibox sync` after the v0.16.5 base image lands triggers a fresh image pull. Subsequent syncs are unchanged. Projects that already have the python addon enabled don't see any behavioral change — python and uv were already present via the addon; v0.16.5 just makes them present unconditionally.
+
+**Source:** Session 2026-04-08, MCP registration design (C5 question). User confirmed "ok to bake it into the base image" after reviewing the survey of python+uv installation patterns.
+
+## DEC-035 — Activate `[skills].include` / `[skills].exclude` filtering (2026-04-08)
+
+**Decision:** v0.16.5 makes the `[skills]` config section functional. Previously the section parsed but was reserved/no-op (BACK-118). The semantics:
+
+1. **Effective skill set computation** (`content_init::build_effective_skill_set`):
+   a. Walk the templates mirror at `context/templates/processkit/<version>/packages/` for each name in `[context].packages`.
+   b. Recursively expand `extends:` (cycles tolerated via visited-set).
+   c. Take the union of every package's `spec.includes.skills` list.
+   d. Add anything in `[skills].include`.
+   e. Remove anything in `[skills].exclude`.
+   f. Return the resulting `HashSet<String>` of skill names.
+
+2. **Install path filters by the effective set** (`content_init::install_files_from_cache_with_vars`): when walking the cache, before installing any file under `skills/<name>/`, check if `<name>` is in the effective set. If not, skip the file (counted as `files_skipped`). The `_lib/` directory is never filtered (it's the shared MCP server lib, not a skill).
+
+3. **MCP registration filters by the same effective set** (`mcp_registration::collect_processkit_mcp_specs`): receives `Option<&HashSet<String>>` and skips skills whose directory name is not in the set. A skill that's filtered out at install time also doesn't get its MCP server registered.
+
+4. **`aibox doctor` validates `[skills]` overrides** (`content_init::validate_skill_overrides`): warns if any name in `[skills].include` or `[skills].exclude` is not a known processkit skill (typo detection).
+
+**First-install special case:** the effective set requires the templates mirror, which doesn't exist on the FIRST install (it's about to be created during the same install pass). For the very first install, the filter is `None` and every skill the cache ships is installed. Subsequent syncs read the OLD mirror (still on disk from the previous install) for filtering. Net effect: `[skills]` overrides take effect from the SECOND sync onward. Acceptable, documented, simple.
+
+**Rationale:** The `[skills]` section was added to the schema in v0.16.0 as part of the configuration surface but its enforcement was deferred to keep DEC-027 (the bundled-process rip) tractable. v0.16.5's MCP registration design surfaced the question again (C4 review): "MCP server registration should respect [skills] filtering". Activating both at the same time keeps the install path and the MCP path consistent — a skill that's filtered out everywhere is also missing its server registration.
+
+Cycle protection in `extends:` expansion uses a visited HashSet so packages with diamond inheritance (e.g. `software` extends both `managed` and `code`, both extending `minimal`) collapse correctly without double-including `minimal`'s skills.
+
+**Alternatives:**
+- *Apply the filter only at MCP registration time, not at install time.* Rejected: inconsistent. If a skill is filtered out, it shouldn't be on disk either — the user expects "I excluded X" to mean "X is not in my project", not "X is on disk but its MCP server isn't registered".
+- *Apply the filter only at install time, not at MCP registration.* Rejected: would mean MCP registration walks files that aren't installed, getting NotFound on every other server.
+- *Apply the filter at first install too* (rather than the second-sync-onward special case). Considered. Would require building the effective set from the FRESH cache (which has packages/) before the templates mirror exists. Doable but adds 50 lines of plumbing for a UX nicety. Deferred to a future release if it becomes a real complaint.
+- *Diamond inheritance using actual semver-style resolution (newest version wins).* Overkill. Packages are versioned with processkit, not independently. Visited-set is sufficient.
+
+**Implementation:**
+- `cli/src/content_init.rs::build_effective_skill_set` — pure function, returns `Result<Option<HashSet<String>>>`. ~80 lines.
+- `cli/src/content_init.rs::validate_skill_overrides` — typo check for doctor. ~30 lines.
+- `cli/src/content_init.rs::walk_and_install` — new `effective_skills: Option<&HashSet<String>>` parameter; filter logic for `skills/<name>/` paths.
+- `cli/src/content_init.rs::install_files_from_cache_with_vars` — pass-through plumbing.
+- `cli/src/content_init.rs::install_content_source` — calls `build_effective_skill_set` after the fetch, before the install walk.
+- `cli/src/mcp_registration.rs::regenerate_mcp_configs` — calls the same `build_effective_skill_set`, passes the result to `collect_processkit_mcp_specs`.
+- `cli/src/doctor.rs` — new `[skills] overrides` check between the gitignore and audit checks.
+- 7 new content_init unit tests covering single package, extends chain, diamond inheritance, user include, user exclude, unset version, and unknown package error.
+
+**Migration impact:** **Backwards compatible.** Projects with empty `[skills]` (every project today) see no change. Projects that add `include`/`exclude` see the filter take effect on their next-but-one sync (templates mirror has to exist first).
+
+**Source:** Session 2026-04-08, MCP registration design (C4 question). User confirmed activation when shown the C4 finding that the fields were no-op.
+
+## DEC-034 — Render templated files into the templates mirror (2026-04-08)
+
+**Decision:** v0.16.5 fixes the v0.16.4 limitation where templated files (currently only `scaffolding/AGENTS.md`) were skipped from the three-way diff because the templates mirror held the **unrendered** cache content while the live file held the **rendered** output, causing SHA comparison to always false-positive as "ChangedLocally".
+
+The fix: `copy_templates_from_cache_with_vars` now walks each file through `install_action_for`. Files matching `InstallTemplated` are read, rendered through the same Class A vocabulary the live install uses, and written to the mirror. Files matching `Install` or `Skip` are copied verbatim (the mirror is still the FULL upstream reference, including INDEX.md, FORMAT.md, packages/, etc.).
+
+`content_diff::run_content_sync` drops its `InstallTemplated → Skip` arms (added in v0.16.4 as a workaround) and treats templated files like any other Install for SHA comparison. The mirror's SHA now matches the live SHA on a fresh install, the diff classifies templated files correctly, and user edits to AGENTS.md are surfaced as "ChangedLocallyOnly" rather than being silently ignored.
+
+**Templated files KEEP `write_if_missing` semantics in `walk_and_install`.** The proper "render into the mirror" fix means the diff WORKS correctly, but the install path's clobber semantics for templated files is a separate question deferred to BACK-119 (the pre-install diff fix). For v0.16.5: AGENTS.md is still write-once at first install; the diff at sync time surfaces user edits as a migration document, but the install path still won't overwrite a user-edited AGENTS.md on the next processkit version bump. v0.16.5 unblocks the diff; the clobber-fix is a follow-up.
+
+**Rationale:** v0.16.4 shipped the InstallTemplated branch + write_if_missing semantics + a "templated files are skipped from diff" workaround. The workaround was load-bearing for safety (without it, every sync reported AGENTS.md as ChangedLocally even when nothing was edited), but it left a real gap: the diff couldn't surface ACTUAL user edits because templated files were unconditionally skipped. v0.16.5 closes that gap properly by making the mirror's content match the live content on a fresh install.
+
+The implementation cost is small: a new `copy_dir_recursive_with_render` helper that dispatches on `install_action_for`, an extended `copy_templates_from_cache_with_vars` signature, and removal of the workaround arms in `content_diff`. ~80 lines net.
+
+**Alternatives:**
+- *Render BOTH the cache file and the templates file at diff time (don't change the mirror).* Considered. Rejected: would require the diff to take the substitution map as a parameter, which means the diff knows about templating. Cleaner to make the mirror itself rendered and let the diff stay templating-agnostic.
+- *Keep the workaround and fix the install path to overwrite templated files when safe (the proper rendered-mirror three-way merge).* That's BACK-119 — the bigger fix that changes install/diff ordering. v0.16.5's render-into-mirror is a prerequisite for BACK-119's proper merge, not a substitute for it.
+
+**Implementation:**
+- `cli/src/content_init.rs::copy_templates_from_cache` — back-compat shim taking no template_vars (used by tests). Calls the new `_with_vars` form with an empty map.
+- `cli/src/content_init.rs::copy_templates_from_cache_with_vars` — new public function taking the substitution map.
+- `cli/src/content_init.rs::copy_dir_recursive_with_render` — replaces `copy_dir_recursive`. Walks files; for `InstallTemplated`, reads source → renders → writes; for `Install` or `Skip`, copies verbatim.
+- `cli/src/content_init.rs::install_content_source` — passes `template_vars` to the new `copy_templates_from_cache_with_vars` call.
+- `cli/src/content_diff.rs` — both walks (cache and templates) drop the `InstallTemplated → Skip` arms; treat as regular `Install`.
+
+**Migration impact:** **Backwards compatible.** Projects pick up the rendered-mirror behavior on their next install (which can be triggered by a processkit version bump or by a manual `aibox sync`). The first sync after upgrade will REGENERATE the templates mirror with rendered content; the cost is one sync's worth of file writes.
+
+**Source:** Session 2026-04-08, planned in v0.16.4 as a known limitation to fix in v0.16.5. User confirmed "bundle as you proposed" when picking the v0.16.5 scope.
+
+## DEC-033 — Per-harness MCP server registration (2026-04-08)
+
+**Decision:** v0.16.5 ships `cli/src/mcp_registration.rs`, a new module that walks the templates mirror at `context/templates/processkit/<version>/skills/*/mcp/mcp-config.json` and writes per-harness MCP server registration files at the project root. The writers dispatch on `[ai].providers`:
+
+| Provider in `[ai].providers` | File written |
+|---|---|
+| `Claude` OR `Mistral` | `.mcp.json` (Claude shape, identical for both) |
+| `Cursor` | `.cursor/mcp.json` |
+| `Gemini` | `.gemini/settings.json` |
+| `Codex` | `.codex/config.toml` |
+| `Continue` | `.continue/mcpServers/processkit-<name>.json` (one file per server) |
+| `Aider` | (no file written; sync emits a warning that Aider has no built-in MCP client) |
+
+Three writers cover the five active providers because Claude Code, Cursor, and Gemini CLI all use the **identical** `{"mcpServers": {"<name>": {"command", "args", "env"}}}` JSON shape. Codex CLI uses TOML with `[mcp_servers.<name>]` sections; Continue uses a directory of per-server flat-shape JSON files. Two translators total: JSON↔TOML for Codex (using `toml_edit`, already in deps), and per-file flat shape for Continue.
+
+**Mistral routing.** Mistral has MCP client capability via Python SDK and Le Chat custom connectors but NO local file-based project config. When `Mistral` is in `[ai].providers`, aibox writes `.mcp.json` (the standard Claude shape) so a custom Mistral SDK-based CLI tool the user might build can read MCP server registrations from there. If both `Claude` and `Mistral` are listed, `.mcp.json` is written once (single union, identical content). When Mistral is the only listed MCP-related provider, sync emits an INFO note explaining the convention.
+
+**Aider handling.** Aider has no native MCP client (third-party experimental bridges exist but aren't stable). When `Aider` is in `[ai].providers`, aibox emits a one-shot warning explaining that processkit's MCP-based skills won't be available and suggesting a paired provider (claude, cursor, gemini, codex, continue, mistral). No file is written for Aider.
+
+**Non-destructive merge.** Each writer reads the existing harness file (if present), removes entries whose key is in the **managed set**, and adds the current entries. The managed set is computed from the templates mirror walk — its members are the **JSON keys** from each per-skill `mcp-config.json`'s `mcpServers` object (`processkit-workitem-management`, `processkit-decision-record`, …), NOT the unprefixed skill directory names. processkit ships the `processkit-` prefix in every shipped MCP server's `name` field as of v0.5.0 (`projectious-work/processkit#2`), making collisions with user-added servers structurally impossible. User-added entries (with names outside the managed set) survive every sync untouched.
+
+A regression test (`collect_keys_managed_set_on_mcpservers_json_key_not_directory_name`) locks in the JSON-key-vs-directory-name distinction so no future refactor can accidentally swap them.
+
+**Container-side paths.** Per-skill `mcp-config.json` files use **relative paths** from the project root for the server script (`context/skills/workitem-management/mcp/server.py`). Per session decision: relative everywhere, see what happens. The contract is "harness cwd = project root"; if a harness violates that, we add an absolute-path rewrite for that specific harness.
+
+**Effective skill set integration.** `regenerate_mcp_configs` calls `content_init::build_effective_skill_set` (DEC-035) and passes the result to `collect_processkit_mcp_specs`. A skill that's filtered out at install time also doesn't get its MCP server registered.
+
+**Called from `cmd_init` and `cmd_sync`** after `install_content_source` returns successfully. Idempotent — re-running on a stable `(processkit_version, providers, skills)` set produces byte-identical output. Best-effort: any failure is warned-and-continued so an MCP-registration glitch doesn't break the rest of init/sync.
+
+**Rationale (architectural):**
+
+Every MCP-capable agent harness reads exactly **one** config file at session start. Different harnesses use different paths and different formats (the C2 survey confirmed JSON vs TOML divergence between Claude/Cursor/Gemini and Codex, plus per-file directory layout for Continue). Aibox's job is to translate from the canonical processkit per-skill `mcp-config.json` (Claude shape) into each harness's native format. The standalone-processkit user (no aibox) can still do the same translation by hand for ~10 entity-management skills.
+
+Aibox does NOT ship its own MCP server. The user briefly considered "ship our own MCP server, maybe a meta-server that aggregates processkit servers behind one entry". Rejected for three reasons: (1) it doesn't reduce the registration problem (still need a writer per harness), (2) it loses per-skill encapsulation, (3) it's a new aibox-owned codebase to maintain.
+
+**Alternatives (registration mechanism):**
+- *Sidecar file at `.aibox/mcp-managed-keys.json` to track the managed set explicitly.* Initially proposed. Rejected by user: drifts out of sync, another file to gitignore, the templates mirror IS already the per-version manifest. Current implementation walks the mirror directly.
+- *Comment-marker delimiters in the harness file* (`// AIBOX-MANAGED START` ... `// AIBOX-MANAGED END`). Rejected: JSON doesn't support comments natively. Would need JSONC for some harnesses, plain JSON for others, two paths to maintain.
+- *Always overwrite the harness file unconditionally.* Rejected: clobbers user-added MCP servers (the user can have their own custom MCP servers in `.mcp.json` independently of processkit).
+
+**Implementation:**
+- `cli/src/mcp_registration.rs` — new module, ~620 lines including 18 unit tests.
+- `cli/src/main.rs` — module declaration.
+- `cli/src/container.rs::cmd_init` — calls `regenerate_mcp_configs` after `install_content_source`.
+- `cli/src/container.rs::cmd_sync` — calls `regenerate_mcp_configs` between the install path and the three-way diff.
+- `cli/src/config.rs::AiProvider` — three new variants (`Cursor`, `Codex`, `Continue`).
+- `cli/src/cli.rs`, `cli/src/generate.rs`, `cli/src/doctor.rs`, `cli/src/seed.rs`, `cli/src/context.rs` — match-arm extensions for the new variants.
+- `cli/src/sync_perimeter.rs` — perimeter additions for `.mcp.json`, `.cursor/`, `.gemini/`, `.codex/`, `.continue/`. Tests for each.
+
+**Migration impact:** **Backwards compatible.** Existing v0.16.4 projects pick up MCP file writes on their next sync, gated on `[ai].providers`. User-added MCP servers in any pre-existing `.mcp.json` are preserved (non-destructive merge by JSON key). The new `AiProvider` variants are additive — old `aibox.toml` files that don't list them parse unchanged.
+
+**Source:** Session 2026-04-08, four-question MCP design discussion (C1-C7) followed by harness survey (Claude Code, Cursor, Codex CLI, Gemini CLI, Continue, Aider, Mistral). Mistral routing decision (write `.mcp.json` for SDK consumers) added by user request after the initial design review.
+
 ## DEC-032 — Class A placeholder vocabulary for templated installs (AGENTS.md) (2026-04-08)
 
 **Decision:** aibox extends `cli/src/context.rs::render` from the single-key `{{project_name}}` substitution shipped through v0.16.3 to a **HashMap-based renderer** taking an 11-key **Class A vocabulary**. The vocabulary is the contract aibox commits to render in any installed file marked as templated (today: only `scaffolding/AGENTS.md` from processkit). Three-class model:

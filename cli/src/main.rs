@@ -26,6 +26,7 @@ mod content_install;
 mod content_migration;
 #[allow(dead_code)]
 mod content_source;
+mod mcp_registration;
 mod reset;
 mod runtime;
 mod seed;

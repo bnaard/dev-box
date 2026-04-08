@@ -222,11 +222,19 @@ fn generate_devcontainer_json(config: &AiboxConfig, dir: &Path) -> Result<bool> 
     });
 
     for provider in &config.ai.providers {
+        // Cursor / Codex / Continue are host-side editors (the user's
+        // IDE), not container-side CLI tools — they don't have a
+        // /usr/local/bin entry to point at. Skip them in the VSCode
+        // terminal profile list. Their MCP registration files are
+        // written by mcp_registration.rs (v0.16.5+).
         let (name, path) = match provider {
             crate::config::AiProvider::Claude => ("claude", "/usr/local/bin/claude"),
             crate::config::AiProvider::Aider => ("aider", "/usr/local/bin/aider"),
             crate::config::AiProvider::Gemini => ("gemini", "/usr/local/bin/gemini"),
             crate::config::AiProvider::Mistral => ("mistral", "/usr/local/bin/mistral"),
+            crate::config::AiProvider::Cursor
+            | crate::config::AiProvider::Codex
+            | crate::config::AiProvider::Continue => continue,
         };
         terminal_profiles.as_object_mut().unwrap().insert(
             name.to_string(),

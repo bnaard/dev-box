@@ -163,15 +163,14 @@ pub fn three_way_diff(
         let project_install = match action {
             InstallAction::Skip => return Ok(()),
             InstallAction::Install(p) => p,
-            // Templated files (e.g. scaffolding/AGENTS.md) are skipped
-            // by the v0.16.4 diff because the templates mirror holds
-            // the unrendered cache content while the live file holds
-            // the rendered output — SHA comparison would always
-            // false-positive as "ChangedLocally". The install path
-            // uses write_if_missing semantics for these, so user edits
-            // are safe. v0.16.5+ will fix this by rendering templated
-            // files into the templates mirror too. See DEC-032.
-            InstallAction::InstallTemplated(_) => return Ok(()),
+            // Templated files (e.g. scaffolding/AGENTS.md) are now
+            // treated like Install for diff purposes. The v0.16.5
+            // rendered-mirror change (DEC-034) makes this correct:
+            // the templates mirror holds the SAME rendered content
+            // as the live file (both pass through render() with the
+            // Class A vocabulary), so SHA comparison no longer
+            // false-positives.
+            InstallAction::InstallTemplated(p) => p,
         };
         let rel_str = path_to_forward_slash(rel_path);
         seen_cache_keys.insert(rel_str.clone());
@@ -223,9 +222,9 @@ pub fn three_way_diff(
             let project_install = match install_action_for(rel_path) {
                 InstallAction::Skip => return Ok(()),
                 InstallAction::Install(p) => p,
-                // Templated files: same skip rationale as the cache
-                // walk above. v0.16.5+ will handle these properly.
-                InstallAction::InstallTemplated(_) => return Ok(()),
+                // Templated files: rendered mirror, treated as Install.
+                // See DEC-034.
+                InstallAction::InstallTemplated(p) => p,
             };
             let rel_str = path_to_forward_slash(rel_path);
             if seen_cache_keys.contains(&rel_str) {
