@@ -269,7 +269,7 @@ node = { version = "22" }
 // files under context/workitems/ etc.
 //
 // What aibox owns at init time is the slim project skeleton: context/
-// directory, .aibox-version, .gitignore, CLAUDE.md thin pointer, and
+// directory, aibox.lock, .gitignore, CLAUDE.md thin pointer, and
 // (when [processkit] version != "unset") the processkit content
 // installed by content_init. The tests below verify that contract for
 // each of the five processkit package presets.
@@ -277,7 +277,7 @@ node = { version = "22" }
 fn assert_post_init_skeleton(dir: &std::path::Path) {
     assert!(dir.join("context").exists(), "context/ should exist");
     assert!(dir.join("CLAUDE.md").exists(), "CLAUDE.md thin pointer should exist");
-    assert!(dir.join(".aibox-version").exists(), ".aibox-version should exist");
+    assert!(!dir.join(".aibox-version").exists(), ".aibox-version must NOT be created (absorbed into aibox.lock)");
     assert!(dir.join(".gitignore").exists(), ".gitignore should exist");
     let claude = fs::read_to_string(dir.join("CLAUDE.md")).unwrap();
     assert!(

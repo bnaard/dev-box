@@ -133,8 +133,8 @@ fn init_creates_expected_files() {
         "thin-pointer CLAUDE.md should reference AGENTS.md"
     );
     assert!(
-        dir.path().join(".aibox-version").exists(),
-        ".aibox-version should be created"
+        !dir.path().join(".aibox-version").exists(),
+        ".aibox-version must NOT be created (absorbed into aibox.lock since v0.17.0)"
     );
 }
 

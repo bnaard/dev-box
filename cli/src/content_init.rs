@@ -293,15 +293,25 @@ pub fn install_content_source(
     )
     .context("failed to copy cache to templates dir")?;
 
-    // 5. Write the top-level aibox.lock (always — fresh installed_at every run).
+    // 5. Write the top-level aibox.lock (always — fresh timestamps every run).
+    //    The [aibox] section captures the CLI version that performed this
+    //    install (DEC-037 — absorbs the legacy .aibox-version). The
+    //    [processkit] section captures the install state of processkit.
+    let now = Utc::now().to_rfc3339();
     let aibox_lock = AiboxLock {
-        source: pk.source.clone(),
-        version: pk.version.clone(),
-        src_path: pk.src_path.clone(),
-        branch: pk.branch.clone(),
-        resolved_commit: fetched.resolved_commit.clone(),
-        release_asset_sha256: fetched.release_asset_sha256.clone(),
-        installed_at: Utc::now().to_rfc3339(),
+        aibox: lock::AiboxLockSection {
+            cli_version: env!("CARGO_PKG_VERSION").to_string(),
+            synced_at: now.clone(),
+        },
+        processkit: Some(lock::ProcessKitLockSection {
+            source: pk.source.clone(),
+            version: pk.version.clone(),
+            src_path: pk.src_path.clone(),
+            branch: pk.branch.clone(),
+            resolved_commit: fetched.resolved_commit.clone(),
+            release_asset_sha256: fetched.release_asset_sha256.clone(),
+            installed_at: now,
+        }),
     };
     lock::write_lock(project_root, &aibox_lock).context("failed to write aibox.lock")?;
 

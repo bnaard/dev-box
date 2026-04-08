@@ -38,6 +38,45 @@ let g:netrw_liststyle=3
 let g:netrw_banner=0
 let g:netrw_winsize=25
 
+" ── VSCode-like cursor movement (v0.16.6+) ──────────────────────────────────
+"
+" Word and line jumps with the chords macOS / VSCode users expect, in
+" insert mode AND in normal/visual modes so the same fingers work
+" everywhere.
+"
+" Reliability:
+"   <A-Left>/<A-Right>  → reliable across iTerm2, Ghostty, Alacritty,
+"                          WezTerm, and zellij. Most terminals send
+"                          ^[[1;3D / ^[[1;3C and vim recognises both.
+"   <Home>/<End>        → universally reliable. Use these for line
+"                          begin/end. To get macOS-native Cmd+Left /
+"                          Cmd+Right behaviour, configure your
+"                          terminal (iTerm2: Profiles → Keys; Ghostty:
+"                          keybind config) to send Home/End on
+"                          Cmd+Left / Cmd+Right.
+"
+" Insert-mode word movement uses <C-o> (one-shot normal command, then
+" back to insert). The <Right> after `e` puts the cursor AFTER the
+" word's last character, matching VSCode's "select to next word end"
+" semantics; without it the cursor lands ON the last character.
+inoremap <A-Left>  <C-o>b
+inoremap <A-Right> <C-o>e<Right>
+nnoremap <A-Left>  b
+nnoremap <A-Right> e
+vnoremap <A-Left>  b
+vnoremap <A-Right> e
+
+" Smart Home/End. Insert-mode <Home> goes to first non-whitespace
+" (matches IDE 'smart home'); a second press goes to column 0.
+" Vim's default insert-mode <End> already does the right thing
+" (jumps past the last character) so we don't override it, but we
+" also map normal/visual mode for consistency.
+inoremap <expr> <Home> col('.') == match(getline('.'), '\S') + 1 ? "\<C-o>0" : "\<C-o>^"
+nnoremap <Home> ^
+nnoremap <End>  $
+vnoremap <Home> ^
+vnoremap <End>  $
+
 set background=AIBOX_VIM_BG
 set termguicolors
 colorscheme AIBOX_VIM_COLORSCHEME

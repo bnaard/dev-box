@@ -31,16 +31,57 @@ use std::fs;
 use std::path::{Component, Path, PathBuf};
 
 // ---------------------------------------------------------------------------
-// Lock file
+// Lock file (v0.17.0+ sectioned shape)
 // ---------------------------------------------------------------------------
+//
+// `<project_root>/aibox.lock` is now a TOML file with two sections:
+//
+//     [aibox]                          # which CLI version touched the project last
+//     cli_version = "0.17.0"
+//     synced_at   = "2026-04-08T16:42:00Z"
+//
+//     [processkit]                     # what processkit version is installed
+//     source                = "https://github.com/projectious-work/processkit.git"
+//     version               = "v0.5.1"
+//     src_path              = "src"
+//     branch                = "main"           # optional
+//     resolved_commit       = "abc123def456"   # optional
+//     release_asset_sha256  = "deadbeef..."    # optional
+//     installed_at          = "2026-04-08T16:30:00Z"
+//
+// Generalized from the v0.16.x flat shape (no sections, processkit fields
+// at top level) to make space for future content sources (community packs,
+// company forks). The legacy flat shape is auto-migrated on first read —
+// see `migrate_legacy_lock`.
 
 /// `<project_root>/aibox.lock` contents.
 ///
-/// Named `aibox.lock` (generic) rather than `processkit.lock` so that once
-/// aibox gains community-package consumption, additional sources can be
-/// recorded in the same file without another name collision.
+/// Generalized in v0.17.0 (DEC-037) to absorb the legacy `.aibox-version`
+/// file. The `[aibox]` section tracks the CLI version that performed
+/// the last install/sync; the `[processkit]` section tracks what
+/// processkit content was installed. Future content sources will land as
+/// additional top-level sections in the same file.
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
 pub struct AiboxLock {
+    pub aibox: AiboxLockSection,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub processkit: Option<ProcessKitLockSection>,
+}
+
+/// `[aibox]` section of `aibox.lock`. Tracks the CLI version that last
+/// touched the project — what `.aibox-version` used to record in v0.16.x.
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+pub struct AiboxLockSection {
+    /// Aibox CLI version (semver) that performed the last install/sync.
+    pub cli_version: String,
+    /// ISO 8601 UTC timestamp of the last sync.
+    pub synced_at: String,
+}
+
+/// `[processkit]` section of `aibox.lock`. Pinned processkit
+/// `(source, version, sha256)` for the project's consumed processkit.
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+pub struct ProcessKitLockSection {
     pub source: String,
     pub version: String,
     pub src_path: String,
@@ -63,6 +104,27 @@ pub struct AiboxLock {
 }
 
 // ---------------------------------------------------------------------------
+// Legacy v0.16.x flat lock shape — for one-time migration
+// ---------------------------------------------------------------------------
+
+/// The v0.16.x flat shape, kept around just long enough to migrate
+/// existing project files. After migration this struct is never written
+/// again — only `AiboxLock` (sectioned) is.
+#[derive(Debug, Clone, Deserialize)]
+struct LegacyFlatLock {
+    source: String,
+    version: String,
+    src_path: String,
+    #[serde(default)]
+    branch: Option<String>,
+    #[serde(default)]
+    resolved_commit: Option<String>,
+    #[serde(default)]
+    release_asset_sha256: Option<String>,
+    installed_at: String,
+}
+
+// ---------------------------------------------------------------------------
 // Standard file locations
 // ---------------------------------------------------------------------------
 
@@ -76,6 +138,16 @@ pub fn lock_path(project_root: &Path) -> PathBuf {
 // ---------------------------------------------------------------------------
 
 /// Read the lock file. Returns `Ok(None)` if the file does not exist.
+///
+/// **Backwards-compat:** if the file exists in the v0.16.x flat shape
+/// (no `[aibox]` or `[processkit]` sections, fields at top level), this
+/// function transparently upgrades it in memory to the new sectioned
+/// shape. The CLI version recorded in the upgraded `[aibox]` section is
+/// pulled from the legacy `.aibox-version` file (sibling to the lock).
+/// If `.aibox-version` is also missing, the cli_version field is set to
+/// the empty string and the migration helper at the call site
+/// (`migration::migrate_legacy_lock_files`) takes care of writing back
+/// the upgraded form and deleting the orphan.
 pub fn read_lock(project_root: &Path) -> Result<Option<AiboxLock>> {
     let path = lock_path(project_root);
     if !path.exists() {
@@ -83,9 +155,46 @@ pub fn read_lock(project_root: &Path) -> Result<Option<AiboxLock>> {
     }
     let body = fs::read_to_string(&path)
         .with_context(|| format!("failed to read {}", path.display()))?;
-    let parsed: AiboxLock = toml::from_str(&body)
-        .with_context(|| format!("failed to parse {} as TOML", path.display()))?;
-    Ok(Some(parsed))
+
+    // Try new sectioned shape first.
+    if let Ok(parsed) = toml::from_str::<AiboxLock>(&body) {
+        return Ok(Some(parsed));
+    }
+
+    // Fall back to legacy v0.16.x flat shape.
+    let legacy: LegacyFlatLock = toml::from_str(&body)
+        .with_context(|| format!("failed to parse {} as TOML (neither new nor legacy shape)", path.display()))?;
+
+    // Read the sibling `.aibox-version` to recover the CLI version that
+    // last touched this project. If absent (very rare — fresh init that
+    // somehow didn't write it), fall back to "unknown" which the migration
+    // helper at the call site will replace with the current binary's version.
+    let aibox_version_path = project_root.join(".aibox-version");
+    let cli_version = if aibox_version_path.exists() {
+        fs::read_to_string(&aibox_version_path)
+            .map(|s| s.trim().to_string())
+            .unwrap_or_else(|_| String::new())
+    } else {
+        String::new()
+    };
+
+    Ok(Some(AiboxLock {
+        aibox: AiboxLockSection {
+            cli_version,
+            // Reuse the processkit installed_at as a best-guess synced_at;
+            // the next real sync will overwrite this with a fresh timestamp.
+            synced_at: legacy.installed_at.clone(),
+        },
+        processkit: Some(ProcessKitLockSection {
+            source: legacy.source,
+            version: legacy.version,
+            src_path: legacy.src_path,
+            branch: legacy.branch,
+            resolved_commit: legacy.resolved_commit,
+            release_asset_sha256: legacy.release_asset_sha256,
+            installed_at: legacy.installed_at,
+        }),
+    }))
 }
 
 /// Write the lock file, creating parent directories if needed (for a
@@ -253,8 +362,8 @@ mod tests {
     use super::*;
     use tempfile::TempDir;
 
-    fn sample_lock() -> AiboxLock {
-        AiboxLock {
+    fn sample_pk() -> ProcessKitLockSection {
+        ProcessKitLockSection {
             source: "https://github.com/projectious-work/processkit.git".to_string(),
             version: "v0.4.0".to_string(),
             src_path: "src".to_string(),
@@ -265,19 +374,37 @@ mod tests {
         }
     }
 
+    fn sample_lock() -> AiboxLock {
+        AiboxLock {
+            aibox: AiboxLockSection {
+                cli_version: "0.16.5".to_string(),
+                synced_at: "2026-04-06T12:00:00Z".to_string(),
+            },
+            processkit: Some(sample_pk()),
+        }
+    }
+
     #[test]
     fn lock_round_trip_with_release_asset_sha256() {
         let tmp = TempDir::new().unwrap();
-        let mut lock = sample_lock();
-        lock.resolved_commit = None;
-        lock.release_asset_sha256 = Some(
+        let mut pk = sample_pk();
+        pk.resolved_commit = None;
+        pk.release_asset_sha256 = Some(
             "abc123def456ghi789jkl012mno345pqr678stu901vwx234yz567abc890def123".to_string(),
         );
+        let lock = AiboxLock {
+            aibox: AiboxLockSection {
+                cli_version: "0.16.5".to_string(),
+                synced_at: "2026-04-06T12:00:00Z".to_string(),
+            },
+            processkit: Some(pk),
+        };
         write_lock(tmp.path(), &lock).unwrap();
         let back = read_lock(tmp.path()).unwrap().unwrap();
         assert_eq!(back, lock);
-        assert!(back.release_asset_sha256.is_some());
-        assert!(back.resolved_commit.is_none());
+        let back_pk = back.processkit.as_ref().unwrap();
+        assert!(back_pk.release_asset_sha256.is_some());
+        assert!(back_pk.resolved_commit.is_none());
     }
 
     // -- Lock round trip ---------------------------------------------------

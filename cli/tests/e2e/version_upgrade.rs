@@ -265,17 +265,31 @@ fn doctor_warns_on_container_version_mismatch() {
 
 // ─── Test 8: doctor warns on CLI version file mismatch ───────────────────────
 
-/// `aibox doctor` must warn when `.aibox-version` does not match the current
-/// CLI version. This indicates the project was last synced with an older CLI
-/// and generated files may be stale — user should run `aibox sync`.
+/// `aibox doctor` must warn when `aibox.lock [aibox].cli_version` does not
+/// match the current CLI version. This indicates the project was last synced
+/// with an older CLI and generated files may be stale — user should run
+/// `aibox sync`.
 #[test]
 fn doctor_warns_on_cli_version_file_mismatch() {
     let dir = tempfile::tempdir().unwrap();
     init_project(dir.path(), "doctor-cli-ver");
 
-    // Tamper .aibox-version to simulate a project last synced by an older CLI
-    fs::write(dir.path().join(".aibox-version"), "0.0.1")
-        .expect("failed to write .aibox-version");
+    // Tamper aibox.lock to simulate a project last synced by an older CLI.
+    // Read the existing lock, change cli_version, write back.
+    let lock_path = dir.path().join("aibox.lock");
+    let lock_body = fs::read_to_string(&lock_path).expect("aibox.lock should exist after init");
+    let tampered = lock_body
+        .lines()
+        .map(|l| {
+            if l.trim_start().starts_with("cli_version") {
+                "cli_version = \"0.0.1\""
+            } else {
+                l
+            }
+        })
+        .collect::<Vec<_>>()
+        .join("\n");
+    fs::write(&lock_path, tampered + "\n").expect("failed to write tampered aibox.lock");
 
     let output = run_in(dir.path(), &["doctor"]);
 

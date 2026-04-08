@@ -33,7 +33,7 @@ use std::collections::{BTreeMap, BTreeSet};
 use std::fs;
 use std::path::{Path, PathBuf};
 
-use crate::lock::{AiboxLock, group_for_path, sha256_of_file, should_skip_entry};
+use crate::lock::{group_for_path, sha256_of_file, should_skip_entry};
 use crate::content_init::templates_dir_for_version;
 use crate::content_install::{InstallAction, install_action_for};
 
@@ -355,9 +355,13 @@ pub struct SyncReport {
 /// `<project_root>/context/migrations/pending/MIG-<id>.md`. Returns the
 /// path of the written file, or `Ok(None)` if an existing matching
 /// document already exists in `pending/` or `in-progress/`.
+///
+/// Takes the processkit section directly (not the full `AiboxLock`)
+/// because the migration document only describes processkit content
+/// changes — the `[aibox]` section's CLI version is unrelated.
 pub fn write_migration_document(
     project_root: &Path,
-    lock_before: &AiboxLock,
+    lock_before: &crate::lock::ProcessKitLockSection,
     cache_version: &str,
     cache_resolved_commit: Option<&str>,
     summary: &DiffSummary,
@@ -629,19 +633,19 @@ fn parse_yaml_scalar_value(s: &str) -> String {
 /// without having to re-init.
 pub fn run_content_sync(
     project_root: &Path,
-    lock: &AiboxLock,
+    pk: &crate::lock::ProcessKitLockSection,
     config: &crate::config::AiboxConfig,
 ) -> Result<SyncReport> {
     let fetched = crate::content_source::fetch(
-        &lock.source,
-        &lock.version,
-        lock.branch.as_deref(),
-        &lock.src_path,
+        &pk.source,
+        &pk.version,
+        pk.branch.as_deref(),
+        &pk.src_path,
         config.processkit.release_asset_url_template.as_deref(),
     )
     .with_context(|| "failed to fetch content-source cache".to_string())?;
 
-    let templates_dir = templates_dir_for_version(project_root, &lock.version);
+    let templates_dir = templates_dir_for_version(project_root, &pk.version);
 
     let (diffs, _groups) = three_way_diff(project_root, &fetched.src_path, &templates_dir)?;
     let summary = DiffSummary::from_diffs(&diffs);
@@ -649,7 +653,7 @@ pub fn run_content_sync(
     let migration_document_path = if summary.has_user_relevant_changes() {
         write_migration_document(
             project_root,
-            lock,
+            pk,
             &fetched.version,
             fetched.resolved_commit.as_deref(),
             &summary,
@@ -979,8 +983,8 @@ mod tests {
 
     // -- write_migration_document ------------------------------------------
 
-    fn sample_lock() -> AiboxLock {
-        AiboxLock {
+    fn sample_lock() -> crate::lock::ProcessKitLockSection {
+        crate::lock::ProcessKitLockSection {
             source: "https://github.com/example/processkit.git".to_string(),
             version: "v1.0.0".to_string(),
             src_path: "src".to_string(),

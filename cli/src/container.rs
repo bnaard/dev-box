@@ -1019,7 +1019,14 @@ pub fn cmd_sync(config_path: &Option<String>, no_cache: bool, no_build: bool) ->
     match std::env::current_dir() {
         Ok(cwd) => {
             let lock_pair = match crate::lock::read_lock(&cwd) {
-                Ok(Some(lock)) => Some((lock.source.clone(), lock.version.clone())),
+                // Only the [processkit] section is relevant for the
+                // re-install gating decision. Locks without a
+                // [processkit] section (e.g. fresh init that has not
+                // installed any content yet) are treated as None.
+                Ok(Some(lock)) => lock
+                    .processkit
+                    .as_ref()
+                    .map(|pk| (pk.source.clone(), pk.version.clone())),
                 Ok(None) => None,
                 Err(e) => {
                     output::warn(&format!(
@@ -1093,9 +1100,13 @@ pub fn cmd_sync(config_path: &Option<String>, no_cache: bool, no_build: bool) ->
     // sync's work.
     match std::env::current_dir() {
         Ok(cwd) => match crate::lock::read_lock(&cwd) {
-            Ok(Some(lock)) => {
+            Ok(Some(lock)) => match lock.processkit.as_ref() {
+                None => {
+                    // No processkit section yet — nothing to diff.
+                }
+                Some(pk) => {
                 output::info("Comparing processkit cache against project...");
-                match crate::content_diff::run_content_sync(&cwd, &lock, &config) {
+                match crate::content_diff::run_content_sync(&cwd, pk, &config) {
                     Ok(report) => {
                         if report.summary.has_user_relevant_changes() {
                             output::info(&format!(
@@ -1117,7 +1128,8 @@ pub fn cmd_sync(config_path: &Option<String>, no_cache: bool, no_build: bool) ->
                     }
                     Err(e) => output::warn(&format!("Processkit diff failed: {}", e)),
                 }
-            }
+                } // Some(pk)
+            },
             Ok(None) => { /* No lock file yet — nothing to diff against. */ }
             Err(e) => output::warn(&format!("Failed to read processkit lock: {}", e)),
         },

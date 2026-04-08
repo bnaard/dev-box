@@ -14,15 +14,16 @@ const BACKUP_DIR: &str = ".aibox-backup";
 /// .gitignore is backed up but not deleted.
 const MANAGED_ITEMS: &[(&str, bool)] = &[
     ("aibox.toml", true),
+    ("aibox.lock", true),
     (".devcontainer", true),
     (".aibox-home", true),
-    (".aibox-version", true),
     ("context", true),
     ("CLAUDE.md", true),
     (".gitignore", false),
     // Backward compat
     (".root", true),
     (".aibox", true),
+    (".aibox-version", true), // legacy — removed by migrate_legacy_lock_files; still cleaned up on reset
 ];
 
 /// Represents an item to be processed during backup/reset.
@@ -545,7 +546,7 @@ name = "test-project"
 
         let items = discover_items(None, true);
         let existing: Vec<_> = items.iter().filter(|i| i.exists).collect();
-        assert!(existing.len() >= 6); // toml, devcontainer, home, version, context, claude.md, gitignore
+        assert!(existing.len() >= 6); // toml, devcontainer, home, legacy .aibox-version, context, claude.md, gitignore
 
         std::env::set_current_dir(original_dir).unwrap();
     }

@@ -107,7 +107,6 @@ pub const SYNC_PERIMETER: &[&str] = &[
     // ── Top-level files aibox owns ─────────────────────────────────────
     "aibox.toml",
     "aibox.lock",
-    ".aibox-version",
     // ── Runtime config seed (gitignored) ────────────────────────────────
     ".aibox-home/",
     // ── Devcontainer (the three files; nothing else under .devcontainer/) ─
@@ -363,8 +362,8 @@ mod tests {
     }
 
     #[test]
-    fn aibox_version_is_in_perimeter() {
-        assert!(within(".aibox-version"));
+    fn aibox_lock_is_in_perimeter() {
+        assert!(within("aibox.lock"));
     }
 
     #[test]
@@ -380,11 +379,6 @@ mod tests {
     #[test]
     fn devcontainer_json_is_in_perimeter() {
         assert!(within(".devcontainer/devcontainer.json"));
-    }
-
-    #[test]
-    fn aibox_lock_is_in_perimeter() {
-        assert!(within("aibox.lock"));
     }
 
     #[test]
@@ -593,8 +587,8 @@ mod tests {
     #[test]
     fn all_known_sync_write_targets_are_in_perimeter() {
         let known_sync_writes = [
-            // migration::check_and_generate_migration_in
-            ".aibox-version",
+            // migration::check_and_generate_migration_in (updates aibox.lock cli_version)
+            "aibox.lock",
             "context/migrations/0.13.0-to-0.14.0.md",
             // migration::ensure_processkit_section_in
             "aibox.toml",

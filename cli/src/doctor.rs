@@ -32,7 +32,7 @@ impl DiagResult {
 /// creates: the version marker, the gitignore, and the canonical
 /// agent entrypoint installed by processkit.
 fn expected_files(_packages: &[String]) -> Vec<&'static str> {
-    vec!["AGENTS.md", ".aibox-version", ".gitignore"]
+    vec!["AGENTS.md", "aibox.lock", ".gitignore"]
 }
 
 /// Look up the embedded schema for a given version string.
@@ -311,18 +311,20 @@ fn check_extra_files(dir: &str, expected: &[&str], diag: &mut DiagResult) {
 
 /// Check schema version and generate migration artifacts if needed.
 fn check_schema_version(config: &AiboxConfig, diag: &mut DiagResult) -> Result<()> {
-    let version_file = Path::new(".aibox-version");
     let target_version = &config.context.schema_version;
 
-    if !version_file.exists() {
-        output::warn(".aibox-version file not found -- run 'aibox init' to create it");
-        diag.warnings += 1;
-        return Ok(());
-    }
+    let lock = match crate::lock::read_lock(Path::new("."))? {
+        Some(l) => l,
+        None => {
+            output::warn("aibox.lock not found -- run 'aibox init' to create it");
+            diag.warnings += 1;
+            return Ok(());
+        }
+    };
 
-    let current_version = std::fs::read_to_string(version_file)?.trim().to_string();
+    let current_version = &lock.aibox.cli_version;
 
-    if current_version == *target_version {
+    if current_version == target_version {
         output::ok(&format!(
             "Current: {}, Target: {} (up to date)",
             current_version, target_version
@@ -333,7 +335,7 @@ fn check_schema_version(config: &AiboxConfig, diag: &mut DiagResult) -> Result<(
             current_version, target_version
         ));
         diag.warnings += 1;
-        generate_migration_artifacts(&current_version, target_version, config)?;
+        generate_migration_artifacts(current_version, target_version, config)?;
     }
 
     Ok(())
@@ -462,29 +464,25 @@ fn check_container_image_version(runtime: &Runtime, config: &AiboxConfig, diag: 
     }
 }
 
-/// Warn if `.aibox-version` doesn't match the current CLI version.
+/// Warn if `aibox.lock [aibox].cli_version` doesn't match the current CLI version.
 ///
-/// `.aibox-version` is written at init time and updated by `aibox sync`.
-/// A mismatch means generated files may be stale for this CLI version.
+/// `cli_version` is written at init/sync time. A mismatch means generated files
+/// may be stale for this CLI version.
 fn check_cli_version_file(diag: &mut DiagResult) {
-    let version_file = Path::new(".aibox-version");
-    if !version_file.exists() {
-        // Already reported by check_schema_version — skip.
-        return;
-    }
-
-    let file_version = match std::fs::read_to_string(version_file) {
-        Ok(v) => v.trim().to_string(),
-        Err(_) => return,
+    let lock = match crate::lock::read_lock(Path::new(".")) {
+        Ok(Some(l)) => l,
+        _ => return, // No lock or read error — already reported by check_schema_version.
     };
 
-    let cli_version = env!("CARGO_PKG_VERSION");
+    let file_version = &lock.aibox.cli_version;
+    if file_version.is_empty() {
+        return; // Unknown version — skip.
+    }
 
-    // Only warn if file looks like a semver CLI version (not a schema version like "1.0.0").
-    // We compare directly; a mismatch likely means `aibox sync` hasn't been run since upgrade.
+    let cli_version = env!("CARGO_PKG_VERSION");
     if file_version != cli_version {
         output::warn(&format!(
-            "CLI version mismatch: .aibox-version={} current={} — \
+            "CLI version mismatch: aibox.lock cli_version={} current={} — \
              run `aibox sync` to update generated files",
             file_version, cli_version
         ));

@@ -153,7 +153,7 @@ pub enum Commands {
     ///
     /// Sync perimeter (files aibox sync may create, modify, or delete):
     ///   - aibox.toml                          (one-time schema migrations)
-    ///   - .aibox-version                      (CLI version tracking)
+    ///   - aibox.lock                          (CLI version + processkit pin)
     ///   - .aibox-home/**                      (runtime config seed; gitignored)
     ///   - .devcontainer/Dockerfile            (regenerated)
     ///   - .devcontainer/docker-compose.yml    (regenerated)
@@ -238,8 +238,8 @@ pub enum Commands {
     },
     /// Back up aibox files to a timestamped directory
     ///
-    /// Copies aibox.toml, .devcontainer/, .aibox-home/, context/,
-    /// CLAUDE.md, .aibox-version, and .gitignore to a backup directory.
+    /// Copies aibox.toml, aibox.lock, .devcontainer/, .aibox-home/, context/,
+    /// CLAUDE.md, and .gitignore to a backup directory.
     Backup {
         /// Output directory for backup (default: .aibox-backup/)
         #[arg(long)]
@@ -250,8 +250,8 @@ pub enum Commands {
     },
     /// Remove all aibox files and reset project to pre-init state
     ///
-    /// DANGER ZONE: Deletes aibox.toml, .devcontainer/, .aibox-home/,
-    /// context/, CLAUDE.md, and .aibox-version. Backs up first by default.
+    /// DANGER ZONE: Deletes aibox.toml, aibox.lock, .devcontainer/, .aibox-home/,
+    /// context/, and CLAUDE.md. Backs up first by default.
     /// .gitignore is backed up but NOT deleted.
     ///
     /// Stops any running container before deleting.

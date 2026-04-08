@@ -1,8 +1,9 @@
 //! Migration system for aibox version changes.
 //!
-//! On `aibox sync`, compares `.aibox-version` file content against the
+//! On `aibox sync`, compares `aibox.lock [aibox].cli_version` against the
 //! running CLI version. If they differ, generates a migration document at
-//! `context/migrations/{from}-to-{to}.md`.
+//! `context/migrations/{from}-to-{to}.md`. Also handles the one-time hard-cut
+//! migration that absorbs the legacy `.aibox-version` file into `aibox.lock`.
 
 use anyhow::{Context, Result};
 use std::fs;
@@ -13,8 +14,39 @@ use crate::output;
 /// Check for version mismatch and generate migration document if needed.
 /// Called during `aibox sync`. Operates in the current working directory.
 pub fn check_and_generate_migration() -> Result<()> {
+    // Hard-cut: absorb legacy .aibox-version into aibox.lock (one-time, idempotent).
+    migrate_legacy_lock_files(Path::new("."))?;
     check_and_generate_migration_in(Path::new("."))?;
     ensure_processkit_section_in(Path::new("."))?;
+    Ok(())
+}
+
+/// One-time hard-cut migration: if a legacy `.aibox-version` file still exists,
+/// read `aibox.lock` (which upgrades the flat shape automatically), write back
+/// the sectioned format, and delete `.aibox-version`. Idempotent once the file
+/// is gone.
+pub fn migrate_legacy_lock_files(root: &Path) -> Result<()> {
+    let version_file = root.join(".aibox-version");
+    if !version_file.exists() {
+        return Ok(());
+    }
+
+    // read_lock already upgrades the legacy flat shape in memory, recovering
+    // cli_version from the sibling .aibox-version.
+    match crate::lock::read_lock(root)? {
+        Some(lock) => {
+            // Write back the sectioned shape to persist the upgrade.
+            crate::lock::write_lock(root, &lock)
+                .context("Failed to write upgraded aibox.lock during legacy migration")?;
+        }
+        None => {
+            // Lock is absent — nothing to upgrade; just drop the orphan file.
+        }
+    }
+
+    fs::remove_file(&version_file).context("Failed to remove legacy .aibox-version")?;
+    output::ok("Migrated: .aibox-version absorbed into aibox.lock");
+
     Ok(())
 }
 
@@ -22,19 +54,18 @@ pub fn check_and_generate_migration() -> Result<()> {
 /// Operates relative to the given `root` directory.
 fn check_and_generate_migration_in(root: &Path) -> Result<()> {
     let current_version = env!("CARGO_PKG_VERSION");
-    let version_file = root.join(".aibox-version");
 
-    // If no version file, this is a fresh project — no migration needed
-    if !version_file.exists() {
-        return Ok(());
-    }
+    // Read aibox.lock — if absent this is a fresh project, no migration needed.
+    let lock = match crate::lock::read_lock(root)? {
+        Some(l) => l,
+        None => return Ok(()),
+    };
 
-    let stored_version = fs::read_to_string(&version_file)
-        .context("Failed to read .aibox-version")?
-        .trim()
-        .to_string();
+    let stored_version = lock.aibox.cli_version.clone();
 
-    if stored_version == current_version {
+    // Empty means the lock was just promoted from legacy without a recoverable
+    // cli_version — treat as "no known version", skip migration this cycle.
+    if stored_version.is_empty() || stored_version == current_version {
         return Ok(());
     }
 
@@ -43,11 +74,15 @@ fn check_and_generate_migration_in(root: &Path) -> Result<()> {
         stored_version, current_version
     ));
 
-    // Generate migration document
+    // Generate migration document.
     generate_migration_doc(root, &stored_version, current_version)?;
 
-    // Update .aibox-version to current
-    fs::write(&version_file, current_version).context("Failed to update .aibox-version")?;
+    // Update lock with new cli_version. synced_at is left unchanged here;
+    // cmd_sync updates it when it writes the full lock after install.
+    let mut updated_lock = lock;
+    updated_lock.aibox.cli_version = current_version.to_string();
+    crate::lock::write_lock(root, &updated_lock)
+        .context("Failed to update aibox.lock after migration check")?;
 
     Ok(())
 }
@@ -234,7 +269,7 @@ Review `context/AIBOX.md` for the updated baseline document.
 
 To revert this migration:
 ```
-git checkout HEAD -- .aibox-version context/ .devcontainer/
+git checkout HEAD -- aibox.lock context/ .devcontainer/
 aibox sync
 ```
 
@@ -469,11 +504,22 @@ mod tests {
     use std::fs;
     use tempfile::TempDir;
 
+    fn write_sample_lock(root: &std::path::Path, cli_version: &str) {
+        let lock = crate::lock::AiboxLock {
+            aibox: crate::lock::AiboxLockSection {
+                cli_version: cli_version.to_string(),
+                synced_at: "2026-04-01T00:00:00Z".to_string(),
+            },
+            processkit: None,
+        };
+        crate::lock::write_lock(root, &lock).unwrap();
+    }
+
     #[test]
     fn test_no_migration_when_versions_match() {
         let tmp = TempDir::new().unwrap();
         let current = env!("CARGO_PKG_VERSION");
-        fs::write(tmp.path().join(".aibox-version"), current).unwrap();
+        write_sample_lock(tmp.path(), current);
         fs::create_dir_all(tmp.path().join("context/migrations")).unwrap();
 
         check_and_generate_migration_in(tmp.path()).unwrap();
@@ -487,10 +533,10 @@ mod tests {
     }
 
     #[test]
-    fn test_no_migration_when_no_version_file() {
+    fn test_no_migration_when_no_lock() {
         let tmp = TempDir::new().unwrap();
 
-        // No .aibox-version file exists — fresh project
+        // No aibox.lock — fresh project
         check_and_generate_migration_in(tmp.path()).unwrap();
 
         // context/migrations/ should not even be created
@@ -504,7 +550,7 @@ mod tests {
     fn test_migration_doc_generated_on_version_change() {
         let tmp = TempDir::new().unwrap();
         let current = env!("CARGO_PKG_VERSION");
-        fs::write(tmp.path().join(".aibox-version"), "0.0.1").unwrap();
+        write_sample_lock(tmp.path(), "0.0.1");
 
         check_and_generate_migration_in(tmp.path()).unwrap();
 
@@ -518,9 +564,9 @@ mod tests {
         assert!(content.contains(&format!("v0.0.1 \u{2192} v{}", current)));
         assert!(content.contains("**Status:** pending"));
 
-        // .aibox-version should be updated
-        let updated = fs::read_to_string(tmp.path().join(".aibox-version")).unwrap();
-        assert_eq!(updated, current);
+        // aibox.lock cli_version should be updated
+        let updated_lock = crate::lock::read_lock(tmp.path()).unwrap().unwrap();
+        assert_eq!(updated_lock.aibox.cli_version, current);
     }
 
     #[test]
@@ -535,7 +581,7 @@ mod tests {
         let existing_content = "# User-edited migration doc\nStatus: in-progress\n";
         fs::write(&filepath, existing_content).unwrap();
 
-        fs::write(tmp.path().join(".aibox-version"), "0.0.1").unwrap();
+        write_sample_lock(tmp.path(), "0.0.1");
 
         check_and_generate_migration_in(tmp.path()).unwrap();
 
@@ -545,6 +591,40 @@ mod tests {
             content, existing_content,
             "existing migration doc should not be overwritten"
         );
+    }
+
+    #[test]
+    fn migrate_legacy_lock_files_absorbs_aibox_version() {
+        let tmp = TempDir::new().unwrap();
+        // Write a legacy flat aibox.lock (no sections).
+        let flat_lock = "\
+source = \"https://github.com/example/processkit.git\"
+version = \"v0.4.0\"
+src_path = \"src\"
+installed_at = \"2026-04-01T00:00:00Z\"
+";
+        fs::write(tmp.path().join("aibox.lock"), flat_lock).unwrap();
+        fs::write(tmp.path().join(".aibox-version"), "0.16.5").unwrap();
+
+        migrate_legacy_lock_files(tmp.path()).unwrap();
+
+        // .aibox-version must be deleted.
+        assert!(
+            !tmp.path().join(".aibox-version").exists(),
+            ".aibox-version should be deleted"
+        );
+        // aibox.lock must now be in sectioned shape.
+        let lock = crate::lock::read_lock(tmp.path()).unwrap().unwrap();
+        assert_eq!(lock.aibox.cli_version, "0.16.5");
+        assert!(lock.processkit.is_some());
+    }
+
+    #[test]
+    fn migrate_legacy_lock_files_noop_when_no_aibox_version() {
+        let tmp = TempDir::new().unwrap();
+        // No .aibox-version, no lock — nothing to do.
+        migrate_legacy_lock_files(tmp.path()).unwrap();
+        assert!(!tmp.path().join(".aibox-version").exists());
     }
 
     #[test]
@@ -573,7 +653,7 @@ mod tests {
 
         // Rollback section
         assert!(doc.contains("## Rollback"));
-        assert!(doc.contains("git checkout HEAD -- .aibox-version context/ .devcontainer/"));
+        assert!(doc.contains("git checkout HEAD -- aibox.lock context/ .devcontainer/"));
 
         // Other required sections
         assert!(doc.contains("## Breaking Changes"));
