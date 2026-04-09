@@ -6,6 +6,23 @@ When asked to release version X.Y.Z, follow ALL steps in order.
 
 Before every release, check ALL upstream dependencies for updates.
 
+### processkit
+
+Run the sync command — it queries GitHub for the latest processkit tag, patches
+`PROCESSKIT_DEFAULT_VERSION` in `cli/src/processkit_vocab.rs` if a newer version
+exists, and shows the FORMAT.md diff so you can spot vocabulary changes (new
+categories, renamed source-tree directories, new filename conventions) that
+require CLI changes:
+
+```bash
+./scripts/maintain.sh sync-processkit
+```
+
+If `processkit_vocab.rs` was patched: review the diff, make any required CLI
+changes, run `cargo test`, then commit everything before continuing.
+
+### Tool and base image versions
+
 **Base image (`images/base-debian/Dockerfile`):**
 
 | Dependency | Current | How to check |

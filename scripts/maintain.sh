@@ -480,168 +480,103 @@ cmd_release() {
   info "Running tests..."
   cmd_test
 
-  # ── Step 3: Build CLI for current architecture ─────────────────────────────
-  info "Building CLI (release mode)..."
+  # ── Step 3: Audit dependencies ───────────────────────────────────────────
+  info "Running cargo audit..."
+  command -v cargo-audit &>/dev/null \
+    || (cd "${CLI_DIR}" && cargo install cargo-audit --quiet)
+  (cd "${CLI_DIR}" && cargo audit) \
+    || die "cargo audit found advisories — resolve before releasing"
+  ok "Audit clean"
+
+  # ── Step 4: Build both Linux CLI targets ─────────────────────────────────
+  info "Building CLI (release mode) for all Linux targets..."
   mkdir -p "${DIST_DIR}"
 
-  local arch target binary_name
-  arch=$(uname -m)
-  case "${arch}" in
-    x86_64)  target="x86_64-unknown-linux-gnu" ;;
-    aarch64) target="aarch64-unknown-linux-gnu" ;;
-    *)       target="${arch}-unknown-linux-gnu" ;;
-  esac
+  local linux_targets=("aarch64-unknown-linux-gnu" "x86_64-unknown-linux-gnu")
+  local built_archives=()
 
-  (cd "${CLI_DIR}" && cargo build --release)
-  binary_name="aibox-v${version}-${target}"
-  cp "${CLI_DIR}/target/release/aibox" "${DIST_DIR}/${binary_name}"
-  tar -czf "${DIST_DIR}/${binary_name}.tar.gz" -C "${DIST_DIR}" "${binary_name}"
-  rm "${DIST_DIR}/${binary_name}"
-  ok "Built ${binary_name}.tar.gz"
+  for target in "${linux_targets[@]}"; do
+    info "  → ${target}"
+    (cd "${CLI_DIR}" && \
+      CARGO_TARGET_X86_64_UNKNOWN_LINUX_GNU_LINKER=x86_64-linux-gnu-gcc \
+      cargo build --release --target "${target}") \
+      || die "cargo build failed for ${target}"
+    local binary_name="aibox-v${version}-${target}"
+    cp "${CLI_DIR}/target/${target}/release/aibox" "${DIST_DIR}/${binary_name}"
+    tar -czf "${DIST_DIR}/${binary_name}.tar.gz" -C "${DIST_DIR}" "${binary_name}"
+    rm "${DIST_DIR}/${binary_name}"
+    built_archives+=("${DIST_DIR}/${binary_name}.tar.gz")
+    ok "Built ${binary_name}.tar.gz"
+  done
 
-  # ── Step 4: Build images (if runtime available) ────────────────────────────
-  if [[ -n "${RUNTIME_BIN}" ]]; then
-    info "Building container images..."
-    local flavors=("base-debian")
-    for flavor in "${flavors[@]}"; do
-      ${RUNTIME_BIN} build \
-        -t "${IMAGE_REGISTRY}:${flavor}-v${version}" \
-        -t "${IMAGE_REGISTRY}:${flavor}-latest" \
-        -f "${PROJECT_ROOT}/images/${flavor}/Dockerfile" \
-        "${PROJECT_ROOT}/images/${flavor}/" &>/dev/null
-      ok "Built ${flavor}-v${version}"
-    done
-  else
-    warn "No container runtime — skipping image builds"
+  # ── Step 5: Create and push git tag ──────────────────────────────────────
+  info "Tagging and pushing ${tag}..."
+  git tag -a "${tag}" -m "Release ${tag}"
+  git push origin "${tag}"
+  ok "Tag ${tag} pushed"
+
+  # ── Step 6: Create GitHub release with Linux binaries ────────────────────
+  info "Creating GitHub release ${tag}..."
+  local notes_file="${DIST_DIR}/RELEASE-NOTES.md"
+  # Use hand-written RELEASE-NOTES.md if it exists and covers this version,
+  # otherwise fall back to an auto-generated commit log.
+  if [[ ! -f "${notes_file}" ]] || ! grep -q "${tag}" "${notes_file}" 2>/dev/null; then
+    info "Writing auto-generated release notes..."
+    local prev_tag
+    prev_tag=$(git describe --tags --abbrev=0 "${tag}^" 2>/dev/null || echo "")
+    {
+      echo "# aibox ${tag}"
+      echo ""
+      if [[ -n "${prev_tag}" ]]; then
+        echo "## Changes since ${prev_tag}"
+        echo ""
+        git log --oneline "${prev_tag}..${tag}" | sed 's/^/- /'
+      else
+        git log --oneline "${tag}" | head -20 | sed 's/^/- /'
+      fi
+    } > "${notes_file}"
   fi
 
-  # ── Step 5: Create git tag ────────────────────────────────────────────────
-  info "Creating tag ${tag}..."
-  git tag -a "${tag}" -m "Release ${tag}"
-  ok "Tag ${tag} created (not pushed yet)"
+  gh release create "${tag}" \
+    --title "aibox ${tag}" \
+    --notes-file "${notes_file}" \
+    "${built_archives[@]}"
+  ok "GitHub release ${tag} created with Linux binaries"
 
-  # ── Step 6: Generate release notes ─────────────────────────────────────────
-  info "Generating release notes..."
-  local prev_tag notes_file
-  prev_tag=$(git describe --tags --abbrev=0 "${tag}^" 2>/dev/null || echo "")
-  notes_file="${DIST_DIR}/RELEASE-NOTES.md"
-
-  {
-    echo "# aibox ${tag}"
-    echo ""
-    if [[ -n "${prev_tag}" ]]; then
-      echo "## Changes since ${prev_tag}"
-      echo ""
-      git log --oneline "${prev_tag}..${tag}" | sed 's/^/- /'
-    else
-      echo "## Initial release"
-      echo ""
-      git log --oneline "${tag}" | head -20 | sed 's/^/- /'
-    fi
-    echo ""
-    echo "## Container Images"
-    echo ""
-    echo "| Image | Tag |"
-    echo "|-------|-----|"
-    for flavor in base-debian; do
-      echo "| ${flavor} | \`${IMAGE_REGISTRY}:${flavor}-v${version}\` |"
-    done
-    echo ""
-    echo "## CLI Binaries"
-    echo ""
-    for f in "${DIST_DIR}"/aibox-v${version}-*.tar.gz; do
-      [[ -f "$f" ]] && echo "- $(basename "$f")"
-    done
-  } > "${notes_file}"
-
-  ok "Release notes written to dist/RELEASE-NOTES.md"
-
-  # ── Step 7: Generate release prompt ────────────────────────────────────────
+  # ── Step 7: Generate host-side prompt ────────────────────────────────────
+  # The macOS binaries and container image push must be done by the maintainer
+  # on the macOS host (cross-compilation to Darwin is not possible from Linux;
+  # container runtime is not available inside the devcontainer).
   local prompt_file="${DIST_DIR}/RELEASE-PROMPT.md"
-  local remote_url
-  remote_url=$(git remote get-url origin 2>/dev/null || echo "origin")
-  local repo_slug
-  repo_slug=$(echo "${remote_url}" | sed -E 's|.*[:/]([^/]+/[^/]+)(\.git)?$|\1|' | sed 's/\.git$//')
-
   {
-    echo "# Release Prompt for aibox ${tag}"
+    echo "# Host-side steps for aibox ${tag}"
     echo ""
-    echo "Give this prompt to an AI agent or execute the commands manually."
-    echo ""
-    echo "---"
-    echo ""
-    echo "## Task: Create GitHub Release for aibox ${tag}"
-    echo ""
-    echo "### Step 1: Push the tag"
+    echo "Linux binaries are already uploaded to the GitHub release."
+    echo "Run the following on the macOS host to complete the release:"
     echo ""
     echo "\`\`\`bash"
-    echo "git push origin ${tag}"
+    echo "./scripts/maintain.sh release-host ${version}"
     echo "\`\`\`"
     echo ""
-    echo "### Step 2: Push container images to GHCR"
-    echo ""
-    echo "\`\`\`bash"
-    echo "./scripts/maintain.sh push-images ${version}"
-    echo "\`\`\`"
-    echo ""
-    echo "### Step 3: Create the GitHub release with artifacts"
-    echo ""
-    echo "Use the following command to create the release and attach all CLI binaries:"
-    echo ""
-    echo "\`\`\`bash"
-    echo "gh release create ${tag} \\"
-    echo "  --repo ${repo_slug} \\"
-    echo "  --title \"aibox ${tag}\" \\"
-    echo "  --notes-file dist/RELEASE-NOTES.md \\"
-    # List all artifacts
-    for f in "${DIST_DIR}"/aibox-v${version}-*.tar.gz; do
-      [[ -f "$f" ]] && echo "  \"$f\" \\"
-    done
-    echo ""
-    echo "\`\`\`"
-    echo ""
-    echo "### Step 4: Deploy documentation"
-    echo ""
-    echo "\`\`\`bash"
-    echo "./scripts/maintain.sh docs-deploy"
-    echo "\`\`\`"
-    echo ""
-    echo "### Missing artifacts"
-    echo ""
-    echo "The following targets could not be built from this environment"
-    echo "(build them on the respective platforms and attach to the release):"
-    echo ""
-    # List targets we didn't build
-    local built_target="${target}"
-    for t in x86_64-unknown-linux-gnu aarch64-unknown-linux-gnu x86_64-apple-darwin aarch64-apple-darwin; do
-      if [[ "${t}" != "${built_target}" ]]; then
-        echo "- \`aibox-v${version}-${t}.tar.gz\` — build with:"
-        echo "  \`\`\`"
-        echo "  rustup target add ${t}"
-        echo "  cargo build --release --target ${t}"
-        echo "  cp target/${t}/release/aibox dist/aibox-v${version}-${t}"
-        echo "  tar -czf dist/aibox-v${version}-${t}.tar.gz -C dist aibox-v${version}-${t}"
-        echo "  gh release upload ${tag} dist/aibox-v${version}-${t}.tar.gz"
-        echo "  \`\`\`"
-      fi
-    done
+    echo "This will:"
+    echo "- Build macOS binaries (aarch64-apple-darwin, x86_64-apple-darwin)"
+    echo "- Upload them to the existing GitHub release ${tag}"
+    echo "- Build and push container images to GHCR"
   } > "${prompt_file}"
 
-  ok "Release prompt written to dist/RELEASE-PROMPT.md"
+  ok "Host-side prompt written to dist/RELEASE-PROMPT.md"
 
-  # ── Summary ────────────────────────────────────────────────────────────────
+  # ── Summary ──────────────────────────────────────────────────────────────
   echo ""
-  echo "${bold}Release ${tag} prepared.${reset}"
+  echo "${bold}Release ${tag} complete (Linux side).${reset}"
   echo ""
-  echo "  Artifacts:     ${DIST_DIR}/"
-  for f in "${DIST_DIR}"/aibox-v${version}-*.tar.gz; do
-    [[ -f "$f" ]] && echo "                 $(basename "$f")"
+  echo "  GitHub release: https://github.com/projectious-work/aibox/releases/tag/${tag}"
+  echo "  Linux binaries uploaded:"
+  for a in "${built_archives[@]}"; do
+    echo "    $(basename "${a}")"
   done
-  echo "  Release notes: dist/RELEASE-NOTES.md"
-  echo "  Release prompt: dist/RELEASE-PROMPT.md"
   echo ""
-  echo "  ${bold}Next:${reset} Review dist/RELEASE-PROMPT.md, then give it to"
-  echo "  an AI agent or run the commands yourself."
+  echo "  ${bold}Remaining (macOS host):${reset} ./scripts/maintain.sh release-host ${version}"
 }
 
 # ── Host-side release (run on macOS after container-side `release`) ──────────
