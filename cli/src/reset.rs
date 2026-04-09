@@ -12,7 +12,14 @@ const BACKUP_DIR: &str = ".aibox-backup";
 /// Files and directories managed by aibox.
 /// Each entry: (path, should_delete_on_reset)
 /// .gitignore is backed up but not deleted.
+///
+/// Keep this list in sync with `crate::sync_perimeter::SYNC_PERIMETER`.
+/// Every path that sync or init can CREATE must be deleted here on reset.
+/// For provider directories (.cursor/, .gemini/, …) where aibox owns only
+/// a specific file rather than the whole directory, list only the owned
+/// file/subdirectory so user config in the same directory is left intact.
 const MANAGED_ITEMS: &[(&str, bool)] = &[
+    // ── Core aibox files ────────────────────────────────────────────────
     ("aibox.toml", true),
     ("aibox.lock", true),
     (".devcontainer", true),
@@ -20,7 +27,22 @@ const MANAGED_ITEMS: &[(&str, bool)] = &[
     ("context", true),
     ("CLAUDE.md", true),
     (".gitignore", false),
-    // Backward compat
+    // ── processkit-installed files ───────────────────────────────────────
+    // AGENTS.md is written by processkit at init/sync time; reset must
+    // remove it so the project is back to a pre-aibox state.
+    ("AGENTS.md", true),
+    // ── MCP server registration files (DEC-033, v0.16.5+) ───────────────
+    // .mcp.json is fully owned by aibox. For the per-harness provider
+    // directories, only the specific file/subdir that aibox writes is
+    // listed — the rest of each directory may contain user config.
+    (".mcp.json", true),
+    (".cursor/mcp.json", true),
+    (".gemini/settings.json", true),
+    (".codex/config.toml", true),
+    (".continue/mcpServers", true),
+    // ── Claude Code slash-command adapters (aibox#37, v0.17.3+) ─────────
+    (".claude/commands", true),
+    // ── Backward compat ──────────────────────────────────────────────────
     (".root", true),
     (".aibox", true),
     (".aibox-version", true), // legacy — removed by migrate_legacy_lock_files; still cleaned up on reset
