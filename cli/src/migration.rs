@@ -18,6 +18,8 @@ pub fn check_and_generate_migration() -> Result<()> {
     migrate_legacy_lock_files(Path::new("."))?;
     check_and_generate_migration_in(Path::new("."))?;
     ensure_processkit_section_in(Path::new("."))?;
+    // Migrate old processkit runtime settings out of [context] (processkit v0.8.0+).
+    migrate_processkit_context_settings(Path::new("."))?;
     Ok(())
 }
 
@@ -493,6 +495,251 @@ migration will re-run on the next `aibox sync`.
     Ok(())
 }
 
+// ---------------------------------------------------------------------------
+// processkit v0.8.0 context settings migration
+// ---------------------------------------------------------------------------
+
+/// The aibox-owned keys that belong permanently in `[context]`.
+/// Everything else in `[context]` is a processkit runtime setting that
+/// should live in per-skill `config/settings.toml` files.
+const AIBOX_CONTEXT_KEYS: &[&str] = &["schema_version", "packages"];
+
+/// Migrate old processkit runtime settings out of `aibox.toml [context]`.
+///
+/// processkit v0.8.0 moved runtime configuration from `aibox.toml [context]`
+/// to per-skill config files (`context/skills/<name>/config/settings.toml`).
+/// This migration detects any old keys still present in `[context]` and moves
+/// them to the correct location, then removes them from `aibox.toml`.
+///
+/// **Mappings:**
+/// - `id_format`, `id_slug` → `context/skills/id-management/config/settings.toml` under `[ids]`
+/// - `directories`, `sharding`, `index` → `context/skills/index-management/config/settings.toml`
+/// - `budget`, `grooming`, and any other unrecognised keys → warning, left in place
+///
+/// **Idempotent:** if the target skill config file already exists (the agent
+/// already set it up), the old keys are removed from `aibox.toml` without
+/// overwriting the skill config.
+pub fn migrate_processkit_context_settings(root: &Path) -> Result<()> {
+    let aibox_toml_path = root.join("aibox.toml");
+    if !aibox_toml_path.exists() {
+        return Ok(());
+    }
+
+    // Phase 1 — read raw TOML to extract values (owned data, no borrow conflicts).
+    let raw = fs::read_to_string(&aibox_toml_path)
+        .with_context(|| format!("Failed to read {}", aibox_toml_path.display()))?;
+    let raw_value: toml::Value = toml::from_str(&raw)
+        .with_context(|| "Failed to parse aibox.toml as TOML")?;
+
+    let context_table = match raw_value.get("context").and_then(|v| v.as_table()) {
+        Some(t) => t,
+        None => return Ok(()),
+    };
+
+    // Collect keys that don't belong to aibox.
+    let old_keys: Vec<&str> = context_table
+        .keys()
+        .filter(|k| !AIBOX_CONTEXT_KEYS.contains(&k.as_str()))
+        .map(|k| k.as_str())
+        .collect();
+
+    if old_keys.is_empty() {
+        return Ok(());
+    }
+
+    output::info(&format!(
+        "Found old processkit settings in aibox.toml [context]: {}",
+        old_keys.join(", ")
+    ));
+
+    let date = chrono_free_date();
+
+    // Phase 2 — migrate known keys to per-skill config files.
+    // Keys successfully migrated (to be removed from aibox.toml).
+    let mut remove_keys: Vec<&str> = Vec::new();
+
+    // --- id-management: id_format, id_slug → [ids] -------------------------
+    let id_format = context_table
+        .get("id_format")
+        .and_then(|v| v.as_str())
+        .map(|s| s.to_string());
+    let id_slug = context_table
+        .get("id_slug")
+        .and_then(|v| v.as_bool());
+
+    if id_format.is_some() || id_slug.is_some() {
+        let skill_dir = root
+            .join("context")
+            .join("skills")
+            .join("id-management");
+        let config_dir = skill_dir.join("config");
+        let settings_path = config_dir.join("settings.toml");
+
+        if settings_path.exists() {
+            output::info(
+                "context/skills/id-management/config/settings.toml already exists \
+                 — removing old keys from aibox.toml without overwriting",
+            );
+        } else if skill_dir.is_dir() {
+            fs::create_dir_all(&config_dir).with_context(|| {
+                format!("Failed to create {}", config_dir.display())
+            })?;
+            let content = build_id_management_settings(id_format.as_deref(), id_slug, &date);
+            fs::write(&settings_path, &content).with_context(|| {
+                format!("Failed to write {}", settings_path.display())
+            })?;
+            output::ok(
+                "Migrated id settings → context/skills/id-management/config/settings.toml",
+            );
+        } else {
+            output::warn(
+                "id-management skill is not installed — id_format/id_slug will be \
+                 removed from aibox.toml. Re-run `aibox sync` after installing the skill.",
+            );
+        }
+        if id_format.is_some() {
+            remove_keys.push("id_format");
+        }
+        if id_slug.is_some() {
+            remove_keys.push("id_slug");
+        }
+    }
+
+    // --- index-management: directories, sharding, index → settings.toml ----
+    let has_index_keys = ["directories", "sharding", "index"]
+        .iter()
+        .any(|k| context_table.contains_key(*k));
+
+    if has_index_keys {
+        let skill_dir = root
+            .join("context")
+            .join("skills")
+            .join("index-management");
+        let config_dir = skill_dir.join("config");
+        let settings_path = config_dir.join("settings.toml");
+
+        if settings_path.exists() {
+            output::info(
+                "context/skills/index-management/config/settings.toml already exists \
+                 — removing old keys from aibox.toml without overwriting",
+            );
+        } else if skill_dir.is_dir() {
+            fs::create_dir_all(&config_dir).with_context(|| {
+                format!("Failed to create {}", config_dir.display())
+            })?;
+            let content = build_index_management_settings(context_table, &date)?;
+            fs::write(&settings_path, &content).with_context(|| {
+                format!("Failed to write {}", settings_path.display())
+            })?;
+            output::ok(
+                "Migrated index settings → context/skills/index-management/config/settings.toml",
+            );
+        } else {
+            output::warn(
+                "index-management skill is not installed — directories/sharding/index will be \
+                 removed from aibox.toml. Re-run `aibox sync` after installing the skill.",
+            );
+        }
+        for key in &["directories", "sharding", "index"] {
+            if context_table.contains_key(*key) {
+                remove_keys.push(key);
+            }
+        }
+    }
+
+    // --- Unknown keys -------------------------------------------------------
+    let known_old_keys = [
+        "id_format", "id_slug", "directories", "sharding", "index",
+    ];
+    for key in &old_keys {
+        if !known_old_keys.contains(key) {
+            output::warn(&format!(
+                "aibox.toml [context] has unrecognised processkit key '{}' — \
+                 cannot determine migration target, leaving in place",
+                key
+            ));
+        }
+    }
+
+    // Phase 3 — remove migrated keys from aibox.toml using toml_edit
+    // (preserves comments and formatting of the rest of the file).
+    if remove_keys.is_empty() {
+        return Ok(());
+    }
+
+    let mut doc: toml_edit::DocumentMut = raw
+        .parse()
+        .with_context(|| "Failed to parse aibox.toml with toml_edit")?;
+
+    if let Some(context) = doc["context"].as_table_mut() {
+        for key in &remove_keys {
+            context.remove(key);
+        }
+    }
+
+    fs::write(&aibox_toml_path, doc.to_string())
+        .with_context(|| format!("Failed to write {}", aibox_toml_path.display()))?;
+
+    output::ok(&format!(
+        "Removed {} old processkit key(s) from aibox.toml [context]: {}",
+        remove_keys.len(),
+        remove_keys.join(", ")
+    ));
+
+    Ok(())
+}
+
+/// Build `settings.toml` content for the `id-management` skill.
+fn build_id_management_settings(
+    id_format: Option<&str>,
+    id_slug: Option<bool>,
+    date: &str,
+) -> String {
+    let format_line = id_format
+        .map(|f| format!("format = {:?}  # word | uuid", f))
+        .unwrap_or_else(|| "# format = \"word\"  # word | uuid".to_string());
+    let slug_line = id_slug
+        .map(|s| format!("slug   = {}", s))
+        .unwrap_or_else(|| "# slug = false".to_string());
+
+    format!(
+        "# processkit — id-management settings\n\
+         # Migrated from aibox.toml [context] by aibox sync on {date}\n\
+         \n\
+         [ids]\n\
+         {format_line}\n\
+         {slug_line}\n"
+    )
+}
+
+/// Build `settings.toml` content for the `index-management` skill.
+/// Serialises `directories`, `sharding`, and `index` sub-tables from the
+/// old `[context]` table into the new flat format.
+fn build_index_management_settings(
+    context: &toml::map::Map<String, toml::Value>,
+    date: &str,
+) -> Result<String> {
+    let mut out = format!(
+        "# processkit — index-management settings\n\
+         # Migrated from aibox.toml [context] by aibox sync on {date}\n"
+    );
+
+    for section in &["directories", "index", "sharding"] {
+        let Some(value) = context.get(*section) else {
+            continue;
+        };
+        // Wrap the value under the section key and serialize.
+        let mut wrapper = toml::map::Map::new();
+        wrapper.insert((*section).to_string(), value.clone());
+        let serialized = toml::to_string(&toml::Value::Table(wrapper))
+            .with_context(|| format!("Failed to serialize context.{} to TOML", section))?;
+        out.push('\n');
+        out.push_str(&serialized);
+    }
+
+    Ok(out)
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -897,6 +1144,151 @@ theme = "dracula"
     fn has_processkit_section_ignores_subsection_keys() {
         let src = "[processkit.tools]\nfoo = 1\n";
         assert!(!has_processkit_section(src));
+    }
+
+    // -- processkit context settings migration --------------------------------
+
+    fn write_aibox_toml(dir: &std::path::Path, context_extra: &str) {
+        let content = format!(
+            r#"[aibox]
+version = "0.17.3"
+[container]
+name = "test"
+[context]
+schema_version = "1.0.0"
+packages = ["managed"]
+{context_extra}
+"#
+        );
+        fs::write(dir.join("aibox.toml"), content).unwrap();
+    }
+
+    #[test]
+    fn context_migration_noop_when_no_old_keys() {
+        let tmp = TempDir::new().unwrap();
+        write_aibox_toml(tmp.path(), "");
+        let before = fs::read_to_string(tmp.path().join("aibox.toml")).unwrap();
+        migrate_processkit_context_settings(tmp.path()).unwrap();
+        let after = fs::read_to_string(tmp.path().join("aibox.toml")).unwrap();
+        assert_eq!(before, after, "file should be unchanged when no old keys");
+    }
+
+    #[test]
+    fn context_migration_noop_when_no_aibox_toml() {
+        let tmp = TempDir::new().unwrap();
+        // No aibox.toml — should be a silent no-op.
+        migrate_processkit_context_settings(tmp.path()).unwrap();
+    }
+
+    #[test]
+    fn context_migration_removes_id_keys_from_aibox_toml() {
+        let tmp = TempDir::new().unwrap();
+        write_aibox_toml(tmp.path(), "id_format = \"word\"\nid_slug = false\n");
+
+        // Create the skill directory (but not settings.toml).
+        let skill_config = tmp
+            .path()
+            .join("context/skills/id-management/config");
+        fs::create_dir_all(&skill_config).unwrap();
+
+        migrate_processkit_context_settings(tmp.path()).unwrap();
+
+        let after = fs::read_to_string(tmp.path().join("aibox.toml")).unwrap();
+        assert!(!after.contains("id_format"), "id_format should be removed");
+        assert!(!after.contains("id_slug"), "id_slug should be removed");
+        assert!(after.contains("schema_version"), "schema_version should remain");
+        assert!(after.contains("packages"), "packages should remain");
+
+        // settings.toml should have been written.
+        let settings = fs::read_to_string(skill_config.join("settings.toml")).unwrap();
+        assert!(settings.contains("[ids]"));
+        assert!(settings.contains("format = \"word\""));
+        assert!(settings.contains("slug   = false"));
+    }
+
+    #[test]
+    fn context_migration_skips_write_if_settings_toml_exists() {
+        let tmp = TempDir::new().unwrap();
+        write_aibox_toml(tmp.path(), "id_format = \"uuid\"\n");
+
+        let skill_config = tmp
+            .path()
+            .join("context/skills/id-management/config");
+        fs::create_dir_all(&skill_config).unwrap();
+        let existing = "# already set up by agent\n[ids]\nformat = \"word\"\n";
+        fs::write(skill_config.join("settings.toml"), existing).unwrap();
+
+        migrate_processkit_context_settings(tmp.path()).unwrap();
+
+        // Old key removed from aibox.toml.
+        let after = fs::read_to_string(tmp.path().join("aibox.toml")).unwrap();
+        assert!(!after.contains("id_format"));
+
+        // settings.toml NOT overwritten.
+        let settings = fs::read_to_string(skill_config.join("settings.toml")).unwrap();
+        assert_eq!(settings, existing, "existing settings.toml should not be overwritten");
+    }
+
+    #[test]
+    fn context_migration_handles_directories_sub_table() {
+        let tmp = TempDir::new().unwrap();
+        let extra = "[context.directories]\nWorkItem = \"workitems\"\nLogEntry = \"logs\"\n";
+        // Write as raw file since write_aibox_toml uses format! which won't nest tables cleanly.
+        let content = format!(
+            "[aibox]\nversion = \"0.17.3\"\n[container]\nname = \"t\"\n\
+             [context]\nschema_version = \"1.0.0\"\npackages = [\"managed\"]\n\n{extra}"
+        );
+        fs::write(tmp.path().join("aibox.toml"), content).unwrap();
+
+        let skill_config = tmp
+            .path()
+            .join("context/skills/index-management/config");
+        fs::create_dir_all(&skill_config).unwrap();
+
+        migrate_processkit_context_settings(tmp.path()).unwrap();
+
+        let after = fs::read_to_string(tmp.path().join("aibox.toml")).unwrap();
+        assert!(!after.contains("[context.directories]"), "directories sub-table should be removed");
+
+        let settings = fs::read_to_string(skill_config.join("settings.toml")).unwrap();
+        assert!(settings.contains("[directories]"));
+        assert!(settings.contains("WorkItem"));
+    }
+
+    #[test]
+    fn context_migration_is_idempotent() {
+        let tmp = TempDir::new().unwrap();
+        write_aibox_toml(tmp.path(), "id_format = \"word\"\n");
+
+        let skill_config = tmp
+            .path()
+            .join("context/skills/id-management/config");
+        fs::create_dir_all(&skill_config).unwrap();
+
+        migrate_processkit_context_settings(tmp.path()).unwrap();
+        let after_first = fs::read_to_string(tmp.path().join("aibox.toml")).unwrap();
+
+        migrate_processkit_context_settings(tmp.path()).unwrap();
+        let after_second = fs::read_to_string(tmp.path().join("aibox.toml")).unwrap();
+
+        assert_eq!(after_first, after_second, "second run must be a no-op");
+    }
+
+    #[test]
+    fn context_migration_removed_aibox_toml_remains_valid() {
+        let tmp = TempDir::new().unwrap();
+        write_aibox_toml(tmp.path(), "id_format = \"word\"\nid_slug = true\n");
+
+        let skill_config = tmp
+            .path()
+            .join("context/skills/id-management/config");
+        fs::create_dir_all(&skill_config).unwrap();
+
+        migrate_processkit_context_settings(tmp.path()).unwrap();
+
+        let after = fs::read_to_string(tmp.path().join("aibox.toml")).unwrap();
+        crate::config::AiboxConfig::from_str(&after)
+            .expect("aibox.toml must remain valid after migration");
     }
 
     #[test]

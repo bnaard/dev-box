@@ -3,6 +3,35 @@ use serde::{Deserialize, Deserializer, Serialize};
 use std::collections::HashMap;
 use std::path::{Path, PathBuf};
 
+// ---------------------------------------------------------------------------
+// ExtraVolume — user-defined bind mount
+// ---------------------------------------------------------------------------
+
+/// A user-defined bind mount entry, from `[[container.extra_volumes]]` in
+/// `aibox.toml` or `.aibox-local.toml`.
+///
+/// In TOML:
+/// ```toml
+/// [[container.extra_volumes]]
+/// source = "~/.config/gh"
+/// target = "/home/aibox/.config/gh"
+///
+/// [[container.extra_volumes]]
+/// source = "~/.aws"
+/// target = "/home/aibox/.aws"
+/// read_only = true
+/// ```
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+pub struct ExtraVolume {
+    /// Host-side path. Supports `~` expansion by Docker Compose. No `..` allowed.
+    pub source: String,
+    /// Container-side absolute path. Must start with `/`. No `..` allowed.
+    pub target: String,
+    /// Mount read-only. Defaults to false.
+    #[serde(default)]
+    pub read_only: bool,
+}
+
 /// Container image registry base URL.
 pub const IMAGE_REGISTRY: &str = "ghcr.io/projectious-work/aibox";
 
@@ -68,6 +97,26 @@ pub struct ContainerSection {
     /// Network keepalive — prevents OrbStack/VM NAT from dropping idle connections.
     #[serde(default)]
     pub keepalive: bool,
+    /// Extra environment variables injected into the container.
+    /// Committed entries go in `aibox.toml`; secrets go in `.aibox-local.toml`.
+    ///
+    /// ```toml
+    /// [container.environment]
+    /// AWS_DEFAULT_REGION = "eu-west-1"
+    /// ```
+    #[serde(default)]
+    pub environment: HashMap<String, String>,
+    /// Additional bind mounts beyond the aibox defaults.
+    /// Committed entries (shared caches) go in `aibox.toml`; personal credential
+    /// directories go in `.aibox-local.toml` (gitignored).
+    ///
+    /// ```toml
+    /// [[container.extra_volumes]]
+    /// source = "~/.config/gh"
+    /// target = "/home/aibox/.config/gh"
+    /// ```
+    #[serde(default)]
+    pub extra_volumes: Vec<ExtraVolume>,
 }
 
 fn default_user() -> String {
@@ -512,6 +561,50 @@ fn default_processkit_src_path() -> String {
 /// Sentinel version value meaning "no processkit version pinned yet".
 pub const PROCESSKIT_VERSION_UNSET: &str = "unset";
 
+// ---------------------------------------------------------------------------
+// .aibox-local.toml — gitignored personal overlay
+// ---------------------------------------------------------------------------
+
+/// Personal, gitignored overlay that merges on top of `aibox.toml`.
+///
+/// Only a subset of the config is overridable locally — specifically the fields
+/// that vary per developer (credentials, personal mount paths). Shared settings
+/// like container name, aibox version, and addon list stay in `aibox.toml`.
+///
+/// Location: `.aibox-local.toml` in the project root (same dir as `aibox.toml`).
+/// This file is added to `.gitignore` by `aibox init` / `aibox sync`.
+///
+/// Example `.aibox-local.toml`:
+/// ```toml
+/// [container.environment]
+/// GH_TOKEN            = "ghp_..."
+/// ANTHROPIC_API_KEY   = "sk-ant-..."
+///
+/// [[container.extra_volumes]]
+/// source = "~/.config/gh"
+/// target = "/home/aibox/.config/gh"
+///
+/// [[container.extra_volumes]]
+/// source = "~/.aws"
+/// target = "/home/aibox/.aws"
+/// ```
+#[derive(Debug, Clone, Deserialize, Default)]
+pub struct AiboxLocalConfig {
+    #[serde(default)]
+    pub container: LocalContainerSection,
+}
+
+/// The `[container]` sub-section of `.aibox-local.toml`.
+#[derive(Debug, Clone, Deserialize, Default)]
+pub struct LocalContainerSection {
+    /// Environment variables to inject — merged with (and override) `aibox.toml` entries.
+    #[serde(default)]
+    pub environment: HashMap<String, String>,
+    /// Additional bind mounts — appended after `aibox.toml` extra_volumes.
+    #[serde(default)]
+    pub extra_volumes: Vec<ExtraVolume>,
+}
+
 impl Default for ProcessKitSection {
     fn default() -> Self {
         Self {
@@ -708,16 +801,69 @@ impl AiboxConfig {
         }
     }
 
-    /// Load from ./aibox.toml or return an error if not found.
+    /// Load from ./aibox.toml, then merge .aibox-local.toml if present.
+    ///
+    /// `.aibox-local.toml` is a gitignored personal overlay for per-developer
+    /// settings (credentials, personal mount paths). Its `[container.environment]`
+    /// entries are merged into the base config (local wins on key conflicts) and its
+    /// `[[container.extra_volumes]]` entries are appended after the base ones.
     pub fn load_or_default() -> Result<Self> {
         let path = PathBuf::from("aibox.toml");
-        if path.exists() {
-            Self::load(&path)
-        } else {
+        if !path.exists() {
             bail!(
                 "No aibox.toml found in the current directory. Run 'aibox init' to create one."
-            )
+            );
         }
+        let mut config = Self::load(&path)?;
+
+        // Merge .aibox-local.toml if present (gitignored personal overlay).
+        let local_path = PathBuf::from(".aibox-local.toml");
+        if local_path.exists() {
+            let local_content = std::fs::read_to_string(&local_path)
+                .context("Failed to read .aibox-local.toml")?;
+            let local: AiboxLocalConfig = toml::from_str(&local_content)
+                .context("Failed to parse .aibox-local.toml")?;
+            // Environment: local wins on key conflicts.
+            config.container.environment.extend(local.container.environment);
+            // Extra volumes: additive.
+            config.container.extra_volumes.extend(local.container.extra_volumes);
+            // Validate merged extra_volumes from both sources.
+            config.validate_extra_volumes()?;
+        }
+
+        Ok(config)
+    }
+
+    /// Validate all `[[container.extra_volumes]]` entries for path safety.
+    /// Called after merging `.aibox-local.toml` so both sources are covered.
+    fn validate_extra_volumes(&self) -> Result<()> {
+        for vol in &self.container.extra_volumes {
+            if vol.source.is_empty() {
+                bail!("container.extra_volumes entry has an empty 'source'");
+            }
+            if vol.target.is_empty() {
+                bail!("container.extra_volumes entry has an empty 'target'");
+            }
+            if vol.source.contains("..") {
+                bail!(
+                    "container.extra_volumes source '{}' must not contain '..'",
+                    vol.source
+                );
+            }
+            if vol.target.contains("..") {
+                bail!(
+                    "container.extra_volumes target '{}' must not contain '..'",
+                    vol.target
+                );
+            }
+            if !vol.target.starts_with('/') {
+                bail!(
+                    "container.extra_volumes target '{}' must be an absolute path (start with '/')",
+                    vol.target
+                );
+            }
+        }
+        Ok(())
     }
 
     /// Parse config from a TOML string. Useful for testing and programmatic use.
@@ -838,6 +984,9 @@ impl AiboxConfig {
 
         // Validate [processkit]
         self.validate_processkit()?;
+
+        // Validate extra volumes path safety
+        self.validate_extra_volumes()?;
 
         Ok(())
     }
@@ -976,6 +1125,8 @@ pub fn test_config() -> AiboxConfig {
             user: "root".to_string(),
             post_create_command: None,
             keepalive: false,
+            environment: HashMap::new(),
+            extra_volumes: vec![],
         },
         context: ContextSection::default(),
         ai: AiSection::default(),
@@ -1908,5 +2059,128 @@ branch = ""
             aider_tools.contains_key("aider"),
             "should preserve user-configured tool entry"
         );
+    }
+
+    // -- ExtraVolume / .aibox-local.toml tests --------------------------------
+
+    #[test]
+    fn extra_volumes_parse_from_toml() {
+        let toml = r#"
+[aibox]
+version = "0.9.0"
+[container]
+name = "test"
+
+[[container.extra_volumes]]
+source = "~/.config/gh"
+target = "/home/aibox/.config/gh"
+
+[[container.extra_volumes]]
+source = "~/.aws"
+target = "/home/aibox/.aws"
+read_only = true
+"#;
+        let config = AiboxConfig::from_str(toml).unwrap();
+        assert_eq!(config.container.extra_volumes.len(), 2);
+        assert_eq!(config.container.extra_volumes[0].source, "~/.config/gh");
+        assert_eq!(config.container.extra_volumes[0].target, "/home/aibox/.config/gh");
+        assert!(!config.container.extra_volumes[0].read_only);
+        assert!(config.container.extra_volumes[1].read_only);
+    }
+
+    #[test]
+    fn environment_parses_from_toml() {
+        let toml = r#"
+[aibox]
+version = "0.9.0"
+[container]
+name = "test"
+
+[container.environment]
+GH_TOKEN = "ghp_abc"
+MY_VAR = "hello"
+"#;
+        let config = AiboxConfig::from_str(toml).unwrap();
+        assert_eq!(config.container.environment.get("GH_TOKEN").map(|s| s.as_str()), Some("ghp_abc"));
+        assert_eq!(config.container.environment.get("MY_VAR").map(|s| s.as_str()), Some("hello"));
+    }
+
+    #[test]
+    fn extra_volumes_rejects_dotdot_in_source() {
+        let toml = r#"
+[aibox]
+version = "0.9.0"
+[container]
+name = "test"
+[[container.extra_volumes]]
+source = "../../../etc/passwd"
+target = "/home/aibox/passwd"
+"#;
+        let result = AiboxConfig::from_str(toml);
+        // from_str calls validate() which calls validate_extra_volumes()
+        assert!(result.is_err(), "should reject .. in source");
+    }
+
+    #[test]
+    fn extra_volumes_rejects_relative_target() {
+        let toml = r#"
+[aibox]
+version = "0.9.0"
+[container]
+name = "test"
+[[container.extra_volumes]]
+source = "~/.config/gh"
+target = "home/aibox/.config/gh"
+"#;
+        let result = AiboxConfig::from_str(toml);
+        assert!(result.is_err(), "should reject non-absolute target");
+    }
+
+    #[test]
+    fn aibox_local_toml_merges_environment_and_volumes() {
+        let tmp = tempfile::tempdir().unwrap();
+        let dir = tmp.path();
+
+        // Write aibox.toml
+        std::fs::write(
+            dir.join("aibox.toml"),
+            r#"
+[aibox]
+version = "0.9.0"
+[container]
+name = "test"
+[container.environment]
+SHARED = "from-main"
+"#,
+        )
+        .unwrap();
+
+        // Write .aibox-local.toml
+        std::fs::write(
+            dir.join(".aibox-local.toml"),
+            r#"
+[container.environment]
+GH_TOKEN = "ghp_secret"
+SHARED = "local-wins"
+
+[[container.extra_volumes]]
+source = "~/.config/gh"
+target = "/home/aibox/.config/gh"
+"#,
+        )
+        .unwrap();
+
+        // Load from the temp dir
+        let orig = std::env::current_dir().unwrap();
+        std::env::set_current_dir(dir).unwrap();
+        let config = AiboxConfig::load_or_default().unwrap();
+        std::env::set_current_dir(orig).unwrap();
+
+        // Local env merged: GH_TOKEN added, SHARED overridden by local
+        assert_eq!(config.container.environment.get("GH_TOKEN").map(|s| s.as_str()), Some("ghp_secret"));
+        assert_eq!(config.container.environment.get("SHARED").map(|s| s.as_str()), Some("local-wins"));
+        // Volume appended
+        assert_eq!(config.container.extra_volumes.len(), 1);
+        assert_eq!(config.container.extra_volumes[0].source, "~/.config/gh");
     }
 }

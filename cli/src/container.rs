@@ -885,6 +885,8 @@ pub fn cmd_init(config_path: &Option<String>, params: InitParams) -> Result<()> 
             user: container_user,
             post_create_command: None,
             keepalive: false,
+            environment: std::collections::HashMap::new(),
+            extra_volumes: vec![],
         },
         context: ContextSection {
             packages: process_packages,

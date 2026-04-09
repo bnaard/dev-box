@@ -1043,6 +1043,8 @@ mod tests {
                 user: "aibox".to_string(),
                 post_create_command: None,
                 keepalive: false,
+                environment: std::collections::HashMap::new(),
+                extra_volumes: vec![],
             },
             context: ContextSection::default(),
             ai: AiSection {

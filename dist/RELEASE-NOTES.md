@@ -1,32 +1,73 @@
-# aibox v0.17.2
+# aibox v0.17.4
 
-## What's new
+Patch release adding user-extensible bind mounts, personal credential overlays,
+and automatic migration of old processkit runtime settings out of `aibox.toml`.
 
-### processkit v0.6.0 compatibility
+## New features
 
-aibox is now fully aligned with processkit v0.6.0:
+### User-extensible bind mounts (`[[container.extra_volumes]]`)
 
-- **`core: true` skill enforcement** — skills marked `metadata.processkit.core: true` (e.g. `skill-finder`) are installed unconditionally regardless of `[skills].include`/`[skills].exclude`. `aibox doctor` warns when a core skill appears in your exclude list.
-- **Updated default version** — `PROCESSKIT_DEFAULT_VERSION` bumped to `v0.6.0` across all test fixtures and documentation.
+Projects can now declare additional bind mounts in `aibox.toml`:
 
-### Central constants module (`processkit_vocab.rs`)
+```toml
+[[container.extra_volumes]]
+source = "/home/user/.local/share/fish"
+target = "/home/aibox/.local/share/fish"
 
-All processkit-related compile-time vocabulary is now consolidated in a single module:
+[[container.extra_volumes]]
+source = "/data/models"
+target = "/home/aibox/models"
+read_only = true
+```
 
-- Path constants: `TEMPLATES_PROCESSKIT_DIR`, `LIVE_SKILLS_DIR`, `LIVE_SCHEMAS_DIR`, `LIVE_STATE_MACHINES_DIR`, `LIVE_PROCESSES_DIR`, `LIVE_LIB_DIR`
-- Filename constants: `SKILL_FILENAME`, `PROVENANCE_FILENAME`, `FORMAT_FILENAME`, `INDEX_FILENAME`, `AGENTS_FILENAME`
-- Source tree segments: `processkit_vocab::src::{SKILLS, PRIMITIVES, SCHEMAS, STATE_MACHINES, PROCESSES, LIB, SCAFFOLDING, PACKAGES}`
-- URL constant: `PROCESSKIT_GIT_SOURCE`
-- Category vocabulary: `CATEGORY_ORDER`, `category_sort_index()`
-- Shared frontmatter types: `SkillFrontmatter`, `SkillProcesskitMeta` (with `core: bool`), `parse_skill_frontmatter()`
+Volumes are appended after the built-in aibox mounts in `docker-compose.yml`.
+Path traversal (`..`) is rejected at load time.
 
-All production code that previously embedded these as string/numeric literals now references the central constants. This eliminates an entire class of copy-paste drift bugs.
+### Personal credential overlay (`.aibox-local.toml`)
 
-### Docs trimmed to aibox's perimeter
+A gitignored `.aibox-local.toml` file can be placed alongside `aibox.toml` to
+declare per-developer credentials and extra mounts without touching the shared
+config:
 
-Skill and process documentation that belongs to processkit's domain has been removed from the aibox docs site. The skills and process-packages pages now point to the upstream processkit docs (placeholder link, pending processkit doc-site launch) rather than duplicating content that processkit owns.
+```toml
+[container.environment]
+GITHUB_TOKEN = "ghp_..."
+OPENAI_API_KEY = "sk-..."
 
-## Upgrade notes
+[[container.extra_volumes]]
+source = "/home/user/.config/gh"
+target = "/home/aibox/.config/gh"
+```
 
-- Run `aibox sync` after upgrading to pick up changes
-- If you are a processkit consumer: pin `[processkit].version = "v0.6.0"` in your `aibox.toml` and run `aibox sync` to install the v0.6.0 content set (sharded entities, privacy controls, sqlite index, `skill-finder` as a core skill)
+Environment variables from `.aibox-local.toml` win on conflict with `aibox.toml`.
+Extra volumes are additive. `aibox context` now warns if `.aibox-local.toml` is
+missing from `.gitignore`.
+
+### Cargo registry mounts (rust addon)
+
+When the `rust` addon is enabled, `aibox sync` now mounts the host cargo
+registry into the container to avoid re-downloading crates on rebuild:
+
+```
+~/.cargo/registry  →  /home/aibox/.cargo/registry
+~/.cargo/git       →  /home/aibox/.cargo/git
+```
+
+Only the registry cache is mounted — `~/.cargo/bin` is intentionally excluded
+because host-compiled binaries won't run inside the container.
+
+## Migration: processkit runtime settings (aibox#38)
+
+`aibox sync` now detects and migrates old processkit runtime settings that were
+previously written directly into `aibox.toml [context]`:
+
+| Old key in `[context]`         | Migrated to                                              |
+|-------------------------------|----------------------------------------------------------|
+| `id_format`, `id_slug`        | `context/skills/id-management/config/settings.toml`     |
+| `directories`, `sharding`, `index` | `context/skills/index-management/config/settings.toml` |
+
+After migration the keys are removed from `aibox.toml` while preserving all
+comments and formatting. The migration is idempotent — if a `settings.toml`
+already exists (agent already set it up), the old keys are removed without
+overwriting the file. Unknown keys (`budget`, `grooming`, …) are left in place
+with a warning.

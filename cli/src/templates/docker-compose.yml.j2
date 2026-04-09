@@ -54,6 +54,20 @@ services:
       # ALSA → PulseAudio bridge config
       - {{ host_root }}/.asoundrc:{{ container_home }}/.asoundrc
 {% endif %}
+{% if has_rust %}
+      # Cargo registry cache — avoids re-downloading crates on rebuild.
+      # Only registry/ and git/ are mounted; bin/ stays in the image (host binaries
+      # won't run in the container).
+      - {{ host_root }}/.cargo/registry:{{ container_home }}/.cargo/registry
+      - {{ host_root }}/.cargo/git:{{ container_home }}/.cargo/git
+{% endif %}
+{% for vol in extra_volumes %}
+{% if vol.read_only %}
+      - {{ vol.source }}:{{ vol.target }}:ro
+{% else %}
+      - {{ vol.source }}:{{ vol.target }}
+{% endif %}
+{% endfor %}
     environment:
 {% for key in env_keys %}
       {{ key }}: "{{ env_vals[key] }}"

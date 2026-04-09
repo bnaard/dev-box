@@ -147,6 +147,12 @@ fn generate_docker_compose(
         format!("{}/.config/git/config", container_home),
     );
 
+    // Merge user-defined environment variables (from aibox.toml and .aibox-local.toml).
+    // User vars are inserted after the system vars so they can override if needed.
+    for (k, v) in &config.container.environment {
+        env_vars.insert(k.clone(), v.clone());
+    }
+
     // Escape values for YAML double-quoted strings
     let escaped_env: BTreeMap<String, String> = env_vars
         .iter()
@@ -157,6 +163,12 @@ fn generate_docker_compose(
         .collect();
 
     let env_keys: Vec<String> = escaped_env.keys().cloned().collect();
+
+    // Extra volumes from aibox.toml + .aibox-local.toml
+    let extra_volumes = &config.container.extra_volumes;
+
+    // Rust addon flag — drives cargo registry mounts in the template
+    let has_rust = config.addons.has_rust();
 
     let tmpl = env
         .get_template("docker-compose.yml")
@@ -174,6 +186,8 @@ fn generate_docker_compose(
             ai_providers => ai_providers,
             env_keys => env_keys,
             env_vals => escaped_env,
+            extra_volumes => extra_volumes,
+            has_rust => has_rust,
         })
         .context("Failed to render docker-compose template")?;
 

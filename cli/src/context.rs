@@ -461,6 +461,9 @@ fn ensure_aibox_entries(gitignore_path: &Path) -> Result<()> {
         ".aibox-home/",
         ".aibox-backup/",
         ".aibox-env/",
+        // Personal overlay with credentials and per-developer mounts.
+        // Never committed — secrets live here.
+        ".aibox-local.toml",
         // Runtime cache for fetched processkit / aibox content.
         // Reproducible from aibox.lock; never tracked.
         "context/.cache/",
@@ -547,6 +550,12 @@ pub fn check_gitignore_entries() -> Vec<String> {
     if !lines.contains(&".aibox-home/") && !lines.contains(&".root/") {
         warnings
             .push(".gitignore missing '.aibox-home/' (persisted config directory)".to_string());
+    }
+
+    if !lines.contains(&".aibox-local.toml") {
+        warnings.push(
+            ".gitignore missing '.aibox-local.toml' (personal credential overlay)".to_string(),
+        );
     }
 
     warnings
