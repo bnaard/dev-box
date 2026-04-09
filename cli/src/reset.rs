@@ -41,7 +41,11 @@ const MANAGED_ITEMS: &[(&str, bool)] = &[
     (".codex/config.toml", true),
     (".continue/mcpServers", true),
     // ── Claude Code slash-command adapters (aibox#37, v0.17.3+) ─────────
-    (".claude/commands", true),
+    // .claude/commands/ is NOT deleted wholesale: users may have their own
+    // custom commands there. Only the specific files aibox installed are
+    // removed (see selective cleanup in cmd_reset via remove_managed_commands).
+    // The directory is still backed up so users can restore any content.
+    (".claude/commands", false),
     // ── Backward compat ──────────────────────────────────────────────────
     (".root", true),
     (".aibox", true),
@@ -372,6 +376,16 @@ pub fn cmd_reset(
                 output::ok(&format!("Backed up {}", item.path.display()));
             }
         }
+    }
+
+    // Selectively remove aibox-managed command files from .claude/commands/
+    // BEFORE the delete phase removes context/ (which contains the templates
+    // mirror we need to know which filenames are ours). User-authored commands
+    // in the same directory are left untouched. Best-effort: failure is
+    // warned-and-continued so a missing mirror doesn't abort the whole reset.
+    let cwd = std::env::current_dir().unwrap_or_default();
+    if let Err(e) = crate::claude_commands::remove_managed_commands(&cwd, &config) {
+        output::warn(&format!("Could not clean .claude/commands/: {}", e));
     }
 
     // Delete phase

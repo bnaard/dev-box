@@ -182,6 +182,67 @@ fn collect_live_commands(skills_dir: &Path) -> HashMap<String, std::path::PathBu
     map
 }
 
+/// Remove only the processkit-managed command files from `.claude/commands/`,
+/// then remove the directory itself if it is empty afterwards.
+///
+/// Called by `aibox reset` so user-authored commands in `.claude/commands/`
+/// are preserved. The "managed set" is derived from the templates mirror (the
+/// same source used by `sync_claude_commands`), so any file whose name appears
+/// in the mirror is considered aibox-managed and is eligible for removal.
+///
+/// If the templates mirror is absent (e.g. processkit was never installed or
+/// the context/ directory was already deleted), the function is a no-op —
+/// the caller is responsible for removing the rest of context/ in that case.
+pub fn remove_managed_commands(project_root: &Path, config: &AiboxConfig) -> Result<()> {
+    let pk_version = &config.processkit.version;
+    if pk_version == PROCESSKIT_VERSION_UNSET {
+        return Ok(());
+    }
+
+    let mirror_skills_dir = project_root
+        .join(TEMPLATES_PROCESSKIT_DIR)
+        .join(pk_version)
+        .join("skills");
+
+    let universe = collect_command_filenames(&mirror_skills_dir);
+    if universe.is_empty() {
+        return Ok(());
+    }
+
+    let claude_commands_dir = project_root.join(".claude").join("commands");
+    if !claude_commands_dir.is_dir() {
+        return Ok(());
+    }
+
+    let mut removed = 0usize;
+    for filename in &universe {
+        let path = claude_commands_dir.join(filename);
+        if path.is_file() {
+            std::fs::remove_file(&path)
+                .with_context(|| format!("failed to remove {}", path.display()))?;
+            removed += 1;
+        }
+    }
+
+    // Remove the directory only if it is now empty (no user files remain).
+    let is_empty = std::fs::read_dir(&claude_commands_dir)
+        .map(|mut d| d.next().is_none())
+        .unwrap_or(false);
+    if is_empty {
+        std::fs::remove_dir(&claude_commands_dir)
+            .with_context(|| format!("failed to remove {}", claude_commands_dir.display()))?;
+    }
+
+    if removed > 0 {
+        output::ok(&format!(
+            "Removed {} managed command file(s) from .claude/commands/",
+            removed
+        ));
+    }
+
+    Ok(())
+}
+
 // ---------------------------------------------------------------------------
 // Tests
 // ---------------------------------------------------------------------------
