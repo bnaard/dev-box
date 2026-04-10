@@ -808,7 +808,9 @@ fn serialize_config_with_comments(config: &AiboxConfig) -> String {
     );
     out.push_str("# by changing `source` to point at their fork.\n");
     out.push_str("#\n");
-    out.push_str("# `version` is the git tag of the processkit source to consume. Special values:\n");
+    out.push_str(
+        "# `version` is the git tag of the processkit source to consume. Special values:\n",
+    );
     out.push_str("#   \"unset\"  — no version pinned yet; processkit content is not installed.\n");
     out.push_str("#   \"latest\" — resolve to the newest available tag at every `aibox sync`.\n");
     out.push_str("[processkit]\n");
