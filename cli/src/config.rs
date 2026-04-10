@@ -559,6 +559,8 @@ fn default_processkit_src_path() -> String {
 
 /// Sentinel version value meaning "no processkit version pinned yet".
 pub const PROCESSKIT_VERSION_UNSET: &str = "unset";
+/// Sentinel value meaning "resolve to the latest available tag at sync time".
+pub const PROCESSKIT_VERSION_LATEST: &str = "latest";
 
 // ---------------------------------------------------------------------------
 // .aibox-local.toml — gitignored personal overlay
@@ -1018,7 +1020,7 @@ impl AiboxConfig {
         // version: allow the "unset" sentinel, OR a leading-`v` semver-ish
         // tag, OR a bare semver string. We don't pin to strict semver because
         // git tags vary; just sanity check.
-        if pk.version != PROCESSKIT_VERSION_UNSET {
+        if pk.version != PROCESSKIT_VERSION_UNSET && pk.version != PROCESSKIT_VERSION_LATEST {
             let stripped = pk.version.strip_prefix('v').unwrap_or(&pk.version);
             // Either parses as semver, or matches a relaxed `numbers + dots`
             // shape (e.g. "0.4", "1.0.0-rc1").
@@ -1031,7 +1033,7 @@ impl AiboxConfig {
             if !semver_ok && !relaxed_ok {
                 bail!(
                     "processkit.version '{}' is not a valid version tag. \
-                     Use the sentinel \"unset\", a semver string like \"0.4.0\", \
+                     Use the sentinel \"unset\", \"latest\", a semver string like \"0.4.0\", \
                      or a tag like \"v0.4.0\".",
                     pk.version
                 );

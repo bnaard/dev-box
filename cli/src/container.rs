@@ -75,7 +75,9 @@ fn sync_should_install_processkit(
     config_source: &str,
     lock_pair: Option<(&str, &str)>,
 ) -> bool {
-    if config_version == crate::config::PROCESSKIT_VERSION_UNSET {
+    if config_version == crate::config::PROCESSKIT_VERSION_UNSET
+        || config_version == crate::config::PROCESSKIT_VERSION_LATEST
+    {
         return false;
     }
     match lock_pair {
@@ -616,7 +618,7 @@ fn serialize_config_with_comments(config: &AiboxConfig) -> String {
         "version = {:20} # Target aibox CLI version. Update this when intentionally upgrading aibox.\n",
         format!("\"{}\"", config.aibox.version)
     ));
-    out.push_str("                               # aibox sync will warn if the running CLI version differs from this value.\n");
+    out.push_str("                               # Use \"latest\" to always track the newest release without pinning.\n");
     out.push_str(&format!(
         "base    = {:20} # Base image flavor. Options: debian\n",
         format!("\"{}\"", config.aibox.base)
@@ -806,9 +808,9 @@ fn serialize_config_with_comments(config: &AiboxConfig) -> String {
     );
     out.push_str("# by changing `source` to point at their fork.\n");
     out.push_str("#\n");
-    out.push_str("# `version` is the git tag of the processkit source to consume. The sentinel\n");
-    out.push_str("# value \"unset\" means \"no version pinned yet\" — the project doesn't yet\n");
-    out.push_str("# consume processkit content.\n");
+    out.push_str("# `version` is the git tag of the processkit source to consume. Special values:\n");
+    out.push_str("#   \"unset\"  — no version pinned yet; processkit content is not installed.\n");
+    out.push_str("#   \"latest\" — resolve to the newest available tag at every `aibox sync`.\n");
     out.push_str("[processkit]\n");
     out.push_str(&format!("source   = \"{}\"\n", config.processkit.source));
     out.push_str(&format!("version  = \"{}\"\n", config.processkit.version));
@@ -1070,18 +1072,53 @@ pub fn cmd_sync(config_path: &Option<String>, no_cache: bool, no_build: bool) ->
     // Check for version migration before any other sync steps
     crate::migration::check_and_generate_migration()?;
 
-    let config = AiboxConfig::from_cli_option(config_path)?;
+    let mut config = AiboxConfig::from_cli_option(config_path)?;
 
-    // Feature 1: warn if running CLI version differs from the pinned target version
-    if !config.aibox.version.is_empty() && config.aibox.version != env!("CARGO_PKG_VERSION") {
+    // Resolve [processkit].version = "latest" to a concrete tag before any
+    // further processing. The lock always stores a concrete version; "latest"
+    // is an aibox.toml-only convenience that is never written to the lock.
+    if config.processkit.version == crate::config::PROCESSKIT_VERSION_LATEST {
+        match crate::content_source::list_versions(&config.processkit.source) {
+            Ok(versions) if !versions.is_empty() => {
+                let resolved = versions[0].clone();
+                output::info(&format!(
+                    "Resolved processkit 'latest' \u{2192} {}",
+                    resolved
+                ));
+                config.processkit.version = resolved;
+            }
+            Ok(_) => {
+                crate::output::warn(
+                    "processkit.version = \"latest\" but no versions found at source; \
+                     skipping processkit install. Set an explicit version in aibox.toml.",
+                );
+            }
+            Err(e) => {
+                crate::output::warn(&format!(
+                    "processkit.version = \"latest\" but version resolution failed: {}. \
+                     Skipping processkit install. Check your network or set an explicit version.",
+                    e
+                ));
+            }
+        }
+    }
+
+    // Warn if running CLI version differs from the pinned target version.
+    // Skip when version = "latest" (user explicitly opts out of pinning).
+    let aibox_version_pin = &config.aibox.version;
+    if !aibox_version_pin.is_empty()
+        && aibox_version_pin != "latest"
+        && aibox_version_pin != env!("CARGO_PKG_VERSION")
+    {
         crate::output::warn(&format!(
             "aibox.toml pins version {} but you are running {} — consider updating [aibox].version",
-            config.aibox.version,
+            aibox_version_pin,
             env!("CARGO_PKG_VERSION")
         ));
     }
 
-    // Warn if processkit version is below minimum for this aibox
+    // Warn if processkit version is below minimum for this aibox.
+    // Skip when version was "latest" (already resolved to the newest available).
     let current_aibox = env!("CARGO_PKG_VERSION");
     if let Some(compat) = crate::compat::min_processkit_for(current_aibox)
         && !crate::compat::processkit_meets_minimum(

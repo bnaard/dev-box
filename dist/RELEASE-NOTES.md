@@ -1,22 +1,41 @@
-# aibox v0.17.8
+# aibox v0.17.9
 
-Patch release: migration briefing fix for sequential vs duplicate migration files.
+Feature release: `"latest"` sentinel for version fields in `aibox.toml`.
 No processkit version change — still compatible with v0.8.0.
 
-## Migration briefing: sequential vs duplicate files
+## `"latest"` sentinel for version fields
 
-Fixes a gap in agent guidance when multiple CLI migration documents exist in
-`context/migrations/`.
+You can now set `version = "latest"` in `aibox.toml` for both version fields
+instead of updating the pin after every release.
 
-**The scenario:** An agent never reviewed the `0.17.5→0.17.6` migration document.
-The owner then upgraded to v0.17.7, creating a `0.17.6→0.17.7` document. Under the
-previous guidance ("the last file is authoritative, close earlier ones"), the agent
-would discard the `0.17.5→0.17.6` document — missing the changes from that release.
+### `[aibox].version = "latest"`
 
-**The fix:** The checklist now distinguishes two cases:
+```toml
+[aibox]
+version = "latest"
+```
 
-- **Same `from→to` range** (e.g. two `0.17.5-to-0.17.6.md` files from retried syncs):
-  the most recent is authoritative; mark older ones as cancelled
-- **Different ranges** (e.g. `0.17.5-to-0.17.6.md` alongside `0.17.6-to-0.17.7.md`):
-  these are sequential migrations — both must be reviewed in chronological order,
-  neither should be discarded
+`aibox sync` suppresses the version-mismatch warning when set to `"latest"`.
+Use this if you always want to run the newest aibox CLI without being prompted
+to update the pin.
+
+### `[processkit].version = "latest"`
+
+```toml
+[processkit]
+version = "latest"
+```
+
+`aibox sync` resolves `"latest"` to the newest available tag at the source
+before installing:
+
+```
+==> Resolved processkit 'latest' → v0.8.0
+```
+
+The resolved concrete version is written to `aibox.lock`; `"latest"` stays
+in `aibox.toml`. The lock remains fully reproducible — a second developer
+running sync on the same day gets the same concrete version from the lock.
+
+Network errors or an empty tag list produce a warning and skip the install
+rather than failing hard.

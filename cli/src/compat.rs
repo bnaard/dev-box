@@ -75,6 +75,11 @@ pub static COMPAT_TABLE: &[CompatEntry] = &[
         processkit_version: "v0.8.0",
         note: "migration briefing: distinguish sequential vs duplicate migrations",
     },
+    CompatEntry {
+        aibox_version: "0.17.9",
+        processkit_version: "v0.8.0",
+        note: "\"latest\" sentinel for aibox and processkit version fields",
+    },
 ];
 
 /// Find the minimum compatible processkit version for the given aibox version.
