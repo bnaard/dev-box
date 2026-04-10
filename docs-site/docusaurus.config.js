@@ -17,6 +17,14 @@ const config = {
   onBrokenLinks: 'warn',
   onBrokenMarkdownLinks: 'warn',
   i18n: { defaultLocale: 'en', locales: ['en'] },
+  stylesheets: [
+    '/aibox/player/asciinema-player.css',
+    '/aibox/player/asciinema-fonts.css',
+  ],
+  scripts: [
+    { src: '/aibox/player/asciinema-player.min.js', async: false },
+    { src: '/aibox/player/asciinema-init.js', defer: true },
+  ],
   markdown: {
     format: 'detect',
   },

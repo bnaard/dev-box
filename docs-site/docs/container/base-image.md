@@ -87,13 +87,13 @@ aibox ships three IDE layouts. Select one with `aibox start --layout <name>` (th
 
 #### dev (default) -- file browser + editor
 
-<div class="asciinema" data-cast="/screencasts/layout-dev.cast" data-poster="npt:4" data-autoplay="false" data-controls="false" data-fit="width"></div>
+<div class="asciinema" data-cast="/aibox/screencasts/layout-dev.cast" data-poster="npt:4" data-autoplay="false" data-controls="false" data-fit="width"></div>
 
 Yazi file manager on the left, Vim on the right. Claude Code, git, and shell in separate tabs.
 
 #### focus -- one tool per tab, fullscreen
 
-<div class="asciinema" data-cast="/screencasts/layout-focus.cast" data-poster="npt:4" data-autoplay="false" data-controls="false" data-fit="width"></div>
+<div class="asciinema" data-cast="/aibox/screencasts/layout-focus.cast" data-poster="npt:4" data-autoplay="false" data-controls="false" data-fit="width"></div>
 
 Each tool gets the entire screen in its own tab. Switch with `Ctrl+b [/]` or `Ctrl+b 1-5`.
 
@@ -101,7 +101,7 @@ Tabs: **files** (yazi) | **editor** (vim) | **claude** | **git** (lazygit) | **s
 
 #### cowork -- side-by-side coding with AI
 
-<div class="asciinema" data-cast="/screencasts/layout-cowork.cast" data-poster="npt:4" data-autoplay="false" data-controls="false" data-fit="width"></div>
+<div class="asciinema" data-cast="/aibox/screencasts/layout-cowork.cast" data-poster="npt:4" data-autoplay="false" data-controls="false" data-fit="width"></div>
 
 Yazi and Vim stacked on the left, Claude Code on the right. Git and shell in separate tabs.
 

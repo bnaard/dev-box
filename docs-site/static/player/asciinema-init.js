@@ -1,33 +1,17 @@
 // Auto-initialize asciinema-player elements on page load.
 // Usage in markdown (via raw HTML):
 //
-//   <div class="asciinema" data-cast="assets/screencasts/layout-dev.cast"
+//   <div class="asciinema" data-cast="/aibox/screencasts/layout-dev.cast"
 //        data-poster="npt:4" data-cols="160" data-rows="45"></div>
 //
-// For a still frame (no controls):
-//
-//   <div class="asciinema" data-cast="assets/screencasts/init-demo.cast"
-//        data-poster="npt:3" data-controls="false"></div>
-
-function getBaseUrl() {
-  // Derive site root from the player CSS link that MkDocs already relativized
-  var link = document.querySelector('link[href*="asciinema-player.css"]');
-  if (link) {
-    // href is e.g. "../../assets/player/asciinema-player.css" — strip the filename portion
-    return link.getAttribute("href").replace("assets/player/asciinema-player.css", "");
-  }
-  return "";
-}
+// Use absolute paths (starting with /) so this works regardless of page depth.
 
 function initAsciinemaPlayers() {
-  var base = getBaseUrl();
+  if (typeof AsciinemaPlayer === 'undefined') return;
 
   document.querySelectorAll("div.asciinema:not([data-initialized])").forEach(function (el) {
     var src = el.getAttribute("data-cast");
     if (!src) return;
-
-    // Prepend base so paths work from any page depth
-    src = base + src;
 
     var opts = {
       poster: el.getAttribute("data-poster") || "npt:0",
@@ -48,7 +32,6 @@ function initAsciinemaPlayers() {
     AsciinemaPlayer.create(src, el, opts);
     el.setAttribute("data-initialized", "true");
 
-    // Propagate data-theme to the .ap-player element for CSS palette overrides
     var theme = el.getAttribute("data-theme");
     if (theme) {
       var player = el.querySelector(".ap-player");
@@ -57,12 +40,13 @@ function initAsciinemaPlayers() {
   });
 }
 
-// Initialize on DOMContentLoaded and on MkDocs instant navigation
 document.addEventListener("DOMContentLoaded", initAsciinemaPlayers);
 
-// MkDocs Material instant loading triggers this custom event
-if (typeof document$ !== "undefined") {
-  document$.subscribe(function () {
-    initAsciinemaPlayers();
-  });
+// Docusaurus client-side navigation: re-run after each page transition
+if (typeof window !== "undefined") {
+  var _origPushState = history.pushState;
+  history.pushState = function () {
+    _origPushState.apply(this, arguments);
+    setTimeout(initAsciinemaPlayers, 300);
+  };
 }

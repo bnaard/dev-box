@@ -24,7 +24,7 @@ VS Code-like arrangement: Yazi file browser on the left (40%) and Vim editor on 
 
 Best for general development where you need file navigation, editing, and terminal access simultaneously.
 
-<div class="asciinema" data-cast="assets/screencasts/layout-dev.cast" data-poster="npt:2" data-loop="true" data-fit="width"></div>
+<div class="asciinema" data-cast="/aibox/screencasts/layout-dev.cast" data-poster="npt:2" data-loop="true" data-fit="width"></div>
 
 ---
 
@@ -44,7 +44,7 @@ One tool per tab, fullscreen. Zero distraction — each tool gets the entire scr
 
 Ideal when you want total focus and switch between tools with a single keypress.
 
-<div class="asciinema" data-cast="assets/screencasts/layout-focus.cast" data-poster="npt:2" data-loop="true" data-fit="width"></div>
+<div class="asciinema" data-cast="/aibox/screencasts/layout-focus.cast" data-poster="npt:2" data-loop="true" data-fit="width"></div>
 
 ---
 
@@ -62,7 +62,7 @@ Side-by-side coding with AI. Yazi and Vim share the left half (stacked), the AI 
 
 Ideal for pair-programming sessions where you want to see AI output while editing.
 
-<div class="asciinema" data-cast="assets/screencasts/layout-cowork.cast" data-poster="npt:2" data-loop="true" data-fit="width"></div>
+<div class="asciinema" data-cast="/aibox/screencasts/layout-cowork.cast" data-poster="npt:2" data-loop="true" data-fit="width"></div>
 
 ---
 
@@ -80,7 +80,7 @@ Cowork with AI and Vim positions swapped: the AI agent and Yazi share the left c
 
 Use this when the editor deserves more horizontal space and the AI pane plays a supporting role.
 
-<div class="asciinema" data-cast="assets/screencasts/layout-cowork-swap.cast" data-poster="npt:2" data-loop="true" data-fit="width"></div>
+<!-- recording pending -->
 
 ---
 
@@ -99,7 +99,7 @@ Yazi-focused layout with a large file preview pane (top 60%) and an AI pane belo
 
 Great for exploring unfamiliar codebases, reviewing files, and asking AI about what you find.
 
-<div class="asciinema" data-cast="assets/screencasts/layout-browse.cast" data-poster="npt:2" data-loop="true" data-fit="width"></div>
+<!-- recording pending -->
 
 ---
 
@@ -118,7 +118,7 @@ AI-first layout: Yazi and the AI agent share the main tab side by side (50/50 ve
 
 Best for AI-heavy sessions where file navigation and AI interaction are the primary loop and the editor is consulted occasionally.
 
-<div class="asciinema" data-cast="assets/screencasts/layout-ai.cast" data-poster="npt:2" data-loop="true" data-fit="width"></div>
+<!-- recording pending -->
 
 ---
 

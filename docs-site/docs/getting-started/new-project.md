@@ -29,7 +29,7 @@ The `init` command accepts these options:
 
 If you omit options, `aibox init` runs interactively and prompts for each value.
 
-<div class="asciinema" data-cast="/screencasts/init-demo.cast" data-poster="npt:0" data-fit="width"></div>
+<div class="asciinema" data-cast="/aibox/screencasts/init-demo.cast" data-poster="npt:0" data-fit="width"></div>
 
 ## What Gets Created
 

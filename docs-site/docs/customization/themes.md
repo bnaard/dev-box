@@ -29,7 +29,7 @@ Retro groove color scheme with warm, earthy tones. High contrast and easy on the
 - **Accent:** `#D79921` (warm yellow)
 - **Style:** Dark, warm, retro
 
-<div class="asciinema" data-cast="assets/screencasts/theme-gruvbox-dark.cast" data-poster="npt:2" data-loop="true" data-theme="gruvbox-dark" data-fit="width"></div>
+<div class="asciinema" data-cast="/aibox/screencasts/theme-gruvbox-dark.cast" data-poster="npt:2" data-loop="true" data-theme="gruvbox-dark" data-fit="width"></div>
 
 ### catppuccin-mocha
 
@@ -39,7 +39,7 @@ Soothing pastel theme with a dark background. The most popular modern terminal t
 - **Accent:** `#89B4FA` (soft blue)
 - **Style:** Dark, pastel, modern
 
-<div class="asciinema" data-cast="assets/screencasts/theme-catppuccin-mocha.cast" data-poster="npt:2" data-loop="true" data-theme="catppuccin-mocha" data-fit="width"></div>
+<div class="asciinema" data-cast="/aibox/screencasts/theme-catppuccin-mocha.cast" data-poster="npt:2" data-loop="true" data-theme="catppuccin-mocha" data-fit="width"></div>
 
 ### catppuccin-latte
 
@@ -49,7 +49,7 @@ Light variant of Catppuccin. Clean and readable in bright environments.
 - **Accent:** `#1E66F5` (vivid blue)
 - **Style:** Light, pastel, modern
 
-<div class="asciinema" data-cast="assets/screencasts/theme-catppuccin-latte.cast" data-poster="npt:2" data-loop="true" data-theme="catppuccin-latte" data-fit="width"></div>
+<div class="asciinema" data-cast="/aibox/screencasts/theme-catppuccin-latte.cast" data-poster="npt:2" data-loop="true" data-theme="catppuccin-latte" data-fit="width"></div>
 
 ### dracula
 
@@ -59,7 +59,7 @@ Dark theme with vibrant colors. A classic among developers.
 - **Accent:** `#BD93F9` (purple)
 - **Style:** Dark, vibrant, bold
 
-<div class="asciinema" data-cast="assets/screencasts/theme-dracula.cast" data-poster="npt:2" data-loop="true" data-theme="dracula" data-fit="width"></div>
+<div class="asciinema" data-cast="/aibox/screencasts/theme-dracula.cast" data-poster="npt:2" data-loop="true" data-theme="dracula" data-fit="width"></div>
 
 ### tokyo-night
 
@@ -69,7 +69,7 @@ Inspired by Tokyo's night lights. Clean and modern with blue tones.
 - **Accent:** `#7AA2F7` (bright blue)
 - **Style:** Dark, cool, modern
 
-<div class="asciinema" data-cast="assets/screencasts/theme-tokyo-night.cast" data-poster="npt:2" data-loop="true" data-theme="tokyo-night" data-fit="width"></div>
+<div class="asciinema" data-cast="/aibox/screencasts/theme-tokyo-night.cast" data-poster="npt:2" data-loop="true" data-theme="tokyo-night" data-fit="width"></div>
 
 ### nord
 
@@ -79,7 +79,7 @@ Arctic, north-bluish color palette. Minimalist and calm.
 - **Accent:** `#88C0D0` (frost blue)
 - **Style:** Dark, cool, minimalist
 
-<div class="asciinema" data-cast="assets/screencasts/theme-nord.cast" data-poster="npt:2" data-loop="true" data-theme="nord" data-fit="width"></div>
+<div class="asciinema" data-cast="/aibox/screencasts/theme-nord.cast" data-poster="npt:2" data-loop="true" data-theme="nord" data-fit="width"></div>
 
 ### projectious
 
@@ -90,7 +90,7 @@ The projectious.work brand theme. Deep navy base with a vivid orange accent.
 - **Midtone:** `#546a82` (slate blue)
 - **Style:** Dark, professional
 
-<div class="asciinema" data-cast="assets/screencasts/theme-projectious.cast" data-poster="npt:2" data-loop="true" data-fit="width"></div>
+<!-- recording pending -->
 
 ## How It Works
 
