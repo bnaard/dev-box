@@ -7,7 +7,7 @@ title: Color Themes
 aibox supports consistent color theming across all terminal tools. Set a theme in `aibox.toml`:
 
 ```toml
-[appearance]
+[customization]
 theme = "gruvbox-dark"
 ```
 
@@ -17,7 +17,7 @@ Or during project initialization:
 aibox init --theme catppuccin-mocha
 ```
 
-The selected theme is applied to **Zellij**, **Vim**, **Yazi**, and **lazygit** simultaneously.
+The selected theme is applied to **Zellij**, **Vim**, **Yazi**, **lazygit**, and **Starship** simultaneously.
 
 ## Available Themes
 
@@ -83,12 +83,18 @@ Arctic, north-bluish color palette. Minimalist and calm.
 
 ### projectious
 
-- **Palette:** Midnight navy (#1d3352), accent orange (#E05232), slate (#546a82)
-- **Style:** Dark, professional — the projectious.work brand theme
+The projectious.work brand theme. Deep navy base with a vivid orange accent.
+
+- **Background:** `#1d3352` (midnight navy)
+- **Accent:** `#E05232` (ember orange)
+- **Midtone:** `#546a82` (slate blue)
+- **Style:** Dark, professional
+
+<div class="asciinema" data-cast="assets/screencasts/theme-projectious.cast" data-poster="npt:2" data-loop="true" data-fit="width"></div>
 
 ## How It Works
 
-Each theme is a coordinated set of config files applied to all tools:
+Each theme is a coordinated set of config files applied to all tools at `aibox sync` time:
 
 | Tool | Config file | What's themed |
 |------|------------|---------------|
@@ -96,8 +102,9 @@ Each theme is a coordinated set of config files applied to all tools:
 | **Vim** | `.vim/colors/<name>.vim` | Syntax highlighting, UI elements |
 | **Yazi** | `.config/yazi/theme.toml` | File colors, status bar, selection |
 | **lazygit** | `.config/lazygit/config.yml` | Borders, selection, diff colors |
+| **Starship** | `.config/starship.toml` | Prompt segment colors |
 
-Claude Code inherits terminal colors automatically — no separate theme needed.
+Claude Code inherits terminal colors automatically — no separate theme file needed.
 
 ## Changing Themes
 
@@ -105,7 +112,7 @@ To switch themes in an existing project:
 
 1. Edit `aibox.toml`:
    ```toml
-   [appearance]
+   [customization]
    theme = "tokyo-night"
    ```
 
@@ -114,11 +121,11 @@ To switch themes in an existing project:
    aibox sync
    ```
 
-3. Rebuild and restart:
+3. Restart the container:
    ```bash
-   aibox sync --no-cache
    aibox start
    ```
 
-!!! note "Theme files are force-updated by sync"
-    `aibox sync` automatically overwrites theme-dependent config files (vimrc, zellij config, zellij themes, lazygit config, yazi theme) to match the selected theme. You do not need to manually delete them before switching.
+:::note Theme files are force-updated by sync
+`aibox sync` automatically overwrites theme-dependent config files (Zellij theme, Vim colorscheme, Yazi theme, lazygit config, Starship config) to match the selected theme. You do not need to rebuild the Docker image to change themes — `aibox sync` + `aibox start` is sufficient.
+:::
