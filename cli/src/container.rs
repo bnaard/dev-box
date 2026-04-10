@@ -586,9 +586,10 @@ fn serialize_config_with_comments(config: &AiboxConfig) -> String {
     // [aibox] section
     out.push_str("[aibox]\n");
     out.push_str(&format!(
-        "version = {:20} # Set by aibox — do not edit manually\n",
+        "version = {:20} # Target aibox CLI version. Update this when intentionally upgrading aibox.\n",
         format!("\"{}\"", config.aibox.version)
     ));
+    out.push_str("                               # aibox sync will warn if the running CLI version differs from this value.\n");
     out.push_str(&format!(
         "base    = {:20} # Base image flavor. Options: debian\n",
         format!("\"{}\"", config.aibox.base)
@@ -1029,6 +1030,32 @@ pub fn cmd_sync(config_path: &Option<String>, no_cache: bool, no_build: bool) ->
     crate::migration::check_and_generate_migration()?;
 
     let config = AiboxConfig::from_cli_option(config_path)?;
+
+    // Feature 1: warn if running CLI version differs from the pinned target version
+    if !config.aibox.version.is_empty() && config.aibox.version != env!("CARGO_PKG_VERSION") {
+        crate::output::warn(&format!(
+            "aibox.toml pins version {} but you are running {} — consider updating [aibox].version",
+            config.aibox.version,
+            env!("CARGO_PKG_VERSION")
+        ));
+    }
+
+    // Feature 2: warn if processkit version is below minimum for this aibox
+    if let Some(pk_section) = Some(&config.processkit) {
+        let current_aibox = env!("CARGO_PKG_VERSION");
+        if let Some(compat) = crate::compat::min_processkit_for(current_aibox) {
+            if !crate::compat::processkit_meets_minimum(&pk_section.version, compat.processkit_version) {
+                crate::output::warn(&format!(
+                    "processkit {} is below the minimum recommended version {} for aibox v{} ({}). \
+                     Consider updating [processkit].version in aibox.toml.",
+                    pk_section.version,
+                    compat.processkit_version,
+                    current_aibox,
+                    compat.note,
+                ));
+            }
+        }
+    }
 
     output::info("Syncing config files...");
     let updated = seed::sync_theme_files(&config)?;

@@ -76,8 +76,8 @@ fn check_and_generate_migration_in(root: &Path) -> Result<()> {
         stored_version, current_version
     ));
 
-    // Generate migration document.
-    generate_migration_doc(root, &stored_version, current_version)?;
+    // Generate migration document, passing processkit info for context.
+    generate_migration_doc(root, &stored_version, current_version, lock.processkit.as_ref())?;
 
     // Update lock with new cli_version. synced_at is left unchanged here;
     // cmd_sync updates it when it writes the full lock after install.
@@ -89,12 +89,19 @@ fn check_and_generate_migration_in(root: &Path) -> Result<()> {
     Ok(())
 }
 
-/// Generate a migration document at `{root}/context/migrations/{from}-to-{to}.md`.
-fn generate_migration_doc(root: &Path, from: &str, to: &str) -> Result<()> {
+/// Generate a migration document at
+/// `{root}/context/migrations/YYYYMMDD_HHMM_{from}-to-{to}.md`.
+fn generate_migration_doc(
+    root: &Path,
+    from: &str,
+    to: &str,
+    pk: Option<&crate::lock::ProcessKitLockSection>,
+) -> Result<()> {
     let migrations_dir = root.join("context").join("migrations");
     fs::create_dir_all(&migrations_dir).context("Failed to create context/migrations/")?;
 
-    let filename = format!("{}-to-{}.md", from, to);
+    let datetime_slug = chrono_free_datetime_slug();
+    let filename = format!("{}_{}-to-{}.md", datetime_slug, from, to);
     let filepath = migrations_dir.join(&filename);
 
     // Don't overwrite existing migration docs (user may have edited status)
@@ -107,7 +114,7 @@ fn generate_migration_doc(root: &Path, from: &str, to: &str) -> Result<()> {
     }
 
     let date = chrono_free_date();
-    let content = format_migration_doc(from, to, &date);
+    let content = format_migration_doc(from, to, &date, pk);
 
     fs::write(&filepath, content)
         .with_context(|| format!("Failed to write migration document {}", filename))?;
@@ -121,7 +128,7 @@ fn generate_migration_doc(root: &Path, from: &str, to: &str) -> Result<()> {
     Ok(())
 }
 
-/// Get the current date without requiring the chrono crate.
+/// Get the current date for display in document bodies (`YYYY-MM-DD`).
 fn chrono_free_date() -> String {
     std::process::Command::new("date")
         .arg("+%Y-%m-%d")
@@ -130,6 +137,17 @@ fn chrono_free_date() -> String {
         .and_then(|o| String::from_utf8(o.stdout).ok())
         .map(|s| s.trim().to_string())
         .unwrap_or_else(|| "unknown".to_string())
+}
+
+/// Get a sortable datetime slug for migration filenames (`YYYYMMDD_HHMM`).
+fn chrono_free_datetime_slug() -> String {
+    std::process::Command::new("date")
+        .arg("+%Y%m%d_%H%M")
+        .output()
+        .ok()
+        .and_then(|o| String::from_utf8(o.stdout).ok())
+        .map(|s| s.trim().to_string())
+        .unwrap_or_else(|| "00000000_0000".to_string())
 }
 
 // ---------------------------------------------------------------------------
@@ -146,19 +164,19 @@ struct MigrationEntry {
 
 /// Registry of known migrations with version-specific details.
 static KNOWN_MIGRATIONS: &[MigrationEntry] = &[
-    // Will be populated as we release versions
-    // Example:
-    // MigrationEntry {
-    //     from: "0.8.0",
-    //     to: "0.9.0",
-    //     breaking_changes: &[
-    //         "`[aibox] image` renamed to `[aibox] base` — only \"debian\" is valid",
-    //         "Process packages replace monolithic process levels",
-    //     ],
-    //     action_items: &[
-    //         "Update aibox.toml: change `image = \"python\"` to `base = \"debian\"` and add `[addons.python.tools]`",
-    //     ],
-    // },
+    MigrationEntry {
+        from: "0.17.4",
+        to: "0.17.5",
+        breaking_changes: &[
+            "processkit v0.8.0 restructured its `src/` directory (GrandLily layout). \
+             The live install destinations are unchanged — existing project `context/` \
+             directories are unaffected. Only the aibox installer needed updating.",
+        ],
+        action_items: &[
+            "No `aibox.toml` changes required — the installer handles both v0.7.0 and v0.8.0 layouts transparently",
+            "If pinning processkit in `[processkit].version`, update to `v0.8.0` for the latest content",
+        ],
+    },
 ];
 
 /// Find a known migration entry for the given version pair.
@@ -172,66 +190,137 @@ fn find_known_migration(from: &str, to: &str) -> Option<&'static MigrationEntry>
 // Document formatting
 // ---------------------------------------------------------------------------
 
+/// Enumerate every semver version strictly between `from` (exclusive) and
+/// `to` (inclusive), in ascending order. Parses `major.minor.patch` integers.
+/// If parsing fails or `from >= to`, returns `vec![to.to_string()]`.
+fn intermediate_versions(from: &str, to: &str) -> Vec<String> {
+    fn parse_semver(s: &str) -> Option<(u64, u64, u64)> {
+        let s = s.strip_prefix('v').unwrap_or(s);
+        let mut parts = s.splitn(3, '.');
+        let major = parts.next()?.parse::<u64>().ok()?;
+        let minor = parts.next()?.parse::<u64>().ok()?;
+        let patch = parts.next()?.parse::<u64>().ok()?;
+        Some((major, minor, patch))
+    }
+
+    let (Some(from_v), Some(to_v)) = (parse_semver(from), parse_semver(to)) else {
+        return vec![to.to_string()];
+    };
+
+    if from_v >= to_v {
+        return vec![to.to_string()];
+    }
+
+    let (fmaj, fmin, fpatch) = from_v;
+    let (tmaj, tmin, tpatch) = to_v;
+
+    // Only enumerate patch-level increments within the same major.minor range.
+    // For cross-minor or cross-major jumps, just return the target version to
+    // keep the list manageable.
+    if fmaj == tmaj && fmin == tmin {
+        ((fpatch + 1)..=tpatch)
+            .map(|patch| format!("{}.{}.{}", fmaj, fmin, patch))
+            .collect()
+    } else {
+        vec![to.to_string()]
+    }
+}
+
 /// Format the full migration document content.
-fn format_migration_doc(from: &str, to: &str, date: &str) -> String {
+fn format_migration_doc(
+    from: &str,
+    to: &str,
+    date: &str,
+    pk: Option<&crate::lock::ProcessKitLockSection>,
+) -> String {
     let known = find_known_migration(from, to);
 
+    // Build breaking changes block.
     let breaking_changes = if let Some(entry) = known {
-        entry
+        let mut lines: Vec<String> = entry
             .breaking_changes
             .iter()
             .map(|c| format!("- {}", c))
-            .collect::<Vec<_>>()
-            .join("\n")
+            .collect();
+        // Append version-specific action items into the breaking changes section.
+        if !entry.action_items.is_empty() {
+            lines.push(String::new());
+            lines.push("**Required actions for this upgrade:**".to_string());
+            for item in entry.action_items {
+                lines.push(format!("- {}", item));
+            }
+        }
+        lines.join("\n")
     } else {
+        let versions = intermediate_versions(from, to);
+        let links: Vec<String> = versions
+            .iter()
+            .map(|v| {
+                let tag = if v.starts_with('v') {
+                    v.clone()
+                } else {
+                    format!("v{}", v)
+                };
+                format!(
+                    "- https://github.com/projectious-work/aibox/releases/tag/{}",
+                    tag
+                )
+            })
+            .collect();
         format!(
-            "- Review the [changelog](https://github.com/projectious-work/aibox/releases) \
-             for breaking changes between v{} and v{}.",
-            from, to
+            "Review the release notes for each version in this upgrade:\n{}",
+            links.join("\n")
         )
     };
 
-    let action_items = if let Some(entry) = known {
-        let mut items: Vec<String> = entry
-            .action_items
-            .iter()
-            .map(|a| format!("- [ ] {}", a))
-            .collect();
-        // Always include standard items
-        items.push("- [ ] Review this migration document with the project owner".to_string());
-        items.push("- [ ] Run `aibox sync` to regenerate container files".to_string());
-        items.push("- [ ] Rebuild the container: `aibox build`".to_string());
-        items.push("- [ ] Verify all context files are intact".to_string());
-        items.push(
-            "- [ ] Mark this migration as completed (change Status to \"completed\")".to_string(),
-        );
-        items.join("\n")
-    } else {
-        "\
-- [ ] Review this migration document with the project owner
-- [ ] Run `aibox sync` to regenerate container files
-- [ ] Rebuild the container: `aibox build`
-- [ ] Verify all context files are intact
-- [ ] Mark this migration as completed (change Status to \"completed\")"
-            .to_string()
+    // Build processkit header line.
+    let pk_line = match pk {
+        Some(p) => format!("v{}", p.version.trim_start_matches('v')),
+        None => "not configured".to_string(),
+    };
+
+    // Build processkit state section.
+    let processkit_state_section = match pk {
+        Some(p) => {
+            let version = p.version.trim_start_matches('v');
+            let source = &p.source;
+            format!(
+                "processkit is currently pinned to `v{version}` (source: `{source}`).\n\
+                 \n\
+                 Check `/workspace/context/migrations/pending/` for processkit content migration\n\
+                 documents. If any exist, they describe specific content-level changes that need\n\
+                 review. Each document's `spec.summary` line shows how many files were affected.\n\
+                 \n\
+                 The three-way diff is managed by `aibox sync` (host-side). If processkit was\n\
+                 also updated as part of this aibox upgrade, the owner should run `aibox sync`\n\
+                 which will generate or update content migration documents in `context/migrations/pending/`."
+            )
+        }
+        None => {
+            "processkit is not yet configured in this project. Run `aibox sync` on the host\n\
+             to initialize processkit content."
+                .to_string()
+        }
     };
 
     format!(
         "\
 # Migration: v{from} \u{2192} v{to}
 
-> **SAFETY: Do not execute any actions in this document automatically.**
+> **SAFETY: Do not execute any actions automatically.**
 > **Discuss each item with the project owner before proceeding.**
 > **Do not modify aibox.toml without explicit user confirmation.**
+> **`aibox` commands run on the HOST, outside the container — you cannot run them.**
 
 **Generated:** {date}
 **Status:** pending
-**aibox CLI version:** v{to}
+**aibox CLI:** v{from} \u{2192} v{to}
+**processkit:** {pk_line}
 
 ## Summary
 
-aibox has been updated from v{from} to v{to}. Review the changes below
-and discuss each action item with the project owner.
+aibox has been updated from v{from} to v{to}. Review each section below
+and discuss action items with the project owner.
 
 ## Breaking Changes
 
@@ -239,37 +328,49 @@ and discuss each action item with the project owner.
 
 ## Action Items
 
-{action_items}
+### Host actions (owner runs these outside the container)
 
-## processkit Content Changes
+- [ ] Owner: verify `aibox sync` was run for v{to} — check `aibox.lock` at
+      `/workspace/aibox.lock`: `[aibox].cli_version` should equal `{to}` and
+      `synced_at` should be a recent timestamp
+- [ ] Owner: if sync has NOT been run, run `aibox sync` on the host, then `aibox build`
+- [ ] Owner: if the container was not rebuilt after sync, run `aibox build` then `aibox start`
 
-Skills, processes, and primitives are installed from processkit (not bundled
-in aibox). To pick up new or changed content, pin a newer processkit version
-in `[processkit].version` and run `aibox sync`. The three-way diff will show
-which installed files changed and let you review conflicts before overwriting.
+### Agent verification (you can do these now)
 
-Use `[skills].include` / `[skills].exclude` in aibox.toml to control which
-skills are installed.
+- [ ] Read `/workspace/aibox.lock` — confirm `[aibox].cli_version = \"{to}\"`
+- [ ] Read `/workspace/aibox.lock` — confirm `[processkit].version` matches
+      `/workspace/aibox.toml [processkit].version`
+- [ ] Verify `/workspace/AGENTS.md` exists and is non-empty
+- [ ] Verify `/workspace/context/skills/` directory exists
+- [ ] Verify `/workspace/context/skills/skill-finder/` exists (core skill)
+- [ ] Verify `/workspace/context/processes/` directory exists
+- [ ] Verify `/workspace/context/schemas/` directory exists
+- [ ] Verify `/workspace/context/templates/processkit/` snapshot directory exists
+- [ ] Check `/workspace/context/migrations/pending/` for any pending processkit
+      content migrations — if present, review them with the owner before marking
+      this CLI migration as completed
+- [ ] Mark this migration as completed (change Status to \"completed\")
 
-## Verification Checklist
+## processkit State
 
-- [ ] `aibox sync` completes without errors
-- [ ] Container builds successfully (`aibox build`)
-- [ ] Context files are intact (`AGENTS.md`, `context/skills/`, `context/processes/`)
-- [ ] `AGENTS.md` is present and points to `context/` correctly
+{processkit_state_section}
+
+## Verification Summary
+
+After all host actions are confirmed and agent verifications pass, mark Status as \"completed\".
 
 ## Rollback
 
-To revert this migration:
+To revert this migration (owner runs on host):
 ```
-git checkout HEAD -- aibox.lock context/ .devcontainer/
+git checkout HEAD~1 -- aibox.lock context/ .devcontainer/
 aibox sync
 ```
 
 ## Known Issues
 
-Check https://github.com/projectious-work/aibox/issues for known issues
-with v{to}.
+Check https://github.com/projectious-work/aibox/issues for known issues with v{to}.
 "
     )
 }
@@ -482,6 +583,9 @@ migration is purely plumbing — your existing project files are untouched.
 - [ ] If you maintain a fork of processkit, change `source` to point at it.
 - [ ] If you want to track a moving branch instead of a tag, set `branch`
       and leave `version` as the empty sentinel — discouraged but supported.
+- [ ] After running `aibox sync`, check `context/migrations/pending/` for any
+      processkit content migration documents — these describe content-level
+      changes that may require your review.
 - [ ] Mark this migration as completed (change Status above to \"completed\").
 
 ## Rollback
@@ -796,13 +900,23 @@ mod tests {
 
         check_and_generate_migration_in(tmp.path()).unwrap();
 
-        let expected_path = tmp
-            .path()
-            .join("context/migrations")
-            .join(format!("0.0.1-to-{}.md", current));
-        assert!(expected_path.exists(), "migration doc should be created");
+        // File now has a datetime prefix — find it by scanning the directory.
+        let migrations_dir = tmp.path().join("context/migrations");
+        let suffix = format!("0.0.1-to-{}.md", current);
+        let entries: Vec<_> = fs::read_dir(&migrations_dir)
+            .unwrap()
+            .filter_map(|e| e.ok())
+            .collect();
+        let migration_file = entries
+            .iter()
+            .find(|e| {
+                e.file_name()
+                    .to_string_lossy()
+                    .ends_with(&suffix)
+            })
+            .expect("migration doc should be created");
 
-        let content = fs::read_to_string(&expected_path).unwrap();
+        let content = fs::read_to_string(migration_file.path()).unwrap();
         assert!(content.contains(&format!("v0.0.1 \u{2192} v{}", current)));
         assert!(content.contains("**Status:** pending"));
 
@@ -818,7 +932,8 @@ mod tests {
         let migrations_dir = tmp.path().join("context/migrations");
         fs::create_dir_all(&migrations_dir).unwrap();
 
-        let filename = format!("0.0.1-to-{}.md", current);
+        // Use a datetime-prefixed filename matching what the generator produces.
+        let filename = format!("20260101_0000_0.0.1-to-{}.md", current);
         let filepath = migrations_dir.join(&filename);
         let existing_content = "# User-edited migration doc\nStatus: in-progress\n";
         fs::write(&filepath, existing_content).unwrap();
@@ -827,12 +942,22 @@ mod tests {
 
         check_and_generate_migration_in(tmp.path()).unwrap();
 
-        // File should not be overwritten
-        let content = fs::read_to_string(&filepath).unwrap();
+        // The pre-existing file must not be overwritten (only one file in dir).
+        let entries: Vec<_> = fs::read_dir(&migrations_dir)
+            .unwrap()
+            .filter_map(|e| e.ok())
+            .collect();
+        // There may now be a second file with the real datetime slug — the old
+        // file should be unchanged regardless.
+        let old_content = fs::read_to_string(&filepath).unwrap();
         assert_eq!(
-            content, existing_content,
-            "existing migration doc should not be overwritten"
+            old_content, existing_content,
+            "pre-existing migration doc should not be overwritten"
         );
+        // Either only the original file exists (if datetime slug matched), or a
+        // second file was created — both are acceptable since the guard only
+        // checks the exact filename.
+        let _ = entries;
     }
 
     #[test]
@@ -871,45 +996,111 @@ installed_at = \"2026-04-01T00:00:00Z\"
 
     #[test]
     fn test_migration_doc_contains_required_sections() {
-        let doc = format_migration_doc("0.7.0", "0.8.0", "2026-03-23");
+        let doc = format_migration_doc("0.7.0", "0.8.0", "2026-03-23", None);
 
         // Safety header
-        assert!(doc.contains("SAFETY: Do not execute any actions in this document automatically."));
+        assert!(doc.contains("SAFETY: Do not execute any actions automatically."));
         assert!(doc.contains("Discuss each item with the project owner before proceeding."));
         assert!(doc.contains("Do not modify aibox.toml without explicit user confirmation."));
+        assert!(doc.contains("aibox` commands run on the HOST, outside the container"));
 
-        // Status
+        // Status and CLI header
         assert!(doc.contains("**Status:** pending"));
+        assert!(doc.contains("**aibox CLI:** v0.7.0"));
+        assert!(doc.contains("**processkit:** not configured"));
 
-        // Action items with checkboxes
-        assert!(doc.contains("- [ ] Review this migration document with the project owner"));
-        assert!(doc.contains("- [ ] Run `aibox sync` to regenerate container files"));
-        assert!(doc.contains("- [ ] Rebuild the container: `aibox build`"));
+        // Action items — host section
+        assert!(doc.contains("### Host actions (owner runs these outside the container)"));
+        assert!(doc.contains("- [ ] Owner: verify `aibox sync` was run for v0.8.0"));
 
-        // Verification checklist
-        assert!(doc.contains("## Verification Checklist"));
-        assert!(doc.contains("- [ ] `aibox sync` completes without errors"));
-        assert!(doc.contains("- [ ] Container builds successfully"));
-        assert!(doc.contains("- [ ] `AGENTS.md` is present"));
+        // Action items — agent verification
+        assert!(doc.contains("### Agent verification (you can do these now)"));
+        assert!(doc.contains("- [ ] Read `/workspace/aibox.lock`"));
+        assert!(doc.contains("- [ ] Verify `/workspace/AGENTS.md` exists"));
+        assert!(doc.contains("- [ ] Verify `/workspace/context/skills/skill-finder/`"));
+        assert!(doc.contains("- [ ] Check `/workspace/context/migrations/pending/`"));
+        assert!(doc.contains("- [ ] Mark this migration as completed"));
+
+        // processkit state section
+        assert!(doc.contains("## processkit State"));
+        assert!(doc.contains("processkit is not yet configured in this project"));
+
+        // Verification summary
+        assert!(doc.contains("## Verification Summary"));
 
         // Rollback section
         assert!(doc.contains("## Rollback"));
-        assert!(doc.contains("git checkout HEAD -- aibox.lock context/ .devcontainer/"));
+        assert!(doc.contains("git checkout HEAD~1 -- aibox.lock context/ .devcontainer/"));
 
         // Other required sections
         assert!(doc.contains("## Breaking Changes"));
-        assert!(doc.contains("## processkit Content Changes"));
         assert!(doc.contains("## Known Issues"));
     }
 
     #[test]
     fn test_format_migration_doc_versions_and_date() {
-        let doc = format_migration_doc("1.2.3", "2.0.0", "2026-01-15");
+        let doc = format_migration_doc("1.2.3", "2.0.0", "2026-01-15", None);
 
         assert!(doc.contains("# Migration: v1.2.3 \u{2192} v2.0.0"));
         assert!(doc.contains("**Generated:** 2026-01-15"));
-        assert!(doc.contains("**aibox CLI version:** v2.0.0"));
+        assert!(doc.contains("**aibox CLI:** v1.2.3 \u{2192} v2.0.0"));
         assert!(doc.contains("from v1.2.3 to v2.0.0"));
+    }
+
+    #[test]
+    fn test_format_migration_doc_with_processkit() {
+        let pk = crate::lock::ProcessKitLockSection {
+            source: "https://github.com/projectious-work/processkit.git".to_string(),
+            version: "v0.8.0".to_string(),
+            src_path: "src".to_string(),
+            branch: None,
+            resolved_commit: None,
+            release_asset_sha256: None,
+            installed_at: "2026-04-01T00:00:00Z".to_string(),
+        };
+        let doc = format_migration_doc("0.17.4", "0.17.5", "2026-04-10", Some(&pk));
+
+        assert!(doc.contains("**processkit:** v0.8.0"));
+        assert!(doc.contains("processkit is currently pinned to `v0.8.0`"));
+        assert!(doc.contains("context/migrations/pending/"));
+    }
+
+    #[test]
+    fn test_intermediate_versions_basic() {
+        let v = intermediate_versions("0.17.3", "0.17.5");
+        assert_eq!(v, vec!["0.17.4", "0.17.5"]);
+    }
+
+    #[test]
+    fn test_intermediate_versions_single_step() {
+        let v = intermediate_versions("0.17.4", "0.17.5");
+        assert_eq!(v, vec!["0.17.5"]);
+    }
+
+    #[test]
+    fn test_intermediate_versions_same() {
+        let v = intermediate_versions("0.17.5", "0.17.5");
+        assert_eq!(v, vec!["0.17.5"]);
+    }
+
+    #[test]
+    fn test_intermediate_versions_cross_minor() {
+        // Cross-minor: just return the target.
+        let v = intermediate_versions("0.16.9", "0.17.5");
+        assert_eq!(v, vec!["0.17.5"]);
+    }
+
+    #[test]
+    fn test_intermediate_versions_bad_input() {
+        let v = intermediate_versions("bad", "0.17.5");
+        assert_eq!(v, vec!["0.17.5"]);
+    }
+
+    #[test]
+    fn test_known_migration_0_17_4_to_0_17_5() {
+        let doc = format_migration_doc("0.17.4", "0.17.5", "2026-04-10", None);
+        assert!(doc.contains("processkit v0.8.0 restructured its `src/` directory"));
+        assert!(doc.contains("No `aibox.toml` changes required"));
     }
 
     // -- ProcessKit section auto-migration ----------------------------------

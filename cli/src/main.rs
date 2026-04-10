@@ -1,6 +1,7 @@
 mod addon_cmd;
 mod addon_loader;
 mod kit;
+pub mod compat;
 #[allow(dead_code)]
 mod addon_registry;
 mod dirs;
@@ -30,6 +31,7 @@ mod content_source;
 mod claude_commands;
 mod mcp_registration;
 mod processkit_vocab;
+mod log;
 mod reset;
 mod runtime;
 mod seed;
@@ -38,6 +40,7 @@ mod themes;
 mod update;
 
 use clap::{CommandFactory, Parser};
+use std::path::Path;
 use tracing_subscriber::EnvFilter;
 
 fn main() {
@@ -89,30 +92,55 @@ fn dispatch(cli: cli::Cli) -> anyhow::Result<()> {
             processkit_source,
             processkit_version,
             processkit_branch,
-        } => container::cmd_init(
-            config_path,
-            container::InitParams {
-                name,
-                base,
-                process,
-                ai,
-                user,
-                theme,
-                prompt,
-                addons,
-                addon_tool,
-                processkit_source,
-                processkit_version,
-                processkit_branch,
-            },
-        ),
-        cli::Commands::Sync { no_cache, no_build } => container::cmd_sync(config_path, no_cache, no_build),
+        } => {
+            let timer = crate::log::LogTimer::start("init");
+            let result = container::cmd_init(
+                config_path,
+                container::InitParams {
+                    name,
+                    base,
+                    process,
+                    ai,
+                    user,
+                    theme,
+                    prompt,
+                    addons,
+                    addon_tool,
+                    processkit_source,
+                    processkit_version,
+                    processkit_branch,
+                },
+            );
+            timer.finish(
+                Path::new("."),
+                if result.is_ok() { 0 } else { 1 },
+                if result.is_ok() { "init completed" } else { "init failed" },
+            );
+            result
+        }
+        cli::Commands::Sync { no_cache, no_build } => {
+            let timer = crate::log::LogTimer::start("sync");
+            let result = container::cmd_sync(config_path, no_cache, no_build);
+            timer.finish(
+                Path::new("."),
+                if result.is_ok() { 0 } else { 1 },
+                if result.is_ok() { "sync completed" } else { "sync failed" },
+            );
+            result
+        }
         cli::Commands::Start { layout } => {
             let config = crate::config::AiboxConfig::from_cli_option(config_path)?;
             let resolved_layout = layout
                 .map(|l| l.to_string())
                 .unwrap_or_else(|| config.customization.layout.to_string());
-            container::cmd_start(config_path, &resolved_layout)
+            let timer = crate::log::LogTimer::start("start");
+            let result = container::cmd_start(config_path, &resolved_layout);
+            timer.finish(
+                Path::new("."),
+                if result.is_ok() { 0 } else { 1 },
+                if result.is_ok() { "start completed" } else { "start failed" },
+            );
+            result
         }
         cli::Commands::Stop => container::cmd_stop(config_path),
         cli::Commands::Remove => container::cmd_remove(config_path),
@@ -144,7 +172,16 @@ fn dispatch(cli: cli::Cli) -> anyhow::Result<()> {
             no_backup,
             dry_run,
             yes,
-        } => reset::cmd_reset(config_path, no_backup, dry_run, yes || global_yes),
+        } => {
+            let timer = crate::log::LogTimer::start("reset");
+            let result = reset::cmd_reset(config_path, no_backup, dry_run, yes || global_yes);
+            timer.finish(
+                Path::new("."),
+                if result.is_ok() { 0 } else { 1 },
+                if result.is_ok() { "reset completed" } else { "reset failed" },
+            );
+            result
+        }
         cli::Commands::Uninstall { dry_run, purge } => {
             reset::cmd_uninstall(dry_run, purge, global_yes)
         }
