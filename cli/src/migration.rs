@@ -79,18 +79,17 @@ fn check_and_generate_migration_in(root: &Path) -> Result<()> {
     // Read the desired processkit version from aibox.toml (what sync will install).
     // The lock holds the old installed version; the config holds the target.
     // Falls back to None if aibox.toml can't be read.
-    let config_pk_version: Option<String> = crate::config::AiboxConfig::load(
-        &root.join("aibox.toml"),
-    )
-    .ok()
-    .and_then(|c| {
-        let v = c.processkit.version;
-        if v.is_empty() || v == "unset" {
-            None
-        } else {
-            Some(v)
-        }
-    });
+    let config_pk_version: Option<String> =
+        crate::config::AiboxConfig::load(&root.join("aibox.toml"))
+            .ok()
+            .and_then(|c| {
+                let v = c.processkit.version;
+                if v.is_empty() || v == "unset" {
+                    None
+                } else {
+                    Some(v)
+                }
+            });
 
     // Generate migration document, passing processkit info for context.
     generate_migration_doc(
@@ -312,7 +311,9 @@ fn format_migration_doc(
 
     // Note if lock and config versions differ (user upgraded processkit alongside aibox).
     let pk_version_note = match (pk, config_pk_version) {
-        (Some(p), Some(cfg)) if p.version.trim_start_matches('v') != cfg.trim_start_matches('v') => {
+        (Some(p), Some(cfg))
+            if p.version.trim_start_matches('v') != cfg.trim_start_matches('v') =>
+        {
             format!(
                 " (upgraded from `v{}` — aibox.toml now targets `v{}`)",
                 p.version.trim_start_matches('v'),
