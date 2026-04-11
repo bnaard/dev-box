@@ -274,6 +274,16 @@ processkit now (DEC-027).
 - Skipping `cargo audit`, `cargo clippy --all-targets -- -D warnings`, or `cargo test`
   before tagging a release
 - Pointing users at `aibox skill` — that subcommand was removed in v0.16.0 (DEC-027)
+- **Creating GitHub releases directly** with `gh release create` — always use
+  `./scripts/maintain.sh release <version>` inside the container instead. It runs
+  tests, cargo audit, builds Linux binaries, creates the release with assets attached,
+  deploys docs, and prints the Phase 2 prompt. A bare `gh release create` produces
+  a release with no binary assets.
+- **Releasing when `cargo build --release` is broken** — if the build fails (e.g.
+  missing linker after a container config change), stop and tell the user rather
+  than creating an empty release. A release without binaries is worse than no release.
+  The precondition is: `cargo build --release --target aarch64-unknown-linux-gnu`
+  must succeed inside the container before `maintain.sh release` is invoked.
 
 ### Design principles (non-negotiable)
 
