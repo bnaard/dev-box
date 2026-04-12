@@ -6,6 +6,10 @@
 //! The aibox binary and addon definitions are deployed to the companion
 //! via SCP — no shared volumes. This makes the companion a realistic
 //! simulation of a user's host machine.
+//!
+//! The companion runtime is intentionally runtime-neutral: tests detect a
+//! responsive `docker` or `podman` binary on the remote host instead of
+//! assuming Podman specifically.
 
 use std::path::Path;
 use std::process::{Command, Output};
@@ -94,6 +98,30 @@ impl E2eRunner {
             .args(&args)
             .output()
             .expect("SSH command failed — is aibox-e2e-testrunner running?")
+    }
+
+    /// Return the responsive container runtime available on the companion.
+    ///
+    /// Prefers docker when both are present to match the CLI's main runtime
+    /// detection policy (OrbStack / Docker Desktop first, Podman fallback).
+    pub fn runtime_bin(&self) -> String {
+        if let Ok(explicit) = std::env::var("E2E_RUNTIME") {
+            let trimmed = explicit.trim();
+            if !trimmed.is_empty() {
+                return trimmed.to_string();
+            }
+        }
+
+        for candidate in ["docker", "podman"] {
+            let output = self.exec(&format!("{candidate} info >/dev/null 2>&1"));
+            if output.status.success() {
+                return candidate.to_string();
+            }
+        }
+
+        panic!(
+            "no responsive container runtime found on aibox-e2e-testrunner; tried docker and podman"
+        );
     }
 
     /// Copy a local file to the companion container via SCP.
@@ -290,11 +318,12 @@ impl E2eRunner {
         self.exec(&format!("rm -rf /workspaces/{}", test_name));
     }
 
-    /// Execute a command inside a running aibox container (via podman exec).
+    /// Execute a command inside a running aibox container.
     ///
     /// Used for smoke tests that verify tools are installed and functional.
     pub fn container_exec(&self, container_name: &str, cmd: &str) -> Output {
-        self.exec(&format!("podman exec {} {}", container_name, cmd))
+        let runtime = self.runtime_bin();
+        self.exec(&format!("{} exec {} {}", runtime, container_name, cmd))
     }
 
     /// Assert the companion container is reachable.

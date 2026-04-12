@@ -7,6 +7,11 @@
 #
 # Repo-only devcontainer layers. These are for developing aibox itself and are
 # not shipped in downstream images.
-RUN apt-get update && apt-get install -y --no-install-recommends \
-    openssh-client \
-    && rm -rf /var/lib/apt/lists/*
+RUN apt-get update && apt-get install -y --no-install-recommends     asciinema     libc6-dev     openssh-client     && rm -rf /var/lib/apt/lists/*
+
+RUN cat <<'EOF' >> /home/aibox/.bashrc
+# Repo-local fallback: ensure Rustup shims are on PATH in interactive shells.
+if [ -d "$HOME/.cargo/bin" ]; then
+    export PATH="$HOME/.cargo/bin:$PATH"
+fi
+EOF

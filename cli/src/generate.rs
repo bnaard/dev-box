@@ -35,18 +35,35 @@ pub fn generate_all(config: &AiboxConfig) -> Result<()> {
 
     output::info("Generating devcontainer files...");
 
+    let mut effective_config = config.clone();
+    if effective_config.aibox.version == "latest" {
+        let flavor = effective_config.aibox.base.to_string();
+        match crate::update::fetch_latest_image_version(&flavor) {
+            Ok(v) => {
+                effective_config.aibox.version = format!("{}.{}.{}", v.major, v.minor, v.patch);
+            }
+            Err(e) => {
+                crate::output::warn(&format!(
+                    "[aibox].version = \"latest\" but image version resolution failed during generation: {}. \
+                     Generated files may reference an invalid tag. Consider re-running with network access or pinning an explicit version.",
+                    e
+                ));
+            }
+        }
+    }
+
     // Create template environment once and reuse for all template-based files
     let env = create_template_env();
 
-    if generate_dockerfile(config, devcontainer_dir, &env)? {
+    if generate_dockerfile(&effective_config, devcontainer_dir, &env)? {
         output::ok("Generated .devcontainer/Dockerfile");
     }
 
-    if generate_docker_compose(config, devcontainer_dir, &env)? {
+    if generate_docker_compose(&effective_config, devcontainer_dir, &env)? {
         output::ok("Generated .devcontainer/docker-compose.yml");
     }
 
-    if generate_devcontainer_json(config, devcontainer_dir)? {
+    if generate_devcontainer_json(&effective_config, devcontainer_dir)? {
         output::ok("Generated .devcontainer/devcontainer.json");
     }
 
@@ -909,6 +926,21 @@ mod tests {
     }
 
     #[test]
+    fn compose_includes_codex_volume() {
+        let dir = tempfile::tempdir().unwrap();
+        let mut config = make_config(&[], false);
+        config.ai.providers = vec![crate::config::AiProvider::OpenAI];
+        config.resolve_ai_provider_addons();
+        generate_docker_compose(&config, dir.path(), &test_env()).unwrap();
+        let content = fs::read_to_string(dir.path().join("docker-compose.yml")).unwrap();
+        let expected = format!("../.aibox-home/.codex:{}/.codex", config.container_home());
+        assert!(
+            content.contains(&expected),
+            "should mount the persisted Codex home directory, including auth.json"
+        );
+    }
+
+    #[test]
     fn compose_no_ai_volumes_when_empty() {
         let dir = tempfile::tempdir().unwrap();
         let mut config = make_config(&[], false);
@@ -925,5 +957,6 @@ mod tests {
             !content.contains(".gemini"),
             "should not have gemini volume"
         );
+        assert!(!content.contains(".codex"), "should not have codex volume");
     }
 }

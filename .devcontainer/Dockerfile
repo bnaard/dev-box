@@ -100,17 +100,14 @@ RUN chown -R aibox:aibox /home/aibox/.cargo /home/aibox/.rustup
 ENV PATH="/home/aibox/.cargo/bin:${PATH}"
 
 # The builder stage has build-essential, but only the toolchain is copied to
-# the runtime image. Without a C linker and glibc startup objects, native
-# `cargo build` / `cargo test` and x86_64 cross-compilation both fail.
+# the runtime image. Without a C linker, `cargo build` and `cargo test` fail.
 # Install the minimum needed for native compilation and cross-compilation to
 # x86_64 Linux (gcc-x86-64-linux-gnu provides x86_64-linux-gnu-gcc).
 RUN apt-get update && apt-get install -y --no-install-recommends \
     gcc \
     binutils \
-    libc6-dev \
     pkg-config \
     libssl-dev \
-    openssh-client \
     gcc-x86-64-linux-gnu \
     libc6-dev-amd64-cross \
     && rm -rf /var/lib/apt/lists/*
@@ -132,16 +129,16 @@ USER root
 # The generated base image is available as the "aibox" stage:
 #   FROM ghcr.io/projectious-work/aibox:<image>-v<version> AS aibox
 #
-# Simple usage — add layers directly:
-#   RUN apt-get update && apt-get install -y some-package
-#   RUN npx playwright install --with-deps chromium
-#
-# Advanced usage — multi-stage build referencing the aibox stage:
-#   FROM node:20 AS builder
-#   RUN npm ci && npm run build
-#
-#   FROM aibox
-#   COPY --from=builder /app/dist /workspace/dist
+# Repo-only devcontainer layers. These are for developing aibox itself and are
+# not shipped in downstream images.
+RUN apt-get update && apt-get install -y --no-install-recommends     asciinema     libc6-dev     openssh-client     && rm -rf /var/lib/apt/lists/*
+
+RUN cat <<'EOF' >> /home/aibox/.bashrc
+# Repo-local fallback: ensure Rustup shims are on PATH in interactive shells.
+if [ -d "$HOME/.cargo/bin" ]; then
+    export PATH="$HOME/.cargo/bin:$PATH"
+fi
+EOF
 
 # Record image version inside container for runtime checks
 USER root

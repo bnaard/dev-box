@@ -31,12 +31,14 @@ Alternatively, use a ChatGPT Plus/Pro/Team/Enterprise account — Codex prompts 
 
 ## Configuration
 
-Codex's configuration is persisted in `.aibox-home/.codex/`, mounted at `/home/aibox/.codex/`.
+Codex's home-directory state is persisted in `.aibox-home/.codex/`, mounted at `/home/aibox/.codex/`. This survives devcontainer rebuilds, so device sign-in only needs to be completed once per host cache unless you clear it.
 
 Key files:
-- `.codex/config.toml` — Codex settings and model preferences
-- `.codex/rules/` — Custom coding rules
-- `.codex/sessions/` — Session history
+- `.aibox-home/.codex/auth.json` — cached ChatGPT/device authentication reused across rebuilds
+- `.aibox-home/.codex/rules/` — home-directory Codex rules and local state
+- `.aibox-home/.codex/sessions/` — Codex session history
+
+Separately, aibox also generates a project-local `.codex/config.toml` for MCP server registration.
 
 ## MCP Integration
 

@@ -49,6 +49,10 @@ services:
       # Gemini CLI configuration
       - {{ host_root }}/.gemini:{{ container_home }}/.gemini
 {% endif %}
+{% if provider == "openai" %}
+      # OpenAI Codex CLI configuration and cached login state
+      - {{ host_root }}/.codex:{{ container_home }}/.codex
+{% endif %}
 {% endfor %}
 {% if audio_enabled %}
       # ALSA → PulseAudio bridge config

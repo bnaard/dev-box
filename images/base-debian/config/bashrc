@@ -26,6 +26,13 @@ alias cat='bat --paging=never'
 alias find='fd'
 alias grep='rg'
 
+# Rustup installs live under ~/.cargo/bin in Rust-enabled containers. VS Code
+# terminals and other interactive shells do not always inherit Dockerfile PATH
+# updates reliably, so prepend it here as a shell-level fallback.
+if [ -d "$HOME/.cargo/bin" ]; then
+    export PATH="$HOME/.cargo/bin:$PATH"
+fi
+
 # ── Tool integrations ──────────────────────────────────────────────────────
 eval "$(starship init bash)"
 eval "$(zoxide init bash)"
