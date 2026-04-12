@@ -11,7 +11,7 @@ set fileencodings=utf-8,latin1
 " ── Appearance ────────────────────────────────────────────────────────────────
 syntax on
 set background=dark
-colorscheme desert           " ships with vim, decent dark theme
+colorscheme gruvbox          " default aibox theme
 set number                   " absolute line numbers
 set relativenumber           " relative numbers for fast motion
 set cursorline               " highlight current line

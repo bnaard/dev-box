@@ -356,22 +356,43 @@ pub fn lazygit_theme(theme: &Theme) -> &'static str {
 }
 
 /// Color palette values for Starship prompt theming.
-fn theme_palette(theme: &Theme) -> (&str, &str, &str, &str, &str) {
-    // Returns (bg, fg, accent, green, red)
+fn theme_palette(theme: &Theme) -> (&str, &str, &str, &str, &str, &str, &str, &str, &str) {
+    // Returns (bg, fg, accent, green, red, yellow, orange, cyan, muted)
     match theme {
-        Theme::GruvboxDark => ("#282828", "#D5C4A1", "#D79921", "#98971A", "#CC241D"),
-        Theme::CatppuccinMocha => ("#1E1E2E", "#CDD6F4", "#89B4FA", "#A6E3A1", "#F38BA8"),
-        Theme::CatppuccinLatte => ("#EFF1F5", "#4C4F69", "#1E66F5", "#40A02B", "#D20F39"),
-        Theme::Dracula => ("#282A36", "#F8F8F2", "#BD93F9", "#50FA7B", "#FF5555"),
-        Theme::TokyoNight => ("#1A1B26", "#C0CAF5", "#7AA2F7", "#9ECE6A", "#F7768E"),
-        Theme::Nord => ("#2E3440", "#D8DEE9", "#88C0D0", "#A3BE8C", "#BF616A"),
-        Theme::Projectious => ("#0E1720", "#C5DAF0", "#E05232", "#2D6A4F", "#A32D2D"),
+        Theme::GruvboxDark => (
+            "#282828", "#D5C4A1", "#D79921", "#98971A", "#CC241D", "#D79921", "#D65D0E", "#689D6A",
+            "#928374",
+        ),
+        Theme::CatppuccinMocha => (
+            "#1E1E2E", "#CDD6F4", "#89B4FA", "#A6E3A1", "#F38BA8", "#F9E2AF", "#FAB387", "#94E2D5",
+            "#6C7086",
+        ),
+        Theme::CatppuccinLatte => (
+            "#EFF1F5", "#4C4F69", "#1E66F5", "#40A02B", "#D20F39", "#DF8E1D", "#FE640B", "#179299",
+            "#9CA0B0",
+        ),
+        Theme::Dracula => (
+            "#282A36", "#F8F8F2", "#BD93F9", "#50FA7B", "#FF5555", "#F1FA8C", "#FFB86C", "#8BE9FD",
+            "#6272A4",
+        ),
+        Theme::TokyoNight => (
+            "#1A1B26", "#C0CAF5", "#7AA2F7", "#9ECE6A", "#F7768E", "#E0AF68", "#FF9E64", "#7DCFFF",
+            "#565F89",
+        ),
+        Theme::Nord => (
+            "#2E3440", "#D8DEE9", "#88C0D0", "#A3BE8C", "#BF616A", "#EBCB8B", "#D08770", "#81A1C1",
+            "#4C566A",
+        ),
+        Theme::Projectious => (
+            "#0E1720", "#C5DAF0", "#E05232", "#2D6A4F", "#A32D2D", "#8B6508", "#E05232", "#8AACC8",
+            "#546A82",
+        ),
     }
 }
 
 /// Generate starship.toml content for the given preset and theme.
 pub fn starship_config(preset: &StarshipPreset, theme: &Theme) -> String {
-    let (bg, fg, accent, green, _red) = theme_palette(theme);
+    let (bg, fg, accent, green, red, yellow, orange, cyan, muted) = theme_palette(theme);
 
     match preset {
         StarshipPreset::Default => format!(
@@ -391,28 +412,28 @@ style = "fg:{green}"
 style = "fg:{accent}"
 
 [python]
-style = "fg:#D79921"
+style = "fg:{yellow}"
 format = "[$symbol$version]($style) "
 
 [rust]
-style = "fg:#D65D0E"
+style = "fg:{orange}"
 format = "[$symbol$version]($style) "
 
 [nodejs]
-style = "fg:#98971A"
+style = "fg:{green}"
 format = "[$symbol$version]($style) "
 
 [golang]
-style = "fg:#689D6A"
+style = "fg:{cyan}"
 format = "[$symbol$version]($style) "
 
 [cmd_duration]
-style = "fg:#928374"
+style = "fg:{muted}"
 min_time = 2_000
 
 [character]
 success_symbol = "[❯](bold fg:{green})"
-error_symbol = "[❯](bold fg:red)"
+error_symbol = "[❯](bold fg:{red})"
 
 [palettes.aibox]
 bg = "{bg}"
@@ -437,7 +458,7 @@ style = "fg:{accent}"
 
 [character]
 success_symbol = "[>](bold fg:{green})"
-error_symbol = "[>](bold fg:red)"
+error_symbol = "[>](bold fg:{red})"
 
 [python]
 symbol = "py "
@@ -464,7 +485,7 @@ format = " [$branch]($style)"
 
 [character]
 success_symbol = "[❯](fg:{accent})"
-error_symbol = "[❯](bold fg:red)"
+error_symbol = "[❯](bold fg:{red})"
 "#
         ),
 
@@ -501,11 +522,11 @@ symbol = " "
 symbol = " "
 
 [cmd_duration]
-style = "fg:#928374"
+style = "fg:{muted}"
 
 [character]
 success_symbol = "[❯](bold fg:{green})"
-error_symbol = "[❯](bold fg:red)"
+error_symbol = "[❯](bold fg:{red})"
 
 [palettes.aibox]
 bg = "{bg}"
@@ -542,7 +563,7 @@ style = "bg:{green} fg:{bg}"
 
 [character]
 success_symbol = "[❯](bold fg:{accent})"
-error_symbol = "[❯](bold fg:red)"
+error_symbol = "[❯](bold fg:{red})"
 
 [palettes.aibox]
 bg = "{bg}"
@@ -568,20 +589,20 @@ style = "fg:{accent}"
 format = "[\\[$all_status$ahead_behind\\]]($style) "
 
 [python]
-format = "[\\[$symbol$version\\]](fg:#D79921) "
+format = "[\\[$symbol$version\\]](fg:{yellow}) "
 [rust]
-format = "[\\[$symbol$version\\]](fg:#D65D0E) "
+format = "[\\[$symbol$version\\]](fg:{orange}) "
 [nodejs]
-format = "[\\[$symbol$version\\]](fg:#98971A) "
+format = "[\\[$symbol$version\\]](fg:{green}) "
 [golang]
-format = "[\\[$symbol$version\\]](fg:#689D6A) "
+format = "[\\[$symbol$version\\]](fg:{cyan}) "
 
 [cmd_duration]
-format = "[\\[$duration\\]](fg:#928374) "
+format = "[\\[$duration\\]](fg:{muted}) "
 
 [character]
 success_symbol = "[❯](bold fg:{green})"
-error_symbol = "[❯](bold fg:red)"
+error_symbol = "[❯](bold fg:{red})"
 "#
         ),
 
@@ -623,25 +644,25 @@ staged = "+$count"
 untracked = "?$count"
 
 [cmd_duration]
-style = "fg:#928374"
+style = "fg:{muted}"
 min_time = 2_000
 format = "[ $duration]($style)"
 
 [character]
 success_symbol = "[❯](bold fg:{accent})"
-error_symbol = "[❯](bold fg:red)"
+error_symbol = "[❯](bold fg:{red})"
 
 [python]
-style = "fg:#D79921"
+style = "fg:{yellow}"
 format = "[$symbol$version]($style) "
 [rust]
-style = "fg:#D65D0E"
+style = "fg:{orange}"
 format = "[$symbol$version]($style) "
 [nodejs]
-style = "fg:#98971A"
+style = "fg:{green}"
 format = "[$symbol$version]($style) "
 [golang]
-style = "fg:#689D6A"
+style = "fg:{cyan}"
 format = "[$symbol$version]($style) "
 
 [palettes.aibox]

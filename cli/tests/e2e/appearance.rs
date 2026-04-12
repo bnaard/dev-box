@@ -246,15 +246,17 @@ fn theme_change_updates_all_files() {
 /// Verify that each theme produces distinct config for all themed tools.
 #[test]
 fn theme_alignment_all_tools_match_selected_theme() {
-    let themes_and_vim = [
-        ("gruvbox-dark", "gruvbox"),
-        ("nord", "nord"),
-        ("dracula", "dracula"),
-        ("catppuccin-mocha", "catppuccin_mocha"),
-        ("tokyo-night", "tokyonight"),
+    let themes = [
+        ("gruvbox-dark", "gruvbox", "#D79921"),
+        ("catppuccin-mocha", "catppuccin_mocha", "#89B4FA"),
+        ("catppuccin-latte", "catppuccin_latte", "#1E66F5"),
+        ("dracula", "dracula", "#BD93F9"),
+        ("tokyo-night", "tokyonight", "#7AA2F7"),
+        ("nord", "nord", "#88C0D0"),
+        ("projectious", "projectious", "#E05232"),
     ];
 
-    for (theme, vim_scheme) in &themes_and_vim {
+    for (theme, vim_scheme, accent) in &themes {
         let dir = tempfile::tempdir().unwrap();
         init_with_appearance(dir.path(), theme, "default");
 
@@ -281,13 +283,43 @@ fn theme_alignment_all_tools_match_selected_theme() {
             theme
         );
 
-        // Yazi theme must be non-empty (distinct per theme)
+        // Yazi theme must use the current schema and include git styling.
         let yazi = fs::read_to_string(aibox_home.join(".config/yazi/theme.toml")).unwrap();
         assert!(
             !yazi.is_empty(),
             "theme '{}': yazi theme.toml should not be empty",
             theme
         );
+        for required in [
+            "[tabs]",
+            "[mode]",
+            "[status]",
+            "[git]",
+            "normal_main",
+            "overall =",
+        ] {
+            assert!(
+                yazi.contains(required),
+                "theme '{}': yazi theme.toml should contain '{}'",
+                theme,
+                required
+            );
+        }
+        for removed in [
+            "tab_active",
+            "mode_normal",
+            "separator_open",
+            "permissions_t",
+            "[select]",
+            "[completion]",
+        ] {
+            assert!(
+                !yazi.contains(removed),
+                "theme '{}': yazi theme.toml should not contain legacy key '{}'",
+                theme,
+                removed
+            );
+        }
 
         // Lazygit must be non-empty
         let lazygit = fs::read_to_string(aibox_home.join(".config/lazygit/config.yml")).unwrap();
@@ -297,13 +329,29 @@ fn theme_alignment_all_tools_match_selected_theme() {
             theme
         );
 
-        // Starship must contain a palette section
+        // Starship must contain theme-specific colors, not Gruvbox-only fallbacks.
         let starship = fs::read_to_string(aibox_home.join(".config/starship.toml")).unwrap();
         assert!(
             starship.contains("[palette"),
             "theme '{}': starship config should contain palette section",
             theme
         );
+        assert!(
+            starship.contains(accent),
+            "theme '{}': starship config should contain accent color {}",
+            theme,
+            accent
+        );
+        if *theme != "gruvbox-dark" {
+            for hardcoded in ["#D79921", "#D65D0E", "#689D6A", "#928374"] {
+                assert!(
+                    !starship.contains(hardcoded),
+                    "theme '{}': starship config should not contain Gruvbox-specific color {}",
+                    theme,
+                    hardcoded
+                );
+            }
+        }
     }
 }
 

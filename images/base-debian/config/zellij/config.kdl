@@ -3,8 +3,8 @@
 // Docs: https://zellij.dev/documentation/configuration
 // =============================================================================
 
-// Theme — matches the gruvbox.kdl file in themes/
-theme "gruvbox"
+// Theme — matches the gruvbox-dark.kdl file in themes/
+theme "gruvbox-dark"
 
 // Default shell
 default_shell "bash"

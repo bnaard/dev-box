@@ -3,138 +3,118 @@
 # Docs: https://yazi-rs.github.io/docs/configuration/theme
 # =============================================================================
 
-# Use the built-in gruvbox-dark flavor if available; otherwise these overrides
-# provide a consistent gruvbox look.
-
 [mgr]
 cwd = { fg = "#d79921" }
-
-# Hovered item
-hovered         = { fg = "#282828", bg = "#d5c4a1" }
+hovered = { fg = "#282828", bg = "#d5c4a1" }
 preview_hovered = { underline = true }
-
-# Find highlights
-find_keyword  = { fg = "#fabd2f", bold = true }
+find_keyword = { fg = "#fabd2f", bold = true }
 find_position = { fg = "#b16286", italic = true }
-
-# Markers (selected / yanked)
 marker_selected = { fg = "#98971a", bg = "#98971a" }
-marker_copied   = { fg = "#d79921", bg = "#d79921" }
-marker_cut      = { fg = "#cc241d", bg = "#cc241d" }
+marker_copied = { fg = "#d79921", bg = "#d79921" }
+marker_cut = { fg = "#cc241d", bg = "#cc241d" }
 
-# Tabs
-tab_active   = { fg = "#282828", bg = "#d5c4a1" }
-tab_inactive = { fg = "#a89984", bg = "#3c3836" }
-tab_width    = 1
+[tabs]
+active = { fg = "#282828", bg = "#d5c4a1", bold = true }
+inactive = { fg = "#a89984", bg = "#3c3836" }
+sep_inner = { open = "", close = "" }
+sep_outer = { open = "", close = "" }
+
+[mode]
+normal_main = { fg = "#282828", bg = "#98971a", bold = true }
+normal_alt = { fg = "#98971a", bg = "#3c3836", bold = true }
+select_main = { fg = "#282828", bg = "#d79921", bold = true }
+select_alt = { fg = "#d79921", bg = "#3c3836", bold = true }
+unset_main = { fg = "#282828", bg = "#b16286", bold = true }
+unset_alt = { fg = "#b16286", bg = "#3c3836", bold = true }
 
 [status]
-separator_open  = ""
-separator_close = ""
-
-# Mode indicators
-mode_normal = { fg = "#282828", bg = "#98971a", bold = true }
-mode_select = { fg = "#282828", bg = "#d79921", bold = true }
-mode_unset  = { fg = "#282828", bg = "#b16286", bold = true }
-
-# Progress bar
-progress_label  = { fg = "#d5c4a1", bold = true }
+overall = { fg = "#d5c4a1", bg = "#3c3836" }
+sep_left = { open = "", close = "" }
+sep_right = { open = "", close = "" }
+perm_type = { fg = "#458588" }
+perm_read = { fg = "#d79921" }
+perm_write = { fg = "#cc241d" }
+perm_exec = { fg = "#98971a" }
+perm_sep = { fg = "#a89984" }
+progress_label = { fg = "#d5c4a1", bold = true }
 progress_normal = { fg = "#458588", bg = "#3c3836" }
-progress_error  = { fg = "#cc241d", bg = "#3c3836" }
-
-# Permissions
-permissions_t = { fg = "#458588" }
-permissions_r = { fg = "#d79921" }
-permissions_w = { fg = "#cc241d" }
-permissions_x = { fg = "#98971a" }
-permissions_s = { fg = "#a89984" }
+progress_error = { fg = "#cc241d", bg = "#3c3836" }
 
 [input]
-border   = { fg = "#d79921" }
-title    = {}
-value    = {}
+border = { fg = "#d79921" }
+title = {}
+value = {}
 selected = { reversed = true }
 
-[select]
-border   = { fg = "#458588" }
-active   = { fg = "#b16286" }
+[pick]
+border = { fg = "#458588" }
+active = { fg = "#b16286" }
 inactive = {}
 
-[completion]
-border   = { fg = "#458588" }
-active   = { fg = "#b16286" }
+[cmp]
+border = { fg = "#458588" }
+active = { fg = "#b16286" }
 inactive = {}
 
 [tasks]
-border  = { fg = "#458588" }
-title   = {}
+border = { fg = "#458588" }
+title = {}
 hovered = { underline = true }
 
 [which]
-mask            = { bg = "#3c3836" }
-cand            = { fg = "#689d6a" }
-rest            = { fg = "#928374" }
-desc            = { fg = "#b16286" }
-separator       = "  "
+mask = { bg = "#3c3836" }
+cand = { fg = "#689d6a" }
+rest = { fg = "#928374" }
+desc = { fg = "#b16286" }
+separator = "  "
 separator_style = { fg = "#504945" }
 
 [help]
-on      = { fg = "#689d6a" }
-run     = { fg = "#b16286" }
-desc    = {}
+on = { fg = "#689d6a" }
+run = { fg = "#b16286" }
+desc = {}
 hovered = { bg = "#3c3836", bold = true }
-footer  = { fg = "#3c3836", bg = "#d5c4a1" }
+footer = { fg = "#3c3836", bg = "#d5c4a1" }
 
 [git]
-# git.yazi plugin — gruvbox dark color mapping for git status in file list.
-modified  = { fg = "#d79921" }  # yellow
-untracked = { fg = "#b16286" }  # magenta
-added     = { fg = "#98971a" }  # green
-deleted   = { fg = "#cc241d" }  # red
-updated   = { fg = "#d65d0e" }  # orange
-ignored   = { fg = "#928374" }  # gray
+modified = { fg = "#d79921" }
+untracked = { fg = "#b16286" }
+added = { fg = "#98971a" }
+deleted = { fg = "#cc241d" }
+updated = { fg = "#d65d0e" }
+ignored = { fg = "#928374" }
 
 [filetype]
 rules = [
-    # Directories
     { name = "*/", fg = "#458588", bold = true },
-
-    # Source code
-    { name = "*.rs",   fg = "#d65d0e" },
-    { name = "*.py",   fg = "#d79921" },
-    { name = "*.js",   fg = "#d79921" },
-    { name = "*.ts",   fg = "#458588" },
-    { name = "*.sh",   fg = "#98971a" },
+    { name = "*.rs", fg = "#d65d0e" },
+    { name = "*.py", fg = "#d79921" },
+    { name = "*.js", fg = "#d79921" },
+    { name = "*.ts", fg = "#458588" },
+    { name = "*.sh", fg = "#98971a" },
     { name = "*.toml", fg = "#689d6a" },
     { name = "*.yaml", fg = "#689d6a" },
-    { name = "*.yml",  fg = "#689d6a" },
+    { name = "*.yml", fg = "#689d6a" },
     { name = "*.json", fg = "#689d6a" },
-    { name = "*.kdl",  fg = "#689d6a" },
+    { name = "*.kdl", fg = "#689d6a" },
     { name = "*.html", fg = "#d65d0e" },
-    { name = "*.css",  fg = "#458588" },
-
-    # Documents
-    { name = "*.md",   fg = "#d5c4a1" },
-    { name = "*.tex",  fg = "#98971a" },
-    { name = "*.typ",  fg = "#98971a" },
-    { name = "*.pdf",  fg = "#cc241d" },
-
-    # Media
-    { name = "*.png",  fg = "#b16286" },
-    { name = "*.jpg",  fg = "#b16286" },
+    { name = "*.css", fg = "#458588" },
+    { name = "*.md", fg = "#d5c4a1" },
+    { name = "*.tex", fg = "#98971a" },
+    { name = "*.typ", fg = "#98971a" },
+    { name = "*.pdf", fg = "#cc241d" },
+    { name = "*.png", fg = "#b16286" },
+    { name = "*.jpg", fg = "#b16286" },
     { name = "*.jpeg", fg = "#b16286" },
-    { name = "*.gif",  fg = "#b16286" },
-    { name = "*.svg",  fg = "#b16286" },
-
-    # Archives
-    { name = "*.zip",  fg = "#d65d0e" },
+    { name = "*.gif", fg = "#b16286" },
+    { name = "*.svg", fg = "#b16286" },
+    { name = "*.zip", fg = "#d65d0e" },
     { name = "*.tar*", fg = "#d65d0e" },
-    { name = "*.gz",   fg = "#d65d0e" },
-
-    # Config / dotfiles
-    { name = "*.gitignore",  fg = "#928374" },
-    { name = ".env*",        fg = "#cc241d" },
-    { name = "Dockerfile*",  fg = "#458588" },
-    { name = "Makefile",     fg = "#98971a" },
-    { name = "Cargo.toml",   fg = "#d65d0e", bold = true },
-    { name = "Cargo.lock",   fg = "#928374" },
+    { name = "*.gz", fg = "#d65d0e" },
+    { name = "*.gitignore", fg = "#928374" },
+    { name = ".env*", fg = "#cc241d" },
+    { name = "Dockerfile*", fg = "#458588" },
+    { name = "Makefile", fg = "#98971a" },
+    { name = "Cargo.toml", fg = "#d65d0e", bold = true },
+    { name = "Cargo.lock", fg = "#928374" },
 ]
