@@ -100,12 +100,14 @@ RUN chown -R aibox:aibox /home/aibox/.cargo /home/aibox/.rustup
 ENV PATH="/home/aibox/.cargo/bin:${PATH}"
 
 # The builder stage has build-essential, but only the toolchain is copied to
-# the runtime image. Without a C linker, `cargo build` and `cargo test` fail.
+# the runtime image. Without a C linker and glibc startup objects, native
+# `cargo build` / `cargo test` and x86_64 cross-compilation both fail.
 # Install the minimum needed for native compilation and cross-compilation to
 # x86_64 Linux (gcc-x86-64-linux-gnu provides x86_64-linux-gnu-gcc).
 RUN apt-get update && apt-get install -y --no-install-recommends \
     gcc \
     binutils \
+    libc6-dev \
     pkg-config \
     libssl-dev \
     gcc-x86-64-linux-gnu \
