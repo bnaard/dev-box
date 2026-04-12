@@ -197,11 +197,20 @@ fn theme_change_writes_runtime_migration_without_overwriting_live_files() {
     change_appearance(dir.path(), "dracula", "default");
 
     let zellij_after = fs::read_to_string(aibox_home.join(".config/zellij/config.kdl")).unwrap();
-    assert_eq!(zellij_after, zellij_before, "zellij config should remain unchanged until the runtime migration is applied");
+    assert_eq!(
+        zellij_after, zellij_before,
+        "zellij config should remain unchanged until the runtime migration is applied"
+    );
     let vimrc_after = fs::read_to_string(aibox_home.join(".vim/vimrc")).unwrap();
-    assert_eq!(vimrc_after, vimrc_before, "vimrc should remain unchanged until the runtime migration is applied");
+    assert_eq!(
+        vimrc_after, vimrc_before,
+        "vimrc should remain unchanged until the runtime migration is applied"
+    );
     let yazi_after = fs::read_to_string(aibox_home.join(".config/yazi/theme.toml")).unwrap();
-    assert_eq!(yazi_after, yazi_before, "yazi theme should remain unchanged until the runtime migration is applied");
+    assert_eq!(
+        yazi_after, yazi_before,
+        "yazi theme should remain unchanged until the runtime migration is applied"
+    );
 
     let pending_dir = dir.path().join("context/migrations/pending");
     let docs: Vec<_> = fs::read_dir(&pending_dir)
