@@ -416,6 +416,12 @@ pub fn addon_metadata_warnings(addons: &[LoadedAddon]) -> Vec<String> {
                 addon.name
             ));
         }
+        if addon.builder_template.is_none() && addon.runtime_template.is_none() {
+            warnings.push(format!(
+                "addon-without-install-steps: {} has no builder or runtime install template",
+                addon.name
+            ));
+        }
         if addon.profile_intent == Some(AddonProfileIntent::ProviderCli)
             && addon.profiles.contains(&AddonProfile::HeadlessRunner)
         {
@@ -882,6 +888,8 @@ profile_intent: provider-cli
 usage_class: manual-escalation-only
 profiles: ["human-dev"]
 tools: []
+runtime: |
+  RUN true
 "#,
         );
 
@@ -935,6 +943,11 @@ tools: []
         assert!(warnings.iter().any(|w| w.contains("no profile_intent")));
         assert!(warnings.iter().any(|w| w.contains("no usage_class")));
         assert!(warnings.iter().any(|w| w.contains("no profiles")));
+        assert!(
+            warnings
+                .iter()
+                .any(|w| w.contains("addon-without-install-steps"))
+        );
         assert!(
             warnings
                 .iter()
