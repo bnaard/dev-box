@@ -8,7 +8,7 @@ None.
 
 None.
 
-## Applied (24)
+## Applied (26)
 
 | Date       | Migration                                | Notes |
 |------------|------------------------------------------|-------|
@@ -34,6 +34,8 @@ None.
 | 2026-04-29 | MIG-RUNTIME-20260429T100821 — aibox-runtime-home 0.21.2 → 0.21.2 | 0 changed upstream, 0 conflicts, 0 new, 0 removed (1 groups affected) |
 | 2026-04-29 | MIG-RUNTIME-20260429T131236 — aibox-runtime-home 0.21.2 → 0.21.2 | 1 changed upstream, 0 conflicts, 0 new, 0 removed (3 groups affected) |
 | 2026-04-29 | MIG-RUNTIME-20260429T133020 — aibox-runtime-home 0.21.2 → 0.21.2 | 0 changed upstream, 0 conflicts, 0 new, 0 removed (2 groups affected) |
+| 2026-04-30 | MIG-20260430T140909 — processkit v0.23.1 → v0.24.0 | 0 changed upstream, 1 conflicts, 23 new, 0 removed, 0 stale-removed (3 groups affected) |
+| 2026-04-30 | MIG-RUNTIME-20260430T140908 — aibox-runtime-home 0.21.2 → 0.22.0 | 3 changed upstream, 0 conflicts, 1 new, 0 removed (3 groups affected) |
 |  | MIG-20260426T155754 — processkit v0.22.0 → v0.23.0 | 0 changed upstream, 50 conflicts, 9 new, 0 removed, 0 stale-removed (7 groups affected) |
 |  | MIG-RUNTIME-20260426T155732 — aibox-runtime-home 0.21.0 → 0.21.0 | 0 changed upstream, 0 conflicts, 27 new, 0 removed (9 groups affected) |
 

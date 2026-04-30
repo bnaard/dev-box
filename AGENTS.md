@@ -190,6 +190,10 @@ reused. See:
 - `context/processes/team-task-distribution.md` — How PM routes work
 - `context/decisions/DEC-20260414_1100-NobleStag-team-composition-and-model-mix.md`
   — Decision record, rationale, and alternatives considered
+- Active interlocutor state is resolved through
+  `team-manager.get_active_interlocutor`. If configured, show the
+  TeamMember identity at session start; otherwise state that the current
+  speaker is an ephemeral harness agent.
 
 **Schema note (applied — MIG-20260415T093853):** the canonical processkit
 team schema fields now live at the top level of `spec.*`:
@@ -376,4 +380,4 @@ When an AI agent is working inside a project that uses aibox:
 
 ---
 
-<sub>Scaffolded by processkit `v0.19.1` on `2026-04-23`. Re-rendered on each installer sync.</sub>
+<sub>Scaffolded by processkit `v0.24.0` on `2026-04-30`. Re-rendered on each installer sync.</sub>

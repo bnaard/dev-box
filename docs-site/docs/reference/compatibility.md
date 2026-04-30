@@ -12,6 +12,12 @@ below shows the minimum compatible processkit version for each aibox release.
 
 | aibox version | Min. processkit | Notes |
 |--------------|-----------------|-------|
+| 0.22.0 | v0.24.0 | processkit v0.24.0: context archiving, richer model routing metadata, semantic task-router scoring, archive-aware index metadata |
+| 0.21.2 | v0.23.1 | processkit v0.23.1 release-audit cleanup and skill metadata fixes |
+| 0.21.1 | v0.23.0 | processkit v0.23.0 model governance and release-audit integration |
+| 0.21.0 | v0.22.0 | multi-harness slash-command scaffolding and content-diff safety fixes |
+| 0.20.0 | v0.22.0 | processkit install integrity, preauth merge, and no-container scaffold mode |
+| 0.19.0 | v0.21.0 | MCP permission configuration and processkit v0.21 content integration |
 | 0.17.16 | v0.13.0 | **BREAKING**: rename `providers = ["codex"]` → `["openai"]`; fix zellij `--layout` flag; fix Rust x86_64 cross-compile target |
 | 0.17.15 | v0.13.0 | MCP config model, zjstatus hints, Zellij Ctrl+q, processkit v0.13.0 |
 | 0.17.5 | v0.8.0 | processkit v0.8.0 GrandLily src/ restructure |

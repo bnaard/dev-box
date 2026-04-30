@@ -210,6 +210,11 @@ pub static COMPAT_TABLE: &[CompatEntry] = &[
         processkit_version: "v0.23.1",
         note: "Patch release: integrates processkit v0.23.1 (release-audit cleanup — 106 ERROR → 0 ERROR via three documented validator relaxations: skip aibox CLI migration prose under `context/migrations/`, model the team-member directory layout / `Persona` kind, make `metadata.processkit.layer` optional for non-processkit-category skills; backfills `metadata.processkit.layer` on 7 processkit-category SKILL.md files; authors missing `## Overview` / `## Full reference` sections on team-creator and team-manager; +24 new pytest cases). FORMAT.md unchanged — no vocabulary updates needed; bumps PROCESSKIT_DEFAULT_VERSION to v0.23.1; no aibox CLI behavior changes — purely a content integration pass.",
     },
+    CompatEntry {
+        aibox_version: "0.22.0",
+        processkit_version: "v0.24.0",
+        note: "Minor release: integrates processkit v0.24.0 (context-archiving skill and MCP server, archive-aware index metadata, richer model/provider characteristics, class-based model routing, task-router v0.2 semantic scoring, context-consumption reports, team/model assignment bindings, optional sqlite-vec semantic search, and library-expert skill template). FORMAT.md unchanged — no vocabulary updates needed; bumps PROCESSKIT_DEFAULT_VERSION to v0.24.0.",
+    },
 ];
 
 /// Find the minimum compatible processkit version for the given aibox version.
