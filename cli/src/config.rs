@@ -310,9 +310,12 @@ impl AiHarness {
     }
 
     /// Addon name for this harness (e.g. "ai-claude").
+    ///
+    /// Host-only or legacy SDK entries return an empty string because they
+    /// have no in-container CLI addon.
     pub fn addon_name(&self) -> String {
         match self {
-            AiHarness::Mistral => String::new(), // no addon for legacy mistral
+            AiHarness::Cursor | AiHarness::Mistral => String::new(),
             _ => format!("ai-{}", self),
         }
     }
@@ -2244,6 +2247,21 @@ mode = "dark"
         assert!(config.addons.has_addon("ai-claude"));
         assert!(config.addons.has_addon("ai-aider"));
         assert!(config.addons.has_addon("ai-gemini"));
+    }
+
+    #[test]
+    fn resolve_ai_providers_skips_host_only_cursor_addon() {
+        let toml = r#"
+            [aibox]
+            version = "0.9.0"
+            [container]
+            name = "test"
+            [ai]
+            harnesses = ["cursor", "codex"]
+        "#;
+        let config = AiboxConfig::from_str(toml).unwrap();
+        assert!(!config.addons.has_addon("ai-cursor"));
+        assert!(config.addons.has_addon("ai-codex"));
     }
 
     #[test]
