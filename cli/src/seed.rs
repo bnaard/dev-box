@@ -1402,7 +1402,7 @@ pub fn ensure_runtime_dirs(config: &AiboxConfig) -> Result<()> {
 
 /// Return the managed runtime files that aibox generates inside `.aibox-home/`.
 pub fn managed_runtime_files(config: &AiboxConfig) -> Vec<(std::path::PathBuf, String)> {
-    let theme = &config.customization.theme;
+    let theme = &config.customization.resolved_theme();
     let providers = &config.ai.harnesses;
     let mut files = vec![
         (
@@ -1657,7 +1657,7 @@ pub fn migrate_yazi_section(path: &Path) -> Result<bool> {
 #[allow(dead_code)]
 pub fn sync_theme_files(config: &AiboxConfig) -> Result<Vec<String>> {
     let root = config.host_root_dir();
-    let theme = &config.customization.theme;
+    let theme = &config.customization.resolved_theme();
     let providers = &config.ai.harnesses;
     let mut updated = Vec::new();
 
@@ -2003,6 +2003,33 @@ mod tests {
                 .exists()
         );
         assert!(root.join(".config").join("cheatsheet.txt").exists());
+
+        unsafe {
+            std::env::remove_var("AIBOX_HOST_ROOT");
+        }
+    }
+
+    #[test]
+    #[serial]
+    fn seed_root_dir_uses_resolved_theme_mode() {
+        let dir = tempfile::tempdir().unwrap();
+        let root = dir.path().join("root");
+        let mut config = make_config(false, root.clone());
+        config.customization.theme = Theme::Dracula;
+        config.customization.mode = ThemeMode::Light;
+        seed_root_dir(&config).unwrap();
+
+        assert!(
+            root.join(".config")
+                .join("zellij")
+                .join("themes")
+                .join("catppuccin-latte.kdl")
+                .exists(),
+            "light mode should render the resolved light theme"
+        );
+        let vimrc = fs::read_to_string(root.join(".vim").join("vimrc")).unwrap();
+        assert!(vimrc.contains("colorscheme catppuccin_latte"));
+        assert!(vimrc.contains("set background=light"));
 
         unsafe {
             std::env::remove_var("AIBOX_HOST_ROOT");

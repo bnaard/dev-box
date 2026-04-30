@@ -136,7 +136,7 @@ Everything outside of `[container.environment]`, `[[container.extra_volumes]]`, 
 - `[processkit]` — content source and version pin
 - `[skills]` — include/exclude lists
 - `[ai]` — provider list
-- `[customization]` — theme, prompt, layout
+- `[customization]` — theme, mode, prompt, layout
 - `[audio]` — audio bridging
 
 :::tip Applying changes

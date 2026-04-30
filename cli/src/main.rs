@@ -41,6 +41,7 @@ mod runtime;
 mod runtime_sync;
 mod seed;
 mod sync_perimeter;
+mod theme_cmd;
 mod themes;
 mod update;
 mod version_resolve;
@@ -151,6 +152,24 @@ fn dispatch(cli: cli::Cli) -> anyhow::Result<()> {
                     "sync completed"
                 } else {
                     "sync failed"
+                },
+            );
+            result
+        }
+        cli::Commands::Theme {
+            mode,
+            theme,
+            restart_session,
+        } => {
+            let timer = crate::log::LogTimer::start("theme");
+            let result = theme_cmd::cmd_theme(config_path, mode, theme, restart_session);
+            timer.finish(
+                Path::new("."),
+                if result.is_ok() { 0 } else { 1 },
+                if result.is_ok() {
+                    "theme completed"
+                } else {
+                    "theme failed"
                 },
             );
             result

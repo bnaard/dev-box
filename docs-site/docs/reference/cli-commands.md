@@ -89,6 +89,38 @@ aibox init --name my-app --theme catppuccin-mocha
 
 When `--name` or `--process` flags are omitted and the terminal is interactive, `aibox init` prompts for each missing value.
 
+---
+
+## aibox theme
+
+Switch the global light/dark theme mode without stopping the container.
+
+### Usage
+
+```bash
+aibox theme <auto|light|dark> [OPTIONS]
+```
+
+### Options
+
+| Option | Default | Description |
+|--------|---------|-------------|
+| `--theme <THEME>` | unchanged | Also set the concrete base theme |
+| `--restart-session` | false | Restart and attach only the running project Zellij session |
+
+### Examples
+
+```bash
+# Switch runtime UI files to the light palette
+aibox theme light
+
+# Switch to dark mode and prefer Tokyo Night
+aibox theme dark --theme tokyo-night
+
+# Refresh and attach the running Zellij session without stopping the container
+aibox theme dark --restart-session
+```
+
 The `--process` prompt shows the five processkit packages (`minimal`, `managed`, `software`, `research`, `product`). `managed` is the recommended default.
 
 In non-interactive environments (scripts, CI pipelines), omitted flags silently use defaults: the current directory name for `--name`, `debian` for `--base`, and `managed` for `--process`.

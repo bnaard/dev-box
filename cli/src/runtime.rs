@@ -224,6 +224,19 @@ impl Runtime {
         Ok(())
     }
 
+    /// Exec a command non-interactively into a container as the specified user.
+    pub fn exec_status(&self, container: &str, user: &str, cmd: &[&str]) -> Result<bool> {
+        let mut args = vec!["exec", "-u", user, container];
+        args.extend_from_slice(cmd);
+
+        let status = Command::new(&self.runtime_bin)
+            .args(&args)
+            .status()
+            .context("Failed to exec into container")?;
+
+        Ok(status.success())
+    }
+
     /// Wait for a container to reach running state, polling every 500ms.
     pub fn wait_for_running(&self, name: &str, timeout_ms: u64) -> Result<()> {
         let start = std::time::Instant::now();

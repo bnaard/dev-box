@@ -9,6 +9,7 @@ aibox supports consistent color theming across all terminal tools. Set a theme i
 ```toml
 [customization]
 theme = "gruvbox-dark"
+mode = "auto"
 ```
 
 Or during project initialization:
@@ -17,7 +18,7 @@ Or during project initialization:
 aibox init --theme catppuccin-mocha
 ```
 
-The selected theme is applied to **Zellij**, **Vim**, **Yazi**, **lazygit**, and **Starship** simultaneously.
+The selected theme is applied to **Zellij**, **Vim**, **Yazi**, **lazygit**, and **Starship** simultaneously. `mode = "auto"` preserves the selected concrete theme. `mode = "light"` currently resolves to `catppuccin-latte`; `mode = "dark"` keeps dark themes as-is and maps `catppuccin-latte` to `catppuccin-mocha`.
 
 ## Available Themes
 
@@ -108,24 +109,21 @@ Claude Code inherits terminal colors automatically — no separate theme file ne
 
 ## Changing Themes
 
-To switch themes in an existing project:
+To switch light/dark mode in an existing project:
 
-1. Edit `aibox.toml`:
-   ```toml
-   [customization]
-   theme = "tokyo-night"
-   ```
+```bash
+aibox theme light
+aibox theme dark --theme tokyo-night
+```
 
-2. Run sync to apply the change:
-   ```bash
-   aibox sync
-   ```
+This updates `[customization].mode` in `aibox.toml` and regenerates the mounted runtime theme files under `.aibox-home/`. The running container is not stopped.
 
-3. Restart the container:
-   ```bash
-   aibox start
-   ```
+If the project Zellij session is running, refresh and attach it without stopping the container:
+
+```bash
+aibox theme dark --restart-session
+```
 
 :::note Theme files are force-updated by sync
-`aibox sync` automatically overwrites theme-dependent config files (Zellij theme, Vim colorscheme, Yazi theme, lazygit config, Starship config) to match the selected theme. You do not need to rebuild the Docker image to change themes — `aibox sync` + `aibox start` is sufficient.
+`aibox sync` and `aibox theme` overwrite theme-dependent config files (Zellij theme, Vim colorscheme, Yazi theme, lazygit config, Starship config) to match the selected theme. You do not need to rebuild or restart the container to change themes; running TUI processes may need to be restarted.
 :::

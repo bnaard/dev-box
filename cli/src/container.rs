@@ -1,7 +1,9 @@
 use anyhow::{Result, bail};
 use std::path::PathBuf;
 
-use crate::config::{AiHarness, AiProvider, AiboxConfig, BaseImage, StarshipPreset, Theme};
+use crate::config::{
+    AiHarness, AiProvider, AiboxConfig, BaseImage, StarshipPreset, Theme, ThemeMode,
+};
 use crate::context;
 use crate::generate;
 use crate::output;
@@ -1017,6 +1019,9 @@ fn serialize_config_with_comments(config: &AiboxConfig) -> String {
     out.push_str("# Options: gruvbox-dark | catppuccin-mocha | catppuccin-latte | dracula | tokyo-night | nord | projectious\n");
     out.push_str("[customization]\n");
     out.push_str(&format!("theme  = \"{}\"\n", config.customization.theme));
+    out.push_str("# Global mode overlay. `auto` preserves the selected concrete theme.\n");
+    out.push_str("# Options: auto | light | dark\n");
+    out.push_str(&format!("mode   = \"{}\"\n", config.customization.mode));
     out.push_str("# Starship prompt preset.\n");
     out.push_str("# Options: default | plain | minimal | nerd-font | pastel | bracketed | arrow\n");
     out.push_str(&format!("prompt = \"{}\"\n", config.customization.prompt));
@@ -1198,6 +1203,7 @@ pub fn cmd_init(config_path: &Option<String>, params: InitParams) -> Result<()> 
         )?,
         customization: CustomizationSection {
             theme: params.theme.unwrap_or_default(),
+            mode: ThemeMode::Auto,
             prompt: params.prompt.unwrap_or_default(),
             layout: crate::config::ConfigLayout::default(),
         },
@@ -1237,7 +1243,10 @@ pub fn cmd_init(config_path: &Option<String>, params: InitParams) -> Result<()> 
             .map(|h| h.display_name())
             .collect();
         println!("  Harnesses:   {}", harness_list.join(", "));
-        println!("  Theme:       {}", config.customization.theme);
+        println!(
+            "  Theme:       {} (mode: {})",
+            config.customization.theme, config.customization.mode
+        );
         println!("  processkit:  {}", config.processkit.version);
         println!();
         let proceed = dialoguer::Confirm::new()

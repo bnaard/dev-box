@@ -581,6 +581,37 @@ pub enum Theme {
     Projectious,
 }
 
+/// Global light/dark preference applied on top of the selected theme.
+#[derive(Debug, Clone, Default, Serialize, Deserialize, PartialEq, clap::ValueEnum)]
+#[serde(rename_all = "kebab-case")]
+#[clap(rename_all = "kebab-case")]
+pub enum ThemeMode {
+    /// Preserve the selected concrete theme. This is backward-compatible
+    /// with older aibox.toml files where the theme name encoded the mode.
+    #[default]
+    Auto,
+    /// Prefer a light concrete palette. Falls back to Catppuccin Latte until
+    /// more theme families provide first-class light variants.
+    Light,
+    /// Prefer a dark concrete palette. Keeps dark themes unchanged and maps
+    /// known light variants to their dark counterpart.
+    Dark,
+}
+
+impl std::fmt::Display for ThemeMode {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            ThemeMode::Auto => write!(f, "auto"),
+            ThemeMode::Light => write!(f, "light"),
+            ThemeMode::Dark => write!(f, "dark"),
+        }
+    }
+}
+
+fn default_theme_mode() -> ThemeMode {
+    ThemeMode::default()
+}
+
 impl std::fmt::Display for Theme {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
@@ -674,16 +705,36 @@ fn default_layout() -> ConfigLayout {
 pub struct CustomizationSection {
     #[serde(default = "default_theme")]
     pub theme: Theme,
+    #[serde(default = "default_theme_mode")]
+    pub mode: ThemeMode,
     #[serde(default = "default_prompt")]
     pub prompt: StarshipPreset,
     #[serde(default = "default_layout")]
     pub layout: ConfigLayout,
 }
 
+impl CustomizationSection {
+    /// Resolve the concrete palette rendered into tool config files.
+    ///
+    /// `theme` remains the user's selected concrete/default palette for
+    /// backward compatibility. `mode` is a global override layered on top.
+    pub fn resolved_theme(&self) -> Theme {
+        match self.mode {
+            ThemeMode::Auto => self.theme.clone(),
+            ThemeMode::Light => Theme::CatppuccinLatte,
+            ThemeMode::Dark => match self.theme {
+                Theme::CatppuccinLatte => Theme::CatppuccinMocha,
+                _ => self.theme.clone(),
+            },
+        }
+    }
+}
+
 impl Default for CustomizationSection {
     fn default() -> Self {
         Self {
             theme: default_theme(),
+            mode: default_theme_mode(),
             prompt: default_prompt(),
             layout: default_layout(),
         }
@@ -1484,6 +1535,7 @@ include = ["flutter-development"]
 
 [appearance]
 theme = "gruvbox-dark"
+mode = "auto"
 prompt = "default"
 
 [audio]
@@ -1572,6 +1624,7 @@ name = "my-project"
 
         // [customization] (parsed from legacy [appearance] via serde alias)
         assert_eq!(config.customization.theme, Theme::GruvboxDark);
+        assert_eq!(config.customization.mode, ThemeMode::Auto);
         assert_eq!(config.customization.prompt, StarshipPreset::Default);
 
         // [audio]
@@ -1717,10 +1770,12 @@ name = "test"
 
 [appearance]
 theme = "dracula"
+mode = "dark"
 prompt = "minimal"
 "#;
         let config = parse_toml(toml).unwrap();
         assert_eq!(config.customization.theme, Theme::Dracula);
+        assert_eq!(config.customization.mode, ThemeMode::Dark);
         assert_eq!(config.customization.prompt, StarshipPreset::Minimal);
     }
 
@@ -2001,6 +2056,45 @@ theme = "{input}"
             let config = parse_toml(&toml).unwrap();
             assert_eq!(config.customization.theme, expected);
         }
+    }
+
+    #[test]
+    fn appearance_mode_resolves_concrete_theme() {
+        let toml = r#"
+[aibox]
+version = "0.9.0"
+
+[container]
+name = "test"
+
+[customization]
+theme = "dracula"
+mode = "light"
+"#;
+        let config = parse_toml(toml).unwrap();
+        assert_eq!(config.customization.theme, Theme::Dracula);
+        assert_eq!(config.customization.mode, ThemeMode::Light);
+        assert_eq!(
+            config.customization.resolved_theme(),
+            Theme::CatppuccinLatte
+        );
+
+        let toml = r#"
+[aibox]
+version = "0.9.0"
+
+[container]
+name = "test"
+
+[customization]
+theme = "catppuccin-latte"
+mode = "dark"
+"#;
+        let config = parse_toml(toml).unwrap();
+        assert_eq!(
+            config.customization.resolved_theme(),
+            Theme::CatppuccinMocha
+        );
     }
 
     // -- File loading -------------------------------------------------------

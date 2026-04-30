@@ -1,6 +1,6 @@
 use clap::{Parser, Subcommand, ValueEnum};
 
-use crate::config::{AiProvider, BaseImage, StarshipPreset, Theme};
+use crate::config::{AiProvider, BaseImage, StarshipPreset, Theme, ThemeMode};
 
 /// Parse a truthy/falsy string for env-var-driven boolean flags.
 /// Accepts 1/0, true/false, yes/no, on/off (case-insensitive). Empty string is
@@ -72,6 +72,7 @@ Examples:
   aibox init --image rust --process minimal  Rust project, minimal context
   aibox sync                                 Reconcile config + build image
   aibox sync --no-cache                      Force full rebuild
+  aibox theme dark                           Switch runtime UI theme mode
   aibox start                                Start and attach (dev layout)
   aibox start --layout focus                 Start with a specific layout
   aibox doctor                               Validate project structure
@@ -245,6 +246,25 @@ pub enum Commands {
             default_value = "false",
         )]
         no_container: bool,
+    },
+    /// Switch global light/dark theme mode
+    ///
+    /// Updates `[customization].mode` in aibox.toml, regenerates mounted
+    /// runtime theme files under `.aibox-home/`, and leaves the container
+    /// running. Use `--restart-session` to restart only the project Zellij
+    /// session so the new theme is visible immediately in the main UI.
+    Theme {
+        /// Theme mode to apply
+        #[arg(value_enum)]
+        mode: ThemeMode,
+
+        /// Also set the concrete base theme while changing mode
+        #[arg(long, value_enum)]
+        theme: Option<Theme>,
+
+        /// Restart and attach only the project Zellij session, not the container
+        #[arg(long)]
+        restart_session: bool,
     },
     /// Start container and attach via zellij
     ///

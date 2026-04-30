@@ -129,6 +129,7 @@ providers = ["claude"]
 
 [customization]
 theme  = "gruvbox-dark"
+mode   = "auto"
 prompt = "default"
 layout = "dev"
 
