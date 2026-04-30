@@ -93,6 +93,11 @@ warnings. It does not change the generated image tag yet; `headless-runner`
 is reserved for automation-safe configurations that avoid subscription CLI
 tools and interactive desktop helpers.
 
+For automation, `aibox describe workspace-manifest -o json` emits a sorted,
+read-only `aibox.workspace-manifest.v0-preview` projection of this file. The
+preview schema is intentionally aibox-local until processkit publishes the
+canonical workspace-manifest Artifact schema.
+
 ### [container]
 
 Container configuration. Controls the generated `docker-compose.yml` and `Dockerfile`.

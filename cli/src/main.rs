@@ -45,6 +45,7 @@ mod theme_cmd;
 mod themes;
 mod update;
 mod version_resolve;
+mod workspace_manifest;
 
 use clap::{CommandFactory, Parser, ValueEnum};
 use std::path::Path;
@@ -226,6 +227,9 @@ fn dispatch(cli: cli::Cli) -> anyhow::Result<()> {
                 addon_cmd::cmd_addon_info(&addon, format)
             }
             cli::DescribeResource::AddonCatalog => addon_cmd::cmd_addon_catalog(format),
+            cli::DescribeResource::WorkspaceManifest => {
+                workspace_manifest::cmd_workspace_manifest(config_path, format)
+            }
             cli::DescribeResource::Env => env::cmd_env_status(config_path),
             cli::DescribeResource::Kit => kit::cmd_kit_list(config_path, format),
             cli::DescribeResource::Skill => {

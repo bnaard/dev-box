@@ -105,6 +105,8 @@ aibox delete runtime
 ```bash
 aibox get addon
 aibox describe addon python
+aibox describe addon-catalog -o json
+aibox describe workspace-manifest -o json
 aibox get skill
 aibox get skill --all --category engineering
 aibox describe skill model-recommender-route
@@ -115,6 +117,11 @@ aibox get env
 aibox describe env
 aibox get kit
 ```
+
+`describe workspace-manifest` emits the read-only
+`aibox.workspace-manifest.v0-preview` projection of the current `aibox.toml`.
+It is intended for automation while the canonical processkit Artifact schema is
+still upstream-owned.
 
 ## Mutating Resources
 
