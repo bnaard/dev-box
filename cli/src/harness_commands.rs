@@ -987,13 +987,15 @@ mod tests {
 
     fn config_with(version: &str, harnesses: Vec<AiHarness>) -> AiboxConfig {
         use crate::config::{
-            AddonsSection, AiSection, AiboxConfig, AiboxSection, AudioSection, ContainerSection,
-            ContextSection, CustomizationSection, ProcessKitSection, SkillsSection,
+            AddonsSection, AiSection, AiboxConfig, AiboxProfile, AiboxSection, AudioSection,
+            ContainerSection, ContextSection, CustomizationSection, ProcessKitSection,
+            SkillsSection,
         };
         AiboxConfig {
             aibox: AiboxSection {
                 version: "0.20.0".to_string(),
                 base: crate::config::BaseImage::Debian,
+                profile: AiboxProfile::HumanDev,
             },
             container: ContainerSection {
                 name: "t".to_string(),

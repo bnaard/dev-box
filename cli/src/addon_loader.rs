@@ -360,6 +360,30 @@ pub fn addon_metadata_warnings(addons: &[LoadedAddon]) -> Vec<String> {
     warnings
 }
 
+/// Warning-mode validation for selected addons against the configured profile.
+pub fn addon_profile_compatibility_warnings(
+    addons: &[LoadedAddon],
+    selected_addons: &[String],
+    profile: &str,
+) -> Vec<String> {
+    let mut selected = selected_addons.to_vec();
+    selected.sort();
+
+    let mut warnings = Vec::new();
+    for addon_name in selected {
+        let Some(addon) = addons.iter().find(|candidate| candidate.name == addon_name) else {
+            continue;
+        };
+        if !addon.profiles.iter().any(|p| p.as_str() == profile) {
+            warnings.push(format!(
+                "addon-profile-incompatible: {} is selected but does not support {}",
+                addon.name, profile
+            ));
+        }
+    }
+    warnings
+}
+
 // ---------------------------------------------------------------------------
 // Conversion to legacy types (for backward compat with addons.rs)
 // ---------------------------------------------------------------------------
@@ -848,5 +872,50 @@ tools: []
                 .iter()
                 .any(|w| w.contains("subscription-cli-headless-leak"))
         );
+    }
+
+    #[test]
+    fn addon_profile_compatibility_warnings_detect_selected_mismatch() {
+        let addons = vec![
+            LoadedAddon {
+                name: "ai-cli".to_string(),
+                addon_version: "1.0.0".to_string(),
+                description: String::new(),
+                profile_intent: Some(AddonProfileIntent::ProviderCli),
+                usage_class: Some(AddonUsageClass::ManualEscalationOnly),
+                profiles: vec![AddonProfile::HumanDev],
+                category: "Other".to_string(),
+                builder_weight: None,
+                tools: vec![],
+                requires: vec![],
+                builder_template: None,
+                runtime_template: None,
+            },
+            LoadedAddon {
+                name: "runtime".to_string(),
+                addon_version: "1.0.0".to_string(),
+                description: String::new(),
+                profile_intent: Some(AddonProfileIntent::Runtime),
+                usage_class: Some(AddonUsageClass::Automated),
+                profiles: vec![AddonProfile::HumanDev, AddonProfile::HeadlessRunner],
+                category: "Other".to_string(),
+                builder_weight: None,
+                tools: vec![],
+                requires: vec![],
+                builder_template: None,
+                runtime_template: None,
+            },
+        ];
+
+        let selected = vec![
+            "runtime".to_string(),
+            "missing-addon".to_string(),
+            "ai-cli".to_string(),
+        ];
+        let warnings = addon_profile_compatibility_warnings(&addons, &selected, "headless-runner");
+
+        assert_eq!(warnings.len(), 1);
+        assert!(warnings[0].contains("ai-cli"));
+        assert!(warnings[0].contains("headless-runner"));
     }
 }

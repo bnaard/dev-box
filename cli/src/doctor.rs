@@ -168,7 +168,7 @@ pub fn cmd_doctor(config_path: &Option<String>) -> Result<()> {
     // 6e. Draft LivelyMoss addon metadata checks. Warning-only until
     // processkit publishes the canonical addon-spec schema.
     output::info("Checking addon profile metadata...");
-    check_addon_profile_metadata(&mut diag);
+    check_addon_profile_metadata(&config, &mut diag);
 
     // 7. Security audit tools
     crate::audit::doctor_check_audit_tools();
@@ -310,8 +310,15 @@ fn check_command_registrations(config: &AiboxConfig, diag: &mut DiagResult) {
     }
 }
 
-fn check_addon_profile_metadata(diag: &mut DiagResult) {
-    let warnings = crate::addon_loader::addon_metadata_warnings(crate::addon_loader::all_addons());
+fn check_addon_profile_metadata(config: &AiboxConfig, diag: &mut DiagResult) {
+    let all_addons = crate::addon_loader::all_addons();
+    let selected_addons: Vec<String> = config.addons.addons.keys().cloned().collect();
+    let mut warnings = crate::addon_loader::addon_metadata_warnings(all_addons);
+    warnings.extend(crate::addon_loader::addon_profile_compatibility_warnings(
+        all_addons,
+        &selected_addons,
+        config.aibox.profile.as_str(),
+    ));
     if warnings.is_empty() {
         output::ok("Addon profile metadata is complete");
     } else {

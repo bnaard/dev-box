@@ -2,7 +2,7 @@ use anyhow::{Result, bail};
 use std::path::PathBuf;
 
 use crate::config::{
-    AiHarness, AiProvider, AiboxConfig, BaseImage, StarshipPreset, Theme, ThemeMode,
+    AiHarness, AiProvider, AiboxConfig, AiboxProfile, BaseImage, StarshipPreset, Theme, ThemeMode,
 };
 use crate::context;
 use crate::generate;
@@ -706,6 +706,10 @@ fn serialize_config_with_comments(config: &AiboxConfig) -> String {
         "base    = {:20} # Base image flavor. Options: debian\n",
         format!("\"{}\"", config.aibox.base)
     ));
+    out.push_str(&format!(
+        "profile = {:20} # Usage profile. Options: human-dev, headless-runner\n",
+        format!("\"{}\"", config.aibox.profile)
+    ));
 
     // [container] section
     out.push('\n');
@@ -1141,6 +1145,7 @@ pub fn cmd_init(config_path: &Option<String>, params: InitParams) -> Result<()> 
         aibox: AiboxSection {
             version: env!("CARGO_PKG_VERSION").to_string(),
             base: base_image,
+            profile: AiboxProfile::HumanDev,
         },
         container: ContainerSection {
             name: project_name.clone(),
@@ -1223,6 +1228,7 @@ pub fn cmd_init(config_path: &Option<String>, params: InitParams) -> Result<()> 
         output::info("Configuration summary:");
         println!("  Project:     {}", config.container.name);
         println!("  Base:        {}", config.aibox.base);
+        println!("  Profile:     {}", config.aibox.profile);
         println!("  Process:     {}", config.context.packages.join(", "));
         let addon_list: Vec<String> = config
             .addons

@@ -1172,13 +1172,15 @@ mod tests {
     /// Returns a default AiboxConfig with `processkit.version` overridden.
     fn config_with_version(version: &str) -> AiboxConfig {
         use crate::config::{
-            AddonsSection, AiSection, AiboxConfig, AiboxSection, AudioSection, ContainerSection,
-            ContextSection, CustomizationSection, ProcessKitSection, SkillsSection,
+            AddonsSection, AiSection, AiboxConfig, AiboxProfile, AiboxSection, AudioSection,
+            ContainerSection, ContextSection, CustomizationSection, ProcessKitSection,
+            SkillsSection,
         };
         AiboxConfig {
             aibox: AiboxSection {
                 version: "0.15.0".to_string(),
                 base: crate::config::BaseImage::Debian,
+                profile: AiboxProfile::HumanDev,
             },
             container: ContainerSection {
                 name: "t".to_string(),

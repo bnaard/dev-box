@@ -13,6 +13,7 @@ title: Configuration
 [aibox]
 version = "0.17.5"                    # aibox version used to generate this project
 base    = "debian"                    # Base image
+profile = "human-dev"                 # Usage profile: human-dev or headless-runner
 
 [container]
 name     = "my-app"                   # Container name
@@ -85,6 +86,12 @@ Top-level project metadata.
 |-------|------|----------|---------|-------------|
 | `version` | String (semver) | Yes | -- | Project version |
 | `base` | String | No | `"debian"` | Base image: `debian` |
+| `profile` | String | No | `"human-dev"` | Usage profile: `human-dev` or experimental `headless-runner` |
+
+`profile` is currently a compatibility signal for addon selection and doctor
+warnings. It does not change the generated image tag yet; `headless-runner`
+is reserved for automation-safe configurations that avoid subscription CLI
+tools and interactive desktop helpers.
 
 ### [container]
 

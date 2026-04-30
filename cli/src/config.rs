@@ -68,6 +68,37 @@ impl std::fmt::Display for BaseImage {
 }
 
 // ---------------------------------------------------------------------------
+// aibox profile
+// ---------------------------------------------------------------------------
+
+/// Container usage profile. `human-dev` remains the default; `headless-runner`
+/// is a warning-mode contract used to classify automation-safe addons before
+/// a dedicated runner image exists.
+#[derive(Debug, Clone, Copy, Default, Serialize, Deserialize, PartialEq, Eq, clap::ValueEnum)]
+#[serde(rename_all = "kebab-case")]
+#[clap(rename_all = "kebab-case")]
+pub enum AiboxProfile {
+    #[default]
+    HumanDev,
+    HeadlessRunner,
+}
+
+impl AiboxProfile {
+    pub fn as_str(self) -> &'static str {
+        match self {
+            AiboxProfile::HumanDev => "human-dev",
+            AiboxProfile::HeadlessRunner => "headless-runner",
+        }
+    }
+}
+
+impl std::fmt::Display for AiboxProfile {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.write_str(self.as_str())
+    }
+}
+
+// ---------------------------------------------------------------------------
 // [aibox] section
 // ---------------------------------------------------------------------------
 
@@ -77,6 +108,8 @@ pub struct AiboxSection {
     pub version: String,
     #[serde(default)]
     pub base: BaseImage,
+    #[serde(default)]
+    pub profile: AiboxProfile,
 }
 
 // ---------------------------------------------------------------------------
@@ -1433,6 +1466,7 @@ pub fn test_config() -> AiboxConfig {
         aibox: AiboxSection {
             version: "0.9.0".to_string(),
             base: BaseImage::Debian,
+            profile: AiboxProfile::HumanDev,
         },
         container: ContainerSection {
             name: "test-proj".to_string(),
@@ -1477,6 +1511,7 @@ mod tests {
 [aibox]
 version = "0.9.0"
 base = "debian"
+profile = "headless-runner"
 
 [container]
 name = "my-project"
@@ -1565,6 +1600,7 @@ name = "my-project"
         // [aibox]
         assert_eq!(config.aibox.version, "0.9.0");
         assert_eq!(config.aibox.base, BaseImage::Debian);
+        assert_eq!(config.aibox.profile, AiboxProfile::HeadlessRunner);
 
         // [container]
         assert_eq!(config.container.name, "my-project");
@@ -1633,6 +1669,7 @@ name = "my-project"
     fn parse_minimal_toml_defaults() {
         let config = parse_toml(minimal_toml()).expect("should parse minimal toml");
         assert_eq!(config.aibox.base, BaseImage::Debian);
+        assert_eq!(config.aibox.profile, AiboxProfile::HumanDev);
         assert_eq!(config.container.name, "my-project");
         assert_eq!(config.container.hostname, "aibox");
         assert_eq!(config.context.schema_version, "1.0.0");
@@ -1904,6 +1941,15 @@ harnesses = []
     fn base_image_default_is_debian() {
         let config = parse_toml(minimal_toml()).unwrap();
         assert_eq!(config.aibox.base, BaseImage::Debian);
+    }
+
+    #[test]
+    fn aibox_profile_display() {
+        assert_eq!(format!("{}", AiboxProfile::HumanDev), "human-dev");
+        assert_eq!(
+            format!("{}", AiboxProfile::HeadlessRunner),
+            "headless-runner"
+        );
     }
 
     // -- Addons helpers -----------------------------------------------------
