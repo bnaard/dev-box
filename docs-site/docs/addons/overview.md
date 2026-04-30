@@ -5,7 +5,7 @@ title: "Overview"
 
 # Addons
 
-aibox uses a single base image (`base-debian`) with **21 composable addons** that install language runtimes, tool bundles, documentation frameworks, and AI coding agents into your container.
+aibox uses a single base image (`base-debian`) with **29 composable addons** that install language runtimes, tool bundles, documentation frameworks, and AI coding agents into your container.
 
 ## Managing Addons
 
@@ -23,6 +23,9 @@ aibox delete addon python
 
 # View addon details (tools, versions)
 aibox describe addon rust
+
+# Emit the machine-readable addon catalog index
+aibox describe addon-catalog -o json
 ```
 
 ### Via aibox.toml
@@ -43,6 +46,12 @@ pnpm = { version = "10" }
 ```
 
 Each addon has **default-enabled tools** that are included automatically, and **optional tools** you can enable explicitly. Tools with version selection let you pick from curated, tested versions.
+
+`aibox describe addon-catalog -o json` emits the stable `aibox.addon-catalog.v0`
+index used by downstream automation. It includes each addon's profile intent,
+automation usage class, supported aibox profiles, dependencies, and tool
+metadata. Canonical processkit `Artifact{kind=addon-spec}` emission remains
+gated on the upstream processkit schema release.
 
 After editing `aibox.toml`, run `aibox apply` to regenerate the Dockerfile and rebuild.
 

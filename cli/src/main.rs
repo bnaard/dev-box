@@ -225,6 +225,7 @@ fn dispatch(cli: cli::Cli) -> anyhow::Result<()> {
                 let addon = required_name(name, "add-on name")?;
                 addon_cmd::cmd_addon_info(&addon, format)
             }
+            cli::DescribeResource::AddonCatalog => addon_cmd::cmd_addon_catalog(format),
             cli::DescribeResource::Env => env::cmd_env_status(config_path),
             cli::DescribeResource::Kit => kit::cmd_kit_list(config_path, format),
             cli::DescribeResource::Skill => {

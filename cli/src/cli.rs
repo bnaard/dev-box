@@ -428,6 +428,7 @@ pub enum GetResource {
 pub enum DescribeResource {
     Runtime,
     Addon,
+    AddonCatalog,
     Env,
     Kit,
     Skill,

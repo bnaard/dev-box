@@ -383,6 +383,43 @@ pub fn cmd_addon_info(name: &str, format: OutputFormat) -> Result<()> {
     Ok(())
 }
 
+/// Emit the stable addon catalog index for downstream consumers.
+pub fn cmd_addon_catalog(format: OutputFormat) -> Result<()> {
+    let index = addon_loader::addon_catalog_index(addon_loader::all_addons());
+
+    match format {
+        OutputFormat::Json => {
+            println!("{}", serde_json::to_string_pretty(&index)?);
+        }
+        OutputFormat::Yaml => {
+            print!("{}", serde_yaml::to_string(&index)?);
+        }
+        OutputFormat::Table => {
+            let headless_count = index
+                .addons
+                .iter()
+                .filter(|addon| addon.profiles.iter().any(|p| p == "headless-runner"))
+                .count();
+            let manual_count = index
+                .addons
+                .iter()
+                .filter(|addon| addon.usage_class.as_deref() == Some("manual-escalation-only"))
+                .count();
+
+            println!("Addon catalog");
+            println!("  Schema:       {}", index.schema_version);
+            println!("  aibox:        {}", index.aibox_version);
+            println!("  Addons:       {}", index.addons.len());
+            println!("  Headless:     {}", headless_count);
+            println!("  Manual-only:  {}", manual_count);
+            println!();
+            println!("Use `aibox describe addon-catalog -o json` for the machine-readable index.");
+        }
+    }
+
+    Ok(())
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;

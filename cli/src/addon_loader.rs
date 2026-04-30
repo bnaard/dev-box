@@ -21,6 +21,8 @@ use std::sync::OnceLock;
 
 use crate::addon_registry::{ToolConfig, ToolDef};
 
+pub const ADDON_CATALOG_SCHEMA_VERSION: &str = "aibox.addon-catalog.v0";
+
 // ---------------------------------------------------------------------------
 // YAML data model
 // ---------------------------------------------------------------------------
@@ -162,6 +164,35 @@ pub struct LoadedAddon {
 
 #[derive(Debug)]
 pub struct LoadedTool {
+    pub name: String,
+    pub default_enabled: bool,
+    pub default_version: String,
+    pub supported_versions: Vec<String>,
+}
+
+/// Stable generated index of the addon catalog for downstream consumers.
+#[derive(Debug, Serialize, PartialEq, Eq)]
+pub struct AddonCatalogIndex {
+    pub schema_version: &'static str,
+    pub aibox_version: &'static str,
+    pub addons: Vec<AddonCatalogEntry>,
+}
+
+#[derive(Debug, Serialize, PartialEq, Eq)]
+pub struct AddonCatalogEntry {
+    pub name: String,
+    pub addon_version: String,
+    pub category: String,
+    pub description: String,
+    pub profile_intent: Option<String>,
+    pub usage_class: Option<String>,
+    pub profiles: Vec<String>,
+    pub requires: Vec<String>,
+    pub tools: Vec<AddonCatalogTool>,
+}
+
+#[derive(Debug, Serialize, PartialEq, Eq)]
+pub struct AddonCatalogTool {
     pub name: String,
     pub default_enabled: bool,
     pub default_version: String,
@@ -320,6 +351,43 @@ pub fn all_addons() -> &'static [LoadedAddon] {
 /// Find an addon by name.
 pub fn get_addon(name: &str) -> Option<&'static LoadedAddon> {
     all_addons().iter().find(|a| a.name == name)
+}
+
+pub fn addon_catalog_index(addons: &[LoadedAddon]) -> AddonCatalogIndex {
+    let mut entries: Vec<AddonCatalogEntry> = addons
+        .iter()
+        .map(|addon| AddonCatalogEntry {
+            name: addon.name.clone(),
+            addon_version: addon.addon_version.clone(),
+            category: addon.category.clone(),
+            description: addon.description.clone(),
+            profile_intent: addon.profile_intent.map(|v| v.as_str().to_string()),
+            usage_class: addon.usage_class.map(|v| v.as_str().to_string()),
+            profiles: addon
+                .profiles
+                .iter()
+                .map(|p| p.as_str().to_string())
+                .collect(),
+            requires: addon.requires.clone(),
+            tools: addon
+                .tools
+                .iter()
+                .map(|tool| AddonCatalogTool {
+                    name: tool.name.clone(),
+                    default_enabled: tool.default_enabled,
+                    default_version: tool.default_version.clone(),
+                    supported_versions: tool.supported_versions.clone(),
+                })
+                .collect(),
+        })
+        .collect();
+    entries.sort_by(|a, b| a.name.cmp(&b.name));
+
+    AddonCatalogIndex {
+        schema_version: ADDON_CATALOG_SCHEMA_VERSION,
+        aibox_version: env!("CARGO_PKG_VERSION"),
+        addons: entries,
+    }
 }
 
 /// Warning-mode validation for the draft LivelyMoss addon metadata.
@@ -917,5 +985,60 @@ tools: []
         assert_eq!(warnings.len(), 1);
         assert!(warnings[0].contains("ai-cli"));
         assert!(warnings[0].contains("headless-runner"));
+    }
+
+    #[test]
+    fn addon_catalog_index_is_sorted_and_includes_metadata() {
+        let addons = vec![
+            LoadedAddon {
+                name: "runtime".to_string(),
+                addon_version: "1.0.0".to_string(),
+                description: "Runtime addon".to_string(),
+                profile_intent: Some(AddonProfileIntent::Runtime),
+                usage_class: Some(AddonUsageClass::Automated),
+                profiles: vec![AddonProfile::HumanDev, AddonProfile::HeadlessRunner],
+                category: "Other".to_string(),
+                builder_weight: None,
+                tools: vec![LoadedTool {
+                    name: "runner".to_string(),
+                    default_enabled: true,
+                    default_version: "2.0".to_string(),
+                    supported_versions: vec!["2.0".to_string()],
+                }],
+                requires: vec!["base".to_string()],
+                builder_template: None,
+                runtime_template: None,
+            },
+            LoadedAddon {
+                name: "ai-cli".to_string(),
+                addon_version: "1.0.0".to_string(),
+                description: "Provider CLI".to_string(),
+                profile_intent: Some(AddonProfileIntent::ProviderCli),
+                usage_class: Some(AddonUsageClass::ManualEscalationOnly),
+                profiles: vec![AddonProfile::HumanDev],
+                category: "Other".to_string(),
+                builder_weight: None,
+                tools: vec![],
+                requires: vec![],
+                builder_template: None,
+                runtime_template: None,
+            },
+        ];
+
+        let index = addon_catalog_index(&addons);
+
+        assert_eq!(index.schema_version, ADDON_CATALOG_SCHEMA_VERSION);
+        assert_eq!(index.addons[0].name, "ai-cli");
+        assert_eq!(index.addons[1].name, "runtime");
+        assert_eq!(
+            index.addons[0].usage_class.as_deref(),
+            Some("manual-escalation-only")
+        );
+        assert_eq!(
+            index.addons[1].profiles,
+            vec!["human-dev".to_string(), "headless-runner".to_string()]
+        );
+        assert_eq!(index.addons[1].requires, vec!["base".to_string()]);
+        assert_eq!(index.addons[1].tools[0].name, "runner");
     }
 }
