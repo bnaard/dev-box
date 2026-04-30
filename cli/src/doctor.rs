@@ -107,7 +107,7 @@ pub fn cmd_doctor(config_path: &Option<String>) -> Result<()> {
         }
     } else {
         output::warn(&format!(
-            "{} directory not found -- run 'aibox init' or 'aibox start' to create it",
+            "{} directory not found -- run 'aibox init' or 'aibox up' to create it",
             root_label
         ));
         diag.warnings += 1;
@@ -191,7 +191,7 @@ pub fn cmd_doctor(config_path: &Option<String>) -> Result<()> {
 /// every enabled scaffolded harness the corresponding deployed file exists
 /// under that harness's commands dir (Claude is always-on; others gated on
 /// `[ai].harnesses`). Helps detect incomplete skill distributions and stale
-/// scaffolds that were dropped before `aibox sync` was rerun.
+/// scaffolds that were dropped before `aibox apply` was rerun.
 fn check_command_registrations(config: &AiboxConfig, diag: &mut DiagResult) {
     let skills_dir = std::path::Path::new("context/skills");
     if !skills_dir.is_dir() {
@@ -299,7 +299,7 @@ fn check_command_registrations(config: &AiboxConfig, diag: &mut DiagResult) {
             ));
         } else {
             output::warn(&format!(
-                "[{harness}] {missing_count} command file(s) missing — run 'aibox sync' to register them"
+                "[{harness}] {missing_count} command file(s) missing — run 'aibox apply' to register them"
             ));
         }
     }
@@ -329,7 +329,7 @@ fn check_codex_prompt_path_drift(config: &AiboxConfig, diag: &mut DiagResult) {
                 "codex: stale managed prompt(s) in legacy path .aibox-home/.codex/prompts/: \
                  {}. Codex 0.125.0 ignores this directory; commands must be Codex Skills \
                  under .agents/skills/<name>/SKILL.md (DEC-20260426_1636-MightySky). \
-                 Run 'aibox sync' to migrate.",
+                 Run 'aibox apply' to migrate.",
                 stale.join(", ")
             ));
             diag.errors += 1;
@@ -352,7 +352,7 @@ fn check_codex_prompt_path_drift(config: &AiboxConfig, diag: &mut DiagResult) {
         if !has_pk_skill {
             output::warn(
                 "codex: no pk-* Codex Skills found under .agents/skills/ — \
-                 run 'aibox sync' to scaffold them (Codex 0.125.0 surfaces \
+                 run 'aibox apply' to scaffold them (Codex 0.125.0 surfaces \
                  these as $skill-name mentions and via /skills)",
             );
             diag.warnings += 1;
@@ -379,7 +379,7 @@ fn check_mount_sources(root: &Path, root_label: &str, config: &AiboxConfig, diag
             ));
         } else {
             output::warn(&format!(
-                "{}/{} missing — run 'aibox sync' to create it",
+                "{}/{} missing — run 'aibox apply' to create it",
                 root_label, dir_name
             ));
             diag.warnings += 1;
@@ -393,7 +393,7 @@ fn check_mount_sources(root: &Path, root_label: &str, config: &AiboxConfig, diag
             output::ok(&format!("{}/.asoundrc exists", root_label));
         } else {
             output::warn(&format!(
-                "{}/.asoundrc missing — run 'aibox sync' to create it",
+                "{}/.asoundrc missing — run 'aibox apply' to create it",
                 root_label
             ));
             diag.warnings += 1;
@@ -426,7 +426,7 @@ fn check_devcontainer_files(diag: &mut DiagResult) {
     let mut all_present = true;
     for f in &files {
         if !Path::new(f).exists() {
-            output::warn(&format!("{} missing -- run 'aibox sync'", f));
+            output::warn(&format!("{} missing -- run 'aibox apply'", f));
             diag.warnings += 1;
             all_present = false;
         }
@@ -627,7 +627,7 @@ fn check_container_image_version(runtime: &Runtime, config: &AiboxConfig, diag: 
             } else {
                 output::warn(&format!(
                     "Container image version mismatch: container={} config={} — \
-                     run `aibox sync` to rebuild",
+                     run `aibox apply` to rebuild",
                     container_ver, config.aibox.version
                 ));
                 diag.warnings += 1;
@@ -660,7 +660,7 @@ fn check_cli_version_file(diag: &mut DiagResult) {
     if file_version != cli_version {
         output::warn(&format!(
             "CLI version mismatch: aibox.lock cli_version={} current={} — \
-             run `aibox sync` to update generated files",
+             run `aibox apply` to update generated files",
             file_version, cli_version
         ));
         diag.warnings += 1;

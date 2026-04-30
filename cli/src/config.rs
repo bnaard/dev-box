@@ -198,9 +198,8 @@ pub struct LegacyProcessSection {
 /// CLI binary and no in-container persistence directory. All other harnesses
 /// have a corresponding `ai-<name>` addon that installs their CLI in the image.
 ///
-/// For backward compatibility, this enum also deserializes legacy names:
-/// `"openai"` maps to `Codex`, `"mistral"` is accepted but treated as a
-/// no-op harness (Mistral is now a model provider only).
+/// The deserializer still accepts a few older config spellings so existing
+/// aibox.toml files can be read and normalized by `aibox apply`.
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, Hash, clap::ValueEnum)]
 #[serde(rename_all = "kebab-case")]
 #[clap(rename_all = "kebab-case")]
@@ -211,8 +210,7 @@ pub enum AiHarness {
     Cursor,
     Continue,
     Copilot,
-    /// OpenAI Codex CLI. Serializes as `"codex"`.
-    /// Legacy `"openai"` is accepted via serde alias for backward compat.
+    /// OpenAI Codex CLI.
     #[serde(rename = "codex", alias = "openai")]
     #[clap(name = "codex", alias = "openai")]
     Codex,
@@ -222,8 +220,7 @@ pub enum AiHarness {
     OpenCode,
     /// Nous Research autonomous agent.
     Hermes,
-    /// Legacy: Mistral was previously listed as a "provider" but has no CLI
-    /// harness. Kept for serde backward compat; ignored in addon generation.
+    /// Mistral has no CLI harness; retained only so old config can be parsed.
     #[serde(rename = "mistral")]
     #[clap(skip)]
     Mistral,
@@ -586,8 +583,7 @@ pub enum Theme {
 #[serde(rename_all = "kebab-case")]
 #[clap(rename_all = "kebab-case")]
 pub enum ThemeMode {
-    /// Preserve the selected concrete theme. This is backward-compatible
-    /// with older aibox.toml files where the theme name encoded the mode.
+    /// Preserve the selected concrete theme.
     #[default]
     Auto,
     /// Prefer a light concrete palette. Falls back to Catppuccin Latte until
@@ -663,7 +659,7 @@ fn default_prompt() -> StarshipPreset {
     StarshipPreset::default()
 }
 
-/// Default zellij layout for `aibox start`.
+/// Default zellij layout for `aibox up`.
 #[derive(Debug, Clone, Default, Serialize, Deserialize, PartialEq, clap::ValueEnum)]
 #[serde(rename_all = "kebab-case")]
 #[clap(rename_all = "kebab-case")]
@@ -807,7 +803,7 @@ pub const PROCESSKIT_VERSION_LATEST: &str = "latest";
 /// like container name, aibox version, and addon list stay in `aibox.toml`.
 ///
 /// Location: `.aibox-local.toml` in the project root (same dir as `aibox.toml`).
-/// This file is added to `.gitignore` by `aibox init` / `aibox sync`.
+/// This file is added to `.gitignore` by `aibox init` / `aibox apply`.
 ///
 /// Example `.aibox-local.toml`:
 /// ```toml

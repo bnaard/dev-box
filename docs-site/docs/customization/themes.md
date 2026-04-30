@@ -95,7 +95,7 @@ The projectious.work brand theme. Deep navy base with a vivid orange accent.
 
 ## How It Works
 
-Each theme is a coordinated set of config files applied to all tools at `aibox sync` time:
+Each theme is a coordinated set of config files applied to all tools at `aibox apply` time:
 
 | Tool | Config file | What's themed |
 |------|------------|---------------|
@@ -112,8 +112,9 @@ Claude Code inherits terminal colors automatically — no separate theme file ne
 To switch light/dark mode in an existing project:
 
 ```bash
-aibox theme light
-aibox theme dark --theme tokyo-night
+aibox set theme.mode light
+aibox set theme.mode dark
+aibox set theme.name tokyo-night
 ```
 
 This updates `[customization].mode` in `aibox.toml` and regenerates the mounted runtime theme files under `.aibox-home/`. The running container is not stopped.
@@ -121,9 +122,9 @@ This updates `[customization].mode` in `aibox.toml` and regenerates the mounted 
 If the project Zellij session is running, refresh and attach it without stopping the container:
 
 ```bash
-aibox theme dark --restart-session
+aibox set theme.mode dark --restart-session
 ```
 
-:::note Theme files are force-updated by sync
-`aibox sync` and `aibox theme` overwrite theme-dependent config files (Zellij theme, Vim colorscheme, Yazi theme, lazygit config, Starship config) to match the selected theme. You do not need to rebuild or restart the container to change themes; running TUI processes may need to be restarted.
+:::note Theme files are force-updated by apply
+`aibox apply` and `aibox set theme.mode/name` overwrite theme-dependent config files (Zellij theme, Vim colorscheme, Yazi theme, lazygit config, Starship config) to match the selected theme. You do not need to rebuild or restart the container to change themes; running TUI processes may need to be restarted.
 :::

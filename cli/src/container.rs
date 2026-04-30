@@ -79,7 +79,7 @@ fn process_selection_items() -> (Vec<String>, Vec<String>) {
 /// sentinel) AND either there is no lock yet, or the lock disagrees
 /// with the config on `(source, version)`. Used by the auto-install
 /// path that lets users pin a version after `aibox init` and have
-/// `aibox sync` materialize the content (closes the v0.16.0 bug
+/// `aibox apply` materialize the content (closes the v0.16.0 bug
 /// reported in BACK-110).
 ///
 /// As of WS-1 (v0.19.x), `cmd_sync` no longer calls this directly — it
@@ -130,7 +130,7 @@ fn run_install(cwd: &std::path::Path, config: &AiboxConfig) {
             output::warn(&format!(
                 "Processkit install failed: {}. Sync will continue without \
                  fresh content; fix the [processkit] section and re-run \
-                 `aibox sync` to retry.",
+                 `aibox apply` to retry.",
                 e
             ));
         }
@@ -187,7 +187,7 @@ fn resolve_processkit_section(
         Ok(_) => {
             output::warn(&format!(
                 "No semver-tagged versions found at {}. Leaving processkit.version = \"{}\"; \
-                 edit aibox.toml later and re-run `aibox sync` to install content.",
+                 edit aibox.toml later and re-run `aibox apply` to install content.",
                 section.source, PROCESSKIT_VERSION_UNSET
             ));
             return Ok(section);
@@ -195,7 +195,7 @@ fn resolve_processkit_section(
         Err(e) => {
             output::warn(&format!(
                 "Could not list processkit versions at {}: {}. Leaving processkit.version = \"{}\"; \
-                 edit aibox.toml later and re-run `aibox sync` to install content.",
+                 edit aibox.toml later and re-run `aibox apply` to install content.",
                 section.source, e, PROCESSKIT_VERSION_UNSET
             ));
             return Ok(section);
@@ -294,9 +294,9 @@ fn build_tool_overrides(values: &[String]) -> Result<ToolOverrides> {
 ///
 /// Picking `docs-docusaurus` (which `requires: [node]`) without picking
 /// `node` used to error out at sync time with "Addon 'docs-docusaurus'
-/// requires 'node'". Now both `aibox init` and `aibox addon add` call
+/// requires 'node'". Now both `aibox init` and `aibox set addon` call
 /// this helper so the resulting `aibox.toml` already has the
-/// dependencies and `aibox sync` never sees a broken graph.
+/// dependencies and `aibox apply` never sees a broken graph.
 ///
 /// Pure function — no I/O. The caller is responsible for surfacing
 /// `expanded - initial` to the user via `output::info` if desired.
@@ -331,7 +331,7 @@ pub(crate) fn expand_addon_requires(initial: &[String]) -> Vec<String> {
 ///
 /// Tools that are NOT `default_enabled` are skipped entirely. Users
 /// who want them can edit `aibox.toml` directly afterwards (the
-/// `aibox addon info <name>` command lists them).
+/// `aibox describe addon <name>` command lists them).
 fn populate_addon_tools(
     addon_name: &str,
     overrides_for_addon: Option<&std::collections::HashMap<String, String>>,
@@ -516,10 +516,10 @@ pub fn cmd_start(config_path: &Option<String>, layout: &str) -> Result<()> {
     // image label != config.aibox.version) but have different fixes:
     //
     //   A) the image was already rebuilt at the new version by an earlier
-    //      `aibox sync`, but the container still references the old image
-    //      → fix: `aibox remove && aibox start` to recreate the container
+    //      `aibox apply`, but the container still references the old image
+    //      → fix: `aibox delete runtime && aibox up` to recreate the container
     //   B) the image itself is still at the old version
-    //      → fix: `aibox sync` to rebuild the image, then start
+    //      → fix: `aibox apply` to rebuild the image, then start
     //
     // We can't cheaply distinguish them from inside cmd_start without
     // poking the local image store, so we name both fixes in the error.
@@ -537,9 +537,9 @@ pub fn cmd_start(config_path: &Option<String>, layout: &str) -> Result<()> {
             "Version mismatch: the existing container was built from image v{} \
              but aibox.toml pins v{}.\n\n\
              Likely cause: an old container survived an aibox upgrade. Recreate it:\n\
-             \n    aibox remove && aibox start\n\n\
+             \n    aibox delete runtime && aibox up\n\n\
              If you have not yet rebuilt the image at the new version, run \
-             `aibox sync` first to rebuild it, then the recreate command above.",
+             `aibox apply` first to rebuild it, then the recreate command above.",
             container_version,
             config.aibox.version
         );
@@ -567,7 +567,7 @@ pub fn cmd_start(config_path: &Option<String>, layout: &str) -> Result<()> {
     // Kill any existing zellij session with this name to ensure a fresh start
     // with properly initialized panes. This prevents the "waiting to load" issue
     // that occurs when reattaching to a session with dead panes (e.g., after
-    // exiting and running `aibox start` again). Best-effort; don't fail if the
+    // exiting and running `aibox up` again). Best-effort; don't fail if the
     // session doesn't exist. Run via docker exec outside of Runtime.exec_interactive
     // to avoid making this step interactive.
     #[cfg(not(test))]
@@ -687,7 +687,7 @@ fn serialize_config_with_comments(config: &AiboxConfig) -> String {
     out.push_str(sep);
     out.push_str("# aibox.toml — single source of truth for your aibox project.\n");
     out.push_str(
-        "# All .devcontainer/ files are generated from this. Edit here, run `aibox sync`.\n",
+        "# All .devcontainer/ files are generated from this. Edit here, run `aibox apply`.\n",
     );
     out.push_str(
         "# Reference: https://projectious-work.github.io/aibox/docs/reference/configuration\n",
@@ -756,7 +756,7 @@ fn serialize_config_with_comments(config: &AiboxConfig) -> String {
     out.push_str(sep);
     out.push_str("[context]\n");
     out.push_str(&format!(
-        "schema_version = {:12} # Context schema version — updated automatically by `aibox sync`\n",
+        "schema_version = {:12} # Context schema version — updated automatically by `aibox apply`\n",
         format!("\"{}\"", config.context.schema_version)
     ));
     out.push_str("# processkit packages (one or more, choose by tier):\n");
@@ -830,14 +830,14 @@ fn serialize_config_with_comments(config: &AiboxConfig) -> String {
     out.push_str("#   \"latest\" — always install the newest version (skips pinning)\n");
     out.push_str("#   \"\"       — use the addon's built-in default version\n");
     out.push_str("#\n");
-    out.push_str("# Run `aibox addon list` to see all available addons.\n");
+    out.push_str("# Run `aibox get addon` to see all available addons.\n");
     out.push_str(
-        "# Run `aibox addon info <name>` to see every supported tool/version per addon.\n",
+        "# Run `aibox describe addon <name>` to see every supported tool/version per addon.\n",
     );
     out.push_str("#\n");
-    out.push_str("# To add an addon after init, edit this file and re-run `aibox sync`,\n");
+    out.push_str("# To add an addon after init, edit this file and re-run `aibox apply`,\n");
     out.push_str(
-        "# or use `aibox addon add <name>` (which also pulls in transitive `requires`).\n",
+        "# or use `aibox set addon <name>` (which also pulls in transitive `requires`).\n",
     );
     if !config.addons.addons.is_empty() {
         let mut addon_names: Vec<_> = config.addons.addons.keys().collect();
@@ -964,7 +964,7 @@ fn serialize_config_with_comments(config: &AiboxConfig) -> String {
         "# `version` is the git tag of the processkit source to consume. Special values:\n",
     );
     out.push_str("#   \"unset\"  — no version pinned yet; processkit content is not installed.\n");
-    out.push_str("#   \"latest\" — resolve to the newest available tag at every `aibox sync`.\n");
+    out.push_str("#   \"latest\" — resolve to the newest available tag at every `aibox apply`.\n");
     out.push_str("[processkit]\n");
     out.push_str(&format!("source   = \"{}\"\n", config.processkit.source));
     out.push_str(&format!("version  = \"{}\"\n", config.processkit.version));
@@ -1035,7 +1035,7 @@ fn serialize_config_with_comments(config: &AiboxConfig) -> String {
     out.push_str(sep);
     out.push_str("# [audio] — PulseAudio bridging for voice features (e.g., Claude Code voice)\n");
     out.push_str(sep);
-    out.push_str("# Requires host-side setup: run `aibox audio setup` on the host first.\n");
+    out.push_str("# Requires host-side setup: run `aibox apply audio` on the host first.\n");
     out.push_str("[audio]\n");
     out.push_str(&format!("enabled = {}\n", config.audio.enabled));
     if config.audio.enabled {
@@ -1273,7 +1273,7 @@ pub fn cmd_init(config_path: &Option<String>, params: InitParams) -> Result<()> 
     // init pipeline has succeeded. Warn-and-continue on failure so a
     // network hiccup or bad processkit URL doesn't wedge the user's
     // whole init — they get a working aibox project either way and can
-    // fix the [processkit] section then re-run `aibox sync`.
+    // fix the [processkit] section then re-run `aibox apply`.
     output::info("Installing processkit content...");
     let project_root = std::env::current_dir()
         .map_err(|e| anyhow::anyhow!("failed to resolve current directory: {}", e))?;
@@ -1281,7 +1281,7 @@ pub fn cmd_init(config_path: &Option<String>, params: InitParams) -> Result<()> 
         Ok(report) if report.skipped_due_to_unset => {
             output::warn(&format!(
                 "Skipped processkit install — [processkit] version is \"{}\". \
-                 Edit aibox.toml and run `aibox sync` to install processkit content.",
+                 Edit aibox.toml and run `aibox apply` to install processkit content.",
                 crate::config::PROCESSKIT_VERSION_UNSET
             ));
         }
@@ -1333,7 +1333,7 @@ pub fn cmd_init(config_path: &Option<String>, params: InitParams) -> Result<()> 
         Err(e) => {
             output::warn(&format!(
                 "Processkit install failed: {}. The project is set up but processkit \
-                 content was not installed. Run `aibox sync` to retry.",
+                 content was not installed. Run `aibox apply` to retry.",
                 e
             ));
         }
@@ -1359,7 +1359,7 @@ pub fn cmd_init(config_path: &Option<String>, params: InitParams) -> Result<()> 
         }
     }
 
-    output::ok("Project initialized. Edit aibox.toml to customize, then run: aibox start");
+    output::ok("Project initialized. Edit aibox.toml to customize, then run: aibox up");
 
     Ok(())
 }
@@ -1615,7 +1615,7 @@ pub fn cmd_sync(
     // Decide install / reinstall / skip based on lock+config drift AND
     // the live install-integrity check (WS-1). The integrity check is
     // best-effort — if it errors, fall back to Skip with a warning so a
-    // corrupt live marker can't brick `aibox sync` outright.
+    // corrupt live marker can't brick `aibox apply` outright.
     match std::env::current_dir() {
         Ok(cwd) => {
             let lock = crate::lock::read_lock(&cwd).ok().flatten();
@@ -1821,7 +1821,7 @@ pub fn cmd_sync(
     // Three mutually exclusive completion paths so test/log assertions
     // can disambiguate:
     //   * --no-container: never touches Runtime::detect() at all.
-    //   * --no-build:     same effect, but the older flag — kept for
+    //   * --config-only:     same effect, but the older flag — kept for
     //                     back-compat. Distinct message so the two
     //                     paths can be told apart in tests.
     //   * default:        probe runtime, build image (or warn-skip).
@@ -1863,11 +1863,11 @@ fn perform_container_build(no_cache: bool, config: &AiboxConfig) -> Result<()> {
 /// Warn the user if a container exists for this project AND its image
 /// label disagrees with the just-built image. This catches the
 /// "I synced but my old container is still running on the old image"
-/// situation BEFORE the user runs `aibox start` and gets a hard error.
+/// situation BEFORE the user runs `aibox up` and gets a hard error.
 ///
 /// Best-effort: any failure (runtime probe, label read) is silently
 /// swallowed. The warning is informational, not load-bearing — its
-/// only job is to surface a stale runtime so the next `aibox start`
+/// only job is to surface a stale runtime so the next `aibox up`
 /// isn't a surprise.
 fn warn_if_container_lags_image(runtime: &Runtime, config: &AiboxConfig) {
     let name = &config.container.name;
@@ -1886,7 +1886,7 @@ fn warn_if_container_lags_image(runtime: &Runtime, config: &AiboxConfig) {
     output::warn(&format!(
         "Container '{}' is still running on image v{} but the freshly-built image is v{}.\n    \
          The current container will keep running on the old image until you recreate it. To upgrade:\n    \
-         \n        aibox remove && aibox start\n    \
+         \n        aibox delete runtime && aibox up\n    \
          \n    Existing in-flight work in the container (open editors, running processes) will be lost \
          on recreation; project files under /workspace are mounted from the host and survive.",
         name, container_version, config.aibox.version

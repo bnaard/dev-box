@@ -8,29 +8,21 @@ use super::runner::E2eRunner;
 
 #[test]
 #[serial]
-fn addon_add_modifies_toml() {
+fn set_addon_modifies_toml() {
     let runner = E2eRunner::new();
     let test = "addon-add";
     runner.cleanup(test);
 
     runner.aibox(
         test,
-        &[
-            "init",
-            "--name",
-            test,
-            "--base",
-            "debian",
-            "--process",
-            "managed",
-        ],
+        &["init", test, "--base", "debian", "--context", "managed"],
     );
 
     // Add python addon
-    let output = runner.aibox(test, &["addon", "add", "python", "--no-build"]);
+    let output = runner.aibox(test, &["set", "addon", "python"]);
     assert!(
         output.status.success(),
-        "addon add python failed: {}",
+        "set addon python failed: {}",
         String::from_utf8_lossy(&output.stderr)
     );
 
@@ -38,7 +30,7 @@ fn addon_add_modifies_toml() {
     let toml = runner.read_file(test, "aibox.toml");
     assert!(
         toml.contains("[addons.python"),
-        "aibox.toml should contain [addons.python] after addon add"
+        "aibox.toml should contain [addons.python] after set addon"
     );
 
     runner.cleanup(test);
@@ -46,7 +38,7 @@ fn addon_add_modifies_toml() {
 
 #[test]
 #[serial]
-fn addon_remove_cleans_toml() {
+fn delete_addon_cleans_toml() {
     let runner = E2eRunner::new();
     let test = "addon-remove";
     runner.cleanup(test);
@@ -56,13 +48,12 @@ fn addon_remove_cleans_toml() {
         test,
         &[
             "init",
-            "--name",
             test,
             "--base",
             "debian",
-            "--process",
+            "--context",
             "managed",
-            "--addons",
+            "--addon",
             "python",
         ],
     );
@@ -75,10 +66,10 @@ fn addon_remove_cleans_toml() {
     );
 
     // Remove it
-    let output = runner.aibox(test, &["addon", "remove", "python", "--no-build"]);
+    let output = runner.aibox(test, &["delete", "addon", "python"]);
     assert!(
         output.status.success(),
-        "addon remove python failed: {}",
+        "delete addon python failed: {}",
         String::from_utf8_lossy(&output.stderr)
     );
 
@@ -86,7 +77,7 @@ fn addon_remove_cleans_toml() {
     let toml = runner.read_file(test, "aibox.toml");
     assert!(
         !toml.contains("[addons.python"),
-        "aibox.toml should not contain [addons.python] after addon remove"
+        "aibox.toml should not contain [addons.python] after delete addon"
     );
 
     runner.cleanup(test);
@@ -104,19 +95,18 @@ fn addon_rebuild_includes_tools_in_dockerfile() {
         test,
         &[
             "init",
-            "--name",
             test,
             "--base",
             "debian",
-            "--process",
+            "--context",
             "managed",
-            "--addons",
+            "--addon",
             "python",
         ],
     );
 
-    // Sync to regenerate
-    runner.aibox(test, &["sync"]);
+    // Apply to regenerate
+    runner.aibox(test, &["apply"]);
 
     // Check Dockerfile contains python-related content
     let dockerfile = runner.read_file(test, ".devcontainer/Dockerfile");
@@ -130,31 +120,23 @@ fn addon_rebuild_includes_tools_in_dockerfile() {
 
 #[test]
 #[serial]
-fn addon_list_shows_available() {
+fn get_addon_shows_available() {
     let runner = E2eRunner::new();
     let test = "addon-list";
     runner.cleanup(test);
 
     runner.aibox(
         test,
-        &[
-            "init",
-            "--name",
-            test,
-            "--base",
-            "debian",
-            "--process",
-            "managed",
-        ],
+        &["init", test, "--base", "debian", "--context", "managed"],
     );
 
-    let output = runner.aibox(test, &["addon", "list"]);
+    let output = runner.aibox(test, &["get", "addon"]);
     assert!(output.status.success());
 
     let stdout = String::from_utf8_lossy(&output.stdout);
     assert!(
         stdout.contains("python") || stdout.contains("Python"),
-        "addon list should show python as available"
+        "get addon should show python as available"
     );
 
     runner.cleanup(test);

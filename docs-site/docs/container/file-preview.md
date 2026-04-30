@@ -45,8 +45,8 @@ When you open Yazi (`Ctrl+b s` from the file manager pane, or via the layout sid
 Most tools are pre-installed in the base image. SQLite, CSV/TSV, and Excel previews require the **data-preview** addon. EPS, video thumbnails, and advanced image conversion require the **preview-enhanced** addon:
 
 ```bash
-aibox addon add data-preview        # adds sqlite3 and csvkit for data previews
-aibox addon add preview-enhanced   # adds ffmpeg, imagemagick, ghostscript
+aibox set addon data-preview       # adds sqlite3 and csvkit for data previews
+aibox set addon preview-enhanced   # adds ffmpeg, imagemagick, ghostscript
 ```
 
 ### How previewer dispatch works

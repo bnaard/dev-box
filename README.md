@@ -47,7 +47,7 @@ Most tools cover only one part of that problem:
 - Ships **6 Zellij layouts**: `dev`, `focus`, `cowork`, `cowork-swap`, `browse`, and `ai`
 - Applies a consistent theme across Zellij, Vim, Yazi, lazygit, and Starship
 - Installs editable `processkit` content under `context/` while keeping an immutable upstream snapshot for diffing under `context/templates/processkit/<version>/`
-- Keeps project state local to the repository so a fresh clone plus `aibox sync` can reproduce the environment
+- Keeps project state local to the repository so a fresh clone plus `aibox apply` can reproduce the environment
 
 ## Installation
 
@@ -84,9 +84,9 @@ For more installation options, see the [installation guide](https://projectious-
 mkdir my-project && cd my-project
 git init
 
-aibox init --name my-project --process managed --ai claude --addons python
-aibox sync
-aibox start
+aibox init my-project --context managed --harness claude --addon python
+aibox apply
+aibox up
 ```
 
 This gives you:
@@ -131,9 +131,9 @@ uv = { version = "0.7" }
 ### Daily workflow
 
 ```bash
-aibox sync                # apply config changes and rebuild if needed
-aibox start               # start or attach to the container
-aibox start --layout ai   # override the default layout for one session
+aibox apply               # apply config changes and rebuild if needed
+aibox up                  # start or attach to the container
+aibox up --layout ai      # override the default layout for one session
 aibox doctor              # validate project structure and environment
 ```
 
@@ -143,10 +143,10 @@ You can adopt `aibox` incrementally.
 
 1. Add or generate `aibox.toml` in the project root.
 2. Pin a real `processkit` version in `[processkit].version`.
-3. Run `aibox sync` to generate `.devcontainer/` files and install process content.
+3. Run `aibox apply` to generate `.devcontainer/` files and install process content.
 4. Move any custom environment variables, mounts, or post-create steps into `aibox.toml`.
 
-If your project already has hand-written `.devcontainer/` files, back them up first. `aibox sync` treats generated devcontainer files as managed output.
+If your project already has hand-written `.devcontainer/` files, back them up first. `aibox apply` treats generated devcontainer files as managed output.
 
 See the [existing-project guide](https://projectious-work.github.io/aibox/docs/getting-started/existing-project) for migration details.
 
@@ -156,9 +156,9 @@ See the [existing-project guide](https://projectious-work.github.io/aibox/docs/g
 
 `aibox.toml` is the project contract. It declares the base image, container settings, addons, AI providers, theme, layout, and the pinned `processkit` source/version.
 
-### 2. `aibox sync` reconciles managed state
+### 2. `aibox apply` reconciles managed state
 
-`aibox sync` is the command that applies configuration changes. It:
+`aibox apply` is the command that applies configuration changes. It:
 
 - seeds `.aibox-home/`
 - regenerates `.devcontainer/` files
@@ -166,15 +166,15 @@ See the [existing-project guide](https://projectious-work.github.io/aibox/docs/g
 - updates `aibox.lock`
 - builds the container image unless `--no-build` is used
 
-### 3. `aibox start` launches the workspace
+### 3. `aibox up` launches the workspace
 
-`aibox start` creates or starts the container and attaches through Zellij. The default experience is terminal-first, with built-in layouts for editing, browsing, git work, shells, and AI collaboration.
+`aibox up` creates or starts the container and attaches through Zellij. The default experience is terminal-first, with built-in layouts for editing, browsing, git work, shells, and AI collaboration.
 
 ### 4. `processkit` owns the process layer
 
 As of `aibox` v0.16.0, process content is intentionally separated:
 
-- **aibox owns:** container generation, addon resolution, install/sync/migrate machinery, and the slim project skeleton
+- **aibox owns:** container generation, addon resolution, install/apply/migrate machinery, and the slim project skeleton
 - **processkit owns:** skills, processes, schemas, state machines, and the canonical `AGENTS.md` template
 
 That boundary keeps container logic and process content independently versioned.

@@ -2,7 +2,7 @@
 //! payload (live working tree), a freshly-fetched cache, and the
 //! immutable reference templates dir written by [`crate::content_init`].
 //!
-//! Used by `aibox sync` to detect what changed upstream and what changed
+//! Used by `aibox apply` to detect what changed upstream and what changed
 //! locally, and to write Migration documents for the user to review.
 //! Never overwrites anything — always proposes.
 //!
@@ -162,7 +162,7 @@ pub type GroupedDiff = BTreeMap<String, Vec<FileDiff>>;
 /// `live == cache`, the live tree is already at the new upstream and the
 /// file is classified `Unchanged`, not `Conflict`. Without this guard a
 /// fresh checkout (where `context/` was committed ahead of `aibox.lock`)
-/// produces a flood of false-positive conflicts during `aibox sync`
+/// produces a flood of false-positive conflicts during `aibox apply`
 /// (BACK-TrueRaven, 2026-04-26).
 pub fn classify(
     reference_sha: Option<&str>,
@@ -690,7 +690,7 @@ pub fn write_migration_document(
         body.push_str(&format!("  to_resolved_commit: {}\n", yaml_scalar(commit)));
     }
     body.push_str("  state: pending\n");
-    body.push_str("  generated_by: aibox sync\n");
+    body.push_str("  generated_by: aibox apply\n");
     body.push_str(&format!("  generated_at: {}\n", now_iso));
     body.push_str(&format!("  summary: {}\n", yaml_scalar(&summary_line)));
     body.push_str("  affected_groups:\n");
@@ -760,7 +760,7 @@ pub fn write_migration_document(
                 proj, last_seen, lock_before.version,
             ));
         }
-        body.push_str("\n_Apply with care — `aibox migrate apply` only marks the document as\n");
+        body.push_str("\n_Apply with care — `aibox apply migration` only marks the document as\n");
         body.push_str("applied; deletion is a manual step that you should only take after\n");
         body.push_str("confirming the skill is no longer wanted._\n\n");
     }
@@ -1409,7 +1409,7 @@ mod tests {
         assert!(body.contains("to_resolved_commit: beef"));
         assert!(body.contains("source: processkit"));
         assert!(body.contains("state: pending"));
-        assert!(body.contains("generated_by: aibox sync"));
+        assert!(body.contains("generated_by: aibox apply"));
         assert!(body.contains("skills/event-log"));
         assert!(body.contains("primitives/schemas/workitem.yaml"));
         assert!(body.contains("changed-upstream-only"));

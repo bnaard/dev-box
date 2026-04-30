@@ -14,7 +14,7 @@ title: "OpenAI (Codex CLI)"
 providers = ["openai"]
 ```
 
-Run `aibox sync`, then inside the container:
+Run `aibox apply`, then inside the container:
 
 ```bash
 codex    # Launches OpenAI Codex CLI
@@ -42,9 +42,9 @@ Separately, aibox also generates a project-local `.codex/config.toml` for MCP se
 
 ## MCP Integration
 
-Codex has a native MCP client. aibox generates `.codex/config.toml` automatically on `aibox sync`, merging processkit built-in servers, team servers from `aibox.toml [mcp]`, and personal servers from `.aibox-local.toml [mcp]`.
+Codex has a native MCP client. aibox generates `.codex/config.toml` automatically on `aibox apply`, merging processkit built-in servers, team servers from `aibox.toml [mcp]`, and personal servers from `.aibox-local.toml [mcp]`.
 
-`.codex/config.toml` is **gitignored** — it is regenerated on every `aibox sync` and must not be committed.
+`.codex/config.toml` is **gitignored** — it is regenerated on every `aibox apply` and must not be committed.
 
 To add MCP servers:
 

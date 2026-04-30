@@ -14,7 +14,7 @@ title: "Claude"
 providers = ["claude"]
 ```
 
-Run `aibox sync`, then inside the container:
+Run `aibox apply`, then inside the container:
 
 ```bash
 claude   # Launches Claude Code CLI
@@ -41,9 +41,9 @@ enabled = true
 
 ## MCP Integration
 
-Claude Code's native MCP client reads `.mcp.json`. aibox generates `.mcp.json` automatically on `aibox sync`, merging processkit built-in servers, team servers from `aibox.toml [mcp]`, and personal servers from `.aibox-local.toml [mcp]`.
+Claude Code's native MCP client reads `.mcp.json`. aibox generates `.mcp.json` automatically on `aibox apply`, merging processkit built-in servers, team servers from `aibox.toml [mcp]`, and personal servers from `.aibox-local.toml [mcp]`.
 
-`.mcp.json` is **gitignored** — it is regenerated on every `aibox sync` and must not be committed.
+`.mcp.json` is **gitignored** — it is regenerated on every `aibox apply` and must not be committed.
 
 To add MCP servers:
 

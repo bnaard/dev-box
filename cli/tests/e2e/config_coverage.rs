@@ -3,7 +3,7 @@
 //! Each test case:
 //! 1. Runs `aibox init` with a base config
 //! 2. Patches `aibox.toml` with specific settings
-//! 3. Runs `aibox sync` (alias: generate)
+//! 3. Runs `aibox apply`
 //! 4. Asserts the generated files contain/don't contain expected strings
 //!
 //! These are Tier 1 tests — no running container needed, fast.
@@ -37,15 +37,7 @@ fn run_in(dir: &std::path::Path, args: &[&str]) -> std::process::Output {
 fn init_project(dir: &std::path::Path, name: &str) {
     let output = run_in(
         dir,
-        &[
-            "init",
-            "--name",
-            name,
-            "--base",
-            "debian",
-            "--process",
-            "managed",
-        ],
+        &["init", name, "--base", "debian", "--context", "managed"],
     );
     assert!(
         output.status.success(),
@@ -96,10 +88,10 @@ fn replace_toml_section(dir: &std::path::Path, section: &str, replacement: &str)
 
 /// Sync (regenerate) the project files.
 fn sync_project(dir: &std::path::Path) {
-    let output = run_in(dir, &["sync", "--no-build"]);
+    let output = run_in(dir, &["apply"]);
     assert!(
         output.status.success(),
-        "sync failed: {}",
+        "apply failed: {}",
         String::from_utf8_lossy(&output.stderr)
     );
 }
@@ -345,11 +337,10 @@ fn process_minimal_creates_skeleton() {
         dir.path(),
         &[
             "init",
-            "--name",
             "proc-min",
             "--base",
             "debian",
-            "--process",
+            "--context",
             "minimal",
         ],
     );
@@ -364,11 +355,10 @@ fn process_managed_creates_skeleton() {
         dir.path(),
         &[
             "init",
-            "--name",
             "proc-mgd",
             "--base",
             "debian",
-            "--process",
+            "--context",
             "managed",
         ],
     );
@@ -389,11 +379,10 @@ fn process_product_creates_skeleton() {
         dir.path(),
         &[
             "init",
-            "--name",
             "proc-prod",
             "--base",
             "debian",
-            "--process",
+            "--context",
             "product",
         ],
     );
@@ -412,11 +401,10 @@ fn process_research_creates_skeleton() {
         dir.path(),
         &[
             "init",
-            "--name",
             "proc-res",
             "--base",
             "debian",
-            "--process",
+            "--context",
             "research",
         ],
     );
@@ -426,7 +414,7 @@ fn process_research_creates_skeleton() {
 
 #[test]
 fn sync_updates_processkit_install_hash_in_lock() {
-    // After a sync that installs processkit content, aibox.lock should
+    // After an apply that installs processkit content, aibox.lock should
     // contain a non-empty processkit_install_hash under [processkit]
     // (WS-7: renamed from mcp_config_hash and broadened to cover the
     // full processkit-shipped install payload).
@@ -439,7 +427,7 @@ fn sync_updates_processkit_install_hash_in_lock() {
     let lock_content = fs::read_to_string(&lock_path).expect("failed to read aibox.lock");
     assert!(
         lock_content.contains("processkit_install_hash"),
-        "aibox.lock should contain processkit_install_hash field after sync"
+        "aibox.lock should contain processkit_install_hash field after apply"
     );
     // The hash should be a non-empty hex string
     assert!(

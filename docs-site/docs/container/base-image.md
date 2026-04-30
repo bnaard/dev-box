@@ -83,7 +83,7 @@ Press `Escape` or `Ctrl+b` again to cancel the leader and return to normal mode.
 
 ### Layouts
 
-aibox ships three IDE layouts. Select one with `aibox start --layout <name>` (the default is `dev`). All layouts include shared tabs for **git** (lazygit) and **shell** (extra bash).
+aibox ships three IDE layouts. Select one with `aibox up --layout <name>` (the default is `dev`). All layouts include shared tabs for **git** (lazygit) and **shell** (extra bash).
 
 #### dev (default) -- file browser + editor
 
@@ -162,7 +162,7 @@ All user configuration is persisted on the host under `.aibox-home/` and bind-mo
 
 The Dockerfile bakes identical defaults into the image as a fallback. If no mounts are present, the container still works out of the box.
 
-On first `aibox init` or `aibox start`, the `.aibox-home/` directory is auto-seeded from built-in templates. Existing files are never overwritten.
+On first `aibox init` or `aibox up`, the `.aibox-home/` directory is auto-seeded from built-in templates. Existing files are never overwritten.
 
 ## File Preview
 
@@ -176,4 +176,4 @@ See the dedicated [File Preview](file-preview.md) page for full documentation, i
 CMD ["sleep", "infinity"]
 ```
 
-The container stays alive and idle. Both VS Code and `aibox start` exec into it. Zellij is never the container entrypoint -- it is launched on attach.
+The container stays alive and idle. Both VS Code and `aibox up` exec into it. Zellij is never the container entrypoint -- it is launched on attach.

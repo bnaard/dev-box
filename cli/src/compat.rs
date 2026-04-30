@@ -5,7 +5,7 @@
 //! processkit version for that aibox release.
 //!
 //! When a project's `[processkit].version` in `aibox.toml` is older than
-//! the minimum for the running aibox binary, `aibox sync` emits a warning.
+//! the minimum for the running aibox binary, `aibox apply` emits a warning.
 //!
 //! Update this table with every aibox release that changes processkit
 //! compatibility. Keep entries in ascending version order.

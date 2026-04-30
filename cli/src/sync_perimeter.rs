@@ -1,15 +1,15 @@
 //! Sync perimeter — the documented and enforced set of file paths that
-//! `aibox sync` is allowed to create, modify, or delete.
+//! `aibox apply` is allowed to create, modify, or delete.
 //!
 //! ## Why this exists
 //!
 //! Downstream projects (e.g. processkit, company forks) consume aibox to
 //! manage their devcontainer but own the rest of the repository: their
 //! own `README.md`, `AGENTS.md`, `src/`, `docs/`, and so on. These users
-//! need a hard guarantee that `aibox sync` will *never* touch a file
+//! need a hard guarantee that `aibox apply` will *never* touch a file
 //! outside aibox's domain.
 //!
-//! Without a documented perimeter, the question "could `aibox sync`
+//! Without a documented perimeter, the question "could `aibox apply`
 //! clobber file X?" becomes a recurring source of friction every time a
 //! consumer makes a non-trivial edit. The answer must be unambiguous and
 //! stable across releases.
@@ -18,7 +18,7 @@
 //!
 //! ## The perimeter
 //!
-//! `aibox sync` is allowed to write to (and only to) these paths,
+//! `aibox apply` is allowed to write to (and only to) these paths,
 //! relative to the project root:
 //!
 //! | Path                                          | Why                                                              |
@@ -44,7 +44,7 @@
 //! | `.continue/`                                  | Continue MCP servers directory (v0.16.5+)                        |
 //! | `.claude/commands/`                           | Claude Code slash-command adapters from processkit skills (v0.17.3+) |
 //!
-//! The perimeter expanded in v0.16.1 because `aibox sync` now
+//! The perimeter expanded in v0.16.1 because `aibox apply` now
 //! auto-installs processkit content when `[processkit].version` is
 //! pinned (closing the v0.16.0 footgun where users edited the version
 //! and got an empty `context/`). The install destinations listed above
@@ -53,7 +53,7 @@
 //! the three-way diff in `crate::content_diff` and surfaced as
 //! migration documents — they are never silently clobbered.
 //!
-//! Anything else is **out of perimeter**. Notable items that aibox sync
+//! Anything else is **out of perimeter**. Notable items that aibox apply
 //! will NOT touch under any circumstances:
 //!
 //! - `README.md`, `CLAUDE.md`, `LICENSE`, `CHANGELOG.md`
@@ -62,7 +62,7 @@
 //!   `context/PROJECTS.md`, `context/STANDUPS.md`, `context/OWNER.md`,
 //!   `context/work-instructions/` (these are user-authored or owned by
 //!   processkit skills like `workitem-management` / `decision-record`
-//!   which write them on first use, not by aibox sync)
+//!   which write them on first use, not by aibox apply)
 //! - `.claude/` (except `.claude/commands/` which is in-perimeter), `.gemini/`, any other provider directory
 //! - `.gitignore` (created by `aibox init`; sync never edits it)
 //!
@@ -93,7 +93,7 @@ use std::time::SystemTime;
 use crate::processkit_vocab::AGENTS_FILENAME;
 
 /// The complete list of project-root-relative path prefixes that
-/// `aibox sync` is allowed to create, modify, or delete. Each entry is
+/// `aibox apply` is allowed to create, modify, or delete. Each entry is
 /// either a literal file path or a directory path ending in `/`. A
 /// candidate path is "in perimeter" if it equals a literal entry or
 /// starts with a directory entry.
@@ -222,8 +222,8 @@ pub fn check_perimeter(rel_path: &Path) -> Result<()> {
         return Ok(());
     }
     Err(anyhow!(
-        "refusing to modify {}: outside the aibox sync perimeter. \
-         aibox sync only writes to: {}. \
+        "refusing to modify {}: outside the aibox apply perimeter. \
+         aibox apply only writes to: {}. \
          If this looks like an aibox bug, please report it.",
         rel_path.display(),
         SYNC_PERIMETER.join(", "),
@@ -235,7 +235,7 @@ pub fn check_perimeter(rel_path: &Path) -> Result<()> {
 // ---------------------------------------------------------------------------
 
 /// A snapshot of representative out-of-perimeter sentinel files,
-/// captured before `aibox sync` does any work. Calling [`Tripwire::verify`]
+/// captured before `aibox apply` does any work. Calling [`Tripwire::verify`]
 /// after sync confirms that none of the sentinels were created,
 /// modified, or deleted — providing a runtime sanity check that
 /// complements the static [`is_within_perimeter`] tests.
@@ -354,7 +354,7 @@ impl Tripwire {
             return Ok(());
         }
         Err(anyhow!(
-            "aibox sync perimeter tripwire fired — these out-of-perimeter \
+            "aibox apply perimeter tripwire fired — these out-of-perimeter \
              paths were modified during sync, which is a bug: {}. \
              Please file an issue at https://github.com/projectious-work/aibox/issues",
             violations.join(", ")
@@ -433,7 +433,7 @@ mod tests {
 
     #[test]
     fn processkit_install_destinations_are_in_perimeter() {
-        // v0.16.1+: aibox sync auto-installs processkit content. The
+        // v0.16.1+: aibox apply auto-installs processkit content. The
         // install lands under context/{skills,schemas,state-machines,
         // processes}/ — all sync-managed.
         assert!(within("context/skills/event-log/SKILL.md"));
@@ -643,7 +643,7 @@ mod tests {
         let err = check_perimeter(Path::new("README.md")).unwrap_err();
         let msg = format!("{}", err);
         assert!(msg.contains("README.md"));
-        assert!(msg.contains("outside the aibox sync perimeter"));
+        assert!(msg.contains("outside the aibox apply perimeter"));
     }
 
     // -- Acceptance: every known sync-time write target is in perimeter ----

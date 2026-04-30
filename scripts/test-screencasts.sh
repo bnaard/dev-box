@@ -174,7 +174,7 @@ test_cli() {
   workdir=$(mktemp -d /tmp/test-init-XXXX)
   local cast="${TEST_DIR}/cli-init.cast"
   asciinema rec --cols 100 --rows 20 --overwrite \
-    -c "cd ${workdir} && ${devbox} init --name test --image base --process minimal 2>&1" \
+    -c "cd ${workdir} && ${devbox} init test --context minimal 2>&1" \
     "${cast}" 2>/dev/null || true
   if [ -f "${workdir}/aibox.toml" ]; then
     pass "cli:init (aibox.toml created)"

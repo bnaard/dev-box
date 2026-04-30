@@ -97,10 +97,10 @@ do_run() {
 
   step "step 1 — aibox init (fresh project at $project_dir)"
   ( cd "$project_dir" && aibox init \
-      --name canary \
+      canary \
       --yes \
-      --ai claude \
-      --process managed \
+      --harness claude \
+      --context managed \
       --processkit-version "$FROM_PK_VERSION" </dev/null ) || log "WARN: aibox init failed"
   ls -la "$project_dir"
 
@@ -113,13 +113,13 @@ do_run() {
     return
   fi
 
-  step "step 3 — aibox sync at baseline ${FROM_VERSION}"
-  ( cd "$project_dir" && aibox sync </dev/null ) || log "WARN: baseline sync returned nonzero"
+  step "step 3 — aibox apply at baseline ${FROM_VERSION}"
+  ( cd "$project_dir" && aibox apply </dev/null ) || log "WARN: baseline apply returned nonzero"
   capture_state "$project_dir" "$run_dir/captured" "after-baseline"
 
-  step "step 4 — flip [aibox].version to \"latest\" and re-sync (cross-version upgrade)"
+  step "step 4 — flip [aibox].version to \"latest\" and re-apply (cross-version upgrade)"
   rewrite_version_pin "$project_dir/aibox.toml" "latest"
-  ( cd "$project_dir" && aibox sync </dev/null ) || log "WARN: upgrade sync returned nonzero"
+  ( cd "$project_dir" && aibox apply </dev/null ) || log "WARN: upgrade apply returned nonzero"
   capture_state "$project_dir" "$run_dir/captured" "after-upgrade"
 
   step "step 5 — inspect generated migration docs"

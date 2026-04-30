@@ -94,19 +94,19 @@ aibox --version
 # aibox 0.17.5
 ```
 
-## Shell completions
+## Shell completion scripts
 
 ```bash
-# Add to your shell profile for persistent completions:
+# Add to your shell profile for persistent completion scripts:
 
 # Bash (~/.bashrc)
-eval "$(aibox completions bash)"
+eval "$(aibox self completion bash)"
 
 # Zsh (~/.zshrc)
-eval "$(aibox completions zsh)"
+eval "$(aibox self completion zsh)"
 
 # Fish (~/.config/fish/config.fish)
-aibox completions fish | source
+aibox self completion fish | source
 ```
 
 ## Next steps

@@ -120,14 +120,14 @@ read_only = true
 ```
 
 :::tip Customizing ports, packages, volumes, and environment variables
-Use `Dockerfile.local` for installing additional packages, and `docker-compose.override.yml` for ports and additional services. Both files are scaffolded by `aibox init` and are never overwritten by `aibox sync`.
+Use `Dockerfile.local` for installing additional packages, and `docker-compose.override.yml` for ports and additional services. Both files are scaffolded by `aibox init` and are never overwritten by `aibox apply`.
 
 Environment variables and bind mounts can also be configured directly in `[container.environment]` / `[[container.extra_volumes]]` in `aibox.toml`, or — for secrets and per-developer settings that should not be committed — in [`.aibox-local.toml`](./local-config.md).
 :::
 
 ### .aibox-local.toml
 
-`.aibox-local.toml` is a personal, gitignored overlay for per-developer settings that should never be committed — API keys, personal bind mounts, and similar secrets. It lives next to `aibox.toml` in the project root and is automatically added to `.gitignore` by `aibox init` and `aibox sync`.
+`.aibox-local.toml` is a personal, gitignored overlay for per-developer settings that should never be committed — API keys, personal bind mounts, and similar secrets. It lives next to `aibox.toml` in the project root and is automatically added to `.gitignore` by `aibox init` and `aibox apply`.
 
 Three sections are supported:
 
@@ -176,7 +176,7 @@ python = { version = "3.13" }
 uv = { version = "0.7" }
 ```
 
-Run `aibox addon list` to see all 25 available addons, or `aibox addon info <name>` for tool details and supported versions. See the [Addons page](../addons/overview.md) for full documentation.
+Run `aibox get addon` to see all available addons, or `aibox describe addon <name>` for tool details and supported versions. See the [Addons page](../addons/overview.md) for full documentation.
 
 ### [skills]
 
@@ -212,7 +212,7 @@ canonical `AGENTS.md` template. The default upstream is the canonical
 repo, but any processkit-compatible source works (forks, self-hosted, private
 mirrors).
 
-If `version` is the sentinel `unset`, both `aibox init` and `aibox sync` skip
+If `version` is the sentinel `unset`, both `aibox init` and `aibox apply` skip
 the processkit fetch entirely. Pin a real tag (e.g. `v0.8.0`) to land the
 content. The downloaded tarball is git-tracked under
 `context/templates/processkit/<version>/` so derived projects always have the
@@ -263,7 +263,7 @@ release_asset_url_template = "https://gitea.acme.com/{org}/{name}/releases/downl
 
 ### [mcp]
 
-MCP server definitions and permission configuration. `aibox sync` merges servers from three sources and regenerates all MCP client config files:
+MCP server definitions and permission configuration. `aibox apply` merges servers from three sources and regenerates all MCP client config files:
 
 1. **Built-in processkit servers** — always included (the processkit MCP server and any extras it ships)
 2. **`aibox.toml [mcp]`** — team-shared servers committed to version control
@@ -295,7 +295,7 @@ GITHUB_TOKEN = "ghp_..."
 
 #### Permission Configuration: [mcp.permissions]
 
-Controls which MCP servers harnesses are permitted to use, eliminating repetitive permission prompts. `aibox sync` expands glob patterns into concrete server names and regenerates harness-specific permission files for supported harnesses.
+Controls which MCP servers harnesses are permitted to use, eliminating repetitive permission prompts. `aibox apply` expands glob patterns into concrete server names and regenerates harness-specific permission files for supported harnesses.
 
 **Global defaults:**
 
@@ -398,5 +398,5 @@ Some settings can be overridden via environment variables:
 Example:
 
 ```bash
-AIBOX_WORKSPACE_DIR=/home/user/projects/my-app aibox start
+AIBOX_WORKSPACE_DIR=/home/user/projects/my-app aibox up
 ```

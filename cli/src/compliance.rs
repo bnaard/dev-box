@@ -1,7 +1,7 @@
 //! Compliance-contract helpers — surface the processkit skill-gate compliance
 //! contract to each AI harness at sync time.
 //!
-//! Three things happen on every `aibox sync`:
+//! Three things happen on every `aibox apply`:
 //!
 //! 1. **Drift detection** (Issue #46): compare the
 //!    `<!-- pk-compliance-contract v1 BEGIN -->…END` block embedded in
@@ -135,7 +135,7 @@ pub fn check_compliance_contract_drift(project_root: &Path, fix: bool) -> Result
                     "Compliance contract in AGENTS.md differs from the canonical source at \
                      context/skills/processkit/skill-gate/assets/compliance-contract.md.",
                 );
-                output::warn("Run `aibox sync --fix-compliance-contract` to update AGENTS.md.");
+                output::warn("Run `aibox apply --fix-compliance-contract` to update AGENTS.md.");
             }
         }
         (_, Some(block_v2)) => {
@@ -158,7 +158,7 @@ pub fn check_compliance_contract_drift(project_root: &Path, fix: bool) -> Result
                     "Compliance contract in AGENTS.md differs from the canonical source at \
                      context/skills/processkit/skill-gate/assets/compliance-contract.md.",
                 );
-                output::warn("Run `aibox sync --fix-compliance-contract` to update AGENTS.md.");
+                output::warn("Run `aibox apply --fix-compliance-contract` to update AGENTS.md.");
             }
         }
     }
@@ -333,7 +333,7 @@ pub fn write_aider_compliance_conf(config: &AiboxConfig, project_root: &Path) ->
 ///
 /// `fix_compliance_contract` — when true, the drift checker rewrites the
 /// AGENTS.md block from the canonical source instead of emitting a
-/// warning. Wired from `aibox sync --fix-compliance-contract`.
+/// warning. Wired from `aibox apply --fix-compliance-contract`.
 pub fn regenerate_compliance_configs(
     config: &AiboxConfig,
     project_root: &Path,

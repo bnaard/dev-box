@@ -464,7 +464,7 @@ pub fn remove_managed_commands_all(project_root: &Path, config: &AiboxConfig) ->
         };
         // Cleanup is gated on the same profile_enabled rule used during
         // sync — that way a user who never enabled (say) Cursor doesn't
-        // suddenly get its commands directory deleted on `aibox reset`.
+        // suddenly get its commands directory deleted on `aibox reset project`.
         if !profile_enabled(&profile, config) {
             continue;
         }

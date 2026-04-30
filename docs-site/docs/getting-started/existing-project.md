@@ -13,7 +13,7 @@ If your project does not yet have a `aibox.toml`, create one manually or use `in
 
 ```bash
 cd my-existing-project
-aibox init --name my-existing-project --process managed
+aibox init my-existing-project --context managed
 ```
 
 :::warning init will not overwrite
@@ -49,21 +49,21 @@ providers = ["claude"]
 enabled = false
 ```
 
-:::tip Pin processkit before sync
+:::tip Pin processkit before apply
 
 Set `[processkit].version` to a real tag (e.g. `v0.8.0`) before the first
-`aibox sync`. The default sentinel `unset` skips processkit content
+`aibox apply`. The default sentinel `unset` skips processkit content
 installation entirely — you will get devcontainer files but no skills,
 processes, or `AGENTS.md`.
 
 :::
 
-## Sync Devcontainer Files
+## Apply Devcontainer Files
 
-Run `sync` to create the `.devcontainer/` directory from your config:
+Run `apply` to create the `.devcontainer/` directory from your config:
 
 ```bash
-aibox sync
+aibox apply
 ```
 
 This creates:
@@ -82,11 +82,11 @@ If your project already has a `.devcontainer/` directory with hand-written files
    ```bash
    cp -r .devcontainer .devcontainer.bak
    ```
-2. Run `aibox sync` -- it will overwrite the existing files
+2. Run `aibox apply` -- it will overwrite the existing files
 3. Move any custom configuration into `aibox.toml`:
    - Environment variables go in `[container.environment]`
    - Bind mounts go in `[[container.extra_volumes]]` (or `.aibox-local.toml` for secrets and per-developer paths)
-4. Rebuild: `aibox sync --no-cache`
+4. Rebuild: `aibox apply --no-cache`
 
 ### Option B: Keep hand-written files
 
@@ -167,8 +167,8 @@ The `migrations/` directory in the aibox repository contains ready-made
 Once `aibox.toml` and `.devcontainer/` are in place:
 
 ```bash
-aibox sync     # Regenerate files and build image
-aibox start    # Start and attach
+aibox apply    # Regenerate files and build image
+aibox up       # Start and attach
 ```
 
 The workflow is identical to a [new project](new-project.md#build-and-start) from this point forward.

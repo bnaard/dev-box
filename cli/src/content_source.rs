@@ -235,7 +235,7 @@ fn sanitize_component(s: &str) -> String {
 // ---------------------------------------------------------------------------
 
 /// Compute the cache directory for a `(source, version)` pair without
-/// fetching. Useful for `aibox status --processkit` reporting.
+/// fetching. Useful for `aibox get runtime --processkit` reporting.
 pub fn cache_dir(source: &str, version: &str) -> Result<PathBuf> {
     let parsed = parse_source(source)?;
     let version_component = sanitize_component(version);

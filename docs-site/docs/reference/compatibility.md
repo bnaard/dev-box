@@ -24,7 +24,7 @@ below shows the minimum compatible processkit version for each aibox release.
 
 ## How compatibility is enforced
 
-`aibox sync` compares the `[processkit].version` in your `aibox.toml` against
+`aibox apply` compares the `[processkit].version` in your `aibox.toml` against
 the minimum required version for the running aibox binary. If the pinned
 processkit version is older than the minimum, a warning is emitted:
 
@@ -46,7 +46,7 @@ To upgrade processkit in an existing project:
    version = "v0.8.0"
    ```
 
-2. Run `aibox sync` on the host — the 3-way diff will show changed content
+2. Run `aibox apply` on the host — the 3-way diff will show changed content
    and generate processkit content migration documents in `context/migrations/pending/`.
 
 3. Review and apply the pending migrations.

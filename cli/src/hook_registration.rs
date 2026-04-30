@@ -1,6 +1,6 @@
 //! Hook registration — write per-harness hook config files so that
 //! processkit's enforcement scripts are wired into each AI harness on
-//! `aibox sync` / `aibox init`.
+//! `aibox apply` / `aibox init`.
 //!
 //! ## What this module does
 //!

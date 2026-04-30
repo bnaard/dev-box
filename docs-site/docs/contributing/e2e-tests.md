@@ -30,31 +30,31 @@ must respond with `ok`, confirming the companion container is up and reachable
 before any other Tier 2 test runs.
 `[lifecycle.rs · companion_is_reachable]`
 
-**Init then sync produces valid project**
-If `aibox init` is run followed by `aibox sync --no-build`, then
+**Init then apply produces valid project**
+If `aibox init` is run followed by `aibox apply --no-build`, then
 `aibox.toml`, `.devcontainer/Dockerfile`, `.devcontainer/docker-compose.yml`,
 and `CLAUDE.md` must all exist in the workspace.
 `[lifecycle.rs · lifecycle_init_sync]`
 
-**CLAUDE.md user content is preserved on sync**
-If a user edits `CLAUDE.md` after `aibox init` and then runs `aibox sync`,
+**CLAUDE.md user content is preserved on apply**
+If a user edits `CLAUDE.md` after `aibox init` and then runs `aibox apply`,
 then the edited content must still be present — aibox must not overwrite
 user-modified files.
 `[lifecycle.rs · claudemd_preserved_on_sync]`
 
-**Generated files are overwritten on sync**
+**Generated files are overwritten on apply**
 If a generated file (e.g. `.devcontainer/Dockerfile`) is manually tampered
-with and `aibox sync` is run, then the file must contain regenerated content
+with and `aibox apply` is run, then the file must contain regenerated content
 and the tampered content must be gone.
 `[lifecycle.rs · generated_files_overwritten_on_sync]`
 
 **Status reports missing when no container exists**
-If `aibox status` is run in a project with no running container, then the
+If `aibox get runtime` is run in a project with no running container, then the
 output must contain `missing` or equivalent wording.
 `[lifecycle.rs · status_without_container_shows_missing]`
 
 **Managed package writes the slim project skeleton**
-If `aibox init --process managed` is run, then `aibox.toml` must contain
+If `aibox init --context managed` is run, then `aibox.toml` must contain
 `packages = ["managed"]` under `[context]`, an empty `context/` directory must
 exist, and a thin `CLAUDE.md` pointer must be created when the `claude`
 provider is enabled. The single-file context tracks (`BACKLOG.md`,
@@ -62,10 +62,10 @@ provider is enabled. The single-file context tracks (`BACKLOG.md`,
 corresponding processkit skills create them in place on first use.
 
 **Software package selection is recorded in aibox.toml**
-If `aibox init --process software` is run, then `aibox.toml` must contain
+If `aibox init --context software` is run, then `aibox.toml` must contain
 `packages = ["software"]` under `[context]`. As with all processkit packages
 in v0.16.0, this is declarative metadata; the actual skills land under
-`context/skills/` only after `aibox sync` with a real `[processkit].version`
+`context/skills/` only after `aibox apply` with a real `[processkit].version`
 pinned.
 
 ---
@@ -73,24 +73,24 @@ pinned.
 ## Addon management — `addon.rs`
 
 **Addon add writes to aibox.toml**
-If `aibox addon add python --no-build` is run in an initialized project, then
+If `aibox set addon python --no-build` is run in an initialized project, then
 `aibox.toml` must contain an `[addons.python]` section afterwards.
 `[addon.rs · addon_add_modifies_toml]`
 
 **Addon remove cleans aibox.toml**
-If a project is initialized with the `python` addon and then `aibox addon
-remove python --no-build` is run, then the `[addons.python]` section must no
+If a project is initialized with the `python` addon and then `aibox delete
+addon python --no-build` is run, then the `[addons.python]` section must no
 longer appear in `aibox.toml`.
 `[addon.rs · addon_remove_cleans_toml]`
 
-**Addon content appears in generated Dockerfile after sync**
-If a project is initialized with the `python` addon and `aibox sync` is run,
+**Addon content appears in generated Dockerfile after apply**
+If a project is initialized with the `python` addon and `aibox apply` is run,
 then `.devcontainer/Dockerfile` must contain Python-related content (install
 commands or references to `uv`).
 `[addon.rs · addon_rebuild_includes_tools_in_dockerfile]`
 
 **Addon list shows available addons**
-If `aibox addon list` is run in an initialized project, then the output must
+If `aibox get addon` is run in an initialized project, then the output must
 list known addons such as `python`.
 `[addon.rs · addon_list_shows_available]`
 
@@ -99,13 +99,13 @@ list known addons such as `python`.
 ## Reset and backup — `reset.rs`
 
 **Reset with backup removes files and creates backup directory**
-If `aibox reset --yes` is run in an initialized project, then `aibox.toml`
+If `aibox reset project --yes` is run in an initialized project, then `aibox.toml`
 must be deleted and `.aibox-backup/` must be created containing the backed-up
 files.
 `[reset.rs · reset_creates_backup]`
 
 **Reset with --no-backup removes all files without creating a backup**
-If `aibox reset --no-backup --yes` is run, then `aibox.toml` and
+If `aibox reset project --no-backup --yes` is run, then `aibox.toml` and
 `.devcontainer/` must be deleted and `.aibox-backup/` must not be created.
 `[reset.rs · reset_no_backup_deletes_all]`
 
@@ -141,26 +141,26 @@ contain a `RUN` statement that writes to `/etc/aibox-version` inside the
 image, making the build version queryable from within a running container.
 `[version_upgrade.rs · dockerfile_contains_etc_aibox_version_write]`
 
-**Start fails when container image version mismatches config**
+**Up fails when container image version mismatches config**
 If an existing container was built from image `v0.0.1` (mock label) and
-`aibox.toml` pins the current version, then `aibox start` must exit non-zero
+`aibox.toml` pins the current version, then `aibox up` must exit non-zero
 and output a message containing `mismatch` and a suggestion to run
-`aibox sync`.
+`aibox apply`.
 `[version_upgrade.rs · start_fails_on_image_version_mismatch]`
 
-**Start succeeds when container image version matches config**
+**Up succeeds when container image version matches config**
 If an existing container reports the same image version as the one pinned in
-`aibox.toml`, then `aibox start` must not produce a version mismatch error.
+`aibox.toml`, then `aibox up` must not produce a version mismatch error.
 `[version_upgrade.rs · start_does_not_error_when_versions_match]`
 
 **Update -y exits zero without hanging**
-If `aibox update -y` is run (the global `--yes` flag), then the command must
+If `aibox self update -y` is run (the global `--yes` flag), then the command must
 exit 0 regardless of registry availability — confirming the flag is correctly
 wired to `cmd_update` and does not block on an interactive prompt.
 `[version_upgrade.rs · update_yes_flag_exits_zero]`
 
 **Update --dry-run does not mention .aibox-version**
-If `aibox update --dry-run` is run, then the output must not contain the
+If `aibox self update --dry-run` is run, then the output must not contain the
 phrase `Would update .aibox-version` — that write was removed in BACK-060
 because the image version is now tracked exclusively in `aibox.toml`.
 `[version_upgrade.rs · update_dry_run_does_not_mention_aibox_version_file]`
@@ -174,16 +174,16 @@ warning containing `mismatch` while still exiting 0.
 **Doctor warns when .aibox-version is outdated**
 If `.aibox-version` is overwritten with `0.0.1` (an old CLI version) and
 `aibox doctor` is run, then the output must contain `CLI version mismatch`
-and suggest running `aibox sync` to update generated files.
+and suggest running `aibox apply` to update generated files.
 `[version_upgrade.rs · doctor_warns_on_cli_version_file_mismatch]`
 
 ---
 
 ## Migration — `migration.rs`
 
-**Sync updates .aibox-version when it is outdated**
+**Apply updates .aibox-version when it is outdated**
 If `.aibox-version` is overwritten with `0.1.0` (an old version) and
-`aibox sync` is run, then `.aibox-version` must be updated to a non-empty
+`aibox apply` is run, then `.aibox-version` must be updated to a non-empty
 value that is no longer `0.1.0`, indicating the migration system ran and
 stamped the current version.
 `[migration.rs · sync_updates_version_file]`
@@ -193,13 +193,13 @@ stamped the current version.
 ## Update command — `update.rs`
 
 **Update exits zero when registry returns an error**
-If `aibox update` is run in a project where the GHCR registry is unreachable
+If `aibox self update` is run in a project where the GHCR registry is unreachable
 or returns a non-2xx response, then the command must still exit 0 — the error
 must be treated as a warning, not a hard failure.
 `[update.rs · update_runs_without_crashing_in_derived_project]`
 
 **Update --check exits zero**
-If `aibox update --check` is run in an initialized project, then the command
+If `aibox self update --check` is run in an initialized project, then the command
 must exit 0 and print output containing either `Current CLI version:` or
 `Checking for updates`, regardless of whether the registry is reachable.
 `[update.rs · update_check_exits_cleanly]`
@@ -229,7 +229,7 @@ reference `catppuccin-mocha`.
 
 **Changing the theme updates all themed tool configs**
 If a project is initialized with `gruvbox-dark` and the theme is changed to
-`dracula` via `aibox sync`, then `config.kdl` must contain `dracula` and no
+`dracula` via `aibox apply`, then `config.kdl` must contain `dracula` and no
 longer `gruvbox-dark`, and `vimrc`, `yazi/theme.toml`, `lazygit/config.yml`,
 and `starship.toml` must all be non-empty and updated.
 `[appearance.rs · theme_change_updates_all_files]`
@@ -267,91 +267,91 @@ Nerd Font glyph characters (e.g. no `\ue0b0` powerline arrow).
 ## Config coverage — `config_coverage.rs`
 
 **Container name appears in docker-compose.yml**
-If `aibox.toml` specifies a container name and `aibox sync` is run, then
+If `aibox.toml` specifies a container name and `aibox apply` is run, then
 `docker-compose.yml` must contain that name.
 `[config_coverage.rs · container_name_in_compose]`
 
 **Container hostname appears in docker-compose.yml**
-If `aibox.toml` specifies a hostname and `aibox sync` is run, then
+If `aibox.toml` specifies a hostname and `aibox apply` is run, then
 `docker-compose.yml` must contain that hostname.
 `[config_coverage.rs · container_hostname_in_compose]`
 
 **Port mappings appear in docker-compose.yml**
-If `aibox.toml` defines ports (e.g. `"8080:80"`) and `aibox sync` is run,
+If `aibox.toml` defines ports (e.g. `"8080:80"`) and `aibox apply` is run,
 then `docker-compose.yml` must contain those port entries.
 `[config_coverage.rs · container_ports_in_compose]`
 
 **Extra packages appear in the generated Dockerfile**
-If `aibox.toml` lists extra packages and `aibox sync` is run, then
+If `aibox.toml` lists extra packages and `aibox apply` is run, then
 `.devcontainer/Dockerfile` must contain those package names in an apt install
 block.
 `[config_coverage.rs · container_extra_packages_in_dockerfile]`
 
 **Environment variables appear in docker-compose.yml**
-If `aibox.toml` defines environment variables and `aibox sync` is run, then
+If `aibox.toml` defines environment variables and `aibox apply` is run, then
 `docker-compose.yml` must contain those key-value pairs.
 `[config_coverage.rs · container_environment_in_compose]`
 
 **Extra volumes appear in docker-compose.yml**
-If `aibox.toml` defines extra volume mounts and `aibox sync` is run, then
+If `aibox.toml` defines extra volume mounts and `aibox apply` is run, then
 `docker-compose.yml` must contain those source and target paths.
 `[config_coverage.rs · container_extra_volumes_in_compose]`
 
 **Claude AI provider adds volume mount**
-If `aibox.toml` lists `claude` as an AI provider and `aibox sync` is run,
+If `aibox.toml` lists `claude` as an AI provider and `aibox apply` is run,
 then `docker-compose.yml` must contain a volume mount for the `.claude`
 config directory.
 `[config_coverage.rs · ai_claude_provider_volume_mount]`
 
 **Aider AI provider adds volume mount**
-If `aibox.toml` lists `aider` as an AI provider and `aibox sync` is run,
+If `aibox.toml` lists `aider` as an AI provider and `aibox apply` is run,
 then `docker-compose.yml` must contain a volume mount for the `.aider`
 config directory.
 `[config_coverage.rs · ai_aider_provider_volume_mount]`
 
 **Multiple AI providers each add their own volume mounts**
 If `aibox.toml` lists both `claude` and `gemini` as providers and `aibox
-sync` is run, then `docker-compose.yml` must contain volume mounts for both
+apply` is run, then `docker-compose.yml` must contain volume mounts for both
 `.claude` and `.gemini`.
 `[config_coverage.rs · ai_multiple_providers_volume_mounts]`
 
 **Audio enabled adds PulseAudio mounts and socket**
-If `aibox.toml` enables audio and `aibox sync` is run, then
+If `aibox.toml` enables audio and `aibox apply` is run, then
 `docker-compose.yml` must contain audio-related volume mounts or socket
 references.
 `[config_coverage.rs · audio_enabled_adds_mounts]`
 
 **Audio disabled produces no audio mounts**
-If `aibox.toml` has audio disabled (the default) and `aibox sync` is run,
+If `aibox.toml` has audio disabled (the default) and `aibox apply` is run,
 then `docker-compose.yml` must not contain audio-related content.
 `[config_coverage.rs · audio_disabled_no_mounts]`
 
 **Python addon adds install commands to Dockerfile**
-If `aibox.toml` includes the `python` addon and `aibox sync` is run, then
+If `aibox.toml` includes the `python` addon and `aibox apply` is run, then
 `.devcontainer/Dockerfile` must contain Python install instructions.
 `[config_coverage.rs · addon_python_in_dockerfile]`
 
 **Rust addon adds rustup install to Dockerfile**
-If `aibox.toml` includes the `rust` addon and `aibox sync` is run, then
+If `aibox.toml` includes the `rust` addon and `aibox apply` is run, then
 `.devcontainer/Dockerfile` must contain `rustup` installation instructions.
 `[config_coverage.rs · addon_rust_in_dockerfile]`
 
 **Multiple addons each contribute to the Dockerfile**
-If `aibox.toml` includes both the `python` and `rust` addons and `aibox sync`
+If `aibox.toml` includes both the `python` and `rust` addons and `aibox apply`
 is run, then `.devcontainer/Dockerfile` must contain install content for
 both.
 `[config_coverage.rs · addon_multiple_in_dockerfile]`
 
 **Minimal package creates slim project skeleton**
-If `aibox init --process minimal` is run, then `aibox.toml`, `.aibox-version`,
+If `aibox init --context minimal` is run, then `aibox.toml`, `.aibox-version`,
 an empty `context/` directory, and a thin `CLAUDE.md` pointer must exist.
 The single-file context tracks (`BACKLOG.md`, `DECISIONS.md`, `STANDUPS.md`)
 are **not** created at init time — the corresponding processkit skills create
 them in place on first use.
 
 **Managed package is the recommended default**
-If `aibox init --process managed` is run, then the slim project skeleton must
-exist. With a real `[processkit].version` pinned, `aibox sync` then installs
+If `aibox init --context managed` is run, then the slim project skeleton must
+exist. With a real `[processkit].version` pinned, `aibox apply` then installs
 the full processkit skill catalogue under `context/skills/` and the immutable
 upstream snapshot under `context/templates/processkit/<version>/`.
 

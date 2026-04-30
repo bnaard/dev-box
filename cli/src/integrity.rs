@@ -1,6 +1,6 @@
-//! Install-integrity check + self-heal decision logic for `aibox sync`.
+//! Install-integrity check + self-heal decision logic for `aibox apply`.
 //!
-//! WS-1 introduced this module so `aibox sync` can detect a "broken"
+//! WS-1 introduced this module so `aibox apply` can detect a "broken"
 //! processkit install (skills missing, mirror missing, version drift)
 //! and trigger a reinstall instead of silently doing nothing.
 //!
@@ -102,7 +102,7 @@ impl IntegrityStatus {
     }
 
     /// Stable, machine-readable variant tag — used by the
-    /// `--integrity --json` output and downstream tests.
+    /// `--integrity -o json` output and downstream tests.
     pub fn kind(&self) -> &'static str {
         match self {
             Self::Healthy => "Healthy",
@@ -330,7 +330,7 @@ pub fn live_provenance_path(project_root: &Path) -> PathBuf {
 /// - the file does not exist, or
 /// - the file's `schema_version` is not the current
 ///   [`LIVE_PROVENANCE_SCHEMA_VERSION`] (forward/back-compat: a future
-///   schema bump should not cause `aibox sync` to error).
+///   schema bump should not cause `aibox apply` to error).
 ///
 /// Returns `Err` only on I/O errors and TOML parse errors that aren't a
 /// known-future schema. The next sync rewrites the file with the
@@ -381,7 +381,7 @@ pub fn write_live_provenance(project_root: &Path, lp: &LiveProvenance) -> Result
     }
     let mut body = String::new();
     body.push_str("# Aibox-managed live install marker. DO NOT EDIT.\n");
-    body.push_str("# Written by `aibox sync` immediately before aibox.lock is bumped.\n");
+    body.push_str("# Written by `aibox apply` immediately before aibox.lock is bumped.\n");
     let serialized = toml::to_string_pretty(lp)
         .with_context(|| "failed to serialize LiveProvenance to TOML".to_string())?;
     body.push_str(&serialized);
@@ -597,7 +597,7 @@ pub fn decide_sync(
 // aibox doctor --integrity
 // ---------------------------------------------------------------------------
 
-/// Entry point for `aibox doctor --integrity` and `--integrity --json`.
+/// Entry point for `aibox doctor --integrity` and `--integrity -o json`.
 ///
 /// Exit code: `0` for `Healthy` and `NotInstalled` (the latter is
 /// intentional config), `1` for everything else.
@@ -641,7 +641,7 @@ fn print_status_human(status: &IntegrityStatus, claimed_version: Option<&str>) {
                 "processkit install integrity: MismatchedVersion\n  \
                  claimed (aibox.lock):                {}\n  \
                  observed (live provenance / mirror): {}\n  \
-                 Run `aibox sync` to self-heal.",
+                 Run `aibox apply` to self-heal.",
                 claimed, observed
             ));
         }
@@ -649,7 +649,7 @@ fn print_status_human(status: &IntegrityStatus, claimed_version: Option<&str>) {
             crate::output::error(&format!(
                 "processkit install integrity: MissingTemplateMirror\n  \
                  expected: context/templates/processkit/{}/PROVENANCE.toml\n  \
-                 Run `aibox sync` to self-heal.",
+                 Run `aibox apply` to self-heal.",
                 version
             ));
         }
@@ -657,7 +657,7 @@ fn print_status_human(status: &IntegrityStatus, claimed_version: Option<&str>) {
             crate::output::error(&format!(
                 "processkit install integrity: MissingProvenance\n  \
                  expected: context/.processkit-provenance.toml (version {})\n  \
-                 Run `aibox sync` to self-heal.",
+                 Run `aibox apply` to self-heal.",
                 version
             ));
         }
@@ -677,7 +677,7 @@ fn print_status_human(status: &IntegrityStatus, claimed_version: Option<&str>) {
             if let Some(oh) = observed_hash {
                 msg.push_str(&format!("\n  observed hash: {}", oh));
             }
-            msg.push_str("\n  Run `aibox sync` to self-heal.");
+            msg.push_str("\n  Run `aibox apply` to self-heal.");
             crate::output::error(&msg);
         }
     }

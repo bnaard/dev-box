@@ -1,7 +1,7 @@
 //! Container lifecycle E2E tests.
 //!
 //! Requires the e2e-runner companion container (feature = "e2e").
-//! Tests the full init → sync → start → stop → remove lifecycle.
+//! Tests the full init → apply lifecycle.
 
 use serial_test::serial;
 
@@ -16,23 +16,15 @@ fn companion_is_reachable() {
 
 #[test]
 #[serial]
-fn lifecycle_init_sync() {
+fn lifecycle_init_apply() {
     let runner = E2eRunner::new();
-    let test = "lifecycle-init-sync";
+    let test = "lifecycle-init-apply";
     runner.cleanup(test);
 
     // Init
     let output = runner.aibox(
         test,
-        &[
-            "init",
-            "--name",
-            test,
-            "--base",
-            "debian",
-            "--process",
-            "managed",
-        ],
+        &["init", test, "--base", "debian", "--context", "managed"],
     );
     assert!(
         output.status.success(),
@@ -58,11 +50,11 @@ fn lifecycle_init_sync() {
         "CLAUDE.md should exist"
     );
 
-    // Sync (--no-build: config-only, no GHCR pull needed)
-    let output = runner.aibox(test, &["sync", "--no-build"]);
+    // Apply (--no-build: config-only, no GHCR pull needed)
+    let output = runner.aibox(test, &["apply"]);
     assert!(
         output.status.success(),
-        "sync failed: {}",
+        "apply failed: {}",
         String::from_utf8_lossy(&output.stderr)
     );
 
@@ -79,15 +71,7 @@ fn claudemd_preserved_on_sync() {
     // Init
     runner.aibox(
         test,
-        &[
-            "init",
-            "--name",
-            test,
-            "--base",
-            "debian",
-            "--process",
-            "managed",
-        ],
+        &["init", test, "--base", "debian", "--context", "managed"],
     );
 
     // Modify CLAUDE.md with user content
@@ -97,13 +81,13 @@ fn claudemd_preserved_on_sync() {
         "# My Custom CLAUDE.md\n\nUser-specific content here.\n",
     );
 
-    // Sync should not overwrite CLAUDE.md
-    runner.aibox(test, &["sync"]);
+    // Apply should not overwrite CLAUDE.md
+    runner.aibox(test, &["apply"]);
 
     let content = runner.read_file(test, "CLAUDE.md");
     assert!(
         content.contains("User-specific content"),
-        "CLAUDE.md user content should be preserved after sync"
+        "CLAUDE.md user content should be preserved after apply"
     );
 
     runner.cleanup(test);
@@ -119,15 +103,7 @@ fn generated_files_overwritten_on_sync() {
     // Init
     runner.aibox(
         test,
-        &[
-            "init",
-            "--name",
-            test,
-            "--base",
-            "debian",
-            "--process",
-            "managed",
-        ],
+        &["init", test, "--base", "debian", "--context", "managed"],
     );
 
     // Tamper with generated Dockerfile
@@ -137,8 +113,8 @@ fn generated_files_overwritten_on_sync() {
         "# tampered\nFROM scratch\n",
     );
 
-    // Sync should regenerate it
-    runner.aibox(test, &["sync"]);
+    // Apply should regenerate it
+    runner.aibox(test, &["apply"]);
 
     let dockerfile = runner.read_file(test, ".devcontainer/Dockerfile");
     assert!(
@@ -155,25 +131,17 @@ fn generated_files_overwritten_on_sync() {
 
 #[test]
 #[serial]
-fn status_without_container_shows_missing() {
+fn runtime_without_container_shows_missing() {
     let runner = E2eRunner::new();
-    let test = "status-missing";
+    let test = "runtime-missing";
     runner.cleanup(test);
 
     runner.aibox(
         test,
-        &[
-            "init",
-            "--name",
-            test,
-            "--base",
-            "debian",
-            "--process",
-            "managed",
-        ],
+        &["init", test, "--base", "debian", "--context", "managed"],
     );
 
-    let output = runner.aibox(test, &["status"]);
+    let output = runner.aibox(test, &["get", "runtime"]);
     let combined = format!(
         "{}{}",
         String::from_utf8_lossy(&output.stdout),
@@ -183,13 +151,13 @@ fn status_without_container_shows_missing() {
         combined.contains("missing")
             || combined.contains("Missing")
             || combined.contains("not found"),
-        "status should report missing when no container exists: {}",
+        "get runtime should report missing when no container exists: {}",
         combined
     );
 
     runner.cleanup(test);
 }
-/// Verify that `aibox init --process managed` creates the expected context files.
+/// Verify that `aibox init --context managed` creates the expected context files.
 ///
 /// Covers BACK-053: the `managed` preset (core + tracking + standups + handover)
 /// must scaffold BACKLOG.md, DECISIONS.md, STANDUPS.md, and a session-template.
@@ -202,19 +170,11 @@ fn init_with_managed_preset_creates_context_files() {
 
     let output = runner.aibox(
         test,
-        &[
-            "init",
-            "--name",
-            test,
-            "--base",
-            "debian",
-            "--process",
-            "managed",
-        ],
+        &["init", test, "--base", "debian", "--context", "managed"],
     );
     assert!(
         output.status.success(),
-        "init --process managed failed: {}",
+        "init --context managed failed: {}",
         String::from_utf8_lossy(&output.stderr)
     );
 
@@ -260,7 +220,7 @@ fn init_with_managed_preset_creates_context_files() {
     runner.cleanup(test);
 }
 
-/// Verify that `aibox init --process software` scaffolds architecture processes.
+/// Verify that `aibox init --context software` scaffolds architecture processes.
 ///
 /// Covers BACK-053: the `software` preset must scaffold its additional packages.
 #[test]
@@ -272,19 +232,11 @@ fn init_with_software_preset_creates_code_files() {
 
     let output = runner.aibox(
         test,
-        &[
-            "init",
-            "--name",
-            test,
-            "--base",
-            "debian",
-            "--process",
-            "software",
-        ],
+        &["init", test, "--base", "debian", "--context", "software"],
     );
     assert!(
         output.status.success(),
-        "init --process software failed: {}",
+        "init --context software failed: {}",
         String::from_utf8_lossy(&output.stderr)
     );
 

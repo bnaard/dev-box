@@ -14,7 +14,7 @@ title: "Aider"
 providers = ["aider"]
 ```
 
-Run `aibox sync`, then inside the container:
+Run `aibox apply`, then inside the container:
 
 ```bash
 aider    # Launches Aider CLI

@@ -289,7 +289,7 @@ pub fn cmd_env_switch(config_path: &Option<String>, name: &str, yes: bool) -> Re
     generate::generate_all(&restored_config)?;
 
     output::ok(&format!("Switched to environment '{}'", name));
-    output::info("Run 'aibox build' then 'aibox start' to apply changes.");
+    output::info("Run 'aibox build' then 'aibox up' to apply changes.");
 
     Ok(())
 }

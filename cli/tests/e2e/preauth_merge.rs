@@ -1,12 +1,12 @@
 //! Tier 1 E2E tests for WS-5 preauth merge.
 //!
-//! These tests drive `aibox init` + `aibox sync` against a fresh
+//! These tests drive `aibox init` + `aibox apply` against a fresh
 //! tempdir with `AIBOX_NO_CONTAINER=1` so no container runtime or
 //! network is required. After init we manually drop a synthetic
 //! `preauth.json` fixture into
 //! `context/skills/processkit/skill-gate/assets/preauth.json` (the
 //! processkit install in the test env may not run network fetch, so
-//! we inject the file ourselves) and then re-run sync to exercise the
+//! we inject the file ourselves) and then re-run apply to exercise the
 //! merge path.
 //!
 //! Tests:
@@ -21,7 +21,7 @@
 //!     fixture; merge soft-warns and leaves `_processkit_managed_keys`
 //!     out of settings.json (or leaves it untouched if present).
 //! 14. `preauth_merge_e2e_absent_spec_is_soft_warn` — no preauth.json;
-//!     sync exits 0; warning appears in stderr; no
+//!     apply exits 0; warning appears in stderr; no
 //!     `_processkit_managed_keys` sidecar appears in settings.json.
 
 use std::fs;
@@ -95,17 +95,16 @@ fn v0_22_0_preauth_body() -> String {
 /// install path is short-circuited (decide_sync returns Skip on
 /// "unset"). This keeps the test deterministic: it does not require
 /// network access to GitHub, and our synthetic preauth.json fixture
-/// won't be overwritten by a re-fetch on `aibox sync`.
+/// won't be overwritten by a re-fetch on `aibox apply`.
 fn init_project(dir: &Path) {
     let init_out = run_in(
         dir,
         &[
             "init",
-            "--name",
             "preauth-fixture",
             "--base",
             "debian",
-            "--process",
+            "--context",
             "managed",
             "--processkit-version",
             "unset",
@@ -133,18 +132,18 @@ fn preauth_merge_e2e_basic() {
     init_project(dir);
     write_preauth_fixture(dir, &v0_22_0_preauth_body());
 
-    let sync_out = run_in(dir, &["sync"]);
+    let sync_out = run_in(dir, &["apply"]);
     assert!(
         sync_out.status.success(),
-        "sync failed.\n{}",
-        fmt_output("sync", &sync_out)
+        "apply failed.\n{}",
+        fmt_output("apply", &sync_out)
     );
 
     let settings_path = dir.join(".claude/settings.json");
     assert!(
         settings_path.exists(),
-        "expected .claude/settings.json to exist after sync.\n{}",
-        fmt_output("sync", &sync_out)
+        "expected .claude/settings.json to exist after apply.\n{}",
+        fmt_output("apply", &sync_out)
     );
 
     let settings = read_settings_json(dir);
@@ -197,9 +196,9 @@ fn preauth_merge_e2e_user_entries_survive_double_sync() {
     init_project(dir);
     write_preauth_fixture(dir, &v0_22_0_preauth_body());
 
-    // First sync: produces an initial settings.json.
-    let sync1 = run_in(dir, &["sync"]);
-    assert!(sync1.status.success(), "{}", fmt_output("sync1", &sync1));
+    // First apply: produces an initial settings.json.
+    let sync1 = run_in(dir, &["apply"]);
+    assert!(sync1.status.success(), "{}", fmt_output("apply1", &sync1));
 
     // Inject a user-added permissions.allow entry.
     let settings_path = dir.join(".claude/settings.json");
@@ -213,9 +212,9 @@ fn preauth_merge_e2e_user_entries_survive_double_sync() {
     let mutated = serde_json::to_string_pretty(&settings).unwrap();
     fs::write(&settings_path, mutated).unwrap();
 
-    // Second sync: must preserve the user entry.
-    let sync2 = run_in(dir, &["sync"]);
-    assert!(sync2.status.success(), "{}", fmt_output("sync2", &sync2));
+    // Second apply: must preserve the user entry.
+    let sync2 = run_in(dir, &["apply"]);
+    assert!(sync2.status.success(), "{}", fmt_output("apply2", &sync2));
     let after_second = fs::read(&settings_path).unwrap();
 
     let after_settings: Value = serde_json::from_slice(&after_second).unwrap();
@@ -227,17 +226,17 @@ fn preauth_merge_e2e_user_entries_survive_double_sync() {
         .collect();
     assert!(
         allow_after.contains(&"Bash(custom)".to_string()),
-        "user entry must survive sync.\n{}",
-        fmt_output("sync2", &sync2)
+        "user entry must survive apply.\n{}",
+        fmt_output("apply2", &sync2)
     );
 
-    // Third sync (stable spec) must produce byte-identical output.
-    let sync3 = run_in(dir, &["sync"]);
-    assert!(sync3.status.success(), "{}", fmt_output("sync3", &sync3));
+    // Third apply (stable spec) must produce byte-identical output.
+    let sync3 = run_in(dir, &["apply"]);
+    assert!(sync3.status.success(), "{}", fmt_output("apply3", &sync3));
     let after_third = fs::read(&settings_path).unwrap();
     assert_eq!(
         after_second, after_third,
-        "two consecutive syncs on a stable spec must be byte-identical"
+        "two consecutive applies on a stable spec must be byte-identical"
     );
 }
 
@@ -258,11 +257,11 @@ fn preauth_merge_e2e_unknown_version_skips() {
         }"#,
     );
 
-    let sync_out = run_in(dir, &["sync"]);
+    let sync_out = run_in(dir, &["apply"]);
     assert!(
         sync_out.status.success(),
         "{}",
-        fmt_output("sync", &sync_out)
+        fmt_output("apply", &sync_out)
     );
 
     // Hooks should still have been merged (regenerate_hook_configs ran).
@@ -315,11 +314,11 @@ fn preauth_merge_e2e_absent_spec_is_soft_warn() {
         "preauth.json must be absent for this test"
     );
 
-    let sync_out = run_in(dir, &["sync"]);
+    let sync_out = run_in(dir, &["apply"]);
     assert!(
         sync_out.status.success(),
-        "sync must succeed (soft-warn) when preauth.json is absent.\n{}",
-        fmt_output("sync", &sync_out)
+        "apply must succeed (soft-warn) when preauth.json is absent.\n{}",
+        fmt_output("apply", &sync_out)
     );
 
     // Warn message expected somewhere in stdout/stderr (output::warn
@@ -332,7 +331,7 @@ fn preauth_merge_e2e_absent_spec_is_soft_warn() {
     assert!(
         combined.contains("preauth.json not found"),
         "expected soft-warn for missing preauth.json.\n{}",
-        fmt_output("sync", &sync_out)
+        fmt_output("apply", &sync_out)
     );
 
     // Sidecar must NOT appear when no merge happened.
@@ -342,7 +341,7 @@ fn preauth_merge_e2e_absent_spec_is_soft_warn() {
         assert!(
             settings.get("_processkit_managed_keys").is_none(),
             "_processkit_managed_keys must NOT appear when preauth.json is absent.\n{}",
-            fmt_output("sync", &sync_out)
+            fmt_output("apply", &sync_out)
         );
     }
 }

@@ -49,18 +49,18 @@ fn init_help_exits_zero() {
     assert!(output.status.success(), "aibox init --help should exit 0");
     let stdout = String::from_utf8_lossy(&output.stdout);
     assert!(
-        stdout.contains("--name") || stdout.contains("name"),
-        "init help should mention --name"
+        stdout.contains("[NAME]") || stdout.contains("name"),
+        "init help should mention positional name"
     );
 }
 
 #[test]
-fn generate_without_config_exits_nonzero() {
+fn apply_without_config_exits_nonzero() {
     let dir = tempfile::tempdir().unwrap();
-    let output = run_in_dir(dir.path(), &["generate"]);
+    let output = run_in_dir(dir.path(), &["apply"]);
     assert!(
         !output.status.success(),
-        "aibox generate without aibox.toml should fail"
+        "aibox apply without aibox.toml should fail"
     );
     let stderr = String::from_utf8_lossy(&output.stderr);
     assert!(
@@ -72,10 +72,10 @@ fn generate_without_config_exits_nonzero() {
 #[test]
 fn status_without_config_exits_nonzero() {
     let dir = tempfile::tempdir().unwrap();
-    let output = run_in_dir(dir.path(), &["status"]);
+    let output = run_in_dir(dir.path(), &["get", "runtime"]);
     assert!(
         !output.status.success(),
-        "aibox status without aibox.toml should fail"
+        "aibox get runtime without aibox.toml should fail"
     );
 }
 
@@ -86,11 +86,10 @@ fn init_creates_expected_files() {
         dir.path(),
         &[
             "init",
-            "--name",
             "test-project",
             "--base",
             "debian",
-            "--process",
+            "--context",
             "managed",
             "--processkit-version",
             "unset", // avoid network fetch in tests
@@ -146,28 +145,12 @@ fn init_existing_config_exits_nonzero() {
     // First init
     run_in_dir(
         dir.path(),
-        &[
-            "init",
-            "--name",
-            "test",
-            "--base",
-            "debian",
-            "--process",
-            "managed",
-        ],
+        &["init", "test", "--base", "debian", "--context", "managed"],
     );
     // Second init should fail
     let output = run_in_dir(
         dir.path(),
-        &[
-            "init",
-            "--name",
-            "test",
-            "--base",
-            "debian",
-            "--process",
-            "managed",
-        ],
+        &["init", "test", "--base", "debian", "--context", "managed"],
     );
     assert!(
         !output.status.success(),
@@ -181,29 +164,28 @@ fn init_existing_config_exits_nonzero() {
 }
 
 #[test]
-fn generate_after_init_succeeds() {
+fn apply_after_init_succeeds() {
     let dir = tempfile::tempdir().unwrap();
     // Init first
     let init_output = run_in_dir(
         dir.path(),
         &[
             "init",
-            "--name",
             "gen-test",
             "--base",
             "debian",
-            "--process",
+            "--context",
             "managed",
         ],
     );
     assert!(init_output.status.success(), "init should succeed");
 
-    // Generate should work
-    let gen_output = run_in_dir(dir.path(), &["generate"]);
+    // Apply should work
+    let apply_output = run_in_dir(dir.path(), &["apply"]);
     assert!(
-        gen_output.status.success(),
-        "generate after init should succeed: {}",
-        String::from_utf8_lossy(&gen_output.stderr)
+        apply_output.status.success(),
+        "apply after init should succeed: {}",
+        String::from_utf8_lossy(&apply_output.stderr)
     );
 }
 
@@ -214,11 +196,10 @@ fn init_invalid_base_exits_nonzero() {
         dir.path(),
         &[
             "init",
-            "--name",
             "test",
             "--base",
             "invalid-base",
-            "--process",
+            "--context",
             "managed",
         ],
     );
@@ -241,11 +222,10 @@ fn init_invalid_process_exits_nonzero() {
         dir.path(),
         &[
             "init",
-            "--name",
             "test",
             "--base",
             "debian",
-            "--process",
+            "--context",
             "invalid-process!",
         ],
     );
@@ -269,15 +249,7 @@ fn init_with_all_base_images() {
         let dir = tempfile::tempdir().unwrap();
         let output = run_in_dir(
             dir.path(),
-            &[
-                "init",
-                "--name",
-                "test",
-                "--base",
-                base,
-                "--process",
-                "managed",
-            ],
+            &["init", "test", "--base", base, "--context", "managed"],
         );
         assert!(
             output.status.success(),
@@ -294,15 +266,7 @@ fn init_with_all_process_packages() {
         let dir = tempfile::tempdir().unwrap();
         let output = run_in_dir(
             dir.path(),
-            &[
-                "init",
-                "--name",
-                "test",
-                "--base",
-                "debian",
-                "--process",
-                pkg,
-            ],
+            &["init", "test", "--base", "debian", "--context", pkg],
         );
         assert!(
             output.status.success(),
@@ -320,11 +284,10 @@ fn init_generated_toml_is_parseable() {
         dir.path(),
         &[
             "init",
-            "--name",
             "parse-test",
             "--base",
             "debian",
-            "--process",
+            "--context",
             "managed",
         ],
     );
@@ -336,33 +299,33 @@ fn init_generated_toml_is_parseable() {
 
 #[test]
 fn completions_bash_exits_zero() {
-    let output = run(&["completions", "bash"]);
+    let output = run(&["self", "completion", "bash"]);
     assert!(
         output.status.success(),
-        "aibox completions bash should exit 0"
+        "aibox self completion bash should exit 0"
     );
     let stdout = String::from_utf8_lossy(&output.stdout);
     assert!(
         stdout.contains("aibox"),
-        "bash completions should contain aibox"
+        "bash completion should contain aibox"
     );
 }
 
 #[test]
 fn completions_zsh_exits_zero() {
-    let output = run(&["completions", "zsh"]);
+    let output = run(&["self", "completion", "zsh"]);
     assert!(
         output.status.success(),
-        "aibox completions zsh should exit 0"
+        "aibox self completion zsh should exit 0"
     );
 }
 
 #[test]
 fn completions_invalid_shell_exits_nonzero() {
-    let output = run(&["completions", "tcsh"]);
+    let output = run(&["self", "completion", "tcsh"]);
     assert!(
         !output.status.success(),
-        "aibox completions tcsh should fail"
+        "aibox self completion tcsh should fail"
     );
 }
 

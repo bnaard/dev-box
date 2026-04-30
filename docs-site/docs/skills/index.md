@@ -10,7 +10,7 @@ As of aibox **v0.16.0**, skills are no longer bundled with aibox. They live in
 versioned content repository that ships skills, primitives, processes, packages,
 and the canonical `AGENTS.md` template.
 
-aibox owns the **container** (devcontainers, addons, the CLI, the install/sync
+aibox owns the **container** (devcontainers, addons, the CLI, the install/apply
 machinery). processkit owns the **content** (skills, packages, processes,
 state machines). The boundary is deliberate and load-bearing: it lets the two
 projects move at their own velocity without dragging each other through breaking
@@ -18,7 +18,7 @@ changes.
 
 ## Where skills land in your project
 
-After running `aibox init` and `aibox sync` in your project, processkit content
+After running `aibox init` and `aibox apply` in your project, processkit content
 is materialised under your `context/` directory:
 
 ```
@@ -42,7 +42,7 @@ version = "v0.8.0"
 ```
 
 The `context/skills/` copies are yours to edit. The `context/templates/processkit/<version>/`
-copies are the immutable upstream snapshot — `aibox sync` uses them as the base
+copies are the immutable upstream snapshot — `aibox apply` uses them as the base
 side of a three-way diff to detect upstream changes that should be pulled into
 your local edits.
 
@@ -53,7 +53,7 @@ your local edits.
 >
 > - **GitHub:** https://github.com/projectious-work/processkit/tree/main/src/skills
 > - **Releases:** https://github.com/projectious-work/processkit/releases
-> - **In your project, after `aibox sync`:** `context/skills/` and
+> - **In your project, after `aibox apply`:** `context/skills/` and
 >   `context/templates/processkit/<version>/context/skills/`
 
 Every skill is a directory with at least a `SKILL.md` (the agent-readable
@@ -63,11 +63,10 @@ siblings. Skills follow the open [Agent Skills specification](https://agentskill
 ## Browsing installed skills
 
 ```bash
-aibox kit skill list               # list installed skills, grouped by category
-aibox kit skill list --all         # include available-but-not-installed skills
-aibox kit skill list --category ai # filter by category
-aibox kit skill info <name>        # frontmatter + description for one skill
-aibox kit skill categories         # skill count per category
+aibox get skill                    # list installed skills, grouped by category
+aibox get skill --all              # include available-but-not-installed skills
+aibox get skill --category ai      # filter by category
+aibox describe skill <name>        # frontmatter + description for one skill
 ```
 
 ## Packages
@@ -82,7 +81,7 @@ packages = ["managed"]   # or ["software"], ["research"], ["product"], ["minimal
 ```
 
 For the full package definitions and their exact skill composition, see:
-- `context/templates/processkit/<version>/.processkit/packages/` (after `aibox sync`)
+- `context/templates/processkit/<version>/.processkit/packages/` (after `aibox apply`)
 - https://github.com/projectious-work/processkit/releases
 
 ## Custom skills
@@ -94,7 +93,7 @@ context/skills/my-custom-skill/
 └── SKILL.md
 ```
 
-Local skills are not touched by `aibox sync`. They are also not part of any
+Local skills are not touched by `aibox apply`. They are also not part of any
 processkit package — they exist purely for the local project.
 
 ## Core skills

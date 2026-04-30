@@ -45,4 +45,4 @@ The `projectious` theme (`cli/src/themes.rs`) is a good starting point — it us
 
 ## Manual Overrides
 
-If you don't want to modify the CLI, you can manually edit the config files in `.aibox-home/` after `aibox sync`. Note that `aibox sync` will overwrite theme-dependent files, so manual edits need to be reapplied after each sync.
+If you don't want to modify the CLI, you can manually edit the config files in `.aibox-home/` after `aibox apply`. Note that `aibox apply` will overwrite theme-dependent files, so manual edits need to be reapplied after each apply.

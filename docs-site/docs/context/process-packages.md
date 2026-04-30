@@ -23,7 +23,7 @@ packages = ["managed"]   # or "minimal", "software", "research", "product"
 
 processkit ships five packages. For the exact skill composition of each, see:
 
-- `context/templates/processkit/<version>/.processkit/packages/` in your project (after `aibox sync`)
+- `context/templates/processkit/<version>/.processkit/packages/` in your project (after `aibox apply`)
 - https://github.com/projectious-work/processkit/releases
 
 > **processkit documentation** is not yet deployed as a standalone site.
@@ -41,7 +41,7 @@ The five package names are:
 
 ## Where the Content Lands
 
-After `aibox init` and `aibox sync` with `[processkit].version` pinned:
+After `aibox init` and `aibox apply` with `[processkit].version` pinned:
 
 ```
 context/
@@ -65,7 +65,7 @@ to in `aibox.toml`.
 
 ## Changing Packages
 
-Edit `aibox.toml` then run `aibox sync`:
+Edit `aibox.toml` then run `aibox apply`:
 
 ```toml
 [context]

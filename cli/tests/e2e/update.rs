@@ -1,13 +1,13 @@
 //! Update command E2E tests.
 //!
 //! Requires the e2e-runner companion container (feature = "e2e").
-//! Tests `aibox update` behavior in a derived project context.
+//! Tests `aibox self update` behavior in a derived project context.
 
 use serial_test::serial;
 
 use super::runner::E2eRunner;
 
-/// Verify that `aibox update --check` successfully fetches version info from GHCR.
+/// Verify that `aibox self update --check` successfully fetches version info from GHCR.
 ///
 /// The GHCR packages are public, so anonymous token exchange should succeed and
 /// the CLI should find published tags matching the `base-debian-v*` pattern.
@@ -22,15 +22,7 @@ fn update_check_fetches_from_registry() {
     // Init a derived project
     let init_out = runner.aibox(
         test,
-        &[
-            "init",
-            "--name",
-            test,
-            "--base",
-            "debian",
-            "--process",
-            "managed",
-        ],
+        &["init", test, "--base", "debian", "--context", "managed"],
     );
     assert!(
         init_out.status.success(),
@@ -38,15 +30,15 @@ fn update_check_fetches_from_registry() {
         String::from_utf8_lossy(&init_out.stderr)
     );
 
-    // Run update --check — should fetch real version info from GHCR.
-    let output = runner.aibox(test, &["update", "--check"]);
+    // Run self update --check — should fetch real version info from GHCR.
+    let output = runner.aibox(test, &["self", "update", "--check"]);
     let stdout = String::from_utf8_lossy(&output.stdout);
     let stderr = String::from_utf8_lossy(&output.stderr);
     let combined = format!("{}{}", stdout, stderr);
 
     assert!(
         output.status.success(),
-        "aibox update --check should exit 0.\nOutput:\n{}",
+        "aibox self update --check should exit 0.\nOutput:\n{}",
         combined
     );
 
@@ -73,7 +65,7 @@ fn update_check_fetches_from_registry() {
     runner.cleanup(test);
 }
 
-/// Verify `aibox update --dry-run` fetches the latest version from GHCR without
+/// Verify `aibox self update --dry-run` fetches the latest version from GHCR without
 /// applying changes.
 ///
 /// This exercises the full `do_upgrade` code path including the tag-prefix
@@ -87,25 +79,17 @@ fn update_dry_run_fetches_from_registry() {
 
     runner.aibox(
         test,
-        &[
-            "init",
-            "--name",
-            test,
-            "--base",
-            "debian",
-            "--process",
-            "managed",
-        ],
+        &["init", test, "--base", "debian", "--context", "managed"],
     );
 
-    let output = runner.aibox(test, &["update", "--dry-run"]);
+    let output = runner.aibox(test, &["self", "update", "--dry-run"]);
     let stdout = String::from_utf8_lossy(&output.stdout);
     let stderr = String::from_utf8_lossy(&output.stderr);
     let combined = format!("{}{}", stdout, stderr);
 
     assert!(
         output.status.success(),
-        "aibox update --dry-run should exit 0.\nOutput:\n{}",
+        "aibox self update --dry-run should exit 0.\nOutput:\n{}",
         combined
     );
 

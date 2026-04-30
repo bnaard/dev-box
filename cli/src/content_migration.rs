@@ -612,7 +612,7 @@ fn format_index_bullet(doc: &MigrationDocument) -> String {
 // Command entry points
 // ---------------------------------------------------------------------------
 
-/// `aibox migrate continue` — show pending and in-progress migrations and
+/// `aibox get migration` — show pending and in-progress migrations and
 /// suggest the next one to work on. Read-only with respect to migration
 /// documents; regenerates INDEX.md as a side effect.
 pub fn cmd_migrate_continue(project_root: &Path) -> Result<()> {
@@ -653,7 +653,7 @@ pub fn cmd_migrate_continue(project_root: &Path) -> Result<()> {
     Ok(())
 }
 
-/// `aibox migrate start <id>` — transition pending → in-progress.
+/// `aibox set migration <id>` — transition pending → in-progress.
 pub fn cmd_migrate_start(project_root: &Path, id: &str) -> Result<()> {
     let doc = transition_migration(project_root, id, MigrationState::InProgress)?;
     output::ok(&format!(
@@ -664,7 +664,7 @@ pub fn cmd_migrate_start(project_root: &Path, id: &str) -> Result<()> {
     Ok(())
 }
 
-/// `aibox migrate apply <id>` — transition pending or in-progress → applied.
+/// `aibox apply migration <id>` — transition pending or in-progress → applied.
 pub fn cmd_migrate_apply(project_root: &Path, id: &str) -> Result<()> {
     // Allow apply from either pending or in-progress: if pending, first
     // move it through in-progress to preserve the state machine semantics.
@@ -682,7 +682,7 @@ pub fn cmd_migrate_apply(project_root: &Path, id: &str) -> Result<()> {
     Ok(())
 }
 
-/// `aibox migrate reject <id> --reason ...` — transition to rejected.
+/// `aibox delete migration <id> --reason ...` — transition to rejected.
 pub fn cmd_migrate_reject(project_root: &Path, id: &str, reason: &str) -> Result<()> {
     // Attach the reason to the frontmatter before transitioning.
     let mut doc = find_migration(project_root, id)?

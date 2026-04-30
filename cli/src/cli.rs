@@ -1,6 +1,6 @@
 use clap::{Parser, Subcommand, ValueEnum};
 
-use crate::config::{AiProvider, BaseImage, StarshipPreset, Theme, ThemeMode};
+use crate::config::{AiProvider, BaseImage, StarshipPreset, Theme};
 
 /// Parse a truthy/falsy string for env-var-driven boolean flags.
 /// Accepts 1/0, true/false, yes/no, on/off (case-insensitive). Empty string is
@@ -61,23 +61,22 @@ impl std::fmt::Display for Layout {
 const LONG_ABOUT: &str = concat!(
     "aibox v",
     env!("CARGO_PKG_VERSION"),
-    " — manage AI-ready development container environments
+    " — apply and run AI-ready development workspaces
 
-aibox creates reproducible, containerized development environments with
-built-in AI context structure and work process management.
+aibox treats aibox.toml as desired state. Use `apply` to reconcile
+generated files and images, then `up` to enter the workspace.
 
 Examples:
-  aibox init                                 Interactive project setup
-  aibox init --name my-app --image python --process product
-  aibox init --image rust --process minimal  Rust project, minimal context
-  aibox sync                                 Reconcile config + build image
-  aibox sync --no-cache                      Force full rebuild
-  aibox theme dark                           Switch runtime UI theme mode
-  aibox start                                Start and attach (dev layout)
-  aibox start --layout focus                 Start with a specific layout
+  aibox init my-app --addon python --harness claude
+  aibox apply                                Reconcile config + build image
+  aibox apply --rebuild                      Force full rebuild
+  aibox up                                   Start and attach
+  aibox up --layout focus                    Start with a specific layout
+  aibox get runtime                          Show container state
+  aibox set theme.mode dark --apply          Switch runtime UI theme mode
+  aibox get addon                            List available add-ons
   aibox doctor                               Validate project structure
-  aibox update --check                       Check for newer versions
-  aibox audio check                          Diagnose host audio setup"
+  aibox self update --check                  Check for newer versions"
 );
 
 #[derive(Parser)]
@@ -115,22 +114,21 @@ pub enum Commands {
     /// Without flags, runs interactively. With all flags, runs non-interactively.
     Init {
         /// Project name (default: current directory name)
-        #[arg(long)]
         name: Option<String>,
 
         /// Base image (default: debian)
         #[arg(long, value_enum)]
         base: Option<BaseImage>,
 
-        /// Process packages (comma-separated, e.g., "managed,code")
-        #[arg(long, num_args = 1..)]
+        /// Context/process packages (e.g. managed, software, research)
+        #[arg(long = "context", visible_alias = "package", num_args = 1..)]
         process: Option<Vec<String>>,
 
-        /// AI tool providers to configure (default: claude)
-        #[arg(long, value_enum, num_args = 1..)]
+        /// AI harnesses to configure (default: claude)
+        #[arg(long = "harness", value_enum, num_args = 1..)]
         ai: Option<Vec<AiProvider>>,
 
-        /// Container user (default: root)
+        /// Container user (default: aibox)
         #[arg(long)]
         user: Option<String>,
 
@@ -145,7 +143,7 @@ pub enum Commands {
         /// Addon names to enable (e.g., python, infrastructure, kubernetes).
         /// Each selected addon's `requires` are auto-added transitively
         /// (e.g. selecting `docs-docusaurus` also pulls in `node`).
-        #[arg(long, num_args = 1..)]
+        #[arg(long = "addon", num_args = 1..)]
         addons: Option<Vec<String>>,
 
         /// Pin a specific tool version inside an addon. Repeatable.
@@ -178,10 +176,8 @@ pub enum Commands {
         processkit_branch: Option<String>,
 
         /// Skip all container-runtime interaction (runtime probe + image
-        /// build). cmd_init is already container-free in practice; this
-        /// field is threaded through `InitParams` for symmetry with
-        /// `Commands::Sync` and to future-proof against added container
-        /// touchpoints. Also settable via `AIBOX_NO_CONTAINER=1`.
+        /// build). Primarily useful for CI and nested devcontainer tests.
+        /// Also settable via `AIBOX_NO_CONTAINER=1`.
         #[arg(
             long,
             env = "AIBOX_NO_CONTAINER",
@@ -192,41 +188,36 @@ pub enum Commands {
         )]
         no_container: bool,
     },
-    /// Reconcile project state with aibox.toml configuration
+    /// Reconcile project state with aibox.toml desired state
     ///
     /// Seeds config files, regenerates .devcontainer/ files, runs the
     /// processkit content diff, and builds the container image. The
     /// primary command for applying any config change.
-    ///
-    /// Sync perimeter (files aibox sync may create, modify, or delete):
-    ///   - aibox.toml                          (one-time schema migrations)
-    ///   - aibox.lock                          (CLI version + processkit pin)
-    ///   - .aibox-home/**                      (runtime config seed; gitignored)
-    ///   - .devcontainer/Dockerfile            (regenerated)
-    ///   - .devcontainer/docker-compose.yml    (regenerated)
-    ///   - .devcontainer/devcontainer.json     (regenerated)
-    ///   - context/migrations/**               (additive migration documents)
-    ///
-    /// Anything else (README.md, AGENTS.md, CLAUDE.md, src/, tests/,
-    /// context/BACKLOG.md, context/skills/, etc.) is OUT of perimeter and
-    /// will never be touched. Attempts to write outside the perimeter via
-    /// aibox internals are blocked at the source. See
-    /// cli/src/sync_perimeter.rs.
-    #[command(alias = "generate")]
-    Sync {
-        /// Build without cache (force full rebuild)
-        #[arg(long)]
-        no_cache: bool,
+    Apply {
+        /// Optional resource to apply instead of the whole project
+        #[arg(value_enum)]
+        resource: Option<ApplyResource>,
 
-        /// Skip the container image build step (config-only sync)
+        /// Resource name, currently used by `apply migration <id>`
+        name: Option<String>,
+
+        /// Force a full image rebuild
         #[arg(long)]
-        no_build: bool,
+        rebuild: bool,
+
+        /// Skip the container image build step (config-only apply)
+        #[arg(long)]
+        config_only: bool,
+
+        /// PulseAudio TCP port for `apply audio`
+        #[arg(long, default_value = "4714")]
+        port: Option<u16>,
 
         /// Rewrite the compliance-contract block in AGENTS.md from the
         /// canonical source at
         /// `context/skills/processkit/skill-gate/assets/compliance-contract.md`.
         /// Used to silence the "compliance contract in AGENTS.md differs
-        /// from the canonical source" warning emitted by sync. If the block
+        /// from the canonical source" warning emitted by apply. If the block
         /// uses `pk-compliance-contract v1` markers but the canonical
         /// source is v2, markers are migrated to v2 as part of the fix.
         #[arg(long)]
@@ -235,7 +226,7 @@ pub enum Commands {
         /// Skip all container-runtime interaction (runtime probe + image
         /// build). All file scaffolding still runs — useful inside dev
         /// containers where building sub-containers is wasteful (E2E
-        /// tests, CI). Distinct from `--no-build`, which still probes the
+        /// tests, CI). Distinct from `--config-only`, which still probes the
         /// runtime. Also settable via `AIBOX_NO_CONTAINER=1`.
         #[arg(
             long,
@@ -247,25 +238,6 @@ pub enum Commands {
         )]
         no_container: bool,
     },
-    /// Switch global light/dark theme mode
-    ///
-    /// Updates `[customization].mode` in aibox.toml, regenerates mounted
-    /// runtime theme files under `.aibox-home/`, and leaves the container
-    /// running. Use `--restart-session` to restart only the project Zellij
-    /// session so the new theme is visible immediately in the main UI.
-    Theme {
-        /// Theme mode to apply
-        #[arg(value_enum)]
-        mode: ThemeMode,
-
-        /// Also set the concrete base theme while changing mode
-        #[arg(long, value_enum)]
-        theme: Option<Theme>,
-
-        /// Restart and attach only the project Zellij session, not the container
-        #[arg(long)]
-        restart_session: bool,
-    },
     /// Start container and attach via zellij
     ///
     /// Seeds .aibox-home/ if needed, generates devcontainer files,
@@ -273,25 +245,127 @@ pub enum Commands {
     /// If already running, just attaches.
     ///
     /// Available layouts: dev (default), focus, cowork, cowork-swap, browse, ai.
-    Start {
+    Up {
         /// Zellij layout to use (dev, focus, cowork, cowork-swap, browse, ai)
         #[arg(long, value_enum)]
         layout: Option<Layout>,
+
+        /// Reconcile desired state before starting
+        #[arg(long)]
+        apply: bool,
     },
-    /// Stop the container
-    Stop,
-    /// Stop and remove the container
-    ///
-    /// Unlike `stop`, this removes the container entirely (like
-    /// `docker rm`). Use before switching to VS Code or when you
-    /// want a clean slate.
-    #[command(alias = "rm")]
-    Remove,
-    /// Show container status
-    Status {
+    /// Stop the running workspace
+    Down,
+    /// List compact state for a resource
+    Get {
+        /// Resource to list
+        #[arg(value_enum)]
+        resource: GetResource,
+
+        /// Show all available items when supported
+        #[arg(long)]
+        all: bool,
+
+        /// Filter skill listings by category
+        #[arg(long)]
+        category: Option<String>,
+
         /// Output format
-        #[arg(long, short = 'o', value_enum, default_value = "table")]
+        #[arg(
+            long,
+            short = 'o',
+            visible_alias = "output",
+            value_enum,
+            default_value = "table"
+        )]
         format: OutputFormat,
+    },
+    /// Show detailed state for a resource
+    Describe {
+        /// Resource to inspect
+        #[arg(value_enum)]
+        resource: DescribeResource,
+
+        /// Resource name when required
+        name: Option<String>,
+
+        /// Output format
+        #[arg(
+            long,
+            short = 'o',
+            visible_alias = "output",
+            value_enum,
+            default_value = "table"
+        )]
+        format: OutputFormat,
+    },
+    /// Change a project setting or enable a configurable resource
+    ///
+    /// Examples:
+    ///   aibox set theme.mode dark --apply
+    ///   aibox set theme.name tokyo-night --apply
+    ///   aibox set addon python enabled --apply
+    ///   aibox set skill model-recommender-route enabled
+    Set {
+        /// Setting path or resource name
+        target: String,
+
+        /// First value or resource instance name
+        value: Option<String>,
+
+        /// Additional values for resource-shaped settings
+        extra: Vec<String>,
+
+        /// Reconcile desired state after changing config
+        #[arg(long)]
+        apply: bool,
+
+        /// Restart and attach only the project Zellij session for theme changes
+        #[arg(long)]
+        restart_session: bool,
+    },
+    /// Open an editable project resource
+    Edit {
+        /// Resource to edit
+        #[arg(value_enum)]
+        resource: EditResource,
+    },
+    /// Reset an explicit resource to a clean state
+    Reset {
+        /// Resource to reset
+        #[arg(value_enum)]
+        resource: ResetResource,
+
+        /// Skip backup — permanently delete without saving
+        #[arg(long)]
+        no_backup: bool,
+        /// Preview what would happen without modifying anything
+        #[arg(long)]
+        dry_run: bool,
+        /// Skip the confirmation prompt
+        #[arg(long)]
+        yes: bool,
+    },
+    /// Delete an explicit resource
+    Delete {
+        /// Resource to delete
+        #[arg(value_enum)]
+        resource: DeleteResource,
+
+        /// Resource name when required
+        name: Option<String>,
+
+        /// Reason for rejecting a migration
+        #[arg(long)]
+        reason: Option<String>,
+
+        /// Skip confirmation prompt
+        #[arg(long)]
+        yes: bool,
+
+        /// Reconcile desired state after changing config
+        #[arg(long)]
+        apply: bool,
     },
     /// Validate context structure and produce migration artifacts
     ///
@@ -303,50 +377,97 @@ pub enum Commands {
     /// install-integrity check (cheap, scriptable). Exits non-zero on
     /// any non-Healthy / non-NotInstalled outcome.
     Doctor {
+        /// Optional diagnostic target
+        #[arg(value_enum)]
+        target: Option<DoctorTarget>,
+
         /// Run only the install-integrity check. Cheap, scriptable.
         #[arg(long)]
         integrity: bool,
         /// Emit JSON instead of human output. Implies --integrity-only
         /// behaviour for now (the legacy doctor doesn't yet support JSON).
-        #[arg(long)]
-        json: bool,
+        #[arg(long, short = 'o', visible_alias = "output", value_enum)]
+        format: Option<OutputFormat>,
     },
-    /// Generate shell completion script
-    ///
-    /// Example: aibox completions bash > ~/.bash_completion.d/aibox
-    Completions {
-        /// Shell to generate completions for
-        #[arg(value_enum)]
-        shell: clap_complete::Shell,
-    },
-    /// Check for or apply version updates
-    ///
-    /// Checks the latest CLI version on GitHub and the latest image
-    /// version on GHCR for your configured image flavor.
-    ///
-    /// Without flags: upgrades image version in aibox.toml and regenerates
-    /// container files. Use --check for a dry check, --dry-run to preview changes.
-    Update {
-        /// Only check versions, don't apply any changes
-        #[arg(long)]
-        check: bool,
-        /// Preview what would change without writing files
-        #[arg(long)]
-        dry_run: bool,
-    },
-    /// Manage named environments for switching between configurations
-    ///
-    /// Environments save aibox.toml, CLAUDE.md, and context/ (excluding
-    /// context/shared/) to .aibox-env/<name>/. Switch between them to
-    /// use different images, processes, and context within one project.
-    Env {
+    /// Create a resource snapshot or saved environment
+    Create {
         #[command(subcommand)]
-        action: EnvAction,
+        action: CreateAction,
+    },
+    /// Manage the aibox binary and shell integration
+    #[command(name = "self")]
+    SelfCmd {
+        #[command(subcommand)]
+        action: SelfAction,
+    },
+}
+
+#[derive(Clone, Debug, ValueEnum)]
+pub enum ApplyResource {
+    /// Configure host audio support
+    Audio,
+    /// Apply a specific processkit migration
+    Migration,
+    /// Switch to a saved environment
+    Env,
+}
+
+#[derive(Clone, Debug, ValueEnum)]
+pub enum GetResource {
+    Runtime,
+    Addon,
+    Env,
+    Kit,
+    Skill,
+    SkillCategory,
+    Process,
+    Migration,
+}
+
+#[derive(Clone, Debug, ValueEnum)]
+pub enum DescribeResource {
+    Runtime,
+    Addon,
+    Env,
+    Kit,
+    Skill,
+    Process,
+}
+
+#[derive(Clone, Debug, ValueEnum)]
+pub enum EditResource {
+    Config,
+}
+
+#[derive(Clone, Debug, ValueEnum)]
+pub enum ResetResource {
+    Project,
+}
+
+#[derive(Clone, Debug, ValueEnum)]
+pub enum DeleteResource {
+    Runtime,
+    Addon,
+    Skill,
+    Env,
+    Migration,
+}
+
+#[derive(Clone, Debug, ValueEnum)]
+pub enum DoctorTarget {
+    Project,
+    Audio,
+    Security,
+}
+
+#[derive(Subcommand)]
+pub enum CreateAction {
+    /// Save current project state as a named environment
+    Env {
+        /// Environment name
+        name: String,
     },
     /// Back up aibox files to a timestamped directory
-    ///
-    /// Copies aibox.toml, aibox.lock, .devcontainer/, .aibox-home/, context/,
-    /// CLAUDE.md, and .gitignore to a backup directory.
     Backup {
         /// Output directory for backup (default: .aibox/backup/)
         #[arg(long)]
@@ -355,29 +476,26 @@ pub enum Commands {
         #[arg(long)]
         dry_run: bool,
     },
-    /// Remove all aibox files and reset project to pre-init state
-    ///
-    /// DANGER ZONE: Deletes aibox.toml, aibox.lock, .devcontainer/, .aibox-home/,
-    /// context/, and CLAUDE.md. Backs up first by default.
-    /// .gitignore is backed up but NOT deleted.
-    ///
-    /// Stops any running container before deleting.
-    Reset {
-        /// Skip backup — permanently delete without saving
+}
+
+#[derive(Subcommand)]
+pub enum SelfAction {
+    /// Check for or apply version updates
+    Update {
+        /// Only check versions, don't apply any changes
         #[arg(long)]
-        no_backup: bool,
-        /// Preview what would happen without modifying anything
+        check: bool,
+        /// Preview what would change without writing files
         #[arg(long)]
         dry_run: bool,
-        /// Skip the confirmation prompt (alias: --force)
-        #[arg(long, visible_alias = "force")]
-        yes: bool,
+    },
+    /// Generate shell completion script
+    Completion {
+        /// Shell to generate completions for
+        #[arg(value_enum)]
+        shell: clap_complete::Shell,
     },
     /// Uninstall the aibox CLI binary
-    ///
-    /// DANGER ZONE: Removes the aibox binary from its install location.
-    /// Global config (~/.aibox/) is kept by default. Use --purge to
-    /// also remove it. Does NOT touch project files — use `reset` for that.
     Uninstall {
         /// Preview what would be removed without deleting anything
         #[arg(long)]
@@ -385,295 +503,5 @@ pub enum Commands {
         /// Also remove global config and cache (~/.aibox/)
         #[arg(long)]
         purge: bool,
-    },
-    /// Run security checks on the project
-    ///
-    /// Checks Rust dependencies (cargo audit), Python dependencies
-    /// (pip-audit), and container images (trivy) if the tools are available.
-    Audit,
-    /// Host-side audio diagnostics and setup for PulseAudio
-    ///
-    /// Manages PulseAudio configuration on the host machine for
-    /// container audio support (e.g., Claude Code voice).
-    Audio {
-        #[command(subcommand)]
-        action: AudioAction,
-    },
-    /// Manage add-ons (language runtimes, tools, AI agents)
-    ///
-    /// Browse, add, or remove add-ons that install tool sets into
-    /// the container. Changes are written to aibox.toml and applied
-    /// via sync.
-    Addon {
-        #[command(subcommand)]
-        action: AddonAction,
-    },
-    /// Manage processkit migration documents
-    ///
-    /// Migration documents are generated by `aibox sync` when the
-    /// processkit version changes. They live under
-    /// `context/migrations/{pending,in-progress,applied}/` and move
-    /// between those subdirectories as you work through them.
-    Migrate {
-        #[command(subcommand)]
-        action: MigrateAction,
-    },
-    /// Query and manage processkit content (skills, processes, schemas)
-    ///
-    /// Inspect what processkit content is installed in this project
-    /// under `context/`. Skills can be selectively installed or
-    /// uninstalled via `[skills].include` / `[skills].exclude` in
-    /// aibox.toml.
-    ///
-    /// Examples:
-    ///   aibox kit list                       Summary of installed content
-    ///   aibox kit skill list                 All installed skills by category
-    ///   aibox kit skill list --all           All available skills with status
-    ///   aibox kit skill list --category ai   Filter by category
-    ///   aibox kit skill categories           Category summary
-    ///   aibox kit skill info python-best-practices
-    ///   aibox kit skill install python-best-practices
-    ///   aibox kit skill uninstall pandas-polars
-    ///   aibox kit process list               List installed processes
-    Kit {
-        #[command(subcommand)]
-        action: KitAction,
-    },
-}
-
-#[derive(Subcommand)]
-pub enum MigrateAction {
-    /// Show pending and in-progress migrations and suggest the next one
-    ///
-    /// Read-only: does not change any files. Refreshes
-    /// `context/migrations/INDEX.md` and prints the suggested next
-    /// migration's briefing.
-    Continue,
-    /// Start working on a pending migration (transitions pending → in-progress)
-    Start {
-        /// Migration ID (e.g. MIG-bright-owl)
-        id: String,
-    },
-    /// Mark an in-progress (or pending) migration as applied
-    Apply {
-        /// Migration ID (e.g. MIG-bright-owl)
-        id: String,
-    },
-    /// Reject a pending or in-progress migration with a reason
-    ///
-    /// The rejection reason is written into the document's frontmatter
-    /// under `spec.rejection_reason` and the file is moved to
-    /// `context/migrations/applied/` (the terminal home for rejected
-    /// migrations).
-    Reject {
-        /// Migration ID (e.g. MIG-bright-owl)
-        id: String,
-        /// Reason for rejection
-        #[arg(long)]
-        reason: String,
-    },
-}
-
-#[derive(Subcommand)]
-pub enum AddonAction {
-    /// List all available add-ons and their install status
-    #[command(alias = "ls")]
-    List {
-        /// Output format
-        #[arg(long, short = 'o', value_enum, default_value = "table")]
-        format: OutputFormat,
-    },
-    /// Add an add-on to aibox.toml and sync
-    ///
-    /// Inserts the add-on with default-enabled tools into aibox.toml,
-    /// then runs a full sync to regenerate container files.
-    Add {
-        /// Add-on name (e.g., python, rust, node, ai-claude)
-        name: String,
-
-        /// Skip the container image build step after sync
-        #[arg(long)]
-        no_build: bool,
-    },
-    /// Remove an add-on from aibox.toml and sync
-    Remove {
-        /// Add-on name to remove
-        name: String,
-
-        /// Skip the container image build step after sync
-        #[arg(long)]
-        no_build: bool,
-    },
-    /// Show detailed info about an add-on
-    ///
-    /// Displays available tools, supported versions, and defaults.
-    Info {
-        /// Add-on name
-        name: String,
-        /// Output format
-        #[arg(long, short = 'o', value_enum, default_value = "table")]
-        format: OutputFormat,
-    },
-}
-
-#[derive(Subcommand)]
-pub enum AudioAction {
-    /// Check if host audio is correctly configured
-    ///
-    /// Runs diagnostics: PulseAudio installation, daemon status,
-    /// TCP module, persistence, port listening, and connectivity.
-    Check {
-        /// PulseAudio TCP port (default: 4714)
-        #[arg(long, default_value = "4714")]
-        port: Option<u16>,
-    },
-    /// Install and configure PulseAudio on the host (macOS)
-    ///
-    /// Installs PulseAudio via Homebrew, configures the TCP module,
-    /// creates a launchd plist for auto-start with KeepAlive, and
-    /// verifies the setup.
-    Setup {
-        /// PulseAudio TCP port (default: 4714)
-        #[arg(long, default_value = "4714")]
-        port: Option<u16>,
-    },
-}
-
-#[derive(Subcommand)]
-pub enum EnvAction {
-    /// Save current project state as a named environment
-    ///
-    /// Copies aibox.toml, CLAUDE.md, and context/ (excluding context/shared/)
-    /// to .aibox-env/<name>/.
-    Create {
-        /// Environment name (alphanumeric, hyphens, underscores)
-        name: String,
-    },
-    /// Switch to a different environment
-    ///
-    /// Saves the current environment, restores the target, and regenerates
-    /// .devcontainer/ files. Stops any running container first.
-    Switch {
-        /// Environment to switch to
-        name: String,
-        /// Skip confirmation prompt
-        #[arg(long)]
-        yes: bool,
-    },
-    /// List available environments
-    #[command(alias = "ls")]
-    List {
-        /// Output format
-        #[arg(long, short = 'o', value_enum, default_value = "table")]
-        format: OutputFormat,
-    },
-    /// Delete a saved environment
-    Delete {
-        /// Environment to delete
-        name: String,
-        /// Skip confirmation prompt
-        #[arg(long)]
-        yes: bool,
-    },
-    /// Show current environment info
-    Status,
-}
-
-// ---------------------------------------------------------------------------
-// aibox kit subcommands
-// ---------------------------------------------------------------------------
-
-#[derive(Subcommand)]
-pub enum KitAction {
-    /// Show a summary of installed processkit content
-    ///
-    /// Counts of installed skills, processes, schemas, and state machines.
-    List {
-        /// Output format
-        #[arg(long, short = 'o', value_enum, default_value = "table")]
-        format: OutputFormat,
-    },
-    /// Manage and inspect processkit skills
-    Skill {
-        #[command(subcommand)]
-        action: KitSkillAction,
-    },
-    /// Inspect processkit processes
-    Process {
-        #[command(subcommand)]
-        action: KitProcessAction,
-    },
-}
-
-#[derive(Subcommand)]
-pub enum KitSkillAction {
-    /// List processkit skills installed in this project
-    ///
-    /// Without --all: shows skills present in context/skills/.
-    /// With --all: shows all available skills from the processkit templates
-    /// mirror, with installed status.
-    #[command(alias = "ls")]
-    List {
-        /// Show all available skills (requires processkit templates mirror)
-        #[arg(long)]
-        all: bool,
-        /// Filter by category (e.g. language, ai, process, security)
-        #[arg(long)]
-        category: Option<String>,
-        /// Output format
-        #[arg(long, short = 'o', value_enum, default_value = "table")]
-        format: OutputFormat,
-    },
-    /// Show skill categories with counts
-    Categories {
-        /// Output format
-        #[arg(long, short = 'o', value_enum, default_value = "table")]
-        format: OutputFormat,
-    },
-    /// Show details for a specific skill
-    Info {
-        /// Skill name (e.g. python-best-practices)
-        name: String,
-        /// Output format
-        #[arg(long, short = 'o', value_enum, default_value = "table")]
-        format: OutputFormat,
-    },
-    /// Add a skill to the active set (modifies aibox.toml)
-    ///
-    /// Adjusts [skills].include / [skills].exclude so the skill is
-    /// present on the next 'aibox sync'. Does not run sync automatically.
-    Install {
-        /// Skill name
-        name: String,
-    },
-    /// Remove a skill from the active set (modifies aibox.toml)
-    ///
-    /// Adjusts [skills].include / [skills].exclude so the skill is
-    /// excluded on the next 'aibox sync'. Does not run sync automatically.
-    Uninstall {
-        /// Skill name
-        name: String,
-    },
-}
-
-#[derive(Subcommand)]
-pub enum KitProcessAction {
-    /// List processkit processes installed in this project
-    #[command(alias = "ls")]
-    List {
-        /// Show all available processes (requires processkit templates mirror)
-        #[arg(long)]
-        all: bool,
-        /// Output format
-        #[arg(long, short = 'o', value_enum, default_value = "table")]
-        format: OutputFormat,
-    },
-    /// Show details for a specific process
-    Info {
-        /// Process name (filename without .md)
-        name: String,
-        /// Output format
-        #[arg(long, short = 'o', value_enum, default_value = "table")]
-        format: OutputFormat,
     },
 }

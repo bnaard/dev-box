@@ -9,7 +9,7 @@ aibox generates Starship prompt configurations from the selected preset and them
 
 ## Generated Config Location
 
-After `aibox sync`, the Starship config is at:
+After `aibox apply`, the Starship config is at:
 
 ```
 .aibox-home/.config/starship.toml
@@ -19,8 +19,8 @@ After `aibox sync`, the Starship config is at:
 
 Edit `.aibox-home/.config/starship.toml` directly with any valid [Starship configuration](https://starship.rs/config/). Changes take effect immediately in new shell sessions.
 
-:::warning Sync overwrites
-`aibox sync` regenerates `starship.toml` from the preset and theme. To preserve manual edits, either avoid running sync or back up your config first.
+:::warning Apply overwrites
+`aibox apply` regenerates `starship.toml` from the preset and theme. To preserve manual edits, either avoid running apply or back up your config first.
 :::
 
 ## Adding Custom Presets

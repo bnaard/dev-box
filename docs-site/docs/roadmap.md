@@ -12,13 +12,13 @@ this page is the public-facing summary.
 
 The current release includes:
 
-- Rust CLI with 16 commands (init, sync, build, start, stop, remove, attach, status, doctor, completions, update, env, backup, reset, audit, audio)
+- Rust CLI with lifecycle, resource, and self-management commands (`init`, `apply`, `up`, `down`, `get runtime`, `delete runtime`, `doctor`, `self completion`, `self update`, `env`, `backup`, `reset project`, `audit`, `audio`)
 - Single base-debian image with 21 composable addons (python, rust, node, go, latex, typst, infrastructure, kubernetes, cloud providers, docs frameworks, AI agents)
 - `aibox.toml` configuration system with 7 sections (aibox, container, context, ai, addons, appearance, audio)
 - 4 work process flavors (minimal, managed, research, product)
 - Context scaffolding with `context/shared/` for cross-environment files
 - Named environment management (`aibox env create/switch/list/delete/status`)
-- `aibox sync` — reconcile config changes (themes, AI, etc.) without manual file deletion
+- `aibox apply` — reconcile config changes (themes, AI, etc.) without manual file deletion
 - Color theming across Zellij, Vim, Yazi, and lazygit (7 themes) with 6 starship prompt presets
 - Three IDE layouts: dev, focus, cowork (Ctrl+b leader keybindings)
 - AI provider flexibility: Claude, Aider, Gemini — optional, stackable, dynamic layouts
@@ -28,8 +28,8 @@ The current release includes:
 - `aibox audit` — security scanning (cargo audit, pip-audit, trivy)
 - Shell tools: ripgrep, fd, bat, eza, zoxide, fzf, delta, starship + aliases
 - Yazi file manager with vim-loop (Enter/e to open files)
-- `aibox backup`, `aibox reset`, `aibox remove`/`rm`
-- Audio support (PulseAudio bridging), shell completions, interactive init
+- `aibox create backup`, `aibox reset project`, `aibox delete runtime`
+- Audio support (PulseAudio bridging), shell completion scripts, interactive init
 - Zensical documentation migration (with MkDocs fallback)
 
 ## Planned — Near Term

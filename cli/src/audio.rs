@@ -57,7 +57,7 @@ fn has_cmd(cmd: &str) -> bool {
 
 // ── Public entry points ──────────────────────────────────────────────────────
 
-/// `aibox audio check` — diagnose host audio readiness.
+/// `aibox doctor audio` — diagnose host audio readiness.
 pub fn cmd_audio_check(port: Option<u16>) -> Result<()> {
     let port = port.unwrap_or(DEFAULT_PORT);
     let mut t = Tally::new();
@@ -123,7 +123,7 @@ pub fn cmd_audio_check(port: Option<u16>) -> Result<()> {
     Ok(())
 }
 
-/// `aibox audio setup` — install and configure PulseAudio on the host.
+/// `aibox apply audio` — install and configure PulseAudio on the host.
 pub fn cmd_audio_setup(port: Option<u16>) -> Result<()> {
     let port = port.unwrap_or(DEFAULT_PORT);
     let os = std::env::consts::OS;
@@ -309,11 +309,11 @@ fn check_tcp_persistence(t: &mut Tally, port: u16, os: &str) {
             t.fail(&format!(
                 "TCP module not in {pa_conf} (won't survive reboot)"
             ));
-            output::info("  Run: aibox audio setup");
+            output::info("  Run: aibox apply audio");
         }
     } else {
         t.fail(&format!("Config not found: {pa_conf}"));
-        output::info("  Run: aibox audio setup");
+        output::info("  Run: aibox apply audio");
     }
 }
 
@@ -355,13 +355,13 @@ fn check_macos_launchd(t: &mut Tally) {
         }
         if list.contains("homebrew.mxcl.pulseaudio") {
             t.pass("Homebrew PulseAudio launch agent loaded");
-            output::info("  Consider: aibox audio setup (for KeepAlive support)");
+            output::info("  Consider: aibox apply audio (for KeepAlive support)");
             return;
         }
     }
 
     t.warn("PulseAudio does not auto-start on login");
-    output::info("  Fix: aibox audio setup");
+    output::info("  Fix: aibox apply audio");
 }
 
 fn check_connectivity(t: &mut Tally, port: u16) {

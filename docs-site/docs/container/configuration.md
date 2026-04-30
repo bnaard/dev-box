@@ -71,7 +71,7 @@ services:
       NODE_ENV: "development"
 ```
 
-Both `Dockerfile.local` and `docker-compose.override.yml` are scaffolded by `aibox init` and are never overwritten by `aibox sync`.
+Both `Dockerfile.local` and `docker-compose.override.yml` are scaffolded by `aibox init` and are never overwritten by `aibox apply`.
 
 ## Compose Override
 
@@ -79,7 +79,7 @@ For project-specific services (databases, sidecars, test companions), use Docker
 
 Docker Compose automatically merges the override file with the generated `docker-compose.yml` using a strategic merge — maps (services, environment) are deep-merged by key, lists (ports, volumes) are appended, and scalars (image, command) are replaced.
 
-When `aibox sync` detects the override file, it wires both files into `devcontainer.json` so VS Code picks them up.
+When `aibox apply` detects the override file, it wires both files into `devcontainer.json` so VS Code picks them up.
 
 **Example — add a PostgreSQL sidecar:**
 
@@ -103,5 +103,5 @@ services:
 ```
 
 :::tip
-The override file is never overwritten by `aibox sync` — you own it, just like `Dockerfile.local`.
+The override file is never overwritten by `aibox apply` — you own it, just like `Dockerfile.local`.
 :::

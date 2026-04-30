@@ -148,7 +148,7 @@ fn check_updates(config: &AiboxConfig) -> Result<()> {
             if latest > current {
                 output::warn(&format!(
                     "New image version available for '{}': {} -> {} \
-                     (run 'aibox update' to upgrade)",
+                     (run 'aibox self update' to upgrade)",
                     flavor, current, latest
                 ));
             } else {
@@ -311,13 +311,13 @@ fn do_upgrade(config_path: &Option<String>, dry_run: bool, global_yes: bool) -> 
             }
             Err(e) => {
                 output::warn(&format!(
-                    "No container runtime available: {}. Run `aibox sync` to rebuild later.",
+                    "No container runtime available: {}. Run `aibox apply` to rebuild later.",
                     e
                 ));
             }
         }
     } else {
-        output::info("Run `aibox sync` to rebuild the container image when ready.");
+        output::info("Run `aibox apply` to rebuild the container image when ready.");
     }
 
     Ok(())

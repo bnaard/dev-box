@@ -79,11 +79,10 @@ fn visual_kb_yazi_e_opens_file_in_vim_pane() {
         test_name,
         &[
             "init",
-            "--name",
             test_name,
             "--base",
             "debian",
-            "--process",
+            "--context",
             "managed",
         ],
     );
@@ -221,11 +220,10 @@ fn visual_kb_yazi_enter_opens_vim_inplace() {
         test_name,
         &[
             "init",
-            "--name",
             test_name,
             "--base",
             "debian",
-            "--process",
+            "--context",
             "managed",
         ],
     );
@@ -378,11 +376,10 @@ fn visual_kb_vim_leader_e_opens_netrw() {
         test_name,
         &[
             "init",
-            "--name",
             test_name,
             "--base",
             "debian",
-            "--process",
+            "--context",
             "managed",
         ],
     );
@@ -437,11 +434,10 @@ fn visual_kb_vim_leader_l_shows_buffer_list() {
         test_name,
         &[
             "init",
-            "--name",
             test_name,
             "--base",
             "debian",
-            "--process",
+            "--context",
             "managed",
         ],
     );
@@ -504,11 +500,10 @@ fn visual_kb_vim_leader_w_saves_file() {
         test_name,
         &[
             "init",
-            "--name",
             test_name,
             "--base",
             "debian",
-            "--process",
+            "--context",
             "managed",
         ],
     );
@@ -565,11 +560,10 @@ fn visual_kb_vim_leader_n_p_cycles_buffers() {
         test_name,
         &[
             "init",
-            "--name",
             test_name,
             "--base",
             "debian",
-            "--process",
+            "--context",
             "managed",
         ],
     );

@@ -13,16 +13,16 @@ aibox uses a single base image (`base-debian`) with **21 composable addons** tha
 
 ```bash
 # See all available addons
-aibox addon list
+aibox get addon
 
-# Add an addon (updates aibox.toml and runs sync)
-aibox addon add python
+# Add an addon (updates aibox.toml and runs apply)
+aibox set addon python
 
 # Remove an addon
-aibox addon remove python
+aibox delete addon python
 
 # View addon details (tools, versions)
-aibox addon info rust
+aibox describe addon rust
 ```
 
 ### Via aibox.toml
@@ -44,7 +44,7 @@ pnpm = { version = "10" }
 
 Each addon has **default-enabled tools** that are included automatically, and **optional tools** you can enable explicitly. Tools with version selection let you pick from curated, tested versions.
 
-After editing `aibox.toml`, run `aibox sync` to regenerate the Dockerfile and rebuild.
+After editing `aibox.toml`, run `aibox apply` to regenerate the Dockerfile and rebuild.
 
 ## Available Addons
 
@@ -127,7 +127,7 @@ See [Skills (via processkit)](../skills/index.md) for the full split.
 
 ## How Addons Work
 
-When you run `aibox sync`, the CLI:
+When you run `aibox apply`, the CLI:
 
 1. Reads `[addons]` from `aibox.toml`
 2. Looks up each addon definition from YAML files in `~/.config/aibox/addons/`
@@ -151,14 +151,14 @@ For one-off apt packages not covered by addons, use `extra_packages`:
 extra_packages = ["universal-ctags", "graphviz", "postgresql-client"]
 ```
 
-These are installed during `aibox sync` via the generated Dockerfile. They persist across container restarts but are reinstalled on image rebuild.
+These are installed during `aibox apply` via the generated Dockerfile. They persist across container restarts but are reinstalled on image rebuild.
 
 ## Version Selection
 
-Each tool in an addon has a curated list of supported versions. Use `aibox addon info <name>` to see available versions:
+Each tool in an addon has a curated list of supported versions. Use `aibox describe addon <name>` to see available versions:
 
 ```bash
-$ aibox addon info python
+$ aibox describe addon python
 Add-on: python
 Recipe version: 1.0.0
 
@@ -169,4 +169,4 @@ Recipe version: 1.0.0
   pdm            no       2.22  2.22
 ```
 
-Tools marked "DEFAULT: yes" are included automatically when you add the addon. Tools marked "no" must be explicitly listed in your `aibox.toml` to be installed.
+Tools marked "DEFAULT: yes" are included automatically when you set the addon. Tools marked "no" must be explicitly listed in your `aibox.toml` to be installed.

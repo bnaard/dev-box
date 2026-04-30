@@ -1,6 +1,6 @@
 //! Appearance tests — verify themes and prompts render correctly.
 //!
-//! These are Tier 1 tests: they run `aibox init` + `aibox sync` locally
+//! These are Tier 1 tests: they run `aibox init` + `aibox apply` locally
 //! and inspect the generated/seeded config files. No container needed.
 
 use std::fs;
@@ -31,11 +31,10 @@ fn init_with_appearance(dir: &std::path::Path, theme: &str, prompt: &str) {
         dir,
         &[
             "init",
-            "--name",
             "appearance-test",
             "--base",
             "debian",
-            "--process",
+            "--context",
             "managed",
             "--theme",
             theme,
@@ -52,7 +51,7 @@ fn init_with_appearance(dir: &std::path::Path, theme: &str, prompt: &str) {
     );
 }
 
-/// Replace the customization section in aibox.toml and re-sync.
+/// Replace the customization section in aibox.toml and re-apply.
 fn change_appearance(dir: &std::path::Path, theme: &str, prompt: &str) {
     let toml_path = dir.join("aibox.toml");
     let content = fs::read_to_string(&toml_path).unwrap();
@@ -78,10 +77,10 @@ fn change_appearance(dir: &std::path::Path, theme: &str, prompt: &str) {
         fs::write(&toml_path, new_content).unwrap();
     }
 
-    let output = run_in(dir, &["sync", "--no-build"]);
+    let output = run_in(dir, &["apply"]);
     assert!(
         output.status.success(),
-        "sync after appearance change failed: {}",
+        "apply after appearance change failed: {}",
         String::from_utf8_lossy(&output.stderr)
     );
 }

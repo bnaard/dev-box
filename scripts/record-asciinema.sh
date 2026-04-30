@@ -22,7 +22,7 @@
 #
 # TODO (BACK-062): Add a `prompts` mode that records each Starship prompt preset.
 # Each recording should show the prompt in a shell session inside an aibox container:
-#   - Spin up a container with the given preset (aibox init --prompt <preset> && aibox start)
+#   - Spin up a container with the given preset (aibox init --prompt <preset> && aibox up)
 #   - Run a short scripted session: cd to a git repo, run a failing command, show the prompt
 #   - Output files: prompt-default.cast, prompt-plain.cast, prompt-minimal.cast,
 #                   prompt-nerd-font.cast, prompt-pastel.cast, prompt-bracketed.cast, prompt-arrow.cast
@@ -326,12 +326,12 @@ mkdir -p my-project && cd my-project
 sleep 0.3
 echo -ne '\033[32m❯\033[0m '
 sleep 0.3
-for c in a i b o x ' ' i n i t ' ' - - n a m e ' ' m y - p r o j e c t ' ' - - i m a g e ' ' p y t h o n ' ' - - p r o c e s s ' ' m a n a g e d; do
+for c in a i b o x ' ' i n i t ' ' m y - p r o j e c t ' ' - - a d d o n ' ' p y t h o n ' ' - - c o n t e x t ' ' m a n a g e d; do
   printf '%s' "\$c"
   sleep 0.06
 done
 echo
-aibox init --name my-project --image python --process managed 2>&1 || true
+aibox init my-project --addon python --context managed 2>&1 || true
 
 sleep 1
 echo -ne '\033[32m❯\033[0m '

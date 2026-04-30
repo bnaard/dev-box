@@ -8,7 +8,7 @@ use super::runner::E2eRunner;
 
 #[test]
 #[serial]
-fn reset_creates_backup() {
+fn reset_project_creates_backup() {
     let runner = E2eRunner::new();
     let test = "reset-backup";
     runner.cleanup(test);
@@ -16,23 +16,15 @@ fn reset_creates_backup() {
     // Init project
     runner.aibox(
         test,
-        &[
-            "init",
-            "--name",
-            test,
-            "--base",
-            "debian",
-            "--process",
-            "managed",
-        ],
+        &["init", test, "--base", "debian", "--context", "managed"],
     );
     assert!(runner.file_exists(test, "aibox.toml"));
 
-    // Reset (with backup, auto-confirm)
-    let output = runner.aibox(test, &["reset", "--yes"]);
+    // Reset project (with backup, auto-confirm)
+    let output = runner.aibox(test, &["reset", "project", "--yes"]);
     assert!(
         output.status.success(),
-        "reset failed: {}",
+        "reset project failed: {}",
         String::from_utf8_lossy(&output.stderr)
     );
 
@@ -53,28 +45,20 @@ fn reset_creates_backup() {
 
 #[test]
 #[serial]
-fn reset_no_backup_deletes_all() {
+fn reset_project_no_backup_deletes_all() {
     let runner = E2eRunner::new();
     let test = "reset-no-backup";
     runner.cleanup(test);
 
     runner.aibox(
         test,
-        &[
-            "init",
-            "--name",
-            test,
-            "--base",
-            "debian",
-            "--process",
-            "managed",
-        ],
+        &["init", test, "--base", "debian", "--context", "managed"],
     );
 
-    let output = runner.aibox(test, &["reset", "--no-backup", "--yes"]);
+    let output = runner.aibox(test, &["reset", "project", "--no-backup", "--yes"]);
     assert!(
         output.status.success(),
-        "reset --no-backup failed: {}",
+        "reset project --no-backup failed: {}",
         String::from_utf8_lossy(&output.stderr)
     );
 

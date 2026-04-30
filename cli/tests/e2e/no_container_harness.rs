@@ -1,4 +1,4 @@
-//! Tier 1 harness: scaffold-only `aibox init` / `aibox sync` runs that
+//! Tier 1 harness: scaffold-only `aibox init` / `aibox apply` runs that
 //! never touch a container runtime.
 //!
 //! This file is intentionally NOT gated on `#[cfg(feature = "e2e")]` —
@@ -10,7 +10,7 @@
 //!
 //! Two tests here:
 //!
-//! 1. `smoke_no_container_init_then_sync` — happy path. Verifies the
+//! 1. `smoke_no_container_init_then_apply` — happy path. Verifies the
 //!    `--no-container` / `AIBOX_NO_CONTAINER` flag plumbs through both
 //!    commands and produces a complete scaffold (toml, lock,
 //!    `.devcontainer/`, runtime mirror under `.aibox-home/`, harness
@@ -20,9 +20,9 @@
 //!
 //! 2. `negative_no_runtime_required` — recurrence guard. Wipes `PATH`
 //!    so `Runtime::detect()` would necessarily fail, then runs
-//!    `aibox init` and `aibox sync` with `AIBOX_NO_CONTAINER=1`. Both
+//!    `aibox init` and `aibox apply` with `AIBOX_NO_CONTAINER=1`. Both
 //!    must succeed (exit 0). If a future change reintroduces a runtime
-//!    probe in the init/sync hot path, this test fires.
+//!    probe in the init/apply hot path, this test fires.
 //!
 //! 3. `upgrade_path_v0_21_to_v0_22_no_container` — WS-0 PR-B. End-to-end
 //!    fixture-based simulation of the v0.21.0 → v0.22.0 processkit
@@ -79,7 +79,7 @@ fn fmt_output(label: &str, out: &Output) -> String {
 }
 
 #[test]
-fn smoke_no_container_init_then_sync() {
+fn smoke_no_container_init_then_apply() {
     let tmp = tempfile::TempDir::new().expect("create tempdir");
     let dir = tmp.path();
 
@@ -88,11 +88,10 @@ fn smoke_no_container_init_then_sync() {
         dir,
         &[
             "init",
-            "--name",
             "fixture",
             "--base",
             "debian",
-            "--process",
+            "--context",
             "managed",
         ],
     );
@@ -119,12 +118,12 @@ fn smoke_no_container_init_then_sync() {
         );
     }
 
-    // 2. sync — must produce the --no-container-specific success line.
-    let sync_out = run_in(dir, &["sync"]);
+    // 2. apply — must produce the --no-container-specific success line.
+    let sync_out = run_in(dir, &["apply"]);
     assert!(
         sync_out.status.success(),
-        "sync failed.\n{}",
-        fmt_output("sync", &sync_out)
+        "apply failed.\n{}",
+        fmt_output("apply", &sync_out)
     );
 
     let combined = format!(
@@ -134,8 +133,8 @@ fn smoke_no_container_init_then_sync() {
     );
     assert!(
         combined.contains("Sync complete (--no-container:"),
-        "expected --no-container completion message in sync output.\n{}",
-        fmt_output("sync", &sync_out)
+        "expected --no-container completion message in apply output.\n{}",
+        fmt_output("apply", &sync_out)
     );
 
     // Representative runtime mirror file under `.aibox-home/`. zellij is
@@ -145,7 +144,7 @@ fn smoke_no_container_init_then_sync() {
     assert!(
         zellij_cfg.exists(),
         "expected runtime mirror at .aibox-home/.config/zellij/config.kdl\n{}",
-        fmt_output("sync", &sync_out)
+        fmt_output("apply", &sync_out)
     );
 
     // Harness config — present whenever the [ai] section keeps Claude
@@ -169,7 +168,7 @@ fn negative_no_runtime_required() {
     // Recurrence guard for the entire defect class.
     //
     // Any future code that reintroduces `Runtime::detect()` in the
-    // init/sync hot path will fail this test, because we wipe PATH so
+    // init/apply hot path will fail this test, because we wipe PATH so
     // no docker/podman binary can be found.
     let tmp = tempfile::TempDir::new().expect("create tempdir");
     let dir = tmp.path();
@@ -183,11 +182,10 @@ fn negative_no_runtime_required() {
     let init_out = Command::new(aibox_bin())
         .args([
             "init",
-            "--name",
             "fixture",
             "--base",
             "debian",
-            "--process",
+            "--context",
             "managed",
         ])
         .current_dir(dir)
@@ -205,7 +203,7 @@ fn negative_no_runtime_required() {
     );
 
     let sync_out = Command::new(aibox_bin())
-        .args(["sync"])
+        .args(["apply"])
         .current_dir(dir)
         .env_clear()
         .env("AIBOX_ADDONS_DIR", addons_dir())
@@ -213,11 +211,11 @@ fn negative_no_runtime_required() {
         .env("PATH", &empty_path)
         .env("HOME", dir)
         .output()
-        .expect("failed to execute aibox sync");
+        .expect("failed to execute aibox apply");
     assert!(
         sync_out.status.success(),
-        "sync must succeed with empty PATH when AIBOX_NO_CONTAINER=1.\n{}",
-        fmt_output("sync (no-runtime)", &sync_out)
+        "apply must succeed with empty PATH when AIBOX_NO_CONTAINER=1.\n{}",
+        fmt_output("apply (no-runtime)", &sync_out)
     );
 }
 
@@ -228,7 +226,7 @@ fn negative_no_runtime_required() {
 ///
 /// 1. `aibox.toml [processkit].version = "<version>"`
 /// 2. `aibox.lock` with matching `[processkit]` section + a stub
-///    `processkit_install_hash` (the next sync recomputes it from the
+///    `processkit_install_hash` (the next apply recomputes it from the
 ///    live tree — value just needs to be `Some(_)`).
 /// 3. `context/templates/processkit/<version>/PROVENANCE.toml` with
 ///    `[source].generated_for_tag = "<version>"`.
@@ -239,7 +237,7 @@ fn negative_no_runtime_required() {
 ///
 /// `preauth_body`, when `Some`, is written to
 /// `context/skills/processkit/skill-gate/assets/preauth.json` so the
-/// preauth merge has something to consume on the next sync.
+/// preauth merge has something to consume on the next apply.
 fn write_processkit_install_state(dir: &Path, version: &str, preauth_body: Option<&str>) {
     // 1. aibox.toml — replace whatever processkit.version line aibox init
     //    wrote (single-quoted "unset" or another value).
@@ -318,7 +316,7 @@ fn write_processkit_install_state(dir: &Path, version: &str, preauth_body: Optio
     // A single live processkit skill file so
     // `compute_processkit_install_fingerprint` is `Some(_)` (it requires
     // at least one regular file under the install roots) and the post-
-    // sync writer keeps `aibox.lock [processkit].processkit_install_hash`
+    // apply writer keeps `aibox.lock [processkit].processkit_install_hash`
     // non-None.
     let stub_skill = dir.join("context/skills/processkit/_fixture-marker");
     fs::create_dir_all(&stub_skill).expect("create fixture skill dir");
@@ -360,8 +358,8 @@ fn v0_22_0_preauth_body() -> String {
 /// in CI; the value of this Tier 1 test is that it pins down what the
 /// CLI must *report* and *write* once the install has converged.
 ///
-/// Why hermetic instead of `aibox init --processkit-version v0.21.0`
-/// followed by a real `--processkit-version v0.22.0` sync:
+/// Why hermetic instead of `aibox init --contextkit-version v0.21.0`
+/// followed by a real `--processkit-version v0.22.0` apply:
 ///
 /// - The release tarball for processkit v0.22.0 ships a
 ///   `PROVENANCE.toml` with `[source].generated_for_tag = "v0.21.0"`
@@ -385,11 +383,10 @@ fn upgrade_path_v0_21_to_v0_22_no_container() {
         dir,
         &[
             "init",
-            "--name",
             "upgrade-fixture",
             "--base",
             "debian",
-            "--process",
+            "--context",
             "managed",
             "--processkit-version",
             "unset",
@@ -405,13 +402,13 @@ fn upgrade_path_v0_21_to_v0_22_no_container() {
     // v0.21.0 does not ship preauth.json upstream — emulate that.
     write_processkit_install_state(dir, "v0.21.0", None);
 
-    // First sync: decide_sync sees lock matches config + integrity Healthy
+    // First apply: decide_sync sees lock matches config + integrity Healthy
     // and returns Skip — no network fetch is attempted.
-    let sync1 = run_in(dir, &["sync"]);
+    let sync1 = run_in(dir, &["apply"]);
     assert!(
         sync1.status.success(),
-        "sync at v0.21.0 failed.\n{}",
-        fmt_output("sync v0.21.0", &sync1)
+        "apply at v0.21.0 failed.\n{}",
+        fmt_output("apply v0.21.0", &sync1)
     );
 
     // Assertion #1: lock records v0.21.0 with a non-empty install hash.
@@ -433,17 +430,17 @@ fn upgrade_path_v0_21_to_v0_22_no_container() {
         "expected live provenance to record v0.21.0.\n{prov21}"
     );
 
-    // Assertion #3: aibox doctor --integrity --json => {"status": "Healthy"}.
-    let integ1 = run_in(dir, &["doctor", "--integrity", "--json"]);
+    // Assertion #3: aibox doctor --integrity -o json => {"status": "Healthy"}.
+    let integ1 = run_in(dir, &["doctor", "--integrity", "-o", "json"]);
     assert!(
         integ1.status.success(),
-        "doctor --integrity --json should exit 0 on Healthy state.\n{}",
+        "doctor --integrity -o json should exit 0 on Healthy state.\n{}",
         fmt_output("doctor v0.21.0", &integ1)
     );
     let stdout1 = String::from_utf8_lossy(&integ1.stdout).to_string();
     let parsed1: Value = serde_json::from_str(stdout1.trim()).unwrap_or_else(|e| {
         panic!(
-            "doctor --integrity --json must emit valid JSON: {e}\n{}",
+            "doctor --integrity -o json must emit valid JSON: {e}\n{}",
             fmt_output("doctor v0.21.0", &integ1)
         )
     });
@@ -457,15 +454,15 @@ fn upgrade_path_v0_21_to_v0_22_no_container() {
     // v0.22.0 ships preauth.json — inject it.
     write_processkit_install_state(dir, "v0.22.0", Some(&v0_22_0_preauth_body()));
 
-    // Second sync: lock matches config (both v0.22.0), integrity Healthy
+    // Second apply: lock matches config (both v0.22.0), integrity Healthy
     // again, decide_sync returns Skip. The preauth merge runs regardless
     // of the install branch and updates .claude/settings.json from the
     // freshly-injected preauth.json.
-    let sync2 = run_in(dir, &["sync"]);
+    let sync2 = run_in(dir, &["apply"]);
     assert!(
         sync2.status.success(),
-        "sync at v0.22.0 failed.\n{}",
-        fmt_output("sync v0.22.0", &sync2)
+        "apply at v0.22.0 failed.\n{}",
+        fmt_output("apply v0.22.0", &sync2)
     );
 
     // Assertion #6: lock records v0.22.0.
@@ -488,8 +485,8 @@ fn upgrade_path_v0_21_to_v0_22_no_container() {
     let settings_path = dir.join(".claude/settings.json");
     assert!(
         settings_path.exists(),
-        "expected .claude/settings.json to exist after sync.\n{}",
-        fmt_output("sync v0.22.0", &sync2)
+        "expected .claude/settings.json to exist after apply.\n{}",
+        fmt_output("apply v0.22.0", &sync2)
     );
     let settings: Value = serde_json::from_str(
         &fs::read_to_string(&settings_path).expect("read .claude/settings.json"),
@@ -518,7 +515,7 @@ fn upgrade_path_v0_21_to_v0_22_no_container() {
     // Assertion #9: a migration document for the v0.21.0 → v0.22.0
     // transition was emitted under context/migrations/pending/MIG-*.md.
     // The runtime-config diff (managed .aibox-home files) writes a
-    // MIG-RUNTIME-* document on the first sync, which counts as a
+    // MIG-RUNTIME-* document on the first apply, which counts as a
     // migration document for this assertion (it's the same MIG-*.md
     // pattern, same directory). Either form is acceptable.
     let pending_dir = dir.join("context/migrations/pending");
@@ -540,20 +537,20 @@ fn upgrade_path_v0_21_to_v0_22_no_container() {
         !mig_files.is_empty(),
         "expected at least one MIG-*.md migration document under \
          context/migrations/pending/ after the v0.21.0 → v0.22.0 upgrade.\n{}",
-        fmt_output("sync v0.22.0", &sync2)
+        fmt_output("apply v0.22.0", &sync2)
     );
 
     // Assertion #10: integrity remains Healthy at v0.22.0.
-    let integ2 = run_in(dir, &["doctor", "--integrity", "--json"]);
+    let integ2 = run_in(dir, &["doctor", "--integrity", "-o", "json"]);
     assert!(
         integ2.status.success(),
-        "doctor --integrity --json should exit 0 on Healthy state at v0.22.0.\n{}",
+        "doctor --integrity -o json should exit 0 on Healthy state at v0.22.0.\n{}",
         fmt_output("doctor v0.22.0", &integ2)
     );
     let stdout2 = String::from_utf8_lossy(&integ2.stdout).to_string();
     let parsed2: Value = serde_json::from_str(stdout2.trim()).unwrap_or_else(|e| {
         panic!(
-            "doctor --integrity --json must emit valid JSON: {e}\n{}",
+            "doctor --integrity -o json must emit valid JSON: {e}\n{}",
             fmt_output("doctor v0.22.0", &integ2)
         )
     });

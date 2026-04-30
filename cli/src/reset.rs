@@ -485,7 +485,7 @@ pub fn cmd_reset(
     if let Some(bp) = &backup_path {
         output::info(&format!("Backup saved at: {}", bp.display()));
         output::info(
-            "Run `aibox sync` to re-scaffold, then check context/migrations/pending/ \
+            "Run `aibox apply` to re-scaffold, then check context/migrations/pending/ \
              for the reset recovery migration.",
         );
     }
@@ -545,7 +545,7 @@ pub fn cmd_uninstall(dry_run: bool, purge: bool, yes: bool) -> Result<()> {
     }
     eprintln!();
     eprintln!("  Project files (aibox.toml, .devcontainer/, context/) are NOT affected.");
-    eprintln!("  Use 'aibox reset' to remove project files.");
+    eprintln!("  Use 'aibox reset project' to remove project files.");
     eprintln!();
 
     if dry_run {
@@ -636,7 +636,7 @@ fn walk_dir_relative(base: &Path, current: &Path) -> Vec<String> {
 /// Scans the backup directory for user-created content (entities, custom
 /// configs, additional files) and writes a migration document to
 /// `context/migrations/pending/` that guides the agent through
-/// reconciliation after `aibox sync` re-scaffolds the project.
+/// reconciliation after `aibox apply` re-scaffolds the project.
 fn generate_reset_migration_briefing(backup_dir: &Path) -> Result<Option<PathBuf>> {
     let pending_dir = PathBuf::from("context/migrations/pending");
 
@@ -732,7 +732,7 @@ fn generate_reset_migration_briefing(backup_dir: &Path) -> Result<Option<PathBuf
     ));
     body.push_str("  to_version: fresh-scaffold\n");
     body.push_str("  state: pending\n");
-    body.push_str("  generated_by: aibox reset\n");
+    body.push_str("  generated_by: aibox reset project\n");
     body.push_str(&format!("  generated_at: {}\n", now_iso));
     body.push_str(&format!(
         "  summary: \"{} items from backup to review for recovery\"\n",
@@ -751,12 +751,12 @@ fn generate_reset_migration_briefing(backup_dir: &Path) -> Result<Option<PathBuf
     body.push_str("---\n\n");
     body.push_str(&format!("# Reset Recovery — {}\n\n", id));
     body.push_str(&format!(
-        "This migration was generated after `aibox reset`. The backup at\n\
+        "This migration was generated after `aibox reset project`. The backup at\n\
          `{}` contains the previous project state.\n\n\
          Review each section below and decide what to bring forward into\n\
          the freshly scaffolded project. Use 3-way reasoning:\n\
          - **Backup** = what the user had before reset\n\
-         - **Fresh scaffold** = what `aibox sync` just created\n\
+         - **Fresh scaffold** = what `aibox apply` just created\n\
          - **Desired state** = merge of both, guided by user intent\n\n",
         backup_dir.display()
     ));
@@ -806,7 +806,7 @@ fn generate_reset_migration_briefing(backup_dir: &Path) -> Result<Option<PathBuf
 
     body.push_str("## AGENTS.md review\n\n");
     body.push_str(
-        "After re-scaffolding with `aibox sync`, verify AGENTS.md is up to date:\n\
+        "After re-scaffolding with `aibox apply`, verify AGENTS.md is up to date:\n\
          - processkit version matches `aibox.lock`\n\
          - Configured AI harnesses/providers match `[ai]` in `aibox.toml`\n\
          - Build / test / lint commands are still accurate\n\

@@ -1384,7 +1384,7 @@ pub fn regenerate_mcp_configs(config: &AiboxConfig, project_root: &Path) -> Resu
                 output::warn(&format!(
                     "mandatory processkit MCP skill '{skill}' has no mcp/mcp-config.json \
                      in the {} templates mirror — its server will not be registered. \
-                     Entity-layer coverage is incomplete. Run `aibox sync` after \
+                     Entity-layer coverage is incomplete. Run `aibox apply` after \
                      upgrading processkit to a version that includes this skill.",
                     &config.processkit.version,
                 ));
@@ -1632,7 +1632,7 @@ fn validate_script_paths(specs: &[McpServerSpec], project_root: &Path) -> Result
             "MCP server '{name}' references script '{path}' which does not exist \
              under the project root. The per-skill mcp-config.json likely has a \
              stale path (e.g. missing the `processkit/` category prefix introduced \
-             in processkit v0.17.0). Fix upstream and re-run `aibox sync`."
+             in processkit v0.17.0). Fix upstream and re-run `aibox apply`."
         ));
     }
     Err(anyhow::anyhow!(

@@ -182,7 +182,7 @@ pub const AGENTS_FILENAME: &str = "AGENTS.md";
 // ---------------------------------------------------------------------------
 
 /// Path segment holding the version-stamped upstream snapshot used by
-/// `aibox sync`'s three-way diff. The full path is
+/// `aibox apply`'s three-way diff. The full path is
 /// `TEMPLATES_PROCESSKIT_DIR/<version>/`.
 pub const TEMPLATES_PROCESSKIT_DIR: &str = "context/templates/processkit";
 
@@ -300,7 +300,7 @@ pub fn mirror_packages_dir(
 // ---------------------------------------------------------------------------
 
 /// Maximum number of characters shown for a skill or process description
-/// in `aibox kit` table output before the description is truncated with `…`.
+/// in `aibox get kit` table output before the description is truncated with `…`.
 pub const DESCRIPTION_DISPLAY_MAX: usize = 60;
 
 // ---------------------------------------------------------------------------
@@ -308,9 +308,9 @@ pub const DESCRIPTION_DISPLAY_MAX: usize = 60;
 // ---------------------------------------------------------------------------
 
 /// Canonical 14-value category vocabulary defined in processkit's
-/// `src/skills/FORMAT.md`. Used by `aibox kit skill list` for display grouping.
+/// `src/skills/FORMAT.md`. Used by `aibox get skill` for display grouping.
 ///
-/// **Order matters** — it controls the display sort order within `aibox kit`.
+/// **Order matters** — it controls the display sort order within `aibox get kit`.
 /// Update if processkit reorders or adds/removes categories.
 pub const CATEGORY_ORDER: &[&str] = &[
     "process",
@@ -434,7 +434,7 @@ pub fn parse_skill_frontmatter(path: &Path) -> Result<SkillFrontmatter> {
         .join("\n");
 
     // Swallow parse errors — an unknown frontmatter shape should not crash
-    // `aibox kit` or `aibox sync`. The skill will appear with empty fields.
+    // `aibox get kit` or `aibox apply`. The skill will appear with empty fields.
     let fm: SkillFrontmatter = serde_yaml::from_str(&yaml_block).unwrap_or_default();
     Ok(fm)
 }

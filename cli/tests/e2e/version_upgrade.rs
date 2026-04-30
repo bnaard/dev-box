@@ -3,10 +3,10 @@
 //! Covers:
 //!   1. Generated Dockerfile contains `LABEL aibox.version=`
 //!   2. Generated Dockerfile writes `/etc/aibox-version` inside the image
-//!   3. `aibox start` hard-errors when container image label mismatches config version
-//!   4. `aibox start` does NOT error when container and config versions match (happy path)
-//!   5. `aibox update -y` exits 0 (global_yes is correctly wired, no interactive hang)
-//!   6. `aibox update --dry-run` no longer mentions `.aibox-version` (removed in BACK-060)
+//!   3. `aibox up` hard-errors when container image label mismatches config version
+//!   4. `aibox up` does NOT error when container and config versions match (happy path)
+//!   5. `aibox self update -y` exits 0 (global_yes is correctly wired, no interactive hang)
+//!   6. `aibox self update --dry-run` no longer mentions `.aibox-version` (removed in BACK-060)
 //!   7. `aibox doctor` warns when running container label mismatches config version
 //!   8. `aibox doctor` warns when `.aibox-version` does not match the current CLI version
 //!
@@ -65,11 +65,10 @@ fn init_project(dir: &std::path::Path, name: &str) {
         dir,
         &[
             "init",
-            "--name",
             name,
             "--base",
             "debian",
-            "--process",
+            "--context",
             "managed",
             "--processkit-version",
             "v0.21.0",
@@ -116,14 +115,14 @@ fn dockerfile_contains_etc_aibox_version_write() {
     );
 }
 
-// ─── Test 3: cmd_start version mismatch hard-error ───────────────────────────
+// ─── Test 3: cmd_up version mismatch hard-error ──────────────────────────────
 
-/// `aibox start` must exit non-zero with a clear error message when the running
+/// `aibox up` must exit non-zero with a clear error message when the running
 /// container was built from an older image than the version pinned in aibox.toml.
 /// Running with a stale image risks subtle behaviour differences — BACK-060
 /// makes this a hard failure rather than a silent continue.
 #[test]
-fn start_fails_on_image_version_mismatch() {
+fn up_fails_on_image_version_mismatch() {
     let dir = tempfile::tempdir().unwrap();
     init_project(dir.path(), "start-mismatch");
 
@@ -132,7 +131,7 @@ fn start_fails_on_image_version_mismatch() {
     // Simulate: container is running but was built from an old image (v0.0.1)
     let output = run_in_with_mock(
         dir.path(),
-        &["start"],
+        &["up"],
         &mock,
         "running", // MOCK_CONTAINER_STATE
         "0.0.1",   // MOCK_CONTAINER_VERSION — old, mismatches config
@@ -140,7 +139,7 @@ fn start_fails_on_image_version_mismatch() {
 
     assert!(
         !output.status.success(),
-        "aibox start should exit non-zero on image version mismatch"
+        "aibox up should exit non-zero on image version mismatch"
     );
 
     let stderr = String::from_utf8_lossy(&output.stderr);
@@ -149,17 +148,17 @@ fn start_fails_on_image_version_mismatch() {
         "error output should mention 'mismatch', got:\n{stderr}"
     );
     assert!(
-        stderr.contains("aibox sync"),
-        "error should suggest running `aibox sync` to resolve, got:\n{stderr}"
+        stderr.contains("aibox apply"),
+        "error should suggest running `aibox apply` to resolve, got:\n{stderr}"
     );
 }
 
-// ─── Test 4: cmd_start happy path — versions match ───────────────────────────
+// ─── Test 4: cmd_up happy path — versions match ──────────────────────────────
 
-/// `aibox start` must NOT error when the container's image label matches the
+/// `aibox up` must NOT error when the container's image label matches the
 /// version pinned in aibox.toml. This is the normal day-to-day path.
 #[test]
-fn start_does_not_error_when_versions_match() {
+fn up_does_not_error_when_versions_match() {
     let dir = tempfile::tempdir().unwrap();
     init_project(dir.path(), "start-match");
 
@@ -171,7 +170,7 @@ fn start_does_not_error_when_versions_match() {
 
     let output = run_in_with_mock(
         dir.path(),
-        &["start"],
+        &["up"],
         &mock,
         "running",       // MOCK_CONTAINER_STATE
         current_version, // MOCK_CONTAINER_VERSION — matches config
@@ -180,13 +179,13 @@ fn start_does_not_error_when_versions_match() {
     let stderr = String::from_utf8_lossy(&output.stderr);
     assert!(
         !stderr.to_lowercase().contains("mismatch"),
-        "aibox start should not report version mismatch when versions match, got:\n{stderr}"
+        "aibox up should not report version mismatch when versions match, got:\n{stderr}"
     );
 }
 
-// ─── Test 5: update -y exits zero (global_yes wired correctly) ───────────────
+// ─── Test 5: self update -y exits zero (global_yes wired correctly) ──────────
 
-/// `aibox update -y` must exit 0. This verifies the global `--yes` flag is
+/// `aibox self update -y` must exit 0. This verifies the global `--yes` flag is
 /// correctly threaded through to `cmd_update` so it doesn't hang waiting for
 /// a confirmation prompt (even when the registry is unreachable, the command
 /// exits early cleanly).
@@ -195,7 +194,7 @@ fn update_yes_flag_exits_zero() {
     let dir = tempfile::tempdir().unwrap();
     init_project(dir.path(), "update-yes");
 
-    let output = run_in(dir.path(), &["update", "-y"]);
+    let output = run_in(dir.path(), &["self", "update", "-y"]);
 
     let combined = format!(
         "{}{}",
@@ -204,13 +203,13 @@ fn update_yes_flag_exits_zero() {
     );
     assert!(
         output.status.success(),
-        "aibox update -y should exit 0:\n{combined}"
+        "aibox self update -y should exit 0:\n{combined}"
     );
 }
 
-// ─── Test 6: update --dry-run no longer mentions .aibox-version ──────────────
+// ─── Test 6: self update --dry-run no longer mentions .aibox-version ─────────
 
-/// `aibox update --dry-run` must NOT contain the old "[dry-run] Would update
+/// `aibox self update --dry-run` must NOT contain the old "[dry-run] Would update
 /// .aibox-version" message. That write was removed in BACK-060: the image
 /// version is tracked in aibox.toml only; `.aibox-version` holds the CLI version.
 ///
@@ -221,7 +220,7 @@ fn update_dry_run_does_not_mention_aibox_version_file() {
     let dir = tempfile::tempdir().unwrap();
     init_project(dir.path(), "update-dryrun");
 
-    let output = run_in(dir.path(), &["update", "--dry-run"]);
+    let output = run_in(dir.path(), &["self", "update", "--dry-run"]);
 
     let combined = format!(
         "{}{}",
@@ -231,11 +230,11 @@ fn update_dry_run_does_not_mention_aibox_version_file() {
 
     assert!(
         output.status.success(),
-        "aibox update --dry-run should exit 0:\n{combined}"
+        "aibox self update --dry-run should exit 0:\n{combined}"
     );
     assert!(
         !combined.contains("Would update .aibox-version"),
-        "aibox update --dry-run must not mention .aibox-version (removed in BACK-060):\n{combined}"
+        "aibox self update --dry-run must not mention .aibox-version (removed in BACK-060):\n{combined}"
     );
 }
 
@@ -278,7 +277,7 @@ fn doctor_warns_on_container_version_mismatch() {
 /// `aibox doctor` must warn when `aibox.lock [aibox].cli_version` does not
 /// match the current CLI version. This indicates the project was last synced
 /// with an older CLI and generated files may be stale — user should run
-/// `aibox sync`.
+/// `aibox apply`.
 #[test]
 fn doctor_warns_on_cli_version_file_mismatch() {
     let dir = tempfile::tempdir().unwrap();
@@ -316,7 +315,7 @@ fn doctor_warns_on_cli_version_file_mismatch() {
         "doctor should warn about CLI version mismatch when .aibox-version is stale, got:\n{combined}"
     );
     assert!(
-        combined.contains("aibox sync"),
-        "doctor warning should suggest `aibox sync` to update generated files, got:\n{combined}"
+        combined.contains("aibox apply"),
+        "doctor warning should suggest `aibox apply` to update generated files, got:\n{combined}"
     );
 }

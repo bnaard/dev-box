@@ -14,7 +14,7 @@ title: "Copilot (GitHub)"
 providers = ["copilot"]
 ```
 
-Run `aibox sync`, then inside the container:
+Run `aibox apply`, then inside the container:
 
 ```bash
 copilot /login   # Authenticate on first launch
@@ -34,9 +34,9 @@ Key files:
 
 ## MCP Integration
 
-GitHub Copilot CLI reads `.mcp.json` (the Claude Code MCP format). aibox generates `.mcp.json` automatically on `aibox sync`, merging processkit built-in servers, team servers from `aibox.toml [mcp]`, and personal servers from `.aibox-local.toml [mcp]`.
+GitHub Copilot CLI reads `.mcp.json` (the Claude Code MCP format). aibox generates `.mcp.json` automatically on `aibox apply`, merging processkit built-in servers, team servers from `aibox.toml [mcp]`, and personal servers from `.aibox-local.toml [mcp]`.
 
-`.mcp.json` is **gitignored** — it is regenerated on every `aibox sync` and must not be committed.
+`.mcp.json` is **gitignored** — it is regenerated on every `aibox apply` and must not be committed.
 
 To add MCP servers:
 

@@ -23,4 +23,4 @@ Documentation addons install static site generators and documentation tools.
 docusaurus = {}
 ```
 
-After `aibox sync`, the documentation tool is available inside the container. Initialize your docs project as usual (e.g., `npx create-docusaurus@latest docs classic`).
+After `aibox apply`, the documentation tool is available inside the container. Initialize your docs project as usual (e.g., `npx create-docusaurus@latest docs classic`).

@@ -1,6 +1,6 @@
 //! Migration system for aibox version changes.
 //!
-//! On `aibox sync`, compares `aibox.lock [aibox].cli_version` against the
+//! On `aibox apply`, compares `aibox.lock [aibox].cli_version` against the
 //! running CLI version. If they differ, generates a migration document at
 //! `context/migrations/{from}-to-{to}.md`. Also handles the one-time hard-cut
 //! migration that absorbs the legacy `.aibox-version` file into `aibox.lock`.
@@ -12,7 +12,7 @@ use std::path::Path;
 use crate::output;
 
 /// Check for version mismatch and generate migration document if needed.
-/// Called during `aibox sync`. Operates in the current working directory.
+/// Called during `aibox apply`. Operates in the current working directory.
 pub fn check_and_generate_migration() -> Result<()> {
     // Hard-cut: absorb legacy .aibox-version into aibox.lock (one-time, idempotent).
     migrate_legacy_lock_files(Path::new("."))?;
@@ -388,7 +388,7 @@ fn format_migration_doc(
                      `v{effective_pk_version}`{pk_version_note} (source: `{source}`).\n\
                      \n\
                      **Upgrade policy for `version = \"latest\"`:**\n\
-                     `aibox sync` resolves `latest` at run time using a semver-aware policy:\n\
+                     `aibox apply` resolves `latest` at run time using a semver-aware policy:\n\
                      - **Patch / minor upgrades** (same major): applied automatically.\n\
                      - **Major upgrades**: blocked — a warning is shown and sync stays on the\n\
                        latest release within the current major. To cross a major boundary, pin\n\
@@ -404,7 +404,7 @@ fn format_migration_doc(
                 "{version_line}\n\
                  \n\
                  **Check for pending processkit content migrations:**\n\
-                 Look in `/workspace/context/migrations/pending/` — `aibox sync` deposits\n\
+                 Look in `/workspace/context/migrations/pending/` — `aibox apply` deposits\n\
                  content migration documents there during the 3-way diff. Do NOT skip this step.\n\
                  \n\
                  If files exist, do NOT handle them manually. Instead:\n\
@@ -423,7 +423,7 @@ fn format_migration_doc(
             if config_is_latest {
                 "processkit is set to `version = \"latest\"` in aibox.toml \
                  (lock not yet written — fresh install).\n\
-                 `aibox sync` will resolve `latest` to the newest available release \
+                 `aibox apply` will resolve `latest` to the newest available release \
                  and install it.\n\
                  Check `/workspace/context/migrations/pending/` after sync for any \
                  content migration files."
@@ -436,7 +436,7 @@ fn format_migration_doc(
                      and use `skill-finder` to locate the processkit migration skill if any exist."
                 )
             } else {
-                "processkit is not yet configured in this project. Run `aibox sync` on the host\n\
+                "processkit is not yet configured in this project. Run `aibox apply` on the host\n\
                  to initialize processkit content."
                     .to_string()
             }
@@ -478,11 +478,11 @@ and discuss action items with the project owner.
 
 ### Host actions (owner runs these outside the container)
 
-- [ ] Owner: verify `aibox sync` was run for v{to} — check `aibox.lock` at
+- [ ] Owner: verify `aibox apply` was run for v{to} — check `aibox.lock` at
       `/workspace/aibox.lock`: `[aibox].cli_version` should equal `{to}` and
       `synced_at` should be a recent timestamp
-- [ ] Owner: if sync has NOT been run, run `aibox sync` on the host, then `aibox build`
-- [ ] Owner: if the container was not rebuilt after sync, run `aibox build` then `aibox start`
+- [ ] Owner: if sync has NOT been run, run `aibox apply` on the host, then `aibox build`
+- [ ] Owner: if the container was not rebuilt after sync, run `aibox build` then `aibox up`
 
 ### Agent verification (you can do these now)
 
@@ -535,7 +535,7 @@ After all host actions are confirmed and agent verifications pass, mark Status a
 To revert this migration (owner runs on host):
 ```
 git checkout HEAD~1 -- aibox.lock context/ .devcontainer/
-aibox sync
+aibox apply
 ```
 
 ## Known Issues
@@ -729,7 +729,7 @@ fn write_processkit_migration_note(path: &Path) -> Result<()> {
 
 aibox now reads a `[processkit]` section from `aibox.toml` to determine where
 project content (skills, primitives, processes) should come from. Existing
-projects pre-date this section, so on the first `aibox sync` after upgrading,
+projects pre-date this section, so on the first `aibox apply` after upgrading,
 aibox surgically inserts a default `[processkit]` block into your
 `aibox.toml`:
 
@@ -749,11 +749,11 @@ migration is purely plumbing — your existing project files are untouched.
 
 - [ ] Decide whether you want to consume processkit content for this project.
 - [ ] If yes: replace `\"unset\"` with a real released version of processkit
-      (e.g. `\"v0.4.0\"`). Run `aibox sync` again to pull content.
+      (e.g. `\"v0.4.0\"`). Run `aibox apply` again to pull content.
 - [ ] If you maintain a fork of processkit, change `source` to point at it.
 - [ ] If you want to track a moving branch instead of a tag, set `branch`
       and leave `version` as the empty sentinel — discouraged but supported.
-- [ ] After running `aibox sync`, check `context/migrations/pending/` for any
+- [ ] After running `aibox apply`, check `context/migrations/pending/` for any
       processkit content migration documents — these describe content-level
       changes that may require your review.
 - [ ] Mark this migration as completed (change Status above to \"completed\").
@@ -761,7 +761,7 @@ migration is purely plumbing — your existing project files are untouched.
 ## Rollback
 
 To revert: `git checkout HEAD -- aibox.toml` and delete this file. The
-migration will re-run on the next `aibox sync`.
+migration will re-run on the next `aibox apply`.
 "
     );
     fs::write(path, body)
@@ -859,7 +859,7 @@ pub fn migrate_processkit_context_settings(root: &Path) -> Result<()> {
         } else {
             output::warn(
                 "id-management skill is not installed — id_format/id_slug will be \
-                 removed from aibox.toml. Re-run `aibox sync` after installing the skill.",
+                 removed from aibox.toml. Re-run `aibox apply` after installing the skill.",
             );
         }
         if id_format.is_some() {
@@ -897,7 +897,7 @@ pub fn migrate_processkit_context_settings(root: &Path) -> Result<()> {
         } else {
             output::warn(
                 "index-management skill is not installed — directories/sharding/index will be \
-                 removed from aibox.toml. Re-run `aibox sync` after installing the skill.",
+                 removed from aibox.toml. Re-run `aibox apply` after installing the skill.",
             );
         }
         for key in &["directories", "sharding", "index"] {
@@ -962,7 +962,7 @@ fn build_id_management_settings(
 
     format!(
         "# processkit — id-management settings\n\
-         # Migrated from aibox.toml [context] by aibox sync on {date}\n\
+         # Migrated from aibox.toml [context] by aibox apply on {date}\n\
          \n\
          [ids]\n\
          {format_line}\n\
@@ -979,7 +979,7 @@ fn build_index_management_settings(
 ) -> Result<String> {
     let mut out = format!(
         "# processkit — index-management settings\n\
-         # Migrated from aibox.toml [context] by aibox sync on {date}\n"
+         # Migrated from aibox.toml [context] by aibox apply on {date}\n"
     );
 
     for section in &["directories", "index", "sharding"] {
@@ -1162,7 +1162,7 @@ installed_at = \"2026-04-01T00:00:00Z\"
 
         // Action items — host section
         assert!(doc.contains("### Host actions (owner runs these outside the container)"));
-        assert!(doc.contains("- [ ] Owner: verify `aibox sync` was run for v0.8.0"));
+        assert!(doc.contains("- [ ] Owner: verify `aibox apply` was run for v0.8.0"));
 
         // Action items — agent verification
         assert!(doc.contains("### Agent verification (you can do these now)"));

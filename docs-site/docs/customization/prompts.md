@@ -115,9 +115,9 @@ Airline/powerline-style prompt with hard chevron separators (`►`). Segments fo
    prompt = "arrow"
    ```
 
-2. Run sync:
+2. Run apply:
    ```bash
-   aibox sync
+   aibox apply
    ```
 
 The Starship config is regenerated at `.aibox-home/.config/starship.toml`. Colors are derived from the active theme.

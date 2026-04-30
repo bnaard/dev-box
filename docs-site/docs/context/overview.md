@@ -12,7 +12,7 @@ processes, primitives, and skills.
 As of **v0.16.0**, the system is split across two cleanly separated projects:
 
 - **aibox** owns the **container** — devcontainers, addons, the CLI, the
-  install/sync/migrate machinery, and the slim project skeleton (`.aibox-version`,
+  install/apply/migrate machinery, and the slim project skeleton (`.aibox-version`,
   `.gitignore`, an empty `context/`, and a thin `CLAUDE.md` pointer).
 - **[processkit](https://github.com/projectious-work/processkit)** owns the
   **content** — every skill, every primitive schema, every state machine, the
@@ -21,7 +21,7 @@ As of **v0.16.0**, the system is split across two cleanly separated projects:
 - **The user-side `context/` directory is shared territory.** aibox creates it,
   processkit fills it, and the user edits in place. An immutable upstream
   snapshot is kept under `context/templates/processkit/<version>/` for the
-  three-way diff that `aibox sync` uses to detect upstream changes versus
+  three-way diff that `aibox apply` uses to detect upstream changes versus
   local edits.
 
 ## The Problem
@@ -37,7 +37,7 @@ standard place for decisions, backlog, progress tracking, or team conventions.
 
 ## How Context Files Work
 
-After `aibox init` and `aibox sync` (with a real `[processkit].version` pinned),
+After `aibox init` and `aibox apply` (with a real `[processkit].version` pinned),
 your project looks something like this:
 
 ```
@@ -110,7 +110,7 @@ schema_version = "1.0.0"
 version = "v0.8.0"
 ```
 
-When the schema evolves, `aibox doctor` flags version mismatches and `aibox sync`
+When the schema evolves, `aibox doctor` flags version mismatches and `aibox apply`
 runs the relevant migrations. See [Migration](migration.md) for details.
 
 ## Relationship to aibox.toml
@@ -128,7 +128,7 @@ source  = "https://github.com/projectious-work/processkit.git"
 version = "v0.8.0"
 ```
 
-Run `aibox sync` after editing `[processkit].version` to pull a new release.
+Run `aibox apply` after editing `[processkit].version` to pull a new release.
 
 ## Design Principles
 
@@ -141,7 +141,7 @@ without any tooling.
 **Editable in place.** Everything under `context/skills/`, `context/processes/`,
 `context/schemas/`, and `context/state-machines/` is yours to edit. The
 immutable snapshot under `context/templates/processkit/<version>/` exists only
-as the base of `aibox sync`'s three-way diff.
+as the base of `aibox apply`'s three-way diff.
 
 **No lock-in.** Context files are plain Markdown and YAML in a `context/`
 directory. Stop using aibox and the files remain useful.

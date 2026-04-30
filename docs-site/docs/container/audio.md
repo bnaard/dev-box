@@ -47,20 +47,20 @@ The fastest way to set up audio on your host is the built-in CLI command:
 
 ```bash
 # Check if your host is ready
-aibox audio check
+aibox doctor audio
 
 # Automatic setup (macOS: installs PulseAudio, configures TCP, creates launchd agent)
-aibox audio setup
+aibox apply audio
 ```
 
-`aibox audio setup` handles:
+`aibox apply audio` handles:
 
 - Installing PulseAudio via Homebrew (macOS) if not present
 - Configuring `~/.config/pulse/default.pa` with the TCP module on port 4714
 - Creating a launchd agent with `KeepAlive` so PulseAudio auto-starts and restarts on crash (macOS)
 - Loading the TCP module immediately
 
-`aibox audio check` diagnoses: PulseAudio installation, daemon status, TCP module, persistence config, port listening, launchd agent (macOS), and connectivity.
+`aibox doctor audio` diagnoses: PulseAudio installation, daemon status, TCP module, persistence config, port listening, launchd agent (macOS), and connectivity.
 
 Both commands accept `--port` to override the default port (4714).
 

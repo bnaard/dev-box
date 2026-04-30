@@ -1,8 +1,8 @@
-//! `aibox kit` — query processkit content installed in this project.
+//! `aibox get kit` — query processkit content installed in this project.
 //!
 //! Provides read-only inspection of skills, processes, and schemas installed
 //! under `context/`. Skill install/uninstall commands modify `[skills].include`
-//! / `[skills].exclude` in `aibox.toml` (same pattern as `aibox addon add/rm`).
+//! / `[skills].exclude` in `aibox.toml` (same pattern as `aibox set addon/rm`).
 //!
 //! ## Paths
 //!
@@ -329,7 +329,7 @@ fn collect_schema_entries(root: &Path) -> Vec<SchemaEntry> {
 // Commands
 // ---------------------------------------------------------------------------
 
-/// `aibox kit list` — summary of installed processkit content.
+/// `aibox get kit` — summary of installed processkit content.
 pub fn cmd_kit_list(config_path: &Option<String>, format: OutputFormat) -> Result<()> {
     let root = project_root(config_path);
 
@@ -413,14 +413,14 @@ pub fn cmd_kit_list(config_path: &Option<String>, format: OutputFormat) -> Resul
             println!("  Schemas      {:>4}", schema_count);
             println!("  State machines {:>2}", state_machine_count);
             println!();
-            println!("  Run 'aibox kit skill list' for skill details.");
+            println!("  Run 'aibox get skill' for skill details.");
         }
     }
 
     Ok(())
 }
 
-/// `aibox kit skill list [--category <cat>] [--all] [--format]`
+/// `aibox get skill [--category <cat>] [--all] [--format]`
 pub fn cmd_kit_skill_list(
     config_path: &Option<String>,
     filter_category: Option<&str>,
@@ -436,7 +436,7 @@ pub fn cmd_kit_skill_list(
             Some(ref tmpl_dir) => walk_skills_dir(tmpl_dir, &installed_names),
             None => {
                 output::warn(
-                    "No templates mirror found. Run 'aibox init' or 'aibox sync' with a \
+                    "No templates mirror found. Run 'aibox init' or 'aibox apply' with a \
                      pinned processkit version first.",
                 );
                 // Fall back to installed only
@@ -462,7 +462,7 @@ pub fn cmd_kit_skill_list(
                     output::warn(&format!("No skills found in category '{}'.", cat));
                 } else {
                     output::warn(
-                        "No skills installed. Run 'aibox init' or 'aibox sync' to install processkit content.",
+                        "No skills installed. Run 'aibox init' or 'aibox apply' to install processkit content.",
                     );
                 }
                 return Ok(());
@@ -547,7 +547,7 @@ pub fn cmd_kit_skill_list(
     Ok(())
 }
 
-/// `aibox kit skill categories [--format]`
+/// `aibox get skill-category [--format]`
 pub fn cmd_kit_skill_categories(config_path: &Option<String>, format: OutputFormat) -> Result<()> {
     let root = project_root(config_path);
     let installed_names = installed_skill_names(&root);
@@ -608,7 +608,7 @@ pub fn cmd_kit_skill_categories(config_path: &Option<String>, format: OutputForm
     Ok(())
 }
 
-/// `aibox kit skill info <name> [--format]`
+/// `aibox describe skill <name> [--format]`
 pub fn cmd_kit_skill_info(
     config_path: &Option<String>,
     name: &str,
@@ -628,13 +628,13 @@ pub fn cmd_kit_skill_info(
             (t.clone(), false)
         } else {
             bail!(
-                "Skill '{}' not found. Run 'aibox kit skill list' to see available skills.",
+                "Skill '{}' not found. Run 'aibox get skill' to see available skills.",
                 name
             );
         }
     } else {
         bail!(
-            "Skill '{}' not found. Run 'aibox kit skill list' to see available skills.",
+            "Skill '{}' not found. Run 'aibox get skill' to see available skills.",
             name
         );
     };
@@ -692,11 +692,11 @@ pub fn cmd_kit_skill_info(
     Ok(())
 }
 
-/// `aibox kit skill install <name>`
+/// `aibox set skill <name>`
 ///
 /// Modifies `[skills].include` / `[skills].exclude` in `aibox.toml` so the
-/// skill will be present on the next `aibox sync`. Mirrors the logic of
-/// `aibox addon add`.
+/// skill will be present on the next `aibox apply`. Mirrors the logic of
+/// `aibox set addon`.
 pub fn cmd_kit_skill_install(config_path: &Option<String>, name: &str) -> Result<()> {
     let path = toml_path(config_path);
     if !path.exists() {
@@ -743,7 +743,7 @@ pub fn cmd_kit_skill_install(config_path: &Option<String>, name: &str) -> Result
         // No filter mode: all skills are installed. Nothing to do.
         output::warn(
             "All skills are already installed (no [skills] filter active). \
-             Use 'aibox kit skill uninstall' to exclude a skill, then \
+             Use 'aibox delete skill' to exclude a skill, then \
              install to re-include it.",
         );
         return Ok(());
@@ -753,13 +753,13 @@ pub fn cmd_kit_skill_install(config_path: &Option<String>, name: &str) -> Result
         .with_context(|| format!("failed to write {}", path.display()))?;
 
     output::ok(&format!(
-        "Skill '{}' added to active set. Run 'aibox sync --no-build' to apply.",
+        "Skill '{}' added to active set. Run 'aibox apply --config-only' to apply.",
         name
     ));
     Ok(())
 }
 
-/// `aibox kit skill uninstall <name>`
+/// `aibox delete skill <name>`
 ///
 /// Excludes a skill from the active set by modifying `[skills].include` /
 /// `[skills].exclude` in `aibox.toml`.
@@ -810,7 +810,7 @@ pub fn cmd_kit_skill_uninstall(config_path: &Option<String>, name: &str) -> Resu
         .with_context(|| format!("failed to write {}", path.display()))?;
 
     output::ok(&format!(
-        "Skill '{}' removed from active set. Run 'aibox sync --no-build' to apply.",
+        "Skill '{}' removed from active set. Run 'aibox apply --config-only' to apply.",
         name
     ));
     Ok(())
@@ -828,7 +828,7 @@ fn set_skills_array(doc: &mut toml_edit::DocumentMut, key: &str, values: &[&str]
     doc["skills"][key] = toml_edit::value(arr);
 }
 
-/// `aibox kit process list [--all] [--format]`
+/// `aibox get process [--all] [--format]`
 pub fn cmd_kit_process_list(
     config_path: &Option<String>,
     all: bool,
@@ -842,7 +842,7 @@ pub fn cmd_kit_process_list(
             Some(ref tmpl_dir) => walk_processes_dir(tmpl_dir, &installed_names),
             None => {
                 output::warn(
-                    "No templates mirror found. Run 'aibox init' or 'aibox sync' with a \
+                    "No templates mirror found. Run 'aibox init' or 'aibox apply' with a \
                      pinned processkit version first.",
                 );
                 walk_processes_dir(&root.join(LIVE_PROCESSES_DIR), &installed_names)
@@ -858,7 +858,7 @@ pub fn cmd_kit_process_list(
         OutputFormat::Table => {
             if processes.is_empty() {
                 output::warn(
-                    "No processes installed. Run 'aibox init' or 'aibox sync' to install processkit content.",
+                    "No processes installed. Run 'aibox init' or 'aibox apply' to install processkit content.",
                 );
                 return Ok(());
             }
@@ -932,7 +932,7 @@ pub fn cmd_kit_process_list(
     Ok(())
 }
 
-/// `aibox kit process info <name> [--format]`
+/// `aibox describe process <name> [--format]`
 pub fn cmd_kit_process_info(
     config_path: &Option<String>,
     name: &str,
@@ -950,13 +950,13 @@ pub fn cmd_kit_process_info(
             (t.clone(), false)
         } else {
             bail!(
-                "Process '{}' not found. Run 'aibox kit process list' to see available processes.",
+                "Process '{}' not found. Run 'aibox get process' to see available processes.",
                 name
             );
         }
     } else {
         bail!(
-            "Process '{}' not found. Run 'aibox kit process list' to see available processes.",
+            "Process '{}' not found. Run 'aibox get process' to see available processes.",
             name
         );
     };

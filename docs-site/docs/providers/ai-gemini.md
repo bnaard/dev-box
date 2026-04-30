@@ -14,7 +14,7 @@ title: "Gemini"
 providers = ["gemini"]
 ```
 
-Run `aibox sync`, then inside the container:
+Run `aibox apply`, then inside the container:
 
 ```bash
 gemini   # Launches Gemini CLI
@@ -33,9 +33,9 @@ Gemini's configuration is persisted in `.aibox-home/.gemini/`, mounted at `/home
 
 ## MCP Integration
 
-Gemini CLI reads `.gemini/settings.json`. aibox generates this file automatically on `aibox sync`, merging processkit built-in servers, team servers from `aibox.toml [mcp]`, and personal servers from `.aibox-local.toml [mcp]`.
+Gemini CLI reads `.gemini/settings.json`. aibox generates this file automatically on `aibox apply`, merging processkit built-in servers, team servers from `aibox.toml [mcp]`, and personal servers from `.aibox-local.toml [mcp]`.
 
-`.gemini/settings.json` is **gitignored** — it is regenerated on every `aibox sync` and must not be committed.
+`.gemini/settings.json` is **gitignored** — it is regenerated on every `aibox apply` and must not be committed.
 
 To add MCP servers:
 

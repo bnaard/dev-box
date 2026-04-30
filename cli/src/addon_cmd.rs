@@ -111,12 +111,17 @@ pub fn cmd_addon_list(config_path: &Option<String>, format: OutputFormat) -> Res
     Ok(())
 }
 
-/// Add an add-on to aibox.toml with default-enabled tools, then sync.
-pub fn cmd_addon_add(config_path: &Option<String>, name: &str, no_build: bool) -> Result<()> {
+/// Add an add-on to aibox.toml with default-enabled tools.
+pub fn cmd_addon_add(
+    config_path: &Option<String>,
+    name: &str,
+    apply: bool,
+    no_build: bool,
+) -> Result<()> {
     // Verify the named addon exists before touching the config file.
     if addon_registry::get_addon(name).is_none() {
         bail!(
-            "Unknown add-on '{}'. Run 'aibox addon list' to see available add-ons.",
+            "Unknown add-on '{}'. Run 'aibox get addon' to see available add-ons.",
             name
         );
     }
@@ -195,14 +200,22 @@ pub fn cmd_addon_add(config_path: &Option<String>, name: &str, no_build: bool) -
     std::fs::write(&path, doc.to_string())
         .with_context(|| format!("Failed to write {}", path.display()))?;
 
-    // Run sync to apply changes
-    crate::container::cmd_sync(config_path, false, no_build, false, false)?;
+    if apply {
+        crate::container::cmd_sync(config_path, false, no_build, false, false)?;
+    } else {
+        output::info("Run `aibox apply` to reconcile generated files.");
+    }
 
     Ok(())
 }
 
-/// Remove an add-on from aibox.toml, then sync.
-pub fn cmd_addon_remove(config_path: &Option<String>, name: &str, no_build: bool) -> Result<()> {
+/// Remove an add-on from aibox.toml.
+pub fn cmd_addon_remove(
+    config_path: &Option<String>,
+    name: &str,
+    apply: bool,
+    no_build: bool,
+) -> Result<()> {
     let path = toml_path(config_path);
     if !path.exists() {
         bail!("No aibox.toml found. Run 'aibox init' first.");
@@ -231,8 +244,11 @@ pub fn cmd_addon_remove(config_path: &Option<String>, name: &str, no_build: bool
 
     output::ok(&format!("Removed add-on '{}' from aibox.toml", name));
 
-    // Run sync to apply changes
-    crate::container::cmd_sync(config_path, false, no_build, false, false)?;
+    if apply {
+        crate::container::cmd_sync(config_path, false, no_build, false, false)?;
+    } else {
+        output::info("Run `aibox apply` to reconcile generated files.");
+    }
 
     Ok(())
 }
@@ -241,7 +257,7 @@ pub fn cmd_addon_remove(config_path: &Option<String>, name: &str, no_build: bool
 pub fn cmd_addon_info(name: &str, format: OutputFormat) -> Result<()> {
     let loaded = addon_loader::get_addon(name).ok_or_else(|| {
         anyhow::anyhow!(
-            "Unknown add-on '{}'. Run 'aibox addon list' to see available add-ons.",
+            "Unknown add-on '{}'. Run 'aibox get addon' to see available add-ons.",
             name
         )
     })?;

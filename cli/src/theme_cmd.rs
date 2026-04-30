@@ -74,7 +74,7 @@ fn restart_zellij_session(config: &AiboxConfig) -> Result<()> {
             )?;
         }
         ContainerState::Stopped => {
-            output::warn("Container is stopped; theme will apply on next `aibox start`");
+            output::warn("Container is stopped; theme will apply on next `aibox up`");
         }
         ContainerState::Missing => {
             output::warn("Container is missing; theme will apply after the container is created");

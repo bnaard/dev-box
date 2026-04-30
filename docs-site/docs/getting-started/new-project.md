@@ -13,18 +13,18 @@ This guide walks through creating a new project from scratch with aibox.
 mkdir my-app && cd my-app
 git init
 
-aibox init --name my-app --process managed
+aibox init my-app --context managed
 ```
 
 The `init` command accepts these options:
 
 | Option | Default | Description |
 |--------|---------|-------------|
-| `--name` | Current directory name | Container and hostname |
 | `--base` | `debian` | Base image |
-| `--process` | `managed` | processkit package(s): `minimal`, `managed`, `software`, `research`, `product` (can be repeated) |
-| `--ai` | `claude` | AI providers (can be repeated): `claude`, `aider`, `gemini`, `mistral` |
-| `--addons` | — | Addon names (can be repeated): `python`, `rust`, `node`, `go`, `latex`, etc. |
+| `<NAME>` | Current directory name | Container and hostname |
+| `--context` | `managed` | processkit package(s): `minimal`, `managed`, `software`, `research`, `product` (can be repeated) |
+| `--harness` | `claude` | AI harnesses (can be repeated): `claude`, `codex`, `gemini`, `aider`, etc. |
+| `--addon` | — | Addon names (can be repeated): `python`, `rust`, `node`, `go`, `latex`, etc. |
 | `--theme` | `gruvbox-dark` | Color theme |
 
 If you omit options, `aibox init` runs interactively and prompts for each value.
@@ -57,7 +57,7 @@ my-app/
     ├── state-machines/         # state machine definitions
     └── templates/
         └── processkit/
-            └── v0.8.0/         # Immutable upstream snapshot, used by `aibox sync` for three-way diffs
+            └── v0.8.0/         # Immutable upstream snapshot, used by `aibox apply` for three-way diffs
 ```
 
 :::tip .aibox-local.toml — secrets and per-developer overrides
@@ -82,7 +82,7 @@ Shared settings stay in `aibox.toml`; personal secrets go here.
 By default, `aibox init` interactively picks the latest processkit version and pins it in `aibox.toml`. Use `--processkit-version` to pin a specific tag non-interactively:
 
 ```bash
-aibox init --name my-app --processkit-version v0.8.0
+aibox init my-app --processkit-version v0.8.0
 ```
 
 :::
@@ -94,7 +94,7 @@ The scaffolded config file comes with commented documentation for every option:
 ```toml
 # aibox.toml — project configuration for aibox.
 # All generated files (.devcontainer/) derive from this file.
-# Run `aibox sync` after editing to regenerate.
+# Run `aibox apply` after editing to regenerate.
 #
 # Full documentation: https://projectious-work.github.io/aibox/docs/reference/configuration
 
@@ -117,7 +117,7 @@ source  = "https://github.com/projectious-work/processkit.git"
 version = "v0.8.0"
 
 # Addons install tool sets into the container.
-# Run `aibox addon list` to see all available addons.
+# Run `aibox get addon` to see all available addons.
 # [addons.python.tools]
 # python = { version = "3.13" }
 # uv     = { version = "0.7" }
@@ -134,7 +134,7 @@ prompt = "default"
 layout = "dev"
 
 # Audio support for PulseAudio bridging (e.g., Claude Code voice).
-# Requires host-side PulseAudio setup: run `aibox audio setup`
+# Requires host-side PulseAudio setup: run `aibox apply audio`
 [audio]
 enabled = false
 # pulse_server = "tcp:host.docker.internal:4714"
@@ -143,14 +143,14 @@ enabled = false
 After editing, regenerate devcontainer files:
 
 ```bash
-aibox sync
+aibox apply
 ```
 
 ## Build and Start
 
 ```bash
-aibox sync     # Reconcile config, regenerate files, build image
-aibox start    # Start the container and attach via Zellij
+aibox apply    # Reconcile config, regenerate files, build image
+aibox up       # Start the container and attach via Zellij
 ```
 
 You land in a Zellij session with the **dev** layout: Yazi file browser (40%) and Vim editor (60%) side by side, plus tabs for lazygit and shell.
@@ -167,7 +167,7 @@ The generated `devcontainer.json` works with VS Code's Dev Containers extension:
 2. When prompted, click "Reopen in Container"
 3. VS Code builds and starts the container automatically
 
-Both `aibox start` (terminal) and VS Code can use the same container simultaneously.
+Both `aibox up` (terminal) and VS Code can use the same container simultaneously.
 
 ## Next Steps
 

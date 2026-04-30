@@ -2,8 +2,8 @@
 //! in a consuming project. **Single source of truth** used by:
 //!
 //! - `aibox init` (A5) — installs files via this mapping
-//! - `aibox sync` (A6) — uses this mapping for the live-vs-template 3-way comparison
-//! - `aibox migrate` (A7) — references files via this mapping when working
+//! - `aibox apply` (A6) — uses this mapping for the live-vs-template 3-way comparison
+//! - `aibox get migration` (A7) — references files via this mapping when working
 //!   through Migration documents
 //!
 //! ## Design principle — provider neutrality
@@ -69,7 +69,7 @@
 //!
 //! `context/skills/`, `context/schemas/`, `context/state-machines/`, and
 //! `context/processes/` are **visible, editable, top-level** locations.
-//! The 3-way diff at `aibox sync` time uses
+//! The 3-way diff at `aibox apply` time uses
 //! `context/templates/processkit/<version>/` as the immutable upstream
 //! reference, and computes SHAs on the fly.
 //!
@@ -82,7 +82,7 @@
 //! - `.processkit/FORMAT.md` (v0.8.0+) / `skills/FORMAT.md` (legacy):
 //!   internal reference docs; the entity format is self-evident from the
 //!   installed files and JSON schemas.
-//! - `PROVENANCE.toml`: aibox sync reads it directly from the cache.
+//! - `PROVENANCE.toml`: aibox apply reads it directly from the cache.
 //! - `.processkit/packages/` (v0.8.0+) / `packages/` (legacy): consumed
 //!   by init-time skill selection, not installed into the project.
 

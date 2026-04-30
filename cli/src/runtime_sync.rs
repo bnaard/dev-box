@@ -455,7 +455,7 @@ fn write_migration_document(
     body.push_str(&format!("  from_version: {}\n", yaml_scalar(from_version)));
     body.push_str(&format!("  to_version: {}\n", yaml_scalar(to_version)));
     body.push_str("  state: pending\n");
-    body.push_str("  generated_by: aibox sync\n");
+    body.push_str("  generated_by: aibox apply\n");
     body.push_str(&format!("  generated_at: {}\n", now_iso));
     body.push_str(&format!("  summary: {}\n", yaml_scalar(&summary_line)));
     body.push_str("  affected_groups:\n");

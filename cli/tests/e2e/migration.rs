@@ -16,27 +16,20 @@ fn sync_updates_version_file() {
     // Init project
     runner.aibox(
         test,
-        &[
-            "init",
-            "--name",
-            test,
-            "--base",
-            "debian",
-            "--process",
-            "managed",
-        ],
+        &["init", test, "--base", "debian", "--context", "managed"],
     );
 
     // Tamper with .aibox-version to simulate older version
     runner.write_file(test, ".aibox-version", "0.1.0");
 
-    // Sync should update the version file
-    runner.aibox(test, &["sync"]);
+    // TODO(hard-break): confirm whether `reset project`/`apply` still owns
+    // `.aibox-version`; newer tests assert that this file is absent.
+    runner.aibox(test, &["apply"]);
 
     let version = runner.read_file(test, ".aibox-version");
     assert!(
         !version.trim().is_empty(),
-        ".aibox-version should not be empty after sync"
+        ".aibox-version should not be empty after apply"
     );
     assert!(
         version.trim() != "0.1.0",

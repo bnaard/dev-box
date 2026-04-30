@@ -10,7 +10,7 @@ When the aibox context schema evolves between versions, existing projects may ne
 :::warning v0.16.0 — `context/AIBOX.md` is gone
 
 Pre-v0.16 releases generated a `context/AIBOX.md` "universal baseline" file
-on every `aibox sync`. That file has been **removed** as part of the
+on every `aibox apply`. That file has been **removed** as part of the
 aibox⇄processkit split. The canonical agent entry document is now `AGENTS.md`
 at the project root, owned by processkit and rendered at `aibox init` time
 (write-if-missing — never overwritten).
@@ -79,14 +79,14 @@ context/
 ```
 
 Each migration is identified by a MIG-ID and lives as a versioned document in
-the appropriate subdirectory. Migrations are managed via the `aibox migrate`
-commands:
+the appropriate subdirectory. Migrations are managed through the normal
+resource grammar:
 
 ```bash
-aibox migrate start    # begin the next pending migration
-aibox migrate continue # resume an in-progress migration
-aibox migrate apply    # mark the current migration as applied
-aibox migrate reject   # reject and archive a migration without applying
+aibox get migration                       # show pending/in-progress migrations
+aibox set migration <id> in-progress      # begin a pending migration
+aibox apply migration <id>                # mark a migration as applied
+aibox delete migration <id> --reason "…"  # reject and archive without applying
 ```
 
 ## Applying a Migration
@@ -94,18 +94,18 @@ aibox migrate reject   # reject and archive a migration without applying
 ### With an AI agent (recommended)
 
 1. Run `aibox doctor` to identify gaps and queue migration artifacts
-2. Run `aibox migrate start` to begin the next pending migration
+2. Run `aibox set migration <id> in-progress` to begin the next pending migration
 3. Open the migration document from `context/migrations/in-progress/`
 4. Paste its contents into a Claude Code session (or let the agent find it via `AGENTS.md`)
 5. Review the changes the agent makes
-6. Run `aibox migrate apply` to mark the migration complete
+6. Run `aibox apply migration <id>` to mark the migration complete
 
 ### Manually
 
 1. Run `aibox doctor` to generate migration artifacts
-2. Run `aibox migrate start` to move the next migration to `context/migrations/in-progress/`
+2. Run `aibox set migration <id> in-progress` to move the migration to `context/migrations/in-progress/`
 3. Follow the migration document's checklist
-4. Run `aibox migrate apply` to archive the migration to `context/migrations/applied/`
+4. Run `aibox apply migration <id>` to archive the migration to `context/migrations/applied/`
 
 :::warning Review before applying
 

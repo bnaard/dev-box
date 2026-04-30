@@ -46,7 +46,7 @@ mod themes;
 mod update;
 mod version_resolve;
 
-use clap::{CommandFactory, Parser};
+use clap::{CommandFactory, Parser, ValueEnum};
 use std::path::Path;
 use tracing_subscriber::EnvFilter;
 
@@ -74,7 +74,9 @@ fn dispatch(cli: cli::Cli) -> anyhow::Result<()> {
     if let Err(e) = addon_loader::init() {
         // Only fail for commands that actually need addons
         match &cli.command {
-            cli::Commands::Completions { .. } => {} // doesn't need addons
+            cli::Commands::SelfCmd {
+                action: cli::SelfAction::Completion { .. },
+            } => {} // doesn't need addons
             _ => {
                 output::error(&format!("Failed to load addon definitions: {:#}", e));
                 std::process::exit(1);
@@ -131,176 +133,297 @@ fn dispatch(cli: cli::Cli) -> anyhow::Result<()> {
             );
             result
         }
-        cli::Commands::Sync {
-            no_cache,
-            no_build,
+        cli::Commands::Apply {
+            resource,
+            name,
+            rebuild,
+            config_only,
+            port,
             fix_compliance_contract,
             no_container,
         } => {
-            let timer = crate::log::LogTimer::start("sync");
-            let result = container::cmd_sync(
-                config_path,
-                no_cache,
-                no_build,
-                fix_compliance_contract,
-                no_container,
-            );
+            let timer = crate::log::LogTimer::start("apply");
+            let result = match resource {
+                None => container::cmd_sync(
+                    config_path,
+                    rebuild,
+                    config_only,
+                    fix_compliance_contract,
+                    no_container,
+                ),
+                Some(cli::ApplyResource::Audio) => audio::cmd_audio_setup(port),
+                Some(cli::ApplyResource::Migration) => {
+                    let cwd = std::env::current_dir()?;
+                    let id = required_name(name, "migration id")?;
+                    content_migration::cmd_migrate_apply(&cwd, &id)
+                }
+                Some(cli::ApplyResource::Env) => {
+                    let env_name = required_name(name, "environment name")?;
+                    env::cmd_env_switch(config_path, &env_name, global_yes)
+                }
+            };
             timer.finish(
                 Path::new("."),
                 if result.is_ok() { 0 } else { 1 },
                 if result.is_ok() {
-                    "sync completed"
+                    "apply completed"
                 } else {
-                    "sync failed"
+                    "apply failed"
                 },
             );
             result
         }
-        cli::Commands::Theme {
-            mode,
-            theme,
-            restart_session,
-        } => {
-            let timer = crate::log::LogTimer::start("theme");
-            let result = theme_cmd::cmd_theme(config_path, mode, theme, restart_session);
-            timer.finish(
-                Path::new("."),
-                if result.is_ok() { 0 } else { 1 },
-                if result.is_ok() {
-                    "theme completed"
-                } else {
-                    "theme failed"
-                },
-            );
-            result
-        }
-        cli::Commands::Start { layout } => {
+        cli::Commands::Up { layout, apply } => {
+            if apply {
+                container::cmd_sync(config_path, false, false, false, false)?;
+            }
             let config = crate::config::AiboxConfig::from_cli_option(config_path)?;
             let resolved_layout = layout
                 .map(|l| l.to_string())
                 .unwrap_or_else(|| config.customization.layout.to_string());
-            let timer = crate::log::LogTimer::start("start");
+            let timer = crate::log::LogTimer::start("up");
             let result = container::cmd_start(config_path, &resolved_layout);
             timer.finish(
                 Path::new("."),
                 if result.is_ok() { 0 } else { 1 },
                 if result.is_ok() {
-                    "start completed"
+                    "up completed"
                 } else {
-                    "start failed"
+                    "up failed"
                 },
             );
             result
         }
-        cli::Commands::Stop => container::cmd_stop(config_path),
-        cli::Commands::Remove => container::cmd_remove(config_path),
-        cli::Commands::Status { format } => container::cmd_status(config_path, format),
-        cli::Commands::Doctor { integrity, json } => {
-            if integrity {
+        cli::Commands::Down => container::cmd_stop(config_path),
+        cli::Commands::Get {
+            resource,
+            all,
+            category,
+            format,
+        } => match resource {
+            cli::GetResource::Runtime => container::cmd_status(config_path, format),
+            cli::GetResource::Addon => addon_cmd::cmd_addon_list(config_path, format),
+            cli::GetResource::Env => env::cmd_env_list(format),
+            cli::GetResource::Kit => kit::cmd_kit_list(config_path, format),
+            cli::GetResource::Skill => {
+                kit::cmd_kit_skill_list(config_path, category.as_deref(), all, format)
+            }
+            cli::GetResource::SkillCategory => kit::cmd_kit_skill_categories(config_path, format),
+            cli::GetResource::Process => kit::cmd_kit_process_list(config_path, all, format),
+            cli::GetResource::Migration => {
                 let cwd = std::env::current_dir()?;
-                integrity::cmd_doctor_integrity(&cwd, json)
+                content_migration::cmd_migrate_continue(&cwd)
+            }
+        },
+        cli::Commands::Describe {
+            resource,
+            name,
+            format,
+        } => match resource {
+            cli::DescribeResource::Runtime => container::cmd_status(config_path, format),
+            cli::DescribeResource::Addon => {
+                let addon = required_name(name, "add-on name")?;
+                addon_cmd::cmd_addon_info(&addon, format)
+            }
+            cli::DescribeResource::Env => env::cmd_env_status(config_path),
+            cli::DescribeResource::Kit => kit::cmd_kit_list(config_path, format),
+            cli::DescribeResource::Skill => {
+                let skill = required_name(name, "skill name")?;
+                kit::cmd_kit_skill_info(config_path, &skill, format)
+            }
+            cli::DescribeResource::Process => {
+                let process = required_name(name, "process name")?;
+                kit::cmd_kit_process_info(config_path, &process, format)
+            }
+        },
+        cli::Commands::Set {
+            target,
+            value,
+            extra,
+            apply,
+            restart_session,
+        } => cmd_set(config_path, &target, value, extra, apply, restart_session),
+        cli::Commands::Edit { resource } => match resource {
+            cli::EditResource::Config => edit_config(config_path),
+        },
+        cli::Commands::Reset {
+            resource,
+            no_backup,
+            dry_run,
+            yes,
+        } => match resource {
+            cli::ResetResource::Project => {
+                let timer = crate::log::LogTimer::start("reset-project");
+                let result = reset::cmd_reset(config_path, no_backup, dry_run, yes || global_yes);
+                timer.finish(
+                    Path::new("."),
+                    if result.is_ok() { 0 } else { 1 },
+                    if result.is_ok() {
+                        "reset project completed"
+                    } else {
+                        "reset project failed"
+                    },
+                );
+                result
+            }
+        },
+        cli::Commands::Delete {
+            resource,
+            name,
+            reason,
+            yes,
+            apply,
+        } => match resource {
+            cli::DeleteResource::Runtime => container::cmd_remove(config_path),
+            cli::DeleteResource::Addon => {
+                let addon = required_name(name, "add-on name")?;
+                addon_cmd::cmd_addon_remove(config_path, &addon, apply, false)
+            }
+            cli::DeleteResource::Skill => {
+                let skill = required_name(name, "skill name")?;
+                kit::cmd_kit_skill_uninstall(config_path, &skill)?;
+                if apply {
+                    container::cmd_sync(config_path, false, false, false, false)?;
+                }
+                Ok(())
+            }
+            cli::DeleteResource::Env => {
+                let env_name = required_name(name, "environment name")?;
+                env::cmd_env_delete(&env_name, yes || global_yes)
+            }
+            cli::DeleteResource::Migration => {
+                let cwd = std::env::current_dir()?;
+                let id = required_name(name, "migration id")?;
+                let reason = required_name(reason, "rejection reason (--reason)")?;
+                content_migration::cmd_migrate_reject(&cwd, &id, &reason)
+            }
+        },
+        cli::Commands::Doctor {
+            target,
+            integrity,
+            format,
+        } => {
+            if matches!(target, Some(cli::DoctorTarget::Audio)) {
+                audio::cmd_audio_check(Some(4714))
+            } else if matches!(target, Some(cli::DoctorTarget::Security)) {
+                audit::cmd_audit(config_path)
+            } else if integrity {
+                let cwd = std::env::current_dir()?;
+                integrity::cmd_doctor_integrity(
+                    &cwd,
+                    matches!(format, Some(cli::OutputFormat::Json)),
+                )
             } else {
                 doctor::cmd_doctor(config_path)
             }
         }
-        cli::Commands::Completions { shell } => {
-            let mut cmd = cli::Cli::command();
-            let bin_name = cmd.get_name().to_string();
-            clap_complete::generate(shell, &mut cmd, bin_name, &mut std::io::stdout());
-            Ok(())
-        }
-        cli::Commands::Update { check, dry_run } => {
-            update::cmd_update(config_path, check, dry_run, global_yes)
-        }
-        cli::Commands::Env { action } => match action {
-            cli::EnvAction::Create { name } => env::cmd_env_create(config_path, &name),
-            cli::EnvAction::Switch { name, yes } => {
-                env::cmd_env_switch(config_path, &name, yes || global_yes)
-            }
-            cli::EnvAction::List { format } => env::cmd_env_list(format),
-            cli::EnvAction::Delete { name, yes } => env::cmd_env_delete(&name, yes || global_yes),
-            cli::EnvAction::Status => env::cmd_env_status(config_path),
+        cli::Commands::Create { action } => match action {
+            cli::CreateAction::Env { name } => env::cmd_env_create(config_path, &name),
+            cli::CreateAction::Backup {
+                output_dir,
+                dry_run,
+            } => reset::cmd_backup(config_path, output_dir, dry_run),
         },
-        cli::Commands::Backup {
-            output_dir,
-            dry_run,
-        } => reset::cmd_backup(config_path, output_dir, dry_run),
-        cli::Commands::Reset {
-            no_backup,
-            dry_run,
-            yes,
-        } => {
-            let timer = crate::log::LogTimer::start("reset");
-            let result = reset::cmd_reset(config_path, no_backup, dry_run, yes || global_yes);
-            timer.finish(
-                Path::new("."),
-                if result.is_ok() { 0 } else { 1 },
-                if result.is_ok() {
-                    "reset completed"
-                } else {
-                    "reset failed"
-                },
-            );
-            result
-        }
-        cli::Commands::Uninstall { dry_run, purge } => {
-            reset::cmd_uninstall(dry_run, purge, global_yes)
-        }
-        cli::Commands::Audit => audit::cmd_audit(config_path),
-        cli::Commands::Audio { action } => match action {
-            cli::AudioAction::Check { port } => audio::cmd_audio_check(port),
-            cli::AudioAction::Setup { port } => audio::cmd_audio_setup(port),
-        },
-        cli::Commands::Addon { action } => match action {
-            cli::AddonAction::List { format } => addon_cmd::cmd_addon_list(config_path, format),
-            cli::AddonAction::Add { name, no_build } => {
-                addon_cmd::cmd_addon_add(config_path, &name, no_build)
+        cli::Commands::SelfCmd { action } => match action {
+            cli::SelfAction::Update { check, dry_run } => {
+                update::cmd_update(config_path, check, dry_run, global_yes)
             }
-            cli::AddonAction::Remove { name, no_build } => {
-                addon_cmd::cmd_addon_remove(config_path, &name, no_build)
+            cli::SelfAction::Completion { shell } => {
+                let mut cmd = cli::Cli::command();
+                let bin_name = cmd.get_name().to_string();
+                clap_complete::generate(shell, &mut cmd, bin_name, &mut std::io::stdout());
+                Ok(())
             }
-            cli::AddonAction::Info { name, format } => addon_cmd::cmd_addon_info(&name, format),
-        },
-        cli::Commands::Migrate { action } => {
-            let cwd = std::env::current_dir()?;
-            match action {
-                cli::MigrateAction::Continue => content_migration::cmd_migrate_continue(&cwd),
-                cli::MigrateAction::Start { id } => content_migration::cmd_migrate_start(&cwd, &id),
-                cli::MigrateAction::Apply { id } => content_migration::cmd_migrate_apply(&cwd, &id),
-                cli::MigrateAction::Reject { id, reason } => {
-                    content_migration::cmd_migrate_reject(&cwd, &id, &reason)
-                }
+            cli::SelfAction::Uninstall { dry_run, purge } => {
+                reset::cmd_uninstall(dry_run, purge, global_yes)
             }
-        }
-        cli::Commands::Kit { action } => match action {
-            cli::KitAction::List { format } => kit::cmd_kit_list(config_path, format),
-            cli::KitAction::Skill { action } => match action {
-                cli::KitSkillAction::List {
-                    all,
-                    category,
-                    format,
-                } => kit::cmd_kit_skill_list(config_path, category.as_deref(), all, format),
-                cli::KitSkillAction::Categories { format } => {
-                    kit::cmd_kit_skill_categories(config_path, format)
-                }
-                cli::KitSkillAction::Info { name, format } => {
-                    kit::cmd_kit_skill_info(config_path, &name, format)
-                }
-                cli::KitSkillAction::Install { name } => {
-                    kit::cmd_kit_skill_install(config_path, &name)
-                }
-                cli::KitSkillAction::Uninstall { name } => {
-                    kit::cmd_kit_skill_uninstall(config_path, &name)
-                }
-            },
-            cli::KitAction::Process { action } => match action {
-                cli::KitProcessAction::List { all, format } => {
-                    kit::cmd_kit_process_list(config_path, all, format)
-                }
-                cli::KitProcessAction::Info { name, format } => {
-                    kit::cmd_kit_process_info(config_path, &name, format)
-                }
-            },
         },
     }
+}
+
+fn required_name(value: Option<String>, label: &str) -> anyhow::Result<String> {
+    value.ok_or_else(|| anyhow::anyhow!("missing {label}"))
+}
+
+fn cmd_set(
+    config_path: &Option<String>,
+    target: &str,
+    value: Option<String>,
+    extra: Vec<String>,
+    apply: bool,
+    restart_session: bool,
+) -> anyhow::Result<()> {
+    match target {
+        "theme.mode" => {
+            let raw = required_name(value, "theme mode")?;
+            let mode = crate::config::ThemeMode::from_str(&raw, true)
+                .map_err(|e| anyhow::anyhow!("{e}"))?;
+            theme_cmd::cmd_theme(config_path, mode, None, restart_session)
+        }
+        "theme.name" | "theme" => {
+            let raw = required_name(value, "theme name")?;
+            let theme =
+                crate::config::Theme::from_str(&raw, true).map_err(|e| anyhow::anyhow!("{e}"))?;
+            let config = crate::config::AiboxConfig::from_cli_option(config_path)?;
+            theme_cmd::cmd_theme(
+                config_path,
+                config.customization.mode,
+                Some(theme),
+                restart_session,
+            )
+        }
+        "addon" => {
+            let addon = required_name(value, "add-on name")?;
+            let state = extra.first().map(String::as_str).unwrap_or("enabled");
+            match state {
+                "enabled" | "enable" | "true" => {
+                    addon_cmd::cmd_addon_add(config_path, &addon, apply, false)
+                }
+                "disabled" | "disable" | "false" => {
+                    addon_cmd::cmd_addon_remove(config_path, &addon, apply, false)
+                }
+                _ => anyhow::bail!("expected addon state 'enabled' or 'disabled'"),
+            }
+        }
+        "skill" => {
+            let skill = required_name(value, "skill name")?;
+            let state = extra.first().map(String::as_str).unwrap_or("enabled");
+            match state {
+                "enabled" | "enable" | "true" => kit::cmd_kit_skill_install(config_path, &skill)?,
+                "disabled" | "disable" | "false" => {
+                    kit::cmd_kit_skill_uninstall(config_path, &skill)?
+                }
+                _ => anyhow::bail!("expected skill state 'enabled' or 'disabled'"),
+            }
+            if apply {
+                container::cmd_sync(config_path, false, false, false, false)?;
+            }
+            Ok(())
+        }
+        "migration" => {
+            let id = required_name(value, "migration id")?;
+            let state = extra.first().map(String::as_str).unwrap_or("in-progress");
+            let cwd = std::env::current_dir()?;
+            match state {
+                "in-progress" | "started" | "start" => {
+                    content_migration::cmd_migrate_start(&cwd, &id)
+                }
+                "applied" | "apply" => content_migration::cmd_migrate_apply(&cwd, &id),
+                _ => anyhow::bail!("expected migration state 'in-progress' or 'applied'"),
+            }
+        }
+        _ => anyhow::bail!(
+            "unsupported setting '{target}'. Try theme.mode, theme.name, addon, skill, or migration"
+        ),
+    }
+}
+
+fn edit_config(config_path: &Option<String>) -> anyhow::Result<()> {
+    let path = config_path.as_deref().unwrap_or("aibox.toml");
+    let editor = std::env::var("EDITOR").unwrap_or_else(|_| "vi".to_string());
+    let status = std::process::Command::new(&editor).arg(path).status()?;
+    if !status.success() {
+        anyhow::bail!("editor exited with status {status}");
+    }
+    Ok(())
 }

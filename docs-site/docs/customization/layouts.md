@@ -138,7 +138,7 @@ Options: `dev`, `focus`, `cowork`, `cowork-swap`, `browse`, `ai`.
 Override the default layout when starting a session:
 
 ```bash
-aibox start --layout focus
+aibox up --layout focus
 ```
 
 This does not change the default in `aibox.toml` — it only applies to the current session.
