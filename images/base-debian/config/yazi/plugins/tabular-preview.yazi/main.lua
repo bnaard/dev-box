@@ -52,21 +52,21 @@ function M:peek(job)
 	if lower:match("%.xlsx?$") then
 		command = table.concat({
 			"if ! command -v in2csv >/dev/null 2>&1 || ! command -v csvlook >/dev/null 2>&1; then",
-			"  echo 'Spreadsheet preview requires: aibox addon add data-preview'; exit 0;",
+			"  echo 'Spreadsheet preview requires: aibox set addon data-preview enabled --apply'; exit 0;",
 			"fi;",
 			"in2csv " .. quoted .. " 2>/dev/null | csvlook --max-rows 200 --max-columns 40 2>&1",
 		}, " ")
 	elseif lower:match("%.tsv$") then
 		command = table.concat({
 			"if ! command -v csvlook >/dev/null 2>&1; then",
-			"  echo 'TSV preview requires: aibox addon add data-preview'; exit 0;",
+			"  echo 'TSV preview requires: aibox set addon data-preview enabled --apply'; exit 0;",
 			"fi;",
 			"csvlook --tabs --max-rows 200 --max-columns 40 " .. quoted .. " 2>&1",
 		}, " ")
 	else
 		command = table.concat({
 			"if ! command -v csvlook >/dev/null 2>&1; then",
-			"  echo 'CSV preview requires: aibox addon add data-preview'; exit 0;",
+			"  echo 'CSV preview requires: aibox set addon data-preview enabled --apply'; exit 0;",
 			"fi;",
 			"csvlook --max-rows 200 --max-columns 40 " .. quoted .. " 2>&1",
 		}, " ")

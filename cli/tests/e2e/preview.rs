@@ -3,6 +3,7 @@
 //! Checks that after `aibox init`:
 //!   - The yazi plugin files for SVG and EPS are present in .aibox-home
 //!   - The yazi.toml contains the expected [plugin] prepend_previewers entries
+//!   - preview-enhanced seeds rich markdown preview, PDF watch, and no-wrap pager hooks
 //!
 //! These are Tier 1 tests: no running container needed.
 
@@ -39,6 +40,28 @@ fn init_project(dir: &std::path::Path, name: &str) {
         "init failed: {}",
         String::from_utf8_lossy(&output.stderr)
     );
+}
+
+fn enable_preview_enhanced(dir: &std::path::Path) {
+    let output = run_in(
+        dir,
+        &["set", "addon", "preview-enhanced", "enabled", "--apply"],
+    );
+    assert!(
+        output.status.success(),
+        "set addon preview-enhanced enabled --apply failed: {}",
+        String::from_utf8_lossy(&output.stderr)
+    );
+}
+
+fn read_yazi_toml(dir: &std::path::Path) -> String {
+    fs::read_to_string(dir.join(".aibox-home/.config/yazi/yazi.toml"))
+        .unwrap_or_else(|e| panic!("failed to read yazi.toml: {}", e))
+}
+
+fn read_yazi_keymap(dir: &std::path::Path) -> String {
+    fs::read_to_string(dir.join(".aibox-home/.config/yazi/keymap.toml"))
+        .unwrap_or_else(|e| panic!("failed to read keymap.toml: {}", e))
 }
 
 // ─── Plugin File Presence Tests ───────────────────────────────────────────────
@@ -113,6 +136,30 @@ fn eps_yazi_plugin_uses_ghostscript() {
     );
 }
 
+/// preview-enhanced seeds the rich-preview plugin used for rendered Markdown.
+#[test]
+fn rich_preview_plugin_seeded_with_preview_enhanced() {
+    let dir = tempfile::tempdir().unwrap();
+    init_project(dir.path(), "preview-rich-plugin");
+    enable_preview_enhanced(dir.path());
+
+    let plugin_path = dir
+        .path()
+        .join(".aibox-home/.config/yazi/plugins/rich-preview.yazi/main.lua");
+
+    assert!(
+        plugin_path.exists(),
+        "rich-preview.yazi/main.lua should be seeded at {}",
+        plugin_path.display()
+    );
+
+    let yazi_toml = read_yazi_toml(dir.path());
+    assert!(
+        yazi_toml.contains("rich-preview"),
+        "preview-enhanced should register rich-preview entries for rendered previews"
+    );
+}
+
 // ─── yazi.toml [plugin] Section Tests ────────────────────────────────────────
 
 /// yazi.toml must have a [plugin] section with prepend_previewers after init.
@@ -172,6 +219,90 @@ fn yazi_toml_eps_previewer_entry() {
         yazi_toml.contains(r#"run = "eps""#),
         "yazi.toml eps entry should set run = \"eps\""
     );
+}
+
+/// preview-enhanced routes Markdown files through the rich previewer.
+#[test]
+fn yazi_toml_markdown_rich_preview_entries() {
+    let dir = tempfile::tempdir().unwrap();
+    init_project(dir.path(), "preview-rich-entries");
+    enable_preview_enhanced(dir.path());
+
+    let yazi_toml = read_yazi_toml(dir.path());
+
+    assert!(
+        yazi_toml.contains("\"*.md\"") || yazi_toml.contains("'*.md'"),
+        "yazi.toml should contain a prepend_previewers entry matching *.md"
+    );
+    assert!(
+        yazi_toml.contains("\"*.markdown\"") || yazi_toml.contains("'*.markdown'"),
+        "yazi.toml should contain a prepend_previewers entry matching *.markdown"
+    );
+    assert!(
+        yazi_toml.contains(r#"run = "rich-preview""#),
+        "yazi.toml markdown entries should set run = \"rich-preview\""
+    );
+}
+
+/// The Yazi keymap should expose a no-wrap pager for horizontally scrolling previews.
+#[test]
+fn yazi_keymap_has_horizontal_scroll_pager() {
+    let dir = tempfile::tempdir().unwrap();
+    init_project(dir.path(), "preview-pager");
+
+    let keymap_toml = read_yazi_keymap(dir.path());
+
+    assert!(
+        keymap_toml.contains("less -R -S"),
+        "keymap.toml should expose a preview pager command using less -R -S"
+    );
+}
+
+/// The Yazi keymap should expose the PDF live-watch helper for selected PDFs.
+#[test]
+fn yazi_keymap_has_pdf_watch_binding() {
+    let dir = tempfile::tempdir().unwrap();
+    init_project(dir.path(), "preview-pdf-watch");
+
+    let keymap_toml = read_yazi_keymap(dir.path());
+
+    assert!(
+        keymap_toml.contains("pdf-watch"),
+        "keymap.toml should expose a PDF live-watch binding invoking pdf-watch"
+    );
+}
+
+/// The PDF watch helper should be available in the generated runtime home.
+#[test]
+fn pdf_watch_helper_seeded() {
+    let dir = tempfile::tempdir().unwrap();
+    init_project(dir.path(), "preview-pdf-watch-helper");
+
+    let helper_path = dir.path().join(".aibox-home/.local/bin/pdf-watch");
+
+    assert!(
+        helper_path.exists(),
+        "pdf-watch helper should be seeded at {}",
+        helper_path.display()
+    );
+
+    let content = fs::read_to_string(&helper_path)
+        .unwrap_or_else(|e| panic!("failed to read pdf-watch helper: {}", e));
+    assert!(
+        content.contains("mutool draw") && content.contains("entr") && content.contains("timg"),
+        "pdf-watch helper should wrap mutool, entr, and timg"
+    );
+
+    #[cfg(unix)]
+    {
+        use std::os::unix::fs::PermissionsExt;
+
+        let mode = fs::metadata(&helper_path)
+            .unwrap_or_else(|e| panic!("failed to stat pdf-watch helper: {}", e))
+            .permissions()
+            .mode();
+        assert_ne!(mode & 0o111, 0, "pdf-watch helper should be executable");
+    }
 }
 
 /// SVG and EPS entries must appear before the built-in image/pdf entries

@@ -20,6 +20,10 @@ prepend_keymap = [
     { on = [ "z", "0" ], run = "plugin toggle-pane", desc = "Reset pane layout" },
     # w s: cumulative size for selected files
     { on = [ "w", "s" ], run = "shell 'du -sch \"$@\" | ${PAGER:-less}' --block", desc = "Size selected files" },
+    # w h: open the hovered file in a horizontal-scroll pager
+    { on = [ "w", "h" ], run = "shell 'bat --color=always --style=plain --paging=never \"$1\" | less -R -S' --block", desc = "Preview with horizontal scroll" },
+    # w p: live-watch the hovered PDF and re-render when it changes
+    { on = [ "w", "p" ], run = "shell 'if [ -f \"$HOME/.local/bin/pdf-watch\" ]; then bash \"$HOME/.local/bin/pdf-watch\" \"$1\"; else pdf-watch \"$1\"; fi' --block", desc = "Watch PDF preview" },
     # c *: copy selected path components to the clipboard via Yazi's native copy action
     { on = [ "c", "p" ], run = "copy path", desc = "Copy selected paths" },
     { on = [ "c", "d" ], run = "copy dirname", desc = "Copy selected directories" },

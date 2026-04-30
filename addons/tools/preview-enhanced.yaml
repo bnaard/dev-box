@@ -1,6 +1,6 @@
 name: preview-enhanced
 version: "1.0.0"
-description: "ffmpeg, ImageMagick, Ghostscript"
+description: "Rich Markdown rendering, ffmpeg, ImageMagick, Ghostscript"
 builder_weight: "light"
 
 tools:
@@ -16,13 +16,20 @@ tools:
     default_enabled: true
     default_version: ""
     supported_versions: []
+  - name: rich
+    default_enabled: true
+    default_version: ""
+    supported_versions: []
 
 runtime: |
-  # Addon: preview-enhanced — heavy preview tools (video thumbnails, EPS, image conversion)
+  # Addon: preview-enhanced — rich docs, video thumbnails, EPS, image conversion
   # The base image includes chafa, timg, poppler-utils, mupdf-tools, librsvg2-bin, and entr.
-  # This addon adds ffmpeg (video), imagemagick (format conversion), and ghostscript (EPS).
+  # This addon adds python3-rich (Markdown), ffmpeg (video), imagemagick (format conversion), and ghostscript (EPS).
   USER root
   RUN apt-get update && apt-get install -y --no-install-recommends \
+  {% if tools.rich.enabled %}
+      python3-rich \
+  {% endif %}
   {% if tools.ffmpeg.enabled %}
       ffmpeg \
   {% endif %}

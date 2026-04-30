@@ -36,17 +36,18 @@ When you open Yazi (`Ctrl+b s` from the file manager pane, or via the layout sid
 | SVG | `.svg` | `svg.yazi` plugin | `resvg` or `rsvg-convert` |
 | EPS | `.eps` | `eps.yazi` plugin | `ghostscript` (addon) |
 | PDF | `.pdf` | `pdf` (built-in) | `poppler-utils` |
+| Markdown | `.md` `.markdown` | `rich-preview.yazi` plugin | `preview-enhanced` addon |
 | SQLite | `.sqlite` `.sqlite3` `.db` | `sqlite-preview.yazi` plugin | `data-preview` addon |
 | CSV / TSV | `.csv` `.tsv` | `tabular-preview.yazi` plugin | `data-preview` addon |
 | Excel | `.xls` `.xlsx` | `tabular-preview.yazi` plugin | `data-preview` addon |
 | Video | `.mp4` `.mkv` `.webm` `.avi` | `video` (built-in) | `ffmpeg` (addon) |
 | Text / code | most text formats | `code` (built-in) | — |
 
-Most tools are pre-installed in the base image. SQLite, CSV/TSV, and Excel previews require the **data-preview** addon. EPS, video thumbnails, and advanced image conversion require the **preview-enhanced** addon:
+Most tools are pre-installed in the base image. SQLite, CSV/TSV, and Excel previews require the **data-preview** addon. Markdown rendering, EPS, video thumbnails, and advanced image conversion require the **preview-enhanced** addon:
 
 ```bash
-aibox set addon data-preview       # adds sqlite3 and csvkit for data previews
-aibox set addon preview-enhanced   # adds ffmpeg, imagemagick, ghostscript
+aibox set addon data-preview enabled --apply       # adds sqlite3 and csvkit for data previews
+aibox set addon preview-enhanced enabled --apply   # adds python3-rich, ffmpeg, imagemagick, ghostscript
 ```
 
 ### How previewer dispatch works
@@ -58,6 +59,7 @@ Yazi matches files against a list of `prepend_previewers` in `~/.config/yazi/yaz
 prepend_previewers = [
     { url = "*.svg", run = "svg" },
     { url = "*.eps", run = "eps" },
+    { url = "*.md",  run = "rich-preview" },
     { url = "*.jpg",  run = "image" },
     { url = "*.jpeg", run = "image" },
     { url = "*.png",  run = "image" },
@@ -77,7 +79,11 @@ Custom plugins (`svg.yazi`, `eps.yazi`) live at `~/.config/yazi/plugins/<name>.y
 
 **EPS** — rendered to PNG at 150 DPI by `gs` (Ghostscript), then displayed as an image. Result is cached.
 
+**Markdown** — when the **preview-enhanced** addon is enabled, `.md` and `.markdown` files are rendered through `rich-preview.yazi`, which uses Python Rich for terminal-native Markdown rendering. Without the addon, Yazi falls back to its built-in text/code preview.
+
 **PDF** — page 1 is rendered by `pdftoppm` (from `poppler-utils`). Navigate multi-page documents with Yazi's built-in PDF plugin controls.
+
+**Wide text previews** — the seeded Yazi keymap includes a pager shortcut for the selected file using `less -R -S`. `-R` preserves ANSI color from rich/code output; `-S` disables wrapping so long lines can be inspected with horizontal scrolling.
 
 **SQLite** — `sqlite-preview.yazi` opens databases read-only through `sqlite3` and shows schema objects plus table/view columns. It is enabled only when the `data-preview` addon is configured.
 
@@ -159,6 +165,12 @@ All tools (`entr`, `mupdf-tools`, `resvg`, `timg`) are pre-installed in the base
 Run this in a dedicated pane while editing your LaTeX or Typst source:
 
 ```bash
+pdf-watch output.pdf
+```
+
+`pdf-watch` wraps the underlying `entr` + `mutool draw` + `timg --clear` pipeline and re-renders page 1 whenever the PDF changes:
+
+```bash
 ls output.pdf | entr -s 'mutool draw -o /tmp/p.png output.pdf 1 && timg --clear /tmp/p.png'
 ```
 
@@ -168,6 +180,8 @@ ls output.pdf | entr -s 'mutool draw -o /tmp/p.png output.pdf 1 && timg --clear 
 | `mutool draw` | MuPDF rasteriser — renders a PDF page to PNG (fast, no X11 needed) |
 | `-o /tmp/p.png output.pdf 1` | Output file, input file, page number |
 | `timg --clear` | Renders the PNG inline, clearing the previous frame first |
+
+Yazi also seeds a PDF live-watch binding for selected `.pdf` files. It invokes `pdf-watch` so you can start the same live preview directly from the file manager.
 
 **Tips:**
 

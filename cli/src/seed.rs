@@ -1,5 +1,7 @@
 use anyhow::{Context, Result};
 use std::fs;
+#[cfg(unix)]
+use std::os::unix::fs::PermissionsExt;
 use std::path::Path;
 
 use crate::config::AiboxConfig;
@@ -867,7 +869,7 @@ return {
 			return Image:new(job, cache):show()
 		end
 
-		return Err("EPS preview requires ghostscript: aibox set addon preview-enhanced")
+		return Err("EPS preview requires ghostscript: aibox set addon preview-enhanced enabled --apply")
 	end,
 }
 "#;
@@ -1124,7 +1126,7 @@ fn generate_yazi_config(config: &AiboxConfig) -> String {
 
     if config.addons.has_addon("preview-enhanced") {
         extra_previewers.push_str(
-            r#"    # Rich terminal preview for docs/data files (requires rich-cli from preview-enhanced)
+            r#"    # Rich terminal preview for docs/data files (requires python3-rich from preview-enhanced)
     { url = "*.md",       run = "rich-preview" },
     { url = "*.markdown", run = "rich-preview" },
     { url = "*.rst",      run = "rich-preview" },
@@ -1180,6 +1182,9 @@ const DEFAULT_YAZI_PLUGIN_SQLITE_PREVIEW: &str =
 const DEFAULT_YAZI_PLUGIN_TABULAR_PREVIEW: &str =
     include_str!("../../images/base-debian/config/yazi/plugins/tabular-preview.yazi/main.lua");
 
+/// pdf-watch helper — re-render a PDF preview whenever the file changes.
+const DEFAULT_PDF_WATCH_SH: &str = include_str!("../../images/base-debian/config/bin/pdf-watch.sh");
+
 /// omp.yazi plugin — render an Oh My Posh prompt in Yazi's header.
 const DEFAULT_YAZI_PLUGIN_OMP: &str =
     include_str!("../../images/base-debian/config/yazi/plugins/omp.yazi/main.lua");
@@ -1200,6 +1205,8 @@ prepend_keymap = [
     { on = [ "z", "c" ], run = "plugin toggle-pane max-current", desc = "Maximize current pane" },
     { on = [ "z", "0" ], run = "plugin toggle-pane", desc = "Reset pane layout" },
     { on = [ "w", "s" ], run = "shell 'du -sch \"$@\" | ${PAGER:-less}' --block", desc = "Size selected files" },
+    { on = [ "w", "h" ], run = "shell 'bat --color=always --style=plain --paging=never \"$1\" | less -R -S' --block", desc = "Preview with horizontal scroll" },
+    { on = [ "w", "p" ], run = "shell 'if [ -f \"$HOME/.local/bin/pdf-watch\" ]; then bash \"$HOME/.local/bin/pdf-watch\" \"$1\"; else pdf-watch \"$1\"; fi' --block", desc = "Watch PDF preview" },
     { on = [ "c", "p" ], run = "copy path", desc = "Copy selected paths" },
     { on = [ "c", "d" ], run = "copy dirname", desc = "Copy selected directories" },
     { on = [ "c", "f" ], run = "copy filename", desc = "Copy selected filenames" },
@@ -1219,6 +1226,8 @@ const DEFAULT_CHEATSHEET: &str = r#"  aibox Quick Reference
   Alt+[/]          Prev/next  g s      Git summary
   Alt+1-5          Jump tab   g c      Git changes
                              w s      Size selection
+                             w h      Horizontal preview
+                             w p      Watch PDF
                              c p/d/f  Copy path/dir/name
   Ctrl+g h/j/k/l  Move pane  g r      Refresh git
   Ctrl+g f         Fullscreen Space    Select
@@ -1349,6 +1358,7 @@ pub fn ensure_runtime_dirs(config: &AiboxConfig) -> Result<()> {
 
     let mut dirs = vec![
         root.join(".ssh"),
+        root.join(".local").join("bin"),
         root.join(".vim").join("undo"),
         root.join(".config").join("zellij").join("themes"),
         root.join(".config").join("zellij").join("layouts"),
@@ -1508,6 +1518,10 @@ pub fn managed_runtime_files(config: &AiboxConfig) -> Vec<(std::path::PathBuf, S
             std::path::PathBuf::from(".config/lazygit/config.yml"),
             crate::themes::lazygit_theme(theme).to_string(),
         ),
+        (
+            std::path::PathBuf::from(".local/bin/pdf-watch"),
+            DEFAULT_PDF_WATCH_SH.to_string(),
+        ),
     ];
 
     if config.audio.enabled {
@@ -1581,7 +1595,11 @@ pub fn seed_root_dir(config: &AiboxConfig) -> Result<()> {
     ensure_runtime_dirs(config)?;
 
     for (rel_path, content) in managed_runtime_files(config) {
-        seed_file(&root.join(rel_path), &content)?;
+        let path = root.join(&rel_path);
+        seed_file(&path, &content)?;
+        if rel_path == Path::new(".local/bin/pdf-watch") {
+            ensure_executable(&path)?;
+        }
     }
 
     // Warn if .ssh/ is empty
@@ -1603,6 +1621,21 @@ pub fn seed_root_dir(config: &AiboxConfig) -> Result<()> {
 
 fn seed_file(path: &Path, content: &str) -> Result<()> {
     crate::context::write_if_missing(path, content)
+}
+
+#[cfg(unix)]
+fn ensure_executable(path: &Path) -> Result<()> {
+    let mut permissions = fs::metadata(path)
+        .with_context(|| format!("Failed to read permissions for {}", path.display()))?
+        .permissions();
+    permissions.set_mode(0o755);
+    fs::set_permissions(path, permissions)
+        .with_context(|| format!("Failed to chmod +x {}", path.display()))
+}
+
+#[cfg(not(unix))]
+fn ensure_executable(_path: &Path) -> Result<()> {
+    Ok(())
 }
 
 /// Write content to a file, overwriting if content differs.
@@ -2003,6 +2036,17 @@ mod tests {
                 .exists()
         );
         assert!(root.join(".config").join("cheatsheet.txt").exists());
+        assert!(root.join(".local").join("bin").join("pdf-watch").exists());
+        #[cfg(unix)]
+        assert_ne!(
+            fs::metadata(root.join(".local").join("bin").join("pdf-watch"))
+                .unwrap()
+                .permissions()
+                .mode()
+                & 0o111,
+            0,
+            "pdf-watch should be executable"
+        );
 
         unsafe {
             std::env::remove_var("AIBOX_HOST_ROOT");
@@ -2498,6 +2542,14 @@ mod tests {
                 r#"{ on = [ "w", "s" ], run = "shell 'du -sch \"$@\" | ${PAGER:-less}' --block""#
             ),
             "default yazi keymap should expose selected-size calculation"
+        );
+        assert!(
+            DEFAULT_YAZI_KEYMAP.contains("less -R -S"),
+            "default yazi keymap should expose horizontal-scroll pager"
+        );
+        assert!(
+            DEFAULT_YAZI_KEYMAP.contains("pdf-watch"),
+            "default yazi keymap should expose PDF watch helper"
         );
         assert!(
             DEFAULT_YAZI_KEYMAP.contains(r#"{ on = [ "c", "p" ], run = "copy path""#),

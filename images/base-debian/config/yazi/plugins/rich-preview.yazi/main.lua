@@ -1,18 +1,38 @@
 local M = {}
 
 function M:peek(job)
-	local child = Command("rich")
+	local source = [[
+import pathlib
+import sys
+
+path = pathlib.Path(sys.argv[1])
+width = int(sys.argv[2])
+text = path.read_text(errors="replace")
+
+try:
+    from rich.console import Console
+    from rich.markdown import Markdown
+    from rich.syntax import Syntax
+except Exception:
+    print(text)
+    raise SystemExit(0)
+
+console = Console(width=width, force_terminal=True, color_system="truecolor", soft_wrap=False)
+
+if path.suffix.lower() in {".md", ".markdown"}:
+    console.print(Markdown(text))
+else:
+    language = path.suffix.lstrip(".") or "text"
+    console.print(Syntax(text, language, theme="ansi_dark", line_numbers=True, word_wrap=False))
+]]
+
+	local child = Command("python3")
 		:env("COLUMNS", tostring(job.area.w))
 		:arg({
-			"-j",
-			"--left",
-			"--line-numbers",
-			"--force-terminal",
-			"--panel=rounded",
-			"--guides",
-			"--max-width",
-			tostring(job.area.w),
+			"-c",
+			source,
 			tostring(job.file.url),
+			tostring(job.area.w),
 		})
 		:stdout(Command.PIPED)
 		:stderr(Command.PIPED)

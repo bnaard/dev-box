@@ -63,7 +63,7 @@ SELECT m.name AS table_name, p.cid, p.name AS column_name, p.type, p.pk
 ]]
 	local command = table.concat({
 		"if ! command -v sqlite3 >/dev/null 2>&1; then",
-		"  echo 'SQLite preview requires: aibox addon add data-preview'; exit 0;",
+		"  echo 'SQLite preview requires: aibox set addon data-preview enabled --apply'; exit 0;",
 		"fi;",
 		"sqlite3 -readonly -cmd '.mode box' -cmd '.headers on' " .. file .. " " .. shell_quote(sql) .. " 2>&1",
 	}, " ")

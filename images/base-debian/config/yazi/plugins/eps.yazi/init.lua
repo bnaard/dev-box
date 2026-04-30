@@ -33,6 +33,6 @@ return {
 			return Image:new(job, cache):show()
 		end
 
-		return Err("EPS preview requires ghostscript: aibox addon add preview-enhanced")
+		return Err("EPS preview requires ghostscript: aibox set addon preview-enhanced enabled --apply")
 	end,
 }
