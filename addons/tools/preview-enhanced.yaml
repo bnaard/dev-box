@@ -1,6 +1,9 @@
 name: preview-enhanced
 version: "1.0.0"
 description: "Rich Markdown rendering, ffmpeg, ImageMagick, Ghostscript"
+profile_intent: preview-media
+usage_class: automated
+profiles: ["human-dev"]
 builder_weight: "light"
 
 tools:

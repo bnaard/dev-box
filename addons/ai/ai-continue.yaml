@@ -1,6 +1,9 @@
 name: ai-continue
 version: "1.0.0"
 description: "Continue CLI – provider-agnostic coding agent"
+profile_intent: provider-cli
+usage_class: manual-escalation-only
+profiles: ["human-dev"]
 builder_weight: null
 
 tools:

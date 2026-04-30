@@ -1,6 +1,9 @@
 name: typst
 version: "1.0.0"
 description: "Typst – modern typesetting system"
+profile_intent: build
+usage_class: automated
+profiles: ["human-dev", "headless-runner"]
 builder_weight: null
 
 skills:

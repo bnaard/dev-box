@@ -1,6 +1,9 @@
 name: go
 version: "1.0.0"
 description: "Go programming language toolchain"
+profile_intent: build
+usage_class: automated
+profiles: ["human-dev", "headless-runner"]
 builder_weight: null
 
 skills:

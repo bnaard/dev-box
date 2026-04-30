@@ -1,6 +1,9 @@
 name: docs-mkdocs
 version: "1.0.0"
 description: "MkDocs – Python Markdown docs site"
+profile_intent: build
+usage_class: automated
+profiles: ["human-dev", "headless-runner"]
 requires:
   - python
 

@@ -1,6 +1,9 @@
 name: ai-opencode
 version: "1.0.0"
 description: "OpenCode AI coding agent (open-source, multi-provider)"
+profile_intent: provider-cli
+usage_class: manual-escalation-only
+profiles: ["human-dev"]
 builder_weight: null
 
 tools:

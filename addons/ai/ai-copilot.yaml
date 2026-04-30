@@ -1,6 +1,9 @@
 name: ai-copilot
 version: "1.0.0"
 description: "GitHub Copilot CLI"
+profile_intent: provider-cli
+usage_class: manual-escalation-only
+profiles: ["human-dev"]
 builder_weight: null
 
 tools:

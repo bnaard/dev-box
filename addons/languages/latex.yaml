@@ -1,6 +1,9 @@
 name: latex
 version: "1.0.0"
 description: "TeX Live LaTeX typesetting system"
+profile_intent: build
+usage_class: automated
+profiles: ["human-dev", "headless-runner"]
 builder_weight: "heavy"
 
 skills:

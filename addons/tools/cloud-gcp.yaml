@@ -1,6 +1,9 @@
 name: cloud-gcp
 version: "1.0.0"
 description: "Google Cloud SDK (gcloud)"
+profile_intent: runtime
+usage_class: automated
+profiles: ["human-dev", "headless-runner"]
 builder_weight: null
 
 tools:

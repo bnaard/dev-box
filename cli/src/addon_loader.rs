@@ -13,7 +13,7 @@
 //! `tools.<name>.enabled` as context variables.
 
 use anyhow::{Context, Result, bail};
-use serde::Deserialize;
+use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::fs;
 use std::path::{Path, PathBuf};
@@ -33,6 +33,12 @@ pub struct AddonYaml {
     #[serde(default)]
     pub description: String,
     #[serde(default)]
+    pub profile_intent: Option<AddonProfileIntent>,
+    #[serde(default)]
+    pub usage_class: Option<AddonUsageClass>,
+    #[serde(default)]
+    pub profiles: Vec<AddonProfile>,
+    #[serde(default)]
     pub builder_weight: Option<String>,
     #[serde(default)]
     pub tools: Vec<ToolYaml>,
@@ -48,6 +54,67 @@ pub struct AddonYaml {
     pub builder: Option<String>,
     #[serde(default)]
     pub runtime: Option<String>,
+}
+
+/// Draft LivelyMoss profile intent vocabulary for addon-spec alignment.
+#[derive(Debug, Clone, Copy, Deserialize, Serialize, PartialEq, Eq)]
+#[serde(rename_all = "kebab-case")]
+pub enum AddonProfileIntent {
+    Interactive,
+    Runtime,
+    Build,
+    Mcp,
+    ProviderCli,
+    Debug,
+    PreviewMedia,
+}
+
+impl AddonProfileIntent {
+    pub fn as_str(self) -> &'static str {
+        match self {
+            AddonProfileIntent::Interactive => "interactive",
+            AddonProfileIntent::Runtime => "runtime",
+            AddonProfileIntent::Build => "build",
+            AddonProfileIntent::Mcp => "mcp",
+            AddonProfileIntent::ProviderCli => "provider-cli",
+            AddonProfileIntent::Debug => "debug",
+            AddonProfileIntent::PreviewMedia => "preview-media",
+        }
+    }
+}
+
+/// Whether tools exported by an addon may be invoked automatically.
+#[derive(Debug, Clone, Copy, Deserialize, Serialize, PartialEq, Eq)]
+#[serde(rename_all = "kebab-case")]
+pub enum AddonUsageClass {
+    Automated,
+    ManualEscalationOnly,
+}
+
+impl AddonUsageClass {
+    pub fn as_str(self) -> &'static str {
+        match self {
+            AddonUsageClass::Automated => "automated",
+            AddonUsageClass::ManualEscalationOnly => "manual-escalation-only",
+        }
+    }
+}
+
+/// aibox image profiles an addon is compatible with.
+#[derive(Debug, Clone, Copy, Deserialize, Serialize, PartialEq, Eq)]
+#[serde(rename_all = "kebab-case")]
+pub enum AddonProfile {
+    HumanDev,
+    HeadlessRunner,
+}
+
+impl AddonProfile {
+    pub fn as_str(self) -> &'static str {
+        match self {
+            AddonProfile::HumanDev => "human-dev",
+            AddonProfile::HeadlessRunner => "headless-runner",
+        }
+    }
 }
 
 /// A tool entry in the YAML file.
@@ -77,6 +144,13 @@ pub struct LoadedAddon {
     pub addon_version: String,
     /// Short one-line description from the YAML `description:` field.
     pub description: String,
+    /// Draft processkit addon-spec intent. Warning-only until processkit
+    /// publishes the canonical `Artifact{kind=addon-spec}` schema.
+    pub profile_intent: Option<AddonProfileIntent>,
+    /// Draft automation policy for tools exported by this addon.
+    pub usage_class: Option<AddonUsageClass>,
+    /// aibox profiles this addon can participate in.
+    pub profiles: Vec<AddonProfile>,
     /// Category derived from the addon's parent directory (ai/, languages/, tools/, docs/).
     pub category: String,
     pub builder_weight: Option<String>,
@@ -197,6 +271,9 @@ fn load_yaml_file(path: &Path) -> Result<LoadedAddon> {
         name: yaml.name,
         addon_version: yaml.version,
         description: yaml.description,
+        profile_intent: yaml.profile_intent,
+        usage_class: yaml.usage_class,
+        profiles: yaml.profiles,
         category,
         builder_weight: yaml.builder_weight,
         requires: yaml.requires,
@@ -243,6 +320,44 @@ pub fn all_addons() -> &'static [LoadedAddon] {
 /// Find an addon by name.
 pub fn get_addon(name: &str) -> Option<&'static LoadedAddon> {
     all_addons().iter().find(|a| a.name == name)
+}
+
+/// Warning-mode validation for the draft LivelyMoss addon metadata.
+///
+/// These checks intentionally do not fail loading: processkit has not yet
+/// published the canonical addon-spec schema, so aibox treats the fields as
+/// early compatibility metadata until that schema is available.
+pub fn addon_metadata_warnings(addons: &[LoadedAddon]) -> Vec<String> {
+    let mut warnings = Vec::new();
+    for addon in addons {
+        if addon.profile_intent.is_none() {
+            warnings.push(format!(
+                "addon-metadata-missing: {} has no profile_intent",
+                addon.name
+            ));
+        }
+        if addon.usage_class.is_none() {
+            warnings.push(format!(
+                "addon-metadata-missing: {} has no usage_class",
+                addon.name
+            ));
+        }
+        if addon.profiles.is_empty() {
+            warnings.push(format!(
+                "addon-metadata-missing: {} has no profiles",
+                addon.name
+            ));
+        }
+        if addon.profile_intent == Some(AddonProfileIntent::ProviderCli)
+            && addon.profiles.contains(&AddonProfile::HeadlessRunner)
+        {
+            warnings.push(format!(
+                "subscription-cli-headless-leak: {} is provider-cli but allows headless-runner",
+                addon.name
+            ));
+        }
+    }
+    warnings
 }
 
 // ---------------------------------------------------------------------------
@@ -450,6 +565,9 @@ runtime: |
             name: "test".to_string(),
             addon_version: "1.0.0".to_string(),
             description: String::new(),
+            profile_intent: Some(AddonProfileIntent::Runtime),
+            usage_class: Some(AddonUsageClass::Automated),
+            profiles: vec![AddonProfile::HumanDev, AddonProfile::HeadlessRunner],
             category: "Other".to_string(),
             builder_weight: None,
             requires: vec![],
@@ -482,6 +600,9 @@ runtime: |
             name: "test".to_string(),
             addon_version: "1.0.0".to_string(),
             description: String::new(),
+            profile_intent: Some(AddonProfileIntent::Runtime),
+            usage_class: Some(AddonUsageClass::Automated),
+            profiles: vec![AddonProfile::HumanDev],
             category: "Other".to_string(),
             builder_weight: None,
             requires: vec![],
@@ -528,6 +649,9 @@ runtime: |
             name: "a".to_string(),
             addon_version: "1.0.0".to_string(),
             description: String::new(),
+            profile_intent: Some(AddonProfileIntent::Build),
+            usage_class: Some(AddonUsageClass::Automated),
+            profiles: vec![AddonProfile::HumanDev, AddonProfile::HeadlessRunner],
             category: "Other".to_string(),
             builder_weight: Some("heavy".to_string()),
             tools: vec![],
@@ -539,6 +663,9 @@ runtime: |
             name: "b".to_string(),
             addon_version: "1.0.0".to_string(),
             description: String::new(),
+            profile_intent: Some(AddonProfileIntent::Build),
+            usage_class: Some(AddonUsageClass::Automated),
+            profiles: vec![AddonProfile::HumanDev, AddonProfile::HeadlessRunner],
             category: "Other".to_string(),
             builder_weight: Some("medium".to_string()),
             tools: vec![],
@@ -550,6 +677,9 @@ runtime: |
             name: "c".to_string(),
             addon_version: "1.0.0".to_string(),
             description: String::new(),
+            profile_intent: Some(AddonProfileIntent::Runtime),
+            usage_class: Some(AddonUsageClass::Automated),
+            profiles: vec![AddonProfile::HumanDev],
             category: "Other".to_string(),
             builder_weight: None,
             tools: vec![],
@@ -580,6 +710,9 @@ runtime: |
             name: "test".to_string(),
             addon_version: "1.0.0".to_string(),
             description: String::new(),
+            profile_intent: Some(AddonProfileIntent::Runtime),
+            usage_class: Some(AddonUsageClass::Automated),
+            profiles: vec![AddonProfile::HumanDev],
             category: "Other".to_string(),
             builder_weight: None,
             requires: vec![],
@@ -640,5 +773,80 @@ tools: []
         let addons = load_from_dir(dir.path()).unwrap();
         assert_eq!(addons[0].category, "AI Providers");
         assert_eq!(addons[0].description, "Test AI addon");
+    }
+
+    #[test]
+    fn addon_metadata_fields_are_loaded() {
+        let dir = tempfile::tempdir().unwrap();
+        write_test_yaml(
+            dir.path(),
+            "ai",
+            "test-ai",
+            r#"
+name: test-ai
+version: "1.0.0"
+description: "Test AI addon"
+profile_intent: provider-cli
+usage_class: manual-escalation-only
+profiles: ["human-dev"]
+tools: []
+"#,
+        );
+
+        let addons = load_from_dir(dir.path()).unwrap();
+        assert_eq!(
+            addons[0].profile_intent,
+            Some(AddonProfileIntent::ProviderCli)
+        );
+        assert_eq!(
+            addons[0].usage_class,
+            Some(AddonUsageClass::ManualEscalationOnly)
+        );
+        assert_eq!(addons[0].profiles, vec![AddonProfile::HumanDev]);
+        assert!(addon_metadata_warnings(&addons).is_empty());
+    }
+
+    #[test]
+    fn addon_metadata_warnings_detect_missing_and_headless_provider_cli() {
+        let addons = vec![
+            LoadedAddon {
+                name: "untagged".to_string(),
+                addon_version: "1.0.0".to_string(),
+                description: String::new(),
+                profile_intent: None,
+                usage_class: None,
+                profiles: vec![],
+                category: "Other".to_string(),
+                builder_weight: None,
+                tools: vec![],
+                requires: vec![],
+                builder_template: None,
+                runtime_template: None,
+            },
+            LoadedAddon {
+                name: "bad-provider".to_string(),
+                addon_version: "1.0.0".to_string(),
+                description: String::new(),
+                profile_intent: Some(AddonProfileIntent::ProviderCli),
+                usage_class: Some(AddonUsageClass::ManualEscalationOnly),
+                profiles: vec![AddonProfile::HumanDev, AddonProfile::HeadlessRunner],
+                category: "Other".to_string(),
+                builder_weight: None,
+                tools: vec![],
+                requires: vec![],
+                builder_template: None,
+                runtime_template: None,
+            },
+        ];
+
+        let warnings = addon_metadata_warnings(&addons);
+        assert!(warnings.iter().any(|w| w.contains("no profile_intent")));
+        assert!(warnings.iter().any(|w| w.contains("no usage_class")));
+        assert!(warnings.iter().any(|w| w.contains("no profiles")));
+        assert!(
+            warnings
+                .iter()
+                .any(|w| w.contains("subscription-cli-headless-leak"))
+        );
     }
 }

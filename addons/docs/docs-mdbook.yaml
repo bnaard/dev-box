@@ -1,6 +1,9 @@
 name: docs-mdbook
 version: "1.0.0"
 description: "mdBook – Rust-powered book builder"
+profile_intent: build
+usage_class: automated
+profiles: ["human-dev", "headless-runner"]
 skills:
   - documentation
 

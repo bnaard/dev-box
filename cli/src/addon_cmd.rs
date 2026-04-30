@@ -33,6 +33,9 @@ pub fn cmd_addon_list(config_path: &Option<String>, format: OutputFormat) -> Res
         name: &'a str,
         category: &'a str,
         description: &'a str,
+        profile_intent: Option<&'static str>,
+        usage_class: Option<&'static str>,
+        profiles: Vec<&'static str>,
         tools: usize,
         status: &'static str,
     }
@@ -48,6 +51,9 @@ pub fn cmd_addon_list(config_path: &Option<String>, format: OutputFormat) -> Res
                 name: &a.name,
                 category: &a.category,
                 description: &a.description,
+                profile_intent: a.profile_intent.map(|v| v.as_str()),
+                usage_class: a.usage_class.map(|v| v.as_str()),
+                profiles: a.profiles.iter().map(|p| p.as_str()).collect(),
                 tools: a.tools.len(),
                 status: if installed { "installed" } else { "available" },
             }
@@ -278,6 +284,9 @@ pub fn cmd_addon_info(name: &str, format: OutputFormat) -> Result<()> {
                 description: &'a str,
                 addon_version: &'a str,
                 requires: &'a [String],
+                profile_intent: Option<&'static str>,
+                usage_class: Option<&'static str>,
+                profiles: Vec<&'static str>,
                 tools: Vec<ToolRow<'a>>,
             }
             let out = InfoOut {
@@ -286,6 +295,9 @@ pub fn cmd_addon_info(name: &str, format: OutputFormat) -> Result<()> {
                 description: &loaded.description,
                 addon_version: &loaded.addon_version,
                 requires: &loaded.requires,
+                profile_intent: loaded.profile_intent.map(|v| v.as_str()),
+                usage_class: loaded.usage_class.map(|v| v.as_str()),
+                profiles: loaded.profiles.iter().map(|p| p.as_str()).collect(),
                 tools: loaded
                     .tools
                     .iter()
@@ -310,6 +322,16 @@ pub fn cmd_addon_info(name: &str, format: OutputFormat) -> Result<()> {
                 println!("Description:  {}", loaded.description);
             }
             println!("Version:      {}", loaded.addon_version);
+            if let Some(intent) = loaded.profile_intent {
+                println!("Intent:       {}", intent.as_str());
+            }
+            if let Some(usage_class) = loaded.usage_class {
+                println!("Usage class:  {}", usage_class.as_str());
+            }
+            if !loaded.profiles.is_empty() {
+                let profiles: Vec<&str> = loaded.profiles.iter().map(|p| p.as_str()).collect();
+                println!("Profiles:     {}", profiles.join(", "));
+            }
             if !loaded.requires.is_empty() {
                 println!("Requires:     {}", loaded.requires.join(", "));
             }

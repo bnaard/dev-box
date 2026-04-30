@@ -1,6 +1,9 @@
 name: infrastructure
 version: "1.0.0"
 description: "OpenTofu, Ansible, Packer"
+profile_intent: runtime
+usage_class: automated
+profiles: ["human-dev", "headless-runner"]
 builder_weight: "medium"
 
 skills:

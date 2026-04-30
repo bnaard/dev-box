@@ -1,6 +1,9 @@
 name: rust
 version: "1.1.0"
 description: "Rust toolchain via rustup"
+profile_intent: build
+usage_class: automated
+profiles: ["human-dev", "headless-runner"]
 builder_weight: "medium"
 
 skills:

@@ -1,6 +1,9 @@
 name: cloud-aws
 version: "1.0.0"
 description: "AWS CLI v2"
+profile_intent: runtime
+usage_class: automated
+profiles: ["human-dev", "headless-runner"]
 builder_weight: null
 
 tools:

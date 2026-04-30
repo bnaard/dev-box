@@ -1,6 +1,9 @@
 name: data-preview
 version: "1.0.0"
 description: "SQLite and tabular data preview tools for Yazi"
+profile_intent: preview-media
+usage_class: automated
+profiles: ["human-dev"]
 builder_weight: "light"
 
 tools:

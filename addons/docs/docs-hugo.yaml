@@ -1,6 +1,9 @@
 name: docs-hugo
 version: "1.0.0"
 description: "Hugo static site generator (Go)"
+profile_intent: build
+usage_class: automated
+profiles: ["human-dev", "headless-runner"]
 skills:
   - documentation
 

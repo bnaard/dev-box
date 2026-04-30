@@ -1,6 +1,9 @@
 name: yazi-omp
 version: "1.0.0"
 description: "oh-my-posh for the omp.yazi header prompt"
+profile_intent: interactive
+usage_class: automated
+profiles: ["human-dev"]
 builder_weight: null
 
 tools:

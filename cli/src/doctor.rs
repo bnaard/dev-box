@@ -165,6 +165,11 @@ pub fn cmd_doctor(config_path: &Option<String>) -> Result<()> {
     // catches a regression in the codex profile of harness_commands.
     check_codex_prompt_path_drift(&config, &mut diag);
 
+    // 6e. Draft LivelyMoss addon metadata checks. Warning-only until
+    // processkit publishes the canonical addon-spec schema.
+    output::info("Checking addon profile metadata...");
+    check_addon_profile_metadata(&mut diag);
+
     // 7. Security audit tools
     crate::audit::doctor_check_audit_tools();
 
@@ -301,6 +306,18 @@ fn check_command_registrations(config: &AiboxConfig, diag: &mut DiagResult) {
             output::warn(&format!(
                 "[{harness}] {missing_count} command file(s) missing — run 'aibox apply' to register them"
             ));
+        }
+    }
+}
+
+fn check_addon_profile_metadata(diag: &mut DiagResult) {
+    let warnings = crate::addon_loader::addon_metadata_warnings(crate::addon_loader::all_addons());
+    if warnings.is_empty() {
+        output::ok("Addon profile metadata is complete");
+    } else {
+        for warning in warnings {
+            output::warn(&warning);
+            diag.warnings += 1;
         }
     }
 }

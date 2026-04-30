@@ -1,6 +1,9 @@
 name: ai-codex
 version: "1.1.0"
 description: "OpenAI Codex CLI"
+profile_intent: provider-cli
+usage_class: manual-escalation-only
+profiles: ["human-dev"]
 builder_weight: null
 requires:
   - node
