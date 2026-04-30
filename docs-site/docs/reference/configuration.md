@@ -98,6 +98,10 @@ read-only `aibox.workspace-manifest.v0-preview` projection of this file. The
 preview schema is intentionally aibox-local until processkit publishes the
 canonical workspace-manifest Artifact schema.
 
+`aibox describe provider-backends -o json` similarly emits
+`aibox.provider-backends.v0-preview`, an aibox-local index of supported harness
+backends, addon availability, and MCP registration/permission targets.
+
 ### [container]
 
 Container configuration. Controls the generated `docker-compose.yml` and `Dockerfile`.

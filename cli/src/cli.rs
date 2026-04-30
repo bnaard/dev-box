@@ -429,6 +429,7 @@ pub enum DescribeResource {
     Runtime,
     Addon,
     AddonCatalog,
+    ProviderBackends,
     WorkspaceManifest,
     Env,
     Kit,

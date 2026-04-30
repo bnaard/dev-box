@@ -106,6 +106,7 @@ aibox delete runtime
 aibox get addon
 aibox describe addon python
 aibox describe addon-catalog -o json
+aibox describe provider-backends -o json
 aibox describe workspace-manifest -o json
 aibox get skill
 aibox get skill --all --category engineering
@@ -122,6 +123,10 @@ aibox get kit
 `aibox.workspace-manifest.v0-preview` projection of the current `aibox.toml`.
 It is intended for automation while the canonical processkit Artifact schema is
 still upstream-owned.
+
+`describe provider-backends` emits the local
+`aibox.provider-backends.v0-preview` index of supported AI harness backends,
+their addon availability, and MCP registration/permission targets.
 
 ## Mutating Resources
 

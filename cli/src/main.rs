@@ -36,6 +36,7 @@ mod migration;
 mod output;
 mod preauth;
 mod processkit_vocab;
+mod provider_backend;
 mod reset;
 mod runtime;
 mod runtime_sync;
@@ -227,6 +228,9 @@ fn dispatch(cli: cli::Cli) -> anyhow::Result<()> {
                 addon_cmd::cmd_addon_info(&addon, format)
             }
             cli::DescribeResource::AddonCatalog => addon_cmd::cmd_addon_catalog(format),
+            cli::DescribeResource::ProviderBackends => {
+                provider_backend::cmd_provider_backends(config_path, format)
+            }
             cli::DescribeResource::WorkspaceManifest => {
                 workspace_manifest::cmd_workspace_manifest(config_path, format)
             }
