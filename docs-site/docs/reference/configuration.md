@@ -101,6 +101,9 @@ canonical workspace-manifest Artifact schema.
 `aibox describe provider-backends -o json` similarly emits
 `aibox.provider-backends.v0-preview`, an aibox-local index of supported harness
 backends, addon availability, and MCP registration/permission targets.
+`aibox doctor` uses the same preview model to warn about selected backends that
+cannot participate in MCP automation, have no permission projection, or conflict
+with the `headless-runner` profile.
 
 ### [container]
 

@@ -170,6 +170,11 @@ pub fn cmd_doctor(config_path: &Option<String>) -> Result<()> {
     output::info("Checking addon profile metadata...");
     check_addon_profile_metadata(&config, &mut diag);
 
+    // 6f. Draft LivelyMoss provider-backend checks. Warning-only until
+    // processkit publishes the canonical provider-backend schema.
+    output::info("Checking provider backend metadata...");
+    check_provider_backend_metadata(&config, &mut diag);
+
     // 7. Security audit tools
     crate::audit::doctor_check_audit_tools();
 
@@ -321,6 +326,21 @@ fn check_addon_profile_metadata(config: &AiboxConfig, diag: &mut DiagResult) {
     ));
     if warnings.is_empty() {
         output::ok("Addon profile metadata is complete");
+    } else {
+        for warning in warnings {
+            output::warn(&warning);
+            diag.warnings += 1;
+        }
+    }
+}
+
+fn check_provider_backend_metadata(config: &AiboxConfig, diag: &mut DiagResult) {
+    let warnings = crate::provider_backend::provider_backend_warnings(
+        config,
+        crate::addon_loader::all_addons(),
+    );
+    if warnings.is_empty() {
+        output::ok("Provider backend metadata is compatible");
     } else {
         for warning in warnings {
             output::warn(&warning);

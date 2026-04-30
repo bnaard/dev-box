@@ -84,6 +84,45 @@ pub fn cmd_provider_backends(config_path: &Option<String>, format: OutputFormat)
     Ok(())
 }
 
+pub fn provider_backend_warnings(config: &AiboxConfig, addons: &[LoadedAddon]) -> Vec<String> {
+    let index = provider_backend_index(config, addons);
+    let mut warnings = Vec::new();
+
+    for backend in index.backends.iter().filter(|backend| backend.selected) {
+        if let Some(addon_name) = &backend.addon_name
+            && !backend.addon_available
+        {
+            warnings.push(format!(
+                "provider-backend-addon-missing: {} expects addon {} but it is not available",
+                backend.name, addon_name
+            ));
+        }
+
+        if !backend.mcp_client {
+            warnings.push(format!(
+                "provider-backend-mcp-unavailable: {} does not have a built-in MCP client; processkit MCP tools will not be available in that backend",
+                backend.name
+            ));
+        }
+
+        if backend.mcp_client && backend.permission_target.is_none() {
+            warnings.push(format!(
+                "provider-backend-permissions-missing: {} can receive MCP registrations but has no aibox permission projection yet",
+                backend.name
+            ));
+        }
+
+        if config.aibox.profile.as_str() == "headless-runner" && !backend.container_cli {
+            warnings.push(format!(
+                "provider-backend-headless-mismatch: {} is host-side only and cannot run inside a headless container",
+                backend.name
+            ));
+        }
+    }
+
+    warnings
+}
+
 fn provider_backend(
     harness: &AiHarness,
     selected: &BTreeSet<String>,
@@ -238,5 +277,40 @@ harnesses = ["cursor", "codex", "aider"]
             .unwrap();
         assert!(codex.addon_available);
         assert_eq!(codex.binary_name, Some("codex"));
+    }
+
+    #[test]
+    fn provider_backend_warnings_detect_automation_mismatches() {
+        let config = AiboxConfig::from_str(
+            r#"[aibox]
+version = "0.22.0"
+profile = "headless-runner"
+
+[container]
+name = "demo"
+
+[ai]
+harnesses = ["cursor", "aider", "hermes"]
+"#,
+        )
+        .unwrap();
+        let addons = vec![addon("ai-aider"), addon("ai-hermes")];
+        let warnings = provider_backend_warnings(&config, &addons);
+
+        assert!(
+            warnings
+                .iter()
+                .any(|warning| warning.contains("provider-backend-headless-mismatch: cursor"))
+        );
+        assert!(
+            warnings
+                .iter()
+                .any(|warning| warning.contains("provider-backend-mcp-unavailable: aider"))
+        );
+        assert!(
+            warnings
+                .iter()
+                .any(|warning| warning.contains("provider-backend-permissions-missing: hermes"))
+        );
     }
 }
