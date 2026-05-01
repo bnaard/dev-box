@@ -106,6 +106,7 @@ aibox delete runtime
 aibox get addon
 aibox describe addon python
 aibox describe addon-catalog -o json
+aibox describe image-provenance-policy -o json
 aibox describe provider-backends -o json
 aibox describe workspace-manifest -o json
 aibox get skill
@@ -127,6 +128,11 @@ still upstream-owned.
 `describe provider-backends` emits the local
 `aibox.provider-backends.v0-preview` index of supported AI harness backends,
 their addon availability, and MCP registration/permission targets.
+
+`describe image-provenance-policy` emits
+`aibox.image-provenance-policy.v0-preview`, including the configured GHCR image
+tag or tag template, generated file paths, runtime version markers, selected
+addons, and the host-side release phase command template.
 
 ## Mutating Resources
 

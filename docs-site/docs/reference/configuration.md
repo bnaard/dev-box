@@ -105,6 +105,12 @@ backends, addon availability, and MCP registration/permission targets.
 cannot participate in MCP automation, have no permission projection, or conflict
 with the `headless-runner` profile.
 
+`aibox describe image-provenance-policy -o json` emits
+`aibox.image-provenance-policy.v0-preview`, which summarizes the configured
+GHCR image tag or tag template, generated Dockerfile/Compose files, runtime
+version markers, selected addons, and the host-side release phase command
+template.
+
 ### [container]
 
 Container configuration. Controls the generated `docker-compose.yml` and `Dockerfile`.

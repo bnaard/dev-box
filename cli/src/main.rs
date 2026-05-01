@@ -27,6 +27,7 @@ mod env;
 mod generate;
 mod harness_commands;
 mod hook_registration;
+mod image_provenance;
 mod integrity;
 #[allow(dead_code)]
 mod lock;
@@ -228,6 +229,9 @@ fn dispatch(cli: cli::Cli) -> anyhow::Result<()> {
                 addon_cmd::cmd_addon_info(&addon, format)
             }
             cli::DescribeResource::AddonCatalog => addon_cmd::cmd_addon_catalog(format),
+            cli::DescribeResource::ImageProvenancePolicy => {
+                image_provenance::cmd_image_provenance_policy(config_path, format)
+            }
             cli::DescribeResource::ProviderBackends => {
                 provider_backend::cmd_provider_backends(config_path, format)
             }
