@@ -1,5 +1,7 @@
 use std::process::Command;
 
+use serde_json::Value;
+
 /// Get the path to the built binary.
 fn aibox_bin() -> String {
     // Use the debug binary built by cargo test
@@ -30,6 +32,64 @@ fn run_in_dir(dir: &std::path::Path, args: &[&str]) -> std::process::Output {
         .env("AIBOX_ADDONS_DIR", addons_dir())
         .output()
         .expect("failed to execute aibox binary")
+}
+
+fn parse_json(output: &std::process::Output) -> Value {
+    assert!(
+        output.status.success(),
+        "command failed\nstatus: {}\nstderr:\n{}\nstdout:\n{}",
+        output.status,
+        String::from_utf8_lossy(&output.stderr),
+        String::from_utf8_lossy(&output.stdout)
+    );
+    serde_json::from_slice(&output.stdout).unwrap_or_else(|err| {
+        panic!(
+            "stdout should be JSON: {}\nstdout:\n{}\nstderr:\n{}",
+            err,
+            String::from_utf8_lossy(&output.stdout),
+            String::from_utf8_lossy(&output.stderr)
+        )
+    })
+}
+
+fn write_projection_fixture(dir: &std::path::Path) {
+    std::fs::write(
+        dir.join("aibox.toml"),
+        r#"[aibox]
+version = "0.22.0"
+base = "debian"
+profile = "headless-runner"
+
+[container]
+name = "projection-test"
+user = "agent"
+keepalive = true
+
+[context]
+packages = ["software", "managed"]
+
+[ai]
+harnesses = ["cursor", "codex"]
+model_providers = ["openai", "anthropic"]
+
+[addons.rust.tools]
+rustc = { version = "1.94" }
+clippy = {}
+
+[addons.python.tools]
+python = { version = "3.13" }
+uv = { version = "0.7" }
+
+[[mcp.servers]]
+name = "team-tool"
+command = "uv"
+args = ["run", "server.py"]
+
+[mcp.servers.env]
+TEAM_TOKEN = "secret-token"
+"#,
+    )
+    .unwrap();
 }
 
 #[test]
@@ -339,5 +399,161 @@ fn doctor_without_config_reports_errors() {
     assert!(
         stderr.contains("aibox.toml") || stderr.contains("Config"),
         "doctor should report missing config"
+    );
+}
+
+#[test]
+fn describe_addon_catalog_json_contract() {
+    let output = run(&["describe", "addon-catalog", "-o", "json"]);
+    let json = parse_json(&output);
+
+    assert_eq!(json["schema_version"], "aibox.addon-catalog.v0");
+    let addons = json["addons"]
+        .as_array()
+        .expect("addons should be an array");
+    assert!(!addons.is_empty(), "addon catalog should not be empty");
+
+    let python = addons
+        .iter()
+        .find(|addon| addon["name"] == "python")
+        .expect("catalog should include python addon");
+    assert_eq!(python["profile_intent"], "runtime");
+    assert_eq!(python["usage_class"], "automated");
+    assert!(
+        python["profiles"]
+            .as_array()
+            .expect("profiles should be an array")
+            .iter()
+            .any(|profile| profile == "headless-runner")
+    );
+    assert!(
+        python["tools"]
+            .as_array()
+            .expect("tools should be an array")
+            .iter()
+            .any(|tool| tool["name"] == "python")
+    );
+}
+
+#[test]
+fn describe_workspace_manifest_json_contract() {
+    let dir = tempfile::tempdir().unwrap();
+    write_projection_fixture(dir.path());
+
+    let output = run_in_dir(
+        dir.path(),
+        &["describe", "workspace-manifest", "-o", "json"],
+    );
+    let json = parse_json(&output);
+
+    assert_eq!(
+        json["schema_version"],
+        "aibox.workspace-manifest.v0-preview"
+    );
+    assert_eq!(json["project"]["name"], "projection-test");
+    assert_eq!(json["project"]["profile"], "headless-runner");
+    assert_eq!(
+        json["context"]["packages"],
+        serde_json::json!(["managed", "software"])
+    );
+    assert_eq!(
+        json["ai"]["harnesses"],
+        serde_json::json!(["codex", "cursor"])
+    );
+    assert_eq!(
+        json["addons"]
+            .as_array()
+            .expect("addons should be an array")
+            .iter()
+            .map(|addon| addon["name"].as_str().unwrap())
+            .collect::<Vec<_>>(),
+        vec!["ai-codex", "python", "rust"]
+    );
+
+    let server = &json["mcp"]["extra_servers"][0];
+    assert_eq!(server["name"], "team-tool");
+    assert_eq!(server["env_keys"], serde_json::json!(["TEAM_TOKEN"]));
+    assert!(
+        !serde_json::to_string(&json)
+            .unwrap()
+            .contains("secret-token"),
+        "workspace manifest must not expose MCP env values"
+    );
+}
+
+#[test]
+fn describe_provider_backends_json_contract() {
+    let dir = tempfile::tempdir().unwrap();
+    write_projection_fixture(dir.path());
+
+    let output = run_in_dir(dir.path(), &["describe", "provider-backends", "-o", "json"]);
+    let json = parse_json(&output);
+
+    assert_eq!(json["schema_version"], "aibox.provider-backends.v0-preview");
+    assert_eq!(
+        json["selected_backends"],
+        serde_json::json!(["codex", "cursor"])
+    );
+
+    let backends = json["backends"]
+        .as_array()
+        .expect("backends should be an array");
+    let codex = backends
+        .iter()
+        .find(|backend| backend["name"] == "codex")
+        .expect("codex backend should be present");
+    assert_eq!(codex["selected"], true);
+    assert_eq!(codex["mcp_config_target"], ".codex/config.toml");
+    assert_eq!(codex["permission_target"], ".codex/config.toml");
+
+    let cursor = backends
+        .iter()
+        .find(|backend| backend["name"] == "cursor")
+        .expect("cursor backend should be present");
+    assert_eq!(cursor["selected"], true);
+    assert_eq!(cursor["container_cli"], false);
+    assert_eq!(cursor["addon_name"], Value::Null);
+    assert_eq!(cursor["mcp_config_target"], ".cursor/mcp.json");
+}
+
+#[test]
+fn describe_image_provenance_policy_json_contract() {
+    let dir = tempfile::tempdir().unwrap();
+    write_projection_fixture(dir.path());
+
+    let output = run_in_dir(
+        dir.path(),
+        &["describe", "image-provenance-policy", "-o", "json"],
+    );
+    let json = parse_json(&output);
+
+    assert_eq!(
+        json["schema_version"],
+        "aibox.image-provenance-policy.v0-preview"
+    );
+    assert_eq!(json["image"]["registry"], "ghcr.io/projectious-work/aibox");
+    assert_eq!(json["image"]["flavor"], "base-debian");
+    assert_eq!(json["image"]["tag"], "base-debian-v0.22.0");
+    assert_eq!(json["image"]["tag_template"], "base-debian-v{version}");
+    assert_eq!(
+        json["generated_files"]["dockerfile"],
+        ".devcontainer/Dockerfile"
+    );
+    assert_eq!(
+        json["generated_files"]["compose_file"],
+        ".devcontainer/docker-compose.yml"
+    );
+    assert_eq!(json["runtime_markers"]["docker_label"], "aibox.version");
+    assert_eq!(
+        json["runtime_markers"]["version_file"],
+        "/etc/aibox-version"
+    );
+    assert_eq!(
+        json["selected_addons"],
+        serde_json::json!(["ai-codex", "python", "rust"])
+    );
+    assert_eq!(
+        json["release_phase"]["host_command_template"],
+        "./scripts/maintain.sh release-host {version}"
     );
 }

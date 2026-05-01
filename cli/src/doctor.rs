@@ -175,6 +175,11 @@ pub fn cmd_doctor(config_path: &Option<String>) -> Result<()> {
     output::info("Checking provider backend metadata...");
     check_provider_backend_metadata(&config, &mut diag);
 
+    // 6g. Draft LivelyMoss image provenance policy checks. Warning-only until
+    // processkit publishes the canonical image-provenance-policy schema.
+    output::info("Checking image provenance policy...");
+    check_image_provenance_policy(&config, &mut diag);
+
     // 7. Security audit tools
     crate::audit::doctor_check_audit_tools();
 
@@ -341,6 +346,19 @@ fn check_provider_backend_metadata(config: &AiboxConfig, diag: &mut DiagResult) 
     );
     if warnings.is_empty() {
         output::ok("Provider backend metadata is compatible");
+    } else {
+        for warning in warnings {
+            output::warn(&warning);
+            diag.warnings += 1;
+        }
+    }
+}
+
+fn check_image_provenance_policy(config: &AiboxConfig, diag: &mut DiagResult) {
+    let project_root = std::path::Path::new(".");
+    let warnings = crate::image_provenance::image_provenance_warnings(config, project_root);
+    if warnings.is_empty() {
+        output::ok("Image provenance policy is compatible");
     } else {
         for warning in warnings {
             output::warn(&warning);

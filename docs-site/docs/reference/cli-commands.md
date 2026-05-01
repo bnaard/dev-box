@@ -120,19 +120,20 @@ aibox describe env
 aibox get kit
 ```
 
-`describe workspace-manifest` emits the read-only
-`aibox.workspace-manifest.v0-preview` projection of the current `aibox.toml`.
-It is intended for automation while the canonical processkit Artifact schema is
-still upstream-owned.
+### Preview projections
 
-`describe provider-backends` emits the local
-`aibox.provider-backends.v0-preview` index of supported AI harness backends,
-their addon availability, and MCP registration/permission targets.
+These `describe` resources are stable enough for local automation, but remain
+`aibox.*.v0-preview` until processkit publishes the canonical Artifact schemas.
 
-`describe image-provenance-policy` emits
-`aibox.image-provenance-policy.v0-preview`, including the configured GHCR image
-tag or tag template, generated file paths, runtime version markers, selected
-addons, and the host-side release phase command template.
+| Command | Schema | Contents |
+|---------|--------|----------|
+| `describe addon-catalog` | `aibox.addon-catalog.v0` | Built-in addon metadata, profile intent, automation usage class, dependencies, and tool versions |
+| `describe workspace-manifest` | `aibox.workspace-manifest.v0-preview` | Sorted projection of `aibox.toml`: project, processkit source, context packages, AI harnesses, addons, and MCP server keys |
+| `describe provider-backends` | `aibox.provider-backends.v0-preview` | Supported AI harness backends, selected status, addon availability, MCP config targets, and permission targets |
+| `describe image-provenance-policy` | `aibox.image-provenance-policy.v0-preview` | GHCR image tag or tag template, generated file paths, runtime version markers, selected addons, and release phase commands |
+
+The preview projections do not create processkit entities and should not be
+treated as canonical processkit Artifacts yet.
 
 ## Mutating Resources
 
