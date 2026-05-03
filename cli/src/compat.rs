@@ -225,6 +225,11 @@ pub static COMPAT_TABLE: &[CompatEntry] = &[
         processkit_version: "v0.25.0",
         note: "Patch release: fixes stale runtime cleanup when old same-name containers belong to a previous Compose project, refuses to attach to mismatched Compose-project containers, honors explicit addon tool disablement for lazygit, and adds procps to the base image for runtime process diagnostics.",
     },
+    CompatEntry {
+        aibox_version: "0.23.2",
+        processkit_version: "v0.25.1",
+        note: "Patch release: integrates processkit v0.25.1 model-recommender updates: lifecycle metadata for model roster entries, 42 task suitability classes, task-class-aware query_models/resolve_model routing, list_task_classes(), and refreshed current-market model entries. FORMAT.md unchanged; processkit vocabulary unchanged apart from PROCESSKIT_DEFAULT_VERSION.",
+    },
 ];
 
 /// Find the minimum compatible processkit version for the given aibox version.

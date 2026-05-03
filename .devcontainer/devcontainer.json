@@ -34,7 +34,7 @@
     "docker-compose.override.yml"
   ],
   "name": "aibox",
-  "overrideCommand": true,
+  "overrideCommand": false,
   "portsAttributes": {
     "4714": {
       "onAutoForward": "ignore"

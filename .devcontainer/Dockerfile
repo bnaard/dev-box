@@ -61,9 +61,24 @@ USER aibox
 RUN curl -fsSL https://claude.ai/install.sh | bash
 USER root
 
-# WARNING: unknown addon 'audio-voice' — skipped
+# Addon: audio-voice — PulseAudio/Sox support for interactive voice tools.
+USER root
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    sox \
+    libsox-fmt-pulse \
+    pulseaudio-utils \
+    libasound2-plugins \
+    && rm -rf /var/lib/apt/lists/*
 
-# WARNING: unknown addon 'git-ui' — skipped
+# Addon: git-ui — GitHub CLI and lazygit
+USER root
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    gh \
+    && rm -rf /var/lib/apt/lists/*
+# Older base images shipped lazygit in the base layer. Treat explicit
+# lazygit disablement as an absence contract, not just "do not install".
+RUN apt-get purge -y --auto-remove lazygit && rm -rf /var/lib/apt/lists/*
+
 
 # Addon: node (runtime)
 RUN apt-get update && apt-get install -y --no-install-recommends ca-certificates curl gpg && \
@@ -146,7 +161,7 @@ USER root
 #
 # Repo-only devcontainer layers. These are for developing aibox itself and are
 # not shipped in downstream images.
-RUN apt-get update && apt-get install -y --no-install-recommends     asciinema     bubblewrap     libc6-dev     openssh-client     procps     && rm -rf /var/lib/apt/lists/*
+RUN apt-get update && apt-get install -y --no-install-recommends     asciinema     bubblewrap     gh     libc6-dev     openssh-client     procps     && rm -rf /var/lib/apt/lists/*
 
 RUN cat <<'EOF' >> /home/aibox/.bashrc
 # Repo-local fallback: ensure Rustup shims are on PATH in interactive shells.

@@ -380,4 +380,4 @@ When an AI agent is working inside a project that uses aibox:
 
 ---
 
-<sub>Scaffolded by processkit `v0.25.0` on `2026-05-02`. Re-rendered on each installer sync.</sub>
+<sub>Scaffolded by processkit `v0.25.1` on `2026-05-03`. Re-rendered on each installer sync.</sub>

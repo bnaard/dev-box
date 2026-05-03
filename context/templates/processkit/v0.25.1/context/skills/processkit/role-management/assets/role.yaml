@@ -1,0 +1,14 @@
+---
+apiVersion: processkit.projectious.work/v2
+kind: Role
+metadata:
+  id: ROLE-TODO
+  created: TODO
+spec:
+  name: TODO
+  description: TODO
+  responsibilities:
+  - TODO
+  skills_required: []
+  default_scope: project
+---
