@@ -200,7 +200,10 @@ pub fn run_runtime_sync(
 }
 
 fn ensure_live_runtime_file_permissions(rel_path: &str, target: &Path) -> Result<()> {
-    if rel_path == ".local/bin/pdf-watch" || rel_path == ".local/bin/aibox-status" {
+    if rel_path == ".local/bin/pdf-watch"
+        || rel_path == ".local/bin/aibox-status"
+        || rel_path == ".local/bin/aibox-status-toggle"
+    {
         ensure_executable(target)?;
     }
     Ok(())

@@ -12,11 +12,13 @@ fullscreen **git** tab is generated only when the `git-ui` addon selects
 `lazygit`, so tab numbering shifts when that optional tab is omitted.
 
 Every generated layout also includes a thin bottom status line. It shows the
-normal Zellij mode/keybinding bar plus an `aibox-status` line with cgroup
-memory usage, OOM-kill count, total process count, and processkit MCP Python
-process count. The status helper refreshes every five seconds by default; set
+normal Zellij mode/keybinding bar plus an `aibox-status` line grouped as memory,
+CPU pressure, processes, filesystem, uptime, and project state. Press
+`Ctrl+g`, then `v`, to show or hide the `aibox-status` line for the active tab.
+The status helper refreshes every five seconds by default; set
 `AIBOX_STATUS_INTERVAL` in `[container.environment]` to adjust the refresh
-interval.
+interval. Set `AIBOX_STATUS_STYLE = "plain"` or `NO_COLOR=1` for unstyled
+output.
 
 ## Available Layouts
 

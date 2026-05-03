@@ -60,6 +60,29 @@ fn run_in_with_mock(
         .expect("failed to execute aibox")
 }
 
+fn run_in_with_mock_project(
+    dir: &std::path::Path,
+    args: &[&str],
+    mock: &super::mock_runtime::MockRuntime,
+    mock_state: &str,
+    mock_version: &str,
+    mock_project: &str,
+    mock_project_containers: &str,
+) -> std::process::Output {
+    Command::new(aibox_bin())
+        .args(args)
+        .current_dir(dir)
+        .env("AIBOX_ADDONS_DIR", addons_dir())
+        .env("PATH", mock.path_env())
+        .env("MOCK_LOG_FILE", mock.log_file_str())
+        .env("MOCK_CONTAINER_STATE", mock_state)
+        .env("MOCK_CONTAINER_VERSION", mock_version)
+        .env("MOCK_CONTAINER_PROJECT", mock_project)
+        .env("MOCK_PROJECT_CONTAINERS", mock_project_containers)
+        .output()
+        .expect("failed to execute aibox")
+}
+
 fn init_project(dir: &std::path::Path, name: &str) {
     let output = run_in(
         dir,
@@ -79,6 +102,34 @@ fn init_project(dir: &std::path::Path, name: &str) {
         "init failed: {}",
         String::from_utf8_lossy(&output.stderr)
     );
+}
+
+#[test]
+fn delete_runtime_removes_stale_compose_project_sidecars() {
+    let dir = tempfile::tempdir().unwrap();
+    init_project(dir.path(), "aibox");
+
+    let mock = super::mock_runtime::MockRuntime::new();
+    let output = run_in_with_mock_project(
+        dir.path(),
+        &["delete", "runtime"],
+        &mock,
+        "running",
+        env!("CARGO_PKG_VERSION"),
+        "old-aibox-project",
+        "aibox\naibox-e2e-companion",
+    );
+
+    assert!(
+        output.status.success(),
+        "delete runtime should succeed: {}{}",
+        String::from_utf8_lossy(&output.stdout),
+        String::from_utf8_lossy(&output.stderr)
+    );
+
+    mock.assert_invoked("ps -a --filter label=com.docker.compose.project=old-aibox-project");
+    mock.assert_invoked("rm -f aibox");
+    mock.assert_invoked("rm -f aibox-e2e-companion");
 }
 
 // ─── Tests 1 & 2: Dockerfile template renders version metadata ───────────────

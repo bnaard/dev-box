@@ -675,23 +675,60 @@ pub fn cmd_stop(config_path: &Option<String>) -> Result<()> {
 }
 
 pub fn cmd_remove(config_path: &Option<String>) -> Result<()> {
+    use std::collections::BTreeSet;
+
     let config = AiboxConfig::from_cli_option(config_path)?;
     let runtime = Runtime::detect()?;
     let name = &config.container.name;
 
+    let expected_project = crate::generate::sanitize_compose_project_name(name);
+    let mut compose_projects = BTreeSet::new();
+    compose_projects.insert(expected_project);
+
     let state = runtime.container_status(name)?;
-    if state == ContainerState::Missing {
-        output::info("No container found");
+    if state != ContainerState::Missing
+        && let Ok(Some(actual_project)) = runtime.get_container_compose_project(name)
+    {
+        compose_projects.insert(actual_project);
+    }
+
+    let mut initial_project_containers = BTreeSet::new();
+    for project in &compose_projects {
+        for container in runtime.list_containers_by_compose_project(project)? {
+            initial_project_containers.insert(container);
+        }
+    }
+
+    if state == ContainerState::Missing && initial_project_containers.is_empty() {
+        output::info("No runtime containers found");
         return Ok(());
     }
 
-    output::info("Stopping and removing container...");
+    output::info("Stopping and removing runtime containers...");
     runtime.compose_down(crate::config::COMPOSE_FILE)?;
-    if runtime.container_status(name)? != ContainerState::Missing {
-        output::info("Removing stale same-name container outside current compose project...");
-        runtime.remove_container_by_name(name)?;
+
+    let mut removed = BTreeSet::new();
+    for project in &compose_projects {
+        let containers = runtime.list_containers_by_compose_project(project)?;
+        if !containers.is_empty() {
+            output::info(&format!(
+                "Removing remaining containers in compose project '{}'...",
+                project
+            ));
+        }
+        for container in containers {
+            runtime.remove_container_by_name(&container)?;
+            removed.insert(container);
+        }
     }
-    output::ok(&format!("Container '{}' removed", name));
+
+    if runtime.container_status(name)? != ContainerState::Missing {
+        if !removed.contains(name) {
+            output::info("Removing stale same-name container outside current compose project...");
+            runtime.remove_container_by_name(name)?;
+        }
+    }
+    output::ok(&format!("Runtime containers for '{}' removed", name));
 
     Ok(())
 }

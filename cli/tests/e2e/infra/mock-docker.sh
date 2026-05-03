@@ -11,6 +11,7 @@
 #   MOCK_CONTAINER_STATE   — State to return for status inspect (default: "running")
 #   MOCK_CONTAINER_VERSION — Value to return for aibox.version label inspect (default: "")
 #   MOCK_CONTAINER_PROJECT — Value to return for compose project label inspect (default: "")
+#   MOCK_PROJECT_CONTAINERS — Newline-delimited container names returned by ps
 # =============================================================================
 
 set -euo pipefail
@@ -74,6 +75,12 @@ case "${1:-}" in
         fi
         exit 0
         ;;
+    ps)
+        if [[ -n "${MOCK_PROJECT_CONTAINERS:-}" ]]; then
+            printf '%s\n' "${MOCK_PROJECT_CONTAINERS}"
+        fi
+        exit 0
+        ;;
     compose)
         shift
         case "${1:-}" in
@@ -101,6 +108,14 @@ case "${1:-}" in
         ;;
     exec)
         echo "mock-docker: exec (noop)"
+        exit 0
+        ;;
+    rm)
+        echo "mock-docker: rm completed"
+        exit 0
+        ;;
+    stop)
+        echo "mock-docker: stop completed"
         exit 0
         ;;
     *)

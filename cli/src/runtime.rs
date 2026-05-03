@@ -122,6 +122,40 @@ impl Runtime {
         }
     }
 
+    /// List all containers, including stopped ones, that belong to a Compose
+    /// project label.
+    pub fn list_containers_by_compose_project(&self, project: &str) -> Result<Vec<String>> {
+        if project.trim().is_empty() {
+            return Ok(vec![]);
+        }
+
+        let label_filter = format!("label=com.docker.compose.project={project}");
+        let output = Command::new(&self.runtime_bin)
+            .args([
+                "ps",
+                "-a",
+                "--filter",
+                &label_filter,
+                "--format",
+                "{{.Names}}",
+            ])
+            .output()
+            .with_context(|| format!("Failed to list containers for compose project {project}"))?;
+
+        if !output.status.success() {
+            bail!(
+                "Failed to list containers for compose project '{}'",
+                project
+            );
+        }
+
+        Ok(String::from_utf8_lossy(&output.stdout)
+            .lines()
+            .map(|line| line.trim().trim_start_matches('/').to_string())
+            .filter(|line| !line.is_empty())
+            .collect())
+    }
+
     /// Get the container state by inspecting it directly.
     pub fn container_status(&self, name: &str) -> Result<ContainerState> {
         let output = Command::new(&self.runtime_bin)

@@ -47,8 +47,8 @@ RUN install -d /usr/local/bin && \
 # rustup can freely download components (no directory or permission issues).
 RUN rustup target add x86_64-unknown-linux-gnu
 
-FROM ghcr.io/projectious-work/aibox:base-debian-v0.23.0 AS aibox
-LABEL aibox.version="0.23.0"
+FROM ghcr.io/projectious-work/aibox:base-debian-v0.23.1 AS aibox
+LABEL aibox.version="0.23.1"
 LABEL aibox.profile="human-dev"
 
 # Addon: ai-claude
@@ -146,7 +146,7 @@ USER root
 #
 # Repo-only devcontainer layers. These are for developing aibox itself and are
 # not shipped in downstream images.
-RUN apt-get update && apt-get install -y --no-install-recommends     asciinema     bubblewrap     libc6-dev     openssh-client     && rm -rf /var/lib/apt/lists/*
+RUN apt-get update && apt-get install -y --no-install-recommends     asciinema     bubblewrap     libc6-dev     openssh-client     procps     && rm -rf /var/lib/apt/lists/*
 
 RUN cat <<'EOF' >> /home/aibox/.bashrc
 # Repo-local fallback: ensure Rustup shims are on PATH in interactive shells.
@@ -157,4 +157,4 @@ EOF
 
 # Record image version inside container for runtime checks
 USER root
-RUN echo "0.23.0" > /etc/aibox-version
+RUN echo "0.23.1" > /etc/aibox-version
