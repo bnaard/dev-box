@@ -4,6 +4,10 @@ layout {
         pane size=1 borderless=true {
             plugin location="zellij:status-bar"
         }
+        pane size=1 borderless=true {
+            command "bash"
+            args "-lc" "if [ -x \"$HOME/.local/bin/aibox-status\" ]; then exec \"$HOME/.local/bin/aibox-status\" --watch; else exec aibox-status --watch; fi"
+        }
     }
     tab name="browse" focus=true {
         pane split_direction="horizontal" {
@@ -13,36 +17,34 @@ layout {
                 cwd "/workspace"
             }
             pane size="40%" {
-        pane stacked=true {
-        pane name="claude" {
-            command "claude"
-            cwd "/workspace"
-        }
         pane name="codex" {
             command "codex"
             cwd "/workspace"
         }
-        }
             }
         }
     }
+
     tab name="editor" {
         pane name="vim" {
             command "bash"
             args "-c" "AIBOX_EDITOR_DIR=tab exec vim-loop"
             cwd "/workspace"
+            start_suspended true
         }
     }
     tab name="git" {
         pane name="lazygit" {
             command "lazygit"
             cwd "/workspace"
+            start_suspended true
         }
     }
     tab name="shell" {
         pane name="bash" {
             command "bash"
             cwd "/workspace"
+            start_suspended true
         }
     }
 }

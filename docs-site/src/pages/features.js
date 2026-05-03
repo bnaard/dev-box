@@ -7,23 +7,26 @@ export default function Features() {
       <div className="container margin-vert--lg">
         <h1>Features</h1>
 
-        <h2>Single Base Image + Add-ons</h2>
-        <p>One base-debian image provides the foundation. Everything else — Python, Rust, Node, LaTeX, Kubernetes tools — is a declarative add-on with per-tool version selection.</p>
+        <h2>Single Project Contract</h2>
+        <p><code>aibox.toml</code> is the source of truth for the workspace: base image, container identity, addons, AI harnesses, theme, layout, runtime thresholds, and processkit source/version.</p>
 
-        <h2>5 Process Packages</h2>
-        <p>minimal, managed, software, research, product — composable tiers that install the right skill set for your project type. Select in aibox.toml; switch any time with aibox sync.</p>
+        <h2>Standard Devcontainer Output</h2>
+        <p>aibox generates Dockerfile, Compose, override, and devcontainer JSON files. The output is managed, but it remains readable and compatible with Docker, Podman, OrbStack, and VS Code Dev Containers.</p>
 
-        <h2>Curated AI Skills via processkit</h2>
-        <p>Skills follow the open SKILL.md standard with progressive disclosure: trigger conditions, structured instructions, and real examples. The skill catalogue is owned and versioned by <a href="https://github.com/projectious-work/processkit">processkit</a>; aibox handles installation and sync.</p>
+        <h2>Composable Addons</h2>
+        <p>Language runtimes, AI CLIs, git tools, preview utilities, documentation frameworks, and infrastructure tools are selected through addons instead of being forced into every running container.</p>
 
-        <h2>7 Color Themes</h2>
-        <p>Gruvbox Dark, Catppuccin Mocha, Catppuccin Latte, Dracula, Tokyo Night, Nord, and Projectious — applied consistently across Zellij, Vim, Yazi, lazygit, and Starship.</p>
+        <h2>processkit Context Integration</h2>
+        <p>processkit owns skills, processes, schemas, state machines, packages, and the canonical AGENTS.md template. aibox pins, installs, and updates that content under <code>context/</code>.</p>
 
-        <h2>Declarative Configuration</h2>
-        <p>One aibox.toml controls everything: base image, add-ons with versions, process packages, skill selection, themes, and AI providers. Run aibox sync to reconcile.</p>
+        <h2>Provider-Neutral AI Harnesses</h2>
+        <p>Claude Code, Codex/OpenAI, Aider, Gemini, Mistral, GitHub Copilot, Continue, Cursor registration, and related MCP configuration are selected declaratively. Provider-specific files stay thin.</p>
+
+        <h2>Runtime Operations</h2>
+        <p><code>aibox get runtime --resources</code> and <code>aibox doctor</code> report memory pressure, OOM kill counters, process counts, generated Compose posture, and selected runtime settings.</p>
 
         <h2>Migration System</h2>
-        <p>When aibox updates, migration documents are auto-generated with safety headers, action items, and verification checklists. Your AI agent picks them up at session start.</p>
+        <p>When generated content changes, aibox preserves local edits, keeps upstream snapshots, and emits migration documents for changes that need human or agent review.</p>
       </div>
     </Layout>
   );

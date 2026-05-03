@@ -4,6 +4,7 @@ description: "Google Cloud SDK (gcloud)"
 profile_intent: runtime
 usage_class: automated
 profiles: ["human-dev", "headless-runner"]
+exported_surfaces: ["cli-binary", "config-files"]
 builder_weight: null
 
 tools:

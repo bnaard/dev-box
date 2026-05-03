@@ -4,6 +4,7 @@ description: "SQLite and tabular data preview tools for Yazi"
 profile_intent: preview-media
 usage_class: automated
 profiles: ["human-dev"]
+exported_surfaces: ["previewer", "cli-binary", "config-files"]
 builder_weight: "light"
 
 tools:

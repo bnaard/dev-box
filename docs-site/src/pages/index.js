@@ -2,23 +2,33 @@ import React from 'react';
 import clsx from 'clsx';
 import Link from '@docusaurus/Link';
 import useDocusaurusContext from '@docusaurus/useDocusaurusContext';
+import useBaseUrl from '@docusaurus/useBaseUrl';
 import Layout from '@theme/Layout';
 import styles from './index.module.css';
 
 function Hero() {
   const {siteConfig} = useDocusaurusContext();
+  const heroImage = useBaseUrl('/img/readme-dev-layout.gif');
   return (
-    <header className={clsx('hero hero--primary', styles.heroBanner)}>
-      <div className="container">
+    <header
+      className={clsx('hero hero--primary', styles.heroBanner)}
+      style={{
+        backgroundImage: `linear-gradient(90deg, rgba(10, 10, 12, 0.92) 0%, rgba(10, 10, 12, 0.72) 48%, rgba(10, 10, 12, 0.35) 100%), url('${heroImage}')`,
+      }}>
+      <div className={clsx('container', styles.heroContent)}>
         <h1 className="hero__title">{siteConfig.title}</h1>
         <p className="hero__subtitle">{siteConfig.tagline}</p>
         <p className={styles.heroDescription}>
-          One CLI to scaffold reproducible, containerized dev environments with
-          built-in AI context, curated skills, and structured work processes.
+          Generate standard devcontainer files, selected tool addons,
+          provider-neutral agent context, and a terminal workspace from one
+          project contract.
         </p>
         <div className={styles.buttons}>
           <Link className="button button--secondary button--lg" to="/docs/getting-started/installation">
-            Get Started →
+            Get Started
+          </Link>
+          <Link className="button button--outline button--secondary button--lg" to="/docs/overview">
+            Read Overview
           </Link>
         </div>
       </div>
@@ -28,20 +38,20 @@ function Hero() {
 
 const features = [
   {
-    title: 'One Command Setup',
-    description: 'From zero to a fully configured dev environment with aibox init. Container, AI context, skills, and theming — all scaffolded.',
+    title: 'Declarative workspaces',
+    description: 'aibox.toml declares container identity, addons, AI harnesses, theme, layout, and processkit source/version.',
   },
   {
-    title: '5 Process Packages',
-    description: 'minimal, managed, software, research, product — pick the one that fits your project and get the right set of agent skills installed automatically.',
+    title: 'Standard devcontainer output',
+    description: 'Generated Dockerfile, Compose, override, and devcontainer files stay inspectable and compatible with common runtimes.',
   },
   {
-    title: 'Curated Skills via processkit',
-    description: 'Vetted AI agent skills following the open SKILL.md standard — handcrafted with examples and reference files, managed by processkit and installed by aibox.',
+    title: 'Provider-neutral context',
+    description: 'processkit content lands under context/ with AGENTS.md as the canonical entry point and provider files as thin pointers.',
   },
   {
-    title: '25 Add-ons',
-    description: 'Python, Rust, Node, Go, LaTeX, Kubernetes, cloud providers, docs frameworks, and more — each with per-tool version selection from curated lists.',
+    title: 'Runtime visibility',
+    description: 'Doctor checks and resource snapshots expose memory pressure, process counts, and OOM signals before failures become opaque.',
   },
 ];
 
@@ -74,8 +84,10 @@ function QuickStart() {
       <div className="container">
         <h2>Quick Start</h2>
         <pre><code>{`curl -fsSL https://raw.githubusercontent.com/projectious-work/aibox/main/scripts/install.sh | bash
-aibox init --name my-project
-aibox sync && aibox start`}</code></pre>
+mkdir my-project && cd my-project
+aibox init my-project --context managed --harness claude --addon python
+aibox apply
+aibox up`}</code></pre>
       </div>
     </section>
   );

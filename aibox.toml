@@ -74,6 +74,13 @@ claude = {}
 [addons.docs-docusaurus.tools]
 docusaurus = { version = "3.8" }
 
+# GitHub CLI and lazygit interactive Git UI
+# gh: pin with gh = { version = "x.y.z" }
+# lazygit: pin with lazygit = { version = "x.y.z" }
+[addons.git-ui.tools]
+gh = {}
+lazygit = {}
+
 # Node.js runtime with pnpm, yarn, or bun
 # node: 20 | 22 (default)
 # pnpm: 9 | 10 (default)
@@ -129,7 +136,7 @@ rustfmt = {}
 # Google       google         GEMINI_API_KEY
 # Mistral      mistral        MISTRAL_API_KEY
 [ai]
-harnesses = ["claude", "codex"]
+harnesses = ["codex"]
 # model_providers = ["anthropic", "openai"]  # optional: which API keys you have
 
 # =============================================================================
@@ -145,7 +152,7 @@ harnesses = ["claude", "codex"]
 #   "latest" — resolve to the newest available tag at every `aibox sync`.
 [processkit]
 source   = "https://github.com/projectious-work/processkit.git"
-version  = "v0.24.0"
+version  = "v0.25.0"
 src_path = "src"
 # branch = "main"   # optional — for tracking a moving branch (discouraged)
 #
@@ -154,6 +161,19 @@ src_path = "src"
 #   {source}/releases/download/{version}/{name}-{version}.tar.gz
 # Placeholders: {source} (.git stripped), {version}, {org}, {name}.
 # release_asset_url_template = "https://gitea.example.com/{org}/{name}/releases/download/{version}/payload.tar.gz"
+
+# =============================================================================
+# [mcp] — MCP server registration and permissions
+# =============================================================================
+# processkit v0.25.0 ships a provider-neutral gateway that can replace the old
+# one-process-per-skill MCP topology. `auto` uses the gateway when installed and
+# falls back to granular per-skill servers for older processkit versions.
+[mcp.gateway]
+mode = "auto"          # auto | granular | stdio | daemon-proxy
+lazy_catalog = false
+host = "127.0.0.1"
+port = 8765
+path = "/mcp"
 
 # =============================================================================
 # [agents] — canonical AGENTS.md + provider-specific entry files

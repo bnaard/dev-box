@@ -85,7 +85,7 @@ Quick summary: `./scripts/maintain.sh release X.Y.Z` (in container) then
 | `cli/src/cli.rs` | clap derive-based arg parsing |
 | `cli/src/config.rs` | `aibox.toml` deserialization (serde + toml) |
 | `cli/src/generate.rs` | Dockerfile / compose / devcontainer.json generation |
-| `cli/src/container.rs` | `init` / `start` / `stop` / `sync` / `status` |
+| `cli/src/container.rs` | `up` / `down` / runtime lifecycle helpers |
 | `cli/src/content_source.rs` | processkit release-asset fetcher with fallback strategies |
 | `cli/src/content_install.rs` | Install map — where each processkit file lands |
 | `cli/src/content_init.rs` | `install_content_source` orchestration; templates mirror |
@@ -95,6 +95,7 @@ Quick summary: `./scripts/maintain.sh release X.Y.Z` (in container) then
 | `cli/src/addon_loader.rs` | YAML addon loading and template context building |
 | `cli/src/seed.rs` | `.aibox-home/` runtime config seed |
 | `cli/src/doctor.rs` | Diagnostic checks |
+| `cli/src/runtime_resources.rs` | cgroup/procfs runtime resource snapshots |
 | `cli/src/context.rs` | Project skeleton scaffolding, gitignore, provider thin pointers |
 
 **Rule:** Never hardcode processkit path strings, filenames, or vocabulary in production

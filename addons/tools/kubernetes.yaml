@@ -4,6 +4,7 @@ description: "kubectl, Helm, Kustomize, k9s"
 profile_intent: runtime
 usage_class: automated
 profiles: ["human-dev", "headless-runner"]
+exported_surfaces: ["cli-binary", "config-files"]
 builder_weight: "medium"
 
 skills:

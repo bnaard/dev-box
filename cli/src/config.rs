@@ -150,6 +150,9 @@ pub struct ContainerSection {
     /// ```
     #[serde(default)]
     pub extra_volumes: Vec<ExtraVolume>,
+    /// Runtime resource warning thresholds used by `aibox doctor`.
+    #[serde(default)]
+    pub resource_thresholds: ResourceThresholdsSection,
 }
 
 fn default_user() -> String {
@@ -158,6 +161,49 @@ fn default_user() -> String {
 
 fn default_hostname() -> String {
     "aibox".to_string()
+}
+
+/// Runtime resource pressure warning thresholds.
+///
+/// These are intentionally warnings only. They help surface pressure before the
+/// operating system kills processes, but they must not block normal workflows.
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+pub struct ResourceThresholdsSection {
+    /// Warn when current cgroup memory usage exceeds this many MiB.
+    #[serde(default)]
+    pub memory_mib_warn: Option<u64>,
+    /// Warn when total process count exceeds this number.
+    #[serde(default = "default_process_count_warn")]
+    pub process_count_warn: Option<usize>,
+    /// Warn when processkit MCP Python process count exceeds this number.
+    #[serde(default = "default_processkit_mcp_python_warn")]
+    pub processkit_mcp_python_warn: Option<usize>,
+    /// Warn when cgroup `oom_kill` exceeds this count.
+    #[serde(default = "default_oom_kill_warn")]
+    pub oom_kill_warn: Option<u64>,
+}
+
+impl Default for ResourceThresholdsSection {
+    fn default() -> Self {
+        Self {
+            memory_mib_warn: None,
+            process_count_warn: default_process_count_warn(),
+            processkit_mcp_python_warn: default_processkit_mcp_python_warn(),
+            oom_kill_warn: default_oom_kill_warn(),
+        }
+    }
+}
+
+fn default_process_count_warn() -> Option<usize> {
+    Some(400)
+}
+
+fn default_processkit_mcp_python_warn() -> Option<usize> {
+    Some(50)
+}
+
+fn default_oom_kill_warn() -> Option<u64> {
+    Some(0)
 }
 
 // ---------------------------------------------------------------------------
@@ -900,10 +946,82 @@ pub struct McpSection {
     #[serde(default)]
     pub servers: Vec<ExtraMcpServer>,
 
+    /// processkit MCP gateway selection. `auto` uses the gateway when the
+    /// installed processkit release ships it and falls back to per-skill MCP
+    /// servers otherwise.
+    #[serde(default)]
+    pub gateway: McpGatewaySection,
+
     /// MCP permissions configuration: global allow/deny patterns and per-harness overrides.
     /// Controls which MCP tools are available to each harness via allow/deny lists.
     #[serde(default)]
     pub permissions: crate::mcp_registration::McpConfig,
+}
+
+/// Gateway mode for processkit-managed MCP servers.
+#[derive(Debug, Clone, Copy, Default, Serialize, Deserialize, PartialEq, Eq)]
+#[serde(rename_all = "kebab-case")]
+pub enum McpGatewayMode {
+    /// Prefer processkit-gateway when available, otherwise use granular servers.
+    #[default]
+    Auto,
+    /// Always write one server per processkit skill.
+    Granular,
+    /// Spawn processkit-gateway directly as a stdio MCP server per harness.
+    Stdio,
+    /// Use a managed local HTTP daemon plus one stdio proxy per harness.
+    DaemonProxy,
+}
+
+/// `[mcp.gateway]` controls how aibox exposes processkit MCP tools to
+/// harnesses. It applies only to processkit-managed servers; team and local
+/// MCP servers remain independent entries.
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+pub struct McpGatewaySection {
+    #[serde(default)]
+    pub mode: McpGatewayMode,
+    #[serde(default)]
+    pub lazy_catalog: bool,
+    #[serde(default = "default_mcp_gateway_host")]
+    pub host: String,
+    #[serde(default = "default_mcp_gateway_port")]
+    pub port: u16,
+    #[serde(default = "default_mcp_gateway_path")]
+    pub path: String,
+}
+
+impl Default for McpGatewaySection {
+    fn default() -> Self {
+        Self {
+            mode: McpGatewayMode::Auto,
+            lazy_catalog: false,
+            host: default_mcp_gateway_host(),
+            port: default_mcp_gateway_port(),
+            path: default_mcp_gateway_path(),
+        }
+    }
+}
+
+impl McpGatewaySection {
+    pub fn requires_daemon(&self) -> bool {
+        self.mode == McpGatewayMode::DaemonProxy
+    }
+
+    pub fn url(&self) -> String {
+        format!("http://{}:{}{}", self.host, self.port, self.path)
+    }
+}
+
+fn default_mcp_gateway_host() -> String {
+    "127.0.0.1".to_string()
+}
+
+fn default_mcp_gateway_port() -> u16 {
+    8765
+}
+
+fn default_mcp_gateway_path() -> String {
+    "/mcp".to_string()
 }
 
 impl Default for ProcessKitSection {
@@ -1316,6 +1434,10 @@ impl AiboxConfig {
         // Validate [processkit]
         self.validate_processkit()?;
 
+        // Validate processkit gateway runtime exposure stays local. The
+        // daemon is a developer-workstation helper, not a network service.
+        self.validate_mcp_gateway()?;
+
         // Validate extra volumes path safety
         self.validate_extra_volumes()?;
 
@@ -1390,8 +1512,25 @@ impl AiboxConfig {
         Ok(())
     }
 
-    /// Resolve `[ai].providers` into addon entries so the addon pipeline
-    /// handles AI tool installation. Called before `validate()` during load.
+    fn validate_mcp_gateway(&self) -> Result<()> {
+        let gateway = &self.mcp.gateway;
+        if gateway.host != "127.0.0.1" && gateway.host != "localhost" {
+            bail!(
+                "mcp.gateway.host must be localhost or 127.0.0.1; got '{}'",
+                gateway.host
+            );
+        }
+        if gateway.path.is_empty() || !gateway.path.starts_with('/') {
+            bail!(
+                "mcp.gateway.path must be an absolute HTTP path starting with '/'; got '{}'",
+                gateway.path
+            );
+        }
+        Ok(())
+    }
+
+    /// Resolve config sections into implicit addon entries so the addon
+    /// pipeline handles tool installation. Called before `validate()` during load.
     /// Idempotent — won't overwrite if the user already configured the addon
     /// explicitly in `[addons]`.
     pub fn resolve_ai_provider_addons(&mut self) {
@@ -1420,6 +1559,15 @@ impl AiboxConfig {
             self.addons
                 .addons
                 .entry(addon_name)
+                .or_insert_with(|| AddonToolsSection {
+                    tools: HashMap::new(),
+                });
+        }
+
+        if self.audio.enabled {
+            self.addons
+                .addons
+                .entry("audio-voice".to_string())
                 .or_insert_with(|| AddonToolsSection {
                     tools: HashMap::new(),
                 });
@@ -1479,6 +1627,7 @@ pub fn test_config() -> AiboxConfig {
             keepalive: false,
             environment: HashMap::new(),
             extra_volumes: vec![],
+            resource_thresholds: ResourceThresholdsSection::default(),
         },
         context: ContextSection::default(),
         ai: AiSection::default(),
@@ -1522,6 +1671,12 @@ hostname = "my-project"
 user = "root"
 keepalive = false
 post_create_command = "npm install"
+
+[container.resource_thresholds]
+memory_mib_warn = 4096
+process_count_warn = 375
+processkit_mcp_python_warn = 45
+oom_kill_warn = 0
 
 [context]
 schema_version = "2.0.0"
@@ -1574,6 +1729,13 @@ prompt = "default"
 
 [audio]
 enabled = false
+
+[mcp.gateway]
+mode = "daemon-proxy"
+lazy_catalog = true
+host = "127.0.0.1"
+port = 8765
+path = "/mcp"
 "#
     }
 
@@ -1614,6 +1776,22 @@ name = "my-project"
             Some("npm install")
         );
         assert!(!config.container.keepalive);
+        assert_eq!(
+            config.container.resource_thresholds.memory_mib_warn,
+            Some(4096)
+        );
+        assert_eq!(
+            config.container.resource_thresholds.process_count_warn,
+            Some(375)
+        );
+        assert_eq!(
+            config
+                .container
+                .resource_thresholds
+                .processkit_mcp_python_warn,
+            Some(45)
+        );
+        assert_eq!(config.container.resource_thresholds.oom_kill_warn, Some(0));
 
         // [context]
         assert_eq!(config.context.schema_version, "2.0.0");
@@ -1655,6 +1833,9 @@ name = "my-project"
 
         // [skills]
         assert_eq!(config.skills.exclude, vec!["standup-context"]);
+        assert_eq!(config.mcp.gateway.mode, McpGatewayMode::DaemonProxy);
+        assert!(config.mcp.gateway.lazy_catalog);
+        assert_eq!(config.mcp.gateway.url(), "http://127.0.0.1:8765/mcp");
         assert_eq!(config.skills.include, vec!["flutter-development"]);
 
         // [customization] (parsed from legacy [appearance] via serde alias)
@@ -2164,6 +2345,43 @@ mode = "dark"
     fn from_str_parses_and_validates() {
         let config = AiboxConfig::from_str(minimal_toml()).unwrap();
         assert_eq!(config.container.name, "my-project");
+    }
+
+    #[test]
+    fn mcp_gateway_rejects_non_localhost_host() {
+        let toml = r#"
+[aibox]
+version = "0.9.0"
+
+[container]
+name = "my-project"
+
+[mcp.gateway]
+host = "0.0.0.0"
+"#;
+        let err = AiboxConfig::from_str(toml).unwrap_err();
+        assert!(err.to_string().contains("mcp.gateway.host"));
+    }
+
+    #[test]
+    fn audio_enabled_selects_audio_voice_addon() {
+        let toml = r#"
+[aibox]
+version = "0.9.0"
+
+[container]
+name = "audio-project"
+
+[audio]
+enabled = true
+"#;
+
+        let config = AiboxConfig::from_str(toml).unwrap();
+
+        assert!(
+            config.addons.addons.contains_key("audio-voice"),
+            "audio.enabled should select the audio-voice addon now that audio packages are optional"
+        );
     }
 
     // -- Host/container path helpers ----------------------------------------

@@ -12,6 +12,7 @@ below shows the minimum compatible processkit version for each aibox release.
 
 | aibox version | Min. processkit | Notes |
 |--------------|-----------------|-------|
+| 0.23.0 | v0.25.0 | processkit v0.25.0 gateway integration, daemon-proxy mode, runtime pressure diagnostics, init reaping, optional git UI tools, and profile-aware environment metadata |
 | 0.22.0 | v0.24.0 | processkit v0.24.0: context archiving, richer model routing metadata, semantic task-router scoring, archive-aware index metadata |
 | 0.21.2 | v0.23.1 | processkit v0.23.1 release-audit cleanup and skill metadata fixes |
 | 0.21.1 | v0.23.0 | processkit v0.23.0 model governance and release-audit integration |
@@ -35,12 +36,12 @@ the minimum required version for the running aibox binary. If the pinned
 processkit version is older than the minimum, a warning is emitted:
 
 ```
-Warning: processkit v0.6.0 is below the minimum recommended version v0.8.0 for aibox v0.17.5 ...
+Warning: processkit v0.24.0 is below the minimum recommended version v0.25.0 for aibox v0.23.0 ...
 ```
 
 This is a warning, not an error — older processkit versions can still install
-successfully (the installer handles both v0.7.0 and v0.8.0 layouts). The warning
-is a nudge to upgrade, not a blocker.
+successfully when their layout is still supported. The warning is a nudge to
+upgrade, not a blocker.
 
 ## Upgrading processkit
 
@@ -49,7 +50,7 @@ To upgrade processkit in an existing project:
 1. Edit `aibox.toml`:
    ```toml
    [processkit]
-   version = "v0.8.0"
+   version = "v0.25.0"
    ```
 
 2. Run `aibox apply` on the host — the 3-way diff will show changed content

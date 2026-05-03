@@ -52,7 +52,7 @@ use anyhow::{Context, Result};
 use serde::{Deserialize, Serialize};
 use sha2::{Digest, Sha256};
 
-use crate::config::{AiProvider, AiboxConfig};
+use crate::config::{AiProvider, AiboxConfig, McpGatewayMode};
 use crate::output;
 use crate::processkit_vocab::mirror_skills_dir;
 
@@ -1162,6 +1162,90 @@ fn managed_set(specs: &[McpServerSpec]) -> BTreeSet<String> {
     specs.iter().map(|s| s.name.clone()).collect()
 }
 
+fn gateway_spec(specs: &[McpServerSpec]) -> Option<McpServerSpec> {
+    specs
+        .iter()
+        .find(|s| s.name == "processkit-gateway")
+        .cloned()
+}
+
+fn gateway_stdio_spec(specs: &[McpServerSpec], lazy_catalog: bool) -> Option<McpServerSpec> {
+    let mut spec = gateway_spec(specs)?;
+    spec.env
+        .insert("PROCESSKIT_MCP_MODE".to_string(), "gateway".to_string());
+    if lazy_catalog {
+        spec.env.insert(
+            "PROCESSKIT_GATEWAY_IMPORT_MODE".to_string(),
+            "lazy-catalog".to_string(),
+        );
+        spec.env
+            .insert("PROCESSKIT_GATEWAY_LAZY".to_string(), "true".to_string());
+    }
+    Some(spec)
+}
+
+fn gateway_daemon_proxy_spec(
+    config: &AiboxConfig,
+    specs: &[McpServerSpec],
+) -> Option<McpServerSpec> {
+    let gateway = gateway_spec(specs)?;
+    let script = gateway
+        .args
+        .iter()
+        .find(|arg| arg.ends_with(".py") && arg.contains("processkit-gateway/mcp/server.py"))
+        .cloned()
+        .unwrap_or_else(|| {
+            "context/skills/processkit/processkit-gateway/mcp/server.py".to_string()
+        });
+    let mut env = BTreeMap::new();
+    env.insert("PROCESSKIT_MCP_MODE".to_string(), "gateway".to_string());
+    Some(McpServerSpec {
+        name: "processkit-gateway".to_string(),
+        command: gateway.command,
+        args: vec![
+            "run".to_string(),
+            script,
+            "stdio-proxy".to_string(),
+            "--url".to_string(),
+            config.mcp.gateway.url(),
+        ],
+        env,
+    })
+}
+
+fn select_processkit_gateway_specs(
+    config: &AiboxConfig,
+    granular_specs: Vec<McpServerSpec>,
+) -> Vec<McpServerSpec> {
+    match config.mcp.gateway.mode {
+        McpGatewayMode::Granular => granular_specs,
+        McpGatewayMode::Auto | McpGatewayMode::Stdio => {
+            match gateway_stdio_spec(&granular_specs, config.mcp.gateway.lazy_catalog) {
+                Some(spec) => vec![spec],
+                None => {
+                    if config.mcp.gateway.mode == McpGatewayMode::Stdio {
+                        output::warn(
+                            "[mcp.gateway].mode = \"stdio\" requested, but processkit-gateway \
+                             is not installed; falling back to granular processkit MCP servers.",
+                        );
+                    }
+                    granular_specs
+                }
+            }
+        }
+        McpGatewayMode::DaemonProxy => match gateway_daemon_proxy_spec(config, &granular_specs) {
+            Some(spec) => vec![spec],
+            None => {
+                output::warn(
+                    "[mcp.gateway].mode = \"daemon-proxy\" requested, but processkit-gateway \
+                         is not installed; falling back to granular processkit MCP servers.",
+                );
+                granular_specs
+            }
+        },
+    }
+}
+
 /// Compute a SHA256 fingerprint over the broad processkit-shipped
 /// install payload.
 ///
@@ -1314,7 +1398,7 @@ pub fn regenerate_mcp_configs(config: &AiboxConfig, project_root: &Path) -> Resu
     let effective = crate::content_init::build_effective_skill_set(project_root, config)
         .ok()
         .flatten();
-    let processkit_specs = collect_processkit_mcp_specs(
+    let mut processkit_specs = collect_processkit_mcp_specs(
         project_root,
         &config.processkit.version,
         effective.as_ref(),
@@ -1332,12 +1416,17 @@ pub fn regenerate_mcp_configs(config: &AiboxConfig, project_root: &Path) -> Resu
     // are in the managed set and get refreshed on every sync so that
     // removals from any source are reflected immediately.
     // Live skills specs override processkit specs of the same name.
-    let mut specs: Vec<McpServerSpec> = processkit_specs;
     for spec in live_skills_specs {
         // Replace any existing spec with the same name
-        specs.retain(|s| s.name != spec.name);
-        specs.push(spec);
+        processkit_specs.retain(|s| s.name != spec.name);
+        processkit_specs.push(spec);
     }
+    processkit_specs.sort_by(|a, b| a.name.cmp(&b.name));
+    let granular_processkit_managed = managed_set(&processkit_specs);
+
+    let gateway_selected = config.mcp.gateway.mode != McpGatewayMode::Granular
+        && gateway_spec(&processkit_specs).is_some();
+    let mut specs = select_processkit_gateway_specs(config, processkit_specs);
     for s in &config.mcp.servers {
         specs.push(McpServerSpec {
             name: s.name.clone(),
@@ -1366,8 +1455,9 @@ pub fn regenerate_mcp_configs(config: &AiboxConfig, project_root: &Path) -> Resu
     // that has no `mcp/mcp-config.json` in the templates mirror means the
     // processkit version installed is too old or is broken — warn the user so
     // they know entity-layer coverage is incomplete.
-    if let Some(skills_dir) =
-        crate::processkit_vocab::mirror_skills_dir(project_root, &config.processkit.version)
+    if !gateway_selected
+        && let Some(skills_dir) =
+            crate::processkit_vocab::mirror_skills_dir(project_root, &config.processkit.version)
     {
         let registered_names: std::collections::HashSet<&str> =
             specs.iter().map(|s| s.name.as_str()).collect();
@@ -1402,7 +1492,8 @@ pub fn regenerate_mcp_configs(config: &AiboxConfig, project_root: &Path) -> Resu
     // emitting a broken config is the failure mode we never want again.
     validate_script_paths(&specs, project_root)?;
 
-    let managed = managed_set(&specs);
+    let mut managed = managed_set(&specs);
+    managed.extend(granular_processkit_managed);
     let providers: HashSet<&AiProvider> = config.ai.harnesses.iter().collect();
 
     // 1. Claude / Copilot / OpenCode / Hermes / Mistral use the Claude-shape
@@ -2884,6 +2975,61 @@ args = ["server.js"]
         assert!(
             parsed["mcpServers"].get("processkit-skill-gate").is_some(),
             ".mcp.json must contain 'processkit-skill-gate'; got: {}",
+            body
+        );
+    }
+
+    #[test]
+    fn auto_gateway_collapses_processkit_servers_and_removes_stale_granular_entries() {
+        use crate::config::{AiSection, AiboxConfig, ProcessKitSection};
+        let tmp = TempDir::new().unwrap();
+        let version = crate::processkit_vocab::PROCESSKIT_DEFAULT_VERSION;
+        write_synth_skill_mcp(
+            tmp.path(),
+            version,
+            "processkit",
+            "skill-gate",
+            r#"{"mcpServers":{"processkit-skill-gate":{"command":"uv","args":["run","context/skills/processkit/skill-gate/mcp/server.py"]}}}"#,
+        );
+        write_synth_skill_mcp(
+            tmp.path(),
+            version,
+            "processkit",
+            "processkit-gateway",
+            r#"{"mcpServers":{"processkit-gateway":{"command":"uv","args":["run","context/skills/processkit/processkit-gateway/mcp/server.py"]}}}"#,
+        );
+        fs::write(
+            tmp.path().join(".mcp.json"),
+            r#"{
+                "mcpServers": {
+                    "processkit-skill-gate": {"command": "uv", "args": []},
+                    "my-custom-server": {"command": "node", "args": ["server.js"]}
+                }
+            }"#,
+        )
+        .unwrap();
+
+        let config = AiboxConfig {
+            ai: AiSection {
+                harnesses: vec![crate::config::AiHarness::Claude],
+                ..AiSection::default()
+            },
+            processkit: ProcessKitSection {
+                version: version.to_string(),
+                ..ProcessKitSection::default()
+            },
+            ..crate::config::test_config()
+        };
+
+        regenerate_mcp_configs(&config, tmp.path()).unwrap();
+        let body = fs::read_to_string(tmp.path().join(".mcp.json")).unwrap();
+        let parsed: serde_json::Value = serde_json::from_str(&body).unwrap();
+        let servers = parsed["mcpServers"].as_object().unwrap();
+        assert!(servers.get("processkit-gateway").is_some());
+        assert!(servers.get("my-custom-server").is_some());
+        assert!(
+            servers.get("processkit-skill-gate").is_none(),
+            "stale granular processkit entries must be removed when gateway mode is active: {}",
             body
         );
     }

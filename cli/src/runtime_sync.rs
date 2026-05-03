@@ -16,9 +16,12 @@ use anyhow::{Context, Result};
 use sha2::{Digest, Sha256};
 use std::collections::{BTreeMap, BTreeSet};
 use std::fs;
+#[cfg(unix)]
+use std::os::unix::fs::PermissionsExt;
 use std::path::{Path, PathBuf};
 
 use crate::content_diff::{DiffSummary, FileClassification, classify};
+use crate::lock::RuntimeHomeLockSection;
 
 const RUNTIME_SOURCE: &str = "aibox-runtime-home";
 const RUNTIME_SOURCE_URL: &str = "aibox://runtime-home";
@@ -77,7 +80,7 @@ pub fn run_runtime_sync(
     to_version: &str,
     config: &crate::config::AiboxConfig,
 ) -> Result<RuntimeSyncReport> {
-    let diffs = if let Some(from_version) = from_version {
+    let mut diffs = if let Some(from_version) = from_version {
         three_way_diff(project_root, from_version, config)?
     } else {
         Vec::new()
@@ -91,13 +94,37 @@ pub fn run_runtime_sync(
         .into_iter()
         .map(|(p, c)| (p.to_string_lossy().replace('\\', "/"), c))
         .collect();
+    let generated_hashes: BTreeMap<String, String> = generated_map
+        .iter()
+        .map(|(path, content)| (path.clone(), sha256_of_bytes(content.as_bytes())))
+        .collect();
     let host_root = config.host_root_dir();
     let mut auto_applied = 0usize;
-    for diff in &diffs {
-        if matches!(
-            diff.classification,
-            FileClassification::ChangedUpstreamOnly | FileClassification::NewUpstream
-        ) && let Some(content) = generated_map.get(&diff.rel_path)
+    let same_version_sync = from_version.is_some_and(|version| version == to_version);
+    let previous_hashes = crate::lock::read_lock(project_root)
+        .ok()
+        .flatten()
+        .and_then(|lock| lock.runtime_home)
+        .map(|section| section.files)
+        .unwrap_or_default();
+
+    for diff in &mut diffs {
+        let live_matches_previous_generated =
+            previous_hashes
+                .get(&diff.rel_path)
+                .is_some_and(|previous_sha| {
+                    live_file_matches(&host_root, &diff.rel_path, previous_sha)
+                });
+        let should_update_same_version_generated_file = same_version_sync
+            && (live_matches_previous_generated
+                || zellij_layout_contains_unselected_harness(&host_root, &diff.rel_path, config));
+
+        if same_version_sync
+            && matches!(
+                diff.classification,
+                FileClassification::ChangedUpstreamOnly | FileClassification::NewUpstream
+            )
+            && let Some(content) = generated_map.get(&diff.rel_path)
         {
             let target = host_root.join(&diff.rel_path);
             if let Some(parent) = target.parent() {
@@ -106,7 +133,28 @@ pub fn run_runtime_sync(
             fs::write(&target, content).with_context(|| {
                 format!("failed to auto-apply runtime file {}", target.display())
             })?;
+            ensure_live_runtime_file_permissions(&diff.rel_path, &target)?;
             auto_applied += 1;
+            diff.classification = FileClassification::Unchanged;
+        } else if matches!(
+            diff.classification,
+            FileClassification::ChangedLocallyOnly | FileClassification::Conflict
+        ) && should_update_same_version_generated_file
+            && let Some(content) = generated_map.get(&diff.rel_path)
+        {
+            let target = host_root.join(&diff.rel_path);
+            if let Some(parent) = target.parent() {
+                fs::create_dir_all(parent).ok();
+            }
+            fs::write(&target, content).with_context(|| {
+                format!(
+                    "failed to provenance-update runtime file {}",
+                    target.display()
+                )
+            })?;
+            ensure_live_runtime_file_permissions(&diff.rel_path, &target)?;
+            auto_applied += 1;
+            diff.classification = FileClassification::Unchanged;
         }
     }
     if auto_applied > 0 {
@@ -143,11 +191,34 @@ pub fn run_runtime_sync(
         };
 
     copy_runtime_templates(project_root, to_version, config)?;
+    refresh_runtime_home_lock(project_root, generated_hashes)?;
 
     Ok(RuntimeSyncReport {
         summary,
         migration_document_path,
     })
+}
+
+fn ensure_live_runtime_file_permissions(rel_path: &str, target: &Path) -> Result<()> {
+    if rel_path == ".local/bin/pdf-watch" || rel_path == ".local/bin/aibox-status" {
+        ensure_executable(target)?;
+    }
+    Ok(())
+}
+
+#[cfg(unix)]
+fn ensure_executable(path: &Path) -> Result<()> {
+    let mut permissions = fs::metadata(path)
+        .with_context(|| format!("failed to read permissions for {}", path.display()))?
+        .permissions();
+    permissions.set_mode(0o755);
+    fs::set_permissions(path, permissions)
+        .with_context(|| format!("failed to chmod +x {}", path.display()))
+}
+
+#[cfg(not(unix))]
+fn ensure_executable(_path: &Path) -> Result<()> {
+    Ok(())
 }
 
 fn three_way_diff(
@@ -300,6 +371,10 @@ pub struct IntermediateHop {
 }
 
 fn build_intermediate_hops(project_root: &Path, from: &str, to: &str) -> Vec<IntermediateHop> {
+    if from == to {
+        return Vec::new();
+    }
+
     let mut hops: Vec<IntermediateHop> = Vec::new();
     let base = project_root.join(RUNTIME_TEMPLATES_DIR);
     let from_dir = base.join(from);
@@ -386,6 +461,60 @@ fn sha256_of_bytes(bytes: &[u8]) -> String {
     let mut hasher = Sha256::new();
     hasher.update(bytes);
     format!("{:x}", hasher.finalize())
+}
+
+fn live_file_matches(host_root: &Path, rel_path: &str, expected_sha: &str) -> bool {
+    let live_abs = host_root.join(rel_path);
+    live_abs
+        .is_file()
+        .then(|| crate::lock::sha256_of_file(&live_abs).ok())
+        .flatten()
+        .is_some_and(|live_sha| live_sha == expected_sha)
+}
+
+fn zellij_layout_contains_unselected_harness(
+    host_root: &Path,
+    rel_path: &str,
+    config: &crate::config::AiboxConfig,
+) -> bool {
+    if !rel_path.starts_with(".config/zellij/layouts/") || !rel_path.ends_with(".kdl") {
+        return false;
+    }
+    let live_abs = host_root.join(rel_path);
+    let Ok(content) = fs::read_to_string(live_abs) else {
+        return false;
+    };
+    crate::config::AiProvider::all()
+        .iter()
+        .filter(|harness| harness.is_active())
+        .filter(|harness| !config.ai.harnesses.contains(harness))
+        .any(|harness| {
+            let command = harness.binary_name();
+            !command.is_empty() && content.contains(&format!("command \"{}\"", command))
+        })
+}
+
+fn refresh_runtime_home_lock(
+    project_root: &Path,
+    generated_hashes: BTreeMap<String, String>,
+) -> Result<()> {
+    let Some(mut lock) = crate::lock::read_lock(project_root)? else {
+        return Ok(());
+    };
+
+    if lock
+        .runtime_home
+        .as_ref()
+        .is_some_and(|section| section.files == generated_hashes)
+    {
+        return Ok(());
+    }
+
+    lock.runtime_home = Some(RuntimeHomeLockSection {
+        generated_at: chrono::Utc::now().to_rfc3339(),
+        files: generated_hashes,
+    });
+    crate::lock::write_lock(project_root, &lock)
 }
 
 fn write_migration_document(
@@ -686,12 +815,38 @@ mod tests {
     }
 
     #[test]
+    fn build_intermediate_hops_empty_for_same_version() {
+        let tmp = TempDir::new().unwrap();
+        let root = tmp.path();
+        write_snapshot(root, "0.22.0", &[(".config/git/config", "A")]);
+        let hops = build_intermediate_hops(root, "0.22.0", "0.22.0");
+        assert!(hops.is_empty());
+    }
+
+    #[test]
     fn build_intermediate_hops_empty_for_bad_versions() {
         let tmp = TempDir::new().unwrap();
         let root = tmp.path();
         write_snapshot(root, "0.18.0", &[(".vim/vimrc", "A")]);
         let hops = build_intermediate_hops(root, "bogus", "0.18.2");
         assert!(hops.is_empty());
+    }
+
+    #[test]
+    #[cfg(unix)]
+    fn runtime_status_helper_stays_executable_after_auto_apply() {
+        let tmp = TempDir::new().unwrap();
+        let target = tmp.path().join(".local/bin/aibox-status");
+        fs::create_dir_all(target.parent().unwrap()).unwrap();
+        fs::write(&target, "#!/bin/sh\n").unwrap();
+
+        ensure_live_runtime_file_permissions(".local/bin/aibox-status", &target).unwrap();
+
+        assert_ne!(
+            fs::metadata(&target).unwrap().permissions().mode() & 0o111,
+            0,
+            "aibox-status should remain executable after runtime auto-apply"
+        );
     }
 
     #[test]
@@ -733,5 +888,59 @@ mod tests {
             write_migration_document(tmp.path(), "0.18.6", "0.18.6", &summary, &diffs, &hops)
                 .unwrap();
         assert!(written.is_some());
+    }
+
+    #[test]
+    fn zellij_layout_detects_unselected_harness_command() {
+        let tmp = TempDir::new().unwrap();
+        let rel = ".config/zellij/layouts/ai.kdl";
+        let path = tmp.path().join(rel);
+        fs::create_dir_all(path.parent().unwrap()).unwrap();
+        fs::write(&path, "pane { command \"claude\" }\n").unwrap();
+        let config = crate::config::AiboxConfig::from_str(
+            r#"[aibox]
+version = "0.22.0"
+
+[container]
+name = "demo"
+
+[ai]
+harnesses = ["codex"]
+"#,
+        )
+        .unwrap();
+
+        assert!(zellij_layout_contains_unselected_harness(
+            tmp.path(),
+            rel,
+            &config
+        ));
+    }
+
+    #[test]
+    fn zellij_layout_allows_selected_harness_command() {
+        let tmp = TempDir::new().unwrap();
+        let rel = ".config/zellij/layouts/ai.kdl";
+        let path = tmp.path().join(rel);
+        fs::create_dir_all(path.parent().unwrap()).unwrap();
+        fs::write(&path, "pane { command \"codex\" }\n").unwrap();
+        let config = crate::config::AiboxConfig::from_str(
+            r#"[aibox]
+version = "0.22.0"
+
+[container]
+name = "demo"
+
+[ai]
+harnesses = ["codex"]
+"#,
+        )
+        .unwrap();
+
+        assert!(!zellij_layout_contains_unselected_harness(
+            tmp.path(),
+            rel,
+            &config
+        ));
     }
 }

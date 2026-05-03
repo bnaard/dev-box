@@ -158,16 +158,18 @@ pub fn merge_processkit_preauth_into_harness_settings(project_root: &Path) -> Re
 
     let settings_path = project_root.join(".claude/settings.json");
     let mut top = read_or_empty_object(&settings_path)?;
-    merge_claude_managed_lists(&mut top, &spec)?;
+    merge_claude_managed_lists(project_root, &mut top, &spec)?;
     write_atomic(&settings_path, &top)?;
 
     merge_codex_preauth(project_root, &spec)?;
 
+    let (claude_allow, claude_servers) = claude_preauth_sets(project_root, &spec)?;
+    let codex_tools = codex_allowed_tools_for_project(project_root, &spec)?;
     output::ok(&format!(
         "preauth merged: {} Claude allow patterns, {} enabled servers, {} Codex allowed tools",
-        spec.permissions.allow.len(),
-        spec.enabled_mcp_json_servers.len(),
-        codex_allowed_tools(&spec).len()
+        claude_allow.len(),
+        claude_servers.len(),
+        codex_tools.len()
     ));
     Ok(())
 }
@@ -201,6 +203,7 @@ fn read_or_empty_object(path: &Path) -> Result<serde_json::Map<String, Value>> {
 /// `top` settings map, refreshing the `_processkit_managed_keys`
 /// sidecar.
 fn merge_claude_managed_lists(
+    project_root: &Path,
     top: &mut serde_json::Map<String, Value>,
     spec: &PreauthSpec,
 ) -> Result<()> {
@@ -212,8 +215,7 @@ fn merge_claude_managed_lists(
     let existing_servers = read_top_level_string_array(top, "enabledMcpjsonServers")?;
 
     // ── Compute the merged sets. ───────────────────────────────────────
-    let current_allow: BTreeSet<String> = spec.permissions.allow.iter().cloned().collect();
-    let current_servers: BTreeSet<String> = spec.enabled_mcp_json_servers.iter().cloned().collect();
+    let (current_allow, current_servers) = claude_preauth_sets(project_root, spec)?;
 
     let final_allow: BTreeSet<String> = existing_allow
         .into_iter()
@@ -249,8 +251,76 @@ fn codex_allowed_tools(spec: &PreauthSpec) -> BTreeSet<String> {
     }
 }
 
+fn claude_preauth_sets(
+    project_root: &Path,
+    spec: &PreauthSpec,
+) -> Result<(BTreeSet<String>, BTreeSet<String>)> {
+    let mut allow: BTreeSet<String> = spec.permissions.allow.iter().cloned().collect();
+    let mut servers: BTreeSet<String> = spec.enabled_mcp_json_servers.iter().cloned().collect();
+
+    if generated_dot_mcp_uses_processkit_gateway(project_root)? {
+        servers.clear();
+        servers.insert("processkit-gateway".to_string());
+        allow.insert("mcp__processkit-gateway__*".to_string());
+    }
+
+    Ok((allow, servers))
+}
+
+fn generated_dot_mcp_uses_processkit_gateway(project_root: &Path) -> Result<bool> {
+    let path = project_root.join(".mcp.json");
+    if !path.is_file() {
+        return Ok(false);
+    }
+
+    let body =
+        fs::read_to_string(&path).with_context(|| format!("failed to read {}", path.display()))?;
+    if body.trim().is_empty() {
+        return Ok(false);
+    }
+    let parsed: Value = serde_json::from_str(&body)
+        .with_context(|| format!("failed to parse existing JSON at {}", path.display()))?;
+    Ok(parsed
+        .get("mcpServers")
+        .and_then(|v| v.as_object())
+        .map(|servers| servers.contains_key("processkit-gateway"))
+        .unwrap_or(false))
+}
+
+fn codex_config_uses_processkit_gateway(project_root: &Path) -> Result<bool> {
+    let path = project_root.join(".codex/config.toml");
+    if !path.is_file() {
+        return Ok(false);
+    }
+
+    let body =
+        fs::read_to_string(&path).with_context(|| format!("failed to read {}", path.display()))?;
+    if body.trim().is_empty() {
+        return Ok(false);
+    }
+    let document: toml_edit::DocumentMut = body
+        .parse::<toml_edit::DocumentMut>()
+        .with_context(|| format!("failed to parse {}", path.display()))?;
+    Ok(document
+        .get("mcp_servers")
+        .and_then(|item| item.as_table())
+        .map(|servers| servers.contains_key("processkit-gateway"))
+        .unwrap_or(false))
+}
+
+fn codex_allowed_tools_for_project(
+    project_root: &Path,
+    spec: &PreauthSpec,
+) -> Result<BTreeSet<String>> {
+    let mut current = codex_allowed_tools(spec);
+    if codex_config_uses_processkit_gateway(project_root)? {
+        current.insert("processkit-gateway".to_string());
+    }
+    Ok(current)
+}
+
 fn merge_codex_preauth(project_root: &Path, spec: &PreauthSpec) -> Result<()> {
-    let current = codex_allowed_tools(spec);
+    let current = codex_allowed_tools_for_project(project_root, spec)?;
     if current.is_empty() {
         return Ok(());
     }
@@ -828,5 +898,45 @@ mod tests {
 
         let body = fs::read_to_string(project.join(".codex/config.toml")).unwrap();
         assert!(body.contains("mcp__processkit-skill-00__*"));
+    }
+
+    #[test]
+    fn preauth_uses_gateway_server_when_generated_mcp_config_collapsed() {
+        let tmp = TempDir::new().unwrap();
+        let project = tmp.path();
+        write_preauth(project, &v0_22_0_preauth_json());
+        fs::write(
+            project.join(".mcp.json"),
+            r#"{"mcpServers":{"processkit-gateway":{"command":"uv","args":[]}}}"#,
+        )
+        .unwrap();
+        let codex_dir = project.join(".codex");
+        fs::create_dir_all(&codex_dir).unwrap();
+        fs::write(
+            codex_dir.join("config.toml"),
+            "[mcp_servers.processkit-gateway]\ncommand = \"uv\"\nargs = []\n",
+        )
+        .unwrap();
+
+        merge_processkit_preauth_into_claude_settings(project).unwrap();
+
+        let settings = read_settings(project);
+        let servers: Vec<String> = settings["enabledMcpjsonServers"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .map(|v| v.as_str().unwrap().to_string())
+            .collect();
+        assert_eq!(servers, vec!["processkit-gateway".to_string()]);
+        let allow: Vec<String> = settings["permissions"]["allow"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .map(|v| v.as_str().unwrap().to_string())
+            .collect();
+        assert!(allow.contains(&"mcp__processkit-gateway__*".to_string()));
+
+        let codex_body = fs::read_to_string(codex_dir.join("config.toml")).unwrap();
+        assert!(codex_body.contains("\"processkit-gateway\""));
     }
 }

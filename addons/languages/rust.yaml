@@ -4,6 +4,7 @@ description: "Rust toolchain via rustup"
 profile_intent: build
 usage_class: automated
 profiles: ["human-dev", "headless-runner"]
+exported_surfaces: ["language-runtime", "build-toolchain", "cli-binary"]
 builder_weight: "medium"
 
 skills:

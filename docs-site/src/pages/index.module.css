@@ -1,22 +1,31 @@
 .heroBanner {
-  padding: 4rem 0;
-  text-align: center;
+  min-height: 72vh;
+  padding: 7rem 0 5rem;
+  text-align: left;
   position: relative;
   overflow: hidden;
+  background-position: center right;
+  background-size: cover;
+  background-repeat: no-repeat;
+}
+
+.heroContent {
+  max-width: 760px;
 }
 
 .heroDescription {
   font-size: 1.2rem;
   max-width: 600px;
-  margin: 0 auto 1.5rem;
-  opacity: 0.85;
+  margin: 0 0 1.5rem;
+  opacity: 0.9;
 }
 
 .buttons {
   display: flex;
   align-items: center;
-  justify-content: center;
+  justify-content: flex-start;
   gap: 1rem;
+  flex-wrap: wrap;
 }
 
 .features {
@@ -35,4 +44,16 @@
   text-align: left;
   padding: 1rem 2rem;
   border-radius: 8px;
+}
+
+@media screen and (max-width: 996px) {
+  .heroBanner {
+    min-height: 68vh;
+    padding: 5rem 0 3rem;
+    background-position: center;
+  }
+
+  .heroContent {
+    margin-left: auto;
+  }
 }

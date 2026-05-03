@@ -42,7 +42,7 @@ Separately, aibox also generates a project-local `.codex/config.toml` for MCP se
 
 ## MCP Integration
 
-Codex has a native MCP client. aibox generates `.codex/config.toml` automatically on `aibox apply`, merging processkit built-in servers, team servers from `aibox.toml [mcp]`, and personal servers from `.aibox-local.toml [mcp]`.
+Codex has a native MCP client. aibox generates `.codex/config.toml` automatically on `aibox apply`, merging processkit MCP entries, team servers from `aibox.toml [mcp]`, and personal servers from `.aibox-local.toml [mcp]`. With processkit v0.25.0 and `[mcp.gateway].mode = "auto"`, the processkit entries collapse to `processkit-gateway` instead of one Python process per skill.
 
 `.codex/config.toml` is **gitignored** — it is regenerated on every `aibox apply` and must not be committed.
 
@@ -70,3 +70,27 @@ Codex CLI is installed via npm (`npm install -g @openai/codex`). To pin a specif
 [addons.ai-codex.tools]
 codex = { version = "0.1.0" }
 ```
+
+## Sandbox prerequisites
+
+aibox images include Debian's `bubblewrap` package so Codex can use the OS-provided Linux sandbox helper instead of falling back to its vendored copy. Codex still needs the container runtime and host kernel to allow unprivileged user namespaces; if namespace creation is blocked, Codex can start but sandboxed shell commands fail before the project command runs.
+
+The preferred fix is to enable unprivileged user namespaces on the host or container runtime. Avoid `privileged: true` and avoid adding `SYS_ADMIN` to the main development container for Codex; those grants are broader than Codex's bubblewrap sandbox requires. If your runtime blocks the needed syscalls with its seccomp profile, the fallback is a project-local compose override without extra capabilities:
+
+```yaml
+# .devcontainer/docker-compose.override.yml
+services:
+  <container-name>:
+    security_opt:
+      - seccomp=unconfined
+```
+
+Use that only when host-level user namespaces are already allowed but the runtime seccomp profile still blocks `bubblewrap`, and keep Codex in `workspace-write` with approvals.
+
+`aibox doctor` checks the Codex sandbox posture when Codex is selected. It
+verifies that `bwrap`/`bubblewrap` is available, runs a small namespace smoke
+probe, warns if the generated service is missing Compose `init: true`, and
+warns if the main aibox service uses broad grants such as `privileged: true` or
+`SYS_ADMIN`.
+
+See OpenAI's [Codex sandbox prerequisites](https://developers.openai.com/codex/concepts/sandboxing#prerequisites) for the upstream requirements.

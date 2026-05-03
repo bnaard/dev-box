@@ -5,7 +5,7 @@ use std::collections::BTreeMap;
 use crate::cli::OutputFormat;
 use crate::config::{AiboxConfig, ExtraMcpServer};
 
-pub const WORKSPACE_MANIFEST_SCHEMA_VERSION: &str = "aibox.workspace-manifest.v0-preview";
+pub const WORKSPACE_MANIFEST_SCHEMA_VERSION: &str = "aibox.workspace-manifest.v0";
 
 #[derive(Debug, Serialize, PartialEq, Eq)]
 pub struct WorkspaceManifest {

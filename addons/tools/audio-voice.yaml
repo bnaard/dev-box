@@ -1,0 +1,44 @@
+name: audio-voice
+version: "1.0.0"
+description: "PulseAudio and Sox tools for interactive voice workflows"
+profile_intent: interactive
+usage_class: automated
+profiles: ["human-dev"]
+exported_surfaces: ["runtime-service", "cli-binary", "config-files"]
+builder_weight: "light"
+
+tools:
+  - name: sox
+    default_enabled: true
+    default_version: ""
+    supported_versions: []
+  - name: sox-pulse
+    default_enabled: true
+    default_version: ""
+    supported_versions: []
+  - name: pulseaudio-utils
+    default_enabled: true
+    default_version: ""
+    supported_versions: []
+  - name: alsa-pulse
+    default_enabled: true
+    default_version: ""
+    supported_versions: []
+
+runtime: |
+  # Addon: audio-voice — PulseAudio/Sox support for interactive voice tools.
+  USER root
+  RUN apt-get update && apt-get install -y --no-install-recommends \
+  {% if tools.sox.enabled %}
+      sox \
+  {% endif %}
+  {% if tools["sox-pulse"].enabled %}
+      libsox-fmt-pulse \
+  {% endif %}
+  {% if tools["pulseaudio-utils"].enabled %}
+      pulseaudio-utils \
+  {% endif %}
+  {% if tools["alsa-pulse"].enabled %}
+      libasound2-plugins \
+  {% endif %}
+      && rm -rf /var/lib/apt/lists/*

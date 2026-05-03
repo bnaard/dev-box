@@ -4,6 +4,7 @@ description: "Hugo static site generator (Go)"
 profile_intent: build
 usage_class: automated
 profiles: ["human-dev", "headless-runner"]
+exported_surfaces: ["build-toolchain", "cli-binary"]
 skills:
   - documentation
 

@@ -8,6 +8,12 @@ services:
       target: aibox
     depends_on:
       - aibox-e2e-testrunner
+    # Codex CLI uses bubblewrap for Linux sandboxing. The main aibox
+    # container does not need privileged mode or SYS_ADMIN for that, but
+    # Docker/Podman seccomp profiles can still block unprivileged user
+    # namespace creation before bubblewrap gets control.
+    security_opt:
+      - seccomp=unconfined
 
   # ── E2E Test Companion Container ───────────────────────────────────────────
   # Simulates a user's host machine for end-to-end testing of the aibox CLI.

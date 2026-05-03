@@ -12,13 +12,17 @@
 #   SSH keys are mounted read-only for security.
 # =============================================================================
 #
+name: {{ project_name }}
+
 services:
   {{ name }}:
     build:
       context: .
       dockerfile: Dockerfile
+    image: {{ image_name }}
     container_name: {{ name }}
     hostname: {{ hostname }}
+    init: true
     stdin_open: true
     tty: true
     working_dir: /workspace
@@ -36,6 +40,8 @@ services:
       - {{ host_root }}/.config/yazi:{{ container_home }}/.config/yazi
       # Git configuration
       - {{ host_root }}/.config/git:{{ container_home }}/.config/git
+      # aibox-managed helper scripts (resource status, preview helpers)
+      - {{ host_root }}/.local/bin:{{ container_home }}/.local/bin
 {% for harness in ai_providers %}
 {% if harness == "claude" %}
       # Claude Code configuration and memory

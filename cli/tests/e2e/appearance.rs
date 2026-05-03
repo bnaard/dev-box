@@ -180,7 +180,7 @@ fn theme_catppuccin_mocha_renders() {
 }
 
 #[test]
-fn theme_change_writes_runtime_migration_without_overwriting_live_files() {
+fn theme_change_auto_applies_untouched_runtime_files() {
     let dir = tempfile::tempdir().unwrap();
     init_with_appearance(dir.path(), "gruvbox-dark", "default");
 
@@ -215,37 +215,20 @@ fn theme_change_writes_runtime_migration_without_overwriting_live_files() {
     );
 
     let pending_dir = dir.path().join("context/migrations/pending");
-    let docs: Vec<_> = fs::read_dir(&pending_dir)
-        .unwrap()
-        .filter_map(|entry| entry.ok())
+    let runtime_docs: Vec<_> = fs::read_dir(&pending_dir)
+        .ok()
+        .into_iter()
+        .flat_map(|entries| entries.filter_map(|entry| entry.ok()))
         .map(|entry| entry.path())
-        .filter(|path| path.extension().and_then(|s| s.to_str()) == Some("md"))
-        .collect();
-    assert!(
-        !docs.is_empty(),
-        "expected at least one pending migration document after theme change"
-    );
-
-    let runtime_doc = docs
-        .iter()
-        .find(|path| {
+        .filter(|path| {
             path.file_name()
                 .and_then(|s| s.to_str())
-                .map(|name| name.starts_with("MIG-RUNTIME-"))
-                .unwrap_or(false)
+                .is_some_and(|name| name.starts_with("MIG-RUNTIME-"))
         })
-        .expect("expected a runtime migration document with MIG-RUNTIME- prefix");
-
-    let migration = fs::read_to_string(runtime_doc).unwrap();
+        .collect();
     assert!(
-        migration.contains("runtime-zellij")
-            || migration.contains("runtime-vim")
-            || migration.contains("runtime-yazi"),
-        "runtime migration should mention at least one themed runtime group"
-    );
-    assert!(
-        migration.contains(".aibox-home/.config/zellij/config.kdl")
-            || migration.contains(".aibox-home/.vim/vimrc")
+        runtime_docs.is_empty(),
+        "untouched theme runtime files should be auto-applied without a pending migration"
     );
 }
 

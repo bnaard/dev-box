@@ -4,76 +4,68 @@ title: Roadmap
 
 # Roadmap
 
-This page outlines planned features and improvements for aibox.
-The internal source of truth is `context/BACKLOG.md` (BACK-NNN IDs);
-this page is the public-facing summary.
+This page outlines planned features and improvements for aibox. The internal
+source of truth is the processkit work item index under `context/`; this page is
+the public-facing summary.
 
-## Current — v0.8.0
+## Current Focus
 
-The current release includes:
+Current work is focused on making long-running AI workspaces cheaper and more
+predictable:
 
-- Rust CLI with lifecycle, resource, and self-management commands (`init`, `apply`, `up`, `down`, `get runtime`, `delete runtime`, `doctor`, `self completion`, `self update`, `env`, `backup`, `reset project`, `audit`, `audio`)
-- Single base-debian image with 21 composable addons (python, rust, node, go, latex, typst, infrastructure, kubernetes, cloud providers, docs frameworks, AI agents)
-- `aibox.toml` configuration system with 7 sections (aibox, container, context, ai, addons, appearance, audio)
-- 4 work process flavors (minimal, managed, research, product)
-- Context scaffolding with `context/shared/` for cross-environment files
-- Named environment management (`aibox env create/switch/list/delete/status`)
-- `aibox apply` — reconcile config changes (themes, AI, etc.) without manual file deletion
-- Color theming across Zellij, Vim, Yazi, and lazygit (7 themes) with 6 starship prompt presets
-- Three IDE layouts: dev, focus, cowork (Ctrl+b leader keybindings)
-- AI provider flexibility: Claude, Aider, Gemini — optional, stackable, dynamic layouts
-- Process templates (release, code-review, feature-dev, bug-fix) with SKILL.md support
-- 84 curated skills across 14 categories with reference files
-- Addon bundles (11 total): infrastructure, kubernetes, cloud-aws/gcp/azure, docs-mkdocs/zensical/docusaurus/starlight/mdbook/hugo
-- `aibox audit` — security scanning (cargo audit, pip-audit, trivy)
-- Shell tools: ripgrep, fd, bat, eza, zoxide, fzf, delta, starship + aliases
-- Yazi file manager with vim-loop (Enter/e to open files)
-- `aibox create backup`, `aibox reset project`, `aibox delete runtime`
-- Audio support (PulseAudio bridging), shell completion scripts, interactive init
-- Zensical documentation migration (with MkDocs fallback)
+- explicit Compose project and image names for each aibox project
+- optional tool bundles so idle containers do not carry unnecessary CLIs
+- suspended non-focused Zellij panes
+- runtime resource snapshots and doctor thresholds
+- init-reaper support for orphaned helper processes
+- processkit MCP gateway adoption and daemon-proxy validation in real projects
 
 ## Planned — Near Term
 
-### Theming Screenshots (BACK-001)
+### processkit Gateway Follow-Through
 
-Interactive asciinema recordings and screenshot gallery showing all 7 themes across all tools in docs.
+Validate the processkit v0.25.0 gateway defaults in downstream projects and
+tune daemon-proxy guidance once more host/container runtime combinations have
+been exercised.
 
-### Security Review (BACK-002)
+### Runtime Diagnostics
 
-Comprehensive input validation, container security audit, and supply chain review.
+Extend resource reporting with zombie process counts and clearer actionable
+doctor output for memory and process pressure.
 
-### External Skill Installation (BACK-024)
+### Documentation and Onboarding
 
-Allow installing skills from external sources beyond the curated list.
+Keep the public docs aligned with the current verb/resource CLI grammar,
+processkit boundary, addon selection model, and runtime operations.
 
 ## Planned — Medium Term
 
-### Skill Eval Framework (BACK-004)
+### Remote Development Boundary
 
-Test and benchmark skills per Anthropic's skill-creator pattern.
+Clarify what belongs in aibox versus a dedicated infrastructure/deployer CLI
+for remote and cloud-hosted workspaces.
 
-### Plugin / Extension System (BACK-007)
+### External Addon and Skill Sources
 
-Hook system, custom template overrides, community-distributed features.
+Broaden source support while preserving pinned, reproducible installs.
 
-### Automated Context Migration (BACK-009)
+### Skill Evaluation Support
 
-AI-assisted prompts for schema version upgrades with safe auto-migration for additive changes.
-
-### Multi-Service Support (BACK-010)
-
-Additional docker-compose services, `aibox ps`/`aibox logs` commands.
+Support repeatable checks for installed processkit skills and project-specific
+customizations.
 
 ## Planned — Long Term
 
-### Remote Development (BACK-011)
+### Multi-Service Workspaces
 
-Run aibox environments on remote hosts with local CLI as thin client.
+Improve first-class support for project sidecars and test companions without
+turning aibox into a production orchestrator.
 
-### Image Signing (BACK-015)
+### Signed Images and Supply Chain
 
-sigstore/cosign for published container images.
+Add stronger supply-chain verification for published images and release assets.
 
-### Zellij Plugin Integration (BACK-008)
+### Richer Runtime UI
 
-zjstatus (configurable status bar), custom aibox status plugin.
+Move beyond shell status lines toward deeper Zellij status integration when the
+plugin boundary is worth the extra complexity.

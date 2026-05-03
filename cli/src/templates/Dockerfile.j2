@@ -9,6 +9,7 @@
 #   registry  — GHCR base image path (ghcr.io/projectious-work/aibox)
 #   image     — base image flavor tag (e.g. base-debian)
 #   version   — pinned aibox image version
+#   profile   — aibox usage profile (human-dev or headless-runner)
 # =============================================================================
 {% for stage in addon_builder_stages %}
 {{ stage }}
@@ -16,6 +17,7 @@
 {% endfor %}
 FROM {{ registry }}:{{ image }}-v{{ version }} AS aibox
 LABEL aibox.version="{{ version }}"
+LABEL aibox.profile="{{ profile }}"
 {% for addon_cmd in addon_commands %}
 
 {{ addon_cmd }}

@@ -14,13 +14,17 @@
 #   SSH keys are mounted read-only for security.
 # =============================================================================
 #
+name: aibox
+
 services:
   aibox:
     build:
       context: .
       dockerfile: Dockerfile
+    image: aibox-devcontainer:latest
     container_name: aibox
     hostname: aibox
+    init: true
     stdin_open: true
     tty: true
     working_dir: /workspace
@@ -38,12 +42,8 @@ services:
       - ../.aibox-home/.config/yazi:/home/aibox/.config/yazi
       # Git configuration
       - ../.aibox-home/.config/git:/home/aibox/.config/git
-      # Claude Code configuration and memory
-      - ../.aibox-home/.claude:/home/aibox/.claude
-      # Claude Code account/session state (holds oauthAccount, userID);
-      # mounting .claude alone is not enough — without this file Claude Code
-      # treats every rebuild as a fresh install and re-prompts for login.
-      - ../.aibox-home/.claude.json:/home/aibox/.claude.json
+      # aibox-managed helper scripts (resource status, preview helpers)
+      - ../.aibox-home/.local/bin:/home/aibox/.local/bin
       # OpenAI Codex CLI configuration and cached login state
       - ../.aibox-home/.codex:/home/aibox/.codex
       # ALSA → PulseAudio bridge config

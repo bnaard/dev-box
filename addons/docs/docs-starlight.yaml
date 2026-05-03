@@ -4,6 +4,7 @@ description: "Starlight – Astro-based docs site"
 profile_intent: build
 usage_class: automated
 profiles: ["human-dev", "headless-runner"]
+exported_surfaces: ["build-toolchain", "cli-binary"]
 requires:
   - node
 

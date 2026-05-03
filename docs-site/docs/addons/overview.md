@@ -5,7 +5,7 @@ title: "Overview"
 
 # Addons
 
-aibox uses a single base image (`base-debian`) with **29 composable addons** that install language runtimes, tool bundles, documentation frameworks, and AI coding agents into your container.
+aibox uses a single base image (`base-debian`) with **30 composable addons** that install language runtimes, tool bundles, documentation frameworks, and AI coding agents into your container.
 
 ## Managing Addons
 
@@ -49,9 +49,9 @@ Each addon has **default-enabled tools** that are included automatically, and **
 
 `aibox describe addon-catalog -o json` emits the stable `aibox.addon-catalog.v0`
 index used by downstream automation. It includes each addon's profile intent,
-automation usage class, supported aibox profiles, dependencies, and tool
-metadata. Canonical processkit `Artifact{kind=addon-spec}` emission remains
-gated on the upstream processkit schema release.
+automation usage class, supported aibox profiles, exported surfaces,
+dependencies, and tool metadata. Canonical processkit `Artifact{kind=addon-spec}`
+emission remains gated on the upstream processkit schema release.
 
 After editing `aibox.toml`, run `aibox apply` to regenerate the Dockerfile and rebuild.
 
@@ -73,6 +73,10 @@ After editing `aibox.toml`, run `aibox apply` to regenerate the Dockerfile and r
 | Addon | Default Tools | Optional Tools |
 |-------|--------------|----------------|
 | `infrastructure` | opentofu, ansible, packer | — |
+| `git-ui` | gh, lazygit | — |
+| `preview-archive` | chafa, timg, poppler-utils, mupdf-tools, entr, ouch, resvg | p7zip-full |
+| `preview-enhanced` | python3-rich, ffmpeg, imagemagick, ghostscript | — |
+| `audio-voice` | sox, pulseaudio-utils, ALSA PulseAudio plugins | — |
 | `kubernetes` | kubectl, helm, kustomize | k9s |
 | `cloud-aws` | aws-cli | — |
 | `cloud-gcp` | gcloud-cli | — |
@@ -129,6 +133,7 @@ agents pick them up via skill descriptions, not via addon membership:
 | `go` | concurrency-patterns and the Go-flavoured patterns shipped upstream |
 | `node` | `typescript-patterns`, `tailwind` |
 | `latex` / `typst` | `documentation` |
+| `git-ui` | `git-workflow` |
 | `kubernetes` | `container-orchestration` |
 | `infrastructure` | terraform-flavoured patterns shipped upstream |
 

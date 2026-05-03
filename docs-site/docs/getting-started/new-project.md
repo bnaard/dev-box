@@ -22,6 +22,7 @@ The `init` command accepts these options:
 |--------|---------|-------------|
 | `--base` | `debian` | Base image |
 | `<NAME>` | Current directory name | Container and hostname |
+| `--profile` | `human-dev` | Usage profile: `human-dev` or warning-mode `headless-runner` |
 | `--context` | `managed` | processkit package(s): `minimal`, `managed`, `software`, `research`, `product` (can be repeated) |
 | `--harness` | `claude` | AI harnesses (can be repeated): `claude`, `codex`, `gemini`, `aider`, etc. |
 | `--addon` | — | Addon names (can be repeated): `python`, `rust`, `node`, `go`, `latex`, etc. |
@@ -33,7 +34,7 @@ If you omit options, `aibox init` runs interactively and prompts for each value.
 
 ## What Gets Created
 
-`aibox init` lays down a **slim project skeleton** — devcontainer files,
+`aibox init` lays down a **slim project skeleton**: devcontainer files,
 config, and an empty `context/` directory. The actual content (skills,
 processes, the canonical `AGENTS.md`) is then installed by **processkit** as
 the last step of `init`.
@@ -57,7 +58,7 @@ my-app/
     ├── state-machines/         # state machine definitions
     └── templates/
         └── processkit/
-            └── v0.8.0/         # Immutable upstream snapshot, used by `aibox apply` for three-way diffs
+            └── v0.25.0/        # Immutable upstream snapshot, used by `aibox apply` for three-way diffs
 ```
 
 :::tip .aibox-local.toml — secrets and per-developer overrides
@@ -79,10 +80,12 @@ Shared settings stay in `aibox.toml`; personal secrets go here.
 
 :::tip processkit version
 
-By default, `aibox init` interactively picks the latest processkit version and pins it in `aibox.toml`. Use `--processkit-version` to pin a specific tag non-interactively:
+By default, `aibox init` interactively picks the latest processkit version and
+pins it in `aibox.toml`. Use `--processkit-version` to pin a specific tag
+non-interactively:
 
 ```bash
-aibox init my-app --processkit-version v0.8.0
+aibox init my-app --processkit-version v0.25.0
 ```
 
 :::
@@ -99,8 +102,9 @@ The scaffolded config file comes with commented documentation for every option:
 # Full documentation: https://projectious-work.github.io/aibox/docs/reference/configuration
 
 [aibox]
-version = "0.17.5"
+version = "0.23.0"
 base    = "debian"
+profile = "human-dev"
 
 [container]
 name     = "my-app"
@@ -114,7 +118,7 @@ packages = ["managed"]
 
 [processkit]
 source  = "https://github.com/projectious-work/processkit.git"
-version = "v0.8.0"
+version = "v0.25.0"
 
 # Addons install tool sets into the container.
 # Run `aibox get addon` to see all available addons.
@@ -123,7 +127,7 @@ version = "v0.8.0"
 # uv     = { version = "0.7" }
 
 # AI providers — controls which AI CLI tools are installed.
-# Options: claude, aider, gemini, mistral
+# Options: claude, aider, gemini, mistral, openai, copilot, continue
 [ai]
 providers = ["claude"]
 
@@ -153,7 +157,10 @@ aibox apply    # Reconcile config, regenerate files, build image
 aibox up       # Start the container and attach via Zellij
 ```
 
-You land in a Zellij session with the **dev** layout: Yazi file browser (40%) and Vim editor (60%) side by side, plus tabs for lazygit and shell.
+You land in a Zellij session with the **dev** layout: Yazi file browser and
+Vim editor side by side, plus AI-agent and shell tabs. Non-focused tool panes
+start suspended to reduce live process count. A lazygit tab is generated when
+the `git-ui` addon selects `lazygit`.
 
 Six layouts are available: **dev** (default), **focus** (one tool per tab, fullscreen), **cowork** (Yazi+Vim left, Claude right), **cowork-swap**, **browse**, and **ai**. See [Layouts](../container/base-image.md#layouts).
 
@@ -173,6 +180,7 @@ Both `aibox up` (terminal) and VS Code can use the same container simultaneously
 
 - [Explore the base image](../container/base-image.md)
 - [Choose the right image addon](../addons/overview.md)
+- [Operate the runtime](../container/runtime-operations.md)
 - [Understand process packages](../context/process-packages.md)
 - [Skills (via processkit)](../skills/index.md)
 - [Full CLI reference](../reference/cli-commands.md)

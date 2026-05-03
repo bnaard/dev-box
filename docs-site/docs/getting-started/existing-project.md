@@ -26,7 +26,7 @@ If you prefer to write it by hand:
 
 ```toml
 [aibox]
-version = "0.17.5"
+version = "0.23.0"
 base    = "debian"
 
 [container]
@@ -40,7 +40,7 @@ packages = ["managed"]
 
 [processkit]
 source  = "https://github.com/projectious-work/processkit.git"
-version = "v0.8.0"
+version = "v0.25.0"
 
 [ai]
 providers = ["claude"]
@@ -51,7 +51,7 @@ enabled = false
 
 :::tip Pin processkit before apply
 
-Set `[processkit].version` to a real tag (e.g. `v0.8.0`) before the first
+Set `[processkit].version` to a real tag (e.g. `v0.25.0`) before the first
 `aibox apply`. The default sentinel `unset` skips processkit content
 installation entirely — you will get devcontainer files but no skills,
 processes, or `AGENTS.md`.
@@ -86,7 +86,7 @@ If your project already has a `.devcontainer/` directory with hand-written files
 3. Move any custom configuration into `aibox.toml`:
    - Environment variables go in `[container.environment]`
    - Bind mounts go in `[[container.extra_volumes]]` (or `.aibox-local.toml` for secrets and per-developer paths)
-4. Rebuild: `aibox apply --no-cache`
+4. Rebuild without cached image layers: `aibox apply --no-cache` (`--rebuild` is an alias)
 
 ### Option B: Keep hand-written files
 
@@ -112,13 +112,12 @@ Example output:
 
 ```
 ==> Running diagnostics...
- ✓ Config version: 0.8.0
- ✓ Image: python
- ✓ Process: managed
- ✓ Container name: my-existing-project
- ✓ Container runtime: podman
- ✓ .aibox-home/ directory exists at .aibox-home
+ ✓ Config version is compatible
+ ✓ Container runtime detected
+ ✓ .aibox-home/ directory exists
  ✓ .devcontainer/ directory exists
+ ✓ Generated compose enables an init reaper
+ ✓ Runtime resource pressure is below configured thresholds
  ✓ Diagnostics complete
 ```
 
@@ -142,25 +141,17 @@ aibox will fall back to `.root/` automatically if `.aibox-home/` does not exist,
 
 If your project already has context files (like `DECISIONS.md` or `BACKLOG.md`) that predate aibox, `doctor` can help identify what needs to change. See [Migration](../context/migration.md) for the full guide.
 
-## Real-World Migration Examples
+## Common gaps to watch for
 
-The `migrations/` directory in the aibox repository contains ready-made
-`aibox.toml` files and step-by-step migration guides for several projects:
-
-| Project | Image | Process | Key considerations |
-|---------|-------|---------|--------------------|
-| kaits | python | product | Node.js via extra_packages, Playwright post-install, audio |
-| internal | python-latex | product | TeX Live + Python combo, git identity in postCreateCommand |
-| kubernetes-learning | python-latex | research | Gemini/Jules CLI as extra volumes, audio, release script |
-| ai-learning | python-latex | research | Existing context/ maps cleanly to research flavor |
-| vim-cheatsheet | python-latex | research | Default branch is master, shared image name |
-
-### Common gaps to watch for
-
-- **Node.js version pinning** -- the `node` addon installs the Debian version; pin via a post-create script if you need NodeSource LTS.
-- **postCreateCommand** -- use `post_create_command` in `[container]` config. For git identity, use `.aibox-home/.config/git/config` instead.
+- **Node.js version pinning** -- use the `node` addon and `--addon-tool` or
+  `[addons.node.tools]` when you need a specific supported version.
+- **postCreateCommand** -- use `post_create_command` in `[container]` config.
+  For git identity, prefer `.aibox-home/.config/git/config`.
 - **VS Code extensions/settings** -- the generated `devcontainer.json` works with VS Code Dev Containers. For project-specific settings, keep a `.vscode/settings.json`.
 - **Third-party CLI tools** (Gemini, Jules) -- mount from host via `[[container.extra_volumes]]`, or add installation to `post_create_command`.
+- **Existing generated containers** -- after adopting aibox, recreate the
+  runtime so Compose identity, image name, mounts, and init-reaper settings take
+  effect.
 
 ## Build and Start
 
@@ -177,4 +168,5 @@ The workflow is identical to a [new project](new-project.md#build-and-start) fro
 
 - [Configuration reference](../reference/configuration.md)
 - [CLI commands](../reference/cli-commands.md)
+- [Runtime operations](../container/runtime-operations.md)
 - [Context migration guide](../context/migration.md)

@@ -1,0 +1,30 @@
+name: git-ui
+version: "1.0.0"
+description: "GitHub CLI and lazygit interactive Git UI"
+profile_intent: interactive
+usage_class: manual-escalation-only
+profiles: ["human-dev"]
+exported_surfaces: ["cli-binary", "config-files"]
+builder_weight: "light"
+
+tools:
+  - name: gh
+    default_enabled: true
+    default_version: ""
+    supported_versions: []
+  - name: lazygit
+    default_enabled: true
+    default_version: ""
+    supported_versions: []
+
+runtime: |
+  # Addon: git-ui — GitHub CLI and lazygit
+  USER root
+  RUN apt-get update && apt-get install -y --no-install-recommends \
+  {% if tools.gh.enabled %}
+      gh \
+  {% endif %}
+  {% if tools.lazygit.enabled %}
+      lazygit \
+  {% endif %}
+      && rm -rf /var/lib/apt/lists/*

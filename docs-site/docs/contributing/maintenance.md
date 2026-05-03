@@ -5,189 +5,128 @@ title: Maintenance
 
 # Maintenance
 
-Internal procedures for building, releasing, and deploying aibox.
-All builds and deploys are run locally — there are no GitHub Actions.
+Internal procedures for building, testing, documenting, and releasing aibox.
+The canonical step-by-step release note remains in `context/notes/`; this page
+is the public contributor summary.
 
-## The `maintain.sh` Script
-
-All maintenance tasks are driven by `scripts/maintain.sh`:
+## Development Checks
 
 ```bash
-./scripts/maintain.sh <command> [options]
+cd cli && cargo fmt -- --check
+cd cli && cargo clippy --all-targets -- -D warnings
+cd cli && cargo test
 ```
 
-| Command | Purpose |
-|---------|---------|
-| `test` | Run `cargo fmt --check`, `clippy -D warnings`, and all tests |
-| `build-images [--no-cache]` | Build published container images locally |
-| `push-images <version>` | Push images to GHCR (requires login) |
-| `docs-serve` | Preview documentation at `http://localhost:8000` |
-| `docs-deploy [--dry-run]` | Build and push docs to `gh-pages` branch |
-| `release <version>` | Full release prep: test, build CLI, build images, tag, generate release notes |
-
-## Release Checklist
-
-A full release covers three artifacts: CLI binaries, container images, and documentation.
-
-!!! tip "Always start with `maintain.sh release`"
-    The `release` command is the single entry point. It runs tests, builds
-    artifacts, creates the git tag, and generates release notes and a step-by-step
-    prompt (`dist/RELEASE-PROMPT.md`) for the remaining manual steps.
-    Don't skip it and assemble releases by hand — you'll miss release notes.
-
-### 1. Prepare the release
+The helper script wraps the same checks:
 
 ```bash
-./scripts/maintain.sh release 0.8.0
+./scripts/maintain.sh test
 ```
 
-This runs tests, builds the CLI binary for the current platform, builds all 10 container images (if a runtime is available), creates a git tag, and generates `dist/RELEASE-NOTES.md` and `dist/RELEASE-PROMPT.md`.
+## Documentation Site
 
-!!! warning "Don't forget Cargo.toml"
-    Update the version in `cli/Cargo.toml` **before** running the release command.
-    The `--version` flag and release artifacts derive from it.
-
-### 2. Build CLI binaries for other platforms
-
-The release command only builds for the current architecture. Cross-platform
-binaries must be built on their respective machines (or via cross-compilation):
-
-| Target | Where to build |
-|--------|---------------|
-| `aarch64-apple-darwin` | macOS Apple Silicon |
-| `x86_64-apple-darwin` | macOS Intel (or cross-compile on Apple Silicon) |
-| `aarch64-unknown-linux-gnu` | Linux ARM64 (e.g., this dev container) |
-| `x86_64-unknown-linux-gnu` | Linux x86_64 |
-
-For macOS builds there's a helper script:
+The public docs live in `docs-site/` and use Docusaurus.
 
 ```bash
-./scripts/build-macos.sh 0.8.0
+cd docs-site
+npm install
+npm start
+npm run build
 ```
 
-Attach additional binaries to the release after creation:
+The maintenance script also exposes:
 
 ```bash
-gh release upload v0.8.0 dist/aibox-v0.8.0-x86_64-apple-darwin.tar.gz
-```
-
-### 3. Push the tag and create the GitHub release
-
-```bash
-git push origin v0.8.0
-
-gh release create v0.8.0 \
-  --title "aibox v0.8.0" \
-  --notes-file dist/RELEASE-NOTES.md \
-  dist/aibox-v0.8.0-*.tar.gz
-```
-
-!!! warning "Always use `--notes-file`, never `--generate-notes`"
-    The `release` command generates `dist/RELEASE-NOTES.md` with commit history,
-    image tags, and binary listings. Always use `--notes-file dist/RELEASE-NOTES.md`
-    when creating the GitHub release. The `--generate-notes` flag only produces
-    a bare diff link with no useful content.
-
-### 4. Push container images to GHCR
-
-First, authenticate with the GitHub Container Registry:
-
-```bash
-echo $GITHUB_TOKEN | podman login ghcr.io -u <username> --password-stdin
-```
-
-The token needs the `write:packages` scope. Create one at
-[github.com/settings/tokens](https://github.com/settings/tokens).
-
-Then push images:
-
-```bash
-./scripts/maintain.sh push-images 0.8.0
-```
-
-This pushes both versioned tags (`python-v0.8.0`) and `latest` tags (`python-latest`)
-for each flavor.
-
-!!! note "Build order matters"
-    Derived images (`python-latex`, `rust-latex`, etc.) depend on their base
-    flavors. `build-images` handles the correct order automatically.
-    If you're building manually, always build and push `base` first.
-
-### 5. Deploy documentation
-
-```bash
+./scripts/maintain.sh docs-serve
+./scripts/maintain.sh docs-deploy --dry-run
 ./scripts/maintain.sh docs-deploy
 ```
 
-This builds the MkDocs site and force-pushes to the `gh-pages` branch.
-GitHub Pages serves the site at
-[projectious-work.github.io/aibox](https://projectious-work.github.io/aibox/).
+`docs-deploy` builds the site and pushes the static output to the `gh-pages`
+branch. The release script runs it as part of the container-side release phase.
 
-### 6. Verify
+## Published Image
 
-After a release, verify:
-
-- [ ] `curl -fsSL .../install.sh | bash` installs the new version
-- [ ] `aibox --version` shows the correct version
-- [ ] `podman pull ghcr.io/projectious-work/aibox:base-v0.8.0` succeeds
-- [ ] Documentation site reflects changes
-
-## Container Images
-
-Ten images are published to `ghcr.io/projectious-work/aibox`:
-
-| Image | Tag pattern | Depends on |
-|-------|------------|------------|
-| base | `base-vX.Y.Z` | debian:trixie-slim |
-| python | `python-vX.Y.Z` | base |
-| rust | `rust-vX.Y.Z` | base |
-| latex | `latex-vX.Y.Z` | base |
-| typst | `typst-vX.Y.Z` | base |
-| node | `node-vX.Y.Z` | base |
-| go | `go-vX.Y.Z` | base |
-| python-latex | `python-latex-vX.Y.Z` | python |
-| python-typst | `python-typst-vX.Y.Z` | python |
-| rust-latex | `rust-latex-vX.Y.Z` | rust |
-
-Build all locally:
+aibox publishes the base Debian image used by generated downstream projects:
 
 ```bash
 ./scripts/maintain.sh build-images
+./scripts/maintain.sh build-images --no-cache
+./scripts/maintain.sh push-images X.Y.Z
 ```
 
-Build a single image manually:
+Generated project images are built per project by `aibox apply`. They are not
+published from this repository.
+
+## Release Boundary
+
+Releases are intentionally split:
+
+| Phase | Where | Command | Purpose |
+| --- | --- | --- | --- |
+| Container side | aibox devcontainer | `./scripts/maintain.sh release X.Y.Z` | sync processkit default, bump CLI version, test, audit, build Linux binaries, tag, create GitHub release, deploy docs |
+| Host side | macOS host | `./scripts/maintain.sh release-host X.Y.Z` | build macOS binaries, upload them to the release, build and push GHCR images |
+
+Do not create GitHub releases by hand with `gh release create`. The release
+script attaches binaries and writes the release notes expected by users.
+
+## Container-Side Release
 
 ```bash
-podman build -t ghcr.io/projectious-work/aibox:python-v0.8.0 images/python/
+./scripts/maintain.sh release X.Y.Z
 ```
 
-## Documentation
+This command requires a clean working tree. It may stop after
+`sync-processkit` if a newer processkit release changes the pinned default and
+the CLI needs review before release.
 
-Documentation uses MkDocs with the Material theme. Source lives in `docs/`.
+The command performs:
+
+- processkit release sync check
+- `cli/Cargo.toml` and `Cargo.lock` version bump when needed
+- format, Clippy, and test checks
+- `cargo audit`
+- Linux release builds for `aarch64-unknown-linux-gnu` and
+  `x86_64-unknown-linux-gnu`
+- binary version smoke check
+- annotated git tag push
+- GitHub release creation with Linux binaries
+- Docusaurus docs deployment
+- `dist/RELEASE-PROMPT.md` for host-side completion
+
+## Host-Side Release
+
+Run this on the macOS host after the container-side release succeeds:
 
 ```bash
-# Preview locally
-./scripts/maintain.sh docs-serve
-
-# Deploy to GitHub Pages
-./scripts/maintain.sh docs-deploy
-
-# Dry run (build only, don't push)
-./scripts/maintain.sh docs-deploy --dry-run
+./scripts/maintain.sh release-host X.Y.Z
 ```
 
-## Running Tests
+This phase builds Darwin binaries, uploads them to the existing GitHub release,
+and pushes GHCR images. It is host-side because macOS binaries and host runtime
+access are not available from the Linux devcontainer.
+
+## Verification
+
+After release:
+
+- `gh release view vX.Y.Z` shows all expected binary assets.
+- `curl -fsSL https://raw.githubusercontent.com/projectious-work/aibox/main/scripts/install.sh | VERSION=X.Y.Z bash` installs the expected version.
+- `aibox --version` reports `X.Y.Z`.
+- `docker pull ghcr.io/projectious-work/aibox:base-debian-vX.Y.Z` or the matching Podman pull succeeds.
+- The docs site at `https://projectious-work.github.io/aibox/` reflects the release.
+
+## Project Devcontainer
+
+The maintenance script can also operate this repository's own devcontainer:
 
 ```bash
-# Full test suite (fmt + clippy + tests)
-./scripts/maintain.sh test
-
-# Or individually
-cd cli
-cargo fmt --check
-cargo clippy -- -D warnings
-cargo test
+./scripts/maintain.sh start
+./scripts/maintain.sh status
+./scripts/maintain.sh attach
+./scripts/maintain.sh stop
 ```
 
-The test suite includes 135 unit tests and 16 integration tests (151 total).
-Integration tests run the `aibox` binary as a subprocess.
+Do not confuse `.devcontainer/` in this repository with `images/`. The former
+is the environment used to develop aibox. The latter contains image recipes
+published for downstream projects.

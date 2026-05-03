@@ -792,6 +792,7 @@ mod tests {
                 mcp_config_hash: None,
             }),
             addons: None,
+            runtime_home: None,
         }
     }
 

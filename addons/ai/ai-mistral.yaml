@@ -4,6 +4,7 @@ description: "Mistral AI Python SDK (programmatic use)"
 profile_intent: runtime
 usage_class: automated
 profiles: ["human-dev", "headless-runner"]
+exported_surfaces: ["language-runtime", "cli-binary"]
 builder_weight: null
 
 tools:

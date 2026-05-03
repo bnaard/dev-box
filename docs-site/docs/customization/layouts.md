@@ -7,6 +7,17 @@ title: "Layouts"
 
 aibox ships six Zellij layouts that control the terminal workspace arrangement. Each layout is optimized for a different workflow.
 
+Generated layouts include AI-agent tabs based on `[ai].providers`. The
+fullscreen **git** tab is generated only when the `git-ui` addon selects
+`lazygit`, so tab numbering shifts when that optional tab is omitted.
+
+Every generated layout also includes a thin bottom status line. It shows the
+normal Zellij mode/keybinding bar plus an `aibox-status` line with cgroup
+memory usage, OOM-kill count, total process count, and processkit MCP Python
+process count. The status helper refreshes every five seconds by default; set
+`AIBOX_STATUS_INTERVAL` in `[container.environment]` to adjust the refresh
+interval.
+
 ## Available Layouts
 
 ### dev (default)
@@ -19,7 +30,7 @@ VS Code-like arrangement: Yazi file browser on the left (40%) and Vim editor on 
 |-----|----------|
 | 1 · dev | yazi (40%) · vim (60%) |
 | 2 · claude | AI agent — fullscreen |
-| 3 · git | lazygit — fullscreen |
+| 3 · git | lazygit — fullscreen, when `git-ui` selects `lazygit` |
 | 4 · shell | bash — fullscreen |
 
 Best for general development where you need file navigation, editing, and terminal access simultaneously.
@@ -39,7 +50,7 @@ One tool per tab, fullscreen. Zero distraction — each tool gets the entire scr
 | 1 · files | yazi — fullscreen |
 | 2 · editor | vim — fullscreen |
 | 3 · claude | AI agent — fullscreen |
-| 4 · git | lazygit — fullscreen |
+| 4 · git | lazygit — fullscreen, when `git-ui` selects `lazygit` |
 | 5 · shell | bash — fullscreen |
 
 Ideal when you want total focus and switch between tools with a single keypress.
@@ -57,7 +68,7 @@ Side-by-side coding with AI. Yazi and Vim share the left half (stacked), the AI 
 | Tab | Contents |
 |-----|----------|
 | 1 · cowork | left 50%: yazi (top 40%) / vim (bottom 60%) · right 50%: AI agent |
-| 2 · git | lazygit — fullscreen |
+| 2 · git | lazygit — fullscreen, when `git-ui` selects `lazygit` |
 | 3 · shell | bash — fullscreen |
 
 Ideal for pair-programming sessions where you want to see AI output while editing.
@@ -75,7 +86,7 @@ Cowork with AI and Vim positions swapped: the AI agent and Yazi share the left c
 | Tab | Contents |
 |-----|----------|
 | 1 · cowork-swap | left 40%: yazi (top 40%) / AI agent (bottom 60%) · right 60%: vim |
-| 2 · git | lazygit — fullscreen |
+| 2 · git | lazygit — fullscreen, when `git-ui` selects `lazygit` |
 | 3 · shell | bash — fullscreen |
 
 Use this when the editor deserves more horizontal space and the AI pane plays a supporting role.
@@ -94,7 +105,7 @@ Yazi-focused layout with a large file preview pane (top 60%) and an AI pane belo
 |-----|----------|
 | 1 · browse | yazi (top 60%) / AI agent (bottom 40%) |
 | 2 · editor | vim — fullscreen |
-| 3 · git | lazygit — fullscreen |
+| 3 · git | lazygit — fullscreen, when `git-ui` selects `lazygit` |
 | 4 · shell | bash — fullscreen |
 
 Great for exploring unfamiliar codebases, reviewing files, and asking AI about what you find.
@@ -113,7 +124,7 @@ AI-first layout: Yazi and the AI agent share the main tab side by side (50/50 ve
 |-----|----------|
 | 1 · ai | yazi (50%) · AI agent (50%) |
 | 2 · editor | vim — fullscreen |
-| 3 · git | lazygit — fullscreen |
+| 3 · git | lazygit — fullscreen, when `git-ui` selects `lazygit` |
 | 4 · shell | bash — fullscreen |
 
 Best for AI-heavy sessions where file navigation and AI interaction are the primary loop and the editor is consulted occasionally.

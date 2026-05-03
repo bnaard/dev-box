@@ -1,10 +1,12 @@
 name: preview-enhanced
 version: "1.0.0"
-description: "Rich Markdown rendering, ffmpeg, ImageMagick, Ghostscript"
+description: "Rich Markdown rendering, ffmpeg, ImageMagick, and Ghostscript"
 profile_intent: preview-media
 usage_class: automated
 profiles: ["human-dev"]
+exported_surfaces: ["previewer", "cli-binary", "config-files"]
 builder_weight: "light"
+requires: ["preview-archive"]
 
 tools:
   - name: ffmpeg
@@ -26,7 +28,7 @@ tools:
 
 runtime: |
   # Addon: preview-enhanced — rich docs, video thumbnails, EPS, image conversion
-  # The base image includes chafa, timg, poppler-utils, mupdf-tools, librsvg2-bin, and entr.
+  # Use preview-archive for baseline image/PDF/SVG and archive preview helpers.
   # This addon adds python3-rich (Markdown), ffmpeg (video), imagemagick (format conversion), and ghostscript (EPS).
   USER root
   RUN apt-get update && apt-get install -y --no-install-recommends \

@@ -413,6 +413,7 @@ pub fn install_content_source(project_root: &Path, config: &AiboxConfig) -> Resu
             ..prospective_pk.clone()
         }),
         addons: existing_addons.clone(),
+        runtime_home: existing_lock.and_then(|lock| lock.runtime_home),
     };
 
     // 4b. Write the live install marker (DO NOT EDIT). Sibling to
@@ -1190,6 +1191,7 @@ mod tests {
                 keepalive: false,
                 environment: std::collections::HashMap::new(),
                 extra_volumes: vec![],
+                resource_thresholds: crate::config::ResourceThresholdsSection::default(),
             },
             context: ContextSection::default(),
             ai: AiSection::default(),

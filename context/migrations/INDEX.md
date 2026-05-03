@@ -8,7 +8,7 @@ None.
 
 None.
 
-## Applied (26)
+## Applied (28)
 
 | Date       | Migration                                | Notes |
 |------------|------------------------------------------|-------|
@@ -36,13 +36,17 @@ None.
 | 2026-04-29 | MIG-RUNTIME-20260429T133020 — aibox-runtime-home 0.21.2 → 0.21.2 | 0 changed upstream, 0 conflicts, 0 new, 0 removed (2 groups affected) |
 | 2026-04-30 | MIG-20260430T140909 — processkit v0.23.1 → v0.24.0 | 0 changed upstream, 1 conflicts, 23 new, 0 removed, 0 stale-removed (3 groups affected) |
 | 2026-04-30 | MIG-RUNTIME-20260430T140908 — aibox-runtime-home 0.21.2 → 0.22.0 | 3 changed upstream, 0 conflicts, 1 new, 0 removed (3 groups affected) |
+| 2026-05-02 | MIG-20260502T211333 — processkit v0.24.0 → v0.25.0 | 0 changed upstream, 1 conflicts, 39 new, 48 removed, 0 stale-removed (15 groups affected) |
+| 2026-05-02 | MIG-RUNTIME-20260501T165901 — aibox-runtime-home 0.22.0 → 0.22.0 | 0 changed upstream, 0 conflicts, 0 new, 0 removed (2 groups affected) |
 |  | MIG-20260426T155754 — processkit v0.22.0 → v0.23.0 | 0 changed upstream, 50 conflicts, 9 new, 0 removed, 0 stale-removed (7 groups affected) |
 |  | MIG-RUNTIME-20260426T155732 — aibox-runtime-home 0.21.0 → 0.21.0 | 0 changed upstream, 0 conflicts, 27 new, 0 removed (9 groups affected) |
 
-## Rejected (3)
+## Rejected (5)
 
 | Date       | Migration                                | Reason |
 |------------|------------------------------------------|--------|
 | 2026-04-29 | MIG-20260429T100822 — processkit v0.23.0 → v0.23.1 | Rejected during reconciliation because the only conflict is AGENTS.md. This project keeps a project-specific AGENTS.md … |
+| 2026-05-02 | MIG-RUNTIME-20260502T071656 — aibox-runtime-home 0.22.0 → 0.22.0 | Obsolete migration generated before runtime-home provenance auto-repair handled conflict-state generated Zellij layouts… |
+| 2026-05-02 | MIG-RUNTIME-20260502T072936 — aibox-runtime-home 0.22.0 → 0.22.0 | No upstream runtime changes or conflicts were present; the migration only reported a local-only .aibox-home/.config/git… |
 |  | MIG-20260425T235248 — processkit v0.21.0 → v0.22.0 |  |
 |  | MIG-RUNTIME-20260425T235247 — aibox-runtime-home 0.19.2 → 0.19.2 |  |

@@ -41,6 +41,8 @@ pub struct AddonYaml {
     #[serde(default)]
     pub profiles: Vec<AddonProfile>,
     #[serde(default)]
+    pub exported_surfaces: Vec<AddonExportSurface>,
+    #[serde(default)]
     pub builder_weight: Option<String>,
     #[serde(default)]
     pub tools: Vec<ToolYaml>,
@@ -119,6 +121,35 @@ impl AddonProfile {
     }
 }
 
+/// User-visible surfaces an addon exports into the generated environment.
+#[derive(Debug, Clone, Copy, Deserialize, Serialize, PartialEq, Eq)]
+#[serde(rename_all = "kebab-case")]
+pub enum AddonExportSurface {
+    CliBinary,
+    ConfigFiles,
+    ShellIntegration,
+    LanguageRuntime,
+    BuildToolchain,
+    RuntimeService,
+    Previewer,
+    McpServer,
+}
+
+impl AddonExportSurface {
+    pub fn as_str(self) -> &'static str {
+        match self {
+            AddonExportSurface::CliBinary => "cli-binary",
+            AddonExportSurface::ConfigFiles => "config-files",
+            AddonExportSurface::ShellIntegration => "shell-integration",
+            AddonExportSurface::LanguageRuntime => "language-runtime",
+            AddonExportSurface::BuildToolchain => "build-toolchain",
+            AddonExportSurface::RuntimeService => "runtime-service",
+            AddonExportSurface::Previewer => "previewer",
+            AddonExportSurface::McpServer => "mcp-server",
+        }
+    }
+}
+
 /// A tool entry in the YAML file.
 #[derive(Debug, Deserialize)]
 pub struct ToolYaml {
@@ -153,6 +184,8 @@ pub struct LoadedAddon {
     pub usage_class: Option<AddonUsageClass>,
     /// aibox profiles this addon can participate in.
     pub profiles: Vec<AddonProfile>,
+    /// User-visible surfaces this addon contributes to the environment.
+    pub exported_surfaces: Vec<AddonExportSurface>,
     /// Category derived from the addon's parent directory (ai/, languages/, tools/, docs/).
     pub category: String,
     pub builder_weight: Option<String>,
@@ -187,6 +220,7 @@ pub struct AddonCatalogEntry {
     pub profile_intent: Option<String>,
     pub usage_class: Option<String>,
     pub profiles: Vec<String>,
+    pub exported_surfaces: Vec<String>,
     pub requires: Vec<String>,
     pub tools: Vec<AddonCatalogTool>,
 }
@@ -305,6 +339,7 @@ fn load_yaml_file(path: &Path) -> Result<LoadedAddon> {
         profile_intent: yaml.profile_intent,
         usage_class: yaml.usage_class,
         profiles: yaml.profiles,
+        exported_surfaces: yaml.exported_surfaces,
         category,
         builder_weight: yaml.builder_weight,
         requires: yaml.requires,
@@ -368,6 +403,11 @@ pub fn addon_catalog_index(addons: &[LoadedAddon]) -> AddonCatalogIndex {
                 .iter()
                 .map(|p| p.as_str().to_string())
                 .collect(),
+            exported_surfaces: addon
+                .exported_surfaces
+                .iter()
+                .map(|surface| surface.as_str().to_string())
+                .collect(),
             requires: addon.requires.clone(),
             tools: addon
                 .tools
@@ -413,6 +453,12 @@ pub fn addon_metadata_warnings(addons: &[LoadedAddon]) -> Vec<String> {
         if addon.profiles.is_empty() {
             warnings.push(format!(
                 "addon-metadata-missing: {} has no profiles",
+                addon.name
+            ));
+        }
+        if addon.exported_surfaces.is_empty() {
+            warnings.push(format!(
+                "addon-metadata-missing: {} has no exported_surfaces",
                 addon.name
             ));
         }
@@ -666,6 +712,7 @@ runtime: |
             profile_intent: Some(AddonProfileIntent::Runtime),
             usage_class: Some(AddonUsageClass::Automated),
             profiles: vec![AddonProfile::HumanDev, AddonProfile::HeadlessRunner],
+            exported_surfaces: vec![AddonExportSurface::CliBinary],
             category: "Other".to_string(),
             builder_weight: None,
             requires: vec![],
@@ -701,6 +748,7 @@ runtime: |
             profile_intent: Some(AddonProfileIntent::Runtime),
             usage_class: Some(AddonUsageClass::Automated),
             profiles: vec![AddonProfile::HumanDev],
+            exported_surfaces: vec![AddonExportSurface::CliBinary],
             category: "Other".to_string(),
             builder_weight: None,
             requires: vec![],
@@ -750,6 +798,7 @@ runtime: |
             profile_intent: Some(AddonProfileIntent::Build),
             usage_class: Some(AddonUsageClass::Automated),
             profiles: vec![AddonProfile::HumanDev, AddonProfile::HeadlessRunner],
+            exported_surfaces: vec![AddonExportSurface::BuildToolchain],
             category: "Other".to_string(),
             builder_weight: Some("heavy".to_string()),
             tools: vec![],
@@ -764,6 +813,7 @@ runtime: |
             profile_intent: Some(AddonProfileIntent::Build),
             usage_class: Some(AddonUsageClass::Automated),
             profiles: vec![AddonProfile::HumanDev, AddonProfile::HeadlessRunner],
+            exported_surfaces: vec![AddonExportSurface::BuildToolchain],
             category: "Other".to_string(),
             builder_weight: Some("medium".to_string()),
             tools: vec![],
@@ -778,6 +828,7 @@ runtime: |
             profile_intent: Some(AddonProfileIntent::Runtime),
             usage_class: Some(AddonUsageClass::Automated),
             profiles: vec![AddonProfile::HumanDev],
+            exported_surfaces: vec![AddonExportSurface::RuntimeService],
             category: "Other".to_string(),
             builder_weight: None,
             tools: vec![],
@@ -811,6 +862,7 @@ runtime: |
             profile_intent: Some(AddonProfileIntent::Runtime),
             usage_class: Some(AddonUsageClass::Automated),
             profiles: vec![AddonProfile::HumanDev],
+            exported_surfaces: vec![AddonExportSurface::CliBinary],
             category: "Other".to_string(),
             builder_weight: None,
             requires: vec![],
@@ -887,6 +939,7 @@ description: "Test AI addon"
 profile_intent: provider-cli
 usage_class: manual-escalation-only
 profiles: ["human-dev"]
+exported_surfaces: ["cli-binary", "config-files"]
 tools: []
 runtime: |
   RUN true
@@ -903,6 +956,13 @@ runtime: |
             Some(AddonUsageClass::ManualEscalationOnly)
         );
         assert_eq!(addons[0].profiles, vec![AddonProfile::HumanDev]);
+        assert_eq!(
+            addons[0].exported_surfaces,
+            vec![
+                AddonExportSurface::CliBinary,
+                AddonExportSurface::ConfigFiles
+            ]
+        );
         assert!(addon_metadata_warnings(&addons).is_empty());
     }
 
@@ -916,6 +976,7 @@ runtime: |
                 profile_intent: None,
                 usage_class: None,
                 profiles: vec![],
+                exported_surfaces: vec![],
                 category: "Other".to_string(),
                 builder_weight: None,
                 tools: vec![],
@@ -930,6 +991,7 @@ runtime: |
                 profile_intent: Some(AddonProfileIntent::ProviderCli),
                 usage_class: Some(AddonUsageClass::ManualEscalationOnly),
                 profiles: vec![AddonProfile::HumanDev, AddonProfile::HeadlessRunner],
+                exported_surfaces: vec![AddonExportSurface::CliBinary],
                 category: "Other".to_string(),
                 builder_weight: None,
                 tools: vec![],
@@ -943,6 +1005,7 @@ runtime: |
         assert!(warnings.iter().any(|w| w.contains("no profile_intent")));
         assert!(warnings.iter().any(|w| w.contains("no usage_class")));
         assert!(warnings.iter().any(|w| w.contains("no profiles")));
+        assert!(warnings.iter().any(|w| w.contains("no exported_surfaces")));
         assert!(
             warnings
                 .iter()
@@ -965,6 +1028,7 @@ runtime: |
                 profile_intent: Some(AddonProfileIntent::ProviderCli),
                 usage_class: Some(AddonUsageClass::ManualEscalationOnly),
                 profiles: vec![AddonProfile::HumanDev],
+                exported_surfaces: vec![AddonExportSurface::CliBinary],
                 category: "Other".to_string(),
                 builder_weight: None,
                 tools: vec![],
@@ -979,6 +1043,7 @@ runtime: |
                 profile_intent: Some(AddonProfileIntent::Runtime),
                 usage_class: Some(AddonUsageClass::Automated),
                 profiles: vec![AddonProfile::HumanDev, AddonProfile::HeadlessRunner],
+                exported_surfaces: vec![AddonExportSurface::RuntimeService],
                 category: "Other".to_string(),
                 builder_weight: None,
                 tools: vec![],
@@ -1010,6 +1075,10 @@ runtime: |
                 profile_intent: Some(AddonProfileIntent::Runtime),
                 usage_class: Some(AddonUsageClass::Automated),
                 profiles: vec![AddonProfile::HumanDev, AddonProfile::HeadlessRunner],
+                exported_surfaces: vec![
+                    AddonExportSurface::RuntimeService,
+                    AddonExportSurface::CliBinary,
+                ],
                 category: "Other".to_string(),
                 builder_weight: None,
                 tools: vec![LoadedTool {
@@ -1029,6 +1098,7 @@ runtime: |
                 profile_intent: Some(AddonProfileIntent::ProviderCli),
                 usage_class: Some(AddonUsageClass::ManualEscalationOnly),
                 profiles: vec![AddonProfile::HumanDev],
+                exported_surfaces: vec![AddonExportSurface::CliBinary],
                 category: "Other".to_string(),
                 builder_weight: None,
                 tools: vec![],
@@ -1050,6 +1120,10 @@ runtime: |
         assert_eq!(
             index.addons[1].profiles,
             vec!["human-dev".to_string(), "headless-runner".to_string()]
+        );
+        assert_eq!(
+            index.addons[1].exported_surfaces,
+            vec!["runtime-service".to_string(), "cli-binary".to_string()]
         );
         assert_eq!(index.addons[1].requires, vec!["base".to_string()]);
         assert_eq!(index.addons[1].tools[0].name, "runner");

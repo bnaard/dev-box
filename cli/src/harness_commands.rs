@@ -1005,6 +1005,7 @@ mod tests {
                 keepalive: false,
                 environment: std::collections::HashMap::new(),
                 extra_volumes: vec![],
+                resource_thresholds: crate::config::ResourceThresholdsSection::default(),
             },
             context: ContextSection::default(),
             ai: AiSection {

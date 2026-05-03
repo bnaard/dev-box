@@ -27,6 +27,7 @@
 use anyhow::{Context, Result};
 use serde::{Deserialize, Serialize};
 use sha2::{Digest, Sha256};
+use std::collections::BTreeMap;
 use std::fs;
 use std::path::{Component, Path, PathBuf};
 
@@ -70,6 +71,8 @@ pub struct AiboxLock {
     pub processkit: Option<ProcessKitLockSection>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub addons: Option<AddonsLockSection>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub runtime_home: Option<RuntimeHomeLockSection>,
 }
 
 /// `[addons]` section of `aibox.lock`. Records resolved tool versions
@@ -80,6 +83,20 @@ pub struct AddonsLockSection {
     pub resolved_at: String,
     /// Resolved tool versions: tool_name → concrete version string.
     pub tools: std::collections::BTreeMap<String, String>,
+}
+
+/// `[runtime_home]` section of `aibox.lock`.
+///
+/// Tracks the last generated content hash for each managed `.aibox-home`
+/// runtime file. Runtime sync uses this to distinguish a stale generated file
+/// from a genuine user edit when config changes within the same aibox version.
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+pub struct RuntimeHomeLockSection {
+    /// ISO 8601 UTC timestamp of the last runtime-home hash refresh.
+    pub generated_at: String,
+    /// Managed runtime path, relative to `.aibox-home/`, mapped to SHA256.
+    #[serde(default)]
+    pub files: BTreeMap<String, String>,
 }
 
 /// `[aibox]` section of `aibox.lock`. Tracks the CLI version that last
@@ -259,6 +276,7 @@ pub fn read_lock(project_root: &Path) -> Result<Option<AiboxLock>> {
             mcp_config_hash: None,
         }),
         addons: None,
+        runtime_home: None,
     }))
 }
 
@@ -507,6 +525,7 @@ mod tests {
             },
             processkit: Some(sample_pk()),
             addons: None,
+            runtime_home: None,
         }
     }
 
@@ -524,6 +543,7 @@ mod tests {
             },
             processkit: Some(pk),
             addons: None,
+            runtime_home: None,
         };
         write_lock(tmp.path(), &lock).unwrap();
         let back = read_lock(tmp.path()).unwrap().unwrap();

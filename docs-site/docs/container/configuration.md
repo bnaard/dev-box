@@ -18,6 +18,32 @@ user = "aibox"             # Container user (default: aibox)
 
 The `user` field determines the non-root user inside the container. The default `aibox` user (UID 1000) is recommended. Set `user = "root"` only if needed for specific tools.
 
+`aibox apply` generates a Compose file with an explicit top-level project name,
+an explicit service image, and `container_name = [container].name`. Docker
+Desktop, OrbStack, and Compose UIs therefore group aibox projects by their
+project/container names instead of under a generic `devcontainer` identity.
+
+The generated main service also sets Compose `init: true`. Compose starts a
+small init process as PID 1 so orphaned child processes are reaped correctly
+while the service still runs `command: sleep infinity` as its long-lived
+container command. This prevents zombie buildup from tools that spawn helper
+processes, including bubblewrap-based sandbox helpers.
+
+`init: true` is part of the Compose Specification. Docker Compose and modern
+Compose-spec providers support it. `podman compose` delegates to an external
+Compose provider, so support depends on the configured provider; if an older
+provider rejects the key, upgrade the provider rather than removing the reaper
+from generated projects.
+
+Use the configured container name when writing Compose overrides:
+
+```yaml
+services:
+  my-project:
+    ports:
+      - "8080:80"
+```
+
 ## Post-Create Command
 
 Run a command after the container is first created:

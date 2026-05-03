@@ -5,7 +5,11 @@ title: "File Preview"
 
 # File Preview
 
-aibox containers ship with a complete set of TUI-native preview tools covering raster images, vector graphics, PDF, and video — both inside the Yazi file manager and as standalone command-line viewers. Several formats also support **watch-mode preview**, where the rendered output updates automatically whenever the source file changes.
+aibox containers ship with Yazi preview configuration and can install
+TUI-native preview tools for raster images, vector graphics, PDF, archives, and
+video through optional addons. Several formats also support **watch-mode
+preview**, where the rendered output updates automatically whenever the source
+file changes.
 
 ## Overview
 
@@ -43,9 +47,14 @@ When you open Yazi (`Ctrl+b s` from the file manager pane, or via the layout sid
 | Video | `.mp4` `.mkv` `.webm` `.avi` | `video` (built-in) | `ffmpeg` (addon) |
 | Text / code | most text formats | `code` (built-in) | — |
 
-Most tools are pre-installed in the base image. SQLite, CSV/TSV, and Excel previews require the **data-preview** addon. Markdown rendering, EPS, video thumbnails, and advanced image conversion require the **preview-enhanced** addon:
+Raster image, SVG, PDF, archive, and standalone terminal viewers require the
+**preview-archive** addon. SQLite, CSV/TSV, and Excel previews require the
+**data-preview** addon. Markdown rendering, EPS, video thumbnails, and advanced
+image conversion require the **preview-enhanced** addon, which depends on
+`preview-archive`:
 
 ```bash
+aibox set addon preview-archive enabled --apply    # adds chafa, timg, poppler, mutool, entr, ouch, resvg
 aibox set addon data-preview enabled --apply       # adds sqlite3 and csvkit for data previews
 aibox set addon preview-enhanced enabled --apply   # adds python3-rich, ffmpeg, imagemagick, ghostscript
 ```
@@ -101,7 +110,8 @@ Zellij currently passes only **Sixel** through to the terminal (Kitty and iTerm2
 
 ## Standalone TUI Viewers
 
-These tools are available directly in the shell for viewing a specific file or integrating into a pipeline. Both are pre-installed in the base image.
+These tools are available directly in the shell for viewing a specific file or
+integrating into a pipeline when the `preview-archive` addon is enabled.
 
 ### chafa — universal image renderer
 
@@ -158,7 +168,8 @@ The pattern uses `entr` (an inotify-based file watcher) combined with a rasteris
 source file changes → entr triggers → rasteriser produces PNG → timg renders PNG in terminal
 ```
 
-All tools (`entr`, `mupdf-tools`, `resvg`, `timg`) are pre-installed in the base image.
+Install the `preview-archive` addon to get the watch-mode tools (`entr`,
+`mupdf-tools`, `resvg`, `timg`).
 
 ### PDF watch preview ⟳
 

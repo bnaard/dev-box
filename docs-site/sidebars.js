@@ -1,13 +1,14 @@
 /** @type {import('@docusaurus/plugin-content-docs').SidebarsConfig} */
 const sidebars = {
   docs: [
+    'overview',
     {
       type: 'category', label: 'Getting Started', collapsed: false,
       items: ['getting-started/installation', 'getting-started/new-project', 'getting-started/existing-project'],
     },
     {
       type: 'category', label: 'Container',
-      items: ['container/base-image', 'container/file-preview', 'container/configuration', 'container/audio'],
+      items: ['container/base-image', 'container/configuration', 'container/runtime-operations', 'container/file-preview', 'container/audio'],
     },
     {
       type: 'category', label: 'Addons',
@@ -36,7 +37,7 @@ const sidebars = {
     },
     {
       type: 'category', label: 'Reference',
-      items: ['reference/cli-commands', 'reference/configuration', 'reference/local-config', 'reference/cheatsheet'],
+      items: ['reference/cli-commands', 'reference/configuration', 'reference/local-config', 'reference/compatibility', 'reference/cheatsheet'],
     },
     'roadmap',
     {

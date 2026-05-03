@@ -4,6 +4,7 @@ description: "Python runtime with uv, poetry, or pdm"
 profile_intent: runtime
 usage_class: automated
 profiles: ["human-dev", "headless-runner"]
+exported_surfaces: ["language-runtime", "build-toolchain", "cli-binary"]
 builder_weight: null
 
 # As of aibox v0.16.5 (DEC-036), python3 (Debian Trixie default, 3.13.x)

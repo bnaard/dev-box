@@ -3,7 +3,7 @@ import {themes as prismThemes} from 'prism-react-renderer';
 /** @type {import('@docusaurus/types').Config} */
 const config = {
   title: 'aibox',
-  tagline: 'AI-ready development environments, containerized — a projectious.work project',
+  tagline: 'Reproducible AI workspaces from one aibox.toml',
   favicon: 'img/favicon.ico',
   headTags: [
     { tagName: 'link', attributes: { rel: 'icon', type: 'image/png', sizes: '32x32', href: '/aibox/img/favicon.png' }},
@@ -15,7 +15,6 @@ const config = {
   organizationName: 'projectious-work',
   projectName: 'aibox',
   onBrokenLinks: 'warn',
-  onBrokenMarkdownLinks: 'warn',
   i18n: { defaultLocale: 'en', locales: ['en'] },
   stylesheets: [
     '/aibox/player/asciinema-player.css',
@@ -27,6 +26,9 @@ const config = {
   ],
   markdown: {
     format: 'detect',
+    hooks: {
+      onBrokenMarkdownLinks: 'warn',
+    },
   },
   presets: [['classic', {
     docs: {

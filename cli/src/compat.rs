@@ -215,6 +215,11 @@ pub static COMPAT_TABLE: &[CompatEntry] = &[
         processkit_version: "v0.24.0",
         note: "Minor release: integrates processkit v0.24.0 (context-archiving skill and MCP server, archive-aware index metadata, richer model/provider characteristics, class-based model routing, task-router v0.2 semantic scoring, context-consumption reports, team/model assignment bindings, optional sqlite-vec semantic search, and library-expert skill template). FORMAT.md unchanged — no vocabulary updates needed; bumps PROCESSKIT_DEFAULT_VERSION to v0.24.0.",
     },
+    CompatEntry {
+        aibox_version: "0.23.0",
+        processkit_version: "v0.25.0",
+        note: "Minor release: integrates processkit v0.25.0 and its processkit-gateway, collapses processkit MCP registration to a provider-neutral gateway by default, adds daemon-proxy mode, restores apply --no-cache, fixes selected-harness layout generation, adds runtime resource diagnostics and Compose init reaping for Codex sandbox helpers, moves gh/lazygit and voice/preview helpers into selectable addons, adds profile-aware addon metadata and environment-contract projections, and refreshes the docs for runtime operations and processkit v0.25.0.",
+    },
 ];
 
 /// Find the minimum compatible processkit version for the given aibox version.

@@ -4,6 +4,7 @@ description: "Aider – AI pair programming via CLI"
 profile_intent: provider-cli
 usage_class: manual-escalation-only
 profiles: ["human-dev"]
+exported_surfaces: ["cli-binary", "config-files"]
 builder_weight: null
 
 tools:

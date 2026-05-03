@@ -83,7 +83,7 @@ RUN ARCH=$(uname -m) && \
 
 # ── fzf (uses amd64/arm64 instead of x86_64/aarch64) ────────────────────────
 FROM fetch-base AS fetch-fzf
-ARG FZF_VERSION=0.71.0
+ARG FZF_VERSION=0.72.0
 RUN ARCH=$(uname -m) && \
     FZF_ARCH=$(case $ARCH in aarch64) echo arm64;; x86_64) echo amd64;; esac) && \
     curl -fsSL \
@@ -102,50 +102,14 @@ RUN ARCH=$(uname -m) && \
         "delta-${DELTA_VERSION}-${ARCH}-unknown-linux-${DELTA_LIBC}/delta" && \
     chmod +x /usr/local/bin/delta
 
-# ── ouch (universal archive CLI) ─────────────────────────────────────────────
-# Single-binary alternative to remembering tar/unzip/7z/unxz incantations.
-# Used as a shell convenience; archive *previewing* in yazi goes through
-# yazi's built-in archive previewer, which calls 7z (provided by the
-# p7zip-full apt package below).
-FROM fetch-base AS fetch-ouch
-ARG OUCH_VERSION=0.6.1
-RUN ARCH=$(uname -m) && \
-    curl -fsSL \
-      "https://github.com/ouch-org/ouch/releases/download/${OUCH_VERSION}/ouch-${ARCH}-unknown-linux-musl.tar.gz" \
-      | tar -xz --strip-components=1 -C /usr/local/bin \
-        "ouch-${ARCH}-unknown-linux-musl/ouch" && \
-    chmod +x /usr/local/bin/ouch
-
 # ── starship ─────────────────────────────────────────────────────────────────
 FROM fetch-base AS fetch-starship
-ARG STARSHIP_VERSION=1.24.2
+ARG STARSHIP_VERSION=1.25.1
 RUN ARCH=$(uname -m) && \
     curl -fsSL \
       "https://github.com/starship/starship/releases/download/v${STARSHIP_VERSION}/starship-${ARCH}-unknown-linux-musl.tar.gz" \
       | tar -xz -C /usr/local/bin && \
     chmod +x /usr/local/bin/starship
-
-# ── resvg (SVG renderer — static binary, no apt package) ─────────────────────
-# Source: https://github.com/linebender/resvg/releases (official)
-# Only x86_64 Linux binary is published upstream; aarch64 is skipped
-# gracefully (svg.yazi plugin handles missing resvg by falling back).
-FROM fetch-base AS fetch-resvg
-ARG RESVG_VERSION=0.47.0
-ARG RESVG_SHA256_X86_64=5c84dcbcd032fe7e8d96e616fd6807a2f9df6561d2e6582b37e91e63c6cb4fe7
-RUN ARCH=$(uname -m) && \
-    if [ "$ARCH" = "x86_64" ]; then \
-      curl -fsSL \
-        "https://github.com/linebender/resvg/releases/download/v${RESVG_VERSION}/resvg-linux-${ARCH}.tar.gz" \
-        -o /tmp/resvg.tar.gz && \
-      echo "${RESVG_SHA256_X86_64}  /tmp/resvg.tar.gz" | sha256sum -c - && \
-      tar -xz -C /usr/local/bin -f /tmp/resvg.tar.gz resvg && \
-      chmod +x /usr/local/bin/resvg && \
-      rm /tmp/resvg.tar.gz; \
-    else \
-      printf '#!/bin/sh\necho "resvg: no upstream binary for %s (svg.yazi uses chafa fallback)" "$ARCH" >&2\nexit 1\n' "$ARCH" \
-        > /usr/local/bin/resvg && \
-      chmod +x /usr/local/bin/resvg; \
-    fi
 
 # ── Vim colorschemes ─────────────────────────────────────────────────────────
 # Separate stage keeps network fetches out of the runtime build graph.
@@ -174,15 +138,15 @@ RUN mkdir -p /vim-colors/colors \
 # =============================================================================
 # Estimated layer sizes (arm64, approximate):
 #   debian:trixie-slim base .............. ~75 MB
-#   Core apt (curl, git, vim, etc.) ...... ~120 MB
-#   Preview deps (ffmpeg, imagemagick, ghostscript, timg, mupdf-tools, entr) ~175 MB
-#   Archive support (p7zip-full) ......... ~5 MB
-#   Audio (sox, pulseaudio) .............. ~25 MB
-#   Static binaries (12 tools) ........... ~100 MB
+#   Core apt (curl, git, vim, etc.) ...... ~105 MB
+#   Static binaries (10 tools) ........... ~85 MB
 #   Vim colorschemes ..................... ~0.1 MB
 #   Config files ......................... ~0.1 MB
 #   ─────────────────────────────────────────────
-#   Total estimate ....................... ~470 MB
+#   Total estimate ....................... ~365 MB
+#
+# Preview/archive and audio helpers are opt-in addons; keep the base focused on
+# core aibox/processkit operation plus the interactive shell/file-manager core.
 # =============================================================================
 FROM debian:trixie-slim AS runtime
 
@@ -214,37 +178,21 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     jq \
     sudo \
     gosu \
+    # ── Sandboxing support (~1 MB) ──
+    # OpenAI Codex CLI uses bubblewrap on Linux. Ship the Debian package so
+    # Codex does not have to fall back to its vendored binary.
+    bubblewrap \
     # ── Editor (~25 MB) ──
     vim \
-    # ── Version control (~55 MB) ──
+    # ── Version control (~40 MB) ──
     git \
-    lazygit \
     # ── Shell quality-of-life (~5 MB) ──
     less \
     unzip \
     file \
     bash-completion \
-    # ── GitHub CLI (~15 MB) ──
-    gh \
-    # ── Yazi preview dependencies (~30 MB — slim set) ──
-    # Heavy tools (ffmpeg, imagemagick, ghostscript) moved to preview-enhanced addon
-    chafa \
-    librsvg2-bin \
-    poppler-utils \
-    timg \
-    mupdf-tools \
-    entr \
-    # ── Archive support (~5 MB) ──
-    # p7zip-full feeds yazi's built-in archive previewer (selecting a
-    # zip / 7z / tar / tar.gz / tar.bz2 / tar.xz / iso shows the file
-    # tree in the preview pane, no plugin required). The `ouch` static
-    # binary in /usr/local/bin/ouch is for shell-side extraction.
-    p7zip-full \
-    # ── Audio support for Claude Code voice (~25 MB) ──
-    sox \
-    libsox-fmt-pulse \
-    pulseaudio-utils \
-    libasound2-plugins \
+    # Preview/archive helpers live in the preview-archive addon.
+    # Audio helpers live in the audio-voice addon.
     # ── Python (~50 MB) ──
     # Debian Trixie ships python3 = 3.13.x as the default. python3
     # and python3-venv are unconditionally installed in the base image
@@ -284,7 +232,6 @@ COPY --from=fetch-eza      /usr/local/bin/eza      /usr/local/bin/
 COPY --from=fetch-zoxide   /usr/local/bin/zoxide   /usr/local/bin/
 COPY --from=fetch-fzf      /usr/local/bin/fzf      /usr/local/bin/
 COPY --from=fetch-delta    /usr/local/bin/delta    /usr/local/bin/
-COPY --from=fetch-ouch     /usr/local/bin/ouch     /usr/local/bin/
 COPY --from=fetch-starship /usr/local/bin/starship /usr/local/bin/
 # ── uv (Python package/project manager — ~25 MB) ────────────────────────────
 # Distroless image ships only the static binaries. Pulled into the base
@@ -292,7 +239,6 @@ COPY --from=fetch-starship /usr/local/bin/starship /usr/local/bin/
 # scripts run via `uv run` out of the box. Works against the
 # externally-installed python3 from apt above.
 COPY --from=ghcr.io/astral-sh/uv:latest /uv /uvx /usr/local/bin/
-COPY --from=fetch-resvg    /usr/local/bin/resvg    /usr/local/bin/
 
 # ── Bake default configs into the image ───────────────────────────────────────
 # These act as fallback defaults when no host directory is mounted.
@@ -331,6 +277,7 @@ COPY config/yazi/plugins/              /home/aibox/.config/yazi/plugins/
 COPY --chmod=755 config/bin/open-in-editor.sh /usr/local/bin/open-in-editor
 COPY --chmod=755 config/bin/vim-loop.sh       /usr/local/bin/vim-loop
 COPY --chmod=755 config/bin/pdf-watch.sh      /usr/local/bin/pdf-watch
+COPY --chmod=755 config/bin/aibox-status.sh   /usr/local/bin/aibox-status
 # xdg-open shim — headless containers have no browser, so any tool that
 # calls xdg-open (gh auth login, git credential helpers, opencode, ...)
 # would otherwise hit a confusing "Failed opening a web browser" error.

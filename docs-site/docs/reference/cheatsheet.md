@@ -11,7 +11,7 @@ Quick reference for all tools in the aibox environment. Press the tab for the to
     - **Zellij:** The status bar always shows available keys for the current mode
     - **Yazi:** Press `~` or `F1` to see all keybindings
     - **Vim:** Type `:help` for built-in help
-    - **lazygit:** Press `?` to see context-sensitive keybindings
+    - **lazygit:** Press `?` to see context-sensitive keybindings when the optional `git-ui` addon is enabled
 
 === "Zellij"
 
@@ -96,11 +96,12 @@ Quick reference for all tools in the aibox environment. Press the tab for the to
     | `Ctrl+q` | Quit Zellij (global) |
 
     !!! info "Default layout tabs"
-        The `dev` layout opens with pre-configured tabs:
+        The generated `dev` layout opens with pre-configured tabs:
         **Tab 1** — dev (files + editor + terminal),
-        **Tab 2** — git (lazygit),
-        **Tab 3** — shell (extra terminal),
-        **Tab 4** — help (cheatsheet)
+        AI-agent tabs based on `[ai].providers`,
+        optional **git** (lazygit) when `git-ui` selects `lazygit`,
+        and **shell** (extra terminal). Tab numbers shift when optional tabs
+        are omitted.
 
 === "Yazi"
 
@@ -334,4 +335,6 @@ Quick reference for all tools in the aibox environment. Press the tab for the to
     | `q` | Quit lazygit |
 
     !!! tip "Accessing lazygit"
-        In the default aibox layout, lazygit runs in **Tab 2** (`Ctrl+b` `2`).
+        lazygit is available only when the optional `git-ui` addon selects
+        `lazygit`. In generated layouts, aibox adds it as a fullscreen **git**
+        tab after any AI-agent tabs.

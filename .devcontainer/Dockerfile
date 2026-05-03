@@ -11,6 +11,7 @@
 #   registry  — GHCR base image path (ghcr.io/projectious-work/aibox)
 #   image     — base image flavor tag (e.g. base-debian)
 #   version   — pinned aibox image version
+#   profile   — aibox usage profile (human-dev or headless-runner)
 # =============================================================================
 # ── Rust builder ─────────────────────────────────────────────────────
 FROM debian:trixie-slim AS rust-builder
@@ -46,8 +47,9 @@ RUN install -d /usr/local/bin && \
 # rustup can freely download components (no directory or permission issues).
 RUN rustup target add x86_64-unknown-linux-gnu
 
-FROM ghcr.io/projectious-work/aibox:base-debian-v0.21.2 AS aibox
-LABEL aibox.version="0.21.2"
+FROM ghcr.io/projectious-work/aibox:base-debian-v0.22.0 AS aibox
+LABEL aibox.version="0.22.0"
+LABEL aibox.profile="human-dev"
 
 # Addon: ai-claude
 # Install Claude Code CLI via the native installer (recommended by Anthropic).
@@ -58,6 +60,22 @@ LABEL aibox.version="0.21.2"
 USER aibox
 RUN curl -fsSL https://claude.ai/install.sh | bash
 USER root
+
+# Addon: audio-voice — PulseAudio/Sox support for interactive voice tools.
+USER root
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    sox \
+    libsox-fmt-pulse \
+    pulseaudio-utils \
+    libasound2-plugins \
+    && rm -rf /var/lib/apt/lists/*
+
+# Addon: git-ui — GitHub CLI and lazygit
+USER root
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    gh \
+    lazygit \
+    && rm -rf /var/lib/apt/lists/*
 
 # Addon: node (runtime)
 RUN apt-get update && apt-get install -y --no-install-recommends ca-certificates curl gpg && \
@@ -140,7 +158,7 @@ USER root
 #
 # Repo-only devcontainer layers. These are for developing aibox itself and are
 # not shipped in downstream images.
-RUN apt-get update && apt-get install -y --no-install-recommends     asciinema     libc6-dev     openssh-client     && rm -rf /var/lib/apt/lists/*
+RUN apt-get update && apt-get install -y --no-install-recommends     asciinema     bubblewrap     libc6-dev     openssh-client     && rm -rf /var/lib/apt/lists/*
 
 RUN cat <<'EOF' >> /home/aibox/.bashrc
 # Repo-local fallback: ensure Rustup shims are on PATH in interactive shells.
@@ -151,4 +169,4 @@ EOF
 
 # Record image version inside container for runtime checks
 USER root
-RUN echo "0.21.2" > /etc/aibox-version
+RUN echo "0.22.0" > /etc/aibox-version

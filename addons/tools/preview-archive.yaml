@@ -1,0 +1,116 @@
+name: preview-archive
+version: "1.0.0"
+description: "Yazi image/PDF/SVG preview helpers plus archive preview/extraction tools"
+profile_intent: preview-media
+usage_class: automated
+profiles: ["human-dev"]
+exported_surfaces: ["previewer", "cli-binary", "config-files"]
+builder_weight: "light"
+
+tools:
+  - name: chafa
+    default_enabled: true
+    default_version: ""
+    supported_versions: []
+  - name: librsvg
+    default_enabled: true
+    default_version: ""
+    supported_versions: []
+  - name: poppler
+    default_enabled: true
+    default_version: ""
+    supported_versions: []
+  - name: timg
+    default_enabled: true
+    default_version: ""
+    supported_versions: []
+  - name: mupdf
+    default_enabled: true
+    default_version: ""
+    supported_versions: []
+  - name: entr
+    default_enabled: true
+    default_version: ""
+    supported_versions: []
+  - name: p7zip
+    default_enabled: true
+    default_version: ""
+    supported_versions: []
+  - name: ouch
+    default_enabled: true
+    default_version: "0.7.1"
+    supported_versions: ["0.7.1"]
+  - name: resvg
+    default_enabled: true
+    default_version: "0.47.0"
+    supported_versions: ["0.47.0"]
+
+builder: |
+  # Addon: preview-archive (static preview/archive binaries)
+  FROM debian:trixie-slim AS preview-archive-builder
+
+  ENV DEBIAN_FRONTEND=noninteractive
+  RUN apt-get update && apt-get install -y --no-install-recommends \
+      ca-certificates \
+      curl \
+      && rm -rf /var/lib/apt/lists/*
+
+  {% if tools.ouch.enabled %}
+  RUN ARCH=$(uname -m) && \
+      curl -fsSL \
+        "https://github.com/ouch-org/ouch/releases/download/{{ tools.ouch.version }}/ouch-${ARCH}-unknown-linux-musl.tar.gz" \
+        | tar -xz --strip-components=1 -C /usr/local/bin \
+          "ouch-${ARCH}-unknown-linux-musl/ouch" && \
+      chmod +x /usr/local/bin/ouch
+  {% endif %}
+
+  {% if tools.resvg.enabled %}
+  ARG RESVG_SHA256_X86_64=5c84dcbcd032fe7e8d96e616fd6807a2f9df6561d2e6582b37e91e63c6cb4fe7
+  RUN ARCH=$(uname -m) && \
+      if [ "$ARCH" = "x86_64" ]; then \
+        curl -fsSL \
+          "https://github.com/linebender/resvg/releases/download/v{{ tools.resvg.version }}/resvg-linux-${ARCH}.tar.gz" \
+          -o /tmp/resvg.tar.gz && \
+        echo "${RESVG_SHA256_X86_64}  /tmp/resvg.tar.gz" | sha256sum -c - && \
+        tar -xz -C /usr/local/bin -f /tmp/resvg.tar.gz resvg && \
+        chmod +x /usr/local/bin/resvg && \
+        rm /tmp/resvg.tar.gz; \
+      else \
+        printf '#!/bin/sh\necho "resvg: no upstream binary for %s (svg.yazi uses chafa fallback)" "$ARCH" >&2\nexit 1\n' "$ARCH" \
+          > /usr/local/bin/resvg && \
+        chmod +x /usr/local/bin/resvg; \
+      fi
+  {% endif %}
+
+runtime: |
+  # Addon: preview-archive — Yazi preview helpers and archive tools.
+  USER root
+  RUN apt-get update && apt-get install -y --no-install-recommends \
+  {% if tools.chafa.enabled %}
+      chafa \
+  {% endif %}
+  {% if tools.librsvg.enabled %}
+      librsvg2-bin \
+  {% endif %}
+  {% if tools.poppler.enabled %}
+      poppler-utils \
+  {% endif %}
+  {% if tools.timg.enabled %}
+      timg \
+  {% endif %}
+  {% if tools.mupdf.enabled %}
+      mupdf-tools \
+  {% endif %}
+  {% if tools.entr.enabled %}
+      entr \
+  {% endif %}
+  {% if tools.p7zip.enabled %}
+      p7zip-full \
+  {% endif %}
+      && rm -rf /var/lib/apt/lists/*
+  {% if tools.ouch.enabled %}
+  COPY --from=preview-archive-builder /usr/local/bin/ouch /usr/local/bin/ouch
+  {% endif %}
+  {% if tools.resvg.enabled %}
+  COPY --from=preview-archive-builder /usr/local/bin/resvg /usr/local/bin/resvg
+  {% endif %}

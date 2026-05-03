@@ -1,7 +1,8 @@
 use anyhow::Result;
 use std::path::Path;
+use std::process::Command;
 
-use crate::config::AiboxConfig;
+use crate::config::{AiHarness, AiboxConfig, McpGatewayMode};
 use crate::output;
 use crate::processkit_vocab::AGENTS_FILENAME;
 use crate::runtime::{ContainerState, Runtime};
@@ -159,23 +160,30 @@ pub fn cmd_doctor(config_path: &Option<String>) -> Result<()> {
     output::info("Checking command file registrations...");
     check_command_registrations(&config, &mut diag);
 
-    // 6d. Codex prompt-path drift check (BACK-20260426_1627-StrongHawk).
+    // 6d. Check processkit MCP gateway selection.
+    output::info("Checking processkit MCP gateway...");
+    check_processkit_mcp_gateway(&config, &mut diag);
+
+    // 6e. Codex prompt-path drift check (BACK-20260426_1627-StrongHawk).
     // Loud failure if `pk-*` managed files reappear in the legacy
     // `~/.codex/prompts/` path that aibox v0.21.1 mistakenly used —
     // catches a regression in the codex profile of harness_commands.
     check_codex_prompt_path_drift(&config, &mut diag);
 
-    // 6e. Draft LivelyMoss addon metadata checks. Warning-only until
+    // 6f. Codex sandbox prerequisites and compose posture.
+    check_codex_sandbox_environment(&config, &mut diag);
+
+    // 6g. Draft LivelyMoss addon metadata checks. Warning-only until
     // processkit publishes the canonical addon-spec schema.
     output::info("Checking addon profile metadata...");
     check_addon_profile_metadata(&config, &mut diag);
 
-    // 6f. Draft LivelyMoss provider-backend checks. Warning-only until
+    // 6h. Draft LivelyMoss provider-backend checks. Warning-only until
     // processkit publishes the canonical provider-backend schema.
     output::info("Checking provider backend metadata...");
     check_provider_backend_metadata(&config, &mut diag);
 
-    // 6g. Draft LivelyMoss image provenance policy checks. Warning-only until
+    // 6i. Draft LivelyMoss image provenance policy checks. Warning-only until
     // processkit publishes the canonical image-provenance-policy schema.
     output::info("Checking image provenance policy...");
     check_image_provenance_policy(&config, &mut diag);
@@ -195,8 +203,101 @@ pub fn cmd_doctor(config_path: &Option<String>) -> Result<()> {
     // 10. CLI version file check
     check_cli_version_file(&mut diag);
 
+    // 11. Runtime resource pressure check (best-effort Linux procfs/cgroupfs)
+    output::info("Checking runtime resource pressure...");
+    check_runtime_resource_pressure(&config, &mut diag);
+
     print_summary(&diag);
     Ok(())
+}
+
+fn check_runtime_resource_pressure(config: &AiboxConfig, diag: &mut DiagResult) {
+    let diagnostics = crate::runtime_resources::read_runtime_resource_diagnostics();
+    let thresholds = &config.container.resource_thresholds;
+
+    if let Some(memory_current) = diagnostics.memory_current_bytes {
+        if let Some(limit_mib) = thresholds.memory_mib_warn {
+            let limit_bytes = limit_mib.saturating_mul(1024 * 1024);
+            if memory_current > limit_bytes {
+                output::warn(&format!(
+                    "Runtime memory usage is {} above configured warning threshold {}",
+                    crate::runtime_resources::format_bytes(memory_current),
+                    crate::runtime_resources::format_bytes(limit_bytes)
+                ));
+                diag.warnings += 1;
+            } else {
+                output::ok(&format!(
+                    "Runtime memory usage: {}",
+                    crate::runtime_resources::format_bytes(memory_current)
+                ));
+            }
+        } else {
+            output::ok(&format!(
+                "Runtime memory usage: {}",
+                crate::runtime_resources::format_bytes(memory_current)
+            ));
+        }
+    } else {
+        output::warn("Runtime memory usage unavailable (missing cgroup memory.current)");
+        diag.warnings += 1;
+    }
+
+    if let Some(max) = diagnostics.memory_max {
+        output::ok(&format!(
+            "Runtime memory limit: {}",
+            crate::runtime_resources::format_memory_max(max)
+        ));
+    }
+
+    if let Some(oom_kill_count) = diagnostics.oom_kill_count {
+        if thresholds
+            .oom_kill_warn
+            .is_some_and(|threshold| oom_kill_count > threshold)
+        {
+            output::warn(&format!(
+                "Runtime cgroup reports {} OOM kill(s)",
+                oom_kill_count
+            ));
+            diag.warnings += 1;
+        } else {
+            output::ok(&format!("Runtime OOM kills: {}", oom_kill_count));
+        }
+    } else {
+        output::warn("Runtime OOM counter unavailable (missing cgroup memory.events)");
+        diag.warnings += 1;
+    }
+
+    if let Some(threshold) = thresholds.process_count_warn
+        && threshold > 0
+        && diagnostics.total_process_count > threshold
+    {
+        output::warn(&format!(
+            "Runtime process count is {} above warning threshold {}",
+            diagnostics.total_process_count, threshold
+        ));
+        diag.warnings += 1;
+    } else {
+        output::ok(&format!(
+            "Runtime process count: {}",
+            diagnostics.total_process_count
+        ));
+    }
+
+    if let Some(threshold) = thresholds.processkit_mcp_python_warn
+        && threshold > 0
+        && diagnostics.processkit_mcp_python_process_count > threshold
+    {
+        output::warn(&format!(
+            "processkit MCP Python process count is {} above warning threshold {}",
+            diagnostics.processkit_mcp_python_process_count, threshold
+        ));
+        diag.warnings += 1;
+    } else {
+        output::ok(&format!(
+            "processkit MCP Python processes: {}",
+            diagnostics.processkit_mcp_python_process_count
+        ));
+    }
 }
 
 /// Check that installed skills have their command files registered in
@@ -339,6 +440,79 @@ fn check_addon_profile_metadata(config: &AiboxConfig, diag: &mut DiagResult) {
     }
 }
 
+fn check_processkit_mcp_gateway(config: &AiboxConfig, diag: &mut DiagResult) {
+    let gateway = &config.mcp.gateway;
+    let gateway_script = Path::new("context/skills/processkit/processkit-gateway/mcp/server.py");
+    let gateway_available = gateway_script.is_file();
+
+    match gateway.mode {
+        McpGatewayMode::Granular => {
+            output::ok("processkit MCP gateway disabled; granular MCP servers selected");
+            return;
+        }
+        McpGatewayMode::Auto if !gateway_available => {
+            output::ok("processkit MCP gateway not installed; auto mode will use granular servers");
+            return;
+        }
+        McpGatewayMode::Stdio | McpGatewayMode::DaemonProxy if !gateway_available => {
+            output::warn(
+                "processkit MCP gateway mode requested, but \
+                 context/skills/processkit/processkit-gateway/mcp/server.py is missing; \
+                 run `aibox apply` after upgrading processkit",
+            );
+            diag.warnings += 1;
+            return;
+        }
+        _ => {}
+    }
+
+    output::ok("processkit MCP gateway is installed");
+
+    if gateway.mode == McpGatewayMode::DaemonProxy {
+        let devcontainer = Path::new(".devcontainer/devcontainer.json");
+        match std::fs::read_to_string(devcontainer) {
+            Ok(body) if body.contains("processkit-gateway/mcp/server.py") => {
+                output::ok("processkit gateway daemon startup is present in devcontainer.json");
+            }
+            Ok(_) => {
+                output::warn(
+                    "[mcp.gateway].mode = \"daemon-proxy\" but devcontainer.json does not \
+                     start processkit-gateway; run `aibox apply`",
+                );
+                diag.warnings += 1;
+            }
+            Err(_) => {
+                output::warn(
+                    "[mcp.gateway].mode = \"daemon-proxy\" but .devcontainer/devcontainer.json \
+                     is missing; run `aibox apply`",
+                );
+                diag.warnings += 1;
+            }
+        }
+    }
+
+    if config.ai.harnesses.contains(&AiHarness::Codex) {
+        match std::fs::read_to_string(".codex/config.toml") {
+            Ok(body) if body.contains("[mcp_servers.processkit-gateway]") => {
+                output::ok("Codex MCP config points at processkit-gateway");
+            }
+            Ok(_) => {
+                output::warn(
+                    "Codex is enabled but .codex/config.toml does not register \
+                     processkit-gateway; run `aibox apply`",
+                );
+                diag.warnings += 1;
+            }
+            Err(_) => {
+                output::warn(
+                    "Codex is enabled but .codex/config.toml is missing; run `aibox apply`",
+                );
+                diag.warnings += 1;
+            }
+        }
+    }
+}
+
 fn check_provider_backend_metadata(config: &AiboxConfig, diag: &mut DiagResult) {
     let warnings = crate::provider_backend::provider_backend_warnings(
         config,
@@ -376,7 +550,6 @@ fn check_image_provenance_policy(config: &AiboxConfig, diag: &mut DiagResult) {
 ///
 /// See DEC-20260426_1636-MightySky and BACK-20260426_1627-StrongHawk.
 fn check_codex_prompt_path_drift(config: &AiboxConfig, diag: &mut DiagResult) {
-    use crate::config::AiHarness;
     let codex_enabled = config.ai.harnesses.contains(&AiHarness::Codex);
 
     let legacy_dir = std::path::Path::new(".aibox-home/.codex/prompts");
@@ -422,6 +595,224 @@ fn check_codex_prompt_path_drift(config: &AiboxConfig, diag: &mut DiagResult) {
             output::ok("codex: pk-* Codex Skills present under .agents/skills/");
         }
     }
+}
+
+fn check_codex_sandbox_environment(config: &AiboxConfig, diag: &mut DiagResult) {
+    if !config.ai.harnesses.contains(&AiHarness::Codex) {
+        return;
+    }
+
+    output::info("Checking Codex sandbox environment...");
+
+    let bwrap = find_command_on_path(&["bwrap", "bubblewrap"]);
+    let Some(bwrap) = bwrap else {
+        output::warn(
+            "codex: bubblewrap/bwrap not found on PATH. Codex sandboxed shell commands may fail; run `aibox apply` and rebuild the container.",
+        );
+        diag.warnings += 1;
+        return;
+    };
+
+    output::ok(&format!(
+        "codex: bubblewrap helper available as `{}`",
+        bwrap
+    ));
+
+    if pid1_is_sleep_infinity() {
+        output::warn(
+            "codex: current container PID 1 is `sleep infinity`; skipping active bubblewrap namespace probe. Run `aibox apply` and recreate the container so Compose init can reap sandbox helpers, then rerun doctor.",
+        );
+        diag.warnings += 1;
+    } else {
+        match run_bwrap_smoke_probe(&bwrap) {
+            Ok(true) => output::ok("codex: bubblewrap namespace smoke probe succeeded"),
+            Ok(false) => {
+                output::warn(
+                    "codex: bubblewrap namespace smoke probe failed. Check host/runtime unprivileged user namespace and seccomp settings.",
+                );
+                diag.warnings += 1;
+            }
+            Err(err) => {
+                output::warn(&format!(
+                    "codex: bubblewrap namespace smoke probe could not run: {}",
+                    err
+                ));
+                diag.warnings += 1;
+            }
+        }
+    }
+
+    for path in [
+        crate::config::COMPOSE_FILE,
+        ".devcontainer/docker-compose.override.yml",
+    ] {
+        match read_codex_compose_posture(Path::new(path), &config.container.name) {
+            Ok(Some(posture)) => {
+                if path == crate::config::COMPOSE_FILE && !posture.init_true {
+                    output::warn(
+                        "codex: generated compose service is missing init=true; run `aibox apply` and recreate the container so sandbox helper zombies are reaped",
+                    );
+                    diag.warnings += 1;
+                }
+                for warning in posture.broad_grant_warnings {
+                    output::warn(&warning);
+                    diag.warnings += 1;
+                }
+                if posture.seccomp_unconfined {
+                    output::ok(&format!(
+                        "codex: {} uses seccomp=unconfined as a project-local sandbox fallback",
+                        path
+                    ));
+                }
+            }
+            Ok(None) => {}
+            Err(err) => {
+                output::warn(&format!(
+                    "codex: could not inspect compose sandbox posture in {}: {}",
+                    path, err
+                ));
+                diag.warnings += 1;
+            }
+        }
+    }
+}
+
+fn find_command_on_path(candidates: &[&str]) -> Option<String> {
+    candidates
+        .iter()
+        .find(|candidate| {
+            Command::new("sh")
+                .args(["-c", &format!("command -v {} >/dev/null 2>&1", candidate)])
+                .status()
+                .map(|status| status.success())
+                .unwrap_or(false)
+        })
+        .map(|candidate| (*candidate).to_string())
+}
+
+fn run_bwrap_smoke_probe(binary: &str) -> Result<bool> {
+    let status = Command::new(binary)
+        .args([
+            "--ro-bind",
+            "/",
+            "/",
+            "--dev",
+            "/dev",
+            "--proc",
+            "/proc",
+            "/bin/true",
+        ])
+        .status()?;
+    Ok(status.success())
+}
+
+fn pid1_is_sleep_infinity() -> bool {
+    let comm = std::fs::read_to_string("/proc/1/comm")
+        .map(|value| value.trim().to_string())
+        .unwrap_or_default();
+    if comm != "sleep" {
+        return false;
+    }
+
+    std::fs::read("/proc/1/cmdline")
+        .map(|bytes| {
+            let cmdline = bytes
+                .split(|byte| *byte == b'\0')
+                .filter(|part| !part.is_empty())
+                .map(|part| String::from_utf8_lossy(part).to_string())
+                .collect::<Vec<_>>();
+            cmdline.len() == 2 && cmdline[0] == "sleep" && cmdline[1] == "infinity"
+        })
+        .unwrap_or(false)
+}
+
+#[derive(Debug, Default, PartialEq, Eq)]
+struct CodexComposePosture {
+    broad_grant_warnings: Vec<String>,
+    init_true: bool,
+    seccomp_unconfined: bool,
+}
+
+fn read_codex_compose_posture(
+    path: &Path,
+    service_name: &str,
+) -> Result<Option<CodexComposePosture>> {
+    if !path.exists() {
+        return Ok(None);
+    }
+    let body = std::fs::read_to_string(path)?;
+    let parsed: serde_yaml::Value = serde_yaml::from_str(&body)?;
+    Ok(Some(codex_compose_posture(
+        &parsed,
+        service_name,
+        &path.display().to_string(),
+    )))
+}
+
+fn codex_compose_posture(
+    compose: &serde_yaml::Value,
+    service_name: &str,
+    source_label: &str,
+) -> CodexComposePosture {
+    let mut posture = CodexComposePosture::default();
+    let Some(services) = compose.get("services").and_then(|value| value.as_mapping()) else {
+        return posture;
+    };
+
+    let mut candidates = std::collections::BTreeSet::new();
+    candidates.insert(service_name);
+    candidates.insert("aibox");
+
+    for candidate in candidates {
+        let Some(service) = services.get(serde_yaml::Value::String(candidate.to_string())) else {
+            continue;
+        };
+
+        if service
+            .get("init")
+            .and_then(|value| value.as_bool())
+            .unwrap_or(false)
+        {
+            posture.init_true = true;
+        }
+
+        if service
+            .get("privileged")
+            .and_then(|value| value.as_bool())
+            .unwrap_or(false)
+        {
+            posture.broad_grant_warnings.push(format!(
+                "codex: {} service `{}` sets privileged=true; generated aibox containers should not require privileged mode for bubblewrap",
+                source_label, candidate
+            ));
+        }
+
+        if yaml_sequence_contains_ci(service.get("cap_add"), "SYS_ADMIN") {
+            posture.broad_grant_warnings.push(format!(
+                "codex: {} service `{}` adds SYS_ADMIN; generated aibox containers should not require SYS_ADMIN for Codex bubblewrap",
+                source_label, candidate
+            ));
+        }
+
+        if yaml_sequence_contains_ci(service.get("security_opt"), "seccomp=unconfined") {
+            posture.seccomp_unconfined = true;
+        }
+    }
+
+    posture
+}
+
+fn yaml_sequence_contains_ci(value: Option<&serde_yaml::Value>, needle: &str) -> bool {
+    value
+        .and_then(|value| value.as_sequence())
+        .map(|items| {
+            items.iter().any(|item| {
+                item.as_str()
+                    .map(|item| item.eq_ignore_ascii_case(needle))
+                    .unwrap_or(false)
+            })
+        })
+        .unwrap_or(false)
 }
 
 /// Check that mount source directories exist for configured features.
@@ -735,4 +1126,75 @@ fn print_summary(diag: &DiagResult) {
         "Diagnostics complete: {} warning(s), {} error(s)",
         diag.warnings, diag.errors
     ));
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn codex_compose_posture_warns_on_privileged_and_sys_admin() {
+        let compose: serde_yaml::Value = serde_yaml::from_str(
+            r#"
+services:
+  demo:
+    privileged: true
+    cap_add:
+      - SYS_ADMIN
+"#,
+        )
+        .unwrap();
+
+        let posture = codex_compose_posture(&compose, "demo", "compose.yml");
+
+        assert_eq!(posture.broad_grant_warnings.len(), 2);
+        assert!(
+            posture
+                .broad_grant_warnings
+                .iter()
+                .any(|warning| warning.contains("privileged=true"))
+        );
+        assert!(
+            posture
+                .broad_grant_warnings
+                .iter()
+                .any(|warning| warning.contains("SYS_ADMIN"))
+        );
+    }
+
+    #[test]
+    fn codex_compose_posture_accepts_seccomp_fallback_without_broad_grant_warning() {
+        let compose: serde_yaml::Value = serde_yaml::from_str(
+            r#"
+services:
+  aibox:
+    init: true
+    security_opt:
+      - seccomp=unconfined
+"#,
+        )
+        .unwrap();
+
+        let posture = codex_compose_posture(&compose, "aibox", "compose.override.yml");
+
+        assert!(posture.seccomp_unconfined);
+        assert!(posture.init_true);
+        assert!(posture.broad_grant_warnings.is_empty());
+    }
+
+    #[test]
+    fn codex_compose_posture_detects_missing_init_reaper() {
+        let compose: serde_yaml::Value = serde_yaml::from_str(
+            r#"
+services:
+  aibox:
+    command: sleep infinity
+"#,
+        )
+        .unwrap();
+
+        let posture = codex_compose_posture(&compose, "aibox", "compose.yml");
+
+        assert!(!posture.init_true);
+    }
 }

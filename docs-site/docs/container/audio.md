@@ -5,7 +5,9 @@ title: "Audio Support"
 
 # Audio Support
 
-The aibox base image includes audio support for Claude Code's voice features. Audio is bridged from the container to the host via PulseAudio over TCP.
+aibox can enable audio support for voice-capable tools. Audio is bridged from
+the container to the host via PulseAudio over TCP, and the required container
+packages live in the optional `audio-voice` addon.
 
 ## Why Audio Matters
 
@@ -40,6 +42,8 @@ pulse_server = "tcp:host.docker.internal:4714"
 | `pulse_server` | `tcp:host.docker.internal:4714` | PulseAudio server address |
 
 When `enabled = true`, the generated `docker-compose.yml` sets `PULSE_SERVER` in the container environment.
+It also selects the `audio-voice` addon during `aibox apply`, which installs
+Sox, PulseAudio client utilities, and ALSA PulseAudio plugins in the container.
 
 ## Host Setup
 
@@ -137,7 +141,10 @@ This is tracked at [anthropics/claude-code#14528](https://github.com/anthropics/
 
 ## The .asoundrc File
 
-The base image includes an `.asoundrc` file at `/home/aibox/.asoundrc`. This configures ALSA to route through PulseAudio, so applications that use ALSA (rather than PulseAudio directly) also get audio output.
+The seeded home configuration includes an `.asoundrc` file at
+`/home/aibox/.asoundrc`. This configures ALSA to route through PulseAudio, so
+applications that use ALSA rather than PulseAudio directly also get audio output
+when the `audio-voice` addon is installed.
 
 ## Troubleshooting
 

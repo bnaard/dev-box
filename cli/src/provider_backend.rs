@@ -204,7 +204,7 @@ fn notes(harness: &AiHarness) -> Vec<&'static str> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::addon_loader::{AddonProfile, LoadedAddon};
+    use crate::addon_loader::{AddonExportSurface, AddonProfile, LoadedAddon};
     use crate::config::AiboxConfig;
 
     fn addon(name: &str) -> LoadedAddon {
@@ -217,6 +217,7 @@ mod tests {
             profile_intent: None,
             usage_class: None,
             profiles: vec![AddonProfile::HumanDev],
+            exported_surfaces: vec![AddonExportSurface::CliBinary],
             builder_weight: None,
             tools: Vec::new(),
             builder_template: None,

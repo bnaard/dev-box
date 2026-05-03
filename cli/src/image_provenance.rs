@@ -37,6 +37,7 @@ pub struct GeneratedImageFiles {
 #[derive(Debug, Serialize, PartialEq, Eq)]
 pub struct RuntimeImageMarkers {
     pub docker_label: &'static str,
+    pub profile_label: &'static str,
     pub version_file: &'static str,
 }
 
@@ -72,6 +73,7 @@ pub fn image_provenance_policy(config: &AiboxConfig) -> ImageProvenancePolicy {
         },
         runtime_markers: RuntimeImageMarkers {
             docker_label: "aibox.version",
+            profile_label: "aibox.profile",
             version_file: "/etc/aibox-version",
         },
         selected_addons,
@@ -111,6 +113,7 @@ pub fn cmd_image_provenance_policy(
             );
             println!("  Registry:    {}", policy.image.registry);
             println!("  Label:       {}", policy.runtime_markers.docker_label);
+            println!("  Profile:     {}", policy.runtime_markers.profile_label);
             println!("  Version:     {}", policy.runtime_markers.version_file);
             println!("  Addons:      {}", policy.selected_addons.len());
             println!();
@@ -181,6 +184,24 @@ pub fn image_provenance_warnings(config: &AiboxConfig, project_root: &Path) -> V
         )),
     }
 
+    let profile_label_prefix = format!("LABEL {}=", policy.runtime_markers.profile_label);
+    let profile_label_line = dockerfile
+        .lines()
+        .find(|line| line.trim_start().starts_with(&profile_label_prefix));
+    match profile_label_line {
+        Some(line) if !line.contains(&format!("\"{}\"", config.aibox.profile)) => {
+            warnings.push(format!(
+                "image-provenance-profile-label-mismatch: generated Dockerfile label {} does not match [aibox].profile {}",
+                policy.runtime_markers.profile_label, config.aibox.profile
+            ));
+        }
+        Some(_) => {}
+        None => warnings.push(format!(
+            "image-provenance-profile-label-missing: generated Dockerfile is missing LABEL {}",
+            policy.runtime_markers.profile_label
+        )),
+    }
+
     if !dockerfile.contains(policy.runtime_markers.version_file) {
         warnings.push(format!(
             "image-provenance-version-file-missing: generated Dockerfile does not write {}",
@@ -231,6 +252,7 @@ a = {}
         assert_eq!(policy.image.tag_template, "base-debian-v{version}");
         assert!(!policy.image.mutable_version_pin);
         assert_eq!(policy.runtime_markers.docker_label, "aibox.version");
+        assert_eq!(policy.runtime_markers.profile_label, "aibox.profile");
         assert_eq!(policy.runtime_markers.version_file, "/etc/aibox-version");
         assert_eq!(
             policy.selected_addons,
@@ -246,6 +268,7 @@ a = {}
             tmp.path().join(".devcontainer/Dockerfile"),
             r#"FROM ghcr.io/projectious-work/aibox:base-debian-v0.21.0 AS aibox
 LABEL aibox.version="0.21.0"
+LABEL aibox.profile="headless-runner"
 "#,
         )
         .unwrap();
@@ -273,6 +296,11 @@ harnesses = []
             warnings
                 .iter()
                 .any(|warning| warning.contains("image-provenance-label-mismatch"))
+        );
+        assert!(
+            warnings
+                .iter()
+                .any(|warning| warning.contains("image-provenance-profile-label-mismatch"))
         );
         assert!(
             warnings

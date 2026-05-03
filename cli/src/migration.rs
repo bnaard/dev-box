@@ -1012,6 +1012,7 @@ mod tests {
             },
             processkit: None,
             addons: None,
+            runtime_home: None,
         };
         crate::lock::write_lock(root, &lock).unwrap();
     }

@@ -4,6 +4,7 @@ description: "oh-my-posh for the omp.yazi header prompt"
 profile_intent: interactive
 usage_class: automated
 profiles: ["human-dev"]
+exported_surfaces: ["shell-integration", "cli-binary"]
 builder_weight: null
 
 tools:

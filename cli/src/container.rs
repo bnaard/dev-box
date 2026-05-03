@@ -14,6 +14,7 @@ use crate::seed;
 pub struct InitParams {
     pub name: Option<String>,
     pub base: Option<BaseImage>,
+    pub profile: Option<AiboxProfile>,
     pub process: Option<Vec<String>>,
     pub ai: Option<Vec<AiProvider>>,
     pub user: Option<String>,
@@ -44,6 +45,14 @@ pub struct InitParams {
     /// and the `AIBOX_NO_CONTAINER` env var.
     #[allow(dead_code)]
     pub no_container: bool,
+}
+
+pub struct ResolvedInitValues {
+    pub project_name: String,
+    pub base_image: BaseImage,
+    pub profile: AiboxProfile,
+    pub process_packages: Vec<String>,
+    pub addon_names: Vec<String>,
 }
 
 /// Build processkit-package selection items for the interactive prompt.
@@ -438,10 +447,11 @@ fn selectable_addon_names() -> Vec<String> {
 pub fn resolve_init_values(
     name: Option<String>,
     base: Option<BaseImage>,
+    profile: Option<AiboxProfile>,
     process: Option<Vec<String>>,
     addons: Option<Vec<String>>,
     interactive: bool,
-) -> Result<(String, BaseImage, Vec<String>, Vec<String>)> {
+) -> Result<ResolvedInitValues> {
     // --- project name ---
     let project_name = match name {
         Some(n) => n,
@@ -457,6 +467,25 @@ pub fn resolve_init_values(
 
     // --- base image (only debian for now, skip prompt) ---
     let base_image = base.unwrap_or(BaseImage::Debian);
+
+    // --- usage profile ---
+    let profile = match profile {
+        Some(profile) => profile,
+        None if interactive => {
+            let labels = [
+                "human-dev — interactive development with local provider CLIs",
+                "headless-runner — automation-safe runner profile",
+            ];
+            let profiles = [AiboxProfile::HumanDev, AiboxProfile::HeadlessRunner];
+            let idx = dialoguer::Select::new()
+                .with_prompt("Usage profile")
+                .items(&labels)
+                .default(0)
+                .interact()?;
+            profiles[idx]
+        }
+        None => AiboxProfile::HumanDev,
+    };
 
     // --- process packages ---
     let process_packages = match process {
@@ -494,7 +523,13 @@ pub fn resolve_init_values(
         None => vec![],
     };
 
-    Ok((project_name, base_image, process_packages, addon_names))
+    Ok(ResolvedInitValues {
+        project_name,
+        base_image,
+        profile,
+        process_packages,
+        addon_names,
+    })
 }
 
 /// Build command: load config, generate files, run compose build.
@@ -752,6 +787,18 @@ fn serialize_config_with_comments(config: &AiboxConfig) -> String {
     } else {
         out.push_str("# keepalive           = true           # Send periodic keepalive (prevents NAT idle dropout in OrbStack/VMs)\n");
     }
+    out.push_str("\n# --- Resource pressure warnings (`aibox doctor`) ---\n");
+    out.push_str("# [container.resource_thresholds]\n");
+    out.push_str(
+        "# memory_mib_warn = 4096       # Optional cgroup memory warning threshold in MiB\n",
+    );
+    out.push_str("# process_count_warn = 400     # Set to 0 to disable this warning\n");
+    out.push_str(
+        "# processkit_mcp_python_warn = 50  # Expected to drop after processkit gateway adoption\n",
+    );
+    out.push_str(
+        "# oom_kill_warn = 0            # Warn when cgroup OOM kill count is greater than this\n",
+    );
 
     // [context] section
     out.push('\n');
@@ -1066,6 +1113,13 @@ fn serialize_config_with_comments(config: &AiboxConfig) -> String {
     out.push_str("# default_mode   = \"ask\"\n");
     out.push_str("# allow_patterns = []\n");
     out.push_str("# deny_patterns  = []\n");
+    out.push('\n');
+    out.push_str("# [mcp.gateway]\n");
+    out.push_str("# mode = \"auto\"          # auto | granular | stdio | daemon-proxy\n");
+    out.push_str("# lazy_catalog = false    # Use processkit's lazy catalog where supported\n");
+    out.push_str("# host = \"127.0.0.1\"     # daemon-proxy is always localhost-only\n");
+    out.push_str("# port = 8765\n");
+    out.push_str("# path = \"/mcp\"\n");
 
     out
 }
@@ -1091,9 +1145,10 @@ pub fn cmd_init(config_path: &Option<String>, params: InitParams) -> Result<()> 
 
     let interactive = std::io::IsTerminal::is_terminal(&std::io::stdin());
 
-    let (project_name, base_image, process_packages, addon_names) = resolve_init_values(
+    let resolved = resolve_init_values(
         params.name,
         params.base,
+        params.profile,
         params.process,
         params.addons,
         interactive,
@@ -1144,20 +1199,21 @@ pub fn cmd_init(config_path: &Option<String>, params: InitParams) -> Result<()> 
     let mut config = AiboxConfig {
         aibox: AiboxSection {
             version: env!("CARGO_PKG_VERSION").to_string(),
-            base: base_image,
-            profile: AiboxProfile::HumanDev,
+            base: resolved.base_image,
+            profile: resolved.profile,
         },
         container: ContainerSection {
-            name: project_name.clone(),
-            hostname: project_name,
+            name: resolved.project_name.clone(),
+            hostname: resolved.project_name,
             user: container_user,
             post_create_command: None,
             keepalive: false,
             environment: std::collections::HashMap::new(),
             extra_volumes: vec![],
+            resource_thresholds: crate::config::ResourceThresholdsSection::default(),
         },
         context: ContextSection {
-            packages: process_packages,
+            packages: resolved.process_packages,
             ..ContextSection::default()
         },
         ai: AiSection {
@@ -1177,7 +1233,8 @@ pub fn cmd_init(config_path: &Option<String>, params: InitParams) -> Result<()> 
             //   4. For each (now-complete) addon, populate its tools
             //      sub-table with default-enabled tools at the right
             //      version (CLI override > interactive pick > default).
-            let all_initial: Vec<String> = addon_names
+            let all_initial: Vec<String> = resolved
+                .addon_names
                 .iter()
                 .chain(ai_addon_names.iter())
                 .cloned()
@@ -1359,6 +1416,7 @@ pub fn cmd_init(config_path: &Option<String>, params: InitParams) -> Result<()> 
             },
             processkit: None,
             addons: None,
+            runtime_home: None,
         };
         if let Err(e) = crate::lock::write_lock(&project_root, &minimal_lock) {
             output::warn(&format!("Failed to write fallback aibox.lock: {}", e));
@@ -1606,6 +1664,13 @@ pub fn cmd_sync(
 
     output::info("Scaffolding missing runtime directories...");
     seed::ensure_runtime_dirs(&config)?;
+    let runtime_permission_updates = seed::sync_managed_runtime_permissions(&config)?;
+    if !runtime_permission_updates.is_empty() {
+        output::ok(&format!(
+            "Updated {} runtime file permission(s)",
+            runtime_permission_updates.len()
+        ));
+    }
     generate::generate_all(&config)?;
 
     // Capture the pre-install lock before installing so the three-way diff
@@ -1905,33 +1970,39 @@ mod tests {
 
     #[test]
     fn resolve_init_values_non_interactive_defaults() {
-        let (name, base, process, addons) =
-            resolve_init_values(None, None, None, None, false).expect("should succeed");
+        let resolved =
+            resolve_init_values(None, None, None, None, None, false).expect("should succeed");
 
         // Name defaults to current directory name (or "my-project" fallback)
-        assert!(!name.is_empty(), "name should not be empty");
+        assert!(
+            !resolved.project_name.is_empty(),
+            "name should not be empty"
+        );
 
-        assert_eq!(base, BaseImage::Debian);
-        assert_eq!(process, vec!["managed".to_string()]);
-        assert!(addons.is_empty());
+        assert_eq!(resolved.base_image, BaseImage::Debian);
+        assert_eq!(resolved.profile, AiboxProfile::HumanDev);
+        assert_eq!(resolved.process_packages, vec!["managed".to_string()]);
+        assert!(resolved.addon_names.is_empty());
     }
 
     #[test]
     fn resolve_init_values_explicit_args_override() {
         // Even with interactive=true, explicit values should be used without prompting
-        let (name, base, process, addons) = resolve_init_values(
+        let resolved = resolve_init_values(
             Some("my-app".to_string()),
             Some(BaseImage::Debian),
+            Some(AiboxProfile::HeadlessRunner),
             Some(vec!["research".to_string()]),
             Some(vec!["latex".to_string()]),
             true,
         )
         .expect("should succeed with explicit args");
 
-        assert_eq!(name, "my-app");
-        assert_eq!(base, BaseImage::Debian);
-        assert_eq!(process, vec!["research".to_string()]);
-        assert_eq!(addons, vec!["latex".to_string()]);
+        assert_eq!(resolved.project_name, "my-app");
+        assert_eq!(resolved.base_image, BaseImage::Debian);
+        assert_eq!(resolved.profile, AiboxProfile::HeadlessRunner);
+        assert_eq!(resolved.process_packages, vec!["research".to_string()]);
+        assert_eq!(resolved.addon_names, vec!["latex".to_string()]);
     }
 
     // ── parse_addon_tool_override / build_tool_overrides ────────────────────
@@ -2089,19 +2160,24 @@ mod tests {
 
     #[test]
     fn resolve_init_values_explicit_args_non_interactive() {
-        let (name, base, process, addons) = resolve_init_values(
+        let resolved = resolve_init_values(
             Some("test-proj".to_string()),
             Some(BaseImage::Debian),
+            Some(AiboxProfile::HeadlessRunner),
             Some(vec!["minimal".to_string()]),
             Some(vec!["python".to_string(), "latex".to_string()]),
             false,
         )
         .expect("should succeed");
 
-        assert_eq!(name, "test-proj");
-        assert_eq!(base, BaseImage::Debian);
-        assert_eq!(process, vec!["minimal".to_string()]);
-        assert_eq!(addons, vec!["python".to_string(), "latex".to_string()]);
+        assert_eq!(resolved.project_name, "test-proj");
+        assert_eq!(resolved.base_image, BaseImage::Debian);
+        assert_eq!(resolved.profile, AiboxProfile::HeadlessRunner);
+        assert_eq!(resolved.process_packages, vec!["minimal".to_string()]);
+        assert_eq!(
+            resolved.addon_names,
+            vec!["python".to_string(), "latex".to_string()]
+        );
     }
 
     // -- FIX 2: version-pin warning is gated on original_pin -----------------

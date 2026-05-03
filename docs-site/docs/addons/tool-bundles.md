@@ -7,6 +7,53 @@ title: "Tool Bundles"
 
 Tool bundles install infrastructure, orchestration, and cloud CLI tools.
 
+## Git UI
+
+```toml
+[addons.git-ui.tools]
+gh = {}        # GitHub CLI
+lazygit = {}   # Interactive Git TUI
+```
+
+The `git-ui` addon is optional. Select it when a project needs GitHub CLI
+automation or lazygit inside the container; omit it to avoid installing those
+tools. This aibox repo may enable it for maintenance workflows such as release
+checks and GitHub issue/release work, but downstream projects do not need it by
+default.
+
+## Preview and Archive Tools
+
+```toml
+[addons.preview-archive.tools]
+chafa = {}
+timg = {}
+poppler-utils = {}
+mupdf-tools = {}
+entr = {}
+ouch = {}
+resvg = {}
+```
+
+`preview-archive` contains the terminal image/PDF/SVG/archive helper binaries
+used by Yazi previews and watch-mode document workflows. Keep it disabled for
+lean headless projects that do not inspect media or generated documents inside
+the terminal.
+
+`preview-enhanced` layers Markdown, EPS, video, ImageMagick, and Ghostscript
+support on top of `preview-archive`.
+
+## Audio and Voice
+
+```toml
+[audio]
+enabled = true
+```
+
+Audio bridging uses the `audio-voice` addon for Sox, PulseAudio client tools,
+and ALSA PulseAudio plugins. aibox selects this addon automatically when
+`[audio] enabled = true`; projects normally do not need to add
+`[addons.audio-voice.tools]` manually.
+
 ## Infrastructure
 
 ```toml

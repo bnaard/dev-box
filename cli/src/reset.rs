@@ -493,6 +493,127 @@ pub fn cmd_reset(
     Ok(())
 }
 
+/// Plan an explicit processkit context reset.
+///
+/// This is intentionally a planning command for now. It gives operators a
+/// concrete blast-radius report before any future implementation is allowed to
+/// remove or rewrite `context/` from a fresh processkit baseline.
+pub fn cmd_reset_context_plan(
+    config_path: &Option<String>,
+    from_processkit: Option<&str>,
+    no_backup: bool,
+    dry_run: bool,
+    yes: bool,
+) -> Result<()> {
+    let config = AiboxConfig::from_cli_option(config_path)?;
+    let target_version = from_processkit.unwrap_or(&config.processkit.version);
+
+    if target_version == crate::config::PROCESSKIT_VERSION_UNSET {
+        bail!(
+            "reset context needs a concrete processkit version; pass --from-processkit vX.Y.Z or pin [processkit].version"
+        );
+    }
+    if !dry_run {
+        bail!(
+            "`aibox reset context` is plan-only in this release. Re-run with --dry-run to inspect the reset plan before a destructive implementation is added."
+        );
+    }
+    if no_backup {
+        output::warn("--no-backup has no effect for reset context planning");
+    }
+    if yes {
+        output::warn("--yes has no effect for reset context planning");
+    }
+
+    let mirror =
+        PathBuf::from(crate::processkit_vocab::TEMPLATES_PROCESSKIT_DIR).join(target_version);
+    let backup_target = PathBuf::from(BACKUP_DIR).join(format!(
+        "context-reset-{}-{}",
+        target_version.trim_start_matches('v'),
+        chrono::Local::now().format("%Y%m%d-%H%M%S")
+    ));
+
+    let reset_items = [
+        "AGENTS.md",
+        "context/.processkit-provenance.toml",
+        "context/skills/_lib",
+        "context/skills/processkit",
+        "context/schemas",
+        "context/state-machines",
+        "context/processes",
+    ];
+    let preserved_items = [
+        "context/workitems",
+        "context/decisions",
+        "context/artifacts",
+        "context/discussions",
+        "context/logs",
+        "context/team-members",
+        "context/bindings",
+        "context/roles",
+        "context/notes",
+        "context/work-instructions",
+    ];
+
+    output::info("Context reset plan");
+    output::info(&format!("Target processkit: {}", target_version));
+    output::info(&format!("Backup target: {}", backup_target.display()));
+    if mirror.is_dir() {
+        output::ok(&format!("processkit mirror exists at {}", mirror.display()));
+    } else {
+        output::warn(&format!(
+            "processkit mirror for {} is not installed at {}; run `aibox apply --no-container` first",
+            target_version,
+            mirror.display()
+        ));
+    }
+
+    eprintln!("\n  Replace from processkit baseline:");
+    for item in reset_items {
+        let count = count_existing_paths(Path::new(item));
+        eprintln!("  - {:<38} {:>5} file(s)", item, count);
+    }
+
+    eprintln!("\n  Preserve as project-owned context:");
+    for item in preserved_items {
+        let path = Path::new(item);
+        if path.exists() {
+            eprintln!("  - {:<38} {:>5} file(s)", item, count_existing_paths(path));
+        }
+    }
+
+    output::warn(
+        "[dry-run] No files were modified. This command only records the blast radius; \
+         use normal migrations unless the owner explicitly approves a hard context reset.",
+    );
+
+    Ok(())
+}
+
+fn count_existing_paths(path: &Path) -> usize {
+    if !path.exists() {
+        return 0;
+    }
+    if path.is_file() {
+        return 1;
+    }
+    count_regular_files(path).unwrap_or(0)
+}
+
+fn count_regular_files(root: &Path) -> Result<usize> {
+    let mut count = 0;
+    for entry in fs::read_dir(root).with_context(|| format!("failed to read {}", root.display()))? {
+        let entry = entry?;
+        let path = entry.path();
+        if path.is_dir() {
+            count += count_regular_files(&path)?;
+        } else if path.is_file() {
+            count += 1;
+        }
+    }
+    Ok(count)
+}
+
 /// Uninstall command: remove the CLI binary, optionally purge global config.
 pub fn cmd_uninstall(dry_run: bool, purge: bool, yes: bool) -> Result<()> {
     // Find the CLI binary path (the currently running executable)

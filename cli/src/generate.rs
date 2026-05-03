@@ -33,6 +33,31 @@ fn create_template_env() -> minijinja::Environment<'static> {
     env
 }
 
+fn sanitize_compose_project_name(name: &str) -> String {
+    let mut sanitized = String::new();
+    let mut last_was_separator = false;
+
+    for ch in name.chars().map(|ch| ch.to_ascii_lowercase()) {
+        if ch.is_ascii_alphanumeric() {
+            sanitized.push(ch);
+            last_was_separator = false;
+        } else if !last_was_separator && !sanitized.is_empty() {
+            sanitized.push('-');
+            last_was_separator = true;
+        }
+    }
+
+    while sanitized.ends_with('-') {
+        sanitized.pop();
+    }
+
+    if sanitized.is_empty() {
+        "aibox".to_string()
+    } else {
+        sanitized
+    }
+}
+
 /// Generate all devcontainer files from the config.
 pub fn generate_all(config: &AiboxConfig) -> Result<()> {
     let devcontainer_dir = Path::new(crate::config::DEVCONTAINER_DIR);
@@ -116,6 +141,7 @@ fn generate_dockerfile(
             registry => crate::config::IMAGE_REGISTRY,
             image => format!("base-{}", config.aibox.base),
             version => config.aibox.version,
+            profile => config.aibox.profile.to_string(),
             addon_builder_stages => addon_builder_stages,
             addon_commands => addon_commands,
             local_content => local_content,
@@ -203,6 +229,8 @@ fn generate_docker_compose(
 
     // Rust addon flag — drives cargo registry mounts in the template
     let has_rust = config.addons.has_rust();
+    let compose_project_name = sanitize_compose_project_name(&config.container.name);
+    let compose_image_name = format!("{}-devcontainer:latest", compose_project_name);
 
     let tmpl = env
         .get_template("docker-compose.yml")
@@ -211,6 +239,8 @@ fn generate_docker_compose(
     let content = tmpl
         .render(context! {
             header => header,
+            project_name => compose_project_name,
+            image_name => compose_image_name,
             name => config.container.name,
             hostname => config.container.hostname,
             workspace_dir => workspace_dir,
@@ -397,14 +427,38 @@ fn generate_devcontainer_json(config: &AiboxConfig, dir: &Path) -> Result<bool> 
             .insert("postCreateCommand".to_string(), serde_json::json!(cmd));
     }
 
+    let mut post_start_commands: Vec<String> = Vec::new();
+
     // Network keepalive — lightweight DNS lookup every 2 min to prevent
     // OrbStack/VM NAT from dropping idle connections.
     if config.container.keepalive {
+        post_start_commands.push(
+            "nohup bash -c 'while true; do nslookup example.com > /dev/null 2>&1; sleep 120; done' > /dev/null 2>&1 &"
+                .to_string(),
+        );
+    }
+    if config.mcp.gateway.requires_daemon() {
+        let gateway = &config.mcp.gateway;
+        let mut env = "PROCESSKIT_MCP_MODE=gateway".to_string();
+        if gateway.lazy_catalog {
+            env.push_str(
+                " PROCESSKIT_GATEWAY_IMPORT_MODE=lazy-catalog PROCESSKIT_GATEWAY_LAZY=true",
+            );
+        }
+        let catalog_command = if gateway.lazy_catalog {
+            "uv run context/skills/processkit/processkit-gateway/mcp/server.py catalog --write >/tmp/aibox/processkit-gateway-catalog.log 2>&1 || true; "
+        } else {
+            ""
+        };
+        post_start_commands.push(format!(
+            "if ! pgrep -f 'processkit-gateway/mcp/server.py.*streamable-http' >/dev/null 2>&1; then mkdir -p /tmp/aibox; (cd /workspace && {catalog_command}{env} nohup uv run context/skills/processkit/processkit-gateway/mcp/server.py serve --transport streamable-http --host {} --port {} >/tmp/aibox/processkit-gateway.log 2>&1 &); fi",
+            gateway.host, gateway.port
+        ));
+    }
+    if !post_start_commands.is_empty() {
         devcontainer.as_object_mut().unwrap().insert(
             "postStartCommand".to_string(),
-            serde_json::json!(
-                "nohup bash -c 'while true; do nslookup example.com > /dev/null 2>&1; sleep 120; done' > /dev/null 2>&1 &"
-            ),
+            serde_json::json!(post_start_commands.join("; ")),
         );
     }
 
@@ -518,6 +572,8 @@ mod tests {
             )),
             "Dockerfile should reference base-debian image with correct tag format and stage alias"
         );
+        assert!(content.contains("LABEL aibox.version=\"1.2.3\""));
+        assert!(content.contains("LABEL aibox.profile=\"human-dev\""));
     }
 
     #[test]
@@ -526,8 +582,35 @@ mod tests {
         let config = make_config(&[], false);
         generate_docker_compose(&config, dir.path(), &test_env()).unwrap();
         let content = fs::read_to_string(dir.path().join("docker-compose.yml")).unwrap();
+        assert!(content.contains("name: test-ctr"));
+        assert!(content.contains("image: test-ctr-devcontainer:latest"));
         assert!(content.contains("container_name: test-ctr"));
         assert!(content.contains("hostname: test-host"));
+    }
+
+    #[test]
+    fn compose_uses_init_reaper_and_preserves_sleep_command() {
+        let dir = tempfile::tempdir().unwrap();
+        let config = make_config(&[], false);
+        generate_docker_compose(&config, dir.path(), &test_env()).unwrap();
+
+        let content = fs::read_to_string(dir.path().join("docker-compose.yml")).unwrap();
+        assert!(content.contains("init: true"));
+        assert!(content.contains("command: sleep infinity"));
+    }
+
+    #[test]
+    fn compose_project_and_image_names_are_sanitized() {
+        let dir = tempfile::tempdir().unwrap();
+        let mut config = make_config(&[], false);
+        config.container.name = "My.Project_01".to_string();
+
+        generate_docker_compose(&config, dir.path(), &test_env()).unwrap();
+
+        let content = fs::read_to_string(dir.path().join("docker-compose.yml")).unwrap();
+        assert!(content.contains("name: my-project-01"));
+        assert!(content.contains("image: my-project-01-devcontainer:latest"));
+        assert!(content.contains("container_name: My.Project_01"));
     }
 
     #[test]
@@ -738,6 +821,21 @@ mod tests {
             !content.contains("postStartCommand"),
             "should not contain postStartCommand when keepalive is disabled"
         );
+    }
+
+    #[test]
+    fn devcontainer_json_includes_processkit_gateway_daemon_when_requested() {
+        let dir = tempfile::tempdir().unwrap();
+        let mut config = make_config(&[], false);
+        config.mcp.gateway.mode = crate::config::McpGatewayMode::DaemonProxy;
+        config.mcp.gateway.lazy_catalog = true;
+        generate_devcontainer_json(&config, dir.path()).unwrap();
+        let content = fs::read_to_string(dir.path().join("devcontainer.json")).unwrap();
+        assert!(content.contains("postStartCommand"));
+        assert!(content.contains("processkit-gateway/mcp/server.py"));
+        assert!(content.contains("streamable-http"));
+        assert!(content.contains("catalog --write"));
+        assert!(content.contains("PROCESSKIT_GATEWAY_IMPORT_MODE=lazy-catalog"));
     }
 
     #[test]

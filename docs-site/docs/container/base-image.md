@@ -15,8 +15,6 @@ The base image is the foundation for all aibox container flavors. It provides a 
 | Yazi | 25.4.8 (prebuilt binary from GitHub releases) | Terminal file manager |
 | Vim | Debian package (`vim` + `vim-runtime`) | Editor |
 | Git | Debian package | Version control |
-| lazygit | Debian package | Git TUI |
-| GitHub CLI (`gh`) | Debian package | GitHub integration |
 | Claude CLI | Official install script | AI assistant |
 | ripgrep (`rg`) | Debian package | Fast recursive search (grep replacement) |
 | fd | Debian package | Fast file finder (find replacement) |
@@ -31,11 +29,18 @@ The base image is the foundation for all aibox container flavors. It provides a 
 | less | Debian package | Pager |
 | unzip | Debian package | Archive extraction |
 | bash-completion | Debian package | Shell completions |
-| sox | Debian package | Audio processing |
-| pulseaudio-utils | Debian package | Audio bridging |
 | ca-certificates | Debian package | TLS root certificates |
 | locales | Debian package | Locale support (en_US.UTF-8) |
 | tzdata | Debian package | Timezone data |
+
+GitHub CLI (`gh`) and lazygit are provided by the optional
+[`git-ui` addon](../addons/tool-bundles.md#git-ui), not by the base image. Add
+`[addons.git-ui.tools]` to `aibox.toml` when a project needs those tools.
+
+Audio tools are provided by the `audio-voice` addon, which is selected
+automatically when `[audio] enabled = true`. File-preview and archive helpers
+such as `chafa`, `timg`, `poppler-utils`, `mupdf-tools`, `entr`, `ouch`, and
+`resvg` are provided by the optional `preview-archive` addon.
 
 ## Build Architecture
 
@@ -83,13 +88,13 @@ Press `Escape` or `Ctrl+b` again to cancel the leader and return to normal mode.
 
 ### Layouts
 
-aibox ships three IDE layouts. Select one with `aibox up --layout <name>` (the default is `dev`). All layouts include shared tabs for **git** (lazygit) and **shell** (extra bash).
+aibox ships six IDE layouts. Select one with `aibox up --layout <name>` (the default is `dev`). Layouts include provider-specific AI tabs based on `[ai].providers`; they include the **git** lazygit tab only when the `git-ui` addon selects `lazygit`.
 
 #### dev (default) -- file browser + editor
 
 <div class="asciinema" data-cast="/aibox/screencasts/layout-dev.cast" data-poster="npt:4" data-autoplay="false" data-controls="false" data-fit="width"></div>
 
-Yazi file manager on the left, Vim on the right. Claude Code, git, and shell in separate tabs.
+Yazi file manager on the left, Vim on the right. AI agents and shell live in separate tabs; the lazygit tab is generated when the `git-ui` addon selects `lazygit`.
 
 #### focus -- one tool per tab, fullscreen
 
@@ -97,13 +102,13 @@ Yazi file manager on the left, Vim on the right. Claude Code, git, and shell in 
 
 Each tool gets the entire screen in its own tab. Switch with `Ctrl+b [/]` or `Ctrl+b 1-5`.
 
-Tabs: **files** (yazi) | **editor** (vim) | **claude** | **git** (lazygit) | **shell**
+Tabs: **files** (yazi) | **editor** (vim) | AI agent tabs | optional **git** (lazygit) | **shell**
 
 #### cowork -- side-by-side coding with AI
 
 <div class="asciinema" data-cast="/aibox/screencasts/layout-cowork.cast" data-poster="npt:4" data-autoplay="false" data-controls="false" data-fit="width"></div>
 
-Yazi and Vim stacked on the left, Claude Code on the right. Git and shell in separate tabs.
+Yazi and Vim stacked on the left, Claude Code on the right. Shell lives in a separate tab; the lazygit tab is generated when the `git-ui` addon selects `lazygit`.
 
 ### Opening Files from Yazi
 
@@ -146,7 +151,9 @@ AI coding agents (Claude, Aider, Gemini, Mistral) are **not** pre-installed in t
 
 ## Audio Support
 
-The base image includes `sox` and `pulseaudio-utils` for audio bridging, enabling Claude Code's voice features inside the container. See [Audio Support](audio.md) for setup details.
+Set `[audio] enabled = true` to enable audio bridging. aibox then selects the
+`audio-voice` addon and configures the PulseAudio environment for the
+container. See [Audio Support](audio.md) for setup details.
 
 ## Configuration Persistence
 
@@ -166,7 +173,11 @@ On first `aibox init` or `aibox up`, the `.aibox-home/` directory is auto-seeded
 
 ## File Preview
 
-The base image ships with a complete set of preview tools covering raster images, vector graphics (SVG, EPS), PDF, and video — both inside Yazi and as standalone command-line viewers. PDF and SVG also support **watch-mode preview** that updates automatically as files change.
+The base image ships the Yazi configuration and preview plugins. Install the
+optional `preview-archive` addon for raster/SVG/PDF/archive helper binaries and
+`preview-enhanced` for Markdown, EPS, video, and ImageMagick/Ghostscript
+support. PDF and SVG also support **watch-mode preview** when the required
+preview tools are selected.
 
 See the dedicated [File Preview](file-preview.md) page for full documentation, including format coverage, standalone tools (`chafa`, `timg`), and the PDF/SVG watch-mode patterns.
 

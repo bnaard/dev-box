@@ -40,6 +40,7 @@ mod processkit_vocab;
 mod provider_backend;
 mod reset;
 mod runtime;
+mod runtime_resources;
 mod runtime_sync;
 mod seed;
 mod sync_perimeter;
@@ -94,6 +95,7 @@ fn dispatch(cli: cli::Cli) -> anyhow::Result<()> {
         cli::Commands::Init {
             name,
             base,
+            profile,
             process,
             ai,
             user,
@@ -112,6 +114,7 @@ fn dispatch(cli: cli::Cli) -> anyhow::Result<()> {
                 container::InitParams {
                     name,
                     base,
+                    profile,
                     process,
                     ai,
                     user,
@@ -139,7 +142,7 @@ fn dispatch(cli: cli::Cli) -> anyhow::Result<()> {
         cli::Commands::Apply {
             resource,
             name,
-            rebuild,
+            no_cache,
             config_only,
             port,
             fix_compliance_contract,
@@ -149,7 +152,7 @@ fn dispatch(cli: cli::Cli) -> anyhow::Result<()> {
             let result = match resource {
                 None => container::cmd_sync(
                     config_path,
-                    rebuild,
+                    no_cache,
                     config_only,
                     fix_compliance_contract,
                     no_container,
@@ -200,10 +203,14 @@ fn dispatch(cli: cli::Cli) -> anyhow::Result<()> {
         cli::Commands::Down => container::cmd_stop(config_path),
         cli::Commands::Get {
             resource,
+            resources,
             all,
             category,
             format,
         } => match resource {
+            cli::GetResource::Runtime if resources => {
+                runtime_resources::cmd_runtime_resources(format)
+            }
             cli::GetResource::Runtime => container::cmd_status(config_path, format),
             cli::GetResource::Addon => addon_cmd::cmd_addon_list(config_path, format),
             cli::GetResource::Env => env::cmd_env_list(format),
@@ -261,6 +268,7 @@ fn dispatch(cli: cli::Cli) -> anyhow::Result<()> {
         },
         cli::Commands::Reset {
             resource,
+            from_processkit,
             no_backup,
             dry_run,
             yes,
@@ -275,6 +283,26 @@ fn dispatch(cli: cli::Cli) -> anyhow::Result<()> {
                         "reset project completed"
                     } else {
                         "reset project failed"
+                    },
+                );
+                result
+            }
+            cli::ResetResource::Context => {
+                let timer = crate::log::LogTimer::start("reset-context");
+                let result = reset::cmd_reset_context_plan(
+                    config_path,
+                    from_processkit.as_deref(),
+                    no_backup,
+                    dry_run,
+                    yes || global_yes,
+                );
+                timer.finish(
+                    Path::new("."),
+                    if result.is_ok() { 0 } else { 1 },
+                    if result.is_ok() {
+                        "reset context plan completed"
+                    } else {
+                        "reset context plan failed"
                     },
                 );
                 result

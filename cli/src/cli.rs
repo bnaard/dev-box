@@ -1,6 +1,6 @@
 use clap::{Parser, Subcommand, ValueEnum};
 
-use crate::config::{AiProvider, BaseImage, StarshipPreset, Theme};
+use crate::config::{AiProvider, AiboxProfile, BaseImage, StarshipPreset, Theme};
 
 /// Parse a truthy/falsy string for env-var-driven boolean flags.
 /// Accepts 1/0, true/false, yes/no, on/off (case-insensitive). Empty string is
@@ -69,7 +69,7 @@ generated files and images, then `up` to enter the workspace.
 Examples:
   aibox init my-app --addon python --harness claude
   aibox apply                                Reconcile config + build image
-  aibox apply --rebuild                      Force full rebuild
+  aibox apply --no-cache                     Force full rebuild without cache
   aibox up                                   Start and attach
   aibox up --layout focus                    Start with a specific layout
   aibox get runtime                          Show container state
@@ -119,6 +119,10 @@ pub enum Commands {
         /// Base image (default: debian)
         #[arg(long, value_enum)]
         base: Option<BaseImage>,
+
+        /// Usage profile (default: human-dev)
+        #[arg(long, value_enum)]
+        profile: Option<AiboxProfile>,
 
         /// Context/process packages (e.g. managed, software, research)
         #[arg(long = "context", visible_alias = "package", num_args = 1..)]
@@ -201,9 +205,9 @@ pub enum Commands {
         /// Resource name, currently used by `apply migration <id>`
         name: Option<String>,
 
-        /// Force a full image rebuild
-        #[arg(long)]
-        rebuild: bool,
+        /// Force a full image rebuild without using cached layers
+        #[arg(long = "no-cache", visible_alias = "rebuild")]
+        no_cache: bool,
 
         /// Skip the container image build step (config-only apply)
         #[arg(long)]
@@ -261,6 +265,10 @@ pub enum Commands {
         /// Resource to list
         #[arg(value_enum)]
         resource: GetResource,
+
+        /// For `get runtime`: include cgroup/procfs memory and process pressure
+        #[arg(long)]
+        resources: bool,
 
         /// Show all available items when supported
         #[arg(long)]
@@ -336,6 +344,9 @@ pub enum Commands {
         #[arg(value_enum)]
         resource: ResetResource,
 
+        /// processkit version to use as the target for context reset planning
+        #[arg(long)]
+        from_processkit: Option<String>,
         /// Skip backup — permanently delete without saving
         #[arg(long)]
         no_backup: bool,
@@ -446,6 +457,7 @@ pub enum EditResource {
 #[derive(Clone, Debug, ValueEnum)]
 pub enum ResetResource {
     Project,
+    Context,
 }
 
 #[derive(Clone, Debug, ValueEnum)]

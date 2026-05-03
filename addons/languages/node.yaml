@@ -4,6 +4,7 @@ description: "Node.js runtime with pnpm, yarn, or bun"
 profile_intent: runtime
 usage_class: automated
 profiles: ["human-dev", "headless-runner"]
+exported_surfaces: ["language-runtime", "build-toolchain", "cli-binary"]
 builder_weight: null
 
 skills:

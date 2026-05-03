@@ -1,0 +1,15 @@
+---
+apiVersion: processkit.projectious.work/v1
+kind: LogEntry
+metadata:
+  id: LOG-20260503_0058-CalmFern-workitem-transitioned
+  created: '2026-05-03T00:58:43+00:00'
+spec:
+  event_type: workitem.transitioned
+  timestamp: '2026-05-03T00:58:43+00:00'
+  summary: Transitioned WorkItem 'BACK-20260502_2107-KeenSky-phase-1-processkit-v025-gateway'
+    from 'in-progress' to 'review'
+  subject: BACK-20260502_2107-KeenSky-phase-1-processkit-v025-gateway
+  subject_kind: WorkItem
+  actor: BACK-20260502_2107-KeenSky-phase-1-processkit-v025-gateway
+---

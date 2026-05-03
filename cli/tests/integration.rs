@@ -112,6 +112,91 @@ fn init_help_exits_zero() {
         stdout.contains("[NAME]") || stdout.contains("name"),
         "init help should mention positional name"
     );
+    assert!(
+        stdout.contains("--profile"),
+        "init help should mention --profile"
+    );
+    assert!(
+        stdout.contains("headless-runner"),
+        "init help should mention headless-runner"
+    );
+}
+
+#[test]
+fn apply_help_mentions_no_cache_and_rebuild_alias() {
+    let output = run(&["apply", "--help"]);
+    assert!(output.status.success(), "aibox apply --help should exit 0");
+    let stdout = String::from_utf8_lossy(&output.stdout);
+    assert!(
+        stdout.contains("--no-cache"),
+        "apply help should expose --no-cache"
+    );
+    assert!(
+        stdout.contains("--rebuild"),
+        "apply help should keep --rebuild as an alias"
+    );
+}
+
+#[test]
+fn apply_no_cache_parses() {
+    let dir = tempfile::tempdir().unwrap();
+    std::fs::write(
+        dir.path().join("aibox.toml"),
+        r#"[aibox]
+version = "0.22.0"
+
+[container]
+name = "parse-test"
+
+[processkit]
+version = "unset"
+"#,
+    )
+    .unwrap();
+
+    let output = run_in_dir(dir.path(), &["apply", "--no-cache", "--no-container"]);
+    assert!(
+        output.status.success(),
+        "aibox apply --no-cache should parse and run in no-container mode: {}",
+        String::from_utf8_lossy(&output.stderr)
+    );
+}
+
+#[test]
+fn reset_context_dry_run_parses() {
+    let dir = tempfile::tempdir().unwrap();
+    std::fs::write(
+        dir.path().join("aibox.toml"),
+        r#"[aibox]
+version = "0.22.0"
+
+[container]
+name = "reset-context-test"
+
+[processkit]
+version = "unset"
+"#,
+    )
+    .unwrap();
+
+    let output = run_in_dir(
+        dir.path(),
+        &[
+            "reset",
+            "context",
+            "--from-processkit",
+            "v0.25.0",
+            "--dry-run",
+        ],
+    );
+    assert!(
+        output.status.success(),
+        "aibox reset context --dry-run should parse and produce a plan: stderr={} stdout={}",
+        String::from_utf8_lossy(&output.stderr),
+        String::from_utf8_lossy(&output.stdout)
+    );
+    let stderr = String::from_utf8_lossy(&output.stderr);
+    assert!(stderr.contains("Context reset plan"));
 }
 
 #[test]
@@ -276,6 +361,37 @@ fn init_invalid_base_exits_nonzero() {
 }
 
 #[test]
+fn init_profile_headless_runner_is_written_to_config() {
+    let dir = tempfile::tempdir().unwrap();
+    let output = run_in_dir(
+        dir.path(),
+        &[
+            "init",
+            "runner",
+            "--base",
+            "debian",
+            "--profile",
+            "headless-runner",
+            "--context",
+            "managed",
+            "--processkit-version",
+            "unset",
+        ],
+    );
+    assert!(
+        output.status.success(),
+        "init should succeed: {}",
+        String::from_utf8_lossy(&output.stderr)
+    );
+
+    let content = std::fs::read_to_string(dir.path().join("aibox.toml")).unwrap();
+    assert!(
+        content.contains("profile = \"headless-runner\""),
+        "generated aibox.toml should preserve the requested profile:\n{content}"
+    );
+}
+
+#[test]
 fn init_invalid_process_exits_nonzero() {
     let dir = tempfile::tempdir().unwrap();
     let output = run_in_dir(
@@ -353,8 +469,9 @@ fn init_generated_toml_is_parseable() {
     );
     let content = std::fs::read_to_string(dir.path().join("aibox.toml")).unwrap();
     // Should be valid TOML
-    let _: toml::Value =
+    let value: toml::Value =
         toml::from_str(&content).expect("generated aibox.toml should be valid TOML");
+    assert_eq!(value["aibox"]["profile"].as_str(), Some("human-dev"));
 }
 
 #[test]
@@ -427,6 +544,13 @@ fn describe_addon_catalog_json_contract() {
             .any(|profile| profile == "headless-runner")
     );
     assert!(
+        python["exported_surfaces"]
+            .as_array()
+            .expect("exported_surfaces should be an array")
+            .iter()
+            .any(|surface| surface == "language-runtime")
+    );
+    assert!(
         python["tools"]
             .as_array()
             .expect("tools should be an array")
@@ -446,10 +570,7 @@ fn describe_workspace_manifest_json_contract() {
     );
     let json = parse_json(&output);
 
-    assert_eq!(
-        json["schema_version"],
-        "aibox.workspace-manifest.v0-preview"
-    );
+    assert_eq!(json["schema_version"], "aibox.workspace-manifest.v0");
     assert_eq!(json["project"]["name"], "projection-test");
     assert_eq!(json["project"]["profile"], "headless-runner");
     assert_eq!(
@@ -544,6 +665,7 @@ fn describe_image_provenance_policy_json_contract() {
         ".devcontainer/docker-compose.yml"
     );
     assert_eq!(json["runtime_markers"]["docker_label"], "aibox.version");
+    assert_eq!(json["runtime_markers"]["profile_label"], "aibox.profile");
     assert_eq!(
         json["runtime_markers"]["version_file"],
         "/etc/aibox-version"

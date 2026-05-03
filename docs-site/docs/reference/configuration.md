@@ -11,7 +11,7 @@ title: Configuration
 
 ```toml
 [aibox]
-version = "0.17.5"                    # aibox version used to generate this project
+version = "0.23.0"                    # aibox version used to generate this project
 base    = "debian"                    # Base image
 profile = "human-dev"                 # Usage profile: human-dev or headless-runner
 
@@ -21,6 +21,12 @@ hostname = "my-app"                   # Container hostname
 user     = "aibox"                    # Container user (default: aibox)
 post_create_command = "npm install"   # Command to run after container creation
 keepalive = false                     # Network keepalive (default: false)
+
+[container.resource_thresholds]
+memory_mib_warn = 4096                # Optional `aibox doctor` memory warning in MiB
+process_count_warn = 400              # Set to 0 to disable this warning
+processkit_mcp_python_warn = 50       # Set to 0 to disable this warning
+oom_kill_warn = 0                     # Warn when cgroup OOM kills exceed this count
 
 [container.environment]
 NODE_ENV = "development"              # Project-wide env vars (non-secret; use .aibox-local.toml for secrets)
@@ -37,7 +43,7 @@ packages = ["managed"]
 
 [processkit]
 source   = "https://github.com/projectious-work/processkit.git"
-version  = "v0.8.0"                   # Pin a real tag; "unset" skips fetching
+version  = "v0.25.0"                  # Pin a real tag; "unset" skips fetching
 src_path = "src"
 # branch = "main"                     # Optional; tarball-first, branch as fallback
 # release_asset_url_template = "..."  # Optional, for non-GitHub hosts
@@ -50,6 +56,10 @@ uv     = { version = "0.7" }
 rustc   = { version = "1.87" }
 clippy  = {}
 rustfmt = {}
+
+[addons.git-ui.tools]                 # Optional: GitHub CLI and lazygit
+gh      = {}
+lazygit = {}
 
 [ai]
 providers = ["claude", "aider"]       # AI providers to install
@@ -94,9 +104,10 @@ is reserved for automation-safe configurations that avoid subscription CLI
 tools and interactive desktop helpers.
 
 For automation, `aibox describe workspace-manifest -o json` emits a sorted,
-read-only `aibox.workspace-manifest.v0-preview` projection of this file. The
-preview schema is intentionally aibox-local until processkit publishes the
-canonical workspace-manifest Artifact schema.
+read-only `aibox.workspace-manifest.v0` projection of this file. The projection
+uses processkit's canonical `Artifact{kind=workspace-manifest}` kind, while the
+machine-readable JSON shape remains aibox-owned until processkit publishes a
+more detailed Artifact schema.
 
 `aibox describe provider-backends -o json` similarly emits
 `aibox.provider-backends.v0-preview`, an aibox-local index of supported harness
@@ -108,8 +119,8 @@ with the `headless-runner` profile.
 `aibox describe image-provenance-policy -o json` emits
 `aibox.image-provenance-policy.v0-preview`, which summarizes the configured
 GHCR image tag or tag template, generated Dockerfile/Compose files, runtime
-version markers, selected addons, and the host-side release phase command
-template.
+version/profile markers, selected addons, and the host-side release phase
+command template.
 
 ### [container]
 
@@ -124,6 +135,25 @@ Container configuration. Controls the generated `docker-compose.yml` and `Docker
 | `keepalive` | Boolean | No | `false` | Network keepalive (prevents OrbStack/VM NAT idle dropout) |
 | `environment` | Map (String → String) | No | `{}` | Environment variables injected into the container. Suitable for non-secret project-wide values; use `.aibox-local.toml` for secrets. |
 | `extra_volumes` | Array of ExtraVolume | No | `[]` | Additional bind mounts. Each entry has `source`, `target`, and optional `read_only`. |
+| `resource_thresholds` | Table | No | see below | Warning thresholds used by `aibox doctor` for cgroup/procfs pressure signals. |
+
+Generated Compose files include a top-level project name, an explicit service
+image, and `container_name = [container].name`. Docker Desktop, OrbStack, and
+Compose views should therefore show each aibox project under its configured
+project/container identity instead of a generic `devcontainer` group.
+
+#### [container.resource_thresholds]
+
+These thresholds are warnings only. They do not stop `aibox up` or fail the
+container build; they make `aibox doctor` surface resource pressure before the
+operating system starts killing processes.
+
+| Field | Type | Default | Description |
+|-------|------|---------|-------------|
+| `memory_mib_warn` | Integer | unset | Warn when cgroup `memory.current` exceeds this many MiB. |
+| `process_count_warn` | Integer | `400` | Warn when `/proc` contains more processes than this. Set to `0` to disable. |
+| `processkit_mcp_python_warn` | Integer | `50` | Warn when many Python processkit MCP server processes are live. Set to `0` to disable. |
+| `oom_kill_warn` | Integer | `0` | Warn when cgroup `memory.events` reports more OOM kills than this. |
 
 #### [[container.extra_volumes]]
 
@@ -201,6 +231,18 @@ python = { version = "3.13" }
 uv = { version = "0.7" }
 ```
 
+For interactive Git tooling:
+
+```toml
+[addons.git-ui.tools]
+gh = {}
+lazygit = {}
+```
+
+Omit `git-ui` if the project does not need GitHub CLI or lazygit in the
+container. The aibox repo may select it for maintenance workflows, but it is
+not required for every generated project.
+
 Run `aibox get addon` to see all available addons, or `aibox describe addon <name>` for tool details and supported versions. See the [Addons page](../addons/overview.md) for full documentation.
 
 ### [skills]
@@ -238,7 +280,7 @@ repo, but any processkit-compatible source works (forks, self-hosted, private
 mirrors).
 
 If `version` is the sentinel `unset`, both `aibox init` and `aibox apply` skip
-the processkit fetch entirely. Pin a real tag (e.g. `v0.8.0`) to land the
+the processkit fetch entirely. Pin a real tag (e.g. `v0.25.0`) to land the
 content. The downloaded tarball is git-tracked under
 `context/templates/processkit/<version>/` so derived projects always have the
 original to diff against.
@@ -290,11 +332,35 @@ release_asset_url_template = "https://gitea.acme.com/{org}/{name}/releases/downl
 
 MCP server definitions and permission configuration. `aibox apply` merges servers from three sources and regenerates all MCP client config files:
 
-1. **Built-in processkit servers** — always included (the processkit MCP server and any extras it ships)
+1. **Built-in processkit servers** — either the processkit gateway or granular per-skill servers, depending on `[mcp.gateway]`
 2. **`aibox.toml [mcp]`** — team-shared servers committed to version control
 3. **`.aibox-local.toml [mcp]`** — personal servers, gitignored
 
 Generated files (`.mcp.json`, `.cursor/mcp.json`, `.gemini/settings.json`, `.codex/config.toml`, `.continue/mcpServers/`) are **gitignored**. They are always reproducible from the config sources above and must not be committed — doing so would embed personal server definitions or credentials from `.aibox-local.toml`.
+
+#### processkit Gateway: [mcp.gateway]
+
+processkit v0.25.0 ships `processkit-gateway`, which can replace the older
+one-process-per-skill MCP topology with a single processkit MCP entry.
+
+```toml
+[mcp.gateway]
+mode = "auto"          # auto | granular | stdio | daemon-proxy
+lazy_catalog = false
+host = "127.0.0.1"
+port = 8765
+path = "/mcp"
+```
+
+| Mode | Behavior |
+|------|----------|
+| `auto` | Use `processkit-gateway` when the installed processkit version ships it; otherwise fall back to granular per-skill servers |
+| `granular` | Always register one MCP server per processkit skill |
+| `stdio` | Register `processkit-gateway` directly as a stdio MCP server |
+| `daemon-proxy` | Start a localhost gateway daemon from `devcontainer.json` and register a stdio proxy for harnesses |
+
+`daemon-proxy` is localhost-only. Run `aibox apply` after changing this section
+so generated harness configs and `devcontainer.json` stay in sync.
 
 #### Server Definitions: [[mcp.servers]]
 
