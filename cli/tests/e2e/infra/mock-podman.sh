@@ -10,6 +10,7 @@
 #   MOCK_FAIL_COMMAND      — If set, fail when this subcommand is invoked
 #   MOCK_CONTAINER_STATE   — State to return for status inspect (default: "running")
 #   MOCK_CONTAINER_VERSION — Value to return for aibox.version label inspect (default: "")
+#   MOCK_CONTAINER_PROJECT — Value to return for compose project label inspect (default: "")
 # =============================================================================
 
 set -euo pipefail
@@ -61,9 +62,11 @@ case "${1:-}" in
             exit 1
         fi
 
-        # Route by format: label queries return MOCK_CONTAINER_VERSION;
+        # Route by format: label queries return their specific mocked label;
         # state queries return MOCK_CONTAINER_STATE.
-        if [[ "$FORMAT" == *"Labels"* ]]; then
+        if [[ "$FORMAT" == *"com.docker.compose.project"* ]]; then
+            echo "${MOCK_CONTAINER_PROJECT:-}"
+        elif [[ "$FORMAT" == *"aibox.version"* ]]; then
             echo "${MOCK_CONTAINER_VERSION:-}"
         else
             echo "$STATE"

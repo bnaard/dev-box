@@ -12,6 +12,7 @@ below shows the minimum compatible processkit version for each aibox release.
 
 | aibox version | Min. processkit | Notes |
 |--------------|-----------------|-------|
+| 0.23.1 | v0.25.0 | stale runtime cleanup for old Compose project names, lazygit disablement fixes, and procps runtime diagnostics |
 | 0.23.0 | v0.25.0 | processkit v0.25.0 gateway integration, daemon-proxy mode, runtime pressure diagnostics, init reaping, optional git UI tools, and profile-aware environment metadata |
 | 0.22.0 | v0.24.0 | processkit v0.24.0: context archiving, richer model routing metadata, semantic task-router scoring, archive-aware index metadata |
 | 0.21.2 | v0.23.1 | processkit v0.23.1 release-audit cleanup and skill metadata fixes |

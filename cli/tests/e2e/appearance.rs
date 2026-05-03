@@ -310,13 +310,17 @@ fn theme_alignment_all_tools_match_selected_theme() {
             );
         }
 
-        // Lazygit must be non-empty
-        let lazygit = fs::read_to_string(aibox_home.join(".config/lazygit/config.yml")).unwrap();
-        assert!(
-            !lazygit.is_empty(),
-            "theme '{}': lazygit config should not be empty",
-            theme
-        );
+        // Lazygit is optional; when the git-ui addon is enabled and the file is
+        // generated, it must be non-empty.
+        let lazygit_path = aibox_home.join(".config/lazygit/config.yml");
+        if lazygit_path.exists() {
+            let lazygit = fs::read_to_string(lazygit_path).unwrap();
+            assert!(
+                !lazygit.is_empty(),
+                "theme '{}': lazygit config should not be empty",
+                theme
+            );
+        }
 
         // Starship must contain theme-specific colors, not Gruvbox-only fallbacks.
         let starship = fs::read_to_string(aibox_home.join(".config/starship.toml")).unwrap();

@@ -220,6 +220,11 @@ pub static COMPAT_TABLE: &[CompatEntry] = &[
         processkit_version: "v0.25.0",
         note: "Minor release: integrates processkit v0.25.0 and its processkit-gateway, collapses processkit MCP registration to a provider-neutral gateway by default, adds daemon-proxy mode, restores apply --no-cache, fixes selected-harness layout generation, adds runtime resource diagnostics and Compose init reaping for Codex sandbox helpers, moves gh/lazygit and voice/preview helpers into selectable addons, adds profile-aware addon metadata and environment-contract projections, and refreshes the docs for runtime operations and processkit v0.25.0.",
     },
+    CompatEntry {
+        aibox_version: "0.23.1",
+        processkit_version: "v0.25.0",
+        note: "Patch release: fixes stale runtime cleanup when old same-name containers belong to a previous Compose project, refuses to attach to mismatched Compose-project containers, honors explicit addon tool disablement for lazygit, and adds procps to the base image for runtime process diagnostics.",
+    },
 ];
 
 /// Find the minimum compatible processkit version for the given aibox version.
