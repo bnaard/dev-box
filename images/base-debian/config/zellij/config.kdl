@@ -49,6 +49,8 @@ pane_frames true
 //   Ctrl+g → f           Toggle fullscreen
 //   Ctrl+g → z           Toggle pane frames
 //   Ctrl+g → e           Toggle embed/floating
+//   Ctrl+g → v           Toggle aibox runtime status
+//   Ctrl+g → b           Toggle aibox key hints
 //   Ctrl+g → p           Toggle scratch notepad (vim floating pane)
 //   Ctrl+g → t           New tab
 //   Ctrl+g → w           Close tab
@@ -110,6 +112,20 @@ keybinds clear-defaults=true {
         bind "f"     { ToggleFocusFullscreen; SwitchToMode "Normal"; }
         bind "z"     { TogglePaneFrames; SwitchToMode "Normal"; }
         bind "e"     { TogglePaneEmbedOrFloating; SwitchToMode "Normal"; }
+        bind "v" {
+            MessagePlugin {
+                name "aibox_toggle_runtime"
+                payload "toggle"
+            }
+            SwitchToMode "Normal"
+        }
+        bind "b" {
+            MessagePlugin {
+                name "aibox_toggle_keys"
+                payload "toggle"
+            }
+            SwitchToMode "Normal"
+        }
 
         // Scratch notepad — toggle vim floating pane
         bind "p"     { ToggleFloatingPanes; SwitchToMode "Normal"; }

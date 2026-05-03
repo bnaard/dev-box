@@ -176,6 +176,8 @@ pub const FORMAT_FILENAME: &str = "FORMAT.md";
 pub const INDEX_FILENAME: &str = "INDEX.md";
 /// `AGENTS.md` — the canonical agent entry point, installed from scaffolding.
 pub const AGENTS_FILENAME: &str = "AGENTS.md";
+/// `.gitignore.example` — processkit reference entries, installed as context reference.
+pub const GITIGNORE_EXAMPLE_FILENAME: &str = ".gitignore.example";
 
 // ---------------------------------------------------------------------------
 // Live install path prefixes (project-root-relative)

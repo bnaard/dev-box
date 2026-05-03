@@ -682,6 +682,7 @@ mod tests {
             ".aibox-home/.config/yazi/plugins/git.yazi/main.lua",
             ".aibox-home/.config/yazi/plugins/git.yazi/types.lua",
             ".aibox-home/.local/bin/pdf-watch",
+            ".aibox-home/.local/bin/open-in-editor",
             ".aibox-home/.config/lazygit/config.yml",
             ".aibox-home/.bashrc",
             ".aibox-home/.config/starship.toml",

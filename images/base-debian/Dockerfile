@@ -19,6 +19,24 @@ RUN ARCH=$(uname -m) && \
       | tar -xz -C /usr/local/bin && \
     chmod +x /usr/local/bin/zellij
 
+# ── aibox Zellij plugin ──────────────────────────────────────────────────────
+FROM debian:trixie-slim AS build-aibox-zellij-status
+
+ENV DEBIAN_FRONTEND=noninteractive
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    ca-certificates curl build-essential pkg-config \
+    && rm -rf /var/lib/apt/lists/*
+
+ENV CARGO_HOME=/cargo RUSTUP_HOME=/rustup PATH="/cargo/bin:${PATH}"
+RUN curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | \
+    sh -s -- -y --profile minimal --default-toolchain 1.94 && \
+    rustup target add wasm32-wasip1
+
+WORKDIR /build/aibox-status
+COPY zellij-plugins/aibox-status/Cargo.toml zellij-plugins/aibox-status/Cargo.lock ./
+COPY zellij-plugins/aibox-status/src ./src
+RUN cargo build --release --target wasm32-wasip1 --features zellij
+
 # ── Yazi ─────────────────────────────────────────────────────────────────────
 FROM fetch-base AS fetch-yazi
 ARG YAZI_VERSION=26.1.22
@@ -246,12 +264,18 @@ COPY --from=ghcr.io/astral-sh/uv:latest /uv /uvx /usr/local/bin/
 # When docker-compose mounts .aibox-home/.vim / .aibox-home/.config/zellij etc.
 # over these paths, the host copy takes full precedence.
 
-# Vim — colorschemes from builder stage, vimrc from build context
+# Vim — colorschemes from builder stage, vimrc from build context.
+# Copy themes into both the image home and Vim's system runtimepath so a
+# host-mounted ~/.vim can never hide the configured colorscheme.
 RUN mkdir -p /home/aibox/.vim/undo
 COPY --from=fetch-vim-colors /vim-colors/colors/                                 /home/aibox/.vim/colors/
 COPY --from=fetch-vim-colors /vim-colors/pack/themes/start/dracula/colors/       /home/aibox/.vim/pack/themes/start/dracula/colors/
 COPY --from=fetch-vim-colors /vim-colors/pack/themes/start/dracula/autoload/     /home/aibox/.vim/pack/themes/start/dracula/autoload/
 COPY config/vim-colors/projectious.vim                                           /home/aibox/.vim/colors/projectious.vim
+COPY --from=fetch-vim-colors /vim-colors/colors/                                 /usr/share/vim/vimfiles/colors/
+COPY --from=fetch-vim-colors /vim-colors/pack/themes/start/dracula/colors/       /usr/share/vim/vimfiles/colors/
+COPY --from=fetch-vim-colors /vim-colors/pack/themes/start/dracula/autoload/     /usr/share/vim/vimfiles/autoload/
+COPY config/vim-colors/projectious.vim                                           /usr/share/vim/vimfiles/colors/projectious.vim
 COPY config/vimrc /home/aibox/.vim/vimrc
 
 # Create config directories in a single layer
@@ -265,6 +289,10 @@ COPY config/zellij/themes/             /home/aibox/.config/zellij/themes/
 COPY config/zellij/layouts/dev.kdl     /home/aibox/.config/zellij/layouts/dev.kdl
 COPY config/zellij/layouts/focus.kdl   /home/aibox/.config/zellij/layouts/focus.kdl
 COPY config/zellij/layouts/cowork.kdl  /home/aibox/.config/zellij/layouts/cowork.kdl
+RUN mkdir -p /usr/local/share/aibox/zellij
+COPY --from=build-aibox-zellij-status \
+    /build/aibox-status/target/wasm32-wasip1/release/aibox_zellij_status.wasm \
+    /usr/local/share/aibox/zellij/aibox-status.wasm
 
 # Yazi
 COPY config/yazi/yazi.toml             /home/aibox/.config/yazi/yazi.toml
@@ -279,6 +307,7 @@ COPY --chmod=755 config/bin/open-in-editor.sh /usr/local/bin/open-in-editor
 COPY --chmod=755 config/bin/vim-loop.sh       /usr/local/bin/vim-loop
 COPY --chmod=755 config/bin/pdf-watch.sh      /usr/local/bin/pdf-watch
 COPY --chmod=755 config/bin/aibox-status.sh   /usr/local/bin/aibox-status
+COPY --chmod=755 config/bin/aibox-status-toggle.sh /usr/local/bin/aibox-status-toggle
 # xdg-open shim — headless containers have no browser, so any tool that
 # calls xdg-open (gh auth login, git credential helpers, opencode, ...)
 # would otherwise hit a confusing "Failed opening a web browser" error.

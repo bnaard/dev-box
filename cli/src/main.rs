@@ -34,6 +34,7 @@ mod lock;
 mod log;
 mod mcp_registration;
 mod migration;
+mod model_migration;
 mod output;
 mod preauth;
 mod processkit_vocab;
@@ -350,10 +351,7 @@ fn dispatch(cli: cli::Cli) -> anyhow::Result<()> {
                 audit::cmd_audit(config_path)
             } else if integrity {
                 let cwd = std::env::current_dir()?;
-                integrity::cmd_doctor_integrity(
-                    &cwd,
-                    matches!(format, Some(cli::OutputFormat::Json)),
-                )
+                integrity::cmd_doctor_integrity(&cwd, format.clone())
             } else {
                 doctor::cmd_doctor(config_path)
             }

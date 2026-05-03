@@ -951,9 +951,9 @@ pub struct McpSection {
     #[serde(default)]
     pub servers: Vec<ExtraMcpServer>,
 
-    /// processkit MCP gateway selection. `auto` uses the gateway when the
-    /// installed processkit release ships it and falls back to per-skill MCP
-    /// servers otherwise.
+    /// processkit MCP gateway selection. `auto` uses the gateway daemon proxy
+    /// when the installed processkit release ships it and falls back to
+    /// per-skill MCP servers otherwise.
     #[serde(default)]
     pub gateway: McpGatewaySection,
 
@@ -967,7 +967,7 @@ pub struct McpSection {
 #[derive(Debug, Clone, Copy, Default, Serialize, Deserialize, PartialEq, Eq)]
 #[serde(rename_all = "kebab-case")]
 pub enum McpGatewayMode {
-    /// Prefer processkit-gateway when available, otherwise use granular servers.
+    /// Prefer the processkit-gateway daemon proxy when available, otherwise use granular servers.
     #[default]
     Auto,
     /// Always write one server per processkit skill.
@@ -1008,10 +1008,6 @@ impl Default for McpGatewaySection {
 }
 
 impl McpGatewaySection {
-    pub fn requires_daemon(&self) -> bool {
-        self.mode == McpGatewayMode::DaemonProxy
-    }
-
     pub fn url(&self) -> String {
         format!("http://{}:{}{}", self.host, self.port, self.path)
     }

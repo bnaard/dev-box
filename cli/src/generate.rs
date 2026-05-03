@@ -4,7 +4,7 @@ use std::collections::BTreeMap;
 use std::fs;
 use std::path::Path;
 
-use crate::config::AiboxConfig;
+use crate::config::{AiboxConfig, McpGatewayMode};
 use crate::output;
 
 fn write_if_changed(path: &Path, content: &str) -> Result<bool> {
@@ -437,22 +437,27 @@ fn generate_devcontainer_json(config: &AiboxConfig, dir: &Path) -> Result<bool> 
                 .to_string(),
         );
     }
-    if config.mcp.gateway.requires_daemon() {
+    if should_start_processkit_gateway_daemon(config, dir) {
         let gateway = &config.mcp.gateway;
-        let mut env = "PROCESSKIT_MCP_MODE=gateway".to_string();
+        let mut env = "UV_CACHE_DIR=/tmp/aibox/uv-cache PROCESSKIT_MCP_MODE=gateway".to_string();
         if gateway.lazy_catalog {
             env.push_str(
                 " PROCESSKIT_GATEWAY_IMPORT_MODE=lazy-catalog PROCESSKIT_GATEWAY_LAZY=true",
             );
         }
         let catalog_command = if gateway.lazy_catalog {
-            "uv run context/skills/processkit/processkit-gateway/mcp/server.py catalog --write >/tmp/aibox/processkit-gateway-catalog.log 2>&1 || true; "
+            format!(
+                "{env} uv run context/skills/processkit/processkit-gateway/mcp/server.py catalog --write >/tmp/aibox/processkit-gateway-catalog.log 2>&1 || true; "
+            )
         } else {
-            ""
+            String::new()
         };
-        post_start_commands.push(format!(
-            "if ! pgrep -f 'processkit-gateway/mcp/server.py.*streamable-http' >/dev/null 2>&1; then mkdir -p /tmp/aibox; (cd /workspace && {catalog_command}{env} nohup uv run context/skills/processkit/processkit-gateway/mcp/server.py serve --transport streamable-http --host {} --port {} >/tmp/aibox/processkit-gateway.log 2>&1 &); fi",
+        let serve_command = format!(
+            "{env} nohup uv run context/skills/processkit/processkit-gateway/mcp/server.py serve --transport streamable-http --host {} --port {} >/tmp/aibox/processkit-gateway.log 2>&1 &",
             gateway.host, gateway.port
+        );
+        post_start_commands.push(format!(
+            "if ! pgrep -f 'processkit-gateway/mcp/server.py.*streamable-http' >/dev/null 2>&1; then mkdir -p /tmp/aibox/uv-cache; (cd /workspace && {catalog_command}{serve_command}); fi"
         ));
     }
     if !post_start_commands.is_empty() {
@@ -493,6 +498,41 @@ fn generate_devcontainer_json(config: &AiboxConfig, dir: &Path) -> Result<bool> 
         &dir.join("devcontainer.json"),
         &format!("{}{}\n", header, json_str),
     )
+}
+
+fn should_start_processkit_gateway_daemon(config: &AiboxConfig, devcontainer_dir: &Path) -> bool {
+    match config.mcp.gateway.mode {
+        McpGatewayMode::DaemonProxy => true,
+        McpGatewayMode::Auto => {
+            let project_root = project_root_for_devcontainer_dir(devcontainer_dir);
+            processkit_gateway_script_is_installed(project_root, &config.processkit.version)
+        }
+        McpGatewayMode::Granular | McpGatewayMode::Stdio => false,
+    }
+}
+
+fn project_root_for_devcontainer_dir(dir: &Path) -> &Path {
+    if dir.file_name().and_then(|name| name.to_str()) == Some(".devcontainer") {
+        dir.parent().unwrap_or(dir)
+    } else {
+        dir
+    }
+}
+
+fn processkit_gateway_script_is_installed(project_root: &Path, version: &str) -> bool {
+    let live_script =
+        project_root.join("context/skills/processkit/processkit-gateway/mcp/server.py");
+    if live_script.is_file() {
+        return true;
+    }
+
+    crate::processkit_vocab::mirror_skills_dir(project_root, version)
+        .map(|skills_dir| {
+            skills_dir
+                .join("processkit/processkit-gateway/mcp/server.py")
+                .is_file()
+        })
+        .unwrap_or(false)
 }
 
 #[cfg(test)]
@@ -857,7 +897,43 @@ mod tests {
         assert!(content.contains("processkit-gateway/mcp/server.py"));
         assert!(content.contains("streamable-http"));
         assert!(content.contains("catalog --write"));
+        assert!(content.contains("UV_CACHE_DIR=/tmp/aibox/uv-cache"));
         assert!(content.contains("PROCESSKIT_GATEWAY_IMPORT_MODE=lazy-catalog"));
+    }
+
+    #[test]
+    fn devcontainer_json_auto_starts_processkit_gateway_daemon_when_installed() {
+        let dir = tempfile::tempdir().unwrap();
+        let version = crate::processkit_vocab::PROCESSKIT_DEFAULT_VERSION;
+        let gateway_dir = dir
+            .path()
+            .join(crate::processkit_vocab::TEMPLATES_PROCESSKIT_DIR)
+            .join(version)
+            .join(crate::processkit_vocab::src::CONTEXT_DIR)
+            .join(crate::processkit_vocab::src::SKILLS)
+            .join("processkit/processkit-gateway/mcp");
+        fs::create_dir_all(&gateway_dir).unwrap();
+        fs::write(gateway_dir.join("server.py"), "# test stub\n").unwrap();
+
+        let mut config = make_config(&[], false);
+        config.processkit.version = version.to_string();
+        config.mcp.gateway.mode = crate::config::McpGatewayMode::Auto;
+        generate_devcontainer_json(&config, dir.path()).unwrap();
+        let content = fs::read_to_string(dir.path().join("devcontainer.json")).unwrap();
+        assert!(content.contains("postStartCommand"));
+        assert!(content.contains("processkit-gateway/mcp/server.py"));
+        assert!(content.contains("streamable-http"));
+        assert!(content.contains("UV_CACHE_DIR=/tmp/aibox/uv-cache"));
+    }
+
+    #[test]
+    fn devcontainer_json_auto_omits_gateway_daemon_when_gateway_missing() {
+        let dir = tempfile::tempdir().unwrap();
+        let mut config = make_config(&[], false);
+        config.mcp.gateway.mode = crate::config::McpGatewayMode::Auto;
+        generate_devcontainer_json(&config, dir.path()).unwrap();
+        let content = fs::read_to_string(dir.path().join("devcontainer.json")).unwrap();
+        assert!(!content.contains("processkit-gateway/mcp/server.py"));
     }
 
     #[test]

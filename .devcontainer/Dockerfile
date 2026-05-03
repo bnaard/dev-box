@@ -47,8 +47,8 @@ RUN install -d /usr/local/bin && \
 # rustup can freely download components (no directory or permission issues).
 RUN rustup target add x86_64-unknown-linux-gnu
 
-FROM ghcr.io/projectious-work/aibox:base-debian-v0.23.1 AS aibox
-LABEL aibox.version="0.23.1"
+FROM ghcr.io/projectious-work/aibox:base-debian-v0.23.2 AS aibox
+LABEL aibox.version="0.23.2"
 LABEL aibox.profile="human-dev"
 
 # Addon: ai-claude
@@ -172,4 +172,4 @@ EOF
 
 # Record image version inside container for runtime checks
 USER root
-RUN echo "0.23.1" > /etc/aibox-version
+RUN echo "0.23.2" > /etc/aibox-version

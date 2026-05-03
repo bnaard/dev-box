@@ -597,11 +597,14 @@ pub fn decide_sync(
 // aibox doctor --integrity
 // ---------------------------------------------------------------------------
 
-/// Entry point for `aibox doctor --integrity` and `--integrity -o json`.
+/// Entry point for `aibox doctor --integrity` and machine-readable formats.
 ///
 /// Exit code: `0` for `Healthy` and `NotInstalled` (the latter is
 /// intentional config), `1` for everything else.
-pub fn cmd_doctor_integrity(project_root: &Path, json: bool) -> Result<()> {
+pub fn cmd_doctor_integrity(
+    project_root: &Path,
+    format: Option<crate::cli::OutputFormat>,
+) -> Result<()> {
     let lock = crate::lock::read_lock(project_root).ok().flatten();
     let status = verify_install_integrity(project_root, &lock)?;
     let claimed_version = lock
@@ -609,10 +612,10 @@ pub fn cmd_doctor_integrity(project_root: &Path, json: bool) -> Result<()> {
         .and_then(|l| l.processkit.as_ref())
         .map(|p| p.version.clone());
 
-    if json {
-        print_status_json(&status, claimed_version.as_deref());
-    } else {
-        print_status_human(&status, claimed_version.as_deref());
+    match format.unwrap_or_default() {
+        crate::cli::OutputFormat::Table => print_status_human(&status, claimed_version.as_deref()),
+        crate::cli::OutputFormat::Json => print_status_json(&status, claimed_version.as_deref())?,
+        crate::cli::OutputFormat::Yaml => print_status_yaml(&status, claimed_version.as_deref())?,
     }
 
     let exit_code = match &status {
@@ -683,31 +686,25 @@ fn print_status_human(status: &IntegrityStatus, claimed_version: Option<&str>) {
     }
 }
 
-fn print_status_json(status: &IntegrityStatus, claimed_version: Option<&str>) {
-    let mut entries: Vec<(String, String)> =
-        vec![("status".to_string(), format!("\"{}\"", status.kind()))];
+fn status_output_value(
+    status: &IntegrityStatus,
+    claimed_version: Option<&str>,
+) -> serde_json::Value {
+    let mut object = serde_json::Map::new();
+    object.insert("status".to_string(), serde_json::json!(status.kind()));
     match status {
         IntegrityStatus::Healthy | IntegrityStatus::NotInstalled => {
             if let Some(v) = claimed_version {
-                entries.push(("version".to_string(), format!("\"{}\"", json_escape(v))));
+                object.insert("version".to_string(), serde_json::json!(v));
             }
         }
         IntegrityStatus::MismatchedVersion { claimed, observed } => {
-            entries.push((
-                "claimed".to_string(),
-                format!("\"{}\"", json_escape(claimed)),
-            ));
-            entries.push((
-                "observed".to_string(),
-                format!("\"{}\"", json_escape(observed)),
-            ));
+            object.insert("claimed".to_string(), serde_json::json!(claimed));
+            object.insert("observed".to_string(), serde_json::json!(observed));
         }
         IntegrityStatus::MissingTemplateMirror { version }
         | IntegrityStatus::MissingProvenance { version } => {
-            entries.push((
-                "version".to_string(),
-                format!("\"{}\"", json_escape(version)),
-            ));
+            object.insert("version".to_string(), serde_json::json!(version));
         }
         IntegrityStatus::Stale {
             version,
@@ -715,49 +712,41 @@ fn print_status_json(status: &IntegrityStatus, claimed_version: Option<&str>) {
             observed_hash,
             expected_hash,
         } => {
-            entries.push((
-                "version".to_string(),
-                format!("\"{}\"", json_escape(version)),
-            ));
-            entries.push(("reason".to_string(), format!("\"{}\"", json_escape(reason))));
-            entries.push((
+            object.insert("version".to_string(), serde_json::json!(version));
+            object.insert("reason".to_string(), serde_json::json!(reason));
+            object.insert(
                 "observed_hash".to_string(),
                 match observed_hash {
-                    Some(h) => format!("\"{}\"", json_escape(h)),
-                    None => "null".to_string(),
+                    Some(h) => serde_json::json!(h),
+                    None => serde_json::Value::Null,
                 },
-            ));
-            entries.push((
+            );
+            object.insert(
                 "expected_hash".to_string(),
                 match expected_hash {
-                    Some(h) => format!("\"{}\"", json_escape(h)),
-                    None => "null".to_string(),
+                    Some(h) => serde_json::json!(h),
+                    None => serde_json::Value::Null,
                 },
-            ));
+            );
         }
     }
-
-    let body: Vec<String> = entries
-        .into_iter()
-        .map(|(k, v)| format!("\"{}\": {}", k, v))
-        .collect();
-    println!("{{{}}}", body.join(", "));
+    serde_json::Value::Object(object)
 }
 
-fn json_escape(s: &str) -> String {
-    let mut out = String::with_capacity(s.len());
-    for ch in s.chars() {
-        match ch {
-            '"' => out.push_str("\\\""),
-            '\\' => out.push_str("\\\\"),
-            '\n' => out.push_str("\\n"),
-            '\r' => out.push_str("\\r"),
-            '\t' => out.push_str("\\t"),
-            c if (c as u32) < 0x20 => out.push_str(&format!("\\u{:04x}", c as u32)),
-            c => out.push(c),
-        }
-    }
-    out
+fn print_status_json(status: &IntegrityStatus, claimed_version: Option<&str>) -> Result<()> {
+    println!(
+        "{}",
+        serde_json::to_string(&status_output_value(status, claimed_version))?
+    );
+    Ok(())
+}
+
+fn print_status_yaml(status: &IntegrityStatus, claimed_version: Option<&str>) -> Result<()> {
+    print!(
+        "{}",
+        serde_yaml::to_string(&status_output_value(status, claimed_version))?
+    );
+    Ok(())
 }
 
 // ---------------------------------------------------------------------------
@@ -926,6 +915,19 @@ mod tests {
             let s = format!("{}", v);
             assert!(!s.is_empty(), "Display empty for {:?}", v);
         }
+    }
+
+    #[test]
+    fn status_output_value_serializes_yaml_contract() {
+        let value = status_output_value(&IntegrityStatus::Healthy, Some("v0.25.1"));
+        let yaml = serde_yaml::to_string(&value).unwrap();
+
+        assert!(yaml.contains("status: Healthy"), "yaml: {yaml}");
+        assert!(yaml.contains("version: v0.25.1"), "yaml: {yaml}");
+        assert!(
+            !yaml.contains("processkit install integrity"),
+            "machine output must not contain human doctor prose: {yaml}"
+        );
     }
 
     // ── 3. NotInstalled when lock absent ───────────────────────────────────

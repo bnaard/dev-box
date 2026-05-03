@@ -11,7 +11,8 @@
 //   │                  │                            │
 //   │                  │                            │
 //   ├──────────────────┴────────────────────────────┤
-//   │  status-bar                                   │
+//   │  aibox keybar                                 │
+//   │  aibox status                                 │
 //   └───────────────────────────────────────────────┘
 //
 //   Tab 1: dev   Tab 2: claude   Tab 3: shell
@@ -22,7 +23,14 @@ layout {
     default_tab_template {
         children
         pane size=1 borderless=true {
-            plugin location="zellij:status-bar"
+            plugin location="file:/usr/local/share/aibox/zellij/aibox-status.wasm" {
+                role "keybar"
+            }
+        }
+        pane size=1 borderless=true {
+            plugin location="file:/usr/local/share/aibox/zellij/aibox-status.wasm" {
+                role "status"
+            }
         }
     }
 

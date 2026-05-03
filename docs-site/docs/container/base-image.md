@@ -162,7 +162,8 @@ All user configuration is persisted on the host under `.aibox-home/` and bind-mo
 | Host Path | Container Path | Contents |
 |-----------|---------------|----------|
 | `.aibox-home/.ssh/` | `/home/aibox/.ssh` (read-only) | SSH keys |
-| `.aibox-home/.vim/` | `/home/aibox/.vim` | Vim config, undo history, plugins |
+| `.aibox-home/.vim/vimrc` | `/home/aibox/.vim/vimrc` | Vim config |
+| `.aibox-home/.vim/undo/` | `/home/aibox/.vim/undo` | Persistent Vim undo history |
 | `.aibox-home/.config/git/` | `/home/aibox/.config/git` | Git config and credentials |
 | `.aibox-home/.config/zellij/` | `/home/aibox/.config/zellij` | Zellij config, themes, layouts, plugin cache |
 | `.aibox-home/.config/yazi/` | `/home/aibox/.config/yazi` | Yazi file manager config and keymap |

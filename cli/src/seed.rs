@@ -119,6 +119,7 @@ pane_frames true
 //   Ctrl+g → f           Toggle fullscreen
 //   Ctrl+g → z           Toggle pane frames
 //   Ctrl+g → v           Toggle aibox runtime status line
+//   Ctrl+g → b           Toggle aibox key-hint line
 //   Ctrl+g → p           Toggle floating panes
 //   Ctrl+g → t/w         New tab / close tab
 //   Ctrl+g → [/]         Previous/next tab
@@ -146,15 +147,16 @@ keybinds clear-defaults=true {
         bind "f"     { ToggleFocusFullscreen; SwitchToMode "Normal"; }
         bind "z"     { TogglePaneFrames; SwitchToMode "Normal"; }
         bind "v" {
-            Run "bash" "-lc" "if [ -x \"$HOME/.local/bin/aibox-status-toggle\" ]; then exec \"$HOME/.local/bin/aibox-status-toggle\"; else exec aibox-status-toggle; fi" {
-                floating true
-                x "0%"
-                y "0%"
-                width 1
-                height 1
-                borderless true
-                close_on_exit true
-                name "aibox-status-toggle"
+            MessagePlugin {
+                name "aibox_toggle_runtime"
+                payload "toggle"
+            }
+            SwitchToMode "Normal"
+        }
+        bind "b" {
+            MessagePlugin {
+                name "aibox_toggle_keys"
+                payload "toggle"
             }
             SwitchToMode "Normal"
         }
@@ -346,11 +348,14 @@ fn zellij_status_template_kdl() -> &'static str {
     r#"    default_tab_template {
         children
         pane size=1 borderless=true {
-            plugin location="zellij:status-bar"
+            plugin location="file:/usr/local/share/aibox/zellij/aibox-status.wasm" {
+                role "keybar"
+            }
         }
         pane size=1 borderless=true {
-            command "bash"
-            args "-lc" "if [ -x \"$HOME/.local/bin/aibox-status\" ]; then exec \"$HOME/.local/bin/aibox-status\" --watch; else exec aibox-status --watch; fi"
+            plugin location="file:/usr/local/share/aibox/zellij/aibox-status.wasm" {
+                role "status"
+            }
         }
     }"#
 }
@@ -359,11 +364,14 @@ const ZELLIJ_STATUS_VISIBLE_LAYOUT: &str = r#"layout {
     default_tab_template {
         children
         pane size=1 borderless=true {
-            plugin location="zellij:status-bar"
+            plugin location="file:/usr/local/share/aibox/zellij/aibox-status.wasm" {
+                role "keybar"
+            }
         }
         pane size=1 borderless=true {
-            command "bash"
-            args "-lc" "if [ -x \"$HOME/.local/bin/aibox-status\" ]; then exec \"$HOME/.local/bin/aibox-status\" --watch; else exec aibox-status --watch; fi"
+            plugin location="file:/usr/local/share/aibox/zellij/aibox-status.wasm" {
+                role "status"
+            }
         }
     }
     tab
@@ -374,7 +382,9 @@ const ZELLIJ_STATUS_HIDDEN_LAYOUT: &str = r#"layout {
     default_tab_template {
         children
         pane size=1 borderless=true {
-            plugin location="zellij:status-bar"
+            plugin location="file:/usr/local/share/aibox/zellij/aibox-status.wasm" {
+                role "keybar"
+            }
         }
     }
     tab
@@ -1281,6 +1291,9 @@ const DEFAULT_YAZI_PLUGIN_TABULAR_PREVIEW: &str =
 
 /// pdf-watch helper — re-render a PDF preview whenever the file changes.
 const DEFAULT_PDF_WATCH_SH: &str = include_str!("../../images/base-debian/config/bin/pdf-watch.sh");
+/// open-in-editor helper — open the hovered Yazi file in the Vim pane/tab.
+const DEFAULT_OPEN_IN_EDITOR_SH: &str =
+    include_str!("../../images/base-debian/config/bin/open-in-editor.sh");
 /// aibox-status helper — compact cgroup/procfs status line for Zellij layouts.
 const DEFAULT_AIBOX_STATUS_SH: &str =
     include_str!("../../images/base-debian/config/bin/aibox-status.sh");
@@ -1639,6 +1652,10 @@ pub fn managed_runtime_files(config: &AiboxConfig) -> Vec<(std::path::PathBuf, S
             DEFAULT_PDF_WATCH_SH.to_string(),
         ),
         (
+            std::path::PathBuf::from(".local/bin/open-in-editor"),
+            DEFAULT_OPEN_IN_EDITOR_SH.to_string(),
+        ),
+        (
             std::path::PathBuf::from(".local/bin/aibox-status"),
             DEFAULT_AIBOX_STATUS_SH.to_string(),
         ),
@@ -1729,6 +1746,7 @@ pub fn seed_root_dir(config: &AiboxConfig) -> Result<()> {
         let path = root.join(&rel_path);
         seed_file(&path, &content)?;
         if rel_path == Path::new(".local/bin/pdf-watch")
+            || rel_path == Path::new(".local/bin/open-in-editor")
             || rel_path == Path::new(".local/bin/aibox-status")
             || rel_path == Path::new(".local/bin/aibox-status-toggle")
         {
@@ -1947,6 +1965,49 @@ pub fn sync_theme_files(config: &AiboxConfig) -> Result<Vec<String>> {
     )? {
         updated.push(".config/zellij/layouts/cowork-swap.kdl".to_string());
     }
+    if force_seed_file(
+        &root
+            .join(".config")
+            .join("zellij")
+            .join("layouts")
+            .join("aibox-status-visible.kdl"),
+        ZELLIJ_STATUS_VISIBLE_LAYOUT,
+    )? {
+        updated.push(".config/zellij/layouts/aibox-status-visible.kdl".to_string());
+    }
+    if force_seed_file(
+        &root
+            .join(".config")
+            .join("zellij")
+            .join("layouts")
+            .join("aibox-status-hidden.kdl"),
+        ZELLIJ_STATUS_HIDDEN_LAYOUT,
+    )? {
+        updated.push(".config/zellij/layouts/aibox-status-hidden.kdl".to_string());
+    }
+
+    if force_seed_file(
+        &root.join(".local").join("bin").join("open-in-editor"),
+        DEFAULT_OPEN_IN_EDITOR_SH,
+    )? {
+        ensure_executable(&root.join(".local").join("bin").join("open-in-editor"))?;
+        updated.push(".local/bin/open-in-editor".to_string());
+    }
+
+    if force_seed_file(
+        &root.join(".local").join("bin").join("aibox-status"),
+        DEFAULT_AIBOX_STATUS_SH,
+    )? {
+        ensure_executable(&root.join(".local").join("bin").join("aibox-status"))?;
+        updated.push(".local/bin/aibox-status".to_string());
+    }
+    if force_seed_file(
+        &root.join(".local").join("bin").join("aibox-status-toggle"),
+        DEFAULT_AIBOX_STATUS_TOGGLE_SH,
+    )? {
+        ensure_executable(&root.join(".local").join("bin").join("aibox-status-toggle"))?;
+        updated.push(".local/bin/aibox-status-toggle".to_string());
+    }
 
     if include_lazygit
         && force_seed_file(
@@ -2012,6 +2073,7 @@ pub fn sync_managed_runtime_permissions(config: &AiboxConfig) -> Result<Vec<Stri
 
     for rel_path in [
         ".local/bin/pdf-watch",
+        ".local/bin/open-in-editor",
         ".local/bin/aibox-status",
         ".local/bin/aibox-status-toggle",
     ] {
@@ -2217,6 +2279,12 @@ mod tests {
         assert!(
             root.join(".local")
                 .join("bin")
+                .join("open-in-editor")
+                .exists()
+        );
+        assert!(
+            root.join(".local")
+                .join("bin")
                 .join("aibox-status")
                 .exists()
         );
@@ -2235,6 +2303,16 @@ mod tests {
                 & 0o111,
             0,
             "pdf-watch should be executable"
+        );
+        #[cfg(unix)]
+        assert_ne!(
+            fs::metadata(root.join(".local").join("bin").join("open-in-editor"))
+                .unwrap()
+                .permissions()
+                .mode()
+                & 0o111,
+            0,
+            "open-in-editor should be executable"
         );
         #[cfg(unix)]
         assert_ne!(
@@ -3104,8 +3182,10 @@ mod tests {
     fn zellij_layout_suspends_non_focused_dev_commands() {
         let layout = generate_dev_layout(&[]);
         assert!(
-            layout.contains("aibox-status") && layout.contains("--watch"),
-            "layouts should include the aibox resource status line"
+            layout.contains("file:/usr/local/share/aibox/zellij/aibox-status.wasm")
+                && layout.contains("role \"keybar\"")
+                && layout.contains("role \"status\""),
+            "layouts should include the native aibox Zellij status plugin rows"
         );
         assert!(
             layout.contains(
@@ -3142,6 +3222,11 @@ mod tests {
                 && DEFAULT_AIBOX_STATUS_SH.contains("\\033[7m"),
             "watch mode should render a zellij-like status segment"
         );
+        assert!(
+            DEFAULT_AIBOX_STATUS_SH.contains("--plugin-json")
+                && DEFAULT_AIBOX_STATUS_SH.contains("print_status_json"),
+            "status helper should expose structured metrics for the native plugin"
+        );
         for group in ["MEM", "CPU", "PROC", "FS", "UP", "PROJ"] {
             assert!(
                 DEFAULT_AIBOX_STATUS_SH.contains(group),
@@ -3157,9 +3242,10 @@ mod tests {
     #[test]
     fn zellij_config_exposes_status_toggle_keybinding() {
         assert!(
-            DEFAULT_ZELLIJ_CONFIG.contains("aibox-status-toggle")
-                && DEFAULT_ZELLIJ_CONFIG.contains("bind \"v\""),
-            "Ctrl+g then v should toggle the aibox status line"
+            DEFAULT_ZELLIJ_CONFIG.contains("MessagePlugin")
+                && DEFAULT_ZELLIJ_CONFIG.contains("bind \"v\"")
+                && DEFAULT_ZELLIJ_CONFIG.contains("bind \"b\""),
+            "Ctrl+g then v/b should toggle the aibox status rows"
         );
     }
 

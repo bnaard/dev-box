@@ -89,8 +89,8 @@
 use std::path::{Path, PathBuf};
 
 use crate::processkit_vocab::{
-    self as pk, AGENTS_FILENAME, FORMAT_FILENAME, INDEX_FILENAME, LIVE_LIB_DIR, LIVE_PROCESSES_DIR,
-    LIVE_SCHEMAS_DIR, LIVE_SKILLS_DIR, LIVE_STATE_MACHINES_DIR,
+    self as pk, AGENTS_FILENAME, FORMAT_FILENAME, GITIGNORE_EXAMPLE_FILENAME, INDEX_FILENAME,
+    LIVE_LIB_DIR, LIVE_PROCESSES_DIR, LIVE_SCHEMAS_DIR, LIVE_SKILLS_DIR, LIVE_STATE_MACHINES_DIR,
 };
 
 /// What to do with a single file from the processkit cache.
@@ -145,6 +145,12 @@ pub fn install_action_for(rel_path: &Path) -> InstallAction {
             // Both: top-level INDEX.md → context/INDEX.md.
             f if f == INDEX_FILENAME => {
                 InstallAction::Install(PathBuf::from("context").join(INDEX_FILENAME))
+            }
+            // processkit reference gitignore entries install as a reviewable
+            // context deliverable. aibox still owns generated project .gitignore
+            // reconciliation.
+            f if f == GITIGNORE_EXAMPLE_FILENAME => {
+                InstallAction::Install(PathBuf::from("context").join(GITIGNORE_EXAMPLE_FILENAME))
             }
             // PROVENANCE.toml: aibox reads from cache directly; skip live install.
             _ => InstallAction::Skip,
@@ -271,6 +277,11 @@ mod tests {
     #[test]
     fn v8_top_level_index_md_installs_at_context_index_md() {
         assert_installs_to("INDEX.md", "context/INDEX.md");
+    }
+
+    #[test]
+    fn v8_gitignore_example_installs_as_context_reference() {
+        assert_installs_to(".gitignore.example", "context/.gitignore.example");
     }
 
     #[test]

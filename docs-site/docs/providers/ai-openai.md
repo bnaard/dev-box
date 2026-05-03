@@ -42,7 +42,7 @@ Separately, aibox also generates a project-local `.codex/config.toml` for MCP se
 
 ## MCP Integration
 
-Codex has a native MCP client. aibox generates `.codex/config.toml` automatically on `aibox apply`, merging processkit MCP entries, team servers from `aibox.toml [mcp]`, and personal servers from `.aibox-local.toml [mcp]`. With processkit v0.25.0 and `[mcp.gateway].mode = "auto"`, the processkit entries collapse to `processkit-gateway` instead of one Python process per skill.
+Codex has a native MCP client. aibox generates `.codex/config.toml` automatically on `aibox apply`, merging processkit MCP entries, team servers from `aibox.toml [mcp]`, and personal servers from `.aibox-local.toml [mcp]`. With processkit v0.25.0 and `[mcp.gateway].mode = "auto"`, Codex uses a `processkit-gateway` stdio proxy backed by the localhost gateway daemon instead of one Python process per skill.
 
 `.codex/config.toml` is **gitignored** — it is regenerated on every `aibox apply` and must not be committed.
 
@@ -88,8 +88,8 @@ services:
 Use that only when host-level user namespaces are already allowed but the runtime seccomp profile still blocks `bubblewrap`, and keep Codex in `workspace-write` with approvals.
 
 `aibox doctor` checks the Codex sandbox posture when Codex is selected. It
-verifies that `bwrap`/`bubblewrap` is available, runs a small namespace smoke
-probe, warns if the generated service is missing Compose `init: true`, and
+verifies that `bwrap`/`bubblewrap` is available, runs a user-namespace smoke
+probe that matches Codex's sandbox requirement, warns if the generated service is missing Compose `init: true`, and
 warns if the main aibox service uses broad grants such as `privileged: true` or
 `SYS_ADMIN`.
 

@@ -78,7 +78,7 @@ docusaurus = { version = "3.8" }
 # gh: pin with gh = { version = "x.y.z" }
 # lazygit: pin with lazygit = { version = "x.y.z" }
 [addons.git-ui.tools]
-gh = {}
+gh = { enabled = true }
 lazygit = { enabled = false }
 
 # Node.js runtime with pnpm, yarn, or bun
@@ -166,8 +166,8 @@ src_path = "src"
 # [mcp] — MCP server registration and permissions
 # =============================================================================
 # processkit v0.25.0 ships a provider-neutral gateway that can replace the old
-# one-process-per-skill MCP topology. `auto` uses the gateway when installed and
-# falls back to granular per-skill servers for older processkit versions.
+# one-process-per-skill MCP topology. `auto` uses the daemon-backed gateway when
+# installed and falls back to granular per-skill servers for older versions.
 [mcp.gateway]
 mode = "auto"          # auto | granular | stdio | daemon-proxy
 lazy_catalog = false
@@ -200,7 +200,7 @@ provider_mode = "pointer"
 theme  = "nord"
 # Starship prompt preset.
 # Options: default | plain | minimal | nerd-font | pastel | bracketed | arrow
-prompt = "pastel"
+prompt = "arrow"
 # Default zellij layout. Options: dev | focus | cowork | cowork-swap | browse | ai
 layout = "ai"
 

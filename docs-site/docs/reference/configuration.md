@@ -341,7 +341,8 @@ Generated files (`.mcp.json`, `.cursor/mcp.json`, `.gemini/settings.json`, `.cod
 #### processkit Gateway: [mcp.gateway]
 
 processkit v0.25.0 ships `processkit-gateway`, which can replace the older
-one-process-per-skill MCP topology with a single processkit MCP entry.
+one-process-per-skill MCP topology with a single daemon-backed processkit MCP
+entry.
 
 ```toml
 [mcp.gateway]
@@ -354,13 +355,13 @@ path = "/mcp"
 
 | Mode | Behavior |
 |------|----------|
-| `auto` | Use `processkit-gateway` when the installed processkit version ships it; otherwise fall back to granular per-skill servers |
+| `auto` | Start the localhost `processkit-gateway` daemon and register a stdio proxy when the installed processkit version ships it; otherwise fall back to granular per-skill servers |
 | `granular` | Always register one MCP server per processkit skill |
 | `stdio` | Register `processkit-gateway` directly as a stdio MCP server |
 | `daemon-proxy` | Start a localhost gateway daemon from `devcontainer.json` and register a stdio proxy for harnesses |
 
-`daemon-proxy` is localhost-only. Run `aibox apply` after changing this section
-so generated harness configs and `devcontainer.json` stay in sync.
+The daemon-backed modes are localhost-only. Run `aibox apply` after changing
+this section so generated harness configs and `devcontainer.json` stay in sync.
 
 #### Server Definitions: [[mcp.servers]]
 

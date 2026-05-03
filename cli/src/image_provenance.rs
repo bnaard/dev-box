@@ -130,13 +130,6 @@ pub fn image_provenance_warnings(config: &AiboxConfig, project_root: &Path) -> V
     let policy = image_provenance_policy(config);
     let mut warnings = Vec::new();
 
-    if policy.image.mutable_version_pin {
-        warnings.push(
-            "image-provenance-mutable-version: [aibox].version is \"latest\"; generated Dockerfile must resolve this to a concrete image tag before build"
-                .to_string(),
-        );
-    }
-
     let dockerfile_path = project_root.join(policy.generated_files.dockerfile);
     let Ok(dockerfile) = std::fs::read_to_string(&dockerfile_path) else {
         warnings.push(format!(
@@ -339,10 +332,45 @@ harnesses = []
         assert!(
             warnings
                 .iter()
+                .any(|warning| warning.contains("image-provenance-mutable-tag-written"))
+        );
+    }
+
+    #[test]
+    fn image_provenance_warnings_accept_latest_resolved_to_concrete_dockerfile_tag() {
+        let tmp = tempfile::tempdir().unwrap();
+        fs::create_dir_all(tmp.path().join(".devcontainer")).unwrap();
+        fs::write(
+            tmp.path().join(".devcontainer/Dockerfile"),
+            r#"FROM ghcr.io/projectious-work/aibox:base-debian-v0.23.2 AS aibox
+LABEL aibox.version="0.23.2"
+LABEL aibox.profile="human-dev"
+RUN echo "0.23.2" > /etc/aibox-version
+"#,
+        )
+        .unwrap();
+        let config = AiboxConfig::from_str(
+            r#"[aibox]
+version = "latest"
+
+[container]
+name = "demo"
+
+[ai]
+harnesses = []
+"#,
+        )
+        .unwrap();
+
+        let warnings = image_provenance_warnings(&config, tmp.path());
+
+        assert!(
+            !warnings
+                .iter()
                 .any(|warning| warning.contains("image-provenance-mutable-version"))
         );
         assert!(
-            warnings
+            !warnings
                 .iter()
                 .any(|warning| warning.contains("image-provenance-mutable-tag-written"))
         );

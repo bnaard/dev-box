@@ -24,6 +24,7 @@ use anyhow::{Context, Result};
 use std::collections::HashMap;
 use std::fs;
 use std::path::Path;
+use std::process::Command;
 
 use crate::config::{AddonsSection, AiProvider, AiboxConfig};
 use crate::output;
@@ -562,7 +563,7 @@ pub fn check_gitignore_entries() -> Vec<String> {
     ];
 
     for (entry, desc) in &required {
-        if !lines.contains(entry) {
+        if !lines.contains(entry) && !is_git_tracked(entry) {
             warnings.push(format!(".gitignore missing '{}' ({})", entry, desc));
         }
     }
@@ -616,6 +617,14 @@ pub fn check_gitignore_entries() -> Vec<String> {
     }
 
     warnings
+}
+
+fn is_git_tracked(path: &str) -> bool {
+    Command::new("git")
+        .args(["ls-files", "--error-unmatch", "--", path])
+        .output()
+        .map(|output| output.status.success())
+        .unwrap_or(false)
 }
 
 // ---------------------------------------------------------------------------

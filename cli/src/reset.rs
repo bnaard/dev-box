@@ -485,8 +485,8 @@ pub fn cmd_reset(
     if let Some(bp) = &backup_path {
         output::info(&format!("Backup saved at: {}", bp.display()));
         output::info(
-            "Run `aibox apply` to re-scaffold, then check context/migrations/pending/ \
-             for the reset recovery migration.",
+            "Recreate or restore aibox.toml, run `aibox init` or `aibox apply` to re-scaffold, \
+             then check context/migrations/pending/ for the reset recovery migration.",
         );
     }
 

@@ -203,7 +203,13 @@ aibox reset project --no-backup --yes
 aibox reset context --from-processkit v0.25.0 --dry-run
 ```
 
-`reset project` removes aibox-managed project files after stopping the runtime. By default it creates a backup first.
+`reset project` is the practical aibox soft reset. It stops the runtime,
+backs up aibox-managed project files, preserves auth/cache state from
+`.aibox-home/`, removes the managed scaffold, and writes a reset recovery
+migration briefing when user content is found in the backup. It also removes
+`aibox.toml`, so it is not a one-command reinit. Recreate or restore
+`aibox.toml`, run `aibox init` or `aibox apply`, then review
+`context/migrations/pending/` for the recovery advice.
 
 `reset context` is plan-only in this release. It reports the processkit-owned
 context paths that a hard reset would replace from a selected processkit

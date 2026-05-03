@@ -11,14 +11,13 @@ Generated layouts include AI-agent tabs based on `[ai].providers`. The
 fullscreen **git** tab is generated only when the `git-ui` addon selects
 `lazygit`, so tab numbering shifts when that optional tab is omitted.
 
-Every generated layout also includes a thin bottom status line. It shows the
-normal Zellij mode/keybinding bar plus an `aibox-status` line grouped as memory,
-CPU pressure, processes, filesystem, uptime, and project state. Press
-`Ctrl+g`, then `v`, to show or hide the `aibox-status` line for the active tab.
-The status helper refreshes every five seconds by default; set
-`AIBOX_STATUS_INTERVAL` in `[container.environment]` to adjust the refresh
-interval. Set `AIBOX_STATUS_STYLE = "plain"` or `NO_COLOR=1` for unstyled
-output.
+Every generated layout also includes a native two-row aibox Zellij plugin. The
+first row shows width-aware key hints for the active Zellij mode. The second row
+shows runtime groups for memory, CPU pressure, processes, filesystem, uptime,
+and project state. Press `Ctrl+g`, then `b`, to show or hide key hints; press
+`Ctrl+g`, then `v`, to show or hide runtime status. Runtime metrics refresh
+every five seconds by default; set `AIBOX_STATUS_INTERVAL` in
+`[container.environment]` to adjust the refresh interval.
 
 ## Available Layouts
 

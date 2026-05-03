@@ -1185,7 +1185,7 @@ fn serialize_config_with_comments(config: &AiboxConfig) -> String {
     out.push_str("# deny_patterns  = []\n");
     out.push('\n');
     out.push_str("# [mcp.gateway]\n");
-    out.push_str("# mode = \"auto\"          # auto | granular | stdio | daemon-proxy\n");
+    out.push_str("# mode = \"auto\"          # auto uses daemon-proxy when processkit-gateway is installed\n");
     out.push_str("# lazy_catalog = false    # Use processkit's lazy catalog where supported\n");
     out.push_str("# host = \"127.0.0.1\"     # daemon-proxy is always localhost-only\n");
     out.push_str("# port = 8765\n");
@@ -1944,6 +1944,17 @@ pub fn cmd_sync(
                         }
                     } else {
                         output::ok("Processkit cache is in sync — no migration needed");
+                    }
+                    match crate::model_migration::write_legacy_model_spec_migration(&cwd) {
+                        Ok(Some(path)) => output::ok(&format!(
+                            "Wrote legacy model-spec migration: {}",
+                            path.display()
+                        )),
+                        Ok(None) => {}
+                        Err(e) => output::warn(&format!(
+                            "Legacy model-spec migration check failed: {}",
+                            e
+                        )),
                     }
                 }
                 Err(e) => output::warn(&format!("Processkit diff failed: {}", e)),

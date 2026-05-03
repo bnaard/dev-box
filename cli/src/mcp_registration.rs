@@ -1021,7 +1021,7 @@ pub fn collect_processkit_mcp_specs(
                     name,
                     command: raw.command,
                     args: raw.args,
-                    env: raw.env,
+                    env: processkit_mcp_env(raw.env),
                 });
             }
         }
@@ -1057,7 +1057,7 @@ pub fn collect_processkit_mcp_specs(
                         name,
                         command: raw.command,
                         args: raw.args,
-                        env: raw.env,
+                        env: processkit_mcp_env(raw.env),
                     });
                 }
             }
@@ -1124,7 +1124,7 @@ pub fn collect_live_skills_mcp_specs(project_root: &Path) -> Result<Vec<McpServe
                                 name,
                                 command: server.command,
                                 args: server.args,
-                                env: server.env,
+                                env: processkit_mcp_env(server.env),
                             });
                         }
                     }
@@ -1162,6 +1162,12 @@ fn managed_set(specs: &[McpServerSpec]) -> BTreeSet<String> {
     specs.iter().map(|s| s.name.clone()).collect()
 }
 
+fn processkit_mcp_env(mut env: BTreeMap<String, String>) -> BTreeMap<String, String> {
+    env.entry("UV_CACHE_DIR".to_string())
+        .or_insert_with(|| "/tmp/aibox/uv-cache".to_string());
+    env
+}
+
 fn gateway_spec(specs: &[McpServerSpec]) -> Option<McpServerSpec> {
     specs
         .iter()
@@ -1171,6 +1177,7 @@ fn gateway_spec(specs: &[McpServerSpec]) -> Option<McpServerSpec> {
 
 fn gateway_stdio_spec(specs: &[McpServerSpec], lazy_catalog: bool) -> Option<McpServerSpec> {
     let mut spec = gateway_spec(specs)?;
+    spec.env = processkit_mcp_env(spec.env);
     spec.env
         .insert("PROCESSKIT_MCP_MODE".to_string(), "gateway".to_string());
     if lazy_catalog {
@@ -1197,7 +1204,7 @@ fn gateway_daemon_proxy_spec(
         .unwrap_or_else(|| {
             "context/skills/processkit/processkit-gateway/mcp/server.py".to_string()
         });
-    let mut env = BTreeMap::new();
+    let mut env = processkit_mcp_env(BTreeMap::new());
     env.insert("PROCESSKIT_MCP_MODE".to_string(), "gateway".to_string());
     Some(McpServerSpec {
         name: "processkit-gateway".to_string(),
@@ -1219,16 +1226,18 @@ fn select_processkit_gateway_specs(
 ) -> Vec<McpServerSpec> {
     match config.mcp.gateway.mode {
         McpGatewayMode::Granular => granular_specs,
-        McpGatewayMode::Auto | McpGatewayMode::Stdio => {
+        McpGatewayMode::Auto => match gateway_daemon_proxy_spec(config, &granular_specs) {
+            Some(spec) => vec![spec],
+            None => granular_specs,
+        },
+        McpGatewayMode::Stdio => {
             match gateway_stdio_spec(&granular_specs, config.mcp.gateway.lazy_catalog) {
                 Some(spec) => vec![spec],
                 None => {
-                    if config.mcp.gateway.mode == McpGatewayMode::Stdio {
-                        output::warn(
-                            "[mcp.gateway].mode = \"stdio\" requested, but processkit-gateway \
+                    output::warn(
+                        "[mcp.gateway].mode = \"stdio\" requested, but processkit-gateway \
                              is not installed; falling back to granular processkit MCP servers.",
-                        );
-                    }
+                    );
                     granular_specs
                 }
             }
@@ -3025,7 +3034,23 @@ args = ["server.js"]
         let body = fs::read_to_string(tmp.path().join(".mcp.json")).unwrap();
         let parsed: serde_json::Value = serde_json::from_str(&body).unwrap();
         let servers = parsed["mcpServers"].as_object().unwrap();
-        assert!(servers.get("processkit-gateway").is_some());
+        let gateway = servers.get("processkit-gateway").unwrap();
+        let args = gateway["args"].as_array().unwrap();
+        assert_eq!(
+            gateway["env"]["UV_CACHE_DIR"], "/tmp/aibox/uv-cache",
+            "processkit MCP entries should use the writable aibox uv cache: {}",
+            body
+        );
+        assert!(
+            args.iter().any(|arg| arg == "stdio-proxy"),
+            "auto mode should use the daemon stdio proxy when processkit-gateway is installed: {}",
+            body
+        );
+        assert!(
+            args.iter().any(|arg| arg == "--url"),
+            "auto mode should pass the daemon URL to the stdio proxy: {}",
+            body
+        );
         assert!(servers.get("my-custom-server").is_some());
         assert!(
             servers.get("processkit-skill-gate").is_none(),

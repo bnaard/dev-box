@@ -1,6 +1,6 @@
 use anyhow::Result;
 use std::path::Path;
-use std::process::Command;
+use std::process::{Command, Stdio};
 
 use crate::config::{AiHarness, AiboxConfig, McpGatewayMode};
 use crate::output;
@@ -9,6 +9,7 @@ use crate::runtime::{ContainerState, Runtime};
 
 /// Embedded schema document for v1.0.0.
 const SCHEMA_V1_0_0: &str = include_str!("../../schemas/v1.0.0/context-schema.md");
+const CURRENT_CONTEXT_SCHEMA_VERSION: &str = "1.0.0";
 
 /// Diagnostic counters.
 struct DiagResult {
@@ -212,6 +213,14 @@ pub fn cmd_doctor(config_path: &Option<String>) -> Result<()> {
 }
 
 fn check_runtime_resource_pressure(config: &AiboxConfig, diag: &mut DiagResult) {
+    if !is_running_inside_aibox_container() {
+        output::ok(
+            "Runtime resource pressure: skipped outside the aibox container \
+             (run doctor inside the workspace container for cgroup/procfs counters)",
+        );
+        return;
+    }
+
     let diagnostics = crate::runtime_resources::read_runtime_resource_diagnostics();
     let thresholds = &config.container.resource_thresholds;
 
@@ -467,8 +476,12 @@ fn check_processkit_mcp_gateway(config: &AiboxConfig, diag: &mut DiagResult) {
     }
 
     output::ok("processkit MCP gateway is installed");
+    check_processkit_semantic_capability(diag);
 
-    if gateway.mode == McpGatewayMode::DaemonProxy {
+    if matches!(
+        gateway.mode,
+        McpGatewayMode::Auto | McpGatewayMode::DaemonProxy
+    ) {
         let devcontainer = Path::new(".devcontainer/devcontainer.json");
         match std::fs::read_to_string(devcontainer) {
             Ok(body) if body.contains("processkit-gateway/mcp/server.py") => {
@@ -476,14 +489,14 @@ fn check_processkit_mcp_gateway(config: &AiboxConfig, diag: &mut DiagResult) {
             }
             Ok(_) => {
                 output::warn(
-                    "[mcp.gateway].mode = \"daemon-proxy\" but devcontainer.json does not \
-                     start processkit-gateway; run `aibox apply`",
+                    "[mcp.gateway] selects the processkit gateway daemon, but devcontainer.json \
+                     does not start processkit-gateway; run `aibox apply`",
                 );
                 diag.warnings += 1;
             }
             Err(_) => {
                 output::warn(
-                    "[mcp.gateway].mode = \"daemon-proxy\" but .devcontainer/devcontainer.json \
+                    "[mcp.gateway] selects the processkit gateway daemon, but .devcontainer/devcontainer.json \
                      is missing; run `aibox apply`",
                 );
                 diag.warnings += 1;
@@ -509,6 +522,65 @@ fn check_processkit_mcp_gateway(config: &AiboxConfig, diag: &mut DiagResult) {
                 );
                 diag.warnings += 1;
             }
+        }
+    }
+}
+
+fn check_processkit_semantic_capability(diag: &mut DiagResult) {
+    let scripts = [
+        Path::new("context/skills/processkit/index-management/mcp/server.py"),
+        Path::new("context/skills/processkit/processkit-gateway/mcp/server.py"),
+    ];
+    let declares_sqlite_vec = scripts.iter().any(|path| {
+        std::fs::read_to_string(path)
+            .map(|body| body.contains("sqlite-vec"))
+            .unwrap_or(false)
+    });
+    if !declares_sqlite_vec {
+        return;
+    }
+
+    let uv = find_command_on_path(&["uv"]);
+    let Some(uv) = uv else {
+        output::warn(
+            "processkit semantic search: installed MCP scripts declare sqlite-vec, but `uv` is not available to resolve PEP 723 dependencies",
+        );
+        diag.warnings += 1;
+        return;
+    };
+
+    let status = Command::new(uv)
+        .env("UV_CACHE_DIR", "/tmp/aibox/uv-cache")
+        .stdout(Stdio::null())
+        .stderr(Stdio::null())
+        .args([
+            "run",
+            "--offline",
+            "--no-project",
+            "--with",
+            "sqlite-vec>=0.1.0",
+            "python",
+            "-c",
+            "import sqlite3, sqlite_vec; db=sqlite3.connect(':memory:'); db.enable_load_extension(True); sqlite_vec.load(db); print('ok')",
+        ])
+        .status();
+
+    match status {
+        Ok(status) if status.success() => {
+            output::ok("processkit semantic search: sqlite-vec is available to uv");
+        }
+        Ok(_) => {
+            output::warn(
+                "processkit semantic search degraded: sqlite-vec is declared but not available in the current uv cache; MCP servers will fall back to FTS until uv can install sqlite-vec",
+            );
+            diag.warnings += 1;
+        }
+        Err(err) => {
+            output::warn(&format!(
+                "processkit semantic search: sqlite-vec probe could not run: {}",
+                err
+            ));
+            diag.warnings += 1;
         }
     }
 }
@@ -604,6 +676,14 @@ fn check_codex_sandbox_environment(config: &AiboxConfig, diag: &mut DiagResult) 
 
     output::info("Checking Codex sandbox environment...");
 
+    if !is_running_inside_aibox_container() {
+        output::ok(
+            "codex: sandbox probe skipped outside the aibox container \
+             (bubblewrap is validated inside the generated workspace runtime)",
+        );
+        return;
+    }
+
     let bwrap = find_command_on_path(&["bwrap", "bubblewrap"]);
     let Some(bwrap) = bwrap else {
         output::warn(
@@ -625,16 +705,16 @@ fn check_codex_sandbox_environment(config: &AiboxConfig, diag: &mut DiagResult) 
         diag.warnings += 1;
     } else {
         match run_bwrap_smoke_probe(&bwrap) {
-            Ok(true) => output::ok("codex: bubblewrap namespace smoke probe succeeded"),
+            Ok(true) => output::ok("codex: bubblewrap user-namespace smoke probe succeeded"),
             Ok(false) => {
                 output::warn(
-                    "codex: bubblewrap namespace smoke probe failed. Check host/runtime unprivileged user namespace and seccomp settings.",
+                    "codex: bubblewrap user-namespace smoke probe failed. Ordinary sandboxed file reads may require escalation until the container runtime allows unprivileged user namespaces and seccomp=unconfined is active.",
                 );
                 diag.warnings += 1;
             }
             Err(err) => {
                 output::warn(&format!(
-                    "codex: bubblewrap namespace smoke probe could not run: {}",
+                    "codex: bubblewrap user-namespace smoke probe could not run: {}",
                     err
                 ));
                 diag.warnings += 1;
@@ -692,18 +772,27 @@ fn find_command_on_path(candidates: &[&str]) -> Option<String> {
 
 fn run_bwrap_smoke_probe(binary: &str) -> Result<bool> {
     let status = Command::new(binary)
-        .args([
-            "--ro-bind",
-            "/",
-            "/",
-            "--dev",
-            "/dev",
-            "--proc",
-            "/proc",
-            "/bin/true",
-        ])
+        .args(bwrap_smoke_probe_args())
         .status()?;
     Ok(status.success())
+}
+
+fn bwrap_smoke_probe_args() -> [&'static str; 13] {
+    [
+        "--unshare-user",
+        "--uid",
+        "0",
+        "--gid",
+        "0",
+        "--ro-bind",
+        "/",
+        "/",
+        "--dev",
+        "/dev",
+        "--proc",
+        "/proc",
+        "/bin/true",
+    ]
 }
 
 fn pid1_is_sleep_infinity() -> bool {
@@ -905,63 +994,31 @@ fn check_context_structure(packages: &[String], diag: &mut DiagResult) {
         }
     }
 
-    // Check for extra files in context/ that aren't expected (warning only)
+    // Since v0.16.0 processkit owns almost all live content under context/.
+    // aibox doctor only validates the aibox-owned perimeter; processkit health
+    // is checked by pk-doctor/index-management so normal entity files do not
+    // flood this report as "extra".
     if Path::new("context").exists() {
-        check_extra_files("context", &expected, diag);
-    }
-}
-
-/// Walk the context/ directory and report files not in the expected list.
-fn check_extra_files(dir: &str, expected: &[&str], diag: &mut DiagResult) {
-    let Ok(entries) = std::fs::read_dir(dir) else {
-        return;
-    };
-
-    for entry in entries.flatten() {
-        let path = entry.path();
-        let rel = path.to_string_lossy().to_string();
-
-        if path.is_dir() {
-            check_extra_files(&rel, expected, diag);
-            continue;
-        }
-
-        // Normalize path separators and check against expected list
-        let normalized = rel.replace('\\', "/");
-        if !expected.iter().any(|e| normalized == *e) {
-            // Don't warn about OWNER.md if it's a symlink (it's always expected via the list)
-            output::warn(&format!(
-                "Extra file: {} (not in {} schema)",
-                normalized, "context"
-            ));
-            diag.warnings += 1;
-        }
+        output::ok("context/ exists (processkit content validated by pk-doctor)");
+    } else {
+        output::warn("context/ missing -- run 'aibox apply' to install processkit content");
+        diag.warnings += 1;
     }
 }
 
 /// Check schema version and generate migration artifacts if needed.
 fn check_schema_version(config: &AiboxConfig, diag: &mut DiagResult) -> Result<()> {
     let target_version = &config.context.schema_version;
-
-    let lock = match crate::lock::read_lock(Path::new("."))? {
-        Some(l) => l,
-        None => {
-            output::warn("aibox.lock not found -- run 'aibox init' to create it");
-            diag.warnings += 1;
-            return Ok(());
-        }
-    };
-
-    let current_version = &lock.aibox.cli_version;
+    let current_version = CURRENT_CONTEXT_SCHEMA_VERSION;
 
     if current_version == target_version {
         output::ok(&format!(
-            "Current: {}, Target: {} (up to date)",
+            "Context schema: current {}, target {} (up to date)",
             current_version, target_version
         ));
     } else {
         output::warn(&format!(
-            "Current: {}, Target: {} (migration needed)",
+            "Context schema: current {}, target {} (migration needed)",
             current_version, target_version
         ));
         diag.warnings += 1;
@@ -1072,16 +1129,18 @@ fn check_container_image_version(runtime: &Runtime, config: &AiboxConfig, diag: 
 
     match runtime.get_container_image_version(name) {
         Ok(Some(container_ver)) => {
-            if container_ver == config.aibox.version {
+            let expected_version = expected_container_image_version(config);
+            if expected_version.as_deref() == Some(container_ver.as_str()) {
                 output::ok(&format!(
-                    "Container image version: {} (matches config)",
+                    "Container image version: {} (matches resolved config)",
                     container_ver
                 ));
             } else {
                 output::warn(&format!(
                     "Container image version mismatch: container={} config={} — \
                      run `aibox apply` to rebuild",
-                    container_ver, config.aibox.version
+                    container_ver,
+                    expected_version.as_deref().unwrap_or(&config.aibox.version)
                 ));
                 diag.warnings += 1;
             }
@@ -1092,6 +1151,22 @@ fn check_container_image_version(runtime: &Runtime, config: &AiboxConfig, diag: 
         }
         Err(_) => {} // inspect failed — skip silently
     }
+}
+
+fn expected_container_image_version(config: &AiboxConfig) -> Option<String> {
+    if config.aibox.version != "latest" {
+        return Some(config.aibox.version.clone());
+    }
+
+    crate::lock::read_lock(Path::new("."))
+        .ok()
+        .flatten()
+        .map(|lock| lock.aibox.cli_version)
+        .filter(|version| !version.is_empty())
+}
+
+fn is_running_inside_aibox_container() -> bool {
+    Path::new("/etc/aibox-version").is_file()
 }
 
 /// Warn if `aibox.lock [aibox].cli_version` doesn't match the current CLI version.
@@ -1131,6 +1206,7 @@ fn print_summary(diag: &DiagResult) {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use std::fs;
 
     #[test]
     fn codex_compose_posture_warns_on_privileged_and_sys_admin() {
@@ -1196,5 +1272,34 @@ services:
         let posture = codex_compose_posture(&compose, "aibox", "compose.yml");
 
         assert!(!posture.init_true);
+    }
+
+    #[test]
+    fn bwrap_smoke_probe_exercises_user_namespace_creation() {
+        let args = bwrap_smoke_probe_args();
+        assert!(args.contains(&"--unshare-user"));
+        assert!(args.contains(&"--uid"));
+        assert!(args.contains(&"--gid"));
+        assert!(args.contains(&"/bin/true"));
+    }
+
+    #[test]
+    #[serial_test::serial]
+    fn context_structure_accepts_processkit_owned_context_files() {
+        let temp = tempfile::tempdir().unwrap();
+        let original = std::env::current_dir().unwrap();
+        std::env::set_current_dir(temp.path()).unwrap();
+
+        fs::create_dir_all("context/workitems").unwrap();
+        fs::write("AGENTS.md", "# agents\n").unwrap();
+        fs::write("aibox.lock", "").unwrap();
+        fs::write(".gitignore", "").unwrap();
+        fs::write("context/workitems/BACK-example.md", "# work\n").unwrap();
+
+        let mut diag = DiagResult::new();
+        check_context_structure(&["product".to_string()], &mut diag);
+
+        std::env::set_current_dir(original).unwrap();
+        assert_eq!(diag.warnings, 0);
     }
 }
