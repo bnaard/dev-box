@@ -722,11 +722,9 @@ pub fn cmd_remove(config_path: &Option<String>) -> Result<()> {
         }
     }
 
-    if runtime.container_status(name)? != ContainerState::Missing {
-        if !removed.contains(name) {
-            output::info("Removing stale same-name container outside current compose project...");
-            runtime.remove_container_by_name(name)?;
-        }
+    if runtime.container_status(name)? != ContainerState::Missing && !removed.contains(name) {
+        output::info("Removing stale same-name container outside current compose project...");
+        runtime.remove_container_by_name(name)?;
     }
     output::ok(&format!("Runtime containers for '{}' removed", name));
 
