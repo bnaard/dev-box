@@ -530,11 +530,15 @@ impl Default for AiSection {
 
 /// Configuration for a single tool within an addon.
 ///
-/// In TOML this appears as e.g. `python = { version = "3.13" }` or `clippy = {}`.
+/// In TOML this appears as e.g. `python = { version = "3.13" }`,
+/// `clippy = {}`, or `lazygit = { enabled = false }`.
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 pub struct ToolEntry {
     /// Tool version. `None` when no version is specified (e.g. `clippy = {}`).
     pub version: Option<String>,
+    /// Explicitly disable a default-enabled tool while keeping the addon.
+    #[serde(default)]
+    pub enabled: Option<bool>,
 }
 
 /// The `tools` sub-table of an addon, e.g. `[addons.python.tools]`.
@@ -596,7 +600,8 @@ impl AddonsSection {
     pub fn has_tool(&self, addon: &str, tool: &str) -> bool {
         self.addons
             .get(addon)
-            .is_some_and(|a| a.tools.contains_key(tool))
+            .and_then(|a| a.tools.get(tool))
+            .is_some_and(|t| t.enabled.unwrap_or(true))
     }
 
     /// Get the version of a specific tool in an addon, if configured.

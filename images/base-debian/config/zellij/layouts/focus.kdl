@@ -5,7 +5,7 @@
 //
 // Each tool gets the entire screen. Switch with Ctrl+g [/] or Ctrl+g 1-5.
 //
-//   Tab 1: yazi   Tab 2: vim   Tab 3: claude   Tab 4: git   Tab 5: shell
+//   Tab 1: yazi   Tab 2: vim   Tab 3: claude   Tab 4: shell
 // =============================================================================
 
 layout {
@@ -36,13 +36,6 @@ layout {
     tab name="claude" {
         pane name="claude" {
             command "claude"
-            cwd "/workspace"
-        }
-    }
-
-    tab name="git" {
-        pane name="lazygit" {
-            command "lazygit"
             cwd "/workspace"
         }
     }

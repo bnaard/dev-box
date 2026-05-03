@@ -178,6 +178,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     jq \
     sudo \
     gosu \
+    procps \
     # ── Sandboxing support (~1 MB) ──
     # OpenAI Codex CLI uses bubblewrap on Linux. Ship the Debian package so
     # Codex does not have to fall back to its vendored binary.

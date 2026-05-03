@@ -94,6 +94,34 @@ impl Runtime {
         }
     }
 
+    /// Read the Docker Compose project label from a container.
+    ///
+    /// Returns `None` if the container doesn't exist or wasn't created by
+    /// Compose. This is used to detect old aibox runtimes whose generated
+    /// compose project name predates the current `name:` field.
+    pub fn get_container_compose_project(&self, container_name: &str) -> Result<Option<String>> {
+        let output = Command::new(&self.runtime_bin)
+            .args([
+                "inspect",
+                "--format",
+                "{{index .Config.Labels \"com.docker.compose.project\"}}",
+                container_name,
+            ])
+            .output()
+            .context("Failed to inspect container for compose project label")?;
+
+        if !output.status.success() {
+            return Ok(None);
+        }
+
+        let label = String::from_utf8_lossy(&output.stdout).trim().to_string();
+        if label.is_empty() || label == "<no value>" {
+            Ok(None)
+        } else {
+            Ok(Some(label))
+        }
+    }
+
     /// Get the container state by inspecting it directly.
     pub fn container_status(&self, name: &str) -> Result<ContainerState> {
         let output = Command::new(&self.runtime_bin)
@@ -198,6 +226,37 @@ impl Runtime {
         let status = self.run_compose(&args)?;
         if !status.success() {
             bail!("Compose down failed");
+        }
+        Ok(())
+    }
+
+    /// Stop and remove one concrete container by name.
+    ///
+    /// Compose cleanup is project-scoped. When aibox changes the compose
+    /// project name, an old same-name container can survive outside the current
+    /// project. `aibox delete runtime` still owns the explicit configured
+    /// container name, so it needs this direct fallback.
+    pub fn remove_container_by_name(&self, name: &str) -> Result<()> {
+        let status = Command::new(&self.runtime_bin)
+            .args(["rm", "-f", name])
+            .status()
+            .context("Failed to remove container")?;
+
+        if !status.success() {
+            bail!("Failed to remove container '{}'", name);
+        }
+        Ok(())
+    }
+
+    /// Stop one concrete container by name.
+    pub fn stop_container_by_name(&self, name: &str) -> Result<()> {
+        let status = Command::new(&self.runtime_bin)
+            .args(["stop", name])
+            .status()
+            .context("Failed to stop container")?;
+
+        if !status.success() {
+            bail!("Failed to stop container '{}'", name);
         }
         Ok(())
     }

@@ -32,9 +32,8 @@
 ║  LAYOUTS                            TABS                                  ║
 ║  ───────────────────────────        ──────────────────────────────        ║
 ║  aibox start --layout dev         Ctrl+b 1  dev  (files+editor+term)   ║
-║  aibox start --layout cowork      Ctrl+b 2  git  (lazygit)             ║
-║  aibox start --layout focus       Ctrl+b 3  shell (extra terminal)     ║
-║                                     Ctrl+b 4  help (this cheatsheet)     ║
+║  aibox start --layout cowork      Ctrl+b 2  shell (extra terminal)     ║
+║  aibox start --layout focus       Ctrl+b 3  help (this cheatsheet)     ║
 ║                                                                           ║
 ╚══════════════════════════════════════════════════════════════════════════════╝
   Press q to exit this help screen.

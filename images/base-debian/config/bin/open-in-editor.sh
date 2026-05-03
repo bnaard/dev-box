@@ -4,7 +4,7 @@
 # Behavior depends on layout:
 # - dev layout: vim is in same tab, to the right → move-focus right
 # - cowork layout: vim is in same tab, below → move-focus down
-# - focus layout: vim is in a separate tab → go-to-tab-name "editor"
+# - focus/browse/ai layouts: vim is in a separate tab → go-to-tab-name "editor"
 #
 # Set AIBOX_EDITOR_DIR to: right (default), down, or tab
 
@@ -14,6 +14,7 @@ file="$1"
 file="$(realpath "$file" 2>/dev/null || echo "$file")"
 
 dir="${AIBOX_EDITOR_DIR:-right}"
+editor_tab_start_delay="${AIBOX_EDITOR_TAB_START_DELAY:-0.5}"
 
 send_to_vim() {
     zellij action write 27
@@ -25,7 +26,7 @@ send_to_vim() {
 case "$dir" in
     tab)
         zellij action go-to-tab-name "editor"
-        sleep 0.1
+        sleep "$editor_tab_start_delay"
         send_to_vim
         ;;
     down)

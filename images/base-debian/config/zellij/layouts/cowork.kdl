@@ -14,7 +14,7 @@
 //   │  status-bar                                   │
 //   └───────────────────────────────────────────────┘
 //
-//   Tab 1: cowork   Tab 2: git   Tab 3: shell
+//   Tab 1: cowork   Tab 2: shell
 // =============================================================================
 
 layout {
@@ -44,13 +44,6 @@ layout {
                 command "claude"
                 cwd "/workspace"
             }
-        }
-    }
-
-    tab name="git" {
-        pane name="lazygit" {
-            command "lazygit"
-            cwd "/workspace"
         }
     }
 

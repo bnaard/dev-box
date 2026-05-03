@@ -20,6 +20,7 @@ tools:
 runtime: |
   # Addon: git-ui — GitHub CLI and lazygit
   USER root
+  {% if tools.gh.enabled or tools.lazygit.enabled %}
   RUN apt-get update && apt-get install -y --no-install-recommends \
   {% if tools.gh.enabled %}
       gh \
@@ -28,3 +29,9 @@ runtime: |
       lazygit \
   {% endif %}
       && rm -rf /var/lib/apt/lists/*
+  {% endif %}
+  {% if not tools.lazygit.enabled %}
+  # Older base images shipped lazygit in the base layer. Treat explicit
+  # lazygit disablement as an absence contract, not just "do not install".
+  RUN apt-get purge -y --auto-remove lazygit && rm -rf /var/lib/apt/lists/*
+  {% endif %}

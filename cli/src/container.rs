@@ -417,6 +417,7 @@ fn populate_addon_tools(
             tool.name.clone(),
             ToolEntry {
                 version: version_opt,
+                enabled: None,
             },
         );
     }
@@ -543,6 +544,21 @@ pub fn cmd_start(config_path: &Option<String>, layout: &str) -> Result<()> {
     generate::generate_all(&config)?;
 
     let state = runtime.container_status(name)?;
+    if state != ContainerState::Missing {
+        let expected_project = crate::generate::sanitize_compose_project_name(name);
+        if let Ok(Some(actual_project)) = runtime.get_container_compose_project(name)
+            && actual_project != expected_project
+        {
+            bail!(
+                "Runtime container '{}' belongs to compose project '{}' but current aibox config expects project '{}'.\n\n\
+                 This usually means an old container survived a generated compose project-name change. Recreate it:\n\
+                 \n    aibox delete runtime && aibox up",
+                name,
+                actual_project,
+                expected_project
+            );
+        }
+    }
 
     // Version mismatch check: if container exists, ensure its image version matches config.
     // No label = pre-BACK-060 image; allow start without check (backward compat).
@@ -639,6 +655,12 @@ pub fn cmd_stop(config_path: &Option<String>) -> Result<()> {
         ContainerState::Running => {
             output::info("Stopping container...");
             runtime.compose_stop_all(crate::config::COMPOSE_FILE)?;
+            if runtime.container_status(name)? == ContainerState::Running {
+                output::info(
+                    "Stopping stale same-name container outside current compose project...",
+                );
+                runtime.stop_container_by_name(name)?;
+            }
             output::ok("Container stopped");
         }
         ContainerState::Stopped => {
@@ -665,6 +687,10 @@ pub fn cmd_remove(config_path: &Option<String>) -> Result<()> {
 
     output::info("Stopping and removing container...");
     runtime.compose_down(crate::config::COMPOSE_FILE)?;
+    if runtime.container_status(name)? != ContainerState::Missing {
+        output::info("Removing stale same-name container outside current compose project...");
+        runtime.remove_container_by_name(name)?;
+    }
     output::ok(&format!("Container '{}' removed", name));
 
     Ok(())
@@ -941,10 +967,19 @@ fn serialize_config_with_comments(config: &AiboxConfig) -> String {
             for tool_name in tool_names {
                 let tool_entry = &addon_tools.tools[tool_name];
                 match &tool_entry.version {
-                    Some(v) => {
-                        out.push_str(&format!("{} = {{ version = \"{}\" }}\n", tool_name, v))
-                    }
-                    None => out.push_str(&format!("{} = {{}}\n", tool_name)),
+                    Some(v) => match tool_entry.enabled {
+                        Some(false) => out.push_str(&format!(
+                            "{} = {{ version = \"{}\", enabled = false }}\n",
+                            tool_name, v
+                        )),
+                        _ => out.push_str(&format!("{} = {{ version = \"{}\" }}\n", tool_name, v)),
+                    },
+                    None => match tool_entry.enabled {
+                        Some(false) => {
+                            out.push_str(&format!("{} = {{ enabled = false }}\n", tool_name))
+                        }
+                        _ => out.push_str(&format!("{} = {{}}\n", tool_name)),
+                    },
                 }
             }
         }

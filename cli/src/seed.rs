@@ -289,8 +289,28 @@ fn ai_tabs_kdl(providers: &[crate::config::AiProvider]) -> String {
         .join("\n")
 }
 
+fn addon_tool_effective_enabled(config: &AiboxConfig, addon: &str, tool: &str) -> bool {
+    let Some(addon_section) = config.addons.get_addon(addon) else {
+        return false;
+    };
+
+    if let Some(entry) = addon_section.tools.get(tool) {
+        return entry.enabled.unwrap_or(true);
+    }
+
+    crate::addon_loader::get_addon(addon)
+        .and_then(|addon_def| {
+            addon_def
+                .tools
+                .iter()
+                .find(|tool_def| tool_def.name == tool)
+                .map(|tool_def| tool_def.default_enabled)
+        })
+        .unwrap_or(true)
+}
+
 fn include_lazygit_tab(config: &AiboxConfig) -> bool {
-    config.addons.has_tool("git-ui", "lazygit")
+    addon_tool_effective_enabled(config, "git-ui", "lazygit")
 }
 
 fn git_tab_kdl(include_lazygit: bool) -> &'static str {
@@ -1399,6 +1419,7 @@ export const ProcesskitGate: Plugin = async ({ project: _project }) => {
 /// Safe to call on every sync/start because it only scaffolds missing directories.
 pub fn ensure_runtime_dirs(config: &AiboxConfig) -> Result<()> {
     let root = config.host_root_dir();
+    let include_lazygit = include_lazygit_tab(config);
 
     let mut dirs = vec![
         root.join(".ssh"),
@@ -1428,8 +1449,10 @@ pub fn ensure_runtime_dirs(config: &AiboxConfig) -> Result<()> {
             .join("plugins")
             .join("status-git.yazi"),
         root.join(".config").join("git"),
-        root.join(".config").join("lazygit"),
     ];
+    if include_lazygit {
+        dirs.push(root.join(".config").join("lazygit"));
+    }
 
     for harness in &config.ai.harnesses {
         if let Some(dir) = harness.config_dir() {
@@ -1560,10 +1583,6 @@ pub fn managed_runtime_files(config: &AiboxConfig) -> Vec<(std::path::PathBuf, S
             crate::themes::starship_config(&config.customization.prompt, theme),
         ),
         (
-            std::path::PathBuf::from(".config/lazygit/config.yml"),
-            crate::themes::lazygit_theme(theme).to_string(),
-        ),
-        (
             std::path::PathBuf::from(".local/bin/pdf-watch"),
             DEFAULT_PDF_WATCH_SH.to_string(),
         ),
@@ -1577,6 +1596,13 @@ pub fn managed_runtime_files(config: &AiboxConfig) -> Vec<(std::path::PathBuf, S
         files.push((
             std::path::PathBuf::from(".asoundrc"),
             DEFAULT_ASOUNDRC.to_string(),
+        ));
+    }
+
+    if include_lazygit {
+        files.push((
+            std::path::PathBuf::from(".config/lazygit/config.yml"),
+            crate::themes::lazygit_theme(theme).to_string(),
         ));
     }
 
@@ -1865,12 +1891,12 @@ pub fn sync_theme_files(config: &AiboxConfig) -> Result<Vec<String>> {
         updated.push(".config/zellij/layouts/cowork-swap.kdl".to_string());
     }
 
-    // lazygit config is harmless even when the optional git-ui addon is not
-    // installed, and keeping it managed preserves cross-tool theme alignment.
-    if force_seed_file(
-        &root.join(".config").join("lazygit").join("config.yml"),
-        crate::themes::lazygit_theme(theme),
-    )? {
+    if include_lazygit
+        && force_seed_file(
+            &root.join(".config").join("lazygit").join("config.yml"),
+            crate::themes::lazygit_theme(theme),
+        )?
+    {
         updated.push(".config/lazygit/config.yml".to_string());
     }
 
@@ -2152,6 +2178,55 @@ mod tests {
                 & 0o111,
             0,
             "aibox-status should be executable"
+        );
+
+        unsafe {
+            std::env::remove_var("AIBOX_HOST_ROOT");
+        }
+    }
+
+    #[test]
+    #[serial]
+    fn managed_runtime_files_omit_lazygit_when_explicitly_disabled() {
+        let dir = tempfile::tempdir().unwrap();
+        let root = dir.path().join("root");
+        let mut config = make_config(false, root);
+        let mut tools = std::collections::HashMap::new();
+        tools.insert(
+            "gh".to_string(),
+            ToolEntry {
+                version: None,
+                enabled: None,
+            },
+        );
+        tools.insert(
+            "lazygit".to_string(),
+            ToolEntry {
+                version: None,
+                enabled: Some(false),
+            },
+        );
+        config
+            .addons
+            .addons
+            .insert("git-ui".to_string(), AddonToolsSection { tools });
+
+        let files = managed_runtime_files(&config);
+        let ai_layout = files
+            .iter()
+            .find(|(path, _)| path == &std::path::PathBuf::from(".config/zellij/layouts/ai.kdl"))
+            .map(|(_, body)| body)
+            .expect("ai layout should be generated");
+
+        assert!(
+            !ai_layout.contains("lazygit"),
+            "disabled lazygit must not appear in generated layouts"
+        );
+        assert!(
+            !files
+                .iter()
+                .any(|(path, _)| path == &std::path::PathBuf::from(".config/lazygit/config.yml")),
+            "disabled lazygit must not generate managed lazygit config"
         );
 
         unsafe {

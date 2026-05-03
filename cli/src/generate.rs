@@ -33,7 +33,7 @@ fn create_template_env() -> minijinja::Environment<'static> {
     env
 }
 
-fn sanitize_compose_project_name(name: &str) -> String {
+pub(crate) fn sanitize_compose_project_name(name: &str) -> String {
     let mut sanitized = String::new();
     let mut last_was_separator = false;
 
@@ -409,7 +409,7 @@ fn generate_devcontainer_json(config: &AiboxConfig, dir: &Path) -> Result<bool> 
         "dockerComposeFile": compose_file,
         "service": name,
         "workspaceFolder": "/workspace",
-        "overrideCommand": true,
+        "overrideCommand": false,
         "remoteUser": config.container.user,
         "customizations": {
             "vscode": {
@@ -520,7 +520,16 @@ mod tests {
         AddonsSection { addons }
     }
 
+    fn ensure_addons_loaded() {
+        let addons_dir = std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
+            .parent()
+            .unwrap()
+            .join("addons");
+        let _ = crate::addon_loader::init_from_dir(&addons_dir);
+    }
+
     fn make_config(addon_names: &[&str], audio_enabled: bool) -> AiboxConfig {
+        ensure_addons_loaded();
         let mut config = crate::config::test_config();
         config.aibox.version = "1.2.3".to_string();
         config.container.name = "test-ctr".to_string();
@@ -597,6 +606,19 @@ mod tests {
         let content = fs::read_to_string(dir.path().join("docker-compose.yml")).unwrap();
         assert!(content.contains("init: true"));
         assert!(content.contains("command: sleep infinity"));
+    }
+
+    #[test]
+    fn devcontainer_does_not_override_compose_command() {
+        let dir = tempfile::tempdir().unwrap();
+        let config = make_config(&[], false);
+        generate_devcontainer_json(&config, dir.path()).unwrap();
+
+        let content = fs::read_to_string(dir.path().join("devcontainer.json")).unwrap();
+        assert!(
+            content.contains("\"overrideCommand\": false"),
+            "devcontainer clients must preserve the compose command so init=true can reap child processes"
+        );
     }
 
     #[test]

@@ -1,5 +1,5 @@
 [aibox]
-cli_version = "0.22.0"
+cli_version = "0.23.0"
 synced_at = "2026-05-02T21:13:32.110684734+00:00"
 
 [processkit]
@@ -11,7 +11,7 @@ installed_at = "2026-05-02T21:13:32.110684734+00:00"
 processkit_install_hash = "1e937aa83544804c6dcde2030f40249f032d1cdb481a396ab0fb915dc59cc96e"
 
 [runtime_home]
-generated_at = "2026-05-02T07:58:53.816452345+00:00"
+generated_at = "2026-05-03T08:00:35.104264+00:00"
 
 [runtime_home.files]
 ".asoundrc" = "f34609b11d315cd613cb5333b561032baec860faf4a7eccb28b5567ae72019af"

@@ -104,6 +104,7 @@ pub fn workspace_manifest(config: &AiboxConfig) -> WorkspaceManifest {
             let tools = addon
                 .tools
                 .iter()
+                .filter(|(_, entry)| entry.enabled.unwrap_or(true))
                 .map(|(tool, entry)| (tool.clone(), entry.version.clone()))
                 .collect();
             WorkspaceAddon {

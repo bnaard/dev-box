@@ -179,6 +179,9 @@ fn to_tool_configs(
 
     for tool_def in addon_def.tools {
         if let Some(user_entry) = user_tools.get(tool_def.name) {
+            if user_entry.enabled == Some(false) {
+                continue;
+            }
             // User explicitly listed this tool — use their version or fall back
             // to the registry default.
             let version = user_entry
@@ -282,6 +285,7 @@ mod tests {
             "alpha".to_string(),
             ToolEntry {
                 version: Some("1.0".to_string()),
+                enabled: None,
             },
         );
         let def = sample_addon_def();
@@ -293,7 +297,13 @@ mod tests {
     #[test]
     fn user_tool_without_version_gets_default() {
         let mut user_tools: HashMap<String, ToolEntry> = HashMap::new();
-        user_tools.insert("alpha".to_string(), ToolEntry { version: None });
+        user_tools.insert(
+            "alpha".to_string(),
+            ToolEntry {
+                version: None,
+                enabled: None,
+            },
+        );
         let def = sample_addon_def();
         let configs = to_tool_configs("test-addon", &user_tools, &def);
 
@@ -303,7 +313,13 @@ mod tests {
     #[test]
     fn non_default_tool_included_when_user_enables_it() {
         let mut user_tools: HashMap<String, ToolEntry> = HashMap::new();
-        user_tools.insert("beta".to_string(), ToolEntry { version: None });
+        user_tools.insert(
+            "beta".to_string(),
+            ToolEntry {
+                version: None,
+                enabled: None,
+            },
+        );
         let def = sample_addon_def();
         let configs = to_tool_configs("test-addon", &user_tools, &def);
 
@@ -312,6 +328,29 @@ mod tests {
             "beta should be present when user enables it"
         );
         assert_eq!(configs["beta"].version, "3.0");
+    }
+
+    #[test]
+    fn default_enabled_tool_can_be_explicitly_disabled() {
+        let mut user_tools: HashMap<String, ToolEntry> = HashMap::new();
+        user_tools.insert(
+            "alpha".to_string(),
+            ToolEntry {
+                version: None,
+                enabled: Some(false),
+            },
+        );
+        let def = sample_addon_def();
+        let configs = to_tool_configs("test-addon", &user_tools, &def);
+
+        assert!(
+            !configs.contains_key("alpha"),
+            "alpha should be absent when explicitly disabled"
+        );
+        assert!(
+            configs.contains_key("gamma"),
+            "other default-enabled tools should remain present"
+        );
     }
 
     // ── builder_order_key tests ─────────────────────────────────────────

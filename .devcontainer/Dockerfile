@@ -47,8 +47,8 @@ RUN install -d /usr/local/bin && \
 # rustup can freely download components (no directory or permission issues).
 RUN rustup target add x86_64-unknown-linux-gnu
 
-FROM ghcr.io/projectious-work/aibox:base-debian-v0.22.0 AS aibox
-LABEL aibox.version="0.22.0"
+FROM ghcr.io/projectious-work/aibox:base-debian-v0.23.0 AS aibox
+LABEL aibox.version="0.23.0"
 LABEL aibox.profile="human-dev"
 
 # Addon: ai-claude
@@ -61,21 +61,9 @@ USER aibox
 RUN curl -fsSL https://claude.ai/install.sh | bash
 USER root
 
-# Addon: audio-voice — PulseAudio/Sox support for interactive voice tools.
-USER root
-RUN apt-get update && apt-get install -y --no-install-recommends \
-    sox \
-    libsox-fmt-pulse \
-    pulseaudio-utils \
-    libasound2-plugins \
-    && rm -rf /var/lib/apt/lists/*
+# WARNING: unknown addon 'audio-voice' — skipped
 
-# Addon: git-ui — GitHub CLI and lazygit
-USER root
-RUN apt-get update && apt-get install -y --no-install-recommends \
-    gh \
-    lazygit \
-    && rm -rf /var/lib/apt/lists/*
+# WARNING: unknown addon 'git-ui' — skipped
 
 # Addon: node (runtime)
 RUN apt-get update && apt-get install -y --no-install-recommends ca-certificates curl gpg && \
@@ -169,4 +157,4 @@ EOF
 
 # Record image version inside container for runtime checks
 USER root
-RUN echo "0.22.0" > /etc/aibox-version
+RUN echo "0.23.0" > /etc/aibox-version

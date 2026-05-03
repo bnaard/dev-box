@@ -79,7 +79,7 @@ docusaurus = { version = "3.8" }
 # lazygit: pin with lazygit = { version = "x.y.z" }
 [addons.git-ui.tools]
 gh = {}
-lazygit = {}
+lazygit = { enabled = false }
 
 # Node.js runtime with pnpm, yarn, or bun
 # node: 20 | 22 (default)
