@@ -393,7 +393,7 @@ fn visual_kb_vim_leader_e_opens_netrw() {
     let driver = vim_driver(
         &ws,
         &home,
-        &format!("\"{}\"", format!("{ws}/project.toml")),
+        &format!("\"{ws}/project.toml\""),
         &[
             (0.5, "zellij action write 32"),          // <Space>
             (0.1, "zellij action write-chars \"e\""), // e  → :Explore
@@ -452,11 +452,7 @@ fn visual_kb_vim_leader_l_shows_buffer_list() {
     let driver = vim_driver(
         &ws,
         &home,
-        &format!(
-            "\"{}\" \"{}\"",
-            format!("{ws}/alpha.rs"),
-            format!("{ws}/beta.rs")
-        ),
+        &format!("\"{ws}/alpha.rs\" \"{ws}/beta.rs\""),
         &[
             // Send Space+l as one write-chars call so vim receives the leader and
             // the key in a single chunk — avoids a timing gap that could cause vim
@@ -517,7 +513,7 @@ fn visual_kb_vim_leader_w_saves_file() {
     let driver = vim_driver(
         &ws,
         &home,
-        &format!("\"{}\"", format!("{ws}/save_me.rs")),
+        &format!("\"{ws}/save_me.rs\""),
         &[
             (0.5, "zellij action write-chars \"A\""), // append at end of line
             (0.15, "zellij action write-chars \" edited\""), // type some text
@@ -578,11 +574,7 @@ fn visual_kb_vim_leader_n_p_cycles_buffers() {
     let driver = vim_driver(
         &ws,
         &home,
-        &format!(
-            "\"{}\" \"{}\"",
-            format!("{ws}/alpha.rs"),
-            format!("{ws}/beta.rs")
-        ),
+        &format!("\"{ws}/alpha.rs\" \"{ws}/beta.rs\""),
         &[
             (0.5, "zellij action write 32"),          // <Space>
             (0.1, "zellij action write-chars \"n\""), // n  → :bnext  (→ beta.rs)

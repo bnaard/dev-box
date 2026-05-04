@@ -152,7 +152,7 @@ harnesses = ["codex"]
 #   "latest" — resolve to the newest available tag at every `aibox sync`.
 [processkit]
 source   = "https://github.com/projectious-work/processkit.git"
-version  = "v0.25.4"
+version  = "v0.25.5"
 src_path = "src"
 # branch = "main"   # optional — for tracking a moving branch (discouraged)
 #
@@ -165,7 +165,7 @@ src_path = "src"
 # =============================================================================
 # [mcp] — MCP server registration and permissions
 # =============================================================================
-# processkit v0.25.4 ships a self-starting provider-neutral gateway proxy that
+# processkit v0.25.5 ships a self-starting provider-neutral gateway proxy that
 # can replace the old one-process-per-skill MCP topology. `auto` uses the
 # gateway proxy when installed and falls back to granular per-skill servers for
 # older versions.

@@ -1,0 +1,12 @@
+{
+  "mcpServers": {
+    "processkit-note-management": {
+      "command": "uv",
+      "args": [
+        "run",
+        "context/skills/processkit/note-management/mcp/server.py"
+      ],
+      "env": {}
+    }
+  }
+}

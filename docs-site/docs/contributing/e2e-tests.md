@@ -100,13 +100,13 @@ list known addons such as `python`.
 
 **Reset with backup removes files and creates backup directory**
 If `aibox reset project --yes` is run in an initialized project, then `aibox.toml`
-must be deleted and `.aibox-backup/` must be created containing the backed-up
+must be deleted and `.aibox/backup/` must be created containing the backed-up
 files.
 `[reset.rs · reset_creates_backup]`
 
 **Reset with --no-backup removes all files without creating a backup**
 If `aibox reset project --no-backup --yes` is run, then `aibox.toml` and
-`.devcontainer/` must be deleted and `.aibox-backup/` must not be created.
+`.devcontainer/` must be deleted and `.aibox/backup/` must not be created.
 `[reset.rs · reset_no_backup_deletes_all]`
 
 ---
@@ -181,12 +181,11 @@ and suggest running `aibox apply` to update generated files.
 
 ## Migration — `migration.rs`
 
-**Apply updates .aibox-version when it is outdated**
+**Apply absorbs legacy .aibox-version into aibox.lock**
 If `.aibox-version` is overwritten with `0.1.0` (an old version) and
-`aibox apply` is run, then `.aibox-version` must be updated to a non-empty
-value that is no longer `0.1.0`, indicating the migration system ran and
-stamped the current version.
-`[migration.rs · sync_updates_version_file]`
+`aibox apply` is run, then `.aibox-version` must be removed and `aibox.lock`
+must contain the current `[aibox].cli_version` sync state.
+`[migration.rs · apply_absorbs_legacy_version_file_into_lock]`
 
 ---
 
@@ -230,15 +229,16 @@ reference `catppuccin-mocha`.
 **Changing the theme updates all themed tool configs**
 If a project is initialized with `gruvbox-dark` and the theme is changed to
 `dracula` via `aibox apply`, then `config.kdl` must contain `dracula` and no
-longer `gruvbox-dark`, and `vimrc`, `yazi/theme.toml`, `lazygit/config.yml`,
-and `starship.toml` must all be non-empty and updated.
-`[appearance.rs · theme_change_updates_all_files]`
+longer `gruvbox-dark`, and `vimrc`, `yazi/theme.toml`, and `starship.toml`
+must be updated. Lazygit config is optional and is checked only when the
+`git-ui` addon enables it.
+`[appearance.rs · theme_change_auto_applies_untouched_runtime_files]`
 
 **Each theme produces matching configs across all tools**
 If `aibox init` is run for each of five themes with known vim colorscheme
 names, then `vimrc` must contain the exact `colorscheme <name>` line,
-`config.kdl` must reference the theme name, and the yazi, lazygit, and
-starship configs must all be non-empty.
+`config.kdl` must reference the theme name, yazi and starship configs must
+be non-empty, and lazygit config must be non-empty when present.
 `[appearance.rs · theme_alignment_all_tools_match_selected_theme]`
 
 **Yazi keymap includes the open-in-editor binding**
@@ -343,7 +343,7 @@ both.
 `[config_coverage.rs · addon_multiple_in_dockerfile]`
 
 **Minimal package creates slim project skeleton**
-If `aibox init --context minimal` is run, then `aibox.toml`, `.aibox-version`,
+If `aibox init --context minimal` is run, then `aibox.toml`, `aibox.lock`,
 an empty `context/` directory, and a thin `CLAUDE.md` pointer must exist.
 The single-file context tracks (`BACKLOG.md`, `DECISIONS.md`, `STANDUPS.md`)
 are **not** created at init time — the corresponding processkit skills create

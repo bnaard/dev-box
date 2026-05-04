@@ -12,6 +12,7 @@ below shows the minimum compatible processkit version for each aibox release.
 
 | aibox version | Min. processkit | Notes |
 |--------------|-----------------|-------|
+| 0.23.6 | v0.25.5 | processkit v0.25.5 active interlocutor runtime binding, subagent MCP lifecycle guardrails, Codex MCP path fixes, addon fallback migrations, doctor schema/runtime-template diagnostics, lazygit-disabled cleanup, native Zellij status visibility, and stronger E2E coverage |
 | 0.23.5 | v0.25.4 | generated Dockerfile lazygit disablement cleanup no longer aborts when lazygit is absent as an apt package, while still removing inherited lazygit binaries |
 | 0.23.4 | v0.25.4 | processkit v0.25.4 gateway stdio-proxy daemon startup fixes, Codex pre_tool_use hook generation, Zellij status presentation control, and stale status-layout runtime sync repair |
 | 0.23.3 | v0.25.3 | processkit v0.25.3 model-spec/model-profile migrations and Codex seccomp fallback for bubblewrap |
@@ -55,7 +56,7 @@ To upgrade processkit in an existing project:
 1. Edit `aibox.toml`:
    ```toml
    [processkit]
-   version = "v0.25.4"
+   version = "v0.25.5"
    ```
 
 2. Run `aibox apply` on the host — the 3-way diff will show changed content

@@ -8,7 +8,7 @@ use super::runner::E2eRunner;
 
 #[test]
 #[serial]
-fn sync_updates_version_file() {
+fn apply_absorbs_legacy_version_file_into_lock() {
     let runner = E2eRunner::new();
     let test = "migration-version";
     runner.cleanup(test);
@@ -19,21 +19,34 @@ fn sync_updates_version_file() {
         &["init", test, "--base", "debian", "--context", "managed"],
     );
 
-    // Tamper with .aibox-version to simulate older version
+    // Legacy projects used .aibox-version. Current projects absorb CLI
+    // sync state into aibox.lock and remove the standalone file on apply.
     runner.write_file(test, ".aibox-version", "0.1.0");
 
-    // TODO(hard-break): confirm whether `reset project`/`apply` still owns
-    // `.aibox-version`; newer tests assert that this file is absent.
-    runner.aibox(test, &["apply"]);
-
-    let version = runner.read_file(test, ".aibox-version");
+    let output = runner.aibox(test, &["apply"]);
     assert!(
-        !version.trim().is_empty(),
-        ".aibox-version should not be empty after apply"
+        output.status.success(),
+        "apply failed: {}",
+        String::from_utf8_lossy(&output.stderr)
+    );
+
+    assert!(
+        !runner.file_exists(test, ".aibox-version"),
+        ".aibox-version should be removed after apply"
+    );
+
+    let lock = runner.read_file(test, "aibox.lock");
+    assert!(
+        lock.contains("[aibox]"),
+        "aibox.lock should contain an [aibox] section after apply:\n{lock}"
     );
     assert!(
-        version.trim() != "0.1.0",
-        ".aibox-version should be updated from 0.1.0 to current version"
+        lock.contains("cli_version ="),
+        "aibox.lock should record the synced CLI version after apply:\n{lock}"
+    );
+    assert!(
+        !lock.contains("0.1.0"),
+        "legacy .aibox-version content should not survive in aibox.lock:\n{lock}"
     );
 
     runner.cleanup(test);

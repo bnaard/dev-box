@@ -245,6 +245,11 @@ pub static COMPAT_TABLE: &[CompatEntry] = &[
         processkit_version: "v0.25.4",
         note: "Patch release: fixes generated Dockerfile lazygit disablement cleanup so a missing apt package no longer aborts `aibox apply --no-cache`, while still removing lazygit binaries inherited from older base images.",
     },
+    CompatEntry {
+        aibox_version: "0.23.6",
+        processkit_version: "v0.25.5",
+        note: "Patch release: integrates processkit v0.25.5 active interlocutor runtime binding reporting, conservative Claude subagent model emission, and explicit subagent MCP lifecycle guardrails; fixes Codex subagent MCP script paths, addon dependency fallback migrations, doctor aibox.toml/runtime-theme diagnostics, lazygit-disabled runtime cleanup, and native Zellij status-line visibility; strengthens no-container and asciinema E2E coverage.",
+    },
 ];
 
 /// Find the minimum compatible processkit version for the given aibox version.

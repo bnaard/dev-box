@@ -64,6 +64,8 @@ pub fn cmd_doctor(config_path: &Option<String>) -> Result<()> {
         Err(e) => {
             output::error(&format!("Config: {}", e));
             diag.errors += 1;
+            output::info("Checking aibox.toml schema...");
+            check_aibox_toml_schema(config_path, &mut diag);
             None
         }
     };
@@ -88,6 +90,9 @@ pub fn cmd_doctor(config_path: &Option<String>) -> Result<()> {
         }
     };
 
+    output::info("Checking aibox.toml schema...");
+    check_aibox_toml_schema(config_path, &mut diag);
+
     // 3. Check .aibox-home/ directory (or legacy .root/)
     let root = config.host_root_dir();
     let root_label = root.display().to_string();
@@ -98,6 +103,11 @@ pub fn cmd_doctor(config_path: &Option<String>) -> Result<()> {
 
         // Check mount source paths match config (AI providers, audio)
         check_mount_sources(&root, &root_label, &config, &mut diag);
+
+        // Check standard runtime theme/config files against the current
+        // generated baseline. These files are user-editable, so drift is a
+        // warning, but it is important signal after release upgrades.
+        check_runtime_theme_template_drift(&config, &mut diag);
 
         // Suggest migration from .root/ to .aibox-home/
         if root_label == ".root" && !std::path::Path::new(".aibox-home").exists() {
@@ -210,6 +220,139 @@ pub fn cmd_doctor(config_path: &Option<String>) -> Result<()> {
 
     print_summary(&diag);
     Ok(())
+}
+
+fn check_aibox_toml_schema(config_path: &Option<String>, diag: &mut DiagResult) {
+    let path = config_path
+        .as_deref()
+        .map(Path::new)
+        .unwrap_or_else(|| Path::new("aibox.toml"));
+    match std::fs::read_to_string(path) {
+        Ok(body) => match AiboxConfig::schema_mismatches(&body) {
+            Ok(mismatches) if mismatches.is_empty() => {
+                output::ok("aibox.toml schema: no unknown keys");
+            }
+            Ok(mismatches) => {
+                for mismatch in mismatches {
+                    output::error(&format!(
+                        "aibox.toml schema mismatch: {mismatch}. \
+                         Ask the project agent to update aibox.toml for this aibox release."
+                    ));
+                    diag.errors += 1;
+                }
+            }
+            Err(e) => {
+                output::error(&format!("aibox.toml schema check failed: {}", e));
+                diag.errors += 1;
+            }
+        },
+        Err(e) => {
+            output::warn(&format!(
+                "aibox.toml schema check skipped; could not read {}: {}",
+                path.display(),
+                e
+            ));
+            diag.warnings += 1;
+        }
+    }
+}
+
+fn check_runtime_theme_template_drift(config: &AiboxConfig, diag: &mut DiagResult) {
+    output::info("Checking runtime theme templates...");
+    let root = config.host_root_dir();
+    let mut drift = 0u32;
+
+    for (rel_path, expected) in runtime_theme_reference_files(config) {
+        let path = root.join(&rel_path);
+        let rel = rel_path.to_string_lossy().replace('\\', "/");
+        match std::fs::read_to_string(&path) {
+            Ok(actual) if actual == expected => {}
+            Ok(_) => {
+                output::warn(&format!(
+                    "Runtime theme/template drift: {} differs from the aibox {} reference. \
+                     Ask the project agent to review local edits, then run `aibox apply` or \
+                     the appropriate migration.",
+                    rel,
+                    env!("CARGO_PKG_VERSION")
+                ));
+                drift += 1;
+            }
+            Err(e) if e.kind() == std::io::ErrorKind::NotFound => {
+                output::warn(&format!(
+                    "Runtime theme/template drift: {} is missing from {}. \
+                     Run `aibox apply` to regenerate standard runtime theme files.",
+                    rel,
+                    root.display()
+                ));
+                drift += 1;
+            }
+            Err(e) => {
+                output::warn(&format!(
+                    "Runtime theme/template drift check skipped for {}: {}",
+                    rel, e
+                ));
+                drift += 1;
+            }
+        }
+    }
+
+    if !lazygit_effective_enabled(config) {
+        let stale_lazygit = root.join(".config").join("lazygit").join("config.yml");
+        if stale_lazygit.exists() {
+            output::warn(
+                "Runtime theme/template drift: .config/lazygit/config.yml exists but \
+                 git-ui.lazygit is disabled. Run `aibox apply` to remove stale lazygit \
+                 runtime config.",
+            );
+            drift += 1;
+        }
+    }
+
+    if drift == 0 {
+        output::ok("Runtime theme files match the current aibox reference");
+    } else {
+        diag.warnings += drift;
+    }
+}
+
+fn runtime_theme_reference_files(config: &AiboxConfig) -> Vec<(std::path::PathBuf, String)> {
+    crate::seed::managed_runtime_files(config)
+        .into_iter()
+        .filter(|(path, _)| is_runtime_theme_reference_file(path))
+        .collect()
+}
+
+fn is_runtime_theme_reference_file(path: &Path) -> bool {
+    let rel = path.to_string_lossy().replace('\\', "/");
+    rel == ".vim/vimrc"
+        || rel == ".config/zellij/config.kdl"
+        || rel.starts_with(".config/zellij/layouts/")
+        || rel.starts_with(".config/zellij/themes/")
+        || rel == ".config/yazi/theme.toml"
+        || rel == ".config/starship.toml"
+        || rel == ".config/lazygit/config.yml"
+        || rel == ".local/bin/aibox-status"
+        || rel == ".local/bin/aibox-status-toggle"
+}
+
+fn lazygit_effective_enabled(config: &AiboxConfig) -> bool {
+    let Some(addon_section) = config.addons.get_addon("git-ui") else {
+        return false;
+    };
+
+    if let Some(entry) = addon_section.tools.get("lazygit") {
+        return entry.enabled.unwrap_or(true);
+    }
+
+    crate::addon_loader::get_addon("git-ui")
+        .and_then(|addon| {
+            addon
+                .tools
+                .iter()
+                .find(|tool| tool.name == "lazygit")
+                .map(|tool| tool.default_enabled)
+        })
+        .unwrap_or(true)
 }
 
 fn check_runtime_resource_pressure(config: &AiboxConfig, diag: &mut DiagResult) {

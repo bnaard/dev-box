@@ -34,10 +34,14 @@ fn reset_project_creates_backup() {
         "aibox.toml should be deleted after reset"
     );
 
-    // Backup directory should exist
+    // Backup directory should exist under the managed .aibox state dir.
     assert!(
-        runner.dir_exists(test, ".aibox-backup"),
-        ".aibox-backup should exist after reset"
+        runner.dir_exists(test, ".aibox/backup"),
+        ".aibox/backup should exist after reset"
+    );
+    assert!(
+        !runner.dir_exists(test, ".aibox-backup"),
+        "legacy .aibox-backup should not be created after reset"
     );
 
     runner.cleanup(test);
@@ -71,8 +75,12 @@ fn reset_project_no_backup_deletes_all() {
         ".devcontainer should be gone"
     );
     assert!(
+        !runner.dir_exists(test, ".aibox/backup"),
+        ".aibox/backup should not exist with --no-backup"
+    );
+    assert!(
         !runner.dir_exists(test, ".aibox-backup"),
-        ".aibox-backup should not exist with --no-backup"
+        "legacy .aibox-backup should not exist with --no-backup"
     );
 
     runner.cleanup(test);

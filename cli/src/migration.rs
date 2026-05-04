@@ -545,6 +545,86 @@ Check https://github.com/projectious-work/aibox/issues for known issues with v{t
     )
 }
 
+/// Write a pending migration advisory when an older `aibox.toml` selected an
+/// addon without listing its newly-declared `requires` dependencies.
+pub fn generate_addon_dependency_migration(
+    root: &Path,
+    missing_requires: &[(String, String)],
+) -> Result<()> {
+    if missing_requires.is_empty() {
+        return Ok(());
+    }
+
+    let migrations_dir = root.join("context").join("migrations");
+    fs::create_dir_all(&migrations_dir).context("Failed to create context/migrations/")?;
+
+    let datetime_slug = chrono_free_datetime_slug();
+    let filepath = migrations_dir.join(format!("{datetime_slug}_addon-dependencies.md"));
+    if filepath.exists() {
+        return Ok(());
+    }
+
+    let date = chrono_free_date();
+    let mut pairs = missing_requires.to_vec();
+    pairs.sort();
+    pairs.dedup();
+
+    let mut action_items = String::new();
+    let mut snippets = String::new();
+    for (addon, required) in &pairs {
+        action_items.push_str(&format!(
+            "- [ ] `{addon}` requires `{required}`. Add an explicit `[addons.{required}.tools]` section to `aibox.toml`, then run `aibox apply` again.\n"
+        ));
+        snippets.push_str(&format!("\n```toml\n[addons.{required}.tools]\n```\n"));
+    }
+
+    let content = format!(
+        "\
+# Migration: addon dependency declarations
+
+> **SAFETY: Do not execute host actions automatically.**
+> **Discuss the `aibox.toml` edit with the project owner before changing it.**
+
+**Generated:** {date}
+**Status:** pending
+
+## Summary
+
+This project was created with an older `aibox.toml` shape that selected an addon
+without explicitly listing one or more addons that are now declared as
+dependencies.
+
+`aibox apply` used a temporary fallback for this run so generation could
+continue, but the project configuration should be updated explicitly so future
+syncs are reproducible and clear to agents.
+
+## Required `aibox.toml` Updates
+
+{action_items}
+## Suggested Snippets
+{snippets}
+## Verification
+
+- [ ] Run `aibox apply` after updating `aibox.toml`.
+- [ ] Confirm this migration document is marked `completed` after the apply
+      succeeds.
+"
+    );
+
+    fs::write(&filepath, content).with_context(|| {
+        format!(
+            "Failed to write addon dependency migration document {}",
+            filepath.display()
+        )
+    })?;
+    output::ok(&format!(
+        "Generated addon dependency migration: {}",
+        filepath.display()
+    ));
+
+    Ok(())
+}
+
 // ---------------------------------------------------------------------------
 // One-shot migration: auto-insert [processkit] section into legacy aibox.toml
 // ---------------------------------------------------------------------------

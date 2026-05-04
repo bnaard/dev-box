@@ -49,6 +49,62 @@ fn contains_rgb(output: &str, r: u8, g: u8, b: u8) -> bool {
     output.contains(&fg) || output.contains(&bg)
 }
 
+fn visible_text(output: &str) -> String {
+    let mut text = String::with_capacity(output.len());
+    let mut chars = output.chars().peekable();
+    while let Some(ch) = chars.next() {
+        if ch == '\x1b' {
+            match chars.peek().copied() {
+                Some(']') => {
+                    chars.next();
+                    loop {
+                        let Some(next) = chars.next() else {
+                            break;
+                        };
+                        if next == '\x07' {
+                            break;
+                        }
+                        if next == '\x1b' && chars.peek() == Some(&'\\') {
+                            chars.next();
+                            break;
+                        }
+                    }
+                }
+                Some('[') => {
+                    chars.next();
+                    for next in chars.by_ref() {
+                        if ('@'..='~').contains(&next) {
+                            break;
+                        }
+                    }
+                }
+                Some('(') | Some(')') => {
+                    chars.next();
+                    chars.next();
+                }
+                _ => {}
+            }
+        } else if ch.is_control() {
+            text.push(' ');
+        } else {
+            text.push(ch);
+        }
+    }
+    text
+}
+
+fn assert_visible_status_text(output: &str, label: &str) {
+    let text = visible_text(output);
+    let tokens = [
+        "Ctrl", "Alt", "PANE", "TAB", "Resize", "Scroll", "Quit", "LOCK",
+    ];
+    assert!(
+        tokens.iter().any(|token| text.contains(token)),
+        "{label}: expected visible Zellij status/keybar text in cast output, got:\n{}",
+        text.chars().take(1200).collect::<String>()
+    );
+}
+
 /// Record a themed zellij session on the companion and return the cast content.
 ///
 /// Steps: init project with theme → create driver script → record via asciinema.
@@ -145,6 +201,7 @@ fn visual_themes_produce_signature_colors() {
             "theme '{}': no output events in cast",
             theme
         );
+        assert_visible_status_text(&output, theme);
 
         // Assert the theme's signature green color appears
         assert!(
@@ -173,6 +230,7 @@ fn visual_themes_are_distinct() {
     let test_name = "visual-theme-distinct";
     let cast = record_themed_session(&runner, test_name, "nord");
     let output = extract_cast_output(&cast);
+    assert_visible_status_text(&output, "nord");
 
     // Nord's green MUST be present
     assert!(

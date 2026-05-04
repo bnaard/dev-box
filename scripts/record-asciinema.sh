@@ -136,6 +136,41 @@ with open(cast_path, 'w') as f:
 PYEOF
 }
 
+assert_cast_visible_status_text() {
+  local cast="$1"
+  local label="$2"
+
+  python3 - "${cast}" << 'PYEOF' || die "${label}: missing visible Zellij status/keybar text"
+import json
+import re
+import sys
+
+cast_path = sys.argv[1]
+raw = []
+with open(cast_path, encoding="utf-8", errors="ignore") as fh:
+    next(fh, None)
+    for line in fh:
+        try:
+            event = json.loads(line)
+        except Exception:
+            continue
+        if len(event) >= 3 and event[1] == "o" and isinstance(event[2], str):
+            raw.append(event[2])
+
+text = "".join(raw)
+text = re.sub(r"\x1b\][^\x07]*(?:\x07|\x1b\\)", "", text)
+text = re.sub(r"\x1b\[[0-?]*[ -/]*[@-~]", "", text)
+text = re.sub(r"\x1b[()][A-Za-z0-9]", "", text)
+text = re.sub(r"[\x00-\x08\x0b-\x1f\x7f]", " ", text)
+text = re.sub(r"\s+", " ", text)
+
+tokens = ["Ctrl", "Alt", "PANE", "TAB", "Resize", "Scroll", "Quit", "LOCK"]
+if not any(token in text for token in tokens):
+    print(text[:1200])
+    sys.exit(1)
+PYEOF
+}
+
 # ─── Layout recording ────────────────────────────────────────────────────────
 # Records a Zellij layout session headlessly via asciinema.
 # Zellij runs in foreground inside asciinema's PTY; a background process
@@ -170,6 +205,7 @@ DRIVER
 
   rm -f "${driver}"
   trim_cast "${output}"
+  assert_cast_visible_status_text "${output}" "layout-${layout}.cast"
   ok "layout-${layout}.cast ($(wc -l < "${output}") events)"
 }
 
@@ -289,6 +325,7 @@ DRIVER
 
   rm -f "${driver}" "${switcher}" "${layout_file}" "${config_file}"
   trim_cast "${output}"
+  assert_cast_visible_status_text "${output}" "theme-${theme}.cast"
   ok "theme-${theme}.cast ($(wc -l < "${output}") events)"
 }
 

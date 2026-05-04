@@ -124,6 +124,24 @@ fn fmt_output(label: &str, out: &Output) -> String {
     )
 }
 
+fn combined_output(out: &Output) -> String {
+    format!(
+        "{}{}",
+        String::from_utf8_lossy(&out.stdout),
+        String::from_utf8_lossy(&out.stderr)
+    )
+}
+
+fn replace_toml_text(dir: &Path, from: &str, to: &str) {
+    let toml_path = dir.join("aibox.toml");
+    let body = fs::read_to_string(&toml_path).expect("read aibox.toml");
+    assert!(
+        body.contains(from),
+        "aibox.toml did not contain expected text {from:?}:\n{body}"
+    );
+    fs::write(toml_path, body.replace(from, to)).expect("write aibox.toml");
+}
+
 #[test]
 fn git_ui_gh_enabled_renders_from_installed_addon_catalog() {
     let tmp = tempfile::TempDir::new().expect("create tempdir");
@@ -168,6 +186,342 @@ lazygit = { enabled = false }
     assert!(
         !dockerfile.contains("unknown addon 'git-ui'"),
         "installed addon catalog must know git-ui:\n{dockerfile}"
+    );
+}
+
+#[test]
+fn lazygit_disabled_removes_runtime_layouts_and_stale_home_files() {
+    let tmp = tempfile::TempDir::new().expect("create tempdir");
+    let dir = tmp.path();
+
+    let init_out = run_in(
+        dir,
+        &[
+            "init",
+            "lazy-layouts",
+            "--base",
+            "debian",
+            "--context",
+            "managed",
+            "--processkit-version",
+            "unset",
+            "--addon",
+            "git-ui",
+        ],
+    );
+    assert!(
+        init_out.status.success(),
+        "init with git-ui failed.\n{}",
+        fmt_output("init", &init_out)
+    );
+
+    assert!(
+        dir.join(".aibox-home/.config/lazygit/config.yml").exists(),
+        "sanity check: git-ui with default lazygit enabled should seed lazygit config"
+    );
+
+    replace_toml_text(dir, "lazygit = {}", "lazygit = { enabled = false }");
+
+    let apply_out = run_in(dir, &["apply"]);
+    assert!(
+        apply_out.status.success(),
+        "apply after disabling lazygit failed.\n{}",
+        fmt_output("apply", &apply_out)
+    );
+
+    let dockerfile = fs::read_to_string(dir.join(".devcontainer/Dockerfile")).unwrap();
+    assert!(
+        dockerfile.contains("apt-get purge -y --auto-remove lazygit"),
+        "Dockerfile should purge inherited lazygit when explicitly disabled:\n{dockerfile}"
+    );
+
+    let layouts_dir = dir.join(".aibox-home/.config/zellij/layouts");
+    for layout in ["dev", "focus", "cowork", "cowork-swap", "browse", "ai"] {
+        let path = layouts_dir.join(format!("{layout}.kdl"));
+        assert!(
+            path.exists(),
+            "expected generated layout {}",
+            path.display()
+        );
+        let body = fs::read_to_string(&path).expect("read zellij layout");
+        assert!(
+            !body.contains("lazygit"),
+            "layout {layout}.kdl should not reference lazygit when disabled:\n{body}"
+        );
+    }
+
+    assert!(
+        !dir.join(".aibox-home/.config/lazygit/config.yml").exists(),
+        "apply should remove stale .aibox-home lazygit config after lazygit is disabled"
+    );
+}
+
+#[test]
+fn apply_falls_back_for_missing_required_addon_and_writes_migration_guidance() {
+    let tmp = tempfile::TempDir::new().expect("create tempdir");
+    let dir = tmp.path();
+
+    fs::write(
+        dir.join("aibox.toml"),
+        r#"[aibox]
+version = "0.23.5"
+base = "debian"
+
+[container]
+name = "addon-requires-e2e"
+
+[processkit]
+version = "unset"
+
+[addons.preview-enhanced.tools]
+rich = {}
+"#,
+    )
+    .unwrap();
+
+    let apply_out = run_in(dir, &["apply"]);
+    assert!(
+        apply_out.status.success(),
+        "apply should use a fallback required addon instead of hard-failing.\n{}",
+        fmt_output("apply", &apply_out)
+    );
+
+    let combined = combined_output(&apply_out);
+    assert!(
+        combined.contains("preview-enhanced") && combined.contains("preview-archive"),
+        "apply should tell the user which required addon was filled in:\n{combined}"
+    );
+
+    let dockerfile = fs::read_to_string(dir.join(".devcontainer/Dockerfile")).unwrap();
+    assert!(
+        dockerfile.contains("Addon: preview-archive"),
+        "fallback should include preview-archive content in the generated Dockerfile:\n{dockerfile}"
+    );
+
+    let migration_dir = dir.join("context/migrations");
+    let guidance = fs::read_dir(&migration_dir)
+        .unwrap()
+        .filter_map(|entry| entry.ok())
+        .map(|entry| fs::read_to_string(entry.path()).unwrap_or_default())
+        .collect::<Vec<_>>()
+        .join("\n");
+    assert!(
+        guidance.contains("[addons.preview-archive.tools]")
+            && guidance.contains("Status:** pending"),
+        "apply should write migration guidance for the project agent:\n{guidance}"
+    );
+}
+
+#[test]
+fn doctor_errors_on_aibox_toml_schema_mismatches() {
+    let tmp = tempfile::TempDir::new().expect("create tempdir");
+    let dir = tmp.path();
+
+    let init_out = run_in(
+        dir,
+        &[
+            "init",
+            "schema-drift",
+            "--base",
+            "debian",
+            "--context",
+            "managed",
+            "--processkit-version",
+            "unset",
+        ],
+    );
+    assert!(
+        init_out.status.success(),
+        "init failed.\n{}",
+        fmt_output("init", &init_out)
+    );
+
+    replace_toml_text(
+        dir,
+        "name     = \"schema-drift\"",
+        "name     = \"schema-drift\"\nnmae     = \"typo\"",
+    );
+
+    let doctor_out = run_in(dir, &["doctor"]);
+    assert!(
+        doctor_out.status.success(),
+        "doctor should exit 0 while reporting schema errors.\n{}",
+        fmt_output("doctor", &doctor_out)
+    );
+    let combined = combined_output(&doctor_out);
+    assert!(
+        combined.contains("aibox.toml schema mismatch")
+            && combined.contains("[container]: unknown key `nmae`")
+            && combined.contains("Ask the project agent to update aibox.toml"),
+        "doctor should report unknown aibox.toml keys as project-agent-actionable errors:\n{combined}"
+    );
+}
+
+#[test]
+fn doctor_schema_check_runs_when_config_load_fails() {
+    let tmp = tempfile::TempDir::new().expect("create tempdir");
+    let dir = tmp.path();
+
+    fs::write(
+        dir.join("aibox.toml"),
+        r#"[aibox]
+version = "0.23.5"
+base = "debian"
+
+[container]
+nmae = "typo"
+"#,
+    )
+    .unwrap();
+
+    let doctor_out = run_in(dir, &["doctor"]);
+    assert!(
+        doctor_out.status.success(),
+        "doctor should exit 0 while reporting config and schema errors.\n{}",
+        fmt_output("doctor", &doctor_out)
+    );
+    let combined = combined_output(&doctor_out);
+    assert!(
+        combined.contains("Config:")
+            && combined.contains("aibox.toml schema mismatch")
+            && combined.contains("[container]: unknown key `nmae`"),
+        "doctor should still report unknown-key guidance when normal config loading fails:\n{combined}"
+    );
+}
+
+#[test]
+fn doctor_warns_on_runtime_theme_template_drift() {
+    let tmp = tempfile::TempDir::new().expect("create tempdir");
+    let dir = tmp.path();
+
+    let init_out = run_in(
+        dir,
+        &[
+            "init",
+            "theme-drift",
+            "--base",
+            "debian",
+            "--context",
+            "managed",
+            "--processkit-version",
+            "unset",
+            "--theme",
+            "nord",
+        ],
+    );
+    assert!(
+        init_out.status.success(),
+        "init failed.\n{}",
+        fmt_output("init", &init_out)
+    );
+
+    let status_layout = dir.join(".aibox-home/.config/zellij/layouts/aibox-status-visible.kdl");
+    fs::write(&status_layout, "// stale local status layout\n")
+        .expect("write stale zellij status layout");
+
+    let doctor_out = run_in(dir, &["doctor"]);
+    assert!(
+        doctor_out.status.success(),
+        "doctor should exit 0 while warning about theme drift.\n{}",
+        fmt_output("doctor", &doctor_out)
+    );
+    let combined = combined_output(&doctor_out);
+    assert!(
+        combined.contains("Runtime theme/template drift")
+            && combined.contains(".config/zellij/layouts/aibox-status-visible.kdl"),
+        "doctor should warn when standard runtime status/theme files drift from the reference:\n{combined}"
+    );
+}
+
+#[test]
+fn apply_preserves_project_context_edits_while_regenerating_runtime_config() {
+    let tmp = tempfile::TempDir::new().expect("create tempdir");
+    let dir = tmp.path();
+
+    let init_out = run_in(
+        dir,
+        &[
+            "init",
+            "context-preserve",
+            "--base",
+            "debian",
+            "--context",
+            "managed",
+            "--processkit-version",
+            "unset",
+            "--theme",
+            "nord",
+        ],
+    );
+    assert!(
+        init_out.status.success(),
+        "init failed.\n{}",
+        fmt_output("init", &init_out)
+    );
+
+    let note_path = dir.join("context/notes/user-note.md");
+    fs::create_dir_all(note_path.parent().unwrap()).unwrap();
+    fs::write(&note_path, "# User note\n\nKeep this.\n").unwrap();
+
+    replace_toml_text(dir, "theme  = \"nord\"", "theme  = \"dracula\"");
+
+    let apply_out = run_in(dir, &["apply"]);
+    assert!(
+        apply_out.status.success(),
+        "apply failed.\n{}",
+        fmt_output("apply", &apply_out)
+    );
+
+    assert!(
+        note_path.exists(),
+        "apply should preserve project-owned context edits"
+    );
+    assert!(
+        dir.join(".aibox-home/.config/zellij/themes/dracula.kdl")
+            .exists(),
+        "apply should regenerate runtime theme files after aibox.toml changes"
+    );
+}
+
+#[test]
+fn reset_context_dry_run_is_soft_reset_plan_only_and_preserves_context() {
+    let tmp = tempfile::TempDir::new().expect("create tempdir");
+    let dir = tmp.path();
+
+    fs::write(
+        dir.join("aibox.toml"),
+        r#"[aibox]
+version = "0.23.5"
+base = "debian"
+
+[container]
+name = "context-reset-plan"
+
+[processkit]
+version = "v0.25.4"
+"#,
+    )
+    .unwrap();
+    let workitem_path = dir.join("context/workitems/WI-001.md");
+    fs::create_dir_all(workitem_path.parent().unwrap()).unwrap();
+    fs::write(&workitem_path, "# Project-owned work\n").unwrap();
+
+    let reset_out = run_in(dir, &["reset", "context", "--dry-run"]);
+    assert!(
+        reset_out.status.success(),
+        "reset context --dry-run should produce a soft-reset plan.\n{}",
+        fmt_output("reset context", &reset_out)
+    );
+    let combined = combined_output(&reset_out);
+    assert!(
+        combined.contains("Context reset plan")
+            && combined.contains("Preserve as project-owned context")
+            && combined.contains("[dry-run] No files were modified"),
+        "reset context dry-run should explain the soft-reset blast radius:\n{combined}"
+    );
+    assert!(
+        workitem_path.exists(),
+        "reset context dry-run must not delete project-owned context"
     );
 }
 

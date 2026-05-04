@@ -1,0 +1,15 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+row="${1:-runtime}"
+
+case "$row" in
+  --keys|keys) message_name="aibox_toggle_keys" ;;
+  --runtime|runtime|status) message_name="aibox_toggle_runtime" ;;
+  *)
+    printf 'usage: %s [runtime|keys]\n' "${0##*/}" >&2
+    exit 2
+    ;;
+esac
+
+exec zellij pipe --name "$message_name" ""

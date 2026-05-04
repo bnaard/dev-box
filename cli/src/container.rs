@@ -327,6 +327,32 @@ pub(crate) fn expand_addon_requires(initial: &[String]) -> Vec<String> {
     result
 }
 
+fn complete_missing_required_addons(config: &mut AiboxConfig) -> Vec<(String, String)> {
+    use std::collections::{HashSet, VecDeque};
+
+    let mut seen: HashSet<String> = config.addons.addons.keys().cloned().collect();
+    let mut queue: VecDeque<String> = seen.iter().cloned().collect();
+    let mut added = Vec::new();
+
+    while let Some(addon_name) = queue.pop_front() {
+        let Some(addon) = crate::addon_loader::get_addon(&addon_name) else {
+            continue;
+        };
+        for required in &addon.requires {
+            if seen.insert(required.clone()) {
+                config.addons.addons.insert(
+                    required.clone(),
+                    crate::config::AddonToolsSection::default(),
+                );
+                added.push((addon_name.clone(), required.clone()));
+                queue.push_back(required.clone());
+            }
+        }
+    }
+
+    added
+}
+
 /// Build the `[addons.<name>.tools]` section for a single addon at
 /// init time. Populates every `default_enabled` tool at the addon's
 /// `default_version`, with three layered override sources (later wins):
@@ -1740,13 +1766,40 @@ pub fn cmd_sync(
         }
     }
 
+    let added_required_addons = complete_missing_required_addons(&mut config);
+    if !added_required_addons.is_empty() {
+        for (addon, required) in &added_required_addons {
+            output::warn(&format!(
+                "Addon '{}' requires '{}'; using '{}' for this apply. \
+                 Add [addons.{}.tools] to aibox.toml to make the migration explicit.",
+                addon, required, required, required
+            ));
+        }
+        if let Ok(cwd) = std::env::current_dir()
+            && let Err(e) =
+                crate::migration::generate_addon_dependency_migration(&cwd, &added_required_addons)
+        {
+            output::warn(&format!(
+                "Could not write addon dependency migration guidance: {}",
+                e
+            ));
+        }
+    }
+
     output::info("Scaffolding missing runtime directories...");
     seed::ensure_runtime_dirs(&config)?;
     let runtime_permission_updates = seed::sync_managed_runtime_permissions(&config)?;
+    let runtime_cleanup_updates = seed::cleanup_disabled_runtime_files(&config)?;
     if !runtime_permission_updates.is_empty() {
         output::ok(&format!(
             "Updated {} runtime file permission(s)",
             runtime_permission_updates.len()
+        ));
+    }
+    if !runtime_cleanup_updates.is_empty() {
+        output::ok(&format!(
+            "Removed {} disabled runtime file(s)",
+            runtime_cleanup_updates.len()
         ));
     }
     generate::generate_all(&config)?;

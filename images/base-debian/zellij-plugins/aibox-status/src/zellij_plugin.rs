@@ -157,9 +157,13 @@ impl ZellijPlugin for AiboxStatusPlugin {
             .take(rows)
             .enumerate()
         {
-            print_text_with_coordinates(Text::new(line), 0, y, Some(cols), Some(1));
+            print_text_with_coordinates(visible_row_text(line), 0, y, Some(cols), Some(1));
         }
     }
+}
+
+fn visible_row_text(line: String) -> Text {
+    Text::new(line).color_all(0)
 }
 
 register_plugin!(AiboxStatusPlugin);

@@ -18,6 +18,7 @@ tmp/
 .cursor/mcp.json
 .gemini/settings.json
 .codex/config.toml
+.codex/hooks.json
 .continue/mcpServers/
 
 # Rust build artifacts

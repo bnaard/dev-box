@@ -73,6 +73,46 @@ validate_cast() {
   return 0
 }
 
+assert_cast_visible_status_text() {
+  local cast="$1"
+  local label="$2"
+
+  if python3 - "${cast}" << 'PYEOF'
+import json
+import re
+import sys
+
+cast_path = sys.argv[1]
+raw = []
+with open(cast_path, encoding="utf-8", errors="ignore") as fh:
+    next(fh, None)
+    for line in fh:
+        try:
+            event = json.loads(line)
+        except Exception:
+            continue
+        if len(event) >= 3 and event[1] == "o" and isinstance(event[2], str):
+            raw.append(event[2])
+
+text = "".join(raw)
+text = re.sub(r"\x1b\][^\x07]*(?:\x07|\x1b\\)", "", text)
+text = re.sub(r"\x1b\[[0-?]*[ -/]*[@-~]", "", text)
+text = re.sub(r"\x1b[()][A-Za-z0-9]", "", text)
+text = re.sub(r"[\x00-\x08\x0b-\x1f\x7f]", " ", text)
+text = re.sub(r"\s+", " ", text)
+
+tokens = ["Ctrl", "Alt", "PANE", "TAB", "Resize", "Scroll", "Quit", "LOCK"]
+if not any(token in text for token in tokens):
+    print(text[:1200])
+    sys.exit(1)
+PYEOF
+  then
+    pass "${label}: visible status/keybar text"
+  else
+    fail "${label}: missing visible status/keybar text"
+  fi
+}
+
 # ─── Layout tests ─────────────────────────────────────────────────────────────
 
 test_layouts() {
@@ -93,7 +133,9 @@ EOF
     chmod +x "${driver}"
     asciinema rec --cols 160 --rows 45 --overwrite -c "${driver}" "${cast}" 2>/dev/null || true
     rm -f "${driver}"
-    validate_cast "${cast}" "layout:${layout}"
+    if validate_cast "${cast}" "layout:${layout}"; then
+      assert_cast_visible_status_text "${cast}" "layout:${layout}"
+    fi
   done
 }
 
@@ -121,7 +163,9 @@ EOF
     chmod +x "${driver}"
     asciinema rec --cols 160 --rows 45 --overwrite -c "${driver}" "${cast}" 2>/dev/null || true
     rm -f "${driver}" "${config}"
-    validate_cast "${cast}" "theme:${theme}"
+    if validate_cast "${cast}" "theme:${theme}"; then
+      assert_cast_visible_status_text "${cast}" "theme:${theme}"
+    fi
   done
 }
 

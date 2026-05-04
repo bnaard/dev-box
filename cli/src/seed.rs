@@ -1763,6 +1763,27 @@ pub fn managed_runtime_files(config: &AiboxConfig) -> Vec<(std::path::PathBuf, S
     files
 }
 
+/// Remove managed runtime files that should not exist for the current config.
+pub fn cleanup_disabled_runtime_files(config: &AiboxConfig) -> Result<Vec<String>> {
+    let root = config.host_root_dir();
+    let mut updated = Vec::new();
+
+    if !include_lazygit_tab(config) {
+        let lazygit_config = root.join(".config").join("lazygit").join("config.yml");
+        if lazygit_config.exists() {
+            fs::remove_file(&lazygit_config)
+                .with_context(|| format!("Failed to remove {}", lazygit_config.display()))?;
+            updated.push(".config/lazygit/config.yml (removed)".to_string());
+        }
+        let lazygit_dir = root.join(".config").join("lazygit");
+        if lazygit_dir.exists() {
+            let _ = fs::remove_dir(lazygit_dir);
+        }
+    }
+
+    Ok(updated)
+}
+
 /// Seed the .root/ directory structure and default config files.
 /// Never overwrites existing files.
 pub fn seed_root_dir(config: &AiboxConfig) -> Result<()> {
@@ -2049,6 +2070,7 @@ pub fn sync_theme_files(config: &AiboxConfig) -> Result<Vec<String>> {
     {
         updated.push(".config/lazygit/config.yml".to_string());
     }
+    updated.extend(cleanup_disabled_runtime_files(config)?);
 
     // Yazi theme — force-update from the bundled theme for the selected theme
     if force_seed_file(
@@ -2399,16 +2421,30 @@ mod tests {
             .insert("git-ui".to_string(), AddonToolsSection { tools });
 
         let files = managed_runtime_files(&config);
-        let ai_layout = files
+        let generated_layouts: Vec<_> = files
             .iter()
-            .find(|(path, _)| path == &std::path::PathBuf::from(".config/zellij/layouts/ai.kdl"))
-            .map(|(_, body)| body)
-            .expect("ai layout should be generated");
+            .filter(|(path, _)| {
+                path.starts_with(".config/zellij/layouts")
+                    && path.extension().is_some_and(|ext| ext == "kdl")
+            })
+            .collect();
 
         assert!(
-            !ai_layout.contains("lazygit"),
-            "disabled lazygit must not appear in generated layouts"
+            generated_layouts.len() >= 6,
+            "expected all managed Zellij layouts to be generated"
         );
+        for (path, body) in generated_layouts {
+            assert!(
+                !body.contains("lazygit"),
+                "disabled lazygit must not appear in generated layout {}",
+                path.display()
+            );
+            assert!(
+                !body.contains("tab name=\"git\""),
+                "disabled lazygit must omit the git tab in generated layout {}",
+                path.display()
+            );
+        }
         assert!(
             !files
                 .iter()

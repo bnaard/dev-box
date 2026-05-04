@@ -1902,14 +1902,20 @@ fn write_codex_config_toml(
         }
     }
 
+    let project_root = path
+        .parent()
+        .and_then(Path::parent)
+        .unwrap_or_else(|| Path::new("."));
+
     // Step 2: add current managed entries.
     for spec in specs {
         let mut server_table = Table::new();
         server_table.insert("command", value(spec.command.clone()));
-        if !spec.args.is_empty() {
+        let args = codex_mcp_args(project_root, &spec.args);
+        if !args.is_empty() {
             let mut args_array = Array::new();
-            for a in &spec.args {
-                args_array.push(a.clone());
+            for arg in args {
+                args_array.push(arg);
             }
             server_table.insert("args", value(args_array));
         }
@@ -1931,6 +1937,23 @@ fn write_codex_config_toml(
         .with_context(|| format!("failed to write {}", path.display()))?;
 
     Ok(())
+}
+
+fn codex_mcp_args(project_root: &Path, args: &[String]) -> Vec<String> {
+    args.iter()
+        .map(|arg| {
+            if is_project_relative_mcp_script(arg) {
+                project_root.join(arg).to_string_lossy().into_owned()
+            } else {
+                arg.clone()
+            }
+        })
+        .collect()
+}
+
+fn is_project_relative_mcp_script(arg: &str) -> bool {
+    arg.ends_with(".py")
+        && (arg.starts_with("context/skills/") || arg.starts_with("src/context/skills/"))
 }
 
 // ---------------------------------------------------------------------------
@@ -2545,6 +2568,34 @@ mod tests {
         assert!(body.contains("[mcp_servers.decision-record]"));
         assert!(body.contains(r#"command = "uv""#));
         assert!(body.contains(r#"args = ["run", "x.py"]"#));
+    }
+
+    #[test]
+    fn write_codex_absolutizes_project_relative_mcp_script_paths() {
+        let tmp = TempDir::new().unwrap();
+        let path = tmp.path().join(".codex/config.toml");
+        let specs = vec![spec(
+            "processkit-gateway",
+            "uv",
+            &[
+                "run",
+                "context/skills/processkit/processkit-gateway/mcp/server.py",
+                "stdio-proxy",
+            ],
+        )];
+        let managed = managed_set(&specs);
+        write_codex_config_toml(&specs, &managed, &path).unwrap();
+
+        let body = fs::read_to_string(&path).unwrap();
+        let expected = tmp
+            .path()
+            .join("context/skills/processkit/processkit-gateway/mcp/server.py")
+            .to_string_lossy()
+            .into_owned();
+        assert!(
+            body.contains(&expected),
+            "Codex MCP script paths must be absolute so subagents that start from a non-project cwd can spawn the server:\n{body}"
+        );
     }
 
     #[test]

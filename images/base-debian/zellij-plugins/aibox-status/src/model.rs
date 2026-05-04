@@ -107,10 +107,16 @@ impl Default for RenderState {
 pub fn render_rows(state: &RenderState, cols: usize) -> Vec<String> {
     let mut rows = Vec::with_capacity(2);
     if state.show_key_hints {
-        rows.push(render_key_hints(&state.mode, cols));
+        let row = render_key_hints(&state.mode, cols);
+        if !row.is_empty() {
+            rows.push(row);
+        }
     }
     if state.show_runtime_status {
-        rows.push(render_runtime_status(state, cols));
+        let row = render_runtime_status(state, cols);
+        if !row.is_empty() {
+            rows.push(row);
+        }
     }
     rows
 }
@@ -381,5 +387,27 @@ mod tests {
             rows[0].starts_with("MEM"),
             "remaining row should be runtime status"
         );
+    }
+
+    #[test]
+    fn default_native_rows_are_visible_at_normal_width() {
+        let rows = render_rows(&RenderState::default(), 80);
+
+        assert_eq!(rows.len(), 2);
+        assert!(rows.iter().all(|row| !row.trim().is_empty()));
+        assert!(rows[0].contains("C-g"));
+        assert!(rows[1].contains("MEM"));
+    }
+
+    #[test]
+    fn hidden_or_zero_width_rows_do_not_allocate_blank_lines() {
+        let hidden = RenderState {
+            show_key_hints: false,
+            show_runtime_status: false,
+            ..RenderState::default()
+        };
+
+        assert!(render_rows(&hidden, 80).is_empty());
+        assert!(render_rows(&RenderState::default(), 0).is_empty());
     }
 }

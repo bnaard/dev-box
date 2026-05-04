@@ -1,6 +1,6 @@
 use anyhow::{Context, Result, bail};
 use serde::{Deserialize, Deserializer, Serialize};
-use std::collections::HashMap;
+use std::collections::{BTreeSet, HashMap};
 use std::path::{Path, PathBuf};
 
 // ---------------------------------------------------------------------------
@@ -1371,6 +1371,115 @@ impl AiboxConfig {
         Ok(config)
     }
 
+    /// Report unknown `aibox.toml` keys that serde would otherwise ignore.
+    ///
+    /// Normal loading remains backward-compatible; `aibox doctor` uses this
+    /// stricter pass to catch misspelled sections such as `[customisation]` or
+    /// `container.nmae` before they silently fall back to defaults.
+    pub fn schema_mismatches(toml_str: &str) -> Result<Vec<String>> {
+        let value: toml::Value = toml::from_str(toml_str).context("Failed to parse TOML config")?;
+        let Some(root) = value.as_table() else {
+            return Ok(vec!["aibox.toml root must be a TOML table".to_string()]);
+        };
+
+        let mut mismatches = Vec::new();
+        check_unknown_keys(
+            "aibox.toml",
+            root,
+            &[
+                "aibox",
+                "container",
+                "context",
+                "process",
+                "ai",
+                "addons",
+                "skills",
+                "processkit",
+                "agents",
+                "appearance",
+                "customization",
+                "audio",
+                "mcp",
+            ],
+            &mut mismatches,
+        );
+
+        check_child_table(
+            root,
+            "aibox",
+            &["version", "base", "profile"],
+            &mut mismatches,
+        );
+        check_child_table(
+            root,
+            "container",
+            &[
+                "name",
+                "hostname",
+                "user",
+                "post_create_command",
+                "keepalive",
+                "environment",
+                "extra_volumes",
+                "resource_thresholds",
+            ],
+            &mut mismatches,
+        );
+        if let Some(container) = table_child(root, "container") {
+            check_child_table(
+                container,
+                "resource_thresholds",
+                &[
+                    "memory_mib_warn",
+                    "process_count_warn",
+                    "processkit_mcp_python_warn",
+                    "oom_kill_warn",
+                ],
+                &mut mismatches,
+            );
+            check_extra_volume_entries(container, &mut mismatches);
+        }
+        check_child_table(
+            root,
+            "context",
+            &["schema_version", "packages"],
+            &mut mismatches,
+        );
+        check_child_table(root, "process", &["packages"], &mut mismatches);
+        check_child_table(
+            root,
+            "ai",
+            &["harnesses", "model_providers", "providers"],
+            &mut mismatches,
+        );
+        check_child_table(root, "skills", &["include", "exclude"], &mut mismatches);
+        check_child_table(
+            root,
+            "processkit",
+            &[
+                "source",
+                "version",
+                "src_path",
+                "branch",
+                "release_asset_url_template",
+            ],
+            &mut mismatches,
+        );
+        check_child_table(
+            root,
+            "agents",
+            &["canonical", "provider_mode"],
+            &mut mismatches,
+        );
+        check_customization_table(root, "appearance", &mut mismatches);
+        check_customization_table(root, "customization", &mut mismatches);
+        check_child_table(root, "audio", &["enabled", "pulse_server"], &mut mismatches);
+        check_mcp_table(root, &mut mismatches);
+        check_addons_table(root, &mut mismatches);
+
+        Ok(mismatches)
+    }
+
     /// Validate the config values. Called internally by `load`, but also
     /// available for validating programmatically-constructed configs.
     pub fn validate(&self) -> Result<()> {
@@ -1652,6 +1761,149 @@ impl AiboxConfig {
     }
 }
 
+fn allowed_set(keys: &[&str]) -> BTreeSet<String> {
+    keys.iter().map(|key| (*key).to_string()).collect()
+}
+
+fn check_unknown_keys(
+    label: &str,
+    table: &toml::map::Map<String, toml::Value>,
+    allowed: &[&str],
+    mismatches: &mut Vec<String>,
+) {
+    let allowed = allowed_set(allowed);
+    for key in table.keys() {
+        if !allowed.contains(key) {
+            mismatches.push(format!("{label}: unknown key `{key}`"));
+        }
+    }
+}
+
+fn table_child<'a>(
+    table: &'a toml::map::Map<String, toml::Value>,
+    key: &str,
+) -> Option<&'a toml::map::Map<String, toml::Value>> {
+    table.get(key).and_then(toml::Value::as_table)
+}
+
+fn check_child_table(
+    parent: &toml::map::Map<String, toml::Value>,
+    key: &str,
+    allowed: &[&str],
+    mismatches: &mut Vec<String>,
+) {
+    if let Some(table) = table_child(parent, key) {
+        check_unknown_keys(&format!("[{key}]"), table, allowed, mismatches);
+    }
+}
+
+fn check_customization_table(
+    root: &toml::map::Map<String, toml::Value>,
+    key: &str,
+    mismatches: &mut Vec<String>,
+) {
+    check_child_table(
+        root,
+        key,
+        &["theme", "mode", "prompt", "layout", "zellij_status"],
+        mismatches,
+    );
+    if let Some(customization) = table_child(root, key) {
+        check_child_table(customization, "zellij_status", &["mode"], mismatches);
+    }
+}
+
+fn check_extra_volume_entries(
+    container: &toml::map::Map<String, toml::Value>,
+    mismatches: &mut Vec<String>,
+) {
+    let Some(extra_volumes) = container.get("extra_volumes") else {
+        return;
+    };
+    let Some(entries) = extra_volumes.as_array() else {
+        return;
+    };
+    for (index, entry) in entries.iter().enumerate() {
+        if let Some(table) = entry.as_table() {
+            check_unknown_keys(
+                &format!("[[container.extra_volumes]][{index}]"),
+                table,
+                &["source", "target", "read_only"],
+                mismatches,
+            );
+        }
+    }
+}
+
+fn check_addons_table(root: &toml::map::Map<String, toml::Value>, mismatches: &mut Vec<String>) {
+    let Some(addons) = table_child(root, "addons") else {
+        return;
+    };
+    for (addon_name, addon_value) in addons {
+        let Some(addon_table) = addon_value.as_table() else {
+            continue;
+        };
+        check_unknown_keys(
+            &format!("[addons.{addon_name}]"),
+            addon_table,
+            &["tools"],
+            mismatches,
+        );
+        let Some(tools) = table_child(addon_table, "tools") else {
+            continue;
+        };
+        for (tool_name, tool_value) in tools {
+            let Some(tool_table) = tool_value.as_table() else {
+                continue;
+            };
+            check_unknown_keys(
+                &format!("[addons.{addon_name}.tools.{tool_name}]"),
+                tool_table,
+                &["version", "enabled"],
+                mismatches,
+            );
+        }
+    }
+}
+
+fn check_mcp_table(root: &toml::map::Map<String, toml::Value>, mismatches: &mut Vec<String>) {
+    check_child_table(
+        root,
+        "mcp",
+        &["servers", "gateway", "permissions"],
+        mismatches,
+    );
+    let Some(mcp) = table_child(root, "mcp") else {
+        return;
+    };
+    check_child_table(
+        mcp,
+        "gateway",
+        &["mode", "lazy_catalog", "host", "port", "path"],
+        mismatches,
+    );
+    check_child_table(
+        mcp,
+        "permissions",
+        &["default_mode", "allow_patterns", "deny_patterns", "harness"],
+        mismatches,
+    );
+    if let Some(permissions) = table_child(mcp, "permissions")
+        && let Some(harnesses) = table_child(permissions, "harness")
+    {
+        for (harness, value) in harnesses {
+            if let Some(table) = value.as_table() {
+                check_unknown_keys(
+                    &format!("[mcp.permissions.harness.{harness}]"),
+                    table,
+                    &["enabled", "mode", "extra_patterns", "deny_patterns"],
+                    mismatches,
+                );
+            }
+        }
+    }
+}
+
 // ---------------------------------------------------------------------------
 // Test helper
 // ---------------------------------------------------------------------------
@@ -1918,6 +2170,41 @@ name = "my-project"
         assert!(config.skills.exclude.is_empty());
         assert!(!config.audio.enabled);
         assert_eq!(config.audio.pulse_server, "tcp:host.docker.internal:4714");
+    }
+
+    #[test]
+    fn schema_mismatches_accepts_known_full_config_shape() {
+        let mismatches = AiboxConfig::schema_mismatches(full_toml()).unwrap();
+        assert!(
+            mismatches.is_empty(),
+            "full known config shape should not report unknown keys: {mismatches:?}"
+        );
+    }
+
+    #[test]
+    fn schema_mismatches_reports_unknown_nested_keys() {
+        let toml = r#"
+[aibox]
+version = "0.23.5"
+
+[container]
+name = "test"
+nmae = "typo"
+
+[customization.zellij_status]
+mod = "typo"
+
+[addons.git-ui.tools.lazygit]
+enabled = false
+enabld = true
+"#;
+        let mismatches = AiboxConfig::schema_mismatches(toml).unwrap();
+
+        assert!(mismatches.contains(&"[container]: unknown key `nmae`".to_string()));
+        assert!(mismatches.contains(&"[zellij_status]: unknown key `mod`".to_string()));
+        assert!(
+            mismatches.contains(&"[addons.git-ui.tools.lazygit]: unknown key `enabld`".to_string())
+        );
     }
 
     // -- Validation errors --------------------------------------------------
