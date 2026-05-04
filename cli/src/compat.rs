@@ -260,6 +260,11 @@ pub static COMPAT_TABLE: &[CompatEntry] = &[
         processkit_version: "v0.25.5",
         note: "Patch release: fixes the native aibox Zellij status plugin artifact so Zellij can load its literal WASM entrypoints, restores readable theme-default foreground rendering for the key/status rows, and adds no-container E2E coverage for the export and foreground regressions.",
     },
+    CompatEntry {
+        aibox_version: "0.23.9",
+        processkit_version: "v0.25.5",
+        note: "Patch release: restores the shell-backed Zellij status rows as the default, hardens aibox-status against /proc races, fixes Yazi's edit action by using Zellij's editor action instead of injecting Vim commands, and applies addon dependency fallback handling to `aibox up`.",
+    },
 ];
 
 /// Find the minimum compatible processkit version for the given aibox version.

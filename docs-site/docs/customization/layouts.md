@@ -11,24 +11,22 @@ Generated layouts include AI-agent tabs based on `[ai].providers`. The
 fullscreen **git** tab is generated only when the `git-ui` addon selects
 `lazygit`, so tab numbering shifts when that optional tab is omitted.
 
-Every generated layout also includes a native two-row aibox Zellij plugin. The
-first row shows width-aware key hints for the active Zellij mode. The second row
-shows runtime groups for memory, CPU pressure, processes, filesystem, uptime,
-and project state. Press `Ctrl+g`, then `b`, to show or hide key hints; press
-`Ctrl+g`, then `v`, to show or hide runtime status. Runtime metrics refresh
-every five seconds by default; set `AIBOX_STATUS_INTERVAL` in
+Every generated layout also includes a Zellij status row plus an aibox runtime
+status row. The default `shell` mode uses Zellij's built-in status bar and
+`aibox-status --watch` for runtime groups such as memory, CPU pressure,
+processes, filesystem, uptime, and project state. Runtime metrics refresh every
+five seconds by default; set `AIBOX_STATUS_INTERVAL` in
 `[container.environment]` to adjust the refresh interval.
 
 Configure the status presentation in `aibox.toml`:
 
 ```toml
 [customization.zellij_status]
-mode = "native" # native | shell | hidden
+mode = "shell" # shell | native | hidden
 ```
 
-`native` is the default two-row WASM plugin. `shell` keeps the older
-`zellij:status-bar` plus `aibox-status --watch` fallback. `hidden` omits
-aibox-managed status rows from generated layouts.
+`shell` is the default. `native` selects the experimental two-row WASM plugin.
+`hidden` omits aibox-managed status rows from generated layouts.
 
 ## Available Layouts
 

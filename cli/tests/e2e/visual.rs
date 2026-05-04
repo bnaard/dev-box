@@ -343,3 +343,93 @@ true
 
     runner.cleanup(test_name);
 }
+
+#[test]
+#[serial]
+#[ntest::timeout(90_000)]
+fn visual_default_zellij_status_loads_without_errors() {
+    let runner = E2eRunner::new();
+    runner.ensure_deployed();
+
+    let test_name = "visual-default-zellij-status";
+    runner.cleanup(test_name);
+
+    let init = runner.aibox(
+        test_name,
+        &[
+            "init",
+            test_name,
+            "--base",
+            "debian",
+            "--context",
+            "managed",
+        ],
+    );
+    assert!(
+        init.status.success(),
+        "init failed: {}",
+        String::from_utf8_lossy(&init.stderr)
+    );
+
+    let workspace = format!("/workspaces/{}", test_name);
+    runner.exec(&format!(
+        "sudo rm -rf /workspace; sudo ln -s {workspace} /workspace"
+    ));
+    runner.exec("pkill -9 -x zellij 2>/dev/null; rm -rf /tmp/zellij-* 2>/dev/null; sleep 0.5");
+
+    runner.write_file(
+        test_name,
+        "driver.sh",
+        &format!(
+            r#"#!/usr/bin/env bash
+export TERM=xterm-256color COLORTERM=truecolor
+export HOME={workspace}/.aibox-home
+(sleep 5 && pkill -x zellij 2>/dev/null) &
+zellij --config "$HOME/.config/zellij/config.kdl" \
+       --config-dir "$HOME/.config/zellij" \
+       --layout dev 2>/dev/null
+true
+"#
+        ),
+    );
+    runner.exec(&format!("chmod +x {}/driver.sh", workspace));
+
+    let cast_path = format!("{}/recording.cast", workspace);
+    runner.exec(&format!(
+        "LC_ALL=C.UTF-8 LANG=C.UTF-8 asciinema rec --cols 160 --rows 45 --overwrite -c {workspace}/driver.sh {cast_path} 2>/dev/null; true"
+    ));
+
+    let cast = runner.read_file(test_name, "recording.cast");
+    let output = extract_cast_output(&cast);
+    let text = visible_text(&output);
+    assert!(
+        text.contains("C-g leader") || text.contains("MEM ") || text.contains("PROC "),
+        "default Zellij status rows should render visible key/status text, got:\n{}",
+        text.chars().take(1600).collect::<String>()
+    );
+    assert!(
+        !text.contains("ERROR IN PLUGIN"),
+        "default Zellij status rows rendered an error banner:\n{}",
+        text.chars().take(1600).collect::<String>()
+    );
+
+    let log_output = runner.exec("cat /tmp/zellij-*/zellij-log/zellij.log 2>/dev/null || true");
+    let logs = format!(
+        "{}{}",
+        String::from_utf8_lossy(&log_output.stdout),
+        String::from_utf8_lossy(&log_output.stderr)
+    );
+    for bad in [
+        "failed to load plugin",
+        "could not find exported function",
+        "Panic occured",
+        "ERROR IN PLUGIN",
+    ] {
+        assert!(
+            !logs.contains(bad),
+            "default Zellij status log should not contain {bad:?}:\n{logs}"
+        );
+    }
+
+    runner.cleanup(test_name);
+}

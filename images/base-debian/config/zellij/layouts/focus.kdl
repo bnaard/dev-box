@@ -10,21 +10,18 @@
 
 layout {
 
-    default_tab_template {
+    tab_template name="aibox-tab" {
         children
         pane size=1 borderless=true {
-            plugin location="file:/usr/local/share/aibox/zellij/aibox-status.wasm" {
-                role "keybar"
-            }
+            plugin location="zellij:status-bar"
         }
         pane size=1 borderless=true {
-            plugin location="file:/usr/local/share/aibox/zellij/aibox-status.wasm" {
-                role "status"
-            }
+            command "bash"
+            args "-lc" "if [ -x \"$HOME/.local/bin/aibox-status\" ]; then exec \"$HOME/.local/bin/aibox-status\" --watch; else exec aibox-status --watch; fi"
         }
     }
 
-    tab name="files" focus=true {
+    aibox-tab name="files" focus=true {
         pane name="yazi" {
             command "bash"
             args "-c" "AIBOX_EDITOR_DIR=tab exec yazi"
@@ -32,7 +29,7 @@ layout {
         }
     }
 
-    tab name="editor" {
+    aibox-tab name="editor" {
         pane name="vim" {
             command "bash"
             args "-c" "AIBOX_EDITOR_DIR=tab exec vim-loop"
@@ -40,14 +37,14 @@ layout {
         }
     }
 
-    tab name="claude" {
+    aibox-tab name="claude" {
         pane name="claude" {
             command "claude"
             cwd "/workspace"
         }
     }
 
-    tab name="shell" {
+    aibox-tab name="shell" {
         pane name="bash" {
             command "bash"
             cwd "/workspace"

@@ -234,6 +234,61 @@ fn up_does_not_error_when_versions_match() {
     );
 }
 
+#[test]
+fn up_uses_missing_required_addon_fallback_like_apply() {
+    let dir = tempfile::tempdir().unwrap();
+    fs::write(
+        dir.path().join("aibox.toml"),
+        format!(
+            r#"[aibox]
+version = "{}"
+base = "debian"
+
+[container]
+name = "start-addon-requires"
+
+[processkit]
+version = "unset"
+
+[addons.preview-enhanced.tools]
+rich = {{}}
+"#,
+            env!("CARGO_PKG_VERSION")
+        ),
+    )
+    .unwrap();
+
+    let mock = super::mock_runtime::MockRuntime::new();
+    let output = run_in_with_mock(
+        dir.path(),
+        &["up"],
+        &mock,
+        "running",
+        env!("CARGO_PKG_VERSION"),
+    );
+
+    let combined = format!(
+        "{}{}",
+        String::from_utf8_lossy(&output.stdout),
+        String::from_utf8_lossy(&output.stderr)
+    );
+    assert!(
+        output.status.success(),
+        "aibox up should use the same transient required-addon fallback as apply:\n{combined}"
+    );
+    assert!(
+        combined.contains("preview-enhanced") && combined.contains("preview-archive"),
+        "aibox up should tell the user which required addon was filled in:\n{combined}"
+    );
+
+    let dockerfile = fs::read_to_string(dir.path().join(".devcontainer/Dockerfile"))
+        .expect("generated Dockerfile");
+    assert!(
+        dockerfile.contains("Addon: preview-archive"),
+        "up fallback should include preview-archive in generated Dockerfile:\n{dockerfile}"
+    );
+}
+
 // ─── Test 5: self update -y exits zero (global_yes wired correctly) ──────────
 
 /// `aibox self update -y` must exit 0. This verifies the global `--yes` flag is

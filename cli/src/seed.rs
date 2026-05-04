@@ -292,7 +292,7 @@ fn ai_tabs_kdl(providers: &[crate::config::AiProvider]) -> String {
             let name = p.to_string();
             let cmd = p.binary_name();
             format!(
-                "    tab name=\"{name}\" {{\n\
+                "    aibox-tab name=\"{name}\" {{\n\
                  \x20       pane name=\"{name}\" {{\n\
                  \x20           command \"{cmd}\"\n\
                  \x20           cwd \"/workspace\"\n\
@@ -332,7 +332,7 @@ fn include_lazygit_tab(config: &AiboxConfig) -> bool {
 fn git_tab_kdl(include_lazygit: bool) -> &'static str {
     if include_lazygit {
         r#"
-    tab name="git" {
+    aibox-tab name="git" {
         pane name="lazygit" {
             command "lazygit"
             cwd "/workspace"
@@ -346,7 +346,7 @@ fn git_tab_kdl(include_lazygit: bool) -> &'static str {
 
 fn zellij_status_template_kdl(mode: &ZellijStatusMode) -> String {
     match mode {
-        ZellijStatusMode::Native => r#"    default_tab_template {
+        ZellijStatusMode::Native => r#"    tab_template name="aibox-tab" {
         children
         pane size=1 borderless=true {
             plugin location="file:/usr/local/share/aibox/zellij/aibox-status.wasm" {
@@ -360,7 +360,7 @@ fn zellij_status_template_kdl(mode: &ZellijStatusMode) -> String {
         }
     }"#
         .to_string(),
-        ZellijStatusMode::Shell => r#"    default_tab_template {
+        ZellijStatusMode::Shell => r#"    tab_template name="aibox-tab" {
         children
         pane size=1 borderless=true {
             plugin location="zellij:status-bar"
@@ -377,7 +377,7 @@ fn zellij_status_template_kdl(mode: &ZellijStatusMode) -> String {
 
 fn zellij_status_hidden_template_kdl(mode: &ZellijStatusMode) -> String {
     match mode {
-        ZellijStatusMode::Native => r#"    default_tab_template {
+        ZellijStatusMode::Native => r#"    tab_template name="aibox-tab" {
         children
         pane size=1 borderless=true {
             plugin location="file:/usr/local/share/aibox/zellij/aibox-status.wasm" {
@@ -386,14 +386,14 @@ fn zellij_status_hidden_template_kdl(mode: &ZellijStatusMode) -> String {
         }
     }"#
         .to_string(),
-        ZellijStatusMode::Shell => r#"    default_tab_template {
+        ZellijStatusMode::Shell => r#"    tab_template name="aibox-tab" {
         children
         pane size=1 borderless=true {
             plugin location="zellij:status-bar"
         }
     }"#
         .to_string(),
-        ZellijStatusMode::Hidden => r#"    default_tab_template {
+        ZellijStatusMode::Hidden => r#"    tab_template name="aibox-tab" {
         children
     }
 "#
@@ -403,14 +403,14 @@ fn zellij_status_hidden_template_kdl(mode: &ZellijStatusMode) -> String {
 
 fn zellij_status_visible_layout(mode: &ZellijStatusMode) -> String {
     format!(
-        "layout {{\n{}\n    tab\n}}\n",
+        "layout {{\n{}\n    aibox-tab\n}}\n",
         zellij_status_template_kdl(mode)
     )
 }
 
 fn zellij_status_hidden_layout(mode: &ZellijStatusMode) -> String {
     format!(
-        "layout {{\n{}\n    tab\n}}\n",
+        "layout {{\n{}\n    aibox-tab\n}}\n",
         zellij_status_hidden_template_kdl(mode)
     )
 }
@@ -418,7 +418,7 @@ fn zellij_status_hidden_layout(mode: &ZellijStatusMode) -> String {
 /// Generate the zellij dev layout dynamically based on configured AI providers.
 #[cfg(test)]
 fn generate_dev_layout(providers: &[crate::config::AiProvider]) -> String {
-    generate_dev_layout_with_options(providers, true, &ZellijStatusMode::Native)
+    generate_dev_layout_with_options(providers, true, &ZellijStatusMode::default())
 }
 
 fn generate_dev_layout_with_options(
@@ -438,7 +438,7 @@ fn generate_dev_layout_with_options(
     format!(
         r##"layout {{
 {status_template}
-    tab name="dev" focus=true {{
+    aibox-tab name="dev" focus=true {{
         pane split_direction="vertical" {{
             pane size="40%" name="files" focus=true {{
                 command "yazi"
@@ -451,7 +451,7 @@ fn generate_dev_layout_with_options(
             }}
         }}
     }}{ai_section}{git_section}
-    tab name="shell" {{
+    aibox-tab name="shell" {{
         pane name="bash" {{
             command "bash"
             cwd "/workspace"
@@ -466,7 +466,7 @@ fn generate_dev_layout_with_options(
 /// Generate the zellij focus layout dynamically based on configured AI providers.
 #[cfg(test)]
 fn generate_focus_layout(providers: &[crate::config::AiProvider]) -> String {
-    generate_focus_layout_with_options(providers, true, &ZellijStatusMode::Native)
+    generate_focus_layout_with_options(providers, true, &ZellijStatusMode::default())
 }
 
 fn generate_focus_layout_with_options(
@@ -486,14 +486,14 @@ fn generate_focus_layout_with_options(
     format!(
         r##"layout {{
 {status_template}
-    tab name="files" focus=true {{
+    aibox-tab name="files" focus=true {{
         pane name="yazi" {{
             command "bash"
             args "-c" "AIBOX_EDITOR_DIR=tab exec yazi"
             cwd "/workspace"
         }}
     }}
-    tab name="editor" {{
+    aibox-tab name="editor" {{
         pane name="vim" {{
             command "bash"
             args "-c" "AIBOX_EDITOR_DIR=tab exec vim-loop"
@@ -501,7 +501,7 @@ fn generate_focus_layout_with_options(
             start_suspended true
         }}
     }}{ai_section}{git_section}
-    tab name="shell" {{
+    aibox-tab name="shell" {{
         pane name="bash" {{
             command "bash"
             cwd "/workspace"
@@ -516,7 +516,7 @@ fn generate_focus_layout_with_options(
 /// Generate the zellij cowork layout dynamically based on configured AI providers.
 #[cfg(test)]
 fn generate_cowork_layout(providers: &[crate::config::AiProvider]) -> String {
-    generate_cowork_layout_with_options(providers, true, &ZellijStatusMode::Native)
+    generate_cowork_layout_with_options(providers, true, &ZellijStatusMode::default())
 }
 
 fn generate_cowork_layout_with_options(
@@ -538,7 +538,7 @@ fn generate_cowork_layout_with_options(
         // No AI providers — full-width editor layout
         return r##"layout {
 {status_template}
-    tab name="cowork" focus=true {
+    aibox-tab name="cowork" focus=true {
         pane split_direction="vertical" {
             pane size="40%" name="files" focus=true {
                 command "bash"
@@ -554,7 +554,7 @@ fn generate_cowork_layout_with_options(
         }
     }
 {git_section}
-    tab name="shell" {
+    aibox-tab name="shell" {
         pane name="bash" {
             command "bash"
             cwd "/workspace"
@@ -570,7 +570,7 @@ fn generate_cowork_layout_with_options(
     format!(
         r##"layout {{
 {status_template}
-    tab name="cowork" focus=true {{
+    aibox-tab name="cowork" focus=true {{
         pane split_direction="vertical" {{
             pane size="50%" split_direction="horizontal" {{
                 pane size="40%" name="files" focus=true {{
@@ -592,7 +592,7 @@ fn generate_cowork_layout_with_options(
     }}
 {ai_extra_section}
 {git_section}
-    tab name="shell" {{
+    aibox-tab name="shell" {{
         pane name="bash" {{
             command "bash"
             cwd "/workspace"
@@ -630,7 +630,7 @@ fn generate_cowork_layout_with_options(
 /// moves focus right.
 #[cfg(test)]
 fn generate_cowork_swap_layout(providers: &[crate::config::AiProvider]) -> String {
-    generate_cowork_swap_layout_with_options(providers, true, &ZellijStatusMode::Native)
+    generate_cowork_swap_layout_with_options(providers, true, &ZellijStatusMode::default())
 }
 
 fn generate_cowork_swap_layout_with_options(
@@ -653,7 +653,7 @@ fn generate_cowork_swap_layout_with_options(
         // (same as dev, with the cowork-swap tab name preserved).
         return r##"layout {
 {status_template}
-    tab name="cowork-swap" focus=true {
+    aibox-tab name="cowork-swap" focus=true {
         pane split_direction="vertical" {
             pane size="40%" name="files" focus=true {
                 command "yazi"
@@ -667,7 +667,7 @@ fn generate_cowork_swap_layout_with_options(
         }
     }
 {git_section}
-    tab name="shell" {
+    aibox-tab name="shell" {
         pane name="bash" {
             command "bash"
             cwd "/workspace"
@@ -683,7 +683,7 @@ fn generate_cowork_swap_layout_with_options(
     format!(
         r##"layout {{
 {status_template}
-    tab name="cowork-swap" focus=true {{
+    aibox-tab name="cowork-swap" focus=true {{
         pane split_direction="vertical" {{
             pane size="40%" split_direction="horizontal" {{
                 pane size="40%" name="files" focus=true {{
@@ -703,7 +703,7 @@ fn generate_cowork_swap_layout_with_options(
     }}
 {ai_extra_section}
 {git_section}
-    tab name="shell" {{
+    aibox-tab name="shell" {{
         pane name="bash" {{
             command "bash"
             cwd "/workspace"
@@ -728,7 +728,7 @@ fn generate_cowork_swap_layout_with_options(
 /// usual).
 #[cfg(test)]
 fn generate_ai_layout(providers: &[crate::config::AiProvider]) -> String {
-    generate_ai_layout_with_options(providers, true, &ZellijStatusMode::Native)
+    generate_ai_layout_with_options(providers, true, &ZellijStatusMode::default())
 }
 
 fn generate_ai_layout_with_options(
@@ -749,14 +749,14 @@ fn generate_ai_layout_with_options(
     if ai_pane.is_empty() {
         return r##"layout {
 {status_template}
-    tab name="ai" focus=true {
+    aibox-tab name="ai" focus=true {
         pane name="files" {
             command "bash"
             args "-c" "AIBOX_EDITOR_DIR=tab exec yazi"
             cwd "/workspace"
         }
     }
-    tab name="editor" {
+    aibox-tab name="editor" {
         pane name="vim" {
             command "bash"
             args "-c" "AIBOX_EDITOR_DIR=tab exec vim-loop"
@@ -765,7 +765,7 @@ fn generate_ai_layout_with_options(
         }
     }
 {git_section}
-    tab name="shell" {
+    aibox-tab name="shell" {
         pane name="bash" {
             command "bash"
             cwd "/workspace"
@@ -781,7 +781,7 @@ fn generate_ai_layout_with_options(
     format!(
         r##"layout {{
 {status_template}
-    tab name="ai" focus=true {{
+    aibox-tab name="ai" focus=true {{
         pane split_direction="vertical" {{
             pane size="50%" name="files" focus=true {{
                 command "bash"
@@ -794,7 +794,7 @@ fn generate_ai_layout_with_options(
         }}
     }}
 {ai_extra_section}
-    tab name="editor" {{
+    aibox-tab name="editor" {{
         pane name="vim" {{
             command "bash"
             args "-c" "AIBOX_EDITOR_DIR=tab exec vim-loop"
@@ -802,7 +802,7 @@ fn generate_ai_layout_with_options(
             start_suspended true
         }}
     }}{git_section}
-    tab name="shell" {{
+    aibox-tab name="shell" {{
         pane name="bash" {{
             command "bash"
             cwd "/workspace"
@@ -825,7 +825,7 @@ fn generate_ai_layout_with_options(
 /// When no AI providers are configured, the browse tab is fullscreen yazi.
 #[cfg(test)]
 fn generate_browse_layout(providers: &[crate::config::AiProvider]) -> String {
-    generate_browse_layout_with_options(providers, true, &ZellijStatusMode::Native)
+    generate_browse_layout_with_options(providers, true, &ZellijStatusMode::default())
 }
 
 fn generate_browse_layout_with_options(
@@ -846,14 +846,14 @@ fn generate_browse_layout_with_options(
     if ai_pane.is_empty() {
         return r##"layout {
 {status_template}
-    tab name="browse" focus=true {
+    aibox-tab name="browse" focus=true {
         pane name="files" focus=true {
             command "bash"
             args "-c" "AIBOX_EDITOR_DIR=tab exec yazi"
             cwd "/workspace"
         }
     }
-    tab name="editor" {
+    aibox-tab name="editor" {
         pane name="vim" {
             command "bash"
             args "-c" "AIBOX_EDITOR_DIR=tab exec vim-loop"
@@ -862,7 +862,7 @@ fn generate_browse_layout_with_options(
         }
     }
 {git_section}
-    tab name="shell" {
+    aibox-tab name="shell" {
         pane name="bash" {
             command "bash"
             cwd "/workspace"
@@ -878,7 +878,7 @@ fn generate_browse_layout_with_options(
     format!(
         r##"layout {{
 {status_template}
-    tab name="browse" focus=true {{
+    aibox-tab name="browse" focus=true {{
         pane split_direction="horizontal" {{
             pane size="60%" name="files" focus=true {{
                 command "bash"
@@ -891,7 +891,7 @@ fn generate_browse_layout_with_options(
         }}
     }}
 {ai_extra_section}
-    tab name="editor" {{
+    aibox-tab name="editor" {{
         pane name="vim" {{
             command "bash"
             args "-c" "AIBOX_EDITOR_DIR=tab exec vim-loop"
@@ -899,7 +899,7 @@ fn generate_browse_layout_with_options(
             start_suspended true
         }}
     }}{git_section}
-    tab name="shell" {{
+    aibox-tab name="shell" {{
         pane name="bash" {{
             command "bash"
             cwd "/workspace"
@@ -2368,6 +2368,16 @@ mod tests {
             0,
             "open-in-editor should be executable"
         );
+        let open_in_editor =
+            fs::read_to_string(root.join(".local").join("bin").join("open-in-editor")).unwrap();
+        assert!(
+            open_in_editor.contains("zellij action edit --in-place"),
+            "open-in-editor should use Zellij's editor action instead of injecting Vim commands into the focused pane"
+        );
+        assert!(
+            !open_in_editor.contains(":edit"),
+            "open-in-editor must not send :edit to the focused terminal pane"
+        );
         #[cfg(unix)]
         assert_ne!(
             fs::metadata(root.join(".local").join("bin").join("aibox-status"))
@@ -2440,7 +2450,7 @@ mod tests {
                 path.display()
             );
             assert!(
-                !body.contains("tab name=\"git\""),
+                !body.contains("aibox-tab name=\"git\""),
                 "disabled lazygit must omit the git tab in generated layout {}",
                 path.display()
             );
@@ -2600,7 +2610,7 @@ mod tests {
         let providers = vec![AiProvider::Claude];
         let layout = generate_dev_layout(&providers);
         assert!(
-            layout.contains("tab name=\"claude\""),
+            layout.contains("aibox-tab name=\"claude\""),
             "should have claude tab"
         );
         assert!(
@@ -2615,7 +2625,7 @@ mod tests {
         let providers = vec![AiProvider::Aider];
         let layout = generate_dev_layout(&providers);
         assert!(
-            layout.contains("tab name=\"aider\""),
+            layout.contains("aibox-tab name=\"aider\""),
             "should have aider tab"
         );
         assert!(
@@ -2630,11 +2640,11 @@ mod tests {
         let providers = vec![AiProvider::Claude, AiProvider::Aider];
         let layout = generate_dev_layout(&providers);
         assert!(
-            layout.contains("tab name=\"claude\""),
+            layout.contains("aibox-tab name=\"claude\""),
             "should have claude tab"
         );
         assert!(
-            layout.contains("tab name=\"aider\""),
+            layout.contains("aibox-tab name=\"aider\""),
             "should have aider tab"
         );
         assert!(
@@ -2655,11 +2665,11 @@ mod tests {
         assert!(!layout.contains("aider"), "should not have aider");
         assert!(!layout.contains("gemini"), "should not have gemini");
         assert!(
-            layout.contains("tab name=\"dev\""),
+            layout.contains("aibox-tab name=\"dev\""),
             "should still have dev tab"
         );
         assert!(
-            layout.contains("tab name=\"git\""),
+            layout.contains("aibox-tab name=\"git\""),
             "should still have git tab"
         );
     }
@@ -2669,7 +2679,7 @@ mod tests {
         let providers = vec![AiProvider::Gemini];
         let layout = generate_focus_layout(&providers);
         assert!(
-            layout.contains("tab name=\"gemini\""),
+            layout.contains("aibox-tab name=\"gemini\""),
             "should have gemini tab"
         );
         assert!(
@@ -2703,7 +2713,7 @@ mod tests {
         assert!(layout.contains("command \"claude\""), "should have claude");
         assert!(layout.contains("command \"aider\""), "should have aider");
         assert!(
-            layout.contains("tab name=\"aider\""),
+            layout.contains("aibox-tab name=\"aider\""),
             "secondary provider should get its own tab"
         );
     }
@@ -2714,7 +2724,7 @@ mod tests {
         let layout = generate_cowork_layout(&providers);
         assert!(!layout.contains("claude"), "should not have claude");
         assert!(
-            layout.contains("tab name=\"cowork\""),
+            layout.contains("aibox-tab name=\"cowork\""),
             "should still have cowork tab"
         );
     }
@@ -2724,7 +2734,7 @@ mod tests {
         let providers = vec![AiProvider::Claude];
         let layout = generate_browse_layout(&providers);
         assert!(
-            layout.contains("tab name=\"browse\""),
+            layout.contains("aibox-tab name=\"browse\""),
             "should have browse tab"
         );
         assert!(
@@ -2732,10 +2742,13 @@ mod tests {
             "should have claude pane"
         );
         assert!(
-            layout.contains("tab name=\"editor\""),
+            layout.contains("aibox-tab name=\"editor\""),
             "should have editor tab"
         );
-        assert!(layout.contains("tab name=\"git\""), "should have git tab");
+        assert!(
+            layout.contains("aibox-tab name=\"git\""),
+            "should have git tab"
+        );
         assert!(
             layout.contains("AIBOX_EDITOR_DIR=tab"),
             "should use tab editor direction"
@@ -2757,7 +2770,7 @@ mod tests {
         assert!(layout.contains("command \"claude\""), "should have claude");
         assert!(layout.contains("command \"aider\""), "should have aider");
         assert!(
-            layout.contains("tab name=\"aider\""),
+            layout.contains("aibox-tab name=\"aider\""),
             "secondary provider should get its own tab"
         );
     }
@@ -2767,12 +2780,12 @@ mod tests {
         let providers: Vec<AiProvider> = vec![];
         let layout = generate_browse_layout(&providers);
         assert!(
-            layout.contains("tab name=\"browse\""),
+            layout.contains("aibox-tab name=\"browse\""),
             "should still have browse tab"
         );
         assert!(!layout.contains("claude"), "should not have claude");
         assert!(
-            layout.contains("tab name=\"editor\""),
+            layout.contains("aibox-tab name=\"editor\""),
             "should still have editor tab"
         );
     }
@@ -2794,18 +2807,24 @@ mod tests {
     fn ai_layout_single_provider() {
         let providers = vec![AiProvider::Claude];
         let layout = generate_ai_layout(&providers);
-        assert!(layout.contains("tab name=\"ai\""), "should have ai tab");
+        assert!(
+            layout.contains("aibox-tab name=\"ai\""),
+            "should have ai tab"
+        );
         assert!(
             layout.contains("command \"claude\""),
             "should have claude pane"
         );
         assert!(
-            layout.contains("tab name=\"editor\""),
+            layout.contains("aibox-tab name=\"editor\""),
             "should have editor tab"
         );
-        assert!(layout.contains("tab name=\"git\""), "should have git tab");
         assert!(
-            layout.contains("tab name=\"shell\""),
+            layout.contains("aibox-tab name=\"git\""),
+            "should have git tab"
+        );
+        assert!(
+            layout.contains("aibox-tab name=\"shell\""),
             "should have shell tab"
         );
         assert!(
@@ -2838,7 +2857,7 @@ mod tests {
             "unselected Claude provider must not start"
         );
         assert!(
-            !layout.contains("tab name=\"claude\""),
+            !layout.contains("aibox-tab name=\"claude\""),
             "unselected Claude provider must not get a tab"
         );
     }
@@ -2854,7 +2873,7 @@ mod tests {
         assert!(layout.contains("command \"claude\""), "should have claude");
         assert!(layout.contains("command \"aider\""), "should have aider");
         assert!(
-            layout.contains("tab name=\"aider\""),
+            layout.contains("aibox-tab name=\"aider\""),
             "secondary provider should get its own tab"
         );
     }
@@ -2864,12 +2883,12 @@ mod tests {
         let providers: Vec<AiProvider> = vec![];
         let layout = generate_ai_layout(&providers);
         assert!(
-            layout.contains("tab name=\"ai\""),
+            layout.contains("aibox-tab name=\"ai\""),
             "should still have ai tab"
         );
         assert!(!layout.contains("claude"), "should not have claude");
         assert!(
-            layout.contains("tab name=\"editor\""),
+            layout.contains("aibox-tab name=\"editor\""),
             "should still have editor tab"
         );
         assert!(layout.contains("yazi"), "should still have yazi pane");
@@ -2892,7 +2911,7 @@ mod tests {
         let providers = vec![AiProvider::Claude];
         let layout = generate_cowork_swap_layout(&providers);
         assert!(
-            layout.contains("tab name=\"cowork-swap\""),
+            layout.contains("aibox-tab name=\"cowork-swap\""),
             "should have cowork-swap tab"
         );
         assert!(
@@ -2905,9 +2924,12 @@ mod tests {
         );
         assert!(layout.contains("vim-loop"), "should run vim-loop");
         assert!(layout.contains("yazi"), "should run yazi");
-        assert!(layout.contains("tab name=\"git\""), "should have git tab");
         assert!(
-            layout.contains("tab name=\"shell\""),
+            layout.contains("aibox-tab name=\"git\""),
+            "should have git tab"
+        );
+        assert!(
+            layout.contains("aibox-tab name=\"shell\""),
             "should have shell tab"
         );
         // Outer split: left 40% / right 60% (editor on the right gets the bigger half)
@@ -2941,7 +2963,7 @@ mod tests {
         assert!(layout.contains("command \"claude\""), "should have claude");
         assert!(layout.contains("command \"aider\""), "should have aider");
         assert!(
-            layout.contains("tab name=\"aider\""),
+            layout.contains("aibox-tab name=\"aider\""),
             "secondary provider should get its own tab"
         );
     }
@@ -2951,7 +2973,7 @@ mod tests {
         let providers: Vec<AiProvider> = vec![];
         let layout = generate_cowork_swap_layout(&providers);
         assert!(
-            layout.contains("tab name=\"cowork-swap\""),
+            layout.contains("aibox-tab name=\"cowork-swap\""),
             "should still have cowork-swap tab"
         );
         assert!(!layout.contains("claude"), "should not have claude");
@@ -3250,10 +3272,10 @@ mod tests {
     fn zellij_layout_suspends_non_focused_dev_commands() {
         let layout = generate_dev_layout(&[]);
         assert!(
-            layout.contains("file:/usr/local/share/aibox/zellij/aibox-status.wasm")
-                && layout.contains("role \"keybar\"")
-                && layout.contains("role \"status\""),
-            "layouts should include the native aibox Zellij status plugin rows"
+            layout.contains("plugin location=\"zellij:status-bar\"")
+                && layout.contains("aibox-status")
+                && !layout.contains("aibox-status.wasm"),
+            "default layouts should use the shell-backed status rows until the native Zellij plugin is proven in visual E2E"
         );
         assert!(
             layout.contains(
@@ -3290,7 +3312,7 @@ mod tests {
     #[test]
     fn zellij_status_mode_hidden_omits_status_rows() {
         let layout = generate_dev_layout_with_options(&[], true, &ZellijStatusMode::Hidden);
-        assert!(layout.contains("default_tab_template"));
+        assert!(layout.contains("tab_template name=\"aibox-tab\""));
         assert!(!layout.contains("zellij:status-bar"));
         assert!(!layout.contains("aibox-status"));
         assert!(!layout.contains("role \"status\""));

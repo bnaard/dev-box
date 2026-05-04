@@ -791,9 +791,9 @@ fn default_layout() -> ConfigLayout {
 #[clap(rename_all = "kebab-case")]
 pub enum ZellijStatusMode {
     /// Native two-row WASM plugin: keybar plus runtime status.
-    #[default]
     Native,
     /// Legacy shell fallback: built-in Zellij status bar plus `aibox-status --watch`.
+    #[default]
     Shell,
     /// Hide aibox-provided status rows from generated layouts.
     Hidden,
@@ -2339,7 +2339,7 @@ prompt = "minimal"
         assert_eq!(config.customization.prompt, StarshipPreset::Minimal);
         assert_eq!(
             config.customization.zellij_status.mode,
-            ZellijStatusMode::Native
+            ZellijStatusMode::Shell
         );
     }
 

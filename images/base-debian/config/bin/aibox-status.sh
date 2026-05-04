@@ -104,12 +104,19 @@ count_processes() {
   printf '%s' "$count"
 }
 
+read_proc_cmdline() {
+  local entry="$1"
+  local path="$entry/cmdline"
+  [ -r "$path" ] || return 0
+  cat "$path" 2>/dev/null | tr '\0' ' ' || true
+}
+
 count_ai_agents() {
   local count=0
   local entry cmdline
   for entry in /proc/[0-9]*; do
     [ -r "$entry/cmdline" ] || continue
-    cmdline="$(tr '\0' ' ' < "$entry/cmdline" 2>/dev/null || true)"
+    cmdline="$(read_proc_cmdline "$entry")"
     case "$(printf '%s' "$cmdline" | tr '[:upper:]' '[:lower:]')" in
       *'/codex '*|*' codex '*|*'claude '*|*'gemini '*|*'aider '*|*'copilot '*|*'opencode '*|*'hermes '*) count=$((count + 1)) ;;
     esac
@@ -122,7 +129,7 @@ count_processkit_mcp_python() {
   local entry cmdline
   for entry in /proc/[0-9]*; do
     [ -r "$entry/cmdline" ] || continue
-    cmdline="$(tr '\0' ' ' < "$entry/cmdline" 2>/dev/null || true)"
+    cmdline="$(read_proc_cmdline "$entry")"
     case "$(printf '%s' "$cmdline" | tr '[:upper:]' '[:lower:]')" in
       *python*processkit*mcp*|*processkit*mcp*python*) count=$((count + 1)) ;;
     esac
@@ -135,7 +142,7 @@ read_processkit_mode() {
   local entry cmdline
   for entry in /proc/[0-9]*; do
     [ -r "$entry/cmdline" ] || continue
-    cmdline="$(tr '\0' ' ' < "$entry/cmdline" 2>/dev/null || true)"
+    cmdline="$(read_proc_cmdline "$entry")"
     case "$(printf '%s' "$cmdline" | tr '[:upper:]' '[:lower:]')" in
       *processkit-gateway*mcp*server.py*) gateway=1 ;;
       *processkit*mcp*server.py*) granular=$((granular + 1)) ;;
@@ -151,7 +158,9 @@ read_processkit_mode() {
 }
 
 read_disk_available() {
-  df -h /workspace 2>/dev/null | awk 'NR == 2 { print $4; found=1 } END { if (!found) print "n/a" }'
+  local available
+  available="$(df -h /workspace 2>/dev/null | awk 'NR == 2 { print $4; found=1 } END { if (!found) print "n/a" }' || true)"
+  printf '%s' "${available:-n/a}"
 }
 
 read_git_state() {

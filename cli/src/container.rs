@@ -562,8 +562,20 @@ pub fn resolve_init_values(
 /// Build command: load config, generate files, run compose build.
 /// Start command: seed, generate, ensure running, attach.
 pub fn cmd_start(config_path: &Option<String>, layout: &str) -> Result<()> {
-    let config = AiboxConfig::from_cli_option(config_path)?;
+    let mut config = AiboxConfig::from_cli_option(config_path)?;
     let runtime = Runtime::detect()?;
+
+    let added_required_addons = complete_missing_required_addons(&mut config);
+    if !added_required_addons.is_empty() {
+        for (addon, required) in &added_required_addons {
+            output::warn(&format!(
+                "Addon '{}' requires '{}'; using '{}' for this start. \
+                 Add [addons.{}.tools] to aibox.toml to make the migration explicit.",
+                addon, required, required, required
+            ));
+        }
+    }
+
     let name = &config.container.name;
 
     seed::ensure_runtime_dirs(&config)?;

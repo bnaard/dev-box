@@ -226,6 +226,42 @@ impl E2eRunner {
             );
         }
 
+        let plugin_manifest = format!(
+            "{}/../images/base-debian/zellij-plugins/aibox-status/Cargo.toml",
+            manifest_dir
+        );
+        let plugin_wasm = format!(
+            "{}/../images/base-debian/zellij-plugins/aibox-status/target/wasm32-wasip1/release/aibox_zellij_status.wasm",
+            manifest_dir
+        );
+        if !Path::new(&plugin_wasm).exists() {
+            let output = Command::new("cargo")
+                .args([
+                    "build",
+                    "--manifest-path",
+                    &plugin_manifest,
+                    "--release",
+                    "--target",
+                    "wasm32-wasip1",
+                    "--features",
+                    "zellij",
+                ])
+                .output()
+                .expect("failed to build native Zellij status plugin");
+            assert!(
+                output.status.success(),
+                "native Zellij status plugin build failed:\nstdout:\n{}\nstderr:\n{}",
+                String::from_utf8_lossy(&output.stdout),
+                String::from_utf8_lossy(&output.stderr)
+            );
+        }
+        self.exec("sudo mkdir -p /usr/local/share/aibox/zellij");
+        self.deploy_image_asset(
+            &plugin_wasm,
+            "/usr/local/share/aibox/zellij/aibox-status.wasm",
+            true,
+        );
+
         // Verify deployment
         let output = self.exec(&format!("{} --version", REMOTE_AIBOX_BIN));
         assert!(

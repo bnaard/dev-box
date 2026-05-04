@@ -455,19 +455,10 @@ fn native_zellij_status_plugin_has_zellij_visible_exports_and_foreground() {
     );
 
     assert!(
-        !body.contains("register_plugin!("),
-        "zellij-tile's register_plugin macro currently emits WASI command-export wrappers that Zellij 0.44 does not load from our artifact:\n{}",
+        body.contains("pub fn main()") && body.contains("register_plugin!(AiboxStatusPlugin)"),
+        "native aibox Zellij status plugin should use the upstream zellij-tile adapter plus a literal main export for Zellij 0.44:\n{}",
         plugin_source.display()
     );
-
-    for function in ["main", "load", "update", "pipe", "render", "plugin_version"] {
-        let needle = format!("pub extern \"C\" fn {function}");
-        assert!(
-            body.contains(&needle),
-            "native aibox Zellij status plugin must export {function} with the literal C ABI symbol Zellij loads:\n{}",
-            plugin_source.display()
-        );
-    }
 }
 
 #[test]

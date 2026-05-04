@@ -20,21 +20,18 @@
 
 layout {
 
-    default_tab_template {
+    tab_template name="aibox-tab" {
         children
         pane size=1 borderless=true {
-            plugin location="file:/usr/local/share/aibox/zellij/aibox-status.wasm" {
-                role "keybar"
-            }
+            plugin location="zellij:status-bar"
         }
         pane size=1 borderless=true {
-            plugin location="file:/usr/local/share/aibox/zellij/aibox-status.wasm" {
-                role "status"
-            }
+            command "bash"
+            args "-lc" "if [ -x \"$HOME/.local/bin/aibox-status\" ]; then exec \"$HOME/.local/bin/aibox-status\" --watch; else exec aibox-status --watch; fi"
         }
     }
 
-    tab name="cowork" focus=true {
+    aibox-tab name="cowork" focus=true {
         pane split_direction="vertical" {
             pane size="50%" split_direction="horizontal" {
                 pane size="40%" name="files" focus=true {
@@ -55,7 +52,7 @@ layout {
         }
     }
 
-    tab name="shell" {
+    aibox-tab name="shell" {
         pane name="bash" {
             command "bash"
             cwd "/workspace"
