@@ -75,17 +75,16 @@ codex = { version = "0.1.0" }
 
 aibox images include Debian's `bubblewrap` package so Codex can use the OS-provided Linux sandbox helper instead of falling back to its vendored copy. Codex still needs the container runtime and host kernel to allow unprivileged user namespaces; if namespace creation is blocked, Codex can start but sandboxed shell commands fail before the project command runs.
 
-The preferred fix is to enable unprivileged user namespaces on the host or container runtime. Avoid `privileged: true` and avoid adding `SYS_ADMIN` to the main development container for Codex; those grants are broader than Codex's bubblewrap sandbox requires. If your runtime blocks the needed syscalls with its seccomp profile, the fallback is a project-local compose override without extra capabilities:
+The preferred fix is to enable unprivileged user namespaces on the host or container runtime. Avoid `privileged: true` and avoid adding `SYS_ADMIN` to the main development container for Codex; those grants are broader than Codex's bubblewrap sandbox requires. When Codex is selected, generated `docker-compose.yml` includes a narrow `security_opt: seccomp=unconfined` fallback because Docker/Podman seccomp profiles can block bubblewrap before the project command runs:
 
 ```yaml
-# .devcontainer/docker-compose.override.yml
 services:
   <container-name>:
     security_opt:
       - seccomp=unconfined
 ```
 
-Use that only when host-level user namespaces are already allowed but the runtime seccomp profile still blocks `bubblewrap`, and keep Codex in `workspace-write` with approvals.
+This does not grant `privileged` or `SYS_ADMIN`; it only relaxes the runtime syscall filter enough for user-namespace creation. Keep Codex in `workspace-write` with approvals.
 
 `aibox doctor` checks the Codex sandbox posture when Codex is selected. It
 verifies that `bwrap`/`bubblewrap` is available, runs a user-namespace smoke

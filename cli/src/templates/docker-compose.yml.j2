@@ -23,6 +23,14 @@ services:
     container_name: {{ name }}
     hostname: {{ hostname }}
     init: true
+{% if codex_sandbox_seccomp %}
+    # Codex CLI uses bubblewrap for Linux sandboxing. Some container
+    # runtime seccomp profiles block unprivileged user namespace creation
+    # before bubblewrap can set up its own sandbox. This narrow fallback
+    # avoids privileged=true and SYS_ADMIN.
+    security_opt:
+      - seccomp=unconfined
+{% endif %}
     stdin_open: true
     tty: true
     working_dir: /workspace

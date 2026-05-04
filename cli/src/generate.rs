@@ -4,7 +4,7 @@ use std::collections::BTreeMap;
 use std::fs;
 use std::path::Path;
 
-use crate::config::{AiboxConfig, McpGatewayMode};
+use crate::config::{AiHarness, AiboxConfig, McpGatewayMode};
 use crate::output;
 
 fn write_if_changed(path: &Path, content: &str) -> Result<bool> {
@@ -185,6 +185,7 @@ fn generate_docker_compose(
 
     // Build list of AI harness strings for template
     let ai_providers: Vec<String> = config.ai.harnesses.iter().map(|h| h.to_string()).collect();
+    let codex_sandbox_seccomp = config.ai.harnesses.contains(&AiHarness::Codex);
 
     // Container home path
     let container_home = config.container_home();
@@ -248,6 +249,7 @@ fn generate_docker_compose(
             container_home => container_home,
             audio_enabled => config.audio.enabled,
             ai_providers => ai_providers,
+            codex_sandbox_seccomp => codex_sandbox_seccomp,
             env_keys => env_keys,
             env_vals => escaped_env,
             extra_volumes => extra_volumes,
@@ -646,6 +648,31 @@ mod tests {
         let content = fs::read_to_string(dir.path().join("docker-compose.yml")).unwrap();
         assert!(content.contains("init: true"));
         assert!(content.contains("command: sleep infinity"));
+    }
+
+    #[test]
+    fn compose_adds_seccomp_fallback_when_codex_selected() {
+        let dir = tempfile::tempdir().unwrap();
+        let mut config = make_config(&[], false);
+        config.ai.harnesses = vec![crate::config::AiHarness::Codex];
+        generate_docker_compose(&config, dir.path(), &test_env()).unwrap();
+
+        let content = fs::read_to_string(dir.path().join("docker-compose.yml")).unwrap();
+        assert!(content.contains("security_opt:"));
+        assert!(content.contains("seccomp=unconfined"));
+        assert!(!content.contains("privileged: true"));
+        assert!(!content.contains("cap_add:"));
+    }
+
+    #[test]
+    fn compose_omits_seccomp_fallback_without_codex() {
+        let dir = tempfile::tempdir().unwrap();
+        let mut config = make_config(&[], false);
+        config.ai.harnesses = vec![crate::config::AiHarness::Claude];
+        generate_docker_compose(&config, dir.path(), &test_env()).unwrap();
+
+        let content = fs::read_to_string(dir.path().join("docker-compose.yml")).unwrap();
+        assert!(!content.contains("seccomp=unconfined"));
     }
 
     #[test]
