@@ -67,6 +67,52 @@ fn run_in(dir: &Path, args: &[&str]) -> Output {
         .expect("failed to execute aibox")
 }
 
+fn run_in_with_addons(dir: &Path, args: &[&str], addons_dir: &Path) -> Output {
+    Command::new(aibox_bin())
+        .args(args)
+        .current_dir(dir)
+        .env("AIBOX_ADDONS_DIR", addons_dir)
+        .env("AIBOX_NO_CONTAINER", "1")
+        .output()
+        .expect("failed to execute aibox")
+}
+
+fn installed_addon_files_from_install_script() -> Vec<String> {
+    let manifest_dir = env!("CARGO_MANIFEST_DIR");
+    let script_path = Path::new(manifest_dir)
+        .parent()
+        .unwrap()
+        .join("scripts/install.sh");
+    let script = fs::read_to_string(script_path).expect("read scripts/install.sh");
+    let Some((_, rest)) = script.split_once("local addon_files=\"") else {
+        panic!("install script should declare addon_files");
+    };
+    let Some((list, _)) = rest.split_once('"') else {
+        panic!("install script addon_files block should be closed");
+    };
+    list.split_whitespace().map(str::to_string).collect()
+}
+
+fn install_script_addons_dir() -> tempfile::TempDir {
+    let tmp = tempfile::tempdir().expect("create installed-addon tempdir");
+    let manifest_dir = env!("CARGO_MANIFEST_DIR");
+    let repo_addons = Path::new(manifest_dir).parent().unwrap().join("addons");
+
+    for file in installed_addon_files_from_install_script() {
+        let src = repo_addons.join(&file);
+        assert!(
+            src.is_file(),
+            "install script references missing addon YAML: {}",
+            file
+        );
+        let dst = tmp.path().join(&file);
+        fs::create_dir_all(dst.parent().unwrap()).unwrap();
+        fs::copy(&src, &dst).unwrap();
+    }
+
+    tmp
+}
+
 /// Drop a captured `Output` to a debug-friendly string for assertion
 /// failure messages.
 fn fmt_output(label: &str, out: &Output) -> String {
@@ -76,6 +122,53 @@ fn fmt_output(label: &str, out: &Output) -> String {
         String::from_utf8_lossy(&out.stdout),
         String::from_utf8_lossy(&out.stderr),
     )
+}
+
+#[test]
+fn git_ui_gh_enabled_renders_from_installed_addon_catalog() {
+    let tmp = tempfile::TempDir::new().expect("create tempdir");
+    let dir = tmp.path();
+    let installed_addons = install_script_addons_dir();
+
+    fs::write(
+        dir.join("aibox.toml"),
+        r#"[aibox]
+version = "0.23.3"
+base = "debian"
+
+[container]
+name = "gh-addon-e2e"
+
+[processkit]
+version = "unset"
+
+[addons.git-ui.tools]
+gh = { enabled = true }
+lazygit = { enabled = false }
+"#,
+    )
+    .unwrap();
+
+    let apply_out = run_in_with_addons(dir, &["apply"], installed_addons.path());
+    assert!(
+        apply_out.status.success(),
+        "apply failed.\n{}",
+        fmt_output("apply", &apply_out)
+    );
+
+    let dockerfile = fs::read_to_string(dir.join(".devcontainer/Dockerfile")).unwrap();
+    assert!(
+        dockerfile.contains("Addon: git-ui"),
+        "expected git-ui addon to render in Dockerfile:\n{dockerfile}"
+    );
+    assert!(
+        dockerfile.contains("\n    gh \\"),
+        "expected gh package to be installed when enabled:\n{dockerfile}"
+    );
+    assert!(
+        !dockerfile.contains("unknown addon 'git-ui'"),
+        "installed addon catalog must know git-ui:\n{dockerfile}"
+    );
 }
 
 #[test]

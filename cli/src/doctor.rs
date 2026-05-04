@@ -478,10 +478,7 @@ fn check_processkit_mcp_gateway(config: &AiboxConfig, diag: &mut DiagResult) {
     output::ok("processkit MCP gateway is installed");
     check_processkit_semantic_capability(diag);
 
-    if matches!(
-        gateway.mode,
-        McpGatewayMode::Auto | McpGatewayMode::DaemonProxy
-    ) {
+    if matches!(gateway.mode, McpGatewayMode::DaemonProxy) {
         let devcontainer = Path::new(".devcontainer/devcontainer.json");
         match std::fs::read_to_string(devcontainer) {
             Ok(body) if body.contains("processkit-gateway/mcp/server.py") => {
@@ -502,6 +499,11 @@ fn check_processkit_mcp_gateway(config: &AiboxConfig, diag: &mut DiagResult) {
                 diag.warnings += 1;
             }
         }
+    } else if matches!(gateway.mode, McpGatewayMode::Auto) {
+        output::ok(
+            "processkit gateway auto mode uses stdio-proxy-owned daemon startup \
+             (processkit v0.25.4+)",
+        );
     }
 
     if config.ai.harnesses.contains(&AiHarness::Codex) {

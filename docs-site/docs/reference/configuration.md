@@ -43,7 +43,7 @@ packages = ["managed"]
 
 [processkit]
 source   = "https://github.com/projectious-work/processkit.git"
-version  = "v0.25.0"                  # Pin a real tag; "unset" skips fetching
+version  = "v0.25.4"                  # Pin a real tag; "unset" skips fetching
 src_path = "src"
 # branch = "main"                     # Optional; tarball-first, branch as fallback
 # release_asset_url_template = "..."  # Optional, for non-GitHub hosts
@@ -80,6 +80,9 @@ theme  = "gruvbox-dark"               # Color theme (7 options)
 mode   = "auto"                       # Theme mode: auto, light, dark
 prompt = "default"                    # Starship preset (7 options)
 layout = "dev"                        # Zellij layout (6 options)
+
+[customization.zellij_status]
+mode = "native"                       # native | shell | hidden
 
 [audio]
 enabled      = false                  # Enable audio bridging
@@ -280,7 +283,7 @@ repo, but any processkit-compatible source works (forks, self-hosted, private
 mirrors).
 
 If `version` is the sentinel `unset`, both `aibox init` and `aibox apply` skip
-the processkit fetch entirely. Pin a real tag (e.g. `v0.25.0`) to land the
+the processkit fetch entirely. Pin a real tag (e.g. `v0.25.4`) to land the
 content. The downloaded tarball is git-tracked under
 `context/templates/processkit/<version>/` so derived projects always have the
 original to diff against.
@@ -336,13 +339,13 @@ MCP server definitions and permission configuration. `aibox apply` merges server
 2. **`aibox.toml [mcp]`** — team-shared servers committed to version control
 3. **`.aibox-local.toml [mcp]`** — personal servers, gitignored
 
-Generated files (`.mcp.json`, `.cursor/mcp.json`, `.gemini/settings.json`, `.codex/config.toml`, `.continue/mcpServers/`) are **gitignored**. They are always reproducible from the config sources above and must not be committed — doing so would embed personal server definitions or credentials from `.aibox-local.toml`.
+Generated files (`.mcp.json`, `.cursor/mcp.json`, `.gemini/settings.json`, `.codex/config.toml`, `.codex/hooks.json`, `.continue/mcpServers/`) are **gitignored**. They are always reproducible from the config sources above and must not be committed — doing so would embed personal server definitions or credentials from `.aibox-local.toml`.
 
 #### processkit Gateway: [mcp.gateway]
 
-processkit v0.25.0 ships `processkit-gateway`, which can replace the older
-one-process-per-skill MCP topology with a single daemon-backed processkit MCP
-entry.
+processkit v0.25.4 ships `processkit-gateway`, whose stdio proxy can start
+the matching localhost daemon on demand. It can replace the older
+one-process-per-skill MCP topology with a single processkit MCP entry.
 
 ```toml
 [mcp.gateway]
@@ -355,13 +358,13 @@ path = "/mcp"
 
 | Mode | Behavior |
 |------|----------|
-| `auto` | Start the localhost `processkit-gateway` daemon and register a stdio proxy when the installed processkit version ships it; otherwise fall back to granular per-skill servers |
+| `auto` | Register a self-starting `processkit-gateway` stdio proxy when the installed processkit version ships it; otherwise fall back to granular per-skill servers |
 | `granular` | Always register one MCP server per processkit skill |
 | `stdio` | Register `processkit-gateway` directly as a stdio MCP server |
 | `daemon-proxy` | Start a localhost gateway daemon from `devcontainer.json` and register a stdio proxy for harnesses |
 
 The daemon-backed modes are localhost-only. Run `aibox apply` after changing
-this section so generated harness configs and `devcontainer.json` stay in sync.
+this section so generated harness configs stay in sync.
 
 #### Server Definitions: [[mcp.servers]]
 
@@ -467,6 +470,7 @@ Visual and layout configuration. See [Themes](../customization/themes.md) and [L
 | `mode` | String | No | `"auto"` | Global theme mode overlay: `auto`, `light`, `dark`. `auto` preserves the selected concrete theme. |
 | `prompt` | String | No | `"default"` | Starship preset: `default`, `plain`, `arrow`, `minimal`, `nerd-font`, `pastel`, `bracketed` |
 | `layout` | String | No | `"dev"` | Zellij layout: `dev`, `focus`, `cowork`, `cowork-swap`, `browse`, `ai` |
+| `zellij_status.mode` | String | No | `"native"` | Zellij status presentation: `native` uses the two-row WASM plugin, `shell` uses the legacy shell fallback, `hidden` omits aibox status rows |
 
 ### [audio]
 

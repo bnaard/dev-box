@@ -118,12 +118,19 @@ pub fn run_runtime_sync(
         let should_update_same_version_generated_file = same_version_sync
             && (live_matches_previous_generated
                 || zellij_layout_contains_unselected_harness(&host_root, &diff.rel_path, config));
+        let should_update_stale_managed_zellij_status =
+            live_matches_historical_managed_zellij_status_layout(
+                project_root,
+                &host_root,
+                &diff.rel_path,
+            );
 
-        if same_version_sync
+        if (same_version_sync
             && matches!(
                 diff.classification,
                 FileClassification::ChangedUpstreamOnly | FileClassification::NewUpstream
             )
+            || should_update_stale_managed_zellij_status)
             && let Some(content) = generated_map.get(&diff.rel_path)
         {
             let target = host_root.join(&diff.rel_path);
@@ -495,6 +502,39 @@ fn zellij_layout_contains_unselected_harness(
             let command = harness.binary_name();
             !command.is_empty() && content.contains(&format!("command \"{}\"", command))
         })
+}
+
+fn live_matches_historical_managed_zellij_status_layout(
+    project_root: &Path,
+    host_root: &Path,
+    rel_path: &str,
+) -> bool {
+    if !rel_path.starts_with(".config/zellij/layouts/") || !rel_path.ends_with(".kdl") {
+        return false;
+    }
+
+    let live_abs = host_root.join(rel_path);
+    let Ok(live_content) = fs::read_to_string(&live_abs) else {
+        return false;
+    };
+    if !live_content.contains("zellij:status-bar") || !live_content.contains("aibox-status") {
+        return false;
+    }
+    let live_sha = sha256_of_bytes(live_content.as_bytes());
+    let snapshots_root = project_root.join(RUNTIME_TEMPLATES_DIR);
+    let Ok(entries) = fs::read_dir(snapshots_root) else {
+        return false;
+    };
+
+    entries.filter_map(Result::ok).any(|entry| {
+        let snapshot_file = entry.path().join(rel_path);
+        let Ok(snapshot_content) = fs::read_to_string(snapshot_file) else {
+            return false;
+        };
+        snapshot_content.contains("zellij:status-bar")
+            && snapshot_content.contains("aibox-status")
+            && sha256_of_bytes(snapshot_content.as_bytes()) == live_sha
+    })
 }
 
 fn refresh_runtime_home_lock(
@@ -944,6 +984,55 @@ harnesses = ["codex"]
             tmp.path(),
             rel,
             &config
+        ));
+    }
+
+    #[test]
+    fn detects_historical_managed_zellij_shell_status_layout() {
+        let tmp = TempDir::new().unwrap();
+        let root = tmp.path();
+        let host_root = root.join(".aibox-home");
+        let rel = ".config/zellij/layouts/dev.kdl";
+        let old_managed = r#"layout {
+    default_tab_template {
+        children
+        pane size=1 borderless=true {
+            plugin location="zellij:status-bar"
+        }
+        pane size=1 borderless=true {
+            command "bash"
+            args "-lc" "if [ -x \"$HOME/.local/bin/aibox-status\" ]; then exec \"$HOME/.local/bin/aibox-status\" --watch; else exec aibox-status --watch; fi"
+        }
+    }
+    tab name="dev" {}
+}
+"#;
+        write_snapshot(root, "0.23.1", &[(rel, old_managed)]);
+        let live = host_root.join(rel);
+        fs::create_dir_all(live.parent().unwrap()).unwrap();
+        fs::write(&live, old_managed).unwrap();
+
+        assert!(live_matches_historical_managed_zellij_status_layout(
+            root, &host_root, rel
+        ));
+    }
+
+    #[test]
+    fn historical_zellij_status_detector_rejects_user_edited_layout() {
+        let tmp = TempDir::new().unwrap();
+        let root = tmp.path();
+        let host_root = root.join(".aibox-home");
+        let rel = ".config/zellij/layouts/dev.kdl";
+        let old_managed = r#"plugin location="zellij:status-bar"
+args "-lc" "aibox-status --watch"
+"#;
+        write_snapshot(root, "0.23.1", &[(rel, old_managed)]);
+        let live = host_root.join(rel);
+        fs::create_dir_all(live.parent().unwrap()).unwrap();
+        fs::write(&live, format!("{old_managed}\n# user edit\n")).unwrap();
+
+        assert!(!live_matches_historical_managed_zellij_status_layout(
+            root, &host_root, rel
         ));
     }
 }

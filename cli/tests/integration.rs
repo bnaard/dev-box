@@ -92,6 +92,45 @@ TEAM_TOKEN = "secret-token"
     .unwrap();
 }
 
+fn installed_addon_files_from_install_script() -> Vec<String> {
+    let manifest_dir = env!("CARGO_MANIFEST_DIR");
+    let script_path = std::path::Path::new(manifest_dir)
+        .parent()
+        .unwrap()
+        .join("scripts/install.sh");
+    let script = std::fs::read_to_string(script_path).expect("read scripts/install.sh");
+    let Some((_, rest)) = script.split_once("local addon_files=\"") else {
+        panic!("install script should declare addon_files");
+    };
+    let Some((list, _)) = rest.split_once('"') else {
+        panic!("install script addon_files block should be closed");
+    };
+    list.split_whitespace().map(str::to_string).collect()
+}
+
+fn install_script_addons_dir() -> tempfile::TempDir {
+    let tmp = tempfile::tempdir().expect("create installed-addon tempdir");
+    let manifest_dir = env!("CARGO_MANIFEST_DIR");
+    let repo_addons = std::path::Path::new(manifest_dir)
+        .parent()
+        .unwrap()
+        .join("addons");
+
+    for file in installed_addon_files_from_install_script() {
+        let src = repo_addons.join(&file);
+        assert!(
+            src.is_file(),
+            "install script references missing addon YAML: {}",
+            file
+        );
+        let dst = tmp.path().join(&file);
+        std::fs::create_dir_all(dst.parent().unwrap()).unwrap();
+        std::fs::copy(&src, &dst).unwrap();
+    }
+
+    tmp
+}
+
 #[test]
 fn help_exits_zero() {
     let output = run(&["--help"]);
@@ -100,6 +139,90 @@ fn help_exits_zero() {
     assert!(
         stdout.contains("aibox") || stdout.contains("development container"),
         "help output should mention aibox"
+    );
+}
+
+#[test]
+fn install_script_lists_every_repo_addon_yaml() {
+    let manifest_dir = env!("CARGO_MANIFEST_DIR");
+    let repo_addons = std::path::Path::new(manifest_dir)
+        .parent()
+        .unwrap()
+        .join("addons");
+    let mut repo_files = Vec::new();
+    for category in ["ai", "docs", "languages", "tools"] {
+        for entry in std::fs::read_dir(repo_addons.join(category)).unwrap() {
+            let entry = entry.unwrap();
+            let path = entry.path();
+            if path.extension().and_then(|ext| ext.to_str()) == Some("yaml") {
+                repo_files.push(format!(
+                    "{}/{}",
+                    category,
+                    path.file_name().unwrap().to_string_lossy()
+                ));
+            }
+        }
+    }
+    repo_files.sort();
+
+    let mut script_files = installed_addon_files_from_install_script();
+    script_files.sort();
+
+    assert_eq!(
+        script_files, repo_files,
+        "install.sh must publish the same addon catalog that the repo tests use"
+    );
+}
+
+#[test]
+fn apply_with_installed_catalog_installs_gh_from_git_ui() {
+    let dir = tempfile::tempdir().unwrap();
+    let installed_addons = install_script_addons_dir();
+    std::fs::write(
+        dir.path().join("aibox.toml"),
+        r#"[aibox]
+version = "0.23.3"
+base = "debian"
+
+[container]
+name = "gh-addon-test"
+
+[processkit]
+version = "unset"
+
+[addons.git-ui.tools]
+gh = { enabled = true }
+lazygit = { enabled = false }
+"#,
+    )
+    .unwrap();
+
+    let output = Command::new(aibox_bin())
+        .args(["apply", "--no-container"])
+        .current_dir(dir.path())
+        .env("AIBOX_ADDONS_DIR", installed_addons.path())
+        .output()
+        .expect("failed to execute aibox apply");
+    assert!(
+        output.status.success(),
+        "aibox apply should succeed with install-script addon catalog\nstatus: {}\nstderr:\n{}\nstdout:\n{}",
+        output.status,
+        String::from_utf8_lossy(&output.stderr),
+        String::from_utf8_lossy(&output.stdout)
+    );
+
+    let dockerfile = std::fs::read_to_string(dir.path().join(".devcontainer/Dockerfile")).unwrap();
+    assert!(
+        dockerfile.contains("Addon: git-ui"),
+        "Dockerfile should render the git-ui addon, not skip it:\n{dockerfile}"
+    );
+    assert!(
+        dockerfile.contains(" gh") || dockerfile.contains("\n      gh"),
+        "Dockerfile should install gh when [addons.git-ui.tools].gh is enabled:\n{dockerfile}"
+    );
+    assert!(
+        !dockerfile.contains("unknown addon 'git-ui'"),
+        "git-ui must be known in installed-catalog simulation:\n{dockerfile}"
     );
 }
 

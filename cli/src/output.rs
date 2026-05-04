@@ -10,9 +10,9 @@ pub fn ok(msg: &str) {
     eprintln!("\x1b[1;32m  \u{2713} {}\x1b[0m", msg);
 }
 
-/// Print a warning message in yellow bold.
+/// Print a warning message in orange bold.
 pub fn warn(msg: &str) {
-    eprintln!("\x1b[1;33m  ! {}\x1b[0m", msg);
+    eprintln!("\x1b[1;38;5;208m  ! {}\x1b[0m", msg);
 }
 
 /// Print an error message in red bold.

@@ -53,7 +53,7 @@ my-project/
     ├── state-machines/             # state machine definitions
     └── templates/
         └── processkit/
-            └── v0.25.0/            # Immutable upstream snapshot, base of three-way diffs
+            └── v0.25.4/            # Immutable upstream snapshot, base of three-way diffs
 ```
 
 ### AGENTS.md, CLAUDE.md, and provider files
@@ -107,7 +107,7 @@ version = "0.23.0"
 schema_version = "1.0.0"
 
 [processkit]
-version = "v0.25.0"
+version = "v0.25.4"
 ```
 
 When the schema evolves, `aibox doctor` flags version mismatches and `aibox apply`
@@ -125,7 +125,7 @@ packages = ["managed"]
 
 [processkit]
 source  = "https://github.com/projectious-work/processkit.git"
-version = "v0.25.0"
+version = "v0.25.4"
 ```
 
 Run `aibox apply` after editing `[processkit].version` to pull a new release.

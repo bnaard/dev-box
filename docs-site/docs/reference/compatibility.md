@@ -12,6 +12,8 @@ below shows the minimum compatible processkit version for each aibox release.
 
 | aibox version | Min. processkit | Notes |
 |--------------|-----------------|-------|
+| 0.23.4 | v0.25.4 | processkit v0.25.4 gateway stdio-proxy daemon startup fixes, Codex pre_tool_use hook generation, Zellij status presentation control, and stale status-layout runtime sync repair |
+| 0.23.3 | v0.25.3 | processkit v0.25.3 model-spec/model-profile migrations and Codex seccomp fallback for bubblewrap |
 | 0.23.2 | v0.25.1 | processkit v0.25.1 model-recommender lifecycle metadata, task suitability classes, task-class-aware routing, and refreshed model roster |
 | 0.23.1 | v0.25.0 | stale runtime cleanup for old Compose project names, lazygit disablement fixes, and procps runtime diagnostics |
 | 0.23.0 | v0.25.0 | processkit v0.25.0 gateway integration, daemon-proxy mode, runtime pressure diagnostics, init reaping, optional git UI tools, and profile-aware environment metadata |
@@ -52,7 +54,7 @@ To upgrade processkit in an existing project:
 1. Edit `aibox.toml`:
    ```toml
    [processkit]
-   version = "v0.25.1"
+   version = "v0.25.4"
    ```
 
 2. Run `aibox apply` on the host — the 3-way diff will show changed content

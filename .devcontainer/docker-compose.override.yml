@@ -12,8 +12,8 @@ services:
     # container does not need privileged mode or SYS_ADMIN for that, but
     # Docker/Podman seccomp profiles can still block unprivileged user
     # namespace creation before bubblewrap gets control.
-    security_opt:
-      - seccomp=unconfined
+    # security_opt:
+    #  - seccomp=unconfined
 
   # ── E2E Test Companion Container ───────────────────────────────────────────
   # Simulates a user's host machine for end-to-end testing of the aibox CLI.
@@ -35,8 +35,8 @@ services:
     #   SYS_ADMIN           — allows newuidmap to write /proc/PID/uid_map
     # Safe here because the container has NO host mounts, NO host network,
     # and NO exposed ports — the capability is scoped to its own namespaces.
-    security_opt:
-      - seccomp=unconfined
+    # security_opt:
+    #  - seccomp=unconfined
     cap_add:
       - SYS_ADMIN
     tmpfs:

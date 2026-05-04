@@ -19,6 +19,17 @@ and project state. Press `Ctrl+g`, then `b`, to show or hide key hints; press
 every five seconds by default; set `AIBOX_STATUS_INTERVAL` in
 `[container.environment]` to adjust the refresh interval.
 
+Configure the status presentation in `aibox.toml`:
+
+```toml
+[customization.zellij_status]
+mode = "native" # native | shell | hidden
+```
+
+`native` is the default two-row WASM plugin. `shell` keeps the older
+`zellij:status-bar` plus `aibox-status --watch` fallback. `hidden` omits
+aibox-managed status rows from generated layouts.
+
 ## Available Layouts
 
 ### dev (default)

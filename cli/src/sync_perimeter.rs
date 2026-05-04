@@ -583,6 +583,7 @@ mod tests {
         assert!(within(".gemini/settings.json"));
         assert!(within(".cursor/mcp.json"));
         assert!(within(".codex/config.toml"));
+        assert!(within(".codex/hooks.json"));
         assert!(within(".continue/mcpServers/processkit-x.json"));
     }
 

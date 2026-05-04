@@ -185,7 +185,8 @@ fn generate_docker_compose(
 
     // Build list of AI harness strings for template
     let ai_providers: Vec<String> = config.ai.harnesses.iter().map(|h| h.to_string()).collect();
-    let codex_sandbox_seccomp = config.ai.harnesses.contains(&AiHarness::Codex);
+    let codex_sandbox_seccomp = config.ai.harnesses.contains(&AiHarness::Codex)
+        && !compose_override_declares_codex_seccomp(dir);
 
     // Container home path
     let container_home = config.container_home();
@@ -502,39 +503,50 @@ fn generate_devcontainer_json(config: &AiboxConfig, dir: &Path) -> Result<bool> 
     )
 }
 
-fn should_start_processkit_gateway_daemon(config: &AiboxConfig, devcontainer_dir: &Path) -> bool {
-    match config.mcp.gateway.mode {
-        McpGatewayMode::DaemonProxy => true,
-        McpGatewayMode::Auto => {
-            let project_root = project_root_for_devcontainer_dir(devcontainer_dir);
-            processkit_gateway_script_is_installed(project_root, &config.processkit.version)
-        }
-        McpGatewayMode::Granular | McpGatewayMode::Stdio => false,
-    }
+fn compose_override_declares_codex_seccomp(dir: &Path) -> bool {
+    let Ok(content) = fs::read_to_string(dir.join("docker-compose.override.yml")) else {
+        return false;
+    };
+    let Ok(compose) = serde_yaml::from_str::<serde_yaml::Value>(&content) else {
+        return false;
+    };
+    compose_services(&compose).is_some_and(|services| {
+        services.values().any(|service| {
+            service
+                .get("security_opt")
+                .is_some_and(|value| yaml_value_contains_ci(value, "seccomp=unconfined"))
+        })
+    })
 }
 
-fn project_root_for_devcontainer_dir(dir: &Path) -> &Path {
-    if dir.file_name().and_then(|name| name.to_str()) == Some(".devcontainer") {
-        dir.parent().unwrap_or(dir)
-    } else {
-        dir
-    }
+fn compose_services(compose: &serde_yaml::Value) -> Option<&serde_yaml::Mapping> {
+    compose.get("services")?.as_mapping()
 }
 
-fn processkit_gateway_script_is_installed(project_root: &Path, version: &str) -> bool {
-    let live_script =
-        project_root.join("context/skills/processkit/processkit-gateway/mcp/server.py");
-    if live_script.is_file() {
-        return true;
+fn yaml_value_contains_ci(value: &serde_yaml::Value, needle: &str) -> bool {
+    if let Some(text) = value.as_str() {
+        return text.eq_ignore_ascii_case(needle);
     }
-
-    crate::processkit_vocab::mirror_skills_dir(project_root, version)
-        .map(|skills_dir| {
-            skills_dir
-                .join("processkit/processkit-gateway/mcp/server.py")
-                .is_file()
+    value
+        .as_sequence()
+        .map(|items| {
+            items.iter().any(|item| {
+                item.as_str()
+                    .map(|text| text.eq_ignore_ascii_case(needle))
+                    .unwrap_or(false)
+            })
         })
         .unwrap_or(false)
+}
+
+fn should_start_processkit_gateway_daemon(config: &AiboxConfig, _devcontainer_dir: &Path) -> bool {
+    match config.mcp.gateway.mode {
+        McpGatewayMode::DaemonProxy => true,
+        // processkit v0.25.4 made stdio-proxy own local daemon startup by
+        // default. In auto mode, prefer that self-starting proxy over a
+        // devcontainer postStartCommand that can race MCP client startup.
+        McpGatewayMode::Auto | McpGatewayMode::Granular | McpGatewayMode::Stdio => false,
+    }
 }
 
 #[cfg(test)]
@@ -662,6 +674,44 @@ mod tests {
         assert!(content.contains("seccomp=unconfined"));
         assert!(!content.contains("privileged: true"));
         assert!(!content.contains("cap_add:"));
+    }
+
+    #[test]
+    fn compose_omits_duplicate_seccomp_when_override_already_declares_it() {
+        let dir = tempfile::tempdir().unwrap();
+        let mut config = make_config(&[], false);
+        config.ai.harnesses = vec![crate::config::AiHarness::Codex];
+        fs::write(
+            dir.path().join("docker-compose.override.yml"),
+            "services:\n  test-ctr:\n    security_opt:\n      - seccomp=unconfined\n",
+        )
+        .unwrap();
+        generate_docker_compose(&config, dir.path(), &test_env()).unwrap();
+
+        let content = fs::read_to_string(dir.path().join("docker-compose.yml")).unwrap();
+        assert!(
+            !content.contains("seccomp=unconfined"),
+            "generated compose must not duplicate a user override seccomp fallback:\n{content}"
+        );
+    }
+
+    #[test]
+    fn compose_keeps_seccomp_fallback_when_override_only_mentions_it_in_comments() {
+        let dir = tempfile::tempdir().unwrap();
+        let mut config = make_config(&[], false);
+        config.ai.harnesses = vec![crate::config::AiHarness::Codex];
+        fs::write(
+            dir.path().join("docker-compose.override.yml"),
+            "services:\n  test-ctr:\n    # security_opt:\n    #   - seccomp=unconfined\n",
+        )
+        .unwrap();
+        generate_docker_compose(&config, dir.path(), &test_env()).unwrap();
+
+        let content = fs::read_to_string(dir.path().join("docker-compose.yml")).unwrap();
+        assert!(
+            content.contains("seccomp=unconfined"),
+            "commented override text must not suppress the generated seccomp fallback:\n{content}"
+        );
     }
 
     #[test]
@@ -929,7 +979,7 @@ mod tests {
     }
 
     #[test]
-    fn devcontainer_json_auto_starts_processkit_gateway_daemon_when_installed() {
+    fn devcontainer_json_auto_uses_proxy_owned_gateway_startup_when_installed() {
         let dir = tempfile::tempdir().unwrap();
         let version = crate::processkit_vocab::PROCESSKIT_DEFAULT_VERSION;
         let gateway_dir = dir
@@ -947,10 +997,10 @@ mod tests {
         config.mcp.gateway.mode = crate::config::McpGatewayMode::Auto;
         generate_devcontainer_json(&config, dir.path()).unwrap();
         let content = fs::read_to_string(dir.path().join("devcontainer.json")).unwrap();
-        assert!(content.contains("postStartCommand"));
-        assert!(content.contains("processkit-gateway/mcp/server.py"));
-        assert!(content.contains("streamable-http"));
-        assert!(content.contains("UV_CACHE_DIR=/tmp/aibox/uv-cache"));
+        assert!(
+            !content.contains("processkit-gateway/mcp/server.py"),
+            "auto mode must rely on processkit v0.25.4 stdio-proxy daemon startup, not devcontainer postStartCommand:\n{content}"
+        );
     }
 
     #[test]

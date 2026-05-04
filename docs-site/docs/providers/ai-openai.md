@@ -38,13 +38,13 @@ Key files:
 - `.aibox-home/.codex/rules/` — home-directory Codex rules and local state
 - `.aibox-home/.codex/sessions/` — Codex session history
 
-Separately, aibox also generates a project-local `.codex/config.toml` for MCP server registration.
+Separately, aibox also generates project-local `.codex/config.toml` MCP server registration and `.codex/hooks.json` processkit hook configuration.
 
 ## MCP Integration
 
-Codex has a native MCP client. aibox generates `.codex/config.toml` automatically on `aibox apply`, merging processkit MCP entries, team servers from `aibox.toml [mcp]`, and personal servers from `.aibox-local.toml [mcp]`. With processkit v0.25.0 and `[mcp.gateway].mode = "auto"`, Codex uses a `processkit-gateway` stdio proxy backed by the localhost gateway daemon instead of one Python process per skill.
+Codex has a native MCP client. aibox generates `.codex/config.toml` automatically on `aibox apply`, merging processkit MCP entries, team servers from `aibox.toml [mcp]`, and personal servers from `.aibox-local.toml [mcp]`. With processkit v0.25.4 and `[mcp.gateway].mode = "auto"`, Codex uses a self-starting `processkit-gateway` stdio proxy instead of one Python process per skill.
 
-`.codex/config.toml` is **gitignored** — it is regenerated on every `aibox apply` and must not be committed.
+`.codex/config.toml` and `.codex/hooks.json` are **gitignored** — they are regenerated on every `aibox apply` and must not be committed.
 
 To add MCP servers:
 

@@ -1150,6 +1150,13 @@ fn serialize_config_with_comments(config: &AiboxConfig) -> String {
         "# Default zellij layout. Options: dev | focus | cowork | cowork-swap | browse | ai\n",
     );
     out.push_str(&format!("layout = \"{}\"\n", config.customization.layout));
+    out.push('\n');
+    out.push_str("# Zellij status presentation. Options: native | shell | hidden\n");
+    out.push_str("[customization.zellij_status]\n");
+    out.push_str(&format!(
+        "mode = \"{}\"\n",
+        config.customization.zellij_status.mode
+    ));
 
     // [audio] section
     out.push('\n');
@@ -1338,6 +1345,7 @@ pub fn cmd_init(config_path: &Option<String>, params: InitParams) -> Result<()> 
             mode: ThemeMode::Auto,
             prompt: params.prompt.unwrap_or_default(),
             layout: crate::config::ConfigLayout::default(),
+            zellij_status: crate::config::ZellijStatusSection::default(),
         },
         agents: crate::config::AgentsSection::default(),
         audio: AudioSection::default(),
@@ -1782,7 +1790,7 @@ pub fn cmd_sync(
                     prior_state,
                 } => {
                     output::warn(&format!(
-                        "Reinstalling processkit {}@{}: {} (prior state: {})",
+                        "Repairing processkit template mirror for {}@{}: {}. No manual action is required; aibox will reinstall the pinned processkit files now. Previous integrity state: {}",
                         config.processkit.source, config.processkit.version, reason, prior_state
                     ));
                     run_install(&cwd, &config);

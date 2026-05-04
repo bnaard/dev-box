@@ -24,9 +24,9 @@ predictable:
 
 ### processkit Gateway Follow-Through
 
-Validate the processkit v0.25.0 gateway defaults in downstream projects and
-tune daemon-proxy guidance once more host/container runtime combinations have
-been exercised.
+Validate the processkit v0.25.4 self-starting gateway defaults in downstream
+projects and tune daemon-proxy guidance once more host/container runtime
+combinations have been exercised.
 
 ### Runtime Diagnostics
 

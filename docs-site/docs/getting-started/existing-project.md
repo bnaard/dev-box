@@ -40,7 +40,7 @@ packages = ["managed"]
 
 [processkit]
 source  = "https://github.com/projectious-work/processkit.git"
-version = "v0.25.0"
+version = "v0.25.4"
 
 [ai]
 providers = ["claude"]
@@ -51,7 +51,7 @@ enabled = false
 
 :::tip Pin processkit before apply
 
-Set `[processkit].version` to a real tag (e.g. `v0.25.0`) before the first
+Set `[processkit].version` to a real tag (e.g. `v0.25.4`) before the first
 `aibox apply`. The default sentinel `unset` skips processkit content
 installation entirely — you will get devcontainer files but no skills,
 processes, or `AGENTS.md`.

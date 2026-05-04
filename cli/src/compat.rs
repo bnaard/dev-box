@@ -235,6 +235,11 @@ pub static COMPAT_TABLE: &[CompatEntry] = &[
         processkit_version: "v0.25.3",
         note: "Patch release: integrates processkit v0.25.3 model-spec/model-profile migrations and makes the Codex seccomp=unconfined bubblewrap fallback part of generated docker-compose.yml for downstream projects.",
     },
+    CompatEntry {
+        aibox_version: "0.23.4",
+        processkit_version: "v0.25.4",
+        note: "Patch release: integrates processkit v0.25.4 gateway stdio-proxy daemon startup fixes, wires Codex pre_tool_use hook generation for processkit compliance gating, adds [customization.zellij_status] presentation control, and repairs stale managed Zellij status layouts during runtime sync.",
+    },
 ];
 
 /// Find the minimum compatible processkit version for the given aibox version.

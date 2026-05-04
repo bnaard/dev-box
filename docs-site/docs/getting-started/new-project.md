@@ -58,7 +58,7 @@ my-app/
     ├── state-machines/         # state machine definitions
     └── templates/
         └── processkit/
-            └── v0.25.0/        # Immutable upstream snapshot, used by `aibox apply` for three-way diffs
+            └── v0.25.4/        # Immutable upstream snapshot, used by `aibox apply` for three-way diffs
 ```
 
 :::tip .aibox-local.toml — secrets and per-developer overrides
@@ -85,7 +85,7 @@ pins it in `aibox.toml`. Use `--processkit-version` to pin a specific tag
 non-interactively:
 
 ```bash
-aibox init my-app --processkit-version v0.25.0
+aibox init my-app --processkit-version v0.25.4
 ```
 
 :::
@@ -118,7 +118,7 @@ packages = ["managed"]
 
 [processkit]
 source  = "https://github.com/projectious-work/processkit.git"
-version = "v0.25.0"
+version = "v0.25.4"
 
 # Addons install tool sets into the container.
 # Run `aibox get addon` to see all available addons.

@@ -198,7 +198,12 @@ main() {
     tools/cloud-aws.yaml
     tools/cloud-gcp.yaml
     tools/cloud-azure.yaml
+    tools/audio-voice.yaml
+    tools/data-preview.yaml
+    tools/git-ui.yaml
+    tools/preview-archive.yaml
     tools/preview-enhanced.yaml
+    tools/yazi-omp.yaml
     docs/docs-mkdocs.yaml
     docs/docs-zensical.yaml
     docs/docs-docusaurus.yaml
@@ -224,7 +229,7 @@ main() {
   done
 
   if [[ "${failed}" -eq 0 ]]; then
-    ok "Installed 25 addon definitions"
+    ok "Installed 32 addon definitions"
   else
     warn "Installed with ${failed} addon download failures — re-run to retry"
   fi

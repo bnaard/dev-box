@@ -71,10 +71,11 @@ Key fields:
 An `oom_kill_count` above zero is strong evidence that a missing agent or
 terminated tool was killed by the operating system rather than by the CLI.
 
-With processkit v0.25.0, `[mcp.gateway].mode = "auto"` starts one localhost
-processkit gateway daemon and points MCP-capable harnesses at a stdio proxy for
-that daemon. Use `granular` only when a harness needs the older
-one-server-per-skill layout.
+With processkit v0.25.4, `[mcp.gateway].mode = "auto"` registers a
+self-starting `processkit-gateway` stdio proxy for MCP-capable harnesses. The
+proxy starts the local daemon on demand when no listener exists, so generated
+devcontainer startup no longer has to supervise the gateway in the default mode.
+Use `granular` only when a harness needs the older one-server-per-skill layout.
 
 ## Resource Thresholds
 

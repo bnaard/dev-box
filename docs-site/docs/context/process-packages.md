@@ -51,7 +51,7 @@ context/
 ├── state-machines/                      # state machine definitions
 └── templates/
     └── processkit/
-        └── v0.25.0/
+        └── v0.25.4/
             ├── context/
             │   ├── skills/
             │   └── schemas/
@@ -60,7 +60,7 @@ context/
             └── AGENTS.md
 ```
 
-The version path (`v0.25.0` above) is whatever `[processkit].version` is pinned
+The version path (`v0.25.4` above) is whatever `[processkit].version` is pinned
 to in `aibox.toml`.
 
 ## Changing Packages

@@ -40,7 +40,6 @@
       "onAutoForward": "ignore"
     }
   },
-  "postStartCommand": "if ! pgrep -f 'processkit-gateway/mcp/server.py.*streamable-http' >/dev/null 2>&1; then mkdir -p /tmp/aibox/uv-cache; (cd /workspace && UV_CACHE_DIR=/tmp/aibox/uv-cache PROCESSKIT_MCP_MODE=gateway nohup uv run context/skills/processkit/processkit-gateway/mcp/server.py serve --transport streamable-http --host 127.0.0.1 --port 8765 >/tmp/aibox/processkit-gateway.log 2>&1 &); fi",
   "remoteUser": "aibox",
   "service": "aibox",
   "workspaceFolder": "/workspace"

@@ -4,7 +4,7 @@ use std::fs;
 use std::os::unix::fs::PermissionsExt;
 use std::path::Path;
 
-use crate::config::AiboxConfig;
+use crate::config::{AiboxConfig, ZellijStatusMode};
 use crate::output;
 
 /// Default vimrc content (embedded fallback).
@@ -344,8 +344,9 @@ fn git_tab_kdl(include_lazygit: bool) -> &'static str {
     }
 }
 
-fn zellij_status_template_kdl() -> &'static str {
-    r#"    default_tab_template {
+fn zellij_status_template_kdl(mode: &ZellijStatusMode) -> String {
+    match mode {
+        ZellijStatusMode::Native => r#"    default_tab_template {
         children
         pane size=1 borderless=true {
             plugin location="file:/usr/local/share/aibox/zellij/aibox-status.wasm" {
@@ -358,48 +359,72 @@ fn zellij_status_template_kdl() -> &'static str {
             }
         }
     }"#
+        .to_string(),
+        ZellijStatusMode::Shell => r#"    default_tab_template {
+        children
+        pane size=1 borderless=true {
+            plugin location="zellij:status-bar"
+        }
+        pane size=1 borderless=true {
+            command "bash"
+            args "-lc" "if [ -x \"$HOME/.local/bin/aibox-status\" ]; then exec \"$HOME/.local/bin/aibox-status\" --watch; else exec aibox-status --watch; fi"
+        }
+    }"#
+        .to_string(),
+        ZellijStatusMode::Hidden => zellij_status_hidden_template_kdl(mode),
+    }
 }
 
-const ZELLIJ_STATUS_VISIBLE_LAYOUT: &str = r#"layout {
-    default_tab_template {
+fn zellij_status_hidden_template_kdl(mode: &ZellijStatusMode) -> String {
+    match mode {
+        ZellijStatusMode::Native => r#"    default_tab_template {
         children
         pane size=1 borderless=true {
             plugin location="file:/usr/local/share/aibox/zellij/aibox-status.wasm" {
                 role "keybar"
             }
         }
-        pane size=1 borderless=true {
-            plugin location="file:/usr/local/share/aibox/zellij/aibox-status.wasm" {
-                role "status"
-            }
-        }
-    }
-    tab
-}
-"#;
-
-const ZELLIJ_STATUS_HIDDEN_LAYOUT: &str = r#"layout {
-    default_tab_template {
+    }"#
+        .to_string(),
+        ZellijStatusMode::Shell => r#"    default_tab_template {
         children
         pane size=1 borderless=true {
-            plugin location="file:/usr/local/share/aibox/zellij/aibox-status.wasm" {
-                role "keybar"
-            }
+            plugin location="zellij:status-bar"
         }
+    }"#
+        .to_string(),
+        ZellijStatusMode::Hidden => r#"    default_tab_template {
+        children
     }
-    tab
+"#
+        .to_string(),
+    }
 }
-"#;
+
+fn zellij_status_visible_layout(mode: &ZellijStatusMode) -> String {
+    format!(
+        "layout {{\n{}\n    tab\n}}\n",
+        zellij_status_template_kdl(mode)
+    )
+}
+
+fn zellij_status_hidden_layout(mode: &ZellijStatusMode) -> String {
+    format!(
+        "layout {{\n{}\n    tab\n}}\n",
+        zellij_status_hidden_template_kdl(mode)
+    )
+}
 
 /// Generate the zellij dev layout dynamically based on configured AI providers.
 #[cfg(test)]
 fn generate_dev_layout(providers: &[crate::config::AiProvider]) -> String {
-    generate_dev_layout_with_options(providers, true)
+    generate_dev_layout_with_options(providers, true, &ZellijStatusMode::Native)
 }
 
 fn generate_dev_layout_with_options(
     providers: &[crate::config::AiProvider],
     include_lazygit: bool,
+    status_mode: &ZellijStatusMode,
 ) -> String {
     let ai_tabs = ai_tabs_kdl(providers);
     let ai_section = if ai_tabs.is_empty() {
@@ -408,7 +433,7 @@ fn generate_dev_layout_with_options(
         format!("\n{}", ai_tabs)
     };
     let git_section = git_tab_kdl(include_lazygit);
-    let status_template = zellij_status_template_kdl();
+    let status_template = zellij_status_template_kdl(status_mode);
 
     format!(
         r##"layout {{
@@ -441,12 +466,13 @@ fn generate_dev_layout_with_options(
 /// Generate the zellij focus layout dynamically based on configured AI providers.
 #[cfg(test)]
 fn generate_focus_layout(providers: &[crate::config::AiProvider]) -> String {
-    generate_focus_layout_with_options(providers, true)
+    generate_focus_layout_with_options(providers, true, &ZellijStatusMode::Native)
 }
 
 fn generate_focus_layout_with_options(
     providers: &[crate::config::AiProvider],
     include_lazygit: bool,
+    status_mode: &ZellijStatusMode,
 ) -> String {
     let ai_tabs = ai_tabs_kdl(providers);
     let ai_section = if ai_tabs.is_empty() {
@@ -455,7 +481,7 @@ fn generate_focus_layout_with_options(
         format!("\n{}", ai_tabs)
     };
     let git_section = git_tab_kdl(include_lazygit);
-    let status_template = zellij_status_template_kdl();
+    let status_template = zellij_status_template_kdl(status_mode);
 
     format!(
         r##"layout {{
@@ -490,12 +516,13 @@ fn generate_focus_layout_with_options(
 /// Generate the zellij cowork layout dynamically based on configured AI providers.
 #[cfg(test)]
 fn generate_cowork_layout(providers: &[crate::config::AiProvider]) -> String {
-    generate_cowork_layout_with_options(providers, true)
+    generate_cowork_layout_with_options(providers, true, &ZellijStatusMode::Native)
 }
 
 fn generate_cowork_layout_with_options(
     providers: &[crate::config::AiProvider],
     include_lazygit: bool,
+    status_mode: &ZellijStatusMode,
 ) -> String {
     let ai_pane = ai_pane_kdl(providers);
     let ai_extra_tabs = ai_extra_tabs_kdl(providers);
@@ -505,7 +532,7 @@ fn generate_cowork_layout_with_options(
         format!("\n{}", ai_extra_tabs)
     };
     let git_section = git_tab_kdl(include_lazygit);
-    let status_template = zellij_status_template_kdl();
+    let status_template = zellij_status_template_kdl(status_mode);
 
     if ai_pane.is_empty() {
         // No AI providers — full-width editor layout
@@ -536,7 +563,7 @@ fn generate_cowork_layout_with_options(
     }
 }
 "##
-        .replace("{status_template}", status_template)
+        .replace("{status_template}", &status_template)
         .replace("{git_section}", git_section);
     }
 
@@ -603,12 +630,13 @@ fn generate_cowork_layout_with_options(
 /// moves focus right.
 #[cfg(test)]
 fn generate_cowork_swap_layout(providers: &[crate::config::AiProvider]) -> String {
-    generate_cowork_swap_layout_with_options(providers, true)
+    generate_cowork_swap_layout_with_options(providers, true, &ZellijStatusMode::Native)
 }
 
 fn generate_cowork_swap_layout_with_options(
     providers: &[crate::config::AiProvider],
     include_lazygit: bool,
+    status_mode: &ZellijStatusMode,
 ) -> String {
     let ai_pane = ai_pane_kdl(providers);
     let ai_extra_tabs = ai_extra_tabs_kdl(providers);
@@ -618,7 +646,7 @@ fn generate_cowork_swap_layout_with_options(
         format!("\n{}", ai_extra_tabs)
     };
     let git_section = git_tab_kdl(include_lazygit);
-    let status_template = zellij_status_template_kdl();
+    let status_template = zellij_status_template_kdl(status_mode);
 
     if ai_pane.is_empty() {
         // No AI providers — fall back to a simple yazi-left + vim-right shape
@@ -648,7 +676,7 @@ fn generate_cowork_swap_layout_with_options(
     }
 }
 "##
-        .replace("{status_template}", status_template)
+        .replace("{status_template}", &status_template)
         .replace("{git_section}", git_section);
     }
 
@@ -700,12 +728,13 @@ fn generate_cowork_swap_layout_with_options(
 /// usual).
 #[cfg(test)]
 fn generate_ai_layout(providers: &[crate::config::AiProvider]) -> String {
-    generate_ai_layout_with_options(providers, true)
+    generate_ai_layout_with_options(providers, true, &ZellijStatusMode::Native)
 }
 
 fn generate_ai_layout_with_options(
     providers: &[crate::config::AiProvider],
     include_lazygit: bool,
+    status_mode: &ZellijStatusMode,
 ) -> String {
     let ai_pane = ai_pane_kdl(providers);
     let ai_extra_tabs = ai_extra_tabs_kdl(providers);
@@ -715,7 +744,7 @@ fn generate_ai_layout_with_options(
         format!("\n{}", ai_extra_tabs)
     };
     let git_section = git_tab_kdl(include_lazygit);
-    let status_template = zellij_status_template_kdl();
+    let status_template = zellij_status_template_kdl(status_mode);
 
     if ai_pane.is_empty() {
         return r##"layout {
@@ -745,7 +774,7 @@ fn generate_ai_layout_with_options(
     }
 }
 "##
-        .replace("{status_template}", status_template)
+        .replace("{status_template}", &status_template)
         .replace("{git_section}", git_section);
     }
 
@@ -796,12 +825,13 @@ fn generate_ai_layout_with_options(
 /// When no AI providers are configured, the browse tab is fullscreen yazi.
 #[cfg(test)]
 fn generate_browse_layout(providers: &[crate::config::AiProvider]) -> String {
-    generate_browse_layout_with_options(providers, true)
+    generate_browse_layout_with_options(providers, true, &ZellijStatusMode::Native)
 }
 
 fn generate_browse_layout_with_options(
     providers: &[crate::config::AiProvider],
     include_lazygit: bool,
+    status_mode: &ZellijStatusMode,
 ) -> String {
     let ai_pane = ai_pane_kdl(providers);
     let ai_extra_tabs = ai_extra_tabs_kdl(providers);
@@ -811,7 +841,7 @@ fn generate_browse_layout_with_options(
         format!("\n{}", ai_extra_tabs)
     };
     let git_section = git_tab_kdl(include_lazygit);
-    let status_template = zellij_status_template_kdl();
+    let status_template = zellij_status_template_kdl(status_mode);
 
     if ai_pane.is_empty() {
         return r##"layout {
@@ -841,7 +871,7 @@ fn generate_browse_layout_with_options(
     }
 }
 "##
-        .replace("{status_template}", status_template)
+        .replace("{status_template}", &status_template)
         .replace("{git_section}", git_section);
     }
 
@@ -1539,6 +1569,7 @@ pub fn managed_runtime_files(config: &AiboxConfig) -> Vec<(std::path::PathBuf, S
     let theme = &config.customization.resolved_theme();
     let providers = &config.ai.harnesses;
     let include_lazygit = include_lazygit_tab(config);
+    let status_mode = &config.customization.zellij_status.mode;
     let mut files = vec![
         (
             std::path::PathBuf::from(".vim/vimrc"),
@@ -1565,35 +1596,35 @@ pub fn managed_runtime_files(config: &AiboxConfig) -> Vec<(std::path::PathBuf, S
         ),
         (
             std::path::PathBuf::from(".config/zellij/layouts/dev.kdl"),
-            generate_dev_layout_with_options(providers, include_lazygit),
+            generate_dev_layout_with_options(providers, include_lazygit, status_mode),
         ),
         (
             std::path::PathBuf::from(".config/zellij/layouts/focus.kdl"),
-            generate_focus_layout_with_options(providers, include_lazygit),
+            generate_focus_layout_with_options(providers, include_lazygit, status_mode),
         ),
         (
             std::path::PathBuf::from(".config/zellij/layouts/cowork.kdl"),
-            generate_cowork_layout_with_options(providers, include_lazygit),
+            generate_cowork_layout_with_options(providers, include_lazygit, status_mode),
         ),
         (
             std::path::PathBuf::from(".config/zellij/layouts/browse.kdl"),
-            generate_browse_layout_with_options(providers, include_lazygit),
+            generate_browse_layout_with_options(providers, include_lazygit, status_mode),
         ),
         (
             std::path::PathBuf::from(".config/zellij/layouts/ai.kdl"),
-            generate_ai_layout_with_options(providers, include_lazygit),
+            generate_ai_layout_with_options(providers, include_lazygit, status_mode),
         ),
         (
             std::path::PathBuf::from(".config/zellij/layouts/cowork-swap.kdl"),
-            generate_cowork_swap_layout_with_options(providers, include_lazygit),
+            generate_cowork_swap_layout_with_options(providers, include_lazygit, status_mode),
         ),
         (
             std::path::PathBuf::from(".config/zellij/layouts/aibox-status-visible.kdl"),
-            ZELLIJ_STATUS_VISIBLE_LAYOUT.to_string(),
+            zellij_status_visible_layout(status_mode),
         ),
         (
             std::path::PathBuf::from(".config/zellij/layouts/aibox-status-hidden.kdl"),
-            ZELLIJ_STATUS_HIDDEN_LAYOUT.to_string(),
+            zellij_status_hidden_layout(status_mode),
         ),
         (
             std::path::PathBuf::from(".config/yazi/yazi.toml"),
@@ -1867,6 +1898,7 @@ pub fn sync_theme_files(config: &AiboxConfig) -> Result<Vec<String>> {
     let theme = &config.customization.resolved_theme();
     let providers = &config.ai.harnesses;
     let include_lazygit = include_lazygit_tab(config);
+    let status_mode = &config.customization.zellij_status.mode;
     let mut updated = Vec::new();
 
     // vimrc — colorscheme and background
@@ -1911,7 +1943,7 @@ pub fn sync_theme_files(config: &AiboxConfig) -> Result<Vec<String>> {
             .join("zellij")
             .join("layouts")
             .join("dev.kdl"),
-        &generate_dev_layout_with_options(providers, include_lazygit),
+        &generate_dev_layout_with_options(providers, include_lazygit, status_mode),
     )? {
         updated.push(".config/zellij/layouts/dev.kdl".to_string());
     }
@@ -1921,7 +1953,7 @@ pub fn sync_theme_files(config: &AiboxConfig) -> Result<Vec<String>> {
             .join("zellij")
             .join("layouts")
             .join("focus.kdl"),
-        &generate_focus_layout_with_options(providers, include_lazygit),
+        &generate_focus_layout_with_options(providers, include_lazygit, status_mode),
     )? {
         updated.push(".config/zellij/layouts/focus.kdl".to_string());
     }
@@ -1931,7 +1963,7 @@ pub fn sync_theme_files(config: &AiboxConfig) -> Result<Vec<String>> {
             .join("zellij")
             .join("layouts")
             .join("cowork.kdl"),
-        &generate_cowork_layout_with_options(providers, include_lazygit),
+        &generate_cowork_layout_with_options(providers, include_lazygit, status_mode),
     )? {
         updated.push(".config/zellij/layouts/cowork.kdl".to_string());
     }
@@ -1941,7 +1973,7 @@ pub fn sync_theme_files(config: &AiboxConfig) -> Result<Vec<String>> {
             .join("zellij")
             .join("layouts")
             .join("browse.kdl"),
-        &generate_browse_layout_with_options(providers, include_lazygit),
+        &generate_browse_layout_with_options(providers, include_lazygit, status_mode),
     )? {
         updated.push(".config/zellij/layouts/browse.kdl".to_string());
     }
@@ -1951,7 +1983,7 @@ pub fn sync_theme_files(config: &AiboxConfig) -> Result<Vec<String>> {
             .join("zellij")
             .join("layouts")
             .join("ai.kdl"),
-        &generate_ai_layout_with_options(providers, include_lazygit),
+        &generate_ai_layout_with_options(providers, include_lazygit, status_mode),
     )? {
         updated.push(".config/zellij/layouts/ai.kdl".to_string());
     }
@@ -1961,7 +1993,7 @@ pub fn sync_theme_files(config: &AiboxConfig) -> Result<Vec<String>> {
             .join("zellij")
             .join("layouts")
             .join("cowork-swap.kdl"),
-        &generate_cowork_swap_layout_with_options(providers, include_lazygit),
+        &generate_cowork_swap_layout_with_options(providers, include_lazygit, status_mode),
     )? {
         updated.push(".config/zellij/layouts/cowork-swap.kdl".to_string());
     }
@@ -1971,7 +2003,7 @@ pub fn sync_theme_files(config: &AiboxConfig) -> Result<Vec<String>> {
             .join("zellij")
             .join("layouts")
             .join("aibox-status-visible.kdl"),
-        ZELLIJ_STATUS_VISIBLE_LAYOUT,
+        &zellij_status_visible_layout(status_mode),
     )? {
         updated.push(".config/zellij/layouts/aibox-status-visible.kdl".to_string());
     }
@@ -1981,7 +2013,7 @@ pub fn sync_theme_files(config: &AiboxConfig) -> Result<Vec<String>> {
             .join("zellij")
             .join("layouts")
             .join("aibox-status-hidden.kdl"),
-        ZELLIJ_STATUS_HIDDEN_LAYOUT,
+        &zellij_status_hidden_layout(status_mode),
     )? {
         updated.push(".config/zellij/layouts/aibox-status-hidden.kdl".to_string());
     }
@@ -3209,6 +3241,23 @@ mod tests {
             ),
             "shell tab should start suspended"
         );
+    }
+
+    #[test]
+    fn zellij_status_mode_shell_uses_legacy_fallback() {
+        let layout = generate_dev_layout_with_options(&[], true, &ZellijStatusMode::Shell);
+        assert!(layout.contains("plugin location=\"zellij:status-bar\""));
+        assert!(layout.contains("aibox-status"));
+        assert!(!layout.contains("aibox-status.wasm"));
+    }
+
+    #[test]
+    fn zellij_status_mode_hidden_omits_status_rows() {
+        let layout = generate_dev_layout_with_options(&[], true, &ZellijStatusMode::Hidden);
+        assert!(layout.contains("default_tab_template"));
+        assert!(!layout.contains("zellij:status-bar"));
+        assert!(!layout.contains("aibox-status"));
+        assert!(!layout.contains("role \"status\""));
     }
 
     #[test]

@@ -1,0 +1,14 @@
+{
+  "mcpServers": {
+    "processkit-gateway": {
+      "command": "uv",
+      "args": [
+        "run",
+        "context/skills/processkit/processkit-gateway/mcp/server.py"
+      ],
+      "env": {
+        "PROCESSKIT_MCP_MODE": "gateway"
+      }
+    }
+  }
+}

@@ -783,6 +783,49 @@ fn default_layout() -> ConfigLayout {
     ConfigLayout::default()
 }
 
+/// Zellij runtime status presentation.
+#[derive(Debug, Clone, Default, Serialize, Deserialize, PartialEq, clap::ValueEnum)]
+#[serde(rename_all = "kebab-case")]
+#[clap(rename_all = "kebab-case")]
+pub enum ZellijStatusMode {
+    /// Native two-row WASM plugin: keybar plus runtime status.
+    #[default]
+    Native,
+    /// Legacy shell fallback: built-in Zellij status bar plus `aibox-status --watch`.
+    Shell,
+    /// Hide aibox-provided status rows from generated layouts.
+    Hidden,
+}
+
+impl std::fmt::Display for ZellijStatusMode {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            ZellijStatusMode::Native => write!(f, "native"),
+            ZellijStatusMode::Shell => write!(f, "shell"),
+            ZellijStatusMode::Hidden => write!(f, "hidden"),
+        }
+    }
+}
+
+fn default_zellij_status_mode() -> ZellijStatusMode {
+    ZellijStatusMode::default()
+}
+
+/// [customization.zellij_status] section — Zellij status/keybar presentation.
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+pub struct ZellijStatusSection {
+    #[serde(default = "default_zellij_status_mode")]
+    pub mode: ZellijStatusMode,
+}
+
+impl Default for ZellijStatusSection {
+    fn default() -> Self {
+        Self {
+            mode: default_zellij_status_mode(),
+        }
+    }
+}
+
 /// [customization] section — color theme, shell prompt, and zellij layout.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct CustomizationSection {
@@ -794,6 +837,8 @@ pub struct CustomizationSection {
     pub prompt: StarshipPreset,
     #[serde(default = "default_layout")]
     pub layout: ConfigLayout,
+    #[serde(default)]
+    pub zellij_status: ZellijStatusSection,
 }
 
 impl CustomizationSection {
@@ -820,6 +865,7 @@ impl Default for CustomizationSection {
             mode: default_theme_mode(),
             prompt: default_prompt(),
             layout: default_layout(),
+            zellij_status: ZellijStatusSection::default(),
         }
     }
 }
@@ -1728,6 +1774,9 @@ theme = "gruvbox-dark"
 mode = "auto"
 prompt = "default"
 
+[appearance.zellij_status]
+mode = "shell"
+
 [audio]
 enabled = false
 
@@ -1843,6 +1892,10 @@ name = "my-project"
         assert_eq!(config.customization.theme, Theme::GruvboxDark);
         assert_eq!(config.customization.mode, ThemeMode::Auto);
         assert_eq!(config.customization.prompt, StarshipPreset::Default);
+        assert_eq!(
+            config.customization.zellij_status.mode,
+            ZellijStatusMode::Shell
+        );
 
         // [audio]
         assert!(!config.audio.enabled);
@@ -1995,6 +2048,29 @@ prompt = "minimal"
         assert_eq!(config.customization.theme, Theme::Dracula);
         assert_eq!(config.customization.mode, ThemeMode::Dark);
         assert_eq!(config.customization.prompt, StarshipPreset::Minimal);
+        assert_eq!(
+            config.customization.zellij_status.mode,
+            ZellijStatusMode::Native
+        );
+    }
+
+    #[test]
+    fn customization_zellij_status_mode_parses() {
+        let toml = r#"
+[aibox]
+version = "0.9.0"
+
+[container]
+name = "my-project"
+
+[customization.zellij_status]
+mode = "hidden"
+"#;
+        let config = parse_toml(toml).unwrap();
+        assert_eq!(
+            config.customization.zellij_status.mode,
+            ZellijStatusMode::Hidden
+        );
     }
 
     #[test]

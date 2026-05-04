@@ -333,6 +333,7 @@ pub(crate) fn update_gitignore(addons: &AddonsSection) -> Result<()> {
     content.push_str(".cursor/mcp.json\n");
     content.push_str(".gemini/settings.json\n");
     content.push_str(".codex/config.toml\n");
+    content.push_str(".codex/hooks.json\n");
     content.push_str(".continue/mcpServers/\n\n");
 
     // Privacy tier (DEC-030): any directory named `private` anywhere
@@ -493,6 +494,7 @@ fn ensure_aibox_entries(gitignore_path: &Path) -> Result<()> {
         ".cursor/mcp.json",
         ".gemini/settings.json",
         ".codex/config.toml",
+        ".codex/hooks.json",
         ".continue/mcpServers/",
     ];
 
@@ -605,6 +607,7 @@ pub fn check_gitignore_entries() -> Vec<String> {
         (".cursor/mcp.json", "generated Cursor MCP config"),
         (".gemini/settings.json", "generated Gemini MCP config"),
         (".codex/config.toml", "generated Codex MCP config"),
+        (".codex/hooks.json", "generated Codex hook config"),
         (
             ".continue/mcpServers/",
             "generated Continue MCP server directory",
@@ -965,7 +968,7 @@ mod tests {
         in_temp_dir(|| {
             fs::write(
                 ".gitignore",
-                ".devcontainer/Dockerfile\n.devcontainer/docker-compose.yml\n.devcontainer/devcontainer.json\n.aibox-home/\n.aibox-local.toml\n.aibox-local.env\n.mcp.json\n.cursor/mcp.json\n.gemini/settings.json\n.codex/config.toml\n.continue/mcpServers/\n",
+                ".devcontainer/Dockerfile\n.devcontainer/docker-compose.yml\n.devcontainer/devcontainer.json\n.aibox-home/\n.aibox-local.toml\n.aibox-local.env\n.mcp.json\n.cursor/mcp.json\n.gemini/settings.json\n.codex/config.toml\n.codex/hooks.json\n.continue/mcpServers/\n",
             )
             .unwrap();
 

@@ -16,13 +16,13 @@
 //! | Harness     | Hook config file             | Hooks wired                          |
 //! |-------------|------------------------------|--------------------------------------|
 //! | Claude Code | `.claude/settings.json`      | SessionStart, UserPromptSubmit, PreToolUse |
-//! | Codex CLI   | `.codex/hooks.json`          | session_start, user_prompt_submit (PreToolUse skipped — upstream limitation) |
+//! | Codex CLI   | `.codex/hooks.json`          | session_start, user_prompt_submit, pre_tool_use |
 //! | Cursor      | `.cursor/hooks.json`         | preToolUse, beforeMCPExecution (sessionStart skipped — Cursor bug) |
 //!
 //! The merge is non-destructive: only the processkit-managed hook entries
-//! (identified by a `_processkit_managed` marker key for Claude/Codex, or
-//! a command path marker for Cursor) are added/replaced; any user-added
-//! entries in other positions are preserved.
+//! (identified by a `_processkit_managed` marker key for Claude, fixed event
+//! keys for Codex, or a command path marker for Cursor) are added/replaced;
+//! any user-added entries in other positions are preserved.
 //!
 //! ## Cursor known limitations (as of 2026-04-17)
 //!
@@ -78,9 +78,9 @@ fn gitroot_cmd(rel: &str) -> String {
     format!(r#"python3 "$(git rev-parse --show-toplevel)"/{rel}"#)
 }
 
-/// Marker key injected into each processkit-managed hook entry so we can
-/// identify and replace/remove them on subsequent runs without touching
-/// user-added entries. Used for Claude Code and Codex.
+/// Marker key injected into each processkit-managed Claude hook entry so we
+/// can identify and replace/remove it on subsequent runs without touching
+/// user-added entries.
 const MANAGED_MARKER: &str = "_processkit_managed";
 
 /// Substring present in any processkit-managed Cursor hook entry's `command`
@@ -121,12 +121,6 @@ pub fn regenerate_hook_configs(config: &AiboxConfig, project_root: &Path) -> Res
             "Wrote processkit hook entries to {}",
             path.display()
         ));
-        output::info(
-            "Note: Codex CLI PreToolUse currently only intercepts `Bash` calls \
-             (upstream openai/codex#16732). `check_route_task_called.py` is NOT \
-             wired for PreToolUse on Codex — the script will be activated once \
-             Codex lifts that restriction.",
-        );
     }
 
     // 3. Cursor → .cursor/hooks.json
@@ -270,16 +264,16 @@ fn write_claude_settings_hooks(path: &Path) -> Result<()> {
 /// Merge processkit hook entries into `.codex/hooks.json`.
 ///
 /// Codex uses a flat `{"hooks": {"session_start": {"command": "..."},
-/// "user_prompt_submit": {"command": "..."}}}` shape (single command per
-/// event, not an array).  Because the value is a single object rather
+/// "user_prompt_submit": {"command": "..."}, "pre_tool_use": {"command": "..."}}}`
+/// shape (single command per event, not an array).  Because the value is a single object rather
 /// than an array, there is no meaningful way to preserve multiple
 /// "user" entries alongside managed ones — but in practice users rarely
 /// set Codex hooks manually, so we overwrite the managed event keys and
 /// leave any other top-level keys untouched.
 ///
-/// The managed event keys (`session_start`, `user_prompt_submit`) are
-/// always overwritten with the processkit values; unknown sibling keys
-/// inside `hooks` are preserved.
+/// The managed event keys (`session_start`, `user_prompt_submit`,
+/// `pre_tool_use`) are always overwritten with the processkit values;
+/// unknown sibling keys inside `hooks` are preserved.
 fn write_codex_hooks_json(path: &Path) -> Result<()> {
     // Load or create the top-level object.
     let mut top: serde_json::Map<String, serde_json::Value> = if path.is_file() {
@@ -305,6 +299,7 @@ fn write_codex_hooks_json(path: &Path) -> Result<()> {
     // Overwrite the managed event keys. Codex has no documented project-root
     // env var, so we anchor to the git repo root at hook invocation time.
     let compliance_cmd = gitroot_cmd(COMPLIANCE_SCRIPT_REL);
+    let route_guard_cmd = gitroot_cmd(ROUTE_GUARD_SCRIPT_REL);
     hooks.insert(
         "session_start".to_string(),
         serde_json::json!({"command": compliance_cmd}),
@@ -312,6 +307,10 @@ fn write_codex_hooks_json(path: &Path) -> Result<()> {
     hooks.insert(
         "user_prompt_submit".to_string(),
         serde_json::json!({"command": compliance_cmd}),
+    );
+    hooks.insert(
+        "pre_tool_use".to_string(),
+        serde_json::json!({"command": route_guard_cmd}),
     );
 
     if let Some(parent) = path.parent() {
@@ -621,10 +620,54 @@ version = "unset"
         );
         let ups = hooks["user_prompt_submit"]["command"].as_str().unwrap();
         assert!(ups.contains("emit_compliance_contract.py"));
-        // PreToolUse must NOT be wired for Codex.
+
+        let ptu = hooks["pre_tool_use"]["command"].as_str().unwrap();
+        assert!(ptu.contains("check_route_task_called.py"));
         assert!(
-            hooks.get("pre_tool_use").is_none(),
-            "PreToolUse must not be wired for Codex"
+            ptu.contains("git rev-parse"),
+            "Codex pre_tool_use command must anchor to git repo root so it works when \
+             Codex CLI is launched from a subdirectory (got: {ptu})"
+        );
+    }
+
+    #[test]
+    fn test_codex_hooks_preserve_unmanaged_siblings_and_are_idempotent() {
+        let dir = TempDir::new().unwrap();
+        let path = dir.path().join(".codex/hooks.json");
+        fs::create_dir_all(path.parent().unwrap()).unwrap();
+        fs::write(
+            &path,
+            r#"{
+  "custom": true,
+  "hooks": {
+    "post_tool_use": {
+      "command": "echo user"
+    },
+    "pre_tool_use": {
+      "command": "echo stale-managed-value"
+    }
+  }
+}"#,
+        )
+        .unwrap();
+
+        write_codex_hooks_json(&path).expect("first write should succeed");
+        let first = fs::read_to_string(&path).unwrap();
+        write_codex_hooks_json(&path).expect("second write should succeed");
+        let second = fs::read_to_string(&path).unwrap();
+        assert_eq!(first, second, "write_codex_hooks_json must be idempotent");
+
+        let parsed: serde_json::Value = serde_json::from_str(&second).unwrap();
+        assert_eq!(parsed["custom"].as_bool(), Some(true));
+        assert_eq!(
+            parsed["hooks"]["post_tool_use"]["command"].as_str(),
+            Some("echo user")
+        );
+        assert!(
+            parsed["hooks"]["pre_tool_use"]["command"]
+                .as_str()
+                .unwrap()
+                .contains("check_route_task_called.py")
         );
     }
 
