@@ -47,8 +47,8 @@ RUN install -d /usr/local/bin && \
 # rustup can freely download components (no directory or permission issues).
 RUN rustup target add x86_64-unknown-linux-gnu
 
-FROM ghcr.io/projectious-work/aibox:base-debian-v0.23.3 AS aibox
-LABEL aibox.version="0.23.3"
+FROM ghcr.io/projectious-work/aibox:base-debian-v0.23.4 AS aibox
+LABEL aibox.version="0.23.4"
 LABEL aibox.profile="human-dev"
 
 # Addon: ai-claude
@@ -77,7 +77,11 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     && rm -rf /var/lib/apt/lists/*
 # Older base images shipped lazygit in the base layer. Treat explicit
 # lazygit disablement as an absence contract, not just "do not install".
-RUN apt-get purge -y --auto-remove lazygit && rm -rf /var/lib/apt/lists/*
+RUN if dpkg-query -W -f='${Status}' lazygit 2>/dev/null | grep -q 'install ok installed'; then \
+      apt-get purge -y --auto-remove lazygit; \
+    fi && \
+    rm -f /usr/local/bin/lazygit /usr/bin/lazygit && \
+    rm -rf /var/lib/apt/lists/*
 
 
 # Addon: node (runtime)
@@ -172,4 +176,4 @@ EOF
 
 # Record image version inside container for runtime checks
 USER root
-RUN echo "0.23.3" > /etc/aibox-version
+RUN echo "0.23.4" > /etc/aibox-version

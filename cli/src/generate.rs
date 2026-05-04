@@ -640,6 +640,41 @@ mod tests {
     }
 
     #[test]
+    fn dockerfile_lazygit_disablement_cleanup_does_not_purge_unknown_package() {
+        let dir = tempfile::tempdir().unwrap();
+        let mut config = make_config(&["git-ui"], false);
+        config
+            .addons
+            .addons
+            .get_mut("git-ui")
+            .unwrap()
+            .tools
+            .insert(
+                "lazygit".to_string(),
+                crate::config::ToolEntry {
+                    version: None,
+                    enabled: Some(false),
+                },
+            );
+
+        generate_dockerfile(&config, dir.path(), &test_env()).unwrap();
+
+        let content = fs::read_to_string(dir.path().join("Dockerfile")).unwrap();
+        assert!(
+            content.contains("dpkg-query -W -f='${Status}' lazygit"),
+            "disabled lazygit cleanup should only purge when dpkg reports an installed package:\n{content}"
+        );
+        assert!(
+            content.contains("rm -f /usr/local/bin/lazygit /usr/bin/lazygit"),
+            "disabled lazygit cleanup should remove binaries copied into older base images:\n{content}"
+        );
+        assert!(
+            !content.contains("RUN apt-get purge -y --auto-remove lazygit"),
+            "disabled lazygit cleanup must not fail when lazygit is not an apt package:\n{content}"
+        );
+    }
+
+    #[test]
     fn compose_contains_container_name_and_hostname() {
         let dir = tempfile::tempdir().unwrap();
         let config = make_config(&[], false);

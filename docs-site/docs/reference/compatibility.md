@@ -12,6 +12,7 @@ below shows the minimum compatible processkit version for each aibox release.
 
 | aibox version | Min. processkit | Notes |
 |--------------|-----------------|-------|
+| 0.23.5 | v0.25.4 | generated Dockerfile lazygit disablement cleanup no longer aborts when lazygit is absent as an apt package, while still removing inherited lazygit binaries |
 | 0.23.4 | v0.25.4 | processkit v0.25.4 gateway stdio-proxy daemon startup fixes, Codex pre_tool_use hook generation, Zellij status presentation control, and stale status-layout runtime sync repair |
 | 0.23.3 | v0.25.3 | processkit v0.25.3 model-spec/model-profile migrations and Codex seccomp fallback for bubblewrap |
 | 0.23.2 | v0.25.1 | processkit v0.25.1 model-recommender lifecycle metadata, task suitability classes, task-class-aware routing, and refreshed model roster |

@@ -33,5 +33,9 @@ runtime: |
   {% if not tools.lazygit.enabled %}
   # Older base images shipped lazygit in the base layer. Treat explicit
   # lazygit disablement as an absence contract, not just "do not install".
-  RUN apt-get purge -y --auto-remove lazygit && rm -rf /var/lib/apt/lists/*
+  RUN if dpkg-query -W -f='${Status}' lazygit 2>/dev/null | grep -q 'install ok installed'; then \
+        apt-get purge -y --auto-remove lazygit; \
+      fi && \
+      rm -f /usr/local/bin/lazygit /usr/bin/lazygit && \
+      rm -rf /var/lib/apt/lists/*
   {% endif %}
