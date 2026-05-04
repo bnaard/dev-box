@@ -65,7 +65,7 @@ read_only = true
 
 Personal MCP servers appended to the generated MCP client configs on `aibox apply`. Use this section for servers you want only on your machine — internal tools, local scripts, or servers that require credentials you don't want to share.
 
-Each server entry is an `[[mcp.servers]]` table with the same fields as `[mcp]` in `aibox.toml`:
+Each server entry is an `[[mcp.servers]]` table with the same fields as committed `[[ai.mcp.servers]]` in `aibox.toml`:
 
 ```toml
 [[mcp.servers]]
@@ -86,7 +86,7 @@ args    = ["-y", "@stripe/mcp"]
 STRIPE_SECRET_KEY = "sk_test_..."
 ```
 
-`aibox apply` merges personal servers with team servers (from `aibox.toml [mcp]`) and built-in processkit servers, then regenerates all MCP client config files. The generated files are **gitignored** — they are never committed to version control, so personal keys and server definitions stay private.
+`aibox apply` merges personal servers with team servers (from `aibox.toml [ai.mcp]`) and built-in processkit servers, then regenerates all MCP client config files. The generated files are **gitignored** — they are never committed to version control, so personal keys and server definitions stay private.
 
 ## Merge behavior
 
@@ -131,13 +131,13 @@ args    = ["-y", "@acme/internal-mcp-server"]
 
 Everything outside of `[container.environment]`, `[[container.extra_volumes]]`, and `[[mcp.servers]]` is ignored. The following must remain in `aibox.toml`:
 
-- Container name, hostname, user, `post_create_command`, `keepalive`
+- Container name, hostname, user, lifecycle, image, and generated paths
 - `[addons]` — addon configuration
 - `[processkit]` — content source and version pin
-- `[skills]` — include/exclude lists
-- `[ai]` — provider list
+- `[skills]` — enabled/disabled lists
+- `[ai]` — harnesses, agents, and MCP
 - `[customization]` — theme, mode, prompt, layout
-- `[audio]` — audio bridging
+- `[container.audio]` — audio bridging
 
 :::tip Applying changes
 After editing `.aibox-local.toml`, run `aibox apply` (or `aibox apply --no-build` for a config-only refresh) to regenerate `.devcontainer/` files with the updated environment and volumes, and MCP client config files with the updated server list.

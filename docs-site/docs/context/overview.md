@@ -103,7 +103,7 @@ Two pieces track the version:
 [aibox]
 version = "0.23.0"
 
-[context]
+[processkit.context]
 schema_version = "1.0.0"
 
 [processkit]
@@ -115,14 +115,11 @@ runs the relevant migrations. See [Migration](migration.md) for details.
 
 ## Relationship to aibox.toml
 
-The `[context]` section in `aibox.toml` declares which processkit packages are
-in scope. The `[processkit]` section pins which version of the content
+The `[processkit.context]` section in `aibox.toml` declares context schema
+metadata. The `[processkit]` section pins which version of the content
 repository this project consumes:
 
 ```toml
-[context]
-packages = ["managed"]
-
 [processkit]
 source  = "https://github.com/projectious-work/processkit.git"
 version = "v0.25.4"

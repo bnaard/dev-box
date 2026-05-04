@@ -509,7 +509,7 @@ fn init_profile_headless_runner_is_written_to_config() {
 
     let content = std::fs::read_to_string(dir.path().join("aibox.toml")).unwrap();
     assert!(
-        content.contains("profile = \"headless-runner\""),
+        content.contains("profile      = \"headless-runner\""),
         "generated aibox.toml should preserve the requested profile:\n{content}"
     );
 }

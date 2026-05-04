@@ -38,7 +38,7 @@ GitHub CLI (`gh`) and lazygit are provided by the optional
 `[addons.git-ui.tools]` to `aibox.toml` when a project needs those tools.
 
 Audio tools are provided by the `audio-voice` addon, which is selected
-automatically when `[audio] enabled = true`. File-preview and archive helpers
+automatically when `[container.audio] enabled = true`. File-preview and archive helpers
 such as `chafa`, `timg`, `poppler-utils`, `mupdf-tools`, `entr`, `ouch`, and
 `resvg` are provided by the optional `preview-archive` addon.
 
@@ -151,7 +151,7 @@ AI coding agents (Claude, Aider, Gemini, Mistral) are **not** pre-installed in t
 
 ## Audio Support
 
-Set `[audio] enabled = true` to enable audio bridging. aibox then selects the
+Set `[container.audio] enabled = true` to enable audio bridging. aibox then selects the
 `audio-voice` addon and configures the PulseAudio environment for the
 container. See [Audio Support](audio.md) for setup details.
 

@@ -123,14 +123,14 @@ fn default_kind() -> String {
 /// Root metadata for the workspace object.
 #[derive(Debug, Clone, Default, Serialize, Deserialize)]
 pub struct MetadataSection {
-    #[serde(default)]
+    #[serde(default, alias = "project_name")]
     pub name: String,
 }
 
 /// Published base image selector.
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 pub struct ImageSection {
-    #[serde(default = "default_image_version")]
+    #[serde(default = "default_image_version", alias = "release_version")]
     pub version: String,
     #[serde(default)]
     pub base: BaseImage,
@@ -150,6 +150,8 @@ impl Default for ImageSection {
 pub struct AiboxSection {
     #[serde(default = "default_config_schema")]
     pub config_schema: String,
+    #[serde(default, alias = "name")]
+    pub project_name: String,
     #[serde(default = "default_image_version")]
     pub version: String,
     #[serde(default)]
@@ -162,6 +164,7 @@ impl Default for AiboxSection {
     fn default() -> Self {
         Self {
             config_schema: default_config_schema(),
+            project_name: String::new(),
             version: default_image_version(),
             base: BaseImage::Debian,
             profile: AiboxProfile::HumanDev,
@@ -187,6 +190,10 @@ pub struct ContainerSection {
     /// Network keepalive — prevents OrbStack/VM NAT from dropping idle connections.
     #[serde(default)]
     pub keepalive: bool,
+    /// Lifecycle commands. New configs use `[container.lifecycle]`; legacy
+    /// root-level `post_create_command` and `keepalive` are migrated in.
+    #[serde(default)]
+    pub lifecycle: ContainerLifecycleSection,
     /// Extra environment variables injected into the container.
     /// Committed entries go in `aibox.toml`; secrets go in `.aibox-local.toml`.
     ///
@@ -210,6 +217,16 @@ pub struct ContainerSection {
     /// Runtime resource warning thresholds used by `aibox doctor`.
     #[serde(default)]
     pub resource_thresholds: ResourceThresholdsSection,
+    /// Published image selector. New configs use `[container.image]`; legacy
+    /// `[image]` and `[aibox].version/base` are migrated into this section.
+    #[serde(default)]
+    pub image: ImageSection,
+    /// Generated/input file paths used by the devcontainer generator.
+    #[serde(default)]
+    pub paths: ContainerPathsSection,
+    /// Audio bridge settings. Legacy top-level `[audio]` is migrated here.
+    #[serde(default)]
+    pub audio: AudioSection,
 }
 
 fn default_user() -> String {
@@ -218,6 +235,67 @@ fn default_user() -> String {
 
 fn default_hostname() -> String {
     "aibox".to_string()
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, Default, PartialEq, Eq)]
+pub struct ContainerLifecycleSection {
+    #[serde(default)]
+    pub post_create_command: Option<String>,
+    #[serde(default)]
+    pub keepalive: bool,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+pub struct ContainerPathsSection {
+    #[serde(default = "default_devcontainer_json_path")]
+    pub devcontainer_json: String,
+    #[serde(default = "default_docker_compose_path")]
+    pub docker_compose: String,
+    #[serde(default = "default_docker_compose_override_path")]
+    pub docker_compose_override: String,
+    #[serde(default = "default_dockerfile_path")]
+    pub dockerfile: String,
+    #[serde(default = "default_dockerfile_local_path")]
+    pub dockerfile_local: String,
+    #[serde(default = "default_local_env_path")]
+    pub local_env: String,
+}
+
+impl Default for ContainerPathsSection {
+    fn default() -> Self {
+        Self {
+            devcontainer_json: default_devcontainer_json_path(),
+            docker_compose: default_docker_compose_path(),
+            docker_compose_override: default_docker_compose_override_path(),
+            dockerfile: default_dockerfile_path(),
+            dockerfile_local: default_dockerfile_local_path(),
+            local_env: default_local_env_path(),
+        }
+    }
+}
+
+fn default_devcontainer_json_path() -> String {
+    ".devcontainer/devcontainer.json".to_string()
+}
+
+fn default_docker_compose_path() -> String {
+    ".devcontainer/docker-compose.yml".to_string()
+}
+
+fn default_docker_compose_override_path() -> String {
+    ".devcontainer/docker-compose.override.yml".to_string()
+}
+
+fn default_dockerfile_path() -> String {
+    ".devcontainer/Dockerfile".to_string()
+}
+
+fn default_dockerfile_local_path() -> String {
+    ".devcontainer/Dockerfile.local".to_string()
+}
+
+fn default_local_env_path() -> String {
+    ".aibox-local.env".to_string()
 }
 
 /// Runtime resource pressure warning thresholds.
@@ -268,7 +346,7 @@ fn default_oom_kill_warn() -> Option<u64> {
 // ---------------------------------------------------------------------------
 
 /// [context] section — context system versioning and process packages.
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
 pub struct ContextSection {
     #[serde(default = "default_schema_version")]
     pub schema_version: String,
@@ -281,7 +359,7 @@ fn default_schema_version() -> String {
 }
 
 fn default_context_packages() -> Vec<String> {
-    vec!["managed".to_string()]
+    vec!["product".to_string()]
 }
 
 impl Default for ContextSection {
@@ -548,6 +626,16 @@ pub struct AiSection {
     /// When present and `harnesses` is empty, auto-migrated to `harnesses`.
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub providers: Vec<AiHarness>,
+
+    /// Canonical AGENTS.md and provider-specific pointer behavior. New configs
+    /// write this as `[ai.agents]`; legacy top-level `[agents]` is migrated in.
+    #[serde(default)]
+    pub agents: AgentsSection,
+
+    /// MCP gateway, permissions, and team-shared servers. New configs write
+    /// this as `[ai.mcp]`; legacy top-level `[mcp]` is migrated in.
+    #[serde(default)]
+    pub mcp: McpSection,
 }
 
 impl AiSection {
@@ -577,6 +665,8 @@ impl Default for AiSection {
             harnesses: default_ai_harnesses(),
             model_providers: Vec::new(),
             providers: Vec::new(),
+            agents: AgentsSection::default(),
+            mcp: McpSection::default(),
         }
     }
 }
@@ -697,9 +787,9 @@ impl AddonsSection {
 /// [skills] section — include/exclude overrides for skill deployment.
 #[derive(Debug, Clone, Serialize, Deserialize, Default, PartialEq)]
 pub struct SkillsSection {
-    #[serde(default)]
+    #[serde(default, alias = "enabled")]
     pub include: Vec<String>,
-    #[serde(default)]
+    #[serde(default, alias = "disabled")]
     pub exclude: Vec<String>,
 }
 
@@ -963,6 +1053,10 @@ pub struct ProcessKitSection {
     /// that serve release assets at a different URL shape.
     #[serde(default)]
     pub release_asset_url_template: Option<String>,
+    /// Context schema metadata. New configs write `[processkit.context]`;
+    /// legacy top-level `[context]` is migrated in.
+    #[serde(default)]
+    pub context: ContextSection,
 }
 
 fn default_processkit_source() -> String {
@@ -1136,6 +1230,7 @@ impl Default for ProcessKitSection {
             src_path: default_processkit_src_path(),
             branch: None,
             release_asset_url_template: None,
+            context: ContextSection::default(),
         }
     }
 }
@@ -1202,7 +1297,7 @@ impl Default for AgentsSection {
 // ---------------------------------------------------------------------------
 
 /// [audio] section.
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
 pub struct AudioSection {
     #[serde(default)]
     pub enabled: bool,
@@ -1221,6 +1316,19 @@ impl Default for AudioSection {
             pulse_server: default_pulse_server(),
         }
     }
+}
+
+fn audio_section_is_explicit(audio: &AudioSection) -> bool {
+    audio != &AudioSection::default()
+}
+
+fn mcp_section_is_explicit(mcp: &McpSection) -> bool {
+    !mcp.servers.is_empty()
+        || mcp.gateway != McpGatewaySection::default()
+        || mcp.permissions.default_mode != "ask"
+        || !mcp.permissions.allow_patterns.is_empty()
+        || !mcp.permissions.deny_patterns.is_empty()
+        || !mcp.permissions.harness.is_empty()
 }
 
 // ---------------------------------------------------------------------------
@@ -1340,26 +1448,82 @@ impl AiboxConfig {
                  Please move 'packages' into the [context] section.",
             );
         }
+        self.sync_grouped_sections();
         self.sync_legacy_aibox_image_fields();
     }
 
-    /// Keep the new `[image]` section and legacy `[aibox].version/base`
-    /// fields in sync. New config files write image selection under `[image]`,
-    /// but generation still reads `config.aibox.*`; this bridge keeps older
-    /// and newer `aibox.toml` files behaviorally identical during migration.
-    fn sync_legacy_aibox_image_fields(&mut self) {
-        if self.image.version == default_image_version()
-            && self.aibox.version != default_image_version()
-            && !self.aibox.version.is_empty()
-        {
-            self.image.version = self.aibox.version.clone();
+    /// Keep the new grouped schema and legacy top-level sections in sync.
+    fn sync_grouped_sections(&mut self) {
+        if self.aibox.project_name.is_empty() {
+            self.aibox.project_name = if self.metadata.name.is_empty() {
+                self.container.name.clone()
+            } else {
+                self.metadata.name.clone()
+            };
+        }
+        self.metadata.name = self.aibox.project_name.clone();
+
+        if self.context != ContextSection::default() {
+            self.processkit.context = self.context.clone();
+        } else {
+            self.context = self.processkit.context.clone();
+        }
+        self.processkit.context = self.context.clone();
+
+        if self.agents != AgentsSection::default() {
+            self.ai.agents = self.agents.clone();
+        } else {
+            self.agents = self.ai.agents.clone();
+        }
+        self.ai.agents = self.agents.clone();
+
+        if mcp_section_is_explicit(&self.mcp) {
+            self.ai.mcp = self.mcp.clone();
+        } else {
+            self.mcp = self.ai.mcp.clone();
+        }
+        self.ai.mcp = self.mcp.clone();
+
+        if self.container.post_create_command.is_some() || self.container.keepalive {
+            self.container.lifecycle.post_create_command =
+                self.container.post_create_command.clone();
+            self.container.lifecycle.keepalive = self.container.keepalive;
+        } else {
+            self.container.post_create_command =
+                self.container.lifecycle.post_create_command.clone();
+            self.container.keepalive = self.container.lifecycle.keepalive;
         }
 
-        self.aibox.version = self.image.version.clone();
-        self.aibox.base = self.image.base.clone();
+        if audio_section_is_explicit(&self.audio) {
+            self.container.audio = self.audio.clone();
+        } else {
+            self.audio = self.container.audio.clone();
+        }
+        self.container.audio = self.audio.clone();
+    }
+
+    /// Keep the new `[container.image]` section plus legacy `[image]` and
+    /// `[aibox].version/base` fields in sync. Generation still reads
+    /// `config.aibox.*`; this bridge keeps old and new files behaviorally
+    /// identical during migration.
+    fn sync_legacy_aibox_image_fields(&mut self) {
+        if self.container.image == ImageSection::default() {
+            if self.image != ImageSection::default() {
+                self.container.image = self.image.clone();
+            } else if self.aibox.version != default_image_version()
+                || self.aibox.base != BaseImage::Debian
+            {
+                self.container.image.version = self.aibox.version.clone();
+                self.container.image.base = self.aibox.base.clone();
+            }
+        }
+
+        self.image = self.container.image.clone();
+        self.aibox.version = self.container.image.version.clone();
+        self.aibox.base = self.container.image.base.clone();
 
         if self.metadata.name.is_empty() {
-            self.metadata.name = self.container.name.clone();
+            self.metadata.name = self.aibox.project_name.clone();
         }
     }
 
@@ -1494,14 +1658,26 @@ impl AiboxConfig {
             &mut mismatches,
         );
 
-        check_child_table(root, "metadata", &["name"], &mut mismatches);
+        check_child_table(root, "metadata", &["name", "project_name"], &mut mismatches);
         check_child_table(
             root,
             "aibox",
-            &["config_schema", "version", "base", "profile"],
+            &[
+                "config_schema",
+                "project_name",
+                "name",
+                "version",
+                "base",
+                "profile",
+            ],
             &mut mismatches,
         );
-        check_child_table(root, "image", &["version", "base"], &mut mismatches);
+        check_child_table(
+            root,
+            "image",
+            &["version", "release_version", "base"],
+            &mut mismatches,
+        );
         check_child_table(
             root,
             "container",
@@ -1511,13 +1687,48 @@ impl AiboxConfig {
                 "user",
                 "post_create_command",
                 "keepalive",
+                "lifecycle",
                 "environment",
                 "extra_volumes",
                 "resource_thresholds",
+                "image",
+                "paths",
+                "audio",
             ],
             &mut mismatches,
         );
         if let Some(container) = table_child(root, "container") {
+            check_child_table(
+                container,
+                "lifecycle",
+                &["post_create_command", "keepalive"],
+                &mut mismatches,
+            );
+            check_child_table(
+                container,
+                "image",
+                &["version", "release_version", "base"],
+                &mut mismatches,
+            );
+            check_child_table(
+                container,
+                "paths",
+                &[
+                    "devcontainer_json",
+                    "docker_compose",
+                    "docker_compose_override",
+                    "dockerfile",
+                    "dockerfile_local",
+                    "local_env",
+                ],
+                &mut mismatches,
+            );
+            check_child_table(
+                container,
+                "audio",
+                &["enabled", "pulse_server"],
+                &mut mismatches,
+            );
             check_child_table(
                 container,
                 "resource_thresholds",
@@ -1541,10 +1752,24 @@ impl AiboxConfig {
         check_child_table(
             root,
             "ai",
-            &["harnesses", "model_providers", "providers"],
+            &["harnesses", "model_providers", "providers", "agents", "mcp"],
             &mut mismatches,
         );
-        check_child_table(root, "skills", &["include", "exclude"], &mut mismatches);
+        if let Some(ai) = table_child(root, "ai") {
+            check_child_table(
+                ai,
+                "agents",
+                &["canonical", "provider_mode"],
+                &mut mismatches,
+            );
+            check_mcp_table(ai, &mut mismatches);
+        }
+        check_child_table(
+            root,
+            "skills",
+            &["include", "exclude", "enabled", "disabled"],
+            &mut mismatches,
+        );
         check_child_table(
             root,
             "processkit",
@@ -1554,9 +1779,18 @@ impl AiboxConfig {
                 "src_path",
                 "branch",
                 "release_asset_url_template",
+                "context",
             ],
             &mut mismatches,
         );
+        if let Some(processkit) = table_child(root, "processkit") {
+            check_child_table(
+                processkit,
+                "context",
+                &["schema_version", "packages"],
+                &mut mismatches,
+            );
+        }
         check_child_table(
             root,
             "agents",
@@ -1709,7 +1943,44 @@ impl AiboxConfig {
 
         // Validate extra volumes path safety
         self.validate_extra_volumes()?;
+        self.validate_container_paths()?;
 
+        Ok(())
+    }
+
+    fn validate_container_paths(&self) -> Result<()> {
+        let paths = [
+            (
+                "container.paths.devcontainer_json",
+                &self.container.paths.devcontainer_json,
+            ),
+            (
+                "container.paths.docker_compose",
+                &self.container.paths.docker_compose,
+            ),
+            (
+                "container.paths.docker_compose_override",
+                &self.container.paths.docker_compose_override,
+            ),
+            (
+                "container.paths.dockerfile",
+                &self.container.paths.dockerfile,
+            ),
+            (
+                "container.paths.dockerfile_local",
+                &self.container.paths.dockerfile_local,
+            ),
+            ("container.paths.local_env", &self.container.paths.local_env),
+        ];
+        for (name, value) in paths {
+            if value.trim().is_empty() {
+                bail!("{name} must not be empty");
+            }
+            let path = std::path::Path::new(value);
+            if path.is_absolute() || value.contains("..") {
+                bail!("{name} must be a project-relative path without '..'");
+            }
+        }
         Ok(())
     }
 
@@ -2033,6 +2304,7 @@ pub fn test_config() -> AiboxConfig {
         },
         aibox: AiboxSection {
             config_schema: default_config_schema(),
+            project_name: "test-proj".to_string(),
             version: "0.9.0".to_string(),
             base: BaseImage::Debian,
             profile: AiboxProfile::HumanDev,
@@ -2047,9 +2319,16 @@ pub fn test_config() -> AiboxConfig {
             user: "root".to_string(),
             post_create_command: None,
             keepalive: false,
+            lifecycle: ContainerLifecycleSection::default(),
             environment: HashMap::new(),
             extra_volumes: vec![],
             resource_thresholds: ResourceThresholdsSection::default(),
+            image: ImageSection {
+                version: "0.9.0".to_string(),
+                base: BaseImage::Debian,
+            },
+            paths: ContainerPathsSection::default(),
+            audio: AudioSection::default(),
         },
         context: ContextSection::default(),
         ai: AiSection::default(),
@@ -2308,7 +2587,7 @@ name = "my-project"
         assert_eq!(config.container.hostname, "aibox");
         assert_eq!(config.context.schema_version, "1.0.0");
         assert_eq!(config.ai.harnesses, vec![AiProvider::Claude]);
-        assert_eq!(config.context.packages, vec!["managed"]);
+        assert_eq!(config.context.packages, vec!["product"]);
         assert!(config.addons.addons.is_empty());
         assert!(config.skills.include.is_empty());
         assert!(config.skills.exclude.is_empty());
@@ -2707,9 +2986,9 @@ rustfmt = {}
     // -- Context packages ---------------------------------------------------
 
     #[test]
-    fn context_packages_default_is_managed() {
+    fn context_packages_default_is_product() {
         let config = parse_toml(minimal_toml()).unwrap();
-        assert_eq!(config.context.packages, vec!["managed"]);
+        assert_eq!(config.context.packages, vec!["product"]);
     }
 
     #[test]

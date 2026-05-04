@@ -225,8 +225,8 @@ fn mcp_permissions_in_aibox_toml() {
     init_project(dir.path(), "mcp-perms");
     let toml = read_generated(dir.path(), "aibox.toml");
     assert!(
-        toml.contains("[mcp.permissions]"),
-        "aibox.toml should contain [mcp.permissions] block"
+        toml.contains("[ai.mcp.permissions]"),
+        "aibox.toml should contain [ai.mcp.permissions] block"
     );
 }
 

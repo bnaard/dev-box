@@ -26,26 +26,27 @@ If you prefer to write it by hand:
 
 ```toml
 [aibox]
-version = "0.23.0"
-base    = "debian"
+project_name = "my-existing-project"
 
 [container]
 name     = "my-existing-project"
 hostname = "my-existing-project"
 
-[context]
-schema_version = "1.0.0"
-# processkit packages: minimal, managed (default), software, research, product
-packages = ["managed"]
+[container.image]
+release_version = "latest"
+base = "debian"
 
 [processkit]
 source  = "https://github.com/projectious-work/processkit.git"
-version = "v0.25.4"
+version = "latest"
+
+[processkit.context]
+schema_version = "1.0.0"
 
 [ai]
-providers = ["claude"]
+harnesses = ["claude"]
 
-[audio]
+[container.audio]
 enabled = false
 ```
 
@@ -90,7 +91,7 @@ If your project already has a `.devcontainer/` directory with hand-written files
 
 ### Option B: Keep hand-written files
 
-If your devcontainer setup is heavily customized, you can still use aibox for context management and skip the container lifecycle commands. Just use `aibox.toml` for the `[aibox]` and `[context]` sections, and manage `.devcontainer/` yourself.
+If your devcontainer setup is heavily customized, you can still use aibox for context management and skip the container lifecycle commands. Just use `aibox.toml` for the `[aibox]` and `[processkit]` sections, and manage `.devcontainer/` yourself.
 
 ## Running Diagnostics
 

@@ -102,23 +102,24 @@ The scaffolded config file comes with commented documentation for every option:
 # Full documentation: https://projectious-work.github.io/aibox/docs/reference/configuration
 
 [aibox]
-version = "0.23.0"
-base    = "debian"
-profile = "human-dev"
+project_name = "my-app"
+profile      = "human-dev"
 
 [container]
 name     = "my-app"
 hostname = "my-app"
 # user = "aibox"  # Container user (default: aibox)
 
-[context]
-schema_version = "1.0.0"
-# processkit packages: minimal, managed (default), software, research, product
-packages = ["managed"]
+[container.image]
+release_version = "latest"
+base = "debian"
 
 [processkit]
 source  = "https://github.com/projectious-work/processkit.git"
-version = "v0.25.4"
+version = "latest"
+
+[processkit.context]
+schema_version = "1.0.0"
 
 # Addons install tool sets into the container.
 # Run `aibox get addon` to see all available addons.
@@ -129,7 +130,7 @@ version = "v0.25.4"
 # AI providers — controls which AI CLI tools are installed.
 # Options: claude, aider, gemini, mistral, openai, copilot, continue
 [ai]
-providers = ["claude"]
+harnesses = ["claude"]
 
 [customization]
 theme  = "gruvbox-dark"
@@ -139,7 +140,7 @@ layout = "dev"
 
 # Audio support for PulseAudio bridging (e.g., Claude Code voice).
 # Requires host-side PulseAudio setup: run `aibox apply audio`
-[audio]
+[container.audio]
 enabled = false
 # pulse_server = "tcp:host.docker.internal:4714"
 ```

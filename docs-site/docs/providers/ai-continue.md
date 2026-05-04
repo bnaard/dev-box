@@ -41,7 +41,7 @@ Continue's configuration is persisted in `.aibox-home/.continue/`, mounted at `/
 
 ## MCP Integration
 
-Continue has a native MCP client with a per-server file model. aibox generates files in `.continue/mcpServers/` (one file per server) automatically on `aibox apply`, merging processkit built-in servers, team servers from `aibox.toml [mcp]`, and personal servers from `.aibox-local.toml [mcp]`.
+Continue has a native MCP client with a per-server file model. aibox generates files in `.continue/mcpServers/` (one file per server) automatically on `aibox apply`, merging processkit built-in servers, team servers from `aibox.toml [ai.mcp]`, and personal servers from `.aibox-local.toml [mcp]`.
 
 `.continue/mcpServers/` is **gitignored** — it is regenerated on every `aibox apply` and must not be committed.
 

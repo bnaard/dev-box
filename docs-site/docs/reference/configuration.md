@@ -11,14 +11,27 @@ title: Configuration
 
 ```toml
 [aibox]
-version = "0.23.0"                    # aibox version used to generate this project
-base    = "debian"                    # Base image
-profile = "human-dev"                 # Usage profile: human-dev or headless-runner
+project_name = "my-app"               # Human-readable project name
+profile      = "human-dev"            # Usage profile: human-dev or headless-runner
 
 [container]
 name     = "my-app"                   # Container name
 hostname = "my-app"                   # Container hostname
 user     = "aibox"                    # Container user (default: aibox)
+
+[container.image]
+release_version = "latest"            # aibox image/CLI version, or "latest"
+base            = "debian"            # Base image flavor
+
+[container.paths]
+devcontainer_json       = ".devcontainer/devcontainer.json"
+docker_compose          = ".devcontainer/docker-compose.yml"
+docker_compose_override = ".devcontainer/docker-compose.override.yml"
+dockerfile              = ".devcontainer/Dockerfile"
+dockerfile_local        = ".devcontainer/Dockerfile.local"
+local_env               = ".aibox-local.env"
+
+[container.lifecycle]
 post_create_command = "npm install"   # Command to run after container creation
 keepalive = false                     # Network keepalive (default: false)
 
@@ -36,17 +49,16 @@ source    = "~/.config/gh"            # Host path (~ expanded)
 target    = "/home/aibox/.config/gh"  # Container path
 read_only = true
 
-[context]
-schema_version = "1.0.0"              # Context schema version (semver)
-# processkit packages: minimal, managed (default), software, research, product
-packages = ["managed"]
-
 [processkit]
 source   = "https://github.com/projectious-work/processkit.git"
-version  = "v0.25.4"                  # Pin a real tag; "unset" skips fetching
+version  = "latest"                   # "latest", "unset", or a real tag
 src_path = "src"
 # branch = "main"                     # Optional; tarball-first, branch as fallback
 # release_asset_url_template = "..."  # Optional, for non-GitHub hosts
+
+[processkit.context]
+schema_version = "1.0.0"              # Context schema version (semver)
+# packages = ["product"]              # Deprecated; product skill set is the default
 
 [addons.python.tools]                 # Addon: Python runtime
 python = { version = "3.13" }
@@ -62,17 +74,22 @@ gh      = {}
 lazygit = {}
 
 [ai]
-providers = ["claude", "aider"]       # AI providers to install
+harnesses = ["claude", "codex"]       # AI harness CLIs to install
+model_providers = ["anthropic"]       # Optional API-key/provider hints
 
-[mcp]
+[ai.agents]
+canonical     = "AGENTS.md"
+provider_mode = "pointer"             # pointer | full
+
+[ai.mcp]
 # Team-shared MCP servers merged into all generated MCP client configs
 # (see also [[mcp.servers]] in .aibox-local.toml for personal servers)
 
-[[mcp.servers]]
+[[ai.mcp.servers]]
 name    = "my-team-tool"              # Unique server name
 command = "npx"                       # Executable to run
 args    = ["-y", "@acme/team-server"] # Arguments
-# [mcp.servers.env]                   # Optional environment variables
+# [ai.mcp.servers.env]                # Optional environment variables
 # API_KEY = "..."
 
 [customization]
@@ -84,7 +101,7 @@ layout = "dev"                        # Zellij layout (6 options)
 [customization.zellij_status]
 mode = "shell"                        # shell | native | hidden
 
-[audio]
+[container.audio]
 enabled      = false                  # Enable audio bridging
 pulse_server = "tcp:host.docker.internal:4714"
 ```
@@ -97,8 +114,7 @@ Top-level project metadata.
 
 | Field | Type | Required | Default | Description |
 |-------|------|----------|---------|-------------|
-| `version` | String (semver) | Yes | -- | Project version |
-| `base` | String | No | `"debian"` | Base image: `debian` |
+| `project_name` | String | No | `container.name` | Human-readable project name |
 | `profile` | String | No | `"human-dev"` | Usage profile: `human-dev` or experimental `headless-runner` |
 
 `profile` is currently a compatibility signal for addon selection and doctor
@@ -191,38 +207,22 @@ Three sections are supported:
 
 - **`[container.environment]`** — merged on top of `aibox.toml`'s `[container.environment]`. Local values win on conflicts.
 - **`[[container.extra_volumes]]`** — appended after any volumes declared in `aibox.toml`.
-- **`[[mcp.servers]]`** — personal MCP servers appended to the team MCP servers from `aibox.toml [mcp]`. All sources are merged into each generated MCP client config file.
+- **`[[mcp.servers]]`** — personal MCP servers appended to the team MCP servers from `aibox.toml [ai.mcp]`. All sources are merged into each generated MCP client config file.
 
 All other configuration (container name, addons, processkit version, etc.) must remain in `aibox.toml`.
 
 See the dedicated [Local Config reference](./local-config.md) for a full example and merge-behavior details.
 
-### [context]
+### [processkit.context]
 
-Context-system metadata. Controls the schema version and the **declarative**
-processkit package selection — the list agents read to decide which subset of
-the installed processkit content is in scope for this project.
+Context-system metadata owned by the processkit content layer.
 
 | Field | Type | Required | Default | Description |
 |-------|------|----------|---------|-------------|
 | `schema_version` | String (semver) | No | `"1.0.0"` | Context schema version |
-| `packages` | Array of strings | No | `["managed"]` | processkit packages in scope for this project. |
+| `packages` | Array of strings | No | `["product"]` | Deprecated compatibility field. New projects install the full product skill set by default. |
 
-**Five processkit packages**, defined by upstream YAMLs in
-`packages/{minimal,managed,software,research,product}.yaml` and composed via
-`extends:`:
-
-| Package | Purpose |
-|---------|---------|
-| `minimal` | Bare-minimum skill set for scripts and experiments |
-| `managed` | Recommended default — backlog, decisions, standups, handover |
-| `software` | `managed` + code review, testing, debugging, refactoring, architecture |
-| `research` | `managed` + data science, documentation, research artefacts |
-| `product` | Everything — `software` + design, security, operations, product planning |
-
-> `packages` is **declarative metadata for agents** — it tells agents which
-> skills to *prefer*, but does not filter what gets installed. Use
-> `[skills].include` / `[skills].exclude` to control the installed skill set.
+Use `[skills].enabled` and `[skills].disabled` for explicit skill-level overrides.
 
 ### [addons]
 
@@ -331,24 +331,24 @@ version                    = "v1.2.0"
 release_asset_url_template = "https://gitea.acme.com/{org}/{name}/releases/download/{version}/{name}-{version}.tar.gz"
 ```
 
-### [mcp]
+### [ai.mcp]
 
 MCP server definitions and permission configuration. `aibox apply` merges servers from three sources and regenerates all MCP client config files:
 
-1. **Built-in processkit servers** — either the processkit gateway or granular per-skill servers, depending on `[mcp.gateway]`
-2. **`aibox.toml [mcp]`** — team-shared servers committed to version control
+1. **Built-in processkit servers** — either the processkit gateway or granular per-skill servers, depending on `[ai.mcp.gateway]`
+2. **`aibox.toml [ai.mcp]`** — team-shared servers committed to version control
 3. **`.aibox-local.toml [mcp]`** — personal servers, gitignored
 
 Generated files (`.mcp.json`, `.cursor/mcp.json`, `.gemini/settings.json`, `.codex/config.toml`, `.codex/hooks.json`, `.continue/mcpServers/`) are **gitignored**. They are always reproducible from the config sources above and must not be committed — doing so would embed personal server definitions or credentials from `.aibox-local.toml`.
 
-#### processkit Gateway: [mcp.gateway]
+#### processkit Gateway: [ai.mcp.gateway]
 
 processkit v0.25.4 ships `processkit-gateway`, whose stdio proxy can start
 the matching localhost daemon on demand. It can replace the older
 one-process-per-skill MCP topology with a single processkit MCP entry.
 
 ```toml
-[mcp.gateway]
+[ai.mcp.gateway]
 mode = "auto"          # auto | granular | stdio | daemon-proxy
 lazy_catalog = false
 host = "127.0.0.1"
@@ -366,7 +366,7 @@ path = "/mcp"
 The daemon-backed modes are localhost-only. Run `aibox apply` after changing
 this section so generated harness configs stay in sync.
 
-#### Server Definitions: [[mcp.servers]]
+#### Server Definitions: [[ai.mcp.servers]]
 
 Each `[[mcp.servers]]` entry has these fields:
 
@@ -380,15 +380,15 @@ Each `[[mcp.servers]]` entry has these fields:
 Example:
 
 ```toml
-[[mcp.servers]]
+[[ai.mcp.servers]]
 name    = "github"
 command = "npx"
 args    = ["-y", "@modelcontextprotocol/server-github"]
-[mcp.servers.env]
+[ai.mcp.servers.env]
 GITHUB_TOKEN = "ghp_..."
 ```
 
-#### Permission Configuration: [mcp.permissions]
+#### Permission Configuration: [ai.mcp.permissions]
 
 Controls which MCP servers harnesses are permitted to use, eliminating repetitive permission prompts. `aibox apply` expands glob patterns into concrete server names and regenerates harness-specific permission files for supported harnesses.
 
@@ -403,39 +403,39 @@ Controls which MCP servers harnesses are permitted to use, eliminating repetitiv
 **Per-harness overrides** (optional):
 
 ```toml
-[mcp.permissions.harness.claude-code]
+[ai.mcp.permissions.harness.claude-code]
 mode = "allow"              # Override global default if needed
 extra_patterns = []         # Add harness-specific patterns
 
-[mcp.permissions.harness.opencode]
+[ai.mcp.permissions.harness.opencode]
 mode = "allow"
 deny_patterns = []          # Restrict specific tools per harness
 
-[mcp.permissions.harness.codex]
+[ai.mcp.permissions.harness.codex]
 trust_level = "trusted"     # Codex uses project-level trust instead of per-tool lists
 ```
 
 **Example:**
 
 ```toml
-[mcp.permissions]
+[ai.mcp.permissions]
 default_mode    = "ask"
 allow_patterns  = ["mcp__processkit-*"]
 deny_patterns   = ["mcp__processkit-dangerous-admin"]  # Deny a specific pattern if needed
 
-[mcp.permissions.harness.claude-code]
+[ai.mcp.permissions.harness.claude-code]
 # Use default settings; Claude Code will auto-allow all processkit tools
 
-[mcp.permissions.harness.continue]
+[ai.mcp.permissions.harness.continue]
 # Continue defaults to "ask" for safety; override to "allow" to auto-approve
 mode = "allow"
 ```
 
 :::tip Personal MCP servers
-Servers that require personal credentials or are not relevant to all team members belong in `[[mcp.servers]]` in `.aibox-local.toml`, not here. See [Local Config](./local-config.md).
+Servers that require personal credentials or are not relevant to all team members belong in `[[mcp.servers]]` in `.aibox-local.toml`, not committed `[[ai.mcp.servers]]`. See [Local Config](./local-config.md).
 :::
 
-### [agents]
+### [ai.agents]
 
 Controls how `aibox init` scaffolds the canonical agent entry document
 (`AGENTS.md`) and the provider-specific entry files (`CLAUDE.md`, future
@@ -472,7 +472,7 @@ Visual and layout configuration. See [Themes](../customization/themes.md) and [L
 | `layout` | String | No | `"dev"` | Zellij layout: `dev`, `focus`, `cowork`, `cowork-swap`, `browse`, `ai` |
 | `zellij_status.mode` | String | No | `"shell"` | Zellij status presentation: `shell` uses Zellij's built-in status bar plus `aibox-status --watch`, `native` selects the experimental two-row WASM plugin, `hidden` omits aibox status rows |
 
-### [audio]
+### [container.audio]
 
 Audio bridging configuration.
 

@@ -104,7 +104,7 @@ struct RawServerEntry {
 
 /// Configuration for global MCP permission management across all harnesses.
 /// Parsed from the `[mcp]` section of aibox.toml.
-#[derive(Debug, Clone, Serialize, Deserialize, Default)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 #[allow(dead_code)]
 pub struct McpConfig {
     /// Default permission mode: "allow", "ask", or "deny".
@@ -128,13 +128,24 @@ pub struct McpConfig {
     pub harness: BTreeMap<String, HarnessOverride>,
 }
 
+impl Default for McpConfig {
+    fn default() -> Self {
+        Self {
+            default_mode: default_mode(),
+            allow_patterns: Vec::new(),
+            deny_patterns: Vec::new(),
+            harness: BTreeMap::new(),
+        }
+    }
+}
+
 #[allow(dead_code)]
 fn default_mode() -> String {
     "ask".to_string()
 }
 
 /// Per-harness override configuration.
-#[derive(Debug, Clone, Serialize, Deserialize, Default)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 #[allow(dead_code)]
 pub struct HarnessOverride {
     /// Whether this harness is enabled. Default: true.
@@ -152,6 +163,17 @@ pub struct HarnessOverride {
     /// Patterns to deny for this harness (override global allow).
     #[serde(default)]
     pub deny_patterns: Vec<String>,
+}
+
+impl Default for HarnessOverride {
+    fn default() -> Self {
+        Self {
+            enabled: true,
+            mode: None,
+            extra_patterns: Vec::new(),
+            deny_patterns: Vec::new(),
+        }
+    }
 }
 
 #[allow(dead_code)]

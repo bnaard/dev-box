@@ -71,7 +71,7 @@ Key fields:
 An `oom_kill_count` above zero is strong evidence that a missing agent or
 terminated tool was killed by the operating system rather than by the CLI.
 
-With processkit v0.25.4, `[mcp.gateway].mode = "auto"` registers a
+With processkit v0.25.4, `[ai.mcp.gateway].mode = "auto"` registers a
 self-starting `processkit-gateway` stdio proxy for MCP-capable harnesses. The
 proxy starts the local daemon on demand when no listener exists, so generated
 devcontainer startup no longer has to supervise the gateway in the default mode.

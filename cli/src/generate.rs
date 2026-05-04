@@ -2,7 +2,7 @@ use anyhow::{Context, Result};
 use minijinja::context;
 use std::collections::BTreeMap;
 use std::fs;
-use std::path::Path;
+use std::path::{Component, Path, PathBuf};
 
 use crate::config::{AiHarness, AiboxConfig, McpGatewayMode};
 use crate::output;
@@ -58,10 +58,64 @@ pub(crate) fn sanitize_compose_project_name(name: &str) -> String {
     }
 }
 
+fn project_path(path: &str) -> PathBuf {
+    PathBuf::from(path)
+}
+
+fn parent_dir(path: &Path) -> &Path {
+    path.parent()
+        .filter(|parent| !parent.as_os_str().is_empty())
+        .unwrap_or_else(|| Path::new("."))
+}
+
+fn normalized_relative_components(path: &Path) -> Vec<String> {
+    path.components()
+        .filter_map(|component| match component {
+            Component::Normal(value) => Some(value.to_string_lossy().into_owned()),
+            Component::CurDir => None,
+            _ => Some(component.as_os_str().to_string_lossy().into_owned()),
+        })
+        .collect()
+}
+
+fn relative_path(from_dir: &Path, target: &Path) -> String {
+    if target.is_absolute() {
+        return target.to_string_lossy().into_owned();
+    }
+    let from = normalized_relative_components(from_dir);
+    let to = normalized_relative_components(target);
+    let common = from
+        .iter()
+        .zip(to.iter())
+        .take_while(|(a, b)| a == b)
+        .count();
+    let mut result = Vec::new();
+    for _ in common..from.len() {
+        result.push("..".to_string());
+    }
+    result.extend(to.into_iter().skip(common));
+    if result.is_empty() {
+        ".".to_string()
+    } else {
+        result.join("/")
+    }
+}
+
 /// Generate all devcontainer files from the config.
 pub fn generate_all(config: &AiboxConfig) -> Result<()> {
-    let devcontainer_dir = Path::new(crate::config::DEVCONTAINER_DIR);
-    fs::create_dir_all(devcontainer_dir).context("Failed to create .devcontainer directory")?;
+    let dockerfile_path = project_path(&config.container.paths.dockerfile);
+    let docker_compose_path = project_path(&config.container.paths.docker_compose);
+    let devcontainer_json_path = project_path(&config.container.paths.devcontainer_json);
+    for path in [
+        &dockerfile_path,
+        &docker_compose_path,
+        &devcontainer_json_path,
+    ] {
+        if let Some(parent) = path.parent() {
+            fs::create_dir_all(parent)
+                .with_context(|| format!("Failed to create {}", parent.display()))?;
+        }
+    }
 
     output::info("Generating devcontainer files...");
 
@@ -72,6 +126,7 @@ pub fn generate_all(config: &AiboxConfig) -> Result<()> {
             Ok(v) => {
                 effective_config.aibox.version = format!("{}.{}.{}", v.major, v.minor, v.patch);
                 effective_config.image.version = effective_config.aibox.version.clone();
+                effective_config.container.image.version = effective_config.aibox.version.clone();
             }
             Err(e) => {
                 crate::output::warn(&format!(
@@ -86,16 +141,16 @@ pub fn generate_all(config: &AiboxConfig) -> Result<()> {
     // Create template environment once and reuse for all template-based files
     let env = create_template_env();
 
-    if generate_dockerfile(&effective_config, devcontainer_dir, &env)? {
-        output::ok("Generated .devcontainer/Dockerfile");
+    if generate_dockerfile(&effective_config, &dockerfile_path, &env)? {
+        output::ok(&format!("Generated {}", dockerfile_path.display()));
     }
 
-    if generate_docker_compose(&effective_config, devcontainer_dir, &env)? {
-        output::ok("Generated .devcontainer/docker-compose.yml");
+    if generate_docker_compose(&effective_config, &docker_compose_path, &env)? {
+        output::ok(&format!("Generated {}", docker_compose_path.display()));
     }
 
-    if generate_devcontainer_json(&effective_config, devcontainer_dir)? {
-        output::ok("Generated .devcontainer/devcontainer.json");
+    if generate_devcontainer_json(&effective_config, &devcontainer_json_path)? {
+        output::ok(&format!("Generated {}", devcontainer_json_path.display()));
     }
 
     Ok(())
@@ -104,15 +159,24 @@ pub fn generate_all(config: &AiboxConfig) -> Result<()> {
 /// Generate the Dockerfile. Returns true if file was written.
 fn generate_dockerfile(
     config: &AiboxConfig,
-    dir: &Path,
+    path_or_dir: &Path,
     env: &minijinja::Environment<'static>,
 ) -> Result<bool> {
     let header = HEADER_TEMPLATE.to_string();
+    let dockerfile_path = if path_or_dir.is_dir() {
+        path_or_dir.join("Dockerfile")
+    } else {
+        path_or_dir.to_path_buf()
+    };
+    let dockerfile_local_path = if path_or_dir.is_dir() {
+        path_or_dir.join("Dockerfile.local")
+    } else {
+        project_path(&config.container.paths.dockerfile_local)
+    };
 
     // Read Dockerfile.local if it exists
     let local_content = {
-        let local_dockerfile = dir.join("Dockerfile.local");
-        match fs::read_to_string(&local_dockerfile) {
+        match fs::read_to_string(&dockerfile_local_path) {
             Ok(raw) => {
                 let trimmed = raw.trim_end_matches('\n');
                 if trimmed.trim().is_empty() {
@@ -149,23 +213,31 @@ fn generate_dockerfile(
         })
         .context("Failed to render Dockerfile template")?;
 
-    write_if_changed(&dir.join("Dockerfile"), &content)
+    write_if_changed(&dockerfile_path, &content)
 }
 
 /// Generate docker-compose.yml. Returns true if file was written.
 fn generate_docker_compose(
     config: &AiboxConfig,
-    dir: &Path,
+    path_or_dir: &Path,
     env: &minijinja::Environment<'static>,
 ) -> Result<bool> {
     let header = HEADER_TEMPLATE.to_string();
     let workspace_dir = config.workspace_dir();
+    let legacy_dir_arg = path_or_dir.is_dir();
+    let compose_path = if path_or_dir.is_dir() {
+        path_or_dir.join("docker-compose.yml")
+    } else {
+        path_or_dir.to_path_buf()
+    };
+    let compose_dir = parent_dir(&compose_path);
 
-    // Compose file lives in .devcontainer/, so paths must be relative to that dir.
-    // host_root_dir() returns ".root" (relative to project root), so we prepend "../".
+    // Compose paths must be relative to the compose file's directory.
     let host_root = config.host_root_dir();
-    let host_root_str = if host_root.is_relative() {
+    let host_root_str = if legacy_dir_arg && host_root.is_relative() {
         format!("../{}", host_root.to_string_lossy())
+    } else if host_root.is_relative() {
+        relative_path(compose_dir, &host_root)
     } else {
         host_root.to_string_lossy().into_owned()
     };
@@ -176,18 +248,25 @@ fn generate_docker_compose(
     env_vars.insert("LANG".to_string(), "en_US.UTF-8".to_string());
     env_vars.insert("COLORTERM".to_string(), "truecolor".to_string());
     env_vars.insert("TERM".to_string(), "xterm-256color".to_string());
-    if config.audio.enabled {
-        env_vars.insert(
-            "PULSE_SERVER".to_string(),
-            config.audio.pulse_server.clone(),
-        );
+    let audio = if config.container.audio.enabled {
+        &config.container.audio
+    } else {
+        &config.audio
+    };
+    if audio.enabled {
+        env_vars.insert("PULSE_SERVER".to_string(), audio.pulse_server.clone());
         env_vars.insert("AUDIODRIVER".to_string(), "pulseaudio".to_string());
     }
 
     // Build list of AI harness strings for template
     let ai_providers: Vec<String> = config.ai.harnesses.iter().map(|h| h.to_string()).collect();
+    let compose_override_path = if legacy_dir_arg {
+        path_or_dir.join("docker-compose.override.yml")
+    } else {
+        project_path(&config.container.paths.docker_compose_override)
+    };
     let codex_sandbox_seccomp = config.ai.harnesses.contains(&AiHarness::Codex)
-        && !compose_override_declares_codex_seccomp(dir);
+        && !compose_override_declares_codex_seccomp(&compose_override_path);
 
     // Container home path
     let container_home = config.container_home();
@@ -225,7 +304,15 @@ fn generate_docker_compose(
         .iter()
         .map(|(k, v)| format!("{}={}\n", k, v))
         .collect();
-    fs::write(".aibox-local.env", &env_content).context("Failed to write .aibox-local.env")?;
+    let local_env_path = project_path(&config.container.paths.local_env);
+    if let Some(parent) = local_env_path.parent()
+        && !parent.as_os_str().is_empty()
+    {
+        fs::create_dir_all(parent)
+            .with_context(|| format!("Failed to create {}", parent.display()))?;
+    }
+    fs::write(&local_env_path, &env_content)
+        .with_context(|| format!("Failed to write {}", local_env_path.display()))?;
 
     // Extra volumes from aibox.toml + .aibox-local.toml
     let extra_volumes = &config.container.extra_volumes;
@@ -238,6 +325,16 @@ fn generate_docker_compose(
     let tmpl = env
         .get_template("docker-compose.yml")
         .context("Failed to load docker-compose template")?;
+    let dockerfile_path = if legacy_dir_arg {
+        path_or_dir.join("Dockerfile")
+    } else {
+        project_path(&config.container.paths.dockerfile)
+    };
+    let local_env_file = if legacy_dir_arg {
+        "../.aibox-local.env".to_string()
+    } else {
+        relative_path(compose_dir, &local_env_path)
+    };
 
     let content = tmpl
         .render(context! {
@@ -249,7 +346,13 @@ fn generate_docker_compose(
             workspace_dir => workspace_dir,
             host_root => host_root_str,
             container_home => container_home,
-            audio_enabled => config.audio.enabled,
+            dockerfile_path => if legacy_dir_arg {
+                "Dockerfile".to_string()
+            } else {
+                relative_path(compose_dir, &dockerfile_path)
+            },
+            local_env_file => local_env_file,
+            audio_enabled => audio.enabled,
             ai_providers => ai_providers,
             codex_sandbox_seccomp => codex_sandbox_seccomp,
             env_keys => env_keys,
@@ -259,11 +362,17 @@ fn generate_docker_compose(
         })
         .context("Failed to render docker-compose template")?;
 
-    write_if_changed(&dir.join("docker-compose.yml"), &content)
+    write_if_changed(&compose_path, &content)
 }
 
 /// Generate devcontainer.json. Returns true if file was written.
-fn generate_devcontainer_json(config: &AiboxConfig, dir: &Path) -> Result<bool> {
+fn generate_devcontainer_json(config: &AiboxConfig, path_or_dir: &Path) -> Result<bool> {
+    let legacy_dir_arg = path_or_dir.is_dir();
+    let devcontainer_json_path = if path_or_dir.is_dir() {
+        path_or_dir.join("devcontainer.json")
+    } else {
+        path_or_dir.to_path_buf()
+    };
     let name = &config.container.name;
     let addons = &config.addons;
 
@@ -401,10 +510,28 @@ fn generate_devcontainer_json(config: &AiboxConfig, dir: &Path) -> Result<bool> 
     // Detect docker-compose.override.yml — if present, VS Code needs both
     // files listed explicitly. Docker Compose CLI auto-merges overrides, but
     // devcontainer.json requires the array form to pick them up.
-    let compose_file: serde_json::Value = if dir.join("docker-compose.override.yml").exists() {
-        serde_json::json!(["docker-compose.yml", "docker-compose.override.yml"])
+    let devcontainer_dir = parent_dir(&devcontainer_json_path);
+    let compose_path = if path_or_dir.is_dir() {
+        path_or_dir.join("docker-compose.yml")
     } else {
+        project_path(&config.container.paths.docker_compose)
+    };
+    let compose_override_path = if path_or_dir.is_dir() {
+        path_or_dir.join("docker-compose.override.yml")
+    } else {
+        project_path(&config.container.paths.docker_compose_override)
+    };
+    let compose_file: serde_json::Value = if legacy_dir_arg && compose_override_path.exists() {
+        serde_json::json!(["docker-compose.yml", "docker-compose.override.yml"])
+    } else if legacy_dir_arg {
         serde_json::json!("docker-compose.yml")
+    } else if compose_override_path.exists() {
+        serde_json::json!([
+            relative_path(devcontainer_dir, &compose_path),
+            relative_path(devcontainer_dir, &compose_override_path)
+        ])
+    } else {
+        serde_json::json!(relative_path(devcontainer_dir, &compose_path))
     };
 
     // Use serde_json for proper JSON formatting
@@ -424,7 +551,13 @@ fn generate_devcontainer_json(config: &AiboxConfig, dir: &Path) -> Result<bool> 
     });
 
     // Insert postCreateCommand if configured
-    if let Some(cmd) = &config.container.post_create_command {
+    let post_create_command = config
+        .container
+        .lifecycle
+        .post_create_command
+        .as_ref()
+        .or(config.container.post_create_command.as_ref());
+    if let Some(cmd) = post_create_command {
         devcontainer
             .as_object_mut()
             .unwrap()
@@ -435,13 +568,13 @@ fn generate_devcontainer_json(config: &AiboxConfig, dir: &Path) -> Result<bool> 
 
     // Network keepalive — lightweight DNS lookup every 2 min to prevent
     // OrbStack/VM NAT from dropping idle connections.
-    if config.container.keepalive {
+    if config.container.lifecycle.keepalive || config.container.keepalive {
         post_start_commands.push(
             "nohup bash -c 'while true; do nslookup example.com > /dev/null 2>&1; sleep 120; done' > /dev/null 2>&1 &"
                 .to_string(),
         );
     }
-    if should_start_processkit_gateway_daemon(config, dir) {
+    if should_start_processkit_gateway_daemon(config, devcontainer_dir) {
         let gateway = &config.mcp.gateway;
         let mut env = "UV_CACHE_DIR=/tmp/aibox/uv-cache PROCESSKIT_MCP_MODE=gateway".to_string();
         if gateway.lazy_catalog {
@@ -472,14 +605,14 @@ fn generate_devcontainer_json(config: &AiboxConfig, dir: &Path) -> Result<bool> 
     }
 
     // Prevent VS Code from auto-forwarding the PulseAudio port (fixes #11)
-    if config.audio.enabled {
+    let audio = if config.container.audio.enabled {
+        &config.container.audio
+    } else {
+        &config.audio
+    };
+    if audio.enabled {
         // Extract port from pulse_server string (e.g., "tcp:host.docker.internal:4714")
-        let port = config
-            .audio
-            .pulse_server
-            .rsplit(':')
-            .next()
-            .unwrap_or("4714");
+        let port = audio.pulse_server.rsplit(':').next().unwrap_or("4714");
         devcontainer.as_object_mut().unwrap().insert(
             "portsAttributes".to_string(),
             serde_json::json!({
@@ -499,13 +632,13 @@ fn generate_devcontainer_json(config: &AiboxConfig, dir: &Path) -> Result<bool> 
     let _ = config; // version no longer interpolated; placeholder reference.
 
     write_if_changed(
-        &dir.join("devcontainer.json"),
+        &devcontainer_json_path,
         &format!("{}{}\n", header, json_str),
     )
 }
 
-fn compose_override_declares_codex_seccomp(dir: &Path) -> bool {
-    let Ok(content) = fs::read_to_string(dir.join("docker-compose.override.yml")) else {
+fn compose_override_declares_codex_seccomp(override_path: &Path) -> bool {
+    let Ok(content) = fs::read_to_string(override_path) else {
         return false;
     };
     let Ok(compose) = serde_yaml::from_str::<serde_yaml::Value>(&content) else {

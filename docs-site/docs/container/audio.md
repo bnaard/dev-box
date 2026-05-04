@@ -31,7 +31,7 @@ The container sets `PULSE_SERVER` to point at the host's PulseAudio TCP module. 
 ## Configuration in aibox.toml
 
 ```toml
-[audio]
+[container.audio]
 enabled = true
 pulse_server = "tcp:host.docker.internal:4714"
 ```
@@ -97,7 +97,7 @@ If you prefer manual configuration:
 Docker Desktop and OrbStack provide `host.docker.internal` automatically. For Podman, check your machine's network configuration — you may need to use the host IP directly:
 
 ```toml
-[audio]
+[container.audio]
 enabled = true
 pulse_server = "tcp:192.168.64.1:4714"
 ```
@@ -116,7 +116,7 @@ pulse_server = "tcp:192.168.64.1:4714"
 
 2. Use `host.docker.internal` (Docker 20.10+) or the Docker bridge IP:
    ```toml
-   [audio]
+   [container.audio]
    enabled = true
    pulse_server = "tcp:host.docker.internal:4714"
    ```
@@ -190,7 +190,7 @@ This is usually a network or resource issue. PulseAudio over TCP adds latency. E
 If you do not need audio, set `enabled = false` in `aibox.toml`:
 
 ```toml
-[audio]
+[container.audio]
 enabled = false
 ```
 

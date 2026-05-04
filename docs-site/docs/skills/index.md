@@ -69,20 +69,23 @@ aibox get skill --category ai      # filter by category
 aibox describe skill <name>        # frontmatter + description for one skill
 ```
 
-## Packages
+## Skill Selection
 
-processkit ships five packages (`minimal`, `managed`, `software`, `research`,
-`product`) that compose skill sets. Select the one that fits your project in
-`aibox.toml`:
+New projects install the full product skill set by default. Use
+`[skills].enabled` and `[skills].disabled` for explicit skill-level overrides:
 
 ```toml
-[context]
-packages = ["managed"]   # or ["software"], ["research"], ["product"], ["minimal"]
+[skills]
+enabled = [
+  # "extra-skill",
+]
+disabled = [
+  # "skill-to-omit",
+]
 ```
 
-For the full package definitions and their exact skill composition, see:
-- `context/templates/processkit/<version>/.processkit/packages/` (after `aibox apply`)
-- https://github.com/projectious-work/processkit/releases
+Legacy package selections are still accepted for compatibility, but new
+`aibox.toml` files do not expose them as the primary control surface.
 
 ## Custom skills
 

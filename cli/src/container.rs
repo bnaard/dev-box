@@ -2,8 +2,8 @@ use anyhow::{Result, bail};
 use std::path::{Path, PathBuf};
 
 use crate::config::{
-    AiHarness, AiProvider, AiboxConfig, AiboxProfile, BaseImage, StarshipPreset, Theme, ThemeMode,
-    ZellijStatusMode,
+    AiHarness, AiProvider, AiboxConfig, AiboxProfile, BaseImage, McpGatewayMode, StarshipPreset,
+    Theme, ThemeMode, ZellijStatusMode,
 };
 use crate::context;
 use crate::generate;
@@ -62,6 +62,7 @@ pub struct ResolvedInitValues {
 /// processkit ships five tiers under `src/packages/`. They are listed
 /// here as static presets so `aibox init` can offer them without yet
 /// having a fetched processkit cache to read from.
+#[allow(dead_code)]
 fn process_selection_items() -> (Vec<String>, Vec<String>) {
     const PRESETS: &[(&str, &str)] = &[
         ("minimal", "solo developers and small side projects"),
@@ -534,20 +535,9 @@ pub fn resolve_init_values(
         None => AiboxProfile::HumanDev,
     };
 
-    // --- process packages ---
-    let process_packages = match process {
-        Some(p) => p,
-        None if interactive => {
-            let (labels, values) = process_selection_items();
-            let idx = dialoguer::Select::new()
-                .with_prompt("Work process")
-                .items(&labels)
-                .default(0)
-                .interact()?;
-            vec![values[idx].clone()]
-        }
-        None => vec!["managed".to_string()],
-    };
+    // --- processkit skill set ---
+    // Package tiers are deprecated; new projects use the full product set.
+    let process_packages = process.unwrap_or_else(|| vec!["product".to_string()]);
 
     // --- addons ---
     let addon_names = match addons {
@@ -833,7 +823,7 @@ pub fn cmd_status(config_path: &Option<String>, format: crate::cli::OutputFormat
 }
 
 /// Serialize config to TOML with comprehensive comments.
-fn serialize_config_with_comments(config: &AiboxConfig) -> String {
+pub(crate) fn serialize_config_with_comments(config: &AiboxConfig) -> String {
     let mut out = String::new();
     let sep = "# =============================================================================\n";
 
@@ -849,7 +839,7 @@ fn serialize_config_with_comments(config: &AiboxConfig) -> String {
     out.push_str(sep);
     out.push('\n');
 
-    // Object header + [aibox]/[image] sections
+    // Object header + [aibox] section
     out.push_str("# Object identity. These root keys mirror Kubernetes-style resource files:\n");
     out.push_str(
         "# apiVersion selects the aibox config API; kind is currently always Workspace.\n",
@@ -857,30 +847,14 @@ fn serialize_config_with_comments(config: &AiboxConfig) -> String {
     out.push_str(&format!("apiVersion = \"{}\"\n", config.api_version));
     out.push_str(&format!("kind       = \"{}\"\n", config.kind));
     out.push('\n');
-    out.push_str("[metadata]\n");
-    out.push_str(&format!(
-        "name = {:20} # Human-readable project name; defaults to container.name\n",
-        format!("\"{}\"", config.metadata.name)
-    ));
-    out.push('\n');
     out.push_str("[aibox]\n");
     out.push_str(&format!(
-        "config_schema = \"{}\" # Schema version for this configuration file\n",
-        config.aibox.config_schema
+        "project_name = {:20} # Human-readable project name; defaults to container.name\n",
+        format!("\"{}\"", config.aibox.project_name)
     ));
     out.push_str(&format!(
-        "profile = \"{}\"       # Usage profile. Options: human-dev, headless-runner\n",
+        "profile      = \"{}\"       # Usage profile. Options: human-dev, headless-runner\n",
         config.aibox.profile
-    ));
-    out.push('\n');
-    out.push_str("[image]\n");
-    out.push_str(&format!(
-        "version = \"{}\"       # Target aibox image/CLI version. Use \"latest\" to resolve newest on apply.\n",
-        config.image.version
-    ));
-    out.push_str(&format!(
-        "base = \"{}\"          # Published base image flavor. Options: debian\n",
-        config.image.base
     ));
 
     // [container] section
@@ -909,9 +883,48 @@ fn serialize_config_with_comments(config: &AiboxConfig) -> String {
         out.push_str("#                                  # Controls mount paths (e.g. /root vs /home/<user>/.vim)\n");
     }
 
+    out.push('\n');
+    out.push_str("[container.image]\n");
+    out.push_str(&format!(
+        "release_version = \"{}\"       # Target aibox image/CLI version. Use \"latest\" to resolve newest on apply.\n",
+        config.container.image.version
+    ));
+    out.push_str(&format!(
+        "base            = \"{}\"          # Published base image flavor. Options: debian\n",
+        config.container.image.base
+    ));
+
+    out.push('\n');
+    out.push_str("[container.paths]\n");
+    out.push_str(&format!(
+        "devcontainer_json     = \"{}\"\n",
+        config.container.paths.devcontainer_json
+    ));
+    out.push_str(&format!(
+        "docker_compose        = \"{}\"\n",
+        config.container.paths.docker_compose
+    ));
+    out.push_str(&format!(
+        "docker_compose_override = \"{}\"\n",
+        config.container.paths.docker_compose_override
+    ));
+    out.push_str(&format!(
+        "dockerfile            = \"{}\"\n",
+        config.container.paths.dockerfile
+    ));
+    out.push_str(&format!(
+        "dockerfile_local      = \"{}\"\n",
+        config.container.paths.dockerfile_local
+    ));
+    out.push_str(&format!(
+        "local_env             = \"{}\"  # Generated from .aibox-local.toml for docker compose env_file\n",
+        config.container.paths.local_env
+    ));
+
     // --- Lifecycle ---
     out.push_str("\n# --- Lifecycle ---\n");
-    if let Some(cmd) = &config.container.post_create_command {
+    out.push_str("[container.lifecycle]\n");
+    if let Some(cmd) = &config.container.lifecycle.post_create_command {
         out.push_str(&format!(
             "post_create_command = {:20} # Shell command run once after container first starts\n",
             format!("\"{}\"", cmd)
@@ -919,7 +932,7 @@ fn serialize_config_with_comments(config: &AiboxConfig) -> String {
     } else {
         out.push_str("# post_create_command = \"npm install\"  # Shell command run once after container first starts\n");
     }
-    if config.container.keepalive {
+    if config.container.lifecycle.keepalive {
         out.push_str("keepalive = true               # Send periodic keepalive (prevents NAT idle dropout in OrbStack/VMs)\n");
     } else {
         out.push_str("# keepalive           = true           # Send periodic keepalive (prevents NAT idle dropout in OrbStack/VMs)\n");
@@ -936,73 +949,92 @@ fn serialize_config_with_comments(config: &AiboxConfig) -> String {
     out.push_str(
         "# oom_kill_warn = 0            # Warn when cgroup OOM kill count is greater than this\n",
     );
-
-    // [context] section
-    out.push('\n');
-    out.push_str(sep);
-    out.push_str("# [context] — context system and process packages\n");
-    out.push_str(sep);
-    out.push_str("[context]\n");
-    out.push_str(&format!(
-        "schema_version = {:12} # Context schema version — updated automatically by `aibox apply`\n",
-        format!("\"{}\"", config.context.schema_version)
-    ));
-    out.push_str("# processkit packages (one or more, choose by tier):\n");
-    out.push_str("#   minimal   solo developers and small side projects\n");
-    out.push_str("#   managed   small teams with a shared backlog (recommended default)\n");
-    out.push_str("#   software  software engineering teams (extends managed)\n");
-    out.push_str("#   research  research, data science, ML projects (extends managed)\n");
-    out.push_str("#   product   full product development (extends software)\n");
-    out.push_str(
-        "# See context/templates/processkit/<version>/packages/ for the YAML definitions.\n",
-    );
-    out.push_str(&format!(
-        "packages = [{}]\n",
-        config
-            .context
-            .packages
-            .iter()
-            .map(|p| format!("\"{}\"", p))
-            .collect::<Vec<_>>()
-            .join(", ")
-    ));
+    if config
+        .container
+        .resource_thresholds
+        .memory_mib_warn
+        .is_some()
+        || config.container.resource_thresholds.process_count_warn != Some(400)
+        || config
+            .container
+            .resource_thresholds
+            .processkit_mcp_python_warn
+            != Some(50)
+        || config.container.resource_thresholds.oom_kill_warn != Some(0)
+    {
+        out.push_str("[container.resource_thresholds]\n");
+        if let Some(value) = config.container.resource_thresholds.memory_mib_warn {
+            out.push_str(&format!("memory_mib_warn = {}\n", value));
+        }
+        if let Some(value) = config.container.resource_thresholds.process_count_warn {
+            out.push_str(&format!("process_count_warn = {}\n", value));
+        }
+        if let Some(value) = config
+            .container
+            .resource_thresholds
+            .processkit_mcp_python_warn
+        {
+            out.push_str(&format!("processkit_mcp_python_warn = {}\n", value));
+        }
+        if let Some(value) = config.container.resource_thresholds.oom_kill_warn {
+            out.push_str(&format!("oom_kill_warn = {}\n", value));
+        }
+    }
+    if !config.container.environment.is_empty() {
+        out.push_str(
+            "\n# Team-shared environment variables. Put secrets in .aibox-local.toml instead.\n",
+        );
+        out.push_str("[container.environment]\n");
+        let mut keys: Vec<_> = config.container.environment.keys().collect();
+        keys.sort();
+        for key in keys {
+            out.push_str(&format!(
+                "{} = \"{}\"\n",
+                key, config.container.environment[key]
+            ));
+        }
+    }
+    if !config.container.extra_volumes.is_empty() {
+        out.push_str(
+            "\n# Additional team-shared bind mounts. Put personal mounts in .aibox-local.toml.\n",
+        );
+        for volume in &config.container.extra_volumes {
+            out.push_str("[[container.extra_volumes]]\n");
+            out.push_str(&format!("source = \"{}\"\n", volume.source));
+            out.push_str(&format!("target = \"{}\"\n", volume.target));
+            if volume.read_only {
+                out.push_str("read_only = true\n");
+            } else {
+                out.push_str("# read_only = true\n");
+            }
+            out.push('\n');
+        }
+    }
 
     // [skills] section
     out.push('\n');
     out.push_str(sep);
-    if config.skills.include.is_empty() && config.skills.exclude.is_empty() {
-        out.push_str("# [skills] — fine-tune which skills are deployed\n");
-        out.push_str(sep);
-        out.push_str("# Skills are automatically selected from process packages and addons.\n");
-        out.push_str("# Use include/exclude to override.\n");
-        out.push_str("# [skills]\n");
-        out.push_str("# include = [\"skill-name\"]    # Explicitly add skills beyond defaults\n");
-        out.push_str("# exclude = [\"skill-name\"]    # Remove skills you don't need\n");
-    } else {
-        out.push_str("# [skills] — fine-tune which skills are deployed\n");
-        out.push_str(sep);
-        out.push_str("[skills]\n");
-        out.push_str(&format!(
-            "include = [{}]\n",
-            config
-                .skills
-                .include
-                .iter()
-                .map(|s| format!("\"{}\"", s))
-                .collect::<Vec<_>>()
-                .join(", ")
-        ));
-        out.push_str(&format!(
-            "exclude = [{}]\n",
-            config
-                .skills
-                .exclude
-                .iter()
-                .map(|s| format!("\"{}\"", s))
-                .collect::<Vec<_>>()
-                .join(", ")
-        ));
-    }
+    out.push_str("# [skills] — processkit skill catalog\n");
+    out.push_str(sep);
+    out.push_str("# aibox now installs the full product skill set by default. Use enabled[] for\n");
+    out.push_str("# explicit additions and disabled[] for explicit removals. Core skills are\n");
+    out.push_str("# always installed; disabling one only triggers a doctor warning.\n");
+    out.push_str("[skills]\n");
+    let skill_catalog = skill_catalog_entries_for_comments(config);
+    render_skill_array(
+        &mut out,
+        "enabled",
+        &config.skills.include,
+        &skill_catalog,
+        "explicitly enable",
+    );
+    render_skill_array(
+        &mut out,
+        "disabled",
+        &config.skills.exclude,
+        &skill_catalog,
+        "explicitly disable",
+    );
 
     // [addons] section
     out.push('\n');
@@ -1028,121 +1060,47 @@ fn serialize_config_with_comments(config: &AiboxConfig) -> String {
         "# or use `aibox set addon <name>` (which also pulls in transitive `requires`).\n",
     );
     out.push_str("#\n");
-    out.push_str("# Tool entry forms:\n");
     out.push_str(
-        "#   tool = {}                                      # enable with default version\n",
+        "# Addon catalog — uncomment/comment one block header to enable or remove an addon.\n",
     );
-    out.push_str("#   tool = { version = \"1.2.3\" }                  # pin a supported version\n");
-    out.push_str("#   tool = { enabled = false }                     # keep addon but omit tool\n");
+    out.push_str(
+        "# Inside an enabled addon, omitted default-enabled tools stay enabled. Uncomment\n",
+    );
+    out.push_str(
+        "# a tool line to pin a version, enable an off-by-default tool, or disable a default-on tool.\n",
+    );
     out.push_str("#\n");
-    out.push_str("# Complete addon catalog (category/name: tools; * means enabled by default):\n");
     let mut catalog: Vec<_> = crate::addon_loader::all_addons().iter().collect();
     catalog.sort_by(|a, b| {
         a.category
             .cmp(&b.category)
             .then_with(|| a.name.cmp(&b.name))
     });
-    for def in catalog {
-        let requires = if def.requires.is_empty() {
-            String::new()
+    let selected_addons = &config.addons.addons;
+    let mut catalog_names = std::collections::BTreeSet::new();
+    let mut current_category: Option<&str> = None;
+    for def in &catalog {
+        if current_category != Some(def.category.as_str()) {
+            current_category = Some(def.category.as_str());
+            out.push_str(&format!(
+                "\n# ---- {} ------------------------------------------------------------\n",
+                def.category
+            ));
+        }
+        catalog_names.insert(def.name.as_str());
+        if let Some(addon_tools) = selected_addons.get(&def.name) {
+            render_active_addon_block(&mut out, def, addon_tools);
         } else {
-            format!("; requires {}", def.requires.join(", "))
-        };
-        out.push_str(&format!(
-            "#   {}/{}{} — {}\n",
-            def.category, def.name, requires, def.description
-        ));
-        if def.tools.is_empty() {
-            out.push_str("#     tools: (none)\n");
-        } else {
-            let tools = def
-                .tools
-                .iter()
-                .map(|tool| {
-                    let marker = if tool.default_enabled { "*" } else { "" };
-                    if tool.supported_versions.is_empty() {
-                        format!("{}{}", tool.name, marker)
-                    } else {
-                        format!(
-                            "{}{}({})",
-                            tool.name,
-                            marker,
-                            tool.supported_versions.join("|")
-                        )
-                    }
-                })
-                .collect::<Vec<_>>()
-                .join(", ");
-            out.push_str(&format!("#     tools: {}\n", tools));
+            render_commented_addon_block(&mut out, def);
         }
     }
-    if !config.addons.addons.is_empty() {
-        let mut addon_names: Vec<_> = config.addons.addons.keys().collect();
-        addon_names.sort();
-        for addon_name in addon_names {
-            let addon_tools = &config.addons.addons[addon_name];
-            out.push('\n');
-
-            // Inline comments from the addon definition: description and
-            // the full tool roster (versions, defaults, disabled tools).
-            if let Some(def) = crate::addon_loader::get_addon(addon_name) {
-                if !def.description.is_empty() {
-                    out.push_str(&format!("# {}\n", def.description));
-                }
-                for tool in &def.tools {
-                    if !tool.supported_versions.is_empty() {
-                        // Show available versions, marking the default.
-                        let versions: Vec<String> = tool
-                            .supported_versions
-                            .iter()
-                            .map(|v| {
-                                if *v == tool.default_version {
-                                    format!("{} (default)", v)
-                                } else {
-                                    v.clone()
-                                }
-                            })
-                            .collect();
-                        out.push_str(&format!("# {}: {}\n", tool.name, versions.join(" | ")));
-                    } else if tool.default_enabled {
-                        // No curated version list — version can still be pinned freely.
-                        out.push_str(&format!(
-                            "# {}: pin with {} = {{ version = \"x.y.z\" }}\n",
-                            tool.name, tool.name
-                        ));
-                    }
-                    // Tools that are disabled by default: hint they exist but are off.
-                    if !tool.default_enabled {
-                        out.push_str(&format!(
-                            "# {} — disabled by default; add to enable\n",
-                            tool.name
-                        ));
-                    }
-                }
-            }
-
-            out.push_str(&format!("[addons.{}.tools]\n", addon_name));
-            let mut tool_names: Vec<_> = addon_tools.tools.keys().collect();
-            tool_names.sort();
-            for tool_name in tool_names {
-                let tool_entry = &addon_tools.tools[tool_name];
-                match &tool_entry.version {
-                    Some(v) => match tool_entry.enabled {
-                        Some(false) => out.push_str(&format!(
-                            "{} = {{ version = \"{}\", enabled = false }}\n",
-                            tool_name, v
-                        )),
-                        _ => out.push_str(&format!("{} = {{ version = \"{}\" }}\n", tool_name, v)),
-                    },
-                    None => match tool_entry.enabled {
-                        Some(false) => {
-                            out.push_str(&format!("{} = {{ enabled = false }}\n", tool_name))
-                        }
-                        _ => out.push_str(&format!("{} = {{}}\n", tool_name)),
-                    },
-                }
-            }
-        }
+    let mut unknown_selected: Vec<_> = selected_addons
+        .keys()
+        .filter(|name| !catalog_names.contains(name.as_str()))
+        .collect();
+    unknown_selected.sort();
+    for addon_name in unknown_selected {
+        render_unknown_active_addon_block(&mut out, addon_name, &selected_addons[addon_name]);
     }
 
     // [ai] section
@@ -1169,30 +1127,23 @@ fn serialize_config_with_comments(config: &AiboxConfig) -> String {
     out.push_str("# Google       google         GEMINI_API_KEY\n");
     out.push_str("# Mistral      mistral        MISTRAL_API_KEY\n");
     out.push_str("[ai]\n");
+    render_ai_harness_catalog(&mut out, &config.ai.harnesses);
+    render_ai_model_provider_catalog(&mut out, &config.ai.model_providers);
+
+    out.push('\n');
+    out.push_str("[ai.agents]\n");
     out.push_str(&format!(
-        "harnesses = [{}]\n",
-        config
-            .ai
-            .harnesses
-            .iter()
-            .map(|h| format!("\"{}\"", h))
-            .collect::<Vec<_>>()
-            .join(", ")
+        "canonical     = \"{}\"\n",
+        config.ai.agents.canonical
     ));
-    if !config.ai.model_providers.is_empty() {
-        out.push_str(&format!(
-            "model_providers = [{}]\n",
-            config
-                .ai
-                .model_providers
-                .iter()
-                .map(|p| format!("\"{}\"", p))
-                .collect::<Vec<_>>()
-                .join(", ")
-        ));
-    } else {
-        out.push_str("# model_providers = [\"anthropic\", \"openai\"]  # optional: which API keys you have\n");
-    }
+    let mode_str = match config.ai.agents.provider_mode {
+        crate::config::AgentsProviderMode::Pointer => "pointer",
+        crate::config::AgentsProviderMode::Full => "full",
+    };
+    out.push_str(&format!(
+        "provider_mode = \"{}\"  # options: pointer, full\n",
+        mode_str
+    ));
 
     // [processkit] section
     out.push('\n');
@@ -1230,31 +1181,15 @@ fn serialize_config_with_comments(config: &AiboxConfig) -> String {
         Some(t) => out.push_str(&format!("release_asset_url_template = \"{}\"\n", t)),
         None => out.push_str("# release_asset_url_template = \"https://gitea.example.com/{org}/{name}/releases/download/{version}/payload.tar.gz\"\n"),
     }
-
-    // [agents] section
     out.push('\n');
-    out.push_str(sep);
-    out.push_str("# [agents] — canonical AGENTS.md + provider-specific entry files\n");
-    out.push_str(sep);
-    out.push_str("# AGENTS.md is the canonical, provider-neutral instruction document for AI\n");
-    out.push_str("# coding agents. Provider files (CLAUDE.md, future CODEX.md, …) are thin\n");
-    out.push_str("# pointers that simply say \"see AGENTS.md\". This matches the agents.md\n");
-    out.push_str("# ecosystem convention and avoids keeping N copies of the same instructions.\n");
-    out.push_str("#\n");
-    out.push_str("# `provider_mode` options:\n");
-    out.push_str("#   pointer (default) — provider files are thin pointers to AGENTS.md\n");
-    out.push_str("#   full              — provider files contain rich provider-flavored content\n");
-    out.push_str("#                       (use only when you genuinely need different content per harness)\n");
-    out.push_str("[agents]\n");
+    out.push_str("[processkit.context]\n");
     out.push_str(&format!(
-        "canonical     = \"{}\"\n",
-        config.agents.canonical
+        "schema_version = {:12} # Context schema version — updated automatically by `aibox apply`\n",
+        format!("\"{}\"", config.processkit.context.schema_version)
     ));
-    let mode_str = match config.agents.provider_mode {
-        crate::config::AgentsProviderMode::Pointer => "pointer",
-        crate::config::AgentsProviderMode::Full => "full",
-    };
-    out.push_str(&format!("provider_mode = \"{}\"\n", mode_str));
+    out.push_str(
+        "# packages = [\"product\"]  # deprecated; full product skill set is the default\n",
+    );
 
     // [customization] section
     out.push('\n');
@@ -1283,27 +1218,27 @@ fn serialize_config_with_comments(config: &AiboxConfig) -> String {
         config.customization.zellij_status.mode
     ));
 
-    // [audio] section
+    // [container.audio] section
     out.push('\n');
     out.push_str(sep);
-    out.push_str("# [audio] — PulseAudio bridging for voice features (e.g., Claude Code voice)\n");
+    out.push_str("# [container.audio] — PulseAudio bridging for voice features\n");
     out.push_str(sep);
     out.push_str("# Requires host-side setup: run `aibox apply audio` on the host first.\n");
-    out.push_str("[audio]\n");
-    out.push_str(&format!("enabled = {}\n", config.audio.enabled));
-    if config.audio.enabled {
+    out.push_str("[container.audio]\n");
+    out.push_str(&format!("enabled = {}\n", config.container.audio.enabled));
+    if config.container.audio.enabled {
         out.push_str(&format!(
             "pulse_server = \"{}\"  # PulseAudio TCP endpoint (default port: 4714)\n",
-            config.audio.pulse_server
+            config.container.audio.pulse_server
         ));
     } else {
         out.push_str("# pulse_server = \"tcp:host.docker.internal:4714\"  # PulseAudio TCP endpoint (default port: 4714)\n");
     }
 
-    // [mcp.permissions] section
+    // [ai.mcp] section
     out.push('\n');
     out.push_str(sep);
-    out.push_str("# [mcp.permissions]\n");
+    out.push_str("# [ai.mcp] — MCP gateway, permissions, and extra servers\n");
     out.push_str(sep);
     out.push_str("# Auto-allow / deny MCP tools by glob pattern. processkit's own MCP tools are\n");
     out.push_str(
@@ -1311,19 +1246,466 @@ fn serialize_config_with_comments(config: &AiboxConfig) -> String {
     );
     out.push_str("# for user-added MCP servers. See:\n");
     out.push_str("# https://projectious-work.github.io/aibox/docs/reference/configuration#permission-configuration-mcppermissions\n");
-    out.push_str("# [mcp.permissions]\n");
+    out.push_str("# [ai.mcp.permissions]\n");
     out.push_str("# default_mode   = \"ask\"\n");
     out.push_str("# allow_patterns = []\n");
     out.push_str("# deny_patterns  = []\n");
+    if mcp_permissions_are_explicit(config) {
+        let permissions = &config.ai.mcp.permissions;
+        out.push_str("[ai.mcp.permissions]\n");
+        out.push_str(&format!(
+            "default_mode   = \"{}\"\n",
+            permissions.default_mode
+        ));
+        out.push_str(&format!(
+            "allow_patterns = {}\n",
+            toml_string_array(&permissions.allow_patterns)
+        ));
+        out.push_str(&format!(
+            "deny_patterns  = {}\n",
+            toml_string_array(&permissions.deny_patterns)
+        ));
+        for (harness, override_cfg) in &permissions.harness {
+            out.push('\n');
+            out.push_str(&format!("[ai.mcp.permissions.harness.{}]\n", harness));
+            out.push_str(&format!("enabled = {}\n", override_cfg.enabled));
+            if let Some(mode) = &override_cfg.mode {
+                out.push_str(&format!("mode = \"{}\"\n", mode));
+            } else {
+                out.push_str(
+                    "# mode = \"ask\"          # optional harness-specific mode override\n",
+                );
+            }
+            out.push_str(&format!(
+                "extra_patterns = {}\n",
+                toml_string_array(&override_cfg.extra_patterns)
+            ));
+            out.push_str(&format!(
+                "deny_patterns  = {}\n",
+                toml_string_array(&override_cfg.deny_patterns)
+            ));
+        }
+    }
     out.push('\n');
-    out.push_str("# [mcp.gateway]\n");
-    out.push_str("# mode = \"auto\"          # auto uses daemon-proxy when processkit-gateway is installed\n");
-    out.push_str("# lazy_catalog = false    # Use processkit's lazy catalog where supported\n");
-    out.push_str("# host = \"127.0.0.1\"     # daemon-proxy is always localhost-only\n");
-    out.push_str("# port = 8765\n");
-    out.push_str("# path = \"/mcp\"\n");
+    out.push_str("# [ai.mcp.gateway] — processkit MCP topology. Options for mode: auto | granular | stdio | daemon-proxy\n");
+    out.push_str("[ai.mcp.gateway]\n");
+    out.push_str(&format!(
+        "mode = \"{}\"          # auto uses daemon-proxy when processkit-gateway is installed\n",
+        mcp_gateway_mode_str(config.ai.mcp.gateway.mode)
+    ));
+    out.push_str(&format!(
+        "lazy_catalog = {}    # Use processkit's lazy catalog where supported\n",
+        config.ai.mcp.gateway.lazy_catalog
+    ));
+    out.push_str(&format!(
+        "host = \"{}\"     # daemon-proxy is always localhost-only\n",
+        config.ai.mcp.gateway.host
+    ));
+    out.push_str(&format!("port = {}\n", config.ai.mcp.gateway.port));
+    out.push_str(&format!("path = \"{}\"\n", config.ai.mcp.gateway.path));
+    if !config.ai.mcp.servers.is_empty() {
+        out.push('\n');
+        out.push_str(
+            "# Extra team-shared MCP servers. Put personal MCP servers in .aibox-local.toml.\n",
+        );
+        for server in &config.ai.mcp.servers {
+            out.push_str("[[ai.mcp.servers]]\n");
+            out.push_str(&format!("name = \"{}\"\n", server.name));
+            out.push_str(&format!("command = \"{}\"\n", server.command));
+            out.push_str(&format!("args = {}\n", toml_string_array(&server.args)));
+            if !server.env.is_empty() {
+                let env_pairs = server
+                    .env
+                    .iter()
+                    .map(|(key, value)| format!("{} = \"{}\"", key, value))
+                    .collect::<Vec<_>>()
+                    .join(", ");
+                out.push_str(&format!("env = {{ {} }}\n", env_pairs));
+            }
+            out.push('\n');
+        }
+    }
 
     out
+}
+
+fn toml_string_array(values: &[String]) -> String {
+    format!(
+        "[{}]",
+        values
+            .iter()
+            .map(|value| format!("\"{}\"", value))
+            .collect::<Vec<_>>()
+            .join(", ")
+    )
+}
+
+fn mcp_permissions_are_explicit(config: &AiboxConfig) -> bool {
+    let permissions = &config.ai.mcp.permissions;
+    permissions.default_mode != "ask"
+        || !permissions.allow_patterns.is_empty()
+        || !permissions.deny_patterns.is_empty()
+        || !permissions.harness.is_empty()
+}
+
+fn mcp_gateway_mode_str(mode: McpGatewayMode) -> &'static str {
+    match mode {
+        McpGatewayMode::Auto => "auto",
+        McpGatewayMode::Granular => "granular",
+        McpGatewayMode::Stdio => "stdio",
+        McpGatewayMode::DaemonProxy => "daemon-proxy",
+    }
+}
+
+fn render_ai_harness_catalog(out: &mut String, selected: &[crate::config::AiHarness]) {
+    out.push_str("harnesses = [\n");
+    for harness in crate::config::AiHarness::all() {
+        let line = format!("    \"{}\",", harness);
+        if selected.contains(harness) {
+            out.push_str(&line);
+        } else {
+            out.push_str("# ");
+            out.push_str(&line);
+        }
+        out.push_str(&format!(" # {}\n", harness.display_name()));
+    }
+    out.push_str("]\n");
+}
+
+fn render_ai_model_provider_catalog(out: &mut String, selected: &[crate::config::AiModelProvider]) {
+    out.push_str("\nmodel_providers = [\n");
+    for provider in crate::config::AiModelProvider::all() {
+        let line = format!("    \"{}\",", provider);
+        if selected.contains(provider) {
+            out.push_str(&line);
+        } else {
+            out.push_str("# ");
+            out.push_str(&line);
+        }
+        out.push_str(&format!(" # env: {}\n", provider.api_key_env()));
+    }
+    out.push_str("]\n");
+}
+
+#[derive(Debug, Clone)]
+struct SkillCatalogEntry {
+    name: String,
+    category: String,
+    description: String,
+    core: bool,
+}
+
+fn render_skill_array(
+    out: &mut String,
+    key: &str,
+    active: &[String],
+    catalog: &[SkillCatalogEntry],
+    action: &str,
+) {
+    out.push_str(&format!("{key} = [\n"));
+    let active_set: std::collections::BTreeSet<&str> = active.iter().map(String::as_str).collect();
+    for name in active {
+        let entry = catalog.iter().find(|entry| entry.name == *name);
+        let comment = entry
+            .map(skill_line_comment)
+            .unwrap_or_else(|| "custom skill override".to_string());
+        out.push_str(&format!("    \"{}\", # {}\n", name, comment));
+    }
+    for entry in catalog {
+        if !active_set.contains(entry.name.as_str()) {
+            out.push_str(&format!(
+                "    # \"{}\", # {}; {}\n",
+                entry.name,
+                action,
+                skill_line_comment(entry)
+            ));
+        }
+    }
+    out.push_str("]\n");
+}
+
+fn skill_line_comment(entry: &SkillCatalogEntry) -> String {
+    let mut parts = vec![entry.category.clone()];
+    if entry.core {
+        parts.push("core".to_string());
+    }
+    if !entry.description.is_empty() {
+        parts.push(entry.description.clone());
+    }
+    parts.join("; ")
+}
+
+fn skill_catalog_entries_for_comments(config: &AiboxConfig) -> Vec<SkillCatalogEntry> {
+    let mut entries = std::collections::BTreeMap::<String, SkillCatalogEntry>::new();
+    let project_root = std::env::current_dir().unwrap_or_else(|_| PathBuf::from("."));
+
+    if let Some(version) = processkit_template_version_for_skill_catalog(config, &project_root) {
+        let templates_root = project_root
+            .join(crate::processkit_vocab::TEMPLATES_PROCESSKIT_DIR)
+            .join(version)
+            .join(crate::processkit_vocab::src::CONTEXT_DIR)
+            .join(crate::processkit_vocab::src::SKILLS);
+        collect_skill_catalog_entries(&templates_root, &mut entries);
+    }
+    collect_skill_catalog_entries(
+        &project_root
+            .join(crate::processkit_vocab::src::CONTEXT_DIR)
+            .join(crate::processkit_vocab::src::SKILLS),
+        &mut entries,
+    );
+
+    entries.into_values().collect()
+}
+
+fn processkit_template_version_for_skill_catalog(
+    config: &AiboxConfig,
+    project_root: &Path,
+) -> Option<String> {
+    match config.processkit.version.as_str() {
+        crate::config::PROCESSKIT_VERSION_UNSET => None,
+        crate::config::PROCESSKIT_VERSION_LATEST => crate::lock::read_lock(project_root)
+            .ok()
+            .flatten()
+            .and_then(|lock| lock.processkit)
+            .map(|processkit| processkit.version),
+        version => Some(version.to_string()),
+    }
+}
+
+fn collect_skill_catalog_entries(
+    root: &Path,
+    entries: &mut std::collections::BTreeMap<String, SkillCatalogEntry>,
+) {
+    let Ok(children) = std::fs::read_dir(root) else {
+        return;
+    };
+    for child in children.flatten() {
+        let path = child.path();
+        if !path.is_dir() {
+            continue;
+        }
+        if path
+            .file_name()
+            .and_then(|name| name.to_str())
+            .is_some_and(|name| name.starts_with('_') || name == "lib")
+        {
+            continue;
+        }
+        let skill_file = path.join(crate::processkit_vocab::SKILL_FILENAME);
+        if skill_file.is_file() {
+            let fallback_name = path
+                .file_name()
+                .and_then(|name| name.to_str())
+                .unwrap_or("unknown")
+                .to_string();
+            let fallback_category = path
+                .parent()
+                .and_then(|parent| parent.file_name())
+                .and_then(|name| name.to_str())
+                .unwrap_or("uncategorized")
+                .to_string();
+            if let Some(entry) =
+                parse_skill_catalog_entry(&skill_file, &fallback_name, &fallback_category)
+            {
+                entries.insert(entry.name.clone(), entry);
+            }
+        } else {
+            collect_skill_catalog_entries(&path, entries);
+        }
+    }
+}
+
+fn parse_skill_catalog_entry(
+    path: &Path,
+    fallback_name: &str,
+    fallback_category: &str,
+) -> Option<SkillCatalogEntry> {
+    let body = std::fs::read_to_string(path).ok()?;
+    let frontmatter = body
+        .strip_prefix("---\n")
+        .and_then(|rest| rest.find("\n---").map(|end| &rest[..end]));
+    let parsed: Option<serde_yaml::Value> =
+        frontmatter.and_then(|yaml| serde_yaml::from_str(yaml).ok());
+
+    let name = parsed
+        .as_ref()
+        .and_then(|value| value.get("name"))
+        .and_then(|value| value.as_str())
+        .unwrap_or(fallback_name)
+        .to_string();
+    let description = parsed
+        .as_ref()
+        .and_then(|value| value.get("description"))
+        .and_then(|value| value.as_str())
+        .map(short_comment)
+        .unwrap_or_default();
+    let processkit = parsed
+        .as_ref()
+        .and_then(|value| value.get("metadata"))
+        .and_then(|value| value.get("processkit"));
+    let category = processkit
+        .and_then(|value| value.get("category"))
+        .and_then(|value| value.as_str())
+        .unwrap_or(fallback_category)
+        .to_string();
+    let core = processkit
+        .and_then(|value| value.get("core"))
+        .and_then(|value| value.as_bool())
+        .unwrap_or(false);
+
+    Some(SkillCatalogEntry {
+        name,
+        category,
+        description,
+        core,
+    })
+}
+
+fn render_active_addon_block(
+    out: &mut String,
+    def: &crate::addon_loader::LoadedAddon,
+    addon_tools: &crate::config::AddonToolsSection,
+) {
+    out.push('\n');
+    out.push_str(&format!("# {}\n", addon_header_comment(def)));
+    out.push_str(&format!("[addons.{}.tools]\n", def.name));
+
+    for tool in &def.tools {
+        if let Some(entry) = addon_tools.tools.get(&tool.name) {
+            out.push_str(&format!(
+                "{} # {}\n",
+                render_tool_entry(&tool.name, entry),
+                addon_tool_comment(tool)
+            ));
+        } else {
+            out.push_str(&format!(
+                "# {} # {}\n",
+                active_default_tool_example(tool),
+                addon_tool_comment(tool)
+            ));
+        }
+    }
+
+    let mut unknown_tools: Vec<_> = addon_tools
+        .tools
+        .keys()
+        .filter(|tool_name| !def.tools.iter().any(|tool| tool.name == tool_name.as_str()))
+        .collect();
+    unknown_tools.sort();
+    for tool_name in unknown_tools {
+        out.push_str(&format!(
+            "{} # custom/unknown tool entry\n",
+            render_tool_entry(tool_name, &addon_tools.tools[tool_name])
+        ));
+    }
+}
+
+fn render_commented_addon_block(out: &mut String, def: &crate::addon_loader::LoadedAddon) {
+    out.push('\n');
+    out.push_str(&format!("# {}\n", addon_header_comment(def)));
+    out.push_str(&format!("# [addons.{}.tools]\n", def.name));
+    if def.tools.is_empty() {
+        out.push_str("# # no tool switches; uncomment the header to select this addon\n");
+    } else {
+        for tool in &def.tools {
+            out.push_str(&format!(
+                "# {} # {}\n",
+                default_tool_example(tool),
+                addon_tool_comment(tool)
+            ));
+        }
+    }
+}
+
+fn render_unknown_active_addon_block(
+    out: &mut String,
+    addon_name: &str,
+    addon_tools: &crate::config::AddonToolsSection,
+) {
+    out.push('\n');
+    out.push_str("# Selected addon not found in the loaded addon catalog.\n");
+    out.push_str(&format!("[addons.{}.tools]\n", addon_name));
+    let mut tool_names: Vec<_> = addon_tools.tools.keys().collect();
+    tool_names.sort();
+    for tool_name in tool_names {
+        out.push_str(&format!(
+            "{} # options: {{}}, {{ enabled = true|false }}, {{ version = \"x.y.z\" or \"latest\" }}\n",
+            render_tool_entry(tool_name, &addon_tools.tools[tool_name])
+        ));
+    }
+}
+
+fn addon_header_comment(def: &crate::addon_loader::LoadedAddon) -> String {
+    let mut text = format!("{}/{} — {}", def.category, def.name, def.description);
+    if !def.requires.is_empty() {
+        text.push_str(&format!("; requires {}", def.requires.join(", ")));
+    }
+    text
+}
+
+fn default_tool_example(tool: &crate::addon_loader::LoadedTool) -> String {
+    if tool.default_enabled {
+        format!("{} = {{}}", tool.name)
+    } else {
+        format!("{} = {{ enabled = true }}", tool.name)
+    }
+}
+
+fn active_default_tool_example(tool: &crate::addon_loader::LoadedTool) -> String {
+    if tool.default_enabled {
+        format!("{} = {{ enabled = false }}", tool.name)
+    } else {
+        format!("{} = {{ enabled = true }}", tool.name)
+    }
+}
+
+fn render_tool_entry(name: &str, entry: &crate::config::ToolEntry) -> String {
+    match (&entry.version, entry.enabled) {
+        (Some(version), Some(false)) => {
+            format!("{name} = {{ version = \"{version}\", enabled = false }}")
+        }
+        (Some(version), _) => format!("{name} = {{ version = \"{version}\" }}"),
+        (None, Some(false)) => format!("{name} = {{ enabled = false }}"),
+        (None, Some(true)) => format!("{name} = {{ enabled = true }}"),
+        (None, None) => format!("{name} = {{}}"),
+    }
+}
+
+fn addon_tool_comment(tool: &crate::addon_loader::LoadedTool) -> String {
+    let default = if tool.default_enabled {
+        "default on"
+    } else {
+        "default off"
+    };
+    let version_options = if tool.supported_versions.is_empty() {
+        "version = \"x.y.z\" or \"latest\"".to_string()
+    } else {
+        format!(
+            "version = {} or \"latest\"",
+            tool.supported_versions
+                .iter()
+                .map(|version| {
+                    if *version == tool.default_version {
+                        format!("\"{}\" (default)", version)
+                    } else {
+                        format!("\"{}\"", version)
+                    }
+                })
+                .collect::<Vec<_>>()
+                .join(" | ")
+        )
+    };
+    format!("{default}; options: {{}}, {{ enabled = true|false }}, {{ {version_options} }}")
+}
+
+fn short_comment(value: &str) -> String {
+    let mut normalized = value.split_whitespace().collect::<Vec<_>>().join(" ");
+    const LIMIT: usize = 110;
+    if normalized.chars().count() > LIMIT {
+        normalized = normalized.chars().take(LIMIT - 1).collect::<String>();
+        normalized.push('…');
+    }
+    normalized
 }
 
 /// Init command: create a aibox.toml and generate files.
@@ -1428,13 +1810,14 @@ pub fn cmd_init(config_path: &Option<String>, params: InitParams) -> Result<()> 
         },
         aibox: AiboxSection {
             config_schema: "1.0.0".to_string(),
+            project_name: resolved.project_name.clone(),
             version: env!("CARGO_PKG_VERSION").to_string(),
             base: resolved.base_image.clone(),
             profile: resolved.profile,
         },
         image: ImageSection {
             version: env!("CARGO_PKG_VERSION").to_string(),
-            base: resolved.base_image,
+            base: resolved.base_image.clone(),
         },
         container: ContainerSection {
             name: resolved.project_name.clone(),
@@ -1442,9 +1825,16 @@ pub fn cmd_init(config_path: &Option<String>, params: InitParams) -> Result<()> 
             user: container_user,
             post_create_command: None,
             keepalive: false,
+            lifecycle: crate::config::ContainerLifecycleSection::default(),
             environment: std::collections::HashMap::new(),
             extra_volumes: vec![],
             resource_thresholds: crate::config::ResourceThresholdsSection::default(),
+            image: ImageSection {
+                version: env!("CARGO_PKG_VERSION").to_string(),
+                base: resolved.base_image.clone(),
+            },
+            paths: crate::config::ContainerPathsSection::default(),
+            audio: AudioSection::default(),
         },
         context: ContextSection {
             packages: resolved.process_packages,
@@ -1454,6 +1844,8 @@ pub fn cmd_init(config_path: &Option<String>, params: InitParams) -> Result<()> 
             harnesses: ai_providers,
             model_providers: Vec::new(),
             providers: Vec::new(),
+            agents: crate::config::AgentsSection::default(),
+            mcp: crate::config::McpSection::default(),
         },
         process: None,
         addons: {
@@ -2327,7 +2719,7 @@ mod tests {
 
         assert_eq!(resolved.base_image, BaseImage::Debian);
         assert_eq!(resolved.profile, AiboxProfile::HumanDev);
-        assert_eq!(resolved.process_packages, vec!["managed".to_string()]);
+        assert_eq!(resolved.process_packages, vec!["product".to_string()]);
         assert!(resolved.addon_names.is_empty());
     }
 

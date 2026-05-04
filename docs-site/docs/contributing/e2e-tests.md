@@ -55,7 +55,7 @@ output must contain `missing` or equivalent wording.
 
 **Managed package writes the slim project skeleton**
 If `aibox init --context managed` is run, then `aibox.toml` must contain
-`packages = ["managed"]` under `[context]`, an empty `context/` directory must
+`packages = ["managed"]` under `[processkit.context]`, an empty `context/` directory must
 exist, and a thin `CLAUDE.md` pointer must be created when the `claude`
 provider is enabled. The single-file context tracks (`BACKLOG.md`,
 `DECISIONS.md`, `STANDUPS.md`) are **not** scaffolded by `init` — the
@@ -63,7 +63,7 @@ corresponding processkit skills create them in place on first use.
 
 **Software package selection is recorded in aibox.toml**
 If `aibox init --context software` is run, then `aibox.toml` must contain
-`packages = ["software"]` under `[context]`. As with all processkit packages
+`packages = ["software"]` under `[processkit.context]`. As with all processkit packages
 in v0.16.0, this is declarative metadata; the actual skills land under
 `context/skills/` only after `aibox apply` with a real `[processkit].version`
 pinned.
@@ -357,7 +357,7 @@ upstream snapshot under `context/templates/processkit/<version>/`.
 
 **Product / research / software packages**
 The five processkit packages (`minimal`, `managed`, `software`, `research`,
-`product`) are declarative metadata in `[context].packages`. In v0.16.0 they
+`product`) are declarative metadata in `[processkit.context].packages`. In v0.16.0 they
 do not change which files land on disk — every project gets every processkit
 skill — but they tell agents which subset to prefer.
 

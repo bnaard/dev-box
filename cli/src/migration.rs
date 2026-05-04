@@ -21,6 +21,7 @@ pub fn check_and_generate_migration() -> Result<()> {
     ensure_processkit_section_in(Path::new("."))?;
     // Migrate old processkit runtime settings out of [context] (processkit v0.8.0+).
     migrate_processkit_context_settings(Path::new("."))?;
+    refresh_generated_aibox_toml_comments(Path::new("."))?;
     Ok(())
 }
 
@@ -69,14 +70,6 @@ pub fn migrate_aibox_toml_structure(root: &Path) -> Result<()> {
 
     if !doc.contains_key("aibox") || !doc["aibox"].is_table() {
         doc["aibox"] = toml_edit::table();
-        changed = true;
-    }
-    let aibox_config_schema_missing = doc["aibox"]
-        .as_table()
-        .map(|table| !table.contains_key("config_schema"))
-        .unwrap_or(true);
-    if aibox_config_schema_missing {
-        doc["aibox"]["config_schema"] = toml_edit::value("1.0.0");
         changed = true;
     }
     let aibox_profile_missing = doc["aibox"]
@@ -262,6 +255,70 @@ fn insert_after_table(input: &str, table: &str, insert: &str) -> String {
         rendered.push('\n');
     }
     rendered
+}
+
+/// Refresh older generated `aibox.toml` files into the current commented
+/// template. This deliberately only rewrites files that look aibox-generated
+/// and schema-clean so user-authored unknown keys are not discarded by serde.
+pub fn refresh_generated_aibox_toml_comments(root: &Path) -> Result<()> {
+    let path = root.join("aibox.toml");
+    if !path.is_file() {
+        return Ok(());
+    }
+
+    let raw =
+        fs::read_to_string(&path).with_context(|| format!("Failed to read {}", path.display()))?;
+    if !should_refresh_generated_aibox_toml_comments(&raw) {
+        return Ok(());
+    }
+
+    let mismatches = crate::config::AiboxConfig::schema_mismatches(&raw).with_context(|| {
+        format!(
+            "Failed to validate {} before comment refresh",
+            path.display()
+        )
+    })?;
+    if !mismatches.is_empty() {
+        output::warn(
+            "Skipped aibox.toml comment refresh because schema has unknown keys; run `aibox doctor` for details",
+        );
+        return Ok(());
+    }
+
+    let config = crate::config::AiboxConfig::load(&path)
+        .with_context(|| format!("Failed to load {} for comment refresh", path.display()))?;
+    let rendered = crate::container::serialize_config_with_comments(&config);
+    if rendered != raw {
+        fs::write(&path, rendered)
+            .with_context(|| format!("Failed to write {}", path.display()))?;
+        output::ok("Refreshed aibox.toml comments and option catalog");
+    }
+
+    Ok(())
+}
+
+fn should_refresh_generated_aibox_toml_comments(raw: &str) -> bool {
+    let generated_header = raw.contains("# aibox.toml — single source of truth")
+        || raw.contains("# [addons] — language runtimes and tool bundles");
+    generated_header
+        && (!raw.contains("# Addon catalog — uncomment/comment one block header")
+            || !raw.contains("# Skill catalog — uncomment/comment one line")
+            || !raw.contains("disable a default-on tool")
+            || raw.contains("config_schema =")
+            || raw.contains("[metadata]")
+            || raw.contains("[image]")
+            || raw.contains("[context]")
+            || raw.contains("[agents]")
+            || raw.contains("[audio]")
+            || raw.contains("[mcp.gateway]")
+            || raw.contains("include = [")
+            || raw.contains("exclude = [")
+            || raw.contains("# Complete addon catalog")
+            || raw.contains("aibox addon list")
+            || raw.contains("aibox addon info")
+            || raw.contains("aibox addon add")
+            || raw.contains("run `aibox sync`")
+            || raw.contains("`aibox sync`"))
 }
 
 /// One-time hard-cut migration: if a legacy `.aibox-version` file still exists,
@@ -1929,6 +1986,109 @@ name = "project-x"
             "conflicting legacy version must remain for manual review: {after}"
         );
         assert!(after.contains("[image]\nversion = \"0.23.8\""));
+    }
+
+    #[test]
+    fn refresh_generated_aibox_toml_comments_updates_catalog_and_preserves_mcp_gateway() {
+        let tmp = TempDir::new().unwrap();
+        fs::write(
+            tmp.path().join("aibox.toml"),
+            r#"apiVersion = "aibox.projectious.work/v1"
+kind = "Workspace"
+# =============================================================================
+# aibox.toml — single source of truth for your aibox project.
+# All .devcontainer/ files are generated from this. Edit here, run `aibox sync`.
+# =============================================================================
+
+[aibox]
+config_schema = "1.0.0"
+profile = "human-dev"
+
+[metadata]
+name = "demo"
+
+[image]
+version = "0.23.10"
+base = "debian"
+
+[container]
+name = "demo"
+
+[context]
+schema_version = "1.0.0"
+packages = ["product"]
+
+# Run `aibox addon list` to see all available addons.
+# Run `aibox addon info <name>` to see every supported tool/version per addon.
+[addons.rust.tools]
+rustc = { version = "1.94" }
+cargo-audit = {}
+
+[ai]
+harnesses = ["codex"]
+
+[processkit]
+source = "https://github.com/projectious-work/processkit.git"
+version = "v0.25.7"
+src_path = "src"
+
+[mcp.gateway]
+mode = "daemon-proxy"
+lazy_catalog = true
+host = "127.0.0.1"
+port = 8765
+path = "/mcp"
+
+[customization]
+theme = "nord"
+prompt = "arrow"
+layout = "ai"
+
+[customization.zellij_status]
+mode = "shell"
+
+[audio]
+enabled = false
+"#,
+        )
+        .unwrap();
+
+        refresh_generated_aibox_toml_comments(tmp.path()).unwrap();
+
+        let after = fs::read_to_string(tmp.path().join("aibox.toml")).unwrap();
+        assert!(after.contains("# Addon catalog — uncomment/comment one block header"));
+        assert!(after.contains("# [skills] — processkit skill catalog"));
+        assert!(after.contains("Run `aibox get addon`"));
+        assert!(after.contains("Run `aibox describe addon <name>`"));
+        assert!(!after.contains("aibox addon list"));
+        assert!(after.contains("cargo-audit = {}"));
+        assert!(after.contains("version = \"x.y.z\" or \"latest\""));
+        assert!(after.contains("[ai.mcp.gateway]"));
+        assert!(after.contains("mode = \"daemon-proxy\""));
+        assert!(after.contains("lazy_catalog = true"));
+    }
+
+    #[test]
+    fn refresh_generated_aibox_toml_comments_skips_unknown_schema_keys() {
+        let tmp = TempDir::new().unwrap();
+        let before = r#"# aibox.toml — single source of truth for your aibox project.
+[aibox]
+config_schema = "1.0.0"
+
+[container]
+name = "demo"
+
+[unknown]
+value = true
+
+# Run `aibox addon list` to see all available addons.
+"#;
+        fs::write(tmp.path().join("aibox.toml"), before).unwrap();
+
+        refresh_generated_aibox_toml_comments(tmp.path()).unwrap();
+
+        let after = fs::read_to_string(tmp.path().join("aibox.toml")).unwrap();
+        assert_eq!(after, before);
     }
 
     #[test]

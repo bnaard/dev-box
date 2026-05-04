@@ -124,8 +124,8 @@ pub enum Commands {
         #[arg(long, value_enum)]
         profile: Option<AiboxProfile>,
 
-        /// Context/process packages (e.g. managed, software, research)
-        #[arg(long = "context", visible_alias = "package", num_args = 1..)]
+        /// Deprecated: processkit package tier. aibox now defaults to the product skill set.
+        #[arg(long = "context", visible_alias = "package", num_args = 1.., hide = true)]
         process: Option<Vec<String>>,
 
         /// AI harnesses to configure (default: claude)
