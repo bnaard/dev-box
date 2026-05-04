@@ -52,7 +52,7 @@ use anyhow::{Context, Result};
 use serde::{Deserialize, Serialize};
 use sha2::{Digest, Sha256};
 
-use crate::config::{AiProvider, AiboxConfig, McpGatewayMode};
+use crate::config::{AiProvider, AiboxConfig, CONTAINER_WORKSPACE_DIR, McpGatewayMode};
 use crate::output;
 use crate::processkit_vocab::mirror_skills_dir;
 
@@ -1902,16 +1902,11 @@ fn write_codex_config_toml(
         }
     }
 
-    let project_root = path
-        .parent()
-        .and_then(Path::parent)
-        .unwrap_or_else(|| Path::new("."));
-
     // Step 2: add current managed entries.
     for spec in specs {
         let mut server_table = Table::new();
         server_table.insert("command", value(spec.command.clone()));
-        let args = codex_mcp_args(project_root, &spec.args);
+        let args = codex_mcp_args(&spec.args);
         if !args.is_empty() {
             let mut args_array = Array::new();
             for arg in args {
@@ -1939,11 +1934,14 @@ fn write_codex_config_toml(
     Ok(())
 }
 
-fn codex_mcp_args(project_root: &Path, args: &[String]) -> Vec<String> {
+fn codex_mcp_args(args: &[String]) -> Vec<String> {
     args.iter()
         .map(|arg| {
             if is_project_relative_mcp_script(arg) {
-                project_root.join(arg).to_string_lossy().into_owned()
+                Path::new(CONTAINER_WORKSPACE_DIR)
+                    .join(arg)
+                    .to_string_lossy()
+                    .into_owned()
             } else {
                 arg.clone()
             }
@@ -2571,7 +2569,7 @@ mod tests {
     }
 
     #[test]
-    fn write_codex_absolutizes_project_relative_mcp_script_paths() {
+    fn write_codex_uses_container_workspace_for_project_relative_mcp_script_paths() {
         let tmp = TempDir::new().unwrap();
         let path = tmp.path().join(".codex/config.toml");
         let specs = vec![spec(
@@ -2587,14 +2585,13 @@ mod tests {
         write_codex_config_toml(&specs, &managed, &path).unwrap();
 
         let body = fs::read_to_string(&path).unwrap();
-        let expected = tmp
-            .path()
-            .join("context/skills/processkit/processkit-gateway/mcp/server.py")
-            .to_string_lossy()
-            .into_owned();
+        let expected = format!(
+            "{}/context/skills/processkit/processkit-gateway/mcp/server.py",
+            CONTAINER_WORKSPACE_DIR
+        );
         assert!(
             body.contains(&expected),
-            "Codex MCP script paths must be absolute so subagents that start from a non-project cwd can spawn the server:\n{body}"
+            "Codex MCP script paths must use the container workspace path so subagents that start from a non-project cwd can spawn the server inside the aibox runtime:\n{body}"
         );
     }
 

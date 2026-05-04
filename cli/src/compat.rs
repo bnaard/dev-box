@@ -250,6 +250,11 @@ pub static COMPAT_TABLE: &[CompatEntry] = &[
         processkit_version: "v0.25.5",
         note: "Patch release: integrates processkit v0.25.5 active interlocutor runtime binding reporting, conservative Claude subagent model emission, and explicit subagent MCP lifecycle guardrails; fixes Codex subagent MCP script paths, addon dependency fallback migrations, doctor aibox.toml/runtime-theme diagnostics, lazygit-disabled runtime cleanup, and native Zellij status-line visibility; strengthens no-container and asciinema E2E coverage.",
     },
+    CompatEntry {
+        aibox_version: "0.23.7",
+        processkit_version: "v0.25.5",
+        note: "Patch release: fixes host-generated Codex processkit-gateway MCP paths for devcontainer runtimes, keeping subagent-safe absolute paths while targeting the container workspace mount; doctor now warns about stale host-side Codex MCP script paths.",
+    },
 ];
 
 /// Find the minimum compatible processkit version for the given aibox version.

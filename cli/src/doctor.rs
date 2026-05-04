@@ -2,7 +2,7 @@ use anyhow::Result;
 use std::path::Path;
 use std::process::{Command, Stdio};
 
-use crate::config::{AiHarness, AiboxConfig, McpGatewayMode};
+use crate::config::{AiHarness, AiboxConfig, CONTAINER_WORKSPACE_DIR, McpGatewayMode};
 use crate::output;
 use crate::processkit_vocab::AGENTS_FILENAME;
 use crate::runtime::{ContainerState, Runtime};
@@ -651,15 +651,24 @@ fn check_processkit_mcp_gateway(config: &AiboxConfig, diag: &mut DiagResult) {
 
     if config.ai.harnesses.contains(&AiHarness::Codex) {
         match std::fs::read_to_string(".codex/config.toml") {
-            Ok(body) if body.contains("[mcp_servers.processkit-gateway]") => {
-                output::ok("Codex MCP config points at processkit-gateway");
-            }
-            Ok(_) => {
+            Ok(body) if !body.contains("[mcp_servers.processkit-gateway]") => {
                 output::warn(
                     "Codex is enabled but .codex/config.toml does not register \
                      processkit-gateway; run `aibox apply`",
                 );
                 diag.warnings += 1;
+            }
+            Ok(body) if codex_config_has_non_container_processkit_script_path(&body) => {
+                output::warn(&format!(
+                    "Codex MCP config points at a host-side processkit script path; \
+                     run `aibox apply` with aibox 0.23.7+ so Codex uses \
+                     {}/context/skills/... inside the container",
+                    CONTAINER_WORKSPACE_DIR
+                ));
+                diag.warnings += 1;
+            }
+            Ok(_) => {
+                output::ok("Codex MCP config points at processkit-gateway");
             }
             Err(_) => {
                 output::warn(
@@ -669,6 +678,33 @@ fn check_processkit_mcp_gateway(config: &AiboxConfig, diag: &mut DiagResult) {
             }
         }
     }
+}
+
+fn codex_config_has_non_container_processkit_script_path(body: &str) -> bool {
+    let Ok(parsed) = body.parse::<toml::Value>() else {
+        return body.lines().any(|line| {
+            line.contains("/context/skills/processkit/") && !line.contains(CONTAINER_WORKSPACE_DIR)
+        });
+    };
+    let Some(servers) = parsed.get("mcp_servers").and_then(toml::Value::as_table) else {
+        return false;
+    };
+    servers.values().any(|server| {
+        server
+            .get("args")
+            .and_then(toml::Value::as_array)
+            .into_iter()
+            .flatten()
+            .filter_map(toml::Value::as_str)
+            .any(is_non_container_processkit_script_path)
+    })
+}
+
+fn is_non_container_processkit_script_path(arg: &str) -> bool {
+    arg.ends_with(".py")
+        && arg.contains("/context/skills/processkit/")
+        && Path::new(arg).is_absolute()
+        && !arg.starts_with(&format!("{}/", CONTAINER_WORKSPACE_DIR))
 }
 
 fn check_processkit_semantic_capability(diag: &mut DiagResult) {
@@ -1426,6 +1462,28 @@ services:
         assert!(args.contains(&"--uid"));
         assert!(args.contains(&"--gid"));
         assert!(args.contains(&"/bin/true"));
+    }
+
+    #[test]
+    fn codex_config_detects_host_absolute_processkit_script_paths() {
+        let body = r#"
+[mcp_servers.processkit-gateway]
+command = "uv"
+args = ["run", "/Users/example/project/context/skills/processkit/processkit-gateway/mcp/server.py", "stdio-proxy"]
+"#;
+
+        assert!(codex_config_has_non_container_processkit_script_path(body));
+    }
+
+    #[test]
+    fn codex_config_accepts_container_workspace_processkit_script_paths() {
+        let body = r#"
+[mcp_servers.processkit-gateway]
+command = "uv"
+args = ["run", "/workspace/context/skills/processkit/processkit-gateway/mcp/server.py", "stdio-proxy"]
+"#;
+
+        assert!(!codex_config_has_non_container_processkit_script_path(body));
     }
 
     #[test]

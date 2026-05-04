@@ -43,6 +43,8 @@ pub const COMPOSE_FILE: &str = ".devcontainer/docker-compose.yml";
 pub const DOCKERFILE: &str = ".devcontainer/Dockerfile";
 /// Standard devcontainer.json name.
 pub const DEVCONTAINER_JSON: &str = ".devcontainer/devcontainer.json";
+/// Standard container-side project mount used by generated aibox runtimes.
+pub const CONTAINER_WORKSPACE_DIR: &str = "/workspace";
 
 // ---------------------------------------------------------------------------
 // Base image
