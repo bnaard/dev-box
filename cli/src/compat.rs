@@ -230,6 +230,11 @@ pub static COMPAT_TABLE: &[CompatEntry] = &[
         processkit_version: "v0.25.1",
         note: "Patch release: integrates processkit v0.25.1 model-recommender updates: lifecycle metadata for model roster entries, 42 task suitability classes, task-class-aware query_models/resolve_model routing, list_task_classes(), and refreshed current-market model entries. FORMAT.md unchanged; processkit vocabulary unchanged apart from PROCESSKIT_DEFAULT_VERSION.",
     },
+    CompatEntry {
+        aibox_version: "0.23.3",
+        processkit_version: "v0.25.3",
+        note: "Patch release: integrates processkit v0.25.3 model-spec/model-profile migrations and makes the Codex seccomp=unconfined bubblewrap fallback part of generated docker-compose.yml for downstream projects.",
+    },
 ];
 
 /// Find the minimum compatible processkit version for the given aibox version.
