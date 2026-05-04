@@ -1,6 +1,10 @@
 use std::collections::BTreeMap;
 
 use zellij_tile::prelude::*;
+use zellij_tile::shim::plugin_api::action::ProtobufPluginConfiguration;
+use zellij_tile::shim::plugin_api::event::ProtobufEvent;
+use zellij_tile::shim::plugin_api::pipe_message::ProtobufPipeMessage;
+use zellij_tile::shim::prost::Message;
 
 use crate::model::{render_rows, RenderState, RuntimeSnapshot};
 
@@ -163,7 +167,59 @@ impl ZellijPlugin for AiboxStatusPlugin {
 }
 
 fn visible_row_text(line: String) -> Text {
-    Text::new(line).color_all(0)
+    Text::new(line)
 }
 
-register_plugin!(AiboxStatusPlugin);
+thread_local! {
+    static STATE: std::cell::RefCell<AiboxStatusPlugin> = std::cell::RefCell::new(Default::default());
+}
+
+#[no_mangle]
+pub extern "C" fn main() {
+    std::panic::set_hook(Box::new(|info| {
+        report_panic(info);
+    }));
+}
+
+#[no_mangle]
+pub extern "C" fn load() {
+    STATE.with(|state| {
+        let protobuf_bytes: Vec<u8> = object_from_stdin().unwrap();
+        let protobuf_configuration =
+            ProtobufPluginConfiguration::decode(protobuf_bytes.as_slice()).unwrap();
+        let plugin_configuration = BTreeMap::try_from(&protobuf_configuration).unwrap();
+        state.borrow_mut().load(plugin_configuration);
+    });
+}
+
+#[no_mangle]
+pub extern "C" fn update() -> bool {
+    STATE.with(|state| {
+        let protobuf_bytes: Vec<u8> = object_from_stdin().unwrap();
+        let protobuf_event = ProtobufEvent::decode(protobuf_bytes.as_slice()).unwrap();
+        let event = Event::try_from(protobuf_event).unwrap();
+        state.borrow_mut().update(event)
+    })
+}
+
+#[no_mangle]
+pub extern "C" fn pipe() -> bool {
+    STATE.with(|state| {
+        let protobuf_bytes: Vec<u8> = object_from_stdin().unwrap();
+        let protobuf_pipe_message = ProtobufPipeMessage::decode(protobuf_bytes.as_slice()).unwrap();
+        let pipe_message = PipeMessage::try_from(protobuf_pipe_message).unwrap();
+        state.borrow_mut().pipe(pipe_message)
+    })
+}
+
+#[no_mangle]
+pub extern "C" fn render(rows: i32, cols: i32) {
+    STATE.with(|state| {
+        state.borrow_mut().render(rows as usize, cols as usize);
+    });
+}
+
+#[no_mangle]
+pub extern "C" fn plugin_version() {
+    println!("{}", VERSION);
+}

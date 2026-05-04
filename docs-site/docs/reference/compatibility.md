@@ -12,6 +12,7 @@ below shows the minimum compatible processkit version for each aibox release.
 
 | aibox version | Min. processkit | Notes |
 |--------------|-----------------|-------|
+| 0.23.8 | v0.25.5 | native aibox Zellij status plugin now exports the literal WASM entrypoints Zellij loads, uses theme-default readable foreground text, and has no-container E2E coverage for the load/visibility regression |
 | 0.23.7 | v0.25.5 | host-generated Codex processkit-gateway MCP paths now target the devcontainer workspace mount, preserving subagent-safe absolute paths without leaking host-only paths; doctor warns about stale host-side Codex MCP script paths |
 | 0.23.6 | v0.25.5 | processkit v0.25.5 active interlocutor runtime binding, subagent MCP lifecycle guardrails, Codex MCP path fixes, addon fallback migrations, doctor schema/runtime-template diagnostics, lazygit-disabled cleanup, native Zellij status visibility, and stronger E2E coverage |
 | 0.23.5 | v0.25.4 | generated Dockerfile lazygit disablement cleanup no longer aborts when lazygit is absent as an apt package, while still removing inherited lazygit binaries |

@@ -434,6 +434,43 @@ fn doctor_warns_on_runtime_theme_template_drift() {
 }
 
 #[test]
+fn native_zellij_status_plugin_has_zellij_visible_exports_and_foreground() {
+    let manifest_dir = env!("CARGO_MANIFEST_DIR");
+    let plugin_source = Path::new(manifest_dir)
+        .parent()
+        .unwrap()
+        .join("images/base-debian/zellij-plugins/aibox-status/src/zellij_plugin.rs");
+    let body = fs::read_to_string(&plugin_source)
+        .unwrap_or_else(|err| panic!("read {}: {err}", plugin_source.display()));
+
+    assert!(
+        !body.contains(".color_all(0)"),
+        "native aibox Zellij status rows must not force palette index 0; on dark themes that renders as effectively invisible text:\n{}",
+        plugin_source.display()
+    );
+    assert!(
+        body.contains("Text::new(line)"),
+        "native aibox Zellij status rows should let Zellij/theme defaults choose a readable foreground:\n{}",
+        plugin_source.display()
+    );
+
+    assert!(
+        !body.contains("register_plugin!("),
+        "zellij-tile's register_plugin macro currently emits WASI command-export wrappers that Zellij 0.44 does not load from our artifact:\n{}",
+        plugin_source.display()
+    );
+
+    for function in ["main", "load", "update", "pipe", "render", "plugin_version"] {
+        let needle = format!("pub extern \"C\" fn {function}");
+        assert!(
+            body.contains(&needle),
+            "native aibox Zellij status plugin must export {function} with the literal C ABI symbol Zellij loads:\n{}",
+            plugin_source.display()
+        );
+    }
+}
+
+#[test]
 fn apply_preserves_project_context_edits_while_regenerating_runtime_config() {
     let tmp = tempfile::TempDir::new().expect("create tempdir");
     let dir = tmp.path();

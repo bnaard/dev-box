@@ -255,6 +255,11 @@ pub static COMPAT_TABLE: &[CompatEntry] = &[
         processkit_version: "v0.25.5",
         note: "Patch release: fixes host-generated Codex processkit-gateway MCP paths for devcontainer runtimes, keeping subagent-safe absolute paths while targeting the container workspace mount; doctor now warns about stale host-side Codex MCP script paths.",
     },
+    CompatEntry {
+        aibox_version: "0.23.8",
+        processkit_version: "v0.25.5",
+        note: "Patch release: fixes the native aibox Zellij status plugin artifact so Zellij can load its literal WASM entrypoints, restores readable theme-default foreground rendering for the key/status rows, and adds no-container E2E coverage for the export and foreground regressions.",
+    },
 ];
 
 /// Find the minimum compatible processkit version for the given aibox version.
