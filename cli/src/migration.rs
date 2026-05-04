@@ -16,11 +16,252 @@ use crate::output;
 pub fn check_and_generate_migration() -> Result<()> {
     // Hard-cut: absorb legacy .aibox-version into aibox.lock (one-time, idempotent).
     migrate_legacy_lock_files(Path::new("."))?;
+    migrate_aibox_toml_structure(Path::new("."))?;
     check_and_generate_migration_in(Path::new("."))?;
     ensure_processkit_section_in(Path::new("."))?;
     // Migrate old processkit runtime settings out of [context] (processkit v0.8.0+).
     migrate_processkit_context_settings(Path::new("."))?;
     Ok(())
+}
+
+/// Safely upgrade `aibox.toml` from the legacy `[aibox].version/base` shape to
+/// the current Kubernetes-like object header plus `[image]` section. The merge
+/// uses `toml_edit` so comments and unrelated formatting survive.
+pub fn migrate_aibox_toml_structure(root: &Path) -> Result<()> {
+    let path = root.join("aibox.toml");
+    if !path.is_file() {
+        return Ok(());
+    }
+
+    let raw =
+        fs::read_to_string(&path).with_context(|| format!("Failed to read {}", path.display()))?;
+    let mut doc: toml_edit::DocumentMut = raw
+        .parse()
+        .with_context(|| format!("Failed to parse {} with toml_edit", path.display()))?;
+
+    let mut changed = false;
+    if !doc.contains_key("apiVersion") {
+        doc["apiVersion"] = toml_edit::value("aibox.projectious.work/v1");
+        changed = true;
+    }
+    if !doc.contains_key("kind") {
+        doc["kind"] = toml_edit::value("Workspace");
+        changed = true;
+    }
+    if !doc.contains_key("metadata") || !doc["metadata"].is_table() {
+        doc["metadata"] = toml_edit::table();
+        changed = true;
+    }
+    let metadata_name_missing = doc["metadata"]
+        .as_table()
+        .map(|table| !table.contains_key("name"))
+        .unwrap_or(true);
+    if metadata_name_missing {
+        let name = doc
+            .get("container")
+            .and_then(|item| item.get("name"))
+            .and_then(|item| item.as_str())
+            .filter(|s| !s.is_empty())
+            .unwrap_or("aibox");
+        doc["metadata"]["name"] = toml_edit::value(name);
+        changed = true;
+    }
+
+    if !doc.contains_key("aibox") || !doc["aibox"].is_table() {
+        doc["aibox"] = toml_edit::table();
+        changed = true;
+    }
+    let aibox_config_schema_missing = doc["aibox"]
+        .as_table()
+        .map(|table| !table.contains_key("config_schema"))
+        .unwrap_or(true);
+    if aibox_config_schema_missing {
+        doc["aibox"]["config_schema"] = toml_edit::value("1.0.0");
+        changed = true;
+    }
+    let aibox_profile_missing = doc["aibox"]
+        .as_table()
+        .map(|table| !table.contains_key("profile"))
+        .unwrap_or(true);
+    if aibox_profile_missing {
+        doc["aibox"]["profile"] = toml_edit::value("human-dev");
+        changed = true;
+    }
+
+    if !doc.contains_key("image") || !doc["image"].is_table() {
+        doc["image"] = toml_edit::table();
+        changed = true;
+    }
+
+    let legacy_version = doc["aibox"]
+        .get("version")
+        .and_then(|item| item.as_str())
+        .map(str::to_string);
+    let legacy_base = doc["aibox"]
+        .get("base")
+        .and_then(|item| item.as_str())
+        .map(str::to_string);
+
+    let image_version_was_missing = doc["image"]
+        .as_table()
+        .map(|table| !table.contains_key("version"))
+        .unwrap_or(true);
+    if image_version_was_missing {
+        doc["image"]["version"] = toml_edit::value(legacy_version.as_deref().unwrap_or("latest"));
+        changed = true;
+    }
+    let image_base_was_missing = doc["image"]
+        .as_table()
+        .map(|table| !table.contains_key("base"))
+        .unwrap_or(true);
+    if image_base_was_missing {
+        doc["image"]["base"] = toml_edit::value(legacy_base.as_deref().unwrap_or("debian"));
+        changed = true;
+    }
+
+    let image_version_after = doc["image"]
+        .get("version")
+        .and_then(|item| item.as_str())
+        .unwrap_or("")
+        .to_string();
+    let image_base_after = doc["image"]
+        .get("base")
+        .and_then(|item| item.as_str())
+        .unwrap_or("")
+        .to_string();
+
+    if let Some(aibox) = doc["aibox"].as_table_mut() {
+        if let Some(version) = legacy_version {
+            if image_version_was_missing || version == image_version_after {
+                aibox.remove("version");
+                changed = true;
+            } else {
+                output::warn(
+                    "aibox.toml has both [aibox].version and [image].version with different values; leaving legacy key in place",
+                );
+            }
+        }
+        if let Some(base) = legacy_base {
+            if image_base_was_missing || base == image_base_after {
+                aibox.remove("base");
+                changed = true;
+            } else {
+                output::warn(
+                    "aibox.toml has both [aibox].base and [image].base with different values; leaving legacy key in place",
+                );
+            }
+        }
+    }
+
+    if changed {
+        let rendered = hoist_aibox_object_tables(doc.to_string(), &doc);
+        fs::write(&path, rendered)
+            .with_context(|| format!("Failed to write {}", path.display()))?;
+        output::ok("Merged aibox.toml into current config structure");
+    }
+
+    Ok(())
+}
+
+fn hoist_aibox_object_tables(rendered: String, doc: &toml_edit::DocumentMut) -> String {
+    let metadata_name = doc["metadata"]
+        .get("name")
+        .and_then(|item| item.as_str())
+        .unwrap_or("aibox");
+    let image_version = doc["image"]
+        .get("version")
+        .and_then(|item| item.as_str())
+        .unwrap_or("latest");
+    let image_base = doc["image"]
+        .get("base")
+        .and_then(|item| item.as_str())
+        .unwrap_or("debian");
+
+    let without_metadata = remove_known_table_block(&rendered, "metadata", &["name"]);
+    let without_image = remove_known_table_block(&without_metadata, "image", &["version", "base"]);
+    let insert = format!(
+        "[metadata]\nname = \"{}\"\n\n[image]\nversion = \"{}\"\nbase = \"{}\"\n\n",
+        metadata_name, image_version, image_base
+    );
+
+    insert_after_table(&without_image, "aibox", &insert)
+}
+
+fn remove_known_table_block(input: &str, table: &str, keys: &[&str]) -> String {
+    let header = format!("[{table}]");
+    let mut out = Vec::new();
+    let mut skipping = false;
+
+    for line in input.lines() {
+        let trimmed = line.trim();
+        if trimmed == header {
+            skipping = true;
+            continue;
+        }
+
+        if skipping {
+            if trimmed.starts_with('[') {
+                skipping = false;
+                out.push(line);
+                continue;
+            }
+            if trimmed.is_empty() {
+                continue;
+            }
+            let is_known_key = keys.iter().any(|key| {
+                trimmed.starts_with(&format!("{key} "))
+                    || trimmed.starts_with(&format!("{key}="))
+                    || trimmed.starts_with(&format!("{key}\t"))
+            });
+            if is_known_key {
+                continue;
+            }
+            skipping = false;
+        }
+
+        out.push(line);
+    }
+
+    let mut rendered = out.join("\n");
+    if input.ends_with('\n') {
+        rendered.push('\n');
+    }
+    rendered
+}
+
+fn insert_after_table(input: &str, table: &str, insert: &str) -> String {
+    let header = format!("[{table}]");
+    let lines: Vec<&str> = input.lines().collect();
+    let Some(start) = lines.iter().position(|line| line.trim() == header) else {
+        let mut rendered = String::new();
+        rendered.push_str(insert);
+        rendered.push_str(input);
+        return rendered;
+    };
+
+    let mut end = lines.len();
+    for (idx, line) in lines.iter().enumerate().skip(start + 1) {
+        if line.trim().starts_with('[') {
+            end = idx;
+            break;
+        }
+    }
+
+    let mut out = Vec::new();
+    out.extend_from_slice(&lines[..end]);
+    while out.last().is_some_and(|line| line.trim().is_empty()) {
+        out.pop();
+    }
+    out.push("");
+    out.extend(insert.trim_end().lines());
+    out.push("");
+    out.extend_from_slice(&lines[end..]);
+
+    let mut rendered = out.join("\n");
+    if input.ends_with('\n') {
+        rendered.push('\n');
+    }
+    rendered
 }
 
 /// One-time hard-cut migration: if a legacy `.aibox-version` file still exists,
@@ -1623,6 +1864,71 @@ packages = ["managed"]
 "#
         );
         fs::write(dir.join("aibox.toml"), content).unwrap();
+    }
+
+    #[test]
+    fn aibox_toml_structure_migration_moves_legacy_image_fields() {
+        let tmp = TempDir::new().unwrap();
+        fs::write(
+            tmp.path().join("aibox.toml"),
+            r#"# keep my comment
+[aibox]
+version = "0.23.8"
+base = "debian"
+profile = "headless-runner"
+
+[container]
+name = "project-x"
+"#,
+        )
+        .unwrap();
+
+        migrate_aibox_toml_structure(tmp.path()).unwrap();
+
+        let after = fs::read_to_string(tmp.path().join("aibox.toml")).unwrap();
+        assert!(after.contains("# keep my comment"));
+        assert!(after.contains("apiVersion = \"aibox.projectious.work/v1\""));
+        assert!(after.contains("kind = \"Workspace\""));
+        assert!(after.contains("[metadata]"));
+        assert!(after.contains("name = \"project-x\""));
+        assert!(after.contains("[image]"));
+        assert!(after.contains("version = \"0.23.8\""));
+        assert!(!after.contains("base = \"debian\"\nprofile"));
+
+        let parsed = crate::config::AiboxConfig::from_str(&after).unwrap();
+        assert_eq!(parsed.aibox.version, "0.23.8");
+        assert_eq!(
+            parsed.aibox.profile,
+            crate::config::AiboxProfile::HeadlessRunner
+        );
+    }
+
+    #[test]
+    fn aibox_toml_structure_migration_preserves_conflicting_legacy_version() {
+        let tmp = TempDir::new().unwrap();
+        fs::write(
+            tmp.path().join("aibox.toml"),
+            r#"[aibox]
+version = "0.23.7"
+
+[image]
+version = "0.23.8"
+base = "debian"
+
+[container]
+name = "project-x"
+"#,
+        )
+        .unwrap();
+
+        migrate_aibox_toml_structure(tmp.path()).unwrap();
+
+        let after = fs::read_to_string(tmp.path().join("aibox.toml")).unwrap();
+        assert!(
+            after.contains("[aibox]\nversion = \"0.23.7\""),
+            "conflicting legacy version must remain for manual review: {after}"
+        );
+        assert!(after.contains("[image]\nversion = \"0.23.8\""));
     }
 
     #[test]

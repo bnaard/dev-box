@@ -23,4 +23,5 @@ builder: null
 
 runtime: |
   # Addon: docs-docusaurus
-  RUN npm install -g @docusaurus/core@{{ tools.docusaurus.version }}
+  RUN npm install -g @docusaurus/core@{{ tools.docusaurus.version }} && \
+      npm cache clean --force

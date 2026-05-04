@@ -23,4 +23,5 @@ builder: null
 
 runtime: |
   # Addon: docs-zensical
-  RUN uv tool install zensical
+  RUN UV_CACHE_DIR=/tmp/aibox-uv-cache uv tool install zensical && \
+      rm -rf /tmp/aibox-uv-cache

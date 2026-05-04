@@ -27,6 +27,10 @@ tools:
     default_enabled: true
     default_version: "0.7"
     supported_versions: ["0.6", "0.7"]
+  - name: pip
+    default_enabled: false
+    default_version: ""
+    supported_versions: []
   - name: poetry
     default_enabled: false
     default_version: "2.0"
@@ -40,21 +44,33 @@ builder: null
 
 runtime: |
   # Addon: python (runtime)
+  {% if tools.python.version != "3.13" or tools.pip.enabled %}
   RUN apt-get update && apt-get install -y --no-install-recommends \
+  {% if tools.python.version != "3.13" %}
       python{{ tools.python.version }} \
+  {% endif %}
+  {% if tools.pip.enabled %}
       python3-pip \
+  {% endif %}
       python3-venv \
       && rm -rf /var/lib/apt/lists/*
+  {% endif %}
 
-  {% if tools.uv.enabled %}
+  {% if tools.uv.enabled and tools.uv.version != "0.7" %}
   COPY --from=ghcr.io/astral-sh/uv:{{ tools.uv.version }} /uv /usr/local/bin/uv
   COPY --from=ghcr.io/astral-sh/uv:{{ tools.uv.version }} /uvx /usr/local/bin/uvx
   {% endif %}
 
   {% if tools.poetry.enabled %}
+  RUN apt-get update && apt-get install -y --no-install-recommends \
+      python3-pip \
+      && rm -rf /var/lib/apt/lists/*
   RUN pip3 install --no-cache-dir 'poetry~={{ tools.poetry.version }}.0'
   {% endif %}
 
   {% if tools.pdm.enabled %}
+  RUN apt-get update && apt-get install -y --no-install-recommends \
+      python3-pip \
+      && rm -rf /var/lib/apt/lists/*
   RUN pip3 install --no-cache-dir 'pdm~={{ tools.pdm.version }}.0'
   {% endif %}

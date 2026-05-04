@@ -1,0 +1,9 @@
+.git
+**/.git
+**/target
+**/node_modules
+**/.cache
+**/.pytest_cache
+**/__pycache__
+.DS_Store
+*.log

@@ -71,6 +71,7 @@ pub fn generate_all(config: &AiboxConfig) -> Result<()> {
         match crate::update::fetch_latest_image_version(&flavor) {
             Ok(v) => {
                 effective_config.aibox.version = format!("{}.{}.{}", v.major, v.minor, v.patch);
+                effective_config.image.version = effective_config.aibox.version.clone();
             }
             Err(e) => {
                 crate::output::warn(&format!(

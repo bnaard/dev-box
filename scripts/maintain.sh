@@ -95,6 +95,9 @@ ${bold}Release:${reset}
   release <version>        Sync processkit, test, tag, build CLI, generate release prompt
   release-host <version>   Build macOS binaries, upload to GH release,
                            build + push images to GHCR (run on macOS host)
+                           then commit generated runtime drift
+  release-finalize-runtime <version>
+                           Refresh and commit repo-owned generated runtime files
 
 ${bold}Container (this project's dev-container):${reset}
   start                    Ensure running, then attach via zellij
@@ -657,6 +660,35 @@ cmd_release() {
   echo "  ${bold}Remaining (macOS host):${reset} ./scripts/maintain.sh release-host ${version}"
 }
 
+cmd_release_finalize_runtime() {
+  local version="${1:-}"
+  [[ -z "${version}" ]] && die "Usage: ./scripts/maintain.sh release-finalize-runtime <version>  (e.g. 0.10.2)"
+
+  if ! [[ "${version}" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+    die "Version must be semver: X.Y.Z (got: ${version})"
+  fi
+
+  info "Refreshing repo-owned generated runtime surfaces..."
+  (
+    cd "${PROJECT_ROOT}"
+    if ! git diff --cached --quiet; then
+      die "Staged changes are already present; commit or unstage them before release runtime finalization."
+    fi
+
+    AIBOX_ADDONS_DIR="${PROJECT_ROOT}/addons" \
+      cargo run --manifest-path "${CLI_DIR}/Cargo.toml" -- apply generated-runtime
+
+    git add -- .devcontainer aibox.lock context/migrations context/templates/aibox-home
+    if git diff --cached --quiet -- .devcontainer aibox.lock context/migrations context/templates/aibox-home; then
+      ok "Generated runtime surfaces already match v${version}; no commit needed."
+    else
+      git commit -m "chore: refresh generated runtime for v${version}"
+      git push origin main
+      ok "Generated runtime surfaces committed and pushed for v${version}."
+    fi
+  )
+}
+
 # ── Host-side release (run on macOS after container-side `release`) ──────────
 
 cmd_release_host() {
@@ -688,12 +720,16 @@ cmd_release_host() {
   info "Pushing container images..."
   cmd_push_images "${version}"
 
+  # ── Step 4: Commit generated runtime surfaces now that images exist ───────
+  cmd_release_finalize_runtime "${version}"
+
   # ── Done ──────────────────────────────────────────────────────────────────
   echo ""
   ok "Release ${tag} host-side steps complete."
   echo ""
   echo "  macOS binaries: uploaded to GitHub release"
   echo "  Container images: pushed to GHCR"
+  echo "  Generated runtime: refreshed and committed if needed"
   echo ""
   echo "  Note: docs deployment runs inside the dev-container"
   echo "  (requires Node.js/Docusaurus): ./scripts/maintain.sh docs-deploy"
@@ -802,6 +838,7 @@ case "${COMMAND}" in
   sync-processkit) cmd_sync_processkit ;;
   release)      cmd_release "$@" ;;
   release-host) cmd_release_host "$@" ;;
+  release-finalize-runtime) cmd_release_finalize_runtime "$@" ;;
   start)        cmd_start ;;
   stop)         cmd_stop ;;
   attach)       cmd_attach ;;

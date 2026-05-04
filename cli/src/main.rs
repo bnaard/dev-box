@@ -102,6 +102,7 @@ fn dispatch(cli: cli::Cli) -> anyhow::Result<()> {
             user,
             theme,
             prompt,
+            zellij_status,
             addons,
             addon_tool,
             processkit_source,
@@ -121,6 +122,7 @@ fn dispatch(cli: cli::Cli) -> anyhow::Result<()> {
                     user,
                     theme,
                     prompt,
+                    zellij_status,
                     addons,
                     addon_tool,
                     processkit_source,
@@ -159,6 +161,9 @@ fn dispatch(cli: cli::Cli) -> anyhow::Result<()> {
                     no_container,
                 ),
                 Some(cli::ApplyResource::Audio) => audio::cmd_audio_setup(port),
+                Some(cli::ApplyResource::GeneratedRuntime) => {
+                    container::cmd_apply_generated_runtime(config_path)
+                }
                 Some(cli::ApplyResource::Migration) => {
                     let cwd = std::env::current_dir()?;
                     let id = required_name(name, "migration id")?;

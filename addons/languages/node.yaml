@@ -41,7 +41,8 @@ runtime: |
       rm -rf /var/lib/apt/lists/*
 
   {% if tools.pnpm.enabled or tools.yarn.enabled %}
-  RUN npm install -g{% if tools.pnpm.enabled %} pnpm@{{ tools.pnpm.version }}{% endif %}{% if tools.yarn.enabled %} yarn@{{ tools.yarn.version }}{% endif %}
+  RUN npm install -g{% if tools.pnpm.enabled %} pnpm@{{ tools.pnpm.version }}{% endif %}{% if tools.yarn.enabled %} yarn@{{ tools.yarn.version }}{% endif %} && \
+      npm cache clean --force
 
   {% endif %}
   {% if tools.bun.enabled %}

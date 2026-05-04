@@ -104,14 +104,69 @@ impl std::fmt::Display for AiboxProfile {
 // [aibox] section
 // ---------------------------------------------------------------------------
 
+fn default_config_schema() -> String {
+    "1.0.0".to_string()
+}
+
+fn default_image_version() -> String {
+    "latest".to_string()
+}
+
+fn default_api_version() -> String {
+    "aibox.projectious.work/v1".to_string()
+}
+
+fn default_kind() -> String {
+    "Workspace".to_string()
+}
+
+/// Root metadata for the workspace object.
+#[derive(Debug, Clone, Default, Serialize, Deserialize)]
+pub struct MetadataSection {
+    #[serde(default)]
+    pub name: String,
+}
+
+/// Published base image selector.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct ImageSection {
+    #[serde(default = "default_image_version")]
+    pub version: String,
+    #[serde(default)]
+    pub base: BaseImage,
+}
+
+impl Default for ImageSection {
+    fn default() -> Self {
+        Self {
+            version: default_image_version(),
+            base: BaseImage::Debian,
+        }
+    }
+}
+
 /// Top-level [aibox] section.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct AiboxSection {
+    #[serde(default = "default_config_schema")]
+    pub config_schema: String,
+    #[serde(default = "default_image_version")]
     pub version: String,
     #[serde(default)]
     pub base: BaseImage,
     #[serde(default)]
     pub profile: AiboxProfile,
+}
+
+impl Default for AiboxSection {
+    fn default() -> Self {
+        Self {
+            config_schema: default_config_schema(),
+            version: default_image_version(),
+            base: BaseImage::Debian,
+            profile: AiboxProfile::HumanDev,
+        }
+    }
 }
 
 // ---------------------------------------------------------------------------
@@ -1207,8 +1262,16 @@ fn is_safe_version(s: &str) -> bool {
 /// Root config structure mapping aibox.toml.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct AiboxConfig {
-    #[serde(rename = "aibox")]
+    #[serde(rename = "apiVersion", default = "default_api_version")]
+    pub api_version: String,
+    #[serde(default = "default_kind")]
+    pub kind: String,
+    #[serde(default)]
+    pub metadata: MetadataSection,
+    #[serde(default, rename = "aibox")]
     pub aibox: AiboxSection,
+    #[serde(default)]
+    pub image: ImageSection,
     pub container: ContainerSection,
     #[serde(default)]
     pub context: ContextSection,
@@ -1276,6 +1339,27 @@ impl AiboxConfig {
                 "Deprecated: [process] section found in aibox.toml. \
                  Please move 'packages' into the [context] section.",
             );
+        }
+        self.sync_legacy_aibox_image_fields();
+    }
+
+    /// Keep the new `[image]` section and legacy `[aibox].version/base`
+    /// fields in sync. New config files write image selection under `[image]`,
+    /// but generation still reads `config.aibox.*`; this bridge keeps older
+    /// and newer `aibox.toml` files behaviorally identical during migration.
+    fn sync_legacy_aibox_image_fields(&mut self) {
+        if self.image.version == default_image_version()
+            && self.aibox.version != default_image_version()
+            && !self.aibox.version.is_empty()
+        {
+            self.image.version = self.aibox.version.clone();
+        }
+
+        self.aibox.version = self.image.version.clone();
+        self.aibox.base = self.image.base.clone();
+
+        if self.metadata.name.is_empty() {
+            self.metadata.name = self.container.name.clone();
         }
     }
 
@@ -1389,7 +1473,11 @@ impl AiboxConfig {
             "aibox.toml",
             root,
             &[
+                "apiVersion",
+                "kind",
+                "metadata",
                 "aibox",
+                "image",
                 "container",
                 "context",
                 "process",
@@ -1406,12 +1494,14 @@ impl AiboxConfig {
             &mut mismatches,
         );
 
+        check_child_table(root, "metadata", &["name"], &mut mismatches);
         check_child_table(
             root,
             "aibox",
-            &["version", "base", "profile"],
+            &["config_schema", "version", "base", "profile"],
             &mut mismatches,
         );
+        check_child_table(root, "image", &["version", "base"], &mut mismatches);
         check_child_table(
             root,
             "container",
@@ -1485,6 +1575,27 @@ impl AiboxConfig {
     /// Validate the config values. Called internally by `load`, but also
     /// available for validating programmatically-constructed configs.
     pub fn validate(&self) -> Result<()> {
+        if self.api_version != default_api_version() {
+            bail!(
+                "apiVersion '{}' is not supported by this aibox version; expected '{}'",
+                self.api_version,
+                default_api_version()
+            );
+        }
+        if self.kind != default_kind() {
+            bail!(
+                "kind '{}' is not supported by this aibox version; expected '{}'",
+                self.kind,
+                default_kind()
+            );
+        }
+        semver::Version::parse(&self.aibox.config_schema).with_context(|| {
+            format!(
+                "Invalid aibox.config_schema '{}': must be valid semver",
+                self.aibox.config_schema
+            )
+        })?;
+
         // Validate version is valid semver (allow "latest" sentinel)
         if self.aibox.version != "latest" {
             semver::Version::parse(&self.aibox.version).with_context(|| {
@@ -1915,10 +2026,20 @@ fn check_mcp_table(root: &toml::map::Map<String, toml::Value>, mismatches: &mut 
 #[cfg(test)]
 pub fn test_config() -> AiboxConfig {
     let mut config = AiboxConfig {
+        api_version: default_api_version(),
+        kind: default_kind(),
+        metadata: MetadataSection {
+            name: "test-proj".to_string(),
+        },
         aibox: AiboxSection {
+            config_schema: default_config_schema(),
             version: "0.9.0".to_string(),
             base: BaseImage::Debian,
             profile: AiboxProfile::HumanDev,
+        },
+        image: ImageSection {
+            version: "0.9.0".to_string(),
+            base: BaseImage::Debian,
         },
         container: ContainerSection {
             name: "test-proj".to_string(),
@@ -2053,6 +2174,27 @@ name = "my-project"
 "#
     }
 
+    fn new_shape_toml() -> &'static str {
+        r#"
+apiVersion = "aibox.projectious.work/v1"
+kind = "Workspace"
+
+[metadata]
+name = "my-project"
+
+[aibox]
+config_schema = "1.0.0"
+profile = "human-dev"
+
+[image]
+version = "0.23.8"
+base = "debian"
+
+[container]
+name = "my-project"
+"#
+    }
+
     fn parse_toml(s: &str) -> Result<AiboxConfig> {
         let mut config: AiboxConfig = toml::from_str(s).context("Failed to parse TOML")?;
         config.migrate_legacy_sections();
@@ -2172,6 +2314,17 @@ name = "my-project"
         assert!(config.skills.exclude.is_empty());
         assert!(!config.audio.enabled);
         assert_eq!(config.audio.pulse_server, "tcp:host.docker.internal:4714");
+    }
+
+    #[test]
+    fn parse_new_shape_toml_syncs_image_to_generation_fields() {
+        let config = parse_toml(new_shape_toml()).expect("should parse new shape toml");
+        assert_eq!(config.api_version, "aibox.projectious.work/v1");
+        assert_eq!(config.kind, "Workspace");
+        assert_eq!(config.metadata.name, "my-project");
+        assert_eq!(config.image.version, "0.23.8");
+        assert_eq!(config.aibox.version, "0.23.8");
+        assert_eq!(config.aibox.base, BaseImage::Debian);
     }
 
     #[test]

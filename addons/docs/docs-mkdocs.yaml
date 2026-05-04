@@ -23,4 +23,5 @@ builder: null
 
 runtime: |
   # Addon: docs-mkdocs
-  RUN uv tool install 'mkdocs<2' --with mkdocs-material
+  RUN UV_CACHE_DIR=/tmp/aibox-uv-cache uv tool install 'mkdocs<2' --with mkdocs-material && \
+      rm -rf /tmp/aibox-uv-cache

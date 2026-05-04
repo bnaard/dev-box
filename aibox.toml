@@ -1,3 +1,5 @@
+apiVersion = "aibox.projectious.work/v1"
+kind = "Workspace"
 # =============================================================================
 # aibox.toml — single source of truth for your aibox project.
 # All .devcontainer/ files are generated from this. Edit here, run `aibox sync`.
@@ -5,9 +7,15 @@
 # =============================================================================
 
 [aibox]
-version = "latest"             # Target aibox CLI version. Update this when intentionally upgrading aibox.
-                               # Use "latest" to always track the newest release without pinning.
-base    = "debian"             # Base image flavor. Options: debian
+config_schema = "1.0.0"
+profile = "human-dev"
+
+[metadata]
+name = "aibox"
+
+[image]
+version = "latest"
+base = "debian"
 
 # =============================================================================
 # [container] — runtime and build configuration
@@ -152,7 +160,7 @@ harnesses = ["codex"]
 #   "latest" — resolve to the newest available tag at every `aibox sync`.
 [processkit]
 source   = "https://github.com/projectious-work/processkit.git"
-version  = "v0.25.5"
+version  = "v0.25.7"
 src_path = "src"
 # branch = "main"   # optional — for tracking a moving branch (discouraged)
 #
@@ -207,7 +215,7 @@ layout = "ai"
 
 [customization.zellij_status]
 # Zellij status presentation. Options: native | shell | hidden
-mode = "native"
+mode = "shell"
 
 # =============================================================================
 # [audio] — PulseAudio bridging for voice features (e.g., Claude Code voice)

@@ -47,8 +47,9 @@ RUN install -d /usr/local/bin && \
 # rustup can freely download components (no directory or permission issues).
 RUN rustup target add x86_64-unknown-linux-gnu
 
-FROM ghcr.io/projectious-work/aibox:base-debian-v0.23.6 AS aibox
-LABEL aibox.version="0.23.6"
+
+FROM ghcr.io/projectious-work/aibox:base-debian-v0.23.9 AS aibox
+LABEL aibox.version="0.23.9"
 LABEL aibox.profile="human-dev"
 
 # Addon: ai-claude
@@ -92,7 +93,9 @@ RUN apt-get update && apt-get install -y --no-install-recommends ca-certificates
     apt-get update && apt-get install -y --no-install-recommends nodejs && \
     rm -rf /var/lib/apt/lists/*
 
-RUN npm install -g pnpm@10
+RUN npm install -g pnpm@10 && \
+    npm cache clean --force
+
 
 
 # Addon: ai-codex
@@ -104,17 +107,11 @@ RUN npm install -g @openai/codex
 
 
 # Addon: docs-docusaurus
-RUN npm install -g @docusaurus/core@3.8
+RUN npm install -g @docusaurus/core@3.8 && \
+    npm cache clean --force
 
 # Addon: python (runtime)
-RUN apt-get update && apt-get install -y --no-install-recommends \
-    python3.13 \
-    python3-pip \
-    python3-venv \
-    && rm -rf /var/lib/apt/lists/*
 
-COPY --from=ghcr.io/astral-sh/uv:0.7 /uv /usr/local/bin/uv
-COPY --from=ghcr.io/astral-sh/uv:0.7 /uvx /usr/local/bin/uvx
 
 
 
@@ -134,8 +131,8 @@ RUN install -d /usr/local/bin && \
 # The builder stage has build-essential, but only the toolchain is copied to
 # the runtime image. Without a C linker and glibc startup objects, native
 # `cargo build` / `cargo test` and x86_64 cross-compilation both fail.
-# Install the minimum needed for native compilation and cross-compilation to
-# x86_64 Linux (gcc-x86-64-linux-gnu provides x86_64-linux-gnu-gcc).
+# Install the minimum needed for native compilation, with optional
+# cross-compilation support for x86_64 Linux.
 RUN apt-get update && apt-get install -y --no-install-recommends \
     gcc \
     binutils \
@@ -154,6 +151,7 @@ RUN mkdir -p /home/aibox/.cargo && \
     printf '[target.x86_64-unknown-linux-gnu]\nlinker = "x86_64-linux-gnu-gcc"\n' \
     >> /home/aibox/.cargo/config.toml
 USER root
+
 
 # Project-specific layers (from Dockerfile.local — not managed by aibox apply)
 # Project-specific Dockerfile layers.
@@ -176,4 +174,4 @@ EOF
 
 # Record image version inside container for runtime checks
 USER root
-RUN echo "0.23.6" > /etc/aibox-version
+RUN echo "0.23.9" > /etc/aibox-version

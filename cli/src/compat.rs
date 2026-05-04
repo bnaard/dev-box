@@ -262,8 +262,13 @@ pub static COMPAT_TABLE: &[CompatEntry] = &[
     },
     CompatEntry {
         aibox_version: "0.23.9",
-        processkit_version: "v0.25.5",
-        note: "Patch release: restores the shell-backed Zellij status rows as the default, hardens aibox-status against /proc races, fixes Yazi's edit action by using Zellij's editor action instead of injecting Vim commands, and applies addon dependency fallback handling to `aibox up`.",
+        processkit_version: "v0.25.6",
+        note: "Patch release: restores the shell-backed Zellij status rows as the default, hardens aibox-status against /proc races, fixes Yazi's edit action by using Zellij's editor action instead of injecting Vim commands, applies addon dependency fallback handling to `aibox up`, and integrates processkit v0.25.6 provider-neutral pk command projections.",
+    },
+    CompatEntry {
+        aibox_version: "0.23.10",
+        processkit_version: "v0.25.7",
+        note: "Patch release: integrates processkit v0.25.7 model-routing content, migrates aibox.toml toward the current apiVersion/kind/metadata/image structure during apply, keeps generated config comments self-documenting, exposes image-slimming tool switches through addons, and finalizes generated-runtime release handling.",
     },
 ];
 

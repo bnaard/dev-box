@@ -1,5 +1,5 @@
 use anyhow::Result;
-use std::path::Path;
+use std::path::{Path, PathBuf};
 use std::process::{Command, Stdio};
 
 use crate::config::{AiHarness, AiboxConfig, CONTAINER_WORKSPACE_DIR, McpGatewayMode};
@@ -669,6 +669,7 @@ fn check_processkit_mcp_gateway(config: &AiboxConfig, diag: &mut DiagResult) {
             }
             Ok(_) => {
                 output::ok("Codex MCP config points at processkit-gateway");
+                check_codex_hidden_apps_mcp_state(diag);
             }
             Err(_) => {
                 output::warn(
@@ -678,6 +679,35 @@ fn check_processkit_mcp_gateway(config: &AiboxConfig, diag: &mut DiagResult) {
             }
         }
     }
+}
+
+fn check_codex_hidden_apps_mcp_state(diag: &mut DiagResult) {
+    let codex_home = codex_home_dir();
+    let apps_cache = codex_home.join("cache").join("codex_apps_tools");
+    if !dir_has_entries(&apps_cache) {
+        return;
+    }
+
+    output::warn(
+        "Codex hidden app-tool cache detected at cache/codex_apps_tools. \
+         Some Codex versions eagerly start a hidden `codex_apps` MCP server for subagents; \
+         if subagents hang on MCP startup, avoid delegation or clear that Codex app cache \
+         until the upstream Codex behavior is fixed.",
+    );
+    diag.warnings += 1;
+}
+
+fn codex_home_dir() -> PathBuf {
+    std::env::var_os("CODEX_HOME")
+        .map(PathBuf::from)
+        .or_else(|| std::env::var_os("HOME").map(|home| PathBuf::from(home).join(".codex")))
+        .unwrap_or_else(|| PathBuf::from("/home/aibox/.codex"))
+}
+
+fn dir_has_entries(path: &Path) -> bool {
+    std::fs::read_dir(path)
+        .map(|mut entries| entries.next().is_some())
+        .unwrap_or(false)
 }
 
 fn codex_config_has_non_container_processkit_script_path(body: &str) -> bool {

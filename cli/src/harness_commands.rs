@@ -988,14 +988,24 @@ mod tests {
     fn config_with(version: &str, harnesses: Vec<AiHarness>) -> AiboxConfig {
         use crate::config::{
             AddonsSection, AiSection, AiboxConfig, AiboxProfile, AiboxSection, AudioSection,
-            ContainerSection, ContextSection, CustomizationSection, ProcessKitSection,
-            SkillsSection,
+            ContainerSection, ContextSection, CustomizationSection, ImageSection, MetadataSection,
+            ProcessKitSection, SkillsSection,
         };
         AiboxConfig {
+            api_version: "aibox.projectious.work/v1".to_string(),
+            kind: "Workspace".to_string(),
+            metadata: MetadataSection {
+                name: "t".to_string(),
+            },
             aibox: AiboxSection {
+                config_schema: "1.0.0".to_string(),
                 version: "0.20.0".to_string(),
                 base: crate::config::BaseImage::Debian,
                 profile: AiboxProfile::HumanDev,
+            },
+            image: ImageSection {
+                version: "0.20.0".to_string(),
+                base: crate::config::BaseImage::Debian,
             },
             container: ContainerSection {
                 name: "t".to_string(),

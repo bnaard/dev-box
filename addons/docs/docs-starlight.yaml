@@ -23,4 +23,5 @@ builder: null
 
 runtime: |
   # Addon: docs-starlight
-  RUN npm install -g create-starlight
+  RUN npm install -g create-starlight && \
+      npm cache clean --force

@@ -1,6 +1,6 @@
 use clap::{Parser, Subcommand, ValueEnum};
 
-use crate::config::{AiProvider, AiboxProfile, BaseImage, StarshipPreset, Theme};
+use crate::config::{AiProvider, AiboxProfile, BaseImage, StarshipPreset, Theme, ZellijStatusMode};
 
 /// Parse a truthy/falsy string for env-var-driven boolean flags.
 /// Accepts 1/0, true/false, yes/no, on/off (case-insensitive). Empty string is
@@ -143,6 +143,10 @@ pub enum Commands {
         /// Starship prompt preset (default: default)
         #[arg(long, value_enum)]
         prompt: Option<StarshipPreset>,
+
+        /// Zellij status presentation (default: shell)
+        #[arg(long = "zellij-status", value_enum)]
+        zellij_status: Option<ZellijStatusMode>,
 
         /// Addon names to enable (e.g., python, infrastructure, kubernetes).
         /// Each selected addon's `requires` are auto-added transitively
@@ -417,6 +421,8 @@ pub enum Commands {
 pub enum ApplyResource {
     /// Configure host audio support
     Audio,
+    /// Refresh only git-tracked generated runtime surfaces
+    GeneratedRuntime,
     /// Apply a specific processkit migration
     Migration,
     /// Switch to a saved environment

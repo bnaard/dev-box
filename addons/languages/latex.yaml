@@ -52,6 +52,10 @@ tools:
     default_enabled: false
     default_version: ""
     supported_versions: []
+  - name: svg-inkscape
+    default_enabled: true
+    default_version: ""
+    supported_versions: []
 
 builder: |
   # ── TeX Live builder ──────────────────────────────────────────────────
@@ -163,7 +167,9 @@ runtime: |
       perl \
       fontconfig \
       fonts-noto-color-emoji \
+  {% if tools["svg-inkscape"].enabled %}
       inkscape \
+  {% endif %}
       poppler-utils \
       libfile-homedir-perl \
       libyaml-tiny-perl \

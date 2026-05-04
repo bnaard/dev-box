@@ -1,8 +1,9 @@
 use anyhow::{Result, bail};
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 
 use crate::config::{
     AiHarness, AiProvider, AiboxConfig, AiboxProfile, BaseImage, StarshipPreset, Theme, ThemeMode,
+    ZellijStatusMode,
 };
 use crate::context;
 use crate::generate;
@@ -20,6 +21,7 @@ pub struct InitParams {
     pub user: Option<String>,
     pub theme: Option<Theme>,
     pub prompt: Option<StarshipPreset>,
+    pub zellij_status: Option<ZellijStatusMode>,
     pub addons: Option<Vec<String>>,
     /// Repeated `addon:tool=version` overrides for individual tools
     /// inside selected addons. See [`parse_addon_tool_override`] for
@@ -194,18 +196,36 @@ fn resolve_processkit_section(
     let versions = match crate::content_source::list_versions(&section.source) {
         Ok(v) if !v.is_empty() => v,
         Ok(_) => {
+            if interactive {
+                output::warn(&format!(
+                    "No semver-tagged versions found at {}. Leaving processkit.version = \"{}\"; \
+                     edit aibox.toml later and re-run `aibox apply` to install content.",
+                    section.source, PROCESSKIT_VERSION_UNSET
+                ));
+                return Ok(section);
+            }
+            section.version = crate::processkit_vocab::PROCESSKIT_DEFAULT_VERSION.to_string();
             output::warn(&format!(
-                "No semver-tagged versions found at {}. Leaving processkit.version = \"{}\"; \
-                 edit aibox.toml later and re-run `aibox apply` to install content.",
-                section.source, PROCESSKIT_VERSION_UNSET
+                "No semver-tagged versions found at {}. Falling back to compiled-in \
+                 processkit.version = \"{}\".",
+                section.source, section.version
             ));
             return Ok(section);
         }
         Err(e) => {
+            if interactive {
+                output::warn(&format!(
+                    "Could not list processkit versions at {}: {}. Leaving processkit.version = \"{}\"; \
+                     edit aibox.toml later and re-run `aibox apply` to install content.",
+                    section.source, e, PROCESSKIT_VERSION_UNSET
+                ));
+                return Ok(section);
+            }
+            section.version = crate::processkit_vocab::PROCESSKIT_DEFAULT_VERSION.to_string();
             output::warn(&format!(
-                "Could not list processkit versions at {}: {}. Leaving processkit.version = \"{}\"; \
-                 edit aibox.toml later and re-run `aibox apply` to install content.",
-                section.source, e, PROCESSKIT_VERSION_UNSET
+                "Could not list processkit versions at {}: {}. Falling back to compiled-in \
+                 processkit.version = \"{}\".",
+                section.source, e, section.version
             ));
             return Ok(section);
         }
@@ -829,20 +849,38 @@ fn serialize_config_with_comments(config: &AiboxConfig) -> String {
     out.push_str(sep);
     out.push('\n');
 
-    // [aibox] section
+    // Object header + [aibox]/[image] sections
+    out.push_str("# Object identity. These root keys mirror Kubernetes-style resource files:\n");
+    out.push_str(
+        "# apiVersion selects the aibox config API; kind is currently always Workspace.\n",
+    );
+    out.push_str(&format!("apiVersion = \"{}\"\n", config.api_version));
+    out.push_str(&format!("kind       = \"{}\"\n", config.kind));
+    out.push('\n');
+    out.push_str("[metadata]\n");
+    out.push_str(&format!(
+        "name = {:20} # Human-readable project name; defaults to container.name\n",
+        format!("\"{}\"", config.metadata.name)
+    ));
+    out.push('\n');
     out.push_str("[aibox]\n");
     out.push_str(&format!(
-        "version = {:20} # Target aibox CLI version. Update this when intentionally upgrading aibox.\n",
-        format!("\"{}\"", config.aibox.version)
-    ));
-    out.push_str("                               # Use \"latest\" to always track the newest release without pinning.\n");
-    out.push_str(&format!(
-        "base    = {:20} # Base image flavor. Options: debian\n",
-        format!("\"{}\"", config.aibox.base)
+        "config_schema = \"{}\" # Schema version for this configuration file\n",
+        config.aibox.config_schema
     ));
     out.push_str(&format!(
-        "profile = {:20} # Usage profile. Options: human-dev, headless-runner\n",
-        format!("\"{}\"", config.aibox.profile)
+        "profile = \"{}\"       # Usage profile. Options: human-dev, headless-runner\n",
+        config.aibox.profile
+    ));
+    out.push('\n');
+    out.push_str("[image]\n");
+    out.push_str(&format!(
+        "version = \"{}\"       # Target aibox image/CLI version. Use \"latest\" to resolve newest on apply.\n",
+        config.image.version
+    ));
+    out.push_str(&format!(
+        "base = \"{}\"          # Published base image flavor. Options: debian\n",
+        config.image.base
     ));
 
     // [container] section
@@ -989,6 +1027,55 @@ fn serialize_config_with_comments(config: &AiboxConfig) -> String {
     out.push_str(
         "# or use `aibox set addon <name>` (which also pulls in transitive `requires`).\n",
     );
+    out.push_str("#\n");
+    out.push_str("# Tool entry forms:\n");
+    out.push_str(
+        "#   tool = {}                                      # enable with default version\n",
+    );
+    out.push_str("#   tool = { version = \"1.2.3\" }                  # pin a supported version\n");
+    out.push_str("#   tool = { enabled = false }                     # keep addon but omit tool\n");
+    out.push_str("#\n");
+    out.push_str("# Complete addon catalog (category/name: tools; * means enabled by default):\n");
+    let mut catalog: Vec<_> = crate::addon_loader::all_addons().iter().collect();
+    catalog.sort_by(|a, b| {
+        a.category
+            .cmp(&b.category)
+            .then_with(|| a.name.cmp(&b.name))
+    });
+    for def in catalog {
+        let requires = if def.requires.is_empty() {
+            String::new()
+        } else {
+            format!("; requires {}", def.requires.join(", "))
+        };
+        out.push_str(&format!(
+            "#   {}/{}{} — {}\n",
+            def.category, def.name, requires, def.description
+        ));
+        if def.tools.is_empty() {
+            out.push_str("#     tools: (none)\n");
+        } else {
+            let tools = def
+                .tools
+                .iter()
+                .map(|tool| {
+                    let marker = if tool.default_enabled { "*" } else { "" };
+                    if tool.supported_versions.is_empty() {
+                        format!("{}{}", tool.name, marker)
+                    } else {
+                        format!(
+                            "{}{}({})",
+                            tool.name,
+                            marker,
+                            tool.supported_versions.join("|")
+                        )
+                    }
+                })
+                .collect::<Vec<_>>()
+                .join(", ");
+            out.push_str(&format!("#     tools: {}\n", tools));
+        }
+    }
     if !config.addons.addons.is_empty() {
         let mut addon_names: Vec<_> = config.addons.addons.keys().collect();
         addon_names.sort();
@@ -1243,7 +1330,7 @@ fn serialize_config_with_comments(config: &AiboxConfig) -> String {
 pub fn cmd_init(config_path: &Option<String>, params: InitParams) -> Result<()> {
     use crate::config::{
         AddonsSection, AiSection, AiboxConfig, AiboxSection, AudioSection, ContainerSection,
-        ContextSection, CustomizationSection, SkillsSection,
+        ContextSection, CustomizationSection, ImageSection, MetadataSection, SkillsSection,
     };
 
     let toml_path = config_path
@@ -1270,6 +1357,28 @@ pub fn cmd_init(config_path: &Option<String>, params: InitParams) -> Result<()> 
     )?;
 
     let container_user = params.user.unwrap_or_else(|| "aibox".to_string());
+    let zellij_status_mode = match params.zellij_status {
+        Some(mode) => mode,
+        None if interactive => {
+            let labels = [
+                "shell — built-in Zellij bar plus aibox runtime status (recommended)",
+                "native — experimental aibox WASM plugin",
+                "hidden — no aibox-provided status rows",
+            ];
+            let modes = [
+                ZellijStatusMode::Shell,
+                ZellijStatusMode::Native,
+                ZellijStatusMode::Hidden,
+            ];
+            let idx = dialoguer::Select::new()
+                .with_prompt("Zellij status")
+                .items(&labels)
+                .default(0)
+                .interact()?;
+            modes[idx].clone()
+        }
+        None => ZellijStatusMode::default(),
+    };
     let ai_providers = match params.ai {
         Some(providers) => providers,
         None if interactive => {
@@ -1312,10 +1421,20 @@ pub fn cmd_init(config_path: &Option<String>, params: InitParams) -> Result<()> 
         .collect();
 
     let mut config = AiboxConfig {
+        api_version: "aibox.projectious.work/v1".to_string(),
+        kind: "Workspace".to_string(),
+        metadata: MetadataSection {
+            name: resolved.project_name.clone(),
+        },
         aibox: AiboxSection {
+            config_schema: "1.0.0".to_string(),
+            version: env!("CARGO_PKG_VERSION").to_string(),
+            base: resolved.base_image.clone(),
+            profile: resolved.profile,
+        },
+        image: ImageSection {
             version: env!("CARGO_PKG_VERSION").to_string(),
             base: resolved.base_image,
-            profile: resolved.profile,
         },
         container: ContainerSection {
             name: resolved.project_name.clone(),
@@ -1383,7 +1502,9 @@ pub fn cmd_init(config_path: &Option<String>, params: InitParams) -> Result<()> 
             mode: ThemeMode::Auto,
             prompt: params.prompt.unwrap_or_default(),
             layout: crate::config::ConfigLayout::default(),
-            zellij_status: crate::config::ZellijStatusSection::default(),
+            zellij_status: crate::config::ZellijStatusSection {
+                mode: zellij_status_mode,
+            },
         },
         agents: crate::config::AgentsSection::default(),
         audio: AudioSection::default(),
@@ -1679,29 +1800,9 @@ pub fn cmd_sync(
 
     // Resolve [aibox].version = "latest" to a concrete image tag before
     // Dockerfile generation. "latest" is never a valid Docker image tag in
-    // our registry (tags are base-<flavor>-v<semver>); we must resolve it to
-    // a concrete version so the generated Dockerfile references a real image.
-    if config.aibox.version == "latest" {
-        let flavor = config.aibox.base.to_string();
-        match crate::update::fetch_latest_image_version(&flavor) {
-            Ok(v) => {
-                let resolved = format!("{}.{}.{}", v.major, v.minor, v.patch);
-                output::info(&format!(
-                    "Resolved aibox image 'latest' \u{2192} v{}",
-                    resolved
-                ));
-                config.aibox.version = resolved;
-            }
-            Err(e) => {
-                crate::output::warn(&format!(
-                    "[aibox].version = \"latest\" but image version resolution failed: {}. \
-                     Dockerfile will reference a concrete version if one was previously resolved, \
-                     or may fail. Consider setting an explicit version in aibox.toml.",
-                    e
-                ));
-            }
-        }
-    }
+    // our registry (tags are base-<flavor>-v<semver>), so generation must
+    // fall back to a concrete value even when network resolution fails.
+    resolve_aibox_image_version_for_generation(&mut config, Path::new("."));
 
     // Warn if running CLI version differs from the pinned target version.
     // Only fire when the user wrote a concrete version (not "latest" / "unset" / empty).
@@ -2059,6 +2160,97 @@ pub fn cmd_sync(
     }
 
     Ok(())
+}
+
+pub fn cmd_apply_generated_runtime(config_path: &Option<String>) -> Result<()> {
+    let project_root = std::env::current_dir()?;
+    let tripwire = crate::sync_perimeter::Tripwire::snapshot(Some(project_root.as_path()));
+
+    crate::migration::check_and_generate_migration()?;
+
+    let mut config = AiboxConfig::from_cli_option(config_path)?;
+    resolve_aibox_image_version_for_generation(&mut config, &project_root);
+
+    let added_required_addons = complete_missing_required_addons(&mut config);
+    if !added_required_addons.is_empty() {
+        for (addon, required) in &added_required_addons {
+            output::warn(&format!(
+                "Addon '{}' requires '{}'; using '{}' for this apply. \
+                 Add [addons.{}.tools] to aibox.toml to make the migration explicit.",
+                addon, required, required, required
+            ));
+        }
+        if let Err(e) = crate::migration::generate_addon_dependency_migration(
+            &project_root,
+            &added_required_addons,
+        ) {
+            output::warn(&format!(
+                "Could not write addon dependency migration guidance: {}",
+                e
+            ));
+        }
+    }
+
+    output::info("Generating devcontainer files...");
+    generate::generate_all(&config)?;
+
+    let version = env!("CARGO_PKG_VERSION");
+    crate::runtime_sync::copy_runtime_templates(&project_root, version, &config)?;
+    crate::runtime_sync::refresh_runtime_home_template_lock(&project_root, &config)?;
+
+    tripwire.verify()?;
+    output::ok(
+        "Generated runtime files refreshed (skipped processkit, harness config, live runtime, runtime probe, and image build)",
+    );
+
+    Ok(())
+}
+
+fn resolve_aibox_image_version_for_generation(config: &mut AiboxConfig, project_root: &Path) {
+    if config.aibox.version != "latest" {
+        return;
+    }
+
+    let flavor = config.aibox.base.to_string();
+    match crate::update::fetch_latest_image_version(&flavor) {
+        Ok(v) => {
+            let resolved = format!("{}.{}.{}", v.major, v.minor, v.patch);
+            output::info(&format!(
+                "Resolved aibox image 'latest' \u{2192} v{}",
+                resolved
+            ));
+            config.aibox.version = resolved;
+            config.image.version = config.aibox.version.clone();
+        }
+        Err(e) => {
+            if let Some(previous) = previous_concrete_aibox_version(project_root) {
+                output::warn(&format!(
+                    "[aibox].version = \"latest\" but image version resolution failed: {}. \
+                     Reusing previously resolved aibox version {} from aibox.lock.",
+                    e, previous
+                ));
+                config.aibox.version = previous;
+                config.image.version = config.aibox.version.clone();
+            } else {
+                let current = env!("CARGO_PKG_VERSION").to_string();
+                output::warn(&format!(
+                    "[aibox].version = \"latest\" but image version resolution failed: {}. \
+                     Falling back to the running CLI version {}.",
+                    e, current
+                ));
+                config.aibox.version = current;
+                config.image.version = config.aibox.version.clone();
+            }
+        }
+    }
+}
+
+fn previous_concrete_aibox_version(project_root: &Path) -> Option<String> {
+    crate::lock::read_lock(project_root)
+        .ok()
+        .flatten()
+        .map(|lock| lock.aibox.cli_version)
+        .filter(|version| !version.is_empty() && version != "latest" && version != "unset")
 }
 
 /// Probe for a container runtime and build the project image.

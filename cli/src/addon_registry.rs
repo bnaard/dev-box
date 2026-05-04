@@ -237,17 +237,17 @@ mod tests {
     // ── Runtime-command generation ──────────────────────────────────────
 
     #[test]
-    fn python_runtime_contains_uv() {
+    fn python_runtime_uses_base_python_uv_without_extra_layers() {
         ensure_loaded();
         let tools = tc(&[("python", true, "3.13"), ("uv", true, "0.7")]);
         let cmds = generate_runtime_commands("python", &tools);
         assert!(
-            cmds.contains("python3.13") || cmds.contains("python3"),
-            "missing python in:\n{cmds}"
+            !cmds.contains("python3-pip"),
+            "base Python/uv defaults should not add pip layer:\n{cmds}"
         );
         assert!(
-            cmds.contains("uv:0.7") || cmds.contains("uv"),
-            "missing uv in:\n{cmds}"
+            !cmds.contains("ghcr.io/astral-sh/uv:0.7"),
+            "base uv default should not recopy uv from its image:\n{cmds}"
         );
     }
 
@@ -262,7 +262,7 @@ mod tests {
     #[test]
     fn rust_runtime_copies_from_builder() {
         ensure_loaded();
-        let tools = tc(&[("rustc", true, "1.94")]);
+        let tools = tc(&[("rustc", true, "1.94"), ("x86_64-cross", true, "")]);
         let cmds = generate_runtime_commands("rust", &tools);
         assert!(
             cmds.contains("COPY --from=rust-builder"),

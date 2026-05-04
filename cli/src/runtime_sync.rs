@@ -74,6 +74,22 @@ pub fn copy_runtime_templates(
     Ok(())
 }
 
+pub fn refresh_runtime_home_template_lock(
+    project_root: &Path,
+    config: &crate::config::AiboxConfig,
+) -> Result<()> {
+    let generated_hashes: BTreeMap<String, String> = crate::seed::managed_runtime_files(config)
+        .into_iter()
+        .map(|(path, content)| {
+            (
+                path.to_string_lossy().replace('\\', "/"),
+                sha256_of_bytes(content.as_bytes()),
+            )
+        })
+        .collect();
+    refresh_runtime_home_lock(project_root, generated_hashes)
+}
+
 pub fn run_runtime_sync(
     project_root: &Path,
     from_version: Option<&str>,

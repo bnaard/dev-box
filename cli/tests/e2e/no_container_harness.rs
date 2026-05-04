@@ -639,6 +639,72 @@ fn smoke_no_container_init_then_apply() {
 }
 
 #[test]
+fn generated_runtime_apply_does_not_touch_provider_or_live_runtime_files() {
+    let tmp = tempfile::TempDir::new().expect("create tempdir");
+    let dir = tmp.path();
+
+    let init_out = run_in(
+        dir,
+        &[
+            "init",
+            "fixture",
+            "--base",
+            "debian",
+            "--context",
+            "managed",
+            "--harness",
+            "codex",
+        ],
+    );
+    assert!(
+        init_out.status.success(),
+        "init failed.\n{}",
+        fmt_output("init", &init_out)
+    );
+
+    let codex_hooks = dir.join(".codex/hooks.json");
+    fs::create_dir_all(codex_hooks.parent().unwrap()).unwrap();
+    let hooks_before = r#"{"hooks":{"user_prompt_submit":{"command":"echo user-owned"}}}"#;
+    fs::write(&codex_hooks, hooks_before).unwrap();
+
+    let live_zellij = dir.join(".aibox-home/.config/zellij/config.kdl");
+    fs::create_dir_all(live_zellij.parent().unwrap()).unwrap();
+    let live_before = "// user-owned live runtime config\n";
+    fs::write(&live_zellij, live_before).unwrap();
+
+    let out = run_in(dir, &["apply", "generated-runtime"]);
+    assert!(
+        out.status.success(),
+        "apply generated-runtime failed.\n{}",
+        fmt_output("apply generated-runtime", &out)
+    );
+
+    assert_eq!(
+        fs::read_to_string(&codex_hooks).unwrap(),
+        hooks_before,
+        "generated-runtime apply must not rewrite provider hook files"
+    );
+    assert_eq!(
+        fs::read_to_string(&live_zellij).unwrap(),
+        live_before,
+        "generated-runtime apply must not rewrite live .aibox-home files"
+    );
+
+    assert!(
+        dir.join(".devcontainer/Dockerfile").is_file(),
+        "generated-runtime apply should still refresh devcontainer files"
+    );
+    assert!(
+        dir.join("context/templates/aibox-home")
+            .read_dir()
+            .expect("runtime template root should exist")
+            .next()
+            .is_some(),
+        "generated-runtime apply should write a versioned runtime template snapshot"
+    );
+}
+
+#[test]
 fn negative_no_runtime_required() {
     // Recurrence guard for the entire defect class.
     //
