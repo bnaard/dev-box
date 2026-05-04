@@ -12,6 +12,7 @@ below shows the minimum compatible processkit version for each aibox release.
 
 | aibox version | Min. processkit | Notes |
 |--------------|-----------------|-------|
+| 0.23.11 | v0.25.7 | grouped `aibox.toml` schema around aibox, container, processkit, and ai sections; catalog-style AI harness/model-provider controls; generated path settings; product skill defaults; and managed Zellij status runtime repair |
 | 0.23.10 | v0.25.7 | processkit v0.25.7 model-routing content, apply-time `aibox.toml` structure migration, self-documenting generated config comments, addon-backed image-slimming switches, and generated-runtime release finalization |
 | 0.23.9 | v0.25.6 | restores shell-backed Zellij status rows as the default, hardens `aibox-status` against `/proc` races, fixes Yazi edit actions, applies addon dependency fallback handling to `aibox up`, and integrates processkit v0.25.6 provider-neutral pk command projections |
 | 0.23.8 | v0.25.5 | native aibox Zellij status plugin now exports the literal WASM entrypoints Zellij loads, uses theme-default readable foreground text, and has no-container E2E coverage for the load/visibility regression |

@@ -270,6 +270,11 @@ pub static COMPAT_TABLE: &[CompatEntry] = &[
         processkit_version: "v0.25.7",
         note: "Patch release: integrates processkit v0.25.7 model-routing content, migrates aibox.toml toward the current apiVersion/kind/metadata/image structure during apply, keeps generated config comments self-documenting, exposes image-slimming tool switches through addons, and finalizes generated-runtime release handling.",
     },
+    CompatEntry {
+        aibox_version: "0.23.11",
+        processkit_version: "v0.25.7",
+        note: "Patch release: groups generated aibox.toml around aibox, container, processkit, and ai ownership boundaries; adds catalog-style AI harness and model-provider controls; exposes generated path settings; defaults new projects to the product skill set; and repairs managed Zellij status runtime files during sync.",
+    },
 ];
 
 /// Find the minimum compatible processkit version for the given aibox version.
