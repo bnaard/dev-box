@@ -12,6 +12,7 @@ below shows the minimum compatible processkit version for each aibox release.
 
 | aibox version | Min. processkit | Notes |
 |--------------|-----------------|-------|
+| 0.23.13 | v0.25.8 | fixes 0.23.11-to-0.23.12 generated-config upgrades where a moved tool, such as `gh`, still sits under its old addon owner; `aibox apply` now migrates misplaced addon tool entries to their unique current catalog owner before strict validation and comment refresh |
 | 0.23.12 | v0.25.8 | processkit v0.25.8 Xiaomi MiMo model-routing content and cleanup-hint provenance, native aibox Zellij key/status bar refinements, semantic AI/audio config sections, stable Claude CLI install path, addon tool validation, and stale processkit-managed skill detection |
 | 0.23.11 | v0.25.7 | grouped `aibox.toml` schema around aibox, container, processkit, and ai sections; catalog-style AI harness/model-provider controls; generated path settings; product skill defaults; and managed Zellij status runtime repair |
 | 0.23.10 | v0.25.7 | processkit v0.25.7 model-routing content, apply-time `aibox.toml` structure migration, self-documenting generated config comments, addon-backed image-slimming switches, and generated-runtime release finalization |

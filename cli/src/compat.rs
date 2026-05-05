@@ -280,6 +280,11 @@ pub static COMPAT_TABLE: &[CompatEntry] = &[
         processkit_version: "v0.25.8",
         note: "Patch release: integrates processkit v0.25.8 Xiaomi MiMo model-routing content and cleanup-hint provenance; adds native aibox Zellij key/status bar refinements; moves AI harness and audio install controls under their semantic config sections; fixes Claude CLI installation to a stable /usr/local/bin path; rejects misplaced addon tool entries with owner hints; and warns on stale processkit-managed skills left hot after upstream renames.",
     },
+    CompatEntry {
+        aibox_version: "0.23.13",
+        processkit_version: "v0.25.8",
+        note: "Patch release: fixes 0.23.11-to-0.23.12 upgrades for generated configs that still place a moved tool under its old addon owner; apply now migrates misplaced addon tool entries to their unique current catalog owner before strict validation and comment refresh, while preserving hard errors for unknown tools.",
+    },
 ];
 
 /// Find the minimum compatible processkit version for the given aibox version.
