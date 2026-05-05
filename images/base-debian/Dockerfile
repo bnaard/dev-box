@@ -281,7 +281,9 @@ COPY config/vimrc /home/aibox/.vim/vimrc
 # Create config directories in a single layer
 RUN mkdir -p /home/aibox/.config/zellij/themes /home/aibox/.config/zellij/layouts \
              /home/aibox/.config/yazi/plugins \
-             /home/aibox/.config/git
+             /home/aibox/.config/state \
+             /home/aibox/.config/git \
+             /home/aibox/.local/bin
 
 # Zellij
 COPY config/zellij/config.kdl          /home/aibox/.config/zellij/config.kdl
@@ -338,6 +340,7 @@ COPY --chmod=755 config/entrypoint.sh /usr/local/bin/entrypoint.sh
 # Keep user-local bin on PATH as a convenience for ad-hoc installs, but do not
 # rely on it for scaffolded tools.
 ENV UV_TOOL_BIN_DIR="/usr/local/bin" \
+    XDG_STATE_HOME="/home/aibox/.config/state" \
     PATH="${PATH}:/home/aibox/.local/bin"
 
 # ── Entrypoint ────────────────────────────────────────────────────────────────

@@ -940,7 +940,7 @@ edit-pane = [
 [open]
 rules = [
     { mime = "text/*", use = "edit" },
-    { name = "*", use = "edit" },
+    { url = "*", use = "edit" },
 ]
 "#;
 
@@ -1485,7 +1485,9 @@ pub fn ensure_runtime_dirs(config: &AiboxConfig) -> Result<()> {
     let mut dirs = vec![
         root.join(".ssh"),
         root.join(".local").join("bin"),
+        root.join(".local").join("state"),
         root.join(".vim").join("undo"),
+        root.join(".config").join("state"),
         root.join(".config").join("zellij").join("themes"),
         root.join(".config").join("zellij").join("layouts"),
         root.join(".config").join("yazi"),
@@ -1513,6 +1515,8 @@ pub fn ensure_runtime_dirs(config: &AiboxConfig) -> Result<()> {
     ];
     if include_lazygit {
         dirs.push(root.join(".config").join("lazygit"));
+        dirs.push(root.join(".local").join("state").join("lazygit"));
+        dirs.push(root.join(".config").join("state").join("lazygit"));
     }
 
     for harness in &config.ai.harnesses {
@@ -2143,6 +2147,8 @@ mod tests {
         seed_root_dir(&config).unwrap();
 
         assert!(root.join(".ssh").is_dir());
+        assert!(root.join(".local").join("state").is_dir());
+        assert!(root.join(".config").join("state").is_dir());
         assert!(root.join(".vim").join("undo").is_dir());
         assert!(root.join(".config").join("zellij").join("themes").is_dir());
         assert!(root.join(".config").join("zellij").join("layouts").is_dir());
@@ -2152,6 +2158,71 @@ mod tests {
 
         unsafe {
             std::env::remove_var("AIBOX_HOST_ROOT");
+        }
+    }
+
+    #[test]
+    #[serial]
+    fn seed_root_dir_creates_lazygit_state_directory_when_enabled() {
+        let dir = tempfile::tempdir().unwrap();
+        let root = dir.path().join("root");
+        let mut config = make_config(false, root.clone());
+        let mut tools = std::collections::HashMap::new();
+        tools.insert(
+            "lazygit".to_string(),
+            ToolEntry {
+                version: None,
+                enabled: Some(true),
+            },
+        );
+        config
+            .addons
+            .addons
+            .insert("git-ui".to_string(), AddonToolsSection { tools });
+
+        seed_root_dir(&config).unwrap();
+
+        assert!(root.join(".config").join("lazygit").is_dir());
+        assert!(root.join(".local").join("state").join("lazygit").is_dir());
+        assert!(root.join(".config").join("state").join("lazygit").is_dir());
+
+        unsafe {
+            std::env::remove_var("AIBOX_HOST_ROOT");
+        }
+    }
+
+    #[test]
+    fn default_yazi_open_rules_use_current_url_schema() {
+        assert!(
+            DEFAULT_YAZI_CONFIG.contains(r#"{ url = "*", use = "edit" }"#),
+            "Yazi 26 open rules require url or mime matchers"
+        );
+        assert!(
+            !DEFAULT_YAZI_CONFIG.contains("name = \"*\""),
+            "Yazi 26 rejects name-only [open] rules"
+        );
+    }
+
+    #[test]
+    fn bundled_yazi_themes_use_current_url_schema() {
+        for theme in [
+            Theme::GruvboxDark,
+            Theme::CatppuccinMocha,
+            Theme::CatppuccinLatte,
+            Theme::Dracula,
+            Theme::TokyoNight,
+            Theme::Nord,
+            Theme::Projectious,
+        ] {
+            let body = crate::themes::yazi_theme(&theme);
+            assert!(
+                body.contains("url = \"*/\""),
+                "Yazi 26 filetype rules require url or mime matchers for {theme}"
+            );
+            assert!(
+                !body.contains("{ name ="),
+                "Yazi 26 rejects name-only filetype rules for {theme}"
+            );
         }
     }
 

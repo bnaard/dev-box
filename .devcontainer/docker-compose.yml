@@ -48,6 +48,8 @@ services:
       - ../.aibox-home/.config/yazi:/home/aibox/.config/yazi
       # Git configuration
       - ../.aibox-home/.config/git:/home/aibox/.config/git
+      # XDG state for TUIs such as lazygit
+      - ../.aibox-home/.config/state:/home/aibox/.config/state
       # aibox-managed helper scripts (resource status, preview helpers)
       - ../.aibox-home/.local/bin:/home/aibox/.local/bin
       # OpenAI Codex CLI configuration and cached login state

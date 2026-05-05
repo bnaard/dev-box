@@ -822,6 +822,19 @@ mod tests {
     }
 
     #[test]
+    fn compose_mounts_xdg_state_home() {
+        let dir = tempfile::tempdir().unwrap();
+        let config = make_config(&[], false);
+        generate_docker_compose(&config, dir.path(), &test_env()).unwrap();
+
+        let content = fs::read_to_string(dir.path().join("docker-compose.yml")).unwrap();
+        assert!(
+            content.contains(".config/state:/root/.config/state"),
+            "compose should mount writable XDG state for TUIs such as lazygit:\n{content}"
+        );
+    }
+
+    #[test]
     fn compose_uses_init_reaper_and_preserves_sleep_command() {
         let dir = tempfile::tempdir().unwrap();
         let config = make_config(&[], false);

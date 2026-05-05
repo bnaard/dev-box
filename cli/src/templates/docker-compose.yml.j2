@@ -48,6 +48,8 @@ services:
       - {{ host_root }}/.config/yazi:{{ container_home }}/.config/yazi
       # Git configuration
       - {{ host_root }}/.config/git:{{ container_home }}/.config/git
+      # XDG state for TUIs such as lazygit
+      - {{ host_root }}/.config/state:{{ container_home }}/.config/state
       # aibox-managed helper scripts (resource status, preview helpers)
       - {{ host_root }}/.local/bin:{{ container_home }}/.local/bin
 {% for harness in ai_providers %}
