@@ -93,9 +93,8 @@ ${bold}Release:${reset}
   sync-processkit          Check for new processkit release; patch constants + show diff
                            (runs automatically inside 'release'; also available standalone)
   release <version>        Sync processkit, test, tag, build CLI, generate release prompt
-  release-host <version>   Build macOS binaries, upload to GH release,
-                           build + push images to GHCR (run on macOS host)
-                           then commit generated runtime drift
+  release-host <version>   Build/upload macOS binaries, push GHCR images,
+                           then refresh + commit generated runtime surfaces
   release-finalize-runtime <version>
                            Refresh and commit repo-owned generated runtime files
 
@@ -642,6 +641,8 @@ cmd_release() {
     echo "- Build macOS binaries (aarch64-apple-darwin, x86_64-apple-darwin)"
     echo "- Upload them to the existing GitHub release ${tag}"
     echo "- Build and push container images to GHCR"
+    echo "- Refresh repo-owned generated runtime surfaces after the image tags exist"
+    echo "- Commit and push generated runtime changes if they drift"
   } > "${prompt_file}"
 
   ok "Host-side prompt written to dist/RELEASE-PROMPT.md"
