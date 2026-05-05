@@ -48,8 +48,8 @@ RUN install -d /usr/local/bin && \
 RUN rustup target add x86_64-unknown-linux-gnu
 
 
-FROM ghcr.io/projectious-work/aibox:base-debian-v0.23.16 AS aibox
-LABEL aibox.version="0.23.16"
+FROM ghcr.io/projectious-work/aibox:base-debian-v0.23.17 AS aibox
+LABEL aibox.version="0.23.17"
 LABEL aibox.profile="human-dev"
 
 # Addon: audio-voice — PulseAudio/Sox support for interactive voice tools.
@@ -164,4 +164,4 @@ EOF
 
 # Record image version inside container for runtime checks
 USER root
-RUN echo "0.23.16" > /etc/aibox-version
+RUN echo "0.23.17" > /etc/aibox-version
