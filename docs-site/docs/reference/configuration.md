@@ -287,7 +287,7 @@ in generated agent/MCP config; in-container CLI installation is controlled by
 | Field | Type | Required | Default | Description |
 |-------|------|----------|---------|-------------|
 | `model_providers` | Array of strings | No | `[]` | Optional API-key/provider hints: `anthropic`, `openai`, `google`, `mistral`. |
-| `harness.<name>.enabled` | Boolean | No | `true` when table is present | Include this harness in generated runtime config. Names: `claude`, `codex`, `gemini`, `aider`, `continue`, `cursor`, `copilot`, `opencode`, `hermes`. |
+| `harness.<name>.enabled` | Boolean | No | `false` unless set or paired with other controls | Include this harness in generated runtime config. Names: `claude`, `codex`, `gemini`, `aider`, `continue`, `cursor`, `copilot`, `opencode`, `hermes`. |
 | `harness.<name>.install` | Boolean | No | `true` | Install the matching in-container CLI recipe when available. |
 | `harness.<name>.version` | String | No | addon's default | Optional CLI version pin. |
 

@@ -451,12 +451,18 @@ pub fn standardize_aibox_toml_file(path: &Path) -> Result<()> {
         );
     }
 
-    let config = crate::config::AiboxConfig::load(path).with_context(|| {
+    let mut config = crate::config::AiboxConfig::load(path).with_context(|| {
         format!(
             "Failed to load {} for config standardization",
             path.display()
         )
     })?;
+    if config.skills.include.is_empty() {
+        config.skills.include = crate::processkit_vocab::STANDARD_PROCESSKIT_SKILLS
+            .iter()
+            .map(|skill| (*skill).to_string())
+            .collect();
+    }
     let rendered = crate::container::serialize_config_with_comments(&config);
     if rendered != raw {
         fs::write(path, rendered).with_context(|| format!("Failed to write {}", path.display()))?;
@@ -2338,8 +2344,14 @@ value = true
 name = "demo"
 
 [ai]
-harnesses = ["codex"]
 model_providers = ["openai"]
+
+# User left the table header active while commenting its controls.
+[ai.harness.claude]
+
+[ai.harness.codex]
+enabled = true
+install = true
 
 [processkit]
 version = "unset"
@@ -2354,11 +2366,15 @@ layout = "ai"
 
         let after = fs::read_to_string(tmp.path().join("aibox.toml")).unwrap();
         assert!(after.contains("# aibox.toml — single source of truth"));
+        assert!(after.contains("# [ai.harness.claude]"));
+        assert!(!after.contains("\n[ai.harness.claude]\n"));
         assert!(after.contains("[ai.harness.codex]"));
         assert!(after.contains("enabled = true"));
         assert!(!after.contains("harnesses = ["));
         assert!(!after.contains("packages = [\"product\"]"));
         assert!(!after.to_ascii_lowercase().contains("deprecated"));
+        assert!(after.contains("    \"actor-profile\", # processkit;"));
+        assert!(!after.contains("    # \"actor-profile\", # explicitly enable;"));
         let ai = after.find("[ai]").unwrap();
         let ai_mcp = after.find("[ai.mcp.gateway]").unwrap();
         let processkit = after.find("[processkit]").unwrap();

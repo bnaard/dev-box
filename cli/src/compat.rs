@@ -290,6 +290,11 @@ pub static COMPAT_TABLE: &[CompatEntry] = &[
         processkit_version: "v0.25.8",
         note: "Patch release: makes per-harness [ai.harness.<name>] tables the canonical generated aibox.toml selector, adds opt-in `aibox apply --standardize-config` for schema-clean canonical rewrites, removes stale/deprecated generated comments, restores Yazi `e` cross-pane editor handoff, and refreshes docs around semantic AI harness configuration.",
     },
+    CompatEntry {
+        aibox_version: "0.23.15",
+        processkit_version: "v0.25.8",
+        note: "Patch release: fixes a 0.23.14 standardize-config regression where a blank [ai.harness.<name>] table could re-enable a harness after its controls were commented out, and restores the standard processkit skill list when canonical config rewrites encounter an empty skill include list.",
+    },
 ];
 
 /// Find the minimum compatible processkit version for the given aibox version.

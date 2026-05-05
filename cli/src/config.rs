@@ -675,12 +675,20 @@ impl AiSection {
             self.harnesses = self.providers.drain(..).collect();
         }
         for (harness, config) in &self.harness {
-            if config.enabled.unwrap_or(true) {
-                if !self.harnesses.contains(harness) {
-                    self.harnesses.push(harness.clone());
+            match config.enabled {
+                Some(true) => {
+                    if !self.harnesses.contains(harness) {
+                        self.harnesses.push(harness.clone());
+                    }
                 }
-            } else {
-                self.harnesses.retain(|candidate| candidate != harness);
+                Some(false) => {
+                    self.harnesses.retain(|candidate| candidate != harness);
+                }
+                None => {
+                    if !self.harnesses.contains(harness) && config.has_controls() {
+                        self.harnesses.push(harness.clone());
+                    }
+                }
             }
         }
     }
@@ -707,6 +715,16 @@ impl AiSection {
             .get(harness)
             .and_then(|config| config.version.as_deref())
             .filter(|version| !version.is_empty())
+    }
+}
+
+impl AiHarnessConfig {
+    fn has_controls(&self) -> bool {
+        self.install.is_some()
+            || self
+                .version
+                .as_deref()
+                .is_some_and(|version| !version.is_empty())
     }
 }
 
@@ -3570,6 +3588,26 @@ pulse_server = "tcp:localhost:4714"
             config.addons.tool_version("ai-codex", "codex"),
             Some("1.2.3")
         );
+    }
+
+    #[test]
+    fn blank_ai_harness_table_does_not_enable_harness() {
+        let toml = r#"
+            [aibox]
+            version = "0.9.0"
+            [container]
+            name = "test"
+            [ai]
+            [ai.harness.claude]
+            [ai.harness.codex]
+            enabled = true
+            install = true
+        "#;
+        let config = AiboxConfig::from_str(toml).unwrap();
+        assert!(!config.ai.harnesses.contains(&AiProvider::Claude));
+        assert!(!config.addons.has_addon("ai-claude"));
+        assert!(config.ai.harnesses.contains(&AiProvider::Codex));
+        assert!(config.addons.has_addon("ai-codex"));
     }
 
     #[test]
