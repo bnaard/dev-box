@@ -38,6 +38,13 @@ defer explicitly, or file a follow-up issue. For every AI harness, verify:
 install location, binary path, config path, command/skill projection path, auth
 persistence, and generated devcontainer expectations.
 
+If any release-check finding is deferred, create a processkit WorkItem in the
+same turn before continuing the release. The WorkItem must name the deferred
+dependency or harness surface, record the release where it was deferred, and
+state what validation is required before it can be shipped later. Mention the
+WorkItem ID in release notes or the release handover so the deferral is
+traceable.
+
 ### processkit
 
 ```bash

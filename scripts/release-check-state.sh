@@ -243,6 +243,7 @@ done < <(find "${PROJECT_ROOT}/addons" -name '*.yaml' -type f | sort)
 section "Agent Review Checklist"
 line "- Read this report before running or continuing \`./scripts/maintain.sh release <version>\`."
 line "- For every update available, inspect upstream release notes and decide: bump now, defer explicitly, or file a follow-up issue."
+line "- For every deferred finding, create a processkit WorkItem in the same turn and mention its ID in release notes or handover."
 line "- For every harness, verify install location, binary path, config path, command/skill projection path, auth persistence, and generated devcontainer expectations."
 line "- For every Dockerfile pin bump, rebuild the base image and run at least the layout/status/Yazi smoke path if the tool affects runtime UX."
 line "- Confirm \`cargo audit\` is clean. The release script also enforces this before building binaries."

@@ -98,6 +98,9 @@ The command performs:
 Run `./scripts/maintain.sh release-check-state` standalone when you want the
 same pre-release report without bumping, tagging, or building.
 
+If a report finding is deferred, create a processkit WorkItem before continuing
+the release and mention that WorkItem ID in the release notes or handover.
+
 ## Host-Side Release
 
 Run this on the macOS host after the container-side release succeeds:
