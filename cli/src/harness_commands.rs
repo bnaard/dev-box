@@ -11,17 +11,15 @@
 //! from different project-relative directories (and, for Gemini, in a
 //! different file format).
 //!
-//! This module generalises the original `.claude/commands/` sync to a
+//! This module generalises the original Claude command sync to a
 //! per-harness "profile" — each enabled harness with a profile gets its own
-//! install/cleanup pass. The Claude profile is always-on (matches the
-//! historical behaviour); other harness profiles are gated on
-//! `config.ai.harnesses.contains(...)`.
+//! install/cleanup pass gated on `config.ai.harnesses.contains(...)`.
 //!
 //! ## Per-harness mapping
 //!
 //! | Harness  | Target layout                              | Format |
 //! |----------|--------------------------------------------|--------|
-//! | Claude   | `.claude/commands/<name>.md`               | md verbatim |
+//! | Claude   | `.claude/skills/<name>/SKILL.md`           | Claude Skill |
 //! | Codex    | `.agents/skills/<name>/SKILL.md`           | Codex Skill |
 //! | Cursor   | `.cursor/commands/<name>.md`               | md verbatim |
 //! | Gemini   | `.gemini/commands/<name>.toml`             | TOML (converted) |
@@ -53,9 +51,9 @@ use crate::processkit_vocab::{mirror_skills_dir, parse_skill_frontmatter};
 enum CommandFormat {
     /// Copy the source markdown verbatim.
     MarkdownVerbatim,
-    /// Claude command shim that keeps the source command but explicitly routes
+    /// Claude skill shim that keeps the source command but explicitly routes
     /// the model through the matching processkit skill instead of helper scripts.
-    ClaudeCommand,
+    ClaudeSkill,
     /// Convert the source markdown to a Gemini-style TOML wrapper.
     GeminiToml,
     /// Convert the source markdown to a Codex Skill (`SKILL.md` with
@@ -99,8 +97,8 @@ impl HarnessCommandProfile {
     fn render(&self, source_md_filename: &str, source_bytes: &[u8]) -> Result<Vec<u8>> {
         match self.format {
             CommandFormat::MarkdownVerbatim => Ok(source_bytes.to_vec()),
-            CommandFormat::ClaudeCommand => {
-                Ok(render_claude_command(source_md_filename, source_bytes)?.into_bytes())
+            CommandFormat::ClaudeSkill => {
+                Ok(render_claude_skill(source_md_filename, source_bytes)?.into_bytes())
             }
             CommandFormat::GeminiToml => {
                 Ok(render_gemini_toml(source_md_filename, source_bytes)?.into_bytes())
@@ -119,10 +117,10 @@ fn profile_for(harness: AiHarness, project_root: &Path) -> Option<HarnessCommand
     match harness {
         AiHarness::Claude => Some(HarnessCommandProfile {
             harness,
-            target_dir: project_root.join(".claude").join("commands"),
+            target_dir: project_root.join(".claude").join("skills"),
             file_extension: "md",
-            format: CommandFormat::ClaudeCommand,
-            subdir_per_command: false,
+            format: CommandFormat::ClaudeSkill,
+            subdir_per_command: true,
         }),
         AiHarness::Codex => Some(HarnessCommandProfile {
             harness,
@@ -166,12 +164,8 @@ fn profile_for(harness: AiHarness, project_root: &Path) -> Option<HarnessCommand
 }
 
 /// Returns `true` if the given harness profile should run for this config.
-/// Claude is always-on (preserves pre-v0.20.x behaviour). All other
-/// harnesses must be explicitly enabled via `[ai.harness.<name>]`.
+/// Harnesses must be explicitly enabled in the effective harness set.
 fn profile_enabled(profile: &HarnessCommandProfile, config: &AiboxConfig) -> bool {
-    if profile.harness == AiHarness::Claude {
-        return true;
-    }
     config.ai.harnesses.contains(&profile.harness)
 }
 
@@ -228,6 +222,12 @@ pub fn sync_harness_commands(project_root: &Path, config: &AiboxConfig) -> Resul
         }
         sync_one_profile(&profile, &universe, &historical_sources, &wanted)?;
     }
+
+    // Sweep up legacy Claude command files left behind by aibox <= v0.23.15.
+    // New Claude Code releases merge commands into skills and prefer the
+    // `.claude/skills/<name>/SKILL.md` shape. This also prevents stale
+    // commands from keeping Claude surfaces alive after the harness is disabled.
+    cleanup_legacy_claude_commands(project_root, &universe, &historical_sources, &wanted);
 
     // Sweep up legacy Codex prompt files left behind by aibox v0.21.1.
     // Runs unconditionally (independent of whether Codex is currently
@@ -529,6 +529,82 @@ fn remove_managed_for_profile(
     Ok(())
 }
 
+fn cleanup_legacy_claude_commands(
+    project_root: &Path,
+    universe: &HashSet<String>,
+    historical_sources: &HashMap<String, Vec<PathBuf>>,
+    wanted: &HashMap<String, PathBuf>,
+) {
+    let profile = HarnessCommandProfile {
+        harness: AiHarness::Claude,
+        target_dir: project_root.join(".claude").join("commands"),
+        file_extension: "md",
+        format: CommandFormat::MarkdownVerbatim,
+        subdir_per_command: false,
+    };
+    let Ok(files) = deployed_command_files(&profile) else {
+        return;
+    };
+
+    let mut removed = 0usize;
+    for (source_md_name, path) in files {
+        let current_generated = wanted
+            .get(&source_md_name)
+            .and_then(|source_path| fs::read(source_path).ok())
+            .and_then(|source| render_legacy_claude_command(&source_md_name, &source).ok())
+            .is_some_and(|rendered| {
+                fs::read_to_string(&path).ok().as_deref() == Some(rendered.as_str())
+            });
+
+        let historical_generated =
+            deployed_matches_legacy_claude_command(&source_md_name, &path, historical_sources)
+                .unwrap_or(false);
+
+        if (universe.contains(&source_md_name) || wanted.contains_key(&source_md_name))
+            && (current_generated || historical_generated)
+            && fs::remove_file(&path).is_ok()
+        {
+            removed += 1;
+        }
+    }
+
+    let commands_dir = project_root.join(".claude").join("commands");
+    let is_empty = fs::read_dir(&commands_dir)
+        .map(|mut d| d.next().is_none())
+        .unwrap_or(false);
+    if is_empty {
+        let _ = fs::remove_dir(&commands_dir);
+    }
+
+    if removed > 0 {
+        output::ok(&format!(
+            "Removed {removed} legacy Claude command file(s) from {}",
+            commands_dir.display()
+        ));
+    }
+}
+
+fn deployed_matches_legacy_claude_command(
+    source_md_name: &str,
+    deployed_path: &Path,
+    historical_sources: &HashMap<String, Vec<PathBuf>>,
+) -> Result<bool> {
+    let Some(sources) = historical_sources.get(source_md_name) else {
+        return Ok(false);
+    };
+    let deployed = fs::read_to_string(deployed_path)
+        .with_context(|| format!("failed to read {}", deployed_path.display()))?;
+    for source_path in sources {
+        let Ok(source_bytes) = fs::read(source_path) else {
+            continue;
+        };
+        if render_legacy_claude_command(source_md_name, &source_bytes)? == deployed {
+            return Ok(true);
+        }
+    }
+    Ok(false)
+}
+
 // ---------------------------------------------------------------------------
 // Source scanning (universe + wanted)
 // ---------------------------------------------------------------------------
@@ -711,7 +787,7 @@ fn collect_live_commands(skills_dir: &Path) -> Result<HashMap<String, PathBuf>> 
                     return Err(anyhow!(
                         "Slash command name collision: {name} is shipped by both\n  \
                          - {prev}\n  - {cur}\n\
-                         This blocks .claude/commands/{name} deployment.\n\
+                         This blocks command/skill adapter deployment for {name}.\n\
                          Resolution: file an upstream issue with the offending skill, \
                          or set [skills].exclude in aibox.toml to drop one of the \
                          conflicting skills.",
@@ -776,10 +852,46 @@ fn render_gemini_toml(source_filename: &str, source_bytes: &[u8]) -> Result<Stri
     ))
 }
 
-/// Render a Claude slash-command shim. The source command stays intact, but
-/// the appended guard steers the model to the matching processkit skill instead
-/// of executing helper scripts such as `doctor.py` directly.
-fn render_claude_command(source_filename: &str, source_bytes: &[u8]) -> Result<String> {
+/// Render a Claude Skill shim. The source command becomes a project skill in
+/// `.claude/skills/<name>/SKILL.md`, matching Claude Code's current custom
+/// command/skill discovery model.
+fn render_claude_skill(source_filename: &str, source_bytes: &[u8]) -> Result<String> {
+    let text = std::str::from_utf8(source_bytes)
+        .with_context(|| format!("source file {source_filename} is not valid UTF-8"))?;
+    let stem = source_filename
+        .strip_suffix(".md")
+        .unwrap_or(source_filename);
+    let (frontmatter_yaml, body) = split_frontmatter(text);
+    let frontmatter_description = frontmatter_yaml
+        .as_ref()
+        .and_then(|yaml| extract_yaml_description(yaml));
+    let description = frontmatter_description.unwrap_or_else(|| {
+        body.lines()
+            .find(|l| !l.trim().is_empty())
+            .map(|l| l.trim_start_matches("# ").trim().to_string())
+            .unwrap_or_default()
+    });
+    let body_trimmed = body.trim_start_matches('\n');
+
+    Ok(format!(
+        "---\nname: {name}\ndescription: {desc}\n---\n\n\
+{body}\n\n\
+---\n\n\
+This command is a processkit skill shim. Load and follow the matching skill for `{stem}` \
+from `context/skills/` instead of executing underlying helper scripts directly. Do not \
+run `context/skills/**/scripts/*.py`, `doctor.py`, or `uv run .../scripts/...` unless the \
+skill instructions explicitly require that implementation detail for the current step.\n",
+        name = yaml_scalar(stem),
+        desc = yaml_scalar(&description),
+        body = body_trimmed,
+    ))
+}
+
+/// Render the legacy flat `.claude/commands/<name>.md` content that aibox used
+/// before Claude Code converged commands and skills. This is kept only so sync
+/// can recognize and remove old managed files without touching user-authored
+/// commands.
+fn render_legacy_claude_command(source_filename: &str, source_bytes: &[u8]) -> Result<String> {
     let text = std::str::from_utf8(source_bytes)
         .with_context(|| format!("source file {source_filename} is not valid UTF-8"))?;
     let stem = source_filename
@@ -1096,7 +1208,7 @@ mod tests {
     // ----- Claude profile (regression-test parity with prior module) -----
 
     #[test]
-    fn claude_profile_writes_md_to_claude_commands() {
+    fn claude_profile_writes_skill_to_claude_skills() {
         let tmp = tempfile::tempdir().unwrap();
         let project = tmp.path();
         fixture_with_pk_resume(project);
@@ -1104,9 +1216,11 @@ mod tests {
         let config = config_with("v0.20.0", vec![AiHarness::Claude]);
         sync_harness_commands(project, &config).unwrap();
 
-        let dest = project.join(".claude/commands/pk-resume.md");
+        let dest = project.join(".claude/skills/pk-resume/SKILL.md");
         assert!(dest.exists(), "claude target should exist");
         let content = fs::read_to_string(&dest).unwrap();
+        assert!(content.starts_with("---\n"));
+        assert!(content.contains("\nname: pk-resume\n"));
         assert!(content.contains("Resume the session"));
     }
 
@@ -1129,7 +1243,8 @@ mod tests {
         let config = config_with("v0.20.0", vec![AiHarness::Claude]);
         sync_harness_commands(project, &config).unwrap();
 
-        let content = fs::read_to_string(project.join(".claude/commands/pk-doctor.md")).unwrap();
+        let content =
+            fs::read_to_string(project.join(".claude/skills/pk-doctor/SKILL.md")).unwrap();
         assert!(content.contains("Use the pk-doctor skill."));
         assert!(content.contains("processkit skill shim"));
         assert!(content.contains("Do not"));
@@ -1137,17 +1252,44 @@ mod tests {
     }
 
     #[test]
-    fn claude_profile_runs_even_when_not_in_harnesses_list() {
-        // Always-on semantic for Claude. (Pre-v0.20.0 behaviour.)
+    fn claude_profile_skipped_when_not_in_harnesses_list() {
         let tmp = tempfile::tempdir().unwrap();
         let project = tmp.path();
         fixture_with_pk_resume(project);
 
-        // Empty harnesses; Claude must still scaffold.
         let config = config_with("v0.20.0", vec![]);
         sync_harness_commands(project, &config).unwrap();
 
-        assert!(project.join(".claude/commands/pk-resume.md").exists());
+        assert!(!project.join(".claude/skills/pk-resume/SKILL.md").exists());
+    }
+
+    #[test]
+    fn legacy_claude_commands_are_cleaned_even_when_claude_disabled() {
+        let tmp = tempfile::tempdir().unwrap();
+        let project = tmp.path();
+        fixture_with_pk_resume(project);
+
+        let source =
+            project.join("context/skills/processkit/status-briefing/commands/pk-resume.md");
+        let legacy = render_legacy_claude_command("pk-resume.md", &fs::read(source).unwrap())
+            .expect("legacy render");
+        fs::create_dir_all(project.join(".claude/commands")).unwrap();
+        fs::write(project.join(".claude/commands/pk-resume.md"), legacy).unwrap();
+        fs::write(
+            project.join(".claude/commands/user-command.md"),
+            "user-authored",
+        )
+        .unwrap();
+
+        let config = config_with("v0.20.0", vec![]);
+        sync_harness_commands(project, &config).unwrap();
+
+        assert!(!project.join(".claude/commands/pk-resume.md").exists());
+        assert_eq!(
+            fs::read_to_string(project.join(".claude/commands/user-command.md")).unwrap(),
+            "user-authored"
+        );
+        assert!(!project.join(".claude/skills/pk-resume/SKILL.md").exists());
     }
 
     // ----- Codex profile (Codex Skills layout, v0.21.2+) -----
@@ -1374,7 +1516,7 @@ mod tests {
         );
         sync_harness_commands(project, &config).unwrap();
 
-        assert!(project.join(".claude/commands/pk-resume.md").exists());
+        assert!(project.join(".claude/skills/pk-resume/SKILL.md").exists());
         assert!(project.join(".agents/skills/pk-resume/SKILL.md").exists());
         assert!(project.join(".cursor/commands/pk-resume.md").exists());
         assert!(project.join(".gemini/commands/pk-resume.toml").exists());
@@ -1396,7 +1538,7 @@ mod tests {
 
         sync_harness_commands(project, &config).unwrap();
 
-        let claude_dest = project.join(".claude/commands/pk-resume.md");
+        let claude_dest = project.join(".claude/skills/pk-resume/SKILL.md");
         let gemini_dest = project.join(".gemini/commands/pk-resume.toml");
         let cursor_dest = project.join(".cursor/commands/pk-resume.md");
 
@@ -1439,8 +1581,18 @@ mod tests {
         fixture_with_pk_resume(project);
 
         // Pre-create a user file in each enabled harness target dir.
+        fs::create_dir_all(project.join(".claude/skills/my-thing")).unwrap();
+        fs::write(
+            project.join(".claude/skills/my-thing/SKILL.md"),
+            "user-claude",
+        )
+        .unwrap();
         fs::create_dir_all(project.join(".claude/commands")).unwrap();
-        fs::write(project.join(".claude/commands/my-thing.md"), "user-claude").unwrap();
+        fs::write(
+            project.join(".claude/commands/my-command.md"),
+            "user-legacy-claude",
+        )
+        .unwrap();
         fs::create_dir_all(project.join(".cursor/commands")).unwrap();
         fs::write(project.join(".cursor/commands/my-thing.md"), "user-cursor").unwrap();
         fs::create_dir_all(project.join(".gemini/commands")).unwrap();
@@ -1460,8 +1612,12 @@ mod tests {
         sync_harness_commands(project, &config).unwrap();
 
         assert_eq!(
-            fs::read_to_string(project.join(".claude/commands/my-thing.md")).unwrap(),
+            fs::read_to_string(project.join(".claude/skills/my-thing/SKILL.md")).unwrap(),
             "user-claude"
+        );
+        assert_eq!(
+            fs::read_to_string(project.join(".claude/commands/my-command.md")).unwrap(),
+            "user-legacy-claude"
         );
         assert_eq!(
             fs::read_to_string(project.join(".cursor/commands/my-thing.md")).unwrap(),
@@ -1490,8 +1646,8 @@ mod tests {
         make_skill_commands(&live, "processkit", "skill-a", &["pk-foo.md"], "# pk-foo\n");
 
         // Pre-place stale pk-bar in each harness target.
-        fs::create_dir_all(project.join(".claude/commands")).unwrap();
-        fs::write(project.join(".claude/commands/pk-bar.md"), "stale").unwrap();
+        fs::create_dir_all(project.join(".claude/skills/pk-bar")).unwrap();
+        fs::write(project.join(".claude/skills/pk-bar/SKILL.md"), "stale").unwrap();
         fs::create_dir_all(project.join(".cursor/commands")).unwrap();
         fs::write(project.join(".cursor/commands/pk-bar.md"), "stale").unwrap();
         fs::create_dir_all(project.join(".gemini/commands")).unwrap();
@@ -1508,12 +1664,12 @@ mod tests {
         sync_harness_commands(project, &config).unwrap();
 
         // pk-bar removed everywhere…
-        assert!(!project.join(".claude/commands/pk-bar.md").exists());
+        assert!(!project.join(".claude/skills/pk-bar/SKILL.md").exists());
         assert!(!project.join(".cursor/commands/pk-bar.md").exists());
         assert!(!project.join(".gemini/commands/pk-bar.toml").exists());
 
         // …but pk-foo installed everywhere.
-        assert!(project.join(".claude/commands/pk-foo.md").exists());
+        assert!(project.join(".claude/skills/pk-foo/SKILL.md").exists());
         assert!(project.join(".cursor/commands/pk-foo.md").exists());
         assert!(project.join(".gemini/commands/pk-foo.toml").exists());
     }
@@ -1598,11 +1754,11 @@ mod tests {
         remove_managed_commands_all(project, &config).unwrap();
 
         // Managed files gone.
-        assert!(!project.join(".claude/commands/pk-resume.md").exists());
+        assert!(!project.join(".claude/skills/pk-resume/SKILL.md").exists());
         assert!(!project.join(".cursor/commands/pk-resume.md").exists());
 
-        // .claude/commands removed (was empty); .cursor/commands kept (user file).
-        assert!(!project.join(".claude/commands").exists());
+        // .claude/skills removed (was empty); .cursor/commands kept (user file).
+        assert!(!project.join(".claude/skills").exists());
         assert!(project.join(".cursor/commands/user.md").exists());
     }
 

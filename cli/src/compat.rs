@@ -295,6 +295,11 @@ pub static COMPAT_TABLE: &[CompatEntry] = &[
         processkit_version: "v0.25.8",
         note: "Patch release: fixes a 0.23.14 standardize-config regression where a blank [ai.harness.<name>] table could re-enable a harness after its controls were commented out, and restores the standard processkit skill list when canonical config rewrites encounter an empty skill include list.",
     },
+    CompatEntry {
+        aibox_version: "0.23.16",
+        processkit_version: "v0.25.8",
+        note: "Patch release: moves Claude processkit command shims to Claude Code's current Skills layout, cleans legacy managed .claude/commands files, fixes the native Zellij key-hint row render trigger, keeps Vim editor panes hot so Yazi edit handoff reaches Vim instead of bash, and adds a pre-release dependency/harness state report.",
+    },
 ];
 
 /// Find the minimum compatible processkit version for the given aibox version.

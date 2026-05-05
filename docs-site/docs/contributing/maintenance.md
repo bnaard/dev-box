@@ -64,7 +64,7 @@ Releases are intentionally split:
 
 | Phase | Where | Command | Purpose |
 | --- | --- | --- | --- |
-| Container side | aibox devcontainer | `./scripts/maintain.sh release X.Y.Z` | sync processkit default, bump CLI version, test, audit, build Linux binaries, tag, create GitHub release, deploy docs |
+| Container side | aibox devcontainer | `./scripts/maintain.sh release X.Y.Z` | check dependency/harness state, sync processkit default, bump CLI version, test, audit, build Linux binaries, tag, create GitHub release, deploy docs |
 | Host side | macOS host | `./scripts/maintain.sh release-host X.Y.Z` | build macOS binaries, upload them to the release, build and push GHCR images |
 
 Do not create GitHub releases by hand with `gh release create`. The release
@@ -82,6 +82,7 @@ the CLI needs review before release.
 
 The command performs:
 
+- dependency, addon, image, and harness state report in `dist/RELEASE-STATE.md`
 - processkit release sync check
 - `cli/Cargo.toml` and `Cargo.lock` version bump when needed
 - format, Clippy, and test checks
@@ -93,6 +94,9 @@ The command performs:
 - GitHub release creation with Linux binaries
 - Docusaurus docs deployment
 - `dist/RELEASE-PROMPT.md` for host-side completion
+
+Run `./scripts/maintain.sh release-check-state` standalone when you want the
+same pre-release report without bumping, tagging, or building.
 
 ## Host-Side Release
 

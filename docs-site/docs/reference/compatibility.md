@@ -12,6 +12,7 @@ below shows the minimum compatible processkit version for each aibox release.
 
 | aibox version | Min. processkit | Notes |
 |--------------|-----------------|-------|
+| 0.23.16 | v0.25.8 | moves Claude processkit command shims to Claude Code's current Skills layout, cleans legacy managed `.claude/commands` files, fixes native Zellij key-hint rendering, keeps Vim editor panes hot for Yazi edit handoff, and adds a pre-release dependency/harness state report |
 | 0.23.15 | v0.25.8 | fixes a 0.23.14 `--standardize-config` regression where a blank `[ai.harness.<name>]` table could re-enable a commented-out harness; standard config rewrites also restore the standard processkit skill list instead of leaving every skill commented |
 | 0.23.14 | v0.25.8 | canonical generated `aibox.toml` now uses `[ai.harness.<name>]` tables instead of the compact harness list; `aibox apply --standardize-config` performs an opt-in schema-clean canonical rewrite; stale/deprecated generated comments were removed; Yazi `e` again opens files in the dedicated Vim pane/tab |
 | 0.23.13 | v0.25.8 | fixes 0.23.11-to-0.23.12 generated-config upgrades where a moved tool, such as `gh`, still sits under its old addon owner; `aibox apply` now migrates misplaced addon tool entries to their unique current catalog owner before strict validation and comment refresh |

@@ -147,7 +147,7 @@ impl ZellijPlugin for AiboxStatusPlugin {
             }
             Event::PermissionRequestResult(_) => {
                 self.refresh();
-                false
+                true
             }
             Event::Visible(true) => {
                 self.refresh();

@@ -47,11 +47,12 @@ const MANAGED_ITEMS: &[(&str, bool)] = &[
     (".gemini/settings.json", true),
     (".codex/config.toml", true),
     (".continue/mcpServers", true),
-    // ── Claude Code slash-command adapters (aibox#37, v0.17.3+) ─────────
-    // .claude/commands/ is NOT deleted wholesale: users may have their own
-    // custom commands there. Only the specific files aibox installed are
-    // removed (see selective cleanup in cmd_reset via remove_managed_commands).
-    // The directory is still backed up so users can restore any content.
+    // ── Claude Code command/skill adapters ──────────────────────────────
+    // These directories are NOT deleted wholesale: users may have their own
+    // custom commands/skills there. Only the specific files aibox installed
+    // are removed (see selective cleanup in cmd_reset via remove_managed_commands).
+    // The directories are still backed up so users can restore any content.
+    (".claude/skills", false),
     (".claude/commands", false),
     // ── Backward compat ──────────────────────────────────────────────────
     (".root", true),
@@ -396,8 +397,9 @@ pub fn cmd_reset(
     }
 
     // Selectively remove aibox-managed command files from each scaffolded
-    // harness target (.claude/commands/, .cursor/commands/, .gemini/commands/,
-    // .opencode/commands/, .aibox-home/.codex/prompts/) BEFORE the delete
+    // harness target (.claude/skills/, legacy .claude/commands/,
+    // .cursor/commands/, .gemini/commands/, .opencode/commands/,
+    // .aibox-home/.codex/prompts/) BEFORE the delete
     // phase removes context/ (which contains the templates mirror we need to
     // know which filenames are ours). User-authored commands in the same
     // directories are left untouched. Best-effort: failure is warned-and-

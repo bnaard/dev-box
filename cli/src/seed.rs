@@ -442,7 +442,6 @@ fn generate_dev_layout_with_options(
             pane size="60%" name="editor" {{
                 command "vim-loop"
                 cwd "/workspace"
-                start_suspended true
             }}
         }}
     }}{ai_section}{git_section}
@@ -493,7 +492,6 @@ fn generate_focus_layout_with_options(
             command "bash"
             args "-c" "AIBOX_EDITOR_DIR=tab exec vim-loop"
             cwd "/workspace"
-            start_suspended true
         }}
     }}{ai_section}{git_section}
     aibox-tab name="shell" {{
@@ -544,7 +542,6 @@ fn generate_cowork_layout_with_options(
                 command "bash"
                 args "-c" "AIBOX_EDITOR_DIR=down exec vim-loop"
                 cwd "/workspace"
-                start_suspended true
             }
         }
     }
@@ -577,7 +574,6 @@ fn generate_cowork_layout_with_options(
                     command "bash"
                     args "-c" "AIBOX_EDITOR_DIR=down exec vim-loop"
                     cwd "/workspace"
-                    start_suspended true
                 }}
             }}
             pane size="50%" {{
@@ -657,7 +653,6 @@ fn generate_cowork_swap_layout_with_options(
             pane size="60%" name="editor" {
                 command "vim-loop"
                 cwd "/workspace"
-                start_suspended true
             }
         }
     }
@@ -692,7 +687,6 @@ fn generate_cowork_swap_layout_with_options(
             pane size="60%" name="editor" {{
                 command "vim-loop"
                 cwd "/workspace"
-                start_suspended true
             }}
         }}
     }}
@@ -756,7 +750,6 @@ fn generate_ai_layout_with_options(
             command "bash"
             args "-c" "AIBOX_EDITOR_DIR=tab exec vim-loop"
             cwd "/workspace"
-            start_suspended true
         }
     }
 {git_section}
@@ -794,7 +787,6 @@ fn generate_ai_layout_with_options(
             command "bash"
             args "-c" "AIBOX_EDITOR_DIR=tab exec vim-loop"
             cwd "/workspace"
-            start_suspended true
         }}
     }}{git_section}
     aibox-tab name="shell" {{
@@ -853,7 +845,6 @@ fn generate_browse_layout_with_options(
             command "bash"
             args "-c" "AIBOX_EDITOR_DIR=tab exec vim-loop"
             cwd "/workspace"
-            start_suspended true
         }
     }
 {git_section}
@@ -891,7 +882,6 @@ fn generate_browse_layout_with_options(
             command "bash"
             args "-c" "AIBOX_EDITOR_DIR=tab exec vim-loop"
             cwd "/workspace"
-            start_suspended true
         }}
     }}{git_section}
     aibox-tab name="shell" {{
@@ -2656,8 +2646,8 @@ mod tests {
             "multiple providers should use separate tabs"
         );
         assert!(
-            occurrences(&layout, "start_suspended true") >= 5,
-            "editor, git, shell, and AI tabs should start suspended"
+            occurrences(&layout, "start_suspended true") >= 4,
+            "git, shell, and AI tabs should start suspended"
         );
     }
 
@@ -3289,9 +3279,9 @@ mod tests {
         );
         assert!(
             layout.contains(
-                "pane size=\"60%\" name=\"editor\" {\n                command \"vim-loop\"\n                cwd \"/workspace\"\n                start_suspended true"
+                "pane size=\"60%\" name=\"editor\" {\n                command \"vim-loop\"\n                cwd \"/workspace\"\n            }"
             ),
-            "non-focused editor pane should start suspended"
+            "editor pane should start immediately so yazi can send :edit to vim"
         );
         assert!(
             layout.contains("command \"lazygit\"\n            cwd \"/workspace\"\n            start_suspended true"),

@@ -92,6 +92,8 @@ ${bold}Development:${reset}
 ${bold}Release:${reset}
   sync-processkit          Check for new processkit release; patch constants + show diff
                            (runs automatically inside 'release'; also available standalone)
+  release-check-state      Write dist/RELEASE-STATE.md with dependency, addon,
+                           image, and harness version drift evidence
   release <version>        Sync processkit, test, tag, build CLI, generate release prompt
   release-host <version>   Build/upload macOS binaries, push GHCR images,
                            then refresh + commit generated runtime surfaces
@@ -473,6 +475,10 @@ cmd_sync_processkit() {
   echo "Then re-run: ./scripts/maintain.sh release <version>"
 }
 
+cmd_release_check_state() {
+  "${SCRIPT_DIR}/release-check-state.sh"
+}
+
 cmd_release() {
   local version="${1:-}"
   [[ -z "${version}" ]] && die "Usage: ./scripts/maintain.sh release <version>  (e.g. 0.2.0)"
@@ -495,6 +501,18 @@ cmd_release() {
   # Check tag doesn't exist
   if git rev-parse "${tag}" &>/dev/null; then
     die "Tag ${tag} already exists."
+  fi
+
+  # ── Step 1b: Dependency/harness state report ──────────────────────────────
+  # This is the evidence pass before the release mutates versions or tags.
+  # It intentionally does not edit the tree; the maintainer/agent must review
+  # dist/RELEASE-STATE.md and decide which upstream bumps need code changes.
+  info "Checking dependency, addon, image, and harness state..."
+  cmd_release_check_state
+  ok "Release state report written"
+  if [[ -t 0 ]]; then
+    warn "Review dist/RELEASE-STATE.md. Press Enter to continue, or Ctrl-C to abort and update dependencies first."
+    read -r
   fi
 
   # ── Step 2: Sync processkit ───────────────────────────────────────────────
@@ -838,6 +856,7 @@ case "${COMMAND}" in
   record-docs)  cmd_record_docs ;;
   sync-processkit) cmd_sync_processkit ;;
   release)      cmd_release "$@" ;;
+  release-check-state) cmd_release_check_state "$@" ;;
   release-host) cmd_release_host "$@" ;;
   release-finalize-runtime) cmd_release_finalize_runtime "$@" ;;
   start)        cmd_start ;;

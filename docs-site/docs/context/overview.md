@@ -65,11 +65,10 @@ during `aibox init` (write-if-missing — never overwrites). The
 any AI harness.
 
 When `[ai.harness.claude] enabled = true`, aibox also writes a thin `CLAUDE.md`
-at the project root that just points at `AGENTS.md`. **No content is written
-under `.claude/skills/` or any other provider-specific directory** as of
-v0.16.0. Other harnesses (Aider, Gemini, Codex) use config files
-(`.aider.conf.yml`, `.gemini/settings.json`, `.mistral/config.json`) which are
-scaffolded by the addon system.
+at the project root that just points at `AGENTS.md`. Processkit command
+adapters are projected into the enabled harness surfaces, including
+`.claude/skills/<name>/SKILL.md` for Claude Code. Canonical skill content still
+lives under `context/skills/`; provider-specific files are generated shims.
 
 ## OWNER.md — Developer Identity
 

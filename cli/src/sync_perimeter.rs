@@ -42,7 +42,8 @@
 //! | `.gemini/`                                    | Gemini CLI settings directory (v0.16.5+)                         |
 //! | `.codex/`                                     | Codex CLI config directory (v0.16.5+)                            |
 //! | `.continue/`                                  | Continue MCP servers directory (v0.16.5+)                        |
-//! | `.claude/commands/`                           | Claude Code slash-command adapters from processkit skills (v0.17.3+) |
+//! | `.claude/skills/`                             | Claude Code skill adapters from processkit skills                    |
+//! | `.claude/commands/`                           | Legacy Claude command cleanup-only perimeter                         |
 //!
 //! The perimeter expanded in v0.16.1 because `aibox apply` now
 //! auto-installs processkit content when `[processkit].version` is
@@ -63,7 +64,7 @@
 //!   `context/work-instructions/` (these are user-authored or owned by
 //!   processkit skills like `workitem-management` / `decision-record`
 //!   which write them on first use, not by aibox apply)
-//! - `.claude/` (except `.claude/commands/` which is in-perimeter), `.gemini/`, any other provider directory
+//! - `.claude/` (except `.claude/skills/` and legacy `.claude/commands/`), `.gemini/`, any other provider directory
 //! - `.gitignore` (created by `aibox init`; sync never edits it)
 //!
 //! Note: `aibox init` is allowed to create files outside this list as
@@ -138,9 +139,15 @@ pub const SYNC_PERIMETER: &[&str] = &[
     ".gemini/",
     ".codex/",
     ".continue/",
-    // ── Claude Code slash-command adapters (v0.17.3+ projectious-work/aibox#37) ─
-    // Only the commands/ subdirectory; the rest of .claude/ remains out of
-    // perimeter (provider-managed: settings, memory, session history, …).
+    // ── Claude Code skill adapters ─────────────────────────────────────
+    // Claude Code now treats custom commands as part of the Skills system.
+    // aibox writes one subdirectory per pk-* command:
+    // .claude/skills/<name>/SKILL.md. The rest of .claude/ remains out of
+    // perimeter (provider-managed: settings, memory, session history, ...).
+    ".claude/skills/",
+    // ── Legacy Claude commands dir (cleanup-only) ──────────────────────
+    // Kept in perimeter so sync can remove old managed files left by the
+    // pre-skills layout without touching user-authored command files.
     ".claude/commands/",
     // ── Other harness slash-command adapters (v0.20.x) ──────────────────
     // Same restriction: only the commands subdirectory of each harness
@@ -526,22 +533,23 @@ mod tests {
     #[test]
     fn claude_internal_files_are_out_of_perimeter() {
         // Most of .claude/ is provider-managed (settings, cache, memory, …).
-        // Only .claude/commands/ is in-perimeter as of v0.17.3.
+        // Only .claude/skills/ plus cleanup-only legacy .claude/commands/
+        // are in-perimeter.
         // (Note: .mcp.json at the project root IS in perimeter as of
         // v0.16.5 — it's a file Claude Code reads, but it's at the
         // project root, not under .claude/.)
         assert!(!within(".claude/settings.json"));
         assert!(!within(".claude/cache/foo"));
-        assert!(!within(".claude/skills/agent-management/SKILL.md"));
         assert!(!within(".claude/CLAUDE.md"));
     }
 
     #[test]
-    fn claude_commands_is_in_perimeter() {
-        // v0.17.3+ projectious-work/aibox#37: command adapter files from
-        // processkit skills are synced to .claude/commands/.
+    fn claude_skill_and_legacy_command_dirs_are_in_perimeter() {
+        assert!(within(".claude/skills/session-handover-write/SKILL.md"));
+        assert!(within(".claude/skills/pk-resume/SKILL.md"));
+        // Legacy command path remains in-perimeter only so sync can remove
+        // files it previously generated.
         assert!(within(".claude/commands/session-handover-write.md"));
-        assert!(within(".claude/commands/morning-briefing-run.md"));
     }
 
     #[test]

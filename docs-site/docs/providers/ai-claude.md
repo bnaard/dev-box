@@ -30,6 +30,10 @@ Claude's configuration and memory are persisted in `.aibox-home/.claude/`, which
 Key files:
 - `.claude/settings.json` — Claude Code settings
 - `.claude/projects/` — Per-project memory and context
+- `.claude/skills/<name>/SKILL.md` — generated processkit command shims when Claude is enabled
+
+The generated `.claude/skills/` entries are adapters. The canonical skill
+instructions remain in `context/skills/`.
 
 ## Audio (Voice)
 

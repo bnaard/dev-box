@@ -459,8 +459,8 @@ pub struct SkillProcesskitMeta {
     #[serde(default)]
     pub core: bool,
     /// User-invocable command declarations for this skill. Each entry specifies
-    /// a `commands/<name>.md` adapter file that aibox generates (or syncs) to
-    /// `.claude/commands/` during sync so Claude Code can tab-complete them.
+    /// a `commands/<name>.md` adapter file that aibox projects into enabled
+    /// harness command/skill surfaces during sync.
     /// Introduced in processkit v0.7.0; see projectious-work/aibox#37 and #53.
     #[serde(default)]
     pub commands: Vec<SkillCommand>,

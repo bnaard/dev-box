@@ -712,9 +712,9 @@ fn check_command_registrations(
     let mut targets: Vec<(&'static str, &'static str, &'static str, bool)> = Vec::new();
     targets.push((
         "claude",
-        ".claude/commands",
-        ".claude/commands/{stem}.md",
-        true, // always-on
+        ".claude/skills",
+        ".claude/skills/{stem}/SKILL.md",
+        config.ai.harnesses.contains(&AiHarness::Claude),
     ));
     targets.push((
         "codex",

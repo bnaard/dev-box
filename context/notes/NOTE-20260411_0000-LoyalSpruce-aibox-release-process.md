@@ -13,9 +13,30 @@ skill: release-semver
 When asked to release version X.Y.Z, follow ALL steps in order.
 Full canonical source: `context/work-instructions/RELEASE-PROCESS.md` (archived).
 
-## Phase 0 — Dependency version check (Claude does this FIRST)
+## Phase 0 — Dependency and harness state check (Claude does this FIRST)
 
-Before every release, check ALL upstream dependencies for updates.
+Before every release, check ALL upstream dependencies for updates and review
+whether upstream changes alter generated runtime behavior. The scripted release
+path runs this automatically before the version bump:
+
+```bash
+./scripts/maintain.sh release-check-state
+```
+
+This writes `dist/RELEASE-STATE.md`, covering:
+
+- processkit default version drift
+- pinned base-image tool versions
+- floating image inputs (`uv:latest`, Node.js major streams, Debian base tags)
+- AI harness installer/package surfaces
+- Rust advisory status and lockfile-resolvable crate updates
+- addon inventory at release time
+
+The report is evidence, not a substitute for judgement. For every reported
+update, inspect upstream release notes and decide whether to bump immediately,
+defer explicitly, or file a follow-up issue. For every AI harness, verify:
+install location, binary path, config path, command/skill projection path, auth
+persistence, and generated devcontainer expectations.
 
 ### processkit
 
@@ -47,7 +68,10 @@ changes. If `processkit_vocab.rs` was patched: review diff, make CLI changes, ru
 | uv | `COPY --from=ghcr.io/astral-sh/uv:latest` (unpinned) | `gh api repos/astral-sh/uv/releases/latest --jq .tag_name` |
 | Node.js | `COPY --from=node:22-slim` in .devcontainer | Check LTS status |
 
-If a pinned version has an update, propose bump. Report all findings before proceeding.
+If a pinned version has an update, propose a bump. Report all findings before proceeding.
+If a harness changed its install layout, command location, skill location, auth
+state, or config files, treat that as an aibox or processkit compatibility bug
+and patch/file it before publishing.
 
 ## Phase 1 — In container (Claude does this)
 
@@ -61,6 +85,9 @@ If a pinned version has an update, propose bump. Report all findings before proc
    ```bash
    cd cli && cargo audit
    ```
+   `./scripts/maintain.sh release` installs `cargo-audit` if missing, runs it,
+   and aborts the release on any advisory. Phase 0 also records audit output in
+   `dist/RELEASE-STATE.md` when `cargo-audit` is already available.
 5. **Build Linux release binaries — both architectures**:
    ```bash
    cd /workspace/cli
