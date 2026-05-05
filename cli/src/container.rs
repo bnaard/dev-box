@@ -933,21 +933,23 @@ pub(crate) fn serialize_config_with_comments(config: &AiboxConfig) -> String {
         out.push_str("# post_create_command = \"npm install\"  # Shell command run once after container first starts\n");
     }
     if config.container.lifecycle.keepalive {
-        out.push_str("keepalive = true               # Send periodic keepalive (prevents NAT idle dropout in OrbStack/VMs)\n");
+        out.push_str("keepalive = true               # Send periodic DNS keepalive for idle network timeouts\n");
     } else {
-        out.push_str("# keepalive           = true           # Send periodic keepalive (prevents NAT idle dropout in OrbStack/VMs)\n");
+        out.push_str("# keepalive           = true           # Send periodic DNS keepalive for idle network timeouts\n");
     }
     out.push_str("\n# --- Resource pressure warnings (`aibox doctor`) ---\n");
     out.push_str("# [container.resource_thresholds]\n");
     out.push_str(
-        "# memory_mib_warn = 4096       # Optional cgroup memory warning threshold in MiB\n",
-    );
-    out.push_str("# process_count_warn = 400     # Set to 0 to disable this warning\n");
-    out.push_str(
-        "# processkit_mcp_python_warn = 50  # Expected to drop after processkit gateway adoption\n",
+        "# memory_mib_warn = 4096       # Optional warning limit for cgroup memory usage in MiB\n",
     );
     out.push_str(
-        "# oom_kill_warn = 0            # Warn when cgroup OOM kill count is greater than this\n",
+        "# process_count_warn = 400     # Optional warning limit for total live processes; 0 disables\n",
+    );
+    out.push_str(
+        "# processkit_mcp_python_warn = 50  # Optional warning limit for live Python MCP server processes; 0 disables\n",
+    );
+    out.push_str(
+        "# oom_kill_warn = 0            # Optional warning threshold for cgroup OOM kill count\n",
     );
     if config
         .container
@@ -1137,6 +1139,8 @@ pub(crate) fn serialize_config_with_comments(config: &AiboxConfig) -> String {
     out.push_str("# OpenCode                    opencode       any (multi-provider)\n");
     out.push_str("# Hermes                      hermes         any (multi-provider)\n");
     out.push_str("#\n");
+    out.push_str("# Enable harnesses through their [ai.harness.<name>] table below.\n");
+    out.push_str("#\n");
     out.push_str("# Model providers (optional): declare which API keys are available.\n");
     out.push_str("# Provider     Config value   Env var\n");
     out.push_str("# Anthropic    anthropic      ANTHROPIC_API_KEY\n");
@@ -1144,7 +1148,6 @@ pub(crate) fn serialize_config_with_comments(config: &AiboxConfig) -> String {
     out.push_str("# Google       google         GEMINI_API_KEY\n");
     out.push_str("# Mistral      mistral        MISTRAL_API_KEY\n");
     out.push_str("[ai]\n");
-    render_ai_harness_catalog(&mut out, &config.ai.harnesses);
     render_ai_model_provider_catalog(&mut out, &config.ai.model_providers);
     render_ai_harness_detail_catalog(&mut out, config);
 
@@ -1206,9 +1209,6 @@ pub(crate) fn serialize_config_with_comments(config: &AiboxConfig) -> String {
         "schema_version = {:12} # Context schema version — updated automatically by `aibox apply`\n",
         format!("\"{}\"", config.processkit.context.schema_version)
     ));
-    out.push_str(
-        "# packages = [\"product\"]  # deprecated; use explicit [skills].enabled instead\n",
-    );
 
     // [customization] section
     out.push('\n');
@@ -1384,21 +1384,6 @@ fn mcp_gateway_mode_str(mode: McpGatewayMode) -> &'static str {
         McpGatewayMode::Stdio => "stdio",
         McpGatewayMode::DaemonProxy => "daemon-proxy",
     }
-}
-
-fn render_ai_harness_catalog(out: &mut String, selected: &[crate::config::AiHarness]) {
-    out.push_str("harnesses = [\n");
-    for harness in crate::config::AiHarness::all() {
-        let line = format!("    \"{}\",", harness);
-        if selected.contains(harness) {
-            out.push_str(&line);
-        } else {
-            out.push_str("# ");
-            out.push_str(&line);
-        }
-        out.push_str(&format!(" # {}\n", harness.display_name()));
-    }
-    out.push_str("]\n");
 }
 
 fn render_ai_model_provider_catalog(out: &mut String, selected: &[crate::config::AiModelProvider]) {
@@ -2161,6 +2146,7 @@ pub fn cmd_sync(
     config_path: &Option<String>,
     no_cache: bool,
     no_build: bool,
+    standardize_config: bool,
     fix_compliance_contract: bool,
     no_container: bool,
 ) -> Result<()> {
@@ -2176,6 +2162,13 @@ pub fn cmd_sync(
 
     // Check for version migration before any other sync steps
     crate::migration::check_and_generate_migration()?;
+    if standardize_config {
+        if let Some(path) = config_path.as_deref() {
+            crate::migration::standardize_aibox_toml_file(Path::new(path))?;
+        } else {
+            crate::migration::standardize_aibox_toml(Path::new("."))?;
+        }
+    }
 
     let mut config = AiboxConfig::from_cli_option(config_path)?;
 
@@ -2456,7 +2449,7 @@ pub fn cmd_sync(
     // Regenerate per-harness MCP config files (.mcp.json,
     // .cursor/mcp.json, .gemini/settings.json, .codex/config.toml,
     // .continue/mcpServers/*.json) based on the currently-pinned
-    // processkit version and the [ai].harnesses list. Idempotent —
+    // processkit version and the enabled AI harness list. Idempotent —
     // re-running on a stable (version, harnesses, skills) set
     // produces byte-identical output. Best-effort: any failure is
     // warned-and-continued. See DEC-033.
@@ -2862,6 +2855,10 @@ mod tests {
         assert!(body.contains("[ai.harness.claude]"));
         assert!(body.contains("[ai.harness.codex]"));
         assert!(body.contains("version = \"1.2.3\""));
+        assert!(
+            !body.contains("harnesses = ["),
+            "generated config should use [ai.harness.<name>] tables instead of the legacy harnesses list"
+        );
         assert!(!body.contains("[addons.ai-claude.tools]"));
         assert!(!body.contains("[addons.ai-codex.tools]"));
     }

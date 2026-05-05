@@ -10,8 +10,9 @@ title: "OpenAI (Codex CLI)"
 ## Setup
 
 ```toml
-[ai]
-harnesses = ["openai"]
+[ai.harness.codex]
+enabled = true
+install = true
 ```
 
 Run `aibox apply`, then inside the container:

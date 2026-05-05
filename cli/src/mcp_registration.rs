@@ -34,11 +34,11 @@
 //!
 //! - **Mistral**: has MCP client capability via Python SDK and Le
 //!   Chat, but no local file-based project config. When `Mistral` is
-//!   in `[ai].harnesses`, aibox writes `.mcp.json` (the same Claude
-//!   shape) so a custom Mistral SDK-based CLI tool can read MCP
+//!   enabled as an AI harness, aibox writes `.mcp.json` (the same
+//!   Claude shape) so a custom Mistral SDK-based CLI tool can read MCP
 //!   server registrations from there.
-//! - **Aider**: has no native MCP client. When `Aider` is in
-//!   `[ai].harnesses`, aibox emits a warning and writes nothing.
+//! - **Aider**: has no native MCP client. When `Aider` is enabled as
+//!   an AI harness, aibox emits a warning and writes nothing.
 //!
 //! See DEC-033 for the design rationale.
 
@@ -1413,7 +1413,7 @@ pub fn read_processkit_mcp_manifest_hash(project_root: &Path) -> Option<String> 
 
 /// Regenerate every harness-specific MCP config file based on the
 /// currently-installed processkit version and the user's
-/// `[ai].harnesses` list.
+/// enabled AI harness list.
 ///
 /// Called from `cmd_init` and `cmd_sync` after `install_content_source`
 /// returns successfully. Idempotent: re-running on a stable
@@ -1588,7 +1588,7 @@ pub fn regenerate_mcp_configs(config: &AiboxConfig, project_root: &Path) -> Resu
     //    MCP servers (the user is missing functionality).
     if providers.contains(&AiProvider::Aider) {
         output::warn(
-            "`aider` is in [ai].harnesses but does not have a built-in MCP client. \
+            "`aider` is enabled as an AI harness but does not have a built-in MCP client. \
              processkit's MCP-based skills (workitem-management, decision-record, …) \
              will not be available when using Aider. Consider also listing one of: \
              claude, cursor, gemini, codex, continue, copilot, opencode, hermes.",

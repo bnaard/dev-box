@@ -98,7 +98,7 @@ Quick reference for all tools in the aibox environment. Press the tab for the to
     !!! info "Default layout tabs"
         The generated `dev` layout opens with pre-configured tabs:
         **Tab 1** — dev (files + editor + terminal),
-        AI-agent tabs based on `[ai].harnesses`,
+        AI-agent tabs based on enabled `[ai.harness.<name>]` tables,
         optional **git** (lazygit) when `git-ui` selects `lazygit`,
         and **shell** (extra terminal). Tab numbers shift when optional tabs
         are omitted.

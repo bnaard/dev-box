@@ -33,13 +33,13 @@ local_env               = ".aibox-local.env"
 
 [container.lifecycle]
 post_create_command = "npm install"   # Command to run after container creation
-keepalive = false                     # Network keepalive (default: false)
+keepalive = false                     # Periodic DNS keepalive for idle network timeouts
 
 [container.resource_thresholds]
-memory_mib_warn = 4096                # Optional `aibox doctor` memory warning in MiB
-process_count_warn = 400              # Set to 0 to disable this warning
-processkit_mcp_python_warn = 50       # Set to 0 to disable this warning
-oom_kill_warn = 0                     # Warn when cgroup OOM kills exceed this count
+memory_mib_warn = 4096                # Optional warning limit for cgroup memory usage in MiB
+process_count_warn = 400              # Optional warning limit for total live processes; 0 disables
+processkit_mcp_python_warn = 50       # Optional warning limit for live Python MCP server processes; 0 disables
+oom_kill_warn = 0                     # Optional warning threshold for cgroup OOM kill count
 
 [container.environment]
 NODE_ENV = "development"              # Project-wide env vars (non-secret; use .aibox-local.toml for secrets)
@@ -58,7 +58,6 @@ src_path = "src"
 
 [processkit.context]
 schema_version = "1.0.0"              # Context schema version (semver)
-# packages = ["product"]              # Deprecated; use [skills].enabled instead
 
 [addons.python.tools]                 # Addon: Python runtime
 python = { version = "3.13" }
@@ -74,7 +73,6 @@ gh      = {}
 lazygit = {}
 
 [ai]
-harnesses = ["claude", "codex"]       # AI harnesses to configure
 model_providers = ["anthropic"]       # Optional API-key/provider hints
 
 [ai.harness.claude]
@@ -162,14 +160,14 @@ Container configuration. Controls the generated `docker-compose.yml` and `Docker
 | `hostname` | String | No | `"aibox"` | Container hostname |
 | `user` | String | No | `"aibox"` | Container user |
 | `post_create_command` | String | No | -- | Command to run after container creation |
-| `keepalive` | Boolean | No | `false` | Network keepalive (prevents OrbStack/VM NAT idle dropout) |
+| `keepalive` | Boolean | No | `false` | Periodic DNS keepalive for development environments with idle network timeouts. |
 | `environment` | Map (String → String) | No | `{}` | Environment variables injected into the container. Suitable for non-secret project-wide values; use `.aibox-local.toml` for secrets. |
 | `extra_volumes` | Array of ExtraVolume | No | `[]` | Additional bind mounts. Each entry has `source`, `target`, and optional `read_only`. |
 | `resource_thresholds` | Table | No | see below | Warning thresholds used by `aibox doctor` for cgroup/procfs pressure signals. |
 
 Generated Compose files include a top-level project name, an explicit service
-image, and `container_name = [container].name`. Docker Desktop, OrbStack, and
-Compose views should therefore show each aibox project under its configured
+image, and `container_name = [container].name`. Container runtime and Compose
+views should therefore show each aibox project under its configured
 project/container identity instead of a generic `devcontainer` group.
 
 #### [container.resource_thresholds]
@@ -231,7 +229,7 @@ Context-system metadata owned by the processkit content layer.
 | Field | Type | Required | Default | Description |
 |-------|------|----------|---------|-------------|
 | `schema_version` | String (semver) | No | `"1.0.0"` | Context schema version |
-| `packages` | Array of strings | No | `["product"]` | Deprecated compatibility field. New projects use explicit standard skills in `[skills].enabled`. |
+| `packages` | Array of strings | No | `["product"]` | Legacy compatibility field. New projects use explicit standard skills in `[skills].enabled`; canonical config rendering omits this field. |
 
 Use `[skills].enabled` and `[skills].disabled` for explicit skill-level overrides.
 
@@ -288,8 +286,10 @@ in generated agent/MCP config; in-container CLI installation is controlled by
 
 | Field | Type | Required | Default | Description |
 |-------|------|----------|---------|-------------|
-| `harnesses` | Array of strings | No | `["claude"]` | AI harnesses to configure: `claude`, `codex`, `gemini`, `aider`, `continue`, `cursor`, `copilot`, `opencode`, `hermes`. |
 | `model_providers` | Array of strings | No | `[]` | Optional API-key/provider hints: `anthropic`, `openai`, `google`, `mistral`. |
+| `harness.<name>.enabled` | Boolean | No | `true` when table is present | Include this harness in generated runtime config. Names: `claude`, `codex`, `gemini`, `aider`, `continue`, `cursor`, `copilot`, `opencode`, `hermes`. |
+| `harness.<name>.install` | Boolean | No | `true` | Install the matching in-container CLI recipe when available. |
+| `harness.<name>.version` | String | No | addon's default | Optional CLI version pin. |
 
 Per-harness install controls live below `[ai.harness.<name>]`:
 
@@ -300,8 +300,9 @@ install = true       # install the Codex CLI in the container
 version = "latest"   # optional; use "latest" or a concrete CLI version
 ```
 
-Legacy `providers = [...]` and `[addons.ai-*.tools]` inputs are still accepted
-for compatibility. `aibox apply` rewrites fresh scaffolding toward `[ai]`.
+Legacy compact harness lists, `providers = [...]`, and `[addons.ai-*.tools]`
+inputs are still accepted for compatibility. Use `aibox apply --standardize-config`
+to rewrite a schema-clean config into the current canonical shape.
 
 ### [processkit]
 
@@ -373,8 +374,8 @@ Generated files (`.mcp.json`, `.cursor/mcp.json`, `.gemini/settings.json`, `.cod
 
 #### processkit Gateway: [ai.mcp.gateway]
 
-processkit v0.25.4 ships `processkit-gateway`, whose stdio proxy can start
-the matching localhost daemon on demand. It can replace the older
+When the selected processkit release provides `processkit-gateway`, its stdio
+proxy can start the matching localhost daemon on demand. It can replace the
 one-process-per-skill MCP topology with a single processkit MCP entry.
 
 ```toml

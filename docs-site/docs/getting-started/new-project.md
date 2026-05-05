@@ -43,7 +43,7 @@ the last step of `init`.
 my-app/
 ├── aibox.toml                  # Single source of truth (includes [processkit])
 ├── AGENTS.md                   # Canonical agent entry — rendered from processkit scaffolding
-├── CLAUDE.md                   # Thin pointer to AGENTS.md (when [ai].harnesses includes "claude")
+├── CLAUDE.md                   # Thin pointer to AGENTS.md (when [ai.harness.claude] is enabled)
 ├── .gitignore                  # Generated with language-specific blocks
 ├── .aibox-version              # Tracks installed CLI version
 ├── .aibox-home/                # Persistent config (git-ignored)
@@ -128,9 +128,9 @@ schema_version = "1.0.0"
 # uv     = { version = "0.7" }
 
 # AI harnesses — controls which AI CLIs/configs are enabled.
-# Options: claude, aider, gemini, mistral, openai, copilot, continue
-[ai]
-harnesses = ["claude"]
+[ai.harness.claude]
+enabled = true
+install = true
 
 [customization]
 theme  = "gruvbox-dark"

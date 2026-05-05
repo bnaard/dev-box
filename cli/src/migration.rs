@@ -422,6 +422,52 @@ pub fn refresh_generated_aibox_toml_comments(root: &Path) -> Result<()> {
     Ok(())
 }
 
+/// Force-render `aibox.toml` through the current canonical commented config
+/// template. This is intentionally opt-in: unlike the generated-comment
+/// refresh above, it rewrites any schema-clean config into the current grouped
+/// structure and drops stale generated comments/ordering.
+pub fn standardize_aibox_toml(root: &Path) -> Result<()> {
+    standardize_aibox_toml_file(&root.join("aibox.toml"))
+}
+
+pub fn standardize_aibox_toml_file(path: &Path) -> Result<()> {
+    if !path.is_file() {
+        return Ok(());
+    }
+
+    let raw =
+        fs::read_to_string(path).with_context(|| format!("Failed to read {}", path.display()))?;
+    let mismatches = crate::config::AiboxConfig::schema_mismatches(&raw).with_context(|| {
+        format!(
+            "Failed to validate {} before config standardization",
+            path.display()
+        )
+    })?;
+    if !mismatches.is_empty() {
+        anyhow::bail!(
+            "Cannot standardize {} because it contains unknown schema keys:\n  - {}",
+            path.display(),
+            mismatches.join("\n  - ")
+        );
+    }
+
+    let config = crate::config::AiboxConfig::load(path).with_context(|| {
+        format!(
+            "Failed to load {} for config standardization",
+            path.display()
+        )
+    })?;
+    let rendered = crate::container::serialize_config_with_comments(&config);
+    if rendered != raw {
+        fs::write(path, rendered).with_context(|| format!("Failed to write {}", path.display()))?;
+        output::ok("Standardized aibox.toml into the current config structure");
+    } else {
+        output::ok("aibox.toml already matches the current config structure");
+    }
+
+    Ok(())
+}
+
 fn should_refresh_generated_aibox_toml_comments(raw: &str) -> bool {
     let generated_header = raw.contains("# aibox.toml — single source of truth")
         || raw.contains("# [addons] — language runtimes and tool bundles");
@@ -2281,6 +2327,62 @@ value = true
 
         let after = fs::read_to_string(tmp.path().join("aibox.toml")).unwrap();
         assert_eq!(after, before);
+    }
+
+    #[test]
+    fn standardize_aibox_toml_rewrites_schema_clean_config_to_canonical_shape() {
+        let tmp = TempDir::new().unwrap();
+        fs::write(
+            tmp.path().join("aibox.toml"),
+            r#"[container]
+name = "demo"
+
+[ai]
+harnesses = ["codex"]
+model_providers = ["openai"]
+
+[processkit]
+version = "unset"
+
+[customization]
+layout = "ai"
+"#,
+        )
+        .unwrap();
+
+        standardize_aibox_toml(tmp.path()).unwrap();
+
+        let after = fs::read_to_string(tmp.path().join("aibox.toml")).unwrap();
+        assert!(after.contains("# aibox.toml — single source of truth"));
+        assert!(after.contains("[ai.harness.codex]"));
+        assert!(after.contains("enabled = true"));
+        assert!(!after.contains("harnesses = ["));
+        assert!(!after.contains("packages = [\"product\"]"));
+        assert!(!after.to_ascii_lowercase().contains("deprecated"));
+        let ai = after.find("[ai]").unwrap();
+        let ai_mcp = after.find("[ai.mcp.gateway]").unwrap();
+        let processkit = after.find("[processkit]").unwrap();
+        assert!(ai < ai_mcp && ai_mcp < processkit);
+    }
+
+    #[test]
+    fn standardize_aibox_toml_rejects_unknown_schema_keys() {
+        let tmp = TempDir::new().unwrap();
+        fs::write(
+            tmp.path().join("aibox.toml"),
+            r#"[container]
+name = "demo"
+
+[unknown]
+value = true
+"#,
+        )
+        .unwrap();
+
+        let err = standardize_aibox_toml(tmp.path()).unwrap_err();
+        assert!(err.to_string().contains("Cannot standardize"));
+        let after = fs::read_to_string(tmp.path().join("aibox.toml")).unwrap();
+        assert!(after.contains("[unknown]"));
     }
 
     #[test]

@@ -88,7 +88,7 @@ Press `Escape` or `Ctrl+b` again to cancel the leader and return to normal mode.
 
 ### Layouts
 
-aibox ships six IDE layouts. Select one with `aibox up --layout <name>` (the default is `dev`). Layouts include provider-specific AI tabs based on `[ai].harnesses`; they include the **git** lazygit tab only when the `git-ui` addon selects `lazygit`.
+aibox ships six IDE layouts. Select one with `aibox up --layout <name>` (the default is `dev`). Layouts include provider-specific AI tabs based on enabled `[ai.harness.<name>]` tables; they include the **git** lazygit tab only when the `git-ui` addon selects `lazygit`.
 
 #### dev (default) -- file browser + editor
 
@@ -149,8 +149,8 @@ Using a directory mount (rather than a single-file mount) allows a `credentials`
 
 AI coding agents (Claude, Codex, Aider, Gemini, and others) are **not**
 pre-installed in the base image. They are installed per-project when you select
-them under `[ai]`, for example `harnesses = ["claude"]` plus
-`[ai.harness.claude] install = true`.
+them under `[ai.harness.<name>]`, for example
+`[ai.harness.claude] enabled = true` plus `install = true`.
 
 ## Audio Support
 

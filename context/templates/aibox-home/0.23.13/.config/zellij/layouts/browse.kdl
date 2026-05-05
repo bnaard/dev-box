@@ -20,21 +20,14 @@ layout {
                 cwd "/workspace"
             }
             pane size="40%" {
-        pane name="claude" {
-            command "claude"
+        pane name="codex" {
+            command "codex"
             cwd "/workspace"
         }
             }
         }
     }
 
-    aibox-tab name="codex" {
-        pane name="codex" {
-            command "codex"
-            cwd "/workspace"
-            start_suspended true
-        }
-    }
     aibox-tab name="editor" {
         pane name="vim" {
             command "bash"

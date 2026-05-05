@@ -209,7 +209,7 @@ pub fn cmd_addon_add(
         .with_context(|| format!("Failed to write {}", path.display()))?;
 
     if apply {
-        crate::container::cmd_sync(config_path, false, no_build, false, false)?;
+        crate::container::cmd_sync(config_path, false, no_build, false, false, false)?;
     } else {
         output::info("Run `aibox apply` to reconcile generated files.");
     }
@@ -253,7 +253,7 @@ pub fn cmd_addon_remove(
     output::ok(&format!("Removed add-on '{}' from aibox.toml", name));
 
     if apply {
-        crate::container::cmd_sync(config_path, false, no_build, false, false)?;
+        crate::container::cmd_sync(config_path, false, no_build, false, false, false)?;
     } else {
         output::info("Run `aibox apply` to reconcile generated files.");
     }

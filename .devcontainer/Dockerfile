@@ -52,26 +52,6 @@ FROM ghcr.io/projectious-work/aibox:base-debian-v0.23.13 AS aibox
 LABEL aibox.version="0.23.13"
 LABEL aibox.profile="human-dev"
 
-# Addon: ai-claude
-# Install Claude Code CLI via the native installer (recommended by Anthropic).
-# npm installation is deprecated — the native installer is faster, requires
-# no Node dependency, and supports version pinning via: bash -s <version>.
-# To pin a version: set [ai.harness.claude] version in aibox.toml
-# Ref: https://code.claude.com/docs/en/setup#install-a-specific-version
-USER aibox
-RUN curl -fsSL https://claude.ai/install.sh | bash
-USER root
-RUN set -eux; \
-    claude_bin=""; \
-    for candidate in \
-      /home/aibox/.local/bin/claude \
-      /home/aibox/.claude/local/claude \
-      /home/aibox/.claude/local/bin/claude; do \
-      if [ -x "$candidate" ]; then claude_bin="$candidate"; break; fi; \
-    done; \
-    test -n "$claude_bin"; \
-    install -m 0755 "$claude_bin" /usr/local/bin/claude
-
 # Addon: audio-voice — PulseAudio/Sox support for interactive voice tools.
 USER root
 RUN apt-get update && apt-get install -y --no-install-recommends \

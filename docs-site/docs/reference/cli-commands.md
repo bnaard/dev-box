@@ -75,6 +75,7 @@ aibox apply
 aibox apply --no-cache
 aibox apply --rebuild
 aibox apply --config-only
+aibox apply --standardize-config
 aibox apply migration MIG-20260430_1200
 aibox apply audio
 aibox apply env research
@@ -85,6 +86,7 @@ aibox apply env research
 | `--no-cache` | Force a full image rebuild without using cached layers |
 | `--rebuild` | Visible alias for `--no-cache` |
 | `--config-only` | Regenerate files without building the image |
+| `--standardize-config` | Rewrite `aibox.toml` through the current canonical grouped template after compatibility migrations. Recognized schema fields are preserved; unknown keys block the rewrite. |
 | `--fix-compliance-contract` | Rewrite the processkit compliance block in `AGENTS.md` |
 | `--no-container` | Skip runtime probing and image build for CI/nested containers |
 

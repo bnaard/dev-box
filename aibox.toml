@@ -36,14 +36,14 @@ local_env             = ".aibox-local.env"  # Generated from .aibox-local.toml f
 # --- Lifecycle ---
 [container.lifecycle]
 # post_create_command = "npm install"  # Shell command run once after container first starts
-# keepalive           = true           # Send periodic keepalive (prevents NAT idle dropout in OrbStack/VMs)
+# keepalive           = true           # Send periodic DNS keepalive for idle network timeouts
 
 # --- Resource pressure warnings (`aibox doctor`) ---
 # [container.resource_thresholds]
-# memory_mib_warn = 4096       # Optional cgroup memory warning threshold in MiB
-# process_count_warn = 400     # Set to 0 to disable this warning
-# processkit_mcp_python_warn = 50  # Expected to drop after processkit gateway adoption
-# oom_kill_warn = 0            # Warn when cgroup OOM kill count is greater than this
+# memory_mib_warn = 4096       # Optional warning limit for cgroup memory usage in MiB
+# process_count_warn = 400     # Optional warning limit for total live processes; 0 disables
+# processkit_mcp_python_warn = 50  # Optional warning limit for live Python MCP server processes; 0 disables
+# oom_kill_warn = 0            # Optional warning threshold for cgroup OOM kill count
 
 # =============================================================================
 # [audio] — audio and voice feature support
@@ -518,6 +518,8 @@ lazygit = { enabled = false } # default on; options: {}, { enabled = true|false 
 # OpenCode                    opencode       any (multi-provider)
 # Hermes                      hermes         any (multi-provider)
 #
+# Enable harnesses through their [ai.harness.<name>] table below.
+#
 # Model providers (optional): declare which API keys are available.
 # Provider     Config value   Env var
 # Anthropic    anthropic      ANTHROPIC_API_KEY
@@ -525,17 +527,6 @@ lazygit = { enabled = false } # default on; options: {}, { enabled = true|false 
 # Google       google         GEMINI_API_KEY
 # Mistral      mistral        MISTRAL_API_KEY
 [ai]
-harnesses = [
-    "claude", # Claude Code (claude)
-    "codex", # OpenAI Codex (codex)
-#     "gemini", # Gemini CLI (gemini)
-#     "aider", # Aider (aider)
-#     "continue", # Continue (continue)
-#     "cursor", # Cursor (cursor)
-#     "copilot", # GitHub Copilot (copilot)
-#     "opencode", # OpenCode (opencode)
-#     "hermes", # Hermes (hermes)
-]
 
 model_providers = [
 #     "anthropic", # env: ANTHROPIC_API_KEY
@@ -547,9 +538,9 @@ model_providers = [
 # Per-harness install controls. `enabled` participates in generated
 # agent/MCP config; `install` selects the in-container CLI recipe.
 
-[ai.harness.claude]
-enabled = true
-install = true
+# [ai.harness.claude]
+# enabled = true
+# install = true
 # version = "latest"
 
 [ai.harness.codex]
@@ -641,7 +632,6 @@ src_path = "src"
 
 [processkit.context]
 schema_version = "1.0.0"      # Context schema version — updated automatically by `aibox apply`
-# packages = ["product"]  # deprecated; use explicit [skills].enabled instead
 
 # =============================================================================
 # [customization] — color theme, shell prompt, and zellij layout

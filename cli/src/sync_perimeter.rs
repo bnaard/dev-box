@@ -128,7 +128,7 @@ pub const SYNC_PERIMETER: &[&str] = &[
     // ── Migration documents (additive) ─────────────────────────────────
     "context/migrations/",
     // ── MCP server registration files (v0.16.5+ DEC-033) ────────────────
-    // Each is gated on the corresponding [ai].harnesses value at write
+    // Each is gated on the corresponding enabled AI harness at write
     // time; SYNC_PERIMETER lists them as in-perimeter regardless of
     // whether the current config emits them, because the perimeter is a
     // STATIC contract about which paths sync MAY touch (not which it
@@ -447,7 +447,7 @@ mod tests {
     fn mcp_registration_files_are_in_perimeter() {
         // v0.16.5+ DEC-033: MCP server registration files for each
         // supported harness. The .mcp.json case is gated on Claude
-        // OR Mistral being in [ai].harnesses; the others on their
+        // OR Mistral being enabled as an AI harness; the others on their
         // own harness value. The perimeter lists them all because
         // it's a STATIC contract (paths sync MAY touch), not a
         // dynamic statement of which paths it will touch this run.

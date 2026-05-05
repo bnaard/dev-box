@@ -43,8 +43,9 @@ version = "latest"
 [processkit.context]
 schema_version = "1.0.0"
 
-[ai]
-harnesses = ["claude"]
+[ai.harness.claude]
+enabled = true
+install = true
 
 [audio]
 enabled = false

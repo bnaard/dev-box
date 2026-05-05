@@ -27,13 +27,6 @@ layout {
             start_suspended true
         }
     }
-    aibox-tab name="claude" {
-        pane name="claude" {
-            command "claude"
-            cwd "/workspace"
-            start_suspended true
-        }
-    }
     aibox-tab name="codex" {
         pane name="codex" {
             command "codex"

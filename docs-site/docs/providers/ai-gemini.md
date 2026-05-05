@@ -10,8 +10,9 @@ title: "Gemini"
 ## Setup
 
 ```toml
-[ai]
-harnesses = ["gemini"]
+[ai.harness.gemini]
+enabled = true
+install = true
 ```
 
 Run `aibox apply`, then inside the container:

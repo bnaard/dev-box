@@ -2196,7 +2196,7 @@ mod tests {
     #[test]
     #[serial]
     fn seed_root_dir_seeds_opencode_processkit_gate_plugin_when_opencode_enabled() {
-        // aibox#51 (v0.18.7): with OpenCode in [ai].harnesses, sync must seed
+        // aibox#51 (v0.18.7): with OpenCode enabled, sync must seed
         // .opencode/plugins/processkit-gate.ts so an OpenCode session enforces
         // the same compliance gate as Claude Code's PreToolUse hook.
         let dir = tempfile::tempdir().unwrap();
@@ -2367,12 +2367,20 @@ mod tests {
         let open_in_editor =
             fs::read_to_string(root.join(".local").join("bin").join("open-in-editor")).unwrap();
         assert!(
-            open_in_editor.contains("zellij action edit --in-place"),
-            "open-in-editor should use Zellij's editor action instead of injecting Vim commands into the focused pane"
+            open_in_editor.contains("zellij action go-to-tab-name \"editor\""),
+            "open-in-editor should target the dedicated editor tab when the layout declares AIBOX_EDITOR_DIR=tab"
         );
         assert!(
-            !open_in_editor.contains(":edit"),
-            "open-in-editor must not send :edit to the focused terminal pane"
+            open_in_editor.contains("zellij action move-focus right"),
+            "open-in-editor should support same-tab editor panes"
+        );
+        assert!(
+            open_in_editor.contains(":edit ${vim_file}"),
+            "open-in-editor should open the selected file in the focused Vim pane"
+        );
+        assert!(
+            !open_in_editor.contains("edit --in-place"),
+            "open-in-editor must not replace the Yazi pane with an in-place editor"
         );
         #[cfg(unix)]
         assert_ne!(

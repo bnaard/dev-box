@@ -10,8 +10,9 @@ title: "Claude"
 ## Setup
 
 ```toml
-[ai]
-harnesses = ["claude"]
+[ai.harness.claude]
+enabled = true
+install = true
 ```
 
 Run `aibox apply`, then inside the container:

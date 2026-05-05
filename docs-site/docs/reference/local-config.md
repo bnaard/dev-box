@@ -135,7 +135,7 @@ Everything outside of `[container.environment]`, `[[container.extra_volumes]]`, 
 - `[addons]` — addon configuration
 - `[processkit]` — content source and version pin
 - `[skills]` — enabled/disabled lists
-- `[ai]` — harnesses, agents, and MCP
+- `[ai]` / `[ai.harness.<name>]` — harnesses, agents, and MCP
 - `[customization]` — theme, mode, prompt, layout
 - `[audio]` — audio bridging
 

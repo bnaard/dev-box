@@ -93,7 +93,7 @@ const CURSOR_MANAGED_MARKER: &str = "processkit/skill-gate/scripts/";
 // ---------------------------------------------------------------------------
 
 /// Regenerate every harness-specific hook config file from the processkit
-/// hook scripts for the harnesses listed in `[ai].harnesses`.
+/// hook scripts for enabled AI harnesses.
 ///
 /// Called from `cmd_init` and `cmd_sync` right after
 /// [`crate::mcp_registration::regenerate_mcp_configs`]. Idempotent:

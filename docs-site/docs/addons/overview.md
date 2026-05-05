@@ -99,10 +99,11 @@ AI harnesses are selected under `[ai]`, not as public addon blocks. aibox still
 uses internal install recipes for container CLIs when `install = true`.
 
 ```toml
-[ai]
-harnesses = ["claude", "codex"]
-
 [ai.harness.claude]
+enabled = true
+install = true
+
+[ai.harness.codex]
 enabled = true
 install = true
 

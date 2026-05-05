@@ -10,8 +10,9 @@ title: "Continue"
 ## Setup
 
 ```toml
-[ai]
-harnesses = ["continue"]
+[ai.harness.continue]
+enabled = true
+install = true
 ```
 
 Run `aibox apply`, then inside the container:

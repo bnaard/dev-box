@@ -167,7 +167,7 @@ fn profile_for(harness: AiHarness, project_root: &Path) -> Option<HarnessCommand
 
 /// Returns `true` if the given harness profile should run for this config.
 /// Claude is always-on (preserves pre-v0.20.x behaviour). All other
-/// harnesses must be explicitly enabled via `[ai].harnesses`.
+/// harnesses must be explicitly enabled via `[ai.harness.<name>]`.
 fn profile_enabled(profile: &HarnessCommandProfile, config: &AiboxConfig) -> bool {
     if profile.harness == AiHarness::Claude {
         return true;
@@ -232,7 +232,7 @@ pub fn sync_harness_commands(project_root: &Path, config: &AiboxConfig) -> Resul
     // Sweep up legacy Codex prompt files left behind by aibox v0.21.1.
     // Runs unconditionally (independent of whether Codex is currently
     // enabled) because the legacy files were written in v0.21.1 even for
-    // configs that have since dropped Codex from `[ai].harnesses`.
+    // configs that have since dropped Codex from their enabled AI harnesses.
     cleanup_legacy_codex_prompts(project_root, &universe);
 
     Ok(())

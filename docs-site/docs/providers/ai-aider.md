@@ -10,8 +10,9 @@ title: "Aider"
 ## Setup
 
 ```toml
-[ai]
-harnesses = ["aider"]
+[ai.harness.aider]
+enabled = true
+install = true
 ```
 
 Run `aibox apply`, then inside the container:

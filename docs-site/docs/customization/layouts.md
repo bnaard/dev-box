@@ -7,7 +7,7 @@ title: "Layouts"
 
 aibox ships six Zellij layouts that control the terminal workspace arrangement. Each layout is optimized for a different workflow.
 
-Generated layouts include AI-agent tabs based on `[ai].harnesses`. The
+Generated layouts include AI-agent tabs based on enabled `[ai.harness.<name>]` tables. The
 fullscreen **git** tab is generated only when the `git-ui` addon selects
 `lazygit`, so tab numbering shifts when that optional tab is omitted.
 

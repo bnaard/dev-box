@@ -258,6 +258,10 @@ fn apply_help_mentions_no_cache_and_rebuild_alias() {
         stdout.contains("--rebuild"),
         "apply help should keep --rebuild as an alias"
     );
+    assert!(
+        stdout.contains("--standardize-config"),
+        "apply help should expose the opt-in canonical config rewrite"
+    );
 }
 
 #[test]

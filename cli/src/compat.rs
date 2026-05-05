@@ -285,6 +285,11 @@ pub static COMPAT_TABLE: &[CompatEntry] = &[
         processkit_version: "v0.25.8",
         note: "Patch release: fixes 0.23.11-to-0.23.12 upgrades for generated configs that still place a moved tool under its old addon owner; apply now migrates misplaced addon tool entries to their unique current catalog owner before strict validation and comment refresh, while preserving hard errors for unknown tools.",
     },
+    CompatEntry {
+        aibox_version: "0.23.14",
+        processkit_version: "v0.25.8",
+        note: "Patch release: makes per-harness [ai.harness.<name>] tables the canonical generated aibox.toml selector, adds opt-in `aibox apply --standardize-config` for schema-clean canonical rewrites, removes stale/deprecated generated comments, restores Yazi `e` cross-pane editor handoff, and refreshes docs around semantic AI harness configuration.",
+    },
 ];
 
 /// Find the minimum compatible processkit version for the given aibox version.

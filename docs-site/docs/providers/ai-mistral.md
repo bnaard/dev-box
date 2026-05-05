@@ -14,8 +14,9 @@ The `ai-mistral` addon installs the **mistralai Python SDK**, not an interactive
 ## Setup
 
 ```toml
-[ai]
-harnesses = ["mistral"]
+[ai.harness.mistral]
+enabled = true
+install = true
 ```
 
 Run `aibox apply`. Inside the container the `mistralai` Python SDK is available for scripting:

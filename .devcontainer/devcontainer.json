@@ -15,9 +15,6 @@
           "bash": {
             "path": "/bin/bash"
           },
-          "claude": {
-            "path": "/usr/local/bin/claude"
-          },
           "codex": {
             "path": "/usr/local/bin/codex"
           },

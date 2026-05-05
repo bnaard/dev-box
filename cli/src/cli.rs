@@ -70,6 +70,7 @@ Examples:
   aibox init my-app --addon python --harness claude
   aibox apply                                Reconcile config + build image
   aibox apply --no-cache                     Force full rebuild without cache
+  aibox apply --standardize-config           Rewrite aibox.toml into current canonical shape
   aibox up                                   Start and attach
   aibox up --layout focus                    Start with a specific layout
   aibox get runtime                          Show container state
@@ -216,6 +217,12 @@ pub enum Commands {
         /// Skip the container image build step (config-only apply)
         #[arg(long)]
         config_only: bool,
+
+        /// Force a canonical rewrite of aibox.toml after compatibility
+        /// migrations. Recognized settings are preserved through the current
+        /// schema; unknown keys still block so they are not silently dropped.
+        #[arg(long)]
+        standardize_config: bool,
 
         /// PulseAudio TCP port for `apply audio`
         #[arg(long, default_value = "4714")]

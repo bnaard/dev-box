@@ -10,8 +10,9 @@ title: "Copilot (GitHub)"
 ## Setup
 
 ```toml
-[ai]
-harnesses = ["copilot"]
+[ai.harness.copilot]
+enabled = true
+install = true
 ```
 
 Run `aibox apply`, then inside the container:

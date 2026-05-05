@@ -147,6 +147,7 @@ fn dispatch(cli: cli::Cli) -> anyhow::Result<()> {
             name,
             no_cache,
             config_only,
+            standardize_config,
             port,
             fix_compliance_contract,
             no_container,
@@ -157,6 +158,7 @@ fn dispatch(cli: cli::Cli) -> anyhow::Result<()> {
                     config_path,
                     no_cache,
                     config_only,
+                    standardize_config,
                     fix_compliance_contract,
                     no_container,
                 ),
@@ -187,7 +189,7 @@ fn dispatch(cli: cli::Cli) -> anyhow::Result<()> {
         }
         cli::Commands::Up { layout, apply } => {
             if apply {
-                container::cmd_sync(config_path, false, false, false, false)?;
+                container::cmd_sync(config_path, false, false, false, false, false)?;
             }
             let config = crate::config::AiboxConfig::from_cli_option(config_path)?;
             let resolved_layout = layout
@@ -330,7 +332,7 @@ fn dispatch(cli: cli::Cli) -> anyhow::Result<()> {
                 let skill = required_name(name, "skill name")?;
                 kit::cmd_kit_skill_uninstall(config_path, &skill)?;
                 if apply {
-                    container::cmd_sync(config_path, false, false, false, false)?;
+                    container::cmd_sync(config_path, false, false, false, false, false)?;
                 }
                 Ok(())
             }
@@ -440,7 +442,7 @@ fn cmd_set(
                 _ => anyhow::bail!("expected skill state 'enabled' or 'disabled'"),
             }
             if apply {
-                container::cmd_sync(config_path, false, false, false, false)?;
+                container::cmd_sync(config_path, false, false, false, false, false)?;
             }
             Ok(())
         }

@@ -629,7 +629,8 @@ pub struct AiHarnessConfig {
 
 /// [ai] section — AI harness and model provider configuration.
 ///
-/// `harnesses` controls which CLI tools are installed in the container.
+/// New configs select AI harnesses via `[ai.harness.<name>]` tables. The
+/// `harnesses` list remains accepted as a legacy/internal effective selector.
 /// `model_providers` is optional — declares which API keys are available.
 /// Legacy `providers` field is accepted for backward compatibility.
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -644,8 +645,8 @@ pub struct AiSection {
     #[serde(default)]
     pub model_providers: Vec<AiModelProvider>,
 
-    /// Per-harness install controls. New configs should prefer this for
-    /// version/install overrides while `harnesses` remains a compact selector.
+    /// Per-harness enable/install/version controls. New configs should prefer
+    /// this as the user-facing selector.
     #[serde(default)]
     pub harness: HashMap<AiHarness, AiHarnessConfig>,
 

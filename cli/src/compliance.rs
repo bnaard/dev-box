@@ -9,11 +9,11 @@
 //!    `context/skills/processkit/skill-gate/assets/compliance-contract.md`.
 //!    If they differ, emit a warning.
 //!
-//! 2. **Cursor rules** (Issue #47): when `cursor` is in `[ai].harnesses`,
+//! 2. **Cursor rules** (Issue #47): when `cursor` is enabled as an AI harness,
 //!    write `.cursor/rules/processkit-compliance.md` from the canonical
 //!    source.
 //!
-//! 3. **Aider conf** (Issue #48): when `aider` is in `[ai].harnesses`,
+//! 3. **Aider conf** (Issue #48): when `aider` is enabled as an AI harness,
 //!    ensure `.aider.conf.yml` contains `read:` entries for `AGENTS.md`
 //!    and `context/skills/processkit/skill-gate/assets/compliance-contract.md`.
 
@@ -238,7 +238,7 @@ fn extract_block<'a>(text: &'a str, begin_marker: &str, end_marker: &str) -> Opt
 // ---------------------------------------------------------------------------
 
 /// Write `.cursor/rules/processkit-compliance.md` from the canonical
-/// compliance contract. Only runs when `cursor` is in `[ai].harnesses`.
+/// compliance contract. Only runs when `cursor` is enabled as an AI harness.
 pub fn write_cursor_compliance_rules(config: &AiboxConfig, project_root: &Path) -> Result<()> {
     if !config.ai.harnesses.contains(&AiHarness::Cursor) {
         return Ok(());
@@ -273,7 +273,7 @@ pub fn write_cursor_compliance_rules(config: &AiboxConfig, project_root: &Path) 
 // ---------------------------------------------------------------------------
 
 /// Ensure `.aider.conf.yml` has `read:` entries for `AGENTS.md` and the
-/// compliance contract. Only runs when `aider` is in `[ai].harnesses`.
+/// compliance contract. Only runs when `aider` is enabled as an AI harness.
 /// Preserves all existing entries.
 pub fn write_aider_compliance_conf(config: &AiboxConfig, project_root: &Path) -> Result<()> {
     if !config.ai.harnesses.contains(&AiHarness::Aider) {
