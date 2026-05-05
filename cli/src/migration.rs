@@ -6,6 +6,7 @@
 //! migration that absorbs the legacy `.aibox-version` file into `aibox.lock`.
 
 use anyhow::{Context, Result};
+use std::collections::{BTreeMap, BTreeSet};
 use std::fs;
 use std::path::Path;
 
@@ -17,11 +18,135 @@ pub fn check_and_generate_migration() -> Result<()> {
     // Hard-cut: absorb legacy .aibox-version into aibox.lock (one-time, idempotent).
     migrate_legacy_lock_files(Path::new("."))?;
     migrate_aibox_toml_structure(Path::new("."))?;
+    migrate_misplaced_addon_tools(Path::new("."))?;
     check_and_generate_migration_in(Path::new("."))?;
     ensure_processkit_section_in(Path::new("."))?;
     // Migrate old processkit runtime settings out of [context] (processkit v0.8.0+).
     migrate_processkit_context_settings(Path::new("."))?;
     refresh_generated_aibox_toml_comments(Path::new("."))?;
+    Ok(())
+}
+
+/// Move tool entries that older generated configs placed under the wrong
+/// addon section into the addon that owns the tool in the current catalog.
+///
+/// This runs before comment refresh and strict config loading. Without it,
+/// moved tool entries fail validation before aibox can re-render generated
+/// configs into the current addon-owner shape. A tool is moved only when the
+/// current addon catalog has exactly one other owner for that tool name.
+pub fn migrate_misplaced_addon_tools(root: &Path) -> Result<()> {
+    let path = root.join("aibox.toml");
+    if !path.is_file() {
+        return Ok(());
+    }
+    if crate::addon_loader::all_addons().is_empty() {
+        return Ok(());
+    }
+
+    let raw =
+        fs::read_to_string(&path).with_context(|| format!("Failed to read {}", path.display()))?;
+    let mut doc: toml_edit::DocumentMut = raw
+        .parse()
+        .with_context(|| format!("Failed to parse {} with toml_edit", path.display()))?;
+
+    let known_tools_by_addon: BTreeMap<String, BTreeSet<String>> =
+        crate::addon_loader::all_addons()
+            .iter()
+            .map(|addon| {
+                (
+                    addon.name.clone(),
+                    addon
+                        .tools
+                        .iter()
+                        .map(|tool| tool.name.clone())
+                        .collect::<BTreeSet<_>>(),
+                )
+            })
+            .collect();
+
+    let Some(addons) = doc.get("addons").and_then(|item| item.as_table()) else {
+        return Ok(());
+    };
+
+    let mut moves = Vec::new();
+    for (addon_name, addon_item) in addons.iter() {
+        let Some(current_tools) = known_tools_by_addon.get(addon_name) else {
+            continue;
+        };
+        let Some(tools) = addon_item.get("tools").and_then(|item| item.as_table()) else {
+            continue;
+        };
+
+        for (tool_name, tool_item) in tools.iter() {
+            if current_tools.contains(tool_name) {
+                continue;
+            }
+
+            let owners: Vec<&str> = known_tools_by_addon
+                .iter()
+                .filter_map(|(candidate_addon, candidate_tools)| {
+                    (candidate_addon != addon_name && candidate_tools.contains(tool_name))
+                        .then_some(candidate_addon.as_str())
+                })
+                .collect();
+            if let [owner] = owners.as_slice() {
+                moves.push((
+                    addon_name.to_string(),
+                    (*owner).to_string(),
+                    tool_name.to_string(),
+                    tool_item.clone(),
+                ));
+            }
+        }
+    }
+
+    if moves.is_empty() {
+        return Ok(());
+    }
+
+    let mut moved = Vec::new();
+    for (from_addon, to_addon, tool_name, tool_item) in moves {
+        let target_has_tool = doc
+            .get("addons")
+            .and_then(|item| item.get(&to_addon))
+            .and_then(|item| item.get("tools"))
+            .and_then(|item| item.as_table())
+            .is_some_and(|tools| tools.contains_key(&tool_name));
+
+        if !target_has_tool {
+            if !doc["addons"]
+                .as_table()
+                .is_some_and(|table| table.contains_key(&to_addon))
+            {
+                doc["addons"][&to_addon] = toml_edit::table();
+            }
+            if !doc["addons"][&to_addon]
+                .as_table()
+                .is_some_and(|table| table.contains_key("tools"))
+            {
+                doc["addons"][&to_addon]["tools"] = toml_edit::table();
+            }
+            doc["addons"][&to_addon]["tools"][&tool_name] = tool_item;
+        }
+
+        if let Some(source_tools) = doc
+            .get_mut("addons")
+            .and_then(|item| item.get_mut(&from_addon))
+            .and_then(|item| item.get_mut("tools"))
+            .and_then(|item| item.as_table_mut())
+        {
+            source_tools.remove(&tool_name);
+        }
+        moved.push(format!("{}: {} -> {}", tool_name, from_addon, to_addon));
+    }
+
+    fs::write(&path, doc.to_string())
+        .with_context(|| format!("Failed to write {}", path.display()))?;
+    output::ok(&format!(
+        "Migrated addon tool ownership ({})",
+        moved.join(", ")
+    ));
+
     Ok(())
 }
 
@@ -1395,6 +1520,14 @@ mod tests {
         crate::lock::write_lock(root, &lock).unwrap();
     }
 
+    fn init_repo_addons_for_migration_tests() {
+        let addons_dir = Path::new(env!("CARGO_MANIFEST_DIR"))
+            .parent()
+            .unwrap()
+            .join("addons");
+        let _ = crate::addon_loader::init_from_dir(&addons_dir);
+    }
+
     #[test]
     fn test_no_migration_when_versions_match() {
         let tmp = TempDir::new().unwrap();
@@ -1986,6 +2119,65 @@ name = "project-x"
             "conflicting legacy version must remain for manual review: {after}"
         );
         assert!(after.contains("[image]\nversion = \"0.23.8\""));
+    }
+
+    #[test]
+    fn misplaced_addon_tool_migration_uses_current_catalog_owner() {
+        init_repo_addons_for_migration_tests();
+        let tmp = TempDir::new().unwrap();
+        fs::write(
+            tmp.path().join("aibox.toml"),
+            r#"# aibox.toml — single source of truth for your aibox project.
+apiVersion = "aibox.projectious.work/v1"
+kind = "Workspace"
+
+[aibox]
+profile = "human-dev"
+
+[metadata]
+name = "demo"
+
+[image]
+version = "latest"
+base = "debian"
+
+[container]
+name = "demo"
+
+[context]
+schema_version = "1.0.0"
+packages = ["product"]
+
+[addons.python.tools]
+uv = {}
+gh = { enabled = true }
+"#,
+        )
+        .unwrap();
+
+        migrate_misplaced_addon_tools(tmp.path()).unwrap();
+
+        let after = fs::read_to_string(tmp.path().join("aibox.toml")).unwrap();
+        let parsed: toml_edit::DocumentMut = after.parse().unwrap();
+        assert!(
+            parsed["addons"]["python"]["tools"]
+                .as_table()
+                .unwrap()
+                .contains_key("uv")
+        );
+        assert!(
+            !parsed["addons"]["python"]["tools"]
+                .as_table()
+                .unwrap()
+                .contains_key("gh")
+        );
+        assert!(
+            parsed["addons"]["git-ui"]["tools"]
+                .as_table()
+                .unwrap()
+                .contains_key("gh")
+        );
+        crate::config::AiboxConfig::load(&tmp.path().join("aibox.toml")).unwrap();
     }
 
     #[test]
