@@ -87,6 +87,7 @@ The command performs:
 - `cli/Cargo.toml` and `Cargo.lock` version bump when needed
 - format, Clippy, and test checks
 - `cargo audit`
+- `cargo update --dry-run` review for lockfile-resolvable crate updates
 - Linux release builds for `aarch64-unknown-linux-gnu` and
   `x86_64-unknown-linux-gnu`
 - binary version smoke check
@@ -100,6 +101,9 @@ same pre-release report without bumping, tagging, or building.
 
 If a report finding is deferred, create a processkit WorkItem before continuing
 the release and mention that WorkItem ID in the release notes or handover.
+For `cargo update --dry-run`, either apply available crate updates in the
+release with full validation, or create a WorkItem for the deferred
+crate-update pass.
 
 ## Host-Side Release
 

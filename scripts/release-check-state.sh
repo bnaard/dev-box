@@ -224,6 +224,8 @@ line "### cargo update --dry-run"
 if (cd "${CLI_DIR}" && run_with_timeout 120s cargo update --dry-run) >> "${REPORT}" 2>&1; then
   line ""
   line "Status: dry-run completed. Review the output above for lockfile-resolvable crate updates."
+  line ""
+  line "Disposition required: if updates are listed, either apply them with a real \`cargo update\` and rerun validation, or create a processkit WorkItem for the deferred crate-update pass before continuing the release."
 else
   line ""
   line "Status: cargo update --dry-run failed or could not reach the index; rerun before release if network was unavailable."
@@ -243,6 +245,7 @@ done < <(find "${PROJECT_ROOT}/addons" -name '*.yaml' -type f | sort)
 section "Agent Review Checklist"
 line "- Read this report before running or continuing \`./scripts/maintain.sh release <version>\`."
 line "- For every update available, inspect upstream release notes and decide: bump now, defer explicitly, or file a follow-up issue."
+line "- For \`cargo update --dry-run\`, apply available crate updates now or create a processkit WorkItem for the deferred crate-update pass."
 line "- For every deferred finding, create a processkit WorkItem in the same turn and mention its ID in release notes or handover."
 line "- For every harness, verify install location, binary path, config path, command/skill projection path, auth persistence, and generated devcontainer expectations."
 line "- For every Dockerfile pin bump, rebuild the base image and run at least the layout/status/Yazi smoke path if the tool affects runtime UX."

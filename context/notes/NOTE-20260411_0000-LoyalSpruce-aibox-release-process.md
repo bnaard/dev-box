@@ -32,6 +32,11 @@ This writes `dist/RELEASE-STATE.md`, covering:
 - Rust advisory status and lockfile-resolvable crate updates
 - addon inventory at release time
 
+The Rust dependency section is mandatory. It must include both `cargo audit`
+and `cargo update --dry-run`. `cargo audit` is the security gate; `cargo update
+--dry-run` is the freshness gate that shows lockfile-resolvable crate updates
+without mutating `Cargo.lock`.
+
 The report is evidence, not a substitute for judgement. For every reported
 update, inspect upstream release notes and decide whether to bump immediately,
 defer explicitly, or file a follow-up issue. For every AI harness, verify:
@@ -44,6 +49,12 @@ dependency or harness surface, record the release where it was deferred, and
 state what validation is required before it can be shipped later. Mention the
 WorkItem ID in release notes or the release handover so the deferral is
 traceable.
+
+For `cargo update --dry-run` specifically: if it reports available crate
+updates, either apply them immediately with a real `cargo update` plus the full
+release validation suite, or create a processkit WorkItem that captures the
+crate update set and the validation required. Do not silently treat a clean
+`cargo audit` result as evidence that Rust dependencies are current.
 
 ### processkit
 
@@ -95,7 +106,15 @@ and patch/file it before publishing.
    `./scripts/maintain.sh release` installs `cargo-audit` if missing, runs it,
    and aborts the release on any advisory. Phase 0 also records audit output in
    `dist/RELEASE-STATE.md` when `cargo-audit` is already available.
-5. **Build Linux release binaries — both architectures**:
+5. **Review crate freshness**:
+   ```bash
+   cd cli && cargo update --dry-run
+   ```
+   This is run by `./scripts/maintain.sh release-check-state`, which is run
+   automatically by `./scripts/maintain.sh release` before the version bump. If
+   updates are available, either apply them in this release and rerun validation,
+   or create a processkit WorkItem for the deferred crate update pass.
+6. **Build Linux release binaries — both architectures**:
    ```bash
    cd /workspace/cli
    # Native aarch64 build
@@ -104,7 +123,7 @@ and patch/file it before publishing.
    CARGO_TARGET_X86_64_UNKNOWN_LINUX_GNU_LINKER=x86_64-linux-gnu-gcc \
      cargo build --release --target x86_64-unknown-linux-gnu
    ```
-6. **Package Linux binaries**:
+7. **Package Linux binaries**:
    ```bash
    cd /workspace && mkdir -p dist && VERSION=X.Y.Z
    cp cli/target/release/aibox dist/aibox-v${VERSION}-aarch64-unknown-linux-gnu
@@ -117,15 +136,15 @@ and patch/file it before publishing.
    rm dist/aibox-v${VERSION}-x86_64-unknown-linux-gnu
    ls -lh dist/aibox-v${VERSION}-*-linux-*.tar.gz   # verify both tarballs exist
    ```
-7. **Write release notes** to `dist/RELEASE-NOTES.md`
-8. **Commit, tag, push**:
+8. **Write release notes** to `dist/RELEASE-NOTES.md`
+9. **Commit, tag, push**:
    ```bash
    git add cli/Cargo.toml cli/Cargo.lock
    git commit -m "chore: bump version to vX.Y.Z"
    git tag vX.Y.Z
    git push origin main && git push origin vX.Y.Z
    ```
-9. **Create GitHub release with Linux binaries attached**:
+10. **Create GitHub release with Linux binaries attached**:
    ```bash
    gh release create vX.Y.Z --repo projectious-work/aibox \
      --title "aibox vX.Y.Z" --notes-file dist/RELEASE-NOTES.md \
@@ -133,7 +152,7 @@ and patch/file it before publishing.
      dist/aibox-vX.Y.Z-x86_64-unknown-linux-gnu.tar.gz
    ```
    Always use `--notes-file`, never `--generate-notes`. macOS binaries added in Phase 2.
-10. **Deploy documentation**:
+11. **Deploy documentation**:
     ```bash
     ./scripts/maintain.sh docs-deploy
     ```
