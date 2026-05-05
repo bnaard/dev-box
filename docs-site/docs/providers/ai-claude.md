@@ -11,7 +11,7 @@ title: "Claude"
 
 ```toml
 [ai]
-providers = ["claude"]
+harnesses = ["claude"]
 ```
 
 Run `aibox apply`, then inside the container:
@@ -35,7 +35,7 @@ Key files:
 Claude Code supports voice input. To enable it, configure [audio bridging](../container/audio.md):
 
 ```toml
-[container.audio]
+[audio]
 enabled = true
 ```
 

@@ -11,7 +11,7 @@ title: "OpenAI (Codex CLI)"
 
 ```toml
 [ai]
-providers = ["openai"]
+harnesses = ["openai"]
 ```
 
 Run `aibox apply`, then inside the container:
@@ -67,8 +67,10 @@ args    = ["-y", "@acme/internal-mcp-server"]
 Codex CLI is installed via npm (`npm install -g @openai/codex`). To pin a specific version, set it in `aibox.toml`:
 
 ```toml
-[addons.ai-codex.tools]
-codex = { version = "0.1.0" }
+[ai.harness.codex]
+enabled = true
+install = true
+version = "0.1.0"
 ```
 
 ## Sandbox prerequisites

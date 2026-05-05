@@ -43,7 +43,7 @@ the last step of `init`.
 my-app/
 ├── aibox.toml                  # Single source of truth (includes [processkit])
 ├── AGENTS.md                   # Canonical agent entry — rendered from processkit scaffolding
-├── CLAUDE.md                   # Thin pointer to AGENTS.md (when [ai].providers includes "claude")
+├── CLAUDE.md                   # Thin pointer to AGENTS.md (when [ai].harnesses includes "claude")
 ├── .gitignore                  # Generated with language-specific blocks
 ├── .aibox-version              # Tracks installed CLI version
 ├── .aibox-home/                # Persistent config (git-ignored)
@@ -127,7 +127,7 @@ schema_version = "1.0.0"
 # python = { version = "3.13" }
 # uv     = { version = "0.7" }
 
-# AI providers — controls which AI CLI tools are installed.
+# AI harnesses — controls which AI CLIs/configs are enabled.
 # Options: claude, aider, gemini, mistral, openai, copilot, continue
 [ai]
 harnesses = ["claude"]
@@ -140,7 +140,7 @@ layout = "dev"
 
 # Audio support for PulseAudio bridging (e.g., Claude Code voice).
 # Requires host-side PulseAudio setup: run `aibox apply audio`
-[container.audio]
+[audio]
 enabled = false
 # pulse_server = "tcp:host.docker.internal:4714"
 ```

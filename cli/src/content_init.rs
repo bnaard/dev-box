@@ -111,7 +111,21 @@ pub fn build_effective_skill_set(
         return Ok(None);
     }
     let Some(packages_dir) = mirror_packages_dir(project_root, &config.processkit.version) else {
-        return Ok(None);
+        let Some(skills_dir) = mirror_skills_dir(project_root, &config.processkit.version) else {
+            return Ok(None);
+        };
+        let mut effective = if config.skills.include.is_empty() {
+            collect_available_skill_names(&skills_dir)
+        } else {
+            config.skills.include.iter().cloned().collect()
+        };
+        for skill in &config.skills.exclude {
+            effective.remove(skill);
+        }
+        for skill in collect_core_skills(&skills_dir) {
+            effective.insert(skill);
+        }
+        return Ok(Some(effective));
     };
 
     // Step 1: walk every selected [context].packages package, recursively
@@ -168,6 +182,35 @@ pub fn build_effective_skill_set(
     }
 
     Ok(Some(effective))
+}
+
+fn collect_available_skill_names(skills_dir: &Path) -> HashSet<String> {
+    let mut names = HashSet::new();
+    collect_available_skill_names_inner(skills_dir, &mut names);
+    names
+}
+
+fn collect_available_skill_names_inner(root: &Path, names: &mut HashSet<String>) {
+    let Ok(entries) = fs::read_dir(root) else {
+        return;
+    };
+    for entry in entries.flatten() {
+        let path = entry.path();
+        if !path.is_dir() {
+            continue;
+        }
+        let Some(name) = path.file_name().and_then(|name| name.to_str()) else {
+            continue;
+        };
+        if name.starts_with('_') || name == "lib" {
+            continue;
+        }
+        if path.join(SKILL_FILENAME).is_file() {
+            names.insert(name.to_string());
+        } else {
+            collect_available_skill_names_inner(&path, names);
+        }
+    }
 }
 
 /// Walk `skills_dir` (the templates mirror's `skills/` subdirectory) and
@@ -859,6 +902,25 @@ mod tests {
         }
     }
 
+    fn write_synth_skills_dir(project_root: &Path, version: &str, skills: &[&str]) {
+        let dir = project_root
+            .join(TEMPLATES_PROCESSKIT_DIR)
+            .join(version)
+            .join(processkit_vocab::src::CONTEXT_DIR)
+            .join(processkit_vocab::src::SKILLS)
+            .join("processkit");
+        fs::create_dir_all(&dir).unwrap();
+        for skill in skills {
+            let skill_dir = dir.join(skill);
+            fs::create_dir_all(&skill_dir).unwrap();
+            fs::write(
+                skill_dir.join(SKILL_FILENAME),
+                format!("---\nname: {skill}\n---\n"),
+            )
+            .unwrap();
+        }
+    }
+
     fn config_with_packages_and_skills(
         version: &str,
         packages: &[&str],
@@ -897,6 +959,52 @@ mod tests {
         );
         let result = build_effective_skill_set(tmp.path(), &config).unwrap();
         assert!(result.is_none());
+    }
+
+    #[test]
+    fn effective_skill_set_uses_explicit_skills_when_packages_are_absent() {
+        let tmp = TempDir::new().unwrap();
+        write_synth_skills_dir(
+            tmp.path(),
+            crate::processkit_vocab::PROCESSKIT_DEFAULT_VERSION,
+            &["decision-record", "pk-doctor", "research-with-confidence"],
+        );
+        let config = config_with_packages_and_skills(
+            crate::processkit_vocab::PROCESSKIT_DEFAULT_VERSION,
+            &["product"],
+            &["decision-record", "pk-doctor"],
+            &[],
+        );
+        let set = build_effective_skill_set(tmp.path(), &config)
+            .unwrap()
+            .unwrap();
+        assert_eq!(set.len(), 2);
+        assert!(set.contains("decision-record"));
+        assert!(set.contains("pk-doctor"));
+        assert!(!set.contains("research-with-confidence"));
+    }
+
+    #[test]
+    fn effective_skill_set_defaults_to_all_skills_when_packages_are_absent() {
+        let tmp = TempDir::new().unwrap();
+        write_synth_skills_dir(
+            tmp.path(),
+            crate::processkit_vocab::PROCESSKIT_DEFAULT_VERSION,
+            &["decision-record", "pk-doctor", "research-with-confidence"],
+        );
+        let config = config_with_packages_and_skills(
+            crate::processkit_vocab::PROCESSKIT_DEFAULT_VERSION,
+            &["product"],
+            &[],
+            &["research-with-confidence"],
+        );
+        let set = build_effective_skill_set(tmp.path(), &config)
+            .unwrap()
+            .unwrap();
+        assert_eq!(set.len(), 2);
+        assert!(set.contains("decision-record"));
+        assert!(set.contains("pk-doctor"));
+        assert!(!set.contains("research-with-confidence"));
     }
 
     #[test]

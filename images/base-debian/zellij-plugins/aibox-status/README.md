@@ -2,8 +2,8 @@
 
 Native Rust/WASM-oriented Zellij plugin source for the aibox two-row bottom UI:
 
-- row 1: width-aware aibox key hints
-- row 2: grouped runtime status
+- row 1: width-aware aibox key hints with Zellij-like segmented rendering
+- row 2: grouped runtime status using the same segmented visual language
 
 This directory is intentionally standalone from the main aibox CLI crate. The
 base image builds it as a WASM plugin and installs the artifact at

@@ -224,7 +224,7 @@ pub struct ContainerSection {
     /// Generated/input file paths used by the devcontainer generator.
     #[serde(default)]
     pub paths: ContainerPathsSection,
-    /// Audio bridge settings. Legacy top-level `[audio]` is migrated here.
+    /// Legacy audio bridge settings. New configs use top-level `[audio]`.
     #[serde(default)]
     pub audio: AudioSection,
 }
@@ -501,6 +501,13 @@ impl AiHarness {
         }
     }
 
+    pub fn from_addon_name(name: &str) -> Option<Self> {
+        Self::all()
+            .iter()
+            .find(|harness| harness.addon_name() == name)
+            .cloned()
+    }
+
     /// Config directory mounted into the container (e.g. ".claude").
     pub fn config_dir(&self) -> Option<&'static str> {
         match self {
@@ -605,6 +612,21 @@ fn default_ai_harnesses() -> Vec<AiHarness> {
     vec![AiHarness::Claude]
 }
 
+/// Per-harness install controls under `[ai.harness.<name>]`.
+///
+/// `enabled` controls whether the harness participates in generated config.
+/// `install` controls whether the corresponding in-container CLI addon is
+/// selected. Host-only harnesses such as Cursor can be enabled without install.
+#[derive(Debug, Clone, Serialize, Deserialize, Default, PartialEq)]
+pub struct AiHarnessConfig {
+    #[serde(default)]
+    pub enabled: Option<bool>,
+    #[serde(default)]
+    pub install: Option<bool>,
+    #[serde(default)]
+    pub version: Option<String>,
+}
+
 /// [ai] section — AI harness and model provider configuration.
 ///
 /// `harnesses` controls which CLI tools are installed in the container.
@@ -621,6 +643,11 @@ pub struct AiSection {
     /// Which model provider API keys are available (optional hint).
     #[serde(default)]
     pub model_providers: Vec<AiModelProvider>,
+
+    /// Per-harness install controls. New configs should prefer this for
+    /// version/install overrides while `harnesses` remains a compact selector.
+    #[serde(default)]
+    pub harness: HashMap<AiHarness, AiHarnessConfig>,
 
     /// Legacy field — accepted for backward compatibility during migration.
     /// When present and `harnesses` is empty, auto-migrated to `harnesses`.
@@ -646,6 +673,15 @@ impl AiSection {
             // Legacy format: move providers → harnesses
             self.harnesses = self.providers.drain(..).collect();
         }
+        for (harness, config) in &self.harness {
+            if config.enabled.unwrap_or(true) {
+                if !self.harnesses.contains(harness) {
+                    self.harnesses.push(harness.clone());
+                }
+            } else {
+                self.harnesses.retain(|candidate| candidate != harness);
+            }
+        }
     }
 
     /// The effective harness list (after migration).
@@ -657,6 +693,20 @@ impl AiSection {
             &self.harnesses
         }
     }
+
+    pub fn harness_install_enabled(&self, harness: &AiHarness) -> bool {
+        self.harness
+            .get(harness)
+            .and_then(|config| config.install)
+            .unwrap_or(true)
+    }
+
+    pub fn harness_version(&self, harness: &AiHarness) -> Option<&str> {
+        self.harness
+            .get(harness)
+            .and_then(|config| config.version.as_deref())
+            .filter(|version| !version.is_empty())
+    }
 }
 
 impl Default for AiSection {
@@ -664,6 +714,7 @@ impl Default for AiSection {
         Self {
             harnesses: default_ai_harnesses(),
             model_providers: Vec::new(),
+            harness: HashMap::new(),
             providers: Vec::new(),
             agents: AgentsSection::default(),
             mcp: McpSection::default(),
@@ -935,7 +986,7 @@ fn default_layout() -> ConfigLayout {
 #[serde(rename_all = "kebab-case")]
 #[clap(rename_all = "kebab-case")]
 pub enum ZellijStatusMode {
-    /// Native two-row WASM plugin: keybar plus runtime status.
+    /// Native aibox key-hint plugin plus native aibox runtime status plugin.
     Native,
     /// Legacy shell fallback: built-in Zellij status bar plus `aibox-status --watch`.
     #[default]
@@ -1293,16 +1344,39 @@ impl Default for AgentsSection {
 }
 
 // ---------------------------------------------------------------------------
-// [audio] section — UNCHANGED
+// [audio] section
 // ---------------------------------------------------------------------------
+
+#[derive(Debug, Clone, Copy, Default, Serialize, Deserialize, PartialEq, Eq)]
+#[serde(rename_all = "kebab-case")]
+pub enum AudioBackend {
+    #[default]
+    Pulseaudio,
+}
+
+impl std::fmt::Display for AudioBackend {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            AudioBackend::Pulseaudio => write!(f, "pulseaudio"),
+        }
+    }
+}
 
 /// [audio] section.
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
 pub struct AudioSection {
     #[serde(default)]
     pub enabled: bool,
+    #[serde(default)]
+    pub backend: AudioBackend,
+    #[serde(default = "default_audio_install")]
+    pub install: bool,
     #[serde(default = "default_pulse_server")]
     pub pulse_server: String,
+}
+
+fn default_audio_install() -> bool {
+    true
 }
 
 fn default_pulse_server() -> String {
@@ -1313,6 +1387,8 @@ impl Default for AudioSection {
     fn default() -> Self {
         Self {
             enabled: false,
+            backend: AudioBackend::Pulseaudio,
+            install: true,
             pulse_server: default_pulse_server(),
         }
     }
@@ -1361,6 +1437,21 @@ fn is_safe_version(s: &str) -> bool {
     !s.is_empty()
         && s.chars()
             .all(|c| c.is_alphanumeric() || matches!(c, '.' | '-' | '_' | '+'))
+}
+
+fn addon_tool_owner_hint(tool_name: &str, configured_addon_name: &str) -> Option<String> {
+    crate::addon_loader::all_addons()
+        .iter()
+        .find(|addon| {
+            addon.name != configured_addon_name
+                && addon.tools.iter().any(|tool| tool.name == tool_name)
+        })
+        .map(|addon| {
+            format!(
+                "'{}' is provided by [addons.{}.tools]",
+                tool_name, addon.name
+            )
+        })
 }
 
 // ---------------------------------------------------------------------------
@@ -1726,7 +1817,7 @@ impl AiboxConfig {
             check_child_table(
                 container,
                 "audio",
-                &["enabled", "pulse_server"],
+                &["enabled", "backend", "install", "pulse_server"],
                 &mut mismatches,
             );
             check_child_table(
@@ -1752,10 +1843,29 @@ impl AiboxConfig {
         check_child_table(
             root,
             "ai",
-            &["harnesses", "model_providers", "providers", "agents", "mcp"],
+            &[
+                "harnesses",
+                "model_providers",
+                "harness",
+                "providers",
+                "agents",
+                "mcp",
+            ],
             &mut mismatches,
         );
         if let Some(ai) = table_child(root, "ai") {
+            if let Some(harnesses) = table_child(ai, "harness") {
+                for (harness, value) in harnesses {
+                    if let Some(table) = value.as_table() {
+                        check_unknown_keys(
+                            &format!("[ai.harness.{harness}]"),
+                            table,
+                            &["enabled", "install", "version"],
+                            &mut mismatches,
+                        );
+                    }
+                }
+            }
             check_child_table(
                 ai,
                 "agents",
@@ -1799,7 +1909,12 @@ impl AiboxConfig {
         );
         check_customization_table(root, "appearance", &mut mismatches);
         check_customization_table(root, "customization", &mut mismatches);
-        check_child_table(root, "audio", &["enabled", "pulse_server"], &mut mismatches);
+        check_child_table(
+            root,
+            "audio",
+            &["enabled", "backend", "install", "pulse_server"],
+            &mut mismatches,
+        );
         check_mcp_table(root, &mut mismatches);
         check_addons_table(root, &mut mismatches);
 
@@ -1913,6 +2028,7 @@ impl AiboxConfig {
                 }
             }
         }
+        self.validate_known_addon_tools()?;
 
         // Validate skill names are safe
         for skill in &self.skills.include {
@@ -1944,6 +2060,39 @@ impl AiboxConfig {
         // Validate extra volumes path safety
         self.validate_extra_volumes()?;
         self.validate_container_paths()?;
+
+        Ok(())
+    }
+
+    fn validate_known_addon_tools(&self) -> Result<()> {
+        if crate::addon_loader::all_addons().is_empty() {
+            return Ok(());
+        }
+
+        for (addon_name, addon_tools) in &self.addons.addons {
+            let Some(addon) = crate::addon_loader::get_addon(addon_name) else {
+                continue;
+            };
+            let known_tools: BTreeSet<&str> =
+                addon.tools.iter().map(|tool| tool.name.as_str()).collect();
+            for tool_name in addon_tools.tools.keys() {
+                if known_tools.contains(tool_name.as_str()) {
+                    continue;
+                }
+
+                let mut message = format!(
+                    "unknown tool '{}' in [addons.{}.tools]; '{}' supports: {}",
+                    tool_name,
+                    addon_name,
+                    addon_name,
+                    known_tools.iter().copied().collect::<Vec<_>>().join(", ")
+                );
+                if let Some(suggestion) = addon_tool_owner_hint(tool_name, addon_name) {
+                    message.push_str(&format!(". {suggestion}"));
+                }
+                bail!(message);
+            }
+        }
 
         Ok(())
     }
@@ -2088,23 +2237,57 @@ impl AiboxConfig {
                 .or_insert(legacy);
         }
 
+        let legacy_ai_harnesses: Vec<AiHarness> = self
+            .addons
+            .addons
+            .keys()
+            .filter_map(|name| AiHarness::from_addon_name(name))
+            .collect();
+        for harness in legacy_ai_harnesses {
+            let Some(harness_config) = self.ai.harness.get(&harness) else {
+                if !self.ai.harnesses.contains(&harness) {
+                    self.ai.harnesses.push(harness);
+                }
+                continue;
+            };
+            if harness_config.enabled.unwrap_or(true)
+                && harness_config.install.unwrap_or(true)
+                && !self.ai.harnesses.contains(&harness)
+            {
+                self.ai.harnesses.push(harness);
+            }
+        }
+
         for harness in &self.ai.harnesses {
             if !harness.is_active() {
+                continue;
+            }
+            if !self.ai.harness_install_enabled(harness) {
                 continue;
             }
             let addon_name = harness.addon_name();
             if addon_name.is_empty() {
                 continue;
             }
-            self.addons
-                .addons
-                .entry(addon_name)
-                .or_insert_with(|| AddonToolsSection {
-                    tools: HashMap::new(),
-                });
+            let addon_tools =
+                self.addons
+                    .addons
+                    .entry(addon_name)
+                    .or_insert_with(|| AddonToolsSection {
+                        tools: HashMap::new(),
+                    });
+            if let Some(version) = self.ai.harness_version(harness) {
+                addon_tools
+                    .tools
+                    .entry(harness.binary_name().to_string())
+                    .or_insert_with(|| ToolEntry {
+                        version: Some(version.to_string()),
+                        enabled: None,
+                    });
+            }
         }
 
-        if self.audio.enabled {
+        if self.audio.enabled && self.audio.install {
             self.addons
                 .addons
                 .entry("audio-voice".to_string())
@@ -2481,6 +2664,14 @@ name = "my-project"
         Ok(config)
     }
 
+    fn init_repo_addons_for_validation() {
+        let addons_dir = Path::new(env!("CARGO_MANIFEST_DIR"))
+            .parent()
+            .unwrap()
+            .join("addons");
+        let _ = crate::addon_loader::init_from_dir(&addons_dir);
+    }
+
     // -- Full config parsing ------------------------------------------------
 
     #[test]
@@ -2824,6 +3015,25 @@ tool = {}
 "#;
         let result = parse_toml(toml);
         assert!(result.is_err(), "should reject invalid addon name");
+    }
+
+    #[test]
+    #[serial]
+    fn unknown_tool_under_known_addon_is_rejected_with_owner_hint() {
+        init_repo_addons_for_validation();
+        let toml = r#"
+[aibox]
+version = "0.9.0"
+
+[container]
+name = "test"
+
+[addons.python.tools]
+gh = { enabled = true }
+"#;
+        let err = parse_toml(toml).unwrap_err().to_string();
+        assert!(err.contains("unknown tool 'gh' in [addons.python.tools]"));
+        assert!(err.contains("[addons.git-ui.tools]"));
     }
 
     // -- AI providers -------------------------------------------------------
@@ -3182,6 +3392,52 @@ enabled = true
         );
     }
 
+    #[test]
+    fn audio_install_false_skips_audio_voice_addon() {
+        let toml = r#"
+[aibox]
+version = "0.9.0"
+
+[container]
+name = "audio-project"
+
+[audio]
+enabled = true
+install = false
+"#;
+
+        let config = AiboxConfig::from_str(toml).unwrap();
+
+        assert!(config.audio.enabled);
+        assert!(!config.audio.install);
+        assert!(
+            !config.addons.addons.contains_key("audio-voice"),
+            "audio.install=false should not select the internal audio-voice addon"
+        );
+    }
+
+    #[test]
+    fn legacy_container_audio_is_accepted_and_promoted() {
+        let toml = r#"
+[aibox]
+version = "0.9.0"
+
+[container]
+name = "audio-project"
+
+[container.audio]
+enabled = true
+pulse_server = "tcp:localhost:4714"
+"#;
+
+        let config = AiboxConfig::from_str(toml).unwrap();
+
+        assert!(config.audio.enabled);
+        assert_eq!(config.audio.pulse_server, "tcp:localhost:4714");
+        assert_eq!(config.container.audio, config.audio);
+        assert!(config.addons.addons.contains_key("audio-voice"));
+    }
+
     // -- Host/container path helpers ----------------------------------------
 
     #[test]
@@ -3293,6 +3549,61 @@ enabled = true
         let config = AiboxConfig::from_str(toml).unwrap();
         assert!(!config.addons.has_addon("ai-claude"));
         assert!(!config.addons.has_addon("ai-aider"));
+    }
+
+    #[test]
+    fn ai_harness_table_enables_harness_and_sets_cli_version() {
+        let toml = r#"
+            [aibox]
+            version = "0.9.0"
+            [container]
+            name = "test"
+            [ai.harness.codex]
+            enabled = true
+            install = true
+            version = "1.2.3"
+        "#;
+        let config = AiboxConfig::from_str(toml).unwrap();
+        assert!(config.ai.harnesses.contains(&AiProvider::Codex));
+        assert_eq!(
+            config.addons.tool_version("ai-codex", "codex"),
+            Some("1.2.3")
+        );
+    }
+
+    #[test]
+    fn ai_harness_table_can_disable_legacy_array_selection() {
+        let toml = r#"
+            [aibox]
+            version = "0.9.0"
+            [container]
+            name = "test"
+            [ai]
+            harnesses = ["claude", "codex"]
+            [ai.harness.claude]
+            enabled = false
+        "#;
+        let config = AiboxConfig::from_str(toml).unwrap();
+        assert!(!config.ai.harnesses.contains(&AiProvider::Claude));
+        assert!(!config.addons.has_addon("ai-claude"));
+        assert!(config.ai.harnesses.contains(&AiProvider::Codex));
+        assert!(config.addons.has_addon("ai-codex"));
+    }
+
+    #[test]
+    fn ai_harness_table_can_enable_without_installing_cli_addon() {
+        let toml = r#"
+            [aibox]
+            version = "0.9.0"
+            [container]
+            name = "test"
+            [ai.harness.gemini]
+            enabled = true
+            install = false
+        "#;
+        let config = AiboxConfig::from_str(toml).unwrap();
+        assert!(config.ai.harnesses.contains(&AiProvider::Gemini));
+        assert!(!config.addons.has_addon("ai-gemini"));
     }
 
     // -- ProcessKit section -------------------------------------------------

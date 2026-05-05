@@ -45,13 +45,13 @@ support on top of `preview-archive`.
 ## Audio and Voice
 
 ```toml
-[container.audio]
+[audio]
 enabled = true
 ```
 
-Audio bridging uses the `audio-voice` addon for Sox, PulseAudio client tools,
-and ALSA PulseAudio plugins. aibox selects this addon automatically when
-`[container.audio] enabled = true`; projects normally do not need to add
+Audio bridging uses the internal `audio-voice` recipe for Sox, PulseAudio
+client tools, and ALSA PulseAudio plugins. aibox selects this recipe
+automatically when `[audio] enabled = true` and `install = true`; projects normally do not need to add
 `[addons.audio-voice.tools]` manually.
 
 ## Infrastructure

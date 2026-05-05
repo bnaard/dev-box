@@ -1,10 +1,13 @@
 use anyhow::Result;
+use std::collections::BTreeSet;
 use std::path::{Path, PathBuf};
 use std::process::{Command, Stdio};
 
-use crate::config::{AiHarness, AiboxConfig, CONTAINER_WORKSPACE_DIR, McpGatewayMode};
+use crate::config::{
+    AiHarness, AiboxConfig, CONTAINER_WORKSPACE_DIR, McpGatewayMode, PROCESSKIT_VERSION_UNSET,
+};
 use crate::output;
-use crate::processkit_vocab::AGENTS_FILENAME;
+use crate::processkit_vocab::{AGENTS_FILENAME, PROVENANCE_FILENAME};
 use crate::runtime::{ContainerState, Runtime};
 
 /// Embedded schema document for v1.0.0.
@@ -24,6 +27,11 @@ impl DiagResult {
             errors: 0,
         }
     }
+}
+
+struct ProcesskitTemplateFiles {
+    current: BTreeSet<String>,
+    known: BTreeSet<String>,
 }
 
 /// Return the list of project-side files `aibox doctor` checks for.
@@ -167,24 +175,32 @@ pub fn cmd_doctor(config_path: &Option<String>) -> Result<()> {
         }
     }
 
-    // 6c. Check command file registrations (BACK-20260423_2050-EagerStone)
-    output::info("Checking command file registrations...");
-    check_command_registrations(&config, &mut diag);
+    // 6c. Check live processkit-managed skills against the current template.
+    let template_files = if let Ok(cwd) = std::env::current_dir() {
+        output::info("Checking processkit template membership...");
+        check_processkit_template_membership(&cwd, &config, &mut diag)
+    } else {
+        None
+    };
 
-    // 6d. Check processkit MCP gateway selection.
+    // 6d. Check command file registrations (BACK-20260423_2050-EagerStone)
+    output::info("Checking command file registrations...");
+    check_command_registrations(&config, template_files.as_ref(), &mut diag);
+
+    // 6e. Check processkit MCP gateway selection.
     output::info("Checking processkit MCP gateway...");
     check_processkit_mcp_gateway(&config, &mut diag);
 
-    // 6e. Codex prompt-path drift check (BACK-20260426_1627-StrongHawk).
+    // 6f. Codex prompt-path drift check (BACK-20260426_1627-StrongHawk).
     // Loud failure if `pk-*` managed files reappear in the legacy
     // `~/.codex/prompts/` path that aibox v0.21.1 mistakenly used —
     // catches a regression in the codex profile of harness_commands.
     check_codex_prompt_path_drift(&config, &mut diag);
 
-    // 6f. Codex sandbox prerequisites and compose posture.
+    // 6g. Codex sandbox prerequisites and compose posture.
     check_codex_sandbox_environment(&config, &mut diag);
 
-    // 6g. Draft LivelyMoss addon metadata checks. Warning-only until
+    // 6h. Draft LivelyMoss addon metadata checks. Warning-only until
     // processkit publishes the canonical addon-spec schema.
     output::info("Checking addon profile metadata...");
     check_addon_profile_metadata(&config, &mut diag);
@@ -452,20 +468,196 @@ fn check_runtime_resource_pressure(config: &AiboxConfig, diag: &mut DiagResult) 
     }
 }
 
-/// Check that installed skills have their command files registered in
-/// each enabled harness's command directory.
+/// Check that hot skills still belong to the current processkit template.
 ///
-/// For every `context/skills/*/commands/*.md` (source), validates that for
-/// every enabled scaffolded harness the corresponding deployed file exists
-/// under that harness's commands dir (Claude is always-on; others gated on
-/// `[ai].harnesses`). Helps detect incomplete skill distributions and stale
-/// scaffolds that were dropped before `aibox apply` was rerun.
-fn check_command_registrations(config: &AiboxConfig, diag: &mut DiagResult) {
+/// This catches renamed or removed upstream skills that survived in the live
+/// `context/skills/` tree after a migration. Those stale directories used to
+/// be treated as canonical by the command registration checker.
+fn check_processkit_template_membership(
+    project_root: &Path,
+    config: &AiboxConfig,
+    diag: &mut DiagResult,
+) -> Option<ProcesskitTemplateFiles> {
+    let template_files = match processkit_template_files(project_root, config) {
+        Ok(Some(files)) => files,
+        Ok(None) => {
+            output::ok("No current processkit template provenance found");
+            return None;
+        }
+        Err(e) => {
+            output::warn(&format!(
+                "Could not read current processkit template provenance: {e}"
+            ));
+            diag.warnings += 1;
+            return None;
+        }
+    };
+
+    let stale_skills =
+        stale_processkit_skill_dirs(project_root, &template_files.current, &template_files.known);
+    if stale_skills.is_empty() {
+        output::ok("Installed processkit skills match the current template");
+    } else {
+        for skill_dir in &stale_skills {
+            output::warn(&format!(
+                "stale processkit skill: {} is absent from the current processkit template; remove the skill directory and rerun `aibox apply`",
+                skill_dir.join("SKILL.md").display()
+            ));
+            diag.warnings += 1;
+        }
+    }
+
+    Some(template_files)
+}
+
+fn processkit_template_files(
+    project_root: &Path,
+    config: &AiboxConfig,
+) -> Result<Option<ProcesskitTemplateFiles>> {
+    let Some(version) = current_processkit_version(project_root, config) else {
+        return Ok(None);
+    };
+    let provenance_path = crate::content_init::templates_dir_for_version(project_root, &version)
+        .join(PROVENANCE_FILENAME);
+    if !provenance_path.is_file() {
+        return Ok(None);
+    }
+    let current = processkit_template_files_from_provenance(&provenance_path)?;
+    let mut known = known_processkit_template_files(project_root)?;
+    known.extend(current.iter().cloned());
+    Ok(Some(ProcesskitTemplateFiles { current, known }))
+}
+
+fn current_processkit_version(project_root: &Path, config: &AiboxConfig) -> Option<String> {
+    if let Ok(Some(lock)) = crate::lock::read_lock(project_root)
+        && let Some(processkit) = lock.processkit
+        && !processkit.version.is_empty()
+        && processkit.version != PROCESSKIT_VERSION_UNSET
+    {
+        return Some(processkit.version);
+    }
+
+    if config.processkit.version == PROCESSKIT_VERSION_UNSET {
+        None
+    } else {
+        Some(config.processkit.version.clone())
+    }
+}
+
+fn processkit_template_files_from_provenance(path: &Path) -> Result<BTreeSet<String>> {
+    let body = std::fs::read_to_string(path)?;
+    let value: toml::Value = toml::from_str(&body)?;
+    let files = value
+        .get("files")
+        .and_then(toml::Value::as_table)
+        .map(|table| table.keys().cloned().collect())
+        .unwrap_or_default();
+    Ok(files)
+}
+
+fn known_processkit_template_files(project_root: &Path) -> Result<BTreeSet<String>> {
+    let templates_root = project_root.join(crate::processkit_vocab::TEMPLATES_PROCESSKIT_DIR);
+    let mut known = BTreeSet::new();
+    if !templates_root.is_dir() {
+        return Ok(known);
+    }
+
+    for entry in std::fs::read_dir(templates_root)? {
+        let entry = entry?;
+        if !entry.path().is_dir() {
+            continue;
+        }
+        let provenance_path = entry.path().join(PROVENANCE_FILENAME);
+        if provenance_path.is_file() {
+            known.extend(processkit_template_files_from_provenance(&provenance_path)?);
+        }
+    }
+
+    Ok(known)
+}
+
+fn stale_processkit_skill_dirs(
+    project_root: &Path,
+    current_template_files: &BTreeSet<String>,
+    known_template_files: &BTreeSet<String>,
+) -> Vec<PathBuf> {
+    let skills_dir = project_root.join("context/skills");
+    let mut stale = Vec::new();
+    let Ok(categories) = std::fs::read_dir(&skills_dir) else {
+        return stale;
+    };
+
+    for category in categories.flatten() {
+        if !category.path().is_dir() {
+            continue;
+        }
+        let Ok(skills) = std::fs::read_dir(category.path()) else {
+            continue;
+        };
+        for skill in skills.flatten() {
+            let skill_path = skill.path();
+            if skill_path.is_dir()
+                && skill_path.join("SKILL.md").is_file()
+                && processkit_skill_is_known_stale(
+                    project_root,
+                    &skill_path,
+                    current_template_files,
+                    known_template_files,
+                )
+            {
+                stale.push(skill_path);
+            }
+        }
+    }
+    stale.sort();
+    stale
+}
+
+fn processkit_skill_is_known_stale(
+    project_root: &Path,
+    skill_path: &Path,
+    current_template_files: &BTreeSet<String>,
+    known_template_files: &BTreeSet<String>,
+) -> bool {
+    let Some(rel) = skill_md_relpath(project_root, skill_path) else {
+        return false;
+    };
+    !current_template_files.contains(&rel)
+        && (known_template_files.contains(&rel)
+            || skill_has_processkit_metadata(project_root, &rel))
+}
+
+fn skill_md_relpath(project_root: &Path, skill_path: &Path) -> Option<String> {
+    let skill_md = if skill_path.is_absolute() {
+        skill_path.join("SKILL.md")
+    } else {
+        project_root.join(skill_path).join("SKILL.md")
+    };
+    skill_md
+        .strip_prefix(project_root)
+        .ok()
+        .map(|rel| rel.to_string_lossy().replace('\\', "/"))
+}
+
+fn skill_has_processkit_metadata(project_root: &Path, rel_skill_md: &str) -> bool {
+    crate::processkit_vocab::parse_skill_frontmatter(&project_root.join(rel_skill_md))
+        .ok()
+        .and_then(|frontmatter| frontmatter.metadata)
+        .and_then(|metadata| metadata.processkit)
+        .is_some()
+}
+
+fn check_command_registrations(
+    config: &AiboxConfig,
+    template_files: Option<&ProcesskitTemplateFiles>,
+    diag: &mut DiagResult,
+) {
     let skills_dir = std::path::Path::new("context/skills");
     if !skills_dir.is_dir() {
         output::ok("No context/skills/ found (expected in new projects)");
         return;
     }
+    let project_root = std::env::current_dir().unwrap_or_else(|_| PathBuf::from("."));
 
     // Gather every command basename from the live skills tree.
     let mut source_commands: Vec<(std::path::PathBuf, String)> = Vec::new();
@@ -478,6 +670,16 @@ fn check_command_registrations(config: &AiboxConfig, diag: &mut DiagResult) {
                 for skill in skills.flatten() {
                     let skill_path = skill.path();
                     if !skill_path.is_dir() {
+                        continue;
+                    }
+                    if let Some(template_files) = template_files
+                        && processkit_skill_is_known_stale(
+                            &project_root,
+                            &skill_path,
+                            &template_files.current,
+                            &template_files.known,
+                        )
+                    {
                         continue;
                     }
                     let commands_src = skill_path.join("commands");
@@ -1514,6 +1716,73 @@ args = ["run", "/workspace/context/skills/processkit/processkit-gateway/mcp/serv
 "#;
 
         assert!(!codex_config_has_non_container_processkit_script_path(body));
+    }
+
+    #[test]
+    fn stale_processkit_skill_dirs_reports_hot_skills_missing_from_template() {
+        let temp = tempfile::tempdir().unwrap();
+        fs::create_dir_all(
+            temp.path()
+                .join("context/skills/processkit/status-briefing"),
+        )
+        .unwrap();
+        fs::create_dir_all(
+            temp.path()
+                .join("context/skills/processkit/morning-briefing"),
+        )
+        .unwrap();
+        fs::create_dir_all(temp.path().join("context/skills/product/retrospective")).unwrap();
+        fs::write(
+            temp.path()
+                .join("context/skills/processkit/status-briefing/SKILL.md"),
+            "# status\n",
+        )
+        .unwrap();
+        fs::write(
+            temp.path()
+                .join("context/skills/processkit/morning-briefing/SKILL.md"),
+            "# morning\n",
+        )
+        .unwrap();
+        fs::write(
+            temp.path()
+                .join("context/skills/product/retrospective/SKILL.md"),
+            "# retrospective\n",
+        )
+        .unwrap();
+
+        let mut current_template_files = BTreeSet::new();
+        current_template_files
+            .insert("context/skills/processkit/status-briefing/SKILL.md".to_string());
+        current_template_files
+            .insert("context/skills/product/sprint-retrospective/SKILL.md".to_string());
+        let mut known_template_files = current_template_files.clone();
+        known_template_files
+            .insert("context/skills/processkit/morning-briefing/SKILL.md".to_string());
+        known_template_files.insert("context/skills/product/retrospective/SKILL.md".to_string());
+
+        let stale = stale_processkit_skill_dirs(
+            temp.path(),
+            &current_template_files,
+            &known_template_files,
+        );
+        let stale_rel: Vec<String> = stale
+            .iter()
+            .map(|path| {
+                path.strip_prefix(temp.path())
+                    .unwrap()
+                    .to_string_lossy()
+                    .replace('\\', "/")
+            })
+            .collect();
+
+        assert_eq!(
+            stale_rel,
+            vec![
+                "context/skills/processkit/morning-briefing",
+                "context/skills/product/retrospective"
+            ]
+        );
     }
 
     #[test]

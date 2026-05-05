@@ -37,8 +37,8 @@ GitHub CLI (`gh`) and lazygit are provided by the optional
 [`git-ui` addon](../addons/tool-bundles.md#git-ui), not by the base image. Add
 `[addons.git-ui.tools]` to `aibox.toml` when a project needs those tools.
 
-Audio tools are provided by the `audio-voice` addon, which is selected
-automatically when `[container.audio] enabled = true`. File-preview and archive helpers
+Audio tools are provided by the internal `audio-voice` recipe, which is selected
+automatically when `[audio] enabled = true` and `install = true`. File-preview and archive helpers
 such as `chafa`, `timg`, `poppler-utils`, `mupdf-tools`, `entr`, `ouch`, and
 `resvg` are provided by the optional `preview-archive` addon.
 
@@ -88,7 +88,7 @@ Press `Escape` or `Ctrl+b` again to cancel the leader and return to normal mode.
 
 ### Layouts
 
-aibox ships six IDE layouts. Select one with `aibox up --layout <name>` (the default is `dev`). Layouts include provider-specific AI tabs based on `[ai].providers`; they include the **git** lazygit tab only when the `git-ui` addon selects `lazygit`.
+aibox ships six IDE layouts. Select one with `aibox up --layout <name>` (the default is `dev`). Layouts include provider-specific AI tabs based on `[ai].harnesses`; they include the **git** lazygit tab only when the `git-ui` addon selects `lazygit`.
 
 #### dev (default) -- file browser + editor
 
@@ -147,12 +147,15 @@ Using a directory mount (rather than a single-file mount) allows a `credentials`
 
 ## AI Coding Agents
 
-AI coding agents (Claude, Aider, Gemini, Mistral) are **not** pre-installed in the base image. They are installed per-project via the [addons system](../addons/overview.md) when you set `[ai] providers = ["claude"]` in `aibox.toml`.
+AI coding agents (Claude, Codex, Aider, Gemini, and others) are **not**
+pre-installed in the base image. They are installed per-project when you select
+them under `[ai]`, for example `harnesses = ["claude"]` plus
+`[ai.harness.claude] install = true`.
 
 ## Audio Support
 
-Set `[container.audio] enabled = true` to enable audio bridging. aibox then selects the
-`audio-voice` addon and configures the PulseAudio environment for the
+Set `[audio] enabled = true` to enable audio bridging. aibox then selects the
+internal `audio-voice` recipe and configures the PulseAudio environment for the
 container. See [Audio Support](audio.md) for setup details.
 
 ## Configuration Persistence

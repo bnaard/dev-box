@@ -31,19 +31,24 @@ The container sets `PULSE_SERVER` to point at the host's PulseAudio TCP module. 
 ## Configuration in aibox.toml
 
 ```toml
-[container.audio]
+[audio]
 enabled = true
+backend = "pulseaudio"
+install = true
 pulse_server = "tcp:host.docker.internal:4714"
 ```
 
 | Field | Default | Description |
 |-------|---------|-------------|
 | `enabled` | `false` | Whether to set up audio environment variables in the container |
+| `backend` | `pulseaudio` | Audio bridge backend. Only PulseAudio is currently supported |
+| `install` | `true` | Whether to install the internal `audio-voice` tool recipe when audio is enabled |
 | `pulse_server` | `tcp:host.docker.internal:4714` | PulseAudio server address |
 
 When `enabled = true`, the generated `docker-compose.yml` sets `PULSE_SERVER` in the container environment.
-It also selects the `audio-voice` addon during `aibox apply`, which installs
-Sox, PulseAudio client utilities, and ALSA PulseAudio plugins in the container.
+When `install = true`, it also selects the internal `audio-voice` recipe during
+`aibox apply`, which installs Sox, PulseAudio client utilities, and ALSA
+PulseAudio plugins in the container.
 
 ## Host Setup
 
@@ -97,7 +102,7 @@ If you prefer manual configuration:
 Docker Desktop and OrbStack provide `host.docker.internal` automatically. For Podman, check your machine's network configuration — you may need to use the host IP directly:
 
 ```toml
-[container.audio]
+[audio]
 enabled = true
 pulse_server = "tcp:192.168.64.1:4714"
 ```
@@ -116,7 +121,7 @@ pulse_server = "tcp:192.168.64.1:4714"
 
 2. Use `host.docker.internal` (Docker 20.10+) or the Docker bridge IP:
    ```toml
-   [container.audio]
+   [audio]
    enabled = true
    pulse_server = "tcp:host.docker.internal:4714"
    ```
@@ -190,7 +195,7 @@ This is usually a network or resource issue. PulseAudio over TCP adds latency. E
 If you do not need audio, set `enabled = false` in `aibox.toml`:
 
 ```toml
-[container.audio]
+[audio]
 enabled = false
 ```
 

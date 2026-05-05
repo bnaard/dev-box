@@ -260,7 +260,7 @@ fn addon_rust_in_dockerfile() {
         dir.path(),
         r#"
 [addons.rust.tools]
-rust = {}
+rustc = {}
 "#,
     );
     sync_project(dir.path());

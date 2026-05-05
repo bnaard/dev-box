@@ -81,6 +81,59 @@ pub const KERNEL_MCP_SKILLS: &[&str] = &[
     "workitem-management",
 ];
 
+/// Standard processkit skills enabled in newly scaffolded projects.
+///
+/// Newer processkit releases no longer rely on package tiers as the primary
+/// selector. aibox still parses deprecated package fields for compatibility,
+/// but fresh `aibox.toml` files should make the standard processkit operating
+/// surface explicit through `[skills].enabled`.
+pub const STANDARD_PROCESSKIT_SKILLS: &[&str] = &[
+    "actor-profile",
+    "agent-card",
+    "agent-management",
+    "aggregate-mcp",
+    "artifact-management",
+    "binding-management",
+    "category-management",
+    "constraint-management",
+    "context-archiving",
+    "context-grooming",
+    "cross-reference-management",
+    "decision-record",
+    "discussion-management",
+    "eval-gate-authoring",
+    "event-log",
+    "gate-management",
+    "id-management",
+    "index-management",
+    "migration-management",
+    "model-recommender",
+    "note-management",
+    "owner-profiling",
+    "pk-doctor",
+    "processkit-gateway",
+    "process-management",
+    "release-audit",
+    "retrospective",
+    "role-management",
+    "schedule-management",
+    "scope-management",
+    "security-projections",
+    "session-handover",
+    "skill-builder",
+    "skill-finder",
+    "skill-gate",
+    "skill-reviewer",
+    "standup-context",
+    "state-machine-management",
+    "status-briefing",
+    "status-update-writer",
+    "task-router",
+    "team-creator",
+    "team-manager",
+    "workitem-management",
+];
+
 /// Skills whose MCP servers are registered only when the matching tier package is
 /// installed (present in `[context].packages`). Unlike the mandatory set, these
 /// are not required for entity-layer correctness on every install — they extend
@@ -107,7 +160,7 @@ pub const TIER_SPECIFIC_MCP_SKILLS: &[&str] = &[
 /// constant serves as the canonical reference for tests and documentation.
 // Used in #[cfg(test)] blocks across multiple modules and in documentation.
 #[allow(dead_code)]
-pub const PROCESSKIT_DEFAULT_VERSION: &str = "v0.25.7";
+pub const PROCESSKIT_DEFAULT_VERSION: &str = "v0.25.8";
 
 // ---------------------------------------------------------------------------
 // Processkit source-tree directory segments

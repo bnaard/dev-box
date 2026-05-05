@@ -350,7 +350,7 @@ fn zellij_status_template_kdl(mode: &ZellijStatusMode) -> String {
         children
         pane size=1 borderless=true {
             plugin location="file:/usr/local/share/aibox/zellij/aibox-status.wasm" {
-                role "keybar"
+                role "keys"
             }
         }
         pane size=1 borderless=true {
@@ -379,11 +379,6 @@ fn zellij_status_hidden_template_kdl(mode: &ZellijStatusMode) -> String {
     match mode {
         ZellijStatusMode::Native => r#"    tab_template name="aibox-tab" {
         children
-        pane size=1 borderless=true {
-            plugin location="file:/usr/local/share/aibox/zellij/aibox-status.wasm" {
-                role "keybar"
-            }
-        }
     }"#
         .to_string(),
         ZellijStatusMode::Shell => r#"    tab_template name="aibox-tab" {
@@ -2155,6 +2150,7 @@ mod tests {
         config.audio = AudioSection {
             enabled: audio_enabled,
             pulse_server: "tcp:localhost:4714".to_string(),
+            ..AudioSection::default()
         };
         config
     }
@@ -3310,6 +3306,25 @@ mod tests {
     }
 
     #[test]
+    fn zellij_status_mode_native_uses_custom_keybar_above_runtime_status() {
+        let layout = generate_dev_layout_with_options(&[], true, &ZellijStatusMode::Native);
+        let keybar = layout.find("role \"keys\"").unwrap();
+        let runtime = layout.find("role \"status\"").unwrap();
+        assert!(
+            keybar < runtime,
+            "aibox key hints should render above the aibox runtime status row"
+        );
+        assert!(
+            layout.contains("aibox-status.wasm"),
+            "native mode should use the aibox WASM keybar and runtime status rows"
+        );
+        assert!(
+            !layout.contains("zellij:status-bar"),
+            "native mode should not depend on Zellij's built-in status bar"
+        );
+    }
+
+    #[test]
     fn zellij_status_mode_hidden_omits_status_rows() {
         let layout = generate_dev_layout_with_options(&[], true, &ZellijStatusMode::Hidden);
         assert!(layout.contains("tab_template name=\"aibox-tab\""));
@@ -3331,10 +3346,12 @@ mod tests {
         );
         assert!(
             DEFAULT_AIBOX_STATUS_SH.contains("--plugin-json")
-                && DEFAULT_AIBOX_STATUS_SH.contains("print_status_json"),
+                && DEFAULT_AIBOX_STATUS_SH.contains("print_status_json")
+                && DEFAULT_AIBOX_STATUS_SH.contains("\"load_average\"")
+                && DEFAULT_AIBOX_STATUS_SH.contains("\"git_branch\""),
             "status helper should expose structured metrics for the native plugin"
         );
-        for group in ["MEM", "CPU", "PROC", "FS", "UP", "PROJ"] {
+        for group in ["MEM", "CPU", "load", "PROC", "FS", "UP", "PROJ"] {
             assert!(
                 DEFAULT_AIBOX_STATUS_SH.contains(group),
                 "status line should include the {group} metric group"

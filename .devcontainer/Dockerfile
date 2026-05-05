@@ -56,11 +56,21 @@ LABEL aibox.profile="human-dev"
 # Install Claude Code CLI via the native installer (recommended by Anthropic).
 # npm installation is deprecated — the native installer is faster, requires
 # no Node dependency, and supports version pinning via: bash -s <version>.
-# To pin a version: set [addons.ai-claude.tools.claude] version in aibox.toml
+# To pin a version: set [ai.harness.claude] version in aibox.toml
 # Ref: https://code.claude.com/docs/en/setup#install-a-specific-version
 USER aibox
 RUN curl -fsSL https://claude.ai/install.sh | bash
 USER root
+RUN set -eux; \
+    claude_bin=""; \
+    for candidate in \
+      /home/aibox/.local/bin/claude \
+      /home/aibox/.claude/local/claude \
+      /home/aibox/.claude/local/bin/claude; do \
+      if [ -x "$candidate" ]; then claude_bin="$candidate"; break; fi; \
+    done; \
+    test -n "$claude_bin"; \
+    install -m 0755 "$claude_bin" /usr/local/bin/claude
 
 # Addon: audio-voice — PulseAudio/Sox support for interactive voice tools.
 USER root
@@ -102,7 +112,7 @@ RUN npm install -g pnpm@10 && \
 # OpenAI Codex CLI: https://github.com/openai/codex
 # npm package: @openai/codex | Binary: codex | Config: ~/.codex/
 # Auth: OPENAI_API_KEY (or ChatGPT Plus/Pro/Team/Enterprise account)
-# To pin a version: set [addons.ai-codex.tools.codex] version in aibox.toml
+# To pin a version: set [ai.harness.codex] version in aibox.toml
 RUN npm install -g @openai/codex
 
 

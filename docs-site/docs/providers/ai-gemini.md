@@ -11,7 +11,7 @@ title: "Gemini"
 
 ```toml
 [ai]
-providers = ["gemini"]
+harnesses = ["gemini"]
 ```
 
 Run `aibox apply`, then inside the container:

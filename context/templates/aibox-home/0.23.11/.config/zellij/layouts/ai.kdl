@@ -2,11 +2,14 @@ layout {
     tab_template name="aibox-tab" {
         children
         pane size=1 borderless=true {
-            plugin location="zellij:status-bar"
+            plugin location="file:/usr/local/share/aibox/zellij/aibox-status.wasm" {
+                role "keys"
+            }
         }
         pane size=1 borderless=true {
-            command "bash"
-            args "-lc" "if [ -x \"$HOME/.local/bin/aibox-status\" ]; then exec \"$HOME/.local/bin/aibox-status\" --watch; else exec aibox-status --watch; fi"
+            plugin location="file:/usr/local/share/aibox/zellij/aibox-status.wasm" {
+                role "status"
+            }
         }
     }
     aibox-tab name="ai" focus=true {
@@ -17,14 +20,21 @@ layout {
                 cwd "/workspace"
             }
             pane size="50%" {
-        pane name="codex" {
-            command "codex"
+        pane name="claude" {
+            command "claude"
             cwd "/workspace"
         }
             }
         }
     }
 
+    aibox-tab name="codex" {
+        pane name="codex" {
+            command "codex"
+            cwd "/workspace"
+            start_suspended true
+        }
+    }
     aibox-tab name="editor" {
         pane name="vim" {
             command "bash"

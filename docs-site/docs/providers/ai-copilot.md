@@ -11,7 +11,7 @@ title: "Copilot (GitHub)"
 
 ```toml
 [ai]
-providers = ["copilot"]
+harnesses = ["copilot"]
 ```
 
 Run `aibox apply`, then inside the container:

@@ -1,4 +1,4 @@
-const GROUP_SEPARATOR: &str = "  ";
+const SEGMENT_SEPARATOR: &str = " ▸ ";
 
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct RuntimeSnapshot {
@@ -8,12 +8,14 @@ pub struct RuntimeSnapshot {
     pub memory_high: String,
     pub memory_max_events: String,
     pub cpu_throttle: String,
+    pub load_average: String,
     pub process_count: String,
     pub ai_agent_count: String,
     pub processkit_mode: String,
     pub processkit_mcp_count: String,
     pub disk_available: String,
     pub uptime: String,
+    pub git_branch: String,
     pub git_state: String,
     pub migrations: String,
 }
@@ -27,12 +29,14 @@ impl Default for RuntimeSnapshot {
             memory_high: "...".to_string(),
             memory_max_events: "...".to_string(),
             cpu_throttle: "...".to_string(),
+            load_average: "...".to_string(),
             process_count: "...".to_string(),
             ai_agent_count: "...".to_string(),
             processkit_mode: "...".to_string(),
             processkit_mcp_count: "...".to_string(),
             disk_available: "...".to_string(),
             uptime: "...".to_string(),
+            git_branch: "...".to_string(),
             git_state: "...".to_string(),
             migrations: "...".to_string(),
         }
@@ -47,7 +51,7 @@ impl RuntimeSnapshot {
             if let Some(memory) = section.strip_prefix("MEM ") {
                 parse_memory(memory, &mut snapshot);
             } else if let Some(cpu) = section.strip_prefix("CPU ") {
-                snapshot.cpu_throttle = cpu.strip_prefix("thr").unwrap_or(cpu).trim().to_string();
+                parse_cpu(cpu, &mut snapshot);
             } else if let Some(processes) = section.strip_prefix("PROC ") {
                 parse_processes(processes, &mut snapshot);
             } else if let Some(fs) = section.strip_prefix("FS ") {
@@ -71,12 +75,14 @@ impl RuntimeSnapshot {
             memory_high: json_field(&value, "memory_high"),
             memory_max_events: json_field(&value, "memory_max_events"),
             cpu_throttle: json_field(&value, "cpu_throttling"),
+            load_average: json_field(&value, "load_average"),
             process_count: json_field(&value, "processes"),
             ai_agent_count: json_field(&value, "ai_agents"),
             processkit_mode: json_field(&value, "processkit_mode"),
             processkit_mcp_count: json_field(&value, "processkit_mcp"),
             disk_available: json_field(&value, "disk_available"),
             uptime: json_field(&value, "container_uptime"),
+            git_branch: json_field(&value, "git_branch"),
             git_state: json_field(&value, "git_state"),
             migrations: json_field(&value, "migrations"),
         })
@@ -86,6 +92,7 @@ impl RuntimeSnapshot {
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct RenderState {
     pub mode: String,
+    pub active_keys: Vec<String>,
     pub snapshot: RuntimeSnapshot,
     pub show_key_hints: bool,
     pub show_runtime_status: bool,
@@ -96,6 +103,7 @@ impl Default for RenderState {
     fn default() -> Self {
         Self {
             mode: "Normal".to_string(),
+            active_keys: Vec::new(),
             snapshot: RuntimeSnapshot::default(),
             show_key_hints: true,
             show_runtime_status: true,
@@ -107,7 +115,7 @@ impl Default for RenderState {
 pub fn render_rows(state: &RenderState, cols: usize) -> Vec<String> {
     let mut rows = Vec::with_capacity(2);
     if state.show_key_hints {
-        let row = render_key_hints(&state.mode, cols);
+        let row = render_key_hints(state, cols);
         if !row.is_empty() {
             rows.push(row);
         }
@@ -121,80 +129,160 @@ pub fn render_rows(state: &RenderState, cols: usize) -> Vec<String> {
     rows
 }
 
-pub fn render_key_hints(mode: &str, cols: usize) -> String {
-    let mode_key = mode.to_ascii_lowercase();
-    let groups = if mode_key.contains("tmux") {
-        vec![
-            Segment::new("LEADER C-g/Esc", 0),
-            Segment::new("PANES h j k l  n d r x f z e", 1),
-            Segment::new("TABS t w [ ] 1-5 i o", 1),
-            Segment::new("TOOLS s m p", 2),
-            Segment::new("SCROLL u /", 2),
-            Segment::new("QUIT q", 3),
-        ]
-    } else if mode_key.contains("scroll") || mode_key.contains("search") {
-        vec![
-            Segment::new("SCROLL j/k d/u f/b g/G", 0),
-            Segment::new("SEARCH /", 1),
-            Segment::new("EXIT Esc C-c C-g", 1),
-        ]
-    } else if mode_key.contains("resize") {
-        vec![
-            Segment::new("RESIZE +/- arrows", 0),
-            Segment::new("EXIT Esc C-g", 1),
-        ]
-    } else {
-        vec![
-            Segment::new("C-g leader", 0),
-            Segment::new("Alt-h/j/k/l panes", 1),
-            Segment::new("Alt-[ ] tabs", 1),
-            Segment::new("Alt-1..5 jump", 2),
-            Segment::new("Alt-p float", 2),
-            Segment::new("C-q quit", 3),
-        ]
-    };
-
-    fit_segments(&groups, cols)
+pub fn render_key_hints(state: &RenderState, cols: usize) -> String {
+    render_segments(&key_hint_segments(state), cols)
 }
 
 pub fn render_runtime_status(state: &RenderState, cols: usize) -> String {
     let snapshot = &state.snapshot;
-    let mut groups = vec![
+    let mut segments = vec![
+        Segment::new(mode_label(&state.mode), "", 0),
         Segment::new(
+            "MEM",
             format!(
-                "MEM {}/{} oom{} hi{} max{}",
-                snapshot.memory_current,
-                snapshot.memory_limit,
-                snapshot.oom_kill,
-                snapshot.memory_high,
-                snapshot.memory_max_events
+                "{}/{} OOM kills {}",
+                compact_units(&snapshot.memory_current),
+                compact_units(&snapshot.memory_limit),
+                snapshot.oom_kill
             ),
             0,
         ),
-        Segment::new(format!("CPU thr{}", snapshot.cpu_throttle), 1),
+        Segment::new("CPU", format!("throttle {}", snapshot.cpu_throttle), 2),
+        Segment::new("LOAD", snapshot.load_average.clone(), 3),
         Segment::new(
+            "PROC",
             format!(
-                "PROC {} ai{} pk:{}/{}",
-                snapshot.process_count,
-                snapshot.ai_agent_count,
-                snapshot.processkit_mode,
-                snapshot.processkit_mcp_count
+                "total {} AI {}",
+                snapshot.process_count, snapshot.ai_agent_count
             ),
             1,
         ),
-        Segment::new(format!("FS {}", snapshot.disk_available), 2),
-        Segment::new(format!("UP {}", snapshot.uptime), 2),
         Segment::new(
-            format!("PROJ git:{} mig{}", snapshot.git_state, snapshot.migrations),
+            "MCP",
+            format!(
+                "{} {}",
+                snapshot.processkit_mode, snapshot.processkit_mcp_count
+            ),
+            1,
+        ),
+        Segment::new(
+            "GIT",
+            format!("{} {}", snapshot.git_branch, snapshot.git_state),
             2,
         ),
+        Segment::new("MIG", format!("open {}", snapshot.migrations), 1),
+        Segment::new("FS", format!("free {}", snapshot.disk_available), 3),
+        Segment::new("UP", snapshot.uptime.clone(), 4),
     ];
 
-    if let Some(message) = state.message.as_deref() {
-        groups.push(Segment::new(format!("MSG {message}"), 3));
+    if snapshot.memory_high != "0" || snapshot.memory_max_events != "0" {
+        segments.insert(
+            2,
+            Segment::new(
+                "MEM events",
+                format!(
+                    "high {} max {}",
+                    snapshot.memory_high, snapshot.memory_max_events
+                ),
+                2,
+            ),
+        );
     }
 
-    fit_segments(&groups, cols)
+    if let Some(message) = state.message.as_deref() {
+        segments.push(Segment::new("MSG", message, 4));
+    }
+
+    render_segments(&segments, cols)
+}
+
+fn key_hint_segments(state: &RenderState) -> Vec<Segment> {
+    let mode = state.mode.to_ascii_lowercase();
+    if mode.contains("tmux") {
+        return vec![
+            Segment::new("LEADER", "C-g/Esc exit", 0),
+            Segment::new("PANES", "h left j down k up l right", 0),
+            Segment::new("SPLIT", "n new d down r right x close", 1),
+            Segment::new("VIEW", "f full z frames e float", 3),
+            Segment::new("TABS", "t new w close [/] prev/next 1-5 jump", 2),
+            Segment::new("STATUS", "v runtime b keys", 1),
+            Segment::new("TOOLS", "s files m sessions p float", 3),
+            Segment::new("QUIT", "q", 4),
+        ];
+    }
+
+    if mode.contains("scroll") || mode.contains("search") {
+        return vec![
+            Segment::new(mode_label(&state.mode), "scrollback", 0),
+            Segment::new("MOVE", "j down k up d half-down u half-up", 0),
+            Segment::new("PAGE", "f page-down b page-up g top G bottom", 1),
+            Segment::new("SEARCH", "/ find n next N prev", 1),
+            Segment::new("EXIT", "Esc C-c C-g", 0),
+        ];
+    }
+
+    if mode.contains("resize") {
+        return vec![
+            Segment::new("RESIZE", "+/- grow/shrink", 0),
+            Segment::new("DIRECTION", "h left j down k up l right", 0),
+            Segment::new("REVERSE", "H/J/K/L shrink side", 1),
+            Segment::new("EXIT", "Esc C-g", 0),
+        ];
+    }
+
+    let mut segments = vec![Segment::new(mode_label(&state.mode), "", 0)];
+    if key_available(state, "Ctrl g") {
+        segments.push(Segment::new("C-g", "leader", 0));
+    }
+    if any_key_available(state, &["Alt h", "Alt j", "Alt k", "Alt l"]) {
+        segments.push(Segment::new("PANES", "Alt-h/j/k/l move", 0));
+    }
+    if any_key_available(state, &["Alt [", "Alt ]", "Alt 1"]) {
+        segments.push(Segment::new("TABS", "Alt-[/] prev/next Alt-1..5 jump", 1));
+    }
+    if key_available(state, "Alt p") {
+        segments.push(Segment::new("FLOAT", "Alt-p toggle", 2));
+    }
+    if segments.len() == 1 {
+        segments.extend([
+            Segment::new("C-g", "leader", 0),
+            Segment::new("PANES", "Alt-h/j/k/l move", 0),
+            Segment::new("TABS", "Alt-[/] prev/next Alt-1..5 jump", 1),
+            Segment::new("FLOAT", "Alt-p toggle", 2),
+        ]);
+    }
+    segments
+}
+
+fn key_available(state: &RenderState, key: &str) -> bool {
+    state.active_keys.is_empty()
+        || state
+            .active_keys
+            .iter()
+            .any(|active| active.eq_ignore_ascii_case(key))
+}
+
+fn any_key_available(state: &RenderState, keys: &[&str]) -> bool {
+    keys.iter().any(|key| key_available(state, key))
+}
+
+fn mode_label(mode: &str) -> String {
+    let mode = mode.to_ascii_lowercase();
+    if mode.contains("tmux") {
+        "LEADER".to_string()
+    } else if mode.contains("entersearch") {
+        "SEARCH".to_string()
+    } else if mode.contains("scroll") {
+        "SCROLL".to_string()
+    } else if mode.contains("resize") {
+        "RESIZE".to_string()
+    } else if mode.contains("search") {
+        "SEARCH".to_string()
+    } else if mode.contains("locked") {
+        "LOCKED".to_string()
+    } else {
+        "NORMAL".to_string()
+    }
 }
 
 fn parse_memory(memory: &str, snapshot: &mut RuntimeSnapshot) {
@@ -214,6 +302,18 @@ fn parse_memory(memory: &str, snapshot: &mut RuntimeSnapshot) {
             snapshot.memory_max_events = value.to_string();
         } else if !token.is_empty() && snapshot.oom_kill == "..." {
             snapshot.oom_kill = token.to_string();
+        }
+    }
+}
+
+fn parse_cpu(cpu: &str, snapshot: &mut RuntimeSnapshot) {
+    for token in cpu.split_whitespace() {
+        if let Some(value) = token.strip_prefix("thr") {
+            snapshot.cpu_throttle = value.to_string();
+        } else if let Some(value) = token.strip_prefix("load") {
+            snapshot.load_average = value.to_string();
+        } else if snapshot.cpu_throttle == "..." {
+            snapshot.cpu_throttle = token.to_string();
         }
     }
 }
@@ -244,7 +344,12 @@ fn parse_processes(processes: &str, snapshot: &mut RuntimeSnapshot) {
 fn parse_project(project: &str, snapshot: &mut RuntimeSnapshot) {
     for token in project.split_whitespace() {
         if let Some(value) = token.strip_prefix("git:") {
-            snapshot.git_state = value.to_string();
+            if let Some((branch, state)) = value.rsplit_once(':') {
+                snapshot.git_branch = branch.to_string();
+                snapshot.git_state = state.to_string();
+            } else {
+                snapshot.git_state = value.to_string();
+            }
         } else if let Some(value) = token.strip_prefix("mig") {
             snapshot.migrations = value.to_string();
         }
@@ -253,20 +358,30 @@ fn parse_project(project: &str, snapshot: &mut RuntimeSnapshot) {
 
 #[derive(Clone, Debug, Eq, PartialEq)]
 struct Segment {
-    text: String,
+    label: String,
+    value: String,
     priority: u8,
 }
 
 impl Segment {
-    fn new(text: impl Into<String>, priority: u8) -> Self {
+    fn new(label: impl Into<String>, value: impl Into<String>, priority: u8) -> Self {
         Self {
-            text: text.into(),
+            label: label.into(),
+            value: value.into(),
             priority,
+        }
+    }
+
+    fn text(&self) -> String {
+        if self.value.is_empty() {
+            format!("[ {} ]", self.label)
+        } else {
+            format!("[ {} {} ]", self.label, self.value)
         }
     }
 }
 
-fn fit_segments(segments: &[Segment], cols: usize) -> String {
+fn render_segments(segments: &[Segment], cols: usize) -> String {
     if cols == 0 {
         return String::new();
     }
@@ -275,9 +390,9 @@ fn fit_segments(segments: &[Segment], cols: usize) -> String {
     while !visible.is_empty() {
         let line = visible
             .iter()
-            .map(|segment| segment.text.as_str())
+            .map(|segment| segment.text())
             .collect::<Vec<_>>()
-            .join(GROUP_SEPARATOR);
+            .join(SEGMENT_SEPARATOR);
         if char_count(&line) <= cols {
             return line;
         }
@@ -294,7 +409,15 @@ fn fit_segments(segments: &[Segment], cols: usize) -> String {
         }
     }
 
-    truncate_to_width(&segments[0].text, cols)
+    truncate_to_width(&segments[0].text(), cols)
+}
+
+fn compact_units(value: &str) -> String {
+    value
+        .replace(" KiB", "K")
+        .replace(" MiB", "M")
+        .replace(" GiB", "G")
+        .replace(" TiB", "T")
 }
 
 fn truncate_to_width(text: &str, cols: usize) -> String {
@@ -321,7 +444,7 @@ mod tests {
     #[test]
     fn parses_current_shell_status_line() {
         let snapshot = RuntimeSnapshot::from_aibox_status_plain(
-            "MEM 512.0 MiB/8.0 GiB oom0 hi1 max2 | CPU thr3/12s | PROC 42 ai2 pk:gateway/1 | FS 28G | UP 1h5m | PROJ git:dirty mig4",
+            "MEM 512.0 MiB/8.0 GiB oom0 hi1 max2 | CPU thr3/12s load0.42 | PROC 42 ai2 pk:gateway/1 | FS 28G | UP 1h5m | PROJ git:main:dirty mig4",
         );
 
         assert_eq!(snapshot.memory_current, "512.0 MiB");
@@ -330,12 +453,14 @@ mod tests {
         assert_eq!(snapshot.memory_high, "1");
         assert_eq!(snapshot.memory_max_events, "2");
         assert_eq!(snapshot.cpu_throttle, "3/12s");
+        assert_eq!(snapshot.load_average, "0.42");
         assert_eq!(snapshot.process_count, "42");
         assert_eq!(snapshot.ai_agent_count, "2");
         assert_eq!(snapshot.processkit_mode, "gateway");
         assert_eq!(snapshot.processkit_mcp_count, "1");
         assert_eq!(snapshot.disk_available, "28G");
         assert_eq!(snapshot.uptime, "1h5m");
+        assert_eq!(snapshot.git_branch, "main");
         assert_eq!(snapshot.git_state, "dirty");
         assert_eq!(snapshot.migrations, "4");
     }
@@ -343,21 +468,40 @@ mod tests {
     #[test]
     fn parses_plugin_json_status_line() {
         let snapshot = RuntimeSnapshot::from_aibox_status_json(
-            r#"{"memory_current":"512.0 MiB","memory_max":"8.0 GiB","oom_kill":"0","memory_high":"1","memory_max_events":"2","cpu_throttling":"3/12s","processes":"42","ai_agents":"2","processkit_mode":"gateway","processkit_mcp":"1","disk_available":"28G","container_uptime":"1h5m","git_state":"dirty","migrations":"4"}"#,
+            r#"{"memory_current":"512.0 MiB","memory_max":"8.0 GiB","oom_kill":"0","memory_high":"1","memory_max_events":"2","cpu_throttling":"3/12s","load_average":"0.42","processes":"42","ai_agents":"2","processkit_mode":"gateway","processkit_mcp":"1","disk_available":"28G","container_uptime":"1h5m","git_branch":"main","git_state":"dirty","migrations":"4"}"#,
         )
         .expect("valid plugin JSON should parse");
 
         assert_eq!(snapshot.memory_current, "512.0 MiB");
         assert_eq!(snapshot.memory_limit, "8.0 GiB");
+        assert_eq!(snapshot.load_average, "0.42");
         assert_eq!(snapshot.processkit_mode, "gateway");
+        assert_eq!(snapshot.git_branch, "main");
         assert_eq!(snapshot.migrations, "4");
+    }
+
+    #[test]
+    fn runtime_status_uses_readable_labels() {
+        let state = RenderState {
+            snapshot: RuntimeSnapshot::from_aibox_status_plain(
+                "MEM 512.0 MiB/8.0 GiB oom0 hi0 max0 | CPU thr0/0s load0.18 | PROC 42 ai2 pk:gateway/1 | FS 28G | UP 1h5m | PROJ git:main:dirty mig0",
+            ),
+            ..RenderState::default()
+        };
+
+        let line = render_runtime_status(&state, 160);
+        assert!(line.contains("[ NORMAL ]"));
+        assert!(line.contains("OOM kills 0"), "{line}");
+        assert!(line.contains("AI 2"), "{line}");
+        assert!(!line.contains("oom0"), "{line}");
+        assert!(!line.contains("ai2"), "{line}");
     }
 
     #[test]
     fn runtime_status_respects_width() {
         let state = RenderState {
             snapshot: RuntimeSnapshot::from_aibox_status_plain(
-                "MEM 512.0 MiB/8.0 GiB oom0 hi0 max0 | CPU thr0/0s | PROC 42 ai2 pk:gateway/1 | FS 28G | UP 1h5m | PROJ git:dirty mig0",
+                "MEM 512.0 MiB/8.0 GiB oom0 hi0 max0 | CPU thr0/0s load0.18 | PROC 42 ai2 pk:gateway/1 | FS 28G | UP 1h5m | PROJ git:main:dirty mig0",
             ),
             ..RenderState::default()
         };
@@ -374,6 +518,42 @@ mod tests {
     }
 
     #[test]
+    fn leader_keybar_explains_actions() {
+        let state = RenderState {
+            mode: "Tmux".to_string(),
+            ..RenderState::default()
+        };
+
+        let line = render_key_hints(&state, 180);
+        assert!(line.contains("[ LEADER C-g/Esc exit ]"), "{line}");
+        assert!(line.contains("h left j down k up l right"), "{line}");
+        assert!(line.contains("n new d down r right x close"), "{line}");
+        assert!(line.contains("v runtime b keys"), "{line}");
+    }
+
+    #[test]
+    fn normal_keybar_uses_arrow_segments_and_filters_known_keys() {
+        let state = RenderState {
+            active_keys: vec![
+                "Ctrl g".to_string(),
+                "Alt h".to_string(),
+                "Alt ]".to_string(),
+            ],
+            ..RenderState::default()
+        };
+
+        let line = render_key_hints(&state, 120);
+        assert!(line.contains("▸"), "{line}");
+        assert!(line.contains("[ C-g leader ]"), "{line}");
+        assert!(line.contains("[ PANES Alt-h/j/k/l move ]"), "{line}");
+        assert!(
+            line.contains("[ TABS Alt-[/] prev/next Alt-1..5 jump ]"),
+            "{line}"
+        );
+        assert!(!line.contains("FLOAT"), "{line}");
+    }
+
+    #[test]
     fn render_rows_can_hide_either_surface() {
         let state = RenderState {
             show_key_hints: false,
@@ -384,14 +564,14 @@ mod tests {
         let rows = render_rows(&state, 80);
         assert_eq!(rows.len(), 1, "hidden key row should not allocate a row");
         assert!(
-            rows[0].starts_with("MEM"),
+            rows[0].starts_with("[ NORMAL ]"),
             "remaining row should be runtime status"
         );
     }
 
     #[test]
     fn default_native_rows_are_visible_at_normal_width() {
-        let rows = render_rows(&RenderState::default(), 80);
+        let rows = render_rows(&RenderState::default(), 100);
 
         assert_eq!(rows.len(), 2);
         assert!(rows.iter().all(|row| !row.trim().is_empty()));

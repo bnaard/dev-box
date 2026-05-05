@@ -124,7 +124,7 @@ pub enum Commands {
         #[arg(long, value_enum)]
         profile: Option<AiboxProfile>,
 
-        /// Deprecated: processkit package tier. aibox now defaults to the product skill set.
+        /// Deprecated: processkit package tier. New scaffolds use explicit standard skills.
         #[arg(long = "context", visible_alias = "package", num_args = 1.., hide = true)]
         process: Option<Vec<String>>,
 

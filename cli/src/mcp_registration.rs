@@ -34,11 +34,11 @@
 //!
 //! - **Mistral**: has MCP client capability via Python SDK and Le
 //!   Chat, but no local file-based project config. When `Mistral` is
-//!   in `[ai].providers`, aibox writes `.mcp.json` (the same Claude
+//!   in `[ai].harnesses`, aibox writes `.mcp.json` (the same Claude
 //!   shape) so a custom Mistral SDK-based CLI tool can read MCP
 //!   server registrations from there.
 //! - **Aider**: has no native MCP client. When `Aider` is in
-//!   `[ai].providers`, aibox emits a warning and writes nothing.
+//!   `[ai].harnesses`, aibox emits a warning and writes nothing.
 //!
 //! See DEC-033 for the design rationale.
 
@@ -1413,11 +1413,11 @@ pub fn read_processkit_mcp_manifest_hash(project_root: &Path) -> Option<String> 
 
 /// Regenerate every harness-specific MCP config file based on the
 /// currently-installed processkit version and the user's
-/// `[ai].providers` list.
+/// `[ai].harnesses` list.
 ///
 /// Called from `cmd_init` and `cmd_sync` after `install_content_source`
 /// returns successfully. Idempotent: re-running on a stable
-/// `(processkit_version, providers, skills)` set produces byte-identical
+/// `(processkit_version, harnesses, skills)` set produces byte-identical
 /// output.
 pub fn regenerate_mcp_configs(config: &AiboxConfig, project_root: &Path) -> Result<()> {
     // The effective skill set (DEC-035 / BACK-118) constrains which
@@ -2132,8 +2132,15 @@ mod tests {
             .join(crate::processkit_vocab::src::CONTEXT_DIR)
             .join(crate::processkit_vocab::src::SKILLS)
             .join(category)
-            .join(skill)
-            .join("mcp");
+            .join(skill);
+        fs::create_dir_all(&dir).unwrap();
+        fs::write(
+            dir.join(crate::processkit_vocab::SKILL_FILENAME),
+            format!("---\nname: {skill}\n---\n"),
+        )
+        .unwrap();
+
+        let dir = dir.join("mcp");
         fs::create_dir_all(&dir).unwrap();
         let path = dir.join("mcp-config.json");
         fs::write(&path, json_body).unwrap();

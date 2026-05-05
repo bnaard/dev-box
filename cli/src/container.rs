@@ -481,7 +481,7 @@ fn default_project_name() -> String {
 }
 
 /// Build the list of addon names available for interactive selection,
-/// excluding AI provider addons (those are handled via `[ai].providers`).
+/// excluding AI harness addons (those are handled via `[ai]`).
 fn selectable_addon_names() -> Vec<String> {
     crate::addon_loader::all_addons()
         .iter()
@@ -980,6 +980,7 @@ pub(crate) fn serialize_config_with_comments(config: &AiboxConfig) -> String {
             out.push_str(&format!("oom_kill_warn = {}\n", value));
         }
     }
+    render_audio_section(&mut out, config, sep);
     if !config.container.environment.is_empty() {
         out.push_str(
             "\n# Team-shared environment variables. Put secrets in .aibox-local.toml instead.\n",
@@ -1016,9 +1017,9 @@ pub(crate) fn serialize_config_with_comments(config: &AiboxConfig) -> String {
     out.push_str(sep);
     out.push_str("# [skills] — processkit skill catalog\n");
     out.push_str(sep);
-    out.push_str("# aibox now installs the full product skill set by default. Use enabled[] for\n");
-    out.push_str("# explicit additions and disabled[] for explicit removals. Core skills are\n");
-    out.push_str("# always installed; disabling one only triggers a doctor warning.\n");
+    out.push_str("# Fresh projects list the standard processkit operating skills explicitly.\n");
+    out.push_str("# Use enabled[] for additions and disabled[] for explicit removals. Core\n");
+    out.push_str("# skills are always installed; disabling one only triggers a doctor warning.\n");
     out.push_str("[skills]\n");
     let skill_catalog = skill_catalog_entries_for_comments(config);
     render_skill_array(
@@ -1080,6 +1081,19 @@ pub(crate) fn serialize_config_with_comments(config: &AiboxConfig) -> String {
     let mut catalog_names = std::collections::BTreeSet::new();
     let mut current_category: Option<&str> = None;
     for def in &catalog {
+        catalog_names.insert(def.name.as_str());
+        if is_internal_audio_addon_name(&def.name)
+            && selected_addons
+                .get(&def.name)
+                .is_none_or(|addon_tools| addon_tools.tools.is_empty())
+        {
+            continue;
+        }
+        if is_ai_harness_addon_name(&def.name)
+            || (def.category == "AI Providers" && !selected_addons.contains_key(&def.name))
+        {
+            continue;
+        }
         if current_category != Some(def.category.as_str()) {
             current_category = Some(def.category.as_str());
             out.push_str(&format!(
@@ -1087,7 +1101,6 @@ pub(crate) fn serialize_config_with_comments(config: &AiboxConfig) -> String {
                 def.category
             ));
         }
-        catalog_names.insert(def.name.as_str());
         if let Some(addon_tools) = selected_addons.get(&def.name) {
             render_active_addon_block(&mut out, def, addon_tools);
         } else {
@@ -1096,7 +1109,11 @@ pub(crate) fn serialize_config_with_comments(config: &AiboxConfig) -> String {
     }
     let mut unknown_selected: Vec<_> = selected_addons
         .keys()
-        .filter(|name| !catalog_names.contains(name.as_str()))
+        .filter(|name| {
+            !catalog_names.contains(name.as_str())
+                && !is_ai_harness_addon_name(name)
+                && !is_internal_audio_addon_name(name)
+        })
         .collect();
     unknown_selected.sort();
     for addon_name in unknown_selected {
@@ -1129,6 +1146,7 @@ pub(crate) fn serialize_config_with_comments(config: &AiboxConfig) -> String {
     out.push_str("[ai]\n");
     render_ai_harness_catalog(&mut out, &config.ai.harnesses);
     render_ai_model_provider_catalog(&mut out, &config.ai.model_providers);
+    render_ai_harness_detail_catalog(&mut out, config);
 
     out.push('\n');
     out.push_str("[ai.agents]\n");
@@ -1144,6 +1162,7 @@ pub(crate) fn serialize_config_with_comments(config: &AiboxConfig) -> String {
         "provider_mode = \"{}\"  # options: pointer, full\n",
         mode_str
     ));
+    render_ai_mcp_section(&mut out, config, sep);
 
     // [processkit] section
     out.push('\n');
@@ -1188,7 +1207,7 @@ pub(crate) fn serialize_config_with_comments(config: &AiboxConfig) -> String {
         format!("\"{}\"", config.processkit.context.schema_version)
     ));
     out.push_str(
-        "# packages = [\"product\"]  # deprecated; full product skill set is the default\n",
+        "# packages = [\"product\"]  # deprecated; use explicit [skills].enabled instead\n",
     );
 
     // [customization] section
@@ -1218,24 +1237,36 @@ pub(crate) fn serialize_config_with_comments(config: &AiboxConfig) -> String {
         config.customization.zellij_status.mode
     ));
 
-    // [container.audio] section
+    out
+}
+
+fn render_audio_section(out: &mut String, config: &AiboxConfig, sep: &str) {
     out.push('\n');
     out.push_str(sep);
-    out.push_str("# [container.audio] — PulseAudio bridging for voice features\n");
+    out.push_str("# [audio] — audio and voice feature support\n");
     out.push_str(sep);
     out.push_str("# Requires host-side setup: run `aibox apply audio` on the host first.\n");
-    out.push_str("[container.audio]\n");
-    out.push_str(&format!("enabled = {}\n", config.container.audio.enabled));
-    if config.container.audio.enabled {
+    out.push_str("[audio]\n");
+    out.push_str(&format!("enabled = {}\n", config.audio.enabled));
+    out.push_str(&format!(
+        "backend = \"{}\"  # options: pulseaudio\n",
+        config.audio.backend
+    ));
+    out.push_str(&format!(
+        "install = {}  # selects the internal audio-voice recipe\n",
+        config.audio.install
+    ));
+    if config.audio.enabled {
         out.push_str(&format!(
             "pulse_server = \"{}\"  # PulseAudio TCP endpoint (default port: 4714)\n",
-            config.container.audio.pulse_server
+            config.audio.pulse_server
         ));
     } else {
         out.push_str("# pulse_server = \"tcp:host.docker.internal:4714\"  # PulseAudio TCP endpoint (default port: 4714)\n");
     }
+}
 
-    // [ai.mcp] section
+fn render_ai_mcp_section(out: &mut String, config: &AiboxConfig, sep: &str) {
     out.push('\n');
     out.push_str(sep);
     out.push_str("# [ai.mcp] — MCP gateway, permissions, and extra servers\n");
@@ -1325,8 +1356,6 @@ pub(crate) fn serialize_config_with_comments(config: &AiboxConfig) -> String {
             out.push('\n');
         }
     }
-
-    out
 }
 
 fn toml_string_array(values: &[String]) -> String {
@@ -1385,6 +1414,62 @@ fn render_ai_model_provider_catalog(out: &mut String, selected: &[crate::config:
         out.push_str(&format!(" # env: {}\n", provider.api_key_env()));
     }
     out.push_str("]\n");
+}
+
+fn render_ai_harness_detail_catalog(out: &mut String, config: &AiboxConfig) {
+    out.push_str("\n# Per-harness install controls. `enabled` participates in generated\n");
+    out.push_str("# agent/MCP config; `install` selects the in-container CLI recipe.\n");
+    for harness in crate::config::AiHarness::all() {
+        let selected = config.ai.harnesses.contains(harness);
+        let install =
+            config.ai.harness_install_enabled(harness) && !harness.addon_name().is_empty();
+        let version = ai_harness_version_for_render(config, harness);
+        if selected {
+            out.push_str(&format!("\n[ai.harness.{}]\n", harness));
+            out.push_str("enabled = true\n");
+            out.push_str(&format!("install = {}\n", install));
+            if let Some(version) = version {
+                out.push_str(&format!("version = \"{}\"\n", version));
+            } else {
+                out.push_str("# version = \"latest\"\n");
+            }
+        } else {
+            out.push_str(&format!("\n# [ai.harness.{}]\n", harness));
+            out.push_str("# enabled = true\n");
+            out.push_str(&format!("# install = {}\n", install));
+            out.push_str("# version = \"latest\"\n");
+        }
+    }
+}
+
+fn ai_harness_version_for_render(
+    config: &AiboxConfig,
+    harness: &crate::config::AiHarness,
+) -> Option<String> {
+    if let Some(version) = config.ai.harness_version(harness) {
+        return Some(version.to_string());
+    }
+    let addon_name = harness.addon_name();
+    if addon_name.is_empty() {
+        return None;
+    }
+    config
+        .addons
+        .get_addon(&addon_name)
+        .and_then(|addon| addon.tools.get(harness.binary_name()))
+        .and_then(|tool| tool.version.clone())
+        .filter(|version| !version.is_empty())
+}
+
+fn is_ai_harness_addon_name(name: &str) -> bool {
+    crate::config::AiHarness::all()
+        .iter()
+        .map(crate::config::AiHarness::addon_name)
+        .any(|addon_name| addon_name == name)
+}
+
+fn is_internal_audio_addon_name(name: &str) -> bool {
+    name == "audio-voice"
 }
 
 #[derive(Debug, Clone)]
@@ -1843,6 +1928,7 @@ pub fn cmd_init(config_path: &Option<String>, params: InitParams) -> Result<()> 
         ai: AiSection {
             harnesses: ai_providers,
             model_providers: Vec::new(),
+            harness: std::collections::HashMap::new(),
             providers: Vec::new(),
             agents: crate::config::AgentsSection::default(),
             mcp: crate::config::McpSection::default(),
@@ -1882,7 +1968,13 @@ pub fn cmd_init(config_path: &Option<String>, params: InitParams) -> Result<()> 
             }
             section
         },
-        skills: SkillsSection::default(),
+        skills: SkillsSection {
+            include: crate::processkit_vocab::STANDARD_PROCESSKIT_SKILLS
+                .iter()
+                .map(|skill| (*skill).to_string())
+                .collect(),
+            exclude: Vec::new(),
+        },
         processkit: resolve_processkit_section(
             params.processkit_source.as_deref(),
             params.processkit_version.as_deref(),
@@ -2364,8 +2456,8 @@ pub fn cmd_sync(
     // Regenerate per-harness MCP config files (.mcp.json,
     // .cursor/mcp.json, .gemini/settings.json, .codex/config.toml,
     // .continue/mcpServers/*.json) based on the currently-pinned
-    // processkit version and the [ai].providers list. Idempotent —
-    // re-running on a stable (version, providers, skills) set
+    // processkit version and the [ai].harnesses list. Idempotent —
+    // re-running on a stable (version, harnesses, skills) set
     // produces byte-identical output. Best-effort: any failure is
     // warned-and-continued. See DEC-033.
     if let Ok(cwd) = std::env::current_dir() {
@@ -2721,6 +2813,89 @@ mod tests {
         assert_eq!(resolved.profile, AiboxProfile::HumanDev);
         assert_eq!(resolved.process_packages, vec!["product".to_string()]);
         assert!(resolved.addon_names.is_empty());
+    }
+
+    #[test]
+    fn serialized_config_groups_nested_sections_near_parent_sections() {
+        let config = crate::config::test_config();
+        let body = serialize_config_with_comments(&config);
+        let container = body.find("[container]").unwrap();
+        let audio = body.find("[audio]").unwrap();
+        let skills = body.find("[skills]").unwrap();
+        let ai = body.find("[ai]").unwrap();
+        let ai_mcp = body.find("[ai.mcp.gateway]").unwrap();
+        let processkit = body.find("[processkit]").unwrap();
+
+        assert!(
+            container < audio && audio < skills,
+            "[audio] should stay near the container section"
+        );
+        assert!(
+            ai < ai_mcp && ai_mcp < processkit,
+            "[ai.mcp] should stay with the ai section"
+        );
+    }
+
+    #[test]
+    fn serialized_config_places_ai_harness_install_controls_under_ai() {
+        let mut config = crate::config::test_config();
+        config.ai.harnesses = vec![
+            crate::config::AiHarness::Claude,
+            crate::config::AiHarness::Codex,
+        ];
+        config.addons.addons.insert(
+            "ai-codex".to_string(),
+            crate::config::AddonToolsSection {
+                tools: [(
+                    "codex".to_string(),
+                    crate::config::ToolEntry {
+                        version: Some("1.2.3".to_string()),
+                        enabled: None,
+                    },
+                )]
+                .into_iter()
+                .collect(),
+            },
+        );
+
+        let body = serialize_config_with_comments(&config);
+        assert!(body.contains("[ai.harness.claude]"));
+        assert!(body.contains("[ai.harness.codex]"));
+        assert!(body.contains("version = \"1.2.3\""));
+        assert!(!body.contains("[addons.ai-claude.tools]"));
+        assert!(!body.contains("[addons.ai-codex.tools]"));
+    }
+
+    #[test]
+    fn serialized_config_places_default_audio_install_under_audio() {
+        let mut config = crate::config::test_config();
+        config.audio.enabled = true;
+        config.container.audio = config.audio.clone();
+        config.addons.addons.insert(
+            "audio-voice".to_string(),
+            crate::config::AddonToolsSection::default(),
+        );
+
+        let body = serialize_config_with_comments(&config);
+        assert!(body.contains("[audio]"));
+        assert!(body.contains("backend = \"pulseaudio\""));
+        assert!(body.contains("install = true"));
+        assert!(!body.contains("[container.audio]"));
+        assert!(!body.contains("[addons.audio-voice.tools]"));
+    }
+
+    #[test]
+    fn standard_processkit_skills_are_serialized_when_enabled() {
+        let mut config = crate::config::test_config();
+        config.skills.include = crate::processkit_vocab::STANDARD_PROCESSKIT_SKILLS
+            .iter()
+            .map(|skill| (*skill).to_string())
+            .collect();
+        let body = serialize_config_with_comments(&config);
+        assert!(body.contains("enabled = ["));
+        assert!(body.contains("\"pk-doctor\""));
+        assert!(body.contains("\"status-briefing\""));
+        assert!(body.contains("\"workitem-management\""));
     }
 
     #[test]

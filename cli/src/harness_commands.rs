@@ -53,6 +53,9 @@ use crate::processkit_vocab::{mirror_skills_dir, parse_skill_frontmatter};
 enum CommandFormat {
     /// Copy the source markdown verbatim.
     MarkdownVerbatim,
+    /// Claude command shim that keeps the source command but explicitly routes
+    /// the model through the matching processkit skill instead of helper scripts.
+    ClaudeCommand,
     /// Convert the source markdown to a Gemini-style TOML wrapper.
     GeminiToml,
     /// Convert the source markdown to a Codex Skill (`SKILL.md` with
@@ -96,6 +99,9 @@ impl HarnessCommandProfile {
     fn render(&self, source_md_filename: &str, source_bytes: &[u8]) -> Result<Vec<u8>> {
         match self.format {
             CommandFormat::MarkdownVerbatim => Ok(source_bytes.to_vec()),
+            CommandFormat::ClaudeCommand => {
+                Ok(render_claude_command(source_md_filename, source_bytes)?.into_bytes())
+            }
             CommandFormat::GeminiToml => {
                 Ok(render_gemini_toml(source_md_filename, source_bytes)?.into_bytes())
             }
@@ -115,7 +121,7 @@ fn profile_for(harness: AiHarness, project_root: &Path) -> Option<HarnessCommand
             harness,
             target_dir: project_root.join(".claude").join("commands"),
             file_extension: "md",
-            format: CommandFormat::MarkdownVerbatim,
+            format: CommandFormat::ClaudeCommand,
             subdir_per_command: false,
         }),
         AiHarness::Codex => Some(HarnessCommandProfile {
@@ -770,6 +776,26 @@ fn render_gemini_toml(source_filename: &str, source_bytes: &[u8]) -> Result<Stri
     ))
 }
 
+/// Render a Claude slash-command shim. The source command stays intact, but
+/// the appended guard steers the model to the matching processkit skill instead
+/// of executing helper scripts such as `doctor.py` directly.
+fn render_claude_command(source_filename: &str, source_bytes: &[u8]) -> Result<String> {
+    let text = std::str::from_utf8(source_bytes)
+        .with_context(|| format!("source file {source_filename} is not valid UTF-8"))?;
+    let stem = source_filename
+        .strip_suffix(".md")
+        .unwrap_or(source_filename);
+
+    Ok(format!(
+        "{text}\n\n\
+         ---\n\n\
+         This command is a processkit skill shim. Load and follow the matching skill for `{stem}` \
+         from `context/skills/` instead of executing underlying helper scripts directly. Do not \
+         run `context/skills/**/scripts/*.py`, `doctor.py`, or `uv run .../scripts/...` unless the \
+         skill instructions explicitly require that implementation detail for the current step.\n"
+    ))
+}
+
 /// Convert a processkit command markdown source into a Codex Skill
 /// (`SKILL.md`) body. The result has YAML front-matter with `name` and
 /// `description` only — Claude-Code conventions like `argument-hint` and
@@ -1082,6 +1108,32 @@ mod tests {
         assert!(dest.exists(), "claude target should exist");
         let content = fs::read_to_string(&dest).unwrap();
         assert!(content.contains("Resume the session"));
+    }
+
+    #[test]
+    fn claude_profile_writes_skill_shim_guard() {
+        let tmp = tempfile::tempdir().unwrap();
+        let project = tmp.path();
+        let mirror = project.join("context/templates/processkit/v0.20.0/context/skills");
+        let live = project.join("context/skills");
+        for root in [&mirror, &live] {
+            make_skill_commands(
+                root,
+                "processkit",
+                "pk-doctor",
+                &["pk-doctor.md"],
+                "---\nargument-hint: \"\"\nallowed-tools: []\n---\n\nUse the pk-doctor skill.\n",
+            );
+        }
+
+        let config = config_with("v0.20.0", vec![AiHarness::Claude]);
+        sync_harness_commands(project, &config).unwrap();
+
+        let content = fs::read_to_string(project.join(".claude/commands/pk-doctor.md")).unwrap();
+        assert!(content.contains("Use the pk-doctor skill."));
+        assert!(content.contains("processkit skill shim"));
+        assert!(content.contains("Do not"));
+        assert!(content.contains("doctor.py"));
     }
 
     #[test]

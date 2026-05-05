@@ -46,7 +46,7 @@ schema_version = "1.0.0"
 [ai]
 harnesses = ["claude"]
 
-[container.audio]
+[audio]
 enabled = false
 ```
 

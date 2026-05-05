@@ -93,28 +93,27 @@ After editing `aibox.toml`, run `aibox apply` to regenerate the Dockerfile and r
 | `docs-mdbook` | mdbook |
 | `docs-hugo` | hugo |
 
-### AI Coding Agents
+### AI Harnesses
 
-AI providers configured in `[ai].providers` are automatically resolved to addons. You can also add them directly:
-
-| Addon | Install Method |
-|-------|---------------|
-| `ai-claude` | Claude Code CLI (curl installer) |
-| `ai-aider` | aider-chat (uv tool) |
-| `ai-gemini` | Google Generative AI CLI (npm) |
-| `ai-mistral` | Mistral AI SDK (pip) |
+AI harnesses are selected under `[ai]`, not as public addon blocks. aibox still
+uses internal install recipes for container CLIs when `install = true`.
 
 ```toml
-# These are equivalent:
 [ai]
-providers = ["claude", "aider"]
+harnesses = ["claude", "codex"]
 
-# ...produces the same result as explicitly adding:
-# [addons.ai-claude.tools]
-# claude = {}
-# [addons.ai-aider.tools]
-# aider = {}
+[ai.harness.claude]
+enabled = true
+install = true
+
+[ai.harness.codex]
+enabled = true
+install = true
+version = "latest"
 ```
+
+Legacy `[addons.ai-*.tools]` entries are accepted for compatibility, but fresh
+scaffolding keeps AI configuration in the `[ai]` section.
 
 ## Addons and Skills
 

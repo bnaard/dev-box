@@ -71,13 +71,15 @@ aibox describe skill <name>        # frontmatter + description for one skill
 
 ## Skill Selection
 
-New projects install the full product skill set by default. Use
-`[skills].enabled` and `[skills].disabled` for explicit skill-level overrides:
+New projects list the standard processkit operating skills explicitly in
+`[skills].enabled`. Use `[skills].enabled` and `[skills].disabled` for
+skill-level overrides:
 
 ```toml
 [skills]
 enabled = [
-  # "extra-skill",
+  "pk-doctor",
+  "status-briefing",
 ]
 disabled = [
   # "skill-to-omit",
@@ -85,7 +87,7 @@ disabled = [
 ```
 
 Legacy package selections are still accepted for compatibility, but new
-`aibox.toml` files do not expose them as the primary control surface.
+`aibox.toml` files use explicit skill selection as the primary control surface.
 
 ## Custom skills
 

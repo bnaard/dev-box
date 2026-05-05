@@ -5,9 +5,9 @@ title: "Skill Selection"
 
 # Skill Selection
 
-New aibox projects install the full processkit product skill set by default.
-This keeps the project-local `context/skills/` directory complete and makes
-skill selection a direct comment/uncomment workflow in `aibox.toml`.
+New aibox projects list the standard processkit operating skills explicitly in
+`[skills].enabled`. This makes skill selection a direct comment/uncomment
+workflow in `aibox.toml` without relying on legacy package tiers.
 
 Use `[skills].enabled` for explicit additions and `[skills].disabled` for
 explicit removals:
@@ -15,7 +15,8 @@ explicit removals:
 ```toml
 [skills]
 enabled = [
-  # "extra-skill",
+  "pk-doctor",
+  "status-briefing",
 ]
 disabled = [
   # "skill-to-omit",

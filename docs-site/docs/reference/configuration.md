@@ -58,7 +58,7 @@ src_path = "src"
 
 [processkit.context]
 schema_version = "1.0.0"              # Context schema version (semver)
-# packages = ["product"]              # Deprecated; product skill set is the default
+# packages = ["product"]              # Deprecated; use [skills].enabled instead
 
 [addons.python.tools]                 # Addon: Python runtime
 python = { version = "3.13" }
@@ -74,8 +74,17 @@ gh      = {}
 lazygit = {}
 
 [ai]
-harnesses = ["claude", "codex"]       # AI harness CLIs to install
+harnesses = ["claude", "codex"]       # AI harnesses to configure
 model_providers = ["anthropic"]       # Optional API-key/provider hints
+
+[ai.harness.claude]
+enabled = true                        # Generate harness config
+install = true                        # Install in-container CLI recipe
+
+[ai.harness.codex]
+enabled = true
+install = true
+version = "latest"                    # Optional CLI version pin
 
 [ai.agents]
 canonical     = "AGENTS.md"
@@ -101,8 +110,10 @@ layout = "dev"                        # Zellij layout (6 options)
 [customization.zellij_status]
 mode = "shell"                        # shell | native | hidden
 
-[container.audio]
+[audio]
 enabled      = false                  # Enable audio bridging
+backend      = "pulseaudio"           # Audio bridge backend
+install      = true                   # Install container audio tools
 pulse_server = "tcp:host.docker.internal:4714"
 ```
 
@@ -220,13 +231,15 @@ Context-system metadata owned by the processkit content layer.
 | Field | Type | Required | Default | Description |
 |-------|------|----------|---------|-------------|
 | `schema_version` | String (semver) | No | `"1.0.0"` | Context schema version |
-| `packages` | Array of strings | No | `["product"]` | Deprecated compatibility field. New projects install the full product skill set by default. |
+| `packages` | Array of strings | No | `["product"]` | Deprecated compatibility field. New projects use explicit standard skills in `[skills].enabled`. |
 
 Use `[skills].enabled` and `[skills].disabled` for explicit skill-level overrides.
 
 ### [addons]
 
-Addons install language runtimes, tool bundles, and AI agents into the container. Each addon is a named table with a `tools` sub-table.
+Addons install language runtimes and tool bundles into the container. AI
+harnesses are selected under `[ai]`; aibox may still use internal addon recipes
+to install their CLIs.
 
 ```toml
 [addons.python.tools]
@@ -251,12 +264,14 @@ Run `aibox get addon` to see all available addons, or `aibox describe addon <nam
 ### [skills]
 
 Controls which skills from processkit are installed into `context/skills/`.
-By default every skill in the processkit version you've pinned is installed.
+Fresh `aibox.toml` scaffolds list the standard processkit operating skills in
+`enabled`. If `enabled` is empty, aibox falls back to installing every skill in
+the pinned processkit version minus anything listed in `disabled`.
 
 ```toml
 [skills]
-include = ["python-best-practices", "fastapi-patterns"]  # install only these
-exclude = ["pandas-polars"]                               # install all except these
+enabled = ["pk-doctor", "status-briefing"]  # install only these plus core skills
+disabled = ["research-with-confidence"]     # omit from the default all-skills set
 ```
 
 `include` and `exclude` are mutually exclusive: use one or the other, not both.
@@ -267,11 +282,26 @@ See the [Skills page](../skills/index.md) for the full processkit boundary.
 
 ### [ai]
 
-AI provider configuration. Providers listed here are automatically installed as addons.
+AI harness and model-provider configuration. Harnesses listed here participate
+in generated agent/MCP config; in-container CLI installation is controlled by
+`[ai.harness.<name>]`.
 
 | Field | Type | Required | Default | Description |
 |-------|------|----------|---------|-------------|
-| `providers` | Array of strings | No | `["claude"]` | AI providers: `claude`, `aider`, `gemini`, `mistral`, `openai`, `copilot`, `continue`. `cursor` is MCP-registration only (no container CLI). |
+| `harnesses` | Array of strings | No | `["claude"]` | AI harnesses to configure: `claude`, `codex`, `gemini`, `aider`, `continue`, `cursor`, `copilot`, `opencode`, `hermes`. |
+| `model_providers` | Array of strings | No | `[]` | Optional API-key/provider hints: `anthropic`, `openai`, `google`, `mistral`. |
+
+Per-harness install controls live below `[ai.harness.<name>]`:
+
+```toml
+[ai.harness.codex]
+enabled = true       # include Codex in generated config
+install = true       # install the Codex CLI in the container
+version = "latest"   # optional; use "latest" or a concrete CLI version
+```
+
+Legacy `providers = [...]` and `[addons.ai-*.tools]` inputs are still accepted
+for compatibility. `aibox apply` rewrites fresh scaffolding toward `[ai]`.
 
 ### [processkit]
 
@@ -451,10 +481,10 @@ auto-loads `CLAUDE.md` at startup, etc.).
 | `provider_mode` | String | No | `"pointer"` | How provider files are scaffolded. `pointer` (recommended): provider files are thin pointers that say "see AGENTS.md". `full`: provider files contain the rich provider-flavoured content — use only when a project genuinely needs different instructions per harness. |
 
 `aibox init` always creates `AGENTS.md` (write-if-missing — never
-overwrites). When the Claude provider is enabled, it also creates
+overwrites). When the Claude harness is enabled, it also creates
 `CLAUDE.md`, either as a thin pointer (default) or with the full rich
-content (`provider_mode = "full"`). Other providers (Aider, Gemini,
-Mistral, OpenAI, Copilot, Continue) use config files rather than markdown
+content (`provider_mode = "full"`). Other harnesses (Aider, Gemini,
+Codex, Copilot, Continue) use config files rather than markdown
 entries and are not affected by this section.
 
 Existing files are never overwritten. If you already have a hand-written
@@ -472,14 +502,19 @@ Visual and layout configuration. See [Themes](../customization/themes.md) and [L
 | `layout` | String | No | `"dev"` | Zellij layout: `dev`, `focus`, `cowork`, `cowork-swap`, `browse`, `ai` |
 | `zellij_status.mode` | String | No | `"shell"` | Zellij status presentation: `shell` uses Zellij's built-in status bar plus `aibox-status --watch`, `native` selects the experimental two-row WASM plugin, `hidden` omits aibox status rows |
 
-### [container.audio]
+### [audio]
 
 Audio bridging configuration.
 
 | Field | Type | Required | Default | Description |
 |-------|------|----------|---------|-------------|
 | `enabled` | Boolean | No | `false` | Enable PulseAudio environment setup |
+| `backend` | String | No | `"pulseaudio"` | Audio bridge backend. Only `pulseaudio` is currently supported. |
+| `install` | Boolean | No | `true` | Select the internal `audio-voice` recipe when audio is enabled |
 | `pulse_server` | String | No | `"tcp:host.docker.internal:4714"` | PulseAudio server address |
+
+Legacy `[container.audio]` input is still accepted for compatibility. Fresh
+scaffolding writes top-level `[audio]`.
 
 ## Environment Variable Overrides
 

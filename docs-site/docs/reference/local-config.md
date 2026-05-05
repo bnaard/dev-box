@@ -137,7 +137,7 @@ Everything outside of `[container.environment]`, `[[container.extra_volumes]]`, 
 - `[skills]` — enabled/disabled lists
 - `[ai]` — harnesses, agents, and MCP
 - `[customization]` — theme, mode, prompt, layout
-- `[container.audio]` — audio bridging
+- `[audio]` — audio bridging
 
 :::tip Applying changes
 After editing `.aibox-local.toml`, run `aibox apply` (or `aibox apply --no-build` for a config-only refresh) to regenerate `.devcontainer/` files with the updated environment and volumes, and MCP client config files with the updated server list.

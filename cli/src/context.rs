@@ -12,7 +12,7 @@
 //!   `.devcontainer/docker-compose.override.yml` placeholders
 //! - Provider thin-pointer files at the project root (`CLAUDE.md`,
 //!   future `CODEX.md`, …) that point at processkit-shipped `AGENTS.md`,
-//!   gated on the `[ai].providers` list
+//!   gated on the `[ai].harnesses` list
 //! - The empty `context/` directory itself (processkit content lands here
 //!   later, during the same init pass)
 //!
@@ -34,7 +34,7 @@ use crate::output;
 // ---------------------------------------------------------------------------
 
 /// Thin-pointer body written to `CLAUDE.md` when the user has
-/// `[ai] providers = ["claude", ...]`. The canonical instructions live
+/// `[ai] harnesses = ["claude", ...]`. The canonical instructions live
 /// in `AGENTS.md` (shipped by processkit). Claude Code auto-loads
 /// `CLAUDE.md`, so this pointer file exists solely to satisfy that
 /// convention without duplicating instructions.
@@ -125,7 +125,7 @@ pub(crate) fn build_substitution_map(config: &AiboxConfig) -> HashMap<&'static s
     addon_names.sort();
     m.insert("ADDONS", addon_names.join(", "));
 
-    // 10. AI_PROVIDERS — sorted, comma-separated [ai].providers.
+    // 10. AI_PROVIDERS — sorted, comma-separated [ai].harnesses.
     let mut providers: Vec<String> = config.ai.harnesses.iter().map(|p| p.to_string()).collect();
     providers.sort();
     m.insert("AI_PROVIDERS", providers.join(", "));
@@ -190,7 +190,7 @@ pub fn scaffold_context(config: &AiboxConfig) -> Result<()> {
     output::info("Scaffolding project skeleton...");
 
     // 1. Provider thin pointers (CLAUDE.md, future CODEX.md, …) per
-    //    [ai].providers. The pointers reference AGENTS.md, which
+    //    [ai].harnesses. The pointers reference AGENTS.md, which
     //    processkit installs in the same init pass.
     scaffold_provider_pointers(config)?;
 
@@ -263,7 +263,7 @@ pub fn scaffold_context(config: &AiboxConfig) -> Result<()> {
 }
 
 /// Write thin-pointer entry files for each AI provider in
-/// `[ai].providers` that has a markdown convention. Today only Claude
+/// `[ai].harnesses` that has a markdown convention. Today only Claude
 /// Code uses a top-level `CLAUDE.md`; other providers (Aider, Gemini,
 /// Mistral) use config files (`.aider.conf.yml`, `.gemini/settings.json`,
 /// `.mistral/config.json`) which are scaffolded elsewhere.

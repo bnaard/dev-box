@@ -726,6 +726,7 @@ mod tests {
         config.audio = AudioSection {
             enabled: audio_enabled,
             pulse_server: "tcp:localhost:4714".to_string(),
+            ..AudioSection::default()
         };
         config
     }
@@ -1351,6 +1352,10 @@ mod tests {
         assert!(
             content.contains("claude.ai/install.sh"),
             "should install Claude via native installer"
+        );
+        assert!(
+            content.contains("install -m 0755 \"$claude_bin\" /usr/local/bin/claude"),
+            "native Claude install should be copied to the stable terminal profile path"
         );
         assert!(!content.contains("aider"), "should not install aider");
         assert!(!content.contains("gemini"), "should not install gemini");

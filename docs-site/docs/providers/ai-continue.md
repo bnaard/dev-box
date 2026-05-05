@@ -11,7 +11,7 @@ title: "Continue"
 
 ```toml
 [ai]
-providers = ["continue"]
+harnesses = ["continue"]
 ```
 
 Run `aibox apply`, then inside the container:

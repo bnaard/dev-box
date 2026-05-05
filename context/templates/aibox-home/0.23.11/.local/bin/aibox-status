@@ -74,6 +74,14 @@ read_cpu_throttling() {
   fi
 }
 
+read_load_average() {
+  if [ -r /proc/loadavg ]; then
+    awk '{ print $1 }' /proc/loadavg
+  else
+    printf 'n/a'
+  fi
+}
+
 read_container_uptime() {
   if [ -r /proc/uptime ] && [ -r /proc/1/stat ]; then
     awk -v hz="$(getconf CLK_TCK 2>/dev/null || printf 100)" '
@@ -175,6 +183,12 @@ read_git_state() {
   fi
 }
 
+read_git_branch() {
+  if git -C /workspace rev-parse --is-inside-work-tree >/dev/null 2>&1; then
+    git -C /workspace branch --show-current 2>/dev/null | sed -n '1p' || true
+  fi
+}
+
 count_migrations() {
   local count=0
   local dir file
@@ -195,6 +209,7 @@ read_status_values() {
   status_memory_high="$(read_memory_event high)"
   status_memory_max_events="$(read_memory_event max)"
   status_cpu_throttling="$(read_cpu_throttling)"
+  status_load_average="$(read_load_average)"
   status_processes="$(count_processes)"
   status_ai_agents="$(count_ai_agents)"
   status_processkit_mcp="$(count_processkit_mcp_python)"
@@ -204,24 +219,30 @@ read_status_values() {
 }
 
 read_project_values() {
+  status_git_branch="$(read_git_branch)"
+  if [ -z "$status_git_branch" ]; then
+    status_git_branch="detached"
+  fi
   status_git_state="$(read_git_state)"
   status_migrations="$(count_migrations)"
 }
 
 print_status_plain() {
-  printf 'MEM %s/%s oom%s hi%s max%s | CPU thr%s | PROC %s ai%s pk:%s/%s | FS %s | UP %s | PROJ git:%s mig%s' \
+  printf 'MEM %s/%s oom%s hi%s max%s | CPU thr%s load%s | PROC %s ai%s pk:%s/%s | FS %s | UP %s | PROJ git:%s:%s mig%s' \
     "$status_memory_current" \
     "$status_memory_max" \
     "$status_oom_kill" \
     "$status_memory_high" \
     "$status_memory_max_events" \
     "$status_cpu_throttling" \
+    "$status_load_average" \
     "$status_processes" \
     "$status_ai_agents" \
     "$status_processkit_mode" \
     "$status_processkit_mcp" \
     "$status_disk_available" \
     "$status_container_uptime" \
+    "$status_git_branch" \
     "$status_git_state" \
     "$status_migrations"
 }
@@ -232,19 +253,21 @@ print_status_styled() {
     return
   fi
 
-  printf '\033[7m AIBOX \033[27m \033[2m MEM \033[22m\033[1m%s\033[22m/%s oom\033[1m%s\033[22m hi\033[1m%s\033[22m max\033[1m%s\033[22m  \033[2m CPU \033[22mthr\033[1m%s\033[22m  \033[2m PROC \033[22m\033[1m%s\033[22m ai\033[1m%s\033[22m pk:\033[1m%s/%s\033[22m  \033[2m FS \033[22m\033[1m%s\033[22m  \033[2m UP \033[22m\033[1m%s\033[22m  \033[2m PROJ \033[22mgit:\033[1m%s\033[22m mig\033[1m%s\033[22m' \
+  printf '\033[7m AIBOX \033[27m \033[2m MEM \033[22m\033[1m%s\033[22m/%s OOM \033[1m%s\033[22m high \033[1m%s\033[22m max \033[1m%s\033[22m  \033[2m CPU \033[22mthrottle \033[1m%s\033[22m load \033[1m%s\033[22m  \033[2m PROC \033[22mtotal \033[1m%s\033[22m AI \033[1m%s\033[22m  \033[2m MCP \033[22m\033[1m%s %s\033[22m  \033[2m FS \033[22mfree \033[1m%s\033[22m  \033[2m UP \033[22m\033[1m%s\033[22m  \033[2m GIT \033[22m\033[1m%s:%s\033[22m  \033[2m MIG \033[22mopen \033[1m%s\033[22m' \
     "$status_memory_current" \
     "$status_memory_max" \
     "$status_oom_kill" \
     "$status_memory_high" \
     "$status_memory_max_events" \
     "$status_cpu_throttling" \
+    "$status_load_average" \
     "$status_processes" \
     "$status_ai_agents" \
     "$status_processkit_mode" \
     "$status_processkit_mcp" \
     "$status_disk_available" \
     "$status_container_uptime" \
+    "$status_git_branch" \
     "$status_git_state" \
     "$status_migrations"
 }
@@ -276,12 +299,14 @@ print_status_json() {
   printf '"memory_high":%s,' "$(json_string "$status_memory_high")"
   printf '"memory_max_events":%s,' "$(json_string "$status_memory_max_events")"
   printf '"cpu_throttling":%s,' "$(json_string "$status_cpu_throttling")"
+  printf '"load_average":%s,' "$(json_string "$status_load_average")"
   printf '"processes":%s,' "$(json_string "$status_processes")"
   printf '"ai_agents":%s,' "$(json_string "$status_ai_agents")"
   printf '"processkit_mode":%s,' "$(json_string "$status_processkit_mode")"
   printf '"processkit_mcp":%s,' "$(json_string "$status_processkit_mcp")"
   printf '"disk_available":%s,' "$(json_string "$status_disk_available")"
   printf '"container_uptime":%s,' "$(json_string "$status_container_uptime")"
+  printf '"git_branch":%s,' "$(json_string "$status_git_branch")"
   printf '"git_state":%s,' "$(json_string "$status_git_state")"
   printf '"migrations":%s,' "$(json_string "$status_migrations")"
   printf '"plain":%s' "$(json_string "$plain_line")"
@@ -295,6 +320,7 @@ elif [ "${1:-}" = "--watch" ]; then
   interval="${AIBOX_STATUS_INTERVAL:-5}"
   project_interval="${AIBOX_STATUS_PROJECT_INTERVAL:-60}"
   project_refresh_after="$(($(date +%s) + project_interval))"
+  status_git_branch="..."
   status_git_state="..."
   status_migrations="..."
   previous_width=0

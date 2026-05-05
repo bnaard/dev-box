@@ -93,6 +93,7 @@ impl ZellijPlugin for AiboxStatusPlugin {
         }
         subscribe(&[
             EventType::ModeUpdate,
+            EventType::InitialKeybinds,
             EventType::Timer,
             EventType::RunCommandResult,
             EventType::Visible,
@@ -108,6 +109,21 @@ impl ZellijPlugin for AiboxStatusPlugin {
         match event {
             Event::ModeUpdate(mode_info) => {
                 self.state.mode = format!("{:?}", mode_info.mode);
+                self.state.active_keys = mode_info
+                    .get_mode_keybinds()
+                    .into_iter()
+                    .map(|(key, _)| key.to_string())
+                    .collect();
+                true
+            }
+            Event::InitialKeybinds(keybinds) => {
+                if self.state.active_keys.is_empty() {
+                    self.state.active_keys = keybinds
+                        .iter()
+                        .find(|(mode, _)| format!("{:?}", mode) == self.state.mode)
+                        .map(|(_, binds)| binds.iter().map(|(key, _)| key.to_string()).collect())
+                        .unwrap_or_default();
+                }
                 true
             }
             Event::Timer(_) => {
