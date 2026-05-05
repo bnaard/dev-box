@@ -1,5 +1,5 @@
 [aibox]
-cli_version = "0.23.15"
+cli_version = "0.23.16"
 synced_at = "2026-05-05T16:03:00.906059349+00:00"
 
 [processkit]
@@ -11,7 +11,7 @@ installed_at = "2026-05-05T16:03:00.906059349+00:00"
 processkit_install_hash = "a136b8826582297ce0e710943b8abd93d18ec429dd4e5258399918653d346215"
 
 [runtime_home]
-generated_at = "2026-05-05T17:40:24.674781429+00:00"
+generated_at = "2026-05-05T20:53:04.922416+00:00"
 
 [runtime_home.files]
 ".asoundrc" = "f34609b11d315cd613cb5333b561032baec860faf4a7eccb28b5567ae72019af"
@@ -30,14 +30,14 @@ generated_at = "2026-05-05T17:40:24.674781429+00:00"
 ".config/yazi/theme.toml" = "82d0070c9646fdcac225c912e68f6825b2854b77a7bdd86e29f1169bafff0c68"
 ".config/yazi/yazi.toml" = "055d833513af4ac24f0c71086294408705c2ef55d17a8cd750fdeab49ff97909"
 ".config/zellij/config.kdl" = "46531dd9c0d60a851e3f2c521acdec7258f55f9600c485abbbe2f1cdc67dbb83"
-".config/zellij/layouts/ai.kdl" = "0fe9bee0fd0f08f56539ea9ecdab80ade35f47bebfdd0280ccdc2dd02842fda5"
+".config/zellij/layouts/ai.kdl" = "d140cc5a5a2e896fc48b5aeb62d5a81df43cfb15ef9d4cfebccea67fc45d720b"
 ".config/zellij/layouts/aibox-status-hidden.kdl" = "0c7bf89f03dab22ff082b0986762adf6fdda761e5ebf54023f7d74dac8b8fe81"
 ".config/zellij/layouts/aibox-status-visible.kdl" = "bedba9c0ab2ba856957613b75ffffd5120b44b2a2481bc7e26af9d85c6d9b54f"
-".config/zellij/layouts/browse.kdl" = "ca7215de6092a6bcbc26a3435cc02c82f9ff1b3c256bdbbce6a36c415b09e959"
-".config/zellij/layouts/cowork-swap.kdl" = "7763ebf0d1e7b0c14b0a2bc00dae39bb23941d53af8b152f1051a664fedcc01b"
-".config/zellij/layouts/cowork.kdl" = "5b5a985aabaa1aa7aaff151ebffdeb28f65da6cb51a9a729a8679f54110be831"
-".config/zellij/layouts/dev.kdl" = "f2506735cf95dc60961a49b2d4665d4eb6fe8027202d7ca834c5e9310eabba5e"
-".config/zellij/layouts/focus.kdl" = "f4db1958a7c2bd2159bfabb185cb3fb3e70980aade7796be1150d78c05f7cfb0"
+".config/zellij/layouts/browse.kdl" = "b0e69f792404deadfd1d666f86e640cf3beada20dcf463c2995d50295e66da82"
+".config/zellij/layouts/cowork-swap.kdl" = "898ba287df4a62c30f69b2985208c8d64f297bedbaa2670f8cf449ed98c64b04"
+".config/zellij/layouts/cowork.kdl" = "0fa73bd34dde1a7dc5c833a9d60c0fd1cc36b1548c1e024e96be30eb2cf6ccbf"
+".config/zellij/layouts/dev.kdl" = "6623918d75a58f66a13af4cbf10c86ccbafbdde6b7d2b79add6fe027bd9030ca"
+".config/zellij/layouts/focus.kdl" = "bd78f820395aa36956dd3f0e10385763751e442e8e4632b8b62dacb977144f52"
 ".config/zellij/themes/nord.kdl" = "a73d59ea56c3673383353165bb4ac5e29db8597da642d0bca1da4d64c77de9fd"
 ".local/bin/aibox-status" = "df9caf93c719d2e194db04dd1f893e60f591af255426e319117027f5757e0acd"
 ".local/bin/aibox-status-toggle" = "3ed68b3529fc44df364e84249ca9bfac64b515b787daeb9f3c69887d6d097bf2"
