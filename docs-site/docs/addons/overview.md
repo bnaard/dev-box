@@ -33,7 +33,7 @@ aibox describe addon-catalog -o json
 ```toml
 [addons.python.tools]
 python = { version = "3.13" }
-uv = { version = "0.7" }
+uv = { version = "0.11.10" }
 
 [addons.rust.tools]
 rustc = { version = "1.87" }
@@ -61,7 +61,7 @@ After editing `aibox.toml`, run `aibox apply` to regenerate the Dockerfile and r
 
 | Addon | Default Tools | Optional Tools |
 |-------|--------------|----------------|
-| `python` | python (3.12/3.13/3.14), uv (0.6/0.7) | poetry, pdm |
+| `python` | python (3.12/3.13/3.14), uv (0.7/0.11.10) | poetry, pdm |
 | `rust` | rustc (1.85/1.87), clippy, rustfmt | — |
 | `node` | node (20/22), pnpm (9/10) | yarn, bun |
 | `go` | go (1.25/1.26) | — |
@@ -178,7 +178,7 @@ Recipe version: 1.0.0
 
   TOOL      DEFAULT    VERSION  SUPPORTED
   python        yes       3.13  3.12, 3.13, 3.14
-  uv            yes        0.7  0.6, 0.7
+  uv            yes    0.11.10  0.7, 0.11.10
   poetry         no        2.0  1.8, 2.0
   pdm            no       2.22  2.22
 ```

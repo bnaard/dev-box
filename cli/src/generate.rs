@@ -1348,14 +1348,13 @@ mod tests {
         config.resolve_ai_provider_addons();
         generate_dockerfile(&config, dir.path(), &test_env()).unwrap();
         let content = fs::read_to_string(dir.path().join("Dockerfile")).unwrap();
-        // Claude is installed via native installer (npm is deprecated)
         assert!(
-            content.contains("claude.ai/install.sh"),
-            "should install Claude via native installer"
+            content.contains("downloads.claude.ai/claude-code/apt"),
+            "should install Claude from Anthropic's apt repository"
         );
         assert!(
-            content.contains("install -m 0755 \"$claude_bin\" /usr/local/bin/claude"),
-            "native Claude install should be copied to the stable terminal profile path"
+            content.contains("install -m 0755 \"$claude_real\" /usr/local/bin/claude"),
+            "Claude install should copy the resolved binary to the stable terminal profile path"
         );
         assert!(!content.contains("aider"), "should not install aider");
         assert!(!content.contains("gemini"), "should not install gemini");

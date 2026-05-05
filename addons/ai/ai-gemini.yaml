@@ -18,4 +18,8 @@ builder: null
 runtime: |
   # Addon: ai-gemini
   # Official Google Gemini CLI: https://github.com/google-gemini/gemini-cli
+  {% if tools.gemini.version %}
+  RUN npm install -g @google/gemini-cli@{{ tools.gemini.version }}
+  {% else %}
   RUN npm install -g @google/gemini-cli
+  {% endif %}

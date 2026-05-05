@@ -17,4 +17,8 @@ builder: null
 
 runtime: |
   # Addon: ai-aider
+  {% if tools.aider.version %}
+  RUN uv tool install aider-chat=={{ tools.aider.version }}
+  {% else %}
   RUN uv tool install aider-chat
+  {% endif %}

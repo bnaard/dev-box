@@ -426,7 +426,7 @@ pnpm = { version = "10" } # default on; options: {}, { enabled = true|false }, {
 # Languages/python — Python runtime with uv, poetry, or pdm
 [addons.python.tools]
 python = { version = "3.13" } # default on; options: {}, { enabled = true|false }, { version = "3.12" | "3.13" (default) | "3.14" or "latest" }
-uv = { version = "0.7" } # default on; options: {}, { enabled = true|false }, { version = "0.6" | "0.7" (default) or "latest" }
+uv = { version = "0.11.10" } # default on; options: {}, { enabled = true|false }, { version = "0.7" | "0.11.10" (default) or "latest" }
 # pip = { enabled = true } # default off; options: {}, { enabled = true|false }, { version = "x.y.z" or "latest" }
 # poetry = { enabled = true } # default off; options: {}, { enabled = true|false }, { version = "1.8" | "2.0" (default) or "latest" }
 # pdm = { enabled = true } # default off; options: {}, { enabled = true|false }, { version = "2.22" (default) or "latest" }

@@ -300,6 +300,11 @@ pub static COMPAT_TABLE: &[CompatEntry] = &[
         processkit_version: "v0.25.8",
         note: "Patch release: moves Claude processkit command shims to Claude Code's current Skills layout, cleans legacy managed .claude/commands files, fixes the native Zellij key-hint row render trigger, keeps Vim editor panes hot so Yazi edit handoff reaches Vim instead of bash, and adds a pre-release dependency/harness state report.",
     },
+    CompatEntry {
+        aibox_version: "0.23.17",
+        processkit_version: "v0.25.8",
+        note: "Patch release: installs Claude Code from Anthropic's signed apt repository with a stable /usr/local/bin/claude path, makes the native Zellij status/key-hint plugin the generated default, starts shell and lazygit tabs hot across layouts, bumps Zellij/Yazi/uv/Cargo dependencies, and improves release-state dependency and harness reporting with harness version-pin support.",
+    },
 ];
 
 /// Find the minimum compatible processkit version for the given aibox version.

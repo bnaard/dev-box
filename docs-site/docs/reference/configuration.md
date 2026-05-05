@@ -61,7 +61,7 @@ schema_version = "1.0.0"              # Context schema version (semver)
 
 [addons.python.tools]                 # Addon: Python runtime
 python = { version = "3.13" }
-uv     = { version = "0.7" }
+uv     = { version = "0.11.10" }
 
 [addons.rust.tools]                   # Addon: Rust toolchain
 rustc   = { version = "1.87" }
@@ -106,7 +106,7 @@ prompt = "default"                    # Starship preset (7 options)
 layout = "dev"                        # Zellij layout (6 options)
 
 [customization.zellij_status]
-mode = "shell"                        # shell | native | hidden
+mode = "native"                       # native | shell | hidden
 
 [audio]
 enabled      = false                  # Enable audio bridging
@@ -242,7 +242,7 @@ to install their CLIs.
 ```toml
 [addons.python.tools]
 python = { version = "3.13" }
-uv = { version = "0.7" }
+uv = { version = "0.11.10" }
 ```
 
 For interactive Git tooling:
@@ -501,7 +501,7 @@ Visual and layout configuration. See [Themes](../customization/themes.md) and [L
 | `mode` | String | No | `"auto"` | Global theme mode overlay: `auto`, `light`, `dark`. `auto` preserves the selected concrete theme. |
 | `prompt` | String | No | `"default"` | Starship preset: `default`, `plain`, `arrow`, `minimal`, `nerd-font`, `pastel`, `bracketed` |
 | `layout` | String | No | `"dev"` | Zellij layout: `dev`, `focus`, `cowork`, `cowork-swap`, `browse`, `ai` |
-| `zellij_status.mode` | String | No | `"shell"` | Zellij status presentation: `shell` uses Zellij's built-in status bar plus `aibox-status --watch`, `native` selects the experimental two-row WASM plugin, `hidden` omits aibox status rows |
+| `zellij_status.mode` | String | No | `"native"` | Zellij status presentation: `native` selects the two-row aibox WASM keybar/status plugin, `shell` uses Zellij's built-in status bar plus `aibox-status --watch`, `hidden` omits aibox status rows |
 
 ### [audio]
 

@@ -22,4 +22,8 @@ runtime: |
   # programmatically. For an interactive coding CLI use ai-claude, ai-gemini,
   # ai-codex, or ai-copilot instead. This will be updated if a Mistral
   # interactive CLI ships (Le Chat CLI is in development as of 2026-04).
+  {% if tools.mistral.version %}
+  RUN pip install --no-cache-dir mistralai=={{ tools.mistral.version }}
+  {% else %}
   RUN pip install --no-cache-dir mistralai
+  {% endif %}

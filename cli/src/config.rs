@@ -771,7 +771,7 @@ pub struct AddonToolsSection {
 /// ```toml
 /// [addons.python.tools]
 /// python = { version = "3.13" }
-/// uv = { version = "0.7" }
+/// uv = { version = "0.11.10" }
 /// ```
 ///
 /// Deserialized as `HashMap<String, AddonToolsSection>` where the outer key
@@ -1006,9 +1006,9 @@ fn default_layout() -> ConfigLayout {
 #[clap(rename_all = "kebab-case")]
 pub enum ZellijStatusMode {
     /// Native aibox key-hint plugin plus native aibox runtime status plugin.
+    #[default]
     Native,
     /// Legacy shell fallback: built-in Zellij status bar plus `aibox-status --watch`.
-    #[default]
     Shell,
     /// Hide aibox-provided status rows from generated layouts.
     Hidden,
@@ -2981,7 +2981,7 @@ prompt = "minimal"
         assert_eq!(config.customization.prompt, StarshipPreset::Minimal);
         assert_eq!(
             config.customization.zellij_status.mode,
-            ZellijStatusMode::Shell
+            ZellijStatusMode::Native
         );
     }
 

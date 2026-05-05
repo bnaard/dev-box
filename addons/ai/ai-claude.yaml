@@ -17,25 +17,21 @@ builder: null
 
 runtime: |
   # Addon: ai-claude
-  # Install Claude Code CLI via the native installer (recommended by Anthropic).
-  # npm installation is deprecated — the native installer is faster, requires
-  # no Node dependency, and supports version pinning via: bash -s <version>.
-  # To pin a version: set [ai.harness.claude] version in aibox.toml
-  # Ref: https://code.claude.com/docs/en/setup#install-a-specific-version
-  USER aibox
-  {% if tools.claude.version %}
-  RUN curl -fsSL https://claude.ai/install.sh | bash -s {{ tools.claude.version }}
-  {% else %}
-  RUN curl -fsSL https://claude.ai/install.sh | bash
-  {% endif %}
-  USER root
+  # Install Claude Code CLI from Anthropic's signed Debian repository.
+  # The native home-directory installer writes to ~/.local/bin and ~/.claude;
+  # both are runtime mounts in aibox projects, so a system package is more
+  # stable for containers and avoids stale home-owned symlinks.
+  # Ref: https://code.claude.com/docs/en/setup#install-with-linux-package-managers
   RUN set -eux; \
-      claude_bin=""; \
-      for candidate in \
-        /home/aibox/.local/bin/claude \
-        /home/aibox/.claude/local/claude \
-        /home/aibox/.claude/local/bin/claude; do \
-        if [ -x "$candidate" ]; then claude_bin="$candidate"; break; fi; \
-      done; \
-      test -n "$claude_bin"; \
-      install -m 0755 "$claude_bin" /usr/local/bin/claude
+      install -d -m 0755 /etc/apt/keyrings; \
+      curl -fsSL https://downloads.claude.ai/keys/claude-code.asc \
+        -o /etc/apt/keyrings/claude-code.asc; \
+      echo "deb [signed-by=/etc/apt/keyrings/claude-code.asc] https://downloads.claude.ai/claude-code/apt/{% if tools.claude.version == "stable" %}stable stable{% else %}latest latest{% endif %} main" \
+        > /etc/apt/sources.list.d/claude-code.list; \
+      apt-get update; \
+      apt-get install -y --no-install-recommends {% if tools.claude.version and tools.claude.version != "latest" and tools.claude.version != "stable" %}claude-code={{ tools.claude.version }}{% else %}claude-code{% endif %}; \
+      rm -rf /var/lib/apt/lists/*; \
+      claude_path="$(command -v claude)"; \
+      claude_real="$(readlink -f "$claude_path")"; \
+      install -m 0755 "$claude_real" /usr/local/bin/claude; \
+      /usr/local/bin/claude --version

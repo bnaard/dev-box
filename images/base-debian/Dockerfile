@@ -12,7 +12,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 
 # ── Zellij ───────────────────────────────────────────────────────────────────
 FROM fetch-base AS fetch-zellij
-ARG ZELLIJ_VERSION=0.44.1
+ARG ZELLIJ_VERSION=0.44.2
 RUN ARCH=$(uname -m) && \
     curl -fsSL \
       "https://github.com/zellij-org/zellij/releases/download/v${ZELLIJ_VERSION}/zellij-${ARCH}-unknown-linux-musl.tar.gz" \
@@ -39,7 +39,7 @@ RUN cargo build --release --target wasm32-wasip1 --features zellij
 
 # ── Yazi ─────────────────────────────────────────────────────────────────────
 FROM fetch-base AS fetch-yazi
-ARG YAZI_VERSION=26.1.22
+ARG YAZI_VERSION=26.5.6
 RUN ARCH=$(uname -m) && \
     curl -fsSL \
       "https://github.com/sxyazi/yazi/releases/download/v${YAZI_VERSION}/yazi-${ARCH}-unknown-linux-musl.zip" \
@@ -257,7 +257,7 @@ COPY --from=fetch-starship /usr/local/bin/starship /usr/local/bin/
 # image since v0.16.5 (DEC-036) so processkit's PEP 723 MCP server
 # scripts run via `uv run` out of the box. Works against the
 # externally-installed python3 from apt above.
-COPY --from=ghcr.io/astral-sh/uv:latest /uv /uvx /usr/local/bin/
+COPY --from=ghcr.io/astral-sh/uv:0.11.10 /uv /uvx /usr/local/bin/
 
 # ── Bake default configs into the image ───────────────────────────────────────
 # These act as fallback defaults when no host directory is mounted.
@@ -338,7 +338,7 @@ COPY --chmod=755 config/entrypoint.sh /usr/local/bin/entrypoint.sh
 # Keep user-local bin on PATH as a convenience for ad-hoc installs, but do not
 # rely on it for scaffolded tools.
 ENV UV_TOOL_BIN_DIR="/usr/local/bin" \
-    PATH="/home/aibox/.local/bin:${PATH}"
+    PATH="${PATH}:/home/aibox/.local/bin"
 
 # ── Entrypoint ────────────────────────────────────────────────────────────────
 # Root so the entrypoint can remap UID/GID if needed before dropping to aibox

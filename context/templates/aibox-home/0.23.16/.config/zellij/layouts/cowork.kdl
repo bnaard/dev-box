@@ -40,7 +40,6 @@ layout {
         pane name="bash" {
             command "bash"
             cwd "/workspace"
-            start_suspended true
         }
     }
 }

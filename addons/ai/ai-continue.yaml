@@ -22,5 +22,9 @@ runtime: |
   # Provider-agnostic (Anthropic, OpenAI, Gemini, Ollama, …), headless-native.
   # Headless mode: cn -p "prompt" | Auth: per-provider API key via CONTINUE_API_KEY
   USER aibox
+  {% if tools.cn.version %}
+  RUN npm install -g @continuedev/cli@{{ tools.cn.version }}
+  {% else %}
   RUN npm install -g @continuedev/cli
+  {% endif %}
   USER root

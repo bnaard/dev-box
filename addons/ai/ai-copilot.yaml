@@ -21,5 +21,9 @@ runtime: |
   # npm package: @github/copilot | Binary: copilot | Config: ~/.copilot/
   # Requires a GitHub Copilot subscription. First-launch auth: copilot /login
   USER aibox
+  {% if tools.copilot.version %}
+  RUN npm install -g @github/copilot@{{ tools.copilot.version }}
+  {% else %}
   RUN npm install -g @github/copilot
+  {% endif %}
   USER root

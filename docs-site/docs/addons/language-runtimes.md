@@ -12,12 +12,12 @@ Language runtimes install compilers, interpreters, and package managers into you
 ```toml
 [addons.python.tools]
 python = { version = "3.13" }   # 3.12, 3.13, 3.14
-uv = { version = "0.7" }        # 0.6, 0.7
+uv = { version = "0.11.10" }    # 0.7, 0.11.10
 # poetry = { version = "2.0" }  # Optional: 1.8, 2.0
 # pdm = { version = "2.22" }    # Optional
 ```
 
-Installs Python, pip, venv, and [uv](https://github.com/astral-sh/uv) (fast package manager). Poetry and PDM are available but not enabled by default.
+Installs Python, pip, venv, and [uv](https://github.com/astral-sh/uv) (fast package manager). The base image pins uv to the curated default instead of following a floating `latest` image tag. Poetry and PDM are available but not enabled by default.
 
 ## Rust
 

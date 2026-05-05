@@ -336,7 +336,6 @@ fn git_tab_kdl(include_lazygit: bool) -> &'static str {
         pane name="lazygit" {
             command "lazygit"
             cwd "/workspace"
-            start_suspended true
         }
     }"#
     } else {
@@ -449,7 +448,6 @@ fn generate_dev_layout_with_options(
         pane name="bash" {{
             command "bash"
             cwd "/workspace"
-            start_suspended true
         }}
     }}
 }}
@@ -498,7 +496,6 @@ fn generate_focus_layout_with_options(
         pane name="bash" {{
             command "bash"
             cwd "/workspace"
-            start_suspended true
         }}
     }}
 }}
@@ -550,7 +547,6 @@ fn generate_cowork_layout_with_options(
         pane name="bash" {
             command "bash"
             cwd "/workspace"
-            start_suspended true
         }
     }
 }
@@ -587,7 +583,6 @@ fn generate_cowork_layout_with_options(
         pane name="bash" {{
             command "bash"
             cwd "/workspace"
-            start_suspended true
         }}
     }}
 }}
@@ -661,7 +656,6 @@ fn generate_cowork_swap_layout_with_options(
         pane name="bash" {
             command "bash"
             cwd "/workspace"
-            start_suspended true
         }
     }
 }
@@ -696,7 +690,6 @@ fn generate_cowork_swap_layout_with_options(
         pane name="bash" {{
             command "bash"
             cwd "/workspace"
-            start_suspended true
         }}
     }}
 }}
@@ -757,7 +750,6 @@ fn generate_ai_layout_with_options(
         pane name="bash" {
             command "bash"
             cwd "/workspace"
-            start_suspended true
         }
     }
 }
@@ -793,7 +785,6 @@ fn generate_ai_layout_with_options(
         pane name="bash" {{
             command "bash"
             cwd "/workspace"
-            start_suspended true
         }}
     }}
 }}
@@ -852,7 +843,6 @@ fn generate_browse_layout_with_options(
         pane name="bash" {
             command "bash"
             cwd "/workspace"
-            start_suspended true
         }
     }
 }
@@ -888,7 +878,6 @@ fn generate_browse_layout_with_options(
         pane name="bash" {{
             command "bash"
             cwd "/workspace"
-            start_suspended true
         }}
     }}
 }}
@@ -2646,8 +2635,8 @@ mod tests {
             "multiple providers should use separate tabs"
         );
         assert!(
-            occurrences(&layout, "start_suspended true") >= 4,
-            "git, shell, and AI tabs should start suspended"
+            occurrences(&layout, "start_suspended true") >= 1,
+            "secondary AI tabs should start suspended"
         );
     }
 
@@ -3263,13 +3252,14 @@ mod tests {
     }
 
     #[test]
-    fn zellij_layout_suspends_non_focused_dev_commands() {
+    fn zellij_layout_starts_interactive_tool_tabs() {
         let layout = generate_dev_layout(&[]);
         assert!(
-            layout.contains("plugin location=\"zellij:status-bar\"")
-                && layout.contains("aibox-status")
-                && !layout.contains("aibox-status.wasm"),
-            "default layouts should use the shell-backed status rows until the native Zellij plugin is proven in visual E2E"
+            layout.contains("aibox-status.wasm")
+                && layout.contains("role \"keys\"")
+                && layout.contains("role \"status\"")
+                && !layout.contains("zellij:status-bar"),
+            "default layouts should use the native aibox keybar and runtime status rows"
         );
         assert!(
             layout.contains(
@@ -3284,14 +3274,22 @@ mod tests {
             "editor pane should start immediately so yazi can send :edit to vim"
         );
         assert!(
-            layout.contains("command \"lazygit\"\n            cwd \"/workspace\"\n            start_suspended true"),
-            "git tab should start suspended"
+            layout.contains("command \"lazygit\"\n            cwd \"/workspace\""),
+            "git tab should start lazygit immediately"
         );
         assert!(
-            layout.contains(
+            layout.contains("command \"bash\"\n            cwd \"/workspace\""),
+            "shell tab should start bash immediately"
+        );
+        assert!(
+            !layout.contains("command \"lazygit\"\n            cwd \"/workspace\"\n            start_suspended true"),
+            "git tab must not start suspended"
+        );
+        assert!(
+            !layout.contains(
                 "command \"bash\"\n            cwd \"/workspace\"\n            start_suspended true"
             ),
-            "shell tab should start suspended"
+            "shell tab must not start suspended"
         );
     }
 

@@ -117,11 +117,60 @@ with urllib.request.urlopen(url, timeout=12) as response:
 PY
 }
 
+node_major_latest() {
+  local major="$1"
+  if ! command -v python3 >/dev/null 2>&1; then
+    return 1
+  fi
+  python3 - "$major" <<'PY'
+import json
+import sys
+import urllib.request
+
+major = sys.argv[1]
+with urllib.request.urlopen("https://nodejs.org/dist/index.json", timeout=12) as response:
+    releases = json.load(response)
+for release in releases:
+    version = release.get("version", "")
+    if version.startswith(f"v{major}."):
+        print(version)
+        break
+else:
+    raise SystemExit(1)
+PY
+}
+
+claude_apt_latest() {
+  local channel="${1:-latest}"
+  if ! command -v python3 >/dev/null 2>&1; then
+    return 1
+  fi
+  python3 - "$channel" <<'PY'
+import re
+import sys
+import urllib.request
+
+channel = sys.argv[1]
+url = f"https://downloads.claude.ai/claude-code/apt/{channel}/dists/{channel}/main/binary-amd64/Packages"
+with urllib.request.urlopen(url, timeout=12) as response:
+    body = response.read().decode("utf-8", "replace")
+versions = re.findall(r"^Version:\s*([^\s]+)", body, flags=re.MULTILINE)
+if not versions:
+    raise SystemExit(1)
+
+def key(version: str):
+    upstream = version.split("-", 1)[0]
+    return tuple(int(part) for part in upstream.split("."))
+
+print(max(versions, key=key))
+PY
+}
+
 check_unpinned_package() {
   local label="$1" ecosystem="$2" package="$3"
   local latest status
   latest=""
-  status="unpinned in addon"
+  status="latest by default; version pin supported"
   case "${ecosystem}" in
     npm) latest="$(npm_latest "${package}" || true)" ;;
     pypi) latest="$(pypi_latest "${package}" || true)" ;;
@@ -133,6 +182,18 @@ check_unpinned_package() {
   fi
   printf '| %s | %s | `%s` | `%s` | %s |\n' \
     "${label}" "${ecosystem}" "${package}" "${latest}" "${status}" >> "${REPORT}"
+}
+
+check_claude_package() {
+  local latest status
+  latest="$(claude_apt_latest latest || true)"
+  status="latest channel via signed apt repo; pin optional"
+  if [[ -z "${latest}" ]]; then
+    latest="lookup failed"
+    warnings_found=1
+  fi
+  printf '| %s | %s | `%s` | `%s` | %s |\n' \
+    "Claude Code" "apt" "claude-code" "${latest}" "${status}" >> "${REPORT}"
 }
 
 {
@@ -183,16 +244,25 @@ check_github_pin "starship" "${BASE_DOCKERFILE}" "STARSHIP_VERSION" "starship/st
 section "Unpinned Image Inputs"
 line "| Input | Current selector | Latest/Review target | Status |"
 line "|---|---|---|---|"
+uv_pin="0.11.10"
 uv_latest="$(github_latest_release astral-sh/uv || true)"
-line "| uv image | \`ghcr.io/astral-sh/uv:latest\` | \`${uv_latest:-lookup failed}\` | floating tag; review before release |"
-node_latest="$(github_latest_release nodejs/node || true)"
-line "| Node.js runtime | \`node_22.x\` / \`node:22-slim\` | \`${node_latest:-check Node.js release schedule}\` | floating major; review LTS/security status |"
+uv_status="current"
+if [[ -z "${uv_latest}" ]]; then
+  uv_status="latest lookup failed"
+  warnings_found=1
+elif version_gt "${uv_latest}" "${uv_pin}"; then
+  uv_status="update available"
+  mark_update
+fi
+line "| uv image | \`ghcr.io/astral-sh/uv:${uv_pin}\` | \`${uv_latest:-lookup failed}\` | pinned image tag; ${uv_status} |"
+node_latest="$(node_major_latest 22 || true)"
+line "| Node.js runtime | \`node_22.x\` / \`node:22-slim\` | \`${node_latest:-check Node.js 22 release stream}\` | floating major; review Node 22 LTS/security status |"
 line "| Debian base | \`debian:trixie-slim\` | Debian security tracker | floating distro tag; review base-image rebuild risk |"
 
 section "AI Harness Addons"
 line "| Harness | Ecosystem | Package/Installer | Latest | Status |"
 line "|---|---|---|---:|---|"
-check_unpinned_package "Claude Code" "manual" "https://claude.ai/install.sh"
+check_claude_package
 check_unpinned_package "Codex CLI" "npm" "@openai/codex"
 check_unpinned_package "Gemini CLI" "npm" "@google/gemini-cli"
 check_unpinned_package "Continue CLI" "npm" "@continuedev/cli"
@@ -201,7 +271,7 @@ check_unpinned_package "Aider" "pypi" "aider-chat"
 check_unpinned_package "OpenCode" "manual" "https://opencode.ai/install"
 check_unpinned_package "Mistral SDK" "pypi" "mistralai"
 line ""
-line "For unpinned harnesses, check upstream release notes and install-layout changes. If a harness changed project command, skill, config, auth, or binary paths, update aibox projection code and docs before release."
+line "For latest-by-default harnesses, check upstream release notes and install-layout changes. If a harness changed project command, skill, config, auth, or binary paths, update aibox projection code and docs before release."
 
 section "Rust Dependencies"
 line "### cargo audit"

@@ -187,6 +187,9 @@ mod tests {
         let py = addon.tools.iter().find(|t| t.name == "python").unwrap();
         assert!(py.supported_versions.contains(&"3.13"));
         assert_eq!(py.default_version, "3.13");
+        let uv = addon.tools.iter().find(|t| t.name == "uv").unwrap();
+        assert!(uv.supported_versions.contains(&"0.11.10"));
+        assert_eq!(uv.default_version, "0.11.10");
     }
 
     #[test]
@@ -239,7 +242,7 @@ mod tests {
     #[test]
     fn python_runtime_uses_base_python_uv_without_extra_layers() {
         ensure_loaded();
-        let tools = tc(&[("python", true, "3.13"), ("uv", true, "0.7")]);
+        let tools = tc(&[("python", true, "3.13"), ("uv", true, "0.11.10")]);
         let cmds = generate_runtime_commands("python", &tools);
         assert!(
             !cmds.contains("python3-pip"),
@@ -307,8 +310,8 @@ mod tests {
         let tools = tc(&[("claude", true, "")]);
         let cmds = generate_runtime_commands("ai-claude", &tools);
         assert!(
-            cmds.contains("claude.ai/install.sh"),
-            "should use native installer: {cmds}"
+            cmds.contains("downloads.claude.ai/claude-code/apt"),
+            "should use Anthropic apt repository: {cmds}"
         );
     }
 
@@ -318,8 +321,37 @@ mod tests {
         let tools = tc(&[("claude", true, "1.0.58")]);
         let cmds = generate_runtime_commands("ai-claude", &tools);
         assert!(
-            cmds.contains("bash -s 1.0.58"),
+            cmds.contains("claude-code=1.0.58"),
             "should pin version: {cmds}"
         );
+    }
+
+    #[test]
+    fn ai_npm_harnesses_pin_versions_when_set() {
+        ensure_loaded();
+        let codex = generate_runtime_commands("ai-codex", &tc(&[("codex", true, "0.128.0")]));
+        assert!(codex.contains("@openai/codex@0.128.0"), "{codex}");
+
+        let gemini = generate_runtime_commands("ai-gemini", &tc(&[("gemini", true, "0.41.0")]));
+        assert!(gemini.contains("@google/gemini-cli@0.41.0"), "{gemini}");
+
+        let continue_cli = generate_runtime_commands("ai-continue", &tc(&[("cn", true, "1.5.45")]));
+        assert!(
+            continue_cli.contains("@continuedev/cli@1.5.45"),
+            "{continue_cli}"
+        );
+
+        let copilot = generate_runtime_commands("ai-copilot", &tc(&[("copilot", true, "1.0.41")]));
+        assert!(copilot.contains("@github/copilot@1.0.41"), "{copilot}");
+    }
+
+    #[test]
+    fn ai_python_harnesses_pin_versions_when_set() {
+        ensure_loaded();
+        let aider = generate_runtime_commands("ai-aider", &tc(&[("aider", true, "0.86.2")]));
+        assert!(aider.contains("aider-chat==0.86.2"), "{aider}");
+
+        let mistral = generate_runtime_commands("ai-mistral", &tc(&[("mistral", true, "2.4.4")]));
+        assert!(mistral.contains("mistralai==2.4.4"), "{mistral}");
     }
 }

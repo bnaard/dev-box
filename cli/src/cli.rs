@@ -145,7 +145,7 @@ pub enum Commands {
         #[arg(long, value_enum)]
         prompt: Option<StarshipPreset>,
 
-        /// Zellij status presentation (default: shell)
+        /// Zellij status presentation (default: native)
         #[arg(long = "zellij-status", value_enum)]
         zellij_status: Option<ZellijStatusMode>,
 

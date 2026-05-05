@@ -14,7 +14,7 @@ base image builds it as a WASM plugin and installs the artifact at
 The Zellij adapter in `src/zellij_plugin.rs` targets:
 
 ```toml
-zellij-tile = "=0.44.1"
+zellij-tile = "=0.44.2"
 ```
 
 Build for the WASI target used by the pinned Zellij runtime:
