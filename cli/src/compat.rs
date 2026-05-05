@@ -305,6 +305,11 @@ pub static COMPAT_TABLE: &[CompatEntry] = &[
         processkit_version: "v0.25.8",
         note: "Patch release: installs Claude Code from Anthropic's signed apt repository with a stable /usr/local/bin/claude path, makes the native Zellij status/key-hint plugin the generated default, starts shell and lazygit tabs hot across layouts, bumps Zellij/Yazi/uv/Cargo dependencies, and improves release-state dependency and harness reporting with harness version-pin support.",
     },
+    CompatEntry {
+        aibox_version: "0.23.18",
+        processkit_version: "v0.25.8",
+        note: "Patch release: updates generated Yazi config and theme filetype rules for Yazi 26's url/mime matcher schema, provides writable XDG state mounts for lazygit and similar TUIs, and records follow-up backlog items for native Zellij plugin runtime diagnostics and host-phase runtime smoke tests.",
+    },
 ];
 
 /// Find the minimum compatible processkit version for the given aibox version.
