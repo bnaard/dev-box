@@ -5,6 +5,7 @@ use std::process::{Command, Stdio};
 
 use crate::config::{
     AiHarness, AiboxConfig, CONTAINER_WORKSPACE_DIR, McpGatewayMode, PROCESSKIT_VERSION_UNSET,
+    ZellijStatusMode,
 };
 use crate::output;
 use crate::processkit_vocab::{AGENTS_FILENAME, PROVENANCE_FILENAME};
@@ -135,6 +136,7 @@ pub fn cmd_doctor(config_path: &Option<String>) -> Result<()> {
 
     // 4. Check .devcontainer/ files
     check_devcontainer_files(&mut diag);
+    check_zellij_native_permission_projection(&config, &mut diag);
 
     // 5. Check context structure
     output::info(&format!(
@@ -1317,6 +1319,106 @@ fn yaml_sequence_contains_ci(value: Option<&serde_yaml::Value>, needle: &str) ->
         .unwrap_or(false)
 }
 
+fn check_zellij_native_permission_projection(config: &AiboxConfig, diag: &mut DiagResult) {
+    if config.customization.zellij_status.mode != ZellijStatusMode::Native {
+        return;
+    }
+
+    let root = config.host_root_dir();
+    for rel_path in [
+        ".cache/zellij/permissions.kdl",
+        ".cache/org/Zellij Contributors/Zellij/permissions.kdl",
+    ] {
+        let path = root.join(rel_path);
+        if !path.is_file() {
+            output::warn(&format!(
+                "zellij: native status mode is enabled but {}/{} is missing; run `aibox apply` to seed the plugin permission cache",
+                root.display(),
+                rel_path
+            ));
+            diag.warnings += 1;
+        }
+    }
+
+    let compose_path = Path::new(crate::config::COMPOSE_FILE);
+    let Ok(body) = std::fs::read_to_string(compose_path) else {
+        return;
+    };
+    let Ok(compose) = serde_yaml::from_str::<serde_yaml::Value>(&body) else {
+        output::warn(&format!(
+            "zellij: could not parse {} to verify native status permission cache mounts",
+            compose_path.display()
+        ));
+        diag.warnings += 1;
+        return;
+    };
+
+    let (current_cache, legacy_cache) =
+        compose_mounts_zellij_permission_cache(&compose, &config.container.name);
+    if !current_cache {
+        output::warn(
+            "zellij: native status mode is enabled but generated compose does not mount /home/aibox/.cache/zellij; run `aibox apply` with an up-to-date CLI and recreate the container",
+        );
+        diag.warnings += 1;
+    }
+    if !legacy_cache {
+        output::warn(
+            "zellij: native status mode is enabled but generated compose does not mount /home/aibox/.cache/org/Zellij Contributors/Zellij; run `aibox apply` with an up-to-date CLI and recreate the container",
+        );
+        diag.warnings += 1;
+    }
+}
+
+fn compose_mounts_zellij_permission_cache(
+    compose: &serde_yaml::Value,
+    service_name: &str,
+) -> (bool, bool) {
+    let mut current_cache = false;
+    let mut legacy_cache = false;
+    let Some(services) = compose.get("services").and_then(|value| value.as_mapping()) else {
+        return (current_cache, legacy_cache);
+    };
+
+    let mut candidates = std::collections::BTreeSet::new();
+    candidates.insert(service_name);
+    candidates.insert("aibox");
+
+    for candidate in candidates {
+        let Some(service) = services.get(serde_yaml::Value::String(candidate.to_string())) else {
+            continue;
+        };
+        let Some(volumes) = service.get("volumes").and_then(|value| value.as_sequence()) else {
+            continue;
+        };
+
+        for volume in volumes {
+            if volume_mounts_target(volume, "/home/aibox/.cache/zellij") {
+                current_cache = true;
+            }
+            if volume_mounts_target(volume, "/home/aibox/.cache/org/Zellij Contributors/Zellij") {
+                legacy_cache = true;
+            }
+        }
+    }
+
+    (current_cache, legacy_cache)
+}
+
+fn volume_mounts_target(volume: &serde_yaml::Value, target: &str) -> bool {
+    if let Some(spec) = volume.as_str() {
+        return spec
+            .split(':')
+            .nth(1)
+            .is_some_and(|mounted| mounted == target);
+    }
+
+    volume
+        .as_mapping()
+        .and_then(|mapping| mapping.get(serde_yaml::Value::String("target".to_string())))
+        .and_then(|target_value| target_value.as_str())
+        .is_some_and(|mounted| mounted == target)
+}
+
 /// Check that mount source directories exist for configured features.
 fn check_mount_sources(root: &Path, root_label: &str, config: &AiboxConfig, diag: &mut DiagResult) {
     // AI providers — check the .aibox-home/<provider>/ persistence dir
@@ -1685,6 +1787,43 @@ services:
         let posture = codex_compose_posture(&compose, "aibox", "compose.yml");
 
         assert!(!posture.init_true);
+    }
+
+    #[test]
+    fn zellij_permission_cache_mount_detection_accepts_current_and_legacy_paths() {
+        let compose: serde_yaml::Value = serde_yaml::from_str(
+            r#"
+services:
+  aibox:
+    volumes:
+      - ../.aibox-home/.cache/zellij:/home/aibox/.cache/zellij
+      - ../.aibox-home/.cache/org/Zellij Contributors/Zellij:/home/aibox/.cache/org/Zellij Contributors/Zellij
+"#,
+        )
+        .unwrap();
+
+        assert_eq!(
+            compose_mounts_zellij_permission_cache(&compose, "aibox"),
+            (true, true)
+        );
+    }
+
+    #[test]
+    fn zellij_permission_cache_mount_detection_catches_missing_paths() {
+        let compose: serde_yaml::Value = serde_yaml::from_str(
+            r#"
+services:
+  aibox:
+    volumes:
+      - ../.aibox-home/.config/zellij:/home/aibox/.config/zellij
+"#,
+        )
+        .unwrap();
+
+        assert_eq!(
+            compose_mounts_zellij_permission_cache(&compose, "aibox"),
+            (false, false)
+        );
     }
 
     #[test]

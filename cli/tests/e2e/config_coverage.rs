@@ -126,6 +126,23 @@ fn container_hostname_in_compose() {
     );
 }
 
+#[test]
+fn zellij_native_permission_cache_is_mounted() {
+    let dir = tempfile::tempdir().unwrap();
+    init_project(dir.path(), "zellij-permissions");
+    let compose = read_generated(dir.path(), ".devcontainer/docker-compose.yml");
+    assert!(
+        compose.contains(".cache/zellij:/home/aibox/.cache/zellij"),
+        "compose must mount Zellij's current permission cache so preseeded native plugin approvals are visible:\n{compose}"
+    );
+    assert!(
+        compose.contains(
+            ".cache/org/Zellij Contributors/Zellij:/home/aibox/.cache/org/Zellij Contributors/Zellij"
+        ),
+        "compose must mount Zellij's legacy permission cache path as well:\n{compose}"
+    );
+}
+
 // ─── AI Section Tests ────────────────────────────────────────────────────────
 
 #[test]

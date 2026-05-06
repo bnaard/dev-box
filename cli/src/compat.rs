@@ -323,7 +323,7 @@ pub static COMPAT_TABLE: &[CompatEntry] = &[
     CompatEntry {
         aibox_version: "0.23.21",
         processkit_version: "v0.25.8",
-        note: "Patch release: repairs generated Yazi git/status initialization for Yazi 26, preserves native Zellij plugin permission caches across runtime starts, installs the Yazi `ya` companion entrypoint in runtime images, and slims visual E2E release gates with per-case progress logging plus an opt-in exhaustive matrix.",
+        note: "Patch release: repairs generated Yazi git/status initialization for Yazi 26, preserves native Zellij plugin permission caches across runtime starts, adds doctor and E2E guardrails for native Zellij permission-cache projection drift, installs the Yazi `ya` companion entrypoint in runtime images, and slims visual E2E release gates with per-case progress logging plus an opt-in exhaustive matrix.",
     },
 ];
 
