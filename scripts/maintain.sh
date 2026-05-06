@@ -36,6 +36,7 @@ WORKSPACE_DIR="${WORKSPACE_DIR:-${PROJECT_ROOT}}"
 CLI_DIR="${PROJECT_ROOT}/cli"
 DIST_DIR="${PROJECT_ROOT}/dist"
 IMAGE_REGISTRY="ghcr.io/projectious-work/aibox"
+GITHUB_REPO="${AIBOX_GITHUB_REPO:-projectious-work/aibox}"
 
 # ── Read container name from docker-compose.yml ─────────────────────────────
 _init_names() {
@@ -734,6 +735,7 @@ cmd_release() {
   fi
 
   gh release create "${tag}" \
+    --repo "${GITHUB_REPO}" \
     --title "aibox ${tag}" \
     --notes-file "${notes_file}" \
     "${built_archives[@]}"
@@ -830,10 +832,11 @@ cmd_release_host() {
 
   # ── Step 2: Upload macOS binaries to existing GitHub release ──────────────
   info "Uploading macOS binaries to GitHub release ${tag}..."
-  if ! gh release view "${tag}" &>/dev/null; then
+  if ! gh release view "${tag}" --repo "${GITHUB_REPO}" &>/dev/null; then
     die "GitHub release ${tag} not found. Run 'release' in the container first."
   fi
   gh release upload "${tag}" "${DIST_DIR}"/aibox-v${version}-*-apple-darwin.tar.gz \
+    --repo "${GITHUB_REPO}" \
     || warn "Upload failed — binaries may already be attached"
   ok "macOS binaries uploaded to ${tag}"
 
