@@ -1,0 +1,8 @@
+"file:/usr/local/share/aibox/zellij/aibox-status.wasm" {
+    RunCommands
+    ReadApplicationState
+}
+"/usr/local/share/aibox/zellij/aibox-status.wasm" {
+    RunCommands
+    ReadApplicationState
+}
