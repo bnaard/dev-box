@@ -8,6 +8,9 @@ use serde_json::json;
 use serial_test::serial;
 use std::fs;
 use std::path::PathBuf;
+use std::sync::mpsc::{self, RecvTimeoutError};
+use std::thread;
+use std::time::{Duration, Instant};
 
 use super::runner::E2eRunner;
 
@@ -34,6 +37,47 @@ const HARNESSES: &[(&str, &str, &str)] = &[
     ("opencode", "opencode", "OPENCODE"),
     ("hermes", "hermes", "HERMES"),
 ];
+
+const DEFAULT_STATUS_THEME: &str = "projectious";
+const DEFAULT_STATUS_LAYOUT: &str = "dev";
+const DEFAULT_TAB_LAYOUTS: &[&str] = &["dev", "cowork-swap", "ai"];
+
+fn full_visual_matrix_enabled() -> bool {
+    matches!(
+        std::env::var("AIBOX_E2E_VISUAL_FULL_MATRIX")
+            .ok()
+            .as_deref(),
+        Some("1" | "true" | "yes" | "full")
+    )
+}
+
+fn status_matrix_layouts_for_theme(theme: &str) -> Vec<&'static str> {
+    if full_visual_matrix_enabled() {
+        return LAYOUTS.to_vec();
+    }
+
+    if theme == DEFAULT_STATUS_THEME {
+        LAYOUTS.to_vec()
+    } else {
+        vec![DEFAULT_STATUS_LAYOUT]
+    }
+}
+
+fn status_matrix_total_cases() -> usize {
+    if full_visual_matrix_enabled() {
+        THEMES.len() * LAYOUTS.len()
+    } else {
+        LAYOUTS.len() + THEMES.len() - 1
+    }
+}
+
+fn tab_matrix_layouts() -> &'static [&'static str] {
+    if full_visual_matrix_enabled() {
+        LAYOUTS
+    } else {
+        DEFAULT_TAB_LAYOUTS
+    }
+}
 
 fn rgb_hex(r: u8, g: u8, b: u8) -> String {
     format!("#{r:02X}{g:02X}{b:02X}")
@@ -102,6 +146,79 @@ fn assert_no_zellij_runtime_errors(logs: &str, label: &str) {
     }
 }
 
+fn assert_no_zellij_permission_prompt(recording: &str, label: &str) {
+    for bad in [
+        "This plugin asks permission",
+        "ReadApplicationState",
+        "RunCommands",
+        "Allow? (y/n)",
+    ] {
+        assert!(
+            !recording.contains(bad),
+            "{label}: native status plugin permission prompt leaked into the visual recording ({bad:?}):\n{recording}"
+        );
+    }
+}
+
+fn log_visual_progress(message: impl AsRef<str>) {
+    eprintln!("[visual-e2e] {}", message.as_ref());
+}
+
+struct VisualProgressStep {
+    label: String,
+    started_at: Instant,
+    stop: Option<mpsc::Sender<()>>,
+    handle: Option<thread::JoinHandle<()>>,
+}
+
+impl VisualProgressStep {
+    fn start(label: impl Into<String>) -> Self {
+        let label = label.into();
+        log_visual_progress(format!("start: {label}"));
+
+        let started_at = Instant::now();
+        let heartbeat_started_at = started_at;
+        let heartbeat_label = label.clone();
+        let (stop, stopped) = mpsc::channel();
+        let handle = thread::spawn(move || {
+            loop {
+                match stopped.recv_timeout(Duration::from_secs(15)) {
+                    Ok(()) | Err(RecvTimeoutError::Disconnected) => break,
+                    Err(RecvTimeoutError::Timeout) => {
+                        log_visual_progress(format!(
+                            "alive: {heartbeat_label} elapsed={}s",
+                            heartbeat_started_at.elapsed().as_secs()
+                        ));
+                    }
+                }
+            }
+        });
+
+        Self {
+            label,
+            started_at,
+            stop: Some(stop),
+            handle: Some(handle),
+        }
+    }
+}
+
+impl Drop for VisualProgressStep {
+    fn drop(&mut self) {
+        if let Some(stop) = self.stop.take() {
+            let _ = stop.send(());
+        }
+        if let Some(handle) = self.handle.take() {
+            let _ = handle.join();
+        }
+        log_visual_progress(format!(
+            "done: {} elapsed={}s",
+            self.label,
+            self.started_at.elapsed().as_secs()
+        ));
+    }
+}
+
 fn visual_artifact_dir() -> Option<PathBuf> {
     std::env::var_os("AIBOX_E2E_VISUAL_ARTIFACT_DIR")
         .filter(|value| !value.is_empty())
@@ -145,6 +262,10 @@ fn init_project(
     all_harnesses: bool,
     addons: &[&str],
 ) {
+    let _progress = VisualProgressStep::start(format!(
+        "init project={test_name} theme={theme} addons={}",
+        addons.join(",")
+    ));
     runner.cleanup(test_name);
 
     let mut args = vec![
@@ -190,6 +311,8 @@ fn init_project(
 }
 
 fn install_visual_fixtures(runner: &E2eRunner, test_name: &str) {
+    let _progress =
+        VisualProgressStep::start(format!("install visual fixtures project={test_name}"));
     let workspace = format!("/workspaces/{test_name}");
     runner.write_file(
         test_name,
@@ -357,6 +480,8 @@ fn record_generated_layout(
     layout: &str,
     seconds: u8,
 ) -> (String, String) {
+    let _progress =
+        VisualProgressStep::start(format!("record tabs project={test_name} layout={layout}"));
     let workspace = format!("/workspaces/{test_name}");
     let stem = format!("recording-{layout}");
     runner.exec(&format!(
@@ -440,7 +565,7 @@ true
     );
     runner.exec(&format!("chmod +x {workspace}/driver-{layout}.sh"));
     runner.exec(&format!(
-        "LC_ALL=C.UTF-8 LANG=C.UTF-8 asciinema rec --cols 160 --rows 45 --overwrite \
+        "LC_ALL=C.UTF-8 LANG=C.UTF-8 timeout --kill-after=2s 90s asciinema rec --cols 160 --rows 45 --overwrite \
          -c {workspace}/driver-{layout}.sh {workspace}/{stem}.cast 2>/dev/null; true"
     ));
     let logs = runner.exec("cat /tmp/zellij-*/zellij-log/zellij.log 2>/dev/null || true");
@@ -466,6 +591,8 @@ true
 }
 
 fn record_layout_status(runner: &E2eRunner, test_name: &str, layout: &str) -> (String, String) {
+    let _progress =
+        VisualProgressStep::start(format!("record status project={test_name} layout={layout}"));
     let workspace = format!("/workspaces/{test_name}");
     let stem = format!("recording-status-{layout}");
     runner.exec(&format!(
@@ -501,7 +628,7 @@ true
     );
     runner.exec(&format!("chmod +x {workspace}/driver-status-{layout}.sh"));
     runner.exec(&format!(
-        "LC_ALL=C.UTF-8 LANG=C.UTF-8 asciinema rec --cols 160 --rows 45 --overwrite \
+        "LC_ALL=C.UTF-8 LANG=C.UTF-8 timeout --kill-after=2s 30s asciinema rec --cols 160 --rows 45 --overwrite \
          -c {workspace}/driver-status-{layout}.sh {workspace}/{stem}.cast 2>/dev/null; true"
     ));
     let logs = runner.exec("cat /tmp/zellij-*/zellij-log/zellij.log 2>/dev/null || true");
@@ -529,24 +656,45 @@ true
 #[test]
 #[serial]
 #[ignore = "visual e2e matrix is release-gated; run explicitly via scripts/maintain.sh test-e2e-visual-status or test-e2e-visual"]
-#[ntest::timeout(420_000)]
+#[ntest::timeout(720_000)]
 fn visual_generated_layouts_render_across_all_themes() {
     let runner = E2eRunner::new();
     runner.ensure_deployed();
 
-    for &(theme, r, g, b) in THEMES {
+    let total_cases = status_matrix_total_cases();
+    let mut case = 0;
+    for (theme_index, &(theme, r, g, b)) in THEMES.iter().enumerate() {
         let test_name = format!("visual-matrix-theme-{theme}");
+        log_visual_progress(format!(
+            "status matrix: init theme {}/{} ({theme})",
+            theme_index + 1,
+            THEMES.len()
+        ));
         init_project(&runner, &test_name, theme, false, &["git-ui"]);
         install_visual_fixtures(&runner, &test_name);
 
-        for layout in LAYOUTS {
-            let (_recording, logs) = record_layout_status(&runner, &test_name, layout);
-            assert_no_zellij_runtime_errors(&logs, &format!("{theme}/{layout}"));
+        for layout in status_matrix_layouts_for_theme(theme) {
+            case += 1;
+            log_visual_progress(format!(
+                "status matrix [{case}/{total_cases}]: recording theme={theme} layout={layout}"
+            ));
+            let (recording, logs) = record_layout_status(&runner, &test_name, layout);
+            let label = format!("{theme}/{layout}");
+            assert_no_zellij_runtime_errors(&logs, &label);
+            assert_no_zellij_permission_prompt(&recording, &label);
             assert_generated_theme_config(&runner, &test_name, theme, r, g, b);
             let layout_kdl = generated_layout(&runner, &test_name, layout);
             assert_generated_native_status_layout(layout, &layout_kdl);
+            log_visual_progress(format!(
+                "status matrix [{case}/{total_cases}]: passed theme={theme} layout={layout}"
+            ));
         }
 
+        log_visual_progress(format!(
+            "status matrix: cleanup theme {}/{} ({theme})",
+            theme_index + 1,
+            THEMES.len()
+        ));
         runner.cleanup(&test_name);
     }
 }
@@ -570,6 +718,33 @@ fn visual_generated_tools_and_harness_tabs_render_when_enabled() {
     install_visual_fixtures(&runner, test_name);
 
     for layout in LAYOUTS {
+        let layout_kdl = generated_layout(&runner, test_name, layout);
+        assert!(
+            layout_kdl.contains("command \"yazi\"")
+                || layout_kdl.contains("exec yazi")
+                || layout_kdl.contains("name=\"files\""),
+            "{layout}: expected generated layout to include a files/Yazi surface:\n{layout_kdl}"
+        );
+        assert!(
+            layout_kdl.contains("command \"vim-loop\"") || layout_kdl.contains("exec vim-loop"),
+            "{layout}: expected generated layout to include an editor pane using vim-loop:\n{layout_kdl}"
+        );
+        for (tab, bin, _) in HARNESSES {
+            assert!(
+                layout_has_top_level_tab(&layout_kdl, tab)
+                    || layout_kdl.contains(&format!("command \"{bin}\"")),
+                "{layout}: expected generated layout to include harness {tab}/{bin}:\n{layout_kdl}"
+            );
+        }
+    }
+
+    let visual_layouts = tab_matrix_layouts();
+    for (index, layout) in visual_layouts.iter().enumerate() {
+        let case = index + 1;
+        let total = visual_layouts.len();
+        log_visual_progress(format!(
+            "tabs matrix [{case}/{total}]: recording layout={layout}"
+        ));
         let (recording, logs) = record_generated_layout(&runner, test_name, layout, 4);
         assert_no_zellij_runtime_errors(&logs, layout);
         let layout_kdl = generated_layout(&runner, test_name, layout);
@@ -611,6 +786,9 @@ fn visual_generated_tools_and_harness_tabs_render_when_enabled() {
                 );
             }
         }
+        log_visual_progress(format!(
+            "tabs matrix [{case}/{total}]: passed layout={layout}"
+        ));
     }
 
     runner.cleanup(test_name);
@@ -670,18 +848,26 @@ fn visual_yazi_previews_git_symbols_and_optional_plugins_render() {
         ("sqlite", "visual-fixtures/sample.sqlite", "people"),
     ];
 
-    for (label, entry, marker) in entries {
+    let total_cases = entries.len();
+    for (index, (label, entry, marker)) in entries.iter().enumerate() {
+        let case = index + 1;
+        log_visual_progress(format!(
+            "yazi matrix [{case}/{total_cases}]: recording preview label={label} entry={entry}"
+        ));
+        let _progress = VisualProgressStep::start(format!(
+            "record yazi preview project={test_name} case={case}/{total_cases} label={label}"
+        ));
         runner.exec(&format!(
-            "rm -rf /tmp/zellij-*; sudo rm -rf /workspace; sudo ln -s {workspace} /workspace"
+            "rm -rf /tmp/zellij-*; sudo rm -rf /workspace; sudo ln -s {workspace} /workspace; zellij delete-session aibox-yazi-preview-{label} --force >/dev/null 2>&1 || true"
         ));
         runner.write_file(
             test_name,
-            &format!("yazi-preview-{label}.kdl"),
+            &format!(".aibox-home/.config/zellij/layouts/yazi-preview-{label}.kdl"),
             &format!(
                 r#"layout {{
     pane {{
-        command "yazi"
-        args "{workspace}/{entry}"
+        command "bash"
+        args "-lc" "exec yazi {workspace}/{entry}"
         cwd "{workspace}"
     }}
 }}
@@ -699,17 +885,31 @@ export TERM=xterm-256color
 export COLORTERM=truecolor
 export PATH="$HOME/.local/bin:/usr/local/bin:$PATH"
 (
-  sleep 3
-  export ZELLIJ_SESSION_NAME=$(zellij list-sessions --no-formatting 2>/dev/null | grep -v EXITED | head -1 | awk '{{print $1}}')
+  for attempt in $(seq 1 10); do
+    export ZELLIJ_SESSION_NAME=$(zellij list-sessions --no-formatting 2>/dev/null | grep -v EXITED | head -1 | awk '{{print $1}}')
+    [ -n "$ZELLIJ_SESSION_NAME" ] && break
+    sleep 0.25
+  done
+  sleep 1
   zellij action write 27 >/dev/null 2>&1 || true
-  sleep 0.4
-  zellij action dump-screen > "{workspace}/yazi-preview-{label}.screen" 2>/dev/null || true
+  for attempt in $(seq 1 10); do
+    zellij action dump-screen > "{workspace}/yazi-preview-{label}.screen.tmp" 2>/dev/null || true
+    if [ -s "{workspace}/yazi-preview-{label}.screen.tmp" ]; then
+      mv "{workspace}/yazi-preview-{label}.screen.tmp" "{workspace}/yazi-preview-{label}.screen"
+      break
+    fi
+    sleep 0.5
+  done
+  if [ ! -s "{workspace}/yazi-preview-{label}.screen" ]; then
+    zellij action dump-screen > "{workspace}/yazi-preview-{label}.screen" 2>/dev/null || true
+  fi
   timeout 2s pkill -x zellij >/dev/null 2>&1 || true
 ) &
 driver_pid=$!
-timeout --kill-after=2s 15s zellij --config "$HOME/.config/zellij/config.kdl" \
+timeout --kill-after=2s 10s zellij --config "$HOME/.config/zellij/config.kdl" \
        --config-dir "$HOME/.config/zellij" \
-       --layout "{workspace}/yazi-preview-{label}.kdl" 2>/dev/null || true
+       --new-session-with-layout "$HOME/.config/zellij/layouts/yazi-preview-{label}.kdl" \
+       --session "aibox-yazi-preview-{label}" 2>/dev/null || true
 wait "$driver_pid" 2>/dev/null || true
 timeout 2s pkill -x zellij >/dev/null 2>&1 || true
 true
@@ -718,7 +918,7 @@ true
         );
         runner.exec(&format!("chmod +x {workspace}/yazi-preview-{label}.sh"));
         runner.exec(&format!(
-            "LC_ALL=C.UTF-8 LANG=C.UTF-8 asciinema rec --cols 160 --rows 45 --overwrite \
+            "LC_ALL=C.UTF-8 LANG=C.UTF-8 timeout --kill-after=2s 25s asciinema rec --cols 160 --rows 45 --overwrite \
              -c {workspace}/yazi-preview-{label}.sh {workspace}/yazi-preview-{label}.cast 2>/dev/null; true"
         ));
         let logs = runner.exec("cat /tmp/zellij-*/zellij-log/zellij.log 2>/dev/null || true");
@@ -745,8 +945,11 @@ true
         let recording = format!("{cast}\n{screen}");
         assert!(
             recording.contains(marker),
-            "Yazi {label} preview should contain marker {marker:?}:\n{recording}"
+            "Yazi {label} preview should contain marker {marker:?}:\n{recording}\nZellij logs:\n{log_text}"
         );
+        log_visual_progress(format!(
+            "yazi matrix [{case}/{total_cases}]: passed preview label={label}"
+        ));
     }
 
     runner.cleanup(test_name);

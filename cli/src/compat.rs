@@ -320,6 +320,11 @@ pub static COMPAT_TABLE: &[CompatEntry] = &[
         processkit_version: "v0.25.8",
         note: "Patch release: makes the release runtime smoke harness host-safe by defaulting to the shell Zellij status mode, capturing raw TUI output into logs instead of streaming escape sequences to the host terminal, and asserting on structured probe markers rather than terminal transcripts.",
     },
+    CompatEntry {
+        aibox_version: "0.23.21",
+        processkit_version: "v0.25.8",
+        note: "Patch release: repairs generated Yazi git/status initialization for Yazi 26, preserves native Zellij plugin permission caches across runtime starts, installs the Yazi `ya` companion entrypoint in runtime images, and slims visual E2E release gates with per-case progress logging plus an opt-in exhaustive matrix.",
+    },
 ];
 
 /// Find the minimum compatible processkit version for the given aibox version.

@@ -15,3 +15,7 @@ require("git"):setup {
 		ignored = "I",
 	},
 }
+
+-- status-git.yazi: git branch + summary (left) and disk free (right) in status bar.
+-- Data refresh is triggered via the fetcher registered in yazi.toml.
+require("status-git"):setup()

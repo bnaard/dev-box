@@ -31,6 +31,7 @@ RUN ARCH=$(uname -m) && \
       -o /tmp/yazi.zip && \
     unzip -q /tmp/yazi.zip -d /tmp/yazi && \
     mv /tmp/yazi/yazi-${ARCH}-unknown-linux-musl/yazi /usr/local/bin/yazi && \
+    ln -sf /usr/local/bin/yazi /usr/local/bin/ya && \
     chmod +x /usr/local/bin/yazi && \
     rm -rf /tmp/yazi /tmp/yazi.zip
 

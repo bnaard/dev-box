@@ -44,6 +44,9 @@ services:
       - {{ host_root }}/.vim/undo:{{ container_home }}/.vim/undo
       # Zellij terminal multiplexer config
       - {{ host_root }}/.config/zellij:{{ container_home }}/.config/zellij
+      # Zellij plugin permission cache (pre-approves aibox native status plugin)
+      - {{ host_root }}/.cache/zellij:{{ container_home }}/.cache/zellij
+      - {{ host_root }}/.cache/org/Zellij Contributors/Zellij:{{ container_home }}/.cache/org/Zellij Contributors/Zellij
       # Yazi file manager config
       - {{ host_root }}/.config/yazi:{{ container_home }}/.config/yazi
       # Git configuration

@@ -92,6 +92,7 @@ ${bold}Development:${reset}
   test-e2e-visual-yazi     Run opt-in Yazi previews/git/plugin visual checks
   test-e2e-visual          Run all opt-in visual E2E tiers
   test-e2e-doc-captures    Run visual E2E and write docs-ready cast/screen artifacts
+                           Set AIBOX_E2E_VISUAL_FULL_MATRIX=1 for exhaustive layout/theme coverage
   build-images [--no-cache] Build published container images locally
   push-images <version>    Push images to GHCR (requires ghcr.io login)
   release-runtime-smoke <version>
@@ -231,8 +232,12 @@ cmd_test_e2e_visual_yazi() {
 
 cmd_test_e2e_visual() {
   info "Running all opt-in visual E2E tiers..."
-  (cd "${CLI_DIR}" && cargo test --features e2e --test e2e visual_matrix -- --ignored --nocapture --test-threads=1) \
-    || die "Visual E2E matrix failed"
+  info "Visual E2E tier 1/3: layouts, themes, and native status rows"
+  cmd_test_e2e_visual_status
+  info "Visual E2E tier 2/3: tab traversal, tools, and harnesses"
+  cmd_test_e2e_visual_tabs
+  info "Visual E2E tier 3/3: Yazi previews, git symbols, and plugins"
+  cmd_test_e2e_visual_yazi
   ok "Visual E2E matrix passed"
 }
 

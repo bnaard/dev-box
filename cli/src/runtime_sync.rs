@@ -144,6 +144,8 @@ pub fn run_runtime_sync(
             );
         let should_update_stale_managed_yazi_file =
             live_matches_historical_managed_yazi_file(project_root, &host_root, &diff.rel_path);
+        let should_update_legacy_managed_yazi_init =
+            live_matches_legacy_managed_yazi_init(&host_root, &diff.rel_path);
         let should_restore_missing_zellij_status_toggle_layout = same_version_sync
             && zellij_status_toggle_layout_relpath(&diff.rel_path)
             && !host_root.join(&diff.rel_path).is_file();
@@ -159,6 +161,7 @@ pub fn run_runtime_sync(
             || should_update_stale_managed_zellij_file
             || should_update_stale_managed_runtime_helper
             || should_update_stale_managed_yazi_file
+            || should_update_legacy_managed_yazi_init
             || should_restore_missing_zellij_status_toggle_layout
             || should_restore_missing_managed_runtime_helper)
             && let Some(content) = generated_map.get(&diff.rel_path)
@@ -591,8 +594,46 @@ fn managed_runtime_helper_relpath(rel_path: &str) -> bool {
 fn managed_yazi_relpath(rel_path: &str) -> bool {
     matches!(
         rel_path,
-        ".config/yazi/yazi.toml" | ".config/yazi/keymap.toml" | ".config/yazi/theme.toml"
+        ".config/yazi/init.lua"
+            | ".config/yazi/yazi.toml"
+            | ".config/yazi/keymap.toml"
+            | ".config/yazi/theme.toml"
     )
+}
+
+fn live_matches_legacy_managed_yazi_init(host_root: &Path, rel_path: &str) -> bool {
+    if rel_path != ".config/yazi/init.lua" {
+        return false;
+    }
+
+    let live_abs = host_root.join(rel_path);
+    let Ok(content) = fs::read_to_string(live_abs) else {
+        return false;
+    };
+
+    let legacy_managed = r#"-- =============================================================================
+-- Yazi init.lua — aibox defaults
+-- Runs on every Yazi startup. Register plugins that need setup here.
+-- =============================================================================
+
+-- git.yazi: show git status in the file list with explicit, visible signs.
+-- Fetcher registration is in yazi.toml [plugin.prepend_fetchers].
+th.git = th.git or {}
+th.git.modified_sign = "M"
+th.git.added_sign = "A"
+th.git.deleted_sign = "D"
+th.git.updated_sign = "U"
+th.git.untracked_sign = "?"
+th.git.ignored_sign = "I"
+
+require("git"):setup {}
+
+-- status-git.yazi: git branch + summary (left) and disk free (right) in status bar.
+-- Data refresh is triggered via the fetcher registered in yazi.toml.
+require("status-git"):setup()
+"#;
+
+    content == legacy_managed
 }
 
 fn live_matches_historical_managed_yazi_file(
@@ -1259,6 +1300,62 @@ rules = [
         assert!(live_matches_historical_managed_yazi_file(
             root, &host_root, rel
         ));
+    }
+
+    #[test]
+    fn detects_legacy_managed_yazi_init_git_theme_mutation() {
+        let tmp = TempDir::new().unwrap();
+        let host_root = tmp.path().join(".aibox-home");
+        let rel = ".config/yazi/init.lua";
+        let live = host_root.join(rel);
+        fs::create_dir_all(live.parent().unwrap()).unwrap();
+        fs::write(
+            &live,
+            r#"-- =============================================================================
+-- Yazi init.lua — aibox defaults
+-- Runs on every Yazi startup. Register plugins that need setup here.
+-- =============================================================================
+
+-- git.yazi: show git status in the file list with explicit, visible signs.
+-- Fetcher registration is in yazi.toml [plugin.prepend_fetchers].
+th.git = th.git or {}
+th.git.modified_sign = "M"
+th.git.added_sign = "A"
+th.git.deleted_sign = "D"
+th.git.updated_sign = "U"
+th.git.untracked_sign = "?"
+th.git.ignored_sign = "I"
+
+require("git"):setup {}
+
+-- status-git.yazi: git branch + summary (left) and disk free (right) in status bar.
+-- Data refresh is triggered via the fetcher registered in yazi.toml.
+require("status-git"):setup()
+"#,
+        )
+        .unwrap();
+
+        assert!(live_matches_legacy_managed_yazi_init(&host_root, rel));
+    }
+
+    #[test]
+    fn legacy_yazi_init_detector_rejects_user_edited_file() {
+        let tmp = TempDir::new().unwrap();
+        let host_root = tmp.path().join(".aibox-home");
+        let rel = ".config/yazi/init.lua";
+        let live = host_root.join(rel);
+        fs::create_dir_all(live.parent().unwrap()).unwrap();
+        fs::write(
+            &live,
+            r#"-- Yazi init.lua — custom user file
+th.git = th.git or {}
+th.git.modified_sign = "M"
+require("git"):setup {}
+"#,
+        )
+        .unwrap();
+
+        assert!(!live_matches_legacy_managed_yazi_init(&host_root, rel));
     }
 
     #[test]

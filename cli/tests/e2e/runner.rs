@@ -392,6 +392,8 @@ impl E2eRunner {
         let output = self.exec(
             "zellij --version && \
              yazi --version && \
+             command -v ya && \
+             ya --version && \
              bwrap --version && \
              unshare --user --map-root-user true && \
              bwrap --unshare-user --uid 0 --gid 0 --ro-bind / / --dev /dev --proc /proc /bin/true && \
@@ -404,12 +406,14 @@ impl E2eRunner {
             String::from_utf8_lossy(&output.stderr)
         );
         let stdout = String::from_utf8_lossy(&output.stdout);
+        let expected_yazi = format!("Yazi {EXPECTED_YAZI_VERSION}");
         assert!(
             stdout.contains(&format!("zellij {EXPECTED_ZELLIJ_VERSION}"))
-                && stdout.contains(&format!("Yazi {EXPECTED_YAZI_VERSION}"))
+                && stdout.matches(&expected_yazi).count() >= 2
+                && stdout.contains("/usr/local/bin/ya")
                 && stdout.contains("bubblewrap ")
                 && stdout.contains("bwrap-ok"),
-            "aibox-e2e-testrunner image is stale; expected zellij {EXPECTED_ZELLIJ_VERSION}, Yazi {EXPECTED_YAZI_VERSION}, and a working bubblewrap user-namespace smoke probe.\n\
+            "aibox-e2e-testrunner image is stale; expected zellij {EXPECTED_ZELLIJ_VERSION}, Yazi {EXPECTED_YAZI_VERSION}, the ya companion entrypoint, and a working bubblewrap user-namespace smoke probe.\n\
              Rebuild/recreate the companion service from .devcontainer/Dockerfile.e2e, then rerun `./scripts/maintain.sh test-e2e`.\n\
              observed:\n{stdout}"
         );

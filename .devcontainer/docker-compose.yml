@@ -44,6 +44,9 @@ services:
       - ../.aibox-home/.vim/undo:/home/aibox/.vim/undo
       # Zellij terminal multiplexer config
       - ../.aibox-home/.config/zellij:/home/aibox/.config/zellij
+      # Zellij plugin permission cache (pre-approves aibox native status plugin)
+      - ../.aibox-home/.cache/zellij:/home/aibox/.cache/zellij
+      - ../.aibox-home/.cache/org/Zellij Contributors/Zellij:/home/aibox/.cache/org/Zellij Contributors/Zellij
       # Yazi file manager config
       - ../.aibox-home/.config/yazi:/home/aibox/.config/yazi
       # Git configuration

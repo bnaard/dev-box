@@ -203,7 +203,7 @@ zellij --config "$HOME/.config/zellij/config.kdl" \
 true
 DRIVER
 chmod +x {workspace}/driver.sh
-LC_ALL=C.UTF-8 LANG=C.UTF-8 asciinema rec --cols 160 --rows 45 --overwrite \
+LC_ALL=C.UTF-8 LANG=C.UTF-8 timeout --kill-after=2s 30s asciinema rec --cols 160 --rows 45 --overwrite \
   -c {workspace}/driver.sh {workspace}/recording.cast 2>/dev/null || true
 cat /tmp/zellij-*/zellij-log/zellij.log >/tmp/{test_name}-zellij.log 2>/dev/null || true
 if grep -E 'ERROR IN PLUGIN|failed to load plugin|Panic occured|panicked|Unknown component: z' /tmp/{test_name}-zellij.log >/tmp/{test_name}-zellij-errors.txt 2>&1; then
@@ -212,6 +212,11 @@ if grep -E 'ERROR IN PLUGIN|failed to load plugin|Panic occured|panicked|Unknown
 fi
 if grep -aE 'ERROR IN PLUGIN|failed to load plugin|could not find exported function' {workspace}/recording.cast >/tmp/{test_name}-zellij-cast-errors.txt 2>&1; then
   cat /tmp/{test_name}-zellij-cast-errors.txt
+  exit 1
+fi
+if grep -aE 'This plugin asks permission|ReadApplicationState|RunCommands|Allow\\? \\(y/n\\)' {workspace}/recording.cast >/tmp/{test_name}-zellij-permission-prompt.txt 2>&1; then
+  echo "native status plugin permission prompt was visible"
+  cat /tmp/{test_name}-zellij-permission-prompt.txt
   exit 1
 fi
 if ! grep -aE 'LEADER|PANES' {workspace}/recording.cast >/tmp/{test_name}-zellij-visible.txt 2>&1; then

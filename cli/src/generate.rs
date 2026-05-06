@@ -837,6 +837,25 @@ mod tests {
     }
 
     #[test]
+    fn compose_mounts_zellij_permission_cache() {
+        let dir = tempfile::tempdir().unwrap();
+        let config = make_config(&[], false);
+        generate_docker_compose(&config, dir.path(), &test_env()).unwrap();
+
+        let content = fs::read_to_string(dir.path().join("docker-compose.yml")).unwrap();
+        assert!(
+            content.contains(".cache/zellij:/root/.cache/zellij"),
+            "compose should mount Zellij's permission cache so pre-seeded native plugin approvals are visible:\n{content}"
+        );
+        assert!(
+            content.contains(
+                ".cache/org/Zellij Contributors/Zellij:/root/.cache/org/Zellij Contributors/Zellij"
+            ),
+            "compose should mount Zellij's legacy permission cache path as well:\n{content}"
+        );
+    }
+
+    #[test]
     fn compose_uses_init_reaper_and_preserves_sleep_command() {
         let dir = tempfile::tempdir().unwrap();
         let config = make_config(&[], false);
