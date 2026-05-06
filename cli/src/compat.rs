@@ -310,6 +310,11 @@ pub static COMPAT_TABLE: &[CompatEntry] = &[
         processkit_version: "v0.25.8",
         note: "Patch release: updates generated Yazi config and theme filetype rules for Yazi 26's url/mime matcher schema, provides writable XDG state mounts for lazygit and similar TUIs, and records follow-up backlog items for native Zellij plugin runtime diagnostics and host-phase runtime smoke tests.",
     },
+    CompatEntry {
+        aibox_version: "0.23.19",
+        processkit_version: "v0.25.8",
+        note: "Patch release: hardens generated runtime startup by keeping Vim eager while disabling its startup cursor-position probe, removes suspended generated AI panes, pre-seeds native Zellij plugin permissions, fixes service-specific Codex bubblewrap seccomp fallback, updates Yazi git/preview config, and adds generated-runtime plus opt-in visual E2E release gates.",
+    },
 ];
 
 /// Find the minimum compatible processkit version for the given aibox version.

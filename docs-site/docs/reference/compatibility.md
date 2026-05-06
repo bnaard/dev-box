@@ -12,6 +12,8 @@ below shows the minimum compatible processkit version for each aibox release.
 
 | aibox version | Min. processkit | Notes |
 |--------------|-----------------|-------|
+| 0.23.19 | v0.25.8 | hardens generated runtime startup by keeping Vim eager while disabling its startup cursor-position probe; removes suspended generated AI panes; pre-seeds native Zellij plugin permissions; fixes service-specific Codex bubblewrap seccomp fallback; updates Yazi git/preview config; adds generated-runtime and opt-in visual E2E release gates |
+| 0.23.18 | v0.25.8 | updates generated Yazi config and theme filetype rules for Yazi 26's url/mime matcher schema; provides writable XDG state mounts for lazygit and similar TUIs; records follow-up runtime diagnostics and host-phase runtime smoke work |
 | 0.23.17 | v0.25.8 | installs Claude Code from Anthropic's signed apt repository with a stable `/usr/local/bin/claude` path; makes the native aibox Zellij status/key-hint plugin the generated default; starts shell and lazygit tabs hot across layouts; refreshes Zellij, Yazi, uv, and Cargo dependencies; improves release-state reporting and harness version-pin support |
 | 0.23.16 | v0.25.8 | moves Claude processkit command shims to Claude Code's current Skills layout, cleans legacy managed `.claude/commands` files, fixes native Zellij key-hint rendering, keeps Vim editor panes hot for Yazi edit handoff, and adds a pre-release dependency/harness state report |
 | 0.23.15 | v0.25.8 | fixes a 0.23.14 `--standardize-config` regression where a blank `[ai.harness.<name>]` table could re-enable a commented-out harness; standard config rewrites also restore the standard processkit skill list instead of leaving every skill commented |
