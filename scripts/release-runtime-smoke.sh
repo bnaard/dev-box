@@ -159,6 +159,8 @@ mkdir -p "${project_dir}"
 cd "${project_dir}"
 
 run git init -q
+# The host release script logs through tee but may still inherit an interactive
+# stdin. Force non-interactive init so dialoguer never enters a TTY prompt path.
 run env AIBOX_ADDONS_DIR="${PROJECT_ROOT}/addons" "${aibox_bin}" init "${container_name}" \
   --base debian \
   --profile human-dev \
@@ -169,7 +171,8 @@ run env AIBOX_ADDONS_DIR="${PROJECT_ROOT}/addons" "${aibox_bin}" init "${contain
   --addon preview-archive \
   --addon preview-enhanced \
   --processkit-version latest \
-  --no-container
+  --no-container \
+  < /dev/null
 
 cat > aibox.toml <<EOF
 apiVersion = "aibox.projectious.work/v1"
