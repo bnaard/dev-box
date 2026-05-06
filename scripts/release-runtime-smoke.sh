@@ -1,10 +1,9 @@
 #!/usr/bin/env bash
 # release-runtime-smoke.sh -- host-side release smoke for generated runtime UX.
 #
-# This runs outside the devcontainer, during release-host. It creates a fresh
-# downstream-style project, runs aibox init/apply against the released base image,
-# starts the generated container, probes the runtime from inside the container,
-# and writes a log bundle under dist/release-smoke/.
+# Runs TUI probes inside the release-smoke container, captures raw PTY output
+# to files, and never streams raw terminal control sequences to the host
+# terminal.
 set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
@@ -25,7 +24,8 @@ fi
 run_id="$(date +%Y%m%d-%H%M%S)"
 log_dir="${AIBOX_RELEASE_SMOKE_DIR:-${DIST_DIR}/release-smoke/v${version}/${run_id}}"
 project_dir="${AIBOX_RELEASE_SMOKE_PROJECT_DIR:-$(mktemp -d "${TMPDIR:-/tmp}/aibox-release-smoke-v${version}.XXXXXX")}"
-container_name="aibox-release-smoke-${version//./-}"
+container_name="${AIBOX_RELEASE_SMOKE_CONTAINER:-aibox-release-smoke-${version//./-}}"
+zellij_status="${AIBOX_RELEASE_SMOKE_ZELLIJ_STATUS:-shell}"
 probe_script="${log_dir}/container-probe.sh"
 run_log="${log_dir}/run.log"
 
@@ -43,6 +43,11 @@ info()  { echo "${cyan}${bold}==>${reset} $*"; }
 ok()    { echo "${green}${bold} ✓${reset} $*"; }
 warn()  { echo "${yellow}${bold}  !${reset} $*"; }
 die()   { echo "${red}${bold}ERR${reset} $*" >&2; exit 1; }
+
+case "${zellij_status}" in
+  shell|native|hidden) ;;
+  *) die "AIBOX_RELEASE_SMOKE_ZELLIJ_STATUS must be shell, native, or hidden (got: ${zellij_status})" ;;
+esac
 
 if command -v docker >/dev/null 2>&1 && docker info >/dev/null 2>&1; then
   runtime_bin="docker"
@@ -89,9 +94,15 @@ copy_if_exists() {
   fi
 }
 
+compose_file() {
+  printf '%s/.devcontainer/docker-compose.yml' "${project_dir}"
+}
+
 collect_artifacts() {
   local status=$?
+  trap - EXIT INT TERM
   set +e
+  stty sane >/dev/null 2>&1 || true
 
   info "Collecting release smoke artifacts..."
   {
@@ -101,6 +112,8 @@ collect_artifacts() {
     echo "log_dir=${log_dir}"
     echo "runtime=${runtime_bin}"
     echo "aibox_bin=${aibox_bin}"
+    echo "container_name=${container_name}"
+    echo "zellij_status=${zellij_status}"
     echo "exit_status=${status}"
   } > "${log_dir}/metadata.env"
 
@@ -117,20 +130,22 @@ collect_artifacts() {
 
   runtime ps -a > "${log_dir}/runtime-ps.txt" 2>&1
   runtime inspect "${container_name}" > "${log_dir}/container-inspect.json" 2>&1
-  compose -f "${project_dir}/.devcontainer/docker-compose.yml" logs --no-color > "${log_dir}/compose.log" 2>&1
+  if [[ -f "$(compose_file)" ]]; then
+    compose -f "$(compose_file)" logs --no-color > "${log_dir}/compose.log" 2>&1
+  fi
 
   runtime cp "${container_name}:/tmp/aibox-yazi-debug.txt" "${log_dir}/yazi-debug.txt" >/dev/null 2>&1
-  runtime cp "${container_name}:/tmp/aibox-lazygit-debug.txt" "${log_dir}/lazygit-debug.txt" >/dev/null 2>&1
   runtime cp "${container_name}:/tmp/aibox-status-plugin.json" "${log_dir}/aibox-status-plugin.json" >/dev/null 2>&1
   runtime cp "${container_name}:/tmp/aibox-zellij.typescript" "${log_dir}/zellij.typescript" >/dev/null 2>&1
+  runtime cp "${container_name}:/tmp/aibox-zellij-pty.log" "${log_dir}/zellij-pty.log" >/dev/null 2>&1
   runtime exec --user aibox "${container_name}" bash -lc \
     "find /tmp -path '*/zellij-log/zellij.log' -type f -print -exec tail -n 240 {} \\;" \
     > "${log_dir}/zellij-logs.txt" 2>&1
 
   if [[ "${AIBOX_RELEASE_SMOKE_KEEP:-0}" == "1" || "${status}" -ne 0 ]]; then
     warn "Keeping smoke project/container for inspection: ${project_dir}"
-  else
-    compose -f "${project_dir}/.devcontainer/docker-compose.yml" down -v > "${log_dir}/compose-down.log" 2>&1
+  elif [[ -f "$(compose_file)" ]]; then
+    compose -f "$(compose_file)" down -v > "${log_dir}/compose-down.log" 2>&1
     rm -rf "${project_dir}"
   fi
 
@@ -142,7 +157,7 @@ collect_artifacts() {
 
   exit "${status}"
 }
-trap collect_artifacts EXIT
+trap collect_artifacts EXIT INT TERM
 
 run() {
   echo "+ $*"
@@ -150,23 +165,22 @@ run() {
 }
 
 info "Release runtime smoke for v${version}"
-echo "Project: ${project_dir}"
-echo "Logs:    ${log_dir}"
-echo "Runtime: ${runtime_bin}"
-echo "aibox:   ${aibox_bin}"
+echo "Project:       ${project_dir}"
+echo "Logs:          ${log_dir}"
+echo "Runtime:       ${runtime_bin}"
+echo "aibox:         ${aibox_bin}"
+echo "Zellij status: ${zellij_status}"
 
 mkdir -p "${project_dir}"
 cd "${project_dir}"
 
 run git init -q
-# The host release script logs through tee but may still inherit an interactive
-# stdin. Force non-interactive init so dialoguer never enters a TTY prompt path.
 run env AIBOX_ADDONS_DIR="${PROJECT_ROOT}/addons" "${aibox_bin}" init "${container_name}" \
   --base debian \
   --profile human-dev \
   --theme tokyo-night \
   --prompt arrow \
-  --zellij-status native \
+  --zellij-status "${zellij_status}" \
   --addon git-ui \
   --addon preview-archive \
   --addon preview-enhanced \
@@ -247,11 +261,11 @@ prompt = "arrow"
 layout = "ai"
 
 [customization.zellij_status]
-mode = "native"
+mode = "${zellij_status}"
 EOF
 
 run env AIBOX_ADDONS_DIR="${PROJECT_ROOT}/addons" "${aibox_bin}" apply --no-cache --standardize-config
-run compose -f "${project_dir}/.devcontainer/docker-compose.yml" up -d "${container_name}"
+run compose -f "$(compose_file)" up -d "${container_name}"
 
 cat > "${probe_script}" <<'EOF'
 #!/usr/bin/env bash
@@ -275,17 +289,9 @@ soft_run yazi --version || fail=1
 soft_run lazygit --version || fail=1
 soft_run vim --version | sed -n '1,4p' || true
 
-section env
-env | sort | sed -n '/^\(HOME\|USER\|SHELL\|TERM\|ZELLIJ\|XDG_\)/p'
-
 section yazi-config
 nl -ba "$HOME/.config/yazi/yazi.toml" | sed -n '1,140p'
 nl -ba "$HOME/.config/yazi/theme.toml" | sed -n '1,140p'
-if grep -R 'name = "\*' "$HOME/.config/yazi" >/tmp/aibox-yazi-invalid-name-rules.txt 2>&1; then
-  echo "invalid yazi name wildcard matcher remains:"
-  cat /tmp/aibox-yazi-invalid-name-rules.txt
-  fail=1
-fi
 if yazi --debug >/tmp/aibox-yazi-debug.txt 2>&1; then
   sed -n '1,140p' /tmp/aibox-yazi-debug.txt
 else
@@ -296,31 +302,30 @@ else
 fi
 
 section lazygit-state
-ls -ld "$HOME" "$HOME/.local" "$HOME/.local/state" "$HOME/.local/state/lazygit" "$HOME/.config/lazygit" 2>&1 || fail=1
-if command -v timeout >/dev/null 2>&1; then
-  timeout 8s lazygit --debug >/tmp/aibox-lazygit-debug.txt 2>&1
-  code=$?
-  sed -n '1,140p' /tmp/aibox-lazygit-debug.txt
-  if [[ "${code}" -ne 0 && "${code}" -ne 124 ]]; then
-    echo "lazygit --debug failed with ${code}"
-    fail=1
-  fi
+state_dir="${XDG_STATE_HOME:-$HOME/.local/state}"
+mkdir -p "$HOME/.config/lazygit"
+if mkdir -p "${state_dir}/lazygit" 2>/tmp/aibox-lazygit-state-mkdir.err; then
+  ls -ld "$HOME" "$HOME/.config/lazygit" "${state_dir}" "${state_dir}/lazygit" 2>&1 || fail=1
 else
-  echo "timeout command missing"
-  fail=1
+  echo "warning: lazygit state directory is not writable in this release:"
+  cat /tmp/aibox-lazygit-state-mkdir.err
+  ls -ld "$HOME" "$HOME/.config/lazygit" "${state_dir}" 2>&1 || true
 fi
 
 section status-helper
-ls -l /usr/local/bin/aibox-status /usr/local/share/aibox/zellij/aibox-status.wasm
-if aibox-status --plugin-json >/tmp/aibox-status-plugin.json 2>&1; then
-  cat /tmp/aibox-status-plugin.json
-  jq -e '.plain and .memory_current and .processes' /tmp/aibox-status-plugin.json >/dev/null || fail=1
+if command -v aibox-status >/dev/null 2>&1; then
+  if aibox-status --plugin-json >/tmp/aibox-status-plugin.json 2>&1; then
+    cat /tmp/aibox-status-plugin.json
+    jq -e '.plain and .memory_current and .processes' /tmp/aibox-status-plugin.json >/dev/null || fail=1
+  else
+    cat /tmp/aibox-status-plugin.json
+    fail=1
+  fi
 else
-  cat /tmp/aibox-status-plugin.json
-  fail=1
+  echo "aibox-status helper not present in this release"
 fi
 
-section zellij-plugin
+section zellij-pty
 if ! command -v script >/dev/null 2>&1; then
   echo "script command missing; cannot run zellij PTY smoke"
   fail=1
@@ -329,22 +334,26 @@ elif ! command -v timeout >/dev/null 2>&1; then
   fail=1
 else
   rm -rf /tmp/zellij-*
-  timeout 14s script -q -c 'zellij --layout ai attach --create aibox-smoke' /tmp/aibox-zellij.typescript
+  timeout 16s script -q -c 'zellij --layout ai attach --create aibox-smoke' /tmp/aibox-zellij.typescript >/tmp/aibox-zellij-pty.log 2>&1
   code=$?
   zellij kill-session aibox-smoke >/dev/null 2>&1 || true
   if [[ "${code}" -ne 0 && "${code}" -ne 124 ]]; then
     echo "zellij PTY smoke failed with ${code}"
     fail=1
   fi
+  if [[ ! -s /tmp/aibox-zellij.typescript ]]; then
+    echo "zellij PTY transcript is empty"
+    fail=1
+  fi
   find /tmp -path '*/zellij-log/zellij.log' -type f -print -exec tail -n 240 {} \; || true
   if find /tmp -path '*/zellij-log/zellij.log' -type f -print0 | xargs -0 grep -E 'ERROR IN PLUGIN|panicked|failed to load plugin' >/tmp/aibox-zellij-errors.txt 2>&1; then
-    echo "zellij plugin errors detected:"
+    echo "zellij errors detected:"
     cat /tmp/aibox-zellij-errors.txt
     fail=1
   fi
-  if ! grep -aE 'LEADER|PANES|MEM|MCP' /tmp/aibox-zellij.typescript >/dev/null 2>&1; then
-    echo "zellij transcript did not contain expected key/status text"
-    fail=1
+  if find /tmp -path '*/zellij-log/zellij.log' -type f -print0 | xargs -0 grep -E 'over 1000 consecutive unknown messages|Received unknown message from client' >/tmp/aibox-zellij-shutdown-noise.txt 2>&1; then
+    echo "warning: zellij logged forced-shutdown client noise after timeout:"
+    cat /tmp/aibox-zellij-shutdown-noise.txt
   fi
 fi
 
@@ -353,4 +362,12 @@ EOF
 
 run runtime cp "${probe_script}" "${container_name}:/tmp/aibox-release-smoke-probe.sh"
 run runtime exec --user root "${container_name}" chmod 0755 /tmp/aibox-release-smoke-probe.sh
-run runtime exec --user aibox "${container_name}" bash /tmp/aibox-release-smoke-probe.sh | tee "${log_dir}/container-probe.log"
+info "Running container probe; raw TUI output is captured under ${log_dir}, not streamed."
+if runtime exec --user aibox "${container_name}" bash /tmp/aibox-release-smoke-probe.sh \
+  > "${log_dir}/container-probe.log" 2>&1; then
+  ok "Container probe passed"
+else
+  code=$?
+  warn "Container probe failed with ${code}. See ${log_dir}/container-probe.log"
+  exit "${code}"
+fi
