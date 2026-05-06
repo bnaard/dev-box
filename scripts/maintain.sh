@@ -561,7 +561,9 @@ cmd_release() {
   info "Running cargo audit..."
   command -v cargo-audit &>/dev/null \
     || (cd "${CLI_DIR}" && cargo install cargo-audit --quiet)
-  (cd "${CLI_DIR}" && cargo audit) \
+  local audit_db="${TMPDIR:-/tmp}/aibox-cargo-advisory-db"
+  mkdir -p "${audit_db}"
+  (cd "${CLI_DIR}" && cargo audit --db "${audit_db}") \
     || die "cargo audit found advisories — resolve before releasing"
   ok "Audit clean"
 
