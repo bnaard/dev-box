@@ -627,7 +627,14 @@ cmd_release() {
   # ── Step 3: Run tests ──────────────────────────────────────────────────────
   info "Running tests..."
   cmd_test
-  cmd_test_e2e
+  case "${AIBOX_RELEASE_SKIP_COMPANION_E2E:-}" in
+    1|true|yes)
+      warn "Skipping Tier 2 SSH companion E2E during release because AIBOX_RELEASE_SKIP_COMPANION_E2E=${AIBOX_RELEASE_SKIP_COMPANION_E2E}. Re-run ./scripts/maintain.sh test-e2e after rebuilding the companion."
+      ;;
+    *)
+      cmd_test_e2e
+      ;;
+  esac
   case "${AIBOX_RELEASE_VISUAL_E2E:-skip}" in
     skip|"")
       warn "Skipping opt-in visual E2E during release. The release agent must justify this in notes or handover, or run AIBOX_RELEASE_VISUAL_E2E=<status|tabs|yazi|full|docs>."

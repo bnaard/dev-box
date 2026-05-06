@@ -196,6 +196,53 @@ cat > visual-fixtures/nested/child.txt <<'EOF'
 AIBOX_DIRECTORY_PREVIEW_CHILD
 EOF
 
+cat > "$HOME/.local/bin/csvlook" <<'EOF'
+#!/usr/bin/env bash
+file=""
+for arg in "$@"; do
+  case "$arg" in
+    --*) ;;
+    *) file="$arg" ;;
+  esac
+done
+if [ -n "$file" ] && [ -f "$file" ]; then
+  cat "$file"
+else
+  cat
+fi
+EOF
+chmod +x "$HOME/.local/bin/csvlook"
+
+cat > "$HOME/.local/bin/in2csv" <<'EOF'
+#!/usr/bin/env bash
+file=""
+for arg in "$@"; do
+  file="$arg"
+done
+if [ -n "$file" ] && [ -f "$file" ]; then
+  cat "$file"
+fi
+EOF
+chmod +x "$HOME/.local/bin/in2csv"
+
+cat > "$HOME/.local/bin/sqlite3" <<'EOF'
+#!/usr/bin/env bash
+case "$1" in
+  -*)
+    echo "SQLite database: 3.0"
+    echo "table people people"
+    ;;
+  *)
+    [ -n "$1" ] && : > "$1"
+    ;;
+esac
+EOF
+chmod +x "$HOME/.local/bin/sqlite3"
+
+for bin in csvlook in2csv sqlite3; do
+  sudo install -m 0755 "$HOME/.local/bin/$bin" "/usr/local/bin/$bin"
+done
+
 git init -q
 git config user.email matrix@example.test
 git config user.name "Matrix Test"
@@ -303,21 +350,62 @@ export PATH="$HOME/.local/bin:/usr/local/bin:$PATH"
   zellij action write 27 >/dev/null 2>&1 || true
   sleep 0.2
   : > "{workspace}/{stem}.screens"
-  for tab in dev files cowork cowork-swap browse ai editor git shell claude codex gemini aider continue cursor copilot opencode hermes; do
+  capture_tab() {{
+    tab="$1"
+    marker="${{2:-}}"
     zellij action go-to-tab-name "$tab" >/dev/null 2>&1 || true
+    for i in $(seq 1 16); do
+      sleep 0.25
+      tmp="{workspace}/{stem}.${{tab}}.screen"
+      zellij action dump-screen > "$tmp" 2>/dev/null || true
+      printf '\n--- tab:%s attempt:%s ---\n' "$tab" "$i" >> "{workspace}/{stem}.screens"
+      cat "$tmp" >> "{workspace}/{stem}.screens"
+      if [ -z "$marker" ] || grep -qF "$marker" "$tmp"; then
+        return 0
+      fi
+      zellij action go-to-tab-name "$tab" >/dev/null 2>&1 || true
+    done
+  }}
+  capture_tab dev " NOR "
+  zellij action move-focus right >/dev/null 2>&1 || true
+  for i in $(seq 1 16); do
     sleep 0.25
-    printf '\n--- tab:%s ---\n' "$tab" >> "{workspace}/{stem}.screens"
-    zellij action dump-screen >> "{workspace}/{stem}.screens" 2>/dev/null || true
+    tmp="{workspace}/{stem}.dev-editor.screen"
+    zellij action dump-screen > "$tmp" 2>/dev/null || true
+    printf '\n--- focus:dev-editor attempt:%s ---\n' "$i" >> "{workspace}/{stem}.screens"
+    cat "$tmp" >> "{workspace}/{stem}.screens"
+    grep -qF "AIBOX-VIM-READY" "$tmp" && break
   done
+  zellij action move-focus left >/dev/null 2>&1 || true
+  capture_tab files " NOR "
+  capture_tab cowork ""
+  capture_tab cowork-swap ""
+  capture_tab browse ""
+  capture_tab ai ""
+  capture_tab editor "AIBOX-VIM-READY"
+  capture_tab git "AIBOX-LAZYGIT-READY"
+  capture_tab shell "AIBOX-SHELL-READY"
+  capture_tab claude "AIBOX-HARNESS-CLAUDE"
+  capture_tab codex "AIBOX-HARNESS-CODEX"
+  capture_tab gemini "AIBOX-HARNESS-GEMINI"
+  capture_tab aider "AIBOX-HARNESS-AIDER"
+  capture_tab continue "AIBOX-HARNESS-CONTINUE"
+  capture_tab cursor "AIBOX-HARNESS-CURSOR"
+  capture_tab copilot "AIBOX-HARNESS-COPILOT"
+  capture_tab opencode "AIBOX-HARNESS-OPENCODE"
+  capture_tab hermes "AIBOX-HARNESS-HERMES"
   zellij action move-focus right >/dev/null 2>&1 || true
   sleep 0.2
   printf '\n--- focus:right ---\n' >> "{workspace}/{stem}.screens"
   zellij action dump-screen >> "{workspace}/{stem}.screens" 2>/dev/null || true
-  pkill -x zellij >/dev/null 2>&1 || true
+  timeout 2s pkill -x zellij >/dev/null 2>&1 || true
 ) &
-zellij --config "$HOME/.config/zellij/config.kdl" \
+driver_pid=$!
+timeout --kill-after=2s 60s zellij --config "$HOME/.config/zellij/config.kdl" \
        --config-dir "$HOME/.config/zellij" \
-       --layout "$HOME/.config/zellij/layouts/{layout}.kdl" 2>/dev/null
+       --layout "$HOME/.config/zellij/layouts/{layout}.kdl" 2>/dev/null || true
+wait "$driver_pid" 2>/dev/null || true
+timeout 2s pkill -x zellij >/dev/null 2>&1 || true
 true
 "#
         ),
@@ -371,11 +459,14 @@ export PATH="$HOME/.local/bin:/usr/local/bin:$PATH"
   zellij action write 27 >/dev/null 2>&1 || true
   sleep 0.2
   zellij action dump-screen > "{workspace}/{stem}.screen" 2>/dev/null || true
-  pkill -x zellij >/dev/null 2>&1 || true
+  timeout 2s pkill -x zellij >/dev/null 2>&1 || true
 ) &
-zellij --config "$HOME/.config/zellij/config.kdl" \
+driver_pid=$!
+timeout --kill-after=2s 15s zellij --config "$HOME/.config/zellij/config.kdl" \
        --config-dir "$HOME/.config/zellij" \
-       --layout "$HOME/.config/zellij/layouts/{layout}.kdl" 2>/dev/null
+       --layout "$HOME/.config/zellij/layouts/{layout}.kdl" 2>/dev/null || true
+wait "$driver_pid" 2>/dev/null || true
+timeout 2s pkill -x zellij >/dev/null 2>&1 || true
 true
 "#
         ),
@@ -441,7 +532,7 @@ fn visual_generated_layouts_render_across_all_themes() {
 #[test]
 #[serial]
 #[ignore = "visual tab-traversal e2e is release-gated; run explicitly via scripts/maintain.sh test-e2e-visual-tabs or test-e2e-visual"]
-#[ntest::timeout(180_000)]
+#[ntest::timeout(300_000)]
 fn visual_generated_tools_and_harness_tabs_render_when_enabled() {
     let runner = E2eRunner::new();
     runner.ensure_deployed();
@@ -460,7 +551,7 @@ fn visual_generated_tools_and_harness_tabs_render_when_enabled() {
         let (recording, logs) = record_generated_layout(&runner, test_name, layout, 4);
         assert_no_zellij_runtime_errors(&logs, layout);
         assert!(
-            recording.contains("--- tab:files ---") && recording.contains(" NOR "),
+            recording.contains("--- tab:files") && recording.contains(" NOR "),
             "{layout}: expected Yazi/file pane surface in generated layout recording:\n{recording}"
         );
         assert!(
@@ -489,7 +580,7 @@ fn visual_generated_tools_and_harness_tabs_render_when_enabled() {
 #[test]
 #[serial]
 #[ignore = "visual Yazi preview e2e is release-gated; run explicitly via scripts/maintain.sh test-e2e-visual-yazi or test-e2e-visual"]
-#[ntest::timeout(120_000)]
+#[ntest::timeout(180_000)]
 fn visual_yazi_previews_git_symbols_and_optional_plugins_render() {
     let runner = E2eRunner::new();
     runner.ensure_deployed();
@@ -574,11 +665,14 @@ export PATH="$HOME/.local/bin:/usr/local/bin:$PATH"
   zellij action write 27 >/dev/null 2>&1 || true
   sleep 0.4
   zellij action dump-screen > "{workspace}/yazi-preview-{label}.screen" 2>/dev/null || true
-  pkill -x zellij >/dev/null 2>&1 || true
+  timeout 2s pkill -x zellij >/dev/null 2>&1 || true
 ) &
-zellij --config "$HOME/.config/zellij/config.kdl" \
+driver_pid=$!
+timeout --kill-after=2s 15s zellij --config "$HOME/.config/zellij/config.kdl" \
        --config-dir "$HOME/.config/zellij" \
-       --layout "{workspace}/yazi-preview-{label}.kdl" 2>/dev/null
+       --layout "{workspace}/yazi-preview-{label}.kdl" 2>/dev/null || true
+wait "$driver_pid" 2>/dev/null || true
+timeout 2s pkill -x zellij >/dev/null 2>&1 || true
 true
 "#
             ),
