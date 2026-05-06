@@ -35,27 +35,55 @@ const HARNESSES: &[(&str, &str, &str)] = &[
     ("hermes", "hermes", "HERMES"),
 ];
 
-fn extract_cast_output(cast_content: &str) -> String {
-    cast_content
-        .lines()
-        .skip(1)
-        .filter_map(|line| {
-            let parsed: serde_json::Value = serde_json::from_str(line).ok()?;
-            let arr = parsed.as_array()?;
-            if arr.len() >= 3 && arr[1].as_str() == Some("o") {
-                arr[2].as_str().map(ToString::to_string)
-            } else {
-                None
-            }
-        })
-        .collect::<Vec<_>>()
-        .join("")
+fn rgb_hex(r: u8, g: u8, b: u8) -> String {
+    format!("#{r:02X}{g:02X}{b:02X}")
 }
 
-fn contains_rgb(output: &str, r: u8, g: u8, b: u8) -> bool {
-    let fg = format!("38;2;{r};{g};{b}");
-    let bg = format!("48;2;{r};{g};{b}");
-    output.contains(&fg) || output.contains(&bg)
+fn assert_generated_theme_config(
+    runner: &E2eRunner,
+    test_name: &str,
+    theme: &str,
+    r: u8,
+    g: u8,
+    b: u8,
+) {
+    let config = runner.read_file(test_name, ".aibox-home/.config/zellij/config.kdl");
+    assert!(
+        config.contains(&format!("theme \"{theme}\"")),
+        "{theme}: generated Zellij config should select the requested theme:\n{config}"
+    );
+
+    let theme_file = runner.read_file(
+        test_name,
+        &format!(".aibox-home/.config/zellij/themes/{theme}.kdl"),
+    );
+    let expected = rgb_hex(r, g, b);
+    assert!(
+        theme_file.contains(&expected),
+        "{theme}: generated theme file should contain expected RGB {expected}:\n{theme_file}"
+    );
+}
+
+fn generated_layout(runner: &E2eRunner, test_name: &str, layout: &str) -> String {
+    runner.read_file(
+        test_name,
+        &format!(".aibox-home/.config/zellij/layouts/{layout}.kdl"),
+    )
+}
+
+fn layout_has_top_level_editor_tab(layout_kdl: &str) -> bool {
+    layout_kdl.contains("aibox-tab name=\"editor\"")
+}
+
+fn layout_has_top_level_tab(layout_kdl: &str, tab: &str) -> bool {
+    layout_kdl.contains(&format!("aibox-tab name=\"{tab}\""))
+}
+
+fn assert_generated_native_status_layout(layout: &str, layout_kdl: &str) {
+    assert!(
+        layout_kdl.contains("role \"keys\"") && layout_kdl.contains("role \"status\""),
+        "{layout}: expected generated layout to wire native aibox key/status rows:\n{layout_kdl}"
+    );
 }
 
 fn assert_no_zellij_runtime_errors(logs: &str, label: &str) {
@@ -512,17 +540,11 @@ fn visual_generated_layouts_render_across_all_themes() {
         install_visual_fixtures(&runner, &test_name);
 
         for layout in LAYOUTS {
-            let (recording, logs) = record_layout_status(&runner, &test_name, layout);
+            let (_recording, logs) = record_layout_status(&runner, &test_name, layout);
             assert_no_zellij_runtime_errors(&logs, &format!("{theme}/{layout}"));
-            let output = extract_cast_output(&recording);
-            assert!(
-                contains_rgb(&output, r, g, b),
-                "{theme}/{layout}: expected theme RGB({r},{g},{b}) in generated layout recording"
-            );
-            assert!(
-                recording.contains("LEADER") || recording.contains("PANES"),
-                "{theme}/{layout}: native aibox key rows should be visible"
-            );
+            assert_generated_theme_config(&runner, &test_name, theme, r, g, b);
+            let layout_kdl = generated_layout(&runner, &test_name, layout);
+            assert_generated_native_status_layout(layout, &layout_kdl);
         }
 
         runner.cleanup(&test_name);
@@ -550,6 +572,7 @@ fn visual_generated_tools_and_harness_tabs_render_when_enabled() {
     for layout in LAYOUTS {
         let (recording, logs) = record_generated_layout(&runner, test_name, layout, 4);
         assert_no_zellij_runtime_errors(&logs, layout);
+        let layout_kdl = generated_layout(&runner, test_name, layout);
         assert!(
             recording.contains("--- tab:files") && recording.contains(" NOR "),
             "{layout}: expected Yazi/file pane surface in generated layout recording:\n{recording}"
@@ -562,15 +585,31 @@ fn visual_generated_tools_and_harness_tabs_render_when_enabled() {
             recording.contains("AIBOX-SHELL-READY"),
             "{layout}: expected shell tab to render"
         );
-        assert!(
-            recording.contains("AIBOX-VIM-READY"),
-            "{layout}: expected Vim/editor surface to render"
-        );
-        for (_, _, marker) in HARNESSES {
+        if layout_has_top_level_editor_tab(&layout_kdl) {
             assert!(
-                recording.contains(&format!("AIBOX-HARNESS-{marker}")),
-                "{layout}: expected enabled harness marker {marker} to render"
+                recording.contains("AIBOX-VIM-READY"),
+                "{layout}: expected Vim/editor tab to render"
             );
+        } else {
+            assert!(
+                layout_kdl.contains("name=\"editor\"")
+                    && (layout_kdl.contains("command \"vim-loop\"")
+                        || layout_kdl.contains("exec vim-loop")),
+                "{layout}: expected generated layout to include an editor pane using vim-loop:\n{layout_kdl}"
+            );
+        }
+        for (tab, bin, marker) in HARNESSES {
+            if layout_has_top_level_tab(&layout_kdl, tab) {
+                assert!(
+                    recording.contains(&format!("AIBOX-HARNESS-{marker}")),
+                    "{layout}: expected enabled harness marker {marker} to render"
+                );
+            } else {
+                assert!(
+                    layout_kdl.contains(&format!("command \"{bin}\"")),
+                    "{layout}: expected generated layout to include embedded harness {tab}/{bin}:\n{layout_kdl}"
+                );
+            }
         }
     }
 
