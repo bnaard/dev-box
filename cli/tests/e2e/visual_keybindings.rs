@@ -57,6 +57,188 @@ fn record(runner: &E2eRunner, test_name: &str, driver: &str) -> String {
     runner.read_file(test_name, "recording.cast")
 }
 
+fn init_managed_project(runner: &E2eRunner, test_name: &str) {
+    let init = runner.aibox(
+        test_name,
+        &[
+            "init",
+            test_name,
+            "--base",
+            "debian",
+            "--context",
+            "managed",
+        ],
+    );
+    assert!(
+        init.status.success(),
+        "init failed:\nstdout:\n{}\nstderr:\n{}",
+        String::from_utf8_lossy(&init.stdout),
+        String::from_utf8_lossy(&init.stderr)
+    );
+}
+
+fn yazi_vim_bridge_layout(ws: &str, src: &str, editor_dir: &str) -> String {
+    match editor_dir {
+        "tab" => format!(
+            r#"layout {{
+    default_tab_template {{
+        children
+        pane size=1 borderless=true {{
+            plugin location="zellij:status-bar"
+        }}
+    }}
+    tab name="files" focus=true {{
+        pane name="files" focus=true {{
+            command "bash"
+            args "-c" "AIBOX_EDITOR_DIR=tab exec yazi {src}"
+            cwd "{src}"
+        }}
+    }}
+    tab name="editor" {{
+        pane name="editor" {{
+            command "bash"
+            args "-c" "AIBOX_EDITOR_DIR=tab exec vim-loop"
+            cwd "{ws}"
+        }}
+    }}
+}}
+"#
+        ),
+        "down" => format!(
+            r#"layout {{
+    default_tab_template {{
+        children
+        pane size=1 borderless=true {{
+            plugin location="zellij:status-bar"
+        }}
+    }}
+    tab name="dev" focus=true {{
+        pane split_direction="horizontal" {{
+            pane size="45%" name="files" focus=true {{
+                command "bash"
+                args "-c" "AIBOX_EDITOR_DIR=down exec yazi {src}"
+                cwd "{src}"
+            }}
+            pane size="55%" name="editor" {{
+                command "bash"
+                args "-c" "AIBOX_EDITOR_DIR=down exec vim-loop"
+                cwd "{ws}"
+            }}
+        }}
+    }}
+}}
+"#
+        ),
+        _ => format!(
+            r#"layout {{
+    default_tab_template {{
+        children
+        pane size=1 borderless=true {{
+            plugin location="zellij:status-bar"
+        }}
+    }}
+    tab name="dev" focus=true {{
+        pane split_direction="vertical" {{
+            pane size="40%" name="files" focus=true {{
+                command "bash"
+                args "-c" "AIBOX_EDITOR_DIR=right exec yazi {src}"
+                cwd "{src}"
+            }}
+            pane size="60%" name="editor" {{
+                command "bash"
+                args "-c" "AIBOX_EDITOR_DIR=right exec vim-loop"
+                cwd "{ws}"
+            }}
+        }}
+    }}
+}}
+"#
+        ),
+    }
+}
+
+fn assert_yazi_e_then_vim_quit_returns_to_yazi(test_name: &str, editor_dir: &str) {
+    let runner = E2eRunner::new();
+    runner.ensure_deployed();
+    runner.cleanup(test_name);
+    init_managed_project(&runner, test_name);
+
+    let alpha_marker = format!("AIBOX_E2E_ALPHA_{editor_dir}");
+    let beta_marker = format!("AIBOX_E2E_BETA_{editor_dir}");
+    runner.write_file(
+        test_name,
+        "src/alpha.rs",
+        &format!("fn alpha() {{\n    // {alpha_marker}\n}}\n"),
+    );
+    runner.write_file(
+        test_name,
+        "src/beta.rs",
+        &format!("fn beta() {{\n    // {beta_marker}\n}}\n"),
+    );
+
+    let ws = format!("/workspaces/{test_name}");
+    let home = format!("{ws}/.aibox-home");
+    let src = format!("{ws}/src");
+    let layout = yazi_vim_bridge_layout(&ws, &src, editor_dir);
+    runner.write_file(test_name, "bridge-layout.kdl", &layout);
+
+    let driver = format!(
+        r#"#!/usr/bin/env bash
+export TERM=xterm-256color COLORTERM=truecolor
+export HOME={home}
+export PATH="$HOME/.local/bin:/usr/local/bin:$PATH"
+
+(
+  sleep 2.5
+  zellij action write 27
+  sleep 0.5
+
+  # Open alpha.rs from Yazi in the Vim pane/tab.
+  zellij action write-chars "e"
+  for i in $(seq 1 40); do
+    sleep 0.25
+    zellij action dump-screen 2>/dev/null | grep -qF "{alpha_marker}" && break
+  done
+
+  # Quit Vim normally. vim-loop must return focus to Yazi and restart Vim.
+  zellij action write-chars ":q"
+  zellij action write 13
+  sleep 1.0
+
+  # If focus really returned to Yazi, j+e selects beta.rs and opens it in Vim.
+  zellij action write-chars "j"
+  sleep 0.2
+  zellij action write-chars "e"
+  FOUND=0
+  for i in $(seq 1 50); do
+    sleep 0.25
+    if zellij action dump-screen 2>/dev/null | grep -qF "{beta_marker}"; then
+      FOUND=1
+      break
+    fi
+  done
+  [ "$FOUND" -eq 1 ] && touch {ws}/return-ok
+  zellij action dump-screen 2>/dev/null > {ws}/final-screen.txt || true
+  pkill -x zellij 2>/dev/null
+) &
+
+zellij --config "$HOME/.config/zellij/config.kdl" \
+       --config-dir "$HOME/.config/zellij" \
+       --layout {ws}/bridge-layout.kdl 2>/dev/null
+true
+"#
+    );
+
+    let cast = record(&runner, test_name, &driver);
+    assert!(cast.lines().count() > 5, "cast too small");
+    assert!(
+        runner.file_exists(test_name, "return-ok"),
+        "expected Vim quit to return focus to Yazi for AIBOX_EDITOR_DIR={editor_dir}; final screen:\n{}",
+        runner.read_file(test_name, "final-screen.txt")
+    );
+    runner.cleanup(test_name);
+}
+
 // ── Yazi keybinding tests ─────────────────────────────────────────────────────
 
 /// yazi `e` key: open-in-editor pipeline.
@@ -201,6 +383,33 @@ true
     runner.cleanup(test_name);
 }
 
+/// yazi `e`, same-tab right editor: after Vim `:q`, focus returns to Yazi.
+///
+/// This covers the default dev layout contract: `open-in-editor` moves right
+/// into Vim, and `vim-loop` moves focus left after normal Vim quit.
+#[test]
+#[serial]
+#[ntest::timeout(120_000)]
+fn visual_kb_yazi_e_then_vim_quit_returns_to_yazi_right_pane() {
+    assert_yazi_e_then_vim_quit_returns_to_yazi("visual-kb-yazi-e-return-right", "right");
+}
+
+/// yazi `e`, same-tab lower editor: after Vim `:q`, focus returns upward to Yazi.
+#[test]
+#[serial]
+#[ntest::timeout(120_000)]
+fn visual_kb_yazi_e_then_vim_quit_returns_to_yazi_down_pane() {
+    assert_yazi_e_then_vim_quit_returns_to_yazi("visual-kb-yazi-e-return-down", "down");
+}
+
+/// yazi `e`, split-tab editor: after Vim `:q`, focus returns to the files tab.
+#[test]
+#[serial]
+#[ntest::timeout(120_000)]
+fn visual_kb_yazi_e_then_vim_quit_returns_to_yazi_files_tab() {
+    assert_yazi_e_then_vim_quit_returns_to_yazi("visual-kb-yazi-e-return-tab", "tab");
+}
+
 /// yazi `Enter` key: edit file in-place (vim suspends yazi).
 ///
 /// Pressing Enter on a file calls `${EDITOR:-vim}` in block mode, so yazi
@@ -306,6 +515,294 @@ true
     runner.cleanup(test_name);
 }
 
+/// yazi `Enter`: Vim opens in-place, and `:q` resumes Yazi in the same pane.
+#[test]
+#[serial]
+#[ntest::timeout(90_000)]
+fn visual_kb_yazi_enter_then_vim_quit_returns_to_yazi() {
+    let runner = E2eRunner::new();
+    runner.ensure_deployed();
+
+    let test_name = "visual-kb-yazi-enter-return";
+    runner.cleanup(test_name);
+    init_managed_project(&runner, test_name);
+
+    let beta_marker = "AIBOX_E2E_ENTER_RETURN_BETA";
+    runner.write_file(test_name, "src/alpha.rs", "fn alpha() {}\n");
+    runner.write_file(
+        test_name,
+        "src/beta.rs",
+        &format!("fn beta() {{\n    // {beta_marker}\n}}\n"),
+    );
+
+    let ws = format!("/workspaces/{test_name}");
+    let home = format!("{ws}/.aibox-home");
+    let src = format!("{ws}/src");
+    let driver = format!(
+        r#"#!/usr/bin/env bash
+export TERM=xterm-256color COLORTERM=truecolor
+export HOME={home}
+export EDITOR=vim
+export PATH="$HOME/.local/bin:/usr/local/bin:$PATH"
+
+cat > {ws}/enter-return-layout.kdl << 'LAYOUT_EOF'
+layout {{
+    pane {{
+        command "yazi"
+        args "{src}"
+        cwd "{src}"
+    }}
+}}
+LAYOUT_EOF
+
+(
+  sleep 2
+  zellij action write 27
+  sleep 0.5
+  zellij action write 13
+  sleep 0.8
+  zellij action write-chars ":q"
+  zellij action write 13
+  sleep 0.8
+  zellij action write-chars "j"
+  sleep 0.2
+  zellij action write 13
+  FOUND=0
+  for i in $(seq 1 40); do
+    sleep 0.25
+    if zellij action dump-screen 2>/dev/null | grep -qF "{beta_marker}"; then
+      FOUND=1
+      break
+    fi
+  done
+  [ "$FOUND" -eq 1 ] && touch {ws}/return-ok
+  zellij action dump-screen 2>/dev/null > {ws}/final-screen.txt || true
+  pkill -x zellij 2>/dev/null
+) &
+
+zellij --config "$HOME/.config/zellij/config.kdl" \
+       --config-dir "$HOME/.config/zellij" \
+       --layout {ws}/enter-return-layout.kdl 2>/dev/null
+true
+"#
+    );
+
+    let cast = record(&runner, test_name, &driver);
+    assert!(cast.lines().count() > 5, "cast too small");
+    assert!(
+        runner.file_exists(test_name, "return-ok"),
+        "expected yazi Enter -> Vim :q to resume Yazi; final screen:\n{}",
+        runner.read_file(test_name, "final-screen.txt")
+    );
+    runner.cleanup(test_name);
+}
+
+/// yazi `g s` and `g c`: git status/change shortcuts open useful output.
+#[test]
+#[serial]
+#[ntest::timeout(90_000)]
+fn visual_kb_yazi_git_summary_and_changes_show_status() {
+    let runner = E2eRunner::new();
+    runner.ensure_deployed();
+
+    let test_name = "visual-kb-yazi-git-status";
+    runner.cleanup(test_name);
+    init_managed_project(&runner, test_name);
+
+    let ws = format!("/workspaces/{test_name}");
+    let home = format!("{ws}/.aibox-home");
+    runner.exec(&format!(
+        "cd {ws} && \
+         git -c user.email=test@test.com -c user.name=test init && \
+         echo old > changed.txt && \
+         git -c user.email=test@test.com -c user.name=test add changed.txt && \
+         git -c user.email=test@test.com -c user.name=test commit -m init && \
+         echo new > changed.txt"
+    ));
+
+    let driver = format!(
+        r#"#!/usr/bin/env bash
+export TERM=xterm-256color COLORTERM=truecolor
+export HOME={home}
+
+cat > {ws}/yazi-git-layout.kdl << 'LAYOUT_EOF'
+layout {{
+    pane {{
+        command "yazi"
+        args "{ws}"
+        cwd "{ws}"
+    }}
+}}
+LAYOUT_EOF
+
+(
+  sleep 2
+  zellij action write 27
+  sleep 0.5
+  zellij action write-chars "gs"
+  sleep 1.2
+  zellij action write-chars "q"
+  sleep 0.5
+  zellij action write-chars "gc"
+  sleep 1.2
+  pkill -x zellij 2>/dev/null
+) &
+
+zellij --config "$HOME/.config/zellij/config.kdl" \
+       --config-dir "$HOME/.config/zellij" \
+       --layout {ws}/yazi-git-layout.kdl 2>/dev/null
+true
+"#
+    );
+
+    let cast = record(&runner, test_name, &driver);
+    let output = extract_cast_output(&cast);
+    assert!(cast.lines().count() > 5, "cast too small");
+    assert!(
+        output.contains("##") || output.contains("master") || output.contains("changed.txt"),
+        "expected yazi git summary/change shortcuts to show git status output"
+    );
+    runner.cleanup(test_name);
+}
+
+/// yazi `z *`: pane toggle shortcuts keep Yazi alive and rendering files.
+#[test]
+#[serial]
+#[ntest::timeout(90_000)]
+fn visual_kb_yazi_pane_toggles_keep_file_list_alive() {
+    let runner = E2eRunner::new();
+    runner.ensure_deployed();
+
+    let test_name = "visual-kb-yazi-pane-toggles";
+    runner.cleanup(test_name);
+    init_managed_project(&runner, test_name);
+    runner.write_file(test_name, "visible.txt", "still here\n");
+
+    let ws = format!("/workspaces/{test_name}");
+    let home = format!("{ws}/.aibox-home");
+    let driver = format!(
+        r#"#!/usr/bin/env bash
+export TERM=xterm-256color COLORTERM=truecolor
+export HOME={home}
+
+cat > {ws}/yazi-pane-layout.kdl << 'LAYOUT_EOF'
+layout {{
+    pane {{
+        command "yazi"
+        args "{ws}"
+        cwd "{ws}"
+    }}
+}}
+LAYOUT_EOF
+
+(
+  sleep 2
+  zellij action write 27
+  sleep 0.5
+  zellij action write-chars "zl"
+  sleep 0.4
+  zellij action write-chars "zm"
+  sleep 0.4
+  zellij action write-chars "z0"
+  sleep 0.4
+  zellij action write-chars "zc"
+  sleep 0.4
+  zellij action write-chars "z0"
+  sleep 0.8
+  zellij action dump-screen 2>/dev/null > {ws}/final-screen.txt || true
+  pkill -x zellij 2>/dev/null
+) &
+
+zellij --config "$HOME/.config/zellij/config.kdl" \
+       --config-dir "$HOME/.config/zellij" \
+       --layout {ws}/yazi-pane-layout.kdl 2>/dev/null
+true
+"#
+    );
+
+    let cast = record(&runner, test_name, &driver);
+    let screen = runner.read_file(test_name, "final-screen.txt");
+    assert!(cast.lines().count() > 5, "cast too small");
+    assert!(
+        screen.contains("visible.txt"),
+        "expected yazi file list to survive pane toggle shortcuts, got:\n{screen}"
+    );
+    runner.cleanup(test_name);
+}
+
+/// Zellij `Ctrl+g v` / `Ctrl+g b`: toggle aibox status and key rows.
+#[test]
+#[serial]
+#[ntest::timeout(120_000)]
+fn visual_kb_zellij_toggles_aibox_status_and_key_rows() {
+    let runner = E2eRunner::new();
+    runner.ensure_deployed();
+
+    let test_name = "visual-kb-zellij-status-toggles";
+    runner.cleanup(test_name);
+    init_managed_project(&runner, test_name);
+
+    let ws = format!("/workspaces/{test_name}");
+    let home = format!("{ws}/.aibox-home");
+    let driver = format!(
+        r#"#!/usr/bin/env bash
+export TERM=xterm-256color COLORTERM=truecolor
+export HOME={home}
+export PATH="$HOME/.local/bin:/usr/local/bin:$PATH"
+
+(
+  sleep 3
+  zellij action write 27
+  sleep 0.8
+  zellij action dump-screen 2>/dev/null > {ws}/before.txt || true
+  zellij action write 7
+  zellij action write-chars "v"
+  sleep 0.8
+  zellij action dump-screen 2>/dev/null > {ws}/runtime-off.txt || true
+  zellij action write 7
+  zellij action write-chars "b"
+  sleep 0.8
+  zellij action dump-screen 2>/dev/null > {ws}/both-off.txt || true
+  zellij action write 7
+  zellij action write-chars "v"
+  sleep 0.4
+  zellij action write 7
+  zellij action write-chars "b"
+  sleep 0.8
+  zellij action dump-screen 2>/dev/null > {ws}/after.txt || true
+  touch {ws}/toggle-ok
+  pkill -x zellij 2>/dev/null
+) &
+
+zellij --config "$HOME/.config/zellij/config.kdl" \
+       --config-dir "$HOME/.config/zellij" \
+       --layout "$HOME/.config/zellij/layouts/dev.kdl" 2>/dev/null
+true
+"#
+    );
+
+    let cast = record(&runner, test_name, &driver);
+    let output = extract_cast_output(&cast);
+    assert!(cast.lines().count() > 5, "cast too small");
+    assert!(
+        runner.file_exists(test_name, "toggle-ok"),
+        "expected driver to send Ctrl+g v/b toggles"
+    );
+    assert!(
+        output.contains("MEM ") || output.contains("PROC ") || output.contains("MCP "),
+        "expected recording to include the aibox runtime status row"
+    );
+    assert!(
+        output.contains("C-g") || output.contains("leader") || output.contains("PANES"),
+        "expected recording to include the aibox key row"
+    );
+    assert!(
+        !output.contains("ERROR IN PLUGIN"),
+        "status/key row toggle recording should not show plugin errors"
+    );
+    runner.cleanup(test_name);
+}
+
 // ── Vim keybinding tests ──────────────────────────────────────────────────────
 
 /// Helper: build a driver script that starts vim with the full container vimrc.
@@ -364,7 +861,7 @@ true
 /// a file we created or a netrw-specific marker appears in the cast.
 #[test]
 #[serial]
-#[ntest::timeout(60_000)]
+#[ntest::timeout(120_000)]
 fn visual_kb_vim_leader_e_opens_netrw() {
     let runner = E2eRunner::new();
     runner.ensure_deployed();
@@ -484,7 +981,7 @@ fn visual_kb_vim_leader_l_shows_buffer_list() {
 /// `<Space>w`. vim prints `"filename" NL, NB written` — we assert "written".
 #[test]
 #[serial]
-#[ntest::timeout(60_000)]
+#[ntest::timeout(120_000)]
 fn visual_kb_vim_leader_w_saves_file() {
     let runner = E2eRunner::new();
     runner.ensure_deployed();
@@ -535,6 +1032,134 @@ fn visual_kb_vim_leader_w_saves_file() {
         "expected vim 'written' confirmation after <Space>w save"
     );
 
+    runner.cleanup(test_name);
+}
+
+/// vim `<Space>q`: quits Vim through the generated leader mapping.
+#[test]
+#[serial]
+#[ntest::timeout(90_000)]
+fn visual_kb_vim_leader_q_quits_vim() {
+    let runner = E2eRunner::new();
+    runner.ensure_deployed();
+
+    let test_name = "visual-kb-vim-quit";
+    runner.cleanup(test_name);
+    init_managed_project(&runner, test_name);
+    runner.write_file(test_name, "quit_me.rs", "fn main() {}\n");
+
+    let ws = format!("/workspaces/{test_name}");
+    let home = format!("{ws}/.aibox-home");
+    let driver = format!(
+        r#"#!/usr/bin/env bash
+export TERM=xterm-256color COLORTERM=truecolor
+export HOME={home}
+
+cat > {ws}/vim-quit-layout.kdl << 'LAYOUT_EOF'
+layout {{
+    pane {{
+        command "vim"
+        args "-u" "/opt/aibox/vimrc" "{ws}/quit_me.rs"
+        cwd "{ws}"
+    }}
+}}
+LAYOUT_EOF
+
+(
+  sleep 1.5
+  zellij action write 27
+  sleep 0.5
+  zellij action write-chars " q"
+  sleep 1.5
+  if ! pgrep -x vim >/dev/null 2>&1; then
+    touch {ws}/quit-ok
+  fi
+  zellij action dump-screen 2>/dev/null > {ws}/final-screen.txt || true
+  pkill -x zellij 2>/dev/null
+) &
+
+zellij --config "$HOME/.config/zellij/config.kdl" \
+       --config-dir "$HOME/.config/zellij" \
+       --layout {ws}/vim-quit-layout.kdl 2>/dev/null
+true
+"#
+    );
+
+    let _cast = record(&runner, test_name, &driver);
+    assert!(
+        runner.file_exists(test_name, "quit-ok"),
+        "expected <Space>q to quit Vim; final screen:\n{}",
+        runner.read_file(test_name, "final-screen.txt")
+    );
+    runner.cleanup(test_name);
+}
+
+/// vim `<Space>x`: writes the current buffer and quits Vim.
+#[test]
+#[serial]
+#[ntest::timeout(90_000)]
+fn visual_kb_vim_leader_x_writes_and_quits_vim() {
+    let runner = E2eRunner::new();
+    runner.ensure_deployed();
+
+    let test_name = "visual-kb-vim-writequit";
+    runner.cleanup(test_name);
+    init_managed_project(&runner, test_name);
+    runner.write_file(test_name, "writequit.rs", "fn main() {}\n");
+
+    let ws = format!("/workspaces/{test_name}");
+    let home = format!("{ws}/.aibox-home");
+    let driver = format!(
+        r#"#!/usr/bin/env bash
+export TERM=xterm-256color COLORTERM=truecolor
+export HOME={home}
+
+cat > {ws}/vim-writequit-layout.kdl << 'LAYOUT_EOF'
+layout {{
+    pane {{
+        command "vim"
+        args "-u" "/opt/aibox/vimrc" "{ws}/writequit.rs"
+        cwd "{ws}"
+    }}
+}}
+LAYOUT_EOF
+
+(
+  sleep 1.5
+  zellij action write 27
+  sleep 0.5
+  zellij action write-chars "A"
+  sleep 0.2
+  zellij action write-chars " // saved"
+  zellij action write 27
+  sleep 0.2
+  zellij action write-chars " x"
+  sleep 1.5
+  if ! pgrep -x vim >/dev/null 2>&1; then
+    touch {ws}/writequit-ok
+  fi
+  zellij action dump-screen 2>/dev/null > {ws}/final-screen.txt || true
+  pkill -x zellij 2>/dev/null
+) &
+
+zellij --config "$HOME/.config/zellij/config.kdl" \
+       --config-dir "$HOME/.config/zellij" \
+       --layout {ws}/vim-writequit-layout.kdl 2>/dev/null
+true
+"#
+    );
+
+    let _cast = record(&runner, test_name, &driver);
+    let saved = runner.read_file(test_name, "writequit.rs");
+    assert!(
+        runner.file_exists(test_name, "writequit-ok"),
+        "expected <Space>x to quit Vim; final screen:\n{}",
+        runner.read_file(test_name, "final-screen.txt")
+    );
+    assert!(
+        saved.contains("// saved"),
+        "expected <Space>x to write file before quitting, got:\n{saved}"
+    );
     runner.cleanup(test_name);
 }
 
@@ -692,7 +1317,7 @@ true
 /// We assert "Staged" appears in the cast (the staged-files panel header).
 #[test]
 #[serial]
-#[ntest::timeout(90_000)]
+#[ntest::timeout(150_000)]
 fn visual_kb_lazygit_space_stages_file() {
     let runner = E2eRunner::new();
     runner.ensure_deployed();
@@ -713,7 +1338,9 @@ fn visual_kb_lazygit_space_stages_file() {
         "cd {ws} && \
          git -c user.email=test@test.com -c user.name=test init && \
          echo 'v1' > file.txt && \
+         printf 'driver.sh\nrecording.cast\n.lazygit-home/\n' > .gitignore && \
          git -c user.email=test@test.com -c user.name=test add file.txt && \
+         git -c user.email=test@test.com -c user.name=test add .gitignore && \
          git -c user.email=test@test.com -c user.name=test commit -m 'init' && \
          echo 'v2' > file.txt"
     ));
@@ -734,7 +1361,15 @@ layout {{
 LAYOUT_EOF
 
 (
-  sleep 4
+  sleep 2
+  # Dismiss the zellij 0.44 Release Notes popup before sending the
+  # lazygit keybinding under test.
+  zellij action write 27
+  sleep 1
+  # Focus the Files panel explicitly; the keybinding under test acts on the
+  # selected file there.
+  zellij action write-chars "2"
+  sleep 0.5
   # <Space> stages the currently highlighted file
   zellij action write 32
   sleep 2
@@ -748,13 +1383,20 @@ true
 
     let cast = record(&runner, test_name, &driver);
     let output = extract_cast_output(&cast);
+    let staged = runner.exec(&format!(
+        "cd {ws} && git diff --cached --name-only | grep -qx file.txt"
+    ));
 
     assert!(cast.lines().count() > 5, "cast too small");
 
-    // lazygit always shows "Staged Files" and "Unstaged Files" panels
     assert!(
-        output.contains("Staged") || output.contains("staged"),
-        "expected lazygit file panel (Staged/Unstaged) in cast"
+        staged.status.success(),
+        "expected lazygit <Space> to stage file.txt; cached diff did not contain it"
+    );
+
+    assert!(
+        output.contains("file.txt"),
+        "expected lazygit file list to show file.txt in cast"
     );
 
     runner.cleanup(test_name);

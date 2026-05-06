@@ -107,8 +107,9 @@ fn lifecycle_apply_starts_generated_container() {
     );
 
     let runtime = runner.runtime_bin();
+    let compose_file = format!("{workspace}/.devcontainer/docker-compose.yml");
     let up = runner.exec(&format!(
-        "cd {workspace} && {runtime} compose -f .devcontainer/docker-compose.yml up -d {test}"
+        "cd {workspace} && {runtime} compose -f {compose_file} up -d {test}"
     ));
     assert!(
         up.status.success(),
@@ -129,7 +130,7 @@ fn lifecycle_apply_starts_generated_container() {
     );
 
     let down = runner.exec(&format!(
-        "cd {workspace} && {runtime} compose -f .devcontainer/docker-compose.yml down -v"
+        "cd {workspace} && {runtime} compose -f {compose_file} down -v"
     ));
     assert!(
         down.status.success(),

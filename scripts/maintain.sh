@@ -199,7 +199,7 @@ cmd_test() {
 
 cmd_test_e2e() {
   info "Running Tier 2 SSH companion E2E tests..."
-  (cd "${CLI_DIR}" && cargo test --features e2e --test e2e) \
+  (cd "${CLI_DIR}" && cargo test --features e2e --test e2e -- --test-threads=1) \
     || die "Tier 2 SSH companion E2E tests failed"
   ok "Tier 2 SSH companion E2E tests passed"
 }
@@ -207,7 +207,7 @@ cmd_test_e2e() {
 cmd_test_e2e_visual_status() {
   info "Running opt-in visual E2E: layouts, themes, and native status rows..."
   (cd "${CLI_DIR}" && cargo test --features e2e --test e2e \
-    visual_generated_layouts_render_across_all_themes -- --ignored --nocapture) \
+    visual_generated_layouts_render_across_all_themes -- --ignored --nocapture --test-threads=1) \
     || die "Visual E2E status/theme matrix failed"
   ok "Visual E2E status/theme matrix passed"
 }
@@ -215,7 +215,7 @@ cmd_test_e2e_visual_status() {
 cmd_test_e2e_visual_tabs() {
   info "Running opt-in visual E2E: tab traversal, tools, and harnesses..."
   (cd "${CLI_DIR}" && cargo test --features e2e --test e2e \
-    visual_generated_tools_and_harness_tabs_render_when_enabled -- --ignored --nocapture) \
+    visual_generated_tools_and_harness_tabs_render_when_enabled -- --ignored --nocapture --test-threads=1) \
     || die "Visual E2E tab traversal failed"
   ok "Visual E2E tab traversal passed"
 }
@@ -223,14 +223,14 @@ cmd_test_e2e_visual_tabs() {
 cmd_test_e2e_visual_yazi() {
   info "Running opt-in visual E2E: Yazi previews, git symbols, and plugins..."
   (cd "${CLI_DIR}" && cargo test --features e2e --test e2e \
-    visual_yazi_previews_git_symbols_and_optional_plugins_render -- --ignored --nocapture) \
+    visual_yazi_previews_git_symbols_and_optional_plugins_render -- --ignored --nocapture --test-threads=1) \
     || die "Visual E2E Yazi preview matrix failed"
   ok "Visual E2E Yazi preview matrix passed"
 }
 
 cmd_test_e2e_visual() {
   info "Running all opt-in visual E2E tiers..."
-  (cd "${CLI_DIR}" && cargo test --features e2e --test e2e visual_matrix -- --ignored --nocapture) \
+  (cd "${CLI_DIR}" && cargo test --features e2e --test e2e visual_matrix -- --ignored --nocapture --test-threads=1) \
     || die "Visual E2E matrix failed"
   ok "Visual E2E matrix passed"
 }
@@ -240,7 +240,7 @@ cmd_test_e2e_doc_captures() {
   mkdir -p "${artifact_dir}"
   info "Running visual E2E with docs-ready artifacts at ${artifact_dir}..."
   (cd "${CLI_DIR}" && AIBOX_E2E_VISUAL_ARTIFACT_DIR="${artifact_dir}" \
-    cargo test --features e2e --test e2e visual_matrix -- --ignored --nocapture) \
+    cargo test --features e2e --test e2e visual_matrix -- --ignored --nocapture --test-threads=1) \
     || die "Visual E2E docs capture run failed"
   ok "Visual E2E docs artifacts written to ${artifact_dir}"
 }
