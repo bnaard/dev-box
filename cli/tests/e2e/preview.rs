@@ -272,6 +272,55 @@ fn yazi_keymap_has_pdf_watch_binding() {
     );
 }
 
+/// The Yazi keymap should expose a full-pane preview binding backed by a helper.
+#[test]
+fn yazi_keymap_has_full_pane_preview_binding() {
+    let dir = tempfile::tempdir().unwrap();
+    init_project(dir.path(), "preview-full-pane");
+
+    let keymap_toml = read_yazi_keymap(dir.path());
+
+    assert!(
+        keymap_toml.contains("aibox-preview"),
+        "keymap.toml should expose the full-pane preview helper"
+    );
+}
+
+/// The full-pane preview helper should be available in the generated runtime home.
+#[test]
+fn aibox_preview_helper_seeded() {
+    let dir = tempfile::tempdir().unwrap();
+    init_project(dir.path(), "preview-helper");
+
+    let helper_path = dir.path().join(".aibox-home/.local/bin/aibox-preview");
+
+    assert!(
+        helper_path.exists(),
+        "aibox-preview helper should be seeded at {}",
+        helper_path.display()
+    );
+
+    let content = fs::read_to_string(&helper_path)
+        .unwrap_or_else(|e| panic!("failed to read aibox-preview helper: {}", e));
+    assert!(
+        content.contains("glow -p")
+            && content.contains("bat --paging=always")
+            && content.contains("pdf-watch"),
+        "aibox-preview helper should dispatch Markdown, text/code, and PDF previews"
+    );
+
+    #[cfg(unix)]
+    {
+        use std::os::unix::fs::PermissionsExt;
+
+        let mode = fs::metadata(&helper_path)
+            .unwrap_or_else(|e| panic!("failed to stat aibox-preview helper: {}", e))
+            .permissions()
+            .mode();
+        assert_ne!(mode & 0o111, 0, "aibox-preview helper should be executable");
+    }
+}
+
 /// The PDF watch helper should be available in the generated runtime home.
 #[test]
 fn pdf_watch_helper_seeded() {

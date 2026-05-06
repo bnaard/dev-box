@@ -1,3 +1,17 @@
+"file:/usr/local/share/aibox/zellij/aibox-status-keys.wasm" {
+    ReadApplicationState
+}
+"/usr/local/share/aibox/zellij/aibox-status-keys.wasm" {
+    ReadApplicationState
+}
+"file:/usr/local/share/aibox/zellij/aibox-status-runtime.wasm" {
+    RunCommands
+    ReadApplicationState
+}
+"/usr/local/share/aibox/zellij/aibox-status-runtime.wasm" {
+    RunCommands
+    ReadApplicationState
+}
 "file:/usr/local/share/aibox/zellij/aibox-status.wasm" {
     RunCommands
     ReadApplicationState

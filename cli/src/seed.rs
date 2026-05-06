@@ -20,6 +20,8 @@ set colorcolumn=88
 set scrolloff=8
 set signcolumn=yes
 set cursorline
+set t_u7=
+set t_RV=
 set wildmenu wildmode=longest:full,full
 set incsearch hlsearch ignorecase smartcase
 set backspace=indent,eol,start
@@ -29,6 +31,7 @@ set ruler showcmd
 " Filetype-specific indentation
 autocmd FileType yaml,json,kdl,html,css,javascript setlocal tabstop=2 shiftwidth=2
 autocmd FileType markdown setlocal wrap linebreak
+autocmd VimEnter * redraw!
 
 " Use ripgrep if available
 if executable('rg')
@@ -347,12 +350,12 @@ fn zellij_status_template_kdl(mode: &ZellijStatusMode) -> String {
         ZellijStatusMode::Native => r#"    tab_template name="aibox-tab" {
         children
         pane size=1 borderless=true {
-            plugin location="file:/usr/local/share/aibox/zellij/aibox-status.wasm" {
+            plugin location="file:/usr/local/share/aibox/zellij/aibox-status-keys.wasm" {
                 role "keys"
             }
         }
         pane size=1 borderless=true {
-            plugin location="file:/usr/local/share/aibox/zellij/aibox-status.wasm" {
+            plugin location="file:/usr/local/share/aibox/zellij/aibox-status-runtime.wasm" {
                 role "status"
             }
         }
@@ -930,7 +933,7 @@ AIBOX_YAZI_EXTRA_PREVIEWERS
 
 [opener]
 edit = [
-    { run = '${EDITOR:-vim} "$@"', desc = "Edit in-place", block = true },
+    { run = 'vim --cmd "set t_u7=" --cmd "set t_RV=" "$@"', desc = "Edit in-place", block = true },
 ]
 edit-pane = [
     { run = 'open-in-editor "$1"', desc = "Open in vim pane", block = false },
@@ -1298,6 +1301,9 @@ const DEFAULT_PDF_WATCH_SH: &str = include_str!("../../images/base-debian/config
 /// open-in-editor helper — open the hovered Yazi file in the Vim pane/tab.
 const DEFAULT_OPEN_IN_EDITOR_SH: &str =
     include_str!("../../images/base-debian/config/bin/open-in-editor.sh");
+/// aibox-preview helper — full-pane rich previews from Yazi.
+const DEFAULT_AIBOX_PREVIEW_SH: &str =
+    include_str!("../../images/base-debian/config/bin/aibox-preview.sh");
 /// aibox-status helper — compact cgroup/procfs status line for Zellij layouts.
 const DEFAULT_AIBOX_STATUS_SH: &str =
     include_str!("../../images/base-debian/config/bin/aibox-status.sh");
@@ -1319,6 +1325,7 @@ prepend_keymap = [
     { on = "<Enter>", run = "open", desc = "Edit in-place" },
     { on = "e", run = "shell 'open-in-editor \"$1\"'", desc = "Open in vim pane" },
     { on = "O", run = "open --interactive", desc = "Open interactively" },
+    { on = "p", run = "shell 'aibox-preview \"$1\"' --block", desc = "Full-pane preview" },
     { on = [ "z", "h" ], run = "plugin toggle-pane min-parent", desc = "Toggle parent pane" },
     { on = [ "z", "l" ], run = "plugin toggle-pane min-preview", desc = "Toggle preview pane" },
     { on = [ "z", "m" ], run = "plugin toggle-pane max-preview", desc = "Maximize preview pane" },
@@ -1491,6 +1498,8 @@ pub fn ensure_runtime_dirs(config: &AiboxConfig) -> Result<()> {
         root.join(".config").join("zellij").join("themes"),
         root.join(".config").join("zellij").join("layouts"),
         root.join(".cache").join("zellij"),
+        root.join(".cache").join("starship"),
+        root.join(".cache").join("uv"),
         root.join(".cache")
             .join("org")
             .join("Zellij Contributors")
@@ -1670,6 +1679,10 @@ pub fn managed_runtime_files(config: &AiboxConfig) -> Vec<(std::path::PathBuf, S
             DEFAULT_OPEN_IN_EDITOR_SH.to_string(),
         ),
         (
+            std::path::PathBuf::from(".local/bin/aibox-preview"),
+            DEFAULT_AIBOX_PREVIEW_SH.to_string(),
+        ),
+        (
             std::path::PathBuf::from(".local/bin/aibox-status"),
             DEFAULT_AIBOX_STATUS_SH.to_string(),
         ),
@@ -1758,7 +1771,21 @@ pub fn managed_runtime_files(config: &AiboxConfig) -> Vec<(std::path::PathBuf, S
 }
 
 fn zellij_native_status_permissions_cache() -> String {
-    r#""file:/usr/local/share/aibox/zellij/aibox-status.wasm" {
+    r#""file:/usr/local/share/aibox/zellij/aibox-status-keys.wasm" {
+    ReadApplicationState
+}
+"/usr/local/share/aibox/zellij/aibox-status-keys.wasm" {
+    ReadApplicationState
+}
+"file:/usr/local/share/aibox/zellij/aibox-status-runtime.wasm" {
+    RunCommands
+    ReadApplicationState
+}
+"/usr/local/share/aibox/zellij/aibox-status-runtime.wasm" {
+    RunCommands
+    ReadApplicationState
+}
+"file:/usr/local/share/aibox/zellij/aibox-status.wasm" {
     RunCommands
     ReadApplicationState
 }
@@ -1788,7 +1815,23 @@ pub fn cleanup_disabled_runtime_files(config: &AiboxConfig) -> Result<Vec<String
         }
     }
 
+    let stale_claude = root.join(".local").join("bin").join("claude");
+    if stale_claude_home_symlink(&stale_claude) {
+        fs::remove_file(&stale_claude)
+            .with_context(|| format!("Failed to remove {}", stale_claude.display()))?;
+        updated.push(".local/bin/claude (removed stale home-installer symlink)".to_string());
+    }
+
     Ok(updated)
+}
+
+fn stale_claude_home_symlink(path: &Path) -> bool {
+    let Ok(target) = fs::read_link(path) else {
+        return false;
+    };
+    target
+        .to_string_lossy()
+        .contains(".local/share/claude/versions/")
 }
 
 /// Seed the .root/ directory structure and default config files.
@@ -1806,6 +1849,7 @@ pub fn seed_root_dir(config: &AiboxConfig) -> Result<()> {
         seed_file(&path, &content)?;
         if rel_path == Path::new(".local/bin/pdf-watch")
             || rel_path == Path::new(".local/bin/open-in-editor")
+            || rel_path == Path::new(".local/bin/aibox-preview")
             || rel_path == Path::new(".local/bin/aibox-status")
             || rel_path == Path::new(".local/bin/aibox-status-toggle")
         {
@@ -2074,6 +2118,13 @@ pub fn sync_theme_files(config: &AiboxConfig) -> Result<Vec<String>> {
         ensure_executable(&root.join(".local").join("bin").join("open-in-editor"))?;
         updated.push(".local/bin/open-in-editor".to_string());
     }
+    if force_seed_file(
+        &root.join(".local").join("bin").join("aibox-preview"),
+        DEFAULT_AIBOX_PREVIEW_SH,
+    )? {
+        ensure_executable(&root.join(".local").join("bin").join("aibox-preview"))?;
+        updated.push(".local/bin/aibox-preview".to_string());
+    }
 
     if force_seed_file(
         &root.join(".local").join("bin").join("aibox-status"),
@@ -2178,6 +2229,7 @@ pub fn sync_managed_runtime_permissions(config: &AiboxConfig) -> Result<Vec<Stri
     for rel_path in [
         ".local/bin/pdf-watch",
         ".local/bin/open-in-editor",
+        ".local/bin/aibox-preview",
         ".local/bin/aibox-status",
         ".local/bin/aibox-status-toggle",
     ] {
@@ -2466,6 +2518,12 @@ mod tests {
         assert!(
             root.join(".local")
                 .join("bin")
+                .join("aibox-preview")
+                .exists()
+        );
+        assert!(
+            root.join(".local")
+                .join("bin")
                 .join("aibox-status")
                 .exists()
         );
@@ -2495,6 +2553,16 @@ mod tests {
             0,
             "open-in-editor should be executable"
         );
+        #[cfg(unix)]
+        assert_ne!(
+            fs::metadata(root.join(".local").join("bin").join("aibox-preview"))
+                .unwrap()
+                .permissions()
+                .mode()
+                & 0o111,
+            0,
+            "aibox-preview should be executable"
+        );
         let open_in_editor =
             fs::read_to_string(root.join(".local").join("bin").join("open-in-editor")).unwrap();
         assert!(
@@ -2512,6 +2580,25 @@ mod tests {
         assert!(
             !open_in_editor.contains("edit --in-place"),
             "open-in-editor must not replace the Yazi pane with an in-place editor"
+        );
+        assert!(
+            open_in_editor.contains("query-tab-names"),
+            "open-in-editor should auto-detect editor-tab layouts"
+        );
+        assert!(
+            open_in_editor.contains("list-panes --json")
+                && open_in_editor.contains("refusing to send Vim commands"),
+            "open-in-editor should guard against injecting commands into non-editor panes"
+        );
+        let aibox_preview =
+            fs::read_to_string(root.join(".local").join("bin").join("aibox-preview")).unwrap();
+        assert!(
+            aibox_preview.contains("glow -p") && aibox_preview.contains("bat --paging=always"),
+            "aibox-preview should prefer glow for Markdown and fall back to bat"
+        );
+        assert!(
+            aibox_preview.contains("pdf-watch"),
+            "aibox-preview should dispatch PDF previews to pdf-watch"
         );
         #[cfg(unix)]
         assert_ne!(
@@ -2619,7 +2706,10 @@ mod tests {
                 .find(|(path, _)| path == &std::path::PathBuf::from(rel_path))
                 .unwrap_or_else(|| panic!("missing generated {rel_path}"));
             assert!(
-                body.contains("file:/usr/local/share/aibox/zellij/aibox-status.wasm")
+                body.contains("file:/usr/local/share/aibox/zellij/aibox-status-keys.wasm")
+                    && body
+                        .contains("file:/usr/local/share/aibox/zellij/aibox-status-runtime.wasm")
+                    && body.contains("file:/usr/local/share/aibox/zellij/aibox-status.wasm")
                     && body.contains("RunCommands")
                     && body.contains("ReadApplicationState"),
                 "{rel_path} should pre-approve the native status plugin permissions"
@@ -2694,6 +2784,60 @@ mod tests {
             fs::metadata(&status_path).unwrap().permissions().mode() & 0o111,
             0,
             "aibox-status should be executable after apply-time sync"
+        );
+
+        unsafe {
+            std::env::remove_var("AIBOX_HOST_ROOT");
+        }
+    }
+
+    #[test]
+    #[cfg(unix)]
+    #[serial]
+    fn cleanup_removes_stale_claude_home_installer_symlink() {
+        let dir = tempfile::tempdir().unwrap();
+        let root = dir.path().join("root");
+        let config = make_config(false, root.clone());
+        let stale = root.join(".local").join("bin").join("claude");
+        fs::create_dir_all(stale.parent().unwrap()).unwrap();
+        std::os::unix::fs::symlink("/home/aibox/.local/share/claude/versions/2.1.129", &stale)
+            .unwrap();
+
+        let updated = cleanup_disabled_runtime_files(&config).unwrap();
+
+        assert!(!stale.exists());
+        assert!(
+            updated
+                .iter()
+                .any(|path| path == ".local/bin/claude (removed stale home-installer symlink)")
+        );
+
+        unsafe {
+            std::env::remove_var("AIBOX_HOST_ROOT");
+        }
+    }
+
+    #[test]
+    #[cfg(unix)]
+    #[serial]
+    fn cleanup_keeps_non_claude_home_symlink() {
+        let dir = tempfile::tempdir().unwrap();
+        let root = dir.path().join("root");
+        let config = make_config(false, root.clone());
+        let custom_target = root.join("custom-claude");
+        fs::create_dir_all(&root).unwrap();
+        fs::write(&custom_target, "#!/bin/sh\n").unwrap();
+        let custom = root.join(".local").join("bin").join("claude");
+        fs::create_dir_all(custom.parent().unwrap()).unwrap();
+        std::os::unix::fs::symlink(&custom_target, &custom).unwrap();
+
+        let updated = cleanup_disabled_runtime_files(&config).unwrap();
+
+        assert!(custom.exists());
+        assert!(
+            !updated
+                .iter()
+                .any(|path| path.contains(".local/bin/claude"))
         );
 
         unsafe {
@@ -3265,6 +3409,11 @@ rules = [
     #[test]
     fn yazi_navigation_keybindings_seeded() {
         assert!(
+            DEFAULT_YAZI_KEYMAP
+                .contains(r#"{ on = "p", run = "shell 'aibox-preview \"$1\"' --block""#),
+            "default yazi keymap should expose full-pane preview"
+        );
+        assert!(
             DEFAULT_YAZI_KEYMAP.contains(
                 r#"{ on = [ "w", "s" ], run = "shell 'du -sch \"$@\" | ${PAGER:-less}' --block""#
             ),
@@ -3293,6 +3442,20 @@ rules = [
         assert!(
             DEFAULT_YAZI_KEYMAP.contains(r#"{ on = [ "c", "n" ], run = "copy name_without_ext""#),
             "default yazi keymap should expose stem copy"
+        );
+    }
+
+    #[test]
+    fn yazi_vim_openers_harden_terminal_handoff() {
+        assert!(
+            DEFAULT_YAZI_CONFIG.contains(r#"vim --cmd "set t_u7=" --cmd "set t_RV=" "$@""#),
+            "in-place Yazi opener should use Vim terminal-query hardening"
+        );
+        assert!(
+            DEFAULT_VIMRC.contains("set t_u7=")
+                && DEFAULT_VIMRC.contains("set t_RV=")
+                && DEFAULT_VIMRC.contains("autocmd VimEnter * redraw!"),
+            "default vimrc should harden redraw during Yazi/Vim handoff"
         );
     }
 
@@ -3494,7 +3657,8 @@ rules = [
     fn zellij_layout_starts_tool_tabs_eagerly() {
         let layout = generate_dev_layout(&[]);
         assert!(
-            layout.contains("aibox-status.wasm")
+            layout.contains("aibox-status-keys.wasm")
+                && layout.contains("aibox-status-runtime.wasm")
                 && layout.contains("role \"keys\"")
                 && layout.contains("role \"status\"")
                 && !layout.contains("zellij:status-bar"),
@@ -3540,8 +3704,9 @@ rules = [
             "aibox key hints should render above the aibox runtime status row"
         );
         assert!(
-            layout.contains("aibox-status.wasm"),
-            "native mode should use the aibox WASM keybar and runtime status rows"
+            layout.contains("aibox-status-keys.wasm")
+                && layout.contains("aibox-status-runtime.wasm"),
+            "native mode should use distinct plugin locations so Zellij creates both rows"
         );
         assert!(
             !layout.contains("zellij:status-bar"),

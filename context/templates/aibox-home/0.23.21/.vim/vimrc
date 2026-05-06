@@ -10,6 +10,8 @@ set colorcolumn=88
 set scrolloff=8
 set signcolumn=yes
 set cursorline
+set t_u7=
+set t_RV=
 set wildmenu wildmode=longest:full,full
 set incsearch hlsearch ignorecase smartcase
 set backspace=indent,eol,start
@@ -19,6 +21,7 @@ set ruler showcmd
 " Filetype-specific indentation
 autocmd FileType yaml,json,kdl,html,css,javascript setlocal tabstop=2 shiftwidth=2
 autocmd FileType markdown setlocal wrap linebreak
+autocmd VimEnter * redraw!
 
 " Use ripgrep if available
 if executable('rg')

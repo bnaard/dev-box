@@ -248,6 +248,7 @@ fn generate_docker_compose(
     env_vars.insert("LANG".to_string(), "en_US.UTF-8".to_string());
     env_vars.insert("COLORTERM".to_string(), "truecolor".to_string());
     env_vars.insert("TERM".to_string(), "xterm-256color".to_string());
+    env_vars.insert("SHELL".to_string(), "/bin/bash".to_string());
     let audio = if config.container.audio.enabled {
         &config.container.audio
     } else {
@@ -777,6 +778,35 @@ mod tests {
     }
 
     #[test]
+    fn dockerfile_adds_native_zellij_status_role_aliases() {
+        let dir = tempfile::tempdir().unwrap();
+        let config = make_config(&["python"], false);
+        generate_dockerfile(&config, dir.path(), &test_env()).unwrap();
+        let content = fs::read_to_string(dir.path().join("Dockerfile")).unwrap();
+
+        assert!(
+            content.contains("aibox-status-keys.wasm")
+                && content.contains("aibox-status-runtime.wasm"),
+            "project Dockerfiles should make native Zellij status role aliases available for older base images"
+        );
+    }
+
+    #[test]
+    fn dockerfile_exports_shell_and_repairs_cache_home() {
+        let dir = tempfile::tempdir().unwrap();
+        let config = make_config(&["python"], false);
+        generate_dockerfile(&config, dir.path(), &test_env()).unwrap();
+        let content = fs::read_to_string(dir.path().join("Dockerfile")).unwrap();
+
+        assert!(content.contains("ENV SHELL=/bin/bash"));
+        assert!(
+            content.contains("mkdir -p /home/aibox/.cache/starship /home/aibox/.cache/uv")
+                && content.contains("chown -R aibox:aibox /home/aibox/.cache"),
+            "project Dockerfiles should repair cache-home ownership for older base images:\n{content}"
+        );
+    }
+
+    #[test]
     fn dockerfile_lazygit_disablement_cleanup_does_not_purge_unknown_package() {
         let dir = tempfile::tempdir().unwrap();
         let mut config = make_config(&["git-ui"], false);
@@ -837,22 +867,68 @@ mod tests {
     }
 
     #[test]
-    fn compose_mounts_zellij_permission_cache() {
+    fn compose_mounts_writable_xdg_cache_home() {
         let dir = tempfile::tempdir().unwrap();
         let config = make_config(&[], false);
         generate_docker_compose(&config, dir.path(), &test_env()).unwrap();
 
         let content = fs::read_to_string(dir.path().join("docker-compose.yml")).unwrap();
         assert!(
-            content.contains(".cache/zellij:/root/.cache/zellij"),
-            "compose should mount Zellij's permission cache so pre-seeded native plugin approvals are visible:\n{content}"
+            content.contains(".cache:/root/.cache"),
+            "compose should mount writable XDG cache home so uv, starship, and Zellij can create/read cache directories:\n{content}"
         );
+    }
+
+    #[test]
+    #[serial]
+    fn runtime_dir_scaffold_includes_cache_dirs() {
+        let dir = tempfile::tempdir().unwrap();
+        let config = make_config(&[], false);
+        let host_root = dir.path().join(".aibox-home");
+
+        unsafe {
+            std::env::set_var("AIBOX_HOST_ROOT", &host_root);
+        }
+
+        crate::seed::ensure_runtime_dirs(&config).unwrap();
+
         assert!(
-            content.contains(
-                ".cache/org/Zellij Contributors/Zellij:/root/.cache/org/Zellij Contributors/Zellij"
-            ),
-            "compose should mount Zellij's legacy permission cache path as well:\n{content}"
+            host_root.join(".cache").is_dir()
+                && host_root.join(".cache/starship").is_dir()
+                && host_root.join(".cache/uv").is_dir()
+                && host_root.join(".cache/zellij").is_dir()
+                && host_root
+                    .join(".cache/org/Zellij Contributors/Zellij")
+                    .is_dir(),
+            "runtime scaffolding should create the writable cache tree"
         );
+
+        unsafe {
+            std::env::remove_var("AIBOX_HOST_ROOT");
+        }
+    }
+
+    #[test]
+    #[serial]
+    fn runtime_dir_scaffold_includes_starship_cache_dir() {
+        let dir = tempfile::tempdir().unwrap();
+        let config = make_config(&[], false);
+        let host_root = dir.path().join(".aibox-home");
+
+        unsafe {
+            std::env::set_var("AIBOX_HOST_ROOT", &host_root);
+        }
+
+        crate::seed::ensure_runtime_dirs(&config).unwrap();
+
+        assert!(
+            host_root.join(".cache/starship").is_dir(),
+            "runtime scaffolding should create the Starship cache directory"
+        );
+
+        unsafe {
+            std::env::remove_var("AIBOX_HOST_ROOT");
+        }
     }
 
     #[test]
@@ -864,6 +940,19 @@ mod tests {
         let content = fs::read_to_string(dir.path().join("docker-compose.yml")).unwrap();
         assert!(content.contains("init: true"));
         assert!(content.contains("command: sleep infinity"));
+    }
+
+    #[test]
+    fn compose_exports_shell_env_for_zellij() {
+        let dir = tempfile::tempdir().unwrap();
+        let config = make_config(&[], false);
+        generate_docker_compose(&config, dir.path(), &test_env()).unwrap();
+
+        let content = fs::read_to_string(dir.path().join("docker-compose.yml")).unwrap();
+        assert!(
+            content.contains("SHELL: \"/bin/bash\""),
+            "compose should export SHELL so Zellij default-shell code paths do not fall back to /bin/sh:\n{content}"
+        );
     }
 
     #[test]
@@ -1428,6 +1517,29 @@ mod tests {
         assert!(
             content.contains("ln -sf /usr/local/bin/yazi /usr/local/bin/ya"),
             "base image should expose yazi's companion entrypoint"
+        );
+    }
+
+    #[test]
+    fn base_image_installs_native_zellij_status_role_aliases() {
+        let content = include_str!("../../images/base-debian/Dockerfile");
+        assert!(
+            content.contains("aibox-status-keys.wasm")
+                && content.contains("aibox-status-runtime.wasm"),
+            "base image should expose distinct native Zellij status plugin locations"
+        );
+    }
+
+    #[test]
+    fn base_image_prepares_writable_cache_home_and_shell_env() {
+        let content = include_str!("../../images/base-debian/Dockerfile");
+        assert!(content.contains("SHELL=/bin/bash"));
+        assert!(
+            content.contains("/home/aibox/.cache/starship")
+                && content.contains("/home/aibox/.cache/uv")
+                && content.contains("/home/aibox/.cache/zellij")
+                && content.contains("chown -R aibox:aibox /home/aibox"),
+            "base image should create writable cache-home paths before final ownership fix"
         );
     }
 

@@ -1,3 +1,4 @@
+#[cfg(any(test, feature = "zellij"))]
 mod model;
 
 #[cfg(feature = "zellij")]

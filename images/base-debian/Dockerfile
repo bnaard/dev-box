@@ -234,7 +234,8 @@ ENV LANG=en_US.UTF-8 \
     LANGUAGE=en_US:en \
     LC_ALL=en_US.UTF-8 \
     TERM=xterm-256color \
-    COLORTERM=truecolor
+    COLORTERM=truecolor \
+    SHELL=/bin/bash
 
 # ── Non-root user ───────────────────────────────────────────────────────────
 RUN groupadd --gid 1000 aibox \
@@ -282,6 +283,10 @@ COPY config/vimrc /home/aibox/.vim/vimrc
 
 # Create config directories in a single layer
 RUN mkdir -p /home/aibox/.config/zellij/themes /home/aibox/.config/zellij/layouts \
+             /home/aibox/.cache/zellij \
+             "/home/aibox/.cache/org/Zellij Contributors/Zellij" \
+             /home/aibox/.cache/starship \
+             /home/aibox/.cache/uv \
              /home/aibox/.config/yazi/plugins \
              /home/aibox/.config/state \
              /home/aibox/.config/git \
@@ -297,6 +302,36 @@ RUN mkdir -p /usr/local/share/aibox/zellij
 COPY --from=build-aibox-zellij-status \
     /build/aibox-status/target/wasm32-wasip1/release/aibox-zellij-status.wasm \
     /usr/local/share/aibox/zellij/aibox-status.wasm
+RUN ln -sf /usr/local/share/aibox/zellij/aibox-status.wasm \
+          /usr/local/share/aibox/zellij/aibox-status-keys.wasm && \
+    ln -sf /usr/local/share/aibox/zellij/aibox-status.wasm \
+          /usr/local/share/aibox/zellij/aibox-status-runtime.wasm
+RUN printf '%s\n' \
+      '"file:/usr/local/share/aibox/zellij/aibox-status-keys.wasm" {' \
+      '    ReadApplicationState' \
+      '}' \
+      '"/usr/local/share/aibox/zellij/aibox-status-keys.wasm" {' \
+      '    ReadApplicationState' \
+      '}' \
+      '"file:/usr/local/share/aibox/zellij/aibox-status-runtime.wasm" {' \
+      '    RunCommands' \
+      '    ReadApplicationState' \
+      '}' \
+      '"/usr/local/share/aibox/zellij/aibox-status-runtime.wasm" {' \
+      '    RunCommands' \
+      '    ReadApplicationState' \
+      '}' \
+      '"file:/usr/local/share/aibox/zellij/aibox-status.wasm" {' \
+      '    RunCommands' \
+      '    ReadApplicationState' \
+      '}' \
+      '"/usr/local/share/aibox/zellij/aibox-status.wasm" {' \
+      '    RunCommands' \
+      '    ReadApplicationState' \
+      '}' \
+      > /home/aibox/.cache/zellij/permissions.kdl && \
+    cp /home/aibox/.cache/zellij/permissions.kdl \
+      "/home/aibox/.cache/org/Zellij Contributors/Zellij/permissions.kdl"
 
 # Yazi
 COPY config/yazi/yazi.toml             /home/aibox/.config/yazi/yazi.toml
@@ -308,6 +343,7 @@ COPY config/yazi/plugins/              /home/aibox/.config/yazi/plugins/
 
 # Helper scripts (chmod via COPY --chmod to avoid extra layer)
 COPY --chmod=755 config/bin/open-in-editor.sh /usr/local/bin/open-in-editor
+COPY --chmod=755 config/bin/aibox-preview.sh   /usr/local/bin/aibox-preview
 COPY --chmod=755 config/bin/vim-loop.sh       /usr/local/bin/vim-loop
 COPY --chmod=755 config/bin/pdf-watch.sh      /usr/local/bin/pdf-watch
 COPY --chmod=755 config/bin/aibox-status.sh   /usr/local/bin/aibox-status

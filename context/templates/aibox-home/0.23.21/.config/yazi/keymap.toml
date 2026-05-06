@@ -3,6 +3,7 @@ prepend_keymap = [
     { on = "<Enter>", run = "open", desc = "Edit in-place" },
     { on = "e", run = "shell 'open-in-editor \"$1\"'", desc = "Open in vim pane" },
     { on = "O", run = "open --interactive", desc = "Open interactively" },
+    { on = "p", run = "shell 'aibox-preview \"$1\"' --block", desc = "Full-pane preview" },
     { on = [ "z", "h" ], run = "plugin toggle-pane min-parent", desc = "Toggle parent pane" },
     { on = [ "z", "l" ], run = "plugin toggle-pane min-preview", desc = "Toggle preview pane" },
     { on = [ "z", "m" ], run = "plugin toggle-pane max-preview", desc = "Maximize preview pane" },

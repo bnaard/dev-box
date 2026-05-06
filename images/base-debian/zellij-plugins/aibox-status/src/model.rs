@@ -1,4 +1,11 @@
-const SEGMENT_SEPARATOR: &str = " ▸ ";
+const SEGMENT_SEPARATOR: &str = " ";
+const RESET: &str = "\u{1b}[0m";
+const MODE_STYLE: &str = "\u{1b}[1;38;5;16;48;5;75m";
+const KEY_STYLE: &str = "\u{1b}[1;38;5;16;48;5;110m";
+const RUNTIME_STYLE: &str = "\u{1b}[1;38;5;16;48;5;245m";
+const WARN_STYLE: &str = "\u{1b}[1;38;5;16;48;5;178m";
+const ERROR_STYLE: &str = "\u{1b}[1;38;5;231;48;5;160m";
+const VALUE_STYLE: &str = "\u{1b}[38;5;250m";
 
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct RuntimeSnapshot {
@@ -136,28 +143,30 @@ pub fn render_key_hints(state: &RenderState, cols: usize) -> String {
 pub fn render_runtime_status(state: &RenderState, cols: usize) -> String {
     let snapshot = &state.snapshot;
     let mut segments = vec![
-        Segment::new(mode_label(&state.mode), "", 0),
-        Segment::new(
+        Segment::mode("AIBOX"),
+        Segment::runtime(
             "MEM",
             format!(
-                "{}/{} OOM kills {}",
+                "{}/{}",
                 compact_units(&snapshot.memory_current),
-                compact_units(&snapshot.memory_limit),
-                snapshot.oom_kill
+                compact_units(&snapshot.memory_limit)
             ),
             0,
         ),
-        Segment::new("CPU", format!("throttle {}", snapshot.cpu_throttle), 2),
-        Segment::new("LOAD", snapshot.load_average.clone(), 3),
-        Segment::new(
+        Segment::health(
+            "OOM",
+            snapshot.oom_kill.clone(),
+            snapshot.oom_kill != "0",
+            0,
+        ),
+        Segment::runtime("CPU", format!("load {}", snapshot.load_average), 1),
+        Segment::runtime("THR", snapshot.cpu_throttle.clone(), 3),
+        Segment::runtime(
             "PROC",
-            format!(
-                "total {} AI {}",
-                snapshot.process_count, snapshot.ai_agent_count
-            ),
+            format!("{} AI {}", snapshot.process_count, snapshot.ai_agent_count),
             1,
         ),
-        Segment::new(
+        Segment::runtime(
             "MCP",
             format!(
                 "{} {}",
@@ -165,21 +174,26 @@ pub fn render_runtime_status(state: &RenderState, cols: usize) -> String {
             ),
             1,
         ),
-        Segment::new(
+        Segment::runtime(
             "GIT",
             format!("{} {}", snapshot.git_branch, snapshot.git_state),
             2,
         ),
-        Segment::new("MIG", format!("open {}", snapshot.migrations), 1),
-        Segment::new("FS", format!("free {}", snapshot.disk_available), 3),
-        Segment::new("UP", snapshot.uptime.clone(), 4),
+        Segment::health(
+            "MIG",
+            snapshot.migrations.clone(),
+            snapshot.migrations != "0",
+            2,
+        ),
+        Segment::runtime("FS", snapshot.disk_available.clone(), 4),
+        Segment::runtime("UP", snapshot.uptime.clone(), 4),
     ];
 
     if snapshot.memory_high != "0" || snapshot.memory_max_events != "0" {
         segments.insert(
-            2,
-            Segment::new(
-                "MEM events",
+            3,
+            Segment::warn(
+                "MEM",
                 format!(
                     "high {} max {}",
                     snapshot.memory_high, snapshot.memory_max_events
@@ -190,7 +204,7 @@ pub fn render_runtime_status(state: &RenderState, cols: usize) -> String {
     }
 
     if let Some(message) = state.message.as_deref() {
-        segments.push(Segment::new("MSG", message, 4));
+        segments.push(Segment::error("ERR", message, 1));
     }
 
     render_segments(&segments, cols)
@@ -200,55 +214,64 @@ fn key_hint_segments(state: &RenderState) -> Vec<Segment> {
     let mode = state.mode.to_ascii_lowercase();
     if mode.contains("tmux") {
         return vec![
-            Segment::new("LEADER", "C-g/Esc exit", 0),
-            Segment::new("PANES", "h left j down k up l right", 0),
-            Segment::new("SPLIT", "n new d down r right x close", 1),
-            Segment::new("VIEW", "f full z frames e float", 3),
-            Segment::new("TABS", "t new w close [/] prev/next 1-5 jump", 2),
-            Segment::new("STATUS", "v runtime b keys", 1),
-            Segment::new("TOOLS", "s files m sessions p float", 3),
-            Segment::new("QUIT", "q", 4),
+            Segment::mode("LEADER"),
+            Segment::key("C-g/Esc", "Exit", 0),
+            Segment::key("h/j/k/l", "Move", 0),
+            Segment::key("n", "New", 1),
+            Segment::key("d/r", "Split", 1),
+            Segment::key("x", "Close", 1),
+            Segment::key("f", "Fullscreen", 3),
+            Segment::key("z", "Frames", 4),
+            Segment::key("[/]", "Tabs", 2),
+            Segment::key("v/b", "Status", 2),
+            Segment::key("q", "Quit", 4),
         ];
     }
 
     if mode.contains("scroll") || mode.contains("search") {
         return vec![
-            Segment::new(mode_label(&state.mode), "scrollback", 0),
-            Segment::new("MOVE", "j down k up d half-down u half-up", 0),
-            Segment::new("PAGE", "f page-down b page-up g top G bottom", 1),
-            Segment::new("SEARCH", "/ find n next N prev", 1),
-            Segment::new("EXIT", "Esc C-c C-g", 0),
+            Segment::mode(mode_label(&state.mode)),
+            Segment::key("j/k", "Move", 0),
+            Segment::key("d/u", "Half page", 1),
+            Segment::key("f/b", "Page", 1),
+            Segment::key("g/G", "Top/bottom", 2),
+            Segment::key("/", "Find", 1),
+            Segment::key("n/N", "Next/prev", 1),
+            Segment::key("Esc", "Exit", 0),
         ];
     }
 
     if mode.contains("resize") {
         return vec![
-            Segment::new("RESIZE", "+/- grow/shrink", 0),
-            Segment::new("DIRECTION", "h left j down k up l right", 0),
-            Segment::new("REVERSE", "H/J/K/L shrink side", 1),
-            Segment::new("EXIT", "Esc C-g", 0),
+            Segment::mode("RESIZE"),
+            Segment::key("+/-", "Grow/shrink", 0),
+            Segment::key("h/j/k/l", "Grow side", 0),
+            Segment::key("H/J/K/L", "Shrink side", 1),
+            Segment::key("Esc", "Exit", 0),
         ];
     }
 
-    let mut segments = vec![Segment::new(mode_label(&state.mode), "", 0)];
+    let mut segments = vec![Segment::mode(mode_label(&state.mode))];
     if key_available(state, "Ctrl g") {
-        segments.push(Segment::new("C-g", "leader", 0));
+        segments.push(Segment::key("Ctrl-g", "Leader", 0));
     }
     if any_key_available(state, &["Alt h", "Alt j", "Alt k", "Alt l"]) {
-        segments.push(Segment::new("PANES", "Alt-h/j/k/l move", 0));
+        segments.push(Segment::key("Alt-h/j/k/l", "Move", 0));
     }
     if any_key_available(state, &["Alt [", "Alt ]", "Alt 1"]) {
-        segments.push(Segment::new("TABS", "Alt-[/] prev/next Alt-1..5 jump", 1));
+        segments.push(Segment::key("Alt-[/]", "Layouts", 1));
+        segments.push(Segment::key("Alt-1..5", "Jump", 2));
     }
     if key_available(state, "Alt p") {
-        segments.push(Segment::new("FLOAT", "Alt-p toggle", 2));
+        segments.push(Segment::key("Alt-p", "Float", 2));
     }
     if segments.len() == 1 {
         segments.extend([
-            Segment::new("C-g", "leader", 0),
-            Segment::new("PANES", "Alt-h/j/k/l move", 0),
-            Segment::new("TABS", "Alt-[/] prev/next Alt-1..5 jump", 1),
-            Segment::new("FLOAT", "Alt-p toggle", 2),
+            Segment::key("Ctrl-g", "Leader", 0),
+            Segment::key("Alt-h/j/k/l", "Move", 0),
+            Segment::key("Alt-[/]", "Layouts", 1),
+            Segment::key("Alt-1..5", "Jump", 2),
+            Segment::key("Alt-p", "Float", 2),
         ]);
     }
     segments
@@ -361,23 +384,95 @@ struct Segment {
     label: String,
     value: String,
     priority: u8,
+    style: SegmentStyle,
+}
+
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+enum SegmentStyle {
+    Mode,
+    Key,
+    Runtime,
+    Warn,
+    Error,
 }
 
 impl Segment {
-    fn new(label: impl Into<String>, value: impl Into<String>, priority: u8) -> Self {
+    fn new(
+        label: impl Into<String>,
+        value: impl Into<String>,
+        priority: u8,
+        style: SegmentStyle,
+    ) -> Self {
         Self {
             label: label.into(),
             value: value.into(),
             priority,
+            style,
         }
     }
 
-    fn text(&self) -> String {
-        if self.value.is_empty() {
-            format!("[ {} ]", self.label)
+    fn mode(label: impl Into<String>) -> Self {
+        Self::new(label, "", 0, SegmentStyle::Mode)
+    }
+
+    fn key(label: impl Into<String>, value: impl Into<String>, priority: u8) -> Self {
+        Self::new(label, value, priority, SegmentStyle::Key)
+    }
+
+    fn runtime(label: impl Into<String>, value: impl Into<String>, priority: u8) -> Self {
+        Self::new(label, value, priority, SegmentStyle::Runtime)
+    }
+
+    fn warn(label: impl Into<String>, value: impl Into<String>, priority: u8) -> Self {
+        Self::new(label, value, priority, SegmentStyle::Warn)
+    }
+
+    fn error(label: impl Into<String>, value: impl Into<String>, priority: u8) -> Self {
+        Self::new(label, value, priority, SegmentStyle::Error)
+    }
+
+    fn health(
+        label: impl Into<String>,
+        value: impl Into<String>,
+        warning: bool,
+        priority: u8,
+    ) -> Self {
+        if warning {
+            Self::warn(label, value, priority)
         } else {
-            format!("[ {} {} ]", self.label, self.value)
+            Self::runtime(label, value, priority)
         }
+    }
+
+    fn plain_text(&self) -> String {
+        if self.value.is_empty() {
+            format!(" {} ", self.label)
+        } else {
+            format!(" {}  {}", self.label, self.value)
+        }
+    }
+
+    fn styled_text(&self) -> String {
+        let style = match self.style {
+            SegmentStyle::Mode => MODE_STYLE,
+            SegmentStyle::Key => KEY_STYLE,
+            SegmentStyle::Runtime => RUNTIME_STYLE,
+            SegmentStyle::Warn => WARN_STYLE,
+            SegmentStyle::Error => ERROR_STYLE,
+        };
+
+        if self.value.is_empty() {
+            format!("{style} {} {RESET}", self.label)
+        } else {
+            format!(
+                "{style} {} {RESET}{VALUE_STYLE} {}{RESET}",
+                self.label, self.value
+            )
+        }
+    }
+
+    fn visible_width(&self) -> usize {
+        char_count(&self.plain_text())
     }
 }
 
@@ -388,13 +483,17 @@ fn render_segments(segments: &[Segment], cols: usize) -> String {
 
     let mut visible: Vec<&Segment> = segments.iter().collect();
     while !visible.is_empty() {
-        let line = visible
+        let width = visible
             .iter()
-            .map(|segment| segment.text())
-            .collect::<Vec<_>>()
-            .join(SEGMENT_SEPARATOR);
-        if char_count(&line) <= cols {
-            return line;
+            .map(|segment| segment.visible_width())
+            .sum::<usize>()
+            + SEGMENT_SEPARATOR.chars().count() * visible.len().saturating_sub(1);
+        if width <= cols {
+            return visible
+                .iter()
+                .map(|segment| segment.styled_text())
+                .collect::<Vec<_>>()
+                .join(SEGMENT_SEPARATOR);
         }
 
         let remove_at = visible
@@ -409,7 +508,7 @@ fn render_segments(segments: &[Segment], cols: usize) -> String {
         }
     }
 
-    truncate_to_width(&segments[0].text(), cols)
+    truncate_to_width(&segments[0].plain_text(), cols)
 }
 
 fn compact_units(value: &str) -> String {
@@ -490,11 +589,15 @@ mod tests {
         };
 
         let line = render_runtime_status(&state, 160);
-        assert!(line.contains("[ NORMAL ]"));
-        assert!(line.contains("OOM kills 0"), "{line}");
-        assert!(line.contains("AI 2"), "{line}");
-        assert!(!line.contains("oom0"), "{line}");
-        assert!(!line.contains("ai2"), "{line}");
+        let plain = strip_ansi(&line);
+        let normalized = normalize_spaces(&plain);
+        assert!(plain.contains(" AIBOX "));
+        assert!(normalized.contains("OOM 0"), "{plain}");
+        assert!(normalized.contains("AI 2"), "{plain}");
+        assert!(!normalized.contains("oom0"), "{plain}");
+        assert!(!normalized.contains("ai2"), "{plain}");
+        assert!(!plain.contains('['), "{plain}");
+        assert!(!plain.contains(']'), "{plain}");
     }
 
     #[test]
@@ -508,7 +611,7 @@ mod tests {
 
         let line = render_runtime_status(&state, 48);
         assert!(
-            line.chars().count() <= 48,
+            strip_ansi(&line).chars().count() <= 48,
             "line should fit within requested width: {line}"
         );
         assert!(
@@ -525,14 +628,17 @@ mod tests {
         };
 
         let line = render_key_hints(&state, 180);
-        assert!(line.contains("[ LEADER C-g/Esc exit ]"), "{line}");
-        assert!(line.contains("h left j down k up l right"), "{line}");
-        assert!(line.contains("n new d down r right x close"), "{line}");
-        assert!(line.contains("v runtime b keys"), "{line}");
+        let plain = strip_ansi(&line);
+        let normalized = normalize_spaces(&plain);
+        assert!(plain.contains(" LEADER "), "{plain}");
+        assert!(normalized.contains("C-g/Esc Exit"), "{plain}");
+        assert!(normalized.contains("h/j/k/l Move"), "{plain}");
+        assert!(normalized.contains("n New"), "{plain}");
+        assert!(normalized.contains("v/b Status"), "{plain}");
     }
 
     #[test]
-    fn normal_keybar_uses_arrow_segments_and_filters_known_keys() {
+    fn normal_keybar_uses_zellij_style_segments_and_filters_known_keys() {
         let state = RenderState {
             active_keys: vec![
                 "Ctrl g".to_string(),
@@ -543,14 +649,14 @@ mod tests {
         };
 
         let line = render_key_hints(&state, 120);
-        assert!(line.contains("▸"), "{line}");
-        assert!(line.contains("[ C-g leader ]"), "{line}");
-        assert!(line.contains("[ PANES Alt-h/j/k/l move ]"), "{line}");
-        assert!(
-            line.contains("[ TABS Alt-[/] prev/next Alt-1..5 jump ]"),
-            "{line}"
-        );
-        assert!(!line.contains("FLOAT"), "{line}");
+        let plain = strip_ansi(&line);
+        let normalized = normalize_spaces(&plain);
+        assert!(!plain.contains("▸"), "{plain}");
+        assert!(normalized.contains("Ctrl-g Leader"), "{plain}");
+        assert!(normalized.contains("Alt-h/j/k/l Move"), "{plain}");
+        assert!(normalized.contains("Alt-[/] Layouts"), "{plain}");
+        assert!(normalized.contains("Alt-1..5 Jump"), "{plain}");
+        assert!(!normalized.contains("Float"), "{plain}");
     }
 
     #[test]
@@ -564,7 +670,7 @@ mod tests {
         let rows = render_rows(&state, 80);
         assert_eq!(rows.len(), 1, "hidden key row should not allocate a row");
         assert!(
-            rows[0].starts_with("[ NORMAL ]"),
+            strip_ansi(&rows[0]).starts_with(" AIBOX "),
             "remaining row should be runtime status"
         );
     }
@@ -575,7 +681,7 @@ mod tests {
 
         assert_eq!(rows.len(), 2);
         assert!(rows.iter().all(|row| !row.trim().is_empty()));
-        assert!(rows[0].contains("C-g"));
+        assert!(strip_ansi(&rows[0]).contains("Ctrl-g"));
         assert!(rows[1].contains("MEM"));
     }
 
@@ -589,5 +695,27 @@ mod tests {
 
         assert!(render_rows(&hidden, 80).is_empty());
         assert!(render_rows(&RenderState::default(), 0).is_empty());
+    }
+
+    fn strip_ansi(text: &str) -> String {
+        let mut stripped = String::new();
+        let mut chars = text.chars().peekable();
+        while let Some(ch) = chars.next() {
+            if ch == '\u{1b}' && chars.peek() == Some(&'[') {
+                chars.next();
+                for seq in chars.by_ref() {
+                    if seq.is_ascii_alphabetic() {
+                        break;
+                    }
+                }
+            } else {
+                stripped.push(ch);
+            }
+        }
+        stripped
+    }
+
+    fn normalize_spaces(text: &str) -> String {
+        text.split_whitespace().collect::<Vec<_>>().join(" ")
     }
 }

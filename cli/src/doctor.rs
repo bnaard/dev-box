@@ -1367,6 +1367,28 @@ fn check_zellij_native_permission_projection(config: &AiboxConfig, diag: &mut Di
         );
         diag.warnings += 1;
     }
+
+    let layout_path = root
+        .join(".config/zellij/layouts")
+        .join(format!("{}.kdl", config.customization.layout));
+    if let Ok(layout) = std::fs::read_to_string(&layout_path)
+        && native_zellij_status_layout_uses_shared_plugin_location(&layout)
+    {
+        output::warn(&format!(
+            "zellij: native status layout {} uses one shared plugin location for both rows; run `aibox apply` with an up-to-date CLI and recreate the container",
+            layout_path.display()
+        ));
+        diag.warnings += 1;
+    }
+
+    if Path::new("/etc/aibox-version").is_file()
+        && !native_zellij_status_role_aliases_available(Path::new("/usr/local/share/aibox/zellij"))
+    {
+        output::warn(
+            "zellij: current container image is missing native status role aliases; rebuild/recreate the container from regenerated .devcontainer/Dockerfile",
+        );
+        diag.warnings += 1;
+    }
 }
 
 fn compose_mounts_zellij_permission_cache(
@@ -1392,6 +1414,10 @@ fn compose_mounts_zellij_permission_cache(
         };
 
         for volume in volumes {
+            if volume_mounts_target(volume, "/home/aibox/.cache") {
+                current_cache = true;
+                legacy_cache = true;
+            }
             if volume_mounts_target(volume, "/home/aibox/.cache/zellij") {
                 current_cache = true;
             }
@@ -1402,6 +1428,33 @@ fn compose_mounts_zellij_permission_cache(
     }
 
     (current_cache, legacy_cache)
+}
+
+fn native_zellij_status_role_aliases_available(root: &Path) -> bool {
+    root.join("aibox-status-keys.wasm").is_file()
+        && root.join("aibox-status-runtime.wasm").is_file()
+}
+
+fn native_zellij_status_layout_uses_shared_plugin_location(layout: &str) -> bool {
+    let mut locations = Vec::new();
+    let mut pending_location: Option<String> = None;
+
+    for line in layout.lines() {
+        let trimmed = line.trim();
+        if let Some(rest) = trimmed.strip_prefix("plugin location=\"")
+            && let Some((location, _)) = rest.split_once('"')
+        {
+            pending_location = Some(location.to_string());
+            continue;
+        }
+        if (trimmed == "role \"keys\"" || trimmed == "role \"status\"")
+            && let Some(location) = pending_location.take()
+        {
+            locations.push(location);
+        }
+    }
+
+    locations.len() >= 2 && locations[0] == locations[1]
 }
 
 fn volume_mounts_target(volume: &serde_yaml::Value, target: &str) -> bool {
@@ -1809,6 +1862,24 @@ services:
     }
 
     #[test]
+    fn zellij_permission_cache_mount_detection_accepts_cache_home_parent() {
+        let compose: serde_yaml::Value = serde_yaml::from_str(
+            r#"
+services:
+  aibox:
+    volumes:
+      - ../.aibox-home/.cache:/home/aibox/.cache
+"#,
+        )
+        .unwrap();
+
+        assert_eq!(
+            compose_mounts_zellij_permission_cache(&compose, "aibox"),
+            (true, true)
+        );
+    }
+
+    #[test]
     fn zellij_permission_cache_mount_detection_catches_missing_paths() {
         let compose: serde_yaml::Value = serde_yaml::from_str(
             r#"
@@ -1824,6 +1895,46 @@ services:
             compose_mounts_zellij_permission_cache(&compose, "aibox"),
             (false, false)
         );
+    }
+
+    #[test]
+    fn native_zellij_status_layout_detects_shared_plugin_location() {
+        let layout = r#"
+pane size=1 borderless=true {
+    plugin location="file:/usr/local/share/aibox/zellij/aibox-status.wasm" {
+        role "keys"
+    }
+}
+pane size=1 borderless=true {
+    plugin location="file:/usr/local/share/aibox/zellij/aibox-status.wasm" {
+        role "status"
+    }
+}
+"#;
+
+        assert!(native_zellij_status_layout_uses_shared_plugin_location(
+            layout
+        ));
+    }
+
+    #[test]
+    fn native_zellij_status_layout_accepts_distinct_plugin_locations() {
+        let layout = r#"
+pane size=1 borderless=true {
+    plugin location="file:/usr/local/share/aibox/zellij/aibox-status-keys.wasm" {
+        role "keys"
+    }
+}
+pane size=1 borderless=true {
+    plugin location="file:/usr/local/share/aibox/zellij/aibox-status-runtime.wasm" {
+        role "status"
+    }
+}
+"#;
+
+        assert!(!native_zellij_status_layout_uses_shared_plugin_location(
+            layout
+        ));
     }
 
     #[test]

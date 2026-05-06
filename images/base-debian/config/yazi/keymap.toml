@@ -11,6 +11,8 @@ prepend_keymap = [
     { on = "e",       run = "shell 'open-in-editor \"$1\"' --confirm", desc = "Open in vim pane" },
     # O: interactive opener selection
     { on = "O",       run = "open --interactive", desc = "Open interactively" },
+    # p: full-pane rich preview for Markdown, code/text, and PDF
+    { on = "p",       run = "shell 'aibox-preview \"$1\"' --block", desc = "Full-pane preview" },
     # z h/z l: hide or restore the parent/preview columns
     { on = [ "z", "h" ], run = "plugin toggle-pane min-parent", desc = "Toggle parent pane" },
     { on = [ "z", "l" ], run = "plugin toggle-pane min-preview", desc = "Toggle preview pane" },

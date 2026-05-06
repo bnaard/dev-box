@@ -18,6 +18,8 @@ set cursorline               " highlight current line
 set colorcolumn=88           " column guide (PEP8 / Black default)
 set signcolumn=yes           " always show sign column (no jitter)
 set termguicolors            " 24-bit colour if terminal supports it
+set t_u7=                    " avoid terminal query glitches during TUI handoff
+set t_RV=                    " avoid version-query glitches during TUI handoff
 set laststatus=2             " always show statusline
 set ruler                    " show cursor position
 set showcmd                  " show partial commands
@@ -97,6 +99,7 @@ nnoremap <leader>e :Explore<CR>
 
 " Strip trailing whitespace on save
 autocmd BufWritePre * :%s/\s\+$//e
+autocmd VimEnter * redraw!
 
 " ── Netrw (built-in file browser) ────────────────────────────────────────────
 let g:netrw_banner=0         " no banner

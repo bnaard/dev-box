@@ -52,6 +52,19 @@ FROM ghcr.io/projectious-work/aibox:base-debian-v0.23.21 AS aibox
 LABEL aibox.version="0.23.21"
 LABEL aibox.profile="human-dev"
 
+ENV SHELL=/bin/bash
+
+# Native Zellij uses separate plugin locations for the keybar and runtime rows.
+# Keep aliases here so projects rebuilt against older base images still get two
+# independent plugin instances instead of a single same-location plugin.
+USER root
+RUN if [ -f /usr/local/share/aibox/zellij/aibox-status.wasm ]; then \
+      ln -sf /usr/local/share/aibox/zellij/aibox-status.wasm /usr/local/share/aibox/zellij/aibox-status-keys.wasm; \
+      ln -sf /usr/local/share/aibox/zellij/aibox-status.wasm /usr/local/share/aibox/zellij/aibox-status-runtime.wasm; \
+    fi; \
+    mkdir -p /home/aibox/.cache/starship /home/aibox/.cache/uv /home/aibox/.cache/zellij; \
+    chown -R aibox:aibox /home/aibox/.cache
+
 # Addon: audio-voice — PulseAudio/Sox support for interactive voice tools.
 USER root
 RUN apt-get update && apt-get install -y --no-install-recommends \

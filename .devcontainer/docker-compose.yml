@@ -44,9 +44,11 @@ services:
       - ../.aibox-home/.vim/undo:/home/aibox/.vim/undo
       # Zellij terminal multiplexer config
       - ../.aibox-home/.config/zellij:/home/aibox/.config/zellij
-      # Zellij plugin permission cache (pre-approves aibox native status plugin)
-      - ../.aibox-home/.cache/zellij:/home/aibox/.cache/zellij
-      - ../.aibox-home/.cache/org/Zellij Contributors/Zellij:/home/aibox/.cache/org/Zellij Contributors/Zellij
+      # XDG cache home. This must be mounted as a writable parent, not only as
+      # selected subdirectories, because tools such as uv and starship create
+      # their own cache/log directories at runtime. It also carries Zellij's
+      # pre-seeded native plugin permission cache.
+      - ../.aibox-home/.cache:/home/aibox/.cache
       # Yazi file manager config
       - ../.aibox-home/.config/yazi:/home/aibox/.config/yazi
       # Git configuration
@@ -74,6 +76,7 @@ services:
       GIT_CONFIG_GLOBAL: "/home/aibox/.config/git/config"
       LANG: "en_US.UTF-8"
       PULSE_SERVER: "tcp:host.docker.internal:4714"
+      SHELL: "/bin/bash"
       TERM: "xterm-256color"
       TZ: "Europe/Berlin"
     command: sleep infinity

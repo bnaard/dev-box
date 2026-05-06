@@ -490,8 +490,8 @@ fn vim_loop_disables_startup_cursor_position_probe_for_zellij() {
         .unwrap_or_else(|err| panic!("read {}: {err}", vim_loop.display()));
 
     assert!(
-        body.contains(r#"vim --cmd "set t_u7=" "$@""#),
-        "vim-loop should disable Vim's startup cursor-position probe; Zellij 0.44 logs it as `Unknown component: z` when Vim starts eagerly:\n{}",
+        body.contains(r#"--cmd "set t_u7=""#) && body.contains(r#"--cmd "set t_RV=""#),
+        "vim-loop should disable Vim's startup terminal probes; Zellij 0.44 logs cursor-position probes as `Unknown component: z` when Vim starts eagerly:\n{}",
         vim_loop.display()
     );
 }

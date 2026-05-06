@@ -44,9 +44,11 @@ services:
       - {{ host_root }}/.vim/undo:{{ container_home }}/.vim/undo
       # Zellij terminal multiplexer config
       - {{ host_root }}/.config/zellij:{{ container_home }}/.config/zellij
-      # Zellij plugin permission cache (pre-approves aibox native status plugin)
-      - {{ host_root }}/.cache/zellij:{{ container_home }}/.cache/zellij
-      - {{ host_root }}/.cache/org/Zellij Contributors/Zellij:{{ container_home }}/.cache/org/Zellij Contributors/Zellij
+      # XDG cache home. This must be mounted as a writable parent, not only as
+      # selected subdirectories, because tools such as uv and starship create
+      # their own cache/log directories at runtime. It also carries Zellij's
+      # pre-seeded native plugin permission cache.
+      - {{ host_root }}/.cache:{{ container_home }}/.cache
       # Yazi file manager config
       - {{ host_root }}/.config/yazi:{{ container_home }}/.config/yazi
       # Git configuration

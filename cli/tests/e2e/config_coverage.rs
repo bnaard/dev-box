@@ -132,14 +132,8 @@ fn zellij_native_permission_cache_is_mounted() {
     init_project(dir.path(), "zellij-permissions");
     let compose = read_generated(dir.path(), ".devcontainer/docker-compose.yml");
     assert!(
-        compose.contains(".cache/zellij:/home/aibox/.cache/zellij"),
-        "compose must mount Zellij's current permission cache so preseeded native plugin approvals are visible:\n{compose}"
-    );
-    assert!(
-        compose.contains(
-            ".cache/org/Zellij Contributors/Zellij:/home/aibox/.cache/org/Zellij Contributors/Zellij"
-        ),
-        "compose must mount Zellij's legacy permission cache path as well:\n{compose}"
+        compose.contains(".cache:/home/aibox/.cache"),
+        "compose must mount writable XDG cache home so uv/starship can create cache directories and Zellij permission caches remain visible:\n{compose}"
     );
 }
 
