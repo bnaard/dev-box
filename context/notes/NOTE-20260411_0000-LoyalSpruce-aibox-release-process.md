@@ -104,6 +104,25 @@ and patch/file it before publishing.
    ./scripts/maintain.sh test-e2e
    ```
 
+   **Codex harness note:** Codex shell-tool calls can run inside an additional
+   network sandbox that is separate from the devcontainer. That sandbox can
+   block Docker/Compose service-name DNS such as `aibox-e2e-testrunner`, causing
+   Tier 2 companion tests to fail with `Temporary failure in name resolution`
+   even when the companion container is healthy. This is Codex-specific; do not
+   generalize it to Claude or other harnesses. When running the release from
+   Codex, execute the release command with elevated shell/network permissions
+   so Docker's embedded DNS at `127.0.0.11` can resolve the companion hostname.
+   If the failure appears, verify with:
+   ```bash
+   ssh -i /workspace/.aibox-e2e-runner-home/.ssh/id_ed25519 \
+     -o BatchMode=yes -o StrictHostKeyChecking=no \
+     -o UserKnownHostsFile=/dev/null \
+     testuser@aibox-e2e-testrunner 'echo ok'
+   ```
+   A successful elevated check means the fix is to rerun the same release
+   command with elevated permissions, not to change the release script, compose
+   file, or E2E runner defaults.
+
    Visual E2E is release-gated because it records real Zellij/Yazi/asciinema
    sessions and is intentionally slower. Before every release, the agent must
    decide and record in the release notes or handover which visual tier was run
