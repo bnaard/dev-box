@@ -315,6 +315,11 @@ pub static COMPAT_TABLE: &[CompatEntry] = &[
         processkit_version: "v0.25.8",
         note: "Patch release: hardens generated runtime startup by keeping Vim eager while disabling its startup cursor-position probe, removes suspended generated AI panes, pre-seeds native Zellij plugin permissions, fixes service-specific Codex bubblewrap seccomp fallback, updates Yazi git/preview config, and adds generated-runtime plus opt-in visual E2E release gates.",
     },
+    CompatEntry {
+        aibox_version: "0.23.20",
+        processkit_version: "v0.25.8",
+        note: "Patch release: makes the release runtime smoke harness host-safe by defaulting to the shell Zellij status mode, capturing raw TUI output into logs instead of streaming escape sequences to the host terminal, and asserting on structured probe markers rather than terminal transcripts.",
+    },
 ];
 
 /// Find the minimum compatible processkit version for the given aibox version.
