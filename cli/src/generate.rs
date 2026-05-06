@@ -1423,6 +1423,24 @@ mod tests {
     }
 
     #[test]
+    fn base_image_installs_yazi_companion_entrypoint() {
+        let content = include_str!("../../images/base-debian/Dockerfile");
+        assert!(
+            content.contains("ln -sf /usr/local/bin/yazi /usr/local/bin/ya"),
+            "base image should expose yazi's companion entrypoint"
+        );
+    }
+
+    #[test]
+    fn e2e_companion_image_installs_yazi_companion_entrypoint() {
+        let content = include_str!("../../.devcontainer/Dockerfile.e2e");
+        assert!(
+            content.contains("ln -sf /usr/local/bin/yazi /usr/local/bin/ya"),
+            "E2E companion image should expose yazi's companion entrypoint"
+        );
+    }
+
+    #[test]
     fn compose_includes_aider_volume() {
         let dir = tempfile::tempdir().unwrap();
         let mut config = make_config(&[], false);

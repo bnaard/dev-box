@@ -245,6 +245,7 @@ RUN groupadd --gid 1000 aibox \
 # ── Copy binaries from parallel builder stages ──────────────────────────────
 COPY --from=fetch-zellij   /usr/local/bin/zellij   /usr/local/bin/
 COPY --from=fetch-yazi     /usr/local/bin/yazi     /usr/local/bin/
+RUN ln -sf /usr/local/bin/yazi /usr/local/bin/ya
 COPY --from=fetch-ripgrep  /usr/local/bin/rg       /usr/local/bin/
 COPY --from=fetch-fd       /usr/local/bin/fd       /usr/local/bin/
 COPY --from=fetch-bat      /usr/local/bin/bat      /usr/local/bin/

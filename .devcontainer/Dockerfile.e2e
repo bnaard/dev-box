@@ -120,6 +120,7 @@ COPY --from=fetch-zellij   /usr/local/bin/zellij   /usr/local/bin/zellij
 COPY --from=fetch-yazi    /usr/local/bin/yazi     /usr/local/bin/yazi
 COPY --from=fetch-starship /usr/local/bin/starship /usr/local/bin/starship
 COPY --from=fetch-lazygit /usr/local/bin/lazygit  /usr/local/bin/lazygit
+RUN ln -sf /usr/local/bin/yazi /usr/local/bin/ya
 
 # ── Vim colorschemes (system-wide) ──────────────────────────────────────────
 COPY --from=fetch-vim-colors /vim-colors/colors/ /usr/share/vim/vimfiles/colors/
