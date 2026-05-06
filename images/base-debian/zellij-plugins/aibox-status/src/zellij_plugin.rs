@@ -15,7 +15,7 @@ enum RowRole {
 }
 
 #[derive(Default)]
-struct AiboxStatusPlugin {
+pub(crate) struct AiboxStatusPlugin {
     state: RenderState,
     request_id: u64,
     role: RowRole,
@@ -100,9 +100,7 @@ impl ZellijPlugin for AiboxStatusPlugin {
             EventType::PermissionRequestResult,
         ]);
         set_selectable(false);
-        if self.role == RowRole::Status {
-            set_timeout(REFRESH_SECONDS);
-        }
+        set_timeout(0.1);
     }
 
     fn update(&mut self, event: Event) -> bool {
@@ -128,7 +126,8 @@ impl ZellijPlugin for AiboxStatusPlugin {
             }
             Event::Timer(_) => {
                 self.refresh();
-                false
+                set_timeout(REFRESH_SECONDS);
+                true
             }
             Event::RunCommandResult(exit_code, stdout, stderr, context)
                 if context.contains_key(REQUEST_KIND) =>
@@ -170,29 +169,13 @@ impl ZellijPlugin for AiboxStatusPlugin {
         if self.hidden {
             return;
         }
-        for (y, line) in render_rows(&self.state, cols)
+        let output = render_rows(&self.state, cols)
             .into_iter()
             .take(rows)
-            .enumerate()
-        {
-            print_text_with_coordinates(visible_row_text(line), 0, y, Some(cols), Some(1));
+            .collect::<Vec<_>>()
+            .join("\n");
+        if !output.is_empty() {
+            print!("{output}\u{1b}[0K");
         }
     }
-}
-
-#[no_mangle]
-pub fn main() {
-    std::panic::set_hook(Box::new(|info| {
-        report_panic(info);
-    }));
-}
-
-fn visible_row_text(line: String) -> Text {
-    Text::new(line)
-}
-
-mod zellij_exports {
-    use super::*;
-
-    zellij_tile::register_plugin!(AiboxStatusPlugin);
 }

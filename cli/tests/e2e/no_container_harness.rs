@@ -436,10 +436,22 @@ fn doctor_warns_on_runtime_theme_template_drift() {
 #[test]
 fn native_zellij_status_plugin_has_zellij_visible_exports_and_foreground() {
     let manifest_dir = env!("CARGO_MANIFEST_DIR");
+    let plugin_manifest = Path::new(manifest_dir)
+        .parent()
+        .unwrap()
+        .join("images/base-debian/zellij-plugins/aibox-status/Cargo.toml");
+    let plugin_main = Path::new(manifest_dir)
+        .parent()
+        .unwrap()
+        .join("images/base-debian/zellij-plugins/aibox-status/src/main.rs");
     let plugin_source = Path::new(manifest_dir)
         .parent()
         .unwrap()
         .join("images/base-debian/zellij-plugins/aibox-status/src/zellij_plugin.rs");
+    let manifest_body = fs::read_to_string(&plugin_manifest)
+        .unwrap_or_else(|err| panic!("read {}: {err}", plugin_manifest.display()));
+    let main_body = fs::read_to_string(&plugin_main)
+        .unwrap_or_else(|err| panic!("read {}: {err}", plugin_main.display()));
     let body = fs::read_to_string(&plugin_source)
         .unwrap_or_else(|err| panic!("read {}: {err}", plugin_source.display()));
 
@@ -449,15 +461,38 @@ fn native_zellij_status_plugin_has_zellij_visible_exports_and_foreground() {
         plugin_source.display()
     );
     assert!(
-        body.contains("Text::new(line)"),
-        "native aibox Zellij status rows should let Zellij/theme defaults choose a readable foreground:\n{}",
+        body.contains(r#"print!("{output}"#) || body.contains(r#"print!("{output}\u{1b}[0K")"#),
+        "native aibox Zellij status rows should render theme-default visible text without forcing a dark foreground:\n{}",
         plugin_source.display()
     );
 
     assert!(
-        body.contains("pub fn main()") && body.contains("register_plugin!(AiboxStatusPlugin)"),
-        "native aibox Zellij status plugin should use the upstream zellij-tile adapter plus a literal main export for Zellij 0.44:\n{}",
+        main_body.contains("zellij_tile::register_plugin!(AiboxStatusPlugin)")
+            && !manifest_body.contains("crate-type = [\"cdylib\"")
+            && !main_body.contains("export_name")
+            && !body.contains("#[no_mangle]\npub fn main()")
+            && !body.contains("register_plugin!(AiboxStatusPlugin)"),
+        "native aibox Zellij status plugin should use Zellij's upstream-shaped WASI binary entrypoint, not a manual cdylib/_start shim:\n{}\n{}\n{}",
+        plugin_manifest.display(),
+        plugin_main.display(),
         plugin_source.display()
+    );
+}
+
+#[test]
+fn vim_loop_disables_startup_cursor_position_probe_for_zellij() {
+    let manifest_dir = env!("CARGO_MANIFEST_DIR");
+    let vim_loop = Path::new(manifest_dir)
+        .parent()
+        .unwrap()
+        .join("images/base-debian/config/bin/vim-loop.sh");
+    let body = fs::read_to_string(&vim_loop)
+        .unwrap_or_else(|err| panic!("read {}: {err}", vim_loop.display()));
+
+    assert!(
+        body.contains(r#"vim --cmd "set t_u7=" "$@""#),
+        "vim-loop should disable Vim's startup cursor-position probe; Zellij 0.44 logs it as `Unknown component: z` when Vim starts eagerly:\n{}",
+        vim_loop.display()
     );
 }
 

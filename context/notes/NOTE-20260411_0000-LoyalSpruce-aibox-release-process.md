@@ -99,6 +99,45 @@ and patch/file it before publishing.
    ```bash
    cd cli && cargo test && cargo clippy -- -D warnings
    ```
+   The scripted release path also runs the Tier 2 SSH companion tests:
+   ```bash
+   ./scripts/maintain.sh test-e2e
+   ```
+
+   Visual E2E is release-gated because it records real Zellij/Yazi/asciinema
+   sessions and is intentionally slower. Before every release, the agent must
+   decide and record in the release notes or handover which visual tier was run
+   or why it was skipped:
+
+   - Run `./scripts/maintain.sh test-e2e-visual-status` when layouts, themes,
+     the native Zellij status/key rows, generated `.aibox-home`, Zellij version,
+     or terminal color behavior changed.
+   - Run `./scripts/maintain.sh test-e2e-visual-tabs` when tool panes, tab
+     wiring, harness selection, Vim, shell, lazygit, or generated layout command
+     wiring changed.
+   - Run `./scripts/maintain.sh test-e2e-visual-yazi` when Yazi config,
+     previews, git symbols, preview addons, or optional preview dependencies
+     changed.
+   - Run `./scripts/maintain.sh test-e2e-visual` for a full visual sweep when a
+     release touches broad runtime surfaces or when confidence is otherwise low.
+   - Run the full visual sweep at least every fifth release even if the current
+     diff looks unrelated, so slow drift across themes, layouts, and tools is
+     still caught periodically.
+
+   `./scripts/maintain.sh release <version>` accepts
+   `AIBOX_RELEASE_VISUAL_E2E=status|tabs|yazi|full|docs` to run a visual tier
+   inside the release command. The default is `skip`, which prints a warning;
+   only use the default when the release notes or handover explicitly justify
+   the skip.
+
+   For documentation assets, run:
+   ```bash
+   ./scripts/maintain.sh test-e2e-doc-captures
+   ```
+   This writes current-release asciinema casts, screen dumps, Zellij logs, and
+   metadata under `docs-site/static/img/e2e/` by default. These artifacts are
+   the source material for documentation screenshots or screencasts, so docs
+   visuals stay tied to the same generated runtime that release validation used.
 4. **Audit dependencies**:
    ```bash
    cd cli && cargo audit

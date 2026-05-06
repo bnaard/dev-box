@@ -36,7 +36,8 @@ The repo devcontainer also needs an SSH client (`openssh-client`) because Tier 2
 # 1. Build the CLI binary
 cd /workspace/cli && cargo build
 
-# 2. Run E2E tier 2 tests (deploys binary to companion via SCP on first run)
+# 2. Run E2E tier 2 tests (deploys binary to companion via SCP on first run).
+# The expensive visual matrix tests are opt-in and do not run here.
 cd /workspace/cli && cargo test --features e2e
 
 # Run a specific E2E test
@@ -45,6 +46,30 @@ cd /workspace/cli && cargo test --features e2e -- lifecycle
 
 The deploy step is guarded by `std::sync::Once` — runs once per `cargo test` invocation.
 Re-running after a code change: `cargo build` again, then re-run `cargo test --features e2e`.
+
+### Visual E2E tiers
+
+The generated Zellij/Yazi visual tests run real SSH/asciinema sessions in the
+companion container. They are intentionally opt-in because they are slower and
+because release validation should choose the tier that matches the changed
+surface:
+
+```bash
+./scripts/maintain.sh test-e2e-visual-status # layouts, themes, native status rows
+./scripts/maintain.sh test-e2e-visual-tabs   # tab traversal, tools, harnesses
+./scripts/maintain.sh test-e2e-visual-yazi   # Yazi previews, git symbols, plugins
+./scripts/maintain.sh test-e2e-visual        # all visual tiers
+```
+
+To generate current-release source artifacts for documentation screenshots or
+screencasts:
+
+```bash
+./scripts/maintain.sh test-e2e-doc-captures
+```
+
+Set `AIBOX_E2E_VISUAL_ARTIFACT_DIR` to override the default output directory
+(`docs-site/static/img/e2e/`).
 
 ## Before committing
 

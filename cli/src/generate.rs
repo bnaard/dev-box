@@ -266,7 +266,7 @@ fn generate_docker_compose(
         project_path(&config.container.paths.docker_compose_override)
     };
     let codex_sandbox_seccomp = config.ai.harnesses.contains(&AiHarness::Codex)
-        && !compose_override_declares_codex_seccomp(&compose_override_path);
+        && !compose_override_declares_codex_seccomp(&compose_override_path, &config.container.name);
 
     // Container home path
     let container_home = config.container_home();
@@ -637,7 +637,7 @@ fn generate_devcontainer_json(config: &AiboxConfig, path_or_dir: &Path) -> Resul
     )
 }
 
-fn compose_override_declares_codex_seccomp(override_path: &Path) -> bool {
+fn compose_override_declares_codex_seccomp(override_path: &Path, service_name: &str) -> bool {
     let Ok(content) = fs::read_to_string(override_path) else {
         return false;
     };
@@ -645,11 +645,13 @@ fn compose_override_declares_codex_seccomp(override_path: &Path) -> bool {
         return false;
     };
     compose_services(&compose).is_some_and(|services| {
-        services.values().any(|service| {
-            service
-                .get("security_opt")
-                .is_some_and(|value| yaml_value_contains_ci(value, "seccomp=unconfined"))
-        })
+        services
+            .get(serde_yaml::Value::String(service_name.to_string()))
+            .is_some_and(|service| {
+                service
+                    .get("security_opt")
+                    .is_some_and(|value| yaml_value_contains_ci(value, "seccomp=unconfined"))
+            })
     })
 }
 
@@ -875,6 +877,25 @@ mod tests {
         assert!(
             !content.contains("seccomp=unconfined"),
             "generated compose must not duplicate a user override seccomp fallback:\n{content}"
+        );
+    }
+
+    #[test]
+    fn compose_keeps_seccomp_fallback_when_override_declares_it_for_sidecar_only() {
+        let dir = tempfile::tempdir().unwrap();
+        let mut config = make_config(&[], false);
+        config.ai.harnesses = vec![crate::config::AiHarness::Codex];
+        fs::write(
+            dir.path().join("docker-compose.override.yml"),
+            "services:\n  aibox-e2e-testrunner:\n    security_opt:\n      - seccomp=unconfined\n",
+        )
+        .unwrap();
+        generate_docker_compose(&config, dir.path(), &test_env()).unwrap();
+
+        let content = fs::read_to_string(dir.path().join("docker-compose.yml")).unwrap();
+        assert!(
+            content.contains("seccomp=unconfined"),
+            "sidecar-only override must not suppress the generated Codex bubblewrap fallback for the main service:\n{content}"
         );
     }
 

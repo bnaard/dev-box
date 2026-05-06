@@ -296,7 +296,6 @@ fn ai_tabs_kdl(providers: &[crate::config::AiProvider]) -> String {
                  \x20       pane name=\"{name}\" {{\n\
                  \x20           command \"{cmd}\"\n\
                  \x20           cwd \"/workspace\"\n\
-                 \x20           start_suspended true\n\
                  \x20       }}\n\
                  \x20   }}"
             )
@@ -908,9 +907,9 @@ image_filter = "nearest"
 
 [plugin]
 prepend_fetchers = [
-    { id = "git", url = "*",  run = "git" },
-    { id = "git", url = "*/", run = "git" },
-    { id = "status-git", url = "*", run = "status-git" },
+    { id = "git", url = "*",  run = "git", group = "git" },
+    { id = "git", url = "*/", run = "git", group = "git" },
+    { id = "status-git", url = "*", run = "status-git", group = "status-git" },
 ]
 prepend_previewers = [
     # Directory preview: columnar listing with git status, size, date, owner, permissions
@@ -1202,15 +1201,16 @@ const DEFAULT_YAZI_INIT: &str = r#"-- ==========================================
 
 -- git.yazi: show git status in the file list with explicit, visible signs.
 -- Fetcher registration is in yazi.toml [plugin.prepend_fetchers].
-th.git = th.git or {}
-th.git.modified_sign = "M"
-th.git.added_sign = "A"
-th.git.deleted_sign = "D"
-th.git.updated_sign = "U"
-th.git.untracked_sign = "?"
-th.git.ignored_sign = "I"
-
-require("git"):setup {}
+require("git"):setup {
+	signs = {
+		modified = "M",
+		added = "A",
+		deleted = "D",
+		updated = "U",
+		untracked = "?",
+		ignored = "I",
+	},
+}
 
 -- status-git.yazi: git branch + summary (left) and disk free (right) in status bar.
 -- Data refresh is triggered via the fetcher registered in yazi.toml.
@@ -1490,6 +1490,11 @@ pub fn ensure_runtime_dirs(config: &AiboxConfig) -> Result<()> {
         root.join(".config").join("state"),
         root.join(".config").join("zellij").join("themes"),
         root.join(".config").join("zellij").join("layouts"),
+        root.join(".cache").join("zellij"),
+        root.join(".cache")
+            .join("org")
+            .join("Zellij Contributors")
+            .join("Zellij"),
         root.join(".config").join("yazi"),
         root.join(".config")
             .join("yazi")
@@ -1674,6 +1679,17 @@ pub fn managed_runtime_files(config: &AiboxConfig) -> Vec<(std::path::PathBuf, S
         ),
     ];
 
+    if *status_mode == ZellijStatusMode::Native {
+        files.push((
+            std::path::PathBuf::from(".cache/zellij/permissions.kdl"),
+            zellij_native_status_permissions_cache(),
+        ));
+        files.push((
+            std::path::PathBuf::from(".cache/org/Zellij Contributors/Zellij/permissions.kdl"),
+            zellij_native_status_permissions_cache(),
+        ));
+    }
+
     if config.audio.enabled {
         files.push((
             std::path::PathBuf::from(".asoundrc"),
@@ -1739,6 +1755,19 @@ pub fn managed_runtime_files(config: &AiboxConfig) -> Vec<(std::path::PathBuf, S
     }
 
     files
+}
+
+fn zellij_native_status_permissions_cache() -> String {
+    r#""file:/usr/local/share/aibox/zellij/aibox-status.wasm" {
+    RunCommands
+    ReadApplicationState
+}
+"/usr/local/share/aibox/zellij/aibox-status.wasm" {
+    RunCommands
+    ReadApplicationState
+}
+"#
+    .to_string()
 }
 
 /// Remove managed runtime files that should not exist for the current config.
@@ -2016,6 +2045,27 @@ pub fn sync_theme_files(config: &AiboxConfig) -> Result<Vec<String>> {
     )? {
         updated.push(".config/zellij/layouts/aibox-status-hidden.kdl".to_string());
     }
+    if *status_mode == ZellijStatusMode::Native
+        && force_seed_file(
+            &root.join(".cache").join("zellij").join("permissions.kdl"),
+            &zellij_native_status_permissions_cache(),
+        )?
+    {
+        updated.push(".cache/zellij/permissions.kdl".to_string());
+    }
+    if *status_mode == ZellijStatusMode::Native
+        && force_seed_file(
+            &root
+                .join(".cache")
+                .join("org")
+                .join("Zellij Contributors")
+                .join("Zellij")
+                .join("permissions.kdl"),
+            &zellij_native_status_permissions_cache(),
+        )?
+    {
+        updated.push(".cache/org/Zellij Contributors/Zellij/permissions.kdl".to_string());
+    }
 
     if force_seed_file(
         &root.join(".local").join("bin").join("open-in-editor"),
@@ -2049,6 +2099,28 @@ pub fn sync_theme_files(config: &AiboxConfig) -> Result<Vec<String>> {
         updated.push(".config/lazygit/config.yml".to_string());
     }
     updated.extend(cleanup_disabled_runtime_files(config)?);
+
+    // Yazi managed config. This is version-sensitive: Yazi 26 rejects the
+    // historical `name = ...` matcher schema, so apply must refresh stale
+    // project-owned runtime config even when the selected theme did not change.
+    if force_seed_file(
+        &root.join(".config").join("yazi").join("yazi.toml"),
+        &generate_yazi_config(config),
+    )? {
+        updated.push(".config/yazi/yazi.toml".to_string());
+    }
+    if force_seed_file(
+        &root.join(".config").join("yazi").join("keymap.toml"),
+        DEFAULT_YAZI_KEYMAP,
+    )? {
+        updated.push(".config/yazi/keymap.toml".to_string());
+    }
+    if force_seed_file(
+        &root.join(".config").join("yazi").join("init.lua"),
+        &generate_yazi_init(config),
+    )? {
+        updated.push(".config/yazi/init.lua".to_string());
+    }
 
     // Yazi theme — force-update from the bundled theme for the selected theme
     if force_seed_file(
@@ -2198,8 +2270,17 @@ mod tests {
             "Yazi 26 open rules require url or mime matchers"
         );
         assert!(
+            DEFAULT_YAZI_CONFIG.contains(r#"run = "git", group = "git""#)
+                && DEFAULT_YAZI_CONFIG.contains(r#"run = "status-git", group = "status-git""#),
+            "Yazi 26 plugin fetchers require explicit groups"
+        );
+        assert!(
             !DEFAULT_YAZI_CONFIG.contains("name = \"*\""),
             "Yazi 26 rejects name-only [open] rules"
+        );
+        assert!(
+            !DEFAULT_YAZI_INIT.contains("th.git =") && DEFAULT_YAZI_INIT.contains("signs = {"),
+            "Yazi 26 exposes th.git as a custom theme section; init.lua must pass sign overrides through git.yazi setup options"
         );
     }
 
@@ -2522,6 +2603,46 @@ mod tests {
     }
 
     #[test]
+    fn managed_runtime_files_seed_native_zellij_permission_cache() {
+        let dir = tempfile::tempdir().unwrap();
+        let root = dir.path().join("root");
+        let mut config = make_config(false, root);
+        config.customization.zellij_status.mode = ZellijStatusMode::Native;
+
+        let files = managed_runtime_files(&config);
+        for rel_path in [
+            ".cache/zellij/permissions.kdl",
+            ".cache/org/Zellij Contributors/Zellij/permissions.kdl",
+        ] {
+            let (_, body) = files
+                .iter()
+                .find(|(path, _)| path == &std::path::PathBuf::from(rel_path))
+                .unwrap_or_else(|| panic!("missing generated {rel_path}"));
+            assert!(
+                body.contains("file:/usr/local/share/aibox/zellij/aibox-status.wasm")
+                    && body.contains("RunCommands")
+                    && body.contains("ReadApplicationState"),
+                "{rel_path} should pre-approve the native status plugin permissions"
+            );
+        }
+    }
+
+    #[test]
+    fn managed_runtime_files_omit_zellij_permission_cache_for_shell_status() {
+        let dir = tempfile::tempdir().unwrap();
+        let root = dir.path().join("root");
+        let mut config = make_config(false, root);
+        config.customization.zellij_status.mode = ZellijStatusMode::Shell;
+
+        let files = managed_runtime_files(&config);
+        assert!(
+            !files.iter().any(|(path, _)| path
+                == &std::path::PathBuf::from(".cache/zellij/permissions.kdl")),
+            "shell status mode should not seed native plugin permission cache"
+        );
+    }
+
+    #[test]
     #[serial]
     fn seed_root_dir_uses_resolved_theme_mode() {
         let dir = tempfile::tempdir().unwrap();
@@ -2574,6 +2695,57 @@ mod tests {
             0,
             "aibox-status should be executable after apply-time sync"
         );
+
+        unsafe {
+            std::env::remove_var("AIBOX_HOST_ROOT");
+        }
+    }
+
+    #[test]
+    #[serial]
+    fn sync_theme_files_refreshes_stale_yazi_26_matchers() {
+        let dir = tempfile::tempdir().unwrap();
+        let root = dir.path().join("root");
+        let config = make_config(false, root.clone());
+        seed_root_dir(&config).unwrap();
+
+        let yazi_dir = root.join(".config").join("yazi");
+        fs::write(
+            yazi_dir.join("yazi.toml"),
+            r#"[open]
+rules = [
+    { mime = "text/*", use = "edit" },
+    { name = "*", use = "edit" },
+]
+"#,
+        )
+        .unwrap();
+        fs::write(
+            yazi_dir.join("theme.toml"),
+            r##"[filetype]
+rules = [
+    { name = "*.rs", fg = "#ffffff" },
+]
+"##,
+        )
+        .unwrap();
+
+        let updated = sync_theme_files(&config).unwrap();
+
+        assert!(
+            updated.contains(&".config/yazi/yazi.toml".to_string()),
+            "stale yazi.toml should be force-refreshed: {updated:?}"
+        );
+        assert!(
+            updated.contains(&".config/yazi/theme.toml".to_string()),
+            "stale yazi theme should be force-refreshed: {updated:?}"
+        );
+        let yazi = fs::read_to_string(yazi_dir.join("yazi.toml")).unwrap();
+        let theme = fs::read_to_string(yazi_dir.join("theme.toml")).unwrap();
+        assert!(yazi.contains(r#"{ url = "*", use = "edit" }"#));
+        assert!(theme.contains(r#"url = "*.rs""#));
+        assert!(!yazi.contains("{ name ="));
+        assert!(!theme.contains("{ name ="));
 
         unsafe {
             std::env::remove_var("AIBOX_HOST_ROOT");
@@ -2655,10 +2827,6 @@ mod tests {
         assert_eq!(fs::read_to_string(&path).unwrap(), "original");
     }
 
-    fn occurrences(haystack: &str, needle: &str) -> usize {
-        haystack.match_indices(needle).count()
-    }
-
     #[test]
     fn dev_layout_claude_only() {
         let providers = vec![AiProvider::Claude];
@@ -2706,8 +2874,8 @@ mod tests {
             "multiple providers should use separate tabs"
         );
         assert!(
-            occurrences(&layout, "start_suspended true") >= 1,
-            "secondary AI tabs should start suspended"
+            !layout.contains("start_suspended true"),
+            "generated layouts should start panes eagerly:\n{layout}"
         );
     }
 
@@ -3323,7 +3491,7 @@ mod tests {
     }
 
     #[test]
-    fn zellij_layout_starts_interactive_tool_tabs() {
+    fn zellij_layout_starts_tool_tabs_eagerly() {
         let layout = generate_dev_layout(&[]);
         assert!(
             layout.contains("aibox-status.wasm")
@@ -3342,25 +3510,15 @@ mod tests {
             layout.contains(
                 "pane size=\"60%\" name=\"editor\" {\n                command \"vim-loop\"\n                cwd \"/workspace\"\n            }"
             ),
-            "editor pane should start immediately so yazi can send :edit to vim"
+            "editor pane should start eagerly"
         );
         assert!(
             layout.contains("command \"lazygit\"\n            cwd \"/workspace\""),
-            "git tab should start lazygit immediately"
+            "git tab should start eagerly"
         );
         assert!(
             layout.contains("command \"bash\"\n            cwd \"/workspace\""),
-            "shell tab should start bash immediately"
-        );
-        assert!(
-            !layout.contains("command \"lazygit\"\n            cwd \"/workspace\"\n            start_suspended true"),
-            "git tab must not start suspended"
-        );
-        assert!(
-            !layout.contains(
-                "command \"bash\"\n            cwd \"/workspace\"\n            start_suspended true"
-            ),
-            "shell tab must not start suspended"
+            "shell tab should start eagerly"
         );
     }
 
@@ -3398,6 +3556,26 @@ mod tests {
         assert!(!layout.contains("zellij:status-bar"));
         assert!(!layout.contains("aibox-status"));
         assert!(!layout.contains("role \"status\""));
+    }
+
+    #[test]
+    fn generated_layouts_start_secondary_runtime_tabs_eagerly() {
+        let providers = [AiProvider::Claude];
+        let layouts = [
+            ("dev", generate_dev_layout(&providers)),
+            ("focus", generate_focus_layout(&providers)),
+            ("cowork", generate_cowork_layout(&providers)),
+            ("cowork-swap", generate_cowork_swap_layout(&providers)),
+            ("browse", generate_browse_layout(&providers)),
+            ("ai", generate_ai_layout(&providers)),
+        ];
+
+        for (name, layout) in layouts {
+            assert!(
+                !layout.contains("start_suspended true"),
+                "{name} layout should start panes eagerly:\n{layout}"
+            );
+        }
     }
 
     #[test]
@@ -3474,10 +3652,9 @@ mod tests {
         assert!(!result.contains("command \"claude\""));
         assert!(result.contains("command \"aider\""));
         assert!(result.contains("command \"gemini\""));
-        assert_eq!(
-            occurrences(&result, "start_suspended true"),
-            2,
-            "secondary AI tabs should start suspended"
+        assert!(
+            !result.contains("start_suspended true"),
+            "secondary AI tabs should start eagerly"
         );
     }
 

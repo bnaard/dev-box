@@ -293,7 +293,7 @@ COPY config/zellij/layouts/focus.kdl   /home/aibox/.config/zellij/layouts/focus.
 COPY config/zellij/layouts/cowork.kdl  /home/aibox/.config/zellij/layouts/cowork.kdl
 RUN mkdir -p /usr/local/share/aibox/zellij
 COPY --from=build-aibox-zellij-status \
-    /build/aibox-status/target/wasm32-wasip1/release/aibox_zellij_status.wasm \
+    /build/aibox-status/target/wasm32-wasip1/release/aibox-zellij-status.wasm \
     /usr/local/share/aibox/zellij/aibox-status.wasm
 
 # Yazi

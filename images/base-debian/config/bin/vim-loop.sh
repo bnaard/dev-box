@@ -4,7 +4,7 @@
 # Exit the loop with :cq (exit with error code) or Ctrl+C.
 
 while true; do
-    vim "$@"
+    vim --cmd "set t_u7=" "$@"
     exit_code=$?
     # :cq exits with code 1 — use this to truly quit
     if [ "$exit_code" -ne 0 ]; then

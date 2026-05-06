@@ -10,7 +10,10 @@
 #
 # Commands:
 #   test              Run cargo fmt, clippy, and tests
+#   test-e2e          Run SSH companion E2E tests
+#   test-e2e-visual   Run all opt-in SSH/asciinema visual E2E tiers
 #   build-images      Build all 10 published images locally
+#   release-runtime-smoke <version> Run generated runtime smoke against a release
 #   docs-serve        Serve MkDocs locally for preview
 #   docs-deploy       Build MkDocs and push HTML to gh-pages
 #   release <version> Tag, build, compile CLI, generate release prompt
@@ -82,8 +85,16 @@ ${bold}Usage:${reset}
 
 ${bold}Development:${reset}
   test                     Run cargo fmt check, clippy, and tests
+  test-e2e                 Run Tier 2 SSH companion E2E tests
+  test-e2e-visual-status   Run opt-in visual matrix for layouts/themes/status rows
+  test-e2e-visual-tabs     Run opt-in tab traversal for tools and harnesses
+  test-e2e-visual-yazi     Run opt-in Yazi previews/git/plugin visual checks
+  test-e2e-visual          Run all opt-in visual E2E tiers
+  test-e2e-doc-captures    Run visual E2E and write docs-ready cast/screen artifacts
   build-images [--no-cache] Build published container images locally
   push-images <version>    Push images to GHCR (requires ghcr.io login)
+  release-runtime-smoke <version>
+                           Run host-side generated-runtime smoke and write logs
   docs-serve               Serve MkDocs locally (http://localhost:8000)
   docs-deploy [--dry-run]  Build MkDocs and push to gh-pages branch
   test-visual              Run screencast smoke tests (~40s)
@@ -96,7 +107,7 @@ ${bold}Release:${reset}
                            image, and harness version drift evidence
   release <version>        Sync processkit, test, tag, build CLI, generate release prompt
   release-host <version>   Build/upload macOS binaries, push GHCR images,
-                           then refresh + commit generated runtime surfaces
+                           run runtime smoke, then refresh + commit generated runtime surfaces
   release-finalize-runtime <version>
                            Refresh and commit repo-owned generated runtime files
 
@@ -186,6 +197,54 @@ cmd_test() {
   ok "All tests passed"
 }
 
+cmd_test_e2e() {
+  info "Running Tier 2 SSH companion E2E tests..."
+  (cd "${CLI_DIR}" && cargo test --features e2e --test e2e) \
+    || die "Tier 2 SSH companion E2E tests failed"
+  ok "Tier 2 SSH companion E2E tests passed"
+}
+
+cmd_test_e2e_visual_status() {
+  info "Running opt-in visual E2E: layouts, themes, and native status rows..."
+  (cd "${CLI_DIR}" && cargo test --features e2e --test e2e \
+    visual_generated_layouts_render_across_all_themes -- --ignored --nocapture) \
+    || die "Visual E2E status/theme matrix failed"
+  ok "Visual E2E status/theme matrix passed"
+}
+
+cmd_test_e2e_visual_tabs() {
+  info "Running opt-in visual E2E: tab traversal, tools, and harnesses..."
+  (cd "${CLI_DIR}" && cargo test --features e2e --test e2e \
+    visual_generated_tools_and_harness_tabs_render_when_enabled -- --ignored --nocapture) \
+    || die "Visual E2E tab traversal failed"
+  ok "Visual E2E tab traversal passed"
+}
+
+cmd_test_e2e_visual_yazi() {
+  info "Running opt-in visual E2E: Yazi previews, git symbols, and plugins..."
+  (cd "${CLI_DIR}" && cargo test --features e2e --test e2e \
+    visual_yazi_previews_git_symbols_and_optional_plugins_render -- --ignored --nocapture) \
+    || die "Visual E2E Yazi preview matrix failed"
+  ok "Visual E2E Yazi preview matrix passed"
+}
+
+cmd_test_e2e_visual() {
+  info "Running all opt-in visual E2E tiers..."
+  (cd "${CLI_DIR}" && cargo test --features e2e --test e2e visual_matrix -- --ignored --nocapture) \
+    || die "Visual E2E matrix failed"
+  ok "Visual E2E matrix passed"
+}
+
+cmd_test_e2e_doc_captures() {
+  local artifact_dir="${AIBOX_E2E_VISUAL_ARTIFACT_DIR:-${PROJECT_ROOT}/docs-site/static/img/e2e}"
+  mkdir -p "${artifact_dir}"
+  info "Running visual E2E with docs-ready artifacts at ${artifact_dir}..."
+  (cd "${CLI_DIR}" && AIBOX_E2E_VISUAL_ARTIFACT_DIR="${artifact_dir}" \
+    cargo test --features e2e --test e2e visual_matrix -- --ignored --nocapture) \
+    || die "Visual E2E docs capture run failed"
+  ok "Visual E2E docs artifacts written to ${artifact_dir}"
+}
+
 cmd_build_images() {
   _require_runtime
   local no_cache=""
@@ -264,6 +323,18 @@ cmd_push_images() {
   echo ""
   ok "All ${#flavors[@]} image(s) pushed to ${IMAGE_REGISTRY}"
   info "Verify at: https://github.com/orgs/projectious-work/packages"
+}
+
+cmd_release_runtime_smoke() {
+  local version="${1:-}"
+  [[ -z "${version}" ]] && die "Usage: ./scripts/maintain.sh release-runtime-smoke <version>  (e.g. 0.10.2)"
+
+  if ! [[ "${version}" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+    die "Version must be semver: X.Y.Z (got: ${version})"
+  fi
+
+  "${SCRIPT_DIR}/release-runtime-smoke.sh" "${version}" \
+    || die "Release runtime smoke failed. See dist/release-smoke/v${version}/ for logs."
 }
 
 cmd_docs_serve() {
@@ -556,6 +627,30 @@ cmd_release() {
   # ── Step 3: Run tests ──────────────────────────────────────────────────────
   info "Running tests..."
   cmd_test
+  cmd_test_e2e
+  case "${AIBOX_RELEASE_VISUAL_E2E:-skip}" in
+    skip|"")
+      warn "Skipping opt-in visual E2E during release. The release agent must justify this in notes or handover, or run AIBOX_RELEASE_VISUAL_E2E=<status|tabs|yazi|full|docs>."
+      ;;
+    status)
+      cmd_test_e2e_visual_status
+      ;;
+    tabs|tools)
+      cmd_test_e2e_visual_tabs
+      ;;
+    yazi)
+      cmd_test_e2e_visual_yazi
+      ;;
+    full)
+      cmd_test_e2e_visual
+      ;;
+    docs|captures)
+      cmd_test_e2e_doc_captures
+      ;;
+    *)
+      die "Unknown AIBOX_RELEASE_VISUAL_E2E=${AIBOX_RELEASE_VISUAL_E2E}; expected skip, status, tabs, yazi, full, or docs"
+      ;;
+  esac
 
   # ── Step 3: Audit dependencies ───────────────────────────────────────────
   info "Running cargo audit..."
@@ -741,7 +836,11 @@ cmd_release_host() {
   info "Pushing container images..."
   cmd_push_images "${version}"
 
-  # ── Step 4: Commit generated runtime surfaces now that images exist ───────
+  # ── Step 4: Run generated-runtime smoke against the pushed image ──────────
+  info "Running generated runtime smoke..."
+  cmd_release_runtime_smoke "${version}"
+
+  # ── Step 5: Commit generated runtime surfaces now that images exist ───────
   cmd_release_finalize_runtime "${version}"
 
   # ── Done ──────────────────────────────────────────────────────────────────
@@ -750,6 +849,7 @@ cmd_release_host() {
   echo ""
   echo "  macOS binaries: uploaded to GitHub release"
   echo "  Container images: pushed to GHCR"
+  echo "  Runtime smoke: passed (logs in dist/release-smoke/v${version}/)"
   echo "  Generated runtime: refreshed and committed if needed"
   echo ""
   echo "  Note: docs deployment runs inside the dev-container"
@@ -850,8 +950,15 @@ shift || true
 
 case "${COMMAND}" in
   test)         cmd_test ;;
+  test-e2e)     cmd_test_e2e ;;
+  test-e2e-visual-status) cmd_test_e2e_visual_status ;;
+  test-e2e-visual-tabs) cmd_test_e2e_visual_tabs ;;
+  test-e2e-visual-yazi) cmd_test_e2e_visual_yazi ;;
+  test-e2e-visual) cmd_test_e2e_visual ;;
+  test-e2e-doc-captures) cmd_test_e2e_doc_captures ;;
   build-images) cmd_build_images "$@" ;;
   push-images)  cmd_push_images "$@" ;;
+  release-runtime-smoke) cmd_release_runtime_smoke "$@" ;;
   docs-serve)   cmd_docs_serve ;;
   docs-deploy)  cmd_docs_deploy "$@" ;;
   test-visual)  cmd_test_visual ;;

@@ -50,12 +50,83 @@ fn lifecycle_init_apply() {
         "CLAUDE.md should exist"
     );
 
-    // Apply (--no-build: config-only, no GHCR pull needed)
+    // Apply and verify generated project surfaces.
     let output = runner.aibox(test, &["apply"]);
     assert!(
         output.status.success(),
         "apply failed: {}",
         String::from_utf8_lossy(&output.stderr)
+    );
+
+    runner.cleanup(test);
+}
+
+#[test]
+#[serial]
+#[ntest::timeout(240_000)]
+fn lifecycle_apply_starts_generated_container() {
+    let runner = E2eRunner::new();
+    let test = "lifecycle-container-up";
+    runner.cleanup(test);
+
+    let init = runner.aibox(
+        test,
+        &[
+            "init",
+            test,
+            "--base",
+            "debian",
+            "--context",
+            "managed",
+            "--processkit-version",
+            "unset",
+        ],
+    );
+    assert!(
+        init.status.success(),
+        "init failed: {}",
+        String::from_utf8_lossy(&init.stderr)
+    );
+
+    let apply = runner.aibox(test, &["apply"]);
+    assert!(
+        apply.status.success(),
+        "apply failed:\nstdout:\n{}\nstderr:\n{}",
+        String::from_utf8_lossy(&apply.stdout),
+        String::from_utf8_lossy(&apply.stderr)
+    );
+
+    let runtime = runner.runtime_bin();
+    let workspace = format!("/workspaces/{test}");
+    let up = runner.exec(&format!(
+        "cd {workspace} && {runtime} compose -f .devcontainer/docker-compose.yml up -d {test}"
+    ));
+    assert!(
+        up.status.success(),
+        "compose up failed:\nstdout:\n{}\nstderr:\n{}",
+        String::from_utf8_lossy(&up.stdout),
+        String::from_utf8_lossy(&up.stderr)
+    );
+
+    let probe = runner.container_exec(
+        test,
+        "bash -lc 'test -r /etc/aibox-version && zellij --version && yazi --version && aibox-status --plugin-json >/tmp/aibox-status.json && jq -e .plain /tmp/aibox-status.json >/dev/null'",
+    );
+    assert!(
+        probe.status.success(),
+        "container probe failed:\nstdout:\n{}\nstderr:\n{}",
+        String::from_utf8_lossy(&probe.stdout),
+        String::from_utf8_lossy(&probe.stderr)
+    );
+
+    let down = runner.exec(&format!(
+        "cd {workspace} && {runtime} compose -f .devcontainer/docker-compose.yml down -v"
+    ));
+    assert!(
+        down.status.success(),
+        "compose down failed:\nstdout:\n{}\nstderr:\n{}",
+        String::from_utf8_lossy(&down.stdout),
+        String::from_utf8_lossy(&down.stderr)
     );
 
     runner.cleanup(test);
@@ -157,10 +228,10 @@ fn runtime_without_container_shows_missing() {
 
     runner.cleanup(test);
 }
-/// Verify that `aibox init --context managed` creates the expected context files.
+/// Verify that `aibox init --context managed` creates the current slim skeleton.
 ///
-/// Covers BACK-053: the `managed` preset (core + tracking + standups + handover)
-/// must scaffold BACKLOG.md, DECISIONS.md, STANDUPS.md, and a session-template.
+/// processkit owns concrete workitem/decision/standup entities now; aibox init
+/// only creates the project shell, context directory, and provider pointers.
 #[test]
 #[serial]
 fn init_with_managed_preset_creates_context_files() {
@@ -187,42 +258,27 @@ fn init_with_managed_preset_creates_context_files() {
         "aibox.toml should exist"
     );
 
-    // tracking package (managed preset includes tracking)
     assert!(
-        runner.file_exists(test, "context/BACKLOG.md"),
-        "context/BACKLOG.md should exist for managed preset"
+        runner.dir_exists(test, "context"),
+        "context/ should exist for managed preset"
     );
     assert!(
-        runner.file_exists(test, "context/DECISIONS.md"),
-        "context/DECISIONS.md should exist for managed preset"
-    );
-
-    // standups package
-    assert!(
-        runner.file_exists(test, "context/STANDUPS.md"),
-        "context/STANDUPS.md should exist for managed preset"
-    );
-
-    // handover package
-    assert!(
-        runner.file_exists(test, "context/project-notes/session-template.md"),
-        "session-template.md should exist for managed preset"
+        runner.file_exists(test, "AGENTS.md"),
+        "AGENTS.md should exist for managed preset"
     );
 
     // aibox.toml should record the preset name
     let toml = runner.read_file(test, "aibox.toml");
     assert!(
-        toml.contains("managed"),
-        "aibox.toml should reference managed process, got:\n{}",
+        toml.contains("[skills]"),
+        "aibox.toml should contain the skills selector, got:\n{}",
         toml
     );
 
     runner.cleanup(test);
 }
 
-/// Verify that `aibox init --context software` scaffolds architecture processes.
-///
-/// Covers BACK-053: the `software` preset must scaffold its additional packages.
+/// Verify that `aibox init --context software` still creates the slim project shell.
 #[test]
 #[serial]
 fn init_with_software_preset_creates_code_files() {
@@ -240,14 +296,13 @@ fn init_with_software_preset_creates_code_files() {
         String::from_utf8_lossy(&output.stderr)
     );
 
-    // tracking + standups from managed base
-    assert!(runner.file_exists(test, "context/BACKLOG.md"));
-    assert!(runner.file_exists(test, "context/STANDUPS.md"));
-
-    // software preset adds process declarations
     assert!(
-        runner.dir_exists(test, "context/processes"),
-        "context/processes/ should exist for software preset"
+        runner.dir_exists(test, "context"),
+        "context/ should exist for software preset"
+    );
+    assert!(
+        runner.file_exists(test, "AGENTS.md"),
+        "AGENTS.md should exist for software preset"
     );
 
     runner.cleanup(test);

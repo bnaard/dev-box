@@ -14,9 +14,9 @@ image_filter = "nearest"
 
 [plugin]
 prepend_fetchers = [
-    { id = "git", url = "*",  run = "git" },
-    { id = "git", url = "*/", run = "git" },
-    { id = "status-git", url = "*", run = "status-git" },
+    { id = "git", url = "*",  run = "git", group = "git" },
+    { id = "git", url = "*/", run = "git", group = "git" },
+    { id = "status-git", url = "*", run = "status-git", group = "status-git" },
 ]
 prepend_previewers = [
     # Directory preview: columnar listing with git status, size, date, owner, permissions

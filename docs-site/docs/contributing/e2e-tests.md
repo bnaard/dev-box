@@ -18,7 +18,37 @@ followed by a reference to the exact test function for traceability.
 | **Tier 2** | Remote SSH companion | `aibox-e2e-testrunner` container reachable (feature flag `e2e`) |
 
 Tier 1 tests run automatically with `cargo test`. Tier 2 tests require the
-companion container and the `--features e2e` flag.
+companion container and the `--features e2e` flag. The expensive visual matrix
+tests are opt-in and are not included in the default Tier 2 command.
+
+The container-side release command runs Tier 2 as part of Phase 1 with
+`cargo test --features e2e --test e2e`, so the SSH companion, generated
+runtime probes, and non-ignored asciinema checks are release gates.
+
+The release process also has a host-side generated-runtime smoke:
+`./scripts/maintain.sh release-runtime-smoke X.Y.Z`. It is not an SSH
+companion test; it runs on the macOS host during `release-host`, creates a
+fresh downstream-style project, runs `aibox init` and
+`aibox apply --no-cache --standardize-config`, starts the generated container,
+probes the native Zellij status plugin, and writes logs under
+`dist/release-smoke/vX.Y.Z/`.
+
+### Opt-in visual E2E
+
+Use these commands when the release diff touches generated runtime visuals or
+when the periodic full visual sweep is due:
+
+| Command | Covers |
+|---|---|
+| `./scripts/maintain.sh test-e2e-visual-status` | all generated layouts across all themes, native Zellij status/key rows, and theme RGB signatures |
+| `./scripts/maintain.sh test-e2e-visual-tabs` | tab traversal, Yazi surface, Vim, shell, lazygit, and every enabled AI harness |
+| `./scripts/maintain.sh test-e2e-visual-yazi` | Yazi preview plugins, optional preview tools, git symbols, and preview modes |
+| `./scripts/maintain.sh test-e2e-visual` | all visual tiers |
+| `./scripts/maintain.sh test-e2e-doc-captures` | all visual tiers plus `.cast`, `.screen.txt`, Zellij log, and metadata artifacts under `docs-site/static/img/e2e/` |
+
+Set `AIBOX_E2E_VISUAL_ARTIFACT_DIR` to write documentation capture artifacts
+elsewhere. The artifacts are intended as source material for current-release
+website screenshots and screencasts.
 
 ---
 
@@ -27,14 +57,23 @@ companion container and the `--features e2e` flag.
 **Companion is reachable**
 If the SSH connection to `aibox-e2e-testrunner` is attempted, then the host
 must respond with `ok`, confirming the companion container is up and reachable
-before any other Tier 2 test runs.
+before any other Tier 2 test runs. The test also asserts that the companion
+image has the pinned Zellij and Yazi versions expected by the visual/runtime
+tests; stale companion images fail here with a rebuild hint.
 `[lifecycle.rs · companion_is_reachable]`
 
 **Init then apply produces valid project**
-If `aibox init` is run followed by `aibox apply --no-build`, then
+If `aibox init` is run followed by `aibox apply`, then
 `aibox.toml`, `.devcontainer/Dockerfile`, `.devcontainer/docker-compose.yml`,
 and `CLAUDE.md` must all exist in the workspace.
-`[lifecycle.rs · lifecycle_init_sync]`
+`[lifecycle.rs · lifecycle_init_apply]`
+
+**Generated container starts**
+If a fresh project is initialized, applied, and the generated Compose service is
+started on the companion runtime, then the running container must expose
+`/etc/aibox-version`, Zellij, Yazi, and valid `aibox-status --plugin-json`
+output.
+`[lifecycle.rs · lifecycle_apply_starts_generated_container]`
 
 **CLAUDE.md user content is preserved on apply**
 If a user edits `CLAUDE.md` after `aibox init` and then runs `aibox apply`,
@@ -54,34 +93,33 @@ output must contain `missing` or equivalent wording.
 `[lifecycle.rs · status_without_container_shows_missing]`
 
 **Managed package writes the slim project skeleton**
-If `aibox init --context managed` is run, then `aibox.toml` must contain
-`packages = ["managed"]` under `[processkit.context]`, an empty `context/` directory must
-exist, and a thin `CLAUDE.md` pointer must be created when the `claude`
-provider is enabled. The single-file context tracks (`BACKLOG.md`,
-`DECISIONS.md`, `STANDUPS.md`) are **not** scaffolded by `init` — the
-corresponding processkit skills create them in place on first use.
+If `aibox init --context managed` is run, then the slim project skeleton must
+exist: `aibox.toml`, an empty `context/` directory, `AGENTS.md`, and the thin
+provider pointer files for enabled harnesses. The single-file context tracks
+(`BACKLOG.md`, `DECISIONS.md`, `STANDUPS.md`) are **not** scaffolded by `init`
+— the corresponding processkit skills create entities in place on first use.
+`[lifecycle.rs · init_with_managed_preset_creates_context_files]`
 
 **Software package selection is recorded in aibox.toml**
-If `aibox init --context software` is run, then `aibox.toml` must contain
-`packages = ["software"]` under `[processkit.context]`. As with all processkit packages
-in v0.16.0, this is declarative metadata; the actual skills land under
-`context/skills/` only after `aibox apply` with a real `[processkit].version`
-pinned.
+If `aibox init --context software` is run, then the same slim project skeleton
+must exist. Concrete processkit content lands under `context/skills/` only
+after `aibox apply` with a real `[processkit].version` pinned.
+`[lifecycle.rs · init_with_software_preset_creates_code_files]`
 
 ---
 
 ## Addon management — `addon.rs`
 
 **Addon add writes to aibox.toml**
-If `aibox set addon python --no-build` is run in an initialized project, then
+If `aibox set addon python` is run in an initialized project, then
 `aibox.toml` must contain an `[addons.python]` section afterwards.
-`[addon.rs · addon_add_modifies_toml]`
+`[addon.rs · set_addon_modifies_toml]`
 
 **Addon remove cleans aibox.toml**
 If a project is initialized with the `python` addon and then `aibox delete
-addon python --no-build` is run, then the `[addons.python]` section must no
+addon python` is run, then the `[addons.python]` section must no
 longer appear in `aibox.toml`.
-`[addon.rs · addon_remove_cleans_toml]`
+`[addon.rs · delete_addon_cleans_toml]`
 
 **Addon content appears in generated Dockerfile after apply**
 If a project is initialized with the `python` addon and `aibox apply` is run,
@@ -420,23 +458,65 @@ is intact.
 
 ---
 
+## Generated runtime — `runtime_generated.rs`
+
+**Generated runtime tools are usable**
+If a fresh project is initialized with git-ui and shell status enabled, then
+`aibox apply --no-container --standardize-config` must generate Yazi config
+that parses with the pinned Yazi binary, lazygit state directories that permit
+startup, and an `aibox-status --plugin-json` payload with required fields.
+`[runtime_generated.rs · generated_runtime_yazi_lazygit_and_status_are_usable]`
+
+**Generated Zellij status plugin renders**
+If the generated dev layout is launched under asciinema with native status
+enabled, then the cast must show key/status row text and Zellij logs must not
+contain plugin load errors or panics.
+`[runtime_generated.rs · generated_runtime_zellij_status_plugin_renders_key_and_status_rows]`
+
+---
+
+## Visual matrix — `visual_matrix.rs`
+
+These tests are ignored by default and run only through the explicit visual
+E2E commands above.
+
+**Generated layouts render across all themes**
+If each generated layout is launched for each supported theme, then the
+recording must include the theme RGB signature and native Zellij status/key row
+text, and Zellij logs must not contain plugin load errors, panics, or
+`Unknown component: z`.
+`[visual_matrix.rs · visual_generated_layouts_render_across_all_themes]`
+
+**Generated tools and harness tabs render when enabled**
+If all harnesses and visual runtime addons are enabled, then tab traversal must
+show the expected Yazi surface, Vim, shell, lazygit, and every harness marker.
+`[visual_matrix.rs · visual_generated_tools_and_harness_tabs_render_when_enabled]`
+
+**Yazi previews, git symbols, and optional plugins render**
+If the Yazi preview addons are enabled, then generated Yazi config must parse,
+preview plugins must be installed, git symbols must be configured, and directory,
+Markdown, CSV, TSV, and SQLite previews must render their markers.
+`[visual_matrix.rs · visual_yazi_previews_git_symbols_and_optional_plugins_render]`
+
+---
+
 ## Smoke tests — `smoke.rs`
 
 These tests validate that the Tier 2 companion container's container runtime
 is functional end-to-end (Tier 2 only).
 
-**Podman is available on the companion**
-If the companion container is queried for `podman --version`, then the
-command must succeed and the output must contain `podman`.
-`[smoke.rs · podman_available_on_companion]`
+**Container runtime is available on the companion**
+If the companion container is queried for its selected runtime, then the
+command must succeed and the output must contain either `docker` or `podman`.
+`[smoke.rs · runtime_available_on_companion]`
 
-**Podman can pull an image**
-If `podman pull docker.io/library/alpine:latest` is run on the companion,
-then the pull must succeed, confirming rootless registry access works.
-`[smoke.rs · podman_can_pull_image]`
+**Container runtime can pull an image**
+If the selected runtime pulls `docker.io/library/alpine:latest` on the
+companion, then the pull must succeed, confirming registry access works.
+`[smoke.rs · runtime_can_pull_image]`
 
-**Podman can run a container**
-If `podman run --rm alpine echo hello-e2e` is run on the companion, then
-the command must succeed and the output must contain `hello-e2e`,
-confirming full rootless container execution.
-`[smoke.rs · podman_can_run_container]`
+**Container runtime can run a container**
+If the selected runtime runs `alpine echo hello-e2e` on the companion, then
+the command must succeed and the output must contain `hello-e2e`, confirming
+full container execution.
+`[smoke.rs · runtime_can_run_container]`

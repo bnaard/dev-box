@@ -65,7 +65,7 @@ Releases are intentionally split:
 | Phase | Where | Command | Purpose |
 | --- | --- | --- | --- |
 | Container side | aibox devcontainer | `./scripts/maintain.sh release X.Y.Z` | check dependency/harness state, sync processkit default, bump CLI version, test, audit, build Linux binaries, tag, create GitHub release, deploy docs |
-| Host side | macOS host | `./scripts/maintain.sh release-host X.Y.Z` | build macOS binaries, upload them to the release, build and push GHCR images |
+| Host side | macOS host | `./scripts/maintain.sh release-host X.Y.Z` | build macOS binaries, upload them to the release, build and push GHCR images, run the generated-runtime smoke, then refresh repo-owned runtime surfaces |
 
 Do not create GitHub releases by hand with `gh release create`. The release
 script attaches binaries and writes the release notes expected by users.
@@ -86,6 +86,8 @@ The command performs:
 - processkit release sync check
 - `cli/Cargo.toml` and `Cargo.lock` version bump when needed
 - format, Clippy, and test checks
+- Tier 2 SSH companion E2E tests, including generated runtime and visual
+  asciinema probes
 - `cargo audit`
 - `cargo update --dry-run` review for lockfile-resolvable crate updates
 - Linux release builds for `aarch64-unknown-linux-gnu` and
@@ -114,8 +116,14 @@ Run this on the macOS host after the container-side release succeeds:
 ```
 
 This phase builds Darwin binaries, uploads them to the existing GitHub release,
-and pushes GHCR images. It is host-side because macOS binaries and host runtime
-access are not available from the Linux devcontainer.
+pushes GHCR images, then runs a fresh downstream-style runtime smoke against
+the pushed release tag. The smoke creates a temporary project, runs
+`aibox init` and `aibox apply --no-cache --standardize-config`, starts the
+generated container, probes Yazi, lazygit, the aibox status helper, and Zellij
+native status-plugin logs, and writes a bundle to
+`dist/release-smoke/vX.Y.Z/<timestamp>/`.
+It is host-side because macOS binaries and host runtime access are not
+available from the Linux devcontainer.
 
 ## Verification
 

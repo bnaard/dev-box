@@ -41,8 +41,8 @@ image_filter = "nearest"
 # files and directories. init.lua calls require("git"):setup {} to register
 # the linemode renderer that shows status signs next to file names.
 prepend_fetchers = [
-    { id = "git", url = "*",  run = "git" },
-    { id = "git", url = "*/", run = "git" },
+    { id = "git", url = "*",  run = "git", group = "git" },
+    { id = "git", url = "*/", run = "git", group = "git" },
 ]
 
 prepend_previewers = [

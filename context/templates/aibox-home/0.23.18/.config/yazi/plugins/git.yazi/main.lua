@@ -160,6 +160,7 @@ local function setup(st, opts)
 
 	opts = opts or {}
 	opts.order = opts.order or 1500
+	opts.signs = opts.signs or {}
 
 	local t = th.git or {}
 	local styles = {
@@ -173,14 +174,14 @@ local function setup(st, opts)
 		[CODES.clean] = t.clean or ui.Style(),
 	}
 	local signs = {
-		[CODES.unknown] = t.unknown_sign or "",
-		[CODES.ignored] = t.ignored_sign or " ",
-		[CODES.untracked] = t.untracked_sign or "? ",
-		[CODES.modified] = t.modified_sign or " ",
-		[CODES.added] = t.added_sign or " ",
-		[CODES.deleted] = t.deleted_sign or " ",
-		[CODES.updated] = t.updated_sign or " ",
-		[CODES.clean] = t.clean_sign or "",
+		[CODES.unknown] = opts.signs.unknown or t.unknown_sign or "",
+		[CODES.ignored] = opts.signs.ignored or t.ignored_sign or " ",
+		[CODES.untracked] = opts.signs.untracked or t.untracked_sign or "? ",
+		[CODES.modified] = opts.signs.modified or t.modified_sign or " ",
+		[CODES.added] = opts.signs.added or t.added_sign or " ",
+		[CODES.deleted] = opts.signs.deleted or t.deleted_sign or " ",
+		[CODES.updated] = opts.signs.updated or t.updated_sign or " ",
+		[CODES.clean] = opts.signs.clean or t.clean_sign or "",
 	}
 	-- Dimmer styles for directories with inherited (bubbled-up) status
 	local styles_dim = {

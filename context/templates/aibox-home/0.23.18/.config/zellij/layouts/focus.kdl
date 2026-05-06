@@ -30,7 +30,6 @@ layout {
         pane name="codex" {
             command "codex"
             cwd "/workspace"
-            start_suspended true
         }
     }
     aibox-tab name="shell" {

@@ -142,6 +142,8 @@ pub fn run_runtime_sync(
                 &host_root,
                 &diff.rel_path,
             );
+        let should_update_stale_managed_yazi_file =
+            live_matches_historical_managed_yazi_file(project_root, &host_root, &diff.rel_path);
         let should_restore_missing_zellij_status_toggle_layout = same_version_sync
             && zellij_status_toggle_layout_relpath(&diff.rel_path)
             && !host_root.join(&diff.rel_path).is_file();
@@ -156,6 +158,7 @@ pub fn run_runtime_sync(
             ))
             || should_update_stale_managed_zellij_file
             || should_update_stale_managed_runtime_helper
+            || should_update_stale_managed_yazi_file
             || should_restore_missing_zellij_status_toggle_layout
             || should_restore_missing_managed_runtime_helper)
             && let Some(content) = generated_map.get(&diff.rel_path)
@@ -583,6 +586,41 @@ fn managed_runtime_helper_relpath(rel_path: &str) -> bool {
         || rel_path == ".local/bin/open-in-editor"
         || rel_path == ".local/bin/aibox-status"
         || rel_path == ".local/bin/aibox-status-toggle"
+}
+
+fn managed_yazi_relpath(rel_path: &str) -> bool {
+    matches!(
+        rel_path,
+        ".config/yazi/yazi.toml" | ".config/yazi/keymap.toml" | ".config/yazi/theme.toml"
+    )
+}
+
+fn live_matches_historical_managed_yazi_file(
+    project_root: &Path,
+    host_root: &Path,
+    rel_path: &str,
+) -> bool {
+    if !managed_yazi_relpath(rel_path) {
+        return false;
+    }
+
+    let live_abs = host_root.join(rel_path);
+    let Ok(live_content) = fs::read(&live_abs) else {
+        return false;
+    };
+    let live_sha = sha256_of_bytes(&live_content);
+    let snapshots_root = project_root.join(RUNTIME_TEMPLATES_DIR);
+    let Ok(entries) = fs::read_dir(snapshots_root) else {
+        return false;
+    };
+
+    entries.filter_map(Result::ok).any(|entry| {
+        let snapshot_file = entry.path().join(rel_path);
+        let Ok(snapshot_content) = fs::read(snapshot_file) else {
+            return false;
+        };
+        sha256_of_bytes(&snapshot_content) == live_sha
+    })
 }
 
 fn live_matches_historical_managed_runtime_helper(
@@ -1197,6 +1235,49 @@ default_layout "ai"
         fs::write(&live, old_managed).unwrap();
 
         assert!(live_matches_historical_managed_runtime_helper(
+            root, &host_root, rel
+        ));
+    }
+
+    #[test]
+    fn detects_historical_managed_yazi_config() {
+        let tmp = TempDir::new().unwrap();
+        let root = tmp.path();
+        let host_root = root.join(".aibox-home");
+        let rel = ".config/yazi/yazi.toml";
+        let old_managed = r#"[open]
+rules = [
+    { mime = "text/*", use = "edit" },
+    { name = "*", use = "edit" },
+]
+"#;
+        write_snapshot(root, "0.23.17", &[(rel, old_managed)]);
+        let live = host_root.join(rel);
+        fs::create_dir_all(live.parent().unwrap()).unwrap();
+        fs::write(&live, old_managed).unwrap();
+
+        assert!(live_matches_historical_managed_yazi_file(
+            root, &host_root, rel
+        ));
+    }
+
+    #[test]
+    fn historical_yazi_detector_rejects_user_edited_file() {
+        let tmp = TempDir::new().unwrap();
+        let root = tmp.path();
+        let host_root = root.join(".aibox-home");
+        let rel = ".config/yazi/theme.toml";
+        let old_managed = r##"[filetype]
+rules = [
+    { name = "*.rs", fg = "#ffffff" },
+]
+"##;
+        write_snapshot(root, "0.23.17", &[(rel, old_managed)]);
+        let live = host_root.join(rel);
+        fs::create_dir_all(live.parent().unwrap()).unwrap();
+        fs::write(&live, format!("{old_managed}\n# user edit\n")).unwrap();
+
+        assert!(!live_matches_historical_managed_yazi_file(
             root, &host_root, rel
         ));
     }

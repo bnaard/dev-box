@@ -1,7 +1,8 @@
 //! E2E test suite for aibox CLI.
 //!
 //! - Tier 1 (always run): appearance tests, config coverage tests
-//! - Tier 2 (--features e2e): lifecycle, reset, migration, addon, doctor, smoke tests
+//! - Tier 2 (--features e2e): lifecycle, reset, migration, addon, doctor, smoke,
+//!   generated runtime, and visual tests
 
 pub mod mock_runtime;
 pub mod runner;
@@ -26,6 +27,8 @@ mod migration;
 #[cfg(feature = "e2e")]
 mod reset;
 #[cfg(feature = "e2e")]
+mod runtime_generated;
+#[cfg(feature = "e2e")]
 mod smoke;
 #[cfg(feature = "e2e")]
 mod update;
@@ -33,3 +36,5 @@ mod update;
 mod visual;
 #[cfg(feature = "e2e")]
 mod visual_keybindings;
+#[cfg(feature = "e2e")]
+mod visual_matrix;

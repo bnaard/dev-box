@@ -198,7 +198,7 @@ impl Runtime {
         let main_path = std::path::Path::new(&abs);
         if let Some(parent) = main_path.parent() {
             let override_path = parent.join("docker-compose.override.yml");
-            if override_path.is_file() {
+            if compose_override_has_content(&override_path) {
                 args.push("-f".to_string());
                 args.push(override_path.to_string_lossy().to_string());
             }
@@ -379,6 +379,16 @@ impl Runtime {
     }
 }
 
+fn compose_override_has_content(path: &std::path::Path) -> bool {
+    let Ok(content) = std::fs::read_to_string(path) else {
+        return false;
+    };
+    content
+        .lines()
+        .map(str::trim)
+        .any(|line| !line.is_empty() && !line.starts_with('#'))
+}
+
 /// Check if a command exists on PATH.
 pub(crate) fn command_exists(cmd: &str) -> bool {
     Command::new("which")
@@ -473,6 +483,27 @@ mod tests {
         assert!(args[1].ends_with(".devcontainer/docker-compose.yml"));
         assert_eq!(args[2], "-f");
         assert!(args[3].ends_with(".devcontainer/docker-compose.override.yml"));
+    }
+
+    #[test]
+    fn compose_file_args_skip_comment_only_override() {
+        let dir = tempfile::tempdir().unwrap();
+        let devcontainer = dir.path().join(".devcontainer");
+        std::fs::create_dir_all(&devcontainer).unwrap();
+        let compose_file = devcontainer.join("docker-compose.yml");
+        std::fs::write(&compose_file, "services: {}\n").unwrap();
+        std::fs::write(
+            devcontainer.join("docker-compose.override.yml"),
+            "# project-specific overrides\n\n# services:\n",
+        )
+        .unwrap();
+
+        let compose_file = compose_file.to_string_lossy();
+        let args = Runtime::compose_file_args(&compose_file).unwrap();
+
+        assert_eq!(args.len(), 2);
+        assert_eq!(args[0], "-f");
+        assert!(args[1].ends_with(".devcontainer/docker-compose.yml"));
     }
 
     #[test]

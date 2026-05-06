@@ -37,8 +37,13 @@ services:
     # and NO exposed ports — the capability is scoped to its own namespaces.
     # security_opt:
     #  - seccomp=unconfined
+    security_opt:
+      - seccomp=unconfined
     cap_add:
       - SYS_ADMIN
+      - NET_ADMIN
+    devices:
+      - /dev/net/tun:/dev/net/tun
     tmpfs:
       - /tmp
       - /run

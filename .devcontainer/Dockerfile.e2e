@@ -16,7 +16,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     && rm -rf /var/lib/apt/lists/*
 
 FROM fetch-base AS fetch-zellij
-ARG ZELLIJ_VERSION=0.44.1
+ARG ZELLIJ_VERSION=0.44.2
 RUN ARCH=$(uname -m) && \
     curl -fsSL \
       "https://github.com/zellij-org/zellij/releases/download/v${ZELLIJ_VERSION}/zellij-${ARCH}-unknown-linux-musl.tar.gz" \
@@ -24,7 +24,7 @@ RUN ARCH=$(uname -m) && \
     chmod +x /usr/local/bin/zellij
 
 FROM fetch-base AS fetch-yazi
-ARG YAZI_VERSION=26.1.22
+ARG YAZI_VERSION=26.5.6
 RUN ARCH=$(uname -m) && \
     curl -fsSL \
       "https://github.com/sxyazi/yazi/releases/download/v${YAZI_VERSION}/yazi-${ARCH}-unknown-linux-musl.zip" \
@@ -44,7 +44,7 @@ RUN UNAME_ARCH=$(uname -m) && \
     chmod +x /usr/local/bin/lazygit
 
 FROM fetch-base AS fetch-starship
-ARG STARSHIP_VERSION=1.24.2
+ARG STARSHIP_VERSION=1.25.1
 RUN ARCH=$(uname -m) && \
     curl -fsSL \
       "https://github.com/starship/starship/releases/download/v${STARSHIP_VERSION}/starship-${ARCH}-unknown-linux-musl.tar.gz" \
@@ -83,15 +83,30 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     # SSH server for remote test execution
     openssh-server \
     # Utilities needed by aibox and tests
+    bubblewrap \
     curl \
     ca-certificates \
     git \
     jq \
     sudo \
+    sqlite3 \
+    csvkit \
+    python3-rich \
+    chafa \
+    librsvg2-bin \
+    poppler-utils \
+    timg \
+    mupdf-tools \
+    entr \
+    p7zip-full \
+    ghostscript \
+    imagemagick \
+    ffmpeg \
     # For building container images (podman uses buildah under the hood)
     buildah \
     # Rootless networking (provides pasta binary for podman network namespace)
     passt \
+    slirp4netns \
     # Visual testing tools
     asciinema \
     vim \

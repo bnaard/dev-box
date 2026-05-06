@@ -250,6 +250,8 @@ pub fn scaffold_context(config: &AiboxConfig) -> Result<()> {
          #       ports:\n\
          #         - \"5432:5432\"\n\
          #\n\
+         services: {}\n\
+         #\n\
          # Example — add depends_on to the main service:\n\
          #\n\
          #   services:\n\
