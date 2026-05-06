@@ -59,7 +59,7 @@ fn runtime_can_run_container() {
     let runner = E2eRunner::new();
     let runtime = runner.runtime_bin();
     let output = runner.exec(&format!(
-        "{} run --rm docker.io/library/alpine:latest echo hello-e2e",
+        "{} run --rm --network none docker.io/library/alpine:latest echo hello-e2e",
         runtime
     ));
     assert!(

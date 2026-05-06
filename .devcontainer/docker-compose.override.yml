@@ -39,6 +39,7 @@ services:
     #  - seccomp=unconfined
     security_opt:
       - seccomp=unconfined
+    privileged: true
     cap_add:
       - SYS_ADMIN
       - NET_ADMIN

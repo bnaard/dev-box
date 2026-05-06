@@ -51,7 +51,7 @@ fn lifecycle_init_apply() {
     );
 
     // Apply and verify generated project surfaces.
-    let output = runner.aibox(test, &["apply"]);
+    let output = runner.aibox(test, &["apply", "--no-container"]);
     assert!(
         output.status.success(),
         "apply failed: {}",
@@ -87,6 +87,16 @@ fn lifecycle_apply_starts_generated_container() {
         "init failed: {}",
         String::from_utf8_lossy(&init.stderr)
     );
+    let workspace = format!("/workspaces/{test}");
+    let version = runner.exec(&format!(
+        "cd {workspace} && sed -i 's/^release_version = .*/release_version = \"latest\"/' aibox.toml"
+    ));
+    assert!(
+        version.status.success(),
+        "failed to switch lifecycle container test to published latest image:\nstdout:\n{}\nstderr:\n{}",
+        String::from_utf8_lossy(&version.stdout),
+        String::from_utf8_lossy(&version.stderr)
+    );
 
     let apply = runner.aibox(test, &["apply"]);
     assert!(
@@ -97,7 +107,6 @@ fn lifecycle_apply_starts_generated_container() {
     );
 
     let runtime = runner.runtime_bin();
-    let workspace = format!("/workspaces/{test}");
     let up = runner.exec(&format!(
         "cd {workspace} && {runtime} compose -f .devcontainer/docker-compose.yml up -d {test}"
     ));

@@ -23,7 +23,7 @@ fn apply_absorbs_legacy_version_file_into_lock() {
     // sync state into aibox.lock and remove the standalone file on apply.
     runner.write_file(test, ".aibox-version", "0.1.0");
 
-    let output = runner.aibox(test, &["apply"]);
+    let output = runner.aibox(test, &["apply", "--no-container"]);
     assert!(
         output.status.success(),
         "apply failed: {}",
