@@ -1,0 +1,35 @@
+layout {
+    tab_template name="aibox-tab" {
+        children
+    }
+
+    aibox-tab name="browse" focus=true {
+        pane split_direction="horizontal" {
+            pane size="60%" name="files" focus=true {
+                command "bash"
+                args "-c" "AIBOX_EDITOR_DIR=tab exec yazi"
+                cwd "/workspace"
+            }
+            pane size="40%" {
+        pane name="codex" {
+            command "codex"
+            cwd "/workspace"
+        }
+            }
+        }
+    }
+
+    aibox-tab name="editor" {
+        pane name="vim" {
+            command "bash"
+            args "-c" "AIBOX_EDITOR_DIR=tab exec vim-loop"
+            cwd "/workspace"
+        }
+    }
+    aibox-tab name="shell" {
+        pane name="bash" {
+            command "bash"
+            cwd "/workspace"
+        }
+    }
+}
