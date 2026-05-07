@@ -318,6 +318,7 @@ RUN mkdir -p /home/aibox/.config/tmux \
 # tmux
 RUN mkdir -p /usr/local/share/aibox/tmux/plugins
 COPY --from=fetch-tmux-plugins /tmux-plugins/ /usr/local/share/aibox/tmux/plugins/
+COPY config/tmux/powerkit-plugins/aibox.sh /usr/local/share/aibox/tmux/plugins/tmux-powerkit/src/plugins/aibox.sh
 COPY config/tmux/tmux.conf /home/aibox/.config/tmux/tmux.conf
 RUN ln -sf /home/aibox/.config/tmux/tmux.conf /home/aibox/.tmux.conf && \
     for plugin in /usr/local/share/aibox/tmux/plugins/*; do \

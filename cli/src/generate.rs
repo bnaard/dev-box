@@ -1561,6 +1561,17 @@ mod tests {
     }
 
     #[test]
+    fn base_image_installs_aibox_powerkit_segment() {
+        let content = include_str!("../../images/base-debian/Dockerfile");
+        assert!(
+            content.contains(
+                "config/tmux/powerkit-plugins/aibox.sh /usr/local/share/aibox/tmux/plugins/tmux-powerkit/src/plugins/aibox.sh"
+            ),
+            "base image should inject the aibox runtime segment into the pinned PowerKit tree"
+        );
+    }
+
+    #[test]
     fn base_image_prepares_writable_cache_home_and_shell_env() {
         let content = include_str!("../../images/base-debian/Dockerfile");
         assert!(content.contains("SHELL=/bin/bash"));

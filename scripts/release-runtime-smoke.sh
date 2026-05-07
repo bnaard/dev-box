@@ -452,7 +452,7 @@ else
         echo "tmux status/key text was not visible in generated-layout PTY smoke"
         fail=1
       fi
-      if ! grep -aE 'MEM .+/unlimited|OOM [0-9]+|PROC [0-9]+ AI [0-9]+|MCP (gateway|granular|none) [0-9]+' /tmp/aibox-tmux.typescript >/tmp/aibox-tmux-runtime-row.txt 2>&1; then
+      if ! grep -aE 'AIBOX|MEM .+/unlimited|OOM [0-9]+|PROC [0-9]+ AI [0-9]+|MCP (gateway|granular|none) [0-9]+' /tmp/aibox-tmux.typescript >/tmp/aibox-tmux-runtime-row.txt 2>&1; then
         if [[ "${tmux_status}" == "powerline" ]]; then
           echo "tmux runtime status row was not visible in generated-layout PTY smoke"
           fail=1

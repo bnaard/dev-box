@@ -139,7 +139,7 @@ set -g status-right " #(aibox-status --once 2>/dev/null || true) %H:%M "
 
 # Powerkit status. Keep the plugin list intentionally bounded for container
 # runtime safety; heavier network/cloud/media plugins stay user opt-in.
-set -g @powerkit_plugins "datetime,cpu,memory,git,hostname"
+set -g @powerkit_plugins "git,hostname,datetime,aibox"
 set -g @powerkit_theme "nord"
 set -g @powerkit_theme_variant "dark"
 set -g @powerkit_separator_style "rounded"
@@ -2803,7 +2803,7 @@ rules = [
             "aibox-managed tmux plugins should load from preinstalled pinned runtime paths:\n{conf}"
         );
         assert!(
-            conf.contains(r#"@powerkit_plugins "datetime,cpu,memory,git,hostname""#)
+            conf.contains(r#"@powerkit_plugins "git,hostname,datetime,aibox""#)
                 && conf.contains(r#"@powerkit_status_interval "5""#)
                 && conf.contains(r#"@powerkit_transparent "false""#),
             "generated persistent tmux config should carry bounded powerkit defaults:\n{conf}"
