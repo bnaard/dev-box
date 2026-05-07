@@ -335,6 +335,11 @@ pub static COMPAT_TABLE: &[CompatEntry] = &[
         processkit_version: "v0.25.8",
         note: "Patch release: fixes generated compose so the main service starts with the image default root entrypoint user again, allowing entrypoint.sh to remap/drop to aibox instead of failing with `failed switching to \"aibox\": operation not permitted` during release-host runtime smoke.",
     },
+    CompatEntry {
+        aibox_version: "0.24.2",
+        processkit_version: "v0.25.8",
+        note: "Patch release: stabilizes Zellij session refresh by preserving running sessions on plain `aibox up`, adding `aibox up --forget-zellij-state`, making apply/fresh starts recreate managed layouts, cleaning stale Zellij cache on apply, canceling accidental leader g/G prefix mode, and starting the diagnostics sidecar with compose --no-deps.",
+    },
 ];
 
 /// Find the minimum compatible processkit version for the given aibox version.
