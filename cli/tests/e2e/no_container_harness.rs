@@ -235,18 +235,18 @@ fn lazygit_disabled_removes_runtime_layouts_and_stale_home_files() {
         "Dockerfile should purge inherited lazygit when explicitly disabled:\n{dockerfile}"
     );
 
-    let layouts_dir = dir.join(".aibox-home/.config/zellij/layouts");
+    let layouts_dir = dir.join(".aibox-home/.config/tmux/layouts");
     for layout in ["dev", "focus", "cowork", "cowork-swap", "browse", "ai"] {
-        let path = layouts_dir.join(format!("{layout}.kdl"));
+        let path = layouts_dir.join(format!("{layout}.sh"));
         assert!(
             path.exists(),
             "expected generated layout {}",
             path.display()
         );
-        let body = fs::read_to_string(&path).expect("read zellij layout");
+        let body = fs::read_to_string(&path).expect("read tmux layout");
         assert!(
             !body.contains("lazygit"),
-            "layout {layout}.kdl should not reference lazygit when disabled:\n{body}"
+            "layout {layout}.sh should not reference lazygit when disabled:\n{body}"
         );
     }
 
@@ -415,9 +415,8 @@ fn doctor_warns_on_runtime_theme_template_drift() {
         fmt_output("init", &init_out)
     );
 
-    let status_layout = dir.join(".aibox-home/.config/zellij/layouts/aibox-status-visible.kdl");
-    fs::write(&status_layout, "// stale local status layout\n")
-        .expect("write stale zellij status layout");
+    let tmux_conf = dir.join(".aibox-home/.config/tmux/tmux.conf");
+    fs::write(&tmux_conf, "# stale local tmux config\n").expect("write stale tmux config");
 
     let doctor_out = run_in(dir, &["doctor"]);
     assert!(
@@ -428,59 +427,13 @@ fn doctor_warns_on_runtime_theme_template_drift() {
     let combined = combined_output(&doctor_out);
     assert!(
         combined.contains("Runtime theme/template drift")
-            && combined.contains(".config/zellij/layouts/aibox-status-visible.kdl"),
+            && combined.contains(".config/tmux/tmux.conf"),
         "doctor should warn when standard runtime status/theme files drift from the reference:\n{combined}"
     );
 }
 
 #[test]
-fn native_zellij_status_plugin_has_zellij_visible_exports_and_foreground() {
-    let manifest_dir = env!("CARGO_MANIFEST_DIR");
-    let plugin_manifest = Path::new(manifest_dir)
-        .parent()
-        .unwrap()
-        .join("images/base-debian/zellij-plugins/aibox-status/Cargo.toml");
-    let plugin_main = Path::new(manifest_dir)
-        .parent()
-        .unwrap()
-        .join("images/base-debian/zellij-plugins/aibox-status/src/main.rs");
-    let plugin_source = Path::new(manifest_dir)
-        .parent()
-        .unwrap()
-        .join("images/base-debian/zellij-plugins/aibox-status/src/zellij_plugin.rs");
-    let manifest_body = fs::read_to_string(&plugin_manifest)
-        .unwrap_or_else(|err| panic!("read {}: {err}", plugin_manifest.display()));
-    let main_body = fs::read_to_string(&plugin_main)
-        .unwrap_or_else(|err| panic!("read {}: {err}", plugin_main.display()));
-    let body = fs::read_to_string(&plugin_source)
-        .unwrap_or_else(|err| panic!("read {}: {err}", plugin_source.display()));
-
-    assert!(
-        !body.contains(".color_all(0)"),
-        "native aibox Zellij status rows must not force palette index 0; on dark themes that renders as effectively invisible text:\n{}",
-        plugin_source.display()
-    );
-    assert!(
-        body.contains(r#"print!("{output}"#) || body.contains(r#"print!("{output}\u{1b}[0K")"#),
-        "native aibox Zellij status rows should render theme-default visible text without forcing a dark foreground:\n{}",
-        plugin_source.display()
-    );
-
-    assert!(
-        main_body.contains("zellij_tile::register_plugin!(AiboxStatusPlugin)")
-            && !manifest_body.contains("crate-type = [\"cdylib\"")
-            && !main_body.contains("export_name")
-            && !body.contains("#[no_mangle]\npub fn main()")
-            && !body.contains("register_plugin!(AiboxStatusPlugin)"),
-        "native aibox Zellij status plugin should use Zellij's upstream-shaped WASI binary entrypoint, not a manual cdylib/_start shim:\n{}\n{}\n{}",
-        plugin_manifest.display(),
-        plugin_main.display(),
-        plugin_source.display()
-    );
-}
-
-#[test]
-fn vim_loop_disables_startup_cursor_position_probe_for_zellij() {
+fn vim_loop_disables_startup_cursor_position_probe_for_tui_muxers() {
     let manifest_dir = env!("CARGO_MANIFEST_DIR");
     let vim_loop = Path::new(manifest_dir)
         .parent()
@@ -491,7 +444,7 @@ fn vim_loop_disables_startup_cursor_position_probe_for_zellij() {
 
     assert!(
         body.contains(r#"--cmd "set t_u7=""#) && body.contains(r#"--cmd "set t_RV=""#),
-        "vim-loop should disable Vim's startup terminal probes; Zellij 0.44 logs cursor-position probes as `Unknown component: z` when Vim starts eagerly:\n{}",
+        "vim-loop should disable Vim's startup terminal probes for eager TUI startup:\n{}",
         vim_loop.display()
     );
 }
@@ -540,8 +493,7 @@ fn apply_preserves_project_context_edits_while_regenerating_runtime_config() {
         "apply should preserve project-owned context edits"
     );
     assert!(
-        dir.join(".aibox-home/.config/zellij/themes/dracula.kdl")
-            .exists(),
+        dir.join(".aibox-home/.config/tmux/tmux.conf").exists(),
         "apply should regenerate runtime theme files after aibox.toml changes"
     );
 }
@@ -647,13 +599,13 @@ fn smoke_no_container_init_then_apply() {
         fmt_output("apply", &sync_out)
     );
 
-    // Representative runtime mirror file under `.aibox-home/`. zellij is
+    // Representative runtime mirror file under `.aibox-home/`. tmux is
     // seeded for every project, so this is a stable signal that the
     // runtime-config seed phase ran end to end.
-    let zellij_cfg = dir.join(".aibox-home/.config/zellij/config.kdl");
+    let tmux_cfg = dir.join(".aibox-home/.config/tmux/tmux.conf");
     assert!(
-        zellij_cfg.exists(),
-        "expected runtime mirror at .aibox-home/.config/zellij/config.kdl\n{}",
+        tmux_cfg.exists(),
+        "expected runtime mirror at .aibox-home/.config/tmux/tmux.conf\n{}",
         fmt_output("apply", &sync_out)
     );
 
@@ -702,10 +654,10 @@ fn generated_runtime_apply_does_not_touch_provider_or_live_runtime_files() {
     let hooks_before = r#"{"hooks":{"user_prompt_submit":{"command":"echo user-owned"}}}"#;
     fs::write(&codex_hooks, hooks_before).unwrap();
 
-    let live_zellij = dir.join(".aibox-home/.config/zellij/config.kdl");
-    fs::create_dir_all(live_zellij.parent().unwrap()).unwrap();
+    let live_tmux = dir.join(".aibox-home/.config/tmux/tmux.conf");
+    fs::create_dir_all(live_tmux.parent().unwrap()).unwrap();
     let live_before = "// user-owned live runtime config\n";
-    fs::write(&live_zellij, live_before).unwrap();
+    fs::write(&live_tmux, live_before).unwrap();
 
     let out = run_in(dir, &["apply", "generated-runtime"]);
     assert!(
@@ -720,7 +672,7 @@ fn generated_runtime_apply_does_not_touch_provider_or_live_runtime_files() {
         "generated-runtime apply must not rewrite provider hook files"
     );
     assert_eq!(
-        fs::read_to_string(&live_zellij).unwrap(),
+        fs::read_to_string(&live_tmux).unwrap(),
         live_before,
         "generated-runtime apply must not rewrite live .aibox-home files"
     );

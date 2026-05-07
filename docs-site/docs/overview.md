@@ -30,7 +30,7 @@ workspace.
 | --- | --- |
 | Project contract | `aibox.toml`, `aibox.lock`, `.aibox-version` |
 | Devcontainer | `.devcontainer/Dockerfile`, Compose files, `devcontainer.json` |
-| Runtime home | `.aibox-home/` with Zellij, shell, prompt, theme, and tool config |
+| Runtime home | `.aibox-home/` with tmux, shell, prompt, theme, and tool config |
 | Addons | tool and runtime selection from `addons/` YAML definitions |
 | Harness wiring | provider entry files, MCP registration, permissions, and runtime tabs |
 | Diagnostics | `aibox doctor`, `aibox get runtime`, migration and integrity checks |
@@ -72,7 +72,7 @@ Use aibox when you want:
 - a reproducible terminal-first workspace for AI-assisted development
 - selected AI harnesses and tool bundles declared in one file
 - project context on disk instead of only in chat history
-- consistent Zellij layouts, themes, shell tooling, and runtime diagnostics
+- consistent tmux layouts, themes, shell tooling, and runtime diagnostics
 - a clean handoff path between different agents and human contributors
 
 Do not use aibox as a general infrastructure deployer. It manages development
@@ -88,7 +88,7 @@ refreshes processkit content, updates the lock file, and builds the image unless
 you ask it not to.
 
 Run `aibox up` to enter the workspace. It starts the Compose project and
-attaches through Zellij.
+attaches through tmux.
 
 Run `aibox doctor` when the environment looks wrong. Run
 `aibox get runtime --resources` when the workspace feels slow or agents exit

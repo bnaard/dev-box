@@ -3,7 +3,7 @@
 # =============================================================================
 # Simulates a user's host machine for end-to-end testing of the aibox CLI.
 # Runs podman (rootless) for container operations and sshd for remote access.
-# Also includes terminal tools (zellij, yazi, vim, starship, asciinema) for
+# Also includes terminal tools (tmux, yazi, vim, starship, asciinema) for
 # headless visual testing via asciinema recordings.
 # Started alongside the dev-container as the "e2e-runner" service.
 # =============================================================================
@@ -14,14 +14,6 @@ ENV DEBIAN_FRONTEND=noninteractive
 RUN apt-get update && apt-get install -y --no-install-recommends \
     curl ca-certificates unzip \
     && rm -rf /var/lib/apt/lists/*
-
-FROM fetch-base AS fetch-zellij
-ARG ZELLIJ_VERSION=0.44.2
-RUN ARCH=$(uname -m) && \
-    curl -fsSL \
-      "https://github.com/zellij-org/zellij/releases/download/v${ZELLIJ_VERSION}/zellij-${ARCH}-unknown-linux-musl.tar.gz" \
-      | tar -xz -C /usr/local/bin && \
-    chmod +x /usr/local/bin/zellij
 
 FROM fetch-base AS fetch-yazi
 ARG YAZI_VERSION=26.5.6
@@ -112,11 +104,11 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     slirp4netns \
     # Visual testing tools
     asciinema \
+    tmux \
     vim \
     && rm -rf /var/lib/apt/lists/*
 
 # ── Install static binaries from builder stages ─────────────────────────────
-COPY --from=fetch-zellij   /usr/local/bin/zellij   /usr/local/bin/zellij
 COPY --from=fetch-yazi    /usr/local/bin/yazi     /usr/local/bin/yazi
 COPY --from=fetch-starship /usr/local/bin/starship /usr/local/bin/starship
 COPY --from=fetch-lazygit /usr/local/bin/lazygit  /usr/local/bin/lazygit

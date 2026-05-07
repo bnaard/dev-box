@@ -26,7 +26,7 @@
 //! | `aibox.toml`                                  | One-time schema migrations (e.g. inserting `[processkit]`)       |
 //! | `aibox.lock`                                  | Pinned `(source, version)` written by the processkit installer  |
 //! | `.aibox-version`                              | Tracks installed CLI version for migration detection             |
-//! | `.aibox-home/`                                | Runtime config seed (shells, vim, zellij, yazi, …); gitignored   |
+//! | `.aibox-home/`                                | Runtime config seed (shells, vim, tmux, yazi, …); gitignored     |
 //! | `.devcontainer/Dockerfile`                    | Regenerated from `aibox.toml`                                    |
 //! | `.devcontainer/docker-compose.yml`            | Regenerated from `aibox.toml`                                    |
 //! | `.devcontainer/devcontainer.json`             | Regenerated from `aibox.toml`                                    |
@@ -423,7 +423,7 @@ mod tests {
     #[test]
     fn aibox_home_subtree_is_in_perimeter() {
         assert!(within(".aibox-home"));
-        assert!(within(".aibox-home/.config/zellij/config.kdl"));
+        assert!(within(".aibox-home/.config/tmux/tmux.conf"));
         assert!(within(".aibox-home/.config/yazi/yazi.toml"));
         assert!(within(".aibox-home/.vim/vimrc"));
     }
@@ -678,12 +678,12 @@ mod tests {
             // seed::sync_theme_files / seed_root_dir
             ".aibox-home/.vim/vimrc",
             ".aibox-home/.config/git/config",
-            ".aibox-home/.config/zellij/config.kdl",
-            ".aibox-home/.config/zellij/themes/catppuccin-mocha.kdl",
-            ".aibox-home/.config/zellij/layouts/dev.kdl",
-            ".aibox-home/.config/zellij/layouts/focus.kdl",
-            ".aibox-home/.config/zellij/layouts/cowork.kdl",
-            ".aibox-home/.config/zellij/layouts/ai.kdl",
+            ".aibox-home/.config/tmux/tmux.conf",
+            ".aibox-home/.config/tmux/aibox-session.sh",
+            ".aibox-home/.config/tmux/layouts/dev.sh",
+            ".aibox-home/.config/tmux/layouts/focus.sh",
+            ".aibox-home/.config/tmux/layouts/cowork.sh",
+            ".aibox-home/.config/tmux/layouts/ai.sh",
             ".aibox-home/.config/yazi/init.lua",
             ".aibox-home/.config/yazi/yazi.toml",
             ".aibox-home/.config/yazi/keymap.toml",

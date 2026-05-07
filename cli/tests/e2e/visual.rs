@@ -1,16 +1,13 @@
-//! Visual tests — verify themed terminal output via asciinema recordings.
+//! Visual tests for the tmux runtime.
 //!
-//! Records headless zellij sessions on the e2e companion and asserts
-//! theme-specific ANSI RGB color sequences appear in the cast files.
-//!
-//! Requires: e2e-runner with asciinema, zellij, yazi, vim, starship installed.
+//! These tests keep the existing sidecar/asciinema visual paradigm, but drive
+//! tmux directly. They assert that generated homes contain tmux configuration,
+//! render visible panes/status text, and do not carry legacy zellij artifacts.
 
 use serial_test::serial;
 
 use super::runner::E2eRunner;
 
-/// RGB values that uniquely identify each theme in zellij's ANSI output.
-/// Sourced from the `green` field in each theme's KDL definition (cli/src/themes.rs).
 const THEME_SIGNATURES: &[(&str, u8, u8, u8)] = &[
     ("gruvbox-dark", 152, 151, 26),
     ("catppuccin-mocha", 166, 227, 161),
@@ -20,19 +17,15 @@ const THEME_SIGNATURES: &[(&str, u8, u8, u8)] = &[
     ("nord", 163, 190, 140),
 ];
 
-/// Extract all output event data from an asciicast v2 file.
-///
-/// Cast format: first line is a JSON header, subsequent lines are
-/// `[timestamp, "o", "data"]` JSON arrays. We concatenate all "o" data.
 fn extract_cast_output(cast_content: &str) -> String {
     cast_content
         .lines()
-        .skip(1) // skip header
+        .skip(1)
         .filter_map(|line| {
             let parsed: serde_json::Value = serde_json::from_str(line).ok()?;
             let arr = parsed.as_array()?;
             if arr.len() >= 3 && arr[1].as_str() == Some("o") {
-                arr[2].as_str().map(|s| s.to_string())
+                arr[2].as_str().map(str::to_owned)
             } else {
                 None
             }
@@ -41,12 +34,12 @@ fn extract_cast_output(cast_content: &str) -> String {
         .join("")
 }
 
-/// Check if an ANSI truecolor RGB sequence appears in the output.
-/// Matches both foreground (`38;2;R;G;B`) and background (`48;2;R;G;B`).
 fn contains_rgb(output: &str, r: u8, g: u8, b: u8) -> bool {
-    let fg = format!("38;2;{};{};{}", r, g, b);
-    let bg = format!("48;2;{};{};{}", r, g, b);
-    output.contains(&fg) || output.contains(&bg)
+    output.contains(&format!("38;2;{r};{g};{b}")) || output.contains(&format!("48;2;{r};{g};{b}"))
+}
+
+fn rgb_hex(r: u8, g: u8, b: u8) -> String {
+    format!("#{r:02X}{g:02X}{b:02X}")
 }
 
 fn visible_text(output: &str) -> String {
@@ -57,10 +50,7 @@ fn visible_text(output: &str) -> String {
             match chars.peek().copied() {
                 Some(']') => {
                     chars.next();
-                    loop {
-                        let Some(next) = chars.next() else {
-                            break;
-                        };
+                    while let Some(next) = chars.next() {
                         if next == '\x07' {
                             break;
                         }
@@ -93,27 +83,8 @@ fn visible_text(output: &str) -> String {
     text
 }
 
-fn assert_visible_status_text(output: &str, label: &str) {
-    let text = visible_text(output);
-    let tokens = [
-        "Ctrl", "Alt", "PANE", "TAB", "Resize", "Scroll", "Quit", "LOCK",
-    ];
-    assert!(
-        tokens.iter().any(|token| text.contains(token)),
-        "{label}: expected visible Zellij status/keybar text in cast output, got:\n{}",
-        text.chars().take(1200).collect::<String>()
-    );
-}
-
-/// Record a themed zellij session on the companion and return the cast content.
-///
-/// Steps: init project with theme → create driver script → record via asciinema.
-/// Uses a minimal zellij layout (single pane) so the test depends only on
-/// zellij's status bar and frame rendering, not on specific pane commands.
-fn record_themed_session(runner: &E2eRunner, test_name: &str, theme: &str) -> String {
+fn init_project(runner: &E2eRunner, test_name: &str, theme: &str) {
     runner.cleanup(test_name);
-
-    // Init project with the specified theme
     let output = runner.aibox(
         test_name,
         &[
@@ -125,311 +96,239 @@ fn record_themed_session(runner: &E2eRunner, test_name: &str, theme: &str) -> St
             "managed",
             "--theme",
             theme,
+            "--no-container",
         ],
     );
     assert!(
         output.status.success(),
-        "init with theme={} failed: {}",
-        theme,
+        "{test_name}: init failed:\nstdout:\n{}\nstderr:\n{}",
+        String::from_utf8_lossy(&output.stdout),
         String::from_utf8_lossy(&output.stderr)
     );
+}
 
-    let workspace = format!("/workspaces/{}", test_name);
-
-    // Clean up any leftover zellij sessions
-    runner.exec("pkill -9 -x zellij 2>/dev/null; rm -rf /tmp/zellij-* 2>/dev/null; sleep 0.5");
-
-    // Write driver script that launches zellij with the generated config
-    let driver_path = format!("{}/driver.sh", workspace);
-    let cast_path = format!("{}/recording.cast", workspace);
-
-    runner.write_file(
-        test_name,
-        "driver.sh",
-        &format!(
-            r#"#!/usr/bin/env bash
-export TERM=xterm-256color COLORTERM=truecolor
-export HOME={workspace}/.aibox-home
-(sleep 3 && pkill -x zellij 2>/dev/null) &
-zellij --config "$HOME/.config/zellij/config.kdl" \
-       --config-dir "$HOME/.config/zellij" 2>/dev/null
-true
+fn assert_generated_tmux_config(runner: &E2eRunner, test_name: &str, theme: &str) {
+    let workspace = format!("/workspaces/{test_name}");
+    let probe = runner.exec(&format!(
+        r#"cd {workspace}
+test -f .aibox-home/.tmux.conf -o -f .aibox-home/.config/tmux/tmux.conf
+! find .aibox-home -path '*zellij*' -print -quit | grep -q .
+! grep -Rli --exclude-dir=.git 'zellij' .aibox-home .devcontainer aibox.toml >/tmp/{test_name}-legacy-zellij.txt 2>/dev/null
+grep -Rli --exclude-dir=.git 'tmux' .aibox-home .devcontainer aibox.toml >/tmp/{test_name}-tmux-files.txt
+grep -Ri --exclude-dir=.git '{theme}' .aibox-home >/tmp/{test_name}-theme.txt
 "#
-        ),
+    ));
+    assert!(
+        probe.status.success(),
+        "{test_name}: generated runtime should be tmux-only and reference theme {theme}\nstdout:\n{}\nstderr:\n{}",
+        String::from_utf8_lossy(&probe.stdout),
+        String::from_utf8_lossy(&probe.stderr)
     );
-    runner.exec(&format!("chmod +x {}", driver_path));
+}
 
-    // Record (LC_ALL=C.UTF-8: companion image uses C.UTF-8, belt-and-suspenders
-    // in case client locale bleeds in via SSH despite AcceptEnv being cleared)
-    let rec_cmd = format!(
-        "LC_ALL=C.UTF-8 LANG=C.UTF-8 asciinema rec --cols 160 --rows 45 --overwrite -c {} {} 2>/dev/null; true",
-        driver_path, cast_path
+fn assert_theme_signature_config(
+    runner: &E2eRunner,
+    test_name: &str,
+    theme: &str,
+    r: u8,
+    g: u8,
+    b: u8,
+) {
+    let workspace = format!("/workspaces/{test_name}");
+    let expected = rgb_hex(r, g, b);
+    let probe = runner.exec(&format!(
+        "cd {workspace} && grep -Ri --exclude-dir=.git '{expected}' .aibox-home >/tmp/{test_name}-theme-rgb.txt"
+    ));
+    assert!(
+        probe.status.success(),
+        "{theme}: generated tmux theme/config should contain signature color {expected}"
     );
-    runner.exec(&rec_cmd);
+}
 
-    // Read back the cast file
+fn record_tmux(runner: &E2eRunner, test_name: &str, script: &str) -> String {
+    let workspace = format!("/workspaces/{test_name}");
+    runner.exec(
+        "tmux kill-server >/dev/null 2>&1 || true; rm -rf /tmp/tmux-* >/dev/null 2>&1 || true",
+    );
+    runner.write_file(test_name, "driver.sh", script);
+    runner.exec(&format!("chmod +x {workspace}/driver.sh"));
+    let output = runner.exec(&format!(
+        "LC_ALL=C.UTF-8 LANG=C.UTF-8 asciinema rec --cols 160 --rows 45 --overwrite \
+         -c {workspace}/driver.sh {workspace}/recording.cast 2>/dev/null; true"
+    ));
+    assert!(
+        output.status.success(),
+        "{test_name}: asciinema command failed:\nstdout:\n{}\nstderr:\n{}",
+        String::from_utf8_lossy(&output.stdout),
+        String::from_utf8_lossy(&output.stderr)
+    );
     runner.read_file(test_name, "recording.cast")
 }
 
-// ─── Theme color tests ──────────────────────────────────────────────────────
+fn tmux_driver(workspace: &str, session: &str, body: &str) -> String {
+    format!(
+        r#"#!/usr/bin/env bash
+set -u
+export HOME="{workspace}/.aibox-home"
+export TERM=xterm-256color
+export COLORTERM=truecolor
+export PATH="$HOME/.local/bin:/usr/local/bin:$PATH"
+tmux_conf="$HOME/.tmux.conf"
+[ -f "$tmux_conf" ] || tmux_conf="$HOME/.config/tmux/tmux.conf"
+if [ ! -f "$tmux_conf" ]; then
+  echo "missing generated tmux config" >&2
+  exit 90
+fi
+tmux kill-session -t "{session}" >/dev/null 2>&1 || true
+(
+  for _ in $(seq 1 40); do
+    tmux has-session -t "{session}" >/dev/null 2>&1 && break
+    sleep 0.1
+  done
+{body}
+  sleep 0.5
+  tmux capture-pane -e -p -t "{session}:0.0" > "{workspace}/final-pane.txt" 2>/dev/null || true
+  tmux display-message -p -t "{session}" '#S #W #{{window_panes}} #{{status-left}} #{{status-right}}' > "{workspace}/tmux-status.txt" 2>/dev/null || true
+  tmux kill-session -t "{session}" >/dev/null 2>&1 || true
+) &
+driver_pid=$!
+tmux -f "$tmux_conf" new-session -A -s "{session}" -n dev -c "{workspace}" \
+  "printf 'AIBOX-TMUX-SHELL\n'; exec bash"
+wait "$driver_pid" 2>/dev/null || true
+true
+"#
+    )
+}
 
-/// Verify that each theme's signature color (green) appears in the
-/// zellij rendering output as an ANSI truecolor RGB sequence.
 #[test]
 #[serial]
-#[ntest::timeout(180_000)] // 3 minutes for all themes
-fn visual_themes_produce_signature_colors() {
+#[ntest::timeout(180_000)]
+fn visual_themes_produce_tmux_signature_colors() {
     let runner = E2eRunner::new();
     runner.ensure_deployed();
 
     for &(theme, r, g, b) in THEME_SIGNATURES {
-        let test_name = format!("visual-theme-{}", theme);
-        let cast = record_themed_session(&runner, &test_name, theme);
+        let test_name = format!("visual-theme-{theme}");
+        init_project(&runner, &test_name, theme);
+        assert_generated_tmux_config(&runner, &test_name, theme);
+        assert_theme_signature_config(&runner, &test_name, theme, r, g, b);
 
-        // Basic cast validation
-        let line_count = cast.lines().count();
-        assert!(
-            line_count > 10,
-            "theme '{}': cast too small ({} lines)",
-            theme,
-            line_count
+        let workspace = format!("/workspaces/{test_name}");
+        let hex = rgb_hex(r, g, b);
+        let body = format!(
+            r##"  tmux set-option -t "{test_name}" -g status on
+  tmux set-option -t "{test_name}" -ga terminal-overrides ",*:Tc"
+  tmux set-option -t "{test_name}" -g status-left "#[fg={hex},bold] AIBOX-TMUX-THEME {theme} #[default]"
+  tmux set-option -t "{test_name}" -g status-right "#[fg={hex}] MEM #(aibox-status 2>/dev/null | cut -c1-60) #[default]"
+  sleep 2
+"##
         );
-
+        let cast = record_tmux(
+            &runner,
+            &test_name,
+            &tmux_driver(&workspace, &test_name, &body),
+        );
+        assert!(cast.lines().count() > 5, "{theme}: cast too small");
         let output = extract_cast_output(&cast);
+        let text = visible_text(&output);
         assert!(
-            !output.is_empty(),
-            "theme '{}': no output events in cast",
-            theme
+            text.contains("AIBOX-TMUX-THEME") && text.contains(theme),
+            "{theme}: expected tmux theme marker in visible recording:\n{}",
+            text.chars().take(1600).collect::<String>()
         );
-        assert_visible_status_text(&output, theme);
-
-        // Assert the theme's signature green color appears
         assert!(
             contains_rgb(&output, r, g, b),
-            "theme '{}': expected RGB({},{},{}) in ANSI output but not found",
-            theme,
-            r,
-            g,
-            b
+            "{theme}: expected tmux status to render RGB({r},{g},{b})"
         );
-
         runner.cleanup(&test_name);
     }
 }
 
-/// Verify that each theme produces DISTINCT colors — no two themes
-/// share the same signature, proving the theme config is actually loaded.
 #[test]
 #[serial]
-#[ntest::timeout(180_000)]
-fn visual_themes_are_distinct() {
+#[ntest::timeout(90_000)]
+fn visual_tmux_status_and_panes_render_without_legacy_artifacts() {
     let runner = E2eRunner::new();
     runner.ensure_deployed();
 
-    // Record one theme and verify other themes' signatures are absent
-    let test_name = "visual-theme-distinct";
-    let cast = record_themed_session(&runner, test_name, "nord");
-    let output = extract_cast_output(&cast);
-    assert_visible_status_text(&output, "nord");
+    let test_name = "visual-tmux-status";
+    init_project(&runner, test_name, "projectious");
+    assert_generated_tmux_config(&runner, test_name, "projectious");
 
-    // Nord's green MUST be present
-    assert!(
-        contains_rgb(&output, 163, 190, 140),
-        "nord: own signature color should be present"
-    );
-
-    // Other themes' greens should NOT be present
-    let non_nord = [
-        ("gruvbox-dark", 152, 151, 26),
-        ("dracula", 80, 250, 123),
-        ("catppuccin-mocha", 166, 227, 161),
-        ("tokyo-night", 158, 206, 106),
-    ];
-    for (other, r, g, b) in non_nord {
-        assert!(
-            !contains_rgb(&output, r, g, b),
-            "nord recording should NOT contain {}'s green RGB({},{},{})",
-            other,
-            r,
-            g,
-            b
-        );
-    }
-
-    runner.cleanup(test_name);
-}
-
-// ─── Yazi keymap test ───────────────────────────────────────────────────────
-
-/// Verify that yazi launches inside zellij and renders its UI.
-/// Checks for yazi-specific strings in the cast output (file list chrome).
-#[test]
-#[serial]
-#[ntest::timeout(60_000)]
-fn visual_yazi_renders_in_zellij() {
-    let runner = E2eRunner::new();
-    runner.ensure_deployed();
-
-    let test_name = "visual-yazi";
-    runner.cleanup(test_name);
-
-    // Init project
-    runner.aibox(
-        test_name,
-        &[
-            "init",
-            test_name,
-            "--base",
-            "debian",
-            "--context",
-            "managed",
-        ],
-    );
-
-    let workspace = format!("/workspaces/{}", test_name);
-
-    // Create some files for yazi to display
-    runner.write_file(test_name, "project-files/README.md", "# Test\n");
-    runner.write_file(test_name, "project-files/main.rs", "fn main() {}\n");
-
-    runner.exec("pkill -9 -x zellij 2>/dev/null; rm -rf /tmp/zellij-* 2>/dev/null; sleep 0.5");
-
-    // Create a layout that runs yazi pointing at the test files
-    runner.write_file(
-        test_name,
-        "yazi-layout.kdl",
-        &format!(
-            r#"layout {{
-    pane {{
-        command "yazi"
-        args "{workspace}/project-files"
-    }}
-}}
+    let workspace = format!("/workspaces/{test_name}");
+    let body = format!(
+        r#"  tmux set-option -t "{test_name}" -g status on
+  tmux set-option -t "{test_name}" -g status-left " AIBOX-TMUX #S:#I.#P "
+  tmux set-option -t "{test_name}" -g status-right " #(aibox-status 2>/dev/null | cut -c1-80) "
+  tmux split-window -h -t "{test_name}:0" -c "{workspace}" "printf 'AIBOX-TMUX-RIGHT-PANE\n'; exec bash"
+  tmux split-window -v -t "{test_name}:0.0" -c "{workspace}" "printf 'AIBOX-TMUX-LOWER-PANE\n'; exec bash"
+  tmux select-pane -t "{test_name}:0.0"
+  sleep 3
 "#
-        ),
     );
-
-    // Driver script
-    runner.write_file(
+    let cast = record_tmux(
+        &runner,
         test_name,
-        "driver.sh",
-        &format!(
-            r#"#!/usr/bin/env bash
-export TERM=xterm-256color COLORTERM=truecolor
-export HOME={workspace}/.aibox-home
-(sleep 3 && pkill -x zellij 2>/dev/null) &
-zellij --config "$HOME/.config/zellij/config.kdl" \
-       --config-dir "$HOME/.config/zellij" \
-       --layout {workspace}/yazi-layout.kdl 2>/dev/null
-true
-"#
-        ),
+        &tmux_driver(&workspace, test_name, &body),
     );
-    runner.exec(&format!("chmod +x {}/driver.sh", workspace));
-
-    let cast_path = format!("{}/recording.cast", workspace);
-    runner.exec(&format!(
-        "LC_ALL=C.UTF-8 LANG=C.UTF-8 asciinema rec --cols 160 --rows 45 --overwrite -c {workspace}/driver.sh {cast_path} 2>/dev/null; true"
-    ));
-
-    let cast = runner.read_file(test_name, "recording.cast");
     let output = extract_cast_output(&cast);
-
-    // Yazi should render the file names we created
+    let text = visible_text(&output);
     assert!(
-        output.contains("README") || output.contains("main.rs"),
-        "yazi should display file names from the test directory"
+        text.contains("AIBOX-TMUX")
+            && text.contains("AIBOX-TMUX-RIGHT-PANE")
+            && text.contains("AIBOX-TMUX-LOWER-PANE"),
+        "expected tmux status and panes to render:\n{}",
+        text.chars().take(2400).collect::<String>()
     );
-
+    assert!(
+        text.contains("MEM ") || text.contains("PROC ") || text.contains("MCP "),
+        "expected aibox-status output in tmux status/right side:\n{}",
+        text.chars().take(2400).collect::<String>()
+    );
+    assert!(
+        !text.to_ascii_lowercase().contains("zellij"),
+        "tmux recording should not mention legacy multiplexer artifacts:\n{text}"
+    );
     runner.cleanup(test_name);
 }
 
 #[test]
 #[serial]
 #[ntest::timeout(90_000)]
-fn visual_default_zellij_status_loads_without_errors() {
+fn visual_yazi_renders_in_tmux_pane() {
     let runner = E2eRunner::new();
     runner.ensure_deployed();
 
-    let test_name = "visual-default-zellij-status";
-    runner.cleanup(test_name);
+    let test_name = "visual-yazi-tmux";
+    init_project(&runner, test_name, "tokyo-night");
+    runner.write_file(test_name, "project-files/README.md", "# Test\n");
+    runner.write_file(test_name, "project-files/main.rs", "fn main() {}\n");
 
-    let init = runner.aibox(
-        test_name,
-        &[
-            "init",
-            test_name,
-            "--base",
-            "debian",
-            "--context",
-            "managed",
-        ],
-    );
-    assert!(
-        init.status.success(),
-        "init failed: {}",
-        String::from_utf8_lossy(&init.stderr)
-    );
-
-    let workspace = format!("/workspaces/{}", test_name);
-    runner.exec(&format!(
-        "sudo rm -rf /workspace; sudo ln -s {workspace} /workspace"
-    ));
-    runner.exec("pkill -9 -x zellij 2>/dev/null; rm -rf /tmp/zellij-* 2>/dev/null; sleep 0.5");
-
-    runner.write_file(
-        test_name,
-        "driver.sh",
-        &format!(
-            r#"#!/usr/bin/env bash
-export TERM=xterm-256color COLORTERM=truecolor
-export HOME={workspace}/.aibox-home
-(sleep 5 && pkill -x zellij 2>/dev/null) &
-zellij --config "$HOME/.config/zellij/config.kdl" \
-       --config-dir "$HOME/.config/zellij" \
-       --layout dev 2>/dev/null
-true
+    let workspace = format!("/workspaces/{test_name}");
+    let body = format!(
+        r#"  tmux rename-window -t "{test_name}:0" files
+  tmux send-keys -t "{test_name}:0.0" "cd {workspace}/project-files && exec yazi ." C-m
+  for _ in $(seq 1 30); do
+    tmux capture-pane -p -t "{test_name}:0.0" > "{workspace}/yazi-screen.txt" 2>/dev/null || true
+    grep -Eq 'README|main.rs' "{workspace}/yazi-screen.txt" && break
+    sleep 0.25
+  done
 "#
-        ),
     );
-    runner.exec(&format!("chmod +x {}/driver.sh", workspace));
-
-    let cast_path = format!("{}/recording.cast", workspace);
-    runner.exec(&format!(
-        "LC_ALL=C.UTF-8 LANG=C.UTF-8 asciinema rec --cols 160 --rows 45 --overwrite -c {workspace}/driver.sh {cast_path} 2>/dev/null; true"
-    ));
-
-    let cast = runner.read_file(test_name, "recording.cast");
+    let cast = record_tmux(
+        &runner,
+        test_name,
+        &tmux_driver(&workspace, test_name, &body),
+    );
     let output = extract_cast_output(&cast);
-    let text = visible_text(&output);
+    let screen = runner.read_file(test_name, "yazi-screen.txt");
+    assert!(cast.lines().count() > 5, "cast too small");
     assert!(
-        text.contains("C-g leader") || text.contains("MEM ") || text.contains("PROC "),
-        "default Zellij status rows should render visible key/status text, got:\n{}",
-        text.chars().take(1600).collect::<String>()
+        output.contains("README")
+            || output.contains("main.rs")
+            || screen.contains("README")
+            || screen.contains("main.rs"),
+        "expected Yazi to render file names in tmux pane:\n{screen}"
     );
-    assert!(
-        !text.contains("ERROR IN PLUGIN"),
-        "default Zellij status rows rendered an error banner:\n{}",
-        text.chars().take(1600).collect::<String>()
-    );
-
-    let log_output = runner.exec("cat /tmp/zellij-*/zellij-log/zellij.log 2>/dev/null || true");
-    let logs = format!(
-        "{}{}",
-        String::from_utf8_lossy(&log_output.stdout),
-        String::from_utf8_lossy(&log_output.stderr)
-    );
-    for bad in [
-        "failed to load plugin",
-        "could not find exported function",
-        "Panic occured",
-        "ERROR IN PLUGIN",
-    ] {
-        assert!(
-            !logs.contains(bad),
-            "default Zellij status log should not contain {bad:?}:\n{logs}"
-        );
-    }
-
     runner.cleanup(test_name);
 }

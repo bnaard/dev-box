@@ -13,7 +13,7 @@ Each theme defines colors for 5 tools:
 
 | Tool | Config Location | Format |
 |------|----------------|--------|
-| **Zellij** | `.config/zellij/themes/<name>.kdl` | KDL with terminal color names |
+| **tmux** | `.config/tmux/themes/<name>.conf` | tmux style settings |
 | **Vim** | `.vim/colors/<name>.vim` | Vim colorscheme |
 | **Yazi** | `.config/yazi/theme.toml` | TOML with hex colors |
 | **lazygit** | `.config/lazygit/config.yml` | YAML gui.theme section |
@@ -21,7 +21,7 @@ Each theme defines colors for 5 tools:
 
 ## Color Mapping
 
-A theme needs these terminal color slots for Zellij:
+A theme needs these terminal color slots for tmux:
 
 | Slot | Purpose |
 |------|---------|

@@ -103,10 +103,10 @@ args    = ["-y", "@acme/team-server"] # Arguments
 theme  = "gruvbox-dark"               # Color theme (7 options)
 mode   = "auto"                       # Theme mode: auto, light, dark
 prompt = "default"                    # Starship preset (7 options)
-layout = "dev"                        # Zellij layout (6 options)
+layout = "dev"                        # tmux layout (6 options)
 
-[customization.zellij_status]
-mode = "sidecar"                      # sidecar | shell | disabled
+[customization.tmux.status]
+mode = "powerline"                    # powerline | plain | disabled
 
 [audio]
 enabled      = false                  # Enable audio bridging
@@ -500,8 +500,8 @@ Visual and layout configuration. See [Themes](../customization/themes.md) and [L
 | `theme` | String | No | `"gruvbox-dark"` | Color theme: `gruvbox-dark`, `catppuccin-mocha`, `catppuccin-latte`, `dracula`, `tokyo-night`, `nord`, `projectious` |
 | `mode` | String | No | `"auto"` | Global theme mode overlay: `auto`, `light`, `dark`. `auto` preserves the selected concrete theme. |
 | `prompt` | String | No | `"default"` | Starship preset: `default`, `plain`, `arrow`, `minimal`, `nerd-font`, `pastel`, `bracketed` |
-| `layout` | String | No | `"dev"` | Zellij layout: `dev`, `focus`, `cowork`, `cowork-swap`, `browse`, `ai` |
-| `zellij_status.mode` | String | No | `"shell"` | Zellij status presentation: `shell` uses Zellij's built-in status bar plus `aibox-status --watch`, `sidecar` selects the experimental two-row aibox WASM keybar/status plugin, `disabled` omits aibox status rows |
+| `layout` | String | No | `"dev"` | tmux layout: `dev`, `focus`, `cowork`, `cowork-swap`, `browse`, `ai` |
+| `tmux.status.mode` | String | No | `"powerline"` | tmux status presentation: `powerline` uses the themed aibox status bar, `plain` keeps minimal tmux text, `disabled` turns the status line off |
 
 ### [audio]
 

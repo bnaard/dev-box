@@ -1,8 +1,10 @@
 #!/usr/bin/env bash
 # test-screencasts.sh — visual smoke tests using asciinema recordings
 #
-# Records fast (2s) casts to a temp directory, validates they contain real
-# terminal output. Does NOT overwrite docs recordings.
+# Records fast (2s) documentation-demo casts to a temp directory and validates
+# they contain real terminal output. Does NOT overwrite docs recordings.
+# Generated runtime layout coverage lives in cli/tests/e2e/visual_matrix.rs and
+# scripts/release-runtime-smoke.sh.
 #
 # Usage:
 #   ./scripts/test-screencasts.sh              # run all tests
@@ -27,10 +29,8 @@ pass()  { printf '\033[1;32m ✓\033[0m  %s\n' "$1"; PASSES=$((PASSES + 1)); }
 fail()  { printf '\033[1;31m ✗\033[0m  %s\n' "$1"; FAILURES=$((FAILURES + 1)); }
 skip()  { printf '\033[1;33m ○\033[0m  %s (skipped)\n' "$1"; SKIPS=$((SKIPS + 1)); }
 
-cleanup_zellij() {
-  zellij delete-all-sessions --yes 2>/dev/null || true
-  pkill -9 -x zellij 2>/dev/null || true
-  rm -rf /tmp/zellij-* 2>/dev/null || true
+cleanup_tmux() {
+  tmux kill-session -t aibox-screencast 2>/dev/null || true
   sleep 0.5
 }
 
@@ -101,7 +101,7 @@ text = re.sub(r"\x1b[()][A-Za-z0-9]", "", text)
 text = re.sub(r"[\x00-\x08\x0b-\x1f\x7f]", " ", text)
 text = re.sub(r"\s+", " ", text)
 
-tokens = ["Ctrl", "Alt", "PANE", "TAB", "Resize", "Scroll", "Quit", "LOCK"]
+tokens = ["Ctrl-g", "Prefix", "pane", "window", "tmux", "dev", "shell", "AI"]
 if not any(token in text for token in tokens):
     print(text[:1200])
     sys.exit(1)
@@ -119,15 +119,36 @@ test_layouts() {
   info "Testing layouts..."
 
   for layout in "${LAYOUTS[@]}"; do
-    cleanup_zellij
+    cleanup_tmux
     local cast="${TEST_DIR}/layout-${layout}.cast"
     local driver
     driver=$(mktemp /tmp/test-XXXX.sh)
     cat > "${driver}" << EOF
 #!/usr/bin/env bash
 export TERM=xterm-256color COLORTERM=truecolor
-(sleep 2 && pkill -x zellij 2>/dev/null) &
-zellij --layout "${layout}" 2>/dev/null
+tmux kill-session -t aibox-screencast 2>/dev/null || true
+case "${layout}" in
+  dev)
+    tmux new-session -d -s aibox-screencast -n dev 'yazi 2>/dev/null || bash'
+    tmux split-window -h -t aibox-screencast:dev 'vim 2>/dev/null || bash'
+    tmux new-window -t aibox-screencast -n shell 'bash'
+    ;;
+  focus)
+    tmux new-session -d -s aibox-screencast -n files 'yazi 2>/dev/null || bash'
+    tmux new-window -t aibox-screencast -n editor 'vim 2>/dev/null || bash'
+    tmux new-window -t aibox-screencast -n shell 'bash'
+    ;;
+  cowork)
+    tmux new-session -d -s aibox-screencast -n cowork 'yazi 2>/dev/null || bash'
+    tmux split-window -v -t aibox-screencast:cowork 'vim 2>/dev/null || bash'
+    tmux split-window -h -t aibox-screencast:cowork 'printf "AI agent pane\n"; sleep infinity'
+    ;;
+esac
+tmux set-option -t aibox-screencast status on
+tmux set-option -t aibox-screencast status-left 'aibox #[bold]#S'
+tmux set-option -t aibox-screencast status-right 'Prefix Ctrl-g | pane #{pane_index} | window #I:#W'
+(sleep 2 && tmux kill-session -t aibox-screencast 2>/dev/null) &
+tmux attach-session -t aibox-screencast 2>/dev/null
 true
 EOF
     chmod +x "${driver}"
@@ -145,7 +166,7 @@ test_themes() {
   info "Testing themes..."
 
   for theme in "${THEMES[@]}"; do
-    cleanup_zellij
+    cleanup_tmux
     local cast="${TEST_DIR}/theme-${theme}.cast"
     local config
     config=$(mktemp /tmp/theme-XXXX.kdl)
@@ -156,8 +177,14 @@ test_themes() {
     cat > "${driver}" << EOF
 #!/usr/bin/env bash
 export TERM=xterm-256color COLORTERM=truecolor
-(sleep 2 && pkill -x zellij 2>/dev/null) &
-zellij --layout dev --config "${config}" 2>/dev/null
+tmux kill-session -t aibox-screencast 2>/dev/null || true
+tmux new-session -d -s aibox-screencast -n dev 'yazi 2>/dev/null || bash'
+tmux split-window -h -t aibox-screencast:dev 'vim 2>/dev/null || bash'
+tmux set-option -t aibox-screencast status on
+tmux set-option -t aibox-screencast status-left 'aibox ${theme}'
+tmux set-option -t aibox-screencast status-right 'Prefix Ctrl-g | tmux'
+(sleep 2 && tmux kill-session -t aibox-screencast 2>/dev/null) &
+tmux attach-session -t aibox-screencast 2>/dev/null
 true
 EOF
     chmod +x "${driver}"
@@ -175,7 +202,7 @@ test_tools() {
   info "Testing tools..."
 
   declare -A tools=(
-    [zellij]="zellij --version"
+    [tmux]="tmux -V"
     [yazi]="yazi --version"
     [vim]="vim --version"
     [lazygit]="lazygit --version"
@@ -262,7 +289,7 @@ info "Results: ${PASSES} passed, ${FAILURES} failed, ${SKIPS} skipped"
 
 # Cleanup
 rm -rf "${TEST_DIR}"
-cleanup_zellij
+cleanup_tmux
 
 if [ "${FAILURES}" -gt 0 ]; then
   exit 1

@@ -66,10 +66,10 @@ command = "npx"
 args    = ["-y", "@acme/internal-mcp-server"]
 ```
 
-## Zellij Integration
+## tmux Integration
 
-When Claude is configured as a provider, Zellij layouts include a dedicated Claude pane:
+When Claude is configured as a provider, tmux layouts include a dedicated Claude pane:
 
-- **dev layout:** Claude gets its own tab
-- **focus layout:** Claude gets its own tab
+- **dev layout:** Claude gets its own window
+- **focus layout:** Claude gets its own window
 - **cowork layout:** Claude appears in a side-by-side pane next to the editor

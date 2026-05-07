@@ -212,13 +212,28 @@ fn container_hostname_in_compose() {
 }
 
 #[test]
-fn zellij_native_permission_cache_is_mounted() {
+fn tmux_runtime_config_and_cache_are_mounted() {
     let dir = tempfile::tempdir().unwrap();
-    init_project(dir.path(), "zellij-permissions");
+    init_project(dir.path(), "tmux-runtime");
     let compose = read_generated(dir.path(), ".devcontainer/docker-compose.yml");
     assert!(
-        compose.contains(".cache:/home/aibox/.cache"),
-        "compose must mount writable XDG cache home so uv/starship can create cache directories and Zellij permission caches remain visible:\n{compose}"
+        compose.contains(".config/tmux:/home/aibox/.config/tmux")
+            && compose.contains(".tmux:/home/aibox/.tmux")
+            && compose.contains(".cache:/home/aibox/.cache"),
+        "compose must mount tmux config/plugin state and writable XDG cache home:\n{compose}"
+    );
+}
+
+#[test]
+fn init_generates_tmux_customization_surface() {
+    let dir = tempfile::tempdir().unwrap();
+    init_project(dir.path(), "tmux-config");
+    let toml = fs::read_to_string(dir.path().join("aibox.toml")).unwrap();
+    assert!(
+        toml.contains("[customization.tmux]")
+            && toml.contains("[customization.tmux.status]")
+            && !toml.contains("[customization.zellij_status]"),
+        "generated aibox.toml should expose tmux customization and omit Zellij status:\n{toml}"
     );
 }
 

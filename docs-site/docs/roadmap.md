@@ -15,7 +15,7 @@ predictable:
 
 - explicit Compose project and image names for each aibox project
 - optional tool bundles so idle containers do not carry unnecessary CLIs
-- suspended non-focused Zellij panes
+- suspended non-focused tmux panes
 - runtime resource snapshots and doctor thresholds
 - init-reaper support for orphaned helper processes
 - processkit MCP gateway adoption and daemon-proxy validation in real projects
@@ -67,5 +67,5 @@ Add stronger supply-chain verification for published images and release assets.
 
 ### Richer Runtime UI
 
-Move beyond shell status lines toward deeper Zellij status integration when the
-plugin boundary is worth the extra complexity.
+Move beyond shell status lines toward richer tmux-native status integration
+when the additional runtime coupling is worth the complexity.

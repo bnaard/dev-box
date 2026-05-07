@@ -49,13 +49,13 @@ Re-running after a code change: `cargo build` again, then re-run `cargo test --f
 
 ### Visual E2E tiers
 
-The generated Zellij/Yazi visual tests run real SSH/asciinema sessions in the
+The generated tmux/Yazi visual tests run real SSH/asciinema sessions in the
 companion container. They are intentionally opt-in because they are slower and
 because release validation should choose the tier that matches the changed
 surface:
 
 ```bash
-./scripts/maintain.sh test-e2e-visual-status # layouts, themes, native status rows
+./scripts/maintain.sh test-e2e-visual-status # layouts, themes, tmux status rows
 ./scripts/maintain.sh test-e2e-visual-tabs   # tab traversal, tools, harnesses
 ./scripts/maintain.sh test-e2e-visual-yazi   # Yazi previews, git symbols, plugins
 ./scripts/maintain.sh test-e2e-visual        # all visual tiers

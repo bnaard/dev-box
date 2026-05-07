@@ -1,7 +1,7 @@
 use clap::{Parser, Subcommand, ValueEnum};
 
 use crate::config::{
-    AiHarness, AiProvider, AiboxProfile, BaseImage, StarshipPreset, Theme, ZellijStatusMode,
+    AiHarness, AiProvider, AiboxProfile, BaseImage, StarshipPreset, Theme, TmuxStatusMode,
 };
 
 /// Parse a truthy/falsy string for env-var-driven boolean flags.
@@ -30,7 +30,7 @@ pub enum OutputFormat {
     Yaml,
 }
 
-/// Available Zellij IDE layouts.
+/// Available tmux IDE layouts.
 #[derive(Clone, Debug, ValueEnum)]
 pub enum Layout {
     /// VS Code-like: Yazi sidebar, Vim editor, stacked terminals
@@ -147,9 +147,9 @@ pub enum Commands {
         #[arg(long, value_enum)]
         prompt: Option<StarshipPreset>,
 
-        /// Zellij status presentation (default: shell)
-        #[arg(long = "zellij-status", value_enum)]
-        zellij_status: Option<ZellijStatusMode>,
+        /// tmux status presentation (default: powerline)
+        #[arg(long = "tmux-status", value_enum)]
+        tmux_status: Option<TmuxStatusMode>,
 
         /// Addon names to enable (e.g., python, infrastructure, kubernetes).
         /// Each selected addon's `requires` are auto-added transitively
@@ -255,15 +255,15 @@ pub enum Commands {
         )]
         no_container: bool,
     },
-    /// Start container and attach via zellij
+    /// Start container and attach via tmux
     ///
     /// Seeds .aibox-home/ if needed, generates devcontainer files,
-    /// creates/starts the container, then attaches via zellij.
+    /// creates/starts the container, then attaches via tmux.
     /// If already running, just attaches.
     ///
     /// Available layouts: dev (default), focus, cowork, cowork-swap, browse, ai.
     Up {
-        /// Zellij layout to use (dev, focus, cowork, cowork-swap, browse, ai)
+        /// tmux layout to use (dev, focus, cowork, cowork-swap, browse, ai)
         #[arg(long, value_enum)]
         layout: Option<Layout>,
 
@@ -271,11 +271,11 @@ pub enum Commands {
         #[arg(long)]
         apply: bool,
 
-        /// Discard saved Zellij session state and recreate the configured layout
+        /// Discard saved tmux session state and recreate the configured layout
         #[arg(long)]
-        forget_zellij_state: bool,
+        forget_tmux_state: bool,
     },
-    /// Recover into the workspace without Zellij, Yazi, or status tooling
+    /// Recover into the workspace without tmux, Yazi, or status tooling
     Emergency {
         /// AI harness to launch after printing the emergency briefing
         #[arg(value_enum)]
@@ -351,7 +351,7 @@ pub enum Commands {
         #[arg(long)]
         apply: bool,
 
-        /// Restart and attach only the project Zellij session for theme changes
+        /// Restart and attach only the project tmux session for theme changes
         #[arg(long)]
         restart_session: bool,
     },

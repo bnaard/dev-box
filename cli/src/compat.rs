@@ -345,6 +345,11 @@ pub static COMPAT_TABLE: &[CompatEntry] = &[
         processkit_version: "v0.25.8",
         note: "Patch release: contains Zellij status CPU load by defaulting generated layouts back to the shell status path, makes aibox-status read current-container metrics directly, and repairs Claude Code derived runtime drift by pruning stale processkit MCP permissions, seeding a stable claude shim, and reporting drift in doctor.",
     },
+    CompatEntry {
+        aibox_version: "0.25.0",
+        processkit_version: "v0.25.8",
+        note: "Major release: removes the Zellij runtime stack and replaces it with tmux-native layouts, tmux attach/session management, host-persistent tmux configuration, preinstalled pinned aibox-managed tmux plugins, TPM as a user convenience layer only, and optional tmux-resurrect/tmux-continuum installed but disabled by default while persistence policy is finalized.",
+    },
 ];
 
 /// Find the minimum compatible processkit version for the given aibox version.

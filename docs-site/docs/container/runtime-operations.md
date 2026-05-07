@@ -18,7 +18,7 @@ aibox up --layout focus
 aibox up --apply
 ```
 
-`aibox up` creates or starts the container and attaches through Zellij. Use
+`aibox up` creates or starts the container and attaches through tmux. Use
 `--layout` for a one-session layout override. Use `--apply` when you want aibox
 to reconcile configuration before starting.
 

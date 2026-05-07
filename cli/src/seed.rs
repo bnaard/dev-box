@@ -6,7 +6,7 @@ use std::os::unix::fs::PermissionsExt;
 use std::os::unix::fs::symlink;
 use std::path::Path;
 
-use crate::config::{AiboxConfig, ZellijStatusMode};
+use crate::config::{AiboxConfig, ConfigLayout, TmuxStatusMode};
 use crate::output;
 
 /// Default vimrc content (embedded fallback).
@@ -53,7 +53,7 @@ let g:netrw_winsize=25
 "
 " Reliability:
 "   <A-Left>/<A-Right>  → reliable across iTerm2, Ghostty, Alacritty,
-"                          WezTerm, and zellij. Most terminals send
+"                          WezTerm, and tmux. Most terminals send
 "                          ^[[1;3D / ^[[1;3C and vim recognises both.
 "   <Home>/<End>        → universally reliable. Use these for line
 "                          begin/end. To get macOS-native Cmd+Left /
@@ -100,215 +100,68 @@ const DEFAULT_GITCONFIG: &str = r#"[core]
     rebase = true
 "#;
 
-/// Default zellij config.kdl content. Theme name and layout are replaced at seed time.
-const DEFAULT_ZELLIJ_CONFIG: &str = r#"// aibox zellij configuration
-theme "AIBOX_THEME"
-default_layout "AIBOX_LAYOUT"
-default_shell "bash"
-mouse_mode true
-copy_on_select true
-scroll_buffer_size 10000
-rounded_corners true
-simplified_ui false
-pane_frames true
+/// Default tmux config. Theme, prefix, status mode, and session name are
+/// substituted from `aibox.toml` at seed time.
+const DEFAULT_TMUX_CONF: &str = r##"# aibox tmux configuration
+set -g default-shell /bin/bash
+set -g default-command /bin/bash
+set -g base-index 1
+setw -g pane-base-index 1
+set -g renumber-windows on
+set -g mouse on
+set -g history-limit 50000
+set -g escape-time 10
+set -g focus-events on
+set -g status-interval 5
+set -g prefix AIBOX_TMUX_PREFIX
+unbind C-b
+bind AIBOX_TMUX_PREFIX send-prefix
 
-// Leader: Ctrl+g (press Ctrl+g, release, then press the action key)
-// Quick reference:
-//   Alt+h/j/k/l          Navigate panes (no leader needed; shown in status bar)
-//   Alt+p               Toggle floating panes
-//   Alt+[/]             Previous/next tab
-//   Alt+1-5             Jump to tab (see top tab bar for names per layout)
-//   Ctrl+g → h/j/k/l    Navigate panes (leader variant)
-//   Ctrl+g → n/d/r       New pane / split down / split right
-//   Ctrl+g → x           Close pane
-//   Ctrl+g → f           Toggle fullscreen
-//   Ctrl+g → z           Toggle pane frames
-//   Ctrl+g → v           Toggle aibox runtime status line
-//   Ctrl+g → b           Toggle aibox key-hint line
-//   Ctrl+g → p           Toggle floating panes
-//   Ctrl+g → t/w         New tab / close tab
-//   Ctrl+g → [/]         Previous/next tab
-//   Ctrl+g → ,/.         Previous/next stacked pane
-//   Ctrl+g → 1-5         Jump to tab
-//   Ctrl+g → s           Strider file picker
-//   Ctrl+g → u           Scroll mode
-//   Ctrl+g → /           Search scrollback
-//   Ctrl+g → q           Quit zellij (entire session)
-keybinds clear-defaults=true {
-    normal {
-        bind "Ctrl g" { SwitchToMode "Tmux"; }
-    }
-    tmux {
-        bind "Ctrl g" { SwitchToMode "Normal"; }
-        bind "Esc" { SwitchToMode "Normal"; }
-        bind "g" "G" { SwitchToMode "Normal"; }
-        bind "h" "Left"  { MoveFocus "Left"; SwitchToMode "Normal"; }
-        bind "j" "Down"  { MoveFocus "Down"; SwitchToMode "Normal"; }
-        bind "k" "Up"    { MoveFocus "Up"; SwitchToMode "Normal"; }
-        bind "l" "Right" { MoveFocus "Right"; SwitchToMode "Normal"; }
-        bind "n"     { NewPane; SwitchToMode "Normal"; }
-        bind "d"     { NewPane "Down"; SwitchToMode "Normal"; }
-        bind "r"     { NewPane "Right"; SwitchToMode "Normal"; }
-        bind "x"     { CloseFocus; SwitchToMode "Normal"; }
-        bind "f"     { ToggleFocusFullscreen; SwitchToMode "Normal"; }
-        bind "z"     { TogglePaneFrames; SwitchToMode "Normal"; }
-        bind "v" {
-            MessagePlugin {
-                name "aibox_toggle_runtime"
-                payload "toggle"
-            }
-            SwitchToMode "Normal"
-        }
-        bind "b" {
-            MessagePlugin {
-                name "aibox_toggle_keys"
-                payload "toggle"
-            }
-            SwitchToMode "Normal"
-        }
-        bind "e"     { TogglePaneEmbedOrFloating; SwitchToMode "Normal"; }
-        bind "p"     { ToggleFloatingPanes; SwitchToMode "Normal"; }
-        bind "=" { Resize "Increase"; }
-        bind "-" { Resize "Decrease"; }
-        bind "R" { SwitchToMode "Resize"; }
-        bind "t"     { NewTab; SwitchToMode "Normal"; }
-        bind "w"     { CloseTab; SwitchToMode "Normal"; }
-        bind "["     { GoToPreviousTab; SwitchToMode "Normal"; }
-        bind "]"     { GoToNextTab; SwitchToMode "Normal"; }
-        bind ","     { PreviousSwapLayout; SwitchToMode "Normal"; }
-        bind "."     { NextSwapLayout; SwitchToMode "Normal"; }
-        bind "1"     { GoToTab 1; SwitchToMode "Normal"; }
-        bind "2"     { GoToTab 2; SwitchToMode "Normal"; }
-        bind "3"     { GoToTab 3; SwitchToMode "Normal"; }
-        bind "4"     { GoToTab 4; SwitchToMode "Normal"; }
-        bind "5"     { GoToTab 5; SwitchToMode "Normal"; }
-        bind "i"     { MoveTab "Left"; SwitchToMode "Normal"; }
-        bind "o"     { MoveTab "Right"; SwitchToMode "Normal"; }
-        bind "s" {
-            LaunchOrFocusPlugin "zellij:strider" {
-                floating true
-                move_to_focused_tab true
-            }
-            SwitchToMode "Normal"
-        }
-        bind "m" {
-            LaunchOrFocusPlugin "zellij:session-manager" {
-                floating true
-                move_to_focused_tab true
-            }
-            SwitchToMode "Normal"
-        }
-        bind "u" { SwitchToMode "Scroll"; }
-        bind "/" { SwitchToMode "EnterSearch"; SearchInput 0; }
-        bind "q" { Quit; }
-    }
-    scroll {
-        bind "Ctrl g" { SwitchToMode "Normal"; }
-        bind "Ctrl c" "Esc" "q" { SwitchToMode "Normal"; }
-        bind "j" "Down"  { ScrollDown; }
-        bind "k" "Up"    { ScrollUp; }
-        bind "d"         { HalfPageScrollDown; }
-        bind "u"         { HalfPageScrollUp; }
-        bind "f" "PageDown" { PageScrollDown; }
-        bind "b" "PageUp"   { PageScrollUp; }
-        bind "g"         { ScrollToTop; }
-        bind "G"         { ScrollToBottom; }
-        bind "/"         { SwitchToMode "EnterSearch"; SearchInput 0; }
-    }
-    search {
-        bind "Ctrl g" { SwitchToMode "Normal"; }
-        bind "Ctrl c" "Esc" { SwitchToMode "Normal"; }
-        bind "n"     { Search "down"; }
-        bind "N"     { Search "up"; }
-        bind "c"     { SearchToggleOption "CaseSensitivity"; }
-        bind "w"     { SearchToggleOption "Wrap"; }
-        bind "o"     { SearchToggleOption "WholeWord"; }
-    }
-    entersearch {
-        bind "Ctrl c" "Esc" { SwitchToMode "Normal"; }
-        bind "Enter" { SwitchToMode "Search"; }
-    }
-    resize {
-        bind "Ctrl g" { SwitchToMode "Normal"; }
-        bind "Ctrl c" "Esc" { SwitchToMode "Normal"; }
-        bind "h" "Left"  { Resize "Increase Left"; }
-        bind "j" "Down"  { Resize "Increase Down"; }
-        bind "k" "Up"    { Resize "Increase Up"; }
-        bind "l" "Right" { Resize "Increase Right"; }
-        bind "H"         { Resize "Decrease Left"; }
-        bind "J"         { Resize "Decrease Down"; }
-        bind "K"         { Resize "Decrease Up"; }
-        bind "L"         { Resize "Decrease Right"; }
-        bind "=" "+"     { Resize "Increase"; }
-        bind "-"         { Resize "Decrease"; }
-    }
-    // Alt key bindings available in all modes (except locked).
-    shared_except "locked" {
-        bind "Alt h" { MoveFocus "Left"; }
-        bind "Alt j" { MoveFocus "Down"; }
-        bind "Alt k" { MoveFocus "Up"; }
-        bind "Alt l" { MoveFocus "Right"; }
-        bind "Alt p" { ToggleFloatingPanes; }
-        bind "Alt [" { GoToPreviousTab; }
-        bind "Alt ]" { GoToNextTab; }
-        bind "Alt 1" { GoToTab 1; }
-        bind "Alt 2" { GoToTab 2; }
-        bind "Alt 3" { GoToTab 3; }
-        bind "Alt 4" { GoToTab 4; }
-        bind "Alt 5" { GoToTab 5; }
-    }
-}
-"#;
+# Pane navigation mirrors the old aibox leader muscle memory.
+bind h select-pane -L
+bind j select-pane -D
+bind k select-pane -U
+bind l select-pane -R
+bind r split-window -h -c "#{pane_current_path}"
+bind d split-window -v -c "#{pane_current_path}"
+bind x kill-pane
+bind f resize-pane -Z
+bind q confirm-before -p "kill tmux session AIBOX_TMUX_SESSION? (y/n)" kill-session
+bind R source-file ~/.config/tmux/tmux.conf \; display-message "aibox tmux config reloaded"
 
-/// Generate the KDL snippet for the primary AI provider pane in a tab.
-///
-/// Interactive agent TUIs need a real terminal surface. Do not stack multiple
-/// agent CLIs in one pane: inactive zellij stack children shrink to a title
-/// line, which is hostile to full-screen TUIs such as Claude Code.
-/// Returns empty string if no providers are configured.
-fn ai_pane_kdl(providers: &[crate::config::AiProvider]) -> String {
-    providers.first().map_or_else(String::new, |p| {
-        let name = p.to_string();
-        let cmd = p.binary_name();
-        format!(
-            "        pane name=\"{name}\" {{\n\
-             \x20           command \"{cmd}\"\n\
-             \x20           cwd \"/workspace\"\n\
-             \x20       }}"
-        )
-    })
-}
+set -g status AIBOX_TMUX_STATUS
+set -g status-style "bg=AIBOX_TMUX_BG,fg=AIBOX_TMUX_FG"
+set -g window-status-current-style "bg=AIBOX_TMUX_ACCENT,fg=AIBOX_TMUX_BG,bold"
+set -g window-status-format " #I:#W "
+set -g window-status-current-format " #I:#W "
+set -g status-left " #S "
+set -g status-right " #(aibox-status --once 2>/dev/null || true) %H:%M "
 
-fn ai_extra_tabs_kdl(providers: &[crate::config::AiProvider]) -> String {
-    if providers.len() <= 1 {
-        String::new()
-    } else {
-        ai_tabs_kdl(&providers[1..])
-    }
-}
+# Powerkit status. Keep the plugin list intentionally bounded for container
+# runtime safety; heavier network/cloud/media plugins stay user opt-in.
+set -g @powerkit_plugins "datetime,cpu,memory,git,hostname"
+set -g @powerkit_theme "nord"
+set -g @powerkit_theme_variant "dark"
+set -g @powerkit_separator_style "rounded"
+set -g @powerkit_elements_spacing "both"
+set -g @powerkit_status_interval "5"
+set -g @powerkit_transparent "false"
 
-fn ai_tabs_kdl(providers: &[crate::config::AiProvider]) -> String {
-    if providers.is_empty() {
-        return String::new();
-    }
+# aibox-managed plugins are installed and pinned by the runtime image. TPM is
+# only a user convenience layer for additional personal plugins.
+if-shell '[ -f /usr/local/share/aibox/tmux/plugins/tmux-sensible/sensible.tmux ]' 'run-shell /usr/local/share/aibox/tmux/plugins/tmux-sensible/sensible.tmux'
+if-shell '[ -f /usr/local/share/aibox/tmux/plugins/tmux-powerkit/tmux-powerkit.tmux ]' 'run-shell /usr/local/share/aibox/tmux/plugins/tmux-powerkit/tmux-powerkit.tmux'
+if-shell '[ -f /usr/local/share/aibox/tmux/plugins/vim-tmux-navigator/vim-tmux-navigator.tmux ]' 'run-shell /usr/local/share/aibox/tmux/plugins/vim-tmux-navigator/vim-tmux-navigator.tmux'
+if-shell '[ -f /usr/local/share/aibox/tmux/plugins/tmux-yank/yank.tmux ]' 'run-shell /usr/local/share/aibox/tmux/plugins/tmux-yank/yank.tmux'
 
-    providers
-        .iter()
-        .map(|p| {
-            let name = p.to_string();
-            let cmd = p.binary_name();
-            format!(
-                "    aibox-tab name=\"{name}\" {{\n\
-                 \x20       pane name=\"{name}\" {{\n\
-                 \x20           command \"{cmd}\"\n\
-                 \x20           cwd \"/workspace\"\n\
-                 \x20       }}\n\
-                 \x20   }}"
-            )
-        })
-        .collect::<Vec<_>>()
-        .join("\n")
-}
+# Persistence plugins are installed for later policy work but disabled by
+# default in v0.25.0. Do not enable continuum/resurrect implicitly.
+set -g @continuum-restore 'off'
+set -g @continuum-save-interval '0'
+set -g @resurrect-capture-pane-contents 'off'
+
+if-shell '[ -x ~/.tmux/plugins/tpm/tpm ]' 'run-shell ~/.tmux/plugins/tpm/tpm'
+"##;
 
 fn addon_tool_effective_enabled(config: &AiboxConfig, addon: &str, tool: &str) -> bool {
     let Some(addon_section) = config.addons.get_addon(addon) else {
@@ -332,562 +185,6 @@ fn addon_tool_effective_enabled(config: &AiboxConfig, addon: &str, tool: &str) -
 
 fn include_lazygit_tab(config: &AiboxConfig) -> bool {
     addon_tool_effective_enabled(config, "git-ui", "lazygit")
-}
-
-fn git_tab_kdl(include_lazygit: bool) -> &'static str {
-    if include_lazygit {
-        r#"
-    aibox-tab name="git" {
-        pane name="lazygit" {
-            command "lazygit"
-            cwd "/workspace"
-        }
-    }"#
-    } else {
-        ""
-    }
-}
-
-fn zellij_status_template_kdl(mode: &ZellijStatusMode) -> String {
-    match mode {
-        ZellijStatusMode::Sidecar => r#"    tab_template name="aibox-tab" {
-        children
-        pane size=1 borderless=true {
-            plugin location="file:/usr/local/share/aibox/zellij/aibox-status-keys.wasm" {
-                role "keys"
-            }
-        }
-        pane size=1 borderless=true {
-            plugin location="file:/usr/local/share/aibox/zellij/aibox-status-runtime.wasm" {
-                role "status"
-            }
-        }
-    }"#
-        .to_string(),
-        ZellijStatusMode::Shell => r#"    tab_template name="aibox-tab" {
-        children
-        pane size=1 borderless=true {
-            plugin location="zellij:status-bar"
-        }
-        pane size=1 borderless=true {
-            command "bash"
-            args "-lc" "exec aibox-status --watch"
-        }
-    }"#
-        .to_string(),
-        ZellijStatusMode::Disabled => zellij_status_hidden_template_kdl(mode),
-    }
-}
-
-fn zellij_status_hidden_template_kdl(mode: &ZellijStatusMode) -> String {
-    match mode {
-        ZellijStatusMode::Sidecar => r#"    tab_template name="aibox-tab" {
-        children
-    }"#
-        .to_string(),
-        ZellijStatusMode::Shell => r#"    tab_template name="aibox-tab" {
-        children
-        pane size=1 borderless=true {
-            plugin location="zellij:status-bar"
-        }
-    }"#
-        .to_string(),
-        ZellijStatusMode::Disabled => r#"    tab_template name="aibox-tab" {
-        children
-    }
-"#
-        .to_string(),
-    }
-}
-
-fn zellij_status_visible_layout(mode: &ZellijStatusMode) -> String {
-    format!(
-        "layout {{\n{}\n    aibox-tab\n}}\n",
-        zellij_status_template_kdl(mode)
-    )
-}
-
-fn zellij_status_hidden_layout(mode: &ZellijStatusMode) -> String {
-    format!(
-        "layout {{\n{}\n    aibox-tab\n}}\n",
-        zellij_status_hidden_template_kdl(mode)
-    )
-}
-
-/// Generate the zellij dev layout dynamically based on configured AI providers.
-#[cfg(test)]
-fn generate_dev_layout(providers: &[crate::config::AiProvider]) -> String {
-    generate_dev_layout_with_options(providers, true, &ZellijStatusMode::default())
-}
-
-fn generate_dev_layout_with_options(
-    providers: &[crate::config::AiProvider],
-    include_lazygit: bool,
-    status_mode: &ZellijStatusMode,
-) -> String {
-    let ai_tabs = ai_tabs_kdl(providers);
-    let ai_section = if ai_tabs.is_empty() {
-        String::new()
-    } else {
-        format!("\n{}", ai_tabs)
-    };
-    let git_section = git_tab_kdl(include_lazygit);
-    let status_template = zellij_status_template_kdl(status_mode);
-
-    format!(
-        r##"layout {{
-{status_template}
-    aibox-tab name="dev" focus=true {{
-        pane split_direction="vertical" {{
-            pane size="40%" name="files" focus=true {{
-                command "yazi"
-                cwd "/workspace"
-            }}
-            pane size="60%" name="editor" {{
-                command "vim-loop"
-                cwd "/workspace"
-            }}
-        }}
-    }}{ai_section}{git_section}
-    aibox-tab name="shell" {{
-        pane name="bash" {{
-            command "bash"
-            cwd "/workspace"
-        }}
-    }}
-}}
-"##
-    )
-}
-
-/// Generate the zellij focus layout dynamically based on configured AI providers.
-#[cfg(test)]
-fn generate_focus_layout(providers: &[crate::config::AiProvider]) -> String {
-    generate_focus_layout_with_options(providers, true, &ZellijStatusMode::default())
-}
-
-fn generate_focus_layout_with_options(
-    providers: &[crate::config::AiProvider],
-    include_lazygit: bool,
-    status_mode: &ZellijStatusMode,
-) -> String {
-    let ai_tabs = ai_tabs_kdl(providers);
-    let ai_section = if ai_tabs.is_empty() {
-        String::new()
-    } else {
-        format!("\n{}", ai_tabs)
-    };
-    let git_section = git_tab_kdl(include_lazygit);
-    let status_template = zellij_status_template_kdl(status_mode);
-
-    format!(
-        r##"layout {{
-{status_template}
-    aibox-tab name="files" focus=true {{
-        pane name="yazi" {{
-            command "bash"
-            args "-c" "AIBOX_EDITOR_DIR=tab exec yazi"
-            cwd "/workspace"
-        }}
-    }}
-    aibox-tab name="editor" {{
-        pane name="vim" {{
-            command "bash"
-            args "-c" "AIBOX_EDITOR_DIR=tab exec vim-loop"
-            cwd "/workspace"
-        }}
-    }}{ai_section}{git_section}
-    aibox-tab name="shell" {{
-        pane name="bash" {{
-            command "bash"
-            cwd "/workspace"
-        }}
-    }}
-}}
-"##
-    )
-}
-
-/// Generate the zellij cowork layout dynamically based on configured AI providers.
-#[cfg(test)]
-fn generate_cowork_layout(providers: &[crate::config::AiProvider]) -> String {
-    generate_cowork_layout_with_options(providers, true, &ZellijStatusMode::default())
-}
-
-fn generate_cowork_layout_with_options(
-    providers: &[crate::config::AiProvider],
-    include_lazygit: bool,
-    status_mode: &ZellijStatusMode,
-) -> String {
-    let ai_pane = ai_pane_kdl(providers);
-    let ai_extra_tabs = ai_extra_tabs_kdl(providers);
-    let ai_extra_section = if ai_extra_tabs.is_empty() {
-        String::new()
-    } else {
-        format!("\n{}", ai_extra_tabs)
-    };
-    let git_section = git_tab_kdl(include_lazygit);
-    let status_template = zellij_status_template_kdl(status_mode);
-
-    if ai_pane.is_empty() {
-        // No AI providers — full-width editor layout
-        return r##"layout {
-{status_template}
-    aibox-tab name="cowork" focus=true {
-        pane split_direction="vertical" {
-            pane size="40%" name="files" focus=true {
-                command "bash"
-                args "-c" "AIBOX_EDITOR_DIR=down exec yazi"
-                cwd "/workspace"
-            }
-            pane size="60%" name="editor" {
-                command "bash"
-                args "-c" "AIBOX_EDITOR_DIR=down exec vim-loop"
-                cwd "/workspace"
-            }
-        }
-    }
-{git_section}
-    aibox-tab name="shell" {
-        pane name="bash" {
-            command "bash"
-            cwd "/workspace"
-        }
-    }
-}
-"##
-        .replace("{status_template}", &status_template)
-        .replace("{git_section}", git_section);
-    }
-
-    format!(
-        r##"layout {{
-{status_template}
-    aibox-tab name="cowork" focus=true {{
-        pane split_direction="vertical" {{
-            pane size="50%" split_direction="horizontal" {{
-                pane size="40%" name="files" focus=true {{
-                    command "bash"
-                    args "-c" "AIBOX_EDITOR_DIR=down exec yazi"
-                    cwd "/workspace"
-                }}
-                pane size="60%" name="editor" {{
-                    command "bash"
-                    args "-c" "AIBOX_EDITOR_DIR=down exec vim-loop"
-                    cwd "/workspace"
-                }}
-            }}
-            pane size="50%" {{
-{ai_pane}
-            }}
-        }}
-    }}
-{ai_extra_section}
-{git_section}
-    aibox-tab name="shell" {{
-        pane name="bash" {{
-            command "bash"
-            cwd "/workspace"
-        }}
-    }}
-}}
-"##
-    )
-}
-
-/// Generate the zellij cowork-swap layout dynamically based on configured AI providers.
-///
-/// cowork-swap is a re-arrangement of `cowork` for users who prefer the editor on
-/// the right (the bigger pane). The outer split is 40/60 instead of cowork's
-/// 50/50, and the editor and AI panes swap roles:
-///
-///   Tab 1 ("cowork-swap"):
-///     ┌──────────────────┬────────────────────────────────────────┐
-///     │  yazi (top, 40%) │                                        │
-///     │                  │                                        │
-///     ├──────────────────┤  vim editor (60%)                      │
-///     │  AI agent (60%)  │                                        │
-///     │                  │                                        │
-///     └──────────────────┴────────────────────────────────────────┘
-///   Tab 2 ("git"):    fullscreen lazygit
-///   Tab 3 ("shell"):  fullscreen bash
-///
-/// When no AI providers are configured, the cowork-swap tab degenerates to
-/// the same yazi-left + vim-right shape as `dev` (with the cowork-swap tab
-/// name preserved).
-///
-/// AIBOX_EDITOR_DIR is "right" (the default) on yazi/vim because vim is
-/// to the right of yazi geometrically — opening a file from yazi via `e`
-/// moves focus right.
-#[cfg(test)]
-fn generate_cowork_swap_layout(providers: &[crate::config::AiProvider]) -> String {
-    generate_cowork_swap_layout_with_options(providers, true, &ZellijStatusMode::default())
-}
-
-fn generate_cowork_swap_layout_with_options(
-    providers: &[crate::config::AiProvider],
-    include_lazygit: bool,
-    status_mode: &ZellijStatusMode,
-) -> String {
-    let ai_pane = ai_pane_kdl(providers);
-    let ai_extra_tabs = ai_extra_tabs_kdl(providers);
-    let ai_extra_section = if ai_extra_tabs.is_empty() {
-        String::new()
-    } else {
-        format!("\n{}", ai_extra_tabs)
-    };
-    let git_section = git_tab_kdl(include_lazygit);
-    let status_template = zellij_status_template_kdl(status_mode);
-
-    if ai_pane.is_empty() {
-        // No AI providers — fall back to a simple yazi-left + vim-right shape
-        // (same as dev, with the cowork-swap tab name preserved).
-        return r##"layout {
-{status_template}
-    aibox-tab name="cowork-swap" focus=true {
-        pane split_direction="vertical" {
-            pane size="40%" name="files" focus=true {
-                command "yazi"
-                cwd "/workspace"
-            }
-            pane size="60%" name="editor" {
-                command "vim-loop"
-                cwd "/workspace"
-            }
-        }
-    }
-{git_section}
-    aibox-tab name="shell" {
-        pane name="bash" {
-            command "bash"
-            cwd "/workspace"
-        }
-    }
-}
-"##
-        .replace("{status_template}", &status_template)
-        .replace("{git_section}", git_section);
-    }
-
-    format!(
-        r##"layout {{
-{status_template}
-    aibox-tab name="cowork-swap" focus=true {{
-        pane split_direction="vertical" {{
-            pane size="40%" split_direction="horizontal" {{
-                pane size="40%" name="files" focus=true {{
-                    command "yazi"
-                    cwd "/workspace"
-                }}
-                pane size="60%" {{
-{ai_pane}
-                }}
-            }}
-            pane size="60%" name="editor" {{
-                command "vim-loop"
-                cwd "/workspace"
-            }}
-        }}
-    }}
-{ai_extra_section}
-{git_section}
-    aibox-tab name="shell" {{
-        pane name="bash" {{
-            command "bash"
-            cwd "/workspace"
-        }}
-    }}
-}}
-"##
-    )
-}
-
-/// Generate the zellij ai layout dynamically based on configured AI providers.
-///
-/// AI layout: yazi-first, AI-first.
-///   Tab 1 ("ai"):     left 50% yazi, right 50% AI agent pane (vertical split, no editor)
-///   Tab 2 ("editor"): fullscreen vim
-///   Tab 3 ("git"):    fullscreen lazygit
-///   Tab 4 ("shell"):  fullscreen bash
-///
-/// When no AI providers are configured, the ai tab is fullscreen yazi (the
-/// editor still lives in tab 2; opening files via `e` from yazi works as
-/// usual).
-#[cfg(test)]
-fn generate_ai_layout(providers: &[crate::config::AiProvider]) -> String {
-    generate_ai_layout_with_options(providers, true, &ZellijStatusMode::default())
-}
-
-fn generate_ai_layout_with_options(
-    providers: &[crate::config::AiProvider],
-    include_lazygit: bool,
-    status_mode: &ZellijStatusMode,
-) -> String {
-    let ai_pane = ai_pane_kdl(providers);
-    let ai_extra_tabs = ai_extra_tabs_kdl(providers);
-    let ai_extra_section = if ai_extra_tabs.is_empty() {
-        String::new()
-    } else {
-        format!("\n{}", ai_extra_tabs)
-    };
-    let git_section = git_tab_kdl(include_lazygit);
-    let status_template = zellij_status_template_kdl(status_mode);
-
-    if ai_pane.is_empty() {
-        return r##"layout {
-{status_template}
-    aibox-tab name="ai" focus=true {
-        pane name="files" {
-            command "bash"
-            args "-c" "AIBOX_EDITOR_DIR=tab exec yazi"
-            cwd "/workspace"
-        }
-    }
-    aibox-tab name="editor" {
-        pane name="vim" {
-            command "bash"
-            args "-c" "AIBOX_EDITOR_DIR=tab exec vim-loop"
-            cwd "/workspace"
-        }
-    }
-{git_section}
-    aibox-tab name="shell" {
-        pane name="bash" {
-            command "bash"
-            cwd "/workspace"
-        }
-    }
-}
-"##
-        .replace("{status_template}", &status_template)
-        .replace("{git_section}", git_section);
-    }
-
-    format!(
-        r##"layout {{
-{status_template}
-    aibox-tab name="ai" focus=true {{
-        pane split_direction="vertical" {{
-            pane size="50%" name="files" focus=true {{
-                command "bash"
-                args "-c" "AIBOX_EDITOR_DIR=tab exec yazi"
-                cwd "/workspace"
-            }}
-            pane size="50%" {{
-{ai_pane}
-            }}
-        }}
-    }}
-{ai_extra_section}
-    aibox-tab name="editor" {{
-        pane name="vim" {{
-            command "bash"
-            args "-c" "AIBOX_EDITOR_DIR=tab exec vim-loop"
-            cwd "/workspace"
-        }}
-    }}{git_section}
-    aibox-tab name="shell" {{
-        pane name="bash" {{
-            command "bash"
-            cwd "/workspace"
-        }}
-    }}
-}}
-"##
-    )
-}
-
-/// Generate the zellij browse layout dynamically based on configured AI providers.
-///
-/// Browse layout: yazi-focused with large preview.
-///   Tab 1 ("browse"): top 60% yazi, bottom 40% AI agent pane
-///   Tab 2 ("editor"): fullscreen vim
-///   Tab 3 ("git"):    fullscreen lazygit
-///   Tab 4 ("shell"):  fullscreen bash
-///
-/// When no AI providers are configured, the browse tab is fullscreen yazi.
-#[cfg(test)]
-fn generate_browse_layout(providers: &[crate::config::AiProvider]) -> String {
-    generate_browse_layout_with_options(providers, true, &ZellijStatusMode::default())
-}
-
-fn generate_browse_layout_with_options(
-    providers: &[crate::config::AiProvider],
-    include_lazygit: bool,
-    status_mode: &ZellijStatusMode,
-) -> String {
-    let ai_pane = ai_pane_kdl(providers);
-    let ai_extra_tabs = ai_extra_tabs_kdl(providers);
-    let ai_extra_section = if ai_extra_tabs.is_empty() {
-        String::new()
-    } else {
-        format!("\n{}", ai_extra_tabs)
-    };
-    let git_section = git_tab_kdl(include_lazygit);
-    let status_template = zellij_status_template_kdl(status_mode);
-
-    if ai_pane.is_empty() {
-        return r##"layout {
-{status_template}
-    aibox-tab name="browse" focus=true {
-        pane name="files" focus=true {
-            command "bash"
-            args "-c" "AIBOX_EDITOR_DIR=tab exec yazi"
-            cwd "/workspace"
-        }
-    }
-    aibox-tab name="editor" {
-        pane name="vim" {
-            command "bash"
-            args "-c" "AIBOX_EDITOR_DIR=tab exec vim-loop"
-            cwd "/workspace"
-        }
-    }
-{git_section}
-    aibox-tab name="shell" {
-        pane name="bash" {
-            command "bash"
-            cwd "/workspace"
-        }
-    }
-}
-"##
-        .replace("{status_template}", &status_template)
-        .replace("{git_section}", git_section);
-    }
-
-    format!(
-        r##"layout {{
-{status_template}
-    aibox-tab name="browse" focus=true {{
-        pane split_direction="horizontal" {{
-            pane size="60%" name="files" focus=true {{
-                command "bash"
-                args "-c" "AIBOX_EDITOR_DIR=tab exec yazi"
-                cwd "/workspace"
-            }}
-            pane size="40%" {{
-{ai_pane}
-            }}
-        }}
-    }}
-{ai_extra_section}
-    aibox-tab name="editor" {{
-        pane name="vim" {{
-            command "bash"
-            args "-c" "AIBOX_EDITOR_DIR=tab exec vim-loop"
-            cwd "/workspace"
-        }}
-    }}{git_section}
-    aibox-tab name="shell" {{
-        pane name="bash" {{
-            command "bash"
-            cwd "/workspace"
-        }}
-    }}
-}}
-"##
-    )
 }
 
 /// Default yazi config.
@@ -1307,7 +604,7 @@ const DEFAULT_OPEN_IN_EDITOR_SH: &str =
 /// aibox-preview helper — full-pane rich previews from Yazi.
 const DEFAULT_AIBOX_PREVIEW_SH: &str =
     include_str!("../../images/base-debian/config/bin/aibox-preview.sh");
-/// aibox-status-toggle helper — toggle the runtime status pane in Zellij.
+/// aibox-status-toggle helper — toggle the tmux runtime status line.
 const DEFAULT_AIBOX_STATUS_TOGGLE_SH: &str =
     include_str!("../../images/base-debian/config/bin/aibox-status-toggle.sh");
 
@@ -1347,30 +644,21 @@ prepend_keymap = [
 /// Quick reference cheatsheet.
 const DEFAULT_CHEATSHEET: &str = r#"  aibox Quick Reference
   -----------------------------------------------
-  ZELLIJ (leader: Ctrl+g)    YAZI (file manager)
-  Alt+h/j/k/l     Move pane  h/j/k/l  Navigate
-  Alt+p            Float pane Enter    Open in vim
-  Alt+[/]          Prev/next  g s      Git summary
-  Alt+1-5          Jump tab   g c      Git changes
-                             w s      Size selection
-                             w h      Horizontal preview
-                             w p      Watch PDF
-                             c p/d/f  Copy path/dir/name
-  Ctrl+g h/j/k/l  Move pane  g r      Refresh git
-  Ctrl+g f         Fullscreen Space    Select
-  Ctrl+g x         Close pane
-  Ctrl+g n/d/r     New pane
-  Ctrl+g t/w       Tab +/-
-  Ctrl+g p         Toggle float panes
-  Ctrl+g v         Status line
-  Ctrl+g R         Resize mode (h/j/k/l)
-  Ctrl+g s         Strider
-  Ctrl+g u         Scroll
-  Ctrl+g /         Search
-  Ctrl+g q         QUIT
+  TMUX (prefix: Ctrl+g)      YAZI (file manager)
+  Ctrl+g h/j/k/l Move pane  h/j/k/l  Navigate
+  Ctrl+g r/d     Split pane Enter    Open in vim
+  Ctrl+g x       Close pane g s      Git summary
+  Ctrl+g f       Zoom pane  g c      Git changes
+  Ctrl+g c       New win    w s      Size selection
+  Ctrl+g n/p     Next/prev  w h      Horizontal preview
+  Ctrl+g 1-5     Jump win   w p      Watch PDF
+  Ctrl+g [       Copy mode  c p/d/f  Copy path/dir/name
+  Ctrl+g ]       Paste      g r      Refresh git
+  Ctrl+g R       Reload
+  Ctrl+g q       QUIT
 
   LAYOUTS: aibox up --layout dev|focus|cowork|cowork-swap|browse|ai
-  TABS: Alt+1 dev  Alt+2 git  Alt+3 shell
+  WINDOWS: 1 dev  2 git  3 shell
 "#;
 
 /// Default .asoundrc for PulseAudio over TCP.
@@ -1382,7 +670,7 @@ ctl.!default {
 }
 "#;
 
-/// Claude Code keybindings — disables Ctrl+g (reserved for zellij leader key).
+/// Claude Code keybindings — disables Ctrl+g (reserved for the tmux prefix).
 const DEFAULT_CLAUDE_KEYBINDINGS: &str = r#"{
   "$schema": "https://www.schemastore.org/claude-code-keybindings.json",
   "$docs": "https://code.claude.com/docs/en/keybindings",
@@ -1495,15 +783,10 @@ pub fn ensure_runtime_dirs(config: &AiboxConfig) -> Result<()> {
         root.join(".local").join("state"),
         root.join(".vim").join("undo"),
         root.join(".config").join("state"),
-        root.join(".config").join("zellij").join("themes"),
-        root.join(".config").join("zellij").join("layouts"),
-        root.join(".cache").join("zellij"),
+        root.join(".config").join("tmux").join("layouts"),
+        root.join(".tmux").join("plugins"),
         root.join(".cache").join("starship"),
         root.join(".cache").join("uv"),
-        root.join(".cache")
-            .join("org")
-            .join("Zellij Contributors")
-            .join("Zellij"),
         root.join(".config").join("yazi"),
         root.join(".config")
             .join("yazi")
@@ -1558,65 +841,75 @@ pub fn ensure_runtime_dirs(config: &AiboxConfig) -> Result<()> {
 
 /// Return the managed runtime files that aibox generates inside `.aibox-home/`.
 pub fn managed_runtime_files(config: &AiboxConfig) -> Vec<(std::path::PathBuf, String)> {
-    let theme = &config.customization.resolved_theme();
+    let theme = config.customization.resolved_theme();
     let providers = &config.ai.harnesses;
     let include_lazygit = include_lazygit_tab(config);
-    let status_mode = &config.customization.zellij_status.mode;
+    let session_name = &config.customization.tmux.session_name;
     let mut files = vec![
         (
             std::path::PathBuf::from(".vim/vimrc"),
             DEFAULT_VIMRC
                 .replace(
                     "AIBOX_VIM_COLORSCHEME",
-                    crate::themes::vim_colorscheme(theme),
+                    crate::themes::vim_colorscheme(&theme),
                 )
-                .replace("AIBOX_VIM_BG", crate::themes::vim_background(theme)),
+                .replace("AIBOX_VIM_BG", crate::themes::vim_background(&theme)),
         ),
         (
             std::path::PathBuf::from(".config/git/config"),
             DEFAULT_GITCONFIG.to_string(),
         ),
         (
-            std::path::PathBuf::from(".config/zellij/config.kdl"),
-            DEFAULT_ZELLIJ_CONFIG
-                .replace("AIBOX_THEME", &theme.to_string())
-                .replace("AIBOX_LAYOUT", &config.customization.layout.to_string()),
+            std::path::PathBuf::from(".config/tmux/tmux.conf"),
+            tmux_conf(config),
         ),
         (
-            std::path::PathBuf::from(format!(".config/zellij/themes/{}.kdl", theme)),
-            crate::themes::zellij_theme(theme).to_string(),
+            std::path::PathBuf::from(".config/tmux/layouts/dev.sh"),
+            tmux_layout_script(&ConfigLayout::Dev, providers, include_lazygit, session_name),
         ),
         (
-            std::path::PathBuf::from(".config/zellij/layouts/dev.kdl"),
-            generate_dev_layout_with_options(providers, include_lazygit, status_mode),
+            std::path::PathBuf::from(".config/tmux/layouts/focus.sh"),
+            tmux_layout_script(
+                &ConfigLayout::Focus,
+                providers,
+                include_lazygit,
+                session_name,
+            ),
         ),
         (
-            std::path::PathBuf::from(".config/zellij/layouts/focus.kdl"),
-            generate_focus_layout_with_options(providers, include_lazygit, status_mode),
+            std::path::PathBuf::from(".config/tmux/layouts/cowork.sh"),
+            tmux_layout_script(
+                &ConfigLayout::Cowork,
+                providers,
+                include_lazygit,
+                session_name,
+            ),
         ),
         (
-            std::path::PathBuf::from(".config/zellij/layouts/cowork.kdl"),
-            generate_cowork_layout_with_options(providers, include_lazygit, status_mode),
+            std::path::PathBuf::from(".config/tmux/layouts/browse.sh"),
+            tmux_layout_script(
+                &ConfigLayout::Browse,
+                providers,
+                include_lazygit,
+                session_name,
+            ),
         ),
         (
-            std::path::PathBuf::from(".config/zellij/layouts/browse.kdl"),
-            generate_browse_layout_with_options(providers, include_lazygit, status_mode),
+            std::path::PathBuf::from(".config/tmux/layouts/ai.sh"),
+            tmux_layout_script(&ConfigLayout::Ai, providers, include_lazygit, session_name),
         ),
         (
-            std::path::PathBuf::from(".config/zellij/layouts/ai.kdl"),
-            generate_ai_layout_with_options(providers, include_lazygit, status_mode),
+            std::path::PathBuf::from(".config/tmux/layouts/cowork-swap.sh"),
+            tmux_layout_script(
+                &ConfigLayout::CoworkSwap,
+                providers,
+                include_lazygit,
+                session_name,
+            ),
         ),
         (
-            std::path::PathBuf::from(".config/zellij/layouts/cowork-swap.kdl"),
-            generate_cowork_swap_layout_with_options(providers, include_lazygit, status_mode),
-        ),
-        (
-            std::path::PathBuf::from(".config/zellij/layouts/aibox-status-visible.kdl"),
-            zellij_status_visible_layout(status_mode),
-        ),
-        (
-            std::path::PathBuf::from(".config/zellij/layouts/aibox-status-hidden.kdl"),
-            zellij_status_hidden_layout(status_mode),
+            std::path::PathBuf::from(".config/tmux/aibox-session.sh"),
+            tmux_session_script(config),
         ),
         (
             std::path::PathBuf::from(".config/yazi/yazi.toml"),
@@ -1628,7 +921,7 @@ pub fn managed_runtime_files(config: &AiboxConfig) -> Vec<(std::path::PathBuf, S
         ),
         (
             std::path::PathBuf::from(".config/yazi/theme.toml"),
-            crate::themes::yazi_theme(theme).to_string(),
+            crate::themes::yazi_theme(&theme).to_string(),
         ),
         (
             std::path::PathBuf::from(".config/yazi/init.lua"),
@@ -1668,7 +961,7 @@ pub fn managed_runtime_files(config: &AiboxConfig) -> Vec<(std::path::PathBuf, S
         ),
         (
             std::path::PathBuf::from(".config/starship.toml"),
-            crate::themes::starship_config(&config.customization.prompt, theme),
+            crate::themes::starship_config(&config.customization.prompt, &theme),
         ),
         (
             std::path::PathBuf::from(".local/bin/pdf-watch"),
@@ -1688,17 +981,6 @@ pub fn managed_runtime_files(config: &AiboxConfig) -> Vec<(std::path::PathBuf, S
         ),
     ];
 
-    if *status_mode == ZellijStatusMode::Sidecar {
-        files.push((
-            std::path::PathBuf::from(".cache/zellij/permissions.kdl"),
-            zellij_native_status_permissions_cache(),
-        ));
-        files.push((
-            std::path::PathBuf::from(".cache/org/Zellij Contributors/Zellij/permissions.kdl"),
-            zellij_native_status_permissions_cache(),
-        ));
-    }
-
     if config.audio.enabled {
         files.push((
             std::path::PathBuf::from(".asoundrc"),
@@ -1709,7 +991,7 @@ pub fn managed_runtime_files(config: &AiboxConfig) -> Vec<(std::path::PathBuf, S
     if include_lazygit {
         files.push((
             std::path::PathBuf::from(".config/lazygit/config.yml"),
-            crate::themes::lazygit_theme(theme).to_string(),
+            crate::themes::lazygit_theme(&theme).to_string(),
         ));
     }
 
@@ -1766,33 +1048,6 @@ pub fn managed_runtime_files(config: &AiboxConfig) -> Vec<(std::path::PathBuf, S
     files
 }
 
-fn zellij_native_status_permissions_cache() -> String {
-    r#""file:/usr/local/share/aibox/zellij/aibox-status-keys.wasm" {
-    ReadApplicationState
-}
-"/usr/local/share/aibox/zellij/aibox-status-keys.wasm" {
-    ReadApplicationState
-}
-"file:/usr/local/share/aibox/zellij/aibox-status-runtime.wasm" {
-    RunCommands
-    ReadApplicationState
-}
-"/usr/local/share/aibox/zellij/aibox-status-runtime.wasm" {
-    RunCommands
-    ReadApplicationState
-}
-"file:/usr/local/share/aibox/zellij/aibox-status.wasm" {
-    RunCommands
-    ReadApplicationState
-}
-"/usr/local/share/aibox/zellij/aibox-status.wasm" {
-    RunCommands
-    ReadApplicationState
-}
-"#
-    .to_string()
-}
-
 /// Remove managed runtime files that should not exist for the current config.
 pub fn cleanup_disabled_runtime_files(config: &AiboxConfig) -> Result<Vec<String>> {
     let root = config.host_root_dir();
@@ -1811,19 +1066,19 @@ pub fn cleanup_disabled_runtime_files(config: &AiboxConfig) -> Result<Vec<String
         }
     }
 
-    if config.customization.zellij_status.mode != ZellijStatusMode::Sidecar {
-        for rel_path in [
-            ".cache/zellij/permissions.kdl",
-            ".cache/org/Zellij Contributors/Zellij/permissions.kdl",
-        ] {
-            let permission_cache = root.join(rel_path);
-            if permission_cache.exists() {
-                fs::remove_file(&permission_cache)
-                    .with_context(|| format!("Failed to remove {}", permission_cache.display()))?;
-                updated.push(format!("{rel_path} (removed sidecar status permissions)"));
-            }
+    for rel_path in [
+        ".cache/zellij/permissions.kdl",
+        ".cache/org/Zellij Contributors/Zellij/permissions.kdl",
+    ] {
+        let permission_cache = root.join(rel_path);
+        if permission_cache.exists() {
+            fs::remove_file(&permission_cache)
+                .with_context(|| format!("Failed to remove {}", permission_cache.display()))?;
+            updated.push(format!("{rel_path} (removed legacy Zellij permissions)"));
         }
     }
+
+    updated.extend(cleanup_legacy_managed_zellij_config(&root)?);
 
     let legacy_status = root.join(".local").join("bin").join("aibox-status");
     if legacy_managed_aibox_status_helper(&legacy_status) {
@@ -1886,6 +1141,50 @@ fn cleanup_zellij_runtime_cache(root: &Path, session_name: &str) -> Result<Vec<S
     Ok(updated)
 }
 
+fn cleanup_legacy_managed_zellij_config(root: &Path) -> Result<Vec<String>> {
+    let zellij_config = root.join(".config").join("zellij");
+    let mut updated = Vec::new();
+
+    let config = zellij_config.join("config.kdl");
+    if file_contains(&config, "aibox zellij configuration") {
+        fs::remove_file(&config)
+            .with_context(|| format!("Failed to remove {}", config.display()))?;
+        updated
+            .push(".config/zellij/config.kdl (removed legacy managed Zellij config)".to_string());
+    }
+
+    let layouts = zellij_config.join("layouts");
+    for name in [
+        "ai.kdl",
+        "aibox-status-hidden.kdl",
+        "aibox-status-visible.kdl",
+        "browse.kdl",
+        "cowork-swap.kdl",
+        "cowork.kdl",
+        "dev.kdl",
+        "focus.kdl",
+    ] {
+        let path = layouts.join(name);
+        if file_contains(&path, "aibox-tab") || file_contains(&path, "aibox-status") {
+            fs::remove_file(&path)
+                .with_context(|| format!("Failed to remove {}", path.display()))?;
+            updated.push(format!(
+                ".config/zellij/layouts/{name} (removed legacy managed Zellij layout)"
+            ));
+        }
+    }
+    let _ = fs::remove_dir(&layouts);
+    let _ = fs::remove_dir(&zellij_config);
+
+    Ok(updated)
+}
+
+fn file_contains(path: &Path, needle: &str) -> bool {
+    fs::read_to_string(path)
+        .map(|body| body.contains(needle))
+        .unwrap_or(false)
+}
+
 fn is_uuid_like(value: &str) -> bool {
     let bytes = value.as_bytes();
     if bytes.len() != 36 {
@@ -1946,6 +1245,133 @@ fn legacy_managed_aibox_status_helper(path: &Path) -> bool {
         && body.contains("AIBOX_STATUS_INTERVAL")
 }
 
+fn tmux_conf(config: &AiboxConfig) -> String {
+    let theme = config.customization.resolved_theme();
+    let (bg, fg, accent) = crate::themes::tmux_status_colors(&theme);
+    let status = match config.customization.tmux.status.mode {
+        TmuxStatusMode::Powerline | TmuxStatusMode::Plain => "on",
+        TmuxStatusMode::Disabled => "off",
+    };
+
+    let mut conf = DEFAULT_TMUX_CONF
+        .replace("AIBOX_TMUX_PREFIX", &config.customization.tmux.prefix)
+        .replace(
+            "AIBOX_TMUX_SESSION",
+            &config.customization.tmux.session_name,
+        )
+        .replace("AIBOX_TMUX_STATUS", status)
+        .replace("AIBOX_TMUX_BG", bg)
+        .replace("AIBOX_TMUX_FG", fg)
+        .replace("AIBOX_TMUX_ACCENT", accent);
+
+    if config.customization.tmux.status.mode == TmuxStatusMode::Plain {
+        conf = conf.replace(
+            r#"set -g status-right " #(aibox-status --once 2>/dev/null || true) %H:%M ""#,
+            r#"set -g status-right " %H:%M ""#,
+        );
+    }
+    conf
+}
+
+fn tmux_layout_script(
+    layout: &ConfigLayout,
+    providers: &[crate::config::AiProvider],
+    include_lazygit: bool,
+    session_name: &str,
+) -> String {
+    let provider = providers
+        .iter()
+        .find(|provider| provider.is_active())
+        .map(|provider| provider.binary_name())
+        .unwrap_or("bash");
+    let git_window = if include_lazygit {
+        r#"tmux new-window -t "$session:" -n git -c "$workspace" "lazygit || bash"
+"#
+    } else {
+        ""
+    };
+
+    let layout_body = match layout {
+        ConfigLayout::Dev => format!(
+            r#"tmux -f "$config" new-session -d -s "$session" -n dev -c "$workspace" "vim"
+tmux split-window -t "$session:dev" -h -p 35 -c "$workspace" "yazi"
+tmux split-window -t "$session:dev" -v -p 40 -c "$workspace" "{provider}"
+tmux select-pane -t "$session:dev.1"
+"#
+        ),
+        ConfigLayout::Focus => format!(
+            r#"tmux -f "$config" new-session -d -s "$session" -n focus -c "$workspace" "{provider}"
+tmux new-window -t "$session:" -n editor -c "$workspace" "vim"
+"#
+        ),
+        ConfigLayout::Cowork => format!(
+            r#"tmux -f "$config" new-session -d -s "$session" -n cowork -c "$workspace" "vim"
+tmux split-window -t "$session:cowork" -h -p 50 -c "$workspace" "{provider}"
+tmux split-window -t "$session:cowork.1" -v -p 35 -c "$workspace" "yazi"
+tmux select-pane -t "$session:cowork.1"
+"#
+        ),
+        ConfigLayout::CoworkSwap => format!(
+            r#"tmux -f "$config" new-session -d -s "$session" -n cowork-swap -c "$workspace" "yazi"
+tmux split-window -t "$session:cowork-swap" -v -p 45 -c "$workspace" "{provider}"
+tmux split-window -t "$session:cowork-swap" -h -p 60 -c "$workspace" "vim"
+tmux select-pane -t "$session:cowork-swap.3"
+"#
+        ),
+        ConfigLayout::Browse => format!(
+            r#"tmux -f "$config" new-session -d -s "$session" -n browse -c "$workspace" "yazi"
+tmux split-window -t "$session:browse" -v -p 35 -c "$workspace" "{provider}"
+tmux new-window -t "$session:" -n editor -c "$workspace" "vim"
+"#
+        ),
+        ConfigLayout::Ai => format!(
+            r#"tmux -f "$config" new-session -d -s "$session" -n ai -c "$workspace" "yazi"
+tmux split-window -t "$session:ai" -h -p 50 -c "$workspace" "{provider}"
+tmux new-window -t "$session:" -n editor -c "$workspace" "vim"
+tmux new-window -t "$session:" -n shell -c "$workspace" "bash"
+"#
+        ),
+    };
+
+    format!(
+        r#"#!/usr/bin/env bash
+set -euo pipefail
+
+session="${{AIBOX_TMUX_SESSION:-{session_name}}}"
+workspace="${{AIBOX_WORKSPACE:-/workspace}}"
+config="${{AIBOX_TMUX_CONFIG:-$HOME/.config/tmux/tmux.conf}}"
+
+if tmux -f "$config" has-session -t "$session" 2>/dev/null; then
+  exec tmux -f "$config" attach-session -t "$session"
+fi
+
+{layout_body}{git_window}tmux select-window -t "$session:1"
+exec tmux -f "$config" attach-session -t "$session"
+"#
+    )
+}
+
+fn tmux_session_script(config: &AiboxConfig) -> String {
+    format!(
+        r#"#!/usr/bin/env bash
+set -euo pipefail
+
+layout="${{1:-${{AIBOX_TMUX_LAYOUT:-{layout}}}}}"
+session="${{2:-${{AIBOX_TMUX_SESSION:-{session}}}}}"
+script="${{HOME}}/.config/tmux/layouts/${{layout}}.sh"
+
+if [[ ! -x "${{script}}" ]]; then
+  echo "aibox-tmux-session: unknown or unavailable managed layout: ${{layout}}" >&2
+  exit 2
+fi
+
+exec env AIBOX_TMUX_SESSION="${{session}}" "${{script}}"
+"#,
+        layout = config.customization.tmux_layout(),
+        session = &config.customization.tmux.session_name,
+    )
+}
+
 /// Seed the .root/ directory structure and default config files.
 /// Never overwrites existing files.
 pub fn seed_root_dir(config: &AiboxConfig) -> Result<()> {
@@ -1963,6 +1389,8 @@ pub fn seed_root_dir(config: &AiboxConfig) -> Result<()> {
             || rel_path == Path::new(".local/bin/open-in-editor")
             || rel_path == Path::new(".local/bin/aibox-preview")
             || rel_path == Path::new(".local/bin/aibox-status-toggle")
+            || (rel_path.starts_with(".config/tmux/")
+                && rel_path.extension().is_some_and(|ext| ext == "sh"))
         {
             ensure_executable(&path)?;
         }
@@ -2083,7 +1511,7 @@ pub fn sync_theme_files(config: &AiboxConfig) -> Result<Vec<String>> {
     let theme = &config.customization.resolved_theme();
     let providers = &config.ai.harnesses;
     let include_lazygit = include_lazygit_tab(config);
-    let status_mode = &config.customization.zellij_status.mode;
+    let session_name = &config.customization.tmux.session_name;
     let mut updated = Vec::new();
 
     // vimrc — colorscheme and background
@@ -2097,131 +1525,42 @@ pub fn sync_theme_files(config: &AiboxConfig) -> Result<Vec<String>> {
         updated.push(".vim/vimrc".to_string());
     }
 
-    // Zellij config — theme name and default layout
-    let zellij_config = DEFAULT_ZELLIJ_CONFIG
-        .replace("AIBOX_THEME", &theme.to_string())
-        .replace("AIBOX_LAYOUT", &config.customization.layout.to_string());
+    // tmux config and layouts — theme, layout, AI providers, and lazygit all
+    // come from aibox.toml.
     if force_seed_file(
-        &root.join(".config").join("zellij").join("config.kdl"),
-        &zellij_config,
+        &root.join(".config").join("tmux").join("tmux.conf"),
+        &tmux_conf(config),
     )? {
-        updated.push(".config/zellij/config.kdl".to_string());
+        updated.push(".config/tmux/tmux.conf".to_string());
     }
-
-    // Zellij theme file
-    let theme_filename = format!("{}.kdl", &theme.to_string());
-    if force_seed_file(
-        &root
+    for layout in [
+        ConfigLayout::Dev,
+        ConfigLayout::Focus,
+        ConfigLayout::Cowork,
+        ConfigLayout::Browse,
+        ConfigLayout::Ai,
+        ConfigLayout::CoworkSwap,
+    ] {
+        let rel = format!(".config/tmux/layouts/{layout}.sh");
+        let path = root
             .join(".config")
-            .join("zellij")
-            .join("themes")
-            .join(&theme_filename),
-        crate::themes::zellij_theme(theme),
-    )? {
-        updated.push(format!(".config/zellij/themes/{}", theme_filename));
-    }
-
-    // Zellij layouts — depend on AI providers
-    if force_seed_file(
-        &root
-            .join(".config")
-            .join("zellij")
+            .join("tmux")
             .join("layouts")
-            .join("dev.kdl"),
-        &generate_dev_layout_with_options(providers, include_lazygit, status_mode),
-    )? {
-        updated.push(".config/zellij/layouts/dev.kdl".to_string());
+            .join(format!("{layout}.sh"));
+        let body = tmux_layout_script(&layout, providers, include_lazygit, session_name);
+        if force_seed_file(&path, &body)? {
+            ensure_executable(&path)?;
+            updated.push(rel);
+        } else if ensure_executable_if_present(&path)? {
+            updated.push(format!("{rel} (chmod +x)"));
+        }
     }
-    if force_seed_file(
-        &root
-            .join(".config")
-            .join("zellij")
-            .join("layouts")
-            .join("focus.kdl"),
-        &generate_focus_layout_with_options(providers, include_lazygit, status_mode),
-    )? {
-        updated.push(".config/zellij/layouts/focus.kdl".to_string());
-    }
-    if force_seed_file(
-        &root
-            .join(".config")
-            .join("zellij")
-            .join("layouts")
-            .join("cowork.kdl"),
-        &generate_cowork_layout_with_options(providers, include_lazygit, status_mode),
-    )? {
-        updated.push(".config/zellij/layouts/cowork.kdl".to_string());
-    }
-    if force_seed_file(
-        &root
-            .join(".config")
-            .join("zellij")
-            .join("layouts")
-            .join("browse.kdl"),
-        &generate_browse_layout_with_options(providers, include_lazygit, status_mode),
-    )? {
-        updated.push(".config/zellij/layouts/browse.kdl".to_string());
-    }
-    if force_seed_file(
-        &root
-            .join(".config")
-            .join("zellij")
-            .join("layouts")
-            .join("ai.kdl"),
-        &generate_ai_layout_with_options(providers, include_lazygit, status_mode),
-    )? {
-        updated.push(".config/zellij/layouts/ai.kdl".to_string());
-    }
-    if force_seed_file(
-        &root
-            .join(".config")
-            .join("zellij")
-            .join("layouts")
-            .join("cowork-swap.kdl"),
-        &generate_cowork_swap_layout_with_options(providers, include_lazygit, status_mode),
-    )? {
-        updated.push(".config/zellij/layouts/cowork-swap.kdl".to_string());
-    }
-    if force_seed_file(
-        &root
-            .join(".config")
-            .join("zellij")
-            .join("layouts")
-            .join("aibox-status-visible.kdl"),
-        &zellij_status_visible_layout(status_mode),
-    )? {
-        updated.push(".config/zellij/layouts/aibox-status-visible.kdl".to_string());
-    }
-    if force_seed_file(
-        &root
-            .join(".config")
-            .join("zellij")
-            .join("layouts")
-            .join("aibox-status-hidden.kdl"),
-        &zellij_status_hidden_layout(status_mode),
-    )? {
-        updated.push(".config/zellij/layouts/aibox-status-hidden.kdl".to_string());
-    }
-    if *status_mode == ZellijStatusMode::Sidecar
-        && force_seed_file(
-            &root.join(".cache").join("zellij").join("permissions.kdl"),
-            &zellij_native_status_permissions_cache(),
-        )?
-    {
-        updated.push(".cache/zellij/permissions.kdl".to_string());
-    }
-    if *status_mode == ZellijStatusMode::Sidecar
-        && force_seed_file(
-            &root
-                .join(".cache")
-                .join("org")
-                .join("Zellij Contributors")
-                .join("Zellij")
-                .join("permissions.kdl"),
-            &zellij_native_status_permissions_cache(),
-        )?
-    {
-        updated.push(".cache/org/Zellij Contributors/Zellij/permissions.kdl".to_string());
+    let session_path = root.join(".config").join("tmux").join("aibox-session.sh");
+    if force_seed_file(&session_path, &tmux_session_script(config))? {
+        ensure_executable(&session_path)?;
+        updated.push(".config/tmux/aibox-session.sh".to_string());
+    } else if ensure_executable_if_present(&session_path)? {
+        updated.push(".config/tmux/aibox-session.sh (chmod +x)".to_string());
     }
 
     if force_seed_file(
@@ -2313,7 +1652,7 @@ pub fn sync_theme_files(config: &AiboxConfig) -> Result<Vec<String>> {
         updated.push(".config/starship.toml".to_string());
     }
 
-    // Claude Code keybindings — disable Ctrl+g (reserved for zellij leader key).
+    // Claude Code keybindings — disable Ctrl+g (reserved for the tmux prefix).
     if providers.contains(&crate::config::AiProvider::Claude)
         && force_seed_file(
             &root.join(".claude").join("keybindings.json"),
@@ -2377,16 +1716,16 @@ mod tests {
     fn seed_root_dir_creates_directories() {
         let dir = tempfile::tempdir().unwrap();
         let root = dir.path().join("root");
-        let mut config = make_config(false, root.clone());
-        config.customization.zellij_status.mode = ZellijStatusMode::Sidecar;
+        let config = make_config(false, root.clone());
         seed_root_dir(&config).unwrap();
 
         assert!(root.join(".ssh").is_dir());
         assert!(root.join(".local").join("state").is_dir());
         assert!(root.join(".config").join("state").is_dir());
         assert!(root.join(".vim").join("undo").is_dir());
-        assert!(root.join(".config").join("zellij").join("themes").is_dir());
-        assert!(root.join(".config").join("zellij").join("layouts").is_dir());
+        assert!(root.join(".config").join("tmux").join("layouts").is_dir());
+        assert!(root.join(".tmux").join("plugins").is_dir());
+        assert!(!root.join(".config").join("zellij").exists());
         assert!(root.join(".config").join("yazi").is_dir());
         assert!(root.join(".config").join("git").is_dir());
         assert!(root.join(".claude").is_dir());
@@ -2536,67 +1875,28 @@ mod tests {
     fn seed_root_dir_creates_config_files() {
         let dir = tempfile::tempdir().unwrap();
         let root = dir.path().join("root");
-        let mut config = make_config(false, root.clone());
-        config.customization.zellij_status.mode = ZellijStatusMode::Sidecar;
+        let config = make_config(false, root.clone());
         seed_root_dir(&config).unwrap();
 
         assert!(root.join(".vim").join("vimrc").exists());
         assert!(root.join(".config").join("git").join("config").exists());
+        assert!(root.join(".config").join("tmux").join("tmux.conf").exists());
         assert!(
             root.join(".config")
-                .join("zellij")
-                .join("config.kdl")
+                .join("tmux")
+                .join("aibox-session.sh")
                 .exists()
         );
-        assert!(
-            root.join(".config")
-                .join("zellij")
-                .join("themes")
-                .join("gruvbox-dark.kdl")
-                .exists()
-        );
-        assert!(
-            root.join(".config")
-                .join("zellij")
-                .join("layouts")
-                .join("dev.kdl")
-                .exists()
-        );
-        assert!(
-            root.join(".config")
-                .join("zellij")
-                .join("layouts")
-                .join("focus.kdl")
-                .exists()
-        );
-        assert!(
-            root.join(".config")
-                .join("zellij")
-                .join("layouts")
-                .join("cowork.kdl")
-                .exists()
-        );
-        assert!(
-            root.join(".config")
-                .join("zellij")
-                .join("layouts")
-                .join("browse.kdl")
-                .exists()
-        );
-        assert!(
-            root.join(".config")
-                .join("zellij")
-                .join("layouts")
-                .join("ai.kdl")
-                .exists()
-        );
-        assert!(
-            root.join(".config")
-                .join("zellij")
-                .join("layouts")
-                .join("cowork-swap.kdl")
-                .exists()
-        );
+        for layout in ["dev", "focus", "cowork", "browse", "ai", "cowork-swap"] {
+            assert!(
+                root.join(".config")
+                    .join("tmux")
+                    .join("layouts")
+                    .join(format!("{layout}.sh"))
+                    .exists(),
+                "missing tmux layout {layout}"
+            );
+        }
         assert!(root.join(".config").join("yazi").join("yazi.toml").exists());
         assert!(
             root.join(".config")
@@ -2665,12 +1965,14 @@ mod tests {
         let open_in_editor =
             fs::read_to_string(root.join(".local").join("bin").join("open-in-editor")).unwrap();
         assert!(
-            open_in_editor.contains("zellij action go-to-tab-name \"editor\""),
-            "open-in-editor should target the dedicated editor tab when the layout declares AIBOX_EDITOR_DIR=tab"
+            open_in_editor.contains("tmux select-window")
+                || open_in_editor.contains("tmux new-window"),
+            "open-in-editor should target or create a tmux editor window"
         );
         assert!(
-            open_in_editor.contains("zellij action move-focus right"),
-            "open-in-editor should support same-tab editor panes"
+            open_in_editor.contains("tmux select-pane")
+                || open_in_editor.contains("tmux split-window"),
+            "open-in-editor should support same-window tmux editor panes"
         );
         assert!(
             open_in_editor.contains(":edit ${vim_file}"),
@@ -2681,11 +1983,11 @@ mod tests {
             "open-in-editor must not replace the Yazi pane with an in-place editor"
         );
         assert!(
-            open_in_editor.contains("query-tab-names"),
-            "open-in-editor should auto-detect editor-tab layouts"
+            open_in_editor.contains("list-windows"),
+            "open-in-editor should auto-detect editor windows"
         );
         assert!(
-            open_in_editor.contains("list-panes --json")
+            open_in_editor.contains("list-panes")
                 && open_in_editor.contains("refusing to send Vim commands"),
             "open-in-editor should guard against injecting commands into non-editor panes"
         );
@@ -2750,14 +2052,14 @@ mod tests {
         let generated_layouts: Vec<_> = files
             .iter()
             .filter(|(path, _)| {
-                path.starts_with(".config/zellij/layouts")
-                    && path.extension().is_some_and(|ext| ext == "kdl")
+                path.starts_with(".config/tmux/layouts")
+                    && path.extension().is_some_and(|ext| ext == "sh")
             })
             .collect();
 
         assert!(
             generated_layouts.len() >= 6,
-            "expected all managed Zellij layouts to be generated"
+            "expected all managed tmux layouts to be generated"
         );
         for (path, body) in generated_layouts {
             assert!(
@@ -2766,8 +2068,8 @@ mod tests {
                 path.display()
             );
             assert!(
-                !body.contains("aibox-tab name=\"git\""),
-                "disabled lazygit must omit the git tab in generated layout {}",
+                !body.contains("new-window -t \"$session:\" -n git"),
+                "disabled lazygit must omit the git window in generated layout {}",
                 path.display()
             );
         }
@@ -2781,50 +2083,20 @@ mod tests {
     }
 
     #[test]
-    fn managed_runtime_files_seed_sidecar_zellij_permission_cache() {
+    fn managed_runtime_files_omit_legacy_zellij_permission_cache() {
         let dir = tempfile::tempdir().unwrap();
         let root = dir.path().join("root");
-        let mut config = make_config(false, root);
-        config.customization.zellij_status.mode = ZellijStatusMode::Sidecar;
-
-        let files = managed_runtime_files(&config);
-        for rel_path in [
-            ".cache/zellij/permissions.kdl",
-            ".cache/org/Zellij Contributors/Zellij/permissions.kdl",
-        ] {
-            let (_, body) = files
-                .iter()
-                .find(|(path, _)| path == &std::path::PathBuf::from(rel_path))
-                .unwrap_or_else(|| panic!("missing generated {rel_path}"));
-            assert!(
-                body.contains("file:/usr/local/share/aibox/zellij/aibox-status-keys.wasm")
-                    && body
-                        .contains("file:/usr/local/share/aibox/zellij/aibox-status-runtime.wasm")
-                    && body.contains("file:/usr/local/share/aibox/zellij/aibox-status.wasm")
-                    && body.contains("RunCommands")
-                    && body.contains("ReadApplicationState"),
-                "{rel_path} should pre-approve the sidecar status plugin permissions"
-            );
-        }
-    }
-
-    #[test]
-    fn managed_runtime_files_omit_zellij_permission_cache_for_shell_status() {
-        let dir = tempfile::tempdir().unwrap();
-        let root = dir.path().join("root");
-        let mut config = make_config(false, root);
-        config.customization.zellij_status.mode = ZellijStatusMode::Shell;
-
+        let config = make_config(false, root);
         let files = managed_runtime_files(&config);
         assert!(
             !files.iter().any(|(path, _)| path
                 == &std::path::PathBuf::from(".cache/zellij/permissions.kdl")),
-            "shell status mode should not seed sidecar plugin permission cache"
+            "tmux runtime must not seed legacy Zellij plugin permission cache"
         );
     }
 
     #[test]
-    fn cleanup_removes_sidecar_zellij_permission_cache_when_status_not_sidecar() {
+    fn cleanup_removes_legacy_zellij_permission_cache() {
         let dir = tempfile::tempdir().unwrap();
         let root = dir.path().join("root");
         fs::create_dir_all(root.join(".cache/zellij")).unwrap();
@@ -2836,12 +2108,11 @@ mod tests {
         )
         .unwrap();
 
-        let mut config = make_config(false, root.clone());
-        config.customization.zellij_status.mode = ZellijStatusMode::Disabled;
+        let config = make_config(false, root.clone());
 
         let updated = cleanup_disabled_runtime_files(&config).unwrap();
         assert!(updated.iter().any(
-            |path| path == ".cache/zellij/permissions.kdl (removed sidecar status permissions)"
+            |path| path == ".cache/zellij/permissions.kdl (removed legacy Zellij permissions)"
         ));
         assert!(!root.join(".cache/zellij/permissions.kdl").exists());
         assert!(
@@ -2855,8 +2126,7 @@ mod tests {
     fn cleanup_removes_stale_zellij_session_and_plugin_state() {
         let dir = tempfile::tempdir().unwrap();
         let root = dir.path().join("root");
-        let mut config = make_config(false, root.clone());
-        config.customization.zellij_status.mode = ZellijStatusMode::Sidecar;
+        let config = make_config(false, root.clone());
         let session_name = config.container.name.clone();
         let session = root
             .join(".cache/zellij/contract_version_1/session_info")
@@ -2879,13 +2149,52 @@ mod tests {
         assert!(!session.exists());
         assert!(!plugin_state.exists());
         assert!(
-            root.join(".cache/zellij/permissions.kdl").exists(),
-            "permission cache must be preserved"
+            !root.join(".cache/zellij/permissions.kdl").exists(),
+            "legacy permission cache must be removed"
         );
         assert!(
             named_plugin_cache.exists(),
             "named plugin caches are not aibox session resurrection state"
         );
+    }
+
+    #[test]
+    fn cleanup_removes_legacy_managed_zellij_config_but_keeps_user_files() {
+        let dir = tempfile::tempdir().unwrap();
+        let root = dir.path().join("root");
+        let config = make_config(false, root.clone());
+        fs::create_dir_all(root.join(".config/zellij/layouts")).unwrap();
+        fs::write(
+            root.join(".config/zellij/config.kdl"),
+            "// aibox zellij configuration\n",
+        )
+        .unwrap();
+        fs::write(
+            root.join(".config/zellij/layouts/dev.kdl"),
+            "layout { aibox-tab name=\"dev\" }\n",
+        )
+        .unwrap();
+        fs::write(
+            root.join(".config/zellij/layouts/personal.kdl"),
+            "layout {}\n",
+        )
+        .unwrap();
+
+        let updated = cleanup_disabled_runtime_files(&config).unwrap();
+
+        assert!(
+            updated
+                .iter()
+                .any(|path| path
+                    == ".config/zellij/config.kdl (removed legacy managed Zellij config)")
+        );
+        assert!(
+            updated.iter().any(|path| path
+                == ".config/zellij/layouts/dev.kdl (removed legacy managed Zellij layout)")
+        );
+        assert!(!root.join(".config/zellij/config.kdl").exists());
+        assert!(!root.join(".config/zellij/layouts/dev.kdl").exists());
+        assert!(root.join(".config/zellij/layouts/personal.kdl").exists());
     }
 
     #[test]
@@ -2921,12 +2230,13 @@ mod tests {
         seed_root_dir(&config).unwrap();
 
         assert!(
-            root.join(".config")
-                .join("zellij")
-                .join("themes")
-                .join("catppuccin-latte.kdl")
-                .exists(),
-            "light mode should render the resolved light theme"
+            root.join(".config").join("tmux").join("tmux.conf").exists(),
+            "tmux config should be seeded"
+        );
+        let tmux = fs::read_to_string(root.join(".config/tmux/tmux.conf")).unwrap();
+        assert!(
+            tmux.contains("#1E66F5"),
+            "light theme should render into tmux"
         );
         let vimrc = fs::read_to_string(root.join(".vim").join("vimrc")).unwrap();
         assert!(vimrc.contains("colorscheme catppuccin_latte"));
@@ -3158,412 +2468,64 @@ rules = [
     }
 
     #[test]
-    fn dev_layout_claude_only() {
-        let providers = vec![AiProvider::Claude];
-        let layout = generate_dev_layout(&providers);
-        assert!(
-            layout.contains("aibox-tab name=\"claude\""),
-            "should have claude tab"
-        );
-        assert!(
-            layout.contains("command \"claude\""),
-            "should have claude command"
-        );
-        assert!(!layout.contains("aider"), "should not have aider");
+    fn tmux_dev_layout_uses_selected_primary_provider() {
+        let providers = vec![AiProvider::Codex, AiProvider::Claude];
+        let layout = tmux_layout_script(&ConfigLayout::Dev, &providers, true, "aibox");
+
+        assert!(layout.contains("tmux -f \"$config\" new-session -d -s \"$session\" -n dev"));
+        assert!(layout.contains("\"codex\""));
+        assert!(!layout.contains("\"claude\""));
+        assert!(layout.contains("tmux new-window -t \"$session:\" -n git"));
+        assert!(!layout.contains("zellij"));
     }
 
     #[test]
-    fn dev_layout_aider_only() {
-        let providers = vec![AiProvider::Aider];
-        let layout = generate_dev_layout(&providers);
-        assert!(
-            layout.contains("aibox-tab name=\"aider\""),
-            "should have aider tab"
-        );
-        assert!(
-            layout.contains("command \"aider\""),
-            "should have aider command"
-        );
-        assert!(!layout.contains("claude"), "should not have claude");
+    fn tmux_layouts_start_expected_windows_and_panes() {
+        let providers = [AiProvider::Claude];
+        let layouts = [
+            (ConfigLayout::Dev, "dev"),
+            (ConfigLayout::Focus, "focus"),
+            (ConfigLayout::Cowork, "cowork"),
+            (ConfigLayout::CoworkSwap, "cowork-swap"),
+            (ConfigLayout::Browse, "browse"),
+            (ConfigLayout::Ai, "ai"),
+        ];
+
+        for (layout, name) in layouts {
+            let body = tmux_layout_script(&layout, &providers, false, "aibox");
+            assert!(
+                body.contains(&format!("-n {name}")),
+                "{name} layout should name its first tmux window:\n{body}"
+            );
+            assert!(!body.contains("start_suspended"));
+            assert!(!body.contains("zellij"));
+        }
     }
 
     #[test]
-    fn dev_layout_multiple_providers() {
-        let providers = vec![AiProvider::Claude, AiProvider::Aider];
-        let layout = generate_dev_layout(&providers);
-        assert!(
-            layout.contains("aibox-tab name=\"claude\""),
-            "should have claude tab"
-        );
-        assert!(
-            layout.contains("aibox-tab name=\"aider\""),
-            "should have aider tab"
-        );
-        assert!(
-            !layout.contains("stacked"),
-            "multiple providers should use separate tabs"
-        );
-        assert!(
-            !layout.contains("start_suspended true"),
-            "generated layouts should start panes eagerly:\n{layout}"
-        );
-    }
-
-    #[test]
-    fn dev_layout_no_providers() {
-        let providers: Vec<AiProvider> = vec![];
-        let layout = generate_dev_layout(&providers);
-        assert!(!layout.contains("claude"), "should not have claude");
-        assert!(!layout.contains("aider"), "should not have aider");
-        assert!(!layout.contains("gemini"), "should not have gemini");
-        assert!(
-            layout.contains("aibox-tab name=\"dev\""),
-            "should still have dev tab"
-        );
-        assert!(
-            layout.contains("aibox-tab name=\"git\""),
-            "should still have git tab"
-        );
-    }
-
-    #[test]
-    fn focus_layout_gemini() {
-        let providers = vec![AiProvider::Gemini];
-        let layout = generate_focus_layout(&providers);
-        assert!(
-            layout.contains("aibox-tab name=\"gemini\""),
-            "should have gemini tab"
-        );
-        assert!(
-            layout.contains("command \"gemini\""),
-            "should have gemini command"
-        );
-    }
-
-    #[test]
-    fn cowork_layout_single_provider() {
-        let providers = vec![AiProvider::Claude];
-        let layout = generate_cowork_layout(&providers);
-        assert!(
-            layout.contains("command \"claude\""),
-            "should have claude pane"
-        );
-        assert!(
-            !layout.contains("stacked"),
-            "single provider should not be stacked"
-        );
-    }
-
-    #[test]
-    fn cowork_layout_multiple_providers_use_tabs() {
-        let providers = vec![AiProvider::Claude, AiProvider::Aider];
-        let layout = generate_cowork_layout(&providers);
-        assert!(
-            !layout.contains("stacked"),
-            "multiple providers should use separate tabs"
-        );
-        assert!(layout.contains("command \"claude\""), "should have claude");
-        assert!(layout.contains("command \"aider\""), "should have aider");
-        assert!(
-            layout.contains("aibox-tab name=\"aider\""),
-            "secondary provider should get its own tab"
-        );
-    }
-
-    #[test]
-    fn cowork_layout_no_providers() {
-        let providers: Vec<AiProvider> = vec![];
-        let layout = generate_cowork_layout(&providers);
-        assert!(!layout.contains("claude"), "should not have claude");
-        assert!(
-            layout.contains("aibox-tab name=\"cowork\""),
-            "should still have cowork tab"
-        );
-    }
-
-    #[test]
-    fn browse_layout_single_provider() {
-        let providers = vec![AiProvider::Claude];
-        let layout = generate_browse_layout(&providers);
-        assert!(
-            layout.contains("aibox-tab name=\"browse\""),
-            "should have browse tab"
-        );
-        assert!(
-            layout.contains("command \"claude\""),
-            "should have claude pane"
-        );
-        assert!(
-            layout.contains("aibox-tab name=\"editor\""),
-            "should have editor tab"
-        );
-        assert!(
-            layout.contains("aibox-tab name=\"git\""),
-            "should have git tab"
-        );
-        assert!(
-            layout.contains("AIBOX_EDITOR_DIR=tab"),
-            "should use tab editor direction"
-        );
-        assert!(
-            !layout.contains("stacked"),
-            "single provider should not be stacked"
-        );
-    }
-
-    #[test]
-    fn browse_layout_multiple_providers_use_tabs() {
-        let providers = vec![AiProvider::Claude, AiProvider::Aider];
-        let layout = generate_browse_layout(&providers);
-        assert!(
-            !layout.contains("stacked"),
-            "multiple providers should use separate tabs"
-        );
-        assert!(layout.contains("command \"claude\""), "should have claude");
-        assert!(layout.contains("command \"aider\""), "should have aider");
-        assert!(
-            layout.contains("aibox-tab name=\"aider\""),
-            "secondary provider should get its own tab"
-        );
-    }
-
-    #[test]
-    fn browse_layout_no_providers() {
-        let providers: Vec<AiProvider> = vec![];
-        let layout = generate_browse_layout(&providers);
-        assert!(
-            layout.contains("aibox-tab name=\"browse\""),
-            "should still have browse tab"
-        );
-        assert!(!layout.contains("claude"), "should not have claude");
-        assert!(
-            layout.contains("aibox-tab name=\"editor\""),
-            "should still have editor tab"
-        );
-    }
-
-    #[test]
-    fn browse_layout_yazi_above_ai() {
-        let providers = vec![AiProvider::Claude];
-        let layout = generate_browse_layout(&providers);
-        let yazi_pos = layout.find("yazi").unwrap();
-        let claude_pos = layout.find("command \"claude\"").unwrap();
-        assert!(
-            yazi_pos < claude_pos,
-            "yazi should appear before AI pane (top position)"
-        );
-        assert!(layout.contains("size=\"60%\""), "yazi pane should be 60%");
-    }
-
-    #[test]
-    fn ai_layout_single_provider() {
-        let providers = vec![AiProvider::Claude];
-        let layout = generate_ai_layout(&providers);
-        assert!(
-            layout.contains("aibox-tab name=\"ai\""),
-            "should have ai tab"
-        );
-        assert!(
-            layout.contains("command \"claude\""),
-            "should have claude pane"
-        );
-        assert!(
-            layout.contains("aibox-tab name=\"editor\""),
-            "should have editor tab"
-        );
-        assert!(
-            layout.contains("aibox-tab name=\"git\""),
-            "should have git tab"
-        );
-        assert!(
-            layout.contains("aibox-tab name=\"shell\""),
-            "should have shell tab"
-        );
-        assert!(
-            layout.contains("split_direction=\"vertical\""),
-            "should split vertically"
-        );
-        // v0.16.5: yazi gets 50%, AI pane gets 50% (was 53/47 in v0.14.5+)
-        assert!(
-            layout.contains("size=\"50%\" name=\"files\""),
-            "yazi pane should be 50%"
-        );
-        assert!(layout.contains("size=\"50%\""), "ai pane should be 50%");
-        assert!(
-            !layout.contains("stacked"),
-            "single provider should not be stacked"
-        );
-    }
-
-    #[test]
-    fn ai_layout_codex_only_omits_unselected_claude() {
+    fn tmux_ai_layout_omits_unselected_claude() {
         let providers = vec![AiProvider::Codex];
-        let layout = generate_ai_layout(&providers);
+        let layout = tmux_layout_script(&ConfigLayout::Ai, &providers, false, "aibox");
 
-        assert!(
-            layout.contains("command \"codex\""),
-            "selected Codex provider should start"
-        );
-        assert!(
-            !layout.contains("command \"claude\""),
-            "unselected Claude provider must not start"
-        );
-        assert!(
-            !layout.contains("aibox-tab name=\"claude\""),
-            "unselected Claude provider must not get a tab"
-        );
+        assert!(layout.contains("\"codex\""));
+        assert!(!layout.contains("\"claude\""));
+        assert!(layout.contains("tmux new-window -t \"$session:\" -n editor"));
+        assert!(layout.contains("tmux new-window -t \"$session:\" -n shell"));
     }
 
     #[test]
-    fn ai_layout_multiple_providers_use_tabs() {
-        let providers = vec![AiProvider::Claude, AiProvider::Aider];
-        let layout = generate_ai_layout(&providers);
-        assert!(
-            !layout.contains("stacked"),
-            "multiple providers should use separate tabs"
-        );
-        assert!(layout.contains("command \"claude\""), "should have claude");
-        assert!(layout.contains("command \"aider\""), "should have aider");
-        assert!(
-            layout.contains("aibox-tab name=\"aider\""),
-            "secondary provider should get its own tab"
-        );
-    }
+    fn tmux_session_helper_dispatches_to_provider_aware_layout_script() {
+        let mut config = crate::config::test_config();
+        config.customization.layout = ConfigLayout::Browse;
+        config.customization.tmux.layout = Some(ConfigLayout::Ai);
+        config.customization.tmux.session_name = "work".to_string();
+        let script = tmux_session_script(&config);
 
-    #[test]
-    fn ai_layout_no_providers() {
-        let providers: Vec<AiProvider> = vec![];
-        let layout = generate_ai_layout(&providers);
-        assert!(
-            layout.contains("aibox-tab name=\"ai\""),
-            "should still have ai tab"
-        );
-        assert!(!layout.contains("claude"), "should not have claude");
-        assert!(
-            layout.contains("aibox-tab name=\"editor\""),
-            "should still have editor tab"
-        );
-        assert!(layout.contains("yazi"), "should still have yazi pane");
-    }
-
-    #[test]
-    fn ai_layout_yazi_left_of_ai() {
-        let providers = vec![AiProvider::Claude];
-        let layout = generate_ai_layout(&providers);
-        let yazi_pos = layout.find("yazi").unwrap();
-        let claude_pos = layout.find("command \"claude\"").unwrap();
-        assert!(
-            yazi_pos < claude_pos,
-            "yazi should appear left of (before) AI pane"
-        );
-    }
-
-    #[test]
-    fn cowork_swap_layout_single_provider() {
-        let providers = vec![AiProvider::Claude];
-        let layout = generate_cowork_swap_layout(&providers);
-        assert!(
-            layout.contains("aibox-tab name=\"cowork-swap\""),
-            "should have cowork-swap tab"
-        );
-        assert!(
-            layout.contains("command \"claude\""),
-            "should have claude pane"
-        );
-        assert!(
-            layout.contains("name=\"editor\""),
-            "should have editor pane"
-        );
-        assert!(layout.contains("vim-loop"), "should run vim-loop");
-        assert!(layout.contains("yazi"), "should run yazi");
-        assert!(
-            layout.contains("aibox-tab name=\"git\""),
-            "should have git tab"
-        );
-        assert!(
-            layout.contains("aibox-tab name=\"shell\""),
-            "should have shell tab"
-        );
-        // Outer split: left 40% / right 60% (editor on the right gets the bigger half)
-        assert!(
-            layout.contains("size=\"40%\" split_direction=\"horizontal\""),
-            "left side should be 40% with horizontal sub-split"
-        );
-        assert!(
-            layout.contains("size=\"60%\" name=\"editor\""),
-            "right side (editor) should be 60%"
-        );
-        // Inner left split: yazi 40% top, AI 60% bottom
-        assert!(
-            layout.contains("size=\"40%\" name=\"files\""),
-            "yazi pane should be 40% of left stack"
-        );
-        assert!(
-            !layout.contains("stacked"),
-            "single provider should not be stacked"
-        );
-    }
-
-    #[test]
-    fn cowork_swap_layout_multiple_providers_use_tabs() {
-        let providers = vec![AiProvider::Claude, AiProvider::Aider];
-        let layout = generate_cowork_swap_layout(&providers);
-        assert!(
-            !layout.contains("stacked"),
-            "multiple providers should use separate tabs"
-        );
-        assert!(layout.contains("command \"claude\""), "should have claude");
-        assert!(layout.contains("command \"aider\""), "should have aider");
-        assert!(
-            layout.contains("aibox-tab name=\"aider\""),
-            "secondary provider should get its own tab"
-        );
-    }
-
-    #[test]
-    fn cowork_swap_layout_no_providers() {
-        let providers: Vec<AiProvider> = vec![];
-        let layout = generate_cowork_swap_layout(&providers);
-        assert!(
-            layout.contains("aibox-tab name=\"cowork-swap\""),
-            "should still have cowork-swap tab"
-        );
-        assert!(!layout.contains("claude"), "should not have claude");
-        assert!(layout.contains("yazi"), "should still have yazi pane");
-        assert!(layout.contains("vim-loop"), "should still have vim editor");
-        assert!(
-            layout.contains("size=\"40%\" name=\"files\""),
-            "yazi should be 40% (left)"
-        );
-        assert!(
-            layout.contains("size=\"60%\" name=\"editor\""),
-            "vim should be 60% (right)"
-        );
-    }
-
-    #[test]
-    fn cowork_swap_layout_editor_right_of_files() {
-        let providers = vec![AiProvider::Claude];
-        let layout = generate_cowork_swap_layout(&providers);
-        let files_pos = layout.find("name=\"files\"").unwrap();
-        let editor_pos = layout.find("name=\"editor\"").unwrap();
-        assert!(
-            files_pos < editor_pos,
-            "yazi (files) should appear before editor in layout source — editor sits to the right"
-        );
-    }
-
-    #[test]
-    fn cowork_swap_layout_ai_below_files_in_left_stack() {
-        let providers = vec![AiProvider::Claude];
-        let layout = generate_cowork_swap_layout(&providers);
-        let files_pos = layout.find("name=\"files\"").unwrap();
-        let claude_pos = layout.find("command \"claude\"").unwrap();
-        let editor_pos = layout.find("name=\"editor\"").unwrap();
-        assert!(
-            files_pos < claude_pos && claude_pos < editor_pos,
-            "yazi → claude (left stack top→bottom) → editor (right) order in source"
-        );
+        assert!(script.contains(r#"AIBOX_TMUX_LAYOUT:-ai"#));
+        assert!(script.contains(r#"AIBOX_TMUX_SESSION:-work"#));
+        assert!(script.contains(r#".config/tmux/layouts/${layout}.sh"#));
+        assert!(script.contains(r#"exec env AIBOX_TMUX_SESSION="${session}" "${script}""#));
+        assert!(!script.contains("tmux new-session"));
     }
 
     #[test]
@@ -3825,175 +2787,70 @@ rules = [
     }
 
     #[test]
-    fn zellij_config_substitutes_layout() {
-        // Regression test for the layout-sync bug fixed in v0.14.2:
-        // DEFAULT_ZELLIJ_CONFIG must contain the AIBOX_LAYOUT placeholder
-        // that seed_root_dir / sync_theme_files replace with the configured layout.
+    fn tmux_config_uses_pinned_managed_plugins_without_default_persistence() {
+        let config = crate::config::test_config();
+        let conf = tmux_conf(&config);
+
         assert!(
-            DEFAULT_ZELLIJ_CONFIG.contains("AIBOX_LAYOUT"),
-            "config template must contain AIBOX_LAYOUT placeholder"
+            conf.contains("/usr/local/share/aibox/tmux/plugins/tmux-sensible/sensible.tmux")
+                && conf.contains(
+                    "/usr/local/share/aibox/tmux/plugins/tmux-powerkit/tmux-powerkit.tmux"
+                )
+                && conf.contains(
+                    "/usr/local/share/aibox/tmux/plugins/vim-tmux-navigator/vim-tmux-navigator.tmux"
+                )
+                && conf.contains("/usr/local/share/aibox/tmux/plugins/tmux-yank/yank.tmux"),
+            "aibox-managed tmux plugins should load from preinstalled pinned runtime paths:\n{conf}"
         );
         assert!(
-            !DEFAULT_ZELLIJ_CONFIG.contains("default_layout \"dev\""),
-            "config template must not hard-code dev as default_layout"
+            conf.contains(r#"@powerkit_plugins "datetime,cpu,memory,git,hostname""#)
+                && conf.contains(r#"@powerkit_status_interval "5""#)
+                && conf.contains(r#"@powerkit_transparent "false""#),
+            "generated persistent tmux config should carry bounded powerkit defaults:\n{conf}"
+        );
+        assert!(
+            !conf.contains("set -g @plugin 'tmux-plugins/tmux-continuum'")
+                && !conf.contains("set -g @plugin 'tmux-plugins/tmux-resurrect'")
+                && conf.contains("@continuum-restore 'off'")
+                && conf.contains("@continuum-save-interval '0'")
+                && conf.contains("@resurrect-capture-pane-contents 'off'"),
+            "resurrect/continuum should stay disabled by default until persistence policy is decided:\n{conf}"
+        );
+        assert!(
+            conf.contains("TPM is\n# only a user convenience layer"),
+            "TPM should be documented as user convenience, not the managed plugin source:\n{conf}"
         );
     }
 
     #[test]
-    fn zellij_leader_g_cancels_prefix_mode() {
+    fn tmux_status_layout_uses_image_status_binary() {
+        let config = crate::config::test_config();
+        let conf = tmux_conf(&config);
+
+        assert!(conf.contains("aibox-status --once"));
         assert!(
-            DEFAULT_ZELLIJ_CONFIG.contains(r#"bind "g" "G" { SwitchToMode "Normal"; }"#),
-            "leader g/G should be a harmless cancel so an accidental prefix sequence cannot leave Zellij in tmux mode"
+            !conf.contains("$HOME/.local/bin/aibox-status"),
+            "tmux status must use the image-owned Rust status binary"
         );
     }
 
     #[test]
-    fn zellij_layout_starts_tool_tabs_eagerly() {
-        let layout = generate_dev_layout(&[]);
-        assert!(
-            layout.contains("zellij:status-bar")
-                && layout.contains("aibox-status --watch")
-                && !layout.contains("aibox-status-keys.wasm")
-                && !layout.contains("aibox-status-runtime.wasm"),
-            "default layouts should use the shell status fallback while the sidecar WASM rows remain opt-in"
-        );
-        assert!(
-            layout.contains(
-                "pane size=\"40%\" name=\"files\" focus=true {\n                command \"yazi\"\n                cwd \"/workspace\"\n            }"
-            ),
-            "focused first-screen file pane should start active"
-        );
-        assert!(
-            layout.contains(
-                "pane size=\"60%\" name=\"editor\" {\n                command \"vim-loop\"\n                cwd \"/workspace\"\n            }"
-            ),
-            "editor pane should start eagerly"
-        );
-        assert!(
-            layout.contains("command \"lazygit\"\n            cwd \"/workspace\""),
-            "git tab should start eagerly"
-        );
-        assert!(
-            layout.contains("command \"bash\"\n            cwd \"/workspace\""),
-            "shell tab should start eagerly"
-        );
+    fn tmux_plain_status_omits_runtime_segment() {
+        let mut config = crate::config::test_config();
+        config.customization.tmux.status.mode = TmuxStatusMode::Plain;
+        let conf = tmux_conf(&config);
+
+        assert!(conf.contains("set -g status on"));
+        assert!(!conf.contains("aibox-status --once"));
     }
 
     #[test]
-    fn zellij_status_mode_shell_uses_legacy_fallback() {
-        let layout = generate_dev_layout_with_options(&[], true, &ZellijStatusMode::Shell);
-        assert!(layout.contains("plugin location=\"zellij:status-bar\""));
-        assert!(layout.contains("aibox-status"));
-        assert!(!layout.contains("aibox-status.wasm"));
-    }
+    fn tmux_disabled_status_turns_status_line_off() {
+        let mut config = crate::config::test_config();
+        config.customization.tmux.status.mode = TmuxStatusMode::Disabled;
+        let conf = tmux_conf(&config);
 
-    #[test]
-    fn zellij_status_mode_sidecar_uses_custom_keybar_above_runtime_status() {
-        let layout = generate_dev_layout_with_options(&[], true, &ZellijStatusMode::Sidecar);
-        let keybar = layout.find("role \"keys\"").unwrap();
-        let runtime = layout.find("role \"status\"").unwrap();
-        assert!(
-            keybar < runtime,
-            "aibox key hints should render above the aibox runtime status row"
-        );
-        assert!(
-            layout.contains("aibox-status-keys.wasm")
-                && layout.contains("aibox-status-runtime.wasm"),
-            "sidecar mode should use distinct plugin locations so Zellij creates both rows"
-        );
-        assert!(
-            !layout.contains("zellij:status-bar"),
-            "sidecar mode should not depend on Zellij's built-in status bar"
-        );
-    }
-
-    #[test]
-    fn zellij_status_mode_disabled_omits_status_rows() {
-        let layout = generate_dev_layout_with_options(&[], true, &ZellijStatusMode::Disabled);
-        assert!(layout.contains("tab_template name=\"aibox-tab\""));
-        assert!(!layout.contains("zellij:status-bar"));
-        assert!(!layout.contains("aibox-status"));
-        assert!(!layout.contains("role \"status\""));
-    }
-
-    #[test]
-    fn generated_layouts_start_secondary_runtime_tabs_eagerly() {
-        let providers = [AiProvider::Claude];
-        let layouts = [
-            ("dev", generate_dev_layout(&providers)),
-            ("focus", generate_focus_layout(&providers)),
-            ("cowork", generate_cowork_layout(&providers)),
-            ("cowork-swap", generate_cowork_swap_layout(&providers)),
-            ("browse", generate_browse_layout(&providers)),
-            ("ai", generate_ai_layout(&providers)),
-        ];
-
-        for (name, layout) in layouts {
-            assert!(
-                !layout.contains("start_suspended true"),
-                "{name} layout should start panes eagerly:\n{layout}"
-            );
-        }
-    }
-
-    #[test]
-    fn shell_status_layout_uses_image_status_binary() {
-        let layout = zellij_status_template_kdl(&ZellijStatusMode::Shell);
-        assert!(layout.contains("exec aibox-status --watch"));
-        assert!(
-            !layout.contains("$HOME/.local/bin/aibox-status"),
-            "shell status mode must not prefer the removed shell helper"
-        );
-    }
-
-    #[test]
-    fn zellij_config_exposes_status_toggle_keybinding() {
-        assert!(
-            DEFAULT_ZELLIJ_CONFIG.contains("MessagePlugin")
-                && DEFAULT_ZELLIJ_CONFIG.contains("bind \"v\"")
-                && DEFAULT_ZELLIJ_CONFIG.contains("bind \"b\""),
-            "Ctrl+g then v/b should toggle the aibox status rows"
-        );
-    }
-
-    #[test]
-    fn ai_pane_kdl_empty() {
-        let result = ai_pane_kdl(&[]);
-        assert!(
-            result.is_empty(),
-            "empty providers should produce empty string"
-        );
-    }
-
-    #[test]
-    fn ai_pane_kdl_single() {
-        let result = ai_pane_kdl(&[AiProvider::Claude]);
-        assert!(result.contains("command \"claude\""));
-        assert!(!result.contains("stacked"));
-        assert!(!result.contains("start_suspended"));
-    }
-
-    #[test]
-    fn ai_pane_kdl_multiple() {
-        let result = ai_pane_kdl(&[AiProvider::Claude, AiProvider::Aider, AiProvider::Gemini]);
-        assert!(result.contains("command \"claude\""));
-        assert!(!result.contains("stacked"));
-        assert!(!result.contains("start_suspended"));
-        assert!(!result.contains("command \"aider\""));
-        assert!(!result.contains("command \"gemini\""));
-    }
-
-    #[test]
-    fn ai_extra_tabs_kdl_skips_primary_provider() {
-        let result =
-            ai_extra_tabs_kdl(&[AiProvider::Claude, AiProvider::Aider, AiProvider::Gemini]);
-        assert!(!result.contains("command \"claude\""));
-        assert!(result.contains("command \"aider\""));
-        assert!(result.contains("command \"gemini\""));
-        assert!(
-            !result.contains("start_suspended true"),
-            "secondary AI tabs should start eagerly"
-        );
+        assert!(conf.contains("set -g status off"));
     }
 
     #[test]

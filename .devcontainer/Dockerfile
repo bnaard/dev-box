@@ -48,23 +48,14 @@ RUN install -d /usr/local/bin && \
 RUN rustup target add x86_64-unknown-linux-gnu
 
 
-FROM ghcr.io/projectious-work/aibox:base-debian-v0.24.3 AS aibox
-LABEL aibox.version="0.24.3"
+FROM ghcr.io/projectious-work/aibox:base-debian-v0.25.0 AS aibox
+LABEL aibox.version="0.25.0"
 LABEL aibox.profile="human-dev"
 
 ENV SHELL=/bin/bash
 
-# Native Zellij uses separate plugin locations for the keybar and runtime rows.
-# Keep physical role-specific files here so projects rebuilt against older base
-# images still get independent plugin identities without symlink ambiguity.
 USER root
-RUN if [ -f /usr/local/share/aibox/zellij/aibox-status.wasm ]; then \
-      rm -f /usr/local/share/aibox/zellij/aibox-status-keys.wasm /usr/local/share/aibox/zellij/aibox-status-runtime.wasm; \
-      cp -f /usr/local/share/aibox/zellij/aibox-status.wasm /usr/local/share/aibox/zellij/aibox-status-keys.wasm; \
-      cp -f /usr/local/share/aibox/zellij/aibox-status.wasm /usr/local/share/aibox/zellij/aibox-status-runtime.wasm; \
-      chmod 0644 /usr/local/share/aibox/zellij/aibox-status*.wasm; \
-    fi; \
-    mkdir -p /home/aibox/.cache/starship /home/aibox/.cache/uv /home/aibox/.cache/zellij; \
+RUN mkdir -p /home/aibox/.cache/starship /home/aibox/.cache/uv /home/aibox/.tmux/plugins; \
     chown -R aibox:aibox /home/aibox/.cache
 
 # Addon: audio-voice — PulseAudio/Sox support for interactive voice tools.
@@ -179,4 +170,4 @@ EOF
 
 # Record image version inside container for runtime checks
 USER root
-RUN echo "0.24.3" > /etc/aibox-version
+RUN echo "0.25.0" > /etc/aibox-version

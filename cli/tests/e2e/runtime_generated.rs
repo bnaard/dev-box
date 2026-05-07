@@ -1,9 +1,7 @@
 //! Generated runtime smoke tests on the SSH companion.
 //!
-//! These are Phase 1 release tests: they run before host-side image publication,
-//! using the current CLI binary and generated `.aibox-home` files on the
-//! aibox-e2e-testrunner companion. Host Phase 2 still runs the full released
-//! image smoke against GHCR.
+//! These Phase 1 tests use the current CLI binary and generated `.aibox-home`
+//! files on the aibox-e2e-testrunner companion. The runtime target is tmux-only.
 
 use serial_test::serial;
 
@@ -12,7 +10,7 @@ use super::runner::E2eRunner;
 #[test]
 #[serial]
 #[ntest::timeout(180_000)]
-fn generated_runtime_yazi_lazygit_and_status_are_usable() {
+fn generated_runtime_yazi_lazygit_tmux_and_status_are_usable() {
     let runner = E2eRunner::new();
     runner.ensure_deployed();
 
@@ -36,8 +34,6 @@ fn generated_runtime_yazi_lazygit_and_status_are_usable() {
             "tokyo-night",
             "--prompt",
             "arrow",
-            "--zellij-status",
-            "shell",
             "--no-container",
         ],
     );
@@ -72,9 +68,30 @@ export XDG_STATE_HOME="$HOME/.local/state"
 fail=0
 
 echo "== versions =="
-zellij --version || fail=1
+tmux -V || fail=1
 yazi --version || fail=1
 lazygit --version || fail=1
+if command -v zellij >/tmp/{test_name}-zellij-bin.txt 2>&1; then
+  echo "zellij binary should not be present in generated runtime path"
+  cat /tmp/{test_name}-zellij-bin.txt
+  fail=1
+fi
+
+echo "== generated tmux runtime =="
+test -f "$HOME/.tmux.conf" -o -f "$HOME/.config/tmux/tmux.conf" || fail=1
+grep -Rli 'tmux' "$HOME" .devcontainer aibox.toml >/tmp/{test_name}-tmux-files.txt || fail=1
+if find "$HOME" -path '*zellij*' -print -quit | grep -q .; then
+  echo "zellij path remains in generated home"
+  find "$HOME" -path '*zellij*' -print
+  fail=1
+fi
+if grep -Rli --exclude-dir=.git 'zellij' "$HOME" .devcontainer aibox.toml >/tmp/{test_name}-zellij-refs.txt 2>/dev/null; then
+  echo "zellij references remain in generated runtime"
+  cat /tmp/{test_name}-zellij-refs.txt
+  fail=1
+fi
+grep -R 'tmux-sensible\|tmux-powerkit\|tmux-yank\|vim-tmux-navigator' "$HOME/.tmux.conf" "$HOME/.config/tmux" >/tmp/{test_name}-tmux-plugins.txt 2>/dev/null || fail=1
+cat /tmp/{test_name}-tmux-plugins.txt 2>/dev/null || true
 
 echo "== yazi config =="
 nl -ba "$HOME/.config/yazi/yazi.toml" | sed -n '1,140p'
@@ -137,11 +154,11 @@ exit "$fail"
 #[test]
 #[serial]
 #[ntest::timeout(120_000)]
-fn generated_runtime_zellij_status_rows_are_visible() {
+fn generated_runtime_tmux_status_panes_and_buffer_are_visible() {
     let runner = E2eRunner::new();
     runner.ensure_deployed();
 
-    let test_name = "runtime-generated-zellij";
+    let test_name = "runtime-generated-tmux";
     runner.cleanup(test_name);
 
     let init = runner.aibox(
@@ -157,8 +174,6 @@ fn generated_runtime_zellij_status_rows_are_visible() {
             "unset",
             "--theme",
             "tokyo-night",
-            "--zellij-status",
-            "sidecar",
             "--no-container",
         ],
     );
@@ -186,9 +201,10 @@ export TERM=xterm-256color
 export COLORTERM=truecolor
 export PATH="$HOME/.local/bin:/usr/local/bin:$PATH"
 
-sudo rm -rf /workspace
-sudo ln -s {workspace} /workspace
-rm -rf /tmp/zellij-*
+tmux_conf="$HOME/.tmux.conf"
+[ -f "$tmux_conf" ] || tmux_conf="$HOME/.config/tmux/tmux.conf"
+test -f "$tmux_conf"
+tmux kill-session -t {test_name} >/dev/null 2>&1 || true
 cat > {workspace}/driver.sh <<'DRIVER'
 #!/usr/bin/env bash
 set -u
@@ -196,37 +212,41 @@ export HOME="{workspace}/.aibox-home"
 export TERM=xterm-256color
 export COLORTERM=truecolor
 export PATH="$HOME/.local/bin:/usr/local/bin:$PATH"
-(sleep 6 && pkill -x zellij 2>/dev/null) &
-zellij --config "$HOME/.config/zellij/config.kdl" \
-       --config-dir "$HOME/.config/zellij" \
-       --layout dev 2>/dev/null
+tmux_conf="$HOME/.tmux.conf"
+[ -f "$tmux_conf" ] || tmux_conf="$HOME/.config/tmux/tmux.conf"
+(
+  for _ in $(seq 1 50); do
+    tmux has-session -t {test_name} >/dev/null 2>&1 && break
+    sleep 0.1
+  done
+  tmux set-option -t {test_name} -g status on
+  tmux set-option -t {test_name} -g status-left " AIBOX-TMUX #S:#I.#P "
+  tmux set-option -t {test_name} -g status-right " #(aibox-status 2>/dev/null | cut -c1-80) "
+  tmux split-window -h -t {test_name}:0 -c "{workspace}" "printf 'AIBOX-TMUX-RIGHT-PANE\n'; exec bash"
+  tmux split-window -v -t {test_name}:0.0 -c "{workspace}" "printf 'AIBOX-TMUX-LOWER-PANE\n'; exec bash"
+  tmux set-buffer -b aibox-yank "AIBOX_TMUX_BUFFER_MARKER"
+  tmux save-buffer -b aibox-yank "{workspace}/tmux-buffer.txt"
+  sleep 3
+  tmux capture-pane -p -t {test_name}:0.0 > "{workspace}/screen-left.txt" 2>/dev/null || true
+  tmux capture-pane -p -t {test_name}:0.1 > "{workspace}/screen-right.txt" 2>/dev/null || true
+  tmux display-message -p -t {test_name} '#S #W #{{window_panes}} #{{status-left}} #{{status-right}}' > "{workspace}/status.txt" 2>/dev/null || true
+  tmux kill-session -t {test_name} >/dev/null 2>&1 || true
+) &
+driver_pid=$!
+tmux -f "$tmux_conf" new-session -A -s {test_name} -n dev -c "{workspace}" "printf 'AIBOX-TMUX-LEFT-PANE\n'; exec bash"
+wait "$driver_pid" 2>/dev/null || true
 true
 DRIVER
 chmod +x {workspace}/driver.sh
-LC_ALL=C.UTF-8 LANG=C.UTF-8 timeout --kill-after=2s 30s asciinema rec --cols 160 --rows 45 --overwrite \
+LC_ALL=C.UTF-8 LANG=C.UTF-8 timeout --kill-after=2s 35s asciinema rec --cols 160 --rows 45 --overwrite \
   -c {workspace}/driver.sh {workspace}/recording.cast 2>/dev/null || true
-cat /tmp/zellij-*/zellij-log/zellij.log >/tmp/{test_name}-zellij.log 2>/dev/null || true
-if grep -E 'ERROR IN PLUGIN|failed to load plugin|Panic occured|panicked|Unknown component: z' /tmp/{test_name}-zellij.log >/tmp/{test_name}-zellij-errors.txt 2>&1; then
-  cat /tmp/{test_name}-zellij-errors.txt
-  exit 1
-fi
-if grep -aE 'ERROR IN PLUGIN|failed to load plugin|could not find exported function' {workspace}/recording.cast >/tmp/{test_name}-zellij-cast-errors.txt 2>&1; then
-  cat /tmp/{test_name}-zellij-cast-errors.txt
-  exit 1
-fi
-if grep -aE 'This plugin asks permission|ReadApplicationState|RunCommands|Allow\\? \\(y/n\\)' {workspace}/recording.cast >/tmp/{test_name}-zellij-permission-prompt.txt 2>&1; then
-  echo "sidecar status plugin permission prompt was visible"
-  cat /tmp/{test_name}-zellij-permission-prompt.txt
-  exit 1
-fi
-if ! grep -aEi 'Ctrl-g|Leader|Alt-h/j/k/l|PANE|PANES' {workspace}/recording.cast >/tmp/{test_name}-zellij-visible.txt 2>&1; then
-  echo "expected generated key/status rows were not visible"
-  sed -n '1,80p' {workspace}/recording.cast
-  exit 1
-fi
-if ! grep -aE 'MEM .+/unlimited|OOM [0-9]+|PROC [0-9]+ AI [0-9]+|MCP (gateway|granular|none) [0-9]+' {workspace}/recording.cast >/tmp/{test_name}-zellij-status-values.txt 2>&1; then
-  echo "expected refreshed generated runtime details were not visible"
-  sed -n '1,80p' {workspace}/recording.cast
+
+cat {workspace}/recording.cast {workspace}/screen-left.txt {workspace}/screen-right.txt {workspace}/status.txt > {workspace}/combined.txt
+grep -aE 'AIBOX-TMUX|AIBOX-TMUX-RIGHT-PANE|AIBOX-TMUX-LOWER-PANE' {workspace}/combined.txt
+grep -aE 'MEM |PROC |MCP ' {workspace}/combined.txt
+grep -qF 'AIBOX_TMUX_BUFFER_MARKER' {workspace}/tmux-buffer.txt
+if grep -ai 'zellij' {workspace}/combined.txt; then
+  echo "legacy multiplexer text leaked into tmux runtime recording"
   exit 1
 fi
 "#
@@ -235,7 +255,7 @@ fi
     let output = runner.exec(&probe);
     assert!(
         output.status.success(),
-        "generated Zellij status plugin probe failed:\nstdout:\n{}\nstderr:\n{}",
+        "generated tmux runtime visual probe failed:\nstdout:\n{}\nstderr:\n{}",
         String::from_utf8_lossy(&output.stdout),
         String::from_utf8_lossy(&output.stderr)
     );

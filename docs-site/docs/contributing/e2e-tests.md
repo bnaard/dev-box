@@ -29,8 +29,8 @@ The release process also has a host-side generated-runtime smoke:
 `./scripts/maintain.sh release-runtime-smoke X.Y.Z`. It is not an SSH
 companion test; it runs on the macOS host during `release-host`, creates a
 fresh downstream-style project, runs `aibox init` and
-`aibox apply --standardize-config`, starts the generated container, probes the
-sidecar-backed Zellij status plugin, and writes logs under
+`aibox apply --standardize-config`, starts the generated container, probes
+tmux-native status output and the diagnostics sidecar, and writes logs under
 `dist/release-smoke/vX.Y.Z/`. The default `AIBOX_RELEASE_SMOKE_TIER=minimal`
 skips optional addon probes; use `addons` to include `git-ui`, or `full` to
 include preview addons and force `--no-cache`.
@@ -42,11 +42,11 @@ when the periodic full visual sweep is due:
 
 | Command | Covers |
 |---|---|
-| `./scripts/maintain.sh test-e2e-visual-status` | all generated layouts across all themes, sidecar Zellij status/key rows, and theme RGB signatures |
-| `./scripts/maintain.sh test-e2e-visual-tabs` | tab traversal, Yazi surface, Vim, shell, lazygit, and every enabled AI harness |
+| `./scripts/maintain.sh test-e2e-visual-status` | all generated layouts across all themes, tmux status/key rows, and theme RGB signatures |
+| `./scripts/maintain.sh test-e2e-visual-tabs` | tmux window traversal, Yazi surface, Vim, shell, lazygit, and every enabled AI harness |
 | `./scripts/maintain.sh test-e2e-visual-yazi` | Yazi preview plugins, optional preview tools, git symbols, and preview modes |
 | `./scripts/maintain.sh test-e2e-visual` | all visual tiers |
-| `./scripts/maintain.sh test-e2e-doc-captures` | all visual tiers plus `.cast`, `.screen.txt`, Zellij log, and metadata artifacts under `docs-site/static/img/e2e/` |
+| `./scripts/maintain.sh test-e2e-doc-captures` | all visual tiers plus `.cast`, `.screen.txt`, tmux log, and metadata artifacts under `docs-site/static/img/e2e/` |
 
 Set `AIBOX_E2E_VISUAL_ARTIFACT_DIR` to write documentation capture artifacts
 elsewhere. The artifacts are intended as source material for current-release
@@ -60,8 +60,8 @@ website screenshots and screencasts.
 If the SSH connection to `aibox-e2e-testrunner` is attempted, then the host
 must respond with `ok`, confirming the companion container is up and reachable
 before any other Tier 2 test runs. The test also asserts that the companion
-image has the pinned Zellij and Yazi versions expected by the visual/runtime
-tests; stale companion images fail here with a rebuild hint.
+image has the expected tmux and Yazi tools for the visual/runtime tests; stale
+companion images fail here with a rebuild hint.
 `[lifecycle.rs · companion_is_reachable]`
 
 **Init then apply produces valid project**
@@ -73,7 +73,7 @@ and `CLAUDE.md` must all exist in the workspace.
 **Generated container starts**
 If a fresh project is initialized, applied, and the generated Compose service is
 started on the companion runtime, then the running container must expose
-`/etc/aibox-version`, Zellij, Yazi, and valid `aibox-status --plugin-json`
+`/etc/aibox-version`, tmux, Yazi, and valid `aibox-status --plugin-json`
 output.
 `[lifecycle.rs · lifecycle_apply_starts_generated_container]`
 
@@ -255,20 +255,20 @@ contain no unreplaced template placeholders such as `AIBOX_THEME` or
 `AIBOX_VIM_COLORSCHEME`.
 `[appearance.rs · all_themes_render_without_error]`
 
-**Gruvbox theme sets the correct vim colorscheme and zellij theme**
+**Gruvbox theme sets the correct vim colorscheme and tmux theme**
 If `aibox init --theme gruvbox-dark` is run, then `vimrc` must contain
-`gruvbox` or `retrobox` as the colorscheme and `config.kdl` must reference
+`gruvbox` or `retrobox` as the colorscheme and `tmux.conf` must reference
 `gruvbox-dark`.
 `[appearance.rs · theme_gruvbox_renders_correctly]`
 
-**Catppuccin-mocha theme is reflected in zellij config**
-If `aibox init --theme catppuccin-mocha` is run, then `config.kdl` must
+**Catppuccin-mocha theme is reflected in tmux config**
+If `aibox init --theme catppuccin-mocha` is run, then `tmux.conf` must
 reference `catppuccin-mocha`.
 `[appearance.rs · theme_catppuccin_mocha_renders]`
 
 **Changing the theme updates all themed tool configs**
 If a project is initialized with `gruvbox-dark` and the theme is changed to
-`dracula` via `aibox apply`, then `config.kdl` must contain `dracula` and no
+`dracula` via `aibox apply`, then `tmux.conf` must contain `dracula` and no
 longer `gruvbox-dark`, and `vimrc`, `yazi/theme.toml`, and `starship.toml`
 must be updated. Lazygit config is optional and is checked only when the
 `git-ui` addon enables it.
@@ -277,7 +277,7 @@ must be updated. Lazygit config is optional and is checked only when the
 **Each theme produces matching configs across all tools**
 If `aibox init` is run for each of five themes with known vim colorscheme
 names, then `vimrc` must contain the exact `colorscheme <name>` line,
-`config.kdl` must reference the theme name, yazi and starship configs must
+`tmux.conf` must reference the theme name, yazi and starship configs must
 be non-empty, and lazygit config must be non-empty when present.
 `[appearance.rs · theme_alignment_all_tools_match_selected_theme]`
 
@@ -469,11 +469,10 @@ that parses with the pinned Yazi binary, lazygit state directories that permit
 startup, and an `aibox-status --plugin-json` payload with required fields.
 `[runtime_generated.rs · generated_runtime_yazi_lazygit_and_status_are_usable]`
 
-**Generated Zellij status plugin renders**
-If the generated dev layout is launched under asciinema with sidecar status
-enabled, then the cast must show key/status row text and Zellij logs must not
-contain plugin load errors or panics.
-`[runtime_generated.rs · generated_runtime_zellij_status_plugin_renders_key_and_status_rows]`
+**Generated tmux status renders**
+If the generated dev layout is launched under asciinema with tmux status
+enabled, then the cast must show key/status row text and runtime status output.
+`[runtime_generated.rs · generated_runtime_tmux_status_renders_key_and_status_rows]`
 
 ---
 
@@ -484,15 +483,13 @@ E2E commands above.
 
 **Generated layouts render across all themes**
 If each generated layout is launched for each supported theme, then the
-recording must include the theme RGB signature and sidecar Zellij status/key row
-text, and Zellij logs must not contain plugin load errors, panics, or
-`Unknown component: z`.
+recording must include the theme RGB signature and tmux status/key row text.
 `[visual_matrix.rs · visual_generated_layouts_render_across_all_themes]`
 
-**Generated tools and harness tabs render when enabled**
-If all harnesses and visual runtime addons are enabled, then tab traversal must
+**Generated tools and harness windows render when enabled**
+If all harnesses and visual runtime addons are enabled, then window traversal must
 show the expected Yazi surface, Vim, shell, lazygit, and every harness marker.
-`[visual_matrix.rs · visual_generated_tools_and_harness_tabs_render_when_enabled]`
+`[visual_matrix.rs · visual_generated_tools_and_harness_windows_render_when_enabled]`
 
 **Yazi previews, git symbols, and optional plugins render**
 If the Yazi preview addons are enabled, then generated Yazi config must parse,

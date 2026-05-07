@@ -277,8 +277,8 @@ fn emergency_help_exposes_harness_entrypoint() {
         "emergency help should expose the harness positional:\n{stdout}"
     );
     assert!(
-        stdout.contains("without Zellij"),
-        "emergency help should describe the non-Zellij recovery path:\n{stdout}"
+        stdout.contains("without tmux"),
+        "emergency help should describe the non-tmux recovery path:\n{stdout}"
     );
 }
 

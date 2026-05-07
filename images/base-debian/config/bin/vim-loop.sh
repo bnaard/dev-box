@@ -13,8 +13,8 @@ while true; do
     # Normal :q — return focus to yazi pane, then restart vim
     dir="${AIBOX_EDITOR_DIR:-right}"
     case "$dir" in
-        down) zellij action move-focus up 2>/dev/null ;;
-        tab)  zellij action go-to-tab-name "files" 2>/dev/null ;;
-        *)    zellij action move-focus left 2>/dev/null ;;
+        down) tmux select-pane -U 2>/dev/null ;;
+        tab)  tmux select-window -t files 2>/dev/null ;;
+        *)    tmux select-pane -L 2>/dev/null ;;
     esac
 done

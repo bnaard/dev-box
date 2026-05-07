@@ -120,7 +120,7 @@ fn lifecycle_apply_starts_generated_container() {
 
     let probe = runner.container_exec(
         test,
-        "bash -lc 'test -r /etc/aibox-version && zellij --version && yazi --version && aibox-status --plugin-json >/tmp/aibox-status.json && jq -e .plain /tmp/aibox-status.json >/dev/null'",
+        "bash -lc 'test -r /etc/aibox-version && tmux -V && yazi --version && aibox-status --plugin-json >/tmp/aibox-status.json && jq -e .plain /tmp/aibox-status.json >/dev/null'",
     );
     assert!(
         probe.status.success(),

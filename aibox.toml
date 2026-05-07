@@ -634,9 +634,9 @@ src_path = "src"
 schema_version = "1.0.0"      # Context schema version — updated automatically by `aibox apply`
 
 # =============================================================================
-# [customization] — color theme, shell prompt, and zellij layout
+# [customization] — color theme, shell prompt, and tmux layout
 # =============================================================================
-# Theme is applied consistently across Zellij, Vim, Yazi, lazygit, and bat.
+# Theme is applied consistently across tmux, Vim, Yazi, lazygit, and bat.
 # Options: gruvbox-dark | catppuccin-mocha | catppuccin-latte | dracula | tokyo-night | nord | projectious
 [customization]
 theme  = "nord"
@@ -646,9 +646,14 @@ mode   = "auto"
 # Starship prompt preset.
 # Options: default | plain | minimal | nerd-font | pastel | bracketed | arrow
 prompt = "arrow"
-# Default zellij layout. Options: dev | focus | cowork | cowork-swap | browse | ai
+# Default tmux layout. Options: dev | focus | cowork | cowork-swap | browse | ai
 layout = "ai"
 
-# Zellij status presentation. Options: sidecar | shell | disabled
-[customization.zellij_status]
-mode = "sidecar"
+# tmux runtime options. `layout` may override [customization].layout for tmux only.
+[customization.tmux]
+prefix = "C-g"
+session_name = "aibox"
+
+# tmux status presentation. Options: powerline | plain | disabled
+[customization.tmux.status]
+mode = "disabled"

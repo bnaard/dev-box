@@ -8,7 +8,7 @@ import styles from './index.module.css';
 
 function Hero() {
   const {siteConfig} = useDocusaurusContext();
-  const heroImage = useBaseUrl('/img/readme-dev-layout.gif');
+  const heroImage = useBaseUrl('/img/layouts/layout-dev.svg');
   return (
     <header
       className={clsx('hero hero--primary', styles.heroBanner)}

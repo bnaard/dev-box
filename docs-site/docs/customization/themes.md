@@ -18,7 +18,7 @@ Or during project initialization:
 aibox init --theme catppuccin-mocha
 ```
 
-The selected theme is applied to **Zellij**, **Vim**, **Yazi**, **lazygit**, and **Starship** simultaneously. `mode = "auto"` preserves the selected concrete theme. `mode = "light"` currently resolves to `catppuccin-latte`; `mode = "dark"` keeps dark themes as-is and maps `catppuccin-latte` to `catppuccin-mocha`.
+The selected theme is applied to **tmux**, **Vim**, **Yazi**, **lazygit**, and **Starship** simultaneously. `mode = "auto"` preserves the selected concrete theme. `mode = "light"` currently resolves to `catppuccin-latte`; `mode = "dark"` keeps dark themes as-is and maps `catppuccin-latte` to `catppuccin-mocha`.
 
 ## Available Themes
 
@@ -99,7 +99,7 @@ Each theme is a coordinated set of config files applied to all tools at `aibox a
 
 | Tool | Config file | What's themed |
 |------|------------|---------------|
-| **Zellij** | `.config/zellij/themes/<name>.kdl` | Pane borders, status bar, tab colors |
+| **tmux** | `.config/tmux/themes/<name>.conf` | Pane borders, status bar, window colors |
 | **Vim** | `.vim/colors/<name>.vim` | Syntax highlighting, UI elements |
 | **Yazi** | `.config/yazi/theme.toml` | File colors, status bar, selection |
 | **lazygit** | `.config/lazygit/config.yml` | Borders, selection, diff colors |
@@ -119,12 +119,12 @@ aibox set theme.name tokyo-night
 
 This updates `[customization].mode` in `aibox.toml` and regenerates the mounted runtime theme files under `.aibox-home/`. The running container is not stopped.
 
-If the project Zellij session is running, refresh and attach it without stopping the container:
+If the project tmux session is running, refresh and attach it without stopping the container:
 
 ```bash
 aibox set theme.mode dark --restart-session
 ```
 
 :::note Theme files are force-updated by apply
-`aibox apply` and `aibox set theme.mode/name` overwrite theme-dependent config files (Zellij theme, Vim colorscheme, Yazi theme, lazygit config, Starship config) to match the selected theme. You do not need to rebuild or restart the container to change themes; running TUI processes may need to be restarted.
+`aibox apply` and `aibox set theme.mode/name` overwrite theme-dependent config files (tmux theme, Vim colorscheme, Yazi theme, lazygit config, Starship config) to match the selected theme. You do not need to rebuild or restart the container to change themes; running TUI processes may need to be restarted.
 :::

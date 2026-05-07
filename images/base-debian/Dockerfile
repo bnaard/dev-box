@@ -10,17 +10,32 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     curl ca-certificates unzip \
     && rm -rf /var/lib/apt/lists/*
 
-# ── Zellij ───────────────────────────────────────────────────────────────────
-FROM fetch-base AS fetch-zellij
-ARG ZELLIJ_VERSION=0.44.2
-RUN ARCH=$(uname -m) && \
-    curl -fsSL \
-      "https://github.com/zellij-org/zellij/releases/download/v${ZELLIJ_VERSION}/zellij-${ARCH}-unknown-linux-musl.tar.gz" \
-      | tar -xz -C /usr/local/bin && \
-    chmod +x /usr/local/bin/zellij
+# ── tmux plugins ─────────────────────────────────────────────────────────────
+FROM fetch-base AS fetch-tmux-plugins
+ARG TMUX_POWERKIT_REF=139be6bbd57dbedfc6c534e72a440147ad0ab4d4
+ARG TMUX_SENSIBLE_REF=25cb91f42d020f675bb0a2ce3fbd3a5d96119efa
+ARG VIM_TMUX_NAVIGATOR_REF=e41c431a0c7b7388ae7ba341f01a0d217eb3a432
+ARG TPM_REF=99469c4a9b1ccf77fade25842dc7bafbc8ce9946
+ARG TMUX_CONTINUUM_REF=0698e8f4b17d6454c71bf5212895ec055c578da0
+ARG TMUX_YANK_REF=acfd36e4fcba99f8310a7dfb432111c242fe7392
+ARG TMUX_RESURRECT_REF=cff343cf9e81983d3da0c8562b01616f12e8d548
+RUN set -eux; \
+    install_plugin() { \
+      repo="$1"; ref="$2"; dest="$3"; \
+      mkdir -p "/tmux-plugins/${dest}"; \
+      curl -fsSL "https://github.com/${repo}/archive/${ref}.tar.gz" \
+        | tar -xz --strip-components=1 -C "/tmux-plugins/${dest}"; \
+    }; \
+    install_plugin fabioluciano/tmux-powerkit "${TMUX_POWERKIT_REF}" tmux-powerkit; \
+    install_plugin tmux-plugins/tmux-sensible "${TMUX_SENSIBLE_REF}" tmux-sensible; \
+    install_plugin christoomey/vim-tmux-navigator "${VIM_TMUX_NAVIGATOR_REF}" vim-tmux-navigator; \
+    install_plugin tmux-plugins/tpm "${TPM_REF}" tpm; \
+    install_plugin tmux-plugins/tmux-continuum "${TMUX_CONTINUUM_REF}" tmux-continuum; \
+    install_plugin tmux-plugins/tmux-yank "${TMUX_YANK_REF}" tmux-yank; \
+    install_plugin tmux-plugins/tmux-resurrect "${TMUX_RESURRECT_REF}" tmux-resurrect
 
-# ── aibox Zellij plugin ──────────────────────────────────────────────────────
-FROM debian:trixie-slim AS build-aibox-zellij-status
+# ── aibox runtime status helpers ─────────────────────────────────────────────
+FROM debian:trixie-slim AS build-aibox-runtime-tools
 
 ENV DEBIAN_FRONTEND=noninteractive
 RUN apt-get update && apt-get install -y --no-install-recommends \
@@ -29,13 +44,8 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 
 ENV CARGO_HOME=/cargo RUSTUP_HOME=/rustup PATH="/cargo/bin:${PATH}"
 RUN curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | \
-    sh -s -- -y --profile minimal --default-toolchain 1.94 && \
-    rustup target add wasm32-wasip1
+    sh -s -- -y --profile minimal --default-toolchain 1.94
 
-WORKDIR /build/aibox-status
-COPY zellij-plugins/aibox-status/Cargo.toml zellij-plugins/aibox-status/Cargo.lock ./
-COPY zellij-plugins/aibox-status/src ./src
-RUN cargo build --release --target wasm32-wasip1 --features zellij
 COPY config/bin/aibox_status_core.rs config/bin/aibox-status.rs config/bin/aibox-diagnostics.rs /build/aibox-runtime-tools/
 RUN mkdir -p /build/aibox-runtime-tools/bin && \
     rustc --edition=2021 -D warnings -C opt-level=2 \
@@ -206,6 +216,10 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     sudo \
     gosu \
     procps \
+    tmux \
+    xclip \
+    xsel \
+    wl-clipboard \
     # ── Sandboxing support (~1 MB) ──
     # OpenAI Codex CLI uses bubblewrap on Linux. Ship the Debian package so
     # Codex does not have to fall back to its vendored binary.
@@ -252,7 +266,6 @@ RUN groupadd --gid 1000 aibox \
     && chmod 0440 /etc/sudoers.d/aibox
 
 # ── Copy binaries from parallel builder stages ──────────────────────────────
-COPY --from=fetch-zellij   /usr/local/bin/zellij   /usr/local/bin/
 COPY --from=fetch-yazi     /usr/local/bin/yazi     /usr/local/bin/
 RUN ln -sf /usr/local/bin/yazi /usr/local/bin/ya
 COPY --from=fetch-ripgrep  /usr/local/bin/rg       /usr/local/bin/
@@ -263,8 +276,8 @@ COPY --from=fetch-zoxide   /usr/local/bin/zoxide   /usr/local/bin/
 COPY --from=fetch-fzf      /usr/local/bin/fzf      /usr/local/bin/
 COPY --from=fetch-delta    /usr/local/bin/delta    /usr/local/bin/
 COPY --from=fetch-starship /usr/local/bin/starship /usr/local/bin/
-COPY --from=build-aibox-zellij-status /build/aibox-runtime-tools/bin/aibox-status /usr/local/bin/
-COPY --from=build-aibox-zellij-status /build/aibox-runtime-tools/bin/aibox-diagnostics /usr/local/bin/
+COPY --from=build-aibox-runtime-tools /build/aibox-runtime-tools/bin/aibox-status /usr/local/bin/
+COPY --from=build-aibox-runtime-tools /build/aibox-runtime-tools/bin/aibox-diagnostics /usr/local/bin/
 # ── uv (Python package/project manager — ~25 MB) ────────────────────────────
 # Distroless image ships only the static binaries. Pulled into the base
 # image since v0.16.5 (DEC-036) so processkit's PEP 723 MCP server
@@ -274,7 +287,7 @@ COPY --from=ghcr.io/astral-sh/uv:0.11.10 /uv /uvx /usr/local/bin/
 
 # ── Bake default configs into the image ───────────────────────────────────────
 # These act as fallback defaults when no host directory is mounted.
-# When docker-compose mounts .aibox-home/.vim / .aibox-home/.config/zellij etc.
+# When docker-compose mounts .aibox-home/.vim / .aibox-home/.config/tmux etc.
 # over these paths, the host copy takes full precedence.
 
 # Vim — colorschemes from builder stage, vimrc from build context.
@@ -292,9 +305,9 @@ COPY config/vim-colors/projectious.vim                                          
 COPY config/vimrc /home/aibox/.vim/vimrc
 
 # Create config directories in a single layer
-RUN mkdir -p /home/aibox/.config/zellij/themes /home/aibox/.config/zellij/layouts \
-             /home/aibox/.cache/zellij \
-             "/home/aibox/.cache/org/Zellij Contributors/Zellij" \
+RUN mkdir -p /home/aibox/.config/tmux \
+             /home/aibox/.tmux/plugins \
+             /home/aibox/.local/share/tmux/resurrect \
              /home/aibox/.cache/starship \
              /home/aibox/.cache/uv \
              /home/aibox/.config/yazi/plugins \
@@ -302,47 +315,17 @@ RUN mkdir -p /home/aibox/.config/zellij/themes /home/aibox/.config/zellij/layout
              /home/aibox/.config/git \
              /home/aibox/.local/bin
 
-# Zellij
-COPY config/zellij/config.kdl          /home/aibox/.config/zellij/config.kdl
-COPY config/zellij/themes/             /home/aibox/.config/zellij/themes/
-COPY config/zellij/layouts/dev.kdl     /home/aibox/.config/zellij/layouts/dev.kdl
-COPY config/zellij/layouts/focus.kdl   /home/aibox/.config/zellij/layouts/focus.kdl
-COPY config/zellij/layouts/cowork.kdl  /home/aibox/.config/zellij/layouts/cowork.kdl
-RUN mkdir -p /usr/local/share/aibox/zellij
-COPY --from=build-aibox-zellij-status \
-    /build/aibox-status/target/wasm32-wasip1/release/aibox-zellij-status.wasm \
-    /usr/local/share/aibox/zellij/aibox-status.wasm
-RUN cp -f /usr/local/share/aibox/zellij/aibox-status.wasm \
-          /usr/local/share/aibox/zellij/aibox-status-keys.wasm && \
-    cp -f /usr/local/share/aibox/zellij/aibox-status.wasm \
-          /usr/local/share/aibox/zellij/aibox-status-runtime.wasm && \
-    chmod 0644 /usr/local/share/aibox/zellij/aibox-status*.wasm
-RUN printf '%s\n' \
-      '"file:/usr/local/share/aibox/zellij/aibox-status-keys.wasm" {' \
-      '    ReadApplicationState' \
-      '}' \
-      '"/usr/local/share/aibox/zellij/aibox-status-keys.wasm" {' \
-      '    ReadApplicationState' \
-      '}' \
-      '"file:/usr/local/share/aibox/zellij/aibox-status-runtime.wasm" {' \
-      '    RunCommands' \
-      '    ReadApplicationState' \
-      '}' \
-      '"/usr/local/share/aibox/zellij/aibox-status-runtime.wasm" {' \
-      '    RunCommands' \
-      '    ReadApplicationState' \
-      '}' \
-      '"file:/usr/local/share/aibox/zellij/aibox-status.wasm" {' \
-      '    RunCommands' \
-      '    ReadApplicationState' \
-      '}' \
-      '"/usr/local/share/aibox/zellij/aibox-status.wasm" {' \
-      '    RunCommands' \
-      '    ReadApplicationState' \
-      '}' \
-      > /home/aibox/.cache/zellij/permissions.kdl && \
-    cp /home/aibox/.cache/zellij/permissions.kdl \
-      "/home/aibox/.cache/org/Zellij Contributors/Zellij/permissions.kdl"
+# tmux
+RUN mkdir -p /usr/local/share/aibox/tmux/plugins
+COPY --from=fetch-tmux-plugins /tmux-plugins/ /usr/local/share/aibox/tmux/plugins/
+COPY config/tmux/tmux.conf /home/aibox/.config/tmux/tmux.conf
+RUN ln -sf /home/aibox/.config/tmux/tmux.conf /home/aibox/.tmux.conf && \
+    for plugin in /usr/local/share/aibox/tmux/plugins/*; do \
+      ln -s "$plugin" "/home/aibox/.tmux/plugins/$(basename "$plugin")"; \
+    done && \
+    mkdir -p /home/aibox/.vim/pack/aibox/start && \
+    ln -sf /usr/local/share/aibox/tmux/plugins/vim-tmux-navigator \
+      /home/aibox/.vim/pack/aibox/start/vim-tmux-navigator
 
 # Yazi
 COPY config/yazi/yazi.toml             /home/aibox/.config/yazi/yazi.toml
@@ -358,6 +341,7 @@ COPY --chmod=755 config/bin/aibox-preview.sh   /usr/local/bin/aibox-preview
 COPY --chmod=755 config/bin/vim-loop.sh       /usr/local/bin/vim-loop
 COPY --chmod=755 config/bin/pdf-watch.sh      /usr/local/bin/pdf-watch
 COPY --chmod=755 config/bin/aibox-status-toggle.sh /usr/local/bin/aibox-status-toggle
+COPY --chmod=755 config/bin/aibox-tmux-session.sh /usr/local/bin/aibox-tmux-session
 # xdg-open shim — headless containers have no browser, so any tool that
 # calls xdg-open (gh auth login, git credential helpers, opencode, ...)
 # would otherwise hit a confusing "Failed opening a web browser" error.
@@ -396,5 +380,5 @@ ENV UV_TOOL_BIN_DIR="/usr/local/bin" \
 ENTRYPOINT ["/usr/local/bin/entrypoint.sh"]
 WORKDIR /workspace
 
-# Keep the container alive — VS Code execs into it; zellij is launched via the terminal profile
+# Keep the container alive — VS Code execs into it; tmux is launched via the terminal profile
 CMD ["sleep", "infinity"]

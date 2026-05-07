@@ -1877,7 +1877,7 @@ packages = ["core"]
 providers = ["claude"]
 
 # =============================================================================
-# [customization] — color theme, shell prompt, and zellij layout
+# [customization] — color theme, shell prompt, and tmux layout
 # =============================================================================
 [customization]
 theme  = "gruvbox-dark"
@@ -1957,9 +1957,7 @@ enabled = false
 
         // The original [ai] header comment band is intact.
         assert!(updated.contains("# [ai] — AI coding assistant providers"));
-        assert!(
-            updated.contains("# [customization] — color theme, shell prompt, and zellij layout")
-        );
+        assert!(updated.contains("# [customization] — color theme, shell prompt, and tmux layout"));
         // Original concrete values are intact.
         assert!(updated.contains("name = \"demo\""));
         assert!(updated.contains("theme  = \"gruvbox-dark\""));
@@ -2287,9 +2285,6 @@ path = "/mcp"
 theme = "nord"
 prompt = "arrow"
 layout = "ai"
-
-[customization.zellij_status]
-mode = "shell"
 
 [audio]
 enabled = false

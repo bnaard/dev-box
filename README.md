@@ -70,7 +70,7 @@ This creates:
 - `.aibox-home/` for persistent runtime config, ignored by git
 - `context/` with processkit-managed project context
 - root-level `AGENTS.md` plus thin provider pointers
-- a Zellij workspace mounted at `/workspace`
+- a tmux workspace mounted at `/workspace`
 
 For an existing project, start with the
 [existing-project guide](https://projectious-work.github.io/aibox/docs/getting-started/existing-project).
@@ -97,7 +97,7 @@ for the mapping.
 | --- | --- | --- |
 | Project contract | aibox | `aibox.toml`, `aibox.lock`, `.aibox-version` |
 | Container output | aibox | `.devcontainer/`, generated Compose, devcontainer JSON |
-| Runtime home | aibox | `.aibox-home/` Zellij, shell, theme, and tool config |
+| Runtime home | aibox | `.aibox-home/` tmux, shell, theme, and tool config |
 | Addons | aibox | YAML definitions for installable tools and runtimes |
 | Process content | processkit | skills, processes, schemas, state machines, `AGENTS.md` template |
 | Project context | shared | editable `context/` content plus immutable upstream snapshots |

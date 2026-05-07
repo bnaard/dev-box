@@ -19,7 +19,7 @@
 #   release <version> Tag, build, compile CLI, generate release prompt
 #   start             Start this project's dev-container
 #   stop              Stop this project's dev-container
-#   attach            Attach to running dev-container via zellij
+#   attach            Attach to running dev-container via tmux
 #   status            Show dev-container status
 #   help              Show this help
 # =============================================================================
@@ -114,7 +114,7 @@ ${bold}Release:${reset}
                            Refresh and commit repo-owned generated runtime files
 
 ${bold}Container (this project's dev-container):${reset}
-  start                    Ensure running, then attach via zellij
+  start                    Ensure running, then attach via tmux
   stop                     Stop the dev-container
   attach                   Attach to running dev-container
   status                   Show dev-container status
@@ -164,14 +164,11 @@ seed_file() {
 
 ensure_host_dirs() {
   info "Checking host directories..."
-  mkdir -p "${HOST_ROOT}"/{.ssh,.vim/undo,.config/zellij/{themes,layouts},.config/yazi,.config/git,.claude}
+  mkdir -p "${HOST_ROOT}"/{.ssh,.vim/undo,.config/tmux/layouts,.tmux/plugins,.config/yazi,.config/git,.claude}
 
   seed_file "${DEVCONTAINER_DIR}/config/vimrc"                        "${HOST_ROOT}/.vim/vimrc"
   seed_file "${DEVCONTAINER_DIR}/config/gitconfig"                     "${HOST_ROOT}/.config/git/config"
-  seed_file "${DEVCONTAINER_DIR}/config/zellij/config.kdl"             "${HOST_ROOT}/.config/zellij/config.kdl"
-  seed_file "${DEVCONTAINER_DIR}/config/zellij/themes/gruvbox.kdl"     "${HOST_ROOT}/.config/zellij/themes/gruvbox.kdl"
-  seed_file "${DEVCONTAINER_DIR}/config/zellij/layouts/dev.kdl"        "${HOST_ROOT}/.config/zellij/layouts/dev.kdl"
-  seed_file "${DEVCONTAINER_DIR}/config/zellij/layouts/focus.kdl"      "${HOST_ROOT}/.config/zellij/layouts/focus.kdl"
+  seed_file "${DEVCONTAINER_DIR}/config/tmux/tmux.conf"                "${HOST_ROOT}/.config/tmux/tmux.conf"
   seed_file "${DEVCONTAINER_DIR}/config/yazi/yazi.toml"                "${HOST_ROOT}/.config/yazi/yazi.toml"
   seed_file "${DEVCONTAINER_DIR}/config/yazi/keymap.toml"              "${HOST_ROOT}/.config/yazi/keymap.toml"
   seed_file "${DEVCONTAINER_DIR}/config/yazi/theme.toml"               "${HOST_ROOT}/.config/yazi/theme.toml"
@@ -207,7 +204,7 @@ cmd_test_e2e() {
 }
 
 cmd_test_e2e_visual_status() {
-  info "Running opt-in visual E2E: layouts, themes, and sidecar status rows..."
+  info "Running opt-in visual E2E: generated tmux layouts, themes, and status line..."
   (cd "${CLI_DIR}" && cargo test --features e2e --test e2e \
     visual_generated_layouts_render_across_all_themes -- --ignored --nocapture --test-threads=1) \
     || die "Visual E2E status/theme matrix failed"
@@ -215,11 +212,11 @@ cmd_test_e2e_visual_status() {
 }
 
 cmd_test_e2e_visual_tabs() {
-  info "Running opt-in visual E2E: tab traversal, tools, and harnesses..."
+  info "Running opt-in visual E2E: generated tmux windows, tools, and harnesses..."
   (cd "${CLI_DIR}" && cargo test --features e2e --test e2e \
-    visual_generated_tools_and_harness_tabs_render_when_enabled -- --ignored --nocapture --test-threads=1) \
-    || die "Visual E2E tab traversal failed"
-  ok "Visual E2E tab traversal passed"
+    visual_generated_tools_and_harness_windows_render_when_enabled -- --ignored --nocapture --test-threads=1) \
+    || die "Visual E2E generated window traversal failed"
+  ok "Visual E2E generated window traversal passed"
 }
 
 cmd_test_e2e_visual_yazi() {
@@ -232,9 +229,9 @@ cmd_test_e2e_visual_yazi() {
 
 cmd_test_e2e_visual() {
   info "Running all opt-in visual E2E tiers..."
-  info "Visual E2E tier 1/3: layouts, themes, and sidecar status rows"
+  info "Visual E2E tier 1/3: generated layouts, themes, and tmux status line"
   cmd_test_e2e_visual_status
-  info "Visual E2E tier 2/3: tab traversal, tools, and harnesses"
+  info "Visual E2E tier 2/3: generated windows, tools, and harnesses"
   cmd_test_e2e_visual_tabs
   info "Visual E2E tier 3/3: Yazi previews, git symbols, and plugins"
   cmd_test_e2e_visual_yazi
@@ -930,7 +927,7 @@ cmd_attach() {
   if [[ "${status}" != "running" ]]; then
     die "Container is not running. Run './scripts/maintain.sh start' first."
   fi
-  info "Attaching — launching zellij..."
+  info "Attaching — launching tmux..."
   echo ""
   ${RUNTIME_BIN} exec -it \
     --user aibox \
@@ -938,7 +935,7 @@ cmd_attach() {
     --env SHELL=/bin/bash \
     --env XDG_CACHE_HOME=/home/aibox/.cache \
     "${CONTAINER_NAME}" \
-    zellij --layout dev
+    tmux new-session -A -s aibox
 }
 
 cmd_status() {

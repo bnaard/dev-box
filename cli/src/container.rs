@@ -3,7 +3,7 @@ use std::path::{Path, PathBuf};
 
 use crate::config::{
     AiHarness, AiProvider, AiboxConfig, AiboxProfile, BaseImage, McpGatewayMode, StarshipPreset,
-    Theme, ThemeMode, ZellijStatusMode,
+    Theme, ThemeMode, TmuxStatusMode,
 };
 use crate::context;
 use crate::generate;
@@ -21,7 +21,7 @@ pub struct InitParams {
     pub user: Option<String>,
     pub theme: Option<Theme>,
     pub prompt: Option<StarshipPreset>,
-    pub zellij_status: Option<ZellijStatusMode>,
+    pub tmux_status: Option<TmuxStatusMode>,
     pub addons: Option<Vec<String>>,
     /// Repeated `addon:tool=version` overrides for individual tools
     /// inside selected addons. See [`parse_addon_tool_override`] for
@@ -574,7 +574,7 @@ pub fn resolve_init_values(
 pub fn cmd_start(
     config_path: &Option<String>,
     layout: &str,
-    forget_zellij_state: bool,
+    forget_tmux_state: bool,
 ) -> Result<()> {
     let mut config = AiboxConfig::from_cli_option(config_path)?;
     let runtime = Runtime::detect()?;
@@ -648,7 +648,8 @@ pub fn cmd_start(
         );
     }
 
-    let should_recreate_zellij_session = forget_zellij_state || state != ContainerState::Running;
+    let session_name = config.customization.tmux.session_name.clone();
+    let should_recreate_tmux_session = forget_tmux_state || state != ContainerState::Running;
 
     match state {
         ContainerState::Running => {
@@ -676,52 +677,32 @@ pub fn cmd_start(
         ));
     }
 
-    output::info(&format!("Attaching via zellij (layout: {})...", layout));
+    output::info(&format!("Attaching via tmux (layout: {})...", layout));
 
     // When explicitly requested or after starting a non-running container, discard
-    // stale serialized Zellij state so the configured managed layout wins. Plain
+    // stale tmux session state so the configured managed layout wins. Plain
     // re-entry into a running container preserves the user's live session.
-    #[cfg(not(test))]
-    if should_recreate_zellij_session {
-        let docker_cmd = format!(
-            "docker exec {} su -c 'zellij kill-session {} 2>/dev/null || true' {}",
-            name, name, &config.container.user
+    if should_recreate_tmux_session {
+        let _ = runtime.exec_status(
+            name,
+            &config.container.user,
+            &["tmux", "kill-session", "-t", &session_name],
         );
-        let _ = std::process::Command::new("sh")
-            .arg("-c")
-            .arg(&docker_cmd)
-            .output();
     }
 
-    // Use a named session matching the container name. `--forget` is reserved for
-    // managed refreshes; ordinary re-entry should attach to the existing session.
-    // `--layout` is a global flag that must come before the subcommand.
-    let attach_cmd = zellij_attach_command(layout, name, should_recreate_zellij_session);
+    let attach_cmd = tmux_attach_command(layout, &session_name, should_recreate_tmux_session);
     let attach_args: Vec<&str> = attach_cmd.iter().map(|arg| arg.as_str()).collect();
     runtime.exec_interactive(name, &config.container.user, &attach_args)?;
 
     Ok(())
 }
 
-fn zellij_attach_command(
-    layout: &str,
-    session_name: &str,
-    forget_zellij_state: bool,
-) -> Vec<String> {
-    let mut command = vec![
-        "zellij".to_string(),
-        "--layout".to_string(),
+fn tmux_attach_command(layout: &str, session_name: &str, _recreate_session: bool) -> Vec<String> {
+    vec![
+        "aibox-tmux-session".to_string(),
         layout.to_string(),
-        "attach".to_string(),
-        "--create".to_string(),
-    ];
-
-    if forget_zellij_state {
-        command.push("--forget".to_string());
-    }
-
-    command.push(session_name.to_string());
-    command
+        session_name.to_string(),
+    ]
 }
 
 pub fn cmd_emergency(config_path: &Option<String>, harness: AiHarness) -> Result<()> {
@@ -760,7 +741,7 @@ pub fn cmd_emergency(config_path: &Option<String>, harness: AiHarness) -> Result
     }
 
     output::info(&format!(
-        "Launching emergency session for {} without Zellij...",
+        "Launching emergency session for {} without tmux...",
         harness.display_name()
     ));
     let launch_script = emergency_launch_script(&harness, &briefing_path, &briefing);
@@ -778,15 +759,15 @@ fn emergency_briefing(config: &AiboxConfig, harness: &AiHarness, briefing_path: 
         r#"# aibox emergency recovery briefing
 
 You are running inside the main aibox container `{container}` via `aibox emergency {harness}`.
-This session intentionally bypassed Zellij, Yazi, and aibox status tooling.
+This session intentionally bypassed tmux, Yazi, and aibox status tooling.
 
 First checks:
 - Read recent aibox logs: `/workspace/.aibox/aibox.log` and rotated `/workspace/.aibox/aibox.log.*` files if present.
 - Inspect runtime diagnostics snapshots if available: `/workspace/.aibox/diagnostics/` and `/tmp/aibox-diagnostics/`.
 - Check process pressure: `cat /sys/fs/cgroup/pids.current /sys/fs/cgroup/pids.max`; inspect `/proc` for process counts and zombies.
 - Check memory pressure: `cat /sys/fs/cgroup/memory.current /sys/fs/cgroup/memory.max /sys/fs/cgroup/memory.events`.
-- Inspect Zellij only as evidence: `/tmp/zellij-*/zellij-log/zellij.log`, `{home}/.cache/zellij`, and `{home}/.cache/org/Zellij Contributors/Zellij`.
-- Avoid launching Zellij, Yazi, or status helpers until the runtime is stable.
+- Inspect tmux only as evidence: `{home}/.config/tmux`, `{home}/.tmux`, and running `tmux` processes.
+- Avoid launching tmux, Yazi, or status helpers until the runtime is stable.
 
 Workspace: `/workspace`
 Container home: `{home}`
@@ -1355,9 +1336,9 @@ pub(crate) fn serialize_config_with_comments(config: &AiboxConfig) -> String {
     // [customization] section
     out.push('\n');
     out.push_str(sep);
-    out.push_str("# [customization] — color theme, shell prompt, and zellij layout\n");
+    out.push_str("# [customization] — color theme, shell prompt, and tmux layout\n");
     out.push_str(sep);
-    out.push_str("# Theme is applied consistently across Zellij, Vim, Yazi, lazygit, and bat.\n");
+    out.push_str("# Theme is applied consistently across tmux, Vim, Yazi, lazygit, and bat.\n");
     out.push_str("# Options: gruvbox-dark | catppuccin-mocha | catppuccin-latte | dracula | tokyo-night | nord | projectious\n");
     out.push_str("[customization]\n");
     out.push_str(&format!("theme  = \"{}\"\n", config.customization.theme));
@@ -1368,15 +1349,28 @@ pub(crate) fn serialize_config_with_comments(config: &AiboxConfig) -> String {
     out.push_str("# Options: default | plain | minimal | nerd-font | pastel | bracketed | arrow\n");
     out.push_str(&format!("prompt = \"{}\"\n", config.customization.prompt));
     out.push_str(
-        "# Default zellij layout. Options: dev | focus | cowork | cowork-swap | browse | ai\n",
+        "# Default tmux layout. Options: dev | focus | cowork | cowork-swap | browse | ai\n",
     );
     out.push_str(&format!("layout = \"{}\"\n", config.customization.layout));
     out.push('\n');
-    out.push_str("# Zellij status presentation. Options: sidecar | shell | disabled\n");
-    out.push_str("[customization.zellij_status]\n");
+    out.push_str(
+        "# tmux runtime options. `layout` may override [customization].layout for tmux only.\n",
+    );
+    out.push_str("[customization.tmux]\n");
+    out.push_str(&format!(
+        "prefix = \"{}\"\n",
+        config.customization.tmux.prefix
+    ));
+    out.push_str(&format!(
+        "session_name = \"{}\"\n",
+        config.customization.tmux.session_name
+    ));
+    out.push('\n');
+    out.push_str("# tmux status presentation. Options: powerline | plain | disabled\n");
+    out.push_str("[customization.tmux.status]\n");
     out.push_str(&format!(
         "mode = \"{}\"\n",
-        config.customization.zellij_status.mode
+        config.customization.tmux.status.mode
     ));
 
     out
@@ -1951,27 +1945,27 @@ pub fn cmd_init(config_path: &Option<String>, params: InitParams) -> Result<()> 
     )?;
 
     let container_user = params.user.unwrap_or_else(|| "aibox".to_string());
-    let zellij_status_mode = match params.zellij_status {
+    let tmux_status_mode = match params.tmux_status {
         Some(mode) => mode,
         None if interactive => {
             let labels = [
-                "shell — built-in Zellij bar plus aibox runtime status (recommended)",
-                "sidecar — aibox WASM plugin backed by diagnostics snapshots",
-                "disabled — no aibox-provided status rows",
+                "powerline — themed tmux bar with aibox runtime status (recommended)",
+                "plain — minimal tmux-native status text",
+                "disabled — tmux status line off",
             ];
             let modes = [
-                ZellijStatusMode::Shell,
-                ZellijStatusMode::Sidecar,
-                ZellijStatusMode::Disabled,
+                TmuxStatusMode::Powerline,
+                TmuxStatusMode::Plain,
+                TmuxStatusMode::Disabled,
             ];
             let idx = dialoguer::Select::new()
-                .with_prompt("Zellij status")
+                .with_prompt("tmux status")
                 .items(&labels)
                 .default(0)
                 .interact()?;
             modes[idx].clone()
         }
-        None => ZellijStatusMode::default(),
+        None => TmuxStatusMode::default(),
     };
     let ai_providers = match params.ai {
         Some(providers) => providers,
@@ -2113,8 +2107,11 @@ pub fn cmd_init(config_path: &Option<String>, params: InitParams) -> Result<()> 
             mode: ThemeMode::Auto,
             prompt: params.prompt.unwrap_or_default(),
             layout: crate::config::ConfigLayout::default(),
-            zellij_status: crate::config::ZellijStatusSection {
-                mode: zellij_status_mode,
+            tmux: crate::config::TmuxSection {
+                status: crate::config::TmuxStatusSection {
+                    mode: tmux_status_mode,
+                },
+                ..crate::config::TmuxSection::default()
             },
         },
         agents: crate::config::AgentsSection::default(),
@@ -2833,13 +2830,14 @@ fn resolve_aibox_image_version_for_generation(config: &mut AiboxConfig, project_
     let flavor = config.aibox.base.to_string();
     match crate::update::fetch_latest_image_version(&flavor) {
         Ok(v) => {
-            let resolved = format!("{}.{}.{}", v.major, v.minor, v.patch);
+            let resolved = crate::generate::image_version_for_generation(v);
             output::info(&format!(
                 "Resolved aibox image 'latest' \u{2192} v{}",
                 resolved
             ));
             config.aibox.version = resolved;
             config.image.version = config.aibox.version.clone();
+            config.container.image.version = config.aibox.version.clone();
         }
         Err(e) => {
             if let Some(previous) = previous_concrete_aibox_version(project_root) {
@@ -2850,6 +2848,7 @@ fn resolve_aibox_image_version_for_generation(config: &mut AiboxConfig, project_
                 ));
                 config.aibox.version = previous;
                 config.image.version = config.aibox.version.clone();
+                config.container.image.version = config.aibox.version.clone();
             } else {
                 let current = env!("CARGO_PKG_VERSION").to_string();
                 output::warn(&format!(
@@ -2859,6 +2858,7 @@ fn resolve_aibox_image_version_for_generation(config: &mut AiboxConfig, project_
                 ));
                 config.aibox.version = current;
                 config.image.version = config.aibox.version.clone();
+                config.container.image.version = config.aibox.version.clone();
             }
         }
     }
@@ -2972,20 +2972,18 @@ mod tests {
     }
 
     #[test]
-    fn zellij_attach_command_forgets_serialized_session_state() {
+    fn tmux_attach_command_recreates_with_managed_layout_script() {
         assert_eq!(
-            zellij_attach_command("ai", "aibox", true),
-            vec![
-                "zellij", "--layout", "ai", "attach", "--create", "--forget", "aibox",
-            ]
+            tmux_attach_command("ai", "aibox", true),
+            vec!["aibox-tmux-session", "ai", "aibox"]
         );
     }
 
     #[test]
-    fn zellij_attach_command_preserves_serialized_session_state_by_default() {
+    fn tmux_attach_command_preserves_existing_session_by_default() {
         assert_eq!(
-            zellij_attach_command("ai", "aibox", false),
-            vec!["zellij", "--layout", "ai", "attach", "--create", "aibox"]
+            tmux_attach_command("ai", "aibox", false),
+            vec!["aibox-tmux-session", "ai", "aibox"]
         );
     }
 

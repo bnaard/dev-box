@@ -92,7 +92,7 @@ fn assert_no_placeholders(dir: &std::path::Path) {
 
     let files_to_check = [
         ".vim/vimrc",
-        ".config/zellij/config.kdl",
+        ".config/tmux/tmux.conf",
         ".config/starship.toml",
     ];
 
@@ -156,11 +156,10 @@ fn theme_gruvbox_renders_correctly() {
             .unwrap_or("no colorscheme line")
     );
 
-    // Check zellij config
-    let zellij = fs::read_to_string(aibox_home.join(".config/zellij/config.kdl")).unwrap();
+    let tmux = fs::read_to_string(aibox_home.join(".config/tmux/tmux.conf")).unwrap();
     assert!(
-        zellij.contains("gruvbox-dark"),
-        "zellij config should reference gruvbox-dark theme"
+        tmux.contains("#D79921"),
+        "tmux config should reference gruvbox-dark accent"
     );
 }
 
@@ -171,11 +170,10 @@ fn theme_catppuccin_mocha_renders() {
 
     let aibox_home = dir.path().join(".aibox-home");
 
-    // Check zellij config
-    let zellij = fs::read_to_string(aibox_home.join(".config/zellij/config.kdl")).unwrap();
+    let tmux = fs::read_to_string(aibox_home.join(".config/tmux/tmux.conf")).unwrap();
     assert!(
-        zellij.contains("catppuccin-mocha"),
-        "zellij config should reference catppuccin-mocha theme"
+        tmux.contains("#89B4FA"),
+        "tmux config should reference catppuccin-mocha accent"
     );
 }
 
@@ -186,8 +184,8 @@ fn theme_change_auto_applies_untouched_runtime_files() {
 
     let aibox_home = dir.path().join(".aibox-home");
 
-    let zellij_before = fs::read_to_string(aibox_home.join(".config/zellij/config.kdl")).unwrap();
-    assert!(zellij_before.contains("gruvbox-dark"));
+    let tmux_before = fs::read_to_string(aibox_home.join(".config/tmux/tmux.conf")).unwrap();
+    assert!(tmux_before.contains("#D79921"));
     let vimrc_before = fs::read_to_string(aibox_home.join(".vim/vimrc")).unwrap();
     assert!(vimrc_before.contains("gruvbox"));
     let yazi_before = fs::read_to_string(aibox_home.join(".config/yazi/theme.toml")).unwrap();
@@ -198,10 +196,10 @@ fn theme_change_auto_applies_untouched_runtime_files() {
     // ChangedUpstreamOnly files are now auto-applied (the user hasn't
     // touched them, only the config changed), so the live files should
     // already reflect the new theme.
-    let zellij_after = fs::read_to_string(aibox_home.join(".config/zellij/config.kdl")).unwrap();
+    let tmux_after = fs::read_to_string(aibox_home.join(".config/tmux/tmux.conf")).unwrap();
     assert!(
-        zellij_after.contains("dracula"),
-        "zellij config should be auto-updated to the new theme"
+        tmux_after.contains("#BD93F9"),
+        "tmux config should be auto-updated to the new theme"
     );
     let vimrc_after = fs::read_to_string(aibox_home.join(".vim/vimrc")).unwrap();
     assert!(
@@ -264,12 +262,13 @@ fn theme_alignment_all_tools_match_selected_theme() {
                 .unwrap_or("no colorscheme line")
         );
 
-        // Zellij must reference the theme name
-        let zellij = fs::read_to_string(aibox_home.join(".config/zellij/config.kdl")).unwrap();
+        // tmux must reference the theme accent.
+        let tmux = fs::read_to_string(aibox_home.join(".config/tmux/tmux.conf")).unwrap();
         assert!(
-            zellij.contains(theme),
-            "theme '{}': zellij config should reference theme name",
-            theme
+            tmux.contains(accent),
+            "theme '{}': tmux config should reference accent {}",
+            theme,
+            accent
         );
 
         // Yazi theme must use the current schema and include git styling.

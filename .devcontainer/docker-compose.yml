@@ -8,7 +8,7 @@
 #   To change user:     set user in aibox.toml [container], run `aibox apply`
 #
 # VOLUME MOUNT STRATEGY:
-#   Config files (vim, zellij, yazi, git, AI tools) are mounted read-write from
+#   Config files (vim, tmux, yazi, git, AI tools) are mounted read-write from
 #   the host-side .aibox-home/ directory so changes persist across rebuilds.
 #   The workspace (project root) is mounted at /workspace inside the container.
 #   SSH keys are mounted read-only for security.
@@ -42,12 +42,12 @@ services:
       # Vim configuration (vimrc + undo only — colorschemes stay from image)
       - ../.aibox-home/.vim/vimrc:/home/aibox/.vim/vimrc
       - ../.aibox-home/.vim/undo:/home/aibox/.vim/undo
-      # Zellij terminal multiplexer config
-      - ../.aibox-home/.config/zellij:/home/aibox/.config/zellij
+      # tmux terminal multiplexer config and plugin state
+      - ../.aibox-home/.config/tmux:/home/aibox/.config/tmux
+      - ../.aibox-home/.tmux:/home/aibox/.tmux
       # XDG cache home. This must be mounted as a writable parent, not only as
       # selected subdirectories, because tools such as uv and starship create
-      # their own cache/log directories at runtime. It also carries Zellij's
-      # pre-seeded sidecar plugin permission cache.
+      # their own cache/log directories at runtime.
       - ../.aibox-home/.cache:/home/aibox/.cache
       # Yazi file manager config
       - ../.aibox-home/.config/yazi:/home/aibox/.config/yazi

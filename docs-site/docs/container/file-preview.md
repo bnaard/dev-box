@@ -26,7 +26,7 @@ Watch-mode (live-updating preview) is available via the standalone tools — see
 
 ## Yazi File Preview
 
-When you open Yazi (`Ctrl+b s` from the file manager pane, or via the layout sidebar), files are previewed automatically in the right panel as you navigate. No manual invocation needed.
+When you open Yazi (`Ctrl+g s` from the file manager pane, or via the layout sidebar), files are previewed automatically in the right panel as you navigate. No manual invocation needed.
 
 ### Supported formats
 
@@ -100,9 +100,11 @@ Custom plugins (`svg.yazi`, `eps.yazi`) live at `~/.config/yazi/plugins/<name>.y
 
 **`.excalidraw` files** — Excalidraw's native format is JSON. A graphical preview is not possible in a TUI environment. Yazi falls back to the text previewer showing the raw JSON. This is a known limitation — Excalidraw requires a browser to render.
 
-:::info Image protocol inside Zellij
+:::info Image protocol inside tmux
 
-Zellij currently passes only **Sixel** through to the terminal (Kitty and iTerm2 protocols are dropped — [Zellij #4336](https://github.com/zellij-org/zellij/issues/4336)). Yazi auto-detects this and uses Sixel when inside Zellij. Sixel rendering works but is more CPU-intensive than Kitty protocol — if you notice high CPU during image preview, this is expected. On hosts with a Kitty or WezTerm terminal outside Zellij, Yazi will use the more efficient Kitty protocol automatically.
+Image preview support depends on the host terminal and tmux passthrough
+settings. The generated Yazi config favors terminal-safe fallbacks inside tmux;
+use half-block mode when you need predictable rendering across terminals.
 
 :::
 
@@ -121,7 +123,7 @@ integrating into a pipeline when the `preview-archive` addon is enabled.
 # View any raster image
 chafa photo.jpg
 
-# Force half-block mode (safe inside Zellij, no Sixel CPU spike)
+# Force half-block mode (safe inside tmux)
 chafa --format=halfblock diagram.png
 
 # SVG via librsvg (if chafa was compiled with librsvg support)
@@ -226,7 +228,7 @@ ls <file> | entr -s '<rasterise-command> && timg --clear <output.png>'
 
 :::tip Pane layout for watch preview
 
-In the `dev` or `cowork` layouts, open a new horizontal pane below the editor (`Ctrl+b d`) and run the watch command there. The preview refreshes in that pane every time you save. Use `Ctrl+b =` to resize the pane to taste.
+In the `dev` or `cowork` layouts, open a new horizontal pane below the editor (`Ctrl+g d`) and run the watch command there. The preview refreshes in that pane every time you save. Use `Ctrl+g =` to resize the pane to taste.
 
 :::
 

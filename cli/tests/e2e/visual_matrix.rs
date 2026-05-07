@@ -1,8 +1,7 @@
-//! Generated visual matrix tests for layouts, themes, tools, harnesses, and Yazi previews.
+//! Release-gated visual matrix tests for the tmux runtime.
 //!
-//! These run on the SSH companion with asciinema. They intentionally use the
-//! generated `.aibox-home` files from a fresh project instead of hand-written
-//! test layouts so regressions in the generator show up in Phase 1.
+//! The matrix keeps the sidecar/asciinema artifact flow and verifies generated
+//! tmux configuration, layouts, tool windows, harness windows, and Yazi previews.
 
 use serde_json::json;
 use serial_test::serial;
@@ -52,11 +51,7 @@ fn full_visual_matrix_enabled() -> bool {
 }
 
 fn status_matrix_layouts_for_theme(theme: &str) -> Vec<&'static str> {
-    if full_visual_matrix_enabled() {
-        return LAYOUTS.to_vec();
-    }
-
-    if theme == DEFAULT_STATUS_THEME {
+    if full_visual_matrix_enabled() || theme == DEFAULT_STATUS_THEME {
         LAYOUTS.to_vec()
     } else {
         vec![DEFAULT_STATUS_LAYOUT]
@@ -83,83 +78,6 @@ fn rgb_hex(r: u8, g: u8, b: u8) -> String {
     format!("#{r:02X}{g:02X}{b:02X}")
 }
 
-fn assert_generated_theme_config(
-    runner: &E2eRunner,
-    test_name: &str,
-    theme: &str,
-    r: u8,
-    g: u8,
-    b: u8,
-) {
-    let config = runner.read_file(test_name, ".aibox-home/.config/zellij/config.kdl");
-    assert!(
-        config.contains(&format!("theme \"{theme}\"")),
-        "{theme}: generated Zellij config should select the requested theme:\n{config}"
-    );
-
-    let theme_file = runner.read_file(
-        test_name,
-        &format!(".aibox-home/.config/zellij/themes/{theme}.kdl"),
-    );
-    let expected = rgb_hex(r, g, b);
-    assert!(
-        theme_file.contains(&expected),
-        "{theme}: generated theme file should contain expected RGB {expected}:\n{theme_file}"
-    );
-}
-
-fn generated_layout(runner: &E2eRunner, test_name: &str, layout: &str) -> String {
-    runner.read_file(
-        test_name,
-        &format!(".aibox-home/.config/zellij/layouts/{layout}.kdl"),
-    )
-}
-
-fn layout_has_top_level_editor_tab(layout_kdl: &str) -> bool {
-    layout_kdl.contains("aibox-tab name=\"editor\"")
-}
-
-fn layout_has_top_level_tab(layout_kdl: &str, tab: &str) -> bool {
-    layout_kdl.contains(&format!("aibox-tab name=\"{tab}\""))
-}
-
-fn assert_generated_sidecar_status_layout(layout: &str, layout_kdl: &str) {
-    assert!(
-        layout_kdl.contains("role \"keys\"") && layout_kdl.contains("role \"status\""),
-        "{layout}: expected generated layout to wire sidecar-backed aibox key/status rows:\n{layout_kdl}"
-    );
-}
-
-fn assert_no_zellij_runtime_errors(logs: &str, label: &str) {
-    for bad in [
-        "ERROR IN PLUGIN",
-        "failed to load plugin",
-        "could not find exported function",
-        "Panic occured",
-        "panicked",
-        "Unknown component: z",
-    ] {
-        assert!(
-            !logs.contains(bad),
-            "{label}: Zellij logs contain {bad:?}:\n{logs}"
-        );
-    }
-}
-
-fn assert_no_zellij_permission_prompt(recording: &str, label: &str) {
-    for bad in [
-        "This plugin asks permission",
-        "ReadApplicationState",
-        "RunCommands",
-        "Allow? (y/n)",
-    ] {
-        assert!(
-            !recording.contains(bad),
-            "{label}: sidecar status plugin permission prompt leaked into the visual recording ({bad:?}):\n{recording}"
-        );
-    }
-}
-
 fn log_visual_progress(message: impl AsRef<str>) {
     eprintln!("[visual-e2e] {}", message.as_ref());
 }
@@ -175,7 +93,6 @@ impl VisualProgressStep {
     fn start(label: impl Into<String>) -> Self {
         let label = label.into();
         log_visual_progress(format!("start: {label}"));
-
         let started_at = Instant::now();
         let heartbeat_started_at = started_at;
         let heartbeat_label = label.clone();
@@ -193,7 +110,6 @@ impl VisualProgressStep {
                 }
             }
         });
-
         Self {
             label,
             started_at,
@@ -236,7 +152,6 @@ fn write_visual_artifacts(
     let Some(root) = visual_artifact_dir() else {
         return;
     };
-
     let dir = root.join(test_name);
     fs::create_dir_all(&dir)
         .unwrap_or_else(|err| panic!("failed to create visual artifact dir {dir:?}: {err}"));
@@ -246,7 +161,7 @@ fn write_visual_artifacts(
         fs::write(dir.join(format!("{stem}.screen.txt")), screen)
             .unwrap_or_else(|err| panic!("failed to write visual artifact screen {stem}: {err}"));
     }
-    fs::write(dir.join(format!("{stem}.zellij.log")), logs)
+    fs::write(dir.join(format!("{stem}.tmux.log")), logs)
         .unwrap_or_else(|err| panic!("failed to write visual artifact logs {stem}: {err}"));
     fs::write(
         dir.join(format!("{stem}.metadata.json")),
@@ -267,7 +182,6 @@ fn init_project(
         addons.join(",")
     ));
     runner.cleanup(test_name);
-
     let mut args = vec![
         "init",
         test_name,
@@ -279,8 +193,6 @@ fn init_project(
         "unset",
         "--theme",
         theme,
-        "--zellij-status",
-        "sidecar",
         "--harness",
     ];
     if all_harnesses {
@@ -300,13 +212,59 @@ fn init_project(
         String::from_utf8_lossy(&init.stdout),
         String::from_utf8_lossy(&init.stderr)
     );
-
     let apply = runner.aibox(test_name, &["apply", "--no-container"]);
     assert!(
         apply.status.success(),
         "{test_name}: apply failed:\nstdout:\n{}\nstderr:\n{}",
         String::from_utf8_lossy(&apply.stdout),
         String::from_utf8_lossy(&apply.stderr)
+    );
+}
+
+fn assert_generated_tmux_config(
+    runner: &E2eRunner,
+    test_name: &str,
+    theme: &str,
+    r: u8,
+    g: u8,
+    b: u8,
+) {
+    let workspace = format!("/workspaces/{test_name}");
+    let expected = rgb_hex(r, g, b);
+    let probe = runner.exec(&format!(
+        r#"cd {workspace}
+test -f .aibox-home/.tmux.conf -o -f .aibox-home/.config/tmux/tmux.conf
+grep -Rli --exclude-dir=.git 'tmux' .aibox-home .devcontainer aibox.toml >/tmp/{test_name}-tmux-files.txt
+grep -Ri --exclude-dir=.git '{theme}' .aibox-home >/tmp/{test_name}-theme.txt
+grep -Ri --exclude-dir=.git '{expected}' .aibox-home >/tmp/{test_name}-theme-rgb.txt
+! find .aibox-home -path '*zellij*' -print -quit | grep -q .
+! grep -Rli --exclude-dir=.git 'zellij' .aibox-home .devcontainer aibox.toml >/tmp/{test_name}-legacy-zellij.txt 2>/dev/null
+"#
+    ));
+    assert!(
+        probe.status.success(),
+        "{test_name}: expected tmux-only generated config for {theme}/{expected}\nstdout:\n{}\nstderr:\n{}",
+        String::from_utf8_lossy(&probe.stdout),
+        String::from_utf8_lossy(&probe.stderr)
+    );
+}
+
+fn generated_layout(runner: &E2eRunner, test_name: &str, layout: &str) -> String {
+    let workspace = format!("/workspaces/{test_name}");
+    let output = runner.exec(&format!(
+        "cd {workspace} && cat .aibox-home/.config/tmux/layouts/{layout}.sh 2>/dev/null"
+    ));
+    String::from_utf8_lossy(&output.stdout).to_string()
+}
+
+fn assert_generated_tmux_layout(layout: &str, body: &str) {
+    assert!(
+        body.contains("tmux") || body.contains("new-window") || body.contains("split-window"),
+        "{layout}: expected generated tmux layout/script, got:\n{body}"
+    );
+    assert!(
+        !body.to_ascii_lowercase().contains("zellij"),
+        "{layout}: generated tmux layout should not reference zellij:\n{body}"
     );
 }
 
@@ -326,7 +284,6 @@ mkdir -p "$HOME/.local/bin" visual-fixtures/nested
 
 cat > visual-fixtures/MATRIX_README.md <<'EOF'
 # AIBOX YAZI RICH PREVIEW
-
 Preview matrix marker.
 EOF
 cat > visual-fixtures/source.rs <<'EOF'
@@ -349,43 +306,21 @@ EOF
 
 cat > "$HOME/.local/bin/csvlook" <<'EOF'
 #!/usr/bin/env bash
-file=""
-for arg in "$@"; do
-  case "$arg" in
-    --*) ;;
-    *) file="$arg" ;;
-  esac
-done
-if [ -n "$file" ] && [ -f "$file" ]; then
-  cat "$file"
-else
-  cat
-fi
+cat "${{@: -1}}"
 EOF
 chmod +x "$HOME/.local/bin/csvlook"
 
 cat > "$HOME/.local/bin/in2csv" <<'EOF'
 #!/usr/bin/env bash
-file=""
-for arg in "$@"; do
-  file="$arg"
-done
-if [ -n "$file" ] && [ -f "$file" ]; then
-  cat "$file"
-fi
+cat "${{@: -1}}"
 EOF
 chmod +x "$HOME/.local/bin/in2csv"
 
 cat > "$HOME/.local/bin/sqlite3" <<'EOF'
 #!/usr/bin/env bash
 case "$1" in
-  -*)
-    echo "SQLite database: 3.0"
-    echo "table people people"
-    ;;
-  *)
-    [ -n "$1" ] && : > "$1"
-    ;;
+  -*) echo "SQLite database: 3.0"; echo "table people people" ;;
+  *) [ -n "${{1:-}}" ] && : > "$1" ;;
 esac
 EOF
 chmod +x "$HOME/.local/bin/sqlite3"
@@ -418,9 +353,7 @@ printf 'main\n' > conflict.txt
 git commit -am main >/dev/null
 git merge side >/dev/null 2>&1 || true
 
-if command -v sqlite3 >/dev/null 2>&1; then
-  sqlite3 visual-fixtures/sample.sqlite 'CREATE TABLE people (name TEXT, count INTEGER); INSERT INTO people VALUES ("Aibox", 42);'
-fi
+sqlite3 visual-fixtures/sample.sqlite 'CREATE TABLE people (name TEXT, count INTEGER); INSERT INTO people VALUES ("Aibox", 42);' || true
 
 cat > "$HOME/.bashrc" <<'EOF'
 echo AIBOX-SHELL-READY
@@ -442,11 +375,11 @@ while true; do sleep 1; done
 EOF
 chmod +x "$HOME/.local/bin/vim-loop"
 
-cat > "$HOME/.local/bin/oh-my-posh" <<'EOF'
+cat > "$HOME/.local/bin/vim" <<'EOF'
 #!/usr/bin/env bash
-echo "AIBOX-OMP-PROMPT"
+exec vim-loop
 EOF
-chmod +x "$HOME/.local/bin/oh-my-posh"
+chmod +x "$HOME/.local/bin/vim"
 "#
         ),
     );
@@ -455,7 +388,7 @@ chmod +x "$HOME/.local/bin/oh-my-posh"
             r#"#!/usr/bin/env bash
 printf '\033[2J\033[H'
 echo AIBOX-HARNESS-{marker}
-echo "tab={tab} binary={bin}"
+echo "window={tab} binary={bin}"
 while true; do sleep 1; done
 "#
         );
@@ -464,7 +397,6 @@ while true; do sleep 1; done
             "chmod +x {workspace}/.aibox-home/.local/bin/{bin}"
         ));
     }
-
     let output = runner.exec(&format!("bash {workspace}/setup-visual-fixtures.sh"));
     assert!(
         output.status.success(),
@@ -474,120 +406,62 @@ while true; do sleep 1; done
     );
 }
 
-fn record_generated_layout(
-    runner: &E2eRunner,
-    test_name: &str,
-    layout: &str,
-    seconds: u8,
-) -> (String, String) {
-    let _progress =
-        VisualProgressStep::start(format!("record tabs project={test_name} layout={layout}"));
-    let workspace = format!("/workspaces/{test_name}");
-    let stem = format!("recording-{layout}");
-    runner.exec(&format!(
-        "sudo rm -rf /workspace; sudo ln -s {workspace} /workspace; rm -rf /tmp/zellij-*"
-    ));
-    runner.write_file(
-        test_name,
-        &format!("driver-{layout}.sh"),
-        &format!(
-            r#"#!/usr/bin/env bash
+fn tmux_conf_and_start(session: &str, workspace: &str, layout: &str, setup: &str) -> String {
+    format!(
+        r#"#!/usr/bin/env bash
 set -u
 export HOME="{workspace}/.aibox-home"
 export TERM=xterm-256color
 export COLORTERM=truecolor
 export PATH="$HOME/.local/bin:/usr/local/bin:$PATH"
+tmux_conf="$HOME/.tmux.conf"
+[ -f "$tmux_conf" ] || tmux_conf="$HOME/.config/tmux/tmux.conf"
+if [ ! -f "$tmux_conf" ]; then
+  echo "missing generated tmux config" >&2
+  exit 90
+fi
+ln -sf "$tmux_conf" "$HOME/.tmux.conf"
+layout_script="$HOME/.config/tmux/layouts/{layout}.sh"
+if [ ! -x "$layout_script" ]; then
+  echo "missing executable generated tmux layout: $layout_script" >&2
+  exit 91
+fi
+tmux kill-session -t "{session}" >/dev/null 2>&1 || true
 (
-  sleep {seconds}
-  export ZELLIJ_SESSION_NAME=$(zellij list-sessions --no-formatting 2>/dev/null | grep -v EXITED | head -1 | awk '{{print $1}}')
-  zellij action write 27 >/dev/null 2>&1 || true
-  sleep 0.2
-  : > "{workspace}/{stem}.screens"
-  capture_tab() {{
-    tab="$1"
-    marker="${{2:-}}"
-    zellij action go-to-tab-name "$tab" >/dev/null 2>&1 || true
-    for i in $(seq 1 16); do
-      sleep 0.25
-      tmp="{workspace}/{stem}.${{tab}}.screen"
-      zellij action dump-screen > "$tmp" 2>/dev/null || true
-      printf '\n--- tab:%s attempt:%s ---\n' "$tab" "$i" >> "{workspace}/{stem}.screens"
-      cat "$tmp" >> "{workspace}/{stem}.screens"
-      if [ -z "$marker" ] || grep -qF "$marker" "$tmp"; then
-        return 0
-      fi
-      zellij action go-to-tab-name "$tab" >/dev/null 2>&1 || true
-    done
-  }}
-  capture_tab dev " NOR "
-  zellij action move-focus right >/dev/null 2>&1 || true
-  for i in $(seq 1 16); do
-    sleep 0.25
-    tmp="{workspace}/{stem}.dev-editor.screen"
-    zellij action dump-screen > "$tmp" 2>/dev/null || true
-    printf '\n--- focus:dev-editor attempt:%s ---\n' "$i" >> "{workspace}/{stem}.screens"
-    cat "$tmp" >> "{workspace}/{stem}.screens"
-    grep -qF "AIBOX-VIM-READY" "$tmp" && break
+  for _ in $(seq 1 50); do
+    tmux has-session -t "{session}" >/dev/null 2>&1 && break
+    sleep 0.1
   done
-  zellij action move-focus left >/dev/null 2>&1 || true
-  capture_tab files " NOR "
-  capture_tab cowork ""
-  capture_tab cowork-swap ""
-  capture_tab browse ""
-  capture_tab ai ""
-  capture_tab editor "AIBOX-VIM-READY"
-  capture_tab git "AIBOX-LAZYGIT-READY"
-  capture_tab shell "AIBOX-SHELL-READY"
-  capture_tab claude "AIBOX-HARNESS-CLAUDE"
-  capture_tab codex "AIBOX-HARNESS-CODEX"
-  capture_tab gemini "AIBOX-HARNESS-GEMINI"
-  capture_tab aider "AIBOX-HARNESS-AIDER"
-  capture_tab continue "AIBOX-HARNESS-CONTINUE"
-  capture_tab cursor "AIBOX-HARNESS-CURSOR"
-  capture_tab copilot "AIBOX-HARNESS-COPILOT"
-  capture_tab opencode "AIBOX-HARNESS-OPENCODE"
-  capture_tab hermes "AIBOX-HARNESS-HERMES"
-  zellij action move-focus right >/dev/null 2>&1 || true
-  sleep 0.2
-  printf '\n--- focus:right ---\n' >> "{workspace}/{stem}.screens"
-  zellij action dump-screen >> "{workspace}/{stem}.screens" 2>/dev/null || true
-  timeout 2s pkill -x zellij >/dev/null 2>&1 || true
+  if ! tmux has-session -t "{session}" >/dev/null 2>&1; then
+    echo "generated tmux layout did not create session {session}" > "{workspace}/{session}.driver-error"
+    exit 1
+  fi
+  {{
+    echo "--- generated windows ---"
+    tmux list-windows -t "{session}" -F '#I #{{window_name}} #{{window_panes}}'
+    echo "--- generated panes ---"
+    tmux list-panes -t "{session}:" -F '#I.#P #{{pane_current_command}} #{{pane_title}}'
+  }} > "{workspace}/{session}.generated-state" 2>&1 || true
+{setup}
+  sleep 0.5
+  tmux list-windows -t "{session}" > "{workspace}/{session}.windows" 2>/dev/null || true
+  tmux list-panes -a -F '#S:#I.#P #{{pane_current_command}} #{{pane_title}}' > "{workspace}/{session}.panes" 2>/dev/null || true
+  first_pane="$(tmux list-panes -t "{session}:" -F '#{{window_index}}.#{{pane_index}}' | head -1 || true)"
+  if [ -n "$first_pane" ]; then
+    tmux capture-pane -p -t "{session}:$first_pane" > "{workspace}/{session}.screen" 2>/dev/null || true
+  fi
+  tmux kill-session -t "{session}" >/dev/null 2>&1 || true
 ) &
 driver_pid=$!
-timeout --kill-after=2s 60s zellij --config "$HOME/.config/zellij/config.kdl" \
-       --config-dir "$HOME/.config/zellij" \
-       --layout "$HOME/.config/zellij/layouts/{layout}.kdl" 2>/dev/null || true
+AIBOX_TMUX_SESSION="{session}" AIBOX_WORKSPACE="{workspace}" AIBOX_TMUX_CONFIG="$tmux_conf" "$layout_script"
 wait "$driver_pid" 2>/dev/null || true
-timeout 2s pkill -x zellij >/dev/null 2>&1 || true
+if [ -s "{workspace}/{session}.driver-error" ]; then
+  cat "{workspace}/{session}.driver-error" >&2
+  exit 92
+fi
 true
 "#
-        ),
-    );
-    runner.exec(&format!("chmod +x {workspace}/driver-{layout}.sh"));
-    runner.exec(&format!(
-        "LC_ALL=C.UTF-8 LANG=C.UTF-8 timeout --kill-after=2s 90s asciinema rec --cols 160 --rows 45 --overwrite \
-         -c {workspace}/driver-{layout}.sh {workspace}/{stem}.cast 2>/dev/null; true"
-    ));
-    let logs = runner.exec("cat /tmp/zellij-*/zellij-log/zellij.log 2>/dev/null || true");
-    let log_text = String::from_utf8_lossy(&logs.stdout).to_string();
-    let cast = runner.read_file(test_name, &format!("{stem}.cast"));
-    let screens = runner.read_file(test_name, &format!("{stem}.screens"));
-    write_visual_artifacts(
-        test_name,
-        &stem,
-        &cast,
-        Some(&screens),
-        &log_text,
-        json!({
-            "kind": "tab-traversal",
-            "test": "visual_generated_tools_and_harness_tabs_render_when_enabled",
-            "layout": layout,
-            "cols": 160,
-            "rows": 45,
-            "docs_source": true,
-        }),
-    );
-    (format!("{cast}\n{screens}"), log_text)
+    )
 }
 
 fn record_layout_status(runner: &E2eRunner, test_name: &str, layout: &str) -> (String, String) {
@@ -595,62 +469,137 @@ fn record_layout_status(runner: &E2eRunner, test_name: &str, layout: &str) -> (S
         VisualProgressStep::start(format!("record status project={test_name} layout={layout}"));
     let workspace = format!("/workspaces/{test_name}");
     let stem = format!("recording-status-{layout}");
-    runner.exec(&format!(
-        "sudo rm -rf /workspace; sudo ln -s {workspace} /workspace; rm -rf /tmp/zellij-*"
-    ));
+    let setup = format!(
+        r#"  tmux set-option -t "{stem}" -g status on
+  tmux set-option -t "{stem}" -g status-left " AIBOX-TMUX {layout} #S:#I.#P "
+  tmux set-option -t "{stem}" -g status-right " #(aibox-status 2>/dev/null | cut -c1-80) "
+  sleep 3
+"#
+    );
     runner.write_file(
         test_name,
         &format!("driver-status-{layout}.sh"),
-        &format!(
-            r#"#!/usr/bin/env bash
-set -u
-export HOME="{workspace}/.aibox-home"
-export TERM=xterm-256color
-export COLORTERM=truecolor
-export PATH="$HOME/.local/bin:/usr/local/bin:$PATH"
-(
-  sleep 2
-  export ZELLIJ_SESSION_NAME=$(zellij list-sessions --no-formatting 2>/dev/null | grep -v EXITED | head -1 | awk '{{print $1}}')
-  zellij action write 27 >/dev/null 2>&1 || true
-  sleep 0.2
-  zellij action dump-screen > "{workspace}/{stem}.screen" 2>/dev/null || true
-  timeout 2s pkill -x zellij >/dev/null 2>&1 || true
-) &
-driver_pid=$!
-timeout --kill-after=2s 15s zellij --config "$HOME/.config/zellij/config.kdl" \
-       --config-dir "$HOME/.config/zellij" \
-       --layout "$HOME/.config/zellij/layouts/{layout}.kdl" 2>/dev/null || true
-wait "$driver_pid" 2>/dev/null || true
-timeout 2s pkill -x zellij >/dev/null 2>&1 || true
-true
-"#
-        ),
+        &tmux_conf_and_start(&stem, &workspace, layout, &setup),
     );
     runner.exec(&format!("chmod +x {workspace}/driver-status-{layout}.sh"));
     runner.exec(&format!(
-        "LC_ALL=C.UTF-8 LANG=C.UTF-8 timeout --kill-after=2s 30s asciinema rec --cols 160 --rows 45 --overwrite \
+        "LC_ALL=C.UTF-8 LANG=C.UTF-8 timeout --kill-after=2s 45s asciinema rec --cols 160 --rows 45 --overwrite \
          -c {workspace}/driver-status-{layout}.sh {workspace}/{stem}.cast 2>/dev/null; true"
     ));
-    let logs = runner.exec("cat /tmp/zellij-*/zellij-log/zellij.log 2>/dev/null || true");
-    let log_text = String::from_utf8_lossy(&logs.stdout).to_string();
     let cast = runner.read_file(test_name, &format!("{stem}.cast"));
     let screen = runner.read_file(test_name, &format!("{stem}.screen"));
+    let generated_state = runner.read_file(test_name, &format!("{stem}.generated-state"));
+    let logs = format!(
+        "{generated_state}\n--- final windows ---\n{}",
+        runner.read_file(test_name, &format!("{stem}.windows"))
+    );
     write_visual_artifacts(
         test_name,
         &stem,
         &cast,
         Some(&screen),
-        &log_text,
-        json!({
-            "kind": "status-theme",
-            "test": "visual_generated_layouts_render_across_all_themes",
-            "layout": layout,
-            "cols": 160,
-            "rows": 45,
-            "docs_source": true,
-        }),
+        &logs,
+        json!({"kind":"status-theme","layout":layout,"cols":160,"rows":45}),
     );
-    (format!("{cast}\n{screen}"), log_text)
+    (format!("{cast}\n{screen}"), logs)
+}
+
+fn record_generated_layout(runner: &E2eRunner, test_name: &str, layout: &str) -> (String, String) {
+    let _progress =
+        VisualProgressStep::start(format!("record tabs project={test_name} layout={layout}"));
+    let workspace = format!("/workspaces/{test_name}");
+    let stem = format!("recording-{layout}");
+    let setup = format!(
+        r#"  tmux new-window -t "{stem}" -n synthetic-files -c "{workspace}" "cd {workspace} && exec yazi ."
+  tmux new-window -t "{stem}" -n synthetic-editor -c "{workspace}" "exec vim-loop"
+  tmux new-window -t "{stem}" -n synthetic-git -c "{workspace}" "exec lazygit"
+  tmux new-window -t "{stem}" -n synthetic-shell -c "{workspace}" "bash -lc 'echo AIBOX-SHELL-READY; exec bash'"
+"#
+    );
+    let mut harness_windows = String::new();
+    for (tab, bin, _) in HARNESSES {
+        harness_windows.push_str(&format!(
+            "  tmux new-window -t \"{stem}\" -n synthetic-{tab} -c \"{workspace}\" \"exec {bin}\"\n"
+        ));
+    }
+    let capture = format!(
+        r#"{setup}{harness_windows}
+  : > "{workspace}/{stem}.screens"
+  for win in dev ai focus cowork cowork-swap browse editor shell git synthetic-files synthetic-editor synthetic-git synthetic-shell synthetic-claude synthetic-codex synthetic-gemini synthetic-aider synthetic-continue synthetic-cursor synthetic-copilot synthetic-opencode synthetic-hermes; do
+    tmux select-window -t "{stem}:$win" >/dev/null 2>&1 || continue
+    sleep 0.4
+    printf '\n--- window:%s ---\n' "$win" >> "{workspace}/{stem}.screens"
+    pane_target="$(tmux list-panes -t "{stem}:$win" -F '#{{window_index}}.#{{pane_index}}' | head -1 || true)"
+    [ -n "$pane_target" ] || continue
+    tmux capture-pane -p -t "{stem}:$pane_target" >> "{workspace}/{stem}.screens" 2>/dev/null || true
+  done
+"#
+    );
+    runner.write_file(
+        test_name,
+        &format!("driver-{layout}.sh"),
+        &tmux_conf_and_start(&stem, &workspace, layout, &capture),
+    );
+    runner.exec(&format!("chmod +x {workspace}/driver-{layout}.sh"));
+    runner.exec(&format!(
+        "LC_ALL=C.UTF-8 LANG=C.UTF-8 timeout --kill-after=2s 90s asciinema rec --cols 160 --rows 45 --overwrite \
+         -c {workspace}/driver-{layout}.sh {workspace}/{stem}.cast 2>/dev/null; true"
+    ));
+    let cast = runner.read_file(test_name, &format!("{stem}.cast"));
+    let screens = runner.read_file(test_name, &format!("{stem}.screens"));
+    let generated_state = runner.read_file(test_name, &format!("{stem}.generated-state"));
+    let logs = format!(
+        "{generated_state}\n--- final windows ---\n{}--- final panes ---\n{}",
+        runner.read_file(test_name, &format!("{stem}.windows")),
+        runner.read_file(test_name, &format!("{stem}.panes"))
+    );
+    write_visual_artifacts(
+        test_name,
+        &stem,
+        &cast,
+        Some(&screens),
+        &logs,
+        json!({"kind":"tab-traversal","layout":layout,"cols":160,"rows":45}),
+    );
+    (format!("{cast}\n{screens}"), logs)
+}
+
+fn expected_generated_window(layout: &str) -> &str {
+    match layout {
+        "focus" => "focus",
+        "cowork" => "cowork",
+        "cowork-swap" => "cowork-swap",
+        "browse" => "browse",
+        "ai" => "ai",
+        _ => "dev",
+    }
+}
+
+fn assert_generated_layout_created_real_tmux_surfaces(layout: &str, logs: &str) {
+    let expected_window = expected_generated_window(layout);
+    assert!(
+        logs.contains("--- generated windows ---") && logs.contains("--- generated panes ---"),
+        "{layout}: missing generated tmux state capture before synthetic windows:\n{logs}"
+    );
+    assert!(
+        logs.lines().any(|line| {
+            line.split_whitespace()
+                .nth(1)
+                .is_some_and(|window| window == expected_window)
+        }),
+        "{layout}: expected generated window {expected_window:?} before synthetic windows:\n{logs}"
+    );
+    let generated_pane_count = logs
+        .lines()
+        .skip_while(|line| *line != "--- generated panes ---")
+        .skip(1)
+        .take_while(|line| *line != "--- final windows ---")
+        .filter(|line| !line.trim().is_empty())
+        .count();
+    assert!(
+        generated_pane_count > 0,
+        "{layout}: expected generated layout to create real tmux panes before synthetic windows:\n{logs}"
+    );
 }
 
 #[test]
@@ -672,29 +621,28 @@ fn visual_generated_layouts_render_across_all_themes() {
         ));
         init_project(&runner, &test_name, theme, false, &["git-ui"]);
         install_visual_fixtures(&runner, &test_name);
+        assert_generated_tmux_config(&runner, &test_name, theme, r, g, b);
 
         for layout in status_matrix_layouts_for_theme(theme) {
             case += 1;
             log_visual_progress(format!(
                 "status matrix [{case}/{total_cases}]: recording theme={theme} layout={layout}"
             ));
+            let layout_body = generated_layout(&runner, &test_name, layout);
+            assert_generated_tmux_layout(layout, &layout_body);
             let (recording, logs) = record_layout_status(&runner, &test_name, layout);
-            let label = format!("{theme}/{layout}");
-            assert_no_zellij_runtime_errors(&logs, &label);
-            assert_no_zellij_permission_prompt(&recording, &label);
-            assert_generated_theme_config(&runner, &test_name, theme, r, g, b);
-            let layout_kdl = generated_layout(&runner, &test_name, layout);
-            assert_generated_sidecar_status_layout(layout, &layout_kdl);
-            log_visual_progress(format!(
-                "status matrix [{case}/{total_cases}]: passed theme={theme} layout={layout}"
-            ));
+            assert_generated_layout_created_real_tmux_surfaces(layout, &logs);
+            assert!(
+                recording.contains("AIBOX-TMUX")
+                    || recording.contains("MEM ")
+                    || recording.contains("PROC "),
+                "{theme}/{layout}: expected visible tmux status output:\n{recording}"
+            );
+            assert!(
+                !recording.to_ascii_lowercase().contains("zellij"),
+                "{theme}/{layout}: recording should not mention legacy multiplexer:\n{recording}"
+            );
         }
-
-        log_visual_progress(format!(
-            "status matrix: cleanup theme {}/{} ({theme})",
-            theme_index + 1,
-            THEMES.len()
-        ));
         runner.cleanup(&test_name);
     }
 }
@@ -703,7 +651,7 @@ fn visual_generated_layouts_render_across_all_themes() {
 #[serial]
 #[ignore = "visual tab-traversal e2e is release-gated; run explicitly via scripts/maintain.sh test-e2e-visual-tabs or test-e2e-visual"]
 #[ntest::timeout(300_000)]
-fn visual_generated_tools_and_harness_tabs_render_when_enabled() {
+fn visual_generated_tools_and_harness_windows_render_when_enabled() {
     let runner = E2eRunner::new();
     runner.ensure_deployed();
 
@@ -718,24 +666,12 @@ fn visual_generated_tools_and_harness_tabs_render_when_enabled() {
     install_visual_fixtures(&runner, test_name);
 
     for layout in LAYOUTS {
-        let layout_kdl = generated_layout(&runner, test_name, layout);
+        let layout_body = generated_layout(&runner, test_name, layout);
+        assert_generated_tmux_layout(layout, &layout_body);
         assert!(
-            layout_kdl.contains("command \"yazi\"")
-                || layout_kdl.contains("exec yazi")
-                || layout_kdl.contains("name=\"files\""),
-            "{layout}: expected generated layout to include a files/Yazi surface:\n{layout_kdl}"
+            layout_body.contains("yazi") || layout_body.contains("\"vim\""),
+            "{layout}: expected generated tmux layout to include real tool surfaces:\n{layout_body}"
         );
-        assert!(
-            layout_kdl.contains("command \"vim-loop\"") || layout_kdl.contains("exec vim-loop"),
-            "{layout}: expected generated layout to include an editor pane using vim-loop:\n{layout_kdl}"
-        );
-        for (tab, bin, _) in HARNESSES {
-            assert!(
-                layout_has_top_level_tab(&layout_kdl, tab)
-                    || layout_kdl.contains(&format!("command \"{bin}\"")),
-                "{layout}: expected generated layout to include harness {tab}/{bin}:\n{layout_kdl}"
-            );
-        }
     }
 
     let visual_layouts = tab_matrix_layouts();
@@ -745,50 +681,26 @@ fn visual_generated_tools_and_harness_tabs_render_when_enabled() {
         log_visual_progress(format!(
             "tabs matrix [{case}/{total}]: recording layout={layout}"
         ));
-        let (recording, logs) = record_generated_layout(&runner, test_name, layout, 4);
-        assert_no_zellij_runtime_errors(&logs, layout);
-        let layout_kdl = generated_layout(&runner, test_name, layout);
-        assert!(
-            recording.contains("--- tab:files") && recording.contains(" NOR "),
-            "{layout}: expected Yazi/file pane surface in generated layout recording:\n{recording}"
-        );
+        let (recording, logs) = record_generated_layout(&runner, test_name, layout);
+        assert_generated_layout_created_real_tmux_surfaces(layout, &logs);
         assert!(
             recording.contains("AIBOX-LAZYGIT-READY"),
-            "{layout}: expected lazygit tab to render when git-ui:lazygit is enabled"
+            "{layout}: missing lazygit"
         );
         assert!(
             recording.contains("AIBOX-SHELL-READY"),
-            "{layout}: expected shell tab to render"
+            "{layout}: missing shell"
         );
-        if layout_has_top_level_editor_tab(&layout_kdl) {
+        assert!(
+            recording.contains("AIBOX-VIM-READY"),
+            "{layout}: missing editor"
+        );
+        for (_, _, marker) in HARNESSES {
             assert!(
-                recording.contains("AIBOX-VIM-READY"),
-                "{layout}: expected Vim/editor tab to render"
-            );
-        } else {
-            assert!(
-                layout_kdl.contains("name=\"editor\"")
-                    && (layout_kdl.contains("command \"vim-loop\"")
-                        || layout_kdl.contains("exec vim-loop")),
-                "{layout}: expected generated layout to include an editor pane using vim-loop:\n{layout_kdl}"
+                recording.contains(&format!("AIBOX-HARNESS-{marker}")),
+                "{layout}: expected harness marker {marker}"
             );
         }
-        for (tab, bin, marker) in HARNESSES {
-            if layout_has_top_level_tab(&layout_kdl, tab) {
-                assert!(
-                    recording.contains(&format!("AIBOX-HARNESS-{marker}")),
-                    "{layout}: expected enabled harness marker {marker} to render"
-                );
-            } else {
-                assert!(
-                    layout_kdl.contains(&format!("command \"{bin}\"")),
-                    "{layout}: expected generated layout to include embedded harness {tab}/{bin}:\n{layout_kdl}"
-                );
-            }
-        }
-        log_visual_progress(format!(
-            "tabs matrix [{case}/{total}]: passed layout={layout}"
-        ));
     }
 
     runner.cleanup(test_name);
@@ -804,7 +716,7 @@ fn visual_yazi_previews_git_symbols_and_optional_plugins_render() {
 
     let test_name = "visual-matrix-yazi-previews";
     runner.exec(
-        "timeout 2s pkill -x zellij >/dev/null 2>&1 || true; \
+        "timeout 2s tmux kill-server >/dev/null 2>&1 || true; \
          timeout 2s pkill -x yazi >/dev/null 2>&1 || true; \
          timeout 2s pkill -x asciinema >/dev/null 2>&1 || true",
     );
@@ -826,13 +738,7 @@ fn visual_yazi_previews_git_symbols_and_optional_plugins_render() {
          test -f {home}/.config/yazi/plugins/rich-preview.yazi/main.lua && \
          test -f {home}/.config/yazi/plugins/sqlite-preview.yazi/main.lua && \
          test -f {home}/.config/yazi/plugins/tabular-preview.yazi/main.lua && \
-         test -f {home}/.config/yazi/plugins/omp.yazi/main.lua && \
-         git status --porcelain --ignored=matching | grep '^M  modified.txt\\|^ M modified.txt' && \
-         git status --porcelain --ignored=matching | grep '^D  deleted.txt\\|^ D deleted.txt' && \
-         git status --porcelain --ignored=matching | grep '^A  added.txt' && \
-         git status --porcelain --ignored=matching | grep '^UU conflict.txt' && \
-         git status --porcelain --ignored=matching | grep '^?? untracked.txt' && \
-         git status --porcelain --ignored=matching | grep '^!! ignored.txt'"
+         test -f {home}/.config/yazi/plugins/omp.yazi/main.lua"
     ));
     assert!(
         config_probe.status.success(),
@@ -853,83 +759,34 @@ fn visual_yazi_previews_git_symbols_and_optional_plugins_render() {
         ("sqlite", "visual-fixtures/sample.sqlite", "people"),
     ];
 
-    let total_cases = entries.len();
     for (index, (label, entry, marker)) in entries.iter().enumerate() {
         let case = index + 1;
         log_visual_progress(format!(
-            "yazi matrix [{case}/{total_cases}]: recording preview label={label} entry={entry}"
+            "yazi matrix [{case}/{}]: recording preview label={label} entry={entry}",
+            entries.len()
         ));
-        let _progress = VisualProgressStep::start(format!(
-            "record yazi preview project={test_name} case={case}/{total_cases} label={label}"
-        ));
-        runner.exec(&format!(
-            "rm -rf /tmp/zellij-*; sudo rm -rf /workspace; sudo ln -s {workspace} /workspace; timeout 2s zellij delete-session aibox-yazi-preview-{label} --force >/dev/null 2>&1 || true"
-        ));
-        runner.write_file(
-            test_name,
-            &format!(".aibox-home/.config/zellij/layouts/yazi-preview-{label}.kdl"),
-            &format!(
-                r#"layout {{
-    pane {{
-        command "bash"
-        args "-lc" "exec yazi {workspace}/{entry}"
-        cwd "{workspace}"
-    }}
-}}
+        let session = format!("yazi-preview-{label}");
+        let setup = format!(
+            r#"  first_pane="$(tmux list-panes -t "{session}:" -F '#{{window_index}}.#{{pane_index}}' | head -1 || true)"
+  [ -n "$first_pane" ] || exit 1
+  tmux send-keys -t "{session}:$first_pane" "cd {workspace} && exec yazi {workspace}/{entry}" C-m
+  for _ in $(seq 1 30); do
+    tmux capture-pane -p -t "{session}:$first_pane" > "{workspace}/yazi-preview-{label}.screen" 2>/dev/null || true
+    grep -Fq "{marker}" "{workspace}/yazi-preview-{label}.screen" && break
+    sleep 0.5
+  done
 "#
-            ),
         );
         runner.write_file(
             test_name,
             &format!("yazi-preview-{label}.sh"),
-            &format!(
-                r#"#!/usr/bin/env bash
-set -u
-export HOME="{home}"
-export TERM=xterm-256color
-export COLORTERM=truecolor
-export PATH="$HOME/.local/bin:/usr/local/bin:$PATH"
-marker="{marker}"
-(
-  for attempt in $(seq 1 10); do
-    export ZELLIJ_SESSION_NAME=$(zellij list-sessions --no-formatting 2>/dev/null | grep -v EXITED | head -1 | awk '{{print $1}}')
-    [ -n "$ZELLIJ_SESSION_NAME" ] && break
-    sleep 0.25
-  done
-  sleep 1
-  zellij action write 27 >/dev/null 2>&1 || true
-  for attempt in $(seq 1 24); do
-    zellij action dump-screen > "{workspace}/yazi-preview-{label}.screen.tmp" 2>/dev/null || true
-    if [ -s "{workspace}/yazi-preview-{label}.screen.tmp" ]; then
-      mv "{workspace}/yazi-preview-{label}.screen.tmp" "{workspace}/yazi-preview-{label}.screen"
-      grep -Fq "$marker" "{workspace}/yazi-preview-{label}.screen" && break
-    fi
-    sleep 0.5
-  done
-  if [ ! -s "{workspace}/yazi-preview-{label}.screen" ]; then
-    zellij action dump-screen > "{workspace}/yazi-preview-{label}.screen" 2>/dev/null || true
-  fi
-  timeout 2s pkill -x zellij >/dev/null 2>&1 || true
-) &
-driver_pid=$!
-timeout --kill-after=2s 18s zellij --config "$HOME/.config/zellij/config.kdl" \
-       --config-dir "$HOME/.config/zellij" \
-       --new-session-with-layout "$HOME/.config/zellij/layouts/yazi-preview-{label}.kdl" \
-       --session "aibox-yazi-preview-{label}" 2>/dev/null || true
-wait "$driver_pid" 2>/dev/null || true
-timeout 2s pkill -x zellij >/dev/null 2>&1 || true
-true
-"#
-            ),
+            &tmux_conf_and_start(&session, &workspace, "browse", &setup),
         );
         runner.exec(&format!("chmod +x {workspace}/yazi-preview-{label}.sh"));
         runner.exec(&format!(
-            "LC_ALL=C.UTF-8 LANG=C.UTF-8 timeout --kill-after=2s 35s asciinema rec --cols 160 --rows 45 --overwrite \
+            "LC_ALL=C.UTF-8 LANG=C.UTF-8 timeout --kill-after=2s 45s asciinema rec --cols 160 --rows 45 --overwrite \
              -c {workspace}/yazi-preview-{label}.sh {workspace}/yazi-preview-{label}.cast 2>/dev/null; true"
         ));
-        let logs = runner.exec("cat /tmp/zellij-*/zellij-log/zellij.log 2>/dev/null || true");
-        let log_text = String::from_utf8_lossy(&logs.stdout).to_string();
-        assert_no_zellij_runtime_errors(&log_text, label);
         let cast = runner.read_file(test_name, &format!("yazi-preview-{label}.cast"));
         let screen = runner.read_file(test_name, &format!("yazi-preview-{label}.screen"));
         write_visual_artifacts(
@@ -937,25 +794,14 @@ true
             &format!("yazi-preview-{label}"),
             &cast,
             Some(&screen),
-            &log_text,
-            json!({
-                "kind": "yazi-preview",
-                "test": "visual_yazi_previews_git_symbols_and_optional_plugins_render",
-                "entry": entry,
-                "marker": marker,
-                "cols": 160,
-                "rows": 45,
-                "docs_source": true,
-            }),
+            "",
+            json!({"kind":"yazi-preview","entry":entry,"marker":marker,"cols":160,"rows":45}),
         );
         let recording = format!("{cast}\n{screen}");
         assert!(
             recording.contains(marker),
-            "Yazi {label} preview should contain marker {marker:?}:\n{recording}\nZellij logs:\n{log_text}"
+            "Yazi {label} preview should contain marker {marker:?}:\n{recording}"
         );
-        log_visual_progress(format!(
-            "yazi matrix [{case}/{total_cases}]: passed preview label={label}"
-        ));
     }
 
     runner.cleanup(test_name);

@@ -1,5 +1,6 @@
 use anyhow::{Context, Result};
 use minijinja::context;
+use semver::Version;
 use std::collections::BTreeMap;
 use std::fs;
 use std::path::{Component, Path, PathBuf};
@@ -124,7 +125,7 @@ pub fn generate_all(config: &AiboxConfig) -> Result<()> {
         let flavor = effective_config.aibox.base.to_string();
         match crate::update::fetch_latest_image_version(&flavor) {
             Ok(v) => {
-                effective_config.aibox.version = format!("{}.{}.{}", v.major, v.minor, v.patch);
+                effective_config.aibox.version = image_version_for_generation(v);
                 effective_config.image.version = effective_config.aibox.version.clone();
                 effective_config.container.image.version = effective_config.aibox.version.clone();
             }
@@ -154,6 +155,14 @@ pub fn generate_all(config: &AiboxConfig) -> Result<()> {
     }
 
     Ok(())
+}
+
+pub(crate) fn image_version_for_generation(published_latest: Version) -> String {
+    let selected = Version::parse(env!("CARGO_PKG_VERSION"))
+        .ok()
+        .filter(|current| current > &published_latest)
+        .unwrap_or(published_latest);
+    format!("{}.{}.{}", selected.major, selected.minor, selected.patch)
 }
 
 /// Generate the Dockerfile. Returns true if file was written.
@@ -401,16 +410,16 @@ fn generate_devcontainer_json(config: &AiboxConfig, path_or_dir: &Path) -> Resul
     }
 
     // Build VS Code terminal profiles — include configured AI providers.
-    // The zellij profile uses the layout from [customization] in aibox.toml
-    // so VS Code terminals match `aibox up`'s default.
-    let layout = config.customization.layout.to_string();
+    // The tmux profile uses the layout from aibox.toml so VS Code terminals
+    // match `aibox up`'s default.
+    let layout = config.customization.tmux_layout().to_string();
     let mut terminal_profiles = serde_json::json!({
         "bash": {
             "path": "/bin/bash"
         },
-        "zellij": {
-            "path": "/usr/local/bin/zellij",
-            "args": ["--layout", layout]
+        "tmux": {
+            "path": "/bin/bash",
+            "args": ["-lc", format!("exec ~/.config/tmux/layouts/{layout}.sh")]
         }
     });
 
@@ -761,6 +770,17 @@ mod tests {
     }
 
     #[test]
+    fn image_version_for_generation_prefers_current_cli_when_ahead_of_published_latest() {
+        let published = semver::Version::parse("0.24.3").unwrap();
+        let selected = image_version_for_generation(published);
+        assert_eq!(
+            selected,
+            env!("CARGO_PKG_VERSION"),
+            "pre-release generation should not downgrade generated devcontainer files to the previous published image"
+        );
+    }
+
+    #[test]
     fn dockerfile_contains_correct_from_image() {
         let dir = tempfile::tempdir().unwrap();
         let config = make_config(&["python"], false);
@@ -776,25 +796,6 @@ mod tests {
         );
         assert!(content.contains("LABEL aibox.version=\"1.2.3\""));
         assert!(content.contains("LABEL aibox.profile=\"human-dev\""));
-    }
-
-    #[test]
-    fn dockerfile_adds_native_zellij_status_role_files() {
-        let dir = tempfile::tempdir().unwrap();
-        let config = make_config(&["python"], false);
-        generate_dockerfile(&config, dir.path(), &test_env()).unwrap();
-        let content = fs::read_to_string(dir.path().join("Dockerfile")).unwrap();
-
-        assert!(
-            content.contains("aibox-status-keys.wasm")
-                && content.contains("aibox-status-runtime.wasm"),
-            "project Dockerfiles should make native Zellij status role files available for older base images"
-        );
-        assert!(
-            content.contains("cp -f /usr/local/share/aibox/zellij/aibox-status.wasm")
-                && !content.contains("ln -sf /usr/local/share/aibox/zellij/aibox-status.wasm"),
-            "project Dockerfiles should create physical native status role files, not symlink aliases"
-        );
     }
 
     #[test]
@@ -882,7 +883,7 @@ mod tests {
         let content = fs::read_to_string(dir.path().join("docker-compose.yml")).unwrap();
         assert!(
             content.contains(".cache:/root/.cache"),
-            "compose should mount writable XDG cache home so uv, starship, and Zellij can create/read cache directories:\n{content}"
+            "compose should mount writable XDG cache home so uv, starship, and tmux can create/read cache directories:\n{content}"
         );
     }
 
@@ -903,10 +904,8 @@ mod tests {
             host_root.join(".cache").is_dir()
                 && host_root.join(".cache/starship").is_dir()
                 && host_root.join(".cache/uv").is_dir()
-                && host_root.join(".cache/zellij").is_dir()
-                && host_root
-                    .join(".cache/org/Zellij Contributors/Zellij")
-                    .is_dir(),
+                && host_root.join(".config/tmux/layouts").is_dir()
+                && host_root.join(".tmux/plugins").is_dir(),
             "runtime scaffolding should create the writable cache tree"
         );
 
@@ -967,7 +966,7 @@ mod tests {
     }
 
     #[test]
-    fn compose_exports_shell_env_for_zellij() {
+    fn compose_exports_shell_env_for_tmux() {
         let dir = tempfile::tempdir().unwrap();
         let config = make_config(&[], false);
         generate_docker_compose(&config, dir.path(), &test_env()).unwrap();
@@ -975,7 +974,7 @@ mod tests {
         let content = fs::read_to_string(dir.path().join("docker-compose.yml")).unwrap();
         assert!(
             content.contains("SHELL: \"/bin/bash\""),
-            "compose should export SHELL so Zellij default-shell code paths do not fall back to /bin/sh:\n{content}"
+            "compose should export SHELL so tmux and shell tools do not fall back to /bin/sh:\n{content}"
         );
     }
 
@@ -1562,28 +1561,13 @@ mod tests {
     }
 
     #[test]
-    fn base_image_installs_native_zellij_status_role_files() {
-        let content = include_str!("../../images/base-debian/Dockerfile");
-        assert!(
-            content.contains("aibox-status-keys.wasm")
-                && content.contains("aibox-status-runtime.wasm"),
-            "base image should expose distinct native Zellij status plugin locations"
-        );
-        assert!(
-            content.contains("cp -f /usr/local/share/aibox/zellij/aibox-status.wasm")
-                && !content.contains("ln -sf /usr/local/share/aibox/zellij/aibox-status.wasm"),
-            "base image should install physical native status role files, not symlink aliases"
-        );
-    }
-
-    #[test]
     fn base_image_prepares_writable_cache_home_and_shell_env() {
         let content = include_str!("../../images/base-debian/Dockerfile");
         assert!(content.contains("SHELL=/bin/bash"));
         assert!(
             content.contains("/home/aibox/.cache/starship")
                 && content.contains("/home/aibox/.cache/uv")
-                && content.contains("/home/aibox/.cache/zellij")
+                && content.contains("/home/aibox/.tmux/plugins")
                 && content.contains("chown -R aibox:aibox /home/aibox"),
             "base image should create writable cache-home paths before final ownership fix"
         );

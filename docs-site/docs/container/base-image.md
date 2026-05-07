@@ -11,7 +11,7 @@ The base image is the foundation for all aibox container flavors. It provides a 
 
 | Tool | Version / Source | Purpose |
 |------|-----------------|---------|
-| Zellij | 0.43.1 (prebuilt binary from GitHub releases) | Terminal multiplexer |
+| tmux | Debian package | Terminal multiplexer |
 | Yazi | 25.4.8 (prebuilt binary from GitHub releases) | Terminal file manager |
 | Vim | Debian package (`vim` + `vim-runtime`) | Editor |
 | Git | Debian package | Version control |
@@ -44,86 +44,93 @@ such as `chafa`, `timg`, `poppler-utils`, `mupdf-tools`, `entr`, `ouch`, and
 
 ## Build Architecture
 
-The Dockerfile uses a multi-stage build:
+The Dockerfile keeps the runtime stage on Debian Trixie Slim and installs tmux
+from the distro package set. That keeps the terminal multiplexer on the same
+security update path as the rest of the base image and avoids a separate
+prebuilt-binary fetch stage.
 
-- **Stage 1 (builder):** Downloads the official Zellij prebuilt binary from GitHub releases. Architecture detection uses `uname -m`, which returns `aarch64` or `x86_64` directly -- matching the Zellij release filename convention. This works reliably across Docker, Podman, and Buildah.
+## tmux Configuration
 
-- **Stage 2 (runtime):** Pure Debian Trixie Slim with apt packages. Only the Zellij binary is copied from the builder stage.
+### Plugin Policy
 
-:::note Why prebuilt instead of compiled
+aibox-managed tmux plugins are preinstalled and pinned by the generated runtime
+and image build. TPM is documented only as a user convenience layer for adding
+personal tmux plugins after initialization; aibox does not rely on TPM to
+install or update managed plugins.
 
-Compiling Zellij from source requires 8+ GB RAM during the final linker step. On Apple Silicon under Podman/Docker Desktop, the default VM memory cap causes OOM kills. The official musl-static binary is equally portable and downloads in seconds.
-
-:::
-
-## Zellij Configuration
+`tmux-resurrect` and `tmux-continuum` are installed and available in the image,
+but disabled by default until the workspace persistence policy is decided. Users
+can opt into them in local tmux config, but generated layouts should not assume
+session resurrection is active.
 
 ### Key Bindings
 
-All bindings use `Ctrl+b` as a leader key — press `Ctrl+b`, release, then press the action key. This avoids conflicts with macOS Option key (which produces special characters like `@`, `€`, `|`) and with Vim/bash Ctrl bindings.
+All bindings use `Ctrl+g` as a leader key — press `Ctrl+g`, release, then press the action key. This avoids conflicts with macOS Option key (which produces special characters like `@`, `€`, `|`) and with Vim/bash Ctrl bindings.
 
 | Key | Action |
 |-----|--------|
-| `Ctrl+b` then `h/j/k/l` | Navigate panes (vim-style) |
-| `Ctrl+b` then `n` | New pane |
-| `Ctrl+b` then `d` | Split down |
-| `Ctrl+b` then `r` | Split right |
-| `Ctrl+b` then `x` | Close focused pane |
-| `Ctrl+b` then `f` | Toggle fullscreen |
-| `Ctrl+b` then `z` | Toggle pane frames |
-| `Ctrl+b` then `e` | Toggle embed/floating |
-| `Ctrl+b` then `=` / `-` | Resize pane (increase / decrease) |
-| `Ctrl+b` then `t` | New tab |
-| `Ctrl+b` then `w` | Close tab |
-| `Ctrl+b` then `[` / `]` | Previous / next tab |
-| `Ctrl+b` then `1-5` | Jump to tab N |
-| `Ctrl+b` then `i` / `o` | Move tab left / right |
-| `Ctrl+b` then `s` | Open Strider file picker (floating) |
-| `Ctrl+b` then `m` | Session manager |
-| `Ctrl+b` then `u` | Enter scroll mode |
-| `Ctrl+b` then `/` | Search scrollback |
-| `Ctrl+q` | Quit Zellij |
+| `Ctrl+g` then `h/j/k/l` | Navigate panes (vim-style) |
+| `Ctrl+g` then `n` | New pane |
+| `Ctrl+g` then `d` | Split down |
+| `Ctrl+g` then `r` | Split right |
+| `Ctrl+g` then `x` | Close focused pane |
+| `Ctrl+g` then `f` | Toggle fullscreen |
+| `Ctrl+g` then `z` | Toggle pane frames |
+| `Ctrl+g` then `e` | Toggle embed/floating |
+| `Ctrl+g` then `=` / `-` | Resize pane (increase / decrease) |
+| `Ctrl+g` then `t` | New window |
+| `Ctrl+g` then `w` | Close window |
+| `Ctrl+g` then `[` / `]` | Previous / next window |
+| `Ctrl+g` then `1-5` | Jump to window N |
+| `Ctrl+g` then `i` / `o` | Move window left / right |
+| `Ctrl+g` then `s` | Session chooser |
+| `Ctrl+g` then `m` | Session manager |
+| `Ctrl+g` then `u` | Enter scroll mode |
+| `Ctrl+g` then `/` | Search scrollback |
+| `Ctrl+q` | Quit tmux |
 
-Press `Escape` or `Ctrl+b` again to cancel the leader and return to normal mode.
+Press `Escape` or `Ctrl+g` again to cancel the leader and return to normal mode.
 
 ### Layouts
 
-aibox ships six IDE layouts. Select one with `aibox up --layout <name>` (the default is `dev`). Layouts include provider-specific AI tabs based on enabled `[ai.harness.<name>]` tables; they include the **git** lazygit tab only when the `git-ui` addon selects `lazygit`.
+aibox ships six IDE layouts. Select one with `aibox up --layout <name>` (the default is `dev`). Layouts include provider-specific AI windows based on enabled `[ai.harness.<name>]` tables; they include the **git** lazygit window only when the `git-ui` addon selects `lazygit`.
 
 #### dev (default) -- file browser + editor
 
 <div class="asciinema" data-cast="/aibox/screencasts/layout-dev.cast" data-poster="npt:4" data-autoplay="false" data-controls="false" data-fit="width"></div>
 
-Yazi file manager on the left, Vim on the right. AI agents and shell live in separate tabs; the lazygit tab is generated when the `git-ui` addon selects `lazygit`.
+Yazi file manager on the left, Vim on the right. AI agents and shell live in separate windows; the lazygit window is generated when the `git-ui` addon selects `lazygit`.
 
-#### focus -- one tool per tab, fullscreen
+#### focus -- one tool per window, fullscreen
 
 <div class="asciinema" data-cast="/aibox/screencasts/layout-focus.cast" data-poster="npt:4" data-autoplay="false" data-controls="false" data-fit="width"></div>
 
-Each tool gets the entire screen in its own tab. Switch with `Ctrl+b [/]` or `Ctrl+b 1-5`.
+Each tool gets the entire screen in its own window. Switch with `Ctrl+g [/]` or `Ctrl+g 1-5`.
 
-Tabs: **files** (yazi) | **editor** (vim) | AI agent tabs | optional **git** (lazygit) | **shell**
+Windows: **files** (yazi) | **editor** (vim) | AI agent windows | optional **git** (lazygit) | **shell**
 
 #### cowork -- side-by-side coding with AI
 
 <div class="asciinema" data-cast="/aibox/screencasts/layout-cowork.cast" data-poster="npt:4" data-autoplay="false" data-controls="false" data-fit="width"></div>
 
-Yazi and Vim stacked on the left, Claude Code on the right. Shell lives in a separate tab; the lazygit tab is generated when the `git-ui` addon selects `lazygit`.
+Yazi and Vim stacked on the left, Claude Code on the right. Shell lives in a separate window; the lazygit window is generated when the `git-ui` addon selects `lazygit`.
 
 ### Opening Files from Yazi
 
 - **`Enter`** -- opens file in vim in-place (suspends Yazi, `:q` returns to Yazi). Works in all layouts.
-- **`e`** -- opens file in the adjacent vim pane and focuses it. Works in dev (vim is right), cowork (vim is below), and focus (switches to editor tab).
+- **`e`** -- opens file in the adjacent vim pane and focuses it. Works in dev (vim is right), cowork (vim is below), and focus (switches to editor window).
 
-:::note Strider vs Yazi
+:::note tmux vs Yazi
 
-`Ctrl+b` then `s` opens the built-in **Strider** file picker as a floating overlay (Zellij plugin). The sidebar file manager in all layouts is **Yazi**, an external terminal file manager with richer features (preview, bulk operations, async I/O).
+`Ctrl+g` then `s` opens the tmux session chooser. The sidebar file manager in
+all layouts is **Yazi**, an external terminal file manager with richer features
+(preview, bulk operations, async I/O).
 
 :::
 
 ### Theme
 
-Gruvbox dark, defined in `themes/gruvbox.kdl`.
+Gruvbox dark, defined in `themes/gruvbox.conf`.
 
 ## Vim Configuration
 
@@ -168,7 +175,7 @@ All user configuration is persisted on the host under `.aibox-home/` and bind-mo
 | `.aibox-home/.vim/vimrc` | `/home/aibox/.vim/vimrc` | Vim config |
 | `.aibox-home/.vim/undo/` | `/home/aibox/.vim/undo` | Persistent Vim undo history |
 | `.aibox-home/.config/git/` | `/home/aibox/.config/git` | Git config and credentials |
-| `.aibox-home/.config/zellij/` | `/home/aibox/.config/zellij` | Zellij config, themes, layouts, plugin cache |
+| `.aibox-home/.config/tmux/` | `/home/aibox/.config/tmux` | tmux config, status, and layout scripts |
 | `.aibox-home/.config/yazi/` | `/home/aibox/.config/yazi` | Yazi file manager config and keymap |
 
 The Dockerfile bakes identical defaults into the image as a fallback. If no mounts are present, the container still works out of the box.
@@ -191,4 +198,4 @@ See the dedicated [File Preview](file-preview.md) page for full documentation, i
 CMD ["sleep", "infinity"]
 ```
 
-The container stays alive and idle. Both VS Code and `aibox up` exec into it. Zellij is never the container entrypoint -- it is launched on attach.
+The container stays alive and idle. Both VS Code and `aibox up` exec into it. tmux is never the container entrypoint -- it is launched on attach.

@@ -14,11 +14,11 @@ show_symlink = true
 [preview]
 max_width = 600
 max_height = 900
-# Reduced from 100ms → 30ms render delay; also reduces Zellij Sixel artifacts
+# Reduced from 100ms to 30ms render delay; also reduces terminal image artifacts
 # by letting the terminal settle before committing pixels.
 image_delay = 30
-# Prefer chafa halfblock inside Zellij (Sixel can cause ghost artifacts in
-# Zellij's rendering pipeline). Falls back automatically if chafa is absent.
+# Prefer chafa halfblock in the multiplexer. Falls back automatically if chafa
+# is absent.
 image_filter = "nearest"
 
 # =============================================================================

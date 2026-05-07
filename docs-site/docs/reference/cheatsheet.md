@@ -8,14 +8,14 @@ title: Cheatsheet
 Quick reference for all tools in the aibox environment. Press the tab for the tool you need.
 
 !!! tip "In-app help"
-    - **Zellij:** The status bar always shows available keys for the current mode
+    - **tmux:** The status bar always shows available keys for the current mode
     - **Yazi:** Press `~` or `F1` to see all keybindings
     - **Vim:** Type `:help` for built-in help
     - **lazygit:** Press `?` to see context-sensitive keybindings when the optional `git-ui` addon is enabled
 
-=== "Zellij"
+=== "tmux"
 
-    ## Zellij (Terminal Multiplexer)
+    ## tmux (Terminal Multiplexer)
 
     Leader key: ++ctrl+b++ — press and release, then press the action key.
 
@@ -23,43 +23,43 @@ Quick reference for all tools in the aibox environment. Press the tab for the to
 
     | Key | Action |
     |-----|--------|
-    | `Ctrl+b` `h` / `Left` | Focus pane left |
-    | `Ctrl+b` `j` / `Down` | Focus pane down |
-    | `Ctrl+b` `k` / `Up` | Focus pane up |
-    | `Ctrl+b` `l` / `Right` | Focus pane right |
+    | `Ctrl+g` `h` / `Left` | Focus pane left |
+    | `Ctrl+g` `j` / `Down` | Focus pane down |
+    | `Ctrl+g` `k` / `Up` | Focus pane up |
+    | `Ctrl+g` `l` / `Right` | Focus pane right |
 
     ### Pane Management
 
     | Key | Action |
     |-----|--------|
-    | `Ctrl+b` `n` | New pane (best direction) |
-    | `Ctrl+b` `d` | Split down |
-    | `Ctrl+b` `r` | Split right |
-    | `Ctrl+b` `x` | Close current pane |
-    | `Ctrl+b` `f` | Toggle fullscreen |
-    | `Ctrl+b` `e` | Toggle embed / floating |
-    | `Ctrl+b` `z` | Toggle pane frames |
-    | `Ctrl+b` `=` | Increase pane size |
-    | `Ctrl+b` `-` | Decrease pane size |
+    | `Ctrl+g` `n` | New pane (best direction) |
+    | `Ctrl+g` `d` | Split down |
+    | `Ctrl+g` `r` | Split right |
+    | `Ctrl+g` `x` | Close current pane |
+    | `Ctrl+g` `f` | Toggle fullscreen |
+    | `Ctrl+g` `e` | Toggle embed / floating |
+    | `Ctrl+g` `z` | Toggle pane frames |
+    | `Ctrl+g` `=` | Increase pane size |
+    | `Ctrl+g` `-` | Decrease pane size |
 
-    ### Tab Management
+    ### Window Management
 
     | Key | Action |
     |-----|--------|
-    | `Ctrl+b` `t` | New tab |
-    | `Ctrl+b` `w` | Close tab |
-    | `Ctrl+b` `[` | Previous tab |
-    | `Ctrl+b` `]` | Next tab |
-    | `Ctrl+b` `1`..`5` | Jump to tab by number |
-    | `Ctrl+b` `i` | Move tab left |
-    | `Ctrl+b` `o` | Move tab right |
+    | `Ctrl+g` `t` | New window |
+    | `Ctrl+g` `w` | Close window |
+    | `Ctrl+g` `[` | Previous window |
+    | `Ctrl+g` `]` | Next window |
+    | `Ctrl+g` `1`..`5` | Jump to window by number |
+    | `Ctrl+g` `i` | Move window left |
+    | `Ctrl+g` `o` | Move window right |
 
     ### Scroll & Search
 
     | Key | Action |
     |-----|--------|
-    | `Ctrl+b` `u` | Enter scroll mode |
-    | `Ctrl+b` `/` | Search scrollback |
+    | `Ctrl+g` `u` | Enter scroll mode |
+    | `Ctrl+g` `/` | Search scrollback |
 
     **In scroll mode:**
 
@@ -81,26 +81,26 @@ Quick reference for all tools in the aibox environment. Press the tab for the to
     | `w` | Toggle wrap |
     | `o` | Toggle whole word |
 
-    ### Plugins & Session
+    ### Session
 
     | Key | Action |
     |-----|--------|
-    | `Ctrl+b` `s` | Strider file picker (floating) |
-    | `Ctrl+b` `m` | Session manager |
+    | `Ctrl+g` `s` | Session chooser |
+    | `Ctrl+g` `m` | Session manager |
 
     ### Quit
 
     | Key | Action |
     |-----|--------|
-    | `Ctrl+b` `q` | Quit Zellij |
-    | `Ctrl+q` | Quit Zellij (global) |
+    | `Ctrl+g` `q` | Quit tmux |
+    | `Ctrl+q` | Quit tmux (global) |
 
-    !!! info "Default layout tabs"
-        The generated `dev` layout opens with pre-configured tabs:
-        **Tab 1** — dev (files + editor + terminal),
-        AI-agent tabs based on enabled `[ai.harness.<name>]` tables,
+    !!! info "Default layout windows"
+        The generated `dev` layout opens with pre-configured tmux windows:
+        **Window 1** — dev (files + editor + terminal),
+        AI-agent windows based on enabled `[ai.harness.<name>]` tables,
         optional **git** (lazygit) when `git-ui` selects `lazygit`,
-        and **shell** (extra terminal). Tab numbers shift when optional tabs
+        and **shell** (extra terminal). Window numbers shift when optional windows
         are omitted.
 
 === "Yazi"

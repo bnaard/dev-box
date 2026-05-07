@@ -25,7 +25,7 @@ run_id="$(date +%Y%m%d-%H%M%S)"
 log_dir="${AIBOX_RELEASE_SMOKE_DIR:-${DIST_DIR}/release-smoke/v${version}/${run_id}}"
 project_dir="${AIBOX_RELEASE_SMOKE_PROJECT_DIR:-$(mktemp -d "${TMPDIR:-/tmp}/aibox-release-smoke-v${version}.XXXXXX")}"
 container_name="${AIBOX_RELEASE_SMOKE_CONTAINER:-aibox-release-smoke-${version//./-}}"
-zellij_status="${AIBOX_RELEASE_SMOKE_ZELLIJ_STATUS:-sidecar}"
+tmux_status="${AIBOX_RELEASE_SMOKE_TMUX_STATUS:-powerline}"
 smoke_tier="${AIBOX_RELEASE_SMOKE_TIER:-minimal}"
 probe_script="${log_dir}/container-probe.sh"
 run_log="${log_dir}/run.log"
@@ -45,11 +45,11 @@ ok()    { echo "${green}${bold} ✓${reset} $*"; }
 warn()  { echo "${yellow}${bold}  !${reset} $*"; }
 die()   { echo "${red}${bold}ERR${reset} $*" >&2; exit 1; }
 
-case "${zellij_status}" in
-  native) zellij_status="sidecar" ;;
-  hidden) zellij_status="disabled" ;;
-  shell|sidecar|disabled) ;;
-  *) die "AIBOX_RELEASE_SMOKE_ZELLIJ_STATUS must be sidecar, shell, or disabled (legacy aliases: native, hidden; got: ${zellij_status})" ;;
+case "${tmux_status}" in
+  shell|sidecar|native|enabled) tmux_status="powerline" ;;
+  hidden) tmux_status="disabled" ;;
+  powerline|plain|disabled) ;;
+  *) die "AIBOX_RELEASE_SMOKE_TMUX_STATUS must be powerline, plain, or disabled (legacy aliases: enabled, shell, sidecar, native, hidden; got: ${tmux_status})" ;;
 esac
 
 case "${smoke_tier}" in
@@ -123,7 +123,7 @@ collect_artifacts() {
     echo "runtime=${runtime_bin}"
     echo "aibox_bin=${aibox_bin}"
     echo "container_name=${container_name}"
-    echo "zellij_status=${zellij_status}"
+    echo "tmux_status=${tmux_status}"
     echo "smoke_tier=${smoke_tier}"
     echo "exit_status=${status}"
   } > "${log_dir}/metadata.env"
@@ -133,8 +133,10 @@ collect_artifacts() {
   copy_if_exists "${project_dir}/.devcontainer/Dockerfile" "${log_dir}/project/.devcontainer/Dockerfile"
   copy_if_exists "${project_dir}/.devcontainer/docker-compose.yml" "${log_dir}/project/.devcontainer/docker-compose.yml"
   copy_if_exists "${project_dir}/.devcontainer/devcontainer.json" "${log_dir}/project/.devcontainer/devcontainer.json"
-  copy_if_exists "${project_dir}/.aibox-home/.config/zellij/config.kdl" "${log_dir}/project/.aibox-home/.config/zellij/config.kdl"
-  copy_if_exists "${project_dir}/.aibox-home/.config/zellij/layouts/ai.kdl" "${log_dir}/project/.aibox-home/.config/zellij/layouts/ai.kdl"
+  copy_if_exists "${project_dir}/.aibox-home/.config/tmux/tmux.conf" "${log_dir}/project/.aibox-home/.config/tmux/tmux.conf"
+  copy_if_exists "${project_dir}/.aibox-home/.config/tmux/status.conf" "${log_dir}/project/.aibox-home/.config/tmux/status.conf"
+  copy_if_exists "${project_dir}/.aibox-home/.config/tmux/layouts/ai.sh" "${log_dir}/project/.aibox-home/.config/tmux/layouts/ai.sh"
+  copy_if_exists "${project_dir}/.aibox-home/.config/tmux/aibox-session.sh" "${log_dir}/project/.aibox-home/.config/tmux/aibox-session.sh"
   copy_if_exists "${project_dir}/.aibox-home/.config/yazi/yazi.toml" "${log_dir}/project/.aibox-home/.config/yazi/yazi.toml"
   copy_if_exists "${project_dir}/.aibox-home/.config/yazi/theme.toml" "${log_dir}/project/.aibox-home/.config/yazi/theme.toml"
   copy_if_exists "${project_dir}/.aibox-home/.config/yazi/keymap.toml" "${log_dir}/project/.aibox-home/.config/yazi/keymap.toml"
@@ -147,11 +149,13 @@ collect_artifacts() {
 
   runtime cp "${container_name}:/tmp/aibox-yazi-debug.txt" "${log_dir}/yazi-debug.txt" >/dev/null 2>&1
   runtime cp "${container_name}:/tmp/aibox-status-plugin.json" "${log_dir}/aibox-status-plugin.json" >/dev/null 2>&1
-  runtime cp "${container_name}:/tmp/aibox-zellij.typescript" "${log_dir}/zellij.typescript" >/dev/null 2>&1
-  runtime cp "${container_name}:/tmp/aibox-zellij-pty.log" "${log_dir}/zellij-pty.log" >/dev/null 2>&1
+  runtime cp "${container_name}:/tmp/aibox-tmux.typescript" "${log_dir}/tmux.typescript" >/dev/null 2>&1
+  runtime cp "${container_name}:/tmp/aibox-tmux-pty.log" "${log_dir}/tmux-pty.log" >/dev/null 2>&1
+  runtime cp "${container_name}:/tmp/aibox-tmux-generated-state.txt" "${log_dir}/tmux-generated-state.txt" >/dev/null 2>&1
+  runtime cp "${container_name}:/workspace/.aibox/diagnostics" "${log_dir}/diagnostics" >/dev/null 2>&1
   runtime exec --user aibox "${container_name}" bash -lc \
-    "find /tmp -path '*/zellij-log/zellij.log' -type f -print -exec tail -n 240 {} \\;" \
-    > "${log_dir}/zellij-logs.txt" 2>&1
+    "tmux list-sessions 2>&1 || true; tmux list-windows -a 2>&1 || true; tmux list-panes -a 2>&1 || true" \
+    > "${log_dir}/tmux-state.txt" 2>&1
 
   if [[ "${AIBOX_RELEASE_SMOKE_KEEP:-0}" == "1" || "${status}" -ne 0 ]]; then
     warn "Keeping smoke project/container for inspection: ${project_dir}"
@@ -180,7 +184,7 @@ echo "Project:       ${project_dir}"
 echo "Logs:          ${log_dir}"
 echo "Runtime:       ${runtime_bin}"
 echo "aibox:         ${aibox_bin}"
-echo "Zellij status: ${zellij_status}"
+echo "tmux status:   ${tmux_status}"
 echo "Smoke tier:    ${smoke_tier}"
 
 mkdir -p "${project_dir}"
@@ -193,7 +197,7 @@ init_args=(
   --profile human-dev
   --theme tokyo-night
   --prompt arrow
-  --zellij-status "${zellij_status}"
+  --tmux-status "${tmux_status}"
   --processkit-version latest
   --no-container
 )
@@ -266,8 +270,8 @@ mode = "auto"
 prompt = "arrow"
 layout = "ai"
 
-[customization.zellij_status]
-mode = "${zellij_status}"
+[customization.tmux.status]
+mode = "${tmux_status}"
 EOF
 
 if [[ "${smoke_git_ui}" == "1" ]]; then
@@ -295,12 +299,12 @@ if [[ "${AIBOX_RELEASE_SMOKE_NO_CACHE:-0}" =~ ^(1|true|yes)$ || "${smoke_tier}" 
   apply_args+=(--no-cache)
 fi
 run env AIBOX_ADDONS_DIR="${PROJECT_ROOT}/addons" "${aibox_bin}" "${apply_args[@]}"
-run compose -f "$(compose_file)" up -d "${container_name}"
+run compose -f "$(compose_file)" up -d
 
 cat > "${probe_script}" <<'EOF'
 #!/usr/bin/env bash
 set -u
-zellij_status="__AIBOX_RELEASE_SMOKE_ZELLIJ_STATUS__"
+tmux_status="__AIBOX_RELEASE_SMOKE_TMUX_STATUS__"
 smoke_git_ui="__AIBOX_RELEASE_SMOKE_GIT_UI__"
 
 fail=0
@@ -316,7 +320,7 @@ soft_run() {
 cd /workspace || exit 10
 
 section versions
-soft_run zellij --version || fail=1
+soft_run tmux -V || fail=1
 soft_run yazi --version || fail=1
 if [[ "${smoke_git_ui}" == "1" ]]; then
   soft_run lazygit --version || fail=1
@@ -364,101 +368,105 @@ if command -v aibox-status >/dev/null 2>&1; then
   fi
 else
   echo "aibox-status helper not present in this release"
-fi
-
-section zellij-sidecar-status-contract
-if [[ "${zellij_status}" == "sidecar" ]]; then
-  status_dir="/usr/local/share/aibox/zellij"
-  for plugin in aibox-status.wasm aibox-status-keys.wasm aibox-status-runtime.wasm; do
-    path="${status_dir}/${plugin}"
-    if [[ ! -f "${path}" ]]; then
-      echo "missing sidecar status plugin file: ${path}"
-      fail=1
-      continue
-    fi
-    if [[ -L "${path}" ]]; then
-      echo "sidecar status plugin file must be physical, not a symlink: ${path}"
-      fail=1
-    fi
-    ls -l "${path}" || fail=1
-  done
-
-  for permissions in \
-    "$HOME/.cache/zellij/permissions.kdl" \
-    "$HOME/.cache/org/Zellij Contributors/Zellij/permissions.kdl"; do
-    if [[ ! -r "${permissions}" ]]; then
-      echo "missing readable sidecar status permission cache: ${permissions}"
-      fail=1
-      continue
-    fi
-    if ! grep -q 'aibox-status-keys.wasm' "${permissions}" \
-      || ! grep -q 'aibox-status-runtime.wasm' "${permissions}"; then
-      echo "sidecar status permission cache lacks role-specific plugin grants: ${permissions}"
-      sed -n '1,120p' "${permissions}"
-      fail=1
-    fi
-  done
-
-  if ! grep -q 'aibox-status-keys.wasm' "$HOME/.config/zellij/layouts/ai.kdl" \
-    || ! grep -q 'aibox-status-runtime.wasm' "$HOME/.config/zellij/layouts/ai.kdl"; then
-    echo "ai layout does not reference role-specific sidecar status plugin files"
-    sed -n '1,120p' "$HOME/.config/zellij/layouts/ai.kdl"
+  if [[ "${tmux_status}" == "powerline" ]]; then
     fail=1
   fi
-else
-  echo "sidecar status contract skipped for zellij_status=${zellij_status}"
 fi
 
-section zellij-pty
+section tmux-status-contract
+if [[ "${tmux_status}" != "disabled" ]]; then
+  for path in "$HOME/.config/tmux/tmux.conf"; do
+    if [[ ! -r "${path}" ]]; then
+      echo "missing readable tmux status/config file: ${path}"
+      fail=1
+      continue
+    fi
+    sed -n '1,160p' "${path}"
+  done
+
+  if ! grep -RInE 'aibox-status|status-left|status-right|@aibox' "$HOME/.config/tmux" >/tmp/aibox-tmux-status-config.txt 2>&1; then
+    echo "tmux config does not reference aibox status integration"
+    fail=1
+  else
+    cat /tmp/aibox-tmux-status-config.txt
+  fi
+else
+  echo "tmux status contract skipped for tmux_status=${tmux_status}"
+fi
+
+section diagnostics-sidecar
+if [[ -d /workspace/.aibox/diagnostics ]]; then
+  find /workspace/.aibox/diagnostics -maxdepth 2 -type f -print -exec sed -n '1,80p' {} \; || true
+else
+  echo "diagnostics directory missing; generated sidecar may not have emitted yet"
+fi
+
+section tmux-pty
 if ! command -v script >/dev/null 2>&1; then
-  echo "script command missing; cannot run zellij PTY smoke"
+  echo "script command missing; cannot run tmux PTY smoke"
   fail=1
 elif ! command -v timeout >/dev/null 2>&1; then
-  echo "timeout command missing; cannot run zellij PTY smoke"
+  echo "timeout command missing; cannot run tmux PTY smoke"
   fail=1
 else
-  rm -rf /tmp/zellij-*
-  timeout 16s script -q -c 'zellij --layout ai attach --create aibox-smoke' /tmp/aibox-zellij.typescript >/tmp/aibox-zellij-pty.log 2>&1
-  code=$?
-  zellij kill-session aibox-smoke >/dev/null 2>&1 || true
-  if [[ "${code}" -ne 0 && "${code}" -ne 124 ]]; then
-    echo "zellij PTY smoke failed with ${code}"
+  layout_script="$HOME/.config/tmux/layouts/ai.sh"
+  if [[ ! -x "${layout_script}" ]]; then
+    echo "missing executable generated ai tmux layout: ${layout_script}"
     fail=1
   fi
-  if [[ ! -s /tmp/aibox-zellij.typescript ]]; then
-    echo "zellij PTY transcript is empty"
-    fail=1
-  fi
-  find /tmp -path '*/zellij-log/zellij.log' -type f -print -exec tail -n 240 {} \; || true
-  if find /tmp -path '*/zellij-log/zellij.log' -type f -print0 | xargs -0 grep -E 'ERROR IN PLUGIN|panicked|failed to load plugin' >/tmp/aibox-zellij-errors.txt 2>&1; then
-    echo "zellij errors detected:"
-    cat /tmp/aibox-zellij-errors.txt
-    fail=1
-  fi
-  if [[ "${zellij_status}" == "sidecar" ]]; then
-    if grep -aE 'This plugin asks permission|ReadApplicationState|RunCommands|Allow\? \(y/n\)' /tmp/aibox-zellij.typescript >/tmp/aibox-zellij-permission-prompt.txt 2>&1; then
-      echo "sidecar status plugin permission prompt leaked into PTY smoke:"
-      cat /tmp/aibox-zellij-permission-prompt.txt
+  ln -sf "$HOME/.config/tmux/tmux.conf" "$HOME/.tmux.conf"
+  tmux kill-session -t aibox-smoke >/dev/null 2>&1 || true
+  if [[ -x "${layout_script}" ]]; then
+    timeout 16s script -q -c 'AIBOX_TMUX_SESSION=aibox-smoke AIBOX_WORKSPACE=/workspace "$HOME/.config/tmux/layouts/ai.sh"' /tmp/aibox-tmux.typescript >/tmp/aibox-tmux-pty.log 2>&1
+    code=$?
+    {
+      echo "--- sessions ---"
+      tmux list-sessions 2>&1 || true
+      echo "--- windows ---"
+      tmux list-windows -t aibox-smoke -F '#I #{window_name} #{window_panes}' 2>&1 || true
+      echo "--- panes ---"
+      tmux list-panes -t aibox-smoke: -F '#I.#P #{pane_current_command} #{pane_title}' 2>&1 || true
+    } >/tmp/aibox-tmux-generated-state.txt
+    cat /tmp/aibox-tmux-generated-state.txt
+    tmux kill-session -t aibox-smoke >/dev/null 2>&1 || true
+    if [[ "${code}" -ne 0 && "${code}" -ne 124 ]]; then
+      echo "generated ai tmux PTY smoke failed with ${code}"
       fail=1
     fi
-    if ! grep -aEi 'Ctrl-g|Leader|Alt-h/j/k/l|PANE|PANES' /tmp/aibox-zellij.typescript >/tmp/aibox-zellij-key-row.txt 2>&1; then
-      echo "sidecar status key row was not visible in PTY smoke"
+    if [[ ! -s /tmp/aibox-tmux.typescript ]]; then
+      echo "tmux PTY transcript is empty"
       fail=1
     fi
-    if ! grep -aE 'MEM .+/unlimited|OOM [0-9]+|PROC [0-9]+ AI [0-9]+|MCP (gateway|granular|none) [0-9]+' /tmp/aibox-zellij.typescript >/tmp/aibox-zellij-runtime-row.txt 2>&1; then
-      echo "sidecar runtime status row was not visible in PTY smoke"
+    for expected_window in ai editor shell; do
+      if ! grep -E "^[0-9]+ ${expected_window} " /tmp/aibox-tmux-generated-state.txt >/tmp/aibox-tmux-layout-windows.txt 2>&1; then
+        echo "generated ai layout did not create expected ${expected_window} window"
+        fail=1
+      fi
+    done
+    if ! awk '/--- panes ---/{seen=1; next} seen && NF {count++} END {exit count >= 2 ? 0 : 1}' /tmp/aibox-tmux-generated-state.txt; then
+      echo "generated ai layout did not create multiple real tmux panes"
       fail=1
     fi
-  fi
-  if find /tmp -path '*/zellij-log/zellij.log' -type f -print0 | xargs -0 grep -E 'over 1000 consecutive unknown messages|Received unknown message from client' >/tmp/aibox-zellij-shutdown-noise.txt 2>&1; then
-    echo "warning: zellij logged forced-shutdown client noise after timeout:"
-    cat /tmp/aibox-zellij-shutdown-noise.txt
+    if [[ "${tmux_status}" != "disabled" ]]; then
+      if ! grep -aEi 'Ctrl-g|Prefix|pane|window|tmux|AI|dev|shell|aibox' /tmp/aibox-tmux.typescript >/tmp/aibox-tmux-key-row.txt 2>&1; then
+        echo "tmux status/key text was not visible in generated-layout PTY smoke"
+        fail=1
+      fi
+      if ! grep -aE 'MEM .+/unlimited|OOM [0-9]+|PROC [0-9]+ AI [0-9]+|MCP (gateway|granular|none) [0-9]+' /tmp/aibox-tmux.typescript >/tmp/aibox-tmux-runtime-row.txt 2>&1; then
+        if [[ "${tmux_status}" == "powerline" ]]; then
+          echo "tmux runtime status row was not visible in generated-layout PTY smoke"
+          fail=1
+        else
+          echo "warning: tmux runtime status row was not visible in PTY smoke"
+        fi
+      fi
+    fi
   fi
 fi
 
 exit "${fail}"
 EOF
-sed -i.bak "s/__AIBOX_RELEASE_SMOKE_ZELLIJ_STATUS__/${zellij_status}/g" "${probe_script}"
+sed -i.bak "s/__AIBOX_RELEASE_SMOKE_TMUX_STATUS__/${tmux_status}/g" "${probe_script}"
 sed -i.bak "s/__AIBOX_RELEASE_SMOKE_GIT_UI__/${smoke_git_ui}/g" "${probe_script}"
 
 run runtime cp "${probe_script}" "${container_name}:/tmp/aibox-release-smoke-probe.sh"

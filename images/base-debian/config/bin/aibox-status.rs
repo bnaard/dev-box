@@ -12,6 +12,9 @@ fn main() {
         Some("--plugin-json") => {
             println!("{}", Snapshot::collect(ProcScanMode::Detailed).json());
         }
+        Some("--once") => {
+            println!("{}", Snapshot::collect(ProcScanMode::Minimal).plain());
+        }
         Some("--watch") => watch(),
         Some("--help") | Some("-h") => print_help(),
         Some(other) => {
@@ -47,6 +50,6 @@ fn watch() {
 
 fn print_help() {
     println!(
-        "Usage: aibox-status [--plugin-json|--watch]\n\nPrint compact runtime status from bounded direct reads in the current container."
+        "Usage: aibox-status [--plugin-json|--once|--watch]\n\nPrint compact runtime status from bounded direct reads in the current container."
     );
 }

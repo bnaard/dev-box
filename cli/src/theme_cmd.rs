@@ -54,23 +54,24 @@ fn update_theme_toml(path: &Path, mode: &ThemeMode, theme: Option<&Theme>) -> Re
     Ok(true)
 }
 
-fn restart_zellij_session(config: &AiboxConfig) -> Result<()> {
+fn restart_tmux_session(config: &AiboxConfig) -> Result<()> {
     let runtime = Runtime::detect()?;
     let name = &config.container.name;
+    let session_name = &config.customization.tmux.session_name;
 
     match runtime.container_status(name)? {
         ContainerState::Running => {
             let _ = runtime.exec_status(
                 name,
                 &config.container.user,
-                &["zellij", "kill-session", name],
+                &["tmux", "kill-session", "-t", session_name],
             )?;
-            let layout = config.customization.layout.to_string();
-            output::info(&format!("Attaching via zellij (layout: {})...", layout));
+            let layout = config.customization.tmux_layout().to_string();
+            output::info(&format!("Attaching via tmux (layout: {})...", layout));
             runtime.exec_interactive(
                 name,
                 &config.container.user,
-                &["zellij", "--layout", &layout, "attach", "--create", name],
+                &["aibox-tmux-session", &layout, session_name],
             )?;
         }
         ContainerState::Stopped => {
@@ -117,10 +118,10 @@ pub fn cmd_theme(
     ));
 
     if restart_session {
-        restart_zellij_session(&config)?;
+        restart_tmux_session(&config)?;
     } else {
         output::info(
-            "Running TUI processes may need to be restarted. Use `--restart-session` to refresh Zellij.",
+            "Running TUI processes may need to be restarted. Use `--restart-session` to refresh tmux.",
         );
     }
 

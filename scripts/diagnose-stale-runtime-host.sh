@@ -80,20 +80,20 @@ docker_available() {
 
   section "project version files"
   show_file "$ROOT/aibox.lock" 80
-  grep_file "$ROOT/aibox.toml" '^(apiVersion|kind|\[metadata\]|\[image\]|\[aibox\]|\[customization\.zellij_status\]|mode =|version =|base =|profile =|name =)'
+  grep_file "$ROOT/aibox.toml" '^(apiVersion|kind|\[metadata\]|\[image\]|\[aibox\]|\[customization\.tmux\]|\[customization\.tmux\.status\]|mode =|version =|base =|profile =|name =)'
   show_file "$ROOT/aibox.toml" 260
   show_file "$ROOT/.devcontainer/devcontainer.json" 140
   show_file "$ROOT/.devcontainer/docker-compose.yml" 180
   grep_file "$ROOT/.devcontainer/Dockerfile" 'FROM ghcr|LABEL aibox.version|Addon:|lazygit|cargo-audit|x86_64-cross|gcc-x86-64|mupdf|ffmpeg|imagemagick|ghostscript|RUN apt-get|COPY --from'
   show_file "$ROOT/.devcontainer/Dockerfile" 260
 
-  section "runtime-home zellij projection on host mount"
-  show_file "$ROOT/.aibox-home/.config/zellij/layouts/ai.kdl" 160
-  show_file "$ROOT/.aibox-home/.config/zellij/layouts/aibox-status-visible.kdl" 80
-  show_file "$ROOT/.aibox-home/.config/zellij/layouts/aibox-status-hidden.kdl" 80
-  show_file "$ROOT/.aibox-home/.config/zellij/config.kdl" 220
-  grep_file "$ROOT/.aibox-home/.config/zellij/layouts/ai.kdl" 'aibox-status|status-bar|wasm|/usr/local/share|/workspace/.aibox-home|command "bash"|--watch'
-  grep_file "$ROOT/.aibox-home/.config/zellij/config.kdl" 'aibox_toggle_runtime|aibox-status|default_layout|theme '
+  section "runtime-home tmux projection on host mount"
+  show_file "$ROOT/.aibox-home/.config/tmux/tmux.conf" 220
+  show_file "$ROOT/.aibox-home/.config/tmux/layouts/ai.sh" 160
+  show_file "$ROOT/.aibox-home/.config/tmux/layouts/dev.sh" 160
+  show_file "$ROOT/.aibox-home/.config/tmux/status.conf" 120
+  grep_file "$ROOT/.aibox-home/.config/tmux/tmux.conf" 'aibox-status|status-left|status-right|default-terminal|prefix|@aibox'
+  grep_file "$ROOT/.aibox-home/.config/tmux/layouts/ai.sh" 'aibox-status|tmux|split-window|new-window|send-keys|/workspace/.aibox-home'
 
   section "aibox command log tail"
   if [ -f "$ROOT/.aibox/aibox.log" ]; then
@@ -123,19 +123,19 @@ docker_available() {
 
     section "live container markers"
     run docker exec "$CONTAINER" /bin/sh -lc 'printf "whoami="; whoami; printf "pwd="; pwd; printf "aibox-version-file="; cat /etc/aibox-version 2>/dev/null || true; printf "\npid1="; tr "\0" " " </proc/1/cmdline; printf "\n"; printf "pids.current="; cat /sys/fs/cgroup/pids.current 2>/dev/null || true; printf "memory.events\n"; cat /sys/fs/cgroup/memory.events 2>/dev/null || true'
-    run docker exec "$CONTAINER" /bin/sh -lc 'command -v zellij || true; zellij --version 2>/dev/null || true; command -v aibox-status || true; command -v lazygit || true; command -v gh || true; command -v cargo-audit || true; command -v x86_64-linux-gnu-gcc || true'
+    run docker exec "$CONTAINER" /bin/sh -lc 'command -v tmux || true; tmux -V 2>/dev/null || true; command -v aibox-status || true; command -v lazygit || true; command -v gh || true; command -v cargo-audit || true; command -v x86_64-linux-gnu-gcc || true'
     run docker exec "$CONTAINER" /bin/sh -lc 'dpkg-query -W -f="${Package} ${Version} ${Status}\n" lazygit gh gcc gcc-x86-64-linux-gnu libc6-dev-amd64-cross imagemagick ghostscript ffmpeg mupdf-tools 2>/dev/null || true'
     run docker exec "$CONTAINER" /bin/sh -lc 'du -sh /usr /home/aibox/.cargo /home/aibox/.rustup /workspace/.aibox-home 2>/dev/null || true'
 
-    section "live mounted zellij files from inside container"
-    run docker exec "$CONTAINER" /bin/sh -lc 'sed -n "1,160p" /home/aibox/.config/zellij/layouts/ai.kdl 2>&1 || true'
-    run docker exec "$CONTAINER" /bin/sh -lc 'sed -n "1,80p" /home/aibox/.config/zellij/layouts/aibox-status-visible.kdl 2>&1 || true'
-    run docker exec "$CONTAINER" /bin/sh -lc 'sed -n "1,220p" /home/aibox/.config/zellij/config.kdl 2>&1 || true'
-    run docker exec "$CONTAINER" /bin/sh -lc 'grep -RInE "aibox-status|status-bar|wasm|/usr/local/share|/workspace/.aibox-home|--watch" /home/aibox/.config/zellij 2>/dev/null || true'
+    section "live mounted tmux files from inside container"
+    run docker exec "$CONTAINER" /bin/sh -lc 'sed -n "1,220p" /home/aibox/.config/tmux/tmux.conf 2>&1 || true'
+    run docker exec "$CONTAINER" /bin/sh -lc 'sed -n "1,160p" /home/aibox/.config/tmux/layouts/ai.sh 2>&1 || true'
+    run docker exec "$CONTAINER" /bin/sh -lc 'sed -n "1,120p" /home/aibox/.config/tmux/status.conf 2>&1 || true'
+    run docker exec "$CONTAINER" /bin/sh -lc 'grep -RInE "aibox-status|status-left|status-right|split-window|new-window|send-keys" /home/aibox/.config/tmux 2>/dev/null || true'
 
-    section "live zellij sessions and processes"
-    run docker exec "$CONTAINER" /bin/sh -lc 'zellij list-sessions 2>/dev/null || true'
-    run docker exec "$CONTAINER" /bin/sh -lc 'if command -v ps >/dev/null 2>&1; then ps -eo pid,ppid,stat,comm,args | grep -E "zellij|aibox-status|codex|bwrap" | grep -v grep; else for s in /proc/[0-9]*/stat; do [ -r "$s" ] || continue; line=$(cat "$s"); comm=${line#*(}; comm=${comm%%)*}; case "$comm" in zellij|aibox-status|codex|bwrap) pid=${s#/proc/}; pid=${pid%/stat}; printf "%s %s\n" "$pid" "$line";; esac; done; fi'
+    section "live tmux sessions and processes"
+    run docker exec "$CONTAINER" /bin/sh -lc 'tmux list-sessions 2>/dev/null || true'
+    run docker exec "$CONTAINER" /bin/sh -lc 'if command -v ps >/dev/null 2>&1; then ps -eo pid,ppid,stat,comm,args | grep -E "tmux|aibox-status|codex|bwrap" | grep -v grep; else for s in /proc/[0-9]*/stat; do [ -r "$s" ] || continue; line=$(cat "$s"); comm=${line#*(}; comm=${comm%%)*}; case "$comm" in tmux:server|tmux|aibox-status|codex|bwrap) pid=${s#/proc/}; pid=${pid%/stat}; printf "%s %s\n" "$pid" "$line";; esac; done; fi'
   fi
 
   section "done"

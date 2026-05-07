@@ -1,4 +1,4 @@
-/* Terminal color palettes for asciinema-player, matching dev-box Zellij themes.
+/* Terminal color palettes for asciinema-player, matching aibox tmux themes.
    Applied via data-theme attribute: <div class="asciinema" data-theme="catppuccin-mocha"> */
 
 .ap-player[data-theme="gruvbox-dark"] {

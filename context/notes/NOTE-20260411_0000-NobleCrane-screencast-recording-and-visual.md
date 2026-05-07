@@ -99,15 +99,15 @@ Nerd Fonts: `asciinema-fonts.css` provides `@font-face` loading `NerdFontsSymbol
 
 ## Adding a New Theme
 
-1. Add `.kdl` file to `images/base-debian/config/zellij/themes/`
-2. Copy to `.devcontainer/config/zellij/themes/`
-3. Add theme name to `THEMES` array in `record-asciinema.sh`
-4. Run `./scripts/record-asciinema.sh themes`
-5. Add screencast embed to `docs-site/docs/themes.md` (or equivalent)
-6. Add yazi theme if applicable
+1. Add the theme palette to the aibox theme registry.
+2. Add or update generated tmux, Vim, Yazi, and lazygit theme projections.
+3. Add theme name to the `THEMES` array in `record-asciinema.sh`.
+4. Run `./scripts/record-asciinema.sh themes`.
+5. Add screencast embed to `docs-site/docs/themes.md` (or equivalent).
+6. Add or update Yazi preview theme coverage if applicable.
 
 ## Limitations
 
-- No parallel recording — Zellij requires exclusive foreground PTY access.
-- Theme tour shows Zellij theming only; Vim/Yazi/lazygit full themes not applied during recording.
+- No parallel recording — tmux/asciinema recordings still need an exclusive foreground PTY.
+- Theme tours are documentation demos; generated-runtime coverage lives in visual E2E and release smoke.
 - Nerd Font rendering depends on browser; exotic glyphs may render as boxes.

@@ -61,7 +61,7 @@ server names; deny patterns take precedence over allow for security. See
 
 Target users: solo developers, small teams, and consultants who want
 reproducible AI-ready dev environments without manual Docker/devcontainer setup.
-Success looks like: `aibox init` → working themed Zellij session with processkit
+Success looks like: `aibox init` → working themed tmux session with processkit
 content in place in under 5 minutes.
 
 Run `pk-resume` before acting. Provider-specific files (`CLAUDE.md`,
@@ -354,7 +354,7 @@ If you're still seeing permission prompts for aibox-shipped MCP servers:
 - **Podman compose** output format varies by version — always use `inspect`, never parse `ps` output.
 - **Stale image cache**: if the container exits immediately after start, rebuild with `--no-cache`.
 - **`.aibox-home/` must be in `.gitignore`** — it contains SSH keys and personal config.
-- **Zellij version pin**: change `ARG ZELLIJ_VERSION` in `images/base-debian/Dockerfile` to upgrade.
+- **tmux version pin**: tmux is installed from the base Debian image package set; upgrade it through `images/base-debian/Dockerfile` package inputs or the base image.
 - **`host.docker.internal`**: works on Docker Desktop and Podman pasta; bare Linux Docker may need `--add-host`.
 - **OrbStack virtiofs**: files mounted from macOS may lose execute permissions — workaround: `chmod +x` inside container.
 - **Claude Code OAuth in containers**: use `claude setup-token` or authenticate on host (credentials shared via `.claude` mount). See anthropics/claude-code#14528. Do NOT use `network_mode: host`.

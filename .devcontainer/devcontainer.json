@@ -18,12 +18,12 @@
           "codex": {
             "path": "/usr/local/bin/codex"
           },
-          "zellij": {
+          "tmux": {
             "args": [
-              "--layout",
-              "ai"
+              "-lc",
+              "exec ~/.config/tmux/layouts/ai.sh"
             ],
-            "path": "/usr/local/bin/zellij"
+            "path": "/bin/bash"
           }
         }
       }

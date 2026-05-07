@@ -155,16 +155,16 @@ aibox apply
 
 ```bash
 aibox apply    # Reconcile config, regenerate files, build image
-aibox up       # Start the container and attach via Zellij
+aibox up       # Start the container and attach via tmux
 ```
 
-You land in a Zellij session with the **dev** layout: Yazi file browser and
-Vim editor side by side, plus AI-agent and shell tabs. Shell and lazygit tabs
-start immediately; secondary AI-agent tabs start suspended to avoid launching
-multiple heavy harnesses at once. A lazygit tab is generated when the `git-ui`
+You land in a tmux session with the **dev** layout: Yazi file browser and
+Vim editor side by side, plus AI-agent and shell windows. Shell and lazygit
+windows start immediately; secondary AI-agent windows start suspended to avoid
+launching multiple heavy harnesses at once. A lazygit window is generated when the `git-ui`
 addon selects `lazygit`.
 
-Six layouts are available: **dev** (default), **focus** (one tool per tab, fullscreen), **cowork** (Yazi+Vim left, Claude right), **cowork-swap**, **browse**, and **ai**. See [Layouts](../container/base-image.md#layouts).
+Six layouts are available: **dev** (default), **focus** (one tool per window, fullscreen), **cowork** (Yazi+Vim left, Claude right), **cowork-swap**, **browse**, and **ai**. See [Layouts](../container/base-image.md#layouts).
 
 The project root is mounted at `/workspace`. Persistent configuration lives in `.aibox-home/` on the host, mounted into the container automatically.
 

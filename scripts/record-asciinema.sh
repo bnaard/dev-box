@@ -3,14 +3,17 @@
 #
 # Records terminal sessions as .cast files (asciicast v2 format) that can be
 # played back with the asciinema-player in docs, or converted to GIF via agg.
+# These are compact documentation demos, not release validation; generated
+# runtime layout coverage lives in cli/tests/e2e/visual_matrix.rs and
+# scripts/release-runtime-smoke.sh.
 #
 # No sibling containers, no Docker socket, no Chromium — just a PTY.
 #
 # Prerequisites:
 #   - asciinema (pip/uv: asciinema)
 #   - agg (cargo install --git https://github.com/asciinema/agg) — optional, for GIF export
-#   - zellij (for layout recordings)
-#   - A running aibox container with zellij + starship installed (for prompt recordings)
+#   - tmux (for layout recordings)
+#   - A running aibox container with tmux + starship installed (for prompt recordings)
 #
 # Usage:
 #   ./scripts/record-asciinema.sh              # record all (layouts + themes + demos)
@@ -41,10 +44,10 @@ LAYOUT_ROWS=45
 DEMO_COLS=100
 DEMO_ROWS=30
 
-# Available themes (must match files in .devcontainer/config/zellij/themes/)
+# Available themes (must match generated aibox theme names)
 THEMES=(gruvbox-dark catppuccin-mocha catppuccin-latte dracula tokyo-night nord)
 
-# Theme bg/fg colors (must match images/base/config/zellij/themes/*.kdl)
+# Theme bg/fg colors (must match generated terminal theme palettes)
 declare -A THEME_BG=(
   [gruvbox-dark]="#282828"
   [catppuccin-mocha]="#1E1E2E"
@@ -67,16 +70,14 @@ ok()    { printf '\033[1;32m ✓\033[0m  %s\n' "$1"; }
 warn()  { printf '\033[1;33m !\033[0m  %s\n' "$1"; }
 die()   { printf '\033[1;31mError:\033[0m %s\n' "$1" >&2; exit 1; }
 
-# Clean up any leftover zellij sessions before recording
-cleanup_zellij() {
-  zellij delete-all-sessions --yes 2>/dev/null || true
-  pkill -9 -x zellij 2>/dev/null || true
-  rm -rf /tmp/zellij-* 2>/dev/null || true
+# Clean up any leftover documentation tmux session before recording.
+cleanup_tmux() {
+  tmux kill-session -t aibox-screencast 2>/dev/null || true
   sleep 0.5
 }
 
 # Trim a cast file: keep only events between first large render and last large render.
-# Removes shell startup noise before Zellij and exit noise after.
+# Removes shell startup noise before tmux and exit noise after.
 # Preserves any OSC escape sequences (terminal color settings) from early events.
 trim_cast() {
   local cast="$1"
@@ -104,7 +105,7 @@ for ev in events:
     for osc in oscs:
         osc_data += osc
 
-# Find first event with >500 bytes (Zellij first render)
+# Find first event with >500 bytes (tmux first render)
 first = 0
 for i, ev in enumerate(events):
     if len(ev[2]) > 500:
@@ -140,7 +141,7 @@ assert_cast_visible_status_text() {
   local cast="$1"
   local label="$2"
 
-  python3 - "${cast}" << 'PYEOF' || die "${label}: missing visible Zellij status/keybar text"
+  python3 - "${cast}" << 'PYEOF' || die "${label}: missing visible tmux status/keybar text"
 import json
 import re
 import sys
@@ -164,7 +165,7 @@ text = re.sub(r"\x1b[()][A-Za-z0-9]", "", text)
 text = re.sub(r"[\x00-\x08\x0b-\x1f\x7f]", " ", text)
 text = re.sub(r"\s+", " ", text)
 
-tokens = ["Ctrl", "Alt", "PANE", "TAB", "Resize", "Scroll", "Quit", "LOCK"]
+tokens = ["Ctrl-g", "Prefix", "pane", "window", "tmux", "dev", "shell", "AI"]
 if not any(token in text for token in tokens):
     print(text[:1200])
     sys.exit(1)
@@ -172,8 +173,8 @@ PYEOF
 }
 
 # ─── Layout recording ────────────────────────────────────────────────────────
-# Records a Zellij layout session headlessly via asciinema.
-# Zellij runs in foreground inside asciinema's PTY; a background process
+# Records a tmux documentation demo session headlessly via asciinema.
+# tmux runs in foreground inside asciinema's PTY; a background process
 # kills it after DURATION seconds.
 
 record_layout() {
@@ -182,7 +183,7 @@ record_layout() {
   local output="${OUTPUT_DIR}/layout-${layout}.cast"
 
   info "Recording layout: ${layout} (${duration}s)..."
-  cleanup_zellij
+  cleanup_tmux
 
   local driver
   driver=$(mktemp /tmp/record-XXXX.sh)
@@ -190,8 +191,29 @@ record_layout() {
 #!/usr/bin/env bash
 export TERM=xterm-256color
 export COLORTERM=truecolor
-(sleep ${duration} && pkill -x zellij 2>/dev/null) &
-zellij --layout "${layout}" 2>/dev/null
+tmux kill-session -t aibox-screencast 2>/dev/null || true
+case "${layout}" in
+  dev)
+    tmux new-session -d -s aibox-screencast -n dev 'yazi 2>/dev/null || bash'
+    tmux split-window -h -t aibox-screencast:dev 'vim 2>/dev/null || bash'
+    tmux new-window -t aibox-screencast -n shell 'bash'
+    ;;
+  focus)
+    tmux new-session -d -s aibox-screencast -n files 'yazi 2>/dev/null || bash'
+    tmux new-window -t aibox-screencast -n editor 'vim 2>/dev/null || bash'
+    tmux new-window -t aibox-screencast -n shell 'bash'
+    ;;
+  cowork)
+    tmux new-session -d -s aibox-screencast -n cowork 'yazi 2>/dev/null || bash'
+    tmux split-window -v -t aibox-screencast:cowork 'vim 2>/dev/null || bash'
+    tmux split-window -h -t aibox-screencast:cowork 'printf "AI agent pane\n"; sleep infinity'
+    ;;
+esac
+tmux set-option -t aibox-screencast status on
+tmux set-option -t aibox-screencast status-left 'aibox #[bold]#S'
+tmux set-option -t aibox-screencast status-right 'Prefix Ctrl-g | pane #{pane_index} | window #I:#W'
+(sleep ${duration} && tmux kill-session -t aibox-screencast 2>/dev/null) &
+tmux attach-session -t aibox-screencast 2>/dev/null
 true
 DRIVER
   chmod +x "${driver}"
@@ -213,94 +235,21 @@ DRIVER
 # Records the dev layout with a specific theme, cycling through tabs to show
 # all themed tools: Yazi + Vim (tab 1), lazygit (tab 3), shell/starship (tab 4).
 #
-# Uses a hidden 1-row pane inside the layout that runs zellij action commands
-# to switch tabs — this works because the pane runs inside the Zellij session.
+# Uses tmux window-selection commands to cycle through the generated workspace.
 
 record_theme() {
   local theme="$1"
   local output="${OUTPUT_DIR}/theme-${theme}.cast"
 
   info "Recording theme: ${theme}..."
-  cleanup_zellij
-
-  # Create the tab-switching script (runs inside a zellij pane)
-  local switcher
-  switcher=$(mktemp /tmp/switcher-XXXX.sh)
-  cat > "${switcher}" << 'SWITCHER'
-#!/usr/bin/env bash
-sleep 3
-zellij action go-to-tab 3 2>/dev/null   # git (lazygit)
-sleep 2
-zellij action go-to-tab 4 2>/dev/null   # shell (starship)
-sleep 2
-zellij action go-to-tab 1 2>/dev/null   # back to dev (yazi + vim)
-sleep 1
-sleep infinity
-SWITCHER
-  chmod +x "${switcher}"
-
-  # Create a layout with the switcher embedded as a hidden 1-row pane
-  local layout_file
-  layout_file=$(mktemp /tmp/tour-layout-XXXX.kdl)
-  cat > "${layout_file}" << LAYOUT
-layout {
-    default_tab_template {
-        children
-        pane size=1 borderless=true {
-            plugin location="zellij:status-bar"
-        }
-    }
-    tab name="dev" focus=true {
-        pane split_direction="vertical" {
-            pane size="40%" name="files" focus=true {
-                command "yazi"
-                cwd "/workspace"
-            }
-            pane size="60%" name="editor" {
-                command "vim"
-                cwd "/workspace"
-            }
-        }
-        // Hidden switcher pane — cycles tabs during recording
-        pane size=1 borderless=true {
-            command "bash"
-            args "-c" "${switcher}"
-        }
-    }
-    tab name="claude" {
-        pane name="claude" {
-            command "bash"
-            args "-c" "echo 'Claude Code'; sleep infinity"
-            cwd "/workspace"
-        }
-    }
-    tab name="git" {
-        pane name="lazygit" {
-            command "lazygit"
-            cwd "/workspace"
-        }
-    }
-    tab name="shell" {
-        pane name="bash" {
-            command "bash"
-            cwd "/workspace"
-        }
-    }
-}
-LAYOUT
-
-  # Create the theme config override
-  local config_file
-  config_file=$(mktemp /tmp/zellij-theme-XXXX.kdl)
-  cat > "${config_file}" << CONF
-theme "${theme}"
-CONF
+  cleanup_tmux
 
   # Look up theme colors for OSC injection
   local bg="${THEME_BG[${theme}]:-#000000}"
   local fg="${THEME_FG[${theme}]:-#FFFFFF}"
 
-  # Driver script: set terminal bg/fg via OSC, then start zellij with theme
+  # Driver script: set terminal bg/fg via OSC, then start tmux with theme-like
+  # status colors and cycle representative windows.
   local driver
   driver=$(mktemp /tmp/record-XXXX.sh)
   cat > "${driver}" << DRIVER
@@ -310,8 +259,26 @@ export COLORTERM=truecolor
 # Set terminal background/foreground to match theme (OSC 11/10)
 printf '\033]11;${bg}\033\\\\'
 printf '\033]10;${fg}\033\\\\'
-(sleep 10 && pkill -x zellij 2>/dev/null) &
-zellij --layout "${layout_file}" --config "${config_file}" 2>/dev/null
+tmux kill-session -t aibox-screencast 2>/dev/null || true
+tmux new-session -d -s aibox-screencast -n dev 'yazi 2>/dev/null || bash'
+tmux split-window -h -t aibox-screencast:dev 'vim 2>/dev/null || bash'
+tmux new-window -t aibox-screencast -n git 'lazygit 2>/dev/null || git status --short --branch; sleep infinity'
+tmux new-window -t aibox-screencast -n shell 'bash'
+tmux set-option -t aibox-screencast status on
+tmux set-option -t aibox-screencast status-style 'bg=${bg},fg=${fg}'
+tmux set-option -t aibox-screencast status-left 'aibox ${theme}'
+tmux set-option -t aibox-screencast status-right 'Prefix Ctrl-g | tmux'
+(
+  sleep 3
+  tmux select-window -t aibox-screencast:git 2>/dev/null || true
+  sleep 2
+  tmux select-window -t aibox-screencast:shell 2>/dev/null || true
+  sleep 2
+  tmux select-window -t aibox-screencast:dev 2>/dev/null || true
+  sleep 1
+  tmux kill-session -t aibox-screencast 2>/dev/null || true
+) &
+tmux attach-session -t aibox-screencast 2>/dev/null
 true
 DRIVER
   chmod +x "${driver}"
@@ -323,7 +290,7 @@ DRIVER
     -c "${driver}" \
     "${output}" 2>/dev/null
 
-  rm -f "${driver}" "${switcher}" "${layout_file}" "${config_file}"
+  rm -f "${driver}"
   trim_cast "${output}"
   assert_cast_visible_status_text "${output}" "theme-${theme}.cast"
   ok "theme-${theme}.cast ($(wc -l < "${output}") events)"

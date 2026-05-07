@@ -104,7 +104,7 @@ aibox describe runtime
 aibox delete runtime
 ```
 
-`up` starts or creates the workspace container and attaches through Zellij. `down` stops the compose project. `delete runtime` removes the container while preserving project files and `.aibox-home/`.
+`up` starts or creates the workspace container and attaches through tmux. `down` stops the compose project. `delete runtime` removes the container while preserving project files and `.aibox-home/`.
 
 `get runtime` reports the configured container name and detected state
 (`running`, `stopped`, or `missing`). With `--resources`, it reports a

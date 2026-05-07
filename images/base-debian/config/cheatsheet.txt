@@ -2,38 +2,38 @@
 ║                     aibox — Quick Reference                              ║
 ╠══════════════════════════════════════════════════════════════════════════════╣
 ║                                                                            ║
-║  ZELLIJ (leader: Ctrl+b)            YAZI (file manager)                   ║
+║  TMUX (leader: Ctrl+g)              YAZI (file manager)                   ║
 ║  ───────────────────────────         ──────────────────────────────        ║
-║  Ctrl+b h/j/k/l  Move panes        h/j/k/l    Navigate                  ║
-║  Ctrl+b [  ]      Prev/next tab     Enter      Open in vim pane          ║
-║  Ctrl+b 1 … 5     Jump to tab       O          Open in-place (fallback)  ║
-║  Ctrl+b f          Fullscreen        .          Toggle hidden files       ║
-║  Ctrl+b n          New pane          /          Search files              ║
-║  Ctrl+b x          Close pane        q          Quit yazi                 ║
-║  Ctrl+b d          Split down        Space      Select file               ║
-║  Ctrl+b r          Split right       d          Trash selected            ║
-║  Ctrl+b t          New tab           r          Rename                    ║
-║  Ctrl+b w          Close tab         a          Create file               ║
-║  Ctrl+b s          Strider           ~          Go to home                ║
-║  Ctrl+b m          Session manager   Tab        Preview next              ║
-║  Ctrl+b u          Scroll mode       w s        Size selection            ║
-║  Ctrl+b /          Search           VIM                                   ║
-║  Ctrl+b z          Toggle borders    c p/d/f    Copy path/dir/name        ║
-║  Ctrl+b e          Embed/float      ──────────────────────────────        ║
+║  Ctrl+g h/j/k/l  Move panes        h/j/k/l    Navigate                  ║
+║  Ctrl+g n/p      Prev/next window  Enter      Open in vim pane          ║
+║  Ctrl+g 1..5     Jump to window    O          Open in-place (fallback)  ║
+║  Ctrl+g f        Zoom pane         .          Toggle hidden files       ║
+║  Ctrl+g c        New window        /          Search files              ║
+║  Ctrl+g x          Close pane        q          Quit yazi                 ║
+║  Ctrl+g -          Split down        Space      Select file               ║
+║  Ctrl+g |          Split right       d          Trash selected            ║
+║  Ctrl+g X          Close window      r          Rename                    ║
+║  Ctrl+g r          Reload config     a          Create file               ║
+║  Ctrl+g s          Sessions          ~          Go to home                ║
+║  Ctrl+g m          Session manager   Tab        Preview next              ║
+║  Ctrl+g [          Copy mode         w s        Size selection            ║
+║  Ctrl+g /          Search           VIM                                   ║
+║  Ctrl+g z          Toggle status     c p/d/f    Copy path/dir/name        ║
+║  Ctrl+g e          Embed/float      ──────────────────────────────        ║
 ║                                      Space+e    Netrw file explorer       ║
-║  Ctrl+b =/-        Resize pane       Space+w    Save                     ║
-║  Ctrl+b q          QUIT (or Ctrl+q)       Space+q    Quit                     ║
+║  Ctrl+g =/-        Resize pane       Space+w    Save                     ║
+║  Ctrl+g d          Detach session    Space+q    Quit                     ║
 ║                                      Space+n/p  Next/prev buffer         ║
-║  STACKED PANES (tabbed)              :e <file>  Open file                ║
+║  COPY MODE                           :e <file>  Open file                ║
 ║  ───────────────────────────         :wq        Save and quit            ║
-║  Ctrl+b j/k in stack  Switch         :q!        Quit without saving      ║
-║  Click header          Switch        Ctrl+h/j/k/l  Navigate splits       ║
+║  Ctrl+g [            Enter mode      :q!        Quit without saving      ║
+║  v / y                Select/copy    Ctrl+h/j/k/l  Navigate splits       ║
 ║                                                                           ║
 ║  LAYOUTS                            TABS                                  ║
 ║  ───────────────────────────        ──────────────────────────────        ║
-║  aibox start --layout dev         Ctrl+b 1  dev  (files+editor+term)   ║
-║  aibox start --layout cowork      Ctrl+b 2  shell (extra terminal)     ║
-║  aibox start --layout focus       Ctrl+b 3  help (this cheatsheet)     ║
+║  aibox start --layout dev         Ctrl+g 1  dev  (files+editor+term)   ║
+║  aibox start --layout cowork      Ctrl+g 2  shell (extra terminal)     ║
+║  aibox start --layout focus       Ctrl+g 3  help (this cheatsheet)     ║
 ║                                                                           ║
 ╚══════════════════════════════════════════════════════════════════════════════╝
   Press q to exit this help screen.

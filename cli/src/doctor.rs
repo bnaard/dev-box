@@ -5,7 +5,6 @@ use std::process::{Command, Stdio};
 
 use crate::config::{
     AiHarness, AiboxConfig, CONTAINER_WORKSPACE_DIR, McpGatewayMode, PROCESSKIT_VERSION_UNSET,
-    ZellijStatusMode,
 };
 use crate::output;
 use crate::processkit_vocab::{AGENTS_FILENAME, PROVENANCE_FILENAME};
@@ -136,7 +135,6 @@ pub fn cmd_doctor(config_path: &Option<String>) -> Result<()> {
 
     // 4. Check .devcontainer/ files
     check_devcontainer_files(&mut diag);
-    check_zellij_native_permission_projection(&config, &mut diag);
 
     // 5. Check context structure
     output::info(&format!(
@@ -344,9 +342,8 @@ fn runtime_theme_reference_files(config: &AiboxConfig) -> Vec<(std::path::PathBu
 fn is_runtime_theme_reference_file(path: &Path) -> bool {
     let rel = path.to_string_lossy().replace('\\', "/");
     rel == ".vim/vimrc"
-        || rel == ".config/zellij/config.kdl"
-        || rel.starts_with(".config/zellij/layouts/")
-        || rel.starts_with(".config/zellij/themes/")
+        || rel == ".config/tmux/tmux.conf"
+        || rel.starts_with(".config/tmux/layouts/")
         || rel == ".config/yazi/theme.toml"
         || rel == ".config/starship.toml"
         || rel == ".config/lazygit/config.yml"
@@ -1463,170 +1460,6 @@ fn yaml_sequence_contains_ci(value: Option<&serde_yaml::Value>, needle: &str) ->
         .unwrap_or(false)
 }
 
-fn check_zellij_native_permission_projection(config: &AiboxConfig, diag: &mut DiagResult) {
-    if config.customization.zellij_status.mode != ZellijStatusMode::Sidecar {
-        return;
-    }
-
-    let root = config.host_root_dir();
-    for rel_path in [
-        ".cache/zellij/permissions.kdl",
-        ".cache/org/Zellij Contributors/Zellij/permissions.kdl",
-    ] {
-        let path = root.join(rel_path);
-        if !path.is_file() {
-            output::warn(&format!(
-                "zellij: sidecar status mode is enabled but {}/{} is missing; run `aibox apply` to seed the plugin permission cache",
-                root.display(),
-                rel_path
-            ));
-            diag.warnings += 1;
-        }
-    }
-
-    let compose_path = Path::new(crate::config::COMPOSE_FILE);
-    let Ok(body) = std::fs::read_to_string(compose_path) else {
-        return;
-    };
-    let Ok(compose) = serde_yaml::from_str::<serde_yaml::Value>(&body) else {
-        output::warn(&format!(
-            "zellij: could not parse {} to verify sidecar status permission cache mounts",
-            compose_path.display()
-        ));
-        diag.warnings += 1;
-        return;
-    };
-
-    let (current_cache, legacy_cache) =
-        compose_mounts_zellij_permission_cache(&compose, &config.container.name);
-    if !current_cache {
-        output::warn(
-            "zellij: sidecar status mode is enabled but generated compose does not mount /home/aibox/.cache/zellij; run `aibox apply` with an up-to-date CLI and recreate the container",
-        );
-        diag.warnings += 1;
-    }
-    if !legacy_cache {
-        output::warn(
-            "zellij: sidecar status mode is enabled but generated compose does not mount /home/aibox/.cache/org/Zellij Contributors/Zellij; run `aibox apply` with an up-to-date CLI and recreate the container",
-        );
-        diag.warnings += 1;
-    }
-
-    let layout_path = root
-        .join(".config/zellij/layouts")
-        .join(format!("{}.kdl", config.customization.layout));
-    if let Ok(layout) = std::fs::read_to_string(&layout_path)
-        && native_zellij_status_layout_uses_shared_plugin_location(&layout)
-    {
-        output::warn(&format!(
-            "zellij: sidecar status layout {} uses one shared plugin location for both rows; run `aibox apply` with an up-to-date CLI and recreate the container",
-            layout_path.display()
-        ));
-        diag.warnings += 1;
-    }
-
-    if Path::new("/etc/aibox-version").is_file()
-        && !native_zellij_status_role_plugins_available(Path::new("/usr/local/share/aibox/zellij"))
-    {
-        output::warn(
-            "zellij: current container image is missing physical sidecar status role plugin files; rebuild/recreate the container from regenerated .devcontainer/Dockerfile",
-        );
-        diag.warnings += 1;
-    }
-}
-
-fn compose_mounts_zellij_permission_cache(
-    compose: &serde_yaml::Value,
-    service_name: &str,
-) -> (bool, bool) {
-    let mut current_cache = false;
-    let mut legacy_cache = false;
-    let Some(services) = compose.get("services").and_then(|value| value.as_mapping()) else {
-        return (current_cache, legacy_cache);
-    };
-
-    let mut candidates = std::collections::BTreeSet::new();
-    candidates.insert(service_name);
-    candidates.insert("aibox");
-
-    for candidate in candidates {
-        let Some(service) = services.get(serde_yaml::Value::String(candidate.to_string())) else {
-            continue;
-        };
-        let Some(volumes) = service.get("volumes").and_then(|value| value.as_sequence()) else {
-            continue;
-        };
-
-        for volume in volumes {
-            if volume_mounts_target(volume, "/home/aibox/.cache") {
-                current_cache = true;
-                legacy_cache = true;
-            }
-            if volume_mounts_target(volume, "/home/aibox/.cache/zellij") {
-                current_cache = true;
-            }
-            if volume_mounts_target(volume, "/home/aibox/.cache/org/Zellij Contributors/Zellij") {
-                legacy_cache = true;
-            }
-        }
-    }
-
-    (current_cache, legacy_cache)
-}
-
-fn native_zellij_status_role_plugins_available(root: &Path) -> bool {
-    [
-        "aibox-status.wasm",
-        "aibox-status-keys.wasm",
-        "aibox-status-runtime.wasm",
-    ]
-    .into_iter()
-    .all(|name| {
-        let path = root.join(name);
-        let Ok(metadata) = path.symlink_metadata() else {
-            return false;
-        };
-        metadata.file_type().is_file() && !metadata.file_type().is_symlink()
-    })
-}
-
-fn native_zellij_status_layout_uses_shared_plugin_location(layout: &str) -> bool {
-    let mut locations = Vec::new();
-    let mut pending_location: Option<String> = None;
-
-    for line in layout.lines() {
-        let trimmed = line.trim();
-        if let Some(rest) = trimmed.strip_prefix("plugin location=\"")
-            && let Some((location, _)) = rest.split_once('"')
-        {
-            pending_location = Some(location.to_string());
-            continue;
-        }
-        if (trimmed == "role \"keys\"" || trimmed == "role \"status\"")
-            && let Some(location) = pending_location.take()
-        {
-            locations.push(location);
-        }
-    }
-
-    locations.len() >= 2 && locations[0] == locations[1]
-}
-
-fn volume_mounts_target(volume: &serde_yaml::Value, target: &str) -> bool {
-    if let Some(spec) = volume.as_str() {
-        return spec
-            .split(':')
-            .nth(1)
-            .is_some_and(|mounted| mounted == target);
-    }
-
-    volume
-        .as_mapping()
-        .and_then(|mapping| mapping.get(serde_yaml::Value::String("target".to_string())))
-        .and_then(|target_value| target_value.as_str())
-        .is_some_and(|mounted| mounted == target)
-}
-
 /// Check that mount source directories exist for configured features.
 fn check_mount_sources(root: &Path, root_label: &str, config: &AiboxConfig, diag: &mut DiagResult) {
     // AI providers — check the .aibox-home/<provider>/ persistence dir
@@ -1668,7 +1501,13 @@ fn check_mount_sources(root: &Path, root_label: &str, config: &AiboxConfig, diag
 
 /// Check home directory subdirectories.
 fn check_root_subdirs(root: &Path, root_label: &str, diag: &mut DiagResult) {
-    let expected_dirs = [".ssh", ".vim", ".config/zellij", ".config/git"];
+    let expected_dirs = [
+        ".ssh",
+        ".vim",
+        ".config/tmux",
+        ".tmux/plugins",
+        ".config/git",
+    ];
     for dir in &expected_dirs {
         let path = root.join(dir);
         if path.exists() {
@@ -1995,101 +1834,6 @@ services:
         let posture = codex_compose_posture(&compose, "aibox", "compose.yml");
 
         assert!(!posture.init_true);
-    }
-
-    #[test]
-    fn zellij_permission_cache_mount_detection_accepts_current_and_legacy_paths() {
-        let compose: serde_yaml::Value = serde_yaml::from_str(
-            r#"
-services:
-  aibox:
-    volumes:
-      - ../.aibox-home/.cache/zellij:/home/aibox/.cache/zellij
-      - ../.aibox-home/.cache/org/Zellij Contributors/Zellij:/home/aibox/.cache/org/Zellij Contributors/Zellij
-"#,
-        )
-        .unwrap();
-
-        assert_eq!(
-            compose_mounts_zellij_permission_cache(&compose, "aibox"),
-            (true, true)
-        );
-    }
-
-    #[test]
-    fn zellij_permission_cache_mount_detection_accepts_cache_home_parent() {
-        let compose: serde_yaml::Value = serde_yaml::from_str(
-            r#"
-services:
-  aibox:
-    volumes:
-      - ../.aibox-home/.cache:/home/aibox/.cache
-"#,
-        )
-        .unwrap();
-
-        assert_eq!(
-            compose_mounts_zellij_permission_cache(&compose, "aibox"),
-            (true, true)
-        );
-    }
-
-    #[test]
-    fn zellij_permission_cache_mount_detection_catches_missing_paths() {
-        let compose: serde_yaml::Value = serde_yaml::from_str(
-            r#"
-services:
-  aibox:
-    volumes:
-      - ../.aibox-home/.config/zellij:/home/aibox/.config/zellij
-"#,
-        )
-        .unwrap();
-
-        assert_eq!(
-            compose_mounts_zellij_permission_cache(&compose, "aibox"),
-            (false, false)
-        );
-    }
-
-    #[test]
-    fn native_zellij_status_layout_detects_shared_plugin_location() {
-        let layout = r#"
-pane size=1 borderless=true {
-    plugin location="file:/usr/local/share/aibox/zellij/aibox-status.wasm" {
-        role "keys"
-    }
-}
-pane size=1 borderless=true {
-    plugin location="file:/usr/local/share/aibox/zellij/aibox-status.wasm" {
-        role "status"
-    }
-}
-"#;
-
-        assert!(native_zellij_status_layout_uses_shared_plugin_location(
-            layout
-        ));
-    }
-
-    #[test]
-    fn native_zellij_status_layout_accepts_distinct_plugin_locations() {
-        let layout = r#"
-pane size=1 borderless=true {
-    plugin location="file:/usr/local/share/aibox/zellij/aibox-status-keys.wasm" {
-        role "keys"
-    }
-}
-pane size=1 borderless=true {
-    plugin location="file:/usr/local/share/aibox/zellij/aibox-status-runtime.wasm" {
-        role "status"
-    }
-}
-"#;
-
-        assert!(!native_zellij_status_layout_uses_shared_plugin_location(
-            layout
-        ));
     }
 
     #[test]

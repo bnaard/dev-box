@@ -243,6 +243,7 @@ fn ensure_live_runtime_file_permissions(rel_path: &str, target: &Path) -> Result
     if rel_path == ".local/bin/pdf-watch"
         || rel_path == ".local/bin/open-in-editor"
         || rel_path == ".local/bin/aibox-status-toggle"
+        || (rel_path.starts_with(".config/tmux/") && rel_path.ends_with(".sh"))
     {
         ensure_executable(target)?;
     }
@@ -473,8 +474,11 @@ fn summarize(diffs: &[RuntimeFileDiff]) -> DiffSummary {
 }
 
 fn runtime_group_for(rel_path: &str) -> String {
+    if rel_path.starts_with(".config/tmux/") {
+        return "runtime-tmux".to_string();
+    }
     if rel_path.starts_with(".config/zellij/") {
-        return "runtime-zellij".to_string();
+        return "runtime-zellij-legacy".to_string();
     }
     if rel_path.starts_with(".config/yazi/") {
         return "runtime-yazi".to_string();

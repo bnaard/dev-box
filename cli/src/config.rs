@@ -879,7 +879,7 @@ pub struct SkillsSection {
 // [appearance] section — UNCHANGED
 // ---------------------------------------------------------------------------
 
-/// Color themes available across all tools (Zellij, Vim, Yazi, lazygit).
+/// Color themes available across all tools (tmux, Vim, Yazi, lazygit).
 #[derive(Debug, Clone, Default, Serialize, Deserialize, PartialEq, clap::ValueEnum)]
 #[serde(rename_all = "kebab-case")]
 #[clap(rename_all = "kebab-case")]
@@ -975,7 +975,7 @@ fn default_prompt() -> StarshipPreset {
     StarshipPreset::default()
 }
 
-/// Default zellij layout for `aibox up`.
+/// Default tmux workspace layout for `aibox up`.
 #[derive(Debug, Clone, Default, Serialize, Deserialize, PartialEq, clap::ValueEnum)]
 #[serde(rename_all = "kebab-case")]
 #[clap(rename_all = "kebab-case")]
@@ -1012,54 +1012,98 @@ fn default_layout() -> ConfigLayout {
     ConfigLayout::default()
 }
 
-/// Zellij runtime status presentation.
+/// tmux status-line presentation.
 #[derive(Debug, Clone, Default, Serialize, Deserialize, PartialEq, clap::ValueEnum)]
 #[serde(rename_all = "kebab-case")]
 #[clap(rename_all = "kebab-case")]
-pub enum ZellijStatusMode {
-    /// Experimental sidecar-backed aibox key-hint plugin plus runtime status plugin.
-    #[serde(alias = "native")]
-    #[value(alias = "native")]
-    Sidecar,
-    /// Built-in Zellij status bar plus the Rust `aibox-status --watch`.
+pub enum TmuxStatusMode {
+    /// aibox themed status line with tmux plugin hooks.
     #[default]
-    Shell,
-    /// Disable aibox-provided status rows from generated layouts.
+    #[serde(
+        alias = "enabled",
+        alias = "shell",
+        alias = "sidecar",
+        alias = "native"
+    )]
+    #[value(
+        alias = "enabled",
+        alias = "shell",
+        alias = "sidecar",
+        alias = "native"
+    )]
+    Powerline,
+    /// Minimal tmux-native status text.
+    Plain,
+    /// Disable the tmux status line.
     #[serde(alias = "hidden")]
     #[value(alias = "hidden")]
     Disabled,
 }
 
-impl std::fmt::Display for ZellijStatusMode {
+impl std::fmt::Display for TmuxStatusMode {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
-            ZellijStatusMode::Sidecar => write!(f, "sidecar"),
-            ZellijStatusMode::Shell => write!(f, "shell"),
-            ZellijStatusMode::Disabled => write!(f, "disabled"),
+            TmuxStatusMode::Powerline => write!(f, "powerline"),
+            TmuxStatusMode::Plain => write!(f, "plain"),
+            TmuxStatusMode::Disabled => write!(f, "disabled"),
         }
     }
 }
 
-fn default_zellij_status_mode() -> ZellijStatusMode {
-    ZellijStatusMode::default()
+fn default_tmux_status_mode() -> TmuxStatusMode {
+    TmuxStatusMode::default()
 }
 
-/// [customization.zellij_status] section — Zellij status/keybar presentation.
+/// [customization.tmux.status] section.
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
-pub struct ZellijStatusSection {
-    #[serde(default = "default_zellij_status_mode")]
-    pub mode: ZellijStatusMode,
+pub struct TmuxStatusSection {
+    #[serde(default = "default_tmux_status_mode")]
+    pub mode: TmuxStatusMode,
 }
 
-impl Default for ZellijStatusSection {
+impl Default for TmuxStatusSection {
     fn default() -> Self {
         Self {
-            mode: default_zellij_status_mode(),
+            mode: default_tmux_status_mode(),
         }
     }
 }
 
-/// [customization] section — color theme, shell prompt, and zellij layout.
+fn default_tmux_prefix() -> String {
+    "C-g".to_string()
+}
+
+fn default_tmux_session_name() -> String {
+    "aibox".to_string()
+}
+
+/// [customization.tmux] section — tmux runtime presentation and startup.
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+pub struct TmuxSection {
+    /// Optional tmux-specific layout override. When absent, `[customization].layout`
+    /// remains the source of truth for the default workspace layout.
+    #[serde(default)]
+    pub layout: Option<ConfigLayout>,
+    #[serde(default = "default_tmux_prefix")]
+    pub prefix: String,
+    #[serde(default = "default_tmux_session_name")]
+    pub session_name: String,
+    #[serde(default)]
+    pub status: TmuxStatusSection,
+}
+
+impl Default for TmuxSection {
+    fn default() -> Self {
+        Self {
+            layout: None,
+            prefix: default_tmux_prefix(),
+            session_name: default_tmux_session_name(),
+            status: TmuxStatusSection::default(),
+        }
+    }
+}
+
+/// [customization] section — color theme, shell prompt, and tmux layout.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct CustomizationSection {
     #[serde(default = "default_theme")]
@@ -1071,7 +1115,7 @@ pub struct CustomizationSection {
     #[serde(default = "default_layout")]
     pub layout: ConfigLayout,
     #[serde(default)]
-    pub zellij_status: ZellijStatusSection,
+    pub tmux: TmuxSection,
 }
 
 impl CustomizationSection {
@@ -1089,6 +1133,13 @@ impl CustomizationSection {
             },
         }
     }
+
+    pub fn tmux_layout(&self) -> ConfigLayout {
+        self.tmux
+            .layout
+            .clone()
+            .unwrap_or_else(|| self.layout.clone())
+    }
 }
 
 impl Default for CustomizationSection {
@@ -1098,7 +1149,7 @@ impl Default for CustomizationSection {
             mode: default_theme_mode(),
             prompt: default_prompt(),
             layout: default_layout(),
-            zellij_status: ZellijStatusSection::default(),
+            tmux: TmuxSection::default(),
         }
     }
 }
@@ -2412,11 +2463,19 @@ fn check_customization_table(
     check_child_table(
         root,
         key,
-        &["theme", "mode", "prompt", "layout", "zellij_status"],
+        &["theme", "mode", "prompt", "layout", "tmux"],
         mismatches,
     );
     if let Some(customization) = table_child(root, key) {
-        check_child_table(customization, "zellij_status", &["mode"], mismatches);
+        check_child_table(
+            customization,
+            "tmux",
+            &["layout", "prefix", "session_name", "status"],
+            mismatches,
+        );
+        if let Some(tmux) = table_child(customization, "tmux") {
+            check_child_table(tmux, "status", &["mode"], mismatches);
+        }
     }
 }
 
@@ -2651,9 +2710,6 @@ theme = "gruvbox-dark"
 mode = "auto"
 prompt = "default"
 
-[appearance.zellij_status]
-mode = "shell"
-
 [audio]
 enabled = false
 
@@ -2799,8 +2855,8 @@ name = "my-project"
         assert_eq!(config.customization.mode, ThemeMode::Auto);
         assert_eq!(config.customization.prompt, StarshipPreset::Default);
         assert_eq!(
-            config.customization.zellij_status.mode,
-            ZellijStatusMode::Shell
+            config.customization.tmux.status.mode,
+            TmuxStatusMode::Powerline
         );
 
         // [audio]
@@ -2856,8 +2912,11 @@ version = "0.23.5"
 name = "test"
 nmae = "typo"
 
-[customization.zellij_status]
+[customization.tmux.status]
 mod = "typo"
+
+[customization.tmux]
+prefx = "typo"
 
 [addons.git-ui.tools.lazygit]
 enabled = false
@@ -2866,7 +2925,8 @@ enabld = true
         let mismatches = AiboxConfig::schema_mismatches(toml).unwrap();
 
         assert!(mismatches.contains(&"[container]: unknown key `nmae`".to_string()));
-        assert!(mismatches.contains(&"[zellij_status]: unknown key `mod`".to_string()));
+        assert!(mismatches.contains(&"[status]: unknown key `mod`".to_string()));
+        assert!(mismatches.contains(&"[tmux]: unknown key `prefx`".to_string()));
         assert!(
             mismatches.contains(&"[addons.git-ui.tools.lazygit]: unknown key `enabld`".to_string())
         );
@@ -3000,52 +3060,34 @@ prompt = "minimal"
         assert_eq!(config.customization.theme, Theme::Dracula);
         assert_eq!(config.customization.mode, ThemeMode::Dark);
         assert_eq!(config.customization.prompt, StarshipPreset::Minimal);
-        assert_eq!(
-            config.customization.zellij_status.mode,
-            ZellijStatusMode::Shell
-        );
     }
 
     #[test]
-    fn customization_zellij_status_mode_parses() {
+    fn customization_tmux_fields_parse() {
         let toml = r#"
 [aibox]
-version = "0.9.0"
+version = "0.25.0"
 
 [container]
 name = "my-project"
 
-[customization.zellij_status]
-mode = "disabled"
+[customization]
+layout = "browse"
+
+[customization.tmux]
+layout = "ai"
+prefix = "C-a"
+session_name = "work"
+
+[customization.tmux.status]
+mode = "plain"
 "#;
         let config = parse_toml(toml).unwrap();
-        assert_eq!(
-            config.customization.zellij_status.mode,
-            ZellijStatusMode::Disabled
-        );
-    }
-
-    #[test]
-    fn customization_zellij_status_legacy_aliases_parse() {
-        for (mode, expected) in [
-            ("native", ZellijStatusMode::Sidecar),
-            ("hidden", ZellijStatusMode::Disabled),
-        ] {
-            let toml = format!(
-                r#"
-[aibox]
-version = "0.9.0"
-
-[container]
-name = "my-project"
-
-[customization.zellij_status]
-mode = "{mode}"
-"#
-            );
-            let config = parse_toml(&toml).unwrap();
-            assert_eq!(config.customization.zellij_status.mode, expected);
-        }
+        assert_eq!(config.customization.layout, ConfigLayout::Browse);
+        assert_eq!(config.customization.tmux_layout(), ConfigLayout::Ai);
+        assert_eq!(config.customization.tmux.prefix, "C-a");
+        assert_eq!(config.customization.tmux.session_name, "work");
+        assert_eq!(config.customization.tmux.status.mode, TmuxStatusMode::Plain);
     }
 
     #[test]

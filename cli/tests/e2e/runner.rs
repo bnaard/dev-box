@@ -18,7 +18,6 @@ use std::sync::Once;
 /// Remote paths on the companion container.
 const REMOTE_AIBOX_BIN: &str = "/usr/local/bin/aibox";
 const REMOTE_ADDONS_DIR: &str = "/opt/aibox/addons";
-const EXPECTED_ZELLIJ_VERSION: &str = "0.44.2";
 const EXPECTED_YAZI_VERSION: &str = "26.5.6";
 
 /// Ensure the binary + addons are deployed exactly once per test run.
@@ -240,46 +239,6 @@ impl E2eRunner {
             true,
         );
 
-        let plugin_manifest = format!(
-            "{}/../images/base-debian/zellij-plugins/aibox-status/Cargo.toml",
-            manifest_dir
-        );
-        let plugin_wasm = format!(
-            "{}/../images/base-debian/zellij-plugins/aibox-status/target/wasm32-wasip1/release/aibox-zellij-status.wasm",
-            manifest_dir
-        );
-        let output = Command::new("cargo")
-            .args([
-                "build",
-                "--manifest-path",
-                &plugin_manifest,
-                "--release",
-                "--target",
-                "wasm32-wasip1",
-                "--features",
-                "zellij",
-            ])
-            .output()
-            .expect("failed to build native Zellij status plugin");
-        assert!(
-            output.status.success(),
-            "native Zellij status plugin build failed:\nstdout:\n{}\nstderr:\n{}",
-            String::from_utf8_lossy(&output.stdout),
-            String::from_utf8_lossy(&output.stderr)
-        );
-        self.exec("sudo mkdir -p /usr/local/share/aibox/zellij");
-        for plugin_name in [
-            "aibox-status.wasm",
-            "aibox-status-keys.wasm",
-            "aibox-status-runtime.wasm",
-        ] {
-            self.deploy_image_asset(
-                &plugin_wasm,
-                &format!("/usr/local/share/aibox/zellij/{plugin_name}"),
-                true,
-            );
-        }
-
         // Verify deployment
         let output = self.exec(&format!("{} --version", REMOTE_AIBOX_BIN));
         assert!(
@@ -401,12 +360,12 @@ impl E2eRunner {
 
     /// Assert the companion image has the runtime tools expected by the tests.
     ///
-    /// The native Zellij plugin ABI and Yazi config grammar are version-sensitive.
+    /// tmux rendering and Yazi config grammar are version-sensitive.
     /// A stale companion image can otherwise fail visual tests with misleading
-    /// low-level plugin or TOML errors.
+    /// low-level terminal or TOML errors.
     pub fn assert_companion_tool_versions(&self) {
         let output = self.exec(
-            "zellij --version && \
+            "tmux -V && \
              yazi --version && \
              command -v ya && \
              ya --version && \
@@ -424,12 +383,12 @@ impl E2eRunner {
         let stdout = String::from_utf8_lossy(&output.stdout);
         let expected_yazi = format!("Yazi {EXPECTED_YAZI_VERSION}");
         assert!(
-            stdout.contains(&format!("zellij {EXPECTED_ZELLIJ_VERSION}"))
+            stdout.contains("tmux ")
                 && stdout.matches(&expected_yazi).count() >= 2
                 && stdout.contains("/usr/local/bin/ya")
                 && stdout.contains("bubblewrap ")
                 && stdout.contains("bwrap-ok"),
-            "aibox-e2e-testrunner image is stale; expected zellij {EXPECTED_ZELLIJ_VERSION}, Yazi {EXPECTED_YAZI_VERSION}, the ya companion entrypoint, and a working bubblewrap user-namespace smoke probe.\n\
+            "aibox-e2e-testrunner image is stale; expected tmux, Yazi {EXPECTED_YAZI_VERSION}, the ya companion entrypoint, and a working bubblewrap user-namespace smoke probe.\n\
              Rebuild/recreate the companion service from .devcontainer/Dockerfile.e2e, then rerun `./scripts/maintain.sh test-e2e`.\n\
              observed:\n{stdout}"
         );
