@@ -773,11 +773,11 @@ fn visual_yazi_previews_git_symbols_and_optional_plugins_render() {
         ));
         let session = format!("yazi-preview-{label}");
         let setup = format!(
-            r#"  first_pane="$(tmux list-panes -t "{session}:" -F '#{{window_index}}.#{{pane_index}}' | head -1 || true)"
-  [ -n "$first_pane" ] || exit 1
-  tmux send-keys -t "{session}:$first_pane" "cd {workspace} && exec yazi {workspace}/{entry}" C-m
+            r#"  tmux new-window -t "{session}" -n "preview-{label}" -c "{workspace}" "exec yazi {workspace}/{entry}"
+  tmux select-window -t "{session}:preview-{label}" >/dev/null 2>&1 || true
   for _ in $(seq 1 30); do
-    tmux capture-pane -p -t "{session}:$first_pane" > "{workspace}/yazi-preview-{label}.screen" 2>/dev/null || true
+    preview_pane="$(tmux list-panes -t "{session}:preview-{label}" -F '#{{window_index}}.#{{pane_index}}' | head -1 || true)"
+    [ -n "$preview_pane" ] && tmux capture-pane -p -t "{session}:$preview_pane" > "{workspace}/yazi-preview-{label}.screen" 2>/dev/null || true
     grep -Fq "{marker}" "{workspace}/yazi-preview-{label}.screen" && break
     sleep 0.5
   done
