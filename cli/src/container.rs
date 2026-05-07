@@ -2113,6 +2113,7 @@ pub fn cmd_init(config_path: &Option<String>, params: InitParams) -> Result<()> 
                 },
                 ..crate::config::TmuxSection::default()
             },
+            zellij_status: None,
         },
         agents: crate::config::AgentsSection::default(),
         audio: AudioSection::default(),

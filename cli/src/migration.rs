@@ -2377,6 +2377,31 @@ layout = "ai"
     }
 
     #[test]
+    fn standardize_aibox_toml_migrates_legacy_zellij_status() {
+        let tmp = TempDir::new().unwrap();
+        fs::write(
+            tmp.path().join("aibox.toml"),
+            r#"[container]
+name = "demo"
+
+[customization]
+layout = "ai"
+
+[customization.zellij_status]
+mode = "hidden"
+"#,
+        )
+        .unwrap();
+
+        standardize_aibox_toml(tmp.path()).unwrap();
+
+        let after = fs::read_to_string(tmp.path().join("aibox.toml")).unwrap();
+        assert!(after.contains("[customization.tmux.status]"));
+        assert!(after.contains("mode = \"disabled\""));
+        assert!(!after.contains("zellij_status"));
+    }
+
+    #[test]
     fn standardize_aibox_toml_rejects_unknown_schema_keys() {
         let tmp = TempDir::new().unwrap();
         fs::write(

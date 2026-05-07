@@ -1116,6 +1116,8 @@ pub struct CustomizationSection {
     pub layout: ConfigLayout,
     #[serde(default)]
     pub tmux: TmuxSection,
+    #[serde(default, skip_serializing)]
+    pub zellij_status: Option<TmuxStatusSection>,
 }
 
 impl CustomizationSection {
@@ -1150,6 +1152,7 @@ impl Default for CustomizationSection {
             prompt: default_prompt(),
             layout: default_layout(),
             tmux: TmuxSection::default(),
+            zellij_status: None,
         }
     }
 }
@@ -1603,16 +1606,22 @@ impl AiboxConfig {
     pub fn load(path: &Path) -> Result<Self> {
         let content = std::fs::read_to_string(path)
             .with_context(|| format!("Failed to read config file: {}", path.display()))?;
+        let explicit_tmux_status = explicit_tmux_status_table(&content).with_context(|| {
+            format!(
+                "Failed to inspect explicit tmux status table in config file: {}",
+                path.display()
+            )
+        })?;
         let mut config: AiboxConfig = toml::from_str(&content)
             .with_context(|| format!("Failed to parse config file: {}", path.display()))?;
-        config.migrate_legacy_sections();
+        config.migrate_legacy_sections(explicit_tmux_status);
         config.resolve_ai_provider_addons();
         config.validate()?;
         Ok(config)
     }
 
     /// Migrate legacy [process] section into [context].packages.
-    fn migrate_legacy_sections(&mut self) {
+    fn migrate_legacy_sections(&mut self, explicit_tmux_status: bool) {
         if let Some(legacy) = self.process.take()
             && !legacy.packages.is_empty()
         {
@@ -1624,6 +1633,20 @@ impl AiboxConfig {
                 "Deprecated: [process] section found in aibox.toml. \
                  Please move 'packages' into the [context] section.",
             );
+        }
+        if let Some(legacy) = self.customization.zellij_status.take() {
+            if !explicit_tmux_status {
+                self.customization.tmux.status = legacy;
+                crate::output::warn(
+                    "Deprecated: [customization.zellij_status] found in aibox.toml. \
+                     It has been migrated to [customization.tmux.status].",
+                );
+            } else {
+                crate::output::warn(
+                    "Deprecated: [customization.zellij_status] found in aibox.toml. \
+                     It was ignored because [customization.tmux.status] is also set.",
+                );
+            }
         }
         self.sync_grouped_sections();
         self.sync_legacy_aibox_image_fields();
@@ -1790,9 +1813,10 @@ impl AiboxConfig {
     /// Parse config from a TOML string. Useful for testing and programmatic use.
     #[allow(dead_code)]
     pub fn from_str(toml_str: &str) -> Result<Self> {
+        let explicit_tmux_status = explicit_tmux_status_table(toml_str)?;
         let mut config: AiboxConfig =
             toml::from_str(toml_str).context("Failed to parse TOML config")?;
-        config.migrate_legacy_sections();
+        config.migrate_legacy_sections(explicit_tmux_status);
         config.resolve_ai_provider_addons();
         config.validate()?;
         Ok(config)
@@ -2463,10 +2487,11 @@ fn check_customization_table(
     check_child_table(
         root,
         key,
-        &["theme", "mode", "prompt", "layout", "tmux"],
+        &["theme", "mode", "prompt", "layout", "tmux", "zellij_status"],
         mismatches,
     );
     if let Some(customization) = table_child(root, key) {
+        check_child_table(customization, "zellij_status", &["mode"], mismatches);
         check_child_table(
             customization,
             "tmux",
@@ -2477,6 +2502,25 @@ fn check_customization_table(
             check_child_table(tmux, "status", &["mode"], mismatches);
         }
     }
+}
+
+fn explicit_tmux_status_table(raw: &str) -> Result<bool> {
+    let value: toml::Value = toml::from_str(raw)?;
+    Ok(
+        toml_table_path_exists(&value, &["customization", "tmux", "status"])
+            || toml_table_path_exists(&value, &["appearance", "tmux", "status"]),
+    )
+}
+
+fn toml_table_path_exists(value: &toml::Value, path: &[&str]) -> bool {
+    let mut current = value;
+    for key in path {
+        let Some(next) = current.get(*key) else {
+            return false;
+        };
+        current = next;
+    }
+    current.is_table()
 }
 
 fn check_extra_volume_entries(
@@ -2754,8 +2798,9 @@ name = "my-project"
     }
 
     fn parse_toml(s: &str) -> Result<AiboxConfig> {
+        let explicit_tmux_status = explicit_tmux_status_table(s)?;
         let mut config: AiboxConfig = toml::from_str(s).context("Failed to parse TOML")?;
-        config.migrate_legacy_sections();
+        config.migrate_legacy_sections(explicit_tmux_status);
         config.validate()?;
         Ok(config)
     }
@@ -2899,6 +2944,25 @@ name = "my-project"
         assert!(
             mismatches.is_empty(),
             "full known config shape should not report unknown keys: {mismatches:?}"
+        );
+    }
+
+    #[test]
+    fn schema_mismatches_accepts_legacy_zellij_status_table() {
+        let toml = r#"
+[aibox]
+version = "0.25.1"
+
+[container]
+name = "my-project"
+
+[customization.zellij_status]
+mode = "hidden"
+"#;
+        let mismatches = AiboxConfig::schema_mismatches(toml).unwrap();
+        assert!(
+            mismatches.is_empty(),
+            "legacy zellij status table should remain schema-clean for migration: {mismatches:?}"
         );
     }
 
@@ -3088,6 +3152,46 @@ mode = "plain"
         assert_eq!(config.customization.tmux.prefix, "C-a");
         assert_eq!(config.customization.tmux.session_name, "work");
         assert_eq!(config.customization.tmux.status.mode, TmuxStatusMode::Plain);
+    }
+
+    #[test]
+    fn legacy_zellij_status_migrates_to_tmux_status() {
+        let toml = r#"
+[aibox]
+version = "0.25.1"
+
+[container]
+name = "my-project"
+
+[customization.zellij_status]
+mode = "hidden"
+"#;
+        let config = parse_toml(toml).unwrap();
+        assert_eq!(
+            config.customization.tmux.status.mode,
+            TmuxStatusMode::Disabled
+        );
+        assert!(config.customization.zellij_status.is_none());
+    }
+
+    #[test]
+    fn explicit_tmux_status_wins_over_legacy_zellij_status() {
+        let toml = r#"
+[aibox]
+version = "0.25.1"
+
+[container]
+name = "my-project"
+
+[customization.zellij_status]
+mode = "hidden"
+
+[customization.tmux.status]
+mode = "plain"
+"#;
+        let config = parse_toml(toml).unwrap();
+        assert_eq!(config.customization.tmux.status.mode, TmuxStatusMode::Plain);
+        assert!(config.customization.zellij_status.is_none());
     }
 
     #[test]

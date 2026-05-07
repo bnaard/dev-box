@@ -272,7 +272,7 @@ pub enum Commands {
         apply: bool,
 
         /// Discard saved tmux session state and recreate the configured layout
-        #[arg(long)]
+        #[arg(long, alias = "forget-zellij-state")]
         forget_tmux_state: bool,
     },
     /// Recover into the workspace without tmux, Yazi, or status tooling
@@ -545,4 +545,20 @@ pub enum SelfAction {
         #[arg(long)]
         purge: bool,
     },
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn up_accepts_legacy_forget_zellij_state_alias() {
+        let cli = Cli::parse_from(["aibox", "up", "--forget-zellij-state"]);
+        match cli.command {
+            Commands::Up {
+                forget_tmux_state, ..
+            } => assert!(forget_tmux_state),
+            _ => panic!("expected up command"),
+        }
+    }
 }
