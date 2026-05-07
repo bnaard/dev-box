@@ -1,5 +1,5 @@
 [aibox]
-cli_version = "0.24.1"
+cli_version = "0.24.2"
 synced_at = "2026-05-05T16:03:00.906059349+00:00"
 
 [processkit]
@@ -11,7 +11,7 @@ installed_at = "2026-05-05T16:03:00.906059349+00:00"
 processkit_install_hash = "a136b8826582297ce0e710943b8abd93d18ec429dd4e5258399918653d346215"
 
 [runtime_home]
-generated_at = "2026-05-07T11:02:35.983934+00:00"
+generated_at = "2026-05-07T12:11:12.195557+00:00"
 
 [runtime_home.files]
 ".asoundrc" = "f34609b11d315cd613cb5333b561032baec860faf4a7eccb28b5567ae72019af"
@@ -31,7 +31,7 @@ generated_at = "2026-05-07T11:02:35.983934+00:00"
 ".config/yazi/plugins/toggle-pane.yazi/main.lua" = "86b2306f6c9d880f0a6f777bdefb451393eb6a0c88718be355ebe31495e59f1c"
 ".config/yazi/theme.toml" = "fd9c3a060b2892779950e82e5a5716d238255c1739dbf33c42193a2c845349e7"
 ".config/yazi/yazi.toml" = "cdd99053efcb0f66baa4001900ce8291baf02499ea05651dfc27d1715382aed4"
-".config/zellij/config.kdl" = "46531dd9c0d60a851e3f2c521acdec7258f55f9600c485abbbe2f1cdc67dbb83"
+".config/zellij/config.kdl" = "358c3bae24068c1849ee364ef1574a9add3b71a3e22f31108ba135b9c24a239d"
 ".config/zellij/layouts/ai.kdl" = "ad82f37471768c8923ec9c2378229a50985128e5fc16dba0c390c4b783a30c9e"
 ".config/zellij/layouts/aibox-status-hidden.kdl" = "0c7bf89f03dab22ff082b0986762adf6fdda761e5ebf54023f7d74dac8b8fe81"
 ".config/zellij/layouts/aibox-status-visible.kdl" = "0aa5ecf5fd98fa4d9ff6d43526d15277f522f95b1bd2dd9da4d41318ead15e92"
