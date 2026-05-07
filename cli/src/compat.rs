@@ -340,6 +340,11 @@ pub static COMPAT_TABLE: &[CompatEntry] = &[
         processkit_version: "v0.25.8",
         note: "Patch release: stabilizes Zellij session refresh by preserving running sessions on plain `aibox up`, adding `aibox up --forget-zellij-state`, making apply/fresh starts recreate managed layouts, cleaning stale Zellij cache on apply, canceling accidental leader g/G prefix mode, and starting the diagnostics sidecar with compose --no-deps.",
     },
+    CompatEntry {
+        aibox_version: "0.24.3",
+        processkit_version: "v0.25.8",
+        note: "Patch release: contains Zellij status CPU load by defaulting generated layouts back to the shell status path, makes aibox-status read current-container metrics directly, and repairs Claude Code derived runtime drift by pruning stale processkit MCP permissions, seeding a stable claude shim, and reporting drift in doctor.",
+    },
 ];
 
 /// Find the minimum compatible processkit version for the given aibox version.
