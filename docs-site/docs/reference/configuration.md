@@ -501,7 +501,7 @@ Visual and layout configuration. See [Themes](../customization/themes.md) and [L
 | `mode` | String | No | `"auto"` | Global theme mode overlay: `auto`, `light`, `dark`. `auto` preserves the selected concrete theme. |
 | `prompt` | String | No | `"default"` | Starship preset: `default`, `plain`, `arrow`, `minimal`, `nerd-font`, `pastel`, `bracketed` |
 | `layout` | String | No | `"dev"` | Zellij layout: `dev`, `focus`, `cowork`, `cowork-swap`, `browse`, `ai` |
-| `zellij_status.mode` | String | No | `"sidecar"` | Zellij status presentation: `sidecar` selects the two-row aibox WASM keybar/status plugin backed by diagnostics snapshots, `shell` uses Zellij's built-in status bar plus `aibox-status --watch`, `disabled` omits aibox status rows |
+| `zellij_status.mode` | String | No | `"shell"` | Zellij status presentation: `shell` uses Zellij's built-in status bar plus `aibox-status --watch`, `sidecar` selects the experimental two-row aibox WASM keybar/status plugin, `disabled` omits aibox status rows |
 
 ### [audio]
 

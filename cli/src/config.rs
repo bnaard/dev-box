@@ -1017,12 +1017,12 @@ fn default_layout() -> ConfigLayout {
 #[serde(rename_all = "kebab-case")]
 #[clap(rename_all = "kebab-case")]
 pub enum ZellijStatusMode {
-    /// Sidecar-backed aibox key-hint plugin plus runtime status plugin.
-    #[default]
+    /// Experimental sidecar-backed aibox key-hint plugin plus runtime status plugin.
     #[serde(alias = "native")]
     #[value(alias = "native")]
     Sidecar,
-    /// Shell fallback: built-in Zellij status bar plus the Rust `aibox-status --watch`.
+    /// Built-in Zellij status bar plus the Rust `aibox-status --watch`.
+    #[default]
     Shell,
     /// Disable aibox-provided status rows from generated layouts.
     #[serde(alias = "hidden")]
@@ -3002,7 +3002,7 @@ prompt = "minimal"
         assert_eq!(config.customization.prompt, StarshipPreset::Minimal);
         assert_eq!(
             config.customization.zellij_status.mode,
-            ZellijStatusMode::Sidecar
+            ZellijStatusMode::Shell
         );
     }
 

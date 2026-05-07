@@ -192,6 +192,7 @@ pub fn cmd_doctor(config_path: &Option<String>) -> Result<()> {
     // 6e. Check processkit MCP gateway selection.
     output::info("Checking processkit MCP gateway...");
     check_processkit_mcp_gateway(&config, &mut diag);
+    check_claude_code_runtime_drift(&config, &mut diag);
 
     // 6f. Codex prompt-path drift check (BACK-20260426_1627-StrongHawk).
     // Loud failure if `pk-*` managed files reappear in the legacy
@@ -898,6 +899,150 @@ fn check_codex_hidden_apps_mcp_state(diag: &mut DiagResult) {
          until the upstream Codex behavior is fixed.",
     );
     diag.warnings += 1;
+}
+
+fn check_claude_code_runtime_drift(config: &AiboxConfig, diag: &mut DiagResult) {
+    if !config.ai.harnesses.contains(&AiHarness::Claude) {
+        return;
+    }
+
+    output::info("Checking Claude Code runtime drift...");
+
+    let dot_mcp = Path::new(".mcp.json");
+    if !dot_mcp.is_file() {
+        output::warn("claude: .mcp.json is missing; run `aibox apply` to register MCP servers");
+        diag.warnings += 1;
+    } else if claude_dot_mcp_uses_only_processkit_gateway(dot_mcp) {
+        check_claude_settings_for_stale_processkit_servers(
+            Path::new(".claude/settings.json"),
+            "claude settings",
+            diag,
+        );
+        check_claude_settings_for_stale_processkit_servers(
+            Path::new(".claude/settings.local.json"),
+            "claude local settings",
+            diag,
+        );
+    }
+
+    let root = config.host_root_dir();
+    let home_claude = root.join(".local").join("bin").join("claude");
+    if home_claude.symlink_metadata().is_err() {
+        output::warn(&format!(
+            "claude: {}/.local/bin/claude is missing; run `aibox apply` to seed the stable /usr/local/bin/claude shim",
+            root.display()
+        ));
+        diag.warnings += 1;
+    } else if stale_claude_home_installer_symlink(&home_claude) {
+        output::warn(&format!(
+            "claude: {}/.local/bin/claude points at a stale native home install; run `aibox apply` to replace it with the stable /usr/local/bin/claude shim",
+            root.display()
+        ));
+        diag.warnings += 1;
+    } else {
+        output::ok("claude: home-bin shim is present");
+    }
+
+    let claude_state = root.join(".claude.json");
+    if let Ok(body) = std::fs::read_to_string(&claude_state)
+        && body.contains("\"installMethod\"")
+        && body.contains("\"native\"")
+        && home_claude.symlink_metadata().is_err()
+    {
+        output::warn(&format!(
+            "claude: {} still records native install metadata but the mounted home-bin shim is missing; run `aibox apply`",
+            claude_state.display()
+        ));
+        diag.warnings += 1;
+    }
+}
+
+fn claude_dot_mcp_uses_only_processkit_gateway(path: &Path) -> bool {
+    let Ok(body) = std::fs::read_to_string(path) else {
+        return false;
+    };
+    let Ok(parsed) = serde_json::from_str::<serde_json::Value>(&body) else {
+        return false;
+    };
+    let Some(servers) = parsed.get("mcpServers").and_then(|value| value.as_object()) else {
+        return false;
+    };
+    servers.contains_key("processkit-gateway")
+        && !servers
+            .keys()
+            .any(|name| name.starts_with("processkit-") && name != "processkit-gateway")
+}
+
+fn check_claude_settings_for_stale_processkit_servers(
+    path: &Path,
+    label: &str,
+    diag: &mut DiagResult,
+) {
+    let Ok(body) = std::fs::read_to_string(path) else {
+        return;
+    };
+    let Ok(parsed) = serde_json::from_str::<serde_json::Value>(&body) else {
+        output::warn(&format!(
+            "claude: could not parse {}; run `aibox apply` after repairing the JSON",
+            path.display()
+        ));
+        diag.warnings += 1;
+        return;
+    };
+
+    let stale_servers: Vec<String> = json_string_array(&parsed, &["enabledMcpjsonServers"])
+        .into_iter()
+        .filter(|entry| entry.starts_with("processkit-") && entry != "processkit-gateway")
+        .collect();
+    let stale_permissions: Vec<String> = json_string_array(&parsed, &["permissions", "allow"])
+        .into_iter()
+        .filter(|entry| {
+            entry.starts_with("mcp__processkit-") && entry != "mcp__processkit-gateway__*"
+        })
+        .collect();
+
+    if stale_servers.is_empty() && stale_permissions.is_empty() {
+        output::ok(&format!(
+            "claude: {label} match processkit-gateway MCP topology"
+        ));
+        return;
+    }
+
+    let stale_count = stale_servers.len() + stale_permissions.len();
+    output::warn(&format!(
+        "claude: {} contains {stale_count} stale granular processkit MCP entr{} while .mcp.json is collapsed to processkit-gateway; run `aibox apply` to reconcile Claude MCP auth state",
+        path.display(),
+        if stale_count == 1 { "y" } else { "ies" }
+    ));
+    diag.warnings += 1;
+}
+
+fn json_string_array(value: &serde_json::Value, path: &[&str]) -> Vec<String> {
+    let mut current = value;
+    for key in path {
+        let Some(next) = current.get(*key) else {
+            return Vec::new();
+        };
+        current = next;
+    }
+    current
+        .as_array()
+        .map(|array| {
+            array
+                .iter()
+                .filter_map(|value| value.as_str().map(String::from))
+                .collect()
+        })
+        .unwrap_or_default()
+}
+
+fn stale_claude_home_installer_symlink(path: &Path) -> bool {
+    let Ok(target) = std::fs::read_link(path) else {
+        return false;
+    };
+    target
+        .to_string_lossy()
+        .contains(".local/share/claude/versions/")
 }
 
 fn codex_home_dir() -> PathBuf {

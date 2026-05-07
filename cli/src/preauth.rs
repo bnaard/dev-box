@@ -211,11 +211,19 @@ fn merge_claude_managed_lists(
     let (previous_allow, previous_servers) = read_managed_snapshot(top);
 
     // ── Read user-visible existing arrays. ─────────────────────────────
-    let existing_allow = read_string_array(top, "permissions", Some("allow"))?;
-    let existing_servers = read_top_level_string_array(top, "enabledMcpjsonServers")?;
+    let mut existing_allow = read_string_array(top, "permissions", Some("allow"))?;
+    let mut existing_servers = read_top_level_string_array(top, "enabledMcpjsonServers")?;
 
     // ── Compute the merged sets. ───────────────────────────────────────
     let (current_allow, current_servers) = claude_preauth_sets(project_root, spec)?;
+    let gateway_collapsed = current_servers.len() == 1
+        && current_servers.contains("processkit-gateway")
+        && current_allow.contains("mcp__processkit-gateway__*");
+
+    if gateway_collapsed {
+        existing_allow.retain(|entry| !stale_granular_processkit_allow(entry));
+        existing_servers.retain(|entry| !stale_granular_processkit_server(entry));
+    }
 
     let final_allow: BTreeSet<String> = existing_allow
         .into_iter()
@@ -236,6 +244,14 @@ fn merge_claude_managed_lists(
     write_managed_snapshot(top, &current_allow, &current_servers);
 
     Ok(())
+}
+
+fn stale_granular_processkit_allow(entry: &str) -> bool {
+    entry.starts_with("mcp__processkit-") && entry != "mcp__processkit-gateway__*"
+}
+
+fn stale_granular_processkit_server(entry: &str) -> bool {
+    entry.starts_with("processkit-") && entry != "processkit-gateway"
 }
 
 fn codex_allowed_tools(spec: &PreauthSpec) -> BTreeSet<String> {
@@ -938,5 +954,60 @@ mod tests {
 
         let codex_body = fs::read_to_string(codex_dir.join("config.toml")).unwrap();
         assert!(codex_body.contains("\"processkit-gateway\""));
+    }
+
+    #[test]
+    fn preauth_prunes_stale_granular_processkit_entries_for_gateway_mcp_config() {
+        let tmp = TempDir::new().unwrap();
+        let project = tmp.path();
+        write_preauth(project, &v0_22_0_preauth_json());
+        fs::write(
+            project.join(".mcp.json"),
+            r#"{"mcpServers":{"processkit-gateway":{"command":"uv","args":[]}}}"#,
+        )
+        .unwrap();
+        write_settings(
+            project,
+            r#"{
+              "permissions": {
+                "allow": [
+                  "mcp__processkit-workitem-management__*",
+                  "mcp__processkit-gateway__*",
+                  "Bash(npm test:*)"
+                ]
+              },
+              "enabledMcpjsonServers": [
+                "processkit-workitem-management",
+                "processkit-gateway",
+                "personal-server"
+              ]
+            }"#,
+        );
+
+        merge_processkit_preauth_into_claude_settings(project).unwrap();
+
+        let settings = read_settings(project);
+        let servers: Vec<String> = settings["enabledMcpjsonServers"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .map(|v| v.as_str().unwrap().to_string())
+            .collect();
+        assert_eq!(
+            servers,
+            vec![
+                "personal-server".to_string(),
+                "processkit-gateway".to_string()
+            ]
+        );
+        let allow: Vec<String> = settings["permissions"]["allow"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .map(|v| v.as_str().unwrap().to_string())
+            .collect();
+        assert!(allow.contains(&"Bash(npm test:*)".to_string()));
+        assert!(allow.contains(&"mcp__processkit-gateway__*".to_string()));
+        assert!(!allow.contains(&"mcp__processkit-workitem-management__*".to_string()));
     }
 }

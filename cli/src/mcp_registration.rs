@@ -428,6 +428,16 @@ pub fn generate_claude_code_permissions(
     // the harness — see `docs-site/docs/reference/configuration.md`. The
     // merge must use a real nested structure and additively union with
     // any user-added entries already present at `permissions.allow[]`.
+    let (previous_allow, previous_deny) = read_claude_local_managed_permissions(&settings)?;
+    let previous_allow: BTreeSet<String> = previous_allow.into_iter().collect();
+    let previous_deny: BTreeSet<String> = previous_deny.into_iter().collect();
+    let gateway_collapsed = all_tool_names
+        .iter()
+        .any(|name| name == "processkit-gateway")
+        && !all_tool_names
+            .iter()
+            .any(|name| name.starts_with("processkit-") && name != "processkit-gateway");
+
     let permissions_obj = settings
         .entry("permissions".to_string())
         .or_insert_with(|| serde_json::Value::Object(serde_json::Map::new()))
@@ -438,6 +448,7 @@ pub fn generate_claude_code_permissions(
                 settings_path.display()
             )
         })?;
+
     let mut merged: BTreeSet<String> = permissions_obj
         .get("allow")
         .and_then(|v| v.as_array())
@@ -447,6 +458,10 @@ pub fn generate_claude_code_permissions(
                 .collect()
         })
         .unwrap_or_default();
+    merged.retain(|entry| {
+        !(previous_allow.contains(entry)
+            || gateway_collapsed && stale_granular_processkit_claude_permission(entry))
+    });
     merged.extend(permissions.iter().cloned());
     permissions_obj.insert(
         "allow".to_string(),
@@ -462,6 +477,10 @@ pub fn generate_claude_code_permissions(
                     .collect()
             })
             .unwrap_or_default();
+        merged_deny.retain(|entry| {
+            !(previous_deny.contains(entry)
+                || gateway_collapsed && stale_granular_processkit_claude_permission(entry))
+        });
         merged_deny.extend(deny_permissions.iter().cloned());
         permissions_obj.insert(
             "deny".to_string(),
@@ -473,6 +492,13 @@ pub fn generate_claude_code_permissions(
             ),
         );
     }
+    settings.insert(
+        "_aibox_managed_claude_permissions".to_string(),
+        serde_json::json!({
+            "allow": permissions,
+            "deny": deny_permissions,
+        }),
+    );
     // Ensure parent dir exists
     if let Some(parent) = settings_path.parent() {
         fs::create_dir_all(parent).ok();
@@ -487,6 +513,43 @@ pub fn generate_claude_code_permissions(
     })?;
 
     Ok(())
+}
+
+fn stale_granular_processkit_claude_permission(entry: &str) -> bool {
+    entry.starts_with("mcp__processkit-") && entry != "mcp__processkit-gateway__*"
+}
+
+fn read_claude_local_managed_permissions(
+    settings: &serde_json::Map<String, serde_json::Value>,
+) -> Result<(Vec<String>, Vec<String>)> {
+    let Some(object) = settings
+        .get("_aibox_managed_claude_permissions")
+        .and_then(|value| value.as_object())
+    else {
+        return Ok((Vec::new(), Vec::new()));
+    };
+    Ok((
+        read_json_string_array(object, "allow")?,
+        read_json_string_array(object, "deny")?,
+    ))
+}
+
+fn read_json_string_array(
+    object: &serde_json::Map<String, serde_json::Value>,
+    key: &str,
+) -> Result<Vec<String>> {
+    let Some(array) = object.get(key).and_then(|value| value.as_array()) else {
+        return Ok(Vec::new());
+    };
+    array
+        .iter()
+        .map(|value| {
+            value
+                .as_str()
+                .map(String::from)
+                .ok_or_else(|| anyhow::anyhow!("non-string entry in permissions.{key}"))
+        })
+        .collect()
 }
 
 /// Generate MCP permissions for OpenCode's config.toml.
@@ -3758,6 +3821,58 @@ args = ["server.js"]
         let mut sorted = perms.clone();
         sorted.sort();
         assert_eq!(perms, sorted, "merged allow list must be sorted");
+    }
+
+    #[test]
+    fn claude_code_permissions_prunes_granular_processkit_when_gateway_collapsed() {
+        let tmp = TempDir::new().unwrap();
+        let settings_path = tmp.path().join(".claude").join("settings.local.json");
+        fs::create_dir_all(settings_path.parent().unwrap()).unwrap();
+        let seed = serde_json::json!({
+            "permissions": {
+                "allow": [
+                    "mcp__processkit-workitem-management__*",
+                    "mcp__processkit-gateway__*",
+                    "mcp__personal-server__*"
+                ]
+            }
+        });
+        fs::write(&settings_path, serde_json::to_string_pretty(&seed).unwrap()).unwrap();
+
+        let config = McpConfig {
+            default_mode: "allow".to_string(),
+            allow_patterns: vec!["mcp__processkit-*".to_string()],
+            deny_patterns: vec![],
+            harness: BTreeMap::new(),
+        };
+        let tools = vec![
+            "processkit-gateway".to_string(),
+            "personal-server".to_string(),
+        ];
+
+        generate_claude_code_permissions(tmp.path(), &config, &tools).unwrap();
+
+        let content = fs::read_to_string(&settings_path).unwrap();
+        let parsed: serde_json::Value = serde_json::from_str(&content).unwrap();
+        let perms: Vec<String> = parsed["permissions"]["allow"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .filter_map(|v| v.as_str().map(String::from))
+            .collect();
+        assert!(perms.contains(&"mcp__processkit-gateway__*".to_string()));
+        assert!(perms.contains(&"mcp__personal-server__*".to_string()));
+        assert!(
+            !perms.contains(&"mcp__processkit-workitem-management__*".to_string()),
+            "stale granular processkit permissions must be removed when .mcp.json is gateway-collapsed"
+        );
+        assert!(
+            parsed
+                .get("_aibox_managed_claude_permissions")
+                .and_then(|v| v.as_object())
+                .is_some(),
+            "settings.local should track aibox-managed permission entries"
+        );
     }
 
     // ---------------------------------------------------------------------------

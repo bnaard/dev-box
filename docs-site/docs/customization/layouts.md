@@ -12,21 +12,22 @@ fullscreen **git** tab is generated only when the `git-ui` addon selects
 `lazygit`, so tab numbering shifts when that optional tab is omitted.
 
 Every generated layout also includes a key-hint row plus an aibox runtime
-status row. The default `sidecar` mode uses the aibox Zellij WASM plugin for
-the custom keybar and runtime groups such as memory, CPU pressure, load
-average, processes, filesystem, uptime, and project state. Runtime metrics are
-read from the bounded diagnostics sidecar snapshot.
+status row. The default `shell` mode uses Zellij's built-in status bar plus
+`aibox-status --watch` for runtime groups such as memory, CPU pressure, load
+average, processes, filesystem, uptime, and project state. The optional
+`sidecar` mode uses the experimental aibox Zellij WASM plugin for custom key
+and status rows.
 
 Configure the status presentation in `aibox.toml`:
 
 ```toml
 [customization.zellij_status]
-mode = "sidecar" # sidecar | shell | disabled
+mode = "shell" # shell | sidecar | disabled
 ```
 
+`shell` uses Zellij's built-in status bar plus `aibox-status --watch`.
 `sidecar` selects the two-row WASM plugin: a custom Zellij-style keybar with
-expanded leader-key hints plus a matching segmented runtime status row. `shell`
-uses Zellij's built-in status bar plus `aibox-status --watch` as a fallback.
+expanded leader-key hints plus a matching segmented runtime status row.
 `disabled` omits aibox-managed status rows from generated layouts.
 
 ## Available Layouts

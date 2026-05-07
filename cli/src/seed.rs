@@ -2,6 +2,8 @@ use anyhow::{Context, Result};
 use std::fs;
 #[cfg(unix)]
 use std::os::unix::fs::PermissionsExt;
+#[cfg(unix)]
+use std::os::unix::fs::symlink;
 use std::path::Path;
 
 use crate::config::{AiboxConfig, ZellijStatusMode};
@@ -1836,6 +1838,9 @@ pub fn cleanup_disabled_runtime_files(config: &AiboxConfig) -> Result<Vec<String
             .with_context(|| format!("Failed to remove {}", stale_claude.display()))?;
         updated.push(".local/bin/claude (removed stale home-installer symlink)".to_string());
     }
+    if ensure_claude_home_bin_shim(config, &stale_claude)? {
+        updated.push(".local/bin/claude (linked to /usr/local/bin/claude)".to_string());
+    }
 
     updated.extend(cleanup_zellij_runtime_cache(&root, &config.container.name)?);
 
@@ -1907,6 +1912,30 @@ fn stale_claude_home_symlink(path: &Path) -> bool {
         .contains(".local/share/claude/versions/")
 }
 
+#[cfg(unix)]
+fn ensure_claude_home_bin_shim(config: &AiboxConfig, path: &Path) -> Result<bool> {
+    if !config
+        .ai
+        .harnesses
+        .contains(&crate::config::AiProvider::Claude)
+        || path.symlink_metadata().is_ok()
+    {
+        return Ok(false);
+    }
+    if let Some(parent) = path.parent() {
+        fs::create_dir_all(parent)
+            .with_context(|| format!("Failed to create directory: {}", parent.display()))?;
+    }
+    symlink("/usr/local/bin/claude", path)
+        .with_context(|| format!("Failed to link {}", path.display()))?;
+    Ok(true)
+}
+
+#[cfg(not(unix))]
+fn ensure_claude_home_bin_shim(_config: &AiboxConfig, _path: &Path) -> Result<bool> {
+    Ok(false)
+}
+
 fn legacy_managed_aibox_status_helper(path: &Path) -> bool {
     let Ok(body) = fs::read_to_string(path) else {
         return false;
@@ -1938,6 +1967,8 @@ pub fn seed_root_dir(config: &AiboxConfig) -> Result<()> {
             ensure_executable(&path)?;
         }
     }
+    let claude_shim = root.join(".local").join("bin").join("claude");
+    ensure_claude_home_bin_shim(config, &claude_shim)?;
 
     // Warn if .ssh/ is empty
     let ssh_dir = root.join(".ssh");
@@ -2346,7 +2377,8 @@ mod tests {
     fn seed_root_dir_creates_directories() {
         let dir = tempfile::tempdir().unwrap();
         let root = dir.path().join("root");
-        let config = make_config(false, root.clone());
+        let mut config = make_config(false, root.clone());
+        config.customization.zellij_status.mode = ZellijStatusMode::Sidecar;
         seed_root_dir(&config).unwrap();
 
         assert!(root.join(".ssh").is_dir());
@@ -2504,7 +2536,8 @@ mod tests {
     fn seed_root_dir_creates_config_files() {
         let dir = tempfile::tempdir().unwrap();
         let root = dir.path().join("root");
-        let config = make_config(false, root.clone());
+        let mut config = make_config(false, root.clone());
+        config.customization.zellij_status.mode = ZellijStatusMode::Sidecar;
         seed_root_dir(&config).unwrap();
 
         assert!(root.join(".vim").join("vimrc").exists());
@@ -2822,7 +2855,8 @@ mod tests {
     fn cleanup_removes_stale_zellij_session_and_plugin_state() {
         let dir = tempfile::tempdir().unwrap();
         let root = dir.path().join("root");
-        let config = make_config(false, root.clone());
+        let mut config = make_config(false, root.clone());
+        config.customization.zellij_status.mode = ZellijStatusMode::Sidecar;
         let session_name = config.container.name.clone();
         let session = root
             .join(".cache/zellij/contract_version_1/session_info")
@@ -2943,11 +2977,43 @@ mod tests {
 
         let updated = cleanup_disabled_runtime_files(&config).unwrap();
 
-        assert!(!stale.exists());
+        assert!(stale.symlink_metadata().is_ok());
+        assert_eq!(
+            fs::read_link(&stale).unwrap(),
+            std::path::PathBuf::from("/usr/local/bin/claude")
+        );
         assert!(
             updated
                 .iter()
                 .any(|path| path == ".local/bin/claude (removed stale home-installer symlink)")
+        );
+        assert!(
+            updated
+                .iter()
+                .any(|path| path == ".local/bin/claude (linked to /usr/local/bin/claude)")
+        );
+        clear_test_host_root();
+    }
+
+    #[test]
+    #[cfg(unix)]
+    #[serial]
+    fn cleanup_seeds_claude_home_bin_shim_when_missing() {
+        let dir = tempfile::tempdir().unwrap();
+        let root = dir.path().join("root");
+        let config = make_config(false, root.clone());
+        let shim = root.join(".local").join("bin").join("claude");
+
+        let updated = cleanup_disabled_runtime_files(&config).unwrap();
+
+        assert_eq!(
+            fs::read_link(&shim).unwrap(),
+            std::path::PathBuf::from("/usr/local/bin/claude")
+        );
+        assert!(
+            updated
+                .iter()
+                .any(|path| path == ".local/bin/claude (linked to /usr/local/bin/claude)")
         );
         clear_test_host_root();
     }
@@ -3785,12 +3851,11 @@ rules = [
     fn zellij_layout_starts_tool_tabs_eagerly() {
         let layout = generate_dev_layout(&[]);
         assert!(
-            layout.contains("aibox-status-keys.wasm")
-                && layout.contains("aibox-status-runtime.wasm")
-                && layout.contains("role \"keys\"")
-                && layout.contains("role \"status\"")
-                && !layout.contains("zellij:status-bar"),
-            "default layouts should use the sidecar-backed aibox keybar and runtime status rows"
+            layout.contains("zellij:status-bar")
+                && layout.contains("aibox-status --watch")
+                && !layout.contains("aibox-status-keys.wasm")
+                && !layout.contains("aibox-status-runtime.wasm"),
+            "default layouts should use the shell status fallback while the sidecar WASM rows remain opt-in"
         );
         assert!(
             layout.contains(
