@@ -350,6 +350,11 @@ pub static COMPAT_TABLE: &[CompatEntry] = &[
         processkit_version: "v0.25.8",
         note: "Major release: removes the Zellij runtime stack and replaces it with tmux-native layouts, tmux attach/session management, host-persistent tmux configuration, preinstalled pinned aibox-managed tmux plugins, TPM as a user convenience layer only, and optional tmux-resurrect/tmux-continuum installed but disabled by default while persistence policy is finalized.",
     },
+    CompatEntry {
+        aibox_version: "0.25.1",
+        processkit_version: "v0.25.8",
+        note: "Patch release: keeps the aibox runtime diagnostics segment visible when tmux powerline status is enabled by injecting an aibox PowerKit plugin into the pinned runtime image and tightening release-host smoke coverage for the PowerKit-rendered status bar.",
+    },
 ];
 
 /// Find the minimum compatible processkit version for the given aibox version.
