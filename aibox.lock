@@ -1,5 +1,5 @@
 [aibox]
-cli_version = "0.25.0"
+cli_version = "0.25.1"
 synced_at = "2026-05-05T16:03:00.906059349+00:00"
 
 [processkit]
@@ -11,7 +11,7 @@ installed_at = "2026-05-05T16:03:00.906059349+00:00"
 processkit_install_hash = "a136b8826582297ce0e710943b8abd93d18ec429dd4e5258399918653d346215"
 
 [runtime_home]
-generated_at = "2026-05-07T16:25:34.111262564+00:00"
+generated_at = "2026-05-07T18:00:07.114626+00:00"
 
 [runtime_home.files]
 ".asoundrc" = "f34609b11d315cd613cb5333b561032baec860faf4a7eccb28b5567ae72019af"
@@ -25,7 +25,7 @@ generated_at = "2026-05-07T16:25:34.111262564+00:00"
 ".config/tmux/layouts/cowork.sh" = "c14914237ac8b49e1bf16edc57b059c9ad61ef49759a656ab2b129e17d1936a5"
 ".config/tmux/layouts/dev.sh" = "496b966696620ad839c88bef8597646a96fd5007cd0687cb6e77e5b1bcb24b85"
 ".config/tmux/layouts/focus.sh" = "9913fa995841027f946bc67526a148ddc7dbd80777baacff6b97a6bbae9107d5"
-".config/tmux/tmux.conf" = "03e9632d7b027a2fa4206221c9be131441cd062152c3ca227ae06ba5a921fc81"
+".config/tmux/tmux.conf" = "beabb0fd3ef119cc821e91a3d80ad81ac0375287951cdc9e6c53f4bc0be7af60"
 ".config/yazi/init.lua" = "eae04462c0b3bcbb486ee59aa9c2c9e9595680a0626997c942e5abb2ae5a48d7"
 ".config/yazi/keymap.toml" = "4b30c2dedd57dc1f08013401c3ccafec0dc5b811f1857f117e5fba7ec7def5f4"
 ".config/yazi/plugins/dir-preview.yazi/main.lua" = "69aa28981fd21c7e35fd97bc7d15a94d44eb234d40755027d086c6c1ec166dc1"
