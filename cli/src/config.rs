@@ -3,6 +3,18 @@ use serde::{Deserialize, Deserializer, Serialize};
 use std::collections::{BTreeSet, HashMap};
 use std::path::{Path, PathBuf};
 
+#[cfg(test)]
+thread_local! {
+    static TEST_HOST_ROOT: std::cell::RefCell<Option<PathBuf>> = const { std::cell::RefCell::new(None) };
+}
+
+#[cfg(test)]
+pub(crate) fn set_test_host_root(path: Option<PathBuf>) {
+    TEST_HOST_ROOT.with(|cell| {
+        *cell.borrow_mut() = path;
+    });
+}
+
 // ---------------------------------------------------------------------------
 // ExtraVolume — user-defined bind mount
 // ---------------------------------------------------------------------------
@@ -2319,6 +2331,11 @@ impl AiboxConfig {
     /// Get the host root path (.aibox-home/ directory), respecting env override.
     /// Falls back to `.root/` if that directory exists (backward compatibility).
     pub fn host_root_dir(&self) -> PathBuf {
+        #[cfg(test)]
+        if let Some(path) = TEST_HOST_ROOT.with(|cell| cell.borrow().clone()) {
+            return path;
+        }
+
         if let Ok(val) = std::env::var("AIBOX_HOST_ROOT") {
             return PathBuf::from(val);
         }

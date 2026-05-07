@@ -325,6 +325,11 @@ pub static COMPAT_TABLE: &[CompatEntry] = &[
         processkit_version: "v0.25.8",
         note: "Patch release: repairs generated Yazi git/status initialization for Yazi 26, preserves native Zellij plugin permission caches across runtime starts, adds doctor and E2E guardrails for native Zellij permission-cache projection drift, installs the Yazi `ya` companion entrypoint in runtime images, and slims visual E2E release gates with per-case progress logging plus an opt-in exhaustive matrix.",
     },
+    CompatEntry {
+        aibox_version: "0.24.0",
+        processkit_version: "v0.25.8",
+        note: "Minor release: hardens runtime cache ownership and SHELL propagation, removes stale Claude home-installer symlinks, splits native Zellij key/status rows across role-specific plugin paths with Zellij-style colored capsules, protects Yazi-to-Vim handoff from injecting commands into non-editor panes, and adds a full-pane Yazi preview helper for Markdown, code, and PDFs.",
+    },
 ];
 
 /// Find the minimum compatible processkit version for the given aibox version.

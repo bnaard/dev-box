@@ -219,12 +219,12 @@ if grep -aE 'This plugin asks permission|ReadApplicationState|RunCommands|Allow\
   cat /tmp/{test_name}-zellij-permission-prompt.txt
   exit 1
 fi
-if ! grep -aE 'LEADER|PANES' {workspace}/recording.cast >/tmp/{test_name}-zellij-visible.txt 2>&1; then
+if ! grep -aEi 'Ctrl-g|Leader|Alt-h/j/k/l|PANE|PANES' {workspace}/recording.cast >/tmp/{test_name}-zellij-visible.txt 2>&1; then
   echo "expected generated key/status rows were not visible"
   sed -n '1,80p' {workspace}/recording.cast
   exit 1
 fi
-if ! grep -aE 'MEM .+OOM kills [0-9]+|PROC .+total [0-9]+|MCP (gateway|granular|none) [0-9]+' {workspace}/recording.cast >/tmp/{test_name}-zellij-status-values.txt 2>&1; then
+if ! grep -aE 'MEM .+/unlimited|OOM [0-9]+|PROC [0-9]+ AI [0-9]+|MCP (gateway|granular|none) [0-9]+' {workspace}/recording.cast >/tmp/{test_name}-zellij-status-values.txt 2>&1; then
   echo "expected refreshed generated runtime details were not visible"
   sed -n '1,80p' {workspace}/recording.cast
   exit 1

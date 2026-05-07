@@ -258,11 +258,17 @@ impl E2eRunner {
             String::from_utf8_lossy(&output.stderr)
         );
         self.exec("sudo mkdir -p /usr/local/share/aibox/zellij");
-        self.deploy_image_asset(
-            &plugin_wasm,
-            "/usr/local/share/aibox/zellij/aibox-status.wasm",
-            true,
-        );
+        for plugin_name in [
+            "aibox-status.wasm",
+            "aibox-status-keys.wasm",
+            "aibox-status-runtime.wasm",
+        ] {
+            self.deploy_image_asset(
+                &plugin_wasm,
+                &format!("/usr/local/share/aibox/zellij/{plugin_name}"),
+                true,
+            );
+        }
 
         // Verify deployment
         let output = self.exec(&format!("{} --version", REMOTE_AIBOX_BIN));

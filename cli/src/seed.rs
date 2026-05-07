@@ -2248,9 +2248,7 @@ mod tests {
     use serial_test::serial;
 
     fn make_config(audio_enabled: bool, root_dir: std::path::PathBuf) -> AiboxConfig {
-        unsafe {
-            std::env::set_var("AIBOX_HOST_ROOT", root_dir.to_str().unwrap());
-        }
+        crate::config::set_test_host_root(Some(root_dir));
         let mut config = crate::config::test_config();
         config.container.name = "test".to_string();
         config.container.hostname = "test".to_string();
@@ -2260,6 +2258,13 @@ mod tests {
             ..AudioSection::default()
         };
         config
+    }
+
+    fn clear_test_host_root() {
+        crate::config::set_test_host_root(None);
+        unsafe {
+            std::env::remove_var("AIBOX_HOST_ROOT");
+        }
     }
 
     #[test]
@@ -2279,10 +2284,7 @@ mod tests {
         assert!(root.join(".config").join("yazi").is_dir());
         assert!(root.join(".config").join("git").is_dir());
         assert!(root.join(".claude").is_dir());
-
-        unsafe {
-            std::env::remove_var("AIBOX_HOST_ROOT");
-        }
+        clear_test_host_root();
     }
 
     #[test]
@@ -2309,10 +2311,7 @@ mod tests {
         assert!(root.join(".config").join("lazygit").is_dir());
         assert!(root.join(".local").join("state").join("lazygit").is_dir());
         assert!(root.join(".config").join("state").join("lazygit").is_dir());
-
-        unsafe {
-            std::env::remove_var("AIBOX_HOST_ROOT");
-        }
+        clear_test_host_root();
     }
 
     #[test]
@@ -2370,10 +2369,7 @@ mod tests {
 
         assert!(root.join(".codex").is_dir());
         assert!(!root.join(".claude").exists());
-
-        unsafe {
-            std::env::remove_var("AIBOX_HOST_ROOT");
-        }
+        clear_test_host_root();
     }
 
     #[test]
@@ -2410,10 +2406,7 @@ mod tests {
             body.contains("acknowledge_contract"),
             "plugin must reference acknowledge_contract as the gate"
         );
-
-        unsafe {
-            std::env::remove_var("AIBOX_HOST_ROOT");
-        }
+        clear_test_host_root();
     }
 
     #[test]
@@ -2429,10 +2422,7 @@ mod tests {
             !root.join(".opencode").exists(),
             "OpenCode dir must not be created when OpenCode is not in harnesses"
         );
-
-        unsafe {
-            std::env::remove_var("AIBOX_HOST_ROOT");
-        }
+        clear_test_host_root();
     }
 
     #[test]
@@ -2620,10 +2610,7 @@ mod tests {
             0,
             "aibox-status-toggle should be executable"
         );
-
-        unsafe {
-            std::env::remove_var("AIBOX_HOST_ROOT");
-        }
+        clear_test_host_root();
     }
 
     #[test]
@@ -2683,10 +2670,7 @@ mod tests {
                 .any(|(path, _)| path == &std::path::PathBuf::from(".config/lazygit/config.yml")),
             "disabled lazygit must not generate managed lazygit config"
         );
-
-        unsafe {
-            std::env::remove_var("AIBOX_HOST_ROOT");
-        }
+        clear_test_host_root();
     }
 
     #[test]
@@ -2753,10 +2737,7 @@ mod tests {
         let vimrc = fs::read_to_string(root.join(".vim").join("vimrc")).unwrap();
         assert!(vimrc.contains("colorscheme catppuccin_latte"));
         assert!(vimrc.contains("set background=light"));
-
-        unsafe {
-            std::env::remove_var("AIBOX_HOST_ROOT");
-        }
+        clear_test_host_root();
     }
 
     #[test]
@@ -2785,10 +2766,7 @@ mod tests {
             0,
             "aibox-status should be executable after apply-time sync"
         );
-
-        unsafe {
-            std::env::remove_var("AIBOX_HOST_ROOT");
-        }
+        clear_test_host_root();
     }
 
     #[test]
@@ -2811,10 +2789,7 @@ mod tests {
                 .iter()
                 .any(|path| path == ".local/bin/claude (removed stale home-installer symlink)")
         );
-
-        unsafe {
-            std::env::remove_var("AIBOX_HOST_ROOT");
-        }
+        clear_test_host_root();
     }
 
     #[test]
@@ -2839,10 +2814,7 @@ mod tests {
                 .iter()
                 .any(|path| path.contains(".local/bin/claude"))
         );
-
-        unsafe {
-            std::env::remove_var("AIBOX_HOST_ROOT");
-        }
+        clear_test_host_root();
     }
 
     #[test]
@@ -2890,10 +2862,7 @@ rules = [
         assert!(theme.contains(r#"url = "*.rs""#));
         assert!(!yazi.contains("{ name ="));
         assert!(!theme.contains("{ name ="));
-
-        unsafe {
-            std::env::remove_var("AIBOX_HOST_ROOT");
-        }
+        clear_test_host_root();
     }
 
     #[test]
@@ -2912,10 +2881,7 @@ rules = [
             content, "custom vimrc",
             "should not overwrite existing file"
         );
-
-        unsafe {
-            std::env::remove_var("AIBOX_HOST_ROOT");
-        }
+        clear_test_host_root();
     }
 
     #[test]
@@ -2930,10 +2896,7 @@ rules = [
             root.join(".asoundrc").exists(),
             ".asoundrc should be created when audio enabled"
         );
-
-        unsafe {
-            std::env::remove_var("AIBOX_HOST_ROOT");
-        }
+        clear_test_host_root();
     }
 
     #[test]
@@ -2948,10 +2911,7 @@ rules = [
             !root.join(".asoundrc").exists(),
             ".asoundrc should not exist when audio disabled"
         );
-
-        unsafe {
-            std::env::remove_var("AIBOX_HOST_ROOT");
-        }
+        clear_test_host_root();
     }
 
     #[test]
@@ -3837,10 +3797,7 @@ rules = [
             ".aider directory should be created"
         );
         assert!(!root.join(".claude").exists(), ".claude should not exist");
-
-        unsafe {
-            std::env::remove_var("AIBOX_HOST_ROOT");
-        }
+        clear_test_host_root();
     }
 
     #[test]
@@ -3856,9 +3813,6 @@ rules = [
             root.join(".gemini").is_dir(),
             ".gemini directory should be created"
         );
-
-        unsafe {
-            std::env::remove_var("AIBOX_HOST_ROOT");
-        }
+        clear_test_host_root();
     }
 }

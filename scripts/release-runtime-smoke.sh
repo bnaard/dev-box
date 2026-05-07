@@ -25,7 +25,7 @@ run_id="$(date +%Y%m%d-%H%M%S)"
 log_dir="${AIBOX_RELEASE_SMOKE_DIR:-${DIST_DIR}/release-smoke/v${version}/${run_id}}"
 project_dir="${AIBOX_RELEASE_SMOKE_PROJECT_DIR:-$(mktemp -d "${TMPDIR:-/tmp}/aibox-release-smoke-v${version}.XXXXXX")}"
 container_name="${AIBOX_RELEASE_SMOKE_CONTAINER:-aibox-release-smoke-${version//./-}}"
-zellij_status="${AIBOX_RELEASE_SMOKE_ZELLIJ_STATUS:-shell}"
+zellij_status="${AIBOX_RELEASE_SMOKE_ZELLIJ_STATUS:-native}"
 probe_script="${log_dir}/container-probe.sh"
 run_log="${log_dir}/run.log"
 
@@ -270,6 +270,7 @@ run compose -f "$(compose_file)" up -d "${container_name}"
 cat > "${probe_script}" <<'EOF'
 #!/usr/bin/env bash
 set -u
+zellij_status="__AIBOX_RELEASE_SMOKE_ZELLIJ_STATUS__"
 
 fail=0
 section() { printf '\n== %s ==\n' "$*"; }
@@ -325,6 +326,49 @@ else
   echo "aibox-status helper not present in this release"
 fi
 
+section zellij-native-status-contract
+if [[ "${zellij_status}" == "native" ]]; then
+  status_dir="/usr/local/share/aibox/zellij"
+  for plugin in aibox-status.wasm aibox-status-keys.wasm aibox-status-runtime.wasm; do
+    path="${status_dir}/${plugin}"
+    if [[ ! -f "${path}" ]]; then
+      echo "missing native status plugin file: ${path}"
+      fail=1
+      continue
+    fi
+    if [[ -L "${path}" ]]; then
+      echo "native status plugin file must be physical, not a symlink: ${path}"
+      fail=1
+    fi
+    ls -l "${path}" || fail=1
+  done
+
+  for permissions in \
+    "$HOME/.cache/zellij/permissions.kdl" \
+    "$HOME/.cache/org/Zellij Contributors/Zellij/permissions.kdl"; do
+    if [[ ! -r "${permissions}" ]]; then
+      echo "missing readable native status permission cache: ${permissions}"
+      fail=1
+      continue
+    fi
+    if ! grep -q 'aibox-status-keys.wasm' "${permissions}" \
+      || ! grep -q 'aibox-status-runtime.wasm' "${permissions}"; then
+      echo "native status permission cache lacks role-specific plugin grants: ${permissions}"
+      sed -n '1,120p' "${permissions}"
+      fail=1
+    fi
+  done
+
+  if ! grep -q 'aibox-status-keys.wasm' "$HOME/.config/zellij/layouts/ai.kdl" \
+    || ! grep -q 'aibox-status-runtime.wasm' "$HOME/.config/zellij/layouts/ai.kdl"; then
+    echo "ai layout does not reference role-specific native status plugin files"
+    sed -n '1,120p' "$HOME/.config/zellij/layouts/ai.kdl"
+    fail=1
+  fi
+else
+  echo "native status contract skipped for zellij_status=${zellij_status}"
+fi
+
 section zellij-pty
 if ! command -v script >/dev/null 2>&1; then
   echo "script command missing; cannot run zellij PTY smoke"
@@ -351,6 +395,21 @@ else
     cat /tmp/aibox-zellij-errors.txt
     fail=1
   fi
+  if [[ "${zellij_status}" == "native" ]]; then
+    if grep -aE 'This plugin asks permission|ReadApplicationState|RunCommands|Allow\? \(y/n\)' /tmp/aibox-zellij.typescript >/tmp/aibox-zellij-permission-prompt.txt 2>&1; then
+      echo "native status plugin permission prompt leaked into PTY smoke:"
+      cat /tmp/aibox-zellij-permission-prompt.txt
+      fail=1
+    fi
+    if ! grep -aEi 'Ctrl-g|Leader|Alt-h/j/k/l|PANE|PANES' /tmp/aibox-zellij.typescript >/tmp/aibox-zellij-key-row.txt 2>&1; then
+      echo "native status key row was not visible in PTY smoke"
+      fail=1
+    fi
+    if ! grep -aE 'MEM .+/unlimited|OOM [0-9]+|PROC [0-9]+ AI [0-9]+|MCP (gateway|granular|none) [0-9]+' /tmp/aibox-zellij.typescript >/tmp/aibox-zellij-runtime-row.txt 2>&1; then
+      echo "native runtime status row was not visible in PTY smoke"
+      fail=1
+    fi
+  fi
   if find /tmp -path '*/zellij-log/zellij.log' -type f -print0 | xargs -0 grep -E 'over 1000 consecutive unknown messages|Received unknown message from client' >/tmp/aibox-zellij-shutdown-noise.txt 2>&1; then
     echo "warning: zellij logged forced-shutdown client noise after timeout:"
     cat /tmp/aibox-zellij-shutdown-noise.txt
@@ -359,6 +418,7 @@ fi
 
 exit "${fail}"
 EOF
+sed -i.bak "s/__AIBOX_RELEASE_SMOKE_ZELLIJ_STATUS__/${zellij_status}/g" "${probe_script}"
 
 run runtime cp "${probe_script}" "${container_name}:/tmp/aibox-release-smoke-probe.sh"
 run runtime exec --user root "${container_name}" chmod 0755 /tmp/aibox-release-smoke-probe.sh

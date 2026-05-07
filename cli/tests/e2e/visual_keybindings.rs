@@ -793,7 +793,11 @@ true
         "expected recording to include the aibox runtime status row"
     );
     assert!(
-        output.contains("C-g") || output.contains("leader") || output.contains("PANES"),
+        output.contains("Ctrl-g")
+            || output.contains("C-g")
+            || output.contains("Leader")
+            || output.contains("leader")
+            || output.contains("PANES"),
         "expected recording to include the aibox key row"
     );
     assert!(

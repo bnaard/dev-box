@@ -778,7 +778,7 @@ mod tests {
     }
 
     #[test]
-    fn dockerfile_adds_native_zellij_status_role_aliases() {
+    fn dockerfile_adds_native_zellij_status_role_files() {
         let dir = tempfile::tempdir().unwrap();
         let config = make_config(&["python"], false);
         generate_dockerfile(&config, dir.path(), &test_env()).unwrap();
@@ -787,7 +787,12 @@ mod tests {
         assert!(
             content.contains("aibox-status-keys.wasm")
                 && content.contains("aibox-status-runtime.wasm"),
-            "project Dockerfiles should make native Zellij status role aliases available for older base images"
+            "project Dockerfiles should make native Zellij status role files available for older base images"
+        );
+        assert!(
+            content.contains("cp -f /usr/local/share/aibox/zellij/aibox-status.wasm")
+                && !content.contains("ln -sf /usr/local/share/aibox/zellij/aibox-status.wasm"),
+            "project Dockerfiles should create physical native status role files, not symlink aliases"
         );
     }
 
@@ -1521,12 +1526,17 @@ mod tests {
     }
 
     #[test]
-    fn base_image_installs_native_zellij_status_role_aliases() {
+    fn base_image_installs_native_zellij_status_role_files() {
         let content = include_str!("../../images/base-debian/Dockerfile");
         assert!(
             content.contains("aibox-status-keys.wasm")
                 && content.contains("aibox-status-runtime.wasm"),
             "base image should expose distinct native Zellij status plugin locations"
+        );
+        assert!(
+            content.contains("cp -f /usr/local/share/aibox/zellij/aibox-status.wasm")
+                && !content.contains("ln -sf /usr/local/share/aibox/zellij/aibox-status.wasm"),
+            "base image should install physical native status role files, not symlink aliases"
         );
     }
 

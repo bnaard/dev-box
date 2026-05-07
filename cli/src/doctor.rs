@@ -1382,10 +1382,10 @@ fn check_zellij_native_permission_projection(config: &AiboxConfig, diag: &mut Di
     }
 
     if Path::new("/etc/aibox-version").is_file()
-        && !native_zellij_status_role_aliases_available(Path::new("/usr/local/share/aibox/zellij"))
+        && !native_zellij_status_role_plugins_available(Path::new("/usr/local/share/aibox/zellij"))
     {
         output::warn(
-            "zellij: current container image is missing native status role aliases; rebuild/recreate the container from regenerated .devcontainer/Dockerfile",
+            "zellij: current container image is missing physical native status role plugin files; rebuild/recreate the container from regenerated .devcontainer/Dockerfile",
         );
         diag.warnings += 1;
     }
@@ -1430,9 +1430,20 @@ fn compose_mounts_zellij_permission_cache(
     (current_cache, legacy_cache)
 }
 
-fn native_zellij_status_role_aliases_available(root: &Path) -> bool {
-    root.join("aibox-status-keys.wasm").is_file()
-        && root.join("aibox-status-runtime.wasm").is_file()
+fn native_zellij_status_role_plugins_available(root: &Path) -> bool {
+    [
+        "aibox-status.wasm",
+        "aibox-status-keys.wasm",
+        "aibox-status-runtime.wasm",
+    ]
+    .into_iter()
+    .all(|name| {
+        let path = root.join(name);
+        let Ok(metadata) = path.symlink_metadata() else {
+            return false;
+        };
+        metadata.file_type().is_file() && !metadata.file_type().is_symlink()
+    })
 }
 
 fn native_zellij_status_layout_uses_shared_plugin_location(layout: &str) -> bool {

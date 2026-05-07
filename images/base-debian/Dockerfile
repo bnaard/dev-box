@@ -302,10 +302,11 @@ RUN mkdir -p /usr/local/share/aibox/zellij
 COPY --from=build-aibox-zellij-status \
     /build/aibox-status/target/wasm32-wasip1/release/aibox-zellij-status.wasm \
     /usr/local/share/aibox/zellij/aibox-status.wasm
-RUN ln -sf /usr/local/share/aibox/zellij/aibox-status.wasm \
+RUN cp -f /usr/local/share/aibox/zellij/aibox-status.wasm \
           /usr/local/share/aibox/zellij/aibox-status-keys.wasm && \
-    ln -sf /usr/local/share/aibox/zellij/aibox-status.wasm \
-          /usr/local/share/aibox/zellij/aibox-status-runtime.wasm
+    cp -f /usr/local/share/aibox/zellij/aibox-status.wasm \
+          /usr/local/share/aibox/zellij/aibox-status-runtime.wasm && \
+    chmod 0644 /usr/local/share/aibox/zellij/aibox-status*.wasm
 RUN printf '%s\n' \
       '"file:/usr/local/share/aibox/zellij/aibox-status-keys.wasm" {' \
       '    ReadApplicationState' \
