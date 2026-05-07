@@ -1,0 +1,39 @@
+layout {
+    tab_template name="aibox-tab" {
+        children
+        pane size=1 borderless=true {
+            plugin location="file:/usr/local/share/aibox/zellij/aibox-status-keys.wasm" {
+                role "keys"
+            }
+        }
+        pane size=1 borderless=true {
+            plugin location="file:/usr/local/share/aibox/zellij/aibox-status-runtime.wasm" {
+                role "status"
+            }
+        }
+    }
+    aibox-tab name="dev" focus=true {
+        pane split_direction="vertical" {
+            pane size="40%" name="files" focus=true {
+                command "yazi"
+                cwd "/workspace"
+            }
+            pane size="60%" name="editor" {
+                command "vim-loop"
+                cwd "/workspace"
+            }
+        }
+    }
+    aibox-tab name="codex" {
+        pane name="codex" {
+            command "codex"
+            cwd "/workspace"
+        }
+    }
+    aibox-tab name="shell" {
+        pane name="bash" {
+            command "bash"
+            cwd "/workspace"
+        }
+    }
+}
