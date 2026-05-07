@@ -306,7 +306,7 @@ impl E2eRunner {
         let workspace = format!("/workspaces/{}", test_name);
         let full_path = format!("{}/{}", workspace, path);
         let cmd = format!(
-            "mkdir -p {workspace} && mkdir -p $(dirname {full_path}) && cat > {full_path} << 'AIBOX_E2E_EOF'\n{content}\nAIBOX_E2E_EOF"
+            "mkdir -p {workspace} && mkdir -p $(dirname {full_path}) && rm -f {full_path} && cat > {full_path} << 'AIBOX_E2E_EOF'\n{content}\nAIBOX_E2E_EOF"
         );
         let output = self.exec(&cmd);
         assert!(

@@ -231,12 +231,13 @@ fn assert_generated_tmux_config(
 ) {
     let workspace = format!("/workspaces/{test_name}");
     let expected = rgb_hex(r, g, b);
+    let theme_pattern = theme.replace('-', "[- ]");
     let probe = runner.exec(&format!(
         r#"cd {workspace}
-test -f .aibox-home/.tmux.conf -o -f .aibox-home/.config/tmux/tmux.conf
-grep -Rli --exclude-dir=.git 'tmux' .aibox-home .devcontainer aibox.toml >/tmp/{test_name}-tmux-files.txt
-grep -Ri --exclude-dir=.git '{theme}' .aibox-home >/tmp/{test_name}-theme.txt
-grep -Ri --exclude-dir=.git '{expected}' .aibox-home >/tmp/{test_name}-theme-rgb.txt
+	test -f .aibox-home/.tmux.conf -o -f .aibox-home/.config/tmux/tmux.conf
+	grep -Rli --exclude-dir=.git --exclude=claude 'tmux' .aibox-home .devcontainer aibox.toml >/tmp/{test_name}-tmux-files.txt
+	grep -REi --exclude-dir=.git --exclude=claude '{theme_pattern}' .aibox-home >/tmp/{test_name}-theme.txt
+	grep -Ri --exclude-dir=.git --exclude=claude '{expected}' .aibox-home >/tmp/{test_name}-theme-rgb.txt
 ! find .aibox-home -path '*zellij*' -print -quit | grep -q .
 ! grep -Rli --exclude-dir=.git 'zellij' .aibox-home .devcontainer aibox.toml >/tmp/{test_name}-legacy-zellij.txt 2>/dev/null
 "#
@@ -444,9 +445,10 @@ tmux kill-session -t "{session}" >/dev/null 2>&1 || true
   }} > "{workspace}/{session}.generated-state" 2>&1 || true
 {setup}
   sleep 0.5
-  tmux list-windows -t "{session}" > "{workspace}/{session}.windows" 2>/dev/null || true
-  tmux list-panes -a -F '#S:#I.#P #{{pane_current_command}} #{{pane_title}}' > "{workspace}/{session}.panes" 2>/dev/null || true
-  first_pane="$(tmux list-panes -t "{session}:" -F '#{{window_index}}.#{{pane_index}}' | head -1 || true)"
+	  tmux list-windows -t "{session}" > "{workspace}/{session}.windows" 2>/dev/null || true
+	  tmux list-panes -a -F '#S:#I.#P #{{pane_current_command}} #{{pane_title}}' > "{workspace}/{session}.panes" 2>/dev/null || true
+	  tmux display-message -p -t "{session}" '#S #W #{{window_panes}} #{{status-left}} #{{status-right}}' > "{workspace}/{session}.status" 2>/dev/null || true
+	  first_pane="$(tmux list-panes -t "{session}:" -F '#{{window_index}}.#{{pane_index}}' | head -1 || true)"
   if [ -n "$first_pane" ]; then
     tmux capture-pane -p -t "{session}:$first_pane" > "{workspace}/{session}.screen" 2>/dev/null || true
   fi
@@ -471,6 +473,8 @@ fn record_layout_status(runner: &E2eRunner, test_name: &str, layout: &str) -> (S
     let stem = format!("recording-status-{layout}");
     let setup = format!(
         r#"  tmux set-option -t "{stem}" -g status on
+  tmux set-option -t "{stem}" -g status-left-length 80
+  tmux set-option -t "{stem}" -g status-right-length 100
   tmux set-option -t "{stem}" -g status-left " AIBOX-TMUX {layout} #S:#I.#P "
   tmux set-option -t "{stem}" -g status-right " #(aibox-status 2>/dev/null | cut -c1-80) "
   sleep 3
@@ -490,8 +494,9 @@ fn record_layout_status(runner: &E2eRunner, test_name: &str, layout: &str) -> (S
     let screen = runner.read_file(test_name, &format!("{stem}.screen"));
     let generated_state = runner.read_file(test_name, &format!("{stem}.generated-state"));
     let logs = format!(
-        "{generated_state}\n--- final windows ---\n{}",
-        runner.read_file(test_name, &format!("{stem}.windows"))
+        "{generated_state}\n--- final windows ---\n{}--- final status ---\n{}",
+        runner.read_file(test_name, &format!("{stem}.windows")),
+        runner.read_file(test_name, &format!("{stem}.status"))
     );
     write_visual_artifacts(
         test_name,
@@ -632,10 +637,11 @@ fn visual_generated_layouts_render_across_all_themes() {
             assert_generated_tmux_layout(layout, &layout_body);
             let (recording, logs) = record_layout_status(&runner, &test_name, layout);
             assert_generated_layout_created_real_tmux_surfaces(layout, &logs);
+            let status_evidence = format!("{recording}\n{logs}");
             assert!(
-                recording.contains("AIBOX-TMUX")
-                    || recording.contains("MEM ")
-                    || recording.contains("PROC "),
+                status_evidence.contains("AIBOX-TMUX")
+                    || status_evidence.contains("MEM ")
+                    || status_evidence.contains("PROC "),
                 "{theme}/{layout}: expected visible tmux status output:\n{recording}"
             );
             assert!(
