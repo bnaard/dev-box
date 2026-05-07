@@ -1,7 +1,16 @@
 layout {
     tab_template name="aibox-tab" {
         children
+        pane size=1 borderless=true {
+            plugin location="file:/usr/local/share/aibox/zellij/aibox-status-keys.wasm" {
+                role "keys"
+            }
+        }
+        pane size=1 borderless=true {
+            plugin location="file:/usr/local/share/aibox/zellij/aibox-status-runtime.wasm" {
+                role "status"
+            }
+        }
     }
-
     aibox-tab
 }

@@ -139,6 +139,7 @@ keybinds clear-defaults=true {
     tmux {
         bind "Ctrl g" { SwitchToMode "Normal"; }
         bind "Esc" { SwitchToMode "Normal"; }
+        bind "g" "G" { SwitchToMode "Normal"; }
         bind "h" "Left"  { MoveFocus "Left"; SwitchToMode "Normal"; }
         bind "j" "Down"  { MoveFocus "Down"; SwitchToMode "Normal"; }
         bind "k" "Up"    { MoveFocus "Up"; SwitchToMode "Normal"; }
@@ -1836,7 +1837,65 @@ pub fn cleanup_disabled_runtime_files(config: &AiboxConfig) -> Result<Vec<String
         updated.push(".local/bin/claude (removed stale home-installer symlink)".to_string());
     }
 
+    updated.extend(cleanup_zellij_runtime_cache(&root, &config.container.name)?);
+
     Ok(updated)
+}
+
+fn cleanup_zellij_runtime_cache(root: &Path, session_name: &str) -> Result<Vec<String>> {
+    let zellij_cache = root.join(".cache").join("zellij");
+    let mut updated = Vec::new();
+    let Ok(entries) = fs::read_dir(&zellij_cache) else {
+        return Ok(updated);
+    };
+
+    for entry in entries {
+        let entry = entry.with_context(|| format!("Failed to read {}", zellij_cache.display()))?;
+        let path = entry.path();
+        let file_name = entry.file_name();
+        let name = file_name.to_string_lossy();
+
+        if name.starts_with("contract_version_") && path.is_dir() {
+            let session_info = path.join("session_info").join(session_name);
+            if session_info.exists() {
+                fs::remove_dir_all(&session_info)
+                    .with_context(|| format!("Failed to remove {}", session_info.display()))?;
+                updated.push(format!(
+                    ".cache/zellij/{}/session_info/{} (removed stale Zellij session)",
+                    name, session_name
+                ));
+            }
+            continue;
+        }
+
+        if path.is_dir() && is_uuid_like(&name) {
+            fs::remove_dir_all(&path)
+                .with_context(|| format!("Failed to remove {}", path.display()))?;
+            updated.push(format!(
+                ".cache/zellij/{} (removed stale Zellij plugin state)",
+                name
+            ));
+        }
+    }
+
+    Ok(updated)
+}
+
+fn is_uuid_like(value: &str) -> bool {
+    let bytes = value.as_bytes();
+    if bytes.len() != 36 {
+        return false;
+    }
+    for (idx, byte) in bytes.iter().enumerate() {
+        if matches!(idx, 8 | 13 | 18 | 23) {
+            if *byte != b'-' {
+                return false;
+            }
+        } else if !byte.is_ascii_hexdigit() {
+            return false;
+        }
+    }
+    true
 }
 
 fn stale_claude_home_symlink(path: &Path) -> bool {
@@ -2760,6 +2819,42 @@ mod tests {
     }
 
     #[test]
+    fn cleanup_removes_stale_zellij_session_and_plugin_state() {
+        let dir = tempfile::tempdir().unwrap();
+        let root = dir.path().join("root");
+        let config = make_config(false, root.clone());
+        let session_name = config.container.name.clone();
+        let session = root
+            .join(".cache/zellij/contract_version_1/session_info")
+            .join(&session_name);
+        let plugin_state = root.join(".cache/zellij/04db9126-52cd-4a49-a7d4-90c07443c87a");
+        let named_plugin_cache = root.join(".cache/zellij/zellij:link/plugin_cache");
+        fs::create_dir_all(&session).unwrap();
+        fs::create_dir_all(&plugin_state).unwrap();
+        fs::create_dir_all(&named_plugin_cache).unwrap();
+        fs::write(root.join(".cache/zellij/permissions.kdl"), "RunCommands").unwrap();
+        fs::write(session.join("session-layout.kdl"), "layout {}").unwrap();
+        fs::write(plugin_state.join("state.bin"), "state").unwrap();
+
+        let updated = cleanup_disabled_runtime_files(&config).unwrap();
+
+        assert!(updated.iter().any(|path| path
+            == ".cache/zellij/contract_version_1/session_info/test (removed stale Zellij session)"));
+        assert!(updated.iter().any(|path| path
+            == ".cache/zellij/04db9126-52cd-4a49-a7d4-90c07443c87a (removed stale Zellij plugin state)"));
+        assert!(!session.exists());
+        assert!(!plugin_state.exists());
+        assert!(
+            root.join(".cache/zellij/permissions.kdl").exists(),
+            "permission cache must be preserved"
+        );
+        assert!(
+            named_plugin_cache.exists(),
+            "named plugin caches are not aibox session resurrection state"
+        );
+    }
+
+    #[test]
     fn cleanup_removes_legacy_shell_aibox_status_helper() {
         let dir = tempfile::tempdir().unwrap();
         let root = dir.path().join("root");
@@ -3675,6 +3770,14 @@ rules = [
         assert!(
             !DEFAULT_ZELLIJ_CONFIG.contains("default_layout \"dev\""),
             "config template must not hard-code dev as default_layout"
+        );
+    }
+
+    #[test]
+    fn zellij_leader_g_cancels_prefix_mode() {
+        assert!(
+            DEFAULT_ZELLIJ_CONFIG.contains(r#"bind "g" "G" { SwitchToMode "Normal"; }"#),
+            "leader g/G should be a harmless cancel so an accidental prefix sequence cannot leave Zellij in tmux mode"
         );
     }
 

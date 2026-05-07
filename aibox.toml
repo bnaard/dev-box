@@ -651,4 +651,4 @@ layout = "ai"
 
 # Zellij status presentation. Options: sidecar | shell | disabled
 [customization.zellij_status]
-mode = "disabled"
+mode = "sidecar"

@@ -571,7 +571,11 @@ pub fn resolve_init_values(
 
 /// Build command: load config, generate files, run compose build.
 /// Start command: seed, generate, ensure running, attach.
-pub fn cmd_start(config_path: &Option<String>, layout: &str) -> Result<()> {
+pub fn cmd_start(
+    config_path: &Option<String>,
+    layout: &str,
+    forget_zellij_state: bool,
+) -> Result<()> {
     let mut config = AiboxConfig::from_cli_option(config_path)?;
     let runtime = Runtime::detect()?;
 
@@ -644,6 +648,8 @@ pub fn cmd_start(config_path: &Option<String>, layout: &str) -> Result<()> {
         );
     }
 
+    let should_recreate_zellij_session = forget_zellij_state || state != ContainerState::Running;
+
     match state {
         ContainerState::Running => {
             output::info("Container already running");
@@ -662,7 +668,9 @@ pub fn cmd_start(config_path: &Option<String>, layout: &str) -> Result<()> {
     }
 
     let diagnostics_service = format!("{name}-diagnostics");
-    if let Err(error) = runtime.compose_up(crate::config::COMPOSE_FILE, &diagnostics_service) {
+    if let Err(error) =
+        runtime.compose_up_no_deps(crate::config::COMPOSE_FILE, &diagnostics_service)
+    {
         output::warn(&format!(
             "Diagnostics sidecar could not be started: {error}. Continuing with main container attach."
         ));
@@ -670,14 +678,11 @@ pub fn cmd_start(config_path: &Option<String>, layout: &str) -> Result<()> {
 
     output::info(&format!("Attaching via zellij (layout: {})...", layout));
 
-    // Kill any existing zellij session with this name to ensure a fresh start
-    // with properly initialized panes. This prevents the "waiting to load" issue
-    // that occurs when reattaching to a session with dead panes (e.g., after
-    // exiting and running `aibox up` again). Best-effort; don't fail if the
-    // session doesn't exist. Run via docker exec outside of Runtime.exec_interactive
-    // to avoid making this step interactive.
+    // When explicitly requested or after starting a non-running container, discard
+    // stale serialized Zellij state so the configured managed layout wins. Plain
+    // re-entry into a running container preserves the user's live session.
     #[cfg(not(test))]
-    {
+    if should_recreate_zellij_session {
         let docker_cmd = format!(
             "docker exec {} su -c 'zellij kill-session {} 2>/dev/null || true' {}",
             name, name, &config.container.user
@@ -688,16 +693,35 @@ pub fn cmd_start(config_path: &Option<String>, layout: &str) -> Result<()> {
             .output();
     }
 
-    // Use a named session matching the container name. With the session killed
-    // above, `--create` will always create a fresh session with the given layout.
+    // Use a named session matching the container name. `--forget` is reserved for
+    // managed refreshes; ordinary re-entry should attach to the existing session.
     // `--layout` is a global flag that must come before the subcommand.
-    runtime.exec_interactive(
-        name,
-        &config.container.user,
-        &["zellij", "--layout", layout, "attach", "--create", name],
-    )?;
+    let attach_cmd = zellij_attach_command(layout, name, should_recreate_zellij_session);
+    let attach_args: Vec<&str> = attach_cmd.iter().map(|arg| arg.as_str()).collect();
+    runtime.exec_interactive(name, &config.container.user, &attach_args)?;
 
     Ok(())
+}
+
+fn zellij_attach_command(
+    layout: &str,
+    session_name: &str,
+    forget_zellij_state: bool,
+) -> Vec<String> {
+    let mut command = vec![
+        "zellij".to_string(),
+        "--layout".to_string(),
+        layout.to_string(),
+        "attach".to_string(),
+        "--create".to_string(),
+    ];
+
+    if forget_zellij_state {
+        command.push("--forget".to_string());
+    }
+
+    command.push(session_name.to_string());
+    command
 }
 
 pub fn cmd_emergency(config_path: &Option<String>, harness: AiHarness) -> Result<()> {
@@ -2944,6 +2968,24 @@ mod tests {
         assert!(
             ai < ai_mcp && ai_mcp < processkit,
             "[ai.mcp] should stay with the ai section"
+        );
+    }
+
+    #[test]
+    fn zellij_attach_command_forgets_serialized_session_state() {
+        assert_eq!(
+            zellij_attach_command("ai", "aibox", true),
+            vec![
+                "zellij", "--layout", "ai", "attach", "--create", "--forget", "aibox",
+            ]
+        );
+    }
+
+    #[test]
+    fn zellij_attach_command_preserves_serialized_session_state_by_default() {
+        assert_eq!(
+            zellij_attach_command("ai", "aibox", false),
+            vec!["zellij", "--layout", "ai", "attach", "--create", "aibox"]
         );
     }
 

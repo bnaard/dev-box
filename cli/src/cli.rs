@@ -270,6 +270,10 @@ pub enum Commands {
         /// Reconcile desired state before starting
         #[arg(long)]
         apply: bool,
+
+        /// Discard saved Zellij session state and recreate the configured layout
+        #[arg(long)]
+        forget_zellij_state: bool,
     },
     /// Recover into the workspace without Zellij, Yazi, or status tooling
     Emergency {

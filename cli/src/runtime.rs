@@ -228,12 +228,33 @@ impl Runtime {
         Ok(())
     }
 
+    fn compose_up_args(compose_file: &str, service: &str, no_deps: bool) -> Result<Vec<String>> {
+        let file_args = Self::compose_file_args(compose_file)?;
+        let mut args = file_args;
+        args.extend(["up".to_string(), "-d".to_string()]);
+        if no_deps {
+            args.push("--no-deps".to_string());
+        }
+        args.push(service.to_string());
+        Ok(args)
+    }
+
     /// Run compose up -d for a service.
     pub fn compose_up(&self, compose_file: &str, service: &str) -> Result<()> {
-        let file_args = Self::compose_file_args(compose_file)?;
-        let mut args: Vec<&str> = file_args.iter().map(|s| s.as_str()).collect();
-        args.extend(["up", "-d", service]);
-        let status = self.run_compose(&args)?;
+        let args = Self::compose_up_args(compose_file, service, false)?;
+        let arg_refs: Vec<&str> = args.iter().map(|s| s.as_str()).collect();
+        let status = self.run_compose(&arg_refs)?;
+        if !status.success() {
+            bail!("Compose up failed");
+        }
+        Ok(())
+    }
+
+    /// Run compose up -d --no-deps for a service.
+    pub fn compose_up_no_deps(&self, compose_file: &str, service: &str) -> Result<()> {
+        let args = Self::compose_up_args(compose_file, service, true)?;
+        let arg_refs: Vec<&str> = args.iter().map(|s| s.as_str()).collect();
+        let status = self.run_compose(&arg_refs)?;
         if !status.success() {
             bail!("Compose up failed");
         }
@@ -504,6 +525,40 @@ mod tests {
         assert_eq!(args.len(), 2);
         assert_eq!(args[0], "-f");
         assert!(args[1].ends_with(".devcontainer/docker-compose.yml"));
+    }
+
+    #[test]
+    fn compose_up_args_can_skip_dependencies() {
+        let dir = tempfile::tempdir().unwrap();
+        let devcontainer = dir.path().join(".devcontainer");
+        std::fs::create_dir_all(&devcontainer).unwrap();
+        let compose_file = devcontainer.join("docker-compose.yml");
+        std::fs::write(&compose_file, "services: {}\n").unwrap();
+
+        let compose_file = compose_file.to_string_lossy();
+        let args = Runtime::compose_up_args(&compose_file, "aibox-diagnostics", true).unwrap();
+
+        assert!(args.ends_with(&[
+            "up".to_string(),
+            "-d".to_string(),
+            "--no-deps".to_string(),
+            "aibox-diagnostics".to_string(),
+        ]));
+    }
+
+    #[test]
+    fn compose_up_args_include_dependencies_by_default() {
+        let dir = tempfile::tempdir().unwrap();
+        let devcontainer = dir.path().join(".devcontainer");
+        std::fs::create_dir_all(&devcontainer).unwrap();
+        let compose_file = devcontainer.join("docker-compose.yml");
+        std::fs::write(&compose_file, "services: {}\n").unwrap();
+
+        let compose_file = compose_file.to_string_lossy();
+        let args = Runtime::compose_up_args(&compose_file, "aibox", false).unwrap();
+
+        assert!(args.ends_with(&["up".to_string(), "-d".to_string(), "aibox".to_string(),]));
+        assert!(!args.contains(&"--no-deps".to_string()));
     }
 
     #[test]

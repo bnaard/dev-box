@@ -187,7 +187,11 @@ fn dispatch(cli: cli::Cli) -> anyhow::Result<()> {
             );
             result
         }
-        cli::Commands::Up { layout, apply } => {
+        cli::Commands::Up {
+            layout,
+            apply,
+            forget_zellij_state,
+        } => {
             if apply {
                 container::cmd_sync(config_path, false, false, false, false, false)?;
             }
@@ -196,7 +200,8 @@ fn dispatch(cli: cli::Cli) -> anyhow::Result<()> {
                 .map(|l| l.to_string())
                 .unwrap_or_else(|| config.customization.layout.to_string());
             let timer = crate::log::LogTimer::start("up");
-            let result = container::cmd_start(config_path, &resolved_layout);
+            let result =
+                container::cmd_start(config_path, &resolved_layout, apply || forget_zellij_state);
             timer.finish(
                 Path::new("."),
                 if result.is_ok() { 0 } else { 1 },
