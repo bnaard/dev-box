@@ -12,6 +12,7 @@ below shows the minimum compatible processkit version for each aibox release.
 
 | aibox version | Min. processkit | Notes |
 |--------------|-----------------|-------|
+| 0.24.1 | v0.25.8 | fixes generated compose so the main service starts with the image default root entrypoint user again, allowing `entrypoint.sh` to remap/drop to `aibox` instead of failing with `failed switching to "aibox": operation not permitted` during release-host runtime smoke |
 | 0.24.0 | v0.25.8 | adds the bounded diagnostics sidecar, replaces the shell fan-out `aibox-status` helper with Rust snapshot readers, wires sidecar-backed Zellij status rows, adds `aibox emergency <harness>`, keeps legacy `native`/`hidden` status aliases while emitting `sidecar`/`disabled`, and reduces host release smoke to a minimal default tier with opt-in addon/full tiers |
 | 0.23.21 | v0.25.8 | repairs generated Yazi git/status initialization for Yazi 26; preserves native Zellij plugin permission caches across runtime starts; adds doctor and E2E guardrails for native Zellij permission-cache projection drift; installs the Yazi `ya` companion entrypoint in runtime images; slims visual E2E release gates with per-case progress logging and an opt-in exhaustive matrix |
 | 0.23.20 | v0.25.8 | makes the release runtime smoke harness host-safe by defaulting to shell Zellij status mode, capturing raw TUI output into logs instead of streaming escape sequences to the host terminal, and asserting on structured probe markers rather than terminal transcripts |

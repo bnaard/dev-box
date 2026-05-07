@@ -330,6 +330,11 @@ pub static COMPAT_TABLE: &[CompatEntry] = &[
         processkit_version: "v0.25.8",
         note: "Minor release: adds the bounded diagnostics sidecar, replaces the shell fan-out aibox-status helper with Rust snapshot readers, wires sidecar-backed Zellij status rows, adds `aibox emergency <harness>` recovery startup, keeps legacy native/hidden status aliases while emitting sidecar/disabled, and reduces host release smoke to a minimal default tier with opt-in addon/full tiers.",
     },
+    CompatEntry {
+        aibox_version: "0.24.1",
+        processkit_version: "v0.25.8",
+        note: "Patch release: fixes generated compose so the main service starts with the image default root entrypoint user again, allowing entrypoint.sh to remap/drop to aibox instead of failing with `failed switching to \"aibox\": operation not permitted` during release-host runtime smoke.",
+    },
 ];
 
 /// Find the minimum compatible processkit version for the given aibox version.

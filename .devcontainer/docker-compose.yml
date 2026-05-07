@@ -24,7 +24,6 @@ services:
     image: aibox-devcontainer:latest
     container_name: aibox
     hostname: aibox
-    user: aibox
     init: true
     # Codex CLI uses bubblewrap for Linux sandboxing. Some container
     # runtime seccomp profiles block unprivileged user namespace creation

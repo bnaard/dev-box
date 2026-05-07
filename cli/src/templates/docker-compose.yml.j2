@@ -22,7 +22,6 @@ services:
     image: {{ image_name }}
     container_name: {{ name }}
     hostname: {{ hostname }}
-    user: {{ user }}
     init: true
 {% if codex_sandbox_seccomp %}
     # Codex CLI uses bubblewrap for Linux sandboxing. Some container

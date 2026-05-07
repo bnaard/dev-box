@@ -950,6 +950,23 @@ mod tests {
     }
 
     #[test]
+    fn compose_main_service_does_not_override_image_user() {
+        let dir = tempfile::tempdir().unwrap();
+        let config = make_config(&[], false);
+        generate_docker_compose(&config, dir.path(), &test_env()).unwrap();
+
+        let content = fs::read_to_string(dir.path().join("docker-compose.yml")).unwrap();
+        let main_service = content
+            .split("  test-ctr-diagnostics:")
+            .next()
+            .expect("main service should be present");
+        assert!(
+            !main_service.contains("\n    user:"),
+            "main service must start with the image default user so entrypoint.sh can remap/drop privileges:\n{content}"
+        );
+    }
+
+    #[test]
     fn compose_exports_shell_env_for_zellij() {
         let dir = tempfile::tempdir().unwrap();
         let config = make_config(&[], false);
