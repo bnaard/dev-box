@@ -22,6 +22,7 @@ services:
     image: {{ image_name }}
     container_name: {{ name }}
     hostname: {{ hostname }}
+    user: {{ user }}
     init: true
 {% if codex_sandbox_seccomp %}
     # Codex CLI uses bubblewrap for Linux sandboxing. Some container
@@ -47,7 +48,7 @@ services:
       # XDG cache home. This must be mounted as a writable parent, not only as
       # selected subdirectories, because tools such as uv and starship create
       # their own cache/log directories at runtime. It also carries Zellij's
-      # pre-seeded native plugin permission cache.
+      # pre-seeded sidecar plugin permission cache.
       - {{ host_root }}/.cache:{{ container_home }}/.cache
       # Yazi file manager config
       - {{ host_root }}/.config/yazi:{{ container_home }}/.config/yazi
@@ -122,3 +123,25 @@ services:
       {{ key }}: "{{ env_vals[key] }}"
 {% endfor %}
     command: sleep infinity
+
+  {{ name }}-diagnostics:
+    image: {{ image_name }}
+    container_name: {{ name }}-diagnostics
+    hostname: {{ hostname }}-diagnostics
+    user: root
+    init: true
+    pid: "service:{{ name }}"
+    depends_on:
+      - {{ name }}
+    working_dir: /workspace
+    pids_limit: 64
+    mem_limit: 64m
+    cpus: 0.20
+    restart: "on-failure:3"
+    volumes:
+      - ${WORKSPACE_DIR:-{{ workspace_dir }}}:/workspace
+    command:
+      - /usr/local/bin/aibox-diagnostics
+      - --watch
+      - --output
+      - /workspace/.aibox/diagnostics

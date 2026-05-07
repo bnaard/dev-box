@@ -349,7 +349,6 @@ fn is_runtime_theme_reference_file(path: &Path) -> bool {
         || rel == ".config/yazi/theme.toml"
         || rel == ".config/starship.toml"
         || rel == ".config/lazygit/config.yml"
-        || rel == ".local/bin/aibox-status"
         || rel == ".local/bin/aibox-status-toggle"
 }
 
@@ -1320,7 +1319,7 @@ fn yaml_sequence_contains_ci(value: Option<&serde_yaml::Value>, needle: &str) ->
 }
 
 fn check_zellij_native_permission_projection(config: &AiboxConfig, diag: &mut DiagResult) {
-    if config.customization.zellij_status.mode != ZellijStatusMode::Native {
+    if config.customization.zellij_status.mode != ZellijStatusMode::Sidecar {
         return;
     }
 
@@ -1332,7 +1331,7 @@ fn check_zellij_native_permission_projection(config: &AiboxConfig, diag: &mut Di
         let path = root.join(rel_path);
         if !path.is_file() {
             output::warn(&format!(
-                "zellij: native status mode is enabled but {}/{} is missing; run `aibox apply` to seed the plugin permission cache",
+                "zellij: sidecar status mode is enabled but {}/{} is missing; run `aibox apply` to seed the plugin permission cache",
                 root.display(),
                 rel_path
             ));
@@ -1346,7 +1345,7 @@ fn check_zellij_native_permission_projection(config: &AiboxConfig, diag: &mut Di
     };
     let Ok(compose) = serde_yaml::from_str::<serde_yaml::Value>(&body) else {
         output::warn(&format!(
-            "zellij: could not parse {} to verify native status permission cache mounts",
+            "zellij: could not parse {} to verify sidecar status permission cache mounts",
             compose_path.display()
         ));
         diag.warnings += 1;
@@ -1357,13 +1356,13 @@ fn check_zellij_native_permission_projection(config: &AiboxConfig, diag: &mut Di
         compose_mounts_zellij_permission_cache(&compose, &config.container.name);
     if !current_cache {
         output::warn(
-            "zellij: native status mode is enabled but generated compose does not mount /home/aibox/.cache/zellij; run `aibox apply` with an up-to-date CLI and recreate the container",
+            "zellij: sidecar status mode is enabled but generated compose does not mount /home/aibox/.cache/zellij; run `aibox apply` with an up-to-date CLI and recreate the container",
         );
         diag.warnings += 1;
     }
     if !legacy_cache {
         output::warn(
-            "zellij: native status mode is enabled but generated compose does not mount /home/aibox/.cache/org/Zellij Contributors/Zellij; run `aibox apply` with an up-to-date CLI and recreate the container",
+            "zellij: sidecar status mode is enabled but generated compose does not mount /home/aibox/.cache/org/Zellij Contributors/Zellij; run `aibox apply` with an up-to-date CLI and recreate the container",
         );
         diag.warnings += 1;
     }
@@ -1375,7 +1374,7 @@ fn check_zellij_native_permission_projection(config: &AiboxConfig, diag: &mut Di
         && native_zellij_status_layout_uses_shared_plugin_location(&layout)
     {
         output::warn(&format!(
-            "zellij: native status layout {} uses one shared plugin location for both rows; run `aibox apply` with an up-to-date CLI and recreate the container",
+            "zellij: sidecar status layout {} uses one shared plugin location for both rows; run `aibox apply` with an up-to-date CLI and recreate the container",
             layout_path.display()
         ));
         diag.warnings += 1;
@@ -1385,7 +1384,7 @@ fn check_zellij_native_permission_projection(config: &AiboxConfig, diag: &mut Di
         && !native_zellij_status_role_plugins_available(Path::new("/usr/local/share/aibox/zellij"))
     {
         output::warn(
-            "zellij: current container image is missing physical native status role plugin files; rebuild/recreate the container from regenerated .devcontainer/Dockerfile",
+            "zellij: current container image is missing physical sidecar status role plugin files; rebuild/recreate the container from regenerated .devcontainer/Dockerfile",
         );
         diag.warnings += 1;
     }

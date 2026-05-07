@@ -8,6 +8,10 @@ services:
       target: aibox
     depends_on:
       - aibox-e2e-testrunner
+    # Guardrail for runaway terminal/status/plugin loops. Normal Rust builds
+    # stay well below this; a bad loop now fails inside the container before it
+    # can consume host/runtime-level PID space.
+    pids_limit: 1200
     # Codex CLI uses bubblewrap for Linux sandboxing. The main aibox
     # container does not need privileged mode or SYS_ADMIN for that, but
     # Docker/Podman seccomp profiles can still block unprivileged user

@@ -17,7 +17,7 @@ layout {
         }
         pane size=1 borderless=true {
             command "bash"
-            args "-lc" "if [ -x \"$HOME/.local/bin/aibox-status\" ]; then exec \"$HOME/.local/bin/aibox-status\" --watch; else exec aibox-status --watch; fi"
+            args "-lc" "exec aibox-status --watch"
         }
     }
 

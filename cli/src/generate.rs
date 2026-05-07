@@ -344,6 +344,7 @@ fn generate_docker_compose(
             image_name => compose_image_name,
             name => config.container.name,
             hostname => config.container.hostname,
+            user => config.container.user,
             workspace_dir => workspace_dir,
             host_root => host_root_str,
             container_home => container_home,
@@ -856,6 +857,7 @@ mod tests {
         assert!(content.contains("image: test-ctr-devcontainer:latest"));
         assert!(content.contains("container_name: test-ctr"));
         assert!(content.contains("hostname: test-host"));
+        assert!(content.contains("user: root"));
     }
 
     #[test]
@@ -958,6 +960,23 @@ mod tests {
             content.contains("SHELL: \"/bin/bash\""),
             "compose should export SHELL so Zellij default-shell code paths do not fall back to /bin/sh:\n{content}"
         );
+    }
+
+    #[test]
+    fn compose_adds_limited_diagnostics_sidecar() {
+        let dir = tempfile::tempdir().unwrap();
+        let config = make_config(&[], false);
+        generate_docker_compose(&config, dir.path(), &test_env()).unwrap();
+
+        let content = fs::read_to_string(dir.path().join("docker-compose.yml")).unwrap();
+        assert!(content.contains("test-ctr-diagnostics:"));
+        assert!(content.contains("container_name: test-ctr-diagnostics"));
+        assert!(content.contains("pid: \"service:test-ctr\""));
+        assert!(content.contains("pids_limit: 64"));
+        assert!(content.contains("mem_limit: 64m"));
+        assert!(content.contains("cpus: 0.20"));
+        assert!(content.contains("/usr/local/bin/aibox-diagnostics"));
+        assert!(content.contains("/workspace/.aibox/diagnostics"));
     }
 
     #[test]

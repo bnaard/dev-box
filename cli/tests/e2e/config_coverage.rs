@@ -9,6 +9,7 @@
 //! These are Tier 1 tests — no running container needed, fast.
 
 use std::fs;
+use std::path::Path;
 use std::process::Command;
 
 /// Get the path to the aibox binary.
@@ -94,6 +95,90 @@ fn sync_project(dir: &std::path::Path) {
         "apply failed: {}",
         String::from_utf8_lossy(&output.stderr)
     );
+}
+
+fn processkit_version_from_toml(dir: &Path) -> String {
+    let body = fs::read_to_string(dir.join("aibox.toml")).expect("failed to read aibox.toml");
+    let mut in_processkit = false;
+    for line in body.lines() {
+        let trimmed = line.trim_start();
+        if trimmed.starts_with('[') {
+            in_processkit = trimmed.starts_with("[processkit]");
+        }
+        if in_processkit && trimmed.starts_with("version") {
+            return trimmed
+                .split_once('=')
+                .map(|(_, value)| value.trim().trim_matches('"').to_string())
+                .expect("processkit version line should contain =");
+        }
+    }
+    panic!("aibox.toml should contain [processkit].version");
+}
+
+fn seed_processkit_install_fixture(dir: &Path) {
+    let version = processkit_version_from_toml(dir);
+    let source = "https://github.com/projectious-work/processkit.git";
+    let cli_version = env!("CARGO_PKG_VERSION");
+    fs::write(
+        dir.join("aibox.lock"),
+        format!(
+            "[aibox]\n\
+             cli_version = \"{cli_version}\"\n\
+             synced_at = \"2026-05-07T00:00:00Z\"\n\
+             \n\
+             [processkit]\n\
+             source = \"{source}\"\n\
+             version = \"{version}\"\n\
+             src_path = \"src\"\n\
+             installed_at = \"2026-05-07T00:00:00Z\"\n\
+             processkit_install_hash = \"stale-fixture-hash\"\n"
+        ),
+    )
+    .expect("failed to write processkit fixture lock");
+
+    let mirror = dir.join("context/templates/processkit").join(&version);
+    fs::create_dir_all(&mirror).expect("failed to create processkit fixture mirror");
+    fs::write(
+        mirror.join("PROVENANCE.toml"),
+        format!(
+            "[source]\n\
+             project = \"processkit\"\n\
+             upstream = \"{source}\"\n\
+             generated_at = \"2026-05-07T00:00:00Z\"\n\
+             generated_for_tag = \"{version}\"\n"
+        ),
+    )
+    .expect("failed to write processkit fixture provenance");
+
+    let context = dir.join("context");
+    fs::create_dir_all(&context).expect("failed to create processkit fixture context");
+    fs::write(
+        context.join(".processkit-provenance.toml"),
+        format!(
+            "schema_version = 1\n\
+             \n\
+             [install]\n\
+             processkit_version = \"{version}\"\n\
+             processkit_source = \"{source}\"\n\
+             installed_at = \"2026-05-07T00:00:00Z\"\n\
+             cli_version = \"{cli_version}\"\n\
+             \n\
+             [manifest]\n\
+             skill_count = 0\n\
+             schema_count = 0\n\
+             process_count = 0\n\
+             state_machine_count = 0\n"
+        ),
+    )
+    .expect("failed to write processkit fixture live provenance");
+
+    let skill = context.join("skills/processkit/_fixture-marker");
+    fs::create_dir_all(&skill).expect("failed to create processkit fixture skill");
+    fs::write(
+        skill.join("SKILL.md"),
+        format!("# fixture-marker\n\nSynthetic processkit skill marker for {version}.\n"),
+    )
+    .expect("failed to write processkit fixture skill");
 }
 
 /// Read a generated file relative to the project directory.
@@ -431,6 +516,7 @@ fn sync_updates_processkit_install_hash_in_lock() {
     // full processkit-shipped install payload).
     let dir = tempfile::tempdir().unwrap();
     init_project(dir.path(), "mcp-test");
+    seed_processkit_install_fixture(dir.path());
     sync_project(dir.path());
 
     // Read the lock file and verify processkit_install_hash is set

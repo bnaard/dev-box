@@ -265,6 +265,38 @@ fn apply_help_mentions_no_cache_and_rebuild_alias() {
 }
 
 #[test]
+fn emergency_help_exposes_harness_entrypoint() {
+    let output = run(&["emergency", "--help"]);
+    assert!(
+        output.status.success(),
+        "aibox emergency --help should exit 0"
+    );
+    let stdout = String::from_utf8_lossy(&output.stdout);
+    assert!(
+        stdout.contains("<HARNESS>"),
+        "emergency help should expose the harness positional:\n{stdout}"
+    );
+    assert!(
+        stdout.contains("without Zellij"),
+        "emergency help should describe the non-Zellij recovery path:\n{stdout}"
+    );
+}
+
+#[test]
+fn emergency_rejects_unknown_harness_before_runtime_work() {
+    let output = run(&["emergency", "not-a-harness"]);
+    assert!(
+        !output.status.success(),
+        "aibox emergency should reject unknown harness values"
+    );
+    let stderr = String::from_utf8_lossy(&output.stderr);
+    assert!(
+        stderr.contains("invalid value") || stderr.contains("not-a-harness"),
+        "error should mention the invalid harness:\n{stderr}"
+    );
+}
+
+#[test]
 fn apply_no_cache_parses() {
     let dir = tempfile::tempdir().unwrap();
     std::fs::write(

@@ -328,7 +328,7 @@ pub static COMPAT_TABLE: &[CompatEntry] = &[
     CompatEntry {
         aibox_version: "0.24.0",
         processkit_version: "v0.25.8",
-        note: "Minor release: hardens runtime cache ownership and SHELL propagation, removes stale Claude home-installer symlinks, splits native Zellij key/status rows across role-specific plugin paths with Zellij-style colored capsules, protects Yazi-to-Vim handoff from injecting commands into non-editor panes, and adds a full-pane Yazi preview helper for Markdown, code, and PDFs.",
+        note: "Minor release: adds the bounded diagnostics sidecar, replaces the shell fan-out aibox-status helper with Rust snapshot readers, wires sidecar-backed Zellij status rows, adds `aibox emergency <harness>` recovery startup, keeps legacy native/hidden status aliases while emitting sidecar/disabled, and reduces host release smoke to a minimal default tier with opt-in addon/full tiers.",
     },
 ];
 

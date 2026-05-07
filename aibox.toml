@@ -649,6 +649,6 @@ prompt = "arrow"
 # Default zellij layout. Options: dev | focus | cowork | cowork-swap | browse | ai
 layout = "ai"
 
-# Zellij status presentation. Options: native | shell | hidden
+# Zellij status presentation. Options: sidecar | shell | disabled
 [customization.zellij_status]
-mode = "native"
+mode = "disabled"

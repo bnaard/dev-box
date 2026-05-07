@@ -20,26 +20,21 @@ pub(crate) struct AiboxStatusPlugin {
     request_id: u64,
     role: RowRole,
     hidden: bool,
+    request_in_flight: bool,
 }
 
 impl AiboxStatusPlugin {
     fn refresh(&mut self) {
-        if self.role != RowRole::Status || self.hidden {
+        if self.role != RowRole::Status || self.hidden || self.request_in_flight {
             return;
         }
         self.request_id += 1;
+        self.request_in_flight = true;
 
         let mut context = BTreeMap::new();
         context.insert(REQUEST_KIND.to_string(), self.request_id.to_string());
 
-        run_command(
-            &[
-                "sh",
-                "-lc",
-                "command -v aibox-status >/dev/null 2>&1 && aibox-status --plugin-json || /usr/local/bin/aibox-status --plugin-json",
-            ],
-            context,
-        );
+        run_command(&["/usr/local/bin/aibox-status", "--plugin-json"], context);
     }
 
     fn apply_configuration(&mut self, configuration: BTreeMap<String, String>) {
@@ -132,6 +127,7 @@ impl ZellijPlugin for AiboxStatusPlugin {
             Event::RunCommandResult(exit_code, stdout, stderr, context)
                 if context.contains_key(REQUEST_KIND) =>
             {
+                self.request_in_flight = false;
                 if exit_code == Some(0) {
                     let line = String::from_utf8_lossy(&stdout);
                     self.state.snapshot = RuntimeSnapshot::from_aibox_status_json(line.trim())

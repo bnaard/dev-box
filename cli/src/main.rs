@@ -208,6 +208,20 @@ fn dispatch(cli: cli::Cli) -> anyhow::Result<()> {
             );
             result
         }
+        cli::Commands::Emergency { harness } => {
+            let timer = crate::log::LogTimer::start("emergency");
+            let result = container::cmd_emergency(config_path, harness);
+            timer.finish(
+                Path::new("."),
+                if result.is_ok() { 0 } else { 1 },
+                if result.is_ok() {
+                    "emergency completed"
+                } else {
+                    "emergency failed"
+                },
+            );
+            result
+        }
         cli::Commands::Down => container::cmd_stop(config_path),
         cli::Commands::Get {
             resource,

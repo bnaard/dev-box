@@ -123,10 +123,10 @@ fn layout_has_top_level_tab(layout_kdl: &str, tab: &str) -> bool {
     layout_kdl.contains(&format!("aibox-tab name=\"{tab}\""))
 }
 
-fn assert_generated_native_status_layout(layout: &str, layout_kdl: &str) {
+fn assert_generated_sidecar_status_layout(layout: &str, layout_kdl: &str) {
     assert!(
         layout_kdl.contains("role \"keys\"") && layout_kdl.contains("role \"status\""),
-        "{layout}: expected generated layout to wire native aibox key/status rows:\n{layout_kdl}"
+        "{layout}: expected generated layout to wire sidecar-backed aibox key/status rows:\n{layout_kdl}"
     );
 }
 
@@ -155,7 +155,7 @@ fn assert_no_zellij_permission_prompt(recording: &str, label: &str) {
     ] {
         assert!(
             !recording.contains(bad),
-            "{label}: native status plugin permission prompt leaked into the visual recording ({bad:?}):\n{recording}"
+            "{label}: sidecar status plugin permission prompt leaked into the visual recording ({bad:?}):\n{recording}"
         );
     }
 }
@@ -280,7 +280,7 @@ fn init_project(
         "--theme",
         theme,
         "--zellij-status",
-        "native",
+        "sidecar",
         "--harness",
     ];
     if all_harnesses {
@@ -684,7 +684,7 @@ fn visual_generated_layouts_render_across_all_themes() {
             assert_no_zellij_permission_prompt(&recording, &label);
             assert_generated_theme_config(&runner, &test_name, theme, r, g, b);
             let layout_kdl = generated_layout(&runner, &test_name, layout);
-            assert_generated_native_status_layout(layout, &layout_kdl);
+            assert_generated_sidecar_status_layout(layout, &layout_kdl);
             log_visual_progress(format!(
                 "status matrix [{case}/{total_cases}]: passed theme={theme} layout={layout}"
             ));
@@ -797,12 +797,17 @@ fn visual_generated_tools_and_harness_tabs_render_when_enabled() {
 #[test]
 #[serial]
 #[ignore = "visual Yazi preview e2e is release-gated; run explicitly via scripts/maintain.sh test-e2e-visual-yazi or test-e2e-visual"]
-#[ntest::timeout(180_000)]
+#[ntest::timeout(300_000)]
 fn visual_yazi_previews_git_symbols_and_optional_plugins_render() {
     let runner = E2eRunner::new();
     runner.ensure_deployed();
 
     let test_name = "visual-matrix-yazi-previews";
+    runner.exec(
+        "timeout 2s pkill -x zellij >/dev/null 2>&1 || true; \
+         timeout 2s pkill -x yazi >/dev/null 2>&1 || true; \
+         timeout 2s pkill -x asciinema >/dev/null 2>&1 || true",
+    );
     init_project(
         &runner,
         test_name,
@@ -858,7 +863,7 @@ fn visual_yazi_previews_git_symbols_and_optional_plugins_render() {
             "record yazi preview project={test_name} case={case}/{total_cases} label={label}"
         ));
         runner.exec(&format!(
-            "rm -rf /tmp/zellij-*; sudo rm -rf /workspace; sudo ln -s {workspace} /workspace; zellij delete-session aibox-yazi-preview-{label} --force >/dev/null 2>&1 || true"
+            "rm -rf /tmp/zellij-*; sudo rm -rf /workspace; sudo ln -s {workspace} /workspace; timeout 2s zellij delete-session aibox-yazi-preview-{label} --force >/dev/null 2>&1 || true"
         ));
         runner.write_file(
             test_name,
@@ -884,6 +889,7 @@ export HOME="{home}"
 export TERM=xterm-256color
 export COLORTERM=truecolor
 export PATH="$HOME/.local/bin:/usr/local/bin:$PATH"
+marker="{marker}"
 (
   for attempt in $(seq 1 10); do
     export ZELLIJ_SESSION_NAME=$(zellij list-sessions --no-formatting 2>/dev/null | grep -v EXITED | head -1 | awk '{{print $1}}')
@@ -892,11 +898,11 @@ export PATH="$HOME/.local/bin:/usr/local/bin:$PATH"
   done
   sleep 1
   zellij action write 27 >/dev/null 2>&1 || true
-  for attempt in $(seq 1 10); do
+  for attempt in $(seq 1 24); do
     zellij action dump-screen > "{workspace}/yazi-preview-{label}.screen.tmp" 2>/dev/null || true
     if [ -s "{workspace}/yazi-preview-{label}.screen.tmp" ]; then
       mv "{workspace}/yazi-preview-{label}.screen.tmp" "{workspace}/yazi-preview-{label}.screen"
-      break
+      grep -Fq "$marker" "{workspace}/yazi-preview-{label}.screen" && break
     fi
     sleep 0.5
   done
@@ -906,7 +912,7 @@ export PATH="$HOME/.local/bin:/usr/local/bin:$PATH"
   timeout 2s pkill -x zellij >/dev/null 2>&1 || true
 ) &
 driver_pid=$!
-timeout --kill-after=2s 10s zellij --config "$HOME/.config/zellij/config.kdl" \
+timeout --kill-after=2s 18s zellij --config "$HOME/.config/zellij/config.kdl" \
        --config-dir "$HOME/.config/zellij" \
        --new-session-with-layout "$HOME/.config/zellij/layouts/yazi-preview-{label}.kdl" \
        --session "aibox-yazi-preview-{label}" 2>/dev/null || true
@@ -918,7 +924,7 @@ true
         );
         runner.exec(&format!("chmod +x {workspace}/yazi-preview-{label}.sh"));
         runner.exec(&format!(
-            "LC_ALL=C.UTF-8 LANG=C.UTF-8 timeout --kill-after=2s 25s asciinema rec --cols 160 --rows 45 --overwrite \
+            "LC_ALL=C.UTF-8 LANG=C.UTF-8 timeout --kill-after=2s 35s asciinema rec --cols 160 --rows 45 --overwrite \
              -c {workspace}/yazi-preview-{label}.sh {workspace}/yazi-preview-{label}.cast 2>/dev/null; true"
         ));
         let logs = runner.exec("cat /tmp/zellij-*/zellij-log/zellij.log 2>/dev/null || true");

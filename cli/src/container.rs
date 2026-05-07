@@ -661,6 +661,13 @@ pub fn cmd_start(config_path: &Option<String>, layout: &str) -> Result<()> {
         }
     }
 
+    let diagnostics_service = format!("{name}-diagnostics");
+    if let Err(error) = runtime.compose_up(crate::config::COMPOSE_FILE, &diagnostics_service) {
+        output::warn(&format!(
+            "Diagnostics sidecar could not be started: {error}. Continuing with main container attach."
+        ));
+    }
+
     output::info(&format!("Attaching via zellij (layout: {})...", layout));
 
     // Kill any existing zellij session with this name to ensure a fresh start
@@ -691,6 +698,117 @@ pub fn cmd_start(config_path: &Option<String>, layout: &str) -> Result<()> {
     )?;
 
     Ok(())
+}
+
+pub fn cmd_emergency(config_path: &Option<String>, harness: AiHarness) -> Result<()> {
+    let config = AiboxConfig::from_cli_option(config_path)?;
+    let runtime = Runtime::detect()?;
+    let name = &config.container.name;
+
+    match runtime.container_status(name)? {
+        ContainerState::Running => {
+            output::info("Container already running");
+        }
+        state @ (ContainerState::Stopped | ContainerState::Missing) => {
+            let action = if state == ContainerState::Stopped {
+                "Starting stopped"
+            } else {
+                "Creating and starting"
+            };
+            output::info(&format!("{} main container...", action));
+            runtime.compose_up(crate::config::COMPOSE_FILE, name)?;
+            runtime.wait_for_running(name, 7500)?;
+            output::ok("Container started");
+        }
+    }
+
+    let home = config.container_home();
+    let briefing_path = format!("{home}/.cache/aibox/emergency-briefing.md");
+    let briefing = emergency_briefing(&config, &harness, &briefing_path);
+    let write_script = format!(
+        "umask 077; mkdir -p {}; printf '%s' {} > {}",
+        shell_single_quote(&format!("{home}/.cache/aibox")),
+        shell_single_quote(&briefing),
+        shell_single_quote(&briefing_path)
+    );
+    if !runtime.exec_status(name, &config.container.user, &["sh", "-lc", &write_script])? {
+        output::warn("Could not write emergency briefing inside the container; printing inline");
+    }
+
+    output::info(&format!(
+        "Launching emergency session for {} without Zellij...",
+        harness.display_name()
+    ));
+    let launch_script = emergency_launch_script(&harness, &briefing_path, &briefing);
+    runtime.exec_interactive(
+        name,
+        &config.container.user,
+        &["bash", "-lc", &launch_script],
+    )?;
+
+    Ok(())
+}
+
+fn emergency_briefing(config: &AiboxConfig, harness: &AiHarness, briefing_path: &str) -> String {
+    format!(
+        r#"# aibox emergency recovery briefing
+
+You are running inside the main aibox container `{container}` via `aibox emergency {harness}`.
+This session intentionally bypassed Zellij, Yazi, and aibox status tooling.
+
+First checks:
+- Read recent aibox logs: `/workspace/.aibox/aibox.log` and rotated `/workspace/.aibox/aibox.log.*` files if present.
+- Inspect runtime diagnostics snapshots if available: `/workspace/.aibox/diagnostics/` and `/tmp/aibox-diagnostics/`.
+- Check process pressure: `cat /sys/fs/cgroup/pids.current /sys/fs/cgroup/pids.max`; inspect `/proc` for process counts and zombies.
+- Check memory pressure: `cat /sys/fs/cgroup/memory.current /sys/fs/cgroup/memory.max /sys/fs/cgroup/memory.events`.
+- Inspect Zellij only as evidence: `/tmp/zellij-*/zellij-log/zellij.log`, `{home}/.cache/zellij`, and `{home}/.cache/org/Zellij Contributors/Zellij`.
+- Avoid launching Zellij, Yazi, or status helpers until the runtime is stable.
+
+Workspace: `/workspace`
+Container home: `{home}`
+Selected harness: `{display_name}`
+Harness binary: `{binary}`
+Briefing file: `{briefing_path}`
+"#,
+        container = config.container.name,
+        harness = harness,
+        home = config.container_home(),
+        display_name = harness.display_name(),
+        binary = harness.binary_name(),
+        briefing_path = briefing_path,
+    )
+}
+
+fn emergency_launch_script(harness: &AiHarness, briefing_path: &str, briefing: &str) -> String {
+    let binary = harness.binary_name();
+    format!(
+        r#"if [ -r {briefing_path} ]; then
+  printf '\n'
+  sed -n '1,220p' {briefing_path}
+  printf '\n'
+else
+  printf '\nEmergency briefing was not found at %s; printing fallback briefing.\n\n' {briefing_path}
+  printf '%s\n' {briefing}
+fi
+
+if command -v {binary} >/dev/null 2>&1; then
+  resolved="$(command -v {binary})"
+  printf 'Launching %s at %s. Briefing: %s\n\n' {binary} "$resolved" {briefing_path}
+  exec {binary}
+fi
+
+printf 'Harness binary %s is not available in this container. Briefing: %s\n' {binary} {briefing_path}
+printf 'Starting a plain recovery shell instead.\n\n'
+exec "${{SHELL:-/bin/bash}}"
+"#,
+        briefing_path = shell_single_quote(briefing_path),
+        briefing = shell_single_quote(briefing),
+        binary = shell_single_quote(binary),
+    )
+}
+
+fn shell_single_quote(value: &str) -> String {
+    format!("'{}'", value.replace('\'', "'\"'\"'"))
 }
 
 pub fn cmd_stop(config_path: &Option<String>) -> Result<()> {
@@ -1230,7 +1348,7 @@ pub(crate) fn serialize_config_with_comments(config: &AiboxConfig) -> String {
     );
     out.push_str(&format!("layout = \"{}\"\n", config.customization.layout));
     out.push('\n');
-    out.push_str("# Zellij status presentation. Options: native | shell | hidden\n");
+    out.push_str("# Zellij status presentation. Options: sidecar | shell | disabled\n");
     out.push_str("[customization.zellij_status]\n");
     out.push_str(&format!(
         "mode = \"{}\"\n",
@@ -1814,13 +1932,13 @@ pub fn cmd_init(config_path: &Option<String>, params: InitParams) -> Result<()> 
         None if interactive => {
             let labels = [
                 "shell — built-in Zellij bar plus aibox runtime status (recommended)",
-                "native — experimental aibox WASM plugin",
-                "hidden — no aibox-provided status rows",
+                "sidecar — aibox WASM plugin backed by diagnostics snapshots",
+                "disabled — no aibox-provided status rows",
             ];
             let modes = [
                 ZellijStatusMode::Shell,
-                ZellijStatusMode::Native,
-                ZellijStatusMode::Hidden,
+                ZellijStatusMode::Sidecar,
+                ZellijStatusMode::Disabled,
             ];
             let idx = dialoguer::Select::new()
                 .with_prompt("Zellij status")

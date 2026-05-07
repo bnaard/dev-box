@@ -25,7 +25,8 @@ run_id="$(date +%Y%m%d-%H%M%S)"
 log_dir="${AIBOX_RELEASE_SMOKE_DIR:-${DIST_DIR}/release-smoke/v${version}/${run_id}}"
 project_dir="${AIBOX_RELEASE_SMOKE_PROJECT_DIR:-$(mktemp -d "${TMPDIR:-/tmp}/aibox-release-smoke-v${version}.XXXXXX")}"
 container_name="${AIBOX_RELEASE_SMOKE_CONTAINER:-aibox-release-smoke-${version//./-}}"
-zellij_status="${AIBOX_RELEASE_SMOKE_ZELLIJ_STATUS:-native}"
+zellij_status="${AIBOX_RELEASE_SMOKE_ZELLIJ_STATUS:-sidecar}"
+smoke_tier="${AIBOX_RELEASE_SMOKE_TIER:-minimal}"
 probe_script="${log_dir}/container-probe.sh"
 run_log="${log_dir}/run.log"
 
@@ -45,8 +46,17 @@ warn()  { echo "${yellow}${bold}  !${reset} $*"; }
 die()   { echo "${red}${bold}ERR${reset} $*" >&2; exit 1; }
 
 case "${zellij_status}" in
-  shell|native|hidden) ;;
-  *) die "AIBOX_RELEASE_SMOKE_ZELLIJ_STATUS must be shell, native, or hidden (got: ${zellij_status})" ;;
+  native) zellij_status="sidecar" ;;
+  hidden) zellij_status="disabled" ;;
+  shell|sidecar|disabled) ;;
+  *) die "AIBOX_RELEASE_SMOKE_ZELLIJ_STATUS must be sidecar, shell, or disabled (legacy aliases: native, hidden; got: ${zellij_status})" ;;
+esac
+
+case "${smoke_tier}" in
+  minimal) smoke_git_ui=0; smoke_preview=0 ;;
+  addons)  smoke_git_ui=1; smoke_preview=0 ;;
+  full)    smoke_git_ui=1; smoke_preview=1 ;;
+  *) die "AIBOX_RELEASE_SMOKE_TIER must be minimal, addons, or full (got: ${smoke_tier})" ;;
 esac
 
 if command -v docker >/dev/null 2>&1 && docker info >/dev/null 2>&1; then
@@ -114,6 +124,7 @@ collect_artifacts() {
     echo "aibox_bin=${aibox_bin}"
     echo "container_name=${container_name}"
     echo "zellij_status=${zellij_status}"
+    echo "smoke_tier=${smoke_tier}"
     echo "exit_status=${status}"
   } > "${log_dir}/metadata.env"
 
@@ -170,23 +181,29 @@ echo "Logs:          ${log_dir}"
 echo "Runtime:       ${runtime_bin}"
 echo "aibox:         ${aibox_bin}"
 echo "Zellij status: ${zellij_status}"
+echo "Smoke tier:    ${smoke_tier}"
 
 mkdir -p "${project_dir}"
 cd "${project_dir}"
 
 run git init -q
-run env AIBOX_ADDONS_DIR="${PROJECT_ROOT}/addons" "${aibox_bin}" init "${container_name}" \
-  --base debian \
-  --profile human-dev \
-  --theme tokyo-night \
-  --prompt arrow \
-  --zellij-status "${zellij_status}" \
-  --addon git-ui \
-  --addon preview-archive \
-  --addon preview-enhanced \
-  --processkit-version latest \
-  --no-container \
-  < /dev/null
+init_args=(
+  init "${container_name}"
+  --base debian
+  --profile human-dev
+  --theme tokyo-night
+  --prompt arrow
+  --zellij-status "${zellij_status}"
+  --processkit-version latest
+  --no-container
+)
+if [[ "${smoke_git_ui}" == "1" ]]; then
+  init_args+=(--addon git-ui)
+fi
+if [[ "${smoke_preview}" == "1" ]]; then
+  init_args+=(--addon preview-archive --addon preview-enhanced)
+fi
+run env AIBOX_ADDONS_DIR="${PROJECT_ROOT}/addons" "${aibox_bin}" "${init_args[@]}" < /dev/null
 
 cat > aibox.toml <<EOF
 apiVersion = "aibox.projectious.work/v1"
@@ -216,17 +233,6 @@ local_env = ".aibox-local.env"
 [skills]
 enabled = []
 disabled = []
-
-[addons.git-ui.tools]
-gh = {}
-lazygit = {}
-
-[addons.preview-archive.tools]
-
-[addons.preview-enhanced.tools]
-ffmpeg = {}
-imagemagick = {}
-ghostscript = {}
 
 [ai]
 model_providers = []
@@ -264,13 +270,38 @@ layout = "ai"
 mode = "${zellij_status}"
 EOF
 
-run env AIBOX_ADDONS_DIR="${PROJECT_ROOT}/addons" "${aibox_bin}" apply --no-cache --standardize-config
+if [[ "${smoke_git_ui}" == "1" ]]; then
+  cat >> aibox.toml <<'EOF'
+
+[addons.git-ui.tools]
+gh = {}
+lazygit = {}
+EOF
+fi
+if [[ "${smoke_preview}" == "1" ]]; then
+  cat >> aibox.toml <<'EOF'
+
+[addons.preview-archive.tools]
+
+[addons.preview-enhanced.tools]
+ffmpeg = {}
+imagemagick = {}
+ghostscript = {}
+EOF
+fi
+
+apply_args=(apply --standardize-config)
+if [[ "${AIBOX_RELEASE_SMOKE_NO_CACHE:-0}" =~ ^(1|true|yes)$ || "${smoke_tier}" == "full" ]]; then
+  apply_args+=(--no-cache)
+fi
+run env AIBOX_ADDONS_DIR="${PROJECT_ROOT}/addons" "${aibox_bin}" "${apply_args[@]}"
 run compose -f "$(compose_file)" up -d "${container_name}"
 
 cat > "${probe_script}" <<'EOF'
 #!/usr/bin/env bash
 set -u
 zellij_status="__AIBOX_RELEASE_SMOKE_ZELLIJ_STATUS__"
+smoke_git_ui="__AIBOX_RELEASE_SMOKE_GIT_UI__"
 
 fail=0
 section() { printf '\n== %s ==\n' "$*"; }
@@ -287,7 +318,11 @@ cd /workspace || exit 10
 section versions
 soft_run zellij --version || fail=1
 soft_run yazi --version || fail=1
-soft_run lazygit --version || fail=1
+if [[ "${smoke_git_ui}" == "1" ]]; then
+  soft_run lazygit --version || fail=1
+else
+  echo "lazygit version probe skipped for minimal smoke tier"
+fi
 soft_run vim --version | sed -n '1,4p' || true
 
 section yazi-config
@@ -302,15 +337,20 @@ else
   fail=1
 fi
 
-section lazygit-state
-state_dir="${XDG_STATE_HOME:-$HOME/.local/state}"
-mkdir -p "$HOME/.config/lazygit"
-if mkdir -p "${state_dir}/lazygit" 2>/tmp/aibox-lazygit-state-mkdir.err; then
-  ls -ld "$HOME" "$HOME/.config/lazygit" "${state_dir}" "${state_dir}/lazygit" 2>&1 || fail=1
+if [[ "${smoke_git_ui}" == "1" ]]; then
+  section lazygit-state
+  state_dir="${XDG_STATE_HOME:-$HOME/.local/state}"
+  mkdir -p "$HOME/.config/lazygit"
+  if mkdir -p "${state_dir}/lazygit" 2>/tmp/aibox-lazygit-state-mkdir.err; then
+    ls -ld "$HOME" "$HOME/.config/lazygit" "${state_dir}" "${state_dir}/lazygit" 2>&1 || fail=1
+  else
+    echo "warning: lazygit state directory is not writable in this release:"
+    cat /tmp/aibox-lazygit-state-mkdir.err
+    ls -ld "$HOME" "$HOME/.config/lazygit" "${state_dir}" 2>&1 || true
+  fi
 else
-  echo "warning: lazygit state directory is not writable in this release:"
-  cat /tmp/aibox-lazygit-state-mkdir.err
-  ls -ld "$HOME" "$HOME/.config/lazygit" "${state_dir}" 2>&1 || true
+  section lazygit-state
+  echo "skipped for minimal smoke tier"
 fi
 
 section status-helper
@@ -326,18 +366,18 @@ else
   echo "aibox-status helper not present in this release"
 fi
 
-section zellij-native-status-contract
-if [[ "${zellij_status}" == "native" ]]; then
+section zellij-sidecar-status-contract
+if [[ "${zellij_status}" == "sidecar" ]]; then
   status_dir="/usr/local/share/aibox/zellij"
   for plugin in aibox-status.wasm aibox-status-keys.wasm aibox-status-runtime.wasm; do
     path="${status_dir}/${plugin}"
     if [[ ! -f "${path}" ]]; then
-      echo "missing native status plugin file: ${path}"
+      echo "missing sidecar status plugin file: ${path}"
       fail=1
       continue
     fi
     if [[ -L "${path}" ]]; then
-      echo "native status plugin file must be physical, not a symlink: ${path}"
+      echo "sidecar status plugin file must be physical, not a symlink: ${path}"
       fail=1
     fi
     ls -l "${path}" || fail=1
@@ -347,13 +387,13 @@ if [[ "${zellij_status}" == "native" ]]; then
     "$HOME/.cache/zellij/permissions.kdl" \
     "$HOME/.cache/org/Zellij Contributors/Zellij/permissions.kdl"; do
     if [[ ! -r "${permissions}" ]]; then
-      echo "missing readable native status permission cache: ${permissions}"
+      echo "missing readable sidecar status permission cache: ${permissions}"
       fail=1
       continue
     fi
     if ! grep -q 'aibox-status-keys.wasm' "${permissions}" \
       || ! grep -q 'aibox-status-runtime.wasm' "${permissions}"; then
-      echo "native status permission cache lacks role-specific plugin grants: ${permissions}"
+      echo "sidecar status permission cache lacks role-specific plugin grants: ${permissions}"
       sed -n '1,120p' "${permissions}"
       fail=1
     fi
@@ -361,12 +401,12 @@ if [[ "${zellij_status}" == "native" ]]; then
 
   if ! grep -q 'aibox-status-keys.wasm' "$HOME/.config/zellij/layouts/ai.kdl" \
     || ! grep -q 'aibox-status-runtime.wasm' "$HOME/.config/zellij/layouts/ai.kdl"; then
-    echo "ai layout does not reference role-specific native status plugin files"
+    echo "ai layout does not reference role-specific sidecar status plugin files"
     sed -n '1,120p' "$HOME/.config/zellij/layouts/ai.kdl"
     fail=1
   fi
 else
-  echo "native status contract skipped for zellij_status=${zellij_status}"
+  echo "sidecar status contract skipped for zellij_status=${zellij_status}"
 fi
 
 section zellij-pty
@@ -395,18 +435,18 @@ else
     cat /tmp/aibox-zellij-errors.txt
     fail=1
   fi
-  if [[ "${zellij_status}" == "native" ]]; then
+  if [[ "${zellij_status}" == "sidecar" ]]; then
     if grep -aE 'This plugin asks permission|ReadApplicationState|RunCommands|Allow\? \(y/n\)' /tmp/aibox-zellij.typescript >/tmp/aibox-zellij-permission-prompt.txt 2>&1; then
-      echo "native status plugin permission prompt leaked into PTY smoke:"
+      echo "sidecar status plugin permission prompt leaked into PTY smoke:"
       cat /tmp/aibox-zellij-permission-prompt.txt
       fail=1
     fi
     if ! grep -aEi 'Ctrl-g|Leader|Alt-h/j/k/l|PANE|PANES' /tmp/aibox-zellij.typescript >/tmp/aibox-zellij-key-row.txt 2>&1; then
-      echo "native status key row was not visible in PTY smoke"
+      echo "sidecar status key row was not visible in PTY smoke"
       fail=1
     fi
     if ! grep -aE 'MEM .+/unlimited|OOM [0-9]+|PROC [0-9]+ AI [0-9]+|MCP (gateway|granular|none) [0-9]+' /tmp/aibox-zellij.typescript >/tmp/aibox-zellij-runtime-row.txt 2>&1; then
-      echo "native runtime status row was not visible in PTY smoke"
+      echo "sidecar runtime status row was not visible in PTY smoke"
       fail=1
     fi
   fi
@@ -419,6 +459,7 @@ fi
 exit "${fail}"
 EOF
 sed -i.bak "s/__AIBOX_RELEASE_SMOKE_ZELLIJ_STATUS__/${zellij_status}/g" "${probe_script}"
+sed -i.bak "s/__AIBOX_RELEASE_SMOKE_GIT_UI__/${smoke_git_ui}/g" "${probe_script}"
 
 run runtime cp "${probe_script}" "${container_name}:/tmp/aibox-release-smoke-probe.sh"
 run runtime exec --user root "${container_name}" chmod 0755 /tmp/aibox-release-smoke-probe.sh

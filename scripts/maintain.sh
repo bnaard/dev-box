@@ -207,7 +207,7 @@ cmd_test_e2e() {
 }
 
 cmd_test_e2e_visual_status() {
-  info "Running opt-in visual E2E: layouts, themes, and native status rows..."
+  info "Running opt-in visual E2E: layouts, themes, and sidecar status rows..."
   (cd "${CLI_DIR}" && cargo test --features e2e --test e2e \
     visual_generated_layouts_render_across_all_themes -- --ignored --nocapture --test-threads=1) \
     || die "Visual E2E status/theme matrix failed"
@@ -232,7 +232,7 @@ cmd_test_e2e_visual_yazi() {
 
 cmd_test_e2e_visual() {
   info "Running all opt-in visual E2E tiers..."
-  info "Visual E2E tier 1/3: layouts, themes, and native status rows"
+  info "Visual E2E tier 1/3: layouts, themes, and sidecar status rows"
   cmd_test_e2e_visual_status
   info "Visual E2E tier 2/3: tab traversal, tools, and harnesses"
   cmd_test_e2e_visual_tabs
@@ -932,7 +932,13 @@ cmd_attach() {
   fi
   info "Attaching — launching zellij..."
   echo ""
-  ${RUNTIME_BIN} exec -it "${CONTAINER_NAME}" zellij --layout dev
+  ${RUNTIME_BIN} exec -it \
+    --user aibox \
+    --env HOME=/home/aibox \
+    --env SHELL=/bin/bash \
+    --env XDG_CACHE_HOME=/home/aibox/.cache \
+    "${CONTAINER_NAME}" \
+    zellij --layout dev
 }
 
 cmd_status() {

@@ -347,7 +347,7 @@ fn git_tab_kdl(include_lazygit: bool) -> &'static str {
 
 fn zellij_status_template_kdl(mode: &ZellijStatusMode) -> String {
     match mode {
-        ZellijStatusMode::Native => r#"    tab_template name="aibox-tab" {
+        ZellijStatusMode::Sidecar => r#"    tab_template name="aibox-tab" {
         children
         pane size=1 borderless=true {
             plugin location="file:/usr/local/share/aibox/zellij/aibox-status-keys.wasm" {
@@ -368,17 +368,17 @@ fn zellij_status_template_kdl(mode: &ZellijStatusMode) -> String {
         }
         pane size=1 borderless=true {
             command "bash"
-            args "-lc" "if [ -x \"$HOME/.local/bin/aibox-status\" ]; then exec \"$HOME/.local/bin/aibox-status\" --watch; else exec aibox-status --watch; fi"
+            args "-lc" "exec aibox-status --watch"
         }
     }"#
         .to_string(),
-        ZellijStatusMode::Hidden => zellij_status_hidden_template_kdl(mode),
+        ZellijStatusMode::Disabled => zellij_status_hidden_template_kdl(mode),
     }
 }
 
 fn zellij_status_hidden_template_kdl(mode: &ZellijStatusMode) -> String {
     match mode {
-        ZellijStatusMode::Native => r#"    tab_template name="aibox-tab" {
+        ZellijStatusMode::Sidecar => r#"    tab_template name="aibox-tab" {
         children
     }"#
         .to_string(),
@@ -389,7 +389,7 @@ fn zellij_status_hidden_template_kdl(mode: &ZellijStatusMode) -> String {
         }
     }"#
         .to_string(),
-        ZellijStatusMode::Hidden => r#"    tab_template name="aibox-tab" {
+        ZellijStatusMode::Disabled => r#"    tab_template name="aibox-tab" {
         children
     }
 "#
@@ -1304,9 +1304,6 @@ const DEFAULT_OPEN_IN_EDITOR_SH: &str =
 /// aibox-preview helper — full-pane rich previews from Yazi.
 const DEFAULT_AIBOX_PREVIEW_SH: &str =
     include_str!("../../images/base-debian/config/bin/aibox-preview.sh");
-/// aibox-status helper — compact cgroup/procfs status line for Zellij layouts.
-const DEFAULT_AIBOX_STATUS_SH: &str =
-    include_str!("../../images/base-debian/config/bin/aibox-status.sh");
 /// aibox-status-toggle helper — toggle the runtime status pane in Zellij.
 const DEFAULT_AIBOX_STATUS_TOGGLE_SH: &str =
     include_str!("../../images/base-debian/config/bin/aibox-status-toggle.sh");
@@ -1683,16 +1680,12 @@ pub fn managed_runtime_files(config: &AiboxConfig) -> Vec<(std::path::PathBuf, S
             DEFAULT_AIBOX_PREVIEW_SH.to_string(),
         ),
         (
-            std::path::PathBuf::from(".local/bin/aibox-status"),
-            DEFAULT_AIBOX_STATUS_SH.to_string(),
-        ),
-        (
             std::path::PathBuf::from(".local/bin/aibox-status-toggle"),
             DEFAULT_AIBOX_STATUS_TOGGLE_SH.to_string(),
         ),
     ];
 
-    if *status_mode == ZellijStatusMode::Native {
+    if *status_mode == ZellijStatusMode::Sidecar {
         files.push((
             std::path::PathBuf::from(".cache/zellij/permissions.kdl"),
             zellij_native_status_permissions_cache(),
@@ -1815,6 +1808,27 @@ pub fn cleanup_disabled_runtime_files(config: &AiboxConfig) -> Result<Vec<String
         }
     }
 
+    if config.customization.zellij_status.mode != ZellijStatusMode::Sidecar {
+        for rel_path in [
+            ".cache/zellij/permissions.kdl",
+            ".cache/org/Zellij Contributors/Zellij/permissions.kdl",
+        ] {
+            let permission_cache = root.join(rel_path);
+            if permission_cache.exists() {
+                fs::remove_file(&permission_cache)
+                    .with_context(|| format!("Failed to remove {}", permission_cache.display()))?;
+                updated.push(format!("{rel_path} (removed sidecar status permissions)"));
+            }
+        }
+    }
+
+    let legacy_status = root.join(".local").join("bin").join("aibox-status");
+    if legacy_managed_aibox_status_helper(&legacy_status) {
+        fs::remove_file(&legacy_status)
+            .with_context(|| format!("Failed to remove {}", legacy_status.display()))?;
+        updated.push(".local/bin/aibox-status (removed legacy shell status helper)".to_string());
+    }
+
     let stale_claude = root.join(".local").join("bin").join("claude");
     if stale_claude_home_symlink(&stale_claude) {
         fs::remove_file(&stale_claude)
@@ -1834,6 +1848,16 @@ fn stale_claude_home_symlink(path: &Path) -> bool {
         .contains(".local/share/claude/versions/")
 }
 
+fn legacy_managed_aibox_status_helper(path: &Path) -> bool {
+    let Ok(body) = fs::read_to_string(path) else {
+        return false;
+    };
+    body.contains("read_proc_cmdline")
+        && body.contains("count_ai_agents")
+        && body.contains("--plugin-json")
+        && body.contains("AIBOX_STATUS_INTERVAL")
+}
+
 /// Seed the .root/ directory structure and default config files.
 /// Never overwrites existing files.
 pub fn seed_root_dir(config: &AiboxConfig) -> Result<()> {
@@ -1850,7 +1874,6 @@ pub fn seed_root_dir(config: &AiboxConfig) -> Result<()> {
         if rel_path == Path::new(".local/bin/pdf-watch")
             || rel_path == Path::new(".local/bin/open-in-editor")
             || rel_path == Path::new(".local/bin/aibox-preview")
-            || rel_path == Path::new(".local/bin/aibox-status")
             || rel_path == Path::new(".local/bin/aibox-status-toggle")
         {
             ensure_executable(&path)?;
@@ -2089,7 +2112,7 @@ pub fn sync_theme_files(config: &AiboxConfig) -> Result<Vec<String>> {
     )? {
         updated.push(".config/zellij/layouts/aibox-status-hidden.kdl".to_string());
     }
-    if *status_mode == ZellijStatusMode::Native
+    if *status_mode == ZellijStatusMode::Sidecar
         && force_seed_file(
             &root.join(".cache").join("zellij").join("permissions.kdl"),
             &zellij_native_status_permissions_cache(),
@@ -2097,7 +2120,7 @@ pub fn sync_theme_files(config: &AiboxConfig) -> Result<Vec<String>> {
     {
         updated.push(".cache/zellij/permissions.kdl".to_string());
     }
-    if *status_mode == ZellijStatusMode::Native
+    if *status_mode == ZellijStatusMode::Sidecar
         && force_seed_file(
             &root
                 .join(".cache")
@@ -2126,13 +2149,6 @@ pub fn sync_theme_files(config: &AiboxConfig) -> Result<Vec<String>> {
         updated.push(".local/bin/aibox-preview".to_string());
     }
 
-    if force_seed_file(
-        &root.join(".local").join("bin").join("aibox-status"),
-        DEFAULT_AIBOX_STATUS_SH,
-    )? {
-        ensure_executable(&root.join(".local").join("bin").join("aibox-status"))?;
-        updated.push(".local/bin/aibox-status".to_string());
-    }
     if force_seed_file(
         &root.join(".local").join("bin").join("aibox-status-toggle"),
         DEFAULT_AIBOX_STATUS_TOGGLE_SH,
@@ -2230,7 +2246,6 @@ pub fn sync_managed_runtime_permissions(config: &AiboxConfig) -> Result<Vec<Stri
         ".local/bin/pdf-watch",
         ".local/bin/open-in-editor",
         ".local/bin/aibox-preview",
-        ".local/bin/aibox-status",
         ".local/bin/aibox-status-toggle",
     ] {
         if ensure_executable_if_present(&root.join(rel_path))? {
@@ -2512,10 +2527,12 @@ mod tests {
                 .exists()
         );
         assert!(
-            root.join(".local")
+            !root
+                .join(".local")
                 .join("bin")
                 .join("aibox-status")
-                .exists()
+                .exists(),
+            "aibox-status is image-owned Rust binary, not a seeded shell helper"
         );
         assert!(
             root.join(".local")
@@ -2590,15 +2607,13 @@ mod tests {
             aibox_preview.contains("pdf-watch"),
             "aibox-preview should dispatch PDF previews to pdf-watch"
         );
-        #[cfg(unix)]
-        assert_ne!(
-            fs::metadata(root.join(".local").join("bin").join("aibox-status"))
-                .unwrap()
-                .permissions()
-                .mode()
-                & 0o111,
-            0,
-            "aibox-status should be executable"
+        assert!(
+            !root
+                .join(".local")
+                .join("bin")
+                .join("aibox-status")
+                .exists(),
+            "aibox-status is provided by the image Rust binary and must not be seeded as a shell helper"
         );
         #[cfg(unix)]
         assert_ne!(
@@ -2674,11 +2689,11 @@ mod tests {
     }
 
     #[test]
-    fn managed_runtime_files_seed_native_zellij_permission_cache() {
+    fn managed_runtime_files_seed_sidecar_zellij_permission_cache() {
         let dir = tempfile::tempdir().unwrap();
         let root = dir.path().join("root");
         let mut config = make_config(false, root);
-        config.customization.zellij_status.mode = ZellijStatusMode::Native;
+        config.customization.zellij_status.mode = ZellijStatusMode::Sidecar;
 
         let files = managed_runtime_files(&config);
         for rel_path in [
@@ -2696,7 +2711,7 @@ mod tests {
                     && body.contains("file:/usr/local/share/aibox/zellij/aibox-status.wasm")
                     && body.contains("RunCommands")
                     && body.contains("ReadApplicationState"),
-                "{rel_path} should pre-approve the native status plugin permissions"
+                "{rel_path} should pre-approve the sidecar status plugin permissions"
             );
         }
     }
@@ -2712,8 +2727,58 @@ mod tests {
         assert!(
             !files.iter().any(|(path, _)| path
                 == &std::path::PathBuf::from(".cache/zellij/permissions.kdl")),
-            "shell status mode should not seed native plugin permission cache"
+            "shell status mode should not seed sidecar plugin permission cache"
         );
+    }
+
+    #[test]
+    fn cleanup_removes_sidecar_zellij_permission_cache_when_status_not_sidecar() {
+        let dir = tempfile::tempdir().unwrap();
+        let root = dir.path().join("root");
+        fs::create_dir_all(root.join(".cache/zellij")).unwrap();
+        fs::create_dir_all(root.join(".cache/org/Zellij Contributors/Zellij")).unwrap();
+        fs::write(root.join(".cache/zellij/permissions.kdl"), "RunCommands").unwrap();
+        fs::write(
+            root.join(".cache/org/Zellij Contributors/Zellij/permissions.kdl"),
+            "RunCommands",
+        )
+        .unwrap();
+
+        let mut config = make_config(false, root.clone());
+        config.customization.zellij_status.mode = ZellijStatusMode::Disabled;
+
+        let updated = cleanup_disabled_runtime_files(&config).unwrap();
+        assert!(updated.iter().any(
+            |path| path == ".cache/zellij/permissions.kdl (removed sidecar status permissions)"
+        ));
+        assert!(!root.join(".cache/zellij/permissions.kdl").exists());
+        assert!(
+            !root
+                .join(".cache/org/Zellij Contributors/Zellij/permissions.kdl")
+                .exists()
+        );
+    }
+
+    #[test]
+    fn cleanup_removes_legacy_shell_aibox_status_helper() {
+        let dir = tempfile::tempdir().unwrap();
+        let root = dir.path().join("root");
+        fs::create_dir_all(root.join(".local/bin")).unwrap();
+        fs::write(
+            root.join(".local/bin/aibox-status"),
+            "#!/usr/bin/env bash\nread_proc_cmdline() { :; }\ncount_ai_agents() { :; }\ncase \"$1\" in --plugin-json) :;; esac\nAIBOX_STATUS_INTERVAL=5\n",
+        )
+        .unwrap();
+
+        let config = make_config(false, root.clone());
+        let updated = cleanup_disabled_runtime_files(&config).unwrap();
+
+        assert!(
+            updated
+                .iter()
+                .any(|path| path == ".local/bin/aibox-status (removed legacy shell status helper)")
+        );
+        assert!(!root.join(".local/bin/aibox-status").exists());
     }
 
     #[test]
@@ -2749,22 +2814,22 @@ mod tests {
         let config = make_config(false, root.clone());
         seed_root_dir(&config).unwrap();
 
-        let status_path = root.join(".local").join("bin").join("aibox-status");
-        let mut permissions = fs::metadata(&status_path).unwrap().permissions();
+        let toggle_path = root.join(".local").join("bin").join("aibox-status-toggle");
+        let mut permissions = fs::metadata(&toggle_path).unwrap().permissions();
         permissions.set_mode(0o644);
-        fs::set_permissions(&status_path, permissions).unwrap();
+        fs::set_permissions(&toggle_path, permissions).unwrap();
 
         let updated = sync_theme_files(&config).unwrap();
 
         assert!(
             updated
                 .iter()
-                .any(|path| path == ".local/bin/aibox-status (chmod +x)")
+                .any(|path| path == ".local/bin/aibox-status-toggle (chmod +x)")
         );
         assert_ne!(
-            fs::metadata(&status_path).unwrap().permissions().mode() & 0o111,
+            fs::metadata(&toggle_path).unwrap().permissions().mode() & 0o111,
             0,
-            "aibox-status should be executable after apply-time sync"
+            "aibox-status-toggle should be executable after apply-time sync"
         );
         clear_test_host_root();
     }
@@ -3622,7 +3687,7 @@ rules = [
                 && layout.contains("role \"keys\"")
                 && layout.contains("role \"status\"")
                 && !layout.contains("zellij:status-bar"),
-            "default layouts should use the native aibox keybar and runtime status rows"
+            "default layouts should use the sidecar-backed aibox keybar and runtime status rows"
         );
         assert!(
             layout.contains(
@@ -3655,8 +3720,8 @@ rules = [
     }
 
     #[test]
-    fn zellij_status_mode_native_uses_custom_keybar_above_runtime_status() {
-        let layout = generate_dev_layout_with_options(&[], true, &ZellijStatusMode::Native);
+    fn zellij_status_mode_sidecar_uses_custom_keybar_above_runtime_status() {
+        let layout = generate_dev_layout_with_options(&[], true, &ZellijStatusMode::Sidecar);
         let keybar = layout.find("role \"keys\"").unwrap();
         let runtime = layout.find("role \"status\"").unwrap();
         assert!(
@@ -3666,17 +3731,17 @@ rules = [
         assert!(
             layout.contains("aibox-status-keys.wasm")
                 && layout.contains("aibox-status-runtime.wasm"),
-            "native mode should use distinct plugin locations so Zellij creates both rows"
+            "sidecar mode should use distinct plugin locations so Zellij creates both rows"
         );
         assert!(
             !layout.contains("zellij:status-bar"),
-            "native mode should not depend on Zellij's built-in status bar"
+            "sidecar mode should not depend on Zellij's built-in status bar"
         );
     }
 
     #[test]
-    fn zellij_status_mode_hidden_omits_status_rows() {
-        let layout = generate_dev_layout_with_options(&[], true, &ZellijStatusMode::Hidden);
+    fn zellij_status_mode_disabled_omits_status_rows() {
+        let layout = generate_dev_layout_with_options(&[], true, &ZellijStatusMode::Disabled);
         assert!(layout.contains("tab_template name=\"aibox-tab\""));
         assert!(!layout.contains("zellij:status-bar"));
         assert!(!layout.contains("aibox-status"));
@@ -3704,32 +3769,12 @@ rules = [
     }
 
     #[test]
-    fn aibox_status_watch_does_not_clear_line_on_refresh() {
+    fn shell_status_layout_uses_image_status_binary() {
+        let layout = zellij_status_template_kdl(&ZellijStatusMode::Shell);
+        assert!(layout.contains("exec aibox-status --watch"));
         assert!(
-            DEFAULT_AIBOX_STATUS_SH.contains("previous_width"),
-            "watch mode should track prior line width for in-place redraw"
-        );
-        assert!(
-            DEFAULT_AIBOX_STATUS_SH.contains("AIBOX")
-                && DEFAULT_AIBOX_STATUS_SH.contains("\\033[7m"),
-            "watch mode should render a zellij-like status segment"
-        );
-        assert!(
-            DEFAULT_AIBOX_STATUS_SH.contains("--plugin-json")
-                && DEFAULT_AIBOX_STATUS_SH.contains("print_status_json")
-                && DEFAULT_AIBOX_STATUS_SH.contains("\"load_average\"")
-                && DEFAULT_AIBOX_STATUS_SH.contains("\"git_branch\""),
-            "status helper should expose structured metrics for the native plugin"
-        );
-        for group in ["MEM", "CPU", "load", "PROC", "FS", "UP", "PROJ"] {
-            assert!(
-                DEFAULT_AIBOX_STATUS_SH.contains(group),
-                "status line should include the {group} metric group"
-            );
-        }
-        assert!(
-            !DEFAULT_AIBOX_STATUS_SH.contains("\\033[2K"),
-            "watch mode should not clear the line on every refresh"
+            !layout.contains("$HOME/.local/bin/aibox-status"),
+            "shell status mode must not prefer the removed shell helper"
         );
     }
 

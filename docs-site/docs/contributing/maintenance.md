@@ -119,8 +119,8 @@ This phase builds Darwin binaries, uploads them to the existing GitHub release,
 pushes GHCR images, then runs a fresh downstream-style runtime smoke against
 the pushed release tag. The smoke creates a temporary project, runs
 `aibox init` and `aibox apply --no-cache --standardize-config`, starts the
-generated container, probes Yazi, lazygit, the aibox status helper, and Zellij
-native status-plugin logs, and writes a bundle to
+generated container, probes Yazi, the aibox status helper, and Zellij
+sidecar status-plugin logs, and writes a bundle to
 `dist/release-smoke/vX.Y.Z/<timestamp>/`.
 It is host-side because macOS binaries and host runtime access are not
 available from the Linux devcontainer.

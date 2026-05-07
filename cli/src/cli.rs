@@ -1,6 +1,8 @@
 use clap::{Parser, Subcommand, ValueEnum};
 
-use crate::config::{AiProvider, AiboxProfile, BaseImage, StarshipPreset, Theme, ZellijStatusMode};
+use crate::config::{
+    AiHarness, AiProvider, AiboxProfile, BaseImage, StarshipPreset, Theme, ZellijStatusMode,
+};
 
 /// Parse a truthy/falsy string for env-var-driven boolean flags.
 /// Accepts 1/0, true/false, yes/no, on/off (case-insensitive). Empty string is
@@ -145,7 +147,7 @@ pub enum Commands {
         #[arg(long, value_enum)]
         prompt: Option<StarshipPreset>,
 
-        /// Zellij status presentation (default: native)
+        /// Zellij status presentation (default: sidecar)
         #[arg(long = "zellij-status", value_enum)]
         zellij_status: Option<ZellijStatusMode>,
 
@@ -268,6 +270,12 @@ pub enum Commands {
         /// Reconcile desired state before starting
         #[arg(long)]
         apply: bool,
+    },
+    /// Recover into the workspace without Zellij, Yazi, or status tooling
+    Emergency {
+        /// AI harness to launch after printing the emergency briefing
+        #[arg(value_enum)]
+        harness: AiHarness,
     },
     /// Stop the running workspace
     Down,

@@ -36,6 +36,7 @@ cargo test --manifest-path zellij-plugins/aibox-status/Cargo.toml
 
 ## Runtime data path
 
-The adapter shells out to the existing `aibox-status --plugin-json` command.
-That keeps cgroup, process, disk, git, and migration probing logic in one place
-while the Zellij pane rendering stays native and width-aware.
+The adapter runs `/usr/local/bin/aibox-status --plugin-json`. That executable is
+Rust and reads the latest bounded diagnostics sidecar snapshot, with a small
+direct-read fallback when the snapshot is unavailable. The Zellij plugin stays a
+renderer: it does not scan `/proc`, parse log history, or run shell pipelines.

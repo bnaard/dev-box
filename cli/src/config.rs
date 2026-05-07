@@ -1017,21 +1017,25 @@ fn default_layout() -> ConfigLayout {
 #[serde(rename_all = "kebab-case")]
 #[clap(rename_all = "kebab-case")]
 pub enum ZellijStatusMode {
-    /// Native aibox key-hint plugin plus native aibox runtime status plugin.
+    /// Sidecar-backed aibox key-hint plugin plus runtime status plugin.
     #[default]
-    Native,
-    /// Legacy shell fallback: built-in Zellij status bar plus `aibox-status --watch`.
+    #[serde(alias = "native")]
+    #[value(alias = "native")]
+    Sidecar,
+    /// Shell fallback: built-in Zellij status bar plus the Rust `aibox-status --watch`.
     Shell,
-    /// Hide aibox-provided status rows from generated layouts.
-    Hidden,
+    /// Disable aibox-provided status rows from generated layouts.
+    #[serde(alias = "hidden")]
+    #[value(alias = "hidden")]
+    Disabled,
 }
 
 impl std::fmt::Display for ZellijStatusMode {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
-            ZellijStatusMode::Native => write!(f, "native"),
+            ZellijStatusMode::Sidecar => write!(f, "sidecar"),
             ZellijStatusMode::Shell => write!(f, "shell"),
-            ZellijStatusMode::Hidden => write!(f, "hidden"),
+            ZellijStatusMode::Disabled => write!(f, "disabled"),
         }
     }
 }
@@ -2998,7 +3002,7 @@ prompt = "minimal"
         assert_eq!(config.customization.prompt, StarshipPreset::Minimal);
         assert_eq!(
             config.customization.zellij_status.mode,
-            ZellijStatusMode::Native
+            ZellijStatusMode::Sidecar
         );
     }
 
@@ -3012,13 +3016,36 @@ version = "0.9.0"
 name = "my-project"
 
 [customization.zellij_status]
-mode = "hidden"
+mode = "disabled"
 "#;
         let config = parse_toml(toml).unwrap();
         assert_eq!(
             config.customization.zellij_status.mode,
-            ZellijStatusMode::Hidden
+            ZellijStatusMode::Disabled
         );
+    }
+
+    #[test]
+    fn customization_zellij_status_legacy_aliases_parse() {
+        for (mode, expected) in [
+            ("native", ZellijStatusMode::Sidecar),
+            ("hidden", ZellijStatusMode::Disabled),
+        ] {
+            let toml = format!(
+                r#"
+[aibox]
+version = "0.9.0"
+
+[container]
+name = "my-project"
+
+[customization.zellij_status]
+mode = "{mode}"
+"#
+            );
+            let config = parse_toml(&toml).unwrap();
+            assert_eq!(config.customization.zellij_status.mode, expected);
+        }
     }
 
     #[test]

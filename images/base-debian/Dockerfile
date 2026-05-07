@@ -36,6 +36,14 @@ WORKDIR /build/aibox-status
 COPY zellij-plugins/aibox-status/Cargo.toml zellij-plugins/aibox-status/Cargo.lock ./
 COPY zellij-plugins/aibox-status/src ./src
 RUN cargo build --release --target wasm32-wasip1 --features zellij
+COPY config/bin/aibox_status_core.rs config/bin/aibox-status.rs config/bin/aibox-diagnostics.rs /build/aibox-runtime-tools/
+RUN mkdir -p /build/aibox-runtime-tools/bin && \
+    rustc --edition=2021 -D warnings -C opt-level=2 \
+      /build/aibox-runtime-tools/aibox-status.rs \
+      -o /build/aibox-runtime-tools/bin/aibox-status && \
+    rustc --edition=2021 -D warnings -C opt-level=2 \
+      /build/aibox-runtime-tools/aibox-diagnostics.rs \
+      -o /build/aibox-runtime-tools/bin/aibox-diagnostics
 
 # ── Yazi ─────────────────────────────────────────────────────────────────────
 FROM fetch-base AS fetch-yazi
@@ -255,6 +263,8 @@ COPY --from=fetch-zoxide   /usr/local/bin/zoxide   /usr/local/bin/
 COPY --from=fetch-fzf      /usr/local/bin/fzf      /usr/local/bin/
 COPY --from=fetch-delta    /usr/local/bin/delta    /usr/local/bin/
 COPY --from=fetch-starship /usr/local/bin/starship /usr/local/bin/
+COPY --from=build-aibox-zellij-status /build/aibox-runtime-tools/bin/aibox-status /usr/local/bin/
+COPY --from=build-aibox-zellij-status /build/aibox-runtime-tools/bin/aibox-diagnostics /usr/local/bin/
 # ── uv (Python package/project manager — ~25 MB) ────────────────────────────
 # Distroless image ships only the static binaries. Pulled into the base
 # image since v0.16.5 (DEC-036) so processkit's PEP 723 MCP server
@@ -347,7 +357,6 @@ COPY --chmod=755 config/bin/open-in-editor.sh /usr/local/bin/open-in-editor
 COPY --chmod=755 config/bin/aibox-preview.sh   /usr/local/bin/aibox-preview
 COPY --chmod=755 config/bin/vim-loop.sh       /usr/local/bin/vim-loop
 COPY --chmod=755 config/bin/pdf-watch.sh      /usr/local/bin/pdf-watch
-COPY --chmod=755 config/bin/aibox-status.sh   /usr/local/bin/aibox-status
 COPY --chmod=755 config/bin/aibox-status-toggle.sh /usr/local/bin/aibox-status-toggle
 # xdg-open shim — headless containers have no browser, so any tool that
 # calls xdg-open (gh auth login, git credential helpers, opencode, ...)

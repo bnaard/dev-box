@@ -242,7 +242,6 @@ pub fn run_runtime_sync(
 fn ensure_live_runtime_file_permissions(rel_path: &str, target: &Path) -> Result<()> {
     if rel_path == ".local/bin/pdf-watch"
         || rel_path == ".local/bin/open-in-editor"
-        || rel_path == ".local/bin/aibox-status"
         || rel_path == ".local/bin/aibox-status-toggle"
     {
         ensure_executable(target)?;
@@ -1050,18 +1049,18 @@ mod tests {
 
     #[test]
     #[cfg(unix)]
-    fn runtime_status_helper_stays_executable_after_auto_apply() {
+    fn runtime_status_toggle_helper_stays_executable_after_auto_apply() {
         let tmp = TempDir::new().unwrap();
-        let target = tmp.path().join(".local/bin/aibox-status");
+        let target = tmp.path().join(".local/bin/aibox-status-toggle");
         fs::create_dir_all(target.parent().unwrap()).unwrap();
         fs::write(&target, "#!/bin/sh\n").unwrap();
 
-        ensure_live_runtime_file_permissions(".local/bin/aibox-status", &target).unwrap();
+        ensure_live_runtime_file_permissions(".local/bin/aibox-status-toggle", &target).unwrap();
 
         assert_ne!(
             fs::metadata(&target).unwrap().permissions().mode() & 0o111,
             0,
-            "aibox-status should remain executable after runtime auto-apply"
+            "aibox-status-toggle should remain executable after runtime auto-apply"
         );
     }
 

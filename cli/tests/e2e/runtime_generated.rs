@@ -158,7 +158,7 @@ fn generated_runtime_zellij_status_rows_are_visible() {
             "--theme",
             "tokyo-night",
             "--zellij-status",
-            "native",
+            "sidecar",
             "--no-container",
         ],
     );
@@ -215,7 +215,7 @@ if grep -aE 'ERROR IN PLUGIN|failed to load plugin|could not find exported funct
   exit 1
 fi
 if grep -aE 'This plugin asks permission|ReadApplicationState|RunCommands|Allow\\? \\(y/n\\)' {workspace}/recording.cast >/tmp/{test_name}-zellij-permission-prompt.txt 2>&1; then
-  echo "native status plugin permission prompt was visible"
+  echo "sidecar status plugin permission prompt was visible"
   cat /tmp/{test_name}-zellij-permission-prompt.txt
   exit 1
 fi

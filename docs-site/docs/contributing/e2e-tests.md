@@ -29,9 +29,11 @@ The release process also has a host-side generated-runtime smoke:
 `./scripts/maintain.sh release-runtime-smoke X.Y.Z`. It is not an SSH
 companion test; it runs on the macOS host during `release-host`, creates a
 fresh downstream-style project, runs `aibox init` and
-`aibox apply --no-cache --standardize-config`, starts the generated container,
-probes the native Zellij status plugin, and writes logs under
-`dist/release-smoke/vX.Y.Z/`.
+`aibox apply --standardize-config`, starts the generated container, probes the
+sidecar-backed Zellij status plugin, and writes logs under
+`dist/release-smoke/vX.Y.Z/`. The default `AIBOX_RELEASE_SMOKE_TIER=minimal`
+skips optional addon probes; use `addons` to include `git-ui`, or `full` to
+include preview addons and force `--no-cache`.
 
 ### Opt-in visual E2E
 
@@ -40,7 +42,7 @@ when the periodic full visual sweep is due:
 
 | Command | Covers |
 |---|---|
-| `./scripts/maintain.sh test-e2e-visual-status` | all generated layouts across all themes, native Zellij status/key rows, and theme RGB signatures |
+| `./scripts/maintain.sh test-e2e-visual-status` | all generated layouts across all themes, sidecar Zellij status/key rows, and theme RGB signatures |
 | `./scripts/maintain.sh test-e2e-visual-tabs` | tab traversal, Yazi surface, Vim, shell, lazygit, and every enabled AI harness |
 | `./scripts/maintain.sh test-e2e-visual-yazi` | Yazi preview plugins, optional preview tools, git symbols, and preview modes |
 | `./scripts/maintain.sh test-e2e-visual` | all visual tiers |
@@ -468,7 +470,7 @@ startup, and an `aibox-status --plugin-json` payload with required fields.
 `[runtime_generated.rs · generated_runtime_yazi_lazygit_and_status_are_usable]`
 
 **Generated Zellij status plugin renders**
-If the generated dev layout is launched under asciinema with native status
+If the generated dev layout is launched under asciinema with sidecar status
 enabled, then the cast must show key/status row text and Zellij logs must not
 contain plugin load errors or panics.
 `[runtime_generated.rs · generated_runtime_zellij_status_plugin_renders_key_and_status_rows]`
@@ -482,7 +484,7 @@ E2E commands above.
 
 **Generated layouts render across all themes**
 If each generated layout is launched for each supported theme, then the
-recording must include the theme RGB signature and native Zellij status/key row
+recording must include the theme RGB signature and sidecar Zellij status/key row
 text, and Zellij logs must not contain plugin load errors, panics, or
 `Unknown component: z`.
 `[visual_matrix.rs · visual_generated_layouts_render_across_all_themes]`

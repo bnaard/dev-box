@@ -11,7 +11,7 @@
 //! responsive `docker` or `podman` binary on the remote host instead of
 //! assuming Podman specifically.
 
-use std::path::Path;
+use std::path::{Path, PathBuf};
 use std::process::{Command, Output};
 use std::sync::Once;
 
@@ -220,7 +220,6 @@ impl E2eRunner {
         for (src, dst) in &[
             ("bin/open-in-editor.sh", "open-in-editor"),
             ("bin/vim-loop.sh", "vim-loop"),
-            ("bin/aibox-status.sh", "aibox-status"),
             ("bin/aibox-status-toggle.sh", "aibox-status-toggle"),
         ] {
             self.deploy_image_asset(
@@ -229,6 +228,17 @@ impl E2eRunner {
                 true,
             );
         }
+        let runtime_tools = compile_runtime_tool_binaries(&image_config);
+        self.deploy_image_asset(
+            &runtime_tools.join("aibox-status").to_string_lossy(),
+            "/usr/local/bin/aibox-status",
+            true,
+        );
+        self.deploy_image_asset(
+            &runtime_tools.join("aibox-diagnostics").to_string_lossy(),
+            "/usr/local/bin/aibox-diagnostics",
+            true,
+        );
 
         let plugin_manifest = format!(
             "{}/../images/base-debian/zellij-plugins/aibox-status/Cargo.toml",
@@ -424,6 +434,38 @@ impl E2eRunner {
              observed:\n{stdout}"
         );
     }
+}
+
+fn compile_runtime_tool_binaries(image_config: &str) -> PathBuf {
+    let out_dir =
+        std::env::temp_dir().join(format!("aibox-e2e-runtime-tools-{}", std::process::id()));
+    std::fs::create_dir_all(&out_dir).expect("failed to create runtime tool build dir");
+    for (src, bin) in [
+        ("bin/aibox-status.rs", "aibox-status"),
+        ("bin/aibox-diagnostics.rs", "aibox-diagnostics"),
+    ] {
+        let source = format!("{image_config}/{src}");
+        let output = Command::new("rustc")
+            .args([
+                "--edition=2021",
+                "-D",
+                "warnings",
+                "-C",
+                "opt-level=2",
+                &source,
+                "-o",
+                &out_dir.join(bin).to_string_lossy(),
+            ])
+            .output()
+            .expect("failed to compile runtime tool");
+        assert!(
+            output.status.success(),
+            "runtime tool build failed for {src}:\nstdout:\n{}\nstderr:\n{}",
+            String::from_utf8_lossy(&output.stdout),
+            String::from_utf8_lossy(&output.stderr)
+        );
+    }
+    out_dir
 }
 
 impl Default for E2eRunner {
