@@ -274,9 +274,11 @@ fn three_way_diff(
     let host_root = config.host_root_dir();
     let generated = crate::seed::managed_runtime_files(config);
     let mut diffs = Vec::new();
+    let mut seen = BTreeSet::new();
 
     for (rel_path, content) in generated {
         let rel_str = rel_path.to_string_lossy().replace('\\', "/");
+        seen.insert(rel_str.clone());
         let project_path = PathBuf::from(".aibox-home").join(&rel_path);
         let live_abs = host_root.join(&rel_path);
         let reference_abs = reference_dir.join(&rel_path);
@@ -312,7 +314,66 @@ fn three_way_diff(
         });
     }
 
+    for (rel_str, reference_abs) in walk_reference_files(&reference_dir)? {
+        if seen.contains(&rel_str) {
+            continue;
+        }
+        let project_path = PathBuf::from(".aibox-home").join(&rel_str);
+        let live_abs = host_root.join(&rel_str);
+        let reference_sha = crate::lock::sha256_of_file(&reference_abs).with_context(|| {
+            format!(
+                "failed to hash runtime reference file {}",
+                reference_abs.display()
+            )
+        })?;
+        let live_sha = if live_abs.is_file() {
+            Some(crate::lock::sha256_of_file(&live_abs).with_context(|| {
+                format!("failed to hash live runtime file {}", live_abs.display())
+            })?)
+        } else {
+            None
+        };
+        let classification = classify(Some(&reference_sha), None, live_sha.as_deref());
+        diffs.push(RuntimeFileDiff {
+            rel_path: rel_str,
+            project_path,
+            classification,
+        });
+    }
+
     Ok(diffs)
+}
+
+fn walk_reference_files(reference_dir: &Path) -> Result<Vec<(String, PathBuf)>> {
+    let mut out = Vec::new();
+    if !reference_dir.is_dir() {
+        return Ok(out);
+    }
+    let mut stack = vec![reference_dir.to_path_buf()];
+    while let Some(dir) = stack.pop() {
+        for entry in fs::read_dir(&dir)
+            .with_context(|| format!("failed to read runtime reference dir {}", dir.display()))?
+        {
+            let entry = entry?;
+            let path = entry.path();
+            if path.is_dir() {
+                stack.push(path);
+            } else if path.is_file() {
+                let rel = path
+                    .strip_prefix(reference_dir)
+                    .with_context(|| {
+                        format!(
+                            "failed to relativize runtime reference file {}",
+                            path.display()
+                        )
+                    })?
+                    .to_string_lossy()
+                    .replace('\\', "/");
+                out.push((rel, path));
+            }
+        }
+    }
+    Ok(out)
 }
 
 fn parse_semver_triple(s: &str) -> Option<(u32, u32, u32)> {
@@ -836,6 +897,10 @@ fn write_migration_document(
     body.push_str(&format!(
         "- removed-upstream: {}\n\n",
         summary.removed_upstream
+    ));
+    body.push_str(&format!(
+        "- removed-upstream-stale: {}\n\n",
+        summary.removed_upstream_stale
     ));
 
     let mut by_group: BTreeMap<String, BTreeMap<&'static str, Vec<&RuntimeFileDiff>>> =

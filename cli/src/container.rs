@@ -650,6 +650,13 @@ pub fn cmd_start(
 
     let session_name = config.customization.tmux.session_name.clone();
     let should_recreate_tmux_session = forget_tmux_state || state != ContainerState::Running;
+    let restored_runtime_files = crate::seed::restore_missing_managed_runtime_files(&config)?;
+    if !restored_runtime_files.is_empty() {
+        output::ok(&format!(
+            "Restored {} missing managed runtime file(s)",
+            restored_runtime_files.len()
+        ));
+    }
 
     match state {
         ContainerState::Running => {
@@ -2311,6 +2318,7 @@ pub fn cmd_sync(
     }
 
     let mut config = AiboxConfig::from_cli_option(config_path)?;
+    crate::context::update_gitignore(&config.addons)?;
 
     // Resolve [processkit].version = "latest" to a concrete tag before any
     // further processing. The lock always stores a concrete version; "latest"
@@ -2885,7 +2893,11 @@ fn perform_container_build(no_cache: bool, config: &AiboxConfig) -> Result<()> {
     match Runtime::detect() {
         Ok(runtime) => {
             output::info("Building container image...");
-            runtime.compose_build(crate::config::COMPOSE_FILE, no_cache)?;
+            runtime.compose_build(
+                crate::config::COMPOSE_FILE,
+                &config.container.name,
+                no_cache,
+            )?;
             output::ok("Sync complete — image built");
             warn_if_container_lags_image(&runtime, config);
         }

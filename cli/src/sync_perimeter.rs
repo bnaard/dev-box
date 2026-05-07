@@ -25,6 +25,7 @@
 //! |-----------------------------------------------|------------------------------------------------------------------|
 //! | `aibox.toml`                                  | One-time schema migrations (e.g. inserting `[processkit]`)       |
 //! | `aibox.lock`                                  | Pinned `(source, version)` written by the processkit installer  |
+//! | `.gitignore`                                  | Required generated-runtime ignore entries, appended only         |
 //! | `.aibox-version`                              | Tracks installed CLI version for migration detection             |
 //! | `.aibox-home/`                                | Runtime config seed (shells, vim, tmux, yazi, …); gitignored     |
 //! | `.devcontainer/Dockerfile`                    | Regenerated from `aibox.toml`                                    |
@@ -65,7 +66,6 @@
 //!   processkit skills like `workitem-management` / `decision-record`
 //!   which write them on first use, not by aibox apply)
 //! - `.claude/` (except `.claude/skills/` and legacy `.claude/commands/`), `.gemini/`, any other provider directory
-//! - `.gitignore` (created by `aibox init`; sync never edits it)
 //!
 //! Note: `aibox init` is allowed to create files outside this list as
 //! part of project bootstrap. The perimeter applies only to **sync**, not
@@ -111,6 +111,7 @@ pub const SYNC_PERIMETER: &[&str] = &[
     // ── Top-level files aibox owns ─────────────────────────────────────
     "aibox.toml",
     "aibox.lock",
+    ".gitignore",
     // ── Runtime config seed (gitignored) ────────────────────────────────
     ".aibox-home/",
     // ── Devcontainer (the three files; nothing else under .devcontainer/) ─
@@ -294,7 +295,6 @@ const TRIPWIRE_SENTINELS: &[&str] = &[
     "CLAUDE.md",
     "LICENSE",
     "CHANGELOG.md",
-    ".gitignore",
     // Top-level user-owned context files (product process). Not
     // sync-managed: created by user or by processkit skills
     // (workitem-management, decision-record, …) on first use, not by sync.
@@ -491,7 +491,13 @@ mod tests {
         assert!(!within("CLAUDE.md"));
         assert!(!within("LICENSE"));
         assert!(!within("CHANGELOG.md"));
-        assert!(!within(".gitignore"));
+    }
+
+    #[test]
+    fn gitignore_is_in_perimeter() {
+        // `aibox apply` appends only missing required generated-runtime
+        // patterns and preserves user-authored ignore entries.
+        assert!(within(".gitignore"));
     }
 
     #[test]
@@ -671,6 +677,8 @@ mod tests {
             // migration::ensure_processkit_section_in
             "aibox.toml",
             "context/migrations/aibox-processkit-section-added.md",
+            // context::update_gitignore
+            ".gitignore",
             // generate::generate_all
             ".devcontainer/Dockerfile",
             ".devcontainer/docker-compose.yml",

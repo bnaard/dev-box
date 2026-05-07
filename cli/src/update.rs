@@ -306,7 +306,11 @@ fn do_upgrade(config_path: &Option<String>, dry_run: bool, global_yes: bool) -> 
         match crate::runtime::Runtime::detect() {
             Ok(runtime) => {
                 output::info("Building container image...");
-                runtime.compose_build(crate::config::COMPOSE_FILE, false)?;
+                runtime.compose_build(
+                    crate::config::COMPOSE_FILE,
+                    &updated_config.container.name,
+                    false,
+                )?;
                 output::ok("Container image rebuilt");
             }
             Err(e) => {

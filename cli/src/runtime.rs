@@ -207,12 +207,12 @@ impl Runtime {
         Ok(args)
     }
 
-    /// Run compose build.
+    /// Run compose build for one service.
     ///
     /// When `no_cache` is true, passes both `--no-cache` (rebuild all
     /// layers from scratch) and `--pull` (force fresh base image pulls)
     /// to ensure a fully clean rebuild.
-    pub fn compose_build(&self, compose_file: &str, no_cache: bool) -> Result<()> {
+    pub fn compose_build(&self, compose_file: &str, service: &str, no_cache: bool) -> Result<()> {
         let file_args = Self::compose_file_args(compose_file)?;
         let mut args: Vec<&str> = file_args.iter().map(|s| s.as_str()).collect();
         args.push("build");
@@ -220,6 +220,7 @@ impl Runtime {
             args.push("--no-cache");
             args.push("--pull");
         }
+        args.push(service);
 
         let status = self.run_compose(&args)?;
         if !status.success() {

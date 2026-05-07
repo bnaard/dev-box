@@ -21,40 +21,55 @@ if tmux has-session -t "${session}" 2>/dev/null; then
     exec tmux -f "${config}" attach-session -t "${session}"
 fi
 
+tool_or_shell() {
+    local tool="$1"
+    printf 'if command -v %q >/dev/null 2>&1; then %q; fi; exec bash' "${tool}" "${tool}"
+}
+
+set_title() {
+    local target="$1"
+    local title="$2"
+    tmux select-pane -t "${target}" -T "${title}" 2>/dev/null || true
+}
+
 new_window() {
-    tmux new-window -t "${session}:" -n "$1" -c "${workspace}" "$2"
+    tmux new-window -t "${session}:" -n "$1" -c "${workspace}" "bash -lc '$(tool_or_shell "$2")'"
 }
 
 case "${layout}" in
     focus)
-        tmux -f "${config}" new-session -d -s "${session}" -n editor -c "${workspace}" "vim-loop"
-        tmux select-pane -t "${session}:editor.1" -T editor
+        tmux -f "${config}" new-session -d -s "${session}" -n editor -c "${workspace}" "bash -lc '$(tool_or_shell vim-loop)'"
+        editor_pane="$(tmux display-message -p -t "${session}:editor" '#{pane_id}')"
+        set_title "${editor_pane}" editor
         ;;
     browse)
-        tmux -f "${config}" new-session -d -s "${session}" -n files -c "${workspace}" "yazi"
-        tmux select-pane -t "${session}:files.1" -T files
+        tmux -f "${config}" new-session -d -s "${session}" -n files -c "${workspace}" "bash -lc '$(tool_or_shell yazi)'"
+        files_pane="$(tmux display-message -p -t "${session}:files" '#{pane_id}')"
+        set_title "${files_pane}" files
         new_window shell "bash"
         ;;
     cowork|cowork-swap)
-        tmux -f "${config}" new-session -d -s "${session}" -n work -c "${workspace}" "yazi"
-        tmux select-pane -t "${session}:work.1" -T files
-        tmux split-window -t "${session}:work" -v -c "${workspace}" "vim-loop"
-        tmux select-pane -t "${session}:work.2" -T editor
-        tmux split-window -t "${session}:work" -h -c "${workspace}" "bash"
-        tmux select-pane -t "${session}:work.3" -T shell
+        tmux -f "${config}" new-session -d -s "${session}" -n work -c "${workspace}" "bash -lc '$(tool_or_shell yazi)'"
+        files_pane="$(tmux display-message -p -t "${session}:work" '#{pane_id}')"
+        set_title "${files_pane}" files
+        editor_pane="$(tmux split-window -t "${session}:work" -v -P -F '#{pane_id}' -c "${workspace}" "bash -lc '$(tool_or_shell vim-loop)'")"
+        set_title "${editor_pane}" editor
+        shell_pane="$(tmux split-window -t "${session}:work" -h -P -F '#{pane_id}' -c "${workspace}" "bash")"
+        set_title "${shell_pane}" shell
         tmux select-layout -t "${session}:work" tiled
         new_window shell "bash"
         ;;
     dev|ai|*)
-        tmux -f "${config}" new-session -d -s "${session}" -n dev -c "${workspace}" "yazi"
-        tmux select-pane -t "${session}:dev.1" -T files
-        tmux split-window -t "${session}:dev" -h -l 60% -c "${workspace}" "vim-loop"
-        tmux select-pane -t "${session}:dev.2" -T editor
-        tmux split-window -t "${session}:dev.2" -v -l 35% -c "${workspace}" "bash"
-        tmux select-pane -t "${session}:dev.3" -T shell
-        tmux select-pane -t "${session}:dev.1"
+        tmux -f "${config}" new-session -d -s "${session}" -n dev -c "${workspace}" "bash -lc '$(tool_or_shell yazi)'"
+        files_pane="$(tmux display-message -p -t "${session}:dev" '#{pane_id}')"
+        set_title "${files_pane}" files
+        editor_pane="$(tmux split-window -t "${session}:dev" -h -l 60% -P -F '#{pane_id}' -c "${workspace}" "bash -lc '$(tool_or_shell vim-loop)'")"
+        set_title "${editor_pane}" editor
+        shell_pane="$(tmux split-window -t "${editor_pane}" -v -l 35% -P -F '#{pane_id}' -c "${workspace}" "bash")"
+        set_title "${shell_pane}" shell
+        tmux select-pane -t "${files_pane}"
         new_window shell "bash"
-        new_window help "less $HOME/.config/cheatsheet.txt"
+        tmux new-window -t "${session}:" -n help -c "${workspace}" "bash -lc 'less \"$HOME/.config/cheatsheet.txt\" 2>/dev/null; exec bash'"
         ;;
 esac
 

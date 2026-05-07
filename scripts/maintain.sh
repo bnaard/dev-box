@@ -196,7 +196,15 @@ cmd_test() {
   ok "All tests passed"
 }
 
+ensure_e2e_companion() {
+  _require_runtime
+  info "Ensuring SSH companion E2E container is running..."
+  ${COMPOSE_BIN} -f "${COMPOSE_FILE}" up -d aibox-e2e-testrunner \
+    || die "Failed to start aibox-e2e-testrunner"
+}
+
 cmd_test_e2e() {
+  ensure_e2e_companion
   info "Running Tier 2 SSH companion E2E tests..."
   (cd "${CLI_DIR}" && cargo test --features e2e --test e2e -- --test-threads=1) \
     || die "Tier 2 SSH companion E2E tests failed"
@@ -204,6 +212,7 @@ cmd_test_e2e() {
 }
 
 cmd_test_e2e_visual_status() {
+  ensure_e2e_companion
   info "Running opt-in visual E2E: generated tmux layouts, themes, and status line..."
   (cd "${CLI_DIR}" && cargo test --features e2e --test e2e \
     visual_generated_layouts_render_across_all_themes -- --ignored --nocapture --test-threads=1) \
@@ -212,6 +221,7 @@ cmd_test_e2e_visual_status() {
 }
 
 cmd_test_e2e_visual_tabs() {
+  ensure_e2e_companion
   info "Running opt-in visual E2E: generated tmux windows, tools, and harnesses..."
   (cd "${CLI_DIR}" && cargo test --features e2e --test e2e \
     visual_generated_tools_and_harness_windows_render_when_enabled -- --ignored --nocapture --test-threads=1) \
@@ -220,6 +230,7 @@ cmd_test_e2e_visual_tabs() {
 }
 
 cmd_test_e2e_visual_yazi() {
+  ensure_e2e_companion
   info "Running opt-in visual E2E: Yazi previews, git symbols, and plugins..."
   (cd "${CLI_DIR}" && cargo test --features e2e --test e2e \
     visual_yazi_previews_git_symbols_and_optional_plugins_render -- --ignored --nocapture --test-threads=1) \
@@ -239,6 +250,7 @@ cmd_test_e2e_visual() {
 }
 
 cmd_test_e2e_doc_captures() {
+  ensure_e2e_companion
   local artifact_dir="${AIBOX_E2E_VISUAL_ARTIFACT_DIR:-${PROJECT_ROOT}/docs-site/static/img/e2e}"
   mkdir -p "${artifact_dir}"
   info "Running visual E2E with docs-ready artifacts at ${artifact_dir}..."
@@ -257,11 +269,24 @@ cmd_build_images() {
 
   for flavor in "${flavors[@]}"; do
     info "Building ${flavor} image..."
-    ${RUNTIME_BIN} build ${no_cache} \
-      -t "${IMAGE_REGISTRY}:${flavor}-latest" \
-      -f "${PROJECT_ROOT}/images/${flavor}/Dockerfile" \
-      "${PROJECT_ROOT}/images/${flavor}/"
-    ok "Built ${IMAGE_REGISTRY}:${flavor}-latest"
+    local latest="${IMAGE_REGISTRY}:${flavor}-latest"
+    if [[ -n "${no_cache}" ]]; then
+      ${RUNTIME_BIN} build --no-cache \
+        --build-arg BUILDKIT_INLINE_CACHE=1 \
+        -t "${latest}" \
+        -f "${PROJECT_ROOT}/images/${flavor}/Dockerfile" \
+        "${PROJECT_ROOT}/images/${flavor}/"
+    else
+      ${RUNTIME_BIN} pull "${latest}" >/dev/null 2>&1 \
+        || warn "Could not pull ${latest} as a remote build cache seed"
+      ${RUNTIME_BIN} build \
+        --build-arg BUILDKIT_INLINE_CACHE=1 \
+        --cache-from "${latest}" \
+        -t "${latest}" \
+        -f "${PROJECT_ROOT}/images/${flavor}/Dockerfile" \
+        "${PROJECT_ROOT}/images/${flavor}/"
+    fi
+    ok "Built ${latest}"
   done
 
   ok "All images built"

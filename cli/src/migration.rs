@@ -495,7 +495,10 @@ fn should_refresh_generated_aibox_toml_comments(raw: &str) -> bool {
             || raw.contains("aibox addon info")
             || raw.contains("aibox addon add")
             || raw.contains("run `aibox sync`")
-            || raw.contains("`aibox sync`"))
+            || raw.contains("`aibox sync`")
+            || raw.contains("zellij layout")
+            || raw.contains("Zellij, Vim")
+            || raw.contains("[customization.zellij_status]"))
 }
 
 /// One-time hard-cut migration: if a legacy `.aibox-version` file still exists,
@@ -2305,6 +2308,41 @@ enabled = false
         assert!(after.contains("[ai.mcp.gateway]"));
         assert!(after.contains("mode = \"daemon-proxy\""));
         assert!(after.contains("lazy_catalog = true"));
+    }
+
+    #[test]
+    fn refresh_generated_aibox_toml_comments_rewrites_legacy_zellij_comments() {
+        let tmp = TempDir::new().unwrap();
+        fs::write(
+            tmp.path().join("aibox.toml"),
+            r#"# aibox.toml — single source of truth for your aibox project.
+
+[container]
+name = "demo"
+
+# =============================================================================
+# [customization] — color theme, shell prompt, and zellij layout
+# =============================================================================
+# Theme is applied consistently across Zellij, Vim, Yazi, lazygit, and bat.
+[customization]
+# Default zellij layout. Options: dev | focus | cowork | cowork-swap | browse | ai
+layout = "ai"
+
+# Zellij status presentation. Options: sidecar | shell | disabled
+[customization.zellij_status]
+mode = "sidecar"
+"#,
+        )
+        .unwrap();
+
+        refresh_generated_aibox_toml_comments(tmp.path()).unwrap();
+
+        let after = fs::read_to_string(tmp.path().join("aibox.toml")).unwrap();
+        assert!(after.contains("[customization.tmux.status]"));
+        assert!(after.contains("mode = \"powerline\""));
+        assert!(after.contains("tmux layout"));
+        assert!(!after.contains("zellij layout"));
+        assert!(!after.contains("[customization.zellij_status]"));
     }
 
     #[test]

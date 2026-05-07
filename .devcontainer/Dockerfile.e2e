@@ -89,16 +89,12 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     chafa \
     librsvg2-bin \
     poppler-utils \
-    timg \
     mupdf-tools \
     entr \
     p7zip-full \
     ghostscript \
     imagemagick \
     ffmpeg \
-    # For building container images (podman uses buildah under the hood)
-    buildah \
-    nftables \
     # Rootless networking (provides pasta binary for podman network namespace)
     passt \
     slirp4netns \

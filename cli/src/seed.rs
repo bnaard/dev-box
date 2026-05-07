@@ -1099,6 +1099,19 @@ pub fn cleanup_disabled_runtime_files(config: &AiboxConfig) -> Result<Vec<String
 
     updated.extend(cleanup_zellij_runtime_cache(&root, &config.container.name)?);
 
+    for rel_path in [
+        ".cache/zellij",
+        ".cache/org/Zellij Contributors/Zellij",
+        ".cache/org/Zellij Contributors",
+    ] {
+        let cache_dir = root.join(rel_path);
+        if cache_dir.exists() {
+            fs::remove_dir_all(&cache_dir)
+                .with_context(|| format!("Failed to remove {}", cache_dir.display()))?;
+            updated.push(format!("{rel_path} (removed legacy Zellij cache)"));
+        }
+    }
+
     Ok(updated)
 }
 
@@ -1174,6 +1187,19 @@ fn cleanup_legacy_managed_zellij_config(root: &Path) -> Result<Vec<String>> {
         }
     }
     let _ = fs::remove_dir(&layouts);
+
+    let themes = zellij_config.join("themes");
+    for name in ["gruvbox-dark.kdl", "tokyo-night.kdl"] {
+        let path = themes.join(name);
+        if path.exists() {
+            fs::remove_file(&path)
+                .with_context(|| format!("Failed to remove {}", path.display()))?;
+            updated.push(format!(
+                ".config/zellij/themes/{name} (removed legacy managed Zellij theme)"
+            ));
+        }
+    }
+    let _ = fs::remove_dir(&themes);
     let _ = fs::remove_dir(&zellij_config);
 
     Ok(updated)
@@ -1285,7 +1311,7 @@ fn tmux_layout_script(
         .map(|provider| provider.binary_name())
         .unwrap_or("bash");
     let git_window = if include_lazygit {
-        r#"tmux new-window -t "$session:" -n git -c "$workspace" "lazygit || bash"
+        r#"tmux new-window -t "$session:" -n git -c "$workspace" "$(tool_or_shell lazygit)"
 "#
     } else {
         ""
@@ -1293,41 +1319,46 @@ fn tmux_layout_script(
 
     let layout_body = match layout {
         ConfigLayout::Dev => format!(
-            r#"tmux -f "$config" new-session -d -s "$session" -n dev -c "$workspace" "vim"
-tmux split-window -t "$session:dev" -h -p 35 -c "$workspace" "yazi"
-tmux split-window -t "$session:dev" -v -p 40 -c "$workspace" "{provider}"
-tmux select-pane -t "$session:dev.1"
+            r#"tmux -f "$config" new-session -d -s "$session" -n dev -c "$workspace" "$(tool_or_shell vim)"
+editor_pane="$(tmux display-message -p -t "$session:dev" '#{{pane_id}}')"
+files_pane="$(tmux split-window -t "$session:dev" -h -p 35 -P -F '#{{pane_id}}' -c "$workspace" "$(tool_or_shell yazi)")"
+agent_pane="$(tmux split-window -t "$session:dev" -v -p 40 -P -F '#{{pane_id}}' -c "$workspace" "$(tool_or_shell {provider})")"
+tmux select-pane -t "$editor_pane"
 "#
         ),
         ConfigLayout::Focus => format!(
-            r#"tmux -f "$config" new-session -d -s "$session" -n focus -c "$workspace" "{provider}"
-tmux new-window -t "$session:" -n editor -c "$workspace" "vim"
+            r#"tmux -f "$config" new-session -d -s "$session" -n focus -c "$workspace" "$(tool_or_shell {provider})"
+tmux new-window -t "$session:" -n editor -c "$workspace" "$(tool_or_shell vim)"
 "#
         ),
         ConfigLayout::Cowork => format!(
-            r#"tmux -f "$config" new-session -d -s "$session" -n cowork -c "$workspace" "vim"
-tmux split-window -t "$session:cowork" -h -p 50 -c "$workspace" "{provider}"
-tmux split-window -t "$session:cowork.1" -v -p 35 -c "$workspace" "yazi"
-tmux select-pane -t "$session:cowork.1"
+            r#"tmux -f "$config" new-session -d -s "$session" -n cowork -c "$workspace" "$(tool_or_shell vim)"
+editor_pane="$(tmux display-message -p -t "$session:cowork" '#{{pane_id}}')"
+agent_pane="$(tmux split-window -t "$session:cowork" -h -p 50 -P -F '#{{pane_id}}' -c "$workspace" "$(tool_or_shell {provider})")"
+files_pane="$(tmux split-window -t "$editor_pane" -v -p 35 -P -F '#{{pane_id}}' -c "$workspace" "$(tool_or_shell yazi)")"
+tmux select-pane -t "$editor_pane"
 "#
         ),
         ConfigLayout::CoworkSwap => format!(
-            r#"tmux -f "$config" new-session -d -s "$session" -n cowork-swap -c "$workspace" "yazi"
-tmux split-window -t "$session:cowork-swap" -v -p 45 -c "$workspace" "{provider}"
-tmux split-window -t "$session:cowork-swap" -h -p 60 -c "$workspace" "vim"
-tmux select-pane -t "$session:cowork-swap.3"
+            r#"tmux -f "$config" new-session -d -s "$session" -n cowork-swap -c "$workspace" "$(tool_or_shell yazi)"
+files_pane="$(tmux display-message -p -t "$session:cowork-swap" '#{{pane_id}}')"
+agent_pane="$(tmux split-window -t "$session:cowork-swap" -v -p 45 -P -F '#{{pane_id}}' -c "$workspace" "$(tool_or_shell {provider})")"
+editor_pane="$(tmux split-window -t "$session:cowork-swap" -h -p 60 -P -F '#{{pane_id}}' -c "$workspace" "$(tool_or_shell vim)")"
+tmux select-pane -t "$editor_pane"
 "#
         ),
         ConfigLayout::Browse => format!(
-            r#"tmux -f "$config" new-session -d -s "$session" -n browse -c "$workspace" "yazi"
-tmux split-window -t "$session:browse" -v -p 35 -c "$workspace" "{provider}"
-tmux new-window -t "$session:" -n editor -c "$workspace" "vim"
+            r#"tmux -f "$config" new-session -d -s "$session" -n browse -c "$workspace" "$(tool_or_shell yazi)"
+files_pane="$(tmux display-message -p -t "$session:browse" '#{{pane_id}}')"
+agent_pane="$(tmux split-window -t "$session:browse" -v -p 35 -P -F '#{{pane_id}}' -c "$workspace" "$(tool_or_shell {provider})")"
+tmux new-window -t "$session:" -n editor -c "$workspace" "$(tool_or_shell vim)"
 "#
         ),
         ConfigLayout::Ai => format!(
-            r#"tmux -f "$config" new-session -d -s "$session" -n ai -c "$workspace" "yazi"
-tmux split-window -t "$session:ai" -h -p 50 -c "$workspace" "{provider}"
-tmux new-window -t "$session:" -n editor -c "$workspace" "vim"
+            r#"tmux -f "$config" new-session -d -s "$session" -n ai -c "$workspace" "$(tool_or_shell yazi)"
+files_pane="$(tmux display-message -p -t "$session:ai" '#{{pane_id}}')"
+agent_pane="$(tmux split-window -t "$session:ai" -h -p 50 -P -F '#{{pane_id}}' -c "$workspace" "$(tool_or_shell {provider})")"
+tmux new-window -t "$session:" -n editor -c "$workspace" "$(tool_or_shell vim)"
 tmux new-window -t "$session:" -n shell -c "$workspace" "bash"
 "#
         ),
@@ -1344,6 +1375,11 @@ config="${{AIBOX_TMUX_CONFIG:-$HOME/.config/tmux/tmux.conf}}"
 if tmux -f "$config" has-session -t "$session" 2>/dev/null; then
   exec tmux -f "$config" attach-session -t "$session"
 fi
+
+tool_or_shell() {{
+  local tool="$1"
+  printf "bash -lc 'if command -v %q >/dev/null 2>&1; then %q; fi; exec bash'" "$tool" "$tool"
+}}
 
 {layout_body}{git_window}tmux select-window -t "$session:1"
 exec tmux -f "$config" attach-session -t "$session"
@@ -1413,6 +1449,38 @@ pub fn seed_root_dir(config: &AiboxConfig) -> Result<()> {
 
     output::ok("Directory seeding complete");
     Ok(())
+}
+
+/// Restore managed runtime files that are missing, without overwriting edits.
+pub fn restore_missing_managed_runtime_files(config: &AiboxConfig) -> Result<Vec<String>> {
+    let root = config.host_root_dir();
+    let mut restored = Vec::new();
+
+    ensure_runtime_dirs(config)?;
+    for (rel_path, content) in managed_runtime_files(config) {
+        let path = root.join(&rel_path);
+        if path.exists() {
+            continue;
+        }
+        if let Some(parent) = path.parent() {
+            fs::create_dir_all(parent)
+                .with_context(|| format!("Failed to create directory: {}", parent.display()))?;
+        }
+        fs::write(&path, content)
+            .with_context(|| format!("Failed to restore {}", path.display()))?;
+        if rel_path == Path::new(".local/bin/pdf-watch")
+            || rel_path == Path::new(".local/bin/open-in-editor")
+            || rel_path == Path::new(".local/bin/aibox-preview")
+            || rel_path == Path::new(".local/bin/aibox-status-toggle")
+            || (rel_path.starts_with(".config/tmux/")
+                && rel_path.extension().is_some_and(|ext| ext == "sh"))
+        {
+            ensure_executable(&path)?;
+        }
+        restored.push(rel_path.to_string_lossy().replace('\\', "/"));
+    }
+
+    Ok(restored)
 }
 
 fn seed_file(path: &Path, content: &str) -> Result<()> {
@@ -2153,8 +2221,8 @@ mod tests {
             "legacy permission cache must be removed"
         );
         assert!(
-            named_plugin_cache.exists(),
-            "named plugin caches are not aibox session resurrection state"
+            !named_plugin_cache.exists(),
+            "v0.25+ removes the legacy Zellij cache tree entirely"
         );
     }
 
@@ -2473,8 +2541,8 @@ rules = [
         let layout = tmux_layout_script(&ConfigLayout::Dev, &providers, true, "aibox");
 
         assert!(layout.contains("tmux -f \"$config\" new-session -d -s \"$session\" -n dev"));
-        assert!(layout.contains("\"codex\""));
-        assert!(!layout.contains("\"claude\""));
+        assert!(layout.contains("tool_or_shell codex"));
+        assert!(!layout.contains("tool_or_shell claude"));
         assert!(layout.contains("tmux new-window -t \"$session:\" -n git"));
         assert!(!layout.contains("zellij"));
     }
@@ -2507,8 +2575,8 @@ rules = [
         let providers = vec![AiProvider::Codex];
         let layout = tmux_layout_script(&ConfigLayout::Ai, &providers, false, "aibox");
 
-        assert!(layout.contains("\"codex\""));
-        assert!(!layout.contains("\"claude\""));
+        assert!(layout.contains("tool_or_shell codex"));
+        assert!(!layout.contains("tool_or_shell claude"));
         assert!(layout.contains("tmux new-window -t \"$session:\" -n editor"));
         assert!(layout.contains("tmux new-window -t \"$session:\" -n shell"));
     }
