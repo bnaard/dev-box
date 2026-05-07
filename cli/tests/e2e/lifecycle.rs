@@ -67,6 +67,8 @@ fn lifecycle_init_apply() {
 fn lifecycle_apply_starts_generated_container() {
     let runner = E2eRunner::new();
     let test = "lifecycle-container-up";
+    let runtime = runner.runtime_bin();
+    runner.exec(&format!("{runtime} rm -f {test} >/dev/null 2>&1 || true"));
     runner.cleanup(test);
 
     let init = runner.aibox(
@@ -88,12 +90,13 @@ fn lifecycle_apply_starts_generated_container() {
         String::from_utf8_lossy(&init.stderr)
     );
     let workspace = format!("/workspaces/{test}");
+    let published_version = runner.latest_published_image_version(test);
     let version = runner.exec(&format!(
-        "cd {workspace} && sed -i 's/^release_version = .*/release_version = \"latest\"/' aibox.toml"
+        "cd {workspace} && sed -i 's/^release_version = .*/release_version = \"{published_version}\"/' aibox.toml"
     ));
     assert!(
         version.status.success(),
-        "failed to switch lifecycle container test to published latest image:\nstdout:\n{}\nstderr:\n{}",
+        "failed to switch lifecycle container test to published image {published_version}:\nstdout:\n{}\nstderr:\n{}",
         String::from_utf8_lossy(&version.stdout),
         String::from_utf8_lossy(&version.stderr)
     );
@@ -106,7 +109,6 @@ fn lifecycle_apply_starts_generated_container() {
         String::from_utf8_lossy(&apply.stderr)
     );
 
-    let runtime = runner.runtime_bin();
     let compose_file = format!("{workspace}/.devcontainer/docker-compose.yml");
     let up = runner.exec(&format!(
         "cd {workspace} && {runtime} compose -f {compose_file} up -d {test}"
@@ -118,10 +120,12 @@ fn lifecycle_apply_starts_generated_container() {
         String::from_utf8_lossy(&up.stderr)
     );
 
-    let probe = runner.container_exec(
-        test,
-        "bash -lc 'test -r /etc/aibox-version && tmux -V && yazi --version && aibox-status --plugin-json >/tmp/aibox-status.json && jq -e .plain /tmp/aibox-status.json >/dev/null'",
-    );
+    let probe_command = if published_version == env!("CARGO_PKG_VERSION") {
+        "bash -lc 'test -r /etc/aibox-version && tmux -V && yazi --version && aibox-status --plugin-json >/tmp/aibox-status.json && jq -e .plain /tmp/aibox-status.json >/dev/null'"
+    } else {
+        "bash -lc 'test -r /etc/aibox-version && yazi --version >/dev/null'"
+    };
+    let probe = runner.container_exec(test, probe_command);
     assert!(
         probe.status.success(),
         "container probe failed:\nstdout:\n{}\nstderr:\n{}",

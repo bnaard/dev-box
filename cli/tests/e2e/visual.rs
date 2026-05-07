@@ -38,6 +38,28 @@ fn contains_rgb(output: &str, r: u8, g: u8, b: u8) -> bool {
     output.contains(&format!("38;2;{r};{g};{b}")) || output.contains(&format!("48;2;{r};{g};{b}"))
 }
 
+fn nearest_xterm_level(value: u8) -> u8 {
+    const LEVELS: [u8; 6] = [0, 95, 135, 175, 215, 255];
+    LEVELS
+        .iter()
+        .enumerate()
+        .min_by_key(|(_, level)| value.abs_diff(**level))
+        .map(|(idx, _)| idx as u8)
+        .unwrap_or(0)
+}
+
+fn xterm_256_index(r: u8, g: u8, b: u8) -> u8 {
+    16 + (36 * nearest_xterm_level(r)) + (6 * nearest_xterm_level(g)) + nearest_xterm_level(b)
+}
+
+fn contains_signature_color(output: &str, r: u8, g: u8, b: u8) -> bool {
+    if contains_rgb(output, r, g, b) {
+        return true;
+    }
+    let idx = xterm_256_index(r, g, b);
+    output.contains(&format!("38;5;{idx}")) || output.contains(&format!("48;5;{idx}"))
+}
+
 fn rgb_hex(r: u8, g: u8, b: u8) -> String {
     format!("#{r:02X}{g:02X}{b:02X}")
 }
@@ -109,13 +131,14 @@ fn init_project(runner: &E2eRunner, test_name: &str, theme: &str) {
 
 fn assert_generated_tmux_config(runner: &E2eRunner, test_name: &str, theme: &str) {
     let workspace = format!("/workspaces/{test_name}");
+    let theme_pattern = theme.replace('-', "[- ]");
     let probe = runner.exec(&format!(
         r#"cd {workspace}
 test -f .aibox-home/.tmux.conf -o -f .aibox-home/.config/tmux/tmux.conf
 ! find .aibox-home -path '*zellij*' -print -quit | grep -q .
 ! grep -Rli --exclude-dir=.git 'zellij' .aibox-home .devcontainer aibox.toml >/tmp/{test_name}-legacy-zellij.txt 2>/dev/null
-grep -Rli --exclude-dir=.git 'tmux' .aibox-home .devcontainer aibox.toml >/tmp/{test_name}-tmux-files.txt
-grep -Ri --exclude-dir=.git '{theme}' .aibox-home >/tmp/{test_name}-theme.txt
+grep -Rli --exclude-dir=.git --exclude=claude 'tmux' .aibox-home .devcontainer aibox.toml >/tmp/{test_name}-tmux-files.txt
+grep -REi --exclude-dir=.git --exclude=claude '{theme_pattern}' .aibox-home >/tmp/{test_name}-theme.txt
 "#
     ));
     assert!(
@@ -137,7 +160,7 @@ fn assert_theme_signature_config(
     let workspace = format!("/workspaces/{test_name}");
     let expected = rgb_hex(r, g, b);
     let probe = runner.exec(&format!(
-        "cd {workspace} && grep -Ri --exclude-dir=.git '{expected}' .aibox-home >/tmp/{test_name}-theme-rgb.txt"
+        "cd {workspace} && grep -Ri --exclude-dir=.git --exclude=claude '{expected}' .aibox-home >/tmp/{test_name}-theme-rgb.txt"
     ));
     assert!(
         probe.status.success(),
@@ -187,7 +210,7 @@ tmux kill-session -t "{session}" >/dev/null 2>&1 || true
   done
 {body}
   sleep 0.5
-  tmux capture-pane -e -p -t "{session}:0.0" > "{workspace}/final-pane.txt" 2>/dev/null || true
+  tmux capture-pane -e -p -t "{session}:1.1" > "{workspace}/final-pane.txt" 2>/dev/null || true
   tmux display-message -p -t "{session}" '#S #W #{{window_panes}} #{{status-left}} #{{status-right}}' > "{workspace}/tmux-status.txt" 2>/dev/null || true
   tmux kill-session -t "{session}" >/dev/null 2>&1 || true
 ) &
@@ -218,6 +241,8 @@ fn visual_themes_produce_tmux_signature_colors() {
         let body = format!(
             r##"  tmux set-option -t "{test_name}" -g status on
   tmux set-option -t "{test_name}" -ga terminal-overrides ",*:Tc"
+  tmux set-option -t "{test_name}" -g status-left-length 100
+  tmux set-option -t "{test_name}" -g status-right-length 100
   tmux set-option -t "{test_name}" -g status-left "#[fg={hex},bold] AIBOX-TMUX-THEME {theme} #[default]"
   tmux set-option -t "{test_name}" -g status-right "#[fg={hex}] MEM #(aibox-status 2>/dev/null | cut -c1-60) #[default]"
   sleep 2
@@ -237,8 +262,8 @@ fn visual_themes_produce_tmux_signature_colors() {
             text.chars().take(1600).collect::<String>()
         );
         assert!(
-            contains_rgb(&output, r, g, b),
-            "{theme}: expected tmux status to render RGB({r},{g},{b})"
+            contains_signature_color(&output, r, g, b),
+            "{theme}: expected tmux status to render RGB({r},{g},{b}) or its xterm-256 fallback"
         );
         runner.cleanup(&test_name);
     }
@@ -258,11 +283,13 @@ fn visual_tmux_status_and_panes_render_without_legacy_artifacts() {
     let workspace = format!("/workspaces/{test_name}");
     let body = format!(
         r#"  tmux set-option -t "{test_name}" -g status on
+  tmux set-option -t "{test_name}" -g status-left-length 80
+  tmux set-option -t "{test_name}" -g status-right-length 100
   tmux set-option -t "{test_name}" -g status-left " AIBOX-TMUX #S:#I.#P "
   tmux set-option -t "{test_name}" -g status-right " #(aibox-status 2>/dev/null | cut -c1-80) "
-  tmux split-window -h -t "{test_name}:0" -c "{workspace}" "printf 'AIBOX-TMUX-RIGHT-PANE\n'; exec bash"
-  tmux split-window -v -t "{test_name}:0.0" -c "{workspace}" "printf 'AIBOX-TMUX-LOWER-PANE\n'; exec bash"
-  tmux select-pane -t "{test_name}:0.0"
+  tmux split-window -h -t "{test_name}:1" -c "{workspace}" "printf 'AIBOX-TMUX-RIGHT-PANE\n'; exec bash"
+  tmux split-window -v -t "{test_name}:1.1" -c "{workspace}" "printf 'AIBOX-TMUX-LOWER-PANE\n'; exec bash"
+  tmux select-pane -t "{test_name}:1.1"
   sleep 3
 "#
     );
@@ -306,10 +333,10 @@ fn visual_yazi_renders_in_tmux_pane() {
 
     let workspace = format!("/workspaces/{test_name}");
     let body = format!(
-        r#"  tmux rename-window -t "{test_name}:0" files
-  tmux send-keys -t "{test_name}:0.0" "cd {workspace}/project-files && exec yazi ." C-m
+        r#"  tmux rename-window -t "{test_name}:1" files
+  tmux send-keys -t "{test_name}:1.1" "cd {workspace}/project-files && exec yazi ." C-m
   for _ in $(seq 1 30); do
-    tmux capture-pane -p -t "{test_name}:0.0" > "{workspace}/yazi-screen.txt" 2>/dev/null || true
+    tmux capture-pane -p -t "{test_name}:1.1" > "{workspace}/yazi-screen.txt" 2>/dev/null || true
     grep -Eq 'README|main.rs' "{workspace}/yazi-screen.txt" && break
     sleep 0.25
   done

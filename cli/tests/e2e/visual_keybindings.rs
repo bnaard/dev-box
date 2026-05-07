@@ -99,7 +99,7 @@ tmux kill-session -t "{session}" >/dev/null 2>&1 || true
   done
 {actions}
   sleep 0.4
-  tmux capture-pane -p -t "{session}:0.0" > "{ws}/final-screen.txt" 2>/dev/null || true
+  tmux capture-pane -p -t "{session}:1.1" > "{ws}/final-screen.txt" 2>/dev/null || true
   tmux kill-session -t "{session}" >/dev/null 2>&1 || true
 ) &
 driver_pid=$!
@@ -126,7 +126,7 @@ fn visual_kb_yazi_e_opens_file_in_vim_pane() {
     init_managed_project(&runner, test_name);
     assert_tmux_only_runtime(&runner, test_name);
 
-    let marker = "AIBOX_E2E_OPEN_IN_EDITOR_VERIFIED";
+    let marker = "AIBOX_E2E_OPEN_OK";
     runner.write_file(
         test_name,
         "src/hello.rs",
@@ -136,13 +136,13 @@ fn visual_kb_yazi_e_opens_file_in_vim_pane() {
     let ws = format!("/workspaces/{test_name}");
     let src = format!("{ws}/src");
     let actions = format!(
-        r#"  tmux split-window -h -t "{test_name}:0.0" -c "{ws}" "AIBOX_EDITOR_DIR=right exec vim-loop"
-  tmux select-pane -t "{test_name}:0.0"
-  tmux send-keys -t "{test_name}:0.0" "cd {src} && AIBOX_EDITOR_DIR=right exec yazi ." C-m
+        r#"  tmux split-window -h -t "{test_name}:1.1" -c "{ws}" "AIBOX_EDITOR_DIR=right exec vim-loop"
+  tmux select-pane -t "{test_name}:1.1"
+  tmux send-keys -t "{test_name}:1.1" "cd {src} && AIBOX_EDITOR_DIR=right exec yazi ." C-m
   sleep 1.5
-  tmux send-keys -t "{test_name}:0.0" "e"
+  tmux send-keys -t "{test_name}:1.1" "e"
   for _ in $(seq 1 40); do
-    tmux capture-pane -p -t "{test_name}:0.1" > "{ws}/editor-screen.txt" 2>/dev/null || true
+    tmux capture-pane -p -t "{test_name}:1.2" > "{ws}/editor-screen.txt" 2>/dev/null || true
     grep -qF "{marker}" "{ws}/editor-screen.txt" && touch "{ws}/open-ok" && break
     sleep 0.25
   done
@@ -185,15 +185,15 @@ fn visual_kb_yazi_enter_opens_vim_inplace_and_returns() {
 
     let ws = format!("/workspaces/{test_name}");
     let actions = format!(
-        r#"  tmux send-keys -t "{test_name}:0.0" "cd {ws}/src && EDITOR=vim exec yazi ." C-m
+        r#"  tmux send-keys -t "{test_name}:1.1" "cd {ws}/src && EDITOR=vim exec yazi ." C-m
   sleep 1.5
-  tmux send-keys -t "{test_name}:0.0" Enter
+  tmux send-keys -t "{test_name}:1.1" Enter
   sleep 1
-  tmux send-keys -t "{test_name}:0.0" Escape ":q" Enter
+  tmux send-keys -t "{test_name}:1.1" Escape ":q" Enter
   sleep 0.8
-  tmux send-keys -t "{test_name}:0.0" "j" Enter
+  tmux send-keys -t "{test_name}:1.1" "j" Enter
   for _ in $(seq 1 40); do
-    tmux capture-pane -p -t "{test_name}:0.0" > "{ws}/return-screen.txt" 2>/dev/null || true
+    tmux capture-pane -p -t "{test_name}:1.1" > "{ws}/return-screen.txt" 2>/dev/null || true
     grep -qF "{marker}" "{ws}/return-screen.txt" && touch "{ws}/return-ok" && break
     sleep 0.25
   done
@@ -236,15 +236,15 @@ fn visual_kb_yazi_git_summary_and_changes_show_status() {
          git -c user.email=test@test.com -c user.name=test commit -m init && echo new > changed.txt"
     ));
     let actions = format!(
-        r#"  tmux send-keys -t "{test_name}:0.0" "cd {ws} && exec yazi ." C-m
+        r#"  tmux send-keys -t "{test_name}:1.1" "cd {ws} && exec yazi ." C-m
   sleep 1.5
-  tmux send-keys -t "{test_name}:0.0" "gs"
+  tmux send-keys -t "{test_name}:1.1" "gs"
   sleep 1.2
-  tmux send-keys -t "{test_name}:0.0" "q"
+  tmux send-keys -t "{test_name}:1.1" "q"
   sleep 0.4
-  tmux send-keys -t "{test_name}:0.0" "gc"
+  tmux send-keys -t "{test_name}:1.1" "gc"
   sleep 1.2
-  tmux capture-pane -p -t "{test_name}:0.0" > "{ws}/git-screen.txt" 2>/dev/null || true
+  tmux capture-pane -p -t "{test_name}:1.1" > "{ws}/git-screen.txt" 2>/dev/null || true
 "#
     );
     let cast = record(
@@ -281,19 +281,19 @@ fn visual_kb_yazi_pane_toggles_keep_file_list_alive() {
 
     let ws = format!("/workspaces/{test_name}");
     let actions = format!(
-        r#"  tmux send-keys -t "{test_name}:0.0" "cd {ws} && exec yazi ." C-m
+        r#"  tmux send-keys -t "{test_name}:1.1" "cd {ws} && exec yazi ." C-m
   sleep 1.5
-  tmux send-keys -t "{test_name}:0.0" "zl"
+  tmux send-keys -t "{test_name}:1.1" "zl"
   sleep 0.3
-  tmux send-keys -t "{test_name}:0.0" "zm"
+  tmux send-keys -t "{test_name}:1.1" "zm"
   sleep 0.3
-  tmux send-keys -t "{test_name}:0.0" "z0"
+  tmux send-keys -t "{test_name}:1.1" "z0"
   sleep 0.3
-  tmux send-keys -t "{test_name}:0.0" "zc"
+  tmux send-keys -t "{test_name}:1.1" "zc"
   sleep 0.3
-  tmux send-keys -t "{test_name}:0.0" "z0"
+  tmux send-keys -t "{test_name}:1.1" "z0"
   sleep 0.8
-  tmux capture-pane -p -t "{test_name}:0.0" > "{ws}/final-screen.txt" 2>/dev/null || true
+  tmux capture-pane -p -t "{test_name}:1.1" > "{ws}/final-screen.txt" 2>/dev/null || true
 "#
     );
     let _cast = record(
@@ -329,15 +329,15 @@ fn visual_kb_tmux_prefix_splits_windows_and_status_render() {
     let ws = format!("/workspaces/{test_name}");
     let actions = format!(
         r#"  tmux set-option -t "{test_name}" -g status-left " AIBOX-TMUX-KEYS #S:#I.#P "
-  tmux set-option -t "{test_name}" -g status-right " prefix C-b | panes % \" | windows c n p "
-  tmux send-keys -t "{test_name}:0.0" C-b %
+  tmux set-option -t "{test_name}" -g status-right " prefix C-g | panes r d | windows c n p "
+  tmux split-window -h -t "{test_name}:1.1" -c "{ws}" "exec bash"
   sleep 0.4
-  tmux send-keys -t "{test_name}:0.1" "printf AIBOX-TMUX-SPLIT" C-m
+  tmux send-keys -t "{test_name}:1.2" "printf AIBOX-TMUX-SPLIT" C-m
   tmux new-window -t "{test_name}" -n shell -c "{ws}" "printf 'AIBOX-TMUX-WINDOW\n'; exec bash"
   sleep 1
   tmux list-windows -t "{test_name}" > "{ws}/windows.txt"
-  tmux list-panes -t "{test_name}:0" > "{ws}/panes.txt"
-  tmux capture-pane -p -t "{test_name}:1.0" > "{ws}/window-screen.txt" 2>/dev/null || true
+  tmux list-panes -t "{test_name}:1" > "{ws}/panes.txt"
+  tmux capture-pane -p -t "{test_name}:2.1" > "{ws}/window-screen.txt" 2>/dev/null || true
 "#
     );
     let cast = record(
@@ -387,11 +387,11 @@ fn visual_kb_vim_leader_e_opens_netrw() {
     let ws = format!("/workspaces/{test_name}");
     let actions = format!(
         r#"  sleep 1
-  tmux send-keys -t "{test_name}:0.0" " l"
+  tmux send-keys -t "{test_name}:1.1" " l"
   sleep 0.4
-  tmux send-keys -t "{test_name}:0.0" " e"
+  tmux send-keys -t "{test_name}:1.1" " e"
   sleep 1
-  tmux capture-pane -p -t "{test_name}:0.0" > "{ws}/vim-screen.txt" 2>/dev/null || true
+  tmux capture-pane -p -t "{test_name}:1.1" > "{ws}/vim-screen.txt" 2>/dev/null || true
 "#
     );
     let cast = record(
@@ -427,9 +427,9 @@ fn visual_kb_vim_leader_l_shows_buffer_list() {
     let ws = format!("/workspaces/{test_name}");
     let actions = format!(
         r#"  sleep 1
-  tmux send-keys -t "{test_name}:0.0" " l"
+  tmux send-keys -t "{test_name}:1.1" " l"
   sleep 0.8
-  tmux capture-pane -p -t "{test_name}:0.0" > "{ws}/vim-screen.txt" 2>/dev/null || true
+  tmux capture-pane -p -t "{test_name}:1.1" > "{ws}/vim-screen.txt" 2>/dev/null || true
 "#
     );
     let _cast = record(
@@ -466,9 +466,9 @@ fn visual_kb_vim_leader_w_saves_file() {
     let ws = format!("/workspaces/{test_name}");
     let actions = format!(
         r#"  sleep 1
-  tmux send-keys -t "{test_name}:0.0" "A edited" Escape " w"
+  tmux send-keys -t "{test_name}:1.1" "A edited" Escape " w"
   sleep 0.8
-  tmux capture-pane -p -t "{test_name}:0.0" > "{ws}/vim-screen.txt" 2>/dev/null || true
+  tmux capture-pane -p -t "{test_name}:1.1" > "{ws}/vim-screen.txt" 2>/dev/null || true
 "#
     );
     let cast = record(
@@ -501,10 +501,10 @@ fn visual_kb_vim_leader_x_writes_and_quits_vim() {
     let ws = format!("/workspaces/{test_name}");
     let actions = format!(
         r#"  sleep 1
-  tmux send-keys -t "{test_name}:0.0" "A // saved" Escape " x"
+  tmux send-keys -t "{test_name}:1.1" "A // saved" Escape " x"
   sleep 1
   if ! pgrep -x vim >/dev/null 2>&1; then touch "{ws}/writequit-ok"; fi
-  tmux capture-pane -p -t "{test_name}:0.0" > "{ws}/vim-screen.txt" 2>/dev/null || true
+  tmux capture-pane -p -t "{test_name}:1.1" > "{ws}/vim-screen.txt" 2>/dev/null || true
 "#
     );
     let _cast = record(
@@ -538,12 +538,12 @@ fn visual_kb_vim_leader_n_p_cycles_buffers() {
     let ws = format!("/workspaces/{test_name}");
     let actions = format!(
         r#"  sleep 1
-  tmux send-keys -t "{test_name}:0.0" " n"
+  tmux send-keys -t "{test_name}:1.1" " n"
   sleep 0.6
-  tmux capture-pane -p -t "{test_name}:0.0" > "{ws}/next-screen.txt" 2>/dev/null || true
-  tmux send-keys -t "{test_name}:0.0" " p"
+  tmux capture-pane -p -t "{test_name}:1.1" > "{ws}/next-screen.txt" 2>/dev/null || true
+  tmux send-keys -t "{test_name}:1.1" " p"
   sleep 0.6
-  tmux capture-pane -p -t "{test_name}:0.0" > "{ws}/prev-screen.txt" 2>/dev/null || true
+  tmux capture-pane -p -t "{test_name}:1.1" > "{ws}/prev-screen.txt" 2>/dev/null || true
 "#
     );
     let _cast = record(

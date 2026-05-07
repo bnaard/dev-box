@@ -79,7 +79,7 @@ fi
 
 echo "== generated tmux runtime =="
 test -f "$HOME/.tmux.conf" -o -f "$HOME/.config/tmux/tmux.conf" || fail=1
-grep -Rli 'tmux' "$HOME" .devcontainer aibox.toml >/tmp/{test_name}-tmux-files.txt || fail=1
+grep -Rli --exclude=claude 'tmux' "$HOME" .devcontainer aibox.toml >/tmp/{test_name}-tmux-files.txt || fail=1
 if find "$HOME" -path '*zellij*' -print -quit | grep -q .; then
   echo "zellij path remains in generated home"
   find "$HOME" -path '*zellij*' -print
@@ -90,7 +90,9 @@ if grep -Rli --exclude-dir=.git 'zellij' "$HOME" .devcontainer aibox.toml >/tmp/
   cat /tmp/{test_name}-zellij-refs.txt
   fail=1
 fi
-grep -R 'tmux-sensible\|tmux-powerkit\|tmux-yank\|vim-tmux-navigator' "$HOME/.tmux.conf" "$HOME/.config/tmux" >/tmp/{test_name}-tmux-plugins.txt 2>/dev/null || fail=1
+tmux_config_targets="$HOME/.config/tmux"
+[ -f "$HOME/.tmux.conf" ] && tmux_config_targets="$tmux_config_targets $HOME/.tmux.conf"
+grep -R 'tmux-sensible\|tmux-powerkit\|tmux-yank\|vim-tmux-navigator' $tmux_config_targets >/tmp/{test_name}-tmux-plugins.txt 2>/dev/null || fail=1
 cat /tmp/{test_name}-tmux-plugins.txt 2>/dev/null || true
 
 echo "== yazi config =="
@@ -222,13 +224,13 @@ tmux_conf="$HOME/.tmux.conf"
   tmux set-option -t {test_name} -g status on
   tmux set-option -t {test_name} -g status-left " AIBOX-TMUX #S:#I.#P "
   tmux set-option -t {test_name} -g status-right " #(aibox-status 2>/dev/null | cut -c1-80) "
-  tmux split-window -h -t {test_name}:0 -c "{workspace}" "printf 'AIBOX-TMUX-RIGHT-PANE\n'; exec bash"
-  tmux split-window -v -t {test_name}:0.0 -c "{workspace}" "printf 'AIBOX-TMUX-LOWER-PANE\n'; exec bash"
+  tmux split-window -h -t {test_name}:1 -c "{workspace}" "printf 'AIBOX-TMUX-RIGHT-PANE\n'; exec bash"
+  tmux split-window -v -t {test_name}:1.1 -c "{workspace}" "printf 'AIBOX-TMUX-LOWER-PANE\n'; exec bash"
   tmux set-buffer -b aibox-yank "AIBOX_TMUX_BUFFER_MARKER"
   tmux save-buffer -b aibox-yank "{workspace}/tmux-buffer.txt"
   sleep 3
-  tmux capture-pane -p -t {test_name}:0.0 > "{workspace}/screen-left.txt" 2>/dev/null || true
-  tmux capture-pane -p -t {test_name}:0.1 > "{workspace}/screen-right.txt" 2>/dev/null || true
+  tmux capture-pane -p -t {test_name}:1.1 > "{workspace}/screen-left.txt" 2>/dev/null || true
+  tmux capture-pane -p -t {test_name}:1.2 > "{workspace}/screen-right.txt" 2>/dev/null || true
   tmux display-message -p -t {test_name} '#S #W #{{window_panes}} #{{status-left}} #{{status-right}}' > "{workspace}/status.txt" 2>/dev/null || true
   tmux kill-session -t {test_name} >/dev/null 2>&1 || true
 ) &

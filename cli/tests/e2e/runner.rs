@@ -238,6 +238,7 @@ impl E2eRunner {
             "/usr/local/bin/aibox-diagnostics",
             true,
         );
+        self.exec("sudo rm -f /usr/local/bin/zellij");
 
         // Verify deployment
         let output = self.exec(&format!("{} --version", REMOTE_AIBOX_BIN));
@@ -325,6 +326,33 @@ impl E2eRunner {
     pub fn dir_exists(&self, test_name: &str, path: &str) -> bool {
         let cmd = format!("test -d /workspaces/{}/{}", test_name, path);
         self.exec(&cmd).status.success()
+    }
+
+    /// Resolve the newest published base image version for lifecycle tests.
+    ///
+    /// During Phase 1 of a release the CLI version can be ahead of GHCR images,
+    /// because versioned base images are pushed by the host-side Phase 2. Tests
+    /// that only need a runnable published image should pin the published tag.
+    pub fn latest_published_image_version(&self, test_name: &str) -> String {
+        let workspace = format!("/workspaces/{test_name}");
+        let output = self.exec(&format!(
+            "cd {workspace} && \
+             sed -i 's/^release_version = .*/release_version = \"latest\"/' aibox.toml && \
+             AIBOX_ADDONS_DIR={REMOTE_ADDONS_DIR} {REMOTE_AIBOX_BIN} self update --check 2>&1 | \
+             sed -n 's/.*New image version available.* -> \\([0-9][0-9.]*\\).*/\\1/p' | tail -n 1"
+        ));
+        assert!(
+            output.status.success(),
+            "failed to resolve latest published base image:\nstdout:\n{}\nstderr:\n{}",
+            String::from_utf8_lossy(&output.stdout),
+            String::from_utf8_lossy(&output.stderr)
+        );
+        let version = String::from_utf8_lossy(&output.stdout).trim().to_string();
+        assert!(
+            !version.is_empty(),
+            "failed to parse latest published base image from `aibox self update --check` output"
+        );
+        version
     }
 
     /// Clean up a test workspace directory.
