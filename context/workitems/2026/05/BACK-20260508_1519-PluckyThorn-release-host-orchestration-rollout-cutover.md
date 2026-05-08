@@ -7,10 +7,10 @@ metadata:
   labels:
     track: release-rollout
     release: v0.25.6
-  updated: '2026-05-08T16:04:49+00:00'
+  updated: '2026-05-08T21:47:24+00:00'
 spec:
   title: 'v0.25.6: Release-host orchestration and rollout'
-  state: backlog
+  state: review
   type: task
   priority: medium
   description: |
@@ -53,4 +53,14 @@ spec:
   - BACK-20260508_1603-QuietCedar-status-bar-visual-rework-powerline
   - BACK-20260508_1603-SilentEagle-log-pane-reader-lnav-integration
   - BACK-20260508_1604-GrandWillow-yazi-vim-pane-hard-cut
+  started_at: '2026-05-08T21:41:58+00:00'
 ---
+
+## Transition note (2026-05-08T21:41:58+00:00)
+
+All 9 blockers shipped this session. Splitting work: R1 Migration entity via MCP (Cora), R2+R4 release notes + EOL doc (Jordan), R3 deferred (Docker infra), R5 stops for human authorisation.
+
+
+## Transition note (2026-05-08T21:47:24+00:00)
+
+R1 (lockfile migration entity), R2 (release notes in compat.rs::COMPAT_TABLE), R4 (zellij-eol.md + lockfile-v0-25-6.md migration docs) shipped. R3 (release-runtime-smoke baseline refresh, requires Docker) and R5 (tag/build/publish — irreversible, requires human authorisation) intentionally deferred. Reviewer should treat this as "ready for human cutover" rather than "all sub-tasks complete".
