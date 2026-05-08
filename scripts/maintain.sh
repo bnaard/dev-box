@@ -926,9 +926,6 @@ cmd_release_host() {
   echo "  Container images: pushed to GHCR"
   echo "  Runtime smoke: passed (logs in dist/release-smoke/v${version}/)"
   echo "  Generated runtime: refreshed and committed if needed"
-  echo ""
-  echo "  Note: docs deployment runs inside the dev-container"
-  echo "  (requires Node.js/Docusaurus): ./scripts/maintain.sh docs-deploy"
 }
 
 # ── Container commands ───────────────────────────────────────────────────────
