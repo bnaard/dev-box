@@ -1,4 +1,4 @@
-use anyhow::{Result, bail};
+use anyhow::{Context, Result, bail};
 use std::path::{Path, PathBuf};
 
 use crate::config::{
@@ -1171,12 +1171,7 @@ pub(crate) fn serialize_config_with_comments(config: &AiboxConfig) -> String {
     out.push_str("# installed; disabling one only triggers a doctor warning.\n");
     out.push_str("[skills]\n");
     let skill_catalog = skill_catalog_entries_for_comments(config);
-    render_skill_array(
-        &mut out,
-        "enabled",
-        &config.skills.include,
-        &skill_catalog,
-    );
+    render_skill_array(&mut out, "enabled", &config.skills.include, &skill_catalog);
 
     // [addons] section
     out.push('\n');
@@ -1450,8 +1445,12 @@ pub(crate) fn serialize_config_with_comments(config: &AiboxConfig) -> String {
         out.push_str("# [security] — explicit consent for security-sensitive runtime options\n");
         out.push_str(sep);
         out.push_str("[security]\n");
-        out.push_str("# Codex bubblewrap sandboxing requires seccomp=unconfined in docker-compose.yml.\n");
-        out.push_str("# Set to true to acknowledge the trade-off and allow `aibox apply` to emit it.\n");
+        out.push_str(
+            "# Codex bubblewrap sandboxing requires seccomp=unconfined in docker-compose.yml.\n",
+        );
+        out.push_str(
+            "# Set to true to acknowledge the trade-off and allow `aibox apply` to emit it.\n",
+        );
         out.push_str(&format!(
             "acknowledge_seccomp_unconfined = {}\n",
             config.security.acknowledge_seccomp_unconfined
@@ -2220,7 +2219,11 @@ pub fn cmd_init(config_path: &Option<String>, params: InitParams) -> Result<()> 
     // user-namespace seccomp fallback that ships with it.  This avoids an
     // immediate error on first `aibox apply` and keeps the consent documented
     // in aibox.toml for git history.
-    if config.ai.harnesses.contains(&crate::config::AiHarness::Codex) {
+    if config
+        .ai
+        .harnesses
+        .contains(&crate::config::AiHarness::Codex)
+    {
         config.security.acknowledge_seccomp_unconfined = true;
     }
 
@@ -2408,6 +2411,139 @@ fn warn_if_legacy_powerline_mode(config_path: &Option<String>) {
     }
 }
 
+/// Outcome of evaluating whether the seccomp consent gate must fire.
+///
+/// `Codex` is enabled, the project would emit `seccomp=unconfined`, and
+/// `[security].acknowledge_seccomp_unconfined` is not yet set.
+#[derive(Debug, PartialEq, Eq)]
+enum SeccompConsentDecision {
+    /// Gate does not apply (Codex disabled, or override declares seccomp,
+    /// or the flag is already set).
+    NotRequired,
+    /// Interactive: caller should prompt the user.
+    PromptInteractive,
+    /// Non-interactive: caller must refuse with a remediation message.
+    RefuseNonInteractive,
+}
+
+fn evaluate_seccomp_consent(
+    config: &AiboxConfig,
+    project_root: &Path,
+    interactive: bool,
+) -> SeccompConsentDecision {
+    if config.security.acknowledge_seccomp_unconfined {
+        return SeccompConsentDecision::NotRequired;
+    }
+    if !config.ai.harnesses.contains(&AiHarness::Codex) {
+        return SeccompConsentDecision::NotRequired;
+    }
+    let override_path = project_root.join(&config.container.paths.docker_compose_override);
+    if generate::compose_override_declares_codex_seccomp_pub(&override_path, &config.container.name)
+    {
+        return SeccompConsentDecision::NotRequired;
+    }
+    if interactive {
+        SeccompConsentDecision::PromptInteractive
+    } else {
+        SeccompConsentDecision::RefuseNonInteractive
+    }
+}
+
+/// Human-facing explanation of the seccomp=unconfined trade-off, shown
+/// both in the interactive prompt and in the non-interactive refusal.
+fn seccomp_consent_explanation() -> &'static str {
+    "Codex is enabled in this project. Codex's shell-tool calls run inside an additional \
+     bubblewrap user-namespace sandbox, which requires the outer container to run with \
+     `seccomp=unconfined`. This widens the syscall surface the container can issue to the \
+     host kernel — slightly weaker container-host isolation in exchange for a working \
+     Codex sandbox. This is not a no-op decision; it must be explicitly acknowledged."
+}
+
+fn seccomp_consent_refusal_message(toml_path: &Path) -> String {
+    format!(
+        "Codex requires seccomp=unconfined in the generated docker-compose.yml, but \
+         `[security].acknowledge_seccomp_unconfined` is not set in {}.\n\n{}\n\n\
+         To proceed non-interactively, add to {}:\n\n  [security]\n  \
+         acknowledge_seccomp_unconfined = true\n\n\
+         Or re-run `aibox apply` from an interactive terminal to be prompted.",
+        toml_path.display(),
+        seccomp_consent_explanation(),
+        toml_path.display(),
+    )
+}
+
+fn write_seccomp_consent_to_toml(toml_path: &Path) -> Result<()> {
+    let content = std::fs::read_to_string(toml_path)
+        .with_context(|| format!("Failed to read {}", toml_path.display()))?;
+    let mut doc: toml_edit::DocumentMut = content
+        .parse()
+        .with_context(|| format!("Failed to parse {}", toml_path.display()))?;
+    let security = doc
+        .entry("security")
+        .or_insert(toml_edit::Item::Table(toml_edit::Table::new()));
+    if let Some(table) = security.as_table_mut() {
+        table.insert("acknowledge_seccomp_unconfined", toml_edit::value(true));
+    } else {
+        bail!(
+            "[security] in {} is not a table; cannot set acknowledge_seccomp_unconfined",
+            toml_path.display()
+        );
+    }
+    std::fs::write(toml_path, doc.to_string())
+        .with_context(|| format!("Failed to write {}", toml_path.display()))?;
+    Ok(())
+}
+
+/// Resolve which TOML file backs the loaded config, defaulting to
+/// `aibox.toml` in the project root.
+fn resolve_aibox_toml_path(config_path: &Option<String>) -> PathBuf {
+    config_path
+        .as_ref()
+        .map(PathBuf::from)
+        .unwrap_or_else(|| PathBuf::from("aibox.toml"))
+}
+
+/// v0.25.6 S3 — gate `aibox apply` on explicit consent for seccomp=unconfined
+/// when Codex is enabled. Interactive prompt persists the flag to aibox.toml
+/// and updates the in-memory config. Non-interactive runs refuse with a
+/// remediation message pointing at the flag location.
+fn ensure_seccomp_consent(config: &mut AiboxConfig, config_path: &Option<String>) -> Result<()> {
+    let project_root = std::env::current_dir().unwrap_or_else(|_| PathBuf::from("."));
+    let interactive = std::io::IsTerminal::is_terminal(&std::io::stdin());
+    match evaluate_seccomp_consent(config, &project_root, interactive) {
+        SeccompConsentDecision::NotRequired => Ok(()),
+        SeccompConsentDecision::RefuseNonInteractive => {
+            let toml_path = resolve_aibox_toml_path(config_path);
+            bail!("{}", seccomp_consent_refusal_message(&toml_path));
+        }
+        SeccompConsentDecision::PromptInteractive => {
+            let toml_path = resolve_aibox_toml_path(config_path);
+            eprintln!();
+            output::warn("Codex seccomp consent required");
+            eprintln!("{}", seccomp_consent_explanation());
+            eprintln!();
+            let accepted = dialoguer::Confirm::new()
+                .with_prompt("Set [security].acknowledge_seccomp_unconfined = true and continue?")
+                .default(false)
+                .interact()?;
+            if !accepted {
+                bail!(
+                    "Apply cancelled: seccomp=unconfined consent declined. Re-run when ready, \
+                     or set `[security].acknowledge_seccomp_unconfined = true` in {} manually.",
+                    toml_path.display()
+                );
+            }
+            write_seccomp_consent_to_toml(&toml_path)?;
+            config.security.acknowledge_seccomp_unconfined = true;
+            output::ok(&format!(
+                "Recorded seccomp=unconfined consent in {}",
+                toml_path.display()
+            ));
+            Ok(())
+        }
+    }
+}
+
 /// command is allowed to create, modify, or delete. The tripwire below
 /// snapshots a small set of representative out-of-perimeter files
 /// before the sync runs and verifies after that none of them were
@@ -2447,6 +2583,13 @@ pub fn cmd_sync(
     warn_if_legacy_powerline_mode(config_path);
 
     let mut config = AiboxConfig::from_cli_option(config_path)?;
+
+    // v0.25.6 S3 — gate apply on explicit seccomp=unconfined consent for
+    // Codex projects before any generation runs. Fires before doctor and
+    // generate so the user is prompted (or refused) at the earliest point
+    // a downstream step would have failed.
+    ensure_seccomp_consent(&mut config, config_path)?;
+
     crate::context::update_gitignore(&config.addons)?;
 
     // Resolve [processkit].version = "latest" to a concrete tag before any
@@ -3479,5 +3622,133 @@ mod tests {
             should_warn_version_mismatch("0.0.1", "0.0.1"),
             "warning must fire when user pinned a concrete version that differs from CLI"
         );
+    }
+
+    // ---------------------------------------------------------------------
+    // v0.25.6 S3 — seccomp=unconfined consent gate
+    // ---------------------------------------------------------------------
+
+    fn config_with_codex_no_consent() -> AiboxConfig {
+        let mut config = crate::config::test_config();
+        config.ai.harnesses = vec![AiHarness::Codex];
+        config.security.acknowledge_seccomp_unconfined = false;
+        config
+    }
+
+    #[test]
+    fn seccomp_consent_skipped_when_flag_already_true() {
+        let mut config = config_with_codex_no_consent();
+        config.security.acknowledge_seccomp_unconfined = true;
+        let tmp = tempfile::tempdir().unwrap();
+        // Both interactive and non-interactive must skip when already acknowledged.
+        assert_eq!(
+            evaluate_seccomp_consent(&config, tmp.path(), true),
+            SeccompConsentDecision::NotRequired
+        );
+        assert_eq!(
+            evaluate_seccomp_consent(&config, tmp.path(), false),
+            SeccompConsentDecision::NotRequired
+        );
+    }
+
+    #[test]
+    fn seccomp_consent_skipped_when_codex_disabled() {
+        let mut config = config_with_codex_no_consent();
+        config.ai.harnesses = vec![AiHarness::Claude];
+        let tmp = tempfile::tempdir().unwrap();
+        assert_eq!(
+            evaluate_seccomp_consent(&config, tmp.path(), false),
+            SeccompConsentDecision::NotRequired
+        );
+    }
+
+    #[test]
+    fn seccomp_consent_refuses_non_interactive_when_unset() {
+        let config = config_with_codex_no_consent();
+        let tmp = tempfile::tempdir().unwrap();
+        assert_eq!(
+            evaluate_seccomp_consent(&config, tmp.path(), false),
+            SeccompConsentDecision::RefuseNonInteractive
+        );
+    }
+
+    #[test]
+    fn seccomp_consent_prompts_interactive_when_unset() {
+        let config = config_with_codex_no_consent();
+        let tmp = tempfile::tempdir().unwrap();
+        assert_eq!(
+            evaluate_seccomp_consent(&config, tmp.path(), true),
+            SeccompConsentDecision::PromptInteractive
+        );
+    }
+
+    #[test]
+    fn seccomp_consent_skipped_when_override_already_declares_unconfined() {
+        let config = config_with_codex_no_consent();
+        let tmp = tempfile::tempdir().unwrap();
+        // Write a docker-compose.override.yml that already declares seccomp=unconfined
+        // for the configured service name. The gate must defer to the override.
+        let override_path = tmp
+            .path()
+            .join(&config.container.paths.docker_compose_override);
+        if let Some(parent) = override_path.parent() {
+            std::fs::create_dir_all(parent).unwrap();
+        }
+        let body = format!(
+            "services:\n  {}:\n    security_opt:\n      - seccomp=unconfined\n",
+            config.container.name
+        );
+        std::fs::write(&override_path, body).unwrap();
+        assert_eq!(
+            evaluate_seccomp_consent(&config, tmp.path(), false),
+            SeccompConsentDecision::NotRequired,
+        );
+    }
+
+    #[test]
+    fn seccomp_consent_refusal_message_points_at_flag_and_path() {
+        let path = std::path::Path::new("aibox.toml");
+        let msg = seccomp_consent_refusal_message(path);
+        assert!(msg.contains("acknowledge_seccomp_unconfined"));
+        assert!(msg.contains("[security]"));
+        assert!(msg.contains("aibox.toml"));
+        assert!(msg.to_lowercase().contains("re-run"));
+    }
+
+    #[test]
+    fn write_seccomp_consent_inserts_security_section_in_existing_toml() {
+        let tmp = tempfile::tempdir().unwrap();
+        let toml_path = tmp.path().join("aibox.toml");
+        std::fs::write(
+            &toml_path,
+            "[aibox]\nversion = \"0.25.6\"\n\n[ai]\nharnesses = [\"codex\"]\n",
+        )
+        .unwrap();
+
+        write_seccomp_consent_to_toml(&toml_path).expect("write should succeed");
+
+        let written = std::fs::read_to_string(&toml_path).unwrap();
+        assert!(written.contains("[security]"));
+        assert!(written.contains("acknowledge_seccomp_unconfined = true"));
+        // Existing keys must be preserved.
+        assert!(written.contains("version = \"0.25.6\""));
+        assert!(written.contains("harnesses = [\"codex\"]"));
+    }
+
+    #[test]
+    fn write_seccomp_consent_updates_existing_security_section() {
+        let tmp = tempfile::tempdir().unwrap();
+        let toml_path = tmp.path().join("aibox.toml");
+        std::fs::write(
+            &toml_path,
+            "[security]\nacknowledge_seccomp_unconfined = false\n",
+        )
+        .unwrap();
+
+        write_seccomp_consent_to_toml(&toml_path).expect("write should succeed");
+
+        let written = std::fs::read_to_string(&toml_path).unwrap();
+        assert!(written.contains("acknowledge_seccomp_unconfined = true"));
+        assert!(!written.contains("acknowledge_seccomp_unconfined = false"));
     }
 }

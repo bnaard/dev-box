@@ -664,6 +664,15 @@ fn generate_devcontainer_json(config: &AiboxConfig, path_or_dir: &Path) -> Resul
     )
 }
 
+/// Public wrapper around `compose_override_declares_codex_seccomp` for callers
+/// outside this module (e.g., the apply consent gate in container.rs).
+pub fn compose_override_declares_codex_seccomp_pub(
+    override_path: &Path,
+    service_name: &str,
+) -> bool {
+    compose_override_declares_codex_seccomp(override_path, service_name)
+}
+
 fn compose_override_declares_codex_seccomp(override_path: &Path, service_name: &str) -> bool {
     let Ok(content) = fs::read_to_string(override_path) else {
         return false;
