@@ -324,6 +324,14 @@ RUN mkdir -p /home/aibox/.config/tmux \
 RUN mkdir -p /usr/local/share/aibox/tmux/plugins
 COPY --from=fetch-tmux-plugins /tmux-plugins/ /usr/local/share/aibox/tmux/plugins/
 COPY config/tmux/powerkit-plugins/aibox.sh /usr/local/share/aibox/tmux/plugins/tmux-powerkit/src/plugins/aibox.sh
+# aibox-metrics path-a split: one plugin script per metric segment so each
+# renders with chevron/color-rotation styling (BACK-20260508_1603-QuietCedar).
+COPY config/tmux/powerkit-plugins/aibox_log.sh  /usr/local/share/aibox/tmux/plugins/tmux-powerkit/src/plugins/aibox_log.sh
+COPY config/tmux/powerkit-plugins/aibox_oom.sh  /usr/local/share/aibox/tmux/plugins/tmux-powerkit/src/plugins/aibox_oom.sh
+COPY config/tmux/powerkit-plugins/aibox_proc.sh /usr/local/share/aibox/tmux/plugins/tmux-powerkit/src/plugins/aibox_proc.sh
+COPY config/tmux/powerkit-plugins/aibox_ai.sh   /usr/local/share/aibox/tmux/plugins/tmux-powerkit/src/plugins/aibox_ai.sh
+COPY config/tmux/powerkit-plugins/aibox_mcp.sh  /usr/local/share/aibox/tmux/plugins/tmux-powerkit/src/plugins/aibox_mcp.sh
+COPY config/tmux/powerkit-plugins/aibox_mig.sh  /usr/local/share/aibox/tmux/plugins/tmux-powerkit/src/plugins/aibox_mig.sh
 COPY config/tmux/tmux.conf /home/aibox/.config/tmux/tmux.conf
 RUN ln -sf /home/aibox/.config/tmux/tmux.conf /home/aibox/.tmux.conf && \
     for plugin in /usr/local/share/aibox/tmux/plugins/*; do \

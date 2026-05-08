@@ -159,6 +159,14 @@ pub fn cmd_doctor(config_path: &Option<String>) -> Result<()> {
     output::info("Checking PowerKit plugin tree...");
     check_powerkit_plugin_tree(&config, &mut diag);
 
+    // 4d-2. LINT-POWERKIT-STATUS-PLUGINS (BACK-20260508_1603-QuietCedar): warn if
+    // any required plugin script referenced by the generated tmux.conf is
+    // absent on disk.  The aibox-metrics path-a split registers six individual
+    // segments (aibox_log … aibox_mig); if their .sh files are missing the
+    // segments render blank.
+    output::info("Checking PowerKit status plugin scripts...");
+    check_powerkit_status_plugins(&config, &mut diag);
+
     // 4e. BR-LEGACY-MUX-EXCISE: legacy multiplexer artifact scan. Variant 1
     // hard-purge per DEC-20260508_1515-SilentAsh — `aibox apply` deletes
     // these unconditionally; survival is a doctor-level error.
@@ -1471,6 +1479,107 @@ fn check_powerkit_plugin_tree(config: &AiboxConfig, diag: &mut DiagResult) {
             in_image.display(),
         ));
         diag.errors += 1;
+    }
+}
+
+/// LINT-POWERKIT-STATUS-PLUGINS (BACK-20260508_1603-QuietCedar, v0.25.6)
+///
+/// Warn when any plugin script listed in the generated tmux.conf is absent
+/// from the PowerKit plugin tree.  Extended mode only.
+///
+/// The aibox-metrics block uses path-a split: each metric (`log`, `oom`,
+/// `proc`, `ai`, `mcp`, `mig`) is registered as its own plugin
+/// (`aibox_log` … `aibox_mig`) so it renders with chevron/color-rotation
+/// segment styling.  If the individual `.sh` files are not installed the
+/// segments render blank or cause PowerKit bootstrap errors.
+///
+/// Required plugin scripts (relative to `tmux-powerkit/src/plugins/`):
+///   hostname.sh, external_ip.sh, ssh.sh, uptime.sh, weather.sh, datetime.sh,
+///   git.sh, github.sh, kubernetes.sh, terraform.sh, cloud.sh, cloudstatus.sh,
+///   cpu.sh, loadavg.sh, memory.sh, swap.sh, disk.sh, gpu.sh, netspeed.sh,
+///   ping.sh, aibox_log.sh, aibox_oom.sh, aibox_proc.sh, aibox_ai.sh,
+///   aibox_mcp.sh, aibox_mig.sh
+fn check_powerkit_status_plugins(config: &AiboxConfig, diag: &mut DiagResult) {
+    use crate::config::TmuxStatusMode;
+    if !matches!(config.customization.tmux.status.mode, TmuxStatusMode::Extended) {
+        return;
+    }
+
+    // Resolve the PowerKit plugin scripts directory: prefer the host-root
+    // installation, fall back to the in-image path.
+    let host_plugins_dir = config
+        .host_root_dir()
+        .join(".tmux/plugins/tmux-powerkit/src/plugins");
+    let image_plugins_dir =
+        std::path::PathBuf::from("/usr/local/share/aibox/tmux/plugins/tmux-powerkit/src/plugins");
+    let plugins_dir = if host_plugins_dir.exists() {
+        host_plugins_dir
+    } else {
+        image_plugins_dir
+    };
+
+    if !plugins_dir.exists() {
+        // PowerKit tree itself is missing — check_powerkit_plugin_tree() already
+        // reports this; do not double-count.
+        return;
+    }
+
+    // All plugin script names required by the fixed slot order.
+    // Slot order is fixed per DEC-20260508_2115-SilentFern.
+    let required: &[&str] = &[
+        // Line 1 right
+        "hostname",
+        "external_ip",
+        "ssh",
+        "uptime",
+        "weather",
+        "datetime",
+        // Line 2 left
+        "git",
+        "github",
+        "kubernetes",
+        "terraform",
+        "cloud",
+        "cloudstatus",
+        // Line 2 right — system
+        "cpu",
+        "loadavg",
+        "memory",
+        "swap",
+        "disk",
+        "gpu",
+        "netspeed",
+        "ping",
+        // Line 2 right — aibox-metrics block (path-a split, per-metric segments)
+        "aibox_log",
+        "aibox_oom",
+        "aibox_proc",
+        "aibox_ai",
+        "aibox_mcp",
+        "aibox_mig",
+    ];
+
+    let mut missing = Vec::new();
+    for name in required {
+        let script = plugins_dir.join(format!("{name}.sh"));
+        if !script.exists() {
+            missing.push(*name);
+        }
+    }
+
+    if missing.is_empty() {
+        output::ok("PowerKit status plugin scripts: all required scripts present");
+    } else {
+        for name in &missing {
+            output::warn(&format!(
+                "[LINT-POWERKIT-STATUS-PLUGINS] Required PowerKit plugin script \
+                 missing: {name}.sh (expected under {}). \
+                 Rebuild the container image to install it; the segment will \
+                 render blank until then.",
+                plugins_dir.display()
+            ));
+            diag.warnings += 1;
+        }
     }
 }
 
