@@ -73,7 +73,7 @@ gh      = {}
 lazygit = {}
 
 [ai]
-model_providers = ["anthropic"]       # Optional API-key/provider hints
+model_providers = ["anthropic"]       # Optional provider env hints (API key + base URL)
 
 [ai.harness.claude]
 enabled = true                        # Generate harness config
@@ -210,7 +210,7 @@ Environment variables and bind mounts can also be configured directly in `[conta
 
 ### .aibox-local.toml
 
-`.aibox-local.toml` is a personal, gitignored overlay for per-developer settings that should never be committed — API keys, personal bind mounts, and similar secrets. It lives next to `aibox.toml` in the project root and is automatically added to `.gitignore` by `aibox init` and `aibox apply`.
+`.aibox-local.toml` is a personal, gitignored overlay for per-developer settings that should never be committed — API keys, provider endpoint/base URL overrides, personal bind mounts, and similar secrets. It lives next to `aibox.toml` in the project root and is automatically added to `.gitignore` by `aibox init` and `aibox apply`.
 
 Three sections are supported:
 
@@ -286,7 +286,7 @@ in generated agent/MCP config; in-container CLI installation is controlled by
 
 | Field | Type | Required | Default | Description |
 |-------|------|----------|---------|-------------|
-| `model_providers` | Array of strings | No | `[]` | Optional API-key/provider hints: `anthropic`, `openai`, `google`, `mistral`. |
+| `model_providers` | Array of strings | No | `[]` | Optional provider env hints: `anthropic`, `openai`, `google`, `mistral`. Each maps to both an API key env var and an optional base URL env var. |
 | `harness.<name>.enabled` | Boolean | No | `false` unless set or paired with other controls | Include this harness in generated runtime config. Names: `claude`, `codex`, `gemini`, `aider`, `continue`, `cursor`, `copilot`, `opencode`, `hermes`. |
 | `harness.<name>.install` | Boolean | No | `true` | Install the matching in-container CLI recipe when available. |
 | `harness.<name>.version` | String | No | addon's default | Optional CLI version pin. |
@@ -299,6 +299,27 @@ enabled = true       # include Codex in generated config
 install = true       # install the Codex CLI in the container
 version = "latest"   # optional; use "latest" or a concrete CLI version
 ```
+
+Provider env mapping:
+
+| Provider | API key env | Base URL env |
+|---|---|---|
+| `anthropic` | `ANTHROPIC_API_KEY` | `ANTHROPIC_BASE_URL` |
+| `openai` | `OPENAI_API_KEY` | `OPENAI_BASE_URL` |
+| `google` | `GEMINI_API_KEY` | `GEMINI_BASE_URL` |
+| `mistral` | `MISTRAL_API_KEY` | `MISTRAL_BASE_URL` |
+
+`model_providers` is a catalog hint only; it does not inject environment variables into Compose by itself. Set provider credentials explicitly in `[container.environment]`, preferably in `.aibox-local.toml`:
+
+```toml
+[container.environment]
+OPENAI_API_KEY = "..."
+OPENAI_BASE_URL = "https://api.openai.com/v1"   # Optional override
+GEMINI_API_KEY = "..."
+GEMINI_BASE_URL = "https://generativelanguage.googleapis.com"  # Optional override
+```
+
+Some provider CLIs/SDKs also support aliases (for example `OPENAI_API_BASE`).
 
 Legacy compact harness lists, `providers = [...]`, and `[addons.ai-*.tools]`
 inputs are still accepted for compatibility. Use `aibox apply --standardize-config`

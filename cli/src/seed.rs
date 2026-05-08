@@ -118,16 +118,17 @@ unbind C-b
 bind AIBOX_TMUX_PREFIX send-prefix
 
 # Pane navigation mirrors the old aibox leader muscle memory.
-bind h select-pane -L
-bind j select-pane -D
-bind k select-pane -U
-bind l select-pane -R
-bind r split-window -h -c "#{pane_current_path}"
-bind d split-window -v -c "#{pane_current_path}"
-bind x kill-pane
-bind f resize-pane -Z
-bind q confirm-before -p "kill tmux session AIBOX_TMUX_SESSION? (y/n)" kill-session
-bind R source-file ~/.config/tmux/tmux.conf \; display-message "aibox tmux config reloaded"
+bind-key -N "Show aibox/tmux key bindings" ? display-popup -w 80% -h 75% -E "tmux list-keys -N | less -R"
+bind-key -N "Select pane left" h select-pane -L
+bind-key -N "Select pane down" j select-pane -D
+bind-key -N "Select pane up" k select-pane -U
+bind-key -N "Select pane right" l select-pane -R
+bind-key -N "Split pane right" r split-window -h -c "#{pane_current_path}"
+bind-key -N "Split pane down" d split-window -v -c "#{pane_current_path}"
+bind-key -N "Kill pane" x kill-pane
+bind-key -N "Toggle pane zoom" f resize-pane -Z
+bind-key -N "Kill tmux session" q confirm-before -p "kill tmux session AIBOX_TMUX_SESSION? (y/n)" kill-session
+bind-key -N "Reload tmux config" R source-file ~/.config/tmux/tmux.conf \; display-message "aibox tmux config reloaded"
 
 set -g status AIBOX_TMUX_STATUS
 set -g status-style "bg=AIBOX_TMUX_BG,fg=AIBOX_TMUX_FG"
@@ -139,13 +140,17 @@ set -g status-right " #(aibox-status --once 2>/dev/null || true) %H:%M "
 
 # Powerkit status. Keep the plugin list intentionally bounded for container
 # runtime safety; heavier network/cloud/media plugins stay user opt-in.
-set -g @powerkit_plugins "git,hostname,datetime,aibox"
+set -g @powerkit_plugins "git,datetime,aibox"
+set -g @powerkit_bar_layout "double"
+set -g @powerkit_status_order "session,plugins"
 set -g @powerkit_theme "nord"
 set -g @powerkit_theme_variant "dark"
 set -g @powerkit_separator_style "rounded"
 set -g @powerkit_elements_spacing "both"
 set -g @powerkit_status_interval "5"
 set -g @powerkit_transparent "false"
+set -g @powerkit_pane_border_status "top"
+set -g @powerkit_pane_border_format "#{?client_prefix,PREFIX,NORMAL} #{pane_title} #{pane_current_command}"
 
 # aibox-managed plugins are installed and pinned by the runtime image. TPM is
 # only a user convenience layer for additional personal plugins.
@@ -1317,6 +1322,15 @@ fn tmux_layout_script(
         ""
     };
 
+    let primary_window = match layout {
+        ConfigLayout::Dev => "dev",
+        ConfigLayout::Focus => "focus",
+        ConfigLayout::Cowork => "cowork",
+        ConfigLayout::CoworkSwap => "cowork-swap",
+        ConfigLayout::Browse => "browse",
+        ConfigLayout::Ai => "ai",
+    };
+
     let layout_body = match layout {
         ConfigLayout::Dev => format!(
             r#"tmux -f "$config" new-session -d -s "$session" -n dev -c "$workspace" "$(tool_or_shell vim)"
@@ -1381,9 +1395,10 @@ tool_or_shell() {{
   printf "bash -lc 'if command -v %q >/dev/null 2>&1; then %q; fi; exec bash'" "$tool" "$tool"
 }}
 
-{layout_body}{git_window}tmux select-window -t "$session:1"
+{layout_body}{git_window}tmux select-window -t "$session:{primary_window}" 2>/dev/null || true
 exec tmux -f "$config" attach-session -t "$session"
-"#
+"#,
+        primary_window = primary_window,
     )
 }
 
@@ -2210,8 +2225,10 @@ mod tests {
 
         let updated = cleanup_disabled_runtime_files(&config).unwrap();
 
-        assert!(updated.iter().any(|path| path
-            == ".cache/zellij/contract_version_1/session_info/test (removed stale Zellij session)"));
+        assert!(updated.iter().any(|path| {
+            path
+            == ".cache/zellij/contract_version_1/session_info/test (removed stale Zellij session)"
+        }));
         assert!(updated.iter().any(|path| path
             == ".cache/zellij/04db9126-52cd-4a49-a7d4-90c07443c87a (removed stale Zellij plugin state)"));
         assert!(!session.exists());
@@ -2565,6 +2582,14 @@ rules = [
                 body.contains(&format!("-n {name}")),
                 "{name} layout should name its first tmux window:\n{body}"
             );
+            assert!(
+                body.contains(&format!("tmux select-window -t \"$session:{name}\"")),
+                "{name} layout should reselect the named primary window, not a numeric index:\n{body}"
+            );
+            assert!(
+                !body.contains("tmux select-window -t \"$session:1\""),
+                "layout script should not assume window index 1:\n{body}"
+            );
             assert!(!body.contains("start_suspended"));
             assert!(!body.contains("zellij"));
         }
@@ -2871,10 +2896,20 @@ rules = [
             "aibox-managed tmux plugins should load from preinstalled pinned runtime paths:\n{conf}"
         );
         assert!(
-            conf.contains(r#"@powerkit_plugins "git,hostname,datetime,aibox""#)
+            conf.contains(r#"@powerkit_plugins "git,datetime,aibox""#)
+                && conf.contains(r#"@powerkit_bar_layout "double""#)
+                && conf.contains(r#"@powerkit_status_order "session,plugins""#)
                 && conf.contains(r#"@powerkit_status_interval "5""#)
-                && conf.contains(r#"@powerkit_transparent "false""#),
+                && conf.contains(r#"@powerkit_transparent "false""#)
+                && conf.contains(r#"@powerkit_pane_border_status "top""#)
+                && conf.contains(r##"@powerkit_pane_border_format "#{?client_prefix,PREFIX,NORMAL} #{pane_title} #{pane_current_command}""##),
             "generated persistent tmux config should carry bounded powerkit defaults:\n{conf}"
+        );
+        assert!(
+            conf.contains(
+                r#"bind-key -N "Show aibox/tmux key bindings" ? display-popup -w 80% -h 75% -E "tmux list-keys -N | less -R""#
+            ) && conf.contains(r#"bind-key -N "Select pane left" h select-pane -L"#),
+            "generated persistent tmux config should expose native tmux keybinding help:\n{conf}"
         );
         assert!(
             !conf.contains("set -g @plugin 'tmux-plugins/tmux-continuum'")

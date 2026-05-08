@@ -562,8 +562,8 @@ impl AiHarness {
 /// serde alias. New code should use `AiHarness` directly.
 pub type AiProvider = AiHarness;
 
-/// An AI model provider — the organization whose API key may be needed.
-/// Declaring a provider is optional; it hints which API keys are available.
+/// An AI model provider — the organization whose API credentials may be needed.
+/// Declaring a provider is optional; it hints which API key/base URL env vars are available.
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, Hash, clap::ValueEnum)]
 #[serde(rename_all = "kebab-case")]
 #[clap(rename_all = "kebab-case")]
@@ -596,6 +596,16 @@ impl AiModelProvider {
             AiModelProvider::OpenAI => "OPENAI_API_KEY",
             AiModelProvider::Google => "GEMINI_API_KEY",
             AiModelProvider::Mistral => "MISTRAL_API_KEY",
+        }
+    }
+
+    /// The environment variable name for this provider's endpoint/base URL.
+    pub fn endpoint_env(&self) -> &'static str {
+        match self {
+            AiModelProvider::Anthropic => "ANTHROPIC_BASE_URL",
+            AiModelProvider::OpenAI => "OPENAI_BASE_URL",
+            AiModelProvider::Google => "GEMINI_BASE_URL",
+            AiModelProvider::Mistral => "MISTRAL_BASE_URL",
         }
     }
 
@@ -643,7 +653,8 @@ pub struct AiHarnessConfig {
 ///
 /// New configs select AI harnesses via `[ai.harness.<name>]` tables. The
 /// `harnesses` list remains accepted as a legacy/internal effective selector.
-/// `model_providers` is optional — declares which API keys are available.
+/// `model_providers` is optional — declares which model-provider credentials
+/// are available (API keys and optional base URLs).
 /// Legacy `providers` field is accepted for backward compatibility.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct AiSection {
@@ -653,7 +664,7 @@ pub struct AiSection {
     #[serde(default)]
     pub harnesses: Vec<AiHarness>,
 
-    /// Which model provider API keys are available (optional hint).
+    /// Which model provider API key/base URL env vars are available (optional hint).
     #[serde(default)]
     pub model_providers: Vec<AiModelProvider>,
 
@@ -3323,6 +3334,27 @@ harnesses = []
 "#;
         let config = parse_toml(toml).unwrap();
         assert!(config.ai.harnesses.is_empty());
+    }
+
+    #[test]
+    fn ai_model_provider_env_metadata() {
+        assert_eq!(
+            AiModelProvider::Anthropic.api_key_env(),
+            "ANTHROPIC_API_KEY"
+        );
+        assert_eq!(
+            AiModelProvider::Anthropic.endpoint_env(),
+            "ANTHROPIC_BASE_URL"
+        );
+
+        assert_eq!(AiModelProvider::OpenAI.api_key_env(), "OPENAI_API_KEY");
+        assert_eq!(AiModelProvider::OpenAI.endpoint_env(), "OPENAI_BASE_URL");
+
+        assert_eq!(AiModelProvider::Google.api_key_env(), "GEMINI_API_KEY");
+        assert_eq!(AiModelProvider::Google.endpoint_env(), "GEMINI_BASE_URL");
+
+        assert_eq!(AiModelProvider::Mistral.api_key_env(), "MISTRAL_API_KEY");
+        assert_eq!(AiModelProvider::Mistral.endpoint_env(), "MISTRAL_BASE_URL");
     }
 
     #[test]

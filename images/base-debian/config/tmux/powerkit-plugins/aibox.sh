@@ -21,24 +21,52 @@ json_value() {
 }
 
 plugin_collect() {
-    local json memory_current memory_max oom_kill processes ai_agents processkit_mode processkit_mcp
+    local json memory_current memory_max oom_events oom_kill cpu_throttling load_average net
+    local processes ai_agents processkit_mode processkit_mcp disk_used disk_total
+    local log_info log_warn log_error migrations degraded container_uptime host
 
     json="$(aibox-status --plugin-json 2>/dev/null)" || return 1
+    host="$(printf '%s' "${json}" | json_value host)"
     memory_current="$(printf '%s' "${json}" | json_value memory_current)"
     memory_max="$(printf '%s' "${json}" | json_value memory_max)"
+    oom_events="$(printf '%s' "${json}" | json_value oom_events)"
     oom_kill="$(printf '%s' "${json}" | json_value oom_kill)"
+    cpu_throttling="$(printf '%s' "${json}" | json_value cpu_throttling)"
+    load_average="$(printf '%s' "${json}" | json_value load_average)"
+    net="$(printf '%s' "${json}" | json_value net)"
     processes="$(printf '%s' "${json}" | json_value processes)"
     ai_agents="$(printf '%s' "${json}" | json_value ai_agents)"
     processkit_mode="$(printf '%s' "${json}" | json_value processkit_mode)"
     processkit_mcp="$(printf '%s' "${json}" | json_value processkit_mcp)"
+    disk_used="$(printf '%s' "${json}" | json_value disk_used)"
+    disk_total="$(printf '%s' "${json}" | json_value disk_total)"
+    log_info="$(printf '%s' "${json}" | json_value log_info)"
+    log_warn="$(printf '%s' "${json}" | json_value log_warn)"
+    log_error="$(printf '%s' "${json}" | json_value log_error)"
+    migrations="$(printf '%s' "${json}" | json_value migrations)"
+    degraded="$(printf '%s' "${json}" | sed -n 's/.*"degraded":\([^,}]*\).*/\1/p')"
+    container_uptime="$(printf '%s' "${json}" | json_value container_uptime)"
 
+    plugin_data_set "host" "${host:-n/a}"
     plugin_data_set "memory_current" "${memory_current:-n/a}"
     plugin_data_set "memory_max" "${memory_max:-n/a}"
+    plugin_data_set "oom_events" "${oom_events:-0}"
     plugin_data_set "oom_kill" "${oom_kill:-0}"
+    plugin_data_set "cpu_throttling" "${cpu_throttling:-n/a}"
+    plugin_data_set "load_average" "${load_average:-n/a}"
+    plugin_data_set "net" "${net:-n/a}"
     plugin_data_set "processes" "${processes:-0}"
     plugin_data_set "ai_agents" "${ai_agents:-0}"
     plugin_data_set "processkit_mode" "${processkit_mode:-none}"
     plugin_data_set "processkit_mcp" "${processkit_mcp:-0}"
+    plugin_data_set "disk_used" "${disk_used:-n/a}"
+    plugin_data_set "disk_total" "${disk_total:-n/a}"
+    plugin_data_set "log_info" "${log_info:-0}"
+    plugin_data_set "log_warn" "${log_warn:-0}"
+    plugin_data_set "log_error" "${log_error:-0}"
+    plugin_data_set "migrations" "${migrations:-0}"
+    plugin_data_set "degraded" "${degraded:-false}"
+    plugin_data_set "container_uptime" "${container_uptime:-n/a}"
 }
 
 plugin_get_content_type() { printf 'dynamic'; }
@@ -59,12 +87,29 @@ plugin_get_context() { printf 'runtime'; }
 plugin_get_icon() { get_option "icon"; }
 
 plugin_render() {
-    printf 'MEM %s/%s OOM %s PROC %s AI %s MCP %s %s' \
+    local deg=""
+    if [[ "$(plugin_data_get degraded)" == "true" ]]; then
+        deg=" DEG yes"
+    fi
+
+    printf 'CPU %s LOAD %s NET %s MEM %s/%s DISK %s/%s LOG %s/%s/%s OOM %s/%s PROC %s AI %s MCP %s/%s MIG %s%s UP %s' \
+        "$(plugin_data_get cpu_throttling)" \
+        "$(plugin_data_get load_average)" \
+        "$(plugin_data_get net)" \
         "$(plugin_data_get memory_current)" \
         "$(plugin_data_get memory_max)" \
+        "$(plugin_data_get disk_used)" \
+        "$(plugin_data_get disk_total)" \
+        "$(plugin_data_get log_info)" \
+        "$(plugin_data_get log_warn)" \
+        "$(plugin_data_get log_error)" \
+        "$(plugin_data_get oom_events)" \
         "$(plugin_data_get oom_kill)" \
         "$(plugin_data_get processes)" \
         "$(plugin_data_get ai_agents)" \
         "$(plugin_data_get processkit_mode)" \
-        "$(plugin_data_get processkit_mcp)"
+        "$(plugin_data_get processkit_mcp)" \
+        "$(plugin_data_get migrations)" \
+        "${deg}" \
+        "$(plugin_data_get container_uptime)"
 }

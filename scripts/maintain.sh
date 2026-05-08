@@ -270,6 +270,7 @@ cmd_build_images() {
   for flavor in "${flavors[@]}"; do
     info "Building ${flavor} image..."
     local latest="${IMAGE_REGISTRY}:${flavor}-latest"
+    local build_cache_ref="${IMAGE_REGISTRY}:${flavor}-buildcache"
     if [[ -n "${no_cache}" ]]; then
       ${RUNTIME_BIN} build --no-cache \
         --build-arg BUILDKIT_INLINE_CACHE=1 \
@@ -279,12 +280,23 @@ cmd_build_images() {
     else
       ${RUNTIME_BIN} pull "${latest}" >/dev/null 2>&1 \
         || warn "Could not pull ${latest} as a remote build cache seed"
-      ${RUNTIME_BIN} build \
-        --build-arg BUILDKIT_INLINE_CACHE=1 \
-        --cache-from "${latest}" \
-        -t "${latest}" \
-        -f "${PROJECT_ROOT}/images/${flavor}/Dockerfile" \
-        "${PROJECT_ROOT}/images/${flavor}/"
+      if ${RUNTIME_BIN} buildx version >/dev/null 2>&1; then
+        ${RUNTIME_BIN} buildx build --load \
+          --build-arg BUILDKIT_INLINE_CACHE=1 \
+          --cache-from "type=registry,ref=${build_cache_ref}" \
+          --cache-from "type=registry,ref=${latest}" \
+          --cache-to "type=registry,ref=${build_cache_ref},mode=max,ignore-error=true" \
+          -t "${latest}" \
+          -f "${PROJECT_ROOT}/images/${flavor}/Dockerfile" \
+          "${PROJECT_ROOT}/images/${flavor}/"
+      else
+        ${RUNTIME_BIN} build \
+          --build-arg BUILDKIT_INLINE_CACHE=1 \
+          --cache-from "${latest}" \
+          -t "${latest}" \
+          -f "${PROJECT_ROOT}/images/${flavor}/Dockerfile" \
+          "${PROJECT_ROOT}/images/${flavor}/"
+      fi
     fi
     ok "Built ${latest}"
   done

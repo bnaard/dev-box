@@ -299,7 +299,36 @@ if [[ "${AIBOX_RELEASE_SMOKE_NO_CACHE:-0}" =~ ^(1|true|yes)$ || "${smoke_tier}" 
   apply_args+=(--no-cache)
 fi
 run env AIBOX_ADDONS_DIR="${PROJECT_ROOT}/addons" "${aibox_bin}" "${apply_args[@]}"
-run compose -f "$(compose_file)" up -d
+
+attach_smoke_log="${log_dir}/up-forget-tmux-state.log"
+info "Running attach smoke: aibox up --forget-tmux-state"
+if command -v timeout >/dev/null 2>&1; then
+  if env AIBOX_ADDONS_DIR="${PROJECT_ROOT}/addons" timeout 25s \
+    "${aibox_bin}" up --forget-tmux-state >"${attach_smoke_log}" 2>&1 < /dev/null; then
+    ok "Attach smoke exited cleanly"
+  else
+    code=$?
+    if [[ "${code}" -eq 124 ]]; then
+      ok "Attach smoke reached timeout while attached (expected for interactive tmux)"
+    else
+      warn "Attach smoke failed with ${code}; see ${attach_smoke_log}"
+      exit "${code}"
+    fi
+  fi
+else
+  warn "timeout command missing on host; running attach smoke without timeout"
+  if ! env AIBOX_ADDONS_DIR="${PROJECT_ROOT}/addons" \
+    "${aibox_bin}" up --forget-tmux-state >"${attach_smoke_log}" 2>&1 < /dev/null; then
+    code=$?
+    warn "Attach smoke failed with ${code}; see ${attach_smoke_log}"
+    exit "${code}"
+  fi
+fi
+
+if grep -q "can't find pane: 1" "${attach_smoke_log}"; then
+  warn "Attach smoke reproduced tmux pane-index startup regression; see ${attach_smoke_log}"
+  exit 1
+fi
 
 cat > "${probe_script}" <<'EOF'
 #!/usr/bin/env bash

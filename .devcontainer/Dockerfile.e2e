@@ -72,7 +72,6 @@ ENV DEBIAN_FRONTEND=noninteractive
 RUN apt-get update && apt-get install -y --no-install-recommends \
     # Podman for rootless container operations
     podman \
-    podman-compose \
     # SSH server for remote test execution
     openssh-server \
     # Utilities needed by aibox and tests
@@ -86,15 +85,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     sqlite3 \
     csvkit \
     python3-rich \
-    chafa \
-    librsvg2-bin \
-    poppler-utils \
-    mupdf-tools \
     entr \
-    p7zip-full \
-    ghostscript \
-    imagemagick \
-    ffmpeg \
     # Rootless networking (provides pasta binary for podman network namespace)
     passt \
     slirp4netns \
@@ -102,6 +93,19 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     asciinema \
     tmux \
     vim \
+    && rm -rf /var/lib/apt/lists/*
+
+# Keep preview/media tooling in a separate layer so base e2e runtime changes
+# do not invalidate this heavier dependency set.
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    chafa \
+    librsvg2-bin \
+    poppler-utils \
+    mupdf-tools \
+    p7zip-full \
+    ghostscript \
+    imagemagick \
+    ffmpeg \
     && rm -rf /var/lib/apt/lists/*
 
 # ── Install static binaries from builder stages ─────────────────────────────

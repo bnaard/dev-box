@@ -1271,12 +1271,16 @@ pub(crate) fn serialize_config_with_comments(config: &AiboxConfig) -> String {
     out.push_str("#\n");
     out.push_str("# Enable harnesses through their [ai.harness.<name>] table below.\n");
     out.push_str("#\n");
-    out.push_str("# Model providers (optional): declare which API keys are available.\n");
-    out.push_str("# Provider     Config value   Env var\n");
-    out.push_str("# Anthropic    anthropic      ANTHROPIC_API_KEY\n");
-    out.push_str("# OpenAI       openai         OPENAI_API_KEY\n");
-    out.push_str("# Google       google         GEMINI_API_KEY\n");
-    out.push_str("# Mistral      mistral        MISTRAL_API_KEY\n");
+    out.push_str(
+        "# Model providers (optional): declare which API key/base URL env vars are available.\n",
+    );
+    out.push_str("# Provider     Config value   API key env         Base URL env\n");
+    out.push_str("# Anthropic    anthropic      ANTHROPIC_API_KEY   ANTHROPIC_BASE_URL\n");
+    out.push_str("# OpenAI       openai         OPENAI_API_KEY      OPENAI_BASE_URL\n");
+    out.push_str("# Google       google         GEMINI_API_KEY      GEMINI_BASE_URL\n");
+    out.push_str("# Mistral      mistral        MISTRAL_API_KEY     MISTRAL_BASE_URL\n");
+    out.push_str("#\n");
+    out.push_str("# Alias used by some tools: OPENAI_API_BASE (OpenAI).\n");
     out.push_str("[ai]\n");
     render_ai_model_provider_catalog(&mut out, &config.ai.model_providers);
     render_ai_harness_detail_catalog(&mut out, config);
@@ -1539,7 +1543,11 @@ fn render_ai_model_provider_catalog(out: &mut String, selected: &[crate::config:
             out.push_str("# ");
             out.push_str(&line);
         }
-        out.push_str(&format!(" # env: {}\n", provider.api_key_env()));
+        out.push_str(&format!(
+            " # env: {}, {}\n",
+            provider.api_key_env(),
+            provider.endpoint_env()
+        ));
     }
     out.push_str("]\n");
 }
@@ -3032,6 +3040,19 @@ mod tests {
         );
         assert!(!body.contains("[addons.ai-claude.tools]"));
         assert!(!body.contains("[addons.ai-codex.tools]"));
+    }
+
+    #[test]
+    fn serialized_config_model_provider_catalog_includes_api_key_and_base_url_env_hints() {
+        let mut config = crate::config::test_config();
+        config.ai.model_providers = vec![crate::config::AiModelProvider::Anthropic];
+
+        let body = serialize_config_with_comments(&config);
+        assert!(body.contains("# Provider     Config value   API key env         Base URL env"));
+        assert!(body.contains("# env: ANTHROPIC_API_KEY, ANTHROPIC_BASE_URL"));
+        assert!(body.contains("# env: OPENAI_API_KEY, OPENAI_BASE_URL"));
+        assert!(body.contains("# env: GEMINI_API_KEY, GEMINI_BASE_URL"));
+        assert!(body.contains("# env: MISTRAL_API_KEY, MISTRAL_BASE_URL"));
     }
 
     #[test]
