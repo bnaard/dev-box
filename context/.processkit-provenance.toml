@@ -6,7 +6,7 @@ schema_version = 1
 processkit_version = "v0.25.8"
 processkit_source = "https://github.com/projectious-work/processkit.git"
 installed_at = "2026-05-05T16:03:00.906059349+00:00"
-cli_version = "0.23.11"
+cli_version = "0.25.4"
 
 [manifest]
 skill_count = 44

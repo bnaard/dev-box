@@ -657,6 +657,15 @@ pub fn cmd_start(
             restored_runtime_files.len()
         ));
     }
+    if should_recreate_tmux_session {
+        let refreshed_tmux_files = crate::seed::sync_tmux_runtime_files(&config)?;
+        if !refreshed_tmux_files.is_empty() {
+            output::ok(&format!(
+                "Refreshed {} managed tmux runtime file(s)",
+                refreshed_tmux_files.len()
+            ));
+        }
+    }
 
     match state {
         ContainerState::Running => {
@@ -690,11 +699,9 @@ pub fn cmd_start(
     // stale tmux session state so the configured managed layout wins. Plain
     // re-entry into a running container preserves the user's live session.
     if should_recreate_tmux_session {
-        let _ = runtime.exec_status(
-            name,
-            &config.container.user,
-            &["tmux", "kill-session", "-t", &session_name],
-        );
+        let kill_cmd = tmux_kill_session_command(&session_name);
+        let kill_args: Vec<&str> = kill_cmd.iter().map(|arg| arg.as_str()).collect();
+        let _ = runtime.exec_status(name, &config.container.user, &kill_args);
     }
 
     let attach_cmd = tmux_attach_command(layout, &session_name, should_recreate_tmux_session);
@@ -708,6 +715,16 @@ fn tmux_attach_command(layout: &str, session_name: &str, _recreate_session: bool
     vec![
         "aibox-tmux-session".to_string(),
         layout.to_string(),
+        session_name.to_string(),
+    ]
+}
+
+fn tmux_kill_session_command(session_name: &str) -> Vec<String> {
+    vec![
+        "sh".to_string(),
+        "-lc".to_string(),
+        r#"socket="${AIBOX_TMUX_SOCKET:-$HOME/.tmux/aibox.sock}"; tmux -S "$socket" kill-session -t "$1" >/dev/null 2>&1 || true"#.to_string(),
+        "aibox-tmux-kill".to_string(),
         session_name.to_string(),
     ]
 }
@@ -3057,6 +3074,18 @@ mod tests {
             tmux_attach_command("ai", "aibox", false),
             vec!["aibox-tmux-session", "ai", "aibox"]
         );
+    }
+
+    #[test]
+    fn tmux_kill_session_uses_managed_socket_quietly() {
+        let cmd = tmux_kill_session_command("aibox");
+
+        assert_eq!(cmd[0], "sh");
+        assert!(cmd[2].contains("AIBOX_TMUX_SOCKET"));
+        assert!(cmd[2].contains("tmux -S \"$socket\" kill-session"));
+        assert!(cmd[2].contains(">/dev/null 2>&1 || true"));
+        assert_eq!(cmd[4], "aibox");
+        assert!(!cmd[2].contains("/tmp/tmux-1000/default"));
     }
 
     #[test]

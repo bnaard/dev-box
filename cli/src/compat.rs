@@ -370,6 +370,11 @@ pub static COMPAT_TABLE: &[CompatEntry] = &[
         processkit_version: "v0.25.8",
         note: "Patch release: repairs tmux release-host smoke probing after the managed tmux socket migration and fixes generated tmux status-right rendering by preserving the aibox runtime status segment.",
     },
+    CompatEntry {
+        aibox_version: "0.25.5",
+        processkit_version: "v0.25.8",
+        note: "Patch release: refreshes managed tmux runtime files when recreating sessions so aibox.toml status/layout settings take effect, preserves the delayed Yazi pane startup path, and suppresses stale default-socket tmux kill-session noise on host attach.",
+    },
 ];
 
 /// Find the minimum compatible processkit version for the given aibox version.

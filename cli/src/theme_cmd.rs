@@ -64,7 +64,13 @@ fn restart_tmux_session(config: &AiboxConfig) -> Result<()> {
             let _ = runtime.exec_status(
                 name,
                 &config.container.user,
-                &["tmux", "kill-session", "-t", session_name],
+                &[
+                    "sh",
+                    "-lc",
+                    r#"socket="${AIBOX_TMUX_SOCKET:-$HOME/.tmux/aibox.sock}"; tmux -S "$socket" kill-session -t "$1" >/dev/null 2>&1 || true"#,
+                    "aibox-tmux-kill",
+                    session_name,
+                ],
             )?;
             let layout = config.customization.tmux_layout().to_string();
             output::info(&format!("Attaching via tmux (layout: {})...", layout));
