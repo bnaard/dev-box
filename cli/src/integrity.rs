@@ -782,6 +782,7 @@ mod tests {
             }),
             addons: None,
             runtime_home: None,
+            harnesses: None,
         }
     }
 

@@ -144,6 +144,8 @@ pub fn run_runtime_sync(
             );
         let should_update_stale_managed_yazi_file =
             live_matches_historical_managed_yazi_file(project_root, &host_root, &diff.rel_path);
+        let should_update_stale_managed_tmux_file =
+            live_matches_historical_managed_tmux_file(project_root, &host_root, &diff.rel_path);
         let should_update_legacy_managed_yazi_init =
             live_matches_legacy_managed_yazi_init(&host_root, &diff.rel_path);
         let should_restore_missing_zellij_status_toggle_layout = same_version_sync
@@ -161,6 +163,7 @@ pub fn run_runtime_sync(
             || should_update_stale_managed_zellij_file
             || should_update_stale_managed_runtime_helper
             || should_update_stale_managed_yazi_file
+            || should_update_stale_managed_tmux_file
             || should_update_legacy_managed_yazi_init
             || should_restore_missing_zellij_status_toggle_layout
             || should_restore_missing_managed_runtime_helper)
@@ -726,6 +729,97 @@ fn live_matches_historical_managed_yazi_file(
         };
         sha256_of_bytes(&snapshot_content) == live_sha
     })
+}
+
+// ---------------------------------------------------------------------------
+// v0.25.6 BR-CLEANUP-ARCH item 2 — managed tmux file recognizer
+// (DEC-20260508_1515-SilentAsh, Variant 1 hard-purge)
+// ---------------------------------------------------------------------------
+
+/// Relative paths under `.aibox-home/` that the v0.25.6 cross-version
+/// recognizer treats as managed tmux runtime files. Matching either an
+/// archived template hash or the v0.25.3 `off_RIGHT` corruption
+/// signature triggers an unconditional overwrite with current generated
+/// content.
+fn managed_tmux_relpath(rel_path: &str) -> bool {
+    matches!(
+        rel_path,
+        ".config/tmux/tmux.conf"
+            | ".config/tmux/aibox-session.sh"
+            | ".config/tmux/layouts/dev.sh"
+            | ".config/tmux/layouts/focus.sh"
+            | ".config/tmux/layouts/cowork.sh"
+            | ".config/tmux/layouts/cowork-swap.sh"
+            | ".config/tmux/layouts/browse.sh"
+            | ".config/tmux/layouts/ai.sh"
+    )
+}
+
+/// Returns true when the live `.aibox-home/<rel_path>` matches an
+/// archived template snapshot byte-for-byte, OR (for `tmux.conf`) when
+/// it carries the v0.25.3 substitution-order corruption. In either
+/// case the auto-apply loop hard-overwrites it with current generated
+/// content — no user prompt.
+pub(crate) fn live_matches_historical_managed_tmux_file(
+    project_root: &Path,
+    host_root: &Path,
+    rel_path: &str,
+) -> bool {
+    if !managed_tmux_relpath(rel_path) {
+        return false;
+    }
+
+    // Special-case: corruption-signature recognizer fires before
+    // historical-hash for tmux.conf, since the corrupted v0.25.3 output
+    // never matched any archived snapshot byte-for-byte.
+    if rel_path == ".config/tmux/tmux.conf"
+        && let Ok(live_content) = fs::read_to_string(host_root.join(rel_path))
+        && live_is_corrupted_v0_25_3_tmux_conf(&live_content)
+    {
+        return true;
+    }
+
+    let live_abs = host_root.join(rel_path);
+    let Ok(live_content) = fs::read(&live_abs) else {
+        return false;
+    };
+    let live_sha = sha256_of_bytes(&live_content);
+    let snapshots_root = project_root.join(RUNTIME_TEMPLATES_DIR);
+    let Ok(entries) = fs::read_dir(snapshots_root) else {
+        return false;
+    };
+
+    entries.filter_map(Result::ok).any(|entry| {
+        let snapshot_file = entry.path().join(rel_path);
+        let Ok(snapshot_content) = fs::read(snapshot_file) else {
+            return false;
+        };
+        sha256_of_bytes(&snapshot_content) == live_sha
+    })
+}
+
+/// Heuristic detector for the v0.25.3 substitution-order corruption in
+/// a live `tmux.conf`. Both signature lines must be present as
+/// uncommented standalone lines:
+///   `set -g status off`
+///   `set -g status-right " off_RIGHT "`
+/// Exposed `pub(crate)` so doctor (BR-DOCTOR-GAPS) can consume it
+/// without duplicating the heuristic.
+pub(crate) fn live_is_corrupted_v0_25_3_tmux_conf(content: &str) -> bool {
+    let mut has_status_off = false;
+    let mut has_off_right = false;
+    for line in content.lines() {
+        let trimmed = line.trim();
+        if trimmed.starts_with('#') {
+            continue;
+        }
+        if trimmed == "set -g status off" {
+            has_status_off = true;
+        } else if trimmed == r#"set -g status-right " off_RIGHT ""# {
+            has_off_right = true;
+        }
+    }
+    has_status_off && has_off_right
 }
 
 fn live_matches_historical_managed_runtime_helper(
@@ -1481,5 +1575,88 @@ args "-lc" "aibox-status --watch"
         assert!(!live_matches_historical_managed_zellij_file(
             root, &host_root, rel
         ));
+    }
+
+    // -- v0.25.6 BR-CLEANUP-ARCH item 2 — managed tmux recognizer ----------
+
+    #[test]
+    fn detects_historical_managed_tmux_conf() {
+        let tmp = TempDir::new().unwrap();
+        let root = tmp.path();
+        let host_root = root.join(".aibox-home");
+        let rel = ".config/tmux/tmux.conf";
+        let archived = "# aibox tmux configuration\nset -g status on\n";
+        write_snapshot(root, "0.25.4", &[(rel, archived)]);
+        let live = host_root.join(rel);
+        fs::create_dir_all(live.parent().unwrap()).unwrap();
+        fs::write(&live, archived).unwrap();
+        assert!(live_matches_historical_managed_tmux_file(
+            root, &host_root, rel
+        ));
+    }
+
+    #[test]
+    fn tmux_recognizer_rejects_user_edited() {
+        let tmp = TempDir::new().unwrap();
+        let root = tmp.path();
+        let host_root = root.join(".aibox-home");
+        let rel = ".config/tmux/tmux.conf";
+        let archived = "# aibox tmux configuration\nset -g status on\n";
+        write_snapshot(root, "0.25.4", &[(rel, archived)]);
+        let live = host_root.join(rel);
+        fs::create_dir_all(live.parent().unwrap()).unwrap();
+        fs::write(&live, format!("{archived}# user edit\n")).unwrap();
+        assert!(!live_matches_historical_managed_tmux_file(
+            root, &host_root, rel
+        ));
+    }
+
+    #[test]
+    fn off_right_corruption_detected_when_both_lines_present() {
+        let content = "set -g status on\nset -g status off\nfoo\nset -g status-right \" off_RIGHT \"\n";
+        assert!(live_is_corrupted_v0_25_3_tmux_conf(content));
+    }
+
+    #[test]
+    fn off_right_corruption_not_detected_when_one_line_only() {
+        assert!(!live_is_corrupted_v0_25_3_tmux_conf("set -g status off\n"));
+        assert!(!live_is_corrupted_v0_25_3_tmux_conf(
+            "set -g status-right \" off_RIGHT \"\n"
+        ));
+    }
+
+    #[test]
+    fn off_right_corruption_not_detected_when_lines_are_commented() {
+        let content = "# set -g status off\n# set -g status-right \" off_RIGHT \"\n";
+        assert!(!live_is_corrupted_v0_25_3_tmux_conf(content));
+    }
+
+    #[test]
+    fn off_right_corruption_triggers_tmux_recognizer_even_without_archive_match() {
+        // Corruption signature alone, no matching archive: recognizer must still fire.
+        let tmp = TempDir::new().unwrap();
+        let root = tmp.path();
+        let host_root = root.join(".aibox-home");
+        let rel = ".config/tmux/tmux.conf";
+        let live = host_root.join(rel);
+        fs::create_dir_all(live.parent().unwrap()).unwrap();
+        fs::write(
+            &live,
+            "set -g status off\nset -g status-right \" off_RIGHT \"\n",
+        )
+        .unwrap();
+        assert!(live_matches_historical_managed_tmux_file(
+            root, &host_root, rel
+        ));
+    }
+
+    #[test]
+    fn managed_tmux_relpath_covers_layouts_and_session() {
+        assert!(managed_tmux_relpath(".config/tmux/tmux.conf"));
+        assert!(managed_tmux_relpath(".config/tmux/aibox-session.sh"));
+        assert!(managed_tmux_relpath(".config/tmux/layouts/dev.sh"));
+        assert!(managed_tmux_relpath(".config/tmux/layouts/cowork-swap.sh"));
+        assert!(!managed_tmux_relpath(".config/tmux/layouts/custom.sh"));
+        assert!(!managed_tmux_relpath(".config/zellij/config.kdl"));
     }
 }

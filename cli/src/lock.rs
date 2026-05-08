@@ -27,7 +27,7 @@
 use anyhow::{Context, Result};
 use serde::{Deserialize, Serialize};
 use sha2::{Digest, Sha256};
-use std::collections::BTreeMap;
+use std::collections::{BTreeMap, BTreeSet};
 use std::fs;
 use std::path::{Component, Path, PathBuf};
 
@@ -73,6 +73,12 @@ pub struct AiboxLock {
     pub addons: Option<AddonsLockSection>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub runtime_home: Option<RuntimeHomeLockSection>,
+    /// Previous-apply harness selection. Lets `aibox apply` compute a
+    /// removal diff when a harness is disabled (Variant 2 of the
+    /// v0.25.6 cleanup-arch policy in DEC-20260508_1515-SilentAsh).
+    /// Backfilled on first apply that runs against an old lock.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub harnesses: Option<HarnessLockSection>,
 }
 
 /// `[addons]` section of `aibox.lock`. Records resolved tool versions
@@ -83,6 +89,28 @@ pub struct AddonsLockSection {
     pub resolved_at: String,
     /// Resolved tool versions: tool_name → concrete version string.
     pub tools: std::collections::BTreeMap<String, String>,
+    /// Previous-apply selection: addon family → set of enabled tool
+    /// names at the time of the last `aibox apply`. Used to compute a
+    /// removal diff when a tool is disabled (Variant 1 of the v0.25.6
+    /// cleanup-arch policy in DEC-20260508_1515-SilentAsh) so addon
+    /// binaries baked into a previous image layer can be purged.
+    /// Backfilled on first apply that runs against an old lock.
+    #[serde(default, skip_serializing_if = "BTreeMap::is_empty")]
+    pub previous_selection: BTreeMap<String, BTreeSet<String>>,
+}
+
+/// `[harnesses]` section of `aibox.lock`. Records the previously
+/// selected AI harnesses so `aibox apply` can compute a removal diff
+/// when a harness is disabled.
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, Default)]
+pub struct HarnessLockSection {
+    /// ISO 8601 UTC timestamp of the last selection record.
+    pub recorded_at: String,
+    /// Set of harness names (e.g. "claude", "codex", "gemini") that
+    /// were enabled at the time of the last `aibox apply`. Empty on a
+    /// fresh project before the first apply has recorded anything.
+    #[serde(default, skip_serializing_if = "BTreeSet::is_empty")]
+    pub previous_selection: BTreeSet<String>,
 }
 
 /// `[runtime_home]` section of `aibox.lock`.
@@ -277,6 +305,7 @@ pub fn read_lock(project_root: &Path) -> Result<Option<AiboxLock>> {
         }),
         addons: None,
         runtime_home: None,
+        harnesses: None,
     }))
 }
 
@@ -483,6 +512,235 @@ pub fn group_for_path(rel_path: &Path) -> Option<String> {
     None
 }
 
+// ---------------------------------------------------------------------------
+// Lock backfill — previous_selection (DEC-20260508_1515-SilentAsh)
+// ---------------------------------------------------------------------------
+
+/// Compute the addon-tool selection that should be recorded as
+/// "previously enabled" given the current `aibox.toml`. For each addon
+/// family the user has configured under `[addons.<name>.tools]`, this
+/// returns the set of tool names whose `enabled` field is not
+/// explicitly `false`. Tool versioning is intentionally ignored — the
+/// purge diff only cares about presence/absence.
+pub fn compute_addon_previous_selection(
+    addons: &crate::config::AddonsSection,
+) -> BTreeMap<String, BTreeSet<String>> {
+    let mut out: BTreeMap<String, BTreeSet<String>> = BTreeMap::new();
+    for (addon_name, tools_section) in addons.iter() {
+        let mut enabled_tools: BTreeSet<String> = BTreeSet::new();
+        for (tool_name, entry) in &tools_section.tools {
+            if entry.enabled != Some(false) {
+                enabled_tools.insert(tool_name.clone());
+            }
+        }
+        if !enabled_tools.is_empty() {
+            out.insert(addon_name.clone(), enabled_tools);
+        }
+    }
+    out
+}
+
+/// Compute the harness selection that should be recorded as
+/// "previously enabled" given the current `aibox.toml`. Uses the
+/// effective harness list after legacy `providers` migration.
+pub fn compute_harness_previous_selection(ai: &crate::config::AiSection) -> BTreeSet<String> {
+    ai.effective_harnesses()
+        .iter()
+        .map(|h| h.to_string())
+        .collect()
+}
+
+/// Backfill `previous_selection` and `harnesses.previous_selection` on
+/// the lock when an old-shape lock is read for the first time on a
+/// host running v0.25.6+ (DEC-20260508_1515-SilentAsh, BR-CLEANUP-ARCH
+/// item 1). Idempotent: a second call after the first is a no-op.
+///
+/// On the first call that actually mutates the lock, emits a Migration
+/// entity at `context/migrations/pending/MIG-LOCK-<ts>.md` so the
+/// derived project's agent can surface it on `/pk-resume`.
+///
+/// Returns:
+/// - `Ok(Some(path))` — backfill happened; `path` is the migration file
+/// - `Ok(None)` — nothing to do (no lock yet, or already backfilled)
+/// - `Err(_)` — IO error
+pub fn backfill_lock_selection(
+    project_root: &Path,
+    config: &crate::config::AiboxConfig,
+) -> Result<Option<PathBuf>> {
+    let Some(mut lock) = read_lock(project_root)? else {
+        return Ok(None);
+    };
+
+    let addons_already_backfilled = lock
+        .addons
+        .as_ref()
+        .map(|a| !a.previous_selection.is_empty())
+        .unwrap_or(false);
+    let harnesses_already_backfilled = lock
+        .harnesses
+        .as_ref()
+        .map(|h| !h.previous_selection.is_empty())
+        .unwrap_or(false);
+
+    if addons_already_backfilled && harnesses_already_backfilled {
+        return Ok(None);
+    }
+
+    let now_iso = chrono::Utc::now().format("%Y-%m-%dT%H:%M:%SZ").to_string();
+    let addon_selection = compute_addon_previous_selection(&config.addons);
+    let harness_selection = compute_harness_previous_selection(&config.ai);
+
+    let mut wrote_any = false;
+
+    if !addons_already_backfilled {
+        if let Some(addons) = lock.addons.as_mut() {
+            addons.previous_selection = addon_selection.clone();
+        } else {
+            lock.addons = Some(AddonsLockSection {
+                resolved_at: now_iso.clone(),
+                tools: BTreeMap::new(),
+                previous_selection: addon_selection.clone(),
+            });
+        }
+        wrote_any = true;
+    }
+
+    if !harnesses_already_backfilled {
+        lock.harnesses = Some(HarnessLockSection {
+            recorded_at: now_iso.clone(),
+            previous_selection: harness_selection.clone(),
+        });
+        wrote_any = true;
+    }
+
+    if !wrote_any {
+        return Ok(None);
+    }
+
+    write_lock(project_root, &lock)?;
+    let migration_path =
+        write_lock_backfill_migration(project_root, &addon_selection, &harness_selection, &now_iso)?;
+    Ok(migration_path)
+}
+
+/// Write `context/migrations/pending/MIG-LOCK-<ts>.md` describing the
+/// backfill. Skipped (returns `Ok(None)`) if any prior `MIG-LOCK-*`
+/// already exists in `pending/` or `in-progress/` for this project —
+/// that would be a re-run and the operator already saw the first one.
+fn write_lock_backfill_migration(
+    project_root: &Path,
+    addon_selection: &BTreeMap<String, BTreeSet<String>>,
+    harness_selection: &BTreeSet<String>,
+    now_iso: &str,
+) -> Result<Option<PathBuf>> {
+    let pending_dir = project_root.join("context/migrations/pending");
+    let in_progress_dir = project_root.join("context/migrations/in-progress");
+    if existing_lock_migration(&pending_dir)? || existing_lock_migration(&in_progress_dir)? {
+        return Ok(None);
+    }
+
+    fs::create_dir_all(&pending_dir)
+        .with_context(|| format!("failed to create {}", pending_dir.display()))?;
+
+    let now = chrono::Utc::now();
+    let id = format!("MIG-LOCK-{}", now.format("%Y%m%dT%H%M%S"));
+    let out_path = pending_dir.join(format!("{}.md", id));
+
+    let total_tools: usize = addon_selection.values().map(|s| s.len()).sum();
+    let summary_line = format!(
+        "Backfilled previous_selection: {} addon(s), {} tool(s), {} harness(es)",
+        addon_selection.len(),
+        total_tools,
+        harness_selection.len(),
+    );
+
+    let mut body = String::new();
+    body.push_str("---\n");
+    body.push_str("apiVersion: processkit.projectious.work/v1\n");
+    body.push_str("kind: Migration\n");
+    body.push_str("metadata:\n");
+    body.push_str(&format!("  id: {}\n", id));
+    body.push_str(&format!("  created: {}\n", now_iso));
+    body.push_str("spec:\n");
+    body.push_str("  source: aibox-lock\n");
+    body.push_str("  source_url: \"aibox://lock\"\n");
+    body.push_str("  kind: schema-extension\n");
+    body.push_str("  state: pending\n");
+    body.push_str("  generated_by: aibox apply\n");
+    body.push_str(&format!("  generated_at: {}\n", now_iso));
+    body.push_str(&format!("  summary: {}\n", yaml_scalar_lock(&summary_line)));
+    body.push_str("---\n\n");
+    body.push_str(&format!("# Migration {}\n\n", id));
+    body.push_str(
+        "`aibox.lock` schema extended in v0.25.6 to record the previously\n\
+         applied addon-tool and harness selection (DEC-20260508_1515-SilentAsh,\n\
+         BR-CLEANUP-ARCH item 1). This backfill captures the current selection\n\
+         as the baseline so the next `aibox apply` can compute a removal diff\n\
+         when a tool or harness is disabled.\n\n",
+    );
+    body.push_str(&format!("{}\n\n", summary_line));
+
+    body.push_str("## Backfilled addon selection\n\n");
+    if addon_selection.is_empty() {
+        body.push_str("_No addons configured._\n\n");
+    } else {
+        for (addon, tools) in addon_selection {
+            let tool_list: Vec<&str> = tools.iter().map(|s| s.as_str()).collect();
+            body.push_str(&format!("- `{}`: {}\n", addon, tool_list.join(", ")));
+        }
+        body.push('\n');
+    }
+
+    body.push_str("## Backfilled harness selection\n\n");
+    if harness_selection.is_empty() {
+        body.push_str("_No harnesses configured._\n\n");
+    } else {
+        let harness_list: Vec<&str> = harness_selection.iter().map(|s| s.as_str()).collect();
+        body.push_str(&format!("- {}\n\n", harness_list.join(", ")));
+    }
+
+    body.push_str("## Next action\n\n");
+    body.push_str(
+        "Acknowledge with the migration-management skill (`/pk-resume` will\n\
+         surface it). No code change is required — the next `aibox apply`\n\
+         will use this baseline automatically.\n",
+    );
+
+    fs::write(&out_path, body)
+        .with_context(|| format!("failed to write {}", out_path.display()))?;
+    Ok(Some(out_path))
+}
+
+fn existing_lock_migration(dir: &Path) -> Result<bool> {
+    if !dir.exists() {
+        return Ok(false);
+    }
+    for entry in fs::read_dir(dir).with_context(|| format!("failed to read {}", dir.display()))? {
+        let entry = entry?;
+        let name = entry.file_name();
+        let name_str = name.to_string_lossy();
+        if name_str.starts_with("MIG-LOCK-") {
+            return Ok(true);
+        }
+    }
+    Ok(false)
+}
+
+/// Quote a YAML scalar safely for the small subset we emit. Mirrors the
+/// helper in `runtime_sync.rs` but kept private here to avoid a cyclic
+/// import chain through the migration emitter.
+fn yaml_scalar_lock(value: &str) -> String {
+    let needs_quote = value.is_empty()
+        || value
+            .chars()
+            .any(|c| matches!(c, ':' | '#' | '"' | '\'' | '\n'));
+    if !needs_quote {
+        return value.to_string();
+    }
+    let escaped = value.replace('\\', "\\\\").replace('"', "\\\"");
+    format!("\"{}\"", escaped)
+}
+
 /// Strip a single trailing known extension from a file name.
 fn strip_known_ext(name: &str) -> String {
     for ext in [".yaml", ".yml", ".toml", ".md", ".py"] {
@@ -526,6 +784,7 @@ mod tests {
             processkit: Some(sample_pk()),
             addons: None,
             runtime_home: None,
+            harnesses: None,
         }
     }
 
@@ -544,6 +803,7 @@ mod tests {
             processkit: Some(pk),
             addons: None,
             runtime_home: None,
+            harnesses: None,
         };
         write_lock(tmp.path(), &lock).unwrap();
         let back = read_lock(tmp.path()).unwrap().unwrap();
@@ -578,6 +838,166 @@ mod tests {
         // Explicitly NOT under context/.aibox/ anymore.
         assert!(!tmp.path().join("context/.aibox/processkit.lock").exists());
         assert!(!tmp.path().join("context/.aibox/aibox.lock").exists());
+    }
+
+    // -- v0.25.6 BR-CLEANUP-ARCH item 1 (DEC-20260508_1515-SilentAsh) -------
+
+    #[test]
+    fn lock_round_trip_with_previous_selection_and_harnesses() {
+        let tmp = TempDir::new().unwrap();
+        let mut addons_previous: BTreeMap<String, BTreeSet<String>> = BTreeMap::new();
+        addons_previous.insert(
+            "kubernetes".to_string(),
+            ["kubectl", "helm", "kustomize"]
+                .iter()
+                .map(|s| s.to_string())
+                .collect(),
+        );
+        addons_previous.insert(
+            "cloud-aws".to_string(),
+            ["aws-cli"].iter().map(|s| s.to_string()).collect(),
+        );
+
+        let mut tools = BTreeMap::new();
+        tools.insert("kubectl".to_string(), "v1.30.0".to_string());
+
+        let lock = AiboxLock {
+            aibox: AiboxLockSection {
+                cli_version: "0.25.6".to_string(),
+                synced_at: "2026-05-08T16:00:00Z".to_string(),
+            },
+            processkit: Some(sample_pk()),
+            addons: Some(AddonsLockSection {
+                resolved_at: "2026-05-08T16:00:00Z".to_string(),
+                tools,
+                previous_selection: addons_previous.clone(),
+            }),
+            runtime_home: None,
+            harnesses: Some(HarnessLockSection {
+                recorded_at: "2026-05-08T16:00:00Z".to_string(),
+                previous_selection: ["claude", "codex"].iter().map(|s| s.to_string()).collect(),
+            }),
+        };
+        write_lock(tmp.path(), &lock).unwrap();
+        let back = read_lock(tmp.path()).unwrap().unwrap();
+        assert_eq!(back, lock);
+        assert_eq!(
+            back.addons.as_ref().unwrap().previous_selection,
+            addons_previous
+        );
+        assert_eq!(
+            back.harnesses.as_ref().unwrap().previous_selection.len(),
+            2
+        );
+    }
+
+    #[test]
+    fn lock_back_compat_old_shape_parses_with_no_new_fields() {
+        // A v0.25.5-shaped lock body — no `previous_selection` on
+        // [addons], no `[harnesses]` section. Must round-trip cleanly
+        // through the v0.25.6 struct with the new fields defaulted.
+        let body = r#"
+[aibox]
+cli_version = "0.25.5"
+synced_at = "2026-05-08T10:00:00Z"
+
+[addons]
+resolved_at = "2026-05-08T10:00:00Z"
+
+[addons.tools]
+kubectl = "v1.30.0"
+"#;
+        let parsed: AiboxLock = toml::from_str(body).expect("v0.25.5-shape body must parse");
+        let addons = parsed.addons.expect("addons section present");
+        assert!(addons.previous_selection.is_empty());
+        assert!(parsed.harnesses.is_none());
+    }
+
+    #[test]
+    fn compute_addon_previous_selection_excludes_disabled() {
+        use crate::config::{AddonToolsSection, AddonsSection, ToolEntry};
+        use std::collections::HashMap;
+
+        let mut k8s_tools = HashMap::new();
+        k8s_tools.insert(
+            "kubectl".to_string(),
+            ToolEntry {
+                version: Some("v1.30.0".to_string()),
+                enabled: None,
+            },
+        );
+        k8s_tools.insert(
+            "helm".to_string(),
+            ToolEntry {
+                version: None,
+                enabled: Some(true),
+            },
+        );
+        k8s_tools.insert(
+            "kustomize".to_string(),
+            ToolEntry {
+                version: None,
+                enabled: Some(false),
+            },
+        );
+
+        let mut addons_map = HashMap::new();
+        addons_map.insert(
+            "kubernetes".to_string(),
+            AddonToolsSection { tools: k8s_tools },
+        );
+        let addons = AddonsSection { addons: addons_map };
+
+        let selection = compute_addon_previous_selection(&addons);
+        let k8s = selection.get("kubernetes").expect("kubernetes recorded");
+        assert!(k8s.contains("kubectl"));
+        assert!(k8s.contains("helm"));
+        assert!(!k8s.contains("kustomize"));
+        assert_eq!(k8s.len(), 2);
+    }
+
+    #[test]
+    fn compute_harness_previous_selection_renders_canonical_names() {
+        use crate::config::{AiHarness, AiSection};
+
+        let mut ai = AiSection::default();
+        ai.harnesses = vec![AiHarness::Claude, AiHarness::Codex];
+
+        let selection = compute_harness_previous_selection(&ai);
+        assert!(selection.contains("claude"));
+        assert!(selection.contains("codex"));
+        assert_eq!(selection.len(), 2);
+    }
+
+    #[test]
+    fn yaml_scalar_lock_quotes_when_needed() {
+        assert_eq!(yaml_scalar_lock("simple"), "simple");
+        assert_eq!(yaml_scalar_lock("has: colon"), r#""has: colon""#);
+        assert_eq!(yaml_scalar_lock(r#"has"quote"#), r#""has\"quote""#);
+        assert_eq!(yaml_scalar_lock(""), r#""""#);
+    }
+
+    #[test]
+    fn write_lock_backfill_migration_skipped_if_existing() {
+        let tmp = TempDir::new().unwrap();
+        let pending = tmp.path().join("context/migrations/pending");
+        fs::create_dir_all(&pending).unwrap();
+        fs::write(pending.join("MIG-LOCK-EXISTING.md"), "existing").unwrap();
+
+        let mut addons: BTreeMap<String, BTreeSet<String>> = BTreeMap::new();
+        addons.insert(
+            "kubernetes".to_string(),
+            ["kubectl"].iter().map(|s| s.to_string()).collect(),
+        );
+        let harnesses: BTreeSet<String> = ["claude"].iter().map(|s| s.to_string()).collect();
+
+        let result =
+            write_lock_backfill_migration(tmp.path(), &addons, &harnesses, "2026-05-08T16:00:00Z")
+                .unwrap();
+        assert!(
+            result.is_none(),
+            "should skip when MIG-LOCK-* already exists"
+        );
     }
 
     // -- Hashing ------------------------------------------------------------

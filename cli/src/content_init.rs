@@ -456,7 +456,8 @@ pub fn install_content_source(project_root: &Path, config: &AiboxConfig) -> Resu
             ..prospective_pk.clone()
         }),
         addons: existing_addons.clone(),
-        runtime_home: existing_lock.and_then(|lock| lock.runtime_home),
+        runtime_home: existing_lock.as_ref().and_then(|lock| lock.runtime_home.clone()),
+        harnesses: existing_lock.and_then(|lock| lock.harnesses),
     };
 
     // 4b. Write the live install marker (DO NOT EDIT). Sibling to

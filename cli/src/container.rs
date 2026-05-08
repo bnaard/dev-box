@@ -2346,6 +2346,7 @@ pub fn cmd_init(config_path: &Option<String>, params: InitParams) -> Result<()> 
             processkit: None,
             addons: None,
             runtime_home: None,
+            harnesses: None,
         };
         if let Err(e) = crate::lock::write_lock(&project_root, &minimal_lock) {
             output::warn(&format!("Failed to write fallback aibox.lock: {}", e));
@@ -2567,9 +2568,15 @@ pub fn cmd_sync(
         // Write resolved versions to aibox.lock
         let project_root = std::env::current_dir().unwrap_or_default();
         if let Ok(Some(mut lock)) = crate::lock::read_lock(&project_root) {
+            let preserved_previous_selection = lock
+                .addons
+                .as_ref()
+                .map(|a| a.previous_selection.clone())
+                .unwrap_or_default();
             lock.addons = Some(crate::lock::AddonsLockSection {
                 resolved_at: chrono::Utc::now().format("%Y-%m-%dT%H:%M:%SZ").to_string(),
                 tools: resolved_tools,
+                previous_selection: preserved_previous_selection,
             });
             if let Err(e) = crate::lock::write_lock(&project_root, &lock) {
                 output::warn(&format!(
@@ -2577,6 +2584,23 @@ pub fn cmd_sync(
                     e
                 ));
             }
+        }
+    }
+
+    // v0.25.6 BR-CLEANUP-ARCH item 1 (DEC-20260508_1515-SilentAsh):
+    // Backfill addon/harness `previous_selection` on the lock so future
+    // applies can compute a removal diff when a tool or harness is
+    // disabled. Idempotent — only acts once per project (subsequent
+    // applies see the fields populated and short-circuit). Emits a
+    // pending Migration the first time it runs.
+    if let Ok(cwd) = std::env::current_dir() {
+        match crate::lock::backfill_lock_selection(&cwd, &config) {
+            Ok(Some(path)) => output::ok(&format!(
+                "Backfilled lock previous_selection; wrote migration: {}",
+                path.display()
+            )),
+            Ok(None) => {}
+            Err(e) => output::warn(&format!("Lock selection backfill failed: {}", e)),
         }
     }
 
