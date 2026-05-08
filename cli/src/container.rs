@@ -1166,9 +1166,9 @@ pub(crate) fn serialize_config_with_comments(config: &AiboxConfig) -> String {
     out.push_str(sep);
     out.push_str("# [skills] — processkit skill catalog\n");
     out.push_str(sep);
-    out.push_str("# Fresh projects list the standard processkit operating skills explicitly.\n");
-    out.push_str("# Use enabled[] for additions and disabled[] for explicit removals. Core\n");
-    out.push_str("# skills are always installed; disabling one only triggers a doctor warning.\n");
+    out.push_str("# Each known skill appears once. Uncomment a line to enable that skill;\n");
+    out.push_str("# comment it out (leading `#`) to disable. Core skills are always\n");
+    out.push_str("# installed; disabling one only triggers a doctor warning.\n");
     out.push_str("[skills]\n");
     let skill_catalog = skill_catalog_entries_for_comments(config);
     render_skill_array(
@@ -1176,14 +1176,6 @@ pub(crate) fn serialize_config_with_comments(config: &AiboxConfig) -> String {
         "enabled",
         &config.skills.include,
         &skill_catalog,
-        "explicitly enable",
-    );
-    render_skill_array(
-        &mut out,
-        "disabled",
-        &config.skills.exclude,
-        &skill_catalog,
-        "explicitly disable",
     );
 
     // [addons] section
@@ -1688,7 +1680,6 @@ fn render_skill_array(
     key: &str,
     active: &[String],
     catalog: &[SkillCatalogEntry],
-    action: &str,
 ) {
     out.push_str(&format!("{key} = [\n"));
     let active_set: std::collections::BTreeSet<&str> = active.iter().map(String::as_str).collect();
@@ -1702,9 +1693,8 @@ fn render_skill_array(
     for entry in catalog {
         if !active_set.contains(entry.name.as_str()) {
             out.push_str(&format!(
-                "    # \"{}\", # {}; {}\n",
+                "    # \"{}\", # {}\n",
                 entry.name,
-                action,
                 skill_line_comment(entry)
             ));
         }
