@@ -417,8 +417,8 @@ fn doctor_warns_on_cli_version_file_mismatch() {
     );
 
     assert!(
-        combined.contains("CLI version mismatch"),
-        "doctor should warn about CLI version mismatch when .aibox-version is stale, got:\n{combined}"
+        combined.contains("Host CLI is out of step with aibox.lock"),
+        "doctor should warn about CLI version skew when aibox.lock is stale, got:\n{combined}"
     );
     assert!(
         combined.contains("aibox apply"),

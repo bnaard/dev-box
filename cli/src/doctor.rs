@@ -101,6 +101,11 @@ pub fn cmd_doctor(config_path: &Option<String>) -> Result<()> {
     output::info("Checking aibox.toml schema...");
     check_aibox_toml_schema(config_path, &mut diag);
 
+    // 2b. BR-DOCTOR-GAPS: deprecated `[customization.zellij_status]`
+    // section in the raw aibox.toml (auto-migrated at read time, but
+    // the on-disk source should be updated).
+    check_legacy_zellij_aliases(config_path, &mut diag);
+
     // 3. Check .aibox-home/ directory (or legacy .root/)
     let root = config.host_root_dir();
     let root_label = root.display().to_string();
@@ -135,6 +140,24 @@ pub fn cmd_doctor(config_path: &Option<String>) -> Result<()> {
 
     // 4. Check .devcontainer/ files
     check_devcontainer_files(&mut diag);
+
+    // 4b. lnav availability — surfaces the `Prefix L` log popup
+    // (BR-LOG-PANEL, v0.25.6). Warn (not error) if missing because the
+    // tmux binding falls back to `less`.
+    output::info("Checking log viewer (lnav)...");
+    check_lnav_installed(&mut diag);
+
+    // 4c. BR-DOCTOR-GAPS: tmux.conf v0.25.3 corruption signature.
+    output::info("Checking tmux.conf drift signature...");
+    check_tmux_conf_drift_signature(&config, &mut diag);
+
+    // 4d. BR-DOCTOR-GAPS: PowerKit plugin tree presence (extended mode only).
+    output::info("Checking PowerKit plugin tree...");
+    check_powerkit_plugin_tree(&config, &mut diag);
+
+    // 4e. BR-DOCTOR-GAPS: legacy multiplexer (zellij) artifact scan.
+    output::info("Checking for legacy zellij artifacts...");
+    check_legacy_zellij_artifacts(&config, &mut diag);
 
     // 5. Check context structure
     output::info(&format!(
@@ -234,6 +257,11 @@ pub fn cmd_doctor(config_path: &Option<String>) -> Result<()> {
     // 11. Runtime resource pressure check (best-effort Linux procfs/cgroupfs)
     output::info("Checking runtime resource pressure...");
     check_runtime_resource_pressure(&config, &mut diag);
+
+    // 12. BR-DOCTOR-GAPS: runtime startup hygiene (stale managed socket,
+    // yazi terminal-response cache pollution). Warn-level.
+    output::info("Checking runtime startup hygiene...");
+    check_runtime_startup_hygiene(&config, &mut diag);
 
     print_summary(&diag);
     Ok(())
@@ -1326,6 +1354,168 @@ fn find_command_on_path(candidates: &[&str]) -> Option<String> {
         .map(|candidate| (*candidate).to_string())
 }
 
+/// BR-LOG-PANEL (v0.25.6): warn if `lnav` is not on PATH. The `Prefix L`
+/// tmux binding falls back to `less` if lnav is missing, so this is a
+/// warning rather than an error.
+fn check_lnav_installed(diag: &mut DiagResult) {
+    if find_command_on_path(&["lnav"]).is_some() {
+        output::ok("lnav: installed (Prefix L opens the structured log popup)");
+    } else {
+        output::warn(
+            "lnav not found on PATH — Prefix L log popup will fall back to less. \
+             Rebuild the container image to install it (added to base-debian in v0.25.6).",
+        );
+        diag.warnings += 1;
+    }
+}
+
+// ---------------------------------------------------------------------------
+// BR-DOCTOR-GAPS (v0.25.6, DEC-20260508_1515-SilentAsh)
+// Six coverage gaps: drift signature, legacy aliases, PowerKit plugin
+// tree, lockfile-vs-CLI skew (replaces the old check), startup hygiene,
+// and legacy multiplexer artifacts.
+// ---------------------------------------------------------------------------
+
+/// Loud (error-level) detection of the v0.25.3 substitution-order
+/// corruption in the live `tmux.conf`. Reuses the runtime_sync
+/// recognizer added by BR-CLEANUP-ARCH item 2 so the heuristic stays in
+/// one place.
+fn check_tmux_conf_drift_signature(config: &AiboxConfig, diag: &mut DiagResult) {
+    let path = config.host_root_dir().join(".config/tmux/tmux.conf");
+    let Ok(content) = std::fs::read_to_string(&path) else {
+        return;
+    };
+    if crate::runtime_sync::live_is_corrupted_v0_25_3_tmux_conf(&content) {
+        output::error(&format!(
+            "Corrupted v0.25.3 tmux.conf detected at {} (status off + off_RIGHT signature). \
+             Run `aibox apply` from a v0.25.6+ host CLI to overwrite with current generated content.",
+            path.display(),
+        ));
+        diag.errors += 1;
+    } else {
+        output::ok("tmux.conf: no v0.25.3 corruption signature");
+    }
+}
+
+/// Warn when the raw aibox.toml still uses the deprecated
+/// `[customization.zellij_status]` section name (silently migrated by
+/// `AiSection::migrate_legacy`, but the source-of-truth file should be
+/// updated).
+fn check_legacy_zellij_aliases(config_path: &Option<String>, diag: &mut DiagResult) {
+    let path = config_path
+        .as_deref()
+        .map(Path::new)
+        .unwrap_or_else(|| Path::new("aibox.toml"));
+    let Ok(body) = std::fs::read_to_string(path) else {
+        return;
+    };
+    if body.contains("[customization.zellij_status]") {
+        output::warn(
+            "aibox.toml uses deprecated `[customization.zellij_status]` — \
+             rename to `[customization.tmux.status]`. The legacy alias is \
+             auto-migrated at read time but the on-disk source should be updated.",
+        );
+        diag.warnings += 1;
+    }
+}
+
+/// When extended/PowerKit status mode is selected, ensure the PowerKit
+/// plugin tree exists either in the host's managed plugin dir or baked
+/// into the image. Missing plugin tree means the status row silently
+/// fails to render — exactly the symptom DEC-1515 was reacting to.
+fn check_powerkit_plugin_tree(config: &AiboxConfig, diag: &mut DiagResult) {
+    use crate::config::TmuxStatusMode;
+    if !matches!(config.customization.tmux.status.mode, TmuxStatusMode::Extended) {
+        return;
+    }
+    let host = config
+        .host_root_dir()
+        .join(".tmux/plugins/tmux-powerkit/tmux-powerkit.tmux");
+    let in_image =
+        Path::new("/usr/local/share/aibox/tmux/plugins/tmux-powerkit/tmux-powerkit.tmux");
+    if host.exists() || in_image.exists() {
+        output::ok("PowerKit plugin tree present");
+    } else {
+        output::error(&format!(
+            "PowerKit plugin tree missing: neither {} nor {} exist. \
+             Rebuild the container image and run `aibox apply`.",
+            host.display(),
+            in_image.display(),
+        ));
+        diag.errors += 1;
+    }
+}
+
+/// Scan for legacy zellij artifacts under the host root. Variant 1
+/// hard-purge per DEC-20260508_1515-SilentAsh — owner approved; presence
+/// is an error. BR-ZELLIJ-EXCISE will add `cleanup_legacy_zellij_files`
+/// to seed.rs that purges these on `aibox apply`; this check verifies
+/// the post-apply state.
+fn check_legacy_zellij_artifacts(config: &AiboxConfig, diag: &mut DiagResult) {
+    let root = config.host_root_dir();
+    let candidates: &[&str] = &[
+        ".config/zellij",
+        ".cache/zellij",
+        ".local/share/zellij",
+        ".local/bin/aibox-status",
+    ];
+    let found: Vec<PathBuf> = candidates
+        .iter()
+        .map(|rel| root.join(rel))
+        .filter(|p| p.exists())
+        .collect();
+    if found.is_empty() {
+        output::ok("No legacy zellij artifacts under host root");
+        return;
+    }
+    let list = found
+        .iter()
+        .map(|p| p.display().to_string())
+        .collect::<Vec<_>>()
+        .join(", ");
+    output::error(&format!(
+        "Legacy zellij artifacts present: {list}. Run `aibox apply` from \
+         v0.25.6+ to purge; if they persist, remove them manually."
+    ));
+    diag.errors += 1;
+}
+
+/// Lightweight startup-hygiene check: a non-socket file at the managed
+/// tmux socket path blocks `aibox up`; yazi terminal-response cache
+/// pollution is a known yazi-bug source. Both are warning-level — they
+/// don't break doctor as a whole but tell the user where to look.
+fn check_runtime_startup_hygiene(config: &AiboxConfig, diag: &mut DiagResult) {
+    let root = config.host_root_dir();
+    let sock = root.join(".tmux/aibox.sock");
+    if let Ok(meta) = std::fs::symlink_metadata(&sock) {
+        use std::os::unix::fs::FileTypeExt;
+        if !meta.file_type().is_socket() {
+            output::warn(&format!(
+                "Stale tmux runtime socket at {} (not a UNIX socket). \
+                 Remove the file or run `aibox down && aibox up`.",
+                sock.display(),
+            ));
+            diag.warnings += 1;
+        }
+    }
+    let yazi_cache = root.join(".cache/yazi");
+    if yazi_cache.exists()
+        && let Ok(entries) = std::fs::read_dir(&yazi_cache)
+        && entries.filter_map(Result::ok).any(|e| {
+            e.file_name()
+                .to_string_lossy()
+                .ends_with(".terminal-response.log")
+        })
+    {
+        output::warn(&format!(
+            "Yazi terminal-response cache pollution under {}. \
+             Remove the directory and run `aibox apply`.",
+            yazi_cache.display(),
+        ));
+        diag.warnings += 1;
+    }
+}
+
 fn run_bwrap_smoke_probe(binary: &str) -> Result<bool> {
     let status = Command::new(binary)
         .args(bwrap_smoke_probe_args())
@@ -1731,10 +1921,11 @@ fn is_running_inside_aibox_container() -> bool {
     Path::new("/etc/aibox-version").is_file()
 }
 
-/// Warn if `aibox.lock [aibox].cli_version` doesn't match the current CLI version.
-///
-/// `cli_version` is written at init/sync time. A mismatch means generated files
-/// may be stale for this CLI version.
+/// Warn if `aibox.lock [aibox].cli_version` is out of step with the
+/// running CLI in a way the user should act on. v0.25.6 BR-DOCTOR-GAPS:
+/// upgraded from string-equality to semver-aware comparison so a
+/// patch-only delta produces an informational note (apply on next
+/// change) while major/minor skew warns.
 fn check_cli_version_file(diag: &mut DiagResult) {
     let lock = match crate::lock::read_lock(Path::new(".")) {
         Ok(Some(l)) => l,
@@ -1743,17 +1934,34 @@ fn check_cli_version_file(diag: &mut DiagResult) {
 
     let file_version = &lock.aibox.cli_version;
     if file_version.is_empty() {
-        return; // Unknown version — skip.
+        return;
     }
 
     let cli_version = env!("CARGO_PKG_VERSION");
-    if file_version != cli_version {
+    if file_version == cli_version {
+        return;
+    }
+
+    let lock_v = semver::Version::parse(file_version).ok();
+    let cli_v = semver::Version::parse(cli_version).ok();
+    let major_minor_skew = matches!(
+        (&lock_v, &cli_v),
+        (Some(a), Some(b)) if a.major != b.major || a.minor != b.minor
+    );
+
+    if major_minor_skew {
         output::warn(&format!(
-            "CLI version mismatch: aibox.lock cli_version={} current={} — \
-             run `aibox apply` to update generated files",
+            "Host CLI is out of step with aibox.lock (lock={}, cli={}). \
+             Run `aibox apply` to regenerate runtime files at the current version — \
+             this is the most common cause of 'why am I still seeing the old bug'.",
             file_version, cli_version
         ));
         diag.warnings += 1;
+    } else {
+        output::ok(&format!(
+            "CLI version skew within patch range (lock={}, cli={}); apply on next change.",
+            file_version, cli_version
+        ));
     }
 }
 
