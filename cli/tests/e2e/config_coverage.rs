@@ -584,8 +584,7 @@ mode = "powerline"
 fn legacy_powerline_mode_apply_warns_and_exits_zero() {
     let dir = tempfile::tempdir().unwrap();
     let name = "h2-powerline-apply";
-    fs::write(dir.path().join("aibox.toml"), powerline_alias_toml(name))
-        .expect("write aibox.toml");
+    fs::write(dir.path().join("aibox.toml"), powerline_alias_toml(name)).expect("write aibox.toml");
 
     let output = run_in(dir.path(), &["apply"]);
     assert!(
@@ -613,8 +612,7 @@ fn legacy_powerline_mode_apply_warns_and_exits_zero() {
 fn legacy_powerline_mode_doctor_warns_with_lint_code() {
     let dir = tempfile::tempdir().unwrap();
     let name = "h2-powerline-doctor";
-    fs::write(dir.path().join("aibox.toml"), powerline_alias_toml(name))
-        .expect("write aibox.toml");
+    fs::write(dir.path().join("aibox.toml"), powerline_alias_toml(name)).expect("write aibox.toml");
 
     let output = run_in(dir.path(), &["doctor"]);
     assert!(

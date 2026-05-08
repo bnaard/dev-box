@@ -618,8 +618,12 @@ pub fn backfill_lock_selection(
     }
 
     write_lock(project_root, &lock)?;
-    let migration_path =
-        write_lock_backfill_migration(project_root, &addon_selection, &harness_selection, &now_iso)?;
+    let migration_path = write_lock_backfill_migration(
+        project_root,
+        &addon_selection,
+        &harness_selection,
+        &now_iso,
+    )?;
     Ok(migration_path)
 }
 
@@ -885,10 +889,7 @@ mod tests {
             back.addons.as_ref().unwrap().previous_selection,
             addons_previous
         );
-        assert_eq!(
-            back.harnesses.as_ref().unwrap().previous_selection.len(),
-            2
-        );
+        assert_eq!(back.harnesses.as_ref().unwrap().previous_selection.len(), 2);
     }
 
     #[test]

@@ -1146,9 +1146,10 @@ runtime: |
 
     fn load_repo_addon(name: &str) -> LoadedAddon {
         let addons = load_from_dir(&repo_addons_dir()).unwrap();
-        addons.into_iter().find(|a| a.name == name).unwrap_or_else(|| {
-            panic!("addon '{}' not found in repo addons dir", name)
-        })
+        addons
+            .into_iter()
+            .find(|a| a.name == name)
+            .unwrap_or_else(|| panic!("addon '{}' not found in repo addons dir", name))
     }
 
     fn all_disabled_tools(addon: &LoadedAddon) -> HashMap<String, ToolConfig> {

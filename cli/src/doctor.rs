@@ -322,10 +322,7 @@ fn check_aibox_toml_schema(config_path: &Option<String>, diag: &mut DiagResult) 
 /// Since `powerline` is a `#[serde(alias = ...)]` for `Extended`, it parses
 /// without error, but the canonical name is `extended`.  We surface it as a
 /// doctor warning (not an error) so the project agent can update the file.
-fn check_legacy_powerline_mode_alias(
-    config_path: &Option<String>,
-    diag: &mut DiagResult,
-) {
+fn check_legacy_powerline_mode_alias(config_path: &Option<String>, diag: &mut DiagResult) {
     let path = config_path
         .as_deref()
         .map(std::path::Path::new)
@@ -1461,7 +1458,10 @@ fn check_tmux_conf_drift_signature(config: &AiboxConfig, diag: &mut DiagResult) 
 /// fails to render — exactly the symptom DEC-1515 was reacting to.
 fn check_powerkit_plugin_tree(config: &AiboxConfig, diag: &mut DiagResult) {
     use crate::config::TmuxStatusMode;
-    if !matches!(config.customization.tmux.status.mode, TmuxStatusMode::Extended) {
+    if !matches!(
+        config.customization.tmux.status.mode,
+        TmuxStatusMode::Extended
+    ) {
         return;
     }
     let host = config
@@ -1501,7 +1501,10 @@ fn check_powerkit_plugin_tree(config: &AiboxConfig, diag: &mut DiagResult) {
 ///   aibox_mcp.sh, aibox_mig.sh
 fn check_powerkit_status_plugins(config: &AiboxConfig, diag: &mut DiagResult) {
     use crate::config::TmuxStatusMode;
-    if !matches!(config.customization.tmux.status.mode, TmuxStatusMode::Extended) {
+    if !matches!(
+        config.customization.tmux.status.mode,
+        TmuxStatusMode::Extended
+    ) {
         return;
     }
 
@@ -2192,7 +2195,10 @@ services:
 
         // The posture must detect seccomp_unconfined so the caller can apply
         // the consent gate (security.acknowledge_seccomp_unconfined).
-        assert!(posture.seccomp_unconfined, "posture must detect seccomp=unconfined");
+        assert!(
+            posture.seccomp_unconfined,
+            "posture must detect seccomp=unconfined"
+        );
         // seccomp=unconfined alone is NOT a broad-grant warning — it's the
         // narrow approved fallback; the consent gate is a separate layer.
         assert!(posture.broad_grant_warnings.is_empty());

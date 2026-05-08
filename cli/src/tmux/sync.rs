@@ -6,10 +6,13 @@
 /// `aibox up --forget-tmux-state`.
 use anyhow::Result;
 
-use crate::config::{AiboxConfig, ConfigLayout};
-use crate::seed::{ensure_executable, ensure_executable_if_present, force_seed_file, include_lazygit_tab, ensure_runtime_dirs};
 use super::layouts::{tmux_layout_script, tmux_session_script};
 use super::status::tmux_conf;
+use crate::config::{AiboxConfig, ConfigLayout};
+use crate::seed::{
+    ensure_executable, ensure_executable_if_present, ensure_runtime_dirs, force_seed_file,
+    include_lazygit_tab,
+};
 
 /// Refresh managed tmux runtime files from aibox.toml.
 ///

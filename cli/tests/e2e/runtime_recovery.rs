@@ -83,8 +83,7 @@ fn corrupted_v0_25_3_tmux_conf_is_overwritten_by_apply() {
         tmux_conf_path.exists(),
         "init should have created .aibox-home/.config/tmux/tmux.conf"
     );
-    fs::write(&tmux_conf_path, CORRUPTED_V0_25_3_TMUX_CONF)
-        .expect("write corrupted tmux.conf");
+    fs::write(&tmux_conf_path, CORRUPTED_V0_25_3_TMUX_CONF).expect("write corrupted tmux.conf");
 
     // Verify the signature is recognised by the library function.
     {
@@ -154,8 +153,7 @@ fn doctor_detects_corrupted_v0_25_3_tmux_conf_before_apply() {
 
     // Plant the corruption signature.
     let tmux_conf_path = dir.join(".aibox-home/.config/tmux/tmux.conf");
-    fs::write(&tmux_conf_path, CORRUPTED_V0_25_3_TMUX_CONF)
-        .expect("write corrupted tmux.conf");
+    fs::write(&tmux_conf_path, CORRUPTED_V0_25_3_TMUX_CONF).expect("write corrupted tmux.conf");
 
     let doctor_out = run_no_container(dir, &["doctor"]);
     // Doctor always exits 0.

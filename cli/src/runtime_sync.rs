@@ -1340,7 +1340,8 @@ rules = [
 
     #[test]
     fn off_right_corruption_detected_when_both_lines_present() {
-        let content = "set -g status on\nset -g status off\nfoo\nset -g status-right \" off_RIGHT \"\n";
+        let content =
+            "set -g status on\nset -g status off\nfoo\nset -g status-right \" off_RIGHT \"\n";
         assert!(live_is_corrupted_v0_25_3_tmux_conf(content));
     }
 

@@ -172,12 +172,12 @@ pub fn tmux_powerkit_settings(config: &AiboxConfig) -> (String, String) {
     // Line 1 right — slot order fixed per DEC-20260508_2115-SilentFern.
     // Correlates LINE1_RIGHT_ORDER keys against element enable-flags.
     let l1r_flags: &[(bool, &str)] = &[
-        (elements.hostname,    LINE1_RIGHT_ORDER[0].1),
+        (elements.hostname, LINE1_RIGHT_ORDER[0].1),
         (elements.external_ip, LINE1_RIGHT_ORDER[1].1),
-        (elements.ssh,         LINE1_RIGHT_ORDER[2].1),
-        (elements.uptime,      LINE1_RIGHT_ORDER[3].1),
-        (elements.weather,     LINE1_RIGHT_ORDER[4].1),
-        (elements.datetime,    LINE1_RIGHT_ORDER[5].1),
+        (elements.ssh, LINE1_RIGHT_ORDER[2].1),
+        (elements.uptime, LINE1_RIGHT_ORDER[3].1),
+        (elements.weather, LINE1_RIGHT_ORDER[4].1),
+        (elements.datetime, LINE1_RIGHT_ORDER[5].1),
     ];
     let line1_right: Vec<&str> = l1r_flags
         .iter()
@@ -186,11 +186,11 @@ pub fn tmux_powerkit_settings(config: &AiboxConfig) -> (String, String) {
 
     // Line 2 left — slot order fixed per DEC-20260508_2115-SilentFern.
     let l2l_flags: &[(bool, &str)] = &[
-        (elements.git,         LINE2_LEFT_ORDER[0].1),
-        (elements.github,      LINE2_LEFT_ORDER[1].1),
-        (elements.kubernetes,  LINE2_LEFT_ORDER[2].1),
-        (elements.terraform,   LINE2_LEFT_ORDER[3].1),
-        (elements.cloud,       LINE2_LEFT_ORDER[4].1),
+        (elements.git, LINE2_LEFT_ORDER[0].1),
+        (elements.github, LINE2_LEFT_ORDER[1].1),
+        (elements.kubernetes, LINE2_LEFT_ORDER[2].1),
+        (elements.terraform, LINE2_LEFT_ORDER[3].1),
+        (elements.cloud, LINE2_LEFT_ORDER[4].1),
         (elements.cloudstatus, LINE2_LEFT_ORDER[5].1),
     ];
     let line2_left: Vec<&str> = l2l_flags
@@ -200,14 +200,14 @@ pub fn tmux_powerkit_settings(config: &AiboxConfig) -> (String, String) {
 
     // Line 2 right — system metrics, slot order fixed per DEC-20260508_2115-SilentFern.
     let l2r_system_flags: &[(bool, &str)] = &[
-        (elements.cpu,      LINE2_RIGHT_SYSTEM_ORDER[0].1),
-        (elements.loadavg,  LINE2_RIGHT_SYSTEM_ORDER[1].1),
-        (elements.mem,      LINE2_RIGHT_SYSTEM_ORDER[2].1),
-        (elements.swap,     LINE2_RIGHT_SYSTEM_ORDER[3].1),
-        (elements.disk,     LINE2_RIGHT_SYSTEM_ORDER[4].1),
-        (elements.gpu,      LINE2_RIGHT_SYSTEM_ORDER[5].1),
+        (elements.cpu, LINE2_RIGHT_SYSTEM_ORDER[0].1),
+        (elements.loadavg, LINE2_RIGHT_SYSTEM_ORDER[1].1),
+        (elements.mem, LINE2_RIGHT_SYSTEM_ORDER[2].1),
+        (elements.swap, LINE2_RIGHT_SYSTEM_ORDER[3].1),
+        (elements.disk, LINE2_RIGHT_SYSTEM_ORDER[4].1),
+        (elements.gpu, LINE2_RIGHT_SYSTEM_ORDER[5].1),
         (elements.netspeed, LINE2_RIGHT_SYSTEM_ORDER[6].1),
-        (elements.ping,     LINE2_RIGHT_SYSTEM_ORDER[7].1),
+        (elements.ping, LINE2_RIGHT_SYSTEM_ORDER[7].1),
     ];
     let mut line2_right: Vec<&str> = l2r_system_flags
         .iter()
@@ -219,12 +219,36 @@ pub fn tmux_powerkit_settings(config: &AiboxConfig) -> (String, String) {
     // Slot order fixed per DEC-20260508_2115-SilentFern.
     let metrics = &elements.aibox_metrics;
     let metrics_flags: &[(bool, &str, &str)] = &[
-        (metrics.log,  LINE2_RIGHT_AIBOX_METRICS_ORDER[0].0, LINE2_RIGHT_AIBOX_METRICS_ORDER[0].1),
-        (metrics.oom,  LINE2_RIGHT_AIBOX_METRICS_ORDER[1].0, LINE2_RIGHT_AIBOX_METRICS_ORDER[1].1),
-        (metrics.proc, LINE2_RIGHT_AIBOX_METRICS_ORDER[2].0, LINE2_RIGHT_AIBOX_METRICS_ORDER[2].1),
-        (metrics.ai,   LINE2_RIGHT_AIBOX_METRICS_ORDER[3].0, LINE2_RIGHT_AIBOX_METRICS_ORDER[3].1),
-        (metrics.mcp,  LINE2_RIGHT_AIBOX_METRICS_ORDER[4].0, LINE2_RIGHT_AIBOX_METRICS_ORDER[4].1),
-        (metrics.mig,  LINE2_RIGHT_AIBOX_METRICS_ORDER[5].0, LINE2_RIGHT_AIBOX_METRICS_ORDER[5].1),
+        (
+            metrics.log,
+            LINE2_RIGHT_AIBOX_METRICS_ORDER[0].0,
+            LINE2_RIGHT_AIBOX_METRICS_ORDER[0].1,
+        ),
+        (
+            metrics.oom,
+            LINE2_RIGHT_AIBOX_METRICS_ORDER[1].0,
+            LINE2_RIGHT_AIBOX_METRICS_ORDER[1].1,
+        ),
+        (
+            metrics.proc,
+            LINE2_RIGHT_AIBOX_METRICS_ORDER[2].0,
+            LINE2_RIGHT_AIBOX_METRICS_ORDER[2].1,
+        ),
+        (
+            metrics.ai,
+            LINE2_RIGHT_AIBOX_METRICS_ORDER[3].0,
+            LINE2_RIGHT_AIBOX_METRICS_ORDER[3].1,
+        ),
+        (
+            metrics.mcp,
+            LINE2_RIGHT_AIBOX_METRICS_ORDER[4].0,
+            LINE2_RIGHT_AIBOX_METRICS_ORDER[4].1,
+        ),
+        (
+            metrics.mig,
+            LINE2_RIGHT_AIBOX_METRICS_ORDER[5].0,
+            LINE2_RIGHT_AIBOX_METRICS_ORDER[5].1,
+        ),
     ];
     let aibox_metric_plugins: Vec<&str> = metrics_flags
         .iter()
@@ -308,8 +332,7 @@ pub fn cleanup_stale_tmux_plugins(config: &AiboxConfig, root: &Path) -> Result<V
 
     let conf = tmux_conf(config);
     for entry in entries {
-        let entry =
-            entry.with_context(|| format!("Failed to read {}", plugins_dir.display()))?;
+        let entry = entry.with_context(|| format!("Failed to read {}", plugins_dir.display()))?;
         let path = entry.path();
         if !path.is_dir() {
             continue;
@@ -324,8 +347,8 @@ pub fn cleanup_stale_tmux_plugins(config: &AiboxConfig, root: &Path) -> Result<V
         }
         // A plugin is "referenced" if the rendered tmux.conf names its
         // directory anywhere (e.g. `tmux-powerkit/tmux-powerkit.tmux`).
-        let referenced = conf.contains(&format!("/{}/", name))
-            || conf.contains(&format!("/{}.", name));
+        let referenced =
+            conf.contains(&format!("/{}/", name)) || conf.contains(&format!("/{}.", name));
         if referenced {
             continue;
         }
@@ -480,14 +503,18 @@ mod tests {
         // Line 1 right: hostname → external_ip → ssh → uptime → weather → datetime
         // (DEC-20260508_2115-SilentFern)
         assert!(
-            conf.contains(r#"@powerkit_line1_right "hostname,external_ip,ssh,uptime,weather,datetime""#),
+            conf.contains(
+                r#"@powerkit_line1_right "hostname,external_ip,ssh,uptime,weather,datetime""#
+            ),
             "line1_right slot order must be: hostname,external_ip,ssh,uptime,weather,datetime\n{conf}"
         );
 
         // Line 2 left: git → github → kubernetes → terraform → cloud → cloudstatus
         // (DEC-20260508_2115-SilentFern)
         assert!(
-            conf.contains(r#"@powerkit_line2_left "git,github,kubernetes,terraform,cloud,cloudstatus""#),
+            conf.contains(
+                r#"@powerkit_line2_left "git,github,kubernetes,terraform,cloud,cloudstatus""#
+            ),
             "line2_left slot order must be: git,github,kubernetes,terraform,cloud,cloudstatus\n{conf}"
         );
 

@@ -108,7 +108,6 @@ const DEFAULT_GITCONFIG: &str = r#"[core]
     rebase = true
 "#;
 
-
 fn addon_tool_effective_enabled(config: &AiboxConfig, addon: &str, tool: &str) -> bool {
     let Some(addon_section) = config.addons.get_addon(addon) else {
         return false;
@@ -1205,11 +1204,7 @@ fn write_disabled_harness_migration(
         ));
         for path in paths {
             let rel = path.strip_prefix(host_root).unwrap_or(path);
-            body.push_str(&format!(
-                "- `{}/{}`\n",
-                host_root.display(),
-                rel.display()
-            ));
+            body.push_str(&format!("- `{}/{}`\n", host_root.display(), rel.display()));
         }
         body.push('\n');
     }
@@ -1263,8 +1258,7 @@ pub fn cleanup_legacy_zellij_files(root: &Path) -> Result<Vec<String>> {
             fs::remove_dir_all(&abs)
                 .with_context(|| format!("Failed to remove {}", abs.display()))?;
         } else {
-            fs::remove_file(&abs)
-                .with_context(|| format!("Failed to remove {}", abs.display()))?;
+            fs::remove_file(&abs).with_context(|| format!("Failed to remove {}", abs.display()))?;
         }
         updated.push(format!("{rel_path} (removed legacy multiplexer artifact)"));
     }
@@ -1273,7 +1267,11 @@ pub fn cleanup_legacy_zellij_files(root: &Path) -> Result<Vec<String>> {
     if let Ok(entries) = fs::read_dir(&plugins) {
         for entry in entries.flatten() {
             let name = entry.file_name();
-            if name.to_string_lossy().to_ascii_lowercase().contains("zellij") {
+            if name
+                .to_string_lossy()
+                .to_ascii_lowercase()
+                .contains("zellij")
+            {
                 let path = entry.path();
                 if path.is_dir() {
                     fs::remove_dir_all(&path)
@@ -1366,7 +1364,6 @@ fn legacy_managed_aibox_status_helper(path: &Path) -> bool {
         && body.contains("--plugin-json")
         && body.contains("AIBOX_STATUS_INTERVAL")
 }
-
 
 /// Seed the .root/ directory structure and default config files.
 /// Never overwrites existing files.
@@ -2167,15 +2164,11 @@ mod tests {
         assert!(!root.join(".local/share/zellij").exists());
         assert!(!root.join(".tmux/plugins/zellij-bridge").exists());
         assert!(
-            updated
-                .iter()
-                .any(|p| p.starts_with(".config/zellij")),
+            updated.iter().any(|p| p.starts_with(".config/zellij")),
             "cleanup must report .config/zellij removal: {updated:?}"
         );
         assert!(
-            updated
-                .iter()
-                .any(|p| p.starts_with(".cache/zellij")),
+            updated.iter().any(|p| p.starts_with(".cache/zellij")),
             "cleanup must report .cache/zellij removal: {updated:?}"
         );
         assert!(
@@ -2192,7 +2185,10 @@ mod tests {
         let root = dir.path().join("root");
         fs::create_dir_all(&root).unwrap();
         let updated = cleanup_legacy_zellij_files(&root).unwrap();
-        assert!(updated.is_empty(), "clean root yields no removals: {updated:?}");
+        assert!(
+            updated.is_empty(),
+            "clean root yields no removals: {updated:?}"
+        );
     }
 
     #[test]
@@ -2202,8 +2198,16 @@ mod tests {
         fs::create_dir_all(root.join(".config/zellij")).unwrap();
         fs::create_dir_all(root.join(".local/share/zellij")).unwrap();
         let surviving = surviving_legacy_multiplexer_paths(&root);
-        assert!(surviving.iter().any(|p| p.ends_with("zellij") && p.to_string_lossy().contains(".config")));
-        assert!(surviving.iter().any(|p| p.ends_with("zellij") && p.to_string_lossy().contains(".local/share")));
+        assert!(
+            surviving
+                .iter()
+                .any(|p| p.ends_with("zellij") && p.to_string_lossy().contains(".config"))
+        );
+        assert!(
+            surviving
+                .iter()
+                .any(|p| p.ends_with("zellij") && p.to_string_lossy().contains(".local/share"))
+        );
     }
 
     #[test]
@@ -2499,7 +2503,6 @@ rules = [
             "no vim-loop reference; persistent vim is removed"
         );
     }
-
 
     #[test]
     fn default_yazi_config_uses_mgr_section() {
