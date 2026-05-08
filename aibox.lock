@@ -1,5 +1,5 @@
 [aibox]
-cli_version = "0.25.4"
+cli_version = "0.25.5"
 synced_at = "2026-05-05T16:03:00.906059349+00:00"
 
 [processkit]
@@ -11,7 +11,7 @@ installed_at = "2026-05-05T16:03:00.906059349+00:00"
 processkit_install_hash = "a136b8826582297ce0e710943b8abd93d18ec429dd4e5258399918653d346215"
 
 [runtime_home]
-generated_at = "2026-05-08T11:39:12.673090+00:00"
+generated_at = "2026-05-08T13:08:59.173358+00:00"
 
 [runtime_home.files]
 ".asoundrc" = "f34609b11d315cd613cb5333b561032baec860faf4a7eccb28b5567ae72019af"
@@ -39,6 +39,6 @@ generated_at = "2026-05-08T11:39:12.673090+00:00"
 ".config/yazi/yazi.toml" = "cdd99053efcb0f66baa4001900ce8291baf02499ea05651dfc27d1715382aed4"
 ".local/bin/aibox-preview" = "fa878a7f017ee574abcc72714373e0189465af0b7ebe38bfcc8036d5b7af2be2"
 ".local/bin/aibox-status-toggle" = "026c6a1dc7f1bcf650aa0bd4f587adfb5de6744df66fc138bef9b435bad1049a"
-".local/bin/open-in-editor" = "a75159747229e86479d66ee234eae9207a7221daa04925e9d1d87f3d79fbb493"
+".local/bin/open-in-editor" = "77d1641915fd9db50af9479f25b652b7d6b8845b0e8ed41d4845cdc882119fd8"
 ".local/bin/pdf-watch" = "b6becd1df4a32ff27f5c93e514e6d31e5743f9282f40ce7290b8432207d85934"
 ".vim/vimrc" = "282a0e2eaf3c1dd124005aee3dfcbaf7c812e94e970f4815da80e5459cb9ab27"
