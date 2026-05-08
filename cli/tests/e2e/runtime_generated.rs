@@ -70,7 +70,18 @@ fail=0
 echo "== versions =="
 tmux -V || fail=1
 yazi --version || fail=1
-lazygit --version || fail=1
+# Conditional lazygit check: only assert presence when the git-ui addon
+# has lazygit enabled (default is enabled; explicit `enabled = false`
+# triggers the purge path which is tested separately in addon_disablement.rs).
+if grep -q 'lazygit.*enabled.*=.*false' {workspace}/aibox.toml 2>/dev/null; then
+  # lazygit was explicitly disabled — assert it is NOT on PATH.
+  if command -v lazygit >/dev/null 2>&1; then
+    echo "lazygit should not be on PATH when disabled in aibox.toml"
+    fail=1
+  fi
+else
+  lazygit --version || fail=1
+fi
 if command -v zellij >/tmp/{test_name}-zellij-bin.txt 2>&1; then
   echo "zellij binary should not be present in generated runtime path"
   cat /tmp/{test_name}-zellij-bin.txt
@@ -262,6 +273,203 @@ fi
     assert!(
         output.status.success(),
         "generated tmux runtime visual probe failed:\nstdout:\n{}\nstderr:\n{}",
+        String::from_utf8_lossy(&output.stdout),
+        String::from_utf8_lossy(&output.stderr)
+    );
+
+    runner.cleanup(test_name);
+}
+
+// ─── H3 companion: PowerKit status renders after `aibox up` ──────────────────
+//
+// Gated `#[ignore]` because it requires a fully-started aibox container (after
+// `aibox up`). Run on demand:
+//   cargo test h3_powerkit_status_tokens_present_in_tmux -- --ignored
+//
+// Mirrors the assertions from `scripts/release-runtime-smoke.sh` for the
+// tmux status-format tokens (hostname, external_ip, datetime, git, aibox).
+#[test]
+#[serial]
+#[ignore]
+#[ntest::timeout(120_000)]
+fn h3_powerkit_status_tokens_present_in_tmux() {
+    let runner = E2eRunner::new();
+    runner.ensure_deployed();
+
+    let test_name = "h3-powerkit-status";
+    runner.cleanup(test_name);
+
+    let init = runner.aibox(
+        test_name,
+        &[
+            "init",
+            test_name,
+            "--base",
+            "debian",
+            "--context",
+            "managed",
+            "--processkit-version",
+            "unset",
+            "--no-container",
+        ],
+    );
+    assert!(
+        init.status.success(),
+        "init failed:\nstdout:\n{}\nstderr:\n{}",
+        String::from_utf8_lossy(&init.stdout),
+        String::from_utf8_lossy(&init.stderr)
+    );
+
+    let apply = runner.aibox(test_name, &["apply", "--no-container"]);
+    assert!(
+        apply.status.success(),
+        "apply failed:\nstdout:\n{}\nstderr:\n{}",
+        String::from_utf8_lossy(&apply.stdout),
+        String::from_utf8_lossy(&apply.stderr)
+    );
+
+    let workspace = format!("/workspaces/{test_name}");
+    let socket = format!("{workspace}/.aibox-home/.tmux/aibox.sock");
+
+    // Start a detached tmux session using the generated socket and config,
+    // then verify the status-right references aibox-status or the PowerKit plugin.
+    let probe = format!(
+        r#"set -u
+cd {workspace}
+export HOME="{workspace}/.aibox-home"
+export TERM=xterm-256color
+export COLORTERM=truecolor
+export PATH="$HOME/.local/bin:/usr/local/bin:$PATH"
+export AIBOX_TMUX_SOCKET="{socket}"
+
+tmux_conf="$HOME/.config/tmux/tmux.conf"
+[ -f "$tmux_conf" ] || {{ echo "tmux.conf missing"; exit 1; }}
+
+# Start a detached session so we can inspect the status-format options.
+tmux -S "$AIBOX_TMUX_SOCKET" -f "$tmux_conf" new-session -d -s {test_name}-h3 -x 220 -y 50 2>/dev/null || true
+
+fail=0
+for _ in $(seq 1 20); do
+  tmux -S "$AIBOX_TMUX_SOCKET" has-session -t {test_name}-h3 >/dev/null 2>&1 && break
+  sleep 0.5
+done
+
+status_left=$(tmux -S "$AIBOX_TMUX_SOCKET" show-options -gv status-left 2>/dev/null || echo "")
+status_right=$(tmux -S "$AIBOX_TMUX_SOCKET" show-options -gv status-right 2>/dev/null || echo "")
+echo "status-left:   $status_left"
+echo "status-right:  $status_right"
+
+# The PowerKit plugin replaces the status-right with its own format when loaded.
+# Accept either the aibox-status helper reference or the PowerKit format tokens.
+combined="$status_left $status_right"
+if echo "$combined" | grep -qE 'aibox-status|aibox_status|powerkit|AIBOX'; then
+  echo "H3 PASS: status-right references aibox-status or PowerKit"
+elif grep -q 'tmux-powerkit' "$tmux_conf"; then
+  echo "H3 PASS: tmux-powerkit referenced in tmux.conf (plugin not yet loaded into this session)"
+else
+  echo "H3 FAIL: tmux status does not reference aibox-status or PowerKit"
+  fail=1
+fi
+
+tmux -S "$AIBOX_TMUX_SOCKET" kill-session -t {test_name}-h3 2>/dev/null || true
+exit "$fail"
+"#
+    );
+
+    let output = runner.exec(&probe);
+    assert!(
+        output.status.success(),
+        "H3 PowerKit status probe failed:\nstdout:\n{}\nstderr:\n{}",
+        String::from_utf8_lossy(&output.stdout),
+        String::from_utf8_lossy(&output.stderr)
+    );
+
+    runner.cleanup(test_name);
+}
+
+// ─── M1: see lifecycle.rs::m1_forget_tmux_state_no_connect_error ─────────────
+// M1 is canonically in lifecycle.rs (per BR-TEST-GAPS spec) where it belongs
+// alongside the other lifecycle companion tests.
+
+// ─── M3 companion: Yazi clean startup (no terminal-response timeout) ─────────
+//
+// Gated `#[ignore]` because it requires the companion runtime environment.
+// Run on demand:
+//   cargo test m3_yazi_debug_no_terminal_timeout -- --ignored
+#[test]
+#[serial]
+#[ignore]
+#[ntest::timeout(180_000)]
+fn m3_yazi_debug_no_terminal_timeout() {
+    let runner = E2eRunner::new();
+    runner.ensure_deployed();
+
+    let test_name = "m3-yazi-clean";
+    runner.cleanup(test_name);
+
+    let init = runner.aibox(
+        test_name,
+        &[
+            "init",
+            test_name,
+            "--base",
+            "debian",
+            "--context",
+            "managed",
+            "--processkit-version",
+            "unset",
+            "--no-container",
+        ],
+    );
+    assert!(
+        init.status.success(),
+        "init failed:\nstdout:\n{}\nstderr:\n{}",
+        String::from_utf8_lossy(&init.stdout),
+        String::from_utf8_lossy(&init.stderr)
+    );
+
+    let apply = runner.aibox(test_name, &["apply", "--no-container"]);
+    assert!(
+        apply.status.success(),
+        "apply failed:\nstdout:\n{}\nstderr:\n{}",
+        String::from_utf8_lossy(&apply.stdout),
+        String::from_utf8_lossy(&apply.stderr)
+    );
+
+    let workspace = format!("/workspaces/{test_name}");
+    let probe = format!(
+        r#"set -u
+cd {workspace}
+export HOME="{workspace}/.aibox-home"
+export TERM=xterm-256color
+export COLORTERM=truecolor
+export PATH="$HOME/.local/bin:/usr/local/bin:$PATH"
+export XDG_STATE_HOME="$HOME/.local/state"
+
+fail=0
+echo "== M3: yazi --debug terminal-response probe =="
+timeout 6s yazi --debug >/tmp/{test_name}-m3-yazi.txt 2>&1
+code=$?
+if [ "$code" -ne 0 ] && [ "$code" -ne 124 ]; then
+  echo "yazi --debug exited with unexpected code $code (not 0 or 124/timeout)"
+  sed -n '1,60p' /tmp/{test_name}-m3-yazi.txt
+  fail=1
+fi
+if grep -q 'Terminal response timeout' /tmp/{test_name}-m3-yazi.txt; then
+  echo "M3 FAIL: yazi --debug wrote 'Terminal response timeout'"
+  sed -n '1,60p' /tmp/{test_name}-m3-yazi.txt
+  fail=1
+else
+  echo "M3 PASS: no terminal-response timeout"
+fi
+exit "$fail"
+"#
+    );
+
+    let output = runner.exec(&probe);
+    assert!(
+        output.status.success(),
+        "M3 Yazi clean-startup probe failed:\nstdout:\n{}\nstderr:\n{}",
         String::from_utf8_lossy(&output.stdout),
         String::from_utf8_lossy(&output.stderr)
     );

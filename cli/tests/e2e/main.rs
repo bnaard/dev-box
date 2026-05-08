@@ -8,11 +8,13 @@ pub mod mock_runtime;
 pub mod runner;
 
 // Tier 1 tests (fast, no container needed)
+mod addon_disablement;
 mod appearance;
 mod config_coverage;
 mod no_container_harness;
 mod preauth_merge;
 mod preview;
+mod runtime_recovery;
 mod version_upgrade;
 
 // Tier 2 tests (require e2e-runner companion container)

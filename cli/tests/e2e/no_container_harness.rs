@@ -751,6 +751,11 @@ fn generated_runtime_apply_does_not_touch_provider_or_live_runtime_files() {
     let tmp = tempfile::TempDir::new().expect("create tempdir");
     let dir = tmp.path();
 
+    // Use aibox init with Codex harness. BR-SEC-HARDEN (HonestAnt Q3) added a
+    // seccomp consent requirement for Codex, but `aibox init --harness codex`
+    // auto-sets `acknowledge_seccomp_unconfined = true` in memory and writes it
+    // to aibox.toml. The test verifies that `apply generated-runtime` does NOT
+    // touch provider hook files or live .aibox-home files.
     let init_out = run_in(
         dir,
         &[
@@ -762,6 +767,8 @@ fn generated_runtime_apply_does_not_touch_provider_or_live_runtime_files() {
             "managed",
             "--harness",
             "codex",
+            "--processkit-version",
+            "unset",
         ],
     );
     assert!(

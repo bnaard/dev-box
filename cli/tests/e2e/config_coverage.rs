@@ -553,3 +553,88 @@ fn sync_updates_processkit_install_hash_in_lock() {
         "processkit_install_hash should have a value"
     );
 }
+
+// ─── H2 — Legacy powerline deprecation warning ───────────────────────────────
+//
+// When [customization.tmux.status] mode = "powerline" is in aibox.toml:
+//   • `aibox apply` must exit 0 AND emit a LINT-POWERLINE-ALIAS deprecation
+//     warning to stderr.
+//   • `aibox doctor` must also surface a warning row containing the lint code.
+
+/// Minimal aibox.toml with the legacy powerline mode alias.
+fn powerline_alias_toml(name: &str) -> String {
+    format!(
+        r#"[aibox]
+version = "0.25.5"
+base = "debian"
+
+[container]
+name = "{name}"
+
+[processkit]
+version = "unset"
+
+[customization.tmux.status]
+mode = "powerline"
+"#
+    )
+}
+
+#[test]
+fn legacy_powerline_mode_apply_warns_and_exits_zero() {
+    let dir = tempfile::tempdir().unwrap();
+    let name = "h2-powerline-apply";
+    fs::write(dir.path().join("aibox.toml"), powerline_alias_toml(name))
+        .expect("write aibox.toml");
+
+    let output = run_in(dir.path(), &["apply"]);
+    assert!(
+        output.status.success(),
+        "apply with powerline alias should exit 0: {}",
+        String::from_utf8_lossy(&output.stderr)
+    );
+
+    let combined = format!(
+        "{}{}",
+        String::from_utf8_lossy(&output.stdout),
+        String::from_utf8_lossy(&output.stderr)
+    );
+    assert!(
+        combined.contains("LINT-POWERLINE-ALIAS"),
+        "apply should emit LINT-POWERLINE-ALIAS deprecation warning:\n{combined}"
+    );
+    assert!(
+        combined.contains("powerline") && combined.contains("extended"),
+        "apply deprecation message should explain the alias mapping:\n{combined}"
+    );
+}
+
+#[test]
+fn legacy_powerline_mode_doctor_warns_with_lint_code() {
+    let dir = tempfile::tempdir().unwrap();
+    let name = "h2-powerline-doctor";
+    fs::write(dir.path().join("aibox.toml"), powerline_alias_toml(name))
+        .expect("write aibox.toml");
+
+    let output = run_in(dir.path(), &["doctor"]);
+    assert!(
+        output.status.success(),
+        "doctor with powerline alias should exit 0: {}",
+        String::from_utf8_lossy(&output.stderr)
+    );
+
+    let combined = format!(
+        "{}{}",
+        String::from_utf8_lossy(&output.stdout),
+        String::from_utf8_lossy(&output.stderr)
+    );
+    assert!(
+        combined.contains("LINT-POWERLINE-ALIAS"),
+        "doctor should report LINT-POWERLINE-ALIAS warning:\n{combined}"
+    );
+    // Doctor should also mention "warning(s)" in its summary.
+    assert!(
+        combined.contains("warning(s)") && !combined.contains("0 warning(s)"),
+        "doctor summary should reflect at least one warning for the powerline alias:\n{combined}"
+    );
+}
