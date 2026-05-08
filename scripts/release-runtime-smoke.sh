@@ -154,7 +154,7 @@ collect_artifacts() {
   runtime cp "${container_name}:/tmp/aibox-tmux-generated-state.txt" "${log_dir}/tmux-generated-state.txt" >/dev/null 2>&1
   runtime cp "${container_name}:/workspace/.aibox/diagnostics" "${log_dir}/diagnostics" >/dev/null 2>&1
   runtime exec --user aibox "${container_name}" bash -lc \
-    "tmux list-sessions 2>&1 || true; tmux list-windows -a 2>&1 || true; tmux list-panes -a 2>&1 || true" \
+    "for socket in \"\$HOME/.tmux/aibox.sock\" \"\$HOME/.tmux/aibox-smoke.sock\"; do echo \"--- socket: \${socket} ---\"; tmux -S \"\${socket}\" list-sessions 2>&1 || true; tmux -S \"\${socket}\" list-windows -a 2>&1 || true; tmux -S \"\${socket}\" list-panes -a 2>&1 || true; done" \
     > "${log_dir}/tmux-state.txt" 2>&1
 
   if [[ "${AIBOX_RELEASE_SMOKE_KEEP:-0}" == "1" || "${status}" -ne 0 ]]; then
@@ -464,25 +464,27 @@ elif ! command -v timeout >/dev/null 2>&1; then
   fail=1
 else
   layout_script="$HOME/.config/tmux/layouts/ai.sh"
+  tmux_socket="$HOME/.tmux/aibox-smoke.sock"
+  mkdir -p "$(dirname "${tmux_socket}")"
   if [[ ! -x "${layout_script}" ]]; then
     echo "missing executable generated ai tmux layout: ${layout_script}"
     fail=1
   fi
   ln -sf "$HOME/.config/tmux/tmux.conf" "$HOME/.tmux.conf"
-  tmux kill-session -t aibox-smoke >/dev/null 2>&1 || true
+  tmux -S "${tmux_socket}" kill-session -t aibox-smoke >/dev/null 2>&1 || true
   if [[ -x "${layout_script}" ]]; then
-    timeout 16s script -q -c 'AIBOX_TMUX_SESSION=aibox-smoke AIBOX_WORKSPACE=/workspace "$HOME/.config/tmux/layouts/ai.sh"' /tmp/aibox-tmux.typescript >/tmp/aibox-tmux-pty.log 2>&1
+    timeout 16s script -q -c "AIBOX_TMUX_SOCKET=\"${tmux_socket}\" AIBOX_TMUX_SESSION=aibox-smoke AIBOX_WORKSPACE=/workspace \"${layout_script}\"" /tmp/aibox-tmux.typescript >/tmp/aibox-tmux-pty.log 2>&1
     code=$?
     {
       echo "--- sessions ---"
-      tmux list-sessions 2>&1 || true
+      tmux -S "${tmux_socket}" list-sessions 2>&1 || true
       echo "--- windows ---"
-      tmux list-windows -t aibox-smoke -F '#I #{window_name} #{window_panes}' 2>&1 || true
+      tmux -S "${tmux_socket}" list-windows -t aibox-smoke -F '#I #{window_name} #{window_panes}' 2>&1 || true
       echo "--- panes ---"
-      tmux list-panes -t aibox-smoke: -F '#I.#P #{pane_current_command} #{pane_title}' 2>&1 || true
+      tmux -S "${tmux_socket}" list-panes -t aibox-smoke: -F '#I.#P #{pane_current_command} #{pane_title}' 2>&1 || true
     } >/tmp/aibox-tmux-generated-state.txt
     cat /tmp/aibox-tmux-generated-state.txt
-    tmux kill-session -t aibox-smoke >/dev/null 2>&1 || true
+    tmux -S "${tmux_socket}" kill-session -t aibox-smoke >/dev/null 2>&1 || true
     if [[ "${code}" -ne 0 && "${code}" -ne 124 ]]; then
       echo "generated ai tmux PTY smoke failed with ${code}"
       fail=1

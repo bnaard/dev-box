@@ -1292,8 +1292,8 @@ fn tmux_conf(config: &AiboxConfig) -> String {
             "AIBOX_TMUX_SESSION",
             &config.customization.tmux.session_name,
         )
-        .replace("AIBOX_TMUX_STATUS", status)
         .replace("AIBOX_TMUX_STATUS_RIGHT", status_right)
+        .replace("AIBOX_TMUX_STATUS", status)
         .replace("AIBOX_TMUX_POWERKIT_BLOCK", &powerkit_block)
         .replace("AIBOX_TMUX_POWERKIT_PLUGIN", &powerkit_plugin)
         .replace("AIBOX_TMUX_BG", bg)
@@ -3073,6 +3073,23 @@ rules = [
         assert!(!conf.contains("aibox-status --once"));
         assert!(!conf.contains("@powerkit_plugins"));
         assert!(!conf.contains("tmux-powerkit.tmux"));
+    }
+
+    #[test]
+    fn tmux_status_right_placeholder_is_replaced_before_status() {
+        let config = crate::config::test_config();
+        let conf = tmux_conf(&config);
+
+        assert!(
+            conf.contains(
+                r#"set -g status-right " #(aibox-status --once 2>/dev/null || true) %H:%M ""#
+            ),
+            "status-right should retain runtime segment, not be truncated by status replacement:\n{conf}"
+        );
+        assert!(
+            !conf.contains("on_RIGHT"),
+            "status placeholder replacement order must not produce on_RIGHT artifacts:\n{conf}"
+        );
     }
 
     #[test]

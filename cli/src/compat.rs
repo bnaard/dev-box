@@ -365,6 +365,11 @@ pub static COMPAT_TABLE: &[CompatEntry] = &[
         processkit_version: "v0.25.8",
         note: "Patch release: fixes Yazi `e` editor handoff for tmux by targeting the existing Vim pane/window without spawning nested panes, returns focus to Yazi on `:q`, enables Vim mouse/no-wrap scrolling defaults, documents tmux status modes and element toggles, makes skill-finder discover deselected skills from the template catalog and lazy-install matches, adds SSH-first E2E companion guidance with uidmap preflight, and tightens host runtime smoke/persistence guardrails.",
     },
+    CompatEntry {
+        aibox_version: "0.25.4",
+        processkit_version: "v0.25.8",
+        note: "Patch release: repairs tmux release-host smoke probing after the managed tmux socket migration and fixes generated tmux status-right rendering by preserving the aibox runtime status segment.",
+    },
 ];
 
 /// Find the minimum compatible processkit version for the given aibox version.
