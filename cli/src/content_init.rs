@@ -933,13 +933,12 @@ fn walk_and_install(
         // file. _lib/ and the top-level FORMAT.md / INDEX.md under
         // skills/ are NOT filtered (they belong to "skills as a
         // system", not to any specific skill).
-        if let Some(set) = effective_skills {
-            if let Some(skill_name) = source_skill_name(&rel)
-                && !set.contains(&skill_name)
-            {
-                *files_skipped += 1;
-                continue;
-            }
+        if let Some(set) = effective_skills
+            && let Some(skill_name) = source_skill_name(&rel)
+            && !set.contains(&skill_name)
+        {
+            *files_skipped += 1;
+            continue;
         }
 
         match install_action_for(&rel) {
