@@ -50,11 +50,26 @@ builder: |
   # Install to /home/aibox paths regardless of builder HOME (which is /root)
   ENV CARGO_HOME=/home/aibox/.cargo RUSTUP_HOME=/home/aibox/.rustup
 
-  RUN curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | \
-      sh -s -- -y \
-      --default-toolchain {{ tools.rustc.version }}{% if tools.clippy.enabled %} \
-      --component clippy{% endif %}{% if tools.rustfmt.enabled %} \
-      --component rustfmt{% endif %}
+  # S7 — BR-SEC-HARDEN: download rustup-init binary and verify SHA-256 before
+  # executing, replacing the previous curl-pipe-sh pattern.
+  # The sha256 file is published by the Rust project alongside each rustup-init:
+  #   https://static.rust-lang.org/rustup/dist/<arch>/rustup-init.sha256
+  # The binary is served over HTTPS from static.rust-lang.org (CDN-backed) and
+  # the checksum ties the download to the binary actually shipped by the project.
+  RUN ARCH="$(uname -m)" && \
+      curl --proto '=https' --tlsv1.2 -fsSL \
+        "https://static.rust-lang.org/rustup/dist/${ARCH}-unknown-linux-gnu/rustup-init" \
+        -o /tmp/rustup-init && \
+      curl --proto '=https' --tlsv1.2 -fsSL \
+        "https://static.rust-lang.org/rustup/dist/${ARCH}-unknown-linux-gnu/rustup-init.sha256" \
+        -o /tmp/rustup-init.sha256 && \
+      (cd /tmp && sha256sum -c rustup-init.sha256) && \
+      chmod +x /tmp/rustup-init && \
+      /tmp/rustup-init -y \
+        --default-toolchain {{ tools.rustc.version }}{% if tools.clippy.enabled %} \
+        --component clippy{% endif %}{% if tools.rustfmt.enabled %} \
+        --component rustfmt{% endif %} && \
+      rm /tmp/rustup-init /tmp/rustup-init.sha256
 
   ENV PATH="/home/aibox/.cargo/bin:${PATH}"
 

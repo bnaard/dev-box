@@ -16,9 +16,27 @@ tools:
 runtime: |
   # Addon: yazi-omp — install oh-my-posh for the omp.yazi Yazi header plugin.
   {% if tools["oh-my-posh"].enabled %}
-  RUN ARCH=$(uname -m) &&       OMP_ARCH=$(case "$ARCH" in x86_64) echo amd64;; aarch64) echo arm64;; *) echo "$ARCH";; esac) &&   {% if tools["oh-my-posh"].version %}
-      curl -fsSL "https://github.com/JanDeDobbeleer/oh-my-posh/releases/download/v{{ tools["oh-my-posh"].version }}/posh-linux-${OMP_ARCH}" -o /usr/local/bin/oh-my-posh &&   {% else %}
-      curl -fsSL "https://github.com/JanDeDobbeleer/oh-my-posh/releases/latest/download/posh-linux-${OMP_ARCH}" -o /usr/local/bin/oh-my-posh &&   {% endif %}
+  RUN ARCH=$(uname -m) && \
+      OMP_ARCH=$(case "$ARCH" in x86_64) echo amd64;; aarch64) echo arm64;; *) echo "$ARCH";; esac) && \
+      {% if tools["oh-my-posh"].version %}
+      OMP_VERSION="{{ tools["oh-my-posh"].version }}" && \
+      curl -fsSL "https://github.com/JanDeDobbeleer/oh-my-posh/releases/download/v${OMP_VERSION}/posh-linux-${OMP_ARCH}" \
+        -o /usr/local/bin/oh-my-posh && \
+      curl -fsSL "https://github.com/JanDeDobbeleer/oh-my-posh/releases/download/v${OMP_VERSION}/posh-linux-${OMP_ARCH}.sha256" \
+        -o /tmp/omp.sha256 && \
+      echo "$(cat /tmp/omp.sha256)  /usr/local/bin/oh-my-posh" | sha256sum -c && \
+      rm /tmp/omp.sha256 && \
+      {% else %}
+      OMP_VERSION="$(curl -fsSL -o /dev/null -w '%{url_effective}' \
+        https://github.com/JanDeDobbeleer/oh-my-posh/releases/latest \
+        | sed 's|.*/v||')" && \
+      curl -fsSL "https://github.com/JanDeDobbeleer/oh-my-posh/releases/download/v${OMP_VERSION}/posh-linux-${OMP_ARCH}" \
+        -o /usr/local/bin/oh-my-posh && \
+      curl -fsSL "https://github.com/JanDeDobbeleer/oh-my-posh/releases/download/v${OMP_VERSION}/posh-linux-${OMP_ARCH}.sha256" \
+        -o /tmp/omp.sha256 && \
+      echo "$(cat /tmp/omp.sha256)  /usr/local/bin/oh-my-posh" | sha256sum -c && \
+      rm /tmp/omp.sha256 && \
+      {% endif %}
       chmod +x /usr/local/bin/oh-my-posh
   {% endif %}
   {% if not tools["oh-my-posh"].enabled %}

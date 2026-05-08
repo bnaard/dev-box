@@ -102,6 +102,10 @@ pub fn cmd_doctor(config_path: &Option<String>) -> Result<()> {
     output::info("Checking aibox.toml schema...");
     check_aibox_toml_schema(config_path, &mut diag);
 
+    // BR-TEST-GAPS H2 / LINT-POWERLINE-ALIAS: warn when the legacy
+    // "powerline" mode alias appears in the raw TOML.
+    check_legacy_powerline_mode_alias(config_path, &mut diag);
+
     // BR-LEGACY-MUX-EXCISE (DEC-20260508_1515-SilentAsh) hard-cut the legacy
     // multiplexer status alias in v0.25.6 — no doctor check is needed:
     // the schema validator above rejects unknown sections.
@@ -301,6 +305,39 @@ fn check_aibox_toml_schema(config_path: &Option<String>, diag: &mut DiagResult) 
             ));
             diag.warnings += 1;
         }
+    }
+}
+
+/// BR-TEST-GAPS H2 / LINT-POWERLINE-ALIAS: emit a warning when the raw
+/// aibox.toml text uses the deprecated `mode = "powerline"` alias.
+///
+/// Since `powerline` is a `#[serde(alias = ...)]` for `Extended`, it parses
+/// without error, but the canonical name is `extended`.  We surface it as a
+/// doctor warning (not an error) so the project agent can update the file.
+fn check_legacy_powerline_mode_alias(
+    config_path: &Option<String>,
+    diag: &mut DiagResult,
+) {
+    let path = config_path
+        .as_deref()
+        .map(std::path::Path::new)
+        .unwrap_or_else(|| std::path::Path::new("aibox.toml"));
+    let Ok(body) = std::fs::read_to_string(path) else {
+        return; // file not readable — other checks will surface the problem
+    };
+    let uses_alias = body.lines().any(|line| {
+        let t = line.trim_start();
+        t.starts_with("mode") && t.contains("\"powerline\"")
+    });
+    if uses_alias {
+        output::warn(
+            "[LINT-POWERLINE-ALIAS] customization.tmux.status.mode = \"powerline\" is a \
+             deprecated alias for \"extended\". Update aibox.toml to use mode = \"extended\" \
+             to suppress this warning.",
+        );
+        diag.warnings += 1;
+    } else {
+        output::ok("tmux status mode: no deprecated alias");
     }
 }
 
@@ -1329,6 +1366,17 @@ fn check_codex_sandbox_environment(config: &AiboxConfig, diag: &mut DiagResult) 
                         "codex: {} uses seccomp=unconfined as a project-local sandbox fallback",
                         path
                     ));
+                    // S5 — BR-SEC-HARDEN: warn when seccomp=unconfined is active
+                    // without the explicit consent flag.
+                    if !config.security.acknowledge_seccomp_unconfined {
+                        output::warn(
+                            "codex: seccomp=unconfined is in use but \
+                             `[security].acknowledge_seccomp_unconfined` is not set to `true` \
+                             in aibox.toml. Add `[security]\\nacknowledge_seccomp_unconfined = true` \
+                             to suppress this warning and confirm intentional opt-in.",
+                        );
+                        diag.warnings += 1;
+                    }
                 }
             }
             Ok(None) => {}
@@ -2013,6 +2061,48 @@ services:
         let posture = codex_compose_posture(&compose, "aibox", "compose.yml");
 
         assert!(!posture.init_true);
+    }
+
+    // S5 — BR-SEC-HARDEN: seccomp=unconfined without consent gate
+    #[test]
+    fn seccomp_unconfined_flagged_when_consent_missing() {
+        // posture detects seccomp=unconfined; caller is responsible for
+        // checking security.acknowledge_seccomp_unconfined before suppressing.
+        let compose: serde_yaml::Value = serde_yaml::from_str(
+            r#"
+services:
+  aibox:
+    init: true
+    security_opt:
+      - seccomp=unconfined
+"#,
+        )
+        .unwrap();
+
+        let posture = codex_compose_posture(&compose, "aibox", "compose.yml");
+
+        // The posture must detect seccomp_unconfined so the caller can apply
+        // the consent gate (security.acknowledge_seccomp_unconfined).
+        assert!(posture.seccomp_unconfined, "posture must detect seccomp=unconfined");
+        // seccomp=unconfined alone is NOT a broad-grant warning — it's the
+        // narrow approved fallback; the consent gate is a separate layer.
+        assert!(posture.broad_grant_warnings.is_empty());
+    }
+
+    #[test]
+    fn seccomp_unconfined_not_flagged_without_security_opt() {
+        let compose: serde_yaml::Value = serde_yaml::from_str(
+            r#"
+services:
+  aibox:
+    init: true
+"#,
+        )
+        .unwrap();
+
+        let posture = codex_compose_posture(&compose, "aibox", "compose.yml");
+
+        assert!(!posture.seccomp_unconfined);
     }
 
     #[test]

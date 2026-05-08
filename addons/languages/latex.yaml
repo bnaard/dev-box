@@ -70,6 +70,15 @@ builder: |
       fontconfig \
       && rm -rf /var/lib/apt/lists/*
 
+  # Supply-chain note (S7 — BR-SEC-HARDEN): CTAN_MIRROR is pinned to the
+  # immutable 2025/tlnet-final historical archive.  The TeX Live `install-tl`
+  # script verifies every package it downloads against the signed TLPDB
+  # (SHA-512 + GPG) before installation.  A separate sha256sum step for
+  # install-tl-unx.tar.gz itself is not provided by the TeX Live project
+  # on the mirror — pin integrity is provided by the immutable mirror URL
+  # and TLS transport (HTTPS).
+  # TODO(sec): add a pinned sha256sum check once tug.org publishes per-release
+  # hashes at the mirror path.
   ARG CTAN_MIRROR=https://ftp.math.utah.edu/pub/tex/historic/systems/texlive/2025/tlnet-final
   RUN mkdir -p /tmp/texlive-installer && cd /tmp/texlive-installer \
       && wget -q "${CTAN_MIRROR}/install-tl-unx.tar.gz" \

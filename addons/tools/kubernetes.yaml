@@ -43,8 +43,12 @@ builder: |
   RUN mkdir -p /build/bin && \
   {% if tools.kubectl.enabled %}
       ARCH="$(dpkg --print-architecture)" && \
-      curl -fsSL "https://dl.k8s.io/release/$(curl -fsSL https://dl.k8s.io/release/stable.txt)/bin/linux/${ARCH}/kubectl" -o /build/bin/kubectl && \
-      chmod +x /build/bin/kubectl{% if tools.helm.enabled or tools.kustomize.enabled or tools.k9s.enabled %} && \
+      KUBECTL_VERSION="$(curl -fsSL https://dl.k8s.io/release/stable.txt)" && \
+      curl -fsSL "https://dl.k8s.io/release/${KUBECTL_VERSION}/bin/linux/${ARCH}/kubectl"        -o /build/bin/kubectl && \
+      curl -fsSL "https://dl.k8s.io/release/${KUBECTL_VERSION}/bin/linux/${ARCH}/kubectl.sha256" -o /tmp/kubectl.sha256 && \
+      echo "$(cat /tmp/kubectl.sha256)  /build/bin/kubectl" | sha256sum -c && \
+      chmod +x /build/bin/kubectl && \
+      rm /tmp/kubectl.sha256{% if tools.helm.enabled or tools.kustomize.enabled or tools.k9s.enabled %} && \
   {% endif %}
   {% endif %}
   {% if tools.helm.enabled %}
@@ -69,7 +73,15 @@ builder: |
   {% endif %}
   {% if tools.k9s.enabled %}
       ARCH="$(dpkg --print-architecture)" && \
-      curl -fsSL "https://github.com/derailed/k9s/releases/latest/download/k9s_Linux_${ARCH}.tar.gz" | tar xz -C /build/bin k9s
+      K9S_VERSION="$(curl -fsSL -o /dev/null -w '%{url_effective}' \
+        https://github.com/derailed/k9s/releases/latest | sed 's|.*/v||')" && \
+      curl -fsSL "https://github.com/derailed/k9s/releases/download/v${K9S_VERSION}/k9s_Linux_${ARCH}.tar.gz" \
+        -o /tmp/k9s.tar.gz && \
+      curl -fsSL "https://github.com/derailed/k9s/releases/download/v${K9S_VERSION}/checksums.sha256" \
+        -o /tmp/k9s_checksums.sha256 && \
+      grep "k9s_Linux_${ARCH}.tar.gz" /tmp/k9s_checksums.sha256 | sha256sum -c && \
+      tar xz -C /build/bin -f /tmp/k9s.tar.gz k9s && \
+      rm /tmp/k9s.tar.gz /tmp/k9s_checksums.sha256
   {% endif %}
 
 runtime: |

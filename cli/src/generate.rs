@@ -278,6 +278,22 @@ fn generate_docker_compose(
     let codex_sandbox_seccomp = config.ai.harnesses.contains(&AiHarness::Codex)
         && !compose_override_declares_codex_seccomp(&compose_override_path, &config.container.name);
 
+    // S5 — BR-SEC-HARDEN: require explicit consent before emitting seccomp=unconfined.
+    if codex_sandbox_seccomp && !config.security.acknowledge_seccomp_unconfined {
+        anyhow::bail!(
+            "Codex sandbox requires seccomp=unconfined in the generated docker-compose.yml, \
+             but explicit consent has not been given.\n\
+             \n\
+             To opt in, add the following to your aibox.toml:\n\
+             \n\
+             [security]\n\
+             acknowledge_seccomp_unconfined = true\n\
+             \n\
+             This setting documents that you accept the reduced seccomp filtering \
+             required for bubblewrap user-namespace sandboxing."
+        );
+    }
+
     // Container home path
     let container_home = config.container_home();
 
@@ -1000,6 +1016,7 @@ mod tests {
         let dir = tempfile::tempdir().unwrap();
         let mut config = make_config(&[], false);
         config.ai.harnesses = vec![crate::config::AiHarness::Codex];
+        config.security.acknowledge_seccomp_unconfined = true;
         generate_docker_compose(&config, dir.path(), &test_env()).unwrap();
 
         let content = fs::read_to_string(dir.path().join("docker-compose.yml")).unwrap();
@@ -1014,6 +1031,9 @@ mod tests {
         let dir = tempfile::tempdir().unwrap();
         let mut config = make_config(&[], false);
         config.ai.harnesses = vec![crate::config::AiHarness::Codex];
+        // Override already has seccomp=unconfined, so codex_sandbox_seccomp
+        // will be false — no consent required. No need to set
+        // acknowledge_seccomp_unconfined here.
         fs::write(
             dir.path().join("docker-compose.override.yml"),
             "services:\n  test-ctr:\n    security_opt:\n      - seccomp=unconfined\n",
@@ -1033,6 +1053,7 @@ mod tests {
         let dir = tempfile::tempdir().unwrap();
         let mut config = make_config(&[], false);
         config.ai.harnesses = vec![crate::config::AiHarness::Codex];
+        config.security.acknowledge_seccomp_unconfined = true;
         fs::write(
             dir.path().join("docker-compose.override.yml"),
             "services:\n  aibox-e2e-testrunner:\n    security_opt:\n      - seccomp=unconfined\n",
@@ -1052,6 +1073,7 @@ mod tests {
         let dir = tempfile::tempdir().unwrap();
         let mut config = make_config(&[], false);
         config.ai.harnesses = vec![crate::config::AiHarness::Codex];
+        config.security.acknowledge_seccomp_unconfined = true;
         fs::write(
             dir.path().join("docker-compose.override.yml"),
             "services:\n  test-ctr:\n    # security_opt:\n    #   - seccomp=unconfined\n",
@@ -1063,6 +1085,25 @@ mod tests {
         assert!(
             content.contains("seccomp=unconfined"),
             "commented override text must not suppress the generated seccomp fallback:\n{content}"
+        );
+    }
+
+    #[test]
+    fn compose_errors_when_codex_seccomp_needs_consent() {
+        // S5 — BR-SEC-HARDEN: without explicit consent, aibox apply must error.
+        let dir = tempfile::tempdir().unwrap();
+        let mut config = make_config(&[], false);
+        config.ai.harnesses = vec![crate::config::AiHarness::Codex];
+        // acknowledge_seccomp_unconfined defaults to false
+        let result = generate_docker_compose(&config, dir.path(), &test_env());
+        assert!(
+            result.is_err(),
+            "generate_docker_compose must error when Codex needs seccomp=unconfined but consent is missing"
+        );
+        let msg = format!("{:#}", result.unwrap_err());
+        assert!(
+            msg.contains("acknowledge_seccomp_unconfined"),
+            "error must reference the consent flag: {msg}"
         );
     }
 
@@ -1623,6 +1664,8 @@ mod tests {
         let dir = tempfile::tempdir().unwrap();
         let mut config = make_config(&[], false);
         config.ai.harnesses = vec![crate::config::AiProvider::Codex];
+        // Codex requires seccomp=unconfined; set the consent flag for the test.
+        config.security.acknowledge_seccomp_unconfined = true;
         config.resolve_ai_provider_addons();
         generate_docker_compose(&config, dir.path(), &test_env()).unwrap();
         let content = fs::read_to_string(dir.path().join("docker-compose.yml")).unwrap();

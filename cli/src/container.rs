@@ -1443,6 +1443,21 @@ pub(crate) fn serialize_config_with_comments(config: &AiboxConfig) -> String {
         config.customization.tmux.status.elements.aibox_metrics.mig
     ));
 
+    // [security] section — only emitted when non-default (avoid noise in normal projects)
+    if config.security.acknowledge_seccomp_unconfined {
+        out.push('\n');
+        out.push_str(sep);
+        out.push_str("# [security] — explicit consent for security-sensitive runtime options\n");
+        out.push_str(sep);
+        out.push_str("[security]\n");
+        out.push_str("# Codex bubblewrap sandboxing requires seccomp=unconfined in docker-compose.yml.\n");
+        out.push_str("# Set to true to acknowledge the trade-off and allow `aibox apply` to emit it.\n");
+        out.push_str(&format!(
+            "acknowledge_seccomp_unconfined = {}\n",
+            config.security.acknowledge_seccomp_unconfined
+        ));
+    }
+
     out
 }
 
@@ -2191,10 +2206,23 @@ pub fn cmd_init(config_path: &Option<String>, params: InitParams) -> Result<()> 
         audio: AudioSection::default(),
         apply: crate::config::ApplySection::default(),
         mcp: crate::config::McpSection::default(),
+        // S5 — BR-SEC-HARDEN: Codex consent is plumbed in after struct init
+        // (ai_providers has been moved into config.ai.harnesses by this point).
+        security: crate::config::SecuritySection::default(),
         local_env: std::collections::HashMap::new(),
         local_mcp_servers: vec![],
     };
     config.resolve_ai_provider_addons();
+
+    // S5 — BR-SEC-HARDEN: when Codex is selected during `init`, automatically
+    // set acknowledge_seccomp_unconfined = true.  The user has consciously
+    // chosen Codex as a harness, so they're implicitly accepting the bubblewrap
+    // user-namespace seccomp fallback that ships with it.  This avoids an
+    // immediate error on first `aibox apply` and keeps the consent documented
+    // in aibox.toml for git history.
+    if config.ai.harnesses.contains(&crate::config::AiHarness::Codex) {
+        config.security.acknowledge_seccomp_unconfined = true;
+    }
 
     config.validate()?;
 
@@ -2351,6 +2379,35 @@ pub fn cmd_init(config_path: &Option<String>, params: InitParams) -> Result<()> 
 /// Sync command: force-seed theme-dependent files, seed missing configs, regenerate .devcontainer/.
 ///
 /// See `crate::sync_perimeter` for the documented set of files this
+/// Warn (once, to stderr) when `aibox.toml` uses the legacy `powerline`
+/// alias for `[customization.tmux.status] mode`.
+///
+/// The alias still works (it maps to `Extended` at parse time), but it was
+/// deprecated in v0.25.5 and the canonical name is now `extended`.
+/// LINT-CODE: `LINT-POWERLINE-ALIAS`
+fn warn_if_legacy_powerline_mode(config_path: &Option<String>) {
+    let path = config_path
+        .as_deref()
+        .map(std::path::Path::new)
+        .unwrap_or_else(|| std::path::Path::new("aibox.toml"));
+    let Ok(body) = std::fs::read_to_string(path) else {
+        return;
+    };
+    // Scan for `mode = "powerline"` (or `mode= "powerline"`, etc.) in the
+    // [customization.tmux.status] section. We only look for the literal
+    // string `"powerline"` as a value to avoid false-positives in comments.
+    if body
+        .lines()
+        .any(|line| line.trim_start().starts_with("mode") && line.contains("\"powerline\""))
+    {
+        output::warn(
+            "[LINT-POWERLINE-ALIAS] customization.tmux.status.mode = \"powerline\" is \
+             a deprecated alias for \"extended\". Update aibox.toml to use mode = \"extended\" \
+             to suppress this warning.",
+        );
+    }
+}
+
 /// command is allowed to create, modify, or delete. The tripwire below
 /// snapshots a small set of representative out-of-perimeter files
 /// before the sync runs and verifies after that none of them were
@@ -2383,6 +2440,11 @@ pub fn cmd_sync(
             crate::migration::standardize_aibox_toml(Path::new("."))?;
         }
     }
+
+    // BR-TEST-GAPS H2: warn when [customization.tmux.status] mode uses the
+    // legacy "powerline" alias.  "powerline" maps to Extended at parse time,
+    // so we scan the raw TOML text before full deserialization.
+    warn_if_legacy_powerline_mode(config_path);
 
     let mut config = AiboxConfig::from_cli_option(config_path)?;
     crate::context::update_gitignore(&config.addons)?;

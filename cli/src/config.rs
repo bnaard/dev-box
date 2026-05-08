@@ -1687,6 +1687,29 @@ pub struct ApplySection {
     pub purge_disabled_harness_state: bool,
 }
 
+// ---------------------------------------------------------------------------
+// [security] section
+// ---------------------------------------------------------------------------
+
+/// `[security]` section of `aibox.toml`.
+///
+/// Controls explicit consent for security-sensitive runtime options.
+///
+/// ```toml
+/// [security]
+/// acknowledge_seccomp_unconfined = true
+/// ```
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, Default)]
+pub struct SecuritySection {
+    /// Set to `true` to acknowledge that `seccomp=unconfined` is intentionally
+    /// in use for Codex bubblewrap sandboxing.  Defaults to `false`.
+    ///
+    /// When `false` and the generated `docker-compose.yml` would emit
+    /// `seccomp=unconfined`, `aibox apply` errors with a remediation pointer.
+    #[serde(default)]
+    pub acknowledge_seccomp_unconfined: bool,
+}
+
 fn mcp_section_is_explicit(mcp: &McpSection) -> bool {
     !mcp.servers.is_empty()
         || mcp.gateway != McpGatewaySection::default()
@@ -1779,6 +1802,9 @@ pub struct AiboxConfig {
     pub audio: AudioSection,
     #[serde(default)]
     pub apply: ApplySection,
+
+    #[serde(default)]
+    pub security: SecuritySection,
 
     /// Legacy [process] section — if present, packages are merged into [context].
     #[serde(default, skip_serializing)]
@@ -2041,6 +2067,7 @@ impl AiboxConfig {
                 "audio",
                 "apply",
                 "mcp",
+                "security",
             ],
             &mut mismatches,
         );
@@ -2049,6 +2076,13 @@ impl AiboxConfig {
             root,
             "apply",
             &["purge_disabled_harness_state"],
+            &mut mismatches,
+        );
+
+        check_child_table(
+            root,
+            "security",
+            &["acknowledge_seccomp_unconfined"],
             &mut mismatches,
         );
 
@@ -2879,6 +2913,7 @@ pub fn test_config() -> AiboxConfig {
         apply: ApplySection::default(),
         process: None,
         mcp: McpSection::default(),
+        security: SecuritySection::default(),
         local_env: HashMap::new(),
         local_mcp_servers: vec![],
     };
@@ -2976,6 +3011,9 @@ lazy_catalog = true
 host = "127.0.0.1"
 port = 8765
 path = "/mcp"
+
+[security]
+acknowledge_seccomp_unconfined = true
 "#
     }
 

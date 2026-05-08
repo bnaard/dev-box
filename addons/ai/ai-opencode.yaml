@@ -22,10 +22,36 @@ runtime: |
   # Anthropic, OpenAI, Google, Mistral, local models, and others.
   # Config: ~/.opencode/  |  Binary: opencode
   # Auth: Set the relevant provider API key (ANTHROPIC_API_KEY, OPENAI_API_KEY, etc.)
+  #
+  # Supply-chain note (S7 — BR-SEC-HARDEN):
+  # opencode.ai does not publish per-release SHA-256 checksum files or GPG
+  # signatures for its release artefacts as of 2026-05-08.  The curl-pipe-bash
+  # installer has been replaced with a direct versioned binary download from
+  # the GitHub release assets.  Version pinning provides meaningful
+  # supply-chain integrity over the curl-pipe-bash method.
+  #
+  # TODO(sec): if/when https://github.com/opencode-ai/opencode/releases begins
+  # publishing checksums, add sha256sum verification mirroring
+  # addons/tools/infrastructure.yaml:43-45.
   USER aibox
   {% if tools.opencode.version %}
-  RUN curl -fsSL https://opencode.ai/install | bash -s {{ tools.opencode.version }}
+  RUN OPENCODE_VERSION="{{ tools.opencode.version }}" && \
+      ARCH="$(uname -m | sed 's/x86_64/x86_64/;s/aarch64/aarch64/')" && \
+      curl -fsSL \
+        "https://github.com/opencode-ai/opencode/releases/download/v${OPENCODE_VERSION}/opencode_Linux_${ARCH}.tar.gz" \
+        | tar -xz -C /home/aibox/.local/bin opencode && \
+      chmod +x /home/aibox/.local/bin/opencode
   {% else %}
-  RUN curl -fsSL https://opencode.ai/install | bash
+  # No version pinned — fall back to latest tag redirect.
+  # TODO(sec): pin tools.opencode.version in aibox.toml to enable
+  # deterministic builds.
+  RUN ARCH="$(uname -m | sed 's/x86_64/x86_64/;s/aarch64/aarch64/')" && \
+      OPENCODE_VERSION="$(curl -fsSL -o /dev/null -w '%{url_effective}' \
+        https://github.com/opencode-ai/opencode/releases/latest \
+        | sed 's|.*/v||')" && \
+      curl -fsSL \
+        "https://github.com/opencode-ai/opencode/releases/download/v${OPENCODE_VERSION}/opencode_Linux_${ARCH}.tar.gz" \
+        | tar -xz -C /home/aibox/.local/bin opencode && \
+      chmod +x /home/aibox/.local/bin/opencode
   {% endif %}
   USER root

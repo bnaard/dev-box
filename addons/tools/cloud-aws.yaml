@@ -18,11 +18,19 @@ builder: null
 runtime: |
   # Addon: cloud-aws
   {% if tools["aws-cli"].enabled %}
-  RUN ARCH="$(uname -m)" && \
-      curl -fsSL "https://awscli.amazonaws.com/awscli-exe-linux-${ARCH}.zip" -o /tmp/awscli.zip && \
+  # S2 — BR-SEC-HARDEN: GPG signature verification before install.
+  # AWS CLI public key fingerprint: FB5D B77F D5C1 18B8 0511  ADA8 A631 4593 B8B2 1122
+  # Ref: https://docs.aws.amazon.com/cli/latest/userguide/install-cliv2-linux.html#install-cliv2-linux-verify
+  RUN apt-get update && apt-get install -y --no-install-recommends gpg && \
+      rm -rf /var/lib/apt/lists/* && \
+      ARCH="$(uname -m)" && \
+      curl -fsSL "https://awscli.amazonaws.com/awscli-exe-linux-${ARCH}.zip"     -o /tmp/awscli.zip && \
+      curl -fsSL "https://awscli.amazonaws.com/awscli-exe-linux-${ARCH}.zip.sig" -o /tmp/awscli.sig && \
+      gpg --keyserver hkps://keyserver.ubuntu.com --recv-keys A6314593B8B21122 && \
+      gpg --verify /tmp/awscli.sig /tmp/awscli.zip && \
       unzip -q /tmp/awscli.zip -d /tmp && \
       /tmp/aws/install && \
-      rm -rf /tmp/aws /tmp/awscli.zip
+      rm -rf /tmp/aws /tmp/awscli.zip /tmp/awscli.sig
   {% endif %}
   {% if not tools["aws-cli"].enabled %}
   # Variant 1 disable-then-purge: aws CLI v2 installs into /usr/local/aws-cli/

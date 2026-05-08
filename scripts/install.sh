@@ -150,6 +150,7 @@ main() {
 
   tarball_name="${BINARY_NAME}-v${version}-${platform}.tar.gz"
   download_url="https://github.com/${REPO}/releases/download/v${version}/${tarball_name}"
+  checksum_url="https://github.com/${REPO}/releases/download/v${version}/${tarball_name}.sha256"
 
   # Download
   tmpdir=$(mktemp -d)
@@ -163,6 +164,26 @@ main() {
     Releases: https://github.com/${REPO}/releases"
   fi
   ok "Downloaded"
+
+  # SHA-256 verification (S4 — BR-SEC-HARDEN)
+  info "Verifying checksum..."
+  if curl -fsSL -o "${tmpdir}/${tarball_name}.sha256" "${checksum_url}" 2>/dev/null; then
+    # The .sha256 file contains only the hex digest (no filename).
+    # Reconstruct a sha256sum-compatible line: "<digest>  <filename>"
+    expected_digest="$(cat "${tmpdir}/${tarball_name}.sha256" | tr -d '[:space:]')"
+    computed_digest="$(sha256sum "${tmpdir}/${tarball_name}" | awk '{print $1}')"
+    if [[ "${computed_digest}" != "${expected_digest}" ]]; then
+      die "SHA-256 checksum mismatch for ${tarball_name}.
+    Expected : ${expected_digest}
+    Computed : ${computed_digest}
+    The downloaded file may be corrupt or tampered with. Aborting."
+    fi
+    ok "Checksum verified"
+  else
+    warn "Checksum file not found at ${checksum_url} — skipping verification."
+    warn "Consider pinning VERSION=${version} and verifying manually:"
+    warn "  sha256sum ${tarball_name}"
+  fi
 
   # Extract
   info "Extracting..."

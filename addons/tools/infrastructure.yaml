@@ -49,8 +49,14 @@ builder: |
   {% endif %}
   {% if tools.packer.enabled %}
       ARCH="$(dpkg --print-architecture)" && \
-      curl -fsSL "https://releases.hashicorp.com/packer/1.11.2/packer_1.11.2_linux_${ARCH}.zip" -o /tmp/packer.zip && \
-      unzip -q /tmp/packer.zip -d /build/bin && rm /tmp/packer.zip
+      PACKER_VERSION="1.11.2" && \
+      curl -fsSL "https://releases.hashicorp.com/packer/${PACKER_VERSION}/packer_${PACKER_VERSION}_linux_${ARCH}.zip" \
+        -o /tmp/packer.zip && \
+      curl -fsSL "https://releases.hashicorp.com/packer/${PACKER_VERSION}/packer_${PACKER_VERSION}_SHA256SUMS" \
+        -o /tmp/packer_SHA256SUMS && \
+      grep "packer_${PACKER_VERSION}_linux_${ARCH}.zip" /tmp/packer_SHA256SUMS | sha256sum -c && \
+      unzip -q /tmp/packer.zip -d /build/bin && \
+      rm /tmp/packer.zip /tmp/packer_SHA256SUMS
   {% endif %}
 
 runtime: |

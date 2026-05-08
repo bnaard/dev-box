@@ -1127,7 +1127,7 @@ mod tests {
         use crate::config::{
             AddonsSection, AiSection, AiboxConfig, AiboxProfile, AiboxSection, AudioSection,
             ContainerSection, ContextSection, CustomizationSection, ImageSection, MetadataSection,
-            ProcessKitSection, SkillsSection,
+            ProcessKitSection, SecuritySection, SkillsSection,
         };
         AiboxConfig {
             api_version: "aibox.projectious.work/v1".to_string(),
@@ -1179,6 +1179,7 @@ mod tests {
             customization: CustomizationSection::default(),
             audio: AudioSection::default(),
             apply: crate::config::ApplySection::default(),
+            security: SecuritySection::default(),
             mcp: crate::config::McpSection::default(),
             local_env: std::collections::HashMap::new(),
             local_mcp_servers: vec![],

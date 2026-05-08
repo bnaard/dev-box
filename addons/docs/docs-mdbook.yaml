@@ -21,5 +21,13 @@ builder: null
 runtime: |
   # Addon: docs-mdbook
   RUN ARCH="$(uname -m)" && \
-      curl -fsSL "https://github.com/rust-lang/mdBook/releases/latest/download/mdbook-v0.4.43-${ARCH}-unknown-linux-musl.tar.gz" \
-      | tar -xz -C /usr/local/bin
+      MDBOOK_VERSION="0.4.43" && \
+      curl -fsSL \
+        "https://github.com/rust-lang/mdBook/releases/download/v${MDBOOK_VERSION}/mdbook-v${MDBOOK_VERSION}-${ARCH}-unknown-linux-musl.tar.gz" \
+        -o /tmp/mdbook.tar.gz && \
+      curl -fsSL \
+        "https://github.com/rust-lang/mdBook/releases/download/v${MDBOOK_VERSION}/mdbook-v${MDBOOK_VERSION}-${ARCH}-unknown-linux-musl.tar.gz.sha256" \
+        -o /tmp/mdbook.tar.gz.sha256 && \
+      (cd /tmp && sha256sum -c mdbook.tar.gz.sha256) && \
+      tar -xz -C /usr/local/bin -f /tmp/mdbook.tar.gz && \
+      rm /tmp/mdbook.tar.gz /tmp/mdbook.tar.gz.sha256

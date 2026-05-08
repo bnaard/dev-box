@@ -23,8 +23,15 @@ runtime: |
   RUN apt-get update && apt-get install -y --no-install-recommends xz-utils \
       && rm -rf /var/lib/apt/lists/* \
       && ARCH=$(uname -m) \
+      && TYPST_VERSION="{{ tools.typst.version }}" \
       && curl -fsSL \
-        "https://github.com/typst/typst/releases/download/v{{ tools.typst.version }}/typst-${ARCH}-unknown-linux-musl.tar.xz" \
-        | tar -xJ --strip-components=1 -C /usr/local/bin \
+        "https://github.com/typst/typst/releases/download/v${TYPST_VERSION}/typst-${ARCH}-unknown-linux-musl.tar.xz" \
+        -o /tmp/typst.tar.xz \
+      && curl -fsSL \
+        "https://github.com/typst/typst/releases/download/v${TYPST_VERSION}/typst-${ARCH}-unknown-linux-musl.tar.xz.sha256" \
+        -o /tmp/typst.tar.xz.sha256 \
+      && (cd /tmp && sha256sum -c typst.tar.xz.sha256) \
+      && tar -xJ --strip-components=1 -C /usr/local/bin -f /tmp/typst.tar.xz \
           "typst-${ARCH}-unknown-linux-musl/typst" \
-      && chmod +x /usr/local/bin/typst
+      && chmod +x /usr/local/bin/typst \
+      && rm /tmp/typst.tar.xz /tmp/typst.tar.xz.sha256
