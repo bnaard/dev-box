@@ -375,6 +375,22 @@ pub static COMPAT_TABLE: &[CompatEntry] = &[
         processkit_version: "v0.25.8",
         note: "Patch release: refreshes managed tmux runtime files when recreating sessions so aibox.toml status/layout settings take effect, preserves the delayed Yazi pane startup path, and suppresses stale default-socket tmux kill-session noise on host attach.",
     },
+    CompatEntry {
+        aibox_version: "0.25.6",
+        processkit_version: "v0.25.8",
+        note: "Minor release (v0.25.6 host-orchestration rollout): \
+               cross-version sync auto-recovers corrupted managed runtime files (off_RIGHT fix, commit e0ee7bc); \
+               generic purge-on-disable for all addon tools — kubernetes, cloud-aws/azure/gcp, infrastructure, audio-voice, preview-archive, preview-enhanced, data-preview, yazi-omp, and existing git-ui pattern; \
+               new [apply].purge_disabled_harness_state toml key (default false); \
+               BREAKING: [customization.zellij_status] is now schema-rejected — remove from aibox.toml before upgrade (see docs-site/docs/migrations/zellij-eol.md); \
+               six new doctor checks + semver-aware version-skew reporting; \
+               addon download integrity hardening — 11 addons use SHA-256/GPG/.sha256 sidecar verification; ai-hermes and ai-opencode pinned to GitHub release assets (vendors publish no SHA256SUMS — see TODO annotations); \
+               BREAKING: seccomp=unconfined now requires [security].acknowledge_seccomp_unconfined = true in aibox.toml; aibox init --harness codex auto-sets this; existing Codex projects must add it manually (see docs-site/docs/reference/security.md); \
+               aibox.toml [skills] dedup — single array of strings, comment-out to disable; \
+               two-line powerline status bar with six chevron-styled aibox metrics segments (slot order fixed per DEC-20260508_2115-SilentFern); \
+               internal: cli/src/seed.rs split into cli/src/tmux/ module (3,613 → 2,929 lines); \
+               log pane via lnav + vim hard-cut (Yazi 'e' opens full-screen tmux popup, no persistent vim pane).",
+    },
 ];
 
 /// Find the minimum compatible processkit version for the given aibox version.
