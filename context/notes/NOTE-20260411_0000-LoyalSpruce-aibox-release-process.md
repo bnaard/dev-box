@@ -71,7 +71,7 @@ changes. If `processkit_vocab.rs` was patched: review diff, make CLI changes, ru
 
 | Tool | Pin location | How to check |
 |------|-------------|-------------|
-| Zellij | `ARG ZELLIJ_VERSION` in base + .devcontainer | `gh api repos/zellij-org/zellij/releases/latest --jq .tag_name` |
+| tmux | apt Debian package (Trixie) | `Debian security tracker` (no ARG pin; managed through base image rebuilds) |
 | Yazi | `ARG YAZI_VERSION` | `gh api repos/sxyazi/yazi/releases/latest --jq .tag_name` |
 | ripgrep | `ARG RIPGREP_VERSION` | `gh api repos/BurntSushi/ripgrep/releases/latest --jq .tag_name` |
 | fd | `ARG FD_VERSION` | `gh api repos/sharkdp/fd/releases/latest --jq .tag_name` |
@@ -123,14 +123,14 @@ and patch/file it before publishing.
    command with elevated permissions, not to change the release script, compose
    file, or E2E runner defaults.
 
-   Visual E2E is release-gated because it records real Zellij/Yazi/asciinema
+   Visual E2E is release-gated because it records real tmux/Yazi/asciinema
    sessions and is intentionally slower. Before every release, the agent must
    decide and record in the release notes or handover which visual tier was run
    or why it was skipped:
 
    - Run `./scripts/maintain.sh test-e2e-visual-status` when layouts, themes,
-     the native Zellij status/key rows, generated `.aibox-home`, Zellij version,
-     or terminal color behavior changed.
+     the tmux PowerKit status line, key bindings, generated `.aibox-home`,
+     tmux version, or terminal color behavior changed.
    - Run `./scripts/maintain.sh test-e2e-visual-tabs` when tool panes, tab
      wiring, harness selection, Vim, shell, lazygit, or generated layout command
      wiring changed.
@@ -153,10 +153,11 @@ and patch/file it before publishing.
    ```bash
    ./scripts/maintain.sh test-e2e-doc-captures
    ```
-   This writes current-release asciinema casts, screen dumps, Zellij logs, and
-   metadata under `docs-site/static/img/e2e/` by default. These artifacts are
-   the source material for documentation screenshots or screencasts, so docs
-   visuals stay tied to the same generated runtime that release validation used.
+   This writes current-release asciinema casts, screen dumps, tmux capture-pane
+   logs, and metadata under `docs-site/static/img/e2e/` by default. These
+   artifacts are the source material for documentation screenshots or
+   screencasts, so docs visuals stay tied to the same generated runtime that
+   release validation used.
 4. **Audit dependencies**:
    ```bash
    cd cli && cargo audit
