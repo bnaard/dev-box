@@ -415,6 +415,11 @@ export HOME="{workspace}/.aibox-home"
 export TERM=xterm-256color
 export COLORTERM=truecolor
 export PATH="$HOME/.local/bin:/usr/local/bin:$PATH"
+tmux_socket="${{AIBOX_TMUX_SOCKET:-$HOME/.tmux/aibox.sock}}"
+mkdir -p "$(dirname "$tmux_socket")"
+tmux() {{
+  command tmux -S "$tmux_socket" "$@"
+}}
 tmux_conf="$HOME/.tmux.conf"
 [ -f "$tmux_conf" ] || tmux_conf="$HOME/.config/tmux/tmux.conf"
 if [ ! -f "$tmux_conf" ]; then
@@ -455,7 +460,7 @@ tmux kill-session -t "{session}" >/dev/null 2>&1 || true
   tmux kill-session -t "{session}" >/dev/null 2>&1 || true
 ) &
 driver_pid=$!
-AIBOX_TMUX_SESSION="{session}" AIBOX_WORKSPACE="{workspace}" AIBOX_TMUX_CONFIG="$tmux_conf" "$layout_script"
+AIBOX_TMUX_SESSION="{session}" AIBOX_WORKSPACE="{workspace}" AIBOX_TMUX_CONFIG="$tmux_conf" AIBOX_TMUX_SOCKET="$tmux_socket" "$layout_script"
 wait "$driver_pid" 2>/dev/null || true
 if [ -s "{workspace}/{session}.driver-error" ]; then
   cat "{workspace}/{session}.driver-error" >&2
