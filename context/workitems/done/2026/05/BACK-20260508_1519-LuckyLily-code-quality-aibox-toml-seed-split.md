@@ -7,9 +7,10 @@ metadata:
   labels:
     track: code-quality
     release: v0.25.6
+  updated: '2026-05-08T21:28:30+00:00'
 spec:
   title: 'v0.25.6: Code quality — aibox.toml dedup and seed.rs split'
-  state: backlog
+  state: done
   type: task
   priority: medium
   description: |
@@ -69,4 +70,20 @@ spec:
     One general-purpose subagent for Q1+Q7 (toml dedup + comment streamline) — purely text editing.
     One general-purpose subagent for Q3 (seed.rs split) — mechanical move; rely on rust-analyzer/compiler for correctness.
     Q2, Q4, Q5, Q6 can be bundled with the seed-split agent if time permits, otherwise next release.
+  started_at: '2026-05-08T21:14:39+00:00'
+  completed_at: '2026-05-08T21:28:30+00:00'
 ---
+
+## Transition note (2026-05-08T21:14:39+00:00)
+
+Q1 already shipped (commit ce35a4d). Now dispatching Q3 (seed.rs split into cli/src/tmux/) and Q4 (banner comments) to Avery. Q2/Q5/Q6/Q7 deferred to follow-up tracks.
+
+
+## Transition note (2026-05-08T21:28:25+00:00)
+
+Q1 (toml dedup) shipped in commit ce35a4d. Q3 (seed split) + Q4 (banners) shipped in commit (this batch). Q6 (slot order DEC) recorded as DEC-20260508_2115-SilentFern. Q2 (skills CLI), Q5 (CI workflow), Q7 (comment fact-check) deferred to follow-up tracks.
+
+
+## Transition note (2026-05-08T21:28:30+00:00)
+
+Accepted as done. Q2/Q5/Q7 follow-up tracks to file separately if needed.
