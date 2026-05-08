@@ -310,6 +310,8 @@ if command -v timeout >/dev/null 2>&1; then
     code=$?
     if [[ "${code}" -eq 124 ]]; then
       ok "Attach smoke reached timeout while attached (expected for interactive tmux)"
+    elif grep -q "stdin is not a terminal" "${attach_smoke_log}"; then
+      ok "Attach smoke reached non-interactive attach boundary"
     else
       warn "Attach smoke failed with ${code}; see ${attach_smoke_log}"
       exit "${code}"
@@ -317,11 +319,18 @@ if command -v timeout >/dev/null 2>&1; then
   fi
 else
   warn "timeout command missing on host; running attach smoke without timeout"
-  if ! env AIBOX_ADDONS_DIR="${PROJECT_ROOT}/addons" \
-    "${aibox_bin}" up --forget-tmux-state >"${attach_smoke_log}" 2>&1 < /dev/null; then
-    code=$?
-    warn "Attach smoke failed with ${code}; see ${attach_smoke_log}"
-    exit "${code}"
+  set +e
+  env AIBOX_ADDONS_DIR="${PROJECT_ROOT}/addons" \
+    "${aibox_bin}" up --forget-tmux-state >"${attach_smoke_log}" 2>&1 < /dev/null
+  code=$?
+  set -e
+  if [[ "${code}" -ne 0 ]]; then
+    if grep -q "stdin is not a terminal" "${attach_smoke_log}"; then
+      ok "Attach smoke reached non-interactive attach boundary"
+    else
+      warn "Attach smoke failed with ${code}; see ${attach_smoke_log}"
+      exit "${code}"
+    fi
   fi
 fi
 

@@ -520,19 +520,21 @@ lazygit = { enabled = false } # default on; options: {}, { enabled = true|false 
 #
 # Enable harnesses through their [ai.harness.<name>] table below.
 #
-# Model providers (optional): declare which API keys are available.
-# Provider     Config value   Env var
-# Anthropic    anthropic      ANTHROPIC_API_KEY
-# OpenAI       openai         OPENAI_API_KEY
-# Google       google         GEMINI_API_KEY
-# Mistral      mistral        MISTRAL_API_KEY
+# Model providers (optional): declare which API key/base URL env vars are available.
+# Provider     Config value   API key env         Base URL env
+# Anthropic    anthropic      ANTHROPIC_API_KEY   ANTHROPIC_BASE_URL
+# OpenAI       openai         OPENAI_API_KEY      OPENAI_BASE_URL
+# Google       google         GEMINI_API_KEY      GEMINI_BASE_URL
+# Mistral      mistral        MISTRAL_API_KEY     MISTRAL_BASE_URL
+#
+# Alias used by some tools: OPENAI_API_BASE (OpenAI).
 [ai]
 
 model_providers = [
-#     "anthropic", # env: ANTHROPIC_API_KEY
-#     "openai", # env: OPENAI_API_KEY
-#     "google", # env: GEMINI_API_KEY
-#     "mistral", # env: MISTRAL_API_KEY
+#     "anthropic", # env: ANTHROPIC_API_KEY, ANTHROPIC_BASE_URL
+#     "openai", # env: OPENAI_API_KEY, OPENAI_BASE_URL
+#     "google", # env: GEMINI_API_KEY, GEMINI_BASE_URL
+#     "mistral", # env: MISTRAL_API_KEY, MISTRAL_BASE_URL
 ]
 
 # Per-harness install controls. `enabled` participates in generated
