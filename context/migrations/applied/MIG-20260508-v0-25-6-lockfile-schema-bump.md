@@ -4,18 +4,29 @@ kind: Migration
 metadata:
   id: MIG-20260508-v0-25-6-lockfile-schema-bump
   created: 2026-05-08 00:00:00+00:00
-  updated: '2026-05-08T00:00:00+00:00'
+  updated: '2026-05-08T22:15:43+00:00'
 spec:
   source: aibox
   from_version: v0.25.5
   to_version: v0.25.6
-  state: pending
+  state: applied
   generated_by: manual
   generated_at: 2026-05-08 00:00:00+00:00
-  summary: >-
-    Extend aibox.lock with [addons.<name>.previous_selection] map and
-    [harnesses].previous_selection set for cross-version managed-runtime
-    cleanup (BR-CLEANUP-ARCH item 1, commit e0ee7bc).
+  summary: Extend aibox.lock with [addons.<name>.previous_selection] map and [harnesses].previous_selection
+    set for cross-version managed-runtime cleanup (BR-CLEANUP-ARCH item 1, commit
+    e0ee7bc).
+  started_at: '2026-05-08T22:15:43+00:00'
+  applied_at: '2026-05-08T22:15:43+00:00'
+  progress_notes:
+  - timestamp: '2026-05-08T22:15:43+00:00'
+    actor: mcp
+    note: 'Resolving as applied at user request. Schema change (AddonsLockSection.previous_selection
+      + HarnessLockSection) shipped in code at commit e0ee7bc and is on main at 4cafa9e.
+      Migration is additive only — old lockfiles parse cleanly because both new sections
+      are #[serde(default, skip_serializing_if = "...")]. /workspace/aibox.lock currently
+      reads cli_version = "0.25.5"; backfill of previous_selection maps will happen
+      automatically on the next `aibox apply` run with the v0.25.6 CLI (post-R5 tag/publish).
+      No manual lockfile editing required. Tracked alongside R5 cutover.'
 ---
 
 # Migration MIG-20260508-v0-25-6-lockfile-schema-bump

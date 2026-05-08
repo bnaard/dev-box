@@ -3,8 +3,8 @@
     "default": {
       "binding_policy": "capability-negotiated",
       "subagent_mcp_supported": false,
-      "team_member": "TEAMMEMBER-cora",
-      "updated_at": "2026-05-08T21:58:15+00:00"
+      "team_member": "TEAMMEMBER-robin",
+      "updated_at": "2026-05-08T22:45:23+00:00"
     }
   },
   "version": 1

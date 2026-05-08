@@ -1,0 +1,14 @@
+---
+apiVersion: processkit.projectious.work/v2
+kind: LogEntry
+metadata:
+  id: LOG-20260508_2245-TrueSwan-team-member-active-interlocutor-set
+  created: '2026-05-08T22:45:23+00:00'
+spec:
+  event_type: team_member.active_interlocutor_set
+  timestamp: '2026-05-08T22:45:23+00:00'
+  summary: Set active interlocutor for scope 'default' to 'TEAMMEMBER-robin'
+  subject: TEAMMEMBER-robin
+  subject_kind: TeamMember
+  actor: TEAMMEMBER-robin
+---
