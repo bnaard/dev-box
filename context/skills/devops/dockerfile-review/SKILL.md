@@ -4,7 +4,7 @@ description: |
   Dockerfile best practices — layer optimization, caching, security, image size. Use when writing, reviewing, or optimizing Dockerfiles, investigating bloated images, or fixing cache-busting build orders.
 metadata:
   processkit:
-    apiVersion: processkit.projectious.work/v2
+    apiVersion: processkit.projectious.work/v1
     id: SKILL-dockerfile-review
     version: "1.1.0"
     created: 2026-04-06T00:00:00Z

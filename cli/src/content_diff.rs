@@ -946,9 +946,14 @@ pub fn run_content_sync(
     // This is content-sync-only. Install-integrity self-heal lives in a
     // separate code path (`container.rs`) and is unaffected.
     if from_pk.version == config.processkit.version {
+        let pruned = crate::content_init::prune_unselected_live_skills(project_root, config)
+            .with_context(
+                || "failed to prune deselected processkit skills during same-version sync",
+            )?;
         tracing::info!(
-            "skipping content sync: already at version {}",
-            config.processkit.version
+            "skipping content sync: already at version {}; pruned {} deselected skills",
+            config.processkit.version,
+            pruned
         );
         return Ok(SyncReport {
             summary: DiffSummary::default(),

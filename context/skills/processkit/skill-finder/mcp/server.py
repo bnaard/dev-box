@@ -24,6 +24,7 @@ from __future__ import annotations
 import json
 import os
 import re
+import shutil
 import sys
 from pathlib import Path
 
@@ -68,6 +69,24 @@ _SKILL_CATEGORIES = (
 
 def _skills_root() -> Path:
     return paths.find_project_root() / "context" / "skills"
+
+
+def _templates_skills_root() -> Path | None:
+    """Return the current processkit templates skill catalog, if present."""
+    templates_root = paths.find_project_root() / "context" / "templates" / "processkit"
+    if not templates_root.is_dir():
+        return None
+
+    candidates = []
+    for version_dir in templates_root.iterdir():
+        skills_dir = version_dir / "context" / "skills"
+        if skills_dir.is_dir():
+            candidates.append(skills_dir)
+    if not candidates:
+        return None
+
+    candidates.sort(key=lambda p: p.parent.name)
+    return candidates[-1]
 
 
 def _skill_finder_md() -> Path:
@@ -163,10 +182,10 @@ def _read_skill_frontmatter(skill_md: Path) -> dict:
         }
 
 
-def _all_skills() -> list[dict]:
-    """Walk context/skills/ and return metadata for all skills."""
-    root = _skills_root()
+def _walk_skills(root: Path, *, installed_names: set[str]) -> list[dict]:
     skills = []
+    if not root.is_dir():
+        return skills
     for cat_dir in sorted(root.iterdir()):
         if cat_dir.name.startswith("_") or not cat_dir.is_dir():
             continue
@@ -180,11 +199,66 @@ def _all_skills() -> list[dict]:
             fm["skill"] = skill_dir.name
             fm["category"] = cat_dir.name
             fm["has_mcp"] = (skill_dir / "mcp" / "server.py").exists()
-            fm["skill_md_path"] = str(
-                skill_md.relative_to(paths.find_project_root())
-            )
+            fm["installed"] = skill_dir.name in installed_names
+            try:
+                fm["skill_md_path"] = str(
+                    skill_md.relative_to(paths.find_project_root())
+                )
+            except ValueError:
+                fm["skill_md_path"] = str(skill_md)
             skills.append(fm)
     return skills
+
+
+def _installed_skill_names() -> set[str]:
+    return {s["skill"] for s in _walk_skills(_skills_root(), installed_names=set())}
+
+
+def _all_skills() -> list[dict]:
+    """Return installed skills plus deselected skills from the template catalog."""
+    installed_names = _installed_skill_names()
+    by_name: dict[str, dict] = {
+        s["skill"]: s for s in _walk_skills(_skills_root(), installed_names=installed_names)
+    }
+
+    templates_root = _templates_skills_root()
+    if templates_root is not None:
+        for skill in _walk_skills(templates_root, installed_names=installed_names):
+            by_name.setdefault(skill["skill"], skill)
+
+    return sorted(
+        by_name.values(),
+        key=lambda s: (str(s.get("category", "")), str(s.get("skill", ""))),
+    )
+
+
+def _find_skill_dir(root: Path | None, skill_name: str) -> tuple[Path, str] | None:
+    if root is None or not root.is_dir():
+        return None
+    for cat_dir in sorted(root.iterdir()):
+        if cat_dir.name.startswith("_") or not cat_dir.is_dir():
+            continue
+        candidate = cat_dir / skill_name
+        if (candidate / "SKILL.md").is_file():
+            return candidate, cat_dir.name
+    return None
+
+
+def _lazy_install_skill(skill_name: str) -> tuple[Path, str, bool] | None:
+    """Materialize a deselected template skill into context/skills on demand."""
+    live = _find_skill_dir(_skills_root(), skill_name)
+    if live is not None:
+        return live[0] / "SKILL.md", live[1], False
+
+    template = _find_skill_dir(_templates_skills_root(), skill_name)
+    if template is None:
+        return None
+
+    template_dir, category = template
+    target_dir = _skills_root() / category / skill_name
+    target_dir.parent.mkdir(parents=True, exist_ok=True)
+    shutil.copytree(template_dir, target_dir, dirs_exist_ok=True)
+    return target_dir / "SKILL.md", category, True
 
 
 # ---------------------------------------------------------------------------
@@ -193,7 +267,7 @@ def _all_skills() -> list[dict]:
 
 @server.tool(
     annotations=ToolAnnotations(
-        readOnlyHint=True,
+        readOnlyHint=False,
         destructiveHint=False,
         idempotentHint=True,
         openWorldHint=False,
@@ -213,10 +287,15 @@ def find_skill(task_description: str) -> dict:
         What the user asked for, in their words. The more natural the
         phrasing, the better the match.
 
+    Deselected skills are intentionally not eagerly installed, but they
+    remain discoverable through the templates catalog. When the best match
+    is deselected, this tool lazy-installs that skill into context/skills/
+    before returning its live SKILL.md path.
+
     Returns
     -------
-    {skill, description, skill_md_path, category}  on match
-    {error, candidates}                              on no confident match
+    {skill, description, skill_md_path, category, lazy_installed} on match
+    {error, candidates}                                         on no confident match
     """
     finder_md = _skill_finder_md()
     if not finder_md.exists():
@@ -244,30 +323,38 @@ def find_skill(task_description: str) -> dict:
             ),
         }
 
-    best_score, best_skill = scored[0]
-
-    # Find the SKILL.md path for the matched skill
-    root = _skills_root()
+    best_score = 0.0
+    best_skill = ""
     skill_md_path = None
     category = None
-    for cat_dir in root.iterdir():
-        if cat_dir.name.startswith("_") or not cat_dir.is_dir():
-            continue
-        candidate = cat_dir / best_skill / "SKILL.md"
-        if candidate.exists():
-            skill_md_path = str(
-                candidate.relative_to(paths.find_project_root())
-            )
-            category = cat_dir.name
+    lazy_installed = False
+    skipped_missing: list[str] = []
+    for score, skill_name in scored:
+        installed = _lazy_install_skill(skill_name)
+        if installed is not None:
+            skill_md, category, lazy_installed = installed
+            best_score = score
+            best_skill = skill_name
+            skill_md_path = str(skill_md.relative_to(paths.find_project_root()))
+        if skill_md_path:
             break
+        skipped_missing.append(skill_name)
+
+    if not skill_md_path:
+        return {
+            "error": "no matching skill found",
+            "hint": (
+                "Trigger phrases matched only skills that are not present in "
+                "the live install or templates catalog. Call catalog() to "
+                "browse available skills."
+            ),
+            "missing_candidates": skipped_missing[:5],
+        }
 
     # Read description from SKILL.md
     description = ""
-    if skill_md_path:
-        fm = _read_skill_frontmatter(
-            paths.find_project_root() / skill_md_path
-        )
-        description = fm.get("description", "").split("\n")[0]
+    fm = _read_skill_frontmatter(paths.find_project_root() / skill_md_path)
+    description = fm.get("description", "").split("\n")[0]
 
     result: dict = {
         "skill": best_skill,
@@ -275,6 +362,7 @@ def find_skill(task_description: str) -> dict:
         "skill_md_path": skill_md_path,
         "category": category,
         "match_confidence": round(best_score, 2),
+        "lazy_installed": lazy_installed,
     }
 
     # Surface close runners-up so the agent can sanity-check
@@ -293,7 +381,7 @@ def find_skill(task_description: str) -> dict:
     )
 )
 def list_skills(category: str | None = None) -> list[dict]:
-    """List all processkit skills, optionally filtered by category.
+    """List all installed and catalog-available processkit skills.
 
     Returns name, one-line description, category, and whether the skill
     has an MCP server. Use this to browse the catalog when find_skill
@@ -320,6 +408,7 @@ def list_skills(category: str | None = None) -> list[dict]:
             "description": (s.get("description") or "").split("\n")[0].strip(),
             "category": s.get("category", ""),
             "has_mcp": s.get("has_mcp", False),
+            "installed": s.get("installed", False),
             "skill_md_path": s.get("skill_md_path", ""),
         }
         for s in skills

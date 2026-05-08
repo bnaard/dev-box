@@ -14,12 +14,25 @@ pub fn tmux_status_colors(theme: &Theme) -> (&str, &str, &str) {
 /// These are single-file .vim colorschemes bundled in the image.
 pub fn vim_colorscheme(theme: &Theme) -> &'static str {
     match theme {
-        Theme::GruvboxDark => "gruvbox",
+        Theme::GruvboxDark | Theme::GruvboxLight => "gruvbox",
         Theme::CatppuccinMocha => "catppuccin_mocha",
+        Theme::CatppuccinMacchiato | Theme::CatppuccinFrappe => "catppuccin_mocha",
         Theme::CatppuccinLatte => "catppuccin_latte",
         Theme::Dracula => "dracula",
-        Theme::TokyoNight => "tokyonight",
+        Theme::TokyoNight | Theme::TokyoNightStorm | Theme::TokyoNightDay => "tokyonight",
         Theme::Nord => "nord",
+        Theme::RosePine | Theme::RosePineMoon | Theme::RosePineDawn => "catppuccin_mocha",
+        Theme::Material | Theme::MaterialOcean | Theme::MaterialPalenight => "catppuccin_mocha",
+        Theme::MaterialLighter => "catppuccin_latte",
+        Theme::SolarizedDark => "gruvbox",
+        Theme::SolarizedLight => "catppuccin_latte",
+        Theme::GithubDark => "catppuccin_mocha",
+        Theme::GithubLight => "catppuccin_latte",
+        Theme::AyuDark | Theme::AyuMirage => "catppuccin_mocha",
+        Theme::AyuLight => "catppuccin_latte",
+        Theme::NightOwl => "tokyonight",
+        Theme::NightOwlLight => "catppuccin_latte",
+        Theme::Moonlight => "tokyonight",
         Theme::Projectious => "projectious",
     }
 }
@@ -27,7 +40,15 @@ pub fn vim_colorscheme(theme: &Theme) -> &'static str {
 /// Returns the Vim background setting (dark/light).
 pub fn vim_background(theme: &Theme) -> &'static str {
     match theme {
-        Theme::CatppuccinLatte => "light",
+        Theme::GruvboxLight
+        | Theme::CatppuccinLatte
+        | Theme::TokyoNightDay
+        | Theme::RosePineDawn
+        | Theme::MaterialLighter
+        | Theme::SolarizedLight
+        | Theme::GithubLight
+        | Theme::AyuLight
+        | Theme::NightOwlLight => "light",
         _ => "dark",
     }
 }
@@ -36,18 +57,44 @@ pub fn vim_background(theme: &Theme) -> &'static str {
 /// Gruvbox uses the default theme.toml; others are bundled from images/base-debian/config/yazi/themes/.
 pub fn yazi_theme(theme: &Theme) -> &'static str {
     match theme {
-        Theme::GruvboxDark => include_str!("../../images/base-debian/config/yazi/theme.toml"),
+        Theme::GruvboxDark | Theme::GruvboxLight => {
+            include_str!("../../images/base-debian/config/yazi/theme.toml")
+        }
         Theme::CatppuccinMocha => {
+            include_str!("../../images/base-debian/config/yazi/themes/catppuccin-mocha.toml")
+        }
+        Theme::CatppuccinMacchiato | Theme::CatppuccinFrappe => {
             include_str!("../../images/base-debian/config/yazi/themes/catppuccin-mocha.toml")
         }
         Theme::CatppuccinLatte => {
             include_str!("../../images/base-debian/config/yazi/themes/catppuccin-latte.toml")
         }
         Theme::Dracula => include_str!("../../images/base-debian/config/yazi/themes/dracula.toml"),
-        Theme::TokyoNight => {
+        Theme::TokyoNight | Theme::TokyoNightStorm | Theme::TokyoNightDay => {
             include_str!("../../images/base-debian/config/yazi/themes/tokyo-night.toml")
         }
         Theme::Nord => include_str!("../../images/base-debian/config/yazi/themes/nord.toml"),
+        Theme::RosePine | Theme::RosePineMoon | Theme::Moonlight => {
+            include_str!("../../images/base-debian/config/yazi/themes/tokyo-night.toml")
+        }
+        Theme::RosePineDawn
+        | Theme::MaterialLighter
+        | Theme::SolarizedLight
+        | Theme::GithubLight
+        | Theme::AyuLight
+        | Theme::NightOwlLight => {
+            include_str!("../../images/base-debian/config/yazi/themes/catppuccin-latte.toml")
+        }
+        Theme::Material
+        | Theme::MaterialOcean
+        | Theme::MaterialPalenight
+        | Theme::SolarizedDark
+        | Theme::GithubDark
+        | Theme::AyuDark
+        | Theme::AyuMirage
+        | Theme::NightOwl => {
+            include_str!("../../images/base-debian/config/yazi/themes/catppuccin-mocha.toml")
+        }
         Theme::Projectious => {
             include_str!("../../images/base-debian/config/yazi/themes/projectious.toml")
         }
@@ -55,177 +102,66 @@ pub fn yazi_theme(theme: &Theme) -> &'static str {
 }
 
 /// Returns the lazygit theme YAML snippet (gui.theme section).
-pub fn lazygit_theme(theme: &Theme) -> &'static str {
+pub fn lazygit_theme(theme: &Theme) -> String {
+    let (bg, fg, accent, _green, red, yellow, _orange, cyan, muted) = theme_palette(theme);
+    format!(
+        r#"gui:
+  theme:
+    activeBorderColor:
+      - '{accent}'
+      - bold
+    inactiveBorderColor:
+      - '{muted}'
+    optionsTextColor:
+      - '{cyan}'
+    selectedLineBgColor:
+      - '{bg}'
+    cherryPickedCommitBgColor:
+      - '{muted}'
+    cherryPickedCommitFgColor:
+      - '{accent}'
+    unstagedChangesColor:
+      - '{red}'
+    defaultFgColor:
+      - '{fg}'
+    searchingActiveBorderColor:
+      - '{yellow}'
+"#
+    )
+}
+
+/// Maps aibox themes to tmux-powerkit base theme + variant.
+pub fn tmux_powerkit_theme(theme: &Theme) -> (&'static str, &'static str) {
     match theme {
-        Theme::GruvboxDark => {
-            r#"gui:
-  theme:
-    activeBorderColor:
-      - '#D79921'
-      - bold
-    inactiveBorderColor:
-      - '#665C54'
-    optionsTextColor:
-      - '#458588'
-    selectedLineBgColor:
-      - '#3C3836'
-    cherryPickedCommitBgColor:
-      - '#504945'
-    cherryPickedCommitFgColor:
-      - '#D79921'
-    unstagedChangesColor:
-      - '#CC241D'
-    defaultFgColor:
-      - '#D5C4A1'
-    searchingActiveBorderColor:
-      - '#FABD2F'
-"#
-        }
-        Theme::CatppuccinMocha => {
-            r#"gui:
-  theme:
-    activeBorderColor:
-      - '#89B4FA'
-      - bold
-    inactiveBorderColor:
-      - '#A6ADC8'
-    optionsTextColor:
-      - '#89B4FA'
-    selectedLineBgColor:
-      - '#313244'
-    cherryPickedCommitBgColor:
-      - '#45475A'
-    cherryPickedCommitFgColor:
-      - '#89B4FA'
-    unstagedChangesColor:
-      - '#F38BA8'
-    defaultFgColor:
-      - '#CDD6F4'
-    searchingActiveBorderColor:
-      - '#F9E2AF'
-"#
-        }
-        Theme::CatppuccinLatte => {
-            r#"gui:
-  theme:
-    activeBorderColor:
-      - '#1E66F5'
-      - bold
-    inactiveBorderColor:
-      - '#6C6F85'
-    optionsTextColor:
-      - '#1E66F5'
-    selectedLineBgColor:
-      - '#ACB0BE'
-    cherryPickedCommitBgColor:
-      - '#BCC0CC'
-    cherryPickedCommitFgColor:
-      - '#1E66F5'
-    unstagedChangesColor:
-      - '#D20F39'
-    defaultFgColor:
-      - '#4C4F69'
-    searchingActiveBorderColor:
-      - '#DF8E1D'
-"#
-        }
-        Theme::Dracula => {
-            r#"gui:
-  theme:
-    activeBorderColor:
-      - '#FF79C6'
-      - bold
-    inactiveBorderColor:
-      - '#BD93F9'
-    optionsTextColor:
-      - '#6272A4'
-    selectedLineBgColor:
-      - '#6272A4'
-    cherryPickedCommitBgColor:
-      - '#8BE9FD'
-    cherryPickedCommitFgColor:
-      - '#6272A4'
-    unstagedChangesColor:
-      - '#FF5555'
-    defaultFgColor:
-      - '#F8F8F2'
-    searchingActiveBorderColor:
-      - '#8BE9FD'
-      - bold
-"#
-        }
-        Theme::TokyoNight => {
-            r#"gui:
-  theme:
-    activeBorderColor:
-      - '#7AA2F7'
-      - bold
-    inactiveBorderColor:
-      - '#3B4261'
-    optionsTextColor:
-      - '#7AA2F7'
-    selectedLineBgColor:
-      - '#283457'
-    cherryPickedCommitBgColor:
-      - '#3B4261'
-    cherryPickedCommitFgColor:
-      - '#7AA2F7'
-    unstagedChangesColor:
-      - '#F7768E'
-    defaultFgColor:
-      - '#C0CAF5'
-    searchingActiveBorderColor:
-      - '#E0AF68'
-"#
-        }
-        Theme::Nord => {
-            r#"gui:
-  theme:
-    activeBorderColor:
-      - '#88C0D0'
-      - bold
-    inactiveBorderColor:
-      - '#4C566A'
-    optionsTextColor:
-      - '#81A1C1'
-    selectedLineBgColor:
-      - '#3B4252'
-    cherryPickedCommitBgColor:
-      - '#434C5E'
-    cherryPickedCommitFgColor:
-      - '#88C0D0'
-    unstagedChangesColor:
-      - '#BF616A'
-    defaultFgColor:
-      - '#D8DEE9'
-    searchingActiveBorderColor:
-      - '#EBCB8B'
-"#
-        }
-        Theme::Projectious => {
-            r#"gui:
-  theme:
-    activeBorderColor:
-      - '#E05232'
-      - bold
-    inactiveBorderColor:
-      - '#546A82'
-    optionsTextColor:
-      - '#8AACC8'
-    selectedLineBgColor:
-      - '#1d3352'
-    cherryPickedCommitBgColor:
-      - '#2B4D78'
-    cherryPickedCommitFgColor:
-      - '#E05232'
-    unstagedChangesColor:
-      - '#A32D2D'
-    defaultFgColor:
-      - '#C5DAF0'
-    searchingActiveBorderColor:
-      - '#8B6508'
-"#
-        }
+        Theme::GruvboxDark => ("gruvbox", "dark"),
+        Theme::GruvboxLight => ("gruvbox", "light"),
+        Theme::CatppuccinMocha => ("catppuccin", "mocha"),
+        Theme::CatppuccinMacchiato => ("catppuccin", "macchiato"),
+        Theme::CatppuccinFrappe => ("catppuccin", "frappe"),
+        Theme::CatppuccinLatte => ("catppuccin", "latte"),
+        Theme::Dracula => ("dracula", "dark"),
+        Theme::TokyoNight => ("tokyo-night", "night"),
+        Theme::TokyoNightStorm => ("tokyo-night", "storm"),
+        Theme::TokyoNightDay => ("tokyo-night", "day"),
+        Theme::Nord => ("nord", "dark"),
+        Theme::RosePine => ("rose-pine", "main"),
+        Theme::RosePineMoon => ("rose-pine", "moon"),
+        Theme::RosePineDawn => ("rose-pine", "dawn"),
+        Theme::Material => ("material", "default"),
+        Theme::MaterialOcean => ("material", "ocean"),
+        Theme::MaterialPalenight => ("material", "palenight"),
+        Theme::MaterialLighter => ("material", "lighter"),
+        Theme::SolarizedDark => ("solarized", "dark"),
+        Theme::SolarizedLight => ("solarized", "light"),
+        Theme::GithubDark => ("github", "dark"),
+        Theme::GithubLight => ("github", "light"),
+        Theme::AyuDark => ("ayu", "dark"),
+        Theme::AyuMirage => ("ayu", "mirage"),
+        Theme::AyuLight => ("ayu", "light"),
+        Theme::NightOwl => ("night-owl", "default"),
+        Theme::NightOwlLight => ("night-owl", "light"),
+        Theme::Moonlight => ("moonlight", "default"),
+        Theme::Projectious => ("tokyo-night", "night"),
     }
 }
 
@@ -237,9 +173,21 @@ fn theme_palette(theme: &Theme) -> (&str, &str, &str, &str, &str, &str, &str, &s
             "#282828", "#D5C4A1", "#D79921", "#98971A", "#CC241D", "#D79921", "#D65D0E", "#689D6A",
             "#928374",
         ),
+        Theme::GruvboxLight => (
+            "#FBF1C7", "#3C3836", "#D65D0E", "#79740E", "#CC241D", "#B57614", "#D65D0E", "#076678",
+            "#928374",
+        ),
         Theme::CatppuccinMocha => (
             "#1E1E2E", "#CDD6F4", "#89B4FA", "#A6E3A1", "#F38BA8", "#F9E2AF", "#FAB387", "#94E2D5",
             "#6C7086",
+        ),
+        Theme::CatppuccinMacchiato => (
+            "#24273A", "#CAD3F5", "#8AADF4", "#A6DA95", "#ED8796", "#EED49F", "#F5A97F", "#8BD5CA",
+            "#6E738D",
+        ),
+        Theme::CatppuccinFrappe => (
+            "#303446", "#C6D0F5", "#8CAAEE", "#A6D189", "#E78284", "#E5C890", "#EF9F76", "#81C8BE",
+            "#737994",
         ),
         Theme::CatppuccinLatte => (
             "#EFF1F5", "#4C4F69", "#1E66F5", "#40A02B", "#D20F39", "#DF8E1D", "#FE640B", "#179299",
@@ -253,9 +201,85 @@ fn theme_palette(theme: &Theme) -> (&str, &str, &str, &str, &str, &str, &str, &s
             "#1A1B26", "#C0CAF5", "#7AA2F7", "#9ECE6A", "#F7768E", "#E0AF68", "#FF9E64", "#7DCFFF",
             "#565F89",
         ),
+        Theme::TokyoNightStorm => (
+            "#24283B", "#C0CAF5", "#7AA2F7", "#9ECE6A", "#F7768E", "#E0AF68", "#FF9E64", "#7DCFFF",
+            "#565F89",
+        ),
+        Theme::TokyoNightDay => (
+            "#E1E2E7", "#3760BF", "#2E7DE9", "#587539", "#F52A65", "#8C6C3E", "#B15C00", "#007197",
+            "#7B8496",
+        ),
         Theme::Nord => (
             "#2E3440", "#D8DEE9", "#88C0D0", "#A3BE8C", "#BF616A", "#EBCB8B", "#D08770", "#81A1C1",
             "#4C566A",
+        ),
+        Theme::RosePine => (
+            "#191724", "#E0DEF4", "#C4A7E7", "#31748F", "#EB6F92", "#F6C177", "#EA9A97", "#9CCFD8",
+            "#6E6A86",
+        ),
+        Theme::RosePineMoon => (
+            "#232136", "#E0DEF4", "#C4A7E7", "#3E8FB0", "#EB6F92", "#EA9A97", "#F6C177", "#9CCFD8",
+            "#6E6A86",
+        ),
+        Theme::RosePineDawn => (
+            "#FAF4ED", "#575279", "#907AA9", "#56949F", "#B4637A", "#EA9D34", "#D7827E", "#286983",
+            "#9893A5",
+        ),
+        Theme::Material => (
+            "#263238", "#EEFFFF", "#82AAFF", "#C3E88D", "#F07178", "#FFCB6B", "#F78C6C", "#89DDFF",
+            "#546E7A",
+        ),
+        Theme::MaterialOcean => (
+            "#0F111A", "#A6ACCD", "#82AAFF", "#C3E88D", "#F07178", "#FFCB6B", "#F78C6C", "#89DDFF",
+            "#464B5D",
+        ),
+        Theme::MaterialPalenight => (
+            "#292D3E", "#A6ACCD", "#82AAFF", "#C3E88D", "#F07178", "#FFCB6B", "#F78C6C", "#89DDFF",
+            "#676E95",
+        ),
+        Theme::MaterialLighter => (
+            "#FAFAFA", "#546E7A", "#6182B8", "#91B859", "#E53935", "#F6A434", "#F76D47", "#39ADB5",
+            "#90A4AE",
+        ),
+        Theme::SolarizedDark => (
+            "#002B36", "#93A1A1", "#268BD2", "#859900", "#DC322F", "#B58900", "#CB4B16", "#2AA198",
+            "#657B83",
+        ),
+        Theme::SolarizedLight => (
+            "#FDF6E3", "#586E75", "#268BD2", "#859900", "#DC322F", "#B58900", "#CB4B16", "#2AA198",
+            "#93A1A1",
+        ),
+        Theme::GithubDark => (
+            "#0D1117", "#C9D1D9", "#58A6FF", "#3FB950", "#F85149", "#D29922", "#DB6D28", "#79C0FF",
+            "#8B949E",
+        ),
+        Theme::GithubLight => (
+            "#FFFFFF", "#24292F", "#0969DA", "#1A7F37", "#CF222E", "#9A6700", "#BC4C00", "#0969DA",
+            "#6E7781",
+        ),
+        Theme::AyuDark => (
+            "#0A0E14", "#B3B1AD", "#39BAE6", "#AAD94C", "#F07178", "#FFB454", "#FF8F40", "#95E6CB",
+            "#626A73",
+        ),
+        Theme::AyuMirage => (
+            "#1F2430", "#CCCAC2", "#5CCFE6", "#BAE67E", "#F28779", "#FFD173", "#FFAD66", "#95E6CB",
+            "#707A8C",
+        ),
+        Theme::AyuLight => (
+            "#FAFAFA", "#5C6773", "#55B4D4", "#86B300", "#F51818", "#FA8D3E", "#F07171", "#4CBF99",
+            "#ABB0B6",
+        ),
+        Theme::NightOwl => (
+            "#011627", "#D6DEEB", "#82AAFF", "#22DA6E", "#EF5350", "#C5E478", "#F78C6C", "#21C7A8",
+            "#637777",
+        ),
+        Theme::NightOwlLight => (
+            "#FBFBFB", "#403F53", "#4876D6", "#2AA298", "#D3423E", "#DAA520", "#DD6A58", "#08916A",
+            "#989FB1",
+        ),
+        Theme::Moonlight => (
+            "#212337", "#C8D3F5", "#82AAFF", "#C3E88D", "#FF757F", "#FFC777", "#F78C6C", "#86E1FC",
+            "#7A88CF",
         ),
         Theme::Projectious => (
             "#0E1720", "#C5DAF0", "#E05232", "#2D6A4F", "#A32D2D", "#8B6508", "#E05232", "#8AACC8",

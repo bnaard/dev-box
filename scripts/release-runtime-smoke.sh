@@ -25,8 +25,8 @@ run_id="$(date +%Y%m%d-%H%M%S)"
 log_dir="${AIBOX_RELEASE_SMOKE_DIR:-${DIST_DIR}/release-smoke/v${version}/${run_id}}"
 project_dir="${AIBOX_RELEASE_SMOKE_PROJECT_DIR:-$(mktemp -d "${TMPDIR:-/tmp}/aibox-release-smoke-v${version}.XXXXXX")}"
 container_name="${AIBOX_RELEASE_SMOKE_CONTAINER:-aibox-release-smoke-${version//./-}}"
-tmux_status="${AIBOX_RELEASE_SMOKE_TMUX_STATUS:-powerline}"
-smoke_tier="${AIBOX_RELEASE_SMOKE_TIER:-minimal}"
+tmux_status="${AIBOX_RELEASE_SMOKE_TMUX_STATUS:-extended}"
+smoke_tier="${AIBOX_RELEASE_SMOKE_TIER:-addons}"
 probe_script="${log_dir}/container-probe.sh"
 run_log="${log_dir}/run.log"
 
@@ -46,10 +46,10 @@ warn()  { echo "${yellow}${bold}  !${reset} $*"; }
 die()   { echo "${red}${bold}ERR${reset} $*" >&2; exit 1; }
 
 case "${tmux_status}" in
-  shell|sidecar|native|enabled) tmux_status="powerline" ;;
+  shell|sidecar|native|enabled|powerline) tmux_status="extended" ;;
   hidden) tmux_status="disabled" ;;
-  powerline|plain|disabled) ;;
-  *) die "AIBOX_RELEASE_SMOKE_TMUX_STATUS must be powerline, plain, or disabled (legacy aliases: enabled, shell, sidecar, native, hidden; got: ${tmux_status})" ;;
+  extended|plain|disabled) ;;
+  *) die "AIBOX_RELEASE_SMOKE_TMUX_STATUS must be extended, plain, or disabled (legacy aliases: powerline, enabled, shell, sidecar, native, hidden; got: ${tmux_status})" ;;
 esac
 
 case "${smoke_tier}" in
@@ -406,7 +406,7 @@ if command -v aibox-status >/dev/null 2>&1; then
   fi
 else
   echo "aibox-status helper not present in this release"
-  if [[ "${tmux_status}" == "powerline" ]]; then
+  if [[ "${tmux_status}" == "extended" ]]; then
     fail=1
   fi
 fi
@@ -427,6 +427,22 @@ if [[ "${tmux_status}" != "disabled" ]]; then
     fail=1
   else
     cat /tmp/aibox-tmux-status-config.txt
+  fi
+
+  # Persistence policy guardrail: plugins may be installed in the image, but
+  # generated runtime defaults must keep session restore/save disabled until
+  # the owner accepts a persistence policy decision.
+  if ! grep -Eq "@continuum-restore 'off'" "$HOME/.config/tmux/tmux.conf"; then
+    echo "tmux persistence policy regression: @continuum-restore must default to off"
+    fail=1
+  fi
+  if ! grep -Eq "@continuum-save-interval '0'" "$HOME/.config/tmux/tmux.conf"; then
+    echo "tmux persistence policy regression: @continuum-save-interval must default to 0"
+    fail=1
+  fi
+  if ! grep -Eq "@resurrect-capture-pane-contents 'off'" "$HOME/.config/tmux/tmux.conf"; then
+    echo "tmux persistence policy regression: @resurrect-capture-pane-contents must default to off"
+    fail=1
   fi
 else
   echo "tmux status contract skipped for tmux_status=${tmux_status}"
@@ -491,7 +507,7 @@ else
         fail=1
       fi
       if ! grep -aE 'AIBOX|MEM .+/unlimited|OOM [0-9]+|PROC [0-9]+ AI [0-9]+|MCP (gateway|granular|none) [0-9]+' /tmp/aibox-tmux.typescript >/tmp/aibox-tmux-runtime-row.txt 2>&1; then
-        if [[ "${tmux_status}" == "powerline" ]]; then
+        if [[ "${tmux_status}" == "extended" ]]; then
           echo "tmux runtime status row was not visible in generated-layout PTY smoke"
           fail=1
         else

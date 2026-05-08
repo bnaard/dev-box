@@ -12,22 +12,21 @@ Generated layouts include AI-agent windows based on enabled
 when the `git-ui` addon selects `lazygit`, so window numbering shifts when that
 optional window is omitted.
 
-Every generated layout includes a tmux status bar with key hints and an aibox
-runtime segment for memory, CPU pressure, load average, processes, filesystem,
-uptime, and project state. Runtime values come from the image-owned
-`aibox-status` helper and the diagnostics sidecar rather than from terminal
-plugin code.
+Generated layouts can include an extended PowerKit status bar with host,
+network, development, cloud, resource, and aibox runtime segments. Runtime
+values come from the image-owned `aibox-status` helper and the diagnostics
+sidecar rather than from terminal plugin code.
 
 Configure the status presentation in `aibox.toml`:
 
 ```toml
 [customization.tmux.status]
-mode = "powerline" # powerline | plain | disabled
+mode = "extended" # extended | plain | disabled
 ```
 
-`powerline` uses the themed aibox tmux status bar with key/runtime segments.
-`disabled` leaves tmux's stock status behavior in place and omits aibox-managed
-runtime segments.
+`extended` uses the themed multi-line PowerKit status bar. Existing
+`powerline` configs are accepted as a legacy alias. `plain` keeps minimal
+tmux-native status text, and `disabled` turns the tmux status line off.
 
 ## Available Layouts
 

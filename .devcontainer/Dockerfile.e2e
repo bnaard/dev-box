@@ -82,6 +82,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     git \
     jq \
     sudo \
+    uidmap \
     sqlite3 \
     csvkit \
     python3-rich \

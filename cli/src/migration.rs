@@ -2339,7 +2339,7 @@ mode = "sidecar"
 
         let after = fs::read_to_string(tmp.path().join("aibox.toml")).unwrap();
         assert!(after.contains("[customization.tmux.status]"));
-        assert!(after.contains("mode = \"powerline\""));
+        assert!(after.contains("mode = \"extended\""));
         assert!(after.contains("tmux layout"));
         assert!(!after.contains("zellij layout"));
         assert!(!after.contains("[customization.zellij_status]"));

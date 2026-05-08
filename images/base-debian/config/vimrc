@@ -54,8 +54,8 @@ set backspace=indent,eol,start
 set hidden                   " allow unsaved background buffers
 set scrolloff=8              " keep 8 lines above/below cursor
 set sidescrolloff=4
-set wrap                     " wrap long lines visually
-set linebreak                " wrap at word boundary
+set nowrap                   " keep long lines on one screen row
+set sidescroll=1             " horizontal scrolling step
 set list                     " show invisible characters
 set listchars=tab:→\ ,trail:·,nbsp:␣
 set noerrorbells

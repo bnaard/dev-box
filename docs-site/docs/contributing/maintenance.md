@@ -122,8 +122,14 @@ the pushed release tag. The smoke creates a temporary project, runs
 generated container, probes Yazi, the aibox status helper, tmux state, and the
 diagnostics sidecar, and writes a bundle to
 `dist/release-smoke/vX.Y.Z/<timestamp>/`.
+By default, this smoke runs with `AIBOX_RELEASE_SMOKE_TIER=addons`, so `git-ui`
+(`lazygit`) startup is exercised in addition to the core runtime contract.
 It is host-side because macOS binaries and host runtime access are not
 available from the Linux devcontainer.
+
+The Linux-side Tier 2 E2E companion is separate from this host phase. From the
+devcontainer, verify that companion over SSH/SCP; do not use local
+Docker/Podman availability in the main devcontainer as the reachability check.
 
 ## Verification
 

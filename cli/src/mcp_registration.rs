@@ -1160,7 +1160,11 @@ pub fn collect_processkit_mcp_specs(
 /// in the live installation, not in the templates mirror.
 ///
 /// Returns `Ok(vec![])` if context/skills/ doesn't exist.
-pub fn collect_live_skills_mcp_specs(project_root: &Path) -> Result<Vec<McpServerSpec>> {
+pub fn collect_live_skills_mcp_specs(
+    project_root: &Path,
+    effective_skills: Option<&HashSet<String>>,
+    force_include: &[&str],
+) -> Result<Vec<McpServerSpec>> {
     let skills_dir = project_root.join("context").join("skills");
     if !skills_dir.is_dir() {
         return Ok(Vec::new());
@@ -1193,6 +1197,16 @@ pub fn collect_live_skills_mcp_specs(project_root: &Path) -> Result<Vec<McpServe
         for skill_entry in skill_entries.flatten() {
             let skill_dir = skill_entry.path();
             if !skill_dir.is_dir() {
+                continue;
+            }
+            let skill_name = match skill_entry.file_name().to_str() {
+                Some(s) => s.to_string(),
+                None => continue,
+            };
+            if let Some(set) = effective_skills
+                && !set.contains(&skill_name)
+                && !force_include.contains(&skill_name.as_str())
+            {
                 continue;
             }
 
@@ -1502,7 +1516,11 @@ pub fn regenerate_mcp_configs(config: &AiboxConfig, project_root: &Path) -> Resu
     // Also collect from live-installed skills in context/skills/ to handle
     // incomplete processkit releases (e.g. v0.19.1) where some skills have
     // mcp/mcp-config.json files only in the live installation.
-    let live_skills_specs = collect_live_skills_mcp_specs(project_root)?;
+    let live_skills_specs = collect_live_skills_mcp_specs(
+        project_root,
+        effective.as_ref(),
+        crate::processkit_vocab::MANDATORY_MCP_SKILLS,
+    )?;
 
     // Build the full spec list: processkit + live skills first, then team-shared
     // (aibox.toml [mcp.servers]), then personal (.aibox-local.toml
@@ -2227,6 +2245,17 @@ mod tests {
         path
     }
 
+    fn write_live_skill_mcp(project_root: &Path, category: &str, skill: &str, json_body: &str) {
+        let dir = project_root
+            .join(crate::processkit_vocab::src::CONTEXT_DIR)
+            .join(crate::processkit_vocab::src::SKILLS)
+            .join(category)
+            .join(skill)
+            .join("mcp");
+        fs::create_dir_all(&dir).unwrap();
+        fs::write(dir.join("mcp-config.json"), json_body).unwrap();
+    }
+
     // ── collect_processkit_mcp_specs ────────────────────────────────────
 
     #[test]
@@ -2890,6 +2919,30 @@ args = ["server.js"]
             "kernel fallback must include id-management; got: {:?}",
             names
         );
+    }
+
+    #[test]
+    fn collect_live_skills_respects_effective_skills_filter() {
+        let tmp = TempDir::new().unwrap();
+        write_live_skill_mcp(
+            tmp.path(),
+            "processkit",
+            "workitem-management",
+            r#"{"mcpServers":{"processkit-workitem-management":{"command":"uv","args":[]}}}"#,
+        );
+        write_live_skill_mcp(
+            tmp.path(),
+            "devops",
+            "dockerfile-review",
+            r#"{"mcpServers":{"processkit-dockerfile-review":{"command":"uv","args":[]}}}"#,
+        );
+
+        let mut filter = HashSet::new();
+        filter.insert("workitem-management".to_string());
+        let specs = collect_live_skills_mcp_specs(tmp.path(), Some(&filter), &[]).unwrap();
+        let names: Vec<String> = specs.iter().map(|s| s.name.clone()).collect();
+
+        assert_eq!(names, vec!["processkit-workitem-management"]);
     }
 
     // ── new category-nested layout tests (aibox#53) ──────────────────────

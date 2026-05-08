@@ -897,11 +897,33 @@ pub struct SkillsSection {
 pub enum Theme {
     #[default]
     GruvboxDark,
+    GruvboxLight,
     CatppuccinMocha,
+    CatppuccinMacchiato,
+    CatppuccinFrappe,
     CatppuccinLatte,
     Dracula,
     TokyoNight,
+    TokyoNightStorm,
+    TokyoNightDay,
     Nord,
+    RosePine,
+    RosePineMoon,
+    RosePineDawn,
+    Material,
+    MaterialOcean,
+    MaterialPalenight,
+    MaterialLighter,
+    SolarizedDark,
+    SolarizedLight,
+    GithubDark,
+    GithubLight,
+    AyuDark,
+    AyuMirage,
+    AyuLight,
+    NightOwl,
+    NightOwlLight,
+    Moonlight,
     Projectious,
 }
 
@@ -939,11 +961,33 @@ impl std::fmt::Display for Theme {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
             Theme::GruvboxDark => write!(f, "gruvbox-dark"),
+            Theme::GruvboxLight => write!(f, "gruvbox-light"),
             Theme::CatppuccinMocha => write!(f, "catppuccin-mocha"),
+            Theme::CatppuccinMacchiato => write!(f, "catppuccin-macchiato"),
+            Theme::CatppuccinFrappe => write!(f, "catppuccin-frappe"),
             Theme::CatppuccinLatte => write!(f, "catppuccin-latte"),
             Theme::Dracula => write!(f, "dracula"),
             Theme::TokyoNight => write!(f, "tokyo-night"),
+            Theme::TokyoNightStorm => write!(f, "tokyo-night-storm"),
+            Theme::TokyoNightDay => write!(f, "tokyo-night-day"),
             Theme::Nord => write!(f, "nord"),
+            Theme::RosePine => write!(f, "rose-pine"),
+            Theme::RosePineMoon => write!(f, "rose-pine-moon"),
+            Theme::RosePineDawn => write!(f, "rose-pine-dawn"),
+            Theme::Material => write!(f, "material"),
+            Theme::MaterialOcean => write!(f, "material-ocean"),
+            Theme::MaterialPalenight => write!(f, "material-palenight"),
+            Theme::MaterialLighter => write!(f, "material-lighter"),
+            Theme::SolarizedDark => write!(f, "solarized-dark"),
+            Theme::SolarizedLight => write!(f, "solarized-light"),
+            Theme::GithubDark => write!(f, "github-dark"),
+            Theme::GithubLight => write!(f, "github-light"),
+            Theme::AyuDark => write!(f, "ayu-dark"),
+            Theme::AyuMirage => write!(f, "ayu-mirage"),
+            Theme::AyuLight => write!(f, "ayu-light"),
+            Theme::NightOwl => write!(f, "night-owl"),
+            Theme::NightOwlLight => write!(f, "night-owl-light"),
+            Theme::Moonlight => write!(f, "moonlight"),
             Theme::Projectious => write!(f, "projectious"),
         }
     }
@@ -1031,18 +1075,20 @@ pub enum TmuxStatusMode {
     /// aibox themed status line with tmux plugin hooks.
     #[default]
     #[serde(
+        alias = "powerline",
         alias = "enabled",
         alias = "shell",
         alias = "sidecar",
         alias = "native"
     )]
     #[value(
+        alias = "powerline",
         alias = "enabled",
         alias = "shell",
         alias = "sidecar",
         alias = "native"
     )]
-    Powerline,
+    Extended,
     /// Minimal tmux-native status text.
     Plain,
     /// Disable the tmux status line.
@@ -1054,7 +1100,7 @@ pub enum TmuxStatusMode {
 impl std::fmt::Display for TmuxStatusMode {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
-            TmuxStatusMode::Powerline => write!(f, "powerline"),
+            TmuxStatusMode::Extended => write!(f, "extended"),
             TmuxStatusMode::Plain => write!(f, "plain"),
             TmuxStatusMode::Disabled => write!(f, "disabled"),
         }
@@ -1065,17 +1111,132 @@ fn default_tmux_status_mode() -> TmuxStatusMode {
     TmuxStatusMode::default()
 }
 
+fn bool_true() -> bool {
+    true
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+#[serde(rename_all = "kebab-case")]
+pub struct TmuxStatusAiboxMetricsSection {
+    #[serde(default = "bool_true")]
+    pub log: bool,
+    #[serde(default = "bool_true")]
+    pub oom: bool,
+    #[serde(default = "bool_true")]
+    pub proc: bool,
+    #[serde(default = "bool_true")]
+    pub ai: bool,
+    #[serde(default = "bool_true")]
+    pub mcp: bool,
+    #[serde(default = "bool_true")]
+    pub mig: bool,
+}
+
+impl Default for TmuxStatusAiboxMetricsSection {
+    fn default() -> Self {
+        Self {
+            log: true,
+            oom: true,
+            proc: true,
+            ai: true,
+            mcp: true,
+            mig: true,
+        }
+    }
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+#[serde(rename_all = "kebab-case")]
+pub struct TmuxStatusElementsSection {
+    #[serde(default = "bool_true")]
+    pub hostname: bool,
+    #[serde(default = "bool_true")]
+    pub external_ip: bool,
+    #[serde(default = "bool_true")]
+    pub ssh: bool,
+    #[serde(default = "bool_true")]
+    pub uptime: bool,
+    #[serde(default = "bool_true")]
+    pub weather: bool,
+    #[serde(default = "bool_true")]
+    pub datetime: bool,
+    #[serde(default = "bool_true")]
+    pub git: bool,
+    #[serde(default = "bool_true")]
+    pub github: bool,
+    #[serde(default = "bool_true")]
+    pub kubernetes: bool,
+    #[serde(default = "bool_true")]
+    pub terraform: bool,
+    #[serde(default = "bool_true")]
+    pub cloud: bool,
+    #[serde(default = "bool_true")]
+    pub cloudstatus: bool,
+    #[serde(default = "bool_true")]
+    pub cpu: bool,
+    #[serde(default = "bool_true")]
+    pub loadavg: bool,
+    #[serde(default = "bool_true")]
+    pub mem: bool,
+    #[serde(default = "bool_true")]
+    pub swap: bool,
+    #[serde(default = "bool_true")]
+    pub disk: bool,
+    #[serde(default = "bool_true")]
+    pub gpu: bool,
+    #[serde(default = "bool_true")]
+    pub netspeed: bool,
+    #[serde(default = "bool_true")]
+    pub ping: bool,
+    #[serde(default = "bool_true")]
+    pub aibox: bool,
+    #[serde(default)]
+    pub aibox_metrics: TmuxStatusAiboxMetricsSection,
+}
+
+impl Default for TmuxStatusElementsSection {
+    fn default() -> Self {
+        Self {
+            hostname: true,
+            external_ip: true,
+            ssh: true,
+            uptime: true,
+            weather: true,
+            datetime: true,
+            git: true,
+            github: true,
+            kubernetes: true,
+            terraform: true,
+            cloud: true,
+            cloudstatus: true,
+            cpu: true,
+            loadavg: true,
+            mem: true,
+            swap: true,
+            disk: true,
+            gpu: true,
+            netspeed: true,
+            ping: true,
+            aibox: true,
+            aibox_metrics: TmuxStatusAiboxMetricsSection::default(),
+        }
+    }
+}
+
 /// [customization.tmux.status] section.
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 pub struct TmuxStatusSection {
     #[serde(default = "default_tmux_status_mode")]
     pub mode: TmuxStatusMode,
+    #[serde(default)]
+    pub elements: TmuxStatusElementsSection,
 }
 
 impl Default for TmuxStatusSection {
     fn default() -> Self {
         Self {
             mode: default_tmux_status_mode(),
+            elements: TmuxStatusElementsSection::default(),
         }
     }
 }
@@ -1142,6 +1303,14 @@ impl CustomizationSection {
             ThemeMode::Light => Theme::CatppuccinLatte,
             ThemeMode::Dark => match self.theme {
                 Theme::CatppuccinLatte => Theme::CatppuccinMocha,
+                Theme::GruvboxLight => Theme::GruvboxDark,
+                Theme::TokyoNightDay => Theme::TokyoNight,
+                Theme::RosePineDawn => Theme::RosePine,
+                Theme::MaterialLighter => Theme::Material,
+                Theme::SolarizedLight => Theme::SolarizedDark,
+                Theme::GithubLight => Theme::GithubDark,
+                Theme::AyuLight => Theme::AyuDark,
+                Theme::NightOwlLight => Theme::NightOwl,
                 _ => self.theme.clone(),
             },
         }
@@ -2510,7 +2679,46 @@ fn check_customization_table(
             mismatches,
         );
         if let Some(tmux) = table_child(customization, "tmux") {
-            check_child_table(tmux, "status", &["mode"], mismatches);
+            check_child_table(tmux, "status", &["mode", "elements"], mismatches);
+            if let Some(status) = table_child(tmux, "status") {
+                check_child_table(
+                    status,
+                    "elements",
+                    &[
+                        "hostname",
+                        "external-ip",
+                        "ssh",
+                        "uptime",
+                        "weather",
+                        "datetime",
+                        "git",
+                        "github",
+                        "kubernetes",
+                        "terraform",
+                        "cloud",
+                        "cloudstatus",
+                        "cpu",
+                        "loadavg",
+                        "mem",
+                        "swap",
+                        "disk",
+                        "gpu",
+                        "netspeed",
+                        "ping",
+                        "aibox",
+                        "aibox-metrics",
+                    ],
+                    mismatches,
+                );
+                if let Some(elements) = table_child(status, "elements") {
+                    check_child_table(
+                        elements,
+                        "aibox-metrics",
+                        &["log", "oom", "proc", "ai", "mcp", "mig"],
+                        mismatches,
+                    );
+                }
+            }
         }
     }
 }
@@ -2912,7 +3120,7 @@ name = "my-project"
         assert_eq!(config.customization.prompt, StarshipPreset::Default);
         assert_eq!(
             config.customization.tmux.status.mode,
-            TmuxStatusMode::Powerline
+            TmuxStatusMode::Extended
         );
 
         // [audio]
@@ -3163,6 +3371,53 @@ mode = "plain"
         assert_eq!(config.customization.tmux.prefix, "C-a");
         assert_eq!(config.customization.tmux.session_name, "work");
         assert_eq!(config.customization.tmux.status.mode, TmuxStatusMode::Plain);
+    }
+
+    #[test]
+    fn tmux_status_powerline_alias_maps_to_extended() {
+        let toml = r#"
+[aibox]
+version = "0.25.1"
+
+[container]
+name = "my-project"
+
+[customization.tmux.status]
+mode = "powerline"
+"#;
+        let config = parse_toml(toml).unwrap();
+        assert_eq!(
+            config.customization.tmux.status.mode,
+            TmuxStatusMode::Extended
+        );
+    }
+
+    #[test]
+    fn schema_mismatches_accepts_tmux_status_element_toggles() {
+        let toml = r#"
+[aibox]
+version = "0.25.2"
+
+[container]
+name = "my-project"
+
+[customization.tmux.status]
+mode = "extended"
+
+[customization.tmux.status.elements]
+external-ip = false
+mem = true
+aibox = true
+
+[customization.tmux.status.elements.aibox-metrics]
+log = true
+mig = false
+"#;
+        let mismatches = AiboxConfig::schema_mismatches(toml).unwrap();
+        assert!(
+            mismatches.is_empty(),
+            "tmux status element toggles should be schema-clean: {mismatches:?}"
+        );
     }
 
     #[test]
@@ -3510,11 +3765,34 @@ exclude = ["standup-context"]
     fn appearance_all_themes() {
         for (input, expected) in [
             ("gruvbox-dark", Theme::GruvboxDark),
+            ("gruvbox-light", Theme::GruvboxLight),
             ("catppuccin-mocha", Theme::CatppuccinMocha),
+            ("catppuccin-macchiato", Theme::CatppuccinMacchiato),
+            ("catppuccin-frappe", Theme::CatppuccinFrappe),
             ("catppuccin-latte", Theme::CatppuccinLatte),
             ("dracula", Theme::Dracula),
             ("tokyo-night", Theme::TokyoNight),
+            ("tokyo-night-storm", Theme::TokyoNightStorm),
+            ("tokyo-night-day", Theme::TokyoNightDay),
             ("nord", Theme::Nord),
+            ("rose-pine", Theme::RosePine),
+            ("rose-pine-moon", Theme::RosePineMoon),
+            ("rose-pine-dawn", Theme::RosePineDawn),
+            ("material", Theme::Material),
+            ("material-ocean", Theme::MaterialOcean),
+            ("material-palenight", Theme::MaterialPalenight),
+            ("material-lighter", Theme::MaterialLighter),
+            ("solarized-dark", Theme::SolarizedDark),
+            ("solarized-light", Theme::SolarizedLight),
+            ("github-dark", Theme::GithubDark),
+            ("github-light", Theme::GithubLight),
+            ("ayu-dark", Theme::AyuDark),
+            ("ayu-mirage", Theme::AyuMirage),
+            ("ayu-light", Theme::AyuLight),
+            ("night-owl", Theme::NightOwl),
+            ("night-owl-light", Theme::NightOwlLight),
+            ("moonlight", Theme::Moonlight),
+            ("projectious", Theme::Projectious),
         ] {
             let toml = format!(
                 r#"

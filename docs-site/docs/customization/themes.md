@@ -18,9 +18,20 @@ Or during project initialization:
 aibox init --theme catppuccin-mocha
 ```
 
-The selected theme is applied to **tmux**, **Vim**, **Yazi**, **lazygit**, and **Starship** simultaneously. `mode = "auto"` preserves the selected concrete theme. `mode = "light"` currently resolves to `catppuccin-latte`; `mode = "dark"` keeps dark themes as-is and maps `catppuccin-latte` to `catppuccin-mocha`.
+The selected theme is applied to **tmux**, **Vim**, **Yazi**, **lazygit**, and **Starship** simultaneously. `mode = "auto"` preserves the selected concrete theme. `mode = "light"` currently resolves to `catppuccin-latte`; `mode = "dark"` keeps dark themes as-is and maps known light variants to their dark counterpart.
 
 ## Available Themes
+
+aibox supports the tmux-powerkit popular theme roster:
+
+- `tokyo-night`, `tokyo-night-storm`, `tokyo-night-day`
+- `catppuccin-mocha`, `catppuccin-macchiato`, `catppuccin-frappe`, `catppuccin-latte`
+- `dracula`, `nord`, `gruvbox-dark`, `gruvbox-light`
+- `rose-pine`, `rose-pine-moon`, `rose-pine-dawn`
+- `material`, `material-ocean`, `material-palenight`, `material-lighter`
+- `solarized-dark`, `solarized-light`, `github-dark`, `github-light`
+- `ayu-dark`, `ayu-mirage`, `ayu-light`, `night-owl`, `night-owl-light`, `moonlight`
+- `projectious`
 
 ### gruvbox-dark (default)
 

@@ -94,6 +94,12 @@ companion service to be running alongside the devcontainer):
 cd cli && cargo test --features e2e
 ```
 
+The E2E companion is reached from this devcontainer over SSH/SCP:
+`ssh -i /workspace/.aibox-e2e-runner-home/.ssh/id_ed25519 testuser@aibox-e2e-testrunner`.
+Do not treat missing local `docker` or `podman` in the main devcontainer as
+evidence that the companion is unavailable; use SSH reachability first. The
+companion itself owns the container runtime used by Tier 2 tests.
+
 See `context/work-instructions/DEVELOPMENT.md` (or `CONTRIBUTING.md`) for
 the full development workflow, E2E test architecture, and cross-compile steps.
 

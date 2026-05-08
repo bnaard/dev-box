@@ -235,6 +235,12 @@ fn init_generates_tmux_customization_surface() {
             && !toml.contains("[customization.zellij_status]"),
         "generated aibox.toml should expose tmux customization and omit Zellij status:\n{toml}"
     );
+    assert!(
+        toml.contains("legacy: powerline -> extended")
+            && toml.contains("hostname = true  # show container hostname")
+            && toml.contains("mcp = true  # include MCP server health indicator"),
+        "generated aibox.toml should explain tmux status mode aliases and element toggles:\n{toml}"
+    );
 }
 
 // ─── AI Section Tests ────────────────────────────────────────────────────────

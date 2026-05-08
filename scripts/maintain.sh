@@ -31,6 +31,7 @@ PROJECT_ROOT="$(cd "${SCRIPT_DIR}/.." && pwd)"
 # ── Paths ────────────────────────────────────────────────────────────────────
 DEVCONTAINER_DIR="${PROJECT_ROOT}/.devcontainer"
 COMPOSE_FILE="${DEVCONTAINER_DIR}/docker-compose.yml"
+COMPOSE_OVERRIDE_FILE="${DEVCONTAINER_DIR}/docker-compose.override.yml"
 HOST_ROOT="${HOST_ROOT:-${PROJECT_ROOT}/.aibox-home}"
 WORKSPACE_DIR="${WORKSPACE_DIR:-${PROJECT_ROOT}}"
 CLI_DIR="${PROJECT_ROOT}/cli"
@@ -47,6 +48,19 @@ _init_names() {
   CONTAINER_NAME="${cn:-${svc}}"
 }
 _init_names
+
+compose_args() {
+  printf -- '-f\n%s\n' "${COMPOSE_FILE}"
+  if [[ -s "${COMPOSE_OVERRIDE_FILE}" ]]; then
+    printf -- '-f\n%s\n' "${COMPOSE_OVERRIDE_FILE}"
+  fi
+}
+
+compose() {
+  local args=()
+  mapfile -t args < <(compose_args)
+  ${COMPOSE_BIN} "${args[@]}" "$@"
+}
 
 # ── Colours ──────────────────────────────────────────────────────────────────
 bold=$'\e[1m'
@@ -197,9 +211,21 @@ cmd_test() {
 }
 
 ensure_e2e_companion() {
+  local key="${PROJECT_ROOT}/.aibox-e2e-runner-home/.ssh/id_ed25519"
+  info "Checking SSH companion E2E container..."
+  if [[ -f "${key}" ]] && ssh -i "${key}" \
+      -o StrictHostKeyChecking=no \
+      -o UserKnownHostsFile=/dev/null \
+      -o ConnectTimeout=5 \
+      -o LogLevel=ERROR \
+      testuser@aibox-e2e-testrunner 'echo ok' 2>/dev/null | grep -qx ok; then
+    ok "SSH companion E2E container is reachable"
+    return
+  fi
+
   _require_runtime
-  info "Ensuring SSH companion E2E container is running..."
-  ${COMPOSE_BIN} -f "${COMPOSE_FILE}" up -d aibox-e2e-testrunner \
+  info "SSH companion not reachable; starting aibox-e2e-testrunner via Compose..."
+  compose up -d aibox-e2e-testrunner \
     || die "Failed to start aibox-e2e-testrunner"
 }
 
@@ -920,20 +946,20 @@ cmd_start() {
       ;;
     exited)
       info "Starting stopped container..."
-      if ! ${COMPOSE_BIN} -f "${COMPOSE_FILE}" start "${SERVICE_NAME}" 2>/dev/null; then
+      if ! compose start "${SERVICE_NAME}" 2>/dev/null; then
         ${RUNTIME_BIN} start "${CONTAINER_NAME}"
       fi
       wait_for_running
       ;;
     missing)
       local image_exists
-      image_exists=$(${COMPOSE_BIN} -f "${COMPOSE_FILE}" images -q "${SERVICE_NAME}" 2>/dev/null || true)
+      image_exists=$(compose images -q "${SERVICE_NAME}" 2>/dev/null || true)
       if [[ -z "${image_exists}" ]]; then
         warn "Image not found — building first..."
-        ${COMPOSE_BIN} -f "${COMPOSE_FILE}" build
+        compose build
       fi
       info "Starting container..."
-      ${COMPOSE_BIN} -f "${COMPOSE_FILE}" up -d "${SERVICE_NAME}"
+      compose up -d "${SERVICE_NAME}"
       wait_for_running
       ;;
   esac
@@ -950,7 +976,7 @@ cmd_stop() {
     exit 0
   fi
   info "Stopping container..."
-  if ! ${COMPOSE_BIN} -f "${COMPOSE_FILE}" stop "${SERVICE_NAME}" 2>/dev/null; then
+  if ! compose stop "${SERVICE_NAME}" 2>/dev/null; then
     ${RUNTIME_BIN} stop "${CONTAINER_NAME}"
   fi
   ok "Container stopped."

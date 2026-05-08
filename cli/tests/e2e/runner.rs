@@ -3,6 +3,10 @@
 //! Connects to the `aibox-e2e-testrunner` companion container via SSH and executes
 //! aibox commands in isolated workspace directories.
 //!
+//! The main devcontainer does not need a local docker or podman binary to talk
+//! to the companion. Reachability is SSH/SCP-based; docker/podman are only used
+//! as a best-effort convenience when starting the default companion locally.
+//!
 //! The aibox binary and addon definitions are deployed to the companion
 //! via SCP — no shared volumes. This makes the companion a realistic
 //! simulation of a user's host machine.
@@ -13,7 +17,7 @@
 
 use std::path::{Path, PathBuf};
 use std::process::{Command, Output};
-use std::sync::Once;
+use std::sync::{Once, OnceLock};
 
 /// Remote paths on the companion container.
 const REMOTE_AIBOX_BIN: &str = "/usr/local/bin/aibox";
@@ -22,6 +26,8 @@ const EXPECTED_YAZI_VERSION: &str = "26.5.6";
 
 /// Ensure the binary + addons are deployed exactly once per test run.
 static DEPLOY_ONCE: Once = Once::new();
+static COMPANION_START_ONCE: Once = Once::new();
+static COMPANION_START_ERROR: OnceLock<String> = OnceLock::new();
 
 /// SSH-based runner for executing commands on the aibox-e2e-testrunner companion container.
 pub struct E2eRunner {
@@ -32,6 +38,91 @@ pub struct E2eRunner {
 }
 
 impl E2eRunner {
+    fn repo_root() -> PathBuf {
+        Path::new(env!("CARGO_MANIFEST_DIR"))
+            .parent()
+            .expect("cli crate should live under repo root")
+            .to_path_buf()
+    }
+
+    fn is_default_companion_target(&self) -> bool {
+        self.host == "aibox-e2e-testrunner" && self.port == 22
+    }
+
+    fn companion_start_hint() -> String {
+        COMPANION_START_ERROR.get().map_or_else(
+            || {
+                "No automatic companion startup was attempted, or the startup result was unavailable."
+                    .to_string()
+            },
+            |error| format!("Automatic companion startup failed: {error}"),
+        )
+    }
+
+    fn maybe_start_default_companion(&self) {
+        if !self.is_default_companion_target() {
+            return;
+        }
+
+        COMPANION_START_ONCE.call_once(|| {
+            if self.ssh_echo_ok() {
+                return;
+            }
+
+            // Direct `cargo test --features e2e ...` bypasses maintain.sh,
+            // so start the companion here as a best-effort preflight.
+            let repo_root = Self::repo_root();
+            let compose_file = repo_root.join(".devcontainer/docker-compose.yml");
+            let compose_override = repo_root.join(".devcontainer/docker-compose.override.yml");
+            let bins = ["docker", "podman"];
+            let mut errors = Vec::new();
+
+            for bin in bins {
+                let args = [
+                    "compose".to_string(),
+                    "-f".to_string(),
+                    compose_file.to_string_lossy().to_string(),
+                    "-f".to_string(),
+                    compose_override.to_string_lossy().to_string(),
+                    "up".to_string(),
+                    "-d".to_string(),
+                    "aibox-e2e-testrunner".to_string(),
+                ];
+                let out = Command::new(bin).args(&args).output();
+                match out {
+                    Ok(output) if output.status.success() => return,
+                    Ok(output) => errors.push(format!(
+                        "{} {} failed with status {}: {}",
+                        bin,
+                        args.join(" "),
+                        output
+                            .status
+                            .code()
+                            .map_or_else(|| "signal".to_string(), |c| c.to_string()),
+                        String::from_utf8_lossy(&output.stderr).trim()
+                    )),
+                    Err(err) => errors.push(format!("{} unavailable: {}", bin, err)),
+                }
+            }
+
+            let _ = COMPANION_START_ERROR.set(errors.join(" | "));
+        });
+    }
+
+    fn ssh_echo_ok(&self) -> bool {
+        let mut args = self.ssh_opts();
+        args.extend([
+            "-p".to_string(),
+            self.port.to_string(),
+            format!("{}@{}", self.user, self.host),
+            "echo ok".to_string(),
+        ]);
+        Command::new("ssh")
+            .args(&args)
+            .output()
+            .is_ok_and(|output| output.status.success() && output.stdout == b"ok\n")
+    }
+
     fn command_exists(bin: &str) -> bool {
         Command::new(bin).arg("-V").output().is_ok()
     }
@@ -88,6 +179,7 @@ impl E2eRunner {
     /// Execute a raw command on the companion container via SSH.
     pub fn exec(&self, cmd: &str) -> Output {
         self.assert_local_prereqs();
+        self.maybe_start_default_companion();
         let mut args = self.ssh_opts();
         args.extend([
             "-p".to_string(),
@@ -98,7 +190,12 @@ impl E2eRunner {
         Command::new("ssh")
             .args(&args)
             .output()
-            .expect("SSH command failed — is aibox-e2e-testrunner running?")
+            .unwrap_or_else(|err| {
+                panic!(
+                    "SSH command failed ({err}). {}",
+                    Self::companion_start_hint()
+                )
+            })
     }
 
     /// Return the responsive container runtime available on the companion.
@@ -374,7 +471,9 @@ impl E2eRunner {
         assert!(
             output.status.success(),
             "aibox-e2e-testrunner is not reachable via SSH. Is the companion container running?\n\
+             {}\n\
              stderr: {}",
+            Self::companion_start_hint(),
             String::from_utf8_lossy(&output.stderr)
         );
         let stdout = String::from_utf8_lossy(&output.stdout);
@@ -398,13 +497,16 @@ impl E2eRunner {
              command -v ya && \
              ya --version && \
              bwrap --version && \
+             command -v newuidmap || { echo missing-newuidmap; exit 1; }; \
+             command -v newgidmap || { echo missing-newgidmap; exit 1; }; \
              unshare --user --map-root-user true && \
              bwrap --unshare-user --uid 0 --gid 0 --ro-bind / / --dev /dev --proc /proc /bin/true && \
              echo bwrap-ok",
         );
         assert!(
             output.status.success(),
-            "failed to inspect aibox-e2e-testrunner tool versions:\nstdout:\n{}\nstderr:\n{}",
+            "failed to inspect aibox-e2e-testrunner tool versions:\n{}\nstdout:\n{}\nstderr:\n{}",
+            Self::companion_start_hint(),
             String::from_utf8_lossy(&output.stdout),
             String::from_utf8_lossy(&output.stderr)
         );
@@ -415,8 +517,10 @@ impl E2eRunner {
                 && stdout.matches(&expected_yazi).count() >= 2
                 && stdout.contains("/usr/local/bin/ya")
                 && stdout.contains("bubblewrap ")
+                && stdout.contains("newuidmap")
+                && stdout.contains("newgidmap")
                 && stdout.contains("bwrap-ok"),
-            "aibox-e2e-testrunner image is stale; expected tmux, Yazi {EXPECTED_YAZI_VERSION}, the ya companion entrypoint, and a working bubblewrap user-namespace smoke probe.\n\
+            "aibox-e2e-testrunner image is stale; expected tmux, Yazi {EXPECTED_YAZI_VERSION}, the ya companion entrypoint, uidmap helpers for rootless Podman, and a working bubblewrap user-namespace smoke probe.\n\
              Rebuild/recreate the companion service from .devcontainer/Dockerfile.e2e, then rerun `./scripts/maintain.sh test-e2e`.\n\
              observed:\n{stdout}"
         );

@@ -27,6 +27,10 @@ set t_RV=
 set wildmenu wildmode=longest:full,full
 set incsearch hlsearch ignorecase smartcase
 set backspace=indent,eol,start
+set nowrap
+set sidescroll=1
+set sidescrolloff=4
+set mouse=a
 set laststatus=2
 set ruler showcmd
 
@@ -112,6 +116,10 @@ set -g mouse on
 set -g history-limit 50000
 set -g escape-time 10
 set -g focus-events on
+set -g allow-passthrough on
+set -g default-terminal "tmux-256color"
+set -ga terminal-features ",xterm-256color:RGB,tmux-256color:RGB"
+set -ga terminal-overrides ",xterm-256color:Tc,tmux-256color:Tc"
 set -g status-interval 5
 set -g prefix AIBOX_TMUX_PREFIX
 unbind C-b
@@ -136,26 +144,14 @@ set -g window-status-current-style "bg=AIBOX_TMUX_ACCENT,fg=AIBOX_TMUX_BG,bold"
 set -g window-status-format " #I:#W "
 set -g window-status-current-format " #I:#W "
 set -g status-left " #S "
-set -g status-right " #(aibox-status --once 2>/dev/null || true) %H:%M "
+set -g status-right " AIBOX_TMUX_STATUS_RIGHT "
 
-# Powerkit status. Keep the plugin list intentionally bounded for container
-# runtime safety; heavier network/cloud/media plugins stay user opt-in.
-set -g @powerkit_plugins "git,datetime,aibox"
-set -g @powerkit_bar_layout "double"
-set -g @powerkit_status_order "session,plugins"
-set -g @powerkit_theme "nord"
-set -g @powerkit_theme_variant "dark"
-set -g @powerkit_separator_style "rounded"
-set -g @powerkit_elements_spacing "both"
-set -g @powerkit_status_interval "5"
-set -g @powerkit_transparent "false"
-set -g @powerkit_pane_border_status "top"
-set -g @powerkit_pane_border_format "#{?client_prefix,PREFIX,NORMAL} #{pane_title} #{pane_current_command}"
+AIBOX_TMUX_POWERKIT_BLOCK
 
 # aibox-managed plugins are installed and pinned by the runtime image. TPM is
 # only a user convenience layer for additional personal plugins.
 if-shell '[ -f /usr/local/share/aibox/tmux/plugins/tmux-sensible/sensible.tmux ]' 'run-shell /usr/local/share/aibox/tmux/plugins/tmux-sensible/sensible.tmux'
-if-shell '[ -f /usr/local/share/aibox/tmux/plugins/tmux-powerkit/tmux-powerkit.tmux ]' 'run-shell /usr/local/share/aibox/tmux/plugins/tmux-powerkit/tmux-powerkit.tmux'
+AIBOX_TMUX_POWERKIT_PLUGIN
 if-shell '[ -f /usr/local/share/aibox/tmux/plugins/vim-tmux-navigator/vim-tmux-navigator.tmux ]' 'run-shell /usr/local/share/aibox/tmux/plugins/vim-tmux-navigator/vim-tmux-navigator.tmux'
 if-shell '[ -f /usr/local/share/aibox/tmux/plugins/tmux-yank/yank.tmux ]' 'run-shell /usr/local/share/aibox/tmux/plugins/tmux-yank/yank.tmux'
 
@@ -1280,9 +1276,15 @@ fn tmux_conf(config: &AiboxConfig) -> String {
     let theme = config.customization.resolved_theme();
     let (bg, fg, accent) = crate::themes::tmux_status_colors(&theme);
     let status = match config.customization.tmux.status.mode {
-        TmuxStatusMode::Powerline | TmuxStatusMode::Plain => "on",
+        TmuxStatusMode::Extended | TmuxStatusMode::Plain => "on",
         TmuxStatusMode::Disabled => "off",
     };
+
+    let status_right = match config.customization.tmux.status.mode {
+        TmuxStatusMode::Extended => "#(aibox-status --once 2>/dev/null || true) %H:%M",
+        TmuxStatusMode::Plain | TmuxStatusMode::Disabled => "%H:%M",
+    };
+    let (powerkit_block, powerkit_plugin) = tmux_powerkit_settings(config);
 
     let mut conf = DEFAULT_TMUX_CONF
         .replace("AIBOX_TMUX_PREFIX", &config.customization.tmux.prefix)
@@ -1291,17 +1293,108 @@ fn tmux_conf(config: &AiboxConfig) -> String {
             &config.customization.tmux.session_name,
         )
         .replace("AIBOX_TMUX_STATUS", status)
+        .replace("AIBOX_TMUX_STATUS_RIGHT", status_right)
+        .replace("AIBOX_TMUX_POWERKIT_BLOCK", &powerkit_block)
+        .replace("AIBOX_TMUX_POWERKIT_PLUGIN", &powerkit_plugin)
         .replace("AIBOX_TMUX_BG", bg)
         .replace("AIBOX_TMUX_FG", fg)
         .replace("AIBOX_TMUX_ACCENT", accent);
 
-    if config.customization.tmux.status.mode == TmuxStatusMode::Plain {
-        conf = conf.replace(
-            r#"set -g status-right " #(aibox-status --once 2>/dev/null || true) %H:%M ""#,
-            r#"set -g status-right " %H:%M ""#,
-        );
+    // Keep the status block deterministic and avoid shelling out when disabled.
+    if config.customization.tmux.status.mode == TmuxStatusMode::Disabled {
+        conf = conf.replace("set -g status-interval 5", "set -g status-interval 60");
     }
     conf
+}
+
+fn push_enabled(items: &mut Vec<&'static str>, enabled: bool, id: &'static str) {
+    if enabled {
+        items.push(id);
+    }
+}
+
+fn tmux_powerkit_settings(config: &AiboxConfig) -> (String, String) {
+    if config.customization.tmux.status.mode != TmuxStatusMode::Extended {
+        return (String::new(), String::new());
+    }
+
+    let elements = &config.customization.tmux.status.elements;
+
+    let mut line1_right = Vec::new();
+    push_enabled(&mut line1_right, elements.hostname, "hostname");
+    push_enabled(&mut line1_right, elements.external_ip, "external_ip");
+    push_enabled(&mut line1_right, elements.ssh, "ssh");
+    push_enabled(&mut line1_right, elements.uptime, "uptime");
+    push_enabled(&mut line1_right, elements.weather, "weather");
+    push_enabled(&mut line1_right, elements.datetime, "datetime");
+
+    let mut line2_left = Vec::new();
+    push_enabled(&mut line2_left, elements.git, "git");
+    push_enabled(&mut line2_left, elements.github, "github");
+    push_enabled(&mut line2_left, elements.kubernetes, "kubernetes");
+    push_enabled(&mut line2_left, elements.terraform, "terraform");
+    push_enabled(&mut line2_left, elements.cloud, "cloud");
+    push_enabled(&mut line2_left, elements.cloudstatus, "cloudstatus");
+
+    let mut line2_right = Vec::new();
+    push_enabled(&mut line2_right, elements.cpu, "cpu");
+    push_enabled(&mut line2_right, elements.loadavg, "loadavg");
+    push_enabled(&mut line2_right, elements.mem, "memory");
+    push_enabled(&mut line2_right, elements.swap, "swap");
+    push_enabled(&mut line2_right, elements.disk, "disk");
+    push_enabled(&mut line2_right, elements.gpu, "gpu");
+    push_enabled(&mut line2_right, elements.netspeed, "netspeed");
+    push_enabled(&mut line2_right, elements.ping, "ping");
+    push_enabled(&mut line2_right, elements.aibox, "aibox");
+
+    let mut plugin_order = Vec::new();
+    plugin_order.extend(line1_right.iter().copied());
+    plugin_order.extend(line2_left.iter().copied());
+    plugin_order.extend(line2_right.iter().copied());
+
+    let metrics = &elements.aibox_metrics;
+    let aibox_metrics = [
+        (metrics.log, "log"),
+        (metrics.oom, "oom"),
+        (metrics.proc, "proc"),
+        (metrics.ai, "ai"),
+        (metrics.mcp, "mcp"),
+        (metrics.mig, "mig"),
+    ]
+    .iter()
+    .filter_map(|(enabled, key)| enabled.then_some(*key))
+    .collect::<Vec<_>>()
+    .join(",");
+
+    let (powerkit_theme, powerkit_variant) =
+        crate::themes::tmux_powerkit_theme(&config.customization.resolved_theme());
+    let powerkit_block = format!(
+        r##"# Powerkit status.
+set -g @powerkit_plugins "{}"
+set -g @powerkit_bar_layout "double"
+set -g @powerkit_status_order "session,plugins"
+set -g @powerkit_theme "{}"
+set -g @powerkit_theme_variant "{}"
+set -g @powerkit_separator_style "rounded"
+set -g @powerkit_elements_spacing "both"
+set -g @powerkit_status_interval "5"
+set -g @powerkit_transparent "false"
+set -g @powerkit_pane_border_status "top"
+set -g @powerkit_pane_border_format "#{{?client_prefix,PREFIX,NORMAL}} #{{pane_title}} #{{pane_current_command}}"
+set -g @powerkit_line1_right "{}"
+set -g @powerkit_line2_left "{}"
+set -g @powerkit_line2_right "{}"
+set -g @powerkit_plugin_aibox_metrics "{}""##,
+        plugin_order.join(","),
+        powerkit_theme,
+        powerkit_variant,
+        line1_right.join(","),
+        line2_left.join(","),
+        line2_right.join(","),
+        aibox_metrics
+    );
+    let powerkit_plugin = "if-shell '[ -f /usr/local/share/aibox/tmux/plugins/tmux-powerkit/tmux-powerkit.tmux ]' 'run-shell /usr/local/share/aibox/tmux/plugins/tmux-powerkit/tmux-powerkit.tmux'".to_string();
+    (powerkit_block, powerkit_plugin)
 }
 
 fn tmux_layout_script(
@@ -1316,7 +1409,7 @@ fn tmux_layout_script(
         .map(|provider| provider.binary_name())
         .unwrap_or("bash");
     let git_window = if include_lazygit {
-        r#"tmux new-window -t "$session:" -n git -c "$workspace" "$(tool_or_shell lazygit)"
+        r#"tmux -S "$socket" new-window -t "$session:" -n git -c "$workspace" "$(tool_or_shell lazygit)"
 "#
     } else {
         ""
@@ -1333,47 +1426,47 @@ fn tmux_layout_script(
 
     let layout_body = match layout {
         ConfigLayout::Dev => format!(
-            r#"tmux -f "$config" new-session -d -s "$session" -n dev -c "$workspace" "$(tool_or_shell vim)"
-editor_pane="$(tmux display-message -p -t "$session:dev" '#{{pane_id}}')"
-files_pane="$(tmux split-window -t "$session:dev" -h -p 35 -P -F '#{{pane_id}}' -c "$workspace" "$(tool_or_shell yazi)")"
-agent_pane="$(tmux split-window -t "$session:dev" -v -p 40 -P -F '#{{pane_id}}' -c "$workspace" "$(tool_or_shell {provider})")"
-tmux select-pane -t "$editor_pane"
+            r#"tmux -S "$socket" -f "$config" new-session -d -s "$session" -n dev -c "$workspace" "$(tool_or_shell vim)"
+editor_pane="$(tmux -S "$socket" display-message -p -t "$session:dev" '#{{pane_id}}')"
+files_pane="$(tmux -S "$socket" split-window -t "$session:dev" -h -p 35 -P -F '#{{pane_id}}' -c "$workspace" "$(tool_or_shell yazi)")"
+agent_pane="$(tmux -S "$socket" split-window -t "$session:dev" -v -p 40 -P -F '#{{pane_id}}' -c "$workspace" "$(tool_or_shell {provider})")"
+tmux -S "$socket" select-pane -t "$editor_pane"
 "#
         ),
         ConfigLayout::Focus => format!(
-            r#"tmux -f "$config" new-session -d -s "$session" -n focus -c "$workspace" "$(tool_or_shell {provider})"
-tmux new-window -t "$session:" -n editor -c "$workspace" "$(tool_or_shell vim)"
+            r#"tmux -S "$socket" -f "$config" new-session -d -s "$session" -n focus -c "$workspace" "$(tool_or_shell {provider})"
+tmux -S "$socket" new-window -t "$session:" -n editor -c "$workspace" "$(tool_or_shell vim)"
 "#
         ),
         ConfigLayout::Cowork => format!(
-            r#"tmux -f "$config" new-session -d -s "$session" -n cowork -c "$workspace" "$(tool_or_shell vim)"
-editor_pane="$(tmux display-message -p -t "$session:cowork" '#{{pane_id}}')"
-agent_pane="$(tmux split-window -t "$session:cowork" -h -p 50 -P -F '#{{pane_id}}' -c "$workspace" "$(tool_or_shell {provider})")"
-files_pane="$(tmux split-window -t "$editor_pane" -v -p 35 -P -F '#{{pane_id}}' -c "$workspace" "$(tool_or_shell yazi)")"
-tmux select-pane -t "$editor_pane"
+            r#"tmux -S "$socket" -f "$config" new-session -d -s "$session" -n cowork -c "$workspace" "$(tool_or_shell vim)"
+editor_pane="$(tmux -S "$socket" display-message -p -t "$session:cowork" '#{{pane_id}}')"
+agent_pane="$(tmux -S "$socket" split-window -t "$session:cowork" -h -p 50 -P -F '#{{pane_id}}' -c "$workspace" "$(tool_or_shell {provider})")"
+files_pane="$(tmux -S "$socket" split-window -t "$editor_pane" -v -p 35 -P -F '#{{pane_id}}' -c "$workspace" "$(tool_or_shell yazi)")"
+tmux -S "$socket" select-pane -t "$editor_pane"
 "#
         ),
         ConfigLayout::CoworkSwap => format!(
-            r#"tmux -f "$config" new-session -d -s "$session" -n cowork-swap -c "$workspace" "$(tool_or_shell yazi)"
-files_pane="$(tmux display-message -p -t "$session:cowork-swap" '#{{pane_id}}')"
-agent_pane="$(tmux split-window -t "$session:cowork-swap" -v -p 45 -P -F '#{{pane_id}}' -c "$workspace" "$(tool_or_shell {provider})")"
-editor_pane="$(tmux split-window -t "$session:cowork-swap" -h -p 60 -P -F '#{{pane_id}}' -c "$workspace" "$(tool_or_shell vim)")"
-tmux select-pane -t "$editor_pane"
+            r#"tmux -S "$socket" -f "$config" new-session -d -s "$session" -n cowork-swap -c "$workspace" "$(tool_or_shell yazi)"
+files_pane="$(tmux -S "$socket" display-message -p -t "$session:cowork-swap" '#{{pane_id}}')"
+agent_pane="$(tmux -S "$socket" split-window -t "$session:cowork-swap" -v -p 45 -P -F '#{{pane_id}}' -c "$workspace" "$(tool_or_shell {provider})")"
+editor_pane="$(tmux -S "$socket" split-window -t "$session:cowork-swap" -h -p 60 -P -F '#{{pane_id}}' -c "$workspace" "$(tool_or_shell vim)")"
+tmux -S "$socket" select-pane -t "$editor_pane"
 "#
         ),
         ConfigLayout::Browse => format!(
-            r#"tmux -f "$config" new-session -d -s "$session" -n browse -c "$workspace" "$(tool_or_shell yazi)"
-files_pane="$(tmux display-message -p -t "$session:browse" '#{{pane_id}}')"
-agent_pane="$(tmux split-window -t "$session:browse" -v -p 35 -P -F '#{{pane_id}}' -c "$workspace" "$(tool_or_shell {provider})")"
-tmux new-window -t "$session:" -n editor -c "$workspace" "$(tool_or_shell vim)"
+            r#"tmux -S "$socket" -f "$config" new-session -d -s "$session" -n browse -c "$workspace" "$(tool_or_shell yazi)"
+files_pane="$(tmux -S "$socket" display-message -p -t "$session:browse" '#{{pane_id}}')"
+agent_pane="$(tmux -S "$socket" split-window -t "$session:browse" -v -p 35 -P -F '#{{pane_id}}' -c "$workspace" "$(tool_or_shell {provider})")"
+tmux -S "$socket" new-window -t "$session:" -n editor -c "$workspace" "$(tool_or_shell vim)"
 "#
         ),
         ConfigLayout::Ai => format!(
-            r#"tmux -f "$config" new-session -d -s "$session" -n ai -c "$workspace" "$(tool_or_shell yazi)"
-files_pane="$(tmux display-message -p -t "$session:ai" '#{{pane_id}}')"
-agent_pane="$(tmux split-window -t "$session:ai" -h -p 50 -P -F '#{{pane_id}}' -c "$workspace" "$(tool_or_shell {provider})")"
-tmux new-window -t "$session:" -n editor -c "$workspace" "$(tool_or_shell vim)"
-tmux new-window -t "$session:" -n shell -c "$workspace" "bash"
+            r#"tmux -S "$socket" -f "$config" new-session -d -s "$session" -n ai -c "$workspace" "$(tool_or_shell yazi)"
+files_pane="$(tmux -S "$socket" display-message -p -t "$session:ai" '#{{pane_id}}')"
+agent_pane="$(tmux -S "$socket" split-window -t "$session:ai" -h -p 50 -P -F '#{{pane_id}}' -c "$workspace" "$(tool_or_shell {provider})")"
+tmux -S "$socket" new-window -t "$session:" -n editor -c "$workspace" "$(tool_or_shell vim)"
+tmux -S "$socket" new-window -t "$session:" -n shell -c "$workspace" "bash"
 "#
         ),
     };
@@ -1385,18 +1478,24 @@ set -euo pipefail
 session="${{AIBOX_TMUX_SESSION:-{session_name}}}"
 workspace="${{AIBOX_WORKSPACE:-/workspace}}"
 config="${{AIBOX_TMUX_CONFIG:-$HOME/.config/tmux/tmux.conf}}"
+socket="${{AIBOX_TMUX_SOCKET:-$HOME/.tmux/aibox.sock}}"
+mkdir -p "$(dirname "$socket")"
 
-if tmux -f "$config" has-session -t "$session" 2>/dev/null; then
-  exec tmux -f "$config" attach-session -t "$session"
+if tmux -S "$socket" -f "$config" has-session -t "$session" 2>/dev/null; then
+  exec tmux -S "$socket" -f "$config" attach-session -t "$session"
 fi
 
 tool_or_shell() {{
   local tool="$1"
+  if [[ "$tool" == "yazi" ]]; then
+    printf "bash -lc 'for _ in {{1..50}}; do tmux -S %q list-clients -t %q >/dev/null 2>&1 && break; sleep 0.1; done; if command -v yazi >/dev/null 2>&1; then exec yazi; fi; exec bash'" "$socket" "$session"
+    return
+  fi
   printf "bash -lc 'if command -v %q >/dev/null 2>&1; then %q; fi; exec bash'" "$tool" "$tool"
 }}
 
-{layout_body}{git_window}tmux select-window -t "$session:{primary_window}" 2>/dev/null || true
-exec tmux -f "$config" attach-session -t "$session"
+{layout_body}{git_window}tmux -S "$socket" select-window -t "$session:{primary_window}" 2>/dev/null || true
+exec tmux -S "$socket" -f "$config" attach-session -t "$session"
 "#,
         primary_window = primary_window,
     )
@@ -1409,6 +1508,7 @@ set -euo pipefail
 
 layout="${{1:-${{AIBOX_TMUX_LAYOUT:-{layout}}}}}"
 session="${{2:-${{AIBOX_TMUX_SESSION:-{session}}}}}"
+socket="${{AIBOX_TMUX_SOCKET:-$HOME/.tmux/aibox.sock}}"
 script="${{HOME}}/.config/tmux/layouts/${{layout}}.sh"
 
 if [[ ! -x "${{script}}" ]]; then
@@ -1416,7 +1516,7 @@ if [[ ! -x "${{script}}" ]]; then
   exit 2
 fi
 
-exec env AIBOX_TMUX_SESSION="${{session}}" "${{script}}"
+exec env AIBOX_TMUX_SESSION="${{session}}" AIBOX_TMUX_SOCKET="${{socket}}" "${{script}}"
 "#,
         layout = config.customization.tmux_layout(),
         session = &config.customization.tmux.session_name,
@@ -1672,7 +1772,7 @@ pub fn sync_theme_files(config: &AiboxConfig) -> Result<Vec<String>> {
     if include_lazygit
         && force_seed_file(
             &root.join(".config").join("lazygit").join("config.yml"),
-            crate::themes::lazygit_theme(theme),
+            &crate::themes::lazygit_theme(theme),
         )?
     {
         updated.push(".config/lazygit/config.yml".to_string());
@@ -2071,8 +2171,8 @@ mod tests {
         );
         assert!(
             open_in_editor.contains("list-panes")
-                && open_in_editor.contains("refusing to send Vim commands"),
-            "open-in-editor should guard against injecting commands into non-editor panes"
+                && open_in_editor.contains("tmux send-keys -t \"$target\" C-c"),
+            "open-in-editor should rehydrate non-vim editor panes before opening files"
         );
         let aibox_preview =
             fs::read_to_string(root.join(".local").join("bin").join("aibox-preview")).unwrap();
@@ -2557,10 +2657,15 @@ rules = [
         let providers = vec![AiProvider::Codex, AiProvider::Claude];
         let layout = tmux_layout_script(&ConfigLayout::Dev, &providers, true, "aibox");
 
-        assert!(layout.contains("tmux -f \"$config\" new-session -d -s \"$session\" -n dev"));
+        assert!(
+            layout.contains(
+                "tmux -S \"$socket\" -f \"$config\" new-session -d -s \"$session\" -n dev"
+            )
+        );
         assert!(layout.contains("tool_or_shell codex"));
         assert!(!layout.contains("tool_or_shell claude"));
-        assert!(layout.contains("tmux new-window -t \"$session:\" -n git"));
+        assert!(layout.contains("tmux -S \"$socket\" new-window -t \"$session:\" -n git"));
+        assert!(layout.contains("socket=\"${AIBOX_TMUX_SOCKET:-$HOME/.tmux/aibox.sock}\""));
         assert!(!layout.contains("zellij"));
     }
 
@@ -2583,7 +2688,9 @@ rules = [
                 "{name} layout should name its first tmux window:\n{body}"
             );
             assert!(
-                body.contains(&format!("tmux select-window -t \"$session:{name}\"")),
+                body.contains(&format!(
+                    "tmux -S \"$socket\" select-window -t \"$session:{name}\""
+                )),
                 "{name} layout should reselect the named primary window, not a numeric index:\n{body}"
             );
             assert!(
@@ -2602,8 +2709,8 @@ rules = [
 
         assert!(layout.contains("tool_or_shell codex"));
         assert!(!layout.contains("tool_or_shell claude"));
-        assert!(layout.contains("tmux new-window -t \"$session:\" -n editor"));
-        assert!(layout.contains("tmux new-window -t \"$session:\" -n shell"));
+        assert!(layout.contains("tmux -S \"$socket\" new-window -t \"$session:\" -n editor"));
+        assert!(layout.contains("tmux -S \"$socket\" new-window -t \"$session:\" -n shell"));
     }
 
     #[test]
@@ -2616,8 +2723,11 @@ rules = [
 
         assert!(script.contains(r#"AIBOX_TMUX_LAYOUT:-ai"#));
         assert!(script.contains(r#"AIBOX_TMUX_SESSION:-work"#));
+        assert!(script.contains(r#"AIBOX_TMUX_SOCKET:-$HOME/.tmux/aibox.sock"#));
         assert!(script.contains(r#".config/tmux/layouts/${layout}.sh"#));
-        assert!(script.contains(r#"exec env AIBOX_TMUX_SESSION="${session}" "${script}""#));
+        assert!(script.contains(
+            r#"exec env AIBOX_TMUX_SESSION="${session}" AIBOX_TMUX_SOCKET="${socket}" "${script}""#
+        ));
         assert!(!script.contains("tmux new-session"));
     }
 
@@ -2695,7 +2805,9 @@ rules = [
         assert!(
             DEFAULT_VIMRC.contains("set t_u7=")
                 && DEFAULT_VIMRC.contains("set t_RV=")
-                && DEFAULT_VIMRC.contains("autocmd VimEnter * redraw!"),
+                && DEFAULT_VIMRC.contains("autocmd VimEnter * redraw!")
+                && DEFAULT_VIMRC.contains("set nowrap")
+                && DEFAULT_VIMRC.contains("set sidescroll=1"),
             "default vimrc should harden redraw during Yazi/Vim handoff"
         );
     }
@@ -2885,6 +2997,11 @@ rules = [
         let conf = tmux_conf(&config);
 
         assert!(
+            conf.contains("set -g allow-passthrough on")
+                && conf.contains("set -g default-terminal \"tmux-256color\""),
+            "generated tmux config should enable passthrough and tmux-256color defaults for terminal app compatibility:\n{conf}"
+        );
+        assert!(
             conf.contains("/usr/local/share/aibox/tmux/plugins/tmux-sensible/sensible.tmux")
                 && conf.contains(
                     "/usr/local/share/aibox/tmux/plugins/tmux-powerkit/tmux-powerkit.tmux"
@@ -2896,13 +3013,21 @@ rules = [
             "aibox-managed tmux plugins should load from preinstalled pinned runtime paths:\n{conf}"
         );
         assert!(
-            conf.contains(r#"@powerkit_plugins "git,datetime,aibox""#)
+            conf.contains(
+                r#"@powerkit_plugins "hostname,external_ip,ssh,uptime,weather,datetime,git,github,kubernetes,terraform,cloud,cloudstatus,cpu,loadavg,memory,swap,disk,gpu,netspeed,ping,aibox""#
+            )
                 && conf.contains(r#"@powerkit_bar_layout "double""#)
                 && conf.contains(r#"@powerkit_status_order "session,plugins""#)
                 && conf.contains(r#"@powerkit_status_interval "5""#)
                 && conf.contains(r#"@powerkit_transparent "false""#)
                 && conf.contains(r#"@powerkit_pane_border_status "top""#)
-                && conf.contains(r##"@powerkit_pane_border_format "#{?client_prefix,PREFIX,NORMAL} #{pane_title} #{pane_current_command}""##),
+                && conf.contains(r##"@powerkit_pane_border_format "#{?client_prefix,PREFIX,NORMAL} #{pane_title} #{pane_current_command}""##)
+                && conf.contains(r#"@powerkit_line1_right "hostname,external_ip,ssh,uptime,weather,datetime""#)
+                && conf.contains(r#"@powerkit_line2_left "git,github,kubernetes,terraform,cloud,cloudstatus""#)
+                && conf.contains(
+                    r#"@powerkit_line2_right "cpu,loadavg,memory,swap,disk,gpu,netspeed,ping,aibox""#
+                )
+                && conf.contains(r#"@powerkit_plugin_aibox_metrics "log,oom,proc,ai,mcp,mig""#),
             "generated persistent tmux config should carry bounded powerkit defaults:\n{conf}"
         );
         assert!(
@@ -2930,7 +3055,8 @@ rules = [
         let config = crate::config::test_config();
         let conf = tmux_conf(&config);
 
-        assert!(conf.contains("aibox-status --once"));
+        assert!(conf.contains(r#"@powerkit_plugins "hostname,external_ip"#));
+        assert!(conf.contains("tmux-powerkit.tmux"));
         assert!(
             !conf.contains("$HOME/.local/bin/aibox-status"),
             "tmux status must use the image-owned Rust status binary"
@@ -2945,6 +3071,8 @@ rules = [
 
         assert!(conf.contains("set -g status on"));
         assert!(!conf.contains("aibox-status --once"));
+        assert!(!conf.contains("@powerkit_plugins"));
+        assert!(!conf.contains("tmux-powerkit.tmux"));
     }
 
     #[test]
@@ -2954,6 +3082,8 @@ rules = [
         let conf = tmux_conf(&config);
 
         assert!(conf.contains("set -g status off"));
+        assert!(!conf.contains("@powerkit_plugins"));
+        assert!(!conf.contains("tmux-powerkit.tmux"));
     }
 
     #[test]

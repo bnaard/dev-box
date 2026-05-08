@@ -6,6 +6,8 @@ services:
   aibox:
     build:
       target: aibox
+    depends_on:
+      - aibox-e2e-testrunner
     # Guardrail for runaway terminal/status/plugin loops. Normal Rust builds
     # stay well below this; a bad loop now fails inside the container before it
     # can consume host/runtime-level PID space.

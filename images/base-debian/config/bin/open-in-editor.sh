@@ -7,8 +7,8 @@
 # - browse layout: no editor pane is started until the first file open
 #
 # Set AIBOX_EDITOR_DIR to: right, down, or tab.
-# When unset, the helper prefers an existing pane titled "editor" and falls
-# back to creating one in the current tmux window.
+# When unset, the helper prefers an existing editor pane/window and falls
+# back to creating a one-shot Vim pane in the current tmux window.
 
 file="${1:-}"
 [ -z "$file" ] && exit 1
@@ -23,6 +23,7 @@ dir="${AIBOX_EDITOR_DIR:-}"
 session="$(tmux display-message -p '#{session_name}')"
 session_window="$(tmux display-message -p '#{session_name}:#{window_index}')"
 current_window_id="$(tmux display-message -p '#{window_id}')"
+source_pane="${TMUX_PANE:-$(tmux display-message -p '#{pane_id}')}"
 
 vim_escape_path() {
     printf '%s' "$1" \
@@ -63,33 +64,41 @@ find_editor_pane() {
 }
 
 pane_is_editor() {
-    tmux display-message -p -t "$1" '#{pane_title} #{pane_current_command}' 2>/dev/null \
-        | awk '{ line=tolower($0); if (line ~ /(^| )editor( |$)|vim-loop|(^| )vim( |$)/) { found=1 } } END { exit found ? 0 : 1 }'
+    tmux display-message -p -t "$1" '#{pane_current_command}' 2>/dev/null \
+        | awk 'BEGIN { found=0 } { cmd=tolower($0); if (cmd ~ /^(vim|nvim|vim-loop)$/) found=1 } END { exit found ? 0 : 1 }'
+}
+
+vim_return_cmd() {
+    escaped="$(vim_escape_path "$source_pane")"
+    printf 'silent! autocmd VimLeavePre <buffer> ++once call system("tmux select-pane -t %s >/dev/null 2>&1")' "$escaped"
 }
 
 target="$(find_editor_pane)"
 if [ -z "$target" ]; then
+    source_dir="$(dirname "$file")"
+    open_cmd="vim --cmd \"set t_u7=\" --cmd \"set t_RV=\" --cmd \"$(vim_return_cmd)\" $(shell_quote "$file")"
     case "${dir:-right}" in
         down) split_flag="-v" ;;
         tab)
-            tmux new-window -n editor -c "$(dirname "$file")" "vim-loop $(shell_quote "$file")"
+            tmux new-window -n editor -c "$source_dir" "$open_cmd"
             exit 0
             ;;
         *) split_flag="-h" ;;
     esac
-    target="$(tmux split-window "$split_flag" -P -F '#{pane_id}' -c "$(dirname "$file")" "vim-loop $(shell_quote "$file")")"
+    target="$(tmux split-window "$split_flag" -P -F '#{pane_id}' -c "$source_dir" "$open_cmd")"
     tmux select-pane -t "$target" -T editor
     exit 0
 fi
 
 vim_file="$(vim_escape_path "$file")"
 if ! pane_is_editor "$target"; then
-    echo "open-in-editor: refusing to send Vim commands to a non-editor tmux pane" >&2
-    echo "open-in-editor: set AIBOX_EDITOR_DIR=tab|right|down, or focus an editor pane first" >&2
-    exit 2
+    tmux send-keys -t "$target" C-c
+    tmux send-keys -t "$target" "vim --cmd \"set t_u7=\" --cmd \"set t_RV=\" --cmd \"$(vim_return_cmd)\" $(shell_quote "$file")" Enter
+else
+    tmux send-keys -t "$target" Escape
+    tmux send-keys -t "$target" ":silent! autocmd VimLeavePre <buffer> ++once call system(\"tmux select-pane -t ${source_pane} >/dev/null 2>&1\")" Enter
+    tmux send-keys -t "$target" ":edit ${vim_file}" Enter
 fi
 target_window="$(tmux display-message -p -t "$target" '#{session_name}:#{window_index}' 2>/dev/null || true)"
 [ -n "$target_window" ] && tmux select-window -t "$target_window"
 tmux select-pane -t "$target"
-tmux send-keys -t "$target" Escape
-tmux send-keys -t "$target" ":edit ${vim_file}" Enter

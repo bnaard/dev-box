@@ -13,6 +13,7 @@ plugin_get_metadata() {
 plugin_declare_options() {
     declare_option "icon" "string" "AIBOX" "Segment label"
     declare_option "cache_ttl" "number" "5" "Cache duration in seconds"
+    declare_option "metrics" "string" "log,oom,proc,ai,mcp,mig" "Enabled aibox metrics"
 }
 
 json_value() {
@@ -87,29 +88,36 @@ plugin_get_context() { printf 'runtime'; }
 plugin_get_icon() { get_option "icon"; }
 
 plugin_render() {
+    local enabled metrics_csv
+    metrics_csv="$(get_option "metrics")"
+    if [[ -z "${metrics_csv}" ]]; then
+        metrics_csv="log,oom,proc,ai,mcp,mig"
+    fi
+
+    contains_metric() {
+        [[ ",${metrics_csv}," == *",$1,"* ]]
+    }
+
+    append_metric() {
+        local key="$1"
+        local value="$2"
+        if contains_metric "${key}"; then
+            enabled+=" ${value}"
+        fi
+    }
+
     local deg=""
     if [[ "$(plugin_data_get degraded)" == "true" ]]; then
         deg=" DEG yes"
     fi
 
-    printf 'CPU %s LOAD %s NET %s MEM %s/%s DISK %s/%s LOG %s/%s/%s OOM %s/%s PROC %s AI %s MCP %s/%s MIG %s%s UP %s' \
-        "$(plugin_data_get cpu_throttling)" \
-        "$(plugin_data_get load_average)" \
-        "$(plugin_data_get net)" \
-        "$(plugin_data_get memory_current)" \
-        "$(plugin_data_get memory_max)" \
-        "$(plugin_data_get disk_used)" \
-        "$(plugin_data_get disk_total)" \
-        "$(plugin_data_get log_info)" \
-        "$(plugin_data_get log_warn)" \
-        "$(plugin_data_get log_error)" \
-        "$(plugin_data_get oom_events)" \
-        "$(plugin_data_get oom_kill)" \
-        "$(plugin_data_get processes)" \
-        "$(plugin_data_get ai_agents)" \
-        "$(plugin_data_get processkit_mode)" \
-        "$(plugin_data_get processkit_mcp)" \
-        "$(plugin_data_get migrations)" \
-        "${deg}" \
-        "$(plugin_data_get container_uptime)"
+    append_metric "log" "LOG $(plugin_data_get log_info)/$(plugin_data_get log_warn)/$(plugin_data_get log_error)"
+    append_metric "oom" "OOM $(plugin_data_get oom_events)/$(plugin_data_get oom_kill)"
+    append_metric "proc" "PROC $(plugin_data_get processes)"
+    append_metric "ai" "AI $(plugin_data_get ai_agents)"
+    append_metric "mcp" "MCP $(plugin_data_get processkit_mode)/$(plugin_data_get processkit_mcp)"
+    append_metric "mig" "MIG $(plugin_data_get migrations)"
+
+    enabled="${enabled# }"
+    printf '%s%s' "${enabled:-OK}" "${deg}"
 }

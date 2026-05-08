@@ -530,9 +530,10 @@ pub fn install_files_from_cache(
 /// files through `template_vars` before writing. Returns
 /// `(files_installed, files_skipped, groups_touched)`.
 ///
-/// When `effective_skills` is `Some(set)`, skill files (anything
-/// under `skills/<name>/`) are filtered by the set: skills whose
-/// directory name is not in the set are skipped without writing
+/// When `effective_skills` is `Some(set)`, skill files are filtered by
+/// the set. Both legacy `skills/<skill>/...` paths and current
+/// `context/skills/<category>/<skill>/...` paths are supported. Skills
+/// whose directory name is not in the set are skipped without writing
 /// (counted as `files_skipped`). When `effective_skills` is `None`,
 /// every skill the cache ships is installed (the v0.16.4 behavior).
 pub fn install_files_from_cache_with_vars(
@@ -552,6 +553,10 @@ pub fn install_files_from_cache_with_vars(
     let mut files_skipped = 0usize;
     let mut groups: BTreeSet<String> = BTreeSet::new();
 
+    if let Some(set) = effective_skills {
+        prune_unselected_installed_skills(cache_src_path, project_root, set)?;
+    }
+
     walk_and_install(
         cache_src_path,
         cache_src_path,
@@ -564,6 +569,169 @@ pub fn install_files_from_cache_with_vars(
     )?;
 
     Ok((files_installed, files_skipped, groups.len()))
+}
+
+fn prune_unselected_installed_skills(
+    cache_src_path: &Path,
+    project_root: &Path,
+    effective_skills: &HashSet<String>,
+) -> Result<()> {
+    let current_skills_root = cache_src_path
+        .join(crate::processkit_vocab::src::CONTEXT_DIR)
+        .join(crate::processkit_vocab::src::SKILLS);
+    if current_skills_root.is_dir() {
+        for category in fs::read_dir(&current_skills_root)
+            .with_context(|| format!("failed to read {}", current_skills_root.display()))?
+            .flatten()
+        {
+            let category_path = category.path();
+            if !category_path.is_dir() {
+                continue;
+            }
+            let Some(category_name) = category.file_name().to_str().map(str::to_string) else {
+                continue;
+            };
+            if category_name.starts_with('_') {
+                continue;
+            }
+            for skill in fs::read_dir(&category_path)
+                .with_context(|| format!("failed to read {}", category_path.display()))?
+                .flatten()
+            {
+                let skill_path = skill.path();
+                if !skill_path.is_dir() {
+                    continue;
+                }
+                let Some(skill_name) = skill.file_name().to_str().map(str::to_string) else {
+                    continue;
+                };
+                if skill_name.starts_with('_') || effective_skills.contains(&skill_name) {
+                    continue;
+                }
+                let live = project_root
+                    .join(crate::processkit_vocab::src::CONTEXT_DIR)
+                    .join(crate::processkit_vocab::src::SKILLS)
+                    .join(&category_name)
+                    .join(&skill_name);
+                if live.is_dir() {
+                    fs::remove_dir_all(&live)
+                        .with_context(|| format!("failed to remove {}", live.display()))?;
+                }
+            }
+        }
+    }
+
+    let legacy_skills_root = cache_src_path.join(crate::processkit_vocab::src::LEGACY_SKILLS);
+    if legacy_skills_root.is_dir() {
+        for skill in fs::read_dir(&legacy_skills_root)
+            .with_context(|| format!("failed to read {}", legacy_skills_root.display()))?
+            .flatten()
+        {
+            let skill_path = skill.path();
+            if !skill_path.is_dir() {
+                continue;
+            }
+            let Some(skill_name) = skill.file_name().to_str().map(str::to_string) else {
+                continue;
+            };
+            if skill_name.starts_with('_') || effective_skills.contains(&skill_name) {
+                continue;
+            }
+            let live = project_root
+                .join(crate::processkit_vocab::LIVE_SKILLS_DIR)
+                .join(&skill_name);
+            if live.is_dir() {
+                fs::remove_dir_all(&live)
+                    .with_context(|| format!("failed to remove {}", live.display()))?;
+            }
+        }
+    }
+
+    Ok(())
+}
+
+pub fn prune_unselected_live_skills(project_root: &Path, config: &AiboxConfig) -> Result<usize> {
+    let Some(effective_skills) = build_effective_skill_set(project_root, config)? else {
+        return Ok(0);
+    };
+    let Some(skills_root) = mirror_skills_dir(project_root, &config.processkit.version) else {
+        return Ok(0);
+    };
+
+    let mut removed = 0usize;
+    for category in fs::read_dir(&skills_root)
+        .with_context(|| format!("failed to read {}", skills_root.display()))?
+        .flatten()
+    {
+        let category_path = category.path();
+        if !category_path.is_dir() {
+            continue;
+        }
+        let Some(category_name) = category.file_name().to_str().map(str::to_string) else {
+            continue;
+        };
+        if category_name.starts_with('_') {
+            continue;
+        }
+        for skill in fs::read_dir(&category_path)
+            .with_context(|| format!("failed to read {}", category_path.display()))?
+            .flatten()
+        {
+            let skill_path = skill.path();
+            if !skill_path.is_dir() {
+                continue;
+            }
+            let Some(skill_name) = skill.file_name().to_str().map(str::to_string) else {
+                continue;
+            };
+            if skill_name.starts_with('_') || effective_skills.contains(&skill_name) {
+                continue;
+            }
+            let live = project_root
+                .join(crate::processkit_vocab::src::CONTEXT_DIR)
+                .join(crate::processkit_vocab::src::SKILLS)
+                .join(&category_name)
+                .join(&skill_name);
+            if live.is_dir() {
+                fs::remove_dir_all(&live)
+                    .with_context(|| format!("failed to remove {}", live.display()))?;
+                removed += 1;
+            }
+        }
+    }
+
+    Ok(removed)
+}
+
+fn source_skill_name(rel: &Path) -> Option<String> {
+    let parts: Vec<&str> = rel
+        .components()
+        .filter_map(|c| match c {
+            std::path::Component::Normal(s) => s.to_str(),
+            _ => None,
+        })
+        .collect();
+
+    // Current processkit layout: context/skills/<category>/<skill>/...
+    if parts.len() >= 4
+        && parts[0] == crate::processkit_vocab::src::CONTEXT_DIR
+        && parts[1] == crate::processkit_vocab::src::SKILLS
+    {
+        let skill = parts[3];
+        if !skill.starts_with('_') {
+            return Some(skill.to_string());
+        }
+    }
+
+    // Legacy layout: skills/<skill>/...
+    if parts.len() >= 2 && parts[0] == crate::processkit_vocab::src::LEGACY_SKILLS {
+        let skill = parts[1];
+        if !skill.starts_with('_') {
+            return Some(skill.to_string());
+        }
+    }
+
+    None
 }
 
 /// Compute the templates dir for a given processkit version.
@@ -760,26 +928,17 @@ fn walk_and_install(
             })?
             .to_path_buf();
 
-        // [skills] filter (DEC-035): if the rel path is under
-        // skills/<name>/ AND we have an effective set AND <name>
-        // isn't in it, skip the file. _lib/ and the top-level
-        // FORMAT.md / INDEX.md under skills/ are NOT filtered (they
-        // belong to "skills as a system", not to any specific skill).
+        // [skills] filter (DEC-035): if the rel path is under a skill
+        // directory and the skill isn't in the effective set, skip the
+        // file. _lib/ and the top-level FORMAT.md / INDEX.md under
+        // skills/ are NOT filtered (they belong to "skills as a
+        // system", not to any specific skill).
         if let Some(set) = effective_skills {
-            let parts: Vec<&str> = rel
-                .components()
-                .filter_map(|c| match c {
-                    std::path::Component::Normal(s) => s.to_str(),
-                    _ => None,
-                })
-                .collect();
-            if parts.len() >= 2 && parts[0] == "skills" {
-                let skill_name = parts[1];
-                // _lib is the shared lib, never filtered.
-                if !skill_name.starts_with('_') && !set.contains(skill_name) {
-                    *files_skipped += 1;
-                    continue;
-                }
+            if let Some(skill_name) = source_skill_name(&rel)
+                && !set.contains(&skill_name)
+            {
+                *files_skipped += 1;
+                continue;
             }
         }
 
@@ -1373,6 +1532,48 @@ mod tests {
         assert!(
             proj.join("context/skills/workitem-management/SKILL.md")
                 .exists()
+        );
+    }
+
+    #[test]
+    fn install_filter_skips_unselected_category_nested_skills() {
+        let tmp = TempDir::new().unwrap();
+        let cache = tmp.path().join("cache");
+        let proj = tmp.path().join("proj");
+        fs::create_dir_all(cache.join("context/skills/processkit/skill-finder")).unwrap();
+        fs::create_dir_all(cache.join("context/skills/devops/dockerfile-review")).unwrap();
+        fs::write(
+            cache.join("context/skills/processkit/skill-finder/SKILL.md"),
+            "# skill finder\n",
+        )
+        .unwrap();
+        fs::write(
+            cache.join("context/skills/devops/dockerfile-review/SKILL.md"),
+            "# dockerfile review\n",
+        )
+        .unwrap();
+        fs::create_dir_all(&proj).unwrap();
+        fs::create_dir_all(proj.join("context/skills/devops/dockerfile-review")).unwrap();
+        fs::write(
+            proj.join("context/skills/devops/dockerfile-review/SKILL.md"),
+            "# stale dockerfile review\n",
+        )
+        .unwrap();
+
+        let mut effective = HashSet::new();
+        effective.insert("skill-finder".to_string());
+        install_files_from_cache_with_vars(&cache, &proj, &HashMap::new(), Some(&effective))
+            .unwrap();
+
+        assert!(
+            proj.join("context/skills/processkit/skill-finder/SKILL.md")
+                .exists()
+        );
+        assert!(
+            !proj
+                .join("context/skills/devops/dockerfile-review/SKILL.md")
+                .exists(),
+            "category-nested deselected skills must not be installed"
         );
     }
 

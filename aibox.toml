@@ -639,7 +639,9 @@ schema_version = "1.0.0"      # Context schema version — updated automatically
 # [customization] — color theme, shell prompt, and tmux layout
 # =============================================================================
 # Theme is applied consistently across tmux, Vim, Yazi, lazygit, and bat.
-# Options: gruvbox-dark | catppuccin-mocha | catppuccin-latte | dracula | tokyo-night | nord | projectious
+# Options include tmux-powerkit families: gruvbox, catppuccin, tokyo-night,
+# rose-pine, material, solarized, github, ayu, night-owl, moonlight, plus dracula,
+# nord, and projectious. See docs for the full variant list.
 [customization]
 theme  = "nord"
 # Global mode overlay. `auto` preserves the selected concrete theme.
@@ -656,6 +658,40 @@ layout = "ai"
 prefix = "C-g"
 session_name = "aibox"
 
-# tmux status presentation. Options: powerline | plain | disabled
+# tmux status presentation.
+# - extended: full aibox themed status (legacy alias: powerline)
+# - plain: minimal tmux-native status text
+# - disabled: turn the tmux status line off
 [customization.tmux.status]
-mode = "disabled"
+mode = "extended"  # extended | plain | disabled (legacy: powerline -> extended)
+
+[customization.tmux.status.elements]
+hostname = true  # show container hostname
+external-ip = true  # show detected external IP
+ssh = true  # show SSH connection status
+uptime = true  # show container uptime
+weather = true  # show weather summary (when configured)
+datetime = true  # show current date/time
+git = true  # show git branch and repo state
+github = true  # show GitHub notifications/context
+kubernetes = true  # show current Kubernetes context
+terraform = true  # show Terraform workspace/context
+cloud = true  # show active cloud profile/context
+cloudstatus = true  # show cloud provider status summary
+cpu = true  # show CPU usage
+loadavg = true  # show system load averages
+mem = true  # show memory usage
+swap = true  # show swap usage
+disk = true  # show filesystem usage
+gpu = true  # show GPU usage (if available)
+netspeed = true  # show network throughput
+ping = true  # show network latency
+aibox = true  # show aggregated aibox runtime metrics
+
+[customization.tmux.status.elements.aibox-metrics]
+log = true  # include log health indicator
+oom = true  # include OOM kill indicator
+proc = true  # include process pressure indicator
+ai = true  # include AI harness runtime indicator
+mcp = true  # include MCP server health indicator
+mig = true  # include migration state indicator

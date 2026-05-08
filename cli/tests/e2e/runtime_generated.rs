@@ -94,6 +94,10 @@ tmux_config_targets="$HOME/.config/tmux"
 [ -f "$HOME/.tmux.conf" ] && tmux_config_targets="$tmux_config_targets $HOME/.tmux.conf"
 grep -R 'tmux-sensible\|tmux-powerkit\|tmux-yank\|vim-tmux-navigator' $tmux_config_targets >/tmp/{test_name}-tmux-plugins.txt 2>/dev/null || fail=1
 cat /tmp/{test_name}-tmux-plugins.txt 2>/dev/null || true
+grep -R 'allow-passthrough on\|default-terminal "tmux-256color"' $tmux_config_targets >/tmp/{test_name}-tmux-terminal-compat.txt 2>/dev/null || fail=1
+cat /tmp/{test_name}-tmux-terminal-compat.txt 2>/dev/null || true
+grep -R 'AIBOX_TMUX_SOCKET\|tmux -S "\$socket"' "$HOME/.config/tmux/layouts" "$HOME/.config/tmux/aibox-session.sh" >/tmp/{test_name}-tmux-socket.txt 2>/dev/null || fail=1
+cat /tmp/{test_name}-tmux-socket.txt 2>/dev/null || true
 
 echo "== yazi config =="
 nl -ba "$HOME/.config/yazi/yazi.toml" | sed -n '1,140p'

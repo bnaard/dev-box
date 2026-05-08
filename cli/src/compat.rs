@@ -360,6 +360,11 @@ pub static COMPAT_TABLE: &[CompatEntry] = &[
         processkit_version: "v0.25.8",
         note: "Patch release: adds tmux-native `prefix ?` keybinding help popup, upgrades the two-line PowerKit status row with pane context and tmux mode detail, labels status metrics in aibox-status (CPU/LOAD/NET/MEM/DISK/LOG/OOM/PROC/AI/MCP/MIG/UP), fixes startup regression by targeting named tmux windows instead of `$session:1`, extends release/runtime caching (buildx registry cache refs, E2E Dockerfile dependency split, no podman-compose in runner), and documents provider endpoint base URL hints (ANTHROPIC_BASE_URL/OPENAI_BASE_URL/GEMINI_BASE_URL/MISTRAL_BASE_URL).",
     },
+    CompatEntry {
+        aibox_version: "0.25.3",
+        processkit_version: "v0.25.8",
+        note: "Patch release: fixes Yazi `e` editor handoff for tmux by targeting the existing Vim pane/window without spawning nested panes, returns focus to Yazi on `:q`, enables Vim mouse/no-wrap scrolling defaults, documents tmux status modes and element toggles, makes skill-finder discover deselected skills from the template catalog and lazy-install matches, adds SSH-first E2E companion guidance with uidmap preflight, and tightens host runtime smoke/persistence guardrails.",
+    },
 ];
 
 /// Find the minimum compatible processkit version for the given aibox version.

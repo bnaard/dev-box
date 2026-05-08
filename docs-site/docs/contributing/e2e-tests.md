@@ -21,6 +21,17 @@ Tier 1 tests run automatically with `cargo test`. Tier 2 tests require the
 companion container and the `--features e2e` flag. The expensive visual matrix
 tests are opt-in and are not included in the default Tier 2 command.
 
+From inside the aibox devcontainer, the companion is a remote SSH target, not a
+local Docker/Podman dependency. Check it with:
+
+```bash
+ssh -i /workspace/.aibox-e2e-runner-home/.ssh/id_ed25519 testuser@aibox-e2e-testrunner 'echo ok'
+```
+
+Missing `docker` or `podman` in the main devcontainer does not mean Tier 2
+cannot talk to the companion. The tests deploy the current `aibox` binary and
+addons with SCP, then use the companion's own runtime for lifecycle checks.
+
 The container-side release command runs Tier 2 as part of Phase 1 with
 `cargo test --features e2e --test e2e`, so the SSH companion, generated
 runtime probes, and non-ignored asciinema checks are release gates.
@@ -31,9 +42,9 @@ companion test; it runs on the macOS host during `release-host`, creates a
 fresh downstream-style project, runs `aibox init` and
 `aibox apply --standardize-config`, starts the generated container, probes
 tmux-native status output and the diagnostics sidecar, and writes logs under
-`dist/release-smoke/vX.Y.Z/`. The default `AIBOX_RELEASE_SMOKE_TIER=minimal`
-skips optional addon probes; use `addons` to include `git-ui`, or `full` to
-include preview addons and force `--no-cache`.
+`dist/release-smoke/vX.Y.Z/`. The default `AIBOX_RELEASE_SMOKE_TIER=addons`
+includes `git-ui` (`lazygit`) probes. Use `minimal` only for a quicker
+non-addon pass, or `full` to include preview addons and force `--no-cache`.
 
 ### Opt-in visual E2E
 

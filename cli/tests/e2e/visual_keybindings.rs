@@ -137,6 +137,7 @@ fn visual_kb_yazi_e_opens_file_in_vim_pane() {
     let src = format!("{ws}/src");
     let actions = format!(
         r#"  tmux split-window -h -t "{test_name}:1.1" -c "{ws}" "AIBOX_EDITOR_DIR=right exec vim-loop"
+  initial_panes="$(tmux list-panes -t "{test_name}:1" | wc -l | tr -d ' ')"
   tmux select-pane -t "{test_name}:1.1"
   tmux send-keys -t "{test_name}:1.1" "cd {src} && AIBOX_EDITOR_DIR=right exec yazi ." C-m
   sleep 1.5
@@ -146,6 +147,13 @@ fn visual_kb_yazi_e_opens_file_in_vim_pane() {
     grep -qF "{marker}" "{ws}/editor-screen.txt" && touch "{ws}/open-ok" && break
     sleep 0.25
   done
+  tmux send-keys -t "{test_name}:1.2" Escape ":q" Enter
+  sleep 1
+  active_pane="$(tmux list-panes -t "{test_name}:1" -F '#{{pane_active}} #{{pane_id}}' | awk '$1==1 {{print $2; exit}}')"
+  files_pane="$(tmux display-message -p -t "{test_name}:1.1" '#{{pane_id}}')"
+  [ "$active_pane" = "$files_pane" ] && touch "{ws}/focus-return-ok"
+  final_panes="$(tmux list-panes -t "{test_name}:1" | wc -l | tr -d ' ')"
+  [ "$final_panes" = "$initial_panes" ] && touch "{ws}/pane-count-ok"
 "#
     );
     let cast = record(
@@ -163,6 +171,14 @@ fn visual_kb_yazi_e_opens_file_in_vim_pane() {
         runner.file_exists(test_name, "open-ok"),
         "expected Yazi e to open the file in Vim pane; editor screen:\n{}",
         runner.read_file(test_name, "editor-screen.txt")
+    );
+    assert!(
+        runner.file_exists(test_name, "focus-return-ok"),
+        "expected :q in editor pane to return focus to yazi pane"
+    );
+    assert!(
+        runner.file_exists(test_name, "pane-count-ok"),
+        "expected Yazi e flow not to create extra tmux panes"
     );
     runner.cleanup(test_name);
 }

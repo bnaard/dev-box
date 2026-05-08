@@ -147,7 +147,7 @@ pub enum Commands {
         #[arg(long, value_enum)]
         prompt: Option<StarshipPreset>,
 
-        /// tmux status presentation (default: powerline)
+        /// tmux status presentation (default: extended)
         #[arg(long = "tmux-status", value_enum)]
         tmux_status: Option<TmuxStatusMode>,
 

@@ -106,7 +106,38 @@ prompt = "default"                    # Starship preset (7 options)
 layout = "dev"                        # tmux layout (6 options)
 
 [customization.tmux.status]
-mode = "powerline"                    # powerline | plain | disabled
+mode = "extended"                     # extended | plain | disabled (legacy: powerline -> extended)
+
+[customization.tmux.status.elements]
+hostname = true                       # Show container hostname
+external-ip = true                    # Show detected external IP
+ssh = true                            # Show SSH connection status
+uptime = true                         # Show container uptime
+weather = true                        # Show weather summary (when configured)
+datetime = true                       # Show current date/time
+git = true                            # Show git branch and repo state
+github = true                         # Show GitHub notifications/context
+kubernetes = true                     # Show current Kubernetes context
+terraform = true                      # Show Terraform workspace/context
+cloud = true                          # Show active cloud profile/context
+cloudstatus = true                    # Show cloud provider status summary
+cpu = true                            # Show CPU usage
+loadavg = true                        # Show system load averages
+mem = true                            # Show memory usage
+swap = true                           # Show swap usage
+disk = true                           # Show filesystem usage
+gpu = true                            # Show GPU usage (if available)
+netspeed = true                       # Show network throughput
+ping = true                           # Show network latency
+aibox = true                          # Show aggregated aibox runtime metrics
+
+[customization.tmux.status.elements.aibox-metrics]
+log = true                            # Include log health indicator
+oom = true                            # Include OOM kill indicator
+proc = true                           # Include process pressure indicator
+ai = true                             # Include AI harness runtime indicator
+mcp = true                            # Include MCP server health indicator
+mig = true                            # Include migration state indicator
 
 [audio]
 enabled      = false                  # Enable audio bridging
@@ -518,11 +549,11 @@ Visual and layout configuration. See [Themes](../customization/themes.md) and [L
 
 | Field | Type | Required | Default | Description |
 |-------|------|----------|---------|-------------|
-| `theme` | String | No | `"gruvbox-dark"` | Color theme: `gruvbox-dark`, `catppuccin-mocha`, `catppuccin-latte`, `dracula`, `tokyo-night`, `nord`, `projectious` |
+| `theme` | String | No | `"gruvbox-dark"` | Color theme. Supports the tmux-powerkit popular theme roster and variants, plus `projectious`; see [Themes](../customization/themes.md). |
 | `mode` | String | No | `"auto"` | Global theme mode overlay: `auto`, `light`, `dark`. `auto` preserves the selected concrete theme. |
 | `prompt` | String | No | `"default"` | Starship preset: `default`, `plain`, `arrow`, `minimal`, `nerd-font`, `pastel`, `bracketed` |
 | `layout` | String | No | `"dev"` | tmux layout: `dev`, `focus`, `cowork`, `cowork-swap`, `browse`, `ai` |
-| `tmux.status.mode` | String | No | `"powerline"` | tmux status presentation: `powerline` uses the themed aibox status bar, `plain` keeps minimal tmux text, `disabled` turns the status line off |
+| `tmux.status.mode` | String | No | `"extended"` | tmux status presentation: `extended` uses the themed multi-line PowerKit status, `plain` keeps minimal tmux text, `disabled` turns the status line off. Legacy `powerline` is accepted as an alias for `extended`. |
 
 ### [audio]
 

@@ -1350,7 +1350,11 @@ pub(crate) fn serialize_config_with_comments(config: &AiboxConfig) -> String {
     out.push_str("# [customization] — color theme, shell prompt, and tmux layout\n");
     out.push_str(sep);
     out.push_str("# Theme is applied consistently across tmux, Vim, Yazi, lazygit, and bat.\n");
-    out.push_str("# Options: gruvbox-dark | catppuccin-mocha | catppuccin-latte | dracula | tokyo-night | nord | projectious\n");
+    out.push_str("# Options include tmux-powerkit families: gruvbox, catppuccin, tokyo-night,\n");
+    out.push_str(
+        "# rose-pine, material, solarized, github, ayu, night-owl, moonlight, plus dracula,\n",
+    );
+    out.push_str("# nord, and projectious. See docs for the full variant list.\n");
     out.push_str("[customization]\n");
     out.push_str(&format!("theme  = \"{}\"\n", config.customization.theme));
     out.push_str("# Global mode overlay. `auto` preserves the selected concrete theme.\n");
@@ -1377,11 +1381,57 @@ pub(crate) fn serialize_config_with_comments(config: &AiboxConfig) -> String {
         config.customization.tmux.session_name
     ));
     out.push('\n');
-    out.push_str("# tmux status presentation. Options: powerline | plain | disabled\n");
+    out.push_str("# tmux status presentation.\n");
+    out.push_str("# - extended: full aibox themed status (legacy alias: powerline)\n");
+    out.push_str("# - plain: minimal tmux-native status text\n");
+    out.push_str("# - disabled: turn the tmux status line off\n");
     out.push_str("[customization.tmux.status]\n");
     out.push_str(&format!(
-        "mode = \"{}\"\n",
+        "mode = \"{}\"  # extended | plain | disabled (legacy: powerline -> extended)\n",
         config.customization.tmux.status.mode
+    ));
+    out.push('\n');
+    out.push_str("[customization.tmux.status.elements]\n");
+    out.push_str(&format!(
+        "hostname = {}  # show container hostname\nexternal-ip = {}  # show detected external IP\nssh = {}  # show SSH connection status\nuptime = {}  # show container uptime\nweather = {}  # show weather summary (when configured)\ndatetime = {}  # show current date/time\n",
+        config.customization.tmux.status.elements.hostname,
+        config.customization.tmux.status.elements.external_ip,
+        config.customization.tmux.status.elements.ssh,
+        config.customization.tmux.status.elements.uptime,
+        config.customization.tmux.status.elements.weather,
+        config.customization.tmux.status.elements.datetime
+    ));
+    out.push_str(&format!(
+        "git = {}  # show git branch and repo state\ngithub = {}  # show GitHub notifications/context\nkubernetes = {}  # show current Kubernetes context\nterraform = {}  # show Terraform workspace/context\ncloud = {}  # show active cloud profile/context\ncloudstatus = {}  # show cloud provider status summary\n",
+        config.customization.tmux.status.elements.git,
+        config.customization.tmux.status.elements.github,
+        config.customization.tmux.status.elements.kubernetes,
+        config.customization.tmux.status.elements.terraform,
+        config.customization.tmux.status.elements.cloud,
+        config.customization.tmux.status.elements.cloudstatus
+    ));
+    out.push_str(&format!(
+        "cpu = {}  # show CPU usage\nloadavg = {}  # show system load averages\nmem = {}  # show memory usage\nswap = {}  # show swap usage\ndisk = {}  # show filesystem usage\ngpu = {}  # show GPU usage (if available)\nnetspeed = {}  # show network throughput\nping = {}  # show network latency\naibox = {}  # show aggregated aibox runtime metrics\n",
+        config.customization.tmux.status.elements.cpu,
+        config.customization.tmux.status.elements.loadavg,
+        config.customization.tmux.status.elements.mem,
+        config.customization.tmux.status.elements.swap,
+        config.customization.tmux.status.elements.disk,
+        config.customization.tmux.status.elements.gpu,
+        config.customization.tmux.status.elements.netspeed,
+        config.customization.tmux.status.elements.ping,
+        config.customization.tmux.status.elements.aibox
+    ));
+    out.push('\n');
+    out.push_str("[customization.tmux.status.elements.aibox-metrics]\n");
+    out.push_str(&format!(
+        "log = {}  # include log health indicator\noom = {}  # include OOM kill indicator\nproc = {}  # include process pressure indicator\nai = {}  # include AI harness runtime indicator\nmcp = {}  # include MCP server health indicator\nmig = {}  # include migration state indicator\n",
+        config.customization.tmux.status.elements.aibox_metrics.log,
+        config.customization.tmux.status.elements.aibox_metrics.oom,
+        config.customization.tmux.status.elements.aibox_metrics.proc,
+        config.customization.tmux.status.elements.aibox_metrics.ai,
+        config.customization.tmux.status.elements.aibox_metrics.mcp,
+        config.customization.tmux.status.elements.aibox_metrics.mig
     ));
 
     out
@@ -1964,12 +2014,12 @@ pub fn cmd_init(config_path: &Option<String>, params: InitParams) -> Result<()> 
         Some(mode) => mode,
         None if interactive => {
             let labels = [
-                "powerline — themed tmux bar with aibox runtime status (recommended)",
+                "extended — themed tmux bar with aibox runtime status (recommended)",
                 "plain — minimal tmux-native status text",
                 "disabled — tmux status line off",
             ];
             let modes = [
-                TmuxStatusMode::Powerline,
+                TmuxStatusMode::Extended,
                 TmuxStatusMode::Plain,
                 TmuxStatusMode::Disabled,
             ];
@@ -2125,6 +2175,7 @@ pub fn cmd_init(config_path: &Option<String>, params: InitParams) -> Result<()> 
             tmux: crate::config::TmuxSection {
                 status: crate::config::TmuxStatusSection {
                     mode: tmux_status_mode,
+                    ..crate::config::TmuxStatusSection::default()
                 },
                 ..crate::config::TmuxSection::default()
             },
