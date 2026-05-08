@@ -7,9 +7,10 @@ metadata:
   labels:
     track: doctor-gaps
     release: v0.25.6
+  updated: '2026-05-08T19:56:24+00:00'
 spec:
   title: 'v0.25.6: Doctor coverage gap closure'
-  state: backlog
+  state: done
   type: task
   priority: high
   description: |
@@ -41,4 +42,20 @@ spec:
 
     ## Dispatch hint for next session
     One general-purpose subagent. Items 1-5 are pure config/file scans (fast). Items 6-7 require runtime probing — gate behind `--probe-runtime` flag if expensive. Sequential.
+  started_at: '2026-05-08T19:56:06+00:00'
+  completed_at: '2026-05-08T19:56:24+00:00'
 ---
+
+## Transition note (2026-05-08T19:56:06+00:00)
+
+Implementation landed in commit 27d1510 — six new health checks + semver-aware version skew.
+
+
+## Transition note (2026-05-08T19:56:18+00:00)
+
+Code shipped via 27d1510; ready for accept-as-done.
+
+
+## Transition note (2026-05-08T19:56:24+00:00)
+
+Accepted as done — six new health checks + semver-aware version skew shipped on main.

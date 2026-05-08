@@ -7,9 +7,10 @@ metadata:
   labels:
     track: log-panel
     release: v0.25.6
+  updated: '2026-05-08T19:56:25+00:00'
 spec:
   title: 'v0.25.6: Log pane reader (lnav) and counter freshness fix'
-  state: backlog
+  state: done
   type: task
   priority: high
   description: |
@@ -49,4 +50,20 @@ spec:
     - Custom Rust TUI viewer — rejected: lnav is mature, well-maintained, free
     - `multitail` — rejected: no native JSON support
     - `humanlog` — rejected: less feature-complete than lnav, fewer distros
+  started_at: '2026-05-08T19:56:08+00:00'
+  completed_at: '2026-05-08T19:56:25+00:00'
 ---
+
+## Transition note (2026-05-08T19:56:08+00:00)
+
+Log panel via lnav landed in commit 79c699e.
+
+
+## Transition note (2026-05-08T19:56:19+00:00)
+
+Code shipped via 79c699e; ready for accept-as-done.
+
+
+## Transition note (2026-05-08T19:56:25+00:00)
+
+Accepted as done — log panel via lnav shipped on main.
