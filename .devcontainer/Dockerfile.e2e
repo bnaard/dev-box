@@ -72,6 +72,9 @@ ENV DEBIAN_FRONTEND=noninteractive
 RUN apt-get update && apt-get install -y --no-install-recommends \
     # Podman for rootless container operations
     podman \
+    podman-compose \
+    aardvark-dns \
+    nftables \
     # SSH server for remote test execution
     openssh-server \
     # Utilities needed by aibox and tests
@@ -114,6 +117,14 @@ COPY --from=fetch-yazi    /usr/local/bin/yazi     /usr/local/bin/yazi
 COPY --from=fetch-starship /usr/local/bin/starship /usr/local/bin/starship
 COPY --from=fetch-lazygit /usr/local/bin/lazygit  /usr/local/bin/lazygit
 RUN ln -sf /usr/local/bin/yazi /usr/local/bin/ya
+RUN printf '%s\n' \
+    '#!/bin/bash' \
+    '# vim-loop.sh — Compatibility wrapper for historical calls.' \
+    '# Runs Vim with startup terminal-query hardening, then keeps the pane alive.' \
+    'vim --cmd "set t_u7=" --cmd "set t_RV=" "$@"' \
+    'exec bash' \
+    > /usr/local/bin/vim-loop \
+    && chmod +x /usr/local/bin/vim-loop
 
 # ── Vim colorschemes (system-wide) ──────────────────────────────────────────
 COPY --from=fetch-vim-colors /vim-colors/colors/ /usr/share/vim/vimfiles/colors/

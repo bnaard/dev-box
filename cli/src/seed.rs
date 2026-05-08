@@ -2212,6 +2212,11 @@ mod tests {
             "open-in-editor should support same-window tmux editor panes"
         );
         assert!(
+            open_in_editor.contains("find_directional_pane")
+                && open_in_editor.contains("select-pane -t \"$source_pane\" \"$select_flag\""),
+            "open-in-editor should use explicit adjacent editor panes before creating a split"
+        );
+        assert!(
             open_in_editor.contains(":edit ${vim_file}"),
             "open-in-editor should open the selected file in the focused Vim pane"
         );

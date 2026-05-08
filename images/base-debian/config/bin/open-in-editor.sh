@@ -63,6 +63,21 @@ find_editor_pane() {
         | head -n 1
 }
 
+find_directional_pane() {
+    case "${dir:-}" in
+        right) select_flag="-R" ;;
+        down) select_flag="-D" ;;
+        *) return 0 ;;
+    esac
+
+    tmux select-pane -t "$source_pane" "$select_flag" 2>/dev/null || return 0
+    candidate="$(tmux display-message -p '#{pane_id}' 2>/dev/null || true)"
+    tmux select-pane -t "$source_pane" >/dev/null 2>&1 || true
+    if [ -n "$candidate" ] && [ "$candidate" != "$source_pane" ]; then
+        printf '%s\n' "$candidate"
+    fi
+}
+
 pane_is_editor() {
     tmux display-message -p -t "$1" '#{pane_current_command}' 2>/dev/null \
         | awk 'BEGIN { found=0 } { cmd=tolower($0); if (cmd ~ /^(vim|nvim|vim-loop)$/) found=1 } END { exit found ? 0 : 1 }'
@@ -70,10 +85,17 @@ pane_is_editor() {
 
 vim_return_cmd() {
     escaped="$(vim_escape_path "$source_pane")"
-    printf 'silent! autocmd VimLeavePre <buffer> ++once call system("tmux select-pane -t %s >/dev/null 2>&1")' "$escaped"
+    printf 'silent! autocmd VimLeavePre * ++once call system("tmux select-pane -t %s >/dev/null 2>&1")' "$escaped"
 }
 
 target="$(find_editor_pane)"
+directional_target=0
+if [ -z "$target" ]; then
+    target="$(find_directional_pane)"
+    if [ -n "$target" ]; then
+        directional_target=1
+    fi
+fi
 if [ -z "$target" ]; then
     source_dir="$(dirname "$file")"
     open_cmd="vim --cmd \"set t_u7=\" --cmd \"set t_RV=\" --cmd \"$(vim_return_cmd)\" $(shell_quote "$file")"
@@ -91,12 +113,13 @@ if [ -z "$target" ]; then
 fi
 
 vim_file="$(vim_escape_path "$file")"
-if ! pane_is_editor "$target"; then
+return_cmd="$(vim_return_cmd)"
+if [ "$directional_target" != "1" ] && ! pane_is_editor "$target"; then
     tmux send-keys -t "$target" C-c
-    tmux send-keys -t "$target" "vim --cmd \"set t_u7=\" --cmd \"set t_RV=\" --cmd \"$(vim_return_cmd)\" $(shell_quote "$file")" Enter
+    tmux send-keys -t "$target" "vim --cmd \"set t_u7=\" --cmd \"set t_RV=\" --cmd \"${return_cmd}\" $(shell_quote "$file")" Enter
 else
     tmux send-keys -t "$target" Escape
-    tmux send-keys -t "$target" ":silent! autocmd VimLeavePre <buffer> ++once call system(\"tmux select-pane -t ${source_pane} >/dev/null 2>&1\")" Enter
+    tmux send-keys -t "$target" ":${return_cmd}" Enter
     tmux send-keys -t "$target" ":edit ${vim_file}" Enter
 fi
 target_window="$(tmux display-message -p -t "$target" '#{session_name}:#{window_index}' 2>/dev/null || true)"
