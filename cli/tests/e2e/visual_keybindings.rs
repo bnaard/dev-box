@@ -140,7 +140,11 @@ fn visual_kb_yazi_e_opens_file_in_vim_pane() {
   initial_panes="$(tmux list-panes -t "{test_name}:1" | wc -l | tr -d ' ')"
   tmux select-pane -t "{test_name}:1.1"
   tmux send-keys -t "{test_name}:1.1" "cd {src} && AIBOX_EDITOR_DIR=right exec yazi ." C-m
-  sleep 1.5
+  for _ in $(seq 1 40); do
+    tmux capture-pane -p -t "{test_name}:1.1" > "{ws}/files-screen.txt" 2>/dev/null || true
+    grep -qF "hello.rs" "{ws}/files-screen.txt" && break
+    sleep 0.25
+  done
   tmux send-keys -t "{test_name}:1.1" "e"
   for _ in $(seq 1 40); do
     tmux capture-pane -p -t "{test_name}:1.2" > "{ws}/editor-screen.txt" 2>/dev/null || true
@@ -519,7 +523,8 @@ fn visual_kb_vim_leader_x_writes_and_quits_vim() {
         r#"  sleep 1
   tmux send-keys -t "{test_name}:1.1" "A // saved" Escape " x"
   sleep 1
-  if ! pgrep -x vim >/dev/null 2>&1; then touch "{ws}/writequit-ok"; fi
+  pane_cmd="$(tmux display-message -p -t "{test_name}:1.1" '#{{pane_current_command}}' 2>/dev/null || true)"
+  if [ "$pane_cmd" != "vim" ] && [ "$pane_cmd" != "nvim" ]; then touch "{ws}/writequit-ok"; fi
   tmux capture-pane -p -t "{test_name}:1.1" > "{ws}/vim-screen.txt" 2>/dev/null || true
 "#
     );
