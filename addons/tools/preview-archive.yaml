@@ -85,6 +85,7 @@ builder: |
 runtime: |
   # Addon: preview-archive — Yazi preview helpers and archive tools.
   USER root
+  {% if tools.chafa.enabled or tools.librsvg.enabled or tools.poppler.enabled or tools.timg.enabled or tools.mupdf.enabled or tools.entr.enabled or tools.p7zip.enabled %}
   RUN apt-get update && apt-get install -y --no-install-recommends \
   {% if tools.chafa.enabled %}
       chafa \
@@ -108,9 +109,52 @@ runtime: |
       p7zip-full \
   {% endif %}
       && rm -rf /var/lib/apt/lists/*
+  {% endif %}
   {% if tools.ouch.enabled %}
   COPY --from=preview-archive-builder /usr/local/bin/ouch /usr/local/bin/ouch
   {% endif %}
   {% if tools.resvg.enabled %}
   COPY --from=preview-archive-builder /usr/local/bin/resvg /usr/local/bin/resvg
+  {% endif %}
+  # ── Variant 1 disable-then-purge guards ───────────────────────────────
+  {% if not tools.chafa.enabled %}
+  RUN if dpkg-query -W -f='${Status}' chafa 2>/dev/null | grep -q 'install ok installed'; then \
+        apt-get purge -y --auto-remove chafa; \
+      fi && rm -rf /var/lib/apt/lists/*
+  {% endif %}
+  {% if not tools.librsvg.enabled %}
+  RUN if dpkg-query -W -f='${Status}' librsvg2-bin 2>/dev/null | grep -q 'install ok installed'; then \
+        apt-get purge -y --auto-remove librsvg2-bin; \
+      fi && rm -rf /var/lib/apt/lists/*
+  {% endif %}
+  {% if not tools.poppler.enabled %}
+  RUN if dpkg-query -W -f='${Status}' poppler-utils 2>/dev/null | grep -q 'install ok installed'; then \
+        apt-get purge -y --auto-remove poppler-utils; \
+      fi && rm -rf /var/lib/apt/lists/*
+  {% endif %}
+  {% if not tools.timg.enabled %}
+  RUN if dpkg-query -W -f='${Status}' timg 2>/dev/null | grep -q 'install ok installed'; then \
+        apt-get purge -y --auto-remove timg; \
+      fi && rm -rf /var/lib/apt/lists/*
+  {% endif %}
+  {% if not tools.mupdf.enabled %}
+  RUN if dpkg-query -W -f='${Status}' mupdf-tools 2>/dev/null | grep -q 'install ok installed'; then \
+        apt-get purge -y --auto-remove mupdf-tools; \
+      fi && rm -rf /var/lib/apt/lists/*
+  {% endif %}
+  {% if not tools.entr.enabled %}
+  RUN if dpkg-query -W -f='${Status}' entr 2>/dev/null | grep -q 'install ok installed'; then \
+        apt-get purge -y --auto-remove entr; \
+      fi && rm -rf /var/lib/apt/lists/*
+  {% endif %}
+  {% if not tools.p7zip.enabled %}
+  RUN if dpkg-query -W -f='${Status}' p7zip-full 2>/dev/null | grep -q 'install ok installed'; then \
+        apt-get purge -y --auto-remove p7zip-full; \
+      fi && rm -rf /var/lib/apt/lists/*
+  {% endif %}
+  {% if not tools.ouch.enabled %}
+  RUN rm -f /usr/local/bin/ouch /usr/bin/ouch
+  {% endif %}
+  {% if not tools.resvg.enabled %}
+  RUN rm -f /usr/local/bin/resvg /usr/bin/resvg
   {% endif %}

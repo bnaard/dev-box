@@ -86,3 +86,23 @@ runtime: |
   {% if tools.k9s.enabled %}
   COPY --from=k8s-builder /build/bin/k9s /usr/local/bin/k9s
   {% endif %}
+  # ── Variant 1 disable-then-purge guards ───────────────────────────────
+  # When a tool is explicitly disabled the binary must not survive in the
+  # image — older base images may have shipped it. Treat disablement as an
+  # absence contract.
+  {% if not tools.kubectl.enabled %}
+  USER root
+  RUN rm -f /usr/local/bin/kubectl /usr/bin/kubectl
+  {% endif %}
+  {% if not tools.helm.enabled %}
+  USER root
+  RUN rm -f /usr/local/bin/helm /usr/bin/helm
+  {% endif %}
+  {% if not tools.kustomize.enabled %}
+  USER root
+  RUN rm -f /usr/local/bin/kustomize /usr/bin/kustomize
+  {% endif %}
+  {% if not tools.k9s.enabled %}
+  USER root
+  RUN rm -f /usr/local/bin/k9s /usr/bin/k9s
+  {% endif %}

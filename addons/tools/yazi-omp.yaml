@@ -15,7 +15,14 @@ tools:
 
 runtime: |
   # Addon: yazi-omp — install oh-my-posh for the omp.yazi Yazi header plugin.
-  RUN ARCH=$(uname -m) &&       OMP_ARCH=$(case "$ARCH" in x86_64) echo amd64;; aarch64) echo arm64;; *) echo "$ARCH";; esac) &&   {% if tools.oh-my-posh.version %}
-      curl -fsSL "https://github.com/JanDeDobbeleer/oh-my-posh/releases/download/v{{ tools.oh-my-posh.version }}/posh-linux-${OMP_ARCH}" -o /usr/local/bin/oh-my-posh &&   {% else %}
+  {% if tools["oh-my-posh"].enabled %}
+  RUN ARCH=$(uname -m) &&       OMP_ARCH=$(case "$ARCH" in x86_64) echo amd64;; aarch64) echo arm64;; *) echo "$ARCH";; esac) &&   {% if tools["oh-my-posh"].version %}
+      curl -fsSL "https://github.com/JanDeDobbeleer/oh-my-posh/releases/download/v{{ tools["oh-my-posh"].version }}/posh-linux-${OMP_ARCH}" -o /usr/local/bin/oh-my-posh &&   {% else %}
       curl -fsSL "https://github.com/JanDeDobbeleer/oh-my-posh/releases/latest/download/posh-linux-${OMP_ARCH}" -o /usr/local/bin/oh-my-posh &&   {% endif %}
       chmod +x /usr/local/bin/oh-my-posh
+  {% endif %}
+  {% if not tools["oh-my-posh"].enabled %}
+  # Variant 1 disable-then-purge: oh-my-posh is a downloaded standalone binary.
+  USER root
+  RUN rm -f /usr/local/bin/oh-my-posh /usr/bin/oh-my-posh
+  {% endif %}

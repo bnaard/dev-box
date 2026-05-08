@@ -449,6 +449,127 @@ fn vim_loop_disables_startup_cursor_position_probe_for_tui_muxers() {
     );
 }
 
+// BR-LEGACY-MUX-EXCISE / BR-ZELLIJ-EXCISE
+// (DEC-20260508_1515-SilentAsh, v0.25.6): `aibox apply` must hard-purge
+// any legacy multiplexer artifact that survives under .aibox-home/.
+#[test]
+fn apply_hard_purges_legacy_multiplexer_artifacts_under_host_root() {
+    let tmp = tempfile::TempDir::new().expect("create tempdir");
+    let dir = tmp.path();
+
+    let init_out = run_in(
+        dir,
+        &[
+            "init",
+            "purge-legacy",
+            "--base",
+            "debian",
+            "--processkit-version",
+            "unset",
+        ],
+    );
+    assert!(
+        init_out.status.success(),
+        "init failed.\n{}",
+        fmt_output("init", &init_out)
+    );
+
+    // Plant the canonical legacy artifact set the doctor scans for.
+    let host = dir.join(".aibox-home");
+    let legacy_config = host.join(".config/zellij");
+    let legacy_cache = host.join(".cache/zellij");
+    let legacy_share = host.join(".local/share/zellij");
+    fs::create_dir_all(&legacy_config).unwrap();
+    fs::create_dir_all(&legacy_cache).unwrap();
+    fs::create_dir_all(&legacy_share).unwrap();
+    fs::write(legacy_config.join("config.kdl"), "// stale legacy\n").unwrap();
+    fs::write(legacy_cache.join("cache.bin"), "junk").unwrap();
+    fs::write(legacy_share.join("plugin.wasm"), b"\0wasm").unwrap();
+
+    let apply_out = run_in(dir, &["apply"]);
+    assert!(
+        apply_out.status.success(),
+        "apply failed.\n{}",
+        fmt_output("apply", &apply_out)
+    );
+
+    // Hard-purge: every legacy path must be gone after apply.
+    assert!(
+        !legacy_config.exists(),
+        "apply must purge .config/zellij hard-cut: still exists at {}",
+        legacy_config.display()
+    );
+    assert!(
+        !legacy_cache.exists(),
+        "apply must purge .cache/zellij hard-cut"
+    );
+    assert!(
+        !legacy_share.exists(),
+        "apply must purge .local/share/zellij hard-cut"
+    );
+
+    // Doctor returns clean exit code when the host root is purged.
+    let doctor_out = run_in(dir, &["doctor"]);
+    assert!(
+        doctor_out.status.success(),
+        "doctor must be clean post-apply.\n{}",
+        fmt_output("doctor", &doctor_out)
+    );
+}
+
+// BR-LEGACY-MUX-EXCISE: doctor must error when legacy multiplexer
+// artifacts survive under the host root (e.g. host CLI is pre-v0.25.6
+// and never ran the cleanup).
+#[test]
+fn doctor_errors_when_legacy_multiplexer_artifact_survives() {
+    let tmp = tempfile::TempDir::new().expect("create tempdir");
+    let dir = tmp.path();
+
+    let init_out = run_in(
+        dir,
+        &[
+            "init",
+            "doctor-legacy",
+            "--base",
+            "debian",
+            "--processkit-version",
+            "unset",
+        ],
+    );
+    assert!(
+        init_out.status.success(),
+        "init failed.\n{}",
+        fmt_output("init", &init_out)
+    );
+
+    let apply_out = run_in(dir, &["apply"]);
+    assert!(
+        apply_out.status.success(),
+        "apply failed.\n{}",
+        fmt_output("apply", &apply_out)
+    );
+
+    // Re-introduce a legacy artifact AFTER apply has run.
+    let host = dir.join(".aibox-home");
+    let legacy = host.join(".config/zellij");
+    fs::create_dir_all(&legacy).unwrap();
+    fs::write(legacy.join("config.kdl"), "// stale\n").unwrap();
+
+    let doctor_out = run_in(dir, &["doctor"]);
+    let combined = combined_output(&doctor_out);
+    // doctor reports errors via its summary line and an explicit
+    // error-prefixed message. Both must be present so a stale host CLI
+    // surface points the user at the cleanup remediation.
+    assert!(
+        combined.contains("Legacy multiplexer artifacts present"),
+        "doctor must report the surviving legacy multiplexer paths:\n{combined}"
+    );
+    assert!(
+        combined.contains("error(s)") && !combined.contains("0 error(s)"),
+        "doctor summary must reflect at least one error:\n{combined}"
+    );
+}
+
 #[test]
 fn apply_preserves_project_context_edits_while_regenerating_runtime_config() {
     let tmp = tempfile::TempDir::new().expect("create tempdir");

@@ -28,6 +28,7 @@ tools:
 runtime: |
   # Addon: audio-voice — PulseAudio/Sox support for interactive voice tools.
   USER root
+  {% if tools.sox.enabled or tools["sox-pulse"].enabled or tools["pulseaudio-utils"].enabled or tools["alsa-pulse"].enabled %}
   RUN apt-get update && apt-get install -y --no-install-recommends \
   {% if tools.sox.enabled %}
       sox \
@@ -42,3 +43,25 @@ runtime: |
       libasound2-plugins \
   {% endif %}
       && rm -rf /var/lib/apt/lists/*
+  {% endif %}
+  # ── Variant 1 disable-then-purge guards ───────────────────────────────
+  {% if not tools.sox.enabled %}
+  RUN if dpkg-query -W -f='${Status}' sox 2>/dev/null | grep -q 'install ok installed'; then \
+        apt-get purge -y --auto-remove sox; \
+      fi && rm -rf /var/lib/apt/lists/*
+  {% endif %}
+  {% if not tools["sox-pulse"].enabled %}
+  RUN if dpkg-query -W -f='${Status}' libsox-fmt-pulse 2>/dev/null | grep -q 'install ok installed'; then \
+        apt-get purge -y --auto-remove libsox-fmt-pulse; \
+      fi && rm -rf /var/lib/apt/lists/*
+  {% endif %}
+  {% if not tools["pulseaudio-utils"].enabled %}
+  RUN if dpkg-query -W -f='${Status}' pulseaudio-utils 2>/dev/null | grep -q 'install ok installed'; then \
+        apt-get purge -y --auto-remove pulseaudio-utils; \
+      fi && rm -rf /var/lib/apt/lists/*
+  {% endif %}
+  {% if not tools["alsa-pulse"].enabled %}
+  RUN if dpkg-query -W -f='${Status}' libasound2-plugins 2>/dev/null | grep -q 'install ok installed'; then \
+        apt-get purge -y --auto-remove libasound2-plugins; \
+      fi && rm -rf /var/lib/apt/lists/*
+  {% endif %}

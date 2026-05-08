@@ -31,6 +31,7 @@ runtime: |
   # Use preview-archive for baseline image/PDF/SVG and archive preview helpers.
   # This addon adds python3-rich (Markdown), ffmpeg (video), imagemagick (format conversion), and ghostscript (EPS).
   USER root
+  {% if tools.rich.enabled or tools.ffmpeg.enabled or tools.imagemagick.enabled or tools.ghostscript.enabled %}
   RUN apt-get update && apt-get install -y --no-install-recommends \
   {% if tools.rich.enabled %}
       python3-rich \
@@ -45,3 +46,25 @@ runtime: |
       ghostscript \
   {% endif %}
       && rm -rf /var/lib/apt/lists/*
+  {% endif %}
+  # ── Variant 1 disable-then-purge guards ───────────────────────────────
+  {% if not tools.rich.enabled %}
+  RUN if dpkg-query -W -f='${Status}' python3-rich 2>/dev/null | grep -q 'install ok installed'; then \
+        apt-get purge -y --auto-remove python3-rich; \
+      fi && rm -rf /var/lib/apt/lists/*
+  {% endif %}
+  {% if not tools.ffmpeg.enabled %}
+  RUN if dpkg-query -W -f='${Status}' ffmpeg 2>/dev/null | grep -q 'install ok installed'; then \
+        apt-get purge -y --auto-remove ffmpeg; \
+      fi && rm -rf /var/lib/apt/lists/*
+  {% endif %}
+  {% if not tools.imagemagick.enabled %}
+  RUN if dpkg-query -W -f='${Status}' imagemagick 2>/dev/null | grep -q 'install ok installed'; then \
+        apt-get purge -y --auto-remove imagemagick; \
+      fi && rm -rf /var/lib/apt/lists/*
+  {% endif %}
+  {% if not tools.ghostscript.enabled %}
+  RUN if dpkg-query -W -f='${Status}' ghostscript 2>/dev/null | grep -q 'install ok installed'; then \
+        apt-get purge -y --auto-remove ghostscript; \
+      fi && rm -rf /var/lib/apt/lists/*
+  {% endif %}

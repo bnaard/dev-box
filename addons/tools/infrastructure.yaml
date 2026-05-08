@@ -64,3 +64,16 @@ runtime: |
   {% if tools.ansible.enabled %}
   RUN pip3 install --no-cache-dir ansible
   {% endif %}
+  # ── Variant 1 disable-then-purge guards ───────────────────────────────
+  {% if not tools.opentofu.enabled %}
+  USER root
+  RUN rm -f /usr/local/bin/tofu /usr/bin/tofu
+  {% endif %}
+  {% if not tools.packer.enabled %}
+  USER root
+  RUN rm -f /usr/local/bin/packer /usr/bin/packer
+  {% endif %}
+  {% if not tools.ansible.enabled %}
+  USER root
+  RUN pip3 uninstall -y ansible ansible-core 2>/dev/null || true
+  {% endif %}

@@ -2186,10 +2186,10 @@ pub fn cmd_init(config_path: &Option<String>, params: InitParams) -> Result<()> 
                 },
                 ..crate::config::TmuxSection::default()
             },
-            zellij_status: None,
         },
         agents: crate::config::AgentsSection::default(),
         audio: AudioSection::default(),
+        apply: crate::config::ApplySection::default(),
         mcp: crate::config::McpSection::default(),
         local_env: std::collections::HashMap::new(),
         local_mcp_servers: vec![],

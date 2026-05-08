@@ -1128,4 +1128,175 @@ runtime: |
         assert_eq!(index.addons[1].requires, vec!["base".to_string()]);
         assert_eq!(index.addons[1].tools[0].name, "runner");
     }
+
+    // -----------------------------------------------------------------------
+    // BR-CLEANUP-ARCH item 3 — disable-then-purge generalization tests.
+    // These tests load the real `addons/` tree from the repo so they catch
+    // regressions in the YAML purge_template templates as well as the
+    // template renderer.
+    // -----------------------------------------------------------------------
+
+    fn repo_addons_dir() -> std::path::PathBuf {
+        // CARGO_MANIFEST_DIR points at /workspace/cli; addons/ lives one up.
+        std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
+            .parent()
+            .unwrap()
+            .join("addons")
+    }
+
+    fn load_repo_addon(name: &str) -> LoadedAddon {
+        let addons = load_from_dir(&repo_addons_dir()).unwrap();
+        addons.into_iter().find(|a| a.name == name).unwrap_or_else(|| {
+            panic!("addon '{}' not found in repo addons dir", name)
+        })
+    }
+
+    fn all_disabled_tools(addon: &LoadedAddon) -> HashMap<String, ToolConfig> {
+        addon
+            .tools
+            .iter()
+            .map(|t| {
+                (
+                    t.name.clone(),
+                    ToolConfig {
+                        enabled: false,
+                        version: t.default_version.clone(),
+                    },
+                )
+            })
+            .collect()
+    }
+
+    fn all_enabled_tools(addon: &LoadedAddon) -> HashMap<String, ToolConfig> {
+        addon
+            .tools
+            .iter()
+            .map(|t| {
+                (
+                    t.name.clone(),
+                    ToolConfig {
+                        enabled: true,
+                        version: t.default_version.clone(),
+                    },
+                )
+            })
+            .collect()
+    }
+
+    #[test]
+    fn purge_kubernetes_emits_rm_when_kubectl_disabled() {
+        let addon = load_repo_addon("kubernetes");
+        let tools = all_disabled_tools(&addon);
+        let rendered = render_runtime(&addon, &tools).unwrap();
+        // Disabled tools must NOT install
+        assert!(
+            !rendered.contains("COPY --from=k8s-builder /build/bin/kubectl"),
+            "disabled kubectl must not COPY: {rendered}"
+        );
+        // ... and MUST hard-purge
+        assert!(
+            rendered.contains("rm -f /usr/local/bin/kubectl"),
+            "disabled kubectl must purge binary: {rendered}"
+        );
+        assert!(
+            rendered.contains("rm -f /usr/local/bin/helm"),
+            "disabled helm must purge binary: {rendered}"
+        );
+    }
+
+    #[test]
+    fn purge_kubernetes_skips_purge_when_enabled() {
+        let addon = load_repo_addon("kubernetes");
+        let tools = all_enabled_tools(&addon);
+        let rendered = render_runtime(&addon, &tools).unwrap();
+        assert!(
+            rendered.contains("COPY --from=k8s-builder /build/bin/kubectl"),
+            "enabled kubectl must COPY: {rendered}"
+        );
+        assert!(
+            !rendered.contains("rm -f /usr/local/bin/kubectl"),
+            "enabled kubectl must not be purged: {rendered}"
+        );
+    }
+
+    #[test]
+    fn purge_cloud_aws_uninstalls_when_disabled() {
+        let addon = load_repo_addon("cloud-aws");
+        let tools = all_disabled_tools(&addon);
+        let rendered = render_runtime(&addon, &tools).unwrap();
+        assert!(
+            rendered.contains("rm -rf /usr/local/aws-cli"),
+            "disabled aws-cli must purge install dir: {rendered}"
+        );
+    }
+
+    #[test]
+    fn purge_cloud_azure_pip_uninstalls_when_disabled() {
+        let addon = load_repo_addon("cloud-azure");
+        let tools = all_disabled_tools(&addon);
+        let rendered = render_runtime(&addon, &tools).unwrap();
+        assert!(
+            rendered.contains("pip3 uninstall -y azure-cli"),
+            "disabled azure-cli must pip uninstall: {rendered}"
+        );
+    }
+
+    #[test]
+    fn purge_cloud_gcp_apt_purges_when_disabled() {
+        let addon = load_repo_addon("cloud-gcp");
+        let tools = all_disabled_tools(&addon);
+        let rendered = render_runtime(&addon, &tools).unwrap();
+        assert!(
+            rendered.contains("apt-get purge -y --auto-remove google-cloud-cli"),
+            "disabled gcloud-cli must apt purge: {rendered}"
+        );
+    }
+
+    #[test]
+    fn purge_infrastructure_handles_each_tool() {
+        let addon = load_repo_addon("infrastructure");
+        let tools = all_disabled_tools(&addon);
+        let rendered = render_runtime(&addon, &tools).unwrap();
+        assert!(rendered.contains("rm -f /usr/local/bin/tofu"));
+        assert!(rendered.contains("rm -f /usr/local/bin/packer"));
+        assert!(rendered.contains("pip3 uninstall -y ansible"));
+    }
+
+    #[test]
+    fn purge_audio_voice_uses_dpkg_query() {
+        let addon = load_repo_addon("audio-voice");
+        let tools = all_disabled_tools(&addon);
+        let rendered = render_runtime(&addon, &tools).unwrap();
+        assert!(
+            rendered.contains("dpkg-query -W -f='${Status}' sox"),
+            "disabled sox must use dpkg-query guard: {rendered}"
+        );
+        assert!(rendered.contains("apt-get purge -y --auto-remove sox"));
+    }
+
+    #[test]
+    fn purge_preview_addons_each_handle_tool_disable() {
+        for name in ["preview-archive", "preview-enhanced", "data-preview"] {
+            let addon = load_repo_addon(name);
+            let tools = all_disabled_tools(&addon);
+            let rendered = render_runtime(&addon, &tools).unwrap();
+            assert!(
+                rendered.contains("apt-get purge")
+                    || rendered.contains("rm -f /usr/local/bin/")
+                    || rendered.contains("rm -f /usr/local/bin/ouch"),
+                "addon '{name}' must emit a purge step when all tools disabled: {rendered}"
+            );
+        }
+    }
+
+    #[test]
+    fn purge_yazi_omp_removes_binary_when_disabled() {
+        let addon = load_repo_addon("yazi-omp");
+        let tools = all_disabled_tools(&addon);
+        let rendered = render_runtime(&addon, &tools).unwrap();
+        assert!(
+            rendered.contains("rm -f /usr/local/bin/oh-my-posh"),
+            "disabled oh-my-posh must remove binary: {rendered}"
+        );
+    }
 }

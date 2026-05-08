@@ -15,6 +15,7 @@ const SCHEMA_V1_0_0: &str = include_str!("../../schemas/v1.0.0/context-schema.md
 const CURRENT_CONTEXT_SCHEMA_VERSION: &str = "1.0.0";
 
 /// Diagnostic counters.
+#[derive(Debug)]
 struct DiagResult {
     warnings: u32,
     errors: u32,
@@ -101,10 +102,9 @@ pub fn cmd_doctor(config_path: &Option<String>) -> Result<()> {
     output::info("Checking aibox.toml schema...");
     check_aibox_toml_schema(config_path, &mut diag);
 
-    // 2b. BR-DOCTOR-GAPS: deprecated `[customization.zellij_status]`
-    // section in the raw aibox.toml (auto-migrated at read time, but
-    // the on-disk source should be updated).
-    check_legacy_zellij_aliases(config_path, &mut diag);
+    // BR-LEGACY-MUX-EXCISE (DEC-20260508_1515-SilentAsh) hard-cut the legacy
+    // multiplexer status alias in v0.25.6 — no doctor check is needed:
+    // the schema validator above rejects unknown sections.
 
     // 3. Check .aibox-home/ directory (or legacy .root/)
     let root = config.host_root_dir();
@@ -155,9 +155,11 @@ pub fn cmd_doctor(config_path: &Option<String>) -> Result<()> {
     output::info("Checking PowerKit plugin tree...");
     check_powerkit_plugin_tree(&config, &mut diag);
 
-    // 4e. BR-DOCTOR-GAPS: legacy multiplexer (zellij) artifact scan.
-    output::info("Checking for legacy zellij artifacts...");
-    check_legacy_zellij_artifacts(&config, &mut diag);
+    // 4e. BR-LEGACY-MUX-EXCISE: legacy multiplexer artifact scan. Variant 1
+    // hard-purge per DEC-20260508_1515-SilentAsh — `aibox apply` deletes
+    // these unconditionally; survival is a doctor-level error.
+    output::info("Checking for legacy multiplexer artifacts...");
+    check_legacy_multiplexer_artifacts(&config, &mut diag);
 
     // 5. Check context structure
     output::info(&format!(
@@ -1397,28 +1399,6 @@ fn check_tmux_conf_drift_signature(config: &AiboxConfig, diag: &mut DiagResult) 
     }
 }
 
-/// Warn when the raw aibox.toml still uses the deprecated
-/// `[customization.zellij_status]` section name (silently migrated by
-/// `AiSection::migrate_legacy`, but the source-of-truth file should be
-/// updated).
-fn check_legacy_zellij_aliases(config_path: &Option<String>, diag: &mut DiagResult) {
-    let path = config_path
-        .as_deref()
-        .map(Path::new)
-        .unwrap_or_else(|| Path::new("aibox.toml"));
-    let Ok(body) = std::fs::read_to_string(path) else {
-        return;
-    };
-    if body.contains("[customization.zellij_status]") {
-        output::warn(
-            "aibox.toml uses deprecated `[customization.zellij_status]` — \
-             rename to `[customization.tmux.status]`. The legacy alias is \
-             auto-migrated at read time but the on-disk source should be updated.",
-        );
-        diag.warnings += 1;
-    }
-}
-
 /// When extended/PowerKit status mode is selected, ensure the PowerKit
 /// plugin tree exists either in the host's managed plugin dir or baked
 /// into the image. Missing plugin tree means the status row silently
@@ -1446,26 +1426,16 @@ fn check_powerkit_plugin_tree(config: &AiboxConfig, diag: &mut DiagResult) {
     }
 }
 
-/// Scan for legacy zellij artifacts under the host root. Variant 1
+/// Scan for legacy multiplexer artifacts under the host root. Variant 1
 /// hard-purge per DEC-20260508_1515-SilentAsh — owner approved; presence
-/// is an error. BR-ZELLIJ-EXCISE will add `cleanup_legacy_zellij_files`
-/// to seed.rs that purges these on `aibox apply`; this check verifies
-/// the post-apply state.
-fn check_legacy_zellij_artifacts(config: &AiboxConfig, diag: &mut DiagResult) {
+/// is an error. `aibox apply` runs the legacy-multiplexer cleanup
+/// unconditionally, so survival here means either the host CLI is
+/// pre-v0.25.6 or the user re-introduced the files manually.
+fn check_legacy_multiplexer_artifacts(config: &AiboxConfig, diag: &mut DiagResult) {
     let root = config.host_root_dir();
-    let candidates: &[&str] = &[
-        ".config/zellij",
-        ".cache/zellij",
-        ".local/share/zellij",
-        ".local/bin/aibox-status",
-    ];
-    let found: Vec<PathBuf> = candidates
-        .iter()
-        .map(|rel| root.join(rel))
-        .filter(|p| p.exists())
-        .collect();
+    let found = crate::seed::surviving_legacy_multiplexer_paths(&root);
     if found.is_empty() {
-        output::ok("No legacy zellij artifacts under host root");
+        output::ok("No legacy multiplexer artifacts under host root");
         return;
     }
     let list = found
@@ -1474,8 +1444,9 @@ fn check_legacy_zellij_artifacts(config: &AiboxConfig, diag: &mut DiagResult) {
         .collect::<Vec<_>>()
         .join(", ");
     output::error(&format!(
-        "Legacy zellij artifacts present: {list}. Run `aibox apply` from \
-         v0.25.6+ to purge; if they persist, remove them manually."
+        "Legacy multiplexer artifacts present: {list}. Run `aibox apply` from \
+         a v0.25.6+ host CLI; if the warning persists, remove the listed \
+         paths manually."
     ));
     diag.errors += 1;
 }
@@ -2139,6 +2110,75 @@ args = ["run", "/workspace/context/skills/processkit/processkit-gateway/mcp/serv
                 "context/skills/processkit/morning-briefing",
                 "context/skills/product/retrospective"
             ]
+        );
+    }
+
+    // BR-LEGACY-MUX-EXCISE (DEC-20260508_1515-SilentAsh): doctor must
+    // raise an error when legacy multiplexer artifacts survive on disk
+    // after `aibox apply`.
+    fn legacy_mux_test_config(host_root: &std::path::Path) -> AiboxConfig {
+        let cfg = AiboxConfig::from_str(
+            r#"[aibox]
+version = "0.25.6"
+
+[container]
+name = "doctor-legacy-mux"
+"#,
+        )
+        .expect("test config parses");
+        // Override host_root_dir() via the public override field used
+        // by other tests. Use AIBOX_HOST_ROOT to keep this independent
+        // of struct internals.
+        unsafe {
+            std::env::set_var("AIBOX_HOST_ROOT", host_root);
+        }
+        // Avoid leaking the env var: read once, then unset; cfg captures
+        // the path on the next call to host_root_dir() in the tested fn.
+        let _ = cfg.host_root_dir();
+        cfg
+    }
+
+    #[test]
+    #[serial_test::serial]
+    fn doctor_errors_on_surviving_legacy_multiplexer_artifact() {
+        let tmp = tempfile::tempdir().unwrap();
+        let host = tmp.path().join("home");
+        // Use the shared cleanup-target list as the source of truth so
+        // doctor.rs stays free of literal legacy-path strings.
+        let rel = crate::seed::LEGACY_MUX_RELPATHS[0];
+        fs::create_dir_all(host.join(rel)).unwrap();
+        fs::write(host.join(rel).join("config.kdl"), "// stale\n").unwrap();
+
+        let cfg = legacy_mux_test_config(&host);
+        let mut diag = DiagResult::new();
+        check_legacy_multiplexer_artifacts(&cfg, &mut diag);
+
+        unsafe {
+            std::env::remove_var("AIBOX_HOST_ROOT");
+        }
+        assert!(
+            diag.errors >= 1,
+            "doctor must error when legacy multiplexer artifacts survive: {diag:?}"
+        );
+    }
+
+    #[test]
+    #[serial_test::serial]
+    fn doctor_clean_when_legacy_multiplexer_purged() {
+        let tmp = tempfile::tempdir().unwrap();
+        let host = tmp.path().join("home");
+        fs::create_dir_all(host.join(".config/tmux")).unwrap();
+
+        let cfg = legacy_mux_test_config(&host);
+        let mut diag = DiagResult::new();
+        check_legacy_multiplexer_artifacts(&cfg, &mut diag);
+
+        unsafe {
+            std::env::remove_var("AIBOX_HOST_ROOT");
+        }
+        assert_eq!(
+            diag.errors, 0,
+            "clean host root should not raise multiplexer doctor errors: {diag:?}"
         );
     }
 

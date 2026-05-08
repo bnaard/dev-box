@@ -21,6 +21,7 @@ runtime: |
   # Addon: data-preview — SQLite and tabular previews for Yazi.
   # Adds sqlite3 plus csvkit's csvlook/in2csv for CSV, TSV, XLS, and XLSX previews.
   USER root
+  {% if tools.sqlite3.enabled or tools.csvkit.enabled %}
   RUN apt-get update && apt-get install -y --no-install-recommends \
   {% if tools.sqlite3.enabled %}
       sqlite3 \
@@ -29,3 +30,15 @@ runtime: |
       csvkit \
   {% endif %}
       && rm -rf /var/lib/apt/lists/*
+  {% endif %}
+  # ── Variant 1 disable-then-purge guards ───────────────────────────────
+  {% if not tools.sqlite3.enabled %}
+  RUN if dpkg-query -W -f='${Status}' sqlite3 2>/dev/null | grep -q 'install ok installed'; then \
+        apt-get purge -y --auto-remove sqlite3; \
+      fi && rm -rf /var/lib/apt/lists/*
+  {% endif %}
+  {% if not tools.csvkit.enabled %}
+  RUN if dpkg-query -W -f='${Status}' csvkit 2>/dev/null | grep -q 'install ok installed'; then \
+        apt-get purge -y --auto-remove csvkit; \
+      fi && rm -rf /var/lib/apt/lists/*
+  {% endif %}

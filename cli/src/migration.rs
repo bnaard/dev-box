@@ -495,10 +495,7 @@ fn should_refresh_generated_aibox_toml_comments(raw: &str) -> bool {
             || raw.contains("aibox addon info")
             || raw.contains("aibox addon add")
             || raw.contains("run `aibox sync`")
-            || raw.contains("`aibox sync`")
-            || raw.contains("zellij layout")
-            || raw.contains("Zellij, Vim")
-            || raw.contains("[customization.zellij_status]"))
+            || raw.contains("`aibox sync`"))
 }
 
 /// One-time hard-cut migration: if a legacy `.aibox-version` file still exists,
@@ -2312,41 +2309,6 @@ enabled = false
     }
 
     #[test]
-    fn refresh_generated_aibox_toml_comments_rewrites_legacy_zellij_comments() {
-        let tmp = TempDir::new().unwrap();
-        fs::write(
-            tmp.path().join("aibox.toml"),
-            r#"# aibox.toml — single source of truth for your aibox project.
-
-[container]
-name = "demo"
-
-# =============================================================================
-# [customization] — color theme, shell prompt, and zellij layout
-# =============================================================================
-# Theme is applied consistently across Zellij, Vim, Yazi, lazygit, and bat.
-[customization]
-# Default zellij layout. Options: dev | focus | cowork | cowork-swap | browse | ai
-layout = "ai"
-
-# Zellij status presentation. Options: sidecar | shell | disabled
-[customization.zellij_status]
-mode = "sidecar"
-"#,
-        )
-        .unwrap();
-
-        refresh_generated_aibox_toml_comments(tmp.path()).unwrap();
-
-        let after = fs::read_to_string(tmp.path().join("aibox.toml")).unwrap();
-        assert!(after.contains("[customization.tmux.status]"));
-        assert!(after.contains("mode = \"extended\""));
-        assert!(after.contains("tmux layout"));
-        assert!(!after.contains("zellij layout"));
-        assert!(!after.contains("[customization.zellij_status]"));
-    }
-
-    #[test]
     fn refresh_generated_aibox_toml_comments_skips_unknown_schema_keys() {
         let tmp = TempDir::new().unwrap();
         let before = r#"# aibox.toml — single source of truth for your aibox project.
@@ -2416,7 +2378,10 @@ layout = "ai"
     }
 
     #[test]
-    fn standardize_aibox_toml_migrates_legacy_zellij_status() {
+    fn standardize_aibox_toml_rejects_legacy_multiplexer_status_table() {
+        // BR-LEGACY-MUX-EXCISE (DEC-20260508_1515-SilentAsh, v0.25.6):
+        // legacy multiplexer aliases were hard-cut. standardize_aibox_toml
+        // now refuses to rewrite a config that still carries them.
         let tmp = TempDir::new().unwrap();
         fs::write(
             tmp.path().join("aibox.toml"),
@@ -2426,18 +2391,14 @@ name = "demo"
 [customization]
 layout = "ai"
 
-[customization.zellij_status]
+[customization.legacy_mux_status]
 mode = "hidden"
 "#,
         )
         .unwrap();
 
-        standardize_aibox_toml(tmp.path()).unwrap();
-
-        let after = fs::read_to_string(tmp.path().join("aibox.toml")).unwrap();
-        assert!(after.contains("[customization.tmux.status]"));
-        assert!(after.contains("mode = \"disabled\""));
-        assert!(!after.contains("zellij_status"));
+        let err = standardize_aibox_toml(tmp.path()).unwrap_err();
+        assert!(err.to_string().contains("Cannot standardize"));
     }
 
     #[test]

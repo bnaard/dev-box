@@ -17,8 +17,16 @@ builder: null
 
 runtime: |
   # Addon: cloud-aws
+  {% if tools["aws-cli"].enabled %}
   RUN ARCH="$(uname -m)" && \
       curl -fsSL "https://awscli.amazonaws.com/awscli-exe-linux-${ARCH}.zip" -o /tmp/awscli.zip && \
       unzip -q /tmp/awscli.zip -d /tmp && \
       /tmp/aws/install && \
       rm -rf /tmp/aws /tmp/awscli.zip
+  {% endif %}
+  {% if not tools["aws-cli"].enabled %}
+  # Variant 1 disable-then-purge: aws CLI v2 installs into /usr/local/aws-cli/
+  # plus a /usr/local/bin/aws symlink. Both must go when the tool is disabled.
+  USER root
+  RUN rm -rf /usr/local/aws-cli /usr/local/bin/aws /usr/local/bin/aws_completer
+  {% endif %}

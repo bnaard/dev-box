@@ -131,11 +131,8 @@ pub fn run_runtime_sync(
                 .is_some_and(|previous_sha| {
                     live_file_matches(&host_root, &diff.rel_path, previous_sha)
                 });
-        let should_update_same_version_generated_file = same_version_sync
-            && (live_matches_previous_generated
-                || zellij_layout_contains_unselected_harness(&host_root, &diff.rel_path, config));
-        let should_update_stale_managed_zellij_file =
-            live_matches_historical_managed_zellij_file(project_root, &host_root, &diff.rel_path);
+        let should_update_same_version_generated_file =
+            same_version_sync && live_matches_previous_generated;
         let should_update_stale_managed_runtime_helper =
             live_matches_historical_managed_runtime_helper(
                 project_root,
@@ -148,9 +145,6 @@ pub fn run_runtime_sync(
             live_matches_historical_managed_tmux_file(project_root, &host_root, &diff.rel_path);
         let should_update_legacy_managed_yazi_init =
             live_matches_legacy_managed_yazi_init(&host_root, &diff.rel_path);
-        let should_restore_missing_zellij_status_toggle_layout = same_version_sync
-            && zellij_status_toggle_layout_relpath(&diff.rel_path)
-            && !host_root.join(&diff.rel_path).is_file();
         let should_restore_missing_managed_runtime_helper = same_version_sync
             && managed_runtime_helper_relpath(&diff.rel_path)
             && !host_root.join(&diff.rel_path).is_file();
@@ -160,12 +154,10 @@ pub fn run_runtime_sync(
                 diff.classification,
                 FileClassification::ChangedUpstreamOnly | FileClassification::NewUpstream
             ))
-            || should_update_stale_managed_zellij_file
             || should_update_stale_managed_runtime_helper
             || should_update_stale_managed_yazi_file
             || should_update_stale_managed_tmux_file
             || should_update_legacy_managed_yazi_init
-            || should_restore_missing_zellij_status_toggle_layout
             || should_restore_missing_managed_runtime_helper)
             && let Some(content) = generated_map.get(&diff.rel_path)
         {
@@ -526,11 +518,11 @@ fn summarize(diffs: &[RuntimeFileDiff]) -> DiffSummary {
             FileClassification::Conflict => summary.conflict += 1,
             FileClassification::NewUpstream => summary.new_upstream += 1,
             FileClassification::RemovedUpstream => summary.removed_upstream += 1,
-            // Runtime sync (managed runtime files like
-            // .config/zellij/...) does not consult older mirrors, so
-            // it never produces RemovedUpstreamStale itself. Count it
-            // toward the same bucket for parity if it ever appears
-            // (e.g. a future caller passes a content_diff result here).
+            // Runtime sync over managed files does not consult older
+            // mirrors, so it never produces RemovedUpstreamStale itself.
+            // Count it toward the same bucket for parity if it ever
+            // appears (e.g. a future caller passes a content_diff
+            // result here).
             FileClassification::RemovedUpstreamStale { .. } => summary.removed_upstream_stale += 1,
         }
     }
@@ -540,9 +532,6 @@ fn summarize(diffs: &[RuntimeFileDiff]) -> DiffSummary {
 fn runtime_group_for(rel_path: &str) -> String {
     if rel_path.starts_with(".config/tmux/") {
         return "runtime-tmux".to_string();
-    }
-    if rel_path.starts_with(".config/zellij/") {
-        return "runtime-zellij-legacy".to_string();
     }
     if rel_path.starts_with(".config/yazi/") {
         return "runtime-yazi".to_string();
@@ -581,74 +570,6 @@ fn live_file_matches(host_root: &Path, rel_path: &str, expected_sha: &str) -> bo
         .then(|| crate::lock::sha256_of_file(&live_abs).ok())
         .flatten()
         .is_some_and(|live_sha| live_sha == expected_sha)
-}
-
-fn zellij_layout_contains_unselected_harness(
-    host_root: &Path,
-    rel_path: &str,
-    config: &crate::config::AiboxConfig,
-) -> bool {
-    if !rel_path.starts_with(".config/zellij/layouts/") || !rel_path.ends_with(".kdl") {
-        return false;
-    }
-    let live_abs = host_root.join(rel_path);
-    let Ok(content) = fs::read_to_string(live_abs) else {
-        return false;
-    };
-    crate::config::AiProvider::all()
-        .iter()
-        .filter(|harness| harness.is_active())
-        .filter(|harness| !config.ai.harnesses.contains(harness))
-        .any(|harness| {
-            let command = harness.binary_name();
-            !command.is_empty() && content.contains(&format!("command \"{}\"", command))
-        })
-}
-
-fn live_matches_historical_managed_zellij_file(
-    project_root: &Path,
-    host_root: &Path,
-    rel_path: &str,
-) -> bool {
-    if !managed_zellij_relpath(rel_path) {
-        return false;
-    }
-
-    let live_abs = host_root.join(rel_path);
-    let Ok(live_content) = fs::read_to_string(&live_abs) else {
-        return false;
-    };
-    if !is_managed_zellij_file(rel_path, &live_content) {
-        return false;
-    }
-    let live_normalized = normalize_historical_zellij_file(&live_content);
-    let live_sha = sha256_of_bytes(live_normalized.as_bytes());
-    let snapshots_root = project_root.join(RUNTIME_TEMPLATES_DIR);
-    let Ok(entries) = fs::read_dir(snapshots_root) else {
-        return false;
-    };
-
-    entries.filter_map(Result::ok).any(|entry| {
-        let snapshot_file = entry.path().join(rel_path);
-        let Ok(snapshot_content) = fs::read_to_string(snapshot_file) else {
-            return false;
-        };
-        if !is_managed_zellij_file(rel_path, &snapshot_content) {
-            return false;
-        }
-        let snapshot_normalized = normalize_historical_zellij_file(&snapshot_content);
-        sha256_of_bytes(snapshot_normalized.as_bytes()) == live_sha
-    })
-}
-
-fn managed_zellij_relpath(rel_path: &str) -> bool {
-    rel_path == ".config/zellij/config.kdl"
-        || (rel_path.starts_with(".config/zellij/layouts/") && rel_path.ends_with(".kdl"))
-}
-
-fn zellij_status_toggle_layout_relpath(rel_path: &str) -> bool {
-    rel_path == ".config/zellij/layouts/aibox-status-visible.kdl"
-        || rel_path == ".config/zellij/layouts/aibox-status-hidden.kdl"
 }
 
 fn managed_runtime_helper_relpath(rel_path: &str) -> bool {
@@ -848,24 +769,6 @@ fn live_matches_historical_managed_runtime_helper(
         };
         sha256_of_bytes(&snapshot_content) == live_sha
     })
-}
-
-fn is_managed_zellij_file(rel_path: &str, content: &str) -> bool {
-    if rel_path == ".config/zellij/config.kdl" {
-        return content.contains("// aibox zellij configuration");
-    }
-
-    content.contains("aibox-status.wasm")
-        || content.contains("zellij:status-bar")
-        || content.contains("tab_template name=\"aibox-tab\"")
-        || content.contains("default_tab_template")
-}
-
-fn normalize_historical_zellij_file(content: &str) -> String {
-    content.replace(
-        "file:/workspace/.aibox-home/.local/share/aibox/zellij/aibox-status.wasm",
-        "file:/usr/local/share/aibox/zellij/aibox-status.wasm",
-    )
 }
 
 fn refresh_runtime_home_lock(
@@ -1269,163 +1172,6 @@ mod tests {
     }
 
     #[test]
-    fn zellij_layout_detects_unselected_harness_command() {
-        let tmp = TempDir::new().unwrap();
-        let rel = ".config/zellij/layouts/ai.kdl";
-        let path = tmp.path().join(rel);
-        fs::create_dir_all(path.parent().unwrap()).unwrap();
-        fs::write(&path, "pane { command \"claude\" }\n").unwrap();
-        let config = crate::config::AiboxConfig::from_str(
-            r#"[aibox]
-version = "0.22.0"
-
-[container]
-name = "demo"
-
-[ai]
-harnesses = ["codex"]
-"#,
-        )
-        .unwrap();
-
-        assert!(zellij_layout_contains_unselected_harness(
-            tmp.path(),
-            rel,
-            &config
-        ));
-    }
-
-    #[test]
-    fn zellij_layout_allows_selected_harness_command() {
-        let tmp = TempDir::new().unwrap();
-        let rel = ".config/zellij/layouts/ai.kdl";
-        let path = tmp.path().join(rel);
-        fs::create_dir_all(path.parent().unwrap()).unwrap();
-        fs::write(&path, "pane { command \"codex\" }\n").unwrap();
-        let config = crate::config::AiboxConfig::from_str(
-            r#"[aibox]
-version = "0.22.0"
-
-[container]
-name = "demo"
-
-[ai]
-harnesses = ["codex"]
-"#,
-        )
-        .unwrap();
-
-        assert!(!zellij_layout_contains_unselected_harness(
-            tmp.path(),
-            rel,
-            &config
-        ));
-    }
-
-    #[test]
-    fn detects_historical_managed_zellij_shell_status_layout() {
-        let tmp = TempDir::new().unwrap();
-        let root = tmp.path();
-        let host_root = root.join(".aibox-home");
-        let rel = ".config/zellij/layouts/dev.kdl";
-        let old_managed = r#"layout {
-    default_tab_template {
-        children
-        pane size=1 borderless=true {
-            plugin location="zellij:status-bar"
-        }
-        pane size=1 borderless=true {
-            command "bash"
-            args "-lc" "if [ -x \"$HOME/.local/bin/aibox-status\" ]; then exec \"$HOME/.local/bin/aibox-status\" --watch; else exec aibox-status --watch; fi"
-        }
-    }
-    tab name="dev" {}
-}
-"#;
-        write_snapshot(root, "0.23.1", &[(rel, old_managed)]);
-        let live = host_root.join(rel);
-        fs::create_dir_all(live.parent().unwrap()).unwrap();
-        fs::write(&live, old_managed).unwrap();
-
-        assert!(live_matches_historical_managed_zellij_file(
-            root, &host_root, rel
-        ));
-    }
-
-    #[test]
-    fn detects_historical_managed_zellij_native_status_layout() {
-        let tmp = TempDir::new().unwrap();
-        let root = tmp.path();
-        let host_root = root.join(".aibox-home");
-        let rel = ".config/zellij/layouts/ai.kdl";
-        let snapshot_managed = r#"layout {
-    default_tab_template {
-        children
-        pane size=1 borderless=true {
-            plugin location="file:/usr/local/share/aibox/zellij/aibox-status.wasm" {
-                role "keybar"
-            }
-        }
-        pane size=1 borderless=true {
-            plugin location="file:/usr/local/share/aibox/zellij/aibox-status.wasm" {
-                role "status"
-            }
-        }
-    }
-    tab name="ai" {}
-}
-"#;
-        let live_historical_bad_path = snapshot_managed.replace(
-            "file:/usr/local/share/aibox/zellij/aibox-status.wasm",
-            "file:/workspace/.aibox-home/.local/share/aibox/zellij/aibox-status.wasm",
-        );
-        write_snapshot(root, "0.23.7", &[(rel, snapshot_managed)]);
-        let live = host_root.join(rel);
-        fs::create_dir_all(live.parent().unwrap()).unwrap();
-        fs::write(&live, live_historical_bad_path).unwrap();
-
-        assert!(live_matches_historical_managed_zellij_file(
-            root, &host_root, rel
-        ));
-    }
-
-    #[test]
-    fn detects_historical_managed_zellij_config() {
-        let tmp = TempDir::new().unwrap();
-        let root = tmp.path();
-        let host_root = root.join(".aibox-home");
-        let rel = ".config/zellij/config.kdl";
-        let old_managed = r#"// aibox zellij configuration
-theme "nord"
-default_layout "ai"
-"#;
-        write_snapshot(root, "0.23.0", &[(rel, old_managed)]);
-        let live = host_root.join(rel);
-        fs::create_dir_all(live.parent().unwrap()).unwrap();
-        fs::write(&live, old_managed).unwrap();
-
-        assert!(live_matches_historical_managed_zellij_file(
-            root, &host_root, rel
-        ));
-    }
-
-    #[test]
-    fn zellij_status_toggle_layout_relpath_matches_only_toggle_layouts() {
-        assert!(zellij_status_toggle_layout_relpath(
-            ".config/zellij/layouts/aibox-status-visible.kdl"
-        ));
-        assert!(zellij_status_toggle_layout_relpath(
-            ".config/zellij/layouts/aibox-status-hidden.kdl"
-        ));
-        assert!(!zellij_status_toggle_layout_relpath(
-            ".config/zellij/layouts/ai.kdl"
-        ));
-        assert!(!zellij_status_toggle_layout_relpath(
-            ".config/zellij/config.kdl"
-        ));
-    }
-
-    #[test]
     fn detects_historical_managed_runtime_helper() {
         let tmp = TempDir::new().unwrap();
         let root = tmp.path();
@@ -1558,25 +1304,6 @@ rules = [
         ));
     }
 
-    #[test]
-    fn historical_zellij_status_detector_rejects_user_edited_layout() {
-        let tmp = TempDir::new().unwrap();
-        let root = tmp.path();
-        let host_root = root.join(".aibox-home");
-        let rel = ".config/zellij/layouts/dev.kdl";
-        let old_managed = r#"plugin location="zellij:status-bar"
-args "-lc" "aibox-status --watch"
-"#;
-        write_snapshot(root, "0.23.1", &[(rel, old_managed)]);
-        let live = host_root.join(rel);
-        fs::create_dir_all(live.parent().unwrap()).unwrap();
-        fs::write(&live, format!("{old_managed}\n# user edit\n")).unwrap();
-
-        assert!(!live_matches_historical_managed_zellij_file(
-            root, &host_root, rel
-        ));
-    }
-
     // -- v0.25.6 BR-CLEANUP-ARCH item 2 — managed tmux recognizer ----------
 
     #[test]
@@ -1657,6 +1384,8 @@ args "-lc" "aibox-status --watch"
         assert!(managed_tmux_relpath(".config/tmux/layouts/dev.sh"));
         assert!(managed_tmux_relpath(".config/tmux/layouts/cowork-swap.sh"));
         assert!(!managed_tmux_relpath(".config/tmux/layouts/custom.sh"));
-        assert!(!managed_tmux_relpath(".config/zellij/config.kdl"));
+        // Sanity: legacy multiplexer paths are never recognised as
+        // managed tmux files (BR-LEGACY-MUX-EXCISE).
+        assert!(!managed_tmux_relpath(".config/yazi/yazi.toml"));
     }
 }

@@ -1082,19 +1082,7 @@ pub fn cleanup_disabled_runtime_files(config: &AiboxConfig) -> Result<Vec<String
         }
     }
 
-    for rel_path in [
-        ".cache/zellij/permissions.kdl",
-        ".cache/org/Zellij Contributors/Zellij/permissions.kdl",
-    ] {
-        let permission_cache = root.join(rel_path);
-        if permission_cache.exists() {
-            fs::remove_file(&permission_cache)
-                .with_context(|| format!("Failed to remove {}", permission_cache.display()))?;
-            updated.push(format!("{rel_path} (removed legacy Zellij permissions)"));
-        }
-    }
-
-    updated.extend(cleanup_legacy_managed_zellij_config(&root)?);
+    updated.extend(cleanup_legacy_zellij_files(&root)?);
 
     let legacy_status = root.join(".local").join("bin").join("aibox-status");
     if legacy_managed_aibox_status_helper(&legacy_status) {
@@ -1113,135 +1101,345 @@ pub fn cleanup_disabled_runtime_files(config: &AiboxConfig) -> Result<Vec<String
         updated.push(".local/bin/claude (linked to /usr/local/bin/claude)".to_string());
     }
 
-    updated.extend(cleanup_zellij_runtime_cache(&root, &config.container.name)?);
+    // Item 5 (BR-CLEANUP-ARCH): tmux-powerkit cache + tmux plugin walker.
+    // Both run unconditionally on every apply (Variant 1, hard overwrite).
+    updated.extend(cleanup_tmux_powerkit_cache(&root)?);
+    updated.extend(cleanup_stale_tmux_plugins(config, &root)?);
 
-    for rel_path in [
-        ".cache/zellij",
-        ".cache/org/Zellij Contributors/Zellij",
-        ".cache/org/Zellij Contributors",
-    ] {
-        let cache_dir = root.join(rel_path);
-        if cache_dir.exists() {
-            fs::remove_dir_all(&cache_dir)
-                .with_context(|| format!("Failed to remove {}", cache_dir.display()))?;
-            updated.push(format!("{rel_path} (removed legacy Zellij cache)"));
-        }
-    }
+    // Item 4 (BR-CLEANUP-ARCH): per-harness state cleanup. When the user
+    // opted into purge_disabled_harness_state, hard-delete; otherwise emit
+    // a pending Migration document describing what would be removed.
+    updated.extend(cleanup_disabled_harness_state(config, &root)?);
 
     Ok(updated)
 }
 
-fn cleanup_zellij_runtime_cache(root: &Path, session_name: &str) -> Result<Vec<String>> {
-    let zellij_cache = root.join(".cache").join("zellij");
+/// Hard-delete the tmux-powerkit plugin cache. Variant 1: every apply
+/// regenerates the powerkit configuration from scratch, so any stashed cache
+/// is by definition stale and must not survive across applies.
+fn cleanup_tmux_powerkit_cache(root: &Path) -> Result<Vec<String>> {
     let mut updated = Vec::new();
-    let Ok(entries) = fs::read_dir(&zellij_cache) else {
+    let cache_dir = root.join(".cache").join("tmux-powerkit");
+    if cache_dir.exists() {
+        fs::remove_dir_all(&cache_dir)
+            .with_context(|| format!("Failed to remove {}", cache_dir.display()))?;
+        updated.push(".cache/tmux-powerkit (removed stale tmux-powerkit cache)".to_string());
+    }
+    Ok(updated)
+}
+
+/// Walk `.aibox-home/.tmux/plugins/<plugin>` and remove any plugin that the
+/// generated tmux.conf no longer references. The set of "referenced" plugins
+/// is computed from the rendered tmux.conf so this stays in lockstep with
+/// whatever plugins the active config asks for.
+///
+/// `tpm` is preserved unconditionally — it is the user-facing plugin manager
+/// and is not aibox-managed in the strict sense. Zellij plugins are skipped
+/// here too, because BR-ZELLIJ-EXCISE owns those.
+fn cleanup_stale_tmux_plugins(config: &AiboxConfig, root: &Path) -> Result<Vec<String>> {
+    let plugins_dir = root.join(".tmux").join("plugins");
+    let mut updated = Vec::new();
+    let Ok(entries) = fs::read_dir(&plugins_dir) else {
         return Ok(updated);
     };
 
+    let conf = tmux_conf(config);
     for entry in entries {
-        let entry = entry.with_context(|| format!("Failed to read {}", zellij_cache.display()))?;
+        let entry =
+            entry.with_context(|| format!("Failed to read {}", plugins_dir.display()))?;
         let path = entry.path();
-        let file_name = entry.file_name();
-        let name = file_name.to_string_lossy();
-
-        if name.starts_with("contract_version_") && path.is_dir() {
-            let session_info = path.join("session_info").join(session_name);
-            if session_info.exists() {
-                fs::remove_dir_all(&session_info)
-                    .with_context(|| format!("Failed to remove {}", session_info.display()))?;
-                updated.push(format!(
-                    ".cache/zellij/{}/session_info/{} (removed stale Zellij session)",
-                    name, session_name
-                ));
-            }
+        if !path.is_dir() {
             continue;
         }
+        let file_name = entry.file_name();
+        let name = file_name.to_string_lossy().to_string();
+        if name == "tpm" {
+            continue;
+        }
+        if name.to_ascii_lowercase().contains("zellij") {
+            continue;
+        }
+        // A plugin is "referenced" if the rendered tmux.conf names its
+        // directory anywhere (e.g. `tmux-powerkit/tmux-powerkit.tmux`).
+        let referenced = conf.contains(&format!("/{}/", name))
+            || conf.contains(&format!("/{}.", name));
+        if referenced {
+            continue;
+        }
+        fs::remove_dir_all(&path)
+            .with_context(|| format!("Failed to remove {}", path.display()))?;
+        updated.push(format!(
+            ".tmux/plugins/{} (removed stale tmux plugin)",
+            name
+        ));
+    }
+    Ok(updated)
+}
 
-        if path.is_dir() && is_uuid_like(&name) {
-            fs::remove_dir_all(&path)
-                .with_context(|| format!("Failed to remove {}", path.display()))?;
-            updated.push(format!(
-                ".cache/zellij/{} (removed stale Zellij plugin state)",
-                name
+/// Per-harness state cleanup (Item 4 of BR-CLEANUP-ARCH).
+///
+/// For every harness that has `config_dir() == Some(_)` but is NOT in
+/// `config.ai.harnesses`, look for stale state under `.aibox-home/`. When
+/// `[apply].purge_disabled_harness_state = true`, remove that state. When
+/// false (default), emit a pending Migration document describing exactly
+/// what would be removed and let the project owner decide.
+fn cleanup_disabled_harness_state(config: &AiboxConfig, root: &Path) -> Result<Vec<String>> {
+    use crate::config::AiHarness;
+
+    let active: std::collections::HashSet<&AiHarness> = config.ai.harnesses.iter().collect();
+
+    fn paths_for_harness(harness: &AiHarness) -> Vec<&'static str> {
+        match harness {
+            AiHarness::Gemini => vec![".gemini", ".gemini/settings.json"],
+            AiHarness::Codex => vec![".codex", ".codex/config.toml"],
+            AiHarness::Aider => vec![".aider"],
+            AiHarness::Continue => vec![".continue", ".continue/mcpServers"],
+            AiHarness::OpenCode => vec![".opencode/plugins"],
+            AiHarness::Cursor => vec![".cursor/mcp.json"],
+            AiHarness::Claude => vec![".claude", ".mcp.json"],
+            AiHarness::Copilot => vec![".copilot"],
+            AiHarness::Hermes => vec![".hermes"],
+            AiHarness::Mistral => vec![],
+        }
+    }
+
+    let mut stale: Vec<(AiHarness, Vec<std::path::PathBuf>)> = Vec::new();
+    for harness in AiHarness::all() {
+        if active.contains(harness) {
+            continue;
+        }
+        let mut existing = Vec::new();
+        for rel in paths_for_harness(harness) {
+            let p = root.join(rel);
+            if p.exists() {
+                existing.push(p);
+            }
+        }
+        if !existing.is_empty() {
+            stale.push((harness.clone(), existing));
+        }
+    }
+
+    // The .mcp.json file is shared by Claude/Copilot/OpenCode/Hermes/Mistral.
+    // Only consider it "stale" when ALL of those harnesses are disabled.
+    let any_dot_mcp = active.contains(&AiHarness::Claude)
+        || active.contains(&AiHarness::Copilot)
+        || active.contains(&AiHarness::OpenCode)
+        || active.contains(&AiHarness::Hermes);
+    if any_dot_mcp {
+        for (_harness, paths) in stale.iter_mut() {
+            paths.retain(|p| !p.ends_with(".mcp.json"));
+        }
+    }
+    stale.retain(|(_h, paths)| !paths.is_empty());
+
+    if stale.is_empty() {
+        return Ok(Vec::new());
+    }
+
+    let mut updated = Vec::new();
+    if config.apply.purge_disabled_harness_state {
+        for (harness, paths) in &stale {
+            for path in paths {
+                // Skip entries that have been removed already by a parent
+                // entry earlier in this list (e.g. removing `.codex/`
+                // already removes `.codex/config.toml`).
+                if !path.exists() {
+                    continue;
+                }
+                if path.is_dir() {
+                    fs::remove_dir_all(path)
+                        .with_context(|| format!("Failed to remove {}", path.display()))?;
+                } else {
+                    fs::remove_file(path)
+                        .with_context(|| format!("Failed to remove {}", path.display()))?;
+                }
+                let rel = path.strip_prefix(root).unwrap_or(path);
+                updated.push(format!(
+                    "{} (removed disabled-{} harness state)",
+                    rel.display(),
+                    harness
+                ));
+            }
+        }
+    } else {
+        // Emit a pending Migration document. Migration files live at the
+        // project workspace root (NOT under host_root).
+        let project_root = std::path::Path::new(".");
+        if let Err(err) = write_disabled_harness_migration(project_root, &stale, root) {
+            crate::output::warn(&format!(
+                "Failed to write disabled-harness migration: {err}"
             ));
+        } else {
+            updated.push(
+                "context/migrations/pending/disabled-harness-state.md (advisory written)"
+                    .to_string(),
+            );
         }
     }
 
     Ok(updated)
 }
 
-fn cleanup_legacy_managed_zellij_config(root: &Path) -> Result<Vec<String>> {
-    let zellij_config = root.join(".config").join("zellij");
+fn write_disabled_harness_migration(
+    project_root: &Path,
+    stale: &[(crate::config::AiHarness, Vec<std::path::PathBuf>)],
+    host_root: &Path,
+) -> Result<()> {
+    let migrations_dir = project_root
+        .join("context")
+        .join("migrations")
+        .join("pending");
+    fs::create_dir_all(&migrations_dir)
+        .with_context(|| format!("Failed to create {}", migrations_dir.display()))?;
+
+    let filepath = migrations_dir.join("disabled-harness-state.md");
+    if filepath.exists() {
+        return Ok(());
+    }
+
+    let mut body = String::new();
+    body.push_str("# Migration: disabled AI-harness state cleanup\n\n");
+    body.push_str(
+        "> **SAFETY: Do not execute host actions automatically.**\n\
+         > **Discuss the cleanup with the project owner before applying it.**\n\n",
+    );
+    body.push_str("**Status:** pending\n\n");
+    body.push_str("## Summary\n\n");
+    body.push_str(
+        "One or more AI harnesses that previously had state on the host are no \
+         longer listed in `[ai].harnesses`. Their `.aibox-home` config \
+         directories and MCP-registration files are still on disk.\n\n",
+    );
+    body.push_str(
+        "`aibox apply` did NOT delete this state because \
+         `[apply].purge_disabled_harness_state` is `false` (the default).\n\n",
+    );
+    body.push_str("## What would be removed\n\n");
+    for (harness, paths) in stale {
+        body.push_str(&format!(
+            "### {} ({} no longer enabled)\n\n",
+            harness, harness
+        ));
+        for path in paths {
+            let rel = path.strip_prefix(host_root).unwrap_or(path);
+            body.push_str(&format!(
+                "- `{}/{}`\n",
+                host_root.display(),
+                rel.display()
+            ));
+        }
+        body.push('\n');
+    }
+    body.push_str("## How to apply this cleanup\n\n");
+    body.push_str(
+        "1. Review the list above with the project owner.\n\
+         2. Either:\n   \
+            - re-enable the harness in `aibox.toml` if the removal was unintentional, OR\n   \
+            - set `[apply].purge_disabled_harness_state = true` in `aibox.toml` and run `aibox apply` again.\n\
+         3. Move this file to `context/migrations/applied/` once handled.\n",
+    );
+
+    fs::write(&filepath, body)
+        .with_context(|| format!("Failed to write {}", filepath.display()))?;
+    crate::output::ok(&format!(
+        "Generated disabled-harness migration: {}",
+        filepath.display()
+    ));
+    Ok(())
+}
+
+/// Relative paths under the host root that BR-ZELLIJ-EXCISE
+/// (DEC-20260508_1515-SilentAsh) hard-purges from every `aibox apply`.
+/// Doctor scans the same list so the post-apply state can be verified.
+pub const LEGACY_MUX_RELPATHS: &[&str] = &[
+    ".config/zellij",
+    ".cache/zellij",
+    ".cache/org/Zellij Contributors",
+    ".local/share/zellij",
+];
+
+/// Variant 1 hard-purge: scorch every legacy multiplexer artifact under
+/// the host root unconditionally on every `aibox apply`. Returns the list
+/// of paths that were actually removed.
+///
+/// Includes:
+/// - `.config/zellij/` (entire tree, user files included)
+/// - `.cache/zellij/` and `.cache/org/Zellij Contributors/`
+/// - `.local/share/zellij/`
+/// - any directory entry under `.tmux/plugins/` whose name contains
+///   `zellij` (no legacy plugin trees should survive)
+pub fn cleanup_legacy_zellij_files(root: &Path) -> Result<Vec<String>> {
     let mut updated = Vec::new();
 
-    let config = zellij_config.join("config.kdl");
-    if file_contains(&config, "aibox zellij configuration") {
-        fs::remove_file(&config)
-            .with_context(|| format!("Failed to remove {}", config.display()))?;
-        updated
-            .push(".config/zellij/config.kdl (removed legacy managed Zellij config)".to_string());
+    for rel_path in LEGACY_MUX_RELPATHS {
+        let abs = root.join(rel_path);
+        if !abs.exists() {
+            continue;
+        }
+        if abs.is_dir() {
+            fs::remove_dir_all(&abs)
+                .with_context(|| format!("Failed to remove {}", abs.display()))?;
+        } else {
+            fs::remove_file(&abs)
+                .with_context(|| format!("Failed to remove {}", abs.display()))?;
+        }
+        updated.push(format!("{rel_path} (removed legacy multiplexer artifact)"));
     }
 
-    let layouts = zellij_config.join("layouts");
-    for name in [
-        "ai.kdl",
-        "aibox-status-hidden.kdl",
-        "aibox-status-visible.kdl",
-        "browse.kdl",
-        "cowork-swap.kdl",
-        "cowork.kdl",
-        "dev.kdl",
-        "focus.kdl",
-    ] {
-        let path = layouts.join(name);
-        if file_contains(&path, "aibox-tab") || file_contains(&path, "aibox-status") {
-            fs::remove_file(&path)
-                .with_context(|| format!("Failed to remove {}", path.display()))?;
-            updated.push(format!(
-                ".config/zellij/layouts/{name} (removed legacy managed Zellij layout)"
-            ));
+    let plugins = root.join(".tmux").join("plugins");
+    if let Ok(entries) = fs::read_dir(&plugins) {
+        for entry in entries.flatten() {
+            let name = entry.file_name();
+            if name.to_string_lossy().to_ascii_lowercase().contains("zellij") {
+                let path = entry.path();
+                if path.is_dir() {
+                    fs::remove_dir_all(&path)
+                        .with_context(|| format!("Failed to remove {}", path.display()))?;
+                } else {
+                    fs::remove_file(&path)
+                        .with_context(|| format!("Failed to remove {}", path.display()))?;
+                }
+                updated.push(format!(
+                    ".tmux/plugins/{} (removed legacy multiplexer plugin)",
+                    name.to_string_lossy()
+                ));
+            }
         }
     }
-    let _ = fs::remove_dir(&layouts);
-
-    let themes = zellij_config.join("themes");
-    for name in ["gruvbox-dark.kdl", "tokyo-night.kdl"] {
-        let path = themes.join(name);
-        if path.exists() {
-            fs::remove_file(&path)
-                .with_context(|| format!("Failed to remove {}", path.display()))?;
-            updated.push(format!(
-                ".config/zellij/themes/{name} (removed legacy managed Zellij theme)"
-            ));
-        }
-    }
-    let _ = fs::remove_dir(&themes);
-    let _ = fs::remove_dir(&zellij_config);
 
     Ok(updated)
 }
 
-fn file_contains(path: &Path, needle: &str) -> bool {
-    fs::read_to_string(path)
-        .map(|body| body.contains(needle))
-        .unwrap_or(false)
-}
-
-fn is_uuid_like(value: &str) -> bool {
-    let bytes = value.as_bytes();
-    if bytes.len() != 36 {
-        return false;
-    }
-    for (idx, byte) in bytes.iter().enumerate() {
-        if matches!(idx, 8 | 13 | 18 | 23) {
-            if *byte != b'-' {
-                return false;
-            }
-        } else if !byte.is_ascii_hexdigit() {
-            return false;
+/// Scan the host root for any surviving legacy multiplexer artifacts.
+/// Returns absolute paths. Doctor uses this to error loudly when
+/// `aibox apply` has not purged the tree (e.g. stale host CLI version).
+pub fn surviving_legacy_multiplexer_paths(root: &Path) -> Vec<std::path::PathBuf> {
+    let mut found = Vec::new();
+    for rel in LEGACY_MUX_RELPATHS {
+        let p = root.join(rel);
+        if p.exists() {
+            found.push(p);
         }
     }
-    true
+    let plugins = root.join(".tmux").join("plugins");
+    if let Ok(entries) = fs::read_dir(&plugins) {
+        for entry in entries.flatten() {
+            if entry
+                .file_name()
+                .to_string_lossy()
+                .to_ascii_lowercase()
+                .contains("zellij")
+            {
+                found.push(entry.path());
+            }
+        }
+    }
+    let legacy_shell_status = root.join(".local").join("bin").join("aibox-status");
+    if legacy_managed_aibox_status_helper(&legacy_shell_status) {
+        found.push(legacy_shell_status);
+    }
+    found
 }
 
 fn stale_claude_home_symlink(path: &Path) -> bool {
@@ -1980,7 +2178,13 @@ mod tests {
         assert!(root.join(".vim").join("undo").is_dir());
         assert!(root.join(".config").join("tmux").join("layouts").is_dir());
         assert!(root.join(".tmux").join("plugins").is_dir());
-        assert!(!root.join(".config").join("zellij").exists());
+        // BR-ZELLIJ-EXCISE: tmux is the only multiplexer; no legacy dir is seeded.
+        for rel in LEGACY_MUX_RELPATHS {
+            assert!(
+                !root.join(rel).exists(),
+                "legacy multiplexer artifact seeded: {rel}"
+            );
+        }
         assert!(root.join(".config").join("yazi").is_dir());
         assert!(root.join(".config").join("git").is_dir());
         assert!(root.join(".claude").is_dir());
@@ -2335,97 +2539,34 @@ mod tests {
     }
 
     #[test]
-    fn managed_runtime_files_omit_legacy_zellij_permission_cache() {
+    fn managed_runtime_files_omit_legacy_multiplexer_permission_cache() {
         let dir = tempfile::tempdir().unwrap();
         let root = dir.path().join("root");
         let config = make_config(false, root);
         let files = managed_runtime_files(&config);
-        assert!(
-            !files.iter().any(|(path, _)| path
-                == &std::path::PathBuf::from(".cache/zellij/permissions.kdl")),
-            "tmux runtime must not seed legacy Zellij plugin permission cache"
-        );
+        for (path, _) in &files {
+            let s = path.to_string_lossy().to_ascii_lowercase();
+            assert!(
+                !s.contains("zell"),
+                "tmux runtime must not seed legacy multiplexer files: {}",
+                path.display()
+            );
+        }
     }
 
     #[test]
-    fn cleanup_removes_legacy_zellij_permission_cache() {
+    fn cleanup_hard_purges_legacy_multiplexer_tree_unconditionally() {
         let dir = tempfile::tempdir().unwrap();
         let root = dir.path().join("root");
-        fs::create_dir_all(root.join(".cache/zellij")).unwrap();
-        fs::create_dir_all(root.join(".cache/org/Zellij Contributors/Zellij")).unwrap();
-        fs::write(root.join(".cache/zellij/permissions.kdl"), "RunCommands").unwrap();
-        fs::write(
-            root.join(".cache/org/Zellij Contributors/Zellij/permissions.kdl"),
-            "RunCommands",
-        )
-        .unwrap();
 
-        let config = make_config(false, root.clone());
-
-        let updated = cleanup_disabled_runtime_files(&config).unwrap();
-        assert!(updated.iter().any(
-            |path| path == ".cache/zellij/permissions.kdl (removed legacy Zellij permissions)"
-        ));
-        assert!(!root.join(".cache/zellij/permissions.kdl").exists());
-        assert!(
-            !root
-                .join(".cache/org/Zellij Contributors/Zellij/permissions.kdl")
-                .exists()
-        );
-    }
-
-    #[test]
-    fn cleanup_removes_stale_zellij_session_and_plugin_state() {
-        let dir = tempfile::tempdir().unwrap();
-        let root = dir.path().join("root");
-        let config = make_config(false, root.clone());
-        let session_name = config.container.name.clone();
-        let session = root
-            .join(".cache/zellij/contract_version_1/session_info")
-            .join(&session_name);
-        let plugin_state = root.join(".cache/zellij/04db9126-52cd-4a49-a7d4-90c07443c87a");
-        let named_plugin_cache = root.join(".cache/zellij/zellij:link/plugin_cache");
-        fs::create_dir_all(&session).unwrap();
-        fs::create_dir_all(&plugin_state).unwrap();
-        fs::create_dir_all(&named_plugin_cache).unwrap();
-        fs::write(root.join(".cache/zellij/permissions.kdl"), "RunCommands").unwrap();
-        fs::write(session.join("session-layout.kdl"), "layout {}").unwrap();
-        fs::write(plugin_state.join("state.bin"), "state").unwrap();
-
-        let updated = cleanup_disabled_runtime_files(&config).unwrap();
-
-        assert!(updated.iter().any(|path| {
-            path
-            == ".cache/zellij/contract_version_1/session_info/test (removed stale Zellij session)"
-        }));
-        assert!(updated.iter().any(|path| path
-            == ".cache/zellij/04db9126-52cd-4a49-a7d4-90c07443c87a (removed stale Zellij plugin state)"));
-        assert!(!session.exists());
-        assert!(!plugin_state.exists());
-        assert!(
-            !root.join(".cache/zellij/permissions.kdl").exists(),
-            "legacy permission cache must be removed"
-        );
-        assert!(
-            !named_plugin_cache.exists(),
-            "v0.25+ removes the legacy Zellij cache tree entirely"
-        );
-    }
-
-    #[test]
-    fn cleanup_removes_legacy_managed_zellij_config_but_keeps_user_files() {
-        let dir = tempfile::tempdir().unwrap();
-        let root = dir.path().join("root");
-        let config = make_config(false, root.clone());
+        // Seed every shape the legacy multiplexer left behind: managed
+        // config, user-edited config, cache, plugin state, share dir,
+        // and a stale plugin under .tmux/plugins/.
         fs::create_dir_all(root.join(".config/zellij/layouts")).unwrap();
+        fs::create_dir_all(root.join(".config/zellij/themes")).unwrap();
         fs::write(
             root.join(".config/zellij/config.kdl"),
             "// aibox zellij configuration\n",
-        )
-        .unwrap();
-        fs::write(
-            root.join(".config/zellij/layouts/dev.kdl"),
-            "layout { aibox-tab name=\"dev\" }\n",
         )
         .unwrap();
         fs::write(
@@ -2433,22 +2574,61 @@ mod tests {
             "layout {}\n",
         )
         .unwrap();
+        fs::create_dir_all(root.join(".cache/zellij/contract_version_1")).unwrap();
+        fs::create_dir_all(root.join(".cache/org/Zellij Contributors/Zellij")).unwrap();
+        fs::write(root.join(".cache/zellij/permissions.kdl"), "data").unwrap();
+        fs::create_dir_all(root.join(".local/share/zellij")).unwrap();
+        fs::create_dir_all(root.join(".tmux/plugins/zellij-bridge")).unwrap();
 
+        let config = make_config(false, root.clone());
         let updated = cleanup_disabled_runtime_files(&config).unwrap();
 
+        // Every artifact must be gone — including user-authored config.
+        // Variant 1 hard-purge is intentional and approved in
+        // DEC-20260508_1515-SilentAsh.
+        assert!(!root.join(".config/zellij").exists());
+        assert!(!root.join(".cache/zellij").exists());
+        assert!(!root.join(".cache/org/Zellij Contributors").exists());
+        assert!(!root.join(".local/share/zellij").exists());
+        assert!(!root.join(".tmux/plugins/zellij-bridge").exists());
         assert!(
             updated
                 .iter()
-                .any(|path| path
-                    == ".config/zellij/config.kdl (removed legacy managed Zellij config)")
+                .any(|p| p.starts_with(".config/zellij")),
+            "cleanup must report .config/zellij removal: {updated:?}"
         );
         assert!(
-            updated.iter().any(|path| path
-                == ".config/zellij/layouts/dev.kdl (removed legacy managed Zellij layout)")
+            updated
+                .iter()
+                .any(|p| p.starts_with(".cache/zellij")),
+            "cleanup must report .cache/zellij removal: {updated:?}"
         );
-        assert!(!root.join(".config/zellij/config.kdl").exists());
-        assert!(!root.join(".config/zellij/layouts/dev.kdl").exists());
-        assert!(root.join(".config/zellij/layouts/personal.kdl").exists());
+        assert!(
+            updated
+                .iter()
+                .any(|p| p.starts_with(".tmux/plugins/zellij")),
+            "cleanup must report tmux plugin removal: {updated:?}"
+        );
+    }
+
+    #[test]
+    fn cleanup_legacy_zellij_files_is_noop_when_clean() {
+        let dir = tempfile::tempdir().unwrap();
+        let root = dir.path().join("root");
+        fs::create_dir_all(&root).unwrap();
+        let updated = cleanup_legacy_zellij_files(&root).unwrap();
+        assert!(updated.is_empty(), "clean root yields no removals: {updated:?}");
+    }
+
+    #[test]
+    fn surviving_legacy_multiplexer_paths_reports_present_artifacts() {
+        let dir = tempfile::tempdir().unwrap();
+        let root = dir.path().join("root");
+        fs::create_dir_all(root.join(".config/zellij")).unwrap();
+        fs::create_dir_all(root.join(".local/share/zellij")).unwrap();
+        let surviving = surviving_legacy_multiplexer_paths(&root);
+        assert!(surviving.iter().any(|p| p.ends_with("zellij") && p.to_string_lossy().contains(".config")));
+        assert!(surviving.iter().any(|p| p.ends_with("zellij") && p.to_string_lossy().contains(".local/share")));
     }
 
     #[test]
@@ -3294,6 +3474,139 @@ set -g status-right " off_RIGHT "
         assert!(
             root.join(".gemini").is_dir(),
             ".gemini directory should be created"
+        );
+        clear_test_host_root();
+    }
+
+    // ---------------------------------------------------------------------
+    // BR-CLEANUP-ARCH item 5 — tmux-powerkit cache + tmux plugin walker
+    // ---------------------------------------------------------------------
+
+    #[test]
+    #[serial]
+    fn cleanup_removes_tmux_powerkit_cache_unconditionally() {
+        let dir = tempfile::tempdir().unwrap();
+        let root = dir.path().join("root");
+        let cache = root.join(".cache").join("tmux-powerkit");
+        fs::create_dir_all(&cache).unwrap();
+        fs::write(cache.join("state.bin"), b"stale").unwrap();
+        let config = make_config(false, root.clone());
+
+        let updated = cleanup_disabled_runtime_files(&config).unwrap();
+
+        assert!(
+            updated
+                .iter()
+                .any(|path| path.contains(".cache/tmux-powerkit")),
+            "expected tmux-powerkit cache cleanup, got {updated:?}"
+        );
+        assert!(!cache.exists(), "powerkit cache must be removed");
+        clear_test_host_root();
+    }
+
+    #[test]
+    #[serial]
+    fn cleanup_removes_unreferenced_tmux_plugins_but_keeps_tpm() {
+        let dir = tempfile::tempdir().unwrap();
+        let root = dir.path().join("root");
+        let plugins = root.join(".tmux").join("plugins");
+        fs::create_dir_all(plugins.join("tpm")).unwrap();
+        fs::create_dir_all(plugins.join("tmux-powerkit")).unwrap();
+        fs::create_dir_all(plugins.join("some-old-plugin")).unwrap();
+        fs::write(plugins.join("tpm").join("tpm"), b"#!/bin/sh").unwrap();
+        let config = make_config(false, root.clone());
+
+        let updated = cleanup_disabled_runtime_files(&config).unwrap();
+
+        // tpm always preserved
+        assert!(plugins.join("tpm").is_dir(), "tpm must be preserved");
+        // some-old-plugin not referenced -> removed
+        assert!(
+            !plugins.join("some-old-plugin").exists(),
+            "unreferenced plugin must be removed"
+        );
+        assert!(
+            updated
+                .iter()
+                .any(|path| path.contains(".tmux/plugins/some-old-plugin")),
+            "stale plugin removal must be reported, got {updated:?}"
+        );
+        clear_test_host_root();
+    }
+
+    // ---------------------------------------------------------------------
+    // BR-CLEANUP-ARCH item 4 — disabled-harness state cleanup
+    // ---------------------------------------------------------------------
+
+    #[test]
+    #[serial]
+    fn disabled_harness_emits_migration_when_purge_disabled() {
+        let dir = tempfile::tempdir().unwrap();
+        let project = dir.path();
+        let root = project.join("root");
+        let mut config = make_config(false, root.clone());
+        config.ai.harnesses = vec![AiProvider::Claude];
+        config.apply.purge_disabled_harness_state = false;
+
+        // Stage stale Gemini state.
+        fs::create_dir_all(root.join(".gemini")).unwrap();
+        fs::write(root.join(".gemini/settings.json"), b"{}").unwrap();
+
+        // Run from the project dir so context/migrations/pending lands there.
+        let prev = std::env::current_dir().unwrap();
+        std::env::set_current_dir(project).unwrap();
+        let result = cleanup_disabled_runtime_files(&config);
+        std::env::set_current_dir(prev).unwrap();
+        let updated = result.unwrap();
+
+        // .gemini must still exist (no purge)
+        assert!(
+            root.join(".gemini").exists(),
+            ".gemini must survive when purge is disabled"
+        );
+        let migration = project.join("context/migrations/pending/disabled-harness-state.md");
+        assert!(
+            migration.exists(),
+            "advisory migration must be written, updated={updated:?}"
+        );
+        let body = fs::read_to_string(&migration).unwrap();
+        assert!(body.contains("gemini"));
+        assert!(body.contains(".gemini"));
+        clear_test_host_root();
+    }
+
+    #[test]
+    #[serial]
+    fn disabled_harness_purges_state_when_enabled() {
+        let dir = tempfile::tempdir().unwrap();
+        let project = dir.path();
+        let root = project.join("root");
+        let mut config = make_config(false, root.clone());
+        config.ai.harnesses = vec![AiProvider::Claude];
+        config.apply.purge_disabled_harness_state = true;
+
+        fs::create_dir_all(root.join(".gemini")).unwrap();
+        fs::write(root.join(".gemini/settings.json"), b"{}").unwrap();
+        fs::create_dir_all(root.join(".codex")).unwrap();
+        fs::write(root.join(".codex/config.toml"), b"").unwrap();
+
+        let prev = std::env::current_dir().unwrap();
+        std::env::set_current_dir(project).unwrap();
+        let result = cleanup_disabled_runtime_files(&config);
+        std::env::set_current_dir(prev).unwrap();
+        let updated = result.unwrap();
+
+        assert!(!root.join(".gemini").exists(), ".gemini must be purged");
+        assert!(!root.join(".codex").exists(), ".codex must be purged");
+        assert!(
+            !project
+                .join("context/migrations/pending/disabled-harness-state.md")
+                .exists(),
+            "no advisory should be written when purging"
+        );
+        assert!(
+            updated.iter().any(|p| p.contains("removed disabled-")),
+            "purge entries must be reported, got {updated:?}"
         );
         clear_test_host_root();
     }

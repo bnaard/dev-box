@@ -1288,8 +1288,6 @@ pub struct CustomizationSection {
     pub layout: ConfigLayout,
     #[serde(default)]
     pub tmux: TmuxSection,
-    #[serde(default, skip_serializing)]
-    pub zellij_status: Option<TmuxStatusSection>,
 }
 
 impl CustomizationSection {
@@ -1332,7 +1330,6 @@ impl Default for CustomizationSection {
             prompt: default_prompt(),
             layout: default_layout(),
             tmux: TmuxSection::default(),
-            zellij_status: None,
         }
     }
 }
@@ -1667,6 +1664,29 @@ fn audio_section_is_explicit(audio: &AudioSection) -> bool {
     audio != &AudioSection::default()
 }
 
+// ---------------------------------------------------------------------------
+// [apply] section — knobs that govern `aibox apply` cleanup behaviour
+// ---------------------------------------------------------------------------
+
+/// `[apply]` section. Controls how aggressive `aibox apply` is when it
+/// detects state on the host that no longer matches the config (e.g. an AI
+/// harness that was previously enabled and is now disabled).
+///
+/// Defaults are conservative — when a harness is removed, aibox emits a
+/// pending Migration document describing what *would* be cleaned up, but does
+/// not delete anything itself. Set `purge_disabled_harness_state = true` to
+/// have apply hard-delete the harness's `.aibox-home` config directory and
+/// any MCP-registration files belonging to that harness.
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, Default)]
+pub struct ApplySection {
+    /// When true, `aibox apply` hard-deletes per-harness state directories
+    /// and MCP registration files for any harness that is no longer listed
+    /// in `[ai].harnesses`. Defaults to false (emit a Migration document
+    /// instead so the project owner can review).
+    #[serde(default)]
+    pub purge_disabled_harness_state: bool,
+}
+
 fn mcp_section_is_explicit(mcp: &McpSection) -> bool {
     !mcp.servers.is_empty()
         || mcp.gateway != McpGatewaySection::default()
@@ -1757,6 +1777,8 @@ pub struct AiboxConfig {
     pub customization: CustomizationSection,
     #[serde(default)]
     pub audio: AudioSection,
+    #[serde(default)]
+    pub apply: ApplySection,
 
     /// Legacy [process] section — if present, packages are merged into [context].
     #[serde(default, skip_serializing)]
@@ -1786,22 +1808,16 @@ impl AiboxConfig {
     pub fn load(path: &Path) -> Result<Self> {
         let content = std::fs::read_to_string(path)
             .with_context(|| format!("Failed to read config file: {}", path.display()))?;
-        let explicit_tmux_status = explicit_tmux_status_table(&content).with_context(|| {
-            format!(
-                "Failed to inspect explicit tmux status table in config file: {}",
-                path.display()
-            )
-        })?;
         let mut config: AiboxConfig = toml::from_str(&content)
             .with_context(|| format!("Failed to parse config file: {}", path.display()))?;
-        config.migrate_legacy_sections(explicit_tmux_status);
+        config.migrate_legacy_sections();
         config.resolve_ai_provider_addons();
         config.validate()?;
         Ok(config)
     }
 
     /// Migrate legacy [process] section into [context].packages.
-    fn migrate_legacy_sections(&mut self, explicit_tmux_status: bool) {
+    fn migrate_legacy_sections(&mut self) {
         if let Some(legacy) = self.process.take()
             && !legacy.packages.is_empty()
         {
@@ -1814,20 +1830,10 @@ impl AiboxConfig {
                  Please move 'packages' into the [context] section.",
             );
         }
-        if let Some(legacy) = self.customization.zellij_status.take() {
-            if !explicit_tmux_status {
-                self.customization.tmux.status = legacy;
-                crate::output::warn(
-                    "Deprecated: [customization.zellij_status] found in aibox.toml. \
-                     It has been migrated to [customization.tmux.status].",
-                );
-            } else {
-                crate::output::warn(
-                    "Deprecated: [customization.zellij_status] found in aibox.toml. \
-                     It was ignored because [customization.tmux.status] is also set.",
-                );
-            }
-        }
+        // BR-LEGACY-MUX-EXCISE (DEC-20260508_1515-SilentAsh, v0.25.6) hard-cut
+        // the legacy multiplexer-status alias. Old configs that still carry
+        // it now fail schema validation with a clear error pointing at the
+        // [customization.tmux.status] replacement.
         self.sync_grouped_sections();
         self.sync_legacy_aibox_image_fields();
     }
@@ -1993,10 +1999,9 @@ impl AiboxConfig {
     /// Parse config from a TOML string. Useful for testing and programmatic use.
     #[allow(dead_code)]
     pub fn from_str(toml_str: &str) -> Result<Self> {
-        let explicit_tmux_status = explicit_tmux_status_table(toml_str)?;
         let mut config: AiboxConfig =
             toml::from_str(toml_str).context("Failed to parse TOML config")?;
-        config.migrate_legacy_sections(explicit_tmux_status);
+        config.migrate_legacy_sections();
         config.resolve_ai_provider_addons();
         config.validate()?;
         Ok(config)
@@ -2034,8 +2039,16 @@ impl AiboxConfig {
                 "appearance",
                 "customization",
                 "audio",
+                "apply",
                 "mcp",
             ],
+            &mut mismatches,
+        );
+
+        check_child_table(
+            root,
+            "apply",
+            &["purge_disabled_harness_state"],
             &mut mismatches,
         );
 
@@ -2667,11 +2680,10 @@ fn check_customization_table(
     check_child_table(
         root,
         key,
-        &["theme", "mode", "prompt", "layout", "tmux", "zellij_status"],
+        &["theme", "mode", "prompt", "layout", "tmux"],
         mismatches,
     );
     if let Some(customization) = table_child(root, key) {
-        check_child_table(customization, "zellij_status", &["mode"], mismatches);
         check_child_table(
             customization,
             "tmux",
@@ -2721,25 +2733,6 @@ fn check_customization_table(
             }
         }
     }
-}
-
-fn explicit_tmux_status_table(raw: &str) -> Result<bool> {
-    let value: toml::Value = toml::from_str(raw)?;
-    Ok(
-        toml_table_path_exists(&value, &["customization", "tmux", "status"])
-            || toml_table_path_exists(&value, &["appearance", "tmux", "status"]),
-    )
-}
-
-fn toml_table_path_exists(value: &toml::Value, path: &[&str]) -> bool {
-    let mut current = value;
-    for key in path {
-        let Some(next) = current.get(*key) else {
-            return false;
-        };
-        current = next;
-    }
-    current.is_table()
 }
 
 fn check_extra_volume_entries(
@@ -2883,6 +2876,7 @@ pub fn test_config() -> AiboxConfig {
         agents: AgentsSection::default(),
         customization: CustomizationSection::default(),
         audio: AudioSection::default(),
+        apply: ApplySection::default(),
         process: None,
         mcp: McpSection::default(),
         local_env: HashMap::new(),
@@ -3017,9 +3011,8 @@ name = "my-project"
     }
 
     fn parse_toml(s: &str) -> Result<AiboxConfig> {
-        let explicit_tmux_status = explicit_tmux_status_table(s)?;
         let mut config: AiboxConfig = toml::from_str(s).context("Failed to parse TOML")?;
-        config.migrate_legacy_sections(explicit_tmux_status);
+        config.migrate_legacy_sections();
         config.validate()?;
         Ok(config)
     }
@@ -3167,21 +3160,25 @@ name = "my-project"
     }
 
     #[test]
-    fn schema_mismatches_accepts_legacy_zellij_status_table() {
+    fn schema_mismatches_rejects_legacy_multiplexer_status_table() {
+        // BR-LEGACY-MUX-EXCISE (DEC-20260508_1515-SilentAsh, v0.25.6):
+        // the legacy multiplexer status alias was hard-cut. Old configs
+        // that still carry it must surface a schema error pointing at
+        // [customization.tmux.status].
         let toml = r#"
 [aibox]
-version = "0.25.1"
+version = "0.25.6"
 
 [container]
 name = "my-project"
 
-[customization.zellij_status]
+[customization.legacy_mux_status]
 mode = "hidden"
 "#;
         let mismatches = AiboxConfig::schema_mismatches(toml).unwrap();
         assert!(
-            mismatches.is_empty(),
-            "legacy zellij status table should remain schema-clean for migration: {mismatches:?}"
+            !mismatches.is_empty(),
+            "legacy multiplexer status table must be rejected after the v0.25.6 hard-cut"
         );
     }
 
@@ -3418,46 +3415,6 @@ mig = false
             mismatches.is_empty(),
             "tmux status element toggles should be schema-clean: {mismatches:?}"
         );
-    }
-
-    #[test]
-    fn legacy_zellij_status_migrates_to_tmux_status() {
-        let toml = r#"
-[aibox]
-version = "0.25.1"
-
-[container]
-name = "my-project"
-
-[customization.zellij_status]
-mode = "hidden"
-"#;
-        let config = parse_toml(toml).unwrap();
-        assert_eq!(
-            config.customization.tmux.status.mode,
-            TmuxStatusMode::Disabled
-        );
-        assert!(config.customization.zellij_status.is_none());
-    }
-
-    #[test]
-    fn explicit_tmux_status_wins_over_legacy_zellij_status() {
-        let toml = r#"
-[aibox]
-version = "0.25.1"
-
-[container]
-name = "my-project"
-
-[customization.zellij_status]
-mode = "hidden"
-
-[customization.tmux.status]
-mode = "plain"
-"#;
-        let config = parse_toml(toml).unwrap();
-        assert_eq!(config.customization.tmux.status.mode, TmuxStatusMode::Plain);
-        assert!(config.customization.zellij_status.is_none());
     }
 
     #[test]
