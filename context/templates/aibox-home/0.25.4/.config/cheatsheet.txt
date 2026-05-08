@@ -1,0 +1,17 @@
+  aibox Quick Reference
+  -----------------------------------------------
+  TMUX (prefix: Ctrl+g)      YAZI (file manager)
+  Ctrl+g h/j/k/l Move pane  h/j/k/l  Navigate
+  Ctrl+g r/d     Split pane Enter    Open in vim
+  Ctrl+g x       Close pane g s      Git summary
+  Ctrl+g f       Zoom pane  g c      Git changes
+  Ctrl+g c       New win    w s      Size selection
+  Ctrl+g n/p     Next/prev  w h      Horizontal preview
+  Ctrl+g 1-5     Jump win   w p      Watch PDF
+  Ctrl+g [       Copy mode  c p/d/f  Copy path/dir/name
+  Ctrl+g ]       Paste      g r      Refresh git
+  Ctrl+g R       Reload
+  Ctrl+g q       QUIT
+
+  LAYOUTS: aibox up --layout dev|focus|cowork|cowork-swap|browse|ai
+  WINDOWS: 1 dev  2 git  3 shell

@@ -1,5 +1,5 @@
 [aibox]
-cli_version = "0.25.2"
+cli_version = "0.25.4"
 synced_at = "2026-05-05T16:03:00.906059349+00:00"
 
 [processkit]
@@ -11,7 +11,7 @@ installed_at = "2026-05-05T16:03:00.906059349+00:00"
 processkit_install_hash = "a136b8826582297ce0e710943b8abd93d18ec429dd4e5258399918653d346215"
 
 [runtime_home]
-generated_at = "2026-05-08T10:26:10.613404671+00:00"
+generated_at = "2026-05-08T11:39:12.673090+00:00"
 
 [runtime_home.files]
 ".asoundrc" = "f34609b11d315cd613cb5333b561032baec860faf4a7eccb28b5567ae72019af"
@@ -25,7 +25,7 @@ generated_at = "2026-05-08T10:26:10.613404671+00:00"
 ".config/tmux/layouts/cowork.sh" = "892905da2a3eeb2fcf81ee36a509c680ae6dc9549add80742fc8ece1b8ac0de6"
 ".config/tmux/layouts/dev.sh" = "bb07878152c4109a877f7dbedeb26039f36ba5401db147b6f08433ce2391e689"
 ".config/tmux/layouts/focus.sh" = "a094d41b13f3f9e2ec11202a71b793cdb10e4193506ae67540e17055aa4dc84c"
-".config/tmux/tmux.conf" = "5bb06f112fb3aeb4e4acb2ab6c179351b29a208b62f01c4c91fdd317a18408aa"
+".config/tmux/tmux.conf" = "3d2ce47c8d37419141fce5649ff3e28bf470ff8fa3f4187713b33b07684b8558"
 ".config/yazi/init.lua" = "eae04462c0b3bcbb486ee59aa9c2c9e9595680a0626997c942e5abb2ae5a48d7"
 ".config/yazi/keymap.toml" = "4b30c2dedd57dc1f08013401c3ccafec0dc5b811f1857f117e5fba7ec7def5f4"
 ".config/yazi/plugins/dir-preview.yazi/main.lua" = "69aa28981fd21c7e35fd97bc7d15a94d44eb234d40755027d086c6c1ec166dc1"
@@ -39,6 +39,6 @@ generated_at = "2026-05-08T10:26:10.613404671+00:00"
 ".config/yazi/yazi.toml" = "cdd99053efcb0f66baa4001900ce8291baf02499ea05651dfc27d1715382aed4"
 ".local/bin/aibox-preview" = "fa878a7f017ee574abcc72714373e0189465af0b7ebe38bfcc8036d5b7af2be2"
 ".local/bin/aibox-status-toggle" = "026c6a1dc7f1bcf650aa0bd4f587adfb5de6744df66fc138bef9b435bad1049a"
-".local/bin/open-in-editor" = "2ca26f45529f32ad759c6e3030014e1a718f7adab461ce8755f556a42f125681"
+".local/bin/open-in-editor" = "a75159747229e86479d66ee234eae9207a7221daa04925e9d1d87f3d79fbb493"
 ".local/bin/pdf-watch" = "b6becd1df4a32ff27f5c93e514e6d31e5743f9282f40ce7290b8432207d85934"
-".vim/vimrc" = "41156b58e9172281032dce56d13b860f652fecf81f3e2829e7f71cf9f92d15e8"
+".vim/vimrc" = "282a0e2eaf3c1dd124005aee3dfcbaf7c812e94e970f4815da80e5459cb9ab27"
