@@ -7,9 +7,10 @@ metadata:
   labels:
     track: sec-harden
     release: v0.25.6
+  updated: '2026-05-08T21:14:05+00:00'
 spec:
   title: 'v0.25.6: Addon and installer security hardening'
-  state: backlog
+  state: done
   type: task
   priority: high
   description: |
@@ -54,4 +55,20 @@ spec:
 
     ## Dispatch hint for next session
     One general-purpose subagent. Largely mechanical; the agent must look up the official verification path for each vendor before editing.
+  started_at: '2026-05-08T20:46:51+00:00'
+  completed_at: '2026-05-08T21:14:05+00:00'
 ---
+
+## Transition note (2026-05-08T20:46:51+00:00)
+
+Dispatching to Avery (TEAMMEMBER-avery) — software-engineer/senior. Mechanical SHA pin / checksum verification work across ~12 addons + scripts/install.sh + seccomp gate.
+
+
+## Transition note (2026-05-08T21:13:57+00:00)
+
+Implementation complete in commit d9153b4. 11 addons hardened, [security] toml gate landed, MCP trust scope documented. 946 green.
+
+
+## Transition note (2026-05-08T21:14:05+00:00)
+
+Accepted as done. Two human-review caveats noted in commit message (AWS keyserver vs bundled key; manual [security] block for existing Codex projects).

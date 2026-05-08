@@ -1,8 +1,10 @@
 {
   "scopes": {
     "default": {
-      "team_member": "TEAMMEMBER-cora",
-      "updated_at": "2026-05-03T09:59:24+00:00"
+      "binding_policy": "capability-negotiated",
+      "subagent_mcp_supported": false,
+      "team_member": "TEAMMEMBER-avery",
+      "updated_at": "2026-05-08T20:46:15+00:00"
     }
   },
   "version": 1

@@ -7,10 +7,10 @@ metadata:
   labels:
     track: test-gaps
     release: v0.25.6
-  updated: '2026-05-08T15:20:27+00:00'
+  updated: '2026-05-08T21:14:06+00:00'
 spec:
   title: 'v0.25.6: E2E and companion test gap closure'
-  state: backlog
+  state: done
   type: task
   priority: high
   description: |
@@ -61,4 +61,20 @@ spec:
   blocked_by:
   - BACK-20260508_1516-BrightStream-stale-state-cleanup-architecture-foundational
   - BACK-20260508_1517-SnowyWillow-doctor-coverage-gap-closure-work
+  started_at: '2026-05-08T20:46:53+00:00'
+  completed_at: '2026-05-08T21:14:06+00:00'
 ---
+
+## Transition note (2026-05-08T20:46:53+00:00)
+
+Dispatching to Avery (TEAMMEMBER-avery) — software-engineer/senior. Six e2e tests covering H1-M3; prereqs (BrightStream, SnowyWillow) shipped this session.
+
+
+## Transition note (2026-05-08T21:13:59+00:00)
+
+Implementation complete in commit (next). H1-M3 all covered (3 Tier-1 + 4 #[ignore]-gated companions). New addon_disablement.rs + runtime_recovery.rs files. New LINT-POWERLINE-ALIAS doctor code. 946 green; 1 ignored.
+
+
+## Transition note (2026-05-08T21:14:06+00:00)
+
+Accepted as done.
