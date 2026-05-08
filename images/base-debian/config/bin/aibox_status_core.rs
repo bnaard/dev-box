@@ -387,9 +387,28 @@ fn read_workspace_disk() -> (String, String) {
     (used, total)
 }
 
+/// Default freshness window for status-bar log counts. Older entries
+/// are skipped so that a month-old failure doesn't inflate the bar
+/// indefinitely (BR-LOG-PANEL, v0.25.6). Owner-visible: status-bar
+/// metric reflects "current health", not "every error since project
+/// init". Tune via env var `AIBOX_LOG_WINDOW_HOURS` if needed.
+const DEFAULT_LOG_WINDOW_SECS: u64 = 24 * 60 * 60;
+
 fn read_log_counts() -> (u64, u64, u64) {
-    let path = Path::new(WORKSPACE).join(".aibox/aibox.log");
-    let mut file = match File::open(path) {
+    let window = std::env::var("AIBOX_LOG_WINDOW_HOURS")
+        .ok()
+        .and_then(|s| s.parse::<u64>().ok())
+        .map(|hours| std::time::Duration::from_secs(hours * 3600))
+        .unwrap_or_else(|| std::time::Duration::from_secs(DEFAULT_LOG_WINDOW_SECS));
+    read_log_counts_at(
+        Path::new(WORKSPACE).join(".aibox/aibox.log"),
+        SystemTime::now(),
+        window,
+    )
+}
+
+fn read_log_counts_at(path: PathBuf, now: SystemTime, window: std::time::Duration) -> (u64, u64, u64) {
+    let mut file = match File::open(&path) {
         Ok(file) => file,
         Err(_) => return (0, 0, 0),
     };
@@ -402,16 +421,39 @@ fn read_log_counts() -> (u64, u64, u64) {
     if file.read_to_string(&mut text).is_err() {
         return (0, 0, 0);
     }
-    let mut info = 0;
-    let mut warn = 0;
-    let mut error = 0;
-    for line in text.lines() {
-        if line.contains("\"level\":\"INFO\"") || line.contains("\"level\":\"info\"") {
-            info += 1;
+    // After a non-zero seek we may land mid-record; drop the partial first line.
+    let mut iter = text.lines();
+    if size > LIMIT {
+        let _ = iter.next();
+    }
+
+    let cutoff_unix: i64 = now
+        .duration_since(UNIX_EPOCH)
+        .map(|d| (d.as_secs() as i64).saturating_sub(window.as_secs() as i64))
+        .unwrap_or(0);
+
+    let (mut info, mut warn, mut error) = (0u64, 0u64, 0u64);
+    for line in iter {
+        // Time-window filter: skip lines we can't timestamp (defensive)
+        // and lines older than `window`. An entry without a `ts` field
+        // is treated as out-of-window (i.e. skipped) — every aibox CLI
+        // command emits one, so absence is a corruption marker.
+        let Some(ts_field) = extract_json_string_field(line, "ts") else {
+            continue;
+        };
+        let Some(t) = parse_rfc3339_unix(ts_field) else {
+            continue;
+        };
+        if t < cutoff_unix {
+            continue;
+        }
+
+        if line.contains("\"level\":\"ERROR\"") || line.contains("\"level\":\"error\"") {
+            error += 1;
         } else if line.contains("\"level\":\"WARN\"") || line.contains("\"level\":\"warn\"") {
             warn += 1;
-        } else if line.contains("\"level\":\"ERROR\"") || line.contains("\"level\":\"error\"") {
-            error += 1;
+        } else if line.contains("\"level\":\"INFO\"") || line.contains("\"level\":\"info\"") {
+            info += 1;
         } else if line.contains("\"exit_code\":0") {
             info += 1;
         } else if line.contains("\"exit_code\":") {
@@ -419,6 +461,89 @@ fn read_log_counts() -> (u64, u64, u64) {
         }
     }
     (info, warn, error)
+}
+
+/// Extract the value of a JSON string field from one NDJSON line. Std-only
+/// (no serde). Returns `None` for absent fields, fields without quotes,
+/// or fields whose value contains an embedded quote (we don't unescape).
+/// Sufficient for `ts` since aibox emits `chrono::Utc::now().to_rfc3339()`
+/// values with no embedded quotes.
+fn extract_json_string_field<'a>(line: &'a str, field: &str) -> Option<&'a str> {
+    let needle = format!("\"{}\":\"", field);
+    let start = line.find(&needle)? + needle.len();
+    let rest = &line[start..];
+    let end = rest.find('"')?;
+    Some(&rest[..end])
+}
+
+/// Parse RFC3339 to unix seconds (std-only — this binary is built with
+/// plain rustc and has no chrono dependency). Accepts:
+///   `YYYY-MM-DDTHH:MM:SS[.fraction]( Z | +HH:MM | -HH:MM )`
+/// Returns `None` on any parse failure. Uses Howard Hinnant's
+/// civil-from-fields algorithm for the date portion (proleptic
+/// Gregorian, valid for years > 0).
+fn parse_rfc3339_unix(s: &str) -> Option<i64> {
+    let bytes = s.as_bytes();
+    if bytes.len() < 19 {
+        return None;
+    }
+    let parse_n = |start: usize, len: usize| -> Option<i64> {
+        let slice = std::str::from_utf8(&bytes[start..start + len]).ok()?;
+        slice.parse::<i64>().ok()
+    };
+    if bytes[4] != b'-'
+        || bytes[7] != b'-'
+        || (bytes[10] != b'T' && bytes[10] != b' ')
+        || bytes[13] != b':'
+        || bytes[16] != b':'
+    {
+        return None;
+    }
+    let year = parse_n(0, 4)?;
+    let month = parse_n(5, 2)?;
+    let day = parse_n(8, 2)?;
+    let hour = parse_n(11, 2)?;
+    let minute = parse_n(14, 2)?;
+    let second = parse_n(17, 2)?;
+    if !(1..=12).contains(&month) || !(1..=31).contains(&day) {
+        return None;
+    }
+
+    let mut idx = 19;
+    if idx < bytes.len() && bytes[idx] == b'.' {
+        idx += 1;
+        while idx < bytes.len() && bytes[idx].is_ascii_digit() {
+            idx += 1;
+        }
+    }
+    let offset_secs: i64 = if idx >= bytes.len() {
+        0
+    } else if bytes[idx] == b'Z' || bytes[idx] == b'z' {
+        0
+    } else if bytes[idx] == b'+' || bytes[idx] == b'-' {
+        let sign: i64 = if bytes[idx] == b'-' { -1 } else { 1 };
+        idx += 1;
+        if idx + 5 > bytes.len() || bytes[idx + 2] != b':' {
+            return None;
+        }
+        let oh = parse_n(idx, 2)?;
+        let om = parse_n(idx + 3, 2)?;
+        sign * (oh * 3600 + om * 60)
+    } else {
+        return None;
+    };
+
+    // Howard Hinnant's `days_from_civil` (yyyy-mm-dd → days since epoch).
+    let y = if month <= 2 { year - 1 } else { year };
+    let era = if y >= 0 { y / 400 } else { (y - 399) / 400 };
+    let yoe = y - era * 400; // [0, 399]
+    let m = month;
+    let doy = (153 * (if m > 2 { m - 3 } else { m + 9 }) + 2) / 5 + day - 1;
+    let doe = yoe * 365 + yoe / 4 - yoe / 100 + doy;
+    let days = era * 146097 + doe - 719468; // days since 1970-01-01
+
+    let local_unix = days * 86400 + hour * 3600 + minute * 60 + second;
+    Some(local_unix - offset_secs)
 }
 
 fn read_container_uptime(proc_root: &Path) -> String {
@@ -632,5 +757,106 @@ mod tests {
         assert!(json.contains("\"log_warn\":\"1\""));
         assert!(json.contains("\"log_error\":\"2\""));
         assert!(json.contains("\"net\":\"n/a\""));
+    }
+
+    // -- v0.25.6 BR-LOG-PANEL: counter freshness ---------------------------
+
+    #[test]
+    fn parse_rfc3339_basic_utc_offset() {
+        // 2026-05-08T12:00:00+00:00 = ?
+        // Compute expected via UNIX_EPOCH + days
+        let t = super::parse_rfc3339_unix("2026-05-08T12:00:00+00:00").expect("parse");
+        // Sanity: must be > epoch and a 10-digit unix second
+        assert!(t > 1_700_000_000);
+        // Round-trip basic check
+        let secs_per_day: i64 = 86_400;
+        assert!((t / secs_per_day) > 20_000);
+    }
+
+    #[test]
+    fn parse_rfc3339_with_microseconds_and_zulu() {
+        let t1 = super::parse_rfc3339_unix("2026-05-08T13:38:00.874664+00:00").unwrap();
+        let t2 = super::parse_rfc3339_unix("2026-05-08T13:38:00Z").unwrap();
+        assert_eq!(t1, t2, "fractional must not shift the second");
+    }
+
+    #[test]
+    fn parse_rfc3339_negative_offset_normalizes() {
+        let z = super::parse_rfc3339_unix("2026-05-08T12:00:00Z").unwrap();
+        let cest = super::parse_rfc3339_unix("2026-05-08T14:00:00+02:00").unwrap();
+        assert_eq!(z, cest, "+02:00 wall clock 14:00 == 12:00 UTC");
+    }
+
+    #[test]
+    fn parse_rfc3339_rejects_garbage() {
+        assert!(super::parse_rfc3339_unix("not a date").is_none());
+        assert!(super::parse_rfc3339_unix("2026").is_none());
+        assert!(super::parse_rfc3339_unix("2026-05-08").is_none()); // too short
+    }
+
+    #[test]
+    fn extract_json_string_field_works() {
+        let line = r#"{"ts":"2026-05-08T12:00:00+00:00","cmd":"sync","exit_code":0}"#;
+        assert_eq!(
+            super::extract_json_string_field(line, "ts"),
+            Some("2026-05-08T12:00:00+00:00")
+        );
+        assert_eq!(super::extract_json_string_field(line, "cmd"), Some("sync"));
+        assert_eq!(super::extract_json_string_field(line, "absent"), None);
+    }
+
+    #[test]
+    fn read_log_counts_filters_old_entries() {
+        use std::io::Write;
+        let dir = std::env::temp_dir().join(format!(
+            "aibox-log-test-{}-{}",
+            std::process::id(),
+            std::time::SystemTime::now()
+                .duration_since(std::time::UNIX_EPOCH)
+                .unwrap()
+                .as_nanos()
+        ));
+        std::fs::create_dir_all(&dir).unwrap();
+        let path = dir.join("aibox.log");
+        let mut f = std::fs::File::create(&path).unwrap();
+        // Stale: 2026-04-08T13:00:00Z, exit_code=1 — would be counted as error pre-fix
+        writeln!(
+            f,
+            r#"{{"ts":"2026-04-08T13:00:00+00:00","cmd":"sync","version":"0.25.2","exit_code":1,"duration_ms":10,"msg":"old fail"}}"#
+        )
+        .unwrap();
+        // Recent: 2026-05-08T12:00:00Z, exit_code=0
+        writeln!(
+            f,
+            r#"{{"ts":"2026-05-08T12:00:00+00:00","cmd":"sync","version":"0.25.5","exit_code":0,"duration_ms":10,"msg":"ok"}}"#
+        )
+        .unwrap();
+        drop(f);
+        // "Now" anchor: 2026-05-08T13:00:00Z
+        let now = super::UNIX_EPOCH
+            + std::time::Duration::from_secs(
+                super::parse_rfc3339_unix("2026-05-08T13:00:00+00:00").unwrap() as u64,
+            );
+        let (info, warn, error) = super::read_log_counts_at(
+            path.clone(),
+            now,
+            std::time::Duration::from_secs(24 * 3600),
+        );
+        assert_eq!(
+            (info, warn, error),
+            (1, 0, 0),
+            "stale 2026-04-08 failure must not be counted with 24h window"
+        );
+        let _ = std::fs::remove_dir_all(&dir);
+    }
+
+    #[test]
+    fn read_log_counts_returns_zero_for_missing_file() {
+        let bogus = std::env::temp_dir().join("definitely-not-here-aibox.log");
+        let _ = std::fs::remove_file(&bogus);
+        let now = super::SystemTime::now();
+        let (info, warn, error) =
+            super::read_log_counts_at(bogus, now, std::time::Duration::from_secs(3600));
+        assert_eq!((info, warn, error), (0, 0, 0));
     }
 }

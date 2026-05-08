@@ -50,11 +50,13 @@ new_window() {
     tmuxc new-window -t "${session}:" -n "$1" -c "${workspace}" "bash -lc '$(tool_or_shell "$2")'"
 }
 
+# BR-VIM-HARDCUT (DEC-20260508_1604-LuckySeal, v0.25.6): the persistent
+# vim/editor pane has been removed from every layout. Yazi `e` opens vim
+# in a full-screen tmux popup that closes on `:q`; `Enter` runs vim via
+# yazi's `[opener.edit]` (suspends yazi until `:q`).
 case "${layout}" in
     focus)
-        tmuxcf new-session -d -s "${session}" -n editor -c "${workspace}" "bash -lc '$(tool_or_shell vim-loop)'"
-        editor_pane="$(tmuxc display-message -p -t "${session}:editor" '#{pane_id}')"
-        set_title "${editor_pane}" editor
+        tmuxcf new-session -d -s "${session}" -n focus -c "${workspace}" "bash -lc '$(tool_or_shell bash)'"
         ;;
     browse)
         tmuxcf new-session -d -s "${session}" -n files -c "${workspace}" "bash -lc '$(tool_or_shell yazi)'"
@@ -66,20 +68,15 @@ case "${layout}" in
         tmuxcf new-session -d -s "${session}" -n work -c "${workspace}" "bash -lc '$(tool_or_shell yazi)'"
         files_pane="$(tmuxc display-message -p -t "${session}:work" '#{pane_id}')"
         set_title "${files_pane}" files
-        editor_pane="$(tmuxc split-window -t "${session}:work" -v -P -F '#{pane_id}' -c "${workspace}" "bash -lc '$(tool_or_shell vim-loop)'")"
-        set_title "${editor_pane}" editor
         shell_pane="$(tmuxc split-window -t "${session}:work" -h -P -F '#{pane_id}' -c "${workspace}" "bash")"
         set_title "${shell_pane}" shell
-        tmuxc select-layout -t "${session}:work" tiled
         new_window shell "bash"
         ;;
     dev|ai|*)
         tmuxcf new-session -d -s "${session}" -n dev -c "${workspace}" "bash -lc '$(tool_or_shell yazi)'"
         files_pane="$(tmuxc display-message -p -t "${session}:dev" '#{pane_id}')"
         set_title "${files_pane}" files
-        editor_pane="$(tmuxc split-window -t "${session}:dev" -h -l 60% -P -F '#{pane_id}' -c "${workspace}" "bash -lc '$(tool_or_shell vim-loop)'")"
-        set_title "${editor_pane}" editor
-        shell_pane="$(tmuxc split-window -t "${editor_pane}" -v -l 35% -P -F '#{pane_id}' -c "${workspace}" "bash")"
+        shell_pane="$(tmuxc split-window -t "${session}:dev" -h -l 50% -P -F '#{pane_id}' -c "${workspace}" "bash")"
         set_title "${shell_pane}" shell
         tmuxc select-pane -t "${files_pane}"
         new_window shell "bash"

@@ -233,6 +233,11 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     unzip \
     file \
     bash-completion \
+    # ── Log viewer (~3 MB) ──
+    # lnav for the `Prefix L` tmux popup. Reads aibox NDJSON via the
+    # custom format at /home/aibox/.config/lnav/formats/aibox/aibox.json.
+    # Fallback in the binding is `less` if lnav is missing.
+    lnav \
     # Preview/archive helpers live in the preview-archive addon.
     # Audio helpers live in the audio-voice addon.
     # ── Python (~50 MB) ──
@@ -352,6 +357,10 @@ COPY --chmod=755 config/bin/xdg-open.sh       /usr/local/bin/xdg-open
 
 # Quick reference cheatsheet
 COPY config/cheatsheet.txt             /home/aibox/.config/cheatsheet.txt
+
+# lnav format definition for aibox NDJSON log
+RUN mkdir -p /home/aibox/.config/lnav/formats/aibox
+COPY config/lnav/aibox.json            /home/aibox/.config/lnav/formats/aibox/aibox.json
 
 # Git — use XDG path so the mount target is a directory, not a single file
 COPY config/gitconfig /home/aibox/.config/git/config

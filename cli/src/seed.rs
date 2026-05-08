@@ -137,6 +137,7 @@ bind-key -N "Kill pane" x kill-pane
 bind-key -N "Toggle pane zoom" f resize-pane -Z
 bind-key -N "Kill tmux session" q confirm-before -p "kill tmux session AIBOX_TMUX_SESSION? (y/n)" kill-session
 bind-key -N "Reload tmux config" R source-file ~/.config/tmux/tmux.conf \; display-message "aibox tmux config reloaded"
+bind-key -N "Open log pane (lnav)" L display-popup -E -w 90% -h 80% "lnav -q /workspace/.aibox/aibox.log /workspace/.aibox/aibox.log.1 2>/dev/null || less /workspace/.aibox/aibox.log"
 
 set -g status AIBOX_TMUX_STATUS
 set -g status-style "bg=AIBOX_TMUX_BG,fg=AIBOX_TMUX_FG"
@@ -609,6 +610,12 @@ const DEFAULT_AIBOX_PREVIEW_SH: &str =
 const DEFAULT_AIBOX_STATUS_TOGGLE_SH: &str =
     include_str!("../../images/base-debian/config/bin/aibox-status-toggle.sh");
 
+/// lnav format file describing the aibox NDJSON log shape — read by
+/// `Prefix L` in tmux to surface logs with timestamps, levels, and
+/// search/filter (BR-LOG-PANEL, v0.25.6).
+const DEFAULT_LNAV_FORMAT_AIBOX: &str =
+    include_str!("../../images/base-debian/config/lnav/aibox.json");
+
 /// omp.yazi plugin — render an Oh My Posh prompt in Yazi's header.
 const DEFAULT_YAZI_PLUGIN_OMP: &str =
     include_str!("../../images/base-debian/config/yazi/plugins/omp.yazi/main.lua");
@@ -647,19 +654,20 @@ const DEFAULT_CHEATSHEET: &str = r#"  aibox Quick Reference
   -----------------------------------------------
   TMUX (prefix: Ctrl+g)      YAZI (file manager)
   Ctrl+g h/j/k/l Move pane  h/j/k/l  Navigate
-  Ctrl+g r/d     Split pane Enter    Open in vim
-  Ctrl+g x       Close pane g s      Git summary
-  Ctrl+g f       Zoom pane  g c      Git changes
-  Ctrl+g c       New win    w s      Size selection
-  Ctrl+g n/p     Next/prev  w h      Horizontal preview
-  Ctrl+g 1-5     Jump win   w p      Watch PDF
-  Ctrl+g [       Copy mode  c p/d/f  Copy path/dir/name
-  Ctrl+g ]       Paste      g r      Refresh git
+  Ctrl+g r/d     Split pane Enter    Edit (in pane)
+  Ctrl+g x       Close pane e        Edit (popup)
+  Ctrl+g f       Zoom pane  g s      Git summary
+  Ctrl+g c       New win    g c      Git changes
+  Ctrl+g n/p     Next/prev  w s      Size selection
+  Ctrl+g 1-5     Jump win   w h      Horizontal preview
+  Ctrl+g [       Copy mode  w p      Watch PDF
+  Ctrl+g ]       Paste      c p/d/f  Copy path/dir/name
+  Ctrl+g L       Log popup  g r      Refresh git
   Ctrl+g R       Reload
   Ctrl+g q       QUIT
 
   LAYOUTS: aibox up --layout dev|focus|cowork|cowork-swap|browse|ai
-  WINDOWS: 1 dev  2 git  3 shell
+  No persistent vim pane: e = popup, Enter = in-yazi (`:q` closes both).
 "#;
 
 /// Default .asoundrc for PulseAudio over TCP.
@@ -979,6 +987,13 @@ pub fn managed_runtime_files(config: &AiboxConfig) -> Vec<(std::path::PathBuf, S
         (
             std::path::PathBuf::from(".local/bin/aibox-status-toggle"),
             DEFAULT_AIBOX_STATUS_TOGGLE_SH.to_string(),
+        ),
+        // BR-LOG-PANEL (v0.25.6): lnav format file for `Prefix L` log
+        // popup. Seeded into .aibox-home so users can edit it; image
+        // ships an identical baked copy at /home/aibox/.config/lnav/.
+        (
+            std::path::PathBuf::from(".config/lnav/formats/aibox/aibox.json"),
+            DEFAULT_LNAV_FORMAT_AIBOX.to_string(),
         ),
     ];
 
@@ -1424,49 +1439,52 @@ fn tmux_layout_script(
         ConfigLayout::Ai => "ai",
     };
 
+    // BR-VIM-HARDCUT (DEC-20260508_1604-LuckySeal, v0.25.6): the persistent
+    // vim/editor pane has been removed from every layout. Yazi `e` opens
+    // vim in a full-screen tmux popup that closes on `:q`; `Enter` runs
+    // vim via the yazi `[opener.edit]` (suspends yazi until `:q`). Layout
+    // bodies below intentionally do NOT create an `editor_pane` or an
+    // `editor` window.
     let layout_body = match layout {
         ConfigLayout::Dev => format!(
-            r#"tmux -S "$socket" -f "$config" new-session -d -s "$session" -n dev -c "$workspace" "$(tool_or_shell vim)"
-editor_pane="$(tmux -S "$socket" display-message -p -t "$session:dev" '#{{pane_id}}')"
-files_pane="$(tmux -S "$socket" split-window -t "$session:dev" -h -p 35 -P -F '#{{pane_id}}' -c "$workspace" "$(tool_or_shell yazi)")"
-agent_pane="$(tmux -S "$socket" split-window -t "$session:dev" -v -p 40 -P -F '#{{pane_id}}' -c "$workspace" "$(tool_or_shell {provider})")"
-tmux -S "$socket" select-pane -t "$editor_pane"
+            r#"tmux -S "$socket" -f "$config" new-session -d -s "$session" -n dev -c "$workspace" "$(tool_or_shell yazi)"
+files_pane="$(tmux -S "$socket" display-message -p -t "$session:dev" '#{{pane_id}}')"
+agent_pane="$(tmux -S "$socket" split-window -t "$session:dev" -h -p 50 -P -F '#{{pane_id}}' -c "$workspace" "$(tool_or_shell {provider})")"
+tmux -S "$socket" select-pane -t "$files_pane"
 "#
         ),
         ConfigLayout::Focus => format!(
             r#"tmux -S "$socket" -f "$config" new-session -d -s "$session" -n focus -c "$workspace" "$(tool_or_shell {provider})"
-tmux -S "$socket" new-window -t "$session:" -n editor -c "$workspace" "$(tool_or_shell vim)"
 "#
         ),
         ConfigLayout::Cowork => format!(
-            r#"tmux -S "$socket" -f "$config" new-session -d -s "$session" -n cowork -c "$workspace" "$(tool_or_shell vim)"
-editor_pane="$(tmux -S "$socket" display-message -p -t "$session:cowork" '#{{pane_id}}')"
+            r#"tmux -S "$socket" -f "$config" new-session -d -s "$session" -n cowork -c "$workspace" "$(tool_or_shell yazi)"
+files_pane="$(tmux -S "$socket" display-message -p -t "$session:cowork" '#{{pane_id}}')"
 agent_pane="$(tmux -S "$socket" split-window -t "$session:cowork" -h -p 50 -P -F '#{{pane_id}}' -c "$workspace" "$(tool_or_shell {provider})")"
-files_pane="$(tmux -S "$socket" split-window -t "$editor_pane" -v -p 35 -P -F '#{{pane_id}}' -c "$workspace" "$(tool_or_shell yazi)")"
-tmux -S "$socket" select-pane -t "$editor_pane"
+tmux -S "$socket" select-pane -t "$files_pane"
 "#
         ),
         ConfigLayout::CoworkSwap => format!(
             r#"tmux -S "$socket" -f "$config" new-session -d -s "$session" -n cowork-swap -c "$workspace" "$(tool_or_shell yazi)"
 files_pane="$(tmux -S "$socket" display-message -p -t "$session:cowork-swap" '#{{pane_id}}')"
 agent_pane="$(tmux -S "$socket" split-window -t "$session:cowork-swap" -v -p 45 -P -F '#{{pane_id}}' -c "$workspace" "$(tool_or_shell {provider})")"
-editor_pane="$(tmux -S "$socket" split-window -t "$session:cowork-swap" -h -p 60 -P -F '#{{pane_id}}' -c "$workspace" "$(tool_or_shell vim)")"
-tmux -S "$socket" select-pane -t "$editor_pane"
+tmux -S "$socket" select-pane -t "$files_pane"
 "#
         ),
         ConfigLayout::Browse => format!(
             r#"tmux -S "$socket" -f "$config" new-session -d -s "$session" -n browse -c "$workspace" "$(tool_or_shell yazi)"
 files_pane="$(tmux -S "$socket" display-message -p -t "$session:browse" '#{{pane_id}}')"
 agent_pane="$(tmux -S "$socket" split-window -t "$session:browse" -v -p 35 -P -F '#{{pane_id}}' -c "$workspace" "$(tool_or_shell {provider})")"
-tmux -S "$socket" new-window -t "$session:" -n editor -c "$workspace" "$(tool_or_shell vim)"
+tmux -S "$socket" select-pane -t "$files_pane"
 "#
         ),
         ConfigLayout::Ai => format!(
             r#"tmux -S "$socket" -f "$config" new-session -d -s "$session" -n ai -c "$workspace" "$(tool_or_shell yazi)"
 files_pane="$(tmux -S "$socket" display-message -p -t "$session:ai" '#{{pane_id}}')"
 agent_pane="$(tmux -S "$socket" split-window -t "$session:ai" -h -p 50 -P -F '#{{pane_id}}' -c "$workspace" "$(tool_or_shell {provider})")"
-tmux -S "$socket" new-window -t "$session:" -n editor -c "$workspace" "$(tool_or_shell vim)"
 tmux -S "$socket" new-window -t "$session:" -n shell -c "$workspace" "bash"
+tmux -S "$socket" select-window -t "$session:ai"
+tmux -S "$socket" select-pane -t "$files_pane"
 "#
         ),
     };
@@ -2201,37 +2219,29 @@ mod tests {
         );
         let open_in_editor =
             fs::read_to_string(root.join(".local").join("bin").join("open-in-editor")).unwrap();
+        // BR-VIM-HARDCUT (DEC-20260508_1604-LuckySeal, v0.25.6):
+        // 'e' opens vim in a full-screen tmux popup; the legacy
+        // pane-discovery + send-keys path is gone.
         assert!(
-            open_in_editor.contains("tmux select-window")
-                || open_in_editor.contains("tmux new-window"),
-            "open-in-editor should target or create a tmux editor window"
+            open_in_editor.contains("tmux display-popup -E -w 100% -h 100%"),
+            "open-in-editor should open vim in a full-screen tmux popup"
         );
         assert!(
-            open_in_editor.contains("tmux select-pane")
-                || open_in_editor.contains("tmux split-window"),
-            "open-in-editor should support same-window tmux editor panes"
+            !open_in_editor.contains("find_directional_pane")
+                && !open_in_editor.contains("find_editor_pane"),
+            "old pane-discovery machinery must be removed"
         );
         assert!(
-            open_in_editor.contains("find_directional_pane")
-                && open_in_editor.contains("select-pane -t \"$source_pane\" \"$select_flag\""),
-            "open-in-editor should use explicit adjacent editor panes before creating a split"
+            !open_in_editor.contains("send-keys"),
+            "no send-keys path; popup-only handoff"
         );
         assert!(
-            open_in_editor.contains(":edit ${vim_file}"),
-            "open-in-editor should open the selected file in the focused Vim pane"
+            !open_in_editor.contains(":edit ${vim_file}"),
+            "no `:edit` send-keys against a long-lived vim pane"
         );
         assert!(
-            !open_in_editor.contains("edit --in-place"),
-            "open-in-editor must not replace the Yazi pane with an in-place editor"
-        );
-        assert!(
-            open_in_editor.contains("list-windows"),
-            "open-in-editor should auto-detect editor windows"
-        );
-        assert!(
-            open_in_editor.contains("list-panes")
-                && open_in_editor.contains("tmux send-keys -t \"$target\" C-c"),
-            "open-in-editor should rehydrate non-vim editor panes before opening files"
+            !open_in_editor.contains("vim-loop"),
+            "persistent vim is removed; no vim-loop reference"
         );
         let aibox_preview =
             fs::read_to_string(root.join(".local").join("bin").join("aibox-preview")).unwrap();
@@ -2806,8 +2816,63 @@ set -g status-right " off_RIGHT "
 
         assert!(layout.contains("tool_or_shell codex"));
         assert!(!layout.contains("tool_or_shell claude"));
-        assert!(layout.contains("tmux -S \"$socket\" new-window -t \"$session:\" -n editor"));
+        // BR-VIM-HARDCUT (v0.25.6): no editor window in any layout.
+        assert!(!layout.contains("-n editor"));
+        assert!(!layout.contains("editor_pane"));
         assert!(layout.contains("tmux -S \"$socket\" new-window -t \"$session:\" -n shell"));
+    }
+
+    #[test]
+    fn tmux_layouts_have_no_persistent_editor_pane() {
+        // BR-VIM-HARDCUT (DEC-20260508_1604-LuckySeal): the persistent
+        // vim/editor pane was removed from every layout in v0.25.6.
+        let providers = [AiProvider::Claude];
+        for layout in [
+            ConfigLayout::Dev,
+            ConfigLayout::Focus,
+            ConfigLayout::Cowork,
+            ConfigLayout::CoworkSwap,
+            ConfigLayout::Browse,
+            ConfigLayout::Ai,
+        ] {
+            let body = tmux_layout_script(&layout, &providers, false, "aibox");
+            assert!(
+                !body.contains("editor_pane"),
+                "{layout:?} must not create an editor_pane:\n{body}"
+            );
+            assert!(
+                !body.contains("-n editor"),
+                "{layout:?} must not create an editor window:\n{body}"
+            );
+            assert!(
+                !body.contains("tool_or_shell vim"),
+                "{layout:?} must not start a persistent vim:\n{body}"
+            );
+        }
+    }
+
+    #[test]
+    fn open_in_editor_uses_tmux_popup() {
+        // BR-VIM-HARDCUT: 'e' on a yazi file opens vim in a full-screen
+        // tmux popup that auto-closes on `:q`. The old
+        // `find_editor_pane`/`send-keys`/`vim-loop` machinery is gone.
+        let script = DEFAULT_OPEN_IN_EDITOR_SH;
+        assert!(
+            script.contains("tmux display-popup -E -w 100% -h 100%"),
+            "open-in-editor must use a full-screen tmux popup"
+        );
+        assert!(
+            !script.contains("find_editor_pane"),
+            "old discovery machinery must be gone"
+        );
+        assert!(
+            !script.contains("send-keys"),
+            "no send-keys path; popup-only handoff"
+        );
+        assert!(
+            !script.contains("vim-loop"),
+            "no vim-loop reference; persistent vim is removed"
+        );
     }
 
     #[test]
