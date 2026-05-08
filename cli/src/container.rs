@@ -658,7 +658,7 @@ pub fn cmd_start(
         ));
     }
     if should_recreate_tmux_session {
-        let refreshed_tmux_files = crate::seed::sync_tmux_runtime_files(&config)?;
+        let refreshed_tmux_files = crate::tmux::sync_tmux_runtime_files(&config)?;
         if !refreshed_tmux_files.is_empty() {
             output::ok(&format!(
                 "Refreshed {} managed tmux runtime file(s)",

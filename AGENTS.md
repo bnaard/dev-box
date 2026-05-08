@@ -366,6 +366,19 @@ If you're still seeing permission prompts for aibox-shipped MCP servers:
 - **Claude Code OAuth in containers**: use `claude setup-token` or authenticate on host (credentials shared via `.claude` mount). See anthropics/claude-code#14528. Do NOT use `network_mode: host`.
 - **OrbStack network dropout**: after ~20 minutes idle, OrbStack's VM NAT can drop connections. Fix: set `keepalive = true` in `[container]` of `aibox.toml` (adds a lightweight DNS keepalive every 2 minutes via `postStartCommand`).
 
+### Tmux session scripts — two files, two roles
+
+Two files share the name `aibox-tmux-session.sh` (or `aibox-session.sh`) but serve different purposes. Editing the wrong one is a common source of confusion:
+
+| File | Role |
+|---|---|
+| `images/base-debian/config/bin/aibox-tmux-session.sh` | **IMAGE/RUNTIME variant.** Baked into `/usr/local/bin` inside the container image. Acts as the authoritative fallback launcher used by the container entrypoint before any apply-time managed files are present. No per-project customisation. |
+| `cli/src/templates/aibox-home/.config/tmux/aibox-session.sh` | **GENERATED template variant.** Source template copied into `.aibox-home/.config/tmux/` at `aibox apply` time. Reflects the project owner's configured layout, session name, etc. from `aibox.toml`. |
+
+At runtime the GENERATED variant takes precedence (via `AIBOX_TMUX_MANAGED_SESSION`); the IMAGE variant is the fallback when no managed session script is present yet. Both files carry a header banner that identifies which role they play. When changing either file, review the other for behavioural parity.
+
+The generated layout scripts in `.aibox-home/.config/tmux/layouts/` (one per `ConfigLayout`) are rendered by `cli/src/tmux/layouts.rs::tmux_layout_script`.
+
 ### Runtime artifacts for agents (in derived projects)
 
 When an AI agent is working inside a project that uses aibox:

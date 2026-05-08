@@ -1,4 +1,24 @@
 #!/usr/bin/env bash
+# IMAGE/RUNTIME variant of aibox-tmux-session.sh
+#
+# This file is baked into the container image and runs inside the container
+# when a new tmux session is started.  It is the authoritative fallback
+# launcher used by the image entrypoint BEFORE any apply-time managed files
+# are present.
+#
+# There is a separate GENERATED variant (cli/src/templates/aibox-home/.config/
+# tmux/aibox-session.sh) that is copied into .aibox-home at `aibox apply` time
+# and takes precedence at runtime via AIBOX_TMUX_MANAGED_SESSION.  The two
+# files have different roles:
+#   IMAGE variant  — baked into /usr/local/bin; always available; no
+#                    per-project customisation.
+#   GENERATED variant — written from aibox.toml; reflects the project owner's
+#                       configured layout, session name, etc.
+#
+# DO NOT edit the GENERATED variant (under cli/src/templates/) without also
+# reviewing this file for parity — and vice-versa.  The two must remain
+# behaviourally compatible so a container started without a managed session
+# script still falls back gracefully.
 set -euo pipefail
 
 layout="${1:-${AIBOX_TMUX_LAYOUT:-ai}}"

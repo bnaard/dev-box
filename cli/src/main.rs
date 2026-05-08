@@ -45,6 +45,7 @@ mod runtime_resources;
 mod runtime_sync;
 mod seed;
 mod sync_perimeter;
+mod tmux;
 mod theme_cmd;
 mod themes;
 mod update;

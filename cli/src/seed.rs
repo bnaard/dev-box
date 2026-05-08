@@ -6,8 +6,12 @@ use std::os::unix::fs::PermissionsExt;
 use std::os::unix::fs::symlink;
 use std::path::Path;
 
-use crate::config::{AiboxConfig, ConfigLayout, TmuxStatusMode};
+use crate::config::{AiboxConfig, ConfigLayout};
 use crate::output;
+use crate::tmux::{
+    cleanup_stale_tmux_plugins, cleanup_tmux_powerkit_cache, tmux_conf, tmux_layout_script,
+    tmux_session_script,
+};
 
 /// Default vimrc content (embedded fallback).
 const DEFAULT_VIMRC: &str = r#"" aibox default vimrc
@@ -104,66 +108,6 @@ const DEFAULT_GITCONFIG: &str = r#"[core]
     rebase = true
 "#;
 
-/// Default tmux config. Theme, prefix, status mode, and session name are
-/// substituted from `aibox.toml` at seed time.
-const DEFAULT_TMUX_CONF: &str = r##"# aibox tmux configuration
-set -g default-shell /bin/bash
-set -g default-command /bin/bash
-set -g base-index 1
-setw -g pane-base-index 1
-set -g renumber-windows on
-set -g mouse on
-set -g history-limit 50000
-set -g escape-time 10
-set -g focus-events on
-set -g allow-passthrough on
-set -g default-terminal "tmux-256color"
-set -ga terminal-features ",xterm-256color:RGB,tmux-256color:RGB"
-set -ga terminal-overrides ",xterm-256color:Tc,tmux-256color:Tc"
-set -g status-interval 5
-set -g prefix AIBOX_TMUX_PREFIX
-unbind C-b
-bind AIBOX_TMUX_PREFIX send-prefix
-
-# Pane navigation mirrors the old aibox leader muscle memory.
-bind-key -N "Show aibox/tmux key bindings" ? display-popup -w 80% -h 75% -E "tmux list-keys -N | less -R"
-bind-key -N "Select pane left" h select-pane -L
-bind-key -N "Select pane down" j select-pane -D
-bind-key -N "Select pane up" k select-pane -U
-bind-key -N "Select pane right" l select-pane -R
-bind-key -N "Split pane right" r split-window -h -c "#{pane_current_path}"
-bind-key -N "Split pane down" d split-window -v -c "#{pane_current_path}"
-bind-key -N "Kill pane" x kill-pane
-bind-key -N "Toggle pane zoom" f resize-pane -Z
-bind-key -N "Kill tmux session" q confirm-before -p "kill tmux session AIBOX_TMUX_SESSION? (y/n)" kill-session
-bind-key -N "Reload tmux config" R source-file ~/.config/tmux/tmux.conf \; display-message "aibox tmux config reloaded"
-bind-key -N "Open log pane (lnav)" L display-popup -E -w 90% -h 80% "lnav -q /workspace/.aibox/aibox.log /workspace/.aibox/aibox.log.1 2>/dev/null || less /workspace/.aibox/aibox.log"
-
-set -g status AIBOX_TMUX_STATUS
-set -g status-style "bg=AIBOX_TMUX_BG,fg=AIBOX_TMUX_FG"
-set -g window-status-current-style "bg=AIBOX_TMUX_ACCENT,fg=AIBOX_TMUX_BG,bold"
-set -g window-status-format " #I:#W "
-set -g window-status-current-format " #I:#W "
-set -g status-left " #S "
-set -g status-right " AIBOX_TMUX_STATUS_RIGHT "
-
-AIBOX_TMUX_POWERKIT_BLOCK
-
-# aibox-managed plugins are installed and pinned by the runtime image. TPM is
-# only a user convenience layer for additional personal plugins.
-if-shell '[ -f /usr/local/share/aibox/tmux/plugins/tmux-sensible/sensible.tmux ]' 'run-shell /usr/local/share/aibox/tmux/plugins/tmux-sensible/sensible.tmux'
-AIBOX_TMUX_POWERKIT_PLUGIN
-if-shell '[ -f /usr/local/share/aibox/tmux/plugins/vim-tmux-navigator/vim-tmux-navigator.tmux ]' 'run-shell /usr/local/share/aibox/tmux/plugins/vim-tmux-navigator/vim-tmux-navigator.tmux'
-if-shell '[ -f /usr/local/share/aibox/tmux/plugins/tmux-yank/yank.tmux ]' 'run-shell /usr/local/share/aibox/tmux/plugins/tmux-yank/yank.tmux'
-
-# Persistence plugins are installed for later policy work but disabled by
-# default in v0.25.0. Do not enable continuum/resurrect implicitly.
-set -g @continuum-restore 'off'
-set -g @continuum-save-interval '0'
-set -g @resurrect-capture-pane-contents 'off'
-
-if-shell '[ -x ~/.tmux/plugins/tpm/tpm ]' 'run-shell ~/.tmux/plugins/tpm/tpm'
-"##;
 
 fn addon_tool_effective_enabled(config: &AiboxConfig, addon: &str, tool: &str) -> bool {
     let Some(addon_section) = config.addons.get_addon(addon) else {
@@ -185,7 +129,7 @@ fn addon_tool_effective_enabled(config: &AiboxConfig, addon: &str, tool: &str) -
         .unwrap_or(true)
 }
 
-fn include_lazygit_tab(config: &AiboxConfig) -> bool {
+pub(crate) fn include_lazygit_tab(config: &AiboxConfig) -> bool {
     addon_tool_effective_enabled(config, "git-ui", "lazygit")
 }
 
@@ -1114,68 +1058,6 @@ pub fn cleanup_disabled_runtime_files(config: &AiboxConfig) -> Result<Vec<String
     Ok(updated)
 }
 
-/// Hard-delete the tmux-powerkit plugin cache. Variant 1: every apply
-/// regenerates the powerkit configuration from scratch, so any stashed cache
-/// is by definition stale and must not survive across applies.
-fn cleanup_tmux_powerkit_cache(root: &Path) -> Result<Vec<String>> {
-    let mut updated = Vec::new();
-    let cache_dir = root.join(".cache").join("tmux-powerkit");
-    if cache_dir.exists() {
-        fs::remove_dir_all(&cache_dir)
-            .with_context(|| format!("Failed to remove {}", cache_dir.display()))?;
-        updated.push(".cache/tmux-powerkit (removed stale tmux-powerkit cache)".to_string());
-    }
-    Ok(updated)
-}
-
-/// Walk `.aibox-home/.tmux/plugins/<plugin>` and remove any plugin that the
-/// generated tmux.conf no longer references. The set of "referenced" plugins
-/// is computed from the rendered tmux.conf so this stays in lockstep with
-/// whatever plugins the active config asks for.
-///
-/// `tpm` is preserved unconditionally — it is the user-facing plugin manager
-/// and is not aibox-managed in the strict sense. Zellij plugins are skipped
-/// here too, because BR-ZELLIJ-EXCISE owns those.
-fn cleanup_stale_tmux_plugins(config: &AiboxConfig, root: &Path) -> Result<Vec<String>> {
-    let plugins_dir = root.join(".tmux").join("plugins");
-    let mut updated = Vec::new();
-    let Ok(entries) = fs::read_dir(&plugins_dir) else {
-        return Ok(updated);
-    };
-
-    let conf = tmux_conf(config);
-    for entry in entries {
-        let entry =
-            entry.with_context(|| format!("Failed to read {}", plugins_dir.display()))?;
-        let path = entry.path();
-        if !path.is_dir() {
-            continue;
-        }
-        let file_name = entry.file_name();
-        let name = file_name.to_string_lossy().to_string();
-        if name == "tpm" {
-            continue;
-        }
-        if name.to_ascii_lowercase().contains("zellij") {
-            continue;
-        }
-        // A plugin is "referenced" if the rendered tmux.conf names its
-        // directory anywhere (e.g. `tmux-powerkit/tmux-powerkit.tmux`).
-        let referenced = conf.contains(&format!("/{}/", name))
-            || conf.contains(&format!("/{}.", name));
-        if referenced {
-            continue;
-        }
-        fs::remove_dir_all(&path)
-            .with_context(|| format!("Failed to remove {}", path.display()))?;
-        updated.push(format!(
-            ".tmux/plugins/{} (removed stale tmux plugin)",
-            name
-        ));
-    }
-    Ok(updated)
-}
-
 /// Per-harness state cleanup (Item 4 of BR-CLEANUP-ARCH).
 ///
 /// For every harness that has `config_dir() == Some(_)` but is NOT in
@@ -1485,259 +1367,6 @@ fn legacy_managed_aibox_status_helper(path: &Path) -> bool {
         && body.contains("AIBOX_STATUS_INTERVAL")
 }
 
-fn tmux_conf(config: &AiboxConfig) -> String {
-    let theme = config.customization.resolved_theme();
-    let (bg, fg, accent) = crate::themes::tmux_status_colors(&theme);
-    let status = match config.customization.tmux.status.mode {
-        TmuxStatusMode::Extended | TmuxStatusMode::Plain => "on",
-        TmuxStatusMode::Disabled => "off",
-    };
-
-    let status_right = match config.customization.tmux.status.mode {
-        TmuxStatusMode::Extended => "#(aibox-status --once 2>/dev/null || true) %H:%M",
-        TmuxStatusMode::Plain | TmuxStatusMode::Disabled => "%H:%M",
-    };
-    let (powerkit_block, powerkit_plugin) = tmux_powerkit_settings(config);
-
-    let mut conf = DEFAULT_TMUX_CONF
-        .replace("AIBOX_TMUX_PREFIX", &config.customization.tmux.prefix)
-        .replace(
-            "AIBOX_TMUX_SESSION",
-            &config.customization.tmux.session_name,
-        )
-        .replace("AIBOX_TMUX_STATUS_RIGHT", status_right)
-        .replace("AIBOX_TMUX_STATUS", status)
-        .replace("AIBOX_TMUX_POWERKIT_BLOCK", &powerkit_block)
-        .replace("AIBOX_TMUX_POWERKIT_PLUGIN", &powerkit_plugin)
-        .replace("AIBOX_TMUX_BG", bg)
-        .replace("AIBOX_TMUX_FG", fg)
-        .replace("AIBOX_TMUX_ACCENT", accent);
-
-    // Keep the status block deterministic and avoid shelling out when disabled.
-    if config.customization.tmux.status.mode == TmuxStatusMode::Disabled {
-        conf = conf.replace("set -g status-interval 5", "set -g status-interval 60");
-    }
-    conf
-}
-
-fn push_enabled(items: &mut Vec<&'static str>, enabled: bool, id: &'static str) {
-    if enabled {
-        items.push(id);
-    }
-}
-
-fn tmux_powerkit_settings(config: &AiboxConfig) -> (String, String) {
-    if config.customization.tmux.status.mode != TmuxStatusMode::Extended {
-        return (String::new(), String::new());
-    }
-
-    let elements = &config.customization.tmux.status.elements;
-
-    let mut line1_right = Vec::new();
-    push_enabled(&mut line1_right, elements.hostname, "hostname");
-    push_enabled(&mut line1_right, elements.external_ip, "external_ip");
-    push_enabled(&mut line1_right, elements.ssh, "ssh");
-    push_enabled(&mut line1_right, elements.uptime, "uptime");
-    push_enabled(&mut line1_right, elements.weather, "weather");
-    push_enabled(&mut line1_right, elements.datetime, "datetime");
-
-    let mut line2_left = Vec::new();
-    push_enabled(&mut line2_left, elements.git, "git");
-    push_enabled(&mut line2_left, elements.github, "github");
-    push_enabled(&mut line2_left, elements.kubernetes, "kubernetes");
-    push_enabled(&mut line2_left, elements.terraform, "terraform");
-    push_enabled(&mut line2_left, elements.cloud, "cloud");
-    push_enabled(&mut line2_left, elements.cloudstatus, "cloudstatus");
-
-    let mut line2_right = Vec::new();
-    push_enabled(&mut line2_right, elements.cpu, "cpu");
-    push_enabled(&mut line2_right, elements.loadavg, "loadavg");
-    push_enabled(&mut line2_right, elements.mem, "memory");
-    push_enabled(&mut line2_right, elements.swap, "swap");
-    push_enabled(&mut line2_right, elements.disk, "disk");
-    push_enabled(&mut line2_right, elements.gpu, "gpu");
-    push_enabled(&mut line2_right, elements.netspeed, "netspeed");
-    push_enabled(&mut line2_right, elements.ping, "ping");
-    push_enabled(&mut line2_right, elements.aibox, "aibox");
-
-    let mut plugin_order = Vec::new();
-    plugin_order.extend(line1_right.iter().copied());
-    plugin_order.extend(line2_left.iter().copied());
-    plugin_order.extend(line2_right.iter().copied());
-
-    let metrics = &elements.aibox_metrics;
-    let aibox_metrics = [
-        (metrics.log, "log"),
-        (metrics.oom, "oom"),
-        (metrics.proc, "proc"),
-        (metrics.ai, "ai"),
-        (metrics.mcp, "mcp"),
-        (metrics.mig, "mig"),
-    ]
-    .iter()
-    .filter_map(|(enabled, key)| enabled.then_some(*key))
-    .collect::<Vec<_>>()
-    .join(",");
-
-    let (powerkit_theme, powerkit_variant) =
-        crate::themes::tmux_powerkit_theme(&config.customization.resolved_theme());
-    let powerkit_block = format!(
-        r##"# Powerkit status.
-set -g @powerkit_plugins "{}"
-set -g @powerkit_bar_layout "double"
-set -g @powerkit_status_order "session,plugins"
-set -g @powerkit_theme "{}"
-set -g @powerkit_theme_variant "{}"
-set -g @powerkit_separator_style "rounded"
-set -g @powerkit_elements_spacing "both"
-set -g @powerkit_status_interval "5"
-set -g @powerkit_transparent "false"
-set -g @powerkit_pane_border_status "top"
-set -g @powerkit_pane_border_format "#{{?client_prefix,PREFIX,NORMAL}} #{{pane_title}} #{{pane_current_command}}"
-set -g @powerkit_line1_right "{}"
-set -g @powerkit_line2_left "{}"
-set -g @powerkit_line2_right "{}"
-set -g @powerkit_plugin_aibox_metrics "{}""##,
-        plugin_order.join(","),
-        powerkit_theme,
-        powerkit_variant,
-        line1_right.join(","),
-        line2_left.join(","),
-        line2_right.join(","),
-        aibox_metrics
-    );
-    let powerkit_plugin = "if-shell '[ -f /usr/local/share/aibox/tmux/plugins/tmux-powerkit/tmux-powerkit.tmux ]' 'run-shell /usr/local/share/aibox/tmux/plugins/tmux-powerkit/tmux-powerkit.tmux'".to_string();
-    (powerkit_block, powerkit_plugin)
-}
-
-fn tmux_layout_script(
-    layout: &ConfigLayout,
-    providers: &[crate::config::AiProvider],
-    include_lazygit: bool,
-    session_name: &str,
-) -> String {
-    let provider = providers
-        .iter()
-        .find(|provider| provider.is_active())
-        .map(|provider| provider.binary_name())
-        .unwrap_or("bash");
-    let git_window = if include_lazygit {
-        r#"tmux -S "$socket" new-window -t "$session:" -n git -c "$workspace" "$(tool_or_shell lazygit)"
-"#
-    } else {
-        ""
-    };
-
-    let primary_window = match layout {
-        ConfigLayout::Dev => "dev",
-        ConfigLayout::Focus => "focus",
-        ConfigLayout::Cowork => "cowork",
-        ConfigLayout::CoworkSwap => "cowork-swap",
-        ConfigLayout::Browse => "browse",
-        ConfigLayout::Ai => "ai",
-    };
-
-    // BR-VIM-HARDCUT (DEC-20260508_1604-LuckySeal, v0.25.6): the persistent
-    // vim/editor pane has been removed from every layout. Yazi `e` opens
-    // vim in a full-screen tmux popup that closes on `:q`; `Enter` runs
-    // vim via the yazi `[opener.edit]` (suspends yazi until `:q`). Layout
-    // bodies below intentionally do NOT create an `editor_pane` or an
-    // `editor` window.
-    let layout_body = match layout {
-        ConfigLayout::Dev => format!(
-            r#"tmux -S "$socket" -f "$config" new-session -d -s "$session" -n dev -c "$workspace" "$(tool_or_shell yazi)"
-files_pane="$(tmux -S "$socket" display-message -p -t "$session:dev" '#{{pane_id}}')"
-agent_pane="$(tmux -S "$socket" split-window -t "$session:dev" -h -p 50 -P -F '#{{pane_id}}' -c "$workspace" "$(tool_or_shell {provider})")"
-tmux -S "$socket" select-pane -t "$files_pane"
-"#
-        ),
-        ConfigLayout::Focus => format!(
-            r#"tmux -S "$socket" -f "$config" new-session -d -s "$session" -n focus -c "$workspace" "$(tool_or_shell {provider})"
-"#
-        ),
-        ConfigLayout::Cowork => format!(
-            r#"tmux -S "$socket" -f "$config" new-session -d -s "$session" -n cowork -c "$workspace" "$(tool_or_shell yazi)"
-files_pane="$(tmux -S "$socket" display-message -p -t "$session:cowork" '#{{pane_id}}')"
-agent_pane="$(tmux -S "$socket" split-window -t "$session:cowork" -h -p 50 -P -F '#{{pane_id}}' -c "$workspace" "$(tool_or_shell {provider})")"
-tmux -S "$socket" select-pane -t "$files_pane"
-"#
-        ),
-        ConfigLayout::CoworkSwap => format!(
-            r#"tmux -S "$socket" -f "$config" new-session -d -s "$session" -n cowork-swap -c "$workspace" "$(tool_or_shell yazi)"
-files_pane="$(tmux -S "$socket" display-message -p -t "$session:cowork-swap" '#{{pane_id}}')"
-agent_pane="$(tmux -S "$socket" split-window -t "$session:cowork-swap" -v -p 45 -P -F '#{{pane_id}}' -c "$workspace" "$(tool_or_shell {provider})")"
-tmux -S "$socket" select-pane -t "$files_pane"
-"#
-        ),
-        ConfigLayout::Browse => format!(
-            r#"tmux -S "$socket" -f "$config" new-session -d -s "$session" -n browse -c "$workspace" "$(tool_or_shell yazi)"
-files_pane="$(tmux -S "$socket" display-message -p -t "$session:browse" '#{{pane_id}}')"
-agent_pane="$(tmux -S "$socket" split-window -t "$session:browse" -v -p 35 -P -F '#{{pane_id}}' -c "$workspace" "$(tool_or_shell {provider})")"
-tmux -S "$socket" select-pane -t "$files_pane"
-"#
-        ),
-        ConfigLayout::Ai => format!(
-            r#"tmux -S "$socket" -f "$config" new-session -d -s "$session" -n ai -c "$workspace" "$(tool_or_shell yazi)"
-files_pane="$(tmux -S "$socket" display-message -p -t "$session:ai" '#{{pane_id}}')"
-agent_pane="$(tmux -S "$socket" split-window -t "$session:ai" -h -p 50 -P -F '#{{pane_id}}' -c "$workspace" "$(tool_or_shell {provider})")"
-tmux -S "$socket" new-window -t "$session:" -n shell -c "$workspace" "bash"
-tmux -S "$socket" select-window -t "$session:ai"
-tmux -S "$socket" select-pane -t "$files_pane"
-"#
-        ),
-    };
-
-    format!(
-        r#"#!/usr/bin/env bash
-set -euo pipefail
-
-session="${{AIBOX_TMUX_SESSION:-{session_name}}}"
-workspace="${{AIBOX_WORKSPACE:-/workspace}}"
-config="${{AIBOX_TMUX_CONFIG:-$HOME/.config/tmux/tmux.conf}}"
-socket="${{AIBOX_TMUX_SOCKET:-$HOME/.tmux/aibox.sock}}"
-mkdir -p "$(dirname "$socket")"
-
-if tmux -S "$socket" -f "$config" has-session -t "$session" 2>/dev/null; then
-  exec tmux -S "$socket" -f "$config" attach-session -t "$session"
-fi
-
-tool_or_shell() {{
-  local tool="$1"
-  if [[ "$tool" == "yazi" ]]; then
-    printf "bash -lc 'for _ in {{1..50}}; do tmux -S %q list-clients -t %q >/dev/null 2>&1 && break; sleep 0.1; done; if command -v yazi >/dev/null 2>&1; then exec yazi; fi; exec bash'" "$socket" "$session"
-    return
-  fi
-  printf "bash -lc 'if command -v %q >/dev/null 2>&1; then %q; fi; exec bash'" "$tool" "$tool"
-}}
-
-{layout_body}{git_window}tmux -S "$socket" select-window -t "$session:{primary_window}" 2>/dev/null || true
-exec tmux -S "$socket" -f "$config" attach-session -t "$session"
-"#,
-        primary_window = primary_window,
-    )
-}
-
-fn tmux_session_script(config: &AiboxConfig) -> String {
-    format!(
-        r#"#!/usr/bin/env bash
-set -euo pipefail
-
-layout="${{1:-${{AIBOX_TMUX_LAYOUT:-{layout}}}}}"
-session="${{2:-${{AIBOX_TMUX_SESSION:-{session}}}}}"
-socket="${{AIBOX_TMUX_SOCKET:-$HOME/.tmux/aibox.sock}}"
-script="${{HOME}}/.config/tmux/layouts/${{layout}}.sh"
-
-if [[ ! -x "${{script}}" ]]; then
-  echo "aibox-tmux-session: unknown or unavailable managed layout: ${{layout}}" >&2
-  exit 2
-fi
-
-exec env AIBOX_TMUX_SESSION="${{session}}" AIBOX_TMUX_SOCKET="${{socket}}" "${{script}}"
-"#,
-        layout = config.customization.tmux_layout(),
-        session = &config.customization.tmux.session_name,
-    )
-}
 
 /// Seed the .root/ directory structure and default config files.
 /// Never overwrites existing files.
@@ -1814,66 +1443,12 @@ pub fn restore_missing_managed_runtime_files(config: &AiboxConfig) -> Result<Vec
     Ok(restored)
 }
 
-/// Refresh managed tmux runtime files from aibox.toml.
-///
-/// This is intentionally narrower than `sync_theme_files`: `aibox up
-/// --forget-tmux-state` needs the configured tmux status/layout to win when
-/// recreating a session, but it should not rewrite unrelated runtime surfaces.
-pub fn sync_tmux_runtime_files(config: &AiboxConfig) -> Result<Vec<String>> {
-    let root = config.host_root_dir();
-    let mut updated = Vec::new();
-
-    ensure_runtime_dirs(config)?;
-    if force_seed_file(
-        &root.join(".config").join("tmux").join("tmux.conf"),
-        &tmux_conf(config),
-    )? {
-        updated.push(".config/tmux/tmux.conf".to_string());
-    }
-
-    let providers = &config.ai.harnesses;
-    let include_lazygit = include_lazygit_tab(config);
-    let session_name = &config.customization.tmux.session_name;
-    for layout in [
-        ConfigLayout::Dev,
-        ConfigLayout::Focus,
-        ConfigLayout::Cowork,
-        ConfigLayout::Browse,
-        ConfigLayout::Ai,
-        ConfigLayout::CoworkSwap,
-    ] {
-        let rel = format!(".config/tmux/layouts/{layout}.sh");
-        let path = root
-            .join(".config")
-            .join("tmux")
-            .join("layouts")
-            .join(format!("{layout}.sh"));
-        let body = tmux_layout_script(&layout, providers, include_lazygit, session_name);
-        if force_seed_file(&path, &body)? {
-            ensure_executable(&path)?;
-            updated.push(rel);
-        } else if ensure_executable_if_present(&path)? {
-            updated.push(format!("{rel} (chmod +x)"));
-        }
-    }
-
-    let session_path = root.join(".config").join("tmux").join("aibox-session.sh");
-    if force_seed_file(&session_path, &tmux_session_script(config))? {
-        ensure_executable(&session_path)?;
-        updated.push(".config/tmux/aibox-session.sh".to_string());
-    } else if ensure_executable_if_present(&session_path)? {
-        updated.push(".config/tmux/aibox-session.sh (chmod +x)".to_string());
-    }
-
-    Ok(updated)
-}
-
 fn seed_file(path: &Path, content: &str) -> Result<()> {
     crate::context::write_if_missing(path, content)
 }
 
 #[cfg(unix)]
-fn ensure_executable(path: &Path) -> Result<()> {
+pub(crate) fn ensure_executable(path: &Path) -> Result<()> {
     let mut permissions = fs::metadata(path)
         .with_context(|| format!("Failed to read permissions for {}", path.display()))?
         .permissions();
@@ -1883,12 +1458,12 @@ fn ensure_executable(path: &Path) -> Result<()> {
 }
 
 #[cfg(not(unix))]
-fn ensure_executable(_path: &Path) -> Result<()> {
+pub(crate) fn ensure_executable(_path: &Path) -> Result<()> {
     Ok(())
 }
 
 #[cfg(unix)]
-fn ensure_executable_if_present(path: &Path) -> Result<bool> {
+pub(crate) fn ensure_executable_if_present(path: &Path) -> Result<bool> {
     if !path.exists() {
         return Ok(false);
     }
@@ -1905,7 +1480,7 @@ fn ensure_executable_if_present(path: &Path) -> Result<bool> {
 }
 
 #[cfg(not(unix))]
-fn ensure_executable_if_present(_path: &Path) -> Result<bool> {
+pub(crate) fn ensure_executable_if_present(_path: &Path) -> Result<bool> {
     Ok(false)
 }
 
@@ -2902,136 +2477,6 @@ rules = [
     }
 
     #[test]
-    fn tmux_dev_layout_uses_selected_primary_provider() {
-        let providers = vec![AiProvider::Codex, AiProvider::Claude];
-        let layout = tmux_layout_script(&ConfigLayout::Dev, &providers, true, "aibox");
-
-        assert!(
-            layout.contains(
-                "tmux -S \"$socket\" -f \"$config\" new-session -d -s \"$session\" -n dev"
-            )
-        );
-        assert!(layout.contains("tool_or_shell codex"));
-        assert!(!layout.contains("tool_or_shell claude"));
-        assert!(layout.contains("tmux -S \"$socket\" new-window -t \"$session:\" -n git"));
-        assert!(layout.contains("socket=\"${AIBOX_TMUX_SOCKET:-$HOME/.tmux/aibox.sock}\""));
-        assert!(!layout.contains("zellij"));
-    }
-
-    #[test]
-    fn tmux_layouts_start_expected_windows_and_panes() {
-        let providers = [AiProvider::Claude];
-        let layouts = [
-            (ConfigLayout::Dev, "dev"),
-            (ConfigLayout::Focus, "focus"),
-            (ConfigLayout::Cowork, "cowork"),
-            (ConfigLayout::CoworkSwap, "cowork-swap"),
-            (ConfigLayout::Browse, "browse"),
-            (ConfigLayout::Ai, "ai"),
-        ];
-
-        for (layout, name) in layouts {
-            let body = tmux_layout_script(&layout, &providers, false, "aibox");
-            assert!(
-                body.contains(&format!("-n {name}")),
-                "{name} layout should name its first tmux window:\n{body}"
-            );
-            assert!(
-                body.contains(&format!(
-                    "tmux -S \"$socket\" select-window -t \"$session:{name}\""
-                )),
-                "{name} layout should reselect the named primary window, not a numeric index:\n{body}"
-            );
-            assert!(
-                !body.contains("tmux select-window -t \"$session:1\""),
-                "layout script should not assume window index 1:\n{body}"
-            );
-            assert!(!body.contains("start_suspended"));
-            assert!(!body.contains("zellij"));
-        }
-    }
-
-    #[test]
-    #[serial]
-    fn sync_tmux_runtime_files_refreshes_status_and_layout_scripts() {
-        let dir = tempfile::tempdir().unwrap();
-        let root = dir.path().join("root");
-        let mut config = make_config(false, root.clone());
-        config.customization.tmux.status.mode = TmuxStatusMode::Extended;
-        fs::create_dir_all(root.join(".config/tmux/layouts")).unwrap();
-        fs::write(
-            root.join(".config/tmux/tmux.conf"),
-            r#"set -g status off
-set -g status-right " off_RIGHT "
-"#,
-        )
-        .unwrap();
-        fs::write(
-            root.join(".config/tmux/layouts/ai.sh"),
-            r#"tool_or_shell() {
-  local tool="$1"
-  printf "bash -lc 'if command -v %q >/dev/null 2>&1; then %q; fi; exec bash'" "$tool" "$tool"
-}
-"#,
-        )
-        .unwrap();
-
-        let updated = sync_tmux_runtime_files(&config).unwrap();
-        let tmux_conf = fs::read_to_string(root.join(".config/tmux/tmux.conf")).unwrap();
-        let ai_layout = fs::read_to_string(root.join(".config/tmux/layouts/ai.sh")).unwrap();
-
-        assert!(updated.contains(&".config/tmux/tmux.conf".to_string()));
-        assert!(updated.contains(&".config/tmux/layouts/ai.sh".to_string()));
-        assert!(tmux_conf.contains("set -g status on"));
-        assert!(tmux_conf.contains("tmux-powerkit.tmux"));
-        assert!(!tmux_conf.contains("off_RIGHT"));
-        assert!(ai_layout.contains("list-clients"));
-        clear_test_host_root();
-    }
-
-    #[test]
-    fn tmux_ai_layout_omits_unselected_claude() {
-        let providers = vec![AiProvider::Codex];
-        let layout = tmux_layout_script(&ConfigLayout::Ai, &providers, false, "aibox");
-
-        assert!(layout.contains("tool_or_shell codex"));
-        assert!(!layout.contains("tool_or_shell claude"));
-        // BR-VIM-HARDCUT (v0.25.6): no editor window in any layout.
-        assert!(!layout.contains("-n editor"));
-        assert!(!layout.contains("editor_pane"));
-        assert!(layout.contains("tmux -S \"$socket\" new-window -t \"$session:\" -n shell"));
-    }
-
-    #[test]
-    fn tmux_layouts_have_no_persistent_editor_pane() {
-        // BR-VIM-HARDCUT (DEC-20260508_1604-LuckySeal): the persistent
-        // vim/editor pane was removed from every layout in v0.25.6.
-        let providers = [AiProvider::Claude];
-        for layout in [
-            ConfigLayout::Dev,
-            ConfigLayout::Focus,
-            ConfigLayout::Cowork,
-            ConfigLayout::CoworkSwap,
-            ConfigLayout::Browse,
-            ConfigLayout::Ai,
-        ] {
-            let body = tmux_layout_script(&layout, &providers, false, "aibox");
-            assert!(
-                !body.contains("editor_pane"),
-                "{layout:?} must not create an editor_pane:\n{body}"
-            );
-            assert!(
-                !body.contains("-n editor"),
-                "{layout:?} must not create an editor window:\n{body}"
-            );
-            assert!(
-                !body.contains("tool_or_shell vim"),
-                "{layout:?} must not start a persistent vim:\n{body}"
-            );
-        }
-    }
-
-    #[test]
     fn open_in_editor_uses_tmux_popup() {
         // BR-VIM-HARDCUT: 'e' on a yazi file opens vim in a full-screen
         // tmux popup that auto-closes on `:q`. The old
@@ -3055,23 +2500,6 @@ set -g status-right " off_RIGHT "
         );
     }
 
-    #[test]
-    fn tmux_session_helper_dispatches_to_provider_aware_layout_script() {
-        let mut config = crate::config::test_config();
-        config.customization.layout = ConfigLayout::Browse;
-        config.customization.tmux.layout = Some(ConfigLayout::Ai);
-        config.customization.tmux.session_name = "work".to_string();
-        let script = tmux_session_script(&config);
-
-        assert!(script.contains(r#"AIBOX_TMUX_LAYOUT:-ai"#));
-        assert!(script.contains(r#"AIBOX_TMUX_SESSION:-work"#));
-        assert!(script.contains(r#"AIBOX_TMUX_SOCKET:-$HOME/.tmux/aibox.sock"#));
-        assert!(script.contains(r#".config/tmux/layouts/${layout}.sh"#));
-        assert!(script.contains(
-            r#"exec env AIBOX_TMUX_SESSION="${session}" AIBOX_TMUX_SOCKET="${socket}" "${script}""#
-        ));
-        assert!(!script.contains("tmux new-session"));
-    }
 
     #[test]
     fn default_yazi_config_uses_mgr_section() {
@@ -3331,118 +2759,6 @@ set -g status-right " off_RIGHT "
         let changed = migrate_yazi_section(&path).unwrap();
         assert!(!changed);
         assert_eq!(fs::read_to_string(&path).unwrap(), content);
-    }
-
-    #[test]
-    fn tmux_config_uses_pinned_managed_plugins_without_default_persistence() {
-        let config = crate::config::test_config();
-        let conf = tmux_conf(&config);
-
-        assert!(
-            conf.contains("set -g allow-passthrough on")
-                && conf.contains("set -g default-terminal \"tmux-256color\""),
-            "generated tmux config should enable passthrough and tmux-256color defaults for terminal app compatibility:\n{conf}"
-        );
-        assert!(
-            conf.contains("/usr/local/share/aibox/tmux/plugins/tmux-sensible/sensible.tmux")
-                && conf.contains(
-                    "/usr/local/share/aibox/tmux/plugins/tmux-powerkit/tmux-powerkit.tmux"
-                )
-                && conf.contains(
-                    "/usr/local/share/aibox/tmux/plugins/vim-tmux-navigator/vim-tmux-navigator.tmux"
-                )
-                && conf.contains("/usr/local/share/aibox/tmux/plugins/tmux-yank/yank.tmux"),
-            "aibox-managed tmux plugins should load from preinstalled pinned runtime paths:\n{conf}"
-        );
-        assert!(
-            conf.contains(
-                r#"@powerkit_plugins "hostname,external_ip,ssh,uptime,weather,datetime,git,github,kubernetes,terraform,cloud,cloudstatus,cpu,loadavg,memory,swap,disk,gpu,netspeed,ping,aibox""#
-            )
-                && conf.contains(r#"@powerkit_bar_layout "double""#)
-                && conf.contains(r#"@powerkit_status_order "session,plugins""#)
-                && conf.contains(r#"@powerkit_status_interval "5""#)
-                && conf.contains(r#"@powerkit_transparent "false""#)
-                && conf.contains(r#"@powerkit_pane_border_status "top""#)
-                && conf.contains(r##"@powerkit_pane_border_format "#{?client_prefix,PREFIX,NORMAL} #{pane_title} #{pane_current_command}""##)
-                && conf.contains(r#"@powerkit_line1_right "hostname,external_ip,ssh,uptime,weather,datetime""#)
-                && conf.contains(r#"@powerkit_line2_left "git,github,kubernetes,terraform,cloud,cloudstatus""#)
-                && conf.contains(
-                    r#"@powerkit_line2_right "cpu,loadavg,memory,swap,disk,gpu,netspeed,ping,aibox""#
-                )
-                && conf.contains(r#"@powerkit_plugin_aibox_metrics "log,oom,proc,ai,mcp,mig""#),
-            "generated persistent tmux config should carry bounded powerkit defaults:\n{conf}"
-        );
-        assert!(
-            conf.contains(
-                r#"bind-key -N "Show aibox/tmux key bindings" ? display-popup -w 80% -h 75% -E "tmux list-keys -N | less -R""#
-            ) && conf.contains(r#"bind-key -N "Select pane left" h select-pane -L"#),
-            "generated persistent tmux config should expose native tmux keybinding help:\n{conf}"
-        );
-        assert!(
-            !conf.contains("set -g @plugin 'tmux-plugins/tmux-continuum'")
-                && !conf.contains("set -g @plugin 'tmux-plugins/tmux-resurrect'")
-                && conf.contains("@continuum-restore 'off'")
-                && conf.contains("@continuum-save-interval '0'")
-                && conf.contains("@resurrect-capture-pane-contents 'off'"),
-            "resurrect/continuum should stay disabled by default until persistence policy is decided:\n{conf}"
-        );
-        assert!(
-            conf.contains("TPM is\n# only a user convenience layer"),
-            "TPM should be documented as user convenience, not the managed plugin source:\n{conf}"
-        );
-    }
-
-    #[test]
-    fn tmux_status_layout_uses_image_status_binary() {
-        let config = crate::config::test_config();
-        let conf = tmux_conf(&config);
-
-        assert!(conf.contains(r#"@powerkit_plugins "hostname,external_ip"#));
-        assert!(conf.contains("tmux-powerkit.tmux"));
-        assert!(
-            !conf.contains("$HOME/.local/bin/aibox-status"),
-            "tmux status must use the image-owned Rust status binary"
-        );
-    }
-
-    #[test]
-    fn tmux_plain_status_omits_runtime_segment() {
-        let mut config = crate::config::test_config();
-        config.customization.tmux.status.mode = TmuxStatusMode::Plain;
-        let conf = tmux_conf(&config);
-
-        assert!(conf.contains("set -g status on"));
-        assert!(!conf.contains("aibox-status --once"));
-        assert!(!conf.contains("@powerkit_plugins"));
-        assert!(!conf.contains("tmux-powerkit.tmux"));
-    }
-
-    #[test]
-    fn tmux_status_right_placeholder_is_replaced_before_status() {
-        let config = crate::config::test_config();
-        let conf = tmux_conf(&config);
-
-        assert!(
-            conf.contains(
-                r#"set -g status-right " #(aibox-status --once 2>/dev/null || true) %H:%M ""#
-            ),
-            "status-right should retain runtime segment, not be truncated by status replacement:\n{conf}"
-        );
-        assert!(
-            !conf.contains("on_RIGHT"),
-            "status placeholder replacement order must not produce on_RIGHT artifacts:\n{conf}"
-        );
-    }
-
-    #[test]
-    fn tmux_disabled_status_turns_status_line_off() {
-        let mut config = crate::config::test_config();
-        config.customization.tmux.status.mode = TmuxStatusMode::Disabled;
-        let conf = tmux_conf(&config);
-
-        assert!(conf.contains("set -g status off"));
-        assert!(!conf.contains("@powerkit_plugins"));
-        assert!(!conf.contains("tmux-powerkit.tmux"));
     }
 
     #[test]
