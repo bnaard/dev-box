@@ -493,7 +493,11 @@ else
       echo "tmux PTY transcript is empty"
       fail=1
     fi
-    for expected_window in ai editor shell; do
+    expected_windows="ai shell"
+    if [[ "${smoke_git_ui}" == "1" ]]; then
+      expected_windows="${expected_windows} git"
+    fi
+    for expected_window in ${expected_windows}; do
       if ! grep -E "^[0-9]+ ${expected_window} " /tmp/aibox-tmux-generated-state.txt >/tmp/aibox-tmux-layout-windows.txt 2>&1; then
         echo "generated ai layout did not create expected ${expected_window} window"
         fail=1
