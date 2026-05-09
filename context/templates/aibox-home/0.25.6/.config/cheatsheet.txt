@@ -1,0 +1,18 @@
+  aibox Quick Reference
+  -----------------------------------------------
+  TMUX (prefix: Ctrl+g)      YAZI (file manager)
+  Ctrl+g h/j/k/l Move pane  h/j/k/l  Navigate
+  Ctrl+g r/d     Split pane Enter    Edit (in pane)
+  Ctrl+g x       Close pane e        Edit (popup)
+  Ctrl+g f       Zoom pane  g s      Git summary
+  Ctrl+g c       New win    g c      Git changes
+  Ctrl+g n/p     Next/prev  w s      Size selection
+  Ctrl+g 1-5     Jump win   w h      Horizontal preview
+  Ctrl+g [       Copy mode  w p      Watch PDF
+  Ctrl+g ]       Paste      c p/d/f  Copy path/dir/name
+  Ctrl+g L       Log popup  g r      Refresh git
+  Ctrl+g R       Reload
+  Ctrl+g q       QUIT
+
+  LAYOUTS: aibox up --layout dev|focus|cowork|cowork-swap|browse|ai
+  No persistent vim pane: e = popup, Enter = in-yazi (`:q` closes both).
