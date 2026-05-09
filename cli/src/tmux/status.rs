@@ -49,7 +49,8 @@ set -g status-style "bg=AIBOX_TMUX_BG,fg=AIBOX_TMUX_FG"
 set -g window-status-current-style "bg=AIBOX_TMUX_ACCENT,fg=AIBOX_TMUX_BG,bold"
 set -g window-status-format " #I:#W "
 set -g window-status-current-format " #I:#W "
-set -g status-left " #S "
+set -g status-left " #S #{W:#I:#W ,#[reverse]#I:#W#[noreverse] }"
+set -g status-left-length 80
 set -g status-right " AIBOX_TMUX_STATUS_RIGHT "
 
 AIBOX_TMUX_POWERKIT_BLOCK

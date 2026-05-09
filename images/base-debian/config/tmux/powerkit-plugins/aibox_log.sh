@@ -41,7 +41,7 @@ plugin_get_context()      { printf 'runtime'; }
 plugin_get_icon()         { printf 'LOG'; }
 
 plugin_render() {
-    printf 'LOG %s/%s/%s' \
+    printf '%s/%s/%s' \
         "$(plugin_data_get log_info)" \
         "$(plugin_data_get log_warn)" \
         "$(plugin_data_get log_error)"

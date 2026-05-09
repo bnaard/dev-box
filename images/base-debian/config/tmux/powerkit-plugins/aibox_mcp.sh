@@ -39,7 +39,7 @@ plugin_get_context()      { printf 'runtime'; }
 plugin_get_icon()         { printf 'MCP'; }
 
 plugin_render() {
-    printf 'MCP %s/%s' \
+    printf '%s/%s' \
         "$(plugin_data_get processkit_mode)" \
         "$(plugin_data_get processkit_mcp)"
 }

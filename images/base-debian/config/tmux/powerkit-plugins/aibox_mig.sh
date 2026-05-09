@@ -38,5 +38,5 @@ plugin_get_context()      { printf 'runtime'; }
 plugin_get_icon()         { printf 'MIG'; }
 
 plugin_render() {
-    printf 'MIG %s' "$(plugin_data_get migrations)"
+    printf '%s' "$(plugin_data_get migrations)"
 }

@@ -38,5 +38,5 @@ plugin_get_context()      { printf 'runtime'; }
 plugin_get_icon()         { printf 'AI'; }
 
 plugin_render() {
-    printf 'AI %s' "$(plugin_data_get ai_agents)"
+    printf '%s' "$(plugin_data_get ai_agents)"
 }
