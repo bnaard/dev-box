@@ -408,13 +408,6 @@ enabled = true
 install = true
 # version = "latest"
 
-# Codex's bubblewrap user-namespace sandbox needs the container's seccomp
-# filter set to unconfined. v0.25.6 (S3) requires explicit acknowledgement
-# of this trade-off before `aibox apply` will write the docker-compose
-# seccomp=unconfined entry. Acknowledged here for the aibox dogfood project.
-[security]
-acknowledge_seccomp_unconfined = true
-
 # [ai.harness.gemini]
 # enabled = true
 # install = true
@@ -560,3 +553,11 @@ proc = true  # include process pressure indicator
 ai = true  # include AI harness runtime indicator
 mcp = true  # include MCP server health indicator
 mig = true  # include migration state indicator
+
+# =============================================================================
+# [security] — explicit consent for security-sensitive runtime options
+# =============================================================================
+[security]
+# Codex bubblewrap sandboxing requires seccomp=unconfined in docker-compose.yml.
+# Set to true to acknowledge the trade-off and allow `aibox apply` to emit it.
+acknowledge_seccomp_unconfined = true
