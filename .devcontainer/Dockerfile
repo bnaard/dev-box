@@ -29,11 +29,27 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 # Install to /home/aibox paths regardless of builder HOME (which is /root)
 ENV CARGO_HOME=/home/aibox/.cargo RUSTUP_HOME=/home/aibox/.rustup
 
-RUN curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | \
-    sh -s -- -y \
-    --default-toolchain 1.94 \
-    --component clippy \
-    --component rustfmt
+# S7 — BR-SEC-HARDEN: download rustup-init binary and verify SHA-256 before
+# executing, replacing the previous curl-pipe-sh pattern.
+# The sha256 file is published by the Rust project alongside each rustup-init:
+#   https://static.rust-lang.org/rustup/dist/<arch>/rustup-init.sha256
+# The binary is served over HTTPS from static.rust-lang.org (CDN-backed) and
+# the checksum ties the download to the binary actually shipped by the project.
+RUN ARCH="$(uname -m)" && \
+    curl --proto '=https' --tlsv1.2 -fsSL \
+      "https://static.rust-lang.org/rustup/dist/${ARCH}-unknown-linux-gnu/rustup-init" \
+      -o /tmp/rustup-init && \
+    curl --proto '=https' --tlsv1.2 -fsSL \
+      "https://static.rust-lang.org/rustup/dist/${ARCH}-unknown-linux-gnu/rustup-init.sha256" \
+      -o /tmp/rustup-init.sha256 && \
+    (cd /tmp && sha256sum -c rustup-init.sha256) && \
+    chmod +x /tmp/rustup-init && \
+    /tmp/rustup-init -y \
+      --default-toolchain 1.94 \
+      --component clippy \
+      --component rustfmt && \
+    rm /tmp/rustup-init /tmp/rustup-init.sha256
+
 ENV PATH="/home/aibox/.cargo/bin:${PATH}"
 
 RUN cargo install cargo-audit
@@ -48,8 +64,8 @@ RUN install -d /usr/local/bin && \
 RUN rustup target add x86_64-unknown-linux-gnu
 
 
-FROM ghcr.io/projectious-work/aibox:base-debian-v0.25.5 AS aibox
-LABEL aibox.version="0.25.5"
+FROM ghcr.io/projectious-work/aibox:base-debian-v0.25.6 AS aibox
+LABEL aibox.version="0.25.6"
 LABEL aibox.profile="human-dev"
 
 ENV SHELL=/bin/bash
@@ -66,6 +82,8 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     pulseaudio-utils \
     libasound2-plugins \
     && rm -rf /var/lib/apt/lists/*
+# ── Variant 1 disable-then-purge guards ───────────────────────────────
+
 
 # Addon: git-ui — GitHub CLI and lazygit
 USER root
@@ -170,4 +188,4 @@ EOF
 
 # Record image version inside container for runtime checks
 USER root
-RUN echo "0.25.5" > /etc/aibox-version
+RUN echo "0.25.6" > /etc/aibox-version
