@@ -2924,6 +2924,29 @@ pub fn cmd_sync(
             }
         }
 
+        // ── Per-skill drift attribution (GitHub #54) ─────────────────────
+        // Complement to the coarse fingerprint: identify *which* skill's
+        // mcp-config.json has drifted from the current .mcp.json so the
+        // user sees an actionable message, not just "something changed".
+        // Best-effort — a failure here must not abort sync.
+        {
+            let dot_mcp = cwd.join(".mcp.json");
+            match crate::mcp_registration::detect_per_skill_mcp_config_drift(&cwd, &dot_mcp) {
+                Ok(drifts) if !drifts.is_empty() => {
+                    for d in &drifts {
+                        output::warn(&format!(
+                            "MCP drift: skill '{}' server '{}' — re-merging into .mcp.json",
+                            d.skill_name, d.server_name,
+                        ));
+                    }
+                }
+                Ok(_) => {}
+                Err(e) => {
+                    output::warn(&format!("per-skill MCP drift check failed: {e}"));
+                }
+            }
+        }
+
         // ── Regenerate (already unconditional) ───────────────────────────
         if let Err(e) = crate::mcp_registration::regenerate_mcp_configs(&config, &cwd) {
             output::warn(&format!("MCP registration failed: {}", e));

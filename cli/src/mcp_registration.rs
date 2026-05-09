@@ -1254,6 +1254,199 @@ pub fn collect_live_skills_mcp_specs(
     Ok(specs)
 }
 
+// ---------------------------------------------------------------------------
+// Per-skill drift detection (GitHub #54)
+// ---------------------------------------------------------------------------
+
+/// One drifted MCP server entry: what a per-skill `mcp-config.json` says vs.
+/// what the merged harness config (`.mcp.json`, `.cursor/mcp.json`, etc.)
+/// currently contains.
+///
+/// A `PerSkillDrift` entry is produced when the current merged config does
+/// not match what the skill's own `mcp-config.json` would contribute.
+/// Concretely this covers three cases:
+///
+/// - **Missing** — the merged config has no entry for `server_name` at all.
+/// - **Command mismatch** — `command` changed in the skill file.
+/// - **Args mismatch** — `args` changed in the skill file.
+///
+/// `env` keys injected by aibox (e.g. `UV_CACHE_DIR`) are deliberately
+/// excluded from the comparison because they are added at merge time and
+/// are not present in the per-skill source file.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct PerSkillDrift {
+    /// The `context/skills/<category>/<skill>` name that owns the drifted entry.
+    pub skill_name: String,
+    /// The `mcpServers` key (server name) that is drifted.
+    pub server_name: String,
+    /// The kind of drift detected.
+    pub kind: PerSkillDriftKind,
+}
+
+/// The nature of the drift for a single server entry.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum PerSkillDriftKind {
+    /// The server is in the per-skill config but absent from the merged file.
+    MissingFromMerged,
+    /// Command and/or args in the merged file differ from the per-skill source.
+    EntryMismatch {
+        /// `command` as written in the per-skill `mcp-config.json`.
+        source_command: String,
+        /// `command` currently in the merged harness config (None if absent).
+        merged_command: Option<String>,
+        /// `args` as written in the per-skill `mcp-config.json`.
+        source_args: Vec<String>,
+        /// `args` currently in the merged harness config (None if absent).
+        merged_args: Option<Vec<String>>,
+    },
+}
+
+/// Compare each live per-skill `mcp-config.json` file against the current
+/// merged harness config at `merged_mcp_path` and return a list of entries
+/// that have drifted.
+///
+/// This is the granular, per-skill companion to the coarse-grained
+/// `compute_processkit_install_fingerprint` approach: whereas the fingerprint
+/// tells you *that* something changed across the whole processkit install tree,
+/// this function tells you *which specific skill and server* caused the drift —
+/// satisfying the original requirement from GitHub #54 for a "manifest contract
+/// to track which specs came from which skill."
+///
+/// ## Algorithm
+///
+/// 1. Walk `context/skills/processkit/<skill>/mcp/mcp-config.json` (live
+///    installation, same path as `collect_live_skills_mcp_specs`).
+/// 2. Parse the merged harness config at `merged_mcp_path` into a
+///    `BTreeMap<server_name, {command, args}>`.
+/// 3. For every server entry in every per-skill config, check whether the
+///    merged config contains an equivalent entry.  An entry is considered
+///    equivalent when `command` and `args` match exactly.
+/// 4. Return one `PerSkillDrift` per drifted server.
+///
+/// Returns `Ok(vec![])` when no drift is detected or when the merged config
+/// does not exist yet (first install, nothing to compare against).
+pub fn detect_per_skill_mcp_config_drift(
+    project_root: &Path,
+    merged_mcp_path: &Path,
+) -> Result<Vec<PerSkillDrift>> {
+    // Read the merged file.  If it doesn't exist yet there is nothing to
+    // compare against — return clean (no drift) rather than treating every
+    // skill as drifted, which would be misleading before the first sync.
+    let merged_servers: BTreeMap<String, (String, Vec<String>)> = if merged_mcp_path.is_file() {
+        let body = fs::read_to_string(merged_mcp_path)
+            .with_context(|| format!("failed to read {}", merged_mcp_path.display()))?;
+        if body.trim().is_empty() {
+            BTreeMap::new()
+        } else {
+            let v: serde_json::Value = serde_json::from_str(&body)
+                .with_context(|| format!("failed to parse {}", merged_mcp_path.display()))?;
+            let servers = v
+                .get("mcpServers")
+                .and_then(|s| s.as_object())
+                .cloned()
+                .unwrap_or_default();
+            servers
+                .into_iter()
+                .filter_map(|(name, entry)| {
+                    let command = entry.get("command")?.as_str()?.to_string();
+                    let args = entry
+                        .get("args")
+                        .and_then(|a| a.as_array())
+                        .map(|arr| {
+                            arr.iter()
+                                .filter_map(|v| v.as_str().map(String::from))
+                                .collect::<Vec<_>>()
+                        })
+                        .unwrap_or_default();
+                    Some((name, (command, args)))
+                })
+                .collect()
+        }
+    } else {
+        return Ok(Vec::new());
+    };
+
+    // Walk the live processkit skills for per-skill mcp-config.json files.
+    let processkit_skills_dir = project_root
+        .join("context")
+        .join("skills")
+        .join("processkit");
+    if !processkit_skills_dir.is_dir() {
+        return Ok(Vec::new());
+    }
+
+    let mut drifts: Vec<PerSkillDrift> = Vec::new();
+
+    for entry in fs::read_dir(&processkit_skills_dir)
+        .with_context(|| "failed to read context/skills/processkit/".to_string())?
+        .flatten()
+    {
+        let skill_dir = entry.path();
+        if !skill_dir.is_dir() {
+            continue;
+        }
+        let skill_name = match entry.file_name().to_str() {
+            Some(s) => s.to_string(),
+            None => continue,
+        };
+        if skill_name.starts_with('_') || skill_name.starts_with('.') {
+            continue;
+        }
+
+        let mcp_config_path = skill_dir.join("mcp").join("mcp-config.json");
+        if !mcp_config_path.is_file() {
+            continue;
+        }
+
+        let content = match fs::read_to_string(&mcp_config_path) {
+            Ok(c) => c,
+            Err(_) => continue,
+        };
+        let per_skill: PerSkillConfig = match serde_json::from_str(&content) {
+            Ok(c) => c,
+            Err(_) => continue,
+        };
+
+        for (server_name, source_entry) in &per_skill.mcp_servers {
+            match merged_servers.get(server_name) {
+                None => {
+                    drifts.push(PerSkillDrift {
+                        skill_name: skill_name.clone(),
+                        server_name: server_name.clone(),
+                        kind: PerSkillDriftKind::MissingFromMerged,
+                    });
+                }
+                Some((merged_command, merged_args)) => {
+                    // Compare command and args; ignore env (added at merge time).
+                    if merged_command != &source_entry.command
+                        || merged_args != &source_entry.args
+                    {
+                        drifts.push(PerSkillDrift {
+                            skill_name: skill_name.clone(),
+                            server_name: server_name.clone(),
+                            kind: PerSkillDriftKind::EntryMismatch {
+                                source_command: source_entry.command.clone(),
+                                merged_command: Some(merged_command.clone()),
+                                source_args: source_entry.args.clone(),
+                                merged_args: Some(merged_args.clone()),
+                            },
+                        });
+                    }
+                }
+            }
+        }
+    }
+
+    // Stable order — sort by skill name then server name.
+    drifts.sort_by(|a, b| {
+        a.skill_name
+            .cmp(&b.skill_name)
+            .then_with(|| a.server_name.cmp(&b.server_name))
+    });
+
+    Ok(drifts)
+}
+
 /// Compute the managed set: server names that came from processkit.
 /// The merge writers use this set to decide which entries to remove
 /// from the existing harness config before adding the current ones.
@@ -4404,5 +4597,206 @@ args = ["server.js"]
 
         let result = read_processkit_mcp_manifest_hash(dir.path());
         assert_eq!(result, Some("abc123def456".to_string()));
+    }
+
+    // ── detect_per_skill_mcp_config_drift (GitHub #54) ─────────────────
+
+    /// Helper: write a live per-skill mcp-config.json under
+    /// `context/skills/processkit/<skill>/mcp/mcp-config.json`.
+    fn write_live_processkit_skill_mcp(project_root: &Path, skill: &str, json_body: &str) {
+        let dir = project_root
+            .join("context")
+            .join("skills")
+            .join("processkit")
+            .join(skill)
+            .join("mcp");
+        fs::create_dir_all(&dir).unwrap();
+        fs::write(dir.join("mcp-config.json"), json_body).unwrap();
+    }
+
+    #[test]
+    fn no_drift_when_merged_matches_skill_configs() {
+        let tmp = TempDir::new().unwrap();
+
+        // Write a per-skill config for "workitem-management".
+        write_live_processkit_skill_mcp(
+            tmp.path(),
+            "workitem-management",
+            r#"{
+                "mcpServers": {
+                    "processkit-workitem-management": {
+                        "command": "uv",
+                        "args": ["run", "--script",
+                                 "context/skills/processkit/workitem-management/mcp/server.py"]
+                    }
+                }
+            }"#,
+        );
+
+        // Write a merged .mcp.json that matches exactly.
+        let dot_mcp = tmp.path().join(".mcp.json");
+        fs::write(
+            &dot_mcp,
+            r#"{
+                "mcpServers": {
+                    "processkit-workitem-management": {
+                        "command": "uv",
+                        "args": ["run", "--script",
+                                 "context/skills/processkit/workitem-management/mcp/server.py"],
+                        "env": {"UV_CACHE_DIR": "/tmp/aibox/uv-cache"}
+                    }
+                }
+            }"#,
+        )
+        .unwrap();
+
+        let drifts =
+            detect_per_skill_mcp_config_drift(tmp.path(), &dot_mcp).expect("drift check failed");
+        assert!(
+            drifts.is_empty(),
+            "expected no drift when merged config matches skill configs, got: {drifts:?}"
+        );
+    }
+
+    #[test]
+    fn drift_detected_when_args_changed_in_skill_config() {
+        let tmp = TempDir::new().unwrap();
+
+        // Per-skill config with updated args.
+        write_live_processkit_skill_mcp(
+            tmp.path(),
+            "workitem-management",
+            r#"{
+                "mcpServers": {
+                    "processkit-workitem-management": {
+                        "command": "uv",
+                        "args": ["run", "--script",
+                                 "context/skills/processkit/workitem-management/mcp/server.py",
+                                 "--new-flag"]
+                    }
+                }
+            }"#,
+        );
+
+        // Merged .mcp.json still has the old args (missing --new-flag).
+        let dot_mcp = tmp.path().join(".mcp.json");
+        fs::write(
+            &dot_mcp,
+            r#"{
+                "mcpServers": {
+                    "processkit-workitem-management": {
+                        "command": "uv",
+                        "args": ["run", "--script",
+                                 "context/skills/processkit/workitem-management/mcp/server.py"]
+                    }
+                }
+            }"#,
+        )
+        .unwrap();
+
+        let drifts =
+            detect_per_skill_mcp_config_drift(tmp.path(), &dot_mcp).expect("drift check failed");
+        assert_eq!(drifts.len(), 1, "expected exactly one drifted entry");
+        assert_eq!(drifts[0].skill_name, "workitem-management");
+        assert_eq!(
+            drifts[0].server_name,
+            "processkit-workitem-management"
+        );
+        assert!(
+            matches!(drifts[0].kind, PerSkillDriftKind::EntryMismatch { .. }),
+            "expected EntryMismatch drift kind, got {:?}",
+            drifts[0].kind
+        );
+    }
+
+    #[test]
+    fn drift_detected_when_server_missing_from_merged() {
+        let tmp = TempDir::new().unwrap();
+
+        // A skill with an mcp-config.json.
+        write_live_processkit_skill_mcp(
+            tmp.path(),
+            "note-management",
+            r#"{
+                "mcpServers": {
+                    "processkit-note-management": {
+                        "command": "uv",
+                        "args": ["run", "--script",
+                                 "context/skills/processkit/note-management/mcp/server.py"]
+                    }
+                }
+            }"#,
+        );
+
+        // Merged .mcp.json exists but doesn't include the note-management server.
+        let dot_mcp = tmp.path().join(".mcp.json");
+        fs::write(
+            &dot_mcp,
+            r#"{"mcpServers": {"some-other-server": {"command": "npx", "args": []}}}"#,
+        )
+        .unwrap();
+
+        let drifts =
+            detect_per_skill_mcp_config_drift(tmp.path(), &dot_mcp).expect("drift check failed");
+        assert_eq!(drifts.len(), 1, "expected exactly one drifted entry");
+        assert_eq!(drifts[0].skill_name, "note-management");
+        assert_eq!(drifts[0].server_name, "processkit-note-management");
+        assert_eq!(drifts[0].kind, PerSkillDriftKind::MissingFromMerged);
+    }
+
+    #[test]
+    fn no_drift_when_merged_mcp_absent() {
+        // Before first sync there is no .mcp.json — the function must
+        // return an empty vec rather than flagging every skill as drifted.
+        let tmp = TempDir::new().unwrap();
+        write_live_processkit_skill_mcp(
+            tmp.path(),
+            "workitem-management",
+            r#"{"mcpServers": {"processkit-workitem-management": {"command": "uv", "args": []}}}"#,
+        );
+
+        let nonexistent = tmp.path().join(".mcp.json");
+        let drifts = detect_per_skill_mcp_config_drift(tmp.path(), &nonexistent)
+            .expect("drift check failed");
+        assert!(
+            drifts.is_empty(),
+            "no .mcp.json present yet — should report no drift: {drifts:?}"
+        );
+    }
+
+    #[test]
+    fn multiple_skills_all_drifted_reported() {
+        let tmp = TempDir::new().unwrap();
+
+        write_live_processkit_skill_mcp(
+            tmp.path(),
+            "skill-a",
+            r#"{"mcpServers": {"processkit-skill-a": {"command": "uv", "args": ["new"]}}}"#,
+        );
+        write_live_processkit_skill_mcp(
+            tmp.path(),
+            "skill-b",
+            r#"{"mcpServers": {"processkit-skill-b": {"command": "python3", "args": ["server.py"]}}}"#,
+        );
+
+        // Merged file has stale entries for both.
+        let dot_mcp = tmp.path().join(".mcp.json");
+        fs::write(
+            &dot_mcp,
+            r#"{
+                "mcpServers": {
+                    "processkit-skill-a": {"command": "uv", "args": ["old"]},
+                    "processkit-skill-b": {"command": "python3", "args": ["old-server.py"]}
+                }
+            }"#,
+        )
+        .unwrap();
+
+        let drifts =
+            detect_per_skill_mcp_config_drift(tmp.path(), &dot_mcp).expect("drift check failed");
+        assert_eq!(drifts.len(), 2, "both skills should be reported as drifted");
+        let names: Vec<_> = drifts.iter().map(|d| d.skill_name.as_str()).collect();
+        assert!(names.contains(&"skill-a"));
+        assert!(names.contains(&"skill-b"));
     }
 }
