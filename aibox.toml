@@ -232,7 +232,7 @@ enabled = [
 
 # Documentation/docs-docusaurus — Docusaurus static docs site (React/MDX); requires node
 [addons.docs-docusaurus.tools]
-docusaurus = { version = "3.8" } # default on; options: {}, { enabled = true|false }, { version = "3.7.0" (default) or "latest" }
+docusaurus = { version = "3.10.1" } # default on; options: {}, { enabled = true|false }, { version = "3.10.1" (default) or "latest" }
 
 # Documentation/docs-hugo — Hugo static site generator (Go)
 # [addons.docs-hugo.tools]
