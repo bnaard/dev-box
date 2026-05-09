@@ -771,34 +771,66 @@ cmd_release() {
   fi
   ok "aibox --version = ${reported} (matches tag)"
 
-  # ── Step 5: Create and push git tag ──────────────────────────────────────
-  info "Tagging and pushing ${tag}..."
-  git tag -a "${tag}" -m "Release ${tag}"
-  git push origin "${tag}"
-  ok "Tag ${tag} pushed"
+  # ── Step 5: Push main branch ─────────────────────────────────────────────
+  # BUG FIX (CalmDew / BACK-20260503_0148): previously the version-bump commit
+  # from Step 2b was never pushed to origin main.  The old code only did
+  # `git push origin <tag>` in Step 5, so origin/main lagged behind the tag and
+  # required a manual `git push origin main` after every release.
+  #
+  # Correct order (enforced here):
+  #   1. Push main  ← version-bump commit lands on origin before the tag
+  #   2. Prepare curated release notes  ← maintainer checkpoint before GitHub sees anything
+  #   3. Create & push the tag
+  #   4. gh release create  ← always uses the curated notes prepared in step 2
+  #
+  # This ensures origin/main and the tag are always in sync and the GitHub
+  # release is never created with stale auto-generated notes.
+  info "Pushing main to origin (version-bump commit)..."
+  git push origin main
+  ok "main pushed to origin"
 
-  # ── Step 6: Create GitHub release with Linux binaries ────────────────────
-  info "Creating GitHub release ${tag}..."
+  # ── Step 6: Prepare curated release notes ────────────────────────────────
+  # Rationale: gh release create happens AFTER this block so the maintainer
+  # always has an opportunity to write (or review) notes before they go public.
+  # Previously the tag was pushed first and the GitHub release was created
+  # immediately with auto-generated notes — there was no checkpoint.
   local notes_file="${DIST_DIR}/RELEASE-NOTES.md"
-  # Use hand-written RELEASE-NOTES.md if it exists and covers this version,
-  # otherwise fall back to an auto-generated commit log.
   if [[ ! -f "${notes_file}" ]] || ! grep -q "${tag}" "${notes_file}" 2>/dev/null; then
-    info "Writing auto-generated release notes..."
+    # No hand-written notes for this tag yet.  Generate a commit-log scaffold
+    # and (when running interactively) pause so the maintainer can edit it.
+    info "Generating release-notes scaffold at ${notes_file}..."
     local prev_tag
-    prev_tag=$(git describe --tags --abbrev=0 "${tag}^" 2>/dev/null || echo "")
+    prev_tag=$(git describe --tags --abbrev=0 2>/dev/null || echo "")
     {
       echo "# aibox ${tag}"
       echo ""
       if [[ -n "${prev_tag}" ]]; then
         echo "## Changes since ${prev_tag}"
         echo ""
-        git log --oneline "${prev_tag}..${tag}" | sed 's/^/- /'
+        git log --oneline "${prev_tag}..HEAD" | sed 's/^/- /'
       else
-        git log --oneline "${tag}" | head -20 | sed 's/^/- /'
+        git log --oneline HEAD | head -20 | sed 's/^/- /'
       fi
     } > "${notes_file}"
+    if [[ -t 0 ]]; then
+      warn "Auto-generated release notes written to dist/RELEASE-NOTES.md."
+      warn "Edit them now, then press Enter to continue (Ctrl-C to abort)."
+      read -r
+    else
+      warn "Running non-interactively — using auto-generated notes. Edit dist/RELEASE-NOTES.md and re-run if needed."
+    fi
+  else
+    ok "Using hand-written release notes from ${notes_file}"
   fi
 
+  # ── Step 7: Create and push git tag ──────────────────────────────────────
+  info "Tagging and pushing ${tag}..."
+  git tag -a "${tag}" -m "Release ${tag}"
+  git push origin "${tag}"
+  ok "Tag ${tag} pushed"
+
+  # ── Step 8: Create GitHub release with Linux binaries ────────────────────
+  info "Creating GitHub release ${tag}..."
   gh release create "${tag}" \
     --repo "${GITHUB_REPO}" \
     --title "aibox ${tag}" \
@@ -806,12 +838,12 @@ cmd_release() {
     "${built_archives[@]}"
   ok "GitHub release ${tag} created with Linux binaries"
 
-  # ── Step 7: Deploy documentation ─────────────────────────────────────────
+  # ── Step 9: Deploy documentation ─────────────────────────────────────────
   info "Deploying documentation..."
   cmd_docs_deploy
   ok "Documentation deployed"
 
-  # ── Step 8: Generate host-side prompt ────────────────────────────────────
+  # ── Step 10: Generate host-side prompt ───────────────────────────────────
   # The macOS binaries and container image push must be done by the maintainer
   # on the macOS host (cross-compilation to Darwin is not possible from Linux;
   # container runtime is not available inside the devcontainer).
