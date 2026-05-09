@@ -869,15 +869,38 @@ fn check_processkit_mcp_gateway(config: &AiboxConfig, diag: &mut DiagResult) {
     let gateway = &config.mcp.gateway;
     let gateway_script = Path::new("context/skills/processkit/processkit-gateway/mcp/server.py");
     let gateway_available = gateway_script.is_file();
+    let aggregate_script =
+        Path::new("context/skills/processkit/aggregate-mcp/mcp/mcp-config.aggregate.json");
+    let aggregate_available = aggregate_script.is_file();
 
     match gateway.mode {
         McpGatewayMode::Granular => {
             output::ok("processkit MCP gateway disabled; granular MCP servers selected");
             return;
         }
-        McpGatewayMode::Auto if !gateway_available => {
+        McpGatewayMode::Aggregate if !aggregate_available => {
+            output::warn(
+                "processkit aggregate MCP mode requested, but \
+                 context/skills/processkit/aggregate-mcp/mcp/mcp-config.aggregate.json is missing; \
+                 run `aibox apply` after upgrading processkit or enabling the aggregate-mcp skill",
+            );
+            diag.warnings += 1;
+            return;
+        }
+        McpGatewayMode::Aggregate => {
+            output::ok(
+                "processkit aggregate MCP mode: single aggregate server replaces per-skill servers",
+            );
+        }
+        McpGatewayMode::Auto if !gateway_available && !aggregate_available => {
             output::ok("processkit MCP gateway not installed; auto mode will use granular servers");
             return;
+        }
+        McpGatewayMode::Auto if !gateway_available && aggregate_available => {
+            output::ok(
+                "processkit gateway not installed; auto mode will use aggregate server \
+                 (aggregate-mcp skill is available)",
+            );
         }
         McpGatewayMode::Stdio | McpGatewayMode::DaemonProxy if !gateway_available => {
             output::warn(
@@ -891,8 +914,10 @@ fn check_processkit_mcp_gateway(config: &AiboxConfig, diag: &mut DiagResult) {
         _ => {}
     }
 
-    output::ok("processkit MCP gateway is installed");
-    check_processkit_semantic_capability(diag);
+    if gateway_available {
+        output::ok("processkit MCP gateway is installed");
+        check_processkit_semantic_capability(diag);
+    }
 
     if matches!(gateway.mode, McpGatewayMode::DaemonProxy) {
         let devcontainer = Path::new(".devcontainer/devcontainer.json");
@@ -916,18 +941,23 @@ fn check_processkit_mcp_gateway(config: &AiboxConfig, diag: &mut DiagResult) {
             }
         }
     } else if matches!(gateway.mode, McpGatewayMode::Auto) {
-        output::ok(
-            "processkit gateway auto mode uses stdio-proxy-owned daemon startup \
-             (processkit v0.25.4+)",
-        );
+        if gateway_available {
+            output::ok(
+                "processkit gateway auto mode uses stdio-proxy-owned daemon startup \
+                 (processkit v0.25.4+)",
+            );
+        }
     }
 
     if config.ai.harnesses.contains(&AiHarness::Codex) {
         match std::fs::read_to_string(".codex/config.toml") {
-            Ok(body) if !body.contains("[mcp_servers.processkit-gateway]") => {
+            Ok(body)
+                if !body.contains("[mcp_servers.processkit-gateway]")
+                    && !body.contains("[mcp_servers.processkit-aggregate-mcp]") =>
+            {
                 output::warn(
                     "Codex is enabled but .codex/config.toml does not register \
-                     processkit-gateway; run `aibox apply`",
+                     processkit-gateway or processkit-aggregate-mcp; run `aibox apply`",
                 );
                 diag.warnings += 1;
             }
@@ -939,6 +969,13 @@ fn check_processkit_mcp_gateway(config: &AiboxConfig, diag: &mut DiagResult) {
                     CONTAINER_WORKSPACE_DIR
                 ));
                 diag.warnings += 1;
+            }
+            Ok(body) if body.contains("[mcp_servers.processkit-aggregate-mcp]") => {
+                output::ok(
+                    "Codex MCP config uses processkit-aggregate-mcp (single-process, \
+                     reduced startup latency)",
+                );
+                check_codex_hidden_apps_mcp_state(diag);
             }
             Ok(_) => {
                 output::ok("Codex MCP config points at processkit-gateway");

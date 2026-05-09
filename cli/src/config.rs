@@ -1481,7 +1481,8 @@ pub struct McpSection {
 #[derive(Debug, Clone, Copy, Default, Serialize, Deserialize, PartialEq, Eq)]
 #[serde(rename_all = "kebab-case")]
 pub enum McpGatewayMode {
-    /// Prefer the processkit-gateway daemon proxy when available, otherwise use granular servers.
+    /// Prefer the processkit-gateway daemon proxy when available, otherwise use the aggregate
+    /// server (when `aggregate-mcp` is installed), otherwise use granular servers.
     #[default]
     Auto,
     /// Always write one server per processkit skill.
@@ -1490,6 +1491,11 @@ pub enum McpGatewayMode {
     Stdio,
     /// Use a managed local HTTP daemon plus one stdio proxy per harness.
     DaemonProxy,
+    /// Use the processkit-aggregate-mcp server — a single stdio process that imports
+    /// all per-skill MCP servers in-process.  Eliminates the N-process startup cost
+    /// that Codex CLI incurs when it eagerly spawns every configured stdio MCP server.
+    /// Requires the `aggregate-mcp` processkit skill to be enabled.
+    Aggregate,
 }
 
 /// `[mcp.gateway]` controls how aibox exposes processkit MCP tools to

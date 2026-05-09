@@ -459,9 +459,9 @@ provider_mode = "pointer"  # options: pointer, full
 # allow_patterns = []
 # deny_patterns  = []
 
-# [ai.mcp.gateway] — processkit MCP topology. Options for mode: auto | granular | stdio | daemon-proxy
+# [ai.mcp.gateway] — processkit MCP topology. Options for mode: auto | granular | stdio | daemon-proxy | aggregate
 [ai.mcp.gateway]
-mode = "auto"          # auto uses daemon-proxy when processkit-gateway is installed
+mode = "auto"          # auto uses daemon-proxy when processkit-gateway is installed; falls back to aggregate-mcp
 lazy_catalog = false    # Use processkit's lazy catalog where supported
 host = "127.0.0.1"     # daemon-proxy is always localhost-only
 port = 8765
