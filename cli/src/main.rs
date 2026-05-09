@@ -22,6 +22,7 @@ mod content_migration;
 #[allow(dead_code)]
 mod content_source;
 mod context;
+mod docs_install;
 mod doctor;
 mod env;
 mod generate;
