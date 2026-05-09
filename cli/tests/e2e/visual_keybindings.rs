@@ -118,6 +118,15 @@ fn quoted_shell(command: &str) -> String {
 #[serial]
 #[ntest::timeout(120_000)]
 fn visual_kb_yazi_e_opens_file_in_vim_pane() {
+    // Per DEC-20260508_1604-LuckySeal (v0.25.6): yazi `e` opens the marked
+    // file in a full-screen `tmux display-popup -E` running vim — there is
+    // no persistent vim pane in any layout. The popup auto-closes when vim
+    // exits and focus returns to the originating yazi pane.
+    //
+    // We cannot drive the popup via `tmux send-keys` (those go to the host
+    // pane's pty, not the popup overlay). Instead we set EDITOR to a vim
+    // invocation that uses an init file to (a) record the opened file path
+    // into a marker file and (b) auto-quit, which closes the popup.
     let runner = E2eRunner::new();
     runner.ensure_deployed();
 
@@ -126,20 +135,27 @@ fn visual_kb_yazi_e_opens_file_in_vim_pane() {
     init_managed_project(&runner, test_name);
     assert_tmux_only_runtime(&runner, test_name);
 
-    let marker = "AIBOX_E2E_OPEN_OK";
+    let marker_text = "AIBOX_E2E_OPEN_OK";
     runner.write_file(
         test_name,
         "src/hello.rs",
-        &format!("fn main() {{\n    // {marker}\n}}\n"),
+        &format!("fn main() {{\n    // {marker_text}\n}}\n"),
     );
-
     let ws = format!("/workspaces/{test_name}");
     let src = format!("{ws}/src");
+    runner.write_file(
+        test_name,
+        "popup-vim-init.vim",
+        &format!(
+            "silent execute \"!printf '%s' \" . shellescape(expand(\"%:p\")) . \" > {ws}/popup-marker.txt\"\nquit\n"
+        ),
+    );
+
     let actions = format!(
-        r#"  tmux split-window -h -t "{test_name}:1.1" -c "{ws}" "AIBOX_EDITOR_DIR=right exec vim-loop"
-  initial_panes="$(tmux list-panes -t "{test_name}:1" | wc -l | tr -d ' ')"
-  tmux select-pane -t "{test_name}:1.1"
-  tmux send-keys -t "{test_name}:1.1" "cd {src} && AIBOX_EDITOR_DIR=right exec yazi ." C-m
+        r#"  initial_panes="$(tmux list-panes -t "{test_name}:1" | wc -l | tr -d ' ')"
+  files_pane_id="$(tmux display-message -p -t "{test_name}:1.1" '#{{pane_id}}')"
+  rm -f "{ws}/popup-marker.txt"
+  tmux send-keys -t "{test_name}:1.1" "cd {src} && EDITOR='vim -u {ws}/popup-vim-init.vim' exec yazi ." C-m
   for _ in $(seq 1 40); do
     tmux capture-pane -p -t "{test_name}:1.1" > "{ws}/files-screen.txt" 2>/dev/null || true
     grep -qF "hello.rs" "{ws}/files-screen.txt" && break
@@ -147,15 +163,15 @@ fn visual_kb_yazi_e_opens_file_in_vim_pane() {
   done
   tmux send-keys -t "{test_name}:1.1" "e"
   for _ in $(seq 1 40); do
-    tmux capture-pane -p -t "{test_name}:1.2" > "{ws}/editor-screen.txt" 2>/dev/null || true
-    grep -qF "{marker}" "{ws}/editor-screen.txt" && touch "{ws}/open-ok" && break
+    [ -s "{ws}/popup-marker.txt" ] && break
     sleep 0.25
   done
-  tmux send-keys -t "{test_name}:1.2" Escape ":q" Enter
-  sleep 1
+  if grep -qF "{src}/hello.rs" "{ws}/popup-marker.txt" 2>/dev/null; then
+    touch "{ws}/open-ok"
+  fi
+  sleep 0.6
   active_pane="$(tmux list-panes -t "{test_name}:1" -F '#{{pane_active}} #{{pane_id}}' | awk '$1==1 {{print $2; exit}}')"
-  files_pane="$(tmux display-message -p -t "{test_name}:1.1" '#{{pane_id}}')"
-  [ "$active_pane" = "$files_pane" ] && touch "{ws}/focus-return-ok"
+  [ "$active_pane" = "$files_pane_id" ] && touch "{ws}/focus-return-ok"
   final_panes="$(tmux list-panes -t "{test_name}:1" | wc -l | tr -d ' ')"
   [ "$final_panes" = "$initial_panes" ] && touch "{ws}/pane-count-ok"
 "#
@@ -173,16 +189,17 @@ fn visual_kb_yazi_e_opens_file_in_vim_pane() {
     assert!(cast.lines().count() > 5, "cast too small");
     assert!(
         runner.file_exists(test_name, "open-ok"),
-        "expected Yazi e to open the file in Vim pane; editor screen:\n{}",
-        runner.read_file(test_name, "editor-screen.txt")
-    );
-    assert!(
-        runner.file_exists(test_name, "focus-return-ok"),
-        "expected :q in editor pane to return focus to yazi pane"
+        "expected Yazi e to open hello.rs in popup-vim; popup marker:\n{}\nfiles screen:\n{}",
+        runner.read_file(test_name, "popup-marker.txt"),
+        runner.read_file(test_name, "files-screen.txt")
     );
     assert!(
         runner.file_exists(test_name, "pane-count-ok"),
-        "expected Yazi e flow not to create extra tmux panes"
+        "expected Yazi e popup flow not to add or remove tmux panes"
+    );
+    assert!(
+        runner.file_exists(test_name, "focus-return-ok"),
+        "expected popup auto-close to return focus to the yazi pane"
     );
     runner.cleanup(test_name);
 }

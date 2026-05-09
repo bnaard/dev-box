@@ -73,7 +73,11 @@ yazi --version || fail=1
 # Conditional lazygit check: only assert presence when the git-ui addon
 # has lazygit enabled (default is enabled; explicit `enabled = false`
 # triggers the purge path which is tested separately in addon_disablement.rs).
-if grep -q 'lazygit.*enabled.*=.*false' {workspace}/aibox.toml 2>/dev/null; then
+# Match an actual disable directive ("lazygit = {{ enabled = false }}" or
+# "lazygit.enabled = false") on a non-comment line — avoid matching the
+# inline help comment "{{ enabled = true|false }}" that ships with the
+# generated aibox.toml template.
+if grep -E '^[[:space:]]*lazygit[[:space:]]*=[[:space:]]*\{{[^#]*enabled[[:space:]]*=[[:space:]]*false|^[[:space:]]*lazygit\.enabled[[:space:]]*=[[:space:]]*false' {workspace}/aibox.toml >/dev/null 2>&1; then
   # lazygit was explicitly disabled — assert it is NOT on PATH.
   if command -v lazygit >/dev/null 2>&1; then
     echo "lazygit should not be on PATH when disabled in aibox.toml"
