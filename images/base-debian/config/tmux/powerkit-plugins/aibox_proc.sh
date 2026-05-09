@@ -38,5 +38,5 @@ plugin_get_context()      { printf 'runtime'; }
 plugin_get_icon()         { printf 'PROC'; }
 
 plugin_render() {
-    printf 'PROC %s' "$(plugin_data_get processes)"
+    printf '%s' "$(plugin_data_get processes)"
 }

@@ -49,7 +49,7 @@ plugin_get_context() { printf 'runtime'; }
 plugin_get_icon()    { printf 'OOM'; }
 
 plugin_render() {
-    printf 'OOM %s/%s' \
+    printf '%s/%s' \
         "$(plugin_data_get oom_events)" \
         "$(plugin_data_get oom_kill)"
 }
