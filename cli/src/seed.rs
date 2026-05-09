@@ -35,6 +35,9 @@ set nowrap
 set sidescroll=1
 set sidescrolloff=4
 set mouse=a
+if !has('nvim')
+    set ttymouse=sgr
+endif
 set laststatus=2
 set ruler showcmd
 

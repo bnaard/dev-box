@@ -61,6 +61,9 @@ set listchars=tab:→\ ,trail:·,nbsp:␣
 set noerrorbells
 set visualbell t_vb=         " disable all bells
 set mouse=a                  " mouse support
+if !has('nvim')              " modern SGR mouse codes carry scroll-wheel through tmux
+    set ttymouse=sgr
+endif
 
 " ── Files & persistence ───────────────────────────────────────────────────────
 set noswapfile               " no .swp clutter in containers
