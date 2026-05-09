@@ -40,11 +40,21 @@ pub fn tmux_layout_script(
     // vim via the yazi `[opener.edit]` (suspends yazi until `:q`). Layout
     // bodies below intentionally do NOT create an `editor_pane` or an
     // `editor` window.
+    //
+    // BR-LAYOUT-KNOBS (BACK-20260509_1316-SnappyWolf, v0.25.7, "4c"): the
+    // agent-pane split direction and split percentage are runtime-tunable
+    // via env vars. Each layout ships sensible defaults and reads:
+    //   AIBOX_LAYOUT_AGENT_SPLIT   — "h" or "v" (default per layout)
+    //   AIBOX_LAYOUT_AGENT_RATIO   — 1..99 percent (default per layout)
+    // Unset env vars fall back to the layout-specific defaults; invalid
+    // values are silently ignored by tmux.
     let layout_body = match layout {
         ConfigLayout::Dev => format!(
             r#"tmux -S "$socket" -f "$config" new-session -d -s "$session" -n dev -c "$workspace" "$(tool_or_shell yazi)"
 files_pane="$(tmux -S "$socket" display-message -p -t "$session:dev" '#{{pane_id}}')"
-agent_pane="$(tmux -S "$socket" split-window -t "$session:dev" -h -p 50 -P -F '#{{pane_id}}' -c "$workspace" "$(tool_or_shell {provider})")"
+split_flag="-${{AIBOX_LAYOUT_AGENT_SPLIT:-h}}"
+split_ratio="${{AIBOX_LAYOUT_AGENT_RATIO:-50}}"
+agent_pane="$(tmux -S "$socket" split-window -t "$session:dev" "$split_flag" -p "$split_ratio" -P -F '#{{pane_id}}' -c "$workspace" "$(tool_or_shell {provider})")"
 tmux -S "$socket" select-pane -t "$files_pane"
 "#
         ),
@@ -55,28 +65,36 @@ tmux -S "$socket" select-pane -t "$files_pane"
         ConfigLayout::Cowork => format!(
             r#"tmux -S "$socket" -f "$config" new-session -d -s "$session" -n cowork -c "$workspace" "$(tool_or_shell yazi)"
 files_pane="$(tmux -S "$socket" display-message -p -t "$session:cowork" '#{{pane_id}}')"
-agent_pane="$(tmux -S "$socket" split-window -t "$session:cowork" -h -p 50 -P -F '#{{pane_id}}' -c "$workspace" "$(tool_or_shell {provider})")"
+split_flag="-${{AIBOX_LAYOUT_AGENT_SPLIT:-h}}"
+split_ratio="${{AIBOX_LAYOUT_AGENT_RATIO:-50}}"
+agent_pane="$(tmux -S "$socket" split-window -t "$session:cowork" "$split_flag" -p "$split_ratio" -P -F '#{{pane_id}}' -c "$workspace" "$(tool_or_shell {provider})")"
 tmux -S "$socket" select-pane -t "$files_pane"
 "#
         ),
         ConfigLayout::CoworkSwap => format!(
             r#"tmux -S "$socket" -f "$config" new-session -d -s "$session" -n cowork-swap -c "$workspace" "$(tool_or_shell yazi)"
 files_pane="$(tmux -S "$socket" display-message -p -t "$session:cowork-swap" '#{{pane_id}}')"
-agent_pane="$(tmux -S "$socket" split-window -t "$session:cowork-swap" -v -p 45 -P -F '#{{pane_id}}' -c "$workspace" "$(tool_or_shell {provider})")"
+split_flag="-${{AIBOX_LAYOUT_AGENT_SPLIT:-v}}"
+split_ratio="${{AIBOX_LAYOUT_AGENT_RATIO:-45}}"
+agent_pane="$(tmux -S "$socket" split-window -t "$session:cowork-swap" "$split_flag" -p "$split_ratio" -P -F '#{{pane_id}}' -c "$workspace" "$(tool_or_shell {provider})")"
 tmux -S "$socket" select-pane -t "$files_pane"
 "#
         ),
         ConfigLayout::Browse => format!(
             r#"tmux -S "$socket" -f "$config" new-session -d -s "$session" -n browse -c "$workspace" "$(tool_or_shell yazi)"
 files_pane="$(tmux -S "$socket" display-message -p -t "$session:browse" '#{{pane_id}}')"
-agent_pane="$(tmux -S "$socket" split-window -t "$session:browse" -v -p 35 -P -F '#{{pane_id}}' -c "$workspace" "$(tool_or_shell {provider})")"
+split_flag="-${{AIBOX_LAYOUT_AGENT_SPLIT:-v}}"
+split_ratio="${{AIBOX_LAYOUT_AGENT_RATIO:-35}}"
+agent_pane="$(tmux -S "$socket" split-window -t "$session:browse" "$split_flag" -p "$split_ratio" -P -F '#{{pane_id}}' -c "$workspace" "$(tool_or_shell {provider})")"
 tmux -S "$socket" select-pane -t "$files_pane"
 "#
         ),
         ConfigLayout::Ai => format!(
             r#"tmux -S "$socket" -f "$config" new-session -d -s "$session" -n ai -c "$workspace" "$(tool_or_shell yazi)"
 files_pane="$(tmux -S "$socket" display-message -p -t "$session:ai" '#{{pane_id}}')"
-agent_pane="$(tmux -S "$socket" split-window -t "$session:ai" -h -p 50 -P -F '#{{pane_id}}' -c "$workspace" "$(tool_or_shell {provider})")"
+split_flag="-${{AIBOX_LAYOUT_AGENT_SPLIT:-h}}"
+split_ratio="${{AIBOX_LAYOUT_AGENT_RATIO:-50}}"
+agent_pane="$(tmux -S "$socket" split-window -t "$session:ai" "$split_flag" -p "$split_ratio" -P -F '#{{pane_id}}' -c "$workspace" "$(tool_or_shell {provider})")"
 tmux -S "$socket" new-window -t "$session:" -n shell -c "$workspace" "bash"
 tmux -S "$socket" select-window -t "$session:ai"
 tmux -S "$socket" select-pane -t "$files_pane"
@@ -116,6 +134,14 @@ exec tmux -S "$socket" -f "$config" attach-session -t "$session"
 
 /// Render the `aibox-session.sh` dispatcher script that reads the configured
 /// layout name and execs the corresponding `layouts/<name>.sh`.
+///
+/// BR-LAYOUT-DROPIN (BACK-20260509_1316-SnappyWolf, v0.25.7, "4b"): the
+/// dispatcher resolves layouts from the user's home directory first, then
+/// falls back to the system-wide install path. This means a user can drop
+/// a custom `~/.config/tmux/layouts/<name>.sh` and run it via
+/// `aibox-tmux-session <name>` without modifying anything aibox-managed.
+/// Reserved layout names (dev, focus, cowork, cowork-swap, browse, ai) are
+/// re-seeded by `aibox apply`; user-defined names are not touched.
 pub fn tmux_session_script(config: &AiboxConfig) -> String {
     format!(
         r#"#!/usr/bin/env bash
@@ -124,10 +150,22 @@ set -euo pipefail
 layout="${{1:-${{AIBOX_TMUX_LAYOUT:-{layout}}}}}"
 session="${{2:-${{AIBOX_TMUX_SESSION:-{session}}}}}"
 socket="${{AIBOX_TMUX_SOCKET:-$HOME/.tmux/aibox.sock}}"
-script="${{HOME}}/.config/tmux/layouts/${{layout}}.sh"
 
-if [[ ! -x "${{script}}" ]]; then
+# Resolve the layout script. Search order (BR-LAYOUT-DROPIN):
+#   1. User drop-in: ~/.config/tmux/layouts/<layout>.sh
+#   2. System default: /usr/local/share/aibox/tmux/layouts/<layout>.sh
+# This lets users add custom layouts without conflicting with aibox-managed
+# layout names. aibox apply re-seeds the six managed layouts only.
+user_script="${{HOME}}/.config/tmux/layouts/${{layout}}.sh"
+system_script="/usr/local/share/aibox/tmux/layouts/${{layout}}.sh"
+if [[ -x "${{user_script}}" ]]; then
+  script="${{user_script}}"
+elif [[ -x "${{system_script}}" ]]; then
+  script="${{system_script}}"
+else
   echo "aibox-tmux-session: unknown or unavailable managed layout: ${{layout}}" >&2
+  echo "  searched: ${{user_script}}" >&2
+  echo "  searched: ${{system_script}}" >&2
   exit 2
 fi
 
@@ -251,5 +289,98 @@ mod tests {
             r#"exec env AIBOX_TMUX_SESSION="${session}" AIBOX_TMUX_SOCKET="${socket}" "${script}""#
         ));
         assert!(!script.contains("tmux new-session"));
+    }
+
+    /// BR-LAYOUT-DROPIN (BACK-20260509_1316-SnappyWolf, v0.25.7): the
+    /// dispatcher must search the user drop-in path before falling back to
+    /// the system default, so user-defined layouts work without colliding
+    /// with aibox-managed names.
+    #[test]
+    fn tmux_session_helper_searches_user_dropin_before_system_default() {
+        let config = crate::config::test_config();
+        let script = tmux_session_script(&config);
+
+        assert!(
+            script.contains(r#"user_script="${HOME}/.config/tmux/layouts/${layout}.sh""#),
+            "dispatcher should resolve user drop-in layouts first:\n{script}"
+        );
+        assert!(
+            script.contains(r#"system_script="/usr/local/share/aibox/tmux/layouts/${layout}.sh""#),
+            "dispatcher should fall back to system layouts:\n{script}"
+        );
+        // Order matters: user must be checked before system.
+        let user_pos = script
+            .find(r#"if [[ -x "${user_script}" ]]"#)
+            .expect("user-script existence check missing");
+        let system_pos = script
+            .find(r#"elif [[ -x "${system_script}" ]]"#)
+            .expect("system-script existence check missing");
+        assert!(
+            user_pos < system_pos,
+            "user drop-in must be checked before system default:\n{script}"
+        );
+    }
+
+    /// BR-LAYOUT-KNOBS (BACK-20260509_1316-SnappyWolf, v0.25.7): the
+    /// agent-pane split direction and percentage must be runtime-tunable
+    /// for every layout that has an agent pane.
+    #[test]
+    fn tmux_layouts_expose_agent_split_knobs() {
+        let providers = [AiProvider::Claude];
+        for (layout, has_agent) in [
+            (ConfigLayout::Dev, true),
+            (ConfigLayout::Focus, false),
+            (ConfigLayout::Cowork, true),
+            (ConfigLayout::CoworkSwap, true),
+            (ConfigLayout::Browse, true),
+            (ConfigLayout::Ai, true),
+        ] {
+            let body = tmux_layout_script(&layout, &providers, false, "aibox");
+            if has_agent {
+                assert!(
+                    body.contains(r#"split_flag="-${AIBOX_LAYOUT_AGENT_SPLIT:-"#),
+                    "{layout:?} agent-pane split direction must be env-tunable:\n{body}"
+                );
+                assert!(
+                    body.contains(r#"split_ratio="${AIBOX_LAYOUT_AGENT_RATIO:-"#),
+                    "{layout:?} agent-pane split ratio must be env-tunable:\n{body}"
+                );
+                assert!(
+                    body.contains(r#""$split_flag" -p "$split_ratio""#),
+                    "{layout:?} split-window must use the parameterized flag/ratio:\n{body}"
+                );
+            } else {
+                assert!(
+                    !body.contains("AIBOX_LAYOUT_AGENT_"),
+                    "{layout:?} (no agent pane) should not reference layout-knob env vars:\n{body}"
+                );
+            }
+        }
+    }
+
+    /// Defaults must match the v0.25.6 hard-coded values so the unconfigured
+    /// experience is identical.
+    #[test]
+    fn tmux_layout_defaults_preserve_v0_25_6_geometry() {
+        let providers = [AiProvider::Claude];
+        // (layout, default split flag, default ratio)
+        let cases = [
+            (ConfigLayout::Dev, "h", "50"),
+            (ConfigLayout::Cowork, "h", "50"),
+            (ConfigLayout::CoworkSwap, "v", "45"),
+            (ConfigLayout::Browse, "v", "35"),
+            (ConfigLayout::Ai, "h", "50"),
+        ];
+        for (layout, split, ratio) in cases {
+            let body = tmux_layout_script(&layout, &providers, false, "aibox");
+            assert!(
+                body.contains(&format!("AIBOX_LAYOUT_AGENT_SPLIT:-{split}}}")),
+                "{layout:?} default split flag must be {split}:\n{body}"
+            );
+            assert!(
+                body.contains(&format!("AIBOX_LAYOUT_AGENT_RATIO:-{ratio}}}")),
+                "{layout:?} default ratio must be {ratio}:\n{body}"
+            );
+        }
     }
 }
