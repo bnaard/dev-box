@@ -9,6 +9,8 @@ skill: research-with-confidence
 source_file: remote-development-2026-03.md
 ---
 
+> **Historical** — predates the v0.25.x tmux migration (NobleCrane). All Zellij references below describe the pre-migration multiplexer; aibox now uses tmux for the terminal-multiplexer surface. Kept for audit of the remote-development analysis.
+
 # Remote Development Patterns — Research Report — March 2026
 
 Research for BACK-011. Investigates how aibox could support running environments on

@@ -9,6 +9,8 @@ skill: research-with-confidence
 source_file: preview-companion-design-2026-03.md
 ---
 
+> **Historical** — predates the v0.25.x tmux migration (NobleCrane). All Zellij references below — including the "tmux instead of Zellij" alternative — describe the pre-migration multiplexer; aibox now ships tmux as the multiplexer. Kept for audit; the preview-companion design itself is independent of the multiplexer choice.
+
 # Preview Companion Container — Design Document
 
 **Date:** 2026-03-26

@@ -3058,6 +3058,16 @@ pub fn cmd_sync(
         (Err(e), _) => output::warn(&format!("Failed to determine working directory: {}", e)),
     }
 
+    // EagerDew (v0.25.7): when a docs addon is enabled and the project
+    // ships a `<docs-dir>/package.json`, run a project-local
+    // `npm install --prefix <docs-dir>` so site-local deps like
+    // `prism-react-renderer` are present before any docs build/deploy.
+    // The addons themselves only install global tooling. Best-effort —
+    // failures are warned-and-continued inside the helper.
+    if let Ok(cwd) = std::env::current_dir() {
+        crate::docs_install::maybe_install_project_docs_deps(&config, &cwd);
+    }
+
     // Verify the perimeter tripwire BEFORE the (potentially long) image
     // build, so a perimeter violation aborts as fast as possible.
     tripwire.verify()?;

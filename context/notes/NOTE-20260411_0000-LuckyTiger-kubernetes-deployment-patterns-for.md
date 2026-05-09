@@ -44,7 +44,8 @@ Deployments, Services, and PVCs.
 - aibox compose uses `build: context: .` with a local Dockerfile — Kompose cannot
   handle this. The image must be pre-built and pushed to a registry (GHCR).
 - Bind mounts like `{{ host_root }}/.ssh:{{ container_home }}/.ssh:ro` have no K8s
-  equivalent. These must become Secrets (SSH keys), ConfigMaps (vim/zellij config),
+  equivalent. These must become Secrets (SSH keys), ConfigMaps (vim/tmux config —
+  Zellij was the multiplexer pre-v0.25.x; replaced by tmux/NobleCrane),
   or PVCs (persistent home directories).
 - The `stdin_open: true` + `tty: true` + `sleep infinity` pattern is how aibox keeps
   containers alive for `docker exec` attachment. In K8s, the equivalent is a long-running
@@ -73,7 +74,7 @@ The compose template maps to K8s objects as follows:
 | `container_name` | Pod metadata.name / Deployment name | |
 | `hostname` | `spec.hostname` on Pod | |
 | `ports` | Service (ClusterIP/NodePort/LoadBalancer) + Ingress | |
-| `volumes` (bind mount, config) | ConfigMap volume mount | For vim, zellij, yazi, git config |
+| `volumes` (bind mount, config) | ConfigMap volume mount | For vim, tmux, yazi, git config (Zellij was the pre-v0.25.x multiplexer; now tmux/NobleCrane) |
 | `volumes` (bind mount, secrets) | Secret volume mount | For SSH keys, API keys |
 | `volumes` (workspace) | PVC | Workspace persistence |
 | `environment` | `env` in container spec, or ConfigMap/Secret ref | |

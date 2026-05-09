@@ -32,7 +32,7 @@ With cache mounts, do NOT use `rm -rf /var/lib/apt/lists/*`.
 ## Version Pinning
 
 - Pin base images by digest for production: `FROM debian:trixie-slim@sha256:...`
-- Pin critical binary versions via ARG (already doing this for Zellij, Yazi, etc.)
+- Pin critical binary versions via ARG (already doing this for tmux, Yazi, etc.; aibox v0.25.x migrated the multiplexer from Zellij to tmux — see NobleCrane)
 
 ## Binary Downloads
 
@@ -48,7 +48,7 @@ With cache mounts, do NOT use `rm -rf /var/lib/apt/lists/*`.
 
 ## Size
 
-- Multi-stage builds for compile steps (already doing this for TeX Live, Zellij, Yazi)
+- Multi-stage builds for compile steps (TeX Live, Yazi; pre-v0.25.x also Zellij — replaced by tmux/NobleCrane and no longer compiled from source)
 - `--no-install-recommends` saves 20-50% on apt packages
 - Remove unnecessary files in the same layer they're created
 

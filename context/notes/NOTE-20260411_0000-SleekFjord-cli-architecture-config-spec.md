@@ -34,7 +34,7 @@ Key sections:
 
 | Image | Base | Added |
 |-------|------|-------|
-| `base-debian` | debian:trixie-slim | zellij, vim, git, lazygit, gh, claude CLI, audio, unzip, python3, uv |
+| `base-debian` | debian:trixie-slim | tmux, vim, git, lazygit, gh, claude CLI, audio, unzip, python3, uv (multiplexer migrated from Zellij to tmux/NobleCrane in v0.25.x) |
 | `python` | base-debian | poetry, pdm, additional Python tooling |
 | `latex` | base-debian | TeX Live (multi-stage CTAN install, ~2GB builder → slim runtime copy) |
 | `typst` | base-debian | Typst (static musl binary) |
