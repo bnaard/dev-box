@@ -1,0 +1,273 @@
+From: aibox v0.25.7 / track T2 (WorkItem BACK-20260509_1316-TallBear)
+Subject: [PATCH] release-audit: add stale-test grep sweep (project-configurable)
+
+Adds a fifth check `stale_layout_tests` to the upstream release-audit
+skill. It greps test files for project-configured magic-string patterns
+(layout names, slot labels, harness identifiers, hardcoded tmux indices)
+so the audit catches tests that pass under the current shape but would
+silently break when the project changes those magic strings.
+
+Project-configurable: the patterns live in
+`context/skills/processkit/release-audit/stale-test-patterns.toml` (loaded
+if present). When the file is absent the check is a no-op INFO. This
+keeps the upstream skill provider-neutral.
+
+Provenance: WorkItem BACK-20260509_1316-TallBear (aibox v0.25.7 / track T2).
+A working project-local prototype lives at
+`scripts/release-audit-stale-tests.py` and
+`scripts/release-audit-stale-tests.baseline` in the aibox repo; this
+patch is the upstream-ward generalization. Apply via the proper
+processkit-skill-update MCP path — do NOT commit directly into the
+project's `context/skills/processkit/release-audit/` mirror (vendored
+read-only).
+
+NOTE: this is a propose-only diff; line offsets are approximate. The
+parent should regenerate against the upstream skill HEAD when applying.
+
+---
+ context/skills/processkit/release-audit/SKILL.md                      |  46 +++++++-
+ context/skills/processkit/release-audit/scripts/release_audit.py      | 119 +++++++++++++++++++-
+ 2 files changed, 162 insertions(+), 3 deletions(-)
+
+diff --git a/context/skills/processkit/release-audit/SKILL.md b/context/skills/processkit/release-audit/SKILL.md
+--- a/context/skills/processkit/release-audit/SKILL.md
++++ b/context/skills/processkit/release-audit/SKILL.md
+@@ -60,7 +60,7 @@ The default `context` tree is the live dogfood/project tree. `src-context`
+ audits the shipped release deliverable tree under `src/context/` and does
+ not warn when dogfood-only entity directories such as `workitems/` or
+ `decisions/` are absent.
+
+-### The four checks
++### The five checks
+
+ 1. **`entity_files`** — walks every selected tree's `<dir>/*.md` for the registered
+    entity directories (`workitems`, `decisions`, `logs`, `artifacts`, `actors`,
+@@ -91,6 +91,16 @@ not warn when dogfood-only entity directories such as `workitems/` or
+    (searches all category directories, not just `processkit/`). ERROR per
+    unresolvable reference.
+
++5. **`stale_layout_tests`** — project-configurable magic-string sweep over
++   test files (`tests/**`, `**/*test*.{rs,sh,py}`, `**/*_test.{rs,py,sh}`).
++   Reads patterns from
++   `context/skills/processkit/release-audit/stale-test-patterns.toml` if
++   present and emits one WARN per hit with the category name, file path,
++   and line number. Designed to flag tests that hardcode layout names,
++   statusline slot labels, harness identifiers, or tmux window/pane
++   indices that the project plans to rename or parameterize. No-op INFO
++   when the patterns file is absent.
++
+ ### What release-audit will NEVER do
+
+ - Modify any file under `context/` or `src/context/`.
+@@ -115,6 +125,9 @@ not warn when dogfood-only entity directories such as `workitems/` or
+ ## cross_references — 0 ERROR / 0 WARN / 14 INFO
+   [i] pk-doctor → event-log — resolved
+
++## stale_layout_tests — 0 ERROR / 32 WARN / 0 INFO
++  [W] stale.layout-name-literal — cli/tests/e2e/visual_matrix.rs:26 hit
++
+ ## totals — 1 ERROR / 0 WARN / 109 INFO
+ ```
+
+@@ -141,6 +154,11 @@ Agent-specific failure modes — provider-neutral pause-and-self-check items:
+ - **Ignoring WARNs before a release.** WARNs indicate structural drift that
+   does not prevent the release but will accumulate into ERRORs in future
+   versions. Address all WARNs before a minor or major release.
++- **Treating stale_layout_tests WARNs as transient noise.** The check exists
++  precisely because the hits are silent: tests pass today but will break
++  the moment the magic strings change. When you intentionally update a
++  layout/slot/harness identifier, refresh the baseline (or update the
++  patterns file) in the same commit as the rename — never separately.
+
+ ## Full reference
+
+@@ -195,6 +213,32 @@ Agent-specific failure modes — provider-neutral pause-and-self-check items:
+ - `idempotentHint`
+ - `openWorldHint`
+
++### `stale-test-patterns.toml` schema
++
++Project-configurable patterns for the `stale_layout_tests` check. Place
++this file at
++`context/skills/processkit/release-audit/stale-test-patterns.toml`.
++
++```toml
++# Globs (relative to repo root) that constitute "tests" for the sweep.
++test_globs = [
++  "tests/**/*.rs",
++  "tests/**/*.py",
++  "**/*_test.rs",
++]
++
++[[category]]
++name = "layout-name-literal"
++description = "Hardcoded v0.25.x layout name as a string literal."
++pattern = '"(dev|focus|browse|cowork|cowork-swap|ai)"'
++# Optional: lines matching `suppress` are skipped (e.g. comments).
++suppress = '^\s*(//|#)'
++```
++
++Each `[[category]]` becomes one WARN-emitting category. The check is a
++no-op INFO when the file is absent, which keeps the upstream skill
++provider-neutral.
++
+ ### Adding a check in future versions
+
+ 1. Add a new check function in `release_audit.py` following the
+diff --git a/context/skills/processkit/release-audit/scripts/release_audit.py b/context/skills/processkit/release-audit/scripts/release_audit.py
+--- a/context/skills/processkit/release-audit/scripts/release_audit.py
++++ b/context/skills/processkit/release-audit/scripts/release_audit.py
+@@ -8,10 +8,11 @@
+ """release_audit.py — detect-only pre-release validation for a processkit repo.
+
+ Walks the live context/ tree or shipped src/context/ tree and validates:
+
+ 1. entity_files   — frontmatter, apiVersion, kind, metadata.id vs filename
+ 2. skill_structure — SKILL.md frontmatter fields + four required sections
+ 3. mcp_annotations — every @server.tool() has ToolAnnotations with all hint keys
+ 4. cross_references — uses: entries resolve to existing SKILL.md files
++5. stale_layout_tests — project-configured magic-string sweep over test files
+
+ Outputs a single human-readable Markdown report on stdout.
+ Exit 0 if no ERRORs; exit 1 otherwise.
+@@ -33,6 +34,11 @@ from typing import Literal, Optional
+
+ import yaml
+
++try:
++    import tomllib  # py311+
++except ModuleNotFoundError:  # pragma: no cover - py310 fallback
++    import tomli as tomllib  # type: ignore[no-redef]
++
+ AUDIT_VERSION = "1.0.0"
+
+ # ---------------------------------------------------------------------------
+@@ -740,6 +746,116 @@ def run_cross_references(target_or_root: AuditTarget | Path) -> list[Finding]:
+     return findings
+
+
++# ---------------------------------------------------------------------------
++# Check 5: stale_layout_tests (project-configurable magic-string sweep)
++# ---------------------------------------------------------------------------
++
++_STALE_PATTERNS_RELPATH = (
++    "context/skills/processkit/release-audit/stale-test-patterns.toml"
++)
++
++_DEFAULT_TEST_GLOBS = (
++    "tests/**/*.rs",
++    "tests/**/*.py",
++    "tests/**/*.sh",
++    "**/*_test.rs",
++    "**/*_test.py",
++    "**/*_test.sh",
++)
++
++
++def _load_stale_patterns(repo_root: Path) -> dict | None:
++    cfg = repo_root / _STALE_PATTERNS_RELPATH
++    if not cfg.is_file():
++        return None
++    with cfg.open("rb") as fh:
++        return tomllib.load(fh)
++
++
++def run_stale_layout_tests(target_or_root: AuditTarget | Path) -> list[Finding]:
++    target = _coerce_target(target_or_root)
++    repo_root = target.repo_root
++    findings: list[Finding] = []
++
++    cfg = _load_stale_patterns(repo_root)
++    if cfg is None:
++        findings.append(Finding(
++            severity="INFO",
++            category="stale_layout_tests",
++            id="stale.no-config",
++            message=(
++                "No stale-test-patterns.toml present — check is a no-op. "
++                "Define patterns at " + _STALE_PATTERNS_RELPATH + " to enable."
++            ),
++        ))
++        return findings
++
++    test_globs = cfg.get("test_globs") or list(_DEFAULT_TEST_GLOBS)
++    categories = cfg.get("category") or []
++    if not categories:
++        findings.append(Finding(
++            severity="WARN",
++            category="stale_layout_tests",
++            id="stale.no-categories",
++            message=(
++                _STALE_PATTERNS_RELPATH + " present but defines no [[category]] "
++                "entries — sweep would emit nothing."
++            ),
++        ))
++        return findings
++
++    compiled: list[tuple[str, str, re.Pattern, Optional[re.Pattern]]] = []
++    for cat in categories:
++        name = cat.get("name", "unnamed")
++        desc = cat.get("description", "")
++        pat = cat.get("pattern")
++        sup = cat.get("suppress")
++        if not pat:
++            findings.append(Finding(
++                severity="ERROR",
++                category="stale_layout_tests",
++                id="stale.bad-pattern",
++                message=f"Category {name!r} has no pattern field",
++            ))
++            continue
++        try:
++            compiled.append((
++                name, desc, re.compile(pat),
++                re.compile(sup) if sup else None,
++            ))
++        except re.error as exc:
++            findings.append(Finding(
++                severity="ERROR",
++                category="stale_layout_tests",
++                id="stale.bad-pattern",
++                message=f"Category {name!r} has invalid regex: {exc}",
++            ))
++
++    seen: set[Path] = set()
++    for glob in test_globs:
++        for path in repo_root.glob(glob):
++            if not path.is_file() or path in seen:
++                continue
++            seen.add(path)
++            rel = path.relative_to(repo_root).as_posix()
++            try:
++                text = path.read_text(encoding="utf-8", errors="replace")
++            except OSError:
++                continue
++            for lineno, line in enumerate(text.splitlines(), start=1):
++                for name, desc, pattern, suppress in compiled:
++                    if suppress is not None and suppress.search(line):
++                        continue
++                    if pattern.search(line):
++                        findings.append(Finding(
++                            severity="WARN",
++                            category="stale_layout_tests",
++                            id=f"stale.{name}",
++                            message=f"{rel}:{lineno} matched ({name})",
++                            entity_ref=rel,
++                        ))
++                        break
++
++    return findings
++
++
+ # ---------------------------------------------------------------------------
+ # Report formatting
+ # ---------------------------------------------------------------------------
+@@ -785,10 +901,11 @@ def _format_report(
+
+ CHECKS = [
+     ("entity_files", run_entity_files),
+     ("skill_structure", run_skill_structure),
+     ("mcp_annotations", run_mcp_annotations),
+     ("cross_references", run_cross_references),
++    ("stale_layout_tests", run_stale_layout_tests),
+ ]
