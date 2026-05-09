@@ -8,6 +8,8 @@ tags: [screencasts, asciinema, docs, testing, visual]
 skill: documentation
 ---
 
+> **Historical** — predates the v0.25.x tmux migration (NobleCrane). Zellij references below describe the pre-migration multiplexer; the current implementation uses tmux. Kept for audit.
+
 # Screencast Recording and Visual Testing
 
 Terminal screencasts serve two purposes: documentation visuals and visual smoke tests.
