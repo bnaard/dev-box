@@ -26,6 +26,8 @@ use crate::lock::RuntimeHomeLockSection;
 const RUNTIME_SOURCE: &str = "aibox-runtime-home";
 const RUNTIME_SOURCE_URL: &str = "aibox://runtime-home";
 const RUNTIME_TEMPLATES_DIR: &str = "context/templates/aibox-home";
+const RUNTIME_DRIFT_SOURCE: &str = "aibox-runtime-drift";
+const RUNTIME_DRIFT_SOURCE_URL: &str = "aibox://runtime-drift";
 
 #[derive(Debug, Clone)]
 pub struct RuntimeFileDiff {
@@ -38,6 +40,9 @@ pub struct RuntimeFileDiff {
 pub struct RuntimeSyncReport {
     pub summary: DiffSummary,
     pub migration_document_path: Option<PathBuf>,
+    /// Path to the Variant 3 drift migration document, if any drifted-but-not-historical
+    /// files were found during this sync run.
+    pub drift_migration_path: Option<PathBuf>,
 }
 
 pub fn templates_dir_for_version(project_root: &Path, version: &str) -> PathBuf {
@@ -225,12 +230,35 @@ pub fn run_runtime_sync(
             None
         };
 
+    // BR-CLEANUP-ARCH item 6 — Variant 3: drifted-but-not-historical files.
+    // Collect every managed-runtime file whose live content matches neither
+    // the current canonical generation NOR any archived template snapshot.
+    // These files were left untouched above (no historical recognizer fired,
+    // no canonical match) and may represent intentional user customisation.
+    // Surface them as a pending Migration so the project agent can walk the
+    // user through each one via /pk-resume and /pk-doctor.
+    let drifted_files = collect_drifted_files(project_root, &diffs, &generated_hashes);
+    let drift_migration_path = if drifted_files.is_empty() {
+        None
+    } else {
+        match write_drift_migration_document(project_root, to_version, &drifted_files) {
+            Ok(path) => path,
+            Err(err) => {
+                crate::output::warn(&format!(
+                    "Failed to write Variant 3 drift migration: {err}"
+                ));
+                None
+            }
+        }
+    };
+
     copy_runtime_templates(project_root, to_version, config)?;
     refresh_runtime_home_lock(project_root, generated_hashes)?;
 
     Ok(RuntimeSyncReport {
         summary,
         migration_document_path,
+        drift_migration_path,
     })
 }
 
@@ -953,6 +981,163 @@ fn write_migration_document(
     Ok(Some(out_path))
 }
 
+// ---------------------------------------------------------------------------
+// BR-CLEANUP-ARCH item 6 — Variant 3: drifted-but-not-historical detection
+// ---------------------------------------------------------------------------
+
+/// Per-file entry for the Variant 3 drift migration document.
+#[derive(Debug, Clone)]
+pub struct DriftedFile {
+    pub rel_path: String,
+    pub recommendation: &'static str,
+}
+
+/// Collect files from the post-auto-apply diff set that remain
+/// `ChangedLocallyOnly` or `Conflict` — meaning their live content matched
+/// neither the current canonical generation NOR any historical snapshot
+/// (the historical recognizers would have auto-applied them and flipped the
+/// classification to `Unchanged` if they had matched).
+///
+/// Only files that are present in the canonical-current-generation set are
+/// included; files that have no canonical counterpart at all are handled by
+/// the existing `RemovedUpstreamStale` / `ChangedLocallyOnly` path in the
+/// three-way diff migration document.
+fn collect_drifted_files(
+    _project_root: &Path,
+    diffs: &[RuntimeFileDiff],
+    generated_hashes: &BTreeMap<String, String>,
+) -> Vec<DriftedFile> {
+    diffs
+        .iter()
+        .filter(|diff| {
+            matches!(
+                diff.classification,
+                FileClassification::ChangedLocallyOnly | FileClassification::Conflict
+            ) && generated_hashes.contains_key(&diff.rel_path)
+        })
+        .map(|diff| DriftedFile {
+            rel_path: diff.rel_path.clone(),
+            recommendation: "review-manually",
+        })
+        .collect()
+}
+
+/// Emit a `MIG-RUNTIME-DRIFT-<timestamp>.md` pending Migration entity
+/// listing every drifted-but-not-historical file with a per-file
+/// recommendation.
+///
+/// Returns `Ok(None)` when a drift migration already exists for the same
+/// set (idempotent guard: checks for any existing `MIG-RUNTIME-DRIFT-*`
+/// in `context/migrations/pending/`).
+fn write_drift_migration_document(
+    project_root: &Path,
+    to_version: &str,
+    drifted: &[DriftedFile],
+) -> Result<Option<PathBuf>> {
+    let pending_dir = project_root.join("context/migrations/pending");
+
+    // Idempotent guard: if any drift migration is already pending, skip.
+    if existing_drift_migration_pending(&pending_dir)? {
+        return Ok(None);
+    }
+
+    fs::create_dir_all(&pending_dir)
+        .with_context(|| format!("failed to create {}", pending_dir.display()))?;
+
+    let now = chrono::Utc::now();
+    let now_iso = now.format("%Y-%m-%dT%H:%M:%SZ").to_string();
+    let id = format!("MIG-RUNTIME-DRIFT-{}", now.format("%Y%m%dT%H%M%S"));
+    let out_path = pending_dir.join(format!("{}.md", id));
+
+    let summary_line = format!(
+        "{} drifted managed runtime file(s) found at {}",
+        drifted.len(),
+        to_version,
+    );
+
+    let mut body = String::new();
+    body.push_str("---\n");
+    body.push_str("apiVersion: processkit.projectious.work/v1\n");
+    body.push_str("kind: Migration\n");
+    body.push_str("metadata:\n");
+    body.push_str(&format!("  id: {}\n", id));
+    body.push_str(&format!("  created: {}\n", now_iso));
+    body.push_str("spec:\n");
+    body.push_str(&format!("  source: {}\n", yaml_scalar(RUNTIME_DRIFT_SOURCE)));
+    body.push_str(&format!(
+        "  source_url: {}\n",
+        yaml_scalar(RUNTIME_DRIFT_SOURCE_URL)
+    ));
+    body.push_str(&format!("  to_version: {}\n", yaml_scalar(to_version)));
+    body.push_str("  variant: 3\n");
+    body.push_str("  state: pending\n");
+    body.push_str("  generated_by: aibox apply\n");
+    body.push_str(&format!("  generated_at: {}\n", now_iso));
+    body.push_str(&format!("  summary: {}\n", yaml_scalar(&summary_line)));
+    body.push_str("---\n\n");
+    body.push_str(&format!("# Migration {}\n\n", id));
+    body.push_str(
+        "## Drifted managed runtime files (Variant 3 — BR-CLEANUP-ARCH item 6)\n\n",
+    );
+    body.push_str(
+        "The following managed `.aibox-home/` runtime files have been modified \
+         on the host and match **neither** the current canonical aibox generation \
+         **nor** any known archived template snapshot. They may represent \
+         intentional user customisations.\n\n",
+    );
+    body.push_str(
+        "`aibox apply` left these files **untouched**. Review each one and \
+         decide whether to preserve the local edit or restore the canonical \
+         generated content.\n\n",
+    );
+    body.push_str("## Per-file recommendations\n\n");
+    body.push_str("| file | reason-for-classification | recommendation |\n");
+    body.push_str("|------|--------------------------|----------------|\n");
+    for file in drifted {
+        body.push_str(&format!(
+            "| `.aibox-home/{}` | content matches neither current canonical nor any archived snapshot | {} |\n",
+            file.rel_path,
+            file.recommendation,
+        ));
+    }
+    body.push('\n');
+    body.push_str("## How to resolve\n\n");
+    body.push_str(
+        "For each file above, choose one of:\n\
+         - **`preserve-as-is`** — keep your local edit; mark this migration applied.\n\
+         - **`overwrite-with-canonical`** — run `aibox apply --force-runtime-file <path>` \
+           (once that flag ships) or manually copy the canonical content from \
+           `context/templates/aibox-home/<version>/<path>`.\n\
+         - **`review-manually`** — compare live vs canonical using your diff tool \
+           and cherry-pick the parts you want to keep.\n\n",
+    );
+
+    fs::write(&out_path, body)
+        .with_context(|| format!("failed to write {}", out_path.display()))?;
+    Ok(Some(out_path))
+}
+
+/// Returns `true` if any `MIG-RUNTIME-DRIFT-*` file already exists in `dir`.
+fn existing_drift_migration_pending(dir: &Path) -> Result<bool> {
+    if !dir.is_dir() {
+        return Ok(false);
+    }
+    for entry in fs::read_dir(dir).with_context(|| format!("failed to read {}", dir.display()))? {
+        let entry = entry?;
+        let path = entry.path();
+        if !path.is_file() {
+            continue;
+        }
+        let Some(name) = path.file_name().and_then(|n| n.to_str()) else {
+            continue;
+        };
+        if name.starts_with("MIG-RUNTIME-DRIFT-") && name.ends_with(".md") {
+            return Ok(true);
+        }
+    }
+    Ok(false)
+}
+
 fn existing_migration_matches(dir: &Path, from_version: &str, to_version: &str) -> Result<bool> {
     if !dir.is_dir() {
         return Ok(false);
@@ -1388,5 +1573,162 @@ rules = [
         // Sanity: legacy multiplexer paths are never recognised as
         // managed tmux files (BR-LEGACY-MUX-EXCISE).
         assert!(!managed_tmux_relpath(".config/yazi/yazi.toml"));
+    }
+
+    // -- BR-CLEANUP-ARCH item 6 — Variant 3 drift detection -----------------
+
+    #[test]
+    fn collect_drifted_files_returns_changed_locally_only_in_generated_set() {
+        // A file that is `ChangedLocallyOnly` and present in the canonical
+        // generated set should appear in the drifted list.
+        let tmp = TempDir::new().unwrap();
+        let root = tmp.path();
+
+        let rel = ".config/tmux/tmux.conf";
+        let diffs = vec![RuntimeFileDiff {
+            rel_path: rel.to_string(),
+            project_path: PathBuf::from(".aibox-home").join(rel),
+            classification: FileClassification::ChangedLocallyOnly,
+        }];
+        let mut generated_hashes = BTreeMap::new();
+        generated_hashes.insert(rel.to_string(), "abc123".to_string());
+
+        let drifted = collect_drifted_files(root, &diffs, &generated_hashes);
+        assert_eq!(drifted.len(), 1);
+        assert_eq!(drifted[0].rel_path, rel);
+        assert_eq!(drifted[0].recommendation, "review-manually");
+    }
+
+    #[test]
+    fn collect_drifted_files_returns_conflict_in_generated_set() {
+        // A file classified as `Conflict` and in the generated set is also Variant 3.
+        let tmp = TempDir::new().unwrap();
+        let root = tmp.path();
+
+        let rel = ".config/tmux/layouts/dev.sh";
+        let diffs = vec![RuntimeFileDiff {
+            rel_path: rel.to_string(),
+            project_path: PathBuf::from(".aibox-home").join(rel),
+            classification: FileClassification::Conflict,
+        }];
+        let mut generated_hashes = BTreeMap::new();
+        generated_hashes.insert(rel.to_string(), "deadbeef".to_string());
+
+        let drifted = collect_drifted_files(root, &diffs, &generated_hashes);
+        assert_eq!(drifted.len(), 1);
+        assert_eq!(drifted[0].rel_path, rel);
+    }
+
+    #[test]
+    fn collect_drifted_files_excludes_unchanged_files() {
+        // `Unchanged` files must not appear in the drifted list.
+        let tmp = TempDir::new().unwrap();
+        let root = tmp.path();
+
+        let rel = ".config/tmux/tmux.conf";
+        let diffs = vec![RuntimeFileDiff {
+            rel_path: rel.to_string(),
+            project_path: PathBuf::from(".aibox-home").join(rel),
+            classification: FileClassification::Unchanged,
+        }];
+        let mut generated_hashes = BTreeMap::new();
+        generated_hashes.insert(rel.to_string(), "abc123".to_string());
+
+        let drifted = collect_drifted_files(root, &diffs, &generated_hashes);
+        assert!(drifted.is_empty());
+    }
+
+    #[test]
+    fn collect_drifted_files_excludes_files_not_in_generated_set() {
+        // If a file is `ChangedLocallyOnly` but NOT in the canonical generated
+        // set (e.g. it was removed upstream), it is NOT Variant 3.
+        let tmp = TempDir::new().unwrap();
+        let root = tmp.path();
+
+        let rel = ".config/tmux/tmux.conf";
+        let diffs = vec![RuntimeFileDiff {
+            rel_path: rel.to_string(),
+            project_path: PathBuf::from(".aibox-home").join(rel),
+            classification: FileClassification::ChangedLocallyOnly,
+        }];
+        // Empty generated_hashes — the file has no canonical counterpart.
+        let generated_hashes: BTreeMap<String, String> = BTreeMap::new();
+
+        let drifted = collect_drifted_files(root, &diffs, &generated_hashes);
+        assert!(drifted.is_empty());
+    }
+
+    #[test]
+    fn write_drift_migration_document_emits_pending_migration() {
+        // Drifted file fixture: one `ChangedLocallyOnly` managed tmux file
+        // that matches neither canonical nor any archive.
+        let tmp = TempDir::new().unwrap();
+        let root = tmp.path();
+
+        let drifted = vec![DriftedFile {
+            rel_path: ".config/tmux/tmux.conf".to_string(),
+            recommendation: "review-manually",
+        }];
+
+        let path = write_drift_migration_document(root, "0.25.7", &drifted)
+            .unwrap()
+            .expect("should have written a migration document");
+
+        // (a) File exists in context/migrations/pending/
+        assert!(path.exists(), "drift migration file should exist on disk");
+        let filename = path.file_name().unwrap().to_str().unwrap();
+        assert!(
+            filename.starts_with("MIG-RUNTIME-DRIFT-"),
+            "filename should start with MIG-RUNTIME-DRIFT-"
+        );
+        assert!(filename.ends_with(".md"), "filename should end with .md");
+
+        // (b) File content has the correct frontmatter shape
+        let content = fs::read_to_string(&path).unwrap();
+        assert!(content.contains("kind: Migration"));
+        assert!(content.contains("source: aibox-runtime-drift"));
+        assert!(content.contains("\"aibox://runtime-drift\""));
+        assert!(content.contains("variant: 3"));
+        assert!(content.contains("state: pending"));
+        assert!(content.contains("to_version: 0.25.7"));
+
+        // (c) File lists the drifted file with the recommendation column
+        assert!(content.contains(".aibox-home/.config/tmux/tmux.conf"));
+        assert!(content.contains("review-manually"));
+    }
+
+    #[test]
+    fn write_drift_migration_document_is_idempotent() {
+        // Calling write_drift_migration_document a second time when a
+        // MIG-RUNTIME-DRIFT-* file already exists must return Ok(None)
+        // rather than creating a second file.
+        let tmp = TempDir::new().unwrap();
+        let root = tmp.path();
+
+        let drifted = vec![DriftedFile {
+            rel_path: ".config/tmux/tmux.conf".to_string(),
+            recommendation: "review-manually",
+        }];
+
+        let first = write_drift_migration_document(root, "0.25.7", &drifted)
+            .unwrap()
+            .expect("first call should write");
+        let second = write_drift_migration_document(root, "0.25.7", &drifted).unwrap();
+        assert!(second.is_none(), "second call should be a no-op");
+
+        // Only one file should exist.
+        let pending_dir = root.join("context/migrations/pending");
+        let count = fs::read_dir(&pending_dir)
+            .unwrap()
+            .filter_map(Result::ok)
+            .filter(|e| {
+                e.file_name()
+                    .to_str()
+                    .map(|n| n.starts_with("MIG-RUNTIME-DRIFT-"))
+                    .unwrap_or(false)
+            })
+            .count();
+        assert_eq!(count, 1, "only one drift migration should be on disk");
+        let _ = first;
     }
 }
