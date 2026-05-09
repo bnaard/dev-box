@@ -79,6 +79,33 @@ services:
       SHELL: "/bin/bash"
       TERM: "xterm-256color"
       TZ: "Europe/Berlin"
+      # Terminal-emulator detection passthrough. Lets TUIs inside the container
+      # (yazi, vim, lazygit, …) detect the host terminal and skip startup CSI
+      # capability probes that otherwise time out and flash error messages
+      # ("Terminal response timeout" in yazi; cursor-position garble in vim).
+      # The "${VAR-}" form forwards the host's value, defaulting to empty when
+      # the var is unset, so it works whatever terminal emulator the user runs.
+      TERM_PROGRAM: "${TERM_PROGRAM-}"
+      TERM_PROGRAM_VERSION: "${TERM_PROGRAM_VERSION-}"
+      KITTY_WINDOW_ID: "${KITTY_WINDOW_ID-}"
+      KITTY_PUBLIC_KEY: "${KITTY_PUBLIC_KEY-}"
+      WEZTERM_PANE: "${WEZTERM_PANE-}"
+      WEZTERM_EXECUTABLE: "${WEZTERM_EXECUTABLE-}"
+      WEZTERM_CONFIG_FILE: "${WEZTERM_CONFIG_FILE-}"
+      ITERM_SESSION_ID: "${ITERM_SESSION_ID-}"
+      ITERM_PROFILE: "${ITERM_PROFILE-}"
+      GHOSTTY_RESOURCES_DIR: "${GHOSTTY_RESOURCES_DIR-}"
+      ALACRITTY_LOG: "${ALACRITTY_LOG-}"
+      ALACRITTY_SOCKET: "${ALACRITTY_SOCKET-}"
+      KONSOLE_VERSION: "${KONSOLE_VERSION-}"
+      KONSOLE_DBUS_SERVICE: "${KONSOLE_DBUS_SERVICE-}"
+      VTE_VERSION: "${VTE_VERSION-}"
+      WT_SESSION: "${WT_SESSION-}"
+      WT_PROFILE_ID: "${WT_PROFILE_ID-}"
+      FOOT_VERSION: "${FOOT_VERSION-}"
+      HYPER_VERSION: "${HYPER_VERSION-}"
+      XTERM_VERSION: "${XTERM_VERSION-}"
+      VSCODE_INJECTION: "${VSCODE_INJECTION-}"
     command: sleep infinity
 
   aibox-diagnostics:
