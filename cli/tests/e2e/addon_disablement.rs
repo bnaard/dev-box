@@ -543,7 +543,7 @@ lazygit = { enabled = false }
             "build",
             "--no-cache",
             "--build-arg",
-            &format!("BUILDKIT_INLINE_CACHE=0"),
+            "BUILDKIT_INLINE_CACHE=0",
             "-t",
             image_tag,
             "-f",
