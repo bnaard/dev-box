@@ -232,12 +232,10 @@ agent_pane="$(tmux -S "$socket" split-window -t "$session:cowork-swap" "$split_f
             // AI panes entirely — yazi takes the full window. With a single
             // harness keep the original split so the layout is unchanged.
             if active_harnesses.len() >= 2 {
-                format!(
-                    r#"tmux -S "$socket" -f "$config" new-session -d -s "$session" -n browse -c "$workspace" "$(tool_or_shell yazi)"
-files_pane="$(tmux -S "$socket" display-message -p -t "$session:browse" '#{{pane_id}}')"
+                r#"tmux -S "$socket" -f "$config" new-session -d -s "$session" -n browse -c "$workspace" "$(tool_or_shell yazi)"
+files_pane="$(tmux -S "$socket" display-message -p -t "$session:browse" '#{pane_id}')"
 tmux -S "$socket" select-pane -t "$files_pane"
-"#
-                )
+"#.to_string()
             } else {
                 format!(
                     r#"tmux -S "$socket" -f "$config" new-session -d -s "$session" -n browse -c "$workspace" "$(tool_or_shell yazi)"

@@ -940,13 +940,11 @@ fn check_processkit_mcp_gateway(config: &AiboxConfig, diag: &mut DiagResult) {
                 diag.warnings += 1;
             }
         }
-    } else if matches!(gateway.mode, McpGatewayMode::Auto) {
-        if gateway_available {
-            output::ok(
-                "processkit gateway auto mode uses stdio-proxy-owned daemon startup \
-                 (processkit v0.25.4+)",
-            );
-        }
+    } else if matches!(gateway.mode, McpGatewayMode::Auto) && gateway_available {
+        output::ok(
+            "processkit gateway auto mode uses stdio-proxy-owned daemon startup \
+             (processkit v0.25.4+)",
+        );
     }
 
     if config.ai.harnesses.contains(&AiHarness::Codex) {

@@ -1260,7 +1260,7 @@ pub fn resolve_tmux_session_name(project_name: &str, cwd: Option<&std::path::Pat
         .or_else(|| {
             cwd.and_then(|p| p.file_name())
                 .and_then(|n| n.to_str())
-                .and_then(|s| sanitize_tmux_session_name(s))
+                .and_then(sanitize_tmux_session_name)
         })
         .unwrap_or_else(|| "aibox".to_string())
 }
