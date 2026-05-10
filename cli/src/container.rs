@@ -3082,6 +3082,33 @@ pub fn cmd_sync(
                             e
                         )),
                     }
+                    // AmberThorn (v0.25.7): emit v1→v2 Migration documents for every
+                    // cutover whose upstream_release falls in the interval
+                    // (from_pk.version, config.processkit.version].
+                    match crate::v1_v2_migration::emit_v1_v2_migrations(
+                        &from_pk.version,
+                        &config.processkit.version,
+                        &cwd,
+                    ) {
+                        Ok(emissions) if !emissions.is_empty() => {
+                            for emission in &emissions {
+                                output::ok(&format!(
+                                    "Emitted v1→v2 migration: {} ({})",
+                                    emission.id,
+                                    emission.path.display()
+                                ));
+                            }
+                            output::info(&format!(
+                                "{} pending v1→v2 migration(s) written — review and apply via `apply_migration`",
+                                emissions.len()
+                            ));
+                        }
+                        Ok(_) => {}
+                        Err(e) => output::warn(&format!(
+                            "v1→v2 migration emission failed: {}",
+                            e
+                        )),
+                    }
                 }
                 Err(e) => output::warn(&format!("Processkit diff failed: {}", e)),
             }

@@ -50,6 +50,7 @@ mod theme_cmd;
 mod themes;
 mod tmux;
 mod update;
+mod v1_v2_migration;
 mod version_resolve;
 mod workspace_manifest;
 
