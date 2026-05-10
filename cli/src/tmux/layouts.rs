@@ -5,6 +5,42 @@
 /// `.config/tmux/aibox-session.sh` at apply-time.
 use crate::config::{AiboxConfig, ConfigLayout};
 
+/// Build the shell fragment that creates additional harness panes for the `ai`
+/// layout when ≥2 harnesses are active.
+///
+/// BR-AI-MULTIHARNESS (BACK-20260510_0336-SmartLark, v0.25.7): order-1
+/// harness gets the main agent column (created by the primary split-window).
+/// Subsequent harnesses are stacked as small vertical splits beneath the main
+/// pane.
+///
+/// With 1 secondary harness it takes 20% of the agent column height, leaving
+/// the primary at 80%.  With 2+ secondary harnesses each subsequent split
+/// divides the remaining tail at 50%, giving roughly equal secondary shares.
+///
+/// Order is determined by the stable list order of `[ai].harnesses` in
+/// aibox.toml (first active harness = order-1, second = order-2, …).
+fn ai_secondary_panes(active_harnesses: &[&str]) -> String {
+    // active_harnesses[0] is already created as agent_pane by the caller.
+    let secondaries = &active_harnesses[1..];
+    if secondaries.is_empty() {
+        return String::new();
+    }
+    let mut out = String::new();
+    let mut prev_var = "agent_pane".to_string();
+    for (idx, harness) in secondaries.iter().enumerate() {
+        // First secondary pane: 20% of the agent column → primary keeps ~80%.
+        // Additional secondary panes: 50% of the remaining tail each.
+        let ratio = if idx == 0 { 20usize } else { 50 };
+        let var_name = format!("agent_pane_{}", idx + 2);
+        out.push_str(&format!(
+            r#"{var_name}="$(tmux -S "$socket" split-window -t "${{{prev_var}}}" -v -p {ratio} -P -F '#{{pane_id}}' -c "$workspace" "$(tool_or_shell {harness})")"
+"#
+        ));
+        prev_var = var_name;
+    }
+    out
+}
+
 /// Render the layout-specific `<name>.sh` script that opens a fresh tmux
 /// session with the requested pane/window arrangement.
 pub fn tmux_layout_script(
@@ -89,17 +125,27 @@ agent_pane="$(tmux -S "$socket" split-window -t "$session:browse" "$split_flag" 
 tmux -S "$socket" select-pane -t "$files_pane"
 "#
         ),
-        ConfigLayout::Ai => format!(
-            r#"tmux -S "$socket" -f "$config" new-session -d -s "$session" -n ai -c "$workspace" "$(tool_or_shell yazi)"
+        ConfigLayout::Ai => {
+            // Collect all active harness binary names in stable list order.
+            // Order-1 = first active harness in [ai].harnesses; order-2..N follow.
+            let active_harnesses: Vec<&str> = providers
+                .iter()
+                .filter(|p| p.is_active())
+                .map(|p| p.binary_name())
+                .collect();
+            let secondary_panes = ai_secondary_panes(&active_harnesses);
+            format!(
+                r#"tmux -S "$socket" -f "$config" new-session -d -s "$session" -n ai -c "$workspace" "$(tool_or_shell yazi)"
 files_pane="$(tmux -S "$socket" display-message -p -t "$session:ai" '#{{pane_id}}')"
 split_flag="-${{AIBOX_LAYOUT_AGENT_SPLIT:-h}}"
 split_ratio="${{AIBOX_LAYOUT_AGENT_RATIO:-50}}"
 agent_pane="$(tmux -S "$socket" split-window -t "$session:ai" "$split_flag" -p "$split_ratio" -P -F '#{{pane_id}}' -c "$workspace" "$(tool_or_shell {provider})")"
-tmux -S "$socket" new-window -t "$session:" -n shell -c "$workspace" "bash"
+{secondary_panes}tmux -S "$socket" new-window -t "$session:" -n shell -c "$workspace" "bash"
 tmux -S "$socket" select-window -t "$session:ai"
 tmux -S "$socket" select-pane -t "$files_pane"
 "#
-        ),
+            )
+        }
     };
 
     format!(
@@ -382,5 +428,95 @@ mod tests {
                 "{layout:?} default ratio must be {ratio}:\n{body}"
             );
         }
+    }
+
+    /// BR-AI-MULTIHARNESS (BACK-20260510_0336-SmartLark, v0.25.7):
+    /// with a single harness the ai layout should be identical to v0.25.6
+    /// (no secondary pane code generated).
+    #[test]
+    fn tmux_ai_layout_single_harness_unchanged() {
+        let providers = [AiProvider::Claude];
+        let body = tmux_layout_script(&ConfigLayout::Ai, &providers, false, "aibox");
+
+        assert!(body.contains("tool_or_shell claude"));
+        assert!(
+            !body.contains("agent_pane_2"),
+            "single-harness ai layout must not generate secondary pane code:\n{body}"
+        );
+        // Shell window for user commands
+        assert!(body.contains("new-window -t \"$session:\" -n shell"));
+        // Files pane selected last
+        assert!(body.contains("select-pane -t \"$files_pane\""));
+    }
+
+    /// BR-AI-MULTIHARNESS (BACK-20260510_0336-SmartLark, v0.25.7):
+    /// with 2 harnesses the order-1 harness is the primary agent pane and
+    /// order-2 is stacked at 20% beneath it (leaving ~80% for the primary).
+    #[test]
+    fn tmux_ai_layout_two_harnesses_stacks_secondary() {
+        let providers = vec![AiProvider::Claude, AiProvider::Codex];
+        let body = tmux_layout_script(&ConfigLayout::Ai, &providers, false, "aibox");
+
+        // Both harness binaries must appear.
+        assert!(
+            body.contains("tool_or_shell claude"),
+            "order-1 harness (claude) must be in the layout:\n{body}"
+        );
+        assert!(
+            body.contains("tool_or_shell codex"),
+            "order-2 harness (codex) must be in the layout:\n{body}"
+        );
+        // Claude must come before codex (order preservation).
+        let claude_pos = body.find("tool_or_shell claude").unwrap();
+        let codex_pos = body.find("tool_or_shell codex").unwrap();
+        assert!(
+            claude_pos < codex_pos,
+            "order-1 harness (claude) must be created before order-2 (codex):\n{body}"
+        );
+        // Secondary pane variable must be generated.
+        assert!(
+            body.contains("agent_pane_2="),
+            "secondary harness pane variable agent_pane_2 must appear:\n{body}"
+        );
+        // Secondary pane must be a vertical split at 20%.
+        assert!(
+            body.contains("-v -p 20"),
+            "secondary harness pane must be a 20% vertical split:\n{body}"
+        );
+        // Shell window still present.
+        assert!(body.contains("new-window -t \"$session:\" -n shell"));
+    }
+
+    /// BR-AI-MULTIHARNESS: with 3 harnesses the third is split at 50% of
+    /// the second's tail, giving roughly equal secondary shares.
+    #[test]
+    fn tmux_ai_layout_three_harnesses_stacks_all_secondaries() {
+        let providers = vec![AiProvider::Claude, AiProvider::Codex, AiProvider::Gemini];
+        let body = tmux_layout_script(&ConfigLayout::Ai, &providers, false, "aibox");
+
+        assert!(body.contains("tool_or_shell claude"));
+        assert!(body.contains("tool_or_shell codex"));
+        assert!(body.contains("tool_or_shell gemini"));
+        assert!(body.contains("agent_pane_2="), "second pane variable missing:\n{body}");
+        assert!(body.contains("agent_pane_3="), "third pane variable missing:\n{body}");
+        // First secondary at 20%; second secondary at 50% of remainder.
+        assert!(body.contains("-v -p 20"), "first secondary must use 20% split:\n{body}");
+        assert!(body.contains("-v -p 50"), "second secondary must use 50% split:\n{body}");
+    }
+
+    /// BR-AI-MULTIHARNESS: order-resolution — the stable list order of
+    /// harnesses in aibox.toml determines which is order-1.  Reversing the
+    /// list reverses which harness is primary.
+    #[test]
+    fn tmux_ai_layout_harness_order_follows_config_list() {
+        // codex first → codex is order-1 (primary agent_pane), claude is secondary
+        let providers_codex_first = vec![AiProvider::Codex, AiProvider::Claude];
+        let body = tmux_layout_script(&ConfigLayout::Ai, &providers_codex_first, false, "aibox");
+        let codex_pos = body.find("tool_or_shell codex").unwrap();
+        let claude_pos = body.find("tool_or_shell claude").unwrap();
+        assert!(
+            codex_pos < claude_pos,
+            "when codex is first in config list it must be the primary harness:\n{body}"
+        );
     }
 }
