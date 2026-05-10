@@ -1557,6 +1557,14 @@ pub enum McpGatewayMode {
     /// that Codex CLI incurs when it eagerly spawns every configured stdio MCP server.
     /// Requires the `aggregate-mcp` processkit skill to be enabled.
     Aggregate,
+    /// Like `Aggregate`, but defers per-skill module imports until the first tool call
+    /// for each skill, reducing cold-start latency by ~1.58× on typical installations.
+    /// Sets `PROCESSKIT_MCP_MODE=lazy_catalog` on the aggregate-mcp server.
+    ///
+    /// Requires processkit ≥ v0.26.0 and the `aggregate-mcp` processkit skill.
+    /// `Auto` does **not** promote to this variant; opt in explicitly via
+    /// `[mcp.gateway] mode = "lazy-aggregate"` in `aibox.toml`.
+    LazyAggregate,
 }
 
 /// `[mcp.gateway]` controls how aibox exposes processkit MCP tools to
