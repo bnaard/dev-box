@@ -1531,7 +1531,7 @@ fn check_powerkit_plugin_tree(config: &AiboxConfig, diag: &mut DiagResult) {
 /// segments render blank or cause PowerKit bootstrap errors.
 ///
 /// Required plugin scripts (relative to `tmux-powerkit/src/plugins/`):
-///   hostname.sh, external_ip.sh, ssh.sh, uptime.sh, weather.sh, datetime.sh,
+///   hostname.sh, externalip.sh, ssh.sh, uptime.sh, weather.sh, datetime.sh,
 ///   git.sh, github.sh, kubernetes.sh, terraform.sh, cloud.sh, cloudstatus.sh,
 ///   cpu.sh, loadavg.sh, memory.sh, swap.sh, disk.sh, gpu.sh, netspeed.sh,
 ///   ping.sh, aibox_log.sh, aibox_oom.sh, aibox_proc.sh, aibox_ai.sh,
@@ -1569,7 +1569,7 @@ fn check_powerkit_status_plugins(config: &AiboxConfig, diag: &mut DiagResult) {
     let required: &[&str] = &[
         // Line 1 right
         "hostname",
-        "external_ip",
+        "externalip",
         "ssh",
         "uptime",
         "weather",
