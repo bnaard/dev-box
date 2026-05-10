@@ -23,7 +23,7 @@ RUN set -eux; \
     install_plugin() { \
       repo="$1"; ref="$2"; dest="$3"; \
       mkdir -p "/tmux-plugins/${dest}"; \
-      curl -fsSL "https://github.com/${repo}/archive/${ref}.tar.gz" \
+      curl -fsSL --retry 5 --retry-delay 3 --retry-all-errors "https://github.com/${repo}/archive/${ref}.tar.gz" \
         | tar -xz --strip-components=1 -C "/tmux-plugins/${dest}"; \
     }; \
     install_plugin fabioluciano/tmux-powerkit "${TMUX_POWERKIT_REF}" tmux-powerkit; \
@@ -59,7 +59,7 @@ RUN mkdir -p /build/aibox-runtime-tools/bin && \
 FROM fetch-base AS fetch-yazi
 ARG YAZI_VERSION=26.5.6
 RUN ARCH=$(uname -m) && \
-    curl -fsSL \
+    curl -fsSL --retry 5 --retry-delay 3 --retry-all-errors \
       "https://github.com/sxyazi/yazi/releases/download/v${YAZI_VERSION}/yazi-${ARCH}-unknown-linux-musl.zip" \
       -o /tmp/yazi.zip && \
     unzip -q /tmp/yazi.zip -d /tmp/yazi && \
@@ -73,7 +73,7 @@ FROM fetch-base AS fetch-ripgrep
 ARG RIPGREP_VERSION=15.1.0
 RUN ARCH=$(uname -m) && \
     RG_LIBC=$(case $ARCH in x86_64) echo musl;; *) echo gnu;; esac) && \
-    curl -fsSL \
+    curl -fsSL --retry 5 --retry-delay 3 --retry-all-errors \
       "https://github.com/BurntSushi/ripgrep/releases/download/${RIPGREP_VERSION}/ripgrep-${RIPGREP_VERSION}-${ARCH}-unknown-linux-${RG_LIBC}.tar.gz" \
       | tar -xz --strip-components=1 -C /usr/local/bin \
         "ripgrep-${RIPGREP_VERSION}-${ARCH}-unknown-linux-${RG_LIBC}/rg" && \
@@ -83,7 +83,7 @@ RUN ARCH=$(uname -m) && \
 FROM fetch-base AS fetch-fd
 ARG FD_VERSION=10.4.2
 RUN ARCH=$(uname -m) && \
-    curl -fsSL \
+    curl -fsSL --retry 5 --retry-delay 3 --retry-all-errors \
       "https://github.com/sharkdp/fd/releases/download/v${FD_VERSION}/fd-v${FD_VERSION}-${ARCH}-unknown-linux-musl.tar.gz" \
       | tar -xz --strip-components=1 -C /usr/local/bin \
         "fd-v${FD_VERSION}-${ARCH}-unknown-linux-musl/fd" && \
@@ -93,7 +93,7 @@ RUN ARCH=$(uname -m) && \
 FROM fetch-base AS fetch-bat
 ARG BAT_VERSION=0.26.1
 RUN ARCH=$(uname -m) && \
-    curl -fsSL \
+    curl -fsSL --retry 5 --retry-delay 3 --retry-all-errors \
       "https://github.com/sharkdp/bat/releases/download/v${BAT_VERSION}/bat-v${BAT_VERSION}-${ARCH}-unknown-linux-musl.tar.gz" \
       | tar -xz --strip-components=1 -C /usr/local/bin \
         "bat-v${BAT_VERSION}-${ARCH}-unknown-linux-musl/bat" && \
@@ -104,7 +104,7 @@ FROM fetch-base AS fetch-eza
 ARG EZA_VERSION=0.23.4
 RUN ARCH=$(uname -m) && \
     EZA_SUFFIX=$(case $ARCH in x86_64) echo "unknown-linux-musl";; aarch64) echo "unknown-linux-gnu";; esac) && \
-    curl -fsSL \
+    curl -fsSL --retry 5 --retry-delay 3 --retry-all-errors \
       "https://github.com/eza-community/eza/releases/download/v${EZA_VERSION}/eza_${ARCH}-${EZA_SUFFIX}.tar.gz" \
       | tar -xz -C /usr/local/bin && \
     chmod +x /usr/local/bin/eza
@@ -113,7 +113,7 @@ RUN ARCH=$(uname -m) && \
 FROM fetch-base AS fetch-zoxide
 ARG ZOXIDE_VERSION=0.9.9
 RUN ARCH=$(uname -m) && \
-    curl -fsSL \
+    curl -fsSL --retry 5 --retry-delay 3 --retry-all-errors \
       "https://github.com/ajeetdsouza/zoxide/releases/download/v${ZOXIDE_VERSION}/zoxide-${ZOXIDE_VERSION}-${ARCH}-unknown-linux-musl.tar.gz" \
       | tar -xz -C /usr/local/bin zoxide && \
     chmod +x /usr/local/bin/zoxide
@@ -123,7 +123,7 @@ FROM fetch-base AS fetch-fzf
 ARG FZF_VERSION=0.72.0
 RUN ARCH=$(uname -m) && \
     FZF_ARCH=$(case $ARCH in aarch64) echo arm64;; x86_64) echo amd64;; esac) && \
-    curl -fsSL \
+    curl -fsSL --retry 5 --retry-delay 3 --retry-all-errors \
       "https://github.com/junegunn/fzf/releases/download/v${FZF_VERSION}/fzf-${FZF_VERSION}-linux_${FZF_ARCH}.tar.gz" \
       | tar -xz -C /usr/local/bin && \
     chmod +x /usr/local/bin/fzf
@@ -133,7 +133,7 @@ FROM fetch-base AS fetch-delta
 ARG DELTA_VERSION=0.19.2
 RUN ARCH=$(uname -m) && \
     DELTA_LIBC=$(case $ARCH in x86_64) echo musl;; *) echo gnu;; esac) && \
-    curl -fsSL \
+    curl -fsSL --retry 5 --retry-delay 3 --retry-all-errors \
       "https://github.com/dandavison/delta/releases/download/${DELTA_VERSION}/delta-${DELTA_VERSION}-${ARCH}-unknown-linux-${DELTA_LIBC}.tar.gz" \
       | tar -xz --strip-components=1 -C /usr/local/bin \
         "delta-${DELTA_VERSION}-${ARCH}-unknown-linux-${DELTA_LIBC}/delta" && \
@@ -143,7 +143,7 @@ RUN ARCH=$(uname -m) && \
 FROM fetch-base AS fetch-starship
 ARG STARSHIP_VERSION=1.25.1
 RUN ARCH=$(uname -m) && \
-    curl -fsSL \
+    curl -fsSL --retry 5 --retry-delay 3 --retry-all-errors \
       "https://github.com/starship/starship/releases/download/v${STARSHIP_VERSION}/starship-${ARCH}-unknown-linux-musl.tar.gz" \
       | tar -xz -C /usr/local/bin && \
     chmod +x /usr/local/bin/starship
@@ -155,19 +155,19 @@ FROM fetch-base AS fetch-vim-colors
 RUN mkdir -p /vim-colors/colors \
       /vim-colors/pack/themes/start/dracula/colors \
       /vim-colors/pack/themes/start/dracula/autoload && \
-    curl -fsSL -o /vim-colors/colors/gruvbox.vim \
+    curl -fsSL --retry 5 --retry-delay 3 --retry-all-errors -o /vim-colors/colors/gruvbox.vim \
       https://raw.githubusercontent.com/morhetz/gruvbox/master/colors/gruvbox.vim && \
-    curl -fsSL -o /vim-colors/colors/catppuccin_mocha.vim \
+    curl -fsSL --retry 5 --retry-delay 3 --retry-all-errors -o /vim-colors/colors/catppuccin_mocha.vim \
       https://raw.githubusercontent.com/catppuccin/vim/main/colors/catppuccin_mocha.vim && \
-    curl -fsSL -o /vim-colors/colors/catppuccin_latte.vim \
+    curl -fsSL --retry 5 --retry-delay 3 --retry-all-errors -o /vim-colors/colors/catppuccin_latte.vim \
       https://raw.githubusercontent.com/catppuccin/vim/main/colors/catppuccin_latte.vim && \
-    curl -fsSL -o /vim-colors/colors/tokyonight.vim \
+    curl -fsSL --retry 5 --retry-delay 3 --retry-all-errors -o /vim-colors/colors/tokyonight.vim \
       https://raw.githubusercontent.com/ghifarit53/tokyonight-vim/master/colors/tokyonight.vim && \
-    curl -fsSL -o /vim-colors/colors/nord.vim \
+    curl -fsSL --retry 5 --retry-delay 3 --retry-all-errors -o /vim-colors/colors/nord.vim \
       https://raw.githubusercontent.com/nordtheme/vim/main/colors/nord.vim && \
-    curl -fsSL -o /vim-colors/pack/themes/start/dracula/colors/dracula.vim \
+    curl -fsSL --retry 5 --retry-delay 3 --retry-all-errors -o /vim-colors/pack/themes/start/dracula/colors/dracula.vim \
       https://raw.githubusercontent.com/dracula/vim/master/colors/dracula.vim && \
-    curl -fsSL -o /vim-colors/pack/themes/start/dracula/autoload/dracula.vim \
+    curl -fsSL --retry 5 --retry-delay 3 --retry-all-errors -o /vim-colors/pack/themes/start/dracula/autoload/dracula.vim \
       https://raw.githubusercontent.com/dracula/vim/master/autoload/dracula.vim
 
 # =============================================================================
