@@ -961,8 +961,10 @@ kubectl = "v1.30.0"
     fn compute_harness_previous_selection_renders_canonical_names() {
         use crate::config::{AiHarness, AiSection};
 
-        let mut ai = AiSection::default();
-        ai.harnesses = vec![AiHarness::Claude, AiHarness::Codex];
+        let ai = AiSection {
+            harnesses: vec![AiHarness::Claude, AiHarness::Codex],
+            ..Default::default()
+        };
 
         let selection = compute_harness_previous_selection(&ai);
         assert!(selection.contains("claude"));

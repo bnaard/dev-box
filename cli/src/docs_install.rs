@@ -37,12 +37,7 @@ use crate::output;
 /// Conventional locations a docs site might live in, relative to the
 /// project root. Order matters: the first one that exists with a
 /// `package.json` wins.
-const DOCS_DIR_CANDIDATES: &[&str] = &[
-    "docs-site",
-    "website",
-    "docs",
-    "site",
-];
+const DOCS_DIR_CANDIDATES: &[&str] = &["docs-site", "website", "docs", "site"];
 
 /// Heuristic: which docs addons declare an npm-tooling dependency that
 /// implies a project-local `package.json` install will be useful?
@@ -52,11 +47,7 @@ const DOCS_DIR_CANDIDATES: &[&str] = &[
 /// when the project happens to ship a `docs-site/package.json` for
 /// other reasons. If the project has a `package.json` AND any
 /// node-flavoured docs addon, install.
-const NODE_DOCS_ADDONS: &[&str] = &[
-    "docs-docusaurus",
-    "docs-starlight",
-    "docs-zensical",
-];
+const NODE_DOCS_ADDONS: &[&str] = &["docs-docusaurus", "docs-starlight", "docs-zensical"];
 
 /// Public entry point used by `cmd_sync`. Best-effort — never returns
 /// an error to the caller; logs warnings if anything goes wrong.
@@ -159,9 +150,7 @@ pub(crate) fn detect_package_manager(docs_dir: &Path) -> PackageManager {
         PackageManager::Pnpm
     } else if docs_dir.join("yarn.lock").is_file() {
         PackageManager::Yarn
-    } else if docs_dir.join("bun.lock").is_file()
-        || docs_dir.join("bun.lockb").is_file()
-    {
+    } else if docs_dir.join("bun.lock").is_file() || docs_dir.join("bun.lockb").is_file() {
         PackageManager::Bun
     } else {
         PackageManager::Npm
