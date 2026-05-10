@@ -33,13 +33,14 @@ bind AIBOX_TMUX_PREFIX send-prefix
 # Pane navigation mirrors the old aibox leader muscle memory.
 bind-key -N "Show aibox/tmux key bindings" ? display-popup -w 80% -h 75% -E "tmux list-keys -N | less -R"
 bind-key -N "Select pane left" h select-pane -L
-bind-key -N "Select pane down" j select-pane -D
-bind-key -N "Select pane up" k select-pane -U
+bind-key -N "Select pane down / next harness pane" j select-pane -D
+bind-key -N "Select pane up / prev harness pane" k select-pane -U
 bind-key -N "Select pane right" l select-pane -R
 bind-key -N "Split pane right" r split-window -h -c "#{pane_current_path}"
 bind-key -N "Split pane down" d split-window -v -c "#{pane_current_path}"
 bind-key -N "Kill pane" x kill-pane
 bind-key -N "Toggle pane zoom" f resize-pane -Z
+bind-key -N "Toggle pane zoom (alias)" z resize-pane -Z
 bind-key -N "Kill tmux session" q confirm-before -p "kill tmux session AIBOX_TMUX_SESSION? (y/n)" kill-session
 bind-key -N "Reload tmux config" R source-file ~/.config/tmux/tmux.conf \; display-message "aibox tmux config reloaded"
 bind-key -N "Open log pane (lnav)" L display-popup -E -w 90% -h 80% "lnav -q /workspace/.aibox/aibox.log /workspace/.aibox/aibox.log.1 2>/dev/null || less /workspace/.aibox/aibox.log"
@@ -568,5 +569,35 @@ mod tests {
         assert!(conf.contains("aibox_ai"), "aibox_ai should be present");
         assert!(conf.contains("aibox_mcp"), "aibox_mcp should be present");
         assert!(!conf.contains("aibox_mig"), "aibox_mig should be absent");
+    }
+
+    /// BR-AI-MULTIHARNESS (BACK-20260510_0336-SmartLark, v0.25.7):
+    /// leader j/k are already bound to down/up pane selection, which cycles
+    /// between stacked harness panes in the ai layout.  leader z must be
+    /// explicitly bound as a zoom toggle alias alongside the existing leader f.
+    #[test]
+    fn tmux_conf_has_zoom_toggle_on_z_and_j_k_harness_nav() {
+        let config = crate::config::test_config();
+        let conf = tmux_conf(&config);
+
+        // z must be an explicit zoom toggle alias.
+        assert!(
+            conf.contains(r#"bind-key -N "Toggle pane zoom (alias)" z resize-pane -Z"#),
+            "leader z must be bound as zoom toggle alias:\n{conf}"
+        );
+        // j / k pane navigation (down/up) serves as next/prev harness pane.
+        assert!(
+            conf.contains(r#"bind-key -N "Select pane down / next harness pane" j select-pane -D"#),
+            "leader j must be bound to select-pane -D (next harness pane):\n{conf}"
+        );
+        assert!(
+            conf.contains(r#"bind-key -N "Select pane up / prev harness pane" k select-pane -U"#),
+            "leader k must be bound to select-pane -U (prev harness pane):\n{conf}"
+        );
+        // f zoom toggle must still exist (original binding preserved).
+        assert!(
+            conf.contains(r#"bind-key -N "Toggle pane zoom" f resize-pane -Z"#),
+            "original leader f zoom toggle must remain:\n{conf}"
+        );
     }
 }
