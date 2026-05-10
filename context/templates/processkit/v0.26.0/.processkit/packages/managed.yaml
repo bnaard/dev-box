@@ -1,0 +1,51 @@
+---
+apiVersion: processkit.projectious.work/v1
+kind: Package
+metadata:
+  id: PKG-managed
+  name: managed
+  version: "1.0.0"
+  created: 2026-04-06T00:00:00Z
+spec:
+  description: >
+    Default tier for a small team with a structured backlog. Adds roles,
+    decisions, scopes, categories, and the lightweight process artifacts
+    (standups, retros, session handovers) on top of minimal. Does NOT
+    include heavy architecture, security, or data-specific skills — pick
+    software, research, or product for those.
+  intended_for: "Small teams with a shared backlog and regular process cadences."
+  extends: [minimal]
+  includes:
+    skills:
+      # Additional process primitives
+      - role-management
+      - decision-record
+      - scope-management
+      - category-management
+      - cross-reference-management
+      - binding-management
+      - process-management
+      - state-machine-management
+      - gate-management
+      - schedule-management
+      - constraint-management
+      - discussion-management
+      - metrics-management
+      # Lightweight process artifacts (migrated from aibox)
+      - backlog-context
+      - decisions-adr
+      - standup-context
+      - session-handover
+      - context-archiving
+      - retrospective
+      - estimation-planning
+      - code-review
+      - documentation
+      - refactoring
+      - tdd-workflow
+      - incident-response
+      - postmortem-writing
+      - release-semver
+      - integration-testing
+      - dependency-management
+---
