@@ -759,11 +759,15 @@ cmd_release() {
   # Run pk-doctor (processkit health) and aibox doctor (runtime hygiene).
   # ERRORs from either doctor block the release; WARNs surface in the report
   # but do not block.  Output written to dist/RELEASE-DOCTORS.md.
-  info "Running release doctor checks..."
-  cmd_release_doctors
-  if [[ -t 0 ]]; then
-    warn "Review dist/RELEASE-DOCTORS.md for any warnings. Press Enter to continue."
-    read -r
+  if [[ "${AIBOX_RELEASE_SKIP_DOCTORS:-}" == "1" ]]; then
+    warn "AIBOX_RELEASE_SKIP_DOCTORS=1 set — skipping Phase 0 doctor checks. Owner accepts the risk."
+  else
+    info "Running release doctor checks..."
+    cmd_release_doctors
+    if [[ -t 0 ]]; then
+      warn "Review dist/RELEASE-DOCTORS.md for any warnings. Press Enter to continue."
+      read -r
+    fi
   fi
 
   # ── Step 2: Sync processkit ───────────────────────────────────────────────
