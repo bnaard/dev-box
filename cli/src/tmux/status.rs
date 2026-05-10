@@ -120,7 +120,7 @@ pub fn tmux_conf(config: &AiboxConfig) -> String {
 /// internal key name to the PowerKit plugin ID after the path-a split.
 const LINE1_RIGHT_ORDER: &[(&str, &str)] = &[
     ("hostname", "hostname"),
-    ("external_ip", "external_ip"),
+    ("external_ip", "externalip"),
     ("ssh", "ssh"),
     ("uptime", "uptime"),
     ("weather", "weather"),
@@ -391,7 +391,7 @@ mod tests {
         );
         assert!(
             conf.contains(
-                r#"@powerkit_plugins "hostname,external_ip,ssh,uptime,weather,datetime,git,github,kubernetes,terraform,cloud,cloudstatus,cpu,loadavg,memory,swap,disk,gpu,netspeed,ping,aibox_log,aibox_oom,aibox_proc,aibox_ai,aibox_mcp,aibox_mig""#
+                r#"@powerkit_plugins "hostname,externalip,ssh,uptime,weather,datetime,git,github,kubernetes,terraform,cloud,cloudstatus,cpu,loadavg,memory,swap,disk,gpu,netspeed,ping,aibox_log,aibox_oom,aibox_proc,aibox_ai,aibox_mcp,aibox_mig""#
             )
                 && conf.contains(r#"@powerkit_bar_layout "double""#)
                 && conf.contains(r#"@powerkit_status_order "session,plugins""#)
@@ -399,7 +399,7 @@ mod tests {
                 && conf.contains(r#"@powerkit_transparent "false""#)
                 && conf.contains(r#"@powerkit_pane_border_status "top""#)
                 && conf.contains(r##"@powerkit_pane_border_format "#{?client_prefix,PREFIX,NORMAL} #{pane_title} #{pane_current_command}""##)
-                && conf.contains(r#"@powerkit_line1_right "hostname,external_ip,ssh,uptime,weather,datetime""#)
+                && conf.contains(r#"@powerkit_line1_right "hostname,externalip,ssh,uptime,weather,datetime""#)
                 && conf.contains(r#"@powerkit_line2_left "git,github,kubernetes,terraform,cloud,cloudstatus""#)
                 && conf.contains(
                     r#"@powerkit_line2_right "cpu,loadavg,memory,swap,disk,gpu,netspeed,ping,aibox_log,aibox_oom,aibox_proc,aibox_ai,aibox_mcp,aibox_mig""#
@@ -437,12 +437,12 @@ mod tests {
         let config = crate::config::test_config();
         let conf = tmux_conf(&config);
 
-        assert!(conf.contains(r#"@powerkit_plugins "hostname,external_ip"#));
+        assert!(conf.contains(r#"@powerkit_plugins "hostname,externalip"#));
         assert!(conf.contains("tmux-powerkit.tmux"));
         // aibox metrics use path-a split: per-metric plugin segments, not a
         // single flat-text segment. Confirm the old single-segment is gone.
         assert!(
-            !conf.contains(r#"@powerkit_plugins "hostname,external_ip,ssh,uptime,weather,datetime,git,github,kubernetes,terraform,cloud,cloudstatus,cpu,loadavg,memory,swap,disk,gpu,netspeed,ping,aibox""#),
+            !conf.contains(r#"@powerkit_plugins "hostname,externalip,ssh,uptime,weather,datetime,git,github,kubernetes,terraform,cloud,cloudstatus,cpu,loadavg,memory,swap,disk,gpu,netspeed,ping,aibox""#),
             "aibox single-segment plugin must be replaced by per-metric split plugins:\n{conf}"
         );
         assert!(
@@ -502,13 +502,13 @@ mod tests {
         let config = crate::config::test_config();
         let conf = tmux_conf(&config);
 
-        // Line 1 right: hostname → external_ip → ssh → uptime → weather → datetime
+        // Line 1 right: hostname → externalip → ssh → uptime → weather → datetime
         // (DEC-20260508_2115-SilentFern)
         assert!(
             conf.contains(
-                r#"@powerkit_line1_right "hostname,external_ip,ssh,uptime,weather,datetime""#
+                r#"@powerkit_line1_right "hostname,externalip,ssh,uptime,weather,datetime""#
             ),
-            "line1_right slot order must be: hostname,external_ip,ssh,uptime,weather,datetime\n{conf}"
+            "line1_right slot order must be: hostname,externalip,ssh,uptime,weather,datetime\n{conf}"
         );
 
         // Line 2 left: git → github → kubernetes → terraform → cloud → cloudstatus
@@ -530,7 +530,7 @@ mod tests {
         // Full plugin list snapshot (all three line components concatenated)
         assert!(
             conf.contains(
-                r#"@powerkit_plugins "hostname,external_ip,ssh,uptime,weather,datetime,git,github,kubernetes,terraform,cloud,cloudstatus,cpu,loadavg,memory,swap,disk,gpu,netspeed,ping,aibox_log,aibox_oom,aibox_proc,aibox_ai,aibox_mcp,aibox_mig""#
+                r#"@powerkit_plugins "hostname,externalip,ssh,uptime,weather,datetime,git,github,kubernetes,terraform,cloud,cloudstatus,cpu,loadavg,memory,swap,disk,gpu,netspeed,ping,aibox_log,aibox_oom,aibox_proc,aibox_ai,aibox_mcp,aibox_mig""#
             ),
             "full plugin list snapshot mismatch — slot order is fixed per DEC-20260508_2115-SilentFern\n{conf}"
         );
