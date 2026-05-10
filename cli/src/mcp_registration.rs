@@ -1319,16 +1319,77 @@ fn gateway_daemon_proxy_spec(
     })
 }
 
+/// Read the aggregate-mcp opt-in config (`mcp/mcp-config.aggregate.json`) from the
+/// live-installed skills tree and return a single [`McpServerSpec`] for the
+/// `processkit-aggregate-mcp` server.
+///
+/// The aggregate server is intentionally NOT named `mcp-config.json` by processkit
+/// (see `context/skills/processkit/aggregate-mcp/SKILL.md`), so it is never picked
+/// up by the normal granular collector.  aibox opts into it explicitly here when
+/// `[mcp.gateway].mode = "aggregate"` (or `"auto"` falls back to it because
+/// `processkit-gateway` is unavailable).
+///
+/// Returns `None` when the file does not exist or cannot be parsed.
+fn aggregate_mcp_spec(project_root: &Path) -> Option<McpServerSpec> {
+    let config_path = project_root
+        .join("context")
+        .join("skills")
+        .join("processkit")
+        .join("aggregate-mcp")
+        .join("mcp")
+        .join("mcp-config.aggregate.json");
+
+    let body = fs::read_to_string(&config_path).ok()?;
+    let parsed: PerSkillConfig = serde_json::from_str(&body).ok()?;
+    let (name, raw) = parsed.mcp_servers.into_iter().next()?;
+    Some(McpServerSpec {
+        name,
+        command: raw.command,
+        args: raw.args,
+        env: processkit_mcp_env(raw.env),
+    })
+}
+
 fn select_processkit_gateway_specs(
     config: &AiboxConfig,
+    project_root: &Path,
     granular_specs: Vec<McpServerSpec>,
 ) -> Vec<McpServerSpec> {
     match config.mcp.gateway.mode {
         McpGatewayMode::Granular => granular_specs,
-        McpGatewayMode::Auto => match gateway_daemon_proxy_spec(config, &granular_specs) {
-            Some(spec) => vec![spec],
-            None => granular_specs,
-        },
+        McpGatewayMode::Auto => {
+            // Preference order:
+            // 1. daemon-proxy via processkit-gateway (one stdio-proxy per harness,
+            //    self-starting daemon, lowest per-call latency once warm)
+            // 2. aggregate-mcp (single in-process server, no daemon, best cold-start
+            //    latency for eager-start harnesses like Codex when gateway unavailable)
+            // 3. granular per-skill servers (fallback when neither is installed)
+            if let Some(spec) = gateway_daemon_proxy_spec(config, &granular_specs) {
+                vec![spec]
+            } else if let Some(spec) = aggregate_mcp_spec(project_root) {
+                output::ok(
+                    "processkit-gateway not installed; auto mode using aggregate-mcp \
+                     (single-process, reduced Codex startup latency)",
+                );
+                vec![spec]
+            } else {
+                granular_specs
+            }
+        }
+        McpGatewayMode::Aggregate => {
+            match aggregate_mcp_spec(project_root) {
+                Some(spec) => vec![spec],
+                None => {
+                    output::warn(
+                        "[mcp.gateway].mode = \"aggregate\" requested, but \
+                         context/skills/processkit/aggregate-mcp/mcp/mcp-config.aggregate.json \
+                         is missing; falling back to granular processkit MCP servers. \
+                         Enable the aggregate-mcp skill and run `aibox apply`.",
+                    );
+                    granular_specs
+                }
+            }
+        }
         McpGatewayMode::Stdio => {
             match gateway_stdio_spec(&granular_specs, config.mcp.gateway.lazy_catalog) {
                 Some(spec) => vec![spec],
@@ -1537,8 +1598,9 @@ pub fn regenerate_mcp_configs(config: &AiboxConfig, project_root: &Path) -> Resu
     let granular_processkit_managed = managed_set(&processkit_specs);
 
     let gateway_selected = config.mcp.gateway.mode != McpGatewayMode::Granular
-        && gateway_spec(&processkit_specs).is_some();
-    let mut specs = select_processkit_gateway_specs(config, processkit_specs);
+        && (gateway_spec(&processkit_specs).is_some()
+            || aggregate_mcp_spec(project_root).is_some());
+    let mut specs = select_processkit_gateway_specs(config, project_root, processkit_specs);
     for s in &config.mcp.servers {
         specs.push(McpServerSpec {
             name: s.name.clone(),
@@ -1606,6 +1668,9 @@ pub fn regenerate_mcp_configs(config: &AiboxConfig, project_root: &Path) -> Resu
 
     let mut managed = managed_set(&specs);
     managed.extend(granular_processkit_managed);
+    // Always include processkit-aggregate-mcp in the managed set so that switching
+    // away from aggregate mode removes the entry from harness configs on the next apply.
+    managed.insert("processkit-aggregate-mcp".to_string());
     let providers: HashSet<&AiProvider> = config.ai.harnesses.iter().collect();
 
     // 1. Claude / Copilot / OpenCode / Hermes / Mistral use the Claude-shape
@@ -3248,6 +3313,156 @@ args = ["server.js"]
         assert!(
             servers.get("processkit-skill-gate").is_none(),
             "stale granular processkit entries must be removed when gateway mode is active: {}",
+            body
+        );
+    }
+
+    /// Test: aggregate mode writes a single processkit-aggregate-mcp server entry
+    /// and removes stale granular entries from existing harness configs.
+    #[test]
+    fn aggregate_mode_collapses_processkit_servers_to_single_aggregate_entry() {
+        use crate::config::{AiSection, AiboxConfig, McpGatewaySection, McpSection, ProcessKitSection};
+        let tmp = TempDir::new().unwrap();
+        let version = crate::processkit_vocab::PROCESSKIT_DEFAULT_VERSION;
+
+        // Write a granular skill in the mirror so the managed set is populated.
+        write_synth_skill_mcp(
+            tmp.path(),
+            version,
+            "processkit",
+            "skill-gate",
+            r#"{"mcpServers":{"processkit-skill-gate":{"command":"uv","args":["run","context/skills/processkit/skill-gate/mcp/server.py"]}}}"#,
+        );
+
+        // Write the aggregate-mcp opt-in config in the live skills tree.
+        let agg_dir = tmp
+            .path()
+            .join("context/skills/processkit/aggregate-mcp/mcp");
+        fs::create_dir_all(&agg_dir).unwrap();
+        // The server.py must exist for validate_script_paths.
+        fs::write(agg_dir.join("server.py"), "# test stub\n").unwrap();
+        fs::write(
+            agg_dir.join("mcp-config.aggregate.json"),
+            r#"{"mcpServers":{"processkit-aggregate-mcp":{"command":"uv","args":["run","context/skills/processkit/aggregate-mcp/mcp/server.py"],"env":{"PROCESSKIT_MCP_MODE":"aggregate"}}}}"#,
+        )
+        .unwrap();
+
+        // Pre-populate .mcp.json with a stale granular entry so we can verify it gets removed.
+        fs::write(
+            tmp.path().join(".mcp.json"),
+            r#"{
+                "mcpServers": {
+                    "processkit-skill-gate": {"command": "uv", "args": []},
+                    "my-custom-server": {"command": "node", "args": ["server.js"]}
+                }
+            }"#,
+        )
+        .unwrap();
+
+        let mut config = AiboxConfig {
+            ai: AiSection {
+                harnesses: vec![crate::config::AiHarness::Claude],
+                ..AiSection::default()
+            },
+            processkit: ProcessKitSection {
+                version: version.to_string(),
+                ..ProcessKitSection::default()
+            },
+            ..crate::config::test_config()
+        };
+        config.mcp = McpSection {
+            gateway: McpGatewaySection {
+                mode: McpGatewayMode::Aggregate,
+                ..McpGatewaySection::default()
+            },
+            ..McpSection::default()
+        };
+
+        regenerate_mcp_configs(&config, tmp.path()).unwrap();
+        let body = fs::read_to_string(tmp.path().join(".mcp.json")).unwrap();
+        let parsed: serde_json::Value = serde_json::from_str(&body).unwrap();
+        let servers = parsed["mcpServers"].as_object().unwrap();
+
+        assert!(
+            servers.get("processkit-aggregate-mcp").is_some(),
+            "aggregate mode must write the processkit-aggregate-mcp entry: {}",
+            body
+        );
+        assert!(
+            servers.get("processkit-skill-gate").is_none(),
+            "stale granular processkit entries must be removed in aggregate mode: {}",
+            body
+        );
+        // User-added server must be preserved.
+        assert!(
+            servers.get("my-custom-server").is_some(),
+            "user-added server must be preserved in aggregate mode: {}",
+            body
+        );
+        // The aggregate server must have the correct env var.
+        assert_eq!(
+            servers["processkit-aggregate-mcp"]["env"]["PROCESSKIT_MCP_MODE"],
+            "aggregate",
+            "aggregate server must set PROCESSKIT_MCP_MODE=aggregate: {}",
+            body
+        );
+    }
+
+    /// Test: in auto mode, when processkit-gateway is absent but aggregate-mcp is
+    /// installed, the aggregate server is selected instead of granular servers.
+    #[test]
+    fn auto_mode_falls_back_to_aggregate_when_gateway_absent() {
+        use crate::config::{AiSection, AiboxConfig, ProcessKitSection};
+        let tmp = TempDir::new().unwrap();
+        let version = crate::processkit_vocab::PROCESSKIT_DEFAULT_VERSION;
+
+        // Write a granular skill in the mirror (NO processkit-gateway skill).
+        write_synth_skill_mcp(
+            tmp.path(),
+            version,
+            "processkit",
+            "skill-gate",
+            r#"{"mcpServers":{"processkit-skill-gate":{"command":"uv","args":["run","context/skills/processkit/skill-gate/mcp/server.py"]}}}"#,
+        );
+
+        // Write the aggregate-mcp opt-in config in the live skills tree only.
+        let agg_dir = tmp
+            .path()
+            .join("context/skills/processkit/aggregate-mcp/mcp");
+        fs::create_dir_all(&agg_dir).unwrap();
+        fs::write(agg_dir.join("server.py"), "# test stub\n").unwrap();
+        fs::write(
+            agg_dir.join("mcp-config.aggregate.json"),
+            r#"{"mcpServers":{"processkit-aggregate-mcp":{"command":"uv","args":["run","context/skills/processkit/aggregate-mcp/mcp/server.py"],"env":{"PROCESSKIT_MCP_MODE":"aggregate"}}}}"#,
+        )
+        .unwrap();
+
+        let config = AiboxConfig {
+            ai: AiSection {
+                harnesses: vec![crate::config::AiHarness::Claude],
+                ..AiSection::default()
+            },
+            processkit: ProcessKitSection {
+                version: version.to_string(),
+                ..ProcessKitSection::default()
+            },
+            ..crate::config::test_config()
+        };
+        // mode defaults to Auto
+
+        regenerate_mcp_configs(&config, tmp.path()).unwrap();
+        let body = fs::read_to_string(tmp.path().join(".mcp.json")).unwrap();
+        let parsed: serde_json::Value = serde_json::from_str(&body).unwrap();
+        let servers = parsed["mcpServers"].as_object().unwrap();
+
+        assert!(
+            servers.get("processkit-aggregate-mcp").is_some(),
+            "auto mode must select aggregate-mcp when processkit-gateway is absent: {}",
+            body
+        );
+        assert!(
+            servers.get("processkit-skill-gate").is_none(),
+            "granular entries must be collapsed in auto mode with aggregate fallback: {}",
             body
         );
     }

@@ -717,7 +717,7 @@ fn should_start_processkit_gateway_daemon(config: &AiboxConfig, _devcontainer_di
         // processkit v0.25.4 made stdio-proxy own local daemon startup by
         // default. In auto mode, prefer that self-starting proxy over a
         // devcontainer postStartCommand that can race MCP client startup.
-        McpGatewayMode::Auto | McpGatewayMode::Granular | McpGatewayMode::Stdio => false,
+        McpGatewayMode::Auto | McpGatewayMode::Granular | McpGatewayMode::Stdio | McpGatewayMode::Aggregate => false,
     }
 }
 

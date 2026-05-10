@@ -1538,7 +1538,7 @@ fn render_ai_mcp_section(out: &mut String, config: &AiboxConfig, sep: &str) {
         }
     }
     out.push('\n');
-    out.push_str("# [ai.mcp.gateway] — processkit MCP topology. Options for mode: auto | granular | stdio | daemon-proxy\n");
+    out.push_str("# [ai.mcp.gateway] — processkit MCP topology. Options for mode: auto | granular | stdio | daemon-proxy | aggregate\n");
     out.push_str("[ai.mcp.gateway]\n");
     out.push_str(&format!(
         "mode = \"{}\"          # auto uses daemon-proxy when processkit-gateway is installed\n",
@@ -1603,6 +1603,7 @@ fn mcp_gateway_mode_str(mode: McpGatewayMode) -> &'static str {
         McpGatewayMode::Granular => "granular",
         McpGatewayMode::Stdio => "stdio",
         McpGatewayMode::DaemonProxy => "daemon-proxy",
+        McpGatewayMode::Aggregate => "aggregate",
     }
 }
 
