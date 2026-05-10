@@ -160,7 +160,7 @@ pub const TIER_SPECIFIC_MCP_SKILLS: &[&str] = &[
 /// constant serves as the canonical reference for tests and documentation.
 // Used in #[cfg(test)] blocks across multiple modules and in documentation.
 #[allow(dead_code)]
-pub const PROCESSKIT_DEFAULT_VERSION: &str = "v0.25.8";
+pub const PROCESSKIT_DEFAULT_VERSION: &str = "v0.26.0";
 
 // ---------------------------------------------------------------------------
 // Processkit source-tree directory segments
