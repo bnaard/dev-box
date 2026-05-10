@@ -64,8 +64,8 @@ RUN install -d /usr/local/bin && \
 RUN rustup target add x86_64-unknown-linux-gnu
 
 
-FROM ghcr.io/projectious-work/aibox:base-debian-v0.25.6 AS aibox
-LABEL aibox.version="0.25.6"
+FROM ghcr.io/projectious-work/aibox:base-debian-v0.25.7 AS aibox
+LABEL aibox.version="0.25.7"
 LABEL aibox.profile="human-dev"
 
 ENV SHELL=/bin/bash
@@ -141,7 +141,7 @@ RUN npm install -g @openai/codex
 
 
 # Addon: docs-docusaurus
-RUN npm install -g @docusaurus/core@3.8 && \
+RUN npm install -g @docusaurus/core@3.10.1 && \
     npm cache clean --force
 
 # Addon: python (runtime)
@@ -208,4 +208,4 @@ EOF
 
 # Record image version inside container for runtime checks
 USER root
-RUN echo "0.25.6" > /etc/aibox-version
+RUN echo "0.25.7" > /etc/aibox-version
