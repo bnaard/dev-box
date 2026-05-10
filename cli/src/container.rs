@@ -2213,6 +2213,8 @@ pub fn cmd_init(config_path: &Option<String>, params: InitParams) -> Result<()> 
         local_mcp_servers: vec![],
     };
     config.resolve_ai_provider_addons();
+    // Resolve tmux session name from project name (and sync other grouped sections).
+    config.migrate_legacy_sections();
 
     // S5 — BR-SEC-HARDEN: when Codex is selected during `init`, automatically
     // set acknowledge_seccomp_unconfined = true.  The user has consciously

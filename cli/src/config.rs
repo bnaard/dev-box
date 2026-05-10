@@ -1245,8 +1245,67 @@ fn default_tmux_prefix() -> String {
     "C-g".to_string()
 }
 
+/// Resolve the tmux session name from a project name and optional working directory.
+///
+/// Resolution order:
+/// 1. `project_name` if non-empty after sanitization.
+/// 2. Basename of `cwd` if provided and non-empty after sanitization.
+/// 3. Literal `"aibox"` fallback.
+///
+/// Sanitization: strips or replaces characters illegal in tmux session names
+/// (`:` and `.` are replaced with `-`; leading/trailing `-` are trimmed;
+/// any run of consecutive `-` is collapsed to one).
+pub fn resolve_tmux_session_name(project_name: &str, cwd: Option<&std::path::Path>) -> String {
+    sanitize_tmux_session_name(project_name)
+        .or_else(|| {
+            cwd.and_then(|p| p.file_name())
+                .and_then(|n| n.to_str())
+                .and_then(|s| sanitize_tmux_session_name(s))
+        })
+        .unwrap_or_else(|| "aibox".to_string())
+}
+
+/// Sanitize a candidate tmux session name.
+///
+/// Returns `Some(name)` if the result is non-empty, `None` otherwise.
+/// Rules (matching tmux restrictions):
+/// - Replace `:` and `.` with `-`.
+/// - Strip any character that is not ASCII alphanumeric, `-`, or `_`.
+/// - Collapse consecutive `-` into one.
+/// - Trim leading and trailing `-`.
+fn sanitize_tmux_session_name(s: &str) -> Option<String> {
+    let replaced: String = s
+        .chars()
+        .map(|c| match c {
+            ':' | '.' => '-',
+            _ => c,
+        })
+        .collect();
+    let filtered: String = replaced
+        .chars()
+        .filter(|c| c.is_ascii_alphanumeric() || *c == '-' || *c == '_')
+        .collect();
+    // Collapse consecutive dashes.
+    let mut collapsed = String::with_capacity(filtered.len());
+    let mut prev_dash = false;
+    for c in filtered.chars() {
+        if c == '-' {
+            if !prev_dash {
+                collapsed.push(c);
+            }
+            prev_dash = true;
+        } else {
+            collapsed.push(c);
+            prev_dash = false;
+        }
+    }
+    let trimmed = collapsed.trim_matches('-').to_string();
+    if trimmed.is_empty() { None } else { Some(trimmed) }
+}
+
+/// Serde sentinel: empty string signals "not explicitly set; resolve at load time".
 fn default_tmux_session_name() -> String {
-    "aibox".to_string()
+    String::new()
 }
 
 /// [customization.tmux] section — tmux runtime presentation and startup.
@@ -1258,6 +1317,8 @@ pub struct TmuxSection {
     pub layout: Option<ConfigLayout>,
     #[serde(default = "default_tmux_prefix")]
     pub prefix: String,
+    /// Tmux session name. Empty string means "derive from project name at load time".
+    /// After `AiboxConfig::migrate_legacy_sections()` this is always non-empty.
     #[serde(default = "default_tmux_session_name")]
     pub session_name: String,
     #[serde(default)]
@@ -1849,7 +1910,7 @@ impl AiboxConfig {
     }
 
     /// Migrate legacy [process] section into [context].packages.
-    fn migrate_legacy_sections(&mut self) {
+    pub(crate) fn migrate_legacy_sections(&mut self) {
         if let Some(legacy) = self.process.take()
             && !legacy.packages.is_empty()
         {
@@ -1880,6 +1941,12 @@ impl AiboxConfig {
             };
         }
         self.metadata.name = self.aibox.project_name.clone();
+
+        // Resolve tmux session name from project name when not explicitly set.
+        if self.customization.tmux.session_name.is_empty() {
+            self.customization.tmux.session_name =
+                resolve_tmux_session_name(&self.aibox.project_name, None);
+        }
 
         if self.context != ContextSection::default() {
             self.processkit.context = self.context.clone();
@@ -2924,6 +2991,8 @@ pub fn test_config() -> AiboxConfig {
         local_mcp_servers: vec![],
     };
     config.resolve_ai_provider_addons();
+    // Resolve session name from project_name (mirrors what migrate_legacy_sections does).
+    config.sync_grouped_sections();
     config
 }
 
@@ -3412,6 +3481,90 @@ mode = "plain"
         assert_eq!(config.customization.tmux.prefix, "C-a");
         assert_eq!(config.customization.tmux.session_name, "work");
         assert_eq!(config.customization.tmux.status.mode, TmuxStatusMode::Plain);
+    }
+
+    // -- resolve_tmux_session_name --------------------------------------------
+
+    #[test]
+    fn session_name_uses_explicit_project_name() {
+        assert_eq!(resolve_tmux_session_name("foo-bar", None), "foo-bar");
+    }
+
+    #[test]
+    fn session_name_falls_back_to_cwd_basename() {
+        let cwd = std::path::Path::new("/workspace/cool-project");
+        assert_eq!(resolve_tmux_session_name("", Some(cwd)), "cool-project");
+    }
+
+    #[test]
+    fn session_name_falls_back_to_aibox_when_both_empty() {
+        assert_eq!(resolve_tmux_session_name("", None), "aibox");
+    }
+
+    #[test]
+    fn session_name_sanitizes_dots_and_colons() {
+        // dots and colons → dashes; consecutive dashes collapsed
+        assert_eq!(resolve_tmux_session_name("my.project", None), "my-project");
+        assert_eq!(resolve_tmux_session_name("host:port", None), "host-port");
+        assert_eq!(resolve_tmux_session_name("a..b", None), "a-b");
+    }
+
+    #[test]
+    fn session_name_strips_illegal_chars() {
+        // spaces and other non-ASCII are stripped; fallback applies if empty
+        assert_eq!(resolve_tmux_session_name("hello world", None), "helloworld");
+        assert_eq!(resolve_tmux_session_name("日本語", None), "aibox");
+    }
+
+    #[test]
+    fn session_name_trims_leading_trailing_dashes() {
+        assert_eq!(resolve_tmux_session_name(".leading", None), "leading");
+        assert_eq!(resolve_tmux_session_name("trailing.", None), "trailing");
+    }
+
+    #[test]
+    fn session_name_derived_from_config_project_name() {
+        let toml = r#"
+[aibox]
+version = "0.25.0"
+project_name = "my-app"
+
+[container]
+name = "my-app"
+"#;
+        let config = parse_toml(toml).unwrap();
+        assert_eq!(config.customization.tmux.session_name, "my-app");
+    }
+
+    #[test]
+    fn session_name_explicit_override_wins_over_project_name() {
+        let toml = r#"
+[aibox]
+version = "0.25.0"
+project_name = "my-app"
+
+[container]
+name = "my-app"
+
+[customization.tmux]
+session_name = "custom"
+"#;
+        let config = parse_toml(toml).unwrap();
+        assert_eq!(config.customization.tmux.session_name, "custom");
+    }
+
+    #[test]
+    fn session_name_falls_back_to_container_name_when_project_name_absent() {
+        let toml = r#"
+[aibox]
+version = "0.25.0"
+
+[container]
+name = "derived-proj"
+"#;
+        let config = parse_toml(toml).unwrap();
+        // project_name syncs from container.name → session derives from that
+        assert_eq!(config.customization.tmux.session_name, "derived-proj");
     }
 
     #[test]
