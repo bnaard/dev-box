@@ -31,7 +31,7 @@ set t_RV=
 set wildmenu wildmode=longest:full,full
 set incsearch hlsearch ignorecase smartcase
 set backspace=indent,eol,start
-set nowrap
+set nowrap nolinebreak
 set sidescroll=1
 set sidescrolloff=4
 set mouse=a
@@ -43,7 +43,7 @@ set ruler showcmd
 
 " Filetype-specific indentation
 autocmd FileType yaml,json,kdl,html,css,javascript setlocal tabstop=2 shiftwidth=2
-autocmd FileType markdown setlocal wrap linebreak
+autocmd FileType markdown setlocal nowrap nolinebreak
 autocmd VimEnter * redraw!
 
 " Use ripgrep if available
@@ -2680,7 +2680,8 @@ rules = [
             DEFAULT_VIMRC.contains("set t_u7=")
                 && DEFAULT_VIMRC.contains("set t_RV=")
                 && DEFAULT_VIMRC.contains("autocmd VimEnter * redraw!")
-                && DEFAULT_VIMRC.contains("set nowrap")
+                && DEFAULT_VIMRC.contains("set nowrap nolinebreak")
+                && DEFAULT_VIMRC.contains("autocmd FileType markdown setlocal nowrap nolinebreak")
                 && DEFAULT_VIMRC.contains("set sidescroll=1"),
             "default vimrc should harden redraw during Yazi/Vim handoff"
         );
