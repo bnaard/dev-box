@@ -21,7 +21,7 @@ use crate::config::{AiboxConfig, ConfigLayout};
 /// aibox.toml (first active harness = order-1, second = order-2, …).
 fn ai_secondary_panes(active_harnesses: &[&str]) -> String {
     // active_harnesses[0] is already created as agent_pane by the caller.
-    let secondaries = &active_harnesses[1..];
+    let secondaries = active_harnesses.get(1..).unwrap_or(&[]);
     if secondaries.is_empty() {
         return String::new();
     }
@@ -49,7 +49,7 @@ fn ai_secondary_panes(active_harnesses: &[&str]) -> String {
 /// immediately disabled (`select-pane -d`) so they don't steal focus but remain
 /// addressable via `prefix j/k`.
 fn cowork_secondary_panes(active_harnesses: &[&str]) -> String {
-    let secondaries = &active_harnesses[1..];
+    let secondaries = active_harnesses.get(1..).unwrap_or(&[]);
     if secondaries.is_empty() {
         return String::new();
     }
@@ -79,7 +79,7 @@ tmux -S "$socket" select-pane -t "${{{var_name}}}" -d
 /// it from the primary `dev` window.  For `focus`, the window is named after
 /// the harness binary directly (the primary is always the order-1 harness).
 fn dev_secondary_windows(active_harnesses: &[&str]) -> String {
-    let secondaries = &active_harnesses[1..];
+    let secondaries = active_harnesses.get(1..).unwrap_or(&[]);
     if secondaries.is_empty() {
         return String::new();
     }
@@ -98,7 +98,7 @@ fn dev_secondary_windows(active_harnesses: &[&str]) -> String {
 ///
 /// Each secondary harness gets its own window named after its binary.
 fn focus_secondary_windows(active_harnesses: &[&str]) -> String {
-    let secondaries = &active_harnesses[1..];
+    let secondaries = active_harnesses.get(1..).unwrap_or(&[]);
     if secondaries.is_empty() {
         return String::new();
     }
@@ -1029,5 +1029,17 @@ mod tests {
                 "{layout:?} must emit btop tool window:\n{body}"
             );
         }
+    }
+
+    #[test]
+    fn empty_harness_slice_does_not_panic() {
+        // Regression: ai_secondary_panes / cowork_secondary_panes /
+        // dev_secondary_windows / focus_secondary_windows previously did
+        // `&active_harnesses[1..]` which panicked on an empty slice. They
+        // now use .get(1..).unwrap_or(&[]) and return an empty fragment.
+        assert_eq!(super::ai_secondary_panes(&[]), "");
+        assert_eq!(super::cowork_secondary_panes(&[]), "");
+        assert_eq!(super::dev_secondary_windows(&[]), "");
+        assert_eq!(super::focus_secondary_windows(&[]), "");
     }
 }
