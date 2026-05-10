@@ -1,5 +1,5 @@
 ---
-apiVersion: processkit.projectious.work/v1
+apiVersion: processkit.projectious.work/v2
 kind: WorkItem
 metadata:
   id: BACK-20260417_1705-BoldAnchor-soft-reset-process-layer
@@ -14,38 +14,67 @@ spec:
   state: backlog
   type: feature
   priority: medium
-  description: "## Idea\n\nToday `aibox` offers only a *hard* reset (wipe and re-install\
-    \ from\nscratch). We need a complementary **soft reset** that re-synchronises\n\
-    the process layer — skills, processes, schemas, state machines, hooks,\nAGENTS.md,\
-    \ MCP wiring, compliance rules — without touching project\ncontent that the user\
-    \ and agents have accumulated.\n\n## Preserve\n\n- `context/workitems/` (backlog,\
-    \ tasks, bugs)\n- `context/decisions/` (decision records)\n- `context/notes/`\
-    \ (notes)\n- `context/artifacts/` (artefacts)\n- `context/discussions/` (discussion\
-    \ entities)\n- `context/logs/` (event log, session handovers)\n- `context/research/`\
-    \ (research)\n- `context/migrations/applied/` and `context/migrations/INDEX.md`\n\
-    - Anything custom the user has dropped under `context/` that is not\n  a processkit-installed\
-    \ file\n- `.aibox-home/` (runtime seed + agent credentials)\n\n## Rebuild (with\
-    \ pre-reset backup)\n\n- `context/skills/**`\n- `context/processes/**`\n- `context/schemas/**`\n\
-    - `context/state-machines/**`\n- `context/templates/processkit/**`\n- `context/roles/`,\
-    \ `context/actors/`, `context/bindings/` template\n  actors (user clones preserved)\n\
-    - `AGENTS.md` and provider pointers (`CLAUDE.md`, …)\n- `.claude/settings.json`,\
-    \ `.codex/hooks.json`, `.cursor/hooks.json`,\n  `.cursor/rules/processkit-compliance.md`,\
-    \ `.aider.conf.yml`\n- `.devcontainer/` generated files (delegates to existing\
-    \ sync path)\n\n## Behaviour\n\n- Before overwriting, snapshot the to-be-replaced\
-    \ subtree under\n  `context/.backups/<ISO-timestamp>/` so a user can diff / roll\
-    \ back.\n- Use the same three-way diff the existing sync uses — but with the\n\
-    \  \"take upstream\" resolution strategy on every conflict (no migration\n  doc\
-    \ generation).\n- CLI: `aibox reset --soft` (pair with the existing hard reset\
-    \ flag).\n- Print a summary of what was overwritten vs kept vs backed up.\n\n\
-    ## Why\n\n- Recovering from a corrupted or drifting process layer without\n  losing\
-    \ the accumulated body of work.\n- Bringing old projects up to the latest process\
-    \ conventions when a\n  full migration path is overkill.\n- Safer onboarding for\
-    \ teams who want to realign without paying the\n  cost of a full hard reset.\n\
-    \n## Open questions\n\n- How do we detect \"user-authored files under context/\"\
-    \ that are not\n  in any processkit manifest (keep them vs. stash them)?\n- Should\
-    \ the backup expire automatically after N days?\n- Does this belong in `aibox`\
-    \ (container/process layer) or in a\n  processkit skill (because it manipulates\
-    \ processkit content)?"
-  related_decisions:
-  - BACK-20260411_0000-LoyalSeal-version-upgrade-flows-review
+  description: |
+    ## Idea
+
+    Today `aibox` offers only a *hard* reset (wipe and re-install from
+    scratch). We need a complementary **soft reset** that re-synchronises
+    the process layer — skills, processes, schemas, state machines, hooks,
+    AGENTS.md, MCP wiring, compliance rules — without touching project
+    content that the user and agents have accumulated.
+
+    ## Preserve
+
+    - `context/workitems/` (backlog, tasks, bugs)
+    - `context/decisions/` (decision records)
+    - `context/notes/` (notes)
+    - `context/artifacts/` (artefacts)
+    - `context/discussions/` (discussion entities)
+    - `context/logs/` (event log, session handovers)
+    - `context/research/` (research)
+    - `context/migrations/applied/` and `context/migrations/INDEX.md`
+    - Anything custom the user has dropped under `context/` that is not
+      a processkit-installed file
+    - `.aibox-home/` (runtime seed + agent credentials)
+
+    ## Rebuild (with pre-reset backup)
+
+    - `context/skills/**`
+    - `context/processes/**`
+    - `context/schemas/**`
+    - `context/state-machines/**`
+    - `context/templates/processkit/**`
+    - `context/roles/`, `context/actors/`, `context/bindings/` template
+      actors (user clones preserved)
+    - `AGENTS.md` and provider pointers (`CLAUDE.md`, …)
+    - `.claude/settings.json`, `.codex/hooks.json`, `.cursor/hooks.json`,
+      `.cursor/rules/processkit-compliance.md`, `.aider.conf.yml`
+    - `.devcontainer/` generated files (delegates to existing sync path)
+
+    ## Behaviour
+
+    - Before overwriting, snapshot the to-be-replaced subtree under
+      `context/.backups/<ISO-timestamp>/` so a user can diff / roll back.
+    - Use the same three-way diff the existing sync uses — but with the
+      "take upstream" resolution strategy on every conflict (no migration
+      doc generation).
+    - CLI: `aibox reset --soft` (pair with the existing hard reset flag).
+    - Print a summary of what was overwritten vs kept vs backed up.
+
+    ## Why
+
+    - Recovering from a corrupted or drifting process layer without
+      losing the accumulated body of work.
+    - Bringing old projects up to the latest process conventions when a
+      full migration path is overkill.
+    - Safer onboarding for teams who want to realign without paying the
+      cost of a full hard reset.
+
+    ## Open questions
+
+    - How do we detect "user-authored files under context/" that are not
+      in any processkit manifest (keep them vs. stash them)?
+    - Should the backup expire automatically after N days?
+    - Does this belong in `aibox` (container/process layer) or in a
+      processkit skill (because it manipulates processkit content)?
 ---

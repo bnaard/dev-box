@@ -1,5 +1,5 @@
 ---
-apiVersion: processkit.projectious.work/v1
+apiVersion: processkit.projectious.work/v2
 kind: LogEntry
 metadata:
   id: LOG-20260418_1500-BrightSummit-session-handover
@@ -8,7 +8,8 @@ spec:
   event_type: session.handover
   timestamp: '2026-04-18T15:00:00Z'
   actor: claude-opus-4-7
-  summary: v0.18.6 shipped — MCP per-skill config merge (aibox#53) plus command-sync walker fix; the PreToolUse compliance gate is finally satisfiable on a fresh sync.
+  summary: v0.18.6 shipped — MCP per-skill config merge (aibox#53) plus command-sync
+    walker fix; the PreToolUse compliance gate is finally satisfiable on a fresh sync.
   details:
     session_date: '2026-04-18'
     current_state: |
@@ -102,31 +103,61 @@ spec:
       releases — the gh-pages branch was force-updated cleanly. If
       https://projectious-work.github.io/aibox/ doesn't refresh,
       check Pages settings in the repo. Non-blocking.
-
     issues_resolved:
-      - 'aibox#53 (P0 from prior session) — per-skill MCP config merge — flat one-level walker in mcp_registration.rs against the category-nested skills tree. Fixed walker, kernel-fallback path, and helper. .mcp.json now actually written.'
-      - '/pk-* slash commands not appearing in Claude Code — same root cause as #53 in claude_commands.rs. Walker now recurses categories. .claude/commands/ populated by aibox sync.'
-      - 'cmd_docs_deploy two bugs (gh-pages worktree git identity; tmpdir unbound trap). Fix verified by the v0.18.6 release deploying docs cleanly without manual host intervention.'
-      - 'Workspace detritus polluting `git status` — added .codex/, cli/context, context/.state/ to .gitignore.'
-      - 'BACK-20260411_1554-cleverAsh stuck in review since 2026-04-11 — verified done end-to-end by #53 implementation; transitioned.'
-      - 'skill-gate was opt-in (KERNEL_MCP_SKILLS only) — promoted to MANDATORY_MCP_SKILLS so the compliance gate is always satisfiable on a fresh sync (DEC-CleverHarbor).'
-      - 'Both pending migrations (processkit v0.17.0 → v0.18.1 + runtime 0.18.3 → 0.18.5) applied and moved to applied/.'
-
+    - aibox#53 (P0 from prior session) — per-skill MCP config merge — flat one-level
+      walker in mcp_registration.rs against the category-nested skills tree. Fixed
+      walker, kernel-fallback path, and helper. .mcp.json now actually written.
+    - '/pk-* slash commands not appearing in Claude Code — same root cause as #53
+      in claude_commands.rs. Walker now recurses categories. .claude/commands/ populated
+      by aibox sync.'
+    - cmd_docs_deploy two bugs (gh-pages worktree git identity; tmpdir unbound trap).
+      Fix verified by the v0.18.6 release deploying docs cleanly without manual host
+      intervention.
+    - Workspace detritus polluting `git status` — added .codex/, cli/context, context/.state/
+      to .gitignore.
+    - 'BACK-20260411_1554-cleverAsh stuck in review since 2026-04-11 — verified done
+      end-to-end by #53 implementation; transitioned.'
+    - skill-gate was opt-in (KERNEL_MCP_SKILLS only) — promoted to MANDATORY_MCP_SKILLS
+      so the compliance gate is always satisfiable on a fresh sync (DEC-CleverHarbor).
+    - Both pending migrations (processkit v0.17.0 → v0.18.1 + runtime 0.18.3 → 0.18.5)
+      applied and moved to applied/.
     issues_remaining:
-      - '#51 OpenCode TypeScript plugin — unchanged from prior handover; upstream unblocked, implementation sketch posted, not yet started.'
-      - 'Yazi plugin integration unverified — still carried forward from LOG-CalmHeron and LOG-SteadyPine. seed.rs edits + preview-enhanced addon committed but never end-to-end tested.'
-      - 'Compliance contract marker version mismatch (v1 vs v2) — processkit v0.18.1 release notes acknowledge AGENTS.md template ships v2 markers while skill-gate/assets still ship v1. Upstream plans to reconcile when skip_decision_record MCP tool ships. Aibox-side risk: check_compliance_contract_drift may need a regex update.'
-      - 'GitHub Pages auto-config warning during release — likely benign (Pages already enabled), but unverified. Check https://projectious-work.github.io/aibox/ refreshed after v0.18.6.'
-      - 'BACK-20260418_1145-CarefulFalcon (collision guard semantics) — basic warn-and-continue shipped in v0.18.6 but the larger decision (warn-vs-hard-fail, fully-qualified keys vs bare-name keys) is still open.'
-      - 'BACK-20260411_0000-SoundRabbit (critical, self-hosted deployment) — roadmap-scale item, not a patch fit. Needs grooming session.'
-      - '4 high-priority backlog items unstarted: AmberWren (process model retrospective), CoolBear (preview companion design review), JollyWren (CLI input security review), LoyalSeal (version upgrade flows review).'
-
+    - '#51 OpenCode TypeScript plugin — unchanged from prior handover; upstream unblocked,
+      implementation sketch posted, not yet started.'
+    - Yazi plugin integration unverified — still carried forward from LOG-CalmHeron
+      and LOG-SteadyPine. seed.rs edits + preview-enhanced addon committed but never
+      end-to-end tested.
+    - 'Compliance contract marker version mismatch (v1 vs v2) — processkit v0.18.1
+      release notes acknowledge AGENTS.md template ships v2 markers while skill-gate/assets
+      still ship v1. Upstream plans to reconcile when skip_decision_record MCP tool
+      ships. Aibox-side risk: check_compliance_contract_drift may need a regex update.'
+    - GitHub Pages auto-config warning during release — likely benign (Pages already
+      enabled), but unverified. Check https://projectious-work.github.io/aibox/ refreshed
+      after v0.18.6.
+    - BACK-20260418_1145-CarefulFalcon (collision guard semantics) — basic warn-and-continue
+      shipped in v0.18.6 but the larger decision (warn-vs-hard-fail, fully-qualified
+      keys vs bare-name keys) is still open.
+    - BACK-20260411_0000-SoundRabbit (critical, self-hosted deployment) — roadmap-scale
+      item, not a patch fit. Needs grooming session.
+    - '4 high-priority backlog items unstarted: AmberWren (process model retrospective),
+      CoolBear (preview companion design review), JollyWren (CLI input security review),
+      LoyalSeal (version upgrade flows review).'
     open_threads:
-      - 'After this session, the next agent session will be the FIRST one where the compliance gate is satisfiable from the start (assuming host has re-synced). Confirm acknowledge_contract() is reachable as the first action; if it is, drop the bash+python workarounds and use MCP tools (route_task, create_workitem, transition_workitem, record_decision) directly per the compliance contract.'
-      - 'Workaround folder /workspace/.claude/commands/ contains 29 manually-copied pk-*.md files from this session. Once aibox sync runs on the host with v0.18.6, the proper sync path takes over — these files will be overwritten with byte-identical content (or replaced if the rename guard kicks in). Either way, no cleanup needed.'
-      - 'aibox.lock and .devcontainer/* are currently pinned to v0.18.5 in the repo. After host re-sync to v0.18.6 they will be regenerated and a new commit will follow. This is the normal "sync after release" pattern.'
-      - 'Three new files in dist/ are build artifacts from the release run (RELEASE-NOTES.md, RELEASE-PROMPT.md, two .tar.gz binaries). dist/ should already be gitignored — verify.'
-
+    - After this session, the next agent session will be the FIRST one where the compliance
+      gate is satisfiable from the start (assuming host has re-synced). Confirm acknowledge_contract()
+      is reachable as the first action; if it is, drop the bash+python workarounds
+      and use MCP tools (route_task, create_workitem, transition_workitem, record_decision)
+      directly per the compliance contract.
+    - Workaround folder /workspace/.claude/commands/ contains 29 manually-copied pk-*.md
+      files from this session. Once aibox sync runs on the host with v0.18.6, the
+      proper sync path takes over — these files will be overwritten with byte-identical
+      content (or replaced if the rename guard kicks in). Either way, no cleanup needed.
+    - aibox.lock and .devcontainer/* are currently pinned to v0.18.5 in the repo.
+      After host re-sync to v0.18.6 they will be regenerated and a new commit will
+      follow. This is the normal "sync after release" pattern.
+    - Three new files in dist/ are build artifacts from the release run (RELEASE-NOTES.md,
+      RELEASE-PROMPT.md, two .tar.gz binaries). dist/ should already be gitignored
+      — verify.
     next_recommended_action: |
       1. **Verify v0.18.6 on host** — `aibox uninstall --purge --yes`,
          re-run install.sh one-liner, then `aibox --version` should
@@ -156,16 +187,20 @@ spec:
          picked up before the warn-vs-error semantics drift further;
          it's medium priority but ages quickly because the basic
          guard has shipped.
-
-    branch: 'main'
-    commit: '27098c8'
-    tag: 'v0.18.6'
+    branch: main
+    commit: 27098c8
+    tag: v0.18.6
     uncommitted_changes:
-      - 'dist/RELEASE-NOTES.md and dist/RELEASE-PROMPT.md and two .tar.gz binaries — build artifacts. dist/ should already be gitignored; if not, that is a small cleanup item.'
-      - '/workspace/.claude/commands/ contains 29 pk-*.md files copied manually as the (A) workaround for the slash-command bug. Will be overwritten cleanly by the next aibox sync once v0.18.6 is installed on the host.'
+    - dist/RELEASE-NOTES.md and dist/RELEASE-PROMPT.md and two .tar.gz binaries —
+      build artifacts. dist/ should already be gitignored; if not, that is a small
+      cleanup item.
+    - /workspace/.claude/commands/ contains 29 pk-*.md files copied manually as the
+      (A) workaround for the slash-command bug. Will be overwritten cleanly by the
+      next aibox sync once v0.18.6 is installed on the host.
     releases:
-      - 'v0.18.6: shipped this session. Phase 1 (Linux binaries, GitHub release, docs deploy) completed by claude-opus-4-7 inside the devcontainer. Phase 2 (macOS binaries + GHCR push) confirmed done by owner. Tag v0.18.6 live: https://github.com/projectious-work/aibox/releases/tag/v0.18.6'
-
+    - 'v0.18.6: shipped this session. Phase 1 (Linux binaries, GitHub release, docs
+      deploy) completed by claude-opus-4-7 inside the devcontainer. Phase 2 (macOS
+      binaries + GHCR push) confirmed done by owner. Tag v0.18.6 live: https://github.com/projectious-work/aibox/releases/tag/v0.18.6'
 ---
 
 # Session summary

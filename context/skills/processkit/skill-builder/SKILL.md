@@ -1,32 +1,30 @@
 ---
 name: skill-builder
-description: 'Author a new processkit skill end-to-end — use-case interview, frontmatter, body sections, Gotchas, and trigger-phrase generation.
-
-  '
+description: >
+  Author a new processkit skill end-to-end — use-case interview,
+  frontmatter, body sections, Gotchas, and trigger-phrase generation.
 metadata:
   processkit:
     apiVersion: processkit.projectious.work/v2
     id: SKILL-skill-builder
-    version: 1.0.0
-    created: 2026-04-08 00:00:00+00:00
+    version: "1.0.0"
+    created: 2026-04-08T00:00:00Z
     category: processkit
     layer: 2
     uses:
-    - skill: index-management
-      purpose: Query existing skills before creating a new one to surface duplicates and to find related skills the new one should reference under uses:.
-    - skill: event-log
-      purpose: Log skill.created and skill.reviewed events so the project's audit trail captures when new skills enter the catalog.
+      - skill: index-management
+        purpose: "Query existing skills before creating a new one to surface duplicates and to find related skills the new one should reference under uses:."
+      - skill: event-log
+        purpose: "Log skill.created and skill.reviewed events so the project's audit trail captures when new skills enter the catalog."
     provides:
       primitives: []
       mcp_tools: []
-      assets:
-      - skill-template
-      processes:
-      - skill-creation
+      assets: [skill-template]
+      processes: [skill-creation]
     commands:
-    - name: pk-skill-new
-      args: skill-topic
-      description: Start the interactive skill-creation workflow for a given topic
+      - name: pk-skill-new
+        args: "skill-topic"
+        description: "Start the interactive skill-creation workflow for a given topic"
 ---
 
 # Skill Builder

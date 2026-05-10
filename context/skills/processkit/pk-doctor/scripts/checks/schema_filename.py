@@ -20,6 +20,7 @@ Known parser quirks:
 from __future__ import annotations
 
 import re
+import datetime as _dt
 from pathlib import Path
 from typing import Iterator
 
@@ -187,6 +188,26 @@ def _validate_against_schema(data: dict, schema: dict) -> list[str]:
     return errs
 
 
+def _created_date_candidates(created: object) -> set[str]:
+    """Return accepted YYYYMMDD dates for filename-vs-created checks."""
+    if hasattr(created, "date"):
+        base_date = created.date()
+    elif isinstance(created, _dt.date):
+        base_date = created
+    else:
+        created_str = str(created)
+        try:
+            base_date = _dt.date.fromisoformat(created_str[:10])
+        except ValueError:
+            digits = created_str.replace("-", "")[:8]
+            return {digits} if len(digits) == 8 and digits.isdigit() else set()
+
+    return {
+        (base_date + _dt.timedelta(days=offset)).strftime("%Y%m%d")
+        for offset in (-1, 0, 1)
+    }
+
+
 def run(ctx) -> list[CheckResult]:
     repo_root: Path = ctx["repo_root"]
     since_files: set[Path] | None = ctx.get("since_files")
@@ -250,7 +271,14 @@ def run(ctx) -> list[CheckResult]:
 
             # --- filename stem vs metadata.id -----------------------------
             stem = path.stem
-            if meta_id and stem != meta_id:
+            stem_matches_id = stem == meta_id
+            if (
+                kind == "migration"
+                and isinstance(meta_id, str)
+                and stem.startswith(f"{meta_id}-")
+            ):
+                stem_matches_id = True
+            if meta_id and not stem_matches_id:
                 results.append(CheckResult(
                     severity="WARN",
                     category="schema_filename",
@@ -284,7 +312,7 @@ def run(ctx) -> list[CheckResult]:
             if m and created:
                 fn_date = m.group(1)  # YYYYMMDD
                 created_str = created.isoformat() if hasattr(created, "isoformat") else str(created)
-                if fn_date not in created_str.replace("-", ""):
+                if fn_date not in _created_date_candidates(created):
                     results.append(CheckResult(
                         severity="WARN",
                         category="schema_filename",

@@ -1,5 +1,5 @@
 ---
-apiVersion: processkit.projectious.work/v1
+apiVersion: processkit.projectious.work/v2
 kind: Process
 metadata:
   id: PROC-TODO
@@ -10,11 +10,11 @@ spec:
   triggers: []
   roles: []
   steps:
-    - name: TODO
-      role: TODO
-      description: TODO
-      uses_skill: null
-      gates: []
+  - name: TODO
+    role: TODO
+    description: TODO
+    uses_skill: null
+    gates: []
   definition_of_done: TODO
   parallel: false
   retryable: true

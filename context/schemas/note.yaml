@@ -35,7 +35,7 @@ spec:
   spec_schema:
     $schema: https://json-schema.org/draft/2020-12/schema
     type: object
-    required: [title, body, type, state]
+    required: [title]
     additionalProperties: true
     properties:
       title:

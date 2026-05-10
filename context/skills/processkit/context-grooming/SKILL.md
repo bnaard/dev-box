@@ -1,29 +1,28 @@
 ---
 name: context-grooming
-description: 'Review and prune the project context — archive completed work, summarize stale entries, and propose disabling unused skills.
-
-  '
+description: >
+  Review and prune the project context — archive completed work,
+  summarize stale entries, and propose disabling unused skills.
 metadata:
   processkit:
     apiVersion: processkit.projectious.work/v2
     id: SKILL-context-grooming
-    version: 1.0.0
-    created: 2026-04-07 00:00:00+00:00
+    version: "1.0.0"
+    created: 2026-04-07T00:00:00Z
     category: processkit
     layer: 4
     uses:
-    - skill: event-log
-      purpose: Log events to keep the audit trail accurate after every write.
-    - skill: index-management
-      purpose: Query existing entities and keep the SQLite index fresh after writes.
+      - skill: event-log
+        purpose: Log events to keep the audit trail accurate after every write.
+      - skill: index-management
+        purpose: Query existing entities and keep the SQLite index fresh after writes.
     provides:
       primitives: []
-      templates:
-      - grooming-report
+      templates: [grooming-report]
     commands:
-    - name: pk-groom
-      args: ''
-      description: Run a context grooming pass to prune and compact project context
+      - name: pk-groom
+        args: ""
+        description: "Run a context grooming pass to prune and compact project context"
 ---
 
 # Context Grooming

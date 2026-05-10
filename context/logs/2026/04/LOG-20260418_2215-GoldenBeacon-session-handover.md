@@ -1,5 +1,5 @@
 ---
-apiVersion: processkit.projectious.work/v1
+apiVersion: processkit.projectious.work/v2
 kind: LogEntry
 metadata:
   id: LOG-20260418_2215-GoldenBeacon-session-handover
@@ -8,7 +8,9 @@ spec:
   event_type: session.handover
   timestamp: '2026-04-18T20:15:52Z'
   actor: claude-opus-4-7
-  summary: v0.18.7 shipped — processkit v0.18.2 integrated, Linux Phase 1 + macOS Phase 2 complete, GitHub release and docs deployed; 3 MCP writes remain deferred pending harness restart.
+  summary: v0.18.7 shipped — processkit v0.18.2 integrated, Linux Phase 1 + macOS
+    Phase 2 complete, GitHub release and docs deployed; 3 MCP writes remain deferred
+    pending harness restart.
   details:
     session_date: '2026-04-18'
     current_state: |
@@ -79,33 +81,87 @@ spec:
       (container) should find addon definitions without requiring
       the install script — or the devcontainer image should
       include them at a predictable path. Low priority but aged.
-
     issues_resolved:
-      - 'processkit v0.18.2 pulled and integrated — resolves processkit#8 upstream-side; aibox`s safety rail in v0.18.7 ensures any future regression of the same class is caught at sync time instead of silently emitting broken config.'
-      - '`.mcp.json` regenerated with all 16 server paths valid on disk. The drift diagnosed in the prior session (`/workspace/.mcp.json` had 12 broken paths despite per-skill `mcp-config.json` hotpatch) is resolved by the upstream fix — no more local hotpatch needed going forward.'
-      - 'cargo fmt drift in `cli/src/mcp_registration.rs` test — caught by release preflight, fixed in `5db8a34`. Not a blocker but a reminder that pre-commit `cargo fmt` is an unwritten norm here.'
-      - 'Carried session artifacts committed to git — the accumulation of handover logs, migration docs, and template snapshots that had been untracked across multiple sessions (because the compliance gate was shut) are now properly tracked. Matches the prior pattern of tracked siblings (context/logs/, context/migrations/applied/, context/templates/aibox-home/0.17.20/).'
-      - 'v0.18.7 released end-to-end: Linux Phase 1 and macOS Phase 2 both complete; GitHub release live; docs deployed; Pages auto-config warning no longer emitted.'
-
+    - processkit v0.18.2 pulled and integrated — resolves processkit#8 upstream-side;
+      aibox`s safety rail in v0.18.7 ensures any future regression of the same class
+      is caught at sync time instead of silently emitting broken config.
+    - '`.mcp.json` regenerated with all 16 server paths valid on disk. The drift diagnosed
+      in the prior session (`/workspace/.mcp.json` had 12 broken paths despite per-skill
+      `mcp-config.json` hotpatch) is resolved by the upstream fix — no more local
+      hotpatch needed going forward.'
+    - cargo fmt drift in `cli/src/mcp_registration.rs` test — caught by release preflight,
+      fixed in `5db8a34`. Not a blocker but a reminder that pre-commit `cargo fmt`
+      is an unwritten norm here.
+    - Carried session artifacts committed to git — the accumulation of handover logs,
+      migration docs, and template snapshots that had been untracked across multiple
+      sessions (because the compliance gate was shut) are now properly tracked. Matches
+      the prior pattern of tracked siblings (context/logs/, context/migrations/applied/,
+      context/templates/aibox-home/0.17.20/).
+    - 'v0.18.7 released end-to-end: Linux Phase 1 and macOS Phase 2 both complete;
+      GitHub release live; docs deployed; Pages auto-config warning no longer emitted.'
     issues_remaining:
-      - 'Three MCP writes still deferred, one more than inherited — CarefulFalcon DecisionRecord (unchanged from prior), MIG-20260418T111856 apply (unchanged), MIG-20260418T195315 apply (NEW — the processkit v0.18.1→v0.18.2 migration generated this session; 18 conflicting files recorded in `context/migrations/pending/`), and either a release.prepared or release.shipped event log for tag v0.18.7 / commit 5db8a34. All blocked on Claude Code harness re-handshaking `.mcp.json` (needs a restart).'
-      - 'MIG-RUNTIME-20260418T175825 runtime migration doc also pending in `context/migrations/pending/` — origin unclear (possibly from the prior devcontainer rebuild). Worth an `apply_migration` check in the next session.'
-      - 'Addon-definitions-not-found on sync inside the devcontainer — had to manually `cp /workspace/addons → /home/aibox/.config/aibox/addons`. Worth a real fix (bake into image, or fall back to the in-repo copy), but not pressing.'
-      - 'Compliance contract drift between AGENTS.md and canonical at `context/skills/processkit/skill-gate/assets/compliance-contract.md` — sync warned and suggested `aibox sync --fix-compliance-contract`, but that flag is not implemented yet (only referenced in the warning message). Prospective feature for a future release.'
-      - 'Decision-language capture: the owner said "Option B" / "Let''s go" this session. Per the v2 compliance contract, those moments should either produce a `record_decision` or a `skip_decision_record(reason=...)`. Neither tool was loaded (decision-record MCP server offline; `skip_decision_record` not yet shipped upstream). The sequencing decision ("release before MCP writes") is operational rather than cross-cutting; likely skippable, but worth surfacing to the next session for a formal acknowledgement.'
-      - 'BACK-20260411_0000-SoundRabbit (critical, self-hosted deployment) — unchanged across many sessions. Still needs a grooming session.'
-      - 'BACK-AmberWren, BACK-CoolBear, BACK-JollyWren, BACK-LoyalSeal — 4 high-priority backlog items, still unstarted.'
-      - 'Yazi Tier-3 interactive verification — untouched this session; still waiting on a host-side run with DISPLAY/TTY.'
-
+    - Three MCP writes still deferred, one more than inherited — CarefulFalcon DecisionRecord
+      (unchanged from prior), MIG-20260418T111856 apply (unchanged), MIG-20260418T195315
+      apply (NEW — the processkit v0.18.1→v0.18.2 migration generated this session;
+      18 conflicting files recorded in `context/migrations/pending/`), and either
+      a release.prepared or release.shipped event log for tag v0.18.7 / commit 5db8a34.
+      All blocked on Claude Code harness re-handshaking `.mcp.json` (needs a restart).
+    - MIG-RUNTIME-20260418T175825 runtime migration doc also pending in `context/migrations/pending/`
+      — origin unclear (possibly from the prior devcontainer rebuild). Worth an `apply_migration`
+      check in the next session.
+    - Addon-definitions-not-found on sync inside the devcontainer — had to manually
+      `cp /workspace/addons → /home/aibox/.config/aibox/addons`. Worth a real fix
+      (bake into image, or fall back to the in-repo copy), but not pressing.
+    - Compliance contract drift between AGENTS.md and canonical at `context/skills/processkit/skill-gate/assets/compliance-contract.md`
+      — sync warned and suggested `aibox sync --fix-compliance-contract`, but that
+      flag is not implemented yet (only referenced in the warning message). Prospective
+      feature for a future release.
+    - 'Decision-language capture: the owner said "Option B" / "Let''s go" this session.
+      Per the v2 compliance contract, those moments should either produce a `record_decision`
+      or a `skip_decision_record(reason=...)`. Neither tool was loaded (decision-record
+      MCP server offline; `skip_decision_record` not yet shipped upstream). The sequencing
+      decision ("release before MCP writes") is operational rather than cross-cutting;
+      likely skippable, but worth surfacing to the next session for a formal acknowledgement.'
+    - BACK-20260411_0000-SoundRabbit (critical, self-hosted deployment) — unchanged
+      across many sessions. Still needs a grooming session.
+    - BACK-AmberWren, BACK-CoolBear, BACK-JollyWren, BACK-LoyalSeal — 4 high-priority
+      backlog items, still unstarted.
+    - Yazi Tier-3 interactive verification — untouched this session; still waiting
+      on a host-side run with DISPLAY/TTY.
     open_threads:
-      - 'AFTER SESSION RESTART (first 5 minutes): verify that all 16 processkit MCP tool surfaces are reachable. Start with `check_contract_acknowledged` → `acknowledge_contract(version="v2")` (contract is now v2 in-session as of this session). Then `query_entities(kind="LogEntry", event_type="session.handover", limit=1)` as a smoke test that index-management and event-log are live.'
-      - 'AFTER RESTART — file the deferred entities in one pass: (a) `record_decision` for CarefulFalcon (warn-and-continue + bare-name keys; close `BACK-20260418_1145-CarefulFalcon`); (b) `apply_migration("MIG-20260418T111856")`; (c) `apply_migration("MIG-20260418T195315")` — this one is substantive (18 conflicts from the processkit v0.18.1→v0.18.2 delta); (d) `apply_migration("MIG-RUNTIME-20260418T175825")` if applicable; (e) `create_log_entry(event_type="release.shipped", ...)` for tag v0.18.7 / commit 5db8a34 (release is already live, so "prepared" is past tense — "shipped" is accurate).'
-      - 'AFTER RESTART — retro the decision-language moments: `record_decision` or `skip_decision_record(reason="operational sequencing, not cross-cutting")` for the "release before MCP writes" choice the owner made this session ("Option B").'
-      - 'MIG-20260418T195315 is not trivial — 18 conflicts across AGENTS and skills/processkit. The migration doc at `context/migrations/pending/MIG-20260418T195315.md` lists them. Sync decided to force-apply 5 of them (skill-gate server/hooks + a few others — those are in `b010680`); the remaining 13 are conflicts that require a human decide-keep-local-or-take-upstream pass. Apply_migration will walk the conflict list interactively or auto-resolve per configured policy.'
-      - 'Compliance contract v1 → v2 transition is complete enough for this session (the contract text in SessionStart/UserPromptSubmit hooks shifted to v2 mid-session and the v0.18.7 aibox drift checker tolerates both). But the canonical AGENTS.md at project root still differs from the canonical source — see `aibox sync --fix-compliance-contract` warning above. When the flag is actually implemented upstream, run it.'
-      - 'Addon-definitions-not-found workaround is not committed anywhere — lives in `/home/aibox/.config/aibox/addons/` which is outside the repo. If the devcontainer is rebuilt again without an updated image that bakes it in, the same workaround is needed. File a proper fix if the pattern recurs.'
-      - 'BACK-20260411_0000-SoundRabbit still needs a grooming session; 4 other high-priority backlog items (AmberWren, CoolBear, JollyWren, LoyalSeal) still unstarted.'
-
+    - 'AFTER SESSION RESTART (first 5 minutes): verify that all 16 processkit MCP
+      tool surfaces are reachable. Start with `check_contract_acknowledged` → `acknowledge_contract(version="v2")`
+      (contract is now v2 in-session as of this session). Then `query_entities(kind="LogEntry",
+      event_type="session.handover", limit=1)` as a smoke test that index-management
+      and event-log are live.'
+    - 'AFTER RESTART — file the deferred entities in one pass: (a) `record_decision`
+      for CarefulFalcon (warn-and-continue + bare-name keys; close `BACK-20260418_1145-CarefulFalcon`);
+      (b) `apply_migration("MIG-20260418T111856")`; (c) `apply_migration("MIG-20260418T195315")`
+      — this one is substantive (18 conflicts from the processkit v0.18.1→v0.18.2
+      delta); (d) `apply_migration("MIG-RUNTIME-20260418T175825")` if applicable;
+      (e) `create_log_entry(event_type="release.shipped", ...)` for tag v0.18.7 /
+      commit 5db8a34 (release is already live, so "prepared" is past tense — "shipped"
+      is accurate).'
+    - 'AFTER RESTART — retro the decision-language moments: `record_decision` or `skip_decision_record(reason="operational
+      sequencing, not cross-cutting")` for the "release before MCP writes" choice
+      the owner made this session ("Option B").'
+    - MIG-20260418T195315 is not trivial — 18 conflicts across AGENTS and skills/processkit.
+      The migration doc at `context/migrations/pending/MIG-20260418T195315.md` lists
+      them. Sync decided to force-apply 5 of them (skill-gate server/hooks + a few
+      others — those are in `b010680`); the remaining 13 are conflicts that require
+      a human decide-keep-local-or-take-upstream pass. Apply_migration will walk the
+      conflict list interactively or auto-resolve per configured policy.
+    - Compliance contract v1 → v2 transition is complete enough for this session (the
+      contract text in SessionStart/UserPromptSubmit hooks shifted to v2 mid-session
+      and the v0.18.7 aibox drift checker tolerates both). But the canonical AGENTS.md
+      at project root still differs from the canonical source — see `aibox sync --fix-compliance-contract`
+      warning above. When the flag is actually implemented upstream, run it.
+    - Addon-definitions-not-found workaround is not committed anywhere — lives in
+      `/home/aibox/.config/aibox/addons/` which is outside the repo. If the devcontainer
+      is rebuilt again without an updated image that bakes it in, the same workaround
+      is needed. File a proper fix if the pattern recurs.
+    - BACK-20260411_0000-SoundRabbit still needs a grooming session; 4 other high-priority
+      backlog items (AmberWren, CoolBear, JollyWren, LoyalSeal) still unstarted.
     next_recommended_action: |
       **Restart Claude Code first, before anything else.** The
       in-session MCP tool surface is still the 4 pre-restart
@@ -140,21 +196,45 @@ spec:
          backlog. BACK-SoundRabbit is the most overdue; the 4
          high-priority reviews (AmberWren / CoolBear / JollyWren
          / LoyalSeal) are next tier.
-
-    branch: 'main'
-    commit: '5db8a34'
-    tag: 'v0.18.7'
+    branch: main
+    commit: 5db8a34
+    tag: v0.18.7
     uncommitted_changes: []
     stashes: []
     releases:
-      - 'v0.18.7: shipped this session. Phase 1 (Linux binaries, GitHub release, docs deploy) completed by claude-opus-4-7 inside the devcontainer. Phase 2 (macOS binaries + GHCR push) confirmed done by owner. GitHub release live: https://github.com/projectious-work/aibox/releases/tag/v0.18.7'
-
+    - 'v0.18.7: shipped this session. Phase 1 (Linux binaries, GitHub release, docs
+      deploy) completed by claude-opus-4-7 inside the devcontainer. Phase 2 (macOS
+      binaries + GHCR push) confirmed done by owner. GitHub release live: https://github.com/projectious-work/aibox/releases/tag/v0.18.7'
     behavioral_retrospective:
-      - 'Committed work before running `cargo fmt` → release preflight caught the drift. Cost one extra commit (`5db8a34`). Encoded for next session: when preparing to ship, run `cd cli && cargo fmt --check` BEFORE the first integration commit, not as a mid-release patch. Not a process gap — the safety net worked as designed — but an avoidable retry.'
-      - 'Delegated pre-integration research to an Explore agent (processkit_vocab.rs default, compat.rs entry, aibox.toml/lock state, release script phases, sync semantics). Under 300 words, structured report, one turn, zero main-thread context spent on filesystem walking. This is the pattern the prior handover encoded ("agents are great for research, diff drafting, and read-only investigation; main thread does the actual edits") — confirmed useful in practice this session.'
-      - 'Distinguished "edit a file under `context/templates/`" (forbidden by contract) from "commit an already-present file under `context/templates/`" (correct behavior — those template snapshots are meant to be tracked; siblings like the v0.17.20 snapshot are already in git). The contract text reads as a blanket prohibition; the nuance is that the snapshots are WRITTEN by aibox sync automatically and should simply be committed without hand editing. Worth surfacing upstream if the contract wording drifts this rule.'
-      - 'Decision-language compliance gap — the v2 contract introduced a new rule: when user messages contain approval language ("ok", "yes", "Option B", "let''s go"), either `record_decision` or `skip_decision_record` in the same turn. Both tools were unavailable this session (server offline / tool not yet shipped upstream). Transparent in-text acknowledgement is the honest fallback, and next session can retroactively file or skip. Encoded as an open_thread so it doesn''t get forgotten.'
-      - 'Addon-definitions workaround (`cp -r /workspace/addons → /home/aibox/.config/aibox/addons`) is identical to a workaround pattern noted in the prior handover. Two sessions in a row with the same manual step; worth filing as a real aibox-side issue so the third session doesn''t repeat.'
+    - 'Committed work before running `cargo fmt` → release preflight caught the drift.
+      Cost one extra commit (`5db8a34`). Encoded for next session: when preparing
+      to ship, run `cd cli && cargo fmt --check` BEFORE the first integration commit,
+      not as a mid-release patch. Not a process gap — the safety net worked as designed
+      — but an avoidable retry.'
+    - Delegated pre-integration research to an Explore agent (processkit_vocab.rs
+      default, compat.rs entry, aibox.toml/lock state, release script phases, sync
+      semantics). Under 300 words, structured report, one turn, zero main-thread context
+      spent on filesystem walking. This is the pattern the prior handover encoded
+      ("agents are great for research, diff drafting, and read-only investigation;
+      main thread does the actual edits") — confirmed useful in practice this session.
+    - Distinguished "edit a file under `context/templates/`" (forbidden by contract)
+      from "commit an already-present file under `context/templates/`" (correct behavior
+      — those template snapshots are meant to be tracked; siblings like the v0.17.20
+      snapshot are already in git). The contract text reads as a blanket prohibition;
+      the nuance is that the snapshots are WRITTEN by aibox sync automatically and
+      should simply be committed without hand editing. Worth surfacing upstream if
+      the contract wording drifts this rule.
+    - 'Decision-language compliance gap — the v2 contract introduced a new rule: when
+      user messages contain approval language ("ok", "yes", "Option B", "let''s go"),
+      either `record_decision` or `skip_decision_record` in the same turn. Both tools
+      were unavailable this session (server offline / tool not yet shipped upstream).
+      Transparent in-text acknowledgement is the honest fallback, and next session
+      can retroactively file or skip. Encoded as an open_thread so it doesn''t get
+      forgotten.'
+    - Addon-definitions workaround (`cp -r /workspace/addons → /home/aibox/.config/aibox/addons`)
+      is identical to a workaround pattern noted in the prior handover. Two sessions
+      in a row with the same manual step; worth filing as a real aibox-side issue
+      so the third session doesn't repeat.
 ---
 
 # Session summary

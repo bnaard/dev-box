@@ -1,35 +1,33 @@
 ---
 name: note-management
-description: 'Captures, reviews, and promotes Note entities — the lightweight knowledge capture primitive in processkit. Notes are quick-capture units (thoughts, insights, questions, references) that are reviewed periodically and promoted to WorkItems, DecisionRecords, or other primitives when they ripen. Use when the user says "remember this", "note that", "I had an idea", or when running a periodic note review session.
-
-  '
+description: |
+  Captures, reviews, and promotes Note entities — the lightweight knowledge capture primitive in processkit. Notes are quick-capture units (thoughts, insights, questions, references) that are reviewed periodically and promoted to WorkItems, DecisionRecords, or other primitives when they ripen. Use when the user says "remember this", "note that", "I had an idea", or when running a periodic note review session.
 metadata:
   processkit:
     apiVersion: processkit.projectious.work/v2
     id: SKILL-note-management
-    version: 2.0.0-alpha.1
-    created: 2026-04-08 00:00:00+00:00
+    version: "2.0.0-alpha.1"
+    created: 2026-04-08T00:00:00Z
     category: processkit
     layer: 2
     commands:
-    - name: pk-note
-      args: title or short description of the note
-      description: Capture a new fleeting note with the given title
-    - name: pk-note-review
-      args: ''
-      description: Review all fleeting notes and decide what to promote or discard
-    - name: pk-note-promote
-      args: note-id
-      description: Promote a fleeting note to a more permanent artifact
+      - name: pk-note
+        args: "title or short description of the note"
+        description: "Capture a new fleeting note with the given title"
+      - name: pk-note-review
+        args: ""
+        description: "Review all fleeting notes and decide what to promote or discard"
+      - name: pk-note-promote
+        args: "note-id"
+        description: "Promote a fleeting note to a more permanent artifact"
     provides:
-      primitives:
-      - Note
+      primitives: [Note]
       mcp_tools:
-      - create_note
-      - capture_inbox_item
-      - claim_inbox_item
-      - complete_inbox_item
-      - fail_inbox_item
+        - create_note
+        - capture_inbox_item
+        - claim_inbox_item
+        - complete_inbox_item
+        - fail_inbox_item
 ---
 
 # Note Management

@@ -1,20 +1,23 @@
 ---
-apiVersion: processkit.projectious.work/v1
+apiVersion: processkit.projectious.work/v2
 kind: Role
 metadata:
   id: ROLE-20260414_1100-NimbleMouse-junior-developer
-  created: 2026-04-14T11:00:00Z
+  created: 2026-04-14 11:00:00+00:00
 spec:
   name: junior-developer
-  description: "Implements low-complexity changes: simple bugfixes, mechanical edits, single-file patches, boilerplate generation."
+  description: 'Implements low-complexity changes: simple bugfixes, mechanical edits,
+    single-file patches, boilerplate generation.'
   responsibilities:
-    - "Apply well-specified single-file edits, rename refactors, boilerplate generation, test stubs."
-    - "Run quality gates after every edit (tests, lint)."
-    - "Escalate the moment the task touches a second module or involves non-trivial logic — that's developer territory."
-    - "Ask before inferring intent; cheaper to ask than to rework."
+  - Apply well-specified single-file edits, rename refactors, boilerplate generation,
+    test stubs.
+  - Run quality gates after every edit (tests, lint).
+  - Escalate the moment the task touches a second module or involves non-trivial logic
+    — that's developer territory.
+  - Ask before inferring intent; cheaper to ask than to rework.
   skills_required:
-    - agent-management
-    - workitem-management
+  - agent-management
+  - workitem-management
   default_scope: permanent
   clone_cap: 5
   cap_escalation: owner

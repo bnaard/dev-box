@@ -1,21 +1,25 @@
 ---
-apiVersion: processkit.projectious.work/v1
+apiVersion: processkit.projectious.work/v2
 kind: Role
 metadata:
   id: ROLE-20260414_1100-SwiftFox-junior-researcher
-  created: 2026-04-14T11:00:00Z
+  created: 2026-04-14 11:00:00+00:00
 spec:
   name: junior-researcher
-  description: "Fast, focused research and analysis for small-to-medium questions with clear boundaries; the default research role."
+  description: Fast, focused research and analysis for small-to-medium questions with
+    clear boundaries; the default research role.
   responsibilities:
-    - "Answer bounded research questions (specific library choice, API semantics, current version constraints, changelog diffs)."
-    - "Return structured findings with citations; same report skeleton as senior-researcher, compressed."
-    - "Escalate to senior-researcher when the question turns out to be open-ended, judgement-heavy, or cross-domain."
-    - "Fact-check with at least one source verification when the finding informs a commitment."
+  - Answer bounded research questions (specific library choice, API semantics, current
+    version constraints, changelog diffs).
+  - Return structured findings with citations; same report skeleton as senior-researcher,
+    compressed.
+  - Escalate to senior-researcher when the question turns out to be open-ended, judgement-heavy,
+    or cross-domain.
+  - Fact-check with at least one source verification when the finding informs a commitment.
   skills_required:
-    - agent-management
-    - note-management
-    - cross-reference-management
+  - agent-management
+  - note-management
+  - cross-reference-management
   default_scope: permanent
   clone_cap: 5
   cap_escalation: owner

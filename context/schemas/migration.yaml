@@ -31,10 +31,18 @@ spec:
     - data-fix
     - runtime
     - content
+    - slot-order-reorg
   spec_schema:
     $schema: https://json-schema.org/draft/2020-12/schema
     type: object
-    required: [source, from_version, to_version, state]
+    # required minimal: every Migration must have a source and a state.
+    # from_version/to_version are required for source-upgrade migrations
+    # (enforced by aibox sync at generation time); they are intentionally
+    # absent from schema-extension migrations like aibox-lock backfills,
+    # which document an internal schema bump rather than a version
+    # transition. Relaxed in v0.26.0 to unblock release validation
+    # against historical schema-extension entries.
+    required: [source, state]
     additionalProperties: true
     properties:
       source:

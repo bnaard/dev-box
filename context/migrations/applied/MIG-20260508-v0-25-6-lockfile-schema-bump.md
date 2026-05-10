@@ -1,5 +1,5 @@
 ---
-apiVersion: processkit.projectious.work/v1
+apiVersion: processkit.projectious.work/v2
 kind: Migration
 metadata:
   id: MIG-20260508-v0-25-6-lockfile-schema-bump
@@ -27,6 +27,11 @@ spec:
       reads cli_version = "0.25.5"; backfill of previous_selection maps will happen
       automatically on the next `aibox apply` run with the v0.25.6 CLI (post-R5 tag/publish).
       No manual lockfile editing required. Tracked alongside R5 cutover.'
+  source_api_version: processkit.projectious.work/v1
+  source_processkit_version: v0.25.5
+  target_api_version: processkit.projectious.work/v2
+  target_processkit_version: v0.25.6
+  apply_mode: one-shot
 ---
 
 # Migration MIG-20260508-v0-25-6-lockfile-schema-bump

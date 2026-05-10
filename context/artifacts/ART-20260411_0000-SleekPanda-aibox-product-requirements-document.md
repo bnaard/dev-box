@@ -1,14 +1,16 @@
 ---
-apiVersion: processkit.projectious.work/v1
+apiVersion: processkit.projectious.work/v2
 kind: Artifact
 metadata:
   id: ART-20260411_0000-SleekPanda-aibox-product-requirements-document
-  created: 2026-04-11T00:00:00Z
+  created: 2026-04-11 00:00:00+00:00
   labels:
     type: prd
     status: current
 spec:
-  title: "aibox Product Requirements Document"
+  name: aibox Product Requirements Document
+  kind: document
+  title: aibox Product Requirements Document
   skill: prd-writing
   related_workitems: []
 ---

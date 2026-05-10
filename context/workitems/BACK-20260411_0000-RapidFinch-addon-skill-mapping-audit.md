@@ -1,5 +1,5 @@
 ---
-apiVersion: processkit.projectious.work/v1
+apiVersion: processkit.projectious.work/v2
 kind: WorkItem
 metadata:
   id: BACK-20260411_0000-RapidFinch-addon-skill-mapping-audit
@@ -20,6 +20,4 @@ spec:
     deferring until demand signal. (3) Python/node addon skill validation — fastapi-patterns
     and tailwind forced on all users, should they be opt-in? (4) Missing inter-agent-handover
     template. Old ID: BACK-092.'
-  related_decisions:
-  - BACK-20260411_0000-AmberWren-process-model-retrospective-competitive
 ---

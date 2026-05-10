@@ -39,6 +39,8 @@ spec:
     - gate.failed
     - gate.waived
     - github.issue.closed
+    - github.issues.closed
+    - external.issue.filed
     - external_issue.created
     - inbox.captured
     - inbox.claimed
@@ -54,12 +56,14 @@ spec:
     - migration.transitioned
     - migration.applied
     - migration.rejected
+    - migration.verified
     - migration.v2-context-converted
     - note.created
     - process.backlog_review
     - process.behavioral_norms_encoded
     - process.id-format-redesign
     - process.instance.created
+    - process.created
     - process.prd_review_completed
     - process.prd_review_started
     - process.prd_relocated
@@ -67,6 +71,8 @@ spec:
     - process.skill_updated
     - research.completed
     - release.published
+    - release.shipped
+    - release.phase2_completed
     - retro.action_item_created
     - retro.completed
     - role.created
@@ -74,6 +80,7 @@ spec:
     - scope.created
     - scope.transitioned
     - session.ended
+    - session.completed
     - session.handover
     - session.release
     - session.standup
@@ -84,6 +91,7 @@ spec:
     - team_member.active_interlocutor_set
     - team_member.claude_subagent_exported
     - team_member.claude_subagents_exported
+    - team_member.auto_deactivated
     - team_member.deactivated
     - team_member.exported
     - team_member.imported
@@ -108,6 +116,14 @@ spec:
     - security.tetragon_policy_projected
     - sep.handoff.created
     - skill.implemented
+    - skill.registration
+    - backlog_grooming_completed
+    - implementation.pushed
+    - phase.completed
+    - plan.approved
+    - schema.migrated
+    - upstream_issue.created
+    - workitem.investigation.note
     - decision.re-recorded
     - entity.renamed
     - test.event
@@ -115,7 +131,7 @@ spec:
   spec_schema:
     $schema: https://json-schema.org/draft/2020-12/schema
     type: object
-    required: [event_type, actor, timestamp]
+    required: [event_type, timestamp]
     additionalProperties: true
     properties:
       event_type:

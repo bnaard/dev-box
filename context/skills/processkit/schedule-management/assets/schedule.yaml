@@ -1,5 +1,5 @@
 ---
-apiVersion: processkit.projectious.work/v1
+apiVersion: processkit.projectious.work/v2
 kind: Schedule
 metadata:
   id: SCHED-TODO
@@ -7,9 +7,9 @@ metadata:
 spec:
   name: TODO
   description: TODO
-  cadence: daily         # daily | weekly | monthly | quarterly | adhoc | custom
-  cron: TODO             # standard cron expression
-  timezone: TODO         # IANA timezone
+  cadence: daily
+  cron: TODO
+  timezone: TODO
   triggers: []
   active: true
 ---

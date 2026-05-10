@@ -1,11 +1,12 @@
 ---
-apiVersion: processkit.projectious.work/v1
+apiVersion: processkit.projectious.work/v2
 kind: DecisionRecord
 metadata:
   id: DEC-20260414_1100-NobleStag-team-composition-and-model-mix
-  created: 2026-04-14T11:00:00Z
+  created: 2026-04-14 11:00:00+00:00
 spec:
-  title: "Permanent 8-role AI team with model-tier mapping and Opus/Sonnet/Haiku target mix"
+  title: Permanent 8-role AI team with model-tier mapping and Opus/Sonnet/Haiku target
+    mix
   state: accepted
   decision: |
     This project operates with a permanent 8-role AI-agent team, defined as processkit
@@ -66,14 +67,21 @@ spec:
     of actual token spend. The numbers in this DEC are task-count orientation, not
     budget-enforced — PM watches actual usage and escalates to owner if Opus share creeps up.
   alternatives:
-    - option: "Single generic 'developer' / 'architect' role with a model-tier flag; PM picks the model per invocation"
-      rejected_because: "Loses the forcing function of 'is this really senior work'. A per-invocation tier flag drifts upward over time because every task feels important in the moment."
-    - option: "Wait for processkit canonical team schema before establishing anything"
-      rejected_because: "The owner needs the team operational now. `x_aibox.*` namespace with a documented migration commitment captures the intent without blocking on external release."
-    - option: "Skip the Role/Actor/Binding triplet and define the team inline in AGENTS.md"
-      rejected_because: "Loses queryability via index-management; decays into stale prose; makes clone tracking impossible."
-    - option: "Use a lower Haiku share and higher Sonnet share (e.g. 0/95/5)"
-      rejected_because: "Under-uses Haiku for the clear high-volume low-stakes work (summaries, indexing, mechanical edits) where it is safe and materially cheaper."
+  - option: Single generic 'developer' / 'architect' role with a model-tier flag;
+      PM picks the model per invocation
+    rejected_because: Loses the forcing function of 'is this really senior work'.
+      A per-invocation tier flag drifts upward over time because every task feels
+      important in the moment.
+  - option: Wait for processkit canonical team schema before establishing anything
+    rejected_because: The owner needs the team operational now. `x_aibox.*` namespace
+      with a documented migration commitment captures the intent without blocking
+      on external release.
+  - option: Skip the Role/Actor/Binding triplet and define the team inline in AGENTS.md
+    rejected_because: Loses queryability via index-management; decays into stale prose;
+      makes clone tracking impossible.
+  - option: Use a lower Haiku share and higher Sonnet share (e.g. 0/95/5)
+    rejected_because: Under-uses Haiku for the clear high-volume low-stakes work (summaries,
+      indexing, mechanical edits) where it is safe and materially cheaper.
   consequences: |
     - Every work request now starts with PM routing to a role via task-router + model-recommender
     - AGENTS.md gains a short Team section pointing at context/roles/, context/actors/, and
@@ -83,12 +91,12 @@ spec:
     - When processkit ships the canonical team schema, a Migration entity will lift `x_aibox.*`
       fields into their canonical equivalents; this DEC is the referenced-from anchor
   related:
-    - ROLE-20260414_1100-CalmHawk-project-manager
-    - ROLE-20260414_1100-BrightEagle-senior-architect
-    - ROLE-20260414_1100-QuickFalcon-junior-architect
-    - ROLE-20260414_1100-SteadyOtter-developer
-    - ROLE-20260414_1100-DeepWhale-senior-researcher
-    - ROLE-20260414_1100-SwiftFox-junior-researcher
-    - ROLE-20260414_1100-NimbleMouse-junior-developer
-    - ROLE-20260414_1100-TidyBee-assistant
+  - ROLE-20260414_1100-CalmHawk-project-manager
+  - ROLE-20260414_1100-BrightEagle-senior-architect
+  - ROLE-20260414_1100-QuickFalcon-junior-architect
+  - ROLE-20260414_1100-SteadyOtter-developer
+  - ROLE-20260414_1100-DeepWhale-senior-researcher
+  - ROLE-20260414_1100-SwiftFox-junior-researcher
+  - ROLE-20260414_1100-NimbleMouse-junior-developer
+  - ROLE-20260414_1100-TidyBee-assistant
 ---

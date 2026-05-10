@@ -24,8 +24,8 @@ tmux -S "$socket" -f "$config" new-session -d -s "$session" -n cowork-swap -c "$
 files_pane="$(tmux -S "$socket" display-message -p -t "$session:cowork-swap" '#{pane_id}')"
 split_flag="-${AIBOX_LAYOUT_AGENT_SPLIT:-v}"
 split_ratio="${AIBOX_LAYOUT_AGENT_RATIO:-45}"
-agent_pane="$(tmux -S "$socket" split-window -t "$session:cowork-swap" "$split_flag" -p "$split_ratio" -P -F '#{pane_id}' -c "$workspace" "$(tool_or_shell claude)")"
-agent_pane_2="$(tmux -S "$socket" split-window -t "${agent_pane}" -v -l 1 -P -F '#{pane_id}' -c "$workspace" "$(tool_or_shell codex)")"
+agent_pane="$(tmux -S "$socket" split-window -t "$session:cowork-swap" "$split_flag" -p "$split_ratio" -P -F '#{pane_id}' -c "$workspace" "$(tool_or_shell codex)")"
+agent_pane_2="$(tmux -S "$socket" split-window -t "${agent_pane}" -v -l 1 -P -F '#{pane_id}' -c "$workspace" "$(tool_or_shell claude)")"
 tmux -S "$socket" select-pane -t "${agent_pane_2}" -d
 tmux -S "$socket" select-pane -t "$files_pane"
 tmux -S "$socket" select-window -t "$session:cowork-swap" 2>/dev/null || true

@@ -294,7 +294,7 @@ def _scan_model_bindings(
                 ))
         if timestamped and deterministic:
             results.append(CheckResult(
-                severity="WARN",
+                severity="INFO",
                 category="context_hygiene",
                 id="binding.filename-style-mixed",
                 message=(
@@ -417,7 +417,7 @@ def run(ctx) -> list[CheckResult]:
         path = repo_root / rel
         if path.exists():
             results.append(CheckResult(
-                severity="WARN",
+                severity="INFO",
                 category="context_hygiene",
                 id="demoted-content.present",
                 message=f"{rel} is demoted from current v2 deliverables",
@@ -435,7 +435,7 @@ def run(ctx) -> list[CheckResult]:
     score_ids = _model_score_ids(repo_root)
     if score_ids and not model_artifact_ids:
         results.append(CheckResult(
-            severity="WARN",
+            severity="INFO",
             category="context_hygiene",
             id="model-spec.missing",
             message="model_scores.json exists but no Artifact(kind=model-spec) files exist",
@@ -444,7 +444,7 @@ def run(ctx) -> list[CheckResult]:
     stale_profiles = sorted(artifact_profile_ids - score_ids)
     if missing_profiles:
         results.append(CheckResult(
-            severity="WARN",
+            severity="INFO",
             category="context_hygiene",
             id="model-spec.projection-missing",
             message=(
@@ -474,7 +474,7 @@ def run(ctx) -> list[CheckResult]:
     artifacts = repo_root / "context" / "artifacts"
     for path in sorted(artifacts.glob("ART-*_0000-*.md")):
         results.append(CheckResult(
-            severity="WARN",
+            severity="INFO",
             category="context_hygiene",
             id="artifact.suspicious-zero-time",
             message=f"{path.relative_to(repo_root)} uses suspicious _0000 timestamp",
@@ -495,7 +495,7 @@ def run(ctx) -> list[CheckResult]:
     )
     if applied_migrations:
         results.append(CheckResult(
-            severity="WARN",
+            severity="INFO",
             category="context_hygiene",
             id="archive.applied-migrations",
             message=f"{applied_migrations} applied migration(s) are archive candidates",

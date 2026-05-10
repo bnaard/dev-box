@@ -1,14 +1,14 @@
 ---
-apiVersion: processkit.projectious.work/v1
+apiVersion: processkit.projectious.work/v2
 kind: Process
 metadata:
   id: PROC-20260414_1100-team-task-distribution
-  created: 2026-04-14T11:00:00Z
+  created: 2026-04-14 11:00:00+00:00
 spec:
   name: team-task-distribution
   owner: ROLE-20260414_1100-CalmHawk-project-manager
   related_decisions:
-    - DEC-20260414_1100-NobleStag-team-composition-and-model-mix
+  - DEC-20260414_1100-NobleStag-team-composition-and-model-mix
 ---
 
 # Team Task Distribution

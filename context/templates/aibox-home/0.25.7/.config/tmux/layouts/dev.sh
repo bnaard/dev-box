@@ -24,8 +24,8 @@ tmux -S "$socket" -f "$config" new-session -d -s "$session" -n dev -c "$workspac
 files_pane="$(tmux -S "$socket" display-message -p -t "$session:dev" '#{pane_id}')"
 split_flag="-${AIBOX_LAYOUT_AGENT_SPLIT:-h}"
 split_ratio="${AIBOX_LAYOUT_AGENT_RATIO:-50}"
-agent_pane="$(tmux -S "$socket" split-window -t "$session:dev" "$split_flag" -p "$split_ratio" -P -F '#{pane_id}' -c "$workspace" "$(tool_or_shell claude)")"
-tmux -S "$socket" new-window -t "$session:" -n "dev-codex" -c "$workspace" "$(tool_or_shell codex)"
+agent_pane="$(tmux -S "$socket" split-window -t "$session:dev" "$split_flag" -p "$split_ratio" -P -F '#{pane_id}' -c "$workspace" "$(tool_or_shell codex)")"
+tmux -S "$socket" new-window -t "$session:" -n "dev-claude" -c "$workspace" "$(tool_or_shell claude)"
 tmux -S "$socket" select-pane -t "$files_pane"
 tmux -S "$socket" select-window -t "$session:dev"
 tmux -S "$socket" select-window -t "$session:dev" 2>/dev/null || true

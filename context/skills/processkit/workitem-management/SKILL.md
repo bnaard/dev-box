@@ -1,41 +1,32 @@
 ---
 name: workitem-management
-description: 'Create, transition, query, and link WorkItems — tasks, stories, bugs, epics. Use when the user asks to add, update, query, or link work items — backlog items, tasks, bugs, user stories, or epics.
-
-  '
+description: |
+  Create, transition, query, and link WorkItems — tasks, stories, bugs, epics. Use when the user asks to add, update, query, or link work items — backlog items, tasks, bugs, user stories, or epics.
 metadata:
   processkit:
     apiVersion: processkit.projectious.work/v2
     id: SKILL-workitem-management
-    version: 1.0.0
-    created: 2026-04-06 00:00:00+00:00
+    version: "1.0.0"
+    created: 2026-04-06T00:00:00Z
     category: processkit
     layer: 2
     uses:
-    - skill: event-log
-      purpose: Log events to keep the audit trail accurate after every write.
-    - skill: actor-profile
-      purpose: Resolve and validate Actor IDs referenced by this skill's entities.
-    - skill: index-management
-      purpose: Query existing entities and keep the SQLite index fresh after writes.
-    - skill: id-management
-      purpose: Allocate unique entity identifiers via central ID generation.
+      - skill: event-log
+        purpose: Log events to keep the audit trail accurate after every write.
+      - skill: actor-profile
+        purpose: Resolve and validate Actor IDs referenced by this skill's entities.
+      - skill: index-management
+        purpose: Query existing entities and keep the SQLite index fresh after writes.
+      - skill: id-management
+        purpose: Allocate unique entity identifiers via central ID generation.
     provides:
-      primitives:
-      - WorkItem
-      mcp_tools:
-      - create_workitem
-      - transition_workitem
-      - query_workitems
-      - link_workitems
-      templates:
-      - workitem
-      - workitem-bug
-      - workitem-story
+      primitives: [WorkItem]
+      mcp_tools: [create_workitem, transition_workitem, query_workitems, link_workitems]
+      templates: [workitem, workitem-bug, workitem-story]
     commands:
-    - name: pk-work
-      args: title [--type task|story|bug|epic] [--priority critical|high|medium|low]
-      description: Create a new work item in the backlog with the given title
+      - name: pk-work
+        args: "title [--type task|story|bug|epic] [--priority critical|high|medium|low]"
+        description: "Create a new work item in the backlog with the given title"
 ---
 
 # WorkItem Management

@@ -232,7 +232,7 @@ enabled = [
 
 # Documentation/docs-docusaurus — Docusaurus static docs site (React/MDX); requires node
 [addons.docs-docusaurus.tools]
-docusaurus = { version = "3.10.1" } # default on; options: {}, { enabled = true|false }, { version = "3.10.1" (default) or "latest" }
+docusaurus = { version = "3.10.1" } # default on; options: {}, { enabled = true|false }, { version = "3.7.0" | "3.8" | "3.9.2" | "3.10.1" (default) or "latest" }
 
 # Documentation/docs-hugo — Hugo static site generator (Go)
 # [addons.docs-hugo.tools]
@@ -284,7 +284,7 @@ pnpm = { version = "10" } # default on; options: {}, { enabled = true|false }, {
 # Languages/python — Python runtime with uv, poetry, or pdm
 [addons.python.tools]
 python = { version = "3.13" } # default on; options: {}, { enabled = true|false }, { version = "3.12" | "3.13" (default) | "3.14" or "latest" }
-uv = { version = "0.11.11" } # default on; options: {}, { enabled = true|false }, { version = "0.7" | "0.11.11" (default) or "latest" }
+uv = { version = "0.11.11" } # default on; options: {}, { enabled = true|false }, { version = "0.7" | "0.11.10" | "0.11.11" (default) or "latest" }
 # pip = { enabled = true } # default off; options: {}, { enabled = true|false }, { version = "x.y.z" or "latest" }
 # poetry = { enabled = true } # default off; options: {}, { enabled = true|false }, { version = "1.8" | "2.0" (default) or "latest" }
 # pdm = { enabled = true } # default off; options: {}, { enabled = true|false }, { version = "2.22" (default) or "latest" }
@@ -461,7 +461,7 @@ provider_mode = "pointer"  # options: pointer, full
 
 # [ai.mcp.gateway] — processkit MCP topology. Options for mode: auto | granular | stdio | daemon-proxy | aggregate
 [ai.mcp.gateway]
-mode = "auto"          # auto uses daemon-proxy when processkit-gateway is installed; falls back to aggregate-mcp
+mode = "auto"          # auto uses daemon-proxy when processkit-gateway is installed
 lazy_catalog = false    # Use processkit's lazy catalog where supported
 host = "127.0.0.1"     # daemon-proxy is always localhost-only
 port = 8765

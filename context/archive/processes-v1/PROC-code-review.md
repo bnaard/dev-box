@@ -1,56 +1,50 @@
 ---
-apiVersion: processkit.projectious.work/v1
+apiVersion: processkit.projectious.work/v2
 kind: Process
 metadata:
   id: PROC-code-review
-  version: "1.0.0"
-  created: 2026-04-07T00:00:00Z
+  version: 1.0.0
+  created: 2026-04-07 00:00:00+00:00
 spec:
   name: code-review
-  description: "Review a change before it merges into the main branch."
+  description: Review a change before it merges into the main branch.
   triggers:
-    - pr.opened
-    - pr.review-requested
+  - pr.opened
+  - pr.review-requested
   roles:
-    - developer
-    - reviewer
+  - developer
+  - reviewer
   steps:
-    - name: author-self-check
-      role: developer
-      description: >
-        The author runs the self-review checklist before requesting
-        review: lint clean, tests passing, scope clear, no unrelated
-        changes bundled, docstrings/comments updated.
-      uses_skill: code-review
-    - name: peer-review
-      role: reviewer
-      description: >
-        A different actor reads the diff and leaves comments addressing
-        correctness, readability, test coverage, and architectural
-        consistency.
-      uses_skill: code-review
-      gates:
-        - GATE-no-blocking-comments
-    - name: address-feedback
-      role: developer
-      description: >
-        The author addresses all blocking comments. Non-blocking nits
-        are addressed at the author's discretion.
-      on_failure: retry
-    - name: approval
-      role: reviewer
-      description: "The reviewer approves the change."
-      gates:
-        - GATE-code-review-passed
-    - name: merge
-      role: developer
-      description: "The author merges after approval and CI green."
-      gates:
-        - GATE-tests-green
-        - GATE-code-review-passed
-  definition_of_done: >
-    PR merged with at least one approval, all blocking comments
-    resolved, and all CI gates passed.
+  - name: author-self-check
+    role: developer
+    description: |
+      The author runs the self-review checklist before requesting review: lint clean, tests passing, scope clear, no unrelated changes bundled, docstrings/comments updated.
+    uses_skill: code-review
+  - name: peer-review
+    role: reviewer
+    description: |
+      A different actor reads the diff and leaves comments addressing correctness, readability, test coverage, and architectural consistency.
+    uses_skill: code-review
+    gates:
+    - GATE-no-blocking-comments
+  - name: address-feedback
+    role: developer
+    description: |
+      The author addresses all blocking comments. Non-blocking nits are addressed at the author's discretion.
+    on_failure: retry
+  - name: approval
+    role: reviewer
+    description: The reviewer approves the change.
+    gates:
+    - GATE-code-review-passed
+  - name: merge
+    role: developer
+    description: The author merges after approval and CI green.
+    gates:
+    - GATE-tests-green
+    - GATE-code-review-passed
+  definition_of_done: |
+    PR merged with at least one approval, all blocking comments resolved, and all CI gates passed.
   retryable: true
 ---
 

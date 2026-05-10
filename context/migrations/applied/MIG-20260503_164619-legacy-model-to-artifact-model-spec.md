@@ -1,5 +1,5 @@
 ---
-apiVersion: processkit.projectious.work/v1
+apiVersion: processkit.projectious.work/v2
 kind: Migration
 metadata:
   id: MIG-20260503_164619-legacy-model-to-artifact-model-spec
@@ -25,6 +25,11 @@ spec:
       MCP tools do not support preserving the migration's intended ART-*-model-spec
       IDs or rewriting existing binding targets in place; avoiding raw context entity
       edits preserves the processkit MCP write contract.
+  source_api_version: processkit.projectious.work/v1
+  source_processkit_version: unknown
+  target_api_version: processkit.projectious.work/v2
+  target_processkit_version: 2.0.0-alpha.1
+  apply_mode: one-shot
 ---
 
 # Migration MIG-20260503_164619-legacy-model-to-artifact-model-spec

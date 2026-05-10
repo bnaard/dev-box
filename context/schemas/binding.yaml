@@ -38,6 +38,7 @@ spec:
   default_directory: context/bindings
   known_types:
     - role-assignment
+    - role-slot-fill
     - model-assignment
     - work-assignment
     - process-gate
@@ -85,7 +86,7 @@ spec:
         description: "Optional. The primitive kind of the target."
       scope:
         type: [string, "null"]
-        pattern: "^SCOPE-[a-zA-Z0-9_-]+$"
+        pattern: "^(SCOPE-[a-zA-Z0-9_-]+|permanent)$"
         description: "Optional. Scope ID within which this binding applies."
       valid_from:
         type: [string, "null"]
@@ -286,3 +287,27 @@ spec:
                 recurrence_rule:
                   type: string
                   pattern: "^ART-[a-zA-Z0-9_-]+$"
+      - if:
+          properties:
+            type:
+              const: role-slot-fill
+          required: [type]
+        then:
+          properties:
+            subject:
+              type: string
+              pattern: "^TEAMMEMBER-[a-z][a-z0-9-]*$"
+              description: "TeamMember filling the slot."
+            target:
+              type: string
+              pattern: "^SLOT-[a-z0-9][a-z0-9-]*-[1-9][0-9]*$"
+              description: "RoleSlot being filled."
+            target_kind:
+              const: RoleSlot
+            conditions:
+              type: object
+              additionalProperties: true
+              properties:
+                rationale:
+                  type: string
+                  description: "Why this TeamMember was placed in this slot."

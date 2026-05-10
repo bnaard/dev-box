@@ -1,11 +1,11 @@
 ---
-apiVersion: processkit.projectious.work/v1
+apiVersion: processkit.projectious.work/v2
 kind: DecisionRecord
 metadata:
   id: DEC-20260418_1200-CleverHarbor-skill-gate-mandatory-mcp-set
-  created: 2026-04-18T12:00:00Z
+  created: 2026-04-18 12:00:00+00:00
 spec:
-  title: "Promote skill-gate from KERNEL_MCP_SKILLS to MANDATORY_MCP_SKILLS in v0.18.6"
+  title: Promote skill-gate from KERNEL_MCP_SKILLS to MANDATORY_MCP_SKILLS in v0.18.6
   state: accepted
   decision: |
     `skill-gate` moves from `KERNEL_MCP_SKILLS` (fallback-only, included only
@@ -17,7 +17,6 @@ spec:
       event-log, id-management, index-management, skill-gate, workitem-management.
       `skill-gate` remains in KERNEL_MCP_SKILLS for fallback coverage when the
       mandatory entry can't be located.
-
   rationale: |
     The PreToolUse compliance gate (`check_route_task_called.py`) blocks every
     Write/Edit on `context/` until a session marker is present. The marker is
@@ -39,7 +38,6 @@ spec:
     should not silently support — the contract literally says "call
     route_task before any create_*/transition_*/etc.", and route_task is
     the very tool the gate enforces.
-
   alternatives_considered: |
     1. Leave skill-gate in KERNEL only (status quo before today).
        Rejected: same broken outcome — every project that follows the
@@ -56,7 +54,6 @@ spec:
        Selected: explicit, predictable, matches the contract semantics.
        Users who genuinely don't want the gate can fork
        `processkit_vocab.rs` or add an opt-out config later (BACKLOG).
-
   consequences: |
     + Compliance gate works out of the box on every fresh `aibox sync`.
     + Future agent sessions don't need bash workarounds for context/ writes.
@@ -68,15 +65,13 @@ spec:
       negligible — the server idles waiting for tool calls.
     - Projects that explicitly want to disable the gate (rare) need to
       either fork the vocab module or wait for a planned opt-out config.
-
   related:
-    - aibox#53
-    - BACK-20260411_1554-cleverAsh-gitignore-mcp-json-and
-    - BACK-20260418_1145-CarefulFalcon-mcp-skill-name-collision-guard
-    - LOG-20260418_0900-ClearHarbor-session-handover (open_threads on the gate)
-
+  - aibox#53
+  - BACK-20260411_1554-cleverAsh-gitignore-mcp-json-and
+  - BACK-20260418_1145-CarefulFalcon-mcp-skill-name-collision-guard
+  - LOG-20260418_0900-ClearHarbor-session-handover (open_threads on the gate)
   recorded_by: claude-opus-4-7
-  recorded_at: 2026-04-18T12:00:00Z
+  recorded_at: 2026-04-18 12:00:00+00:00
 ---
 
 # Decision summary

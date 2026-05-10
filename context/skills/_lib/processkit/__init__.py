@@ -40,6 +40,7 @@ KIND_PREFIXES = {
     "Migration": "MIG",
     "Note": "NOTE",
     "TeamMember": "TEAMMEMBER",
+    "RoleSlot": "SLOT",
 }
 
 # Default subdirectory under context/ for each primitive kind
@@ -63,4 +64,5 @@ DEFAULT_DIRS = {
     "Migration": "migrations",
     "Note": "notes",
     "TeamMember": "team-members",
+    "RoleSlot": "roleslots",
 }

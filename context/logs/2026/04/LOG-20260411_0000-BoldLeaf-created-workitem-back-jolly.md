@@ -1,5 +1,5 @@
 ---
-apiVersion: processkit.projectious.work/v1
+apiVersion: processkit.projectious.work/v2
 kind: LogEntry
 metadata:
   id: LOG-20260411_0000-BoldLeaf-created-workitem-back-jolly
@@ -7,8 +7,8 @@ metadata:
 spec:
   event_type: workitem.created
   timestamp: '2026-04-10T22:36:20+00:00'
-  summary: 'Created WorkItem ''BACK-20260411_0000-JollyWren-security-review-cli-input'': ''Security review — CLI input validation,
-    container security, supply chain'''
+  summary: 'Created WorkItem ''BACK-20260411_0000-JollyWren-security-review-cli-input'':
+    ''Security review — CLI input validation, container security, supply chain'''
   subject: BACK-20260411_0000-JollyWren-security-review-cli-input
   subject_kind: WorkItem
 ---

@@ -20,7 +20,7 @@ tool_or_shell() {
   printf "bash -lc 'if command -v %q >/dev/null 2>&1; then %q; fi; exec bash'" "$tool" "$tool"
 }
 
-tmux -S "$socket" -f "$config" new-session -d -s "$session" -n focus -c "$workspace" "$(tool_or_shell claude)"
-tmux -S "$socket" new-window -t "$session:" -n "codex" -c "$workspace" "$(tool_or_shell codex)"
+tmux -S "$socket" -f "$config" new-session -d -s "$session" -n focus -c "$workspace" "$(tool_or_shell codex)"
+tmux -S "$socket" new-window -t "$session:" -n "claude" -c "$workspace" "$(tool_or_shell claude)"
 tmux -S "$socket" select-window -t "$session:focus" 2>/dev/null || true
 exec tmux -S "$socket" -f "$config" attach-session -t "$session"

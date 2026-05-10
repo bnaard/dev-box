@@ -1,5 +1,5 @@
 ---
-apiVersion: processkit.projectious.work/v1
+apiVersion: processkit.projectious.work/v2
 kind: Discussion
 metadata:
   id: DISC-20260424_0008-CoolStream-which-of-the-42

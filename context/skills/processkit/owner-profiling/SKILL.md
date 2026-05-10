@@ -1,35 +1,30 @@
 ---
 name: owner-profiling
-description: 'Build and maintain a structured personal-context portfolio for the project owner — identity, working style, goals, team, decision patterns. Includes both an interview protocol for bootstrapping and observable-signal patterns for incremental refinement. Use to bootstrap an owner profile (interview), to refine an existing profile (target one file), or to incrementally update the profile based on observed patterns from a normal session (the agent watches for signals and proposes additions when evidence accrues).
-
-  '
+description: |
+  Build and maintain a structured personal-context portfolio for the project owner — identity, working style, goals, team, decision patterns. Includes both an interview protocol for bootstrapping and observable-signal patterns for incremental refinement. Use to bootstrap an owner profile (interview), to refine an existing profile (target one file), or to incrementally update the profile based on observed patterns from a normal session (the agent watches for signals and proposes additions when evidence accrues).
 metadata:
   processkit:
     apiVersion: processkit.projectious.work/v2
     id: SKILL-owner-profiling
-    version: 1.0.0
-    created: 2026-04-07 00:00:00+00:00
+    version: "1.0.0"
+    created: 2026-04-07T00:00:00Z
     category: processkit
     layer: 4
     uses:
-    - skill: event-log
-      purpose: Log events to keep the audit trail accurate after every write.
-    - skill: actor-profile
-      purpose: Resolve and validate Actor IDs referenced by this skill's entities.
+      - skill: event-log
+        purpose: Log events to keep the audit trail accurate after every write.
+      - skill: actor-profile
+        purpose: Resolve and validate Actor IDs referenced by this skill's entities.
     provides:
       primitives: []
-      templates:
-      - identity
-      - working-style
-      - goals-and-context
-      - team-and-relationships
+      templates: [identity, working-style, goals-and-context, team-and-relationships]
     commands:
-    - name: pk-owner-bootstrap
-      args: owner-name
-      description: Run the initial profiling interview for a new project owner
-    - name: pk-observe
-      args: owner-name observation
-      description: Record a behavioural observation about a project owner
+      - name: pk-owner-bootstrap
+        args: "owner-name"
+        description: "Run the initial profiling interview for a new project owner"
+      - name: pk-observe
+        args: "owner-name observation"
+        description: "Record a behavioural observation about a project owner"
 ---
 
 # Owner Profiling

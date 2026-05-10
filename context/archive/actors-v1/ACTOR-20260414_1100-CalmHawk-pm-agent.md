@@ -1,14 +1,14 @@
 ---
-apiVersion: processkit.projectious.work/v1
+apiVersion: processkit.projectious.work/v2
 kind: Actor
 metadata:
   id: ACTOR-20260414_1100-CalmHawk-pm-agent
-  created: 2026-04-14T11:00:00Z
+  created: 2026-04-14 11:00:00+00:00
 spec:
   type: agent
   name: PM Agent (template)
   active: true
-  joined_at: 2026-04-14T11:00:00Z
+  joined_at: 2026-04-14 11:00:00+00:00
   handle: pm-agent
   is_template: true
   templated_from: null

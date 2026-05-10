@@ -1,5 +1,5 @@
 ---
-apiVersion: processkit.projectious.work/v1
+apiVersion: processkit.projectious.work/v2
 kind: LogEntry
 metadata:
   id: LOG-20260418_1750-QuietForge-session-handover
@@ -8,7 +8,9 @@ spec:
   event_type: session.handover
   timestamp: '2026-04-18T17:50:00Z'
   actor: claude-opus-4-7
-  summary: v0.18.7 code-complete in commit 26d3b0e — MCP safety rail, devcontainer drift, gh-pages, OpenCode plugin (#51), compliance v1/v2 shim. Release held for processkit update integration.
+  summary: v0.18.7 code-complete in commit 26d3b0e — MCP safety rail, devcontainer
+    drift, gh-pages, OpenCode plugin (#51), compliance v1/v2 shim. Release held for
+    processkit update integration.
   details:
     session_date: '2026-04-18'
     current_state: |
@@ -111,38 +113,83 @@ spec:
       (verified by an explicit "Edit tool is denied" failure from
       one agent). Implication: delegate research + diff drafting
       to agents; perform actual file edits in the main thread.
-
     issues_resolved:
-      - 'processkit#8 reported upstream — root cause + reproduction + suggested patch attached. 12 of 16 per-skill mcp-config.json files ship paths missing the `processkit/` category segment introduced in v0.17.0 (regression latent since v0.16.0; only visible after aibox v0.18.6 unblocked .mcp.json writes).'
-      - 'aibox-side hotpatch applied to all 12 affected files; .mcp.json mirrored. Next session will load all 16 MCP servers cleanly.'
-      - 'Devcontainer cosmetic drift on rebuild fixed (header version interpolation removed from generate.rs; aibox.lock idempotence in content_init.rs).'
-      - 'gh-pages "Could not configure Pages automatically" warning on every release — root cause (PUT vs POST + swallowed 422) identified and patched in maintain.sh.'
-      - 'Compliance contract v1/v2 transitional state handled gracefully — drift checker no longer false-positives on v2-marked AGENTS.md against v1 canonical source.'
-      - '#51 OpenCode TypeScript plugin implemented and shipped (was blocked on upstream sst/opencode#2319 + #5894; both closed this month).'
-      - 'MCP path safety rail in mcp_registration.rs — would have caught the processkit#8 regression at v0.17.0 cutover instead of v0.18.6+ (two releases later).'
-
+    - processkit#8 reported upstream — root cause + reproduction + suggested patch
+      attached. 12 of 16 per-skill mcp-config.json files ship paths missing the `processkit/`
+      category segment introduced in v0.17.0 (regression latent since v0.16.0; only
+      visible after aibox v0.18.6 unblocked .mcp.json writes).
+    - aibox-side hotpatch applied to all 12 affected files; .mcp.json mirrored. Next
+      session will load all 16 MCP servers cleanly.
+    - Devcontainer cosmetic drift on rebuild fixed (header version interpolation removed
+      from generate.rs; aibox.lock idempotence in content_init.rs).
+    - gh-pages "Could not configure Pages automatically" warning on every release
+      — root cause (PUT vs POST + swallowed 422) identified and patched in maintain.sh.
+    - Compliance contract v1/v2 transitional state handled gracefully — drift checker
+      no longer false-positives on v2-marked AGENTS.md against v1 canonical source.
+    - '#51 OpenCode TypeScript plugin implemented and shipped (was blocked on upstream
+      sst/opencode#2319 + #5894; both closed this month).'
+    - MCP path safety rail in mcp_registration.rs — would have caught the processkit#8
+      regression at v0.17.0 cutover instead of v0.18.6+ (two releases later).
     issues_remaining:
-      - 'CarefulFalcon DecisionRecord NOT FILED — would record: keep v0.18.6 warn-and-continue + bare-name keys; promote to qualified keys (`processkit/event-log`) only if real collisions surface; close BACK-20260418_1145-CarefulFalcon. Awaiting next-session MCP `record_decision`.'
-      - 'Pending migration `MIG-20260418T111856` (AGENTS.md v1↔v2) NOT APPLIED — safe to apply now that the v0.18.7 shim is in place; needs MCP `apply_migration` next session.'
-      - 'release.prepared event NOT logged — needs MCP event-log next session.'
-      - 'Devcontainer SEMANTIC drift (Dockerfile FROM/LABEL/version pinning) is unchanged — that is correct behavior because those values pin the actual base image. If the user wants TRUE no-drift on rebuild, options are: (a) literal `version = "0.18.7"` in aibox.toml (currently `latest`), or (b) skip `aibox sync` from any container-rebuild lifecycle hook (none currently configured in devcontainer.json).'
-      - 'Yazi runtime spot-check (Tier 2/3 — interactive Yazi launch) NOT executed; only the 10 unit tests in cli/tests/e2e/preview.rs were re-verified. The aibox init smoke-test failed in this devcontainer because addon definitions are not installed in /home/aibox/.config/aibox/addons (dev-env limitation, not a Yazi bug).'
-      - 'processkit Pages auto-config response code NOT verified live — agent could not WebFetch the URL or run `gh api repos/.../pages` (sandbox). Code-only diagnosis of the warning. Worth a host check after next release.'
-      - 'OpenCode plugin discovery convention NOT empirically verified — agent`s implementation assumes OpenCode auto-discovers `.opencode/plugins/*.ts` and resolves the named export. Per the upstream issue sketch and OpenCode plugin docs this should work, but the integration has not been exercised against a real OpenCode session.'
-      - '.devcontainer/Dockerfile + devcontainer.json + docker-compose.yml + aibox.lock are pre-existing v0.18.5→v0.18.6 sync drift carried in from the prior session. Will refresh to v0.18.7 on the host''s next `aibox sync`. Held intentionally out of commit 26d3b0e.'
-      - 'Untracked items left in working tree: prior handover (LOG-20260418_1500-BrightSummit), applied migration doc 20260418_1318_0.18.5-to-0.18.6.md, an empty `pending/` dir from prior work, `__pycache__`, and `context/templates/aibox-home/0.18.6/` snapshot. Same set as session start; not part of this commit.'
-
+    - 'CarefulFalcon DecisionRecord NOT FILED — would record: keep v0.18.6 warn-and-continue
+      + bare-name keys; promote to qualified keys (`processkit/event-log`) only if
+      real collisions surface; close BACK-20260418_1145-CarefulFalcon. Awaiting next-session
+      MCP `record_decision`.'
+    - Pending migration `MIG-20260418T111856` (AGENTS.md v1↔v2) NOT APPLIED — safe
+      to apply now that the v0.18.7 shim is in place; needs MCP `apply_migration`
+      next session.
+    - release.prepared event NOT logged — needs MCP event-log next session.
+    - 'Devcontainer SEMANTIC drift (Dockerfile FROM/LABEL/version pinning) is unchanged
+      — that is correct behavior because those values pin the actual base image. If
+      the user wants TRUE no-drift on rebuild, options are: (a) literal `version =
+      "0.18.7"` in aibox.toml (currently `latest`), or (b) skip `aibox sync` from
+      any container-rebuild lifecycle hook (none currently configured in devcontainer.json).'
+    - Yazi runtime spot-check (Tier 2/3 — interactive Yazi launch) NOT executed; only
+      the 10 unit tests in cli/tests/e2e/preview.rs were re-verified. The aibox init
+      smoke-test failed in this devcontainer because addon definitions are not installed
+      in /home/aibox/.config/aibox/addons (dev-env limitation, not a Yazi bug).
+    - processkit Pages auto-config response code NOT verified live — agent could not
+      WebFetch the URL or run `gh api repos/.../pages` (sandbox). Code-only diagnosis
+      of the warning. Worth a host check after next release.
+    - OpenCode plugin discovery convention NOT empirically verified — agent`s implementation
+      assumes OpenCode auto-discovers `.opencode/plugins/*.ts` and resolves the named
+      export. Per the upstream issue sketch and OpenCode plugin docs this should work,
+      but the integration has not been exercised against a real OpenCode session.
+    - .devcontainer/Dockerfile + devcontainer.json + docker-compose.yml + aibox.lock
+      are pre-existing v0.18.5→v0.18.6 sync drift carried in from the prior session.
+      Will refresh to v0.18.7 on the host's next `aibox sync`. Held intentionally
+      out of commit 26d3b0e.
+    - 'Untracked items left in working tree: prior handover (LOG-20260418_1500-BrightSummit),
+      applied migration doc 20260418_1318_0.18.5-to-0.18.6.md, an empty `pending/`
+      dir from prior work, `__pycache__`, and `context/templates/aibox-home/0.18.6/`
+      snapshot. Same set as session start; not part of this commit.'
     open_threads:
-      - 'AFTER SESSION RESTART: file CarefulFalcon DecisionRecord (warn-and-continue + bare-name keys, with the 4-cell recommendation matrix as the alternatives section), then transition BACK-20260418_1145-CarefulFalcon to done.'
-      - 'AFTER SESSION RESTART: apply pending migration MIG-20260418T111856 (AGENTS.md v1→v2). Now safe because the v0.18.7 shim accepts both marker versions.'
-      - 'AFTER SESSION RESTART: log release.prepared event for commit 26d3b0e against v0.18.7.'
-      - 'INTEGRATE processkit''s in-flight update before tagging v0.18.7. Owner explicitly held the release for this. After integration: bump default processkit version in cli/src/processkit_vocab.rs (currently v0.18.1) if appropriate, update the v0.18.7 COMPAT_TABLE entry''s processkit_version field, re-test.'
-      - 'AFTER processkit update integrated: run `scripts/maintain.sh release v0.18.7` (Phase 1: Linux binaries, GitHub release, docs deploy). Phase 2 (macOS binaries + GHCR push) confirmed by owner pattern from v0.18.6.'
-      - 'Yazi end-to-end interactive verification (Tier 3) — still pending across multiple sessions. Requires host with DISPLAY/TTY: aibox init → docker build → docker run -it → open Zellij layout → preview SVG/EPS/dirs.'
-      - 'The .mcp.json hotpatch applied this session is not committed (file is gitignored). It survives until the next `aibox sync` overwrites it. Once processkit#8 is fixed upstream and synced, .mcp.json will be regenerated correctly and the safety rail will keep it that way.'
-      - 'BACK-20260411_0000-SoundRabbit (critical, self-hosted deployment) — roadmap-scale, untouched this session. Still needs grooming session.'
-      - 'BACK-AmberWren (process model retrospective), BACK-CoolBear (preview companion design review), BACK-JollyWren (CLI input security review), BACK-LoyalSeal (version upgrade flows review) — 4 high-priority backlog items still unstarted.'
-
+    - 'AFTER SESSION RESTART: file CarefulFalcon DecisionRecord (warn-and-continue
+      + bare-name keys, with the 4-cell recommendation matrix as the alternatives
+      section), then transition BACK-20260418_1145-CarefulFalcon to done.'
+    - 'AFTER SESSION RESTART: apply pending migration MIG-20260418T111856 (AGENTS.md
+      v1→v2). Now safe because the v0.18.7 shim accepts both marker versions.'
+    - 'AFTER SESSION RESTART: log release.prepared event for commit 26d3b0e against
+      v0.18.7.'
+    - 'INTEGRATE processkit''s in-flight update before tagging v0.18.7. Owner explicitly
+      held the release for this. After integration: bump default processkit version
+      in cli/src/processkit_vocab.rs (currently v0.18.1) if appropriate, update the
+      v0.18.7 COMPAT_TABLE entry''s processkit_version field, re-test.'
+    - 'AFTER processkit update integrated: run `scripts/maintain.sh release v0.18.7`
+      (Phase 1: Linux binaries, GitHub release, docs deploy). Phase 2 (macOS binaries
+      + GHCR push) confirmed by owner pattern from v0.18.6.'
+    - 'Yazi end-to-end interactive verification (Tier 3) — still pending across multiple
+      sessions. Requires host with DISPLAY/TTY: aibox init → docker build → docker
+      run -it → open Zellij layout → preview SVG/EPS/dirs.'
+    - The .mcp.json hotpatch applied this session is not committed (file is gitignored).
+      It survives until the next `aibox sync` overwrites it. Once processkit#8 is
+      fixed upstream and synced, .mcp.json will be regenerated correctly and the safety
+      rail will keep it that way.
+    - BACK-20260411_0000-SoundRabbit (critical, self-hosted deployment) — roadmap-scale,
+      untouched this session. Still needs grooming session.
+    - BACK-AmberWren (process model retrospective), BACK-CoolBear (preview companion
+      design review), BACK-JollyWren (CLI input security review), BACK-LoyalSeal (version
+      upgrade flows review) — 4 high-priority backlog items still unstarted.
     next_recommended_action: |
       **Restart Claude Code first.** The 12 hotpatched MCP servers
       will only load on a fresh handshake. Then, in a single early
@@ -168,19 +215,38 @@ spec:
       update the v0.18.7 COMPAT_TABLE entry''s `processkit_version`
       field, re-run `cargo test`, then run `scripts/maintain.sh
       release v0.18.7`.
-
-    branch: 'main'
-    commit: '26d3b0e'
+    branch: main
+    commit: 26d3b0e
     uncommitted_changes:
-      - '.devcontainer/Dockerfile, devcontainer.json, docker-compose.yml — pre-existing v0.18.5→v0.18.6 sync drift carried from prior session. Held out of commit 26d3b0e because they belong to the v0.18.6 sync state and will refresh on next `aibox sync` against v0.18.7.'
-      - 'aibox.lock — same as above.'
-      - 'Untracked: context/logs/2026/04/LOG-20260418_1500-BrightSummit-session-handover.md (prior session''s handover), context/migrations/20260418_1318_0.18.5-to-0.18.6.md (applied migration doc), context/migrations/pending/ (empty after MIG-20260418T111856 absorption pending), context/skills/_lib/processkit/__pycache__/, context/templates/aibox-home/0.18.6/. All present at session start; none are session output.'
-
+    - .devcontainer/Dockerfile, devcontainer.json, docker-compose.yml — pre-existing
+      v0.18.5→v0.18.6 sync drift carried from prior session. Held out of commit 26d3b0e
+      because they belong to the v0.18.6 sync state and will refresh on next `aibox
+      sync` against v0.18.7.
+    - aibox.lock — same as above.
+    - 'Untracked: context/logs/2026/04/LOG-20260418_1500-BrightSummit-session-handover.md
+      (prior session''s handover), context/migrations/20260418_1318_0.18.5-to-0.18.6.md
+      (applied migration doc), context/migrations/pending/ (empty after MIG-20260418T111856
+      absorption pending), context/skills/_lib/processkit/__pycache__/, context/templates/aibox-home/0.18.6/.
+      All present at session start; none are session output.'
     behavioral_retrospective:
-      - 'Initial code-edit delegation to sub-agents failed because Edit tool is denied to sub-agents in this project''s permission topology. Switched mid-session to doing edits in the main thread. Encoded for future: agents are great for research, diff drafting, and read-only investigation; main thread does the actual edits. Worth surfacing to the owner if they want to broaden subagent permissions.'
-      - 'My first devcontainer-drift diagnosis was incomplete — I framed the whole drift as a fix target without distinguishing cosmetic header version (truly worthless churn) from semantic FROM/LABEL pinning (correct behavior). Caught it before applying overcorrecting fixes. Lesson encoded into the v0.18.7 commit message and the issues_remaining note above so the next session understands the boundary.'
-      - 'Used wrong `aibox init` flag (`--no-prompt` instead of `--prompt`) on the first Yazi spot-check attempt. Recovered on the next call. Minor; not encoded.'
-      - 'Compliance contract: 12 entity-layer MCP servers were broken all session, so two writes (CarefulFalcon DR and the AGENTS.md migration apply) are DEFERRED rather than executed in the same turn as the decision. The contract''s "same turn" rule yields here to "MCP unavailable" — explicit deferral with a written next_recommended_action is the right tradeoff. Not a behavioral gap; an environment limitation correctly surfaced.'
+    - 'Initial code-edit delegation to sub-agents failed because Edit tool is denied
+      to sub-agents in this project''s permission topology. Switched mid-session to
+      doing edits in the main thread. Encoded for future: agents are great for research,
+      diff drafting, and read-only investigation; main thread does the actual edits.
+      Worth surfacing to the owner if they want to broaden subagent permissions.'
+    - My first devcontainer-drift diagnosis was incomplete — I framed the whole drift
+      as a fix target without distinguishing cosmetic header version (truly worthless
+      churn) from semantic FROM/LABEL pinning (correct behavior). Caught it before
+      applying overcorrecting fixes. Lesson encoded into the v0.18.7 commit message
+      and the issues_remaining note above so the next session understands the boundary.
+    - Used wrong `aibox init` flag (`--no-prompt` instead of `--prompt`) on the first
+      Yazi spot-check attempt. Recovered on the next call. Minor; not encoded.
+    - 'Compliance contract: 12 entity-layer MCP servers were broken all session, so
+      two writes (CarefulFalcon DR and the AGENTS.md migration apply) are DEFERRED
+      rather than executed in the same turn as the decision. The contract''s "same
+      turn" rule yields here to "MCP unavailable" — explicit deferral with a written
+      next_recommended_action is the right tradeoff. Not a behavioral gap; an environment
+      limitation correctly surfaced.'
 ---
 
 # Session summary

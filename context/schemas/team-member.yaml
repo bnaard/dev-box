@@ -3,7 +3,7 @@ kind: Schema
 metadata:
   id: SCHEMA-team-member
   target_kind: TeamMember
-  version: 1.1.0
+  version: 1.2.0
   created: 2026-04-22 00:00:00+00:00
 spec:
   description: |
@@ -55,7 +55,43 @@ spec:
         - human
         - ai-agent
         - service
-        description: Kind of participant.
+        - consultant
+        description: |
+          Kind of participant. type=consultant adds mandatory engaged_for and
+          engagement_window; those fields are rejected on non-consultant types.
+      engaged_for:
+        type: string
+        pattern: ^SCOPE-[a-z0-9-]+$
+        description: |
+          Scope this consultant is engaged for. Required when type=consultant;
+          must be absent (or null) for human, ai-agent, and service types.
+      engagement_window:
+        type: object
+        description: |
+          Temporal window during which the consultant is active. Required when
+          type=consultant; must be absent for non-consultant types. The resolver
+          excludes consultants whose window has not started or has already ended.
+        required:
+        - starts_at
+        - ends_at
+        additionalProperties: false
+        properties:
+          starts_at:
+            type: string
+            format: date-time
+            description: Inclusive start of the engagement (ISO 8601 UTC).
+          ends_at:
+            type: string
+            format: date-time
+            description: Inclusive end of the engagement (ISO 8601 UTC).
+      auto_deactivate_on_scope_close:
+        type: boolean
+        default: true
+        description: |
+          When true (default), closing the engaged_for Scope automatically sets
+          active=false on this consultant. Set to false to keep the consultant
+          record active after Scope closure (e.g. for post-engagement review).
+          Only meaningful when type=consultant.
       name:
         type: string
         minLength: 1
