@@ -121,6 +121,8 @@ ${bold}Release:${reset}
                            (runs automatically inside 'release'; also available standalone)
   release-check-state      Write dist/RELEASE-STATE.md with dependency, addon,
                            image, and harness version drift evidence
+  release-doctors          Run pk-doctor + aibox doctor; write dist/RELEASE-DOCTORS.md;
+                           exit nonzero if either reports ERRORs
   release <version>        Sync processkit, test, tag, build CLI, generate release prompt
   release-host <version>   Build/upload macOS binaries, push GHCR images,
                            run runtime smoke, then refresh + commit generated runtime surfaces
@@ -616,6 +618,107 @@ cmd_release_check_state() {
   "${SCRIPT_DIR}/release-check-state.sh"
 }
 
+# =============================================================================
+# cmd_release_doctors — run pk-doctor + aibox doctor as a Phase 0 gate
+#
+# Both doctors are invoked sequentially.  Output (stdout + stderr) is
+# captured and written to dist/RELEASE-DOCTORS.md.  Gate semantics:
+#
+#   pk-doctor  exits 0 → no ERRORs; exits 1 → ERRORs found.
+#   aibox doctor always exits 0, but prints a summary line:
+#     "Diagnostics complete: N warning(s), M error(s)"
+#   We parse that line; M > 0 is treated as ERROR.
+#
+# Gate outcome:
+#   Both pass (0 ERRORs) → continue, exit 0.
+#   Either has ERRORs    → write RELEASE-DOCTORS.md, halt with message.
+#   WARNs only           → write RELEASE-DOCTORS.md, continue (non-blocking).
+# =============================================================================
+cmd_release_doctors() {
+  mkdir -p "${DIST_DIR}"
+  local report="${DIST_DIR}/RELEASE-DOCTORS.md"
+  local blocked=0
+
+  info "Running pk-doctor (processkit health check)..."
+  local pk_out pk_exit
+  pk_out=$( \
+    cd "${PROJECT_ROOT}" && \
+    uv run --script \
+      "${PROJECT_ROOT}/context/skills/processkit/pk-doctor/scripts/doctor.py" \
+      --no-log \
+      2>&1 \
+  ) || true
+  pk_exit=$?
+
+  info "Running aibox doctor (runtime hygiene check)..."
+  local aibox_out aibox_exit aibox_err_count
+  aibox_out=$( \
+    cd "${PROJECT_ROOT}" && \
+    cargo run --manifest-path "${CLI_DIR}/Cargo.toml" --quiet -- doctor \
+      2>&1 \
+  ) || true
+  aibox_exit=$?
+
+  # aibox doctor always exits 0; detect errors by parsing the summary line.
+  # Format: "Diagnostics complete: N warning(s), M error(s)"
+  aibox_err_count=$(echo "${aibox_out}" | \
+    grep -oP '(\d+) error\(s\)' | grep -oP '^\d+' || echo "0")
+  [[ -z "${aibox_err_count}" ]] && aibox_err_count=0
+
+  # Determine gate outcome.
+  local pk_status aibox_status
+  if [[ "${pk_exit}" -ne 0 ]]; then
+    pk_status="ERROR (exit ${pk_exit})"
+    blocked=1
+  else
+    pk_status="OK"
+  fi
+
+  if [[ "${aibox_err_count}" -gt 0 ]]; then
+    aibox_status="ERROR (${aibox_err_count} error(s))"
+    blocked=1
+  else
+    aibox_status="OK"
+  fi
+
+  # Write the combined report regardless of outcome.
+  {
+    echo "# Release Doctors Report"
+    echo ""
+    echo "Generated: $(date -u +%Y-%m-%dT%H:%M:%SZ)"
+    echo ""
+    echo "| Doctor | Status |"
+    echo "|--------|--------|"
+    echo "| pk-doctor | ${pk_status} |"
+    echo "| aibox doctor | ${aibox_status} |"
+    echo ""
+    echo "## pk-doctor output"
+    echo ""
+    echo "\`\`\`"
+    echo "${pk_out}"
+    echo "\`\`\`"
+    echo ""
+    echo "## aibox doctor output"
+    echo ""
+    echo "\`\`\`"
+    echo "${aibox_out}"
+    echo "\`\`\`"
+  } > "${report}"
+
+  if [[ "${blocked}" -eq 1 ]]; then
+    echo ""
+    if [[ "${pk_exit}" -ne 0 ]]; then
+      warn "pk-doctor reported ERRORs (exit ${pk_exit})."
+    fi
+    if [[ "${aibox_err_count}" -gt 0 ]]; then
+      warn "aibox doctor reported ${aibox_err_count} error(s)."
+    fi
+    die "Release blocked: doctor checks failed. See ${report} for details."
+  fi
+
+  ok "Doctor checks passed. Report written to ${report}"
+}
+
 cmd_release() {
   local version="${1:-}"
   [[ -z "${version}" ]] && die "Usage: ./scripts/maintain.sh release <version>  (e.g. 0.2.0)"
@@ -649,6 +752,17 @@ cmd_release() {
   ok "Release state report written"
   if [[ -t 0 ]]; then
     warn "Review dist/RELEASE-STATE.md. Press Enter to continue, or Ctrl-C to abort and update dependencies first."
+    read -r
+  fi
+
+  # ── Step 1c: Doctor health checks (Phase 0 gate) ──────────────────────────
+  # Run pk-doctor (processkit health) and aibox doctor (runtime hygiene).
+  # ERRORs from either doctor block the release; WARNs surface in the report
+  # but do not block.  Output written to dist/RELEASE-DOCTORS.md.
+  info "Running release doctor checks..."
+  cmd_release_doctors
+  if [[ -t 0 ]]; then
+    warn "Review dist/RELEASE-DOCTORS.md for any warnings. Press Enter to continue."
     read -r
   fi
 
@@ -1076,6 +1190,7 @@ case "${COMMAND}" in
   sync-processkit) cmd_sync_processkit ;;
   release)      cmd_release "$@" ;;
   release-check-state) cmd_release_check_state "$@" ;;
+  release-doctors) cmd_release_doctors ;;
   release-host) cmd_release_host "$@" ;;
   release-finalize-runtime) cmd_release_finalize_runtime "$@" ;;
   start)        cmd_start ;;

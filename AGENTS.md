@@ -136,6 +136,11 @@ typecheck: ""
 - **Direct commits to `main`** — no PR ceremony on this repo.
 - **"Ship it" means the full release ritual** end-to-end: build, test, commit, tag,
   push, GitHub release, deploy docs. Do not ask permission at each step.
+- **Phase 0 runs three steps before any version bump:** (1) `./scripts/maintain.sh release-check-state`
+  → `dist/RELEASE-STATE.md`; (2) `./scripts/maintain.sh release-doctors` → `dist/RELEASE-DOCTORS.md`
+  (runs pk-doctor + aibox doctor; ERRORs from either block the release, WARNs surface in the report
+  but don't block); (3) review both reports. `./scripts/maintain.sh release <version>` calls all
+  three automatically.
 - **Phase 2 is always the user's job** — macOS host builds and GHCR image pushes
   run via `./scripts/maintain.sh release-host X.Y.Z` on the host, never from the container.
 - **Detailed release procedures:** See [`context/notes/NOTE-20260411_0000-LoyalSpruce-aibox-release-process.md`](./context/notes/NOTE-20260411_0000-LoyalSpruce-aibox-release-process.md) for step-by-step Phase 1 and Phase 2 instructions, including exact commands and prerequisites.

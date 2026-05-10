@@ -17,13 +17,18 @@ Full canonical source: `context/work-instructions/RELEASE-PROCESS.md` (archived)
 
 Before every release, check ALL upstream dependencies for updates and review
 whether upstream changes alter generated runtime behavior. The scripted release
-path runs this automatically before the version bump:
+path runs all three Phase 0 steps automatically before the version bump:
 
 ```bash
-./scripts/maintain.sh release-check-state
+./scripts/maintain.sh release-check-state   # 1. deps + harness drift → dist/RELEASE-STATE.md
+./scripts/maintain.sh release-doctors       # 2. pk-doctor + aibox doctor → dist/RELEASE-DOCTORS.md
 ```
 
-This writes `dist/RELEASE-STATE.md`, covering:
+Or run `./scripts/maintain.sh release <version>` which calls both in sequence.
+
+### Step 1 — release-check-state
+
+`./scripts/maintain.sh release-check-state` writes `dist/RELEASE-STATE.md`, covering:
 
 - processkit default version drift
 - pinned base-image tool versions
@@ -55,6 +60,36 @@ updates, either apply them immediately with a real `cargo update` plus the full
 release validation suite, or create a processkit WorkItem that captures the
 crate update set and the validation required. Do not silently treat a clean
 `cargo audit` result as evidence that Rust dependencies are current.
+
+### Step 2 — release-doctors (pk-doctor + aibox doctor)
+
+```bash
+./scripts/maintain.sh release-doctors
+```
+
+Invokes both health checks and writes `dist/RELEASE-DOCTORS.md`:
+
+- **`pk-doctor`** — processkit health aggregator: schema_filename validation,
+  sharding, pending migrations, src/context drift, commands_consistency, and
+  additional checks (mcp_config_drift, preauth_applied, …). Exits 1 on any
+  ERROR; exits 0 if only WARNs or INFO.
+- **`aibox doctor`** — aibox runtime hygiene: config validation, template
+  membership, container runtime, devcontainer files, legacy artifact scan, and
+  MCP gateway checks. Reports a summary line `Diagnostics complete: N warning(s),
+  M error(s)` on stderr; M > 0 is treated as ERROR.
+
+**Gate semantics:**
+
+| Doctor outcome | Effect |
+|----------------|--------|
+| Both exit clean (0 ERRORs) | Continue; `dist/RELEASE-DOCTORS.md` written for the record |
+| Either reports ERRORs | Release halted with message: "Release blocked: doctor checks failed. See dist/RELEASE-DOCTORS.md for details." |
+| WARNs only (no ERRORs) | `dist/RELEASE-DOCTORS.md` written; release continues |
+
+When running `./scripts/maintain.sh release <version>` interactively, the
+agent is prompted to review `dist/RELEASE-DOCTORS.md` before proceeding
+even when there are no blocking ERRORs, so WARN-level findings are visible
+to the release manager before any mutation (version bump, tags, push).
 
 ### processkit
 
