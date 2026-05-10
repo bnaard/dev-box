@@ -305,6 +305,7 @@ exec tmux -S "$socket" -f "$config" attach-session -t "$session"
 /// Reserved layout names (dev, focus, cowork, cowork-swap, browse, ai) are
 /// re-seeded by `aibox apply`; user-defined names are not touched.
 pub fn tmux_session_script(config: &AiboxConfig) -> String {
+    let session = config.tmux_session_name();
     format!(
         r#"#!/usr/bin/env bash
 set -euo pipefail
@@ -334,7 +335,7 @@ fi
 exec env AIBOX_TMUX_SESSION="${{session}}" AIBOX_TMUX_SOCKET="${{socket}}" "${{script}}"
 "#,
         layout = config.customization.tmux_layout(),
-        session = &config.customization.tmux.session_name,
+        session = session,
     )
 }
 
@@ -465,10 +466,12 @@ mod tests {
         config.customization.layout = ConfigLayout::Browse;
         config.customization.tmux.layout = Some(ConfigLayout::Ai);
         config.customization.tmux.session_name = "work".to_string();
+        config.aibox.project_name = "project-work".to_string();
         let script = tmux_session_script(&config);
 
         assert!(script.contains(r#"AIBOX_TMUX_LAYOUT:-ai"#));
-        assert!(script.contains(r#"AIBOX_TMUX_SESSION:-work"#));
+        assert!(script.contains(r#"AIBOX_TMUX_SESSION:-project-work"#));
+        assert!(!script.contains(r#"AIBOX_TMUX_SESSION:-work"#));
         assert!(script.contains(r#"AIBOX_TMUX_SOCKET:-$HOME/.tmux/aibox.sock"#));
         assert!(script.contains(r#".config/tmux/layouts/${layout}.sh"#));
         assert!(script.contains(

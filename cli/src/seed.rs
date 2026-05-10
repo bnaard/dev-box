@@ -9,8 +9,8 @@ use std::path::Path;
 use crate::config::{AiboxConfig, ConfigLayout};
 use crate::output;
 use crate::tmux::{
-    cleanup_stale_tmux_plugins, cleanup_tmux_powerkit_cache, tmux_conf, tmux_layout_script,
-    tmux_session_script,
+    POWERKIT_RENDER_LIST_SH, POWERKIT_RENDER_SESSION_SH, cleanup_stale_tmux_plugins,
+    cleanup_tmux_powerkit_cache, tmux_conf, tmux_layout_script, tmux_session_script,
 };
 
 /// Default vimrc content (embedded fallback).
@@ -819,7 +819,7 @@ pub fn managed_runtime_files(config: &AiboxConfig) -> Vec<(std::path::PathBuf, S
     let providers = &config.ai.harnesses;
     let include_lazygit = include_lazygit_tab(config);
     let tool_windows = tool_windows_for_config(config);
-    let session_name = &config.customization.tmux.session_name;
+    let session_name = config.tmux_session_name();
     let mut files = vec![
         (
             std::path::PathBuf::from(".vim/vimrc"),
@@ -845,7 +845,7 @@ pub fn managed_runtime_files(config: &AiboxConfig) -> Vec<(std::path::PathBuf, S
                 providers,
                 include_lazygit,
                 &tool_windows,
-                session_name,
+                &session_name,
             ),
         ),
         (
@@ -855,7 +855,7 @@ pub fn managed_runtime_files(config: &AiboxConfig) -> Vec<(std::path::PathBuf, S
                 providers,
                 include_lazygit,
                 &tool_windows,
-                session_name,
+                &session_name,
             ),
         ),
         (
@@ -865,7 +865,7 @@ pub fn managed_runtime_files(config: &AiboxConfig) -> Vec<(std::path::PathBuf, S
                 providers,
                 include_lazygit,
                 &tool_windows,
-                session_name,
+                &session_name,
             ),
         ),
         (
@@ -875,7 +875,7 @@ pub fn managed_runtime_files(config: &AiboxConfig) -> Vec<(std::path::PathBuf, S
                 providers,
                 include_lazygit,
                 &tool_windows,
-                session_name,
+                &session_name,
             ),
         ),
         (
@@ -885,7 +885,7 @@ pub fn managed_runtime_files(config: &AiboxConfig) -> Vec<(std::path::PathBuf, S
                 providers,
                 include_lazygit,
                 &tool_windows,
-                session_name,
+                &session_name,
             ),
         ),
         (
@@ -895,7 +895,7 @@ pub fn managed_runtime_files(config: &AiboxConfig) -> Vec<(std::path::PathBuf, S
                 providers,
                 include_lazygit,
                 &tool_windows,
-                session_name,
+                &session_name,
             ),
         ),
         (
@@ -969,6 +969,14 @@ pub fn managed_runtime_files(config: &AiboxConfig) -> Vec<(std::path::PathBuf, S
         (
             std::path::PathBuf::from(".local/bin/aibox-status-toggle"),
             DEFAULT_AIBOX_STATUS_TOGGLE_SH.to_string(),
+        ),
+        (
+            std::path::PathBuf::from(".local/bin/aibox-powerkit-render-list"),
+            POWERKIT_RENDER_LIST_SH.to_string(),
+        ),
+        (
+            std::path::PathBuf::from(".local/bin/aibox-powerkit-render-session"),
+            POWERKIT_RENDER_SESSION_SH.to_string(),
         ),
         // BR-LOG-PANEL (v0.25.6): lnav format file for `Prefix L` log
         // popup. Seeded into .aibox-home so users can edit it; image
@@ -1421,6 +1429,8 @@ pub fn seed_root_dir(config: &AiboxConfig) -> Result<()> {
             || rel_path == Path::new(".local/bin/open-in-editor")
             || rel_path == Path::new(".local/bin/aibox-preview")
             || rel_path == Path::new(".local/bin/aibox-status-toggle")
+            || rel_path == Path::new(".local/bin/aibox-powerkit-render-list")
+            || rel_path == Path::new(".local/bin/aibox-powerkit-render-session")
             || (rel_path.starts_with(".config/tmux/")
                 && rel_path.extension().is_some_and(|ext| ext == "sh"))
         {
@@ -1468,6 +1478,8 @@ pub fn restore_missing_managed_runtime_files(config: &AiboxConfig) -> Result<Vec
             || rel_path == Path::new(".local/bin/open-in-editor")
             || rel_path == Path::new(".local/bin/aibox-preview")
             || rel_path == Path::new(".local/bin/aibox-status-toggle")
+            || rel_path == Path::new(".local/bin/aibox-powerkit-render-list")
+            || rel_path == Path::new(".local/bin/aibox-powerkit-render-session")
             || (rel_path.starts_with(".config/tmux/")
                 && rel_path.extension().is_some_and(|ext| ext == "sh"))
         {
@@ -1576,7 +1588,7 @@ pub fn sync_theme_files(config: &AiboxConfig) -> Result<Vec<String>> {
     let providers = &config.ai.harnesses;
     let include_lazygit = include_lazygit_tab(config);
     let tool_windows = tool_windows_for_config(config);
-    let session_name = &config.customization.tmux.session_name;
+    let session_name = config.tmux_session_name();
     let mut updated = Vec::new();
 
     // vimrc — colorscheme and background
@@ -1617,7 +1629,7 @@ pub fn sync_theme_files(config: &AiboxConfig) -> Result<Vec<String>> {
             providers,
             include_lazygit,
             &tool_windows,
-            session_name,
+            &session_name,
         );
         if force_seed_file(&path, &body)? {
             ensure_executable(&path)?;
@@ -1655,6 +1667,36 @@ pub fn sync_theme_files(config: &AiboxConfig) -> Result<Vec<String>> {
     )? {
         ensure_executable(&root.join(".local").join("bin").join("aibox-status-toggle"))?;
         updated.push(".local/bin/aibox-status-toggle".to_string());
+    }
+    if force_seed_file(
+        &root
+            .join(".local")
+            .join("bin")
+            .join("aibox-powerkit-render-list"),
+        POWERKIT_RENDER_LIST_SH,
+    )? {
+        ensure_executable(
+            &root
+                .join(".local")
+                .join("bin")
+                .join("aibox-powerkit-render-list"),
+        )?;
+        updated.push(".local/bin/aibox-powerkit-render-list".to_string());
+    }
+    if force_seed_file(
+        &root
+            .join(".local")
+            .join("bin")
+            .join("aibox-powerkit-render-session"),
+        POWERKIT_RENDER_SESSION_SH,
+    )? {
+        ensure_executable(
+            &root
+                .join(".local")
+                .join("bin")
+                .join("aibox-powerkit-render-session"),
+        )?;
+        updated.push(".local/bin/aibox-powerkit-render-session".to_string());
     }
 
     if include_lazygit
@@ -2297,6 +2339,19 @@ mod tests {
             tmux.contains("#1E66F5"),
             "light theme should render into tmux"
         );
+        assert!(
+            tmux.contains("aibox-powerkit-render-session")
+                && tmux.contains(
+                    "aibox-powerkit-render-list right ssh,hostname,externalip,weather,uptime,datetime"
+                ),
+            "tmux config should use generated PowerKit status render helpers:\n{tmux}"
+        );
+        let list_helper =
+            fs::read_to_string(root.join(".local/bin/aibox-powerkit-render-list")).unwrap();
+        let session_helper =
+            fs::read_to_string(root.join(".local/bin/aibox-powerkit-render-session")).unwrap();
+        assert!(list_helper.contains("render_plugins \"$side\""));
+        assert!(session_helper.contains("_render_entity session left"));
         let vimrc = fs::read_to_string(root.join(".vim").join("vimrc")).unwrap();
         assert!(vimrc.contains("colorscheme catppuccin_latte"));
         assert!(vimrc.contains("set background=light"));

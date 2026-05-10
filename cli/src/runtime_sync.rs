@@ -263,6 +263,8 @@ pub fn run_runtime_sync(
 fn ensure_live_runtime_file_permissions(rel_path: &str, target: &Path) -> Result<()> {
     if rel_path == ".local/bin/pdf-watch"
         || rel_path == ".local/bin/open-in-editor"
+        || rel_path == ".local/bin/aibox-powerkit-render-list"
+        || rel_path == ".local/bin/aibox-powerkit-render-session"
         || rel_path == ".local/bin/aibox-status-toggle"
         || (rel_path.starts_with(".config/tmux/") && rel_path.ends_with(".sh"))
     {
@@ -602,6 +604,8 @@ fn managed_runtime_helper_relpath(rel_path: &str) -> bool {
     rel_path == ".local/bin/pdf-watch"
         || rel_path == ".local/bin/open-in-editor"
         || rel_path == ".local/bin/aibox-status"
+        || rel_path == ".local/bin/aibox-powerkit-render-list"
+        || rel_path == ".local/bin/aibox-powerkit-render-session"
         || rel_path == ".local/bin/aibox-status-toggle"
 }
 

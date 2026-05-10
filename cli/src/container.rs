@@ -648,7 +648,7 @@ pub fn cmd_start(
         );
     }
 
-    let session_name = config.customization.tmux.session_name.clone();
+    let session_name = config.tmux_session_name();
     let should_recreate_tmux_session = forget_tmux_state || state != ContainerState::Running;
     let restored_runtime_files = crate::seed::restore_missing_managed_runtime_files(&config)?;
     if !restored_runtime_files.is_empty() {
@@ -1382,7 +1382,7 @@ pub(crate) fn serialize_config_with_comments(config: &AiboxConfig) -> String {
     ));
     out.push_str(&format!(
         "session_name = \"{}\"\n",
-        config.customization.tmux.session_name
+        config.tmux_session_name()
     ));
     out.push('\n');
     out.push_str("# tmux status presentation.\n");

@@ -34,7 +34,7 @@ pub fn sync_tmux_runtime_files(config: &AiboxConfig) -> Result<Vec<String>> {
     let providers = &config.ai.harnesses;
     let include_lazygit = include_lazygit_tab(config);
     let tool_windows = tool_windows_for_config(config);
-    let session_name = &config.customization.tmux.session_name;
+    let session_name = config.tmux_session_name();
     for layout in [
         ConfigLayout::Dev,
         ConfigLayout::Focus,
@@ -54,7 +54,7 @@ pub fn sync_tmux_runtime_files(config: &AiboxConfig) -> Result<Vec<String>> {
             providers,
             include_lazygit,
             &tool_windows,
-            session_name,
+            &session_name,
         );
         if force_seed_file(&path, &body)? {
             ensure_executable(&path)?;

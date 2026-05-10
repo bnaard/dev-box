@@ -57,7 +57,7 @@ fn update_theme_toml(path: &Path, mode: &ThemeMode, theme: Option<&Theme>) -> Re
 fn restart_tmux_session(config: &AiboxConfig) -> Result<()> {
     let runtime = Runtime::detect()?;
     let name = &config.container.name;
-    let session_name = &config.customization.tmux.session_name;
+    let session_name = config.tmux_session_name();
 
     match runtime.container_status(name)? {
         ContainerState::Running => {
@@ -69,7 +69,7 @@ fn restart_tmux_session(config: &AiboxConfig) -> Result<()> {
                     "-lc",
                     r#"socket="${AIBOX_TMUX_SOCKET:-$HOME/.tmux/aibox.sock}"; tmux -S "$socket" kill-session -t "$1" >/dev/null 2>&1 || true"#,
                     "aibox-tmux-kill",
-                    session_name,
+                    &session_name,
                 ],
             )?;
             let layout = config.customization.tmux_layout().to_string();
@@ -77,7 +77,7 @@ fn restart_tmux_session(config: &AiboxConfig) -> Result<()> {
             runtime.exec_interactive(
                 name,
                 &config.container.user,
-                &["aibox-tmux-session", &layout, session_name],
+                &["aibox-tmux-session", &layout, &session_name],
             )?;
         }
         ContainerState::Stopped => {

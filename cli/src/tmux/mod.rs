@@ -7,5 +7,8 @@ pub mod status;
 pub mod sync;
 
 pub use layouts::{tmux_layout_script, tmux_session_script};
-pub use status::{cleanup_stale_tmux_plugins, cleanup_tmux_powerkit_cache, tmux_conf};
+pub use status::{
+    POWERKIT_RENDER_LIST_SH, POWERKIT_RENDER_SESSION_SH, cleanup_stale_tmux_plugins,
+    cleanup_tmux_powerkit_cache, tmux_conf,
+};
 pub use sync::sync_tmux_runtime_files;

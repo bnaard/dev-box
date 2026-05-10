@@ -69,6 +69,8 @@ AIBOX_TMUX_POWERKIT_PLUGIN
 if-shell '[ -f /usr/local/share/aibox/tmux/plugins/vim-tmux-navigator/vim-tmux-navigator.tmux ]' 'run-shell /usr/local/share/aibox/tmux/plugins/vim-tmux-navigator/vim-tmux-navigator.tmux'
 if-shell '[ -f /usr/local/share/aibox/tmux/plugins/tmux-yank/yank.tmux ]' 'run-shell /usr/local/share/aibox/tmux/plugins/tmux-yank/yank.tmux'
 
+AIBOX_TMUX_POWERKIT_FORMATS
+
 # Persistence plugins are installed for later policy work but disabled by
 # default in v0.25.0. Do not enable continuum/resurrect implicitly.
 set -g @continuum-restore 'off'
@@ -91,18 +93,16 @@ pub fn tmux_conf(config: &AiboxConfig) -> String {
         TmuxStatusMode::Extended => "#(aibox-status --once 2>/dev/null || true) %H:%M",
         TmuxStatusMode::Plain | TmuxStatusMode::Disabled => "%H:%M",
     };
-    let (powerkit_block, powerkit_plugin) = tmux_powerkit_settings(config);
+    let (powerkit_block, powerkit_plugin, powerkit_formats) = tmux_powerkit_settings(config);
 
     let mut conf = DEFAULT_TMUX_CONF
         .replace("AIBOX_TMUX_PREFIX", &config.customization.tmux.prefix)
-        .replace(
-            "AIBOX_TMUX_SESSION",
-            &config.customization.tmux.session_name,
-        )
+        .replace("AIBOX_TMUX_SESSION", &config.tmux_session_name())
         .replace("AIBOX_TMUX_STATUS_RIGHT", status_right)
         .replace("AIBOX_TMUX_STATUS", status)
         .replace("AIBOX_TMUX_POWERKIT_BLOCK", &powerkit_block)
         .replace("AIBOX_TMUX_POWERKIT_PLUGIN", &powerkit_plugin)
+        .replace("AIBOX_TMUX_POWERKIT_FORMATS", &powerkit_formats)
         .replace("AIBOX_TMUX_BG", bg)
         .replace("AIBOX_TMUX_FG", fg)
         .replace("AIBOX_TMUX_ACCENT", accent);
@@ -125,11 +125,11 @@ pub fn tmux_conf(config: &AiboxConfig) -> String {
 /// used in the tmux.conf; `LINE2_RIGHT_AIBOX_METRICS_ORDER` maps the
 /// internal key name to the PowerKit plugin ID after the path-a split.
 const LINE1_RIGHT_ORDER: &[(&str, &str)] = &[
+    ("ssh", "ssh"),
     ("hostname", "hostname"),
     ("external_ip", "externalip"),
-    ("ssh", "ssh"),
-    ("uptime", "uptime"),
     ("weather", "weather"),
+    ("uptime", "uptime"),
     ("datetime", "datetime"),
 ];
 const LINE2_LEFT_ORDER: &[(&str, &str)] = &[
@@ -138,7 +138,6 @@ const LINE2_LEFT_ORDER: &[(&str, &str)] = &[
     ("kubernetes", "kubernetes"),
     ("terraform", "terraform"),
     ("cloud", "cloud"),
-    ("cloudstatus", "cloudstatus"),
 ];
 /// Line 2 right: PowerKit system metrics followed by aibox-metrics block.
 ///
@@ -168,23 +167,25 @@ const LINE2_RIGHT_AIBOX_METRICS_ORDER: &[(&str, &str)] = &[
 
 /// Build the `@powerkit_*` settings block and plugin run-shell line.
 ///
-/// Returns `(powerkit_block, powerkit_plugin)`.  Both are empty strings when
+/// Returns `(powerkit_block, powerkit_plugin, powerkit_formats)`.
+/// All are empty strings when
 /// the status mode is not `Extended`.
-pub fn tmux_powerkit_settings(config: &AiboxConfig) -> (String, String) {
+pub fn tmux_powerkit_settings(config: &AiboxConfig) -> (String, String, String) {
     if config.customization.tmux.status.mode != TmuxStatusMode::Extended {
-        return (String::new(), String::new());
+        return (String::new(), String::new(), String::new());
     }
 
     let elements = &config.customization.tmux.status.elements;
 
-    // Line 1 right — slot order fixed per DEC-20260508_2115-SilentFern.
+    // Line 1 right — slot order fixed per DEC-20260508_2115-SilentFern,
+    // updated by the PowerKit alignment proof.
     // Correlates LINE1_RIGHT_ORDER keys against element enable-flags.
     let l1r_flags: &[(bool, &str)] = &[
-        (elements.hostname, LINE1_RIGHT_ORDER[0].1),
-        (elements.external_ip, LINE1_RIGHT_ORDER[1].1),
-        (elements.ssh, LINE1_RIGHT_ORDER[2].1),
-        (elements.uptime, LINE1_RIGHT_ORDER[3].1),
-        (elements.weather, LINE1_RIGHT_ORDER[4].1),
+        (elements.ssh, LINE1_RIGHT_ORDER[0].1),
+        (elements.hostname, LINE1_RIGHT_ORDER[1].1),
+        (elements.external_ip, LINE1_RIGHT_ORDER[2].1),
+        (elements.weather, LINE1_RIGHT_ORDER[3].1),
+        (elements.uptime, LINE1_RIGHT_ORDER[4].1),
         (elements.datetime, LINE1_RIGHT_ORDER[5].1),
     ];
     let line1_right: Vec<&str> = l1r_flags
@@ -199,7 +200,6 @@ pub fn tmux_powerkit_settings(config: &AiboxConfig) -> (String, String) {
         (elements.kubernetes, LINE2_LEFT_ORDER[2].1),
         (elements.terraform, LINE2_LEFT_ORDER[3].1),
         (elements.cloud, LINE2_LEFT_ORDER[4].1),
-        (elements.cloudstatus, LINE2_LEFT_ORDER[5].1),
     ];
     let line2_left: Vec<&str> = l2l_flags
         .iter()
@@ -306,8 +306,80 @@ set -g @powerkit_line2_right "{}"{}"##,
         metric_option_lines
     );
     let powerkit_plugin = "if-shell '[ -f /usr/local/share/aibox/tmux/plugins/tmux-powerkit/tmux-powerkit.tmux ]' 'run-shell /usr/local/share/aibox/tmux/plugins/tmux-powerkit/tmux-powerkit.tmux'".to_string();
-    (powerkit_block, powerkit_plugin)
+    let powerkit_formats = tmux_powerkit_status_formats(&line1_right, &line2_left, &line2_right);
+    (powerkit_block, powerkit_plugin, powerkit_formats)
 }
+
+fn powerkit_plugin_list_arg(plugins: &[&str]) -> String {
+    plugins.join(",")
+}
+
+fn tmux_powerkit_status_formats(
+    line1_right: &[&str],
+    line2_left: &[&str],
+    line2_right: &[&str],
+) -> String {
+    format!(
+        r#"# Powerkit renders these list-specific sections; tmux only supplies alignment.
+set -g status 2
+set -g 'status-format[0]' '#[align=left range=left #{{E:status-left-style}}]#[push-default]#(~/.local/bin/aibox-powerkit-render-session)#[pop-default]#[norange default]#[list=on align=#{{status-justify}}]#[list=left-marker]<#[list=right-marker]>#[list=on]#{{W:#[range=window|#{{window_index}} #{{E:window-status-style}}#{{?#{{&&:#{{window_last_flag}},#{{!=:#{{E:window-status-last-style}},default}}}}, #{{E:window-status-last-style}},}}#{{?#{{&&:#{{window_bell_flag}},#{{!=:#{{E:window-status-bell-style}},default}}}}, #{{E:window-status-bell-style}},#{{?#{{&&:#{{||:#{{window_activity_flag}},#{{window_silence_flag}}}},#{{!=:#{{E:window-status-activity-style}},default}}}}, #{{E:window-status-activity-style}},}}}}]#[push-default]#{{T:window-status-format}}#[pop-default]#[norange default]#{{?loop_last_flag,,#{{window-status-separator}}}},#[range=window|#{{window_index}} list=focus #{{?#{{!=:#{{E:window-status-current-style}},default}},#{{E:window-status-current-style}},#{{E:window-status-style}}}}#{{?#{{&&:#{{window_last_flag}},#{{!=:#{{E:window-status-last-style}},default}}}}, #{{E:window-status-last-style}},}}#{{?#{{&&:#{{window_bell_flag}},#{{!=:#{{E:window-status-bell-style}},default}}}}, #{{E:window-status-bell-style}},#{{?#{{&&:#{{||:#{{window_activity_flag}},#{{window_silence_flag}}}},#{{!=:#{{E:window-status-activity-style}},default}}}}, #{{E:window-status-activity-style}},}}}}]#[push-default]#{{T:window-status-current-format}}#[pop-default]#[norange list=on default]#{{?loop_last_flag,,#{{window-status-separator}}}}}}#{{E:@_powerkit_left_edge_sep}}#[nolist align=right range=right #{{E:status-right-style}}]#[push-default]#(~/.local/bin/aibox-powerkit-render-list right {})#[pop-default]#[norange default]'
+set -g 'status-format[1]' '#[align=left]#(~/.local/bin/aibox-powerkit-render-list left {})#[align=right]#(~/.local/bin/aibox-powerkit-render-list right {})'"#,
+        powerkit_plugin_list_arg(line1_right),
+        powerkit_plugin_list_arg(line2_left),
+        powerkit_plugin_list_arg(line2_right),
+    )
+}
+
+pub const POWERKIT_RENDER_LIST_SH: &str = r#"#!/usr/bin/env bash
+set -uo pipefail
+
+side="${1:-right}"
+plugins="${2:-}"
+[[ -z "$plugins" ]] && exit 0
+
+POWERKIT_ROOT="${POWERKIT_ROOT:-/usr/local/share/aibox/tmux/plugins/tmux-powerkit}"
+export POWERKIT_ROOT
+
+script_dir="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
+export HOME="$(cd -- "${script_dir}/../.." && pwd)"
+export XDG_CACHE_HOME="${HOME}/.cache"
+
+if [[ ! -r "${POWERKIT_ROOT}/src/core/bootstrap.sh" ]]; then
+    exit 0
+fi
+
+. "${POWERKIT_ROOT}/src/core/bootstrap.sh"
+load_powerkit_theme
+. "${POWERKIT_ROOT}/src/renderer/segment_builder.sh"
+
+reset_all_cycle_caches
+_batch_load_tmux_options
+_TMUX_OPTIONS_CACHE["@powerkit_plugins"]="$plugins"
+
+render_plugins "$side"
+"#;
+
+pub const POWERKIT_RENDER_SESSION_SH: &str = r#"#!/usr/bin/env bash
+set -uo pipefail
+
+POWERKIT_ROOT="${POWERKIT_ROOT:-/usr/local/share/aibox/tmux/plugins/tmux-powerkit}"
+export POWERKIT_ROOT
+
+script_dir="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
+export HOME="$(cd -- "${script_dir}/../.." && pwd)"
+export XDG_CACHE_HOME="${HOME}/.cache"
+
+if [[ ! -r "${POWERKIT_ROOT}/src/core/bootstrap.sh" ]]; then
+    exit 0
+fi
+
+. "${POWERKIT_ROOT}/src/core/bootstrap.sh"
+load_powerkit_theme
+. "${POWERKIT_ROOT}/src/renderer/compositor.sh"
+
+printf '%s' "$(_render_entity session left)"
+printf '%s' "$(_build_edge_separator session end left)"
+"#;
 
 /// Hard-delete the tmux-powerkit plugin cache. Variant 1: every apply
 /// regenerates the powerkit configuration from scratch, so any stashed cache
@@ -397,7 +469,7 @@ mod tests {
         );
         assert!(
             conf.contains(
-                r#"@powerkit_plugins "hostname,externalip,ssh,uptime,weather,datetime,git,github,kubernetes,terraform,cloud,cloudstatus,cpu,loadavg,memory,swap,disk,gpu,netspeed,ping,aibox_log,aibox_oom,aibox_proc,aibox_ai,aibox_mcp,aibox_mig""#
+                r#"@powerkit_plugins "ssh,hostname,externalip,weather,uptime,datetime,git,github,kubernetes,terraform,cloud,cpu,loadavg,memory,swap,disk,gpu,netspeed,ping,aibox_log,aibox_oom,aibox_proc,aibox_ai,aibox_mcp,aibox_mig""#
             )
                 && conf.contains(r#"@powerkit_bar_layout "double""#)
                 && conf.contains(r#"@powerkit_status_order "session,plugins""#)
@@ -405,8 +477,8 @@ mod tests {
                 && conf.contains(r#"@powerkit_transparent "false""#)
                 && conf.contains(r#"@powerkit_pane_border_status "top""#)
                 && conf.contains(r##"@powerkit_pane_border_format "#{?client_prefix,PREFIX,NORMAL} #{pane_title} #{pane_current_command}""##)
-                && conf.contains(r#"@powerkit_line1_right "hostname,externalip,ssh,uptime,weather,datetime""#)
-                && conf.contains(r#"@powerkit_line2_left "git,github,kubernetes,terraform,cloud,cloudstatus""#)
+                && conf.contains(r#"@powerkit_line1_right "ssh,hostname,externalip,weather,uptime,datetime""#)
+                && conf.contains(r#"@powerkit_line2_left "git,github,kubernetes,terraform,cloud""#)
                 && conf.contains(
                     r#"@powerkit_line2_right "cpu,loadavg,memory,swap,disk,gpu,netspeed,ping,aibox_log,aibox_oom,aibox_proc,aibox_ai,aibox_mcp,aibox_mig""#
                 )
@@ -440,11 +512,23 @@ mod tests {
 
     #[test]
     fn tmux_status_layout_uses_image_status_binary() {
-        let config = crate::config::test_config();
+        let mut config = crate::config::test_config();
+        config.aibox.project_name = "source-project".to_string();
+        config.customization.tmux.session_name = "legacy-session".to_string();
         let conf = tmux_conf(&config);
 
-        assert!(conf.contains(r#"@powerkit_plugins "hostname,externalip"#));
+        assert!(conf.contains("kill tmux session source-project?"));
+        assert!(!conf.contains("legacy-session"));
+        assert!(
+            conf.contains(r#"@powerkit_plugins "ssh,hostname,externalip,weather,uptime,datetime"#)
+        );
         assert!(conf.contains("tmux-powerkit.tmux"));
+        assert!(
+            conf.contains(
+                "aibox-powerkit-render-list right ssh,hostname,externalip,weather,uptime,datetime"
+            ) && conf.contains("aibox-powerkit-render-session"),
+            "generated status formats must use the source-owned PowerKit render helpers:\n{conf}"
+        );
         // aibox metrics use path-a split: per-metric plugin segments, not a
         // single flat-text segment. Confirm the old single-segment is gone.
         assert!(
@@ -508,22 +592,20 @@ mod tests {
         let config = crate::config::test_config();
         let conf = tmux_conf(&config);
 
-        // Line 1 right: hostname → externalip → ssh → uptime → weather → datetime
-        // (DEC-20260508_2115-SilentFern)
+        // Line 1 right: ssh → hostname → externalip → weather → uptime → datetime
+        // (DEC-20260508_2115-SilentFern, updated by the PowerKit alignment proof)
         assert!(
             conf.contains(
-                r#"@powerkit_line1_right "hostname,externalip,ssh,uptime,weather,datetime""#
+                r#"@powerkit_line1_right "ssh,hostname,externalip,weather,uptime,datetime""#
             ),
-            "line1_right slot order must be: hostname,externalip,ssh,uptime,weather,datetime\n{conf}"
+            "line1_right slot order must be: ssh,hostname,externalip,weather,uptime,datetime\n{conf}"
         );
 
-        // Line 2 left: git → github → kubernetes → terraform → cloud → cloudstatus
+        // Line 2 left: git → github → kubernetes → terraform → cloud
         // (DEC-20260508_2115-SilentFern)
         assert!(
-            conf.contains(
-                r#"@powerkit_line2_left "git,github,kubernetes,terraform,cloud,cloudstatus""#
-            ),
-            "line2_left slot order must be: git,github,kubernetes,terraform,cloud,cloudstatus\n{conf}"
+            conf.contains(r#"@powerkit_line2_left "git,github,kubernetes,terraform,cloud""#),
+            "line2_left slot order must be: git,github,kubernetes,terraform,cloud\n{conf}"
         );
 
         // Line 2 right: system metrics + aibox-metrics block (path-a split, each metric its own segment)
@@ -536,9 +618,18 @@ mod tests {
         // Full plugin list snapshot (all three line components concatenated)
         assert!(
             conf.contains(
-                r#"@powerkit_plugins "hostname,externalip,ssh,uptime,weather,datetime,git,github,kubernetes,terraform,cloud,cloudstatus,cpu,loadavg,memory,swap,disk,gpu,netspeed,ping,aibox_log,aibox_oom,aibox_proc,aibox_ai,aibox_mcp,aibox_mig""#
+                r#"@powerkit_plugins "ssh,hostname,externalip,weather,uptime,datetime,git,github,kubernetes,terraform,cloud,cpu,loadavg,memory,swap,disk,gpu,netspeed,ping,aibox_log,aibox_oom,aibox_proc,aibox_ai,aibox_mcp,aibox_mig""#
             ),
             "full plugin list snapshot mismatch — slot order is fixed per DEC-20260508_2115-SilentFern\n{conf}"
+        );
+
+        assert!(
+            conf.contains("set -g status 2")
+                && conf.contains("aibox-powerkit-render-session")
+                && conf.contains("aibox-powerkit-render-list right ssh,hostname,externalip,weather,uptime,datetime")
+                && conf.contains("aibox-powerkit-render-list left git,github,kubernetes,terraform,cloud")
+                && conf.contains("aibox-powerkit-render-list right cpu,loadavg,memory,swap,disk,gpu,netspeed,ping,aibox_log,aibox_oom,aibox_proc,aibox_ai,aibox_mcp,aibox_mig"),
+            "generated status formats must keep the two-row PowerKit-aligned proof layout\n{conf}"
         );
 
         // Per-metric plugin option registrations confirm path-a split is in effect
