@@ -391,6 +391,28 @@ pub static COMPAT_TABLE: &[CompatEntry] = &[
                internal: cli/src/seed.rs split into cli/src/tmux/ module (3,613 → 2,929 lines); \
                log pane via lnav + vim hard-cut (Yazi 'e' opens full-screen tmux popup, no persistent vim pane).",
     },
+    CompatEntry {
+        aibox_version: "0.25.7",
+        processkit_version: "v0.26.0",
+        note: "Minor release: processkit v0.26.0 integration (RoleSlot primitive, query_budget_drift, route_task response fields, compliance contract v2 rewrite, slim per-turn hook, lazy-import for aggregate-mcp); \
+               new McpGatewayMode::LazyAggregate (PROCESSKIT_MCP_MODE=lazy_catalog) opt-in; \
+               aibox v1→v2 Migration emission mechanism (cli/src/v1_v2_migration.rs); \
+               Phase 0 release ritual now invokes pk-doctor + aibox doctor (AIBOX_RELEASE_SKIP_DOCTORS=1 escape hatch); \
+               tmux session name derived from project name (was hardcoded 'aibox'); \
+               powerkit four-section statusline (line1-right + line2-left + line2-right per owner spec; paired MIG-STATUSLINE migration); \
+               per-layout multi-harness behaviour (browse/cowork/cowork-swap/dev/focus per DEC-TrueClover); \
+               tools-as-windows generalization (lazygit window, prefix g/s bindings, framework for future tool addons); \
+               terminal-emulator-agnostic env passthrough (kitty/wezterm/iterm2/ghostty/etc.) — fixes yazi RT timeout flash; \
+               powerkit plugins de-doubled (OOM/LOG/PROC/AI/MCP/MIG); \
+               docs-addons run project-local npm install (prism-react-renderer surprise fix); \
+               release-audit stale-test grep sweep; \
+               wasm-bindgen + js-sys + cc + filetime + hashbrown lockfile patch updates; \
+               uv image bumped 0.11.10 → 0.11.11; Docusaurus pin bumped 3.8 → 3.10.1; \
+               Codex startup latency fix (McpGatewayMode::Aggregate eliminates N-process MCP handshakes); \
+               aibox sync per-skill mcp-config drift detection (closes #54); \
+               aibox v1→v2 Migration emission mechanism (closes #72); \
+               release-script ordering: push main before tag, notes-curation checkpoint before gh release create (closes #73 + improves audit trail).",
+    },
 ];
 
 /// Find the minimum compatible processkit version for the given aibox version.
