@@ -3002,6 +3002,12 @@ pub fn cmd_sync(
                         if let Some(path) = report.migration_document_path {
                             output::ok(&format!("Wrote migration document: {}", path.display()));
                         }
+                        if let Some(path) = report.drift_migration_path {
+                            output::warn(&format!(
+                                "Drifted runtime files detected — review pending migration: {}",
+                                path.display()
+                            ));
+                        }
                     } else {
                         output::ok(
                             "Managed .aibox-home runtime files are in sync — no migration needed",
