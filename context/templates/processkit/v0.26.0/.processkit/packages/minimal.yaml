@@ -1,0 +1,31 @@
+---
+apiVersion: processkit.projectious.work/v1
+kind: Package
+metadata:
+  id: PKG-minimal
+  name: minimal
+  version: "1.0.0"
+  created: 2026-04-06T00:00:00Z
+spec:
+  description: >
+    The lightest footprint package. Solo developers, small side projects,
+    or anyone who wants just enough structure to track work and debug
+    effectively — without being asked to care about processes, roles, or
+    governance artifacts.
+  intended_for: "Solo developers and small side projects."
+  includes:
+    skills:
+      # Layer 0 foundation — required by every entity-creating skill
+      - index-management
+      - id-management
+      # Layer 0/1 — event log and primitive management
+      - event-log
+      - actor-profile
+      # Layer 2 — primary work artifact
+      - workitem-management
+      # Core engineering hygiene
+      - git-workflow
+      - debugging
+      - testing-strategy
+      - error-handling
+---

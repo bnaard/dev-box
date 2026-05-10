@@ -163,6 +163,57 @@ pub const TIER_SPECIFIC_MCP_SKILLS: &[&str] = &[
 pub const PROCESSKIT_DEFAULT_VERSION: &str = "v0.26.0";
 
 // ---------------------------------------------------------------------------
+// v0.26.0 — RoleSlot MCP tools (team-manager skill)
+// ---------------------------------------------------------------------------
+
+/// The five MCP tools that manage RoleSlot entities, introduced in processkit
+/// v0.26.0 as part of the team-creator v2 / Phase A cutover (PR #27).
+///
+/// RoleSlots decouple *capacity* (parallel workers) from *identity*
+/// (persistent TeamMember persona). All five tools are hosted by the
+/// `processkit-team-manager` MCP server. State machine: open → filled → closed.
+///
+/// Update if upstream renames or relocates these tools.
+#[allow(dead_code)]
+pub const ROLE_SLOT_TOOLS: &[&str] = &[
+    "create_role_slot",
+    "get_role_slot",
+    "list_role_slots",
+    "fill_role_slot",
+    "close_role_slot",
+];
+
+/// Budget-drift detection tool added in processkit v0.26.0 (PR #30).
+///
+/// Hosted by `processkit-team-manager`. Computes variance between the
+/// chartering budget projection stored in a DecisionRecord and actual spend
+/// derived from the event log. Used by `pk-team-review` Step 5c.
+///
+/// Separate constant (not in `ROLE_SLOT_TOOLS`) because it belongs to the
+/// budget/charter sub-domain rather than the RoleSlot capacity sub-domain.
+#[allow(dead_code)]
+pub const QUERY_BUDGET_DRIFT_TOOL: &str = "query_budget_drift";
+
+/// New response fields on `route_task` introduced in processkit v0.26.0 (PR #24).
+///
+/// `route_task` now returns two optional dispatch-hint fields in addition to the
+/// existing routing fields (`skill`, `tool`, `confidence`, etc.):
+///
+/// - `recommended_team_member_slug` — slug of the highest-priority active
+///   TeamMember whose `default_role` matches the routed group's preferred role;
+///   `None` when no binding resolves. Use as the sub-agent identity at dispatch.
+/// - `recommended_model_class` — `"fast"` | `"deep"` | `None`. Hint for picking
+///   the cheapest concrete model in the class (Haiku < Sonnet < Opus) when
+///   dispatching a sub-agent. Currently a static per-group mapping.
+///
+/// Declared here so router/test code can reference the field names without
+/// hardcoding strings. Not stored; returned only in live `route_task` responses.
+#[allow(dead_code)]
+pub const ROUTE_TASK_FIELD_TEAM_MEMBER_SLUG: &str = "recommended_team_member_slug";
+#[allow(dead_code)]
+pub const ROUTE_TASK_FIELD_MODEL_CLASS: &str = "recommended_model_class";
+
+// ---------------------------------------------------------------------------
 // Processkit source-tree directory segments
 // (the layout inside the processkit `src/` directory)
 // ---------------------------------------------------------------------------
@@ -562,5 +613,49 @@ mod tests {
         let fm = parse_skill_frontmatter(tmp.path()).unwrap();
         assert!(!fm.is_core());
         assert!(fm.name.is_empty());
+    }
+
+    // --- v0.26.0 vocabulary additions ---
+
+    #[test]
+    fn role_slot_tools_has_exactly_5_entries() {
+        assert_eq!(
+            ROLE_SLOT_TOOLS.len(),
+            5,
+            "processkit v0.26.0 ships exactly 5 RoleSlot MCP tools"
+        );
+    }
+
+    #[test]
+    fn role_slot_tools_no_duplicates() {
+        let mut seen = std::collections::HashSet::new();
+        for tool in ROLE_SLOT_TOOLS {
+            assert!(seen.insert(*tool), "duplicate role_slot tool: {}", tool);
+        }
+    }
+
+    #[test]
+    fn role_slot_tools_contains_expected_names() {
+        let tools: std::collections::HashSet<&str> = ROLE_SLOT_TOOLS.iter().copied().collect();
+        for expected in &[
+            "create_role_slot",
+            "get_role_slot",
+            "list_role_slots",
+            "fill_role_slot",
+            "close_role_slot",
+        ] {
+            assert!(tools.contains(expected), "missing role_slot tool: {}", expected);
+        }
+    }
+
+    #[test]
+    fn query_budget_drift_tool_is_correct() {
+        assert_eq!(QUERY_BUDGET_DRIFT_TOOL, "query_budget_drift");
+    }
+
+    #[test]
+    fn route_task_response_fields_are_correct() {
+        assert_eq!(ROUTE_TASK_FIELD_TEAM_MEMBER_SLUG, "recommended_team_member_slug");
+        assert_eq!(ROUTE_TASK_FIELD_MODEL_CLASS, "recommended_model_class");
     }
 }
