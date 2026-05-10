@@ -135,6 +135,35 @@ pub(crate) fn include_lazygit_tab(config: &AiboxConfig) -> bool {
     addon_tool_effective_enabled(config, "git-ui", "lazygit")
 }
 
+/// Return the list of `(window_name, binary)` pairs for tool addon windows.
+///
+/// BR-TOOLS-AS-WINDOWS (BACK-20260510_0726-GrandDaisy, v0.25.7): each enabled
+/// tool addon that ships a TUI gets a dedicated tmux window. Window order is
+/// stable and matches the canonical tool order below. The caller passes this
+/// slice directly to `tmux_layout_script` which emits one `new-window` line
+/// per entry, after the layout body and before the lazygit window.
+///
+/// Supported tool → addon mapping:
+///   k9s       ← kubernetes addon, tools.k9s.enabled
+///   btop      ← monitoring addon, tools.btop.enabled
+///   lazydocker ← monitoring addon, tools.lazydocker.enabled
+pub(crate) fn tool_windows_for_config(config: &AiboxConfig) -> Vec<(&'static str, &'static str)> {
+    let mut windows = Vec::new();
+    // k9s: part of the kubernetes addon
+    if addon_tool_effective_enabled(config, "kubernetes", "k9s") {
+        windows.push(("k9s", "k9s"));
+    }
+    // btop: part of the monitoring addon
+    if addon_tool_effective_enabled(config, "monitoring", "btop") {
+        windows.push(("btop", "btop"));
+    }
+    // lazydocker: part of the monitoring addon
+    if addon_tool_effective_enabled(config, "monitoring", "lazydocker") {
+        windows.push(("lazydocker", "lazydocker"));
+    }
+    windows
+}
+
 /// Default yazi config.
 ///
 /// Note on `[mgr]` (formerly `[manager]`):
@@ -799,6 +828,7 @@ pub fn managed_runtime_files(config: &AiboxConfig) -> Vec<(std::path::PathBuf, S
     let theme = config.customization.resolved_theme();
     let providers = &config.ai.harnesses;
     let include_lazygit = include_lazygit_tab(config);
+    let tool_windows = tool_windows_for_config(config);
     let session_name = &config.customization.tmux.session_name;
     let mut files = vec![
         (
@@ -820,7 +850,7 @@ pub fn managed_runtime_files(config: &AiboxConfig) -> Vec<(std::path::PathBuf, S
         ),
         (
             std::path::PathBuf::from(".config/tmux/layouts/dev.sh"),
-            tmux_layout_script(&ConfigLayout::Dev, providers, include_lazygit, session_name),
+            tmux_layout_script(&ConfigLayout::Dev, providers, include_lazygit, &tool_windows, session_name),
         ),
         (
             std::path::PathBuf::from(".config/tmux/layouts/focus.sh"),
@@ -828,6 +858,7 @@ pub fn managed_runtime_files(config: &AiboxConfig) -> Vec<(std::path::PathBuf, S
                 &ConfigLayout::Focus,
                 providers,
                 include_lazygit,
+                &tool_windows,
                 session_name,
             ),
         ),
@@ -837,6 +868,7 @@ pub fn managed_runtime_files(config: &AiboxConfig) -> Vec<(std::path::PathBuf, S
                 &ConfigLayout::Cowork,
                 providers,
                 include_lazygit,
+                &tool_windows,
                 session_name,
             ),
         ),
@@ -846,12 +878,13 @@ pub fn managed_runtime_files(config: &AiboxConfig) -> Vec<(std::path::PathBuf, S
                 &ConfigLayout::Browse,
                 providers,
                 include_lazygit,
+                &tool_windows,
                 session_name,
             ),
         ),
         (
             std::path::PathBuf::from(".config/tmux/layouts/ai.sh"),
-            tmux_layout_script(&ConfigLayout::Ai, providers, include_lazygit, session_name),
+            tmux_layout_script(&ConfigLayout::Ai, providers, include_lazygit, &tool_windows, session_name),
         ),
         (
             std::path::PathBuf::from(".config/tmux/layouts/cowork-swap.sh"),
@@ -859,6 +892,7 @@ pub fn managed_runtime_files(config: &AiboxConfig) -> Vec<(std::path::PathBuf, S
                 &ConfigLayout::CoworkSwap,
                 providers,
                 include_lazygit,
+                &tool_windows,
                 session_name,
             ),
         ),
@@ -1539,6 +1573,7 @@ pub fn sync_theme_files(config: &AiboxConfig) -> Result<Vec<String>> {
     let theme = &config.customization.resolved_theme();
     let providers = &config.ai.harnesses;
     let include_lazygit = include_lazygit_tab(config);
+    let tool_windows = tool_windows_for_config(config);
     let session_name = &config.customization.tmux.session_name;
     let mut updated = Vec::new();
 
@@ -1575,7 +1610,7 @@ pub fn sync_theme_files(config: &AiboxConfig) -> Result<Vec<String>> {
             .join("tmux")
             .join("layouts")
             .join(format!("{layout}.sh"));
-        let body = tmux_layout_script(&layout, providers, include_lazygit, session_name);
+        let body = tmux_layout_script(&layout, providers, include_lazygit, &tool_windows, session_name);
         if force_seed_file(&path, &body)? {
             ensure_executable(&path)?;
             updated.push(rel);

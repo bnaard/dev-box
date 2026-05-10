@@ -11,7 +11,7 @@ use super::status::tmux_conf;
 use crate::config::{AiboxConfig, ConfigLayout};
 use crate::seed::{
     ensure_executable, ensure_executable_if_present, ensure_runtime_dirs, force_seed_file,
-    include_lazygit_tab,
+    include_lazygit_tab, tool_windows_for_config,
 };
 
 /// Refresh managed tmux runtime files from aibox.toml.
@@ -33,6 +33,7 @@ pub fn sync_tmux_runtime_files(config: &AiboxConfig) -> Result<Vec<String>> {
 
     let providers = &config.ai.harnesses;
     let include_lazygit = include_lazygit_tab(config);
+    let tool_windows = tool_windows_for_config(config);
     let session_name = &config.customization.tmux.session_name;
     for layout in [
         ConfigLayout::Dev,
@@ -48,7 +49,7 @@ pub fn sync_tmux_runtime_files(config: &AiboxConfig) -> Result<Vec<String>> {
             .join("tmux")
             .join("layouts")
             .join(format!("{layout}.sh"));
-        let body = tmux_layout_script(&layout, providers, include_lazygit, session_name);
+        let body = tmux_layout_script(&layout, providers, include_lazygit, &tool_windows, session_name);
         if force_seed_file(&path, &body)? {
             ensure_executable(&path)?;
             updated.push(rel);

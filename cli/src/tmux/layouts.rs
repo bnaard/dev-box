@@ -41,12 +41,84 @@ fn ai_secondary_panes(active_harnesses: &[&str]) -> String {
     out
 }
 
+/// Build the shell fragment that stacks secondary harness panes (hidden) in the
+/// cowork / cowork-swap agent column.
+///
+/// BR-COWORK-MULTIHARNESS (BACK-20260510_0726-HappyFjord, v0.25.7, DEC-TrueClover):
+/// order-1 harness is visible; secondaries are stacked as 1-line panes then
+/// immediately disabled (`select-pane -d`) so they don't steal focus but remain
+/// addressable via `prefix j/k`.
+fn cowork_secondary_panes(active_harnesses: &[&str]) -> String {
+    let secondaries = &active_harnesses[1..];
+    if secondaries.is_empty() {
+        return String::new();
+    }
+    let mut out = String::new();
+    let mut prev_var = "agent_pane".to_string();
+    for (idx, harness) in secondaries.iter().enumerate() {
+        let var_name = format!("agent_pane_{}", idx + 2);
+        // Split at 1 line height (resize to 0% is not portable; use -l 1 for
+        // a minimal footprint). The pane is then disabled so it stays hidden
+        // from normal pane cycling until summoned by prefix j/k.
+        out.push_str(&format!(
+            r#"{var_name}="$(tmux -S "$socket" split-window -t "${{{prev_var}}}" -v -l 1 -P -F '#{{pane_id}}' -c "$workspace" "$(tool_or_shell {harness})")"
+tmux -S "$socket" select-pane -t "${{{var_name}}}" -d
+"#
+        ));
+        prev_var = var_name;
+    }
+    out
+}
+
+/// Build the shell fragment that creates secondary harness windows for the
+/// `dev` and `focus` layouts.
+///
+/// BR-DEV-MULTIHARNESS (BACK-20260510_0726-HappyFjord, v0.25.7, DEC-TrueClover):
+/// each secondary harness gets its own tmux window named after the harness
+/// binary.  For `dev`, the window is named `dev-<harness>` to differentiate
+/// it from the primary `dev` window.  For `focus`, the window is named after
+/// the harness binary directly (the primary is always the order-1 harness).
+fn dev_secondary_windows(active_harnesses: &[&str]) -> String {
+    let secondaries = &active_harnesses[1..];
+    if secondaries.is_empty() {
+        return String::new();
+    }
+    let mut out = String::new();
+    for harness in secondaries.iter() {
+        out.push_str(&format!(
+            r#"tmux -S "$socket" new-window -t "$session:" -n "dev-{harness}" -c "$workspace" "$(tool_or_shell {harness})"
+"#
+        ));
+    }
+    out
+}
+
+/// Build the shell fragment that creates secondary harness windows for the
+/// `focus` layout.
+///
+/// Each secondary harness gets its own window named after its binary.
+fn focus_secondary_windows(active_harnesses: &[&str]) -> String {
+    let secondaries = &active_harnesses[1..];
+    if secondaries.is_empty() {
+        return String::new();
+    }
+    let mut out = String::new();
+    for harness in secondaries.iter() {
+        out.push_str(&format!(
+            r#"tmux -S "$socket" new-window -t "$session:" -n "{harness}" -c "$workspace" "$(tool_or_shell {harness})"
+"#
+        ));
+    }
+    out
+}
+
 /// Render the layout-specific `<name>.sh` script that opens a fresh tmux
 /// session with the requested pane/window arrangement.
 pub fn tmux_layout_script(
     layout: &ConfigLayout,
     providers: &[crate::config::AiProvider],
     include_lazygit: bool,
+    tool_windows: &[(&str, &str)],
     session_name: &str,
 ) -> String {
     let provider = providers
@@ -54,6 +126,25 @@ pub fn tmux_layout_script(
         .find(|provider| provider.is_active())
         .map(|provider| provider.binary_name())
         .unwrap_or("bash");
+
+    // Collect active harness binary names in stable list order.
+    // Order-1 = first active harness; order-2..N follow.
+    let active_harnesses: Vec<&str> = providers
+        .iter()
+        .filter(|p| p.is_active())
+        .map(|p| p.binary_name())
+        .collect();
+
+    // Tool windows: each `(window_name, binary)` that is enabled.
+    // Emitted AFTER layout windows, BEFORE existing lazygit branch.
+    let mut tool_window_lines = String::new();
+    for (name, binary) in tool_windows {
+        tool_window_lines.push_str(&format!(
+            r#"tmux -S "$socket" new-window -t "$session:" -n {name} -c "$workspace" "$(tool_or_shell {binary})"
+"#
+        ));
+    }
+
     let git_window = if include_lazygit {
         r#"tmux -S "$socket" new-window -t "$session:" -n git -c "$workspace" "$(tool_or_shell lazygit)"
 "#
@@ -84,55 +175,82 @@ pub fn tmux_layout_script(
     //   AIBOX_LAYOUT_AGENT_RATIO   — 1..99 percent (default per layout)
     // Unset env vars fall back to the layout-specific defaults; invalid
     // values are silently ignored by tmux.
+    //
+    // BR-TRUECLOVER (BACK-20260510_0726-HappyFjord, v0.25.7, DEC-TrueClover):
+    // per-layout multi-harness behaviour:
+    //   browse      — ≥2 harnesses: hide AI panes entirely (yazi takes 100%)
+    //   cowork/-swap — secondaries stacked hidden in agent column; prefix j/k cycles
+    //   dev         — secondaries as tmux windows (dev-<harness>); prefix j/k cycles
+    //   focus       — secondaries as windows (named after binary); only one visible
     let layout_body = match layout {
-        ConfigLayout::Dev => format!(
-            r#"tmux -S "$socket" -f "$config" new-session -d -s "$session" -n dev -c "$workspace" "$(tool_or_shell yazi)"
+        ConfigLayout::Dev => {
+            let secondary_windows = dev_secondary_windows(&active_harnesses);
+            format!(
+                r#"tmux -S "$socket" -f "$config" new-session -d -s "$session" -n dev -c "$workspace" "$(tool_or_shell yazi)"
 files_pane="$(tmux -S "$socket" display-message -p -t "$session:dev" '#{{pane_id}}')"
 split_flag="-${{AIBOX_LAYOUT_AGENT_SPLIT:-h}}"
 split_ratio="${{AIBOX_LAYOUT_AGENT_RATIO:-50}}"
 agent_pane="$(tmux -S "$socket" split-window -t "$session:dev" "$split_flag" -p "$split_ratio" -P -F '#{{pane_id}}' -c "$workspace" "$(tool_or_shell {provider})")"
-tmux -S "$socket" select-pane -t "$files_pane"
+{secondary_windows}tmux -S "$socket" select-pane -t "$files_pane"
+tmux -S "$socket" select-window -t "$session:dev"
 "#
-        ),
-        ConfigLayout::Focus => format!(
-            r#"tmux -S "$socket" -f "$config" new-session -d -s "$session" -n focus -c "$workspace" "$(tool_or_shell {provider})"
-"#
-        ),
-        ConfigLayout::Cowork => format!(
-            r#"tmux -S "$socket" -f "$config" new-session -d -s "$session" -n cowork -c "$workspace" "$(tool_or_shell yazi)"
+            )
+        }
+        ConfigLayout::Focus => {
+            let secondary_windows = focus_secondary_windows(&active_harnesses);
+            format!(
+                r#"tmux -S "$socket" -f "$config" new-session -d -s "$session" -n focus -c "$workspace" "$(tool_or_shell {provider})"
+{secondary_windows}"#
+            )
+        }
+        ConfigLayout::Cowork => {
+            let secondary_panes = cowork_secondary_panes(&active_harnesses);
+            format!(
+                r#"tmux -S "$socket" -f "$config" new-session -d -s "$session" -n cowork -c "$workspace" "$(tool_or_shell yazi)"
 files_pane="$(tmux -S "$socket" display-message -p -t "$session:cowork" '#{{pane_id}}')"
 split_flag="-${{AIBOX_LAYOUT_AGENT_SPLIT:-h}}"
 split_ratio="${{AIBOX_LAYOUT_AGENT_RATIO:-50}}"
 agent_pane="$(tmux -S "$socket" split-window -t "$session:cowork" "$split_flag" -p "$split_ratio" -P -F '#{{pane_id}}' -c "$workspace" "$(tool_or_shell {provider})")"
-tmux -S "$socket" select-pane -t "$files_pane"
+{secondary_panes}tmux -S "$socket" select-pane -t "$files_pane"
 "#
-        ),
-        ConfigLayout::CoworkSwap => format!(
-            r#"tmux -S "$socket" -f "$config" new-session -d -s "$session" -n cowork-swap -c "$workspace" "$(tool_or_shell yazi)"
+            )
+        }
+        ConfigLayout::CoworkSwap => {
+            let secondary_panes = cowork_secondary_panes(&active_harnesses);
+            format!(
+                r#"tmux -S "$socket" -f "$config" new-session -d -s "$session" -n cowork-swap -c "$workspace" "$(tool_or_shell yazi)"
 files_pane="$(tmux -S "$socket" display-message -p -t "$session:cowork-swap" '#{{pane_id}}')"
 split_flag="-${{AIBOX_LAYOUT_AGENT_SPLIT:-v}}"
 split_ratio="${{AIBOX_LAYOUT_AGENT_RATIO:-45}}"
 agent_pane="$(tmux -S "$socket" split-window -t "$session:cowork-swap" "$split_flag" -p "$split_ratio" -P -F '#{{pane_id}}' -c "$workspace" "$(tool_or_shell {provider})")"
+{secondary_panes}tmux -S "$socket" select-pane -t "$files_pane"
+"#
+            )
+        }
+        ConfigLayout::Browse => {
+            // BR-TRUECLOVER: browse is file-focused. With ≥2 harnesses, hide
+            // AI panes entirely — yazi takes the full window. With a single
+            // harness keep the original split so the layout is unchanged.
+            if active_harnesses.len() >= 2 {
+                format!(
+                    r#"tmux -S "$socket" -f "$config" new-session -d -s "$session" -n browse -c "$workspace" "$(tool_or_shell yazi)"
+files_pane="$(tmux -S "$socket" display-message -p -t "$session:browse" '#{{pane_id}}')"
 tmux -S "$socket" select-pane -t "$files_pane"
 "#
-        ),
-        ConfigLayout::Browse => format!(
-            r#"tmux -S "$socket" -f "$config" new-session -d -s "$session" -n browse -c "$workspace" "$(tool_or_shell yazi)"
+                )
+            } else {
+                format!(
+                    r#"tmux -S "$socket" -f "$config" new-session -d -s "$session" -n browse -c "$workspace" "$(tool_or_shell yazi)"
 files_pane="$(tmux -S "$socket" display-message -p -t "$session:browse" '#{{pane_id}}')"
 split_flag="-${{AIBOX_LAYOUT_AGENT_SPLIT:-v}}"
 split_ratio="${{AIBOX_LAYOUT_AGENT_RATIO:-35}}"
 agent_pane="$(tmux -S "$socket" split-window -t "$session:browse" "$split_flag" -p "$split_ratio" -P -F '#{{pane_id}}' -c "$workspace" "$(tool_or_shell {provider})")"
 tmux -S "$socket" select-pane -t "$files_pane"
 "#
-        ),
+                )
+            }
+        }
         ConfigLayout::Ai => {
-            // Collect all active harness binary names in stable list order.
-            // Order-1 = first active harness in [ai].harnesses; order-2..N follow.
-            let active_harnesses: Vec<&str> = providers
-                .iter()
-                .filter(|p| p.is_active())
-                .map(|p| p.binary_name())
-                .collect();
             let secondary_panes = ai_secondary_panes(&active_harnesses);
             format!(
                 r#"tmux -S "$socket" -f "$config" new-session -d -s "$session" -n ai -c "$workspace" "$(tool_or_shell yazi)"
@@ -171,7 +289,7 @@ tool_or_shell() {{
   printf "bash -lc 'if command -v %q >/dev/null 2>&1; then %q; fi; exec bash'" "$tool" "$tool"
 }}
 
-{layout_body}{git_window}tmux -S "$socket" select-window -t "$session:{primary_window}" 2>/dev/null || true
+{layout_body}{tool_window_lines}{git_window}tmux -S "$socket" select-window -t "$session:{primary_window}" 2>/dev/null || true
 exec tmux -S "$socket" -f "$config" attach-session -t "$session"
 "#,
         primary_window = primary_window,
@@ -227,18 +345,34 @@ mod tests {
     use super::*;
     use crate::config::AiProvider;
 
+    fn no_tools() -> Vec<(&'static str, &'static str)> {
+        vec![]
+    }
+
     #[test]
     fn tmux_dev_layout_uses_selected_primary_provider() {
+        // codex is order-1 (first in list) → primary pane in dev window.
+        // claude is order-2 → secondary window named "dev-claude".
+        // BR-TRUECLOVER: with 2+ harnesses, secondaries are tabbed windows.
         let providers = vec![AiProvider::Codex, AiProvider::Claude];
-        let layout = tmux_layout_script(&ConfigLayout::Dev, &providers, true, "aibox");
+        let layout = tmux_layout_script(&ConfigLayout::Dev, &providers, true, &no_tools(), "aibox");
 
         assert!(
             layout.contains(
                 "tmux -S \"$socket\" -f \"$config\" new-session -d -s \"$session\" -n dev"
             )
         );
+        // codex is order-1 → primary agent_pane in dev window
         assert!(layout.contains("tool_or_shell codex"));
-        assert!(!layout.contains("tool_or_shell claude"));
+        // claude is order-2 → secondary window "dev-claude"
+        assert!(layout.contains("tool_or_shell claude"), "order-2 harness still appears as secondary window");
+        // codex must appear before claude (order-1 before order-2)
+        let codex_pos = layout.find("tool_or_shell codex").unwrap();
+        let claude_pos = layout.find("tool_or_shell claude").unwrap();
+        assert!(codex_pos < claude_pos, "order-1 (codex) must appear before order-2 (claude)");
+        // claude should be in a secondary window, not as the primary agent_pane
+        assert!(layout.contains("new-window -t \"$session:\" -n \"dev-claude\""),
+            "order-2 harness must become a dev-<harness> secondary window");
         assert!(layout.contains("tmux -S \"$socket\" new-window -t \"$session:\" -n git"));
         assert!(layout.contains("socket=\"${AIBOX_TMUX_SOCKET:-$HOME/.tmux/aibox.sock}\""));
         assert!(!layout.contains("zellij"));
@@ -257,7 +391,7 @@ mod tests {
         ];
 
         for (layout, name) in layouts {
-            let body = tmux_layout_script(&layout, &providers, false, "aibox");
+            let body = tmux_layout_script(&layout, &providers, false, &no_tools(), "aibox");
             assert!(
                 body.contains(&format!("-n {name}")),
                 "{name} layout should name its first tmux window:\n{body}"
@@ -280,7 +414,7 @@ mod tests {
     #[test]
     fn tmux_ai_layout_omits_unselected_claude() {
         let providers = vec![AiProvider::Codex];
-        let layout = tmux_layout_script(&ConfigLayout::Ai, &providers, false, "aibox");
+        let layout = tmux_layout_script(&ConfigLayout::Ai, &providers, false, &no_tools(), "aibox");
 
         assert!(layout.contains("tool_or_shell codex"));
         assert!(!layout.contains("tool_or_shell claude"));
@@ -303,7 +437,7 @@ mod tests {
             ConfigLayout::Browse,
             ConfigLayout::Ai,
         ] {
-            let body = tmux_layout_script(&layout, &providers, false, "aibox");
+            let body = tmux_layout_script(&layout, &providers, false, &no_tools(), "aibox");
             assert!(
                 !body.contains("editor_pane"),
                 "{layout:?} must not create an editor_pane:\n{body}"
@@ -369,7 +503,7 @@ mod tests {
 
     /// BR-LAYOUT-KNOBS (BACK-20260509_1316-SnappyWolf, v0.25.7): the
     /// agent-pane split direction and percentage must be runtime-tunable
-    /// for every layout that has an agent pane.
+    /// for every layout that has an agent pane (single-harness).
     #[test]
     fn tmux_layouts_expose_agent_split_knobs() {
         let providers = [AiProvider::Claude];
@@ -381,7 +515,7 @@ mod tests {
             (ConfigLayout::Browse, true),
             (ConfigLayout::Ai, true),
         ] {
-            let body = tmux_layout_script(&layout, &providers, false, "aibox");
+            let body = tmux_layout_script(&layout, &providers, false, &no_tools(), "aibox");
             if has_agent {
                 assert!(
                     body.contains(r#"split_flag="-${AIBOX_LAYOUT_AGENT_SPLIT:-"#),
@@ -418,7 +552,7 @@ mod tests {
             (ConfigLayout::Ai, "h", "50"),
         ];
         for (layout, split, ratio) in cases {
-            let body = tmux_layout_script(&layout, &providers, false, "aibox");
+            let body = tmux_layout_script(&layout, &providers, false, &no_tools(), "aibox");
             assert!(
                 body.contains(&format!("AIBOX_LAYOUT_AGENT_SPLIT:-{split}}}")),
                 "{layout:?} default split flag must be {split}:\n{body}"
@@ -436,7 +570,7 @@ mod tests {
     #[test]
     fn tmux_ai_layout_single_harness_unchanged() {
         let providers = [AiProvider::Claude];
-        let body = tmux_layout_script(&ConfigLayout::Ai, &providers, false, "aibox");
+        let body = tmux_layout_script(&ConfigLayout::Ai, &providers, false, &no_tools(), "aibox");
 
         assert!(body.contains("tool_or_shell claude"));
         assert!(
@@ -455,7 +589,7 @@ mod tests {
     #[test]
     fn tmux_ai_layout_two_harnesses_stacks_secondary() {
         let providers = vec![AiProvider::Claude, AiProvider::Codex];
-        let body = tmux_layout_script(&ConfigLayout::Ai, &providers, false, "aibox");
+        let body = tmux_layout_script(&ConfigLayout::Ai, &providers, false, &no_tools(), "aibox");
 
         // Both harness binaries must appear.
         assert!(
@@ -492,7 +626,7 @@ mod tests {
     #[test]
     fn tmux_ai_layout_three_harnesses_stacks_all_secondaries() {
         let providers = vec![AiProvider::Claude, AiProvider::Codex, AiProvider::Gemini];
-        let body = tmux_layout_script(&ConfigLayout::Ai, &providers, false, "aibox");
+        let body = tmux_layout_script(&ConfigLayout::Ai, &providers, false, &no_tools(), "aibox");
 
         assert!(body.contains("tool_or_shell claude"));
         assert!(body.contains("tool_or_shell codex"));
@@ -511,12 +645,255 @@ mod tests {
     fn tmux_ai_layout_harness_order_follows_config_list() {
         // codex first → codex is order-1 (primary agent_pane), claude is secondary
         let providers_codex_first = vec![AiProvider::Codex, AiProvider::Claude];
-        let body = tmux_layout_script(&ConfigLayout::Ai, &providers_codex_first, false, "aibox");
+        let body =
+            tmux_layout_script(&ConfigLayout::Ai, &providers_codex_first, false, &no_tools(), "aibox");
         let codex_pos = body.find("tool_or_shell codex").unwrap();
         let claude_pos = body.find("tool_or_shell claude").unwrap();
         assert!(
             codex_pos < claude_pos,
             "when codex is first in config list it must be the primary harness:\n{body}"
         );
+    }
+
+    // ── BR-TRUECLOVER tests (BACK-20260510_0726-HappyFjord, v0.25.7) ──────
+
+    /// browse layout: single harness keeps the original agent split.
+    #[test]
+    fn tmux_browse_layout_single_harness_has_agent_pane() {
+        let providers = [AiProvider::Claude];
+        let body = tmux_layout_script(&ConfigLayout::Browse, &providers, false, &no_tools(), "aibox");
+
+        assert!(body.contains("tool_or_shell claude"), "single-harness browse must start claude:\n{body}");
+        assert!(
+            body.contains("split_flag="),
+            "single-harness browse must create agent split:\n{body}"
+        );
+        assert!(
+            body.contains("agent_pane="),
+            "single-harness browse must create agent_pane:\n{body}"
+        );
+    }
+
+    /// browse layout: ≥2 harnesses — no agent pane at all (yazi takes 100%).
+    #[test]
+    fn tmux_browse_layout_multi_harness_hides_ai_panes() {
+        let providers = vec![AiProvider::Claude, AiProvider::Codex];
+        let body = tmux_layout_script(&ConfigLayout::Browse, &providers, false, &no_tools(), "aibox");
+
+        assert!(
+            !body.contains("agent_pane="),
+            "multi-harness browse must not create an agent_pane:\n{body}"
+        );
+        assert!(
+            !body.contains("AIBOX_LAYOUT_AGENT_SPLIT"),
+            "multi-harness browse must not have an agent split:\n{body}"
+        );
+        assert!(
+            !body.contains("tool_or_shell claude"),
+            "multi-harness browse must not start any harness:\n{body}"
+        );
+        assert!(
+            !body.contains("tool_or_shell codex"),
+            "multi-harness browse must not start any harness:\n{body}"
+        );
+        // yazi still present
+        assert!(body.contains("tool_or_shell yazi"), "browse must still start yazi:\n{body}");
+    }
+
+    /// cowork layout: single harness unchanged.
+    #[test]
+    fn tmux_cowork_layout_single_harness_unchanged() {
+        let providers = [AiProvider::Claude];
+        let body = tmux_layout_script(&ConfigLayout::Cowork, &providers, false, &no_tools(), "aibox");
+
+        assert!(body.contains("tool_or_shell claude"));
+        assert!(!body.contains("agent_pane_2="), "single-harness cowork must not have secondary pane:\n{body}");
+        assert!(!body.contains("select-pane -d"), "single-harness cowork must not disable panes:\n{body}");
+    }
+
+    /// cowork layout: ≥2 harnesses — secondaries stacked hidden in agent column.
+    #[test]
+    fn tmux_cowork_layout_multi_harness_stacks_secondaries_hidden() {
+        let providers = vec![AiProvider::Claude, AiProvider::Codex];
+        let body = tmux_layout_script(&ConfigLayout::Cowork, &providers, false, &no_tools(), "aibox");
+
+        assert!(body.contains("tool_or_shell claude"), "order-1 must be in layout:\n{body}");
+        assert!(body.contains("tool_or_shell codex"), "order-2 must be in layout:\n{body}");
+        assert!(
+            body.contains("agent_pane_2="),
+            "secondary pane variable must be generated:\n{body}"
+        );
+        // Secondary pane must be disabled (hidden) after creation.
+        assert!(
+            body.contains("select-pane -t \"${agent_pane_2}\" -d"),
+            "secondary pane must be disabled with select-pane -d:\n{body}"
+        );
+        // Must still be a pane (not a window).
+        assert!(
+            !body.contains("new-window -t \"$session:\" -n codex"),
+            "cowork secondaries must be panes not windows:\n{body}"
+        );
+        // files_pane still selected last.
+        assert!(body.contains("select-pane -t \"$files_pane\""));
+    }
+
+    /// cowork layout: 3 harnesses — both secondaries stacked and disabled.
+    #[test]
+    fn tmux_cowork_layout_three_harnesses_all_hidden() {
+        let providers = vec![AiProvider::Claude, AiProvider::Codex, AiProvider::Gemini];
+        let body = tmux_layout_script(&ConfigLayout::Cowork, &providers, false, &no_tools(), "aibox");
+
+        assert!(body.contains("agent_pane_2="), "second pane variable missing:\n{body}");
+        assert!(body.contains("agent_pane_3="), "third pane variable missing:\n{body}");
+        assert!(body.contains("select-pane -t \"${agent_pane_2}\" -d"), "second pane must be disabled:\n{body}");
+        assert!(body.contains("select-pane -t \"${agent_pane_3}\" -d"), "third pane must be disabled:\n{body}");
+    }
+
+    /// cowork-swap layout: mirrors cowork multi-harness behaviour.
+    #[test]
+    fn tmux_cowork_swap_layout_multi_harness_stacks_secondaries_hidden() {
+        let providers = vec![AiProvider::Claude, AiProvider::Codex];
+        let body = tmux_layout_script(&ConfigLayout::CoworkSwap, &providers, false, &no_tools(), "aibox");
+
+        assert!(body.contains("tool_or_shell claude"));
+        assert!(body.contains("tool_or_shell codex"));
+        assert!(body.contains("agent_pane_2="));
+        assert!(body.contains("select-pane -t \"${agent_pane_2}\" -d"));
+        // cowork-swap uses vertical split (v) as primary
+        assert!(body.contains("AIBOX_LAYOUT_AGENT_SPLIT:-v}"));
+    }
+
+    /// dev layout: single harness unchanged.
+    #[test]
+    fn tmux_dev_layout_single_harness_unchanged() {
+        let providers = [AiProvider::Claude];
+        let body = tmux_layout_script(&ConfigLayout::Dev, &providers, false, &no_tools(), "aibox");
+
+        assert!(body.contains("tool_or_shell claude"));
+        assert!(!body.contains("new-window -t \"$session:\" -n \"dev-"), "single-harness dev must not have secondary windows:\n{body}");
+    }
+
+    /// dev layout: ≥2 harnesses — secondaries become windows named dev-<harness>.
+    #[test]
+    fn tmux_dev_layout_multi_harness_creates_secondary_windows() {
+        let providers = vec![AiProvider::Claude, AiProvider::Codex];
+        let body = tmux_layout_script(&ConfigLayout::Dev, &providers, false, &no_tools(), "aibox");
+
+        assert!(body.contains("tool_or_shell claude"), "order-1 in main window:\n{body}");
+        assert!(body.contains("tool_or_shell codex"), "order-2 harness must appear:\n{body}");
+        assert!(
+            body.contains("new-window -t \"$session:\" -n \"dev-codex\""),
+            "secondary harness must become a dev-<harness> window:\n{body}"
+        );
+        // Must NOT be a pane split (no agent_pane_2 variable).
+        assert!(
+            !body.contains("agent_pane_2="),
+            "dev secondaries must be windows, not panes:\n{body}"
+        );
+    }
+
+    /// dev layout: 3 harnesses — both secondaries become windows.
+    #[test]
+    fn tmux_dev_layout_three_harnesses_all_secondary_windows() {
+        let providers = vec![AiProvider::Claude, AiProvider::Codex, AiProvider::Gemini];
+        let body = tmux_layout_script(&ConfigLayout::Dev, &providers, false, &no_tools(), "aibox");
+
+        assert!(body.contains("new-window -t \"$session:\" -n \"dev-codex\""));
+        assert!(body.contains("new-window -t \"$session:\" -n \"dev-gemini\""));
+    }
+
+    /// focus layout: single harness unchanged.
+    #[test]
+    fn tmux_focus_layout_single_harness_unchanged() {
+        let providers = [AiProvider::Claude];
+        let body = tmux_layout_script(&ConfigLayout::Focus, &providers, false, &no_tools(), "aibox");
+
+        assert!(body.contains("tool_or_shell claude"));
+        assert!(!body.contains("new-window -t \"$session:\" -n \"claude\""), "single-harness focus must not have secondary window:\n{body}");
+    }
+
+    /// focus layout: ≥2 harnesses — secondaries become windows named after harness binary.
+    #[test]
+    fn tmux_focus_layout_multi_harness_creates_secondary_windows() {
+        let providers = vec![AiProvider::Claude, AiProvider::Codex];
+        let body = tmux_layout_script(&ConfigLayout::Focus, &providers, false, &no_tools(), "aibox");
+
+        assert!(body.contains("tool_or_shell claude"), "order-1 in focus window:\n{body}");
+        assert!(body.contains("tool_or_shell codex"), "order-2 must appear:\n{body}");
+        assert!(
+            body.contains("new-window -t \"$session:\" -n \"codex\""),
+            "secondary harness must become a window named after its binary:\n{body}"
+        );
+    }
+
+    // ── BR-TOOLS-AS-WINDOWS tests (BACK-20260510_0726-GrandDaisy, v0.25.7) ─
+
+    /// With no tool_windows, the layout is identical to the baseline.
+    #[test]
+    fn tmux_tool_windows_empty_no_change() {
+        let providers = [AiProvider::Claude];
+        let body_no_tools = tmux_layout_script(&ConfigLayout::Ai, &providers, false, &no_tools(), "aibox");
+        let body_with_tools = tmux_layout_script(&ConfigLayout::Ai, &providers, false, &[], "aibox");
+        assert_eq!(body_no_tools, body_with_tools);
+    }
+
+    /// Each enabled tool addon gets a `new-window` line with the correct name/binary.
+    #[test]
+    fn tmux_tool_windows_emitted_for_each_enabled_tool() {
+        let providers = [AiProvider::Claude];
+        let tools = vec![("k9s", "k9s"), ("btop", "btop"), ("lazydocker", "lazydocker")];
+        let body = tmux_layout_script(&ConfigLayout::Ai, &providers, false, &tools, "aibox");
+
+        assert!(
+            body.contains("new-window -t \"$session:\" -n k9s"),
+            "k9s window must be emitted:\n{body}"
+        );
+        assert!(
+            body.contains("new-window -t \"$session:\" -n btop"),
+            "btop window must be emitted:\n{body}"
+        );
+        assert!(
+            body.contains("new-window -t \"$session:\" -n lazydocker"),
+            "lazydocker window must be emitted:\n{body}"
+        );
+        // Tool windows must appear after the layout body's shell window.
+        let k9s_pos = body.find("new-window -t \"$session:\" -n k9s").unwrap();
+        let shell_pos = body.find("new-window -t \"$session:\" -n shell").unwrap();
+        assert!(shell_pos < k9s_pos, "tool windows must appear after layout shell window:\n{body}");
+        // Tool windows must appear before the final attach-session line.
+        let final_attach = body.rfind("attach-session").unwrap();
+        assert!(k9s_pos < final_attach, "tool windows must appear before final attach-session:\n{body}");
+    }
+
+    /// Tool windows appear after layout body but before lazygit window.
+    #[test]
+    fn tmux_tool_windows_ordered_before_git_window() {
+        let providers = [AiProvider::Claude];
+        let tools = vec![("k9s", "k9s")];
+        let body = tmux_layout_script(&ConfigLayout::Ai, &providers, true, &tools, "aibox");
+
+        let k9s_pos = body.find("new-window -t \"$session:\" -n k9s").unwrap();
+        let git_pos = body.find("new-window -t \"$session:\" -n git").unwrap();
+        assert!(k9s_pos < git_pos, "tool windows must appear before lazygit window:\n{body}");
+    }
+
+    /// Tool windows work with non-Ai layouts too.
+    #[test]
+    fn tmux_tool_windows_work_with_any_layout() {
+        let providers = [AiProvider::Claude];
+        let tools = vec![("btop", "btop")];
+        for layout in [
+            ConfigLayout::Dev,
+            ConfigLayout::Focus,
+            ConfigLayout::Cowork,
+            ConfigLayout::CoworkSwap,
+            ConfigLayout::Browse,
+        ] {
+            let body = tmux_layout_script(&layout, &providers, false, &tools, "aibox");
+            assert!(
+                body.contains("new-window -t \"$session:\" -n btop"),
+                "{layout:?} must emit btop tool window:\n{body}"
+            );
+        }
     }
 }

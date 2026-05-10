@@ -45,6 +45,15 @@ bind-key -N "Kill tmux session" q confirm-before -p "kill tmux session AIBOX_TMU
 bind-key -N "Reload tmux config" R source-file ~/.config/tmux/tmux.conf \; display-message "aibox tmux config reloaded"
 bind-key -N "Open log pane (lnav)" L display-popup -E -w 90% -h 80% "lnav -q /workspace/.aibox/aibox.log /workspace/.aibox/aibox.log.1 2>/dev/null || less /workspace/.aibox/aibox.log"
 
+# BR-TOOLS-AS-WINDOWS (BACK-20260510_0726-GrandDaisy, v0.25.7): one-letter
+# prefix shortcuts to jump directly to named tool/harness windows.
+# find-window -Z focuses the target window; silently no-ops when absent.
+bind-key -N "Switch to git/lazygit window" g find-window -Z 'git'
+bind-key -N "Switch to k9s/kubernetes window" K find-window -Z 'k9s'
+bind-key -N "Switch to btop/system monitor window" B find-window -Z 'btop'
+bind-key -N "Switch to lazydocker/containers window" D find-window -Z 'lazydocker'
+bind-key -N "Switch to shell window" s find-window -Z 'shell'
+
 set -g status AIBOX_TMUX_STATUS
 set -g status-style "bg=AIBOX_TMUX_BG,fg=AIBOX_TMUX_FG"
 set -g window-status-current-style "bg=AIBOX_TMUX_ACCENT,fg=AIBOX_TMUX_BG,bold"
@@ -598,6 +607,37 @@ mod tests {
         assert!(
             conf.contains(r#"bind-key -N "Toggle pane zoom" f resize-pane -Z"#),
             "original leader f zoom toggle must remain:\n{conf}"
+        );
+    }
+
+    /// BR-TOOLS-AS-WINDOWS (BACK-20260510_0726-GrandDaisy, v0.25.7):
+    /// one-letter prefix bindings for tool windows must be present in the
+    /// generated tmux.conf.  All bindings use `find-window -Z` so they
+    /// silently no-op when the target window does not exist.
+    #[test]
+    fn tmux_conf_has_tool_window_keybindings() {
+        let config = crate::config::test_config();
+        let conf = tmux_conf(&config);
+
+        assert!(
+            conf.contains(r#"bind-key -N "Switch to git/lazygit window" g find-window -Z 'git'"#),
+            "leader g must jump to git/lazygit window:\n{conf}"
+        );
+        assert!(
+            conf.contains(r#"bind-key -N "Switch to k9s/kubernetes window" K find-window -Z 'k9s'"#),
+            "leader K must jump to k9s window:\n{conf}"
+        );
+        assert!(
+            conf.contains(r#"bind-key -N "Switch to btop/system monitor window" B find-window -Z 'btop'"#),
+            "leader B must jump to btop window:\n{conf}"
+        );
+        assert!(
+            conf.contains(r#"bind-key -N "Switch to lazydocker/containers window" D find-window -Z 'lazydocker'"#),
+            "leader D must jump to lazydocker window:\n{conf}"
+        );
+        assert!(
+            conf.contains(r#"bind-key -N "Switch to shell window" s find-window -Z 'shell'"#),
+            "leader s must jump to shell window:\n{conf}"
         );
     }
 }
