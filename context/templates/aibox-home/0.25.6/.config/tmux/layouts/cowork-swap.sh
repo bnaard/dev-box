@@ -22,7 +22,7 @@ tool_or_shell() {
 
 tmux -S "$socket" -f "$config" new-session -d -s "$session" -n cowork-swap -c "$workspace" "$(tool_or_shell yazi)"
 files_pane="$(tmux -S "$socket" display-message -p -t "$session:cowork-swap" '#{pane_id}')"
-agent_pane="$(tmux -S "$socket" split-window -t "$session:cowork-swap" -v -p 45 -P -F '#{pane_id}' -c "$workspace" "$(tool_or_shell codex)")"
+agent_pane="$(tmux -S "$socket" split-window -t "$session:cowork-swap" -v -p 45 -P -F '#{pane_id}' -c "$workspace" "$(tool_or_shell claude)")"
 tmux -S "$socket" select-pane -t "$files_pane"
 tmux -S "$socket" select-window -t "$session:cowork-swap" 2>/dev/null || true
 exec tmux -S "$socket" -f "$config" attach-session -t "$session"

@@ -1,46 +1,49 @@
 ---
 name: model-recommender
-description: >
-  Recommend the right AI model for a task by scoring candidates across
-  six dimensions (Reasoning, Engineering, Speed, Breadth, Reliability,
-  Governance) and displaying a spider-chart profile.
+description: 'Recommend the right AI model for a task by scoring candidates across six dimensions (Reasoning, Engineering, Speed, Breadth, Reliability, Governance) and displaying a spider-chart profile.
+
+  '
 metadata:
   processkit:
     apiVersion: processkit.projectious.work/v2
     id: SKILL-model-recommender
-    version: "1.2.0"
-    created: 2026-04-09T00:00:00Z
+    version: 1.2.0
+    created: 2026-04-09 00:00:00+00:00
     category: processkit
     layer: 1
     uses: []
     provides:
       primitives: []
       mcp_tools:
-        - list_models
-        - get_profile
-        - compare_models
-        - query_models
-        - get_pricing
-        - check_availability
-        - get_config
-        - set_config
-        - get_model_for_class
-        - explain_routing
+      - list_models
+      - get_profile
+      - compare_models
+      - query_models
+      - get_pricing
+      - check_availability
+      - get_config
+      - set_config
+      - get_model_for_class
+      - explain_routing
       assets: []
-      processes: [model-profiling, task-routing, roster-refresh, setup-questionnaire]
+      processes:
+      - model-profiling
+      - task-routing
+      - roster-refresh
+      - setup-questionnaire
     commands:
-      - name: pk-route
-        args: "task-description"
-        description: "Route a task or task plan to the optimal AI model"
-      - name: pk-model-setup
-        args: ""
-        description: "Run the guided questionnaire to configure model access and preferences"
-      - name: pk-model-refresh
-        args: ""
-        description: "Run Workflow C to research and refresh the model roster from live benchmarks"
-      - name: pk-explain-routing
-        args: "<role-slug> [seniority] [scope]"
-        description: "Explain the model-routing trace for a role and optional seniority/scope"
+    - name: pk-route
+      args: task-description
+      description: Route a task or task plan to the optimal AI model
+    - name: pk-model-setup
+      args: ''
+      description: Run the guided questionnaire to configure model access and preferences
+    - name: pk-model-refresh
+      args: ''
+      description: Run Workflow C to research and refresh the model roster from live benchmarks
+    - name: pk-explain-routing
+      args: <role-slug> [seniority] [scope]
+      description: Explain the model-routing trace for a role and optional seniority/scope
 ---
 
 # Model Recommender

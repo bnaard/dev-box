@@ -1,31 +1,36 @@
 ---
 name: standup-context
-description: |
-  Writes a structured standup update as a session.standup LogEntry — capturing
+description: 'Writes a structured standup update as a session.standup LogEntry — capturing
+
   what was done, what is in progress, what comes next, and any blockers. Use
+
   when the user says "write a standup", "standup update", "what did I do today",
+
   "write a status update for the team", or at the end of a session on projects
+
   that run daily standups.
+
+  '
 metadata:
   processkit:
     apiVersion: processkit.projectious.work/v2
     id: SKILL-standup-context
-    version: "1.0.0"
-    created: 2026-04-08T00:00:00Z
+    version: 1.0.0
+    created: 2026-04-08 00:00:00+00:00
     category: processkit
     layer: 2
     uses:
-      - skill: event-log
-        purpose: Write the session.standup LogEntry with the structured details schema.
-      - skill: workitem-management
-        purpose: Query completed and in-progress WorkItems to populate done/doing accurately.
+    - skill: event-log
+      purpose: Write the session.standup LogEntry with the structured details schema.
+    - skill: workitem-management
+      purpose: Query completed and in-progress WorkItems to populate done/doing accurately.
     commands:
-      - name: pk-standup
-        args: ""
-        description: "Generate a standup update (done / doing / next / blockers)"
-      - name: pk-status
-        args: ""
-        description: "Generate a status update: current progress, blockers, and recommended next steps"
+    - name: pk-standup
+      args: ''
+      description: Generate a standup update (done / doing / next / blockers)
+    - name: pk-status
+      args: ''
+      description: 'Generate a status update: current progress, blockers, and recommended next steps'
 ---
 
 # Standup Context

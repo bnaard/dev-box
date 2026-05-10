@@ -1,28 +1,29 @@
 ---
 name: status-briefing
-description: |
-  Generates a concise status briefing from project context — synthesizing current state, open decisions, key risks, and today's priority actions into a focused session-start orientation. Use at the start of a session when asked for a briefing, "what's the state of things", "catch me up", or "what should I focus on today."
+description: 'Generates a concise status briefing from project context — synthesizing current state, open decisions, key risks, and today''s priority actions into a focused session-start orientation. Use at the start of a session when asked for a briefing, "what''s the state of things", "catch me up", or "what should I focus on today."
+
+  '
 metadata:
   processkit:
     apiVersion: processkit.projectious.work/v2
     id: SKILL-status-briefing
-    version: "1.0.0"
-    created: 2026-04-08T00:00:00Z
+    version: 1.0.0
+    created: 2026-04-08 00:00:00+00:00
     category: processkit
     layer: 4
     uses:
-      - skill: agent-management
-        purpose: Understand what context files to read at session start (HANDOVER, BACKLOG, INDEX).
-      - skill: status-update-writer
-        purpose: Pull current project state when generating the today's priorities section.
-      - skill: workitem-management
-        purpose: Query in-progress and next-up WorkItems for the today's priorities section.
-      - skill: migration-management
-        purpose: Surface pending and in-progress migrations before normal work.
+    - skill: agent-management
+      purpose: Understand what context files to read at session start (HANDOVER, BACKLOG, INDEX).
+    - skill: status-update-writer
+      purpose: Pull current project state when generating the today's priorities section.
+    - skill: workitem-management
+      purpose: Query in-progress and next-up WorkItems for the today's priorities section.
+    - skill: migration-management
+      purpose: Surface pending and in-progress migrations before normal work.
     commands:
-      - name: pk-resume
-        args: ""
-        description: "Generate a session-start orientation from current project state"
+    - name: pk-resume
+      args: ''
+      description: Generate a session-start orientation from current project state
 ---
 
 # Status Briefing

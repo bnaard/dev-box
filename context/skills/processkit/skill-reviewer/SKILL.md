@@ -1,33 +1,34 @@
 ---
 name: skill-reviewer
-description: >
-  Audit an existing processkit skill against the 5 Skill Killers,
-  the Agent Skills standard, and Anthropic's troubleshooting playbook,
-  producing a categorized findings report and draft Gotchas.
+description: 'Audit an existing processkit skill against the 5 Skill Killers, the Agent Skills standard, and Anthropic''s troubleshooting playbook, producing a categorized findings report and draft Gotchas.
+
+  '
 metadata:
   processkit:
     apiVersion: processkit.projectious.work/v2
     id: SKILL-skill-reviewer
-    version: "1.0.0"
-    created: 2026-04-08T00:00:00Z
+    version: 1.0.0
+    created: 2026-04-08 00:00:00+00:00
     category: processkit
     layer: 3
     uses:
-      - skill: skill-builder
-        purpose: "Reference the canonical skill format and the 5 Skill Killers checklist that skill-builder enforces during creation. skill-reviewer applies the same rules to existing skills."
-      - skill: index-management
-        purpose: "Locate the skill being reviewed and surface related skills it should reference under uses:."
-      - skill: event-log
-        purpose: "Log skill.reviewed events so the project's audit trail captures review history."
+    - skill: skill-builder
+      purpose: Reference the canonical skill format and the 5 Skill Killers checklist that skill-builder enforces during creation. skill-reviewer applies the same rules to existing skills.
+    - skill: index-management
+      purpose: Locate the skill being reviewed and surface related skills it should reference under uses:.
+    - skill: event-log
+      purpose: Log skill.reviewed events so the project's audit trail captures review history.
     provides:
       primitives: []
       mcp_tools: []
       assets: []
-      processes: [skill-review, gotchas-generation]
+      processes:
+      - skill-review
+      - gotchas-generation
     commands:
-      - name: pk-skill-audit
-        args: "skill-name"
-        description: "Run a full 13-category review of the named skill"
+    - name: pk-skill-audit
+      args: skill-name
+      description: Run a full 13-category review of the named skill
 ---
 
 # Skill Reviewer

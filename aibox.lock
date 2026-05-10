@@ -8,24 +8,49 @@ version = "v0.25.8"
 src_path = "src"
 release_asset_sha256 = "0f204898bf1b669c784ff2ad6a3d8b8ea9eda7fc63835f9e7ba5ef2b5c341137"
 installed_at = "2026-05-05T16:03:00.906059349+00:00"
-processkit_install_hash = "a136b8826582297ce0e710943b8abd93d18ec429dd4e5258399918653d346215"
+processkit_install_hash = "d65451fdca7deb290407a34458a1ff629569fc22b8ce62279cbd2e1631c4ef98"
+
+[addons]
+resolved_at = "2026-05-09T10:41:25Z"
+
+[addons.tools]
+
+[addons.previous_selection]
+docs-docusaurus = ["docusaurus"]
+git-ui = ["gh"]
+node = [
+    "node",
+    "pnpm",
+]
+python = [
+    "python",
+    "uv",
+]
+rust = [
+    "cargo-audit",
+    "clippy",
+    "rustc",
+    "rustfmt",
+]
 
 [runtime_home]
-generated_at = "2026-05-09T07:08:58.760420+00:00"
+generated_at = "2026-05-09T11:20:05.637503+00:00"
 
 [runtime_home.files]
 ".asoundrc" = "f34609b11d315cd613cb5333b561032baec860faf4a7eccb28b5567ae72019af"
+".claude.json" = "ca3d163bab055381827226140568f3bef7eaac187cebd76878e0b63e9e442356"
+".claude/keybindings.json" = "187a3f75b831cbec4b025eecd23f06e76a77f46d6f47e4e730ef341f0d1db21c"
 ".config/cheatsheet.txt" = "aec9bb809a9a879da774584df37b7e88cab5c0935ceb3cf2088910b5f8ded924"
 ".config/git/config" = "512a00e2c81ab1b9b7b8dce0777043cbdb6cd0030f0cabd4b6d99b93efc0b833"
 ".config/lnav/formats/aibox/aibox.json" = "10e1af791380119ecd6860f8d31becb183a26b01868d9b20b2e277177e17c660"
 ".config/starship.toml" = "a705d1a3b5e4db0cedc260dd3d99c31b352101a5de963cded36a7025a75cb4fd"
 ".config/tmux/aibox-session.sh" = "fc5b6834ae31cf133c9de9232288aea3a4e10d027201f8f01ae329a7c54f17de"
-".config/tmux/layouts/ai.sh" = "fdac5567c2db2071f33f419b4a5cd1f39149d7d0d70495dc12cc87d83c90e791"
-".config/tmux/layouts/browse.sh" = "ef6e401aac215a440e4fdef9cc7137474f918a04beab3b8cdcdd0e594881dc39"
-".config/tmux/layouts/cowork-swap.sh" = "b26a1ae1b80c80d324785bb7ed98e1a067546b36a5113845b4d684d2ed081484"
-".config/tmux/layouts/cowork.sh" = "51d978fa6e997c0f424ec418f0b7cb7b77ec8b092bf2342f9dd7134eb03df7a3"
-".config/tmux/layouts/dev.sh" = "183fd5b3f81c21a8324f9928180050846467d839e767af39a8e2ce117c47faee"
-".config/tmux/layouts/focus.sh" = "0abf2800276a93ab17819ed15f054a4efbbb555f60aacb97d2e8cf43267a6abb"
+".config/tmux/layouts/ai.sh" = "48bf7dac76ab4747fd04a7b30ec9d2ee9e856e8c5dcdd4aab6cca31d9c48bab0"
+".config/tmux/layouts/browse.sh" = "e4da85d636b5683763982546883a88378d9f94c5315ab683488571f4700b0b3c"
+".config/tmux/layouts/cowork-swap.sh" = "6796e2f8a56c52316ce90f7baea533cff69f5d9caa98d960402627ee0b3b0a8d"
+".config/tmux/layouts/cowork.sh" = "63adec15d83b077c6307ea3099982c2390575cac29e4ca72f8b23bf25cff7b82"
+".config/tmux/layouts/dev.sh" = "380138209576327a1af7350a7e294a6e5607492a2c051d0a8ce9d364e2ab38f0"
+".config/tmux/layouts/focus.sh" = "7ce11f77b763f214ba23a4554ee6dee39a24944b0b68324700d699e74fcc1a2f"
 ".config/tmux/tmux.conf" = "0b390637bc6b583008f5d3e10885ba4cdb88be5fac9946473e2c88ead7073b4d"
 ".config/yazi/init.lua" = "eae04462c0b3bcbb486ee59aa9c2c9e9595680a0626997c942e5abb2ae5a48d7"
 ".config/yazi/keymap.toml" = "4b30c2dedd57dc1f08013401c3ccafec0dc5b811f1857f117e5fba7ec7def5f4"
@@ -43,3 +68,7 @@ generated_at = "2026-05-09T07:08:58.760420+00:00"
 ".local/bin/open-in-editor" = "ec4c0ecf1c4c01582c8b16a1bb2a06f364f3a9a9bab14976c5da17573b047145"
 ".local/bin/pdf-watch" = "b6becd1df4a32ff27f5c93e514e6d31e5743f9282f40ce7290b8432207d85934"
 ".vim/vimrc" = "282a0e2eaf3c1dd124005aee3dfcbaf7c812e94e970f4815da80e5459cb9ab27"
+
+[harnesses]
+recorded_at = "2026-05-09T10:41:25Z"
+previous_selection = ["codex"]

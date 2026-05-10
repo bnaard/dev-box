@@ -398,9 +398,9 @@ model_providers = [
 # Per-harness install controls. `enabled` participates in generated
 # agent/MCP config; `install` selects the in-container CLI recipe.
 
-# [ai.harness.claude]
-# enabled = true
-# install = true
+[ai.harness.claude]
+enabled = true
+install = true
 # version = "latest"
 
 [ai.harness.codex]

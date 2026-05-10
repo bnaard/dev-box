@@ -1,25 +1,25 @@
 ---
 name: session-handover
-description: >
-  Write an end-of-session handover LogEntry capturing current state,
-  open threads, next action, and git context for session continuity.
+description: 'Write an end-of-session handover LogEntry capturing current state, open threads, next action, and git context for session continuity.
+
+  '
 metadata:
   processkit:
     apiVersion: processkit.projectious.work/v2
     id: SKILL-20260408_0000-SessionHandover
-    version: "1.0.0"
-    created: 2026-04-08T00:00:00Z
+    version: 1.0.0
+    created: 2026-04-08 00:00:00+00:00
     category: processkit
     layer: 2
     uses:
-      - skill: event-log
-        purpose: Write the session.handover LogEntry with the structured details schema.
-      - skill: workitem-management
-        purpose: Query in-progress and blocked WorkItems to populate open_threads accurately.
+    - skill: event-log
+      purpose: Write the session.handover LogEntry with the structured details schema.
+    - skill: workitem-management
+      purpose: Query in-progress and blocked WorkItems to populate open_threads accurately.
     commands:
-      - name: pk-wrapup
-        args: ""
-        description: "Generate a session handover document from current project state"
+    - name: pk-wrapup
+      args: ''
+      description: Generate a session handover document from current project state
 ---
 
 # Session Handover

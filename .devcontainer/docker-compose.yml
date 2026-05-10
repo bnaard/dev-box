@@ -57,6 +57,12 @@ services:
       - ../.aibox-home/.config/state:/home/aibox/.config/state
       # aibox-managed helper scripts (resource status, preview helpers)
       - ../.aibox-home/.local/bin:/home/aibox/.local/bin
+      # Claude Code configuration and memory
+      - ../.aibox-home/.claude:/home/aibox/.claude
+      # Claude Code account/session state (holds oauthAccount, userID);
+      # mounting .claude alone is not enough — without this file Claude Code
+      # treats every rebuild as a fresh install and re-prompts for login.
+      - ../.aibox-home/.claude.json:/home/aibox/.claude.json
       # OpenAI Codex CLI configuration and cached login state
       - ../.aibox-home/.codex:/home/aibox/.codex
       # ALSA → PulseAudio bridge config

@@ -25,7 +25,7 @@ spec:
 
     | Harness | Permission Model | Format | Key Characteristics |
 
-    |---------|------------------|--------|---------------------|
+    | :-- | :-- | :-- | :-- |
 
     | **Claude Code** | Simple allowlist | `permissions.allow[]` in `.claude/settings.local.json`
     | Individual entries (e.g. `mcp__processkit-workitem-management__create_workitem`);

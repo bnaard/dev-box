@@ -1,35 +1,42 @@
 ---
 name: decision-record
-description: |
-  Record decisions with rationale, alternatives, and consequences — the ADR pattern as a primitive. Use when a consequential choice is made — architecture, tooling, process, scope, trade-off. Capture WHY, not just WHAT.
+description: 'Record decisions with rationale, alternatives, and consequences — the ADR pattern as a primitive. Use when a consequential choice is made — architecture, tooling, process, scope, trade-off. Capture WHY, not just WHAT.
+
+  '
 metadata:
   processkit:
     apiVersion: processkit.projectious.work/v2
     id: SKILL-decision-record
-    version: "1.0.0"
-    created: 2026-04-06T00:00:00Z
+    version: 1.0.0
+    created: 2026-04-06 00:00:00+00:00
     category: processkit
     layer: 2
     uses:
-      - skill: event-log
-        purpose: Log events to keep the audit trail accurate after every write.
-      - skill: actor-profile
-        purpose: Resolve and validate Actor IDs referenced by this skill's entities.
-      - skill: index-management
-        purpose: Query existing entities and keep the SQLite index fresh after writes.
-      - skill: id-management
-        purpose: Allocate unique entity identifiers via central ID generation.
+    - skill: event-log
+      purpose: Log events to keep the audit trail accurate after every write.
+    - skill: actor-profile
+      purpose: Resolve and validate Actor IDs referenced by this skill's entities.
+    - skill: index-management
+      purpose: Query existing entities and keep the SQLite index fresh after writes.
+    - skill: id-management
+      purpose: Allocate unique entity identifiers via central ID generation.
     provides:
-      primitives: [DecisionRecord]
-      mcp_tools: [record_decision, query_decisions, link_decision, supersede_decision]
-      templates: [decisionrecord]
+      primitives:
+      - DecisionRecord
+      mcp_tools:
+      - record_decision
+      - query_decisions
+      - link_decision
+      - supersede_decision
+      templates:
+      - decisionrecord
     commands:
-      - name: pk-dec
-        args: "decision-title"
-        description: "Record a new architectural or product decision with the given title"
-      - name: pk-dec-find
-        args: "filter"
-        description: "Query existing decisions by keyword, status, or topic"
+    - name: pk-dec
+      args: decision-title
+      description: Record a new architectural or product decision with the given title
+    - name: pk-dec-find
+      args: filter
+      description: Query existing decisions by keyword, status, or topic
 ---
 
 # Decision Record
