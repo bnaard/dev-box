@@ -205,7 +205,11 @@ pub fn emit_v1_v2_migrations(
 
 /// Returns the idempotency marker string embedded in each Migration document.
 fn cutover_marker(v1_kind: &str, v2_kind: &str) -> String {
-    format!("v1v2-cutover-{}-to-{}", v1_kind.to_lowercase(), v2_kind.to_lowercase())
+    format!(
+        "v1v2-cutover-{}-to-{}",
+        v1_kind.to_lowercase(),
+        v2_kind.to_lowercase()
+    )
 }
 
 /// Returns `true` if `dir` exists and contains at least one regular file
@@ -214,9 +218,7 @@ fn dir_has_files(dir: &Path) -> Result<bool> {
     if !dir.is_dir() {
         return Ok(false);
     }
-    for entry in
-        fs::read_dir(dir).with_context(|| format!("failed to read {}", dir.display()))?
-    {
+    for entry in fs::read_dir(dir).with_context(|| format!("failed to read {}", dir.display()))? {
         let entry = entry?;
         let path = entry.path();
         if path.is_file() {
@@ -256,9 +258,7 @@ fn walk_files(root: &Path) -> Result<Vec<PathBuf>> {
     if !root.is_dir() {
         return Ok(out);
     }
-    for entry in
-        fs::read_dir(root).with_context(|| format!("failed to read {}", root.display()))?
-    {
+    for entry in fs::read_dir(root).with_context(|| format!("failed to read {}", root.display()))? {
         let entry = entry?;
         let path = entry.path();
         if path.is_dir() {
@@ -405,10 +405,7 @@ fn write_v1_v2_migration(
          2. Call the `apply_migration` MCP tool with this Migration's ID:\n\n",
     );
     body.push_str("   ```\n");
-    body.push_str(&format!(
-        "   apply_migration(id=\"{}\")\n",
-        id
-    ));
+    body.push_str(&format!("   apply_migration(id=\"{}\")\n", id));
     body.push_str("   ```\n\n");
     body.push_str(
         "3. Alternatively, manually update `spec.state` from `pending` to `applied` \
@@ -421,14 +418,8 @@ fn write_v1_v2_migration(
         "- Decision authorising this cutover: `{}`\n",
         desc.dec_ref
     ));
-    body.push_str(&format!(
-        "- v1 entity directory: `{}`\n",
-        desc.v1_dir
-    ));
-    body.push_str(&format!(
-        "- v2 entity directory: `{}`\n",
-        desc.v2_dir
-    ));
+    body.push_str(&format!("- v1 entity directory: `{}`\n", desc.v1_dir));
+    body.push_str(&format!("- v2 entity directory: `{}`\n", desc.v2_dir));
     body.push_str(&format!(
         "- upstream processkit release: `{}`\n",
         desc.upstream_release
@@ -547,7 +538,10 @@ mod tests {
         // Do NOT create context/widgets — v1_dir is absent.
 
         let emissions = run_emit(tmp.path(), "v0.49.9", "v0.50.0", &[TEST_CUTOVER]);
-        assert!(emissions.is_empty(), "no emission expected when v1_dir is absent");
+        assert!(
+            emissions.is_empty(),
+            "no emission expected when v1_dir is absent"
+        );
     }
 
     #[test]

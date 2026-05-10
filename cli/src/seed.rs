@@ -840,7 +840,13 @@ pub fn managed_runtime_files(config: &AiboxConfig) -> Vec<(std::path::PathBuf, S
         ),
         (
             std::path::PathBuf::from(".config/tmux/layouts/dev.sh"),
-            tmux_layout_script(&ConfigLayout::Dev, providers, include_lazygit, &tool_windows, session_name),
+            tmux_layout_script(
+                &ConfigLayout::Dev,
+                providers,
+                include_lazygit,
+                &tool_windows,
+                session_name,
+            ),
         ),
         (
             std::path::PathBuf::from(".config/tmux/layouts/focus.sh"),
@@ -874,7 +880,13 @@ pub fn managed_runtime_files(config: &AiboxConfig) -> Vec<(std::path::PathBuf, S
         ),
         (
             std::path::PathBuf::from(".config/tmux/layouts/ai.sh"),
-            tmux_layout_script(&ConfigLayout::Ai, providers, include_lazygit, &tool_windows, session_name),
+            tmux_layout_script(
+                &ConfigLayout::Ai,
+                providers,
+                include_lazygit,
+                &tool_windows,
+                session_name,
+            ),
         ),
         (
             std::path::PathBuf::from(".config/tmux/layouts/cowork-swap.sh"),
@@ -1600,7 +1612,13 @@ pub fn sync_theme_files(config: &AiboxConfig) -> Result<Vec<String>> {
             .join("tmux")
             .join("layouts")
             .join(format!("{layout}.sh"));
-        let body = tmux_layout_script(&layout, providers, include_lazygit, &tool_windows, session_name);
+        let body = tmux_layout_script(
+            &layout,
+            providers,
+            include_lazygit,
+            &tool_windows,
+            session_name,
+        );
         if force_seed_file(&path, &body)? {
             ensure_executable(&path)?;
             updated.push(rel);

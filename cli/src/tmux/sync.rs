@@ -49,7 +49,13 @@ pub fn sync_tmux_runtime_files(config: &AiboxConfig) -> Result<Vec<String>> {
             .join("tmux")
             .join("layouts")
             .join(format!("{layout}.sh"));
-        let body = tmux_layout_script(&layout, providers, include_lazygit, &tool_windows, session_name);
+        let body = tmux_layout_script(
+            &layout,
+            providers,
+            include_lazygit,
+            &tool_windows,
+            session_name,
+        );
         if force_seed_file(&path, &body)? {
             ensure_executable(&path)?;
             updated.push(rel);

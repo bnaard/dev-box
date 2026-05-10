@@ -365,14 +365,22 @@ mod tests {
         // codex is order-1 → primary agent_pane in dev window
         assert!(layout.contains("tool_or_shell codex"));
         // claude is order-2 → secondary window "dev-claude"
-        assert!(layout.contains("tool_or_shell claude"), "order-2 harness still appears as secondary window");
+        assert!(
+            layout.contains("tool_or_shell claude"),
+            "order-2 harness still appears as secondary window"
+        );
         // codex must appear before claude (order-1 before order-2)
         let codex_pos = layout.find("tool_or_shell codex").unwrap();
         let claude_pos = layout.find("tool_or_shell claude").unwrap();
-        assert!(codex_pos < claude_pos, "order-1 (codex) must appear before order-2 (claude)");
+        assert!(
+            codex_pos < claude_pos,
+            "order-1 (codex) must appear before order-2 (claude)"
+        );
         // claude should be in a secondary window, not as the primary agent_pane
-        assert!(layout.contains("new-window -t \"$session:\" -n \"dev-claude\""),
-            "order-2 harness must become a dev-<harness> secondary window");
+        assert!(
+            layout.contains("new-window -t \"$session:\" -n \"dev-claude\""),
+            "order-2 harness must become a dev-<harness> secondary window"
+        );
         assert!(layout.contains("tmux -S \"$socket\" new-window -t \"$session:\" -n git"));
         assert!(layout.contains("socket=\"${AIBOX_TMUX_SOCKET:-$HOME/.tmux/aibox.sock}\""));
         assert!(!layout.contains("zellij"));
@@ -631,11 +639,23 @@ mod tests {
         assert!(body.contains("tool_or_shell claude"));
         assert!(body.contains("tool_or_shell codex"));
         assert!(body.contains("tool_or_shell gemini"));
-        assert!(body.contains("agent_pane_2="), "second pane variable missing:\n{body}");
-        assert!(body.contains("agent_pane_3="), "third pane variable missing:\n{body}");
+        assert!(
+            body.contains("agent_pane_2="),
+            "second pane variable missing:\n{body}"
+        );
+        assert!(
+            body.contains("agent_pane_3="),
+            "third pane variable missing:\n{body}"
+        );
         // First secondary at 20%; second secondary at 50% of remainder.
-        assert!(body.contains("-v -p 20"), "first secondary must use 20% split:\n{body}");
-        assert!(body.contains("-v -p 50"), "second secondary must use 50% split:\n{body}");
+        assert!(
+            body.contains("-v -p 20"),
+            "first secondary must use 20% split:\n{body}"
+        );
+        assert!(
+            body.contains("-v -p 50"),
+            "second secondary must use 50% split:\n{body}"
+        );
     }
 
     /// BR-AI-MULTIHARNESS: order-resolution — the stable list order of
@@ -645,8 +665,13 @@ mod tests {
     fn tmux_ai_layout_harness_order_follows_config_list() {
         // codex first → codex is order-1 (primary agent_pane), claude is secondary
         let providers_codex_first = vec![AiProvider::Codex, AiProvider::Claude];
-        let body =
-            tmux_layout_script(&ConfigLayout::Ai, &providers_codex_first, false, &no_tools(), "aibox");
+        let body = tmux_layout_script(
+            &ConfigLayout::Ai,
+            &providers_codex_first,
+            false,
+            &no_tools(),
+            "aibox",
+        );
         let codex_pos = body.find("tool_or_shell codex").unwrap();
         let claude_pos = body.find("tool_or_shell claude").unwrap();
         assert!(
@@ -661,9 +686,18 @@ mod tests {
     #[test]
     fn tmux_browse_layout_single_harness_has_agent_pane() {
         let providers = [AiProvider::Claude];
-        let body = tmux_layout_script(&ConfigLayout::Browse, &providers, false, &no_tools(), "aibox");
+        let body = tmux_layout_script(
+            &ConfigLayout::Browse,
+            &providers,
+            false,
+            &no_tools(),
+            "aibox",
+        );
 
-        assert!(body.contains("tool_or_shell claude"), "single-harness browse must start claude:\n{body}");
+        assert!(
+            body.contains("tool_or_shell claude"),
+            "single-harness browse must start claude:\n{body}"
+        );
         assert!(
             body.contains("split_flag="),
             "single-harness browse must create agent split:\n{body}"
@@ -678,7 +712,13 @@ mod tests {
     #[test]
     fn tmux_browse_layout_multi_harness_hides_ai_panes() {
         let providers = vec![AiProvider::Claude, AiProvider::Codex];
-        let body = tmux_layout_script(&ConfigLayout::Browse, &providers, false, &no_tools(), "aibox");
+        let body = tmux_layout_script(
+            &ConfigLayout::Browse,
+            &providers,
+            false,
+            &no_tools(),
+            "aibox",
+        );
 
         assert!(
             !body.contains("agent_pane="),
@@ -697,28 +737,55 @@ mod tests {
             "multi-harness browse must not start any harness:\n{body}"
         );
         // yazi still present
-        assert!(body.contains("tool_or_shell yazi"), "browse must still start yazi:\n{body}");
+        assert!(
+            body.contains("tool_or_shell yazi"),
+            "browse must still start yazi:\n{body}"
+        );
     }
 
     /// cowork layout: single harness unchanged.
     #[test]
     fn tmux_cowork_layout_single_harness_unchanged() {
         let providers = [AiProvider::Claude];
-        let body = tmux_layout_script(&ConfigLayout::Cowork, &providers, false, &no_tools(), "aibox");
+        let body = tmux_layout_script(
+            &ConfigLayout::Cowork,
+            &providers,
+            false,
+            &no_tools(),
+            "aibox",
+        );
 
         assert!(body.contains("tool_or_shell claude"));
-        assert!(!body.contains("agent_pane_2="), "single-harness cowork must not have secondary pane:\n{body}");
-        assert!(!body.contains("select-pane -d"), "single-harness cowork must not disable panes:\n{body}");
+        assert!(
+            !body.contains("agent_pane_2="),
+            "single-harness cowork must not have secondary pane:\n{body}"
+        );
+        assert!(
+            !body.contains("select-pane -d"),
+            "single-harness cowork must not disable panes:\n{body}"
+        );
     }
 
     /// cowork layout: ≥2 harnesses — secondaries stacked hidden in agent column.
     #[test]
     fn tmux_cowork_layout_multi_harness_stacks_secondaries_hidden() {
         let providers = vec![AiProvider::Claude, AiProvider::Codex];
-        let body = tmux_layout_script(&ConfigLayout::Cowork, &providers, false, &no_tools(), "aibox");
+        let body = tmux_layout_script(
+            &ConfigLayout::Cowork,
+            &providers,
+            false,
+            &no_tools(),
+            "aibox",
+        );
 
-        assert!(body.contains("tool_or_shell claude"), "order-1 must be in layout:\n{body}");
-        assert!(body.contains("tool_or_shell codex"), "order-2 must be in layout:\n{body}");
+        assert!(
+            body.contains("tool_or_shell claude"),
+            "order-1 must be in layout:\n{body}"
+        );
+        assert!(
+            body.contains("tool_or_shell codex"),
+            "order-2 must be in layout:\n{body}"
+        );
         assert!(
             body.contains("agent_pane_2="),
             "secondary pane variable must be generated:\n{body}"
@@ -741,19 +808,43 @@ mod tests {
     #[test]
     fn tmux_cowork_layout_three_harnesses_all_hidden() {
         let providers = vec![AiProvider::Claude, AiProvider::Codex, AiProvider::Gemini];
-        let body = tmux_layout_script(&ConfigLayout::Cowork, &providers, false, &no_tools(), "aibox");
+        let body = tmux_layout_script(
+            &ConfigLayout::Cowork,
+            &providers,
+            false,
+            &no_tools(),
+            "aibox",
+        );
 
-        assert!(body.contains("agent_pane_2="), "second pane variable missing:\n{body}");
-        assert!(body.contains("agent_pane_3="), "third pane variable missing:\n{body}");
-        assert!(body.contains("select-pane -t \"${agent_pane_2}\" -d"), "second pane must be disabled:\n{body}");
-        assert!(body.contains("select-pane -t \"${agent_pane_3}\" -d"), "third pane must be disabled:\n{body}");
+        assert!(
+            body.contains("agent_pane_2="),
+            "second pane variable missing:\n{body}"
+        );
+        assert!(
+            body.contains("agent_pane_3="),
+            "third pane variable missing:\n{body}"
+        );
+        assert!(
+            body.contains("select-pane -t \"${agent_pane_2}\" -d"),
+            "second pane must be disabled:\n{body}"
+        );
+        assert!(
+            body.contains("select-pane -t \"${agent_pane_3}\" -d"),
+            "third pane must be disabled:\n{body}"
+        );
     }
 
     /// cowork-swap layout: mirrors cowork multi-harness behaviour.
     #[test]
     fn tmux_cowork_swap_layout_multi_harness_stacks_secondaries_hidden() {
         let providers = vec![AiProvider::Claude, AiProvider::Codex];
-        let body = tmux_layout_script(&ConfigLayout::CoworkSwap, &providers, false, &no_tools(), "aibox");
+        let body = tmux_layout_script(
+            &ConfigLayout::CoworkSwap,
+            &providers,
+            false,
+            &no_tools(),
+            "aibox",
+        );
 
         assert!(body.contains("tool_or_shell claude"));
         assert!(body.contains("tool_or_shell codex"));
@@ -770,7 +861,10 @@ mod tests {
         let body = tmux_layout_script(&ConfigLayout::Dev, &providers, false, &no_tools(), "aibox");
 
         assert!(body.contains("tool_or_shell claude"));
-        assert!(!body.contains("new-window -t \"$session:\" -n \"dev-"), "single-harness dev must not have secondary windows:\n{body}");
+        assert!(
+            !body.contains("new-window -t \"$session:\" -n \"dev-"),
+            "single-harness dev must not have secondary windows:\n{body}"
+        );
     }
 
     /// dev layout: ≥2 harnesses — secondaries become windows named dev-<harness>.
@@ -779,8 +873,14 @@ mod tests {
         let providers = vec![AiProvider::Claude, AiProvider::Codex];
         let body = tmux_layout_script(&ConfigLayout::Dev, &providers, false, &no_tools(), "aibox");
 
-        assert!(body.contains("tool_or_shell claude"), "order-1 in main window:\n{body}");
-        assert!(body.contains("tool_or_shell codex"), "order-2 harness must appear:\n{body}");
+        assert!(
+            body.contains("tool_or_shell claude"),
+            "order-1 in main window:\n{body}"
+        );
+        assert!(
+            body.contains("tool_or_shell codex"),
+            "order-2 harness must appear:\n{body}"
+        );
         assert!(
             body.contains("new-window -t \"$session:\" -n \"dev-codex\""),
             "secondary harness must become a dev-<harness> window:\n{body}"
@@ -806,20 +906,41 @@ mod tests {
     #[test]
     fn tmux_focus_layout_single_harness_unchanged() {
         let providers = [AiProvider::Claude];
-        let body = tmux_layout_script(&ConfigLayout::Focus, &providers, false, &no_tools(), "aibox");
+        let body = tmux_layout_script(
+            &ConfigLayout::Focus,
+            &providers,
+            false,
+            &no_tools(),
+            "aibox",
+        );
 
         assert!(body.contains("tool_or_shell claude"));
-        assert!(!body.contains("new-window -t \"$session:\" -n \"claude\""), "single-harness focus must not have secondary window:\n{body}");
+        assert!(
+            !body.contains("new-window -t \"$session:\" -n \"claude\""),
+            "single-harness focus must not have secondary window:\n{body}"
+        );
     }
 
     /// focus layout: ≥2 harnesses — secondaries become windows named after harness binary.
     #[test]
     fn tmux_focus_layout_multi_harness_creates_secondary_windows() {
         let providers = vec![AiProvider::Claude, AiProvider::Codex];
-        let body = tmux_layout_script(&ConfigLayout::Focus, &providers, false, &no_tools(), "aibox");
+        let body = tmux_layout_script(
+            &ConfigLayout::Focus,
+            &providers,
+            false,
+            &no_tools(),
+            "aibox",
+        );
 
-        assert!(body.contains("tool_or_shell claude"), "order-1 in focus window:\n{body}");
-        assert!(body.contains("tool_or_shell codex"), "order-2 must appear:\n{body}");
+        assert!(
+            body.contains("tool_or_shell claude"),
+            "order-1 in focus window:\n{body}"
+        );
+        assert!(
+            body.contains("tool_or_shell codex"),
+            "order-2 must appear:\n{body}"
+        );
         assert!(
             body.contains("new-window -t \"$session:\" -n \"codex\""),
             "secondary harness must become a window named after its binary:\n{body}"
@@ -832,8 +953,10 @@ mod tests {
     #[test]
     fn tmux_tool_windows_empty_no_change() {
         let providers = [AiProvider::Claude];
-        let body_no_tools = tmux_layout_script(&ConfigLayout::Ai, &providers, false, &no_tools(), "aibox");
-        let body_with_tools = tmux_layout_script(&ConfigLayout::Ai, &providers, false, &[], "aibox");
+        let body_no_tools =
+            tmux_layout_script(&ConfigLayout::Ai, &providers, false, &no_tools(), "aibox");
+        let body_with_tools =
+            tmux_layout_script(&ConfigLayout::Ai, &providers, false, &[], "aibox");
         assert_eq!(body_no_tools, body_with_tools);
     }
 
@@ -841,7 +964,11 @@ mod tests {
     #[test]
     fn tmux_tool_windows_emitted_for_each_enabled_tool() {
         let providers = [AiProvider::Claude];
-        let tools = vec![("k9s", "k9s"), ("btop", "btop"), ("lazydocker", "lazydocker")];
+        let tools = vec![
+            ("k9s", "k9s"),
+            ("btop", "btop"),
+            ("lazydocker", "lazydocker"),
+        ];
         let body = tmux_layout_script(&ConfigLayout::Ai, &providers, false, &tools, "aibox");
 
         assert!(
@@ -859,10 +986,16 @@ mod tests {
         // Tool windows must appear after the layout body's shell window.
         let k9s_pos = body.find("new-window -t \"$session:\" -n k9s").unwrap();
         let shell_pos = body.find("new-window -t \"$session:\" -n shell").unwrap();
-        assert!(shell_pos < k9s_pos, "tool windows must appear after layout shell window:\n{body}");
+        assert!(
+            shell_pos < k9s_pos,
+            "tool windows must appear after layout shell window:\n{body}"
+        );
         // Tool windows must appear before the final attach-session line.
         let final_attach = body.rfind("attach-session").unwrap();
-        assert!(k9s_pos < final_attach, "tool windows must appear before final attach-session:\n{body}");
+        assert!(
+            k9s_pos < final_attach,
+            "tool windows must appear before final attach-session:\n{body}"
+        );
     }
 
     /// Tool windows appear after layout body but before lazygit window.
@@ -874,7 +1007,10 @@ mod tests {
 
         let k9s_pos = body.find("new-window -t \"$session:\" -n k9s").unwrap();
         let git_pos = body.find("new-window -t \"$session:\" -n git").unwrap();
-        assert!(k9s_pos < git_pos, "tool windows must appear before lazygit window:\n{body}");
+        assert!(
+            k9s_pos < git_pos,
+            "tool windows must appear before lazygit window:\n{body}"
+        );
     }
 
     /// Tool windows work with non-Ai layouts too.

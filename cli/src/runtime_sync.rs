@@ -244,9 +244,7 @@ pub fn run_runtime_sync(
         match write_drift_migration_document(project_root, to_version, &drifted_files) {
             Ok(path) => path,
             Err(err) => {
-                crate::output::warn(&format!(
-                    "Failed to write Variant 3 drift migration: {err}"
-                ));
+                crate::output::warn(&format!("Failed to write Variant 3 drift migration: {err}"));
                 None
             }
         }
@@ -1063,7 +1061,10 @@ fn write_drift_migration_document(
     body.push_str(&format!("  id: {}\n", id));
     body.push_str(&format!("  created: {}\n", now_iso));
     body.push_str("spec:\n");
-    body.push_str(&format!("  source: {}\n", yaml_scalar(RUNTIME_DRIFT_SOURCE)));
+    body.push_str(&format!(
+        "  source: {}\n",
+        yaml_scalar(RUNTIME_DRIFT_SOURCE)
+    ));
     body.push_str(&format!(
         "  source_url: {}\n",
         yaml_scalar(RUNTIME_DRIFT_SOURCE_URL)
@@ -1076,9 +1077,7 @@ fn write_drift_migration_document(
     body.push_str(&format!("  summary: {}\n", yaml_scalar(&summary_line)));
     body.push_str("---\n\n");
     body.push_str(&format!("# Migration {}\n\n", id));
-    body.push_str(
-        "## Drifted managed runtime files (Variant 3 — BR-CLEANUP-ARCH item 6)\n\n",
-    );
+    body.push_str("## Drifted managed runtime files (Variant 3 — BR-CLEANUP-ARCH item 6)\n\n");
     body.push_str(
         "The following managed `.aibox-home/` runtime files have been modified \
          on the host and match **neither** the current canonical aibox generation \

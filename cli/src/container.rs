@@ -3105,10 +3105,7 @@ pub fn cmd_sync(
                             ));
                         }
                         Ok(_) => {}
-                        Err(e) => output::warn(&format!(
-                            "v1→v2 migration emission failed: {}",
-                            e
-                        )),
+                        Err(e) => output::warn(&format!("v1→v2 migration emission failed: {}", e)),
                     }
                 }
                 Err(e) => output::warn(&format!("Processkit diff failed: {}", e)),

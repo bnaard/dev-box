@@ -1418,8 +1418,7 @@ pub fn detect_per_skill_mcp_config_drift(
                 }
                 Some((merged_command, merged_args)) => {
                     // Compare command and args; ignore env (added at merge time).
-                    if merged_command != &source_entry.command
-                        || merged_args != &source_entry.args
+                    if merged_command != &source_entry.command || merged_args != &source_entry.args
                     {
                         drifts.push(PerSkillDrift {
                             skill_name: skill_name.clone(),
@@ -1550,8 +1549,10 @@ fn aggregate_mcp_spec(project_root: &Path) -> Option<McpServerSpec> {
 /// be parsed.
 fn lazy_aggregate_mcp_spec(project_root: &Path) -> Option<McpServerSpec> {
     let mut spec = aggregate_mcp_spec(project_root)?;
-    spec.env
-        .insert("PROCESSKIT_MCP_MODE".to_string(), "lazy_catalog".to_string());
+    spec.env.insert(
+        "PROCESSKIT_MCP_MODE".to_string(),
+        "lazy_catalog".to_string(),
+    );
     Some(spec)
 }
 
@@ -1581,20 +1582,18 @@ fn select_processkit_gateway_specs(
                 granular_specs
             }
         }
-        McpGatewayMode::Aggregate => {
-            match aggregate_mcp_spec(project_root) {
-                Some(spec) => vec![spec],
-                None => {
-                    output::warn(
-                        "[mcp.gateway].mode = \"aggregate\" requested, but \
+        McpGatewayMode::Aggregate => match aggregate_mcp_spec(project_root) {
+            Some(spec) => vec![spec],
+            None => {
+                output::warn(
+                    "[mcp.gateway].mode = \"aggregate\" requested, but \
                          context/skills/processkit/aggregate-mcp/mcp/mcp-config.aggregate.json \
                          is missing; falling back to granular processkit MCP servers. \
                          Enable the aggregate-mcp skill and run `aibox apply`.",
-                    );
-                    granular_specs
-                }
+                );
+                granular_specs
             }
-        }
+        },
         McpGatewayMode::Stdio => {
             match gateway_stdio_spec(&granular_specs, config.mcp.gateway.lazy_catalog) {
                 Some(spec) => vec![spec],
@@ -1617,21 +1616,19 @@ fn select_processkit_gateway_specs(
                 granular_specs
             }
         },
-        McpGatewayMode::LazyAggregate => {
-            match lazy_aggregate_mcp_spec(project_root) {
-                Some(spec) => vec![spec],
-                None => {
-                    output::warn(
-                        "[mcp.gateway].mode = \"lazy-aggregate\" requested, but \
+        McpGatewayMode::LazyAggregate => match lazy_aggregate_mcp_spec(project_root) {
+            Some(spec) => vec![spec],
+            None => {
+                output::warn(
+                    "[mcp.gateway].mode = \"lazy-aggregate\" requested, but \
                          context/skills/processkit/aggregate-mcp/mcp/mcp-config.aggregate.json \
                          is missing; falling back to granular processkit MCP servers. \
                          Enable the aggregate-mcp skill and run `aibox apply`. \
                          Note: lazy-aggregate requires processkit ≥ v0.26.0.",
-                    );
-                    granular_specs
-                }
+                );
+                granular_specs
             }
-        }
+        },
     }
 }
 
@@ -3541,7 +3538,9 @@ args = ["server.js"]
     /// and removes stale granular entries from existing harness configs.
     #[test]
     fn aggregate_mode_collapses_processkit_servers_to_single_aggregate_entry() {
-        use crate::config::{AiSection, AiboxConfig, McpGatewaySection, McpSection, ProcessKitSection};
+        use crate::config::{
+            AiSection, AiboxConfig, McpGatewaySection, McpSection, ProcessKitSection,
+        };
         let tmp = TempDir::new().unwrap();
         let version = crate::processkit_vocab::PROCESSKIT_DEFAULT_VERSION;
 
@@ -3621,8 +3620,7 @@ args = ["server.js"]
         );
         // The aggregate server must have the correct env var.
         assert_eq!(
-            servers["processkit-aggregate-mcp"]["env"]["PROCESSKIT_MCP_MODE"],
-            "aggregate",
+            servers["processkit-aggregate-mcp"]["env"]["PROCESSKIT_MCP_MODE"], "aggregate",
             "aggregate server must set PROCESSKIT_MCP_MODE=aggregate: {}",
             body
         );
@@ -3691,7 +3689,9 @@ args = ["server.js"]
     /// aggregate-mcp server entry (processkit ≥ v0.26.0 feature).
     #[test]
     fn lazy_aggregate_mode_sets_lazy_catalog_env_var() {
-        use crate::config::{AiSection, AiboxConfig, McpGatewaySection, McpSection, ProcessKitSection};
+        use crate::config::{
+            AiSection, AiboxConfig, McpGatewaySection, McpSection, ProcessKitSection,
+        };
         let tmp = TempDir::new().unwrap();
         let version = crate::processkit_vocab::PROCESSKIT_DEFAULT_VERSION;
 
@@ -3752,8 +3752,7 @@ args = ["server.js"]
             body
         );
         assert_eq!(
-            servers["processkit-aggregate-mcp"]["env"]["PROCESSKIT_MCP_MODE"],
-            "lazy_catalog",
+            servers["processkit-aggregate-mcp"]["env"]["PROCESSKIT_MCP_MODE"], "lazy_catalog",
             "lazy-aggregate mode must override PROCESSKIT_MCP_MODE to lazy_catalog: {}",
             body
         );
@@ -3812,8 +3811,7 @@ args = ["server.js"]
             body
         );
         assert_ne!(
-            servers["processkit-aggregate-mcp"]["env"]["PROCESSKIT_MCP_MODE"],
-            "lazy_catalog",
+            servers["processkit-aggregate-mcp"]["env"]["PROCESSKIT_MCP_MODE"], "lazy_catalog",
             "auto mode must NOT promote to lazy_catalog; got: {}",
             body
         );
@@ -5072,10 +5070,7 @@ args = ["server.js"]
             detect_per_skill_mcp_config_drift(tmp.path(), &dot_mcp).expect("drift check failed");
         assert_eq!(drifts.len(), 1, "expected exactly one drifted entry");
         assert_eq!(drifts[0].skill_name, "workitem-management");
-        assert_eq!(
-            drifts[0].server_name,
-            "processkit-workitem-management"
-        );
+        assert_eq!(drifts[0].server_name, "processkit-workitem-management");
         assert!(
             matches!(drifts[0].kind, PerSkillDriftKind::EntryMismatch { .. }),
             "expected EntryMismatch drift kind, got {:?}",

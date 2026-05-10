@@ -644,7 +644,11 @@ mod tests {
             "fill_role_slot",
             "close_role_slot",
         ] {
-            assert!(tools.contains(expected), "missing role_slot tool: {}", expected);
+            assert!(
+                tools.contains(expected),
+                "missing role_slot tool: {}",
+                expected
+            );
         }
     }
 
@@ -655,7 +659,10 @@ mod tests {
 
     #[test]
     fn route_task_response_fields_are_correct() {
-        assert_eq!(ROUTE_TASK_FIELD_TEAM_MEMBER_SLUG, "recommended_team_member_slug");
+        assert_eq!(
+            ROUTE_TASK_FIELD_TEAM_MEMBER_SLUG,
+            "recommended_team_member_slug"
+        );
         assert_eq!(ROUTE_TASK_FIELD_MODEL_CLASS, "recommended_model_class");
     }
 }
