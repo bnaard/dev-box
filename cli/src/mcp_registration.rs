@@ -1543,6 +1543,18 @@ fn aggregate_mcp_spec(project_root: &Path) -> Option<McpServerSpec> {
     })
 }
 
+/// Like [`aggregate_mcp_spec`] but overrides `PROCESSKIT_MCP_MODE` to
+/// `lazy_catalog`, enabling per-skill lazy module imports (processkit ≥ v0.26.0).
+///
+/// Returns `None` when the aggregate-mcp config file does not exist or cannot
+/// be parsed.
+fn lazy_aggregate_mcp_spec(project_root: &Path) -> Option<McpServerSpec> {
+    let mut spec = aggregate_mcp_spec(project_root)?;
+    spec.env
+        .insert("PROCESSKIT_MCP_MODE".to_string(), "lazy_catalog".to_string());
+    Some(spec)
+}
+
 fn select_processkit_gateway_specs(
     config: &AiboxConfig,
     project_root: &Path,
@@ -1605,6 +1617,21 @@ fn select_processkit_gateway_specs(
                 granular_specs
             }
         },
+        McpGatewayMode::LazyAggregate => {
+            match lazy_aggregate_mcp_spec(project_root) {
+                Some(spec) => vec![spec],
+                None => {
+                    output::warn(
+                        "[mcp.gateway].mode = \"lazy-aggregate\" requested, but \
+                         context/skills/processkit/aggregate-mcp/mcp/mcp-config.aggregate.json \
+                         is missing; falling back to granular processkit MCP servers. \
+                         Enable the aggregate-mcp skill and run `aibox apply`. \
+                         Note: lazy-aggregate requires processkit ≥ v0.26.0.",
+                    );
+                    granular_specs
+                }
+            }
+        }
     }
 }
 
@@ -3656,6 +3683,138 @@ args = ["server.js"]
         assert!(
             servers.get("processkit-skill-gate").is_none(),
             "granular entries must be collapsed in auto mode with aggregate fallback: {}",
+            body
+        );
+    }
+
+    /// Test: lazy-aggregate mode writes PROCESSKIT_MCP_MODE=lazy_catalog on the
+    /// aggregate-mcp server entry (processkit ≥ v0.26.0 feature).
+    #[test]
+    fn lazy_aggregate_mode_sets_lazy_catalog_env_var() {
+        use crate::config::{AiSection, AiboxConfig, McpGatewaySection, McpSection, ProcessKitSection};
+        let tmp = TempDir::new().unwrap();
+        let version = crate::processkit_vocab::PROCESSKIT_DEFAULT_VERSION;
+
+        // Write a granular skill so the managed set is populated.
+        write_synth_skill_mcp(
+            tmp.path(),
+            version,
+            "processkit",
+            "skill-gate",
+            r#"{"mcpServers":{"processkit-skill-gate":{"command":"uv","args":["run","context/skills/processkit/skill-gate/mcp/server.py"]}}}"#,
+        );
+
+        // Write the aggregate-mcp opt-in config with PROCESSKIT_MCP_MODE=aggregate;
+        // lazy-aggregate mode must override it to lazy_catalog.
+        let agg_dir = tmp
+            .path()
+            .join("context/skills/processkit/aggregate-mcp/mcp");
+        fs::create_dir_all(&agg_dir).unwrap();
+        fs::write(agg_dir.join("server.py"), "# test stub\n").unwrap();
+        fs::write(
+            agg_dir.join("mcp-config.aggregate.json"),
+            r#"{"mcpServers":{"processkit-aggregate-mcp":{"command":"uv","args":["run","context/skills/processkit/aggregate-mcp/mcp/server.py"],"env":{"PROCESSKIT_MCP_MODE":"aggregate"}}}}"#,
+        )
+        .unwrap();
+
+        let mut config = AiboxConfig {
+            ai: AiSection {
+                harnesses: vec![crate::config::AiHarness::Claude],
+                ..AiSection::default()
+            },
+            processkit: ProcessKitSection {
+                version: version.to_string(),
+                ..ProcessKitSection::default()
+            },
+            ..crate::config::test_config()
+        };
+        config.mcp = McpSection {
+            gateway: McpGatewaySection {
+                mode: McpGatewayMode::LazyAggregate,
+                ..McpGatewaySection::default()
+            },
+            ..McpSection::default()
+        };
+
+        regenerate_mcp_configs(&config, tmp.path()).unwrap();
+        let body = fs::read_to_string(tmp.path().join(".mcp.json")).unwrap();
+        let parsed: serde_json::Value = serde_json::from_str(&body).unwrap();
+        let servers = parsed["mcpServers"].as_object().unwrap();
+
+        assert!(
+            servers.get("processkit-aggregate-mcp").is_some(),
+            "lazy-aggregate mode must write the processkit-aggregate-mcp entry: {}",
+            body
+        );
+        assert!(
+            servers.get("processkit-skill-gate").is_none(),
+            "stale granular entries must be removed in lazy-aggregate mode: {}",
+            body
+        );
+        assert_eq!(
+            servers["processkit-aggregate-mcp"]["env"]["PROCESSKIT_MCP_MODE"],
+            "lazy_catalog",
+            "lazy-aggregate mode must override PROCESSKIT_MCP_MODE to lazy_catalog: {}",
+            body
+        );
+    }
+
+    /// Test: auto mode does NOT auto-promote to lazy-aggregate; it stays on plain
+    /// aggregate even when aggregate-mcp is installed and gateway is absent.
+    #[test]
+    fn auto_mode_does_not_promote_to_lazy_aggregate() {
+        use crate::config::{AiSection, AiboxConfig, ProcessKitSection};
+        let tmp = TempDir::new().unwrap();
+        let version = crate::processkit_vocab::PROCESSKIT_DEFAULT_VERSION;
+
+        // Granular skill without any processkit-gateway so auto falls back to aggregate.
+        write_synth_skill_mcp(
+            tmp.path(),
+            version,
+            "processkit",
+            "skill-gate",
+            r#"{"mcpServers":{"processkit-skill-gate":{"command":"uv","args":["run","context/skills/processkit/skill-gate/mcp/server.py"]}}}"#,
+        );
+
+        // Write aggregate-mcp config.
+        let agg_dir = tmp
+            .path()
+            .join("context/skills/processkit/aggregate-mcp/mcp");
+        fs::create_dir_all(&agg_dir).unwrap();
+        fs::write(agg_dir.join("server.py"), "# test stub\n").unwrap();
+        fs::write(
+            agg_dir.join("mcp-config.aggregate.json"),
+            r#"{"mcpServers":{"processkit-aggregate-mcp":{"command":"uv","args":["run","context/skills/processkit/aggregate-mcp/mcp/server.py"],"env":{"PROCESSKIT_MCP_MODE":"aggregate"}}}}"#,
+        )
+        .unwrap();
+
+        let config = AiboxConfig {
+            ai: AiSection {
+                harnesses: vec![crate::config::AiHarness::Claude],
+                ..AiSection::default()
+            },
+            processkit: ProcessKitSection {
+                version: version.to_string(),
+                ..ProcessKitSection::default()
+            },
+            ..crate::config::test_config()
+        };
+        // mode defaults to Auto — must NOT select lazy_catalog
+
+        regenerate_mcp_configs(&config, tmp.path()).unwrap();
+        let body = fs::read_to_string(tmp.path().join(".mcp.json")).unwrap();
+        let parsed: serde_json::Value = serde_json::from_str(&body).unwrap();
+        let servers = parsed["mcpServers"].as_object().unwrap();
+
+        assert!(
+            servers.get("processkit-aggregate-mcp").is_some(),
+            "auto mode must select aggregate-mcp as fallback: {}",
+            body
+        );
+        assert_ne!(
+            servers["processkit-aggregate-mcp"]["env"]["PROCESSKIT_MCP_MODE"],
+            "lazy_catalog",
+            "auto mode must NOT promote to lazy_catalog; got: {}",
             body
         );
     }

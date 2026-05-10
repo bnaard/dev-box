@@ -1604,6 +1604,7 @@ fn mcp_gateway_mode_str(mode: McpGatewayMode) -> &'static str {
         McpGatewayMode::Stdio => "stdio",
         McpGatewayMode::DaemonProxy => "daemon-proxy",
         McpGatewayMode::Aggregate => "aggregate",
+        McpGatewayMode::LazyAggregate => "lazy-aggregate",
     }
 }
 

@@ -432,7 +432,7 @@ one-process-per-skill MCP topology with a single processkit MCP entry.
 
 ```toml
 [ai.mcp.gateway]
-mode = "auto"          # auto | granular | stdio | daemon-proxy
+mode = "auto"          # auto | granular | stdio | daemon-proxy | aggregate | lazy-aggregate
 lazy_catalog = false
 host = "127.0.0.1"
 port = 8765
@@ -445,6 +445,8 @@ path = "/mcp"
 | `granular` | Always register one MCP server per processkit skill |
 | `stdio` | Register `processkit-gateway` directly as a stdio MCP server |
 | `daemon-proxy` | Start a localhost gateway daemon from `devcontainer.json` and register a stdio proxy for harnesses |
+| `aggregate` | Use the `processkit-aggregate-mcp` server — a single stdio process that imports all per-skill MCP servers in-process, eliminating the N-process startup cost |
+| `lazy-aggregate` | Like `aggregate`, but defers per-skill module imports until the first tool call for each skill (`PROCESSKIT_MCP_MODE=lazy_catalog`). Typical cold-start improvement: ~1.58×. **Requires processkit ≥ v0.26.0.** Opt-in only; `auto` never promotes to this mode. |
 
 The daemon-backed modes are localhost-only. Run `aibox apply` after changing
 this section so generated harness configs stay in sync.
