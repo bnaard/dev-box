@@ -145,21 +145,11 @@ pub(crate) fn include_lazygit_tab(config: &AiboxConfig) -> bool {
 ///
 /// Supported tool → addon mapping:
 ///   k9s       ← kubernetes addon, tools.k9s.enabled
-///   btop      ← monitoring addon, tools.btop.enabled
-///   lazydocker ← monitoring addon, tools.lazydocker.enabled
 pub(crate) fn tool_windows_for_config(config: &AiboxConfig) -> Vec<(&'static str, &'static str)> {
     let mut windows = Vec::new();
     // k9s: part of the kubernetes addon
     if addon_tool_effective_enabled(config, "kubernetes", "k9s") {
         windows.push(("k9s", "k9s"));
-    }
-    // btop: part of the monitoring addon
-    if addon_tool_effective_enabled(config, "monitoring", "btop") {
-        windows.push(("btop", "btop"));
-    }
-    // lazydocker: part of the monitoring addon
-    if addon_tool_effective_enabled(config, "monitoring", "lazydocker") {
-        windows.push(("lazydocker", "lazydocker"));
     }
     windows
 }

@@ -49,9 +49,6 @@ bind-key -N "Open log pane (lnav)" L display-popup -E -w 90% -h 80% "lnav -q /wo
 # prefix shortcuts to jump directly to named tool/harness windows.
 # find-window -Z focuses the target window; silently no-ops when absent.
 bind-key -N "Switch to git/lazygit window" g find-window -Z 'git'
-bind-key -N "Switch to k9s/kubernetes window" K find-window -Z 'k9s'
-bind-key -N "Switch to btop/system monitor window" B find-window -Z 'btop'
-bind-key -N "Switch to lazydocker/containers window" D find-window -Z 'lazydocker'
 bind-key -N "Switch to shell window" s find-window -Z 'shell'
 
 set -g status AIBOX_TMUX_STATUS
@@ -610,10 +607,9 @@ mod tests {
         );
     }
 
-    /// BR-TOOLS-AS-WINDOWS (BACK-20260510_0726-GrandDaisy, v0.25.7):
-    /// one-letter prefix bindings for tool windows must be present in the
-    /// generated tmux.conf.  All bindings use `find-window -Z` so they
-    /// silently no-op when the target window does not exist.
+    /// v0.25.7: only the two stable tool-window bindings (g and s) survive the
+    /// speculative-addon revert (SnappySky).  K/B/D were removed with
+    /// monitoring.yaml.
     #[test]
     fn tmux_conf_has_tool_window_keybindings() {
         let config = crate::config::test_config();
@@ -622,18 +618,6 @@ mod tests {
         assert!(
             conf.contains(r#"bind-key -N "Switch to git/lazygit window" g find-window -Z 'git'"#),
             "leader g must jump to git/lazygit window:\n{conf}"
-        );
-        assert!(
-            conf.contains(r#"bind-key -N "Switch to k9s/kubernetes window" K find-window -Z 'k9s'"#),
-            "leader K must jump to k9s window:\n{conf}"
-        );
-        assert!(
-            conf.contains(r#"bind-key -N "Switch to btop/system monitor window" B find-window -Z 'btop'"#),
-            "leader B must jump to btop window:\n{conf}"
-        );
-        assert!(
-            conf.contains(r#"bind-key -N "Switch to lazydocker/containers window" D find-window -Z 'lazydocker'"#),
-            "leader D must jump to lazydocker window:\n{conf}"
         );
         assert!(
             conf.contains(r#"bind-key -N "Switch to shell window" s find-window -Z 'shell'"#),
