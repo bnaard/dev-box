@@ -1445,8 +1445,8 @@ fn find_command_on_path(candidates: &[&str]) -> Option<String> {
 }
 
 /// BR-LOG-PANEL (v0.25.6): warn if `lnav` is not on PATH. The `Prefix L`
-/// log viewer helper falls back to `less` if lnav is missing, so this is a
-/// warning rather than an error.
+/// log viewer helper defaults to jq + less and only needs lnav for the
+/// optional structured mode, so this is a warning rather than an error.
 fn check_lnav_installed(diag: &mut DiagResult) {
     if find_command_on_path(&["lnav"]).is_some() {
         output::ok("lnav: installed (Prefix L opens the structured log popup)");

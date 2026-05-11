@@ -236,10 +236,9 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     file \
     bash-completion \
     # ── Log viewer (~3 MB) ──
-    # lnav for the `Prefix L` tmux popup. Reads aibox NDJSON via the
-    # custom format at /home/aibox/.config/lnav/formats/aibox/aibox.json.
-    # The aibox-log-viewer helper falls back to mouse-enabled less if
-    # lnav is missing.
+    # lnav for optional structured inspection in the `Prefix L` tmux popup.
+    # The aibox-log-viewer helper defaults to a jq-formatted, mouse-enabled
+    # less view and can use lnav via AIBOX_LOG_VIEWER=lnav.
     lnav \
     # Preview/archive helpers live in the preview-archive addon.
     # Audio helpers live in the audio-voice addon.
