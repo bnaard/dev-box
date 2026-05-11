@@ -31,18 +31,30 @@ fi
 if command -v jq >/dev/null 2>&1; then
   tmp="$(mktemp -t aibox-log-viewer.XXXXXX)"
   trap 'rm -f "$tmp"' EXIT
-  jq -r '
+  jq -r -n '
     def value($v): ($v // "-") | tostring;
-    def inferred_level:
-      (.level // (if ((.exit_code // 0) | tonumber) == 0 then "info" else "error" end))
+    def session_id($row):
+      $row.runtime_session_id // $row.container_id // $row.container // $row.runtime_started_at // "legacy/no-session";
+    def session_header($row):
+      "\n\u001b[2m---- session: \(session_id($row)) started=\(value($row.runtime_started_at)) ----\u001b[0m";
+    def inferred_level($row):
+      ($row.level // (if (($row.exit_code // 0) | tonumber) == 0 then "info" else "error" end))
       | ascii_upcase;
-    def painted_level:
-      inferred_level as $level
+    def painted_level($row):
+      inferred_level($row) as $level
       | if $level == "ERROR" then "\u001b[31;1mERROR\u001b[0m"
         elif $level == "WARN" or $level == "WARNING" then "\u001b[33;1mWARN \u001b[0m"
         else "\u001b[36mINFO \u001b[0m"
         end;
-    "\(value(.ts // .timestamp))  \(painted_level)  \(value(.cmd // .command))  v\(value(.version))  \(value(.duration_ms))ms  exit=\(value(.exit_code))  \(value(.msg // .message))"
+    def render($row):
+      "\(value($row.ts // $row.timestamp))  \(painted_level($row))  \(value($row.cmd // $row.command))  v\(value($row.version))  \(value($row.duration_ms))ms  exit=\(value($row.exit_code))  \(value($row.msg // $row.message))";
+    foreach inputs as $row ({first: true, last: null};
+      (session_id($row)) as $sid
+      | .emit_header = (.first or .last != $sid)
+      | .first = false
+      | .last = $sid;
+      (if .emit_header then session_header($row) else empty end), render($row)
+    )
   ' "${logs[@]}" > "$tmp"
   less "${less_flags[@]}" "$tmp"
   exit $?
