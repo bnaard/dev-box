@@ -48,7 +48,7 @@ bind-key -N "Open log pane (lnav)" L display-popup -E -w 90% -h 80% "lnav -q /wo
 # BR-TOOLS-AS-WINDOWS (BACK-20260510_0726-GrandDaisy, v0.25.7): one-letter
 # prefix shortcuts to jump directly to named tool/harness windows.
 # find-window -Z focuses the target window; silently no-ops when absent.
-bind-key -N "Switch to git/lazygit window" g find-window -Z 'git'
+bind-key -N "Switch to lazygit window" g find-window -Z 'lazygit'
 bind-key -N "Switch to shell window" s find-window -Z 'shell'
 
 set -g status AIBOX_TMUX_STATUS
@@ -716,8 +716,8 @@ mod tests {
         let conf = tmux_conf(&config);
 
         assert!(
-            conf.contains(r#"bind-key -N "Switch to git/lazygit window" g find-window -Z 'git'"#),
-            "leader g must jump to git/lazygit window:\n{conf}"
+            conf.contains(r#"bind-key -N "Switch to lazygit window" g find-window -Z 'lazygit'"#),
+            "leader g must jump to lazygit window:\n{conf}"
         );
         assert!(
             conf.contains(r#"bind-key -N "Switch to shell window" s find-window -Z 'shell'"#),

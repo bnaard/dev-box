@@ -1065,18 +1065,14 @@ fn default_prompt() -> StarshipPreset {
 #[serde(rename_all = "kebab-case")]
 #[clap(rename_all = "kebab-case")]
 pub enum ConfigLayout {
-    /// VS Code-like: Yazi sidebar, Vim editor, stacked terminals
+    /// Work window with yazi, first harness, shell; optional AI/lazygit/shell windows
     #[default]
     Dev,
-    /// One tool per tab, fullscreen, zero distraction
+    /// One fullscreen window for files and each harness
     Focus,
-    /// Side-by-side coding with AI: yazi+vim left (50%), claude right (50%)
+    /// Work window with yazi and shell; AI harnesses in a separate window
     Cowork,
-    /// Cowork swapped: yazi+ai left (40%), vim editor right (60%)
-    CoworkSwap,
-    /// Yazi-focused with large preview and AI pane
-    Browse,
-    /// AI-first: Yazi left (60%), AI agent right (40%), no editor on first screen
+    /// Work window with yazi and first harness; secondary harnesses in AI window
     Ai,
 }
 
@@ -1086,8 +1082,6 @@ impl std::fmt::Display for ConfigLayout {
             ConfigLayout::Dev => write!(f, "dev"),
             ConfigLayout::Focus => write!(f, "focus"),
             ConfigLayout::Cowork => write!(f, "cowork"),
-            ConfigLayout::CoworkSwap => write!(f, "cowork-swap"),
-            ConfigLayout::Browse => write!(f, "browse"),
             ConfigLayout::Ai => write!(f, "ai"),
         }
     }
@@ -3529,7 +3523,7 @@ version = "0.25.0"
 name = "my-project"
 
 [customization]
-layout = "browse"
+layout = "focus"
 
 [customization.tmux]
 layout = "ai"
@@ -3540,7 +3534,7 @@ session_name = "work"
 mode = "plain"
 "#;
         let config = parse_toml(toml).unwrap();
-        assert_eq!(config.customization.layout, ConfigLayout::Browse);
+        assert_eq!(config.customization.layout, ConfigLayout::Focus);
         assert_eq!(config.customization.tmux_layout(), ConfigLayout::Ai);
         assert_eq!(config.customization.tmux.prefix, "C-a");
         assert_eq!(config.customization.tmux.session_name, "work");

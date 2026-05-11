@@ -10,8 +10,8 @@ use super::layouts::{tmux_layout_script, tmux_session_script};
 use super::status::tmux_conf;
 use crate::config::{AiboxConfig, ConfigLayout};
 use crate::seed::{
-    ensure_executable, ensure_executable_if_present, ensure_runtime_dirs, force_seed_file,
-    include_lazygit_tab, tool_windows_for_config,
+    cleanup_removed_tmux_layouts, ensure_executable, ensure_executable_if_present,
+    ensure_runtime_dirs, force_seed_file, include_lazygit_tab, tool_windows_for_config,
 };
 
 /// Refresh managed tmux runtime files from aibox.toml.
@@ -39,9 +39,7 @@ pub fn sync_tmux_runtime_files(config: &AiboxConfig) -> Result<Vec<String>> {
         ConfigLayout::Dev,
         ConfigLayout::Focus,
         ConfigLayout::Cowork,
-        ConfigLayout::Browse,
         ConfigLayout::Ai,
-        ConfigLayout::CoworkSwap,
     ] {
         let rel = format!(".config/tmux/layouts/{layout}.sh");
         let path = root
@@ -63,6 +61,7 @@ pub fn sync_tmux_runtime_files(config: &AiboxConfig) -> Result<Vec<String>> {
             updated.push(format!("{rel} (chmod +x)"));
         }
     }
+    updated.extend(cleanup_removed_tmux_layouts(&root)?);
 
     let session_path = root.join(".config").join("tmux").join("aibox-session.sh");
     if force_seed_file(&session_path, &tmux_session_script(config))? {

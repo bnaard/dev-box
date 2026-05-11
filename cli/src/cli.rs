@@ -33,17 +33,13 @@ pub enum OutputFormat {
 /// Available tmux IDE layouts.
 #[derive(Clone, Debug, ValueEnum)]
 pub enum Layout {
-    /// VS Code-like: Yazi sidebar, Vim editor, stacked terminals
+    /// Work window with yazi, first harness, shell; optional AI/lazygit/shell windows
     Dev,
-    /// One tool per tab, fullscreen, zero distraction
+    /// One fullscreen window for files and each harness
     Focus,
-    /// Side-by-side coding with AI: yazi+vim left (50%), claude right (50%)
+    /// Work window with yazi and shell; AI harnesses in a separate window
     Cowork,
-    /// Cowork swapped: yazi+ai left (40%), vim editor right (60%)
-    CoworkSwap,
-    /// Yazi-focused with large preview and AI pane
-    Browse,
-    /// AI-first: Yazi left (60%), AI agent right (40%), no editor on first screen
+    /// Work window with yazi and first harness; secondary harnesses in AI window
     Ai,
 }
 
@@ -53,8 +49,6 @@ impl std::fmt::Display for Layout {
             Layout::Dev => write!(f, "dev"),
             Layout::Focus => write!(f, "focus"),
             Layout::Cowork => write!(f, "cowork"),
-            Layout::CoworkSwap => write!(f, "cowork-swap"),
-            Layout::Browse => write!(f, "browse"),
             Layout::Ai => write!(f, "ai"),
         }
     }
@@ -261,9 +255,9 @@ pub enum Commands {
     /// creates/starts the container, then attaches via tmux.
     /// If already running, just attaches.
     ///
-    /// Available layouts: dev (default), focus, cowork, cowork-swap, browse, ai.
+    /// Available layouts: dev (default), focus, cowork, ai.
     Up {
-        /// tmux layout to use (dev, focus, cowork, cowork-swap, browse, ai)
+        /// tmux layout to use (dev, focus, cowork, ai)
         #[arg(long, value_enum)]
         layout: Option<Layout>,
 

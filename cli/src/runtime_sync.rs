@@ -702,8 +702,6 @@ fn managed_tmux_relpath(rel_path: &str) -> bool {
             | ".config/tmux/layouts/dev.sh"
             | ".config/tmux/layouts/focus.sh"
             | ".config/tmux/layouts/cowork.sh"
-            | ".config/tmux/layouts/cowork-swap.sh"
-            | ".config/tmux/layouts/browse.sh"
             | ".config/tmux/layouts/ai.sh"
     )
 }
@@ -1575,7 +1573,9 @@ rules = [
         assert!(managed_tmux_relpath(".config/tmux/tmux.conf"));
         assert!(managed_tmux_relpath(".config/tmux/aibox-session.sh"));
         assert!(managed_tmux_relpath(".config/tmux/layouts/dev.sh"));
-        assert!(managed_tmux_relpath(".config/tmux/layouts/cowork-swap.sh"));
+        assert!(managed_tmux_relpath(".config/tmux/layouts/cowork.sh"));
+        assert!(!managed_tmux_relpath(".config/tmux/layouts/cowork-swap.sh"));
+        assert!(!managed_tmux_relpath(".config/tmux/layouts/browse.sh"));
         assert!(!managed_tmux_relpath(".config/tmux/layouts/custom.sh"));
         // Sanity: legacy multiplexer paths are never recognised as
         // managed tmux files (BR-LEGACY-MUX-EXCISE).

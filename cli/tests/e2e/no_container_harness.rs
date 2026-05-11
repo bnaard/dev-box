@@ -236,7 +236,7 @@ fn lazygit_disabled_removes_runtime_layouts_and_stale_home_files() {
     );
 
     let layouts_dir = dir.join(".aibox-home/.config/tmux/layouts");
-    for layout in ["dev", "focus", "cowork", "cowork-swap", "browse", "ai"] {
+    for layout in ["dev", "focus", "cowork", "ai"] {
         let path = layouts_dir.join(format!("{layout}.sh"));
         assert!(
             path.exists(),
@@ -247,6 +247,12 @@ fn lazygit_disabled_removes_runtime_layouts_and_stale_home_files() {
         assert!(
             !body.contains("lazygit"),
             "layout {layout}.sh should not reference lazygit when disabled:\n{body}"
+        );
+    }
+    for removed in ["cowork-swap", "browse"] {
+        assert!(
+            !layouts_dir.join(format!("{removed}.sh")).exists(),
+            "removed layout {removed}.sh should not be generated"
         );
     }
 

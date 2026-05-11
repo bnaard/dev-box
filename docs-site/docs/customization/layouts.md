@@ -5,167 +5,64 @@ title: "Layouts"
 
 # Layouts
 
-aibox ships six tmux layouts that control the terminal workspace arrangement. Each layout is optimized for a different workflow.
-
-Generated layouts include AI-agent windows based on enabled
-`[ai.harness.<name>]` tables. The fullscreen **git** window is generated only
-when the `git-ui` addon selects `lazygit`, so window numbering shifts when that
-optional window is omitted.
+aibox ships four tmux layouts. Harness placement follows `[ai].harness_order`:
+the 1st harness is the first enabled harness in that order, then the 2nd, 3rd,
+and so on. Enabled harnesses missing from `harness_order` are appended in
+canonical order.
 
 Generated layouts can include an extended PowerKit status bar with host,
-network, development, cloud, resource, and aibox runtime segments. Runtime
-values come from the image-owned `aibox-status` helper and the diagnostics
-sidecar rather than from terminal plugin code.
-
-Configure the status presentation in `aibox.toml`:
-
-```toml
-[customization.tmux.status]
-mode = "extended" # extended | plain | disabled
-```
-
-`extended` uses the themed multi-line PowerKit status bar. Existing
-`powerline` configs are accepted as a legacy alias. `plain` keeps minimal
-tmux-native status text, and `disabled` turns the tmux status line off.
+network, development, cloud, resource, and aibox runtime segments.
 
 ## Available Layouts
 
-### dev (default)
-
-VS Code-like arrangement: Yazi file browser on the left (40%) and Vim editor on the right (60%). Claude and supporting tools live on their own dedicated windows.
-
-![dev layout diagram](/img/layouts/layout-dev.svg)
+### ai
 
 | Window | Contents |
 |-----|----------|
-| 1 · dev | yazi (40%) · vim (60%) |
-| 2 · claude | AI agent - fullscreen |
-| 3 · git | lazygit - fullscreen, when `git-ui` selects `lazygit` |
-| 4 · shell | bash - fullscreen |
+| 1 · work | left 50%: yazi · right 50%: 1st harness |
+| 2 · ai | all further harnesses, split as full-height even horizontal panes |
+| 3 · lazygit | lazygit, when `git-ui` selects `lazygit` |
+| 3/4 · shell | bash |
 
-Best for general development where you need file navigation, editing, and terminal access simultaneously.
+### dev
 
-<div class="asciinema" data-cast="/aibox/screencasts/layout-dev.cast" data-poster="npt:2" data-loop="true" data-fit="width"></div>
-
----
+| Window | Contents |
+|-----|----------|
+| 1 · work | left 50%: yazi top 50% / 1st harness bottom 50% · right 50%: shell |
+| 2 · lazygit | lazygit, when `git-ui` selects `lazygit` |
+| 2/3 · ai | all further harnesses, split as full-height even horizontal panes |
+| final · shell | bash |
 
 ### focus
 
-One tool per tab, fullscreen. Zero distraction — each tool gets the entire screen.
-
-![focus layout diagram](/img/layouts/layout-focus.svg)
-
 | Window | Contents |
 |-----|----------|
-| 1 · files | yazi - fullscreen |
-| 2 · editor | vim - fullscreen |
-| 3 · claude | AI agent - fullscreen |
-| 4 · git | lazygit - fullscreen, when `git-ui` selects `lazygit` |
-| 5 · shell | bash - fullscreen |
-
-Ideal when you want total focus and switch between tools with a single keypress.
-
-<div class="asciinema" data-cast="/aibox/screencasts/layout-focus.cast" data-poster="npt:2" data-loop="true" data-fit="width"></div>
-
----
+| 1 · files | yazi |
+| 2..n · harness name | one fullscreen window per harness in `harness_order` |
+| next · lazygit | lazygit, when `git-ui` selects `lazygit` |
+| final · shell | bash |
 
 ### cowork
 
-Side-by-side coding with AI. Yazi and Vim share the left half (stacked), the AI agent fills the right half. Both panes stay visible as you work.
-
-![cowork layout diagram](/img/layouts/layout-cowork.svg)
-
 | Window | Contents |
 |-----|----------|
-| 1 · cowork | left 50%: yazi (top 40%) / vim (bottom 60%) · right 50%: AI agent |
-| 2 · git | lazygit - fullscreen, when `git-ui` selects `lazygit` |
-| 3 · shell | bash - fullscreen |
+| 1 · work | left 50%: yazi · right 50%: shell |
+| 2 · ai | all harnesses, split as full-height even horizontal panes |
+| 3 · lazygit | lazygit, when `git-ui` selects `lazygit` |
 
-Ideal for pair-programming sessions where you want to see AI output while editing.
-
-<div class="asciinema" data-cast="/aibox/screencasts/layout-cowork.cast" data-poster="npt:2" data-loop="true" data-fit="width"></div>
-
----
-
-### cowork-swap
-
-Cowork with AI and Vim positions swapped: the AI agent and Yazi share the left column, Vim takes the larger right column.
-
-![cowork-swap layout diagram](/img/layouts/layout-cowork-swap.svg)
-
-| Window | Contents |
-|-----|----------|
-| 1 · cowork-swap | left 40%: yazi (top 40%) / AI agent (bottom 60%) · right 60%: vim |
-| 2 · git | lazygit - fullscreen, when `git-ui` selects `lazygit` |
-| 3 · shell | bash - fullscreen |
-
-Use this when the editor deserves more horizontal space and the AI pane plays a supporting role.
-
-<!-- recording pending -->
-
----
-
-### browse
-
-Yazi-focused layout with a large file preview pane (top 60%) and an AI pane below (bottom 40%). Horizontal split — no editor on the main tab.
-
-![browse layout diagram](/img/layouts/layout-browse.svg)
-
-| Window | Contents |
-|-----|----------|
-| 1 · browse | yazi (top 60%) / AI agent (bottom 40%) |
-| 2 · editor | vim - fullscreen |
-| 3 · git | lazygit - fullscreen, when `git-ui` selects `lazygit` |
-| 4 · shell | bash - fullscreen |
-
-Great for exploring unfamiliar codebases, reviewing files, and asking AI about what you find.
-
-<!-- recording pending -->
-
----
-
-### ai
-
-AI-first layout: Yazi and the AI agent share the main tab side by side (50/50 vertical split). The editor is available on its own tab when needed.
-
-![ai layout diagram](/img/layouts/layout-ai.svg)
-
-| Window | Contents |
-|-----|----------|
-| 1 · ai | yazi (50%) · AI agent (50%) |
-| 2 · editor | vim - fullscreen |
-| 3 · git | lazygit - fullscreen, when `git-ui` selects `lazygit` |
-| 4 · shell | bash - fullscreen |
-
-Best for AI-heavy sessions where file navigation and AI interaction are the primary loop and the editor is consulted occasionally.
-
-<!-- recording pending -->
-
----
-
-## Setting the Default Layout
-
-Set your preferred layout in `aibox.toml`:
+## Setting The Default Layout
 
 ```toml
 [customization]
 layout = "dev"
 ```
 
-Options: `dev`, `focus`, `cowork`, `cowork-swap`, `browse`, `ai`.
+Options: `dev`, `focus`, `cowork`, `ai`.
 
 ## Per-Session Override
-
-Override the default layout when starting a session:
 
 ```bash
 aibox up --layout focus
 ```
 
-This does not change the default in `aibox.toml` — it only applies to the current session.
-
-## Custom Layouts
-
-Layouts are tmux session scripts stored in `.aibox-home/.config/tmux/layouts/`. You can edit the built-in layout scripts or add your own files there.
-
-See `man tmux` for the full command and layout syntax.
+This does not change the default in `aibox.toml`.

@@ -1369,9 +1369,7 @@ pub(crate) fn serialize_config_with_comments(config: &AiboxConfig) -> String {
     out.push_str("# Starship prompt preset.\n");
     out.push_str("# Options: default | plain | minimal | nerd-font | pastel | bracketed | arrow\n");
     out.push_str(&format!("prompt = \"{}\"\n", config.customization.prompt));
-    out.push_str(
-        "# Default tmux layout. Options: dev | focus | cowork | cowork-swap | browse | ai\n",
-    );
+    out.push_str("# Default tmux layout. Options: dev | focus | cowork | ai\n");
     out.push_str(&format!("layout = \"{}\"\n", config.customization.layout));
     out.push('\n');
     out.push_str(

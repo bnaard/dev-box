@@ -521,7 +521,7 @@ mode   = "auto"
 # Starship prompt preset.
 # Options: default | plain | minimal | nerd-font | pastel | bracketed | arrow
 prompt = "arrow"
-# Default tmux layout. Options: dev | focus | cowork | cowork-swap | browse | ai
+# Default tmux layout. Options: dev | focus | cowork | ai
 layout = "ai"
 
 # tmux runtime options. `layout` may override [customization].layout for tmux only.

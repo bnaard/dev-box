@@ -95,13 +95,13 @@ Press `Escape` or `Ctrl+g` again to cancel the leader and return to normal mode.
 
 ### Layouts
 
-aibox ships six IDE layouts. Select one with `aibox up --layout <name>` (the default is `dev`). Layouts include provider-specific AI windows based on enabled `[ai.harness.<name>]` tables; they include the **git** lazygit window only when the `git-ui` addon selects `lazygit`.
+aibox ships four tmux layouts. Select one with `aibox up --layout <name>` (the default is `dev`). Layouts include harness windows based on enabled `[ai.harness.<name>]` tables and `[ai].harness_order`; they include the **lazygit** window only when the `git-ui` addon selects `lazygit`.
 
-#### dev (default) -- file browser + editor
+#### dev (default)
 
 <div class="asciinema" data-cast="/aibox/screencasts/layout-dev.cast" data-poster="npt:4" data-autoplay="false" data-controls="false" data-fit="width"></div>
 
-Yazi file manager on the left, Vim on the right. AI agents and shell live in separate windows; the lazygit window is generated when the `git-ui` addon selects `lazygit`.
+Window **work** has Yazi and the 1st harness stacked on the left, with shell on the right. Further harnesses use the **ai** window; lazygit and shell get their own windows.
 
 #### focus -- one tool per window, fullscreen
 
@@ -109,18 +109,18 @@ Yazi file manager on the left, Vim on the right. AI agents and shell live in sep
 
 Each tool gets the entire screen in its own window. Switch with `Ctrl+g [/]` or `Ctrl+g 1-5`.
 
-Windows: **files** (yazi) | **editor** (vim) | AI agent windows | optional **git** (lazygit) | **shell**
+Windows: **files** (yazi) | one window per harness | optional **lazygit** | **shell**
 
 #### cowork -- side-by-side coding with AI
 
 <div class="asciinema" data-cast="/aibox/screencasts/layout-cowork.cast" data-poster="npt:4" data-autoplay="false" data-controls="false" data-fit="width"></div>
 
-Yazi and Vim stacked on the left, Claude Code on the right. Shell lives in a separate window; the lazygit window is generated when the `git-ui` addon selects `lazygit`.
+Window **work** has Yazi on the left and shell on the right. The **ai** window contains all harnesses split evenly across full-height panes; the lazygit window is generated when enabled.
 
 ### Opening Files from Yazi
 
 - **`Enter`** -- opens file in vim in-place (suspends Yazi, `:q` returns to Yazi). Works in all layouts.
-- **`e`** -- opens file in the adjacent vim pane and focuses it. Works in dev (vim is right), cowork (vim is below), and focus (switches to editor window).
+- **`e`** -- opens file in a full-screen vim popup and returns to Yazi when vim exits.
 
 :::note tmux vs Yazi
 

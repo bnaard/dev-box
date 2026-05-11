@@ -97,11 +97,9 @@ Quick reference for all tools in the aibox environment. Press the tab for the to
 
     !!! info "Default layout windows"
         The generated `dev` layout opens with pre-configured tmux windows:
-        **Window 1** — dev (files + editor + terminal),
-        AI-agent windows based on enabled `[ai.harness.<name>]` tables,
-        optional **git** (lazygit) when `git-ui` selects `lazygit`,
-        and **shell** (extra terminal). Window numbers shift when optional windows
-        are omitted.
+        **work** (Yazi, 1st harness, shell), optional **lazygit**,
+        **ai** for further harnesses, and **shell**. Window numbers shift when
+        optional windows are omitted.
 
 === "Yazi"
 

@@ -210,7 +210,7 @@ edit = [
     { run = 'vim --cmd "set t_u7=" --cmd "set t_RV=" "$@"', desc = "Edit in-place", block = true },
 ]
 edit-pane = [
-    { run = 'open-in-editor "$1"', desc = "Open in vim pane", block = false },
+    { run = 'open-in-editor "$1"', desc = "Open in vim popup", block = false },
 ]
 
 [open]
@@ -631,7 +631,7 @@ const DEFAULT_YAZI_OMP_CONFIG: &str =
 const DEFAULT_YAZI_KEYMAP: &str = r#"[mgr]
 prepend_keymap = [
     { on = "<Enter>", run = "open", desc = "Edit in-place" },
-    { on = "e", run = "shell 'open-in-editor \"$1\"'", desc = "Open in vim pane" },
+    { on = "e", run = "shell 'open-in-editor \"$1\"'", desc = "Open in vim popup" },
     { on = "O", run = "open --interactive", desc = "Open interactively" },
     { on = "p", run = "shell 'aibox-preview \"$1\"' --block", desc = "Full-pane preview" },
     { on = [ "z", "h" ], run = "plugin toggle-pane min-parent", desc = "Toggle parent pane" },
@@ -669,7 +669,7 @@ const DEFAULT_CHEATSHEET: &str = r#"  aibox Quick Reference
   Ctrl+g R       Reload
   Ctrl+g q       QUIT
 
-  LAYOUTS: aibox up --layout dev|focus|cowork|cowork-swap|browse|ai
+  LAYOUTS: aibox up --layout dev|focus|cowork|ai
   No persistent vim pane: e = popup, Enter = in-yazi (`:q` closes both).
 "#;
 
@@ -907,29 +907,9 @@ pub fn managed_runtime_files(config: &AiboxConfig) -> Vec<(std::path::PathBuf, S
             ),
         ),
         (
-            std::path::PathBuf::from(".config/tmux/layouts/browse.sh"),
-            tmux_layout_script(
-                &ConfigLayout::Browse,
-                providers,
-                include_lazygit,
-                &tool_windows,
-                &session_name,
-            ),
-        ),
-        (
             std::path::PathBuf::from(".config/tmux/layouts/ai.sh"),
             tmux_layout_script(
                 &ConfigLayout::Ai,
-                providers,
-                include_lazygit,
-                &tool_windows,
-                &session_name,
-            ),
-        ),
-        (
-            std::path::PathBuf::from(".config/tmux/layouts/cowork-swap.sh"),
-            tmux_layout_script(
-                &ConfigLayout::CoworkSwap,
                 providers,
                 include_lazygit,
                 &tool_windows,
@@ -1325,6 +1305,11 @@ pub const LEGACY_MUX_RELPATHS: &[&str] = &[
     ".local/share/zellij",
 ];
 
+pub const REMOVED_TMUX_LAYOUT_RELPATHS: &[&str] = &[
+    ".config/tmux/layouts/browse.sh",
+    ".config/tmux/layouts/cowork-swap.sh",
+];
+
 /// Variant 1 hard-purge: scorch every legacy multiplexer artifact under
 /// the host root unconditionally on every `aibox apply`. Returns the list
 /// of paths that were actually removed.
@@ -1377,6 +1362,19 @@ pub fn cleanup_legacy_zellij_files(root: &Path) -> Result<Vec<String>> {
         }
     }
 
+    Ok(updated)
+}
+
+pub fn cleanup_removed_tmux_layouts(root: &Path) -> Result<Vec<String>> {
+    let mut updated = Vec::new();
+    for rel_path in REMOVED_TMUX_LAYOUT_RELPATHS {
+        let abs = root.join(rel_path);
+        if !abs.exists() {
+            continue;
+        }
+        fs::remove_file(&abs).with_context(|| format!("Failed to remove {}", abs.display()))?;
+        updated.push(format!("{rel_path} (removed obsolete tmux layout)"));
+    }
     Ok(updated)
 }
 
@@ -1658,9 +1656,7 @@ pub fn sync_theme_files(config: &AiboxConfig) -> Result<Vec<String>> {
         ConfigLayout::Dev,
         ConfigLayout::Focus,
         ConfigLayout::Cowork,
-        ConfigLayout::Browse,
         ConfigLayout::Ai,
-        ConfigLayout::CoworkSwap,
     ] {
         let rel = format!(".config/tmux/layouts/{layout}.sh");
         let path = root
@@ -1682,6 +1678,7 @@ pub fn sync_theme_files(config: &AiboxConfig) -> Result<Vec<String>> {
             updated.push(format!("{rel} (chmod +x)"));
         }
     }
+    updated.extend(cleanup_removed_tmux_layouts(&root)?);
     let session_path = root.join(".config").join("tmux").join("aibox-session.sh");
     if force_seed_file(&session_path, &tmux_session_script(config))? {
         ensure_executable(&session_path)?;
@@ -2058,7 +2055,7 @@ mod tests {
                 .join("aibox-session.sh")
                 .exists()
         );
-        for layout in ["dev", "focus", "cowork", "browse", "ai", "cowork-swap"] {
+        for layout in ["dev", "focus", "cowork", "ai"] {
             assert!(
                 root.join(".config")
                     .join("tmux")
@@ -2235,7 +2232,7 @@ mod tests {
             .collect();
 
         assert!(
-            generated_layouts.len() >= 6,
+            generated_layouts.len() == 4,
             "expected all managed tmux layouts to be generated"
         );
         for (path, body) in generated_layouts {
