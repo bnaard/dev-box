@@ -122,14 +122,10 @@ pub fn tmux_conf(config: &AiboxConfig) -> String {
 /// See DEC-20260508_2115-SilentFern-powerkit-status-format-slot-order-is for rationale.
 ///
 /// `LINE1_RIGHT_ORDER` and `LINE2_LEFT_ORDER` map 1:1 to the plugin names
-/// used in the tmux.conf; `LINE2_RIGHT_AIBOX_METRICS_ORDER` maps the
+/// used in the tmux.conf; `LINE1_RIGHT_AIBOX_METRICS_ORDER` maps the
 /// internal key name to the PowerKit plugin ID after the path-a split.
 const LINE1_RIGHT_ORDER: &[(&str, &str)] = &[
     ("ssh", "ssh"),
-    ("hostname", "hostname"),
-    ("external_ip", "externalip"),
-    ("netspeed", "netspeed"),
-    ("ping", "ping"),
     ("weather", "weather"),
     ("uptime", "uptime"),
     ("datetime", "datetime"),
@@ -141,22 +137,27 @@ const LINE2_LEFT_ORDER: &[(&str, &str)] = &[
     ("terraform", "terraform"),
     ("cloud", "cloud"),
 ];
-/// Line 2 right: PowerKit system metrics followed by aibox-metrics block.
-///
-/// The aibox-metrics block (`aibox_log` … `aibox_mig`) uses path (a) split:
-/// each metric is registered as its own individual PowerKit plugin so it
-/// renders with the standard chevron/color-rotation segment styling rather
-/// than as flat text inside a single `aibox` segment.  One plugin → one
-/// segment → visually contiguous with adjacent PowerKit segments.
+/// Line 2 right: PowerKit system and network metrics.
 const LINE2_RIGHT_SYSTEM_ORDER: &[(&str, &str)] = &[
     ("cpu", "cpu"),
+    ("hostname", "hostname"),
+    ("external_ip", "externalip"),
+    ("netspeed", "netspeed"),
+    ("ping", "ping"),
     ("loadavg", "loadavg"),
     ("mem", "memory"),
     ("swap", "swap"),
     ("disk", "disk"),
     ("gpu", "gpu"),
 ];
-const LINE2_RIGHT_AIBOX_METRICS_ORDER: &[(&str, &str)] = &[
+/// Line 1 right: aibox-metrics block inserted before weather.
+///
+/// The aibox-metrics block (`aibox_log` … `aibox_mig`) uses path (a) split:
+/// each metric is registered as its own individual PowerKit plugin so it
+/// renders with the standard chevron/color-rotation segment styling rather
+/// than as flat text inside a single `aibox` segment. One plugin → one
+/// segment → visually contiguous with adjacent PowerKit segments.
+const LINE1_RIGHT_AIBOX_METRICS_ORDER: &[(&str, &str)] = &[
     ("log", "aibox_log"),
     ("oom", "aibox_oom"),
     ("proc", "aibox_proc"),
@@ -177,24 +178,6 @@ pub fn tmux_powerkit_settings(config: &AiboxConfig) -> (String, String, String) 
 
     let elements = &config.customization.tmux.status.elements;
 
-    // Line 1 right — slot order fixed per DEC-20260508_2115-SilentFern,
-    // updated by the PowerKit alignment proof.
-    // Correlates LINE1_RIGHT_ORDER keys against element enable-flags.
-    let l1r_flags: &[(bool, &str)] = &[
-        (elements.ssh, LINE1_RIGHT_ORDER[0].1),
-        (elements.hostname, LINE1_RIGHT_ORDER[1].1),
-        (elements.external_ip, LINE1_RIGHT_ORDER[2].1),
-        (elements.netspeed, LINE1_RIGHT_ORDER[3].1),
-        (elements.ping, LINE1_RIGHT_ORDER[4].1),
-        (elements.weather, LINE1_RIGHT_ORDER[5].1),
-        (elements.uptime, LINE1_RIGHT_ORDER[6].1),
-        (elements.datetime, LINE1_RIGHT_ORDER[7].1),
-    ];
-    let line1_right: Vec<&str> = l1r_flags
-        .iter()
-        .filter_map(|(en, name)| en.then_some(*name))
-        .collect();
-
     // Line 2 left — slot order fixed per DEC-20260508_2115-SilentFern.
     let l2l_flags: &[(bool, &str)] = &[
         (elements.git, LINE2_LEFT_ORDER[0].1),
@@ -211,13 +194,17 @@ pub fn tmux_powerkit_settings(config: &AiboxConfig) -> (String, String, String) 
     // Line 2 right — system metrics, slot order fixed per DEC-20260508_2115-SilentFern.
     let l2r_system_flags: &[(bool, &str)] = &[
         (elements.cpu, LINE2_RIGHT_SYSTEM_ORDER[0].1),
-        (elements.loadavg, LINE2_RIGHT_SYSTEM_ORDER[1].1),
-        (elements.mem, LINE2_RIGHT_SYSTEM_ORDER[2].1),
-        (elements.swap, LINE2_RIGHT_SYSTEM_ORDER[3].1),
-        (elements.disk, LINE2_RIGHT_SYSTEM_ORDER[4].1),
-        (elements.gpu, LINE2_RIGHT_SYSTEM_ORDER[5].1),
+        (elements.hostname, LINE2_RIGHT_SYSTEM_ORDER[1].1),
+        (elements.external_ip, LINE2_RIGHT_SYSTEM_ORDER[2].1),
+        (elements.netspeed, LINE2_RIGHT_SYSTEM_ORDER[3].1),
+        (elements.ping, LINE2_RIGHT_SYSTEM_ORDER[4].1),
+        (elements.loadavg, LINE2_RIGHT_SYSTEM_ORDER[5].1),
+        (elements.mem, LINE2_RIGHT_SYSTEM_ORDER[6].1),
+        (elements.swap, LINE2_RIGHT_SYSTEM_ORDER[7].1),
+        (elements.disk, LINE2_RIGHT_SYSTEM_ORDER[8].1),
+        (elements.gpu, LINE2_RIGHT_SYSTEM_ORDER[9].1),
     ];
-    let mut line2_right: Vec<&str> = l2r_system_flags
+    let line2_right: Vec<&str> = l2r_system_flags
         .iter()
         .filter_map(|(en, name)| en.then_some(*name))
         .collect();
@@ -229,40 +216,59 @@ pub fn tmux_powerkit_settings(config: &AiboxConfig) -> (String, String, String) 
     let metrics_flags: &[(bool, &str, &str)] = &[
         (
             metrics.log,
-            LINE2_RIGHT_AIBOX_METRICS_ORDER[0].0,
-            LINE2_RIGHT_AIBOX_METRICS_ORDER[0].1,
+            LINE1_RIGHT_AIBOX_METRICS_ORDER[0].0,
+            LINE1_RIGHT_AIBOX_METRICS_ORDER[0].1,
         ),
         (
             metrics.oom,
-            LINE2_RIGHT_AIBOX_METRICS_ORDER[1].0,
-            LINE2_RIGHT_AIBOX_METRICS_ORDER[1].1,
+            LINE1_RIGHT_AIBOX_METRICS_ORDER[1].0,
+            LINE1_RIGHT_AIBOX_METRICS_ORDER[1].1,
         ),
         (
             metrics.proc,
-            LINE2_RIGHT_AIBOX_METRICS_ORDER[2].0,
-            LINE2_RIGHT_AIBOX_METRICS_ORDER[2].1,
+            LINE1_RIGHT_AIBOX_METRICS_ORDER[2].0,
+            LINE1_RIGHT_AIBOX_METRICS_ORDER[2].1,
         ),
         (
             metrics.ai,
-            LINE2_RIGHT_AIBOX_METRICS_ORDER[3].0,
-            LINE2_RIGHT_AIBOX_METRICS_ORDER[3].1,
+            LINE1_RIGHT_AIBOX_METRICS_ORDER[3].0,
+            LINE1_RIGHT_AIBOX_METRICS_ORDER[3].1,
         ),
         (
             metrics.mcp,
-            LINE2_RIGHT_AIBOX_METRICS_ORDER[4].0,
-            LINE2_RIGHT_AIBOX_METRICS_ORDER[4].1,
+            LINE1_RIGHT_AIBOX_METRICS_ORDER[4].0,
+            LINE1_RIGHT_AIBOX_METRICS_ORDER[4].1,
         ),
         (
             metrics.mig,
-            LINE2_RIGHT_AIBOX_METRICS_ORDER[5].0,
-            LINE2_RIGHT_AIBOX_METRICS_ORDER[5].1,
+            LINE1_RIGHT_AIBOX_METRICS_ORDER[5].0,
+            LINE1_RIGHT_AIBOX_METRICS_ORDER[5].1,
         ),
     ];
     let aibox_metric_plugins: Vec<&str> = metrics_flags
         .iter()
         .filter_map(|(en, _key, plugin)| en.then_some(*plugin))
         .collect();
-    line2_right.extend(aibox_metric_plugins.iter().copied());
+
+    // Line 1 right — slot order fixed per DEC-20260508_2115-SilentFern,
+    // updated by the PowerKit alignment proof.
+    // Correlates LINE1_RIGHT_ORDER keys against element enable-flags.
+    let l1r_prefix_flags: &[(bool, &str)] = &[(elements.ssh, LINE1_RIGHT_ORDER[0].1)];
+    let l1r_suffix_flags: &[(bool, &str)] = &[
+        (elements.weather, LINE1_RIGHT_ORDER[1].1),
+        (elements.uptime, LINE1_RIGHT_ORDER[2].1),
+        (elements.datetime, LINE1_RIGHT_ORDER[3].1),
+    ];
+    let mut line1_right: Vec<&str> = l1r_prefix_flags
+        .iter()
+        .filter_map(|(en, name)| en.then_some(*name))
+        .collect();
+    line1_right.extend(aibox_metric_plugins.iter().copied());
+    line1_right.extend(
+        l1r_suffix_flags
+            .iter()
+            .filter_map(|(en, name)| en.then_some(*name)),
+    );
 
     // Individual plugin option lines for each enabled aibox metric segment.
     let metric_option_lines: String = metrics_flags
@@ -469,7 +475,7 @@ mod tests {
         );
         assert!(
             conf.contains(
-                r#"@powerkit_plugins "ssh,hostname,externalip,netspeed,ping,weather,uptime,datetime,git,github,kubernetes,terraform,cloud,cpu,loadavg,memory,swap,disk,gpu,aibox_log,aibox_oom,aibox_proc,aibox_ai,aibox_mcp,aibox_mig""#
+                r#"@powerkit_plugins "ssh,aibox_log,aibox_oom,aibox_proc,aibox_ai,aibox_mcp,aibox_mig,weather,uptime,datetime,git,github,kubernetes,terraform,cloud,cpu,hostname,externalip,netspeed,ping,loadavg,memory,swap,disk,gpu""#
             )
                 && conf.contains(r#"@powerkit_bar_layout "double""#)
                 && conf.contains(r#"@powerkit_status_order "session,plugins""#)
@@ -477,10 +483,10 @@ mod tests {
                 && conf.contains(r#"@powerkit_transparent "false""#)
                 && conf.contains(r#"@powerkit_pane_border_status "top""#)
                 && conf.contains(r##"@powerkit_pane_border_format "#{?client_prefix,PREFIX,NORMAL} #{pane_title} #{pane_current_command}""##)
-                && conf.contains(r#"@powerkit_line1_right "ssh,hostname,externalip,netspeed,ping,weather,uptime,datetime""#)
+                && conf.contains(r#"@powerkit_line1_right "ssh,aibox_log,aibox_oom,aibox_proc,aibox_ai,aibox_mcp,aibox_mig,weather,uptime,datetime""#)
                 && conf.contains(r#"@powerkit_line2_left "git,github,kubernetes,terraform,cloud""#)
                 && conf.contains(
-                    r#"@powerkit_line2_right "cpu,loadavg,memory,swap,disk,gpu,aibox_log,aibox_oom,aibox_proc,aibox_ai,aibox_mcp,aibox_mig""#
+                    r#"@powerkit_line2_right "cpu,hostname,externalip,netspeed,ping,loadavg,memory,swap,disk,gpu""#
                 )
                 && conf.contains(r#"@powerkit_plugin_aibox_log_metric "log""#)
                 && conf.contains(r#"@powerkit_plugin_aibox_oom_metric "oom""#)
@@ -520,12 +526,12 @@ mod tests {
         assert!(conf.contains("kill tmux session configured-session?"));
         assert!(!conf.contains("kill tmux session source-project?"));
         assert!(conf.contains(
-            r#"@powerkit_plugins "ssh,hostname,externalip,netspeed,ping,weather,uptime,datetime"#
+            r#"@powerkit_plugins "ssh,aibox_log,aibox_oom,aibox_proc,aibox_ai,aibox_mcp,aibox_mig,weather,uptime,datetime"#
         ));
         assert!(conf.contains("tmux-powerkit.tmux"));
         assert!(
             conf.contains(
-                "aibox-powerkit-render-list right ssh,hostname,externalip,netspeed,ping,weather,uptime,datetime"
+                "aibox-powerkit-render-list right ssh,aibox_log,aibox_oom,aibox_proc,aibox_ai,aibox_mcp,aibox_mig,weather,uptime,datetime"
             ) && conf.contains("aibox-powerkit-render-session"),
             "generated status formats must use the source-owned PowerKit render helpers:\n{conf}"
         );
@@ -592,13 +598,14 @@ mod tests {
         let config = crate::config::test_config();
         let conf = tmux_conf(&config);
 
-        // Line 1 right: ssh → hostname → externalip → netspeed → ping → weather → uptime → datetime
+        // Line 1 right: ssh → aibox_log → aibox_oom → aibox_proc → aibox_ai → aibox_mcp
+        // → aibox_mig → weather → uptime → datetime
         // (DEC-20260508_2115-SilentFern, updated by the PowerKit alignment proof)
         assert!(
             conf.contains(
-                r#"@powerkit_line1_right "ssh,hostname,externalip,netspeed,ping,weather,uptime,datetime""#
+                r#"@powerkit_line1_right "ssh,aibox_log,aibox_oom,aibox_proc,aibox_ai,aibox_mcp,aibox_mig,weather,uptime,datetime""#
             ),
-            "line1_right slot order must be: ssh,hostname,externalip,netspeed,ping,weather,uptime,datetime\n{conf}"
+            "line1_right slot order must be: ssh,aibox_log,aibox_oom,aibox_proc,aibox_ai,aibox_mcp,aibox_mig,weather,uptime,datetime\n{conf}"
         );
 
         // Line 2 left: git → github → kubernetes → terraform → cloud
@@ -608,17 +615,18 @@ mod tests {
             "line2_left slot order must be: git,github,kubernetes,terraform,cloud\n{conf}"
         );
 
-        // Line 2 right: system metrics + aibox-metrics block (path-a split, each metric its own segment)
+        // Line 2 right: cpu → hostname → externalip → netspeed → ping → loadavg → memory
+        // → swap → disk → gpu
         // (DEC-20260508_2115-SilentFern)
         assert!(
-            conf.contains(r#"@powerkit_line2_right "cpu,loadavg,memory,swap,disk,gpu,aibox_log,aibox_oom,aibox_proc,aibox_ai,aibox_mcp,aibox_mig""#),
-            "line2_right slot order must be: cpu,loadavg,memory,swap,disk,gpu,aibox_log,aibox_oom,aibox_proc,aibox_ai,aibox_mcp,aibox_mig\n{conf}"
+            conf.contains(r#"@powerkit_line2_right "cpu,hostname,externalip,netspeed,ping,loadavg,memory,swap,disk,gpu""#),
+            "line2_right slot order must be: cpu,hostname,externalip,netspeed,ping,loadavg,memory,swap,disk,gpu\n{conf}"
         );
 
         // Full plugin list snapshot (all three line components concatenated)
         assert!(
             conf.contains(
-                r#"@powerkit_plugins "ssh,hostname,externalip,netspeed,ping,weather,uptime,datetime,git,github,kubernetes,terraform,cloud,cpu,loadavg,memory,swap,disk,gpu,aibox_log,aibox_oom,aibox_proc,aibox_ai,aibox_mcp,aibox_mig""#
+                r#"@powerkit_plugins "ssh,aibox_log,aibox_oom,aibox_proc,aibox_ai,aibox_mcp,aibox_mig,weather,uptime,datetime,git,github,kubernetes,terraform,cloud,cpu,hostname,externalip,netspeed,ping,loadavg,memory,swap,disk,gpu""#
             ),
             "full plugin list snapshot mismatch — slot order is fixed per DEC-20260508_2115-SilentFern\n{conf}"
         );
@@ -626,9 +634,9 @@ mod tests {
         assert!(
             conf.contains("set -g status 2")
                 && conf.contains("aibox-powerkit-render-session")
-                && conf.contains("aibox-powerkit-render-list right ssh,hostname,externalip,netspeed,ping,weather,uptime,datetime")
+                && conf.contains("aibox-powerkit-render-list right ssh,aibox_log,aibox_oom,aibox_proc,aibox_ai,aibox_mcp,aibox_mig,weather,uptime,datetime")
                 && conf.contains("aibox-powerkit-render-list left git,github,kubernetes,terraform,cloud")
-                && conf.contains("aibox-powerkit-render-list right cpu,loadavg,memory,swap,disk,gpu,aibox_log,aibox_oom,aibox_proc,aibox_ai,aibox_mcp,aibox_mig"),
+                && conf.contains("aibox-powerkit-render-list right cpu,hostname,externalip,netspeed,ping,loadavg,memory,swap,disk,gpu"),
             "generated status formats must keep the two-row PowerKit-aligned proof layout\n{conf}"
         );
 
