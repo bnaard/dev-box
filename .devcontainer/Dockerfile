@@ -64,8 +64,8 @@ RUN install -d /usr/local/bin && \
 RUN rustup target add x86_64-unknown-linux-gnu
 
 
-FROM ghcr.io/projectious-work/aibox:base-debian-v0.25.8 AS aibox
-LABEL aibox.version="0.25.8"
+FROM ghcr.io/projectious-work/aibox:base-debian-v0.25.9 AS aibox
+LABEL aibox.version="0.25.9"
 LABEL aibox.profile="human-dev"
 
 ENV SHELL=/bin/bash
@@ -209,4 +209,4 @@ EOF
 
 # Record image version inside container for runtime checks
 USER root
-RUN echo "0.25.8" > /etc/aibox-version
+RUN echo "0.25.9" > /etc/aibox-version
