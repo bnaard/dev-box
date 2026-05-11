@@ -739,7 +739,7 @@ fn visual_yazi_previews_git_symbols_and_optional_plugins_render() {
         test_name,
         "tokyo-night",
         false,
-        &["git-ui", "data-preview", "preview-enhanced", "yazi-omp"],
+        &["git-ui", "data-preview", "preview-enhanced"],
     );
     install_visual_fixtures(&runner, test_name);
 
@@ -752,7 +752,8 @@ fn visual_yazi_previews_git_symbols_and_optional_plugins_render() {
          test -f {home}/.config/yazi/plugins/rich-preview.yazi/main.lua && \
          test -f {home}/.config/yazi/plugins/sqlite-preview.yazi/main.lua && \
          test -f {home}/.config/yazi/plugins/tabular-preview.yazi/main.lua && \
-         test -f {home}/.config/yazi/plugins/omp.yazi/main.lua"
+         test ! -e {home}/.config/yazi/plugins/omp.yazi/main.lua && \
+         test ! -e {home}/.config/yazi/yazi-prompt.omp.json"
     ));
     assert!(
         config_probe.status.success(),
