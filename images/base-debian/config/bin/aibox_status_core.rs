@@ -35,6 +35,7 @@ pub struct Snapshot {
     pub load_average: String,
     pub net: String,
     pub processes: String,
+    pub threads: String,
     pub ai_agents: String,
     pub processkit_mode: String,
     pub processkit_mcp: String,
@@ -51,9 +52,10 @@ pub struct Snapshot {
 
 impl Snapshot {
     pub fn collect(mode: ProcScanMode) -> Self {
-        let pid_count = read_u64(Path::new(CGROUP_ROOT).join("pids.current"))
-            .unwrap_or_else(|| count_proc_entries(Path::new(PROC_ROOT)) as u64);
-        let degraded = pid_count >= degraded_pid_threshold();
+        let process_count = count_proc_entries(Path::new(PROC_ROOT)) as u64;
+        let thread_count = read_u64(Path::new(CGROUP_ROOT).join("pids.current"))
+            .unwrap_or(process_count);
+        let degraded = thread_count >= degraded_pid_threshold();
         let detailed = mode == ProcScanMode::Detailed && !degraded;
         let (disk_used, disk_total) = read_workspace_disk();
         let (log_info, log_warn, log_error) = read_log_counts();
@@ -80,7 +82,8 @@ impl Snapshot {
             cpu_throttling: read_cpu_throttling(Path::new(CGROUP_ROOT).join("cpu.stat")),
             load_average: read_load_average(Path::new(PROC_ROOT).join("loadavg")),
             net: "n/a".to_string(),
-            processes: pid_count.to_string(),
+            processes: process_count.to_string(),
+            threads: thread_count.to_string(),
             ai_agents: proc_details.ai_agents.to_string(),
             processkit_mode: proc_details.processkit_mode,
             processkit_mcp: proc_details.processkit_mcp.to_string(),
@@ -98,7 +101,7 @@ impl Snapshot {
 
     pub fn plain(&self) -> String {
         format!(
-            "AIBOX HOST {} | MEM {}/{} OOM {}/{} HI {} MAX {} | CPU {} LOAD {} NET {} | DISK {}/{} | LOG {}/{}/{} | PROC {} AI {} MCP {}/{} MIG {} DEG {} UP {} | GIT {}:{}",
+            "AIBOX HOST {} | MEM {}/{} OOM {}/{} HI {} MAX {} | CPU {} LOAD {} NET {} | DISK {}/{} | LOG {}/{}/{} | PROC {}/{} AI {} MCP {}/{} MIG {} DEG {} UP {} | GIT {}:{}",
             self.host,
             self.memory_current,
             self.memory_max,
@@ -115,6 +118,7 @@ impl Snapshot {
             self.log_warn,
             self.log_error,
             self.processes,
+            self.threads,
             self.ai_agents,
             self.processkit_mode,
             self.processkit_mcp,
@@ -129,7 +133,7 @@ impl Snapshot {
     pub fn json(&self) -> String {
         let plain = self.plain();
         format!(
-            "{{\"timestamp_unix\":{},\"degraded\":{},\"host\":{},\"memory_current\":{},\"memory_max\":{},\"oom_events\":{},\"oom_kill\":{},\"memory_high\":{},\"memory_max_events\":{},\"cpu_throttling\":{},\"load_average\":{},\"net\":{},\"processes\":{},\"ai_agents\":{},\"processkit_mode\":{},\"processkit_mcp\":{},\"disk_used\":{},\"disk_total\":{},\"log_info\":{},\"log_warn\":{},\"log_error\":{},\"container_uptime\":{},\"git_branch\":{},\"git_state\":{},\"migrations\":{},\"plain\":{}}}",
+            "{{\"timestamp_unix\":{},\"degraded\":{},\"host\":{},\"memory_current\":{},\"memory_max\":{},\"oom_events\":{},\"oom_kill\":{},\"memory_high\":{},\"memory_max_events\":{},\"cpu_throttling\":{},\"load_average\":{},\"net\":{},\"processes\":{},\"threads\":{},\"ai_agents\":{},\"processkit_mode\":{},\"processkit_mcp\":{},\"disk_used\":{},\"disk_total\":{},\"log_info\":{},\"log_warn\":{},\"log_error\":{},\"container_uptime\":{},\"git_branch\":{},\"git_state\":{},\"migrations\":{},\"plain\":{}}}",
             self.timestamp_unix,
             self.degraded,
             json_string(&self.host),
@@ -143,6 +147,7 @@ impl Snapshot {
             json_string(&self.load_average),
             json_string(&self.net),
             json_string(&self.processes),
+            json_string(&self.threads),
             json_string(&self.ai_agents),
             json_string(&self.processkit_mode),
             json_string(&self.processkit_mcp),
@@ -167,7 +172,7 @@ impl Snapshot {
         }
 
         format!(
-            "\u{1b}[7m AIBOX \u{1b}[27m \u{1b}[2m HOST \u{1b}[22m\u{1b}[1m{}\u{1b}[22m  \u{1b}[2mMEM \u{1b}[22m\u{1b}[1m{}\u{1b}[22m/{} \u{1b}[2mOOM \u{1b}[22m\u{1b}[1m{}/{}\u{1b}[22m \u{1b}[2mHI \u{1b}[22m\u{1b}[1m{}\u{1b}[22m \u{1b}[2mMAX \u{1b}[22m\u{1b}[1m{}\u{1b}[22m  \u{1b}[2mCPU \u{1b}[22m\u{1b}[1m{}\u{1b}[22m \u{1b}[2mLOAD \u{1b}[22m\u{1b}[1m{}\u{1b}[22m \u{1b}[2mNET \u{1b}[22m\u{1b}[1m{}\u{1b}[22m  \u{1b}[2mDISK \u{1b}[22m\u{1b}[1m{}/{}\u{1b}[22m  \u{1b}[2mLOG \u{1b}[22m\u{1b}[1m{}/{}/{}\u{1b}[22m  \u{1b}[2mPROC \u{1b}[22m\u{1b}[1m{}\u{1b}[22m \u{1b}[2mAI \u{1b}[22m\u{1b}[1m{}\u{1b}[22m \u{1b}[2mMCP \u{1b}[22m\u{1b}[1m{} {}\u{1b}[22m \u{1b}[2mMIG \u{1b}[22m\u{1b}[1m{}\u{1b}[22m \u{1b}[2mDEG \u{1b}[22m\u{1b}[1m{}\u{1b}[22m \u{1b}[2mUP \u{1b}[22m\u{1b}[1m{}\u{1b}[22m",
+            "\u{1b}[7m AIBOX \u{1b}[27m \u{1b}[2m HOST \u{1b}[22m\u{1b}[1m{}\u{1b}[22m  \u{1b}[2mMEM \u{1b}[22m\u{1b}[1m{}\u{1b}[22m/{} \u{1b}[2mOOM \u{1b}[22m\u{1b}[1m{}/{}\u{1b}[22m \u{1b}[2mHI \u{1b}[22m\u{1b}[1m{}\u{1b}[22m \u{1b}[2mMAX \u{1b}[22m\u{1b}[1m{}\u{1b}[22m  \u{1b}[2mCPU \u{1b}[22m\u{1b}[1m{}\u{1b}[22m \u{1b}[2mLOAD \u{1b}[22m\u{1b}[1m{}\u{1b}[22m \u{1b}[2mNET \u{1b}[22m\u{1b}[1m{}\u{1b}[22m  \u{1b}[2mDISK \u{1b}[22m\u{1b}[1m{}/{}\u{1b}[22m  \u{1b}[2mLOG \u{1b}[22m\u{1b}[1m{}/{}/{}\u{1b}[22m  \u{1b}[2mPROC \u{1b}[22m\u{1b}[1m{}/{}\u{1b}[22m \u{1b}[2mAI \u{1b}[22m\u{1b}[1m{}\u{1b}[22m \u{1b}[2mMCP \u{1b}[22m\u{1b}[1m{} {}\u{1b}[22m \u{1b}[2mMIG \u{1b}[22m\u{1b}[1m{}\u{1b}[22m \u{1b}[2mDEG \u{1b}[22m\u{1b}[1m{}\u{1b}[22m \u{1b}[2mUP \u{1b}[22m\u{1b}[1m{}\u{1b}[22m",
             self.host,
             self.memory_current,
             self.memory_max,
@@ -184,6 +189,7 @@ impl Snapshot {
             self.log_warn,
             self.log_error,
             self.processes,
+            self.threads,
             self.ai_agents,
             self.processkit_mode,
             self.processkit_mcp,
@@ -745,6 +751,7 @@ mod tests {
             load_average: "0.22".to_string(),
             net: "n/a".to_string(),
             processes: "99".to_string(),
+            threads: "123".to_string(),
             ai_agents: "3".to_string(),
             processkit_mode: "gateway".to_string(),
             processkit_mcp: "12".to_string(),
@@ -771,7 +778,7 @@ mod tests {
         assert!(plain.contains("DISK 10.0 GiB/100.0 GiB"));
         assert!(plain.contains("LOG 9/1/2"));
         assert!(plain.contains("OOM 0/0"));
-        assert!(plain.contains("PROC 99"));
+        assert!(plain.contains("PROC 99/123"));
         assert!(plain.contains("AI 3"));
         assert!(plain.contains("MCP gateway/12"));
         assert!(plain.contains("MIG 0"));
@@ -787,6 +794,8 @@ mod tests {
         assert!(json.contains("\"log_warn\":\"1\""));
         assert!(json.contains("\"log_error\":\"2\""));
         assert!(json.contains("\"net\":\"n/a\""));
+        assert!(json.contains("\"processes\":\"99\""));
+        assert!(json.contains("\"threads\":\"123\""));
     }
 
     // -- BR-LOG-PANEL: runtime-session scoped counter freshness ------------
