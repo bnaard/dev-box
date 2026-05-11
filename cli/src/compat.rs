@@ -413,6 +413,11 @@ pub static COMPAT_TABLE: &[CompatEntry] = &[
                aibox v1→v2 Migration emission mechanism (closes #72); \
                release-script ordering: push main before tag, notes-curation checkpoint before gh release create (closes #73 + improves audit trail).",
     },
+    CompatEntry {
+        aibox_version: "0.25.8",
+        processkit_version: "v0.26.0",
+        note: "Patch release: improves the tmux log viewer with mouse scrolling, latest-log positioning, visual session separators, and mixed CLI/runtime event rendering; filters aibox log counts to the current container session using a stable container id; emits low-volume runtime lifecycle samples from the diagnostics sidecar; moves PowerKit status metrics into the owner-specified two-row layout; adds container-uptime reporting and compact MCP mode labels; updates tmux layouts around ordered harness semantics; enables Vim mouse scrolling with nowrap defaults; refreshes preview tool grouping; updates clap_complete in Cargo.lock; and tracks the deferred uv base image pin review.",
+    },
 ];
 
 /// Find the minimum compatible processkit version for the given aibox version.
