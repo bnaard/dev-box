@@ -1629,6 +1629,12 @@ mod tests {
             ),
             "base image should override PowerKit uptime with container uptime"
         );
+        assert!(
+            content.contains(
+                "config/tmux/powerkit-plugins/netspeed.sh   /usr/local/share/aibox/tmux/plugins/tmux-powerkit/src/plugins/netspeed.sh"
+            ),
+            "base image should override PowerKit netspeed with fixed-width rates"
+        );
     }
 
     #[test]

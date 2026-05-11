@@ -303,7 +303,8 @@ set -g @powerkit_pane_border_status "top"
 set -g @powerkit_pane_border_format "#{{?client_prefix,PREFIX,NORMAL}} #{{pane_title}} #{{pane_current_command}}"
 set -g @powerkit_line1_right "{}"
 set -g @powerkit_line2_left "{}"
-set -g @powerkit_line2_right "{}"{}"##,
+set -g @powerkit_line2_right "{}"
+set -g @powerkit_plugin_netspeed_speed_width "7"{}"##,
         plugin_order.join(","),
         powerkit_theme,
         powerkit_variant,

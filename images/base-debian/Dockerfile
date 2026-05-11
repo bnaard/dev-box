@@ -337,6 +337,8 @@ COPY config/tmux/powerkit-plugins/aibox_mig.sh  /usr/local/share/aibox/tmux/plug
 # Override upstream uptime.sh so the status segment reports container uptime
 # from PID 1 rather than host/VM kernel uptime from /proc/uptime.
 COPY config/tmux/powerkit-plugins/uptime.sh     /usr/local/share/aibox/tmux/plugins/tmux-powerkit/src/plugins/uptime.sh
+# Override upstream netspeed.sh so the segment uses fixed-width rate fields.
+COPY config/tmux/powerkit-plugins/netspeed.sh   /usr/local/share/aibox/tmux/plugins/tmux-powerkit/src/plugins/netspeed.sh
 COPY config/tmux/tmux.conf /home/aibox/.config/tmux/tmux.conf
 RUN ln -sf /home/aibox/.config/tmux/tmux.conf /home/aibox/.tmux.conf && \
     for plugin in /usr/local/share/aibox/tmux/plugins/*; do \
