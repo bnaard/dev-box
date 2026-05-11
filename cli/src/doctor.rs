@@ -1445,7 +1445,7 @@ fn find_command_on_path(candidates: &[&str]) -> Option<String> {
 }
 
 /// BR-LOG-PANEL (v0.25.6): warn if `lnav` is not on PATH. The `Prefix L`
-/// tmux binding falls back to `less` if lnav is missing, so this is a
+/// log viewer helper falls back to `less` if lnav is missing, so this is a
 /// warning rather than an error.
 fn check_lnav_installed(diag: &mut DiagResult) {
     if find_command_on_path(&["lnav"]).is_some() {

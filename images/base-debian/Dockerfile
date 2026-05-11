@@ -238,7 +238,8 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     # ── Log viewer (~3 MB) ──
     # lnav for the `Prefix L` tmux popup. Reads aibox NDJSON via the
     # custom format at /home/aibox/.config/lnav/formats/aibox/aibox.json.
-    # Fallback in the binding is `less` if lnav is missing.
+    # The aibox-log-viewer helper falls back to mouse-enabled less if
+    # lnav is missing.
     lnav \
     # Preview/archive helpers live in the preview-archive addon.
     # Audio helpers live in the audio-voice addon.
@@ -361,6 +362,7 @@ COPY --chmod=755 config/bin/open-in-editor.sh /usr/local/bin/open-in-editor
 COPY --chmod=755 config/bin/aibox-preview.sh   /usr/local/bin/aibox-preview
 COPY --chmod=755 config/bin/vim-loop.sh       /usr/local/bin/vim-loop
 COPY --chmod=755 config/bin/pdf-watch.sh      /usr/local/bin/pdf-watch
+COPY --chmod=755 config/bin/aibox-log-viewer.sh /usr/local/bin/aibox-log-viewer
 COPY --chmod=755 config/bin/aibox-status-toggle.sh /usr/local/bin/aibox-status-toggle
 COPY --chmod=755 config/bin/aibox-tmux-session.sh /usr/local/bin/aibox-tmux-session
 # xdg-open shim — headless containers have no browser, so any tool that

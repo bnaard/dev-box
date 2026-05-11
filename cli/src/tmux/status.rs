@@ -43,7 +43,7 @@ bind-key -N "Toggle pane zoom" f resize-pane -Z
 bind-key -N "Toggle pane zoom (alias)" z resize-pane -Z
 bind-key -N "Kill tmux session" q confirm-before -p "kill tmux session AIBOX_TMUX_SESSION? (y/n)" kill-session
 bind-key -N "Reload tmux config" R source-file ~/.config/tmux/tmux.conf \; display-message "aibox tmux config reloaded"
-bind-key -N "Open log pane (lnav)" L display-popup -E -w 90% -h 80% "lnav -q /workspace/.aibox/aibox.log /workspace/.aibox/aibox.log.1 2>/dev/null || less /workspace/.aibox/aibox.log"
+bind-key -N "Open log pane (lnav)" L display-popup -E -w 90% -h 80% "aibox-log-viewer"
 
 # BR-TOOLS-AS-WINDOWS (BACK-20260510_0726-GrandDaisy, v0.25.7): one-letter
 # prefix shortcuts to jump directly to named tool/harness windows.
@@ -501,7 +501,11 @@ mod tests {
         assert!(
             conf.contains(
                 r#"bind-key -N "Show aibox/tmux key bindings" ? display-popup -w 80% -h 75% -E "tmux list-keys -N | less -R""#
-            ) && conf.contains(r#"bind-key -N "Select pane left" h select-pane -L"#),
+            )
+                && conf.contains(r#"bind-key -N "Select pane left" h select-pane -L"#)
+                && conf.contains(
+                    r#"bind-key -N "Open log pane (lnav)" L display-popup -E -w 90% -h 80% "aibox-log-viewer""#
+                ),
             "generated persistent tmux config should expose native tmux keybinding help:\n{conf}"
         );
         assert!(
