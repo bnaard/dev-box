@@ -5,7 +5,7 @@
 //! This log is gitignored (`.aibox/` is in the project's `.gitignore`).
 //!
 //! Log format (one JSON object per line):
-//!   {"ts":"2026-04-10T14:32:11Z","cmd":"sync","version":"0.17.5","exit_code":0,"duration_ms":4230,"msg":"..."}
+//!   {"ts":"2026-04-10T14:32:11Z","cmd":"sync","version":"0.17.5","exit_code":0,"duration_ms":4230,"msg":"...","runtime_session_id":"..."}
 //!
 //! Rotation: if `aibox.log` exceeds 1 MB, it is renamed to `aibox.log.1`
 //! (overwriting any prior `.1`), and a new `aibox.log` is started.
@@ -33,6 +33,12 @@ pub struct LogEntry {
     pub duration_ms: u64,
     /// Short human-readable summary.
     pub msg: String,
+    /// Current container runtime session id, when running inside an aibox runtime.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub runtime_session_id: Option<String>,
+    /// Current container runtime start timestamp, when available.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub runtime_started_at: Option<String>,
 }
 
 /// Append a structured log entry to `.aibox/aibox.log` under `project_root`.
@@ -68,6 +74,27 @@ pub fn append_log(project_root: &Path, entry: &LogEntry) -> Result<()> {
     Ok(())
 }
 
+fn read_runtime_session(project_root: &Path) -> (Option<String>, Option<String>) {
+    let path = project_root.join(".aibox/runtime-session.json");
+    let Ok(text) = fs::read_to_string(path) else {
+        return (None, None);
+    };
+    let Ok(value) = serde_json::from_str::<serde_json::Value>(&text) else {
+        return (None, None);
+    };
+    let session_id = value
+        .get("runtime_session_id")
+        .and_then(|value| value.as_str())
+        .filter(|value| !value.is_empty())
+        .map(ToOwned::to_owned);
+    let started_at = value
+        .get("container_started_at")
+        .and_then(|value| value.as_str())
+        .filter(|value| !value.is_empty())
+        .map(ToOwned::to_owned);
+    (session_id, started_at)
+}
+
 /// Measures wall-clock time for a command and appends a log entry on finish.
 pub struct LogTimer {
     cmd: String,
@@ -85,6 +112,7 @@ impl LogTimer {
 
     /// Record elapsed time and append one log entry. Silently swallows errors.
     pub fn finish(self, root: &Path, exit_code: i32, msg: &str) {
+        let (runtime_session_id, runtime_started_at) = read_runtime_session(root);
         let entry = LogEntry {
             ts: chrono::Utc::now().to_rfc3339(),
             cmd: self.cmd,
@@ -92,6 +120,8 @@ impl LogTimer {
             exit_code,
             duration_ms: self.start.elapsed().as_millis() as u64,
             msg: msg.to_string(),
+            runtime_session_id,
+            runtime_started_at,
         };
         let _ = append_log(root, &entry);
     }

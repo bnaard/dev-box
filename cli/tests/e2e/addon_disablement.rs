@@ -381,7 +381,6 @@ timg = {}
 mupdf = {}
 entr = {}
 p7zip = {}
-ouch = {}
 resvg = {}
 "#;
 
@@ -413,7 +412,6 @@ version = "unset"
 
 [addons.preview-enhanced.tools]
 ffmpeg = {}
-imagemagick = {}
 ghostscript = {}
 rich = { enabled = false }
 "#;

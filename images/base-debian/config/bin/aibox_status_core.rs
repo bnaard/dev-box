@@ -387,27 +387,36 @@ fn read_workspace_disk() -> (String, String) {
     (used, total)
 }
 
-/// Default freshness window for status-bar log counts. Older entries
-/// are skipped so that a month-old failure doesn't inflate the bar
-/// indefinitely (BR-LOG-PANEL, v0.25.6). Owner-visible: status-bar
-/// metric reflects "current health", not "every error since project
-/// init". Tune via env var `AIBOX_LOG_WINDOW_HOURS` if needed.
+/// Default fallback freshness window for status-bar log counts. Current
+/// runtimes prefer `.aibox/runtime-session.json` so the counter means
+/// "logs emitted by this running container". The window is only used for
+/// older images or damaged runtime-session metadata.
 const DEFAULT_LOG_WINDOW_SECS: u64 = 24 * 60 * 60;
 
 fn read_log_counts() -> (u64, u64, u64) {
-    let window = std::env::var("AIBOX_LOG_WINDOW_HOURS")
+    let workspace = Path::new(WORKSPACE);
+    let runtime_session_id = read_runtime_session_id(&workspace.join(".aibox/runtime-session.json"));
+    let fallback_window = std::env::var("AIBOX_LOG_WINDOW_HOURS")
         .ok()
         .and_then(|s| s.parse::<u64>().ok())
         .map(|hours| std::time::Duration::from_secs(hours * 3600))
         .unwrap_or_else(|| std::time::Duration::from_secs(DEFAULT_LOG_WINDOW_SECS));
+    let fallback_cutoff_unix = unix_now()
+        .saturating_sub(read_container_uptime_seconds(Path::new(PROC_ROOT)).unwrap_or(fallback_window.as_secs()))
+        as i64;
+
     read_log_counts_at(
-        Path::new(WORKSPACE).join(".aibox/aibox.log"),
-        SystemTime::now(),
-        window,
+        workspace.join(".aibox/aibox.log"),
+        runtime_session_id.as_deref(),
+        fallback_cutoff_unix,
     )
 }
 
-fn read_log_counts_at(path: PathBuf, now: SystemTime, window: std::time::Duration) -> (u64, u64, u64) {
+fn read_log_counts_at(
+    path: PathBuf,
+    runtime_session_id: Option<&str>,
+    fallback_cutoff_unix: i64,
+) -> (u64, u64, u64) {
     let mut file = match File::open(&path) {
         Ok(file) => file,
         Err(_) => return (0, 0, 0),
@@ -427,40 +436,55 @@ fn read_log_counts_at(path: PathBuf, now: SystemTime, window: std::time::Duratio
         let _ = iter.next();
     }
 
-    let cutoff_unix: i64 = now
-        .duration_since(UNIX_EPOCH)
-        .map(|d| (d.as_secs() as i64).saturating_sub(window.as_secs() as i64))
-        .unwrap_or(0);
-
     let (mut info, mut warn, mut error) = (0u64, 0u64, 0u64);
     for line in iter {
-        // Time-window filter: skip lines we can't timestamp (defensive)
-        // and lines older than `window`. An entry without a `ts` field
-        // is treated as out-of-window (i.e. skipped) — every aibox CLI
-        // command emits one, so absence is a corruption marker.
-        let Some(ts_field) = extract_json_string_field(line, "ts") else {
-            continue;
-        };
-        let Some(t) = parse_rfc3339_unix(ts_field) else {
-            continue;
-        };
-        if t < cutoff_unix {
-            continue;
+        if let Some(current_session) = runtime_session_id {
+            if extract_json_string_field(line, "runtime_session_id") != Some(current_session) {
+                continue;
+            }
+        } else {
+            // Legacy fallback: skip lines we can't timestamp (defensive)
+            // and lines older than this container's start/window cutoff.
+            let Some(ts_field) = extract_json_string_field(line, "ts") else {
+                continue;
+            };
+            let Some(t) = parse_rfc3339_unix(ts_field) else {
+                continue;
+            };
+            if t < fallback_cutoff_unix {
+                continue;
+            }
         }
 
-        if line.contains("\"level\":\"ERROR\"") || line.contains("\"level\":\"error\"") {
-            error += 1;
-        } else if line.contains("\"level\":\"WARN\"") || line.contains("\"level\":\"warn\"") {
-            warn += 1;
-        } else if line.contains("\"level\":\"INFO\"") || line.contains("\"level\":\"info\"") {
-            info += 1;
-        } else if line.contains("\"exit_code\":0") {
-            info += 1;
-        } else if line.contains("\"exit_code\":") {
-            error += 1;
+        if !classify_log_line(line, &mut info, &mut warn, &mut error) {
+            continue;
         }
     }
     (info, warn, error)
+}
+
+fn classify_log_line(line: &str, info: &mut u64, warn: &mut u64, error: &mut u64) -> bool {
+    if line.contains("\"level\":\"ERROR\"") || line.contains("\"level\":\"error\"") {
+        *error += 1;
+    } else if line.contains("\"level\":\"WARN\"") || line.contains("\"level\":\"warn\"") {
+        *warn += 1;
+    } else if line.contains("\"level\":\"INFO\"") || line.contains("\"level\":\"info\"") {
+        *info += 1;
+    } else if line.contains("\"exit_code\":0") {
+        *info += 1;
+    } else if line.contains("\"exit_code\":") {
+        *error += 1;
+    } else {
+        return false;
+    }
+    true
+}
+
+fn read_runtime_session_id(path: &Path) -> Option<String> {
+    let text = read_trimmed(path.to_path_buf())?;
+    extract_json_string_field(&text, "runtime_session_id")
+        .filter(|value| !value.is_empty())
+        .map(ToOwned::to_owned)
 }
 
 /// Extract the value of a JSON string field from one NDJSON line. Std-only
@@ -547,15 +571,21 @@ fn parse_rfc3339_unix(s: &str) -> Option<i64> {
 }
 
 fn read_container_uptime(proc_root: &Path) -> String {
+    read_container_uptime_seconds(proc_root)
+        .map(format_duration)
+        .unwrap_or_else(|| "n/a".to_string())
+}
+
+fn read_container_uptime_seconds(proc_root: &Path) -> Option<u64> {
     let uptime = match read_trimmed(proc_root.join("uptime"))
         .and_then(|text| text.split_whitespace().next()?.parse::<f64>().ok())
     {
         Some(uptime) => uptime,
-        None => return "n/a".to_string(),
+        None => return None,
     };
     let stat = match read_trimmed(proc_root.join("1/stat")) {
         Some(stat) => stat,
-        None => return "n/a".to_string(),
+        None => return None,
     };
     let start_ticks = stat
         .split_whitespace()
@@ -563,7 +593,7 @@ fn read_container_uptime(proc_root: &Path) -> String {
         .and_then(|value| value.parse::<f64>().ok())
         .unwrap_or(0.0);
     let elapsed = (uptime - (start_ticks / 100.0)).max(0.0) as u64;
-    format_duration(elapsed)
+    Some(elapsed)
 }
 
 fn read_git_branch(workspace: &Path) -> String {
@@ -759,7 +789,7 @@ mod tests {
         assert!(json.contains("\"net\":\"n/a\""));
     }
 
-    // -- v0.25.6 BR-LOG-PANEL: counter freshness ---------------------------
+    // -- BR-LOG-PANEL: runtime-session scoped counter freshness ------------
 
     #[test]
     fn parse_rfc3339_basic_utc_offset() {
@@ -806,7 +836,7 @@ mod tests {
     }
 
     #[test]
-    fn read_log_counts_filters_old_entries() {
+    fn read_log_counts_filters_by_runtime_session_id() {
         use std::io::Write;
         let dir = std::env::temp_dir().join(format!(
             "aibox-log-test-{}-{}",
@@ -819,33 +849,89 @@ mod tests {
         std::fs::create_dir_all(&dir).unwrap();
         let path = dir.join("aibox.log");
         let mut f = std::fs::File::create(&path).unwrap();
-        // Stale: 2026-04-08T13:00:00Z, exit_code=1 — would be counted as error pre-fix
         writeln!(
             f,
-            r#"{{"ts":"2026-04-08T13:00:00+00:00","cmd":"sync","version":"0.25.2","exit_code":1,"duration_ms":10,"msg":"old fail"}}"#
+            r#"{{"ts":"2026-05-08T12:00:00+00:00","cmd":"sync","version":"0.25.5","exit_code":1,"duration_ms":10,"msg":"old fail","runtime_session_id":"old-session"}}"#
         )
         .unwrap();
-        // Recent: 2026-05-08T12:00:00Z, exit_code=0
         writeln!(
             f,
-            r#"{{"ts":"2026-05-08T12:00:00+00:00","cmd":"sync","version":"0.25.5","exit_code":0,"duration_ms":10,"msg":"ok"}}"#
+            r#"{{"ts":"2026-05-08T12:01:00+00:00","cmd":"sync","version":"0.25.5","exit_code":0,"duration_ms":10,"msg":"ok","runtime_session_id":"current-session"}}"#
+        )
+        .unwrap();
+        writeln!(
+            f,
+            r#"{{"ts":"2026-05-08T12:02:00+00:00","level":"WARN","msg":"warn","runtime_session_id":"current-session"}}"#
         )
         .unwrap();
         drop(f);
-        // "Now" anchor: 2026-05-08T13:00:00Z
-        let now = super::UNIX_EPOCH
-            + std::time::Duration::from_secs(
-                super::parse_rfc3339_unix("2026-05-08T13:00:00+00:00").unwrap() as u64,
-            );
-        let (info, warn, error) = super::read_log_counts_at(
-            path.clone(),
-            now,
-            std::time::Duration::from_secs(24 * 3600),
+
+        let (info, warn, error) =
+            super::read_log_counts_at(path.clone(), Some("current-session"), 0);
+        assert_eq!(
+            (info, warn, error),
+            (1, 1, 0),
+            "only matching runtime_session_id entries should be counted"
         );
+        let _ = std::fs::remove_dir_all(&dir);
+    }
+
+    #[test]
+    fn read_log_counts_falls_back_to_start_cutoff_for_legacy_entries() {
+        use std::io::Write;
+        let dir = std::env::temp_dir().join(format!(
+            "aibox-log-test-{}-{}",
+            std::process::id(),
+            std::time::SystemTime::now()
+                .duration_since(std::time::UNIX_EPOCH)
+                .unwrap()
+                .as_nanos()
+        ));
+        std::fs::create_dir_all(&dir).unwrap();
+        let path = dir.join("aibox.log");
+        let mut f = std::fs::File::create(&path).unwrap();
+        writeln!(
+            f,
+            r#"{{"ts":"2026-05-08T11:59:00+00:00","cmd":"sync","version":"0.25.5","exit_code":1,"duration_ms":10,"msg":"before start"}}"#
+        )
+        .unwrap();
+        writeln!(
+            f,
+            r#"{{"ts":"2026-05-08T12:01:00+00:00","cmd":"sync","version":"0.25.5","exit_code":0,"duration_ms":10,"msg":"after start"}}"#
+        )
+        .unwrap();
+        drop(f);
+
+        let cutoff = super::parse_rfc3339_unix("2026-05-08T12:00:00+00:00").unwrap();
+        let (info, warn, error) = super::read_log_counts_at(path.clone(), None, cutoff);
         assert_eq!(
             (info, warn, error),
             (1, 0, 0),
-            "stale 2026-04-08 failure must not be counted with 24h window"
+            "legacy fallback should count only entries after container start"
+        );
+        let _ = std::fs::remove_dir_all(&dir);
+    }
+
+    #[test]
+    fn read_runtime_session_id_reads_metadata_file() {
+        let dir = std::env::temp_dir().join(format!(
+            "aibox-session-test-{}-{}",
+            std::process::id(),
+            std::time::SystemTime::now()
+                .duration_since(std::time::UNIX_EPOCH)
+                .unwrap()
+                .as_nanos()
+        ));
+        std::fs::create_dir_all(&dir).unwrap();
+        let path = dir.join("runtime-session.json");
+        std::fs::write(
+            &path,
+            r#"{"runtime_session_id":"session-123","container_started_at":"2026-05-08T12:00:00Z"}"#,
+        )
+        .unwrap();
+        assert_eq!(
+            super::read_runtime_session_id(&path),
+            Some("session-123".to_string())
         );
         let _ = std::fs::remove_dir_all(&dir);
     }
@@ -854,9 +940,7 @@ mod tests {
     fn read_log_counts_returns_zero_for_missing_file() {
         let bogus = std::env::temp_dir().join("definitely-not-here-aibox.log");
         let _ = std::fs::remove_file(&bogus);
-        let now = super::SystemTime::now();
-        let (info, warn, error) =
-            super::read_log_counts_at(bogus, now, std::time::Duration::from_secs(3600));
+        let (info, warn, error) = super::read_log_counts_at(bogus, Some("session"), 0);
         assert_eq!((info, warn, error), (0, 0, 0));
     }
 }

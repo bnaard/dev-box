@@ -2403,7 +2403,7 @@ mod tests {
         assert!(
             tmux.contains("aibox-powerkit-render-session")
                 && tmux.contains(
-                    "aibox-powerkit-render-list right ssh,hostname,externalip,weather,uptime,datetime"
+                    "aibox-powerkit-render-list right aibox_log,aibox_oom,aibox_proc,aibox_ai,aibox_mcp,aibox_mig,weather,uptime,datetime"
                 ),
             "tmux config should use generated PowerKit status render helpers:\n{tmux}"
         );
