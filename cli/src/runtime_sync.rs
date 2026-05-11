@@ -266,6 +266,7 @@ fn ensure_live_runtime_file_permissions(rel_path: &str, target: &Path) -> Result
         || rel_path == ".local/bin/aibox-powerkit-render-list"
         || rel_path == ".local/bin/aibox-powerkit-render-session"
         || rel_path == ".local/bin/aibox-status-toggle"
+        || rel_path == ".local/bin/aibox-copy"
         || (rel_path.starts_with(".config/tmux/") && rel_path.ends_with(".sh"))
     {
         ensure_executable(target)?;
@@ -607,6 +608,7 @@ fn managed_runtime_helper_relpath(rel_path: &str) -> bool {
         || rel_path == ".local/bin/aibox-powerkit-render-list"
         || rel_path == ".local/bin/aibox-powerkit-render-session"
         || rel_path == ".local/bin/aibox-status-toggle"
+        || rel_path == ".local/bin/aibox-copy"
 }
 
 fn managed_yazi_relpath(rel_path: &str) -> bool {
@@ -1303,19 +1305,21 @@ mod tests {
 
     #[test]
     #[cfg(unix)]
-    fn runtime_status_toggle_helper_stays_executable_after_auto_apply() {
+    fn runtime_helpers_stay_executable_after_auto_apply() {
         let tmp = TempDir::new().unwrap();
-        let target = tmp.path().join(".local/bin/aibox-status-toggle");
-        fs::create_dir_all(target.parent().unwrap()).unwrap();
-        fs::write(&target, "#!/bin/sh\n").unwrap();
+        for rel in [".local/bin/aibox-status-toggle", ".local/bin/aibox-copy"] {
+            let target = tmp.path().join(rel);
+            fs::create_dir_all(target.parent().unwrap()).unwrap();
+            fs::write(&target, "#!/bin/sh\n").unwrap();
 
-        ensure_live_runtime_file_permissions(".local/bin/aibox-status-toggle", &target).unwrap();
+            ensure_live_runtime_file_permissions(rel, &target).unwrap();
 
-        assert_ne!(
-            fs::metadata(&target).unwrap().permissions().mode() & 0o111,
-            0,
-            "aibox-status-toggle should remain executable after runtime auto-apply"
-        );
+            assert_ne!(
+                fs::metadata(&target).unwrap().permissions().mode() & 0o111,
+                0,
+                "{rel} should remain executable after runtime auto-apply"
+            );
+        }
     }
 
     #[test]

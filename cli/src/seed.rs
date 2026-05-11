@@ -95,6 +95,13 @@ nnoremap <End>  $
 vnoremap <Home> ^
 vnoremap <End>  $
 
+" Copy explicit Vim selections to the host clipboard through tmux/OSC52.
+" Paste from the host still uses the terminal paste shortcut.
+if executable('aibox-copy')
+  xnoremap <silent> <leader>y y:<C-u>call system('aibox-copy', getreg('"'))<CR>
+  nnoremap <silent> <leader>Y yy:call system('aibox-copy', getreg('"'))<CR>
+endif
+
 set background=AIBOX_VIM_BG
 set termguicolors
 colorscheme AIBOX_VIM_COLORSCHEME
@@ -574,6 +581,37 @@ const DEFAULT_AIBOX_PREVIEW_SH: &str =
 /// aibox-status-toggle helper — toggle the tmux runtime status line.
 const DEFAULT_AIBOX_STATUS_TOGGLE_SH: &str =
     include_str!("../../images/base-debian/config/bin/aibox-status-toggle.sh");
+/// aibox-copy helper — forward stdin to tmux/OSC52 host clipboard integration.
+const DEFAULT_AIBOX_COPY_SH: &str = r#"#!/usr/bin/env bash
+set -euo pipefail
+
+tmp="${TMPDIR:-/tmp}/aibox-copy.$$"
+trap 'rm -f "$tmp"' EXIT
+cat >"$tmp"
+
+if [[ -n "${TMUX:-}" ]] && command -v tmux >/dev/null 2>&1; then
+    if tmux load-buffer -w "$tmp" >/dev/null 2>&1; then
+        exit 0
+    fi
+fi
+
+encoded="$(base64 <"$tmp" | tr -d '\n')"
+
+if [[ "${AIBOX_COPY_STDOUT:-}" == "1" ]]; then
+    printf '\033]52;c;%s\a' "$encoded"
+    exit 0
+fi
+
+if [[ -n "${TMUX:-}" ]]; then
+    if [[ -t 1 ]]; then
+        printf '\033Ptmux;\033\033]52;c;%s\a\033\\' "$encoded" >/dev/tty
+    fi
+else
+    if [[ -t 1 ]]; then
+        printf '\033]52;c;%s\a' "$encoded" >/dev/tty
+    fi
+fi
+"#;
 
 /// lnav format file describing the aibox NDJSON log shape — read by
 /// `Prefix L` in tmux to surface logs with timestamps, levels, and
@@ -969,6 +1007,10 @@ pub fn managed_runtime_files(config: &AiboxConfig) -> Vec<(std::path::PathBuf, S
         (
             std::path::PathBuf::from(".local/bin/aibox-status-toggle"),
             DEFAULT_AIBOX_STATUS_TOGGLE_SH.to_string(),
+        ),
+        (
+            std::path::PathBuf::from(".local/bin/aibox-copy"),
+            DEFAULT_AIBOX_COPY_SH.to_string(),
         ),
         (
             std::path::PathBuf::from(".local/bin/aibox-powerkit-render-list"),
@@ -1429,6 +1471,7 @@ pub fn seed_root_dir(config: &AiboxConfig) -> Result<()> {
             || rel_path == Path::new(".local/bin/open-in-editor")
             || rel_path == Path::new(".local/bin/aibox-preview")
             || rel_path == Path::new(".local/bin/aibox-status-toggle")
+            || rel_path == Path::new(".local/bin/aibox-copy")
             || rel_path == Path::new(".local/bin/aibox-powerkit-render-list")
             || rel_path == Path::new(".local/bin/aibox-powerkit-render-session")
             || (rel_path.starts_with(".config/tmux/")
@@ -1478,6 +1521,7 @@ pub fn restore_missing_managed_runtime_files(config: &AiboxConfig) -> Result<Vec
             || rel_path == Path::new(".local/bin/open-in-editor")
             || rel_path == Path::new(".local/bin/aibox-preview")
             || rel_path == Path::new(".local/bin/aibox-status-toggle")
+            || rel_path == Path::new(".local/bin/aibox-copy")
             || rel_path == Path::new(".local/bin/aibox-powerkit-render-list")
             || rel_path == Path::new(".local/bin/aibox-powerkit-render-session")
             || (rel_path.starts_with(".config/tmux/")
@@ -1669,6 +1713,13 @@ pub fn sync_theme_files(config: &AiboxConfig) -> Result<Vec<String>> {
         updated.push(".local/bin/aibox-status-toggle".to_string());
     }
     if force_seed_file(
+        &root.join(".local").join("bin").join("aibox-copy"),
+        DEFAULT_AIBOX_COPY_SH,
+    )? {
+        ensure_executable(&root.join(".local").join("bin").join("aibox-copy"))?;
+        updated.push(".local/bin/aibox-copy".to_string());
+    }
+    if force_seed_file(
         &root
             .join(".local")
             .join("bin")
@@ -1789,6 +1840,7 @@ pub fn sync_managed_runtime_permissions(config: &AiboxConfig) -> Result<Vec<Stri
         ".local/bin/open-in-editor",
         ".local/bin/aibox-preview",
         ".local/bin/aibox-status-toggle",
+        ".local/bin/aibox-copy",
     ] {
         if ensure_executable_if_present(&root.join(rel_path))? {
             updated.push(format!("{} (chmod +x)", rel_path));
@@ -2135,6 +2187,15 @@ mod tests {
             0,
             "aibox-status-toggle should be executable"
         );
+        assert_ne!(
+            fs::metadata(root.join(".local").join("bin").join("aibox-copy"))
+                .unwrap()
+                .permissions()
+                .mode()
+                & 0o111,
+            0,
+            "aibox-copy should be executable"
+        );
         clear_test_host_root();
     }
 
@@ -2383,6 +2444,12 @@ mod tests {
             fs::metadata(&toggle_path).unwrap().permissions().mode() & 0o111,
             0,
             "aibox-status-toggle should be executable after apply-time sync"
+        );
+        let copy_path = root.join(".local").join("bin").join("aibox-copy");
+        assert_ne!(
+            fs::metadata(&copy_path).unwrap().permissions().mode() & 0o111,
+            0,
+            "aibox-copy should remain executable after apply-time sync"
         );
         clear_test_host_root();
     }
@@ -2682,8 +2749,17 @@ rules = [
                 && DEFAULT_VIMRC.contains("autocmd VimEnter * redraw!")
                 && DEFAULT_VIMRC.contains("set nowrap nolinebreak")
                 && DEFAULT_VIMRC.contains("autocmd FileType markdown setlocal nowrap nolinebreak")
-                && DEFAULT_VIMRC.contains("set sidescroll=1"),
+                && DEFAULT_VIMRC.contains("set sidescroll=1")
+                && DEFAULT_VIMRC.contains("xnoremap <silent> <leader>y")
+                && DEFAULT_VIMRC.contains("nnoremap <silent> <leader>Y")
+                && DEFAULT_VIMRC.contains("call system('aibox-copy'"),
             "default vimrc should harden redraw during Yazi/Vim handoff"
+        );
+        assert!(
+            DEFAULT_AIBOX_COPY_SH.contains("tmux load-buffer -w")
+                && DEFAULT_AIBOX_COPY_SH.contains("]52;c;")
+                && DEFAULT_AIBOX_COPY_SH.contains("AIBOX_COPY_STDOUT"),
+            "aibox-copy should support tmux clipboard handoff and OSC52 fallback"
         );
     }
 
