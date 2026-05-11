@@ -493,9 +493,9 @@ else
       echo "tmux PTY transcript is empty"
       fail=1
     fi
-    expected_windows="ai shell"
+    expected_windows="work shell"
     if [[ "${smoke_git_ui}" == "1" ]]; then
-      expected_windows="${expected_windows} git"
+      expected_windows="${expected_windows} lazygit"
     fi
     for expected_window in ${expected_windows}; do
       if ! grep -E "^[0-9]+ ${expected_window} " /tmp/aibox-tmux-generated-state.txt >/tmp/aibox-tmux-layout-windows.txt 2>&1; then
@@ -512,7 +512,7 @@ else
         echo "tmux status/key text was not visible in generated-layout PTY smoke"
         fail=1
       fi
-      if ! grep -aE 'AIBOX|MEM .+/unlimited|OOM [0-9]+|PROC [0-9]+ AI [0-9]+|MCP (gateway|granular|none) [0-9]+' /tmp/aibox-tmux.typescript >/tmp/aibox-tmux-runtime-row.txt 2>&1; then
+      if ! grep -aE 'AIBOX|MEM .+/unlimited|OOM [0-9]+|PROC [0-9]+ AI [0-9]+|MCP (dmn|stdio|sep|none|unknown|degraded)' /tmp/aibox-tmux.typescript >/tmp/aibox-tmux-runtime-row.txt 2>&1; then
         if [[ "${tmux_status}" == "extended" ]]; then
           echo "tmux runtime status row was not visible in generated-layout PTY smoke"
           fail=1
