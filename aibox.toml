@@ -399,6 +399,8 @@ lazygit = { enabled = false } # default on; options: {}, { enabled = true|false 
 # Alias used by some tools: OPENAI_API_BASE (OpenAI).
 [ai]
 
+harness_order = ["codex", "claude"]  # tmux: 1st, 2nd, 3rd harness placement order
+
 model_providers = [
 #     "anthropic", # env: ANTHROPIC_API_KEY, ANTHROPIC_BASE_URL
 #     "openai", # env: OPENAI_API_KEY, OPENAI_BASE_URL

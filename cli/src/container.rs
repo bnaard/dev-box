@@ -1274,6 +1274,7 @@ pub(crate) fn serialize_config_with_comments(config: &AiboxConfig) -> String {
     out.push_str("# Hermes                      hermes         any (multi-provider)\n");
     out.push_str("#\n");
     out.push_str("# Enable harnesses through their [ai.harness.<name>] table below.\n");
+    out.push_str("# `harness_order` controls tmux layout semantics: 1st, 2nd, 3rd harness.\n");
     out.push_str("#\n");
     out.push_str(
         "# Model providers (optional): declare which API key/base URL env vars are available.\n",
@@ -1286,6 +1287,7 @@ pub(crate) fn serialize_config_with_comments(config: &AiboxConfig) -> String {
     out.push_str("#\n");
     out.push_str("# Alias used by some tools: OPENAI_API_BASE (OpenAI).\n");
     out.push_str("[ai]\n");
+    render_ai_harness_order(&mut out, &config.ai.harnesses);
     render_ai_model_provider_catalog(&mut out, &config.ai.model_providers);
     render_ai_harness_detail_catalog(&mut out, config);
 
@@ -1625,6 +1627,17 @@ fn render_ai_model_provider_catalog(out: &mut String, selected: &[crate::config:
         ));
     }
     out.push_str("]\n");
+}
+
+fn render_ai_harness_order(out: &mut String, harnesses: &[crate::config::AiHarness]) {
+    let values = harnesses
+        .iter()
+        .map(|harness| format!("\"{}\"", harness))
+        .collect::<Vec<_>>()
+        .join(", ");
+    out.push_str("\nharness_order = [");
+    out.push_str(&values);
+    out.push_str("]  # tmux: 1st, 2nd, 3rd harness placement order\n");
 }
 
 fn render_ai_harness_detail_catalog(out: &mut String, config: &AiboxConfig) {
@@ -2136,6 +2149,7 @@ pub fn cmd_init(config_path: &Option<String>, params: InitParams) -> Result<()> 
         },
         ai: AiSection {
             harnesses: ai_providers,
+            harness_order: Vec::new(),
             model_providers: Vec::new(),
             harness: std::collections::HashMap::new(),
             providers: Vec::new(),

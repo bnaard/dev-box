@@ -8,7 +8,7 @@ use crate::config::{AiboxConfig, ConfigLayout};
 /// Build the shell fragment that creates additional harness panes for the `ai`
 /// layout when ≥2 harnesses are active.
 ///
-/// BR-AI-MULTIHARNESS (BACK-20260510_0336-SmartLark, v0.25.7): order-1
+/// BR-AI-MULTIHARNESS (BACK-20260510_0336-SmartLark, v0.25.7): the 1st
 /// harness gets the main agent column (created by the primary split-window).
 /// Subsequent harnesses are stacked as small vertical splits beneath the main
 /// pane.
@@ -17,8 +17,8 @@ use crate::config::{AiboxConfig, ConfigLayout};
 /// the primary at 80%.  With 2+ secondary harnesses each subsequent split
 /// divides the remaining tail at 50%, giving roughly equal secondary shares.
 ///
-/// Order is determined by the stable list order of `[ai].harnesses` in
-/// aibox.toml (first active harness = order-1, second = order-2, …).
+/// Order is determined by `[ai].harness_order` in aibox.toml; enabled
+/// harnesses omitted there are appended in canonical order.
 fn ai_secondary_panes(active_harnesses: &[&str]) -> String {
     // active_harnesses[0] is already created as agent_pane by the caller.
     let secondaries = active_harnesses.get(1..).unwrap_or(&[]);
@@ -45,7 +45,7 @@ fn ai_secondary_panes(active_harnesses: &[&str]) -> String {
 /// cowork / cowork-swap agent column.
 ///
 /// BR-COWORK-MULTIHARNESS (BACK-20260510_0726-HappyFjord, v0.25.7, DEC-TrueClover):
-/// order-1 harness is visible; secondaries are stacked as 1-line panes then
+/// the 1st harness is visible; secondaries are stacked as 1-line panes then
 /// immediately disabled (`select-pane -d`) so they don't steal focus but remain
 /// addressable via `prefix j/k`.
 fn cowork_secondary_panes(active_harnesses: &[&str]) -> String {
@@ -77,7 +77,7 @@ tmux -S "$socket" select-pane -t "${{{var_name}}}" -d
 /// each secondary harness gets its own tmux window named after the harness
 /// binary.  For `dev`, the window is named `dev-<harness>` to differentiate
 /// it from the primary `dev` window.  For `focus`, the window is named after
-/// the harness binary directly (the primary is always the order-1 harness).
+/// the harness binary directly (the primary is always the 1st harness).
 fn dev_secondary_windows(active_harnesses: &[&str]) -> String {
     let secondaries = active_harnesses.get(1..).unwrap_or(&[]);
     if secondaries.is_empty() {
@@ -128,7 +128,7 @@ pub fn tmux_layout_script(
         .unwrap_or("bash");
 
     // Collect active harness binary names in stable list order.
-    // Order-1 = first active harness; order-2..N follow.
+    // 1st harness = first active harness after harness_order; 2nd..N follow.
     let active_harnesses: Vec<&str> = providers
         .iter()
         .filter(|p| p.is_active())
@@ -350,8 +350,8 @@ mod tests {
 
     #[test]
     fn tmux_dev_layout_uses_selected_primary_provider() {
-        // codex is order-1 (first in list) → primary pane in dev window.
-        // claude is order-2 → secondary window named "dev-claude".
+        // codex is the 1st harness → primary pane in dev window.
+        // claude is the 2nd harness → secondary window named "dev-claude".
         // BR-TRUECLOVER: with 2+ harnesses, secondaries are tabbed windows.
         let providers = vec![AiProvider::Codex, AiProvider::Claude];
         let layout = tmux_layout_script(&ConfigLayout::Dev, &providers, true, &no_tools(), "aibox");
@@ -361,24 +361,24 @@ mod tests {
                 "tmux -S \"$socket\" -f \"$config\" new-session -d -s \"$session\" -n dev"
             )
         );
-        // codex is order-1 → primary agent_pane in dev window
+        // codex is the 1st harness → primary agent_pane in dev window
         assert!(layout.contains("tool_or_shell codex"));
-        // claude is order-2 → secondary window "dev-claude"
+        // claude is the 2nd harness → secondary window "dev-claude"
         assert!(
             layout.contains("tool_or_shell claude"),
-            "order-2 harness still appears as secondary window"
+            "2nd harness still appears as secondary window"
         );
-        // codex must appear before claude (order-1 before order-2)
+        // codex must appear before claude (1st before 2nd)
         let codex_pos = layout.find("tool_or_shell codex").unwrap();
         let claude_pos = layout.find("tool_or_shell claude").unwrap();
         assert!(
             codex_pos < claude_pos,
-            "order-1 (codex) must appear before order-2 (claude)"
+            "1st harness (codex) must appear before 2nd harness (claude)"
         );
         // claude should be in a secondary window, not as the primary agent_pane
         assert!(
             layout.contains("new-window -t \"$session:\" -n \"dev-claude\""),
-            "order-2 harness must become a dev-<harness> secondary window"
+            "2nd harness must become a dev-<harness> secondary window"
         );
         assert!(layout.contains("tmux -S \"$socket\" new-window -t \"$session:\" -n git"));
         assert!(layout.contains("socket=\"${AIBOX_TMUX_SOCKET:-$HOME/.tmux/aibox.sock}\""));
@@ -593,8 +593,8 @@ mod tests {
     }
 
     /// BR-AI-MULTIHARNESS (BACK-20260510_0336-SmartLark, v0.25.7):
-    /// with 2 harnesses the order-1 harness is the primary agent pane and
-    /// order-2 is stacked at 20% beneath it (leaving ~80% for the primary).
+    /// with 2 harnesses the 1st harness is the primary agent pane and
+    /// the 2nd harness is stacked at 20% beneath it (leaving ~80% for the primary).
     #[test]
     fn tmux_ai_layout_two_harnesses_stacks_secondary() {
         let providers = vec![AiProvider::Claude, AiProvider::Codex];
@@ -603,18 +603,18 @@ mod tests {
         // Both harness binaries must appear.
         assert!(
             body.contains("tool_or_shell claude"),
-            "order-1 harness (claude) must be in the layout:\n{body}"
+            "1st harness (claude) must be in the layout:\n{body}"
         );
         assert!(
             body.contains("tool_or_shell codex"),
-            "order-2 harness (codex) must be in the layout:\n{body}"
+            "2nd harness (codex) must be in the layout:\n{body}"
         );
         // Claude must come before codex (order preservation).
         let claude_pos = body.find("tool_or_shell claude").unwrap();
         let codex_pos = body.find("tool_or_shell codex").unwrap();
         assert!(
             claude_pos < codex_pos,
-            "order-1 harness (claude) must be created before order-2 (codex):\n{body}"
+            "1st harness (claude) must be created before 2nd harness (codex):\n{body}"
         );
         // Secondary pane variable must be generated.
         assert!(
@@ -659,12 +659,12 @@ mod tests {
         );
     }
 
-    /// BR-AI-MULTIHARNESS: order-resolution — the stable list order of
-    /// harnesses in aibox.toml determines which is order-1.  Reversing the
-    /// list reverses which harness is primary.
+    /// BR-AI-MULTIHARNESS: order-resolution — the effective order from
+    /// `[ai].harness_order` determines which harness is 1st. Reversing the
+    /// effective list reverses which harness is primary.
     #[test]
     fn tmux_ai_layout_harness_order_follows_config_list() {
-        // codex first → codex is order-1 (primary agent_pane), claude is secondary
+        // codex first → codex is 1st harness (primary agent_pane), claude is secondary
         let providers_codex_first = vec![AiProvider::Codex, AiProvider::Claude];
         let body = tmux_layout_script(
             &ConfigLayout::Ai,
@@ -677,7 +677,7 @@ mod tests {
         let claude_pos = body.find("tool_or_shell claude").unwrap();
         assert!(
             codex_pos < claude_pos,
-            "when codex is first in config list it must be the primary harness:\n{body}"
+            "when codex is first in effective harness order it must be the primary harness:\n{body}"
         );
     }
 

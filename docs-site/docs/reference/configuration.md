@@ -73,6 +73,7 @@ gh      = {}
 lazygit = {}
 
 [ai]
+harness_order   = ["codex", "claude"] # tmux: 1st, 2nd, 3rd harness placement
 model_providers = ["anthropic"]       # Optional provider env hints (API key + base URL)
 
 [ai.harness.claude]
@@ -317,6 +318,7 @@ in generated agent/MCP config; in-container CLI installation is controlled by
 
 | Field | Type | Required | Default | Description |
 |-------|------|----------|---------|-------------|
+| `harness_order` | Array of strings | No | enabled harnesses in canonical order | Tmux layout order. The 1st, 2nd, and 3rd harness are resolved from this list; enabled harnesses missing from the list are appended in canonical order. |
 | `model_providers` | Array of strings | No | `[]` | Optional provider env hints: `anthropic`, `openai`, `google`, `mistral`. Each maps to both an API key env var and an optional base URL env var. |
 | `harness.<name>.enabled` | Boolean | No | `false` unless set or paired with other controls | Include this harness in generated runtime config. Names: `claude`, `codex`, `gemini`, `aider`, `continue`, `cursor`, `copilot`, `opencode`, `hermes`. |
 | `harness.<name>.install` | Boolean | No | `true` | Install the matching in-container CLI recipe when available. |

@@ -664,6 +664,12 @@ pub struct AiSection {
     #[serde(default)]
     pub harnesses: Vec<AiHarness>,
 
+    /// Explicit tmux/layout order for enabled harnesses. The 1st, 2nd, 3rd
+    /// harness in layout semantics are resolved from this list; enabled
+    /// harnesses omitted here are appended in canonical order.
+    #[serde(default)]
+    pub harness_order: Vec<AiHarness>,
+
     /// Which model provider API key/base URL env vars are available (optional hint).
     #[serde(default)]
     pub model_providers: Vec<AiModelProvider>,
@@ -697,7 +703,10 @@ impl AiSection {
             // Legacy format: move providers → harnesses
             self.harnesses = self.providers.drain(..).collect();
         }
-        for (harness, config) in &self.harness {
+        for harness in AiHarness::all() {
+            let Some(config) = self.harness.get(harness) else {
+                continue;
+            };
             match config.enabled {
                 Some(true) => {
                     if !self.harnesses.contains(harness) {
@@ -714,6 +723,26 @@ impl AiSection {
                 }
             }
         }
+        self.apply_harness_order();
+    }
+
+    pub fn apply_harness_order(&mut self) {
+        if self.harnesses.len() <= 1 || self.harness_order.is_empty() {
+            return;
+        }
+
+        let mut ordered = Vec::with_capacity(self.harnesses.len());
+        for harness in &self.harness_order {
+            if self.harnesses.contains(harness) && !ordered.contains(harness) {
+                ordered.push(harness.clone());
+            }
+        }
+        for harness in AiHarness::all() {
+            if self.harnesses.contains(harness) && !ordered.contains(harness) {
+                ordered.push(harness.clone());
+            }
+        }
+        self.harnesses = ordered;
     }
 
     /// The effective harness list (after migration).
@@ -755,6 +784,7 @@ impl Default for AiSection {
     fn default() -> Self {
         Self {
             harnesses: default_ai_harnesses(),
+            harness_order: Vec::new(),
             model_providers: Vec::new(),
             harness: HashMap::new(),
             providers: Vec::new(),
@@ -2287,6 +2317,7 @@ impl AiboxConfig {
             "ai",
             &[
                 "harnesses",
+                "harness_order",
                 "model_providers",
                 "harness",
                 "providers",
@@ -2699,6 +2730,7 @@ impl AiboxConfig {
                 self.ai.harnesses.push(harness);
             }
         }
+        self.ai.apply_harness_order();
 
         for harness in &self.ai.harnesses {
             if !harness.is_active() {
@@ -4314,6 +4346,55 @@ pulse_server = "tcp:localhost:4714"
         assert!(!config.addons.has_addon("ai-claude"));
         assert!(config.ai.harnesses.contains(&AiProvider::Codex));
         assert!(config.addons.has_addon("ai-codex"));
+    }
+
+    #[test]
+    fn ai_harness_order_controls_effective_layout_order() {
+        let toml = r#"
+            [aibox]
+            version = "0.9.0"
+            [container]
+            name = "test"
+            [ai]
+            harness_order = ["codex", "claude"]
+            [ai.harness.claude]
+            enabled = true
+            install = true
+            [ai.harness.codex]
+            enabled = true
+            install = true
+        "#;
+        let config = AiboxConfig::from_str(toml).unwrap();
+        assert_eq!(
+            config.ai.harnesses,
+            vec![AiProvider::Codex, AiProvider::Claude]
+        );
+    }
+
+    #[test]
+    fn ai_harness_order_appends_enabled_harnesses_not_listed() {
+        let toml = r#"
+            [aibox]
+            version = "0.9.0"
+            [container]
+            name = "test"
+            [ai]
+            harness_order = ["codex"]
+            [ai.harness.claude]
+            enabled = true
+            install = true
+            [ai.harness.codex]
+            enabled = true
+            install = true
+            [ai.harness.gemini]
+            enabled = true
+            install = true
+        "#;
+        let config = AiboxConfig::from_str(toml).unwrap();
+        assert_eq!(
+            config.ai.harnesses,
+            vec![AiProvider::Codex, AiProvider::Claude, AiProvider::Gemini]
+        );
     }
 
     #[test]
