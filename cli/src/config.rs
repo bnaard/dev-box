@@ -1911,19 +1911,22 @@ pub struct AiboxConfig {
 impl AiboxConfig {
     /// Return the tmux session name used by generated runtime files.
     ///
-    /// The visible tmux session identity follows the project name in
-    /// `aibox.toml`; the legacy `[customization.tmux].session_name` field is
-    /// still parsed for compatibility, but generation should not drift from
-    /// the project identity.
+    /// The configured `[customization.tmux].session_name` wins. When it is not
+    /// set yet, use the project identity so freshly scaffolded configs get a
+    /// stable, project-specific default.
     pub fn tmux_session_name(&self) -> String {
-        let project_name = if !self.aibox.project_name.trim().is_empty() {
+        if !self.customization.tmux.session_name.trim().is_empty() {
+            return resolve_tmux_session_name(&self.customization.tmux.session_name, None);
+        }
+
+        let fallback = if !self.aibox.project_name.trim().is_empty() {
             &self.aibox.project_name
         } else if !self.metadata.name.trim().is_empty() {
             &self.metadata.name
         } else {
             &self.container.name
         };
-        resolve_tmux_session_name(project_name, None)
+        resolve_tmux_session_name(fallback, None)
     }
 
     /// Load configuration from a specific file path.
@@ -3580,7 +3583,7 @@ session_name = "custom"
 "#;
         let config = parse_toml(toml).unwrap();
         assert_eq!(config.customization.tmux.session_name, "custom");
-        assert_eq!(config.tmux_session_name(), "my-app");
+        assert_eq!(config.tmux_session_name(), "custom");
     }
 
     #[test]

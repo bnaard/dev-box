@@ -514,11 +514,11 @@ mod tests {
     fn tmux_status_layout_uses_image_status_binary() {
         let mut config = crate::config::test_config();
         config.aibox.project_name = "source-project".to_string();
-        config.customization.tmux.session_name = "legacy-session".to_string();
+        config.customization.tmux.session_name = "configured-session".to_string();
         let conf = tmux_conf(&config);
 
-        assert!(conf.contains("kill tmux session source-project?"));
-        assert!(!conf.contains("legacy-session"));
+        assert!(conf.contains("kill tmux session configured-session?"));
+        assert!(!conf.contains("kill tmux session source-project?"));
         assert!(
             conf.contains(r#"@powerkit_plugins "ssh,hostname,externalip,weather,uptime,datetime"#)
         );

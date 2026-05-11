@@ -470,8 +470,8 @@ mod tests {
         let script = tmux_session_script(&config);
 
         assert!(script.contains(r#"AIBOX_TMUX_LAYOUT:-ai"#));
-        assert!(script.contains(r#"AIBOX_TMUX_SESSION:-project-work"#));
-        assert!(!script.contains(r#"AIBOX_TMUX_SESSION:-work"#));
+        assert!(script.contains(r#"AIBOX_TMUX_SESSION:-work"#));
+        assert!(!script.contains(r#"AIBOX_TMUX_SESSION:-project-work"#));
         assert!(script.contains(r#"AIBOX_TMUX_SOCKET:-$HOME/.tmux/aibox.sock"#));
         assert!(script.contains(r#".config/tmux/layouts/${layout}.sh"#));
         assert!(script.contains(
