@@ -1,6 +1,6 @@
 name: preview-enhanced
 version: "1.0.0"
-description: "Rich Markdown rendering, ffmpeg, ImageMagick, and Ghostscript"
+description: "Rich Markdown rendering, ffmpeg, and Ghostscript"
 profile_intent: preview-media
 usage_class: automated
 profiles: ["human-dev"]
@@ -10,10 +10,6 @@ requires: ["preview-archive"]
 
 tools:
   - name: ffmpeg
-    default_enabled: true
-    default_version: ""
-    supported_versions: []
-  - name: imagemagick
     default_enabled: true
     default_version: ""
     supported_versions: []
@@ -27,20 +23,17 @@ tools:
     supported_versions: []
 
 runtime: |
-  # Addon: preview-enhanced — rich docs, video thumbnails, EPS, image conversion
+  # Addon: preview-enhanced — rich docs, video thumbnails, and EPS
   # Use preview-archive for baseline image/PDF/SVG and archive preview helpers.
-  # This addon adds python3-rich (Markdown), ffmpeg (video), imagemagick (format conversion), and ghostscript (EPS).
+  # This addon adds python3-rich (Markdown), ffmpeg (video), and ghostscript (EPS).
   USER root
-  {% if tools.rich.enabled or tools.ffmpeg.enabled or tools.imagemagick.enabled or tools.ghostscript.enabled %}
+  {% if tools.rich.enabled or tools.ffmpeg.enabled or tools.ghostscript.enabled %}
   RUN apt-get update && apt-get install -y --no-install-recommends \
   {% if tools.rich.enabled %}
       python3-rich \
   {% endif %}
   {% if tools.ffmpeg.enabled %}
       ffmpeg \
-  {% endif %}
-  {% if tools.imagemagick.enabled %}
-      imagemagick \
   {% endif %}
   {% if tools.ghostscript.enabled %}
       ghostscript \
@@ -56,11 +49,6 @@ runtime: |
   {% if not tools.ffmpeg.enabled %}
   RUN if dpkg-query -W -f='${Status}' ffmpeg 2>/dev/null | grep -q 'install ok installed'; then \
         apt-get purge -y --auto-remove ffmpeg; \
-      fi && rm -rf /var/lib/apt/lists/*
-  {% endif %}
-  {% if not tools.imagemagick.enabled %}
-  RUN if dpkg-query -W -f='${Status}' imagemagick 2>/dev/null | grep -q 'install ok installed'; then \
-        apt-get purge -y --auto-remove imagemagick; \
       fi && rm -rf /var/lib/apt/lists/*
   {% endif %}
   {% if not tools.ghostscript.enabled %}

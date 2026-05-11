@@ -39,7 +39,7 @@ GitHub CLI (`gh`) and lazygit are provided by the optional
 
 Audio tools are provided by the internal `audio-voice` recipe, which is selected
 automatically when `[audio] enabled = true` and `install = true`. File-preview and archive helpers
-such as `chafa`, `timg`, `poppler-utils`, `mupdf-tools`, `entr`, `ouch`, and
+such as `chafa`, `timg`, `poppler-utils`, `mupdf-tools`, `entr`, and
 `resvg` are provided by the optional `preview-archive` addon.
 
 ## Build Architecture
@@ -186,7 +186,7 @@ On first `aibox init` or `aibox up`, the `.aibox-home/` directory is auto-seeded
 
 The base image ships the Yazi configuration and preview plugins. Install the
 optional `preview-archive` addon for raster/SVG/PDF/archive helper binaries and
-`preview-enhanced` for Markdown, EPS, video, and ImageMagick/Ghostscript
+`preview-enhanced` for Markdown, EPS, video, and Ghostscript
 support. PDF and SVG also support **watch-mode preview** when the required
 preview tools are selected.
 

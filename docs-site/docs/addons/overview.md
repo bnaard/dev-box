@@ -74,8 +74,8 @@ After editing `aibox.toml`, run `aibox apply` to regenerate the Dockerfile and r
 |-------|--------------|----------------|
 | `infrastructure` | opentofu, ansible, packer | — |
 | `git-ui` | gh, lazygit | — |
-| `preview-archive` | chafa, timg, poppler-utils, mupdf-tools, entr, ouch, resvg | p7zip-full |
-| `preview-enhanced` | python3-rich, ffmpeg, imagemagick, ghostscript | — |
+| `preview-archive` | chafa, timg, poppler-utils, mupdf-tools, entr, p7zip-full, resvg | — |
+| `preview-enhanced` | python3-rich, ffmpeg, ghostscript | — |
 | `audio-voice` | sox, pulseaudio-utils, ALSA PulseAudio plugins | — |
 | `kubernetes` | kubectl, helm, kustomize | k9s |
 | `cloud-aws` | aws-cli | — |

@@ -49,14 +49,13 @@ When you open Yazi (`Ctrl+g s` from the file manager pane, or via the layout sid
 
 Raster image, SVG, PDF, archive, and standalone terminal viewers require the
 **preview-archive** addon. SQLite, CSV/TSV, and Excel previews require the
-**data-preview** addon. Markdown rendering, EPS, video thumbnails, and advanced
-image conversion require the **preview-enhanced** addon, which depends on
-`preview-archive`:
+**data-preview** addon. Markdown rendering, EPS, and video thumbnails require
+the **preview-enhanced** addon, which depends on `preview-archive`:
 
 ```bash
-aibox set addon preview-archive enabled --apply    # adds chafa, timg, poppler, mutool, entr, ouch, resvg
+aibox set addon preview-archive enabled --apply    # adds chafa, timg, poppler, mutool, entr, p7zip, resvg
 aibox set addon data-preview enabled --apply       # adds sqlite3 and csvkit for data previews
-aibox set addon preview-enhanced enabled --apply   # adds python3-rich, ffmpeg, imagemagick, ghostscript
+aibox set addon preview-enhanced enabled --apply   # adds python3-rich, ffmpeg, ghostscript
 ```
 
 ### How previewer dispatch works

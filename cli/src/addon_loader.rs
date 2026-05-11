@@ -1283,8 +1283,7 @@ runtime: |
             let rendered = render_runtime(&addon, &tools).unwrap();
             assert!(
                 rendered.contains("apt-get purge")
-                    || rendered.contains("rm -f /usr/local/bin/")
-                    || rendered.contains("rm -f /usr/local/bin/ouch"),
+                    || rendered.contains("rm -f /usr/local/bin/"),
                 "addon '{name}' must emit a purge step when all tools disabled: {rendered}"
             );
         }

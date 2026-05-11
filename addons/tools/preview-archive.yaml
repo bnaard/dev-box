@@ -36,10 +36,6 @@ tools:
     default_enabled: true
     default_version: ""
     supported_versions: []
-  - name: ouch
-    default_enabled: true
-    default_version: "0.7.1"
-    supported_versions: ["0.7.1"]
   - name: resvg
     default_enabled: true
     default_version: "0.47.0"
@@ -54,22 +50,6 @@ builder: |
       ca-certificates \
       curl \
       && rm -rf /var/lib/apt/lists/*
-
-  {% if tools.ouch.enabled %}
-  RUN ARCH=$(uname -m) && \
-      OUCH_VERSION="{{ tools.ouch.version }}" && \
-      curl -fsSL \
-        "https://github.com/ouch-org/ouch/releases/download/${OUCH_VERSION}/ouch-${ARCH}-unknown-linux-musl.tar.gz" \
-        -o /tmp/ouch.tar.gz && \
-      curl -fsSL \
-        "https://github.com/ouch-org/ouch/releases/download/${OUCH_VERSION}/ouch-${ARCH}-unknown-linux-musl.tar.gz.sha256" \
-        -o /tmp/ouch.tar.gz.sha256 && \
-      (cd /tmp && sha256sum -c ouch.tar.gz.sha256) && \
-      tar -xz --strip-components=1 -C /usr/local/bin -f /tmp/ouch.tar.gz \
-        "ouch-${ARCH}-unknown-linux-musl/ouch" && \
-      chmod +x /usr/local/bin/ouch && \
-      rm /tmp/ouch.tar.gz /tmp/ouch.tar.gz.sha256
-  {% endif %}
 
   {% if tools.resvg.enabled %}
   ARG RESVG_SHA256_X86_64=5c84dcbcd032fe7e8d96e616fd6807a2f9df6561d2e6582b37e91e63c6cb4fe7
@@ -117,9 +97,6 @@ runtime: |
   {% endif %}
       && rm -rf /var/lib/apt/lists/*
   {% endif %}
-  {% if tools.ouch.enabled %}
-  COPY --from=preview-archive-builder /usr/local/bin/ouch /usr/local/bin/ouch
-  {% endif %}
   {% if tools.resvg.enabled %}
   COPY --from=preview-archive-builder /usr/local/bin/resvg /usr/local/bin/resvg
   {% endif %}
@@ -158,9 +135,6 @@ runtime: |
   RUN if dpkg-query -W -f='${Status}' p7zip-full 2>/dev/null | grep -q 'install ok installed'; then \
         apt-get purge -y --auto-remove p7zip-full; \
       fi && rm -rf /var/lib/apt/lists/*
-  {% endif %}
-  {% if not tools.ouch.enabled %}
-  RUN rm -f /usr/local/bin/ouch /usr/bin/ouch
   {% endif %}
   {% if not tools.resvg.enabled %}
   RUN rm -f /usr/local/bin/resvg /usr/bin/resvg

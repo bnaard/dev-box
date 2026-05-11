@@ -338,22 +338,33 @@ lazygit = { enabled = false } # default on; options: {}, { enabled = true|false 
 # kustomize = {} # default on; options: {}, { enabled = true|false }, { version = "x.y.z" or "latest" }
 # k9s = { enabled = true } # default off; options: {}, { enabled = true|false }, { version = "x.y.z" or "latest" }
 
-# Tools/preview-archive — Yazi image/PDF/SVG preview helpers plus archive preview/extraction tools
+# Tools/preview-archive — image/PDF/SVG preview helpers plus archive/watch tools
 # [addons.preview-archive.tools]
+# Yazi preview enhancements:
+#   suffixes: .jpg .jpeg .png .gif .webp .bmp .tiff .tif -> chafa
+#   suffixes: .svg -> resvg, with librsvg/rsvg-convert fallback
+#   suffixes: .pdf -> poppler/pdftoppm
 # chafa = {} # default on; options: {}, { enabled = true|false }, { version = "x.y.z" or "latest" }
+# resvg = {} # default on; options: {}, { enabled = true|false }, { version = "0.47.0" (default) or "latest" }
 # librsvg = {} # default on; options: {}, { enabled = true|false }, { version = "x.y.z" or "latest" }
 # poppler = {} # default on; options: {}, { enabled = true|false }, { version = "x.y.z" or "latest" }
+#
+# Standalone/watch previews:
+#   suffixes: .pdf live watch -> mupdf/mutool + timg + entr
+#   suffixes: archives (.zip .7z .rar .tar .tar.gz .tgz .tar.xz .txz) -> p7zip
 # timg = {} # default on; options: {}, { enabled = true|false }, { version = "x.y.z" or "latest" }
 # mupdf = {} # default on; options: {}, { enabled = true|false }, { version = "x.y.z" or "latest" }
 # entr = {} # default on; options: {}, { enabled = true|false }, { version = "x.y.z" or "latest" }
 # p7zip = {} # default on; options: {}, { enabled = true|false }, { version = "x.y.z" or "latest" }
-# ouch = {} # default on; options: {}, { enabled = true|false }, { version = "0.7.1" (default) or "latest" }
-# resvg = {} # default on; options: {}, { enabled = true|false }, { version = "0.47.0" (default) or "latest" }
 
-# Tools/preview-enhanced — Rich Markdown rendering, ffmpeg, ImageMagick, and Ghostscript; requires preview-archive
+# Tools/preview-enhanced — Rich text/docs, video, and EPS; requires preview-archive
 # [addons.preview-enhanced.tools]
+# Yazi preview enhancements:
+#   suffixes: .md .markdown -> rich/python3-rich
+#   suffixes: .rst .json .ipynb -> rich/python3-rich
+#   suffixes: .eps -> ghostscript/gs
+#   suffixes: video files (.mp4 .mkv .webm .avi) -> ffmpeg
 # ffmpeg = {} # default on; options: {}, { enabled = true|false }, { version = "x.y.z" or "latest" }
-# imagemagick = {} # default on; options: {}, { enabled = true|false }, { version = "x.y.z" or "latest" }
 # ghostscript = {} # default on; options: {}, { enabled = true|false }, { version = "x.y.z" or "latest" }
 # rich = {} # default on; options: {}, { enabled = true|false }, { version = "x.y.z" or "latest" }
 

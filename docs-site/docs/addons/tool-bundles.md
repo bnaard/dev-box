@@ -30,7 +30,7 @@ timg = {}
 poppler-utils = {}
 mupdf-tools = {}
 entr = {}
-ouch = {}
+p7zip = {}
 resvg = {}
 ```
 
@@ -39,8 +39,8 @@ used by Yazi previews and watch-mode document workflows. Keep it disabled for
 lean headless projects that do not inspect media or generated documents inside
 the terminal.
 
-`preview-enhanced` layers Markdown, EPS, video, ImageMagick, and Ghostscript
-support on top of `preview-archive`.
+`preview-enhanced` layers Markdown, EPS, video, and Ghostscript support on top
+of `preview-archive`.
 
 ## Audio and Voice
 
