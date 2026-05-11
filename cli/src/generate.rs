@@ -1623,6 +1623,12 @@ mod tests {
             ),
             "base image should inject the aibox runtime segment into the pinned PowerKit tree"
         );
+        assert!(
+            content.contains(
+                "config/tmux/powerkit-plugins/uptime.sh     /usr/local/share/aibox/tmux/plugins/tmux-powerkit/src/plugins/uptime.sh"
+            ),
+            "base image should override PowerKit uptime with container uptime"
+        );
     }
 
     #[test]

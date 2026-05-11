@@ -334,6 +334,9 @@ COPY config/tmux/powerkit-plugins/aibox_proc.sh /usr/local/share/aibox/tmux/plug
 COPY config/tmux/powerkit-plugins/aibox_ai.sh   /usr/local/share/aibox/tmux/plugins/tmux-powerkit/src/plugins/aibox_ai.sh
 COPY config/tmux/powerkit-plugins/aibox_mcp.sh  /usr/local/share/aibox/tmux/plugins/tmux-powerkit/src/plugins/aibox_mcp.sh
 COPY config/tmux/powerkit-plugins/aibox_mig.sh  /usr/local/share/aibox/tmux/plugins/tmux-powerkit/src/plugins/aibox_mig.sh
+# Override upstream uptime.sh so the status segment reports container uptime
+# from PID 1 rather than host/VM kernel uptime from /proc/uptime.
+COPY config/tmux/powerkit-plugins/uptime.sh     /usr/local/share/aibox/tmux/plugins/tmux-powerkit/src/plugins/uptime.sh
 COPY config/tmux/tmux.conf /home/aibox/.config/tmux/tmux.conf
 RUN ln -sf /home/aibox/.config/tmux/tmux.conf /home/aibox/.tmux.conf && \
     for plugin in /usr/local/share/aibox/tmux/plugins/*; do \
