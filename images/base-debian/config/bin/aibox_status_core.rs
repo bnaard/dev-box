@@ -2,6 +2,7 @@
 // each binary intentionally uses a different subset of the shared helpers.
 #![allow(dead_code)]
 
+use std::collections::BTreeSet;
 use std::fs;
 use std::io::{self, Read, Seek, SeekFrom};
 use std::path::{Path, PathBuf};
@@ -253,6 +254,7 @@ fn read_process_details(proc_root: &Path) -> ProcessDetails {
         Ok(entries) => entries,
         Err(_) => return details,
     };
+    let mut ai_families = BTreeSet::new();
 
     for entry in entries.flatten().take(PROC_SCAN_LIMIT) {
         let name = entry.file_name();
@@ -267,8 +269,8 @@ fn read_process_details(proc_root: &Path) -> ProcessDetails {
             Some(cmdline) => cmdline.to_ascii_lowercase(),
             None => continue,
         };
-        if contains_ai_agent(&cmdline) {
-            details.ai_agents += 1;
+        if let Some(family) = ai_agent_family(&cmdline) {
+            ai_families.insert(family);
         }
         if cmdline.contains("processkit-gateway") && cmdline.contains("server.py") {
             details.processkit_mode = "gateway".to_string();
@@ -281,6 +283,7 @@ fn read_process_details(proc_root: &Path) -> ProcessDetails {
         }
     }
 
+    details.ai_agents = ai_families.len() as u64;
     details
 }
 
@@ -294,19 +297,17 @@ fn read_cmdline_limited(path: &Path) -> Option<String> {
     String::from_utf8(text).ok()
 }
 
-fn contains_ai_agent(cmdline: &str) -> bool {
-    [
-        "/codex ",
-        " codex ",
-        "claude ",
-        "gemini ",
-        "aider ",
-        "copilot ",
-        "opencode ",
-        "hermes ",
-    ]
-    .iter()
-    .any(|needle| cmdline.contains(needle))
+fn ai_agent_family(cmdline: &str) -> Option<&'static str> {
+    ["codex", "claude", "gemini", "aider", "copilot", "opencode", "hermes"]
+        .iter()
+        .find(|family| contains_command_token(cmdline, family))
+        .copied()
+}
+
+fn contains_command_token(cmdline: &str, needle: &str) -> bool {
+    cmdline
+        .split(|ch: char| !(ch.is_ascii_alphanumeric() || ch == '_' || ch == '-'))
+        .any(|token| token == needle)
 }
 
 fn read_memory_max(path: PathBuf) -> String {
@@ -796,6 +797,40 @@ mod tests {
         assert!(json.contains("\"net\":\"n/a\""));
         assert!(json.contains("\"processes\":\"99\""));
         assert!(json.contains("\"threads\":\"123\""));
+    }
+
+    #[test]
+    fn read_process_details_counts_distinct_ai_agent_families() {
+        let dir = std::env::temp_dir().join(format!(
+            "aibox-proc-test-{}-{}",
+            std::process::id(),
+            std::time::SystemTime::now()
+                .duration_since(std::time::UNIX_EPOCH)
+                .unwrap()
+                .as_nanos()
+        ));
+        std::fs::create_dir_all(&dir).unwrap();
+        for (pid, cmdline) in [
+            ("1", "bash -lc if command -v codex >/dev/null; then codex; fi"),
+            ("2", "node /usr/bin/codex"),
+            ("3", "/opt/codex/codex"),
+            ("4", "bash -lc if command -v claude >/dev/null; then claude; fi"),
+            ("5", "claude"),
+            ("6", "uv run processkit-gateway/mcp/server.py stdio-proxy"),
+        ] {
+            let pid_dir = dir.join(pid);
+            std::fs::create_dir_all(&pid_dir).unwrap();
+            std::fs::write(pid_dir.join("cmdline"), cmdline.replace(' ', "\0")).unwrap();
+        }
+
+        let details = super::read_process_details(&dir);
+        assert_eq!(
+            details.ai_agents, 2,
+            "codex wrappers/binary should count as one family, claude as another"
+        );
+        assert_eq!(details.processkit_mode, "gateway");
+        assert_eq!(details.processkit_mcp, 1);
+        let _ = std::fs::remove_dir_all(&dir);
     }
 
     // -- BR-LOG-PANEL: runtime-session scoped counter freshness ------------
