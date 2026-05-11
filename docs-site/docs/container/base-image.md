@@ -28,6 +28,8 @@ The base image is the foundation for all aibox container flavors. It provides a 
 | jq | Debian package | JSON processor |
 | less | Debian package | Pager |
 | unzip | Debian package | Archive extraction |
+| iproute2 | Debian package | Network route/interface inspection for status segments |
+| iputils-ping | Debian package | ICMP latency checks for status segments |
 | bash-completion | Debian package | Shell completions |
 | ca-certificates | Debian package | TLS root certificates |
 | locales | Debian package | Locale support (en_US.UTF-8) |

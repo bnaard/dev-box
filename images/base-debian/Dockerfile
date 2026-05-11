@@ -216,6 +216,8 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     sudo \
     gosu \
     procps \
+    iproute2 \
+    iputils-ping \
     tmux \
     xclip \
     xsel \
