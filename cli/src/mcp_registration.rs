@@ -1497,6 +1497,13 @@ fn gateway_daemon_proxy_spec(
         });
     let mut env = processkit_mcp_env(BTreeMap::new());
     env.insert("PROCESSKIT_MCP_MODE".to_string(), "gateway".to_string());
+    if config.mcp.gateway.lazy_catalog {
+        env.insert(
+            "PROCESSKIT_GATEWAY_IMPORT_MODE".to_string(),
+            "lazy-catalog".to_string(),
+        );
+        env.insert("PROCESSKIT_GATEWAY_LAZY".to_string(), "true".to_string());
+    }
     Some(McpServerSpec {
         name: "processkit-gateway".to_string(),
         command: gateway.command,
@@ -1511,15 +1518,14 @@ fn gateway_daemon_proxy_spec(
     })
 }
 
-/// Read the aggregate-mcp opt-in config (`mcp/mcp-config.aggregate.json`) from the
-/// live-installed skills tree and return a single [`McpServerSpec`] for the
+/// Read the aggregate-mcp internal fallback config from the live-installed
+/// skills tree and return a single [`McpServerSpec`] for the
 /// `processkit-aggregate-mcp` server.
 ///
 /// The aggregate server is intentionally NOT named `mcp-config.json` by processkit
 /// (see `context/skills/processkit/aggregate-mcp/SKILL.md`), so it is never picked
-/// up by the normal granular collector.  aibox opts into it explicitly here when
-/// `[mcp.gateway].mode = "aggregate"` (or `"auto"` falls back to it because
-/// `processkit-gateway` is unavailable).
+/// up by the normal separate-server collector. aibox keeps it as an internal
+/// single-process fallback when `processkit-gateway` is unavailable.
 ///
 /// Returns `None` when the file does not exist or cannot be parsed.
 fn aggregate_mcp_spec(project_root: &Path) -> Option<McpServerSpec> {
@@ -1565,17 +1571,17 @@ fn select_processkit_gateway_specs(
         McpGatewayMode::Granular => granular_specs,
         McpGatewayMode::Auto => {
             // Preference order:
-            // 1. daemon-proxy via processkit-gateway (one stdio-proxy per harness,
+            // 1. daemon via processkit-gateway (one stdio-proxy per harness,
             //    self-starting daemon, lowest per-call latency once warm)
             // 2. aggregate-mcp (single in-process server, no daemon, best cold-start
             //    latency for eager-start harnesses like Codex when gateway unavailable)
-            // 3. granular per-skill servers (fallback when neither is installed)
+            // 3. separate per-skill servers (fallback when neither is installed)
             if let Some(spec) = gateway_daemon_proxy_spec(config, &granular_specs) {
                 vec![spec]
             } else if let Some(spec) = aggregate_mcp_spec(project_root) {
                 output::ok(
-                    "processkit-gateway not installed; auto mode using aggregate-mcp \
-                     (single-process, reduced Codex startup latency)",
+                    "processkit-gateway not installed; auto mode using single-process \
+                     MCP fallback (reduced Codex startup latency)",
                 );
                 vec![spec]
             } else {
@@ -1588,7 +1594,7 @@ fn select_processkit_gateway_specs(
                 output::warn(
                     "[mcp.gateway].mode = \"aggregate\" requested, but \
                          context/skills/processkit/aggregate-mcp/mcp/mcp-config.aggregate.json \
-                         is missing; falling back to granular processkit MCP servers. \
+                         is missing; falling back to separate processkit MCP servers. \
                          Enable the aggregate-mcp skill and run `aibox apply`.",
                 );
                 granular_specs
@@ -1600,7 +1606,7 @@ fn select_processkit_gateway_specs(
                 None => {
                     output::warn(
                         "[mcp.gateway].mode = \"stdio\" requested, but processkit-gateway \
-                             is not installed; falling back to granular processkit MCP servers.",
+                             is not installed; falling back to separate processkit MCP servers.",
                     );
                     granular_specs
                 }
@@ -1610,8 +1616,8 @@ fn select_processkit_gateway_specs(
             Some(spec) => vec![spec],
             None => {
                 output::warn(
-                    "[mcp.gateway].mode = \"daemon-proxy\" requested, but processkit-gateway \
-                         is not installed; falling back to granular processkit MCP servers.",
+                    "[mcp.gateway].mode = \"daemon\" requested, but processkit-gateway \
+                         is not installed; falling back to separate processkit MCP servers.",
                 );
                 granular_specs
             }
@@ -1622,7 +1628,7 @@ fn select_processkit_gateway_specs(
                 output::warn(
                     "[mcp.gateway].mode = \"lazy-aggregate\" requested, but \
                          context/skills/processkit/aggregate-mcp/mcp/mcp-config.aggregate.json \
-                         is missing; falling back to granular processkit MCP servers. \
+                         is missing; falling back to separate processkit MCP servers. \
                          Enable the aggregate-mcp skill and run `aibox apply`. \
                          Note: lazy-aggregate requires processkit ≥ v0.26.0.",
                 );
@@ -3514,6 +3520,16 @@ args = ["server.js"]
         assert_eq!(
             gateway["env"]["UV_CACHE_DIR"], "/tmp/aibox/uv-cache",
             "processkit MCP entries should use the writable aibox uv cache: {}",
+            body
+        );
+        assert_eq!(
+            gateway["env"]["PROCESSKIT_GATEWAY_IMPORT_MODE"], "lazy-catalog",
+            "auto daemon gateway should inherit lazy_catalog=true default: {}",
+            body
+        );
+        assert_eq!(
+            gateway["env"]["PROCESSKIT_GATEWAY_LAZY"], "true",
+            "auto daemon gateway should inherit lazy_catalog=true default: {}",
             body
         );
         assert!(

@@ -1538,10 +1538,10 @@ fn render_ai_mcp_section(out: &mut String, config: &AiboxConfig, sep: &str) {
         }
     }
     out.push('\n');
-    out.push_str("# [ai.mcp.gateway] — processkit MCP topology. Options for mode: auto | granular | stdio | daemon-proxy | aggregate\n");
+    out.push_str("# [ai.mcp.gateway] — processkit MCP topology. Options for mode: auto | daemon | stdio | separate\n");
     out.push_str("[ai.mcp.gateway]\n");
     out.push_str(&format!(
-        "mode = \"{}\"          # auto uses daemon-proxy when processkit-gateway is installed\n",
+        "mode = \"{}\"          # auto uses daemon when processkit-gateway is installed\n",
         mcp_gateway_mode_str(config.ai.mcp.gateway.mode)
     ));
     out.push_str(&format!(
@@ -1549,7 +1549,7 @@ fn render_ai_mcp_section(out: &mut String, config: &AiboxConfig, sep: &str) {
         config.ai.mcp.gateway.lazy_catalog
     ));
     out.push_str(&format!(
-        "host = \"{}\"     # daemon-proxy is always localhost-only\n",
+        "host = \"{}\"     # daemon is always localhost-only\n",
         config.ai.mcp.gateway.host
     ));
     out.push_str(&format!("port = {}\n", config.ai.mcp.gateway.port));
@@ -1600,9 +1600,9 @@ fn mcp_permissions_are_explicit(config: &AiboxConfig) -> bool {
 fn mcp_gateway_mode_str(mode: McpGatewayMode) -> &'static str {
     match mode {
         McpGatewayMode::Auto => "auto",
-        McpGatewayMode::Granular => "granular",
+        McpGatewayMode::Granular => "separate",
         McpGatewayMode::Stdio => "stdio",
-        McpGatewayMode::DaemonProxy => "daemon-proxy",
+        McpGatewayMode::DaemonProxy => "daemon",
         McpGatewayMode::Aggregate => "aggregate",
         McpGatewayMode::LazyAggregate => "lazy-aggregate",
     }

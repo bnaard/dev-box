@@ -420,7 +420,7 @@ release_asset_url_template = "https://gitea.acme.com/{org}/{name}/releases/downl
 
 MCP server definitions and permission configuration. `aibox apply` merges servers from three sources and regenerates all MCP client config files:
 
-1. **Built-in processkit servers** — either the processkit gateway or granular per-skill servers, depending on `[ai.mcp.gateway]`
+1. **Built-in processkit servers** — either the processkit gateway or separate per-skill servers, depending on `[ai.mcp.gateway]`
 2. **`aibox.toml [ai.mcp]`** — team-shared servers committed to version control
 3. **`.aibox-local.toml [mcp]`** — personal servers, gitignored
 
@@ -434,8 +434,8 @@ one-process-per-skill MCP topology with a single processkit MCP entry.
 
 ```toml
 [ai.mcp.gateway]
-mode = "auto"          # auto | granular | stdio | daemon-proxy | aggregate | lazy-aggregate
-lazy_catalog = false
+mode = "auto"          # auto | daemon | stdio | separate
+lazy_catalog = true
 host = "127.0.0.1"
 port = 8765
 path = "/mcp"
@@ -443,14 +443,17 @@ path = "/mcp"
 
 | Mode | Behavior |
 |------|----------|
-| `auto` | Register a self-starting `processkit-gateway` stdio proxy when the installed processkit version ships it; otherwise fall back to granular per-skill servers |
-| `granular` | Always register one MCP server per processkit skill |
+| `auto` | Register a self-starting processkit gateway daemon when the installed processkit version ships it; otherwise fall back to separate per-skill servers |
+| `daemon` | Use one localhost processkit gateway daemon plus one stdio proxy per harness |
 | `stdio` | Register `processkit-gateway` directly as a stdio MCP server |
-| `daemon-proxy` | Start a localhost gateway daemon from `devcontainer.json` and register a stdio proxy for harnesses |
-| `aggregate` | Use the `processkit-aggregate-mcp` server — a single stdio process that imports all per-skill MCP servers in-process, eliminating the N-process startup cost |
-| `lazy-aggregate` | Like `aggregate`, but defers per-skill module imports until the first tool call for each skill (`PROCESSKIT_MCP_MODE=lazy_catalog`). Typical cold-start improvement: ~1.58×. **Requires processkit ≥ v0.26.0.** Opt-in only; `auto` never promotes to this mode. |
+| `separate` | Always register one MCP server per processkit skill |
 
-The daemon-backed modes are localhost-only. Run `aibox apply` after changing
+`lazy_catalog = true` is the default. It enables processkit's lazy catalog
+where the selected gateway topology supports it. Set it to `false` only when
+troubleshooting gateway import behavior. Legacy values `daemon-proxy` and
+`granular` are still accepted as aliases for `daemon` and `separate`.
+
+The daemon-backed mode is localhost-only. Run `aibox apply` after changing
 this section so generated harness configs stay in sync.
 
 #### Server Definitions: [[ai.mcp.servers]]

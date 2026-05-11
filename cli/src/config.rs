@@ -1554,8 +1554,8 @@ pub struct McpSection {
     #[serde(default)]
     pub servers: Vec<ExtraMcpServer>,
 
-    /// processkit MCP gateway selection. `auto` uses the gateway daemon proxy
-    /// when the installed processkit release ships it and falls back to
+    /// processkit MCP serving selection. `auto` uses the gateway daemon when
+    /// the installed processkit release ships it and falls back to separate
     /// per-skill MCP servers otherwise.
     #[serde(default)]
     pub gateway: McpGatewaySection,
@@ -1566,19 +1566,22 @@ pub struct McpSection {
     pub permissions: crate::mcp_registration::McpConfig,
 }
 
-/// Gateway mode for processkit-managed MCP servers.
+/// Serving mode for processkit-managed MCP servers.
 #[derive(Debug, Clone, Copy, Default, Serialize, Deserialize, PartialEq, Eq)]
 #[serde(rename_all = "kebab-case")]
 pub enum McpGatewayMode {
-    /// Prefer the processkit-gateway daemon proxy when available, otherwise use the aggregate
-    /// server (when `aggregate-mcp` is installed), otherwise use granular servers.
+    /// Prefer the processkit-gateway daemon when available, otherwise use the
+    /// internal single-process fallback when installed, otherwise use separate
+    /// servers.
     #[default]
     Auto,
     /// Always write one server per processkit skill.
+    #[serde(rename = "separate", alias = "granular")]
     Granular,
     /// Spawn processkit-gateway directly as a stdio MCP server per harness.
     Stdio,
     /// Use a managed local HTTP daemon plus one stdio proxy per harness.
+    #[serde(rename = "daemon", alias = "daemon-proxy")]
     DaemonProxy,
     /// Use the processkit-aggregate-mcp server — a single stdio process that imports
     /// all per-skill MCP servers in-process.  Eliminates the N-process startup cost
@@ -1616,7 +1619,7 @@ impl Default for McpGatewaySection {
     fn default() -> Self {
         Self {
             mode: McpGatewayMode::Auto,
-            lazy_catalog: false,
+            lazy_catalog: true,
             host: default_mcp_gateway_host(),
             port: default_mcp_gateway_port(),
             path: default_mcp_gateway_path(),
@@ -3139,7 +3142,7 @@ prompt = "default"
 enabled = false
 
 [mcp.gateway]
-mode = "daemon-proxy"
+mode = "daemon"
 lazy_catalog = true
 host = "127.0.0.1"
 port = 8765
@@ -3289,6 +3292,30 @@ name = "my-project"
 
         // [audio]
         assert!(!config.audio.enabled);
+    }
+
+    #[test]
+    fn mcp_gateway_mode_accepts_public_names_and_legacy_aliases() {
+        for (mode, expected) in [
+            ("auto", McpGatewayMode::Auto),
+            ("daemon", McpGatewayMode::DaemonProxy),
+            ("daemon-proxy", McpGatewayMode::DaemonProxy),
+            ("stdio", McpGatewayMode::Stdio),
+            ("separate", McpGatewayMode::Granular),
+            ("granular", McpGatewayMode::Granular),
+        ] {
+            let toml = format!(
+                r#"
+[container]
+name = "my-project"
+
+[mcp.gateway]
+mode = "{mode}"
+"#
+            );
+            let config = parse_toml(&toml).unwrap();
+            assert_eq!(config.mcp.gateway.mode, expected, "mode {mode}");
+        }
     }
 
     // -- Minimal config with defaults ---------------------------------------

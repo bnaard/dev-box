@@ -18,14 +18,14 @@ predictable:
 - suspended non-focused tmux panes
 - runtime resource snapshots and doctor thresholds
 - init-reaper support for orphaned helper processes
-- processkit MCP gateway adoption and daemon-proxy validation in real projects
+- processkit MCP gateway adoption and daemon validation in real projects
 
 ## Planned — Near Term
 
 ### processkit Gateway Follow-Through
 
 Validate the processkit v0.25.4 self-starting gateway defaults in downstream
-projects and tune daemon-proxy guidance once more host/container runtime
+projects and tune daemon guidance once more host/container runtime
 combinations have been exercised.
 
 ### Runtime Diagnostics

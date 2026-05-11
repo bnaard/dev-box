@@ -231,8 +231,9 @@ impl ProcessDetails {
 
 fn format_processkit_display(mode: &str, process_count: u64) -> String {
     match mode {
-        "gateway" => format!("gw/1/{process_count}"),
-        "granular" => format!("sep/1/{process_count}"),
+        "daemon" | "gateway" => format!("dmn/1/{process_count}"),
+        "stdio" => format!("stdio/1/{process_count}"),
+        "separate" | "granular" => format!("sep/1/{process_count}"),
         "none" => "none".to_string(),
         "unknown" => "unkwn".to_string(),
         "degraded" => "degraded".to_string(),
@@ -287,11 +288,18 @@ fn read_process_details(proc_root: &Path) -> ProcessDetails {
             ai_families.insert(family);
         }
         if cmdline.contains("processkit-gateway") && cmdline.contains("server.py") {
-            details.processkit_mode = "gateway".to_string();
+            details.processkit_mode = if cmdline.contains("stdio-proxy")
+                || cmdline.contains(" streamable-http")
+                || contains_command_token(&cmdline, "serve")
+            {
+                "daemon".to_string()
+            } else {
+                "stdio".to_string()
+            };
             details.processkit_mcp += 1;
         } else if cmdline.contains("processkit") && cmdline.contains("mcp") {
-            if details.processkit_mode != "gateway" {
-                details.processkit_mode = "granular".to_string();
+            if details.processkit_mode != "daemon" && details.processkit_mode != "stdio" {
+                details.processkit_mode = "separate".to_string();
             }
             details.processkit_mcp += 1;
         }
@@ -768,9 +776,9 @@ mod tests {
             processes: "99".to_string(),
             threads: "123".to_string(),
             ai_agents: "3".to_string(),
-            processkit_mode: "gateway".to_string(),
+            processkit_mode: "daemon".to_string(),
             processkit_mcp: "12".to_string(),
-            processkit_display: "gw/1/12".to_string(),
+            processkit_display: "dmn/1/12".to_string(),
             disk_used: "10.0 GiB".to_string(),
             disk_total: "100.0 GiB".to_string(),
             log_info: "9".to_string(),
@@ -796,7 +804,7 @@ mod tests {
         assert!(plain.contains("OOM 0/0"));
         assert!(plain.contains("PROC 99/123"));
         assert!(plain.contains("AI 3"));
-        assert!(plain.contains("MCP gw/1/12"));
+        assert!(plain.contains("MCP dmn/1/12"));
         assert!(plain.contains("MIG 0"));
     }
 
@@ -812,13 +820,14 @@ mod tests {
         assert!(json.contains("\"net\":\"n/a\""));
         assert!(json.contains("\"processes\":\"99\""));
         assert!(json.contains("\"threads\":\"123\""));
-        assert!(json.contains("\"processkit_display\":\"gw/1/12\""));
+        assert!(json.contains("\"processkit_display\":\"dmn/1/12\""));
     }
 
     #[test]
     fn format_processkit_display_uses_compact_topology_states() {
-        assert_eq!(super::format_processkit_display("gateway", 5), "gw/1/5");
-        assert_eq!(super::format_processkit_display("granular", 5), "sep/1/5");
+        assert_eq!(super::format_processkit_display("daemon", 5), "dmn/1/5");
+        assert_eq!(super::format_processkit_display("stdio", 5), "stdio/1/5");
+        assert_eq!(super::format_processkit_display("separate", 5), "sep/1/5");
         assert_eq!(super::format_processkit_display("none", 0), "none");
         assert_eq!(super::format_processkit_display("unknown", 0), "unkwn");
         assert_eq!(
@@ -856,7 +865,7 @@ mod tests {
             details.ai_agents, 2,
             "codex wrappers/binary should count as one family, claude as another"
         );
-        assert_eq!(details.processkit_mode, "gateway");
+        assert_eq!(details.processkit_mode, "daemon");
         assert_eq!(details.processkit_mcp, 1);
         let _ = std::fs::remove_dir_all(&dir);
     }

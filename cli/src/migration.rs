@@ -2276,7 +2276,7 @@ version = "v0.25.7"
 src_path = "src"
 
 [mcp.gateway]
-mode = "daemon-proxy"
+mode = "daemon"
 lazy_catalog = true
 host = "127.0.0.1"
 port = 8765
@@ -2304,7 +2304,7 @@ enabled = false
         assert!(after.contains("cargo-audit = {}"));
         assert!(after.contains("version = \"x.y.z\" or \"latest\""));
         assert!(after.contains("[ai.mcp.gateway]"));
-        assert!(after.contains("mode = \"daemon-proxy\""));
+        assert!(after.contains("mode = \"daemon\""));
         assert!(after.contains("lazy_catalog = true"));
     }
 

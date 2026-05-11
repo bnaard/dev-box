@@ -875,7 +875,7 @@ fn check_processkit_mcp_gateway(config: &AiboxConfig, diag: &mut DiagResult) {
 
     match gateway.mode {
         McpGatewayMode::Granular => {
-            output::ok("processkit MCP gateway disabled; granular MCP servers selected");
+            output::ok("processkit MCP gateway disabled; separate MCP servers selected");
             return;
         }
         McpGatewayMode::Aggregate if !aggregate_available => {
@@ -893,13 +893,13 @@ fn check_processkit_mcp_gateway(config: &AiboxConfig, diag: &mut DiagResult) {
             );
         }
         McpGatewayMode::Auto if !gateway_available && !aggregate_available => {
-            output::ok("processkit MCP gateway not installed; auto mode will use granular servers");
+            output::ok("processkit MCP gateway not installed; auto mode will use separate servers");
             return;
         }
         McpGatewayMode::Auto if !gateway_available && aggregate_available => {
             output::ok(
-                "processkit gateway not installed; auto mode will use aggregate server \
-                 (aggregate-mcp skill is available)",
+                "processkit gateway not installed; auto mode will use single-process \
+                 MCP fallback",
             );
         }
         McpGatewayMode::Stdio | McpGatewayMode::DaemonProxy if !gateway_available => {
@@ -970,8 +970,8 @@ fn check_processkit_mcp_gateway(config: &AiboxConfig, diag: &mut DiagResult) {
             }
             Ok(body) if body.contains("[mcp_servers.processkit-aggregate-mcp]") => {
                 output::ok(
-                    "Codex MCP config uses processkit-aggregate-mcp (single-process, \
-                     reduced startup latency)",
+                    "Codex MCP config uses single-process processkit MCP fallback \
+                     (reduced startup latency)",
                 );
                 check_codex_hidden_apps_mcp_state(diag);
             }
@@ -1114,7 +1114,7 @@ fn check_claude_settings_for_stale_processkit_servers(
 
     let stale_count = stale_servers.len() + stale_permissions.len();
     output::warn(&format!(
-        "claude: {} contains {stale_count} stale granular processkit MCP entr{} while .mcp.json is collapsed to processkit-gateway; run `aibox apply` to reconcile Claude MCP auth state",
+        "claude: {} contains {stale_count} stale separate processkit MCP entr{} while .mcp.json is collapsed to processkit-gateway; run `aibox apply` to reconcile Claude MCP auth state",
         path.display(),
         if stale_count == 1 { "y" } else { "ies" }
     ));
