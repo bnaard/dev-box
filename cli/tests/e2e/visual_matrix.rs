@@ -23,7 +23,7 @@ const THEMES: &[(&str, u8, u8, u8)] = &[
     ("projectious", 45, 106, 79),
 ];
 
-const LAYOUTS: &[&str] = &["dev", "focus", "cowork", "cowork-swap", "browse", "ai"];
+const LAYOUTS: &[&str] = &["ai", "dev", "focus", "cowork"];
 
 const HARNESSES: &[(&str, &str, &str)] = &[
     ("claude", "claude", "CLAUDE"),
@@ -39,7 +39,7 @@ const HARNESSES: &[(&str, &str, &str)] = &[
 
 const DEFAULT_STATUS_THEME: &str = "projectious";
 const DEFAULT_STATUS_LAYOUT: &str = "dev";
-const DEFAULT_TAB_LAYOUTS: &[&str] = &["dev", "cowork-swap", "ai"];
+const DEFAULT_TAB_LAYOUTS: &[&str] = &["ai", "dev", "cowork"];
 
 fn full_visual_matrix_enabled() -> bool {
     matches!(
@@ -238,6 +238,12 @@ fn assert_generated_tmux_config(
 	grep -Rli --exclude-dir=.git --exclude=claude 'tmux' .aibox-home .devcontainer aibox.toml >/tmp/{test_name}-tmux-files.txt
 	grep -REi --exclude-dir=.git --exclude=claude '{theme_pattern}' .aibox-home >/tmp/{test_name}-theme.txt
 	grep -Ri --exclude-dir=.git --exclude=claude '{expected}' .aibox-home >/tmp/{test_name}-theme-rgb.txt
+	grep -F '@powerkit_line1_right "aibox_log,aibox_oom,aibox_proc,aibox_ai,aibox_mcp,aibox_mig,weather,uptime,datetime"' .aibox-home/.config/tmux/tmux.conf
+	grep -F '@powerkit_line2_left "git,github,kubernetes,terraform,cloud"' .aibox-home/.config/tmux/tmux.conf
+	grep -F '@powerkit_line2_right "hostname,externalip,ssh,netspeed,ping,cpu,loadavg,memory,swap,disk,gpu"' .aibox-home/.config/tmux/tmux.conf
+	grep -F '@powerkit_plugin_netspeed_speed_width "7"' .aibox-home/.config/tmux/tmux.conf
+	grep -F 'status-format[0]' .aibox-home/.config/tmux/tmux.conf | grep -F 'align=right'
+	grep -F 'status-format[1]' .aibox-home/.config/tmux/tmux.conf | grep -F 'align=left' | grep -F 'align=right'
 ! find .aibox-home -path '*zellij*' -print -quit | grep -q .
 ! grep -Rli --exclude-dir=.git 'zellij' .aibox-home .devcontainer aibox.toml >/tmp/{test_name}-legacy-zellij.txt 2>/dev/null
 "#
@@ -535,7 +541,7 @@ fn record_generated_layout(runner: &E2eRunner, test_name: &str, layout: &str) ->
     let capture = format!(
         r#"{setup}{harness_windows}
   : > "{workspace}/{stem}.screens"
-  for win in dev ai focus cowork cowork-swap browse editor shell git synthetic-files synthetic-editor synthetic-git synthetic-shell synthetic-claude synthetic-codex synthetic-gemini synthetic-aider synthetic-continue synthetic-cursor synthetic-copilot synthetic-opencode synthetic-hermes; do
+  for win in work files ai lazygit shell claude codex gemini aider continue cursor copilot opencode hermes synthetic-files synthetic-editor synthetic-git synthetic-shell synthetic-claude synthetic-codex synthetic-gemini synthetic-aider synthetic-continue synthetic-cursor synthetic-copilot synthetic-opencode synthetic-hermes; do
     tmux select-window -t "{stem}:$win" >/dev/null 2>&1 || continue
     sleep 0.4
     printf '\n--- window:%s ---\n' "$win" >> "{workspace}/{stem}.screens"
@@ -576,12 +582,9 @@ fn record_generated_layout(runner: &E2eRunner, test_name: &str, layout: &str) ->
 
 fn expected_generated_window(layout: &str) -> &str {
     match layout {
-        "focus" => "focus",
-        "cowork" => "cowork",
-        "cowork-swap" => "cowork-swap",
-        "browse" => "browse",
-        "ai" => "ai",
-        _ => "dev",
+        "focus" => "files",
+        "ai" | "dev" | "cowork" => "work",
+        _ => "work",
     }
 }
 
@@ -791,7 +794,7 @@ fn visual_yazi_previews_git_symbols_and_optional_plugins_render() {
         runner.write_file(
             test_name,
             &format!("yazi-preview-{label}.sh"),
-            &tmux_conf_and_start(&session, &workspace, "browse", &setup),
+            &tmux_conf_and_start(&session, &workspace, "focus", &setup),
         );
         runner.exec(&format!("chmod +x {workspace}/yazi-preview-{label}.sh"));
         runner.exec(&format!(

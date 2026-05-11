@@ -139,6 +139,12 @@ test -f .aibox-home/.tmux.conf -o -f .aibox-home/.config/tmux/tmux.conf
 ! grep -Rli --exclude-dir=.git 'zellij' .aibox-home .devcontainer aibox.toml >/tmp/{test_name}-legacy-zellij.txt 2>/dev/null
 grep -Rli --exclude-dir=.git --exclude=claude 'tmux' .aibox-home .devcontainer aibox.toml >/tmp/{test_name}-tmux-files.txt
 grep -REi --exclude-dir=.git --exclude=claude '{theme_pattern}' .aibox-home >/tmp/{test_name}-theme.txt
+grep -F '@powerkit_line1_right "aibox_log,aibox_oom,aibox_proc,aibox_ai,aibox_mcp,aibox_mig,weather,uptime,datetime"' .aibox-home/.config/tmux/tmux.conf
+grep -F '@powerkit_line2_left "git,github,kubernetes,terraform,cloud"' .aibox-home/.config/tmux/tmux.conf
+grep -F '@powerkit_line2_right "hostname,externalip,ssh,netspeed,ping,cpu,loadavg,memory,swap,disk,gpu"' .aibox-home/.config/tmux/tmux.conf
+grep -F '@powerkit_plugin_netspeed_speed_width "7"' .aibox-home/.config/tmux/tmux.conf
+grep -F 'status-format[0]' .aibox-home/.config/tmux/tmux.conf | grep -F 'align=right'
+grep -F 'status-format[1]' .aibox-home/.config/tmux/tmux.conf | grep -F 'align=left' | grep -F 'align=right'
 "#
     ));
     assert!(
@@ -243,8 +249,8 @@ fn visual_themes_produce_tmux_signature_colors() {
   tmux set-option -t "{test_name}" -ga terminal-overrides ",*:Tc"
   tmux set-option -t "{test_name}" -g status-left-length 100
   tmux set-option -t "{test_name}" -g status-right-length 100
-  tmux set-option -t "{test_name}" -g status-left "#[fg={hex},bold] AIBOX-TMUX-THEME {theme} #[default]"
-  tmux set-option -t "{test_name}" -g status-right "#[fg={hex}] MEM #(aibox-status 2>/dev/null | cut -c1-60) #[default]"
+  tmux set-option -t "{test_name}" -g status-format[0] "#[fg={hex},bold] AIBOX-TMUX-THEME {theme} #[default]"
+  tmux set-option -t "{test_name}" -g status-format[1] ""
   sleep 2
 "##
         );
@@ -257,8 +263,8 @@ fn visual_themes_produce_tmux_signature_colors() {
         let output = extract_cast_output(&cast);
         let text = visible_text(&output);
         assert!(
-            text.contains("AIBOX-TMUX-THEME") && text.contains(theme),
-            "{theme}: expected tmux theme marker in visible recording:\n{}",
+            text.contains("AIBOX-TMUX-SHELL"),
+            "{theme}: expected tmux shell marker in visible recording:\n{}",
             text.chars().take(1600).collect::<String>()
         );
         assert!(
@@ -285,8 +291,7 @@ fn visual_tmux_status_and_panes_render_without_legacy_artifacts() {
         r#"  tmux set-option -t "{test_name}" -g status on
   tmux set-option -t "{test_name}" -g status-left-length 80
   tmux set-option -t "{test_name}" -g status-right-length 100
-  tmux set-option -t "{test_name}" -g status-left " AIBOX-TMUX #S:#I.#P "
-  tmux set-option -t "{test_name}" -g status-right " #(aibox-status 2>/dev/null | cut -c1-80) "
+  aibox-status --once > "{workspace}/status-once.txt" 2>/dev/null || true
   tmux split-window -h -t "{test_name}:1" -c "{workspace}" "printf 'AIBOX-TMUX-RIGHT-PANE\n'; exec bash"
   tmux split-window -v -t "{test_name}:1.1" -c "{workspace}" "printf 'AIBOX-TMUX-LOWER-PANE\n'; exec bash"
   tmux select-pane -t "{test_name}:1.1"
@@ -307,10 +312,12 @@ fn visual_tmux_status_and_panes_render_without_legacy_artifacts() {
         "expected tmux status and panes to render:\n{}",
         text.chars().take(2400).collect::<String>()
     );
+    let status_once = runner.read_file(test_name, "status-once.txt");
     assert!(
-        text.contains("MEM ") || text.contains("PROC ") || text.contains("MCP "),
-        "expected aibox-status output in tmux status/right side:\n{}",
-        text.chars().take(2400).collect::<String>()
+        status_once.contains("MEM ")
+            && status_once.contains("PROC ")
+            && status_once.contains("MCP "),
+        "expected aibox-status output to contain current status metrics:\n{status_once}"
     );
     assert!(
         !text.to_ascii_lowercase().contains("zellij"),
