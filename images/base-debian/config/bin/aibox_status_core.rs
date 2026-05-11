@@ -40,6 +40,7 @@ pub struct Snapshot {
     pub ai_agents: String,
     pub processkit_mode: String,
     pub processkit_mcp: String,
+    pub processkit_display: String,
     pub disk_used: String,
     pub disk_total: String,
     pub log_info: String,
@@ -67,6 +68,8 @@ impl Snapshot {
         } else {
             ProcessDetails::minimal()
         };
+        let processkit_display =
+            format_processkit_display(&proc_details.processkit_mode, proc_details.processkit_mcp);
 
         Self {
             timestamp_unix: unix_now(),
@@ -88,6 +91,7 @@ impl Snapshot {
             ai_agents: proc_details.ai_agents.to_string(),
             processkit_mode: proc_details.processkit_mode,
             processkit_mcp: proc_details.processkit_mcp.to_string(),
+            processkit_display,
             disk_used,
             disk_total,
             log_info: log_info.to_string(),
@@ -102,7 +106,7 @@ impl Snapshot {
 
     pub fn plain(&self) -> String {
         format!(
-            "AIBOX HOST {} | MEM {}/{} OOM {}/{} HI {} MAX {} | CPU {} LOAD {} NET {} | DISK {}/{} | LOG {}/{}/{} | PROC {}/{} AI {} MCP {}/{} MIG {} DEG {} UP {} | GIT {}:{}",
+            "AIBOX HOST {} | MEM {}/{} OOM {}/{} HI {} MAX {} | CPU {} LOAD {} NET {} | DISK {}/{} | LOG {}/{}/{} | PROC {}/{} AI {} MCP {} MIG {} DEG {} UP {} | GIT {}:{}",
             self.host,
             self.memory_current,
             self.memory_max,
@@ -121,8 +125,7 @@ impl Snapshot {
             self.processes,
             self.threads,
             self.ai_agents,
-            self.processkit_mode,
-            self.processkit_mcp,
+            self.processkit_display,
             self.migrations,
             if self.degraded { "yes" } else { "no" },
             self.container_uptime,
@@ -134,7 +137,7 @@ impl Snapshot {
     pub fn json(&self) -> String {
         let plain = self.plain();
         format!(
-            "{{\"timestamp_unix\":{},\"degraded\":{},\"host\":{},\"memory_current\":{},\"memory_max\":{},\"oom_events\":{},\"oom_kill\":{},\"memory_high\":{},\"memory_max_events\":{},\"cpu_throttling\":{},\"load_average\":{},\"net\":{},\"processes\":{},\"threads\":{},\"ai_agents\":{},\"processkit_mode\":{},\"processkit_mcp\":{},\"disk_used\":{},\"disk_total\":{},\"log_info\":{},\"log_warn\":{},\"log_error\":{},\"container_uptime\":{},\"git_branch\":{},\"git_state\":{},\"migrations\":{},\"plain\":{}}}",
+            "{{\"timestamp_unix\":{},\"degraded\":{},\"host\":{},\"memory_current\":{},\"memory_max\":{},\"oom_events\":{},\"oom_kill\":{},\"memory_high\":{},\"memory_max_events\":{},\"cpu_throttling\":{},\"load_average\":{},\"net\":{},\"processes\":{},\"threads\":{},\"ai_agents\":{},\"processkit_mode\":{},\"processkit_mcp\":{},\"processkit_display\":{},\"disk_used\":{},\"disk_total\":{},\"log_info\":{},\"log_warn\":{},\"log_error\":{},\"container_uptime\":{},\"git_branch\":{},\"git_state\":{},\"migrations\":{},\"plain\":{}}}",
             self.timestamp_unix,
             self.degraded,
             json_string(&self.host),
@@ -152,6 +155,7 @@ impl Snapshot {
             json_string(&self.ai_agents),
             json_string(&self.processkit_mode),
             json_string(&self.processkit_mcp),
+            json_string(&self.processkit_display),
             json_string(&self.disk_used),
             json_string(&self.disk_total),
             json_string(&self.log_info),
@@ -173,7 +177,7 @@ impl Snapshot {
         }
 
         format!(
-            "\u{1b}[7m AIBOX \u{1b}[27m \u{1b}[2m HOST \u{1b}[22m\u{1b}[1m{}\u{1b}[22m  \u{1b}[2mMEM \u{1b}[22m\u{1b}[1m{}\u{1b}[22m/{} \u{1b}[2mOOM \u{1b}[22m\u{1b}[1m{}/{}\u{1b}[22m \u{1b}[2mHI \u{1b}[22m\u{1b}[1m{}\u{1b}[22m \u{1b}[2mMAX \u{1b}[22m\u{1b}[1m{}\u{1b}[22m  \u{1b}[2mCPU \u{1b}[22m\u{1b}[1m{}\u{1b}[22m \u{1b}[2mLOAD \u{1b}[22m\u{1b}[1m{}\u{1b}[22m \u{1b}[2mNET \u{1b}[22m\u{1b}[1m{}\u{1b}[22m  \u{1b}[2mDISK \u{1b}[22m\u{1b}[1m{}/{}\u{1b}[22m  \u{1b}[2mLOG \u{1b}[22m\u{1b}[1m{}/{}/{}\u{1b}[22m  \u{1b}[2mPROC \u{1b}[22m\u{1b}[1m{}/{}\u{1b}[22m \u{1b}[2mAI \u{1b}[22m\u{1b}[1m{}\u{1b}[22m \u{1b}[2mMCP \u{1b}[22m\u{1b}[1m{} {}\u{1b}[22m \u{1b}[2mMIG \u{1b}[22m\u{1b}[1m{}\u{1b}[22m \u{1b}[2mDEG \u{1b}[22m\u{1b}[1m{}\u{1b}[22m \u{1b}[2mUP \u{1b}[22m\u{1b}[1m{}\u{1b}[22m",
+            "\u{1b}[7m AIBOX \u{1b}[27m \u{1b}[2m HOST \u{1b}[22m\u{1b}[1m{}\u{1b}[22m  \u{1b}[2mMEM \u{1b}[22m\u{1b}[1m{}\u{1b}[22m/{} \u{1b}[2mOOM \u{1b}[22m\u{1b}[1m{}/{}\u{1b}[22m \u{1b}[2mHI \u{1b}[22m\u{1b}[1m{}\u{1b}[22m \u{1b}[2mMAX \u{1b}[22m\u{1b}[1m{}\u{1b}[22m  \u{1b}[2mCPU \u{1b}[22m\u{1b}[1m{}\u{1b}[22m \u{1b}[2mLOAD \u{1b}[22m\u{1b}[1m{}\u{1b}[22m \u{1b}[2mNET \u{1b}[22m\u{1b}[1m{}\u{1b}[22m  \u{1b}[2mDISK \u{1b}[22m\u{1b}[1m{}/{}\u{1b}[22m  \u{1b}[2mLOG \u{1b}[22m\u{1b}[1m{}/{}/{}\u{1b}[22m  \u{1b}[2mPROC \u{1b}[22m\u{1b}[1m{}/{}\u{1b}[22m \u{1b}[2mAI \u{1b}[22m\u{1b}[1m{}\u{1b}[22m \u{1b}[2mMCP \u{1b}[22m\u{1b}[1m{}\u{1b}[22m \u{1b}[2mMIG \u{1b}[22m\u{1b}[1m{}\u{1b}[22m \u{1b}[2mDEG \u{1b}[22m\u{1b}[1m{}\u{1b}[22m \u{1b}[2mUP \u{1b}[22m\u{1b}[1m{}\u{1b}[22m",
             self.host,
             self.memory_current,
             self.memory_max,
@@ -192,8 +196,7 @@ impl Snapshot {
             self.processes,
             self.threads,
             self.ai_agents,
-            self.processkit_mode,
-            self.processkit_mcp,
+            self.processkit_display,
             self.migrations,
             if self.degraded { "yes" } else { "no" },
             self.container_uptime,
@@ -223,6 +226,17 @@ impl ProcessDetails {
             processkit_mode: "degraded".to_string(),
             processkit_mcp: 0,
         }
+    }
+}
+
+fn format_processkit_display(mode: &str, process_count: u64) -> String {
+    match mode {
+        "gateway" => format!("gw/1/{process_count}"),
+        "granular" => format!("sep/1/{process_count}"),
+        "none" => "none".to_string(),
+        "unknown" => "unkwn".to_string(),
+        "degraded" => "degraded".to_string(),
+        _ => "unkwn".to_string(),
     }
 }
 
@@ -756,6 +770,7 @@ mod tests {
             ai_agents: "3".to_string(),
             processkit_mode: "gateway".to_string(),
             processkit_mcp: "12".to_string(),
+            processkit_display: "gw/1/12".to_string(),
             disk_used: "10.0 GiB".to_string(),
             disk_total: "100.0 GiB".to_string(),
             log_info: "9".to_string(),
@@ -781,7 +796,7 @@ mod tests {
         assert!(plain.contains("OOM 0/0"));
         assert!(plain.contains("PROC 99/123"));
         assert!(plain.contains("AI 3"));
-        assert!(plain.contains("MCP gateway/12"));
+        assert!(plain.contains("MCP gw/1/12"));
         assert!(plain.contains("MIG 0"));
     }
 
@@ -797,6 +812,19 @@ mod tests {
         assert!(json.contains("\"net\":\"n/a\""));
         assert!(json.contains("\"processes\":\"99\""));
         assert!(json.contains("\"threads\":\"123\""));
+        assert!(json.contains("\"processkit_display\":\"gw/1/12\""));
+    }
+
+    #[test]
+    fn format_processkit_display_uses_compact_topology_states() {
+        assert_eq!(super::format_processkit_display("gateway", 5), "gw/1/5");
+        assert_eq!(super::format_processkit_display("granular", 5), "sep/1/5");
+        assert_eq!(super::format_processkit_display("none", 0), "none");
+        assert_eq!(super::format_processkit_display("unknown", 0), "unkwn");
+        assert_eq!(
+            super::format_processkit_display("degraded", 0),
+            "degraded"
+        );
     }
 
     #[test]

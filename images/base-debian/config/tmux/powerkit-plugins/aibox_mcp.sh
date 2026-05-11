@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # PowerKit plugin: aibox mcp metric segment (path-a split from aibox.sh).
 #
-# Renders a single PowerKit segment for the mcp metric (processkit mode/count).
+# Renders a single PowerKit segment for the mcp metric (processkit topology).
 # Each aibox metric is its own plugin so it gets chevron separators and
 # color-rotation styling matching adjacent PowerKit segments.
 # Ref: BACK-20260508_1603-QuietCedar, DEC-20260508_2115-SilentFern.
@@ -12,7 +12,7 @@ POWERKIT_ROOT="${POWERKIT_ROOT:-$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && p
 plugin_get_metadata() {
     metadata_set "id" "aibox_mcp"
     metadata_set "name" "aibox_mcp"
-    metadata_set "description" "aibox MCP metric: processkit gateway mode and active MCP count"
+    metadata_set "description" "aibox MCP metric: processkit topology and supporting process count"
 }
 
 plugin_declare_options() {
@@ -25,10 +25,12 @@ json_value() {
 }
 
 plugin_collect() {
-    local json
+    local json processkit_display processkit_mode processkit_mcp
     json="$(aibox-status --plugin-json 2>/dev/null)" || return 1
-    plugin_data_set "processkit_mode" "$(printf '%s' "${json}" | json_value processkit_mode)"
-    plugin_data_set "processkit_mcp"  "$(printf '%s' "${json}" | json_value processkit_mcp)"
+    processkit_display="$(printf '%s' "${json}" | json_value processkit_display)"
+    processkit_mode="$(printf '%s' "${json}" | json_value processkit_mode)"
+    processkit_mcp="$(printf '%s' "${json}" | json_value processkit_mcp)"
+    plugin_data_set "processkit_display" "${processkit_display:-${processkit_mode:-none}/${processkit_mcp:-0}}"
 }
 
 plugin_get_content_type() { printf 'dynamic'; }
@@ -39,7 +41,5 @@ plugin_get_context()      { printf 'runtime'; }
 plugin_get_icon()         { printf 'MCP'; }
 
 plugin_render() {
-    printf '%s/%s' \
-        "$(plugin_data_get processkit_mode)" \
-        "$(plugin_data_get processkit_mcp)"
+    printf '%s' "$(plugin_data_get processkit_display)"
 }

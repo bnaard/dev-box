@@ -23,7 +23,7 @@ json_value() {
 
 plugin_collect() {
     local json memory_current memory_max oom_events oom_kill cpu_throttling load_average net
-    local processes threads ai_agents processkit_mode processkit_mcp disk_used disk_total
+    local processes threads ai_agents processkit_mode processkit_mcp processkit_display disk_used disk_total
     local log_info log_warn log_error migrations degraded container_uptime host
 
     json="$(aibox-status --plugin-json 2>/dev/null)" || return 1
@@ -40,6 +40,7 @@ plugin_collect() {
     ai_agents="$(printf '%s' "${json}" | json_value ai_agents)"
     processkit_mode="$(printf '%s' "${json}" | json_value processkit_mode)"
     processkit_mcp="$(printf '%s' "${json}" | json_value processkit_mcp)"
+    processkit_display="$(printf '%s' "${json}" | json_value processkit_display)"
     disk_used="$(printf '%s' "${json}" | json_value disk_used)"
     disk_total="$(printf '%s' "${json}" | json_value disk_total)"
     log_info="$(printf '%s' "${json}" | json_value log_info)"
@@ -62,6 +63,7 @@ plugin_collect() {
     plugin_data_set "ai_agents" "${ai_agents:-0}"
     plugin_data_set "processkit_mode" "${processkit_mode:-none}"
     plugin_data_set "processkit_mcp" "${processkit_mcp:-0}"
+    plugin_data_set "processkit_display" "${processkit_display:-${processkit_mode:-none}/${processkit_mcp:-0}}"
     plugin_data_set "disk_used" "${disk_used:-n/a}"
     plugin_data_set "disk_total" "${disk_total:-n/a}"
     plugin_data_set "log_info" "${log_info:-0}"
@@ -117,7 +119,7 @@ plugin_render() {
     append_metric "oom" "OOM $(plugin_data_get oom_events)/$(plugin_data_get oom_kill)"
     append_metric "proc" "PROC $(plugin_data_get processes)/$(plugin_data_get threads)"
     append_metric "ai" "AI $(plugin_data_get ai_agents)"
-    append_metric "mcp" "MCP $(plugin_data_get processkit_mode)/$(plugin_data_get processkit_mcp)"
+    append_metric "mcp" "MCP $(plugin_data_get processkit_display)"
     append_metric "mig" "MIG $(plugin_data_get migrations)"
 
     enabled="${enabled# }"
