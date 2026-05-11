@@ -19,7 +19,7 @@ dependencies = [
 
 [[package]]
 name = "aibox"
-version = "0.25.8"
+version = "0.25.9"
 dependencies = [
  "anyhow",
  "chrono",
