@@ -836,9 +836,11 @@ mod tests {
 
         assert!(content.contains("ENV SHELL=/bin/bash"));
         assert!(
-            content.contains("mkdir -p /home/aibox/.cache/starship /home/aibox/.cache/uv")
-                && content.contains("chown -R aibox:aibox /home/aibox/.cache"),
-            "project Dockerfiles should repair cache-home ownership for older base images:\n{content}"
+            content.contains("ENV UV_CACHE_DIR=/tmp/aibox/uv-cache")
+                && content.contains("mkdir -p /home/aibox/.cache/starship /home/aibox/.cache/uv")
+                && content.contains("/tmp/aibox/uv-cache")
+                && content.contains("chown -R aibox:aibox /home/aibox/.cache /tmp/aibox"),
+            "project Dockerfiles should repair cache-home and uv cache ownership for older base images:\n{content}"
         );
     }
 
@@ -913,6 +915,19 @@ mod tests {
         assert!(
             content.contains(".cache:/root/.cache"),
             "compose should mount writable XDG cache home so uv, starship, and tmux can create/read cache directories:\n{content}"
+        );
+    }
+
+    #[test]
+    fn compose_mounts_starship_prompt_config() {
+        let dir = tempfile::tempdir().unwrap();
+        let config = make_config(&[], false);
+        generate_docker_compose(&config, dir.path(), &test_env()).unwrap();
+
+        let content = fs::read_to_string(dir.path().join("docker-compose.yml")).unwrap();
+        assert!(
+            content.contains(".config/starship.toml:/root/.config/starship.toml"),
+            "compose should mount generated Starship prompt config into the container:\n{content}"
         );
     }
 
@@ -1635,6 +1650,18 @@ mod tests {
             ),
             "base image should override PowerKit netspeed with fixed-width rates"
         );
+        assert!(
+            content.contains(
+                "config/tmux/powerkit-plugins/kubernetes.sh /usr/local/share/aibox/tmux/plugins/tmux-powerkit/src/plugins/kubernetes.sh"
+            ),
+            "base image should override PowerKit kubernetes with local-context-only status"
+        );
+        assert!(
+            content.contains(
+                "config/tmux/powerkit-plugins/cloud.sh      /usr/local/share/aibox/tmux/plugins/tmux-powerkit/src/plugins/cloud.sh"
+            ),
+            "base image should override PowerKit cloud with local-context-only status"
+        );
     }
 
     #[test]
@@ -1642,11 +1669,14 @@ mod tests {
         let content = include_str!("../../images/base-debian/Dockerfile");
         assert!(content.contains("SHELL=/bin/bash"));
         assert!(
-            content.contains("/home/aibox/.cache/starship")
+            content.contains("ENV UV_CACHE_DIR=/tmp/aibox/uv-cache")
+                && content.contains("/home/aibox/.cache/starship")
                 && content.contains("/home/aibox/.cache/uv")
+                && content.contains("/tmp/aibox/uv-cache")
                 && content.contains("/home/aibox/.tmux/plugins")
-                && content.contains("chown -R aibox:aibox /home/aibox"),
-            "base image should create writable cache-home paths before final ownership fix"
+                && content.contains("chown -R aibox:aibox /home/aibox")
+                && content.contains("chown -R aibox:aibox /tmp/aibox"),
+            "base image should create writable cache-home and uv cache paths before final ownership fix"
         );
     }
 

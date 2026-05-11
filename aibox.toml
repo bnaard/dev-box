@@ -338,39 +338,22 @@ lazygit = { enabled = false } # default on; options: {}, { enabled = true|false 
 # kustomize = {} # default on; options: {}, { enabled = true|false }, { version = "x.y.z" or "latest" }
 # k9s = { enabled = true } # default off; options: {}, { enabled = true|false }, { version = "x.y.z" or "latest" }
 
-# Tools/preview-archive — image/PDF/SVG preview helpers plus archive/watch tools
+# Tools/preview-archive — Yazi image/PDF/SVG preview helpers plus archive preview/extraction tools
 # [addons.preview-archive.tools]
-# Yazi preview enhancements:
-#   suffixes: .jpg .jpeg .png .gif .webp .bmp .tiff .tif -> chafa
-#   suffixes: .svg -> resvg, with librsvg/rsvg-convert fallback
-#   suffixes: .pdf -> poppler/pdftoppm
 # chafa = {} # default on; options: {}, { enabled = true|false }, { version = "x.y.z" or "latest" }
-# resvg = {} # default on; options: {}, { enabled = true|false }, { version = "0.47.0" (default) or "latest" }
 # librsvg = {} # default on; options: {}, { enabled = true|false }, { version = "x.y.z" or "latest" }
 # poppler = {} # default on; options: {}, { enabled = true|false }, { version = "x.y.z" or "latest" }
-#
-# Standalone/watch previews:
-#   suffixes: .pdf live watch -> mupdf/mutool + timg + entr
-#   suffixes: archives (.zip .7z .rar .tar .tar.gz .tgz .tar.xz .txz) -> p7zip
 # timg = {} # default on; options: {}, { enabled = true|false }, { version = "x.y.z" or "latest" }
 # mupdf = {} # default on; options: {}, { enabled = true|false }, { version = "x.y.z" or "latest" }
 # entr = {} # default on; options: {}, { enabled = true|false }, { version = "x.y.z" or "latest" }
 # p7zip = {} # default on; options: {}, { enabled = true|false }, { version = "x.y.z" or "latest" }
+# resvg = {} # default on; options: {}, { enabled = true|false }, { version = "0.47.0" (default) or "latest" }
 
-# Tools/preview-enhanced — Rich text/docs, video, and EPS; requires preview-archive
+# Tools/preview-enhanced — Rich Markdown rendering, ffmpeg, and Ghostscript; requires preview-archive
 # [addons.preview-enhanced.tools]
-# Yazi preview enhancements:
-#   suffixes: .md .markdown -> rich/python3-rich
-#   suffixes: .rst .json .ipynb -> rich/python3-rich
-#   suffixes: .eps -> ghostscript/gs
-#   suffixes: video files (.mp4 .mkv .webm .avi) -> ffmpeg
 # ffmpeg = {} # default on; options: {}, { enabled = true|false }, { version = "x.y.z" or "latest" }
 # ghostscript = {} # default on; options: {}, { enabled = true|false }, { version = "x.y.z" or "latest" }
 # rich = {} # default on; options: {}, { enabled = true|false }, { version = "x.y.z" or "latest" }
-
-# Tools/yazi-omp — oh-my-posh for the omp.yazi header prompt
-# [addons.yazi-omp.tools]
-# oh-my-posh = {} # default on; options: {}, { enabled = true|false }, { version = "x.y.z" or "latest" }
 
 # =============================================================================
 # [ai] — AI agent harnesses and model providers
@@ -388,6 +371,7 @@ lazygit = { enabled = false } # default on; options: {}, { enabled = true|false 
 # Hermes                      hermes         any (multi-provider)
 #
 # Enable harnesses through their [ai.harness.<name>] table below.
+# `harness_order` controls tmux layout semantics: 1st, 2nd, 3rd harness.
 #
 # Model providers (optional): declare which API key/base URL env vars are available.
 # Provider     Config value   API key env         Base URL env
@@ -536,36 +520,14 @@ session_name = "aibox"
 [customization.tmux.status]
 mode = "extended"  # extended | plain | disabled (legacy: powerline -> extended)
 
-[customization.tmux.status.elements]
-hostname = true  # show container hostname
-external-ip = true  # show detected external IP
-ssh = true  # show SSH connection status
-uptime = true  # show container uptime
-weather = true  # show weather summary (when configured)
-datetime = true  # show current date/time
-git = true  # show git branch and repo state
-github = true  # show GitHub notifications/context
-kubernetes = true  # show current Kubernetes context
-terraform = true  # show Terraform workspace/context
-cloud = true  # show active cloud profile/context
-cloudstatus = true  # show cloud provider status summary
-cpu = true  # show CPU usage
-loadavg = true  # show system load averages
-mem = true  # show memory usage
-swap = true  # show swap usage
-disk = true  # show filesystem usage
-gpu = true  # show GPU usage (if available)
-netspeed = true  # show network throughput
-ping = true  # show network latency
-aibox = true  # show aggregated aibox runtime metrics
-
-[customization.tmux.status.elements.aibox-metrics]
-log = true  # include log health indicator
-oom = true  # include OOM kill indicator
-proc = true  # include process pressure indicator
-ai = true  # include AI harness runtime indicator
-mcp = true  # include MCP server health indicator
-mig = true  # include migration state indicator
+[customization.tmux.status.layout]
+# Row lists are ordered. Removing a name disables that status element.
+# line1-left supports tmux-native entries: session, windows.
+# Other rows use PowerKit plugin IDs.
+line1-left = ["session", "windows"]
+line1-right = ["aibox_log", "aibox_oom", "aibox_proc", "aibox_ai", "aibox_mcp", "aibox_mig", "weather", "uptime", "datetime"]
+line2-left = ["git", "github", "kubernetes", "terraform", "cloud", "cloudstatus"]
+line2-right = ["hostname", "externalip", "ssh", "netspeed", "ping", "cpu", "loadavg", "memory", "swap", "disk", "gpu"]
 
 # =============================================================================
 # [security] — explicit consent for security-sensitive runtime options

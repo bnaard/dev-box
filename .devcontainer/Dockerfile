@@ -69,10 +69,11 @@ LABEL aibox.version="0.25.8"
 LABEL aibox.profile="human-dev"
 
 ENV SHELL=/bin/bash
+ENV UV_CACHE_DIR=/tmp/aibox/uv-cache
 
 USER root
-RUN mkdir -p /home/aibox/.cache/starship /home/aibox/.cache/uv /home/aibox/.tmux/plugins; \
-    chown -R aibox:aibox /home/aibox/.cache
+RUN mkdir -p /home/aibox/.cache/starship /home/aibox/.cache/uv /home/aibox/.tmux/plugins /tmp/aibox/uv-cache; \
+    chown -R aibox:aibox /home/aibox/.cache /tmp/aibox
 
 # Addon: ai-claude
 # Install Claude Code CLI from Anthropic's signed Debian repository.

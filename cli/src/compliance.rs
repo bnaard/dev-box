@@ -70,8 +70,8 @@ pub fn check_compliance_contract_drift(project_root: &Path, fix: bool) -> Result
     if !canonical_path.is_file() || !agents_path.is_file() {
         if fix {
             output::warn(
-                "--fix-compliance-contract: AGENTS.md or the canonical contract is missing; \
-                 nothing to rewrite.",
+                "Compliance contract auto-fix skipped: AGENTS.md or the canonical contract is \
+                 missing; nothing to rewrite.",
             );
         }
         return Ok(());
@@ -96,8 +96,8 @@ pub fn check_compliance_contract_drift(project_root: &Path, fix: bool) -> Result
             // Block markers not present — nothing to compare or fix.
             if fix {
                 output::warn(
-                    "--fix-compliance-contract: no pk-compliance-contract markers found in \
-                     AGENTS.md; nothing to rewrite.",
+                    "Compliance contract auto-fix skipped: no pk-compliance-contract markers \
+                     found in AGENTS.md; nothing to rewrite.",
                 );
             }
         }
@@ -331,15 +331,15 @@ pub fn write_aider_compliance_conf(config: &AiboxConfig, project_root: &Path) ->
 /// Run all three compliance-contract sync steps. Best-effort: failures in
 /// individual steps are warned-and-continued so they do not abort the sync.
 ///
-/// `fix_compliance_contract` — when true, the drift checker rewrites the
-/// AGENTS.md block from the canonical source instead of emitting a
-/// warning. Wired from `aibox apply --fix-compliance-contract`.
+/// `fix_compliance_contract` — kept for CLI compatibility. `apply` now
+/// automatically refreshes the managed AGENTS.md compliance block when
+/// drift is detected; the flag remains a harmless explicit opt-in.
 pub fn regenerate_compliance_configs(
     config: &AiboxConfig,
     project_root: &Path,
-    fix_compliance_contract: bool,
+    _fix_compliance_contract: bool,
 ) -> Result<()> {
-    if let Err(e) = check_compliance_contract_drift(project_root, fix_compliance_contract) {
+    if let Err(e) = check_compliance_contract_drift(project_root, true) {
         output::warn(&format!("Compliance drift check failed: {}", e));
     }
     if let Err(e) = write_cursor_compliance_rules(config, project_root) {

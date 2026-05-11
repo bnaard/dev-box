@@ -224,7 +224,6 @@ main() {
     tools/git-ui.yaml
     tools/preview-archive.yaml
     tools/preview-enhanced.yaml
-    tools/yazi-omp.yaml
     docs/docs-mkdocs.yaml
     docs/docs-zensical.yaml
     docs/docs-docusaurus.yaml

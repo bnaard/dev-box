@@ -17,6 +17,16 @@ local function uid_map()
 	return map
 end
 
+-- Map porcelain two-char codes to single-char signs matching the main list
+local GIT_SIGNS = {
+	["!!"] = "I", ["??"] = "?",
+	["A "] = "A", ["AM"] = "A",
+	[" M"] = "M", ["M "] = "M", ["MM"] = "M",
+	[" D"] = "D", ["D "] = "D",
+	["UU"] = "U",
+}
+local GIT_PRIORITY = { [""] = 0, ["I"] = 1, ["?"] = 2, ["A"] = 3, ["M"] = 4, ["U"] = 5, ["D"] = 6 }
+
 local function git_status(dir)
 	local map = {}
 	-- Get the directory's path relative to the repo root
@@ -34,20 +44,19 @@ local function git_status(dir)
 		if prefix ~= "" and path:sub(1, #prefix) == prefix then
 			path = path:sub(#prefix + 1)
 		end
-		local base = path:match("^([^/]+)")
-		if base and not map[base] then map[base] = signs end
+		local base, rest = path:match("^([^/]+)/(.+)$")
+		if not base then base, rest = path, "" end
+		local sign = GIT_SIGNS[signs]
+		if base and sign then
+			local entry = map[base] or { direct = "", inherited = "" }
+			local key = rest == "" and "direct" or "inherited"
+			if GIT_PRIORITY[sign] > GIT_PRIORITY[entry[key]] then entry[key] = sign end
+			map[base] = entry
+		end
 	end
 	return map
 end
 
--- Map porcelain two-char codes to single-char signs matching the main list
-local GIT_SIGNS = {
-	["!!"] = "I", ["??"] = "?",
-	["A "] = "A", ["AM"] = "A",
-	[" M"] = "M", ["M "] = "M", ["MM"] = "M",
-	[" D"] = "D", ["D "] = "D",
-	["UU"] = "U",
-}
 -- Read theme git colors (set by yazi theme.toml [git] section)
 local t = th.git or {}
 -- Direct status (files): theme-aware styles
@@ -62,7 +71,7 @@ local GIT_STYLES = {
 -- Inherited status (directories): same styles but dimmed
 local GIT_STYLES_DIM = {
 	["?"] = (t.untracked or ui.Style():fg("magenta")):dim(),
-	["I"] = t.ignored or ui.Style():fg("darkgray"),
+	["I"] = (t.ignored or ui.Style():fg("darkgray")):dim(),
 	["A"] = (t.added or ui.Style():fg("green")):dim(),
 	["M"] = (t.modified or ui.Style():fg("yellow")):dim(),
 	["D"] = (t.deleted or ui.Style():fg("red")):dim(),
@@ -106,11 +115,12 @@ function M:peek(job)
 		local f = files[i]
 		local c = f.cha
 		local name = f.name .. (c.is_dir and "/" or "")
-		local raw = git[f.name] or ""
-		local gs = GIT_SIGNS[raw] or ""
-		local is_inherited = c.is_dir and gs ~= "" and gs ~= "I"
+		local raw = git[f.name] or { direct = "", inherited = "" }
+		local direct, inherited = raw.direct or "", raw.inherited or ""
+		local gs = direct ~= "" and direct or inherited
+		local is_inherited = c.is_dir and direct == "" and inherited ~= ""
 		local gs_style = is_inherited and GIT_STYLES_DIM[gs] or GIT_STYLES[gs]
-		local ignored = gs == "I"
+		local ignored = direct == "I"
 		gs = is_inherited and (gs:lower() .. " ") or (gs ~= "" and (gs .. " ") or "  ")
 		local icon = f:icon()
 		local size

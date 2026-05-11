@@ -11,6 +11,17 @@ use crate::output;
 use crate::runtime::{ContainerState, Runtime};
 use crate::seed;
 
+fn toml_string_list(items: &[String]) -> String {
+    items
+        .iter()
+        .map(|item| {
+            let escaped = item.replace('\\', "\\\\").replace('"', "\\\"");
+            format!("\"{escaped}\"")
+        })
+        .collect::<Vec<_>>()
+        .join(", ")
+}
+
 /// Parameters for the init command, grouping all optional CLI arguments.
 pub struct InitParams {
     pub name: Option<String>,
@@ -374,6 +385,64 @@ fn complete_missing_required_addons(config: &mut AiboxConfig) -> Vec<(String, St
     added
 }
 
+fn persist_missing_required_addons(
+    config_path: &Option<String>,
+    added_required_addons: &[(String, String)],
+) -> Result<Vec<String>> {
+    if added_required_addons.is_empty() {
+        return Ok(Vec::new());
+    }
+
+    let toml_path = resolve_aibox_toml_path(config_path);
+    if !toml_path.is_file() {
+        return Ok(Vec::new());
+    }
+
+    let content = std::fs::read_to_string(&toml_path)
+        .with_context(|| format!("Failed to read {}", toml_path.display()))?;
+    let mut doc: toml_edit::DocumentMut = content
+        .parse()
+        .with_context(|| format!("Failed to parse {}", toml_path.display()))?;
+
+    let mut persisted = Vec::new();
+    let mut required_addons: Vec<_> = added_required_addons
+        .iter()
+        .map(|(_, required)| required.clone())
+        .collect();
+    required_addons.sort();
+    required_addons.dedup();
+
+    for required in required_addons {
+        let has_required_tools = doc
+            .get("addons")
+            .and_then(|item| item.get(&required))
+            .and_then(|item| item.get("tools"))
+            .and_then(|item| item.as_table())
+            .is_some();
+        if has_required_tools {
+            continue;
+        }
+
+        if !doc
+            .get("addons")
+            .and_then(|item| item.as_table())
+            .is_some_and(|table| table.contains_key(&required))
+        {
+            doc["addons"][&required] = toml_edit::table();
+        }
+        doc["addons"][&required]["tools"] = toml_edit::table();
+        persisted.push(required);
+    }
+
+    if persisted.is_empty() {
+        return Ok(Vec::new());
+    }
+
+    std::fs::write(&toml_path, doc.to_string())
+        .with_context(|| format!("Failed to write {}", toml_path.display()))?;
+    Ok(persisted)
+}
+
 /// Build the `[addons.<name>.tools]` section for a single addon at
 /// init time. Populates every `default_enabled` tool at the addon's
 /// `default_version`, with three layered override sources (later wins):
@@ -581,12 +650,23 @@ pub fn cmd_start(
 
     let added_required_addons = complete_missing_required_addons(&mut config);
     if !added_required_addons.is_empty() {
-        for (addon, required) in &added_required_addons {
-            output::warn(&format!(
-                "Addon '{}' requires '{}'; using '{}' for this start. \
-                 Add [addons.{}.tools] to aibox.toml to make the migration explicit.",
-                addon, required, required, required
-            ));
+        match persist_missing_required_addons(config_path, &added_required_addons) {
+            Ok(persisted) if !persisted.is_empty() => output::ok(&format!(
+                "Added required addon section(s) to aibox.toml: {}",
+                persisted.join(", ")
+            )),
+            Ok(_) => {
+                for (addon, required) in &added_required_addons {
+                    output::warn(&format!(
+                        "Addon '{}' requires '{}'; using '{}' for this start.",
+                        addon, required, required
+                    ));
+                }
+            }
+            Err(e) => output::warn(&format!(
+                "Could not persist required addon section(s) to aibox.toml: {}",
+                e
+            )),
         }
     }
 
@@ -1395,47 +1475,26 @@ pub(crate) fn serialize_config_with_comments(config: &AiboxConfig) -> String {
         config.customization.tmux.status.mode
     ));
     out.push('\n');
-    out.push_str("[customization.tmux.status.elements]\n");
+    out.push_str("[customization.tmux.status.layout]\n");
+    out.push_str("# Row lists are ordered. Removing a name disables that status element.\n");
+    out.push_str("# line1-left supports tmux-native entries: session, windows.\n");
+    out.push_str("# Other rows use PowerKit plugin IDs.\n");
+    let layout = crate::tmux::resolved_tmux_status_layout(config);
     out.push_str(&format!(
-        "hostname = {}  # show container hostname\nexternal-ip = {}  # show detected external IP\nssh = {}  # show SSH connection status\nuptime = {}  # show container uptime\nweather = {}  # show weather summary (when configured)\ndatetime = {}  # show current date/time\n",
-        config.customization.tmux.status.elements.hostname,
-        config.customization.tmux.status.elements.external_ip,
-        config.customization.tmux.status.elements.ssh,
-        config.customization.tmux.status.elements.uptime,
-        config.customization.tmux.status.elements.weather,
-        config.customization.tmux.status.elements.datetime
+        "line1-left = [{}]\n",
+        toml_string_list(&layout.line1_left)
     ));
     out.push_str(&format!(
-        "git = {}  # show git branch and repo state\ngithub = {}  # show GitHub notifications/context\nkubernetes = {}  # show current Kubernetes context\nterraform = {}  # show Terraform workspace/context\ncloud = {}  # show active cloud profile/context\ncloudstatus = {}  # show cloud provider status summary\n",
-        config.customization.tmux.status.elements.git,
-        config.customization.tmux.status.elements.github,
-        config.customization.tmux.status.elements.kubernetes,
-        config.customization.tmux.status.elements.terraform,
-        config.customization.tmux.status.elements.cloud,
-        config.customization.tmux.status.elements.cloudstatus
+        "line1-right = [{}]\n",
+        toml_string_list(&layout.line1_right)
     ));
     out.push_str(&format!(
-        "cpu = {}  # show CPU usage\nloadavg = {}  # show system load averages\nmem = {}  # show memory usage\nswap = {}  # show swap usage\ndisk = {}  # show filesystem usage\ngpu = {}  # show GPU usage (if available)\nnetspeed = {}  # show network throughput\nping = {}  # show network latency\naibox = {}  # show aggregated aibox runtime metrics\n",
-        config.customization.tmux.status.elements.cpu,
-        config.customization.tmux.status.elements.loadavg,
-        config.customization.tmux.status.elements.mem,
-        config.customization.tmux.status.elements.swap,
-        config.customization.tmux.status.elements.disk,
-        config.customization.tmux.status.elements.gpu,
-        config.customization.tmux.status.elements.netspeed,
-        config.customization.tmux.status.elements.ping,
-        config.customization.tmux.status.elements.aibox
+        "line2-left = [{}]\n",
+        toml_string_list(&layout.line2_left)
     ));
-    out.push('\n');
-    out.push_str("[customization.tmux.status.elements.aibox-metrics]\n");
     out.push_str(&format!(
-        "log = {}  # include log health indicator\noom = {}  # include OOM kill indicator\nproc = {}  # include process pressure indicator\nai = {}  # include AI harness runtime indicator\nmcp = {}  # include MCP server health indicator\nmig = {}  # include migration state indicator\n",
-        config.customization.tmux.status.elements.aibox_metrics.log,
-        config.customization.tmux.status.elements.aibox_metrics.oom,
-        config.customization.tmux.status.elements.aibox_metrics.proc,
-        config.customization.tmux.status.elements.aibox_metrics.ai,
-        config.customization.tmux.status.elements.aibox_metrics.mcp,
-        config.customization.tmux.status.elements.aibox_metrics.mig
+        "line2-right = [{}]\n",
+        toml_string_list(&layout.line2_right)
     ));
 
     // [security] section — only emitted when non-default (avoid noise in normal projects)
@@ -2817,21 +2876,23 @@ pub fn cmd_sync(
 
     let added_required_addons = complete_missing_required_addons(&mut config);
     if !added_required_addons.is_empty() {
-        for (addon, required) in &added_required_addons {
-            output::warn(&format!(
-                "Addon '{}' requires '{}'; using '{}' for this apply. \
-                 Add [addons.{}.tools] to aibox.toml to make the migration explicit.",
-                addon, required, required, required
-            ));
-        }
-        if let Ok(cwd) = std::env::current_dir()
-            && let Err(e) =
-                crate::migration::generate_addon_dependency_migration(&cwd, &added_required_addons)
-        {
-            output::warn(&format!(
-                "Could not write addon dependency migration guidance: {}",
+        match persist_missing_required_addons(config_path, &added_required_addons) {
+            Ok(persisted) if !persisted.is_empty() => output::ok(&format!(
+                "Added required addon section(s) to aibox.toml: {}",
+                persisted.join(", ")
+            )),
+            Ok(_) => {
+                for (addon, required) in &added_required_addons {
+                    output::warn(&format!(
+                        "Addon '{}' requires '{}'; using '{}' for this apply.",
+                        addon, required, required
+                    ));
+                }
+            }
+            Err(e) => output::warn(&format!(
+                "Could not persist required addon section(s) to aibox.toml: {}",
                 e
-            ));
+            )),
         }
     }
 
@@ -2949,12 +3010,19 @@ pub fn cmd_sync(
             let dot_mcp = cwd.join(".mcp.json");
             match crate::mcp_registration::detect_per_skill_mcp_config_drift(&cwd, &dot_mcp) {
                 Ok(drifts) if !drifts.is_empty() => {
-                    for d in &drifts {
-                        output::warn(&format!(
-                            "MCP drift: skill '{}' server '{}' — re-merging into .mcp.json",
-                            d.skill_name, d.server_name,
-                        ));
-                    }
+                    let sample = drifts
+                        .iter()
+                        .take(5)
+                        .map(|d| d.skill_name.as_str())
+                        .collect::<Vec<_>>()
+                        .join(", ");
+                    let suffix = if drifts.len() > 5 { ", ..." } else { "" };
+                    output::ok(&format!(
+                        "Auto-repaired processkit MCP drift for {} server(s): {}{}",
+                        drifts.len(),
+                        sample,
+                        suffix
+                    ));
                 }
                 Ok(_) => {}
                 Err(e) => {
@@ -3172,21 +3240,23 @@ pub fn cmd_apply_generated_runtime(config_path: &Option<String>) -> Result<()> {
 
     let added_required_addons = complete_missing_required_addons(&mut config);
     if !added_required_addons.is_empty() {
-        for (addon, required) in &added_required_addons {
-            output::warn(&format!(
-                "Addon '{}' requires '{}'; using '{}' for this apply. \
-                 Add [addons.{}.tools] to aibox.toml to make the migration explicit.",
-                addon, required, required, required
-            ));
-        }
-        if let Err(e) = crate::migration::generate_addon_dependency_migration(
-            &project_root,
-            &added_required_addons,
-        ) {
-            output::warn(&format!(
-                "Could not write addon dependency migration guidance: {}",
+        match persist_missing_required_addons(config_path, &added_required_addons) {
+            Ok(persisted) if !persisted.is_empty() => output::ok(&format!(
+                "Added required addon section(s) to aibox.toml: {}",
+                persisted.join(", ")
+            )),
+            Ok(_) => {
+                for (addon, required) in &added_required_addons {
+                    output::warn(&format!(
+                        "Addon '{}' requires '{}'; using '{}' for this apply.",
+                        addon, required, required
+                    ));
+                }
+            }
+            Err(e) => output::warn(&format!(
+                "Could not persist required addon section(s) to aibox.toml: {}",
                 e
-            ));
+            )),
         }
     }
 
@@ -3563,6 +3633,49 @@ mod tests {
     fn expand_addon_requires_handles_empty() {
         let out = expand_addon_requires(&[]);
         assert!(out.is_empty());
+    }
+
+    #[test]
+    fn persist_missing_required_addons_writes_absent_tools_table() {
+        let tmp = tempfile::tempdir().unwrap();
+        let toml_path = tmp.path().join("aibox.toml");
+        std::fs::write(
+            &toml_path,
+            r#"apiVersion = "aibox.projectious.work/v1"
+kind = "Workspace"
+
+[metadata]
+name = "demo"
+
+[aibox]
+profile = "human-dev"
+
+[image]
+version = "0.25.8"
+base = "debian"
+
+[container]
+name = "demo"
+
+[addons.preview-enhanced.tools]
+rich = {}
+"#,
+        )
+        .unwrap();
+
+        let persisted = persist_missing_required_addons(
+            &Some(toml_path.to_string_lossy().to_string()),
+            &[(
+                "preview-enhanced".to_string(),
+                "preview-archive".to_string(),
+            )],
+        )
+        .unwrap();
+
+        assert_eq!(persisted, vec!["preview-archive"]);
+        let written = std::fs::read_to_string(&toml_path).unwrap();
+        assert!(written.contains("[addons.preview-enhanced.tools]"));
+        assert!(written.contains("[addons.preview-archive.tools]"));
     }
 
     // ── sync_should_install_processkit ──────────────────────────────────────

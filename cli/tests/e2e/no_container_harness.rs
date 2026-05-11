@@ -294,7 +294,8 @@ rich = {}
 
     let combined = combined_output(&apply_out);
     assert!(
-        combined.contains("preview-enhanced") && combined.contains("preview-archive"),
+        combined.contains("Added required addon section(s)")
+            && combined.contains("preview-archive"),
         "apply should tell the user which required addon was filled in:\n{combined}"
     );
 
@@ -304,17 +305,10 @@ rich = {}
         "fallback should include preview-archive content in the generated Dockerfile:\n{dockerfile}"
     );
 
-    let migration_dir = dir.join("context/migrations");
-    let guidance = fs::read_dir(&migration_dir)
-        .unwrap()
-        .filter_map(|entry| entry.ok())
-        .map(|entry| fs::read_to_string(entry.path()).unwrap_or_default())
-        .collect::<Vec<_>>()
-        .join("\n");
+    let updated_toml = fs::read_to_string(dir.join("aibox.toml")).unwrap();
     assert!(
-        guidance.contains("[addons.preview-archive.tools]")
-            && guidance.contains("Status:** pending"),
-        "apply should write migration guidance for the project agent:\n{guidance}"
+        updated_toml.contains("[addons.preview-archive.tools]"),
+        "apply should persist the required addon into aibox.toml:\n{updated_toml}"
     );
 }
 

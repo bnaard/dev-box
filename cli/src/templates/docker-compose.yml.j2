@@ -49,6 +49,8 @@ services:
       # selected subdirectories, because tools such as uv and starship create
       # their own cache/log directories at runtime.
       - {{ host_root }}/.cache:{{ container_home }}/.cache
+      # Starship shell prompt config
+      - {{ host_root }}/.config/starship.toml:{{ container_home }}/.config/starship.toml
       # Yazi file manager config
       - {{ host_root }}/.config/yazi:{{ container_home }}/.config/yazi
       # Git configuration

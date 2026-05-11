@@ -70,6 +70,16 @@ pub fn maybe_install_project_docs_deps(config: &AiboxConfig, project_root: &Path
         return;
     }
     let pm = detect_package_manager(&docs_dir);
+    if !package_manager_available(pm) {
+        output::warn(&format!(
+            "Skipped project-local docs dependency install in {}: `{}` is not available on \
+             this host. Container generation continues; install docs dependencies only when \
+             building or deploying docs.",
+            relative_display(project_root, &docs_dir),
+            pm.as_str(),
+        ));
+        return;
+    }
     output::info(&format!(
         "Installing project-local docs dependencies in {} via {}...",
         relative_display(project_root, &docs_dir),
@@ -90,6 +100,16 @@ pub fn maybe_install_project_docs_deps(config: &AiboxConfig, project_root: &Path
             relative_display(project_root, &docs_dir),
         ));
     }
+}
+
+fn package_manager_available(pm: PackageManager) -> bool {
+    std::process::Command::new(pm.as_str())
+        .arg("--version")
+        .stdout(std::process::Stdio::null())
+        .stderr(std::process::Stdio::null())
+        .status()
+        .map(|status| status.success())
+        .unwrap_or(false)
 }
 
 /// True iff at least one node-flavoured docs addon is listed in

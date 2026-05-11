@@ -338,6 +338,16 @@ local function uid_map()
 	return map
 end
 
+-- Map porcelain two-char codes to single-char signs matching the main list
+local GIT_SIGNS = {
+	["!!"] = "I", ["??"] = "?",
+	["A "] = "A", ["AM"] = "A",
+	[" M"] = "M", ["M "] = "M", ["MM"] = "M",
+	[" D"] = "D", ["D "] = "D",
+	["UU"] = "U",
+}
+local GIT_PRIORITY = { [""] = 0, ["I"] = 1, ["?"] = 2, ["A"] = 3, ["M"] = 4, ["U"] = 5, ["D"] = 6 }
+
 local function git_status(dir)
 	local map = {}
 	-- Get the directory's path relative to the repo root
@@ -355,20 +365,19 @@ local function git_status(dir)
 		if prefix ~= "" and path:sub(1, #prefix) == prefix then
 			path = path:sub(#prefix + 1)
 		end
-		local base = path:match("^([^/]+)")
-		if base and not map[base] then map[base] = signs end
+		local base, rest = path:match("^([^/]+)/(.+)$")
+		if not base then base, rest = path, "" end
+		local sign = GIT_SIGNS[signs]
+		if base and sign then
+			local entry = map[base] or { direct = "", inherited = "" }
+			local key = rest == "" and "direct" or "inherited"
+			if GIT_PRIORITY[sign] > GIT_PRIORITY[entry[key]] then entry[key] = sign end
+			map[base] = entry
+		end
 	end
 	return map
 end
 
--- Map porcelain two-char codes to single-char signs matching the main list
-local GIT_SIGNS = {
-	["!!"] = "I", ["??"] = "?",
-	["A "] = "A", ["AM"] = "A",
-	[" M"] = "M", ["M "] = "M", ["MM"] = "M",
-	[" D"] = "D", ["D "] = "D",
-	["UU"] = "U",
-}
 -- Read theme git colors (set by yazi theme.toml [git] section)
 local t = th.git or {}
 -- Direct status (files): theme-aware styles
@@ -383,7 +392,7 @@ local GIT_STYLES = {
 -- Inherited status (directories): same styles but dimmed
 local GIT_STYLES_DIM = {
 	["?"] = (t.untracked or ui.Style():fg("magenta")):dim(),
-	["I"] = t.ignored or ui.Style():fg("darkgray"),
+	["I"] = (t.ignored or ui.Style():fg("darkgray")):dim(),
 	["A"] = (t.added or ui.Style():fg("green")):dim(),
 	["M"] = (t.modified or ui.Style():fg("yellow")):dim(),
 	["D"] = (t.deleted or ui.Style():fg("red")):dim(),
@@ -427,11 +436,12 @@ function M:peek(job)
 		local f = files[i]
 		local c = f.cha
 		local name = f.name .. (c.is_dir and "/" or "")
-		local raw = git[f.name] or ""
-		local gs = GIT_SIGNS[raw] or ""
-		local is_inherited = c.is_dir and gs ~= "" and gs ~= "I"
+		local raw = git[f.name] or { direct = "", inherited = "" }
+		local direct, inherited = raw.direct or "", raw.inherited or ""
+		local gs = direct ~= "" and direct or inherited
+		local is_inherited = c.is_dir and direct == "" and inherited ~= ""
 		local gs_style = is_inherited and GIT_STYLES_DIM[gs] or GIT_STYLES[gs]
-		local ignored = gs == "I"
+		local ignored = direct == "I"
 		gs = is_inherited and (gs:lower() .. " ") or (gs ~= "" and (gs .. " ") or "  ")
 		local icon = f:icon()
 		local size
@@ -527,19 +537,8 @@ fn generate_yazi_config(config: &AiboxConfig) -> String {
     DEFAULT_YAZI_CONFIG.replace("AIBOX_YAZI_EXTRA_PREVIEWERS\n", &extra_previewers)
 }
 
-fn generate_yazi_init(config: &AiboxConfig) -> String {
-    let extra_setups = if config.addons.has_addon("yazi-omp") {
-        r#"
--- omp.yazi: show an Oh My Posh prompt in Yazi's header when enabled.
-require("omp"):setup({
-    config = os.getenv("HOME") .. "/.config/yazi/yazi-prompt.omp.json",
-})
-"#
-    } else {
-        ""
-    };
-
-    DEFAULT_YAZI_INIT.replace("AIBOX_YAZI_EXTRA_SETUPS\n", extra_setups)
+fn generate_yazi_init(_config: &AiboxConfig) -> String {
+    DEFAULT_YAZI_INIT.replace("AIBOX_YAZI_EXTRA_SETUPS\n", "")
 }
 
 /// git.yazi plugin main — shows git status signs next to file names.
@@ -618,14 +617,6 @@ fi
 /// search/filter (BR-LOG-PANEL, v0.25.6).
 const DEFAULT_LNAV_FORMAT_AIBOX: &str =
     include_str!("../../images/base-debian/config/lnav/aibox.json");
-
-/// omp.yazi plugin — render an Oh My Posh prompt in Yazi's header.
-const DEFAULT_YAZI_PLUGIN_OMP: &str =
-    include_str!("../../images/base-debian/config/yazi/plugins/omp.yazi/main.lua");
-
-/// Default OMP config used by omp.yazi when the addon is enabled.
-const DEFAULT_YAZI_OMP_CONFIG: &str =
-    include_str!("../../images/base-debian/config/yazi/plugins/omp.yazi/yazi-prompt.omp.json");
 
 /// Default yazi keymap.
 const DEFAULT_YAZI_KEYMAP: &str = r#"[mgr]
@@ -1062,17 +1053,6 @@ pub fn managed_runtime_files(config: &AiboxConfig) -> Vec<(std::path::PathBuf, S
         ));
     }
 
-    if config.addons.has_addon("yazi-omp") {
-        files.push((
-            std::path::PathBuf::from(".config/yazi/plugins/omp.yazi/main.lua"),
-            DEFAULT_YAZI_PLUGIN_OMP.to_string(),
-        ));
-        files.push((
-            std::path::PathBuf::from(".config/yazi/yazi-prompt.omp.json"),
-            DEFAULT_YAZI_OMP_CONFIG.to_string(),
-        ));
-    }
-
     files
 }
 
@@ -1117,11 +1097,39 @@ pub fn cleanup_disabled_runtime_files(config: &AiboxConfig) -> Result<Vec<String
     // Both run unconditionally on every apply (Variant 1, hard overwrite).
     updated.extend(cleanup_tmux_powerkit_cache(&root)?);
     updated.extend(cleanup_stale_tmux_plugins(config, &root)?);
+    updated.extend(cleanup_retired_yazi_omp_files(&root)?);
 
     // Item 4 (BR-CLEANUP-ARCH): per-harness state cleanup. When the user
     // opted into purge_disabled_harness_state, hard-delete; otherwise emit
     // a pending Migration document describing what would be removed.
     updated.extend(cleanup_disabled_harness_state(config, &root)?);
+
+    Ok(updated)
+}
+
+fn cleanup_retired_yazi_omp_files(root: &Path) -> Result<Vec<String>> {
+    let retired_paths = [
+        ".config/yazi/plugins/omp.yazi/main.lua",
+        ".config/yazi/plugins/omp.yazi",
+        ".config/yazi/yazi-prompt.omp.json",
+    ];
+    let mut updated = Vec::new();
+
+    for rel in retired_paths {
+        let path = root.join(rel);
+        if !path.exists() {
+            continue;
+        }
+
+        if path.is_dir() {
+            fs::remove_dir_all(&path)
+                .with_context(|| format!("Failed to remove {}", path.display()))?;
+        } else {
+            fs::remove_file(&path)
+                .with_context(|| format!("Failed to remove {}", path.display()))?;
+        }
+        updated.push(format!("{rel} (removed retired yazi-omp runtime file)"));
+    }
 
     Ok(updated)
 }
@@ -1945,6 +1953,12 @@ mod tests {
         assert!(
             !DEFAULT_YAZI_INIT.contains("th.git =") && DEFAULT_YAZI_INIT.contains("signs = {"),
             "Yazi 26 exposes th.git as a custom theme section; init.lua must pass sign overrides through git.yazi setup options"
+        );
+        assert!(
+            DEFAULT_YAZI_PLUGIN_DIR_PREVIEW.contains("direct = \"\", inherited = \"\"")
+                && DEFAULT_YAZI_PLUGIN_DIR_PREVIEW.contains("local ignored = direct == \"I\"")
+                && DEFAULT_YAZI_PLUGIN_DIR_PREVIEW.contains("gs:lower()"),
+            "Directory previews must distinguish direct git status from inherited child status"
         );
     }
 
@@ -2823,7 +2837,7 @@ rules = [
     }
 
     #[test]
-    fn omp_setup_only_enabled_with_yazi_omp_addon() {
+    fn yazi_init_never_enables_retired_omp_plugin() {
         let dir = tempfile::tempdir().unwrap();
         let root = dir.path().join("root");
         let mut config = make_config(false, root);
@@ -2840,8 +2854,32 @@ rules = [
             .insert("yazi-omp".to_string(), AddonToolsSection::default());
         let with = generate_yazi_init(&config);
         assert!(
-            with.contains(r#"require("omp"):setup"#),
-            "omp setup should be present when the addon is configured"
+            !with.contains(r#"require("omp"):setup"#),
+            "retired yazi-omp addon must not activate omp.yazi"
+        );
+    }
+
+    #[test]
+    fn cleanup_disabled_runtime_files_removes_retired_yazi_omp_files() {
+        let dir = tempfile::tempdir().unwrap();
+        let root = dir.path().join("root");
+        let config = make_config(false, root.clone());
+
+        let plugin_dir = root.join(".config/yazi/plugins/omp.yazi");
+        fs::create_dir_all(&plugin_dir).unwrap();
+        fs::write(plugin_dir.join("main.lua"), "stale").unwrap();
+        fs::create_dir_all(root.join(".config/yazi")).unwrap();
+        fs::write(root.join(".config/yazi/yazi-prompt.omp.json"), "{}").unwrap();
+
+        let updated = cleanup_disabled_runtime_files(&config).unwrap();
+
+        assert!(!plugin_dir.exists());
+        assert!(!root.join(".config/yazi/yazi-prompt.omp.json").exists());
+        assert!(
+            updated
+                .iter()
+                .any(|path| path.contains("retired yazi-omp runtime file")),
+            "expected yazi-omp cleanup marker, got {updated:?}"
         );
     }
 

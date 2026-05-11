@@ -277,7 +277,8 @@ rich = {{}}
         "aibox up should use the same transient required-addon fallback as apply:\n{combined}"
     );
     assert!(
-        combined.contains("preview-enhanced") && combined.contains("preview-archive"),
+        combined.contains("Added required addon section(s)")
+            && combined.contains("preview-archive"),
         "aibox up should tell the user which required addon was filled in:\n{combined}"
     );
 

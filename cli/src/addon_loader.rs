@@ -1287,15 +1287,4 @@ runtime: |
             );
         }
     }
-
-    #[test]
-    fn purge_yazi_omp_removes_binary_when_disabled() {
-        let addon = load_repo_addon("yazi-omp");
-        let tools = all_disabled_tools(&addon);
-        let rendered = render_runtime(&addon, &tools).unwrap();
-        assert!(
-            rendered.contains("rm -f /usr/local/bin/oh-my-posh"),
-            "disabled oh-my-posh must remove binary: {rendered}"
-        );
-    }
 }

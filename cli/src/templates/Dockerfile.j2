@@ -20,10 +20,11 @@ LABEL aibox.version="{{ version }}"
 LABEL aibox.profile="{{ profile }}"
 
 ENV SHELL=/bin/bash
+ENV UV_CACHE_DIR=/tmp/aibox/uv-cache
 
 USER root
-RUN mkdir -p /home/aibox/.cache/starship /home/aibox/.cache/uv /home/aibox/.tmux/plugins; \
-    chown -R aibox:aibox /home/aibox/.cache
+RUN mkdir -p /home/aibox/.cache/starship /home/aibox/.cache/uv /home/aibox/.tmux/plugins /tmp/aibox/uv-cache; \
+    chown -R aibox:aibox /home/aibox/.cache /tmp/aibox
 {% for addon_cmd in addon_commands %}
 
 {{ addon_cmd }}

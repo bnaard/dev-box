@@ -457,9 +457,9 @@ pub fn verify_install_integrity(
         }
     };
     if mirror_prov.source.generated_for_tag != claimed {
-        // Downgraded from a hard `MismatchedVersion` error to a warn:
+        // Downgraded from a hard `MismatchedVersion` error to an info event:
         // the live provenance check below is authoritative.
-        tracing::warn!(
+        tracing::info!(
             mirror_path = %mirror_prov_path.display(),
             claimed = %claimed,
             mirror_generated_for_tag = %mirror_prov.source.generated_for_tag,

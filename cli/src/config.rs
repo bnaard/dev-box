@@ -1247,6 +1247,19 @@ impl Default for TmuxStatusElementsSection {
     }
 }
 
+#[derive(Debug, Clone, Default, Serialize, Deserialize, PartialEq, Eq)]
+#[serde(rename_all = "kebab-case")]
+pub struct TmuxStatusLayoutSection {
+    #[serde(default)]
+    pub line1_left: Option<Vec<String>>,
+    #[serde(default)]
+    pub line1_right: Option<Vec<String>>,
+    #[serde(default)]
+    pub line2_left: Option<Vec<String>>,
+    #[serde(default)]
+    pub line2_right: Option<Vec<String>>,
+}
+
 /// [customization.tmux.status] section.
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 pub struct TmuxStatusSection {
@@ -1254,6 +1267,8 @@ pub struct TmuxStatusSection {
     pub mode: TmuxStatusMode,
     #[serde(default)]
     pub elements: TmuxStatusElementsSection,
+    #[serde(default)]
+    pub layout: TmuxStatusLayoutSection,
 }
 
 impl Default for TmuxStatusSection {
@@ -1261,6 +1276,7 @@ impl Default for TmuxStatusSection {
         Self {
             mode: default_tmux_status_mode(),
             elements: TmuxStatusElementsSection::default(),
+            layout: TmuxStatusLayoutSection::default(),
         }
     }
 }
@@ -2530,7 +2546,75 @@ impl AiboxConfig {
         // Validate extra volumes path safety
         self.validate_extra_volumes()?;
         self.validate_container_paths()?;
+        self.validate_tmux_status_layout()?;
 
+        Ok(())
+    }
+
+    fn validate_tmux_status_layout(&self) -> Result<()> {
+        const LINE1_LEFT: &[&str] = &["session", "windows"];
+        const POWERKIT_PLUGINS: &[&str] = &[
+            "aibox_log",
+            "aibox_oom",
+            "aibox_proc",
+            "aibox_ai",
+            "aibox_mcp",
+            "aibox_mig",
+            "weather",
+            "uptime",
+            "datetime",
+            "git",
+            "github",
+            "kubernetes",
+            "terraform",
+            "cloud",
+            "cloudstatus",
+            "hostname",
+            "externalip",
+            "ssh",
+            "netspeed",
+            "ping",
+            "cpu",
+            "loadavg",
+            "memory",
+            "swap",
+            "disk",
+            "gpu",
+        ];
+
+        fn validate_list(
+            field: &str,
+            configured: &Option<Vec<String>>,
+            allowed: &[&str],
+        ) -> Result<()> {
+            let Some(entries) = configured else {
+                return Ok(());
+            };
+            let allowed: BTreeSet<&str> = allowed.iter().copied().collect();
+            let mut seen = BTreeSet::new();
+            for entry in entries {
+                if !allowed.contains(entry.as_str()) {
+                    bail!(
+                        "customization.tmux.status.layout.{field} contains unknown entry '{}'; supported entries: {}",
+                        entry,
+                        allowed.iter().copied().collect::<Vec<_>>().join(", ")
+                    );
+                }
+                if !seen.insert(entry) {
+                    bail!(
+                        "customization.tmux.status.layout.{field} contains duplicate entry '{}'",
+                        entry
+                    );
+                }
+            }
+            Ok(())
+        }
+
+        let layout = &self.customization.tmux.status.layout;
+        validate_list("line1-left", &layout.line1_left, LINE1_LEFT)?;
+        validate_list("line1-right", &layout.line1_right, POWERKIT_PLUGINS)?;
+        validate_list("line2-left", &layout.line2_left, POWERKIT_PLUGINS)?;
+        validate_list("line2-right", &layout.line2_right, POWERKIT_PLUGINS)?;
         Ok(())
     }
 
@@ -2859,8 +2943,14 @@ fn check_customization_table(
             mismatches,
         );
         if let Some(tmux) = table_child(customization, "tmux") {
-            check_child_table(tmux, "status", &["mode", "elements"], mismatches);
+            check_child_table(tmux, "status", &["mode", "elements", "layout"], mismatches);
             if let Some(status) = table_child(tmux, "status") {
+                check_child_table(
+                    status,
+                    "layout",
+                    &["line1-left", "line1-right", "line2-left", "line2-right"],
+                    mismatches,
+                );
                 check_child_table(
                     status,
                     "elements",
@@ -3697,6 +3787,59 @@ mig = false
         assert!(
             mismatches.is_empty(),
             "tmux status element toggles should be schema-clean: {mismatches:?}"
+        );
+    }
+
+    #[test]
+    fn parse_tmux_status_layout_lists() {
+        let toml = r#"
+[aibox]
+version = "0.25.8"
+
+[container]
+name = "my-project"
+
+[customization.tmux.status.layout]
+line1-left = ["session"]
+line1-right = ["datetime", "weather"]
+line2-left = ["git", "cloudstatus"]
+line2-right = ["cpu", "memory"]
+"#;
+        let config = parse_toml(toml).unwrap();
+        assert_eq!(
+            config.customization.tmux.status.layout.line1_left,
+            Some(vec!["session".to_string()])
+        );
+        assert_eq!(
+            config.customization.tmux.status.layout.line1_right,
+            Some(vec!["datetime".to_string(), "weather".to_string()])
+        );
+        assert_eq!(
+            config.customization.tmux.status.layout.line2_left,
+            Some(vec!["git".to_string(), "cloudstatus".to_string()])
+        );
+        assert_eq!(
+            config.customization.tmux.status.layout.line2_right,
+            Some(vec!["cpu".to_string(), "memory".to_string()])
+        );
+    }
+
+    #[test]
+    fn tmux_status_layout_rejects_unknown_entries() {
+        let toml = r#"
+[aibox]
+version = "0.25.8"
+
+[container]
+name = "my-project"
+
+[customization.tmux.status.layout]
+line2-left = ["git", "not-a-plugin"]
+"#;
+        let err = parse_toml(toml).expect_err("unknown status plugin must be rejected");
+        assert!(
+            err.to_string().contains("not-a-plugin"),
+            "error should name the bad plugin: {err:?}"
         );
     }
 

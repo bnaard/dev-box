@@ -6,6 +6,7 @@
 //! migration that absorbs the legacy `.aibox-version` file into `aibox.lock`.
 
 use anyhow::{Context, Result};
+use clap::ValueEnum as _;
 use std::collections::{BTreeMap, BTreeSet};
 use std::fs;
 use std::path::Path;
@@ -18,12 +19,106 @@ pub fn check_and_generate_migration() -> Result<()> {
     // Hard-cut: absorb legacy .aibox-version into aibox.lock (one-time, idempotent).
     migrate_legacy_lock_files(Path::new("."))?;
     migrate_aibox_toml_structure(Path::new("."))?;
+    migrate_retired_addons(Path::new("."))?;
+    migrate_retired_addon_tools(Path::new("."))?;
     migrate_misplaced_addon_tools(Path::new("."))?;
     check_and_generate_migration_in(Path::new("."))?;
     ensure_processkit_section_in(Path::new("."))?;
     // Migrate old processkit runtime settings out of [context] (processkit v0.8.0+).
     migrate_processkit_context_settings(Path::new("."))?;
     refresh_generated_aibox_toml_comments(Path::new("."))?;
+    Ok(())
+}
+
+/// Remove addon sections that were intentionally retired from the aibox
+/// catalog. This runs before strict config loading and standardization so old
+/// derived projects keep applying instead of carrying inert addon selections.
+pub fn migrate_retired_addons(root: &Path) -> Result<()> {
+    let path = root.join("aibox.toml");
+    if !path.is_file() {
+        return Ok(());
+    }
+
+    let raw =
+        fs::read_to_string(&path).with_context(|| format!("Failed to read {}", path.display()))?;
+    let mut doc: toml_edit::DocumentMut = raw
+        .parse()
+        .with_context(|| format!("Failed to parse {} with toml_edit", path.display()))?;
+
+    let retired_addons = ["yazi-omp"];
+    let mut removed = Vec::new();
+
+    for addon_name in retired_addons {
+        let removed_addon = doc
+            .get_mut("addons")
+            .and_then(|item| item.as_table_mut())
+            .and_then(|addons| addons.remove(addon_name));
+
+        if removed_addon.is_some() {
+            removed.push(addon_name);
+        }
+    }
+
+    if removed.is_empty() {
+        return Ok(());
+    }
+
+    fs::write(&path, doc.to_string())
+        .with_context(|| format!("Failed to write {}", path.display()))?;
+    output::ok(&format!(
+        "Removed retired addon section(s) ({})",
+        removed.join(", ")
+    ));
+
+    Ok(())
+}
+
+/// Remove tool entries that belonged to older addon catalogs but no longer map
+/// to an installable switch.
+///
+/// This runs before strict config loading. Without it, generated-comment refresh
+/// can fail after a version bump before `--standardize-config` has a chance to
+/// rewrite the file. Keep this list intentionally narrow: genuinely unknown
+/// user-defined tool keys should still fail validation.
+pub fn migrate_retired_addon_tools(root: &Path) -> Result<()> {
+    let path = root.join("aibox.toml");
+    if !path.is_file() {
+        return Ok(());
+    }
+
+    let raw =
+        fs::read_to_string(&path).with_context(|| format!("Failed to read {}", path.display()))?;
+    let mut doc: toml_edit::DocumentMut = raw
+        .parse()
+        .with_context(|| format!("Failed to parse {} with toml_edit", path.display()))?;
+
+    let retired_tools = [("preview-enhanced", "imagemagick")];
+    let mut removed = Vec::new();
+
+    for (addon_name, tool_name) in retired_tools {
+        let removed_tool = doc
+            .get_mut("addons")
+            .and_then(|item| item.get_mut(addon_name))
+            .and_then(|item| item.get_mut("tools"))
+            .and_then(|item| item.as_table_mut())
+            .and_then(|tools| tools.remove(tool_name));
+
+        if removed_tool.is_some() {
+            removed.push(format!("{addon_name}.{tool_name}"));
+        }
+    }
+
+    if removed.is_empty() {
+        return Ok(());
+    }
+
+    fs::write(&path, doc.to_string())
+        .with_context(|| format!("Failed to write {}", path.display()))?;
+    output::ok(&format!(
+        "Removed retired addon tool entries ({})",
+        removed.join(", ")
+    ));
+
     Ok(())
 }
 
@@ -412,6 +507,13 @@ pub fn refresh_generated_aibox_toml_comments(root: &Path) -> Result<()> {
 
     let config = crate::config::AiboxConfig::load(&path)
         .with_context(|| format!("Failed to load {} for comment refresh", path.display()))?;
+    let mut config = config;
+    preserve_explicit_customization_theme(&raw, &mut config).with_context(|| {
+        format!(
+            "Failed to preserve explicit theme from {} before comment refresh",
+            path.display()
+        )
+    })?;
     let rendered = crate::container::serialize_config_with_comments(&config);
     if rendered != raw {
         fs::write(&path, rendered)
@@ -457,6 +559,12 @@ pub fn standardize_aibox_toml_file(path: &Path) -> Result<()> {
             path.display()
         )
     })?;
+    preserve_explicit_customization_theme(&raw, &mut config).with_context(|| {
+        format!(
+            "Failed to preserve explicit theme from {} before config standardization",
+            path.display()
+        )
+    })?;
     if config.skills.include.is_empty() {
         config.skills.include = crate::processkit_vocab::STANDARD_PROCESSKIT_SKILLS
             .iter()
@@ -472,6 +580,37 @@ pub fn standardize_aibox_toml_file(path: &Path) -> Result<()> {
     }
 
     Ok(())
+}
+
+fn preserve_explicit_customization_theme(
+    raw: &str,
+    config: &mut crate::config::AiboxConfig,
+) -> Result<()> {
+    if let Some(theme) = explicit_customization_theme(raw)? {
+        config.customization.theme = theme;
+    }
+    Ok(())
+}
+
+fn explicit_customization_theme(raw: &str) -> Result<Option<crate::config::Theme>> {
+    let doc: toml_edit::DocumentMut = raw
+        .parse()
+        .with_context(|| "Failed to parse aibox.toml with toml_edit")?;
+
+    for table in ["customization", "appearance"] {
+        let Some(theme) = doc
+            .get(table)
+            .and_then(|item| item.get("theme"))
+            .and_then(|item| item.as_str())
+        else {
+            continue;
+        };
+        let parsed = crate::config::Theme::from_str(theme, true)
+            .map_err(|err| anyhow::anyhow!("invalid theme in [{table}].theme: {err}"))?;
+        return Ok(Some(parsed));
+    }
+
+    Ok(None)
 }
 
 fn should_refresh_generated_aibox_toml_comments(raw: &str) -> bool {
@@ -1018,86 +1157,6 @@ aibox apply
 Check https://github.com/projectious-work/aibox/issues for known issues with v{to}.
 "
     )
-}
-
-/// Write a pending migration advisory when an older `aibox.toml` selected an
-/// addon without listing its newly-declared `requires` dependencies.
-pub fn generate_addon_dependency_migration(
-    root: &Path,
-    missing_requires: &[(String, String)],
-) -> Result<()> {
-    if missing_requires.is_empty() {
-        return Ok(());
-    }
-
-    let migrations_dir = root.join("context").join("migrations");
-    fs::create_dir_all(&migrations_dir).context("Failed to create context/migrations/")?;
-
-    let datetime_slug = chrono_free_datetime_slug();
-    let filepath = migrations_dir.join(format!("{datetime_slug}_addon-dependencies.md"));
-    if filepath.exists() {
-        return Ok(());
-    }
-
-    let date = chrono_free_date();
-    let mut pairs = missing_requires.to_vec();
-    pairs.sort();
-    pairs.dedup();
-
-    let mut action_items = String::new();
-    let mut snippets = String::new();
-    for (addon, required) in &pairs {
-        action_items.push_str(&format!(
-            "- [ ] `{addon}` requires `{required}`. Add an explicit `[addons.{required}.tools]` section to `aibox.toml`, then run `aibox apply` again.\n"
-        ));
-        snippets.push_str(&format!("\n```toml\n[addons.{required}.tools]\n```\n"));
-    }
-
-    let content = format!(
-        "\
-# Migration: addon dependency declarations
-
-> **SAFETY: Do not execute host actions automatically.**
-> **Discuss the `aibox.toml` edit with the project owner before changing it.**
-
-**Generated:** {date}
-**Status:** pending
-
-## Summary
-
-This project was created with an older `aibox.toml` shape that selected an addon
-without explicitly listing one or more addons that are now declared as
-dependencies.
-
-`aibox apply` used a temporary fallback for this run so generation could
-continue, but the project configuration should be updated explicitly so future
-syncs are reproducible and clear to agents.
-
-## Required `aibox.toml` Updates
-
-{action_items}
-## Suggested Snippets
-{snippets}
-## Verification
-
-- [ ] Run `aibox apply` after updating `aibox.toml`.
-- [ ] Confirm this migration document is marked `completed` after the apply
-      succeeds.
-"
-    );
-
-    fs::write(&filepath, content).with_context(|| {
-        format!(
-            "Failed to write addon dependency migration document {}",
-            filepath.display()
-        )
-    })?;
-    output::ok(&format!(
-        "Generated addon dependency migration: {}",
-        filepath.display()
-    ));
-
-    Ok(())
 }
 
 // ---------------------------------------------------------------------------
@@ -2232,6 +2291,78 @@ gh = { enabled = true }
     }
 
     #[test]
+    fn retired_addon_tool_migration_removes_legacy_imagemagick_switch() {
+        let tmp = TempDir::new().unwrap();
+        fs::write(
+            tmp.path().join("aibox.toml"),
+            r#"# aibox.toml — single source of truth for your aibox project.
+apiVersion = "aibox.projectious.work/v1"
+kind = "Workspace"
+
+[metadata]
+name = "demo"
+
+[aibox]
+profile = "human-dev"
+
+[image]
+version = "0.25.8"
+base = "debian"
+
+[container]
+name = "demo"
+
+[addons.preview-enhanced.tools]
+rich = {}
+imagemagick = { enabled = true }
+ghostscript = {}
+"#,
+        )
+        .unwrap();
+
+        migrate_retired_addon_tools(tmp.path()).unwrap();
+
+        let after = fs::read_to_string(tmp.path().join("aibox.toml")).unwrap();
+        let parsed: toml_edit::DocumentMut = after.parse().unwrap();
+        let tools = parsed["addons"]["preview-enhanced"]["tools"]
+            .as_table()
+            .unwrap();
+        assert!(tools.contains_key("rich"));
+        assert!(tools.contains_key("ghostscript"));
+        assert!(!tools.contains_key("imagemagick"));
+    }
+
+    #[test]
+    fn retired_addon_migration_removes_yazi_omp_section() {
+        let tmp = TempDir::new().unwrap();
+        fs::write(
+            tmp.path().join("aibox.toml"),
+            r#"[container]
+name = "demo"
+
+[addons.yazi-omp.tools]
+oh-my-posh = {}
+
+[addons.python.tools]
+python = {}
+"#,
+        )
+        .unwrap();
+
+        migrate_retired_addons(tmp.path()).unwrap();
+
+        let after = fs::read_to_string(tmp.path().join("aibox.toml")).unwrap();
+        let parsed: toml_edit::DocumentMut = after.parse().unwrap();
+        assert!(
+            !parsed["addons"]
+                .as_table()
+                .unwrap()
+                .contains_key("yazi-omp")
+        );
+        assert!(parsed["addons"].as_table().unwrap().contains_key("python"));
+    }
+
+    #[test]
     fn refresh_generated_aibox_toml_comments_updates_catalog_and_preserves_mcp_gateway() {
         let tmp = TempDir::new().unwrap();
         fs::write(
@@ -2306,6 +2437,7 @@ enabled = false
         assert!(after.contains("[ai.mcp.gateway]"));
         assert!(after.contains("mode = \"daemon\""));
         assert!(after.contains("lazy_catalog = true"));
+        assert!(after.contains("theme  = \"nord\""));
     }
 
     #[test]
@@ -2353,6 +2485,7 @@ install = true
 version = "unset"
 
 [customization]
+theme = "nord"
 layout = "ai"
 "#,
         )
@@ -2362,6 +2495,8 @@ layout = "ai"
 
         let after = fs::read_to_string(tmp.path().join("aibox.toml")).unwrap();
         assert!(after.contains("# aibox.toml — single source of truth"));
+        assert!(after.contains("theme  = \"nord\""));
+        assert!(!after.contains("theme  = \"dracula\""));
         assert!(after.contains("# [ai.harness.claude]"));
         assert!(!after.contains("\n[ai.harness.claude]\n"));
         assert!(after.contains("[ai.harness.codex]"));

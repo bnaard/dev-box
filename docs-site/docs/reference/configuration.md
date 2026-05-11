@@ -109,36 +109,14 @@ layout = "dev"                        # tmux layout (4 options)
 [customization.tmux.status]
 mode = "extended"                     # extended | plain | disabled (legacy: powerline -> extended)
 
-[customization.tmux.status.elements]
-hostname = true                       # Show container hostname
-external-ip = true                    # Show detected external IP
-ssh = true                            # Show SSH connection status
-uptime = true                         # Show container uptime
-weather = true                        # Show weather summary (when configured)
-datetime = true                       # Show current date/time
-git = true                            # Show git branch and repo state
-github = true                         # Show GitHub notifications/context
-kubernetes = true                     # Show current Kubernetes context
-terraform = true                      # Show Terraform workspace/context
-cloud = true                          # Show active cloud profile/context
-cloudstatus = true                    # Show cloud provider status summary
-cpu = true                            # Show CPU usage
-loadavg = true                        # Show system load averages
-mem = true                            # Show memory usage
-swap = true                           # Show swap usage
-disk = true                           # Show filesystem usage
-gpu = true                            # Show GPU usage (if available)
-netspeed = true                       # Show network throughput
-ping = true                           # Show network latency
-aibox = true                          # Show aggregated aibox runtime metrics
-
-[customization.tmux.status.elements.aibox-metrics]
-log = true                            # Include log health indicator
-oom = true                            # Include OOM kill indicator
-proc = true                           # Include process pressure indicator
-ai = true                             # Include AI harness runtime indicator
-mcp = true                            # Include MCP server health indicator
-mig = true                            # Include migration state indicator
+[customization.tmux.status.layout]
+# Row lists are ordered. Removing a name disables that status element.
+# line1-left supports tmux-native entries: session, windows.
+# Other rows use PowerKit plugin IDs.
+line1-left = ["session", "windows"]
+line1-right = ["aibox_log", "aibox_oom", "aibox_proc", "aibox_ai", "aibox_mcp", "aibox_mig", "weather", "uptime", "datetime"]
+line2-left = ["git", "github", "kubernetes", "terraform", "cloud", "cloudstatus"]
+line2-right = ["hostname", "externalip", "ssh", "netspeed", "ping", "cpu", "loadavg", "memory", "swap", "disk", "gpu"]
 
 [audio]
 enabled      = false                  # Enable audio bridging

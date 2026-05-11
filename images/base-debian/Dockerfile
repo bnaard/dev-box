@@ -291,6 +291,7 @@ COPY --from=build-aibox-runtime-tools /build/aibox-runtime-tools/bin/aibox-diagn
 # scripts run via `uv run` out of the box. Works against the
 # externally-installed python3 from apt above.
 COPY --from=ghcr.io/astral-sh/uv:0.11.11 /uv /uvx /usr/local/bin/
+ENV UV_CACHE_DIR=/tmp/aibox/uv-cache
 
 # ── Bake default configs into the image ───────────────────────────────────────
 # These act as fallback defaults when no host directory is mounted.
@@ -320,7 +321,9 @@ RUN mkdir -p /home/aibox/.config/tmux \
              /home/aibox/.config/yazi/plugins \
              /home/aibox/.config/state \
              /home/aibox/.config/git \
-             /home/aibox/.local/bin
+             /home/aibox/.local/bin \
+             /tmp/aibox/uv-cache && \
+    chown -R aibox:aibox /tmp/aibox
 
 # tmux
 RUN mkdir -p /usr/local/share/aibox/tmux/plugins
@@ -339,6 +342,10 @@ COPY config/tmux/powerkit-plugins/aibox_mig.sh  /usr/local/share/aibox/tmux/plug
 COPY config/tmux/powerkit-plugins/uptime.sh     /usr/local/share/aibox/tmux/plugins/tmux-powerkit/src/plugins/uptime.sh
 # Override upstream netspeed.sh so the segment uses fixed-width rate fields.
 COPY config/tmux/powerkit-plugins/netspeed.sh   /usr/local/share/aibox/tmux/plugins/tmux-powerkit/src/plugins/netspeed.sh
+# Override upstream Kubernetes/cloud plugins so the status bar reads local
+# context only and never runs live auth/network probes during render.
+COPY config/tmux/powerkit-plugins/kubernetes.sh /usr/local/share/aibox/tmux/plugins/tmux-powerkit/src/plugins/kubernetes.sh
+COPY config/tmux/powerkit-plugins/cloud.sh      /usr/local/share/aibox/tmux/plugins/tmux-powerkit/src/plugins/cloud.sh
 COPY config/tmux/tmux.conf /home/aibox/.config/tmux/tmux.conf
 RUN ln -sf /home/aibox/.config/tmux/tmux.conf /home/aibox/.tmux.conf && \
     for plugin in /usr/local/share/aibox/tmux/plugins/*; do \

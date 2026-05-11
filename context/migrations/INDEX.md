@@ -8,7 +8,7 @@ None.
 
 None.
 
-## Applied (44)
+## Applied (47)
 
 | Date       | Migration                                | Notes |
 |------------|------------------------------------------|-------|
@@ -53,6 +53,9 @@ None.
 | 2026-05-10 | MIG-20260510T151812 — processkit v0.25.8 → v0.26.0 | 0 changed upstream, 0 conflicts, 16 new, 0 removed, 0 stale-removed (3 groups affected) |
 | 2026-05-10 | MIG-RUNTIME-DRIFT-20260510T151812 — aibox-runtime-drift  → 0.25.7 | 5 drifted managed runtime file(s) found at 0.25.7 |
 | 2026-05-10 | MIG-STATUSLINE-20260510T000000 — aibox-statusline  → | Rewrite images/base-debian/config/tmux/tmux.conf to implement the full owner-spec four-section statusline layout. Slot order fixed per DEC-20260508_2115-SilentFern and DEC-20260509_2125-CoolFrog. |
+| 2026-05-11 | MIG-20260511T232952 — processkit v0.26.0 → v0.26.1 | 0 changed upstream, 0 conflicts, 4 new, 0 removed, 0 stale-removed (2 groups affected) |
+| 2026-05-11 | MIG-RUNTIME-DRIFT-20260511T210812 — aibox-runtime-drift  → 0.25.8 | 6 drifted managed runtime file(s) found at 0.25.8 |
+| 2026-05-11 | MIG-RUNTIME-DRIFT-20260511T232935 — aibox-runtime-drift  → 0.25.8 | 5 drifted managed runtime file(s) found at 0.25.8 |
 |  | MIG-20260426T155754 — processkit v0.22.0 → v0.23.0 | 0 changed upstream, 50 conflicts, 9 new, 0 removed, 0 stale-removed (7 groups affected) |
 |  | MIG-20260504T130152 — processkit v0.25.5 → v0.25.6 | 0 changed upstream, 0 conflicts, 4 new, 3 removed, 0 stale-removed (2 groups affected) |
 |  | MIG-RUNTIME-20260426T155732 — aibox-runtime-home 0.21.0 → 0.21.0 | 0 changed upstream, 0 conflicts, 27 new, 0 removed (9 groups affected) |

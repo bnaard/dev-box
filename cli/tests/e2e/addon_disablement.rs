@@ -459,10 +459,10 @@ csvkit = {}
     );
 }
 
-// ─── H1-k: yazi-omp — oh-my-posh disabled ────────────────────────────────────
+// ─── H1-k: retired yazi-omp — oh-my-posh omitted ─────────────────────────────
 
 #[test]
-fn yazi_omp_oh_my_posh_disabled_omits_install_and_adds_purge() {
+fn retired_yazi_omp_oh_my_posh_config_omits_install() {
     let toml = r#"[aibox]
 version = "0.25.5"
 base = "debian"
@@ -484,8 +484,8 @@ oh-my-posh = { enabled = false }
         "Dockerfile must not install oh-my-posh when disabled:\n{dockerfile}"
     );
     assert!(
-        dockerfile.contains("rm -f /usr/local/bin/oh-my-posh"),
-        "Dockerfile must contain disable-then-purge block for oh-my-posh:\n{dockerfile}"
+        !dockerfile.contains("oh-my-posh"),
+        "retired yazi-omp config must not generate oh-my-posh runtime content:\n{dockerfile}"
     );
 }
 

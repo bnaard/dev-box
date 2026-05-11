@@ -49,6 +49,8 @@ services:
       # selected subdirectories, because tools such as uv and starship create
       # their own cache/log directories at runtime.
       - ../.aibox-home/.cache:/home/aibox/.cache
+      # Starship shell prompt config
+      - ../.aibox-home/.config/starship.toml:/home/aibox/.config/starship.toml
       # Yazi file manager config
       - ../.aibox-home/.config/yazi:/home/aibox/.config/yazi
       # Git configuration

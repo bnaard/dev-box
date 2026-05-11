@@ -237,9 +237,10 @@ fn init_generates_tmux_customization_surface() {
     );
     assert!(
         toml.contains("legacy: powerline -> extended")
-            && toml.contains("hostname = true  # show container hostname")
-            && toml.contains("mcp = true  # include MCP server health indicator"),
-        "generated aibox.toml should explain tmux status mode aliases and element toggles:\n{toml}"
+            && toml.contains("[customization.tmux.status.layout]")
+            && toml.contains(r#"line1-left = ["session", "windows"]"#)
+            && toml.contains(r#"line2-left = ["git", "github", "kubernetes", "terraform", "cloud", "cloudstatus"]"#),
+        "generated aibox.toml should explain tmux status mode aliases and row layout lists:\n{toml}"
     );
 }
 
