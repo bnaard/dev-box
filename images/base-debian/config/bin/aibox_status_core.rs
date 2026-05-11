@@ -55,8 +55,8 @@ pub struct Snapshot {
 impl Snapshot {
     pub fn collect(mode: ProcScanMode) -> Self {
         let process_count = count_proc_entries(Path::new(PROC_ROOT)) as u64;
-        let thread_count = read_u64(Path::new(CGROUP_ROOT).join("pids.current"))
-            .unwrap_or(process_count);
+        let thread_count =
+            read_u64(Path::new(CGROUP_ROOT).join("pids.current")).unwrap_or(process_count);
         let degraded = thread_count >= degraded_pid_threshold();
         let detailed = mode == ProcScanMode::Detailed && !degraded;
         let (disk_used, disk_total) = read_workspace_disk();
@@ -320,10 +320,12 @@ fn read_cmdline_limited(path: &Path) -> Option<String> {
 }
 
 fn ai_agent_family(cmdline: &str) -> Option<&'static str> {
-    ["codex", "claude", "gemini", "aider", "copilot", "opencode", "hermes"]
-        .iter()
-        .find(|family| contains_command_token(cmdline, family))
-        .copied()
+    [
+        "codex", "claude", "gemini", "aider", "copilot", "opencode", "hermes",
+    ]
+    .iter()
+    .find(|family| contains_command_token(cmdline, family))
+    .copied()
 }
 
 fn contains_command_token(cmdline: &str, needle: &str) -> bool {
@@ -424,20 +426,31 @@ const DEFAULT_LOG_WINDOW_SECS: u64 = 24 * 60 * 60;
 
 fn read_log_counts() -> (u64, u64, u64) {
     let workspace = Path::new(WORKSPACE);
-    let runtime_session_id = read_runtime_session_id(&workspace.join(".aibox/runtime-session.json"));
+    let runtime_session_id =
+        read_runtime_session_id(&workspace.join(".aibox/runtime-session.json"));
     let fallback_window = std::env::var("AIBOX_LOG_WINDOW_HOURS")
         .ok()
         .and_then(|s| s.parse::<u64>().ok())
         .map(|hours| std::time::Duration::from_secs(hours * 3600))
         .unwrap_or_else(|| std::time::Duration::from_secs(DEFAULT_LOG_WINDOW_SECS));
-    let fallback_cutoff_unix = unix_now()
-        .saturating_sub(read_container_uptime_seconds(Path::new(PROC_ROOT)).unwrap_or(fallback_window.as_secs()))
-        as i64;
+    let fallback_cutoff_unix = unix_now().saturating_sub(
+        read_container_uptime_seconds(Path::new(PROC_ROOT)).unwrap_or(fallback_window.as_secs()),
+    ) as i64;
 
-    read_log_counts_at(
+    let cli_counts = read_log_counts_at(
         workspace.join(".aibox/aibox.log"),
         runtime_session_id.as_deref(),
         fallback_cutoff_unix,
+    );
+    let runtime_counts = read_log_counts_at(
+        workspace.join(".aibox/runtime-events.log"),
+        runtime_session_id.as_deref(),
+        fallback_cutoff_unix,
+    );
+    (
+        cli_counts.0 + runtime_counts.0,
+        cli_counts.1 + runtime_counts.1,
+        cli_counts.2 + runtime_counts.2,
     )
 }
 
@@ -474,12 +487,10 @@ fn read_log_counts_at(
         } else {
             // Legacy fallback: skip lines we can't timestamp (defensive)
             // and lines older than this container's start/window cutoff.
-            let Some(ts_field) = extract_json_string_field(line, "ts") else {
-                continue;
-            };
-            let Some(t) = parse_rfc3339_unix(ts_field) else {
-                continue;
-            };
+            let t = extract_json_string_field(line, "ts")
+                .and_then(parse_rfc3339_unix)
+                .or_else(|| extract_json_number_field(line, "timestamp_unix").and_then(parse_i64));
+            let Some(t) = t else { continue };
             if t < fallback_cutoff_unix {
                 continue;
             }
@@ -527,6 +538,24 @@ fn extract_json_string_field<'a>(line: &'a str, field: &str) -> Option<&'a str> 
     let rest = &line[start..];
     let end = rest.find('"')?;
     Some(&rest[..end])
+}
+
+fn extract_json_number_field<'a>(line: &'a str, field: &str) -> Option<&'a str> {
+    let needle = format!("\"{}\":", field);
+    let start = line.find(&needle)? + needle.len();
+    let rest = &line[start..];
+    let len = rest
+        .bytes()
+        .take_while(|byte| byte.is_ascii_digit() || *byte == b'-')
+        .count();
+    if len == 0 {
+        return None;
+    }
+    Some(&rest[..len])
+}
+
+fn parse_i64(value: &str) -> Option<i64> {
+    value.parse::<i64>().ok()
 }
 
 /// Parse RFC3339 to unix seconds (std-only — this binary is built with
@@ -830,10 +859,7 @@ mod tests {
         assert_eq!(super::format_processkit_display("separate", 5), "sep/1/5");
         assert_eq!(super::format_processkit_display("none", 0), "none");
         assert_eq!(super::format_processkit_display("unknown", 0), "unkwn");
-        assert_eq!(
-            super::format_processkit_display("degraded", 0),
-            "degraded"
-        );
+        assert_eq!(super::format_processkit_display("degraded", 0), "degraded");
     }
 
     #[test]
@@ -848,10 +874,16 @@ mod tests {
         ));
         std::fs::create_dir_all(&dir).unwrap();
         for (pid, cmdline) in [
-            ("1", "bash -lc if command -v codex >/dev/null; then codex; fi"),
+            (
+                "1",
+                "bash -lc if command -v codex >/dev/null; then codex; fi",
+            ),
             ("2", "node /usr/bin/codex"),
             ("3", "/opt/codex/codex"),
-            ("4", "bash -lc if command -v claude >/dev/null; then claude; fi"),
+            (
+                "4",
+                "bash -lc if command -v claude >/dev/null; then claude; fi",
+            ),
             ("5", "claude"),
             ("6", "uv run processkit-gateway/mcp/server.py stdio-proxy"),
         ] {
@@ -990,6 +1022,41 @@ mod tests {
             (1, 0, 0),
             "legacy fallback should count only entries after container start"
         );
+        let _ = std::fs::remove_dir_all(&dir);
+    }
+
+    #[test]
+    fn read_log_counts_accepts_runtime_event_unix_timestamps() {
+        use std::io::Write;
+        let dir = std::env::temp_dir().join(format!(
+            "aibox-runtime-log-test-{}-{}",
+            std::process::id(),
+            std::time::SystemTime::now()
+                .duration_since(std::time::UNIX_EPOCH)
+                .unwrap()
+                .as_nanos()
+        ));
+        std::fs::create_dir_all(&dir).unwrap();
+        let path = dir.join("runtime-events.log");
+        let mut f = std::fs::File::create(&path).unwrap();
+        writeln!(
+            f,
+            r#"{{"timestamp_unix":100,"source":"runtime","level":"INFO","event":"runtime.sample","runtime_session_id":"current-session"}}"#
+        )
+        .unwrap();
+        writeln!(
+            f,
+            r#"{{"timestamp_unix":101,"source":"runtime","level":"WARN","event":"runtime.mcp.changed","runtime_session_id":"current-session"}}"#
+        )
+        .unwrap();
+        drop(f);
+
+        let (info, warn, error) =
+            super::read_log_counts_at(path.clone(), Some("current-session"), 0);
+        assert_eq!((info, warn, error), (1, 1, 0));
+
+        let (info, warn, error) = super::read_log_counts_at(path.clone(), None, 101);
+        assert_eq!((info, warn, error), (0, 1, 0));
         let _ = std::fs::remove_dir_all(&dir);
     }
 
