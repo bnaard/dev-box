@@ -224,11 +224,37 @@ fn tmux_runtime_config_and_cache_are_mounted() {
     let compose = read_generated(dir.path(), ".devcontainer/docker-compose.yml");
     assert!(
         compose.contains(".config:/home/aibox/.config:rw")
+            && compose.contains(".vim:/home/aibox/.vim:rw")
             && compose.contains(".tmux:/home/aibox/.tmux:rw")
             && compose.contains(".cache:/home/aibox/.cache:rw")
             && compose.contains(".local:/home/aibox/.local:rw")
-            && !compose.contains(".config/tmux:/home/aibox/.config/tmux"),
-        "compose must mount broad writable runtime-home config/cache/local parents:\n{compose}"
+            && !compose.contains(".config/tmux:/home/aibox/.config/tmux")
+            && !compose.contains(".vim/vimrc:/home/aibox/.vim/vimrc")
+            && !compose.contains(".vim/undo:/home/aibox/.vim/undo")
+            && !compose.contains(".cargo/registry:/home/aibox/.cargo/registry")
+            && !compose.contains(".cargo/git:/home/aibox/.cargo/git"),
+        "compose must mount broad writable runtime-home config/cache/local/vim/tmux parents:\n{compose}"
+    );
+}
+
+#[test]
+fn rust_addon_cargo_cache_is_mounted_as_broad_parent() {
+    let dir = tempfile::tempdir().unwrap();
+    init_project(dir.path(), "cargo-cache");
+    patch_toml(
+        dir.path(),
+        r#"
+[addons.rust.tools]
+rustc = {}
+"#,
+    );
+    sync_project(dir.path());
+    let compose = read_generated(dir.path(), ".devcontainer/docker-compose.yml");
+    assert!(
+        compose.contains(".cargo:/home/aibox/.cargo:rw")
+            && !compose.contains(".cargo/registry:/home/aibox/.cargo/registry")
+            && !compose.contains(".cargo/git:/home/aibox/.cargo/git"),
+        "compose must mount Cargo cache as the broad writable .cargo parent:\n{compose}"
     );
 }
 

@@ -602,6 +602,11 @@ fn apply_preserves_project_context_edits_while_regenerating_runtime_config() {
 
     replace_toml_text(dir, "theme  = \"nord\"", "theme  = \"dracula\"");
 
+    let tmux_path = dir.join(".aibox-home/.config/tmux/tmux.conf");
+    let yazi_theme_path = dir.join(".aibox-home/.config/yazi/theme.toml");
+    fs::write(&tmux_path, "# stale managed tmux config\n").unwrap();
+    fs::write(&yazi_theme_path, "# stale managed yazi theme\n").unwrap();
+
     let apply_out = run_in(dir, &["apply"]);
     assert!(
         apply_out.status.success(),
@@ -616,6 +621,16 @@ fn apply_preserves_project_context_edits_while_regenerating_runtime_config() {
     assert!(
         dir.join(".aibox-home/.config/tmux/tmux.conf").exists(),
         "apply should regenerate runtime theme files after aibox.toml changes"
+    );
+    let tmux = fs::read_to_string(&tmux_path).unwrap();
+    let yazi_theme = fs::read_to_string(&yazi_theme_path).unwrap();
+    assert!(
+        tmux.contains("@powerkit_theme \"dracula\""),
+        "apply should overwrite stale managed tmux config with canonical generated content:\n{tmux}"
+    );
+    assert!(
+        !yazi_theme.contains("stale managed"),
+        "apply should overwrite stale managed Yazi theme with canonical generated content:\n{yazi_theme}"
     );
 }
 

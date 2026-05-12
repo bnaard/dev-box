@@ -45,16 +45,10 @@ pub(crate) fn runtime_home_mounts(config: &AiboxConfig) -> Vec<RuntimeHomeMount>
     let mut mounts = vec![
         RuntimeHomeMount::new(".ssh", format!("{home}/.ssh"), true, "SSH keys"),
         RuntimeHomeMount::new(
-            ".vim/vimrc",
-            format!("{home}/.vim/vimrc"),
+            ".vim",
+            format!("{home}/.vim"),
             false,
-            "Vim config",
-        ),
-        RuntimeHomeMount::new(
-            ".vim/undo",
-            format!("{home}/.vim/undo"),
-            false,
-            "Vim undo history",
+            "Vim config and undo history",
         ),
         RuntimeHomeMount::new(
             ".config",
@@ -112,16 +106,10 @@ pub(crate) fn runtime_home_mounts(config: &AiboxConfig) -> Vec<RuntimeHomeMount>
 
     if config.addons.has_rust() {
         mounts.push(RuntimeHomeMount::new(
-            ".cargo/registry",
-            format!("{home}/.cargo/registry"),
+            ".cargo",
+            format!("{home}/.cargo"),
             false,
-            "Cargo registry cache",
-        ));
-        mounts.push(RuntimeHomeMount::new(
-            ".cargo/git",
-            format!("{home}/.cargo/git"),
-            false,
-            "Cargo git cache",
+            "Cargo registry and git cache",
         ));
     }
 
@@ -237,7 +225,16 @@ fn broad_runtime_home_mount_paths(config: &AiboxConfig) -> Vec<String> {
         format!("{home}/.cache"),
         format!("{home}/.config"),
         format!("{home}/.local"),
+        format!("{home}/.tmux"),
+        format!("{home}/.vim"),
     ]
+    .into_iter()
+    .chain(if config.addons.has_rust() {
+        Some(format!("{home}/.cargo"))
+    } else {
+        None
+    })
+    .collect()
 }
 
 fn protected_runtime_home_paths(config: &AiboxConfig) -> Vec<String> {
@@ -253,9 +250,6 @@ fn protected_runtime_home_paths(config: &AiboxConfig) -> Vec<String> {
         format!("{home}/.config/yazi"),
         format!("{home}/.local/bin"),
         format!("{home}/.local/state"),
-        format!("{home}/.tmux"),
-        format!("{home}/.vim/undo"),
-        format!("{home}/.vim/vimrc"),
     ];
     let broad = broad_runtime_home_mount_paths(config);
     for mount in runtime_home_mounts(config) {

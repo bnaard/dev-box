@@ -1626,199 +1626,39 @@ pub fn migrate_yazi_section(path: &Path) -> Result<bool> {
     Ok(true)
 }
 
-/// Force-seed all theme-dependent and AI-provider-dependent config files.
-/// Overwrites existing files when content has changed. Used by `aibox apply`.
+/// Force-seed all aibox-managed runtime files.
+///
+/// Overwrites managed files when content has changed. Unknown files under
+/// `.aibox-home/` are left alone, but the generated runtime projection itself
+/// is made authoritative so `aibox apply` and clean runtime recreation do not
+/// keep serving stale managed tmux/Yazi/Vim/git/helper files.
 #[allow(dead_code)]
 pub fn sync_theme_files(config: &AiboxConfig) -> Result<Vec<String>> {
     let root = config.host_root_dir();
-    let theme = &config.customization.resolved_theme();
     let providers = &config.ai.harnesses;
-    let include_lazygit = include_lazygit_tab(config);
-    let tool_windows = tool_windows_for_config(config);
-    let session_name = config.tmux_session_name();
     let mut updated = Vec::new();
 
     ensure_runtime_dirs(config)?;
 
-    // vimrc — colorscheme and background
-    let vimrc = DEFAULT_VIMRC
-        .replace(
-            "AIBOX_VIM_COLORSCHEME",
-            crate::themes::vim_colorscheme(theme),
-        )
-        .replace("AIBOX_VIM_BG", crate::themes::vim_background(theme));
-    if force_seed_file(&root.join(".vim").join("vimrc"), &vimrc)? {
-        updated.push(".vim/vimrc".to_string());
-    }
-
-    // tmux config and layouts — theme, layout, AI providers, and lazygit all
-    // come from aibox.toml.
-    if force_seed_file(
-        &root.join(".config").join("tmux").join("tmux.conf"),
-        &tmux_conf(config),
-    )? {
-        updated.push(".config/tmux/tmux.conf".to_string());
-    }
-    for layout in [
-        ConfigLayout::Dev,
-        ConfigLayout::Focus,
-        ConfigLayout::Cowork,
-        ConfigLayout::Ai,
-    ] {
-        let rel = format!(".config/tmux/layouts/{layout}.sh");
-        let path = root
-            .join(".config")
-            .join("tmux")
-            .join("layouts")
-            .join(format!("{layout}.sh"));
-        let body = tmux_layout_script(
-            &layout,
-            providers,
-            include_lazygit,
-            &tool_windows,
-            &session_name,
-        );
-        if force_seed_file(&path, &body)? {
-            ensure_executable(&path)?;
-            updated.push(rel);
-        } else if ensure_executable_if_present(&path)? {
-            updated.push(format!("{rel} (chmod +x)"));
+    for (rel_path, content) in managed_runtime_files(config) {
+        let path = root.join(&rel_path);
+        if force_seed_file(&path, &content)? {
+            if is_executable_managed_runtime_file(&rel_path) {
+                ensure_executable(&path)?;
+            }
+            updated.push(rel_path.to_string_lossy().replace('\\', "/"));
+        } else if is_executable_managed_runtime_file(&rel_path)
+            && ensure_executable_if_present(&path)?
+        {
+            updated.push(format!(
+                "{} (chmod +x)",
+                rel_path.to_string_lossy().replace('\\', "/")
+            ));
         }
     }
+
     updated.extend(cleanup_removed_tmux_layouts(&root)?);
-    let session_path = root.join(".config").join("tmux").join("aibox-session.sh");
-    if force_seed_file(&session_path, &tmux_session_script(config))? {
-        ensure_executable(&session_path)?;
-        updated.push(".config/tmux/aibox-session.sh".to_string());
-    } else if ensure_executable_if_present(&session_path)? {
-        updated.push(".config/tmux/aibox-session.sh (chmod +x)".to_string());
-    }
-
-    if force_seed_file(
-        &root.join(".local").join("bin").join("open-in-editor"),
-        DEFAULT_OPEN_IN_EDITOR_SH,
-    )? {
-        ensure_executable(&root.join(".local").join("bin").join("open-in-editor"))?;
-        updated.push(".local/bin/open-in-editor".to_string());
-    }
-    if force_seed_file(
-        &root.join(".local").join("bin").join("aibox-preview"),
-        DEFAULT_AIBOX_PREVIEW_SH,
-    )? {
-        ensure_executable(&root.join(".local").join("bin").join("aibox-preview"))?;
-        updated.push(".local/bin/aibox-preview".to_string());
-    }
-
-    if force_seed_file(
-        &root.join(".local").join("bin").join("aibox-status-toggle"),
-        DEFAULT_AIBOX_STATUS_TOGGLE_SH,
-    )? {
-        ensure_executable(&root.join(".local").join("bin").join("aibox-status-toggle"))?;
-        updated.push(".local/bin/aibox-status-toggle".to_string());
-    }
-    if force_seed_file(
-        &root.join(".local").join("bin").join("aibox-copy"),
-        DEFAULT_AIBOX_COPY_SH,
-    )? {
-        ensure_executable(&root.join(".local").join("bin").join("aibox-copy"))?;
-        updated.push(".local/bin/aibox-copy".to_string());
-    }
-    if force_seed_file(
-        &root
-            .join(".local")
-            .join("bin")
-            .join("aibox-powerkit-render-list"),
-        POWERKIT_RENDER_LIST_SH,
-    )? {
-        ensure_executable(
-            &root
-                .join(".local")
-                .join("bin")
-                .join("aibox-powerkit-render-list"),
-        )?;
-        updated.push(".local/bin/aibox-powerkit-render-list".to_string());
-    }
-    if force_seed_file(
-        &root
-            .join(".local")
-            .join("bin")
-            .join("aibox-powerkit-render-session"),
-        POWERKIT_RENDER_SESSION_SH,
-    )? {
-        ensure_executable(
-            &root
-                .join(".local")
-                .join("bin")
-                .join("aibox-powerkit-render-session"),
-        )?;
-        updated.push(".local/bin/aibox-powerkit-render-session".to_string());
-    }
-
-    if include_lazygit
-        && force_seed_file(
-            &root.join(".config").join("lazygit").join("config.yml"),
-            &crate::themes::lazygit_theme(theme),
-        )?
-    {
-        updated.push(".config/lazygit/config.yml".to_string());
-    }
     updated.extend(cleanup_disabled_runtime_files(config)?);
-
-    // Yazi managed config. This is version-sensitive: Yazi 26 rejects the
-    // historical `name = ...` matcher schema, so apply must refresh stale
-    // project-owned runtime config even when the selected theme did not change.
-    if force_seed_file(
-        &root.join(".config").join("yazi").join("yazi.toml"),
-        &generate_yazi_config(config),
-    )? {
-        updated.push(".config/yazi/yazi.toml".to_string());
-    }
-    if force_seed_file(
-        &root.join(".config").join("yazi").join("keymap.toml"),
-        DEFAULT_YAZI_KEYMAP,
-    )? {
-        updated.push(".config/yazi/keymap.toml".to_string());
-    }
-    if force_seed_file(
-        &root.join(".config").join("yazi").join("init.lua"),
-        &generate_yazi_init(config),
-    )? {
-        updated.push(".config/yazi/init.lua".to_string());
-    }
-    for (rel, content) in [
-        (
-            ".config/yazi/plugins/git.yazi/main.lua",
-            DEFAULT_YAZI_PLUGIN_GIT_MAIN,
-        ),
-        (
-            ".config/yazi/plugins/git.yazi/types.lua",
-            DEFAULT_YAZI_PLUGIN_GIT_TYPES,
-        ),
-        (
-            ".config/yazi/plugins/status-git.yazi/main.lua",
-            DEFAULT_YAZI_PLUGIN_STATUS_GIT,
-        ),
-        (
-            ".config/yazi/plugins/dir-preview.yazi/main.lua",
-            DEFAULT_YAZI_PLUGIN_DIR_PREVIEW,
-        ),
-        (
-            ".config/yazi/plugins/toggle-pane.yazi/main.lua",
-            DEFAULT_YAZI_PLUGIN_TOGGLE_PANE,
-        ),
-    ] {
-        if force_seed_file(&root.join(rel), content)? {
-            updated.push(rel.to_string());
-        }
-    }
-
-    // Yazi theme — force-update from the bundled theme for the selected theme
-    if force_seed_file(
-        &root.join(".config").join("yazi").join("theme.toml"),
-        crate::themes::yazi_theme(theme),
-    )? {
-        updated.push(".config/yazi/theme.toml".to_string());
-    }
 
     // Yazi config migration: rewrite [manager] → [mgr] in existing files.
     // Yazi 25+ silently ignores [manager], so any user customization that
@@ -1834,16 +1674,6 @@ pub fn sync_theme_files(config: &AiboxConfig) -> Result<Vec<String>> {
                 filename
             ));
         }
-    }
-
-    // Starship prompt
-    let prompt = &config.customization.prompt;
-    let starship_content = crate::themes::starship_config(prompt, theme);
-    if force_seed_file(
-        &root.join(".config").join("starship.toml"),
-        &starship_content,
-    )? {
-        updated.push(".config/starship.toml".to_string());
     }
 
     if sync_codex_theme_config(config)? {
@@ -1863,6 +1693,18 @@ pub fn sync_theme_files(config: &AiboxConfig) -> Result<Vec<String>> {
     updated.extend(sync_managed_runtime_permissions(config)?);
 
     Ok(updated)
+}
+
+fn is_executable_managed_runtime_file(rel_path: &Path) -> bool {
+    rel_path == Path::new(".local/bin/pdf-watch")
+        || rel_path == Path::new(".local/bin/open-in-editor")
+        || rel_path == Path::new(".local/bin/aibox-preview")
+        || rel_path == Path::new(".local/bin/aibox-status-toggle")
+        || rel_path == Path::new(".local/bin/aibox-copy")
+        || rel_path == Path::new(".local/bin/aibox-powerkit-render-list")
+        || rel_path == Path::new(".local/bin/aibox-powerkit-render-session")
+        || (rel_path.starts_with(".config/tmux/")
+            && rel_path.extension().is_some_and(|ext| ext == "sh"))
 }
 
 fn sync_codex_theme_config(config: &AiboxConfig) -> Result<bool> {

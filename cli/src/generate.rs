@@ -922,8 +922,7 @@ mod tests {
         let content = fs::read_to_string(dir.path().join("docker-compose.yml")).unwrap();
         for mount in [
             "${WORKSPACE_DIR:-..}:/workspace:rw",
-            ".vim/vimrc:/root/.vim/vimrc:rw",
-            ".vim/undo:/root/.vim/undo:rw",
+            ".vim:/root/.vim:rw",
             ".tmux:/root/.tmux:rw",
             ".cache:/root/.cache:rw",
             ".config:/root/.config:rw",
@@ -941,6 +940,8 @@ mod tests {
             ".config/git:/root/.config/git",
             ".config/state:/root/.config/state",
             ".local/bin:/root/.local/bin",
+            ".vim/vimrc:/root/.vim/vimrc",
+            ".vim/undo:/root/.vim/undo",
         ] {
             assert!(
                 !content.contains(stale_mount),

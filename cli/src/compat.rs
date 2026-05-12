@@ -438,6 +438,11 @@ pub static COMPAT_TABLE: &[CompatEntry] = &[
         processkit_version: "v0.26.2",
         note: "Patch release: keeps processkit v0.26.2 and fixes fresh-project tmux/PowerKit runtime projection by using broad writable runtime-home mounts, refreshing managed theme/Yazi/Codex files on apply, scoping preauth/MCP writes to enabled harnesses, recognizing nested processkit skill catalogs in doctor, and reducing host-side doctor probes for container-owned dependencies.",
     },
+    CompatEntry {
+        aibox_version: "0.25.13",
+        processkit_version: "v0.26.2",
+        note: "Patch release: keeps processkit v0.26.2 and fixes stale runtime-home propagation by making aibox-managed .aibox-home files authoritative on apply and clean runtime recreation; broadens generated runtime mounts for Vim and Cargo cache directories; updates generated compose/docs coverage; and adds regression coverage for stale tmux/Yazi managed file refresh.",
+    },
 ];
 
 /// Find the minimum compatible processkit version for the given aibox version.

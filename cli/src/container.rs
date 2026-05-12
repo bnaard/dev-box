@@ -752,14 +752,24 @@ pub fn cmd_start(
 
     let session_name = config.tmux_session_name();
     let should_recreate_tmux_session = forget_tmux_state || state != ContainerState::Running;
-    let restored_runtime_files = crate::seed::restore_missing_managed_runtime_files(&config)?;
-    if !restored_runtime_files.is_empty() {
-        output::ok(&format!(
-            "Restored {} missing managed runtime file(s)",
-            restored_runtime_files.len()
-        ));
+    if state == ContainerState::Missing {
+        let refreshed_runtime_files = crate::seed::sync_theme_files(&config)?;
+        if !refreshed_runtime_files.is_empty() {
+            output::ok(&format!(
+                "Refreshed {} managed runtime file(s)",
+                refreshed_runtime_files.len()
+            ));
+        }
+    } else {
+        let restored_runtime_files = crate::seed::restore_missing_managed_runtime_files(&config)?;
+        if !restored_runtime_files.is_empty() {
+            output::ok(&format!(
+                "Restored {} missing managed runtime file(s)",
+                restored_runtime_files.len()
+            ));
+        }
     }
-    if should_recreate_tmux_session {
+    if should_recreate_tmux_session && state != ContainerState::Missing {
         let refreshed_tmux_files = crate::tmux::sync_tmux_runtime_files(&config)?;
         if !refreshed_tmux_files.is_empty() {
             output::ok(&format!(
