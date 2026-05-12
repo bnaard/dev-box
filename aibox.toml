@@ -22,7 +22,7 @@ hostname = "aibox"              # Hostname visible inside the container
 user     = "aibox"              # User inside the container (controls mount paths)
 
 [container.image]
-release_version = "latest"       # Target aibox image/CLI version. Use "latest" to resolve newest on apply.
+release_version = "latest"       # Target base image version. Use "latest" to resolve newest published image on apply.
 base            = "debian"          # Published base image flavor. Options: debian
 
 [container.paths]
@@ -355,10 +355,6 @@ lazygit = { enabled = false } # default on; options: {}, { enabled = true|false 
 # ghostscript = {} # default on; options: {}, { enabled = true|false }, { version = "x.y.z" or "latest" }
 # rich = {} # default on; options: {}, { enabled = true|false }, { version = "x.y.z" or "latest" }
 
-# Tools/yazi-omp — oh-my-posh for the omp.yazi header prompt
-# [addons.yazi-omp.tools]
-# oh-my-posh = {} # default on; options: {}, { enabled = true|false }, { version = "x.y.z" or "latest" }
-
 # =============================================================================
 # [ai] — AI agent harnesses and model providers
 # =============================================================================
@@ -375,7 +371,7 @@ lazygit = { enabled = false } # default on; options: {}, { enabled = true|false 
 # Hermes                      hermes         any (multi-provider)
 #
 # Harnesses are configured by the ordered `harnesses` list below.
-# Each one-line entry is directly uncommentable; list order is tmux/layout order.
+# The list order is the tmux/layout order: 1st, 2nd, 3rd harness.
 #
 # Model providers (optional): declare which API key/base URL env vars are available.
 # Provider     Config value   API key env         Base URL env
