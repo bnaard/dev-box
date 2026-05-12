@@ -7,8 +7,7 @@ metadata:
 spec:
   event_type: workitem.transitioned
   timestamp: '2026-05-02T07:25:40+00:00'
-  summary: Transitioned WorkItem 'BACK-20260502_0709-SteadyMoss-runtime-home-layout-provenance'
-    from 'review' to 'done'
+  summary: Transitioned WorkItem 'BACK-20260502_0709-SteadyMoss-runtime-home-layout-provenance' from 'review' to 'done'
   subject: BACK-20260502_0709-SteadyMoss-runtime-home-layout-provenance
   subject_kind: WorkItem
   actor: BACK-20260502_0709-SteadyMoss-runtime-home-layout-provenance

@@ -8,5 +8,5 @@ spec:
   type: role-assignment
   subject: ACTOR-20260414_1100-BrightEagle-senior-architect-agent
   target: ROLE-20260414_1100-BrightEagle-senior-architect
-  scope: permanent
+  scope: null
 ---

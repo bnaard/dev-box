@@ -10,8 +10,7 @@ spec:
   state: done
   type: task
   priority: medium
-  description: Add start_suspended true to non-focused zellij command panes and update
-    stale zellij layout tests to match current multi-provider tab behavior.
+  description: Add start_suspended true to non-focused zellij command panes and update stale zellij layout tests to match current multi-provider tab behavior.
   started_at: '2026-05-02T07:09:23+00:00'
   completed_at: '2026-05-02T07:25:46+00:00'
 ---

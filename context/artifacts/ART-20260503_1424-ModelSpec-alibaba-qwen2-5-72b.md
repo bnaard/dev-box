@@ -20,11 +20,8 @@ spec:
     pricing_usd_per_1m:
       input: 0.4
       output: 1.2
-    pricing_note: 'Self-hosted: GPU infra cost only. Via Together/Groq/etc.: ~$0.20–0.90/1M.
-      Alibaba Cloud API available but G:1.'
-    governance_warning: 'Via Alibaba Cloud API: G:1 (Chinese jurisdiction). Self-hosted
-      (Apache 2.0 license): governance rises to G:4 — no data leaves your infra, but
-      no compliance certs from Alibaba.'
+    pricing_note: "Self-hosted: GPU infra cost only. Via Together/Groq/etc.: ~$0.20\u20130.90/1M. Alibaba Cloud API available but G:1."
+    governance_warning: "Via Alibaba Cloud API: G:1 (Chinese jurisdiction). Self-hosted (Apache 2.0 license): governance rises to G:4 \u2014 no data leaves your infra, but no compliance certs from Alibaba."
     lifecycle: legacy
     source_urls: &id001
     - https://qwenlm.github.io/

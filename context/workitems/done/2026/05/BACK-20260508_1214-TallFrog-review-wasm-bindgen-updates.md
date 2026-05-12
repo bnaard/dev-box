@@ -14,12 +14,7 @@ spec:
   state: cancelled
   type: task
   priority: medium
-  description: 'Release-state check for aibox v0.25.5 reported cargo update --dry-run
-    would update js-sys 0.3.97 -> 0.3.98 and wasm-bindgen crates 0.2.120 -> 0.2.121.
-    Deferred from v0.25.5 because the patch release is scoped to tmux runtime attach/session
-    fixes. Validation required before shipping later: run real cargo update for that
-    set, review lockfile diff, and rerun fmt, clippy, cargo test, and relevant release/E2E
-    gates.'
+  description: 'Release-state check for aibox v0.25.5 reported cargo update --dry-run would update js-sys 0.3.97 -> 0.3.98 and wasm-bindgen crates 0.2.120 -> 0.2.121. Deferred from v0.25.5 because the patch release is scoped to tmux runtime attach/session fixes. Validation required before shipping later: run real cargo update for that set, review lockfile diff, and rerun fmt, clippy, cargo test, and relevant release/E2E gates.'
   scope: release-dependency-followup
   started_at: '2026-05-09T22:31:43+00:00'
   completed_at: '2026-05-10T03:24:59+00:00'

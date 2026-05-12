@@ -5,8 +5,7 @@ metadata:
   id: NOTE-20260509_2237-VastVale-uv-image-lag-0-11-10
   created: '2026-05-09T22:37:20+00:00'
 spec:
-  title: 'uv image lag: 0.11.10 pinned, 0.11.12 latest — SureSeal/BraveFalcon branches
-    only reach 0.11.11'
+  title: "uv image lag: 0.11.10 pinned, 0.11.12 latest \u2014 SureSeal/BraveFalcon branches only reach 0.11.11"
   body: |
     During PluckyEagle drift review (2026-05-10), RELEASE-STATE.md shows uv latest at 0.11.12 while:
     - aibox.toml dogfood pin: 0.11.10

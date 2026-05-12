@@ -7,8 +7,7 @@ metadata:
 spec:
   event_type: decision.created
   timestamp: '2026-05-03T11:50:58+00:00'
-  summary: 'Created DecisionRecord ''DEC-20260503_1150-SureHawk-accept-aibox-doctor-warning-remediation-plan'':
-    ''Accept aibox doctor warning remediation plan'''
+  summary: 'Created DecisionRecord ''DEC-20260503_1150-SureHawk-accept-aibox-doctor-warning-remediation-plan'': ''Accept aibox doctor warning remediation plan'''
   subject: DEC-20260503_1150-SureHawk-accept-aibox-doctor-warning-remediation-plan
   subject_kind: DecisionRecord
   actor: DEC-20260503_1150-SureHawk-accept-aibox-doctor-warning-remediation-plan

@@ -7,8 +7,7 @@ metadata:
 spec:
   event_type: github.issue.closed
   timestamp: '2026-04-30T15:56:51+00:00'
-  summary: 'Closed aibox issue #51 as verified fixed by the existing OpenCode processkit-gate
-    plugin.'
+  summary: 'Closed aibox issue #51 as verified fixed by the existing OpenCode processkit-gate plugin.'
   actor: codex
   subject: projectious-work/aibox#51
   subject_kind: github_issue

@@ -10,21 +10,11 @@ metadata:
     source: 2026-05-07-diagnostics
   updated: '2026-05-07T13:59:31+00:00'
 spec:
-  title: Fix Claude Code MCP auth, install-path, and permission drift in derived aibox
-    runtimes
+  title: Fix Claude Code MCP auth, install-path, and permission drift in derived aibox runtimes
   state: done
   type: bug
   priority: high
-  description: 'Derived project on aibox 0.24.2 showed Claude Code v2.1.132 reporting
-    MCP auth/system diagnostic problems while aibox generated only processkit-gateway
-    in .mcp.json. Evidence: Claude status said 1 MCP connected and 3 need auth; installMethod
-    native but claude not found at /home/aibox/.local/bin/claude despite command -v
-    resolving /usr/local/bin/claude; leftover npm global installation at /usr/bin/claude;
-    .claude/settings.json contains many granular processkit server permissions while
-    .mcp.json only declares processkit-gateway; Zellij permission cache missing at
-    .aibox-home/.cache/zellij/permissions.kdl. Acceptance: doctor or a dedicated diagnosis
-    command captures these facts, generator output is reconciled, and a fresh derived
-    project no longer reports Claude MCP auth/install drift after apply/recreate.'
+  description: 'Derived project on aibox 0.24.2 showed Claude Code v2.1.132 reporting MCP auth/system diagnostic problems while aibox generated only processkit-gateway in .mcp.json. Evidence: Claude status said 1 MCP connected and 3 need auth; installMethod native but claude not found at /home/aibox/.local/bin/claude despite command -v resolving /usr/local/bin/claude; leftover npm global installation at /usr/bin/claude; .claude/settings.json contains many granular processkit server permissions while .mcp.json only declares processkit-gateway; Zellij permission cache missing at .aibox-home/.cache/zellij/permissions.kdl. Acceptance: doctor or a dedicated diagnosis command captures these facts, generator output is reconciled, and a fresh derived project no longer reports Claude MCP auth/install drift after apply/recreate.'
   scope: runtime
   started_at: '2026-05-07T13:59:20+00:00'
   completed_at: '2026-05-07T13:59:31+00:00'

@@ -5,8 +5,7 @@ metadata:
   id: NOTE-20260509_2231-CleverFinch-pre-existing-test-failure-in-worktree
   created: '2026-05-09T22:31:39+00:00'
 spec:
-  title: 'Pre-existing test failure in worktree: standardize_aibox_toml test requires
-    cli/context symlink'
+  title: 'Pre-existing test failure in worktree: standardize_aibox_toml test requires cli/context symlink'
   body: |
     **Observed during TallFrog wasm-bindgen review (2026-05-10)**
 

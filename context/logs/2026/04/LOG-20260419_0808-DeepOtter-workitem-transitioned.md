@@ -7,8 +7,8 @@ metadata:
 spec:
   event_type: workitem.transitioned
   timestamp: '2026-04-19T08:08:10+00:00'
-  summary: Transitioned WorkItem 'BACK-20260418_1145-CarefulFalcon-mcp-skill-name-collision-guard'
-    from 'review' to 'done'
+  summary: Transitioned WorkItem 'BACK-20260418_1145-CarefulFalcon-mcp-skill-name-collision-guard' from 'review' to 'done'
   subject: BACK-20260418_1145-CarefulFalcon-mcp-skill-name-collision-guard
   subject_kind: WorkItem
+  actor: system
 ---

@@ -6,19 +6,13 @@ metadata:
   created: 2026-04-14 11:00:00+00:00
 spec:
   name: developer
-  description: Implements features and bugfixes from architect plans and PM task assignments.
-    The main execution role.
+  description: Implements features and bugfixes from architect plans and PM task assignments. The main execution role.
   responsibilities:
-  - Implement features and fixes to match the plan's success criteria exactly; no
-    scope expansion.
-  - 'Run project quality gates before handoff: `cargo test`, `cargo clippy --all-targets
-    -- -D warnings`, `cargo fmt -- --check` (and equivalents for other languages).'
-  - Self-review the diff against the plan before returning to PM — catch own errors
-    before the review gate.
-  - 'Flag plan gaps rather than silently interpreting: if the plan is ambiguous, ask
-    PM before implementing.'
-  - 'Leave the workspace clean: no scratch files, no TODOs without workitems, no commented-out
-    blocks.'
+  - Implement features and fixes to match the plan's success criteria exactly; no scope expansion.
+  - 'Run project quality gates before handoff: `cargo test`, `cargo clippy --all-targets -- -D warnings`, `cargo fmt -- --check` (and equivalents for other languages).'
+  - "Self-review the diff against the plan before returning to PM \u2014 catch own errors before the review gate."
+  - 'Flag plan gaps rather than silently interpreting: if the plan is ambiguous, ask PM before implementing.'
+  - 'Leave the workspace clean: no scratch files, no TODOs without workitems, no commented-out blocks.'
   skills_required:
   - agent-management
   - workitem-management

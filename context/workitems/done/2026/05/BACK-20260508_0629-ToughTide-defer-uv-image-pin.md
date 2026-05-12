@@ -10,10 +10,7 @@ spec:
   state: cancelled
   type: chore
   priority: medium
-  description: Release-check-state on 2026-05-08 reported `ghcr.io/astral-sh/uv:0.11.10`
-    with update available to `0.11.11`. Deferred from v0.25.2 release. Validate uv
-    release notes, bump the pinned tag in image build inputs, rebuild base image,
-    and rerun release validation gates including runtime visual status checks.
+  description: Release-check-state on 2026-05-08 reported `ghcr.io/astral-sh/uv:0.11.10` with update available to `0.11.11`. Deferred from v0.25.2 release. Validate uv release notes, bump the pinned tag in image build inputs, rebuild base image, and rerun release validation gates including runtime visual status checks.
   completed_at: '2026-05-10T03:25:06+00:00'
 ---
 

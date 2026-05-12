@@ -15,7 +15,7 @@ The skill catalog explicitly marks `process-management` as
 In addition, none of the live aibox release ritual flowed through
 `PROC-release.md` — the canonical release process for aibox lives in:
 
-- `context/notes/NOTE-20260411_0000-LoyalSpruce-aibox-release-process.md`
+- `context/notes/2026/04/NOTE-20260411_0001-LoyalSpruce-aibox-release-process.md`
   (Phase 0 / Phase 1 / Phase 2 step-by-step)
 - `AGENTS.md:139` (entry point)
 
@@ -29,7 +29,7 @@ retrospective). That alone was the trigger to archive.
 | File | Original purpose | Live successor |
 |---|---|---|
 | `INDEX.md` | Process directory index | n/a — v1 directory contract |
-| `PROC-release.md` | Generic release process | `context/notes/NOTE-20260411_0000-LoyalSpruce-aibox-release-process.md` + `AGENTS.md:139` |
+| `PROC-release.md` | Generic release process | `context/notes/2026/04/NOTE-20260411_0001-LoyalSpruce-aibox-release-process.md` + `AGENTS.md:139` |
 | `PROC-bug-fix.md` | Generic bug-fix process | `AGENTS.md` engineering guidance |
 | `PROC-code-review.md` | Generic code-review process | `AGENTS.md` PR / review section |
 | `PROC-feature-development.md` | Generic feature workflow | `AGENTS.md` + workitem-management skill |

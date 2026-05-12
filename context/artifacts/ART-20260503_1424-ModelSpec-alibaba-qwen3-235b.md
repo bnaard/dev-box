@@ -17,8 +17,7 @@ spec:
   - version_id: '3'
     status: ga
     context_window: 128000
-    pricing_note: 'Massive MoE (235B params, 22B active); open weights; GPU cluster
-      required for self-hosting. Via third-party APIs: pricing varies (~$0.50-2.00/1M).'
+    pricing_note: 'Massive MoE (235B params, 22B active); open weights; GPU cluster required for self-hosting. Via third-party APIs: pricing varies (~$0.50-2.00/1M).'
     governance_warning: 'Via Alibaba Cloud API: G:1. Self-hosted (Apache 2.0): G:4.'
     lifecycle: legacy
     source_urls: &id001

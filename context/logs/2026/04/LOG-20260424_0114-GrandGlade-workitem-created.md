@@ -7,8 +7,7 @@ metadata:
 spec:
   event_type: workitem.created
   timestamp: '2026-04-24T01:14:32+00:00'
-  summary: 'Created WorkItem ''BACK-20260424_0114-ToughGlade-phase-2c-gemini-cli'':
-    ''Phase 2c: Gemini CLI + GitHub Copilot generators'''
+  summary: 'Created WorkItem ''BACK-20260424_0114-ToughGlade-phase-2c-gemini-cli'': ''Phase 2c: Gemini CLI + GitHub Copilot generators'''
   subject: BACK-20260424_0114-ToughGlade-phase-2c-gemini-cli
   subject_kind: WorkItem
   actor: BACK-20260424_0114-ToughGlade-phase-2c-gemini-cli

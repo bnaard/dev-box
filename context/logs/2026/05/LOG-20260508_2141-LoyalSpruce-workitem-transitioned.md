@@ -7,8 +7,7 @@ metadata:
 spec:
   event_type: workitem.transitioned
   timestamp: '2026-05-08T21:41:12+00:00'
-  summary: Transitioned WorkItem 'BACK-20260508_1603-QuietCedar-status-bar-visual-rework-powerline'
-    from 'review' to 'done'
+  summary: Transitioned WorkItem 'BACK-20260508_1603-QuietCedar-status-bar-visual-rework-powerline' from 'review' to 'done'
   subject: BACK-20260508_1603-QuietCedar-status-bar-visual-rework-powerline
   subject_kind: WorkItem
   actor: BACK-20260508_1603-QuietCedar-status-bar-visual-rework-powerline

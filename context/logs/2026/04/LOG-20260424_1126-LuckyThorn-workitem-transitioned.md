@@ -7,8 +7,7 @@ metadata:
 spec:
   event_type: workitem.transitioned
   timestamp: '2026-04-24T11:26:26+00:00'
-  summary: Transitioned WorkItem 'BACK-20260424_0058-ToughGrove-feature-global-mcp-permissions'
-    from 'review' to 'done'
+  summary: Transitioned WorkItem 'BACK-20260424_0058-ToughGrove-feature-global-mcp-permissions' from 'review' to 'done'
   subject: BACK-20260424_0058-ToughGrove-feature-global-mcp-permissions
   subject_kind: WorkItem
   actor: BACK-20260424_0058-ToughGrove-feature-global-mcp-permissions

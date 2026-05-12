@@ -7,8 +7,7 @@ metadata:
 spec:
   event_type: workitem.created
   timestamp: '2026-05-02T09:12:50+00:00'
-  summary: 'Created WorkItem ''BACK-20260502_0912-RapidDew-overhaul-aibox-project-documentation'':
-    ''Overhaul aibox public and project documentation before processkit release'''
+  summary: 'Created WorkItem ''BACK-20260502_0912-RapidDew-overhaul-aibox-project-documentation'': ''Overhaul aibox public and project documentation before processkit release'''
   subject: BACK-20260502_0912-RapidDew-overhaul-aibox-project-documentation
   subject_kind: WorkItem
   actor: BACK-20260502_0912-RapidDew-overhaul-aibox-project-documentation

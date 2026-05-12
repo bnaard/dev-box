@@ -24,8 +24,7 @@ spec:
     - cargo test --manifest-path cli/Cargo.toml --bin aibox workspace_manifest
     - cargo check --manifest-path cli/Cargo.toml --bin aibox
     - cargo build --manifest-path cli/Cargo.toml --bin aibox
-    - AIBOX_ADDONS_DIR=/workspace/addons cli/target/debug/aibox describe workspace-manifest
-      -o json
+    - AIBOX_ADDONS_DIR=/workspace/addons cli/target/debug/aibox describe workspace-manifest -o json
     - cargo test --manifest-path cli/Cargo.toml -j1
     - cargo clippy --manifest-path cli/Cargo.toml --all-targets -- -D warnings
     - cargo fmt --manifest-path cli/Cargo.toml -- --check

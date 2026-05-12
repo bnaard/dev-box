@@ -14,12 +14,7 @@ spec:
   state: done
   type: task
   priority: high
-  description: 'Approved implementation plan: fix lazygit-disabled Zellij layout leakage,
-    repair/validate native Zellij status line visibility, add pk-doctor checks for
-    runtime template/theme drift and aibox.toml schema mismatches, and strengthen
-    Tier 1/Tier 2/asciinema E2E coverage for scaffolding, updates, migrations, reset,
-    and visual regressions. Implementation should use at most two parallel worker
-    slices: runtime/doctor and E2E/asciinema/reset.'
+  description: 'Approved implementation plan: fix lazygit-disabled Zellij layout leakage, repair/validate native Zellij status line visibility, add pk-doctor checks for runtime template/theme drift and aibox.toml schema mismatches, and strengthen Tier 1/Tier 2/asciinema E2E coverage for scaffolding, updates, migrations, reset, and visual regressions. Implementation should use at most two parallel worker slices: runtime/doctor and E2E/asciinema/reset.'
   started_at: '2026-05-04T09:20:07+00:00'
   completed_at: '2026-05-04T10:02:19+00:00'
 ---

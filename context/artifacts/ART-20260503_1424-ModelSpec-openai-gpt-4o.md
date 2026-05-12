@@ -20,8 +20,7 @@ spec:
     pricing_usd_per_1m:
       input: 2.5
       output: 10.0
-    pricing_note: Strong value for multimodal tasks; audio in/out included in standard
-      pricing
+    pricing_note: Strong value for multimodal tasks; audio in/out included in standard pricing
     lifecycle: legacy
     source_urls: &id001
     - https://platform.openai.com/docs/models

@@ -16,10 +16,8 @@ spec:
     remote: origin
     commit: 9d9a438
     scope:
-    - added addon-without-install-steps validation when addon YAML declares neither
-      builder nor runtime template
-    - kept check in warning-mode inside existing addon metadata doctor path until
-      processkit addon-spec schema is canonical
+    - added addon-without-install-steps validation when addon YAML declares neither builder nor runtime template
+    - kept check in warning-mode inside existing addon metadata doctor path until processkit addon-spec schema is canonical
     validation:
     - cargo test --manifest-path cli/Cargo.toml --bin aibox addon_loader::tests::addon_metadata
     - cargo test --manifest-path cli/Cargo.toml --bin aibox addon_loader
@@ -28,6 +26,5 @@ spec:
     - cargo fmt --manifest-path cli/Cargo.toml -- --check
     - git diff --check
     - AIBOX_ADDONS_DIR=/workspace/addons cli/target/debug/aibox doctor
-    doctor_result: 0 errors; addon profile metadata check clean; existing schema and
-      optional-tool warnings remain
+    doctor_result: 0 errors; addon profile metadata check clean; existing schema and optional-tool warnings remain
 ---

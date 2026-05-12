@@ -7,8 +7,7 @@ metadata:
 spec:
   event_type: workitem.transitioned
   timestamp: '2026-05-07T09:44:18+00:00'
-  summary: Transitioned WorkItem 'BACK-20260507_0926-AmberAnt-bounded-runtime-diagnostics-sidecar-snapshots'
-    from 'review' to 'done'
+  summary: Transitioned WorkItem 'BACK-20260507_0926-AmberAnt-bounded-runtime-diagnostics-sidecar-snapshots' from 'review' to 'done'
   subject: BACK-20260507_0926-AmberAnt-bounded-runtime-diagnostics-sidecar-snapshots
   subject_kind: WorkItem
   actor: BACK-20260507_0926-AmberAnt-bounded-runtime-diagnostics-sidecar-snapshots

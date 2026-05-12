@@ -7,8 +7,7 @@ metadata:
 spec:
   event_type: workitem.transitioned
   timestamp: '2026-05-09T05:11:41+00:00'
-  summary: Transitioned WorkItem 'BACK-20260508_1519-PluckyThorn-release-host-orchestration-rollout-cutover'
-    from 'review' to 'done'
+  summary: Transitioned WorkItem 'BACK-20260508_1519-PluckyThorn-release-host-orchestration-rollout-cutover' from 'review' to 'done'
   subject: BACK-20260508_1519-PluckyThorn-release-host-orchestration-rollout-cutover
   subject_kind: WorkItem
   actor: BACK-20260508_1519-PluckyThorn-release-host-orchestration-rollout-cutover

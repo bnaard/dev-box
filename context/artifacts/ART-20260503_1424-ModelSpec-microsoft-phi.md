@@ -20,8 +20,7 @@ spec:
     pricing_usd_per_1m:
       input: 0.07
       output: 0.14
-    pricing_note: MIT license; cheapest STEM-capable model; via Azure AI Foundry with
-      enterprise DPA available
+    pricing_note: MIT license; cheapest STEM-capable model; via Azure AI Foundry with enterprise DPA available
     lifecycle: legacy
   efforts_supported:
   - none

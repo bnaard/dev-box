@@ -7,8 +7,7 @@ metadata:
 spec:
   event_type: workitem.transitioned
   timestamp: '2026-05-10T03:25:06+00:00'
-  summary: Transitioned WorkItem 'BACK-20260508_0629-ToughTide-defer-uv-image-pin'
-    from 'backlog' to 'cancelled'
+  summary: Transitioned WorkItem 'BACK-20260508_0629-ToughTide-defer-uv-image-pin' from 'backlog' to 'cancelled'
   subject: BACK-20260508_0629-ToughTide-defer-uv-image-pin
   subject_kind: WorkItem
   actor: BACK-20260508_0629-ToughTide-defer-uv-image-pin

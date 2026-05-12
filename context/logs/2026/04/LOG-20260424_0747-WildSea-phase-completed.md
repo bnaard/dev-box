@@ -24,4 +24,5 @@ spec:
     - codex
     total_tests: 597
     phase_3_ready: true
+  actor: system
 ---

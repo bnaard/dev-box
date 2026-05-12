@@ -7,8 +7,7 @@ metadata:
 spec:
   event_type: workitem.transitioned
   timestamp: '2026-05-09T22:19:18+00:00'
-  summary: Transitioned WorkItem 'BACK-20260509_1331-WildAsh-yazi-brief-terminal-response-timeout-error'
-    from 'review' to 'done'
+  summary: Transitioned WorkItem 'BACK-20260509_1331-WildAsh-yazi-brief-terminal-response-timeout-error' from 'review' to 'done'
   subject: BACK-20260509_1331-WildAsh-yazi-brief-terminal-response-timeout-error
   subject_kind: WorkItem
   actor: BACK-20260509_1331-WildAsh-yazi-brief-terminal-response-timeout-error

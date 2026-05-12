@@ -10,10 +10,7 @@ spec:
   state: done
   type: task
   priority: high
-  description: 'Implement the accepted phase 2 plan: profile model hardening for human-dev/headless-runner,
-    profile-aware addon metadata, workspace manifest promotion, provider backend projection,
-    image provenance baseline and labels, headless-runner readiness, doctor/release
-    gates, docs, and tests.'
+  description: 'Implement the accepted phase 2 plan: profile model hardening for human-dev/headless-runner, profile-aware addon metadata, workspace manifest promotion, provider backend projection, image provenance baseline and labels, headless-runner readiness, doctor/release gates, docs, and tests.'
   scope: aibox
   started_at: '2026-05-03T01:01:09+00:00'
   completed_at: '2026-05-03T01:10:49+00:00'

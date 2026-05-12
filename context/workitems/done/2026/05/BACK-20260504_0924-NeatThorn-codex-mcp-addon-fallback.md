@@ -14,10 +14,7 @@ spec:
   state: done
   type: bug
   priority: high
-  description: 'Reported bugs: processkit MCP server starts still crash for Codex
-    subagents; older derived-project aibox.toml fails during `aibox apply --no-cache`
-    with `Addon ''preview-enhanced'' requires ''preview-archive'' addon` and leaves
-    no actionable fallback/migration guidance. Analyze and fix both with tests.'
+  description: 'Reported bugs: processkit MCP server starts still crash for Codex subagents; older derived-project aibox.toml fails during `aibox apply --no-cache` with `Addon ''preview-enhanced'' requires ''preview-archive'' addon` and leaves no actionable fallback/migration guidance. Analyze and fix both with tests.'
   started_at: '2026-05-04T09:24:44+00:00'
   completed_at: '2026-05-04T09:34:42+00:00'
 ---

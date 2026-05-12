@@ -7,7 +7,7 @@ metadata:
 spec:
   event_type: migration.transitioned
   timestamp: '2026-04-23T07:46:32+00:00'
-  summary: 'Migration ''MIG-20260423T073837'': pending → in-progress'
+  summary: "Migration 'MIG-20260423T073837': pending \u2192 in-progress"
   subject: MIG-20260423T073837
   subject_kind: Migration
   actor: MIG-20260423T073837

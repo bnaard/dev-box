@@ -8,5 +8,5 @@ spec:
   type: role-assignment
   subject: ACTOR-20260414_1100-DeepWhale-senior-researcher-agent
   target: ROLE-20260414_1100-DeepWhale-senior-researcher
-  scope: permanent
+  scope: null
 ---

@@ -616,7 +616,9 @@ export POWERKIT_ROOT
 
 script_dir="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
 export HOME="$(cd -- "${script_dir}/../.." && pwd)"
-export XDG_CACHE_HOME="${HOME}/.cache"
+cache_root="${AIBOX_POWERKIT_CACHE_DIR:-/tmp/aibox/tmux-powerkit-cache}"
+mkdir -p "${cache_root}" 2>/dev/null || true
+export XDG_CACHE_HOME="${cache_root}"
 
 if [[ ! -r "${POWERKIT_ROOT}/src/core/bootstrap.sh" ]]; then
     exit 0
@@ -641,7 +643,9 @@ export POWERKIT_ROOT
 
 script_dir="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
 export HOME="$(cd -- "${script_dir}/../.." && pwd)"
-export XDG_CACHE_HOME="${HOME}/.cache"
+cache_root="${AIBOX_POWERKIT_CACHE_DIR:-/tmp/aibox/tmux-powerkit-cache}"
+mkdir -p "${cache_root}" 2>/dev/null || true
+export XDG_CACHE_HOME="${cache_root}"
 
 if [[ ! -r "${POWERKIT_ROOT}/src/core/bootstrap.sh" ]]; then
     exit 0
@@ -772,12 +776,12 @@ mod tests {
                 && conf.contains(r#"@powerkit_plugin_netspeed_cache_ttl "10""#)
                 && conf.contains(r#"@powerkit_plugin_kubernetes_cache_ttl "120""#)
                 && conf.contains(r#"@powerkit_plugin_cloud_cache_ttl "120""#)
-                && conf.contains(r#"@powerkit_plugin_aibox_log_label "LOG""#)
-                && conf.contains(r#"@powerkit_plugin_aibox_oom_label "OOM""#)
-                && conf.contains(r#"@powerkit_plugin_aibox_proc_label "PROC""#)
-                && conf.contains(r#"@powerkit_plugin_aibox_ai_label "AI""#)
-                && conf.contains(r#"@powerkit_plugin_aibox_mcp_label "MCP""#)
-                && conf.contains(r#"@powerkit_plugin_aibox_mig_label "MIG""#),
+                && conf.contains(r#"@powerkit_plugin_aibox_log_label "󱖫""#)
+                && conf.contains(r#"@powerkit_plugin_aibox_oom_label "󰍛󰚌""#)
+                && conf.contains(r#"@powerkit_plugin_aibox_proc_label "󰊚""#)
+                && conf.contains(r#"@powerkit_plugin_aibox_ai_label "󱙺""#)
+                && conf.contains(r#"@powerkit_plugin_aibox_mcp_label "󰌹""#)
+                && conf.contains(r#"@powerkit_plugin_aibox_mig_label "󰚰""#),
             "generated persistent tmux config should carry bounded powerkit defaults:\n{conf}"
         );
         assert!(
@@ -945,6 +949,18 @@ mod tests {
             !conf.contains(r#"@powerkit_plugin_aibox_metrics"#),
             "old single-segment @powerkit_plugin_aibox_metrics must be absent after path-a split\n{conf}"
         );
+    }
+
+    #[test]
+    fn powerkit_render_helpers_use_tmp_cache() {
+        for helper in [POWERKIT_RENDER_LIST_SH, POWERKIT_RENDER_SESSION_SH] {
+            assert!(
+                helper.contains(r#"AIBOX_POWERKIT_CACHE_DIR:-/tmp/aibox/tmux-powerkit-cache"#)
+                    && helper.contains(r#"export XDG_CACHE_HOME="${cache_root}""#)
+                    && !helper.contains(r#"export XDG_CACHE_HOME="${HOME}/.cache""#),
+                "PowerKit helpers must not write cache under mounted .aibox-home/.cache:\n{helper}"
+            );
+        }
     }
 
     #[test]

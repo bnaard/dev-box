@@ -7,8 +7,7 @@ metadata:
 spec:
   event_type: workitem.transitioned
   timestamp: '2026-04-29T10:09:04+00:00'
-  summary: Transitioned WorkItem 'BACK-20260426_1627-TrueRaven-investigate-content-diff-conflict'
-    from 'in-progress' to 'review'
+  summary: Transitioned WorkItem 'BACK-20260426_1627-TrueRaven-investigate-content-diff-conflict' from 'in-progress' to 'review'
   subject: BACK-20260426_1627-TrueRaven-investigate-content-diff-conflict
   subject_kind: WorkItem
   actor: BACK-20260426_1627-TrueRaven-investigate-content-diff-conflict

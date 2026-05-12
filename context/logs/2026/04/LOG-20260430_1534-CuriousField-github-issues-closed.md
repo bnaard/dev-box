@@ -7,8 +7,7 @@ metadata:
 spec:
   event_type: github.issues.closed
   timestamp: '2026-04-30T15:34:06+00:00'
-  summary: 'Closed aibox issues #58 and #59 as verified fixed in v0.22.0; no patch
-    release needed.'
+  summary: 'Closed aibox issues #58 and #59 as verified fixed in v0.22.0; no patch release needed.'
   actor: codex
   subject: projectious-work/aibox#58,#59
   subject_kind: github_issue_set

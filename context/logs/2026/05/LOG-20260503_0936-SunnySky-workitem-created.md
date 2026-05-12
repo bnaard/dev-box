@@ -7,8 +7,7 @@ metadata:
 spec:
   event_type: workitem.created
   timestamp: '2026-05-03T09:36:28+00:00'
-  summary: 'Created WorkItem ''BACK-20260503_0936-SnappyCrane-native-zellij-runtime-status-plugin'':
-    ''Build native Zellij plugin for aibox runtime status'''
+  summary: 'Created WorkItem ''BACK-20260503_0936-SnappyCrane-native-zellij-runtime-status-plugin'': ''Build native Zellij plugin for aibox runtime status'''
   subject: BACK-20260503_0936-SnappyCrane-native-zellij-runtime-status-plugin
   subject_kind: WorkItem
   actor: BACK-20260503_0936-SnappyCrane-native-zellij-runtime-status-plugin

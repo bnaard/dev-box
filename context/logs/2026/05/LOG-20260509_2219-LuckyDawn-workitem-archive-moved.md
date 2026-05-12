@@ -7,8 +7,7 @@ metadata:
 spec:
   event_type: workitem.archive-moved
   timestamp: '2026-05-09T22:19:05+00:00'
-  summary: Archived terminal WorkItem 'BACK-20260509_1316-TallBear-release-audit-stale-layout-tests'
-    to /workspace/context/workitems/done/2026/05/BACK-20260509_1316-TallBear-release-audit-stale-layout-tests.md
+  summary: Archived terminal WorkItem 'BACK-20260509_1316-TallBear-release-audit-stale-layout-tests' to /workspace/context/workitems/done/2026/05/BACK-20260509_1316-TallBear-release-audit-stale-layout-tests.md
   subject: BACK-20260509_1316-TallBear-release-audit-stale-layout-tests
   subject_kind: WorkItem
   actor: BACK-20260509_1316-TallBear-release-audit-stale-layout-tests

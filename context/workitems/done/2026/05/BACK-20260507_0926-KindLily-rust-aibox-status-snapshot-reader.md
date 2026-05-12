@@ -10,10 +10,7 @@ spec:
   state: done
   type: task
   priority: high
-  description: Implement a Rust aibox-status executable with no Bash fanout. Preserve
-    default plain output, --plugin-json, and --watch. Read the diagnostics sidecar
-    latest snapshot and degrade quickly when missing/stale. Add tests proving JSON
-    shape and no shell collector path remains.
+  description: Implement a Rust aibox-status executable with no Bash fanout. Preserve default plain output, --plugin-json, and --watch. Read the diagnostics sidecar latest snapshot and degrade quickly when missing/stale. Add tests proving JSON shape and no shell collector path remains.
   parent: BACK-20260507_0925-CuriousTulip-runtime-diagnostics-sidecar-rust-status-emergency
   started_at: '2026-05-07T09:43:26+00:00'
   completed_at: '2026-05-07T09:43:44+00:00'

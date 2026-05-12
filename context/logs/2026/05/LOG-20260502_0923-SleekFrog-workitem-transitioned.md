@@ -7,8 +7,7 @@ metadata:
 spec:
   event_type: workitem.transitioned
   timestamp: '2026-05-02T09:23:32+00:00'
-  summary: Transitioned WorkItem 'BACK-20260502_0912-RapidDew-overhaul-aibox-project-documentation'
-    from 'in-progress' to 'review'
+  summary: Transitioned WorkItem 'BACK-20260502_0912-RapidDew-overhaul-aibox-project-documentation' from 'in-progress' to 'review'
   subject: BACK-20260502_0912-RapidDew-overhaul-aibox-project-documentation
   subject_kind: WorkItem
   actor: BACK-20260502_0912-RapidDew-overhaul-aibox-project-documentation

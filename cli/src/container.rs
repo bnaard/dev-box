@@ -1557,13 +1557,8 @@ pub(crate) fn serialize_config_with_comments(config: &AiboxConfig) -> String {
     out.push_str(
         "# Nerd Font / Powerline symbols are compact but require the user's terminal font.\n",
     );
-    out.push_str(
-        "# Practical symbol candidates from Nerd Fonts: Kubernetes/cloud/network/uptime\n",
-    );
-    out.push_str("# already use icon defaults below; aibox runtime metrics stay text labels by\n");
-    out.push_str(
-        "# default because no universally recognized LOG/OOM/PROC/MCP/MIG glyph exists.\n",
-    );
+    out.push_str("# Practical symbol candidates from Nerd Fonts. Keep icons distinct across\n");
+    out.push_str("# configured PowerKit segments so adjacent status cells remain scannable.\n");
     out.push_str("# aibox-log: aibox log info/warn/error counter header.\n");
     out.push_str("# aibox-oom: cgroup OOM event/kill counter header.\n");
     out.push_str("# aibox-proc: process/thread count header.\n");
@@ -1681,7 +1676,7 @@ pub(crate) fn serialize_config_with_comments(config: &AiboxConfig) -> String {
     out.push_str(
         "# Optional networked model-provider health segments for the extended tmux status line.\n",
     );
-    out.push_str("# Each configured provider becomes one PowerKit segment when enabled, for example OAI ✓ or ANT !!.\n");
+    out.push_str("# Each configured provider becomes one PowerKit segment when enabled, for example OAI ✓ or ANT 󰚌.\n");
     out.push_str("# enabled: false avoids background status-page calls by default; set true to render configured providers.\n");
     out.push_str(
         "# cache-ttl-seconds: minimum time between provider status requests per provider.\n",
@@ -1722,7 +1717,7 @@ pub(crate) fn serialize_config_with_comments(config: &AiboxConfig) -> String {
     out.push_str("# - checks: any of overall, models, harness; worst status wins (outage > degraded > unknown > ok)\n");
     out.push_str("# - status-url: JSON status endpoint; Statuspage summary APIs are supported, Google uses incidents.json\n");
     out.push_str("# - overall-components/model-components/harness-components: optional component-name filters for providers with componentized status APIs\n");
-    out.push_str("#   Symbols: ✓ ok, ! degraded, !! outage, ? unknown.\n");
+    out.push_str("#   Symbols: ✓ ok, 󰀦 degraded, 󰚌 outage, ? unknown.\n");
     for provider in &config.customization.tmux.status.model_providers.providers {
         out.push_str("\n[[customization.tmux.status.model-providers.providers]]\n");
         out.push_str(&format!(

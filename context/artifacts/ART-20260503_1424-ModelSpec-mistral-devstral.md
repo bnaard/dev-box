@@ -20,8 +20,7 @@ spec:
     pricing_usd_per_1m:
       input: 0.3
       output: 0.9
-    pricing_note: Mistral code-specialist pricing; verify current Devstral/Codestral
-      card.
+    pricing_note: Mistral code-specialist pricing; verify current Devstral/Codestral card.
     lifecycle: active
     source_urls: &id001
     - https://docs.mistral.ai/models/overview

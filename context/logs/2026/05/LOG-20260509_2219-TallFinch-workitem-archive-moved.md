@@ -7,8 +7,7 @@ metadata:
 spec:
   event_type: workitem.archive-moved
   timestamp: '2026-05-09T22:19:07+00:00'
-  summary: Archived terminal WorkItem 'BACK-20260509_0511-EagerDew-docs-addons-project-local-npm-install'
-    to /workspace/context/workitems/done/2026/05/BACK-20260509_0511-EagerDew-docs-addons-project-local-npm-install.md
+  summary: Archived terminal WorkItem 'BACK-20260509_0511-EagerDew-docs-addons-project-local-npm-install' to /workspace/context/workitems/done/2026/05/BACK-20260509_0511-EagerDew-docs-addons-project-local-npm-install.md
   subject: BACK-20260509_0511-EagerDew-docs-addons-project-local-npm-install
   subject_kind: WorkItem
   actor: BACK-20260509_0511-EagerDew-docs-addons-project-local-npm-install

@@ -7,8 +7,7 @@ metadata:
 spec:
   event_type: workitem.created
   timestamp: '2026-05-07T09:26:28+00:00'
-  summary: 'Created WorkItem ''BACK-20260507_0926-CleverFern-aibox-emergency-harness-entrypoint'':
-    ''Add aibox emergency harness recovery entrypoint'''
+  summary: 'Created WorkItem ''BACK-20260507_0926-CleverFern-aibox-emergency-harness-entrypoint'': ''Add aibox emergency harness recovery entrypoint'''
   subject: BACK-20260507_0926-CleverFern-aibox-emergency-harness-entrypoint
   subject_kind: WorkItem
   actor: BACK-20260507_0926-CleverFern-aibox-emergency-harness-entrypoint

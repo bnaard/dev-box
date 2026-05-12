@@ -20,11 +20,8 @@ spec:
     pricing_usd_per_1m:
       input: 0.15
       output: 0.45
-    pricing_note: Open weights under Gemma Terms; self-hosting recommended for proprietary
-      workloads
-    governance_warning: 'Via Google API: G:2 (same as Gemini). Self-hosted open weights
-      (Gemma Terms of Use): G:4 — data stays local, strong sovereignty, but no Anthropic-tier
-      compliance certs.'
+    pricing_note: Open weights under Gemma Terms; self-hosting recommended for proprietary workloads
+    governance_warning: "Via Google API: G:2 (same as Gemini). Self-hosted open weights (Gemma Terms of Use): G:4 \u2014 data stays local, strong sovereignty, but no Anthropic-tier compliance certs."
     lifecycle: legacy
   efforts_supported:
   - none

@@ -7,8 +7,7 @@ metadata:
 spec:
   event_type: migration.applied
   timestamp: '2026-05-03T02:03:17+00:00'
-  summary: Resolved root-level aibox CLI migration briefings that were still marked
-    pending after verification showed no remaining processkit or runtime migrations.
+  summary: Resolved root-level aibox CLI migration briefings that were still marked pending after verification showed no remaining processkit or runtime migrations.
   actor: Codex
   subject: aibox CLI migration briefings
   subject_kind: MigrationBriefing

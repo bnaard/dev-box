@@ -20,8 +20,7 @@ spec:
     pricing_usd_per_1m:
       input: 1.5
       output: 6.0
-    pricing_note: Mistral's reasoning-mode model; EU-based alternative to o3/DeepSeek
-      R1 for regulated data
+    pricing_note: Mistral's reasoning-mode model; EU-based alternative to o3/DeepSeek R1 for regulated data
     lifecycle: unverified
     source_urls: &id001
     - https://docs.mistral.ai/models/overview

@@ -8,36 +8,10 @@ metadata:
     version: v0.25.8-candidate
     area: addons-python
 spec:
-  title: 'v0.25.8: bump uv image pin 0.11.11 → 0.11.12 (skip the intermediate to avoid
-    two rebuilds)'
+  title: "v0.25.8: bump uv image pin 0.11.11 \u2192 0.11.12 (skip the intermediate to avoid two rebuilds)"
   state: backlog
   type: task
   priority: low
-  description: |
-    ## Background
-
-    v0.25.7 shipped uv 0.11.10 → 0.11.11 (BACK-SureSeal, commit 0b31a2d, merge a9cbc00). PluckyEagle's drift review surfaced uv 0.11.12 as the next available patch and recommended in NOTE-20260509_2237-VastVale that the next pass go directly to 0.11.12 to amortize the base-image rebuild cost.
-
-    ## Goal
-
-    Bump uv 0.11.11 → 0.11.12 in:
-
-    - `images/base-debian/Dockerfile` (COPY pin)
-    - `addons/languages/python.yaml` (default_version, supported_versions)
-    - `aibox.toml` (dogfood pin)
-    - `cli/src/addon_registry.rs` (test assertions)
-    - `cli/src/addon_cmd.rs` (test fixtures)
-    - `cli/src/config.rs` (doc-comment example)
-    - `scripts/release-check-state.sh` (uv_pin variable)
-    - `docs-site/docs/addons/{overview,language-runtimes}.md`, `docs-site/docs/reference/configuration.md`
-
-    ## Acceptance
-
-    - 0.11.12 in all the above paths.
-    - Base image rebuilds; aibox-level tests pass.
-
-    ## Refs
-
-    - NOTE-20260509_2237-VastVale (PluckyEagle's recommendation)
-    - Commit 0b31a2d (SureSeal's 0.11.11 bump as the diff template)
+  description: "## Background\n\nv0.25.7 shipped uv 0.11.10 \u2192 0.11.11 (BACK-SureSeal, commit 0b31a2d, merge a9cbc00). PluckyEagle's drift review surfaced uv 0.11.12 as the next available patch and recommended in NOTE-20260509_2237-VastVale that the next pass go directly to 0.11.12 to amortize the base-image rebuild cost.\n\n## Goal\n\nBump uv 0.11.11 \u2192 0.11.12 in:\n\n- `images/base-debian/Dockerfile` (COPY pin)\n- `addons/languages/python.yaml` (default_version, supported_versions)\n- `aibox.toml` (dogfood pin)\n- `cli/src/addon_registry.rs` (test assertions)\n- `cli/src/addon_cmd.rs` (test fixtures)\n- `cli/src/config.rs` (doc-comment example)\n- `scripts/release-check-state.sh` (uv_pin variable)\n- `docs-site/docs/addons/{overview,language-runtimes}.md`, `docs-site/docs/reference/configuration.md`\n\n## Acceptance\n\n- 0.11.12 in all the above paths.\n- Base image rebuilds; aibox-level tests pass.\n\n## Refs\n\n- NOTE-20260509_2237-VastVale (PluckyEagle's recommendation)\n- Commit\
+    \ 0b31a2d (SureSeal's 0.11.11 bump as the diff template)"
 ---

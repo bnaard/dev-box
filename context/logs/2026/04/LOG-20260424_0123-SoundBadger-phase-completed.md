@@ -7,8 +7,7 @@ metadata:
 spec:
   event_type: phase.completed
   timestamp: '2026-04-24T01:23:00+00:00'
-  summary: 'Phase 1 core infrastructure completed: pattern matching, McpConfig, glob
-    logic'
+  summary: 'Phase 1 core infrastructure completed: pattern matching, McpConfig, glob logic'
   subject: BACK-20260424_0114-JollyStream-phase-1-core-mcp
   subject_kind: workitem
   details:
@@ -27,4 +26,5 @@ spec:
     - BACK-20260424_0114-NobleSage-phase-2b-continue-cursor
     - BACK-20260424_0114-ToughGlade-phase-2c-gemini-cli
     - BACK-20260424_0114-TrueWren-phase-2d-codex-generator
+  actor: system
 ---

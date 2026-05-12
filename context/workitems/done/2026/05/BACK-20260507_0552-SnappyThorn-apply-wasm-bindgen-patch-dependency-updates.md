@@ -14,12 +14,7 @@ spec:
   state: cancelled
   type: task
   priority: medium
-  description: Release-check-state for aibox v0.24.0 reported cargo update --dry-run
-    would update js-sys 0.3.97 -> 0.3.98 and wasm-bindgen, wasm-bindgen-macro, wasm-bindgen-macro-support,
-    wasm-bindgen-shared 0.2.120 -> 0.2.121. Deferred from v0.24.0 to keep dependency
-    churn out of the runtime TUI release. Before shipping, run a real cargo update
-    for these crates, inspect lockfile changes, run cargo test, cargo clippy --all-targets
-    -- -D warnings, cargo audit, and the Zellij WASM plugin build/tests.
+  description: Release-check-state for aibox v0.24.0 reported cargo update --dry-run would update js-sys 0.3.97 -> 0.3.98 and wasm-bindgen, wasm-bindgen-macro, wasm-bindgen-macro-support, wasm-bindgen-shared 0.2.120 -> 0.2.121. Deferred from v0.24.0 to keep dependency churn out of the runtime TUI release. Before shipping, run a real cargo update for these crates, inspect lockfile changes, run cargo test, cargo clippy --all-targets -- -D warnings, cargo audit, and the Zellij WASM plugin build/tests.
   completed_at: '2026-05-10T03:25:00+00:00'
 ---
 

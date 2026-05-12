@@ -13,11 +13,6 @@ spec:
   state: backlog
   type: task
   priority: medium
-  description: 'Release-state check for aibox v0.25.5 reported the pinned uv image
-    at ghcr.io/astral-sh/uv:0.11.10 with 0.11.11 available. Deferred from v0.25.5
-    because the patch release is scoped to tmux runtime attach/session fixes. Validation
-    required before shipping later: inspect uv 0.11.11 release notes, update image
-    pin if appropriate, rebuild affected images, and rerun generated runtime plus
-    companion E2E coverage.'
+  description: 'Release-state check for aibox v0.25.5 reported the pinned uv image at ghcr.io/astral-sh/uv:0.11.10 with 0.11.11 available. Deferred from v0.25.5 because the patch release is scoped to tmux runtime attach/session fixes. Validation required before shipping later: inspect uv 0.11.11 release notes, update image pin if appropriate, rebuild affected images, and rerun generated runtime plus companion E2E coverage.'
   scope: release-dependency-followup
 ---

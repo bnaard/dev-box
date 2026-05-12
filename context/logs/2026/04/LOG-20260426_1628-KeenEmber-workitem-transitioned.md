@@ -7,8 +7,7 @@ metadata:
 spec:
   event_type: workitem.transitioned
   timestamp: '2026-04-26T16:28:31+00:00'
-  summary: Transitioned WorkItem 'BACK-20260423_2050-LuckyRabbit-aibox-sync-should-auto'
-    from 'review' to 'done'
+  summary: Transitioned WorkItem 'BACK-20260423_2050-LuckyRabbit-aibox-sync-should-auto' from 'review' to 'done'
   subject: BACK-20260423_2050-LuckyRabbit-aibox-sync-should-auto
   subject_kind: WorkItem
   actor: BACK-20260423_2050-LuckyRabbit-aibox-sync-should-auto

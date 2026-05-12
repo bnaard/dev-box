@@ -7,8 +7,7 @@ metadata:
 spec:
   event_type: decision.created
   timestamp: '2026-05-05T14:08:47+00:00'
-  summary: 'Created DecisionRecord ''DEC-20260505_1408-KeenPlum-represent-audio-features-under-audio-config'':
-    ''Represent audio features under audio config'''
+  summary: 'Created DecisionRecord ''DEC-20260505_1408-KeenPlum-represent-audio-features-under-audio-config'': ''Represent audio features under audio config'''
   subject: DEC-20260505_1408-KeenPlum-represent-audio-features-under-audio-config
   subject_kind: DecisionRecord
   actor: DEC-20260505_1408-KeenPlum-represent-audio-features-under-audio-config

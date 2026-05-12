@@ -14,10 +14,7 @@ spec:
   state: done
   type: task
   priority: medium
-  description: During the aibox v0.23.17 docs build, Docusaurus reported an available
-    update from 3.9.2 to 3.10.1. Review the Docusaurus release notes, update docs-site
-    package dependencies if compatible, rebuild/deploy docs locally, and either ship
-    the update in a later release or document why it remains deferred.
+  description: During the aibox v0.23.17 docs build, Docusaurus reported an available update from 3.9.2 to 3.10.1. Review the Docusaurus release notes, update docs-site package dependencies if compatible, rebuild/deploy docs locally, and either ship the update in a later release or document why it remains deferred.
   started_at: '2026-05-09T22:31:54+00:00'
   completed_at: '2026-05-10T03:24:51+00:00'
 ---

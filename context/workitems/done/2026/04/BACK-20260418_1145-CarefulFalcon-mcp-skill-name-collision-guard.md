@@ -9,8 +9,7 @@ metadata:
     related_pr: aibox#53
   updated: '2026-04-19T08:08:10+00:00'
 spec:
-  title: MCP/commands walker — defensive guard against bare-skill-name collisions
-    across categories
+  title: "MCP/commands walker \u2014 defensive guard against bare-skill-name collisions across categories"
   state: done
   type: task
   priority: medium

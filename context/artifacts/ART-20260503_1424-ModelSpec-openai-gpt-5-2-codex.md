@@ -20,8 +20,7 @@ spec:
     pricing_usd_per_1m:
       input: 1.75
       output: 14.0
-    pricing_note: Coding-specialized GPT-5.2 variant; verify exact API pricing and
-      availability in OpenAI docs before budgeting.
+    pricing_note: Coding-specialized GPT-5.2 variant; verify exact API pricing and availability in OpenAI docs before budgeting.
     lifecycle: active
     source_urls: &id001
     - https://platform.openai.com/docs/models/gpt-5.2-codex

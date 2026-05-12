@@ -7,8 +7,7 @@ metadata:
 spec:
   event_type: workitem.transitioned
   timestamp: '2026-05-08T19:56:26+00:00'
-  summary: Transitioned WorkItem 'BACK-20260508_1603-SilentEagle-log-pane-reader-lnav-integration'
-    from 'review' to 'done'
+  summary: Transitioned WorkItem 'BACK-20260508_1603-SilentEagle-log-pane-reader-lnav-integration' from 'review' to 'done'
   subject: BACK-20260508_1603-SilentEagle-log-pane-reader-lnav-integration
   subject_kind: WorkItem
   actor: BACK-20260508_1603-SilentEagle-log-pane-reader-lnav-integration

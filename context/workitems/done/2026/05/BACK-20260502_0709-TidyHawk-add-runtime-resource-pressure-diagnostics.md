@@ -10,9 +10,7 @@ spec:
   state: done
   type: task
   priority: medium
-  description: Add a read-only runtime resource diagnostic command that reads cgroup
-    memory files and /proc directly, reporting memory current/max/events, oom_kill
-    count, process count, and processkit MCP process fanout.
+  description: Add a read-only runtime resource diagnostic command that reads cgroup memory files and /proc directly, reporting memory current/max/events, oom_kill count, process count, and processkit MCP process fanout.
   started_at: '2026-05-02T07:09:23+00:00'
   completed_at: '2026-05-02T07:25:46+00:00'
 ---

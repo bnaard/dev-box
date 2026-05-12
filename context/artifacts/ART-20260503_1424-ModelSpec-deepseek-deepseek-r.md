@@ -20,10 +20,8 @@ spec:
     pricing_usd_per_1m:
       input: 0.55
       output: 2.19
-    pricing_note: ~20x cheaper than o3 for comparable reasoning; G:1 severely limits
-      safe use cases.
-    governance_warning: G:1 — Chinese jurisdiction. Never use for PII, PHI, confidential
-      IP, credentials, regulated data, or government/defense work.
+    pricing_note: ~20x cheaper than o3 for comparable reasoning; G:1 severely limits safe use cases.
+    governance_warning: "G:1 \u2014 Chinese jurisdiction. Never use for PII, PHI, confidential IP, credentials, regulated data, or government/defense work."
     lifecycle: deprecated
     deprecated_after: '2026-07-24'
     replacement_model: deepseek-v4-flash

@@ -20,8 +20,7 @@ spec:
     pricing_usd_per_1m:
       input: null
       output: null
-    pricing_note: Codex subscription model exposed by local Codex catalog;
-      supported_in_api=false, so API token pricing is not applicable.
+    pricing_note: Codex subscription model exposed by local Codex catalog; supported_in_api=false, so API token pricing is not applicable.
     lifecycle: active
     supported_in_api: false
     source_urls: &id001

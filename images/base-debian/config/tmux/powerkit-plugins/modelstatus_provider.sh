@@ -232,8 +232,8 @@ plugin_get_context() {
 plugin_render() {
     case "$(plugin_data_get "status")" in
         ok) printf '✓' ;;
-        degraded) printf '!' ;;
-        outage) printf '!!' ;;
+        degraded) printf '󰀦' ;;
+        outage) printf '󰚌' ;;
         *) printf '?' ;;
     esac
 }

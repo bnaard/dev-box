@@ -23,6 +23,5 @@ spec:
     generated_runtime_commit: 'd378eaa chore: refresh generated runtime for v0.24.1'
     release_tag_commit: '863ea72 chore: bump CLI version to 0.24.1'
     repo_state: main and origin/main at d378eaa; tag v0.24.1 at 863ea72
-    notes: Docs deployment had already run during Linux-side maintain.sh release;
-      docs-deploy remains available from the dev-container if needed.
+    notes: Docs deployment had already run during Linux-side maintain.sh release; docs-deploy remains available from the dev-container if needed.
 ---

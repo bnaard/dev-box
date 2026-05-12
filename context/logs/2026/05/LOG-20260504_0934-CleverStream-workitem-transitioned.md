@@ -7,8 +7,7 @@ metadata:
 spec:
   event_type: workitem.transitioned
   timestamp: '2026-05-04T09:34:42+00:00'
-  summary: Transitioned WorkItem 'BACK-20260504_0924-NeatThorn-codex-mcp-addon-fallback'
-    from 'review' to 'done'
+  summary: Transitioned WorkItem 'BACK-20260504_0924-NeatThorn-codex-mcp-addon-fallback' from 'review' to 'done'
   subject: BACK-20260504_0924-NeatThorn-codex-mcp-addon-fallback
   subject_kind: WorkItem
   actor: BACK-20260504_0924-NeatThorn-codex-mcp-addon-fallback

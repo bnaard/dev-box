@@ -7,8 +7,7 @@ metadata:
 spec:
   event_type: workitem.transitioned
   timestamp: '2026-05-10T07:40:02+00:00'
-  summary: Transitioned WorkItem 'BACK-20260510_0727-QuietCliff-tmux-statusline-rename-external-ip-externalip'
-    from 'review' to 'done'
+  summary: Transitioned WorkItem 'BACK-20260510_0727-QuietCliff-tmux-statusline-rename-external-ip-externalip' from 'review' to 'done'
   subject: BACK-20260510_0727-QuietCliff-tmux-statusline-rename-external-ip-externalip
   subject_kind: WorkItem
   actor: BACK-20260510_0727-QuietCliff-tmux-statusline-rename-external-ip-externalip

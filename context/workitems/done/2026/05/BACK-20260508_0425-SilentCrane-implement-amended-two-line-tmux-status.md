@@ -15,12 +15,7 @@ spec:
   state: done
   type: task
   priority: high
-  description: 'Implement the accepted two-line tmux-powerkit status layout. Line
-    1: AIBOX identity, tmux screens/windows, project/runtime context. Line 2: mode/prefix
-    state and compact runtime health/agent state. Replace ambiguous symbols with short
-    labels. DISK must show used/total. Extend sidecar/aibox-status collection for
-    log severity counts, CPU usage deltas, disk used/total, process/AI/MCP state,
-    migrations, memory pressure, and degraded state as needed.'
+  description: 'Implement the accepted two-line tmux-powerkit status layout. Line 1: AIBOX identity, tmux screens/windows, project/runtime context. Line 2: mode/prefix state and compact runtime health/agent state. Replace ambiguous symbols with short labels. DISK must show used/total. Extend sidecar/aibox-status collection for log severity counts, CPU usage deltas, disk used/total, process/AI/MCP state, migrations, memory pressure, and degraded state as needed.'
   parent: BACK-20260507_1455-CalmBison-aibox-v0250-tmux-runtime-redesign
   started_at: '2026-05-08T04:27:23+00:00'
   completed_at: '2026-05-08T10:47:27+00:00'

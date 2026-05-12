@@ -20,8 +20,7 @@ spec:
     pricing_usd_per_1m:
       input: 2.0
       output: 6.0
-    pricing_note: EU-based pricing in EUR also available; Le Chat Enterprise has volume
-      discounts
+    pricing_note: EU-based pricing in EUR also available; Le Chat Enterprise has volume discounts
     lifecycle: unverified
     source_urls: &id001
     - https://docs.mistral.ai/models/overview

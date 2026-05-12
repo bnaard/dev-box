@@ -14,8 +14,5 @@ spec:
   state: backlog
   type: task
   priority: medium
-  description: Phase 0 release state for v0.25.8 found `ghcr.io/astral-sh/uv:0.11.11`
-    with latest `0.11.13`. Deferred from this patch release because the current change
-    set is focused on tmux/runtime logging and the uv image bump requires base-image
-    rebuild review plus runtime smoke validation.
+  description: Phase 0 release state for v0.25.8 found `ghcr.io/astral-sh/uv:0.11.11` with latest `0.11.13`. Deferred from this patch release because the current change set is focused on tmux/runtime logging and the uv image bump requires base-image rebuild review plus runtime smoke validation.
 ---

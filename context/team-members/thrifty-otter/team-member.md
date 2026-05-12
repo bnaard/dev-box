@@ -4,12 +4,13 @@ kind: TeamMember
 metadata:
   id: TEAMMEMBER-thrifty-otter
   created: 2026-04-22 00:00:00+00:00
+  updated: '2026-05-12T14:50:55+00:00'
 spec:
   type: human
   name: Bernhard
   slug: thrifty-otter
   email: bernhard.gerlach@web.de
-  default_role: ROLE-ceo
+  default_role: ROLE-20260422_0001-MigratedRole-ceo
   default_seniority: principal
   personality:
     communication_style: direct, pragmatic, terse; values crisp updates over narration

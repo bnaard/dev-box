@@ -10,10 +10,7 @@ spec:
   state: done
   type: task
   priority: high
-  description: 'Replace Zellij references in docs, scripts, release smoke, stale-runtime
-    diagnostics, cheatsheet, terminal profile labels, screencast tooling, and release-check
-    surfaces. Keep host/sidecar runtime evidence workflows but make them tmux-native.
-    Related decision: DEC-20260507_1447-VastLeaf-remove-zellij-and-rebuild-aibox-runtime.'
+  description: 'Replace Zellij references in docs, scripts, release smoke, stale-runtime diagnostics, cheatsheet, terminal profile labels, screencast tooling, and release-check surfaces. Keep host/sidecar runtime evidence workflows but make them tmux-native. Related decision: DEC-20260507_1447-VastLeaf-remove-zellij-and-rebuild-aibox-runtime.'
   parent: BACK-20260507_1455-CalmBison-aibox-v0250-tmux-runtime-redesign
   scope: docs-release-ops
   started_at: '2026-05-07T15:36:00+00:00'

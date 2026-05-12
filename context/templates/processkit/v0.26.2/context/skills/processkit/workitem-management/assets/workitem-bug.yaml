@@ -1,0 +1,35 @@
+---
+apiVersion: processkit.projectious.work/v2
+kind: WorkItem
+metadata:
+  id: BACK-TODO
+  created: TODO
+  labels:
+    severity: TODO
+spec:
+  title: TODO
+  state: backlog
+  type: bug
+  priority: medium
+  assignee: null
+---
+
+## Reproduction
+
+1. TODO
+
+## Expected behavior
+
+TODO
+
+## Actual behavior
+
+TODO
+
+## Environment
+
+- TODO
+
+## Suspected cause
+
+TODO

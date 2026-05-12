@@ -7,9 +7,8 @@ metadata:
 spec:
   event_type: workitem.transitioned
   timestamp: '2026-04-25T09:53:48+00:00'
-  summary: Transitioned WorkItem 'BACK-20260411_0000-NobleSage-docusaurus-addon-improvements-remove'
-    from 'backlog' to 'cancelled'
-  subject: BACK-20260411_0000-NobleSage-docusaurus-addon-improvements-remove
+  summary: Transitioned WorkItem 'BACK-20260410_2239-NobleSage-docusaurus-addon-improvements-remove' from 'backlog' to 'cancelled'
+  subject: BACK-20260410_2239-NobleSage-docusaurus-addon-improvements-remove
   subject_kind: WorkItem
-  actor: BACK-20260411_0000-NobleSage-docusaurus-addon-improvements-remove
+  actor: BACK-20260410_2239-NobleSage-docusaurus-addon-improvements-remove
 ---

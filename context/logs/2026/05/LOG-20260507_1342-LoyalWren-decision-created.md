@@ -7,9 +7,7 @@ metadata:
 spec:
   event_type: decision.created
   timestamp: '2026-05-07T13:42:55+00:00'
-  summary: 'Created DecisionRecord ''DEC-20260507_1342-HappyPeak-prioritize-zellij-containment-claude-diagnostics-and'':
-    ''Prioritize Zellij containment, Claude diagnostics, and tmux evaluation after
-    runtime incident'''
+  summary: 'Created DecisionRecord ''DEC-20260507_1342-HappyPeak-prioritize-zellij-containment-claude-diagnostics-and'': ''Prioritize Zellij containment, Claude diagnostics, and tmux evaluation after runtime incident'''
   subject: DEC-20260507_1342-HappyPeak-prioritize-zellij-containment-claude-diagnostics-and
   subject_kind: DecisionRecord
   actor: DEC-20260507_1342-HappyPeak-prioritize-zellij-containment-claude-diagnostics-and

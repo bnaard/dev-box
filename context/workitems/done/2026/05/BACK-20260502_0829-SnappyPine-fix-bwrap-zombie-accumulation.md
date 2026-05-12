@@ -14,9 +14,7 @@ spec:
   state: done
   type: bug
   priority: high
-  description: 'Implement the accepted bwrap zombie solution: verify Codex bubblewrap
-    sandbox prerequisites and add a proper init/reaper to generated devcontainer compose
-    so orphaned sandbox helpers are reaped.'
+  description: 'Implement the accepted bwrap zombie solution: verify Codex bubblewrap sandbox prerequisites and add a proper init/reaper to generated devcontainer compose so orphaned sandbox helpers are reaped.'
   started_at: '2026-05-02T08:29:39+00:00'
   completed_at: '2026-05-02T08:35:30+00:00'
 ---

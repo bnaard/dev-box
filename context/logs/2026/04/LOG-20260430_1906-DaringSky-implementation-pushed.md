@@ -16,11 +16,9 @@ spec:
     remote: origin
     commit: 6048ba9
     scope:
-    - changed AiHarness::addon_name so host-only Cursor returns no in-container addon
-      name
+    - changed AiHarness::addon_name so host-only Cursor returns no in-container addon name
     - keeps legacy Mistral behavior as no addon
-    - added regression coverage that cursor does not create ai-cursor while codex
-      still resolves ai-codex
+    - added regression coverage that cursor does not create ai-cursor while codex still resolves ai-codex
     validation:
     - cargo test --manifest-path cli/Cargo.toml --bin aibox resolve_ai_providers
     - cargo test --manifest-path cli/Cargo.toml --bin aibox provider_backend
@@ -29,7 +27,5 @@ spec:
     - cargo clippy --manifest-path cli/Cargo.toml --all-targets -- -D warnings
     - cargo fmt --manifest-path cli/Cargo.toml -- --check
     - git diff --check
-    release_assessment: 'No immediate patch release: discovered during roadmap implementation,
-      no open GitHub issue, and main now includes feature preview commits beyond a
-      pure patch payload.'
+    release_assessment: 'No immediate patch release: discovered during roadmap implementation, no open GitHub issue, and main now includes feature preview commits beyond a pure patch payload.'
 ---

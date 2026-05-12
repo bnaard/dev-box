@@ -32,8 +32,7 @@ spec:
     pricing_usd_per_1m:
       input: 15.0
       output: 75.0
-    pricing_note: Most expensive Claude; reserve for tasks where quality justifies
-      cost
+    pricing_note: Most expensive Claude; reserve for tasks where quality justifies cost
     lifecycle: unverified
     source_urls:
     - https://docs.anthropic.com/en/docs/about-claude/models/overview

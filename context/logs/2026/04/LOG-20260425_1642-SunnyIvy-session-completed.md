@@ -7,8 +7,7 @@ metadata:
 spec:
   event_type: session.completed
   timestamp: '2026-04-25T16:42:57+00:00'
-  summary: 'Implemented GitHub issue #54 (MCP config fingerprint tracking) and released
-    v0.19.2'
+  summary: 'Implemented GitHub issue #54 (MCP config fingerprint tracking) and released v0.19.2'
   details:
     issue_closed: '54'
     version_released: 0.19.2
@@ -25,4 +24,5 @@ spec:
     - x86_64-apple-darwin
     - x86_64-unknown-linux-gnu
     release_url: https://github.com/projectious-work/aibox/releases/tag/v0.19.2
+  actor: system
 ---

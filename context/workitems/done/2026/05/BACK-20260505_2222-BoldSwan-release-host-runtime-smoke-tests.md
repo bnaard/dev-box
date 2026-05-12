@@ -14,12 +14,7 @@ spec:
   state: done
   type: task
   priority: high
-  description: Add a release-host regression gate that runs after final container
-    images are built/pushed or at least after the final local image exists. It should
-    create/apply a small generated project against the just-built image and smoke
-    Yazi config parsing, lazygit state-directory startup, Zellij layout/plugin loading,
-    and key/status bar logs. This would have caught the Yazi 26 matcher schema regression
-    and lazygit XDG state regression before publishing.
+  description: Add a release-host regression gate that runs after final container images are built/pushed or at least after the final local image exists. It should create/apply a small generated project against the just-built image and smoke Yazi config parsing, lazygit state-directory startup, Zellij layout/plugin loading, and key/status bar logs. This would have caught the Yazi 26 matcher schema regression and lazygit XDG state regression before publishing.
   started_at: '2026-05-08T10:46:25+00:00'
   completed_at: '2026-05-08T10:46:33+00:00'
 ---

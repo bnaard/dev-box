@@ -14,13 +14,7 @@ spec:
   state: done
   type: bug
   priority: medium
-  description: During the v0.23.0 release, `./scripts/maintain.sh release 0.23.0`
-    created the GitHub Release with auto-generated commit-list notes before there
-    was a checkpoint to write curated release notes. The release script also pushed
-    the tag before `main` was updated on origin, requiring a manual `git push origin
-    main` after the release. Update the release flow so comprehensive curated notes
-    are prepared before `gh release create`, and so the version-bump commit is pushed
-    to `main` before or atomically with the tag/release creation.
+  description: During the v0.23.0 release, `./scripts/maintain.sh release 0.23.0` created the GitHub Release with auto-generated commit-list notes before there was a checkpoint to write curated release notes. The release script also pushed the tag before `main` was updated on origin, requiring a manual `git push origin main` after the release. Update the release flow so comprehensive curated notes are prepared before `gh release create`, and so the version-bump commit is pushed to `main` before or atomically with the tag/release creation.
   started_at: '2026-05-10T03:24:56+00:00'
   completed_at: '2026-05-10T03:27:22+00:00'
 ---

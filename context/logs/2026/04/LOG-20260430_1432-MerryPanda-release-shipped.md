@@ -7,9 +7,7 @@ metadata:
 spec:
   event_type: release.shipped
   timestamp: '2026-04-30T14:32:39+00:00'
-  summary: aibox v0.22.0 container-side release completed; main and tag pushed, GitHub
-    release created with Linux assets, docs deployed; Phase 2 remains host-side release-host
-    0.22.0.
+  summary: aibox v0.22.0 container-side release completed; main and tag pushed, GitHub release created with Linux assets, docs deployed; Phase 2 remains host-side release-host 0.22.0.
   actor: codex
   subject: v0.22.0
   subject_kind: Release

@@ -14,14 +14,7 @@ spec:
   state: cancelled
   type: research
   priority: high
-  description: 'Evaluate whether aibox should keep Zellij as default, add tmux as
-    an alternative runtime multiplexer, or switch defaults. Context: repeated runtime
-    failures point at Zellij plugin/server blast radius; Zellij Rust basis and server
-    features are attractive, but plugin instability can pin the session server at
-    300%+ CPU. Compare tmux stability, status-line programmability, pane/tab/session
-    model, keybinding ergonomics, macOS keyboard behavior, plugin/runtime observability,
-    and migration cost for generated layouts. Acceptance: recommendation with concrete
-    implementation path and release strategy.'
+  description: 'Evaluate whether aibox should keep Zellij as default, add tmux as an alternative runtime multiplexer, or switch defaults. Context: repeated runtime failures point at Zellij plugin/server blast radius; Zellij Rust basis and server features are attractive, but plugin instability can pin the session server at 300%+ CPU. Compare tmux stability, status-line programmability, pane/tab/session model, keybinding ergonomics, macOS keyboard behavior, plugin/runtime observability, and migration cost for generated layouts. Acceptance: recommendation with concrete implementation path and release strategy.'
   scope: runtime-architecture
   completed_at: '2026-05-07T14:56:15+00:00'
 ---

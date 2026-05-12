@@ -17,8 +17,7 @@ spec:
   - version_id: '3.3'
     status: ga
     context_window: 128000
-    pricing_note: 'No API cost; infra cost varies by hardware. Via third-party APIs
-      (Groq, Together, etc.): ~$0.06-0.80/1M tokens depending on provider.'
+    pricing_note: 'No API cost; infra cost varies by hardware. Via third-party APIs (Groq, Together, etc.): ~$0.06-0.80/1M tokens depending on provider.'
     lifecycle: legacy
     source_urls: &id001
     - https://llama.meta.com/

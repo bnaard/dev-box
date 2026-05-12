@@ -14,9 +14,7 @@ spec:
   state: done
   type: task
   priority: high
-  description: 'Ensure generated tmux runtime config explicitly follows tmux-powerkit
-    standard key-help pattern: on-demand keybindings popup as the canonical mechanism,
-    with documented key/size overrides and release checks to avoid regressions.'
+  description: 'Ensure generated tmux runtime config explicitly follows tmux-powerkit standard key-help pattern: on-demand keybindings popup as the canonical mechanism, with documented key/size overrides and release checks to avoid regressions.'
   parent: BACK-20260507_1455-CalmBison-aibox-v0250-tmux-runtime-redesign
   started_at: '2026-05-08T04:41:20+00:00'
   completed_at: '2026-05-08T10:47:32+00:00'

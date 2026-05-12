@@ -7,8 +7,7 @@ metadata:
 spec:
   event_type: workitem.created
   timestamp: '2026-05-07T12:03:01+00:00'
-  summary: 'Created WorkItem ''BACK-20260507_1203-PluckyEagle-review-v0242-dependency-drift'':
-    ''Review deferred dependency and harness drift after aibox v0.24.2'''
+  summary: 'Created WorkItem ''BACK-20260507_1203-PluckyEagle-review-v0242-dependency-drift'': ''Review deferred dependency and harness drift after aibox v0.24.2'''
   subject: BACK-20260507_1203-PluckyEagle-review-v0242-dependency-drift
   subject_kind: WorkItem
   actor: BACK-20260507_1203-PluckyEagle-review-v0242-dependency-drift

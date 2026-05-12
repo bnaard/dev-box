@@ -8,5 +8,5 @@ spec:
   type: role-assignment
   subject: ACTOR-20260414_1100-TidyBee-assistant-agent
   target: ROLE-20260414_1100-TidyBee-assistant
-  scope: permanent
+  scope: null
 ---

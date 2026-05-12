@@ -5,51 +5,11 @@ metadata:
   id: NOTE-20260509_2223-TrueCrane-hermes-opencode-checksum-watch-deferred
   created: '2026-05-09T22:23:19+00:00'
 spec:
-  title: 'BraveCrow checksum-watch v0.25.7: Hermes + OpenCode — no upstream checksums
-    published'
-  body: "## Watch result — 2026-05-10\n\n**WorkItem:** BACK-20260508_2257-BraveCrow-hermes-opencode-checksum-upstream-watch\
-    \  \n**Branch:** v0.25.7/bravecrow-checksum-watch  \n**Scope:** ai-hermes (Nous\
-    \ Research) · ai-opencode (opencode-ai/opencode)\n\n***\n\n### Findings\n\n**Hermes\
-    \ (ai-hermes v1.0.0)**\n\n- Source: `https://github.com/nousresearch/hermes/releases`\n\
-    - Current aibox posture: versioned binary download, no version pin in aibox.toml\
-    \ (commented out), falls back to `latest` redirect.\n- Upstream checksum material:\
-    \ **none published** as of this watch pass. No `SHA256SUMS`, no `*.asc`, no `.sha256`\
-    \ files on the nousresearch/hermes releases page (per WorkItem body, unchanged\
-    \ since 2026-05-08).\n- TODO(sec) block in addon: still accurate and present.\n\
-    - **Decision: no bump. Defer.**\n\n**OpenCode (ai-opencode v1.0.0)**\n\n- Source:\
-    \ `https://github.com/opencode-ai/opencode/releases`\n- Current aibox posture:\
-    \ versioned tar.gz download, no version pin in aibox.toml (commented out), falls\
-    \ back to `latest` redirect.\n- Upstream checksum material: **none published**\
-    \ as of this watch pass. No per-release SHA-256 files or GPG signatures (per WorkItem\
-    \ body, unchanged since 2026-05-08).\n- TODO(sec) block in addon: still accurate\
-    \ and present.\n- **Decision: no bump. Defer.**\n\n***\n\n### Rationale for no-change\n\
-    \nComputing and pinning a locally-computed SHA-256 of the downloaded binary would\
-    \ only catch accidental transport corruption, not a malicious release substitution.\
-    \ The WorkItem body explicitly documents this reasoning (DEC-20260508_2235-CuriousBadger).\
-    \ The current posture (version-pinned release asset download) remains the best\
-    \ available option.\n\n***\n\n### Next-check trigger\n\nRe-run this watch when\
-    \ either:\n1. `https://github.com/nousresearch/hermes/releases` adds a `SHA256SUMS`\
-    \ or `*.asc` artifact to any release.\n2. `https://github.com/opencode-ai/opencode/releases`\
-    \ adds a checksum file.\n\nRecommended calendar next-check: **2026-06-10** (monthly\
-    \ cadence), or sooner if a new major release of either tool is announced.\n\n\
-    ***\n\n### Action if triggered\n\nPer WorkItem spec:\n1. Update the relevant addon\
-    \ YAML `runtime:` block to add `sha256sum -c` verification (mirror the pattern\
-    \ in `addons/tools/infrastructure.yaml`).\n2. Remove the `TODO(sec)` block.\n\
-    3. Bump the addon `version:`.\n4. File a Migration entity if downstream projects\
-    \ need to re-apply.\n"
-  type: fleeting
-  state: captured
-  review_due: '2026-06-10'
-  tags:
-  - bravecrow
-  - checksum-watch
-  - v0.25.7
-  - hermes
-  - opencode
-  - security
-  - supply-chain
+  title: "BraveCrow checksum-watch v0.25.7: Hermes + OpenCode \u2014 no upstream checksums published"
+  body: See Markdown body below.
+  type: reference
+  state: permanent
 ---
-
 ## Watch result — 2026-05-10
 
 **WorkItem:** BACK-20260508_2257-BraveCrow-hermes-opencode-checksum-upstream-watch  

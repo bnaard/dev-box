@@ -20,10 +20,8 @@ spec:
     pricing_usd_per_1m:
       input: 0.95
       output: 4.0
-    pricing_note: Moonshot Kimi K2.6 standard API pricing; cache-hit input may be
-      cheaper.
-    governance_warning: 'Chinese company. Via Moonshot API: G:1. Self-hosted open
-      weights (Modified MIT, Hugging Face) raise governance to G:3–4.'
+    pricing_note: Moonshot Kimi K2.6 standard API pricing; cache-hit input may be cheaper.
+    governance_warning: "Chinese company. Via Moonshot API: G:1. Self-hosted open weights (Modified MIT, Hugging Face) raise governance to G:3\u20134."
     lifecycle: active
     source_urls: &id001
     - https://platform.moonshot.ai/

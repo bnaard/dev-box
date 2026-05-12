@@ -7,8 +7,7 @@ metadata:
 spec:
   event_type: workitem.archive-moved
   timestamp: '2026-05-09T22:19:18+00:00'
-  summary: Archived terminal WorkItem 'BACK-20260509_1331-WildAsh-yazi-brief-terminal-response-timeout-error'
-    to /workspace/context/workitems/done/2026/05/BACK-20260509_1331-WildAsh-yazi-brief-terminal-response-timeout-error.md
+  summary: Archived terminal WorkItem 'BACK-20260509_1331-WildAsh-yazi-brief-terminal-response-timeout-error' to /workspace/context/workitems/done/2026/05/BACK-20260509_1331-WildAsh-yazi-brief-terminal-response-timeout-error.md
   subject: BACK-20260509_1331-WildAsh-yazi-brief-terminal-response-timeout-error
   subject_kind: WorkItem
   actor: BACK-20260509_1331-WildAsh-yazi-brief-terminal-response-timeout-error

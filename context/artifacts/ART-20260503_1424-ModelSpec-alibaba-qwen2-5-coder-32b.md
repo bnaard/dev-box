@@ -20,10 +20,8 @@ spec:
     pricing_usd_per_1m:
       input: 0.2
       output: 0.6
-    pricing_note: Smaller than 72B so cheaper to host; very cost-effective coding
-      model
-    governance_warning: 'Via Alibaba Cloud API: G:1. Self-hosted (Apache 2.0): G:4.
-      Recommended deployment is self-hosted for any proprietary code.'
+    pricing_note: Smaller than 72B so cheaper to host; very cost-effective coding model
+    governance_warning: 'Via Alibaba Cloud API: G:1. Self-hosted (Apache 2.0): G:4. Recommended deployment is self-hosted for any proprietary code.'
     lifecycle: legacy
     source_urls: &id001
     - https://qwenlm.github.io/

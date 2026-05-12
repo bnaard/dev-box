@@ -10,11 +10,7 @@ spec:
   state: done
   type: task
   priority: high
-  description: 'Conduct systematic audit of 42 backlog items to identify outdated
-    entries (e.g., SoundRabbit references v0.8.0), clarify dependencies, and reprioritize.
-    Follow PROC-backlog-grooming phases. Output: audit log, dependency map, decision
-    record, and 90-day focus plan. Participants: PM Agent (Cora), Junior Dev Agent,
-    Owner.'
+  description: 'Conduct systematic audit of 42 backlog items to identify outdated entries (e.g., SoundRabbit references v0.8.0), clarify dependencies, and reprioritize. Follow PROC-backlog-grooming phases. Output: audit log, dependency map, decision record, and 90-day focus plan. Participants: PM Agent (Cora), Junior Dev Agent, Owner.'
   started_at: '2026-04-24T20:53:09+00:00'
   completed_at: '2026-04-25T09:54:02+00:00'
 ---

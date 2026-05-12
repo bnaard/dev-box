@@ -7,9 +7,8 @@ metadata:
 spec:
   event_type: migration.transitioned
   timestamp: '2026-05-03T16:55:42+00:00'
-  summary: 'Migration ''MIG-20260503_164619-legacy-model-to-artifact-model-spec'':
-    pending → in-progress (implicit)'
-  subject: MIG-20260503_164619-legacy-model-to-artifact-model-spec
+  summary: "Migration 'MIG-20260503_1646-legacy-model-to-artifact-model-spec': pending \u2192 in-progress (implicit)"
+  subject: MIG-20260503_1646-legacy-model-to-artifact-model-spec
   subject_kind: Migration
-  actor: MIG-20260503_164619-legacy-model-to-artifact-model-spec
+  actor: MIG-20260503_1646-legacy-model-to-artifact-model-spec
 ---

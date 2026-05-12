@@ -7,8 +7,7 @@ metadata:
 spec:
   event_type: workitem.transitioned
   timestamp: '2026-04-24T11:21:15+00:00'
-  summary: Transitioned WorkItem 'BACK-20260424_0114-JollyDew-phase-3-integration-into'
-    from 'review' to 'done'
+  summary: Transitioned WorkItem 'BACK-20260424_0114-JollyDew-phase-3-integration-into' from 'review' to 'done'
   subject: BACK-20260424_0114-JollyDew-phase-3-integration-into
   subject_kind: WorkItem
   actor: BACK-20260424_0114-JollyDew-phase-3-integration-into

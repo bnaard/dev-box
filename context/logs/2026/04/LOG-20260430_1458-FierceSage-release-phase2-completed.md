@@ -7,9 +7,7 @@ metadata:
 spec:
   event_type: release.phase2_completed
   timestamp: '2026-04-30T14:58:14+00:00'
-  summary: aibox v0.22.0 host-side Phase 2 completed by owner; macOS release assets
-    verified on GitHub release; GHCR package API verification unavailable from container
-    token.
+  summary: aibox v0.22.0 host-side Phase 2 completed by owner; macOS release assets verified on GitHub release; GHCR package API verification unavailable from container token.
   actor: owner
   subject: v0.22.0
   subject_kind: Release
@@ -24,6 +22,5 @@ spec:
     - aibox-v0.22.0-aarch64-unknown-linux-gnu.tar.gz
     - aibox-v0.22.0-x86_64-unknown-linux-gnu.tar.gz
     owner_reported: Phase 2 on host done.
-    ghcr_verification: Attempted gh api /orgs/projectious-work/packages/container/aibox/versions;
-      GitHub returned HTTP 403 requiring read:packages scope.
+    ghcr_verification: Attempted gh api /orgs/projectious-work/packages/container/aibox/versions; GitHub returned HTTP 403 requiring read:packages scope.
 ---

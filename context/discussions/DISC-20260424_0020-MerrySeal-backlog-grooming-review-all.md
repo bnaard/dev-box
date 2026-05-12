@@ -6,8 +6,7 @@ metadata:
   created: '2026-04-24T00:20:00+00:00'
   updated: '2026-04-24T00:24:15+00:00'
 spec:
-  question: 'Backlog grooming: Review all items in backlog state for relevance post-processkit
-    v0.19.1 and establish 90-day focus area'
+  question: 'Backlog grooming: Review all items in backlog state for relevance post-processkit v0.19.1 and establish 90-day focus area'
   state: active
   opened_at: '2026-04-24T00:20:00+00:00'
   outcomes:

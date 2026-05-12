@@ -1271,6 +1271,13 @@ fn write_disabled_harness_migration(
     body.push_str(&format!("  created: {now}\n"));
     body.push_str("spec:\n");
     body.push_str("  source: aibox\n");
+    body.push_str("  source_api_version: processkit.projectious.work/v1\n");
+    body.push_str("  source_processkit_version: unknown\n");
+    body.push_str("  target_api_version: processkit.projectious.work/v2\n");
+    body.push_str(&format!(
+        "  target_processkit_version: {}\n",
+        env!("CARGO_PKG_VERSION")
+    ));
     body.push_str("  kind: runtime\n");
     body.push_str("  state: pending\n");
     body.push_str("  apply_mode: one-shot\n");

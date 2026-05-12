@@ -8,8 +8,7 @@ spec:
   event_type: migration.applied
   timestamp: '2026-04-18T11:30:00Z'
   actor: claude-opus-4-7
-  summary: Applied MIG-20260418T090634 — processkit v0.17.0 -> v0.18.1 (8 no-op conflicts,
-    49 new accepted, 23 removed deleted)
+  summary: "Applied MIG-20260418T090634 \u2014 processkit v0.17.0 -> v0.18.1 (8 no-op conflicts, 49 new accepted, 23 removed deleted)"
   related:
   - MIG-20260418T090634
   details:
@@ -18,10 +17,5 @@ spec:
     files_deleted: 23
     files_accepted_new: 49
     conflicts_resolved: 8
-    conflicts_decision: |
-      All 8 conflicts resolved as no-ops. The 4 skill-gate scripts were pre-patched in the
-      prior session (LOG-20260418_0900) as the hookEventName intermediate hotfix and now
-      match v0.18.1 byte-for-byte. Schemas and skills/INDEX.md were already at v0.18.1.
-      AGENTS.md keeps local v2 compliance markers — upstream still ships v1 markers, this
-      gap is a known upstream inconsistency tracked by processkit (handover open_thread #3).
+    conflicts_decision: "All 8 conflicts resolved as no-ops. The 4 skill-gate scripts were pre-patched in the\nprior session (LOG-20260418_0900) as the hookEventName intermediate hotfix and now\nmatch v0.18.1 byte-for-byte. Schemas and skills/INDEX.md were already at v0.18.1.\nAGENTS.md keeps local v2 compliance markers \u2014 upstream still ships v1 markers, this\ngap is a known upstream inconsistency tracked by processkit (handover open_thread #3)."
 ---

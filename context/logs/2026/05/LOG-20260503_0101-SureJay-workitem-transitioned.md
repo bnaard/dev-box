@@ -7,8 +7,7 @@ metadata:
 spec:
   event_type: workitem.transitioned
   timestamp: '2026-05-03T01:01:09+00:00'
-  summary: Transitioned WorkItem 'BACK-20260503_0101-AmberLake-phase-2-steadytiger-environment'
-    from 'backlog' to 'in-progress'
+  summary: Transitioned WorkItem 'BACK-20260503_0101-AmberLake-phase-2-steadytiger-environment' from 'backlog' to 'in-progress'
   subject: BACK-20260503_0101-AmberLake-phase-2-steadytiger-environment
   subject_kind: WorkItem
   actor: BACK-20260503_0101-AmberLake-phase-2-steadytiger-environment

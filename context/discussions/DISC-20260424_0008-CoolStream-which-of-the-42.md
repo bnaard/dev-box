@@ -5,8 +5,7 @@ metadata:
   id: DISC-20260424_0008-CoolStream-which-of-the-42
   created: '2026-04-24T00:08:42+00:00'
 spec:
-  question: Which of the 42 backlog items remain relevant after processkit v0.19.1
-    upgrade, and what should our implementation priorities be?
+  question: Which of the 42 backlog items remain relevant after processkit v0.19.1 upgrade, and what should our implementation priorities be?
   state: active
   opened_at: '2026-04-24T00:08:42+00:00'
   participants:

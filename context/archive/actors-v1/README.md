@@ -16,13 +16,13 @@ The 9 entities in this archive are:
 
 | File | Was | Live successor |
 |---|---|---|
-| `ACTOR-20260411_0000-SnappyFrog-bernhard.md` | The human owner | `TEAMMEMBER-thrifty-otter` (Bernhard) |
+| `ACTOR-20260410_2209-SnappyFrog-bernhard.md` | The human owner | `TEAMMEMBER-20260422_0001-MigratedMember-thrifty-otter` (Bernhard) |
 | `ACTOR-20260414_1100-BrightEagle-senior-architect-agent.md` | Role template — senior-architect | obsolete; team is now named TeamMembers (Cora/Sage/Avery/Robin/Jordan) |
-| `ACTOR-20260414_1100-CalmHawk-pm-agent.md` | Role template — PM | superseded by `TEAMMEMBER-cora` |
+| `ACTOR-20260414_1100-CalmHawk-pm-agent.md` | Role template — PM | superseded by `TEAMMEMBER-20260422_0832-MigratedMember-cora` |
 | `ACTOR-20260414_1100-DeepWhale-senior-researcher-agent.md` | Role template — senior-researcher | obsolete |
-| `ACTOR-20260414_1100-NimbleMouse-junior-developer-agent.md` | Role template — junior-developer | superseded by `TEAMMEMBER-robin` |
+| `ACTOR-20260414_1100-NimbleMouse-junior-developer-agent.md` | Role template — junior-developer | superseded by `TEAMMEMBER-20260508_2135-MigratedMember-robin` |
 | `ACTOR-20260414_1100-QuickFalcon-junior-architect-agent.md` | Role template — junior-architect | obsolete |
-| `ACTOR-20260414_1100-SteadyOtter-developer-agent.md` | Role template — developer | superseded by `TEAMMEMBER-avery` |
+| `ACTOR-20260414_1100-SteadyOtter-developer-agent.md` | Role template — developer | superseded by `TEAMMEMBER-20260508_2042-MigratedMember-avery` |
 | `ACTOR-20260414_1100-SwiftFox-junior-researcher-agent.md` | Role template — junior-researcher | obsolete |
 | `ACTOR-20260414_1100-TidyBee-assistant-agent.md` | Role template — assistant | obsolete |
 

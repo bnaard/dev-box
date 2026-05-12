@@ -1,0 +1,46 @@
+{
+  "archive_id": "ARCHIVE-20260512_145235-migration-applied",
+  "archive_path": "context/archives/2026/05/ARCHIVE-20260512_145235-migration-applied.tar.gz",
+  "created_at": "2026-05-12T14:52:35+00:00",
+  "entities": [
+    {
+      "apiVersion": "processkit.projectious.work/v1",
+      "body_index": "# Migration MIG-RUNTIME-DRIFT-20260512T141804\n\n## Drifted managed runtime files (Variant 3 \u2014 BR-CLEANUP-ARCH item 6)\n\nThe following managed `.aibox-home/` runtime files have been modified on the host and match **neither** the current canonical aibox generation **nor** any known archived template snapshot. They may represent intentional user customisations.\n\n`aibox apply` left these files **untouched**. Review each one and decide whether to preserve the local edit or restore the canonical generated content.\n\n## Per-file recommendations\n\n| file | reason-for-classification | recommendation |\n|------|--------------------------|----------------|\n| `.aibox-home/.vim/vimrc` | content matches neither current canonical nor any archived snapshot | review-manually |\n| `.aibox-home/.config/git/config` | content matches neither current canonical nor any archived snapshot | review-manually |\n| `.aibox-home/.config/yazi/plugins/git.yazi/main.lua` | content matches neither current canonical nor any archived snapshot | review-manually |\n| `.aibox-home/.config/cheatsheet.txt` | content matches neither current canonical nor any archived snapshot | review-manually |\n\n## How to resolve\n\nFor each file a",
+      "id": "MIG-RUNTIME-DRIFT-20260512T141804",
+      "kind": "Migration",
+      "labels": {},
+      "member_path": "context/migrations/applied/MIG-RUNTIME-DRIFT-20260512T141804.md",
+      "metadata": {
+        "created": "2026-05-12T14:18:04+00:00",
+        "id": "MIG-RUNTIME-DRIFT-20260512T141804",
+        "updated": "2026-05-12T14:47:26+00:00"
+      },
+      "original_path": "context/migrations/applied/MIG-RUNTIME-DRIFT-20260512T141804.md",
+      "sha256": "7e1a86aa53a287fd3a0153ca7ff3007179ab29b2c67380a0e6953b9635a94b15",
+      "spec": {
+        "applied_at": "2026-05-12T14:47:26+00:00",
+        "generated_at": "2026-05-12T14:18:04+00:00",
+        "generated_by": "aibox apply",
+        "progress_notes": [
+          {
+            "actor": "mcp",
+            "note": "Urgent patch release cleanup: acknowledged current local runtime drift after applying the source fixes. No repo source action remains for these generated runtime files.",
+            "timestamp": "2026-05-12T14:47:26+00:00"
+          }
+        ],
+        "source": "aibox-runtime-drift",
+        "source_url": "aibox://runtime-drift",
+        "started_at": "2026-05-12T14:47:26+00:00",
+        "state": "applied",
+        "summary": "4 drifted managed runtime file(s) found at 0.25.10",
+        "to_version": "0.25.10",
+        "variant": 3
+      },
+      "storage_location": "context/archives/2026/05/ARCHIVE-20260512_145235-migration-applied.tar.gz::context/migrations/applied/MIG-RUNTIME-DRIFT-20260512T141804.md"
+    }
+  ],
+  "kind": "Migration",
+  "older_than_days": 0,
+  "sha256": "45cca4f91536211f09c42ff0aeacf600dc8b278d8a5ff5eb5dc9ae0e80fd3eb0",
+  "state": "applied"
+}

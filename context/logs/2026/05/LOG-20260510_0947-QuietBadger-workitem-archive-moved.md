@@ -7,8 +7,7 @@ metadata:
 spec:
   event_type: workitem.archive-moved
   timestamp: '2026-05-10T09:47:03+00:00'
-  summary: Archived terminal WorkItem 'BACK-20260510_0843-WiseClover-phase-0-of-release-ritual-should'
-    to /workspace/context/workitems/done/2026/05/BACK-20260510_0843-WiseClover-phase-0-of-release-ritual-should.md
+  summary: Archived terminal WorkItem 'BACK-20260510_0843-WiseClover-phase-0-of-release-ritual-should' to /workspace/context/workitems/done/2026/05/BACK-20260510_0843-WiseClover-phase-0-of-release-ritual-should.md
   subject: BACK-20260510_0843-WiseClover-phase-0-of-release-ritual-should
   subject_kind: WorkItem
   actor: BACK-20260510_0843-WiseClover-phase-0-of-release-ritual-should

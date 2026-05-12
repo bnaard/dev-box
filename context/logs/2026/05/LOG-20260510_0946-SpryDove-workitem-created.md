@@ -7,9 +7,7 @@ metadata:
 spec:
   event_type: workitem.created
   timestamp: '2026-05-10T09:46:49+00:00'
-  summary: 'Created WorkItem ''BACK-20260510_0946-EagerSea-v1-v2-migration-backfill-register-actor'':
-    ''v1→v2 Migration backfill: register Actor→TeamMember, Process→Scope+Gate, StateMachine→lifecycle
-    in V1_TO_V2_CUTOVERS catalog'''
+  summary: "Created WorkItem 'BACK-20260510_0946-EagerSea-v1-v2-migration-backfill-register-actor': 'v1\u2192v2 Migration backfill: register Actor\u2192TeamMember, Process\u2192Scope+Gate, StateMachine\u2192lifecycle in V1_TO_V2_CUTOVERS catalog'"
   subject: BACK-20260510_0946-EagerSea-v1-v2-migration-backfill-register-actor
   subject_kind: WorkItem
   actor: BACK-20260510_0946-EagerSea-v1-v2-migration-backfill-register-actor

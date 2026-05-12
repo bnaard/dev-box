@@ -367,6 +367,31 @@ else
 fi
 soft_run vim --version | sed -n '1,4p' || true
 
+section runtime-mount-writability
+for dir in \
+  "$HOME/.cache" \
+  "$HOME/.config/tmux" \
+  "$HOME/.config/yazi" \
+  "$HOME/.config/git" \
+  "$HOME/.config/state" \
+  "$HOME/.local/bin" \
+  "$HOME/.tmux"
+do
+  if [[ ! -d "$dir" ]]; then
+    echo "missing runtime mount directory: $dir"
+    fail=1
+    continue
+  fi
+  probe="$dir/.aibox-release-write-probe.$$"
+  if printf probe >"$probe" 2>/tmp/aibox-release-write-probe.err && rm -f "$probe"; then
+    echo "writable: $dir"
+  else
+    echo "not writable: $dir"
+    cat /tmp/aibox-release-write-probe.err
+    fail=1
+  fi
+done
+
 section yazi-config
 nl -ba "$HOME/.config/yazi/yazi.toml" | sed -n '1,140p'
 nl -ba "$HOME/.config/yazi/theme.toml" | sed -n '1,140p'

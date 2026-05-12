@@ -21,8 +21,7 @@ spec:
       input: 0.2
       output: 0.6
     pricing_note: Open-weight/third-party estimate; verify hosting provider.
-    governance_warning: 'Via Alibaba Cloud API: G:1. Self-hosted (Apache 2.0): G:4.
-      Recommended deployment is self-hosted for any proprietary code.'
+    governance_warning: 'Via Alibaba Cloud API: G:1. Self-hosted (Apache 2.0): G:4. Recommended deployment is self-hosted for any proprietary code.'
     lifecycle: active
     source_urls: &id001
     - https://qwenlm.github.io/

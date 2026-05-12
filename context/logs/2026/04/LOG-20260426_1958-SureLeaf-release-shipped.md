@@ -7,9 +7,7 @@ metadata:
 spec:
   event_type: release.shipped
   timestamp: '2026-04-26T19:58:54+00:00'
-  summary: aibox v0.21.2 Phase 2 complete — macOS arm64 + x86_64 binaries uploaded
-    to the GH release; GHCR container images pushed. v0.21.2 (processkit v0.23.1 integration)
-    is fully shipped across both phases.
+  summary: "aibox v0.21.2 Phase 2 complete \u2014 macOS arm64 + x86_64 binaries uploaded to the GH release; GHCR container images pushed. v0.21.2 (processkit v0.23.1 integration) is fully shipped across both phases."
   actor: claude-opus-4-7
   details:
     version: 0.21.2

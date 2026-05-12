@@ -7,9 +7,7 @@ metadata:
 spec:
   event_type: workitem.created
   timestamp: '2026-04-23T08:29:29+00:00'
-  summary: 'Created WorkItem ''BACK-20260423_0829-KindSpruce-health-check-remediation-pk'':
-    ''Health check remediation — /pk-doctor command, team member setup, drift script,
-    log sharding'''
+  summary: "Created WorkItem 'BACK-20260423_0829-KindSpruce-health-check-remediation-pk': 'Health check remediation \u2014 /pk-doctor command, team member setup, drift script, log sharding'"
   subject: BACK-20260423_0829-KindSpruce-health-check-remediation-pk
   subject_kind: WorkItem
   actor: BACK-20260423_0829-KindSpruce-health-check-remediation-pk

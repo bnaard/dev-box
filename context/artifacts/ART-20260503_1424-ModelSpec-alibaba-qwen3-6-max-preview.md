@@ -17,12 +17,8 @@ spec:
   - version_id: '1'
     status: preview
     context_window: 1000000
-    pricing_note: 'ESTIMATED — preview released 2026-04-20. CONFIRMED to top six benchmarks
-      per coverage: SWE-bench Pro, Terminal-Bench 2.0, SkillsBench, QwenClawBench,
-      QwenWebBench, SciCode. Pricing not yet published; preview access only. Run Workflow
-      C to validate.'
-    governance_warning: 'Chinese company, proprietary preview (no open weights). Via
-      Alibaba Cloud API: G:1. Self-hosting NOT available.'
+    pricing_note: "ESTIMATED \u2014 preview released 2026-04-20. CONFIRMED to top six benchmarks per coverage: SWE-bench Pro, Terminal-Bench 2.0, SkillsBench, QwenClawBench, QwenWebBench, SciCode. Pricing not yet published; preview access only. Run Workflow C to validate."
+    governance_warning: 'Chinese company, proprietary preview (no open weights). Via Alibaba Cloud API: G:1. Self-hosting NOT available.'
     lifecycle: unverified
     source_urls: &id001
     - https://qwenlm.github.io/

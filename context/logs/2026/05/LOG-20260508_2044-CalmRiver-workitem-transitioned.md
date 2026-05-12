@@ -7,8 +7,7 @@ metadata:
 spec:
   event_type: workitem.transitioned
   timestamp: '2026-05-08T20:44:38+00:00'
-  summary: Transitioned WorkItem 'BACK-20260508_1516-BrightStream-stale-state-cleanup-architecture-foundational'
-    from 'in-progress' to 'review'
+  summary: Transitioned WorkItem 'BACK-20260508_1516-BrightStream-stale-state-cleanup-architecture-foundational' from 'in-progress' to 'review'
   subject: BACK-20260508_1516-BrightStream-stale-state-cleanup-architecture-foundational
   subject_kind: WorkItem
   actor: BACK-20260508_1516-BrightStream-stale-state-cleanup-architecture-foundational

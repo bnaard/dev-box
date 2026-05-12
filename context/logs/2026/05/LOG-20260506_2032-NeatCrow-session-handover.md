@@ -8,7 +8,7 @@ spec:
   event_type: session.handover
   timestamp: '2026-05-06T20:32:47+00:00'
   summary: Completed aibox v0.23.21 patch release wrapup after host Phase 2 confirmation.
-  actor: TEAMMEMBER-cora
+  actor: TEAMMEMBER-20260422_0832-MigratedMember-cora
   subject: v0.23.21
   subject_kind: release
   details:
@@ -35,10 +35,8 @@ spec:
     - visual status/theme matrix 12/12 passed
     - cargo audit
     - Linux release builds and version smoke
-    host_phase_2: User confirmed host phase 2 done; release assets verified include
-      macOS binaries and main includes generated runtime refresh commit.
-    ghcr_verification: Container package verification from this environment failed
-      with HTTP 403 because the gh token lacks read:packages scope.
+    host_phase_2: User confirmed host phase 2 done; release assets verified include macOS binaries and main includes generated runtime refresh commit.
+    ghcr_verification: Container package verification from this environment failed with HTTP 403 because the gh token lacks read:packages scope.
     notable_fixes:
     - Zellij native status permission-cache projection guard and doctor/E2E coverage
     - Codex-specific DNS sandbox release note

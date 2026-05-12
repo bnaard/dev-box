@@ -14,12 +14,7 @@ spec:
   state: cancelled
   type: task
   priority: medium
-  description: Release-check-state for aibox v0.24.0 reported the pinned uv image
-    selector at ghcr.io/astral-sh/uv:0.11.10 while 0.11.11 is available. Deferred
-    from v0.24.0 to keep this release focused on runtime TUI stability. Before shipping,
-    review uv 0.11.11 release notes, update the pinned image selector if appropriate,
-    rebuild generated devcontainers/base image surfaces, and run the runtime smoke
-    plus CLI validation suite.
+  description: Release-check-state for aibox v0.24.0 reported the pinned uv image selector at ghcr.io/astral-sh/uv:0.11.10 while 0.11.11 is available. Deferred from v0.24.0 to keep this release focused on runtime TUI stability. Before shipping, review uv 0.11.11 release notes, update the pinned image selector if appropriate, rebuild generated devcontainers/base image surfaces, and run the runtime smoke plus CLI validation suite.
   started_at: '2026-05-09T22:33:30+00:00'
   completed_at: '2026-05-10T03:25:04+00:00'
 ---

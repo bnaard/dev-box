@@ -7,8 +7,7 @@ metadata:
 spec:
   event_type: workitem.transitioned
   timestamp: '2026-04-24T07:12:31+00:00'
-  summary: Transitioned WorkItem 'BACK-20260424_0114-NobleSage-phase-2b-continue-cursor'
-    from 'review' to 'done'
+  summary: Transitioned WorkItem 'BACK-20260424_0114-NobleSage-phase-2b-continue-cursor' from 'review' to 'done'
   subject: BACK-20260424_0114-NobleSage-phase-2b-continue-cursor
   subject_kind: WorkItem
   actor: BACK-20260424_0114-NobleSage-phase-2b-continue-cursor

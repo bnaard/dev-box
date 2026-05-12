@@ -7,8 +7,7 @@ metadata:
 spec:
   event_type: workitem.transitioned
   timestamp: '2026-05-09T22:32:05+00:00'
-  summary: Transitioned WorkItem 'BACK-20260505_2153-ToughHawk-review-docusaurus-3-10-1-upgrade'
-    from 'in-progress' to 'review'
+  summary: Transitioned WorkItem 'BACK-20260505_2153-ToughHawk-review-docusaurus-3-10-1-upgrade' from 'in-progress' to 'review'
   subject: BACK-20260505_2153-ToughHawk-review-docusaurus-3-10-1-upgrade
   subject_kind: WorkItem
   actor: BACK-20260505_2153-ToughHawk-review-docusaurus-3-10-1-upgrade

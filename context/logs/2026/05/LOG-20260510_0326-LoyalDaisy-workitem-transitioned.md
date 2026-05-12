@@ -7,8 +7,7 @@ metadata:
 spec:
   event_type: workitem.transitioned
   timestamp: '2026-05-10T03:26:42+00:00'
-  summary: Transitioned WorkItem 'BACK-20260508_2303-GentleFern-br-cleanup-item-6-variant-3'
-    from 'in-progress' to 'review'
+  summary: Transitioned WorkItem 'BACK-20260508_2303-GentleFern-br-cleanup-item-6-variant-3' from 'in-progress' to 'review'
   subject: BACK-20260508_2303-GentleFern-br-cleanup-item-6-variant-3
   subject_kind: WorkItem
   actor: BACK-20260508_2303-GentleFern-br-cleanup-item-6-variant-3

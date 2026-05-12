@@ -7,8 +7,7 @@ metadata:
 spec:
   event_type: workitem.transitioned
   timestamp: '2026-04-25T09:54:02+00:00'
-  summary: Transitioned WorkItem 'BACK-20260424_0009-ProudPeak-execute-backlog-grooming-session'
-    from 'review' to 'done'
+  summary: Transitioned WorkItem 'BACK-20260424_0009-ProudPeak-execute-backlog-grooming-session' from 'review' to 'done'
   subject: BACK-20260424_0009-ProudPeak-execute-backlog-grooming-session
   subject_kind: WorkItem
   actor: BACK-20260424_0009-ProudPeak-execute-backlog-grooming-session

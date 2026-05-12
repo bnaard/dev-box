@@ -1389,27 +1389,27 @@ pub struct TmuxStatusLabelsSection {
 }
 
 fn default_status_label_aibox_log() -> String {
-    "LOG".to_string()
+    "\u{f15ab}".to_string()
 }
 
 fn default_status_label_aibox_oom() -> String {
-    "OOM".to_string()
+    "\u{f035b}\u{f068c}".to_string()
 }
 
 fn default_status_label_aibox_proc() -> String {
-    "PROC".to_string()
+    "\u{f029a}".to_string()
 }
 
 fn default_status_label_aibox_ai() -> String {
-    "AI".to_string()
+    "\u{f167a}".to_string()
 }
 
 fn default_status_label_aibox_mcp() -> String {
-    "MCP".to_string()
+    "\u{f0339}".to_string()
 }
 
 fn default_status_label_aibox_mig() -> String {
-    "MIG".to_string()
+    "\u{f06b0}".to_string()
 }
 
 fn default_status_label_kubernetes() -> String {

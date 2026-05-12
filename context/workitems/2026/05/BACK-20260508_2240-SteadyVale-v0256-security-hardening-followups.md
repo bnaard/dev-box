@@ -10,39 +10,11 @@ metadata:
     deferred_via: DEC-20260508_2235-CuriousBadger
   updated: '2026-05-08T23:11:27+00:00'
 spec:
-  title: 'v0.25.6: Security-hardening followups — addon checksums, AWS GPG, Codex
-    seccomp'
+  title: "v0.25.6: Security-hardening followups \u2014 addon checksums, AWS GPG, Codex seccomp"
   state: review
   type: task
   priority: high
-  description: |
-    ## Goal
-
-    Resolve the three security-hardening items from the v0.25.6 deferred list before tagging.
-
-    ## Items
-
-    ### S1 — Hermes / OpenCode addons pinned without checksums — DEFERRED to v0.25.7 (2026-05-09 scope-pass)
-    - Investigation 2026-05-09: both `addons/ai/ai-hermes.yaml` and `addons/ai/ai-opencode.yaml` already carry detailed `TODO(sec)` blocks documenting the upstream gap. Neither Nous Research nor opencode.ai publishes per-release SHA-256 or GPG signatures; the current pinned-versioned-download is the best practical posture until upstream ships verification material.
-    - Tracked at `BACK-20260508_2257-BraveCrow-hermes-opencode-checksum-upstream-watch` (v0.25.7).
-    - **Status: DEFERRED — not actionable in v0.25.6.**
-
-    ### S2 — AWS GPG key fetched at build-time from keyserver — DROPPED (2026-05-09 scope-pass)
-    - Investigation 2026-05-09: `grep -rn keyserver/recv-keys/AWS_GPG /workspace/images/ /workspace/cli/src/` returns zero matches. Either fixed in a prior release or never existed in the form described in the prior-session handover.
-    - **Status: DROPPED — not in repo. No follow-up filed; if the pattern reappears in a future build, file a fresh WorkItem.**
-
-    ### S3 — Codex seccomp acknowledgement gate — KEEP (target for v0.25.6)
-    - File: `cli/src/security.rs` (or wherever the `[security].acknowledge_seccomp_unconfined` flag is read), plus the install/upgrade flow.
-    - Today: existing Codex projects must manually set `[security].acknowledge_seccomp_unconfined = true` in their project before next `aibox apply` will run. There's no in-CLI prompt or migration helper.
-    - Target: surface a clear migration prompt during `aibox apply` that detects the missing acknowledgement, explains the trade-off, and offers to write the flag (interactive) or refuses with a helpful error (non-interactive). Document in the v0.25.6 release notes.
-
-    ## Dispatch hint
-    - S1 + S2: Robin (junior eng / mechanical edits) for the file changes; Sage (CTO / architecture) reviews the bundling approach for S2.
-    - S3: Avery (senior eng) — touches CLI flow and migration helper.
-
-    ## Acceptance
-    - All three items either land in v0.25.6 or get a fresh DEC re-deferring them with concrete reasons.
-    - Release notes mention each (S1: "addon integrity hashes added"; S2: "AWS GPG key bundled, no longer keyserver-fetched"; S3: "Codex seccomp acknowledgement now prompted on apply").
+  description: Migrated historical description; see git history for pre-migration full text.
   started_at: '2026-05-08T23:03:04+00:00'
 ---
 

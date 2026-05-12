@@ -7,8 +7,7 @@ metadata:
 spec:
   event_type: workitem.created
   timestamp: '2026-05-08T15:18:34+00:00'
-  summary: 'Created WorkItem ''BACK-20260508_1518-HonestAnt-addon-installer-security-hardening-checksum'':
-    ''v0.25.6: Addon and installer security hardening'''
+  summary: 'Created WorkItem ''BACK-20260508_1518-HonestAnt-addon-installer-security-hardening-checksum'': ''v0.25.6: Addon and installer security hardening'''
   subject: BACK-20260508_1518-HonestAnt-addon-installer-security-hardening-checksum
   subject_kind: WorkItem
   actor: BACK-20260508_1518-HonestAnt-addon-installer-security-hardening-checksum

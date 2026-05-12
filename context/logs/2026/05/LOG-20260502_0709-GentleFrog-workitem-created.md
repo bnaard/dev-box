@@ -7,8 +7,7 @@ metadata:
 spec:
   event_type: workitem.created
   timestamp: '2026-05-02T07:09:10+00:00'
-  summary: 'Created WorkItem ''BACK-20260502_0709-SpryBear-compose-project-image-names'':
-    ''Generate project-specific Compose identity and image names'''
+  summary: 'Created WorkItem ''BACK-20260502_0709-SpryBear-compose-project-image-names'': ''Generate project-specific Compose identity and image names'''
   subject: BACK-20260502_0709-SpryBear-compose-project-image-names
   subject_kind: WorkItem
   actor: BACK-20260502_0709-SpryBear-compose-project-image-names

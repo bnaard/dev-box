@@ -20,7 +20,7 @@ spec:
     pricing_usd_per_1m:
       input: 0.05
       output: 0.2
-    pricing_note: ESTIMATED — next-gen Google Flash. Run Workflow C to validate.
+    pricing_note: "ESTIMATED \u2014 next-gen Google Flash. Run Workflow C to validate."
     lifecycle: unverified
     source_urls: &id001
     - https://ai.google.dev/gemini-api/docs/models

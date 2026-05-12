@@ -7,7 +7,7 @@ metadata:
 spec:
   event_type: migration.applied
   timestamp: '2026-05-04T14:45:10+00:00'
-  summary: 'Migration ''MIG-20260504T144457'': in-progress → applied'
+  summary: "Migration 'MIG-20260504T144457': in-progress \u2192 applied"
   subject: MIG-20260504T144457
   subject_kind: Migration
   actor: MIG-20260504T144457

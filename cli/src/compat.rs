@@ -428,6 +428,11 @@ pub static COMPAT_TABLE: &[CompatEntry] = &[
         processkit_version: "v0.26.2",
         note: "Patch release: integrates processkit v0.26.2; adds configurable tmux status labels/layouts and model-provider health segments; reduces PowerKit refresh churn; fixes log-viewer Vim yanking through the tmux/host clipboard bridge; stabilizes runtime MCP diagnostics; verifies release checksum sidecars; and improves image layer/cache reuse across apply/up and host release publishing.",
     },
+    CompatEntry {
+        aibox_version: "0.25.11",
+        processkit_version: "v0.26.2",
+        note: "Patch release: keeps processkit v0.26.2 and fixes source-checkout addon discovery, PowerKit status cache writability, generated runtime writability diagnostics, disabled-harness migration schema metadata, and tmux/Yazi status glyph defaults.",
+    },
 ];
 
 /// Find the minimum compatible processkit version for the given aibox version.

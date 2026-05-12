@@ -13,9 +13,6 @@ spec:
   subject_kind: Process
   details:
     path: context/processes/aibox-release.md
-    reason: Codify the two-phase aibox release workflow so the agent never bypasses
-      maintain.sh release again (v0.17.13/v0.17.14 released without binaries due to
-      manual gh release create)
-    related_agents_md_change: Added two anti-pattern entries for direct gh release
-      create and releasing with broken cargo build
+    reason: Codify the two-phase aibox release workflow so the agent never bypasses maintain.sh release again (v0.17.13/v0.17.14 released without binaries due to manual gh release create)
+    related_agents_md_change: Added two anti-pattern entries for direct gh release create and releasing with broken cargo build
 ---

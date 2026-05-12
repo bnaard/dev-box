@@ -13,21 +13,21 @@ spec:
   actor: processkit-migration-management
   details:
     changed_paths:
-    - context/archive/actors-v1/ACTOR-20260411_0000-SnappyFrog-bernhard.md
-    - context/archive/actors-v1/ACTOR-20260414_1100-BrightEagle-senior-architect-agent.md
-    - context/archive/actors-v1/ACTOR-20260414_1100-CalmHawk-pm-agent.md
-    - context/archive/actors-v1/ACTOR-20260414_1100-DeepWhale-senior-researcher-agent.md
-    - context/archive/actors-v1/ACTOR-20260414_1100-NimbleMouse-junior-developer-agent.md
-    - context/archive/actors-v1/ACTOR-20260414_1100-QuickFalcon-junior-architect-agent.md
-    - context/archive/actors-v1/ACTOR-20260414_1100-SteadyOtter-developer-agent.md
-    - context/archive/actors-v1/ACTOR-20260414_1100-SwiftFox-junior-researcher-agent.md
-    - context/archive/actors-v1/ACTOR-20260414_1100-TidyBee-assistant-agent.md
+    - context/actors/ACTOR-20260410_2209-SnappyFrog-bernhard.md
+    - context/actors/ACTOR-20260414_1100-BrightEagle-senior-architect-agent.md
+    - context/actors/ACTOR-20260414_1100-CalmHawk-pm-agent.md
+    - context/actors/ACTOR-20260414_1100-DeepWhale-senior-researcher-agent.md
+    - context/actors/ACTOR-20260414_1100-NimbleMouse-junior-developer-agent.md
+    - context/actors/ACTOR-20260414_1100-QuickFalcon-junior-architect-agent.md
+    - context/actors/ACTOR-20260414_1100-SteadyOtter-developer-agent.md
+    - context/actors/ACTOR-20260414_1100-SwiftFox-junior-researcher-agent.md
+    - context/actors/ACTOR-20260414_1100-TidyBee-assistant-agent.md
     - context/archive/processes-v1/PROC-bug-fix.md
     - context/archive/processes-v1/PROC-code-review.md
     - context/archive/processes-v1/PROC-feature-development.md
     - context/archive/processes-v1/PROC-release.md
-    - context/archive/processes-v1/team-task-distribution.md
-    - context/artifacts/ART-20260411_0000-SleekPanda-aibox-product-requirements-document.md
+    - context/archive/processes-v1/PROC-20260414_1100-team-task-distribution.md
+    - context/artifacts/ART-20260411_0001-SleekPanda-aibox-product-requirements-document.md
     - context/artifacts/ART-20260502_0708-SpryIvy-aibox-runtime-resource-roadmap-plan.md
     - context/artifacts/ART-20260502_0736-LoyalJay-aibox-runtime-resource-implementation-summary.md
     - context/artifacts/ART-20260502_2054-SunnyBrook-accepted-phase-one-plan.md
@@ -41,17 +41,17 @@ spec:
     - context/bindings/BIND-20260414_1100-SteadyOtter-developer.md
     - context/bindings/BIND-20260414_1100-SwiftFox-junior-researcher.md
     - context/bindings/BIND-20260414_1100-TidyBee-assistant.md
-    - context/decisions/DEC-20260411_0000-AmberCedar-generic-content-source-release.md
-    - context/decisions/DEC-20260411_0000-BoldWillow-three-tier-privacy-model.md
-    - context/decisions/DEC-20260411_0000-BraveTrout-history-container-lifecycle-config.md
-    - context/decisions/DEC-20260411_0000-JollyClover-rip-bundled-process-layer.md
-    - context/decisions/DEC-20260411_0000-LivelyBison-per-harness-mcp-server.md
-    - context/decisions/DEC-20260411_0000-LivelyQuail-xdg-open-shim-in.md
-    - context/decisions/DEC-20260411_0000-NeatBadger-class-a-placeholder-vocabulary.md
-    - context/decisions/DEC-20260411_0000-SleekBison-skills-include-skills-exclude.md
-    - context/decisions/DEC-20260411_0000-SoftOwl-history-v0-16-5.md
-    - context/decisions/DEC-20260411_0000-SureMeadow-history-aibox-processkit-integration.md
-    - context/decisions/DEC-20260411_0000-TallDawn-python3-uv-unconditionally-in.md
+    - context/decisions/DEC-20260410_2233-AmberCedar-generic-content-source-release.md
+    - context/decisions/DEC-20260410_2233-BoldWillow-three-tier-privacy-model.md
+    - context/decisions/DEC-20260410_2235-BraveTrout-history-container-lifecycle-config.md
+    - context/decisions/DEC-20260410_2233-JollyClover-rip-bundled-process-layer.md
+    - context/decisions/DEC-20260410_2233-LivelyBison-per-harness-mcp-server.md
+    - context/decisions/DEC-20260410_2234-LivelyQuail-xdg-open-shim-in.md
+    - context/decisions/DEC-20260410_2235-NeatBadger-class-a-placeholder-vocabulary.md
+    - context/decisions/DEC-20260410_2234-SleekBison-skills-include-skills-exclude.md
+    - context/decisions/DEC-20260410_2235-SoftOwl-history-v0-16-5.md
+    - context/decisions/DEC-20260410_2235-SureMeadow-history-aibox-processkit-integration.md
+    - context/decisions/DEC-20260410_2234-TallDawn-python3-uv-unconditionally-in.md
     - context/decisions/DEC-20260414_1100-NobleStag-team-composition-and-model-mix.md
     - context/decisions/DEC-20260418_1200-CleverHarbor-skill-gate-mandatory-mcp-set.md
     - context/decisions/DEC-20260419_0807-LuckyDaisy-mcp-skill-name-collision.md
@@ -74,61 +74,61 @@ spec:
     - context/decisions/DEC-20260502_2054-MerryMoss-accept-phase-1-aibox-processkit-v0.md
     - context/decisions/DEC-20260502_2105-QuickMaple-accept-phase-2-aibox-steadytiger-environment.md
     - context/decisions/DEC-20260502_2105-SharpRobin-record-phase-3-as-post-release.md
-    - context/discussions/DISC-20260411_0000-CuriousRobin-what-are-the-core.md
+    - context/discussions/DISC-20260410_2242-CuriousRobin-what-are-the-core.md
     - context/discussions/DISC-20260424_0008-CoolStream-which-of-the-42.md
     - context/discussions/DISC-20260424_0020-MerrySeal-backlog-grooming-review-all.md
-    - context/logs/2026/04/LOG-20260411_0000-AmberComet-created-decisionrecord-dec-lively.md
-    - context/logs/2026/04/LOG-20260411_0000-BoldLeaf-created-workitem-back-jolly.md
-    - context/logs/2026/04/LOG-20260411_0000-CalmFern-opened-discussion-disc-curious.md
-    - context/logs/2026/04/LOG-20260411_0000-DaringSky-created-workitem-back-strong.md
-    - context/logs/2026/04/LOG-20260411_0000-EagerCliff-created-workitem-back-deep.md
-    - context/logs/2026/04/LOG-20260411_0000-EagerLynx-created-workitem-back-loyal.md
-    - context/logs/2026/04/LOG-20260411_0000-EagerStone-created-workitem-back-rapid.md
-    - context/logs/2026/04/LOG-20260411_0000-FierceLark-created-workitem-back-solid.md
-    - context/logs/2026/04/LOG-20260411_0000-GentleGarnet-created-workitem-back-cool.md
-    - context/logs/2026/04/LOG-20260411_0000-GentleOak-created-workitem-back-loyal.md
-    - context/logs/2026/04/LOG-20260411_0000-HappyPeak-created-workitem-back-tall.md
-    - context/logs/2026/04/LOG-20260411_0000-HappyThorn-created-decisionrecord-dec-brave.md
-    - context/logs/2026/04/LOG-20260411_0000-JollyMeadow-created-workitem-back-proud.md
-    - context/logs/2026/04/LOG-20260411_0000-KindPanda-created-decisionrecord-dec-tall.md
-    - context/logs/2026/04/LOG-20260411_0000-LoyalPine-created-workitem-back-mighty.md
-    - context/logs/2026/04/LOG-20260411_0000-MightyPanda-created-workitem-back-plucky.md
-    - context/logs/2026/04/LOG-20260411_0000-NobleThorn-created-workitem-back-fierce.md
-    - context/logs/2026/04/LOG-20260411_0000-ProudFern-created-workitem-back-deep.md
-    - context/logs/2026/04/LOG-20260411_0000-ProudWillow-created-workitem-back-warm.md
-    - context/logs/2026/04/LOG-20260411_0000-QuietCrow-created-workitem-back-brave.md
-    - context/logs/2026/04/LOG-20260411_0000-RapidSeal-created-workitem-back-lively.md
-    - context/logs/2026/04/LOG-20260411_0000-SharpStream-created-workitem-back-loyal.md
-    - context/logs/2026/04/LOG-20260411_0000-SharpTide-created-workitem-back-honest.md
-    - context/logs/2026/04/LOG-20260411_0000-ShinyField-created-workitem-back-wild.md
-    - context/logs/2026/04/LOG-20260411_0000-SilentSwan-created-workitem-back-noble.md
-    - context/logs/2026/04/LOG-20260411_0000-SleekCliff-created-workitem-back-shiny.md
-    - context/logs/2026/04/LOG-20260411_0000-SleekHare-created-workitem-back-wise.md
-    - context/logs/2026/04/LOG-20260411_0000-SleekTiger-created-decisionrecord-dec-soft.md
-    - context/logs/2026/04/LOG-20260411_0000-SmartEagle-created-workitem-back-deep.md
-    - context/logs/2026/04/LOG-20260411_0000-SmoothStone-created-decisionrecord-dec-amber.md
-    - context/logs/2026/04/LOG-20260411_0000-SnowyAsh-created-decisionrecord-dec-sleek.md
-    - context/logs/2026/04/LOG-20260411_0000-SoftCedar-created-workitem-back-smart.md
-    - context/logs/2026/04/LOG-20260411_0000-SolidCrow-created-decisionrecord-dec-bold.md
-    - context/logs/2026/04/LOG-20260411_0000-SoundDove-created-workitem-back-keen.md
-    - context/logs/2026/04/LOG-20260411_0000-SoundRabbit-created-decisionrecord-dec-neat.md
-    - context/logs/2026/04/LOG-20260411_0000-SpryTiger-created-workitem-back-soft.md
-    - context/logs/2026/04/LOG-20260411_0000-StoutArch-created-decisionrecord-dec-sure.md
-    - context/logs/2026/04/LOG-20260411_0000-StrongGlade-created-workitem-back-spry.md
-    - context/logs/2026/04/LOG-20260411_0000-StrongHill-created-workitem-back-smart.md
-    - context/logs/2026/04/LOG-20260411_0000-SunnyButter-created-workitem-back-thrifty.md
-    - context/logs/2026/04/LOG-20260411_0000-SunnyHeron-created-workitem-back-amber.md
-    - context/logs/2026/04/LOG-20260411_0000-SureSeal-created-decisionrecord-dec-lively.md
-    - context/logs/2026/04/LOG-20260411_0000-SwiftBird-created-workitem-back-lively.md
-    - context/logs/2026/04/LOG-20260411_0000-SwiftSky-created-workitem-back-jolly.md
-    - context/logs/2026/04/LOG-20260411_0000-TallBrook-created-workitem-back-calm.md
-    - context/logs/2026/04/LOG-20260411_0000-TallCrane-created-workitem-back-tall.md
-    - context/logs/2026/04/LOG-20260411_0000-TallWillow-created-actor-actor-snappy.md
-    - context/logs/2026/04/LOG-20260411_0000-ThriftyAnt-created-workitem-back-bold.md
-    - context/logs/2026/04/LOG-20260411_0000-TidyQuail-created-workitem-back-proud.md
-    - context/logs/2026/04/LOG-20260411_0000-ToughBrook-created-workitem-back-sound.md
-    - context/logs/2026/04/LOG-20260411_0000-TrueReef-created-decisionrecord-dec-jolly.md
-    - context/logs/2026/04/LOG-20260411_0000-VastAsh-created-workitem-back-wise.md
+    - context/logs/2026/04/LOG-20260410_2234-AmberComet-created-decisionrecord-dec-lively.md
+    - context/logs/2026/04/LOG-20260410_2236-BoldLeaf-created-workitem-back-jolly.md
+    - context/logs/2026/04/LOG-20260410_2242-CalmFern-opened-discussion-disc-curious.md
+    - context/logs/2026/04/LOG-20260410_2239-DaringSky-created-workitem-back-strong.md
+    - context/logs/2026/04/LOG-20260410_2238-EagerCliff-created-workitem-back-deep.md
+    - context/logs/2026/04/LOG-20260410_2237-EagerLynx-created-workitem-back-loyal.md
+    - context/logs/2026/04/LOG-20260410_2239-EagerStone-created-workitem-back-rapid.md
+    - context/logs/2026/04/LOG-20260410_2238-FierceLark-created-workitem-back-solid.md
+    - context/logs/2026/04/LOG-20260410_2236-GentleGarnet-created-workitem-back-cool.md
+    - context/logs/2026/04/LOG-20260410_2238-GentleOak-created-workitem-back-loyal.md
+    - context/logs/2026/04/LOG-20260410_2236-HappyPeak-created-workitem-back-tall.md
+    - context/logs/2026/04/LOG-20260410_2235-HappyThorn-created-decisionrecord-dec-brave.md
+    - context/logs/2026/04/LOG-20260410_2238-JollyMeadow-created-workitem-back-proud.md
+    - context/logs/2026/04/LOG-20260410_2234-KindPanda-created-decisionrecord-dec-tall.md
+    - context/logs/2026/04/LOG-20260410_2238-LoyalPine-created-workitem-back-mighty.md
+    - context/logs/2026/04/LOG-20260410_2238-MightyPanda-created-workitem-back-plucky.md
+    - context/logs/2026/04/LOG-20260410_2239-NobleThorn-created-workitem-back-fierce.md
+    - context/logs/2026/04/LOG-20260410_2236-ProudFern-created-workitem-back-deep.md
+    - context/logs/2026/04/LOG-20260410_2238-ProudWillow-created-workitem-back-warm.md
+    - context/logs/2026/04/LOG-20260410_2238-QuietCrow-created-workitem-back-brave.md
+    - context/logs/2026/04/LOG-20260410_2237-RapidSeal-created-workitem-back-lively.md
+    - context/logs/2026/04/LOG-20260410_2236-SharpStream-created-workitem-back-loyal.md
+    - context/logs/2026/04/LOG-20260410_2237-SharpTide-created-workitem-back-honest.md
+    - context/logs/2026/04/LOG-20260410_2237-ShinyField-created-workitem-back-wild.md
+    - context/logs/2026/04/LOG-20260410_2239-SilentSwan-created-workitem-back-noble.md
+    - context/logs/2026/04/LOG-20260410_2238-SleekCliff-created-workitem-back-shiny.md
+    - context/logs/2026/04/LOG-20260410_2238-SleekHare-created-workitem-back-wise.md
+    - context/logs/2026/04/LOG-20260410_2235-SleekTiger-created-decisionrecord-dec-soft.md
+    - context/logs/2026/04/LOG-20260410_2239-SmartEagle-created-workitem-back-deep.md
+    - context/logs/2026/04/LOG-20260410_2233-SmoothStone-created-decisionrecord-dec-amber.md
+    - context/logs/2026/04/LOG-20260410_2234-SnowyAsh-created-decisionrecord-dec-sleek.md
+    - context/logs/2026/04/LOG-20260410_2237-SoftCedar-created-workitem-back-smart.md
+    - context/logs/2026/04/LOG-20260410_2233-SolidCrow-created-decisionrecord-dec-bold.md
+    - context/logs/2026/04/LOG-20260410_2238-SoundDove-created-workitem-back-keen.md
+    - context/logs/2026/04/LOG-20260410_2235-SoundRabbit-created-decisionrecord-dec-neat.md
+    - context/logs/2026/04/LOG-20260410_2237-SpryTiger-created-workitem-back-soft.md
+    - context/logs/2026/04/LOG-20260410_2235-StoutArch-created-decisionrecord-dec-sure.md
+    - context/logs/2026/04/LOG-20260410_2239-StrongGlade-created-workitem-back-spry.md
+    - context/logs/2026/04/LOG-20260410_2237-StrongHill-created-workitem-back-smart.md
+    - context/logs/2026/04/LOG-20260410_2237-SunnyButter-created-workitem-back-thrifty.md
+    - context/logs/2026/04/LOG-20260410_2236-SunnyHeron-created-workitem-back-amber.md
+    - context/logs/2026/04/LOG-20260410_2233-SureSeal-created-decisionrecord-dec-lively.md
+    - context/logs/2026/04/LOG-20260410_2238-SwiftBird-created-workitem-back-lively.md
+    - context/logs/2026/04/LOG-20260410_2237-SwiftSky-created-workitem-back-jolly.md
+    - context/logs/2026/04/LOG-20260410_2238-TallBrook-created-workitem-back-calm.md
+    - context/logs/2026/04/LOG-20260410_2238-TallCrane-created-workitem-back-tall.md
+    - context/logs/2026/04/LOG-20260410_2209-TallWillow-created-actor-actor-snappy.md
+    - context/logs/2026/04/LOG-20260410_2237-ThriftyAnt-created-workitem-back-bold.md
+    - context/logs/2026/04/LOG-20260410_2239-TidyQuail-created-workitem-back-proud.md
+    - context/logs/2026/04/LOG-20260410_2236-ToughBrook-created-workitem-back-sound.md
+    - context/logs/2026/04/LOG-20260410_2233-TrueReef-created-decisionrecord-dec-jolly.md
+    - context/logs/2026/04/LOG-20260410_2239-VastAsh-created-workitem-back-wise.md
     - context/logs/2026/04/LOG-20260411_0718-cleverFinch-process-created.md
     - context/logs/2026/04/LOG-20260411_0719-sharpBeam-session-handover.md
     - context/logs/2026/04/LOG-20260411_1554-soundSeal-workitem-created.md
@@ -141,7 +141,7 @@ spec:
     - context/logs/2026/04/LOG-20260418_1131-SteadyTide-runtime-migration-applied.md
     - context/logs/2026/04/LOG-20260418_1500-BrightSummit-session-handover.md
     - context/logs/2026/04/LOG-20260418_1750-QuietForge-session-handover.md
-    - context/logs/2026/04/LOG-20260418_2215-GoldenBeacon-session-handover.md
+    - context/logs/2026/04/LOG-20260418_2015-GoldenBeacon-session-handover.md
     - context/logs/2026/04/LOG-20260419_0807-CuriousDeer-decision-created.md
     - context/logs/2026/04/LOG-20260419_0808-DeepOtter-workitem-transitioned.md
     - context/logs/2026/04/LOG-20260419_0808-SunnyEmber-workitem-transitioned.md

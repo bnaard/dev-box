@@ -10,11 +10,7 @@ spec:
   state: done
   type: task
   priority: high
-  description: Add an aibox diagnostics sidecar/service with strict CPU, memory, PID,
-    sampling, and disk ring-buffer limits. It owns cgroup/procfs/Zellij log collection
-    for the main container, avoids Docker socket by default, avoids /proc/*/cmdline
-    under pressure, and writes latest.json plus bounded history for postmortem and
-    live status.
+  description: Add an aibox diagnostics sidecar/service with strict CPU, memory, PID, sampling, and disk ring-buffer limits. It owns cgroup/procfs/Zellij log collection for the main container, avoids Docker socket by default, avoids /proc/*/cmdline under pressure, and writes latest.json plus bounded history for postmortem and live status.
   parent: BACK-20260507_0925-CuriousTulip-runtime-diagnostics-sidecar-rust-status-emergency
   started_at: '2026-05-07T09:43:53+00:00'
   completed_at: '2026-05-07T09:44:18+00:00'

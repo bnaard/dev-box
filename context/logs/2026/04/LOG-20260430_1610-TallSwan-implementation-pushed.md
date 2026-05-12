@@ -18,8 +18,7 @@ spec:
     scope:
     - added [aibox].profile with human-dev default and headless-runner value
     - serialized profile in generated aibox.toml and init/env summaries
-    - extended doctor addon metadata checks with selected-addon profile compatibility
-      warnings
+    - extended doctor addon metadata checks with selected-addon profile compatibility warnings
     - documented profile in configuration reference
     validation:
     - cargo check --manifest-path cli/Cargo.toml --bin aibox
@@ -30,6 +29,5 @@ spec:
     - cargo fmt --manifest-path cli/Cargo.toml -- --check
     - git diff --check
     - AIBOX_ADDONS_DIR=/workspace/addons cli/target/debug/aibox doctor
-    doctor_result: 0 errors; existing context-schema and optional-tool warnings remain;
-      addon profile metadata check clean
+    doctor_result: 0 errors; existing context-schema and optional-tool warnings remain; addon profile metadata check clean
 ---

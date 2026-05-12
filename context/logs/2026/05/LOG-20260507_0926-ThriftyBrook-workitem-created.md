@@ -7,8 +7,7 @@ metadata:
 spec:
   event_type: workitem.created
   timestamp: '2026-05-07T09:26:33+00:00'
-  summary: 'Created WorkItem ''BACK-20260507_0926-AmberAnt-bounded-runtime-diagnostics-sidecar-snapshots'':
-    ''Add bounded diagnostics sidecar for runtime snapshots'''
+  summary: 'Created WorkItem ''BACK-20260507_0926-AmberAnt-bounded-runtime-diagnostics-sidecar-snapshots'': ''Add bounded diagnostics sidecar for runtime snapshots'''
   subject: BACK-20260507_0926-AmberAnt-bounded-runtime-diagnostics-sidecar-snapshots
   subject_kind: WorkItem
   actor: BACK-20260507_0926-AmberAnt-bounded-runtime-diagnostics-sidecar-snapshots

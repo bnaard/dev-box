@@ -22,8 +22,7 @@ spec:
       input: 1.4
       output: 4.4
     pricing_note: Z.AI GLM-5.1 pricing.
-    governance_warning: Chinese company/API jurisdiction; avoid sensitive or regulated
-      data unless deployment terms are explicitly approved.
+    governance_warning: Chinese company/API jurisdiction; avoid sensitive or regulated data unless deployment terms are explicitly approved.
     lifecycle: active
     source_urls: &id001
     - https://docs.z.ai/guides/overview/pricing
@@ -34,8 +33,7 @@ spec:
       input: 1.0
       output: 3.2
     pricing_note: Z.AI GLM-5 pricing.
-    governance_warning: Chinese company/API jurisdiction; avoid sensitive or regulated
-      data unless deployment terms are explicitly approved.
+    governance_warning: Chinese company/API jurisdiction; avoid sensitive or regulated data unless deployment terms are explicitly approved.
     lifecycle: active
     source_urls:
     - https://docs.z.ai/guides/overview/pricing

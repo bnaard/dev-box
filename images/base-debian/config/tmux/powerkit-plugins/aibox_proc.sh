@@ -16,7 +16,7 @@ plugin_get_metadata() {
 }
 
 plugin_declare_options() {
-    declare_option "label" "string" "PROC" "Segment label"
+    declare_option "label" "string" "󰊚" "Segment label"
     declare_option "cache_ttl" "number" "30" "Cache duration in seconds"
 }
 

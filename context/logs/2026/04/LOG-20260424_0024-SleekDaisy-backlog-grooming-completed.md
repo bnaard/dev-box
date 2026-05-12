@@ -7,8 +7,7 @@ metadata:
 spec:
   event_type: backlog_grooming_completed
   timestamp: '2026-04-24T00:24:25+00:00'
-  summary: 'Backlog grooming completed: 42 items audited, 1 obsolete (SoundRabbit)
-    archived, 90-day focus established'
+  summary: 'Backlog grooming completed: 42 items audited, 1 obsolete (SoundRabbit) archived, 90-day focus established'
   subject: DISC-20260424_0020-MerrySeal-backlog-grooming-review-all
   subject_kind: Discussion
   details:
@@ -17,4 +16,5 @@ spec:
     items_remaining: 41
     focus_items: 5
     decision_record: DEC-20260424_0020-ShinyCrow-backlog-grooming-2026-04
+  actor: system
 ---

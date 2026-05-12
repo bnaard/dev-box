@@ -7,9 +7,7 @@ metadata:
 spec:
   event_type: decision.created
   timestamp: '2026-05-08T15:15:57+00:00'
-  summary: 'Created DecisionRecord ''DEC-20260508_1515-SilentAsh-v0-25-6-cross-cutting-cleanup'':
-    ''v0.25.6 cross-cutting cleanup, doctor/test/security closure, and aibox.toml
-    streamlining'''
+  summary: 'Created DecisionRecord ''DEC-20260508_1515-SilentAsh-v0-25-6-cross-cutting-cleanup'': ''v0.25.6 cross-cutting cleanup, doctor/test/security closure, and aibox.toml streamlining'''
   subject: DEC-20260508_1515-SilentAsh-v0-25-6-cross-cutting-cleanup
   subject_kind: DecisionRecord
   actor: DEC-20260508_1515-SilentAsh-v0-25-6-cross-cutting-cleanup

@@ -7,8 +7,7 @@ metadata:
 spec:
   event_type: decision.created
   timestamp: '2026-05-03T11:45:32+00:00'
-  summary: 'Created DecisionRecord ''DEC-20260503_1145-LivelyQuail-approve-held-snappycrane-native-zellij-plugin'':
-    ''Approve held SnappyCrane native Zellij plugin implementation plan'''
+  summary: 'Created DecisionRecord ''DEC-20260503_1145-LivelyQuail-approve-held-snappycrane-native-zellij-plugin'': ''Approve held SnappyCrane native Zellij plugin implementation plan'''
   subject: DEC-20260503_1145-LivelyQuail-approve-held-snappycrane-native-zellij-plugin
   subject_kind: DecisionRecord
   actor: DEC-20260503_1145-LivelyQuail-approve-held-snappycrane-native-zellij-plugin

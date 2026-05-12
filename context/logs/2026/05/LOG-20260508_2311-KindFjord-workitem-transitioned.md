@@ -7,8 +7,7 @@ metadata:
 spec:
   event_type: workitem.transitioned
   timestamp: '2026-05-08T23:11:41+00:00'
-  summary: Transitioned WorkItem 'BACK-20260508_2241-ToughAsh-v0256-ci-code-quality-followups'
-    from 'in-progress' to 'review'
+  summary: Transitioned WorkItem 'BACK-20260508_2241-ToughAsh-v0256-ci-code-quality-followups' from 'in-progress' to 'review'
   subject: BACK-20260508_2241-ToughAsh-v0256-ci-code-quality-followups
   subject_kind: WorkItem
   actor: BACK-20260508_2241-ToughAsh-v0256-ci-code-quality-followups

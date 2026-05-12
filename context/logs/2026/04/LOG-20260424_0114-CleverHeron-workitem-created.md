@@ -7,8 +7,7 @@ metadata:
 spec:
   event_type: workitem.created
   timestamp: '2026-04-24T01:14:37+00:00'
-  summary: 'Created WorkItem ''BACK-20260424_0114-JollyDew-phase-3-integration-into'':
-    ''Phase 3: Integration into seed.rs and container lifecycle'''
+  summary: 'Created WorkItem ''BACK-20260424_0114-JollyDew-phase-3-integration-into'': ''Phase 3: Integration into seed.rs and container lifecycle'''
   subject: BACK-20260424_0114-JollyDew-phase-3-integration-into
   subject_kind: WorkItem
   actor: BACK-20260424_0114-JollyDew-phase-3-integration-into

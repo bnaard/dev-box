@@ -20,10 +20,8 @@ spec:
     pricing_usd_per_1m:
       input: 0.14
       output: 0.28
-    pricing_note: DeepSeek V4 Flash cache-miss input/output pricing; cache hits may
-      be cheaper.
-    governance_warning: G:1 — Chinese jurisdiction. Never use for PII, PHI, confidential
-      IP, credentials, regulated data, or government/defense work.
+    pricing_note: DeepSeek V4 Flash cache-miss input/output pricing; cache hits may be cheaper.
+    governance_warning: "G:1 \u2014 Chinese jurisdiction. Never use for PII, PHI, confidential IP, credentials, regulated data, or government/defense work."
     lifecycle: active
     source_urls: &id001
     - https://api-docs.deepseek.com/updates

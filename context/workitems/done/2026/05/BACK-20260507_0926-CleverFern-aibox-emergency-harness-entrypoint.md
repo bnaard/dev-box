@@ -10,10 +10,7 @@ spec:
   state: done
   type: task
   priority: high
-  description: Implement aibox emergency <harness> to start/create the main container
-    and exec a plain shell or selected AI harness without Zellij/Yazi/status tooling.
-    It writes/prints an emergency briefing instructing recovery steps around diagnostics
-    snapshots, cgroup pids/memory, Zellij logs, and recent aibox logs.
+  description: Implement aibox emergency <harness> to start/create the main container and exec a plain shell or selected AI harness without Zellij/Yazi/status tooling. It writes/prints an emergency briefing instructing recovery steps around diagnostics snapshots, cgroup pids/memory, Zellij logs, and recent aibox logs.
   parent: BACK-20260507_0925-CuriousTulip-runtime-diagnostics-sidecar-rust-status-emergency
   started_at: '2026-05-07T09:43:53+00:00'
   completed_at: '2026-05-07T09:44:18+00:00'

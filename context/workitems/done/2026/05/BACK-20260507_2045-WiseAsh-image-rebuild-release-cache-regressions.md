@@ -10,10 +10,7 @@ spec:
   state: done
   type: bug
   priority: high
-  description: Investigate and resolve GitHub issues and owner-reported regressions
-    where aibox apply/release rebuilds images too often, e2e testrunner builds are
-    too slow/heavy, Docusaurus install layers are slow, release uploads push unchanged
-    layers, and the e2e companion appears to install unnecessary Podman components.
+  description: Investigate and resolve GitHub issues and owner-reported regressions where aibox apply/release rebuilds images too often, e2e testrunner builds are too slow/heavy, Docusaurus install layers are slow, release uploads push unchanged layers, and the e2e companion appears to install unnecessary Podman components.
   scope: container-build-release
   started_at: '2026-05-07T20:45:14+00:00'
   completed_at: '2026-05-07T21:01:49+00:00'

@@ -7,9 +7,8 @@ metadata:
 spec:
   event_type: workitem.transitioned
   timestamp: '2026-04-25T09:53:48+00:00'
-  summary: Transitioned WorkItem 'BACK-20260411_0000-TallQuail-track-aider-native-mcp'
-    from 'backlog' to 'cancelled'
-  subject: BACK-20260411_0000-TallQuail-track-aider-native-mcp
+  summary: Transitioned WorkItem 'BACK-20260410_2236-TallQuail-track-aider-native-mcp' from 'backlog' to 'cancelled'
+  subject: BACK-20260410_2236-TallQuail-track-aider-native-mcp
   subject_kind: WorkItem
-  actor: BACK-20260411_0000-TallQuail-track-aider-native-mcp
+  actor: BACK-20260410_2236-TallQuail-track-aider-native-mcp
 ---

@@ -19,4 +19,5 @@ spec:
     team_assignment: Ready for routing via project-manager role
     phase_1_blocking: All Phase 2 tasks depend on core infrastructure
     phase_3_blocking: Documentation depends on integration completion
+  actor: system
 ---

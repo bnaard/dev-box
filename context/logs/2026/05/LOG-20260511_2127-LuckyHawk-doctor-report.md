@@ -7,8 +7,8 @@ metadata:
 spec:
   event_type: doctor.report
   timestamp: '2026-05-11T21:27:14+00:00'
-  summary: /pk-doctor — 134 ERROR / 132 WARN / 20 INFO
-  actor: TEAMMEMBER-avery
+  summary: "/pk-doctor \u2014 134 ERROR / 132 WARN / 20 INFO"
+  actor: TEAMMEMBER-20260508_2042-MigratedMember-avery
   details:
     doctor_version: 1.0.0
     invocation: /pk-doctor
@@ -90,12 +90,9 @@ spec:
         WARN: 9
         INFO: 0
     top_findings_summary:
-    - schema_filename has 100 errors and 123 warnings, mostly legacy filename date
-      mismatches plus invalid binding scope/note/log frontmatter
-    - schema_vocabulary has 34 errors for undeclared WorkItem, LogEntry, and Migration
-      vocabulary values
-    - context_hygiene has 9 warnings for demoted content, mixed binding filename styles,
-      suspicious _0000 artifact timestamp, and applied migration archive candidates
+    - schema_filename has 100 errors and 123 warnings, mostly legacy filename date mismatches plus invalid binding scope/note/log frontmatter
+    - schema_vocabulary has 34 errors for undeclared WorkItem, LogEntry, and Migration vocabulary values
+    - context_hygiene has 9 warnings for demoted content, mixed binding filename styles, suspicious _0000 artifact timestamp, and applied migration archive candidates
     fixes_applied: []
     duration_ms: 31363
 ---

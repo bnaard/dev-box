@@ -10,11 +10,7 @@ spec:
   state: cancelled
   type: chore
   priority: medium
-  description: Release-check-state on 2026-05-08 reported lockfile-resolvable updates
-    (js-sys and wasm-bindgen family). Deferred from v0.25.2 release. Before shipping
-    this update pass, run `cargo update`, rerun `cargo test`, `cargo clippy --all-targets
-    -- -D warnings`, `cargo audit`, `./scripts/maintain.sh test-e2e`, and `./scripts/maintain.sh
-    test-e2e-visual-status`.
+  description: Release-check-state on 2026-05-08 reported lockfile-resolvable updates (js-sys and wasm-bindgen family). Deferred from v0.25.2 release. Before shipping this update pass, run `cargo update`, rerun `cargo test`, `cargo clippy --all-targets -- -D warnings`, `cargo audit`, `./scripts/maintain.sh test-e2e`, and `./scripts/maintain.sh test-e2e-visual-status`.
   completed_at: '2026-05-10T03:25:02+00:00'
 ---
 

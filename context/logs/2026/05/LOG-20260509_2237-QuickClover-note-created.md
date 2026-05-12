@@ -7,8 +7,7 @@ metadata:
 spec:
   event_type: note.created
   timestamp: '2026-05-09T22:37:03+00:00'
-  summary: 'Created Note ''NOTE-20260509_2237-GrandBear-smarttide-54-per-skill-mcp-drift'':
-    ''SmartTide #54 — per-skill MCP drift detection implemented (unblocked)'''
+  summary: "Created Note 'NOTE-20260509_2237-GrandBear-smarttide-54-per-skill-mcp-drift': 'SmartTide #54 \u2014 per-skill MCP drift detection implemented (unblocked)'"
   subject: NOTE-20260509_2237-GrandBear-smarttide-54-per-skill-mcp-drift
   subject_kind: Note
   actor: NOTE-20260509_2237-GrandBear-smarttide-54-per-skill-mcp-drift

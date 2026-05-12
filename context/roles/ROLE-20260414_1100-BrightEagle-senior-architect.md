@@ -6,18 +6,13 @@ metadata:
   created: 2026-04-14 11:00:00+00:00
 spec:
   name: senior-architect
-  description: Designs large new features and complex bugfixes; decomposes cross-cutting
-    work into task plans the rest of the team can execute.
+  description: Designs large new features and complex bugfixes; decomposes cross-cutting work into task plans the rest of the team can execute.
   responsibilities:
-  - 'Design large new features end-to-end: surfaces, data model, interfaces, failure
-    modes, migration strategy.'
+  - 'Design large new features end-to-end: surfaces, data model, interfaces, failure modes, migration strategy.'
   - Root-cause complex bugs that span multiple modules or require non-local reasoning.
-  - Produce decomposed task plans (work units, dependencies, success criteria) for
-    developers and junior architects.
-  - Record load-bearing architectural calls as DecisionRecords with context, alternatives,
-    and rationale.
-  - Flag cross-cutting risks (security, performance, compliance, provider neutrality)
-    before implementation starts.
+  - Produce decomposed task plans (work units, dependencies, success criteria) for developers and junior architects.
+  - Record load-bearing architectural calls as DecisionRecords with context, alternatives, and rationale.
+  - Flag cross-cutting risks (security, performance, compliance, provider neutrality) before implementation starts.
   - Review junior-architect plans when they touch load-bearing design surfaces.
   skills_required:
   - agent-management

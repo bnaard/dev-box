@@ -7,8 +7,7 @@ metadata:
 spec:
   event_type: workitem.transitioned
   timestamp: '2026-05-03T00:58:43+00:00'
-  summary: Transitioned WorkItem 'BACK-20260502_2107-KeenSky-phase-1-processkit-v025-gateway'
-    from 'in-progress' to 'review'
+  summary: Transitioned WorkItem 'BACK-20260502_2107-KeenSky-phase-1-processkit-v025-gateway' from 'in-progress' to 'review'
   subject: BACK-20260502_2107-KeenSky-phase-1-processkit-v025-gateway
   subject_kind: WorkItem
   actor: BACK-20260502_2107-KeenSky-phase-1-processkit-v025-gateway

@@ -8,5 +8,5 @@ spec:
   type: role-assignment
   subject: ACTOR-20260414_1100-SwiftFox-junior-researcher-agent
   target: ROLE-20260414_1100-SwiftFox-junior-researcher
-  scope: permanent
+  scope: null
 ---

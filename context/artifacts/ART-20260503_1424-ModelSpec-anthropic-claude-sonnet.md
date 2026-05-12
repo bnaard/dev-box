@@ -21,8 +21,7 @@ spec:
     pricing_usd_per_1m:
       input: 3.0
       output: 15.0
-    pricing_note: Best price-capability ratio in the Claude family for engineering
-      tasks
+    pricing_note: Best price-capability ratio in the Claude family for engineering tasks
     lifecycle: unverified
     source_urls: &id001
     - https://docs.anthropic.com/en/docs/about-claude/models/overview

@@ -241,11 +241,21 @@ static ADDONS: OnceLock<Vec<LoadedAddon>> = OnceLock::new();
 // ---------------------------------------------------------------------------
 
 /// Get the addons directory path.
-/// Checks `AIBOX_ADDONS_DIR` env var first, then falls back to XDG config.
+///
+/// Checks `AIBOX_ADDONS_DIR` first. In source checkouts, fall back to the
+/// repository's bundled `addons/` directory so `cargo run ... -- doctor` works
+/// without requiring a separate global install. Packaged binaries still use the
+/// XDG install path from `scripts/install.sh`.
 pub fn addons_dir() -> Result<PathBuf> {
     if let Ok(dir) = std::env::var("AIBOX_ADDONS_DIR") {
         return Ok(PathBuf::from(dir));
     }
+
+    let repo_addons = Path::new(env!("CARGO_MANIFEST_DIR")).join("../addons");
+    if repo_addons.is_dir() {
+        return Ok(repo_addons);
+    }
+
     crate::dirs::config_dir()
         .map(|d| d.join("addons"))
         .ok_or_else(|| anyhow::anyhow!("Could not determine XDG config directory"))
@@ -646,6 +656,19 @@ mod tests {
         fs::create_dir_all(&cat_dir).unwrap();
         let mut f = fs::File::create(cat_dir.join(format!("{}.yaml", name))).unwrap();
         f.write_all(content.as_bytes()).unwrap();
+    }
+
+    #[test]
+    fn addons_dir_defaults_to_repo_addons_in_source_checkout() {
+        unsafe {
+            std::env::remove_var("AIBOX_ADDONS_DIR");
+        }
+        let dir = addons_dir().unwrap();
+        assert!(
+            dir.ends_with("addons") && dir.is_dir(),
+            "source checkout should resolve bundled addons dir, got {}",
+            dir.display()
+        );
     }
 
     #[test]

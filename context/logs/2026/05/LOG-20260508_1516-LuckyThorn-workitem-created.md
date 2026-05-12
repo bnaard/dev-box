@@ -7,8 +7,7 @@ metadata:
 spec:
   event_type: workitem.created
   timestamp: '2026-05-08T15:16:52+00:00'
-  summary: 'Created WorkItem ''BACK-20260508_1516-BrightStream-stale-state-cleanup-architecture-foundational'':
-    ''v0.25.6: Stale-state cleanup architecture (foundational)'''
+  summary: 'Created WorkItem ''BACK-20260508_1516-BrightStream-stale-state-cleanup-architecture-foundational'': ''v0.25.6: Stale-state cleanup architecture (foundational)'''
   subject: BACK-20260508_1516-BrightStream-stale-state-cleanup-architecture-foundational
   subject_kind: WorkItem
   actor: BACK-20260508_1516-BrightStream-stale-state-cleanup-architecture-foundational

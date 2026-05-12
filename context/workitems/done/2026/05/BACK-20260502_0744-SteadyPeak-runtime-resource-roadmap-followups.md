@@ -10,10 +10,7 @@ spec:
   state: done
   type: task
   priority: high
-  description: 'Implement the remaining aibox runtime/resource improvements that do
-    not depend on processkit gateway or schema delivery: docs, Zellij-visible resource
-    status, additional optional base-image tools, doctor resource thresholds, regression
-    tests, and base-image minimum contract.'
+  description: 'Implement the remaining aibox runtime/resource improvements that do not depend on processkit gateway or schema delivery: docs, Zellij-visible resource status, additional optional base-image tools, doctor resource thresholds, regression tests, and base-image minimum contract.'
   started_at: '2026-05-02T07:44:33+00:00'
   completed_at: '2026-05-02T08:03:14+00:00'
 ---

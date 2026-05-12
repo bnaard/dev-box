@@ -7,8 +7,8 @@ metadata:
 spec:
   event_type: doctor.report
   timestamp: '2026-05-11T21:30:34+00:00'
-  summary: /pk-doctor — 0 ERROR / 0 WARN / 78 INFO
-  actor: TEAMMEMBER-avery
+  summary: "/pk-doctor \u2014 0 ERROR / 0 WARN / 78 INFO"
+  actor: TEAMMEMBER-20260508_2042-MigratedMember-avery
   details:
     doctor_version: 1.0.0
     invocation: /pk-doctor

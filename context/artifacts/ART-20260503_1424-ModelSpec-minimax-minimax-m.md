@@ -20,9 +20,8 @@ spec:
     pricing_usd_per_1m:
       input: 0.2
       output: 1.1
-    pricing_note: ESTIMATED — updated MiniMax. Run Workflow C to validate.
-    governance_warning: 'Chinese company. Via MiniMax API: G:1. Self-hosted open weights
-      raise governance to G:3.'
+    pricing_note: "ESTIMATED \u2014 updated MiniMax. Run Workflow C to validate."
+    governance_warning: 'Chinese company. Via MiniMax API: G:1. Self-hosted open weights raise governance to G:3.'
     lifecycle: unverified
     source_urls: &id001
     - https://platform.minimax.io/docs/api-reference/api-overview

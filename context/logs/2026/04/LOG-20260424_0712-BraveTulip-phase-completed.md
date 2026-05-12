@@ -18,4 +18,5 @@ spec:
     tests_added: 5
     total_tests: 591
     commit: 'feat(Phase 2b): Continue, Cursor, and Aider MCP permission generators'
+  actor: system
 ---

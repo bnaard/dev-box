@@ -7,8 +7,7 @@ metadata:
 spec:
   event_type: workitem.created
   timestamp: '2026-04-24T01:14:28+00:00'
-  summary: 'Created WorkItem ''BACK-20260424_0114-SwiftPlum-phase-2a-claude-code'':
-    ''Phase 2a: Claude Code + OpenCode generators'''
+  summary: 'Created WorkItem ''BACK-20260424_0114-SwiftPlum-phase-2a-claude-code'': ''Phase 2a: Claude Code + OpenCode generators'''
   subject: BACK-20260424_0114-SwiftPlum-phase-2a-claude-code
   subject_kind: WorkItem
   actor: BACK-20260424_0114-SwiftPlum-phase-2a-claude-code

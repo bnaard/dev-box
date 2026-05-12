@@ -147,15 +147,14 @@ line2-right = ["hostname", "externalip", "ssh", "netspeed", "ping", "cpu", "load
 # this section controls how those segments are labeled once rendered.
 # Values may be plain ASCII labels or symbols. ASCII is safest across terminals;
 # Nerd Font / Powerline symbols are compact but require the user's terminal font.
-# Practical symbol candidates from Nerd Fonts: Kubernetes/cloud/network/uptime
-# already use icon defaults below; aibox runtime metrics stay text labels by
-# default because no universally recognized LOG/OOM/PROC/MCP/MIG glyph exists.
-aibox-log = "LOG"
-aibox-oom = "OOM"
-aibox-proc = "PROC"
-aibox-ai = "AI"
-aibox-mcp = "MCP"
-aibox-mig = "MIG"
+# Practical symbol candidates from Nerd Fonts. Keep icons distinct across
+# configured PowerKit segments so adjacent status cells remain scannable.
+aibox-log = "󱖫"
+aibox-oom = "󰍛󰚌"
+aibox-proc = "󰊚"
+aibox-ai = "󱙺"
+aibox-mcp = "󰌹"
+aibox-mig = "󰚰"
 kubernetes = "󱃾"
 cloud = "󰅣"
 cloud-aws = "󰸏"
@@ -182,7 +181,7 @@ cloud-cache-ttl-seconds = 120
 
 [customization.tmux.status.model-providers]
 # Optional networked model-provider health segments for the extended tmux status line.
-# Each configured provider becomes one PowerKit segment when enabled, for example OAI ✓ or ANT !!.
+# Each configured provider becomes one PowerKit segment when enabled, for example OAI ✓ or ANT 󰚌.
 # enabled: false avoids background status-page calls by default; set true to render configured providers.
 # cache-ttl-seconds: minimum time between provider status requests per provider.
 # timeout-seconds: per-request HTTP timeout so status rendering cannot hang tmux.
@@ -197,7 +196,7 @@ show-ok = true
 # - checks: any of overall, models, harness; worst status wins (outage > degraded > unknown > ok)
 # - status-url: JSON status endpoint; Statuspage summary APIs are supported, Google uses incidents.json
 # - overall-components/model-components/harness-components: optional component-name filters for providers with componentized status APIs
-#   Symbols: ✓ ok, ! degraded, !! outage, ? unknown.
+#   Symbols: ✓ ok, 󰀦 degraded, 󰚌 outage, ? unknown.
 
 [[customization.tmux.status.model-providers.providers]]
 provider = "openai"

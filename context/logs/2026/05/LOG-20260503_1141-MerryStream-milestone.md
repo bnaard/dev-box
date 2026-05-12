@@ -7,8 +7,7 @@ metadata:
 spec:
   event_type: milestone
   timestamp: '2026-05-03T11:41:55+00:00'
-  summary: Marked aibox CLI migration briefing 0.23.1 to 0.23.2 completed after verifying
-    lock/config state and clearing pending processkit migrations.
+  summary: Marked aibox CLI migration briefing 0.23.1 to 0.23.2 completed after verifying lock/config state and clearing pending processkit migrations.
   actor: Codex
   subject: context/migrations/20260503_1308_0.23.1-to-0.23.2.md
   subject_kind: MigrationBriefing

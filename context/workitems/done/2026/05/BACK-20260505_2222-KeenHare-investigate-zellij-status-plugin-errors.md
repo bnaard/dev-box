@@ -14,13 +14,7 @@ spec:
   state: cancelled
   type: bug
   priority: high
-  description: 'Derived project on aibox v0.23.17 shows both custom Zellij key/status
-    plugin rows as `ERROR IN PLUGIN - see logs`. Evidence already rules out missing
-    assets and helper failure: `/usr/local/share/aibox/zellij/aibox-status.wasm` exists,
-    `/usr/local/bin/aibox-status` exists, and `/usr/local/bin/aibox-status --plugin-json`
-    returns valid JSON. Need collect actual Zellij plugin host logs from `/tmp/**/zellij-log/zellij.log`,
-    identify whether this is WASM load/permission/ABI/render panic, and fix source
-    plus add a focused regression guard.'
+  description: 'Derived project on aibox v0.23.17 shows both custom Zellij key/status plugin rows as `ERROR IN PLUGIN - see logs`. Evidence already rules out missing assets and helper failure: `/usr/local/share/aibox/zellij/aibox-status.wasm` exists, `/usr/local/bin/aibox-status` exists, and `/usr/local/bin/aibox-status --plugin-json` returns valid JSON. Need collect actual Zellij plugin host logs from `/tmp/**/zellij-log/zellij.log`, identify whether this is WASM load/permission/ABI/render panic, and fix source plus add a focused regression guard.'
   completed_at: '2026-05-09T22:18:32+00:00'
 ---
 

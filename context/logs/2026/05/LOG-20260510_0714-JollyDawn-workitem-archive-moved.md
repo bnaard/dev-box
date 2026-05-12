@@ -7,8 +7,7 @@ metadata:
 spec:
   event_type: workitem.archive-moved
   timestamp: '2026-05-10T07:14:33+00:00'
-  summary: Archived terminal WorkItem 'BACK-20260510_0336-SmartLark-tmux-layouts-multi-harness-ai-layout'
-    to /workspace/context/workitems/done/2026/05/BACK-20260510_0336-SmartLark-tmux-layouts-multi-harness-ai-layout.md
+  summary: Archived terminal WorkItem 'BACK-20260510_0336-SmartLark-tmux-layouts-multi-harness-ai-layout' to /workspace/context/workitems/done/2026/05/BACK-20260510_0336-SmartLark-tmux-layouts-multi-harness-ai-layout.md
   subject: BACK-20260510_0336-SmartLark-tmux-layouts-multi-harness-ai-layout
   subject_kind: WorkItem
   actor: BACK-20260510_0336-SmartLark-tmux-layouts-multi-harness-ai-layout

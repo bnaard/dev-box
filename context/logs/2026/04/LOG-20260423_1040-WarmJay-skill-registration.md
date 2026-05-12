@@ -14,6 +14,6 @@ spec:
     action: register
     skill_name: pk-doctor
     file_path: context/skills/processkit/pk-doctor/commands/pk-doctor.md
-    reason: skill had SKILL.md but was missing the command registration file that
-      makes it discoverable in Claude Code
+    reason: skill had SKILL.md but was missing the command registration file that makes it discoverable in Claude Code
+  actor: system
 ---

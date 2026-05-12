@@ -7,8 +7,7 @@ metadata:
 spec:
   event_type: decision.created
   timestamp: '2026-05-04T12:19:49+00:00'
-  summary: 'Created DecisionRecord ''DEC-20260504_1219-CoolPeak-scope-generated-runtime-finalization'':
-    ''Scope Generated Runtime Finalization'''
+  summary: 'Created DecisionRecord ''DEC-20260504_1219-CoolPeak-scope-generated-runtime-finalization'': ''Scope Generated Runtime Finalization'''
   subject: DEC-20260504_1219-CoolPeak-scope-generated-runtime-finalization
   subject_kind: DecisionRecord
   actor: DEC-20260504_1219-CoolPeak-scope-generated-runtime-finalization

@@ -10,9 +10,7 @@ spec:
   state: done
   type: task
   priority: high
-  description: Reintroduce aibox apply --no-cache as the public no-cache build flag
-    while keeping --rebuild as a compatibility alias. Cover CLI parsing/help and build
-    command behavior.
+  description: Reintroduce aibox apply --no-cache as the public no-cache build flag while keeping --rebuild as a compatibility alias. Cover CLI parsing/help and build command behavior.
   started_at: '2026-05-02T07:09:23+00:00'
   completed_at: '2026-05-02T07:25:46+00:00'
 ---

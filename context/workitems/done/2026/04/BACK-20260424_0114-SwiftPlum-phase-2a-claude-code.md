@@ -10,16 +10,7 @@ spec:
   state: done
   type: task
   priority: high
-  description: "**Scope:** Implement MCP permission generators for Claude Code and\
-    \ OpenCode (parallel with other harnesses).\n\n**Deliverables:**\n1. `generate_claude_code_permissions(config:\
-    \ &McpConfig) -> Result<()>` \n   - Update `.claude/settings.local.json` with\
-    \ `permissions.allow[]` list\n   - Merge with existing settings (don't overwrite)\n\
-    2. `generate_opencode_permissions(config: &McpConfig) -> Result<()>`\n   - Generate\
-    \ `.opencode/config.toml` with `[mcp]` section\n   - Set `allow/ask/deny` per\
-    \ pattern with wildcard expansion\n\n**Key:** Both use allowlist format; OpenCode\
-    \ additionally supports deny_patterns.\n\n**Estimated Tokens:** ~2K per harness\
-    \ (file I/O, TOML/JSON generation, merge logic)\n**Can run in parallel:** with\
-    \ Phase 2b, 2c, 2d\n"
+  description: Migrated historical description; see git history for pre-migration full text.
   parent: BACK-20260424_0058-ToughGrove-feature-global-mcp-permissions
   blocked_by:
   - BACK-20260424_0114-JollyStream-phase-1-core-mcp

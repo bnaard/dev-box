@@ -7,8 +7,7 @@ metadata:
 spec:
   event_type: decision.created
   timestamp: '2026-05-04T16:52:55+00:00'
-  summary: 'Created DecisionRecord ''DEC-20260504_1652-SnowyRobin-adopt-grouped-aibox-configuration-schema'':
-    ''Adopt grouped aibox configuration schema'''
+  summary: 'Created DecisionRecord ''DEC-20260504_1652-SnowyRobin-adopt-grouped-aibox-configuration-schema'': ''Adopt grouped aibox configuration schema'''
   subject: DEC-20260504_1652-SnowyRobin-adopt-grouped-aibox-configuration-schema
   subject_kind: DecisionRecord
   actor: DEC-20260504_1652-SnowyRobin-adopt-grouped-aibox-configuration-schema

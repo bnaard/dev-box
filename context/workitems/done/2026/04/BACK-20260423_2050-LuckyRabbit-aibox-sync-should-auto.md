@@ -10,12 +10,7 @@ spec:
   state: done
   type: task
   priority: medium
-  description: Enhance `aibox sync` to auto-generate missing command files. When syncing,
-    scan all installed skills' `SKILL.md` files for `commands:` declarations and auto-create
-    `.claude/commands/<cmd>.md` files from the source definitions in `context/skills/*/commands/`
-    if they don't exist. This provides transparent remediation for incomplete skill
-    installations like pk-doctor in v0.19.1, so derived projects don't need manual
-    intervention.
+  description: Enhance `aibox sync` to auto-generate missing command files. When syncing, scan all installed skills' `SKILL.md` files for `commands:` declarations and auto-create `.claude/commands/<cmd>.md` files from the source definitions in `context/skills/*/commands/` if they don't exist. This provides transparent remediation for incomplete skill installations like pk-doctor in v0.19.1, so derived projects don't need manual intervention.
   started_at: '2026-04-24T00:02:31+00:00'
   completed_at: '2026-04-26T16:28:31+00:00'
 ---

@@ -7,8 +7,7 @@ metadata:
 spec:
   event_type: workitem.transitioned
   timestamp: '2026-05-07T13:59:27+00:00'
-  summary: Transitioned WorkItem 'BACK-20260507_1341-SoundSky-claude-code-derived-runtime-drift'
-    from 'in-progress' to 'review'
+  summary: Transitioned WorkItem 'BACK-20260507_1341-SoundSky-claude-code-derived-runtime-drift' from 'in-progress' to 'review'
   subject: BACK-20260507_1341-SoundSky-claude-code-derived-runtime-drift
   subject_kind: WorkItem
   actor: BACK-20260507_1341-SoundSky-claude-code-derived-runtime-drift

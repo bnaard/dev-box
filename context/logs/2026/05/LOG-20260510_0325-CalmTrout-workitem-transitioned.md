@@ -7,8 +7,7 @@ metadata:
 spec:
   event_type: workitem.transitioned
   timestamp: '2026-05-10T03:25:04+00:00'
-  summary: Transitioned WorkItem 'BACK-20260507_0552-BraveFalcon-review-uv-0-11-11-image'
-    from 'review' to 'cancelled'
+  summary: Transitioned WorkItem 'BACK-20260507_0552-BraveFalcon-review-uv-0-11-11-image' from 'review' to 'cancelled'
   subject: BACK-20260507_0552-BraveFalcon-review-uv-0-11-11-image
   subject_kind: WorkItem
   actor: BACK-20260507_0552-BraveFalcon-review-uv-0-11-11-image

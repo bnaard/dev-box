@@ -16,10 +16,8 @@ spec:
     remote: origin
     commit: 8f87c3d
     scope:
-    - added provider_backend_warnings over the aibox.provider-backends.v0-preview
-      model
-    - aibox doctor now warns for selected backends without MCP clients, missing permission
-      projections, missing expected addons, and headless-runner host-only mismatches
+    - added provider_backend_warnings over the aibox.provider-backends.v0-preview model
+    - aibox doctor now warns for selected backends without MCP clients, missing permission projections, missing expected addons, and headless-runner host-only mismatches
     - documented doctor use of provider backend preview diagnostics
     validation:
     - cargo test --manifest-path cli/Cargo.toml --bin aibox provider_backend
@@ -30,6 +28,5 @@ spec:
     - cargo clippy --manifest-path cli/Cargo.toml --all-targets -- -D warnings
     - cargo fmt --manifest-path cli/Cargo.toml -- --check
     - git diff --check
-    doctor_result: 0 errors; provider backend metadata check clean in this repo; existing
-      context-schema and optional-tool warnings remain
+    doctor_result: 0 errors; provider backend metadata check clean in this repo; existing context-schema and optional-tool warnings remain
 ---

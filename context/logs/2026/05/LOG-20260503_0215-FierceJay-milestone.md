@@ -7,9 +7,7 @@ metadata:
 spec:
   event_type: milestone
   timestamp: '2026-05-03T02:15:25+00:00'
-  summary: Investigated post-upgrade container runtime state; added explicit disabled
-    addon-tool support for lazygit, regenerated devcontainer files, and confirmed
-    no pending migrations.
+  summary: Investigated post-upgrade container runtime state; added explicit disabled addon-tool support for lazygit, regenerated devcontainer files, and confirmed no pending migrations.
   actor: Codex
   subject: Runtime triage and lazygit disablement
   subject_kind: investigation
@@ -23,6 +21,5 @@ spec:
     validation:
     - 'cargo test --manifest-path cli/Cargo.toml addons:: -- --nocapture'
     - cargo test --manifest-path cli/Cargo.toml workspace_manifest -- --nocapture
-    - AIBOX_ADDONS_DIR=/workspace/addons cargo run --manifest-path cli/Cargo.toml
-      -- apply --no-container
+    - AIBOX_ADDONS_DIR=/workspace/addons cargo run --manifest-path cli/Cargo.toml -- apply --no-container
 ---

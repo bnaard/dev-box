@@ -20,7 +20,7 @@ spec:
     pricing_usd_per_1m:
       input: 5.0
       output: 20.0
-    pricing_note: ESTIMATED — major xAI release. Run Workflow C to validate.
+    pricing_note: "ESTIMATED \u2014 major xAI release. Run Workflow C to validate."
     lifecycle: legacy
     source_urls: &id001
     - https://x.ai/api

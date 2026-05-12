@@ -21,8 +21,7 @@ spec:
     pricing_usd_per_1m:
       input: 5.0
       output: 30.0
-    pricing_note: 'OpenAI announcement: API soon/available at standard pricing; Batch/Flex
-      half-rate; Priority 2.5x.'
+    pricing_note: 'OpenAI announcement: API soon/available at standard pricing; Batch/Flex half-rate; Priority 2.5x.'
     lifecycle: active
     source_urls: &id001
     - https://platform.openai.com/docs/models

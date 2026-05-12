@@ -20,8 +20,7 @@ spec:
     pricing_usd_per_1m:
       input: 0.075
       output: 0.3
-    pricing_note: Extremely low cost; 1M context sweep costs cents; best throughput/dollar
-      of any listed model
+    pricing_note: Extremely low cost; 1M context sweep costs cents; best throughput/dollar of any listed model
     lifecycle: legacy
     source_urls: &id001
     - https://ai.google.dev/gemini-api/docs/models

@@ -14,13 +14,7 @@ spec:
   state: done
   type: task
   priority: medium
-  description: 'The v0.23.16 release-check-state report detected non-blocking dependency
-    drift that was intentionally deferred from the urgent compatibility patch. Review
-    and decide/update separately: Zellij 0.44.1 -> 0.44.2, Yazi 26.1.22 -> 26.5.6,
-    floating uv/Node/Debian inputs, unpinned AI harness installer/package surfaces,
-    and Cargo.lock dry-run crate updates. Validate runtime layouts, Yazi config/plugin
-    compatibility, native Zellij key/status plugin behavior, and generated container
-    images before shipping any bumps.'
+  description: 'The v0.23.16 release-check-state report detected non-blocking dependency drift that was intentionally deferred from the urgent compatibility patch. Review and decide/update separately: Zellij 0.44.1 -> 0.44.2, Yazi 26.1.22 -> 26.5.6, floating uv/Node/Debian inputs, unpinned AI harness installer/package surfaces, and Cargo.lock dry-run crate updates. Validate runtime layouts, Yazi config/plugin compatibility, native Zellij key/status plugin behavior, and generated container images before shipping any bumps.'
   scope: aibox release maintenance
   started_at: '2026-05-05T21:34:04+00:00'
   completed_at: '2026-05-05T21:45:25+00:00'

@@ -20,8 +20,7 @@ spec:
     pricing_usd_per_1m:
       input: 0.25
       output: 1.25
-    pricing_note: Cheapest Claude; excellent value for high-volume, low-complexity
-      tasks
+    pricing_note: Cheapest Claude; excellent value for high-volume, low-complexity tasks
     lifecycle: active
     source_urls: &id001
     - https://docs.anthropic.com/en/docs/about-claude/models/overview

@@ -7,8 +7,7 @@ metadata:
 spec:
   event_type: workitem.transitioned
   timestamp: '2026-05-09T22:18:32+00:00'
-  summary: Transitioned WorkItem 'BACK-20260505_2222-KeenHare-investigate-zellij-status-plugin-errors'
-    from 'backlog' to 'cancelled'
+  summary: Transitioned WorkItem 'BACK-20260505_2222-KeenHare-investigate-zellij-status-plugin-errors' from 'backlog' to 'cancelled'
   subject: BACK-20260505_2222-KeenHare-investigate-zellij-status-plugin-errors
   subject_kind: WorkItem
   actor: BACK-20260505_2222-KeenHare-investigate-zellij-status-plugin-errors

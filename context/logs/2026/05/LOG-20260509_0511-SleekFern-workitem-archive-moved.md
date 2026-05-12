@@ -7,8 +7,7 @@ metadata:
 spec:
   event_type: workitem.archive-moved
   timestamp: '2026-05-09T05:11:41+00:00'
-  summary: Archived terminal WorkItem 'BACK-20260508_1519-PluckyThorn-release-host-orchestration-rollout-cutover'
-    to /workspace/context/workitems/done/2026/05/BACK-20260508_1519-PluckyThorn-release-host-orchestration-rollout-cutover.md
+  summary: Archived terminal WorkItem 'BACK-20260508_1519-PluckyThorn-release-host-orchestration-rollout-cutover' to /workspace/context/workitems/done/2026/05/BACK-20260508_1519-PluckyThorn-release-host-orchestration-rollout-cutover.md
   subject: BACK-20260508_1519-PluckyThorn-release-host-orchestration-rollout-cutover
   subject_kind: WorkItem
   actor: BACK-20260508_1519-PluckyThorn-release-host-orchestration-rollout-cutover

@@ -7,8 +7,7 @@ metadata:
 spec:
   event_type: workitem.transitioned
   timestamp: '2026-05-04T10:02:15+00:00'
-  summary: Transitioned WorkItem 'BACK-20260504_0919-QuietThorn-strengthen-runtime-doctor-e2e-coverage'
-    from 'in-progress' to 'review'
+  summary: Transitioned WorkItem 'BACK-20260504_0919-QuietThorn-strengthen-runtime-doctor-e2e-coverage' from 'in-progress' to 'review'
   subject: BACK-20260504_0919-QuietThorn-strengthen-runtime-doctor-e2e-coverage
   subject_kind: WorkItem
   actor: BACK-20260504_0919-QuietThorn-strengthen-runtime-doctor-e2e-coverage

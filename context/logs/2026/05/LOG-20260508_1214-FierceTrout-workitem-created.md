@@ -7,8 +7,7 @@ metadata:
 spec:
   event_type: workitem.created
   timestamp: '2026-05-08T12:14:07+00:00'
-  summary: 'Created WorkItem ''BACK-20260508_1214-SureSeal-review-uv-image-update-after-v0255'':
-    ''Review uv image update after v0.25.5'''
+  summary: 'Created WorkItem ''BACK-20260508_1214-SureSeal-review-uv-image-update-after-v0255'': ''Review uv image update after v0.25.5'''
   subject: BACK-20260508_1214-SureSeal-review-uv-image-update-after-v0255
   subject_kind: WorkItem
   actor: BACK-20260508_1214-SureSeal-review-uv-image-update-after-v0255

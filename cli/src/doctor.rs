@@ -1,5 +1,6 @@
 use anyhow::Result;
 use std::collections::BTreeSet;
+use std::fs;
 use std::path::{Path, PathBuf};
 use std::process::{Command, Stdio};
 
@@ -120,6 +121,11 @@ pub fn cmd_doctor(config_path: &Option<String>) -> Result<()> {
 
         // Check mount source paths match config (AI providers, audio)
         check_mount_sources(&root, &root_label, &config, &mut diag);
+
+        // Check active container home mounts. Generated compose declares these
+        // read-write; if the live mount is read-only, tmux/Yazi/Codex runtime
+        // state can silently drift or render blank.
+        check_container_home_mount_writability(&config, &mut diag);
 
         // Check standard runtime theme/config files against the current
         // generated baseline. These files are user-editable, so drift is a
@@ -1867,6 +1873,58 @@ fn check_mount_sources(root: &Path, root_label: &str, config: &AiboxConfig, diag
             ));
             diag.warnings += 1;
         }
+    }
+}
+
+fn check_container_home_mount_writability(config: &AiboxConfig, diag: &mut DiagResult) {
+    let container_home = PathBuf::from(config.container_home());
+    if !container_home.is_dir() {
+        return;
+    }
+
+    let mut dirs = vec![
+        ".cache".to_string(),
+        ".config/tmux".to_string(),
+        ".config/yazi".to_string(),
+        ".config/git".to_string(),
+        ".config/state".to_string(),
+        ".local/bin".to_string(),
+        ".tmux".to_string(),
+    ];
+    for provider in &config.ai.harnesses {
+        if let Some(dir_name) = provider.config_dir() {
+            dirs.push(dir_name.to_string());
+        }
+    }
+    dirs.sort();
+    dirs.dedup();
+
+    let mut checked = 0usize;
+    for rel in dirs {
+        let dir = container_home.join(&rel);
+        if !dir.is_dir() {
+            continue;
+        }
+        checked += 1;
+        let probe = dir.join(format!(".aibox-doctor-write-probe-{}", std::process::id()));
+        match fs::write(&probe, b"probe").and_then(|_| fs::remove_file(&probe)) {
+            Ok(()) => output::ok(&format!(
+                "{} is writable in the active container",
+                dir.display()
+            )),
+            Err(err) => {
+                output::error(&format!(
+                    "{} is not writable in the active container: {}",
+                    dir.display(),
+                    err
+                ));
+                diag.errors += 1;
+            }
+        }
+    }
+
+    if checked == 0 {
+        output::info("Container home mount writability check skipped (no mounted runtime dirs)");
     }
 }
 

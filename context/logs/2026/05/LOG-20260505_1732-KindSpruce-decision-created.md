@@ -7,8 +7,7 @@ metadata:
 spec:
   event_type: decision.created
   timestamp: '2026-05-05T17:32:18+00:00'
-  summary: 'Created DecisionRecord ''DEC-20260505_1732-ThriftyOak-add-explicit-standardize-config-apply-mode'':
-    ''Add explicit standardize config apply mode'''
+  summary: 'Created DecisionRecord ''DEC-20260505_1732-ThriftyOak-add-explicit-standardize-config-apply-mode'': ''Add explicit standardize config apply mode'''
   subject: DEC-20260505_1732-ThriftyOak-add-explicit-standardize-config-apply-mode
   subject_kind: DecisionRecord
   actor: DEC-20260505_1732-ThriftyOak-add-explicit-standardize-config-apply-mode

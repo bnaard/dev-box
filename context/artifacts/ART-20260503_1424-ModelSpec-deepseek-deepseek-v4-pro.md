@@ -21,8 +21,7 @@ spec:
       input: 1.74
       output: 3.48
     pricing_note: DeepSeek V4 Pro pricing.
-    governance_warning: G:1 — Chinese jurisdiction. Never use for PII, PHI, confidential
-      IP, credentials, regulated data, or government/defense work.
+    governance_warning: "G:1 \u2014 Chinese jurisdiction. Never use for PII, PHI, confidential IP, credentials, regulated data, or government/defense work."
     lifecycle: active
     source_urls: &id001
     - https://api-docs.deepseek.com/updates

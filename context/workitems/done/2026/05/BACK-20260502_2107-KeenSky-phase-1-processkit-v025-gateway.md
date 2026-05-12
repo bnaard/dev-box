@@ -10,10 +10,7 @@ spec:
   state: done
   type: task
   priority: high
-  description: 'Implement the accepted phase 1 plan: sync/bump processkit v0.25, add
-    gateway-aware MCP config generation with granular fallback, add managed runtime
-    hooks and doctor checks where feasible, preserve migration-safe behavior for removed
-    primitives, and validate before phase 2.'
+  description: 'Implement the accepted phase 1 plan: sync/bump processkit v0.25, add gateway-aware MCP config generation with granular fallback, add managed runtime hooks and doctor checks where feasible, preserve migration-safe behavior for removed primitives, and validate before phase 2.'
   scope: aibox
   started_at: '2026-05-02T21:07:20+00:00'
   completed_at: '2026-05-03T00:58:48+00:00'

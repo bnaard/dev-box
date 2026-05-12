@@ -20,8 +20,7 @@ spec:
     pricing_usd_per_1m:
       input: 3.0
       output: 15.0
-    pricing_note: ESTIMATED — incremental improvement over Grok 3. Run Workflow C
-      to validate.
+    pricing_note: "ESTIMATED \u2014 incremental improvement over Grok 3. Run Workflow C to validate."
     lifecycle: unverified
     source_urls: &id001
     - https://x.ai/api

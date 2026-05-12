@@ -7,8 +7,7 @@ metadata:
 spec:
   event_type: workitem.transitioned
   timestamp: '2026-05-08T20:44:43+00:00'
-  summary: Transitioned WorkItem 'BACK-20260508_1517-TrueBrook-zellij-scorched-earth-complete-excision'
-    from 'review' to 'done'
+  summary: Transitioned WorkItem 'BACK-20260508_1517-TrueBrook-zellij-scorched-earth-complete-excision' from 'review' to 'done'
   subject: BACK-20260508_1517-TrueBrook-zellij-scorched-earth-complete-excision
   subject_kind: WorkItem
   actor: BACK-20260508_1517-TrueBrook-zellij-scorched-earth-complete-excision

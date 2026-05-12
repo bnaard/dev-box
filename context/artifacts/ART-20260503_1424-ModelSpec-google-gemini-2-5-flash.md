@@ -20,8 +20,7 @@ spec:
     pricing_usd_per_1m:
       input: 0.3
       output: 2.5
-    pricing_note: Google 2.5 Flash current standard pricing; legacy/value multimodal
-      option.
+    pricing_note: Google 2.5 Flash current standard pricing; legacy/value multimodal option.
     lifecycle: legacy
     source_urls: &id001
     - https://ai.google.dev/gemini-api/docs/models

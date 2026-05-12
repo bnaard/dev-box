@@ -17,12 +17,8 @@ spec:
   - version_id: '1'
     status: preview
     context_window: 1000000
-    pricing_note: ESTIMATED — released 2026-04-02 as proprietary (departure from prior
-      open-weights Qwen line). 1M-token default context. Pricing not located in coverage;
-      check Alibaba Cloud pricing page. Capability scores extrapolated from agentic-coding/multimodal-perception
-      emphasis. Run Workflow C to validate.
-    governance_warning: 'Chinese company, proprietary (no open weights for 3.6 line).
-      Via Alibaba Cloud API: G:1. Self-hosting NOT available for this version.'
+    pricing_note: "ESTIMATED \u2014 released 2026-04-02 as proprietary (departure from prior open-weights Qwen line). 1M-token default context. Pricing not located in coverage; check Alibaba Cloud pricing page. Capability scores extrapolated from agentic-coding/multimodal-perception emphasis. Run Workflow C to validate."
+    governance_warning: 'Chinese company, proprietary (no open weights for 3.6 line). Via Alibaba Cloud API: G:1. Self-hosting NOT available for this version.'
     lifecycle: unverified
     source_urls: &id001
     - https://qwenlm.github.io/

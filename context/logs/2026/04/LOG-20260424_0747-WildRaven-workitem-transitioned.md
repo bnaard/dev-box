@@ -7,8 +7,7 @@ metadata:
 spec:
   event_type: workitem.transitioned
   timestamp: '2026-04-24T07:47:47+00:00'
-  summary: Transitioned WorkItem 'BACK-20260424_0114-ToughGlade-phase-2c-gemini-cli'
-    from 'in-progress' to 'review'
+  summary: Transitioned WorkItem 'BACK-20260424_0114-ToughGlade-phase-2c-gemini-cli' from 'in-progress' to 'review'
   subject: BACK-20260424_0114-ToughGlade-phase-2c-gemini-cli
   subject_kind: WorkItem
   actor: BACK-20260424_0114-ToughGlade-phase-2c-gemini-cli

@@ -19,4 +19,5 @@ spec:
     commit: 'feat(Phase 2a): Claude Code and OpenCode MCP permission generators'
     unblocks:
     - BACK-20260424_0114-JollyDew-phase-3-integration-into
+  actor: system
 ---

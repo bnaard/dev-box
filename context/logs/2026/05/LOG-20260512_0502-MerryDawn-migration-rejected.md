@@ -7,8 +7,7 @@ metadata:
 spec:
   event_type: migration.rejected
   timestamp: '2026-05-12T05:02:47+00:00'
-  summary: 'Migration ''MIG-RUNTIME-20260512T044831'': pending → rejected (Rejected
-    during pk-doctor cleanup: same-version runtime-home migration reported…)'
+  summary: "Migration 'MIG-RUNTIME-20260512T044831': pending \u2192 rejected (Rejected during pk-doctor cleanup: same-version runtime-home migration reported\u2026)"
   subject: MIG-RUNTIME-20260512T044831
   subject_kind: Migration
   actor: MIG-RUNTIME-20260512T044831

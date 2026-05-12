@@ -7,8 +7,7 @@ metadata:
 spec:
   event_type: workitem.created
   timestamp: '2026-05-10T08:43:26+00:00'
-  summary: 'Created WorkItem ''BACK-20260510_0843-AmberThorn-aibox-should-emit-v1-v2-migration'':
-    ''aibox should emit v1→v2 Migration entities on cutover releases (gh#72)'''
+  summary: "Created WorkItem 'BACK-20260510_0843-AmberThorn-aibox-should-emit-v1-v2-migration': 'aibox should emit v1\u2192v2 Migration entities on cutover releases (gh#72)'"
   subject: BACK-20260510_0843-AmberThorn-aibox-should-emit-v1-v2-migration
   subject_kind: WorkItem
   actor: BACK-20260510_0843-AmberThorn-aibox-should-emit-v1-v2-migration

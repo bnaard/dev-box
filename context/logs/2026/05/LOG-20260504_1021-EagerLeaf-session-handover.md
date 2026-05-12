@@ -7,9 +7,8 @@ metadata:
 spec:
   event_type: session.handover
   timestamp: '2026-05-04T10:21:17+00:00'
-  summary: 'Session handover: aibox v0.23.6 release completed, including host Phase
-    2 macOS assets.'
-  actor: TEAMMEMBER-cora
+  summary: 'Session handover: aibox v0.23.6 release completed, including host Phase 2 macOS assets.'
+  actor: TEAMMEMBER-20260422_0832-MigratedMember-cora
   subject: v0.23.6 release wrapup
   subject_kind: release
   details:
@@ -23,8 +22,7 @@ spec:
     - '1c8d1de chore: bump CLI version to 0.23.6'
     processkit_version: v0.25.5
     phase_1_linux_side: complete
-    phase_2_host_side: complete, confirmed by owner and verified on GitHub release
-      assets
+    phase_2_host_side: complete, confirmed by owner and verified on GitHub release assets
     assets_verified:
     - aibox-v0.23.6-aarch64-apple-darwin.tar.gz
     - aibox-v0.23.6-x86_64-apple-darwin.tar.gz
@@ -49,6 +47,5 @@ spec:
     - strengthened no-container and asciinema E2E coverage
     next_actions:
     - No release action remains for v0.23.6.
-    - For the next session, start with pk-resume and verify whether a downstream project
-      rebuild should consume v0.23.6.
+    - For the next session, start with pk-resume and verify whether a downstream project rebuild should consume v0.23.6.
 ---

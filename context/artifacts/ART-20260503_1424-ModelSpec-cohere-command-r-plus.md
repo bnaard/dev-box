@@ -20,8 +20,7 @@ spec:
     pricing_usd_per_1m:
       input: 2.5
       output: 10.0
-    pricing_note: Weights available for self-hosting; Cohere is SOC 2 certified; HIPAA
-      BAA available for enterprise
+    pricing_note: Weights available for self-hosting; Cohere is SOC 2 certified; HIPAA BAA available for enterprise
     lifecycle: legacy
     source_urls: &id001
     - https://docs.cohere.com/v2/docs/models

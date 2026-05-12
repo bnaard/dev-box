@@ -7,8 +7,8 @@ metadata:
 spec:
   event_type: team_member.created
   timestamp: '2026-05-08T20:42:52+00:00'
-  summary: 'Created TeamMember ''TEAMMEMBER-avery'': ''Avery'' (ai-agent)'
-  subject: TEAMMEMBER-avery
+  summary: 'Created TeamMember ''TEAMMEMBER-20260508_2042-MigratedMember-avery'': ''Avery'' (ai-agent)'
+  subject: TEAMMEMBER-20260508_2042-MigratedMember-avery
   subject_kind: TeamMember
-  actor: TEAMMEMBER-avery
+  actor: TEAMMEMBER-20260508_2042-MigratedMember-avery
 ---

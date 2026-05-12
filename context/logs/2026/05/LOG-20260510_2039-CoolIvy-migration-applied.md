@@ -7,7 +7,7 @@ metadata:
 spec:
   event_type: migration.applied
   timestamp: '2026-05-10T20:39:55+00:00'
-  summary: 'Migration ''MIG-RUNTIME-DRIFT-20260510T151812'': in-progress → applied'
+  summary: "Migration 'MIG-RUNTIME-DRIFT-20260510T151812': in-progress \u2192 applied"
   subject: MIG-RUNTIME-DRIFT-20260510T151812
   subject_kind: Migration
   actor: MIG-RUNTIME-DRIFT-20260510T151812

@@ -7,8 +7,7 @@ metadata:
 spec:
   event_type: workitem.transitioned
   timestamp: '2026-05-10T09:47:07+00:00'
-  summary: Transitioned WorkItem 'BACK-20260510_0843-AmberThorn-aibox-should-emit-v1-v2-migration'
-    from 'review' to 'done'
+  summary: Transitioned WorkItem 'BACK-20260510_0843-AmberThorn-aibox-should-emit-v1-v2-migration' from 'review' to 'done'
   subject: BACK-20260510_0843-AmberThorn-aibox-should-emit-v1-v2-migration
   subject_kind: WorkItem
   actor: BACK-20260510_0843-AmberThorn-aibox-should-emit-v1-v2-migration

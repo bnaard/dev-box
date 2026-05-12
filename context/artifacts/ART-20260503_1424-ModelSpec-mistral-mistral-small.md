@@ -31,8 +31,7 @@ spec:
     pricing_usd_per_1m:
       input: 0.1
       output: 0.3
-    pricing_note: Mistral's entry-level model; very cheap, EU-based; good for classification
-      and routing
+    pricing_note: Mistral's entry-level model; very cheap, EU-based; good for classification and routing
     lifecycle: legacy
     source_urls:
     - https://docs.mistral.ai/models/overview

@@ -7,8 +7,8 @@ metadata:
 spec:
   event_type: decision.created
   timestamp: '2026-04-19T08:07:13+00:00'
-  summary: 'Created DecisionRecord ''DEC-20260419_0807-LuckyDaisy-mcp-skill-name-collision'':
-    ''MCP skill-name collision guard — warn-and-continue, keep bare-name keys'''
+  summary: "Created DecisionRecord 'DEC-20260419_0807-LuckyDaisy-mcp-skill-name-collision': 'MCP skill-name collision guard \u2014 warn-and-continue, keep bare-name keys'"
   subject: DEC-20260419_0807-LuckyDaisy-mcp-skill-name-collision
   subject_kind: DecisionRecord
+  actor: system
 ---

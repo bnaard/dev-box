@@ -21,11 +21,8 @@ spec:
     pricing_usd_per_1m:
       input: null
       output: null
-    pricing_note: MIT-licensed open weights; no official hosted API pricing was
-      located. Self-hosting infrastructure cost applies.
-    governance_warning: 'Self-hosted open weights: G:4. Xiaomi-hosted or
-      third-party hosted deployments require separate data-retention and
-      jurisdiction review before sensitive use.'
+    pricing_note: MIT-licensed open weights; no official hosted API pricing was located. Self-hosting infrastructure cost applies.
+    governance_warning: 'Self-hosted open weights: G:4. Xiaomi-hosted or third-party hosted deployments require separate data-retention and jurisdiction review before sensitive use.'
     lifecycle: active
     license: MIT
     source_urls: &id001
@@ -49,8 +46,7 @@ spec:
   access_tier: public
   equivalent_tier: s
   status_page_url: https://mimo.xiaomi.com/
-  rationale: Small open-weight reasoning and coding model with strong math/code
-    benchmark results for its size.
+  rationale: Small open-weight reasoning and coding model with strong math/code benchmark results for its size.
   lifecycle: active
   source_urls: *id001
   model_classes:
@@ -58,8 +54,7 @@ spec:
   architecture:
     parameters: 8B
     training_tokens: 25T
-    notes: 7B-class model with MTP/speculative-decoding support; Hugging Face
-      reports 8B parameters for the published safetensors checkpoint.
+    notes: 7B-class model with MTP/speculative-decoding support; Hugging Face reports 8B parameters for the published safetensors checkpoint.
   license:
     name: MIT
     open_weights: true

@@ -10,9 +10,7 @@ spec:
   state: done
   type: task
   priority: medium
-  description: Move gh and later lazygit from fixed base-image packages to selectable
-    addons, with migration-safe layout/tool handling and docs. Start with design and
-    gh addon; lazygit depends on layout generator awareness of tool availability.
+  description: Move gh and later lazygit from fixed base-image packages to selectable addons, with migration-safe layout/tool handling and docs. Start with design and gh addon; lazygit depends on layout generator awareness of tool availability.
   started_at: '2026-05-02T07:31:33+00:00'
   completed_at: '2026-05-02T07:31:40+00:00'
 ---

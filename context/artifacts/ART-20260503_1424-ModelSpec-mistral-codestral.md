@@ -20,8 +20,7 @@ spec:
     pricing_usd_per_1m:
       input: 0.3
       output: 0.9
-    pricing_note: Mistral's code-focused model; weights available for self-hosting;
-      strong fill-in-the-middle
+    pricing_note: Mistral's code-focused model; weights available for self-hosting; strong fill-in-the-middle
     lifecycle: legacy
     source_urls: &id001
     - https://docs.mistral.ai/models/overview

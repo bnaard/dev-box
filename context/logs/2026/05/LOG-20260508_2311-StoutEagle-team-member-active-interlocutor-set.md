@@ -7,8 +7,8 @@ metadata:
 spec:
   event_type: team_member.active_interlocutor_set
   timestamp: '2026-05-08T23:11:00+00:00'
-  summary: Set active interlocutor for scope 'default' to 'TEAMMEMBER-avery'
-  subject: TEAMMEMBER-avery
+  summary: Set active interlocutor for scope 'default' to 'TEAMMEMBER-20260508_2042-MigratedMember-avery'
+  subject: TEAMMEMBER-20260508_2042-MigratedMember-avery
   subject_kind: TeamMember
-  actor: TEAMMEMBER-avery
+  actor: TEAMMEMBER-20260508_2042-MigratedMember-avery
 ---

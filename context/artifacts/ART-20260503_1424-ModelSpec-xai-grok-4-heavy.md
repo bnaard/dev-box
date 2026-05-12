@@ -20,8 +20,7 @@ spec:
     pricing_usd_per_1m:
       input: 10.0
       output: 40.0
-    pricing_note: ESTIMATED — compute-heavy reasoning variant analogous to o3. Run
-      Workflow C to validate.
+    pricing_note: "ESTIMATED \u2014 compute-heavy reasoning variant analogous to o3. Run Workflow C to validate."
     lifecycle: legacy
     source_urls: &id001
     - https://x.ai/api

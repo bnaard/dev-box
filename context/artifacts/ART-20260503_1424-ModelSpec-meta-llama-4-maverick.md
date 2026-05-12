@@ -17,8 +17,7 @@ spec:
   - version_id: '1'
     status: ga
     context_window: 1000000
-    pricing_note: Open-weight/self-hosted or third-party hosted; infra/API provider
-      cost varies.
+    pricing_note: Open-weight/self-hosted or third-party hosted; infra/API provider cost varies.
     lifecycle: active
     source_urls: &id001
     - https://llama.meta.com/

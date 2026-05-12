@@ -14,11 +14,7 @@ spec:
   state: done
   type: task
   priority: high
-  description: Extend provider/API environment projection so aibox.toml can expose
-    provider endpoint/base URL variables in addition to existing key variables for
-    each supported provider. Preserve provider-neutral naming and generated runtime
-    behavior. Include docs/schema/tests so derived projects get endpoint variables
-    without manual env hacks.
+  description: Extend provider/API environment projection so aibox.toml can expose provider endpoint/base URL variables in addition to existing key variables for each supported provider. Preserve provider-neutral naming and generated runtime behavior. Include docs/schema/tests so derived projects get endpoint variables without manual env hacks.
   parent: BACK-20260507_1455-CalmBison-aibox-v0250-tmux-runtime-redesign
   started_at: '2026-05-08T04:35:15+00:00'
   completed_at: '2026-05-08T10:47:23+00:00'

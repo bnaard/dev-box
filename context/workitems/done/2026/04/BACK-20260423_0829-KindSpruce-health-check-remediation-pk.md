@@ -6,8 +6,7 @@ metadata:
   created: '2026-04-23T08:29:29+00:00'
   updated: '2026-04-23T08:43:19+00:00'
 spec:
-  title: Health check remediation — /pk-doctor command, team member setup, drift script,
-    log sharding
+  title: "Health check remediation \u2014 /pk-doctor command, team member setup, drift script, log sharding"
   state: done
   type: task
   priority: high
@@ -17,8 +16,8 @@ spec:
     **10 ERRORs (blocking):**
     1. Missing script: `scripts/check-src-context-drift.sh` (drift check)
     2. Team member memory trees not initialized:
-       - TEAMMEMBER-cora: missing knowledge/, journal/, skills/, lessons/, relations/
-       - TEAMMEMBER-thrifty-otter: all tier directories missing
+       - TEAMMEMBER-20260422_0832-MigratedMember-cora: missing knowledge/, journal/, skills/, lessons/, relations/
+       - TEAMMEMBER-20260422_0001-MigratedMember-thrifty-otter: all tier directories missing
 
     **57 WARNINGs (cleanup):**
     - Log entry sharding: 57 logs in context/logs/ root instead of context/logs/YYYY/MM/ buckets

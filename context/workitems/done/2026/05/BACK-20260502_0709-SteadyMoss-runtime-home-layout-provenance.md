@@ -10,10 +10,7 @@ spec:
   state: done
   type: task
   priority: high
-  description: Add provenance-safe managed runtime file updates so aibox apply updates
-    stale generated .aibox-home zellij layouts when AI harness selection changes,
-    while preserving genuine user edits. Include regression tests for claude+codex
-    to codex-only layout changes.
+  description: Add provenance-safe managed runtime file updates so aibox apply updates stale generated .aibox-home zellij layouts when AI harness selection changes, while preserving genuine user edits. Include regression tests for claude+codex to codex-only layout changes.
   started_at: '2026-05-02T07:09:23+00:00'
   completed_at: '2026-05-02T07:25:40+00:00'
 ---

@@ -10,11 +10,7 @@ spec:
   state: done
   type: task
   priority: high
-  description: 'Remove Zellij image stages, KDL config, WASM plugin build, and permission
-    cache seed. Add tmux, clipboard dependencies, and preinstalled pinned plugins:
-    tmux-powerkit, tmux-sensible, vim-tmux-navigator, tpm, tmux-yank, with tmux-resurrect
-    and tmux-continuum installed but disabled by default until persistence policy
-    is finalized. Related decision: DEC-20260507_1447-VastLeaf-remove-zellij-and-rebuild-aibox-runtime.'
+  description: 'Remove Zellij image stages, KDL config, WASM plugin build, and permission cache seed. Add tmux, clipboard dependencies, and preinstalled pinned plugins: tmux-powerkit, tmux-sensible, vim-tmux-navigator, tpm, tmux-yank, with tmux-resurrect and tmux-continuum installed but disabled by default until persistence policy is finalized. Related decision: DEC-20260507_1447-VastLeaf-remove-zellij-and-rebuild-aibox-runtime.'
   parent: BACK-20260507_1455-CalmBison-aibox-v0250-tmux-runtime-redesign
   scope: runtime-image
   started_at: '2026-05-07T14:56:15+00:00'

@@ -8,5 +8,5 @@ spec:
   type: role-assignment
   subject: ACTOR-20260414_1100-SteadyOtter-developer-agent
   target: ROLE-20260414_1100-SteadyOtter-developer
-  scope: permanent
+  scope: null
 ---

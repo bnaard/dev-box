@@ -7,8 +7,7 @@ metadata:
 spec:
   event_type: workitem.transitioned
   timestamp: '2026-05-10T07:14:25+00:00'
-  summary: Transitioned WorkItem 'BACK-20260510_0336-SleekGrove-tmux-statusline-implement-full-owner-spec'
-    from 'review' to 'done'
+  summary: Transitioned WorkItem 'BACK-20260510_0336-SleekGrove-tmux-statusline-implement-full-owner-spec' from 'review' to 'done'
   subject: BACK-20260510_0336-SleekGrove-tmux-statusline-implement-full-owner-spec
   subject_kind: WorkItem
   actor: BACK-20260510_0336-SleekGrove-tmux-statusline-implement-full-owner-spec

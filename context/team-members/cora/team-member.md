@@ -4,11 +4,12 @@ kind: TeamMember
 metadata:
   id: TEAMMEMBER-cora
   created: 2026-04-22 08:32:00+00:00
+  updated: '2026-05-12T14:50:49+00:00'
 spec:
   type: ai-agent
   name: Cora
   slug: cora
-  default_role: ROLE-product-manager
+  default_role: ROLE-20260422_0001-MigratedRole-product-manager
   default_seniority: senior
   personality:
     communication_style: crisp, decisive, structured; prefers option tables with a

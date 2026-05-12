@@ -20,8 +20,7 @@ spec:
     pricing_usd_per_1m:
       input: 3.0
       output: 15.0
-    pricing_note: Available via xAI API and X Premium subscription; real-time web
-      access available in some modes
+    pricing_note: Available via xAI API and X Premium subscription; real-time web access available in some modes
     lifecycle: legacy
     source_urls: &id001
     - https://x.ai/api

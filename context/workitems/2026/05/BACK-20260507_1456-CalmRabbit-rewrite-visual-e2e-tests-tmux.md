@@ -10,11 +10,7 @@ spec:
   state: review
   type: task
   priority: high
-  description: 'Keep the sidecar container and visual testing paradigm, but discard
-    current Zellij-shaped test implementations. Preserve the intent of each visual/runtime
-    test, then reimplement from scratch against tmux sessions, panes, status rendering,
-    Yazi/Vim workflows, clipboard behavior, and no-Zellij negative assertions. Related
-    decision: DEC-20260507_1447-VastLeaf-remove-zellij-and-rebuild-aibox-runtime.'
+  description: 'Keep the sidecar container and visual testing paradigm, but discard current Zellij-shaped test implementations. Preserve the intent of each visual/runtime test, then reimplement from scratch against tmux sessions, panes, status rendering, Yazi/Vim workflows, clipboard behavior, and no-Zellij negative assertions. Related decision: DEC-20260507_1447-VastLeaf-remove-zellij-and-rebuild-aibox-runtime.'
   parent: BACK-20260507_1455-CalmBison-aibox-v0250-tmux-runtime-redesign
   scope: runtime-tests
   started_at: '2026-05-07T14:57:31+00:00'

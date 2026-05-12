@@ -7,8 +7,7 @@ metadata:
 spec:
   event_type: decision.created
   timestamp: '2026-05-08T04:25:44+00:00'
-  summary: 'Created DecisionRecord ''DEC-20260508_0425-BoldTiger-adopt-amended-two-line-tmux-status'':
-    ''Adopt amended two-line tmux status bar layout'''
+  summary: 'Created DecisionRecord ''DEC-20260508_0425-BoldTiger-adopt-amended-two-line-tmux-status'': ''Adopt amended two-line tmux status bar layout'''
   subject: DEC-20260508_0425-BoldTiger-adopt-amended-two-line-tmux-status
   subject_kind: DecisionRecord
   actor: DEC-20260508_0425-BoldTiger-adopt-amended-two-line-tmux-status

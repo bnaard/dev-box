@@ -7,8 +7,7 @@ metadata:
 spec:
   event_type: workitem.archive-moved
   timestamp: '2026-05-09T22:19:16+00:00'
-  summary: Archived terminal WorkItem 'BACK-20260509_1316-SilentFjord-tmux-statusline-l1-left-oom-double'
-    to /workspace/context/workitems/done/2026/05/BACK-20260509_1316-SilentFjord-tmux-statusline-l1-left-oom-double.md
+  summary: Archived terminal WorkItem 'BACK-20260509_1316-SilentFjord-tmux-statusline-l1-left-oom-double' to /workspace/context/workitems/done/2026/05/BACK-20260509_1316-SilentFjord-tmux-statusline-l1-left-oom-double.md
   subject: BACK-20260509_1316-SilentFjord-tmux-statusline-l1-left-oom-double
   subject_kind: WorkItem
   actor: BACK-20260509_1316-SilentFjord-tmux-statusline-l1-left-oom-double

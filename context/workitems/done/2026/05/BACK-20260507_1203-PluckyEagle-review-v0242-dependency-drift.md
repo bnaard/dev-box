@@ -14,14 +14,7 @@ spec:
   state: done
   type: chore
   priority: medium
-  description: 'Release v0.24.2 deferred dependency freshness work from dist/RELEASE-STATE.md.
-    Concrete deferred updates: uv image 0.11.10 -> 0.11.11; Rust crate family js-sys/wasm-bindgen/wasm-bindgen-macro/wasm-bindgen-macro-support/wasm-bindgen-shared
-    0.2.120 -> 0.2.121. Review surfaces also called out by the release report: Node.js
-    22 stream v22.22.2, Debian trixie-slim rebuild/security posture, and latest-by-default
-    AI harness install/layout/auth/config surfaces. Required validation before shipping
-    later: apply selected updates, rerun cargo test, cargo clippy --all-targets --
-    -D warnings, cargo audit, release-check-state, and runtime visual status/Yazi
-    smoke if any runtime image or harness install surface changes.'
+  description: 'Release v0.24.2 deferred dependency freshness work from dist/RELEASE-STATE.md. Concrete deferred updates: uv image 0.11.10 -> 0.11.11; Rust crate family js-sys/wasm-bindgen/wasm-bindgen-macro/wasm-bindgen-macro-support/wasm-bindgen-shared 0.2.120 -> 0.2.121. Review surfaces also called out by the release report: Node.js 22 stream v22.22.2, Debian trixie-slim rebuild/security posture, and latest-by-default AI harness install/layout/auth/config surfaces. Required validation before shipping later: apply selected updates, rerun cargo test, cargo clippy --all-targets -- -D warnings, cargo audit, release-check-state, and runtime visual status/Yazi smoke if any runtime image or harness install surface changes.'
   scope: release-follow-up
   started_at: '2026-05-09T22:36:57+00:00'
   completed_at: '2026-05-10T03:24:45+00:00'

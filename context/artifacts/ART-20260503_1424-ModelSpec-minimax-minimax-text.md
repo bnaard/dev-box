@@ -21,8 +21,7 @@ spec:
       input: 0.2
       output: 1.1
     pricing_note: 1M context at very low cost; open weights available for self-hosting
-    governance_warning: 'Chinese company. Via MiniMax API: G:1 (same caution as DeepSeek).
-      Self-hosted open weights raise governance to G:3 but no compliance certs available.'
+    governance_warning: 'Chinese company. Via MiniMax API: G:1 (same caution as DeepSeek). Self-hosted open weights raise governance to G:3 but no compliance certs available.'
     lifecycle: legacy
     source_urls: &id001
     - https://platform.minimax.io/docs/api-reference/api-overview

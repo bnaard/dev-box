@@ -7,8 +7,7 @@ metadata:
 spec:
   event_type: workitem.transitioned
   timestamp: '2026-05-08T22:50:45+00:00'
-  summary: Transitioned WorkItem 'BACK-20260508_2241-QuietLark-v0256-stale-process-v1-cleanup'
-    from 'in-progress' to 'review'
+  summary: Transitioned WorkItem 'BACK-20260508_2241-QuietLark-v0256-stale-process-v1-cleanup' from 'in-progress' to 'review'
   subject: BACK-20260508_2241-QuietLark-v0256-stale-process-v1-cleanup
   subject_kind: WorkItem
   actor: BACK-20260508_2241-QuietLark-v0256-stale-process-v1-cleanup
