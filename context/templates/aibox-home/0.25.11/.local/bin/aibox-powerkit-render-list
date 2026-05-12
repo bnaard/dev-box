@@ -1,0 +1,29 @@
+#!/usr/bin/env bash
+set -uo pipefail
+
+side="${1:-right}"
+plugins="${2:-}"
+[[ -z "$plugins" ]] && exit 0
+
+POWERKIT_ROOT="${POWERKIT_ROOT:-/usr/local/share/aibox/tmux/plugins/tmux-powerkit}"
+export POWERKIT_ROOT
+
+script_dir="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
+export HOME="$(cd -- "${script_dir}/../.." && pwd)"
+cache_root="${AIBOX_POWERKIT_CACHE_DIR:-/tmp/aibox/tmux-powerkit-cache}"
+mkdir -p "${cache_root}" 2>/dev/null || true
+export XDG_CACHE_HOME="${cache_root}"
+
+if [[ ! -r "${POWERKIT_ROOT}/src/core/bootstrap.sh" ]]; then
+    exit 0
+fi
+
+. "${POWERKIT_ROOT}/src/core/bootstrap.sh"
+load_powerkit_theme
+. "${POWERKIT_ROOT}/src/renderer/segment_builder.sh"
+
+reset_all_cycle_caches
+_batch_load_tmux_options
+_TMUX_OPTIONS_CACHE["@powerkit_plugins"]="$plugins"
+
+render_plugins "$side"
