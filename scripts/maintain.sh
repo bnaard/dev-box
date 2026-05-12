@@ -288,10 +288,65 @@ cmd_test_e2e_doc_captures() {
   ok "Visual E2E docs artifacts written to ${artifact_dir}"
 }
 
+sha256_file() {
+  local file="$1"
+  if command -v sha256sum >/dev/null 2>&1; then
+    sha256sum "${file}" | awk '{print $1}'
+  else
+    shasum -a 256 "${file}" | awk '{print $1}'
+  fi
+}
+
+sha256_stdin() {
+  if command -v sha256sum >/dev/null 2>&1; then
+    sha256sum | awk '{print $1}'
+  else
+    shasum -a 256 | awk '{print $1}'
+  fi
+}
+
+image_source_sha() {
+  local flavor="$1"
+  local image_dir="${PROJECT_ROOT}/images/${flavor}"
+  [[ -d "${image_dir}" ]] || die "Image source directory not found: ${image_dir}"
+  while IFS= read -r file; do
+    local rel="${file#${PROJECT_ROOT}/}"
+    printf '%s  %s\n' "$(sha256_file "${file}")" "${rel}"
+  done < <(find "${image_dir}" -type f | LC_ALL=C sort) | sha256_stdin
+}
+
+image_source_tag() {
+  local flavor="$1" source_sha="$2"
+  printf '%s:%s-source-%s' "${IMAGE_REGISTRY}" "${flavor}" "${source_sha}"
+}
+
+ensure_ghcr_login() {
+  if ! ${RUNTIME_BIN} login ghcr.io --get-login &>/dev/null 2>&1; then
+    if command -v gh &>/dev/null && gh auth status &>/dev/null; then
+      info "Logging into ghcr.io via gh auth..."
+      gh auth token | ${RUNTIME_BIN} login ghcr.io -u "$(gh api user --jq .login)" --password-stdin \
+        || die "Failed to log in to ghcr.io via gh. Ensure your gh token has write:packages scope."
+      ok "Logged in to ghcr.io"
+    else
+      echo ""
+      info "Not logged in to ghcr.io. Either:"
+      echo ""
+      echo "  1. Install and authenticate gh CLI: gh auth login"
+      echo "  2. Or log in manually:"
+      echo "     echo \$GITHUB_TOKEN | ${RUNTIME_BIN} login ghcr.io -u <username> --password-stdin"
+      echo ""
+      echo "  Your token needs the write:packages scope."
+      echo ""
+      die "GHCR authentication required."
+    fi
+  fi
+}
+
 cmd_build_images() {
   _require_runtime
   local no_cache=""
   [[ "${1:-}" == "--no-cache" ]] && no_cache="--no-cache"
+  local release_version="${2:-}"
 
   local flavors=("base-debian")
 
@@ -299,9 +354,14 @@ cmd_build_images() {
     info "Building ${flavor} image..."
     local latest="${IMAGE_REGISTRY}:${flavor}-latest"
     local build_cache_ref="${IMAGE_REGISTRY}:${flavor}-buildcache"
+    local source_sha
+    source_sha="$(image_source_sha "${flavor}")"
+    local build_version="${release_version:-dev}"
     if [[ -n "${no_cache}" ]]; then
       ${RUNTIME_BIN} build --no-cache \
         --build-arg BUILDKIT_INLINE_CACHE=1 \
+        --build-arg "AIBOX_IMAGE_SOURCE_SHA=${source_sha}" \
+        --build-arg "AIBOX_IMAGE_BUILD_VERSION=${build_version}" \
         -t "${latest}" \
         -f "${PROJECT_ROOT}/images/${flavor}/Dockerfile" \
         "${PROJECT_ROOT}/images/${flavor}/"
@@ -311,6 +371,8 @@ cmd_build_images() {
       if ${RUNTIME_BIN} buildx version >/dev/null 2>&1; then
         ${RUNTIME_BIN} buildx build --load \
           --build-arg BUILDKIT_INLINE_CACHE=1 \
+          --build-arg "AIBOX_IMAGE_SOURCE_SHA=${source_sha}" \
+          --build-arg "AIBOX_IMAGE_BUILD_VERSION=${build_version}" \
           --cache-from "type=registry,ref=${build_cache_ref}" \
           --cache-from "type=registry,ref=${latest}" \
           --cache-to "type=registry,ref=${build_cache_ref},mode=max,ignore-error=true" \
@@ -320,6 +382,8 @@ cmd_build_images() {
       else
         ${RUNTIME_BIN} build \
           --build-arg BUILDKIT_INLINE_CACHE=1 \
+          --build-arg "AIBOX_IMAGE_SOURCE_SHA=${source_sha}" \
+          --build-arg "AIBOX_IMAGE_BUILD_VERSION=${build_version}" \
           --cache-from "${latest}" \
           -t "${latest}" \
           -f "${PROJECT_ROOT}/images/${flavor}/Dockerfile" \
@@ -341,26 +405,7 @@ cmd_push_images() {
     die "Version must be semver: X.Y.Z (got: ${version})"
   fi
 
-  # Verify GHCR login — try gh auth first, then fall back to manual instructions
-  if ! ${RUNTIME_BIN} login ghcr.io --get-login &>/dev/null 2>&1; then
-    if command -v gh &>/dev/null && gh auth status &>/dev/null; then
-      info "Logging into ghcr.io via gh auth..."
-      gh auth token | ${RUNTIME_BIN} login ghcr.io -u "$(gh api user --jq .login)" --password-stdin \
-        || die "Failed to log in to ghcr.io via gh. Ensure your gh token has write:packages scope."
-      ok "Logged in to ghcr.io"
-    else
-      echo ""
-      info "Not logged in to ghcr.io. Either:"
-      echo ""
-      echo "  1. Install and authenticate gh CLI: gh auth login"
-      echo "  2. Or log in manually:"
-      echo "     echo \$GITHUB_TOKEN | ${RUNTIME_BIN} login ghcr.io -u <username> --password-stdin"
-      echo ""
-      echo "  Your token needs the write:packages scope."
-      echo ""
-      die "GHCR authentication required."
-    fi
-  fi
+  ensure_ghcr_login
 
   local flavors=("base-debian")
 
@@ -368,11 +413,15 @@ cmd_push_images() {
   for flavor in "${flavors[@]}"; do
     local latest="${IMAGE_REGISTRY}:${flavor}-latest"
     local versioned="${IMAGE_REGISTRY}:${flavor}-v${version}"
+    local source_sha source_tag
+    source_sha="$(image_source_sha "${flavor}")"
+    source_tag="$(image_source_tag "${flavor}" "${source_sha}")"
     if ! ${RUNTIME_BIN} image exists "${latest}" 2>/dev/null && \
        ! ${RUNTIME_BIN} inspect "${latest}" &>/dev/null; then
       die "Image ${latest} not found locally. Run 'build-images' first."
     fi
     ${RUNTIME_BIN} tag "${latest}" "${versioned}"
+    ${RUNTIME_BIN} tag "${latest}" "${source_tag}"
   done
 
   ok "All images found and tagged for v${version}"
@@ -381,16 +430,64 @@ cmd_push_images() {
   for flavor in "${flavors[@]}"; do
     local versioned="${IMAGE_REGISTRY}:${flavor}-v${version}"
     local latest="${IMAGE_REGISTRY}:${flavor}-latest"
+    local source_sha source_tag
+    source_sha="$(image_source_sha "${flavor}")"
+    source_tag="$(image_source_tag "${flavor}" "${source_sha}")"
 
     info "Pushing ${flavor}..."
     ${RUNTIME_BIN} push "${versioned}" || die "Failed to push ${versioned}"
     ${RUNTIME_BIN} push "${latest}" || die "Failed to push ${latest}"
-    ok "Pushed ${flavor}-v${version} + ${flavor}-latest"
+    ${RUNTIME_BIN} push "${source_tag}" || die "Failed to push ${source_tag}"
+    ok "Pushed ${flavor}-v${version} + ${flavor}-latest + source cache marker"
   done
 
   echo ""
   ok "All ${#flavors[@]} image(s) pushed to ${IMAGE_REGISTRY}"
   info "Verify at: https://github.com/orgs/projectious-work/packages"
+}
+
+cmd_publish_images_for_release() {
+  _require_runtime
+  local version="${1:-}"
+  [[ -z "${version}" ]] && die "Usage: ./scripts/maintain.sh publish-images-for-release <version>"
+
+  ensure_ghcr_login
+
+  local flavors=("base-debian")
+  local all_retagged=true
+  for flavor in "${flavors[@]}"; do
+    local latest="${IMAGE_REGISTRY}:${flavor}-latest"
+    local versioned="${IMAGE_REGISTRY}:${flavor}-v${version}"
+    local current_sha source_tag
+    current_sha="$(image_source_sha "${flavor}")"
+    source_tag="$(image_source_tag "${flavor}" "${current_sha}")"
+
+    if ${RUNTIME_BIN} buildx version >/dev/null 2>&1 \
+      && ${RUNTIME_BIN} buildx imagetools inspect "${source_tag}" >/dev/null 2>&1; then
+      info "${flavor} source unchanged (${current_sha}); retagging existing GHCR manifest"
+      ${RUNTIME_BIN} buildx imagetools create \
+        -t "${versioned}" \
+        -t "${latest}" \
+        "${source_tag}" \
+        || die "Failed to retag ${latest} as ${versioned}"
+      ok "Retagged ${source_tag} as ${versioned} and ${latest} without rebuilding layers"
+    else
+      all_retagged=false
+      if ! ${RUNTIME_BIN} buildx version >/dev/null 2>&1; then
+        warn "buildx is unavailable; rebuilding ${flavor} instead of retagging by source hash"
+      else
+        info "${flavor} source hash ${current_sha} has no GHCR marker tag yet; rebuilding once to seed it"
+      fi
+    fi
+  done
+
+  if [[ "${all_retagged}" == "true" ]]; then
+    ok "All release images reused existing GHCR layers"
+    return 0
+  fi
+
+  cmd_build_images "" "${version}"
+  cmd_push_images "${version}"
 }
 
 cmd_release_runtime_smoke() {
@@ -870,7 +967,9 @@ cmd_release() {
     cp "${CLI_DIR}/target/${target}/release/aibox" "${DIST_DIR}/${binary_name}"
     tar -czf "${DIST_DIR}/${binary_name}.tar.gz" -C "${DIST_DIR}" "${binary_name}"
     rm "${DIST_DIR}/${binary_name}"
+    sha256sum "${DIST_DIR}/${binary_name}.tar.gz" | awk '{print $1}' > "${DIST_DIR}/${binary_name}.tar.gz.sha256"
     built_archives+=("${DIST_DIR}/${binary_name}.tar.gz")
+    built_archives+=("${DIST_DIR}/${binary_name}.tar.gz.sha256")
     ok "Built ${binary_name}.tar.gz"
   done
 
@@ -1050,16 +1149,14 @@ cmd_release_host() {
   if ! gh release view "${tag}" --repo "${GITHUB_REPO}" &>/dev/null; then
     die "GitHub release ${tag} not found. Run 'release' in the container first."
   fi
-  gh release upload "${tag}" "${DIST_DIR}"/aibox-v${version}-*-apple-darwin.tar.gz \
+  gh release upload "${tag}" "${DIST_DIR}"/aibox-v${version}-*-apple-darwin.tar.gz "${DIST_DIR}"/aibox-v${version}-*-apple-darwin.tar.gz.sha256 \
     --repo "${GITHUB_REPO}" \
     || warn "Upload failed — binaries may already be attached"
-  ok "macOS binaries uploaded to ${tag}"
+  ok "macOS binaries and checksums uploaded to ${tag}"
 
-  # ── Step 3: Build and push container images ───────────────────────────────
-  info "Building container images..."
-  cmd_build_images
-  info "Pushing container images..."
-  cmd_push_images "${version}"
+  # ── Step 3: Publish container images ─────────────────────────────────────
+  info "Publishing container images..."
+  cmd_publish_images_for_release "${version}"
 
   # ── Step 4: Run generated-runtime smoke against the pushed image ──────────
   info "Running generated runtime smoke..."

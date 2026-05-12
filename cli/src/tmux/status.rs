@@ -9,6 +9,25 @@ use std::path::Path;
 
 use crate::config::{AiboxConfig, TmuxStatusMode};
 
+const MODEL_STATUS_PROVIDER_ORDER: &[&str] = &[
+    "openai",
+    "anthropic",
+    "google",
+    "mistral",
+    "deepseek",
+    "cohere",
+    "xai",
+    "alibaba",
+    "aws",
+    "meta",
+    "microsoft",
+    "minimax",
+    "moonshot",
+    "nvidia",
+    "xiaomi",
+    "zai",
+];
+
 /// Default tmux.conf template.  Placeholder tokens (`AIBOX_TMUX_*`) are
 /// replaced by `tmux_conf` at apply-time.
 pub(super) const DEFAULT_TMUX_CONF: &str = r##"# aibox tmux configuration
@@ -25,7 +44,7 @@ set -g allow-passthrough on
 set -g default-terminal "tmux-256color"
 set -ga terminal-features ",xterm-256color:RGB,tmux-256color:RGB"
 set -ga terminal-overrides ",xterm-256color:Tc,tmux-256color:Tc"
-set -g status-interval 5
+set -g status-interval AIBOX_TMUX_STATUS_INTERVAL
 set -g prefix AIBOX_TMUX_PREFIX
 unbind C-b
 bind AIBOX_TMUX_PREFIX send-prefix
@@ -99,6 +118,16 @@ pub fn tmux_conf(config: &AiboxConfig) -> String {
         .replace("AIBOX_TMUX_PREFIX", &config.customization.tmux.prefix)
         .replace("AIBOX_TMUX_SESSION", &config.tmux_session_name())
         .replace("AIBOX_TMUX_STATUS_RIGHT", status_right)
+        .replace(
+            "AIBOX_TMUX_STATUS_INTERVAL",
+            &config
+                .customization
+                .tmux
+                .status
+                .refresh
+                .interval_seconds
+                .to_string(),
+        )
         .replace("AIBOX_TMUX_STATUS", status)
         .replace("AIBOX_TMUX_POWERKIT_BLOCK", &powerkit_block)
         .replace("AIBOX_TMUX_POWERKIT_PLUGIN", &powerkit_plugin)
@@ -109,7 +138,13 @@ pub fn tmux_conf(config: &AiboxConfig) -> String {
 
     // Keep the status block deterministic and avoid shelling out when disabled.
     if config.customization.tmux.status.mode == TmuxStatusMode::Disabled {
-        conf = conf.replace("set -g status-interval 5", "set -g status-interval 60");
+        conf = conf.replace(
+            &format!(
+                "set -g status-interval {}",
+                config.customization.tmux.status.refresh.interval_seconds
+            ),
+            "set -g status-interval 60",
+        );
     }
     conf
 }
@@ -166,6 +201,10 @@ const LINE1_RIGHT_AIBOX_METRICS_ORDER: &[(&str, &str)] = &[
     ("mcp", "aibox_mcp"),
     ("mig", "aibox_mig"),
 ];
+
+fn modelstatus_plugin_name(provider: &str) -> String {
+    format!("modelstatus_{provider}")
+}
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub(crate) struct ResolvedTmuxStatusLayout {
@@ -232,6 +271,21 @@ pub(crate) fn resolved_tmux_status_layout(config: &AiboxConfig) -> ResolvedTmuxS
     let line1_right: Vec<String> = layout.line1_right.clone().unwrap_or_else(|| {
         let mut plugins = Vec::new();
         plugins.extend(aibox_metric_plugins);
+        if config.customization.tmux.status.model_providers.enabled {
+            for known_provider in MODEL_STATUS_PROVIDER_ORDER {
+                if config
+                    .customization
+                    .tmux
+                    .status
+                    .model_providers
+                    .providers
+                    .iter()
+                    .any(|provider| provider.provider == *known_provider)
+                {
+                    plugins.push(modelstatus_plugin_name(known_provider));
+                }
+            }
+        }
         plugins.extend(
             [
                 (elements.weather, LINE1_RIGHT_ORDER[0].1),
@@ -276,6 +330,7 @@ pub fn tmux_powerkit_settings(config: &AiboxConfig) -> (String, String, String) 
     // aibox-metrics block: path-a split — each metric is its own PowerKit
     // segment (plugin) so it renders with chevron/color-rotation styling.
     // Slot order fixed per DEC-20260508_2115-SilentFern.
+    let refresh = &config.customization.tmux.status.refresh;
     let metrics_flags: &[(bool, &str, &str)] = &[
         (
             true,
@@ -317,10 +372,16 @@ pub fn tmux_powerkit_settings(config: &AiboxConfig) -> (String, String, String) 
                 .iter()
                 .any(|configured| configured == plugin)
                 .then_some(format!(
-                    "\nset -g @powerkit_plugin_{plugin}_metric \"{key}\""
+                    "\nset -g @powerkit_plugin_{plugin}_metric \"{key}\"\nset -g @powerkit_plugin_{plugin}_cache_ttl \"{}\"",
+                    refresh.aibox_metrics_cache_ttl_seconds
                 ))
         })
         .collect();
+    let refresh_option_lines =
+        status_refresh_option_lines(config, &line1_right, &line2_left, &line2_right);
+    let status_label_option_lines =
+        status_label_option_lines(config, &line1_right, &line2_left, &line2_right);
+    let model_provider_option_lines = model_provider_option_lines(config, &line1_right);
 
     let mut plugin_order = Vec::new();
     plugin_order.extend(line1_right.iter().map(String::as_str));
@@ -338,26 +399,170 @@ set -g @powerkit_theme "{}"
 set -g @powerkit_theme_variant "{}"
 set -g @powerkit_separator_style "rounded"
 set -g @powerkit_elements_spacing "both"
-set -g @powerkit_status_interval "5"
+set -g @powerkit_status_interval "{}"
 set -g @powerkit_transparent "false"
 set -g @powerkit_pane_border_status "top"
 set -g @powerkit_pane_border_format "#{{?client_prefix,PREFIX,NORMAL}} #{{pane_title}} #{{pane_current_command}}"
 set -g @powerkit_line1_right "{}"
 set -g @powerkit_line2_left "{}"
 set -g @powerkit_line2_right "{}"
-set -g @powerkit_plugin_netspeed_speed_width "7"{}"##,
+set -g @powerkit_plugin_netspeed_speed_width "7"{}{}{}{}"##,
         plugin_order.join(","),
         powerkit_theme,
         powerkit_variant,
+        refresh.interval_seconds,
         line1_right.join(","),
         line2_left.join(","),
         line2_right.join(","),
-        metric_option_lines
+        metric_option_lines,
+        refresh_option_lines,
+        status_label_option_lines,
+        model_provider_option_lines
     );
     let powerkit_plugin = "if-shell '[ -f /usr/local/share/aibox/tmux/plugins/tmux-powerkit/tmux-powerkit.tmux ]' 'run-shell /usr/local/share/aibox/tmux/plugins/tmux-powerkit/tmux-powerkit.tmux'".to_string();
     let powerkit_formats =
         tmux_powerkit_status_formats(&line1_left, &line1_right, &line2_left, &line2_right);
     (powerkit_block, powerkit_plugin, powerkit_formats)
+}
+
+fn status_refresh_option_lines(
+    config: &AiboxConfig,
+    line1_right: &[String],
+    line2_left: &[String],
+    line2_right: &[String],
+) -> String {
+    let refresh = &config.customization.tmux.status.refresh;
+    let configured = |plugin: &str| {
+        line1_right.iter().any(|item| item == plugin)
+            || line2_left.iter().any(|item| item == plugin)
+            || line2_right.iter().any(|item| item == plugin)
+    };
+    let mut lines = String::new();
+    for (plugin, ttl) in [
+        ("netspeed", refresh.netspeed_cache_ttl_seconds),
+        ("kubernetes", refresh.kubernetes_cache_ttl_seconds),
+        ("cloud", refresh.cloud_cache_ttl_seconds),
+    ] {
+        if configured(plugin) {
+            lines.push_str(&format!(
+                "\nset -g @powerkit_plugin_{plugin}_cache_ttl \"{ttl}\""
+            ));
+        }
+    }
+    lines
+}
+
+fn status_label_option_lines(
+    config: &AiboxConfig,
+    line1_right: &[String],
+    line2_left: &[String],
+    line2_right: &[String],
+) -> String {
+    let labels = &config.customization.tmux.status.labels;
+    let configured = |plugin: &str| {
+        line1_right.iter().any(|item| item == plugin)
+            || line2_left.iter().any(|item| item == plugin)
+            || line2_right.iter().any(|item| item == plugin)
+    };
+    let mut lines = String::new();
+    for (plugin, option, value) in [
+        ("aibox_log", "label", labels.aibox_log.as_str()),
+        ("aibox_oom", "label", labels.aibox_oom.as_str()),
+        ("aibox_proc", "label", labels.aibox_proc.as_str()),
+        ("aibox_ai", "label", labels.aibox_ai.as_str()),
+        ("aibox_mcp", "label", labels.aibox_mcp.as_str()),
+        ("aibox_mig", "label", labels.aibox_mig.as_str()),
+        ("kubernetes", "icon", labels.kubernetes.as_str()),
+        ("cloud", "icon", labels.cloud.as_str()),
+        ("cloud", "icon_aws", labels.cloud_aws.as_str()),
+        ("cloud", "icon_gcp", labels.cloud_gcp.as_str()),
+        ("cloud", "icon_azure", labels.cloud_azure.as_str()),
+        ("cloud", "icon_multi", labels.cloud_multi.as_str()),
+        ("uptime", "icon", labels.uptime.as_str()),
+        ("netspeed", "icon", labels.netspeed.as_str()),
+        (
+            "netspeed",
+            "icon_download",
+            labels.netspeed_download.as_str(),
+        ),
+        ("netspeed", "icon_upload", labels.netspeed_upload.as_str()),
+    ] {
+        if configured(plugin) {
+            lines.push_str(&format!(
+                "\nset -g @powerkit_plugin_{plugin}_{option} \"{}\"",
+                tmux_option_escape(value)
+            ));
+        }
+    }
+    lines
+}
+
+fn model_provider_option_lines(config: &AiboxConfig, line1_right: &[String]) -> String {
+    if !config.customization.tmux.status.model_providers.enabled {
+        return String::new();
+    }
+
+    let model_providers = &config.customization.tmux.status.model_providers;
+    let mut lines = String::new();
+    for provider in &model_providers.providers {
+        let plugin = modelstatus_plugin_name(&provider.provider);
+        if !line1_right.iter().any(|configured| configured == &plugin) {
+            continue;
+        }
+        lines.push_str(&format!(
+            "\nset -g @powerkit_plugin_{plugin}_provider \"{}\"",
+            tmux_option_escape(&provider.provider)
+        ));
+        lines.push_str(&format!(
+            "\nset -g @powerkit_plugin_{plugin}_label \"{}\"",
+            tmux_option_escape(&provider.label)
+        ));
+        lines.push_str(&format!(
+            "\nset -g @powerkit_plugin_{plugin}_checks \"{}\"",
+            tmux_option_escape(&provider.checks.join(","))
+        ));
+        lines.push_str(&format!(
+            "\nset -g @powerkit_plugin_{plugin}_cache_ttl \"{}\"",
+            model_providers.cache_ttl_seconds
+        ));
+        lines.push_str(&format!(
+            "\nset -g @powerkit_plugin_{plugin}_timeout \"{}\"",
+            model_providers.timeout_seconds
+        ));
+        lines.push_str(&format!(
+            "\nset -g @powerkit_plugin_{plugin}_show_ok \"{}\"",
+            model_providers.show_ok
+        ));
+        if let Some(status_url) = &provider.status_url {
+            lines.push_str(&format!(
+                "\nset -g @powerkit_plugin_{plugin}_status_url \"{}\"",
+                tmux_option_escape(status_url)
+            ));
+        }
+        if !provider.overall_components.is_empty() {
+            lines.push_str(&format!(
+                "\nset -g @powerkit_plugin_{plugin}_overall_components \"{}\"",
+                tmux_option_escape(&provider.overall_components.join(","))
+            ));
+        }
+        if !provider.model_components.is_empty() {
+            lines.push_str(&format!(
+                "\nset -g @powerkit_plugin_{plugin}_model_components \"{}\"",
+                tmux_option_escape(&provider.model_components.join(","))
+            ));
+        }
+        if !provider.harness_components.is_empty() {
+            lines.push_str(&format!(
+                "\nset -g @powerkit_plugin_{plugin}_harness_components \"{}\"",
+                tmux_option_escape(&provider.harness_components.join(","))
+            ));
+        }
+    }
+    lines
+}
+
+fn tmux_option_escape(value: &str) -> String {
+    value.replace('\\', "\\\\").replace('"', "\\\"")
 }
 
 fn powerkit_plugin_list_arg(plugins: &[String]) -> String {
@@ -542,7 +747,8 @@ mod tests {
             )
                 && conf.contains(r#"@powerkit_bar_layout "double""#)
                 && conf.contains(r#"@powerkit_status_order "session,plugins""#)
-                && conf.contains(r#"@powerkit_status_interval "5""#)
+                && conf.contains(r#"set -g status-interval 10"#)
+                && conf.contains(r#"@powerkit_status_interval "10""#)
                 && conf.contains(r#"@powerkit_transparent "false""#)
                 && conf.contains(r#"@powerkit_pane_border_status "top""#)
                 && conf.contains(r##"@powerkit_pane_border_format "#{?client_prefix,PREFIX,NORMAL} #{pane_title} #{pane_current_command}""##)
@@ -556,7 +762,22 @@ mod tests {
                 && conf.contains(r#"@powerkit_plugin_aibox_proc_metric "proc""#)
                 && conf.contains(r#"@powerkit_plugin_aibox_ai_metric "ai""#)
                 && conf.contains(r#"@powerkit_plugin_aibox_mcp_metric "mcp""#)
-                && conf.contains(r#"@powerkit_plugin_aibox_mig_metric "mig""#),
+                && conf.contains(r#"@powerkit_plugin_aibox_mig_metric "mig""#)
+                && conf.contains(r#"@powerkit_plugin_aibox_log_cache_ttl "30""#)
+                && conf.contains(r#"@powerkit_plugin_aibox_oom_cache_ttl "30""#)
+                && conf.contains(r#"@powerkit_plugin_aibox_proc_cache_ttl "30""#)
+                && conf.contains(r#"@powerkit_plugin_aibox_ai_cache_ttl "30""#)
+                && conf.contains(r#"@powerkit_plugin_aibox_mcp_cache_ttl "30""#)
+                && conf.contains(r#"@powerkit_plugin_aibox_mig_cache_ttl "30""#)
+                && conf.contains(r#"@powerkit_plugin_netspeed_cache_ttl "10""#)
+                && conf.contains(r#"@powerkit_plugin_kubernetes_cache_ttl "120""#)
+                && conf.contains(r#"@powerkit_plugin_cloud_cache_ttl "120""#)
+                && conf.contains(r#"@powerkit_plugin_aibox_log_label "LOG""#)
+                && conf.contains(r#"@powerkit_plugin_aibox_oom_label "OOM""#)
+                && conf.contains(r#"@powerkit_plugin_aibox_proc_label "PROC""#)
+                && conf.contains(r#"@powerkit_plugin_aibox_ai_label "AI""#)
+                && conf.contains(r#"@powerkit_plugin_aibox_mcp_label "MCP""#)
+                && conf.contains(r#"@powerkit_plugin_aibox_mig_label "MIG""#),
             "generated persistent tmux config should carry bounded powerkit defaults:\n{conf}"
         );
         assert!(
@@ -723,6 +944,58 @@ mod tests {
         assert!(
             !conf.contains(r#"@powerkit_plugin_aibox_metrics"#),
             "old single-segment @powerkit_plugin_aibox_metrics must be absent after path-a split\n{conf}"
+        );
+    }
+
+    #[test]
+    fn tmux_status_model_provider_segments_are_opt_in_and_configured() {
+        let mut config = crate::config::test_config();
+        config.customization.tmux.status.model_providers.enabled = true;
+        config
+            .customization
+            .tmux
+            .status
+            .model_providers
+            .providers
+            .truncate(2);
+        let conf = tmux_conf(&config);
+
+        assert!(
+            conf.contains(r#"@powerkit_line1_right "aibox_log,aibox_oom,aibox_proc,aibox_ai,aibox_mcp,aibox_mig,modelstatus_openai,modelstatus_anthropic,weather,uptime,datetime""#),
+            "model provider segments should render after aibox health metrics and before general segments:\n{conf}"
+        );
+        assert!(
+            conf.contains(r#"@powerkit_plugin_modelstatus_openai_label "OAI""#)
+                && conf.contains(r#"@powerkit_plugin_modelstatus_openai_checks "overall,models,harness""#)
+                && conf.contains(r#"@powerkit_plugin_modelstatus_openai_status_url "https://status.openai.com/api/v2/summary.json""#)
+                && conf.contains(r#"@powerkit_plugin_modelstatus_openai_model_components "Responses,Chat Completions,Embeddings,Realtime,Images""#)
+                && conf.contains(r#"@powerkit_plugin_modelstatus_openai_harness_components "CLI,Codex API,Codex Web""#)
+                && conf.contains(r#"@powerkit_plugin_modelstatus_anthropic_label "ANT""#)
+                && conf.contains(r#"@powerkit_plugin_modelstatus_anthropic_model_components "Claude API""#)
+                && conf.contains(r#"@powerkit_plugin_modelstatus_anthropic_harness_components "Claude Code""#),
+            "model provider plugin options should be generated for each provider:\n{conf}"
+        );
+    }
+
+    #[test]
+    fn tmux_status_labels_are_configurable() {
+        let mut config = crate::config::test_config();
+        config.customization.tmux.status.labels.aibox_log = "L".to_string();
+        config.customization.tmux.status.labels.aibox_oom = "O".to_string();
+        config.customization.tmux.status.labels.kubernetes = "K8S".to_string();
+        config.customization.tmux.status.labels.cloud_aws = "AWS".to_string();
+        config.customization.tmux.status.labels.netspeed_download = "DN".to_string();
+        config.customization.tmux.status.labels.netspeed_upload = "UP".to_string();
+        let conf = tmux_conf(&config);
+
+        assert!(
+            conf.contains(r#"@powerkit_plugin_aibox_log_label "L""#)
+                && conf.contains(r#"@powerkit_plugin_aibox_oom_label "O""#)
+                && conf.contains(r#"@powerkit_plugin_kubernetes_icon "K8S""#)
+                && conf.contains(r#"@powerkit_plugin_cloud_icon_aws "AWS""#)
+                && conf.contains(r#"@powerkit_plugin_netspeed_icon_download "DN""#)
+                && conf.contains(r#"@powerkit_plugin_netspeed_icon_upload "UP""#),
+            "status labels should be emitted as PowerKit plugin options:\n{conf}"
         );
     }
 

@@ -66,7 +66,7 @@ pub fn cmd_doctor(config_path: &Option<String>) -> Result<()> {
         Ok(c) => {
             output::ok(&format!(
                 "Config: valid (v{}, {}, {:?})",
-                c.aibox.version, c.aibox.base, c.context.packages
+                c.container.image.version, c.container.image.base, c.context.packages
             ));
             Some(c)
         }
@@ -1533,7 +1533,7 @@ fn check_powerkit_plugin_tree(config: &AiboxConfig, diag: &mut DiagResult) {
 ///   git.sh, github.sh, kubernetes.sh, terraform.sh, cloud.sh, cloudstatus.sh,
 ///   cpu.sh, loadavg.sh, memory.sh, swap.sh, disk.sh, gpu.sh, netspeed.sh,
 ///   ping.sh, aibox_log.sh, aibox_oom.sh, aibox_proc.sh, aibox_ai.sh,
-///   aibox_mcp.sh, aibox_mig.sh
+///   aibox_mcp.sh, aibox_mig.sh, and optional modelstatus_<provider>.sh
 fn check_powerkit_status_plugins(config: &AiboxConfig, diag: &mut DiagResult) {
     use crate::config::TmuxStatusMode;
     if !matches!(
@@ -1564,7 +1564,7 @@ fn check_powerkit_status_plugins(config: &AiboxConfig, diag: &mut DiagResult) {
 
     // All plugin script names required by the fixed slot order.
     // Slot order is fixed per DEC-20260508_2115-SilentFern.
-    let required: &[&str] = &[
+    let mut required: Vec<String> = [
         // Line 1 right
         "hostname",
         "externalip",
@@ -1595,20 +1595,35 @@ fn check_powerkit_status_plugins(config: &AiboxConfig, diag: &mut DiagResult) {
         "aibox_ai",
         "aibox_mcp",
         "aibox_mig",
-    ];
+    ]
+    .iter()
+    .map(|name| (*name).to_string())
+    .collect();
+    if config.customization.tmux.status.model_providers.enabled {
+        required.extend(
+            config
+                .customization
+                .tmux
+                .status
+                .model_providers
+                .providers
+                .iter()
+                .map(|provider| format!("modelstatus_{}", provider.provider)),
+        );
+    }
 
     let mut missing = Vec::new();
-    for name in required {
+    for name in &required {
         let script = plugins_dir.join(format!("{name}.sh"));
         if !script.exists() {
-            missing.push(*name);
+            missing.push(name);
         }
     }
 
     if missing.is_empty() {
         output::ok("PowerKit status plugin scripts: all required scripts present");
     } else {
-        for name in &missing {
+        for name in missing {
             output::warn(&format!(
                 "[LINT-POWERKIT-STATUS-PLUGINS] Required PowerKit plugin script \
                  missing: {name}.sh (expected under {}). \
@@ -2058,7 +2073,9 @@ fn check_container_image_version(runtime: &Runtime, config: &AiboxConfig, diag: 
                     "Container image version mismatch: container={} config={} — \
                      run `aibox apply` to rebuild",
                     container_ver,
-                    expected_version.as_deref().unwrap_or(&config.aibox.version)
+                    expected_version
+                        .as_deref()
+                        .unwrap_or(&config.container.image.version)
                 ));
                 diag.warnings += 1;
             }
@@ -2072,8 +2089,8 @@ fn check_container_image_version(runtime: &Runtime, config: &AiboxConfig, diag: 
 }
 
 fn expected_container_image_version(config: &AiboxConfig) -> Option<String> {
-    if config.aibox.version != "latest" {
-        return Some(config.aibox.version.clone());
+    if config.container.image.version != "latest" {
+        return Some(config.container.image.version.clone());
     }
 
     crate::lock::read_lock(Path::new("."))

@@ -132,6 +132,45 @@ fn install_script_addons_dir() -> tempfile::TempDir {
 }
 
 #[test]
+fn release_scripts_publish_checksum_sidecars() {
+    let manifest_dir = env!("CARGO_MANIFEST_DIR");
+    let repo_root = std::path::Path::new(manifest_dir).parent().unwrap();
+    let maintain =
+        std::fs::read_to_string(repo_root.join("scripts/maintain.sh")).expect("read maintain.sh");
+    let build_macos = std::fs::read_to_string(repo_root.join("scripts/build-macos.sh"))
+        .expect("read build-macos.sh");
+    let install =
+        std::fs::read_to_string(repo_root.join("scripts/install.sh")).expect("read install.sh");
+
+    assert!(
+        maintain.contains(r#"sha256sum "${DIST_DIR}/${binary_name}.tar.gz""#)
+            && maintain.contains(r#"built_archives+=("${DIST_DIR}/${binary_name}.tar.gz.sha256")"#)
+            && maintain.contains(r#""${DIST_DIR}"/aibox-v${version}-*-apple-darwin.tar.gz.sha256"#),
+        "maintain.sh must generate and upload sha256 sidecars for Linux and macOS release assets"
+    );
+    assert!(
+        build_macos.contains(r#"shasum -a 256 "${DIST_DIR}/${local_name}.tar.gz""#)
+            && build_macos.contains(r#"${DIST_DIR}/${local_name}.tar.gz.sha256"#),
+        "build-macos.sh must generate sha256 sidecars on macOS"
+    );
+    assert!(
+        install.contains("sha256_digest()")
+            && install.contains("command -v sha256sum")
+            && install.contains("command -v shasum")
+            && install
+                .contains(r#"computed_digest="$(sha256_digest "${tmpdir}/${tarball_name}")""#),
+        "install.sh must verify checksums using sha256sum or macOS shasum"
+    );
+    assert!(
+        maintain.contains("image_source_sha()")
+            && maintain.contains("image_source_tag()")
+            && maintain.contains("buildx imagetools inspect")
+            && maintain.contains("without rebuilding layers"),
+        "maintain.sh must support source-hash image retagging to avoid rebuilding unchanged base layers"
+    );
+}
+
+#[test]
 fn help_exits_zero() {
     let output = run(&["--help"]);
     assert!(output.status.success(), "aibox --help should exit 0");

@@ -23,7 +23,7 @@ plugin_declare_options() {
     declare_option "icon_gcp" "icon" $'\U000F0B20' "GCP icon"
     declare_option "icon_azure" "icon" $'\U000F0805' "Azure icon"
     declare_option "icon_multi" "icon" $'\U000F0164' "Multi-provider icon"
-    declare_option "cache_ttl" "number" "60" "Cache duration in seconds"
+    declare_option "cache_ttl" "number" "120" "Cache duration in seconds"
 }
 
 plugin_get_content_type() { printf 'dynamic'; }

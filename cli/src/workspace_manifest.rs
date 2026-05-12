@@ -120,7 +120,7 @@ pub fn workspace_manifest(config: &AiboxConfig) -> WorkspaceManifest {
         aibox_version: env!("CARGO_PKG_VERSION"),
         project: WorkspaceProject {
             name: config.container.name.clone(),
-            base: config.aibox.base.to_string(),
+            base: config.container.image.base.to_string(),
             profile: config.aibox.profile.to_string(),
             user: config.container.user.clone(),
             keepalive: config.container.keepalive,

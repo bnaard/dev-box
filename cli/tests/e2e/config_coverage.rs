@@ -67,12 +67,18 @@ fn replace_toml_section(dir: &std::path::Path, section: &str, replacement: &str)
     if let Some(needle_pos) = content.find(&needle) {
         // start = position of the "[" in the section header (after the \n)
         let start = needle_pos + 1;
-        let rest = &content[start + section_header.len()..];
-        // Find next top-level section (line starting with `[` but not `[[`)
-        let end = rest
-            .find("\n[")
-            .map(|i| start + section_header.len() + i)
-            .unwrap_or(content.len());
+        // Find next top-level single-bracket section. Array-of-table entries
+        // like `[[ai.harnesses]]` belong to the current section.
+        let mut end = content.len();
+        let mut cursor = start + section_header.len();
+        while let Some(relative) = content[cursor..].find("\n[") {
+            let candidate = cursor + relative + 1;
+            if !content[candidate..].starts_with("[[") {
+                end = candidate;
+                break;
+            }
+            cursor = candidate + 2;
+        }
         let new_content = format!(
             "{}{}\n{}{}",
             &content[..start],
@@ -232,12 +238,26 @@ fn init_generates_tmux_customization_surface() {
     assert!(
         toml.contains("[customization.tmux]")
             && toml.contains("[customization.tmux.status]")
+            && toml.contains("# Layout sketches, one screen each:")
+            && toml.contains("# +---- ai ----+  +--- dev ----+  +-- focus --+  +-- cowork -+")
             && !toml.contains("[customization.zellij_status]"),
         "generated aibox.toml should expose tmux customization and omit Zellij status:\n{toml}"
     );
     assert!(
         toml.contains("legacy: powerline -> extended")
             && toml.contains("[customization.tmux.status.layout]")
+            && toml.contains("# Allowed line1-left entries:")
+            && toml.contains("# - cloudstatus: networked public provider status checks; opt-in, not enabled by default")
+            && toml.contains("[customization.tmux.status.labels]")
+            && toml.contains("# Visible headers/icons for status segments.")
+            && toml.contains(r#"aibox-log = "LOG""#)
+            && toml.contains("netspeed-download")
+            && toml.contains("[customization.tmux.status.refresh]")
+            && toml.contains("interval-seconds = 10")
+            && toml.contains("aibox-metrics-cache-ttl-seconds = 30")
+            && toml.contains("[customization.tmux.status.model-providers]")
+            && toml.contains("#   Symbols: ✓ ok, ! degraded, !! outage, ? unknown.")
+            && toml.contains(r#"provider = "openai""#)
             && toml.contains(r#"line1-left = ["session", "windows"]"#)
             && toml
                 .contains(r#"line2-left = ["git", "github", "kubernetes", "terraform", "cloud"]"#),

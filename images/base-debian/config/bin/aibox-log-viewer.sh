@@ -31,6 +31,11 @@ if [ "${AIBOX_LOG_VIEWER:-pretty}" = "lnav" ] && command -v lnav >/dev/null 2>&1
   exec lnav -N -q -c ':goto 100%' "${logs[@]}"
 fi
 
+if command -v aibox-log-viewer-vim >/dev/null 2>&1; then
+  export VISUAL=aibox-log-viewer-vim
+  export EDITOR=aibox-log-viewer-vim
+fi
+
 less_flags=(-R +G)
 if less --help 2>&1 | grep -q -- '--mouse'; then
   less_flags=(--mouse --wheel-lines=3 "${less_flags[@]}")

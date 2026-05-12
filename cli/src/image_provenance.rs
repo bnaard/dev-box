@@ -49,8 +49,8 @@ pub struct ReleasePhasePolicy {
 }
 
 pub fn image_provenance_policy(config: &AiboxConfig) -> ImageProvenancePolicy {
-    let flavor = format!("base-{}", config.aibox.base);
-    let version_pin = config.aibox.version.clone();
+    let flavor = format!("base-{}", config.container.image.base);
+    let version_pin = config.container.image.version.clone();
     let mut selected_addons: Vec<String> = config.addons.addons.keys().cloned().collect();
     selected_addons.sort();
 
@@ -141,7 +141,7 @@ pub fn image_provenance_warnings(config: &AiboxConfig, project_root: &Path) -> V
 
     if dockerfile.contains("-vlatest") {
         warnings.push(
-            "image-provenance-mutable-tag-written: generated Dockerfile references a mutable vlatest tag; run 'aibox apply' with network access or pin [aibox].version"
+            "image-provenance-mutable-tag-written: generated Dockerfile references a mutable vlatest tag; run 'aibox apply' with network access or pin [container.image].release_version"
                 .to_string(),
         );
     }
@@ -166,7 +166,7 @@ pub fn image_provenance_warnings(config: &AiboxConfig, project_root: &Path) -> V
                 && !line.contains(&format!("\"{}\"", policy.image.version_pin)) =>
         {
             warnings.push(format!(
-                "image-provenance-label-mismatch: generated Dockerfile label {} does not match [aibox].version {}",
+                "image-provenance-label-mismatch: generated Dockerfile label {} does not match [container.image].release_version {}",
                 policy.runtime_markers.docker_label, policy.image.version_pin
             ));
         }

@@ -16,7 +16,8 @@ plugin_get_metadata() {
 }
 
 plugin_declare_options() {
-    declare_option "cache_ttl" "number" "5" "Cache duration in seconds"
+    declare_option "label" "string" "MCP" "Segment label"
+    declare_option "cache_ttl" "number" "30" "Cache duration in seconds"
 }
 
 json_value() {
@@ -38,7 +39,7 @@ plugin_get_presence()     { printf 'always'; }
 plugin_get_state()        { printf 'active'; }
 plugin_get_health()       { printf 'ok'; }
 plugin_get_context()      { printf 'runtime'; }
-plugin_get_icon()         { printf 'MCP'; }
+plugin_get_icon()         { get_option "label"; }
 
 plugin_render() {
     printf '%s' "$(plugin_data_get processkit_display)"

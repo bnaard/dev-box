@@ -288,17 +288,21 @@ fn read_process_details(proc_root: &Path) -> ProcessDetails {
             ai_families.insert(family);
         }
         if cmdline.contains("processkit-gateway") && cmdline.contains("server.py") {
-            details.processkit_mode = if cmdline.contains("stdio-proxy")
+            let detected_mode = if cmdline.contains("stdio-proxy")
                 || cmdline.contains(" streamable-http")
                 || contains_command_token(&cmdline, "serve")
             {
-                "daemon".to_string()
+                "daemon"
             } else {
-                "stdio".to_string()
+                "stdio"
             };
+            if processkit_mode_rank(detected_mode) > processkit_mode_rank(&details.processkit_mode)
+            {
+                details.processkit_mode = detected_mode.to_string();
+            }
             details.processkit_mcp += 1;
         } else if cmdline.contains("processkit") && cmdline.contains("mcp") {
-            if details.processkit_mode != "daemon" && details.processkit_mode != "stdio" {
+            if processkit_mode_rank("separate") > processkit_mode_rank(&details.processkit_mode) {
                 details.processkit_mode = "separate".to_string();
             }
             details.processkit_mcp += 1;
@@ -307,6 +311,15 @@ fn read_process_details(proc_root: &Path) -> ProcessDetails {
 
     details.ai_agents = ai_families.len() as u64;
     details
+}
+
+fn processkit_mode_rank(mode: &str) -> u8 {
+    match mode {
+        "daemon" | "gateway" => 3,
+        "stdio" => 2,
+        "separate" | "granular" => 1,
+        _ => 0,
+    }
 }
 
 fn read_cmdline_limited(path: &Path) -> Option<String> {
@@ -899,6 +912,33 @@ mod tests {
         );
         assert_eq!(details.processkit_mode, "daemon");
         assert_eq!(details.processkit_mcp, 1);
+        let _ = std::fs::remove_dir_all(&dir);
+    }
+
+    #[test]
+    fn read_process_details_keeps_daemon_mode_when_stdio_process_is_seen_later() {
+        let dir = std::env::temp_dir().join(format!(
+            "aibox-proc-mode-test-{}-{}",
+            std::process::id(),
+            std::time::SystemTime::now()
+                .duration_since(std::time::UNIX_EPOCH)
+                .unwrap()
+                .as_nanos()
+        ));
+        std::fs::create_dir_all(&dir).unwrap();
+        for (pid, cmdline) in [
+            ("1", "uv run processkit-gateway/mcp/server.py serve"),
+            ("2", "uv run processkit-gateway/mcp/server.py"),
+            ("3", "uv run context/skills/processkit/aggregate-mcp/mcp/server.py"),
+        ] {
+            let pid_dir = dir.join(pid);
+            std::fs::create_dir_all(&pid_dir).unwrap();
+            std::fs::write(pid_dir.join("cmdline"), cmdline.replace(' ', "\0")).unwrap();
+        }
+
+        let details = super::read_process_details(&dir);
+        assert_eq!(details.processkit_mode, "daemon");
+        assert_eq!(details.processkit_mcp, 3);
         let _ = std::fs::remove_dir_all(&dir);
     }
 

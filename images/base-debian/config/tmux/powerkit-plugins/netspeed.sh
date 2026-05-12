@@ -31,7 +31,7 @@ plugin_declare_options() {
     declare_option "icon_download" "icon" $'\U000F01DA' "Icon for download"
     declare_option "icon_upload" "icon" $'\U000F0552' "Icon for upload"
 
-    declare_option "cache_ttl" "number" "2" "Cache duration in seconds"
+    declare_option "cache_ttl" "number" "10" "Cache duration in seconds"
 }
 
 plugin_get_content_type() { printf 'dynamic'; }

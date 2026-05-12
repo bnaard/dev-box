@@ -11,6 +11,10 @@ use crate::output;
 use crate::runtime::{ContainerState, Runtime};
 use crate::seed;
 
+fn default_image_version_for_new_config() -> String {
+    "latest".to_string()
+}
+
 fn toml_string_list(items: &[String]) -> String {
     items
         .iter()
@@ -20,6 +24,11 @@ fn toml_string_list(items: &[String]) -> String {
         })
         .collect::<Vec<_>>()
         .join(", ")
+}
+
+fn toml_string_value(item: &str) -> String {
+    let escaped = item.replace('\\', "\\\\").replace('"', "\\\"");
+    format!("\"{escaped}\"")
 }
 
 /// Parameters for the init command, grouping all optional CLI arguments.
@@ -696,7 +705,7 @@ pub fn cmd_start(
     // No label = pre-BACK-060 image; allow start without check (backward compat).
     //
     // Two failure modes give the same symptom (the existing container's
-    // image label != config.aibox.version) but have different fixes:
+    // image label != [container.image].release_version) but have different fixes:
     //
     //   A) the image was already rebuilt at the new version by an earlier
     //      `aibox apply`, but the container still references the old image
@@ -712,9 +721,9 @@ pub fn cmd_start(
     // literal string "latest" would always fire even though the container is
     // correct.
     if state != ContainerState::Missing
-        && config.aibox.version != "latest"
+        && config.container.image.version != "latest"
         && let Ok(Some(container_version)) = runtime.get_container_image_version(name)
-        && container_version != config.aibox.version
+        && container_version != config.container.image.version
     {
         bail!(
             "Version mismatch: the existing container was built from image v{} \
@@ -722,9 +731,9 @@ pub fn cmd_start(
              Likely cause: an old container survived an aibox upgrade. Recreate it:\n\
              \n    aibox delete runtime && aibox up\n\n\
              If you have not yet rebuilt the image at the new version, run \
-             `aibox apply` first to rebuild it, then the recreate command above.",
+            `aibox apply` first to rebuild it, then the recreate command above.",
             container_version,
-            config.aibox.version
+            config.container.image.version
         );
     }
 
@@ -1113,7 +1122,7 @@ pub(crate) fn serialize_config_with_comments(config: &AiboxConfig) -> String {
     out.push('\n');
     out.push_str("[container.image]\n");
     out.push_str(&format!(
-        "release_version = \"{}\"       # Target aibox image/CLI version. Use \"latest\" to resolve newest on apply.\n",
+        "release_version = \"{}\"       # Target base image version. Use \"latest\" to resolve newest published image on apply.\n",
         config.container.image.version
     ));
     out.push_str(&format!(
@@ -1353,8 +1362,8 @@ pub(crate) fn serialize_config_with_comments(config: &AiboxConfig) -> String {
     out.push_str("# OpenCode                    opencode       any (multi-provider)\n");
     out.push_str("# Hermes                      hermes         any (multi-provider)\n");
     out.push_str("#\n");
-    out.push_str("# Enable harnesses through their [ai.harness.<name>] table below.\n");
-    out.push_str("# `harness_order` controls tmux layout semantics: 1st, 2nd, 3rd harness.\n");
+    out.push_str("# Harnesses are configured by the ordered `harnesses` list below.\n");
+    out.push_str("# The list order is the tmux/layout order: 1st, 2nd, 3rd harness.\n");
     out.push_str("#\n");
     out.push_str(
         "# Model providers (optional): declare which API key/base URL env vars are available.\n",
@@ -1367,7 +1376,6 @@ pub(crate) fn serialize_config_with_comments(config: &AiboxConfig) -> String {
     out.push_str("#\n");
     out.push_str("# Alias used by some tools: OPENAI_API_BASE (OpenAI).\n");
     out.push_str("[ai]\n");
-    render_ai_harness_order(&mut out, &config.ai.harnesses);
     render_ai_model_provider_catalog(&mut out, &config.ai.model_providers);
     render_ai_harness_detail_catalog(&mut out, config);
 
@@ -1450,6 +1458,15 @@ pub(crate) fn serialize_config_with_comments(config: &AiboxConfig) -> String {
     out.push_str("# Options: default | plain | minimal | nerd-font | pastel | bracketed | arrow\n");
     out.push_str(&format!("prompt = \"{}\"\n", config.customization.prompt));
     out.push_str("# Default tmux layout. Options: dev | focus | cowork | ai\n");
+    out.push_str("# Layout sketches, one screen each:\n");
+    out.push_str("# +---- ai ----+  +--- dev ----+  +-- focus --+  +-- cowork -+\n");
+    out.push_str("# |files|ai1  |  |files|shell|  |  files     |  |files|shell|\n");
+    out.push_str("# |     |     |  |-----|     |  +-----------+  |     |     |\n");
+    out.push_str("# |     |     |  |ai1  |     |  ai1 ai2 ... |  +-----------+\n");
+    out.push_str("# +-----------+  +-----------+  +-----------+  ai1 ai2 ...\n");
+    out.push_str(
+        "# Extra windows: ai holds additional harnesses; lazygit and shell open when enabled.\n",
+    );
     out.push_str(&format!("layout = \"{}\"\n", config.customization.layout));
     out.push('\n');
     out.push_str(
@@ -1477,8 +1494,40 @@ pub(crate) fn serialize_config_with_comments(config: &AiboxConfig) -> String {
     out.push('\n');
     out.push_str("[customization.tmux.status.layout]\n");
     out.push_str("# Row lists are ordered. Removing a name disables that status element.\n");
-    out.push_str("# line1-left supports tmux-native entries: session, windows.\n");
-    out.push_str("# Other rows use PowerKit plugin IDs.\n");
+    out.push_str("# Allowed line1-left entries:\n");
+    out.push_str("# - session: current tmux session name and prefix/copy-mode state\n");
+    out.push_str("# - windows: tmux window list\n");
+    out.push_str("#\n");
+    out.push_str("# Allowed line1-right / line2-left / line2-right entries:\n");
+    out.push_str("# - aibox_log: aibox log health counts\n");
+    out.push_str("# - aibox_oom: cgroup OOM kill counters\n");
+    out.push_str("# - aibox_proc: live process count versus configured process warning limit\n");
+    out.push_str("# - aibox_ai: detected AI-agent/runtime process count\n");
+    out.push_str("# - aibox_mcp: processkit/MCP daemon and server process status\n");
+    out.push_str("# - aibox_mig: pending processkit migration count\n");
+    out.push_str("# - weather: weather segment from tmux-powerkit\n");
+    out.push_str("# - uptime: container uptime\n");
+    out.push_str("# - datetime: local date/time\n");
+    out.push_str("# - git: current repository branch/status\n");
+    out.push_str("# - github: GitHub/repository integration status\n");
+    out.push_str("# - kubernetes: Kubernetes context/status\n");
+    out.push_str("# - terraform: Terraform/OpenTofu workspace/status\n");
+    out.push_str("# - cloud: local cloud CLI/context status\n");
+    out.push_str(
+        "# - cloudstatus: networked public provider status checks; opt-in, not enabled by default\n",
+    );
+    out.push_str("# - hostname: container hostname\n");
+    out.push_str("# - externalip: detected external IP\n");
+    out.push_str("# - ssh: SSH agent/key status\n");
+    out.push_str("# - netspeed: network throughput\n");
+    out.push_str("# - ping: network latency\n");
+    out.push_str("# - cpu: CPU usage\n");
+    out.push_str("# - loadavg: system load average\n");
+    out.push_str("# - memory: memory usage\n");
+    out.push_str("# - swap: swap usage\n");
+    out.push_str("# - disk: disk usage\n");
+    out.push_str("# - gpu: GPU status when available\n");
+    out.push_str("# - modelstatus_<provider>: per-provider AI status segment; enabled through [customization.tmux.status.model-providers]\n");
     let layout = crate::tmux::resolved_tmux_status_layout(config);
     out.push_str(&format!(
         "line1-left = [{}]\n",
@@ -1496,6 +1545,219 @@ pub(crate) fn serialize_config_with_comments(config: &AiboxConfig) -> String {
         "line2-right = [{}]\n",
         toml_string_list(&layout.line2_right)
     ));
+    out.push('\n');
+    out.push_str("[customization.tmux.status.labels]\n");
+    out.push_str(
+        "# Visible headers/icons for status segments. Layout controls which segments appear;\n",
+    );
+    out.push_str("# this section controls how those segments are labeled once rendered.\n");
+    out.push_str(
+        "# Values may be plain ASCII labels or symbols. ASCII is safest across terminals;\n",
+    );
+    out.push_str(
+        "# Nerd Font / Powerline symbols are compact but require the user's terminal font.\n",
+    );
+    out.push_str(
+        "# Practical symbol candidates from Nerd Fonts: Kubernetes/cloud/network/uptime\n",
+    );
+    out.push_str("# already use icon defaults below; aibox runtime metrics stay text labels by\n");
+    out.push_str(
+        "# default because no universally recognized LOG/OOM/PROC/MCP/MIG glyph exists.\n",
+    );
+    out.push_str("# aibox-log: aibox log info/warn/error counter header.\n");
+    out.push_str("# aibox-oom: cgroup OOM event/kill counter header.\n");
+    out.push_str("# aibox-proc: process/thread count header.\n");
+    out.push_str("# aibox-ai: active AI-agent process count header.\n");
+    out.push_str("# aibox-mcp: processkit/MCP topology header.\n");
+    out.push_str("# aibox-mig: pending processkit migration count header.\n");
+    out.push_str("# kubernetes: Kubernetes segment icon/header.\n");
+    out.push_str(
+        "# cloud/cloud-aws/cloud-gcp/cloud-azure/cloud-multi: local cloud context icons.\n",
+    );
+    out.push_str("# uptime: container uptime icon/header.\n");
+    out.push_str("# netspeed/netspeed-download/netspeed-upload: network throughput icons.\n");
+    let labels = &config.customization.tmux.status.labels;
+    out.push_str(&format!(
+        "aibox-log = {}\n",
+        toml_string_value(&labels.aibox_log)
+    ));
+    out.push_str(&format!(
+        "aibox-oom = {}\n",
+        toml_string_value(&labels.aibox_oom)
+    ));
+    out.push_str(&format!(
+        "aibox-proc = {}\n",
+        toml_string_value(&labels.aibox_proc)
+    ));
+    out.push_str(&format!(
+        "aibox-ai = {}\n",
+        toml_string_value(&labels.aibox_ai)
+    ));
+    out.push_str(&format!(
+        "aibox-mcp = {}\n",
+        toml_string_value(&labels.aibox_mcp)
+    ));
+    out.push_str(&format!(
+        "aibox-mig = {}\n",
+        toml_string_value(&labels.aibox_mig)
+    ));
+    out.push_str(&format!(
+        "kubernetes = {}\n",
+        toml_string_value(&labels.kubernetes)
+    ));
+    out.push_str(&format!("cloud = {}\n", toml_string_value(&labels.cloud)));
+    out.push_str(&format!(
+        "cloud-aws = {}\n",
+        toml_string_value(&labels.cloud_aws)
+    ));
+    out.push_str(&format!(
+        "cloud-gcp = {}\n",
+        toml_string_value(&labels.cloud_gcp)
+    ));
+    out.push_str(&format!(
+        "cloud-azure = {}\n",
+        toml_string_value(&labels.cloud_azure)
+    ));
+    out.push_str(&format!(
+        "cloud-multi = {}\n",
+        toml_string_value(&labels.cloud_multi)
+    ));
+    out.push_str(&format!("uptime = {}\n", toml_string_value(&labels.uptime)));
+    out.push_str(&format!(
+        "netspeed = {}\n",
+        toml_string_value(&labels.netspeed)
+    ));
+    out.push_str(&format!(
+        "netspeed-download = {}\n",
+        toml_string_value(&labels.netspeed_download)
+    ));
+    out.push_str(&format!(
+        "netspeed-upload = {}\n",
+        toml_string_value(&labels.netspeed_upload)
+    ));
+    out.push('\n');
+    out.push_str("[customization.tmux.status.refresh]\n");
+    out.push_str("# Refresh/caching controls for extended tmux status.\n");
+    out.push_str(
+        "# interval-seconds: tmux redraw cadence. Higher values reduce shell process churn.\n",
+    );
+    out.push_str("# aibox-metrics-cache-ttl-seconds: LOG/OOM/PROC/AI/MCP/MIG cache TTL.\n");
+    out.push_str("#   These metrics are useful but not worth refreshing every redraw; a 30s TTL\n");
+    out.push_str(
+        "#   still surfaces runtime problems quickly while avoiding repeated aibox-status calls.\n",
+    );
+    out.push_str(
+        "# netspeed-cache-ttl-seconds: network throughput cache TTL. Keep near the redraw\n",
+    );
+    out.push_str("#   cadence if you want live-ish rates; increase for quieter laptops.\n");
+    out.push_str(
+        "# kubernetes-cache-ttl-seconds: local kubeconfig context cache TTL; this should\n",
+    );
+    out.push_str("#   not poll live clusters and does not need second-level freshness.\n");
+    out.push_str("# cloud-cache-ttl-seconds: local cloud CLI/context cache TTL; this avoids auth/network probes.\n");
+    let refresh = &config.customization.tmux.status.refresh;
+    out.push_str(&format!(
+        "interval-seconds = {}\n",
+        refresh.interval_seconds
+    ));
+    out.push_str(&format!(
+        "aibox-metrics-cache-ttl-seconds = {}\n",
+        refresh.aibox_metrics_cache_ttl_seconds
+    ));
+    out.push_str(&format!(
+        "netspeed-cache-ttl-seconds = {}\n",
+        refresh.netspeed_cache_ttl_seconds
+    ));
+    out.push_str(&format!(
+        "kubernetes-cache-ttl-seconds = {}\n",
+        refresh.kubernetes_cache_ttl_seconds
+    ));
+    out.push_str(&format!(
+        "cloud-cache-ttl-seconds = {}\n",
+        refresh.cloud_cache_ttl_seconds
+    ));
+    out.push('\n');
+    out.push_str("[customization.tmux.status.model-providers]\n");
+    out.push_str(
+        "# Optional networked model-provider health segments for the extended tmux status line.\n",
+    );
+    out.push_str("# Each configured provider becomes one PowerKit segment when enabled, for example OAI ✓ or ANT !!.\n");
+    out.push_str("# enabled: false avoids background status-page calls by default; set true to render configured providers.\n");
+    out.push_str(
+        "# cache-ttl-seconds: minimum time between provider status requests per provider.\n",
+    );
+    out.push_str(
+        "# timeout-seconds: per-request HTTP timeout so status rendering cannot hang tmux.\n",
+    );
+    out.push_str("# show-ok: true shows healthy providers with ✓; false hides healthy providers and only shows degraded/unknown/outage.\n");
+    out.push_str(&format!(
+        "enabled = {}\n",
+        config.customization.tmux.status.model_providers.enabled
+    ));
+    out.push_str(&format!(
+        "cache-ttl-seconds = {}\n",
+        config
+            .customization
+            .tmux
+            .status
+            .model_providers
+            .cache_ttl_seconds
+    ));
+    out.push_str(&format!(
+        "timeout-seconds = {}\n",
+        config
+            .customization
+            .tmux
+            .status
+            .model_providers
+            .timeout_seconds
+    ));
+    out.push_str(&format!(
+        "show-ok = {}\n",
+        config.customization.tmux.status.model_providers.show_ok
+    ));
+    out.push_str("# Provider entries:\n");
+    out.push_str("# - provider: stable key from the model roster (openai, anthropic, google, mistral, deepseek, cohere, xai, alibaba, aws, meta, microsoft, minimax, moonshot, nvidia, xiaomi, zai)\n");
+    out.push_str("# - label: short category header shown in the status segment; use text or a symbol that your font supports\n");
+    out.push_str("# - checks: any of overall, models, harness; worst status wins (outage > degraded > unknown > ok)\n");
+    out.push_str("# - status-url: JSON status endpoint; Statuspage summary APIs are supported, Google uses incidents.json\n");
+    out.push_str("# - overall-components/model-components/harness-components: optional component-name filters for providers with componentized status APIs\n");
+    out.push_str("#   Symbols: ✓ ok, ! degraded, !! outage, ? unknown.\n");
+    for provider in &config.customization.tmux.status.model_providers.providers {
+        out.push_str("\n[[customization.tmux.status.model-providers.providers]]\n");
+        out.push_str(&format!(
+            "provider = {}\n",
+            toml_string_value(&provider.provider)
+        ));
+        out.push_str(&format!("label = {}\n", toml_string_value(&provider.label)));
+        out.push_str(&format!(
+            "checks = [{}]\n",
+            toml_string_list(&provider.checks)
+        ));
+        if let Some(status_url) = &provider.status_url {
+            out.push_str(&format!("status-url = {}\n", toml_string_value(status_url)));
+        } else {
+            out.push_str("# status-url intentionally omitted: no stable public JSON status API is configured yet\n");
+        }
+        if !provider.overall_components.is_empty() {
+            out.push_str(&format!(
+                "overall-components = [{}]\n",
+                toml_string_list(&provider.overall_components)
+            ));
+        }
+        if !provider.model_components.is_empty() {
+            out.push_str(&format!(
+                "model-components = [{}]\n",
+                toml_string_list(&provider.model_components)
+            ));
+        }
+        if !provider.harness_components.is_empty() {
+            out.push_str(&format!(
+                "harness-components = [{}]\n",
+                toml_string_list(&provider.harness_components)
+            ));
+        }
+    }
 
     // [security] section — only emitted when non-default (avoid noise in normal projects)
     if config.security.acknowledge_seccomp_unconfined {
@@ -1686,41 +1948,43 @@ fn render_ai_model_provider_catalog(out: &mut String, selected: &[crate::config:
     out.push_str("]\n");
 }
 
-fn render_ai_harness_order(out: &mut String, harnesses: &[crate::config::AiHarness]) {
-    let values = harnesses
-        .iter()
-        .map(|harness| format!("\"{}\"", harness))
-        .collect::<Vec<_>>()
-        .join(", ");
-    out.push_str("\nharness_order = [");
-    out.push_str(&values);
-    out.push_str("]  # tmux: 1st, 2nd, 3rd harness placement order\n");
-}
-
 fn render_ai_harness_detail_catalog(out: &mut String, config: &AiboxConfig) {
-    out.push_str("\n# Per-harness install controls. `enabled` participates in generated\n");
-    out.push_str("# agent/MCP config; `install` selects the in-container CLI recipe.\n");
+    out.push_str("\n# Ordered harness list. Supported harness values:\n");
+    out.push_str("# claude, codex, gemini, aider, continue, cursor, copilot, opencode, hermes.\n");
+    out.push_str(
+        "# Each one-line entry is directly uncommentable; list order is tmux/layout order.\n",
+    );
+    out.push_str("# `enable = true` includes the harness in generated agent/MCP/runtime config.\n");
+    out.push_str(
+        "# `install = true` installs the matching in-container CLI recipe when one exists.\n",
+    );
+    out.push_str("# Defaults for both are false when omitted. Cursor has no container CLI, so\n");
+    out.push_str("# keep `install = false` for cursor even when `enable = true`.\n");
+    out.push_str("# `version` optionally pins the CLI recipe; omit it to use the addon default.\n");
+    out.push_str("harnesses = [\n");
     for harness in crate::config::AiHarness::all() {
         let selected = config.ai.harnesses.contains(harness);
         let install =
             config.ai.harness_install_enabled(harness) && !harness.addon_name().is_empty();
         let version = ai_harness_version_for_render(config, harness);
         if selected {
-            out.push_str(&format!("\n[ai.harness.{}]\n", harness));
-            out.push_str("enabled = true\n");
-            out.push_str(&format!("install = {}\n", install));
+            out.push_str("    { ");
+            out.push_str(&format!(
+                "harness = \"{}\", enable = true, install = {}",
+                harness, install
+            ));
             if let Some(version) = version {
-                out.push_str(&format!("version = \"{}\"\n", version));
-            } else {
-                out.push_str("# version = \"latest\"\n");
+                out.push_str(&format!(", version = \"{}\"", version));
             }
+            out.push_str(" },\n");
         } else {
-            out.push_str(&format!("\n# [ai.harness.{}]\n", harness));
-            out.push_str("# enabled = true\n");
-            out.push_str(&format!("# install = {}\n", install));
-            out.push_str("# version = \"latest\"\n");
+            out.push_str(&format!(
+                "#   {{ harness = \"{}\", enable = true, install = {} }},\n",
+                harness, install
+            ));
         }
     }
+    out.push_str("]\n");
 }
 
 fn ai_harness_version_for_render(
@@ -2175,12 +2439,12 @@ pub fn cmd_init(config_path: &Option<String>, params: InitParams) -> Result<()> 
         aibox: AiboxSection {
             config_schema: "1.0.0".to_string(),
             project_name: resolved.project_name.clone(),
-            version: env!("CARGO_PKG_VERSION").to_string(),
+            version: default_image_version_for_new_config(),
             base: resolved.base_image.clone(),
             profile: resolved.profile,
         },
         image: ImageSection {
-            version: env!("CARGO_PKG_VERSION").to_string(),
+            version: default_image_version_for_new_config(),
             base: resolved.base_image.clone(),
         },
         container: ContainerSection {
@@ -2194,7 +2458,7 @@ pub fn cmd_init(config_path: &Option<String>, params: InitParams) -> Result<()> 
             extra_volumes: vec![],
             resource_thresholds: crate::config::ResourceThresholdsSection::default(),
             image: ImageSection {
-                version: env!("CARGO_PKG_VERSION").to_string(),
+                version: default_image_version_for_new_config(),
                 base: resolved.base_image.clone(),
             },
             paths: crate::config::ContainerPathsSection::default(),
@@ -2309,7 +2573,7 @@ pub fn cmd_init(config_path: &Option<String>, params: InitParams) -> Result<()> 
         println!();
         output::info("Configuration summary:");
         println!("  Project:     {}", config.container.name);
-        println!("  Base:        {}", config.aibox.base);
+        println!("  Base:        {}", config.container.image.base);
         println!("  Profile:     {}", config.aibox.profile);
         println!("  Process:     {}", config.context.packages.join(", "));
         let addon_list: Vec<String> = config
@@ -2766,30 +3030,11 @@ pub fn cmd_sync(
         }
     }
 
-    // Snapshot the original pin before any resolution so the warning below
-    // can distinguish "user wrote 'latest'" from "user wrote a concrete version".
-    let original_pin = config.aibox.version.clone();
-
-    // Resolve [aibox].version = "latest" to a concrete image tag before
+    // Resolve [container.image].release_version = "latest" to a concrete image tag before
     // Dockerfile generation. "latest" is never a valid Docker image tag in
     // our registry (tags are base-<flavor>-v<semver>), so generation must
     // fall back to a concrete value even when network resolution fails.
     resolve_aibox_image_version_for_generation(&mut config, Path::new("."));
-
-    // Warn if running CLI version differs from the pinned target version.
-    // Only fire when the user wrote a concrete version (not "latest" / "unset" / empty).
-    let aibox_version_pin = &config.aibox.version;
-    if !original_pin.is_empty()
-        && original_pin != "latest"
-        && original_pin != "unset"
-        && aibox_version_pin != env!("CARGO_PKG_VERSION")
-    {
-        crate::output::warn(&format!(
-            "aibox.toml pins version {} but you are running {} — consider updating [aibox].version",
-            aibox_version_pin,
-            env!("CARGO_PKG_VERSION")
-        ));
-    }
 
     // Warn if processkit version is below minimum for this aibox.
     // Skip when version was "latest" (already resolved to the newest available).
@@ -3276,11 +3521,11 @@ pub fn cmd_apply_generated_runtime(config_path: &Option<String>) -> Result<()> {
 }
 
 fn resolve_aibox_image_version_for_generation(config: &mut AiboxConfig, project_root: &Path) {
-    if config.aibox.version != "latest" {
+    if config.container.image.version != "latest" {
         return;
     }
 
-    let flavor = config.aibox.base.to_string();
+    let flavor = config.container.image.base.to_string();
     match crate::update::fetch_latest_image_version(&flavor) {
         Ok(v) => {
             let resolved = crate::generate::image_version_for_generation(v);
@@ -3288,41 +3533,44 @@ fn resolve_aibox_image_version_for_generation(config: &mut AiboxConfig, project_
                 "Resolved aibox image 'latest' \u{2192} v{}",
                 resolved
             ));
-            config.aibox.version = resolved;
-            config.image.version = config.aibox.version.clone();
-            config.container.image.version = config.aibox.version.clone();
+            config.container.image.version = resolved;
+            config.image.version = config.container.image.version.clone();
         }
         Err(e) => {
-            if let Some(previous) = previous_concrete_aibox_version(project_root) {
+            if let Some(previous) = previous_concrete_image_version(project_root) {
                 output::warn(&format!(
-                    "[aibox].version = \"latest\" but image version resolution failed: {}. \
-                     Reusing previously resolved aibox version {} from aibox.lock.",
+                    "[container.image].release_version = \"latest\" but image version resolution failed: {}. \
+                     Reusing previously generated image version {}.",
                     e, previous
                 ));
-                config.aibox.version = previous;
-                config.image.version = config.aibox.version.clone();
-                config.container.image.version = config.aibox.version.clone();
+                config.container.image.version = previous;
+                config.image.version = config.container.image.version.clone();
             } else {
                 let current = env!("CARGO_PKG_VERSION").to_string();
                 output::warn(&format!(
-                    "[aibox].version = \"latest\" but image version resolution failed: {}. \
+                    "[container.image].release_version = \"latest\" but image version resolution failed: {}. \
                      Falling back to the running CLI version {}.",
                     e, current
                 ));
-                config.aibox.version = current;
-                config.image.version = config.aibox.version.clone();
-                config.container.image.version = config.aibox.version.clone();
+                config.container.image.version = current;
+                config.image.version = config.container.image.version.clone();
             }
         }
     }
 }
 
-fn previous_concrete_aibox_version(project_root: &Path) -> Option<String> {
-    crate::lock::read_lock(project_root)
-        .ok()
-        .flatten()
-        .map(|lock| lock.aibox.cli_version)
-        .filter(|version| !version.is_empty() && version != "latest" && version != "unset")
+fn previous_concrete_image_version(project_root: &Path) -> Option<String> {
+    let dockerfile = project_root.join(crate::config::DOCKERFILE);
+    let content = std::fs::read_to_string(dockerfile).ok()?;
+    content.lines().find_map(|line| {
+        let (_, tag) = line.split_once("base-debian-v")?;
+        let version = tag
+            .split(|ch: char| !(ch.is_ascii_digit() || ch == '.'))
+            .next()
+            .unwrap_or_default();
+        (!version.is_empty() && version != "latest" && version != "unset")
+            .then(|| version.to_string())
+    })
 }
 
 /// Probe for a container runtime and build the project image.
@@ -3373,7 +3621,7 @@ fn warn_if_container_lags_image(runtime: &Runtime, config: &AiboxConfig) {
     let Ok(Some(container_version)) = runtime.get_container_image_version(name) else {
         return;
     };
-    if container_version == config.aibox.version {
+    if container_version == config.container.image.version {
         return;
     }
     output::warn(&format!(
@@ -3382,7 +3630,7 @@ fn warn_if_container_lags_image(runtime: &Runtime, config: &AiboxConfig) {
          \n        aibox delete runtime && aibox up\n    \
          \n    Existing in-flight work in the container (open editors, running processes) will be lost \
          on recreation; project files under /workspace are mounted from the host and survive.",
-        name, container_version, config.aibox.version
+        name, container_version, config.container.image.version
     ));
 }
 
@@ -3479,13 +3727,13 @@ mod tests {
         );
 
         let body = serialize_config_with_comments(&config);
-        assert!(body.contains("[ai.harness.claude]"));
-        assert!(body.contains("[ai.harness.codex]"));
+        assert!(body.contains("harnesses = ["));
+        assert!(body.contains("{ harness = \"claude\", enable = true, install = true }"));
+        assert!(body.contains(
+            "{ harness = \"codex\", enable = true, install = true, version = \"1.2.3\" }"
+        ));
         assert!(body.contains("version = \"1.2.3\""));
-        assert!(
-            !body.contains("harnesses = ["),
-            "generated config should use [ai.harness.<name>] tables instead of the legacy harnesses list"
-        );
+        assert!(!body.contains("[[ai.harnesses]]"));
         assert!(!body.contains("[addons.ai-claude.tools]"));
         assert!(!body.contains("[addons.ai-codex.tools]"));
     }

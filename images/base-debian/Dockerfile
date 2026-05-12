@@ -346,6 +346,11 @@ COPY config/tmux/powerkit-plugins/netspeed.sh   /usr/local/share/aibox/tmux/plug
 # context only and never runs live auth/network probes during render.
 COPY config/tmux/powerkit-plugins/kubernetes.sh /usr/local/share/aibox/tmux/plugins/tmux-powerkit/src/plugins/kubernetes.sh
 COPY config/tmux/powerkit-plugins/cloud.sh      /usr/local/share/aibox/tmux/plugins/tmux-powerkit/src/plugins/cloud.sh
+COPY config/tmux/powerkit-plugins/modelstatus_provider.sh /usr/local/share/aibox/tmux/plugins/tmux-powerkit/src/plugins/modelstatus_provider.sh
+RUN for provider in openai anthropic google mistral deepseek cohere xai alibaba aws meta microsoft minimax moonshot nvidia xiaomi zai; do \
+      cp /usr/local/share/aibox/tmux/plugins/tmux-powerkit/src/plugins/modelstatus_provider.sh \
+        "/usr/local/share/aibox/tmux/plugins/tmux-powerkit/src/plugins/modelstatus_${provider}.sh"; \
+    done
 COPY config/tmux/tmux.conf /home/aibox/.config/tmux/tmux.conf
 RUN ln -sf /home/aibox/.config/tmux/tmux.conf /home/aibox/.tmux.conf && \
     for plugin in /usr/local/share/aibox/tmux/plugins/*; do \
@@ -369,6 +374,7 @@ COPY --chmod=755 config/bin/aibox-preview.sh   /usr/local/bin/aibox-preview
 COPY --chmod=755 config/bin/vim-loop.sh       /usr/local/bin/vim-loop
 COPY --chmod=755 config/bin/pdf-watch.sh      /usr/local/bin/pdf-watch
 COPY --chmod=755 config/bin/aibox-log-viewer.sh /usr/local/bin/aibox-log-viewer
+COPY --chmod=755 config/bin/aibox-log-viewer-vim.sh /usr/local/bin/aibox-log-viewer-vim
 COPY --chmod=755 config/bin/aibox-status-toggle.sh /usr/local/bin/aibox-status-toggle
 COPY --chmod=755 config/bin/aibox-tmux-session.sh /usr/local/bin/aibox-tmux-session
 # xdg-open shim — headless containers have no browser, so any tool that
@@ -412,6 +418,11 @@ ENV UV_TOOL_BIN_DIR="/usr/local/bin" \
 # Root so the entrypoint can remap UID/GID if needed before dropping to aibox
 ENTRYPOINT ["/usr/local/bin/entrypoint.sh"]
 WORKDIR /workspace
+
+ARG AIBOX_IMAGE_SOURCE_SHA=unknown
+ARG AIBOX_IMAGE_BUILD_VERSION=unknown
+LABEL org.projectious-work.aibox.image-source-sha="${AIBOX_IMAGE_SOURCE_SHA}" \
+      org.projectious-work.aibox.image-build-version="${AIBOX_IMAGE_BUILD_VERSION}"
 
 # Keep the container alive — VS Code execs into it; tmux is launched via the terminal profile
 CMD ["sleep", "infinity"]

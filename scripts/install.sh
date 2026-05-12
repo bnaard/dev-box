@@ -136,6 +136,17 @@ check_existing() {
   fi
 }
 
+sha256_digest() {
+  local file="$1"
+  if command -v sha256sum >/dev/null 2>&1; then
+    sha256sum "${file}" | awk '{print $1}'
+  elif command -v shasum >/dev/null 2>&1; then
+    shasum -a 256 "${file}" | awk '{print $1}'
+  else
+    die "No SHA-256 tool found. Install sha256sum/coreutils or shasum."
+  fi
+}
+
 # ── Main ─────────────────────────────────────────────────────────────────────
 main() {
   local platform version install_dir tarball_name download_url tmpdir
@@ -171,7 +182,7 @@ main() {
     # The .sha256 file contains only the hex digest (no filename).
     # Reconstruct a sha256sum-compatible line: "<digest>  <filename>"
     expected_digest="$(cat "${tmpdir}/${tarball_name}.sha256" | tr -d '[:space:]')"
-    computed_digest="$(sha256sum "${tmpdir}/${tarball_name}" | awk '{print $1}')"
+    computed_digest="$(sha256_digest "${tmpdir}/${tarball_name}")"
     if [[ "${computed_digest}" != "${expected_digest}" ]]; then
       die "SHA-256 checksum mismatch for ${tarball_name}.
     Expected : ${expected_digest}

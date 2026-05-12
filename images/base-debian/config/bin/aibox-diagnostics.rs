@@ -277,9 +277,16 @@ impl RuntimeEventLogger {
 
         if let Some(previous) = &self.last_processkit_display {
             if previous != &snapshot.processkit_display {
+                let level = if snapshot.processkit_display == "none"
+                    || snapshot.processkit_display == "degraded"
+                {
+                    "WARN"
+                } else {
+                    "INFO"
+                };
                 self.emit(
                     snapshot,
-                    "WARN",
+                    level,
                     "runtime.mcp.changed",
                     &format!("mcp {} -> {}", previous, snapshot.processkit_display),
                 )?;

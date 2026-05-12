@@ -85,6 +85,7 @@ for target in "${TARGETS[@]}"; do
   cp "${CLI_DIR}/target/${target}/release/aibox" "${DIST_DIR}/${local_name}"
   tar -czf "${DIST_DIR}/${local_name}.tar.gz" -C "${DIST_DIR}" "${local_name}"
   rm "${DIST_DIR}/${local_name}"
+  shasum -a 256 "${DIST_DIR}/${local_name}.tar.gz" | awk '{print $1}' > "${DIST_DIR}/${local_name}.tar.gz.sha256"
   ok "Built ${local_name}.tar.gz"
 done
 
@@ -95,12 +96,13 @@ echo ""
 for target in "${TARGETS[@]}"; do
   local_name="aibox-${VERSION_TAG}${target}"
   echo "  ${DIST_DIR}/${local_name}.tar.gz"
+  echo "  ${DIST_DIR}/${local_name}.tar.gz.sha256"
 done
 echo ""
 
 if [[ -n "${VERSION}" ]]; then
   echo "To attach to an existing GitHub release:"
   echo ""
-  echo "  gh release upload v${VERSION} dist/aibox-v${VERSION}-*-apple-darwin.tar.gz"
+  echo "  gh release upload v${VERSION} dist/aibox-v${VERSION}-*-apple-darwin.tar.gz dist/aibox-v${VERSION}-*-apple-darwin.tar.gz.sha256"
   echo ""
 fi

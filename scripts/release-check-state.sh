@@ -70,6 +70,31 @@ dockerfile_arg() {
   grep -E "^ARG ${arg}=" "${file}" | head -n 1 | sed -E "s/^ARG ${arg}=//"
 }
 
+sha256_file() {
+  local file="$1"
+  if command -v sha256sum >/dev/null 2>&1; then
+    sha256sum "${file}" | awk '{print $1}'
+  else
+    shasum -a 256 "${file}" | awk '{print $1}'
+  fi
+}
+
+sha256_stdin() {
+  if command -v sha256sum >/dev/null 2>&1; then
+    sha256sum | awk '{print $1}'
+  else
+    shasum -a 256 | awk '{print $1}'
+  fi
+}
+
+image_source_sha() {
+  local image_dir="${PROJECT_ROOT}/images/base-debian"
+  while IFS= read -r file; do
+    local rel="${file#${PROJECT_ROOT}/}"
+    printf '%s  %s\n' "$(sha256_file "${file}")" "${rel}"
+  done < <(find "${image_dir}" -type f | LC_ALL=C sort) | sha256_stdin
+}
+
 check_github_pin() {
   local label="$1" file="$2" arg="$3" repo="$4"
   local current latest status
@@ -230,6 +255,10 @@ section "Base Image Tool Pins"
 line "| Tool | Current | Latest | Source | Status |"
 line "|---|---:|---:|---|---|"
 BASE_DOCKERFILE="${PROJECT_ROOT}/images/base-debian/Dockerfile"
+base_image_source_sha="$(image_source_sha)"
+line ""
+line "Source hash for release cache decisions: \`${base_image_source_sha}\`."
+line ""
 line "| tmux | \`Debian package\` | \`Debian security tracker\` | \`apt\` | managed through base image rebuilds |"
 check_github_pin "Yazi" "${BASE_DOCKERFILE}" "YAZI_VERSION" "sxyazi/yazi"
 check_github_pin "ripgrep" "${BASE_DOCKERFILE}" "RIPGREP_VERSION" "BurntSushi/ripgrep"

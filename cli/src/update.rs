@@ -135,15 +135,15 @@ fn check_updates(config: &AiboxConfig) -> Result<()> {
     }
 
     // --- Image version ---
-    let flavor = config.aibox.base.to_string();
+    let flavor = config.container.image.base.to_string();
     output::ok(&format!(
         "Current config image version: {} ({})",
-        config.aibox.version, flavor
+        config.container.image.version, flavor
     ));
 
     match fetch_latest_image_version(&flavor) {
         Ok(latest) => {
-            let current = semver::Version::parse(&config.aibox.version)
+            let current = semver::Version::parse(&config.container.image.version)
                 .unwrap_or_else(|_| semver::Version::new(0, 0, 0));
             if latest > current {
                 output::warn(&format!(
@@ -185,22 +185,30 @@ fn update_toml_version(toml_path: &Path, old_version: &str, new_version: &str) -
     let content =
         std::fs::read_to_string(toml_path).context("Failed to read aibox.toml for upgrade")?;
 
-    // Replace the version value in the [aibox] section.
-    // Match `version = "X.Y.Z"` pattern — only the first occurrence (in [aibox]).
-    let old_pattern = format!("version = \"{}\"", old_version);
-    let new_pattern = format!("version = \"{}\"", new_version);
-
-    if !content.contains(&old_pattern) {
-        anyhow::bail!(
-            "Could not find '{}' in aibox.toml — manual edit may be needed",
-            old_pattern
-        );
+    // Prefer the canonical [container.image] key, then fall back to the legacy
+    // [aibox].version spelling for old projects.
+    let candidates = [
+        (
+            format!("release_version = \"{}\"", old_version),
+            format!("release_version = \"{}\"", new_version),
+        ),
+        (
+            format!("version = \"{}\"", old_version),
+            format!("version = \"{}\"", new_version),
+        ),
+    ];
+    for (old_pattern, new_pattern) in candidates {
+        if content.contains(&old_pattern) {
+            let updated = content.replacen(&old_pattern, &new_pattern, 1);
+            std::fs::write(toml_path, updated).context("Failed to write updated aibox.toml")?;
+            return Ok(());
+        }
     }
 
-    let updated = content.replacen(&old_pattern, &new_pattern, 1);
-    std::fs::write(toml_path, updated).context("Failed to write updated aibox.toml")?;
-
-    Ok(())
+    anyhow::bail!(
+        "Could not find image version {} in aibox.toml — manual edit may be needed",
+        old_version
+    )
 }
 
 /// Shared helper: seed + generate.
@@ -232,8 +240,8 @@ fn ask_yes_no(question: &str, auto_yes: bool) -> bool {
 /// Perform the upgrade: fetch latest image version, update aibox.toml, regenerate files.
 fn do_upgrade(config_path: &Option<String>, dry_run: bool, global_yes: bool) -> Result<()> {
     let config = AiboxConfig::from_cli_option(config_path)?;
-    let flavor = config.aibox.base.to_string();
-    let current_version = &config.aibox.version;
+    let flavor = config.container.image.base.to_string();
+    let current_version = &config.container.image.version;
 
     output::info(&format!(
         "Current image version: {} ({})",

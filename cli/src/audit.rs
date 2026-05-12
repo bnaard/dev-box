@@ -75,7 +75,7 @@ fn check_trivy(config: &Option<AiboxConfig>) -> Result<()> {
 
     let image = format!(
         "ghcr.io/projectious-work/aibox/{}:latest",
-        config.aibox.base
+        config.container.image.base
     );
 
     output::info(&format!("Running trivy image scan on {}...", image));

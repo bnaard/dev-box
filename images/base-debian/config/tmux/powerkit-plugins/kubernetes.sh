@@ -22,7 +22,7 @@ plugin_declare_options() {
     declare_option "warn_on_prod" "bool" "true" "Show warning health when in production context"
     declare_option "prod_keywords" "string" "prod,production,prd" "Comma-separated production keywords"
     declare_option "icon" "icon" $'\U000F10FE' "Plugin icon"
-    declare_option "cache_ttl" "number" "30" "Cache duration in seconds"
+    declare_option "cache_ttl" "number" "120" "Cache duration in seconds"
 }
 
 plugin_get_content_type() { printf 'dynamic'; }

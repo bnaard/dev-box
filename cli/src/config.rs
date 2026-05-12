@@ -657,6 +657,41 @@ pub struct AiHarnessConfig {
 /// are available (API keys and optional base URLs).
 /// Legacy `providers` field is accepted for backward compatibility.
 #[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(untagged)]
+enum AiHarnessListEntry {
+    Legacy(AiHarness),
+    Detailed {
+        harness: AiHarness,
+        #[serde(default, alias = "enable")]
+        enabled: Option<bool>,
+        #[serde(default)]
+        install: Option<bool>,
+        #[serde(default)]
+        version: Option<String>,
+    },
+}
+
+/// Raw serde shape for `[ai]`. `harnesses` accepts both the legacy
+/// `["codex"]` list and the canonical ordered list of dictionaries.
+#[derive(Debug, Clone, Deserialize, Default)]
+struct RawAiSection {
+    #[serde(default)]
+    harnesses: Vec<AiHarnessListEntry>,
+    #[serde(default)]
+    harness_order: Vec<AiHarness>,
+    #[serde(default)]
+    model_providers: Vec<AiModelProvider>,
+    #[serde(default)]
+    harness: HashMap<AiHarness, AiHarnessConfig>,
+    #[serde(default)]
+    providers: Vec<AiHarness>,
+    #[serde(default)]
+    agents: AgentsSection,
+    #[serde(default)]
+    mcp: McpSection,
+}
+
+#[derive(Debug, Clone, Serialize)]
 pub struct AiSection {
     /// Which AI coding tools to install (determines addons, volumes, MCP config).
     /// Serde default is empty; `migrate_legacy()` applies the real default
@@ -693,6 +728,58 @@ pub struct AiSection {
     /// this as `[ai.mcp]`; legacy top-level `[mcp]` is migrated in.
     #[serde(default)]
     pub mcp: McpSection,
+}
+
+impl<'de> Deserialize<'de> for AiSection {
+    fn deserialize<D>(deserializer: D) -> std::result::Result<Self, D::Error>
+    where
+        D: Deserializer<'de>,
+    {
+        let raw = RawAiSection::deserialize(deserializer)?;
+        let mut harnesses = Vec::new();
+        let mut harness_config = raw.harness;
+
+        for entry in raw.harnesses {
+            match entry {
+                AiHarnessListEntry::Legacy(harness) => {
+                    if !harnesses.contains(&harness) {
+                        harnesses.push(harness);
+                    }
+                }
+                AiHarnessListEntry::Detailed {
+                    harness,
+                    enabled,
+                    install,
+                    version,
+                } => {
+                    let enabled = enabled.unwrap_or(false);
+                    let install = install.unwrap_or(false);
+                    let version = version.filter(|value| !value.is_empty());
+                    harness_config.insert(
+                        harness.clone(),
+                        AiHarnessConfig {
+                            enabled: Some(enabled),
+                            install: Some(install),
+                            version,
+                        },
+                    );
+                    if enabled && !harnesses.contains(&harness) {
+                        harnesses.push(harness);
+                    }
+                }
+            }
+        }
+
+        Ok(Self {
+            harnesses,
+            harness_order: raw.harness_order,
+            model_providers: raw.model_providers,
+            harness: harness_config,
+            providers: raw.providers,
+            agents: raw.agents,
+            mcp: raw.mcp,
+        })
+    }
 }
 
 impl AiSection {
@@ -1264,6 +1351,328 @@ pub struct TmuxStatusLayoutSection {
     pub line2_right: Option<Vec<String>>,
 }
 
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+#[serde(rename_all = "kebab-case")]
+pub struct TmuxStatusLabelsSection {
+    #[serde(default = "default_status_label_aibox_log")]
+    pub aibox_log: String,
+    #[serde(default = "default_status_label_aibox_oom")]
+    pub aibox_oom: String,
+    #[serde(default = "default_status_label_aibox_proc")]
+    pub aibox_proc: String,
+    #[serde(default = "default_status_label_aibox_ai")]
+    pub aibox_ai: String,
+    #[serde(default = "default_status_label_aibox_mcp")]
+    pub aibox_mcp: String,
+    #[serde(default = "default_status_label_aibox_mig")]
+    pub aibox_mig: String,
+    #[serde(default = "default_status_label_kubernetes")]
+    pub kubernetes: String,
+    #[serde(default = "default_status_label_cloud")]
+    pub cloud: String,
+    #[serde(default = "default_status_label_cloud_aws")]
+    pub cloud_aws: String,
+    #[serde(default = "default_status_label_cloud_gcp")]
+    pub cloud_gcp: String,
+    #[serde(default = "default_status_label_cloud_azure")]
+    pub cloud_azure: String,
+    #[serde(default = "default_status_label_cloud_multi")]
+    pub cloud_multi: String,
+    #[serde(default = "default_status_label_uptime")]
+    pub uptime: String,
+    #[serde(default = "default_status_label_netspeed")]
+    pub netspeed: String,
+    #[serde(default = "default_status_label_netspeed_download")]
+    pub netspeed_download: String,
+    #[serde(default = "default_status_label_netspeed_upload")]
+    pub netspeed_upload: String,
+}
+
+fn default_status_label_aibox_log() -> String {
+    "LOG".to_string()
+}
+
+fn default_status_label_aibox_oom() -> String {
+    "OOM".to_string()
+}
+
+fn default_status_label_aibox_proc() -> String {
+    "PROC".to_string()
+}
+
+fn default_status_label_aibox_ai() -> String {
+    "AI".to_string()
+}
+
+fn default_status_label_aibox_mcp() -> String {
+    "MCP".to_string()
+}
+
+fn default_status_label_aibox_mig() -> String {
+    "MIG".to_string()
+}
+
+fn default_status_label_kubernetes() -> String {
+    "\u{f10fe}".to_string()
+}
+
+fn default_status_label_cloud() -> String {
+    "\u{f0163}".to_string()
+}
+
+fn default_status_label_cloud_aws() -> String {
+    "\u{f0e0f}".to_string()
+}
+
+fn default_status_label_cloud_gcp() -> String {
+    "\u{f0b20}".to_string()
+}
+
+fn default_status_label_cloud_azure() -> String {
+    "\u{f0805}".to_string()
+}
+
+fn default_status_label_cloud_multi() -> String {
+    "\u{f0164}".to_string()
+}
+
+fn default_status_label_uptime() -> String {
+    "\u{f254}".to_string()
+}
+
+fn default_status_label_netspeed() -> String {
+    "\u{f0b5}".to_string()
+}
+
+fn default_status_label_netspeed_download() -> String {
+    "\u{f01da}".to_string()
+}
+
+fn default_status_label_netspeed_upload() -> String {
+    "\u{f0552}".to_string()
+}
+
+impl Default for TmuxStatusLabelsSection {
+    fn default() -> Self {
+        Self {
+            aibox_log: default_status_label_aibox_log(),
+            aibox_oom: default_status_label_aibox_oom(),
+            aibox_proc: default_status_label_aibox_proc(),
+            aibox_ai: default_status_label_aibox_ai(),
+            aibox_mcp: default_status_label_aibox_mcp(),
+            aibox_mig: default_status_label_aibox_mig(),
+            kubernetes: default_status_label_kubernetes(),
+            cloud: default_status_label_cloud(),
+            cloud_aws: default_status_label_cloud_aws(),
+            cloud_gcp: default_status_label_cloud_gcp(),
+            cloud_azure: default_status_label_cloud_azure(),
+            cloud_multi: default_status_label_cloud_multi(),
+            uptime: default_status_label_uptime(),
+            netspeed: default_status_label_netspeed(),
+            netspeed_download: default_status_label_netspeed_download(),
+            netspeed_upload: default_status_label_netspeed_upload(),
+        }
+    }
+}
+
+fn default_tmux_status_refresh_interval_seconds() -> u32 {
+    10
+}
+
+fn default_tmux_status_aibox_metrics_cache_ttl_seconds() -> u32 {
+    30
+}
+
+fn default_tmux_status_netspeed_cache_ttl_seconds() -> u32 {
+    10
+}
+
+fn default_tmux_status_kubernetes_cache_ttl_seconds() -> u32 {
+    120
+}
+
+fn default_tmux_status_cloud_cache_ttl_seconds() -> u32 {
+    120
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+#[serde(rename_all = "kebab-case")]
+pub struct TmuxStatusRefreshSection {
+    #[serde(default = "default_tmux_status_refresh_interval_seconds")]
+    pub interval_seconds: u32,
+    #[serde(default = "default_tmux_status_aibox_metrics_cache_ttl_seconds")]
+    pub aibox_metrics_cache_ttl_seconds: u32,
+    #[serde(default = "default_tmux_status_netspeed_cache_ttl_seconds")]
+    pub netspeed_cache_ttl_seconds: u32,
+    #[serde(default = "default_tmux_status_kubernetes_cache_ttl_seconds")]
+    pub kubernetes_cache_ttl_seconds: u32,
+    #[serde(default = "default_tmux_status_cloud_cache_ttl_seconds")]
+    pub cloud_cache_ttl_seconds: u32,
+}
+
+impl Default for TmuxStatusRefreshSection {
+    fn default() -> Self {
+        Self {
+            interval_seconds: default_tmux_status_refresh_interval_seconds(),
+            aibox_metrics_cache_ttl_seconds: default_tmux_status_aibox_metrics_cache_ttl_seconds(),
+            netspeed_cache_ttl_seconds: default_tmux_status_netspeed_cache_ttl_seconds(),
+            kubernetes_cache_ttl_seconds: default_tmux_status_kubernetes_cache_ttl_seconds(),
+            cloud_cache_ttl_seconds: default_tmux_status_cloud_cache_ttl_seconds(),
+        }
+    }
+}
+
+fn default_model_provider_status_cache_ttl_seconds() -> u32 {
+    300
+}
+
+fn default_model_provider_status_timeout_seconds() -> u32 {
+    3
+}
+
+fn default_model_provider_status_checks() -> Vec<String> {
+    vec![
+        "overall".to_string(),
+        "models".to_string(),
+        "harness".to_string(),
+    ]
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+#[serde(rename_all = "kebab-case")]
+pub struct TmuxStatusModelProviderStatusProvider {
+    pub provider: String,
+    pub label: String,
+    #[serde(default = "default_model_provider_status_checks")]
+    pub checks: Vec<String>,
+    #[serde(default)]
+    pub status_url: Option<String>,
+    #[serde(default)]
+    pub overall_components: Vec<String>,
+    #[serde(default)]
+    pub model_components: Vec<String>,
+    #[serde(default)]
+    pub harness_components: Vec<String>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+#[serde(rename_all = "kebab-case")]
+pub struct TmuxStatusModelProviderStatusSection {
+    #[serde(default = "bool_false")]
+    pub enabled: bool,
+    #[serde(default = "default_model_provider_status_cache_ttl_seconds")]
+    pub cache_ttl_seconds: u32,
+    #[serde(default = "default_model_provider_status_timeout_seconds")]
+    pub timeout_seconds: u32,
+    #[serde(default = "bool_true")]
+    pub show_ok: bool,
+    #[serde(default = "default_model_provider_status_providers")]
+    pub providers: Vec<TmuxStatusModelProviderStatusProvider>,
+}
+
+pub fn default_model_provider_status_providers() -> Vec<TmuxStatusModelProviderStatusProvider> {
+    fn provider(
+        provider: &str,
+        label: &str,
+        status_url: Option<&str>,
+        checks: &[&str],
+        model_components: &[&str],
+        harness_components: &[&str],
+    ) -> TmuxStatusModelProviderStatusProvider {
+        TmuxStatusModelProviderStatusProvider {
+            provider: provider.to_string(),
+            label: label.to_string(),
+            checks: checks.iter().map(|s| (*s).to_string()).collect(),
+            status_url: status_url.map(str::to_string),
+            overall_components: Vec::new(),
+            model_components: model_components.iter().map(|s| (*s).to_string()).collect(),
+            harness_components: harness_components
+                .iter()
+                .map(|s| (*s).to_string())
+                .collect(),
+        }
+    }
+
+    vec![
+        provider(
+            "openai",
+            "OAI",
+            Some("https://status.openai.com/api/v2/summary.json"),
+            &["overall", "models", "harness"],
+            &[
+                "Responses",
+                "Chat Completions",
+                "Embeddings",
+                "Realtime",
+                "Images",
+            ],
+            &["CLI", "Codex API", "Codex Web"],
+        ),
+        provider(
+            "anthropic",
+            "ANT",
+            Some("https://status.claude.com/api/v2/summary.json"),
+            &["overall", "models", "harness"],
+            &["Claude API"],
+            &["Claude Code"],
+        ),
+        provider(
+            "google",
+            "GOOG",
+            Some("https://status.cloud.google.com/incidents.json"),
+            &["overall", "models"],
+            &[],
+            &[],
+        ),
+        provider(
+            "mistral",
+            "MST",
+            Some("https://status.mistral.ai/api/v2/summary.json"),
+            &["overall", "models"],
+            &[],
+            &[],
+        ),
+        provider(
+            "deepseek",
+            "DS",
+            Some("https://status.deepseek.com/api/v2/summary.json"),
+            &["overall", "models"],
+            &[],
+            &[],
+        ),
+        provider(
+            "cohere",
+            "COH",
+            Some("https://status.cohere.com/api/v2/summary.json"),
+            &["overall", "models"],
+            &[],
+            &[],
+        ),
+        provider("xai", "XAI", None, &["overall", "models"], &[], &[]),
+        provider("alibaba", "QWN", None, &["overall", "models"], &[], &[]),
+        provider("aws", "AWS", None, &["overall", "models"], &[], &[]),
+        provider("meta", "META", None, &["overall", "models"], &[], &[]),
+        provider("microsoft", "MS", None, &["overall", "models"], &[], &[]),
+        provider("minimax", "MM", None, &["overall", "models"], &[], &[]),
+        provider("moonshot", "KIMI", None, &["overall", "models"], &[], &[]),
+        provider("nvidia", "NV", None, &["overall", "models"], &[], &[]),
+        provider("xiaomi", "MI", None, &["overall", "models"], &[], &[]),
+        provider("zai", "ZAI", None, &["overall", "models"], &[], &[]),
+    ]
+}
+
+impl Default for TmuxStatusModelProviderStatusSection {
+    fn default() -> Self {
+        Self {
+            enabled: false,
+            cache_ttl_seconds: default_model_provider_status_cache_ttl_seconds(),
+            timeout_seconds: default_model_provider_status_timeout_seconds(),
+            show_ok: true,
+            providers: default_model_provider_status_providers(),
+        }
+    }
+}
+
 /// [customization.tmux.status] section.
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 pub struct TmuxStatusSection {
@@ -1273,6 +1682,12 @@ pub struct TmuxStatusSection {
     pub elements: TmuxStatusElementsSection,
     #[serde(default)]
     pub layout: TmuxStatusLayoutSection,
+    #[serde(default)]
+    pub labels: TmuxStatusLabelsSection,
+    #[serde(default)]
+    pub refresh: TmuxStatusRefreshSection,
+    #[serde(default)]
+    pub model_providers: TmuxStatusModelProviderStatusSection,
 }
 
 impl Default for TmuxStatusSection {
@@ -1281,6 +1696,9 @@ impl Default for TmuxStatusSection {
             mode: default_tmux_status_mode(),
             elements: TmuxStatusElementsSection::default(),
             layout: TmuxStatusLayoutSection::default(),
+            labels: TmuxStatusLabelsSection::default(),
+            refresh: TmuxStatusRefreshSection::default(),
+            model_providers: TmuxStatusModelProviderStatusSection::default(),
         }
     }
 }
@@ -2083,7 +2501,6 @@ impl AiboxConfig {
         }
 
         self.image = self.container.image.clone();
-        self.aibox.version = self.container.image.version.clone();
         self.aibox.base = self.container.image.base.clone();
 
         if self.metadata.name.is_empty() {
@@ -2435,12 +2852,12 @@ impl AiboxConfig {
             )
         })?;
 
-        // Validate version is valid semver (allow "latest" sentinel)
-        if self.aibox.version != "latest" {
-            semver::Version::parse(&self.aibox.version).with_context(|| {
+        // Validate published image version is valid semver (allow "latest" sentinel)
+        if self.container.image.version != "latest" {
+            semver::Version::parse(&self.container.image.version).with_context(|| {
                 format!(
-                    "Invalid version '{}': must be valid semver",
-                    self.aibox.version
+                    "Invalid container.image.release_version '{}': must be valid semver",
+                    self.container.image.version
                 )
             })?;
         }
@@ -2551,6 +2968,9 @@ impl AiboxConfig {
         self.validate_extra_volumes()?;
         self.validate_container_paths()?;
         self.validate_tmux_status_layout()?;
+        self.validate_tmux_status_labels()?;
+        self.validate_tmux_status_refresh()?;
+        self.validate_tmux_model_provider_status()?;
 
         Ok(())
     }
@@ -2585,6 +3005,24 @@ impl AiboxConfig {
             "disk",
             "gpu",
         ];
+        const MODEL_PROVIDER_PLUGINS: &[&str] = &[
+            "modelstatus_openai",
+            "modelstatus_anthropic",
+            "modelstatus_google",
+            "modelstatus_mistral",
+            "modelstatus_deepseek",
+            "modelstatus_cohere",
+            "modelstatus_xai",
+            "modelstatus_alibaba",
+            "modelstatus_aws",
+            "modelstatus_meta",
+            "modelstatus_microsoft",
+            "modelstatus_minimax",
+            "modelstatus_moonshot",
+            "modelstatus_nvidia",
+            "modelstatus_xiaomi",
+            "modelstatus_zai",
+        ];
 
         fn validate_list(
             field: &str,
@@ -2615,10 +3053,135 @@ impl AiboxConfig {
         }
 
         let layout = &self.customization.tmux.status.layout;
+        let mut powerkit_plugins = POWERKIT_PLUGINS.to_vec();
+        powerkit_plugins.extend(MODEL_PROVIDER_PLUGINS);
         validate_list("line1-left", &layout.line1_left, LINE1_LEFT)?;
-        validate_list("line1-right", &layout.line1_right, POWERKIT_PLUGINS)?;
-        validate_list("line2-left", &layout.line2_left, POWERKIT_PLUGINS)?;
-        validate_list("line2-right", &layout.line2_right, POWERKIT_PLUGINS)?;
+        validate_list("line1-right", &layout.line1_right, &powerkit_plugins)?;
+        validate_list("line2-left", &layout.line2_left, &powerkit_plugins)?;
+        validate_list("line2-right", &layout.line2_right, &powerkit_plugins)?;
+        Ok(())
+    }
+
+    fn validate_tmux_status_labels(&self) -> Result<()> {
+        let labels = &self.customization.tmux.status.labels;
+        for (field, value) in [
+            ("aibox-log", &labels.aibox_log),
+            ("aibox-oom", &labels.aibox_oom),
+            ("aibox-proc", &labels.aibox_proc),
+            ("aibox-ai", &labels.aibox_ai),
+            ("aibox-mcp", &labels.aibox_mcp),
+            ("aibox-mig", &labels.aibox_mig),
+            ("kubernetes", &labels.kubernetes),
+            ("cloud", &labels.cloud),
+            ("cloud-aws", &labels.cloud_aws),
+            ("cloud-gcp", &labels.cloud_gcp),
+            ("cloud-azure", &labels.cloud_azure),
+            ("cloud-multi", &labels.cloud_multi),
+            ("uptime", &labels.uptime),
+            ("netspeed", &labels.netspeed),
+            ("netspeed-download", &labels.netspeed_download),
+            ("netspeed-upload", &labels.netspeed_upload),
+        ] {
+            if value.trim().is_empty() {
+                bail!("customization.tmux.status.labels.{field} cannot be empty");
+            }
+        }
+        Ok(())
+    }
+
+    fn validate_tmux_status_refresh(&self) -> Result<()> {
+        let refresh = &self.customization.tmux.status.refresh;
+        for (field, value, min, max) in [
+            ("interval-seconds", refresh.interval_seconds, 1, 3600),
+            (
+                "aibox-metrics-cache-ttl-seconds",
+                refresh.aibox_metrics_cache_ttl_seconds,
+                1,
+                3600,
+            ),
+            (
+                "netspeed-cache-ttl-seconds",
+                refresh.netspeed_cache_ttl_seconds,
+                1,
+                3600,
+            ),
+            (
+                "kubernetes-cache-ttl-seconds",
+                refresh.kubernetes_cache_ttl_seconds,
+                1,
+                3600,
+            ),
+            (
+                "cloud-cache-ttl-seconds",
+                refresh.cloud_cache_ttl_seconds,
+                1,
+                3600,
+            ),
+        ] {
+            if value < min || value > max {
+                bail!(
+                    "customization.tmux.status.refresh.{field} must be between {min} and {max} seconds"
+                );
+            }
+        }
+        Ok(())
+    }
+
+    fn validate_tmux_model_provider_status(&self) -> Result<()> {
+        const PROVIDERS: &[&str] = &[
+            "openai",
+            "anthropic",
+            "google",
+            "mistral",
+            "deepseek",
+            "cohere",
+            "xai",
+            "alibaba",
+            "aws",
+            "meta",
+            "microsoft",
+            "minimax",
+            "moonshot",
+            "nvidia",
+            "xiaomi",
+            "zai",
+        ];
+        const CHECKS: &[&str] = &["overall", "models", "harness"];
+
+        let providers: BTreeSet<&str> = PROVIDERS.iter().copied().collect();
+        let checks: BTreeSet<&str> = CHECKS.iter().copied().collect();
+        let mut seen = BTreeSet::new();
+        for provider in &self.customization.tmux.status.model_providers.providers {
+            if !providers.contains(provider.provider.as_str()) {
+                bail!(
+                    "customization.tmux.status.model-providers provider '{}' is unknown; supported providers: {}",
+                    provider.provider,
+                    providers.iter().copied().collect::<Vec<_>>().join(", ")
+                );
+            }
+            if !seen.insert(provider.provider.as_str()) {
+                bail!(
+                    "customization.tmux.status.model-providers contains duplicate provider '{}'",
+                    provider.provider
+                );
+            }
+            if provider.label.trim().is_empty() {
+                bail!(
+                    "customization.tmux.status.model-providers provider '{}' has an empty label",
+                    provider.provider
+                );
+            }
+            for check in &provider.checks {
+                if !checks.contains(check.as_str()) {
+                    bail!(
+                        "customization.tmux.status.model-providers provider '{}' contains unknown check '{}'; supported checks: {}",
+                        provider.provider,
+                        check,
+                        checks.iter().copied().collect::<Vec<_>>().join(", ")
+                    );
+                }
+            }
+        }
         Ok(())
     }
 
@@ -2947,8 +3510,93 @@ fn check_customization_table(
             mismatches,
         );
         if let Some(tmux) = table_child(customization, "tmux") {
-            check_child_table(tmux, "status", &["mode", "elements", "layout"], mismatches);
+            check_child_table(
+                tmux,
+                "status",
+                &[
+                    "mode",
+                    "elements",
+                    "layout",
+                    "labels",
+                    "refresh",
+                    "model-providers",
+                ],
+                mismatches,
+            );
             if let Some(status) = table_child(tmux, "status") {
+                check_child_table(
+                    status,
+                    "labels",
+                    &[
+                        "aibox-log",
+                        "aibox-oom",
+                        "aibox-proc",
+                        "aibox-ai",
+                        "aibox-mcp",
+                        "aibox-mig",
+                        "kubernetes",
+                        "cloud",
+                        "cloud-aws",
+                        "cloud-gcp",
+                        "cloud-azure",
+                        "cloud-multi",
+                        "uptime",
+                        "netspeed",
+                        "netspeed-download",
+                        "netspeed-upload",
+                    ],
+                    mismatches,
+                );
+                check_child_table(
+                    status,
+                    "refresh",
+                    &[
+                        "interval-seconds",
+                        "aibox-metrics-cache-ttl-seconds",
+                        "netspeed-cache-ttl-seconds",
+                        "kubernetes-cache-ttl-seconds",
+                        "cloud-cache-ttl-seconds",
+                    ],
+                    mismatches,
+                );
+                check_child_table(
+                    status,
+                    "model-providers",
+                    &[
+                        "enabled",
+                        "cache-ttl-seconds",
+                        "timeout-seconds",
+                        "show-ok",
+                        "providers",
+                    ],
+                    mismatches,
+                );
+                if let Some(model_providers) = table_child(status, "model-providers")
+                    && let Some(entries) = model_providers
+                        .get("providers")
+                        .and_then(toml::Value::as_array)
+                {
+                    for (index, entry) in entries.iter().enumerate() {
+                        if let Some(table) = entry.as_table() {
+                            check_unknown_keys(
+                                &format!(
+                                    "[[customization.tmux.status.model-providers.providers]][{index}]"
+                                ),
+                                table,
+                                &[
+                                    "provider",
+                                    "label",
+                                    "checks",
+                                    "status-url",
+                                    "overall-components",
+                                    "model-components",
+                                    "harness-components",
+                                ],
+                                mismatches,
+                            );
+                        }
+                    }
+                }
                 check_child_table(
                     status,
                     "layout",
@@ -3438,7 +4086,8 @@ mode = "{mode}"
         assert_eq!(config.kind, "Workspace");
         assert_eq!(config.metadata.name, "my-project");
         assert_eq!(config.image.version, "0.23.8");
-        assert_eq!(config.aibox.version, "0.23.8");
+        assert_eq!(config.container.image.version, "0.23.8");
+        assert_eq!(config.aibox.version, "latest");
         assert_eq!(config.aibox.base, BaseImage::Debian);
     }
 
@@ -4563,6 +5212,53 @@ pulse_server = "tcp:localhost:4714"
             config.ai.harnesses,
             vec![AiProvider::Codex, AiProvider::Claude, AiProvider::Gemini]
         );
+    }
+
+    #[test]
+    fn ai_harness_entries_are_ordered_and_split_enable_from_install() {
+        let toml = r#"
+            [aibox]
+            version = "0.9.0"
+            [container]
+            name = "test"
+            [ai]
+            [[ai.harnesses]]
+            harness = "codex"
+            enable = true
+            install = false
+            [[ai.harnesses]]
+            harness = "claude"
+            enable = false
+            install = true
+            [[ai.harnesses]]
+            harness = "gemini"
+            enable = true
+            install = true
+        "#;
+        let config = AiboxConfig::from_str(toml).unwrap();
+        assert_eq!(
+            config.ai.harnesses,
+            vec![AiProvider::Codex, AiProvider::Gemini]
+        );
+        assert!(!config.addons.has_addon("ai-codex"));
+        assert!(!config.addons.has_addon("ai-claude"));
+        assert!(config.addons.has_addon("ai-gemini"));
+    }
+
+    #[test]
+    fn ai_harness_entries_default_enable_and_install_to_false() {
+        let toml = r#"
+            [aibox]
+            version = "0.9.0"
+            [container]
+            name = "test"
+            [ai]
+            [[ai.harnesses]]
+            harness = "codex"
+        "#;
+        let config = AiboxConfig::from_str(toml).unwrap();
+        assert!(config.ai.harnesses.is_empty());
+        assert!(!config.addons.has_addon("ai-codex"));
     }
 
     #[test]

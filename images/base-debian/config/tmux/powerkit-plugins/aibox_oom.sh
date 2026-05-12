@@ -16,7 +16,8 @@ plugin_get_metadata() {
 }
 
 plugin_declare_options() {
-    declare_option "cache_ttl" "number" "5" "Cache duration in seconds"
+    declare_option "label" "string" "OOM" "Segment label"
+    declare_option "cache_ttl" "number" "30" "Cache duration in seconds"
 }
 
 json_value() {
@@ -46,7 +47,7 @@ plugin_get_health() {
 }
 
 plugin_get_context() { printf 'runtime'; }
-plugin_get_icon()    { printf 'OOM'; }
+plugin_get_icon()    { get_option "label"; }
 
 plugin_render() {
     printf '%s/%s' \

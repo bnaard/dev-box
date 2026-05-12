@@ -2196,7 +2196,7 @@ name = "project-x"
         assert!(!after.contains("base = \"debian\"\nprofile"));
 
         let parsed = crate::config::AiboxConfig::from_str(&after).unwrap();
-        assert_eq!(parsed.aibox.version, "0.23.8");
+        assert_eq!(parsed.container.image.version, "0.23.8");
         assert_eq!(
             parsed.aibox.profile,
             crate::config::AiboxProfile::HeadlessRunner
@@ -2497,11 +2497,11 @@ layout = "ai"
         assert!(after.contains("# aibox.toml — single source of truth"));
         assert!(after.contains("theme  = \"nord\""));
         assert!(!after.contains("theme  = \"dracula\""));
-        assert!(after.contains("# [ai.harness.claude]"));
+        assert!(after.contains("#   { harness = \"claude\", enable = true, install = true },"));
         assert!(!after.contains("\n[ai.harness.claude]\n"));
-        assert!(after.contains("[ai.harness.codex]"));
-        assert!(after.contains("enabled = true"));
-        assert!(!after.contains("harnesses = ["));
+        assert!(after.contains("harnesses = ["));
+        assert!(after.contains("{ harness = \"codex\", enable = true, install = true }"));
+        assert!(!after.contains("[[ai.harnesses]]"));
         assert!(!after.contains("packages = [\"product\"]"));
         assert!(!after.to_ascii_lowercase().contains("deprecated"));
         assert!(after.contains("    \"actor-profile\", # processkit;"));

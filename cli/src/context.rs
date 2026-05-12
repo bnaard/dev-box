@@ -101,7 +101,7 @@ pub(crate) fn build_substitution_map(config: &AiboxConfig) -> HashMap<&'static s
     m.insert("AIBOX_VERSION", env!("CARGO_PKG_VERSION").to_string());
 
     // 5. AIBOX_BASE — base image flavor (currently always "debian").
-    m.insert("AIBOX_BASE", config.aibox.base.to_string());
+    m.insert("AIBOX_BASE", config.container.image.base.to_string());
 
     // 6. PROCESSKIT_SOURCE — full URL of the configured upstream.
     m.insert("PROCESSKIT_SOURCE", config.processkit.source.clone());

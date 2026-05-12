@@ -16,8 +16,6 @@
 
 {% endfor %}
 FROM {{ registry }}:{{ image }}-v{{ version }} AS aibox
-LABEL aibox.version="{{ version }}"
-LABEL aibox.profile="{{ profile }}"
 
 ENV SHELL=/bin/bash
 ENV UV_CACHE_DIR=/tmp/aibox/uv-cache
@@ -37,4 +35,6 @@ RUN mkdir -p /home/aibox/.cache/starship /home/aibox/.cache/uv /home/aibox/.tmux
 
 # Record image version inside container for runtime checks
 USER root
+LABEL aibox.version="{{ version }}"
+LABEL aibox.profile="{{ profile }}"
 RUN echo "{{ version }}" > /etc/aibox-version

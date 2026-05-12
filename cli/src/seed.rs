@@ -588,9 +588,10 @@ tmp="${TMPDIR:-/tmp}/aibox-copy.$$"
 trap 'rm -f "$tmp"' EXIT
 cat >"$tmp"
 
+loaded_tmux=0
 if [[ -n "${TMUX:-}" ]] && command -v tmux >/dev/null 2>&1; then
     if tmux load-buffer -w "$tmp" >/dev/null 2>&1; then
-        exit 0
+        loaded_tmux=1
     fi
 fi
 
@@ -609,6 +610,10 @@ else
     if [[ -t 1 ]]; then
         printf '\033]52;c;%s\a' "$encoded" >/dev/tty
     fi
+fi
+
+if [[ "$loaded_tmux" == "1" ]]; then
+    exit 0
 fi
 "#;
 

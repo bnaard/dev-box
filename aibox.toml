@@ -374,8 +374,8 @@ lazygit = { enabled = false } # default on; options: {}, { enabled = true|false 
 # OpenCode                    opencode       any (multi-provider)
 # Hermes                      hermes         any (multi-provider)
 #
-# Enable harnesses through their [ai.harness.<name>] table below.
-# `harness_order` controls tmux layout semantics: 1st, 2nd, 3rd harness.
+# Harnesses are configured by the ordered `harnesses` list below.
+# Each one-line entry is directly uncommentable; list order is tmux/layout order.
 #
 # Model providers (optional): declare which API key/base URL env vars are available.
 # Provider     Config value   API key env         Base URL env
@@ -387,8 +387,6 @@ lazygit = { enabled = false } # default on; options: {}, { enabled = true|false 
 # Alias used by some tools: OPENAI_API_BASE (OpenAI).
 [ai]
 
-harness_order = ["codex"]  # tmux: 1st, 2nd, 3rd harness placement order
-
 model_providers = [
 #     "anthropic", # env: ANTHROPIC_API_KEY, ANTHROPIC_BASE_URL
 #     "openai", # env: OPENAI_API_KEY, OPENAI_BASE_URL
@@ -396,53 +394,25 @@ model_providers = [
 #     "mistral", # env: MISTRAL_API_KEY, MISTRAL_BASE_URL
 ]
 
-# Per-harness install controls. `enabled` participates in generated
-# agent/MCP config; `install` selects the in-container CLI recipe.
-
-# [ai.harness.claude]
-# enabled = true
-# install = true
-# version = "latest"
-
-[ai.harness.codex]
-enabled = true
-install = true
-# version = "latest"
-
-# [ai.harness.gemini]
-# enabled = true
-# install = true
-# version = "latest"
-
-# [ai.harness.aider]
-# enabled = true
-# install = true
-# version = "latest"
-
-# [ai.harness.continue]
-# enabled = true
-# install = true
-# version = "latest"
-
-# [ai.harness.cursor]
-# enabled = true
-# install = false
-# version = "latest"
-
-# [ai.harness.copilot]
-# enabled = true
-# install = true
-# version = "latest"
-
-# [ai.harness.opencode]
-# enabled = true
-# install = true
-# version = "latest"
-
-# [ai.harness.hermes]
-# enabled = true
-# install = true
-# version = "latest"
+# Ordered harness list. Supported harness values:
+# claude, codex, gemini, aider, continue, cursor, copilot, opencode, hermes.
+# Each one-line entry is directly uncommentable; list order is tmux/layout order.
+# `enable = true` includes the harness in generated agent/MCP/runtime config.
+# `install = true` installs the matching in-container CLI recipe when one exists.
+# Defaults for both are false when omitted. Cursor has no container CLI, so
+# keep `install = false` for cursor even when `enable = true`.
+# `version` optionally pins the CLI recipe; omit it to use the addon default.
+harnesses = [
+#   { harness = "claude", enable = true, install = true },
+    { harness = "codex", enable = true, install = true },
+#   { harness = "gemini", enable = true, install = true },
+#   { harness = "aider", enable = true, install = true },
+#   { harness = "continue", enable = true, install = true },
+#   { harness = "cursor", enable = true, install = false },
+#   { harness = "copilot", enable = true, install = true },
+#   { harness = "opencode", enable = true, install = true },
+#   { harness = "hermes", enable = true, install = true },
+]
 
 [ai.agents]
 canonical     = "AGENTS.md"
@@ -510,6 +480,13 @@ mode   = "auto"
 # Options: default | plain | minimal | nerd-font | pastel | bracketed | arrow
 prompt = "arrow"
 # Default tmux layout. Options: dev | focus | cowork | ai
+# Layout sketches, one screen each:
+# +---- ai ----+  +--- dev ----+  +-- focus --+  +-- cowork -+
+# |files|ai1  |  |files|shell|  |  files     |  |files|shell|
+# |     |     |  |-----|     |  +-----------+  |     |     |
+# |     |     |  |ai1  |     |  ai1 ai2 ... |  +-----------+
+# +-----------+  +-----------+  +-----------+  ai1 ai2 ...
+# Extra windows: ai holds additional harnesses; lazygit and shell open when enabled.
 layout = "ai"
 
 # tmux runtime options. `layout` may override [customization].layout for tmux only.
@@ -526,12 +503,213 @@ mode = "extended"  # extended | plain | disabled (legacy: powerline -> extended)
 
 [customization.tmux.status.layout]
 # Row lists are ordered. Removing a name disables that status element.
-# line1-left supports tmux-native entries: session, windows.
-# Other rows use PowerKit plugin IDs.
+# Allowed line1-left entries:
+# - session: current tmux session name and prefix/copy-mode state
+# - windows: tmux window list
+#
+# Allowed line1-right / line2-left / line2-right entries:
+# - aibox_log: aibox log health counts
+# - aibox_oom: cgroup OOM kill counters
+# - aibox_proc: live process count versus configured process warning limit
+# - aibox_ai: detected AI-agent/runtime process count
+# - aibox_mcp: processkit/MCP daemon and server process status
+# - aibox_mig: pending processkit migration count
+# - weather: weather segment from tmux-powerkit
+# - uptime: container uptime
+# - datetime: local date/time
+# - git: current repository branch/status
+# - github: GitHub/repository integration status
+# - kubernetes: Kubernetes context/status
+# - terraform: Terraform/OpenTofu workspace/status
+# - cloud: local cloud CLI/context status
+# - cloudstatus: networked public provider status checks; opt-in, not enabled by default
+# - hostname: container hostname
+# - externalip: detected external IP
+# - ssh: SSH agent/key status
+# - netspeed: network throughput
+# - ping: network latency
+# - cpu: CPU usage
+# - loadavg: system load average
+# - memory: memory usage
+# - swap: swap usage
+# - disk: disk usage
+# - gpu: GPU status when available
+# - modelstatus_<provider>: per-provider AI status segment; enabled through [customization.tmux.status.model-providers]
 line1-left = ["session", "windows"]
 line1-right = ["aibox_log", "aibox_oom", "aibox_proc", "aibox_ai", "aibox_mcp", "aibox_mig", "weather", "uptime", "datetime"]
 line2-left = ["git", "github", "kubernetes", "terraform", "cloud"]
 line2-right = ["hostname", "externalip", "ssh", "netspeed", "ping", "cpu", "loadavg", "memory", "swap", "disk", "gpu"]
+
+[customization.tmux.status.labels]
+# Visible headers/icons for status segments. Layout controls which segments appear;
+# this section controls how those segments are labeled once rendered.
+# Values may be plain ASCII labels or symbols. ASCII is safest across terminals;
+# Nerd Font / Powerline symbols are compact but require the user's terminal font.
+# Practical symbol candidates from Nerd Fonts: Kubernetes/cloud/network/uptime
+# already use icon defaults below; aibox runtime metrics stay text labels by
+# default because no universally recognized LOG/OOM/PROC/MCP/MIG glyph exists.
+# aibox-log: aibox log info/warn/error counter header.
+# aibox-oom: cgroup OOM event/kill counter header.
+# aibox-proc: process/thread count header.
+# aibox-ai: active AI-agent process count header.
+# aibox-mcp: processkit/MCP topology header.
+# aibox-mig: pending processkit migration count header.
+# kubernetes: Kubernetes segment icon/header.
+# cloud/cloud-aws/cloud-gcp/cloud-azure/cloud-multi: local cloud context icons.
+# uptime: container uptime icon/header.
+# netspeed/netspeed-download/netspeed-upload: network throughput icons.
+aibox-log = "LOG"
+aibox-oom = "OOM"
+aibox-proc = "PROC"
+aibox-ai = "AI"
+aibox-mcp = "MCP"
+aibox-mig = "MIG"
+kubernetes = "󱃾"
+cloud = "󰅣"
+cloud-aws = "󰸏"
+cloud-gcp = "󰬠"
+cloud-azure = "󰠅"
+cloud-multi = "󰅤"
+uptime = ""
+netspeed = ""
+netspeed-download = "󰇚"
+netspeed-upload = "󰕒"
+
+[customization.tmux.status.refresh]
+# Refresh/caching controls for extended tmux status.
+# interval-seconds: tmux redraw cadence. Higher values reduce shell process churn.
+# aibox-metrics-cache-ttl-seconds: LOG/OOM/PROC/AI/MCP/MIG cache TTL.
+#   These metrics are useful but not worth refreshing every redraw; a 30s TTL
+#   still surfaces runtime problems quickly while avoiding repeated aibox-status calls.
+# netspeed-cache-ttl-seconds: network throughput cache TTL. Keep near the redraw
+#   cadence if you want live-ish rates; increase for quieter laptops.
+# kubernetes-cache-ttl-seconds: local kubeconfig context cache TTL; this should
+#   not poll live clusters and does not need second-level freshness.
+# cloud-cache-ttl-seconds: local cloud CLI/context cache TTL; this avoids auth/network probes.
+interval-seconds = 10
+aibox-metrics-cache-ttl-seconds = 30
+netspeed-cache-ttl-seconds = 10
+kubernetes-cache-ttl-seconds = 120
+cloud-cache-ttl-seconds = 120
+
+[customization.tmux.status.model-providers]
+# Optional networked model-provider health segments for the extended tmux status line.
+# Each configured provider becomes one PowerKit segment when enabled, for example OAI ✓ or ANT !!.
+# enabled: false avoids background status-page calls by default; set true to render configured providers.
+# cache-ttl-seconds: minimum time between provider status requests per provider.
+# timeout-seconds: per-request HTTP timeout so status rendering cannot hang tmux.
+# show-ok: true shows healthy providers with ✓; false hides healthy providers and only shows degraded/unknown/outage.
+enabled = false
+cache-ttl-seconds = 300
+timeout-seconds = 3
+show-ok = true
+# Provider entries:
+# - provider: stable key from the model roster (openai, anthropic, google, mistral, deepseek, cohere, xai, alibaba, aws, meta, microsoft, minimax, moonshot, nvidia, xiaomi, zai)
+# - label: short category header shown in the status segment; use text or a symbol that your font supports
+# - checks: any of overall, models, harness; worst status wins (outage > degraded > unknown > ok)
+# - status-url: JSON status endpoint; Statuspage summary APIs are supported, Google uses incidents.json
+# - overall-components/model-components/harness-components: optional component-name filters for providers with componentized status APIs
+#   Symbols: ✓ ok, ! degraded, !! outage, ? unknown.
+
+[[customization.tmux.status.model-providers.providers]]
+provider = "openai"
+label = "OAI"
+checks = ["overall", "models", "harness"]
+status-url = "https://status.openai.com/api/v2/summary.json"
+model-components = ["Responses", "Chat Completions", "Embeddings", "Realtime", "Images"]
+harness-components = ["CLI", "Codex API", "Codex Web"]
+
+[[customization.tmux.status.model-providers.providers]]
+provider = "anthropic"
+label = "ANT"
+checks = ["overall", "models", "harness"]
+status-url = "https://status.claude.com/api/v2/summary.json"
+model-components = ["Claude API"]
+harness-components = ["Claude Code"]
+
+[[customization.tmux.status.model-providers.providers]]
+provider = "google"
+label = "GOOG"
+checks = ["overall", "models"]
+status-url = "https://status.cloud.google.com/incidents.json"
+
+[[customization.tmux.status.model-providers.providers]]
+provider = "mistral"
+label = "MST"
+checks = ["overall", "models"]
+status-url = "https://status.mistral.ai/api/v2/summary.json"
+
+[[customization.tmux.status.model-providers.providers]]
+provider = "deepseek"
+label = "DS"
+checks = ["overall", "models"]
+status-url = "https://status.deepseek.com/api/v2/summary.json"
+
+[[customization.tmux.status.model-providers.providers]]
+provider = "cohere"
+label = "COH"
+checks = ["overall", "models"]
+status-url = "https://status.cohere.com/api/v2/summary.json"
+
+[[customization.tmux.status.model-providers.providers]]
+provider = "xai"
+label = "XAI"
+checks = ["overall", "models"]
+# status-url intentionally omitted: no stable public JSON status API is configured yet
+
+[[customization.tmux.status.model-providers.providers]]
+provider = "alibaba"
+label = "QWN"
+checks = ["overall", "models"]
+# status-url intentionally omitted: no stable public JSON status API is configured yet
+
+[[customization.tmux.status.model-providers.providers]]
+provider = "aws"
+label = "AWS"
+checks = ["overall", "models"]
+# status-url intentionally omitted: no stable public JSON status API is configured yet
+
+[[customization.tmux.status.model-providers.providers]]
+provider = "meta"
+label = "META"
+checks = ["overall", "models"]
+# status-url intentionally omitted: no stable public JSON status API is configured yet
+
+[[customization.tmux.status.model-providers.providers]]
+provider = "microsoft"
+label = "MS"
+checks = ["overall", "models"]
+# status-url intentionally omitted: no stable public JSON status API is configured yet
+
+[[customization.tmux.status.model-providers.providers]]
+provider = "minimax"
+label = "MM"
+checks = ["overall", "models"]
+# status-url intentionally omitted: no stable public JSON status API is configured yet
+
+[[customization.tmux.status.model-providers.providers]]
+provider = "moonshot"
+label = "KIMI"
+checks = ["overall", "models"]
+# status-url intentionally omitted: no stable public JSON status API is configured yet
+
+[[customization.tmux.status.model-providers.providers]]
+provider = "nvidia"
+label = "NV"
+checks = ["overall", "models"]
+# status-url intentionally omitted: no stable public JSON status API is configured yet
+
+[[customization.tmux.status.model-providers.providers]]
+provider = "xiaomi"
+label = "MI"
+checks = ["overall", "models"]
+# status-url intentionally omitted: no stable public JSON status API is configured yet
+
+[[customization.tmux.status.model-providers.providers]]
+provider = "zai"
+label = "ZAI"
+checks = ["overall", "models"]
+# status-url intentionally omitted: no stable public JSON status API is configured yet
 
 # =============================================================================
 # [security] — explicit consent for security-sensitive runtime options

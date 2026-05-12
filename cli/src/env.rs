@@ -394,10 +394,10 @@ pub fn cmd_env_status(config_path: &Option<String>) -> Result<()> {
 
             // Show config summary if available
             if let Ok(config) = AiboxConfig::from_cli_option(config_path) {
-                eprintln!("  Base:    {}", config.aibox.base);
+                eprintln!("  Base:    {}", config.container.image.base);
                 eprintln!("  Profile: {}", config.aibox.profile);
                 eprintln!("  Packages: {:?}", config.context.packages);
-                eprintln!("  Version: {}", config.aibox.version);
+                eprintln!("  Version: {}", config.container.image.version);
             }
         }
         None => {

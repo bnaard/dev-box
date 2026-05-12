@@ -104,6 +104,19 @@ fn init_project(dir: &std::path::Path, name: &str) {
     );
 }
 
+fn pin_image_version(dir: &std::path::Path, version: &str) {
+    let path = dir.join("aibox.toml");
+    let body = fs::read_to_string(&path).expect("read aibox.toml");
+    fs::write(
+        &path,
+        body.replace(
+            "release_version = \"latest\"",
+            &format!("release_version = \"{version}\""),
+        ),
+    )
+    .expect("write aibox.toml");
+}
+
 #[test]
 fn delete_runtime_removes_stale_compose_project_sidecars() {
     let dir = tempfile::tempdir().unwrap();
@@ -176,6 +189,7 @@ fn dockerfile_contains_etc_aibox_version_write() {
 fn up_fails_on_image_version_mismatch() {
     let dir = tempfile::tempdir().unwrap();
     init_project(dir.path(), "start-mismatch");
+    pin_image_version(dir.path(), env!("CARGO_PKG_VERSION"));
 
     let mock = super::mock_runtime::MockRuntime::new();
 
@@ -212,11 +226,11 @@ fn up_fails_on_image_version_mismatch() {
 fn up_does_not_error_when_versions_match() {
     let dir = tempfile::tempdir().unwrap();
     init_project(dir.path(), "start-match");
+    pin_image_version(dir.path(), env!("CARGO_PKG_VERSION"));
 
     let mock = super::mock_runtime::MockRuntime::new();
 
-    // aibox init writes CARGO_PKG_VERSION to aibox.toml — use the same version
-    // as the mock label so the check passes.
+    // Use the same concrete image version as the mock label so the check passes.
     let current_version = env!("CARGO_PKG_VERSION");
 
     let output = run_in_with_mock(

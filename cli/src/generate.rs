@@ -121,17 +121,16 @@ pub fn generate_all(config: &AiboxConfig) -> Result<()> {
     output::info("Generating devcontainer files...");
 
     let mut effective_config = config.clone();
-    if effective_config.aibox.version == "latest" {
-        let flavor = effective_config.aibox.base.to_string();
+    if effective_config.container.image.version == "latest" {
+        let flavor = effective_config.container.image.base.to_string();
         match crate::update::fetch_latest_image_version(&flavor) {
             Ok(v) => {
-                effective_config.aibox.version = image_version_for_generation(v);
-                effective_config.image.version = effective_config.aibox.version.clone();
-                effective_config.container.image.version = effective_config.aibox.version.clone();
+                effective_config.container.image.version = image_version_for_generation(v);
+                effective_config.image.version = effective_config.container.image.version.clone();
             }
             Err(e) => {
                 crate::output::warn(&format!(
-                    "[aibox].version = \"latest\" but image version resolution failed during generation: {}. \
+                    "[container.image].release_version = \"latest\" but image version resolution failed during generation: {}. \
                      Generated files may reference an invalid tag. Consider re-running with network access or pinning an explicit version.",
                     e
                 ));
@@ -158,11 +157,10 @@ pub fn generate_all(config: &AiboxConfig) -> Result<()> {
 }
 
 pub(crate) fn image_version_for_generation(published_latest: Version) -> String {
-    let selected = Version::parse(env!("CARGO_PKG_VERSION"))
-        .ok()
-        .filter(|current| current > &published_latest)
-        .unwrap_or(published_latest);
-    format!("{}.{}.{}", selected.major, selected.minor, selected.patch)
+    format!(
+        "{}.{}.{}",
+        published_latest.major, published_latest.minor, published_latest.patch
+    )
 }
 
 /// Generate the Dockerfile. Returns true if file was written.
@@ -213,8 +211,8 @@ fn generate_dockerfile(
         .render(context! {
             header => header,
             registry => crate::config::IMAGE_REGISTRY,
-            image => format!("base-{}", config.aibox.base),
-            version => config.aibox.version,
+            image => format!("base-{}", config.container.image.base),
+            version => config.container.image.version,
             profile => config.aibox.profile.to_string(),
             addon_builder_stages => addon_builder_stages,
             addon_commands => addon_commands,
@@ -761,7 +759,8 @@ mod tests {
     fn make_config(addon_names: &[&str], audio_enabled: bool) -> AiboxConfig {
         ensure_addons_loaded();
         let mut config = crate::config::test_config();
-        config.aibox.version = "1.2.3".to_string();
+        config.container.image.version = "1.2.3".to_string();
+        config.image.version = "1.2.3".to_string();
         config.container.name = "test-ctr".to_string();
         config.container.hostname = "test-host".to_string();
         config.addons = addons_with(addon_names);
@@ -799,13 +798,12 @@ mod tests {
     }
 
     #[test]
-    fn image_version_for_generation_prefers_current_cli_when_ahead_of_published_latest() {
+    fn image_version_for_generation_uses_published_image_version() {
         let published = semver::Version::parse("0.24.3").unwrap();
         let selected = image_version_for_generation(published);
         assert_eq!(
-            selected,
-            env!("CARGO_PKG_VERSION"),
-            "pre-release generation should not downgrade generated devcontainer files to the previous published image"
+            selected, "0.24.3",
+            "image generation must not couple a newer CLI version to an unpublished base image tag"
         );
     }
 
@@ -819,7 +817,7 @@ mod tests {
             content.contains(&format!(
                 "FROM {}:base-debian-v{} AS aibox",
                 crate::config::IMAGE_REGISTRY,
-                config.aibox.version
+                config.container.image.version
             )),
             "Dockerfile should reference base-debian image with correct tag format and stage alias"
         );
@@ -1688,6 +1686,12 @@ mod tests {
                 "config/tmux/powerkit-plugins/cloud.sh      /usr/local/share/aibox/tmux/plugins/tmux-powerkit/src/plugins/cloud.sh"
             ),
             "base image should override PowerKit cloud with local-context-only status"
+        );
+        assert!(
+            content.contains(
+                "config/tmux/powerkit-plugins/modelstatus_provider.sh /usr/local/share/aibox/tmux/plugins/tmux-powerkit/src/plugins/modelstatus_provider.sh"
+            ) && content.contains("modelstatus_${provider}.sh"),
+            "base image should install model-provider status plugin wrappers"
         );
     }
 
