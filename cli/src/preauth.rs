@@ -66,6 +66,7 @@ use anyhow::{Context, Result};
 use serde::Deserialize;
 use serde_json::Value;
 
+use crate::config::{AiProvider, AiboxConfig};
 use crate::output;
 
 /// The version field this CLI knows how to interpret. If an installed
@@ -127,7 +128,22 @@ pub(crate) struct CodexMcpPreauth {
 /// - **Happy path** → settings.json is created (if missing) or
 ///   merged-into (if present), with the `_processkit_managed_keys`
 ///   sidecar updated.
-pub fn merge_processkit_preauth_into_harness_settings(project_root: &Path) -> Result<()> {
+pub fn merge_processkit_preauth_for_config(
+    project_root: &Path,
+    config: &AiboxConfig,
+) -> Result<()> {
+    merge_processkit_preauth(
+        project_root,
+        config.ai.harnesses.contains(&AiProvider::Claude),
+        config.ai.harnesses.contains(&AiProvider::Codex),
+    )
+}
+
+fn merge_processkit_preauth(
+    project_root: &Path,
+    merge_claude: bool,
+    merge_codex: bool,
+) -> Result<()> {
     let spec_path = project_root.join("context/skills/processkit/skill-gate/assets/preauth.json");
 
     if !spec_path.is_file() {
@@ -156,15 +172,25 @@ pub fn merge_processkit_preauth_into_harness_settings(project_root: &Path) -> Re
         return Ok(());
     }
 
-    let settings_path = project_root.join(".claude/settings.json");
-    let mut top = read_or_empty_object(&settings_path)?;
-    merge_claude_managed_lists(project_root, &mut top, &spec)?;
-    write_atomic(&settings_path, &top)?;
+    let (claude_allow, claude_servers) = if merge_claude {
+        let settings_path = project_root.join(".claude/settings.json");
+        let mut top = read_or_empty_object(&settings_path)?;
+        merge_claude_managed_lists(project_root, &mut top, &spec)?;
+        write_atomic(&settings_path, &top)?;
+        claude_preauth_sets(project_root, &spec)?
+    } else {
+        (BTreeSet::new(), BTreeSet::new())
+    };
 
-    merge_codex_preauth(project_root, &spec)?;
+    if merge_codex {
+        merge_codex_preauth(project_root, &spec)?;
+    }
 
-    let (claude_allow, claude_servers) = claude_preauth_sets(project_root, &spec)?;
-    let codex_tools = codex_allowed_tools_for_project(project_root, &spec)?;
+    let codex_tools = if merge_codex {
+        codex_allowed_tools_for_project(project_root, &spec)?
+    } else {
+        BTreeSet::new()
+    };
     output::ok(&format!(
         "preauth merged: {} Claude allow patterns, {} enabled servers, {} Codex allowed tools",
         claude_allow.len(),
@@ -174,9 +200,10 @@ pub fn merge_processkit_preauth_into_harness_settings(project_root: &Path) -> Re
     Ok(())
 }
 
-/// Backward-compatible wrapper kept for existing call sites/tests.
+/// Backward-compatible wrapper kept for existing tests.
+#[cfg(test)]
 pub fn merge_processkit_preauth_into_claude_settings(project_root: &Path) -> Result<()> {
-    merge_processkit_preauth_into_harness_settings(project_root)
+    merge_processkit_preauth(project_root, true, true)
 }
 
 // ---------------------------------------------------------------------------
@@ -663,6 +690,27 @@ mod tests {
         assert!(
             !project.join(".claude/settings.json").exists(),
             "no settings.json should be created when preauth.json is absent"
+        );
+    }
+
+    #[test]
+    fn preauth_for_codex_only_does_not_create_claude_settings() {
+        let tmp = TempDir::new().unwrap();
+        let project = tmp.path();
+        write_preauth(project, &v0_22_0_preauth_json());
+
+        let mut config = crate::config::test_config();
+        config.ai.harnesses = vec![AiProvider::Codex];
+
+        merge_processkit_preauth_for_config(project, &config).unwrap();
+
+        assert!(
+            !project.join(".claude/settings.json").exists(),
+            "Codex-only projects must not receive Claude preauth settings"
+        );
+        assert!(
+            project.join(".codex/config.toml").exists(),
+            "Codex preauth settings should still be written"
         );
     }
 

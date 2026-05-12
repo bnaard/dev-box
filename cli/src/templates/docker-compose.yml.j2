@@ -37,77 +37,14 @@ services:
     volumes:
       # Workspace (project root)
       - ${WORKSPACE_DIR:-{{ workspace_dir }}}:/workspace:rw
-      # SSH keys (read-only — mount from host)
-      - {{ host_root }}/.ssh:{{ container_home }}/.ssh:ro
-      # Vim configuration (vimrc + undo only — colorschemes stay from image)
-      - {{ host_root }}/.vim/vimrc:{{ container_home }}/.vim/vimrc:rw
-      - {{ host_root }}/.vim/undo:{{ container_home }}/.vim/undo:rw
-      # tmux terminal multiplexer config and plugin state
-      - {{ host_root }}/.config/tmux:{{ container_home }}/.config/tmux:rw
-      - {{ host_root }}/.tmux:{{ container_home }}/.tmux:rw
-      # XDG cache home. This must be mounted as a writable parent, not only as
-      # selected subdirectories, because tools such as uv and starship create
-      # their own cache/log directories at runtime.
-      - {{ host_root }}/.cache:{{ container_home }}/.cache:rw
-      # Starship shell prompt config
-      - {{ host_root }}/.config/starship.toml:{{ container_home }}/.config/starship.toml:rw
-      # Yazi file manager config
-      - {{ host_root }}/.config/yazi:{{ container_home }}/.config/yazi:rw
-      # Git configuration
-      - {{ host_root }}/.config/git:{{ container_home }}/.config/git:rw
-      # XDG state for TUIs such as lazygit
-      - {{ host_root }}/.config/state:{{ container_home }}/.config/state:rw
-      # aibox-managed helper scripts (resource status, preview helpers)
-      - {{ host_root }}/.local/bin:{{ container_home }}/.local/bin:rw
-{% for harness in ai_providers %}
-{% if harness == "claude" %}
-      # Claude Code configuration and memory
-      - {{ host_root }}/.claude:{{ container_home }}/.claude:rw
-      # Claude Code account/session state (holds oauthAccount, userID);
-      # mounting .claude alone is not enough — without this file Claude Code
-      # treats every rebuild as a fresh install and re-prompts for login.
-      - {{ host_root }}/.claude.json:{{ container_home }}/.claude.json:rw
-{% endif %}
-{% if harness == "aider" %}
-      # Aider configuration
-      - {{ host_root }}/.aider:{{ container_home }}/.aider:rw
-{% endif %}
-{% if harness == "gemini" %}
-      # Gemini CLI configuration
-      - {{ host_root }}/.gemini:{{ container_home }}/.gemini:rw
-{% endif %}
-{% if harness == "codex" %}
-      # OpenAI Codex CLI configuration and cached login state
-      - {{ host_root }}/.codex:{{ container_home }}/.codex:rw
-{% endif %}
-{% if harness == "continue" %}
-      # Continue configuration
-      - {{ host_root }}/.continue:{{ container_home }}/.continue:rw
-{% endif %}
-{% if harness == "copilot" %}
-      # GitHub Copilot CLI configuration
-      - {{ host_root }}/.copilot:{{ container_home }}/.copilot:rw
-{% endif %}
-{% if harness == "opencode" %}
-      # OpenCode configuration
-      - {{ host_root }}/.opencode:{{ container_home }}/.opencode:rw
-{% endif %}
-{% if harness == "hermes" %}
-      # Hermes agent configuration
-      - {{ host_root }}/.hermes:{{ container_home }}/.hermes:rw
+{% for mount in runtime_home_mounts %}
+      # {{ mount.comment }}
+{% if mount.read_only %}
+      - {{ mount.source }}:{{ mount.destination }}:ro
+{% else %}
+      - {{ mount.source }}:{{ mount.destination }}:rw
 {% endif %}
 {% endfor %}
-{% if audio_enabled %}
-      # ALSA → PulseAudio bridge config
-      - {{ host_root }}/.asoundrc:{{ container_home }}/.asoundrc:rw
-{% endif %}
-{% if has_rust %}
-      # Cargo registry cache — avoids re-downloading crates on rebuild.
-      # Only registry/ and git/ are mounted; bin/ stays in the image (host binaries
-      # won't run in the container).
-      - {{ host_root }}/.cargo/registry:{{ container_home }}/.cargo/registry:rw
-      - {{ host_root }}/.cargo/git:{{ container_home }}/.cargo/git:rw
-{% endif %}
 {% for vol in extra_volumes %}
 {% if vol.read_only %}
       - {{ vol.source }}:{{ vol.target }}:ro

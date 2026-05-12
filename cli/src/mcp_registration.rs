@@ -1974,14 +1974,16 @@ pub fn regenerate_mcp_configs(config: &AiboxConfig, project_root: &Path) -> Resu
         );
     }
 
-    // 6. Update .claude/settings.local.json with enabled MCP servers.
-    // This ensures Claude Code loads all MCP tools during session startup.
-    let settings_path = project_root.join(".claude/settings.local.json");
-    if let Err(e) = update_enabled_mcp_servers(&specs, &settings_path) {
-        output::warn(&format!(
-            "Failed to update .claude/settings.local.json with enabled MCP servers: {}",
-            e
-        ));
+    // 6. Update Claude settings only when Claude Code is enabled. Codex-only
+    // projects should not create or warn about provider-specific Claude files.
+    if providers.contains(&AiProvider::Claude) {
+        let settings_path = project_root.join(".claude/settings.local.json");
+        if let Err(e) = update_enabled_mcp_servers(&specs, &settings_path) {
+            output::warn(&format!(
+                "Failed to update .claude/settings.local.json with enabled MCP servers: {}",
+                e
+            ));
+        }
     }
 
     // Phase 3: Generate MCP permissions for all supported harnesses.
@@ -3466,6 +3468,42 @@ args = ["server.js"]
             parsed["mcpServers"].get("processkit-skill-gate").is_some(),
             ".mcp.json must contain 'processkit-skill-gate'; got: {}",
             body
+        );
+    }
+
+    #[test]
+    fn codex_only_regeneration_does_not_create_claude_settings_local() {
+        use crate::config::{AiSection, AiboxConfig, ProcessKitSection};
+        let tmp = TempDir::new().unwrap();
+        let version = crate::processkit_vocab::PROCESSKIT_DEFAULT_VERSION;
+        write_synth_skill_mcp(
+            tmp.path(),
+            version,
+            "processkit",
+            "skill-gate",
+            r#"{"mcpServers":{"processkit-skill-gate":{"command":"uv","args":["run","context/skills/processkit/skill-gate/mcp/server.py"]}}}"#,
+        );
+        let config = AiboxConfig {
+            ai: AiSection {
+                harnesses: vec![crate::config::AiHarness::Codex],
+                ..AiSection::default()
+            },
+            processkit: ProcessKitSection {
+                version: version.to_string(),
+                ..ProcessKitSection::default()
+            },
+            ..crate::config::test_config()
+        };
+
+        regenerate_mcp_configs(&config, tmp.path()).unwrap();
+
+        assert!(
+            tmp.path().join(".codex/config.toml").exists(),
+            "Codex MCP config should be written"
+        );
+        assert!(
+            !tmp.path().join(".claude/settings.local.json").exists(),
+            "Codex-only MCP regeneration must not touch Claude settings"
         );
     }
 

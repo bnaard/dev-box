@@ -2426,6 +2426,28 @@ impl AiboxConfig {
         // [customization.tmux.status] replacement.
         self.sync_grouped_sections();
         self.sync_legacy_aibox_image_fields();
+        self.normalize_legacy_cloudstatus_layout_default();
+    }
+
+    fn normalize_legacy_cloudstatus_layout_default(&mut self) {
+        let layout = &mut self.customization.tmux.status.layout;
+        let Some(line2_left) = layout.line2_left.as_mut() else {
+            return;
+        };
+        if self.customization.tmux.status.elements.cloudstatus {
+            return;
+        }
+        let legacy_default = [
+            "git",
+            "github",
+            "kubernetes",
+            "terraform",
+            "cloud",
+            "cloudstatus",
+        ];
+        if line2_left.iter().map(String::as_str).eq(legacy_default) {
+            line2_left.retain(|entry| entry != "cloudstatus");
+        }
     }
 
     /// Keep the new grouped schema and legacy top-level sections in sync.
@@ -2585,6 +2607,14 @@ impl AiboxConfig {
                 bail!(
                     "container.extra_volumes target '{}' must be an absolute path (start with '/')",
                     vol.target
+                );
+            }
+            if let Some(managed) = crate::runtime_home::extra_volume_conflict(self, &vol.target) {
+                bail!(
+                    "container.extra_volumes target '{}' overlaps aibox-managed runtime home path '{}'. \
+                     Use the generated .aibox-home tree for Yazi, tmux, shell, cache, and AI harness config instead of shadowing it with an extra volume.",
+                    vol.target,
+                    managed
                 );
             }
         }
@@ -5581,6 +5611,24 @@ target = "home/aibox/.config/gh"
 "#;
         let result = AiboxConfig::from_str(toml);
         assert!(result.is_err(), "should reject non-absolute target");
+    }
+
+    #[test]
+    fn extra_volumes_reject_managed_runtime_home_shadowing() {
+        let toml = r#"
+[aibox]
+version = "0.9.0"
+[container]
+name = "test"
+[[container.extra_volumes]]
+source = "~/.config/yazi"
+target = "/home/aibox/.config/yazi"
+"#;
+        let err = AiboxConfig::from_str(toml).unwrap_err().to_string();
+        assert!(
+            err.contains("overlaps aibox-managed runtime home path"),
+            "should reject extra volume shadowing managed runtime config: {err}"
+        );
     }
 
     #[test]

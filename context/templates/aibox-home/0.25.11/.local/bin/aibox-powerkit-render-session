@@ -6,7 +6,7 @@ export POWERKIT_ROOT
 
 script_dir="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
 export HOME="$(cd -- "${script_dir}/../.." && pwd)"
-cache_root="${AIBOX_POWERKIT_CACHE_DIR:-/tmp/aibox/tmux-powerkit-cache}"
+cache_root="${AIBOX_POWERKIT_CACHE_DIR:-${XDG_CACHE_HOME:-${HOME}/.cache}}"
 mkdir -p "${cache_root}" 2>/dev/null || true
 export XDG_CACHE_HOME="${cache_root}"
 

@@ -223,10 +223,12 @@ fn tmux_runtime_config_and_cache_are_mounted() {
     init_project(dir.path(), "tmux-runtime");
     let compose = read_generated(dir.path(), ".devcontainer/docker-compose.yml");
     assert!(
-        compose.contains(".config/tmux:/home/aibox/.config/tmux:rw")
+        compose.contains(".config:/home/aibox/.config:rw")
             && compose.contains(".tmux:/home/aibox/.tmux:rw")
-            && compose.contains(".cache:/home/aibox/.cache:rw"),
-        "compose must mount tmux config/plugin state and writable XDG cache home:\n{compose}"
+            && compose.contains(".cache:/home/aibox/.cache:rw")
+            && compose.contains(".local:/home/aibox/.local:rw")
+            && !compose.contains(".config/tmux:/home/aibox/.config/tmux"),
+        "compose must mount broad writable runtime-home config/cache/local parents:\n{compose}"
     );
 }
 

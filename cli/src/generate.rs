@@ -266,8 +266,6 @@ fn generate_docker_compose(
         env_vars.insert("AUDIODRIVER".to_string(), "pulseaudio".to_string());
     }
 
-    // Build list of AI harness strings for template
-    let ai_providers: Vec<String> = config.ai.harnesses.iter().map(|h| h.to_string()).collect();
     let compose_override_path = if legacy_dir_arg {
         path_or_dir.join("docker-compose.override.yml")
     } else {
@@ -340,9 +338,10 @@ fn generate_docker_compose(
 
     // Extra volumes from aibox.toml + .aibox-local.toml
     let extra_volumes = &config.container.extra_volumes;
+    let runtime_home_mounts =
+        crate::runtime_home::compose_runtime_home_mounts(config, &host_root_str);
 
     // Rust addon flag — drives cargo registry mounts in the template
-    let has_rust = config.addons.has_rust();
     let compose_project_name = sanitize_compose_project_name(&config.container.name);
     let compose_image_name = format!("{}-devcontainer:latest", compose_project_name);
 
@@ -377,13 +376,11 @@ fn generate_docker_compose(
                 relative_path(compose_dir, &dockerfile_path)
             },
             local_env_file => local_env_file,
-            audio_enabled => audio.enabled,
-            ai_providers => ai_providers,
+            runtime_home_mounts => runtime_home_mounts,
             codex_sandbox_seccomp => codex_sandbox_seccomp,
             env_keys => env_keys,
             env_vals => escaped_env,
             extra_volumes => extra_volumes,
-            has_rust => has_rust,
         })
         .context("Failed to render docker-compose template")?;
 
@@ -898,8 +895,8 @@ mod tests {
 
         let content = fs::read_to_string(dir.path().join("docker-compose.yml")).unwrap();
         assert!(
-            content.contains(".config/state:/root/.config/state"),
-            "compose should mount writable XDG state for TUIs such as lazygit:\n{content}"
+            content.contains(".local:/root/.local:rw"),
+            "compose should mount writable XDG local/state parent for TUIs such as lazygit:\n{content}"
         );
     }
 
@@ -927,18 +924,27 @@ mod tests {
             "${WORKSPACE_DIR:-..}:/workspace:rw",
             ".vim/vimrc:/root/.vim/vimrc:rw",
             ".vim/undo:/root/.vim/undo:rw",
-            ".config/tmux:/root/.config/tmux:rw",
             ".tmux:/root/.tmux:rw",
             ".cache:/root/.cache:rw",
-            ".config/starship.toml:/root/.config/starship.toml:rw",
-            ".config/yazi:/root/.config/yazi:rw",
-            ".config/git:/root/.config/git:rw",
-            ".config/state:/root/.config/state:rw",
-            ".local/bin:/root/.local/bin:rw",
+            ".config:/root/.config:rw",
+            ".local:/root/.local:rw",
         ] {
             assert!(
                 content.contains(mount),
                 "compose should mark runtime persistence mount {mount} as read-write:\n{content}"
+            );
+        }
+        for stale_mount in [
+            ".config/tmux:/root/.config/tmux",
+            ".config/starship.toml:/root/.config/starship.toml",
+            ".config/yazi:/root/.config/yazi",
+            ".config/git:/root/.config/git",
+            ".config/state:/root/.config/state",
+            ".local/bin:/root/.local/bin",
+        ] {
+            assert!(
+                !content.contains(stale_mount),
+                "compose should not emit narrow runtime-home mount {stale_mount}; broad parents avoid future cache/config drift:\n{content}"
             );
         }
     }
@@ -951,8 +957,9 @@ mod tests {
 
         let content = fs::read_to_string(dir.path().join("docker-compose.yml")).unwrap();
         assert!(
-            content.contains(".config/starship.toml:/root/.config/starship.toml"),
-            "compose should mount generated Starship prompt config into the container:\n{content}"
+            content.contains(".config:/root/.config:rw")
+                && !content.contains(".config/starship.toml:/root/.config/starship.toml"),
+            "compose should mount the writable XDG config parent instead of a narrow Starship file mount:\n{content}"
         );
     }
 
@@ -1708,6 +1715,16 @@ mod tests {
                 && content.contains("chown -R aibox:aibox /home/aibox")
                 && content.contains("chown -R aibox:aibox /tmp/aibox"),
             "base image should create writable cache-home and uv cache paths before final ownership fix"
+        );
+    }
+
+    #[test]
+    fn base_entrypoint_reowns_tmp_aibox_after_uid_remap() {
+        let content = include_str!("../../images/base-debian/config/entrypoint.sh");
+        assert!(
+            content.contains("mkdir -p /tmp/aibox/uv-cache")
+                && content.contains("chown -R \"$TARGET_UID:$TARGET_GID\" /tmp/aibox"),
+            "entrypoint must re-own /tmp/aibox after UID/GID remap so uv caches stay writable:\n{content}"
         );
     }
 

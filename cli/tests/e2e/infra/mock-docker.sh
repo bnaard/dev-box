@@ -70,6 +70,8 @@ case "${1:-}" in
             echo "${MOCK_CONTAINER_PROJECT:-}"
         elif [[ "$FORMAT" == *"aibox.version"* ]]; then
             echo "${MOCK_CONTAINER_VERSION:-}"
+        elif [[ "$FORMAT" == *".Mounts"* ]]; then
+            echo "${MOCK_CONTAINER_MOUNTS:-[]}"
         else
             echo "$STATE"
         fi

@@ -19,8 +19,12 @@ if [ "$TARGET_UID" != "$CURRENT_UID" ]; then
     usermod -u "$TARGET_UID" aibox 2>/dev/null || true
 fi
 
-# Ensure home directory ownership matches (fast — only top-level)
+# Ensure home/cache ownership matches the remapped runtime user. /tmp/aibox is
+# created in the image for uv caches, so it must be re-owned after UID/GID
+# remapping just like the mounted home directory.
+mkdir -p /tmp/aibox/uv-cache 2>/dev/null || true
 chown "$TARGET_UID:$TARGET_GID" /home/aibox 2>/dev/null || true
+chown -R "$TARGET_UID:$TARGET_GID" /tmp/aibox 2>/dev/null || true
 
 # Stamp this container start with a stable runtime session id. Runtime status
 # and log readers use this to distinguish current-container logs from stale

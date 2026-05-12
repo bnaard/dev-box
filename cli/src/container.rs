@@ -736,6 +736,19 @@ pub fn cmd_start(
             config.container.image.version
         );
     }
+    if state != ContainerState::Missing {
+        let mount_problems = runtime_home_read_only_mounts(&runtime, &config)?;
+        if !mount_problems.is_empty() {
+            bail!(
+                "Runtime .aibox-home mounts are stale or not writable in the existing container:\n  - {}\n\n\
+                 Yazi, Codex, Bash/Starship, PowerKit, and tmux status all require the managed \
+                 .config, .cache, and .local runtime-home mounts to be writable. Recreate the \
+                 container from the generated compose files:\n\
+                 \n    aibox delete runtime && aibox up",
+                mount_problems.join("\n  - ")
+            );
+        }
+    }
 
     let session_name = config.tmux_session_name();
     let should_recreate_tmux_session = forget_tmux_state || state != ContainerState::Running;
@@ -816,6 +829,42 @@ fn tmux_kill_session_command(session_name: &str) -> Vec<String> {
         "aibox-tmux-kill".to_string(),
         session_name.to_string(),
     ]
+}
+
+fn runtime_home_read_only_mounts(runtime: &Runtime, config: &AiboxConfig) -> Result<Vec<String>> {
+    let mounts = runtime.get_container_mounts(&config.container.name)?;
+    if mounts.is_empty() {
+        return Ok(Vec::new());
+    }
+
+    let mut problems = Vec::new();
+    for destination in crate::runtime_home::writable_runtime_home_destinations(config) {
+        match mounts.iter().find(|mount| mount.destination == destination) {
+            Some(mount) if !mount.rw => {
+                problems.push(format!(
+                    "{} from {} is read-only",
+                    mount.destination, mount.source
+                ));
+            }
+            Some(_) => {}
+            None => {
+                problems.push(format!(
+                    "{destination} is not mounted from .aibox-home (legacy or shadowed runtime layout)"
+                ));
+            }
+        }
+    }
+    for destination in crate::runtime_home::legacy_runtime_home_destinations(config) {
+        if let Some(mount) = mounts.iter().find(|mount| mount.destination == destination)
+            && !mount.rw
+        {
+            problems.push(format!(
+                "{} from {} is read-only legacy runtime-home mount",
+                mount.destination, mount.source
+            ));
+        }
+    }
+    Ok(problems)
 }
 
 pub fn cmd_emergency(config_path: &Option<String>, harness: AiHarness) -> Result<()> {
@@ -2655,11 +2704,11 @@ pub fn cmd_init(config_path: &Option<String>, params: InitParams) -> Result<()> 
             {
                 output::warn(&format!("Hook registration failed: {}", e));
             }
-            // Merge processkit's preauth.json into .claude/settings.json
-            // (pre-approve Bash patterns + MCP servers shipped by
-            // processkit ≥ v0.22.0). Best-effort.
+            // Merge processkit's preauth.json into enabled harness settings.
+            // Best-effort and provider-scoped: Codex-only projects should not
+            // create or warn about Claude-specific config files.
             if let Err(e) =
-                crate::preauth::merge_processkit_preauth_into_claude_settings(&project_root)
+                crate::preauth::merge_processkit_preauth_for_config(&project_root, &config)
             {
                 output::warn(&format!("Preauth merge failed: {}", e));
             }
@@ -3138,8 +3187,15 @@ pub fn cmd_sync(
 
     output::info("Scaffolding missing runtime directories...");
     seed::ensure_runtime_dirs(&config)?;
+    let runtime_theme_updates = seed::sync_theme_files(&config)?;
     let runtime_permission_updates = seed::sync_managed_runtime_permissions(&config)?;
     let runtime_cleanup_updates = seed::cleanup_disabled_runtime_files(&config)?;
+    if !runtime_theme_updates.is_empty() {
+        output::ok(&format!(
+            "Updated {} runtime theme/config file(s)",
+            runtime_theme_updates.len()
+        ));
+    }
     if !runtime_permission_updates.is_empty() {
         output::ok(&format!(
             "Updated {} runtime file permission(s)",
@@ -3305,10 +3361,9 @@ pub fn cmd_sync(
         if let Err(e) = crate::hook_registration::regenerate_hook_configs(&config, &cwd) {
             output::warn(&format!("Hook registration failed: {}", e));
         }
-        // Merge processkit's preauth.json into .claude/settings.json
-        // (pre-approve Bash patterns + MCP servers shipped by
-        // processkit ≥ v0.22.0). Best-effort.
-        if let Err(e) = crate::preauth::merge_processkit_preauth_into_claude_settings(&cwd) {
+        // Merge processkit's preauth.json into enabled harness settings.
+        // Best-effort and provider-scoped.
+        if let Err(e) = crate::preauth::merge_processkit_preauth_for_config(&cwd, &config) {
             output::warn(&format!("Preauth merge failed: {}", e));
         }
         // Surface the processkit compliance contract to each harness

@@ -37,36 +37,27 @@ services:
     volumes:
       # Workspace (project root)
       - ${WORKSPACE_DIR:-..}:/workspace:rw
-      # SSH keys (read-only — mount from host)
+      # SSH keys
       - ../.aibox-home/.ssh:/home/aibox/.ssh:ro
-      # Vim configuration (vimrc + undo only — colorschemes stay from image)
+      # Vim config
       - ../.aibox-home/.vim/vimrc:/home/aibox/.vim/vimrc:rw
+      # Vim undo history
       - ../.aibox-home/.vim/undo:/home/aibox/.vim/undo:rw
-      # tmux terminal multiplexer config and plugin state
-      - ../.aibox-home/.config/tmux:/home/aibox/.config/tmux:rw
-      - ../.aibox-home/.tmux:/home/aibox/.tmux:rw
-      # XDG cache home. This must be mounted as a writable parent, not only as
-      # selected subdirectories, because tools such as uv and starship create
-      # their own cache/log directories at runtime.
+      # XDG config home
+      - ../.aibox-home/.config:/home/aibox/.config:rw
+      # XDG cache home
       - ../.aibox-home/.cache:/home/aibox/.cache:rw
-      # Starship shell prompt config
-      - ../.aibox-home/.config/starship.toml:/home/aibox/.config/starship.toml:rw
-      # Yazi file manager config
-      - ../.aibox-home/.config/yazi:/home/aibox/.config/yazi:rw
-      # Git configuration
-      - ../.aibox-home/.config/git:/home/aibox/.config/git:rw
-      # XDG state for TUIs such as lazygit
-      - ../.aibox-home/.config/state:/home/aibox/.config/state:rw
-      # aibox-managed helper scripts (resource status, preview helpers)
-      - ../.aibox-home/.local/bin:/home/aibox/.local/bin:rw
-      # OpenAI Codex CLI configuration and cached login state
+      # XDG local data, state, and helper scripts
+      - ../.aibox-home/.local:/home/aibox/.local:rw
+      # tmux plugin and socket state
+      - ../.aibox-home/.tmux:/home/aibox/.tmux:rw
+      # AI harness config and login state
       - ../.aibox-home/.codex:/home/aibox/.codex:rw
-      # ALSA → PulseAudio bridge config
+      # ALSA to PulseAudio bridge config
       - ../.aibox-home/.asoundrc:/home/aibox/.asoundrc:rw
-      # Cargo registry cache — avoids re-downloading crates on rebuild.
-      # Only registry/ and git/ are mounted; bin/ stays in the image (host binaries
-      # won't run in the container).
+      # Cargo registry cache
       - ../.aibox-home/.cargo/registry:/home/aibox/.cargo/registry:rw
+      # Cargo git cache
       - ../.aibox-home/.cargo/git:/home/aibox/.cargo/git:rw
     env_file:
       # Credentials from .aibox-local.toml — gitignored, never committed.

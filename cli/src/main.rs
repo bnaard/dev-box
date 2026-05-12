@@ -42,6 +42,7 @@ mod processkit_vocab;
 mod provider_backend;
 mod reset;
 mod runtime;
+mod runtime_home;
 mod runtime_resources;
 mod runtime_sync;
 mod seed;

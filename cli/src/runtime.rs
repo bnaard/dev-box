@@ -1,4 +1,5 @@
 use anyhow::{Context, Result, bail};
+use serde::Deserialize;
 use std::process::Command;
 
 /// Container state as detected by runtime inspect.
@@ -24,6 +25,15 @@ impl std::fmt::Display for ContainerState {
 pub struct Runtime {
     pub compose_bin: Vec<String>,
     pub runtime_bin: String,
+}
+
+#[derive(Debug, Clone, Deserialize, PartialEq, Eq)]
+#[serde(rename_all = "PascalCase")]
+pub struct ContainerMount {
+    pub source: String,
+    pub destination: String,
+    #[serde(default, rename = "RW")]
+    pub rw: bool,
 }
 
 impl Runtime {
@@ -92,6 +102,31 @@ impl Runtime {
         } else {
             Ok(Some(label))
         }
+    }
+
+    /// Read the runtime mount table for a container.
+    ///
+    /// Docker and Podman both expose `.Mounts` through `inspect`; the `RW`
+    /// field is the source of truth for whether Compose actually created the
+    /// bind mount as writable.
+    pub fn get_container_mounts(&self, container_name: &str) -> Result<Vec<ContainerMount>> {
+        let output = Command::new(&self.runtime_bin)
+            .args(["inspect", "--format", "{{json .Mounts}}", container_name])
+            .output()
+            .context("Failed to inspect container mounts")?;
+
+        if !output.status.success() {
+            return Ok(Vec::new());
+        }
+
+        let body = String::from_utf8_lossy(&output.stdout);
+        let body = body.trim();
+        if body.is_empty() || body == "null" {
+            return Ok(Vec::new());
+        }
+        let mounts: Vec<ContainerMount> =
+            serde_json::from_str(body).context("Failed to parse container mount table")?;
+        Ok(mounts)
     }
 
     /// Read the Docker Compose project label from a container.

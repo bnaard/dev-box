@@ -122,9 +122,8 @@ pub fn cmd_doctor(config_path: &Option<String>) -> Result<()> {
         // Check mount source paths match config (AI providers, audio)
         check_mount_sources(&root, &root_label, &config, &mut diag);
 
-        // Check active container home mounts. Generated compose declares these
-        // read-write; if the live mount is read-only, tmux/Yazi/Codex runtime
-        // state can silently drift or render blank.
+        // When doctor runs inside the container, directly probe the mounted
+        // runtime-home dirs for writes.
         check_container_home_mount_writability(&config, &mut diag);
 
         // Check standard runtime theme/config files against the current
@@ -269,6 +268,7 @@ pub fn cmd_doctor(config_path: &Option<String>) -> Result<()> {
     // 9. Container image version check (only if a runtime is available)
     if let Ok(runtime) = Runtime::detect() {
         check_container_image_version(&runtime, &config, &mut diag);
+        check_runtime_home_mount_modes(&runtime, &config, &mut diag);
     }
 
     // 10. CLI version file check
@@ -1209,6 +1209,13 @@ fn check_processkit_semantic_capability(diag: &mut DiagResult) {
         return;
     }
 
+    if !is_running_inside_aibox_container() {
+        output::info(
+            "processkit semantic search probe skipped outside the aibox container; run doctor inside the workspace container to verify sqlite-vec in the runtime uv cache",
+        );
+        return;
+    }
+
     let uv = find_command_on_path(&["uv"]);
     let Some(uv) = uv else {
         output::warn(
@@ -1456,6 +1463,10 @@ fn find_command_on_path(candidates: &[&str]) -> Option<String> {
 fn check_lnav_installed(diag: &mut DiagResult) {
     if find_command_on_path(&["lnav"]).is_some() {
         output::ok("lnav: installed (Prefix L opens the structured log popup)");
+    } else if !is_running_inside_aibox_container() {
+        output::info(
+            "lnav check skipped outside the aibox container; the container image owns the Prefix L structured log viewer dependency",
+        );
     } else {
         output::warn(
             "lnav not found on PATH — Prefix L log popup will fall back to less. \
@@ -1512,6 +1523,15 @@ fn check_powerkit_plugin_tree(config: &AiboxConfig, diag: &mut DiagResult) {
         Path::new("/usr/local/share/aibox/tmux/plugins/tmux-powerkit/tmux-powerkit.tmux");
     if host.exists() || in_image.exists() {
         output::ok("PowerKit plugin tree present");
+    } else if !is_running_inside_aibox_container() {
+        output::warn(&format!(
+            "PowerKit host plugin mirror missing at {}. Generated tmux config loads \
+             PowerKit from the container image path; run `aibox doctor` inside the \
+             workspace container to verify the image copy, or rebuild if the status \
+             line is blank.",
+            host.display(),
+        ));
+        diag.warnings += 1;
     } else {
         output::error(&format!(
             "PowerKit plugin tree missing: neither {} nor {} exist. \
@@ -1534,12 +1554,8 @@ fn check_powerkit_plugin_tree(config: &AiboxConfig, diag: &mut DiagResult) {
 /// segment styling.  If the individual `.sh` files are not installed the
 /// segments render blank or cause PowerKit bootstrap errors.
 ///
-/// Required plugin scripts (relative to `tmux-powerkit/src/plugins/`):
-///   hostname.sh, externalip.sh, ssh.sh, uptime.sh, weather.sh, datetime.sh,
-///   git.sh, github.sh, kubernetes.sh, terraform.sh, cloud.sh, cloudstatus.sh,
-///   cpu.sh, loadavg.sh, memory.sh, swap.sh, disk.sh, gpu.sh, netspeed.sh,
-///   ping.sh, aibox_log.sh, aibox_oom.sh, aibox_proc.sh, aibox_ai.sh,
-///   aibox_mcp.sh, aibox_mig.sh, and optional modelstatus_<provider>.sh
+/// Required plugin scripts are derived from the resolved status layout so
+/// opt-in segments such as cloudstatus are not required unless configured.
 fn check_powerkit_status_plugins(config: &AiboxConfig, diag: &mut DiagResult) {
     use crate::config::TmuxStatusMode;
     if !matches!(
@@ -1568,54 +1584,17 @@ fn check_powerkit_status_plugins(config: &AiboxConfig, diag: &mut DiagResult) {
         return;
     }
 
-    // All plugin script names required by the fixed slot order.
-    // Slot order is fixed per DEC-20260508_2115-SilentFern.
-    let mut required: Vec<String> = [
-        // Line 1 right
-        "hostname",
-        "externalip",
-        "ssh",
-        "uptime",
-        "weather",
-        "datetime",
-        // Line 2 left
-        "git",
-        "github",
-        "kubernetes",
-        "terraform",
-        "cloud",
-        "cloudstatus",
-        // Line 2 right — system
-        "cpu",
-        "loadavg",
-        "memory",
-        "swap",
-        "disk",
-        "gpu",
-        "netspeed",
-        "ping",
-        // Line 2 right — aibox-metrics block (path-a split, per-metric segments)
-        "aibox_log",
-        "aibox_oom",
-        "aibox_proc",
-        "aibox_ai",
-        "aibox_mcp",
-        "aibox_mig",
-    ]
-    .iter()
-    .map(|name| (*name).to_string())
-    .collect();
-    if config.customization.tmux.status.model_providers.enabled {
-        required.extend(
-            config
-                .customization
-                .tmux
-                .status
-                .model_providers
-                .providers
-                .iter()
-                .map(|provider| format!("modelstatus_{}", provider.provider)),
-        );
+    let layout = crate::tmux::resolved_tmux_status_layout(config);
+    let mut required = Vec::<String>::new();
+    for plugin in layout
+        .line1_right
+        .iter()
+        .chain(layout.line2_left.iter())
+        .chain(layout.line2_right.iter())
+    {
+        if !required.contains(plugin) {
+            required.push(plugin.clone());
+        }
     }
 
     let mut missing = Vec::new();
@@ -1877,25 +1856,37 @@ fn check_mount_sources(root: &Path, root_label: &str, config: &AiboxConfig, diag
 }
 
 fn check_container_home_mount_writability(config: &AiboxConfig, diag: &mut DiagResult) {
+    if std::env::var_os("CODEX_CI").is_some()
+        || std::env::var_os("CODEX_SANDBOX_NETWORK_DISABLED").is_some()
+    {
+        output::info(
+            "Container home write-probe skipped inside the Codex sandbox; use runtime mount inspection or run doctor in a normal shell to verify writable home mounts",
+        );
+        return;
+    }
+
     let container_home = PathBuf::from(config.container_home());
     if !container_home.is_dir() {
         return;
     }
 
-    let mut dirs = vec![
-        ".cache".to_string(),
-        ".config/tmux".to_string(),
-        ".config/yazi".to_string(),
-        ".config/git".to_string(),
-        ".config/state".to_string(),
-        ".local/bin".to_string(),
-        ".tmux".to_string(),
-    ];
-    for provider in &config.ai.harnesses {
-        if let Some(dir_name) = provider.config_dir() {
-            dirs.push(dir_name.to_string());
-        }
-    }
+    let mut dirs: Vec<String> = crate::runtime_home::writable_runtime_home_destinations(config)
+        .into_iter()
+        .filter_map(|destination| {
+            destination
+                .strip_prefix(&format!("{}/", config.container_home()))
+                .map(|rel| rel.to_string())
+        })
+        .collect();
+    dirs.extend(
+        crate::runtime_home::legacy_runtime_home_destinations(config)
+            .into_iter()
+            .filter_map(|destination| {
+                destination
+                    .strip_prefix(&format!("{}/", config.container_home()))
+                    .map(|rel| rel.to_string())
+            }),
+    );
     dirs.sort();
     dirs.dedup();
 
@@ -1925,6 +1916,76 @@ fn check_container_home_mount_writability(config: &AiboxConfig, diag: &mut DiagR
 
     if checked == 0 {
         output::info("Container home mount writability check skipped (no mounted runtime dirs)");
+    }
+}
+
+fn check_runtime_home_mount_modes(runtime: &Runtime, config: &AiboxConfig, diag: &mut DiagResult) {
+    let name = &config.container.name;
+    let state = match runtime.container_status(name) {
+        Ok(state) => state,
+        Err(_) => return,
+    };
+    if state == ContainerState::Missing {
+        return;
+    }
+
+    let mounts = match runtime.get_container_mounts(name) {
+        Ok(mounts) => mounts,
+        Err(err) => {
+            output::warn(&format!(
+                "Runtime mount-mode check skipped: could not inspect container mounts: {err}"
+            ));
+            diag.warnings += 1;
+            return;
+        }
+    };
+    if mounts.is_empty() {
+        return;
+    }
+
+    let mut checked = 0usize;
+    let mut problems = Vec::new();
+    for destination in crate::runtime_home::writable_runtime_home_destinations(config) {
+        match mounts.iter().find(|mount| mount.destination == destination) {
+            Some(mount) if !mount.rw => {
+                checked += 1;
+                problems.push(format!(
+                    "{} from {} is read-only",
+                    mount.destination, mount.source
+                ));
+            }
+            Some(_) => checked += 1,
+            None => problems.push(format!(
+                "{destination} is not mounted from .aibox-home (legacy or shadowed runtime layout)"
+            )),
+        }
+    }
+    for destination in crate::runtime_home::legacy_runtime_home_destinations(config) {
+        if let Some(mount) = mounts.iter().find(|mount| mount.destination == destination)
+            && !mount.rw
+        {
+            checked += 1;
+            problems.push(format!(
+                "{} from {} is read-only legacy runtime-home mount",
+                mount.destination, mount.source
+            ));
+        }
+    }
+
+    if problems.is_empty() {
+        if checked > 0 {
+            output::ok(&format!(
+                "Runtime .aibox-home mounts: {checked} mounted runtime path(s) are read-write"
+            ));
+        }
+    } else {
+        output::error(&format!(
+            "Runtime .aibox-home mounts are stale or not writable: {}. \
+             Recreate the container from the generated compose files; Yazi, Codex, Bash/Starship, \
+             PowerKit, and tmux status require writable .config, .cache, and .local mounts.",
+            problems.join(", ")
+        ));
+        diag.errors += 1;
     }
 }
 

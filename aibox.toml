@@ -473,7 +473,7 @@ theme  = "nord"
 mode   = "auto"
 # Starship prompt preset.
 # Options: default | plain | minimal | nerd-font | pastel | bracketed | arrow
-prompt = "arrow"
+prompt = "pastel"
 # Default tmux layout. Options: dev | focus | cowork | ai
 # Layout sketches, one screen each:
 # +---- ai ----+  +--- dev ----+  +-- focus --+  +-- cowork -+

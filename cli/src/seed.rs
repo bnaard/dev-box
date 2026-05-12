@@ -783,64 +783,9 @@ export const ProcesskitGate: Plugin = async ({ project: _project }) => {
 /// Safe to call on every sync/start because it only scaffolds missing directories.
 pub fn ensure_runtime_dirs(config: &AiboxConfig) -> Result<()> {
     let root = config.host_root_dir();
-    let include_lazygit = include_lazygit_tab(config);
-
-    let mut dirs = vec![
-        root.join(".ssh"),
-        root.join(".local").join("bin"),
-        root.join(".local").join("state"),
-        root.join(".vim").join("undo"),
-        root.join(".config").join("state"),
-        root.join(".config").join("tmux").join("layouts"),
-        root.join(".tmux").join("plugins"),
-        root.join(".cache").join("starship"),
-        root.join(".cache").join("uv"),
-        root.join(".config").join("yazi"),
-        root.join(".config")
-            .join("yazi")
-            .join("plugins")
-            .join("eps.yazi"),
-        root.join(".config")
-            .join("yazi")
-            .join("plugins")
-            .join("svg.yazi"),
-        root.join(".config")
-            .join("yazi")
-            .join("plugins")
-            .join("git.yazi"),
-        root.join(".config")
-            .join("yazi")
-            .join("plugins")
-            .join("dir-preview.yazi"),
-        root.join(".config")
-            .join("yazi")
-            .join("plugins")
-            .join("status-git.yazi"),
-        root.join(".config").join("git"),
-    ];
-    if include_lazygit {
-        dirs.push(root.join(".config").join("lazygit"));
-        dirs.push(root.join(".local").join("state").join("lazygit"));
-        dirs.push(root.join(".config").join("state").join("lazygit"));
-    }
-
-    for harness in &config.ai.harnesses {
-        if let Some(dir) = harness.config_dir() {
-            dirs.push(root.join(dir));
-        }
-    }
-
-    // OpenCode: needs `.opencode/plugins/` for the processkit-gate plugin.
-    if config
-        .ai
-        .harnesses
-        .contains(&crate::config::AiProvider::OpenCode)
-    {
-        dirs.push(root.join(".opencode").join("plugins"));
-    }
-
-    for dir in &dirs {
-        fs::create_dir_all(dir)
+    for rel_dir in crate::runtime_home::runtime_home_scaffold_dirs(config) {
+        let dir = root.join(rel_dir);
+        fs::create_dir_all(&dir)
             .with_context(|| format!("Failed to create directory: {}", dir.display()))?;
     }
 
@@ -1539,6 +1484,7 @@ pub fn seed_root_dir(config: &AiboxConfig) -> Result<()> {
     }
     let claude_shim = root.join(".local").join("bin").join("claude");
     ensure_claude_home_bin_shim(config, &claude_shim)?;
+    sync_codex_theme_config(config)?;
 
     // Warn if .ssh/ is empty
     let ssh_dir = root.join(".ssh");
@@ -1692,6 +1638,8 @@ pub fn sync_theme_files(config: &AiboxConfig) -> Result<Vec<String>> {
     let session_name = config.tmux_session_name();
     let mut updated = Vec::new();
 
+    ensure_runtime_dirs(config)?;
+
     // vimrc — colorscheme and background
     let vimrc = DEFAULT_VIMRC
         .replace(
@@ -1837,6 +1785,32 @@ pub fn sync_theme_files(config: &AiboxConfig) -> Result<Vec<String>> {
     )? {
         updated.push(".config/yazi/init.lua".to_string());
     }
+    for (rel, content) in [
+        (
+            ".config/yazi/plugins/git.yazi/main.lua",
+            DEFAULT_YAZI_PLUGIN_GIT_MAIN,
+        ),
+        (
+            ".config/yazi/plugins/git.yazi/types.lua",
+            DEFAULT_YAZI_PLUGIN_GIT_TYPES,
+        ),
+        (
+            ".config/yazi/plugins/status-git.yazi/main.lua",
+            DEFAULT_YAZI_PLUGIN_STATUS_GIT,
+        ),
+        (
+            ".config/yazi/plugins/dir-preview.yazi/main.lua",
+            DEFAULT_YAZI_PLUGIN_DIR_PREVIEW,
+        ),
+        (
+            ".config/yazi/plugins/toggle-pane.yazi/main.lua",
+            DEFAULT_YAZI_PLUGIN_TOGGLE_PANE,
+        ),
+    ] {
+        if force_seed_file(&root.join(rel), content)? {
+            updated.push(rel.to_string());
+        }
+    }
 
     // Yazi theme — force-update from the bundled theme for the selected theme
     if force_seed_file(
@@ -1872,6 +1846,10 @@ pub fn sync_theme_files(config: &AiboxConfig) -> Result<Vec<String>> {
         updated.push(".config/starship.toml".to_string());
     }
 
+    if sync_codex_theme_config(config)? {
+        updated.push(".codex/config.toml (tui.theme)".to_string());
+    }
+
     // Claude Code keybindings — disable Ctrl+g (reserved for the tmux prefix).
     if providers.contains(&crate::config::AiProvider::Claude)
         && force_seed_file(
@@ -1887,6 +1865,44 @@ pub fn sync_theme_files(config: &AiboxConfig) -> Result<Vec<String>> {
     Ok(updated)
 }
 
+fn sync_codex_theme_config(config: &AiboxConfig) -> Result<bool> {
+    if !config
+        .ai
+        .harnesses
+        .contains(&crate::config::AiHarness::Codex)
+    {
+        return Ok(false);
+    }
+
+    let path = config.host_root_dir().join(".codex").join("config.toml");
+    let mut doc: toml_edit::DocumentMut = if path.is_file() {
+        let body = fs::read_to_string(&path)
+            .with_context(|| format!("Failed to read {}", path.display()))?;
+        body.parse::<toml_edit::DocumentMut>()
+            .with_context(|| format!("Failed to parse {}", path.display()))?
+    } else {
+        toml_edit::DocumentMut::new()
+    };
+    let before = doc.to_string();
+
+    if !doc.contains_key("tui") {
+        doc["tui"] = toml_edit::table();
+    }
+    doc["tui"]["theme"] = toml_edit::value(config.customization.resolved_theme().to_string());
+
+    let after = doc.to_string();
+    if after == before {
+        return Ok(false);
+    }
+
+    if let Some(parent) = path.parent() {
+        fs::create_dir_all(parent)
+            .with_context(|| format!("Failed to create directory: {}", parent.display()))?;
+    }
+    fs::write(&path, after).with_context(|| format!("Failed to write {}", path.display()))?;
+    Ok(true)
+}
+
 pub fn sync_managed_runtime_permissions(config: &AiboxConfig) -> Result<Vec<String>> {
     let root = config.host_root_dir();
     let mut updated = Vec::new();
@@ -1897,6 +1913,8 @@ pub fn sync_managed_runtime_permissions(config: &AiboxConfig) -> Result<Vec<Stri
         ".local/bin/aibox-preview",
         ".local/bin/aibox-status-toggle",
         ".local/bin/aibox-copy",
+        ".local/bin/aibox-powerkit-render-list",
+        ".local/bin/aibox-powerkit-render-session",
     ] {
         if ensure_executable_if_present(&root.join(rel_path))? {
             updated.push(format!("{} (chmod +x)", rel_path));
@@ -2043,10 +2061,46 @@ mod tests {
         let root = dir.path().join("root");
         let mut config = make_config(false, root.clone());
         config.ai.harnesses = vec![AiProvider::Codex];
+        config.customization.theme = Theme::Nord;
         seed_root_dir(&config).unwrap();
 
         assert!(root.join(".codex").is_dir());
+        let codex_config = fs::read_to_string(root.join(".codex").join("config.toml")).unwrap();
+        assert!(
+            codex_config.contains("theme = \"nord\""),
+            "Codex home config should inherit the selected aibox theme:\n{codex_config}"
+        );
         assert!(!root.join(".claude").exists());
+        clear_test_host_root();
+    }
+
+    #[test]
+    #[serial]
+    fn sync_theme_files_merges_codex_tui_theme_without_overwriting_user_config() {
+        let dir = tempfile::tempdir().unwrap();
+        let root = dir.path().join("root");
+        let mut config = make_config(false, root.clone());
+        config.ai.harnesses = vec![AiProvider::Codex];
+        config.customization.theme = Theme::TokyoNight;
+        seed_root_dir(&config).unwrap();
+
+        let codex_config_path = root.join(".codex").join("config.toml");
+        fs::write(
+            &codex_config_path,
+            "model = \"gpt-5.5\"\n\n[tui]\nstatus_line_use_colors = true\n",
+        )
+        .unwrap();
+
+        let updated = sync_theme_files(&config).unwrap();
+        let codex_config = fs::read_to_string(codex_config_path).unwrap();
+
+        assert!(
+            updated.contains(&".codex/config.toml (tui.theme)".to_string()),
+            "theme sync should report Codex config update: {updated:?}"
+        );
+        assert!(codex_config.contains("model = \"gpt-5.5\""));
+        assert!(codex_config.contains("status_line_use_colors = true"));
+        assert!(codex_config.contains("theme = \"tokyo-night\""));
         clear_test_host_root();
     }
 
@@ -2494,6 +2548,13 @@ mod tests {
         let mut permissions = fs::metadata(&toggle_path).unwrap().permissions();
         permissions.set_mode(0o644);
         fs::set_permissions(&toggle_path, permissions).unwrap();
+        let list_path = root
+            .join(".local")
+            .join("bin")
+            .join("aibox-powerkit-render-list");
+        let mut permissions = fs::metadata(&list_path).unwrap().permissions();
+        permissions.set_mode(0o644);
+        fs::set_permissions(&list_path, permissions).unwrap();
 
         let updated = sync_theme_files(&config).unwrap();
 
@@ -2501,6 +2562,11 @@ mod tests {
             updated
                 .iter()
                 .any(|path| path == ".local/bin/aibox-status-toggle (chmod +x)")
+        );
+        assert!(
+            updated
+                .iter()
+                .any(|path| path == ".local/bin/aibox-powerkit-render-list (chmod +x)")
         );
         assert_ne!(
             fs::metadata(&toggle_path).unwrap().permissions().mode() & 0o111,
@@ -2512,6 +2578,11 @@ mod tests {
             fs::metadata(&copy_path).unwrap().permissions().mode() & 0o111,
             0,
             "aibox-copy should remain executable after apply-time sync"
+        );
+        assert_ne!(
+            fs::metadata(&list_path).unwrap().permissions().mode() & 0o111,
+            0,
+            "aibox-powerkit-render-list should be executable after apply-time sync"
         );
         clear_test_host_root();
     }
@@ -2641,6 +2712,36 @@ rules = [
         assert!(theme.contains(r#"url = "*.rs""#));
         assert!(!yazi.contains("{ name ="));
         assert!(!theme.contains("{ name ="));
+        clear_test_host_root();
+    }
+
+    #[test]
+    #[serial]
+    fn sync_theme_files_refreshes_stale_yazi_git_plugins() {
+        let dir = tempfile::tempdir().unwrap();
+        let root = dir.path().join("root");
+        let config = make_config(false, root.clone());
+        seed_root_dir(&config).unwrap();
+
+        let plugin = root
+            .join(".config")
+            .join("yazi")
+            .join("plugins")
+            .join("git.yazi")
+            .join("main.lua");
+        fs::write(&plugin, "-- stale git plugin without signs\n").unwrap();
+
+        let updated = sync_theme_files(&config).unwrap();
+
+        assert!(
+            updated.contains(&".config/yazi/plugins/git.yazi/main.lua".to_string()),
+            "stale git.yazi plugin should be force-refreshed: {updated:?}"
+        );
+        let body = fs::read_to_string(plugin).unwrap();
+        assert!(
+            body.contains("signs") && body.contains("ignored"),
+            "refreshed git.yazi plugin should include visible git sign support:\n{body}"
+        );
         clear_test_host_root();
     }
 

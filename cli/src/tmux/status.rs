@@ -616,7 +616,7 @@ export POWERKIT_ROOT
 
 script_dir="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
 export HOME="$(cd -- "${script_dir}/../.." && pwd)"
-cache_root="${AIBOX_POWERKIT_CACHE_DIR:-/tmp/aibox/tmux-powerkit-cache}"
+cache_root="${AIBOX_POWERKIT_CACHE_DIR:-${XDG_CACHE_HOME:-${HOME}/.cache}}"
 mkdir -p "${cache_root}" 2>/dev/null || true
 export XDG_CACHE_HOME="${cache_root}"
 
@@ -643,7 +643,7 @@ export POWERKIT_ROOT
 
 script_dir="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
 export HOME="$(cd -- "${script_dir}/../.." && pwd)"
-cache_root="${AIBOX_POWERKIT_CACHE_DIR:-/tmp/aibox/tmux-powerkit-cache}"
+cache_root="${AIBOX_POWERKIT_CACHE_DIR:-${XDG_CACHE_HOME:-${HOME}/.cache}}"
 mkdir -p "${cache_root}" 2>/dev/null || true
 export XDG_CACHE_HOME="${cache_root}"
 
@@ -955,10 +955,11 @@ mod tests {
     fn powerkit_render_helpers_use_tmp_cache() {
         for helper in [POWERKIT_RENDER_LIST_SH, POWERKIT_RENDER_SESSION_SH] {
             assert!(
-                helper.contains(r#"AIBOX_POWERKIT_CACHE_DIR:-/tmp/aibox/tmux-powerkit-cache"#)
+                helper.contains(r#"AIBOX_POWERKIT_CACHE_DIR:-${XDG_CACHE_HOME:-${HOME}/.cache}"#)
                     && helper.contains(r#"export XDG_CACHE_HOME="${cache_root}""#)
-                    && !helper.contains(r#"export XDG_CACHE_HOME="${HOME}/.cache""#),
-                "PowerKit helpers must not write cache under mounted .aibox-home/.cache:\n{helper}"
+                    && !helper
+                        .contains(r#"AIBOX_POWERKIT_CACHE_DIR:-/tmp/aibox/tmux-powerkit-cache"#),
+                "PowerKit helpers should use the managed writable XDG cache home:\n{helper}"
             );
         }
     }

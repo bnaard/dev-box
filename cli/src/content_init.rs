@@ -223,10 +223,17 @@ fn collect_available_skill_names_inner(root: &Path, names: &mut HashSet<String>)
 /// Returns an empty vec when `skills_dir` does not exist (e.g. no mirror
 /// yet on the first install).
 pub fn collect_core_skills(skills_dir: &Path) -> Vec<String> {
-    let Ok(entries) = fs::read_dir(skills_dir) else {
-        return Vec::new();
-    };
     let mut core = Vec::new();
+    collect_core_skills_inner(skills_dir, &mut core);
+    core.sort();
+    core.dedup();
+    core
+}
+
+fn collect_core_skills_inner(skills_dir: &Path, core: &mut Vec<String>) {
+    let Ok(entries) = fs::read_dir(skills_dir) else {
+        return;
+    };
     for entry in entries.flatten() {
         let path = entry.path();
         if !path.is_dir() {
@@ -237,17 +244,16 @@ pub fn collect_core_skills(skills_dir: &Path) -> Vec<String> {
             _ => continue,
         };
         let skill_file = path.join(SKILL_FILENAME);
-        if !skill_file.exists() {
-            continue;
-        }
-        if processkit_vocab::parse_skill_frontmatter(&skill_file)
-            .map(|fm| fm.is_core())
-            .unwrap_or(false)
+        if skill_file.exists()
+            && processkit_vocab::parse_skill_frontmatter(&skill_file)
+                .map(|fm| fm.is_core())
+                .unwrap_or(false)
         {
             core.push(name);
+        } else if !name.starts_with('_') && name != "lib" {
+            collect_core_skills_inner(&path, core);
         }
     }
-    core
 }
 
 /// Validate that every name in `[skills].include` and `[skills].exclude`
@@ -264,18 +270,7 @@ pub fn validate_skill_overrides(project_root: &Path, config: &AiboxConfig) -> Re
     else {
         return Ok(Vec::new());
     };
-    let mut all_skills: HashSet<String> = HashSet::new();
-    if let Ok(entries) = fs::read_dir(&mirror_skills_dir) {
-        for entry in entries.flatten() {
-            if let Some(name) = entry.file_name().to_str()
-                && !name.starts_with('_')
-                && !name.starts_with('.')
-                && entry.path().is_dir()
-            {
-                all_skills.insert(name.to_string());
-            }
-        }
-    }
+    let all_skills = collect_available_skill_names(&mirror_skills_dir);
 
     // Collect core skills for the exclude-core warning.
     let core_skills: HashSet<String> = collect_core_skills(&mirror_skills_dir)
@@ -1388,6 +1383,23 @@ mod tests {
         assert!(
             warnings.iter().any(|w| w.contains("core skill")),
             "expected a core-skill warning, got: {:?}",
+            warnings
+        );
+    }
+
+    #[test]
+    fn validate_skill_overrides_accepts_nested_processkit_skill_catalog() {
+        let tmp = TempDir::new().unwrap();
+        let version = crate::processkit_vocab::PROCESSKIT_DEFAULT_VERSION;
+        write_synth_packages_dir(tmp.path(), version, &[("minimal", &[], &[])]);
+        write_synth_skills_dir(tmp.path(), version, &["actor-profile"]);
+
+        let config =
+            config_with_packages_and_skills(version, &["minimal"], &["actor-profile"], &[]);
+        let warnings = validate_skill_overrides(tmp.path(), &config).unwrap();
+        assert!(
+            warnings.is_empty(),
+            "nested processkit skill should be recognized, got: {:?}",
             warnings
         );
     }
