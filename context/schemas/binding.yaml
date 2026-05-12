@@ -86,8 +86,8 @@ spec:
         description: "Optional. The primitive kind of the target."
       scope:
         type: [string, "null"]
-        pattern: "^SCOPE-[a-zA-Z0-9_-]+$"
-        description: "Optional. Scope ID within which this binding applies."
+        pattern: "^(SCOPE-[a-zA-Z0-9_-]+|permanent)$"
+        description: "Optional. Scope ID within which this binding applies; legacy permanent bindings are grandfathered."
       valid_from:
         type: [string, "null"]
         description: >

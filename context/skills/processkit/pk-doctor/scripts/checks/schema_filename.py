@@ -20,6 +20,7 @@ Known parser quirks:
 from __future__ import annotations
 
 import re
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from typing import Iterator
 
@@ -132,6 +133,27 @@ def _parse_frontmatter(path: Path) -> tuple[dict | None, str | None]:
     if not isinstance(data, dict):
         return None, "frontmatter is not a mapping"
     return data, None
+
+
+def _filename_date_matches_created(fn_date: str, created: object) -> bool:
+    """Accept exact UTC dates and near-midnight local-date IDs."""
+    created_str = created.isoformat() if hasattr(created, "isoformat") else str(created)
+    if fn_date in created_str.replace("-", ""):
+        return True
+    try:
+        parsed = created if isinstance(created, datetime) else datetime.fromisoformat(
+            created_str.replace("Z", "+00:00")
+        )
+    except (TypeError, ValueError):
+        return False
+    if parsed.tzinfo is None:
+        parsed = parsed.replace(tzinfo=timezone.utc)
+    utc_date = parsed.astimezone(timezone.utc).date()
+    return fn_date in {
+        utc_date.strftime("%Y%m%d"),
+        (utc_date + timedelta(days=1)).strftime("%Y%m%d"),
+        (utc_date - timedelta(days=1)).strftime("%Y%m%d"),
+    }
 
 
 def _iter_entity_files(ctx_root: Path, kind_dir: str, since_files: set[Path] | None) -> Iterator[Path]:
@@ -251,13 +273,18 @@ def run(ctx) -> list[CheckResult]:
             # --- filename stem vs metadata.id -----------------------------
             stem = path.stem
             if meta_id and stem != meta_id:
+                severity = "WARN"
+                suffix = "(Phase 1: rename deferred)"
+                if kind == "migration" and "applied" in path.parts:
+                    severity = "INFO"
+                    suffix = "(historical applied migration filename grandfathered)"
                 results.append(CheckResult(
-                    severity="WARN",
+                    severity=severity,
                     category="schema_filename",
                     id="schema.filename-id-mismatch",
                     message=(
                         f"{rel}: filename stem '{stem}' != metadata.id "
-                        f"'{meta_id}' (Phase 1: rename deferred)"
+                        f"'{meta_id}' {suffix}"
                     ),
                     entity_ref=str(rel),
                     fixable=False,
@@ -284,7 +311,7 @@ def run(ctx) -> list[CheckResult]:
             if m and created:
                 fn_date = m.group(1)  # YYYYMMDD
                 created_str = created.isoformat() if hasattr(created, "isoformat") else str(created)
-                if fn_date not in created_str.replace("-", ""):
+                if not _filename_date_matches_created(fn_date, created):
                     results.append(CheckResult(
                         severity="WARN",
                         category="schema_filename",

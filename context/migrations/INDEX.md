@@ -8,7 +8,7 @@ None.
 
 None.
 
-## Applied (47)
+## Applied (48)
 
 | Date       | Migration                                | Notes |
 |------------|------------------------------------------|-------|
@@ -56,11 +56,12 @@ None.
 | 2026-05-11 | MIG-20260511T232952 — processkit v0.26.0 → v0.26.1 | 0 changed upstream, 0 conflicts, 4 new, 0 removed, 0 stale-removed (2 groups affected) |
 | 2026-05-11 | MIG-RUNTIME-DRIFT-20260511T210812 — aibox-runtime-drift  → 0.25.8 | 6 drifted managed runtime file(s) found at 0.25.8 |
 | 2026-05-11 | MIG-RUNTIME-DRIFT-20260511T232935 — aibox-runtime-drift  → 0.25.8 | 5 drifted managed runtime file(s) found at 0.25.8 |
+| 2026-05-12 | MIG-RUNTIME-DRIFT-20260512T044714 — aibox-runtime-drift  → 0.25.9 | 5 drifted managed runtime file(s) found at 0.25.9 |
 |  | MIG-20260426T155754 — processkit v0.22.0 → v0.23.0 | 0 changed upstream, 50 conflicts, 9 new, 0 removed, 0 stale-removed (7 groups affected) |
 |  | MIG-20260504T130152 — processkit v0.25.5 → v0.25.6 | 0 changed upstream, 0 conflicts, 4 new, 3 removed, 0 stale-removed (2 groups affected) |
 |  | MIG-RUNTIME-20260426T155732 — aibox-runtime-home 0.21.0 → 0.21.0 | 0 changed upstream, 0 conflicts, 27 new, 0 removed (9 groups affected) |
 
-## Rejected (8)
+## Rejected (9)
 
 | Date       | Migration                                | Reason |
 |------------|------------------------------------------|--------|
@@ -69,6 +70,7 @@ None.
 | 2026-05-02 | MIG-RUNTIME-20260502T072936 — aibox-runtime-home 0.22.0 → 0.22.0 | No upstream runtime changes or conflicts were present; the migration only reported a local-only .aibox-home/.config/git… |
 | 2026-05-08 | MIG-RUNTIME-20260508T115429 — aibox-runtime-home 0.25.2 → 0.25.4 | Obsoleted by accepted v0.25.6 cleanup-arch plan (DEC-20260508_1515-SilentAsh). The 7 conflicts are all managed tmux run… |
 | 2026-05-08 | MIG-RUNTIME-20260508T152425 — aibox-runtime-home 0.25.4 → 0.25.5 | No-op migration: 0 changed-upstream, 0 conflicts, 0 new, 0 removed. Only 12 changed-locally-only entries which fall out… |
+| 2026-05-12 | MIG-RUNTIME-20260512T044831 — aibox-runtime-home 0.25.9 → 0.25.9 | Rejected during pk-doctor cleanup: same-version runtime-home migration reported affected groups but no affected_files; … |
 |  | MIG-20260425T235248 — processkit v0.21.0 → v0.22.0 |  |
 |  | MIG-RUNTIME-20260425T235247 — aibox-runtime-home 0.19.2 → 0.19.2 |  |
 |  | disabled-harness-state-REJECTED — aibox  → | Trigger condition no longer holds — `[ai.harness.claude]` is enabled in aibox.toml. Likely emitted during a transient s… |

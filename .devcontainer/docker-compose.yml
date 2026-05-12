@@ -61,12 +61,6 @@ services:
       - ../.aibox-home/.local/bin:/home/aibox/.local/bin
       # OpenAI Codex CLI configuration and cached login state
       - ../.aibox-home/.codex:/home/aibox/.codex
-      # Claude Code configuration and memory
-      - ../.aibox-home/.claude:/home/aibox/.claude
-      # Claude Code account/session state (holds oauthAccount, userID);
-      # mounting .claude alone is not enough — without this file Claude Code
-      # treats every rebuild as a fresh install and re-prompts for login.
-      - ../.aibox-home/.claude.json:/home/aibox/.claude.json
       # ALSA → PulseAudio bridge config
       - ../.aibox-home/.asoundrc:/home/aibox/.asoundrc
       # Cargo registry cache — avoids re-downloading crates on rebuild.

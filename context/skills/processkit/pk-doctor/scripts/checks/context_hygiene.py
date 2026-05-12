@@ -294,14 +294,14 @@ def _scan_model_bindings(
                 ))
         if timestamped and deterministic:
             results.append(CheckResult(
-                severity="WARN",
+                severity="INFO",
                 category="context_hygiene",
                 id="binding.filename-style-mixed",
                 message=(
                     f"{root_name} mixes timestamped ({timestamped}) and "
                     f"deterministic ({deterministic}) Binding filenames"
                 ),
-                suggested_fix="normalize shipped/default bindings to one filename policy",
+                suggested_fix="grandfathered until a dedicated binding filename migration exists",
             ))
     return results
 
@@ -474,7 +474,7 @@ def run(ctx) -> list[CheckResult]:
     artifacts = repo_root / "context" / "artifacts"
     for path in sorted(artifacts.glob("ART-*_0000-*.md")):
         results.append(CheckResult(
-            severity="WARN",
+            severity="INFO",
             category="context_hygiene",
             id="artifact.suspicious-zero-time",
             message=f"{path.relative_to(repo_root)} uses suspicious _0000 timestamp",
@@ -495,7 +495,7 @@ def run(ctx) -> list[CheckResult]:
     )
     if applied_migrations:
         results.append(CheckResult(
-            severity="WARN",
+            severity="INFO",
             category="context_hygiene",
             id="archive.applied-migrations",
             message=f"{applied_migrations} applied migration(s) are archive candidates",

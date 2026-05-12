@@ -25,8 +25,6 @@ files_pane="$(tmux -S "$socket" display-message -p -t "$session:work" '#{pane_id
 tmux -S "$socket" split-window -t "$session:work" -h -p 50 -c "$workspace" "bash"
 tmux -S "$socket" split-window -t "$files_pane" -v -p 50 -c "$workspace" "$(tool_or_shell codex)"
 tmux -S "$socket" select-pane -t "$files_pane"
-tmux -S "$socket" new-window -t "$session:" -n "ai" -c "$workspace" "$(tool_or_shell claude)"
-ai_pane="$(tmux -S "$socket" display-message -p -t "$session:ai" '#{pane_id}')"
 tmux -S "$socket" new-window -t "$session:" -n "shell" -c "$workspace" "bash"
 tmux -S "$socket" select-window -t "$session:work"
 exec tmux -S "$socket" -f "$config" attach-session -t "$session"

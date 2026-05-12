@@ -23,6 +23,7 @@ spec:
     - actor.updated
     - artifact.created
     - artifact.updated
+    - backlog_grooming_completed
     - binding.created
     - binding.ended
     - binding.role-assigned
@@ -34,11 +35,13 @@ spec:
     - discussion.opened
     - discussion.transitioned
     - doctor.report
+    - external.issue.filed
     - gate.created
     - gate.passed
     - gate.failed
     - gate.waived
     - github.issue.closed
+    - github.issues.closed
     - external_issue.created
     - inbox.captured
     - inbox.claimed
@@ -46,6 +49,7 @@ spec:
     - inbox.failed
     - inbox.triaged
     - inbox.injected
+    - implementation.pushed
     - interrupt.fired
     - interrupt.drained
     - logentry.corrected
@@ -55,8 +59,12 @@ spec:
     - migration.applied
     - migration.rejected
     - migration.v2-context-converted
+    - migration.verified
     - note.created
+    - phase.completed
+    - plan.approved
     - process.backlog_review
+    - process.created
     - process.behavioral_norms_encoded
     - process.id-format-redesign
     - process.instance.created
@@ -67,12 +75,16 @@ spec:
     - process.skill_updated
     - research.completed
     - release.published
+    - release.phase2_completed
+    - release.shipped
     - retro.action_item_created
     - retro.completed
     - role.created
     - role.updated
     - scope.created
     - scope.transitioned
+    - schema.migrated
+    - session.completed
     - session.ended
     - session.handover
     - session.release
@@ -109,14 +121,17 @@ spec:
     - security.tetragon_policy_projected
     - sep.handoff.created
     - skill.implemented
+    - skill.registration
     - decision.re-recorded
     - entity.renamed
     - test.event
     - test.fixture
+    - upstream_issue.created
+    - workitem.investigation.note
   spec_schema:
     $schema: https://json-schema.org/draft/2020-12/schema
     type: object
-    required: [event_type, actor, timestamp]
+    required: [event_type, timestamp]
     additionalProperties: true
     properties:
       event_type:

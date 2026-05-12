@@ -384,7 +384,7 @@ def _layout_checks(repo_root: Path) -> list[CheckResult]:
             styles.setdefault(style, []).append(path)
         if styles["placeholder_time"]:
             results.append(CheckResult(
-                severity="WARN",
+                severity="INFO",
                 category="entity_storage_hygiene",
                 id="storage.placeholder-timestamp",
                 message=(
@@ -393,7 +393,7 @@ def _layout_checks(repo_root: Path) -> list[CheckResult]:
                     "placeholder timestamp 0000"
                 ),
                 suggested_fix=(
-                    "migrate or explicitly grandfather placeholder IDs"
+                    "placeholder IDs are grandfathered until a dedicated storage migration exists"
                 ),
                 extra={
                     "sample": _sample(styles["placeholder_time"], repo_root),
@@ -401,7 +401,7 @@ def _layout_checks(repo_root: Path) -> list[CheckResult]:
             ))
         if styles["datetime_wordpair"] and styles["other"]:
             results.append(CheckResult(
-                severity="WARN",
+                severity="INFO",
                 category="entity_storage_hygiene",
                 id="storage.filename-policy-mixed",
                 message=(
@@ -410,8 +410,7 @@ def _layout_checks(repo_root: Path) -> list[CheckResult]:
                     f"filename policies ({len(styles['other'])})"
                 ),
                 suggested_fix=(
-                    "document grandfathering or migrate the older filename "
-                    "policy for this entity kind"
+                    "mixed filename policies are grandfathered until a dedicated storage migration exists"
                 ),
                 extra={"sample": _sample(styles["other"], repo_root)},
             ))

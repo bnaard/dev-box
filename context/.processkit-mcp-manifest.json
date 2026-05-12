@@ -1,5 +1,5 @@
 {
-  "aggregate_sha256": "89a3c0248d933cc2b3022f45a61667dd48280727043b1f2405165a67c2cbd5d8",
+  "aggregate_sha256": "0fd06b789cd6f9709fc43875802c55ab3e469ce8fa91d3bf4ed54b297efd5fb5",
   "per_gateway": [
     {
       "path": "context/skills/processkit/processkit-gateway/mcp/mcp-config.json",
@@ -172,6 +172,10 @@
     {
       "path": "context/skills/processkit/note-management/mcp/mcp-config.json",
       "sha256": "85c2647b01060028420f0102178a490360e312dc7a1e1ef87531b20f52059697"
+    },
+    {
+      "path": "context/skills/processkit/pk-doctor/mcp/mcp-config.json",
+      "sha256": "66fbb69975cdaddb3ea6d06a57a4ab735ff4b8ef5d08899fea49b5ea43b6ba33"
     },
     {
       "path": "context/skills/processkit/role-management/mcp/mcp-config.json",
