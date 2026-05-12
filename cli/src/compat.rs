@@ -423,6 +423,11 @@ pub static COMPAT_TABLE: &[CompatEntry] = &[
         processkit_version: "v0.26.1",
         note: "Patch release: integrates processkit v0.26.1 with pk-doctor entity-storage hygiene coverage and migration/index-management test additions; retires yazi-omp runtime support; migrates tmux status configuration to list-based slot ordering; fixes preview-enhanced addon dependency/config standardization; preserves user-selected themes during standardization; suppresses Kubernetes/cloud PowerKit auth/probe flashes; distinguishes direct vs inherited git status in Yazi directory previews; removes superseded legacy context/models entries after Artifact model-spec migration; and routes uv to a writable /tmp/aibox cache for sandbox-safe first-run behavior.",
     },
+    CompatEntry {
+        aibox_version: "0.25.10",
+        processkit_version: "v0.26.2",
+        note: "Patch release: integrates processkit v0.26.2; adds configurable tmux status labels/layouts and model-provider health segments; reduces PowerKit refresh churn; fixes log-viewer Vim yanking through the tmux/host clipboard bridge; stabilizes runtime MCP diagnostics; verifies release checksum sidecars; and improves image layer/cache reuse across apply/up and host release publishing.",
+    },
 ];
 
 /// Find the minimum compatible processkit version for the given aibox version.
