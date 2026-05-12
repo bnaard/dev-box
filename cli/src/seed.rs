@@ -1230,7 +1230,7 @@ fn cleanup_disabled_harness_state(config: &AiboxConfig, root: &Path) -> Result<V
             ));
         } else {
             updated.push(
-                "context/migrations/pending/disabled-harness-state.md (advisory written)"
+                "context/migrations/pending/MIG-DISABLED-HARNESS-STATE.md (advisory written)"
                     .to_string(),
             );
         }
@@ -1251,12 +1251,28 @@ fn write_disabled_harness_migration(
     fs::create_dir_all(&migrations_dir)
         .with_context(|| format!("Failed to create {}", migrations_dir.display()))?;
 
-    let filepath = migrations_dir.join("disabled-harness-state.md");
-    if filepath.exists() {
+    let filepath = migrations_dir.join("MIG-DISABLED-HARNESS-STATE.md");
+    if disabled_harness_migration_already_recorded(project_root) {
         return Ok(());
     }
 
+    let now = chrono::Utc::now().to_rfc3339();
     let mut body = String::new();
+    body.push_str("---\n");
+    body.push_str("apiVersion: processkit.projectious.work/v2\n");
+    body.push_str("kind: Migration\n");
+    body.push_str("metadata:\n");
+    body.push_str("  id: MIG-DISABLED-HARNESS-STATE\n");
+    body.push_str(&format!("  created: {now}\n"));
+    body.push_str("spec:\n");
+    body.push_str("  source: aibox\n");
+    body.push_str("  kind: runtime\n");
+    body.push_str("  state: pending\n");
+    body.push_str("  apply_mode: one-shot\n");
+    body.push_str("  generated_by: aibox apply\n");
+    body.push_str(&format!("  generated_at: {now}\n"));
+    body.push_str("  summary: Disabled AI-harness state cleanup requires owner review\n");
+    body.push_str("---\n\n");
     body.push_str("# Migration: disabled AI-harness state cleanup\n\n");
     body.push_str(
         "> **SAFETY: Do not execute host actions automatically.**\n\
@@ -1301,6 +1317,29 @@ fn write_disabled_harness_migration(
         filepath.display()
     ));
     Ok(())
+}
+
+fn disabled_harness_migration_already_recorded(project_root: &Path) -> bool {
+    let migrations_root = project_root.join("context").join("migrations");
+    [
+        migrations_root
+            .join("pending")
+            .join("MIG-DISABLED-HARNESS-STATE.md"),
+        migrations_root
+            .join("in-progress")
+            .join("MIG-DISABLED-HARNESS-STATE.md"),
+        migrations_root
+            .join("applied")
+            .join("MIG-DISABLED-HARNESS-STATE.md"),
+        migrations_root
+            .join("pending")
+            .join("disabled-harness-state.md"),
+        migrations_root
+            .join("applied")
+            .join("disabled-harness-state-REJECTED.md"),
+    ]
+    .iter()
+    .any(|path| path.exists())
 }
 
 /// Relative paths under the host root that BR-ZELLIJ-EXCISE
@@ -3096,12 +3135,14 @@ rules = [
             root.join(".gemini").exists(),
             ".gemini must survive when purge is disabled"
         );
-        let migration = project.join("context/migrations/pending/disabled-harness-state.md");
+        let migration = project.join("context/migrations/pending/MIG-DISABLED-HARNESS-STATE.md");
         assert!(
             migration.exists(),
             "advisory migration must be written, updated={updated:?}"
         );
         let body = fs::read_to_string(&migration).unwrap();
+        assert!(body.contains("kind: Migration"));
+        assert!(body.contains("id: MIG-DISABLED-HARNESS-STATE"));
         assert!(body.contains("gemini"));
         assert!(body.contains(".gemini"));
         clear_test_host_root();
@@ -3132,7 +3173,7 @@ rules = [
         assert!(!root.join(".codex").exists(), ".codex must be purged");
         assert!(
             !project
-                .join("context/migrations/pending/disabled-harness-state.md")
+                .join("context/migrations/pending/MIG-DISABLED-HARNESS-STATE.md")
                 .exists(),
             "no advisory should be written when purging"
         );

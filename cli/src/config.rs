@@ -1139,6 +1139,10 @@ fn bool_true() -> bool {
     true
 }
 
+fn bool_false() -> bool {
+    false
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 #[serde(rename_all = "kebab-case")]
 pub struct TmuxStatusAiboxMetricsSection {
@@ -1194,7 +1198,7 @@ pub struct TmuxStatusElementsSection {
     pub terraform: bool,
     #[serde(default = "bool_true")]
     pub cloud: bool,
-    #[serde(default = "bool_true")]
+    #[serde(default = "bool_false")]
     pub cloudstatus: bool,
     #[serde(default = "bool_true")]
     pub cpu: bool,
@@ -1232,7 +1236,7 @@ impl Default for TmuxStatusElementsSection {
             kubernetes: true,
             terraform: true,
             cloud: true,
-            cloudstatus: true,
+            cloudstatus: false,
             cpu: true,
             loadavg: true,
             mem: true,

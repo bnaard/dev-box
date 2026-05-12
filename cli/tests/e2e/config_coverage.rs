@@ -217,9 +217,9 @@ fn tmux_runtime_config_and_cache_are_mounted() {
     init_project(dir.path(), "tmux-runtime");
     let compose = read_generated(dir.path(), ".devcontainer/docker-compose.yml");
     assert!(
-        compose.contains(".config/tmux:/home/aibox/.config/tmux")
-            && compose.contains(".tmux:/home/aibox/.tmux")
-            && compose.contains(".cache:/home/aibox/.cache"),
+        compose.contains(".config/tmux:/home/aibox/.config/tmux:rw")
+            && compose.contains(".tmux:/home/aibox/.tmux:rw")
+            && compose.contains(".cache:/home/aibox/.cache:rw"),
         "compose must mount tmux config/plugin state and writable XDG cache home:\n{compose}"
     );
 }
@@ -239,7 +239,8 @@ fn init_generates_tmux_customization_surface() {
         toml.contains("legacy: powerline -> extended")
             && toml.contains("[customization.tmux.status.layout]")
             && toml.contains(r#"line1-left = ["session", "windows"]"#)
-            && toml.contains(r#"line2-left = ["git", "github", "kubernetes", "terraform", "cloud", "cloudstatus"]"#),
+            && toml
+                .contains(r#"line2-left = ["git", "github", "kubernetes", "terraform", "cloud"]"#),
         "generated aibox.toml should explain tmux status mode aliases and row layout lists:\n{toml}"
     );
 }

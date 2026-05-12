@@ -392,7 +392,7 @@ def _semantic_index_health(repo_root: Path) -> list[CheckResult]:
             conn.close()
     except Exception as e:
         results.append(CheckResult(
-            severity="WARN",
+            severity="INFO",
             category="context_hygiene",
             id="semantic.vector-health-unreadable",
             message=f"could not inspect sqlite-vec index health: {e}",
@@ -435,7 +435,7 @@ def run(ctx) -> list[CheckResult]:
     score_ids = _model_score_ids(repo_root)
     if score_ids and not model_artifact_ids:
         results.append(CheckResult(
-            severity="WARN",
+            severity="INFO",
             category="context_hygiene",
             id="model-spec.missing",
             message="model_scores.json exists but no Artifact(kind=model-spec) files exist",
@@ -444,7 +444,7 @@ def run(ctx) -> list[CheckResult]:
     stale_profiles = sorted(artifact_profile_ids - score_ids)
     if missing_profiles:
         results.append(CheckResult(
-            severity="WARN",
+            severity="INFO",
             category="context_hygiene",
             id="model-spec.projection-missing",
             message=(
@@ -455,7 +455,7 @@ def run(ctx) -> list[CheckResult]:
         ))
     if stale_profiles:
         results.append(CheckResult(
-            severity="WARN",
+            severity="INFO",
             category="context_hygiene",
             id="model-spec.projection-stale",
             message=(

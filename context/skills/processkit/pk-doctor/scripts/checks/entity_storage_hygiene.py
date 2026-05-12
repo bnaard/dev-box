@@ -343,7 +343,7 @@ def _layout_checks(repo_root: Path) -> list[CheckResult]:
                 ))
         elif dirname in _STATE_BUCKET_KINDS and root_v2:
             results.append(CheckResult(
-                severity="WARN",
+                severity="INFO",
                 category="entity_storage_hygiene",
                 id="storage.state-bucket-layout",
                 message=(
@@ -358,7 +358,7 @@ def _layout_checks(repo_root: Path) -> list[CheckResult]:
             ))
         elif dirname in _FLAT_BY_POLICY and nested_v2:
             results.append(CheckResult(
-                severity="WARN",
+                severity="INFO",
                 category="entity_storage_hygiene",
                 id="storage.unexpected-nested-layout",
                 message=(

@@ -530,7 +530,7 @@ mode = "extended"  # extended | plain | disabled (legacy: powerline -> extended)
 # Other rows use PowerKit plugin IDs.
 line1-left = ["session", "windows"]
 line1-right = ["aibox_log", "aibox_oom", "aibox_proc", "aibox_ai", "aibox_mcp", "aibox_mig", "weather", "uptime", "datetime"]
-line2-left = ["git", "github", "kubernetes", "terraform", "cloud", "cloudstatus"]
+line2-left = ["git", "github", "kubernetes", "terraform", "cloud"]
 line2-right = ["hostname", "externalip", "ssh", "netspeed", "ping", "cpu", "loadavg", "memory", "swap", "disk", "gpu"]
 
 # =============================================================================

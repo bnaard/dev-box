@@ -913,9 +913,36 @@ mod tests {
 
         let content = fs::read_to_string(dir.path().join("docker-compose.yml")).unwrap();
         assert!(
-            content.contains(".cache:/root/.cache"),
+            content.contains(".cache:/root/.cache:rw"),
             "compose should mount writable XDG cache home so uv, starship, and tmux can create/read cache directories:\n{content}"
         );
+    }
+
+    #[test]
+    fn compose_marks_runtime_persistence_mounts_explicitly_writable() {
+        let dir = tempfile::tempdir().unwrap();
+        let config = make_config(&[], false);
+        generate_docker_compose(&config, dir.path(), &test_env()).unwrap();
+
+        let content = fs::read_to_string(dir.path().join("docker-compose.yml")).unwrap();
+        for mount in [
+            "${WORKSPACE_DIR:-..}:/workspace:rw",
+            ".vim/vimrc:/root/.vim/vimrc:rw",
+            ".vim/undo:/root/.vim/undo:rw",
+            ".config/tmux:/root/.config/tmux:rw",
+            ".tmux:/root/.tmux:rw",
+            ".cache:/root/.cache:rw",
+            ".config/starship.toml:/root/.config/starship.toml:rw",
+            ".config/yazi:/root/.config/yazi:rw",
+            ".config/git:/root/.config/git:rw",
+            ".config/state:/root/.config/state:rw",
+            ".local/bin:/root/.local/bin:rw",
+        ] {
+            assert!(
+                content.contains(mount),
+                "compose should mark runtime persistence mount {mount} as read-write:\n{content}"
+            );
+        }
     }
 
     #[test]

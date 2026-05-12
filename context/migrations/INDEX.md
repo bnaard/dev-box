@@ -8,7 +8,7 @@ None.
 
 None.
 
-## Applied (48)
+## Applied (50)
 
 | Date       | Migration                                | Notes |
 |------------|------------------------------------------|-------|
@@ -57,6 +57,7 @@ None.
 | 2026-05-11 | MIG-RUNTIME-DRIFT-20260511T210812 — aibox-runtime-drift  → 0.25.8 | 6 drifted managed runtime file(s) found at 0.25.8 |
 | 2026-05-11 | MIG-RUNTIME-DRIFT-20260511T232935 — aibox-runtime-drift  → 0.25.8 | 5 drifted managed runtime file(s) found at 0.25.8 |
 | 2026-05-12 | MIG-RUNTIME-DRIFT-20260512T044714 — aibox-runtime-drift  → 0.25.9 | 5 drifted managed runtime file(s) found at 0.25.9 |
+| 2026-05-12 | MIG-RUNTIME-DRIFT-20260512T052958 — aibox-runtime-drift  → 0.25.9 | 4 drifted managed runtime file(s) found at 0.25.9 |
 |  | MIG-20260426T155754 — processkit v0.22.0 → v0.23.0 | 0 changed upstream, 50 conflicts, 9 new, 0 removed, 0 stale-removed (7 groups affected) |
 |  | MIG-20260504T130152 — processkit v0.25.5 → v0.25.6 | 0 changed upstream, 0 conflicts, 4 new, 3 removed, 0 stale-removed (2 groups affected) |
 |  | MIG-RUNTIME-20260426T155732 — aibox-runtime-home 0.21.0 → 0.21.0 | 0 changed upstream, 0 conflicts, 27 new, 0 removed (9 groups affected) |

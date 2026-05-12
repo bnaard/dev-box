@@ -538,7 +538,7 @@ mod tests {
         );
         assert!(
             conf.contains(
-                r#"@powerkit_plugins "aibox_log,aibox_oom,aibox_proc,aibox_ai,aibox_mcp,aibox_mig,weather,uptime,datetime,git,github,kubernetes,terraform,cloud,cloudstatus,hostname,externalip,ssh,netspeed,ping,cpu,loadavg,memory,swap,disk,gpu""#
+                r#"@powerkit_plugins "aibox_log,aibox_oom,aibox_proc,aibox_ai,aibox_mcp,aibox_mig,weather,uptime,datetime,git,github,kubernetes,terraform,cloud,hostname,externalip,ssh,netspeed,ping,cpu,loadavg,memory,swap,disk,gpu""#
             )
                 && conf.contains(r#"@powerkit_bar_layout "double""#)
                 && conf.contains(r#"@powerkit_status_order "session,plugins""#)
@@ -547,7 +547,7 @@ mod tests {
                 && conf.contains(r#"@powerkit_pane_border_status "top""#)
                 && conf.contains(r##"@powerkit_pane_border_format "#{?client_prefix,PREFIX,NORMAL} #{pane_title} #{pane_current_command}""##)
                 && conf.contains(r#"@powerkit_line1_right "aibox_log,aibox_oom,aibox_proc,aibox_ai,aibox_mcp,aibox_mig,weather,uptime,datetime""#)
-                && conf.contains(r#"@powerkit_line2_left "git,github,kubernetes,terraform,cloud,cloudstatus""#)
+                && conf.contains(r#"@powerkit_line2_left "git,github,kubernetes,terraform,cloud""#)
                 && conf.contains(
                     r#"@powerkit_line2_right "hostname,externalip,ssh,netspeed,ping,cpu,loadavg,memory,swap,disk,gpu""#
                 )
@@ -675,13 +675,11 @@ mod tests {
             "line1_right slot order must be: aibox_log,aibox_oom,aibox_proc,aibox_ai,aibox_mcp,aibox_mig,weather,uptime,datetime\n{conf}"
         );
 
-        // Line 2 left: git → github → kubernetes → terraform → cloud → cloudstatus
+        // Line 2 left: git → github → kubernetes → terraform → cloud
         // (DEC-20260508_2115-SilentFern)
         assert!(
-            conf.contains(
-                r#"@powerkit_line2_left "git,github,kubernetes,terraform,cloud,cloudstatus""#
-            ),
-            "line2_left slot order must be: git,github,kubernetes,terraform,cloud,cloudstatus\n{conf}"
+            conf.contains(r#"@powerkit_line2_left "git,github,kubernetes,terraform,cloud""#),
+            "line2_left slot order must be: git,github,kubernetes,terraform,cloud\n{conf}"
         );
 
         // Line 2 right: hostname → externalip → ssh → netspeed → ping → cpu
@@ -695,7 +693,7 @@ mod tests {
         // Full plugin list snapshot (all three line components concatenated)
         assert!(
             conf.contains(
-                r#"@powerkit_plugins "aibox_log,aibox_oom,aibox_proc,aibox_ai,aibox_mcp,aibox_mig,weather,uptime,datetime,git,github,kubernetes,terraform,cloud,cloudstatus,hostname,externalip,ssh,netspeed,ping,cpu,loadavg,memory,swap,disk,gpu""#
+                r#"@powerkit_plugins "aibox_log,aibox_oom,aibox_proc,aibox_ai,aibox_mcp,aibox_mig,weather,uptime,datetime,git,github,kubernetes,terraform,cloud,hostname,externalip,ssh,netspeed,ping,cpu,loadavg,memory,swap,disk,gpu""#
             ),
             "full plugin list snapshot mismatch — slot order is fixed per DEC-20260508_2115-SilentFern\n{conf}"
         );
@@ -704,7 +702,7 @@ mod tests {
             conf.contains("set -g status 2")
                 && conf.contains("aibox-powerkit-render-session")
                 && conf.contains("aibox-powerkit-render-list right aibox_log,aibox_oom,aibox_proc,aibox_ai,aibox_mcp,aibox_mig,weather,uptime,datetime")
-                && conf.contains("aibox-powerkit-render-list left git,github,kubernetes,terraform,cloud,cloudstatus")
+                && conf.contains("aibox-powerkit-render-list left git,github,kubernetes,terraform,cloud")
                 && conf.contains("aibox-powerkit-render-list right hostname,externalip,ssh,netspeed,ping,cpu,loadavg,memory,swap,disk,gpu"),
             "generated status formats must keep the two-row PowerKit-aligned proof layout\n{conf}"
         );
@@ -786,7 +784,10 @@ mod tests {
         assert_switch_removes_plugin("kubernetes", |elements| elements.kubernetes = false);
         assert_switch_removes_plugin("terraform", |elements| elements.terraform = false);
         assert_switch_removes_plugin("cloud", |elements| elements.cloud = false);
-        assert_switch_removes_plugin("cloudstatus", |elements| elements.cloudstatus = false);
+        assert_switch_removes_plugin("cloudstatus", |elements| {
+            elements.cloudstatus = true;
+            elements.cloudstatus = false;
+        });
         assert_switch_removes_plugin("cpu", |elements| elements.cpu = false);
         assert_switch_removes_plugin("loadavg", |elements| elements.loadavg = false);
         assert_switch_removes_plugin("memory", |elements| elements.mem = false);

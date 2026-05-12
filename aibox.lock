@@ -34,7 +34,7 @@ rust = [
 ]
 
 [runtime_home]
-generated_at = "2026-05-12T04:48:31.110208+00:00"
+generated_at = "2026-05-12T05:29:58.179178098+00:00"
 
 [runtime_home.files]
 ".asoundrc" = "f34609b11d315cd613cb5333b561032baec860faf4a7eccb28b5567ae72019af"
@@ -47,7 +47,7 @@ generated_at = "2026-05-12T04:48:31.110208+00:00"
 ".config/tmux/layouts/cowork.sh" = "d1684be6b2428a77d85faa752b475c3978de50cb6de8347bdfce1056f568092a"
 ".config/tmux/layouts/dev.sh" = "04d299abe99d0ac09a2e74d4136a80ae067a64efa754347f41a6e3eef2286691"
 ".config/tmux/layouts/focus.sh" = "a06c253cdb00763b5560a982c5af862e1e3201c00784dcafd1f21626e374ad36"
-".config/tmux/tmux.conf" = "ba2d1411007bd20aaf40368a5f3404d2dc70ea22c352fa0468b68ec984244d57"
+".config/tmux/tmux.conf" = "9b2f547df9128285245e52492b328558e2898f1de9966379ca675d2d6586bd19"
 ".config/yazi/init.lua" = "eae04462c0b3bcbb486ee59aa9c2c9e9595680a0626997c942e5abb2ae5a48d7"
 ".config/yazi/keymap.toml" = "0b20be4e5f58d0af2ba72b8621e288ef2d6a7665a8a73c5fca5a172f83c6ebdd"
 ".config/yazi/plugins/dir-preview.yazi/main.lua" = "1700f0400a0a8362d895d247b27bfae2478c1e76385d4b076846a6a7c16c74f4"
