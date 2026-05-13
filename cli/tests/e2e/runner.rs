@@ -466,7 +466,7 @@ impl E2eRunner {
              ids=$(\"$runtime\" ps -aq --filter \"label=com.docker.compose.project=$project\" 2>/dev/null || true); \
              if [ -n \"$ids\" ]; then \"$runtime\" rm -f $ids >/dev/null 2>&1 || true; fi; \
              \"$runtime\" rm -f \"$project\" \"$project-diagnostics\" >/dev/null 2>&1 || true; \
-             rm -rf \"$workspace\""
+             rm -rf \"$workspace\" 2>/dev/null || sudo rm -rf \"$workspace\""
         );
         let output = self.exec(&cmd);
         assert!(
@@ -489,7 +489,8 @@ impl E2eRunner {
              ids=$(\"$runtime\" ps -aq 2>/dev/null || true); \
              if [ -n \"$ids\" ]; then \"$runtime\" rm -f $ids >/dev/null 2>&1 || true; fi; \
              \"$runtime\" system prune -af --volumes >/dev/null 2>&1 || true; \
-             rm -rf /workspaces/*"
+             find /workspaces -mindepth 1 -maxdepth 1 -exec rm -rf {{}} + 2>/dev/null || \
+               sudo find /workspaces -mindepth 1 -maxdepth 1 -exec rm -rf {{}} +"
         );
         let output = self.exec(&cmd);
         assert!(

@@ -241,7 +241,7 @@ prune_e2e_companion_storage() {
       -o ConnectTimeout=5 \
       -o LogLevel=ERROR \
       testuser@aibox-e2e-testrunner \
-      'runtime=""; if command -v docker >/dev/null 2>&1 && docker info >/dev/null 2>&1; then runtime=docker; elif command -v podman >/dev/null 2>&1 && podman info >/dev/null 2>&1; then runtime=podman; fi; test -n "$runtime" || exit 0; ids=$("$runtime" ps -aq 2>/dev/null || true); if [ -n "$ids" ]; then "$runtime" rm -f $ids >/dev/null 2>&1 || true; fi; "$runtime" system prune -af --volumes >/dev/null 2>&1 || true; rm -rf /workspaces/*' \
+      'runtime=""; if command -v docker >/dev/null 2>&1 && docker info >/dev/null 2>&1; then runtime=docker; elif command -v podman >/dev/null 2>&1 && podman info >/dev/null 2>&1; then runtime=podman; fi; test -n "$runtime" || exit 0; ids=$("$runtime" ps -aq 2>/dev/null || true); if [ -n "$ids" ]; then "$runtime" rm -f $ids >/dev/null 2>&1 || true; fi; "$runtime" system prune -af --volumes >/dev/null 2>&1 || true; find /workspaces -mindepth 1 -maxdepth 1 -exec rm -rf {} + 2>/dev/null || sudo find /workspaces -mindepth 1 -maxdepth 1 -exec rm -rf {} +' \
     || return 1
   ok "SSH companion nested runtime state pruned"
 }

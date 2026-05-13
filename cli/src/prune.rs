@@ -159,7 +159,7 @@ fn prune_e2e_companion(dry_run: bool) -> Result<()> {
     let remote = if dry_run {
         "echo 'podman system df'; podman system df; echo; echo 'container storage'; du -sh /home/testuser/.local/share/containers/storage 2>/dev/null || true; echo; echo 'workspaces'; du -sh /workspaces/* 2>/dev/null | sort -h | tail -20 || true"
     } else {
-        "ids=$(podman ps -aq); if [ -n \"$ids\" ]; then podman rm -f $ids; fi; podman system prune -af --volumes; rm -rf /workspaces/*; podman system df; du -sh /home/testuser/.local/share/containers/storage 2>/dev/null || true"
+        "ids=$(podman ps -aq); if [ -n \"$ids\" ]; then podman rm -f $ids; fi; podman system prune -af --volumes; find /workspaces -mindepth 1 -maxdepth 1 -exec rm -rf {} + 2>/dev/null || sudo find /workspaces -mindepth 1 -maxdepth 1 -exec rm -rf {} +; podman system df; du -sh /home/testuser/.local/share/containers/storage 2>/dev/null || true"
     };
 
     output::info(if dry_run {
