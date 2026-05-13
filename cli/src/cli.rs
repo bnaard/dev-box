@@ -275,6 +275,24 @@ pub enum Commands {
         #[arg(value_enum)]
         harness: AiHarness,
     },
+    /// Reclaim aibox-managed disk usage
+    ///
+    /// Reports reclaimable build caches, runtime-home caches, provider
+    /// worktrees, and E2E companion storage by default. Pass `--yes` to
+    /// apply the selected cleanup scope.
+    Prune {
+        /// Cleanup scope to inspect or apply
+        #[arg(value_enum, default_value = "safe")]
+        scope: PruneScope,
+
+        /// Preview only, even when --yes is supplied
+        #[arg(long)]
+        dry_run: bool,
+
+        /// Apply the selected cleanup
+        #[arg(long)]
+        yes: bool,
+    },
     /// Stop the running workspace
     Down,
     /// List compact state for a resource
@@ -493,6 +511,22 @@ pub enum DoctorTarget {
     Project,
     Audio,
     Security,
+}
+
+#[derive(Clone, Debug, ValueEnum)]
+pub enum PruneScope {
+    /// Conservative local cleanup: Rust incremental cache and managed runtime caches
+    Safe,
+    /// Rust debug incremental cache
+    BuildCache,
+    /// Managed runtime-home caches
+    RuntimeHome,
+    /// Provider-created Git worktrees under .claude/worktrees
+    AgentWorktrees,
+    /// Nested E2E companion containers, workspaces, images, and volumes
+    E2eCompanion,
+    /// All known cleanup scopes, including provider worktrees
+    All,
 }
 
 #[derive(Subcommand)]

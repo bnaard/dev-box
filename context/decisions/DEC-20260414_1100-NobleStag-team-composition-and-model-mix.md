@@ -40,12 +40,12 @@ spec:
     - When processkit ships the canonical team schema, a Migration entity will lift `x_aibox.*`
       fields into their canonical equivalents; this DEC is the referenced-from anchor
   related:
-  - ROLE-20260414_1100-CalmHawk-project-manager
-  - ROLE-20260414_1100-BrightEagle-senior-architect
-  - ROLE-20260414_1100-QuickFalcon-junior-architect
-  - ROLE-20260414_1100-SteadyOtter-developer
-  - ROLE-20260414_1100-DeepWhale-senior-researcher
-  - ROLE-20260414_1100-SwiftFox-junior-researcher
-  - ROLE-20260414_1100-NimbleMouse-junior-developer
-  - ROLE-20260414_1100-TidyBee-assistant
+  - ROLE-project-manager
+  - ROLE-senior-architect
+  - ROLE-junior-architect
+  - ROLE-developer
+  - ROLE-senior-researcher
+  - ROLE-junior-researcher
+  - ROLE-junior-developer
+  - ROLE-assistant
 ---

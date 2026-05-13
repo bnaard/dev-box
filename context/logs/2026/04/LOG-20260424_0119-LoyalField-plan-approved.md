@@ -5,7 +5,7 @@ metadata:
   id: LOG-20260424_0119-LoyalField-plan-approved
   created: '2026-04-24T01:19:19+00:00'
 spec:
-  event_type: plan.approved
+  event_type: milestone
   timestamp: '2026-04-24T01:19:19+00:00'
   summary: MCP permissions implementation plan approved for team execution
   subject: BACK-20260424_0058-ToughGrove-feature-global-mcp-permissions

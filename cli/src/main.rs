@@ -40,6 +40,7 @@ mod output;
 mod preauth;
 mod processkit_vocab;
 mod provider_backend;
+mod prune;
 mod reset;
 mod runtime;
 mod runtime_home;
@@ -227,6 +228,24 @@ fn dispatch(cli: cli::Cli) -> anyhow::Result<()> {
                     "emergency completed"
                 } else {
                     "emergency failed"
+                },
+            );
+            result
+        }
+        cli::Commands::Prune {
+            scope,
+            dry_run,
+            yes,
+        } => {
+            let timer = crate::log::LogTimer::start("prune");
+            let result = prune::cmd_prune(scope, dry_run || !yes);
+            timer.finish(
+                Path::new("."),
+                if result.is_ok() { 0 } else { 1 },
+                if result.is_ok() {
+                    "prune completed"
+                } else {
+                    "prune failed"
                 },
             );
             result

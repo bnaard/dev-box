@@ -117,10 +117,18 @@ pub fn cmd_theme(
         }
     }
 
+    let host_mode = crate::config::detected_host_theme_mode();
+    let resolved_theme = config
+        .customization
+        .resolved_theme_for_host_mode(host_mode.clone());
+    let mode_note = match (&config.customization.mode, host_mode) {
+        (ThemeMode::Auto, Some(mode)) => format!("auto -> host {mode}"),
+        (ThemeMode::Auto, None) => "auto -> selected theme".to_string(),
+        (mode, _) => mode.to_string(),
+    };
     output::info(&format!(
         "Resolved theme: {} (mode: {})",
-        config.customization.resolved_theme(),
-        config.customization.mode
+        resolved_theme, mode_note
     ));
 
     if restart_session {
@@ -168,10 +176,7 @@ theme = "dracula"
         let config: AiboxConfig = toml::from_str(&updated).unwrap();
         assert_eq!(config.customization.theme, Theme::Dracula);
         assert_eq!(config.customization.mode, ThemeMode::Light);
-        assert_eq!(
-            config.customization.resolved_theme(),
-            Theme::CatppuccinLatte
-        );
+        assert_eq!(config.customization.resolved_theme(), Theme::Dracula);
     }
 
     #[test]

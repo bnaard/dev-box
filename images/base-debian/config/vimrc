@@ -81,6 +81,30 @@ endif
 " ── Key mappings ──────────────────────────────────────────────────────────────
 let mapleader=" "            " Space as leader
 
+" Word movement across tmux/devcontainer terminals.
+" <A-Left>/<A-Right> covers CSI Meta-arrow encodings; <M-b>/<M-f>
+" covers macOS/WezTerm-style Option-left/right profiles that send Esc-b/Esc-f.
+inoremap <A-Left>  <C-o>b
+inoremap <A-Right> <C-o>e<Right>
+nnoremap <A-Left>  b
+nnoremap <A-Right> e
+vnoremap <A-Left>  b
+vnoremap <A-Right> e
+onoremap <A-Left>  b
+onoremap <A-Right> e
+cnoremap <A-Left>  <C-Left>
+cnoremap <A-Right> <C-Right>
+inoremap <M-b>     <C-o>b
+inoremap <M-f>     <C-o>e<Right>
+nnoremap <M-b>     b
+nnoremap <M-f>     e
+vnoremap <M-b>     b
+vnoremap <M-f>     e
+onoremap <M-b>     b
+onoremap <M-f>     e
+cnoremap <M-b>     <C-Left>
+cnoremap <M-f>     <C-Right>
+
 " Quick save / quit
 nnoremap <leader>w :w<CR>
 nnoremap <leader>q :q<CR>

@@ -5,7 +5,7 @@ metadata:
   id: LOG-20260430_1432-MerryPanda-release-shipped
   created: '2026-04-30T14:32:39+00:00'
 spec:
-  event_type: release.shipped
+  event_type: release.published
   timestamp: '2026-04-30T14:32:39+00:00'
   summary: aibox v0.22.0 container-side release completed; main and tag pushed, GitHub release created with Linux assets, docs deployed; Phase 2 remains host-side release-host 0.22.0.
   actor: codex

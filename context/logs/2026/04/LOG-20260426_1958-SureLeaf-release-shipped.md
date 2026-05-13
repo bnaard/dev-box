@@ -5,7 +5,7 @@ metadata:
   id: LOG-20260426_1958-SureLeaf-release-shipped
   created: '2026-04-26T19:58:54+00:00'
 spec:
-  event_type: release.shipped
+  event_type: release.published
   timestamp: '2026-04-26T19:58:54+00:00'
   summary: "aibox v0.21.2 Phase 2 complete \u2014 macOS arm64 + x86_64 binaries uploaded to the GH release; GHCR container images pushed. v0.21.2 (processkit v0.23.1 integration) is fully shipped across both phases."
   actor: claude-opus-4-7

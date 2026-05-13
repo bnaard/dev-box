@@ -5,7 +5,7 @@ metadata:
   id: LOG-20260424_0712-BraveTulip-phase-completed
   created: '2026-04-24T07:12:33+00:00'
 spec:
-  event_type: phase.completed
+  event_type: milestone
   timestamp: '2026-04-24T07:12:33+00:00'
   summary: 'Phase 2b harness generators complete: Continue + Cursor + Aider'
   subject: BACK-20260424_0114-NobleSage-phase-2b-continue-cursor

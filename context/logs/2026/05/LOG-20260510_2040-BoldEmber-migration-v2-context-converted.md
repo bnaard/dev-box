@@ -33,14 +33,14 @@ spec:
     - context/artifacts/ART-20260502_2054-SunnyBrook-accepted-phase-one-plan.md
     - context/artifacts/ART-20260502_2105-TidyTiger-accepted-phase-three-plan.md
     - context/artifacts/ART-20260502_2105-WarmHill-accepted-phase-two-plan.md
-    - context/bindings/BIND-20260414_1100-BrightEagle-senior-architect.md
-    - context/bindings/BIND-20260414_1100-CalmHawk-pm.md
-    - context/bindings/BIND-20260414_1100-DeepWhale-senior-researcher.md
-    - context/bindings/BIND-20260414_1100-NimbleMouse-junior-developer.md
-    - context/bindings/BIND-20260414_1100-QuickFalcon-junior-architect.md
-    - context/bindings/BIND-20260414_1100-SteadyOtter-developer.md
-    - context/bindings/BIND-20260414_1100-SwiftFox-junior-researcher.md
-    - context/bindings/BIND-20260414_1100-TidyBee-assistant.md
+    - context/bindings/BIND-role-assignment-senior-architect-20260414-1100-brighteagle-senior-architect-agen-he456c5.md
+    - context/bindings/BIND-role-assignment-pm-20260414-1100-calmhawk-pm-agent-project-manager-hc9019d.md
+    - context/bindings/BIND-role-assignment-senior-researcher-20260414-1100-deepwhale-senior-researcher-agen-h15f987.md
+    - context/bindings/BIND-role-assignment-junior-developer-20260414-1100-nimblemouse-junior-developer-agen-he98dbb.md
+    - context/bindings/BIND-role-assignment-junior-architect-20260414-1100-quickfalcon-junior-architect-agen-h049107.md
+    - context/bindings/BIND-role-assignment-developer-20260414-1100-steadyotter-developer-agent-developer-hdaf21b.md
+    - context/bindings/BIND-role-assignment-junior-researcher-20260414-1100-swiftfox-junior-researcher-agent-hb0e848.md
+    - context/bindings/BIND-role-assignment-assistant-20260414-1100-tidybee-assistant-agent-assistant-h641445.md
     - context/decisions/DEC-20260410_2233-AmberCedar-generic-content-source-release.md
     - context/decisions/DEC-20260410_2233-BoldWillow-three-tier-privacy-model.md
     - context/decisions/DEC-20260410_2235-BraveTrout-history-container-lifecycle-config.md

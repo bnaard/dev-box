@@ -10,7 +10,8 @@ use crate::config::{AiboxConfig, ConfigLayout};
 use crate::output;
 use crate::tmux::{
     POWERKIT_RENDER_LIST_SH, POWERKIT_RENDER_SESSION_SH, cleanup_stale_tmux_plugins,
-    cleanup_tmux_powerkit_cache, tmux_conf, tmux_layout_script, tmux_session_script,
+    cleanup_tmux_powerkit_cache, tmux_conf, tmux_layout_script, tmux_powerkit_overrides,
+    tmux_session_script,
 };
 
 /// Default vimrc content (embedded fallback).
@@ -77,12 +78,28 @@ let g:netrw_winsize=25
 " back to insert). The <Right> after `e` puts the cursor AFTER the
 " word's last character, matching VSCode's "select to next word end"
 " semantics; without it the cursor lands ON the last character.
+" Some macOS/WezTerm profiles send Esc-b / Esc-f for Option-left/right
+" instead of CSI 1;3D / CSI 1;3C, so map both encodings.
 inoremap <A-Left>  <C-o>b
 inoremap <A-Right> <C-o>e<Right>
 nnoremap <A-Left>  b
 nnoremap <A-Right> e
 vnoremap <A-Left>  b
 vnoremap <A-Right> e
+onoremap <A-Left>  b
+onoremap <A-Right> e
+cnoremap <A-Left>  <C-Left>
+cnoremap <A-Right> <C-Right>
+inoremap <M-b>     <C-o>b
+inoremap <M-f>     <C-o>e<Right>
+nnoremap <M-b>     b
+nnoremap <M-f>     e
+vnoremap <M-b>     b
+vnoremap <M-f>     e
+onoremap <M-b>     b
+onoremap <M-f>     e
+cnoremap <M-b>     <C-Left>
+cnoremap <M-f>     <C-Right>
 
 " Smart Home/End. Insert-mode <Home> goes to first non-whitespace
 " (matches IDE 'smart home'); a second press goes to column 0.
@@ -107,6 +124,23 @@ set termguicolors
 colorscheme AIBOX_VIM_COLORSCHEME
 syntax on
 filetype plugin indent on
+"#;
+
+/// Default readline/inputrc content for Bash and other readline consumers.
+const DEFAULT_INPUTRC: &str = r#"# aibox readline bindings
+set editing-mode emacs
+set enable-bracketed-paste on
+
+# Option/Alt-left and Option/Alt-right word movement. These match the
+# Esc-b/Esc-f sequences many macOS terminal profiles emit and complement
+# Vim's matching <M-b>/<M-f> bindings.
+"\eb": backward-word
+"\ef": forward-word
+
+# Shift-Option-left/right: set mark, then move one word. Readline marks the
+# region; terminal-visible highlighting depends on the terminal.
+"\e[1;10D": "\C-@\eb"
+"\e[1;10C": "\C-@\ef"
 "#;
 
 /// Default gitconfig content.
@@ -801,6 +835,10 @@ pub fn managed_runtime_files(config: &AiboxConfig) -> Vec<(std::path::PathBuf, S
     let session_name = config.tmux_session_name();
     let mut files = vec![
         (
+            std::path::PathBuf::from(".inputrc"),
+            DEFAULT_INPUTRC.to_string(),
+        ),
+        (
             std::path::PathBuf::from(".vim/vimrc"),
             DEFAULT_VIMRC
                 .replace(
@@ -816,6 +854,10 @@ pub fn managed_runtime_files(config: &AiboxConfig) -> Vec<(std::path::PathBuf, S
         (
             std::path::PathBuf::from(".config/tmux/tmux.conf"),
             tmux_conf(config),
+        ),
+        (
+            std::path::PathBuf::from(".config/tmux/aibox-powerkit-overrides.tmux"),
+            tmux_powerkit_overrides(config),
         ),
         (
             std::path::PathBuf::from(".config/tmux/layouts/dev.sh"),
@@ -1731,6 +1773,8 @@ fn sync_codex_theme_config(config: &AiboxConfig) -> Result<bool> {
         doc["tui"] = toml_edit::table();
     }
     doc["tui"]["theme"] = toml_edit::value(config.customization.resolved_theme().to_string());
+    doc["tui"]["status_line_use_colors"] = toml_edit::value(true);
+    doc["tui"]["use_theme_colors"] = toml_edit::value(true);
 
     let after = doc.to_string();
     if after == before {
@@ -1912,6 +1956,8 @@ mod tests {
             codex_config.contains("theme = \"nord\""),
             "Codex home config should inherit the selected aibox theme:\n{codex_config}"
         );
+        assert!(codex_config.contains("status_line_use_colors = true"));
+        assert!(codex_config.contains("use_theme_colors = true"));
         assert!(!root.join(".claude").exists());
         clear_test_host_root();
     }
@@ -1942,6 +1988,7 @@ mod tests {
         );
         assert!(codex_config.contains("model = \"gpt-5.5\""));
         assert!(codex_config.contains("status_line_use_colors = true"));
+        assert!(codex_config.contains("use_theme_colors = true"));
         assert!(codex_config.contains("theme = \"tokyo-night\""));
         clear_test_host_root();
     }
@@ -2007,6 +2054,7 @@ mod tests {
         let config = make_config(false, root.clone());
         seed_root_dir(&config).unwrap();
 
+        assert!(root.join(".inputrc").exists());
         assert!(root.join(".vim").join("vimrc").exists());
         assert!(root.join(".config").join("git").join("config").exists());
         assert!(root.join(".config").join("tmux").join("tmux.conf").exists());
@@ -2345,7 +2393,7 @@ mod tests {
         let dir = tempfile::tempdir().unwrap();
         let root = dir.path().join("root");
         let mut config = make_config(false, root.clone());
-        config.customization.theme = Theme::Dracula;
+        config.customization.theme = Theme::GruvboxDark;
         config.customization.mode = ThemeMode::Light;
         seed_root_dir(&config).unwrap();
 
@@ -2355,7 +2403,7 @@ mod tests {
         );
         let tmux = fs::read_to_string(root.join(".config/tmux/tmux.conf")).unwrap();
         assert!(
-            tmux.contains("#1E66F5"),
+            tmux.contains("#FBF1C7"),
             "light theme should render into tmux"
         );
         assert!(
@@ -2372,8 +2420,13 @@ mod tests {
         assert!(list_helper.contains("render_plugins \"$side\""));
         assert!(session_helper.contains("_render_entity session left"));
         let vimrc = fs::read_to_string(root.join(".vim").join("vimrc")).unwrap();
-        assert!(vimrc.contains("colorscheme catppuccin_latte"));
+        assert!(vimrc.contains("colorscheme gruvbox"));
         assert!(vimrc.contains("set background=light"));
+        assert!(vimrc.contains("inoremap <M-b>"));
+        assert!(vimrc.contains("cnoremap <M-f>"));
+        let inputrc = fs::read_to_string(root.join(".inputrc")).unwrap();
+        assert!(inputrc.contains(r#""\eb": backward-word"#));
+        assert!(inputrc.contains(r#""\ef": forward-word"#));
         clear_test_host_root();
     }
 
@@ -2755,6 +2808,8 @@ rules = [
                 && DEFAULT_VIMRC.contains("set nowrap nolinebreak")
                 && DEFAULT_VIMRC.contains("autocmd FileType markdown setlocal nowrap nolinebreak")
                 && DEFAULT_VIMRC.contains("set sidescroll=1")
+                && DEFAULT_VIMRC.contains("inoremap <A-Left>")
+                && DEFAULT_VIMRC.contains("inoremap <M-b>")
                 && DEFAULT_VIMRC.contains("xnoremap <silent> <leader>y")
                 && DEFAULT_VIMRC.contains("nnoremap <silent> <leader>Y")
                 && DEFAULT_VIMRC.contains("call system('aibox-copy'"),

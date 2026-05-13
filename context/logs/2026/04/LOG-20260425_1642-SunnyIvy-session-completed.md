@@ -5,7 +5,7 @@ metadata:
   id: LOG-20260425_1642-SunnyIvy-session-completed
   created: '2026-04-25T16:42:57+00:00'
 spec:
-  event_type: session.completed
+  event_type: session.ended
   timestamp: '2026-04-25T16:42:57+00:00'
   summary: 'Implemented GitHub issue #54 (MCP config fingerprint tracking) and released v0.19.2'
   details:

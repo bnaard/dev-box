@@ -5,7 +5,7 @@ metadata:
   id: LOG-20260430_1534-CuriousField-github-issues-closed
   created: '2026-04-30T15:34:06+00:00'
 spec:
-  event_type: github.issues.closed
+  event_type: github.issue.closed
   timestamp: '2026-04-30T15:34:06+00:00'
   summary: 'Closed aibox issues #58 and #59 as verified fixed in v0.22.0; no patch release needed.'
   actor: codex

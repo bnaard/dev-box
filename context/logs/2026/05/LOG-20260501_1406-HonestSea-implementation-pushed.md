@@ -5,7 +5,7 @@ metadata:
   id: LOG-20260501_1406-HonestSea-implementation-pushed
   created: '2026-05-01T14:06:14+00:00'
 spec:
-  event_type: implementation.pushed
+  event_type: milestone
   timestamp: '2026-05-01T14:06:14+00:00'
   summary: Pushed image provenance doctor checks and preview projection contract coverage.
   actor: codex

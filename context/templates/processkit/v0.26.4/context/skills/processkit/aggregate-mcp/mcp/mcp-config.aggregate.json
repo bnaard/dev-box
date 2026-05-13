@@ -1,0 +1,14 @@
+{
+  "mcpServers": {
+    "processkit-aggregate-mcp": {
+      "command": "uv",
+      "args": [
+        "run",
+        "context/skills/processkit/aggregate-mcp/mcp/server.py"
+      ],
+      "env": {
+        "PROCESSKIT_MCP_MODE": "aggregate"
+      }
+    }
+  }
+}

@@ -454,7 +454,50 @@ impl E2eRunner {
 
     /// Clean up a test workspace directory.
     pub fn cleanup(&self, test_name: &str) {
-        self.exec(&format!("rm -rf /workspaces/{}", test_name));
+        let runtime = self.runtime_bin();
+        let workspace = format!("/workspaces/{test_name}");
+        let quoted_workspace = shell_quote(&workspace);
+        let quoted_project = shell_quote(test_name);
+        let cmd = format!(
+            "workspace={quoted_workspace}; project={quoted_project}; runtime={runtime}; \
+             if [ -f \"$workspace/.devcontainer/docker-compose.yml\" ]; then \
+               cd \"$workspace\" && \"$runtime\" compose -f .devcontainer/docker-compose.yml down -v --remove-orphans >/dev/null 2>&1 || true; \
+             fi; \
+             ids=$(\"$runtime\" ps -aq --filter \"label=com.docker.compose.project=$project\" 2>/dev/null || true); \
+             if [ -n \"$ids\" ]; then \"$runtime\" rm -f $ids >/dev/null 2>&1 || true; fi; \
+             \"$runtime\" rm -f \"$project\" \"$project-diagnostics\" >/dev/null 2>&1 || true; \
+             rm -rf \"$workspace\""
+        );
+        let output = self.exec(&cmd);
+        assert!(
+            output.status.success(),
+            "cleanup failed for {test_name}:\nstdout:\n{}\nstderr:\n{}",
+            String::from_utf8_lossy(&output.stdout),
+            String::from_utf8_lossy(&output.stderr)
+        );
+    }
+
+    /// Prune all nested runtime state on the companion.
+    ///
+    /// This is intentionally suite-scoped. Per-test cleanup removes containers
+    /// and workspaces but preserves image cache so the default Tier 2 suite
+    /// does not rebuild/pull the same layers repeatedly.
+    pub fn prune_companion_storage(&self) {
+        let runtime = self.runtime_bin();
+        let cmd = format!(
+            "runtime={runtime}; \
+             ids=$(\"$runtime\" ps -aq 2>/dev/null || true); \
+             if [ -n \"$ids\" ]; then \"$runtime\" rm -f $ids >/dev/null 2>&1 || true; fi; \
+             \"$runtime\" system prune -af --volumes >/dev/null 2>&1 || true; \
+             rm -rf /workspaces/*"
+        );
+        let output = self.exec(&cmd);
+        assert!(
+            output.status.success(),
+            "companion prune failed:\nstdout:\n{}\nstderr:\n{}",
+            String::from_utf8_lossy(&output.stdout),
+            String::from_utf8_lossy(&output.stderr)
+        );
     }
 
     /// Execute a command inside a running aibox container.
@@ -557,6 +600,10 @@ fn compile_runtime_tool_binaries(image_config: &str) -> PathBuf {
         );
     }
     out_dir
+}
+
+fn shell_quote(value: &str) -> String {
+    format!("'{}'", value.replace('\'', "'\"'\"'"))
 }
 
 impl Default for E2eRunner {

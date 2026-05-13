@@ -5,7 +5,7 @@ metadata:
   id: LOG-20260430_1826-TidyWren-implementation-pushed
   created: '2026-04-30T18:26:55+00:00'
 spec:
-  event_type: implementation.pushed
+  event_type: milestone
   timestamp: '2026-04-30T18:26:55+00:00'
   summary: Implemented and pushed provider backend preview projection
   actor: codex

@@ -227,6 +227,11 @@ Runtime configuration lives in per-skill config files under
 `context/skills/<name>/config/settings.toml`. The agent edits these
 directly; MCP servers read them on every call — no restart needed.
 
+Schema and storage policy is strict. When processkit changes entity
+vocabularies, filenames, IDs, or directory layouts, migrate existing entities
+forward and update references. Do not keep local grandfathering lists, mixed
+filename policies, or pk-doctor suppressions as the final state.
+
 Config overrides in `context/skills/id-management/config/settings.toml`:
 
 - **ID format:** `word` + `camel` + datetime prefix + slug — e.g. `BACK-20260411_0109-CalmFox-adapt-aibox-self-hosted`.

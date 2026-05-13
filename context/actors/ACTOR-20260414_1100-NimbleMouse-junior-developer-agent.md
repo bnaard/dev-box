@@ -15,7 +15,7 @@ spec:
   x_aibox:
     model: claude-haiku-4-5-20251001
     model_tier: haiku
-    role_ref: ROLE-20260414_1100-NimbleMouse-junior-developer
+    role_ref: ROLE-junior-developer
 ---
 
 Template actor for the junior-developer role. Used for well-specified mechanical changes; common fan-out target for bulk patterns.

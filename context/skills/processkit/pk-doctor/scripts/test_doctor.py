@@ -44,8 +44,13 @@ _DOCTOR = _SCRIPTS_DIR / "doctor.py"
 _REPO_ROOT = next(
     p for p in Path(__file__).resolve().parents
     if (p / "src" / "context" / "schemas").is_dir()
+    or (p / "context" / "schemas").is_dir()
 )
-_SCHEMAS_SRC = _REPO_ROOT / "src" / "context" / "schemas"
+_SCHEMAS_SRC = (
+    _REPO_ROOT / "src" / "context" / "schemas"
+    if (_REPO_ROOT / "src" / "context" / "schemas").is_dir()
+    else _REPO_ROOT / "context" / "schemas"
+)
 
 PASS = "\033[32mPASS\033[0m"
 FAIL = "\033[31mFAIL\033[0m"
@@ -557,8 +562,8 @@ with tempfile.TemporaryDirectory() as tmp:
     generator = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(generator)
 
-    entries = generator._collect_entries(root)
-    gateway_entries = generator._collect_gateway_entries(root)
+    entries = generator._collect_configs(root, gateway=False)
+    gateway_entries = generator._collect_configs(root, gateway=True)
     check(
         "gateway config excluded from per_skill entries",
         [e["path"] for e in entries] == [
@@ -1131,6 +1136,7 @@ print("\n[16] v2 plan guardrails — vocabulary, sharding, contracts")
 from checks.schema_vocabulary import run as _schema_vocab_run  # noqa: E402
 from checks.sharding import run as _sharding_run  # noqa: E402
 from checks.v2_contracts import run as _v2_contracts_run  # noqa: E402
+from checks.common import CheckResult as _CheckResult  # noqa: E402
 
 with tempfile.TemporaryDirectory() as tmp:
     root = Path(tmp)
@@ -1139,6 +1145,7 @@ with tempfile.TemporaryDirectory() as tmp:
     (root / "context" / "bindings").mkdir(parents=True)
     (root / "context" / "migrations" / "applied").mkdir(parents=True)
     (root / "context" / "workitems").mkdir(parents=True)
+    (root / "context" / "logs").mkdir(parents=True)
     (root / "context" / "skills" / "processkit" /
      "index-management" / "config").mkdir(parents=True)
 
@@ -1223,6 +1230,38 @@ with tempfile.TemporaryDirectory() as tmp:
             """),
         encoding="utf-8",
     )
+    (root / "context" / "workitems" / "BACK-legacy-feature.md").write_text(
+        textwrap.dedent("""\
+            ---
+            apiVersion: processkit.projectious.work/v2
+            kind: WorkItem
+            metadata:
+              id: BACK-legacy-feature
+              created: 2026-04-30T00:00:00Z
+            spec:
+              title: Legacy feature work item
+              state: done
+              type: feature
+            ---
+            """),
+        encoding="utf-8",
+    )
+    (root / "context" / "logs" / "LOG-legacy-release.md").write_text(
+        textwrap.dedent("""\
+            ---
+            apiVersion: processkit.projectious.work/v2
+            kind: LogEntry
+            metadata:
+              id: LOG-legacy-release
+              created: 2026-04-30T00:00:00Z
+            spec:
+              event_type: release.shipped
+              actor: system
+              timestamp: 2026-04-30T00:00:00Z
+            ---
+            """),
+        encoding="utf-8",
+    )
     vocab_results = _schema_vocab_run({"repo_root": root})
     check(
         "16a: unknown Artifact kind emits plan check ID",
@@ -1238,6 +1277,35 @@ with tempfile.TemporaryDirectory() as tmp:
         "16c: unknown Migration kind emits plan check ID",
         any(r.id == "schema.unknown-migration-kind-without-schema-entry"
             for r in vocab_results),
+    )
+    vocab_messages = "\n".join(r.message for r in vocab_results)
+    check(
+        "16c1: legacy schema vocabulary is rejected",
+        "feature" in vocab_messages
+        and "release.shipped" in vocab_messages,
+        vocab_messages,
+    )
+    legacy_vocab = [
+        r.to_dict() for r in vocab_results
+        if "feature" in r.message or "release.shipped" in r.message
+    ]
+    check(
+        "16c1b: legacy vocabulary requires migration",
+        legacy_vocab
+        and all(r["action_kind"] == "migration_needed" for r in legacy_vocab)
+        and all(r["acceptable_resolution"] == "migrated" for r in legacy_vocab),
+        json.dumps(legacy_vocab, indent=2),
+    )
+    policy_resolution = _CheckResult(
+        severity="WARN",
+        category="fixture",
+        id="fixture.policy",
+        message="policy decision needed",
+    ).to_dict()
+    check(
+        "16c1c: policy findings do not accept terminal exceptions",
+        policy_resolution["acceptable_resolution"] == "linked_tracking_item",
+        json.dumps(policy_resolution, indent=2),
     )
 
     (root / "src" / "context" / "schemas").mkdir(parents=True)
@@ -1497,6 +1565,18 @@ with tempfile.TemporaryDirectory() as tmp:
     check("17: migration briefings request archive action",
           briefing["action_kind"] == "archive_needed",
           json.dumps(briefing, indent=2))
+    for sid in {
+        "storage.mixed-layout",
+        "storage.placeholder-timestamp",
+        "storage.filename-policy-mixed",
+    }:
+        payload = storage_by_id[sid].to_dict()
+        check(
+            f"17: {sid} requires migration",
+            payload["action_kind"] == "migration_needed"
+            and payload["acceptable_resolution"] == "migrated",
+            json.dumps(payload, indent=2),
+        )
 
 # ---------------------------------------------------------------------------
 # Summary

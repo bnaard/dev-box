@@ -443,6 +443,11 @@ pub static COMPAT_TABLE: &[CompatEntry] = &[
         processkit_version: "v0.26.2",
         note: "Patch release: keeps processkit v0.26.2 and fixes stale runtime-home propagation by making aibox-managed .aibox-home files authoritative on apply and clean runtime recreation; broadens generated runtime mounts for Vim and Cargo cache directories; updates generated compose/docs coverage; and adds regression coverage for stale tmux/Yazi managed file refresh.",
     },
+    CompatEntry {
+        aibox_version: "0.25.14",
+        processkit_version: "v0.26.5",
+        note: "Patch release: integrates processkit v0.26.5; restores generated and image fallback Alt-word movement in Vim/readline; adds managed .inputrc runtime projection; carries tmux clipboard/terminal feature improvements into generated and image fallback configs; keeps Rust cache mounts from shadowing image-provided cargo/rustc shims; and keeps the stricter processkit schema/file-layout migration path clean under pk-doctor.",
+    },
 ];
 
 /// Find the minimum compatible processkit version for the given aibox version.

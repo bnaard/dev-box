@@ -4,10 +4,41 @@
 
 use crate::config::{StarshipPreset, Theme};
 
-/// Returns tmux status colors for the given theme.
-pub fn tmux_status_colors(theme: &Theme) -> (&str, &str, &str) {
-    let (bg, fg, accent, _green, _red, _yellow, _orange, _cyan, _muted) = theme_palette(theme);
-    (bg, fg, accent)
+/// Returns terminal surface colors for tmux panes and app backgrounds.
+pub fn terminal_surface_colors(theme: &Theme) -> (&str, &str, &str, &str, String, String) {
+    let (bg, fg, accent, _green, _red, _yellow, _orange, _cyan, muted) = theme_palette(theme);
+    (
+        bg,
+        fg,
+        accent,
+        muted,
+        mix_hex_colors(fg, muted, 50),
+        mix_hex_colors(accent, fg, 85),
+    )
+}
+
+fn mix_hex_colors(primary: &str, secondary: &str, primary_percent: u8) -> String {
+    let Some((pr, pg, pb)) = parse_hex_rgb(primary) else {
+        return primary.to_string();
+    };
+    let Some((sr, sg, sb)) = parse_hex_rgb(secondary) else {
+        return primary.to_string();
+    };
+    let p = u16::from(primary_percent.min(100));
+    let s = 100 - p;
+    let mix = |a: u8, b: u8| -> u8 { ((u16::from(a) * p + u16::from(b) * s) / 100) as u8 };
+    format!("#{:02X}{:02X}{:02X}", mix(pr, sr), mix(pg, sg), mix(pb, sb))
+}
+
+fn parse_hex_rgb(color: &str) -> Option<(u8, u8, u8)> {
+    let hex = color.strip_prefix('#')?;
+    if hex.len() != 6 {
+        return None;
+    }
+    let r = u8::from_str_radix(&hex[0..2], 16).ok()?;
+    let g = u8::from_str_radix(&hex[2..4], 16).ok()?;
+    let b = u8::from_str_radix(&hex[4..6], 16).ok()?;
+    Some((r, g, b))
 }
 
 /// Returns the Vim colorscheme name for the given theme.
@@ -55,8 +86,8 @@ pub fn vim_background(theme: &Theme) -> &'static str {
 
 /// Returns the Yazi theme.toml content for the given theme.
 /// Gruvbox uses the default theme.toml; others are bundled from images/base-debian/config/yazi/themes/.
-pub fn yazi_theme(theme: &Theme) -> &'static str {
-    match theme {
+pub fn yazi_theme(theme: &Theme) -> String {
+    let source = match theme {
         Theme::GruvboxDark | Theme::GruvboxLight => {
             include_str!("../../images/base-debian/config/yazi/theme.toml")
         }
@@ -98,6 +129,57 @@ pub fn yazi_theme(theme: &Theme) -> &'static str {
         Theme::Projectious => {
             include_str!("../../images/base-debian/config/yazi/themes/projectious.toml")
         }
+    };
+    yazi_theme_with_explicit_surfaces(theme, source)
+}
+
+fn yazi_theme_with_explicit_surfaces(theme: &Theme, source: &str) -> String {
+    let (bg, fg, accent, _green, _red, _yellow, _orange, _cyan, muted) = theme_palette(theme);
+    let surface = yazi_surface_color(theme);
+    source
+        .replace(
+            "preview_hovered = { underline = true }",
+            &format!("preview_hovered = {{ bg = \"{surface}\", underline = true }}"),
+        )
+        .replace(
+            "title = {}",
+            &format!("title = {{ fg = \"{accent}\", bg = \"{bg}\", bold = true }}"),
+        )
+        .replace(
+            "value = {}",
+            &format!("value = {{ fg = \"{fg}\", bg = \"{bg}\" }}"),
+        )
+        .replace(
+            "inactive = {}",
+            &format!("inactive = {{ fg = \"{muted}\", bg = \"{bg}\" }}"),
+        )
+        .replace(
+            "hovered = { underline = true }",
+            &format!("hovered = {{ bg = \"{surface}\", underline = true }}"),
+        )
+        .replace(
+            "desc = {}",
+            &format!("desc = {{ fg = \"{fg}\", bg = \"{bg}\" }}"),
+        )
+}
+
+fn yazi_surface_color(theme: &Theme) -> &'static str {
+    match theme {
+        Theme::GruvboxLight => "#EBDBB2",
+        Theme::CatppuccinLatte
+        | Theme::TokyoNightDay
+        | Theme::RosePineDawn
+        | Theme::MaterialLighter
+        | Theme::SolarizedLight
+        | Theme::GithubLight
+        | Theme::AyuLight
+        | Theme::NightOwlLight => "#CCD0DA",
+        Theme::GruvboxDark => "#3C3836",
+        Theme::Nord => "#3B4252",
+        Theme::Dracula => "#44475A",
+        Theme::TokyoNight | Theme::TokyoNightStorm | Theme::Moonlight => "#283457",
+        Theme::Projectious => "#131E2B",
+        _ => "#313244",
     }
 }
 
@@ -569,5 +651,48 @@ fg = "{fg}"
 accent = "{accent}"
 "#
         ),
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn tmux_powerkit_popular_theme_roster_is_mapped() {
+        let cases = [
+            (Theme::TokyoNight, ("tokyo-night", "night")),
+            (Theme::TokyoNightStorm, ("tokyo-night", "storm")),
+            (Theme::TokyoNightDay, ("tokyo-night", "day")),
+            (Theme::CatppuccinMocha, ("catppuccin", "mocha")),
+            (Theme::CatppuccinMacchiato, ("catppuccin", "macchiato")),
+            (Theme::CatppuccinFrappe, ("catppuccin", "frappe")),
+            (Theme::CatppuccinLatte, ("catppuccin", "latte")),
+            (Theme::Dracula, ("dracula", "dark")),
+            (Theme::Nord, ("nord", "dark")),
+            (Theme::GruvboxDark, ("gruvbox", "dark")),
+            (Theme::GruvboxLight, ("gruvbox", "light")),
+            (Theme::RosePine, ("rose-pine", "main")),
+            (Theme::RosePineMoon, ("rose-pine", "moon")),
+            (Theme::RosePineDawn, ("rose-pine", "dawn")),
+            (Theme::Material, ("material", "default")),
+            (Theme::MaterialOcean, ("material", "ocean")),
+            (Theme::MaterialPalenight, ("material", "palenight")),
+            (Theme::MaterialLighter, ("material", "lighter")),
+            (Theme::SolarizedDark, ("solarized", "dark")),
+            (Theme::SolarizedLight, ("solarized", "light")),
+            (Theme::GithubDark, ("github", "dark")),
+            (Theme::GithubLight, ("github", "light")),
+            (Theme::AyuDark, ("ayu", "dark")),
+            (Theme::AyuMirage, ("ayu", "mirage")),
+            (Theme::AyuLight, ("ayu", "light")),
+            (Theme::NightOwl, ("night-owl", "default")),
+            (Theme::NightOwlLight, ("night-owl", "light")),
+            (Theme::Moonlight, ("moonlight", "default")),
+        ];
+
+        for (theme, expected) in cases {
+            assert_eq!(tmux_powerkit_theme(&theme), expected, "{theme}");
+        }
     }
 }

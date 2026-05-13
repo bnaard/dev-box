@@ -1,5 +1,5 @@
 {
-  "aggregate_sha256": "0fd06b789cd6f9709fc43875802c55ab3e469ce8fa91d3bf4ed54b297efd5fb5",
+  "aggregate_sha256": "cc428414abe18fb997ee1ca70ccf56a87292935c348b999a5290828e5dabd903",
   "per_gateway": [
     {
       "path": "context/skills/processkit/processkit-gateway/mcp/mcp-config.json",
@@ -86,6 +86,10 @@
     {
       "path": "context/skills/processkit/role-management/mcp/server.py",
       "sha256": "221f3168ecb64e5325f4ea52af9b818595440e4f71393ec3c3836947ad431a30"
+    },
+    {
+      "path": "context/skills/processkit/runtime-prune/mcp/server.py",
+      "sha256": "c9f972ec122a2ce2da062ecc96374be9841607eea11f2f09518362d3185b5b24"
     },
     {
       "path": "context/skills/processkit/scope-management/mcp/server.py",
@@ -180,6 +184,10 @@
     {
       "path": "context/skills/processkit/role-management/mcp/mcp-config.json",
       "sha256": "5010739924c1a9dbc1386e10a6151dfb2ad423160a66d85417039c7d95da11fa"
+    },
+    {
+      "path": "context/skills/processkit/runtime-prune/mcp/mcp-config.json",
+      "sha256": "4efb0d7cd8053713bf4c417abb8ce49c9e5f22d0ca91ef69011313b3468f15da"
     },
     {
       "path": "context/skills/processkit/scope-management/mcp/mcp-config.json",

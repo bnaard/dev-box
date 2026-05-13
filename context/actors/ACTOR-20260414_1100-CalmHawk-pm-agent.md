@@ -15,7 +15,7 @@ spec:
   x_aibox:
     model: claude-opus-4-6
     model_tier: opus
-    role_ref: ROLE-20260414_1100-CalmHawk-project-manager
+    role_ref: ROLE-project-manager
 ---
 
 Template actor for the project-manager role. The owner approves every plan this actor authors; this actor is the only team member that speaks directly to the owner in normal operation.

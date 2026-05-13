@@ -5,7 +5,7 @@ metadata:
   id: LOG-20260423_1040-WarmJay-skill-registration
   created: '2026-04-23T10:40:29+00:00'
 spec:
-  event_type: skill.registration
+  event_type: skill.implemented
   timestamp: '2026-04-23T10:40:29+00:00'
   summary: Registered pk-doctor slash command after creating commands/pk-doctor.md
   subject: pk-doctor

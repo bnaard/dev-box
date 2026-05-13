@@ -2,6 +2,13 @@ use anyhow::{Context, Result, bail};
 use serde::{Deserialize, Deserializer, Serialize};
 use std::collections::{BTreeSet, HashMap};
 use std::path::{Path, PathBuf};
+use std::sync::OnceLock;
+
+#[cfg(all(
+    not(test),
+    any(target_os = "macos", target_os = "linux", target_os = "windows")
+))]
+use std::process::Command;
 
 #[cfg(test)]
 thread_local! {
@@ -1049,11 +1056,12 @@ pub enum Theme {
 #[serde(rename_all = "kebab-case")]
 #[clap(rename_all = "kebab-case")]
 pub enum ThemeMode {
-    /// Preserve the selected concrete theme.
+    /// Follow the host OS appearance when detectable; otherwise preserve the
+    /// selected concrete theme.
     #[default]
     Auto,
-    /// Prefer a light concrete palette. Falls back to Catppuccin Latte until
-    /// more theme families provide first-class light variants.
+    /// Prefer a light concrete palette when the selected theme family provides
+    /// a light variant.
     Light,
     /// Prefer a dark concrete palette. Keeps dark themes unchanged and maps
     /// known light variants to their dark counterpart.
@@ -1072,6 +1080,152 @@ impl std::fmt::Display for ThemeMode {
 
 fn default_theme_mode() -> ThemeMode {
     ThemeMode::default()
+}
+
+static DETECTED_HOST_THEME_MODE: OnceLock<Option<ThemeMode>> = OnceLock::new();
+
+/// Detect the host OS light/dark appearance for `mode = "auto"`.
+///
+/// This runs in the short-lived host-side `aibox` process during `apply`, `up`,
+/// and `set theme.*`. Containers do not receive OS appearance change events;
+/// rerun one of those commands to regenerate mounted runtime theme files.
+pub(crate) fn detected_host_theme_mode() -> Option<ThemeMode> {
+    DETECTED_HOST_THEME_MODE
+        .get_or_init(detect_host_theme_mode_uncached)
+        .clone()
+}
+
+fn detect_host_theme_mode_uncached() -> Option<ThemeMode> {
+    if let Some(mode) = host_theme_mode_from_env() {
+        return Some(mode);
+    }
+
+    #[cfg(test)]
+    {
+        None
+    }
+
+    #[cfg(all(not(test), target_os = "macos"))]
+    {
+        detect_macos_theme_mode()
+    }
+
+    #[cfg(all(not(test), target_os = "linux"))]
+    {
+        detect_linux_theme_mode()
+    }
+
+    #[cfg(all(not(test), target_os = "windows"))]
+    {
+        detect_windows_theme_mode()
+    }
+
+    #[cfg(all(
+        not(test),
+        not(target_os = "macos"),
+        not(target_os = "linux"),
+        not(target_os = "windows")
+    ))]
+    {
+        None
+    }
+}
+
+fn host_theme_mode_from_env() -> Option<ThemeMode> {
+    let value = std::env::var("AIBOX_HOST_THEME_MODE").ok()?;
+    match value.trim().to_ascii_lowercase().as_str() {
+        "light" => Some(ThemeMode::Light),
+        "dark" => Some(ThemeMode::Dark),
+        _ => None,
+    }
+}
+
+#[cfg(all(not(test), target_os = "macos"))]
+fn detect_macos_theme_mode() -> Option<ThemeMode> {
+    let output = Command::new("defaults")
+        .args(["read", "-g", "AppleInterfaceStyle"])
+        .output()
+        .ok()?;
+    if output.status.success() {
+        let value = String::from_utf8_lossy(&output.stdout);
+        if value.trim().eq_ignore_ascii_case("dark") {
+            return Some(ThemeMode::Dark);
+        }
+    }
+    // On macOS, AppleInterfaceStyle is absent in light mode.
+    Some(ThemeMode::Light)
+}
+
+#[cfg(all(not(test), target_os = "linux"))]
+fn detect_linux_theme_mode() -> Option<ThemeMode> {
+    if let Some(mode) = command_stdout_theme_mode(
+        "gsettings",
+        &["get", "org.gnome.desktop.interface", "color-scheme"],
+    ) {
+        return Some(mode);
+    }
+    if let Some(mode) = command_stdout_theme_mode(
+        "gsettings",
+        &["get", "org.gnome.desktop.interface", "gtk-theme"],
+    ) {
+        return Some(mode);
+    }
+    command_stdout_theme_mode(
+        "kreadconfig5",
+        &["--group", "General", "--key", "ColorScheme"],
+    )
+    .or_else(|| {
+        command_stdout_theme_mode(
+            "kreadconfig6",
+            &["--group", "General", "--key", "ColorScheme"],
+        )
+    })
+}
+
+#[cfg(all(not(test), target_os = "windows"))]
+fn detect_windows_theme_mode() -> Option<ThemeMode> {
+    command_stdout_theme_mode(
+        "powershell.exe",
+        &[
+            "-NoProfile",
+            "-Command",
+            "(Get-ItemProperty HKCU:\\Software\\Microsoft\\Windows\\CurrentVersion\\Themes\\Personalize).AppsUseLightTheme",
+        ],
+    )
+}
+
+#[cfg(any(
+    all(not(test), target_os = "linux"),
+    all(not(test), target_os = "windows")
+))]
+fn command_stdout_theme_mode(command: &str, args: &[&str]) -> Option<ThemeMode> {
+    let output = Command::new(command).args(args).output().ok()?;
+    if !output.status.success() {
+        return None;
+    }
+    parse_host_theme_mode_text(&String::from_utf8_lossy(&output.stdout))
+}
+
+#[cfg(any(
+    test,
+    all(not(test), target_os = "linux"),
+    all(not(test), target_os = "windows")
+))]
+fn parse_host_theme_mode_text(value: &str) -> Option<ThemeMode> {
+    let normalized = value.trim().trim_matches('\'').to_ascii_lowercase();
+    match normalized.as_str() {
+        "0" => Some(ThemeMode::Dark),
+        "1" => Some(ThemeMode::Light),
+        item if item.contains("prefer-dark") || item.contains("dark") => Some(ThemeMode::Dark),
+        item if item.contains("prefer-light")
+            || item.contains("light")
+            || item == "default"
+            || item == "standard" =>
+        {
+            Some(ThemeMode::Light)
+        }
+        _ => None,
+    }
 }
 
 impl std::fmt::Display for Theme {
@@ -1821,23 +1975,30 @@ impl CustomizationSection {
     /// Resolve the concrete palette rendered into tool config files.
     ///
     /// `theme` remains the user's selected concrete/default palette for
-    /// backward compatibility. `mode` is a global override layered on top.
+    /// backward compatibility. `mode` is a global override layered on top;
+    /// `auto` follows the host OS when a light/dark signal is available.
     pub fn resolved_theme(&self) -> Theme {
-        match self.mode {
+        self.resolved_theme_for_host_mode(detected_host_theme_mode())
+    }
+
+    pub(crate) fn resolved_theme_for_host_mode(&self, host_mode: Option<ThemeMode>) -> Theme {
+        let effective_mode = match self.mode {
+            ThemeMode::Auto => host_mode.unwrap_or(ThemeMode::Auto),
+            ThemeMode::Light => ThemeMode::Light,
+            ThemeMode::Dark => ThemeMode::Dark,
+        };
+        self.resolved_theme_for_mode(effective_mode)
+    }
+
+    fn resolved_theme_for_mode(&self, mode: ThemeMode) -> Theme {
+        match mode {
             ThemeMode::Auto => self.theme.clone(),
-            ThemeMode::Light => Theme::CatppuccinLatte,
-            ThemeMode::Dark => match self.theme {
-                Theme::CatppuccinLatte => Theme::CatppuccinMocha,
-                Theme::GruvboxLight => Theme::GruvboxDark,
-                Theme::TokyoNightDay => Theme::TokyoNight,
-                Theme::RosePineDawn => Theme::RosePine,
-                Theme::MaterialLighter => Theme::Material,
-                Theme::SolarizedLight => Theme::SolarizedDark,
-                Theme::GithubLight => Theme::GithubDark,
-                Theme::AyuLight => Theme::AyuDark,
-                Theme::NightOwlLight => Theme::NightOwl,
-                _ => self.theme.clone(),
-            },
+            ThemeMode::Light => {
+                light_theme_partner(&self.theme).unwrap_or_else(|| self.theme.clone())
+            }
+            ThemeMode::Dark => {
+                dark_theme_partner(&self.theme).unwrap_or_else(|| self.theme.clone())
+            }
         }
     }
 
@@ -1846,6 +2007,68 @@ impl CustomizationSection {
             .layout
             .clone()
             .unwrap_or_else(|| self.layout.clone())
+    }
+}
+
+fn light_theme_partner(theme: &Theme) -> Option<Theme> {
+    match theme {
+        Theme::GruvboxDark => Some(Theme::GruvboxLight),
+        Theme::CatppuccinMocha | Theme::CatppuccinMacchiato | Theme::CatppuccinFrappe => {
+            Some(Theme::CatppuccinLatte)
+        }
+        Theme::TokyoNight | Theme::TokyoNightStorm => Some(Theme::TokyoNightDay),
+        Theme::RosePine | Theme::RosePineMoon => Some(Theme::RosePineDawn),
+        Theme::Material | Theme::MaterialOcean | Theme::MaterialPalenight => {
+            Some(Theme::MaterialLighter)
+        }
+        Theme::SolarizedDark => Some(Theme::SolarizedLight),
+        Theme::GithubDark => Some(Theme::GithubLight),
+        Theme::AyuDark | Theme::AyuMirage => Some(Theme::AyuLight),
+        Theme::NightOwl => Some(Theme::NightOwlLight),
+        Theme::GruvboxLight
+        | Theme::CatppuccinLatte
+        | Theme::TokyoNightDay
+        | Theme::RosePineDawn
+        | Theme::MaterialLighter
+        | Theme::SolarizedLight
+        | Theme::GithubLight
+        | Theme::AyuLight
+        | Theme::NightOwlLight => Some(theme.clone()),
+        Theme::Dracula | Theme::Nord | Theme::Moonlight | Theme::Projectious => None,
+    }
+}
+
+fn dark_theme_partner(theme: &Theme) -> Option<Theme> {
+    match theme {
+        Theme::GruvboxLight => Some(Theme::GruvboxDark),
+        Theme::CatppuccinLatte => Some(Theme::CatppuccinMocha),
+        Theme::TokyoNightDay => Some(Theme::TokyoNight),
+        Theme::RosePineDawn => Some(Theme::RosePine),
+        Theme::MaterialLighter => Some(Theme::Material),
+        Theme::SolarizedLight => Some(Theme::SolarizedDark),
+        Theme::GithubLight => Some(Theme::GithubDark),
+        Theme::AyuLight => Some(Theme::AyuDark),
+        Theme::NightOwlLight => Some(Theme::NightOwl),
+        Theme::GruvboxDark
+        | Theme::CatppuccinMocha
+        | Theme::CatppuccinMacchiato
+        | Theme::CatppuccinFrappe
+        | Theme::Dracula
+        | Theme::TokyoNight
+        | Theme::TokyoNightStorm
+        | Theme::Nord
+        | Theme::RosePine
+        | Theme::RosePineMoon
+        | Theme::Material
+        | Theme::MaterialOcean
+        | Theme::MaterialPalenight
+        | Theme::SolarizedDark
+        | Theme::GithubDark
+        | Theme::AyuDark
+        | Theme::AyuMirage
+        | Theme::NightOwl
+        | Theme::Moonlight
+        | Theme::Projectious => Some(theme.clone()),
     }
 }
 
@@ -4893,10 +5116,7 @@ mode = "light"
         let config = parse_toml(toml).unwrap();
         assert_eq!(config.customization.theme, Theme::Dracula);
         assert_eq!(config.customization.mode, ThemeMode::Light);
-        assert_eq!(
-            config.customization.resolved_theme(),
-            Theme::CatppuccinLatte
-        );
+        assert_eq!(config.customization.resolved_theme(), Theme::Dracula);
 
         let toml = r#"
 [aibox]
@@ -4914,6 +5134,56 @@ mode = "dark"
             config.customization.resolved_theme(),
             Theme::CatppuccinMocha
         );
+    }
+
+    #[test]
+    fn appearance_auto_resolves_from_host_mode_when_theme_has_partner() {
+        let mut config = test_config();
+        config.customization.theme = Theme::GruvboxDark;
+        config.customization.mode = ThemeMode::Auto;
+        assert_eq!(
+            config
+                .customization
+                .resolved_theme_for_host_mode(Some(ThemeMode::Light)),
+            Theme::GruvboxLight
+        );
+        assert_eq!(
+            config
+                .customization
+                .resolved_theme_for_host_mode(Some(ThemeMode::Dark)),
+            Theme::GruvboxDark
+        );
+    }
+
+    #[test]
+    fn appearance_auto_preserves_dark_only_themes_in_light_host_mode() {
+        let mut config = test_config();
+        config.customization.theme = Theme::Nord;
+        config.customization.mode = ThemeMode::Auto;
+        assert_eq!(
+            config
+                .customization
+                .resolved_theme_for_host_mode(Some(ThemeMode::Light)),
+            Theme::Nord
+        );
+    }
+
+    #[test]
+    fn host_theme_mode_parser_handles_common_platform_outputs() {
+        assert_eq!(
+            parse_host_theme_mode_text("'prefer-dark'"),
+            Some(ThemeMode::Dark)
+        );
+        assert_eq!(
+            parse_host_theme_mode_text("'prefer-light'"),
+            Some(ThemeMode::Light)
+        );
+        assert_eq!(
+            parse_host_theme_mode_text("default"),
+            Some(ThemeMode::Light)
+        );
+        assert_eq!(parse_host_theme_mode_text("0"), Some(ThemeMode::Dark));
+        assert_eq!(parse_host_theme_mode_text("1"), Some(ThemeMode::Light));
     }
 
     // -- File loading -------------------------------------------------------

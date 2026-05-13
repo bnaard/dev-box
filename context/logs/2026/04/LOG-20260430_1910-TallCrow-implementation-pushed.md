@@ -5,7 +5,7 @@ metadata:
   id: LOG-20260430_1910-TallCrow-implementation-pushed
   created: '2026-04-30T19:10:37+00:00'
 spec:
-  event_type: implementation.pushed
+  event_type: milestone
   timestamp: '2026-04-30T19:10:37+00:00'
   summary: Implemented and pushed provider backend doctor mismatch warnings
   actor: codex

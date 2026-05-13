@@ -752,15 +752,14 @@ pub fn cmd_start(
 
     let session_name = config.tmux_session_name();
     let should_recreate_tmux_session = forget_tmux_state || state != ContainerState::Running;
-    if state == ContainerState::Missing {
-        let refreshed_runtime_files = crate::seed::sync_theme_files(&config)?;
-        if !refreshed_runtime_files.is_empty() {
-            output::ok(&format!(
-                "Refreshed {} managed runtime file(s)",
-                refreshed_runtime_files.len()
-            ));
-        }
-    } else {
+    let refreshed_runtime_files = crate::seed::sync_theme_files(&config)?;
+    if !refreshed_runtime_files.is_empty() {
+        output::ok(&format!(
+            "Refreshed {} managed runtime file(s)",
+            refreshed_runtime_files.len()
+        ));
+    }
+    if state != ContainerState::Missing {
         let restored_runtime_files = crate::seed::restore_missing_managed_runtime_files(&config)?;
         if !restored_runtime_files.is_empty() {
             output::ok(&format!(
@@ -1503,14 +1502,22 @@ pub(crate) fn serialize_config_with_comments(config: &AiboxConfig) -> String {
     out.push_str("# [customization] — color theme, shell prompt, and tmux layout\n");
     out.push_str(sep);
     out.push_str("# Theme is applied consistently across tmux, Vim, Yazi, lazygit, and bat.\n");
-    out.push_str("# Options include tmux-powerkit families: gruvbox, catppuccin, tokyo-night,\n");
+    out.push_str("# tmux-powerkit popular themes and variants supported by aibox:\n");
+    out.push_str("# - tokyo-night, tokyo-night-storm, tokyo-night-day\n");
     out.push_str(
-        "# rose-pine, material, solarized, github, ayu, night-owl, moonlight, plus dracula,\n",
+        "# - catppuccin-mocha, catppuccin-macchiato, catppuccin-frappe, catppuccin-latte\n",
     );
-    out.push_str("# nord, and projectious. See docs for the full variant list.\n");
+    out.push_str("# - dracula, nord, gruvbox-dark, gruvbox-light\n");
+    out.push_str("# - rose-pine, rose-pine-moon, rose-pine-dawn\n");
+    out.push_str("# - material, material-ocean, material-palenight, material-lighter\n");
+    out.push_str("# - solarized-dark, solarized-light, github-dark, github-light\n");
+    out.push_str("# - ayu-dark, ayu-mirage, ayu-light, night-owl, night-owl-light, moonlight\n");
+    out.push_str("# - projectious (aibox extension)\n");
     out.push_str("[customization]\n");
     out.push_str(&format!("theme  = \"{}\"\n", config.customization.theme));
-    out.push_str("# Global mode overlay. `auto` preserves the selected concrete theme.\n");
+    out.push_str("# Global mode overlay. `auto` follows the host OS appearance when detectable.\n");
+    out.push_str("# Paired families follow light/dark variants; genuinely dark-only themes\n");
+    out.push_str("# (dracula, nord, moonlight, projectious) keep their selected concrete theme.\n");
     out.push_str("# Options: auto | light | dark\n");
     out.push_str(&format!("mode   = \"{}\"\n", config.customization.mode));
     out.push_str("# Starship prompt preset.\n");
@@ -3734,6 +3741,47 @@ mod tests {
             ai < ai_mcp && ai_mcp < processkit,
             "[ai.mcp] should stay with the ai section"
         );
+    }
+
+    #[test]
+    fn serialized_config_comments_include_full_popular_theme_roster() {
+        let config = crate::config::test_config();
+        let body = serialize_config_with_comments(&config);
+
+        for theme in [
+            "tokyo-night",
+            "tokyo-night-storm",
+            "tokyo-night-day",
+            "catppuccin-mocha",
+            "catppuccin-macchiato",
+            "catppuccin-frappe",
+            "catppuccin-latte",
+            "dracula",
+            "nord",
+            "gruvbox-dark",
+            "gruvbox-light",
+            "rose-pine",
+            "rose-pine-moon",
+            "rose-pine-dawn",
+            "material",
+            "material-ocean",
+            "material-palenight",
+            "material-lighter",
+            "solarized-dark",
+            "solarized-light",
+            "github-dark",
+            "github-light",
+            "ayu-dark",
+            "ayu-mirage",
+            "ayu-light",
+            "night-owl",
+            "night-owl-light",
+            "moonlight",
+            "projectious",
+        ] {
+            assert!(body.contains(theme), "missing theme comment entry: {theme}");
+        }
+        assert!(body.contains("`auto` follows the host OS appearance"));
     }
 
     #[test]

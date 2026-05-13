@@ -5,7 +5,7 @@ metadata:
   id: LOG-20260419_0808-SwiftTulip-release-shipped
   created: '2026-04-19T08:08:26+00:00'
 spec:
-  event_type: release.shipped
+  event_type: release.published
   timestamp: '2026-04-18T20:00:00Z'
   summary: "aibox v0.18.7 released end-to-end \u2014 processkit v0.18.2 integrated, Linux + macOS binaries on GitHub release, docs deployed to gh-pages, GHCR images pushed."
   actor: claude-opus-4-7

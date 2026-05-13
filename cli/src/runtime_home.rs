@@ -58,6 +58,12 @@ pub(crate) fn runtime_home_mounts(config: &AiboxConfig) -> Vec<RuntimeHomeMount>
         ),
         RuntimeHomeMount::new(".cache", format!("{home}/.cache"), false, "XDG cache home"),
         RuntimeHomeMount::new(
+            ".inputrc",
+            format!("{home}/.inputrc"),
+            false,
+            "readline key bindings",
+        ),
+        RuntimeHomeMount::new(
             ".local",
             format!("{home}/.local"),
             false,
@@ -106,10 +112,16 @@ pub(crate) fn runtime_home_mounts(config: &AiboxConfig) -> Vec<RuntimeHomeMount>
 
     if config.addons.has_rust() {
         mounts.push(RuntimeHomeMount::new(
-            ".cargo",
-            format!("{home}/.cargo"),
+            ".cargo/registry",
+            format!("{home}/.cargo/registry"),
             false,
-            "Cargo registry and git cache",
+            "Cargo registry cache",
+        ));
+        mounts.push(RuntimeHomeMount::new(
+            ".cargo/git",
+            format!("{home}/.cargo/git"),
+            false,
+            "Cargo git cache",
         ));
     }
 
@@ -229,11 +241,6 @@ fn broad_runtime_home_mount_paths(config: &AiboxConfig) -> Vec<String> {
         format!("{home}/.vim"),
     ]
     .into_iter()
-    .chain(if config.addons.has_rust() {
-        Some(format!("{home}/.cargo"))
-    } else {
-        None
-    })
     .collect()
 }
 
@@ -295,9 +302,11 @@ mod tests {
 
         assert!(destinations.contains(&"/root/.config"));
         assert!(destinations.contains(&"/root/.cache"));
+        assert!(destinations.contains(&"/root/.inputrc"));
         assert!(destinations.contains(&"/root/.local"));
         assert!(!destinations.contains(&"/root/.config/yazi"));
         assert!(!destinations.contains(&"/root/.local/bin"));
+        assert!(!destinations.contains(&"/root/.cargo"));
 
         for destination in ["/root/.config", "/root/.cache", "/root/.local"] {
             let mount = mounts
@@ -321,5 +330,26 @@ mod tests {
         );
         assert!(extra_volume_conflict(&config, "/root/.config/gh").is_none());
         assert!(extra_volume_conflict(&config, "/workspace/.cache").is_none());
+    }
+
+    #[test]
+    fn rust_runtime_mounts_preserve_image_toolchain_shims() {
+        let mut config = crate::config::test_config();
+        config.addons.addons.insert(
+            "rust".to_string(),
+            crate::config::AddonToolsSection::default(),
+        );
+        let mounts = runtime_home_mounts(&config);
+        let destinations: Vec<_> = mounts
+            .iter()
+            .map(|mount| mount.destination.as_str())
+            .collect();
+
+        assert!(destinations.contains(&"/root/.cargo/registry"));
+        assert!(destinations.contains(&"/root/.cargo/git"));
+        assert!(
+            !destinations.contains(&"/root/.cargo"),
+            "mounting the whole Cargo home shadows image-provided cargo/rustc shims"
+        );
     }
 }

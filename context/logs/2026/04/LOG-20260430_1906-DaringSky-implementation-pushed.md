@@ -5,7 +5,7 @@ metadata:
   id: LOG-20260430_1906-DaringSky-implementation-pushed
   created: '2026-04-30T19:06:39+00:00'
 spec:
-  event_type: implementation.pushed
+  event_type: milestone
   timestamp: '2026-04-30T19:06:39+00:00'
   summary: Implemented and pushed Cursor provider addon resolver fix
   actor: codex

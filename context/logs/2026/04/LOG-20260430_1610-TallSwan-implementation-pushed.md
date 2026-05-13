@@ -5,7 +5,7 @@ metadata:
   id: LOG-20260430_1610-TallSwan-implementation-pushed
   created: '2026-04-30T16:10:35+00:00'
 spec:
-  event_type: implementation.pushed
+  event_type: milestone
   timestamp: '2026-04-30T16:10:35+00:00'
   summary: Implemented and pushed aibox profile model roadmap slice
   actor: codex

@@ -965,6 +965,21 @@ mod tests {
     }
 
     #[test]
+    fn compose_mounts_rust_caches_without_shadowing_cargo_home() {
+        let dir = tempfile::tempdir().unwrap();
+        let config = make_config(&["rust"], false);
+        generate_docker_compose(&config, dir.path(), &test_env()).unwrap();
+
+        let content = fs::read_to_string(dir.path().join("docker-compose.yml")).unwrap();
+        assert!(content.contains(".cargo/registry:/root/.cargo/registry:rw"));
+        assert!(content.contains(".cargo/git:/root/.cargo/git:rw"));
+        assert!(
+            !content.contains(".cargo:/root/.cargo:rw"),
+            "compose must not mount the whole Cargo home; it hides image-provided cargo/rustc shims:\n{content}"
+        );
+    }
+
+    #[test]
     #[serial]
     fn runtime_dir_scaffold_includes_cache_dirs() {
         let dir = tempfile::tempdir().unwrap();
@@ -1068,6 +1083,15 @@ mod tests {
         assert!(content.contains("pids_limit: 64"));
         assert!(content.contains("mem_limit: 64m"));
         assert!(content.contains("cpus: 0.20"));
+        assert!(content.contains("/.aibox:/workspace/.aibox:rw"));
+        let diagnostics_service = content
+            .split("  test-ctr-diagnostics:")
+            .nth(1)
+            .expect("diagnostics service should be present");
+        assert!(
+            !diagnostics_service.contains(":/workspace:rw"),
+            "diagnostics sidecar must not mount the whole workspace read-write:\n{content}"
+        );
         assert!(content.contains("/usr/local/bin/aibox-diagnostics"));
         assert!(content.contains("/workspace/.aibox/diagnostics"));
     }

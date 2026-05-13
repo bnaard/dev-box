@@ -8,14 +8,12 @@ None.
 
 None.
 
-## Applied (1)
+## Applied (0)
 
-| Date       | Migration                                | Notes |
-|------------|------------------------------------------|-------|
-| 2026-05-12 | MIG-RUNTIME-DRIFT-20260512T141804 — aibox-runtime-drift  → 0.25.10 | 4 drifted managed runtime file(s) found at 0.25.10 |
+None.
 
 ## Rejected (1)
 
 | Date       | Migration                                | Reason |
 |------------|------------------------------------------|--------|
-| 2026-05-12 | MIG-DISABLED-HARNESS-STATE — aibox  → | Owner review is required before deleting disabled AI-harness personal state such as .aibox-home/.claude. Preserve it du… |
+| 2026-05-13 | MIG-DISABLED-HARNESS-STATE — aibox  → | This migration would delete local disabled-harness Claude runtime state under .aibox-home/.claude. The dogfood project … |

@@ -10,6 +10,6 @@ pub use layouts::{tmux_layout_script, tmux_session_script};
 pub(crate) use status::resolved_tmux_status_layout;
 pub use status::{
     POWERKIT_RENDER_LIST_SH, POWERKIT_RENDER_SESSION_SH, cleanup_stale_tmux_plugins,
-    cleanup_tmux_powerkit_cache, tmux_conf,
+    cleanup_tmux_powerkit_cache, tmux_conf, tmux_powerkit_overrides,
 };
 pub use sync::sync_tmux_runtime_files;

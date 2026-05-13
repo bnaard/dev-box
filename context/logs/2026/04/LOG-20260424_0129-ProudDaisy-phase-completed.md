@@ -5,7 +5,7 @@ metadata:
   id: LOG-20260424_0129-ProudDaisy-phase-completed
   created: '2026-04-24T01:29:27+00:00'
 spec:
-  event_type: phase.completed
+  event_type: milestone
   timestamp: '2026-04-24T01:29:27+00:00'
   summary: 'Phase 2a harness generators complete: Claude Code + OpenCode MCP permissions'
   subject: BACK-20260424_0114-SwiftPlum-phase-2a-claude-code

@@ -15,7 +15,7 @@ spec:
   x_aibox:
     model: claude-sonnet-4-6
     model_tier: sonnet
-    role_ref: ROLE-20260414_1100-SwiftFox-junior-researcher
+    role_ref: ROLE-junior-researcher
 ---
 
 Template actor for the junior-researcher role. PM's default researcher choice.

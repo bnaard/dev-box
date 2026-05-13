@@ -238,7 +238,7 @@ fn tmux_runtime_config_and_cache_are_mounted() {
 }
 
 #[test]
-fn rust_addon_cargo_cache_is_mounted_as_broad_parent() {
+fn rust_addon_cargo_cache_mounts_do_not_shadow_toolchain_shims() {
     let dir = tempfile::tempdir().unwrap();
     init_project(dir.path(), "cargo-cache");
     patch_toml(
@@ -251,10 +251,10 @@ rustc = {}
     sync_project(dir.path());
     let compose = read_generated(dir.path(), ".devcontainer/docker-compose.yml");
     assert!(
-        compose.contains(".cargo:/home/aibox/.cargo:rw")
-            && !compose.contains(".cargo/registry:/home/aibox/.cargo/registry")
-            && !compose.contains(".cargo/git:/home/aibox/.cargo/git"),
-        "compose must mount Cargo cache as the broad writable .cargo parent:\n{compose}"
+        compose.contains(".cargo/registry:/home/aibox/.cargo/registry:rw")
+            && compose.contains(".cargo/git:/home/aibox/.cargo/git:rw")
+            && !compose.contains(".cargo:/home/aibox/.cargo:rw"),
+        "compose must mount Cargo caches without shadowing image-provided cargo/rustc shims:\n{compose}"
     );
 }
 

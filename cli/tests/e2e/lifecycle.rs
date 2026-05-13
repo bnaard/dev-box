@@ -166,8 +166,9 @@ fn claudemd_preserved_on_sync() {
         "# My Custom CLAUDE.md\n\nUser-specific content here.\n",
     );
 
-    // Apply should not overwrite CLAUDE.md
-    runner.aibox(test, &["apply"]);
+    // Apply should not overwrite CLAUDE.md. This is a file-generation
+    // contract, so skip image build/runtime work.
+    runner.aibox(test, &["apply", "--no-container"]);
 
     let content = runner.read_file(test, "CLAUDE.md");
     assert!(
@@ -198,8 +199,9 @@ fn generated_files_overwritten_on_sync() {
         "# tampered\nFROM scratch\n",
     );
 
-    // Apply should regenerate it
-    runner.aibox(test, &["apply"]);
+    // Apply should regenerate it. This is a file-generation contract, so skip
+    // image build/runtime work.
+    runner.aibox(test, &["apply", "--no-container"]);
 
     let dockerfile = runner.read_file(test, ".devcontainer/Dockerfile");
     assert!(

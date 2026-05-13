@@ -311,6 +311,7 @@ COPY --from=fetch-vim-colors /vim-colors/pack/themes/start/dracula/colors/      
 COPY --from=fetch-vim-colors /vim-colors/pack/themes/start/dracula/autoload/     /usr/share/vim/vimfiles/autoload/
 COPY config/vim-colors/projectious.vim                                           /usr/share/vim/vimfiles/colors/projectious.vim
 COPY config/vimrc /home/aibox/.vim/vimrc
+COPY config/inputrc /home/aibox/.inputrc
 
 # Create config directories in a single layer
 RUN mkdir -p /home/aibox/.config/tmux \
@@ -356,9 +357,12 @@ RUN ln -sf /home/aibox/.config/tmux/tmux.conf /home/aibox/.tmux.conf && \
     for plugin in /usr/local/share/aibox/tmux/plugins/*; do \
       ln -s "$plugin" "/home/aibox/.tmux/plugins/$(basename "$plugin")"; \
     done && \
-    mkdir -p /home/aibox/.vim/pack/aibox/start && \
+    mkdir -p /home/aibox/.vim/pack/aibox/start \
+             /usr/share/vim/vimfiles/pack/aibox/start && \
     ln -sf /usr/local/share/aibox/tmux/plugins/vim-tmux-navigator \
-      /home/aibox/.vim/pack/aibox/start/vim-tmux-navigator
+      /home/aibox/.vim/pack/aibox/start/vim-tmux-navigator && \
+    ln -sf /usr/local/share/aibox/tmux/plugins/vim-tmux-navigator \
+      /usr/share/vim/vimfiles/pack/aibox/start/vim-tmux-navigator
 
 # Yazi
 COPY config/yazi/yazi.toml             /home/aibox/.config/yazi/yazi.toml

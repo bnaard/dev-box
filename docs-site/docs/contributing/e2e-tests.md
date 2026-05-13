@@ -35,6 +35,11 @@ addons with SCP, then use the companion's own runtime for lifecycle checks.
 The container-side release command runs Tier 2 as part of Phase 1 with
 `cargo test --features e2e --test e2e`, so the SSH companion, generated
 runtime probes, and non-ignored asciinema checks are release gates.
+The default Tier 2 suite intentionally performs only one full generated
+container build/start/probe. File-generation contracts use `--no-container`,
+and the companion's nested container storage is pruned once before and after
+the suite by `./scripts/maintain.sh test-e2e` so Podman `vfs` cache is bounded
+without discarding layers between every test.
 
 The release process also has a host-side generated-runtime smoke:
 `./scripts/maintain.sh release-runtime-smoke X.Y.Z`. It is not an SSH
@@ -520,13 +525,8 @@ If the companion container is queried for its selected runtime, then the
 command must succeed and the output must contain either `docker` or `podman`.
 `[smoke.rs · runtime_available_on_companion]`
 
-**Container runtime can pull an image**
-If the selected runtime pulls `docker.io/library/alpine:latest` on the
-companion, then the pull must succeed, confirming registry access works.
-`[smoke.rs · runtime_can_pull_image]`
-
-**Container runtime can run a container**
+**Container runtime can pull and run a container**
 If the selected runtime runs `alpine echo hello-e2e` on the companion, then
-the command must succeed and the output must contain `hello-e2e`, confirming
-full container execution.
-`[smoke.rs · runtime_can_run_container]`
+the image pull, container creation, and command execution must succeed, and the
+output must contain `hello-e2e`.
+`[smoke.rs · runtime_can_pull_and_run_container]`

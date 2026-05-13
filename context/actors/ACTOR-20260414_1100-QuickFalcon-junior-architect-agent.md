@@ -15,7 +15,7 @@ spec:
   x_aibox:
     model: claude-sonnet-4-6
     model_tier: sonnet
-    role_ref: ROLE-20260414_1100-QuickFalcon-junior-architect
+    role_ref: ROLE-junior-architect
 ---
 
 Template actor for the junior-architect role. PM's default architect choice.

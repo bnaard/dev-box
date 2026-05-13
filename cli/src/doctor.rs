@@ -1982,7 +1982,7 @@ fn check_runtime_home_mount_modes(runtime: &Runtime, config: &AiboxConfig, diag:
         output::error(&format!(
             "Runtime .aibox-home mounts are stale or not writable: {}. \
              Recreate the container from the generated compose files; Yazi, Codex, Bash/Starship, \
-             PowerKit, and tmux status require writable .config, .cache, and .local mounts.",
+             PowerKit, tmux status, and Rust cache persistence require writable managed runtime-home mounts.",
             problems.join(", ")
         ));
         diag.errors += 1;

@@ -231,11 +231,30 @@ ensure_e2e_companion() {
     || die "Failed to start aibox-e2e-testrunner"
 }
 
+prune_e2e_companion_storage() {
+  local key="${PROJECT_ROOT}/.aibox-e2e-runner-home/.ssh/id_ed25519"
+  ensure_e2e_companion
+  info "Pruning SSH companion nested runtime state..."
+  ssh -i "${key}" \
+      -o StrictHostKeyChecking=no \
+      -o UserKnownHostsFile=/dev/null \
+      -o ConnectTimeout=5 \
+      -o LogLevel=ERROR \
+      testuser@aibox-e2e-testrunner \
+      'runtime=""; if command -v docker >/dev/null 2>&1 && docker info >/dev/null 2>&1; then runtime=docker; elif command -v podman >/dev/null 2>&1 && podman info >/dev/null 2>&1; then runtime=podman; fi; test -n "$runtime" || exit 0; ids=$("$runtime" ps -aq 2>/dev/null || true); if [ -n "$ids" ]; then "$runtime" rm -f $ids >/dev/null 2>&1 || true; fi; "$runtime" system prune -af --volumes >/dev/null 2>&1 || true; rm -rf /workspaces/*' \
+    || return 1
+  ok "SSH companion nested runtime state pruned"
+}
+
 cmd_test_e2e() {
   ensure_e2e_companion
+  prune_e2e_companion_storage || die "Failed to prune SSH companion nested runtime state"
   info "Running Tier 2 SSH companion E2E tests..."
+  local status=0
   (cd "${CLI_DIR}" && cargo test --features e2e --test e2e -- --test-threads=1) \
-    || die "Tier 2 SSH companion E2E tests failed"
+    || status=$?
+  prune_e2e_companion_storage || warn "Post-suite SSH companion prune failed"
+  [[ "${status}" -eq 0 ]] || die "Tier 2 SSH companion E2E tests failed"
   ok "Tier 2 SSH companion E2E tests passed"
 }
 

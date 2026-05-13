@@ -5,7 +5,7 @@ metadata:
   id: LOG-20260501_0809-TidyWillow-implementation-pushed
   created: '2026-05-01T08:09:31+00:00'
 spec:
-  event_type: implementation.pushed
+  event_type: milestone
   timestamp: '2026-05-01T08:09:31+00:00'
   summary: Implemented and pushed image provenance policy preview projection
   actor: codex

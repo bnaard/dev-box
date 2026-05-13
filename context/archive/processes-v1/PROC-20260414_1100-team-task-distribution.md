@@ -6,7 +6,7 @@ metadata:
   created: 2026-04-14 11:00:00+00:00
 spec:
   name: team-task-distribution
-  owner: ROLE-20260414_1100-CalmHawk-project-manager
+  owner: ROLE-project-manager
   related_decisions:
   - DEC-20260414_1100-NobleStag-team-composition-and-model-mix
 ---

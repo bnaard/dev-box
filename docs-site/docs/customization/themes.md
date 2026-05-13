@@ -18,7 +18,11 @@ Or during project initialization:
 aibox init --theme catppuccin-mocha
 ```
 
-The selected theme is applied to **tmux**, **Vim**, **Yazi**, **lazygit**, and **Starship** simultaneously. `mode = "auto"` preserves the selected concrete theme. `mode = "light"` currently resolves to `catppuccin-latte`; `mode = "dark"` keeps dark themes as-is and maps known light variants to their dark counterpart.
+The selected theme is applied to **tmux**, **Vim**, **Yazi**, **lazygit**, and **Starship** simultaneously.
+
+`mode = "auto"` follows the host OS light/dark appearance when a host signal is detectable during `aibox apply`, `aibox up`, or `aibox set theme.*`. Containers do not receive live macOS/Windows/Linux appearance-change events, so rerun one of those commands to regenerate mounted runtime theme files after changing the host appearance. If the host appearance cannot be detected, `auto` preserves the selected concrete theme.
+
+`mode = "light"` and host-light `auto` use the selected theme family's light partner when one exists. Genuinely dark-only themes stay on the selected concrete theme instead of falling back to an unrelated light theme.
 
 ## Available Themes
 
@@ -32,6 +36,22 @@ aibox supports the tmux-powerkit popular theme roster:
 - `solarized-dark`, `solarized-light`, `github-dark`, `github-light`
 - `ayu-dark`, `ayu-mirage`, `ayu-light`, `night-owl`, `night-owl-light`, `moonlight`
 - `projectious`
+
+## Light/Dark Partners
+
+| Family | Dark variants | Light variant |
+|---|---|---|
+| Tokyo Night | `tokyo-night`, `tokyo-night-storm` | `tokyo-night-day` |
+| Catppuccin | `catppuccin-mocha`, `catppuccin-macchiato`, `catppuccin-frappe` | `catppuccin-latte` |
+| Gruvbox | `gruvbox-dark` | `gruvbox-light` |
+| Rose Pine | `rose-pine`, `rose-pine-moon` | `rose-pine-dawn` |
+| Material | `material`, `material-ocean`, `material-palenight` | `material-lighter` |
+| Solarized | `solarized-dark` | `solarized-light` |
+| GitHub | `github-dark` | `github-light` |
+| Ayu | `ayu-dark`, `ayu-mirage` | `ayu-light` |
+| Night Owl | `night-owl` | `night-owl-light` |
+
+Dark-only themes with no light partner in the tmux-powerkit popular roster: `dracula`, `nord`, `moonlight`. The `projectious` aibox extension is also currently dark-only.
 
 ### gruvbox-dark (default)
 
@@ -106,7 +126,7 @@ The projectious.work brand theme. Deep navy base with a vivid orange accent.
 
 ## How It Works
 
-Each theme is a coordinated set of config files applied to all tools at `aibox apply` time:
+Each theme is a coordinated set of config files applied to all tools when `aibox apply`, `aibox up`, or `aibox set theme.*` regenerates managed runtime files:
 
 | Tool | Config file | What's themed |
 |------|------------|---------------|
@@ -123,6 +143,7 @@ Claude Code inherits terminal colors automatically — no separate theme file ne
 To switch light/dark mode in an existing project:
 
 ```bash
+aibox set theme.mode auto
 aibox set theme.mode light
 aibox set theme.mode dark
 aibox set theme.name tokyo-night

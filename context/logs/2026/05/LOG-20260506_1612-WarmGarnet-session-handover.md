@@ -15,7 +15,7 @@ spec:
     handover_type: end_of_session
     date: '2026-05-06'
     repo: /workspace
-    active_interlocutor: Cora (TEAMMEMBER-20260422_0832-MigratedMember-cora; ROLE-20260422_0001-MigratedRole-product-manager/senior)
+    active_interlocutor: Cora (TEAMMEMBER-20260422_0832-MigratedMember-cora; ROLE-product-manager/senior)
     completed:
     - Recovered release stability by stepping through v0.23.16, v0.23.17, v0.23.18, and v0.23.19 with the host-safe runtime smoke harness.
     - Identified older release failures as overlapping Yazi 26 config/schema regressions plus an unsafe host smoke harness that streamed raw TUI escape sequences.

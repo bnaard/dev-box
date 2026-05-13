@@ -1,0 +1,106 @@
+{
+  "archive_id": "ARCHIVE-20260513_123243-migration-applied",
+  "archive_path": "context/archives/2026/05/ARCHIVE-20260513_123243-migration-applied.tar.gz",
+  "created_at": "2026-05-13T12:32:43+00:00",
+  "entities": [
+    {
+      "apiVersion": "processkit.projectious.work/v1",
+      "body_index": "# Migration MIG-20260513T122516\n\nFrom `v0.26.2` to `v0.26.3` (source: `https://github.com/projectious-work/processkit.git`).\n\n0 changed upstream, 0 conflicts, 142 new, 0 removed, 0 stale-removed (23 groups affected)\n\n## Counts\n\n- unchanged: 538\n- changed-locally-only: 1\n- changed-upstream-only: 0\n- conflict: 0\n- new-upstream: 142\n- removed-upstream: 0\n- removed-upstream-stale: 0\n\n## Changes by group\n\n### AGENTS\n\n**changed-locally-only**\n\n- `AGENTS.md` \u2192 `AGENTS.md`\n\n### context/artifacts\n\n**new-upstream**\n\n- `context/artifacts/ART-20260503_1424-ModelSpec-anthropic-claude-haiku.md` \u2192 `context/artifacts/ART-20260503_1424-ModelSpec-anthropic-claude-haiku.md`\n- `context/artifacts/ART-20260503_1424-ModelSpec-mistral-codestral.md` \u2192 `context/artifacts/ART-20260503_1424-ModelSpec-mistral-codestral.md`\n- `context/artifacts/ART-20260503_1424-ModelSpec-deepseek-deepseek-v.md` \u2192 `context/artifacts/ART-20260503_1424-ModelSpec-deepseek-deepseek-v.md`\n- `context/artifacts/ART-20260503_1424-ModelSpec-google-gemini-3-flash-preview.md` \u2192 `context/artifacts/ART-20260503_1424-ModelSpec-google-gemini-3-flash-preview.md`\n- `context/artifacts/ART-20260503_1424-ModelSpec-xai-grok-3.md` \u2192 `context/artifac",
+      "id": "MIG-20260513T122516",
+      "kind": "Migration",
+      "labels": {},
+      "member_path": "context/migrations/applied/MIG-20260513T122516.md",
+      "metadata": {
+        "created": "2026-05-13T12:25:16+00:00",
+        "id": "MIG-20260513T122516",
+        "updated": "2026-05-13T12:32:00+00:00"
+      },
+      "original_path": "context/migrations/applied/MIG-20260513T122516.md",
+      "sha256": "047e57f016862cebb20086f6cfdd6cabf9f51dc32883b273dbb17704a5050e8f",
+      "spec": {
+        "affected_groups": [
+          "AGENTS",
+          "context/artifacts",
+          "context/roles",
+          "schemas/INDEX",
+          "schemas/actor",
+          "schemas/artifact",
+          "schemas/binding",
+          "schemas/category",
+          "schemas/constraint",
+          "schemas/context",
+          "schemas/decisionrecord",
+          "schemas/discussion",
+          "schemas/gate",
+          "schemas/logentry",
+          "schemas/migration",
+          "schemas/note",
+          "schemas/role",
+          "schemas/roleslot",
+          "schemas/scope",
+          "schemas/team-member",
+          "schemas/workitem",
+          "skills/data-ai",
+          "skills/processkit"
+        ],
+        "applied_at": "2026-05-13T12:32:00+00:00",
+        "from_version": "v0.26.2",
+        "generated_at": "2026-05-13T12:25:16+00:00",
+        "generated_by": "aibox apply",
+        "progress_notes": [
+          {
+            "actor": "mcp",
+            "note": "processkit v0.26.3 content is installed and locked; schema compatibility fallout is tracked by DEC-20260513_1230-ValiantPanda and processkit#46.",
+            "timestamp": "2026-05-13T12:32:00+00:00"
+          }
+        ],
+        "source": "processkit",
+        "source_url": "https://github.com/projectious-work/processkit.git",
+        "started_at": "2026-05-13T12:32:00+00:00",
+        "state": "applied",
+        "summary": "0 changed upstream, 0 conflicts, 142 new, 0 removed, 0 stale-removed (23 groups affected)",
+        "to_version": "v0.26.3"
+      },
+      "storage_location": "context/archives/2026/05/ARCHIVE-20260513_123243-migration-applied.tar.gz::context/migrations/applied/MIG-20260513T122516.md"
+    },
+    {
+      "apiVersion": "processkit.projectious.work/v1",
+      "body_index": "# Migration MIG-RUNTIME-DRIFT-20260512T190200\n\n## Drifted managed runtime files (Variant 3 \u2014 BR-CLEANUP-ARCH item 6)\n\nThe following managed `.aibox-home/` runtime files have been modified on the host and match **neither** the current canonical aibox generation **nor** any known archived template snapshot. They may represent intentional user customisations.\n\n`aibox apply` left these files **untouched**. Review each one and decide whether to preserve the local edit or restore the canonical generated content.\n\n## Per-file recommendations\n\n| file | reason-for-classification | recommendation |\n|------|--------------------------|----------------|\n| `.aibox-home/.vim/vimrc` | content matches neither current canonical nor any archived snapshot | review-manually |\n| `.aibox-home/.config/git/config` | content matches neither current canonical nor any archived snapshot | review-manually |\n| `.aibox-home/.config/yazi/plugins/git.yazi/main.lua` | content matches neither current canonical nor any archived snapshot | review-manually |\n| `.aibox-home/.config/cheatsheet.txt` | content matches neither current canonical nor any archived snapshot | review-manually |\n\n## How to resolve\n\nFor each file a",
+      "id": "MIG-RUNTIME-DRIFT-20260512T190200",
+      "kind": "Migration",
+      "labels": {},
+      "member_path": "context/migrations/applied/MIG-RUNTIME-DRIFT-20260512T190200.md",
+      "metadata": {
+        "created": "2026-05-12T19:02:00+00:00",
+        "id": "MIG-RUNTIME-DRIFT-20260512T190200",
+        "updated": "2026-05-13T12:32:00+00:00"
+      },
+      "original_path": "context/migrations/applied/MIG-RUNTIME-DRIFT-20260512T190200.md",
+      "sha256": "bea39ca56e40690b77aeaf4c948b443b6c1b37876e1d815a1576fb5dd069f2ca",
+      "spec": {
+        "applied_at": "2026-05-13T12:32:00+00:00",
+        "generated_at": "2026-05-12T19:02:00+00:00",
+        "generated_by": "aibox apply",
+        "progress_notes": [
+          {
+            "actor": "mcp",
+            "note": "Superseded by subsequent aibox apply runs that reported managed .aibox-home runtime files in sync; no remaining manual action required for this stale drift briefing.",
+            "timestamp": "2026-05-13T12:32:00+00:00"
+          }
+        ],
+        "source": "aibox-runtime-drift",
+        "source_url": "aibox://runtime-drift",
+        "started_at": "2026-05-13T12:32:00+00:00",
+        "state": "applied",
+        "summary": "4 drifted managed runtime file(s) found at 0.25.11",
+        "to_version": "0.25.11",
+        "variant": 3
+      },
+      "storage_location": "context/archives/2026/05/ARCHIVE-20260513_123243-migration-applied.tar.gz::context/migrations/applied/MIG-RUNTIME-DRIFT-20260512T190200.md"
+    }
+  ],
+  "kind": "Migration",
+  "older_than_days": 0,
+  "sha256": "67c62a869a6301ba51af9b2dbc6e1f9fdea03856dabe4b4d865a41520797dcea",
+  "state": "applied"
+}

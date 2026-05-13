@@ -5,7 +5,7 @@ metadata:
   id: LOG-20260426_1637-TrueFinch-workitem-investigation-note
   created: '2026-04-26T16:37:53+00:00'
 spec:
-  event_type: workitem.investigation.note
+  event_type: workitem.note
   timestamp: '2026-04-26T16:37:53+00:00'
   summary: Classifier logic at content_diff.rs:144 looks correct in isolation; false positives must come from upstream parameter computation, not the match arms themselves.
   actor: claude-opus-4-7

@@ -77,7 +77,11 @@ services:
     cpus: 0.20
     restart: "on-failure:3"
     volumes:
-      - ${WORKSPACE_DIR:-{{ workspace_dir }}}:/workspace:rw
+      # Diagnostics only writes bounded runtime snapshots and event logs.
+      # Do not mount the whole workspace here; it makes sidecar disk usage
+      # look like a second copy of the project and gives the sidecar a wider
+      # write surface than it needs.
+      - ${WORKSPACE_DIR:-{{ workspace_dir }}}/.aibox:/workspace/.aibox:rw
     command:
       - /usr/local/bin/aibox-diagnostics
       - --watch

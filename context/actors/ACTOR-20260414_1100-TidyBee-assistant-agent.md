@@ -15,7 +15,7 @@ spec:
   x_aibox:
     model: claude-haiku-4-5-20251001
     model_tier: haiku
-    role_ref: ROLE-20260414_1100-TidyBee-assistant
+    role_ref: ROLE-assistant
 ---
 
 Template actor for the assistant role. High-volume administrative work: morning briefings, summaries, indexing, handovers.

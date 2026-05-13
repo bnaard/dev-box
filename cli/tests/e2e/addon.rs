@@ -105,8 +105,9 @@ fn addon_rebuild_includes_tools_in_dockerfile() {
         ],
     );
 
-    // Apply to regenerate
-    runner.aibox(test, &["apply"]);
+    // Apply to regenerate. This test only inspects generated Dockerfile
+    // content, so skip image build/runtime work.
+    runner.aibox(test, &["apply", "--no-container"]);
 
     // Check Dockerfile contains python-related content
     let dockerfile = runner.read_file(test, ".devcontainer/Dockerfile");

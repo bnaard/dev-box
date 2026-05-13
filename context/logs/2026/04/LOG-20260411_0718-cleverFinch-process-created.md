@@ -5,7 +5,7 @@ metadata:
   id: LOG-20260411_0718-cleverFinch-process-created
   created: '2026-04-11T07:18:31+00:00'
 spec:
-  event_type: process.created
+  event_type: process.instance.created
   timestamp: '2026-04-11T07:18:31+00:00'
   summary: Created aibox-release Process entity (PROC-20260411_0713-warmCliff-aibox-release)
   actor: claude-sonnet-4-6

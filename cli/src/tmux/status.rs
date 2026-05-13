@@ -41,8 +41,10 @@ set -g history-limit 50000
 set -g escape-time 10
 set -g focus-events on
 set -g allow-passthrough on
+set -g set-clipboard external
+set -g mode-keys vi
 set -g default-terminal "tmux-256color"
-set -ga terminal-features ",xterm-256color:RGB,tmux-256color:RGB"
+set -ga terminal-features ",wezterm:RGB,clipboard,xterm-256color:RGB,clipboard,tmux-256color:RGB"
 set -ga terminal-overrides ",xterm-256color:Tc,tmux-256color:Tc"
 set -g status-interval AIBOX_TMUX_STATUS_INTERVAL
 set -g prefix AIBOX_TMUX_PREFIX
@@ -75,6 +77,16 @@ set -g status-style "bg=AIBOX_TMUX_BG,fg=AIBOX_TMUX_FG"
 set -g window-status-current-style "bg=AIBOX_TMUX_ACCENT,fg=AIBOX_TMUX_BG,bold"
 set -g window-status-format " #I:#W "
 set -g window-status-current-format " #I:#W "
+set -g window-style "bg=AIBOX_TMUX_BG,fg=AIBOX_TMUX_FG"
+set -g window-active-style "bg=AIBOX_TMUX_BG,fg=AIBOX_TMUX_FG"
+set -g pane-border-style "fg=AIBOX_TMUX_MUTED,bg=AIBOX_TMUX_BG"
+set -g pane-active-border-style "fg=AIBOX_TMUX_ACCENT,bg=AIBOX_TMUX_BG"
+set -g message-style "bg=AIBOX_TMUX_ACCENT,fg=AIBOX_TMUX_BG"
+set -g message-command-style "bg=AIBOX_TMUX_ACCENT,fg=AIBOX_TMUX_BG"
+set -g mode-style "bg=AIBOX_TMUX_ACCENT,fg=AIBOX_TMUX_BG"
+set -g clock-mode-colour "AIBOX_TMUX_ACCENT"
+set -g popup-style "bg=AIBOX_TMUX_BG,fg=AIBOX_TMUX_FG"
+set -g popup-border-style "fg=AIBOX_TMUX_ACCENT,bg=AIBOX_TMUX_BG"
 set -g status-left " #S #{W:#I:#W ,#[reverse]#I:#W#[noreverse] }"
 set -g status-left-length 80
 set -g status-right " AIBOX_TMUX_STATUS_RIGHT "
@@ -102,7 +114,8 @@ if-shell '[ -x ~/.tmux/plugins/tpm/tpm ]' 'run-shell ~/.tmux/plugins/tpm/tpm'
 /// Render a complete `tmux.conf` from the active `AiboxConfig`.
 pub fn tmux_conf(config: &AiboxConfig) -> String {
     let theme = config.customization.resolved_theme();
-    let (bg, fg, accent) = crate::themes::tmux_status_colors(&theme);
+    let (bg, fg, accent, muted, _dim_fg, _active_title_fg) =
+        crate::themes::terminal_surface_colors(&theme);
     let status = match config.customization.tmux.status.mode {
         TmuxStatusMode::Extended | TmuxStatusMode::Plain => "on",
         TmuxStatusMode::Disabled => "off",
@@ -134,7 +147,8 @@ pub fn tmux_conf(config: &AiboxConfig) -> String {
         .replace("AIBOX_TMUX_POWERKIT_FORMATS", &powerkit_formats)
         .replace("AIBOX_TMUX_BG", bg)
         .replace("AIBOX_TMUX_FG", fg)
-        .replace("AIBOX_TMUX_ACCENT", accent);
+        .replace("AIBOX_TMUX_ACCENT", accent)
+        .replace("AIBOX_TMUX_MUTED", muted);
 
     // Keep the status block deterministic and avoid shelling out when disabled.
     if config.customization.tmux.status.mode == TmuxStatusMode::Disabled {
@@ -212,6 +226,26 @@ pub(crate) struct ResolvedTmuxStatusLayout {
     pub line1_right: Vec<String>,
     pub line2_left: Vec<String>,
     pub line2_right: Vec<String>,
+}
+
+struct TmuxSurfaceColors {
+    bg: String,
+    active_title_fg: String,
+    dim_fg: String,
+    accent: String,
+    muted: String,
+}
+
+fn tmux_surface_colors(theme: &crate::config::Theme) -> TmuxSurfaceColors {
+    let (bg, _fg, accent, muted, dim_fg, active_title_fg) =
+        crate::themes::terminal_surface_colors(theme);
+    TmuxSurfaceColors {
+        bg: bg.to_string(),
+        active_title_fg,
+        dim_fg,
+        accent: accent.to_string(),
+        muted: muted.to_string(),
+    }
 }
 
 pub(crate) fn resolved_tmux_status_layout(config: &AiboxConfig) -> ResolvedTmuxStatusLayout {
@@ -388,8 +422,9 @@ pub fn tmux_powerkit_settings(config: &AiboxConfig) -> (String, String, String) 
     plugin_order.extend(line2_left.iter().map(String::as_str));
     plugin_order.extend(line2_right.iter().map(String::as_str));
 
-    let (powerkit_theme, powerkit_variant) =
-        crate::themes::tmux_powerkit_theme(&config.customization.resolved_theme());
+    let resolved_theme = config.customization.resolved_theme();
+    let (powerkit_theme, powerkit_variant) = crate::themes::tmux_powerkit_theme(&resolved_theme);
+    let surface = tmux_surface_colors(&resolved_theme);
     let powerkit_block = format!(
         r##"# Powerkit status.
 set -g @powerkit_plugins "{}"
@@ -402,6 +437,12 @@ set -g @powerkit_elements_spacing "both"
 set -g @powerkit_status_interval "{}"
 set -g @powerkit_transparent "false"
 set -g @powerkit_pane_border_status "top"
+set -g @powerkit_pane_border_unified "false"
+set -g @powerkit_active_pane_border_color "{}"
+set -g @powerkit_inactive_pane_border_color "{}"
+set -g @powerkit_pane_border_status_bg "{}"
+set -g @powerkit_pane_scrollbars_style_fg "{}"
+set -g @powerkit_pane_scrollbars_style_bg "{}"
 set -g @powerkit_pane_border_format "#{{?client_prefix,PREFIX,NORMAL}} #{{pane_title}} #{{pane_current_command}}"
 set -g @powerkit_line1_right "{}"
 set -g @powerkit_line2_left "{}"
@@ -411,6 +452,11 @@ set -g @powerkit_plugin_netspeed_speed_width "7"{}{}{}{}"##,
         powerkit_theme,
         powerkit_variant,
         refresh.interval_seconds,
+        &surface.accent,
+        &surface.muted,
+        &surface.bg,
+        &surface.accent,
+        &surface.muted,
         line1_right.join(","),
         line2_left.join(","),
         line2_right.join(","),
@@ -419,10 +465,32 @@ set -g @powerkit_plugin_netspeed_speed_width "7"{}{}{}{}"##,
         status_label_option_lines,
         model_provider_option_lines
     );
-    let powerkit_plugin = "if-shell '[ -f /usr/local/share/aibox/tmux/plugins/tmux-powerkit/tmux-powerkit.tmux ]' 'run-shell /usr/local/share/aibox/tmux/plugins/tmux-powerkit/tmux-powerkit.tmux'".to_string();
-    let powerkit_formats =
-        tmux_powerkit_status_formats(&line1_left, &line1_right, &line2_left, &line2_right);
+    let powerkit_plugin = "if-shell '[ -f /usr/local/share/aibox/tmux/plugins/tmux-powerkit/tmux-powerkit.tmux ]' 'run-shell \"/usr/local/share/aibox/tmux/plugins/tmux-powerkit/tmux-powerkit.tmux; tmux source-file ~/.config/tmux/aibox-powerkit-overrides.tmux\"'".to_string();
+    let powerkit_formats = tmux_powerkit_post_render_overrides(
+        &line1_left,
+        &line1_right,
+        &line2_left,
+        &line2_right,
+        &surface,
+    );
     (powerkit_block, powerkit_plugin, powerkit_formats)
+}
+
+pub fn tmux_powerkit_overrides(config: &AiboxConfig) -> String {
+    if config.customization.tmux.status.mode != TmuxStatusMode::Extended {
+        return String::new();
+    }
+
+    let resolved_layout = resolved_tmux_status_layout(config);
+    let resolved_theme = config.customization.resolved_theme();
+    let surface = tmux_surface_colors(&resolved_theme);
+    tmux_powerkit_post_render_overrides(
+        &resolved_layout.line1_left,
+        &resolved_layout.line1_right,
+        &resolved_layout.line2_left,
+        &resolved_layout.line2_right,
+        &surface,
+    )
 }
 
 fn status_refresh_option_lines(
@@ -588,14 +656,49 @@ set -g 'status-format[1]' '#[align=left]#(~/.local/bin/aibox-powerkit-render-lis
     )
 }
 
+fn tmux_powerkit_post_render_overrides(
+    line1_left: &[String],
+    line1_right: &[String],
+    line2_left: &[String],
+    line2_right: &[String],
+    surface: &TmuxSurfaceColors,
+) -> String {
+    let status_formats =
+        tmux_powerkit_status_formats(line1_left, line1_right, line2_left, line2_right);
+    format!(
+        r##"{}
+
+# aibox post-PowerKit overrides.
+# PowerKit's renderer owns status-format and pane styles when it loads. Keep
+# the aibox two-row status shape and pane surfaces authoritative after that
+# render pass.
+set -g pane-border-style "fg={},bg={}"
+set -g pane-active-border-style "fg={},bg={}"
+set -g pane-border-format "#[bg={}]#{{?pane_active,#[fg={}]#[bold],#[fg={}]}} #{{?client_prefix,PREFIX,NORMAL}} #{{pane_title}} #{{pane_current_command}} #[bg={},fg={}] "
+"##,
+        status_formats,
+        &surface.muted,
+        &surface.bg,
+        &surface.accent,
+        &surface.bg,
+        &surface.bg,
+        &surface.active_title_fg,
+        &surface.dim_fg,
+        &surface.bg,
+        &surface.bg,
+    )
+}
+
 fn tmux_powerkit_line1_left_format(line1_left: &[String]) -> String {
     let mut format = String::from("#[align=left range=left #{E:status-left-style}]");
     for entry in line1_left {
         match entry.as_str() {
             "session" => format
                 .push_str("#[push-default]#(~/.local/bin/aibox-powerkit-render-session)#[pop-default]#[norange default]"),
+            // Keep the row-1 window list compact so it remains visible without
+            // consuming the right-aligned PowerKit metrics slot.
             "windows" => format.push_str(
-                "#[list=on align=#{status-justify}]#[list=left-marker]<#[list=right-marker]>#[list=on]#{W:#[range=window|#{window_index} #{E:window-status-style}#{?#{&&:#{window_last_flag},#{!=:#{E:window-status-last-style},default}}, #{E:window-status-last-style},}#{?#{&&:#{window_bell_flag},#{!=:#{E:window-status-bell-style},default}}, #{E:window-status-bell-style},#{?#{&&:#{||:#{window_activity_flag},#{window_silence_flag}},#{!=:#{E:window-status-activity-style},default}}, #{E:window-status-activity-style},}}}]#[push-default]#{T:window-status-format}#[pop-default]#[norange default]#{?loop_last_flag,,#{window-status-separator}},#[range=window|#{window_index} list=focus #{?#{!=:#{E:window-status-current-style},default},#{E:window-status-current-style},#{E:window-status-style}}}#{?#{&&:#{window_last_flag},#{!=:#{E:window-status-last-style},default}}, #{E:window-status-last-style},}#{?#{&&:#{window_bell_flag},#{!=:#{E:window-status-bell-style},default}}, #{E:window-status-bell-style},#{?#{&&:#{||:#{window_activity_flag},#{window_silence_flag}},#{!=:#{E:window-status-activity-style},default}}, #{E:window-status-activity-style},}}}]#[push-default]#{T:window-status-current-format}#[pop-default]#[norange list=on default]#{?loop_last_flag,,#{window-status-separator}}}",
+                "#[push-default]#{W:#[range=window|#{window_index} #{E:window-status-style}]#{T:window-status-format}#[norange default],#[range=window|#{window_index} #{E:window-status-current-style}]#{T:window-status-current-format}#[norange default]}#[pop-default]",
             ),
             _ => {}
         }
@@ -616,6 +719,10 @@ export POWERKIT_ROOT
 
 script_dir="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
 export HOME="$(cd -- "${script_dir}/../.." && pwd)"
+socket="${AIBOX_TMUX_SOCKET:-${HOME}/.tmux/aibox.sock}"
+if [[ -S "${socket}" && -z "${TMUX:-}" ]]; then
+    export TMUX="${socket},0,0"
+fi
 cache_root="${AIBOX_POWERKIT_CACHE_DIR:-${XDG_CACHE_HOME:-${HOME}/.cache}}"
 mkdir -p "${cache_root}" 2>/dev/null || true
 export XDG_CACHE_HOME="${cache_root}"
@@ -643,6 +750,10 @@ export POWERKIT_ROOT
 
 script_dir="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
 export HOME="$(cd -- "${script_dir}/../.." && pwd)"
+socket="${AIBOX_TMUX_SOCKET:-${HOME}/.tmux/aibox.sock}"
+if [[ -S "${socket}" && -z "${TMUX:-}" ]]; then
+    export TMUX="${socket},0,0"
+fi
 cache_root="${AIBOX_POWERKIT_CACHE_DIR:-${XDG_CACHE_HOME:-${HOME}/.cache}}"
 mkdir -p "${cache_root}" 2>/dev/null || true
 export XDG_CACHE_HOME="${cache_root}"
@@ -731,8 +842,11 @@ mod tests {
 
         assert!(
             conf.contains("set -g allow-passthrough on")
-                && conf.contains("set -g default-terminal \"tmux-256color\""),
-            "generated tmux config should enable passthrough and tmux-256color defaults for terminal app compatibility:\n{conf}"
+                && conf.contains("set -g set-clipboard external")
+                && conf.contains("set -g mode-keys vi")
+                && conf.contains("set -g default-terminal \"tmux-256color\"")
+                && conf.contains("wezterm:RGB,clipboard"),
+            "generated tmux config should enable passthrough, clipboard, vi copy-mode, and tmux-256color defaults for terminal app compatibility:\n{conf}"
         );
         assert!(
             conf.contains("/usr/local/share/aibox/tmux/plugins/tmux-sensible/sensible.tmux")
@@ -755,6 +869,9 @@ mod tests {
                 && conf.contains(r#"@powerkit_status_interval "10""#)
                 && conf.contains(r#"@powerkit_transparent "false""#)
                 && conf.contains(r#"@powerkit_pane_border_status "top""#)
+                && conf.contains(r##"@powerkit_active_pane_border_color "#D79921""##)
+                && conf.contains(r##"@powerkit_inactive_pane_border_color "#928374""##)
+                && conf.contains(r##"@powerkit_pane_border_status_bg "#282828""##)
                 && conf.contains(r##"@powerkit_pane_border_format "#{?client_prefix,PREFIX,NORMAL} #{pane_title} #{pane_current_command}""##)
                 && conf.contains(r#"@powerkit_line1_right "aibox_log,aibox_oom,aibox_proc,aibox_ai,aibox_mcp,aibox_mig,weather,uptime,datetime""#)
                 && conf.contains(r#"@powerkit_line2_left "git,github,kubernetes,terraform,cloud""#)
@@ -931,6 +1048,22 @@ mod tests {
                 && conf.contains("aibox-powerkit-render-list right hostname,externalip,ssh,netspeed,ping,cpu,loadavg,memory,swap,disk,gpu"),
             "generated status formats must keep the two-row PowerKit-aligned proof layout\n{conf}"
         );
+        let line1_format = conf
+            .lines()
+            .find(|line| line.starts_with("set -g 'status-format[0]'"))
+            .expect("extended status must set status-format[0]");
+        assert!(
+            line1_format.contains("#{W:")
+                && line1_format.contains("aibox-powerkit-render-list right aibox_log"),
+            "line 1 must keep the compact window list on the left and PowerKit metrics on the right:\n{line1_format}"
+        );
+        assert!(
+            conf.contains("set -g pane-border-style \"fg=#928374,bg=#282828\"")
+                && conf.contains("set -g popup-style \"bg=#282828,fg=#D5C4A1\"")
+                && conf.contains("#[fg=#D69F34]")
+                && conf.contains("#[fg=#B3A38A]"),
+            "tmux surface styles should be generated from the resolved theme:\n{conf}"
+        );
 
         // Per-metric plugin option registrations confirm path-a split is in effect
         // (chevron styling comes from each being an independent PowerKit segment)
@@ -957,6 +1090,8 @@ mod tests {
             assert!(
                 helper.contains(r#"AIBOX_POWERKIT_CACHE_DIR:-${XDG_CACHE_HOME:-${HOME}/.cache}"#)
                     && helper.contains(r#"export XDG_CACHE_HOME="${cache_root}""#)
+                    && helper
+                        .contains(r#"socket="${AIBOX_TMUX_SOCKET:-${HOME}/.tmux/aibox.sock}""#)
                     && !helper
                         .contains(r#"AIBOX_POWERKIT_CACHE_DIR:-/tmp/aibox/tmux-powerkit-cache"#),
                 "PowerKit helpers should use the managed writable XDG cache home:\n{helper}"

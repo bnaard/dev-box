@@ -15,7 +15,7 @@ spec:
   x_aibox:
     model: claude-opus-4-6
     model_tier: opus
-    role_ref: ROLE-20260414_1100-BrightEagle-senior-architect
+    role_ref: ROLE-senior-architect
 ---
 
 Template actor for the senior-architect role. Invoked by PM for large, cross-cutting, or load-bearing design work.

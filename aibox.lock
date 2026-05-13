@@ -1,14 +1,14 @@
 [aibox]
 cli_version = "0.25.13"
-synced_at = "2026-05-12T11:36:06.569944+00:00"
+synced_at = "2026-05-13T13:12:39.677550686+00:00"
 
 [processkit]
 source = "https://github.com/projectious-work/processkit.git"
-version = "v0.26.2"
+version = "v0.26.5"
 src_path = "src"
-release_asset_sha256 = "9206dc95e74ac1cdaf9beecfbf99295721d6319d86d0ce54911a8830e7cc9c66"
-installed_at = "2026-05-12T11:36:06.569944+00:00"
-processkit_install_hash = "af9c451070e1630a44dd80c40cf8d6e332ce22b30f094c77b0a6590e1296c5bc"
+release_asset_sha256 = "db3af5eb10c8aa95099dbf273f2da48e25966c3706f41ba8f2e0be564e2eb789"
+installed_at = "2026-05-13T13:12:39.677550686+00:00"
+processkit_install_hash = "447d5aca79ade776a747e213e94748d747a709f27d8a89f85d89dde45778d2aa"
 
 [addons]
 resolved_at = "2026-05-09T10:41:25Z"
@@ -34,7 +34,7 @@ rust = [
 ]
 
 [runtime_home]
-generated_at = "2026-05-12T21:42:13.601427830+00:00"
+generated_at = "2026-05-13T11:50:01.636941922+00:00"
 
 [runtime_home.files]
 ".asoundrc" = "f34609b11d315cd613cb5333b561032baec860faf4a7eccb28b5567ae72019af"
@@ -42,12 +42,13 @@ generated_at = "2026-05-12T21:42:13.601427830+00:00"
 ".config/git/config" = "512a00e2c81ab1b9b7b8dce0777043cbdb6cd0030f0cabd4b6d99b93efc0b833"
 ".config/lnav/formats/aibox/aibox.json" = "10e1af791380119ecd6860f8d31becb183a26b01868d9b20b2e277177e17c660"
 ".config/starship.toml" = "0a6d5939a754393096a9489459199a6493ce840a6079fceebf4a56eeadc32d85"
+".config/tmux/aibox-powerkit-overrides.tmux" = "546f79555d2909bc4015e61d43c0426eabf40834dcd8a4cd583c763c4aa47181"
 ".config/tmux/aibox-session.sh" = "a2cb0ad6276471ad6f438d7a6379b6f43bbe29b5743da8f7dc7030d890400c50"
 ".config/tmux/layouts/ai.sh" = "3da6ac1ec176daff89d3c969ea23b73d418248413de353c74d21aac448ff253c"
 ".config/tmux/layouts/cowork.sh" = "d1684be6b2428a77d85faa752b475c3978de50cb6de8347bdfce1056f568092a"
 ".config/tmux/layouts/dev.sh" = "04d299abe99d0ac09a2e74d4136a80ae067a64efa754347f41a6e3eef2286691"
 ".config/tmux/layouts/focus.sh" = "a06c253cdb00763b5560a982c5af862e1e3201c00784dcafd1f21626e374ad36"
-".config/tmux/tmux.conf" = "92a6cc3b76c9411730f8fef2c893fe1d39552509c5fa199b5378d721b7d12bed"
+".config/tmux/tmux.conf" = "f6cae08dbdb088ab048cf113f302d906936c6dc81071489ab82b23de2b10cf8f"
 ".config/yazi/init.lua" = "eae04462c0b3bcbb486ee59aa9c2c9e9595680a0626997c942e5abb2ae5a48d7"
 ".config/yazi/keymap.toml" = "0b20be4e5f58d0af2ba72b8621e288ef2d6a7665a8a73c5fca5a172f83c6ebdd"
 ".config/yazi/plugins/dir-preview.yazi/main.lua" = "1700f0400a0a8362d895d247b27bfae2478c1e76385d4b076846a6a7c16c74f4"
@@ -57,11 +58,11 @@ generated_at = "2026-05-12T21:42:13.601427830+00:00"
 ".config/yazi/plugins/status-git.yazi/main.lua" = "bedc0ba5bf4ea01605b1b7cb444ee3a09b0a4ba35ce99306d974d5977a4d32d2"
 ".config/yazi/plugins/svg.yazi/init.lua" = "ba5e7ebbb9870eda80d7be179010494cac3896b4b29fb8f1011809e217ecc278"
 ".config/yazi/plugins/toggle-pane.yazi/main.lua" = "86b2306f6c9d880f0a6f777bdefb451393eb6a0c88718be355ebe31495e59f1c"
-".config/yazi/theme.toml" = "fd9c3a060b2892779950e82e5a5716d238255c1739dbf33c42193a2c845349e7"
+".config/yazi/theme.toml" = "7c16347022fa6e9835765199d4d76c82bcfdfa6bb5c987c31f921db402040adb"
 ".config/yazi/yazi.toml" = "d53e900519d501e1ec845c5ab826893cafd8582077b93c32c9e5d34fcef280d1"
 ".local/bin/aibox-copy" = "6dd491292c3c0f86b862112b7e2029cee02d2c79bbc95aef1fc037311a014402"
-".local/bin/aibox-powerkit-render-list" = "17db2f8720ba1c2b87ef0ecc3fee1a9f9c2c64a618c0fb4c4122422dfd68788e"
-".local/bin/aibox-powerkit-render-session" = "95df310da784ad6d185296cde423778b70bf0ef670201df0f730c3675a1c9abf"
+".local/bin/aibox-powerkit-render-list" = "ee3bdd9285a195e14577176363b812ddf9e80570a7be30e463333817bb15d20f"
+".local/bin/aibox-powerkit-render-session" = "748d63a89f81b8571a7e78ec82643053ea5b461efd690514e330295524caad30"
 ".local/bin/aibox-preview" = "fa878a7f017ee574abcc72714373e0189465af0b7ebe38bfcc8036d5b7af2be2"
 ".local/bin/aibox-status-toggle" = "026c6a1dc7f1bcf650aa0bd4f587adfb5de6744df66fc138bef9b435bad1049a"
 ".local/bin/open-in-editor" = "ec4c0ecf1c4c01582c8b16a1bb2a06f364f3a9a9bab14976c5da17573b047145"

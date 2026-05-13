@@ -9,4 +9,5 @@
 
 Read **[`AGENTS.md`](./AGENTS.md)** in the project root for project
 instructions. It is the single, provider-neutral entry point for any AI
-agent (or human) working on this project.
+agent (or human) working on this project, including strict processkit
+schema, filename, and directory-layout migration policy.

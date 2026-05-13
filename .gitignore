@@ -82,3 +82,7 @@ cli/context
 # Python bytecode caches (appear under processkit MCP helper libs)
 __pycache__/
 *.pyc
+
+.devcontainer/Dockerfile
+.devcontainer/docker-compose.yml
+.devcontainer/devcontainer.json

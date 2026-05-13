@@ -5,7 +5,7 @@ metadata:
   id: LOG-20260430_1622-RapidDove-implementation-pushed
   created: '2026-04-30T16:22:59+00:00'
 spec:
-  event_type: implementation.pushed
+  event_type: milestone
   timestamp: '2026-04-30T16:22:59+00:00'
   summary: Implemented and pushed addon install-step metadata check
   actor: codex

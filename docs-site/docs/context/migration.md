@@ -91,6 +91,23 @@ aibox delete migration <id> --reason "…"  # reject and archive without applyin
 
 ## Applying a Migration
 
+## Strict Schema And Storage Policy
+
+Migrations are the durable fix for schema, vocabulary, filename, ID, and
+directory-layout drift. A clean project should satisfy the current schemas and
+storage policy directly, not by carrying project-local compatibility allowlists.
+
+Do not resolve doctor findings by adding `legacy_known_*` schema entries,
+doctor suppressions, mixed-layout exceptions, or local notes that accept legacy
+event names, IDs, filenames, or directory shapes as the steady state. If a
+schema genuinely needs a new value or layout, introduce that as an explicit
+schema migration and then migrate existing entities and references to the new
+standard.
+
+Compatibility shims are acceptable only as short-lived migration aids. Before a
+migration is marked applied, the repository should contain canonical values,
+canonical filenames, canonical directory placement, and updated references.
+
 ### With an AI agent (recommended)
 
 1. Run `aibox doctor` to identify gaps and queue migration artifacts
@@ -116,6 +133,11 @@ Migration artifacts describe structural changes. They do not migrate content. If
 ## Best Practices
 
 **Never auto-migrate content.** Structural changes (new files, renames) can be automated. Content changes (rewriting sections, reformatting entries) should always be reviewed by a human or guided AI session.
+
+**Migrate forward, do not grandfather.** Fix schema and storage drift by moving
+entities to the current vocabulary, filenames, IDs, and directory layout.
+Project-local allowlists and doctor suppressions are not acceptable terminal
+states.
 
 **Commit before migrating.** Always commit your current state before applying migration changes. This gives you a clean rollback point.
 

@@ -5,7 +5,7 @@ metadata:
   id: LOG-20260419_2224-SmoothLeaf-schema-migrated
   created: '2026-04-19T22:24:26+00:00'
 spec:
-  event_type: schema.migrated
+  event_type: migration.applied
   timestamp: '2026-04-19T22:24:26+00:00'
   summary: "Updated context/processes/team-task-distribution.md: replaced stale `spec.x_aibox.clone_of` reference with canonical `spec.templated_from`. Completes the doc-side follow-up to the v0.14.0\u2192v0.16.0 field-lift migration; all 8 actor + 8 role files already carry canonical field names."
   actor: claude-opus-4-7

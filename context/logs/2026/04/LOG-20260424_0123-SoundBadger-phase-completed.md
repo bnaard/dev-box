@@ -5,7 +5,7 @@ metadata:
   id: LOG-20260424_0123-SoundBadger-phase-completed
   created: '2026-04-24T01:23:00+00:00'
 spec:
-  event_type: phase.completed
+  event_type: milestone
   timestamp: '2026-04-24T01:23:00+00:00'
   summary: 'Phase 1 core infrastructure completed: pattern matching, McpConfig, glob logic'
   subject: BACK-20260424_0114-JollyStream-phase-1-core-mcp
