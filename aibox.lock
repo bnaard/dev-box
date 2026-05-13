@@ -8,7 +8,7 @@ version = "v0.26.5"
 src_path = "src"
 release_asset_sha256 = "db3af5eb10c8aa95099dbf273f2da48e25966c3706f41ba8f2e0be564e2eb789"
 installed_at = "2026-05-13T13:12:39.677550686+00:00"
-processkit_install_hash = "f08020f42849cc62c4889503cb5fcee02a5a16ae5fff4c10eff88a7cf1087f08"
+processkit_install_hash = "3c16714da09a413525ecc07aad4b6fe4af4c4941653e0cc28f9e20bfb51a34cf"
 
 [addons]
 resolved_at = "2026-05-09T10:41:25Z"
@@ -34,7 +34,7 @@ rust = [
 ]
 
 [runtime_home]
-generated_at = "2026-05-13T13:52:13.481030101+00:00"
+generated_at = "2026-05-13T15:15:13.239009+00:00"
 
 [runtime_home.files]
 ".asoundrc" = "f34609b11d315cd613cb5333b561032baec860faf4a7eccb28b5567ae72019af"

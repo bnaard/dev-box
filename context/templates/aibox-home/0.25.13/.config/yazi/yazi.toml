@@ -21,6 +21,12 @@ prepend_fetchers = [
 prepend_previewers = [
     # Directory preview: columnar listing with git status, size, date, owner, permissions
     { url = "*/", run = "dir-preview" },
+    # Rich terminal preview for docs/data files (requires python3-rich from preview-enhanced)
+    { url = "*.md",       run = "rich-preview" },
+    { url = "*.markdown", run = "rich-preview" },
+    { url = "*.rst",      run = "rich-preview" },
+    { url = "*.json",     run = "rich-preview" },
+    { url = "*.ipynb",    run = "rich-preview" },
     { url = "*.svg",  run = "svg" },
     { url = "*.eps",  run = "eps" },
     { url = "*.jpg",  run = "image" },

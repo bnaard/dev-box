@@ -6,7 +6,7 @@
 [mgr]
 cwd = { fg = "#88C0D0" }
 hovered = { fg = "#2E3440", bg = "#D8DEE9" }
-preview_hovered = { bg = "#3B4252", underline = true }
+preview_hovered = { underline = true }
 find_keyword = { fg = "#EBCB8B", bold = true }
 find_position = { fg = "#B48EAD", italic = true }
 marker_selected = { fg = "#A3BE8C", bg = "#A3BE8C" }
@@ -42,24 +42,24 @@ progress_error = { fg = "#BF616A", bg = "#3B4252" }
 
 [input]
 border = { fg = "#88C0D0" }
-title = { fg = "#88C0D0", bg = "#2E3440", bold = true }
-value = { fg = "#D8DEE9", bg = "#2E3440" }
+title = {}
+value = {}
 selected = { reversed = true }
 
 [pick]
 border = { fg = "#81A1C1" }
 active = { fg = "#B48EAD" }
-inactive = { fg = "#4C566A", bg = "#2E3440" }
+inactive = {}
 
 [cmp]
 border = { fg = "#81A1C1" }
 active = { fg = "#B48EAD" }
-inactive = { fg = "#4C566A", bg = "#2E3440" }
+inactive = {}
 
 [tasks]
 border = { fg = "#81A1C1" }
-title = { fg = "#88C0D0", bg = "#2E3440", bold = true }
-hovered = { bg = "#3B4252", underline = true }
+title = {}
+hovered = { underline = true }
 
 [which]
 mask = { bg = "#3B4252" }
@@ -72,7 +72,7 @@ separator_style = { fg = "#434C5E" }
 [help]
 on = { fg = "#88C0D0" }
 run = { fg = "#B48EAD" }
-desc = { fg = "#D8DEE9", bg = "#2E3440" }
+desc = {}
 hovered = { bg = "#3B4252", bold = true }
 footer = { fg = "#3B4252", bg = "#D8DEE9" }
 
