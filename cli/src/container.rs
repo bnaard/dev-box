@@ -1521,7 +1521,7 @@ pub(crate) fn serialize_config_with_comments(config: &AiboxConfig) -> String {
     out.push_str("# Options: auto | light | dark\n");
     out.push_str(&format!("mode   = \"{}\"\n", config.customization.mode));
     out.push_str("# Starship prompt preset.\n");
-    out.push_str("# Options: default | plain | minimal | nerd-font | pastel | pastel-powerline | bracketed | arrow\n");
+    out.push_str("# Options: default | plain | minimal | nerd-font | pastel | powerline-pastel | bracketed | arrow\n");
     out.push_str("# ASCII sketches:\n");
     out.push_str("#   default          ~/repo main +2  py3.13  2s\n");
     out.push_str("#                    >\n");
@@ -1532,7 +1532,7 @@ pub(crate) fn serialize_config_with_comments(config: &AiboxConfig) -> String {
     out.push_str("#   nerd-font        [os] ~/repo main +2 py rs js go 2s\n");
     out.push_str("#                    >\n");
     out.push_str("#   pastel           ( ~/repo )>( main +2 )>( py rs js go ) 2s >\n");
-    out.push_str("#   pastel-powerline ( ~/repo )>( main +2 )>( py rs js go ) 2s >\n");
+    out.push_str("#   powerline-pastel ( ~/repo )>( main +2 )>( py rs js go ) 2s >\n");
     out.push_str("#   bracketed        ~/repo [main] [+2] [py3.13]\n");
     out.push_str("#                    >\n");
     out.push_str("#   arrow            > ~/repo > main +2 > 2s\n");
@@ -3811,7 +3811,7 @@ mod tests {
         let config = crate::config::test_config();
         let body = serialize_config_with_comments(&config);
 
-        assert!(body.contains("pastel-powerline"));
+        assert!(body.contains("powerline-pastel"));
         assert!(body.contains("# ASCII sketches:"));
         assert!(body.contains("( ~/repo )>( main +2 )>( py rs js go ) 2s >"));
     }

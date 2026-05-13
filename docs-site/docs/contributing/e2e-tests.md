@@ -304,7 +304,7 @@ binding that invokes `open-in-editor`.
 
 **All prompt presets produce a non-empty starship config**
 If `aibox init` is run for each prompt preset (`default`, `plain`,
-`minimal`, `nerd-font`, `pastel`, `pastel-powerline`, `bracketed`, `arrow`), then
+`minimal`, `nerd-font`, `pastel`, `powerline-pastel`, `bracketed`, `arrow`), then
 `starship.toml` must exist and be non-empty.
 `[appearance.rs · all_prompts_render_without_error]`
 

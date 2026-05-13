@@ -79,9 +79,9 @@ One-line pastel powerline prompt inspired by Starship's Pastel Powerline preset.
 
 <div class="asciinema" data-cast="assets/screencasts/prompt-pastel.cast" data-poster="npt:2" data-loop="true" data-fit="width"></div>
 
-### pastel-powerline
+### powerline-pastel
 
-Explicit alias for the one-line pastel powerline prompt. Use it when you want the prompt name to document the powerline layout.
+Explicit name for the one-line pastel powerline prompt. The legacy `pastel-powerline` name is still accepted as an alias.
 
 ---
 
@@ -135,7 +135,7 @@ The Starship config is regenerated at `.aibox-home/.config/starship.toml`. Color
 | `minimal` | Nerd Font recommended (for `❯` symbol) |
 | `nerd-font` | Nerd Font required |
 | `pastel` | Nerd Font or Powerline font required |
-| `pastel-powerline` | Nerd Font or Powerline font required |
+| `powerline-pastel` | Nerd Font or Powerline font required |
 | `bracketed` | Any font — no special glyphs |
 | `arrow` | Nerd Font or Powerline font required |
 

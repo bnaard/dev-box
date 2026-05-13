@@ -1275,13 +1275,15 @@ fn default_theme() -> Theme {
 pub enum StarshipPreset {
     #[default]
     Default, // Clean, informative — dir, git, language, duration
-    Plain,           // ASCII only — no Nerd Font needed
-    Minimal,         // Just directory + git branch
-    NerdFont,        // Full Nerd Font symbols
-    Pastel,          // Soft powerline segments
+    Plain,    // ASCII only — no Nerd Font needed
+    Minimal,  // Just directory + git branch
+    NerdFont, // Full Nerd Font symbols
+    Pastel,   // Soft powerline segments
+    #[serde(rename = "powerline-pastel", alias = "pastel-powerline")]
+    #[value(name = "powerline-pastel", alias = "pastel-powerline")]
     PastelPowerline, // One-line pastel powerline preset
-    Bracketed,       // [segments] in brackets
-    Arrow,           // Powerline-style chevron/arrow segments (airline-style)
+    Bracketed, // [segments] in brackets
+    Arrow,    // Powerline-style chevron/arrow segments (airline-style)
 }
 
 impl std::fmt::Display for StarshipPreset {
@@ -1292,7 +1294,7 @@ impl std::fmt::Display for StarshipPreset {
             StarshipPreset::Minimal => write!(f, "minimal"),
             StarshipPreset::NerdFont => write!(f, "nerd-font"),
             StarshipPreset::Pastel => write!(f, "pastel"),
-            StarshipPreset::PastelPowerline => write!(f, "pastel-powerline"),
+            StarshipPreset::PastelPowerline => write!(f, "powerline-pastel"),
             StarshipPreset::Bracketed => write!(f, "bracketed"),
             StarshipPreset::Arrow => write!(f, "arrow"),
         }

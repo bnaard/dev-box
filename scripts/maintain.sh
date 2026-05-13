@@ -361,11 +361,27 @@ ensure_ghcr_login() {
   fi
 }
 
+require_docker_buildx_for_images() {
+  if [[ "${RUNTIME_BIN}" != "docker" ]]; then
+    return 0
+  fi
+  if docker buildx version >/dev/null 2>&1; then
+    return 0
+  fi
+
+  die "Docker Buildx is required to build/publish aibox images because the Dockerfile uses BuildKit-only COPY --chmod. Install or enable the Docker Buildx component on the macOS host, then rerun: ./scripts/maintain.sh release-host <version>"
+}
+
 cmd_build_images() {
   _require_runtime
+  require_docker_buildx_for_images
   local no_cache=""
   [[ "${1:-}" == "--no-cache" ]] && no_cache="--no-cache"
   local release_version="${2:-}"
+  local build_env=()
+  if [[ "${RUNTIME_BIN}" == "docker" ]]; then
+    build_env=(env DOCKER_BUILDKIT="${DOCKER_BUILDKIT:-1}")
+  fi
 
   local flavors=("base-debian")
 
@@ -377,7 +393,7 @@ cmd_build_images() {
     source_sha="$(image_source_sha "${flavor}")"
     local build_version="${release_version:-dev}"
     if [[ -n "${no_cache}" ]]; then
-      ${RUNTIME_BIN} build --no-cache \
+      "${build_env[@]}" ${RUNTIME_BIN} build --no-cache \
         --build-arg BUILDKIT_INLINE_CACHE=1 \
         --build-arg "AIBOX_IMAGE_SOURCE_SHA=${source_sha}" \
         --build-arg "AIBOX_IMAGE_BUILD_VERSION=${build_version}" \
@@ -399,7 +415,7 @@ cmd_build_images() {
           -f "${PROJECT_ROOT}/images/${flavor}/Dockerfile" \
           "${PROJECT_ROOT}/images/${flavor}/"
       else
-        ${RUNTIME_BIN} build \
+        "${build_env[@]}" ${RUNTIME_BIN} build \
           --build-arg BUILDKIT_INLINE_CACHE=1 \
           --build-arg "AIBOX_IMAGE_SOURCE_SHA=${source_sha}" \
           --build-arg "AIBOX_IMAGE_BUILD_VERSION=${build_version}" \
@@ -471,6 +487,7 @@ cmd_publish_images_for_release() {
   [[ -z "${version}" ]] && die "Usage: ./scripts/maintain.sh publish-images-for-release <version>"
 
   ensure_ghcr_login
+  require_docker_buildx_for_images
 
   local flavors=("base-debian")
   local all_retagged=true

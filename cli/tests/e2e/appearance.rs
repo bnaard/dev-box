@@ -401,6 +401,7 @@ fn all_prompts_render_without_error() {
         "minimal",
         "nerd-font",
         "pastel",
+        "powerline-pastel",
         "pastel-powerline",
         "bracketed",
         "arrow",
@@ -456,6 +457,21 @@ fn prompt_plain_no_nerd_font() {
 #[test]
 fn prompt_pastel_powerline_is_single_line() {
     let dir = tempfile::tempdir().unwrap();
+    init_with_appearance(dir.path(), "gruvbox-dark", "powerline-pastel");
+
+    let content = fs::read_to_string(dir.path().join(".aibox-home/.config/starship.toml")).unwrap();
+
+    assert!(content.contains("pastel powerline preset"));
+    assert!(content.contains(""));
+    assert!(
+        !content.contains("$line_break"),
+        "powerline-pastel should render as a one-line prompt"
+    );
+}
+
+#[test]
+fn prompt_pastel_powerline_alias_is_still_accepted() {
+    let dir = tempfile::tempdir().unwrap();
     init_with_appearance(dir.path(), "gruvbox-dark", "pastel-powerline");
 
     let content = fs::read_to_string(dir.path().join(".aibox-home/.config/starship.toml")).unwrap();
@@ -464,6 +480,6 @@ fn prompt_pastel_powerline_is_single_line() {
     assert!(content.contains(""));
     assert!(
         !content.contains("$line_break"),
-        "pastel-powerline should render as a one-line prompt"
+        "pastel-powerline alias should render as the one-line powerline-pastel prompt"
     );
 }

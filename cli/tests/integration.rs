@@ -165,8 +165,10 @@ fn release_scripts_publish_checksum_sidecars() {
         maintain.contains("image_source_sha()")
             && maintain.contains("image_source_tag()")
             && maintain.contains("buildx imagetools inspect")
-            && maintain.contains("without rebuilding layers"),
-        "maintain.sh must support source-hash image retagging to avoid rebuilding unchanged base layers"
+            && maintain.contains("without rebuilding layers")
+            && maintain.contains("require_docker_buildx_for_images")
+            && maintain.contains("Docker Buildx is required"),
+        "maintain.sh must support source-hash image retagging and require Docker Buildx for BuildKit-only image builds"
     );
 }
 
