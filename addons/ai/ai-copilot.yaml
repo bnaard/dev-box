@@ -9,6 +9,7 @@ builder_weight: null
 
 tools:
   - name: copilot
+    description: "GitHub Copilot CLI"
     default_enabled: true
     default_version: ""
     supported_versions: []

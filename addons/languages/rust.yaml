@@ -13,22 +13,27 @@ skills:
 
 tools:
   - name: rustc
+    description: "Rust compiler toolchain installed via rustup"
     default_enabled: true
     default_version: "1.94"
     supported_versions: ["1.90", "1.91", "1.92", "1.93", "1.94"]
   - name: clippy
+    description: "Rust linter for catching common mistakes and style issues"
     default_enabled: true
     default_version: ""
     supported_versions: []
   - name: rustfmt
+    description: "Rust code formatter"
     default_enabled: true
     default_version: ""
     supported_versions: []
   - name: cargo-audit
+    description: "Rust dependency vulnerability scanner"
     default_enabled: true
     default_version: ""
     supported_versions: []
   - name: x86_64-cross
+    description: "Cross-compilation target support for x86_64 Linux"
     default_enabled: true
     default_version: ""
     supported_versions: []

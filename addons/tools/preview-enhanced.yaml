@@ -10,14 +10,17 @@ requires: ["preview-archive"]
 
 tools:
   - name: ffmpeg
+    description: "Video and audio metadata plus thumbnail support for previews"
     default_enabled: true
     default_version: ""
     supported_versions: []
   - name: ghostscript
+    description: "PostScript and EPS rendering support for document previews"
     default_enabled: true
     default_version: ""
     supported_versions: []
   - name: rich
+    description: "Markdown, JSON, RST, and notebook terminal rendering for Yazi previews"
     default_enabled: true
     default_version: ""
     supported_versions: []

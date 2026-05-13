@@ -13,46 +13,57 @@ skills:
 
 tools:
   - name: texlive-core
+    description: "Core LaTeX engines and basic TeX Live packages"
     default_enabled: true
     default_version: ""
     supported_versions: []
   - name: texlive-recommended
+    description: "Commonly used LaTeX packages and utilities"
     default_enabled: true
     default_version: ""
     supported_versions: []
   - name: texlive-fonts
+    description: "Extra fonts for LaTeX documents"
     default_enabled: true
     default_version: ""
     supported_versions: []
   - name: texlive-biber
+    description: "BibLaTeX bibliography backend"
     default_enabled: true
     default_version: ""
     supported_versions: []
   - name: texlive-code
+    description: "LaTeX packages for code listings and syntax highlighting"
     default_enabled: true
     default_version: ""
     supported_versions: []
   - name: texlive-diagrams
+    description: "LaTeX packages for diagrams, pictures, and graphics"
     default_enabled: true
     default_version: ""
     supported_versions: []
   - name: texlive-math
+    description: "LaTeX packages for math-heavy documents"
     default_enabled: true
     default_version: ""
     supported_versions: []
   - name: texlive-music
+    description: "LaTeX packages for music notation"
     default_enabled: false
     default_version: ""
     supported_versions: []
   - name: texlive-chemistry
+    description: "LaTeX packages for chemistry notation and diagrams"
     default_enabled: false
     default_version: ""
     supported_versions: []
   - name: texlive-linguistics
+    description: "LaTeX packages for linguistics examples and notation"
     default_enabled: false
     default_version: ""
     supported_versions: []
   - name: svg-inkscape
+    description: "Inkscape support for SVG inclusion in LaTeX builds"
     default_enabled: true
     default_version: ""
     supported_versions: []

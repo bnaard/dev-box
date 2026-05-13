@@ -12,6 +12,7 @@ builder_weight: null
 
 tools:
   - name: mdbook
+    description: "Rust-powered book and documentation builder"
     default_enabled: true
     default_version: ""
     supported_versions: []

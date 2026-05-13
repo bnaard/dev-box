@@ -27,4 +27,4 @@ Edit `.aibox-home/.config/starship.toml` directly with any valid [Starship confi
 
 Custom presets can be added to `cli/src/themes.rs` in the `starship_config()` function. Each preset is a Starship TOML template with color variables (`{bg}`, `{fg}`, `{accent}`, `{green}`) that are replaced with theme-specific values at generation time.
 
-See the existing presets (default, plain, minimal, nerd-font, pastel, bracketed) as reference patterns.
+See the existing presets (default, plain, minimal, nerd-font, pastel, pastel-powerline, bracketed, arrow) as reference patterns.

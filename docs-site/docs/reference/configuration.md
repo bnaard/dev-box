@@ -97,7 +97,7 @@ args    = ["-y", "@acme/team-server"] # Arguments
 [customization]
 theme  = "gruvbox-dark"               # Color theme (7 options)
 mode   = "auto"                       # Theme mode: auto, light, dark
-prompt = "default"                    # Starship preset (7 options)
+prompt = "default"                    # Starship preset (8 options)
 layout = "dev"                        # tmux layout (4 options)
 
 [customization.tmux.status]
@@ -643,7 +643,7 @@ Visual and layout configuration. See [Themes](../customization/themes.md) and [L
 |-------|------|----------|---------|-------------|
 | `theme` | String | No | `"gruvbox-dark"` | Color theme. Supports the tmux-powerkit popular theme roster and variants, plus `projectious`; see [Themes](../customization/themes.md). |
 | `mode` | String | No | `"auto"` | Global theme mode overlay: `auto`, `light`, `dark`. `auto` follows the host OS appearance when detectable during `aibox apply`, `aibox up`, or `aibox set theme.*`; otherwise it preserves the selected concrete theme. |
-| `prompt` | String | No | `"default"` | Starship preset: `default`, `plain`, `arrow`, `minimal`, `nerd-font`, `pastel`, `bracketed` |
+| `prompt` | String | No | `"default"` | Starship preset: `default`, `plain`, `arrow`, `minimal`, `nerd-font`, `pastel`, `pastel-powerline`, `bracketed` |
 | `layout` | String | No | `"dev"` | tmux layout: `dev`, `focus`, `cowork`, `ai` |
 | `tmux.status.mode` | String | No | `"extended"` | tmux status presentation: `extended` uses the themed multi-line PowerKit status, `plain` keeps minimal tmux text, `disabled` turns the status line off. Legacy `powerline` is accepted as an alias for `extended`. |
 

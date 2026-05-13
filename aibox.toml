@@ -233,128 +233,128 @@ enabled = [
 
 # Documentation/docs-docusaurus — Docusaurus static docs site (React/MDX); requires node
 [addons.docs-docusaurus.tools]
-docusaurus = { version = "3.10.1" } # default on; options: {}, { enabled = true|false }, { version = "3.7.0" | "3.8" | "3.9.2" | "3.10.1" (default) or "latest" }
+docusaurus = { version = "3.10.1" } # React and MDX documentation site generator; default on; options: {}, { enabled = true|false }, { version = "3.7.0" | "3.8" | "3.9.2" | "3.10.1" (default) or "latest" }
 
 # Documentation/docs-hugo — Hugo static site generator (Go)
 # [addons.docs-hugo.tools]
-# hugo = {} # default on; options: {}, { enabled = true|false }, { version = "x.y.z" or "latest" }
+# hugo = {} # Fast Go-based static site generator; default on; options: {}, { enabled = true|false }, { version = "x.y.z" or "latest" }
 
 # Documentation/docs-mdbook — mdBook – Rust-powered book builder
 # [addons.docs-mdbook.tools]
-# mdbook = {} # default on; options: {}, { enabled = true|false }, { version = "x.y.z" or "latest" }
+# mdbook = {} # Rust-powered book and documentation builder; default on; options: {}, { enabled = true|false }, { version = "x.y.z" or "latest" }
 
 # Documentation/docs-mkdocs — MkDocs – Python Markdown docs site; requires python
 # [addons.docs-mkdocs.tools]
-# mkdocs = {} # default on; options: {}, { enabled = true|false }, { version = "x.y.z" or "latest" }
+# mkdocs = {} # Python Markdown documentation site generator; default on; options: {}, { enabled = true|false }, { version = "x.y.z" or "latest" }
 
 # Documentation/docs-starlight — Starlight – Astro-based docs site; requires node
 # [addons.docs-starlight.tools]
-# starlight = {} # default on; options: {}, { enabled = true|false }, { version = "x.y.z" or "latest" }
+# starlight = {} # Astro-based documentation site framework; default on; options: {}, { enabled = true|false }, { version = "x.y.z" or "latest" }
 
 # Documentation/docs-zensical — Zensical – Python docs site; requires python
 # [addons.docs-zensical.tools]
-# zensical = {} # default on; options: {}, { enabled = true|false }, { version = "x.y.z" or "latest" }
+# zensical = {} # Python documentation site generator; default on; options: {}, { enabled = true|false }, { version = "x.y.z" or "latest" }
 
 # ---- Languages ------------------------------------------------------------
 
 # Languages/go — Go programming language toolchain
 # [addons.go.tools]
-# go = {} # default on; options: {}, { enabled = true|false }, { version = "1.25" | "1.26" (default) or "latest" }
+# go = {} # Go compiler, tooling, and module workflow; default on; options: {}, { enabled = true|false }, { version = "1.25" | "1.26" (default) or "latest" }
 
 # Languages/latex — TeX Live LaTeX typesetting system
 # [addons.latex.tools]
-# texlive-core = {} # default on; options: {}, { enabled = true|false }, { version = "x.y.z" or "latest" }
-# texlive-recommended = {} # default on; options: {}, { enabled = true|false }, { version = "x.y.z" or "latest" }
-# texlive-fonts = {} # default on; options: {}, { enabled = true|false }, { version = "x.y.z" or "latest" }
-# texlive-biber = {} # default on; options: {}, { enabled = true|false }, { version = "x.y.z" or "latest" }
-# texlive-code = {} # default on; options: {}, { enabled = true|false }, { version = "x.y.z" or "latest" }
-# texlive-diagrams = {} # default on; options: {}, { enabled = true|false }, { version = "x.y.z" or "latest" }
-# texlive-math = {} # default on; options: {}, { enabled = true|false }, { version = "x.y.z" or "latest" }
-# texlive-music = { enabled = true } # default off; options: {}, { enabled = true|false }, { version = "x.y.z" or "latest" }
-# texlive-chemistry = { enabled = true } # default off; options: {}, { enabled = true|false }, { version = "x.y.z" or "latest" }
-# texlive-linguistics = { enabled = true } # default off; options: {}, { enabled = true|false }, { version = "x.y.z" or "latest" }
-# svg-inkscape = {} # default on; options: {}, { enabled = true|false }, { version = "x.y.z" or "latest" }
+# texlive-core = {} # Core LaTeX engines and basic TeX Live packages; default on; options: {}, { enabled = true|false }, { version = "x.y.z" or "latest" }
+# texlive-recommended = {} # Commonly used LaTeX packages and utilities; default on; options: {}, { enabled = true|false }, { version = "x.y.z" or "latest" }
+# texlive-fonts = {} # Extra fonts for LaTeX documents; default on; options: {}, { enabled = true|false }, { version = "x.y.z" or "latest" }
+# texlive-biber = {} # BibLaTeX bibliography backend; default on; options: {}, { enabled = true|false }, { version = "x.y.z" or "latest" }
+# texlive-code = {} # LaTeX packages for code listings and syntax highlighting; default on; options: {}, { enabled = true|false }, { version = "x.y.z" or "latest" }
+# texlive-diagrams = {} # LaTeX packages for diagrams, pictures, and graphics; default on; options: {}, { enabled = true|false }, { version = "x.y.z" or "latest" }
+# texlive-math = {} # LaTeX packages for math-heavy documents; default on; options: {}, { enabled = true|false }, { version = "x.y.z" or "latest" }
+# texlive-music = { enabled = true } # LaTeX packages for music notation; default off; options: {}, { enabled = true|false }, { version = "x.y.z" or "latest" }
+# texlive-chemistry = { enabled = true } # LaTeX packages for chemistry notation and diagrams; default off; options: {}, { enabled = true|false }, { version = "x.y.z" or "latest" }
+# texlive-linguistics = { enabled = true } # LaTeX packages for linguistics examples and notation; default off; options: {}, { enabled = true|false }, { version = "x.y.z" or "latest" }
+# svg-inkscape = {} # Inkscape support for SVG inclusion in LaTeX builds; default on; options: {}, { enabled = true|false }, { version = "x.y.z" or "latest" }
 
 # Languages/node — Node.js runtime with pnpm, yarn, or bun
 [addons.node.tools]
-node = { version = "22" } # default on; options: {}, { enabled = true|false }, { version = "20" | "22" (default) or "latest" }
-pnpm = { version = "10" } # default on; options: {}, { enabled = true|false }, { version = "9" | "10" (default) or "latest" }
-# yarn = { enabled = true } # default off; options: {}, { enabled = true|false }, { version = "4" (default) or "latest" }
-# bun = { enabled = true } # default off; options: {}, { enabled = true|false }, { version = "1.2" (default) or "latest" }
+node = { version = "22" } # Node.js JavaScript and TypeScript runtime; default on; options: {}, { enabled = true|false }, { version = "20" | "22" (default) or "latest" }
+pnpm = { version = "10" } # Fast disk-efficient Node package manager; default on; options: {}, { enabled = true|false }, { version = "9" | "10" (default) or "latest" }
+# yarn = { enabled = true } # Yarn Node package manager; default off; options: {}, { enabled = true|false }, { version = "4" (default) or "latest" }
+# bun = { enabled = true } # Bun JavaScript runtime, package manager, and test runner; default off; options: {}, { enabled = true|false }, { version = "1.2" (default) or "latest" }
 
 # Languages/python — Python runtime with uv, poetry, or pdm
 [addons.python.tools]
-python = { version = "3.13" } # default on; options: {}, { enabled = true|false }, { version = "3.12" | "3.13" (default) | "3.14" or "latest" }
-uv = { version = "0.11.11" } # default on; options: {}, { enabled = true|false }, { version = "0.7" | "0.11.10" | "0.11.11" (default) or "latest" }
-# pip = { enabled = true } # default off; options: {}, { enabled = true|false }, { version = "x.y.z" or "latest" }
-# poetry = { enabled = true } # default off; options: {}, { enabled = true|false }, { version = "1.8" | "2.0" (default) or "latest" }
-# pdm = { enabled = true } # default off; options: {}, { enabled = true|false }, { version = "2.22" (default) or "latest" }
+python = { version = "3.13" } # Python interpreter runtime for applications and scripts; default on; options: {}, { enabled = true|false }, { version = "3.12" | "3.13" (default) | "3.14" or "latest" }
+uv = { version = "0.11.11" } # Fast Python package manager and virtual environment tool; default on; options: {}, { enabled = true|false }, { version = "0.7" | "0.11.10" | "0.11.11" (default) or "latest" }
+# pip = { enabled = true } # Python package installer for pip-based projects; default off; options: {}, { enabled = true|false }, { version = "x.y.z" or "latest" }
+# poetry = { enabled = true } # Python dependency and packaging workflow manager; default off; options: {}, { enabled = true|false }, { version = "1.8" | "2.0" (default) or "latest" }
+# pdm = { enabled = true } # Python project and dependency manager using PEP standards; default off; options: {}, { enabled = true|false }, { version = "2.22" (default) or "latest" }
 
 # Languages/rust — Rust toolchain via rustup
 [addons.rust.tools]
-rustc = { version = "1.94" } # default on; options: {}, { enabled = true|false }, { version = "1.90" | "1.91" | "1.92" | "1.93" | "1.94" (default) or "latest" }
-clippy = {} # default on; options: {}, { enabled = true|false }, { version = "x.y.z" or "latest" }
-rustfmt = {} # default on; options: {}, { enabled = true|false }, { version = "x.y.z" or "latest" }
-cargo-audit = {} # default on; options: {}, { enabled = true|false }, { version = "x.y.z" or "latest" }
-# x86_64-cross = { enabled = false } # default on; options: {}, { enabled = true|false }, { version = "x.y.z" or "latest" }
+rustc = { version = "1.94" } # Rust compiler toolchain installed via rustup; default on; options: {}, { enabled = true|false }, { version = "1.90" | "1.91" | "1.92" | "1.93" | "1.94" (default) or "latest" }
+clippy = {} # Rust linter for catching common mistakes and style issues; default on; options: {}, { enabled = true|false }, { version = "x.y.z" or "latest" }
+rustfmt = {} # Rust code formatter; default on; options: {}, { enabled = true|false }, { version = "x.y.z" or "latest" }
+cargo-audit = {} # Rust dependency vulnerability scanner; default on; options: {}, { enabled = true|false }, { version = "x.y.z" or "latest" }
+# x86_64-cross = { enabled = false } # Cross-compilation target support for x86_64 Linux; default on; options: {}, { enabled = true|false }, { version = "x.y.z" or "latest" }
 
 # Languages/typst — Typst – modern typesetting system
 # [addons.typst.tools]
-# typst = {} # default on; options: {}, { enabled = true|false }, { version = "0.13.1" | "0.14.2" (default) or "latest" }
+# typst = {} # Typst compiler for modern document typesetting; default on; options: {}, { enabled = true|false }, { version = "0.13.1" | "0.14.2" (default) or "latest" }
 
 # ---- Tools ------------------------------------------------------------
 
 # Tools/cloud-aws — AWS CLI v2
 # [addons.cloud-aws.tools]
-# aws-cli = {} # default on; options: {}, { enabled = true|false }, { version = "x.y.z" or "latest" }
+# aws-cli = {} # AWS command-line client for cloud resources; default on; options: {}, { enabled = true|false }, { version = "x.y.z" or "latest" }
 
 # Tools/cloud-azure — Azure CLI
 # [addons.cloud-azure.tools]
-# azure-cli = {} # default on; options: {}, { enabled = true|false }, { version = "x.y.z" or "latest" }
+# azure-cli = {} # Azure command-line client for cloud resources; default on; options: {}, { enabled = true|false }, { version = "x.y.z" or "latest" }
 
 # Tools/cloud-gcp — Google Cloud SDK (gcloud)
 # [addons.cloud-gcp.tools]
-# gcloud-cli = {} # default on; options: {}, { enabled = true|false }, { version = "x.y.z" or "latest" }
+# gcloud-cli = {} # Google Cloud command-line client and SDK; default on; options: {}, { enabled = true|false }, { version = "x.y.z" or "latest" }
 
 # Tools/data-preview — SQLite and tabular data preview tools for Yazi
 # [addons.data-preview.tools]
-# sqlite3 = {} # default on; options: {}, { enabled = true|false }, { version = "x.y.z" or "latest" }
-# csvkit = {} # default on; options: {}, { enabled = true|false }, { version = "x.y.z" or "latest" }
+# sqlite3 = {} # SQLite shell used to preview database schemas and tables; default on; options: {}, { enabled = true|false }, { version = "x.y.z" or "latest" }
+# csvkit = {} # CSV and TSV inspection utilities for tabular previews; default on; options: {}, { enabled = true|false }, { version = "x.y.z" or "latest" }
 
 # Tools/git-ui — GitHub CLI and lazygit interactive Git UI
 [addons.git-ui.tools]
-gh = {} # default on; options: {}, { enabled = true|false }, { version = "x.y.z" or "latest" }
-lazygit = { enabled = false } # default on; options: {}, { enabled = true|false }, { version = "x.y.z" or "latest" }
+gh = {} # GitHub CLI for issues, PRs, releases, and auth; default on; options: {}, { enabled = true|false }, { version = "x.y.z" or "latest" }
+lazygit = { enabled = false } # Interactive terminal UI for Git status, commits, and branches; default on; options: {}, { enabled = true|false }, { version = "x.y.z" or "latest" }
 
 # Tools/infrastructure — OpenTofu, Ansible, Packer
 # [addons.infrastructure.tools]
-# opentofu = {} # default on; options: {}, { enabled = true|false }, { version = "x.y.z" or "latest" }
-# ansible = {} # default on; options: {}, { enabled = true|false }, { version = "x.y.z" or "latest" }
-# packer = {} # default on; options: {}, { enabled = true|false }, { version = "x.y.z" or "latest" }
+# opentofu = {} # Open-source Terraform-compatible infrastructure as code CLI; default on; options: {}, { enabled = true|false }, { version = "x.y.z" or "latest" }
+# ansible = {} # Configuration management and automation engine; default on; options: {}, { enabled = true|false }, { version = "x.y.z" or "latest" }
+# packer = {} # Machine image build automation tool; default on; options: {}, { enabled = true|false }, { version = "x.y.z" or "latest" }
 
 # Tools/kubernetes — kubectl, Helm, Kustomize, k9s
 # [addons.kubernetes.tools]
-# kubectl = {} # default on; options: {}, { enabled = true|false }, { version = "x.y.z" or "latest" }
-# helm = {} # default on; options: {}, { enabled = true|false }, { version = "x.y.z" or "latest" }
-# kustomize = {} # default on; options: {}, { enabled = true|false }, { version = "x.y.z" or "latest" }
-# k9s = { enabled = true } # default off; options: {}, { enabled = true|false }, { version = "x.y.z" or "latest" }
+# kubectl = {} # Kubernetes command-line client; default on; options: {}, { enabled = true|false }, { version = "x.y.z" or "latest" }
+# helm = {} # Kubernetes package manager for charts; default on; options: {}, { enabled = true|false }, { version = "x.y.z" or "latest" }
+# kustomize = {} # Kubernetes manifest overlay and patching tool; default on; options: {}, { enabled = true|false }, { version = "x.y.z" or "latest" }
+# k9s = { enabled = true } # Interactive terminal UI for Kubernetes clusters; default off; options: {}, { enabled = true|false }, { version = "x.y.z" or "latest" }
 
 # Tools/preview-archive — Yazi image/PDF/SVG preview helpers plus archive preview/extraction tools
-# [addons.preview-archive.tools]
-# chafa = {} # default on; options: {}, { enabled = true|false }, { version = "x.y.z" or "latest" }
-# librsvg = {} # default on; options: {}, { enabled = true|false }, { version = "x.y.z" or "latest" }
-# poppler = {} # default on; options: {}, { enabled = true|false }, { version = "x.y.z" or "latest" }
-# timg = {} # default on; options: {}, { enabled = true|false }, { version = "x.y.z" or "latest" }
-# mupdf = {} # default on; options: {}, { enabled = true|false }, { version = "x.y.z" or "latest" }
-# entr = {} # default on; options: {}, { enabled = true|false }, { version = "x.y.z" or "latest" }
-# p7zip = {} # default on; options: {}, { enabled = true|false }, { version = "x.y.z" or "latest" }
-# resvg = {} # default on; options: {}, { enabled = true|false }, { version = "0.47.0" (default) or "latest" }
+[addons.preview-archive.tools]
+# chafa = { enabled = false } # Terminal image renderer used by Yazi image and SVG previews; default on; options: {}, { enabled = true|false }, { version = "x.y.z" or "latest" }
+# librsvg = { enabled = false } # SVG conversion fallback via rsvg-convert; default on; options: {}, { enabled = true|false }, { version = "x.y.z" or "latest" }
+# poppler = { enabled = false } # PDF text and image utilities for preview extraction; default on; options: {}, { enabled = true|false }, { version = "x.y.z" or "latest" }
+# timg = { enabled = false } # Terminal image and PDF thumbnail viewer; default on; options: {}, { enabled = true|false }, { version = "x.y.z" or "latest" }
+# mupdf = { enabled = false } # Lightweight PDF utilities for document previews; default on; options: {}, { enabled = true|false }, { version = "x.y.z" or "latest" }
+# entr = { enabled = false } # File watcher used by live preview helpers; default on; options: {}, { enabled = true|false }, { version = "x.y.z" or "latest" }
+p7zip = {} # Archive listing and extraction support for previews; default on; options: {}, { enabled = true|false }, { version = "x.y.z" or "latest" }
+# resvg = { enabled = false } # High-quality SVG rasterizer for Yazi previews; default on; options: {}, { enabled = true|false }, { version = "0.47.0" (default) or "latest" }
 
 # Tools/preview-enhanced — Rich Markdown rendering, ffmpeg, and Ghostscript; requires preview-archive
-# [addons.preview-enhanced.tools]
-# ffmpeg = {} # default on; options: {}, { enabled = true|false }, { version = "x.y.z" or "latest" }
-# ghostscript = {} # default on; options: {}, { enabled = true|false }, { version = "x.y.z" or "latest" }
-# rich = {} # default on; options: {}, { enabled = true|false }, { version = "x.y.z" or "latest" }
+[addons.preview-enhanced.tools]
+# ffmpeg = { enabled = false } # Video and audio metadata plus thumbnail support for previews; default on; options: {}, { enabled = true|false }, { version = "x.y.z" or "latest" }
+# ghostscript = { enabled = false } # PostScript and EPS rendering support for document previews; default on; options: {}, { enabled = true|false }, { version = "x.y.z" or "latest" }
+rich = {} # Markdown, JSON, RST, and notebook terminal rendering for Yazi previews; default on; options: {}, { enabled = true|false }, { version = "x.y.z" or "latest" }
 
 # =============================================================================
 # [ai] — AI agent harnesses and model providers
@@ -482,7 +482,22 @@ theme  = "nord"
 # Options: auto | light | dark
 mode   = "auto"
 # Starship prompt preset.
-# Options: default | plain | minimal | nerd-font | pastel | bracketed | arrow
+# Options: default | plain | minimal | nerd-font | pastel | pastel-powerline | bracketed | arrow
+# ASCII sketches:
+#   default          ~/repo main +2  py3.13  2s
+#                    >
+#   plain            ~/repo main +2
+#                    >
+#   minimal          ~/repo main
+#                    >
+#   nerd-font        [os] ~/repo main +2 py rs js go 2s
+#                    >
+#   pastel           ( ~/repo )>( main +2 )>( py rs js go ) 2s >
+#   pastel-powerline ( ~/repo )>( main +2 )>( py rs js go ) 2s >
+#   bracketed        ~/repo [main] [+2] [py3.13]
+#                    >
+#   arrow            > ~/repo > main +2 > 2s
+#                    >
 prompt = "pastel"
 # Default tmux layout. Options: dev | focus | cowork | ai
 # Layout sketches, one screen each:
@@ -542,7 +557,7 @@ mode = "extended"  # extended | plain | disabled (legacy: powerline -> extended)
 # - modelstatus_<provider>: per-provider AI status segment; enabled through [customization.tmux.status.model-providers]
 line1-left = ["session", "windows"]
 line1-right = ["aibox_log", "aibox_oom", "aibox_proc", "aibox_ai", "aibox_mcp", "aibox_mig", "weather", "uptime", "datetime"]
-line2-left = ["git", "github", "kubernetes", "terraform", "cloud"]
+line2-left = ["git", "github", "modelstatus_openai", "modelstatus_anthropic", "kubernetes", "terraform"]
 line2-right = ["hostname", "externalip", "ssh", "netspeed", "ping", "cpu", "loadavg", "memory", "swap", "disk", "gpu"]
 
 [customization.tmux.status.labels]

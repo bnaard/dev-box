@@ -9,6 +9,7 @@ builder_weight: null
 
 tools:
   - name: gcloud-cli
+    description: "Google Cloud command-line client and SDK"
     default_enabled: true
     default_version: ""
     supported_versions: []

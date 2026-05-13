@@ -9,10 +9,12 @@ builder_weight: "light"
 
 tools:
   - name: gh
+    description: "GitHub CLI for issues, PRs, releases, and auth"
     default_enabled: true
     default_version: ""
     supported_versions: []
   - name: lazygit
+    description: "Interactive terminal UI for Git status, commits, and branches"
     default_enabled: true
     default_version: ""
     supported_versions: []

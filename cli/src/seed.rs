@@ -2168,8 +2168,10 @@ mod tests {
         let aibox_preview =
             fs::read_to_string(root.join(".local").join("bin").join("aibox-preview")).unwrap();
         assert!(
-            aibox_preview.contains("glow -p") && aibox_preview.contains("bat --paging=always"),
-            "aibox-preview should prefer glow for Markdown and fall back to bat"
+            aibox_preview.contains("glow -s")
+                && aibox_preview.contains("bat --paging=never")
+                && aibox_preview.contains("--mouse"),
+            "aibox-preview should prefer glow for Markdown, fall back to bat, and page with mouse support"
         );
         assert!(
             aibox_preview.contains("pdf-watch"),

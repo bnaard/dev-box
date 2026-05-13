@@ -9,10 +9,12 @@ builder_weight: "light"
 
 tools:
   - name: sqlite3
+    description: "SQLite shell used to preview database schemas and tables"
     default_enabled: true
     default_version: ""
     supported_versions: []
   - name: csvkit
+    description: "CSV and TSV inspection utilities for tabular previews"
     default_enabled: true
     default_version: ""
     supported_versions: []

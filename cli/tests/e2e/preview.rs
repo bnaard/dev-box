@@ -303,10 +303,11 @@ fn aibox_preview_helper_seeded() {
     let content = fs::read_to_string(&helper_path)
         .unwrap_or_else(|e| panic!("failed to read aibox-preview helper: {}", e));
     assert!(
-        content.contains("glow -p")
-            && content.contains("bat --paging=always")
+        content.contains("glow -s")
+            && content.contains("bat --paging=never")
+            && content.contains("--mouse")
             && content.contains("pdf-watch"),
-        "aibox-preview helper should dispatch Markdown, text/code, and PDF previews"
+        "aibox-preview helper should dispatch Markdown, text/code, and PDF previews through a mouse-aware pager"
     );
 
     #[cfg(unix)]

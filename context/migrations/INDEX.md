@@ -12,8 +12,6 @@ None.
 
 None.
 
-## Rejected (1)
+## Rejected (0)
 
-| Date       | Migration                                | Reason |
-|------------|------------------------------------------|--------|
-| 2026-05-13 | MIG-DISABLED-HARNESS-STATE — aibox  → | This migration would delete local disabled-harness Claude runtime state under .aibox-home/.claude. The dogfood project … |
+None.

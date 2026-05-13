@@ -11,6 +11,7 @@ requires:
 
 tools:
   - name: codex
+    description: "OpenAI Codex CLI harness"
     default_enabled: true
     default_version: ""
     supported_versions: []

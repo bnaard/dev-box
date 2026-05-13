@@ -303,8 +303,8 @@ binding that invokes `open-in-editor`.
 `[appearance.rs · yazi_keymap_includes_edit_in_pane_binding]`
 
 **All prompt presets produce a non-empty starship config**
-If `aibox init` is run for each of the six prompt presets (`default`,
-`plain`, `minimal`, `nerd-font`, `pastel`, `bracketed`), then
+If `aibox init` is run for each prompt preset (`default`, `plain`,
+`minimal`, `nerd-font`, `pastel`, `pastel-powerline`, `bracketed`, `arrow`), then
 `starship.toml` must exist and be non-empty.
 `[appearance.rs · all_prompts_render_without_error]`
 

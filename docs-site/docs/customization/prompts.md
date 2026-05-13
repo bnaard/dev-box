@@ -5,7 +5,7 @@ title: "Prompt Presets"
 
 # Starship Prompt Presets
 
-aibox includes 7 [Starship](https://starship.rs) prompt presets that work with any theme. Set a preset in `aibox.toml`:
+aibox includes 8 [Starship](https://starship.rs) prompt presets that work with any theme. Set a preset in `aibox.toml`:
 
 ```toml
 [customization]
@@ -70,7 +70,7 @@ Rich prompt with Nerd Font icons for OS, language runtimes, git status, Docker c
 
 ### pastel
 
-Soft powerline-style prompt with filled rounded segment separators and gentle colors. Directory and git branch appear in colored blocks. Nerd Font recommended.
+One-line pastel powerline prompt inspired by Starship's Pastel Powerline preset. Directory, git, language runtimes, command duration, and character appear inline in connected colored segments. Nerd Font recommended.
 
 ```
  ~/workspace/myproject  main +1 
@@ -78,6 +78,10 @@ Soft powerline-style prompt with filled rounded segment separators and gentle co
 ```
 
 <div class="asciinema" data-cast="assets/screencasts/prompt-pastel.cast" data-poster="npt:2" data-loop="true" data-fit="width"></div>
+
+### pastel-powerline
+
+Explicit alias for the one-line pastel powerline prompt. Use it when you want the prompt name to document the powerline layout.
 
 ---
 
@@ -131,6 +135,7 @@ The Starship config is regenerated at `.aibox-home/.config/starship.toml`. Color
 | `minimal` | Nerd Font recommended (for `❯` symbol) |
 | `nerd-font` | Nerd Font required |
 | `pastel` | Nerd Font or Powerline font required |
+| `pastel-powerline` | Nerd Font or Powerline font required |
 | `bracketed` | Any font — no special glyphs |
 | `arrow` | Nerd Font or Powerline font required |
 

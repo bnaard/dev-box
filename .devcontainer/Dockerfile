@@ -64,6 +64,32 @@ RUN install -d /usr/local/bin && \
 RUN rustup target add x86_64-unknown-linux-gnu
 
 
+# Addon: preview-archive (static preview/archive binaries)
+FROM debian:trixie-slim AS preview-archive-builder
+
+ENV DEBIAN_FRONTEND=noninteractive
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    ca-certificates \
+    curl \
+    && rm -rf /var/lib/apt/lists/*
+
+ARG RESVG_SHA256_X86_64=5c84dcbcd032fe7e8d96e616fd6807a2f9df6561d2e6582b37e91e63c6cb4fe7
+RUN ARCH=$(uname -m) && \
+    if [ "$ARCH" = "x86_64" ]; then \
+      curl -fsSL \
+        "https://github.com/linebender/resvg/releases/download/v0.47.0/resvg-linux-${ARCH}.tar.gz" \
+        -o /tmp/resvg.tar.gz && \
+      echo "${RESVG_SHA256_X86_64}  /tmp/resvg.tar.gz" | sha256sum -c - && \
+      tar -xz -C /usr/local/bin -f /tmp/resvg.tar.gz resvg && \
+      chmod +x /usr/local/bin/resvg && \
+      rm /tmp/resvg.tar.gz; \
+    else \
+      printf '#!/bin/sh\necho "resvg: no upstream binary for %s (svg.yazi uses chafa fallback)" "$ARCH" >&2\nexit 1\n' "$ARCH" \
+        > /usr/local/bin/resvg && \
+      chmod +x /usr/local/bin/resvg; \
+    fi
+
+
 FROM ghcr.io/projectious-work/aibox:base-debian-v0.25.12 AS aibox
 
 ENV SHELL=/bin/bash
@@ -122,6 +148,33 @@ RUN npm install -g @openai/codex
 # Addon: docs-docusaurus
 RUN npm install -g @docusaurus/core@3.10.1 && \
     npm cache clean --force
+
+# Addon: preview-archive — Yazi preview helpers and archive tools.
+USER root
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    chafa \
+    librsvg2-bin \
+    poppler-utils \
+    timg \
+    mupdf-tools \
+    entr \
+    p7zip-full \
+    && rm -rf /var/lib/apt/lists/*
+COPY --from=preview-archive-builder /usr/local/bin/resvg /usr/local/bin/resvg
+# ── Variant 1 disable-then-purge guards ───────────────────────────────
+
+
+# Addon: preview-enhanced — rich docs, video thumbnails, and EPS
+# Use preview-archive for baseline image/PDF/SVG and archive preview helpers.
+# This addon adds python3-rich (Markdown), ffmpeg (video), and ghostscript (EPS).
+USER root
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    python3-rich \
+    ffmpeg \
+    ghostscript \
+    && rm -rf /var/lib/apt/lists/*
+# ── Variant 1 disable-then-purge guards ───────────────────────────────
+
 
 # Addon: python (runtime)
 

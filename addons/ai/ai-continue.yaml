@@ -9,6 +9,7 @@ builder_weight: null
 
 tools:
   - name: cn
+    description: "Continue CLI for provider-agnostic coding-agent workflows"
     default_enabled: true
     default_version: ""
     supported_versions: []

@@ -401,6 +401,7 @@ fn all_prompts_render_without_error() {
         "minimal",
         "nerd-font",
         "pastel",
+        "pastel-powerline",
         "bracketed",
         "arrow",
     ];
@@ -449,5 +450,20 @@ fn prompt_plain_no_nerd_font() {
     assert!(
         content.contains("plain") || content.contains("ASCII") || !content.contains("\u{e0b0}"),
         "plain starship config should use ASCII-only symbols"
+    );
+}
+
+#[test]
+fn prompt_pastel_powerline_is_single_line() {
+    let dir = tempfile::tempdir().unwrap();
+    init_with_appearance(dir.path(), "gruvbox-dark", "pastel-powerline");
+
+    let content = fs::read_to_string(dir.path().join(".aibox-home/.config/starship.toml")).unwrap();
+
+    assert!(content.contains("pastel powerline preset"));
+    assert!(content.contains(""));
+    assert!(
+        !content.contains("$line_break"),
+        "pastel-powerline should render as a one-line prompt"
     );
 }

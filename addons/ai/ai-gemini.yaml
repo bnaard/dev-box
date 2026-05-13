@@ -9,6 +9,7 @@ builder_weight: null
 
 tools:
   - name: gemini
+    description: "Google Gemini CLI"
     default_enabled: true
     default_version: ""
     supported_versions: []

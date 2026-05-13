@@ -20,22 +20,27 @@ skills:
 
 tools:
   - name: python
+    description: "Python interpreter runtime for applications and scripts"
     default_enabled: true
     default_version: "3.13"
     supported_versions: ["3.12", "3.13", "3.14"]
   - name: uv
+    description: "Fast Python package manager and virtual environment tool"
     default_enabled: true
     default_version: "0.11.11"
     supported_versions: ["0.7", "0.11.10", "0.11.11"]
   - name: pip
+    description: "Python package installer for pip-based projects"
     default_enabled: false
     default_version: ""
     supported_versions: []
   - name: poetry
+    description: "Python dependency and packaging workflow manager"
     default_enabled: false
     default_version: "2.0"
     supported_versions: ["1.8", "2.0"]
   - name: pdm
+    description: "Python project and dependency manager using PEP standards"
     default_enabled: false
     default_version: "2.22"
     supported_versions: ["2.22"]

@@ -45,6 +45,8 @@ services:
       - ../.aibox-home/.config:/home/aibox/.config:rw
       # XDG cache home
       - ../.aibox-home/.cache:/home/aibox/.cache:rw
+      # readline key bindings
+      - ../.aibox-home/.inputrc:/home/aibox/.inputrc:rw
       # XDG local data, state, and helper scripts
       - ../.aibox-home/.local:/home/aibox/.local:rw
       # tmux plugin and socket state

@@ -9,18 +9,22 @@ builder_weight: "light"
 
 tools:
   - name: sox
+    description: "Command-line audio recording, playback, and conversion tools"
     default_enabled: true
     default_version: ""
     supported_versions: []
   - name: sox-pulse
+    description: "PulseAudio support module for SoX"
     default_enabled: true
     default_version: ""
     supported_versions: []
   - name: pulseaudio-utils
+    description: "PulseAudio command-line tools for routing and diagnostics"
     default_enabled: true
     default_version: ""
     supported_versions: []
   - name: alsa-pulse
+    description: "ALSA-to-PulseAudio compatibility layer"
     default_enabled: true
     default_version: ""
     supported_versions: []

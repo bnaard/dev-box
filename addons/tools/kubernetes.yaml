@@ -13,18 +13,22 @@ skills:
 
 tools:
   - name: kubectl
+    description: "Kubernetes command-line client"
     default_enabled: true
     default_version: ""
     supported_versions: []
   - name: helm
+    description: "Kubernetes package manager for charts"
     default_enabled: true
     default_version: ""
     supported_versions: []
   - name: kustomize
+    description: "Kubernetes manifest overlay and patching tool"
     default_enabled: true
     default_version: ""
     supported_versions: []
   - name: k9s
+    description: "Interactive terminal UI for Kubernetes clusters"
     default_enabled: false
     default_version: ""
     supported_versions: []

@@ -1,0 +1,50 @@
+{
+  "archive_id": "ARCHIVE-20260513_134823-migration-applied",
+  "archive_path": "context/archives/2026/05/ARCHIVE-20260513_134823-migration-applied.tar.gz",
+  "created_at": "2026-05-13T13:48:23+00:00",
+  "entities": [
+    {
+      "apiVersion": "processkit.projectious.work/v1",
+      "body_index": "# Migration MIG-RUNTIME-20260513T134624\n\nManaged `.aibox-home/` runtime changes from `0.25.13` to `0.25.14`.\n\n0 changed upstream, 0 conflicts, 2 new, 0 removed (2 groups affected)\n\n## Counts\n\n- unchanged: 31\n- changed-locally-only: 0\n- changed-upstream-only: 0\n- conflict: 0\n- new-upstream: 2\n- removed-upstream: 0\n\n- removed-upstream-stale: 0\n\n## Changes by group\n\n### runtime-misc\n\n**new-upstream**\n\n- `.aibox-home/.inputrc` -> `.aibox-home/.inputrc`\n\n### runtime-yazi\n\n**new-upstream**\n\n- `.aibox-home/.config/yazi/plugins/rich-preview.yazi/main.lua` -> `.aibox-home/.config/yazi/plugins/rich-preview.yazi/main.lua`\n",
+      "id": "MIG-RUNTIME-20260513T134624",
+      "kind": "Migration",
+      "labels": {},
+      "member_path": "context/migrations/applied/MIG-RUNTIME-20260513T134624.md",
+      "metadata": {
+        "created": "2026-05-13T13:46:24+00:00",
+        "id": "MIG-RUNTIME-20260513T134624",
+        "updated": "2026-05-13T13:47:17+00:00"
+      },
+      "original_path": "context/migrations/applied/MIG-RUNTIME-20260513T134624.md",
+      "sha256": "8bd8c475d48638aca806037a9cd8b367a3db55de708c0ac87328b4c3cc7bf02e",
+      "spec": {
+        "affected_groups": [
+          "runtime-misc",
+          "runtime-yazi"
+        ],
+        "applied_at": "2026-05-13T13:47:17+00:00",
+        "from_version": "0.25.13",
+        "generated_at": "2026-05-13T13:46:24+00:00",
+        "generated_by": "aibox apply",
+        "progress_notes": [
+          {
+            "actor": "mcp",
+            "note": "Accepted generated runtime-home additions for v0.25.14: .inputrc and rich-preview.yazi support are intentional release changes.",
+            "timestamp": "2026-05-13T13:47:17+00:00"
+          }
+        ],
+        "source": "aibox-runtime-home",
+        "source_url": "aibox://runtime-home",
+        "started_at": "2026-05-13T13:47:17+00:00",
+        "state": "applied",
+        "summary": "0 changed upstream, 0 conflicts, 2 new, 0 removed (2 groups affected)",
+        "to_version": "0.25.14"
+      },
+      "storage_location": "context/archives/2026/05/ARCHIVE-20260513_134823-migration-applied.tar.gz::context/migrations/applied/MIG-RUNTIME-20260513T134624.md"
+    }
+  ],
+  "kind": "Migration",
+  "older_than_days": 0,
+  "sha256": "1ce39e337fc51e6289126c6005f145cb274e20e54d2043516dcf2b2fb393c69d",
+  "state": "applied"
+}

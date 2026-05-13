@@ -9,6 +9,7 @@ builder_weight: null
 
 tools:
   - name: opencode
+    description: "OpenCode open-source coding-agent CLI"
     default_enabled: true
     default_version: ""
     supported_versions: []

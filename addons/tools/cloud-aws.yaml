@@ -9,6 +9,7 @@ builder_weight: null
 
 tools:
   - name: aws-cli
+    description: "AWS command-line client for cloud resources"
     default_enabled: true
     default_version: ""
     supported_versions: []

@@ -9,6 +9,7 @@ builder_weight: null
 
 tools:
   - name: hermes
+    description: "Nous Hermes autonomous AI agent CLI"
     default_enabled: true
     default_version: ""
     supported_versions: []

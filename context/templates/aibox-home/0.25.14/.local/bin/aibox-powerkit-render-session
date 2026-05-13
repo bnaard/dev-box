@@ -1,0 +1,26 @@
+#!/usr/bin/env bash
+set -uo pipefail
+
+POWERKIT_ROOT="${POWERKIT_ROOT:-/usr/local/share/aibox/tmux/plugins/tmux-powerkit}"
+export POWERKIT_ROOT
+
+script_dir="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
+export HOME="$(cd -- "${script_dir}/../.." && pwd)"
+socket="${AIBOX_TMUX_SOCKET:-${HOME}/.tmux/aibox.sock}"
+if [[ -S "${socket}" && -z "${TMUX:-}" ]]; then
+    export TMUX="${socket},0,0"
+fi
+cache_root="${AIBOX_POWERKIT_CACHE_DIR:-${XDG_CACHE_HOME:-${HOME}/.cache}}"
+mkdir -p "${cache_root}" 2>/dev/null || true
+export XDG_CACHE_HOME="${cache_root}"
+
+if [[ ! -r "${POWERKIT_ROOT}/src/core/bootstrap.sh" ]]; then
+    exit 0
+fi
+
+. "${POWERKIT_ROOT}/src/core/bootstrap.sh"
+load_powerkit_theme
+. "${POWERKIT_ROOT}/src/renderer/compositor.sh"
+
+printf '%s' "$(_render_entity session left)"
+printf '%s' "$(_build_edge_separator session end left)"

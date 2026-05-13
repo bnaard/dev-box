@@ -9,6 +9,7 @@ builder_weight: null
 
 tools:
   - name: aider
+    description: "Aider AI pair-programming CLI"
     default_enabled: true
     default_version: ""
     supported_versions: []

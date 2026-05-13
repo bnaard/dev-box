@@ -13,18 +13,22 @@ skills:
 
 tools:
   - name: node
+    description: "Node.js JavaScript and TypeScript runtime"
     default_enabled: true
     default_version: "22"
     supported_versions: ["20", "22"]
   - name: pnpm
+    description: "Fast disk-efficient Node package manager"
     default_enabled: true
     default_version: "10"
     supported_versions: ["9", "10"]
   - name: yarn
+    description: "Yarn Node package manager"
     default_enabled: false
     default_version: "4"
     supported_versions: ["4"]
   - name: bun
+    description: "Bun JavaScript runtime, package manager, and test runner"
     default_enabled: false
     default_version: "1.2"
     supported_versions: ["1.2"]

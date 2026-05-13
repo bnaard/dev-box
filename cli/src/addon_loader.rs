@@ -154,6 +154,9 @@ impl AddonExportSurface {
 #[derive(Debug, Deserialize)]
 pub struct ToolYaml {
     pub name: String,
+    /// Short one-line purpose shown in generated aibox.toml comments.
+    #[serde(default)]
+    pub description: String,
     #[serde(default = "default_true")]
     pub default_enabled: bool,
     #[serde(default)]
@@ -198,6 +201,7 @@ pub struct LoadedAddon {
 #[derive(Debug)]
 pub struct LoadedTool {
     pub name: String,
+    pub description: String,
     pub default_enabled: bool,
     pub default_version: String,
     pub supported_versions: Vec<String>,
@@ -228,6 +232,7 @@ pub struct AddonCatalogEntry {
 #[derive(Debug, Serialize, PartialEq, Eq)]
 pub struct AddonCatalogTool {
     pub name: String,
+    pub description: String,
     pub default_enabled: bool,
     pub default_version: String,
     pub supported_versions: Vec<String>,
@@ -358,6 +363,7 @@ fn load_yaml_file(path: &Path) -> Result<LoadedAddon> {
             .into_iter()
             .map(|t| LoadedTool {
                 name: t.name,
+                description: t.description,
                 default_enabled: t.default_enabled,
                 default_version: t.default_version.unwrap_or_default(),
                 supported_versions: t.supported_versions,
@@ -424,6 +430,7 @@ pub fn addon_catalog_index(addons: &[LoadedAddon]) -> AddonCatalogIndex {
                 .iter()
                 .map(|tool| AddonCatalogTool {
                     name: tool.name.clone(),
+                    description: tool.description.clone(),
                     default_enabled: tool.default_enabled,
                     default_version: tool.default_version.clone(),
                     supported_versions: tool.supported_versions.clone(),
@@ -741,6 +748,7 @@ runtime: |
             requires: vec![],
             tools: vec![LoadedTool {
                 name: "mytool".to_string(),
+                description: String::new(),
                 default_enabled: true,
                 default_version: "3.0".to_string(),
                 supported_versions: vec!["3.0".to_string()],
@@ -778,12 +786,14 @@ runtime: |
             tools: vec![
                 LoadedTool {
                     name: "required".to_string(),
+                    description: String::new(),
                     default_enabled: true,
                     default_version: "1.0".to_string(),
                     supported_versions: vec![],
                 },
                 LoadedTool {
                     name: "optional".to_string(),
+                    description: String::new(),
                     default_enabled: false,
                     default_version: "2.0".to_string(),
                     supported_versions: vec![],
@@ -891,6 +901,7 @@ runtime: |
             requires: vec![],
             tools: vec![LoadedTool {
                 name: "mytool".to_string(),
+                description: String::new(),
                 default_enabled: true,
                 default_version: "1.0".to_string(),
                 supported_versions: vec![],
@@ -1106,6 +1117,7 @@ runtime: |
                 builder_weight: None,
                 tools: vec![LoadedTool {
                     name: "runner".to_string(),
+                    description: "Runs the sample runtime".to_string(),
                     default_enabled: true,
                     default_version: "2.0".to_string(),
                     supported_versions: vec!["2.0".to_string()],
@@ -1150,6 +1162,10 @@ runtime: |
         );
         assert_eq!(index.addons[1].requires, vec!["base".to_string()]);
         assert_eq!(index.addons[1].tools[0].name, "runner");
+        assert_eq!(
+            index.addons[1].tools[0].description,
+            "Runs the sample runtime"
+        );
     }
 
     // -----------------------------------------------------------------------
@@ -1173,6 +1189,28 @@ runtime: |
             .into_iter()
             .find(|a| a.name == name)
             .unwrap_or_else(|| panic!("addon '{}' not found in repo addons dir", name))
+    }
+
+    #[test]
+    fn repo_addon_tools_have_user_visible_descriptions() {
+        let addons = load_from_dir(&repo_addons_dir()).unwrap();
+        let missing: Vec<String> = addons
+            .iter()
+            .flat_map(|addon| {
+                addon.tools.iter().filter_map(|tool| {
+                    if tool.description.trim().is_empty() {
+                        Some(format!("{}.{}", addon.name, tool.name))
+                    } else {
+                        None
+                    }
+                })
+            })
+            .collect();
+
+        assert!(
+            missing.is_empty(),
+            "addon tools must describe their purpose for generated aibox.toml comments: {missing:?}"
+        );
     }
 
     fn all_disabled_tools(addon: &LoadedAddon) -> HashMap<String, ToolConfig> {

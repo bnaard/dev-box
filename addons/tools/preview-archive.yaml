@@ -9,34 +9,42 @@ builder_weight: "light"
 
 tools:
   - name: chafa
+    description: "Terminal image renderer used by Yazi image and SVG previews"
     default_enabled: true
     default_version: ""
     supported_versions: []
   - name: librsvg
+    description: "SVG conversion fallback via rsvg-convert"
     default_enabled: true
     default_version: ""
     supported_versions: []
   - name: poppler
+    description: "PDF text and image utilities for preview extraction"
     default_enabled: true
     default_version: ""
     supported_versions: []
   - name: timg
+    description: "Terminal image and PDF thumbnail viewer"
     default_enabled: true
     default_version: ""
     supported_versions: []
   - name: mupdf
+    description: "Lightweight PDF utilities for document previews"
     default_enabled: true
     default_version: ""
     supported_versions: []
   - name: entr
+    description: "File watcher used by live preview helpers"
     default_enabled: true
     default_version: ""
     supported_versions: []
   - name: p7zip
+    description: "Archive listing and extraction support for previews"
     default_enabled: true
     default_version: ""
     supported_versions: []
   - name: resvg
+    description: "High-quality SVG rasterizer for Yazi previews"
     default_enabled: true
     default_version: "0.47.0"
     supported_versions: ["0.47.0"]

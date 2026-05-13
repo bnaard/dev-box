@@ -12,6 +12,7 @@ builder_weight: null
 
 tools:
   - name: hugo
+    description: "Fast Go-based static site generator"
     default_enabled: true
     default_version: ""
     supported_versions: []

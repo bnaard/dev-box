@@ -1521,7 +1521,22 @@ pub(crate) fn serialize_config_with_comments(config: &AiboxConfig) -> String {
     out.push_str("# Options: auto | light | dark\n");
     out.push_str(&format!("mode   = \"{}\"\n", config.customization.mode));
     out.push_str("# Starship prompt preset.\n");
-    out.push_str("# Options: default | plain | minimal | nerd-font | pastel | bracketed | arrow\n");
+    out.push_str("# Options: default | plain | minimal | nerd-font | pastel | pastel-powerline | bracketed | arrow\n");
+    out.push_str("# ASCII sketches:\n");
+    out.push_str("#   default          ~/repo main +2  py3.13  2s\n");
+    out.push_str("#                    >\n");
+    out.push_str("#   plain            ~/repo main +2\n");
+    out.push_str("#                    >\n");
+    out.push_str("#   minimal          ~/repo main\n");
+    out.push_str("#                    >\n");
+    out.push_str("#   nerd-font        [os] ~/repo main +2 py rs js go 2s\n");
+    out.push_str("#                    >\n");
+    out.push_str("#   pastel           ( ~/repo )>( main +2 )>( py rs js go ) 2s >\n");
+    out.push_str("#   pastel-powerline ( ~/repo )>( main +2 )>( py rs js go ) 2s >\n");
+    out.push_str("#   bracketed        ~/repo [main] [+2] [py3.13]\n");
+    out.push_str("#                    >\n");
+    out.push_str("#   arrow            > ~/repo > main +2 > 2s\n");
+    out.push_str("#                    >\n");
     out.push_str(&format!("prompt = \"{}\"\n", config.customization.prompt));
     out.push_str("# Default tmux layout. Options: dev | focus | cowork | ai\n");
     out.push_str("# Layout sketches, one screen each:\n");
@@ -2361,6 +2376,7 @@ fn render_tool_entry(name: &str, entry: &crate::config::ToolEntry) -> String {
 }
 
 fn addon_tool_comment(tool: &crate::addon_loader::LoadedTool) -> String {
+    let purpose = short_comment(&tool.description);
     let default = if tool.default_enabled {
         "default on"
     } else {
@@ -2384,7 +2400,13 @@ fn addon_tool_comment(tool: &crate::addon_loader::LoadedTool) -> String {
                 .join(" | ")
         )
     };
-    format!("{default}; options: {{}}, {{ enabled = true|false }}, {{ {version_options} }}")
+    let details =
+        format!("{default}; options: {{}}, {{ enabled = true|false }}, {{ {version_options} }}");
+    if purpose.is_empty() {
+        details
+    } else {
+        format!("{purpose}; {details}")
+    }
 }
 
 fn short_comment(value: &str) -> String {
@@ -3782,6 +3804,28 @@ mod tests {
             assert!(body.contains(theme), "missing theme comment entry: {theme}");
         }
         assert!(body.contains("`auto` follows the host OS appearance"));
+    }
+
+    #[test]
+    fn serialized_config_prompt_comments_include_ascii_examples() {
+        let config = crate::config::test_config();
+        let body = serialize_config_with_comments(&config);
+
+        assert!(body.contains("pastel-powerline"));
+        assert!(body.contains("# ASCII sketches:"));
+        assert!(body.contains("( ~/repo )>( main +2 )>( py rs js go ) 2s >"));
+    }
+
+    #[test]
+    fn serialized_config_addon_tool_comments_include_purpose() {
+        let _ = crate::addon_loader::init();
+        let config = crate::config::test_config();
+        let body = serialize_config_with_comments(&config);
+
+        assert!(body.contains("Terminal image renderer used by Yazi image and SVG previews"));
+        assert!(
+            body.contains("Markdown, JSON, RST, and notebook terminal rendering for Yazi previews")
+        );
     }
 
     #[test]

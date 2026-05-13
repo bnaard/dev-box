@@ -12,14 +12,17 @@ skills:
 
 tools:
   - name: opentofu
+    description: "Open-source Terraform-compatible infrastructure as code CLI"
     default_enabled: true
     default_version: ""
     supported_versions: []
   - name: ansible
+    description: "Configuration management and automation engine"
     default_enabled: true
     default_version: ""
     supported_versions: []
   - name: packer
+    description: "Machine image build automation tool"
     default_enabled: true
     default_version: ""
     supported_versions: []

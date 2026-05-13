@@ -515,35 +515,68 @@ accent = "{accent}"
 "#
         ),
 
-        StarshipPreset::Pastel => format!(
+        StarshipPreset::Pastel | StarshipPreset::PastelPowerline => format!(
             r#"# aibox starship config — pastel powerline preset
+# One-line prompt inspired by https://starship.rs/presets/#pastel-powerline.
 palette = "aibox"
 
 format = """
-[](fg:{accent})\
+[](fg:{accent})\
 $directory\
-[](fg:{accent} bg:{green})\
+[](fg:{accent} bg:{green})\
 $git_branch\
 $git_status\
-[](fg:{green} bg:{bg})\
-$python$rust$nodejs$golang\
+[](fg:{green} bg:{orange})\
+$python\
+$rust\
+$nodejs\
+$golang\
+[](fg:{orange} bg:{bg})\
 $cmd_duration\
-$line_break$character"""
+$character"""
 
 [directory]
 style = "bold bg:{accent} fg:{bg}"
+format = "[ $path ]($style)"
 truncation_length = 3
+truncate_to_repo = true
 
 [git_branch]
 style = "bg:{green} fg:{bg}"
 symbol = " "
+format = "[ $symbol$branch ]($style)"
 
 [git_status]
 style = "bg:{green} fg:{bg}"
+format = "[$all_status$ahead_behind ]($style)"
+ahead = "⇡$count"
+behind = "⇣$count"
+diverged = "⇕⇡$ahead_count⇣$behind_count"
+modified = "!$count"
+staged = "+$count"
+untracked = "?$count"
+
+[python]
+style = "bg:{orange} fg:{bg}"
+format = "[ $symbol$version ]($style)"
+[rust]
+style = "bg:{orange} fg:{bg}"
+format = "[ $symbol$version ]($style)"
+[nodejs]
+style = "bg:{orange} fg:{bg}"
+format = "[ $symbol$version ]($style)"
+[golang]
+style = "bg:{orange} fg:{bg}"
+format = "[ $symbol$version ]($style)"
+
+[cmd_duration]
+style = "fg:{muted}"
+min_time = 2_000
+format = "[ $duration ]($style)"
 
 [character]
-success_symbol = "[❯](bold fg:{accent})"
-error_symbol = "[❯](bold fg:{red})"
+success_symbol = "[❯](bold fg:{accent}) "
+error_symbol = "[❯](bold fg:{red}) "
 
 [palettes.aibox]
 bg = "{bg}"

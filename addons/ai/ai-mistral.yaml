@@ -9,6 +9,7 @@ builder_weight: null
 
 tools:
   - name: mistral
+    description: "Mistral AI Python SDK for programmatic use"
     default_enabled: true
     default_version: ""
     supported_versions: []
