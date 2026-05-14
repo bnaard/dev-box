@@ -80,9 +80,9 @@ set -g status-style "bg=AIBOX_TMUX_BG,fg=AIBOX_TMUX_FG"
 set -g window-status-current-style "bg=AIBOX_TMUX_ACCENT,fg=AIBOX_TMUX_BG,bold"
 set -g window-status-format " #I:#W "
 set -g window-status-current-format " #I:#W "
-" Inactive panes are dimmed a touch (bg+fg both biased ~12% toward
-" muted) so the focused pane stands out without making non-focus
-" content hard to read. Tweak via `themes::dim_inactive_pane_colors`.
+# Inactive panes are dimmed a touch (bg+fg both biased ~12% toward
+# muted) so the focused pane stands out without making non-focus
+# content hard to read. Tweak via `themes::dim_inactive_pane_colors`.
 set -g window-style "bg=AIBOX_TMUX_DIM_BG,fg=AIBOX_TMUX_DIM_FG"
 set -g window-active-style "bg=AIBOX_TMUX_BG,fg=AIBOX_TMUX_FG"
 set -g pane-border-style "fg=AIBOX_TMUX_MUTED,bg=AIBOX_TMUX_BG"
