@@ -1608,7 +1608,7 @@ pub(crate) fn serialize_config_with_comments(config: &AiboxConfig) -> String {
     out.push_str("# - swap: swap usage\n");
     out.push_str("# - disk: disk usage\n");
     out.push_str("# - gpu: GPU status when available\n");
-    out.push_str("# - modelstatus_<provider>: per-provider AI status segment; enabled through [customization.tmux.status.model-providers]\n");
+    out.push_str("# - modelstatus_<provider>: per-provider AI status segment; explicit layout entries render even when model-provider auto-add is off\n");
     let layout = crate::tmux::resolved_tmux_status_layout(config);
     out.push_str(&format!(
         "line1-left = [{}]\n",
@@ -1748,6 +1748,7 @@ pub(crate) fn serialize_config_with_comments(config: &AiboxConfig) -> String {
     );
     out.push_str("#   not poll live clusters and does not need second-level freshness.\n");
     out.push_str("# cloud-cache-ttl-seconds: local cloud CLI/context cache TTL; this avoids auth/network probes.\n");
+    out.push_str("# github-cache-ttl-seconds: local repo + GitHub issue/PR count cache TTL.\n");
     let refresh = &config.customization.tmux.status.refresh;
     out.push_str(&format!(
         "interval-seconds = {}\n",
@@ -1769,13 +1770,17 @@ pub(crate) fn serialize_config_with_comments(config: &AiboxConfig) -> String {
         "cloud-cache-ttl-seconds = {}\n",
         refresh.cloud_cache_ttl_seconds
     ));
+    out.push_str(&format!(
+        "github-cache-ttl-seconds = {}\n",
+        refresh.github_cache_ttl_seconds
+    ));
     out.push('\n');
     out.push_str("[customization.tmux.status.model-providers]\n");
     out.push_str(
         "# Optional networked model-provider health segments for the extended tmux status line.\n",
     );
     out.push_str("# Each configured provider becomes one PowerKit segment when enabled, for example OAI ✓ or ANT 󰚌.\n");
-    out.push_str("# enabled: false avoids background status-page calls by default; set true to render configured providers.\n");
+    out.push_str("# enabled: false avoids auto-adding all configured providers; explicit layout entries still render.\n");
     out.push_str(
         "# cache-ttl-seconds: minimum time between provider status requests per provider.\n",
     );

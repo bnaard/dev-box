@@ -1,0 +1,12 @@
+{
+  "mcpServers": {
+    "processkit-eval-gate-authoring": {
+      "command": "uv",
+      "args": [
+        "run",
+        "context/skills/processkit/eval-gate-authoring/mcp/server.py"
+      ],
+      "env": {}
+    }
+  }
+}

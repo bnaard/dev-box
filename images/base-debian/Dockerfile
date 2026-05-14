@@ -348,6 +348,7 @@ COPY config/tmux/powerkit-plugins/netspeed.sh   /usr/local/share/aibox/tmux/plug
 # context only and never runs live auth/network probes during render.
 COPY config/tmux/powerkit-plugins/kubernetes.sh /usr/local/share/aibox/tmux/plugins/tmux-powerkit/src/plugins/kubernetes.sh
 COPY config/tmux/powerkit-plugins/cloud.sh      /usr/local/share/aibox/tmux/plugins/tmux-powerkit/src/plugins/cloud.sh
+COPY config/tmux/powerkit-plugins/github.sh     /usr/local/share/aibox/tmux/plugins/tmux-powerkit/src/plugins/github.sh
 COPY config/tmux/powerkit-plugins/modelstatus_provider.sh /usr/local/share/aibox/tmux/plugins/tmux-powerkit/src/plugins/modelstatus_provider.sh
 RUN for provider in openai anthropic google mistral deepseek cohere xai alibaba aws meta microsoft minimax moonshot nvidia xiaomi zai; do \
       cp /usr/local/share/aibox/tmux/plugins/tmux-powerkit/src/plugins/modelstatus_provider.sh \

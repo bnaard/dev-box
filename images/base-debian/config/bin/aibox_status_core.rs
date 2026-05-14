@@ -350,12 +350,45 @@ fn read_cmdline_limited(path: &Path) -> Option<String> {
 }
 
 fn ai_agent_family(cmdline: &str) -> Option<&'static str> {
-    [
-        "codex", "claude", "gemini", "aider", "copilot", "opencode", "hermes",
-    ]
-    .iter()
-    .find(|family| contains_command_token(cmdline, family))
-    .copied()
+    let mut tokens = cmdline.split_whitespace();
+    let argv0 = tokens.next()?;
+    let argv0_name = basename(argv0);
+
+    if argv0_name == "node" {
+        if let Some(script) = tokens.next() {
+            return ai_agent_family_from_executable(basename(script), script);
+        }
+        return None;
+    }
+
+    ai_agent_family_from_executable(argv0_name, argv0)
+}
+
+fn ai_agent_family_from_executable(
+    executable_name: &str,
+    executable_path: &str,
+) -> Option<&'static str> {
+    match executable_name {
+        "claude" => Some("claude"),
+        "gemini" => Some("gemini"),
+        "aider" => Some("aider"),
+        "copilot" => Some("copilot"),
+        "opencode" => Some("opencode"),
+        "hermes" => Some("hermes"),
+        "codex" if !is_codex_internal_vendor_binary(executable_path) => Some("codex"),
+        _ => None,
+    }
+}
+
+fn basename(path: &str) -> &str {
+    path.rsplit('/')
+        .next()
+        .unwrap_or(path)
+        .trim_matches(|ch| ch == '\'' || ch == '"' || ch == '\0')
+}
+
+fn is_codex_internal_vendor_binary(path: &str) -> bool {
+    path.contains("/node_modules/@openai/codex") || path.contains("/vendor/")
 }
 
 fn contains_command_token(cmdline: &str, needle: &str) -> bool {
@@ -929,13 +962,20 @@ mod tests {
                 "bash -lc if command -v codex >/dev/null; then codex; fi",
             ),
             ("2", "node /usr/bin/codex"),
-            ("3", "/opt/codex/codex"),
+            (
+                "3",
+                "/usr/lib/node_modules/@openai/codex/node_modules/@openai/codex-linux-arm64/vendor/aarch64-unknown-linux-musl/codex/codex",
+            ),
             (
                 "4",
                 "bash -lc if command -v claude >/dev/null; then claude; fi",
             ),
             ("5", "claude"),
             ("6", "uv run processkit-gateway/mcp/server.py stdio-proxy"),
+            (
+                "7",
+                "/home/aibox/.codex/tmp/arg0/codex-linux-sandbox -- /bin/bash -c aibox-status --plugin-json",
+            ),
         ] {
             let pid_dir = dir.join(pid);
             std::fs::create_dir_all(&pid_dir).unwrap();
@@ -949,6 +989,8 @@ mod tests {
         );
         assert_eq!(details.processkit_mode, "daemon");
         assert_eq!(details.processkit_mcp, 1);
+        assert_eq!(details.ai_agents_breakdown["codex"], 1);
+        assert_eq!(details.ai_agents_breakdown["claude"], 1);
         let _ = std::fs::remove_dir_all(&dir);
     }
 

@@ -136,7 +136,7 @@ mode = "extended"                     # extended | plain | disabled (legacy: pow
 # - swap: swap usage
 # - disk: disk usage
 # - gpu: GPU status when available
-# - modelstatus_<provider>: per-provider AI status segment; enabled through [customization.tmux.status.model-providers]
+# - modelstatus_<provider>: per-provider AI status segment; explicit layout entries render even when model-provider auto-add is off
 line1-left = ["session", "windows"]
 line1-right = ["aibox_log", "aibox_oom", "aibox_proc", "aibox_ai", "aibox_mcp", "aibox_mig", "weather", "uptime", "datetime"]
 line2-left = ["git", "github", "kubernetes", "terraform", "cloud"]
@@ -181,16 +181,18 @@ elements-spacing = "both"
 # netspeed-cache-ttl-seconds: network throughput cache TTL.
 # kubernetes-cache-ttl-seconds: local kubeconfig context cache TTL.
 # cloud-cache-ttl-seconds: local cloud CLI/context cache TTL.
+# github-cache-ttl-seconds: local repo + GitHub issue/PR count cache TTL.
 interval-seconds = 10
 aibox-metrics-cache-ttl-seconds = 30
 netspeed-cache-ttl-seconds = 10
 kubernetes-cache-ttl-seconds = 120
 cloud-cache-ttl-seconds = 120
+github-cache-ttl-seconds = 120
 
 [customization.tmux.status.model-providers]
 # Optional networked model-provider health segments for the extended tmux status line.
 # Each configured provider becomes one PowerKit segment when enabled, for example OAI ✓ or ANT 󰚌.
-# enabled: false avoids background status-page calls by default; set true to render configured providers.
+# enabled: false avoids auto-adding all configured providers; explicit layout entries still render.
 # cache-ttl-seconds: minimum time between provider status requests per provider.
 # timeout-seconds: per-request HTTP timeout so status rendering cannot hang tmux.
 # show-ok: true shows healthy providers with ✓; false hides healthy providers and only shows degraded/unknown/outage.

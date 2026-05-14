@@ -304,6 +304,7 @@ fn claude_preauth_sets(
     if generated_dot_mcp_uses_processkit_gateway(project_root)? {
         servers.clear();
         servers.insert("processkit-gateway".to_string());
+        allow.clear();
         allow.insert("mcp__processkit-gateway__*".to_string());
     }
 
@@ -357,6 +358,7 @@ fn codex_allowed_tools_for_project(
 ) -> Result<BTreeSet<String>> {
     let mut current = codex_allowed_tools(spec);
     if codex_config_uses_processkit_gateway(project_root)? {
+        current.clear();
         current.insert("processkit-gateway".to_string());
     }
     Ok(current)
@@ -1057,5 +1059,10 @@ mod tests {
         assert!(allow.contains(&"Bash(npm test:*)".to_string()));
         assert!(allow.contains(&"mcp__processkit-gateway__*".to_string()));
         assert!(!allow.contains(&"mcp__processkit-workitem-management__*".to_string()));
+        assert!(
+            !allow
+                .iter()
+                .any(|entry| entry.starts_with("mcp__processkit-skill-"))
+        );
     }
 }

@@ -25,10 +25,15 @@ On first launch, Claude prompts for authentication via browser login.
 
 ## Configuration
 
-Claude's configuration and memory are persisted in `.aibox-home/.claude/`, which is mounted into the container at `/home/aibox/.claude/`.
+Claude's configuration, cache, and account state are persisted under `.aibox-home/`
+and mounted into the container. aibox preserves Claude's primary config directory
+(`.claude/`), top-level account state (`.claude.json`), and XDG state/cache
+locations used by current Claude Code releases.
 
 Key files:
 - `.claude/settings.json` — Claude Code settings
+- `.claude.json` — Claude Code account/install state
+- `.cache/claude*`, `.config/claude/`, `.local/share/claude/`, `.local/state/claude/` — Claude Code login and runtime state
 - `.claude/projects/` — Per-project memory and context
 - `.claude/skills/<name>/SKILL.md` — generated processkit command shims when Claude is enabled
 

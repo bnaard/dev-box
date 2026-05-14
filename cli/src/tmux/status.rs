@@ -40,11 +40,13 @@ set -g mouse on
 set -g history-limit 50000
 set -g escape-time 10
 set -g focus-events on
+set -g xterm-keys on
+set -s extended-keys on
 set -g allow-passthrough on
 set -g set-clipboard external
 set -g mode-keys vi
 set -g default-terminal "tmux-256color"
-set -ga terminal-features ",wezterm:RGB,clipboard,xterm-256color:RGB,clipboard,tmux-256color:RGB"
+set -ga terminal-features ",*:extkeys,wezterm:RGB,clipboard,xterm-256color:RGB,clipboard,tmux-256color:RGB"
 set -ga terminal-overrides ",xterm-256color:Tc,tmux-256color:Tc"
 set -g status-interval AIBOX_TMUX_STATUS_INTERVAL
 set -g prefix AIBOX_TMUX_PREFIX
@@ -532,6 +534,7 @@ fn status_refresh_option_lines(
         ("netspeed", refresh.netspeed_cache_ttl_seconds),
         ("kubernetes", refresh.kubernetes_cache_ttl_seconds),
         ("cloud", refresh.cloud_cache_ttl_seconds),
+        ("github", refresh.github_cache_ttl_seconds),
     ] {
         if configured(plugin) {
             lines.push_str(&format!(
@@ -588,17 +591,22 @@ fn status_label_option_lines(
 }
 
 fn model_provider_option_lines(config: &AiboxConfig, line1_right: &[String]) -> String {
-    if !config.customization.tmux.status.model_providers.enabled {
-        return String::new();
-    }
-
     let model_providers = &config.customization.tmux.status.model_providers;
     let mut lines = String::new();
     for provider in &model_providers.providers {
         let plugin = modelstatus_plugin_name(&provider.provider);
-        if !line1_right.iter().any(|configured| configured == &plugin) {
+        let plugin_configured = line1_right.iter().any(|configured| configured == &plugin);
+        if !plugin_configured {
             continue;
         }
+        let explicitly_configured = config
+            .customization
+            .tmux
+            .status
+            .layout
+            .line1_right
+            .as_ref()
+            .is_some_and(|items| items.iter().any(|configured| configured == &plugin));
         lines.push_str(&format!(
             "\nset -g @powerkit_plugin_{plugin}_provider \"{}\"",
             tmux_option_escape(&provider.provider)
@@ -631,6 +639,10 @@ fn model_provider_option_lines(config: &AiboxConfig, line1_right: &[String]) -> 
         lines.push_str(&format!(
             "\nset -g @powerkit_plugin_{plugin}_show_glyph_when_ok \"{}\"",
             show_glyph_when_ok
+        ));
+        lines.push_str(&format!(
+            "\nset -g @powerkit_plugin_{plugin}_force_render \"{}\"",
+            explicitly_configured
         ));
         if let Some(status_url) = &provider.status_url {
             lines.push_str(&format!(
@@ -1041,8 +1053,11 @@ mod tests {
                 && conf.contains("set -g set-clipboard external")
                 && conf.contains("set -g mode-keys vi")
                 && conf.contains("set -g default-terminal \"tmux-256color\"")
+                && conf.contains("set -g xterm-keys on")
+                && conf.contains("set -s extended-keys on")
+                && conf.contains("*:extkeys")
                 && conf.contains("wezterm:RGB,clipboard"),
-            "generated tmux config should enable passthrough, clipboard, vi copy-mode, and tmux-256color defaults for terminal app compatibility:\n{conf}"
+            "generated tmux config should enable passthrough, modified-key forwarding, clipboard, vi copy-mode, and tmux-256color defaults for terminal app compatibility:\n{conf}"
         );
         assert!(
             conf.contains("/usr/local/share/aibox/tmux/plugins/tmux-sensible/sensible.tmux")
@@ -1089,6 +1104,7 @@ mod tests {
                 && conf.contains(r#"@powerkit_plugin_netspeed_cache_ttl "10""#)
                 && conf.contains(r#"@powerkit_plugin_kubernetes_cache_ttl "120""#)
                 && conf.contains(r#"@powerkit_plugin_cloud_cache_ttl "120""#)
+                && conf.contains(r#"@powerkit_plugin_github_cache_ttl "120""#)
                 && conf.contains(r#"@powerkit_plugin_aibox_log_label "󱖫""#)
                 && conf.contains(r#"@powerkit_plugin_aibox_oom_label "󰍛󰚌""#)
                 && conf.contains(r#"@powerkit_plugin_aibox_proc_label "󰊚""#)
@@ -1322,6 +1338,31 @@ mod tests {
                 && conf.contains(r#"@powerkit_plugin_modelstatus_anthropic_model_components "Claude API""#)
                 && conf.contains(r#"@powerkit_plugin_modelstatus_anthropic_harness_components "Claude Code""#),
             "model provider plugin options should be generated for each provider:\n{conf}"
+        );
+    }
+
+    #[test]
+    fn explicit_model_provider_segments_render_without_global_auto_add() {
+        let mut config = crate::config::test_config();
+        config.customization.tmux.status.model_providers.enabled = false;
+        config.customization.tmux.status.layout.line1_right = Some(vec![
+            "modelstatus_openai".to_string(),
+            "modelstatus_anthropic".to_string(),
+            "weather".to_string(),
+        ]);
+        let conf = tmux_conf(&config);
+
+        assert!(
+            conf.contains(r#"@powerkit_line1_right "modelstatus_openai,modelstatus_anthropic,weather""#)
+                && conf.contains(r#"@powerkit_plugins "modelstatus_openai,modelstatus_anthropic,weather,git,github,kubernetes,terraform,cloud,hostname,externalip,ssh,netspeed,ping,cpu,loadavg,memory,swap,disk,gpu""#),
+            "explicit modelstatus_* layout entries should remain in the PowerKit plugin list:\n{conf}"
+        );
+        assert!(
+            conf.contains(r#"@powerkit_plugin_modelstatus_openai_label "OAI""#)
+                && conf.contains(r#"@powerkit_plugin_modelstatus_anthropic_label "ANT""#)
+                && conf.contains(r#"@powerkit_plugin_modelstatus_openai_force_render "true""#)
+                && conf.contains(r#"@powerkit_plugin_modelstatus_anthropic_force_render "true""#),
+            "explicit modelstatus_* layout entries should emit options and stay visible even when healthy:\n{conf}"
         );
     }
 

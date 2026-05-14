@@ -1734,6 +1734,10 @@ fn default_tmux_status_cloud_cache_ttl_seconds() -> u32 {
     120
 }
 
+fn default_tmux_status_github_cache_ttl_seconds() -> u32 {
+    120
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
 #[serde(rename_all = "kebab-case")]
 pub struct TmuxStatusRefreshSection {
@@ -1747,6 +1751,8 @@ pub struct TmuxStatusRefreshSection {
     pub kubernetes_cache_ttl_seconds: u32,
     #[serde(default = "default_tmux_status_cloud_cache_ttl_seconds")]
     pub cloud_cache_ttl_seconds: u32,
+    #[serde(default = "default_tmux_status_github_cache_ttl_seconds")]
+    pub github_cache_ttl_seconds: u32,
 }
 
 impl Default for TmuxStatusRefreshSection {
@@ -1757,6 +1763,7 @@ impl Default for TmuxStatusRefreshSection {
             netspeed_cache_ttl_seconds: default_tmux_status_netspeed_cache_ttl_seconds(),
             kubernetes_cache_ttl_seconds: default_tmux_status_kubernetes_cache_ttl_seconds(),
             cloud_cache_ttl_seconds: default_tmux_status_cloud_cache_ttl_seconds(),
+            github_cache_ttl_seconds: default_tmux_status_github_cache_ttl_seconds(),
         }
     }
 }
@@ -3642,6 +3649,12 @@ impl AiboxConfig {
                 1,
                 3600,
             ),
+            (
+                "github-cache-ttl-seconds",
+                refresh.github_cache_ttl_seconds,
+                1,
+                3600,
+            ),
         ] {
             if value < min || value > max {
                 bail!(
@@ -4088,6 +4101,7 @@ fn check_customization_table(
                         "netspeed-cache-ttl-seconds",
                         "kubernetes-cache-ttl-seconds",
                         "cloud-cache-ttl-seconds",
+                        "github-cache-ttl-seconds",
                     ],
                     mismatches,
                 );

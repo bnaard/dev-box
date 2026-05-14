@@ -468,6 +468,11 @@ pub static COMPAT_TABLE: &[CompatEntry] = &[
         processkit_version: "v0.26.9",
         note: "Patch release: fixes fetch_latest_image_version (cli/src/update.rs) silently capping at the first GHCR tag-list page so freshly-published images were invisible until enough older tags fell off — `aibox apply` kept resolving `latest` to a long-stale image (e.g. v0.25.12 after v0.26.0–v0.26.2 had already shipped). The resolver now requests `?n=1000` on the first call AND walks Docker Registry v2 `Link: <…>; rel=\"next\"` pagination (capped at 50 pages defensively). 6 new unit tests cover the Link-header parser (relative vs absolute URLs, quoted vs unquoted rel, multi-relation headers, malformed inputs). The release-host verifier from v0.26.1 (verify_release_images_in_ghcr) was unaffected — it uses per-tag buildx imagetools inspect rather than the tag-list endpoint. Tracked as BACK-20260514_1902-ShinyLake.",
     },
+    CompatEntry {
+        aibox_version: "0.26.4",
+        processkit_version: "v0.26.10",
+        note: "Patch release: integrates processkit v0.26.10; makes explicit tmux model-provider status elements render even without global provider polling; preserves Claude Code OAuth/state across container rebuilds via Claude XDG cache/config/state mounts; enables terminal extended-key passthrough for Alt-Enter; adds PowerKit GitHub issue/PR counts; and fixes aibox-status AI agent counting so vendor helper processes do not inflate provider instance totals.",
+    },
 ];
 
 /// Find the minimum compatible processkit version for the given aibox version.

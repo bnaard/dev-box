@@ -208,6 +208,18 @@ pub(crate) fn runtime_home_scaffold_dirs(config: &AiboxConfig) -> Vec<PathBuf> {
         dirs.push(PathBuf::from(".opencode/plugins"));
     }
 
+    if config
+        .ai
+        .harnesses
+        .contains(&crate::config::AiProvider::Claude)
+    {
+        dirs.push(PathBuf::from(".cache/claude"));
+        dirs.push(PathBuf::from(".cache/claude-cli-nodejs"));
+        dirs.push(PathBuf::from(".config/claude"));
+        dirs.push(PathBuf::from(".local/share/claude"));
+        dirs.push(PathBuf::from(".local/state/claude"));
+    }
+
     if config.addons.has_rust() {
         dirs.push(PathBuf::from(".cargo/registry"));
         dirs.push(PathBuf::from(".cargo/git"));
@@ -354,5 +366,35 @@ mod tests {
             !destinations.contains(&"/root/.cargo"),
             "mounting the whole Cargo home shadows image-provided cargo/rustc shims"
         );
+    }
+
+    #[test]
+    fn claude_runtime_home_preserves_login_state_locations() {
+        let config = crate::config::test_config();
+        let mounts = runtime_home_mounts(&config);
+        let destinations: Vec<_> = mounts
+            .iter()
+            .map(|mount| mount.destination.as_str())
+            .collect();
+        assert!(destinations.contains(&"/root/.claude"));
+        assert!(destinations.contains(&"/root/.claude.json"));
+        assert!(destinations.contains(&"/root/.cache"));
+        assert!(destinations.contains(&"/root/.config"));
+        assert!(destinations.contains(&"/root/.local"));
+
+        let dirs = runtime_home_scaffold_dirs(&config);
+        for rel in [
+            ".claude",
+            ".cache/claude",
+            ".cache/claude-cli-nodejs",
+            ".config/claude",
+            ".local/share/claude",
+            ".local/state/claude",
+        ] {
+            assert!(
+                dirs.iter().any(|dir| dir == std::path::Path::new(rel)),
+                "runtime home should scaffold {rel} for Claude Code login persistence: {dirs:?}"
+            );
+        }
     }
 }

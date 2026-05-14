@@ -81,6 +81,10 @@ plugin_declare_options() {
     declare_option "show_glyph_when_ok" "bool" "false" "Render ✓ glyph for ok state (chevron color already signals it)"
     # show_ok: legacy alias kept for backward compatibility
     declare_option "show_ok" "bool" "false" "Legacy alias for show_glyph_when_ok"
+    # force_render keeps explicitly configured provider segments visible even
+    # when the global model-provider auto-add toggle is off and the provider is
+    # currently healthy with no agent/quota/admin suffix to show.
+    declare_option "force_render" "bool" "false" "Render an empty healthy segment body instead of hiding the segment"
 
     # ── Phase 1 — local agent count ─────────────────────────────────────────
     declare_option "show_agent_count" "bool" "true" "Append ×N (local agent count) to segment text"
@@ -546,14 +550,15 @@ plugin_get_icon() {
 }
 
 plugin_get_state() {
-    local status show_ok show_glyph_when_ok show_glyph
+    local status show_ok show_glyph_when_ok show_glyph force_render
     status=$(plugin_data_get "status")
     show_ok=$(get_option "show_ok")
     show_glyph_when_ok=$(get_option "show_glyph_when_ok")
+    force_render=$(get_option "force_render")
     show_glyph="false"
     [[ "$show_ok" == "true" || "$show_glyph_when_ok" == "true" ]] && show_glyph="true"
 
-    if [[ "$status" == "ok" && "$show_glyph" != "true" ]]; then
+    if [[ "$status" == "ok" && "$show_glyph" != "true" && "$force_render" != "true" ]]; then
         # Check whether there is anything to show (agent count / quota / admin)
         local agent_count quota_pct admin_text
         agent_count=$(plugin_data_get "agent_count")

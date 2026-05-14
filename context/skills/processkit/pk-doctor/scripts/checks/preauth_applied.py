@@ -43,6 +43,7 @@ _SPEC_REL = Path("context/skills/processkit/skill-gate/assets/preauth.json")
 _SETTINGS_REL = Path(".claude/settings.json")
 _CODEX_CONFIG_REL = Path(".codex/config.toml")
 _MANIFEST_REL = Path("context/.processkit-mcp-manifest.json")
+_GATEWAY_SERVER = "processkit-gateway"
 
 
 def _load_json(path: Path) -> dict | None:
@@ -121,6 +122,69 @@ def _expected_servers_from_manifest(manifest: dict) -> set[str]:
     return names
 
 
+def _expected_servers_from_mcp_configs(repo_root: Path) -> set[str]:
+    names: set[str] = set()
+    skills_roots = [
+        repo_root / "context" / "skills",
+        repo_root / "src" / "context" / "skills",
+    ]
+    seen_paths: set[str] = set()
+    for skills_root in skills_roots:
+        if not skills_root.is_dir():
+            continue
+        configs = [
+            *skills_root.glob("*/*/mcp/mcp-config.json"),
+            *skills_root.glob("*/mcp/mcp-config.json"),
+        ]
+        for cfg in sorted(configs):
+            try:
+                rel = cfg.relative_to(repo_root).as_posix()
+            except ValueError:
+                rel = cfg.as_posix()
+            if rel.startswith("src/context/"):
+                rel = rel[len("src/"):]
+            if rel in seen_paths:
+                continue
+            seen_paths.add(rel)
+            data = _load_json(cfg)
+            if data is None:
+                continue
+            servers = data.get("mcpServers") or {}
+            if not isinstance(servers, dict):
+                continue
+            names.update(
+                name for name in servers
+                if isinstance(name, str) and name != _GATEWAY_SERVER
+            )
+    return names
+
+
+def _drift_result(source: str, expected: set[str], spec_servers: set[str]):
+    missing = sorted(expected - spec_servers)
+    extra = sorted(spec_servers - expected)
+    bits: list[str] = []
+    if missing:
+        bits.append(f"missing from spec: {', '.join(missing[:5])}"
+                    + (f" (+{len(missing) - 5} more)"
+                       if len(missing) > 5 else ""))
+    if extra:
+        bits.append(f"extra in spec: {', '.join(extra[:5])}"
+                    + (f" (+{len(extra) - 5} more)"
+                       if len(extra) > 5 else ""))
+    return CheckResult(
+        severity="WARN",
+        category="preauth_applied",
+        id="preauth_applied.spec-drift",
+        message=(
+            "preauth.json enabledMcpjsonServers does not match "
+            f"{source}-derived names; {'; '.join(bits)}"
+        ),
+        suggested_fix=(
+            "regenerate preauth.json from shipped mcp-config.json files"
+        ),
+    )
+
+
 def run(ctx) -> list[CheckResult]:
     repo_root: Path = ctx["repo_root"]
 
@@ -157,36 +221,21 @@ def run(ctx) -> list[CheckResult]:
     # Drift: spec server list vs manifest-derived list. Warns processkit
     # maintainers when the manifest moves but preauth.json hasn't been
     # regenerated.
+    expected_from_configs = _expected_servers_from_mcp_configs(repo_root)
+    if expected_from_configs and expected_from_configs != spec_servers:
+        results.append(_drift_result(
+            "mcp-config",
+            expected_from_configs,
+            spec_servers,
+        ))
+
     manifest_path = repo_root / _MANIFEST_REL
     if manifest_path.is_file():
         manifest = _load_json(manifest_path)
         if manifest is not None:
             expected = _expected_servers_from_manifest(manifest)
             if expected and expected != spec_servers:
-                missing = sorted(expected - spec_servers)
-                extra = sorted(spec_servers - expected)
-                bits: list[str] = []
-                if missing:
-                    bits.append(f"missing from spec: {', '.join(missing[:5])}"
-                                + (f" (+{len(missing) - 5} more)"
-                                   if len(missing) > 5 else ""))
-                if extra:
-                    bits.append(f"extra in spec: {', '.join(extra[:5])}"
-                                + (f" (+{len(extra) - 5} more)"
-                                   if len(extra) > 5 else ""))
-                results.append(CheckResult(
-                    severity="WARN",
-                    category="preauth_applied",
-                    id="preauth_applied.spec-drift",
-                    message=(
-                        "preauth.json enabledMcpjsonServers does not match "
-                        f"manifest-derived names; {'; '.join(bits)}"
-                    ),
-                    suggested_fix=(
-                        "regenerate preauth.json from "
-                        ".processkit-mcp-manifest.json"
-                    ),
-                ))
+                results.append(_drift_result("manifest", expected, spec_servers))
 
     settings_path = repo_root / _SETTINGS_REL
     if not settings_path.is_file():
@@ -228,6 +277,15 @@ def run(ctx) -> list[CheckResult]:
             )
 
             missing_perms = sorted(spec_perms - live_perms)
+            if (
+                missing_perms
+                and in_gateway_mode
+                and "mcp__processkit-gateway__*" in live_perms
+            ):
+                # In gateway mode, the gateway wildcard authorizes the
+                # proxied processkit tool surface. Per-skill wildcards may be
+                # absent by design.
+                missing_perms = []
             if missing_perms:
                 preview = ", ".join(missing_perms[:5])
                 if len(missing_perms) > 5:
@@ -299,6 +357,10 @@ def run(ctx) -> list[CheckResult]:
             ))
         else:
             missing_codex_tools = sorted(spec_codex_tools - live_codex_tools)
+            if missing_codex_tools and "processkit-gateway" in live_codex_tools:
+                # aibox collapsed Codex MCP registration to the gateway. The
+                # gateway tool entry replaces per-skill preauth wildcards.
+                missing_codex_tools = []
             if missing_codex_tools:
                 preview = ", ".join(missing_codex_tools[:5])
                 if len(missing_codex_tools) > 5:

@@ -136,7 +136,7 @@ Ensure port 4714 is accessible from the container network. On systems with stric
 
 When running `claude auth` inside a container with bridge networking (OrbStack, Docker Desktop), the OAuth callback may fail. Claude Code starts a temporary HTTP server on a random ephemeral port to receive the callback, but that port isn't forwarded to the host browser.
 
-**Workaround:** Use `claude setup-token` to authenticate manually, or authenticate on the host first — the `.claude` directory is bind-mounted into the container, so credentials are shared.
+**Workaround:** Use `claude setup-token` to authenticate manually, or authenticate on the host first. aibox bind-mounts Claude's `.claude/`, `.claude.json`, and XDG cache/config/state locations, so credentials survive container rebuilds.
 
 :::info Upstream tracking
 

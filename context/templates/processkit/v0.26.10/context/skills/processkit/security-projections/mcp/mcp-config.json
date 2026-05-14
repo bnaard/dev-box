@@ -1,0 +1,12 @@
+{
+  "mcpServers": {
+    "processkit-security-projections": {
+      "command": "uv",
+      "args": [
+        "run",
+        "context/skills/processkit/security-projections/mcp/server.py"
+      ],
+      "env": {}
+    }
+  }
+}
