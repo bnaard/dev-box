@@ -3321,10 +3321,28 @@ pub fn cmd_sync(
                     reason,
                     prior_state,
                 } => {
-                    output::warn(&format!(
-                        "Repairing processkit template mirror for {}@{}: {}. No manual action is required; aibox will reinstall the pinned processkit files now. Previous integrity state: {}",
-                        config.processkit.source, config.processkit.version, reason, prior_state
-                    ));
+                    // The `install_hash_mismatch` reason is self-healing
+                    // by design — the install machinery silently restores
+                    // the pinned upstream payload. Demote it to an info
+                    // line so derived projects don't see a scary
+                    // recurring warn for a non-issue. Other prior states
+                    // (MissingProvenance, MismatchedVersion, …) signal
+                    // genuinely unusual conditions and keep the warn.
+                    if matches!(
+                        &prior_state,
+                        crate::integrity::IntegrityStatus::Stale { reason: r, .. }
+                            if r == "install_hash_mismatch"
+                    ) {
+                        output::info(&format!(
+                            "Refreshing pinned processkit install for {}@{} (detected drift in upstream-shipped files since the last sync; reinstalling).",
+                            config.processkit.source, config.processkit.version
+                        ));
+                    } else {
+                        output::warn(&format!(
+                            "Repairing processkit template mirror for {}@{}: {}. No manual action is required; aibox will reinstall the pinned processkit files now.",
+                            config.processkit.source, config.processkit.version, reason
+                        ));
+                    }
                     run_install(&cwd, &config);
                 }
             }

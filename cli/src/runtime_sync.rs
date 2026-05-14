@@ -860,11 +860,17 @@ fn write_migration_document(
     let out_path = pending_dir.join(format!("{}.md", id));
 
     let mut affected_groups = BTreeSet::new();
+    // Per projectious-work/aibox#74: also emit a sorted spec.affected_files
+    // listing in the frontmatter so pk-doctor's `migration_integrity`
+    // check stays consistent across content_diff and runtime_sync writers.
+    let mut affected_files: Vec<(&str, &'static str)> = Vec::new();
     for diff in diffs {
         if diff.classification != FileClassification::Unchanged {
             affected_groups.insert(runtime_group_for(&diff.rel_path));
+            affected_files.push((diff.rel_path.as_str(), diff.classification.label()));
         }
     }
+    affected_files.sort_by(|a, b| a.0.cmp(b.0));
 
     let summary_line = format!(
         "{} changed upstream, {} conflicts, {} new, {} removed ({} groups affected)",
@@ -900,6 +906,18 @@ fn write_migration_document(
     } else {
         for group in &affected_groups {
             body.push_str(&format!("    - {}\n", yaml_scalar(group)));
+        }
+    }
+    body.push_str("  affected_files:\n");
+    if affected_files.is_empty() {
+        body.push_str("    []\n");
+    } else {
+        for (path, label) in &affected_files {
+            body.push_str(&format!(
+                "    - {{ path: {}, classification: {} }}\n",
+                yaml_scalar(path),
+                yaml_scalar(label),
+            ));
         }
     }
     body.push_str("---\n\n");

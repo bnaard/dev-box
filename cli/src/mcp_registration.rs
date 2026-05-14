@@ -1638,6 +1638,44 @@ fn select_processkit_gateway_specs(
     }
 }
 
+/// Tag the install-hash output format. Bump whenever the set of files we
+/// fingerprint changes, so legacy hashes computed under a prior rule set
+/// can be detected and silently re-stamped instead of surfacing as drift.
+///
+/// v1 (legacy, no prefix): hashed every file under the install roots.
+/// v2: same roots, but skips per-skill `config/` subdirectories because
+///     `settings.toml` files under those are explicitly agent-mutable
+///     per `AGENTS.md`. Including them turned every legitimate setting
+///     edit into a "Stale install_hash_mismatch" warning on next
+///     `aibox apply`.
+const INSTALL_HASH_FORMAT_TAG: &str = "v2";
+
+/// True for files that live under a per-skill `config/` subdirectory —
+/// e.g. `context/skills/processkit/<skill>/config/settings.toml`. These
+/// hold runtime configuration the agent is explicitly allowed (and
+/// expected) to edit, so they must not feed into the install fingerprint.
+fn is_user_mutable_skill_config(rel_path: &Path) -> bool {
+    let mut iter = rel_path.components().peekable();
+    let mut saw_skills = false;
+    while let Some(comp) = iter.next() {
+        let segment = match comp.as_os_str().to_str() {
+            Some(s) => s,
+            None => continue,
+        };
+        if segment == "skills" {
+            saw_skills = true;
+            continue;
+        }
+        if saw_skills && segment == "config" {
+            // Only treat `config` as user-mutable when it appears as a
+            // directory segment with something nested under it — the
+            // top-level path passes through here too.
+            return iter.peek().is_some();
+        }
+    }
+    false
+}
+
 /// Compute a SHA256 fingerprint over the broad processkit-shipped
 /// install payload.
 ///
@@ -1647,7 +1685,9 @@ fn select_processkit_gateway_specs(
 ///    processkit-owned subtree of live skills (server.py, SKILL.md,
 ///    mcp-config.json, prompt fragments, etc.). **Only the
 ///    `processkit/` category** is in scope; user-authored skills under
-///    other categories are deliberately excluded.
+///    other categories are deliberately excluded. Files inside any
+///    `<skill>/config/` subdirectory are also skipped — those hold
+///    `settings.toml` files that AGENTS.md designates as agent-editable.
 /// 2. `context/skills/_lib/**` — the shared Python lib used by every
 ///    processkit MCP server.
 /// 3. `context/schemas/**` — entity-layer schemas.
@@ -1661,13 +1701,18 @@ fn select_processkit_gateway_specs(
 /// file_content_bytes, b"\0")` into a single `Sha256` hasher. The
 /// path is relative to `project_root` and the directory walk is
 /// deterministic because we sort the collected file list before
-/// hashing. Returns `Some(hex_digest)` when at least one file was
-/// hashed, otherwise `None` (no processkit content installed yet).
+/// hashing. The hex digest is prefixed with `INSTALL_HASH_FORMAT_TAG`
+/// (`"v2:<hex>"`) so format upgrades can be detected on read; see
+/// [`legacy_install_hash`] for the inverse predicate. Returns
+/// `Some(prefixed_digest)` when at least one file was hashed, otherwise
+/// `None` (no processkit content installed yet).
 ///
 /// Renames, content edits, additions, and removals all invalidate the
 /// fingerprint — which is the WS-7 contract: any change to a
 /// processkit-shipped file under the live tree will be detected on the
 /// next sync, regardless of whether `mcp-config.json` itself changed.
+/// Edits to agent-mutable `<skill>/config/settings.toml` files are the
+/// one documented exception.
 pub fn compute_processkit_install_fingerprint(project_root: &Path) -> Option<String> {
     // Roots we care about, project-root-relative. Order is purely
     // documentation — we sort the merged file list before hashing, so
@@ -1687,6 +1732,13 @@ pub fn compute_processkit_install_fingerprint(project_root: &Path) -> Option<Str
     for root in &roots {
         collect_files_recursive(root, &mut paths);
     }
+
+    // Drop agent-mutable per-skill config files before sorting, so the
+    // hash is invariant under `settings.toml` edits.
+    paths.retain(|p| match p.strip_prefix(project_root) {
+        Ok(rel) => !is_user_mutable_skill_config(rel),
+        Err(_) => true,
+    });
 
     if paths.is_empty() {
         return None;
@@ -1712,7 +1764,26 @@ pub fn compute_processkit_install_fingerprint(project_root: &Path) -> Option<Str
         }
     }
 
-    Some(format!("{:x}", hasher.finalize()))
+    Some(format!("{}:{:x}", INSTALL_HASH_FORMAT_TAG, hasher.finalize()))
+}
+
+/// Return true when `stored` is a hash that was computed under the v1
+/// (untagged, pre–per-skill-config-exclusion) format. Used by the
+/// integrity check to recognise legacy values and silently re-stamp
+/// them on the first `aibox apply` after upgrade, instead of surfacing
+/// as `install_hash_mismatch` drift.
+pub fn is_legacy_install_hash(stored: &str) -> bool {
+    // A v2+ hash is `"vN:<hex>"`; a legacy hash is bare hex. We accept
+    // any future `vN:` prefix as "non-legacy" so a later format bump
+    // doesn't accidentally treat its own output as legacy.
+    !stored
+        .split_once(':')
+        .map(|(prefix, rest)| {
+            prefix.starts_with('v')
+                && prefix[1..].chars().all(|c| c.is_ascii_digit())
+                && !rest.is_empty()
+        })
+        .unwrap_or(false)
 }
 
 /// Recursive directory walk — appends every regular file found under
@@ -4883,6 +4954,103 @@ args = ["server.js"]
         let dir = TempDir::new().unwrap();
         let result = compute_processkit_install_fingerprint(dir.path());
         assert!(result.is_none());
+    }
+
+    #[test]
+    fn compute_fingerprint_carries_format_tag() {
+        let dir = TempDir::new().unwrap();
+        let path = dir
+            .path()
+            .join("context/skills/processkit/my-skill/mcp/mcp-config.json");
+        fs::create_dir_all(path.parent().unwrap()).unwrap();
+        fs::write(&path, r#"{"mcpServers":{}}"#).unwrap();
+        let h = compute_processkit_install_fingerprint(dir.path()).unwrap();
+        assert!(
+            h.starts_with("v2:"),
+            "fingerprint must be tagged with the install-hash format version (got {h})"
+        );
+        assert!(
+            !is_legacy_install_hash(&h),
+            "tagged hash {h} must not be detected as legacy"
+        );
+    }
+
+    #[test]
+    fn is_legacy_install_hash_recognises_pre_v2_strings() {
+        // v1 (pre-WS-7-config-exclusion) hashes were bare hex, no prefix.
+        assert!(is_legacy_install_hash(
+            "a292fab4999922930a06c83f0976067dc6c017d1debf83163d3e2129d7fb0440"
+        ));
+        // v2 hashes carry the prefix.
+        assert!(!is_legacy_install_hash("v2:abcdef0123"));
+        // Future-proofing: any `vN:` prefix is treated as non-legacy.
+        assert!(!is_legacy_install_hash("v3:abc"));
+        // Malformed value: no prefix, treat as legacy (safe re-stamp).
+        assert!(is_legacy_install_hash(""));
+    }
+
+    #[test]
+    fn compute_fingerprint_ignores_per_skill_config_edits() {
+        // Reproduces the bug behind "Repairing processkit template mirror
+        // ... install_hash_mismatch" appearing on every aibox apply: the
+        // agent legitimately edits `<skill>/config/settings.toml` per
+        // AGENTS.md, and the fingerprint used to flip on every such edit.
+        let dir = TempDir::new().unwrap();
+        let skill_root = dir.path().join("context/skills/processkit/my-skill");
+        fs::create_dir_all(skill_root.join("mcp")).unwrap();
+        fs::create_dir_all(skill_root.join("config")).unwrap();
+        fs::write(
+            skill_root.join("mcp/mcp-config.json"),
+            r#"{"mcpServers":{}}"#,
+        )
+        .unwrap();
+        fs::write(skill_root.join("config/settings.toml"), "key = \"a\"\n").unwrap();
+
+        let h1 = compute_processkit_install_fingerprint(dir.path()).unwrap();
+
+        // Edit the user-mutable settings.toml: hash must stay constant.
+        fs::write(skill_root.join("config/settings.toml"), "key = \"b\"\n").unwrap();
+        let h2 = compute_processkit_install_fingerprint(dir.path()).unwrap();
+        assert_eq!(
+            h1, h2,
+            "edits to per-skill config/settings.toml must not change the install fingerprint"
+        );
+
+        // Edit a non-config file under the same skill: hash must change.
+        fs::write(
+            skill_root.join("mcp/mcp-config.json"),
+            r#"{"mcpServers":{"x":{"command":"true","args":[]}}}"#,
+        )
+        .unwrap();
+        let h3 = compute_processkit_install_fingerprint(dir.path()).unwrap();
+        assert_ne!(
+            h1, h3,
+            "edits to non-config files must still invalidate the install fingerprint"
+        );
+    }
+
+    #[test]
+    fn is_user_mutable_skill_config_classifies_correctly() {
+        use std::path::Path;
+        assert!(is_user_mutable_skill_config(Path::new(
+            "context/skills/processkit/my-skill/config/settings.toml"
+        )));
+        assert!(is_user_mutable_skill_config(Path::new(
+            "context/skills/_lib/foo/config/nested/value.toml"
+        )));
+        // Files immediately named `config` (not inside a `config/` dir)
+        // must not be skipped — e.g. `_lib/processkit/config.py`.
+        assert!(!is_user_mutable_skill_config(Path::new(
+            "context/skills/_lib/processkit/config.py"
+        )));
+        // Files outside `skills/` are out of scope for the exclusion.
+        assert!(!is_user_mutable_skill_config(Path::new(
+            "context/schemas/config/foo.yaml"
+        )));
+        // SKILL.md must stay in the hash.
+        assert!(!is_user_mutable_skill_config(Path::new(
+            "context/skills/processkit/my-skill/SKILL.md"
+        )));
     }
 
     #[test]

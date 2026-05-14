@@ -646,13 +646,25 @@ pub fn write_migration_document(
     let id = format!("MIG-{}", id_ts);
     let out_path = pending_dir.join(format!("{}.md", id));
 
-    // Determine affected groups (groups with at least one non-Unchanged entry).
+    // Determine affected groups (groups with at least one non-Unchanged
+    // entry) AND the per-file change list. Both feed the YAML frontmatter
+    // so downstream consumers (pk-doctor migration_integrity, agents
+    // ingesting Migration entities via MCP) get a machine-readable
+    // affected_files listing that exactly matches the body rows.
+    // See projectious-work/aibox#74.
     let mut affected_groups: BTreeSet<String> = BTreeSet::new();
+    let mut affected_files: Vec<(&FileDiff, &'static str)> = Vec::new();
     for d in diffs {
-        if !matches!(d.classification, FileClassification::Unchanged) {
-            affected_groups.insert(d.group.clone().unwrap_or_default());
+        if matches!(d.classification, FileClassification::Unchanged) {
+            continue;
         }
+        affected_groups.insert(d.group.clone().unwrap_or_default());
+        affected_files.push((d, d.classification.label()));
     }
+    // Sort by path so the order is deterministic across host filesystems
+    // and stable across runs (the migration is content-addressed via
+    // pk-doctor checks downstream).
+    affected_files.sort_by(|a, b| a.0.cache_rel_path.cmp(&b.0.cache_rel_path));
 
     let summary_line = format!(
         "{} changed upstream, {} conflicts, {} new, {} removed, {} stale-removed ({} groups affected)",
@@ -699,6 +711,20 @@ pub fn write_migration_document(
     } else {
         for g in &affected_groups {
             body.push_str(&format!("    - {}\n", yaml_scalar(g)));
+        }
+    }
+    body.push_str("  affected_files:\n");
+    if affected_files.is_empty() {
+        body.push_str("    []\n");
+    } else {
+        for (d, label) in &affected_files {
+            // Two-key mapping per entry: path + classification. Encoded
+            // inline so the list stays compact for the typical N≤50 case.
+            body.push_str(&format!(
+                "    - {{ path: {}, classification: {} }}\n",
+                yaml_scalar(&d.cache_rel_path),
+                yaml_scalar(label),
+            ));
         }
     }
     body.push_str("---\n\n");
@@ -1425,6 +1451,34 @@ mod tests {
         assert_eq!(pair.0, "https://github.com/example/processkit.git");
         assert_eq!(pair.1, "v1.0.0");
         assert_eq!(pair.2, "v1.0.1");
+
+        // Regression guard for projectious-work/aibox#74: every body row
+        // must also appear under spec.affected_files in the frontmatter,
+        // so pk-doctor's `migration_integrity.affected-files-empty` check
+        // stays clean for legitimately-generated migrations.
+        assert!(
+            body.contains("  affected_files:\n"),
+            "frontmatter must include spec.affected_files"
+        );
+        assert!(
+            body.contains(
+                "    - { path: primitives/schemas/workitem.yaml, classification: changed-upstream-only }\n"
+            ),
+            "affected_files must list workitem.yaml with its classification — body was:\n{body}"
+        );
+        assert!(
+            body.contains(
+                "    - { path: skills/event-log/NEW.md, classification: new-upstream }\n"
+            ),
+            "affected_files must list the new file with its classification — body was:\n{body}"
+        );
+        // Affected files are sorted by path for deterministic output.
+        let pf_idx = body.find("path: primitives/schemas/workitem.yaml").unwrap();
+        let sk_idx = body.find("path: skills/event-log/NEW.md").unwrap();
+        assert!(
+            pf_idx < sk_idx,
+            "affected_files must be sorted lexicographically by path"
+        );
     }
 
     #[test]

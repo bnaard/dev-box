@@ -504,8 +504,17 @@ pub fn verify_install_integrity(
 
     // 6. install_hash check (mirrors processkit_install_hash). Optional
     //    — if the install didn't write one (e.g. no processkit content
-    //    on disk), skip it.
+    //    on disk), skip it. Legacy `v1` hashes (no format prefix) were
+    //    computed before per-skill `config/` directories were excluded
+    //    from the fingerprint, so they will always mismatch the v2
+    //    output even on an untouched install. Treat that single case as
+    //    healthy on the read side; `cmd_sync` will re-stamp the lock
+    //    with the v2 value at the end of the run without surfacing a
+    //    drift warning to the user.
     if let Some(expected) = &live.manifest.install_hash {
+        if crate::mcp_registration::is_legacy_install_hash(expected) {
+            return Ok(IntegrityStatus::Healthy);
+        }
         let observed =
             crate::mcp_registration::compute_processkit_install_fingerprint(project_root);
         if observed.as_ref() != Some(expected) {
@@ -1061,6 +1070,34 @@ mod tests {
         let lock = Some(make_lock_with_version("v0.19.1"));
         let status = verify_install_integrity(tmp.path(), &lock).unwrap();
         assert_eq!(status, IntegrityStatus::Healthy);
+    }
+
+    // ── Legacy install-hash silent upgrade ─────────────────────────────────
+    //
+    // Pre-v0.26.1 fingerprints were bare hex with no format tag, and they
+    // included per-skill `config/` directories whose `settings.toml` files
+    // AGENTS.md explicitly designates as agent-mutable. Every legitimate
+    // setting edit therefore tripped `install_hash_mismatch` on the next
+    // `aibox apply`. The fix tags new hashes with `v2:` and treats any
+    // untagged value as legacy — silently healthy on read, re-stamped at
+    // the end of the sync without any drift notice.
+    #[test]
+    fn verify_treats_legacy_install_hash_as_healthy() {
+        let tmp = TempDir::new().unwrap();
+        write_mirror_provenance(tmp.path(), "v0.19.1", "v0.19.1");
+        // Legacy (pre-v2) hash recorded in live provenance.
+        let legacy = "a292fab4999922930a06c83f0976067dc6c017d1debf83163d3e2129d7fb0440";
+        write_live_provenance_for(tmp.path(), "v0.19.1", 5, Some(legacy));
+        materialise_live_skills(tmp.path(), 5);
+        let lock = Some(make_lock_with_version("v0.19.1"));
+        let status = verify_install_integrity(tmp.path(), &lock).unwrap();
+        assert_eq!(
+            status,
+            IntegrityStatus::Healthy,
+            "legacy install_hash values must be treated as healthy so cmd_sync \
+             can silently re-stamp them on the next apply without surfacing \
+             a Stale warning to the user"
+        );
     }
 
     // ── 11. decide_sync skip when version unset ────────────────────────────
