@@ -52,9 +52,9 @@ services:
       # tmux plugin and socket state
       - ../.aibox-home/.tmux:/home/aibox/.tmux:rw
       # AI harness config and login state
-      - ../.aibox-home/.claude:/home/aibox/.claude:rw
-      # AI harness config and login state
       - ../.aibox-home/.codex:/home/aibox/.codex:rw
+      # AI harness config and login state
+      - ../.aibox-home/.claude:/home/aibox/.claude:rw
       # Claude Code account state
       - ../.aibox-home/.claude.json:/home/aibox/.claude.json:rw
       # ALSA to PulseAudio bridge config
