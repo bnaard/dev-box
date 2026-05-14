@@ -463,6 +463,11 @@ pub static COMPAT_TABLE: &[CompatEntry] = &[
         processkit_version: "v0.26.9",
         note: "Patch release: fixes the user-impacting 'duplicate key labels in table customization.tmux.status' parse failure on aibox apply — migrate_aibox_toml_structure now pre-normalizes duplicate single-bracket table headers before strict toml_edit parsing (last-write-wins on colliding keys, array-of-tables left alone, comments preserved from the first occurrence); patches the three aibox-tmux helper scripts (switch-layout, confirm-and-switch, refresh-theme) to thread AIBOX_TMUX_SOCKET through their own tmux invocations via a tmux() function wrapper so users on non-default sockets no longer see operations land on /tmp/tmux-$UID/default; removes the structurally-broken Tier 3 visual_rendered_tmux.rs + visual_rendered_yazi.rs e2e files (capture-pane cannot see tmux status bar, so the assertions could never fire) — the asciinema-based visual.rs and visual_matrix.rs suites cover the same regression classes correctly and pass; live layout-switch + theme-switch coverage tracked for an asciinema rewrite in BACK-20260514_1752-EarnestMoss.",
     },
+    CompatEntry {
+        aibox_version: "0.26.3",
+        processkit_version: "v0.26.9",
+        note: "Patch release: fixes fetch_latest_image_version (cli/src/update.rs) silently capping at the first GHCR tag-list page so freshly-published images were invisible until enough older tags fell off — `aibox apply` kept resolving `latest` to a long-stale image (e.g. v0.25.12 after v0.26.0–v0.26.2 had already shipped). The resolver now requests `?n=1000` on the first call AND walks Docker Registry v2 `Link: <…>; rel=\"next\"` pagination (capped at 50 pages defensively). 6 new unit tests cover the Link-header parser (relative vs absolute URLs, quoted vs unquoted rel, multi-relation headers, malformed inputs). The release-host verifier from v0.26.1 (verify_release_images_in_ghcr) was unaffected — it uses per-tag buildx imagetools inspect rather than the tag-list endpoint. Tracked as BACK-20260514_1902-ShinyLake.",
+    },
 ];
 
 /// Find the minimum compatible processkit version for the given aibox version.

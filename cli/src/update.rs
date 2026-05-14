@@ -21,56 +21,27 @@ struct GhRelease {
     tag_name: String,
 }
 
-// --- Helper: authenticated GET against GHCR (OCI token exchange) ---
-
-/// Perform a GET request against GHCR, handling anonymous token exchange.
-///
-/// GHCR returns 401 on unauthenticated requests. We exchange for an anonymous
-/// Bearer token via the token endpoint, then retry with the token.
-fn ghcr_get_json<T: serde::de::DeserializeOwned>(url: &str) -> Result<T> {
-    // First, try the request directly — it will almost certainly 401.
-    let result = ureq::get(url).header("User-Agent", "aibox-cli").call();
-
-    match result {
-        Ok(response) => {
-            // Unlikely for GHCR, but handle it.
-            let body = response.into_body().read_to_string()?;
-            let parsed: T = serde_json::from_str(&body)?;
-            Ok(parsed)
-        }
-        Err(ureq::Error::StatusCode(401)) | Err(ureq::Error::StatusCode(403)) => {
-            // Expected: exchange for anonymous Bearer token.
-            let token_url = "https://ghcr.io/token?service=ghcr.io&scope=repository:projectious-work/aibox:pull";
-            let token_resp = ureq::get(token_url)
-                .header("User-Agent", "aibox-cli")
-                .call()?;
-            let token_body = token_resp.into_body().read_to_string()?;
-            let token_data: TokenResponse = serde_json::from_str(&token_body)?;
-
-            // Retry with token.
-            let authed_resp = ureq::get(url)
-                .header("User-Agent", "aibox-cli")
-                .header("Authorization", &format!("Bearer {}", token_data.token))
-                .call()?;
-            let authed_body = authed_resp.into_body().read_to_string()?;
-            let parsed: T = serde_json::from_str(&authed_body)?;
-            Ok(parsed)
-        }
-        Err(e) => Err(e.into()),
-    }
-}
-
 // --- Fetch latest image version from GHCR tags ---
+
+/// Maximum tag-list pages we'll walk before giving up. The page size
+/// (`?n=1000`) below combined with this bound permits up to 50k tags before
+/// the resolver capitulates — orders of magnitude past current usage and
+/// past Docker Registry's typical per-page cap.
+const GHCR_MAX_PAGES: usize = 50;
 
 /// Query the GHCR tags list for the given image flavor and return the highest
 /// semver version found.
+///
+/// Walks Docker Registry v2 pagination via the `Link: <…>; rel="next"`
+/// header. Pre-v0.26.3 this function only read the first response page, so
+/// any tag pushed after GHCR's default page-1 cutoff was invisible — a
+/// fresh `aibox apply` would keep resolving `latest` to a long-stale image
+/// (BACK-20260514_1902-ShinyLake).
 pub(crate) fn fetch_latest_image_version(flavor: &str) -> Result<semver::Version> {
-    let url = "https://ghcr.io/v2/projectious-work/aibox/tags/list";
-    let tags_list: TagsList = ghcr_get_json(url)?;
-
     let prefix = format!("base-{}-v", flavor);
-    let mut versions: Vec<semver::Version> = tags_list
-        .tags
+    let all_tags = fetch_all_ghcr_tags()?;
+
+    let mut versions: Vec<semver::Version> = all_tags
         .iter()
         .filter_map(|tag| {
             tag.strip_prefix(&prefix)
@@ -84,6 +55,92 @@ pub(crate) fn fetch_latest_image_version(flavor: &str) -> Result<semver::Version
 
     versions.sort();
     Ok(versions.pop().unwrap())
+}
+
+/// Walk every page of the GHCR tag listing for the aibox repository,
+/// concatenating the `tags` arrays. Starts with `?n=1000` for a generous
+/// first page; honors the `Link: <…>; rel="next"` header for any remaining
+/// pages the registry advertises.
+fn fetch_all_ghcr_tags() -> Result<Vec<String>> {
+    let mut all: Vec<String> = Vec::new();
+    let mut next_url: Option<String> =
+        Some("https://ghcr.io/v2/projectious-work/aibox/tags/list?n=1000".to_string());
+
+    let mut iters = 0;
+    while let Some(url) = next_url.take() {
+        iters += 1;
+        if iters > GHCR_MAX_PAGES {
+            anyhow::bail!(
+                "GHCR pagination did not terminate within {} pages — refusing to loop",
+                GHCR_MAX_PAGES
+            );
+        }
+        let (tags, next) = ghcr_get_tags_page(&url)?;
+        all.extend(tags);
+        next_url = next;
+    }
+    Ok(all)
+}
+
+/// Perform a GET against GHCR (with anonymous-Bearer token exchange on
+/// 401/403), parse the body as a `TagsList`, and return both the tags and
+/// the parsed `rel="next"` URL from the response's `Link` header (or
+/// `None` if absent).
+fn ghcr_get_tags_page(url: &str) -> Result<(Vec<String>, Option<String>)> {
+    let response = match ureq::get(url).header("User-Agent", "aibox-cli").call() {
+        Ok(r) => r,
+        Err(ureq::Error::StatusCode(401)) | Err(ureq::Error::StatusCode(403)) => {
+            let token_url = "https://ghcr.io/token?service=ghcr.io&scope=repository:projectious-work/aibox:pull";
+            let token_resp = ureq::get(token_url)
+                .header("User-Agent", "aibox-cli")
+                .call()?;
+            let token_body = token_resp.into_body().read_to_string()?;
+            let token_data: TokenResponse = serde_json::from_str(&token_body)?;
+            ureq::get(url)
+                .header("User-Agent", "aibox-cli")
+                .header("Authorization", &format!("Bearer {}", token_data.token))
+                .call()?
+        }
+        Err(e) => return Err(e.into()),
+    };
+    let next = response
+        .headers()
+        .get("Link")
+        .and_then(|h| h.to_str().ok())
+        .and_then(parse_next_link_url);
+    let body = response.into_body().read_to_string()?;
+    let tags_list: TagsList = serde_json::from_str(&body)?;
+    Ok((tags_list.tags, next))
+}
+
+/// Parse a Docker Registry v2 / RFC 5988 `Link` header and extract the URL
+/// of the `rel="next"` relation, if present. Tolerates absolute and root-
+/// relative URLs; resolves the latter against `https://ghcr.io`.
+///
+/// Examples:
+///   `</v2/foo/tags/list?n=1000&last=v1>; rel="next"`
+///   `<https://ghcr.io/v2/...?last=v1>; rel="next"`
+///   `</v2/foo>; rel="prev", </v2/foo?last=v1>; rel="next"`
+fn parse_next_link_url(link_header: &str) -> Option<String> {
+    for entry in link_header.split(',') {
+        let entry = entry.trim();
+        if !entry.contains("rel=\"next\"") && !entry.contains("rel=next") {
+            continue;
+        }
+        let start = entry.find('<')?;
+        let end_offset = entry[start..].find('>')?;
+        let end = start + end_offset;
+        if end <= start + 1 {
+            continue;
+        }
+        let target = &entry[start + 1..end];
+        if target.starts_with("https://") || target.starts_with("http://") {
+            return Some(target.to_string());
+        }
+        let glue = if target.starts_with('/') { "" } else { "/" };
+        return Some(format!("https://ghcr.io{}{}", glue, target));
+    }
+    None
 }
 
 // --- Fetch latest CLI version from GitHub releases ---
@@ -353,6 +410,69 @@ pub fn cmd_update(
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    // ── parse_next_link_url ────────────────────────────────────────────────
+    //
+    // Docker Registry v2 paginates tag listings via RFC 5988 Link headers.
+    // The regression we're guarding against is "v0.26.x tag is in GHCR but
+    // aibox apply keeps reporting v0.25.12 as latest" — caused by reading
+    // only the first page (BACK-20260514_1902-ShinyLake).
+
+    #[test]
+    fn parse_next_link_url_extracts_relative_next() {
+        let h = r#"</v2/projectious-work/aibox/tags/list?n=1000&last=base-debian-v0.25.12>; rel="next""#;
+        assert_eq!(
+            parse_next_link_url(h),
+            Some(
+                "https://ghcr.io/v2/projectious-work/aibox/tags/list?n=1000&last=base-debian-v0.25.12"
+                    .to_string()
+            )
+        );
+    }
+
+    #[test]
+    fn parse_next_link_url_extracts_absolute_next() {
+        let h = r#"<https://ghcr.io/v2/x?last=y>; rel="next""#;
+        assert_eq!(
+            parse_next_link_url(h),
+            Some("https://ghcr.io/v2/x?last=y".to_string())
+        );
+    }
+
+    #[test]
+    fn parse_next_link_url_picks_next_from_multiple_relations() {
+        // Multi-relation Link headers list each relation comma-separated.
+        let h = r#"</v2/foo>; rel="prev", </v2/foo?last=v1>; rel="next""#;
+        assert_eq!(
+            parse_next_link_url(h),
+            Some("https://ghcr.io/v2/foo?last=v1".to_string())
+        );
+    }
+
+    #[test]
+    fn parse_next_link_url_tolerates_unquoted_rel() {
+        // RFC 5988 allows `rel=next` without quotes — guard against the
+        // strict-quoted path so a registry quirk doesn't silently drop the
+        // header.
+        let h = "</v2/foo?last=v1>; rel=next";
+        assert_eq!(
+            parse_next_link_url(h),
+            Some("https://ghcr.io/v2/foo?last=v1".to_string())
+        );
+    }
+
+    #[test]
+    fn parse_next_link_url_returns_none_when_no_next_relation() {
+        let h = r#"</v2/foo>; rel="prev""#;
+        assert_eq!(parse_next_link_url(h), None);
+    }
+
+    #[test]
+    fn parse_next_link_url_returns_none_on_malformed_header() {
+        assert_eq!(parse_next_link_url(""), None);
+        assert_eq!(parse_next_link_url(r#"rel="next""#), None);
+        assert_eq!(parse_next_link_url("<>; rel=\"next\""), None);
+    }
 
     #[test]
     fn update_toml_version_replaces_version() {
