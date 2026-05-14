@@ -37,7 +37,18 @@ plugin_collect() {
 plugin_get_content_type() { printf 'dynamic'; }
 plugin_get_presence()     { printf 'always'; }
 plugin_get_state()        { printf 'active'; }
-plugin_get_health()       { printf 'ok'; }
+plugin_get_health() {
+    local err warn
+    err="$(plugin_data_get log_error)"
+    warn="$(plugin_data_get log_warn)"
+    if [[ -n "${err}" && "${err}" =~ ^[0-9]+$ && "${err}" -gt 0 ]]; then
+        printf 'error'
+    elif [[ -n "${warn}" && "${warn}" =~ ^[0-9]+$ && "${warn}" -gt 0 ]]; then
+        printf 'warning'
+    else
+        printf 'ok'
+    fi
+}
 plugin_get_context()      { printf 'runtime'; }
 plugin_get_icon()         { get_option "label"; }
 

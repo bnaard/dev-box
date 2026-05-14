@@ -22,6 +22,7 @@ tool_or_shell() {
 
 tmux -S "$socket" -f "$config" new-session -d -s "$session" -n "files" -c "$workspace" "$(tool_or_shell yazi)"
 files_pane="$(tmux -S "$socket" display-message -p -t "$session:files" '#{pane_id}')"
+tmux -S "$socket" new-window -t "$session:" -n "claude" -c "$workspace" "$(tool_or_shell claude)"
 tmux -S "$socket" new-window -t "$session:" -n "codex" -c "$workspace" "$(tool_or_shell codex)"
 tmux -S "$socket" new-window -t "$session:" -n "shell" -c "$workspace" "bash"
 tmux -S "$socket" select-window -t "$session:files"

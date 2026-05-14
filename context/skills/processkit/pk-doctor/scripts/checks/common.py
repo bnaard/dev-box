@@ -122,7 +122,7 @@ class CheckResult:
             return "migration_needed"
         if "external" in hint or "gh cli" in hint or "authenticated" in hint:
             return "external_dependency"
-        if "policy" in hint:
+        if "policy" in hint or "grandfather" in hint:
             return "policy_decision_needed"
         if self.fixable and not self.data_loss:
             return "safe_fix"

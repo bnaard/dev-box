@@ -400,8 +400,8 @@ model_providers = [
 # keep `install = false` for cursor even when `enable = true`.
 # `version` optionally pins the CLI recipe; omit it to use the addon default.
 harnesses = [
-#   { harness = "claude", enable = true, install = true },
     { harness = "codex", enable = true, install = true },
+    { harness = "claude", enable = true, install = true },
 #   { harness = "gemini", enable = true, install = true },
 #   { harness = "aider", enable = true, install = true },
 #   { harness = "continue", enable = true, install = true },
@@ -482,7 +482,7 @@ theme  = "nord"
 # Options: auto | light | dark
 mode   = "auto"
 # Starship prompt preset.
-# Options: default | plain | minimal | nerd-font | pastel | pastel-powerline | bracketed | arrow
+# Options: default | plain | minimal | nerd-font | pastel | powerline-pastel | bracketed | arrow
 # ASCII sketches:
 #   default          ~/repo main +2  py3.13  2s
 #                    >
@@ -493,12 +493,12 @@ mode   = "auto"
 #   nerd-font        [os] ~/repo main +2 py rs js go 2s
 #                    >
 #   pastel           ( ~/repo )>( main +2 )>( py rs js go ) 2s >
-#   pastel-powerline ( ~/repo )>( main +2 )>( py rs js go ) 2s >
+#   powerline-pastel ( ~/repo )>( main +2 )>( py rs js go ) 2s >
 #   bracketed        ~/repo [main] [+2] [py3.13]
 #                    >
 #   arrow            > ~/repo > main +2 > 2s
 #                    >
-prompt = "pastel"
+prompt = "powerline-pastel"
 # Default tmux layout. Options: dev | focus | cowork | ai
 # Layout sketches, one screen each:
 # +---- ai ----+  +--- dev ----+  +-- focus --+  +-- cowork -+
@@ -556,8 +556,8 @@ mode = "extended"  # extended | plain | disabled (legacy: powerline -> extended)
 # - gpu: GPU status when available
 # - modelstatus_<provider>: per-provider AI status segment; enabled through [customization.tmux.status.model-providers]
 line1-left = ["session", "windows"]
-line1-right = ["aibox_log", "aibox_oom", "aibox_proc", "aibox_ai", "aibox_mcp", "aibox_mig", "weather", "uptime", "datetime"]
-line2-left = ["git", "github", "modelstatus_openai", "modelstatus_anthropic", "kubernetes", "terraform"]
+line1-right = ["modelstatus_openai", "modelstatus_anthropic", "aibox_log", "aibox_oom", "aibox_proc", "aibox_ai", "aibox_mcp", "aibox_mig", "weather", "uptime", "datetime"]
+line2-left = ["git", "github", "kubernetes", "terraform"]
 line2-right = ["hostname", "externalip", "ssh", "netspeed", "ping", "cpu", "loadavg", "memory", "swap", "disk", "gpu"]
 
 [customization.tmux.status.labels]

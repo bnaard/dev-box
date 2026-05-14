@@ -166,6 +166,14 @@ netspeed = ""
 netspeed-download = "󰇚"
 netspeed-upload = "󰕒"
 
+[customization.tmux.status.separators]
+# PowerKit separator style. Options: normal | rounded | slant | slantup | trapezoid | flame | pixel | honeycomb | none
+style = "rounded"
+# Edge separators may use a different style at status boundaries.
+edge-style = "rounded"
+# Spacing between elements. Options: false | true | both | windows | plugins
+elements-spacing = "both"
+
 [customization.tmux.status.refresh]
 # Refresh/caching controls for extended tmux status.
 # interval-seconds: tmux redraw cadence. Higher values reduce shell process churn.
@@ -646,6 +654,9 @@ Visual and layout configuration. See [Themes](../customization/themes.md) and [L
 | `prompt` | String | No | `"default"` | Starship preset: `default`, `plain`, `arrow`, `minimal`, `nerd-font`, `pastel`, `powerline-pastel`, `bracketed`. Legacy `pastel-powerline` is accepted as an alias. |
 | `layout` | String | No | `"dev"` | tmux layout: `dev`, `focus`, `cowork`, `ai` |
 | `tmux.status.mode` | String | No | `"extended"` | tmux status presentation: `extended` uses the themed multi-line PowerKit status, `plain` keeps minimal tmux text, `disabled` turns the status line off. Legacy `powerline` is accepted as an alias for `extended`. |
+| `tmux.status.separators.style` | String | No | `"rounded"` | PowerKit separator style: `normal`, `rounded`, `slant`, `slantup`, `trapezoid`, `flame`, `pixel`, `honeycomb`, `none`. |
+| `tmux.status.separators.edge-style` | String | No | `"rounded"` | PowerKit edge separator style for status boundaries. Uses the same values as `style`. |
+| `tmux.status.separators.elements-spacing` | String | No | `"both"` | PowerKit spacing mode: `false`, `true`, `both`, `windows`, `plugins`. |
 
 ### [audio]
 

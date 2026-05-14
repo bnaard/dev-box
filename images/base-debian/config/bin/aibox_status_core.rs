@@ -2,7 +2,7 @@
 // each binary intentionally uses a different subset of the shared helpers.
 #![allow(dead_code)]
 
-use std::collections::BTreeSet;
+use std::collections::{BTreeMap, BTreeSet};
 use std::fs;
 use std::io::{self, Read, Seek, SeekFrom};
 use std::path::{Path, PathBuf};
@@ -38,6 +38,7 @@ pub struct Snapshot {
     pub processes: String,
     pub threads: String,
     pub ai_agents: String,
+    pub ai_agents_breakdown: BTreeMap<&'static str, u64>,
     pub processkit_mode: String,
     pub processkit_mcp: String,
     pub processkit_display: String,
@@ -89,6 +90,7 @@ impl Snapshot {
             processes: process_count.to_string(),
             threads: thread_count.to_string(),
             ai_agents: proc_details.ai_agents.to_string(),
+            ai_agents_breakdown: proc_details.ai_agents_breakdown,
             processkit_mode: proc_details.processkit_mode,
             processkit_mcp: proc_details.processkit_mcp.to_string(),
             processkit_display,
@@ -137,7 +139,7 @@ impl Snapshot {
     pub fn json(&self) -> String {
         let plain = self.plain();
         format!(
-            "{{\"timestamp_unix\":{},\"degraded\":{},\"host\":{},\"memory_current\":{},\"memory_max\":{},\"oom_events\":{},\"oom_kill\":{},\"memory_high\":{},\"memory_max_events\":{},\"cpu_throttling\":{},\"load_average\":{},\"net\":{},\"processes\":{},\"threads\":{},\"ai_agents\":{},\"processkit_mode\":{},\"processkit_mcp\":{},\"processkit_display\":{},\"disk_used\":{},\"disk_total\":{},\"log_info\":{},\"log_warn\":{},\"log_error\":{},\"container_uptime\":{},\"git_branch\":{},\"git_state\":{},\"migrations\":{},\"plain\":{}}}",
+            "{{\"timestamp_unix\":{},\"degraded\":{},\"host\":{},\"memory_current\":{},\"memory_max\":{},\"oom_events\":{},\"oom_kill\":{},\"memory_high\":{},\"memory_max_events\":{},\"cpu_throttling\":{},\"load_average\":{},\"net\":{},\"processes\":{},\"threads\":{},\"ai_agents\":{},\"ai_agents_breakdown\":{},\"processkit_mode\":{},\"processkit_mcp\":{},\"processkit_display\":{},\"disk_used\":{},\"disk_total\":{},\"log_info\":{},\"log_warn\":{},\"log_error\":{},\"container_uptime\":{},\"git_branch\":{},\"git_state\":{},\"migrations\":{},\"plain\":{}}}",
             self.timestamp_unix,
             self.degraded,
             json_string(&self.host),
@@ -153,6 +155,7 @@ impl Snapshot {
             json_string(&self.processes),
             json_string(&self.threads),
             json_string(&self.ai_agents),
+            json_breakdown_map(&self.ai_agents_breakdown),
             json_string(&self.processkit_mode),
             json_string(&self.processkit_mcp),
             json_string(&self.processkit_display),
@@ -204,9 +207,19 @@ impl Snapshot {
     }
 }
 
+/// All known AI agent family names in alphabetical order.
+const AI_FAMILIES: &[&str] = &[
+    "aider", "claude", "codex", "copilot", "gemini", "hermes", "opencode",
+];
+
+fn empty_breakdown() -> BTreeMap<&'static str, u64> {
+    AI_FAMILIES.iter().map(|&f| (f, 0u64)).collect()
+}
+
 #[derive(Clone, Debug)]
 struct ProcessDetails {
     ai_agents: u64,
+    ai_agents_breakdown: BTreeMap<&'static str, u64>,
     processkit_mode: String,
     processkit_mcp: u64,
 }
@@ -215,6 +228,7 @@ impl ProcessDetails {
     fn minimal() -> Self {
         Self {
             ai_agents: 0,
+            ai_agents_breakdown: empty_breakdown(),
             processkit_mode: "unknown".to_string(),
             processkit_mcp: 0,
         }
@@ -223,6 +237,7 @@ impl ProcessDetails {
     fn degraded() -> Self {
         Self {
             ai_agents: 0,
+            ai_agents_breakdown: empty_breakdown(),
             processkit_mode: "degraded".to_string(),
             processkit_mcp: 0,
         }
@@ -262,6 +277,7 @@ fn write_atomic(path: &Path, payload: &str) -> io::Result<()> {
 fn read_process_details(proc_root: &Path) -> ProcessDetails {
     let mut details = ProcessDetails {
         ai_agents: 0,
+        ai_agents_breakdown: empty_breakdown(),
         processkit_mode: "none".to_string(),
         processkit_mcp: 0,
     };
@@ -269,7 +285,7 @@ fn read_process_details(proc_root: &Path) -> ProcessDetails {
         Ok(entries) => entries,
         Err(_) => return details,
     };
-    let mut ai_families = BTreeSet::new();
+    let mut ai_seen_families = BTreeSet::new();
 
     for entry in entries.flatten().take(PROC_SCAN_LIMIT) {
         let name = entry.file_name();
@@ -285,7 +301,8 @@ fn read_process_details(proc_root: &Path) -> ProcessDetails {
             None => continue,
         };
         if let Some(family) = ai_agent_family(&cmdline) {
-            ai_families.insert(family);
+            ai_seen_families.insert(family);
+            *details.ai_agents_breakdown.entry(family).or_insert(0) += 1;
         }
         if cmdline.contains("processkit-gateway") && cmdline.contains("server.py") {
             let detected_mode = if cmdline.contains("stdio-proxy")
@@ -309,7 +326,7 @@ fn read_process_details(proc_root: &Path) -> ProcessDetails {
         }
     }
 
-    details.ai_agents = ai_families.len() as u64;
+    details.ai_agents = ai_seen_families.len() as u64;
     details
 }
 
@@ -790,6 +807,25 @@ fn json_string(value: &str) -> String {
     output
 }
 
+/// Serialise a `BTreeMap<&str, u64>` as a JSON object.
+/// Keys are already sorted (BTreeMap) so output is deterministic.
+fn json_breakdown_map(map: &BTreeMap<&'static str, u64>) -> String {
+    let mut output = String::from('{');
+    let mut first = true;
+    for (key, count) in map {
+        if !first {
+            output.push(',');
+        }
+        first = false;
+        output.push('"');
+        output.push_str(key);
+        output.push_str("\":");
+        output.push_str(&count.to_string());
+    }
+    output.push('}');
+    output
+}
+
 fn unix_now() -> u64 {
     SystemTime::now()
         .duration_since(UNIX_EPOCH)
@@ -818,6 +854,7 @@ mod tests {
             processes: "99".to_string(),
             threads: "123".to_string(),
             ai_agents: "3".to_string(),
+            ai_agents_breakdown: super::empty_breakdown(),
             processkit_mode: "daemon".to_string(),
             processkit_mcp: "12".to_string(),
             processkit_display: "dmn/1/12".to_string(),
@@ -912,6 +949,77 @@ mod tests {
         );
         assert_eq!(details.processkit_mode, "daemon");
         assert_eq!(details.processkit_mcp, 1);
+        let _ = std::fs::remove_dir_all(&dir);
+    }
+
+    #[test]
+    fn ai_agents_breakdown_counts_per_process_not_per_family() {
+        let dir = std::env::temp_dir().join(format!(
+            "aibox-breakdown-test-{}-{}",
+            std::process::id(),
+            std::time::SystemTime::now()
+                .duration_since(std::time::UNIX_EPOCH)
+                .unwrap()
+                .as_nanos()
+        ));
+        std::fs::create_dir_all(&dir).unwrap();
+        // Two claude processes, one codex process
+        for (pid, cmdline) in [
+            ("1", "claude"),
+            ("2", "claude --dangerously-skip-permissions"),
+            ("3", "node /usr/bin/codex"),
+        ] {
+            let pid_dir = dir.join(pid);
+            std::fs::create_dir_all(&pid_dir).unwrap();
+            std::fs::write(pid_dir.join("cmdline"), cmdline.replace(' ', "\0")).unwrap();
+        }
+
+        let details = super::read_process_details(&dir);
+        // Two distinct families (claude, codex)
+        assert_eq!(details.ai_agents, 2, "should count 2 distinct families");
+        assert_eq!(details.ai_agents_breakdown["claude"], 2, "two claude processes");
+        assert_eq!(details.ai_agents_breakdown["codex"], 1, "one codex process");
+        // All other families must be zero
+        for family in super::AI_FAMILIES {
+            if *family != "claude" && *family != "codex" {
+                assert_eq!(
+                    details.ai_agents_breakdown[family], 0,
+                    "{family} should be zero"
+                );
+            }
+        }
+        // JSON snapshot contains the breakdown
+        let json = super::json_breakdown_map(&details.ai_agents_breakdown);
+        assert!(json.contains("\"claude\":2"), "json must show claude:2");
+        assert!(json.contains("\"codex\":1"), "json must show codex:1");
+        assert!(json.contains("\"aider\":0"), "json must include zero-count families");
+        let _ = std::fs::remove_dir_all(&dir);
+    }
+
+    #[test]
+    fn ai_agents_breakdown_all_zeros_when_no_ai_processes() {
+        let dir = std::env::temp_dir().join(format!(
+            "aibox-breakdown-empty-test-{}-{}",
+            std::process::id(),
+            std::time::SystemTime::now()
+                .duration_since(std::time::UNIX_EPOCH)
+                .unwrap()
+                .as_nanos()
+        ));
+        std::fs::create_dir_all(&dir).unwrap();
+        // Only a non-AI process
+        let pid_dir = dir.join("1");
+        std::fs::create_dir_all(&pid_dir).unwrap();
+        std::fs::write(pid_dir.join("cmdline"), "bash\0-c\0echo hello").unwrap();
+
+        let details = super::read_process_details(&dir);
+        assert_eq!(details.ai_agents, 0, "no AI families");
+        for family in super::AI_FAMILIES {
+            assert_eq!(
+                details.ai_agents_breakdown[family], 0,
+                "{family} should be zero"
+            );
+        }
         let _ = std::fs::remove_dir_all(&dir);
     }
 

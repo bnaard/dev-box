@@ -161,7 +161,16 @@ impl E2eRunner {
     }
 
     /// Common SSH args (reused by exec and scp).
+    ///
+    /// Enables ControlMaster multiplexing so subsequent `ssh`/`scp` calls reuse
+    /// the first TCP+TLS handshake. With ~10 exec calls per test averaging
+    /// ~50 ms of handshake cost each, this saves ~500 ms per test.
     fn ssh_opts(&self) -> Vec<String> {
+        let control_path = format!(
+            "{}/aibox-ssh-{}-%h-%p-%r",
+            std::env::temp_dir().display(),
+            std::process::id()
+        );
         vec![
             "-i".to_string(),
             self.ssh_key.clone(),
@@ -173,6 +182,12 @@ impl E2eRunner {
             "ConnectTimeout=5".to_string(),
             "-o".to_string(),
             "LogLevel=ERROR".to_string(),
+            "-o".to_string(),
+            "ControlMaster=auto".to_string(),
+            "-o".to_string(),
+            format!("ControlPath={control_path}"),
+            "-o".to_string(),
+            "ControlPersist=60s".to_string(),
         ]
     }
 
@@ -572,9 +587,47 @@ impl E2eRunner {
 }
 
 fn compile_runtime_tool_binaries(image_config: &str) -> PathBuf {
-    let out_dir =
-        std::env::temp_dir().join(format!("aibox-e2e-runtime-tools-{}", std::process::id()));
-    std::fs::create_dir_all(&out_dir).expect("failed to create runtime tool build dir");
+    // Hash all source files together so any change to either invalidates the
+    // cached pair atomically. Caching shaves ~5–10 s off every test invocation
+    // since these binaries change rarely but were previously recompiled per
+    // `cargo test` run.
+    use std::collections::hash_map::DefaultHasher;
+    use std::hash::{Hash, Hasher};
+
+    // Hash every source file under the image config bin/ dir that the tools
+    // depend on. `aibox_status_core.rs` is shared by both binaries, so it
+    // contributes to the cache key even though we don't compile it directly.
+    let hashed_sources = [
+        "bin/aibox_status_core.rs",
+        "bin/aibox-status.rs",
+        "bin/aibox-diagnostics.rs",
+    ];
+
+    let mut hasher = DefaultHasher::new();
+    for src in &hashed_sources {
+        let path = format!("{image_config}/{src}");
+        if let Ok(bytes) = std::fs::read(&path) {
+            src.hash(&mut hasher);
+            bytes.hash(&mut hasher);
+        }
+    }
+    let cache_key = format!("{:016x}", hasher.finish());
+
+    let cache_root = std::env::temp_dir()
+        .join("aibox-e2e-runtime-tools")
+        .join(&cache_key);
+
+    // Only the two installable binaries matter for cache validation.
+    let installable_bins = ["aibox-status", "aibox-diagnostics"];
+    let all_cached = installable_bins.iter().all(|bin| {
+        let p = cache_root.join(bin);
+        p.is_file() && std::fs::metadata(&p).map(|m| m.len() > 0).unwrap_or(false)
+    });
+    if all_cached {
+        return cache_root;
+    }
+
+    std::fs::create_dir_all(&cache_root).expect("failed to create runtime tool build dir");
     for (src, bin) in [
         ("bin/aibox-status.rs", "aibox-status"),
         ("bin/aibox-diagnostics.rs", "aibox-diagnostics"),
@@ -589,7 +642,7 @@ fn compile_runtime_tool_binaries(image_config: &str) -> PathBuf {
                 "opt-level=2",
                 &source,
                 "-o",
-                &out_dir.join(bin).to_string_lossy(),
+                &cache_root.join(bin).to_string_lossy(),
             ])
             .output()
             .expect("failed to compile runtime tool");
@@ -600,7 +653,7 @@ fn compile_runtime_tool_binaries(image_config: &str) -> PathBuf {
             String::from_utf8_lossy(&output.stderr)
         );
     }
-    out_dir
+    cache_root
 }
 
 fn shell_quote(value: &str) -> String {

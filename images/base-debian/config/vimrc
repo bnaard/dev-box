@@ -78,10 +78,46 @@ if has('clipboard')
     set clipboard=unnamedplus
 endif
 
+" Forward normal Vim yanks to the host clipboard even when Vim was built
+" without +clipboard. aibox-copy uses tmux load-buffer -w and OSC52 fallback.
+function! s:AiboxCopyRegister() abort
+    if executable('aibox-copy')
+        call system('aibox-copy', getreg(v:register))
+    endif
+endfunction
+
 " ── Key mappings ──────────────────────────────────────────────────────────────
 let mapleader=" "            " Space as leader
 
+xnoremap <silent> y y:<C-u>call <SID>AiboxCopyRegister()<CR>
+nnoremap <silent> yy yy:call <SID>AiboxCopyRegister()<CR>
+nnoremap <silent> Y Y:call <SID>AiboxCopyRegister()<CR>
+xnoremap <silent> <leader>y y:<C-u>call <SID>AiboxCopyRegister()<CR>
+nnoremap <silent> <leader>Y yy:call <SID>AiboxCopyRegister()<CR>
+
 " Word movement across tmux/devcontainer terminals.
+"
+" Most terminals send Alt+x as raw `ESC + x` bytes, NOT as the synthetic
+" <A-x>/<M-x> Vim keycode. Without explicit byte-sequence registration,
+" Vim sees the bare ESC, exits INSERT mode, then runs `x` as a normal
+" command — so Alt+Left mis-fires as "leave insert, jump back" instead
+" of "jump back, stay in insert". The `set <M-x>=^[x` block below tells
+" Vim to coalesce those bytes into a single key event, and
+" ttimeoutlen=50 resolves the sequence promptly.
+set ttimeout
+set ttimeoutlen=50
+if !has('gui_running')
+  let s:alt_alpha = 'abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ.,;:/'
+  for s:c in split(s:alt_alpha, '\zs')
+    execute "set <M-" . s:c . ">=\<Esc>" . s:c
+  endfor
+  unlet! s:alt_alpha s:c
+  execute "set <A-Left>=\<Esc>[1;3D"
+  execute "set <A-Right>=\<Esc>[1;3C"
+  execute "set <S-A-Left>=\<Esc>[1;4D"
+  execute "set <S-A-Right>=\<Esc>[1;4C"
+endif
+
 " <A-Left>/<A-Right> covers CSI Meta-arrow encodings; <M-b>/<M-f>
 " covers macOS/WezTerm-style Option-left/right profiles that send Esc-b/Esc-f.
 inoremap <A-Left>  <C-o>b
@@ -104,6 +140,24 @@ onoremap <M-b>     b
 onoremap <M-f>     e
 cnoremap <M-b>     <C-Left>
 cnoremap <M-f>     <C-Right>
+
+" Shift-Alt+Left / Shift-Alt+Right — extend selection by one word.
+" In Vim there is no "select while in insert mode"; selection lives in
+" Visual mode. INSERT-mode shift-alt-arrow leaves INSERT and enters
+" Visual with the cursor moved by one word. Uppercase <M-B>/<M-F>
+" covers terminals that send ESC+shift-b/f instead of CSI 1;4 D/C.
+inoremap <S-A-Left>  <Esc>vb
+inoremap <S-A-Right> <Esc>ve
+nnoremap <S-A-Left>  vb
+nnoremap <S-A-Right> ve
+vnoremap <S-A-Left>  b
+vnoremap <S-A-Right> e
+inoremap <M-B>       <Esc>vb
+inoremap <M-F>       <Esc>ve
+nnoremap <M-B>       vb
+nnoremap <M-F>       ve
+vnoremap <M-B>       b
+vnoremap <M-F>       e
 
 " Quick save / quit
 nnoremap <leader>w :w<CR>

@@ -72,12 +72,18 @@ bind-key -N "Open log pane (lnav)" L display-popup -E -w 90% -h 80% "aibox-log-v
 bind-key -N "Switch to lazygit window" g find-window -Z 'lazygit'
 bind-key -N "Switch to shell window" s find-window -Z 'shell'
 
+AIBOX_TMUX_LAYOUT_SWITCH_BINDING
+AIBOX_TMUX_THEME_SWITCH_BINDING
+
 set -g status AIBOX_TMUX_STATUS
 set -g status-style "bg=AIBOX_TMUX_BG,fg=AIBOX_TMUX_FG"
 set -g window-status-current-style "bg=AIBOX_TMUX_ACCENT,fg=AIBOX_TMUX_BG,bold"
 set -g window-status-format " #I:#W "
 set -g window-status-current-format " #I:#W "
-set -g window-style "bg=AIBOX_TMUX_BG,fg=AIBOX_TMUX_FG"
+" Inactive panes are dimmed a touch (bg+fg both biased ~12% toward
+" muted) so the focused pane stands out without making non-focus
+" content hard to read. Tweak via `themes::dim_inactive_pane_colors`.
+set -g window-style "bg=AIBOX_TMUX_DIM_BG,fg=AIBOX_TMUX_DIM_FG"
 set -g window-active-style "bg=AIBOX_TMUX_BG,fg=AIBOX_TMUX_FG"
 set -g pane-border-style "fg=AIBOX_TMUX_MUTED,bg=AIBOX_TMUX_BG"
 set -g pane-active-border-style "fg=AIBOX_TMUX_ACCENT,bg=AIBOX_TMUX_BG"
@@ -116,6 +122,7 @@ pub fn tmux_conf(config: &AiboxConfig) -> String {
     let theme = config.customization.resolved_theme();
     let (bg, fg, accent, muted, _dim_fg, _active_title_fg) =
         crate::themes::terminal_surface_colors(&theme);
+    let (dim_bg, dim_fg) = crate::themes::dim_inactive_pane_colors(&theme);
     let status = match config.customization.tmux.status.mode {
         TmuxStatusMode::Extended | TmuxStatusMode::Plain => "on",
         TmuxStatusMode::Disabled => "off",
@@ -145,6 +152,16 @@ pub fn tmux_conf(config: &AiboxConfig) -> String {
         .replace("AIBOX_TMUX_POWERKIT_BLOCK", &powerkit_block)
         .replace("AIBOX_TMUX_POWERKIT_PLUGIN", &powerkit_plugin)
         .replace("AIBOX_TMUX_POWERKIT_FORMATS", &powerkit_formats)
+        .replace(
+            "AIBOX_TMUX_LAYOUT_SWITCH_BINDING",
+            &layout_switch_binding(config),
+        )
+        .replace(
+            "AIBOX_TMUX_THEME_SWITCH_BINDING",
+            &theme_switch_binding(config),
+        )
+        .replace("AIBOX_TMUX_DIM_BG", &dim_bg)
+        .replace("AIBOX_TMUX_DIM_FG", &dim_fg)
         .replace("AIBOX_TMUX_BG", bg)
         .replace("AIBOX_TMUX_FG", fg)
         .replace("AIBOX_TMUX_ACCENT", accent)
@@ -423,17 +440,20 @@ pub fn tmux_powerkit_settings(config: &AiboxConfig) -> (String, String, String) 
     plugin_order.extend(line2_right.iter().map(String::as_str));
 
     let resolved_theme = config.customization.resolved_theme();
-    let (powerkit_theme, powerkit_variant) = crate::themes::tmux_powerkit_theme(&resolved_theme);
     let surface = tmux_surface_colors(&resolved_theme);
+    let separators = &config.customization.tmux.status.separators;
+    // Drive PowerKit from the aibox-generated palette file so chevrons land on
+    // colors the aibox surface actually uses.
     let powerkit_block = format!(
-        r##"# Powerkit status.
+        r##"# Powerkit status. Theme: {} (custom palette)
 set -g @powerkit_plugins "{}"
 set -g @powerkit_bar_layout "double"
 set -g @powerkit_status_order "session,plugins"
-set -g @powerkit_theme "{}"
-set -g @powerkit_theme_variant "{}"
-set -g @powerkit_separator_style "rounded"
-set -g @powerkit_elements_spacing "both"
+set -g @powerkit_theme "custom"
+set -g @powerkit_custom_theme_path "~/.config/tmux/aibox-powerkit-theme.sh"
+set -g @powerkit_separator_style "{}"
+set -g @powerkit_edge_separator_style "{}"
+set -g @powerkit_elements_spacing "{}"
 set -g @powerkit_status_interval "{}"
 set -g @powerkit_transparent "false"
 set -g @powerkit_pane_border_status "top"
@@ -448,9 +468,11 @@ set -g @powerkit_line1_right "{}"
 set -g @powerkit_line2_left "{}"
 set -g @powerkit_line2_right "{}"
 set -g @powerkit_plugin_netspeed_speed_width "7"{}{}{}{}"##,
+        resolved_theme,
         plugin_order.join(","),
-        powerkit_theme,
-        powerkit_variant,
+        separators.style,
+        separators.edge_style,
+        separators.elements_spacing,
         refresh.interval_seconds,
         &surface.accent,
         &surface.muted,
@@ -597,9 +619,18 @@ fn model_provider_option_lines(config: &AiboxConfig, line1_right: &[String]) -> 
             "\nset -g @powerkit_plugin_{plugin}_timeout \"{}\"",
             model_providers.timeout_seconds
         ));
+        // Glyph for the OK state: keep the legacy ✓ behind the new
+        // `show_glyph_when_ok` flag, but accept the older `show_ok` field
+        // for backward compatibility. The chevron color now carries the
+        // ok/warning/error signal via the custom PowerKit theme.
+        let show_glyph_when_ok = model_providers.show_glyph_when_ok || model_providers.show_ok;
         lines.push_str(&format!(
             "\nset -g @powerkit_plugin_{plugin}_show_ok \"{}\"",
-            model_providers.show_ok
+            show_glyph_when_ok
+        ));
+        lines.push_str(&format!(
+            "\nset -g @powerkit_plugin_{plugin}_show_glyph_when_ok \"{}\"",
+            show_glyph_when_ok
         ));
         if let Some(status_url) = &provider.status_url {
             lines.push_str(&format!(
@@ -625,12 +656,177 @@ fn model_provider_option_lines(config: &AiboxConfig, line1_right: &[String]) -> 
                 tmux_option_escape(&provider.harness_components.join(","))
             ));
         }
+
+        // ── Phase 1 — local agent count ──────────────────────────────────
+        lines.push_str(&format!(
+            "\nset -g @powerkit_plugin_{plugin}_show_agent_count \"{}\"",
+            provider.show_agent_count
+        ));
+        let agent_binaries = if provider.agent_binaries.is_empty() {
+            crate::config::default_agent_binaries_for(&provider.provider)
+        } else {
+            provider.agent_binaries.clone()
+        };
+        if !agent_binaries.is_empty() {
+            lines.push_str(&format!(
+                "\nset -g @powerkit_plugin_{plugin}_agent_binaries \"{}\"",
+                tmux_option_escape(&agent_binaries.join(","))
+            ));
+        }
+
+        // ── Phase 2 — rate-limit quota polling ──────────────────────────
+        lines.push_str(&format!(
+            "\nset -g @powerkit_plugin_{plugin}_show_quota \"{}\"",
+            provider.show_quota
+        ));
+        lines.push_str(&format!(
+            "\nset -g @powerkit_plugin_{plugin}_quota_window \"{}\"",
+            tmux_option_escape(&provider.quota_window)
+        ));
+        if let Some(env) = &provider.quota_api_key_env {
+            lines.push_str(&format!(
+                "\nset -g @powerkit_plugin_{plugin}_quota_api_key_env \"{}\"",
+                tmux_option_escape(env)
+            ));
+        }
+
+        // ── Phase 3 — admin usage rollup (gated by section-level ack) ────
+        let admin_usage_active = provider.show_admin_usage && model_providers.admin_usage_enabled;
+        lines.push_str(&format!(
+            "\nset -g @powerkit_plugin_{plugin}_show_admin_usage \"{}\"",
+            admin_usage_active
+        ));
+        if let Some(env) = &provider.admin_api_key_env {
+            lines.push_str(&format!(
+                "\nset -g @powerkit_plugin_{plugin}_admin_api_key_env \"{}\"",
+                tmux_option_escape(env)
+            ));
+        }
     }
     lines
 }
 
 fn tmux_option_escape(value: &str) -> String {
     value.replace('\\', "\\\\").replace('"', "\\\"")
+}
+
+/// Render the `bind-key` line(s) for the live layout chooser. Disabled when
+/// `customization.tmux.layout_switch.enabled = false`.
+///
+/// Always destructive — the chooser rebuilds windows in the attached
+/// session. When `confirm = true` (default) the binding routes through
+/// `aibox-tmux-confirm-and-switch`, which display-menus the impacted apps
+/// before invoking `aibox-tmux-switch-layout`.
+fn layout_switch_binding(config: &AiboxConfig) -> String {
+    let ls = &config.customization.tmux.layout_switch;
+    if !ls.enabled {
+        return String::new();
+    }
+    let key = tmux_option_escape(&ls.prefix_key);
+    let dispatcher = if ls.confirm {
+        "aibox-tmux-confirm-and-switch"
+    } else {
+        "aibox-tmux-switch-layout"
+    };
+
+    // The four built-in layouts. Each gets a one-letter shortcut + a
+    // visible label so the menu doubles as documentation.
+    let layouts: &[(&str, &str, &str)] = &[
+        ("dev", "d", "Dev (work=files|harness)"),
+        ("ai", "a", "AI (work=files|harness; ai windows)"),
+        ("focus", "f", "Focus (one window per harness)"),
+        ("cowork", "w", "Cowork (files|shell + ai windows)"),
+    ];
+
+    match ls.style.as_str() {
+        "table" => {
+            let mut out =
+                format!("\nbind-key -N \"Choose layout\" {key} switch-client -T aibox_layouts\n");
+            for (name, k, _desc) in layouts {
+                out.push_str(&format!(
+                    "bind-key -T aibox_layouts {k} run-shell '{dispatcher} {name}'\n"
+                ));
+            }
+            out.push_str(
+                "bind-key -T aibox_layouts Escape display-message \"layout switch cancelled\"\n",
+            );
+            out
+        }
+        _ => {
+            // "menu" (default): display-menu with one entry per layout.
+            let mut out = format!(
+                "\nbind-key -N \"Choose layout\" {key} display-menu -T \"#[align=centre]Layout\" -x C -y C"
+            );
+            for (name, k, desc) in layouts {
+                out.push_str(&format!(
+                    " \\\n  \"{desc}\" {k} \"run-shell '{dispatcher} {name}'\""
+                ));
+            }
+            out.push_str(" \\\n  \"\" \\\n  \"Cancel\" q \"\"\n");
+            out
+        }
+    }
+}
+
+/// Render the `bind-key` line for the live theme chooser. Same enable
+/// gate, populated dynamically from `customization.tmux.theme_switch.themes`.
+fn theme_switch_binding(config: &AiboxConfig) -> String {
+    let ts = &config.customization.tmux.theme_switch;
+    if !ts.enabled {
+        return String::new();
+    }
+    let key = tmux_option_escape(&ts.prefix_key);
+    let confirm_env = if ts.confirm_restart_tuis {
+        "AIBOX_THEME_CONFIRM_RESTART_TUIS=true"
+    } else {
+        "AIBOX_THEME_CONFIRM_RESTART_TUIS=false"
+    };
+
+    let mut out = format!(
+        "\nbind-key -N \"Choose theme\" {key} display-menu -T \"#[align=centre]Theme\" -x C -y C"
+    );
+    // First letter of each theme as the shortcut; resolve collisions by
+    // suffixing a digit. The map is built deterministically.
+    let mut used: std::collections::HashSet<char> = std::collections::HashSet::new();
+    for theme in &ts.themes {
+        let letter = pick_unique_shortcut(theme, &mut used);
+        let label = theme.replace('-', " ");
+        out.push_str(&format!(
+            " \\\n  \"{label}\" {letter} \"run-shell 'aibox theme --theme {theme} && aibox-tmux-refresh-theme'\""
+        ));
+    }
+    if ts.include_mode_toggle {
+        let letter = pick_unique_shortcut("light_dark_toggle", &mut used);
+        out.push_str(&format!(
+            " \\\n  \"\" \\\n  \"Toggle light/dark\" {letter} \"run-shell 'aibox theme --mode auto && aibox-tmux-refresh-theme'\""
+        ));
+    }
+    // Heavy tier — pre-execution confirmation respected via env var.
+    out.push_str(&format!(
+        " \\\n  \"\" \\\n  \"Heavy: restart TUIs (kill+respawn lazygit/lnav/AI)\" R \"run-shell '{confirm_env} aibox-tmux-refresh-theme --restart-tuis'\""
+    ));
+    out.push_str(" \\\n  \"\" \\\n  \"Cancel\" q \"\"\n");
+    out
+}
+
+fn pick_unique_shortcut(label: &str, used: &mut std::collections::HashSet<char>) -> char {
+    for ch in label.chars().filter(|c| c.is_ascii_alphabetic()) {
+        let lower = ch.to_ascii_lowercase();
+        if !used.contains(&lower) {
+            used.insert(lower);
+            return lower;
+        }
+    }
+    // Fallback — uppercase the first letter to avoid collision; final
+    // resort is '?' which tmux accepts but the user can override.
+    for ch in label.chars().filter(|c| c.is_ascii_alphabetic()) {
+        let upper = ch.to_ascii_uppercase();
+        if !used.contains(&upper) {
+            used.insert(upper);
+            return upper;
+        }
+    }
+    '?'
 }
 
 fn powerkit_plugin_list_arg(plugins: &[String]) -> String {
@@ -1130,6 +1326,300 @@ mod tests {
     }
 
     #[test]
+    fn model_provider_segments_emit_phase1_agent_count_options() {
+        let mut config = crate::config::test_config();
+        config.customization.tmux.status.model_providers.enabled = true;
+        config
+            .customization
+            .tmux
+            .status
+            .model_providers
+            .providers
+            .truncate(2); // openai + anthropic
+        let conf = tmux_conf(&config);
+
+        // Phase 1 — agent count opt-in by default; binaries auto-defaulted.
+        assert!(
+            conf.contains(r#"@powerkit_plugin_modelstatus_openai_show_agent_count "true""#),
+            "openai segment should declare show_agent_count=true by default:\n{conf}"
+        );
+        assert!(
+            conf.contains(r#"@powerkit_plugin_modelstatus_openai_agent_binaries "codex""#),
+            "openai segment should auto-default agent_binaries to codex:\n{conf}"
+        );
+        assert!(
+            conf.contains(r#"@powerkit_plugin_modelstatus_anthropic_agent_binaries "claude""#),
+            "anthropic segment should auto-default agent_binaries to claude:\n{conf}"
+        );
+
+        // Phase 0 — ok glyph default is off; chevron color carries ok signal.
+        assert!(
+            conf.contains(r#"@powerkit_plugin_modelstatus_openai_show_glyph_when_ok "false""#)
+                && conf.contains(r#"@powerkit_plugin_modelstatus_openai_show_ok "false""#),
+            "ok-glyph should default off so the chevron color is the canonical ok signal:\n{conf}"
+        );
+    }
+
+    #[test]
+    fn model_provider_segments_phase2_quota_opt_in() {
+        let mut config = crate::config::test_config();
+        config.customization.tmux.status.model_providers.enabled = true;
+        config
+            .customization
+            .tmux
+            .status
+            .model_providers
+            .providers
+            .truncate(2);
+        // Flip quota on for openai with a custom api-key env.
+        config.customization.tmux.status.model_providers.providers[0].show_quota = true;
+        config.customization.tmux.status.model_providers.providers[0].quota_api_key_env =
+            Some("OPENAI_PROJECT_KEY".to_string());
+        config.customization.tmux.status.model_providers.providers[0].quota_window =
+            "requests".to_string();
+
+        let conf = tmux_conf(&config);
+        assert!(
+            conf.contains(r#"@powerkit_plugin_modelstatus_openai_show_quota "true""#),
+            "show_quota must propagate to the powerkit option:\n{conf}"
+        );
+        assert!(
+            conf.contains(r#"@powerkit_plugin_modelstatus_openai_quota_window "requests""#),
+            "quota_window must propagate verbatim:\n{conf}"
+        );
+        assert!(
+            conf.contains(
+                r#"@powerkit_plugin_modelstatus_openai_quota_api_key_env "OPENAI_PROJECT_KEY""#
+            ),
+            "quota_api_key_env override must propagate:\n{conf}"
+        );
+        // Anthropic was left default — show_quota false, no quota_api_key_env line.
+        assert!(
+            conf.contains(r#"@powerkit_plugin_modelstatus_anthropic_show_quota "false""#),
+            "default show_quota for unmodified providers should be false:\n{conf}"
+        );
+        assert!(
+            !conf.contains(r#"@powerkit_plugin_modelstatus_anthropic_quota_api_key_env"#),
+            "no quota_api_key_env line should be emitted when unset:\n{conf}"
+        );
+    }
+
+    #[test]
+    fn model_provider_segments_phase3_admin_usage_requires_section_ack() {
+        let mut config = crate::config::test_config();
+        config.customization.tmux.status.model_providers.enabled = true;
+        config
+            .customization
+            .tmux
+            .status
+            .model_providers
+            .providers
+            .truncate(1);
+
+        // Provider asks for admin usage, section-level ack is still false.
+        config.customization.tmux.status.model_providers.providers[0].show_admin_usage = true;
+
+        let conf = tmux_conf(&config);
+        assert!(
+            conf.contains(r#"@powerkit_plugin_modelstatus_openai_show_admin_usage "false""#),
+            "show_admin_usage at the provider level must be gated off until the section-level admin_usage_enabled is set:\n{conf}"
+        );
+
+        // Now flip the section-level ack on; admin usage should flow through.
+        config
+            .customization
+            .tmux
+            .status
+            .model_providers
+            .admin_usage_enabled = true;
+        config.customization.tmux.status.model_providers.providers[0].admin_api_key_env =
+            Some("OPENAI_ADMIN_KEY".to_string());
+        let conf = tmux_conf(&config);
+        assert!(
+            conf.contains(r#"@powerkit_plugin_modelstatus_openai_show_admin_usage "true""#),
+            "section-level admin_usage_enabled should release per-provider show_admin_usage:\n{conf}"
+        );
+        assert!(
+            conf.contains(
+                r#"@powerkit_plugin_modelstatus_openai_admin_api_key_env "OPENAI_ADMIN_KEY""#
+            ),
+            "admin_api_key_env override must propagate:\n{conf}"
+        );
+    }
+
+    #[test]
+    fn inactive_panes_render_with_dimmed_window_style() {
+        // The non-focused window-style must use the dim palette so the
+        // active pane stands out. The active style must keep the raw bg/fg
+        // — confusingly matching them would erase the visual cue.
+        let config = crate::config::test_config();
+        let conf = tmux_conf(&config);
+        let theme = config.customization.resolved_theme();
+        let (bg, fg, _accent, _muted, _dim_fg_old, _active_title_fg) =
+            crate::themes::terminal_surface_colors(&theme);
+        let (dim_bg, dim_fg) = crate::themes::dim_inactive_pane_colors(&theme);
+
+        assert_ne!(
+            dim_bg.as_str(),
+            bg,
+            "dim_bg must differ from active bg or the cue is invisible"
+        );
+        assert_ne!(
+            dim_fg.as_str(),
+            fg,
+            "dim_fg must differ from active fg or the cue is invisible"
+        );
+        assert!(
+            conf.contains(&format!("set -g window-style \"bg={dim_bg},fg={dim_fg}\"")),
+            "inactive window-style must use dim_bg/dim_fg:\n{conf}"
+        );
+        assert!(
+            conf.contains(&format!("set -g window-active-style \"bg={bg},fg={fg}\"")),
+            "active window-style must keep the original palette bg/fg:\n{conf}"
+        );
+    }
+
+    #[test]
+    fn layout_switch_binding_is_emitted_by_default_with_confirm_dispatcher() {
+        let config = crate::config::test_config();
+        let conf = tmux_conf(&config);
+        assert!(
+            conf.contains(r#"bind-key -N "Choose layout" L display-menu -T"#),
+            "default layout-switch binding should use display-menu + key L:\n{conf}"
+        );
+        assert!(
+            conf.contains("aibox-tmux-confirm-and-switch dev"),
+            "confirm-by-default should route dev through aibox-tmux-confirm-and-switch:\n{conf}"
+        );
+        assert!(
+            conf.contains("aibox-tmux-confirm-and-switch focus")
+                && conf.contains("aibox-tmux-confirm-and-switch ai")
+                && conf.contains("aibox-tmux-confirm-and-switch cowork"),
+            "every built-in layout should appear in the menu:\n{conf}"
+        );
+    }
+
+    #[test]
+    fn layout_switch_confirm_false_bypasses_dialog() {
+        let mut config = crate::config::test_config();
+        config.customization.tmux.layout_switch.confirm = false;
+        let conf = tmux_conf(&config);
+        assert!(
+            conf.contains("aibox-tmux-switch-layout dev"),
+            "with confirm=false the menu should invoke aibox-tmux-switch-layout directly:\n{conf}"
+        );
+        assert!(
+            !conf.contains("aibox-tmux-confirm-and-switch"),
+            "with confirm=false the confirm wrapper should be absent:\n{conf}"
+        );
+    }
+
+    #[test]
+    fn layout_switch_disabled_omits_binding() {
+        let mut config = crate::config::test_config();
+        config.customization.tmux.layout_switch.enabled = false;
+        let conf = tmux_conf(&config);
+        assert!(
+            !conf.contains(r#"bind-key -N "Choose layout""#),
+            "disabled layout_switch should omit the binding entirely:\n{conf}"
+        );
+    }
+
+    #[test]
+    fn layout_switch_table_style_emits_key_table_form() {
+        let mut config = crate::config::test_config();
+        config.customization.tmux.layout_switch.style = "table".to_string();
+        let conf = tmux_conf(&config);
+        assert!(
+            conf.contains("switch-client -T aibox_layouts"),
+            "table style should switch into a tmux key table:\n{conf}"
+        );
+        assert!(
+            conf.contains("bind-key -T aibox_layouts d"),
+            "table style should bind individual keys in the layouts table:\n{conf}"
+        );
+    }
+
+    #[test]
+    fn theme_switch_binding_lists_configured_themes() {
+        let config = crate::config::test_config();
+        let conf = tmux_conf(&config);
+        assert!(
+            conf.contains(r#"bind-key -N "Choose theme" T display-menu"#),
+            "default theme-switch binding should use display-menu + key T:\n{conf}"
+        );
+        // Default themes from config: gruvbox-dark, catppuccin-mocha, tokyo-night, dracula, projectious.
+        for theme in [
+            "gruvbox-dark",
+            "catppuccin-mocha",
+            "tokyo-night",
+            "dracula",
+            "projectious",
+        ] {
+            assert!(
+                conf.contains(&format!("aibox theme --theme {theme}")),
+                "theme menu should include {theme}:\n{conf}"
+            );
+        }
+        assert!(
+            conf.contains("Toggle light/dark"),
+            "include_mode_toggle default true should emit the toggle entry:\n{conf}"
+        );
+        assert!(
+            conf.contains("Heavy: restart TUIs"),
+            "the heavy tier should be exposed as a menu entry:\n{conf}"
+        );
+        assert!(
+            conf.contains("AIBOX_THEME_CONFIRM_RESTART_TUIS=true"),
+            "default confirm_restart_tuis=true must wire through to the helper:\n{conf}"
+        );
+    }
+
+    #[test]
+    fn theme_switch_disabled_omits_binding() {
+        let mut config = crate::config::test_config();
+        config.customization.tmux.theme_switch.enabled = false;
+        let conf = tmux_conf(&config);
+        assert!(
+            !conf.contains(r#"bind-key -N "Choose theme""#),
+            "disabled theme_switch should omit the binding entirely:\n{conf}"
+        );
+    }
+
+    #[test]
+    fn theme_switch_confirm_restart_tuis_false_propagates() {
+        let mut config = crate::config::test_config();
+        config.customization.tmux.theme_switch.confirm_restart_tuis = false;
+        let conf = tmux_conf(&config);
+        assert!(
+            conf.contains("AIBOX_THEME_CONFIRM_RESTART_TUIS=false"),
+            "confirm_restart_tuis=false must flow into the heavy-tier env:\n{conf}"
+        );
+    }
+
+    #[test]
+    fn model_provider_show_ok_legacy_alias_still_works() {
+        // Older configs may still set [customization.tmux.status.model_providers].show_ok = true
+        // — that should equivalently enable the ✓ glyph.
+        let mut config = crate::config::test_config();
+        config.customization.tmux.status.model_providers.enabled = true;
+        config.customization.tmux.status.model_providers.show_ok = true;
+        config
+            .customization
+            .tmux
+            .status
+            .model_providers
+            .providers
+            .truncate(1);
+
+        let conf = tmux_conf(&config);
+        assert!(
+            conf.contains(r#"@powerkit_plugin_modelstatus_openai_show_glyph_when_ok "true""#),
+            "legacy show_ok = true must flow into the new show_glyph_when_ok option:\n{conf}"
+        );
+    }
+
+    #[test]
     fn tmux_status_labels_are_configurable() {
         let mut config = crate::config::test_config();
         config.customization.tmux.status.labels.aibox_log = "L".to_string();
@@ -1148,6 +1638,25 @@ mod tests {
                 && conf.contains(r#"@powerkit_plugin_netspeed_icon_download "DN""#)
                 && conf.contains(r#"@powerkit_plugin_netspeed_icon_upload "UP""#),
             "status labels should be emitted as PowerKit plugin options:\n{conf}"
+        );
+    }
+
+    #[test]
+    fn tmux_status_separators_are_configurable() {
+        let mut config = crate::config::test_config();
+        config.customization.tmux.status.separators.style =
+            crate::config::TmuxStatusSeparatorStyle::Flame;
+        config.customization.tmux.status.separators.edge_style =
+            crate::config::TmuxStatusSeparatorStyle::Honeycomb;
+        config.customization.tmux.status.separators.elements_spacing =
+            crate::config::TmuxStatusElementsSpacing::Plugins;
+        let conf = tmux_conf(&config);
+
+        assert!(
+            conf.contains(r#"@powerkit_separator_style "flame""#)
+                && conf.contains(r#"@powerkit_edge_separator_style "honeycomb""#)
+                && conf.contains(r#"@powerkit_elements_spacing "plugins""#),
+            "status separator config should be emitted as PowerKit options:\n{conf}"
         );
     }
 

@@ -2441,6 +2441,67 @@ enabled = false
     }
 
     #[test]
+    fn refresh_generated_aibox_toml_comments_preserves_harness_order() {
+        let tmp = TempDir::new().unwrap();
+        fs::write(
+            tmp.path().join("aibox.toml"),
+            r#"apiVersion = "aibox.projectious.work/v1"
+kind = "Workspace"
+# =============================================================================
+# aibox.toml — single source of truth for your aibox project.
+# All .devcontainer/ files are generated from this. Edit here, run `aibox sync`.
+# =============================================================================
+
+[aibox]
+config_schema = "1.0.0"
+profile = "human-dev"
+
+[metadata]
+name = "demo"
+
+[image]
+version = "0.23.10"
+base = "debian"
+
+[container]
+name = "demo"
+
+[context]
+schema_version = "1.0.0"
+packages = ["product"]
+
+[ai]
+harnesses = ["codex", "claude", "gemini"]
+
+[processkit]
+source = "https://github.com/projectious-work/processkit.git"
+version = "v0.25.7"
+src_path = "src"
+
+[customization]
+theme = "nord"
+prompt = "arrow"
+layout = "ai"
+
+[audio]
+enabled = false
+"#,
+        )
+        .unwrap();
+
+        refresh_generated_aibox_toml_comments(tmp.path()).unwrap();
+
+        let after = fs::read_to_string(tmp.path().join("aibox.toml")).unwrap();
+        let codex = after.find(r#"harness = "codex", enable = true"#).unwrap();
+        let claude = after.find(r#"harness = "claude", enable = true"#).unwrap();
+        let gemini = after.find(r#"harness = "gemini", enable = true"#).unwrap();
+        assert!(
+            codex < claude && claude < gemini,
+            "comment refresh must keep original harness order:\n{after}"
+        );
+    }
+
+    #[test]
     fn refresh_generated_aibox_toml_comments_skips_unknown_schema_keys() {
         let tmp = TempDir::new().unwrap();
         let before = r#"# aibox.toml — single source of truth for your aibox project.

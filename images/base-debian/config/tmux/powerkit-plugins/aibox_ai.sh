@@ -34,7 +34,15 @@ plugin_collect() {
 plugin_get_content_type() { printf 'dynamic'; }
 plugin_get_presence()     { printf 'always'; }
 plugin_get_state()        { printf 'active'; }
-plugin_get_health()       { printf 'ok'; }
+plugin_get_health() {
+    local agents
+    agents="$(plugin_data_get ai_agents)"
+    if [[ -n "${agents}" && "${agents}" =~ ^[0-9]+$ && "${agents}" -gt 0 ]]; then
+        printf 'info'
+    else
+        printf 'ok'
+    fi
+}
 plugin_get_context()      { printf 'runtime'; }
 plugin_get_icon()         { get_option "label"; }
 

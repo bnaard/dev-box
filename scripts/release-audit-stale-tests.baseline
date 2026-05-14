@@ -3,13 +3,16 @@
 # Each line: <path>:<lineno>\t<category>
 # Provenance: WorkItem BACK-20260509_1316-TallBear (v0.25.7 / track T2).
 
-cli/tests/e2e/config_coverage.rs:266	layout-name-literal
-cli/tests/e2e/config_coverage.rs:285	layout-name-literal
-cli/tests/e2e/config_coverage.rs:287	harness-name-literal
+cli/tests/e2e/config_coverage.rs:320	layout-name-literal
+cli/tests/e2e/config_coverage.rs:339	layout-name-literal
+cli/tests/e2e/config_coverage.rs:341	harness-name-literal
 cli/tests/e2e/no_container_harness.rs:239	layout-name-literal
-cli/tests/e2e/no_container_harness.rs:769	harness-name-literal
-cli/tests/e2e/visual.rs:292	tmux-index-literal
-cli/tests/e2e/visual.rs:311	slot-label-literal
+cli/tests/e2e/no_container_harness.rs:252	layout-name-literal
+cli/tests/e2e/no_container_harness.rs:791	harness-name-literal
+cli/tests/e2e/visual.rs:297	tmux-index-literal
+cli/tests/e2e/visual.rs:317	slot-label-literal
+cli/tests/e2e/visual.rs:318	slot-label-literal
+cli/tests/e2e/visual.rs:319	slot-label-literal
 cli/tests/e2e/visual_matrix.rs:201	harness-name-literal
 cli/tests/e2e/visual_matrix.rs:26	layout-name-literal
 cli/tests/e2e/visual_matrix.rs:29	harness-name-literal
@@ -18,20 +21,17 @@ cli/tests/e2e/visual_matrix.rs:36	harness-name-literal
 cli/tests/e2e/visual_matrix.rs:37	harness-name-literal
 cli/tests/e2e/visual_matrix.rs:41	layout-name-literal
 cli/tests/e2e/visual_matrix.rs:42	layout-name-literal
-cli/tests/e2e/visual_matrix.rs:579	layout-name-literal
-cli/tests/e2e/visual_matrix.rs:580	layout-name-literal
-cli/tests/e2e/visual_matrix.rs:581	layout-name-literal
-cli/tests/e2e/visual_matrix.rs:582	layout-name-literal
-cli/tests/e2e/visual_matrix.rs:583	layout-name-literal
-cli/tests/e2e/visual_matrix.rs:584	layout-name-literal
-cli/tests/e2e/visual_matrix.rs:648	slot-label-literal
-cli/tests/e2e/visual_matrix.rs:649	slot-label-literal
-cli/tests/e2e/visual_matrix.rs:794	layout-name-literal
-cli/tests/integration.rs:153	layout-name-literal
+cli/tests/e2e/visual_matrix.rs:585	layout-name-literal
+cli/tests/e2e/visual_matrix.rs:586	layout-name-literal
+cli/tests/e2e/visual_matrix.rs:651	slot-label-literal
+cli/tests/e2e/visual_matrix.rs:652	slot-label-literal
+cli/tests/e2e/visual_matrix.rs:798	layout-name-literal
+cli/tests/e2e/visual_rendered_yazi.rs:105	harness-name-literal
+cli/tests/integration.rs:194	layout-name-literal
 cli/tests/integration.rs:72	harness-name-literal
-cli/tests/integration.rs:740	layout-name-literal
-cli/tests/integration.rs:741	harness-name-literal
-cli/tests/integration.rs:775	harness-name-literal
-cli/tests/integration.rs:783	harness-name-literal
+cli/tests/integration.rs:781	layout-name-literal
+cli/tests/integration.rs:782	harness-name-literal
+cli/tests/integration.rs:816	harness-name-literal
+cli/tests/integration.rs:824	harness-name-literal
 scripts/test-screencasts.sh:104	layout-name-literal
 scripts/test-screencasts.sh:144	slot-label-literal

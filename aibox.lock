@@ -34,20 +34,22 @@ rust = [
 ]
 
 [runtime_home]
-generated_at = "2026-05-13T15:15:13.239009+00:00"
+generated_at = "2026-05-13T18:39:11.621737+00:00"
 
 [runtime_home.files]
 ".asoundrc" = "f34609b11d315cd613cb5333b561032baec860faf4a7eccb28b5567ae72019af"
+".claude.json" = "ca3d163bab055381827226140568f3bef7eaac187cebd76878e0b63e9e442356"
+".claude/keybindings.json" = "187a3f75b831cbec4b025eecd23f06e76a77f46d6f47e4e730ef341f0d1db21c"
 ".config/cheatsheet.txt" = "6bcc1369bd8790958c96d60cc460af22aa20545557dc397ed7e5e27c4dcbf060"
 ".config/git/config" = "512a00e2c81ab1b9b7b8dce0777043cbdb6cd0030f0cabd4b6d99b93efc0b833"
 ".config/lnav/formats/aibox/aibox.json" = "10e1af791380119ecd6860f8d31becb183a26b01868d9b20b2e277177e17c660"
 ".config/starship.toml" = "6deb2846348b3113b7074717d98a17d15a9d395b6b80fdbb9f0953711ef77524"
 ".config/tmux/aibox-powerkit-overrides.tmux" = "346813730f48076be6ea5f333cdb1f4391caf286bdd5ef0e22a6458c358aabeb"
 ".config/tmux/aibox-session.sh" = "a2cb0ad6276471ad6f438d7a6379b6f43bbe29b5743da8f7dc7030d890400c50"
-".config/tmux/layouts/ai.sh" = "3da6ac1ec176daff89d3c969ea23b73d418248413de353c74d21aac448ff253c"
-".config/tmux/layouts/cowork.sh" = "d1684be6b2428a77d85faa752b475c3978de50cb6de8347bdfce1056f568092a"
-".config/tmux/layouts/dev.sh" = "04d299abe99d0ac09a2e74d4136a80ae067a64efa754347f41a6e3eef2286691"
-".config/tmux/layouts/focus.sh" = "a06c253cdb00763b5560a982c5af862e1e3201c00784dcafd1f21626e374ad36"
+".config/tmux/layouts/ai.sh" = "1e08442cd479606ca78365b020da94361cd3718cc39c762768fe84f1c4b18382"
+".config/tmux/layouts/cowork.sh" = "b3fe8d99e640d5de6278f6805aeb49102f566dc657235bb9edf0e3b3a579d6e4"
+".config/tmux/layouts/dev.sh" = "b27dfc9ccf280454cb567578b25a119c06480e159c999c48205234d8f50e1e25"
+".config/tmux/layouts/focus.sh" = "7759ead1e6e8b595d691b1069e7e2252fb6d6335a8690b2d1fb8876987204552"
 ".config/tmux/tmux.conf" = "f611228ab4842ff4b49c8b32514bea216687a15ac94cd2e7f976a687f583ab4e"
 ".config/yazi/init.lua" = "eae04462c0b3bcbb486ee59aa9c2c9e9595680a0626997c942e5abb2ae5a48d7"
 ".config/yazi/keymap.toml" = "0b20be4e5f58d0af2ba72b8621e288ef2d6a7665a8a73c5fca5a172f83c6ebdd"

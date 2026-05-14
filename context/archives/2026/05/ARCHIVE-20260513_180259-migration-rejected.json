@@ -1,0 +1,416 @@
+{
+  "archive_id": "ARCHIVE-20260513_180259-migration-rejected",
+  "archive_path": "context/archives/2026/05/ARCHIVE-20260513_180259-migration-rejected.tar.gz",
+  "created_at": "2026-05-13T18:02:59+00:00",
+  "entities": [
+    {
+      "apiVersion": "processkit.projectious.work/v1",
+      "body_index": "# Migration MIG-RUNTIME-20260513T145522\n\nManaged `.aibox-home/` runtime changes from `0.25.14` to `0.25.13`.\n\n0 changed upstream, 0 conflicts, 0 new, 2 removed (2 groups affected)\n\n## Counts\n\n- unchanged: 31\n- changed-locally-only: 0\n- changed-upstream-only: 0\n- conflict: 0\n- new-upstream: 0\n- removed-upstream: 2\n\n- removed-upstream-stale: 0\n\n## Per-intermediate review\n\nEvery released version between `from_version` and `to_version` whose              template snapshot is present on disk is listed below, with the number              of files that changed between consecutive snapshots. Useful for              catching scaffolding changes that were introduced and later reverted              across the span of a multi-version upgrade.\n\n- `0.25.14` \u2192 `0.25.13`: 8 file(s) changed of 33\n\n## Changes by group\n\n### runtime-misc\n\n**removed-upstream**\n\n- `.aibox-home/.inputrc` -> `.aibox-home/.inputrc`\n\n### runtime-tmux\n\n**removed-upstream**\n\n- `.aibox-home/.config/tmux/aibox-powerkit-overrides.tmux` -> `.aibox-home/.config/tmux/aibox-powerkit-overrides.tmux`\n",
+      "id": "MIG-RUNTIME-20260513T145522",
+      "kind": "Migration",
+      "labels": {},
+      "member_path": "context/migrations/applied/MIG-RUNTIME-20260513T145522.md",
+      "metadata": {
+        "created": "2026-05-13T14:55:22+00:00",
+        "id": "MIG-RUNTIME-20260513T145522",
+        "updated": "2026-05-13T18:00:41+00:00"
+      },
+      "original_path": "context/migrations/applied/MIG-RUNTIME-20260513T145522.md",
+      "sha256": "8be0274f774edb82742084ecfb0eb782df63364df8567ec43259892b880508a2",
+      "spec": {
+        "affected_groups": [
+          "runtime-misc",
+          "runtime-tmux"
+        ],
+        "from_version": "0.25.14",
+        "generated_at": "2026-05-13T14:55:22+00:00",
+        "generated_by": "aibox apply",
+        "rejected_at": "2026-05-13T18:00:41+00:00",
+        "rejected_reason": "Invalid stale runtime-home downgrade migration generated after v0.25.14: from_version 0.25.14 to 0.25.13, affected_groups populated but affected_files empty. pk-doctor recommended rejection and refiling generator/post-processor defect if it recurs.",
+        "source": "aibox-runtime-home",
+        "source_url": "aibox://runtime-home",
+        "state": "rejected",
+        "summary": "0 changed upstream, 0 conflicts, 0 new, 2 removed (2 groups affected)",
+        "to_version": "0.25.13"
+      },
+      "storage_location": "context/archives/2026/05/ARCHIVE-20260513_180259-migration-rejected.tar.gz::context/migrations/applied/MIG-RUNTIME-20260513T145522.md"
+    },
+    {
+      "apiVersion": "processkit.projectious.work/v2",
+      "body_index": "# Migration MIG-RUNTIME-20260512T044831\n\nManaged `.aibox-home/` runtime changes from `0.25.9` to `0.25.9`.\n\n0 changed upstream, 0 conflicts, 0 new, 2 removed (5 groups affected)\n\n## Counts\n\n- unchanged: 26\n- changed-locally-only: 4\n- changed-upstream-only: 0\n- conflict: 0\n- new-upstream: 0\n- removed-upstream: 2\n\n- removed-upstream-stale: 0\n\n## Changes by group\n\n### runtime-claude\n\n**removed-upstream**\n\n- `.aibox-home/.claude/keybindings.json` -> `.aibox-home/.claude/keybindings.json`\n\n### runtime-git\n\n**changed-locally-only**\n\n- `.aibox-home/.config/git/config` -> `.aibox-home/.config/git/config`\n\n### runtime-misc\n\n**changed-locally-only**\n\n- `.aibox-home/.config/cheatsheet.txt` -> `.aibox-home/.config/cheatsheet.txt`\n\n**removed-upstream**\n\n- `.aibox-home/.claude.json` -> `.aibox-home/.claude.json`\n\n### runtime-vim\n\n**changed-locally-only**\n\n- `.aibox-home/.vim/vimrc` -> `.aibox-home/.vim/vimrc`\n\n### runtime-yazi\n\n**changed-locally-only**\n\n- `.aibox-home/.config/yazi/plugins/git.yazi/main.lua` -> `.aibox-home/.config/yazi/plugins/git.yazi/main.lua`\n",
+      "id": "MIG-RUNTIME-20260512T044831",
+      "kind": "Migration",
+      "labels": {},
+      "member_path": "context/archive/applied-migrations-legacy/MIG-RUNTIME-20260512T044831.md",
+      "metadata": {
+        "created": "2026-05-12T04:48:31+00:00",
+        "id": "MIG-RUNTIME-20260512T044831",
+        "updated": "2026-05-12T05:02:47+00:00"
+      },
+      "original_path": "context/archive/applied-migrations-legacy/MIG-RUNTIME-20260512T044831.md",
+      "sha256": "b434b15b900a1383a7ee77ec15904b12c41b55768b79dab4b50c649d15b58044",
+      "spec": {
+        "affected_groups": [
+          "runtime-claude",
+          "runtime-git",
+          "runtime-misc",
+          "runtime-vim",
+          "runtime-yazi"
+        ],
+        "apply_mode": "one-shot",
+        "from_version": "0.25.9",
+        "generated_at": "2026-05-12T04:48:31+00:00",
+        "generated_by": "aibox apply",
+        "rejected_at": "2026-05-12T05:02:47+00:00",
+        "rejected_reason": "Rejected during pk-doctor cleanup: same-version runtime-home migration reported affected groups but no affected_files; pk-doctor flagged this as a likely empty-baseline/post-processor defect. Preserve current files and refile/fix generator behavior separately if it recurs.",
+        "source": "aibox-runtime-home",
+        "source_api_version": "processkit.projectious.work/v1",
+        "source_processkit_version": "0.25.9",
+        "source_url": "aibox://runtime-home",
+        "state": "rejected",
+        "summary": "0 changed upstream, 0 conflicts, 0 new, 2 removed (5 groups affected)",
+        "target_api_version": "processkit.projectious.work/v2",
+        "target_processkit_version": "0.25.9",
+        "to_version": "0.25.9"
+      },
+      "storage_location": "context/archives/2026/05/ARCHIVE-20260513_180259-migration-rejected.tar.gz::context/archive/applied-migrations-legacy/MIG-RUNTIME-20260512T044831.md"
+    },
+    {
+      "apiVersion": "processkit.projectious.work/v2",
+      "body_index": "# Migration: disabled AI-harness state cleanup (REJECTED)\n\n> **REJECTED 2026-05-09:** Trigger condition no longer holds \u2014 `[ai.harness.claude]` is enabled in aibox.toml. The migration was emitted during a transient state when claude was briefly removed; `aibox apply` did not auto-clear when claude was re-added. Applying would purge `.aibox-home/.claude`, which is the live state of the running session's harness. Kept here for audit trail.\n\n## Original body (for reference)\n\n> **SAFETY: Do not execute host actions automatically.**\n> **Discuss the cleanup with the project owner before applying it.**\n\n**Status:** rejected (was: pending)\n\n## Summary\n\nOne or more AI harnesses that previously had state on the host are no longer listed in `[ai].harnesses`. Their `.aibox-home` config directories and MCP-registration files are still on disk.\n\n`aibox apply` did NOT delete this state because `[apply].purge_disabled_harness_state` is `false` (the default).\n\n## What would be removed\n\n### claude (claude no longer enabled)\n\n- `.aibox-home/.claude`\n\n## How to apply this cleanup\n\n1. Review the list above with the project owner.\n2. Either:\n   - re-enable the harness in `aibox.toml` if the removal was ",
+      "id": "disabled-harness-state-REJECTED",
+      "kind": "Migration",
+      "labels": {},
+      "member_path": "context/archive/applied-migrations-legacy/disabled-harness-state-REJECTED.md",
+      "metadata": {
+        "created": "2026-05-09T12:41:00+00:00",
+        "id": "disabled-harness-state-REJECTED"
+      },
+      "original_path": "context/archive/applied-migrations-legacy/disabled-harness-state-REJECTED.md",
+      "sha256": "6334a6ee9283a6f328e52b47da1506f02d6d4046affd418ea218f9675d839ce2",
+      "spec": {
+        "apply_mode": "one-shot",
+        "rejected_reason": "Trigger condition no longer holds \u2014 `[ai.harness.claude]` is enabled in aibox.toml. Likely emitted during a transient state when claude was briefly removed; aibox apply did not auto-clear when claude was re-added. Applying would purge `.aibox-home/.claude` (live state of the running session's harness).",
+        "source": "aibox",
+        "source_api_version": "processkit.projectious.work/v1",
+        "source_processkit_version": "unknown",
+        "state": "rejected",
+        "target_api_version": "processkit.projectious.work/v2",
+        "target_processkit_version": "2.0.0-alpha.1"
+      },
+      "storage_location": "context/archives/2026/05/ARCHIVE-20260513_180259-migration-rejected.tar.gz::context/archive/applied-migrations-legacy/disabled-harness-state-REJECTED.md"
+    },
+    {
+      "apiVersion": "processkit.projectious.work/v2",
+      "body_index": "# Migration MIG-RUNTIME-20260508T152425\n\nManaged `.aibox-home/` runtime changes from `0.25.4` to `0.25.5`.\n\n0 changed upstream, 0 conflicts, 0 new, 0 removed (5 groups affected)\n\n## Counts\n\n- unchanged: 18\n- changed-locally-only: 12\n- changed-upstream-only: 0\n- conflict: 0\n- new-upstream: 0\n- removed-upstream: 0\n\n- removed-upstream-stale: 0\n\n## Per-intermediate review\n\nEvery released version between `from_version` and `to_version` whose              template snapshot is present on disk is listed below, with the number              of files that changed between consecutive snapshots. Useful for              catching scaffolding changes that were introduced and later reverted              across the span of a multi-version upgrade.\n\n- `0.25.4` \u2192 `0.25.5`: 3 file(s) changed of 30\n\n## Changes by group\n\n### runtime-git\n\n**changed-locally-only**\n\n- `.aibox-home/.config/git/config` -> `.aibox-home/.config/git/config`\n\n### runtime-misc\n\n**changed-locally-only**\n\n- `.aibox-home/.config/cheatsheet.txt` -> `.aibox-home/.config/cheatsheet.txt`\n- `.aibox-home/.claude.json` -> `.aibox-home/.claude.json`\n\n### runtime-tmux\n\n**changed-locally-only**\n\n- `.aibox-home/.config/tmux/tmux.conf` -> `.aibo",
+      "id": "MIG-RUNTIME-20260508T152425",
+      "kind": "Migration",
+      "labels": {},
+      "member_path": "context/archive/applied-migrations-legacy/MIG-RUNTIME-20260508T152425.md",
+      "metadata": {
+        "created": "2026-05-08T15:24:25+00:00",
+        "id": "MIG-RUNTIME-20260508T152425",
+        "updated": "2026-05-08T15:34:12+00:00"
+      },
+      "original_path": "context/archive/applied-migrations-legacy/MIG-RUNTIME-20260508T152425.md",
+      "sha256": "27f98314d01d79e7c788e1ad177787ea1d496a6e30da52c50c1948c941ea5d6f",
+      "spec": {
+        "affected_groups": [
+          "runtime-git",
+          "runtime-misc",
+          "runtime-tmux",
+          "runtime-vim",
+          "runtime-yazi"
+        ],
+        "apply_mode": "one-shot",
+        "from_version": "0.25.4",
+        "generated_at": "2026-05-08T15:24:25+00:00",
+        "generated_by": "aibox apply",
+        "rejected_at": "2026-05-08T15:34:12+00:00",
+        "rejected_reason": "No-op migration: 0 changed-upstream, 0 conflicts, 0 new, 0 removed. Only 12 changed-locally-only entries which fall outside migration scope (purely informational drift flag). Per migration-management skill gotcha, no-op migrations should not be applied because that records a phantom transition in the audit trail. Rejecting preserves the audit trail without a phantom apply event. The locally-changed files remain on disk untouched; v0.25.6 cleanup-arch will resolve any genuine drift via the new managed-runtime recognizer.",
+        "source": "aibox-runtime-home",
+        "source_api_version": "processkit.projectious.work/v1",
+        "source_processkit_version": "0.25.4",
+        "source_url": "aibox://runtime-home",
+        "state": "rejected",
+        "summary": "0 changed upstream, 0 conflicts, 0 new, 0 removed (5 groups affected)",
+        "target_api_version": "processkit.projectious.work/v2",
+        "target_processkit_version": "0.25.5",
+        "to_version": "0.25.5"
+      },
+      "storage_location": "context/archives/2026/05/ARCHIVE-20260513_180259-migration-rejected.tar.gz::context/archive/applied-migrations-legacy/MIG-RUNTIME-20260508T152425.md"
+    },
+    {
+      "apiVersion": "processkit.projectious.work/v2",
+      "body_index": "# Migration MIG-RUNTIME-20260508T115429\n\nManaged `.aibox-home/` runtime changes from `0.25.2` to `0.25.4`.\n\n1 changed upstream, 7 conflicts, 0 new, 0 removed (5 groups affected)\n\n## Counts\n\n- unchanged: 17\n- changed-locally-only: 3\n- changed-upstream-only: 1\n- conflict: 7\n- new-upstream: 0\n- removed-upstream: 0\n\n- removed-upstream-stale: 0\n\n## Per-intermediate review\n\nEvery released version between `from_version` and `to_version` whose              template snapshot is present on disk is listed below, with the number              of files that changed between consecutive snapshots. Useful for              catching scaffolding changes that were introduced and later reverted              across the span of a multi-version upgrade.\n\n- `0.25.2` \u2192 `0.25.4`: 10 file(s) changed of 28\n\n## Changes by group\n\n### runtime-git\n\n**changed-locally-only**\n\n- `.aibox-home/.config/git/config` -> `.aibox-home/.config/git/config`\n\n### runtime-misc\n\n**changed-locally-only**\n\n- `.aibox-home/.config/cheatsheet.txt` -> `.aibox-home/.config/cheatsheet.txt`\n\n### runtime-tmux\n\n**conflict**\n\n- `.aibox-home/.config/tmux/tmux.conf` -> `.aibox-home/.config/tmux/tmux.conf`\n- `.aibox-home/.config/tmux/layouts/dev.",
+      "id": "MIG-RUNTIME-20260508T115429",
+      "kind": "Migration",
+      "labels": {},
+      "member_path": "context/archive/applied-migrations-legacy/MIG-RUNTIME-20260508T115429.md",
+      "metadata": {
+        "created": "2026-05-08T11:54:29+00:00",
+        "id": "MIG-RUNTIME-20260508T115429",
+        "updated": "2026-05-08T15:34:06+00:00"
+      },
+      "original_path": "context/archive/applied-migrations-legacy/MIG-RUNTIME-20260508T115429.md",
+      "sha256": "1c0f211a118e93c0b5a308e42a48ef14b8b121e1ffee7e01e0f1f60ccd8693dd",
+      "spec": {
+        "affected_groups": [
+          "runtime-git",
+          "runtime-misc",
+          "runtime-tmux",
+          "runtime-vim",
+          "runtime-yazi"
+        ],
+        "apply_mode": "one-shot",
+        "from_version": "0.25.2",
+        "generated_at": "2026-05-08T11:54:29+00:00",
+        "generated_by": "aibox apply",
+        "rejected_at": "2026-05-08T15:34:06+00:00",
+        "rejected_reason": "Obsoleted by accepted v0.25.6 cleanup-arch plan (DEC-20260508_1515-SilentAsh). The 7 conflicts are all managed tmux runtime files (tmux.conf + 6 layouts/*.sh) which Variant 1 of the new cleanup policy will hard-purge on aibox apply once the new lockfile schema and managed-runtime recognizer land. Resolving these conflicts manually now would be discarded by the next apply. Host CLI is now v0.25.5; from_version 0.25.2 is stale relative to current runtime, and the 0.25.4\u21920.25.5 leg is covered by the no-op T152425.",
+        "source": "aibox-runtime-home",
+        "source_api_version": "processkit.projectious.work/v1",
+        "source_processkit_version": "0.25.2",
+        "source_url": "aibox://runtime-home",
+        "state": "rejected",
+        "summary": "1 changed upstream, 7 conflicts, 0 new, 0 removed (5 groups affected)",
+        "target_api_version": "processkit.projectious.work/v2",
+        "target_processkit_version": "0.25.4",
+        "to_version": "0.25.4"
+      },
+      "storage_location": "context/archives/2026/05/ARCHIVE-20260513_180259-migration-rejected.tar.gz::context/archive/applied-migrations-legacy/MIG-RUNTIME-20260508T115429.md"
+    },
+    {
+      "apiVersion": "processkit.projectious.work/v2",
+      "body_index": "# Migration MIG-RUNTIME-20260502T072936\n\nManaged `.aibox-home/` runtime changes from `0.22.0` to `0.22.0`.\n\n0 changed upstream, 0 conflicts, 0 new, 0 removed (1 groups affected)\n\n## Counts\n\n- unchanged: 25\n- changed-locally-only: 1\n- changed-upstream-only: 0\n- conflict: 0\n- new-upstream: 0\n- removed-upstream: 0\n\n## Per-intermediate review\n\nEvery released version between `from_version` and `to_version` whose              template snapshot is present on disk is listed below, with the number              of files that changed between consecutive snapshots. Useful for              catching scaffolding changes that were introduced and later reverted              across the span of a multi-version upgrade.\n\n- `0.22.0` \u2192 `0.22.0`: 0 file(s) changed of 26\n\n## Changes by group\n\n### runtime-git\n\n**changed-locally-only**\n\n- `.aibox-home/.config/git/config` -> `.aibox-home/.config/git/config`\n",
+      "id": "MIG-RUNTIME-20260502T072936",
+      "kind": "Migration",
+      "labels": {},
+      "member_path": "context/archive/applied-migrations-legacy/MIG-RUNTIME-20260502T072936.md",
+      "metadata": {
+        "created": "2026-05-02T07:29:36+00:00",
+        "id": "MIG-RUNTIME-20260502T072936",
+        "updated": "2026-05-02T07:30:00+00:00"
+      },
+      "original_path": "context/archive/applied-migrations-legacy/MIG-RUNTIME-20260502T072936.md",
+      "sha256": "6736a59bba978f65e8c5118ffafa5f8aba505c49c4ca02bf9005465d7ee15191",
+      "spec": {
+        "affected_groups": [
+          "runtime-git"
+        ],
+        "apply_mode": "one-shot",
+        "from_version": "0.22.0",
+        "generated_at": "2026-05-02T07:29:36+00:00",
+        "generated_by": "aibox apply",
+        "rejected_at": "2026-05-02T07:30:00+00:00",
+        "rejected_reason": "No upstream runtime changes or conflicts were present; the migration only reported a local-only .aibox-home/.config/git/config edit, which should be preserved rather than applied over.",
+        "source": "aibox-runtime-home",
+        "source_api_version": "processkit.projectious.work/v1",
+        "source_processkit_version": "0.22.0",
+        "source_url": "aibox://runtime-home",
+        "state": "rejected",
+        "summary": "0 changed upstream, 0 conflicts, 0 new, 0 removed (1 groups affected)",
+        "target_api_version": "processkit.projectious.work/v2",
+        "target_processkit_version": "0.22.0",
+        "to_version": "0.22.0"
+      },
+      "storage_location": "context/archives/2026/05/ARCHIVE-20260513_180259-migration-rejected.tar.gz::context/archive/applied-migrations-legacy/MIG-RUNTIME-20260502T072936.md"
+    },
+    {
+      "apiVersion": "processkit.projectious.work/v2",
+      "body_index": "# Migration MIG-RUNTIME-20260502T071656\n\nManaged `.aibox-home/` runtime changes from `0.22.0` to `0.22.0`.\n\n0 changed upstream, 4 conflicts, 0 new, 0 removed (2 groups affected)\n\n## Counts\n\n- unchanged: 21\n- changed-locally-only: 1\n- changed-upstream-only: 0\n- conflict: 4\n- new-upstream: 0\n- removed-upstream: 0\n\n## Per-intermediate review\n\nEvery released version between `from_version` and `to_version` whose              template snapshot is present on disk is listed below, with the number              of files that changed between consecutive snapshots. Useful for              catching scaffolding changes that were introduced and later reverted              across the span of a multi-version upgrade.\n\n- `0.22.0` \u2192 `0.22.0`: 0 file(s) changed of 26\n\n## Changes by group\n\n### runtime-git\n\n**changed-locally-only**\n\n- `.aibox-home/.config/git/config` -> `.aibox-home/.config/git/config`\n\n### runtime-zellij\n\n**conflict**\n\n- `.aibox-home/.config/zellij/layouts/cowork.kdl` -> `.aibox-home/.config/zellij/layouts/cowork.kdl`\n- `.aibox-home/.config/zellij/layouts/browse.kdl` -> `.aibox-home/.config/zellij/layouts/browse.kdl`\n- `.aibox-home/.config/zellij/layouts/ai.kdl` -> `.aibox-home/.config",
+      "id": "MIG-RUNTIME-20260502T071656",
+      "kind": "Migration",
+      "labels": {},
+      "member_path": "context/archive/applied-migrations-legacy/MIG-RUNTIME-20260502T071656.md",
+      "metadata": {
+        "created": "2026-05-02T07:16:56+00:00",
+        "id": "MIG-RUNTIME-20260502T071656",
+        "updated": "2026-05-02T07:24:26+00:00"
+      },
+      "original_path": "context/archive/applied-migrations-legacy/MIG-RUNTIME-20260502T071656.md",
+      "sha256": "e5310e8085ee93ceb6bb71aab87dbe5d31e87e65f5caf839433045f7e0adbca2",
+      "spec": {
+        "affected_groups": [
+          "runtime-git",
+          "runtime-zellij"
+        ],
+        "apply_mode": "one-shot",
+        "from_version": "0.22.0",
+        "generated_at": "2026-05-02T07:16:56+00:00",
+        "generated_by": "aibox apply",
+        "rejected_at": "2026-05-02T07:24:26+00:00",
+        "rejected_reason": "Obsolete migration generated before runtime-home provenance auto-repair handled conflict-state generated Zellij layouts. A rerun of aibox apply auto-applied the stale generated layouts and runtime sync now reports clean.",
+        "source": "aibox-runtime-home",
+        "source_api_version": "processkit.projectious.work/v1",
+        "source_processkit_version": "0.22.0",
+        "source_url": "aibox://runtime-home",
+        "state": "rejected",
+        "summary": "0 changed upstream, 4 conflicts, 0 new, 0 removed (2 groups affected)",
+        "target_api_version": "processkit.projectious.work/v2",
+        "target_processkit_version": "0.22.0",
+        "to_version": "0.22.0"
+      },
+      "storage_location": "context/archives/2026/05/ARCHIVE-20260513_180259-migration-rejected.tar.gz::context/archive/applied-migrations-legacy/MIG-RUNTIME-20260502T071656.md"
+    },
+    {
+      "apiVersion": "processkit.projectious.work/v2",
+      "body_index": "# Migration MIG-20260429T100822\n\nFrom `v0.23.0` to `v0.23.1` (source: `https://github.com/projectious-work/processkit.git`).\n\n0 changed upstream, 1 conflicts, 0 new, 0 removed, 0 stale-removed (1 groups affected)\n\n## Counts\n\n- unchanged: 576\n- changed-locally-only: 0\n- changed-upstream-only: 0\n- conflict: 1\n- new-upstream: 0\n- removed-upstream: 0\n- removed-upstream-stale: 0\n\n## Changes by group\n\n### AGENTS\n\n**conflict**\n\n- `AGENTS.md` \u2192 `AGENTS.md`\n",
+      "id": "MIG-20260429T100822",
+      "kind": "Migration",
+      "labels": {},
+      "member_path": "context/archive/applied-migrations-legacy/MIG-20260429T100822.md",
+      "metadata": {
+        "created": "2026-04-29T10:08:22+00:00",
+        "id": "MIG-20260429T100822",
+        "updated": "2026-04-29T10:08:55+00:00"
+      },
+      "original_path": "context/archive/applied-migrations-legacy/MIG-20260429T100822.md",
+      "sha256": "aa29c45072ba25d8f4dfb19c78139df06f87123dcd1ed1e96513e3519350548e",
+      "spec": {
+        "affected_groups": [
+          "AGENTS"
+        ],
+        "apply_mode": "one-shot",
+        "from_version": "v0.23.0",
+        "generated_at": "2026-04-29T10:08:22+00:00",
+        "generated_by": "aibox sync",
+        "rejected_at": "2026-04-29T10:08:55+00:00",
+        "rejected_reason": "Rejected during reconciliation because the only conflict is AGENTS.md. This project keeps a project-specific AGENTS.md with local operating instructions; accepting the upstream scaffold would risk losing those custom instructions.",
+        "source": "processkit",
+        "source_api_version": "processkit.projectious.work/v1",
+        "source_processkit_version": "v0.23.0",
+        "source_url": "https://github.com/projectious-work/processkit.git",
+        "state": "rejected",
+        "summary": "0 changed upstream, 1 conflicts, 0 new, 0 removed, 0 stale-removed (1 groups affected)",
+        "target_api_version": "processkit.projectious.work/v2",
+        "target_processkit_version": "v0.23.1",
+        "to_version": "v0.23.1"
+      },
+      "storage_location": "context/archives/2026/05/ARCHIVE-20260513_180259-migration-rejected.tar.gz::context/archive/applied-migrations-legacy/MIG-20260429T100822.md"
+    },
+    {
+      "apiVersion": "processkit.projectious.work/v2",
+      "body_index": "# Migration MIG-20260425T235248\n\nFrom `v0.21.0` to `v0.22.0` (source: `https://github.com/projectious-work/processkit.git`).\n\n0 changed upstream, 0 conflicts, 568 new, 0 removed, 0 stale-removed (52 groups affected)\n\n## Counts\n\n- unchanged: 0\n- changed-locally-only: 0\n- changed-upstream-only: 0\n- conflict: 0\n- new-upstream: 568\n- removed-upstream: 0\n- removed-upstream-stale: 0\n\n## Changes by group\n\n### (ungrouped)\n\n**new-upstream**\n\n- `INDEX.md` \u2192 `context/INDEX.md`\n\n### AGENTS\n\n**new-upstream**\n\n- `AGENTS.md` \u2192 `AGENTS.md`\n\n### context/bindings\n\n**new-upstream**\n\n- `context/bindings/BIND-20260425_0955-BoldSage-model-assignment.md` \u2192 `context/bindings/BIND-20260425_0955-BoldSage-model-assignment.md`\n- `context/bindings/BIND-20260425_0955-CuriousDew-model-assignment.md` \u2192 `context/bindings/BIND-20260425_0955-CuriousDew-model-assignment.md`\n- `context/bindings/BIND-20260425_0955-FierceHare-model-assignment.md` \u2192 `context/bindings/BIND-20260425_0955-FierceHare-model-assignment.md`\n- `context/bindings/BIND-20260425_0955-GentleGlade-model-assignment.md` \u2192 `context/bindings/BIND-20260425_0955-GentleGlade-model-assignment.md`\n- `context/bindings/BIND-20260425_0955-GrandGrove-model-assignm",
+      "id": "MIG-20260425T235248",
+      "kind": "Migration",
+      "labels": {},
+      "member_path": "context/archive/applied-migrations-legacy/MIG-20260425T235248.md",
+      "metadata": {
+        "created": "2026-04-25T23:52:48+00:00",
+        "id": "MIG-20260425T235248"
+      },
+      "original_path": "context/archive/applied-migrations-legacy/MIG-20260425T235248.md",
+      "sha256": "745b74c417d2a511e3e562e49162810998d801e31e1851dff65a77da3f2f5f13",
+      "spec": {
+        "affected_groups": [
+          "",
+          "AGENTS",
+          "context/bindings",
+          "context/models",
+          "context/roles",
+          "context/team",
+          "context/team-members/cora",
+          "context/team-members/cora/relations",
+          "context/team-members/thrifty-otter",
+          "lib",
+          "processes/INDEX",
+          "processes/PROC-bug-fix",
+          "processes/PROC-code-review",
+          "processes/PROC-feature-development",
+          "processes/PROC-release",
+          "schemas/INDEX",
+          "schemas/actor",
+          "schemas/artifact",
+          "schemas/binding",
+          "schemas/category",
+          "schemas/constraint",
+          "schemas/context",
+          "schemas/decisionrecord",
+          "schemas/discussion",
+          "schemas/gate",
+          "schemas/logentry",
+          "schemas/metric",
+          "schemas/migration",
+          "schemas/model",
+          "schemas/note",
+          "schemas/process",
+          "schemas/role",
+          "schemas/schedule",
+          "schemas/scope",
+          "schemas/statemachine",
+          "schemas/team-member",
+          "schemas/workitem",
+          "skills/INDEX.md",
+          "skills/data-ai",
+          "skills/design",
+          "skills/devops",
+          "skills/documents",
+          "skills/engineering",
+          "skills/processkit",
+          "skills/product",
+          "state-machines/INDEX",
+          "state-machines/decisionrecord",
+          "state-machines/discussion",
+          "state-machines/migration",
+          "state-machines/note",
+          "state-machines/scope",
+          "state-machines/workitem"
+        ],
+        "apply_mode": "one-shot",
+        "from_version": "v0.21.0",
+        "generated_at": "2026-04-25T23:52:48+00:00",
+        "generated_by": "aibox sync",
+        "rejection_reason": "Superseded by v0.21.0 release content already applied",
+        "source": "processkit",
+        "source_api_version": "processkit.projectious.work/v1",
+        "source_processkit_version": "v0.21.0",
+        "source_url": "https://github.com/projectious-work/processkit.git",
+        "state": "rejected",
+        "summary": "0 changed upstream, 0 conflicts, 568 new, 0 removed, 0 stale-removed (52 groups affected)",
+        "target_api_version": "processkit.projectious.work/v2",
+        "target_processkit_version": "v0.22.0",
+        "to_version": "v0.22.0"
+      },
+      "storage_location": "context/archives/2026/05/ARCHIVE-20260513_180259-migration-rejected.tar.gz::context/archive/applied-migrations-legacy/MIG-20260425T235248.md"
+    },
+    {
+      "apiVersion": "processkit.projectious.work/v2",
+      "body_index": "# Migration MIG-RUNTIME-20260425T235247\n\nManaged `.aibox-home/` runtime changes from `0.19.2` to `0.19.2`.\n\n0 changed upstream, 0 conflicts, 0 new, 0 removed (1 groups affected)\n\n## Counts\n\n- unchanged: 26\n- changed-locally-only: 1\n- changed-upstream-only: 0\n- conflict: 0\n- new-upstream: 0\n- removed-upstream: 0\n\n## Per-intermediate review\n\nEvery released version between `from_version` and `to_version` whose              template snapshot is present on disk is listed below, with the number              of files that changed between consecutive snapshots. Useful for              catching scaffolding changes that were introduced and later reverted              across the span of a multi-version upgrade.\n\n- `0.19.2` \u2192 `0.19.2`: 0 file(s) changed of 27\n\n## Changes by group\n\n### runtime-misc\n\n**changed-locally-only**\n\n- `.aibox-home/.claude.json` -> `.aibox-home/.claude.json`\n",
+      "id": "MIG-RUNTIME-20260425T235247",
+      "kind": "Migration",
+      "labels": {},
+      "member_path": "context/archive/applied-migrations-legacy/MIG-RUNTIME-20260425T235247.md",
+      "metadata": {
+        "created": "2026-04-25T23:52:47+00:00",
+        "id": "MIG-RUNTIME-20260425T235247"
+      },
+      "original_path": "context/archive/applied-migrations-legacy/MIG-RUNTIME-20260425T235247.md",
+      "sha256": "1d1123b35853641a21f10275affc9bec741fdf62190510c57507f9d98ab6b7e0",
+      "spec": {
+        "affected_groups": [
+          "runtime-misc"
+        ],
+        "apply_mode": "one-shot",
+        "from_version": "0.19.2",
+        "generated_at": "2026-04-25T23:52:47+00:00",
+        "generated_by": "aibox sync",
+        "rejection_reason": "Superseded by v0.21.0 release runtime already in tree",
+        "source": "aibox-runtime-home",
+        "source_api_version": "processkit.projectious.work/v1",
+        "source_processkit_version": "0.19.2",
+        "source_url": "aibox://runtime-home",
+        "state": "rejected",
+        "summary": "0 changed upstream, 0 conflicts, 0 new, 0 removed (1 groups affected)",
+        "target_api_version": "processkit.projectious.work/v2",
+        "target_processkit_version": "0.19.2",
+        "to_version": "0.19.2"
+      },
+      "storage_location": "context/archives/2026/05/ARCHIVE-20260513_180259-migration-rejected.tar.gz::context/archive/applied-migrations-legacy/MIG-RUNTIME-20260425T235247.md"
+    }
+  ],
+  "kind": "Migration",
+  "older_than_days": 0,
+  "sha256": "73f5c59fbb9541c9c3e2d47de87c5bdb32ac85865578c12c224373185eaa3a74",
+  "state": "rejected"
+}

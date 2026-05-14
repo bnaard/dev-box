@@ -74,6 +74,40 @@ let g:netrw_winsize=25
 "                          keybind config) to send Home/End on
 "                          Cmd+Left / Cmd+Right.
 "
+" Alt/Option word movement — keep INSERT mode while jumping.
+"
+" The challenge: most terminals send Alt+x as raw `ESC + x` bytes, NOT
+" as the synthetic <A-x>/<M-x> Vim keycode. Without explicit setup,
+" Vim sees the bare ESC, exits INSERT mode, then runs `x` as a normal
+" command — so Alt+Left mis-fires as "leave insert, jump back one word"
+" instead of "jump back one word, stay in insert".
+"
+" Two-part fix:
+"   1. `set <M-x>=^[x` tells Vim to recognise the byte sequence as a
+"      single key event. This is what unblocks <C-o>b without leaving
+"      insert mode.
+"   2. `ttimeoutlen=50` resolves the multi-byte sequence quickly so
+"      there is no perceptible mode flicker on a slow link.
+"
+" `:exec "set <M-".c.">=\<Esc>".c` builds the keycode for each letter.
+" The trailing `\<Esc>` in the execute string materialises a literal
+" 0x1B byte at the start of the right-hand side.
+set ttimeout
+set ttimeoutlen=50
+if !has('gui_running')
+  let s:alt_alpha = 'abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ.,;:/'
+  for s:c in split(s:alt_alpha, '\zs')
+    execute "set <M-" . s:c . ">=\<Esc>" . s:c
+  endfor
+  unlet! s:alt_alpha s:c
+  " Alt+arrow and Shift-Alt+arrow on xterm-compatible terminals.
+  " Modifier mask: 3 = Alt, 4 = Shift+Alt (CSI 1;<mask><dir>).
+  execute "set <A-Left>=\<Esc>[1;3D"
+  execute "set <A-Right>=\<Esc>[1;3C"
+  execute "set <S-A-Left>=\<Esc>[1;4D"
+  execute "set <S-A-Right>=\<Esc>[1;4C"
+endif
+
 " Insert-mode word movement uses <C-o> (one-shot normal command, then
 " back to insert). The <Right> after `e` puts the cursor AFTER the
 " word's last character, matching VSCode's "select to next word end"
@@ -101,6 +135,27 @@ onoremap <M-f>     e
 cnoremap <M-b>     <C-Left>
 cnoremap <M-f>     <C-Right>
 
+" Shift-Alt+Left / Shift-Alt+Right — extend selection by one word.
+"
+" In Vim there is no "select while in insert mode"; selection lives in
+" Visual mode. INSERT-mode shift-alt-arrow therefore leaves INSERT and
+" enters Visual with the cursor moved by one word. The user can then
+" operate on the selection (y/d/c/...) or extend with further presses.
+" Uppercase <M-B>/<M-F> covers terminals that send ESC+<shift-b/f>
+" instead of CSI 1;4 D/C.
+inoremap <S-A-Left>  <Esc>vb
+inoremap <S-A-Right> <Esc>ve
+nnoremap <S-A-Left>  vb
+nnoremap <S-A-Right> ve
+vnoremap <S-A-Left>  b
+vnoremap <S-A-Right> e
+inoremap <M-B>       <Esc>vb
+inoremap <M-F>       <Esc>ve
+nnoremap <M-B>       vb
+nnoremap <M-F>       ve
+vnoremap <M-B>       b
+vnoremap <M-F>       e
+
 " Smart Home/End. Insert-mode <Home> goes to first non-whitespace
 " (matches IDE 'smart home'); a second press goes to column 0.
 " Vim's default insert-mode <End> already does the right thing
@@ -112,11 +167,19 @@ nnoremap <End>  $
 vnoremap <Home> ^
 vnoremap <End>  $
 
-" Copy explicit Vim selections to the host clipboard through tmux/OSC52.
+" Copy Vim selections to the host clipboard through tmux/OSC52.
 " Paste from the host still uses the terminal paste shortcut.
+function! s:AiboxCopyRegister() abort
+  if executable('aibox-copy')
+    call system('aibox-copy', getreg(v:register))
+  endif
+endfunction
+xnoremap <silent> y y:<C-u>call <SID>AiboxCopyRegister()<CR>
+nnoremap <silent> yy yy:call <SID>AiboxCopyRegister()<CR>
+nnoremap <silent> Y Y:call <SID>AiboxCopyRegister()<CR>
 if executable('aibox-copy')
-  xnoremap <silent> <leader>y y:<C-u>call system('aibox-copy', getreg('"'))<CR>
-  nnoremap <silent> <leader>Y yy:call system('aibox-copy', getreg('"'))<CR>
+  xnoremap <silent> <leader>y y:<C-u>call <SID>AiboxCopyRegister()<CR>
+  nnoremap <silent> <leader>Y yy:call <SID>AiboxCopyRegister()<CR>
 endif
 
 set background=AIBOX_VIM_BG
@@ -141,15 +204,6 @@ set enable-bracketed-paste on
 # region; terminal-visible highlighting depends on the terminal.
 "\e[1;10D": "\C-@\eb"
 "\e[1;10C": "\C-@\ef"
-"#;
-
-/// Default gitconfig content.
-const DEFAULT_GITCONFIG: &str = r#"[core]
-    editor = vim
-[init]
-    defaultBranch = main
-[pull]
-    rebase = true
 "#;
 
 fn addon_tool_effective_enabled(config: &AiboxConfig, addon: &str, tool: &str) -> bool {
@@ -614,6 +668,22 @@ const DEFAULT_AIBOX_PREVIEW_SH: &str =
 /// aibox-status-toggle helper — toggle the tmux runtime status line.
 const DEFAULT_AIBOX_STATUS_TOGGLE_SH: &str =
     include_str!("../../images/base-debian/config/bin/aibox-status-toggle.sh");
+/// aibox-tmux-switch-layout — rebuild the attached tmux session into a
+/// named layout. Companion to `aibox-tmux-confirm-and-switch`.
+const DEFAULT_AIBOX_TMUX_SWITCH_LAYOUT_SH: &str =
+    include_str!("templates/aibox-tmux-switch-layout.sh");
+/// aibox-tmux-confirm-and-switch — display-menu wrapper that introspects
+/// `pane_current_command`, names the in-flight apps that will die, and
+/// dispatches to `aibox-tmux-switch-layout` on confirm.
+const DEFAULT_AIBOX_TMUX_CONFIRM_AND_SWITCH_SH: &str =
+    include_str!("templates/aibox-tmux-confirm-and-switch.sh");
+/// aibox-tmux-refresh-theme — live theme refresh from inside an attached
+/// tmux session. Tier 1 (no flag) = re-source tmux.conf + send-keys
+/// hot-reloads to shell/Vim/Yazi panes. Tier 2 (`--restart-tuis`) =
+/// kill+respawn lazygit/lnav/AI-harness panes (gated by a confirmation
+/// menu, skippable via `AIBOX_THEME_CONFIRM_RESTART_TUIS=false`).
+const DEFAULT_AIBOX_TMUX_REFRESH_THEME_SH: &str =
+    include_str!("templates/aibox-tmux-refresh-theme.sh");
 /// aibox-copy helper — forward stdin to tmux/OSC52 host clipboard integration.
 const DEFAULT_AIBOX_COPY_SH: &str = r#"#!/usr/bin/env bash
 set -euo pipefail
@@ -848,8 +918,20 @@ pub fn managed_runtime_files(config: &AiboxConfig) -> Vec<(std::path::PathBuf, S
                 .replace("AIBOX_VIM_BG", crate::themes::vim_background(&theme)),
         ),
         (
+            std::path::PathBuf::from(".vim/colors/aibox.vim"),
+            crate::themes::vim_aibox_colorscheme(&theme),
+        ),
+        (
             std::path::PathBuf::from(".config/git/config"),
-            DEFAULT_GITCONFIG.to_string(),
+            crate::themes::gitconfig_with_delta(&theme),
+        ),
+        (
+            std::path::PathBuf::from(".config/aibox/theme-env.sh"),
+            crate::themes::theme_env_script(&theme),
+        ),
+        (
+            std::path::PathBuf::from(".config/lnav/config.json"),
+            crate::themes::lnav_config(&theme),
         ),
         (
             std::path::PathBuf::from(".config/tmux/tmux.conf"),
@@ -858,6 +940,10 @@ pub fn managed_runtime_files(config: &AiboxConfig) -> Vec<(std::path::PathBuf, S
         (
             std::path::PathBuf::from(".config/tmux/aibox-powerkit-overrides.tmux"),
             tmux_powerkit_overrides(config),
+        ),
+        (
+            std::path::PathBuf::from(".config/tmux/aibox-powerkit-theme.sh"),
+            crate::themes::tmux_powerkit_custom_theme(&theme),
         ),
         (
             std::path::PathBuf::from(".config/tmux/layouts/dev.sh"),
@@ -913,7 +999,16 @@ pub fn managed_runtime_files(config: &AiboxConfig) -> Vec<(std::path::PathBuf, S
         ),
         (
             std::path::PathBuf::from(".config/yazi/theme.toml"),
-            crate::themes::yazi_theme(&theme).to_string(),
+            crate::themes::yazi_theme_with_separator(
+                &theme,
+                &config
+                    .customization
+                    .tmux
+                    .status
+                    .separators
+                    .style
+                    .to_string(),
+            ),
         ),
         (
             std::path::PathBuf::from(".config/yazi/init.lua"),
@@ -970,6 +1065,18 @@ pub fn managed_runtime_files(config: &AiboxConfig) -> Vec<(std::path::PathBuf, S
         (
             std::path::PathBuf::from(".local/bin/aibox-status-toggle"),
             DEFAULT_AIBOX_STATUS_TOGGLE_SH.to_string(),
+        ),
+        (
+            std::path::PathBuf::from(".local/bin/aibox-tmux-switch-layout"),
+            DEFAULT_AIBOX_TMUX_SWITCH_LAYOUT_SH.to_string(),
+        ),
+        (
+            std::path::PathBuf::from(".local/bin/aibox-tmux-confirm-and-switch"),
+            DEFAULT_AIBOX_TMUX_CONFIRM_AND_SWITCH_SH.to_string(),
+        ),
+        (
+            std::path::PathBuf::from(".local/bin/aibox-tmux-refresh-theme"),
+            DEFAULT_AIBOX_TMUX_REFRESH_THEME_SH.to_string(),
         ),
         (
             std::path::PathBuf::from(".local/bin/aibox-copy"),
@@ -1511,16 +1618,7 @@ pub fn seed_root_dir(config: &AiboxConfig) -> Result<()> {
     for (rel_path, content) in managed_runtime_files(config) {
         let path = root.join(&rel_path);
         seed_file(&path, &content)?;
-        if rel_path == Path::new(".local/bin/pdf-watch")
-            || rel_path == Path::new(".local/bin/open-in-editor")
-            || rel_path == Path::new(".local/bin/aibox-preview")
-            || rel_path == Path::new(".local/bin/aibox-status-toggle")
-            || rel_path == Path::new(".local/bin/aibox-copy")
-            || rel_path == Path::new(".local/bin/aibox-powerkit-render-list")
-            || rel_path == Path::new(".local/bin/aibox-powerkit-render-session")
-            || (rel_path.starts_with(".config/tmux/")
-                && rel_path.extension().is_some_and(|ext| ext == "sh"))
-        {
+        if is_executable_managed_runtime_file(&rel_path) {
             ensure_executable(&path)?;
         }
     }
@@ -1721,6 +1819,18 @@ pub fn sync_theme_files(config: &AiboxConfig) -> Result<Vec<String>> {
     if sync_codex_theme_config(config)? {
         updated.push(".codex/config.toml (tui.theme)".to_string());
     }
+    if sync_claude_theme_config(config)? {
+        updated.push(".claude/settings.json (theme)".to_string());
+    }
+    if sync_aider_theme_config(config)? {
+        updated.push(".aider.conf.yml (dark-mode/code-theme)".to_string());
+    }
+    if sync_gemini_theme_config(config)? {
+        updated.push(".gemini/settings.json (theme)".to_string());
+    }
+    if sync_opencode_theme_config(config)? {
+        updated.push(".config/opencode/opencode.json (theme)".to_string());
+    }
 
     // Claude Code keybindings — disable Ctrl+g (reserved for the tmux prefix).
     if providers.contains(&crate::config::AiProvider::Claude)
@@ -1742,6 +1852,9 @@ fn is_executable_managed_runtime_file(rel_path: &Path) -> bool {
         || rel_path == Path::new(".local/bin/open-in-editor")
         || rel_path == Path::new(".local/bin/aibox-preview")
         || rel_path == Path::new(".local/bin/aibox-status-toggle")
+        || rel_path == Path::new(".local/bin/aibox-tmux-switch-layout")
+        || rel_path == Path::new(".local/bin/aibox-tmux-confirm-and-switch")
+        || rel_path == Path::new(".local/bin/aibox-tmux-refresh-theme")
         || rel_path == Path::new(".local/bin/aibox-copy")
         || rel_path == Path::new(".local/bin/aibox-powerkit-render-list")
         || rel_path == Path::new(".local/bin/aibox-powerkit-render-session")
@@ -1789,6 +1902,209 @@ fn sync_codex_theme_config(config: &AiboxConfig) -> Result<bool> {
     Ok(true)
 }
 
+fn sync_claude_theme_config(config: &AiboxConfig) -> Result<bool> {
+    if !config
+        .ai
+        .harnesses
+        .contains(&crate::config::AiHarness::Claude)
+    {
+        return Ok(false);
+    }
+    let path = config.host_root_dir().join(".claude").join("settings.json");
+    let theme = config.customization.resolved_theme();
+    let value = crate::themes::claude_theme(&theme);
+
+    let mut doc: serde_json::Value = if path.is_file() {
+        let body = fs::read_to_string(&path)
+            .with_context(|| format!("Failed to read {}", path.display()))?;
+        if body.trim().is_empty() {
+            serde_json::Value::Object(serde_json::Map::new())
+        } else {
+            serde_json::from_str(&body)
+                .with_context(|| format!("Failed to parse {}", path.display()))?
+        }
+    } else {
+        serde_json::Value::Object(serde_json::Map::new())
+    };
+    let before = serde_json::to_string_pretty(&doc).unwrap_or_default();
+    if let Some(obj) = doc.as_object_mut() {
+        obj.insert("theme".into(), serde_json::Value::String(value.into()));
+    } else {
+        doc = serde_json::json!({ "theme": value });
+    }
+    let after = serde_json::to_string_pretty(&doc).unwrap_or_default();
+    if after == before {
+        return Ok(false);
+    }
+    if let Some(parent) = path.parent() {
+        fs::create_dir_all(parent)
+            .with_context(|| format!("Failed to create directory: {}", parent.display()))?;
+    }
+    fs::write(&path, format!("{after}\n"))
+        .with_context(|| format!("Failed to write {}", path.display()))?;
+    Ok(true)
+}
+
+fn sync_aider_theme_config(config: &AiboxConfig) -> Result<bool> {
+    if !config
+        .ai
+        .harnesses
+        .contains(&crate::config::AiHarness::Aider)
+    {
+        return Ok(false);
+    }
+    let path = config.host_root_dir().join(".aider.conf.yml");
+    let theme = config.customization.resolved_theme();
+    let dark = !crate::themes::is_light_theme(&theme);
+    let code_theme = crate::themes::aider_code_theme(&theme);
+
+    let existing = if path.is_file() {
+        fs::read_to_string(&path).with_context(|| format!("Failed to read {}", path.display()))?
+    } else {
+        String::new()
+    };
+    let body = upsert_yaml_scalar(
+        &existing,
+        &[
+            ("dark-mode", if dark { "true" } else { "false" }),
+            ("light-mode", if dark { "false" } else { "true" }),
+            ("code-theme", code_theme),
+        ],
+    );
+    if body == existing {
+        return Ok(false);
+    }
+    if let Some(parent) = path.parent() {
+        fs::create_dir_all(parent)
+            .with_context(|| format!("Failed to create directory: {}", parent.display()))?;
+    }
+    fs::write(&path, body).with_context(|| format!("Failed to write {}", path.display()))?;
+    Ok(true)
+}
+
+fn sync_gemini_theme_config(config: &AiboxConfig) -> Result<bool> {
+    if !config
+        .ai
+        .harnesses
+        .contains(&crate::config::AiHarness::Gemini)
+    {
+        return Ok(false);
+    }
+    let path = config.host_root_dir().join(".gemini").join("settings.json");
+    let theme = config.customization.resolved_theme();
+    let value = crate::themes::gemini_theme(&theme);
+
+    let mut doc: serde_json::Value = if path.is_file() {
+        let body = fs::read_to_string(&path)
+            .with_context(|| format!("Failed to read {}", path.display()))?;
+        if body.trim().is_empty() {
+            serde_json::Value::Object(serde_json::Map::new())
+        } else {
+            serde_json::from_str(&body)
+                .with_context(|| format!("Failed to parse {}", path.display()))?
+        }
+    } else {
+        serde_json::Value::Object(serde_json::Map::new())
+    };
+    let before = serde_json::to_string_pretty(&doc).unwrap_or_default();
+    if let Some(obj) = doc.as_object_mut() {
+        obj.insert("theme".into(), serde_json::Value::String(value.into()));
+    } else {
+        doc = serde_json::json!({ "theme": value });
+    }
+    let after = serde_json::to_string_pretty(&doc).unwrap_or_default();
+    if after == before {
+        return Ok(false);
+    }
+    if let Some(parent) = path.parent() {
+        fs::create_dir_all(parent)
+            .with_context(|| format!("Failed to create directory: {}", parent.display()))?;
+    }
+    fs::write(&path, format!("{after}\n"))
+        .with_context(|| format!("Failed to write {}", path.display()))?;
+    Ok(true)
+}
+
+fn sync_opencode_theme_config(config: &AiboxConfig) -> Result<bool> {
+    if !config
+        .ai
+        .harnesses
+        .contains(&crate::config::AiHarness::OpenCode)
+    {
+        return Ok(false);
+    }
+    let path = config
+        .host_root_dir()
+        .join(".config")
+        .join("opencode")
+        .join("opencode.json");
+    let theme = config.customization.resolved_theme();
+    let value = crate::themes::opencode_theme(&theme);
+
+    let mut doc: serde_json::Value = if path.is_file() {
+        let body = fs::read_to_string(&path)
+            .with_context(|| format!("Failed to read {}", path.display()))?;
+        if body.trim().is_empty() {
+            serde_json::Value::Object(serde_json::Map::new())
+        } else {
+            serde_json::from_str(&body)
+                .with_context(|| format!("Failed to parse {}", path.display()))?
+        }
+    } else {
+        serde_json::json!({ "$schema": "https://opencode.ai/config.json" })
+    };
+    let before = serde_json::to_string_pretty(&doc).unwrap_or_default();
+    if let Some(obj) = doc.as_object_mut() {
+        obj.insert("theme".into(), serde_json::Value::String(value.into()));
+    } else {
+        doc = serde_json::json!({ "theme": value });
+    }
+    let after = serde_json::to_string_pretty(&doc).unwrap_or_default();
+    if after == before {
+        return Ok(false);
+    }
+    if let Some(parent) = path.parent() {
+        fs::create_dir_all(parent)
+            .with_context(|| format!("Failed to create directory: {}", parent.display()))?;
+    }
+    fs::write(&path, format!("{after}\n"))
+        .with_context(|| format!("Failed to write {}", path.display()))?;
+    Ok(true)
+}
+
+/// Minimal YAML key=value upsert for a flat scalar config (Aider). Preserves
+/// untouched lines (including comments) and rewrites only the keys we manage.
+fn upsert_yaml_scalar(existing: &str, kv: &[(&str, &str)]) -> String {
+    let managed: std::collections::HashMap<&str, &str> = kv.iter().copied().collect();
+    let mut out: Vec<String> = Vec::new();
+    let mut seen = std::collections::HashSet::new();
+    for line in existing.lines() {
+        let trimmed = line.trim_start();
+        if let Some(idx) = trimmed.find(':') {
+            let key = trimmed[..idx].trim();
+            if let Some(value) = managed.get(key) {
+                out.push(format!("{key}: {value}"));
+                seen.insert(key);
+                continue;
+            }
+        }
+        out.push(line.to_string());
+    }
+    if !out.is_empty() && !out.last().unwrap().is_empty() {
+        out.push(String::new());
+    }
+    for (key, value) in kv {
+        if !seen.contains(key) {
+            out.push(format!("{key}: {value}"));
+        }
+    }
+    let mut body = out.join("\n");
+    if !body.ends_with('\n') {
+        body.push('\n');
+    }
+    body
+}
+
 pub fn sync_managed_runtime_permissions(config: &AiboxConfig) -> Result<Vec<String>> {
     let root = config.host_root_dir();
     let mut updated = Vec::new();
@@ -1798,6 +2114,9 @@ pub fn sync_managed_runtime_permissions(config: &AiboxConfig) -> Result<Vec<Stri
         ".local/bin/open-in-editor",
         ".local/bin/aibox-preview",
         ".local/bin/aibox-status-toggle",
+        ".local/bin/aibox-tmux-switch-layout",
+        ".local/bin/aibox-tmux-confirm-and-switch",
+        ".local/bin/aibox-tmux-refresh-theme",
         ".local/bin/aibox-copy",
         ".local/bin/aibox-powerkit-render-list",
         ".local/bin/aibox-powerkit-render-session",
@@ -1928,7 +2247,7 @@ mod tests {
             Theme::Nord,
             Theme::Projectious,
         ] {
-            let body = crate::themes::yazi_theme(&theme);
+            let body = crate::themes::yazi_theme_with_separator(&theme, "rounded");
             assert!(
                 body.contains("url = \"*/\""),
                 "Yazi 26 filetype rules require url or mime matchers for {theme}"
@@ -2168,10 +2487,14 @@ mod tests {
         let aibox_preview =
             fs::read_to_string(root.join(".local").join("bin").join("aibox-preview")).unwrap();
         assert!(
-            aibox_preview.contains("glow -s")
+            aibox_preview.contains("preview_rich")
+                && aibox_preview.contains("_aibox_preview_have_rich")
+                && aibox_preview.contains("from rich.markdown import Markdown")
+                && aibox_preview.contains("glow -s")
                 && aibox_preview.contains("bat --paging=never")
                 && aibox_preview.contains("--mouse"),
-            "aibox-preview should prefer glow for Markdown, fall back to bat, and page with mouse support"
+            "aibox-preview should prefer the Python rich pipeline (matching rich-preview.yazi), \
+             fall back through glow → bat, and page with mouse support"
         );
         assert!(
             aibox_preview.contains("pdf-watch"),
@@ -2204,6 +2527,51 @@ mod tests {
             0,
             "aibox-copy should be executable"
         );
+        clear_test_host_root();
+    }
+
+    /// Verify that `aibox-tmux-switch-layout` and
+    /// `aibox-tmux-confirm-and-switch` are written to `.local/bin/` with
+    /// the executable bit set so the user can invoke them without a
+    /// leading `bash`.
+    #[test]
+    #[serial]
+    fn seed_root_dir_makes_tmux_layout_switcher_scripts_executable() {
+        let dir = tempfile::tempdir().unwrap();
+        let root = dir.path().join("root");
+        let config = make_config(false, root.clone());
+        seed_root_dir(&config).unwrap();
+
+        let switch = root
+            .join(".local")
+            .join("bin")
+            .join("aibox-tmux-switch-layout");
+        let confirm = root
+            .join(".local")
+            .join("bin")
+            .join("aibox-tmux-confirm-and-switch");
+
+        assert!(switch.exists(), "aibox-tmux-switch-layout must be seeded");
+        assert!(
+            confirm.exists(),
+            "aibox-tmux-confirm-and-switch must be seeded"
+        );
+
+        #[cfg(unix)]
+        {
+            use std::os::unix::fs::PermissionsExt;
+            assert_ne!(
+                fs::metadata(&switch).unwrap().permissions().mode() & 0o111,
+                0,
+                "aibox-tmux-switch-layout should be executable"
+            );
+            assert_ne!(
+                fs::metadata(&confirm).unwrap().permissions().mode() & 0o111,
+                0,
+                "aibox-tmux-confirm-and-switch should be executable"
+            );
+        }
+
         clear_test_host_root();
     }
 
@@ -2422,8 +2790,15 @@ mod tests {
         assert!(list_helper.contains("render_plugins \"$side\""));
         assert!(session_helper.contains("_render_entity session left"));
         let vimrc = fs::read_to_string(root.join(".vim").join("vimrc")).unwrap();
-        assert!(vimrc.contains("colorscheme gruvbox"));
+        assert!(vimrc.contains("colorscheme aibox"));
         assert!(vimrc.contains("set background=light"));
+        let aibox_vim =
+            fs::read_to_string(root.join(".vim").join("colors").join("aibox.vim")).unwrap();
+        assert!(
+            aibox_vim.contains("#FBF1C7"),
+            "aibox vim colorscheme should embed the GruvboxLight bg palette color"
+        );
+        assert!(aibox_vim.contains("set background=light"));
         assert!(vimrc.contains("inoremap <M-b>"));
         assert!(vimrc.contains("cnoremap <M-f>"));
         let inputrc = fs::read_to_string(root.join(".inputrc")).unwrap();
@@ -2812,6 +3187,11 @@ rules = [
                 && DEFAULT_VIMRC.contains("set sidescroll=1")
                 && DEFAULT_VIMRC.contains("inoremap <A-Left>")
                 && DEFAULT_VIMRC.contains("inoremap <M-b>")
+                && DEFAULT_VIMRC.contains("function! s:AiboxCopyRegister() abort")
+                && DEFAULT_VIMRC.contains("getreg(v:register)")
+                && DEFAULT_VIMRC.contains("xnoremap <silent> y")
+                && DEFAULT_VIMRC.contains("nnoremap <silent> yy")
+                && DEFAULT_VIMRC.contains("nnoremap <silent> Y")
                 && DEFAULT_VIMRC.contains("xnoremap <silent> <leader>y")
                 && DEFAULT_VIMRC.contains("nnoremap <silent> <leader>Y")
                 && DEFAULT_VIMRC.contains("call system('aibox-copy'"),
@@ -2823,6 +3203,74 @@ rules = [
                 && DEFAULT_AIBOX_COPY_SH.contains("AIBOX_COPY_STDOUT"),
             "aibox-copy should support tmux clipboard handoff and OSC52 fallback"
         );
+    }
+
+    #[test]
+    fn rich_preview_plugin_emits_position_indicator() {
+        // The plugin must (a) ask Python for the total rendered line count,
+        // (b) reserve a row at the bottom for the indicator, and (c)
+        // actually render the indicator widget via ya.preview_widgets.
+        assert!(
+            DEFAULT_YAZI_PLUGIN_RICH_PREVIEW.contains("__YAZI_TOTAL__"),
+            "rich-preview must request the total line count from Python"
+        );
+        assert!(
+            DEFAULT_YAZI_PLUGIN_RICH_PREVIEW.contains("ya.preview_widgets"),
+            "rich-preview must use preview_widgets to overlay the indicator"
+        );
+        assert!(
+            DEFAULT_YAZI_PLUGIN_RICH_PREVIEW.contains("L%d")
+                && DEFAULT_YAZI_PLUGIN_RICH_PREVIEW.contains("%d%%"),
+            "rich-preview's position indicator must show 'L<a>-<b> / <total> <pct>%'"
+        );
+    }
+
+    #[test]
+    fn vimrc_keeps_insert_mode_on_alt_arrow_word_jumps() {
+        // Two-part regression guard for "alt-left/right exits INSERT
+        // before jumping":
+        //   1. ttimeoutlen must be set low so multi-byte ESC-sequences
+        //      resolve before the bare-Esc "exit INSERT" path fires.
+        //   2. Per-letter `set <M-x>=...` bindings must register so Vim
+        //      coalesces the terminal's ESC+x bytes into a single
+        //      <M-x> key event, letting `inoremap <M-b> <C-o>b` fire.
+        assert!(
+            DEFAULT_VIMRC.contains("set ttimeoutlen=50"),
+            "ttimeoutlen must be configured for prompt multi-byte resolution"
+        );
+        assert!(
+            DEFAULT_VIMRC.contains(r#"execute "set <M-" . s:c . ">=\<Esc>" . s:c"#),
+            "vimrc must register the ESC+letter byte sequence as <M-letter>"
+        );
+        // Arrow encodings cover xterm/CSI 1;3D|C and the shifted 1;4D|C
+        // for selection mappings.
+        assert!(
+            DEFAULT_VIMRC.contains(r#"set <A-Left>=\<Esc>[1;3D"#)
+                && DEFAULT_VIMRC.contains(r#"set <A-Right>=\<Esc>[1;3C"#)
+                && DEFAULT_VIMRC.contains(r#"set <S-A-Left>=\<Esc>[1;4D"#)
+                && DEFAULT_VIMRC.contains(r#"set <S-A-Right>=\<Esc>[1;4C"#),
+            "vimrc must register Alt/Shift-Alt arrow CSI sequences"
+        );
+    }
+
+    #[test]
+    fn vimrc_shift_alt_arrow_extends_selection() {
+        // Shift+Alt+Left/Right should enter Visual mode with a one-word
+        // selection regardless of which mode the user pressed from.
+        for (mode_prefix, lhs, rhs) in [
+            ("inoremap", "<S-A-Left>", "<Esc>vb"),
+            ("inoremap", "<S-A-Right>", "<Esc>ve"),
+            ("nnoremap", "<S-A-Left>", "vb"),
+            ("nnoremap", "<S-A-Right>", "ve"),
+            ("vnoremap", "<S-A-Left>", "b"),
+            ("vnoremap", "<S-A-Right>", "e"),
+        ] {
+            let needle = format!("{mode_prefix} {lhs}");
+            assert!(
+                DEFAULT_VIMRC.contains(&needle),
+                "vimrc missing `{mode_prefix} {lhs} ...` ({rhs})"
+            );
+        }
     }
 
     #[test]

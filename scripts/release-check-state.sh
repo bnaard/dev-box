@@ -16,6 +16,9 @@ mkdir -p "${DIST_DIR}"
 
 updates_found=0
 warnings_found=0
+network_failure_marker="$(mktemp)"
+export AIBOX_RELEASE_NETWORK_FAILURE_MARKER="${network_failure_marker}"
+trap 'rm -f "${network_failure_marker}"' EXIT
 
 section() {
   printf '\n## %s\n\n' "$1" >> "${REPORT}"
@@ -28,6 +31,13 @@ line() {
 warn() {
   warnings_found=1
   printf 'WARN: %s\n' "$*" >&2
+}
+
+record_network_failure() {
+  local label="$1"
+  warnings_found=1
+  printf 'NETWORK_LOOKUP_FAILED: %s\n' "${label}" >&2
+  printf '%s\n' "${label}" >> "${network_failure_marker}"
 }
 
 run_with_timeout() {
@@ -62,7 +72,15 @@ github_latest_release() {
   if ! command -v gh >/dev/null 2>&1; then
     return 1
   fi
-  run_with_timeout 8s gh api "repos/${repo}/releases/latest" --jq '.tag_name' 2>/dev/null || return 1
+  local output
+  if output="$(run_with_timeout 8s gh api "repos/${repo}/releases/latest" --jq '.tag_name' 2>&1)"; then
+    printf '%s\n' "${output}"
+    return 0
+  fi
+  if grep -Eiq 'could not resolve|temporary failure|no such host|network is unreachable|connection timed out|i/o timeout|error connecting' <<<"${output}"; then
+    record_network_failure "GitHub release lookup for ${repo}: ${output//$'\n'/ }"
+  fi
+  return 1
 }
 
 dockerfile_arg() {
@@ -122,7 +140,15 @@ npm_latest() {
   if ! command -v npm >/dev/null 2>&1; then
     return 1
   fi
-  run_with_timeout 12s npm view "${package}" version 2>/dev/null || return 1
+  local output
+  if output="$(run_with_timeout 12s npm view "${package}" version 2>&1)"; then
+    printf '%s\n' "${output}"
+    return 0
+  fi
+  if grep -Eiq 'EAI_AGAIN|ENOTFOUND|ETIMEOUT|network|could not resolve|getaddrinfo' <<<"${output}"; then
+    record_network_failure "npm lookup for ${package}: ${output//$'\n'/ }"
+  fi
+  return 1
 }
 
 pypi_latest() {
@@ -132,13 +158,25 @@ pypi_latest() {
   fi
   python3 - "$package" <<'PY'
 import json
+import os
+import socket
 import sys
+import urllib.error
 import urllib.request
 
 package = sys.argv[1]
 url = f"https://pypi.org/pypi/{package}/json"
-with urllib.request.urlopen(url, timeout=12) as response:
-    print(json.load(response)["info"]["version"])
+try:
+    with urllib.request.urlopen(url, timeout=12) as response:
+        print(json.load(response)["info"]["version"])
+except (TimeoutError, OSError, urllib.error.URLError, socket.gaierror) as exc:
+    message = f"PyPI lookup for {package}: {exc}"
+    print(f"NETWORK_LOOKUP_FAILED: {message}", file=sys.stderr)
+    marker = os.environ.get("AIBOX_RELEASE_NETWORK_FAILURE_MARKER")
+    if marker:
+        with open(marker, "a", encoding="utf-8") as handle:
+            handle.write(message + "\n")
+    raise SystemExit(75)
 PY
 }
 
@@ -149,12 +187,25 @@ node_major_latest() {
   fi
   python3 - "$major" <<'PY'
 import json
+import os
+import socket
 import sys
+import urllib.error
 import urllib.request
 
 major = sys.argv[1]
-with urllib.request.urlopen("https://nodejs.org/dist/index.json", timeout=12) as response:
-    releases = json.load(response)
+url = "https://nodejs.org/dist/index.json"
+try:
+    with urllib.request.urlopen(url, timeout=12) as response:
+        releases = json.load(response)
+except (TimeoutError, OSError, urllib.error.URLError, socket.gaierror) as exc:
+    message = f"Node.js release stream lookup for {major}: {exc}"
+    print(f"NETWORK_LOOKUP_FAILED: {message}", file=sys.stderr)
+    marker = os.environ.get("AIBOX_RELEASE_NETWORK_FAILURE_MARKER")
+    if marker:
+        with open(marker, "a", encoding="utf-8") as handle:
+            handle.write(message + "\n")
+    raise SystemExit(75)
 for release in releases:
     version = release.get("version", "")
     if version.startswith(f"v{major}."):
@@ -171,14 +222,26 @@ claude_apt_latest() {
     return 1
   fi
   python3 - "$channel" <<'PY'
+import os
 import re
+import socket
 import sys
+import urllib.error
 import urllib.request
 
 channel = sys.argv[1]
 url = f"https://downloads.claude.ai/claude-code/apt/{channel}/dists/{channel}/main/binary-amd64/Packages"
-with urllib.request.urlopen(url, timeout=12) as response:
-    body = response.read().decode("utf-8", "replace")
+try:
+    with urllib.request.urlopen(url, timeout=12) as response:
+        body = response.read().decode("utf-8", "replace")
+except (TimeoutError, OSError, urllib.error.URLError, socket.gaierror) as exc:
+    message = f"Claude apt lookup for channel {channel}: {exc}"
+    print(f"NETWORK_LOOKUP_FAILED: {message}", file=sys.stderr)
+    marker = os.environ.get("AIBOX_RELEASE_NETWORK_FAILURE_MARKER")
+    if marker:
+        with open(marker, "a", encoding="utf-8") as handle:
+            handle.write(message + "\n")
+    raise SystemExit(75)
 versions = re.findall(r"^Version:\s*([^\s]+)", body, flags=re.MULTILINE)
 if not versions:
     raise SystemExit(1)
@@ -320,7 +383,10 @@ fi
 
 line ""
 line "### cargo update --dry-run"
-if (cd "${CLI_DIR}" && run_with_timeout 120s cargo update --dry-run) >> "${REPORT}" 2>&1; then
+if ! command -v cargo >/dev/null 2>&1; then
+  line "cargo is not available on PATH in this environment. Run this check in the release container before publishing."
+  warnings_found=1
+elif (cd "${CLI_DIR}" && run_with_timeout 120s cargo update --dry-run) >> "${REPORT}" 2>&1; then
   line ""
   line "Status: dry-run completed. Review the output above for lockfile-resolvable crate updates."
   line ""
@@ -360,7 +426,19 @@ if [[ "${warnings_found}" -eq 1 ]]; then
   line "- Some lookups failed or require manual review."
 fi
 
+if [[ -s "${network_failure_marker}" ]]; then
+  line "- Network lookups failed during this report. Re-run from a shell with DNS/network access before releasing."
+  section "Network Lookup Failures"
+  while IFS= read -r failure; do
+    line "- ${failure}"
+  done < "${network_failure_marker}"
+fi
+
 printf 'Release state report written to %s\n' "${REPORT}"
 if [[ "${updates_found}" -eq 1 || "${warnings_found}" -eq 1 ]]; then
   printf 'Review required before release continues.\n'
+fi
+if [[ -s "${network_failure_marker}" && "${AIBOX_RELEASE_REQUIRE_NETWORK:-0}" == "1" ]]; then
+  printf 'ERR: release-check-state requires network access for release gating; DNS/network lookup failed. See %s.\n' "${REPORT}" >&2
+  exit 75
 fi

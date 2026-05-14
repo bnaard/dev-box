@@ -37,7 +37,15 @@ plugin_collect() {
 plugin_get_content_type() { printf 'dynamic'; }
 plugin_get_presence()     { printf 'always'; }
 plugin_get_state()        { printf 'active'; }
-plugin_get_health()       { printf 'ok'; }
+plugin_get_health() {
+    local display
+    display="$(plugin_data_get processkit_display)"
+    if [[ -z "${display}" || "${display}" == "none/0" || "${display}" == none/* ]]; then
+        printf 'ok'
+    else
+        printf 'good'
+    fi
+}
 plugin_get_context()      { printf 'runtime'; }
 plugin_get_icon()         { get_option "label"; }
 

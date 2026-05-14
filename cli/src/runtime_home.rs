@@ -168,6 +168,7 @@ pub(crate) fn runtime_home_scaffold_dirs(config: &AiboxConfig) -> Vec<PathBuf> {
         PathBuf::from(".local/share"),
         PathBuf::from(".local/state"),
         PathBuf::from(".vim/undo"),
+        PathBuf::from(".vim/colors"),
         PathBuf::from(".config"),
         PathBuf::from(".config/state"),
         PathBuf::from(".config/tmux/layouts"),
@@ -183,6 +184,8 @@ pub(crate) fn runtime_home_scaffold_dirs(config: &AiboxConfig) -> Vec<PathBuf> {
         PathBuf::from(".config/yazi/plugins/dir-preview.yazi"),
         PathBuf::from(".config/yazi/plugins/status-git.yazi"),
         PathBuf::from(".config/git"),
+        PathBuf::from(".config/aibox"),
+        PathBuf::from(".config/lnav"),
     ];
 
     if crate::seed::include_lazygit_tab(config) {

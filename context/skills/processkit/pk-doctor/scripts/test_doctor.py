@@ -44,13 +44,8 @@ _DOCTOR = _SCRIPTS_DIR / "doctor.py"
 _REPO_ROOT = next(
     p for p in Path(__file__).resolve().parents
     if (p / "src" / "context" / "schemas").is_dir()
-    or (p / "context" / "schemas").is_dir()
 )
-_SCHEMAS_SRC = (
-    _REPO_ROOT / "src" / "context" / "schemas"
-    if (_REPO_ROOT / "src" / "context" / "schemas").is_dir()
-    else _REPO_ROOT / "context" / "schemas"
-)
+_SCHEMAS_SRC = _REPO_ROOT / "src" / "context" / "schemas"
 
 PASS = "\033[32mPASS\033[0m"
 FAIL = "\033[31mFAIL\033[0m"
@@ -562,8 +557,8 @@ with tempfile.TemporaryDirectory() as tmp:
     generator = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(generator)
 
-    entries = generator._collect_configs(root, gateway=False)
-    gateway_entries = generator._collect_configs(root, gateway=True)
+    entries = generator._collect_entries(root)
+    gateway_entries = generator._collect_gateway_entries(root)
     check(
         "gateway config excluded from per_skill entries",
         [e["path"] for e in entries] == [

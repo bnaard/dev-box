@@ -1,4 +1,11 @@
-//! Appearance tests — verify themes and prompts render correctly.
+//! Appearance integration tests — verify the `aibox init` / `aibox apply`
+//! CLI flow produces seeded artifacts at expected paths.
+//!
+//! Per-theme and per-preset content assertions live in the **unit suite**
+//! (`cli/src/themes.rs::tests`). What stays here is strictly integration:
+//! - That CLI flags (`--theme`, `--prompt`) flow into the seeded files.
+//! - That `aibox apply` after a config edit regenerates the right files.
+//! - That CLI preset aliases resolve correctly.
 //!
 //! These are Tier 1 tests: they run `aibox init` + `aibox apply` locally
 //! and inspect the generated/seeded config files. No container needed.
@@ -86,6 +93,10 @@ fn change_appearance(dir: &std::path::Path, theme: &str, prompt: &str) {
 }
 
 /// Check that no template placeholders survive in seeded config files.
+///
+/// Matches whole tokens — a placeholder `AIBOX_THEME` does NOT match the
+/// legitimate env-var name `AIBOX_THEME_CONFIRM_RESTART_TUIS`. Tokens are
+/// considered identifiers delimited by characters outside `[A-Za-z0-9_]`.
 fn assert_no_placeholders(dir: &std::path::Path) {
     let aibox_home = dir.join(".aibox-home");
     let placeholders = ["AIBOX_THEME", "AIBOX_VIM_COLORSCHEME", "AIBOX_VIM_BG"];
@@ -96,19 +107,35 @@ fn assert_no_placeholders(dir: &std::path::Path) {
         ".config/starship.toml",
     ];
 
+    fn contains_token(haystack: &str, needle: &str) -> bool {
+        for (start, _) in haystack.match_indices(needle) {
+            let end = start + needle.len();
+            let prev_ok = start == 0
+                || !haystack.as_bytes()[start - 1].is_ascii_alphanumeric()
+                    && haystack.as_bytes()[start - 1] != b'_';
+            let next_ok = end == haystack.len()
+                || !haystack.as_bytes()[end].is_ascii_alphanumeric()
+                    && haystack.as_bytes()[end] != b'_';
+            if prev_ok && next_ok {
+                return true;
+            }
+        }
+        false
+    }
+
     for file in &files_to_check {
         let path = aibox_home.join(file);
         if path.exists() {
             let content = fs::read_to_string(&path).unwrap();
             for placeholder in &placeholders {
                 assert!(
-                    !content.contains(placeholder),
+                    !contains_token(&content, placeholder),
                     "placeholder '{}' found in {}: {}",
                     placeholder,
                     file,
                     content
                         .lines()
-                        .find(|l| l.contains(placeholder))
+                        .find(|l| contains_token(l, placeholder))
                         .unwrap_or("???")
                 );
             }
@@ -118,85 +145,37 @@ fn assert_no_placeholders(dir: &std::path::Path) {
 
 // ─── Theme Tests ─────────────────────────────────────────────────────────────
 
-/// Test that all themes render without errors and no placeholders survive.
+/// Single-init integration smoke: `aibox init --theme <X>` writes the seeded
+/// files at the expected paths. Per-theme content is checked exhaustively in
+/// `themes::tests` unit tests — they run in ~10 ms instead of ~12 s.
 #[test]
-fn all_themes_render_without_error() {
-    let themes = [
-        "gruvbox-dark",
-        "gruvbox-light",
-        "catppuccin-mocha",
-        "catppuccin-macchiato",
-        "catppuccin-frappe",
-        "catppuccin-latte",
-        "dracula",
-        "tokyo-night",
-        "tokyo-night-storm",
-        "tokyo-night-day",
-        "nord",
-        "rose-pine",
-        "rose-pine-moon",
-        "rose-pine-dawn",
-        "material",
-        "material-ocean",
-        "material-palenight",
-        "material-lighter",
-        "solarized-dark",
-        "solarized-light",
-        "github-dark",
-        "github-light",
-        "ayu-dark",
-        "ayu-mirage",
-        "ayu-light",
-        "night-owl",
-        "night-owl-light",
-        "moonlight",
-        "projectious",
-    ];
-
-    for theme in &themes {
-        let dir = tempfile::tempdir().unwrap();
-        init_with_appearance(dir.path(), theme, "default");
-        assert_no_placeholders(dir.path());
+fn init_seeds_themed_files_at_expected_paths() {
+    let dir = tempfile::tempdir().unwrap();
+    init_with_appearance(dir.path(), "dracula", "default");
+    let aibox_home = dir.path().join(".aibox-home");
+    for rel in [
+        ".vim/vimrc",
+        ".vim/colors/aibox.vim",
+        ".config/tmux/tmux.conf",
+        ".config/tmux/aibox-powerkit-theme.sh",
+        ".config/yazi/theme.toml",
+        ".config/aibox/theme-env.sh",
+        ".config/lnav/config.json",
+        ".config/git/config",
+        ".config/starship.toml",
+    ] {
+        let path = aibox_home.join(rel);
+        assert!(path.exists(), "expected seeded file missing: {rel}");
+        let body = fs::read_to_string(&path).unwrap();
+        assert!(!body.is_empty(), "seeded {rel} should be non-empty");
     }
-}
-
-#[test]
-fn theme_gruvbox_renders_correctly() {
-    let dir = tempfile::tempdir().unwrap();
-    init_with_appearance(dir.path(), "gruvbox-dark", "default");
-
-    let aibox_home = dir.path().join(".aibox-home");
-
-    // Check vimrc
-    let vimrc = fs::read_to_string(aibox_home.join(".vim/vimrc")).unwrap();
-    assert!(
-        vimrc.contains("gruvbox") || vimrc.contains("retrobox"),
-        "vimrc should use gruvbox-related colorscheme, got: {}",
-        vimrc
-            .lines()
-            .find(|l| l.contains("colorscheme"))
-            .unwrap_or("no colorscheme line")
-    );
-
+    // CLI flag plumbing: the dracula accent must reach the tmux config.
     let tmux = fs::read_to_string(aibox_home.join(".config/tmux/tmux.conf")).unwrap();
     assert!(
-        tmux.contains("#D79921"),
-        "tmux config should reference gruvbox-dark accent"
+        tmux.contains("#BD93F9"),
+        "--theme dracula must flow into tmux.conf:\n{tmux}"
     );
-}
-
-#[test]
-fn theme_catppuccin_mocha_renders() {
-    let dir = tempfile::tempdir().unwrap();
-    init_with_appearance(dir.path(), "catppuccin-mocha", "default");
-
-    let aibox_home = dir.path().join(".aibox-home");
-
-    let tmux = fs::read_to_string(aibox_home.join(".config/tmux/tmux.conf")).unwrap();
-    assert!(
-        tmux.contains("#89B4FA"),
-        "tmux config should reference catppuccin-mocha accent"
-    );
+    assert_no_placeholders(dir.path());
 }
 
 #[test]
@@ -208,8 +187,8 @@ fn theme_change_auto_applies_untouched_runtime_files() {
 
     let tmux_before = fs::read_to_string(aibox_home.join(".config/tmux/tmux.conf")).unwrap();
     assert!(tmux_before.contains("#D79921"));
-    let vimrc_before = fs::read_to_string(aibox_home.join(".vim/vimrc")).unwrap();
-    assert!(vimrc_before.contains("gruvbox"));
+    let aibox_vim_before = fs::read_to_string(aibox_home.join(".vim/colors/aibox.vim")).unwrap();
+    assert!(aibox_vim_before.contains("#D79921"));
     let yazi_before = fs::read_to_string(aibox_home.join(".config/yazi/theme.toml")).unwrap();
     assert!(!yazi_before.is_empty(), "yazi theme should not be empty");
 
@@ -223,10 +202,10 @@ fn theme_change_auto_applies_untouched_runtime_files() {
         tmux_after.contains("#BD93F9"),
         "tmux config should be auto-updated to the new theme"
     );
-    let vimrc_after = fs::read_to_string(aibox_home.join(".vim/vimrc")).unwrap();
+    let aibox_vim_after = fs::read_to_string(aibox_home.join(".vim/colors/aibox.vim")).unwrap();
     assert!(
-        vimrc_after.contains("dracula"),
-        "vimrc should be auto-updated to the new colorscheme"
+        aibox_vim_after.contains("#BD93F9"),
+        "aibox.vim should be regenerated with the dracula accent on theme change"
     );
     let yazi_after = fs::read_to_string(aibox_home.join(".config/yazi/theme.toml")).unwrap();
     assert_ne!(
@@ -252,122 +231,11 @@ fn theme_change_auto_applies_untouched_runtime_files() {
     );
 }
 
-/// Verify that each theme produces distinct config for all themed tools.
-#[test]
-fn theme_alignment_all_tools_match_selected_theme() {
-    let themes = [
-        ("gruvbox-dark", "gruvbox", "#D79921"),
-        ("catppuccin-mocha", "catppuccin_mocha", "#89B4FA"),
-        ("catppuccin-latte", "catppuccin_latte", "#1E66F5"),
-        ("dracula", "dracula", "#BD93F9"),
-        ("tokyo-night", "tokyonight", "#7AA2F7"),
-        ("nord", "nord", "#88C0D0"),
-        ("projectious", "projectious", "#E05232"),
-    ];
-
-    for (theme, vim_scheme, accent) in &themes {
-        let dir = tempfile::tempdir().unwrap();
-        init_with_appearance(dir.path(), theme, "default");
-
-        let aibox_home = dir.path().join(".aibox-home");
-
-        // Vim must use the matching colorscheme
-        let vimrc = fs::read_to_string(aibox_home.join(".vim/vimrc")).unwrap();
-        assert!(
-            vimrc.contains(&format!("colorscheme {}", vim_scheme)),
-            "theme '{}': vimrc should contain 'colorscheme {}', got: {}",
-            theme,
-            vim_scheme,
-            vimrc
-                .lines()
-                .find(|l| l.contains("colorscheme"))
-                .unwrap_or("no colorscheme line")
-        );
-
-        // tmux must reference the theme accent.
-        let tmux = fs::read_to_string(aibox_home.join(".config/tmux/tmux.conf")).unwrap();
-        assert!(
-            tmux.contains(accent),
-            "theme '{}': tmux config should reference accent {}",
-            theme,
-            accent
-        );
-
-        // Yazi theme must use the current schema and include git styling.
-        let yazi = fs::read_to_string(aibox_home.join(".config/yazi/theme.toml")).unwrap();
-        assert!(
-            !yazi.is_empty(),
-            "theme '{}': yazi theme.toml should not be empty",
-            theme
-        );
-        for required in [
-            "[tabs]",
-            "[mode]",
-            "[status]",
-            "[git]",
-            "normal_main",
-            "overall =",
-        ] {
-            assert!(
-                yazi.contains(required),
-                "theme '{}': yazi theme.toml should contain '{}'",
-                theme,
-                required
-            );
-        }
-        for removed in [
-            "tab_active",
-            "mode_normal",
-            "separator_open",
-            "permissions_t",
-            "[select]",
-            "[completion]",
-        ] {
-            assert!(
-                !yazi.contains(removed),
-                "theme '{}': yazi theme.toml should not contain legacy key '{}'",
-                theme,
-                removed
-            );
-        }
-
-        // Lazygit is optional; when the git-ui addon is enabled and the file is
-        // generated, it must be non-empty.
-        let lazygit_path = aibox_home.join(".config/lazygit/config.yml");
-        if lazygit_path.exists() {
-            let lazygit = fs::read_to_string(lazygit_path).unwrap();
-            assert!(
-                !lazygit.is_empty(),
-                "theme '{}': lazygit config should not be empty",
-                theme
-            );
-        }
-
-        // Starship must contain theme-specific colors, not Gruvbox-only fallbacks.
-        let starship = fs::read_to_string(aibox_home.join(".config/starship.toml")).unwrap();
-        assert!(
-            starship.contains("[palette"),
-            "theme '{}': starship config should contain palette section",
-            theme
-        );
-        assert!(
-            starship.contains(accent),
-            "theme '{}': starship config should contain accent color {}",
-            theme,
-            accent
-        );
-        if *theme != "gruvbox-dark" {
-            for hardcoded in ["#D79921", "#D65D0E", "#689D6A", "#928374"] {
-                assert!(
-                    !starship.contains(hardcoded),
-                    "theme '{}': starship config should not contain Gruvbox-specific color {}",
-                    theme,
-                    hardcoded
-                );
-            }
-        }
-    }
-}
+// Per-theme content alignment (palette accent showing up in every themed
+// artifact, no cross-theme palette drift, Yazi 26 schema compliance) is now
+// covered by the `themes::tests::every_theme_aligns_tools_to_its_accent` and
+// `every_theme_yazi_uses_current_schema` unit tests — they run in milliseconds
+// against pure functions instead of ~7 `aibox init` subprocess invocations.
 
 // ─── Keymap Tests ────────────────────────────────────────────────────────────
 
@@ -392,82 +260,11 @@ fn yazi_keymap_includes_edit_in_pane_binding() {
 
 // ─── Prompt Tests ────────────────────────────────────────────────────────────
 
-/// Test that all prompt presets render without errors.
-#[test]
-fn all_prompts_render_without_error() {
-    let presets = [
-        "default",
-        "plain",
-        "minimal",
-        "nerd-font",
-        "pastel",
-        "powerline-pastel",
-        "pastel-powerline",
-        "bracketed",
-        "arrow",
-    ];
-
-    for preset in &presets {
-        let dir = tempfile::tempdir().unwrap();
-        init_with_appearance(dir.path(), "gruvbox-dark", preset);
-
-        let starship = dir.path().join(".aibox-home/.config/starship.toml");
-        assert!(
-            starship.exists(),
-            "starship.toml should exist for preset '{}'",
-            preset
-        );
-
-        let content = fs::read_to_string(&starship).unwrap();
-        assert!(
-            !content.is_empty(),
-            "starship.toml should not be empty for preset '{}'",
-            preset
-        );
-    }
-}
-
-#[test]
-fn prompt_default_generates_starship() {
-    let dir = tempfile::tempdir().unwrap();
-    init_with_appearance(dir.path(), "gruvbox-dark", "default");
-
-    let content = fs::read_to_string(dir.path().join(".aibox-home/.config/starship.toml")).unwrap();
-
-    assert!(
-        content.contains("directory") && content.contains("git_branch"),
-        "default starship config should include directory and git_branch modules"
-    );
-}
-
-#[test]
-fn prompt_plain_no_nerd_font() {
-    let dir = tempfile::tempdir().unwrap();
-    init_with_appearance(dir.path(), "gruvbox-dark", "plain");
-
-    let content = fs::read_to_string(dir.path().join(".aibox-home/.config/starship.toml")).unwrap();
-
-    // Plain preset should mention it's ASCII-only or not have Nerd Font symbols
-    assert!(
-        content.contains("plain") || content.contains("ASCII") || !content.contains("\u{e0b0}"),
-        "plain starship config should use ASCII-only symbols"
-    );
-}
-
-#[test]
-fn prompt_pastel_powerline_is_single_line() {
-    let dir = tempfile::tempdir().unwrap();
-    init_with_appearance(dir.path(), "gruvbox-dark", "powerline-pastel");
-
-    let content = fs::read_to_string(dir.path().join(".aibox-home/.config/starship.toml")).unwrap();
-
-    assert!(content.contains("pastel powerline preset"));
-    assert!(content.contains(""));
-    assert!(
-        !content.contains("$line_break"),
-        "powerline-pastel should render as a one-line prompt"
-    );
-}
+// Per-preset content shape (ASCII-only for plain, chevrons + single-line for
+// pastel/powerline-pastel, directory+git_branch for default) is covered by the
+// `themes::tests::starship_presets_emit_their_expected_shape` unit test. The
+// `--prompt` CLI alias resolution stays an integration test below since it
+// exercises clap arg parsing, which is not pure-function territory.
 
 #[test]
 fn prompt_pastel_powerline_alias_is_still_accepted() {

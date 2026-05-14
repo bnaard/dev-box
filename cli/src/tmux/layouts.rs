@@ -76,9 +76,13 @@ pub fn tmux_layout_script(
     let first_harness = active_harnesses.first().copied().unwrap_or("bash");
     let further_harnesses = active_harnesses.get(1..).unwrap_or(&[]);
 
+    // Layout bodies now use `_create_first_window <name> <cmd>` instead of
+    // a raw `tmux new-session -d -s "$session" …` invocation. The wrapper
+    // script defines that function for both fresh (new-session) and
+    // rebuild (respawn an existing placeholder window) modes.
     let layout_body = match layout {
         ConfigLayout::Ai => format!(
-            r#"tmux -S "$socket" -f "$config" new-session -d -s "$session" -n "work" -c "$workspace" "$(tool_or_shell yazi)"
+            r#"_create_first_window "work" "$(tool_or_shell yazi)"
 files_pane="$(tmux -S "$socket" display-message -p -t "$session:work" '#{{pane_id}}')"
 tmux -S "$socket" split-window -t "$session:work" -h -p 50 -c "$workspace" "$(tool_or_shell {first_harness})"
 tmux -S "$socket" select-pane -t "$files_pane"
@@ -89,7 +93,7 @@ tmux -S "$socket" select-pane -t "$files_pane"
             shell_window = shell_window(),
         ),
         ConfigLayout::Dev => format!(
-            r#"tmux -S "$socket" -f "$config" new-session -d -s "$session" -n "work" -c "$workspace" "$(tool_or_shell yazi)"
+            r#"_create_first_window "work" "$(tool_or_shell yazi)"
 files_pane="$(tmux -S "$socket" display-message -p -t "$session:work" '#{{pane_id}}')"
 tmux -S "$socket" split-window -t "$session:work" -h -p 50 -c "$workspace" "bash"
 tmux -S "$socket" split-window -t "$files_pane" -v -p 50 -c "$workspace" "$(tool_or_shell {first_harness})"
@@ -101,7 +105,7 @@ tmux -S "$socket" select-pane -t "$files_pane"
             shell_window = shell_window(),
         ),
         ConfigLayout::Focus => format!(
-            r#"tmux -S "$socket" -f "$config" new-session -d -s "$session" -n "files" -c "$workspace" "$(tool_or_shell yazi)"
+            r#"_create_first_window "files" "$(tool_or_shell yazi)"
 files_pane="$(tmux -S "$socket" display-message -p -t "$session:files" '#{{pane_id}}')"
 {harness_windows}{lazygit_window}{shell_window}tmux -S "$socket" select-window -t "$session:files"
 "#,
@@ -110,7 +114,7 @@ files_pane="$(tmux -S "$socket" display-message -p -t "$session:files" '#{{pane_
             shell_window = shell_window(),
         ),
         ConfigLayout::Cowork => format!(
-            r#"tmux -S "$socket" -f "$config" new-session -d -s "$session" -n "work" -c "$workspace" "$(tool_or_shell yazi)"
+            r#"_create_first_window "work" "$(tool_or_shell yazi)"
 files_pane="$(tmux -S "$socket" display-message -p -t "$session:work" '#{{pane_id}}')"
 tmux -S "$socket" split-window -t "$session:work" -h -p 50 -c "$workspace" "bash"
 tmux -S "$socket" select-pane -t "$files_pane"
@@ -131,18 +135,58 @@ config="${{AIBOX_TMUX_CONFIG:-$HOME/.config/tmux/tmux.conf}}"
 socket="${{AIBOX_TMUX_SOCKET:-$HOME/.tmux/aibox.sock}}"
 mkdir -p "$(dirname "$socket")"
 
+# tool_or_shell <tool>: print the bash -lc invocation that the new pane
+# will run. In rebuild mode the yazi wait-for-client trick is omitted —
+# the session is already attached and tmux is alive.
+if [[ "${{AIBOX_LAYOUT_MODE:-}}" == "rebuild" ]]; then
+  tool_or_shell() {{
+    local tool="$1"
+    if [[ "$tool" == "yazi" ]]; then
+      printf "bash -lc 'if command -v yazi >/dev/null 2>&1; then exec yazi; fi; exec bash'"
+      return
+    fi
+    printf "bash -lc 'if command -v %q >/dev/null 2>&1; then %q; fi; exec bash'" "$tool" "$tool"
+  }}
+else
+  tool_or_shell() {{
+    local tool="$1"
+    if [[ "$tool" == "yazi" ]]; then
+      printf "bash -lc 'for _ in {{1..50}}; do tmux -S %q list-clients -t %q >/dev/null 2>&1 && break; sleep 0.1; done; if command -v yazi >/dev/null 2>&1; then exec yazi; fi; exec bash'" "$socket" "$session"
+      return
+    fi
+    printf "bash -lc 'if command -v %q >/dev/null 2>&1; then %q; fi; exec bash'" "$tool" "$tool"
+  }}
+fi
+
+# _create_first_window <name> <cmd>: bootstrap the first window of the
+# layout. Fresh mode → `new-session -d -s`. Rebuild mode → the helper
+# `aibox-tmux-switch-layout` already left exactly one placeholder window
+# (named `_swap_`); we rename + respawn it in place.
+if [[ "${{AIBOX_LAYOUT_MODE:-}}" == "rebuild" ]]; then
+  _create_first_window() {{
+    local name="$1" cmd="$2"
+    # Find the placeholder window (the only one left by the switcher).
+    tmux -S "$socket" rename-window -t "$session:_swap_" "$name"
+    tmux -S "$socket" respawn-window -k -t "$session:$name" -c "$workspace" "$cmd"
+  }}
+else
+  _create_first_window() {{
+    local name="$1" cmd="$2"
+    tmux -S "$socket" -f "$config" new-session -d -s "$session" -n "$name" -c "$workspace" "$cmd"
+  }}
+fi
+
+# Rebuild mode: run the layout body and stop — caller stays attached.
+if [[ "${{AIBOX_LAYOUT_MODE:-}}" == "rebuild" ]]; then
+  {layout_body}
+  exit 0
+fi
+
+# Fresh mode: short-circuit if the session is already up; otherwise build
+# from scratch and attach.
 if tmux -S "$socket" -f "$config" has-session -t "$session" 2>/dev/null; then
   exec tmux -S "$socket" -f "$config" attach-session -t "$session"
 fi
-
-tool_or_shell() {{
-  local tool="$1"
-  if [[ "$tool" == "yazi" ]]; then
-    printf "bash -lc 'for _ in {{1..50}}; do tmux -S %q list-clients -t %q >/dev/null 2>&1 && break; sleep 0.1; done; if command -v yazi >/dev/null 2>&1; then exec yazi; fi; exec bash'" "$socket" "$session"
-    return
-  fi
-  printf "bash -lc 'if command -v %q >/dev/null 2>&1; then %q; fi; exec bash'" "$tool" "$tool"
-}}
 
 {layout_body}exec tmux -S "$socket" -f "$config" attach-session -t "$session"
 "#
@@ -200,7 +244,7 @@ mod tests {
     fn ai_layout_uses_work_ai_lazygit_shell_windows() {
         let providers = vec![AiProvider::Codex, AiProvider::Claude, AiProvider::Gemini];
         let body = tmux_layout_script(&ConfigLayout::Ai, &providers, true, &no_tools(), "aibox");
-        assert!(body.contains(r#"-n "work""#));
+        assert!(body.contains(r#"_create_first_window "work""#));
         assert!(body.contains(r#"-n "ai""#));
         assert!(body.contains(r#"-n "lazygit""#));
         assert!(body.contains(r#"-n "shell""#));
@@ -215,7 +259,7 @@ mod tests {
     fn dev_layout_uses_work_lazygit_ai_shell_windows() {
         let providers = vec![AiProvider::Codex, AiProvider::Claude];
         let body = tmux_layout_script(&ConfigLayout::Dev, &providers, true, &no_tools(), "aibox");
-        assert!(body.contains(r#"-n "work""#));
+        assert!(body.contains(r#"_create_first_window "work""#));
         assert!(body.contains(r#"-n "lazygit""#));
         assert!(body.contains(r#"-n "ai""#));
         assert!(body.contains(r#"-n "shell""#));
@@ -229,12 +273,35 @@ mod tests {
     fn focus_layout_creates_files_then_one_window_per_harness() {
         let providers = vec![AiProvider::Codex, AiProvider::Claude];
         let body = tmux_layout_script(&ConfigLayout::Focus, &providers, true, &no_tools(), "aibox");
-        assert!(body.contains(r#"-n "files""#));
+        assert!(body.contains(r#"_create_first_window "files""#));
         assert!(body.contains(r#"-n "codex""#));
         assert!(body.contains(r#"-n "claude""#));
         assert!(body.contains(r#"-n "lazygit""#));
         assert!(body.contains(r#"-n "shell""#));
         assert!(!body.contains("split-window -t \"$session:files\""));
+    }
+
+    #[test]
+    fn layout_script_emits_rebuild_mode_branch_for_live_switching() {
+        let providers = vec![AiProvider::Codex];
+        let body = tmux_layout_script(&ConfigLayout::Dev, &providers, true, &no_tools(), "aibox");
+        assert!(
+            body.contains(r#"AIBOX_LAYOUT_MODE"#) && body.contains(r#"rebuild"#),
+            "layout script must include a rebuild-mode branch"
+        );
+        assert!(
+            body.contains("respawn-window -k"),
+            "rebuild mode must respawn the placeholder window in place"
+        );
+        assert!(
+            body.contains(r#"rename-window -t "$session:_swap_""#),
+            "rebuild mode must rename the helper's placeholder window"
+        );
+        // Fresh-mode new-session must still be emitted for the non-rebuild path.
+        assert!(
+            body.contains(r#"new-session -d -s "$session""#),
+            "fresh mode must still create the session"
+        );
     }
 
     #[test]
@@ -247,7 +314,7 @@ mod tests {
             &no_tools(),
             "aibox",
         );
-        assert!(body.contains(r#"-n "work""#));
+        assert!(body.contains(r#"_create_first_window "work""#));
         assert!(body.contains(r#"-n "ai""#));
         assert!(body.contains(r#"-n "lazygit""#));
         assert!(!body.contains(r#"-n "shell""#));

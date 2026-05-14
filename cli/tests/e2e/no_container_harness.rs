@@ -625,8 +625,14 @@ fn apply_preserves_project_context_edits_while_regenerating_runtime_config() {
     let tmux = fs::read_to_string(&tmux_path).unwrap();
     let yazi_theme = fs::read_to_string(&yazi_theme_path).unwrap();
     assert!(
-        tmux.contains("@powerkit_theme \"dracula\""),
-        "apply should overwrite stale managed tmux config with canonical generated content:\n{tmux}"
+        tmux.contains("@powerkit_theme \"custom\"") && tmux.contains("@powerkit_custom_theme_path"),
+        "apply should overwrite stale managed tmux config and wire the aibox custom powerkit theme:\n{tmux}"
+    );
+    // Dracula's accent (#BD93F9) must show up in the tmux pane styles so a
+    // theme switch is provably reflected in the regenerated managed file.
+    assert!(
+        tmux.contains("#BD93F9"),
+        "apply should regenerate tmux config against the dracula palette:\n{tmux}"
     );
     assert!(
         !yazi_theme.contains("stale managed"),

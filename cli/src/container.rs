@@ -1712,6 +1712,23 @@ pub(crate) fn serialize_config_with_comments(config: &AiboxConfig) -> String {
         toml_string_value(&labels.netspeed_upload)
     ));
     out.push('\n');
+    out.push_str("[customization.tmux.status.separators]\n");
+    out.push_str("# PowerKit separator style. Options: normal | rounded | slant | slantup | trapezoid | flame | pixel | honeycomb | none\n");
+    out.push_str(&format!(
+        "style = \"{}\"\n",
+        config.customization.tmux.status.separators.style
+    ));
+    out.push_str("# Edge separators may use a different style at status boundaries.\n");
+    out.push_str(&format!(
+        "edge-style = \"{}\"\n",
+        config.customization.tmux.status.separators.edge_style
+    ));
+    out.push_str("# Spacing between elements. Options: false | true | both | windows | plugins\n");
+    out.push_str(&format!(
+        "elements-spacing = \"{}\"\n",
+        config.customization.tmux.status.separators.elements_spacing
+    ));
+    out.push('\n');
     out.push_str("[customization.tmux.status.refresh]\n");
     out.push_str("# Refresh/caching controls for extended tmux status.\n");
     out.push_str(
@@ -2038,29 +2055,46 @@ fn render_ai_harness_detail_catalog(out: &mut String, config: &AiboxConfig) {
     out.push_str("# keep `install = false` for cursor even when `enable = true`.\n");
     out.push_str("# `version` optionally pins the CLI recipe; omit it to use the addon default.\n");
     out.push_str("harnesses = [\n");
-    for harness in crate::config::AiHarness::all() {
-        let selected = config.ai.harnesses.contains(harness);
-        let install =
-            config.ai.harness_install_enabled(harness) && !harness.addon_name().is_empty();
-        let version = ai_harness_version_for_render(config, harness);
-        if selected {
-            out.push_str("    { ");
-            out.push_str(&format!(
-                "harness = \"{}\", enable = true, install = {}",
-                harness, install
-            ));
-            if let Some(version) = version {
-                out.push_str(&format!(", version = \"{}\"", version));
-            }
-            out.push_str(" },\n");
-        } else {
-            out.push_str(&format!(
-                "#   {{ harness = \"{}\", enable = true, install = {} }},\n",
-                harness, install
-            ));
+    let mut rendered = Vec::new();
+    for harness in &config.ai.harnesses {
+        if !rendered.contains(harness) {
+            render_ai_harness_detail_catalog_entry(out, config, harness);
+            rendered.push(harness.clone());
         }
     }
+    for harness in crate::config::AiHarness::all() {
+        if rendered.contains(harness) {
+            continue;
+        }
+        render_ai_harness_detail_catalog_entry(out, config, harness);
+    }
     out.push_str("]\n");
+}
+
+fn render_ai_harness_detail_catalog_entry(
+    out: &mut String,
+    config: &AiboxConfig,
+    harness: &crate::config::AiHarness,
+) {
+    let selected = config.ai.harnesses.contains(harness);
+    let install = config.ai.harness_install_enabled(harness) && !harness.addon_name().is_empty();
+    let version = ai_harness_version_for_render(config, harness);
+    if selected {
+        out.push_str("    { ");
+        out.push_str(&format!(
+            "harness = \"{}\", enable = true, install = {}",
+            harness, install
+        ));
+        if let Some(version) = version {
+            out.push_str(&format!(", version = \"{}\"", version));
+        }
+        out.push_str(" },\n");
+    } else {
+        out.push_str(&format!(
+            "#   {{ harness = \"{}\", enable = true, install = {} }},\n",
+            harness, install
+        ));
+    }
 }
 
 fn ai_harness_version_for_render(
@@ -3891,6 +3925,26 @@ mod tests {
     }
 
     #[test]
+    fn serialized_config_preserves_enabled_harness_order() {
+        let mut config = crate::config::test_config();
+        config.ai.harnesses = vec![
+            crate::config::AiHarness::Codex,
+            crate::config::AiHarness::Claude,
+            crate::config::AiHarness::Gemini,
+        ];
+
+        let body = serialize_config_with_comments(&config);
+        let codex = body.find(r#"harness = "codex", enable = true"#).unwrap();
+        let claude = body.find(r#"harness = "claude", enable = true"#).unwrap();
+        let gemini = body.find(r#"harness = "gemini", enable = true"#).unwrap();
+
+        assert!(
+            codex < claude && claude < gemini,
+            "enabled harness entries must keep user/layout order:\n{body}"
+        );
+    }
+
+    #[test]
     fn serialized_config_model_provider_catalog_includes_api_key_and_base_url_env_hints() {
         let mut config = crate::config::test_config();
         config.ai.model_providers = vec![crate::config::AiModelProvider::Anthropic];
@@ -3901,6 +3955,27 @@ mod tests {
         assert!(body.contains("# env: OPENAI_API_KEY, OPENAI_BASE_URL"));
         assert!(body.contains("# env: GEMINI_API_KEY, GEMINI_BASE_URL"));
         assert!(body.contains("# env: MISTRAL_API_KEY, MISTRAL_BASE_URL"));
+    }
+
+    #[test]
+    fn serialized_config_exposes_tmux_status_separators() {
+        let mut config = crate::config::test_config();
+        config.customization.tmux.status.separators.style =
+            crate::config::TmuxStatusSeparatorStyle::Flame;
+        config.customization.tmux.status.separators.edge_style =
+            crate::config::TmuxStatusSeparatorStyle::Honeycomb;
+        config.customization.tmux.status.separators.elements_spacing =
+            crate::config::TmuxStatusElementsSpacing::Plugins;
+
+        let body = serialize_config_with_comments(&config);
+
+        assert!(body.contains("[customization.tmux.status.separators]"));
+        assert!(body.contains(
+            "# PowerKit separator style. Options: normal | rounded | slant | slantup | trapezoid | flame | pixel | honeycomb | none"
+        ));
+        assert!(body.contains("style = \"flame\""));
+        assert!(body.contains("edge-style = \"honeycomb\""));
+        assert!(body.contains("elements-spacing = \"plugins\""));
     }
 
     #[test]

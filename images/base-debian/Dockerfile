@@ -302,14 +302,15 @@ ENV UV_CACHE_DIR=/tmp/aibox/uv-cache
 # Copy themes into both the image home and Vim's system runtimepath so a
 # host-mounted ~/.vim can never hide the configured colorscheme.
 RUN mkdir -p /home/aibox/.vim/undo
+# The active Vim colorscheme is the aibox-generated ~/.vim/colors/aibox.vim
+# (written by `aibox theme`). The upstream colorschemes below are kept as
+# manual fallbacks for users running `:colorscheme <name>` interactively.
 COPY --from=fetch-vim-colors /vim-colors/colors/                                 /home/aibox/.vim/colors/
 COPY --from=fetch-vim-colors /vim-colors/pack/themes/start/dracula/colors/       /home/aibox/.vim/pack/themes/start/dracula/colors/
 COPY --from=fetch-vim-colors /vim-colors/pack/themes/start/dracula/autoload/     /home/aibox/.vim/pack/themes/start/dracula/autoload/
-COPY config/vim-colors/projectious.vim                                           /home/aibox/.vim/colors/projectious.vim
 COPY --from=fetch-vim-colors /vim-colors/colors/                                 /usr/share/vim/vimfiles/colors/
 COPY --from=fetch-vim-colors /vim-colors/pack/themes/start/dracula/colors/       /usr/share/vim/vimfiles/colors/
 COPY --from=fetch-vim-colors /vim-colors/pack/themes/start/dracula/autoload/     /usr/share/vim/vimfiles/autoload/
-COPY config/vim-colors/projectious.vim                                           /usr/share/vim/vimfiles/colors/projectious.vim
 COPY config/vimrc /home/aibox/.vim/vimrc
 COPY config/inputrc /home/aibox/.inputrc
 
@@ -364,12 +365,14 @@ RUN ln -sf /home/aibox/.config/tmux/tmux.conf /home/aibox/.tmux.conf && \
     ln -sf /usr/local/share/aibox/tmux/plugins/vim-tmux-navigator \
       /usr/share/vim/vimfiles/pack/aibox/start/vim-tmux-navigator
 
-# Yazi
+# Yazi — `theme.toml` is overwritten by `aibox theme` at apply time, but a
+# baseline copy ships in the image so a freshly built container without an
+# .aibox-home mount still renders. The per-flavor bundled themes are no
+# longer needed (themes are palette-generated CLI-side).
 COPY config/yazi/yazi.toml             /home/aibox/.config/yazi/yazi.toml
 COPY config/yazi/keymap.toml           /home/aibox/.config/yazi/keymap.toml
 COPY config/yazi/theme.toml            /home/aibox/.config/yazi/theme.toml
 COPY config/yazi/init.lua              /home/aibox/.config/yazi/init.lua
-COPY config/yazi/themes/               /home/aibox/.config/yazi/themes/
 COPY config/yazi/plugins/              /home/aibox/.config/yazi/plugins/
 
 # Helper scripts (chmod via COPY --chmod to avoid extra layer)

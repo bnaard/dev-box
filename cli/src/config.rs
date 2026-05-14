@@ -1633,6 +1633,87 @@ impl Default for TmuxStatusLabelsSection {
     }
 }
 
+#[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq)]
+#[serde(rename_all = "kebab-case")]
+pub enum TmuxStatusSeparatorStyle {
+    Normal,
+    Rounded,
+    Slant,
+    Slantup,
+    Trapezoid,
+    Flame,
+    Pixel,
+    Honeycomb,
+    None,
+}
+
+impl std::fmt::Display for TmuxStatusSeparatorStyle {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            TmuxStatusSeparatorStyle::Normal => write!(f, "normal"),
+            TmuxStatusSeparatorStyle::Rounded => write!(f, "rounded"),
+            TmuxStatusSeparatorStyle::Slant => write!(f, "slant"),
+            TmuxStatusSeparatorStyle::Slantup => write!(f, "slantup"),
+            TmuxStatusSeparatorStyle::Trapezoid => write!(f, "trapezoid"),
+            TmuxStatusSeparatorStyle::Flame => write!(f, "flame"),
+            TmuxStatusSeparatorStyle::Pixel => write!(f, "pixel"),
+            TmuxStatusSeparatorStyle::Honeycomb => write!(f, "honeycomb"),
+            TmuxStatusSeparatorStyle::None => write!(f, "none"),
+        }
+    }
+}
+
+fn default_tmux_status_separator_style() -> TmuxStatusSeparatorStyle {
+    TmuxStatusSeparatorStyle::Rounded
+}
+
+#[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq)]
+#[serde(rename_all = "kebab-case")]
+pub enum TmuxStatusElementsSpacing {
+    False,
+    True,
+    Both,
+    Windows,
+    Plugins,
+}
+
+impl std::fmt::Display for TmuxStatusElementsSpacing {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            TmuxStatusElementsSpacing::False => write!(f, "false"),
+            TmuxStatusElementsSpacing::True => write!(f, "true"),
+            TmuxStatusElementsSpacing::Both => write!(f, "both"),
+            TmuxStatusElementsSpacing::Windows => write!(f, "windows"),
+            TmuxStatusElementsSpacing::Plugins => write!(f, "plugins"),
+        }
+    }
+}
+
+fn default_tmux_status_elements_spacing() -> TmuxStatusElementsSpacing {
+    TmuxStatusElementsSpacing::Both
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+#[serde(rename_all = "kebab-case")]
+pub struct TmuxStatusSeparatorsSection {
+    #[serde(default = "default_tmux_status_separator_style")]
+    pub style: TmuxStatusSeparatorStyle,
+    #[serde(default = "default_tmux_status_separator_style")]
+    pub edge_style: TmuxStatusSeparatorStyle,
+    #[serde(default = "default_tmux_status_elements_spacing")]
+    pub elements_spacing: TmuxStatusElementsSpacing,
+}
+
+impl Default for TmuxStatusSeparatorsSection {
+    fn default() -> Self {
+        Self {
+            style: default_tmux_status_separator_style(),
+            edge_style: default_tmux_status_separator_style(),
+            elements_spacing: default_tmux_status_elements_spacing(),
+        }
+    }
+}
+
 fn default_tmux_status_refresh_interval_seconds() -> u32 {
     10
 }
@@ -1696,6 +1777,28 @@ fn default_model_provider_status_checks() -> Vec<String> {
     ]
 }
 
+fn default_quota_window() -> String {
+    "tokens".to_string()
+}
+
+/// CLI binary names whose running processes count as agents for a given
+/// provider. Used by Phase 1 of the model-provider status segment to render
+/// per-provider agent counts (`ANT ×2` etc.).
+pub fn default_agent_binaries_for(provider: &str) -> Vec<String> {
+    let s = |v: &[&str]| v.iter().map(|x| (*x).to_string()).collect();
+    match provider {
+        "anthropic" => s(&["claude"]),
+        "openai" => s(&["codex"]),
+        "google" => s(&["gemini"]),
+        "mistral" => s(&["mistral"]),
+        "deepseek" => s(&["deepseek"]),
+        "cohere" => s(&["cohere"]),
+        "xai" => s(&["grok", "xai"]),
+        "microsoft" => s(&["copilot"]),
+        _ => Vec::new(),
+    }
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
 #[serde(rename_all = "kebab-case")]
 pub struct TmuxStatusModelProviderStatusProvider {
@@ -1711,6 +1814,50 @@ pub struct TmuxStatusModelProviderStatusProvider {
     pub model_components: Vec<String>,
     #[serde(default)]
     pub harness_components: Vec<String>,
+
+    // ── Phase 1: local agent count ────────────────────────────────────────
+    /// Show local agent count (`× N`) read from
+    /// `aibox-status --plugin-json`'s `ai_agents_breakdown`. Free + always-on
+    /// by default; set false to suppress.
+    #[serde(default = "bool_true")]
+    pub show_agent_count: bool,
+
+    /// CLI binary names whose running processes count as an agent for this
+    /// provider. If left empty, defaults are populated by
+    /// `default_agent_binaries_for(provider)`.
+    #[serde(default)]
+    pub agent_binaries: Vec<String>,
+
+    // ── Phase 2: rate-limit quota polling (opt-in) ────────────────────────
+    /// Poll the provider's API to show rate-limit % remaining. Opt-in
+    /// because it sends a billable 1-token request every cache_ttl seconds
+    /// (≈ $0.03/day per provider at default 300 s polling).
+    #[serde(default = "bool_false")]
+    pub show_quota: bool,
+
+    /// Which rate-limit dimension to show: "tokens" or "requests". Tokens
+    /// is the more useful signal for most providers.
+    #[serde(default = "default_quota_window")]
+    pub quota_window: String,
+
+    /// Env var holding the API key for quota polling. When unset, falls
+    /// back to the provider's standard key env (`ANTHROPIC_API_KEY` etc.).
+    #[serde(default)]
+    pub quota_api_key_env: Option<String>,
+
+    // ── Phase 3: admin usage rollup (deep opt-in) ─────────────────────────
+    /// Show this month's usage / soft cap drawn from the provider's admin
+    /// API (Anthropic `/v1/organizations/usage_report/messages`, OpenAI
+    /// `/v1/organization/usage/completions`). Requires an admin key with
+    /// usage-read scope and the section-level
+    /// `admin_usage_enabled = true` ack.
+    #[serde(default = "bool_false")]
+    pub show_admin_usage: bool,
+
+    /// Env var holding the admin API key. Required when `show_admin_usage`
+    /// is true. Defaults to `<PROVIDER>_ADMIN_KEY` if unset.
+    #[serde(default)]
+    pub admin_api_key_env: Option<String>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
@@ -1722,8 +1869,20 @@ pub struct TmuxStatusModelProviderStatusSection {
     pub cache_ttl_seconds: u32,
     #[serde(default = "default_model_provider_status_timeout_seconds")]
     pub timeout_seconds: u32,
-    #[serde(default = "bool_true")]
+    /// Legacy: emit a ✓ glyph next to healthy providers. Defaults to false
+    /// now that the custom PowerKit theme encodes ok/warning/error via the
+    /// chevron color. Flip on if you prefer the redundant glyph.
+    #[serde(default = "bool_false")]
+    pub show_glyph_when_ok: bool,
+    /// Preserved for backward compatibility — older configs read `show_ok`.
+    /// Treated as equivalent to `show_glyph_when_ok` when present.
+    #[serde(default = "bool_false", alias = "show-ok")]
     pub show_ok: bool,
+    /// Section-level ack required before any provider's
+    /// `show_admin_usage = true` takes effect. Acts as a guard against
+    /// accidentally enabling admin-key polling for a billing surface.
+    #[serde(default = "bool_false")]
+    pub admin_usage_enabled: bool,
     #[serde(default = "default_model_provider_status_providers")]
     pub providers: Vec<TmuxStatusModelProviderStatusProvider>,
 }
@@ -1748,6 +1907,13 @@ pub fn default_model_provider_status_providers() -> Vec<TmuxStatusModelProviderS
                 .iter()
                 .map(|s| (*s).to_string())
                 .collect(),
+            show_agent_count: true,
+            agent_binaries: default_agent_binaries_for(provider),
+            show_quota: false,
+            quota_window: default_quota_window(),
+            quota_api_key_env: None,
+            show_admin_usage: false,
+            admin_api_key_env: None,
         }
     }
 
@@ -1825,7 +1991,9 @@ impl Default for TmuxStatusModelProviderStatusSection {
             enabled: false,
             cache_ttl_seconds: default_model_provider_status_cache_ttl_seconds(),
             timeout_seconds: default_model_provider_status_timeout_seconds(),
-            show_ok: true,
+            show_glyph_when_ok: false,
+            show_ok: false,
+            admin_usage_enabled: false,
             providers: default_model_provider_status_providers(),
         }
     }
@@ -1843,6 +2011,8 @@ pub struct TmuxStatusSection {
     #[serde(default)]
     pub labels: TmuxStatusLabelsSection,
     #[serde(default)]
+    pub separators: TmuxStatusSeparatorsSection,
+    #[serde(default)]
     pub refresh: TmuxStatusRefreshSection,
     #[serde(default)]
     pub model_providers: TmuxStatusModelProviderStatusSection,
@@ -1855,6 +2025,7 @@ impl Default for TmuxStatusSection {
             elements: TmuxStatusElementsSection::default(),
             layout: TmuxStatusLayoutSection::default(),
             labels: TmuxStatusLabelsSection::default(),
+            separators: TmuxStatusSeparatorsSection::default(),
             refresh: TmuxStatusRefreshSection::default(),
             model_providers: TmuxStatusModelProviderStatusSection::default(),
         }
@@ -1947,6 +2118,10 @@ pub struct TmuxSection {
     pub session_name: String,
     #[serde(default)]
     pub status: TmuxStatusSection,
+    #[serde(default)]
+    pub layout_switch: TmuxLayoutSwitchSection,
+    #[serde(default)]
+    pub theme_switch: TmuxThemeSwitchSection,
 }
 
 impl Default for TmuxSection {
@@ -1956,6 +2131,99 @@ impl Default for TmuxSection {
             prefix: default_tmux_prefix(),
             session_name: default_tmux_session_name(),
             status: TmuxStatusSection::default(),
+            layout_switch: TmuxLayoutSwitchSection::default(),
+            theme_switch: TmuxThemeSwitchSection::default(),
+        }
+    }
+}
+
+fn default_layout_switch_prefix_key() -> String {
+    "L".to_string()
+}
+
+fn default_layout_switch_style() -> String {
+    "menu".to_string()
+}
+
+fn default_theme_switch_prefix_key() -> String {
+    "T".to_string()
+}
+
+fn default_theme_switch_themes() -> Vec<String> {
+    vec![
+        "gruvbox-dark".to_string(),
+        "catppuccin-mocha".to_string(),
+        "tokyo-night".to_string(),
+        "dracula".to_string(),
+        "projectious".to_string(),
+    ]
+}
+
+/// `customization.tmux.layout_switch` — live layout chooser keybinding.
+///
+/// Always destructive (kills panes when rebuilding windows). The `confirm`
+/// dialog is the default safety net. Set `enabled = false` to omit the
+/// binding entirely.
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+#[serde(rename_all = "kebab-case")]
+pub struct TmuxLayoutSwitchSection {
+    #[serde(default = "bool_true")]
+    pub enabled: bool,
+    #[serde(default = "default_layout_switch_prefix_key")]
+    pub prefix_key: String,
+    /// `menu` (display-menu, more discoverable) or `table`
+    /// (switch-client -T layouts; two-key chord, less screen real estate).
+    #[serde(default = "default_layout_switch_style")]
+    pub style: String,
+    /// Show a "this will kill <apps>" confirmation menu before rebuilding.
+    /// Default on; layout swap is always destructive.
+    #[serde(default = "bool_true")]
+    pub confirm: bool,
+}
+
+impl Default for TmuxLayoutSwitchSection {
+    fn default() -> Self {
+        Self {
+            enabled: true,
+            prefix_key: default_layout_switch_prefix_key(),
+            style: default_layout_switch_style(),
+            confirm: true,
+        }
+    }
+}
+
+/// `customization.tmux.theme_switch` — live theme chooser keybinding.
+///
+/// Tier 1 (light) is non-destructive; tier 2 (`Heavy: restart TUIs`) is
+/// gated by `confirm_restart_tuis`.
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+#[serde(rename_all = "kebab-case")]
+pub struct TmuxThemeSwitchSection {
+    #[serde(default = "bool_true")]
+    pub enabled: bool,
+    #[serde(default = "default_theme_switch_prefix_key")]
+    pub prefix_key: String,
+    /// Themes presented in the chooser menu. Defaults to a curated short
+    /// list; users can override with the full 29-theme roster if desired.
+    #[serde(default = "default_theme_switch_themes")]
+    pub themes: Vec<String>,
+    /// Include a "Toggle light/dark" entry that flips `customization.mode`
+    /// without changing the theme family.
+    #[serde(default = "bool_true")]
+    pub include_mode_toggle: bool,
+    /// Show a "restart these TUIs" confirmation menu before tier 2 swap.
+    #[serde(default = "bool_true")]
+    pub confirm_restart_tuis: bool,
+}
+
+impl Default for TmuxThemeSwitchSection {
+    fn default() -> Self {
+        Self {
+            enabled: true,
+            prefix_key: default_theme_switch_prefix_key(),
+            themes: default_theme_switch_themes(),
+            include_mode_toggle: true,
+            confirm_restart_tuis: true,
         }
     }
 }
@@ -3775,6 +4043,7 @@ fn check_customization_table(
                     "elements",
                     "layout",
                     "labels",
+                    "separators",
                     "refresh",
                     "model-providers",
                 ],
@@ -3802,6 +4071,12 @@ fn check_customization_table(
                         "netspeed-download",
                         "netspeed-upload",
                     ],
+                    mismatches,
+                );
+                check_child_table(
+                    status,
+                    "separators",
+                    &["style", "edge-style", "elements-spacing"],
                     mismatches,
                 );
                 check_child_table(
@@ -4701,6 +4976,27 @@ mig = false
     }
 
     #[test]
+    fn schema_mismatches_accepts_tmux_status_separators() {
+        let toml = r#"
+[aibox]
+version = "0.25.14"
+
+[container]
+name = "my-project"
+
+[customization.tmux.status.separators]
+style = "flame"
+edge-style = "honeycomb"
+elements-spacing = "plugins"
+"#;
+        let mismatches = AiboxConfig::schema_mismatches(toml).unwrap();
+        assert!(
+            mismatches.is_empty(),
+            "tmux status separator options should be schema-clean: {mismatches:?}"
+        );
+    }
+
+    #[test]
     fn parse_tmux_status_layout_lists() {
         let toml = r#"
 [aibox]
@@ -4735,6 +5031,35 @@ line2-right = ["cpu", "memory"]
     }
 
     #[test]
+    fn parse_tmux_status_separators() {
+        let toml = r#"
+[aibox]
+version = "0.25.14"
+
+[container]
+name = "my-project"
+
+[customization.tmux.status.separators]
+style = "flame"
+edge-style = "honeycomb"
+elements-spacing = "plugins"
+"#;
+        let config = parse_toml(toml).unwrap();
+        assert_eq!(
+            config.customization.tmux.status.separators.style,
+            TmuxStatusSeparatorStyle::Flame
+        );
+        assert_eq!(
+            config.customization.tmux.status.separators.edge_style,
+            TmuxStatusSeparatorStyle::Honeycomb
+        );
+        assert_eq!(
+            config.customization.tmux.status.separators.elements_spacing,
+            TmuxStatusElementsSpacing::Plugins
+        );
+    }
+
+    #[test]
     fn tmux_status_layout_rejects_unknown_entries() {
         let toml = r#"
 [aibox]
@@ -4750,6 +5075,25 @@ line2-left = ["git", "not-a-plugin"]
         assert!(
             err.to_string().contains("not-a-plugin"),
             "error should name the bad plugin: {err:?}"
+        );
+    }
+
+    #[test]
+    fn tmux_status_separators_reject_unknown_styles() {
+        let toml = r#"
+[aibox]
+version = "0.25.14"
+
+[container]
+name = "my-project"
+
+[customization.tmux.status.separators]
+style = "not-a-style"
+"#;
+        let err = parse_toml(toml).expect_err("unknown separator style must be rejected");
+        assert!(
+            format!("{err:?}").contains("not-a-style"),
+            "error should name the bad separator style: {err:?}"
         );
     }
 

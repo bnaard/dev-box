@@ -105,6 +105,14 @@ ${bold}Development:${reset}
   test-e2e-visual-tabs     Run opt-in tab traversal for tools and harnesses
   test-e2e-visual-yazi     Run opt-in Yazi previews/git/plugin visual checks
   test-e2e-visual          Run all opt-in visual E2E tiers
+  test-e2e-render-starship Run Tier 3 vt100 cell-color tests for Starship (local, ~6s)
+  test-e2e-render-tmux     Run Tier 3 vt100 cell-color tests for tmux (companion)
+  test-e2e-render-layout-switch
+                           Run Tier 3 rendered test: live layout switch (companion)
+  test-e2e-render-theme-switch
+                           Run Tier 3 rendered test: live theme switch (companion)
+  test-e2e-render-yazi     Run Tier 3 vt100 cell-color tests for Yazi (companion)
+  test-e2e-render          Run all Tier 3 vt100 rendered-color tests
   test-e2e-doc-captures    Run visual E2E and write docs-ready cast/screen artifacts
                            Set AIBOX_E2E_VISUAL_FULL_MATRIX=1 for exhaustive layout/theme coverage
   build-images [--no-cache] Build published container images locally
@@ -123,7 +131,12 @@ ${bold}Release:${reset}
                            image, and harness version drift evidence
   release-doctors          Run pk-doctor + aibox doctor; write dist/RELEASE-DOCTORS.md;
                            exit nonzero if either reports ERRORs
-  release <version>        Sync processkit, test, tag, build CLI, generate release prompt
+  release <version> [--steps list]
+                           Run selected release steps. Use comma-separated steps
+                           or aliases: all, phase0, checks, build, publish.
+                           Add --skip list to exclude long or already-run steps.
+  release <version> --list-steps
+                           Print release step aliases and concrete step names
   release-host <version>   Build/upload macOS binaries, push GHCR images,
                            run runtime smoke, then refresh + commit generated runtime surfaces
   release-finalize-runtime <version>
@@ -214,17 +227,25 @@ cmd_test() {
 
 ensure_e2e_companion() {
   local key="${PROJECT_ROOT}/.aibox-e2e-runner-home/.ssh/id_ed25519"
+  local host="${AIBOX_E2E_HOST:-aibox-e2e-testrunner}"
   info "Checking SSH companion E2E container..."
-  if [[ -f "${key}" ]] && ssh -i "${key}" \
+  local ssh_output=""
+  if [[ -f "${key}" ]] && ssh_output=$(ssh -i "${key}" \
       -o StrictHostKeyChecking=no \
       -o UserKnownHostsFile=/dev/null \
       -o ConnectTimeout=5 \
       -o LogLevel=ERROR \
-      testuser@aibox-e2e-testrunner 'echo ok' 2>/dev/null | grep -qx ok; then
-    ok "SSH companion E2E container is reachable"
-    return
+      "testuser@${host}" 'echo ok' 2>&1); then
+    if grep -qx ok <<<"${ssh_output}"; then
+      ok "SSH companion E2E container is reachable"
+      return
+    fi
   fi
 
+  if grep -Eiq 'could not resolve|temporary failure|name or service not known|no such host' <<<"${ssh_output}"; then
+    warn "SSH companion host '${host}' did not resolve. In restricted Codex sandboxes, Docker DNS for the companion is often unavailable."
+    warn "For partial release validation, use --skip e2e,visual or select steps that do not need the companion."
+  fi
   _require_runtime
   info "SSH companion not reachable; starting aibox-e2e-testrunner via Compose..."
   compose up -d aibox-e2e-testrunner \
@@ -294,6 +315,68 @@ cmd_test_e2e_visual() {
   info "Visual E2E tier 3/3: Yazi previews, git symbols, and plugins"
   cmd_test_e2e_visual_yazi
   ok "Visual E2E matrix passed"
+}
+
+# ── Tier 3 (vt100 rendered-color) — closes the gap that allowed a previous
+# tmux-bg-not-themed regression to ship undetected. Captures actual painted
+# terminal cells via `tmux capture-pane -p -e` / `starship prompt` stdout and
+# replays them through vt100 to assert per-cell bg/fg against the theme
+# palette. Starship tier is local (no companion). tmux+yazi tiers need the
+# companion and are #[ignore]-gated.
+cmd_test_e2e_render_starship() {
+  info "Running Tier 3 rendered-color tests: Starship prompt (local, no companion)..."
+  (cd "${CLI_DIR}" && cargo test --features e2e-render --test e2e \
+    visual_rendered_starship -- --nocapture) \
+    || die "Tier 3 Starship rendered-color tests failed"
+  ok "Tier 3 Starship rendered-color tests passed"
+}
+
+cmd_test_e2e_render_tmux() {
+  ensure_e2e_companion
+  info "Running Tier 3 rendered-color tests: tmux status bar (companion)..."
+  (cd "${CLI_DIR}" && cargo test --features "e2e e2e-render" --test e2e \
+    visual_rendered_tmux -- --ignored --nocapture --test-threads=1) \
+    || die "Tier 3 tmux rendered-color tests failed"
+  ok "Tier 3 tmux rendered-color tests passed"
+}
+
+cmd_test_e2e_render_layout_switch() {
+  ensure_e2e_companion
+  info "Running Tier 3 rendered test: live layout switch rebuilds windows..."
+  (cd "${CLI_DIR}" && cargo test --features "e2e e2e-render" --test e2e \
+    rendered_tmux_layout_switch_rebuilds_windows_to_focus \
+    -- --ignored --nocapture --test-threads=1) \
+    || die "Tier 3 layout-switch rendered test failed"
+  ok "Tier 3 layout-switch rendered test passed"
+}
+
+cmd_test_e2e_render_theme_switch() {
+  ensure_e2e_companion
+  info "Running Tier 3 rendered test: live theme switch changes status bar..."
+  (cd "${CLI_DIR}" && cargo test --features "e2e e2e-render" --test e2e \
+    rendered_tmux_theme_switch_changes_status_bar_surface \
+    -- --ignored --nocapture --test-threads=1) \
+    || die "Tier 3 theme-switch rendered test failed"
+  ok "Tier 3 theme-switch rendered test passed"
+}
+
+cmd_test_e2e_render_yazi() {
+  ensure_e2e_companion
+  info "Running Tier 3 rendered-color tests: Yazi (companion)..."
+  (cd "${CLI_DIR}" && cargo test --features "e2e e2e-render" --test e2e \
+    visual_rendered_yazi -- --ignored --nocapture --test-threads=1) \
+    || die "Tier 3 Yazi rendered-color tests failed"
+  ok "Tier 3 Yazi rendered-color tests passed"
+}
+
+cmd_test_e2e_render() {
+  info "Running all Tier 3 rendered-color tests..."
+  cmd_test_e2e_render_starship
+  cmd_test_e2e_render_tmux
+  cmd_test_e2e_render_layout_switch
+  cmd_test_e2e_render_theme_switch
+  cmd_test_e2e_render_yazi
+  ok "Tier 3 rendered-color tests passed"
 }
 
 cmd_test_e2e_doc_captures() {
@@ -748,7 +831,39 @@ cmd_sync_processkit() {
 }
 
 cmd_release_check_state() {
-  "${SCRIPT_DIR}/release-check-state.sh"
+  case "${1:-}" in
+    --require-network)
+      AIBOX_RELEASE_REQUIRE_NETWORK=1 "${SCRIPT_DIR}/release-check-state.sh"
+      ;;
+    "")
+      "${SCRIPT_DIR}/release-check-state.sh"
+      ;;
+    *)
+      die "Usage: ./scripts/maintain.sh release-check-state [--require-network]"
+      ;;
+  esac
+}
+
+run_aibox_doctor_for_release() {
+  if command -v cargo >/dev/null 2>&1; then
+    (cd "${PROJECT_ROOT}" && cargo run --manifest-path "${CLI_DIR}/Cargo.toml" --quiet -- doctor)
+    return $?
+  fi
+
+  local candidate
+  for candidate in \
+    "${CLI_DIR}/target/aarch64-unknown-linux-gnu/release/aibox" \
+    "${CLI_DIR}/target/release/aibox" \
+    "${CLI_DIR}/target/x86_64-unknown-linux-gnu/release/aibox"
+  do
+    if [[ -x "${candidate}" ]]; then
+      "${candidate}" doctor
+      return $?
+    fi
+  done
+
+  printf 'cargo is unavailable and no runnable Linux aibox binary was found for release doctor.\n' >&2
+  return 127
 }
 
 # =============================================================================
@@ -774,23 +889,23 @@ cmd_release_doctors() {
 
   info "Running pk-doctor (processkit health check)..."
   local pk_out pk_exit
+  set +e
   pk_out=$( \
     cd "${PROJECT_ROOT}" && \
     uv run --script \
       "${PROJECT_ROOT}/context/skills/processkit/pk-doctor/scripts/doctor.py" \
       --no-log \
       2>&1 \
-  ) || true
+  )
   pk_exit=$?
+  set -e
 
   info "Running aibox doctor (runtime hygiene check)..."
   local aibox_out aibox_exit aibox_err_count
-  aibox_out=$( \
-    cd "${PROJECT_ROOT}" && \
-    cargo run --manifest-path "${CLI_DIR}/Cargo.toml" --quiet -- doctor \
-      2>&1 \
-  ) || true
+  set +e
+  aibox_out=$(run_aibox_doctor_for_release 2>&1)
   aibox_exit=$?
+  set -e
 
   # aibox doctor always exits 0; detect errors by parsing the summary line.
   # Format: "Diagnostics complete: N warning(s), M error(s)"
@@ -807,7 +922,10 @@ cmd_release_doctors() {
     pk_status="OK"
   fi
 
-  if [[ "${aibox_err_count}" -gt 0 ]]; then
+  if [[ "${aibox_exit}" -ne 0 ]]; then
+    aibox_status="ERROR (exit ${aibox_exit})"
+    blocked=1
+  elif [[ "${aibox_err_count}" -gt 0 ]]; then
     aibox_status="ERROR (${aibox_err_count} error(s))"
     blocked=1
   else
@@ -845,6 +963,8 @@ cmd_release_doctors() {
     fi
     if [[ "${aibox_err_count}" -gt 0 ]]; then
       warn "aibox doctor reported ${aibox_err_count} error(s)."
+    elif [[ "${aibox_exit}" -ne 0 ]]; then
+      warn "aibox doctor invocation failed (exit ${aibox_exit})."
     fi
     die "Release blocked: doctor checks failed. See ${report} for details."
   fi
@@ -852,9 +972,213 @@ cmd_release_doctors() {
   ok "Doctor checks passed. Report written to ${report}"
 }
 
+release_usage() {
+  die "Usage: ./scripts/maintain.sh release <version> [--steps list] [--skip list] [--list-steps]"
+}
+
+release_list_steps() {
+  cat <<'STEPS'
+Release step aliases:
+  all       state,doctors,sync,version,test,e2e,visual,audit,build-linux,version-smoke,push-main,notes,tag,github-release,docs,prompt
+  phase0    state,doctors
+  checks    sync,version,test,e2e,visual,audit
+  build     build-linux,version-smoke
+  publish   push-main,notes,tag,github-release
+
+Concrete release steps:
+  state           Generate dist/RELEASE-STATE.md with dependency and harness network lookups
+  doctors         Run pk-doctor and aibox doctor into dist/RELEASE-DOCTORS.md
+  sync            Check/sync processkit default version
+  version         Bump cli/Cargo.toml and Cargo.lock if needed, then commit
+  test            Run fmt, clippy, and unit/integration tests
+  e2e             Run Tier 2 SSH companion E2E
+  visual          Run the selected visual E2E tier from AIBOX_RELEASE_VISUAL_E2E
+  audit           Run cargo audit
+  build-linux     Build Linux release archives and checksums
+  version-smoke   Verify the native release binary reports the requested version
+  push-main       Push main to origin
+  notes           Prepare or reuse dist/RELEASE-NOTES.md
+  tag             Create and push the annotated release tag
+  github-release  Create the GitHub release with Linux archives
+  docs            Deploy documentation
+  prompt          Write dist/RELEASE-PROMPT.md for host-side phase 2
+
+Examples:
+  ./scripts/maintain.sh release 0.25.15 --steps audit,build
+  ./scripts/maintain.sh release 0.25.15 --skip e2e,visual
+  ./scripts/maintain.sh release 0.25.15 --steps phase0
+  ./scripts/maintain.sh release 0.25.15 --steps publish,prompt
+STEPS
+}
+
+release_add_step() {
+  local candidate="$1" existing
+  for existing in "${release_steps[@]}"; do
+    [[ "${existing}" == "${candidate}" ]] && return 0
+  done
+  release_steps+=("${candidate}")
+}
+
+release_expand_step_token() {
+  local token="$1"
+  case "${token}" in
+    all)
+      release_expand_step_token phase0
+      release_expand_step_token checks
+      release_expand_step_token build
+      release_expand_step_token publish
+      release_add_step docs
+      release_add_step prompt
+      ;;
+    phase0)
+      release_add_step state
+      release_add_step doctors
+      ;;
+    checks)
+      release_add_step sync
+      release_add_step version
+      release_add_step test
+      release_add_step e2e
+      release_add_step visual
+      release_add_step audit
+      ;;
+    build)
+      release_add_step build-linux
+      release_add_step version-smoke
+      ;;
+    publish)
+      release_add_step push-main
+      release_add_step notes
+      release_add_step tag
+      release_add_step github-release
+      ;;
+    state|doctors|sync|version|test|e2e|visual|audit|build-linux|version-smoke|push-main|notes|tag|github-release|docs|prompt)
+      release_add_step "${token}"
+      ;;
+    "")
+      ;;
+    *)
+      die "Unknown release step '${token}'. Run './scripts/maintain.sh release --list-steps' for valid steps."
+      ;;
+  esac
+}
+
+release_parse_steps() {
+  local spec="${1:-all}" token
+  release_steps=()
+  IFS=',' read -ra release_step_tokens <<< "${spec}"
+  for token in "${release_step_tokens[@]}"; do
+    token="${token//[[:space:]]/}"
+    release_expand_step_token "${token}"
+  done
+  [[ "${#release_steps[@]}" -gt 0 ]] || release_usage
+}
+
+release_remove_step() {
+  local skipped="$1" step kept=()
+  for step in "${release_steps[@]}"; do
+    [[ "${step}" == "${skipped}" ]] && continue
+    kept+=("${step}")
+  done
+  release_steps=("${kept[@]}")
+}
+
+release_apply_skip_steps() {
+  local spec="$1" token skip_steps=()
+  [[ -n "${spec}" ]] || return 0
+
+  local original_steps=("${release_steps[@]}")
+  release_steps=()
+  IFS=',' read -ra release_step_tokens <<< "${spec}"
+  for token in "${release_step_tokens[@]}"; do
+    token="${token//[[:space:]]/}"
+    release_expand_step_token "${token}"
+  done
+  skip_steps=("${release_steps[@]}")
+  release_steps=("${original_steps[@]}")
+
+  for token in "${skip_steps[@]}"; do
+    release_remove_step "${token}"
+  done
+  [[ "${#release_steps[@]}" -gt 0 ]] || die "No release steps remain after --skip."
+}
+
+release_step_requested() {
+  local step="$1" existing
+  for existing in "${release_steps[@]}"; do
+    [[ "${existing}" == "${step}" ]] && return 0
+  done
+  return 1
+}
+
+release_steps_joined() {
+  local IFS=','
+  printf '%s' "${release_steps[*]}"
+}
+
+release_requires_clean_tree() {
+  local step
+  for step in "${release_steps[@]}"; do
+    case "${step}" in
+      sync|version|push-main|tag|github-release|docs)
+        return 0
+        ;;
+    esac
+  done
+  return 1
+}
+
+release_collect_linux_archives() {
+  local version="$1" target archive checksum
+  built_archives=()
+  for target in aarch64-unknown-linux-gnu x86_64-unknown-linux-gnu; do
+    archive="${DIST_DIR}/aibox-v${version}-${target}.tar.gz"
+    checksum="${archive}.sha256"
+    [[ -f "${archive}" ]] || die "Missing release archive ${archive}; run --steps build first."
+    [[ -f "${checksum}" ]] || die "Missing release checksum ${checksum}; run --steps build first."
+    built_archives+=("${archive}" "${checksum}")
+  done
+}
+
 cmd_release() {
   local version="${1:-}"
-  [[ -z "${version}" ]] && die "Usage: ./scripts/maintain.sh release <version>  (e.g. 0.2.0)"
+  if [[ "${version}" == "--list-steps" ]]; then
+    release_list_steps
+    return 0
+  fi
+  [[ -z "${version}" ]] && release_usage
+  shift || true
+
+  local steps_spec="all"
+  local skip_spec=""
+  while [[ "$#" -gt 0 ]]; do
+    case "$1" in
+      --list-steps)
+        release_list_steps
+        return 0
+        ;;
+      --steps)
+        shift
+        [[ "$#" -gt 0 ]] || release_usage
+        steps_spec="$1"
+        ;;
+      --steps=*)
+        steps_spec="${1#--steps=}"
+        ;;
+      --skip)
+        shift
+        [[ "$#" -gt 0 ]] || release_usage
+        skip_spec="$1"
+        ;;
+      --skip=*)
+        skip_spec="${1#--skip=}"
+        ;;
+      *)
+        release_usage
+        ;;
+    esac
+    shift || true
+  done
 
   # Validate semver (simple check)
   if ! [[ "${version}" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
@@ -862,277 +1186,295 @@ cmd_release() {
   fi
 
   local tag="v${version}"
+  local release_steps=()
+  local release_step_tokens=()
+  local built_archives=()
+  release_parse_steps "${steps_spec}"
+  release_apply_skip_steps "${skip_spec}"
 
-  # ── Step 1: Preflight ──────────────────────────────────────────────────────
-  info "Preparing release ${tag}..."
+  info "Preparing release ${tag} with steps: $(release_steps_joined)"
 
-  # Check for uncommitted changes
-  if [[ -n "$(git status --porcelain)" ]]; then
-    die "Working tree is dirty. Commit or stash changes first."
+  if release_requires_clean_tree && [[ -n "$(git status --porcelain)" ]]; then
+    die "Selected release steps require a clean tree. Commit or stash changes first, or choose non-publishing steps such as --steps audit,build."
   fi
 
-  # Check tag doesn't exist
-  if git rev-parse "${tag}" &>/dev/null; then
+  if release_step_requested tag && git rev-parse "${tag}" &>/dev/null; then
     die "Tag ${tag} already exists."
   fi
-
-  # ── Step 1b: Dependency/harness state report ──────────────────────────────
-  # This is the evidence pass before the release mutates versions or tags.
-  # It intentionally does not edit the tree; the maintainer/agent must review
-  # dist/RELEASE-STATE.md and decide which upstream bumps need code changes.
-  info "Checking dependency, addon, image, and harness state..."
-  cmd_release_check_state
-  ok "Release state report written"
-  if [[ -t 0 ]]; then
-    warn "Review dist/RELEASE-STATE.md. Press Enter to continue, or Ctrl-C to abort and update dependencies first."
-    read -r
+  if release_step_requested github-release && ! release_step_requested tag && ! git rev-parse "${tag}" &>/dev/null; then
+    die "Tag ${tag} does not exist. Include the 'tag' step or run it before github-release."
   fi
 
-  # ── Step 1c: Doctor health checks (Phase 0 gate) ──────────────────────────
-  # Run pk-doctor (processkit health) and aibox doctor (runtime hygiene).
-  # ERRORs from either doctor block the release; WARNs surface in the report
-  # but do not block.  Output written to dist/RELEASE-DOCTORS.md.
-  if [[ "${AIBOX_RELEASE_SKIP_DOCTORS:-}" == "1" ]]; then
-    warn "AIBOX_RELEASE_SKIP_DOCTORS=1 set — skipping Phase 0 doctor checks. Owner accepts the risk."
-  else
-    info "Running release doctor checks..."
-    cmd_release_doctors
+  if release_step_requested state; then
+    info "Checking dependency, addon, image, and harness state..."
+    cmd_release_check_state --require-network
+    ok "Release state report written"
     if [[ -t 0 ]]; then
-      warn "Review dist/RELEASE-DOCTORS.md for any warnings. Press Enter to continue."
+      warn "Review dist/RELEASE-STATE.md. Press Enter to continue, or Ctrl-C to abort and update dependencies first."
       read -r
     fi
   fi
 
-  # ── Step 2: Sync processkit ───────────────────────────────────────────────
-  # Check for a newer processkit release. Patches PROCESSKIT_DEFAULT_VERSION,
-  # shows the FORMAT.md diff, and aborts if the tree is dirty — forcing any
-  # required CLI changes to be made and committed before the build proceeds.
-  cmd_sync_processkit
-  if [[ -n "$(git status --porcelain)" ]]; then
-    echo ""
-    die "processkit_vocab.rs was updated. Review the diff, make any required CLI changes, commit, then re-run release."
-  fi
-
-  # ── Step 2b: Bump CLI version ────────────────────────────────────────────
-  # The binary reports CARGO_PKG_VERSION, so Cargo.toml MUST match the tag
-  # being cut. Missing this step once (v0.18.4) shipped a binary that
-  # self-reported as the previous version. We write it here so the tag and
-  # the binary can never disagree again. Cargo.lock is refreshed via a
-  # lightweight `cargo metadata` so the committed lockfile also reflects
-  # the bump.
-  local current_cargo_version
-  current_cargo_version=$(grep -m1 '^version = ' "${CLI_DIR}/Cargo.toml" | sed -E 's/version = "(.+)"/\1/')
-  if [[ "${current_cargo_version}" != "${version}" ]]; then
-    info "Bumping cli/Cargo.toml ${current_cargo_version} → ${version}..."
-    # macOS/BSD sed and GNU sed differ on -i; write atomically via a tmp file.
-    local tmp_cargo
-    tmp_cargo=$(mktemp)
-    sed -E "s/^version = \"${current_cargo_version}\"$/version = \"${version}\"/" \
-      "${CLI_DIR}/Cargo.toml" > "${tmp_cargo}"
-    mv "${tmp_cargo}" "${CLI_DIR}/Cargo.toml"
-    # Refresh Cargo.lock so the new version is locked.
-    (cd "${CLI_DIR}" && cargo metadata --format-version 1 --quiet >/dev/null) \
-      || die "cargo metadata failed after version bump — review Cargo.toml"
-    git add "${CLI_DIR}/Cargo.toml" "${CLI_DIR}/Cargo.lock"
-    git commit -m "chore: bump CLI version to ${version}" \
-      || die "failed to commit Cargo.toml/Cargo.lock bump"
-    ok "Cargo.toml bumped and committed"
-  else
-    ok "Cargo.toml already at ${version}"
-  fi
-
-  # ── Step 3: Run tests ──────────────────────────────────────────────────────
-  info "Running tests..."
-  cmd_test
-  case "${AIBOX_RELEASE_SKIP_COMPANION_E2E:-}" in
-    1|true|yes)
-      warn "Skipping Tier 2 SSH companion E2E during release because AIBOX_RELEASE_SKIP_COMPANION_E2E=${AIBOX_RELEASE_SKIP_COMPANION_E2E}. Re-run ./scripts/maintain.sh test-e2e after rebuilding the companion."
-      ;;
-    *)
-      cmd_test_e2e
-      ;;
-  esac
-  case "${AIBOX_RELEASE_VISUAL_E2E:-skip}" in
-    skip|"")
-      warn "Skipping opt-in visual E2E during release. The release agent must justify this in notes or handover, or run AIBOX_RELEASE_VISUAL_E2E=<status|tabs|yazi|full|docs>."
-      ;;
-    status)
-      cmd_test_e2e_visual_status
-      ;;
-    tabs|tools)
-      cmd_test_e2e_visual_tabs
-      ;;
-    yazi)
-      cmd_test_e2e_visual_yazi
-      ;;
-    full)
-      cmd_test_e2e_visual
-      ;;
-    docs|captures)
-      cmd_test_e2e_doc_captures
-      ;;
-    *)
-      die "Unknown AIBOX_RELEASE_VISUAL_E2E=${AIBOX_RELEASE_VISUAL_E2E}; expected skip, status, tabs, yazi, full, or docs"
-      ;;
-  esac
-
-  # ── Step 3: Audit dependencies ───────────────────────────────────────────
-  info "Running cargo audit..."
-  command -v cargo-audit &>/dev/null \
-    || (cd "${CLI_DIR}" && cargo install cargo-audit --quiet)
-  local audit_db="${TMPDIR:-/tmp}/aibox-cargo-advisory-db"
-  mkdir -p "${audit_db}"
-  (cd "${CLI_DIR}" && cargo audit --db "${audit_db}") \
-    || die "cargo audit found advisories — resolve before releasing"
-  ok "Audit clean"
-
-  # ── Step 4: Build both Linux CLI targets ─────────────────────────────────
-  info "Building CLI (release mode) for all Linux targets..."
-  mkdir -p "${DIST_DIR}"
-
-  local linux_targets=("aarch64-unknown-linux-gnu" "x86_64-unknown-linux-gnu")
-  local built_archives=()
-
-  for target in "${linux_targets[@]}"; do
-    info "  → ${target}"
-    (cd "${CLI_DIR}" && \
-      CARGO_TARGET_X86_64_UNKNOWN_LINUX_GNU_LINKER=x86_64-linux-gnu-gcc \
-      cargo build --release --target "${target}") \
-      || die "cargo build failed for ${target}"
-    local binary_name="aibox-v${version}-${target}"
-    cp "${CLI_DIR}/target/${target}/release/aibox" "${DIST_DIR}/${binary_name}"
-    tar -czf "${DIST_DIR}/${binary_name}.tar.gz" -C "${DIST_DIR}" "${binary_name}"
-    rm "${DIST_DIR}/${binary_name}"
-    sha256sum "${DIST_DIR}/${binary_name}.tar.gz" | awk '{print $1}' > "${DIST_DIR}/${binary_name}.tar.gz.sha256"
-    built_archives+=("${DIST_DIR}/${binary_name}.tar.gz")
-    built_archives+=("${DIST_DIR}/${binary_name}.tar.gz.sha256")
-    ok "Built ${binary_name}.tar.gz"
-  done
-
-  # ── Step 4b: Smoke-test the binary's self-reported version ───────────────
-  # Run the aarch64 binary under qemu if available, else the native-host
-  # cargo target. We just need to ensure `aibox --version` matches ${version}
-  # — this catches the Cargo.toml-not-bumped class of release bug (v0.18.4).
-  info "Verifying 'aibox --version' matches ${version}..."
-  local host_binary="${CLI_DIR}/target/release/aibox"
-  (cd "${CLI_DIR}" && cargo build --release --quiet) \
-    || die "native cargo build failed (needed for --version smoke test)"
-  local reported
-  reported=$("${host_binary}" --version | awk '{print $NF}')
-  if [[ "${reported}" != "${version}" ]]; then
-    die "aibox --version reports '${reported}' but the tag being cut is '${version}'. Fix Cargo.toml before retrying."
-  fi
-  ok "aibox --version = ${reported} (matches tag)"
-
-  # ── Step 5: Push main branch ─────────────────────────────────────────────
-  # BUG FIX (CalmDew / BACK-20260503_0148): previously the version-bump commit
-  # from Step 2b was never pushed to origin main.  The old code only did
-  # `git push origin <tag>` in Step 5, so origin/main lagged behind the tag and
-  # required a manual `git push origin main` after every release.
-  #
-  # Correct order (enforced here):
-  #   1. Push main  ← version-bump commit lands on origin before the tag
-  #   2. Prepare curated release notes  ← maintainer checkpoint before GitHub sees anything
-  #   3. Create & push the tag
-  #   4. gh release create  ← always uses the curated notes prepared in step 2
-  #
-  # This ensures origin/main and the tag are always in sync and the GitHub
-  # release is never created with stale auto-generated notes.
-  info "Pushing main to origin (version-bump commit)..."
-  git push origin main
-  ok "main pushed to origin"
-
-  # ── Step 6: Prepare curated release notes ────────────────────────────────
-  # Rationale: gh release create happens AFTER this block so the maintainer
-  # always has an opportunity to write (or review) notes before they go public.
-  # Previously the tag was pushed first and the GitHub release was created
-  # immediately with auto-generated notes — there was no checkpoint.
-  local notes_file="${DIST_DIR}/RELEASE-NOTES.md"
-  if [[ ! -f "${notes_file}" ]] || ! grep -q "${tag}" "${notes_file}" 2>/dev/null; then
-    # No hand-written notes for this tag yet.  Generate a commit-log scaffold
-    # and (when running interactively) pause so the maintainer can edit it.
-    info "Generating release-notes scaffold at ${notes_file}..."
-    local prev_tag
-    prev_tag=$(git describe --tags --abbrev=0 2>/dev/null || echo "")
-    {
-      echo "# aibox ${tag}"
-      echo ""
-      if [[ -n "${prev_tag}" ]]; then
-        echo "## Changes since ${prev_tag}"
-        echo ""
-        git log --oneline "${prev_tag}..HEAD" | sed 's/^/- /'
-      else
-        git log --oneline HEAD | head -20 | sed 's/^/- /'
-      fi
-    } > "${notes_file}"
-    if [[ -t 0 ]]; then
-      warn "Auto-generated release notes written to dist/RELEASE-NOTES.md."
-      warn "Edit them now, then press Enter to continue (Ctrl-C to abort)."
-      read -r
+  if release_step_requested doctors; then
+    if [[ "${AIBOX_RELEASE_SKIP_DOCTORS:-}" == "1" ]]; then
+      warn "AIBOX_RELEASE_SKIP_DOCTORS=1 set — skipping Phase 0 doctor checks. Owner accepts the risk."
     else
-      warn "Running non-interactively — using auto-generated notes. Edit dist/RELEASE-NOTES.md and re-run if needed."
+      info "Running release doctor checks..."
+      cmd_release_doctors
+      if [[ -t 0 ]]; then
+        warn "Review dist/RELEASE-DOCTORS.md for any warnings. Press Enter to continue."
+        read -r
+      fi
     fi
-  else
-    ok "Using hand-written release notes from ${notes_file}"
   fi
 
-  # ── Step 7: Create and push git tag ──────────────────────────────────────
-  info "Tagging and pushing ${tag}..."
-  git tag -a "${tag}" -m "Release ${tag}"
-  git push origin "${tag}"
-  ok "Tag ${tag} pushed"
+  if release_step_requested sync; then
+    cmd_sync_processkit
+    if [[ -n "$(git status --porcelain)" ]]; then
+      echo ""
+      die "processkit_vocab.rs was updated. Review the diff, make any required CLI changes, commit, then re-run release."
+    fi
+  fi
 
-  # ── Step 8: Create GitHub release with Linux binaries ────────────────────
-  info "Creating GitHub release ${tag}..."
-  gh release create "${tag}" \
-    --repo "${GITHUB_REPO}" \
-    --title "aibox ${tag}" \
-    --notes-file "${notes_file}" \
-    "${built_archives[@]}"
-  ok "GitHub release ${tag} created with Linux binaries"
+  if release_step_requested version; then
+    local current_cargo_version
+    current_cargo_version=$(grep -m1 '^version = ' "${CLI_DIR}/Cargo.toml" | sed -E 's/version = "(.+)"/\1/')
+    if [[ "${current_cargo_version}" != "${version}" ]]; then
+      info "Bumping cli/Cargo.toml ${current_cargo_version} → ${version}..."
+      # macOS/BSD sed and GNU sed differ on -i; write atomically via a tmp file.
+      local tmp_cargo
+      tmp_cargo=$(mktemp)
+      sed -E "s/^version = \"${current_cargo_version}\"$/version = \"${version}\"/" \
+        "${CLI_DIR}/Cargo.toml" > "${tmp_cargo}"
+      mv "${tmp_cargo}" "${CLI_DIR}/Cargo.toml"
+      # Refresh Cargo.lock so the new version is locked.
+      (cd "${CLI_DIR}" && cargo metadata --format-version 1 --quiet >/dev/null) \
+        || die "cargo metadata failed after version bump — review Cargo.toml"
+      git add "${CLI_DIR}/Cargo.toml" "${CLI_DIR}/Cargo.lock"
+      git commit -m "chore: bump CLI version to ${version}" \
+        || die "failed to commit Cargo.toml/Cargo.lock bump"
+      ok "Cargo.toml bumped and committed"
+    else
+      ok "Cargo.toml already at ${version}"
+    fi
+  fi
 
-  # ── Step 9: Deploy documentation ─────────────────────────────────────────
-  info "Deploying documentation..."
-  cmd_docs_deploy
-  ok "Documentation deployed"
+  if release_step_requested test; then
+    info "Running tests..."
+    cmd_test
+    # Starship Tier 3 (vt100 rendered-color) runs locally without a companion
+    # and only adds ~6s. Run it alongside the regular test step so we always
+    # catch a regression where the generated starship.toml is silently
+    # ignored or rendered with the wrong palette. Skip gracefully via
+    # AIBOX_RELEASE_SKIP_RENDER_LOCAL=1 if the host doesn't have `starship`.
+    case "${AIBOX_RELEASE_SKIP_RENDER_LOCAL:-}" in
+      1|true|yes)
+        warn "Skipping Tier 3 local Starship rendered-color tests because AIBOX_RELEASE_SKIP_RENDER_LOCAL=${AIBOX_RELEASE_SKIP_RENDER_LOCAL}."
+        ;;
+      *)
+        cmd_test_e2e_render_starship
+        ;;
+    esac
+  fi
 
-  # ── Step 10: Generate host-side prompt ───────────────────────────────────
-  # The macOS binaries and container image push must be done by the maintainer
-  # on the macOS host (cross-compilation to Darwin is not possible from Linux;
-  # container runtime is not available inside the devcontainer).
-  local prompt_file="${DIST_DIR}/RELEASE-PROMPT.md"
-  {
-    echo "# Host-side steps for aibox ${tag}"
-    echo ""
-    echo "Linux binaries are already uploaded to the GitHub release."
-    echo "Run the following on the macOS host to complete the release:"
-    echo ""
-    echo "\`\`\`bash"
-    echo "./scripts/maintain.sh release-host ${version}"
-    echo "\`\`\`"
-    echo ""
-    echo "This will:"
-    echo "- Build macOS binaries (aarch64-apple-darwin, x86_64-apple-darwin)"
-    echo "- Upload them to the existing GitHub release ${tag}"
-    echo "- Build and push container images to GHCR"
-    echo "- Refresh repo-owned generated runtime surfaces after the image tags exist"
-    echo "- Commit and push generated runtime changes if they drift"
-  } > "${prompt_file}"
+  if release_step_requested e2e; then
+    case "${AIBOX_RELEASE_SKIP_COMPANION_E2E:-}" in
+      1|true|yes)
+        warn "Skipping Tier 2 SSH companion E2E during release because AIBOX_RELEASE_SKIP_COMPANION_E2E=${AIBOX_RELEASE_SKIP_COMPANION_E2E}. Re-run ./scripts/maintain.sh test-e2e after rebuilding the companion."
+        ;;
+      *)
+        cmd_test_e2e
+        ;;
+    esac
+  fi
 
-  ok "Host-side prompt written to dist/RELEASE-PROMPT.md"
+  if release_step_requested visual; then
+    case "${AIBOX_RELEASE_VISUAL_E2E:-skip}" in
+      skip|"")
+        warn "Skipping opt-in visual E2E during release. The release agent must justify this in notes or handover, or run AIBOX_RELEASE_VISUAL_E2E=<status|tabs|yazi|render|full|docs>."
+        ;;
+      status)
+        cmd_test_e2e_visual_status
+        ;;
+      tabs|tools)
+        cmd_test_e2e_visual_tabs
+        ;;
+      yazi)
+        cmd_test_e2e_visual_yazi
+        ;;
+      render)
+        # Tier 3 vt100 cell-color suite (tmux + yazi). Starship Tier 3
+        # already ran during the `test` step; this adds the companion tiers.
+        cmd_test_e2e_render_tmux
+        cmd_test_e2e_render_yazi
+        ;;
+      full)
+        cmd_test_e2e_visual
+        # `full` extends to Tier 3 companion tiers too — release gating
+        # should verify every themed surface actually paints palette colors.
+        cmd_test_e2e_render_tmux
+        cmd_test_e2e_render_yazi
+        ;;
+      docs|captures)
+        cmd_test_e2e_doc_captures
+        ;;
+      *)
+        die "Unknown AIBOX_RELEASE_VISUAL_E2E=${AIBOX_RELEASE_VISUAL_E2E}; expected skip, status, tabs, yazi, render, full, or docs"
+        ;;
+    esac
+  fi
+
+  if release_step_requested audit; then
+    info "Running cargo audit..."
+    command -v cargo-audit &>/dev/null \
+      || (cd "${CLI_DIR}" && cargo install cargo-audit --quiet)
+    local audit_db="${TMPDIR:-/tmp}/aibox-cargo-advisory-db"
+    mkdir -p "${audit_db}"
+    (cd "${CLI_DIR}" && cargo audit --db "${audit_db}") \
+      || die "cargo audit found advisories — resolve before releasing"
+    ok "Audit clean"
+  fi
+
+  if release_step_requested build-linux; then
+    info "Building CLI (release mode) for all Linux targets..."
+    mkdir -p "${DIST_DIR}"
+
+    local linux_targets=("aarch64-unknown-linux-gnu" "x86_64-unknown-linux-gnu")
+
+    for target in "${linux_targets[@]}"; do
+      info "  → ${target}"
+      (cd "${CLI_DIR}" && \
+        CARGO_TARGET_X86_64_UNKNOWN_LINUX_GNU_LINKER=x86_64-linux-gnu-gcc \
+        cargo build --release --target "${target}") \
+        || die "cargo build failed for ${target}"
+      local binary_name="aibox-v${version}-${target}"
+      cp "${CLI_DIR}/target/${target}/release/aibox" "${DIST_DIR}/${binary_name}"
+      tar -czf "${DIST_DIR}/${binary_name}.tar.gz" -C "${DIST_DIR}" "${binary_name}"
+      rm "${DIST_DIR}/${binary_name}"
+      sha256sum "${DIST_DIR}/${binary_name}.tar.gz" | awk '{print $1}' > "${DIST_DIR}/${binary_name}.tar.gz.sha256"
+      built_archives+=("${DIST_DIR}/${binary_name}.tar.gz")
+      built_archives+=("${DIST_DIR}/${binary_name}.tar.gz.sha256")
+      ok "Built ${binary_name}.tar.gz"
+    done
+  fi
+
+  if release_step_requested version-smoke; then
+    info "Verifying 'aibox --version' matches ${version}..."
+    local host_binary="${CLI_DIR}/target/release/aibox"
+    (cd "${CLI_DIR}" && cargo build --release --quiet) \
+      || die "native cargo build failed (needed for --version smoke test)"
+    local reported
+    reported=$("${host_binary}" --version | awk '{print $NF}')
+    if [[ "${reported}" != "${version}" ]]; then
+      die "aibox --version reports '${reported}' but the tag being cut is '${version}'. Fix Cargo.toml before retrying."
+    fi
+    ok "aibox --version = ${reported} (matches tag)"
+  fi
+
+  if release_step_requested push-main; then
+    info "Pushing main to origin (version-bump commit)..."
+    git push origin main
+    ok "main pushed to origin"
+  fi
+
+  if release_step_requested notes; then
+    local notes_file="${DIST_DIR}/RELEASE-NOTES.md"
+    if [[ ! -f "${notes_file}" ]] || ! grep -q "${tag}" "${notes_file}" 2>/dev/null; then
+      info "Generating release-notes scaffold at ${notes_file}..."
+      local prev_tag
+      prev_tag=$(git describe --tags --abbrev=0 2>/dev/null || echo "")
+      {
+        echo "# aibox ${tag}"
+        echo ""
+        if [[ -n "${prev_tag}" ]]; then
+          echo "## Changes since ${prev_tag}"
+          echo ""
+          git log --oneline "${prev_tag}..HEAD" | sed 's/^/- /'
+        else
+          git log --oneline HEAD | head -20 | sed 's/^/- /'
+        fi
+      } > "${notes_file}"
+      if [[ -t 0 ]]; then
+        warn "Auto-generated release notes written to dist/RELEASE-NOTES.md."
+        warn "Edit them now, then press Enter to continue (Ctrl-C to abort)."
+        read -r
+      else
+        warn "Running non-interactively — using auto-generated notes. Edit dist/RELEASE-NOTES.md and re-run if needed."
+      fi
+    else
+      ok "Using hand-written release notes from ${notes_file}"
+    fi
+  fi
+
+  if release_step_requested tag; then
+    info "Tagging and pushing ${tag}..."
+    git tag -a "${tag}" -m "Release ${tag}"
+    git push origin "${tag}"
+    ok "Tag ${tag} pushed"
+  fi
+
+  if release_step_requested github-release; then
+    if [[ "${#built_archives[@]}" -eq 0 ]]; then
+      release_collect_linux_archives "${version}"
+    fi
+    local notes_file="${DIST_DIR}/RELEASE-NOTES.md"
+    [[ -f "${notes_file}" ]] || die "Missing ${notes_file}; run the 'notes' step first or include the publish alias."
+    info "Creating GitHub release ${tag}..."
+    gh release create "${tag}" \
+      --repo "${GITHUB_REPO}" \
+      --title "aibox ${tag}" \
+      --notes-file "${notes_file}" \
+      "${built_archives[@]}"
+    ok "GitHub release ${tag} created with Linux binaries"
+  fi
+
+  if release_step_requested docs; then
+    info "Deploying documentation..."
+    cmd_docs_deploy
+    ok "Documentation deployed"
+  fi
+
+  if release_step_requested prompt; then
+    local prompt_file="${DIST_DIR}/RELEASE-PROMPT.md"
+    {
+      echo "# Host-side steps for aibox ${tag}"
+      echo ""
+      echo "Linux binaries are already uploaded to the GitHub release."
+      echo "Run the following on the macOS host to complete the release:"
+      echo ""
+      echo "\`\`\`bash"
+      echo "./scripts/maintain.sh release-host ${version}"
+      echo "\`\`\`"
+      echo ""
+      echo "This will:"
+      echo "- Build macOS binaries (aarch64-apple-darwin, x86_64-apple-darwin)"
+      echo "- Upload them to the existing GitHub release ${tag}"
+      echo "- Build and push container images to GHCR"
+      echo "- Refresh repo-owned generated runtime surfaces after the image tags exist"
+      echo "- Commit and push generated runtime changes if they drift"
+    } > "${prompt_file}"
+
+    ok "Host-side prompt written to dist/RELEASE-PROMPT.md"
+  fi
 
   # ── Summary ──────────────────────────────────────────────────────────────
   echo ""
-  echo "${bold}Release ${tag} complete (Linux side).${reset}"
+  echo "${bold}Release ${tag} selected steps complete: $(release_steps_joined).${reset}"
   echo ""
   echo "  GitHub release: https://github.com/projectious-work/aibox/releases/tag/${tag}"
-  echo "  Linux binaries uploaded:"
-  for a in "${built_archives[@]}"; do
-    echo "    $(basename "${a}")"
-  done
-  echo "  Documentation: deployed to gh-pages"
-  echo ""
-  echo "  ${bold}Remaining (macOS host):${reset} ./scripts/maintain.sh release-host ${version}"
+  if release_step_requested github-release; then
+    echo "  Linux binaries uploaded:"
+    for a in "${built_archives[@]}"; do
+      echo "    $(basename "${a}")"
+    done
+  fi
+  if release_step_requested docs; then
+    echo "  Documentation: deployed to gh-pages"
+  fi
+  if release_step_requested prompt; then
+    echo ""
+    echo "  ${bold}Remaining (macOS host):${reset} ./scripts/maintain.sh release-host ${version}"
+  fi
 }
 
 cmd_release_finalize_runtime() {
@@ -1316,6 +1658,12 @@ case "${COMMAND}" in
   test-e2e-visual-tabs) cmd_test_e2e_visual_tabs ;;
   test-e2e-visual-yazi) cmd_test_e2e_visual_yazi ;;
   test-e2e-visual) cmd_test_e2e_visual ;;
+  test-e2e-render-starship) cmd_test_e2e_render_starship ;;
+  test-e2e-render-tmux) cmd_test_e2e_render_tmux ;;
+  test-e2e-render-layout-switch) cmd_test_e2e_render_layout_switch ;;
+  test-e2e-render-theme-switch) cmd_test_e2e_render_theme_switch ;;
+  test-e2e-render-yazi) cmd_test_e2e_render_yazi ;;
+  test-e2e-render) cmd_test_e2e_render ;;
   test-e2e-doc-captures) cmd_test_e2e_doc_captures ;;
   build-images) cmd_build_images "$@" ;;
   push-images)  cmd_push_images "$@" ;;
