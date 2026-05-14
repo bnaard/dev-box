@@ -95,17 +95,21 @@ let g:netrw_winsize=25
 set ttimeout
 set ttimeoutlen=100
 if !has('gui_running')
-  let s:alt_alpha = 'abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ.,;:/'
+  " Register alt+letter byte sequences so terminals that send ESC+letter
+  " get coalesced into <M-letter>. We intentionally SKIP punctuation
+  " (`:` `,` `;` `.` `/`) — registering `<M-:>` would consume the colon
+  " that follows a normal-mode Escape, breaking the `Esc:q` quit
+  " sequence and any other ad-hoc `Esc` → `:` command-line entry.
+  let s:alt_alpha = 'abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ'
   for s:c in split(s:alt_alpha, '\zs')
     execute "set <M-" . s:c . ">=\<Esc>" . s:c
   endfor
   unlet! s:alt_alpha s:c
-  " Alt+arrow and Shift-Alt+arrow on xterm-compatible terminals.
-  " Modifier mask: 3 = Alt, 4 = Shift+Alt (CSI 1;<mask><dir>).
-  execute "set <A-Left>=\<Esc>[1;3D"
-  execute "set <A-Right>=\<Esc>[1;3C"
-  execute "set <S-A-Left>=\<Esc>[1;4D"
-  execute "set <S-A-Right>=\<Esc>[1;4C"
+  " Alt+arrow / Shift-Alt+arrow: vim's `set <A-Left>=...` syntax was
+  " removed in 9.x (E518: Unknown option). Modern vim auto-recognises
+  " CSI 1;3D etc. as <A-Left> when TERM=xterm-* and the corresponding
+  " keycode lookup runs. Terminals that send ESC+b for Alt+b are
+  " already covered by the per-letter <M-x>=ESC-x table above.
 endif
 
 " Insert-mode word movement uses <C-o> (one-shot normal command, then
@@ -3242,14 +3246,22 @@ rules = [
             DEFAULT_VIMRC.contains(r#"execute "set <M-" . s:c . ">=\<Esc>" . s:c"#),
             "vimrc must register the ESC+letter byte sequence as <M-letter>"
         );
-        // Arrow encodings cover xterm/CSI 1;3D|C and the shifted 1;4D|C
-        // for selection mappings.
+        // Punctuation chars must NOT be in the alt-key registration loop:
+        // `set <M-:>` would consume the colon after Esc and break `:q`.
         assert!(
-            DEFAULT_VIMRC.contains(r#"set <A-Left>=\<Esc>[1;3D"#)
-                && DEFAULT_VIMRC.contains(r#"set <A-Right>=\<Esc>[1;3C"#)
-                && DEFAULT_VIMRC.contains(r#"set <S-A-Left>=\<Esc>[1;4D"#)
-                && DEFAULT_VIMRC.contains(r#"set <S-A-Right>=\<Esc>[1;4C"#),
-            "vimrc must register Alt/Shift-Alt arrow CSI sequences"
+            !DEFAULT_VIMRC.contains(r#"abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ.,;:/"#),
+            "alt-key loop must skip punctuation to keep Esc:command sequences working"
+        );
+        // Vim 9.x removed `:set <A-Left>=...`; an executable form would
+        // emit E518 on every vim launch and halt vimrc execution at a
+        // `Press ENTER to continue` prompt. Catch any re-introduction —
+        // match `execute "set <A-…>="`, not the documentary comments.
+        assert!(
+            !DEFAULT_VIMRC.contains(r#"execute "set <A-Left>="#)
+                && !DEFAULT_VIMRC.contains(r#"execute "set <A-Right>="#)
+                && !DEFAULT_VIMRC.contains(r#"execute "set <S-A-Left>="#)
+                && !DEFAULT_VIMRC.contains(r#"execute "set <S-A-Right>="#),
+            "vimrc must not execute `set <A-…>=…` (E518 in vim 9.x)"
         );
     }
 

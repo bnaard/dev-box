@@ -107,15 +107,21 @@ nnoremap <silent> <leader>Y yy:call <SID>AiboxCopyRegister()<CR>
 set ttimeout
 set ttimeoutlen=100
 if !has('gui_running')
-  let s:alt_alpha = 'abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ.,;:/'
+  " Register alt+letter byte sequences so terminals that send ESC+letter
+  " get coalesced into <M-letter>. We intentionally SKIP punctuation
+  " (`:` `,` `;` `.` `/`) — registering `<M-:>` would consume the colon
+  " that follows a normal-mode Escape, breaking the `Esc:q` quit
+  " sequence and any other ad-hoc `Esc` → `:` command-line entry.
+  let s:alt_alpha = 'abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ'
   for s:c in split(s:alt_alpha, '\zs')
     execute "set <M-" . s:c . ">=\<Esc>" . s:c
   endfor
   unlet! s:alt_alpha s:c
-  execute "set <A-Left>=\<Esc>[1;3D"
-  execute "set <A-Right>=\<Esc>[1;3C"
-  execute "set <S-A-Left>=\<Esc>[1;4D"
-  execute "set <S-A-Right>=\<Esc>[1;4C"
+  " Alt+arrow / Shift-Alt+arrow: vim's `set <A-Left>=...` syntax was
+  " removed in 9.x (E518: Unknown option). Modern vim auto-recognises
+  " CSI 1;3D etc. as <A-Left> when TERM=xterm-* and the corresponding
+  " keycode lookup runs. Terminals that send ESC+b for Alt+b are
+  " already covered by the per-letter <M-x>=ESC-x table above.
 endif
 
 " <A-Left>/<A-Right> covers CSI Meta-arrow encodings; <M-b>/<M-f>
