@@ -105,7 +105,7 @@ nnoremap <silent> <leader>Y yy:call <SID>AiboxCopyRegister()<CR>
 " Vim to coalesce those bytes into a single key event, and
 " ttimeoutlen=50 resolves the sequence promptly.
 set ttimeout
-set ttimeoutlen=50
+set ttimeoutlen=100
 if !has('gui_running')
   let s:alt_alpha = 'abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ.,;:/'
   for s:c in split(s:alt_alpha, '\zs')

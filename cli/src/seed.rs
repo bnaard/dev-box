@@ -86,14 +86,14 @@ let g:netrw_winsize=25
 "   1. `set <M-x>=^[x` tells Vim to recognise the byte sequence as a
 "      single key event. This is what unblocks <C-o>b without leaving
 "      insert mode.
-"   2. `ttimeoutlen=50` resolves the multi-byte sequence quickly so
+"   2. `ttimeoutlen=100` resolves the multi-byte sequence quickly so
 "      there is no perceptible mode flicker on a slow link.
 "
 " `:exec "set <M-".c.">=\<Esc>".c` builds the keycode for each letter.
 " The trailing `\<Esc>` in the execute string materialises a literal
 " 0x1B byte at the start of the right-hand side.
 set ttimeout
-set ttimeoutlen=50
+set ttimeoutlen=100
 if !has('gui_running')
   let s:alt_alpha = 'abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ.,;:/'
   for s:c in split(s:alt_alpha, '\zs')
@@ -3235,7 +3235,7 @@ rules = [
         //      coalesces the terminal's ESC+x bytes into a single
         //      <M-x> key event, letting `inoremap <M-b> <C-o>b` fire.
         assert!(
-            DEFAULT_VIMRC.contains("set ttimeoutlen=50"),
+            DEFAULT_VIMRC.contains("set ttimeoutlen=100"),
             "ttimeoutlen must be configured for prompt multi-byte resolution"
         );
         assert!(
