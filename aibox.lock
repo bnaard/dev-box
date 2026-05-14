@@ -1,5 +1,5 @@
 [aibox]
-cli_version = "0.26.0"
+cli_version = "0.26.2"
 synced_at = "2026-05-14T15:59:42.178719957+00:00"
 
 [processkit]
@@ -34,7 +34,7 @@ rust = [
 ]
 
 [runtime_home]
-generated_at = "2026-05-14T15:19:12.402670107+00:00"
+generated_at = "2026-05-14T18:11:39.307261+00:00"
 
 [runtime_home.files]
 ".asoundrc" = "f34609b11d315cd613cb5333b561032baec860faf4a7eccb28b5567ae72019af"
@@ -72,9 +72,9 @@ generated_at = "2026-05-14T15:19:12.402670107+00:00"
 ".local/bin/aibox-powerkit-render-session" = "748d63a89f81b8571a7e78ec82643053ea5b461efd690514e330295524caad30"
 ".local/bin/aibox-preview" = "d0d568ae510a3decb743da7458320755f84b5a3627703e601b82701e0fb4413c"
 ".local/bin/aibox-status-toggle" = "026c6a1dc7f1bcf650aa0bd4f587adfb5de6744df66fc138bef9b435bad1049a"
-".local/bin/aibox-tmux-confirm-and-switch" = "e3946c99775e9b8cf6187bee5a221bdb224348032cc62e50b1056a1698a519ec"
-".local/bin/aibox-tmux-refresh-theme" = "b400503d3c0c80b52634b34eae6b256a0515f23b51536b52e17d91493d6c86ab"
-".local/bin/aibox-tmux-switch-layout" = "92bb946a585ecf92bcbd528e5d76ffa859d13d3a19acea89fd6c8df908de38c6"
+".local/bin/aibox-tmux-confirm-and-switch" = "a8771bb55db28dc35a7c1cfb742ec60299784b96cd8550e45aaac1cae19446f2"
+".local/bin/aibox-tmux-refresh-theme" = "9d356df104e44231733751623fb16731dc7fdb9b08e0c651e31f4098785ea528"
+".local/bin/aibox-tmux-switch-layout" = "0bd371bed88078b2a0b40ab5a46039c2638ab667b976fe9570074da800364689"
 ".local/bin/open-in-editor" = "ec4c0ecf1c4c01582c8b16a1bb2a06f364f3a9a9bab14976c5da17573b047145"
 ".local/bin/pdf-watch" = "b6becd1df4a32ff27f5c93e514e6d31e5743f9282f40ce7290b8432207d85934"
 ".vim/colors/aibox.vim" = "3fd094c237cc2dd3c31611d42f580c61f9d258d17f56831582fcbc4acc231040"
