@@ -1,14 +1,14 @@
 [aibox]
 cli_version = "0.26.0"
-synced_at = "2026-05-14T12:52:02.434316+00:00"
+synced_at = "2026-05-14T15:59:42.178719957+00:00"
 
 [processkit]
 source = "https://github.com/projectious-work/processkit.git"
-version = "v0.26.7"
+version = "v0.26.9"
 src_path = "src"
-release_asset_sha256 = "8fc70bf01e7062f2dac91b37562c868fee8c142e8b8cd3baf12414ad3594768a"
-installed_at = "2026-05-14T12:52:02.434316+00:00"
-processkit_install_hash = "a292fab4999922930a06c83f0976067dc6c017d1debf83163d3e2129d7fb0440"
+release_asset_sha256 = "d0e610206740f33ea1a1a78670360c987820f8651c25b9e4738aa3bbafb0a93d"
+installed_at = "2026-05-14T15:59:42.178719957+00:00"
+processkit_install_hash = "v2:ba182f4e613e239b8501ecb43a4dd772711335e92ecf7fdfc97dcf23f5952dac"
 
 [addons]
 resolved_at = "2026-05-09T10:41:25Z"
@@ -34,7 +34,7 @@ rust = [
 ]
 
 [runtime_home]
-generated_at = "2026-05-14T12:44:34.517156+00:00"
+generated_at = "2026-05-14T15:19:12.402670107+00:00"
 
 [runtime_home.files]
 ".asoundrc" = "f34609b11d315cd613cb5333b561032baec860faf4a7eccb28b5567ae72019af"
@@ -53,14 +53,14 @@ generated_at = "2026-05-14T12:44:34.517156+00:00"
 ".config/tmux/layouts/cowork.sh" = "8b08dcb8f1536d6e3010f27a8ead9fbcb8eb81eb844899f7d0a6ce781f16827b"
 ".config/tmux/layouts/dev.sh" = "6cd191524e8f27fee08e1efe2f7b133c7d2cfd01c08b4dc249ac6680c6cbd22c"
 ".config/tmux/layouts/focus.sh" = "f14b7114b98fec7e0a806625700f7d8fd1a80d413da48ec2be9ed2df20562963"
-".config/tmux/tmux.conf" = "ae0f9c56c6a386d5d68859925f5da508dce6b9cadbafd9785de9b42f4986ad7d"
+".config/tmux/tmux.conf" = "7d3f6fb653ab1ebfd6b0f9fd30bf5253d799468ca8b65c3f96f3a29ed1e997c2"
 ".config/yazi/init.lua" = "eae04462c0b3bcbb486ee59aa9c2c9e9595680a0626997c942e5abb2ae5a48d7"
 ".config/yazi/keymap.toml" = "0b20be4e5f58d0af2ba72b8621e288ef2d6a7665a8a73c5fca5a172f83c6ebdd"
 ".config/yazi/plugins/dir-preview.yazi/main.lua" = "1700f0400a0a8362d895d247b27bfae2478c1e76385d4b076846a6a7c16c74f4"
 ".config/yazi/plugins/eps.yazi/init.lua" = "edeaadeff1411fc9749eeae43c77754fd749db74790591ba75e9286ff36e94c5"
 ".config/yazi/plugins/git.yazi/main.lua" = "855f6bdf0ee33f503f575c2d75795c98ab1a9893c655940caf333d8fc87dc477"
 ".config/yazi/plugins/git.yazi/types.lua" = "16c54022dd327c35f533534f0b6995d800965e96d76f2e610b8b2fca0e5b4549"
-".config/yazi/plugins/rich-preview.yazi/main.lua" = "353ab331e9fa35619daf9445484a71162fbc842bb7fc93555cc3ce36a01cea66"
+".config/yazi/plugins/rich-preview.yazi/main.lua" = "06ebdf2c2d637c0d5c68c8516c87b376ea29a94756cd91a8ffef6d2819759077"
 ".config/yazi/plugins/status-git.yazi/main.lua" = "bedc0ba5bf4ea01605b1b7cb444ee3a09b0a4ba35ce99306d974d5977a4d32d2"
 ".config/yazi/plugins/svg.yazi/init.lua" = "ba5e7ebbb9870eda80d7be179010494cac3896b4b29fb8f1011809e217ecc278"
 ".config/yazi/plugins/toggle-pane.yazi/main.lua" = "86b2306f6c9d880f0a6f777bdefb451393eb6a0c88718be355ebe31495e59f1c"

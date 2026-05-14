@@ -1,0 +1,40 @@
+apiVersion: processkit.projectious.work/v2
+kind: ArchetypeCatalogMapping
+metadata:
+  id: ASSET-team-creator-archetype-catalog-mapping
+  version: "1.0.0"
+  description: |
+    Kit-default archetype-to-catalog Role mapping for team-creator v2.
+    Maps each of the 8 processkit archetypes onto an existing
+    context/roles/ROLE-* entry in the 51-role catalog plus a seniority
+    tier. Loaded by pk-team-create, pk-team-rebalance, and
+    pk-team-review via _load_archetype_catalog_mapping().
+    Project override: context/team/archetype-catalog-mapping.yaml
+    (delta layer; replace-mode only when override_semantics: replace).
+spec:
+  archetypes:
+    project-manager:
+      role: ROLE-product-manager
+      seniority: senior
+      primary_contact: true
+    senior-architect:
+      role: ROLE-solutions-architect
+      seniority: senior
+    senior-researcher:
+      role: ROLE-research-scientist
+      seniority: senior
+    junior-architect:
+      role: ROLE-solutions-architect
+      seniority: specialist
+    developer:
+      role: ROLE-software-engineer
+      seniority: senior
+    junior-researcher:
+      role: ROLE-research-scientist
+      seniority: specialist
+    junior-developer:
+      role: ROLE-software-engineer
+      seniority: junior
+    assistant:
+      role: ROLE-assistant
+      seniority: specialist

@@ -4,41 +4,56 @@
 -- Syntax for everything else with line numbers) so the in-pane preview gets
 -- the same visual fidelity as `glow` would for a full-pane preview.
 --
+-- Cache layer
+-- -----------
+-- Python startup + rich rendering is expensive (~100–300 ms per call). Without
+-- a cache, every Alt-J / Alt-K scroll keystroke re-renders the whole document
+-- to slice off a different window, which makes long-document scrolling feel
+-- laggy. The plugin instead renders once into a cache file keyed by
+-- (file path, mtime, terminal width) and reads windowed slices from the cache
+-- on subsequent peeks. The cache lives under
+-- `${XDG_CACHE_HOME:-~/.cache}/aibox-yazi-rich-preview/` and is purged per
+-- source path whenever a new (mtime, width) combination renders.
+--
 -- Position indicator
 -- ------------------
--- The Python side counts every rendered line (BEFORE windowing) and prints
--- the total as a `__YAZI_TOTAL__<N>` sentinel on its first stdout line.
--- The Lua side reads that, then renders a small bottom-right overlay
--- showing the current visible line range and the percentage scrolled —
--- so the user can see *where* in a long document they are while
--- skimming with Alt-J / Alt-K.
+-- The Python side counts every rendered line (BEFORE windowing) and writes
+-- the total as a `__YAZI_TOTAL__<N>` sentinel as the first line of the cache
+-- file. The Lua side reads that, then renders a small bottom-right overlay
+-- showing the current visible line range and the percentage scrolled — so the
+-- user can see *where* in a long document they are while skimming with
+-- Alt-J / Alt-K.
 
 local M = {}
 
-function M:peek(job)
-	local source = [[
+local PY_RENDER = [[
+import io
+import os
 import pathlib
 import sys
-import io
+import tempfile
 
-path = pathlib.Path(sys.argv[1])
+src = pathlib.Path(sys.argv[1])
 width = int(sys.argv[2])
-text = path.read_text(errors="replace")
+cache = pathlib.Path(sys.argv[3])
+text = src.read_text(errors="replace")
 
 try:
     from rich.console import Console
     from rich.markdown import Markdown
     from rich.syntax import Syntax
 except Exception:
-    # Fallback: emit a zero total so the Lua side knows the indicator
-    # is meaningless, then dump the raw text.
-    sys.stdout.write("__YAZI_TOTAL__0\n")
-    sys.stdout.write(text)
-    raise SystemExit(0)
+    # Fallback: emit a zero total so the Lua side knows the indicator is
+    # meaningless, then dump the raw text. Still writes the cache so that
+    # repeated peeks don't re-import.
+    cache.parent.mkdir(parents=True, exist_ok=True)
+    fd, tmpname = tempfile.mkstemp(prefix=cache.name + ".", dir=str(cache.parent))
+    with os.fdopen(fd, "w") as fh:
+        fh.write("__YAZI_TOTAL__0\n")
+        fh.write(text)
+    os.replace(tmpname, str(cache))
+    sys.exit(0)
 
-# Render into a buffer first so we can count total rendered lines for
-# the position indicator. `record=True` would also work but using
-# explicit buffer keeps memory usage predictable for large docs.
 buf = io.StringIO()
 console = Console(
     file=buf,
@@ -47,77 +62,141 @@ console = Console(
     color_system="truecolor",
     soft_wrap=False,
 )
-if path.suffix.lower() in {".md", ".markdown"}:
+if src.suffix.lower() in {".md", ".markdown"}:
     console.print(Markdown(text))
 else:
-    language = path.suffix.lstrip(".") or "text"
+    language = src.suffix.lstrip(".") or "text"
     console.print(Syntax(text, language, theme="ansi_dark", line_numbers=True, word_wrap=False))
 
-rendered = buf.getvalue()
-# Splitlines without keepends so we can count exactly. Re-attach \n
-# per line on output so the Lua side reads them one at a time.
-lines = rendered.splitlines()
-sys.stdout.write("__YAZI_TOTAL__%d\n" % len(lines))
-for ln in lines:
-    sys.stdout.write(ln + "\n")
-sys.stdout.flush()
+lines = buf.getvalue().splitlines()
+
+cache.parent.mkdir(parents=True, exist_ok=True)
+# Write atomically so concurrent peeks never see a partial cache.
+fd, tmpname = tempfile.mkstemp(prefix=cache.name + ".", dir=str(cache.parent))
+try:
+    with os.fdopen(fd, "w") as fh:
+        fh.write("__YAZI_TOTAL__%d\n" % len(lines))
+        for ln in lines:
+            fh.write(ln + "\n")
+    os.replace(tmpname, str(cache))
+except Exception:
+    try:
+        os.unlink(tmpname)
+    except OSError:
+        pass
+    raise
+
+# Purge older cache files for the same source path (different mtime / width).
+prefix = cache.name.rsplit("-", 2)[0]
+for sibling in cache.parent.iterdir():
+    if sibling.name.startswith(prefix + "-") and sibling != cache:
+        try:
+            sibling.unlink()
+        except OSError:
+            pass
 ]]
 
-	local child = Command("python3")
-		:env("COLUMNS", tostring(job.area.w))
-		:arg({
-			"-c",
-			source,
-			tostring(job.file.url),
-			tostring(job.area.w),
-		})
-		:stdout(Command.PIPED)
-		:stderr(Command.PIPED)
-		:spawn()
-
-	if not child then
-		return require("code"):peek(job)
+local function cache_root()
+	local base = os.getenv("XDG_CACHE_HOME")
+	if not base or base == "" then
+		base = (os.getenv("HOME") or "/tmp") .. "/.cache"
 	end
+	return base .. "/aibox-yazi-rich-preview"
+end
 
-	-- Read the sentinel line. If it's missing the renderer fell over and
-	-- we hand off to the built-in code previewer for safety.
-	local first_line, first_event = child:read_line()
-	if first_event ~= 0 or first_line == nil then
-		child:start_kill()
-		return require("code"):peek(job)
+local function path_key(url)
+	-- Hex-encode the path so the cache filename is filesystem-safe and bounded.
+	-- Truncate to 32 chars — collisions are vanishingly rare and the full
+	-- (mtime, width) suffix guards against semantic clashes.
+	local s = tostring(url)
+	local out = {}
+	for i = 1, #s do
+		out[i] = string.format("%02x", s:byte(i))
 	end
-	local total = tonumber(first_line:match("^__YAZI_TOTAL__(%d+)") or "")
+	return table.concat(out):sub(1, 32)
+end
+
+local function cache_file(url, mtime, width)
+	return string.format(
+		"%s/%s-%d-%d.cache",
+		cache_root(),
+		path_key(url),
+		mtime,
+		width
+	)
+end
+
+local function read_window(path, skip, height)
+	local f = io.open(path, "r")
+	if not f then
+		return nil
+	end
+	local first = f:read("*l") or ""
+	local total = tonumber(first:match("^__YAZI_TOTAL__(%d+)"))
 	if total == nil then
-		child:start_kill()
+		f:close()
+		return nil
+	end
+	local out, i = {}, 0
+	for line in f:lines() do
+		i = i + 1
+		if i > skip then
+			out[#out + 1] = line
+			if #out >= height then
+				break
+			end
+		end
+	end
+	f:close()
+	return total, table.concat(out, "\n"), i
+end
+
+function M:peek(job)
+	local cha = job.file.cha
+	local mtime = math.floor((cha and cha.mtime) or 0)
+	local cpath = cache_file(job.file.url, mtime, job.area.w)
+
+	local function fallback()
 		return require("code"):peek(job)
 	end
 
-	-- Reserve the last row for the position indicator. The content
-	-- pane is one row shorter than `job.area`.
+	-- Cache miss → spawn Python once to render to disk. Subsequent peeks at
+	-- different skip offsets re-enter and find the cache populated.
+	if not fs.cha(Url(cpath)) then
+		local child = Command("python3")
+			:env("COLUMNS", tostring(job.area.w))
+			:arg({
+				"-c",
+				PY_RENDER,
+				tostring(job.file.url),
+				tostring(job.area.w),
+				cpath,
+			})
+			:stdout(Command.PIPED)
+			:stderr(Command.PIPED)
+			:spawn()
+
+		if not child then
+			return fallback()
+		end
+		local status = child:wait()
+		if not status or not status.success then
+			return fallback()
+		end
+	end
+
 	local content_h = math.max(1, job.area.h - 1)
+	local total, lines, last = read_window(cpath, job.skip, content_h)
+	if total == nil then
+		return fallback()
+	end
 
-	local i, lines = 0, ""
-	repeat
-		local next, event = child:read_line()
-		if event == 1 then
-			return require("code"):peek(job)
-		elseif event ~= 0 then
-			break
-		end
-
-		i = i + 1
-		if i > job.skip then
-			lines = lines .. next
-		end
-	until i >= job.skip + content_h
-
-	child:start_kill()
-	if job.skip > 0 and i < job.skip + content_h then
-		ya.emit("peek", { math.max(0, i - content_h), only_if = job.file.url, upper_bound = true })
+	if job.skip > 0 and last < job.skip + content_h then
+		ya.emit("peek", { math.max(0, last - content_h), only_if = job.file.url, upper_bound = true })
 		return
 	end
 
-	lines = lines:gsub("	", string.rep(" ", rt.preview.tab_size))
+	lines = lines:gsub("\t", string.rep(" ", rt.preview.tab_size))
 
 	-- Build the position indicator. `total == 0` (renderer fell back to
 	-- raw text) → suppress the indicator since it would be misleading.
@@ -137,9 +216,7 @@ sys.stdout.flush()
 		indicator_text = " (no position info) "
 	end
 
-	-- Right-align the indicator on the last row. Pad the left edge with
-	-- spaces so the text sits flush right and the bar bg covers the row
-	-- to give it a status-line feel.
+	-- Right-align the indicator on the last row.
 	local pad = job.area.w - #indicator_text
 	if pad < 0 then
 		pad = 0
@@ -147,7 +224,6 @@ sys.stdout.flush()
 	end
 	local indicator_line = string.rep(" ", pad) .. indicator_text
 
-	-- The content area is the upper region; the indicator gets the bottom row.
 	local content_area = ui.Rect({
 		x = job.area.x,
 		y = job.area.y,
@@ -161,7 +237,10 @@ sys.stdout.flush()
 		h = 1,
 	})
 
-	ya.preview_widgets(job, {
+	-- Yazi 26.x exposes `ya.preview_widget` (singular). It accepts either a
+	-- single widget or a table of widgets — the latter is how we overlay the
+	-- bottom-row position indicator on top of the content area.
+	ya.preview_widget(job, {
 		ui.Text.parse(lines)
 			:area(content_area)
 			:wrap(rt.preview.wrap == "yes" and ui.Wrap.YES or ui.Wrap.NO),
