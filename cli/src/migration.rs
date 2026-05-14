@@ -256,6 +256,29 @@ pub fn migrate_aibox_toml_structure(root: &Path) -> Result<()> {
 
     let raw =
         fs::read_to_string(&path).with_context(|| format!("Failed to read {}", path.display()))?;
+    // BACK-20260514-CrispCedar (v0.26.2 hotfix): tolerate duplicate single-
+    // bracket table headers. A common user workflow is to append an override
+    // block like `[customization.tmux.status.labels]\naibox_log = "X"` to a
+    // canonical aibox.toml that already declares the same section — TOML's
+    // strict spec rejects that, breaking `aibox apply`. Pre-normalize the raw
+    // text so duplicates merge (last-write-wins on colliding keys) before
+    // handing it to toml_edit's strict parser. Array-of-tables (`[[…]]`) are
+    // left alone since they are legitimately repeatable.
+    let (raw, merged_table_headers) = merge_duplicate_table_blocks(&raw);
+    if !merged_table_headers.is_empty() {
+        let preview: Vec<String> = merged_table_headers.iter().take(3).cloned().collect();
+        let suffix = if merged_table_headers.len() > 3 {
+            format!(", … {} more", merged_table_headers.len() - 3)
+        } else {
+            String::new()
+        };
+        output::warn(&format!(
+            "aibox.toml had {} duplicate table header(s); merged in-place (last-write-wins): {}{}",
+            merged_table_headers.len(),
+            preview.join(", "),
+            suffix,
+        ));
+    }
     let mut doc: toml_edit::DocumentMut = raw
         .parse()
         .with_context(|| format!("Failed to parse {} with toml_edit", path.display()))?;
@@ -374,6 +397,174 @@ pub fn migrate_aibox_toml_structure(root: &Path) -> Result<()> {
     }
 
     Ok(())
+}
+
+/// Pre-normalize duplicate single-bracket table headers in raw TOML text so
+/// `toml_edit::DocumentMut::parse()` can ingest the file without throwing
+/// "invalid table header / duplicate key". For each `[a.b.c]` header that
+/// appears more than once at top level this:
+///
+/// 1. Keeps the first occurrence's position, header line, and body lines.
+/// 2. For every later duplicate, parses simple `key = …` lines and either
+///    replaces a matching key in the first block (last-write-wins) or
+///    appends a new key. Comments and blank lines from later duplicates are
+///    discarded — comments live with the canonical first occurrence.
+/// 3. Drops the duplicate header and its body from the output.
+///
+/// Returns `(normalized_text, deduplicated_headers)`. Array-of-tables
+/// (`[[…]]`) headers are deliberately untouched — TOML allows them to repeat.
+/// Clean files with no duplicates pass through byte-identical.
+///
+/// Real-world driver: a user appending `[customization.tmux.status.labels]`
+/// to a canonical `aibox.toml` (which already declares the same section)
+/// previously broke `aibox apply` with a parse error. This is the BACK-
+/// 20260514-CrispCedar (v0.26.2 hotfix) tolerance step.
+fn merge_duplicate_table_blocks(raw: &str) -> (String, Vec<String>) {
+    use std::collections::BTreeMap;
+
+    struct Block {
+        // Header line WITH its trailing newline; empty for the prelude block.
+        header_line: String,
+        // Empty when this block is the prelude or an array-of-tables header.
+        header_norm: String,
+        // Body lines, each WITHOUT the trailing newline (we re-add on emit).
+        body: Vec<String>,
+    }
+
+    let mut blocks: Vec<Block> = vec![Block {
+        header_line: String::new(),
+        header_norm: String::new(),
+        body: Vec::new(),
+    }];
+
+    for line in raw.split_inclusive('\n') {
+        // Strip the trailing newline for header/key detection only.
+        let stripped = line.strip_suffix('\n').unwrap_or(line);
+        if let Some(header) = parse_table_header_line(stripped) {
+            blocks.push(Block {
+                header_line: line.to_string(),
+                header_norm: header,
+                body: Vec::new(),
+            });
+        } else {
+            blocks.last_mut().unwrap().body.push(stripped.to_string());
+        }
+    }
+
+    // Pass 2: collect duplicate (first_idx, dup_idx, header) triples.
+    let mut first_idx: BTreeMap<String, usize> = BTreeMap::new();
+    let mut duplicates: Vec<(String, usize, usize)> = Vec::new();
+    for (i, block) in blocks.iter().enumerate() {
+        if block.header_norm.is_empty() {
+            continue;
+        }
+        match first_idx.get(&block.header_norm) {
+            None => {
+                first_idx.insert(block.header_norm.clone(), i);
+            }
+            Some(&first) => duplicates.push((block.header_norm.clone(), first, i)),
+        }
+    }
+
+    if duplicates.is_empty() {
+        return (raw.to_string(), Vec::new());
+    }
+
+    // Pass 3: merge each duplicate's simple key=value lines into the first
+    // occurrence's body. Discard comments and blank lines from duplicates.
+    let mut deduped_headers: Vec<String> = Vec::new();
+    let mut dropped: std::collections::BTreeSet<usize> = std::collections::BTreeSet::new();
+    for (header, first, dup) in duplicates {
+        if !deduped_headers.contains(&header) {
+            deduped_headers.push(header);
+        }
+        let dup_body = std::mem::take(&mut blocks[dup].body);
+        for line in dup_body {
+            let Some(key) = parse_simple_key(&line) else {
+                continue;
+            };
+            let first_body = &mut blocks[first].body;
+            let mut replaced = false;
+            for existing in first_body.iter_mut() {
+                if parse_simple_key(existing).as_deref() == Some(&key) {
+                    *existing = line.clone();
+                    replaced = true;
+                    break;
+                }
+            }
+            if !replaced {
+                first_body.push(line);
+            }
+        }
+        dropped.insert(dup);
+    }
+
+    // Pass 4: emit. Drop the merged-away blocks entirely.
+    let mut out = String::new();
+    for (i, block) in blocks.iter().enumerate() {
+        if dropped.contains(&i) {
+            continue;
+        }
+        out.push_str(&block.header_line);
+        for line in &block.body {
+            out.push_str(line);
+            out.push('\n');
+        }
+    }
+    // Preserve input's trailing-newline policy: if input had none, drop ours.
+    if !raw.ends_with('\n') && out.ends_with('\n') {
+        out.pop();
+    }
+    (out, deduped_headers)
+}
+
+/// Recognise a single-bracket TOML table header (`[a.b.c]`). Returns the
+/// normalized inner path. Ignores array-of-tables (`[[…]]`) and anything
+/// inside a quoted string or with trailing junk other than a comment.
+fn parse_table_header_line(line: &str) -> Option<String> {
+    let trimmed = line.trim();
+    // Strip a trailing comment ONLY when it sits after a bracket-closer; the
+    // simple `find('#')` approach is fine here because legitimate aibox.toml
+    // headers never embed `#` in the path.
+    let without_comment = match trimmed.find('#') {
+        Some(idx) => trimmed[..idx].trim_end(),
+        None => trimmed,
+    };
+    if !without_comment.starts_with('[') || !without_comment.ends_with(']') {
+        return None;
+    }
+    // Array-of-tables: legitimately repeatable. Skip.
+    if without_comment.starts_with("[[") {
+        return None;
+    }
+    let inner = &without_comment[1..without_comment.len() - 1];
+    // A real single-bracket header never contains `[` or `]`; reject anything
+    // that does to avoid mis-classifying inline arrays or malformed input.
+    if inner.contains('[') || inner.contains(']') {
+        return None;
+    }
+    Some(inner.trim().to_string())
+}
+
+/// Extract the bare key from a `key = value` line. Returns None for comments,
+/// blank lines, multi-line continuations, or anything that doesn't look like
+/// a bare-identifier assignment. Conservative on purpose: when in doubt the
+/// merger leaves the line attached to its original block.
+fn parse_simple_key(line: &str) -> Option<String> {
+    let trimmed = line.trim();
+    if trimmed.is_empty() || trimmed.starts_with('#') {
+        return None;
+    }
+    let eq_idx = trimmed.find('=')?;
+    let lhs = trimmed[..eq_idx].trim();
+    if lhs.is_empty()
+        || !lhs
+            .chars()
+            .all(|c| c.is_ascii_alphanumeric() || c == '_' || c == '-' || c == '.')
+    {
+        return None;
+    }
+    Some(lhs.to_string())
 }
 
 fn hoist_aibox_object_tables(rendered: String, doc: &toml_edit::DocumentMut) -> String {
@@ -1617,6 +1808,92 @@ mod tests {
     use super::*;
     use std::fs;
     use tempfile::TempDir;
+
+    #[test]
+    fn merge_duplicate_table_blocks_passes_clean_toml_through_untouched() {
+        let raw = "[a]\nx = 1\n\n[b]\ny = 2\n";
+        let (out, dedup) = merge_duplicate_table_blocks(raw);
+        assert_eq!(out, raw);
+        assert!(dedup.is_empty());
+    }
+
+    #[test]
+    fn merge_duplicate_table_blocks_merges_user_appended_labels_override() {
+        // Exactly the user-impacting scenario the Tier 3 rendered tmux test
+        // exercises: a canonical [customization.tmux.status.labels] block
+        // followed by a user-appended override block with the same header.
+        let raw = "\
+[customization.tmux.status.labels]
+# canonical comment
+aibox-log = \"L\"
+uptime = \"UP\"
+
+[other]
+keep = true
+
+[customization.tmux.status.labels]
+aibox-log = \"T1LOG\"
+uptime = \"T1UP\"
+kubernetes = \"T2K8S\"
+";
+        let (out, dedup) = merge_duplicate_table_blocks(raw);
+        assert_eq!(
+            dedup,
+            vec!["customization.tmux.status.labels".to_string()],
+            "expected single deduplicated header reported"
+        );
+        // Only one occurrence of the header remains.
+        assert_eq!(
+            out.matches("[customization.tmux.status.labels]").count(),
+            1,
+            "expected exactly one labels header, got:\n{out}"
+        );
+        // Existing keys overridden (last wins).
+        assert!(out.contains("aibox-log = \"T1LOG\""));
+        assert!(out.contains("uptime = \"T1UP\""));
+        // New key appended.
+        assert!(out.contains("kubernetes = \"T2K8S\""));
+        // Canonical comment preserved.
+        assert!(out.contains("# canonical comment"));
+        // [other] block untouched.
+        assert!(out.contains("[other]"));
+        assert!(out.contains("keep = true"));
+        // The merged text must round-trip cleanly through toml_edit's strict
+        // parser — that's the whole point of the merge step.
+        let _doc: toml_edit::DocumentMut = out.parse().expect("merged text must parse strictly");
+    }
+
+    #[test]
+    fn merge_duplicate_table_blocks_leaves_array_of_tables_alone() {
+        let raw = "[[harness]]\nname = \"a\"\n\n[[harness]]\nname = \"b\"\n";
+        let (out, dedup) = merge_duplicate_table_blocks(raw);
+        assert_eq!(out, raw, "array-of-tables must not be merged");
+        assert!(dedup.is_empty());
+    }
+
+    #[test]
+    fn merge_duplicate_table_blocks_handles_three_or_more_occurrences() {
+        let raw = "\
+[t]
+a = 1
+
+[t]
+a = 2
+b = 2
+
+[t]
+b = 3
+c = 3
+";
+        let (out, dedup) = merge_duplicate_table_blocks(raw);
+        assert_eq!(dedup, vec!["t".to_string()]);
+        // First-wins for layout; last-wins for value of each key.
+        assert_eq!(out.matches("[t]").count(), 1);
+        assert!(out.contains("a = 2"), "got:\n{out}");
+        assert!(out.contains("b = 3"), "got:\n{out}");
+        assert!(out.contains("c = 3"), "got:\n{out}");
+        let _doc: toml_edit::DocumentMut = out.parse().expect("merged text must parse strictly");
+    }
 
     fn write_sample_lock(root: &std::path::Path, cli_version: &str) {
         let lock = crate::lock::AiboxLock {

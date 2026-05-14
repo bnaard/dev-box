@@ -28,6 +28,14 @@ if ! command -v tmux >/dev/null 2>&1; then
     exit 1
 fi
 
+# Route bare `tmux …` calls through the project's configured socket so
+# the helper works both from inside a tmux run-shell (TMUX already set)
+# and from out-of-band invocations (custom AIBOX_TMUX_SOCKET, e2e
+# drivers, manual recovery). See aibox-tmux-switch-layout for the same
+# pattern.
+socket="${AIBOX_TMUX_SOCKET:-$HOME/.tmux/aibox.sock}"
+tmux() { command tmux -S "$socket" "$@"; }
+
 # ---------------------------------------------------------------------------
 # Tier 1 step 1 — re-read tmux config so the new PowerKit theme is active.
 # ---------------------------------------------------------------------------

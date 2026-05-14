@@ -13,6 +13,17 @@
 
 set -euo pipefail
 
+# Resolve the tmux socket once: callers running this script via `tmux
+# run-shell` from inside an attached session inherit `TMUX`, but anyone
+# invoking the helper out-of-band (custom `AIBOX_TMUX_SOCKET`, e2e
+# drivers, scripted recovery) lands on `/tmp/tmux-$UID/default` by
+# default. Override the bare `tmux` command with a function that always
+# routes through `-S "$socket"` so the rest of this script stays clean.
+# Pre-v0.26.2 the bare calls below silently hit the wrong socket — see
+# BACK-20260514-CrispCedar.
+socket="${AIBOX_TMUX_SOCKET:-$HOME/.tmux/aibox.sock}"
+tmux() { command tmux -S "$socket" "$@"; }
+
 layout="${1:-}"
 if [[ -z "$layout" ]]; then
     tmux display-message "aibox-tmux-switch-layout: missing layout name"
@@ -27,7 +38,6 @@ fi
 
 session="$(tmux display-message -p '#S')"
 workspace="$(tmux display-message -p '#{session_path}')"
-socket="${AIBOX_TMUX_SOCKET:-$HOME/.tmux/aibox.sock}"
 
 # Step 1 — placeholder window so the session never goes empty.
 tmux rename-window -t "${session}:0" "_swap_" 2>/dev/null || true

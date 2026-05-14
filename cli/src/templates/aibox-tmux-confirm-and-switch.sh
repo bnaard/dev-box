@@ -11,6 +11,13 @@
 
 set -euo pipefail
 
+# Route bare `tmux …` calls through the project's configured socket so
+# the helper works both from inside a tmux run-shell (TMUX already set)
+# and from out-of-band invocations (custom AIBOX_TMUX_SOCKET, e2e
+# drivers). See aibox-tmux-switch-layout for the same pattern.
+socket="${AIBOX_TMUX_SOCKET:-$HOME/.tmux/aibox.sock}"
+tmux() { command tmux -S "$socket" "$@"; }
+
 layout="${1:-}"
 if [[ -z "$layout" ]]; then
     tmux display-message "missing layout name"

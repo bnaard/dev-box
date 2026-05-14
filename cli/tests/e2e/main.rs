@@ -47,9 +47,12 @@ mod visual_keybindings;
 mod visual_matrix;
 
 // Tier 3 — vt100 cell-level rendered-color assertions.
+// visual_rendered_tmux + visual_rendered_yazi were removed in v0.26.2: they
+// used `tmux capture-pane` to assert tmux status-bar colors, but capture-pane
+// only captures pane contents, never the status bar — so the suite was
+// structurally unable to detect the regressions it claimed to catch. The
+// asciinema-based visual.rs + visual_matrix.rs tests cover the snapshot
+// assertions correctly. Live layout-switch and theme-switch coverage needs
+// an asciinema-driven rewrite — tracked separately as a follow-up.
 #[cfg(feature = "e2e-render")]
 mod visual_rendered_starship;
-#[cfg(all(feature = "e2e", feature = "e2e-render"))]
-mod visual_rendered_tmux;
-#[cfg(all(feature = "e2e", feature = "e2e-render"))]
-mod visual_rendered_yazi;

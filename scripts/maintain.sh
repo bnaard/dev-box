@@ -332,50 +332,47 @@ cmd_test_e2e_render_starship() {
 }
 
 cmd_test_e2e_render_tmux() {
-  ensure_e2e_companion
-  info "Running Tier 3 rendered-color tests: tmux status bar (companion)..."
-  (cd "${CLI_DIR}" && cargo test --features "e2e e2e-render" --test e2e \
-    visual_rendered_tmux -- --ignored --nocapture --test-threads=1) \
-    || die "Tier 3 tmux rendered-color tests failed"
-  ok "Tier 3 tmux rendered-color tests passed"
+  # Removed in v0.26.2: the tests this dispatched (visual_rendered_tmux)
+  # used `tmux capture-pane` to assert status-bar colors, but capture-pane
+  # only sees pane contents — never the status bar. The asciinema-based
+  # visual_themes_produce_tmux_signature_colors +
+  # visual_tmux_status_and_panes_render_without_legacy_artifacts in
+  # visual.rs cover the snapshot assertions correctly.
+  warn "test-e2e-render-tmux: removed in v0.26.2 (capture-pane could not see status bar); use 'test-e2e-visual' (asciinema) instead"
 }
 
 cmd_test_e2e_render_layout_switch() {
-  ensure_e2e_companion
-  info "Running Tier 3 rendered test: live layout switch rebuilds windows..."
-  (cd "${CLI_DIR}" && cargo test --features "e2e e2e-render" --test e2e \
-    rendered_tmux_layout_switch_rebuilds_windows_to_focus \
-    -- --ignored --nocapture --test-threads=1) \
-    || die "Tier 3 layout-switch rendered test failed"
-  ok "Tier 3 layout-switch rendered test passed"
+  # Removed in v0.26.2 alongside cmd_test_e2e_render_tmux. The live
+  # layout-switch coverage needs an asciinema-based rewrite — tracked
+  # for v0.26.3+.
+  warn "test-e2e-render-layout-switch: removed in v0.26.2 pending asciinema-based rewrite"
 }
 
 cmd_test_e2e_render_theme_switch() {
-  ensure_e2e_companion
-  info "Running Tier 3 rendered test: live theme switch changes status bar..."
-  (cd "${CLI_DIR}" && cargo test --features "e2e e2e-render" --test e2e \
-    rendered_tmux_theme_switch_changes_status_bar_surface \
-    -- --ignored --nocapture --test-threads=1) \
-    || die "Tier 3 theme-switch rendered test failed"
-  ok "Tier 3 theme-switch rendered test passed"
+  # Removed in v0.26.2 alongside cmd_test_e2e_render_tmux. The live
+  # theme-switch coverage needs an asciinema-based rewrite — tracked
+  # for v0.26.3+.
+  warn "test-e2e-render-theme-switch: removed in v0.26.2 pending asciinema-based rewrite"
 }
 
 cmd_test_e2e_render_yazi() {
-  ensure_e2e_companion
-  info "Running Tier 3 rendered-color tests: Yazi (companion)..."
-  (cd "${CLI_DIR}" && cargo test --features "e2e e2e-render" --test e2e \
-    visual_rendered_yazi -- --ignored --nocapture --test-threads=1) \
-    || die "Tier 3 Yazi rendered-color tests failed"
-  ok "Tier 3 Yazi rendered-color tests passed"
+  # Removed in v0.26.2: visual_rendered_yazi asserted yazi theme cells
+  # captured via tmux capture-pane, which was already covered (correctly)
+  # by visual_yazi_renders_in_tmux_pane in visual.rs (asciinema-based)
+  # and visual_yazi_previews_git_symbols_and_optional_plugins_render in
+  # visual_matrix.rs. Both pass — see /workspace/cli/tests/e2e/visual.rs.
+  warn "test-e2e-render-yazi: removed in v0.26.2 (redundant with visual.rs/visual_matrix.rs); use 'test-e2e-visual' instead"
 }
 
 cmd_test_e2e_render() {
-  info "Running all Tier 3 rendered-color tests..."
+  info "Running Tier 3 rendered-color tests..."
+  # Only the local Starship suite remains as a Tier 3 test in v0.26.2.
+  # The tmux + yazi cell assertions and the live layout/theme switch
+  # tests were structurally broken (capture-pane never sees the tmux
+  # status bar) and have been folded into asciinema-based coverage in
+  # visual.rs + visual_matrix.rs. A future asciinema-driven rewrite of
+  # the live switch tests is tracked separately.
   cmd_test_e2e_render_starship
-  cmd_test_e2e_render_tmux
-  cmd_test_e2e_render_layout_switch
-  cmd_test_e2e_render_theme_switch
-  cmd_test_e2e_render_yazi
   ok "Tier 3 rendered-color tests passed"
 }
 
