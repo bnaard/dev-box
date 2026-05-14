@@ -1764,7 +1764,11 @@ pub fn compute_processkit_install_fingerprint(project_root: &Path) -> Option<Str
         }
     }
 
-    Some(format!("{}:{:x}", INSTALL_HASH_FORMAT_TAG, hasher.finalize()))
+    Some(format!(
+        "{}:{:x}",
+        INSTALL_HASH_FORMAT_TAG,
+        hasher.finalize()
+    ))
 }
 
 /// Return true when `stored` is a hash that was computed under the v1
