@@ -1,0 +1,44 @@
+{
+  "archive_id": "ARCHIVE-20260514_131828-rejected",
+  "archive_path": "context/archives/2026/05/ARCHIVE-20260514_131828-rejected.tar.gz",
+  "created_at": "2026-05-14T13:18:28+00:00",
+  "entities": [
+    {
+      "apiVersion": "processkit.projectious.work/v1",
+      "body_index": "# Migration MIG-20260514T125202\n\nFrom `v0.26.5` to `v0.26.7` (source: `https://github.com/projectious-work/processkit.git`).\n\n0 changed upstream, 1 conflicts, 4 new, 0 removed, 0 stale-removed (3 groups affected)\n\n## Counts\n\n- unchanged: 680\n- changed-locally-only: 0\n- changed-upstream-only: 0\n- conflict: 1\n- new-upstream: 4\n- removed-upstream: 0\n- removed-upstream-stale: 0\n\n## Changes by group\n\n### AGENTS\n\n**conflict**\n\n- `AGENTS.md` \u2192 `AGENTS.md`\n\n### lib\n\n**new-upstream**\n\n- `context/skills/_lib/processkit/test_ids.py` \u2192 `context/skills/_lib/processkit/test_ids.py`\n\n### skills/processkit\n\n**new-upstream**\n\n- `context/skills/processkit/pk-doctor/scripts/checks/id_vocabulary.py` \u2192 `context/skills/processkit/pk-doctor/scripts/checks/id_vocabulary.py`\n- `context/skills/processkit/pk-doctor/scripts/checks/agents_md_hygiene.py` \u2192 `context/skills/processkit/pk-doctor/scripts/checks/agents_md_hygiene.py`\n- `context/skills/processkit/pk-doctor/scripts/test_id_vocabulary.py` \u2192 `context/skills/processkit/pk-doctor/scripts/test_id_vocabulary.py`\n",
+      "id": "MIG-20260514T125202",
+      "kind": "Migration",
+      "labels": {},
+      "member_path": "context/migrations/applied/MIG-20260514T125202.md",
+      "metadata": {
+        "created": "2026-05-14T12:52:02+00:00",
+        "id": "MIG-20260514T125202",
+        "updated": "2026-05-14T13:02:27+00:00"
+      },
+      "original_path": "context/migrations/applied/MIG-20260514T125202.md",
+      "sha256": "79468477094b612d0a5fddd263b1434b1c7a3a738022ba1c0537b730f5977d34",
+      "spec": {
+        "affected_groups": [
+          "AGENTS",
+          "lib",
+          "skills/processkit"
+        ],
+        "from_version": "v0.26.5",
+        "generated_at": "2026-05-14T12:52:02+00:00",
+        "generated_by": "aibox apply",
+        "rejected_at": "2026-05-14T13:02:27+00:00",
+        "rejected_reason": "affected_files frontmatter field missing/empty while body groups list 5 files (1 conflict AGENTS.md + 4 new) \u2014 frontmatter\u2194body inconsistency triggered by upstream `aibox apply` diff-generator post-processor defect (BACK-20260425_1711-CleverRiver). Rejecting per pk-doctor migration_integrity guidance; upstream issue will be filed against projectious-work/processkit, then this migration regenerated with a fresh `aibox apply`.",
+        "source": "processkit",
+        "source_url": "https://github.com/projectious-work/processkit.git",
+        "state": "rejected",
+        "summary": "0 changed upstream, 1 conflicts, 4 new, 0 removed, 0 stale-removed (3 groups affected)",
+        "to_version": "v0.26.7"
+      },
+      "storage_location": "context/archives/2026/05/ARCHIVE-20260514_131828-rejected.tar.gz::context/migrations/applied/MIG-20260514T125202.md"
+    }
+  ],
+  "kind": null,
+  "older_than_days": 0,
+  "sha256": "fa1837a9ca41637c6861d341d9b54d85a1651f0a3e3f420fa962201e812d6c52",
+  "state": "rejected"
+}

@@ -594,6 +594,14 @@ netspeed = ""
 netspeed-download = "󰇚"
 netspeed-upload = "󰕒"
 
+[customization.tmux.status.separators]
+# PowerKit separator style. Options: normal | rounded | slant | slantup | trapezoid | flame | pixel | honeycomb | none
+style = "flame"
+# Edge separators may use a different style at status boundaries.
+edge-style = "pixel"
+# Spacing between elements. Options: false | true | both | windows | plugins
+elements-spacing = "both"
+
 [customization.tmux.status.refresh]
 # Refresh/caching controls for extended tmux status.
 # interval-seconds: tmux redraw cadence. Higher values reduce shell process churn.
@@ -621,7 +629,7 @@ cloud-cache-ttl-seconds = 120
 enabled = false
 cache-ttl-seconds = 300
 timeout-seconds = 3
-show-ok = true
+show-ok = false
 # Provider entries:
 # - provider: stable key from the model roster (openai, anthropic, google, mistral, deepseek, cohere, xai, alibaba, aws, meta, microsoft, minimax, moonshot, nvidia, xiaomi, zai)
 # - label: short category header shown in the status segment; use text or a symbol that your font supports

@@ -1,5 +1,6 @@
 # AGENTS.md
 
+<!-- pk-managed:pk-compliance-contract-v2 BEGIN -->
 <!-- pk-compliance-contract v2 BEGIN -->
 <!-- pk-compliance v2 -->
 
@@ -111,6 +112,7 @@ Read is **allowed** (no hook block) for:
   `private/`, `working/`.
 - Any file outside `context/` entirely (docs/, src/, README.md, etc.).
 <!-- pk-compliance-contract v2 END -->
+<!-- pk-managed:pk-compliance-contract-v2 END -->
 
 ## About & session start
 
@@ -175,6 +177,7 @@ companion itself owns the container runtime used by Tier 2 tests.
 See `context/work-instructions/DEVELOPMENT.md` (or `CONTRIBUTING.md`) for
 the full development workflow, E2E test architecture, and cross-compile steps.
 
+<!-- pk-managed:pk-commands BEGIN -->
 <!-- pk-commands BEGIN -->
 <!--
 build: "cd cli && cargo build"
@@ -184,6 +187,7 @@ fmt: "cd cli && cargo fmt"
 typecheck: ""
 -->
 <!-- pk-commands END -->
+<!-- pk-managed:pk-commands END -->
 
 ## Code style & PRs
 
@@ -247,53 +251,38 @@ assuming you are alone.
 
 ### Team
 
-This project operates with a permanent 8-role AI-agent team defined as
-processkit entities. The owner is the sole human approver; the
-**project-manager** role is the single agent that speaks to the owner and
-routes work to the rest of the team.
+This project operates with a permanent multi-role AI-agent team backed
+by processkit primitives. The owner is the sole human approver; the
+TeamMember whose role is marked `primary_contact: true` is the single
+agent that speaks to the owner and routes work to the rest of the team.
 
-| Role | Model tier | Purpose |
-|---|---|---|
-| project-manager | Opus | Owner-facing lead: intake, strategy, routing, review, devil's advocate |
-| senior-architect | Opus | Large features, complex bugs, cross-cutting design |
-| junior-architect | Sonnet | Small/medium design, architectural questions (default architect) |
-| developer | Sonnet | Implementation from plans (default execution role) |
-| senior-researcher | Opus | Deep research with synthesis and judgement |
-| junior-researcher | Sonnet | Bounded research and lookups (default researcher) |
-| junior-developer | Haiku | Mechanical edits, bulk patterns, simple fixes |
-| assistant | Haiku | Secretary: briefings, summaries, indexing, handovers |
+Roles, seniorities, and TeamMember identities are provider-neutral:
 
-Target orientation mix (task count, not hard budget): **~5% Opus / ~85% Sonnet
-/ ~10% Haiku.** Opus costs roughly 5× Sonnet per equivalent output, so the
-same mix is closer to ~20%/75%/5% by budget. PM watches actual usage and
-escalates to the owner if the Opus share creeps up.
+- `context/roles/` — Role responsibilities (`junior → specialist → expert
+  → senior → principal` seniority ladder).
+- `context/team-members/<slug>/` — Persistent TeamMember identities
+  (persona + A2A card + tiered memory). These bind to
+  `Artifact(kind=model-profile)` capability profiles, not to provider
+  names or model IDs.
+- `context/bindings/` — Role and TeamMember model-assignment bindings.
+  Resolution: `model-recommender.resolve_model` selects a concrete
+  `Artifact(kind=model-spec)` candidate (which may encode a provider
+  name) at dispatch time, gated by runtime access.
+- `context/decisions/DEC-20260422_0234-BraveFalcon` — role catalog +
+  seniority charter.
+- `context/decisions/DEC-20260422_0234-LoyalComet` and
+  `DEC-20260503_1829-LoyalComet` — model artifacts + binding routing.
+- Active interlocutor: `team-manager.get_active_interlocutor`. If
+  configured, show the TeamMember identity at session start; otherwise
+  state that the current speaker is an ephemeral harness agent.
+- TeamMembers are cloneable on demand (default cap 5; owner approves
+  beyond). Clones get fresh IDs; processkit reserves the original
+  TeamMember slug. Do not reuse retired TeamMember IDs.
 
-Team members are cloneable on demand (default cap 5 per role; owner approves
-beyond). Clones get fresh IDs and bindings; template actor IDs are never
-reused. See:
-
-- `context/roles/` — Role responsibilities and `spec.x_aibox.model_tier`
-- `context/actors/` — Template Actors (`type: agent`) with `spec.x_aibox.model`
-- `context/bindings/` — Template role assignments
-- `context/processes/team-task-distribution.md` — How PM routes work
-- `context/decisions/DEC-20260414_1100-NobleStag-team-composition-and-model-mix.md`
-  — Decision record, rationale, and alternatives considered
-- Active interlocutor state is resolved through
-  `team-manager.get_active_interlocutor`. If configured, show the
-  TeamMember identity at session start; otherwise state that the current
-  speaker is an ephemeral harness agent.
-
-**Schema note (applied — MIG-20260415T093853):** the canonical processkit
-team schema fields now live at the top level of `spec.*`:
-- `spec.is_template` — marks a role-template actor (never reused; clones get fresh IDs)
-- `spec.templated_from` — ID of the template actor a clone was created from (null for templates)
-- `spec.clone_cap` — maximum simultaneous clones for this role
-- `spec.cap_escalation` — escalation path when clone_cap is reached
-- `spec.primary_contact` — marks the role that speaks directly to the owner (one per team)
-
-Only `model_tier`, `model`, and `role_ref` remain under `spec.x_aibox` as
-aibox-local extensions with no canonical equivalent yet. Do not move these
-manually — they will be lifted when the upstream schema adds them.
+Model-spec filenames may encode provider/model names; model profiles,
+roles, and TeamMember identities must not. Never hardcode a model tier
+or provider directly in a role definition — always go through the
+binding layer.
 
 **Commit to actions immediately.** If you decide to create an entity
 (WorkItem, DecisionRecord, etc.), call the tool in the same turn. Do
@@ -362,7 +351,7 @@ processkit now (DEC-027).
 - Trying to do Phase 2 of a release from inside the container (needs macOS host)
 - Skipping `cargo audit`, `cargo clippy --all-targets -- -D warnings`, or `cargo test`
   before tagging a release
-- Pointing users at `aibox skill` — that subcommand was removed in v0.16.0 (DEC-027)
+- Pointing users at the removed `aibox` skills subcommand — that surface was removed in v0.16.0 (DEC-027); processkit skills are now the only home for skill content
 - **Creating GitHub releases directly** with `gh release create` — always use
   `./scripts/maintain.sh release <version>` inside the container instead. It runs
   tests, cargo audit, builds Linux binaries, creates the release with assets attached,
@@ -469,7 +458,21 @@ When an AI agent is working inside a project that uses aibox:
 |---|---|
 | `.aibox/aibox.log` | NDJSON structured log of every `aibox` command. Read to understand what aibox did recently. Rotates at 1 MB. |
 | `aibox.lock` | Pinned versions of the aibox CLI and processkit last synced. |
-| `context/migrations/` | Migration briefings generated when the CLI version changed. |
+| `context/migrations/pending/` | Pending Migration entities awaiting review; resolve through `migration-management` MCP (`apply_migration` / `reject_migration`). Never hand-move migration files. |
+| `context/migrations/applied/` | Applied or rejected Migration entities (state-bucketed by processkit convention). |
+
+### MCP config topology
+
+Each MCP server ships a `mcp-config.json` next to its `server.py` under
+`context/skills/<category>/<skill>/mcp/`. `aibox sync` merges these
+into the harness-specific roots (`.mcp.json`, `.codex/config.toml`,
+`.opencode/config.toml`, …) and records a SHA256 aggregate in
+`context/.processkit-mcp-manifest.json`. Downstream installers compare
+the aggregate hash against their last-merged state and re-merge when
+they differ — independent of whether the processkit version changed.
+Never hand-edit the generated harness MCP config; edit the per-skill
+`mcp-config.json` and let the installer re-merge. The
+`mcp_config_drift` pk-doctor check validates the manifest locally.
 
 ### GitHub organization
 
