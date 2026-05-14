@@ -448,6 +448,11 @@ pub static COMPAT_TABLE: &[CompatEntry] = &[
         processkit_version: "v0.26.5",
         note: "Patch release: integrates processkit v0.26.5; restores generated and image fallback Alt-word movement in Vim/readline; adds managed .inputrc runtime projection; carries tmux clipboard/terminal feature improvements into generated and image fallback configs; keeps Rust cache mounts from shadowing image-provided cargo/rustc shims; and keeps the stricter processkit schema/file-layout migration path clean under pk-doctor.",
     },
+    CompatEntry {
+        aibox_version: "0.26.0",
+        processkit_version: "v0.26.7",
+        note: "Minor release: theme palette overhaul (Rose Pine Moon / GitHub Light / Ayu Light / Projectious fixes, AI TUI sync for Claude/Aider/Gemini/OpenCode, custom PowerKit theme so chevrons land on the active surface bg, full palette-driven Yazi/Vim, inactive-pane dim style); live Prefix+L layout chooser and Prefix+T theme chooser with confirm-dialog enumerating impacted apps; Yazi rich-preview position indicator and aibox-preview rich pipeline matching the in-pane renderer; Vim Alt-arrow word jumps now stay in INSERT (ttimeoutlen + per-letter terminal-keycode registration) plus Shift-Alt-arrow visual selection; model-provider chevrons drop the redundant ✓ glyph and add per-provider agent count via aibox-status ai_agents_breakdown (opt-in quota / admin-usage polling); bat/delta/fzf/eza/lnav/less wired through theme-env.sh; Tier 3 vt100 rendered-color e2e suite (Starship/tmux/Yazi/layout-switch/theme-switch) catches the historical 'tmux bg rendered black' and 'status line 1 silently empty' regression classes; processkit bumped to v0.26.7.",
+    },
 ];
 
 /// Find the minimum compatible processkit version for the given aibox version.
