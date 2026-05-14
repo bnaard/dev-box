@@ -602,11 +602,65 @@ cmd_publish_images_for_release() {
 
   if [[ "${all_retagged}" == "true" ]]; then
     ok "All release images reused existing GHCR layers"
+    verify_release_images_in_ghcr "${version}" "${flavors[@]}"
     return 0
   fi
 
   cmd_build_images "" "${version}"
   cmd_push_images "${version}"
+  verify_release_images_in_ghcr "${version}" "${flavors[@]}"
+}
+
+# Post-publish guard: confirm every release-image tag is actually live in
+# GHCR before declaring success. v0.26.0's host-side release passed all of
+# build → upload → retag → smoke locally but landed in GHCR with the source
+# marker present and the versioned + latest tags missing, leaving downstream
+# `aibox apply` runs resolving 'latest' → v0.25.12 forever. The earlier code
+# trusted `buildx imagetools create` and `${RUNTIME_BIN} push` exit codes;
+# this verifier re-asserts state-of-the-world afterwards.
+verify_release_images_in_ghcr() {
+  local version="${1:-}"
+  shift || true
+  local flavors=("$@")
+  [[ ${#flavors[@]} -eq 0 ]] && flavors=("base-debian")
+
+  local probe="${RUNTIME_BIN}"
+  if ! ${probe} buildx version >/dev/null 2>&1; then
+    warn "buildx unavailable; skipping post-publish GHCR verification"
+    warn "(install Docker Buildx on the macOS host so release-host can confirm the published tags)"
+    return 0
+  fi
+
+  local missing=()
+  for flavor in "${flavors[@]}"; do
+    local versioned="${IMAGE_REGISTRY}:${flavor}-v${version}"
+    local latest="${IMAGE_REGISTRY}:${flavor}-latest"
+    local versioned_digest latest_digest
+    versioned_digest="$(${probe} buildx imagetools inspect --raw "${versioned}" 2>/dev/null | sha256sum 2>/dev/null | awk '{print $1}')"
+    latest_digest="$(${probe} buildx imagetools inspect --raw "${latest}" 2>/dev/null | sha256sum 2>/dev/null | awk '{print $1}')"
+    if [[ -z "${versioned_digest}" ]]; then
+      missing+=("${versioned}")
+    fi
+    if [[ -z "${latest_digest}" ]]; then
+      missing+=("${latest}")
+    fi
+    if [[ -n "${versioned_digest}" && -n "${latest_digest}" \
+       && "${versioned_digest}" != "${latest_digest}" ]]; then
+      warn "${versioned} and ${latest} resolve to different manifests in GHCR — 'latest' likely stale"
+      missing+=("${latest} (digest mismatch with ${versioned})")
+    fi
+    if [[ -n "${versioned_digest}" ]]; then
+      ok "Verified ${versioned} is live in GHCR"
+    fi
+  done
+
+  if [[ ${#missing[@]} -gt 0 ]]; then
+    echo ""
+    for m in "${missing[@]}"; do
+      warn "Missing or stale in GHCR after publish: ${m}"
+    done
+    die "Release image publish reported success but GHCR is missing one or more tags. Investigate buildx / ghcr.io auth before declaring the release complete."
+  fi
 }
 
 cmd_release_runtime_smoke() {
@@ -1543,12 +1597,20 @@ cmd_release_host() {
   # ── Step 5: Commit generated runtime surfaces now that images exist ───────
   cmd_release_finalize_runtime "${version}"
 
+  # ── Step 6: Final GHCR sanity check ───────────────────────────────────────
+  # cmd_publish_images_for_release also calls this internally; re-running at
+  # the end of release-host guards against any later step (smoke, finalize)
+  # accidentally clobbering the tags or against a retag that succeeded
+  # locally but didn't propagate to GHCR.
+  info "Re-verifying GHCR tags after smoke + runtime finalize..."
+  verify_release_images_in_ghcr "${version}" "base-debian"
+
   # ── Done ──────────────────────────────────────────────────────────────────
   echo ""
   ok "Release ${tag} host-side steps complete."
   echo ""
   echo "  macOS binaries: uploaded to GitHub release"
-  echo "  Container images: pushed to GHCR"
+  echo "  Container images: pushed to GHCR and verified live"
   echo "  Runtime smoke: passed (logs in dist/release-smoke/v${version}/)"
   echo "  Generated runtime: refreshed and committed if needed"
 }

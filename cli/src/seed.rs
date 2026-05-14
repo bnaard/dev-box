@@ -3213,19 +3213,32 @@ rules = [
     fn rich_preview_plugin_emits_position_indicator() {
         // The plugin must (a) ask Python for the total rendered line count,
         // (b) reserve a row at the bottom for the indicator, and (c)
-        // actually render the indicator widget via ya.preview_widgets.
+        // actually render the indicator widget via ya.preview_widget. The
+        // earlier draft used the (non-existent) plural `ya.preview_widgets`,
+        // which yazi 26.x reports as 'attempt to call a nil value' at peek
+        // time — guard against the regression by asserting the singular form
+        // and rejecting the plural one.
         assert!(
             DEFAULT_YAZI_PLUGIN_RICH_PREVIEW.contains("__YAZI_TOTAL__"),
             "rich-preview must request the total line count from Python"
         );
         assert!(
-            DEFAULT_YAZI_PLUGIN_RICH_PREVIEW.contains("ya.preview_widgets"),
-            "rich-preview must use preview_widgets to overlay the indicator"
+            DEFAULT_YAZI_PLUGIN_RICH_PREVIEW.contains("ya.preview_widget("),
+            "rich-preview must use ya.preview_widget (singular) to overlay the indicator"
+        );
+        assert!(
+            !DEFAULT_YAZI_PLUGIN_RICH_PREVIEW.contains("ya.preview_widgets"),
+            "rich-preview must not use the non-existent ya.preview_widgets plural form"
         );
         assert!(
             DEFAULT_YAZI_PLUGIN_RICH_PREVIEW.contains("L%d")
                 && DEFAULT_YAZI_PLUGIN_RICH_PREVIEW.contains("%d%%"),
             "rich-preview's position indicator must show 'L<a>-<b> / <total> <pct>%'"
+        );
+        assert!(
+            DEFAULT_YAZI_PLUGIN_RICH_PREVIEW.contains("aibox-yazi-rich-preview")
+                && DEFAULT_YAZI_PLUGIN_RICH_PREVIEW.contains("read_window"),
+            "rich-preview must cache rendered output and read windowed slices on re-peek"
         );
     }
 
