@@ -897,7 +897,7 @@ cmd_release_check_state() {
 
 run_aibox_doctor_for_release() {
   if command -v cargo >/dev/null 2>&1; then
-    (cd "${PROJECT_ROOT}" && cargo run --manifest-path "${CLI_DIR}/Cargo.toml" --quiet -- doctor)
+    (cd "${PROJECT_ROOT}" && AIBOX_DOCTOR_HOST_CONTEXT=1 cargo run --manifest-path "${CLI_DIR}/Cargo.toml" --quiet -- doctor)
     return $?
   fi
 
@@ -908,7 +908,7 @@ run_aibox_doctor_for_release() {
     "${CLI_DIR}/target/x86_64-unknown-linux-gnu/release/aibox"
   do
     if [[ -x "${candidate}" ]]; then
-      "${candidate}" doctor
+      AIBOX_DOCTOR_HOST_CONTEXT=1 "${candidate}" doctor
       return $?
     fi
   done
@@ -922,6 +922,11 @@ run_aibox_doctor_for_release() {
 #
 # Both doctors are invoked sequentially.  Output (stdout + stderr) is
 # captured and written to dist/RELEASE-DOCTORS.md.  Gate semantics:
+#
+# release-doctors is an explicit aibox CLI development exception: it may run
+# aibox doctor from the devcontainer as a host-context simulation by setting
+# AIBOX_DOCTOR_HOST_CONTEXT=1. Normal dogfood/self-management inside the
+# workspace container must use pk-doctor instead.
 #
 #   pk-doctor  exits 0 → no ERRORs; exits 1 → ERRORs found.
 #   aibox doctor always exits 0, but prints a summary line:

@@ -174,6 +174,32 @@ Do not treat missing local `docker` or `podman` in the main devcontainer as
 evidence that the companion is unavailable; use SSH reachability first. The
 companion itself owns the container runtime used by Tier 2 tests.
 
+### aibox CLI commands inside this devcontainer
+
+Normal dogfood/self-management inside the workspace container uses processkit
+tools: run `pk-doctor` for processkit/runtime diagnostics. Do not run
+`aibox doctor` from inside the container to judge this live project; it is a
+host-side diagnostic and will point back to the host.
+
+There are narrow exceptions when developing or releasing the aibox CLI itself.
+These are host-context simulations, not dogfood operations:
+
+- Unit, integration, and Tier 1 E2E tests may run `aibox init`, `aibox apply`,
+  `aibox doctor`, and related commands in temporary projects, often with
+  `AIBOX_NO_CONTAINER=1` or mocked runtimes.
+- Tier 2 E2E tests may run `aibox apply`, `aibox up`, and `aibox doctor`
+  against projects deployed to the `aibox-e2e-testrunner` companion; verify the
+  companion over SSH first.
+- Release Phase 0 may run `aibox doctor` through
+  `./scripts/maintain.sh release-doctors`. That harness sets
+  `AIBOX_DOCTOR_HOST_CONTEXT=1` explicitly so the command exercises host-side
+  doctor behavior even when launched from this devcontainer.
+- Local test-installs may run the freshly built `aibox` binary against a scratch
+  project to simulate what a host user would do.
+
+Outside those explicit test/release contexts, prefer `pk-doctor` inside the
+container and reserve `aibox doctor` for the host.
+
 See `context/work-instructions/DEVELOPMENT.md` (or `CONTRIBUTING.md`) for
 the full development workflow, E2E test architecture, and cross-compile steps.
 

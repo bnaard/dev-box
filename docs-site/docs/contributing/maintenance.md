@@ -131,6 +131,13 @@ The Linux-side Tier 2 E2E companion is separate from this host phase. From the
 devcontainer, verify that companion over SSH/SCP; do not use local
 Docker/Podman availability in the main devcontainer as the reachability check.
 
+`release-doctors` is an aibox CLI development exception to the normal
+host/container diagnostic split. Inside the workspace container, ordinary
+dogfood diagnostics use `pk-doctor`; `aibox doctor` is host-side. During release
+Phase 0, however, `./scripts/maintain.sh release-doctors` sets
+`AIBOX_DOCTOR_HOST_CONTEXT=1` and runs `aibox doctor` as a host-context
+simulation so the CLI's host diagnostic behavior remains gated.
+
 ## Verification
 
 After release:

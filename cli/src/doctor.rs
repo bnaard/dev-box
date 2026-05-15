@@ -16,6 +16,7 @@ const CONTAINER_DOCTOR_HOST_MESSAGE: &str =
     "aibox doctor is a host-side diagnostic. Run it on the host.";
 const CONTAINER_DOCTOR_PK_DOCTOR_MESSAGE: &str =
     "Inside the workspace container, run pk-doctor for processkit/runtime diagnostics.";
+const AIBOX_DOCTOR_HOST_CONTEXT_ENV: &str = "AIBOX_DOCTOR_HOST_CONTEXT";
 
 /// Diagnostic counters.
 #[derive(Debug)]
@@ -63,6 +64,16 @@ fn print_container_doctor_boundary() {
     output::info(CONTAINER_DOCTOR_PK_DOCTOR_MESSAGE);
 }
 
+fn doctor_host_context_override_enabled() -> bool {
+    std::env::var(AIBOX_DOCTOR_HOST_CONTEXT_ENV)
+        .map(|value| doctor_host_context_override_value_enabled(&value))
+        .unwrap_or(false)
+}
+
+fn doctor_host_context_override_value_enabled(value: &str) -> bool {
+    matches!(value, "1" | "true" | "TRUE" | "yes" | "YES")
+}
+
 /// Return the list of project-side files `aibox doctor` checks for.
 ///
 /// Since v0.16.0 the bulk of context content (BACKLOG, DECISIONS, skills,
@@ -89,7 +100,7 @@ pub fn cmd_doctor(config_path: &Option<String>) -> Result<()> {
 
     output::info("Running diagnostics...");
 
-    if running_inside_container() {
+    if running_inside_container() && !doctor_host_context_override_enabled() {
         print_container_doctor_boundary();
         return Ok(());
     }
@@ -2043,6 +2054,17 @@ mod tests {
         assert!(CONTAINER_DOCTOR_HOST_MESSAGE.contains("host"));
         assert!(CONTAINER_DOCTOR_PK_DOCTOR_MESSAGE.contains("pk-doctor"));
         assert!(CONTAINER_DOCTOR_PK_DOCTOR_MESSAGE.contains("workspace container"));
+    }
+
+    #[test]
+    fn host_context_override_values_are_explicit() {
+        for value in ["1", "true", "TRUE", "yes", "YES"] {
+            assert!(doctor_host_context_override_value_enabled(value));
+        }
+
+        for value in ["", "0", "false", "FALSE", "no", "NO", "host"] {
+            assert!(!doctor_host_context_override_value_enabled(value));
+        }
     }
 
     #[test]

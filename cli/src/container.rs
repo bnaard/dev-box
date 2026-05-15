@@ -1503,19 +1503,11 @@ pub(crate) fn serialize_config_with_comments(config: &AiboxConfig) -> String {
     out.push_str(sep);
     out.push_str("# Theme is applied consistently across tmux, Vim, Yazi, lazygit, and bat.\n");
     out.push_str("# Theme families (31 total):\n");
-    out.push_str(
-        "#   Multi-variant: ayu, catppuccin, dracula, everforest, github, gruvbox,\n",
-    );
-    out.push_str(
-        "#     kanagawa, material, min, night-owl, one-dark, rose-pine, slack,\n",
-    );
+    out.push_str("#   Multi-variant: ayu, catppuccin, dracula, everforest, github, gruvbox,\n");
+    out.push_str("#     kanagawa, material, min, night-owl, one-dark, rose-pine, slack,\n");
     out.push_str("#     solarized, tokyo-night, vitesse, vscode\n");
-    out.push_str(
-        "#   Solo (mode ignored): andromeeda, aurora-x, houston, laserwave,\n",
-    );
-    out.push_str(
-        "#     monokai, moonlight, nord, plastic, poimandres, projectious, red,\n",
-    );
+    out.push_str("#   Solo (mode ignored): andromeeda, aurora-x, houston, laserwave,\n");
+    out.push_str("#     monokai, moonlight, nord, plastic, poimandres, projectious, red,\n");
     out.push_str("#     snazzy, synthwave-84, vesper\n");
     out.push_str("[customization]\n");
     // Always emit the family form. If the user had a legacy concrete name and
@@ -1527,21 +1519,15 @@ pub(crate) fn serialize_config_with_comments(config: &AiboxConfig) -> String {
     out.push_str("# Options: auto | light | dark\n");
     out.push_str(&format!("mode   = \"{}\"\n", config.customization.mode));
     out.push_str("# Optional alternate variant override (per family). Default = unset.\n");
-    out.push_str(
-        "#   ayu: \"mirage\"           catppuccin: \"macchiato\" | \"frappe\"\n",
-    );
+    out.push_str("#   ayu: \"mirage\"           catppuccin: \"macchiato\" | \"frappe\"\n");
     out.push_str(
         "#   dracula: \"soft\"         github: \"dimmed\" | \"high-contrast-dark\" | \"high-contrast-light\"\n",
     );
     out.push_str(
         "#   kanagawa: \"dragon\"      material: \"ocean\" | \"palenight\" | \"darker\"\n",
     );
-    out.push_str(
-        "#   rose-pine: \"moon\"       slack: \"ochin\"\n",
-    );
-    out.push_str(
-        "#   tokyo-night: \"storm\"    vitesse: \"black\"\n",
-    );
+    out.push_str("#   rose-pine: \"moon\"       slack: \"ochin\"\n");
+    out.push_str("#   tokyo-night: \"storm\"    vitesse: \"black\"\n");
     if let Some(ref v) = config.customization.variant {
         out.push_str(&format!("variant = \"{v}\"\n"));
     } else {

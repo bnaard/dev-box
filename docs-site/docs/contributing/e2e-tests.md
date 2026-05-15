@@ -32,6 +32,29 @@ Missing `docker` or `podman` in the main devcontainer does not mean Tier 2
 cannot talk to the companion. The tests deploy the current `aibox` binary and
 addons with SCP, then use the companion's own runtime for lifecycle checks.
 
+## `aibox` commands inside the devcontainer
+
+In normal dogfood use, the workspace container is the processkit/runtime side of
+the project: run `pk-doctor` there. `aibox doctor` is a host-side diagnostic and
+should not be used from inside the container to judge the live dogfood project.
+
+The aibox repository has deliberate exceptions because it develops the `aibox`
+CLI. Those exceptions simulate host-user behavior in controlled test projects:
+
+- Tier 1 tests run `aibox init`, `aibox apply`, `aibox doctor`, and related
+  commands in temporary directories, usually without starting containers.
+- Tier 1 mock tests put fake `docker`/`podman` scripts on `PATH` to verify host
+  runtime behavior without requiring a real runtime in the main devcontainer.
+- Tier 2 tests deploy the current binary to `aibox-e2e-testrunner` over SSH and
+  may run `aibox apply`, `aibox up`, or `aibox doctor` there because the
+  companion owns the nested container runtime for the test.
+- Release Phase 0 runs `./scripts/maintain.sh release-doctors`, which invokes
+  `aibox doctor` with `AIBOX_DOCTOR_HOST_CONTEXT=1` as an explicit host-context
+  simulation.
+
+Use that override only in aibox CLI development/release harnesses. It is not a
+general dogfood escape hatch.
+
 The container-side release command runs Tier 2 as part of Phase 1 with
 `cargo test --features e2e --test e2e`, so the SSH companion, generated
 runtime probes, and non-ignored asciinema checks are release gates.
