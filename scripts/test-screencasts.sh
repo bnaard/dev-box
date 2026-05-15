@@ -21,6 +21,9 @@ FAILURES=0
 PASSES=0
 SKIPS=0
 
+# Output directory for docs-site recordings (persists across test runs)
+DOCS_CAST_DIR="${PROJECT_ROOT}/docs-site/static/asciinema/themes"
+
 # Full list of all 61 theme slug → palette tuples.
 # Format: "theme-slug:bg:fg:accent:green:orange:cyan:muted"
 # Derived from cli/src/themes.rs theme_palette() and yazi_surface_color().
@@ -101,6 +104,12 @@ skip()  { printf '\033[1;33m ○\033[0m  %s (skipped)\n' "$1"; SKIPS=$((SKIPS + 
 cleanup_tmux() {
   tmux kill-session -t aibox-screencast 2>/dev/null || true
   sleep 0.5
+}
+
+cleanup_demo_tmux() {
+  local slug="$1"
+  tmux -L aibox-recordings kill-session -t "demo-${slug}" 2>/dev/null || true
+  sleep 0.3
 }
 
 # ─── Validation helpers ───────────────────────────────────────────────────────
@@ -670,64 +679,262 @@ EOF
   done
 }
 
+# ─── Slug parser ─────────────────────────────────────────────────────────────
+# Given a theme slug like "ayu-dark", "ayu-mirage", "catppuccin-mocha",
+# produce a JSON object with family/mode/variant fields.
+# Rules (heuristic, covers all 61 slugs in THEME_PALETTE_TABLE):
+#   - suffix is the last dash-separated token
+#   - canonical mode tokens: dark, light, day, black → mode field, variant=null
+#   - other suffixes (mirage, storm, wave, dragon, lotus, moon, dawn, mocha,
+#     macchiato, frappe, latte, ocean, palenight, lighter, darker, dimmed,
+#     high-contrast, ochin, soft, 84) → variant field, mode inferred from bg
+#   - mode inference: bg luminance < 50% → dark, else light
+slug_to_json() {
+  python3 - "$1" "$2" << 'SLUGPY'
+import sys, json
+
+slug = sys.argv[1]
+bg   = sys.argv[2].lstrip("#")  # RRGGBB
+
+CANONICAL_MODES = {"dark", "light", "day", "black"}
+LIGHT_VARIANTS  = {"dawn", "latte", "lotus", "lighter", "light-high-contrast",
+                   "ochin"}
+
+parts = slug.split("-")
+suffix = parts[-1]
+
+# Handle multi-word suffixes joined by dash (high-contrast)
+if len(parts) >= 2 and f"{parts[-2]}-{parts[-1]}" in {"high-contrast"}:
+    suffix = f"{parts[-2]}-{parts[-1]}"
+    family_parts = parts[:-2]
+else:
+    family_parts = parts[:-1]
+
+family = "-".join(family_parts)
+
+if suffix in CANONICAL_MODES:
+    mode    = suffix
+    variant = None
+else:
+    variant = suffix
+    # Infer mode from bg luminance
+    try:
+        r = int(bg[0:2], 16)
+        g = int(bg[2:4], 16)
+        b = int(bg[4:6], 16)
+        lum = 0.2126*r + 0.7152*g + 0.0722*b
+        mode = "light" if lum > 127 else "dark"
+    except Exception:
+        mode = "dark"
+
+print(json.dumps({"slug": slug, "family": family,
+                  "mode": mode, "variant": variant,
+                  "cast": f"themes/{slug}.cast"}))
+SLUGPY
+}
+
+# ─── Index JSON writer ────────────────────────────────────────────────────────
+write_themes_index() {
+  local out_dir="$1"
+  local ts
+  ts=$(date -u +"%Y-%m-%dT%H:%M:%SZ")
+
+  local entries=()
+  for palette_str in "${THEME_PALETTE_TABLE[@]}"; do
+    local slug bg
+    IFS=: read -r slug bg _ <<< "${palette_str}"
+    local entry
+    entry=$(slug_to_json "${slug}" "${bg}")
+    entries+=("${entry}")
+  done
+
+  python3 - "${ts}" "${out_dir}/index.json" "${entries[@]}" << 'IDXPY'
+import sys, json
+
+ts       = sys.argv[1]
+out_path = sys.argv[2]
+raw      = sys.argv[3:]   # one JSON string per theme
+
+themes = [json.loads(e) for e in raw]
+doc = {"version": 1, "generated_at": ts, "themes": themes}
+
+with open(out_path, "w", encoding="utf-8") as fh:
+    json.dump(doc, fh, indent=2)
+    fh.write("\n")
+print(f"index.json written: {len(themes)} themes → {out_path}")
+IDXPY
+}
+
 # ─── Theme tests ──────────────────────────────────────────────────────────────
 #
 # For each theme in THEME_PALETTE_TABLE:
-#   1. Record a 3-second cast with a tmux status bar using the theme colors
-#      extracted from the palette table (no aibox binary required).
-#   2. Run cast invariants (I1-I4) via the embedded Python helper.
+#   1. Record a 10-15s demo cast using the powerkit status bar colors.
+#   2. Save cast to docs-site/static/asciinema/themes/<slug>.cast.
+#   3. Run cast invariants (I1-I4) via the embedded Python helper.
 #
 # The palette table encodes: slug:bg:fg:accent:green:orange:cyan:muted:surface
 # which covers all colors that appear in the powerkit status bar segments.
 # Surface (statusbar-bg) is the 9th field.
 
 test_themes() {
-  info "Testing themes (ANSI status-bar invariants)..."
+  info "Testing themes (demo driver + ANSI status-bar invariants)..."
 
   local fail_dir="/tmp/aibox-cast-failures"
   mkdir -p "${fail_dir}"
+  mkdir -p "${DOCS_CAST_DIR}"
+
+  # Detect optional tools once; fall back gracefully if absent.
+  local HAS_YAZI=0 HAS_VIM=0 HAS_STARSHIP=0
+  command -v yazi     &>/dev/null && HAS_YAZI=1
+  command -v vim      &>/dev/null && HAS_VIM=1
+  command -v starship &>/dev/null && HAS_STARSHIP=1
 
   for palette_str in "${THEME_PALETTE_TABLE[@]}"; do
     local slug bg fg accent green orange cyan muted surface
     IFS=: read -r slug bg fg accent green orange cyan muted surface <<< "${palette_str}"
 
-    cleanup_tmux
-    local cast="${TEST_DIR}/theme-${slug}.cast"
+    cleanup_demo_tmux "${slug}"
+    # Cast is written directly to the docs-site static dir so it persists.
+    local cast="${DOCS_CAST_DIR}/${slug}.cast"
 
-    # Build a driver that sets tmux status bar colors directly from the palette.
-    # This mirrors what aibox-powerkit-theme.sh produces without needing the
-    # aibox binary or a seeded project directory.
+    # ── Demo driver ──────────────────────────────────────────────────────────
+    # Spawns a dedicated tmux socket (aibox-recordings) so the user's live
+    # session is never touched.  Applies powerkit palette colours directly to
+    # the status bar (no aibox binary needed).  Sets up a 3-pane cowork-style
+    # layout, runs a short simulated user activity sequence, then exits.
+    #
+    # Graceful degradation:
+    #   yazi absent  → uses "ls -la ${PROJECT_ROOT}" in the left pane
+    #   vim absent   → uses "cat ${PROJECT_ROOT}/aibox.toml" in the top-right
+    #   starship abs → plain bash prompt in the bottom-right pane
+    # ─────────────────────────────────────────────────────────────────────────
     local driver
     driver=$(mktemp /tmp/test-XXXX.sh)
-    cat > "${driver}" << EOF
+
+    # Determine left-pane command
+    local left_cmd
+    if [ "${HAS_YAZI}" -eq 1 ]; then
+      left_cmd="yazi ${PROJECT_ROOT}"
+    else
+      left_cmd="ls -la ${PROJECT_ROOT}; sleep infinity"
+    fi
+
+    # Determine top-right-pane command
+    local tr_cmd
+    if [ "${HAS_VIM}" -eq 1 ]; then
+      tr_cmd="vim ${PROJECT_ROOT}/aibox.toml"
+    else
+      tr_cmd="cat ${PROJECT_ROOT}/aibox.toml; sleep infinity"
+    fi
+
+    # Determine bottom-right-pane command
+    local br_cmd
+    if [ "${HAS_STARSHIP}" -eq 1 ]; then
+      br_cmd="bash --rcfile <(echo 'eval \"\$(starship init bash)\"')"
+    else
+      br_cmd="bash"
+    fi
+
+    cat > "${driver}" << DRIVEREOF
 #!/usr/bin/env bash
+# Demo driver — uses tmux attach so asciinema captures real terminal output.
+# Activity runs in a background subshell; attach ends when the session is killed.
 export TERM=xterm-256color COLORTERM=truecolor
-tmux kill-session -t aibox-screencast 2>/dev/null || true
-tmux new-session -d -s aibox-screencast -n dev 'bash'
-tmux split-window -h -t aibox-screencast:dev 'bash'
 
-# Apply theme colors directly to the status bar
-tmux set-option -t aibox-screencast status on
-tmux set-option -t aibox-screencast status-style "bg=${surface},fg=${fg}"
-tmux set-option -t aibox-screencast status-left \
-  "#[bg=${accent},fg=${bg},bold] ${slug} #[bg=${surface},fg=${accent},nobold]"
-tmux set-option -t aibox-screencast status-right \
-  "#[bg=${surface},fg=${muted}] Prefix #[bg=${muted},fg=${bg}] Ctrl-g #[bg=${surface},fg=${muted}] pane #[bg=${cyan},fg=${bg}] 1 "
-tmux set-option -t aibox-screencast window-status-style "bg=${surface},fg=${muted}"
-tmux set-option -t aibox-screencast window-status-current-style "bg=${accent},fg=${bg},bold"
+SOCK=aibox-recordings
+SESSION="demo-${slug}"
 
-(sleep 3 && tmux kill-session -t aibox-screencast 2>/dev/null) &
-tmux attach-session -t aibox-screencast 2>/dev/null
+# Clean up any stale session on this socket
+tmux -L "\${SOCK}" kill-session -t "\${SESSION}" 2>/dev/null || true
+
+# ── Create 3-pane cowork-style layout ──────────────────────────────────────
+# Left pane (full height): file navigator / ls fallback
+tmux -L "\${SOCK}" new-session -d -s "\${SESSION}" -x 160 -y 45 \
+  -n cowork "${left_cmd}"
+
+# Split right half: top-right = editor
+tmux -L "\${SOCK}" split-window -h -t "\${SESSION}:cowork" \
+  -l 80 "${tr_cmd}"
+
+# Split bottom of right half: shell pane
+# Note: after the -h split, the second pane is active; split it vertically.
+tmux -L "\${SOCK}" split-window -v -t "\${SESSION}:cowork" \
+  -l 15 "${br_cmd}"
+
+# Capture pane IDs for reliable send-keys targeting (indices vary by tmux version)
+mapfile -t _PANES < <(tmux -L "\${SOCK}" list-panes -t "\${SESSION}:cowork" -F "#{pane_id}")
+P_LEFT="\${_PANES[0]}"
+P_EDITOR="\${_PANES[1]}"
+P_SHELL="\${_PANES[2]}"
+
+# ── Apply powerkit palette to status bar ────────────────────────────────────
+tmux -L "\${SOCK}" set-option -t "\${SESSION}" status on
+tmux -L "\${SOCK}" set-option -t "\${SESSION}" status-style "bg=${surface},fg=${fg}"
+tmux -L "\${SOCK}" set-option -t "\${SESSION}" status-left-length 40
+tmux -L "\${SOCK}" set-option -t "\${SESSION}" status-right-length 80
+tmux -L "\${SOCK}" set-option -t "\${SESSION}" status-left \
+  "#[bg=${accent},fg=${bg},bold]  ${slug} #[bg=${surface},fg=${accent},nobold]"
+tmux -L "\${SOCK}" set-option -t "\${SESSION}" status-right \
+  "#[bg=${surface},fg=${muted}] GH #[bg=${muted},fg=${bg}]  main #[bg=${surface},fg=${muted}] Prefix #[bg=${muted},fg=${bg}] Ctrl-g #[bg=${surface},fg=${cyan}] pane #[bg=${cyan},fg=${bg}] 1 "
+tmux -L "\${SOCK}" set-option -t "\${SESSION}" window-status-style \
+  "bg=${surface},fg=${muted}"
+tmux -L "\${SOCK}" set-option -t "\${SESSION}" window-status-current-style \
+  "bg=${accent},fg=${bg},bold"
+tmux -L "\${SOCK}" set-option -t "\${SESSION}" pane-border-style \
+  "fg=${muted}"
+tmux -L "\${SOCK}" set-option -t "\${SESSION}" pane-active-border-style \
+  "fg=${accent}"
+
+# ── Background activity + session killer ────────────────────────────────────
+# Runs after layout renders; activity happens while asciinema records the attach.
+(
+  sleep 3
+
+  # Navigate in left pane (yazi j/k keys, or ignored by ls)
+  tmux -L "\${SOCK}" send-keys -t "\${P_LEFT}" "j" "" 2>/dev/null || true
+  sleep 1
+  tmux -L "\${SOCK}" send-keys -t "\${P_LEFT}" "j" "" 2>/dev/null || true
+  sleep 0.5
+  tmux -L "\${SOCK}" send-keys -t "\${P_LEFT}" "k" "" 2>/dev/null || true
+  sleep 0.5
+
+  # Switch to editor pane and scroll down
+  tmux -L "\${SOCK}" select-pane -t "\${P_EDITOR}" 2>/dev/null || true
+  sleep 0.5
+  tmux -L "\${SOCK}" send-keys -t "\${P_EDITOR}" "3j" "" 2>/dev/null || true
+  sleep 0.5
+
+  # Switch to shell pane and run git log
+  tmux -L "\${SOCK}" select-pane -t "\${P_SHELL}" 2>/dev/null || true
+  sleep 0.5
+  tmux -L "\${SOCK}" send-keys -t "\${P_SHELL}" \
+    "git -C ${PROJECT_ROOT} log --oneline -5" Enter 2>/dev/null || true
+  sleep 2
+
+  # Hold final state then kill session to end the attach (and the recording)
+  sleep 1
+  tmux -L "\${SOCK}" kill-session -t "\${SESSION}" 2>/dev/null || true
+) &
+
+# Attach — asciinema records this terminal stream; exits when session is killed
+tmux -L "\${SOCK}" attach-session -t "\${SESSION}" 2>/dev/null
 true
-EOF
+DRIVEREOF
     chmod +x "${driver}"
-    asciinema rec --cols 160 --rows 45 --overwrite -c "${driver}" "${cast}" 2>/dev/null || true
+
+    asciinema rec --cols 160 --rows 45 --idle-time-limit 1 --overwrite \
+      -c "${driver}" "${cast}" 2>/dev/null || true
     rm -f "${driver}"
+    cleanup_demo_tmux "${slug}"
 
     if validate_cast "${cast}" "theme:${slug}" 10 2000; then
       check_cast_invariants "${cast}" "${palette_str}" "theme:${slug}"
     fi
   done
+
+  # Write the index JSON after all recordings
+  write_themes_index "${DOCS_CAST_DIR}"
+  pass "themes index.json written"
 }
 
 # ─── Tool smoke tests ────────────────────────────────────────────────────────
