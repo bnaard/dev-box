@@ -37,6 +37,8 @@ addons with SCP, then use the companion's own runtime for lifecycle checks.
 In normal dogfood use, the workspace container is the processkit/runtime side of
 the project: run `pk-doctor` there. `aibox doctor` is a host-side diagnostic and
 should not be used from inside the container to judge the live dogfood project.
+It still can run inside containers when that container is intentionally
+simulating a host environment for CLI development.
 
 The aibox repository has deliberate exceptions because it develops the `aibox`
 CLI. Those exceptions simulate host-user behavior in controlled test projects:
@@ -49,11 +51,10 @@ CLI. Those exceptions simulate host-user behavior in controlled test projects:
   may run `aibox apply`, `aibox up`, or `aibox doctor` there because the
   companion owns the nested container runtime for the test.
 - Release Phase 0 runs `./scripts/maintain.sh release-doctors`, which invokes
-  `aibox doctor` with `AIBOX_DOCTOR_HOST_CONTEXT=1` as an explicit host-context
-  simulation.
+  `aibox doctor` as an explicit host-context simulation.
 
-Use that override only in aibox CLI development/release harnesses. It is not a
-general dogfood escape hatch.
+Use these exceptions only in aibox CLI development/release harnesses. They are
+not general dogfood escape hatches.
 
 The container-side release command runs Tier 2 as part of Phase 1 with
 `cargo test --features e2e --test e2e`, so the SSH companion, generated

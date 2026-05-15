@@ -178,8 +178,8 @@ companion itself owns the container runtime used by Tier 2 tests.
 
 Normal dogfood/self-management inside the workspace container uses processkit
 tools: run `pk-doctor` for processkit/runtime diagnostics. Do not run
-`aibox doctor` from inside the container to judge this live project; it is a
-host-side diagnostic and will point back to the host.
+`aibox doctor` from inside the container to judge this live project; it checks
+aibox-managed host/project posture, not processkit runtime health.
 
 There are narrow exceptions when developing or releasing the aibox CLI itself.
 These are host-context simulations, not dogfood operations:
@@ -191,9 +191,8 @@ These are host-context simulations, not dogfood operations:
   against projects deployed to the `aibox-e2e-testrunner` companion; verify the
   companion over SSH first.
 - Release Phase 0 may run `aibox doctor` through
-  `./scripts/maintain.sh release-doctors`. That harness sets
-  `AIBOX_DOCTOR_HOST_CONTEXT=1` explicitly so the command exercises host-side
-  doctor behavior even when launched from this devcontainer.
+  `./scripts/maintain.sh release-doctors` to exercise host-side doctor behavior
+  even when launched from this devcontainer.
 - Local test-installs may run the freshly built `aibox` binary against a scratch
   project to simulate what a host user would do.
 
