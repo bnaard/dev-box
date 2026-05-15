@@ -27,10 +27,11 @@ const THEMES: &[(&str, u8, u8, u8)] = &[("projectious", 45, 106, 79)];
 /// Full theme list used when AIBOX_E2E_VISUAL_FULL_MATRIX=1 is set.
 /// Accent RGB values are sampled from each theme's `green` palette entry,
 /// which is what the generated tmux config embeds for colour verification.
+// Family names (clap --theme value enum). Each resolves to its canonical
+// dark variant under default mode=auto with no host detection.
 const FULL_MATRIX_THEMES: &[(&str, u8, u8, u8)] = &[
-    ("gruvbox-dark", 152, 151, 26),
-    ("catppuccin-mocha", 166, 227, 161),
-    ("catppuccin-latte", 64, 160, 43),
+    ("gruvbox", 152, 151, 26),
+    ("catppuccin", 166, 227, 161),
     ("dracula", 80, 250, 123),
     ("tokyo-night", 158, 206, 106),
     ("nord", 163, 190, 140),

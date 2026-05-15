@@ -8,10 +8,13 @@ use serial_test::serial;
 
 use super::runner::E2eRunner;
 
+// Family names (clap --theme value enum). Each resolves to its canonical
+// dark variant under default mode=auto with no host detection. The light
+// variant of catppuccin (latte) is unit-tested in themes::tests but cannot
+// be asserted here because `aibox init` has no --mode flag yet.
 const THEME_SIGNATURES: &[(&str, u8, u8, u8)] = &[
-    ("gruvbox-dark", 152, 151, 26),
-    ("catppuccin-mocha", 166, 227, 161),
-    ("catppuccin-latte", 64, 160, 43),
+    ("gruvbox", 152, 151, 26),
+    ("catppuccin", 166, 227, 161),
     ("dracula", 80, 250, 123),
     ("tokyo-night", 158, 206, 106),
     ("nord", 163, 190, 140),
