@@ -234,7 +234,7 @@ fn assert_no_alien_color(theme_flag: &str, prompt_flag: &str, alien_color: &str)
 #[test]
 fn gruvbox_dark_default_preset_paints_accent_as_fg() {
     assert_default_preset(&ThemeCase {
-        theme_flag: "gruvbox-dark",
+        theme_flag: "gruvbox",
         accent: GRUVBOX_DARK_ACCENT,
         green: GRUVBOX_DARK_GREEN,
         orange: GRUVBOX_DARK_ORANGE,
@@ -244,7 +244,7 @@ fn gruvbox_dark_default_preset_paints_accent_as_fg() {
 #[test]
 fn gruvbox_dark_pastel_powerline_paints_accent_and_green_as_bg() {
     assert_pastel_powerline_preset(&ThemeCase {
-        theme_flag: "gruvbox-dark",
+        theme_flag: "gruvbox",
         accent: GRUVBOX_DARK_ACCENT,
         green: GRUVBOX_DARK_GREEN,
         orange: GRUVBOX_DARK_ORANGE,
@@ -254,7 +254,7 @@ fn gruvbox_dark_pastel_powerline_paints_accent_and_green_as_bg() {
 #[test]
 fn catppuccin_mocha_default_preset_paints_accent_as_fg() {
     assert_default_preset(&ThemeCase {
-        theme_flag: "catppuccin-mocha",
+        theme_flag: "catppuccin",
         accent: CATPPUCCIN_MOCHA_ACCENT,
         green: CATPPUCCIN_MOCHA_GREEN,
         orange: CATPPUCCIN_MOCHA_ORANGE,
@@ -264,7 +264,7 @@ fn catppuccin_mocha_default_preset_paints_accent_as_fg() {
 #[test]
 fn catppuccin_mocha_pastel_powerline_paints_accent_and_green_as_bg() {
     assert_pastel_powerline_preset(&ThemeCase {
-        theme_flag: "catppuccin-mocha",
+        theme_flag: "catppuccin",
         accent: CATPPUCCIN_MOCHA_ACCENT,
         green: CATPPUCCIN_MOCHA_GREEN,
         orange: CATPPUCCIN_MOCHA_ORANGE,
@@ -317,12 +317,12 @@ fn projectious_pastel_powerline_paints_accent_and_green_as_bg() {
 /// Catppuccin colours, this trips immediately.
 #[test]
 fn gruvbox_dark_prompt_does_not_bleed_catppuccin_mocha_bg() {
-    assert_no_alien_color("gruvbox-dark", "default", CATPPUCCIN_MOCHA_BG);
+    assert_no_alien_color("gruvbox", "default", CATPPUCCIN_MOCHA_BG);
 }
 
 /// Negative test: same check for the powerline preset — the pastel-powerline
 /// gruvbox prompt uses #282828 as its background, not #1E1E2E.
 #[test]
 fn gruvbox_dark_powerline_does_not_bleed_catppuccin_mocha_bg() {
-    assert_no_alien_color("gruvbox-dark", "powerline-pastel", CATPPUCCIN_MOCHA_BG);
+    assert_no_alien_color("gruvbox", "powerline-pastel", CATPPUCCIN_MOCHA_BG);
 }
