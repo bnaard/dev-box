@@ -198,6 +198,10 @@ const LINE1_RIGHT_ORDER: &[(&str, &str)] = &[
     ("datetime", "datetime"),
 ];
 const LINE2_LEFT_ORDER: &[(&str, &str)] = &[
+    // forge is the default git-aware segment (auto-detects GitHub/GitLab/Gitea/…).
+    // git and github remain in the order table so explicit layout overrides work,
+    // but their elements defaults are false — forge covers them.
+    ("forge", "forge"),
     ("git", "git"),
     ("github", "github"),
     ("kubernetes", "kubernetes"),
@@ -273,12 +277,13 @@ pub(crate) fn resolved_tmux_status_layout(config: &AiboxConfig) -> ResolvedTmuxS
 
     let line2_left: Vec<String> = layout.line2_left.clone().unwrap_or_else(|| {
         [
-            (elements.git, LINE2_LEFT_ORDER[0].1),
-            (elements.github, LINE2_LEFT_ORDER[1].1),
-            (elements.kubernetes, LINE2_LEFT_ORDER[2].1),
-            (elements.terraform, LINE2_LEFT_ORDER[3].1),
-            (elements.cloud, LINE2_LEFT_ORDER[4].1),
-            (elements.cloudstatus, LINE2_LEFT_ORDER[5].1),
+            (elements.forge, LINE2_LEFT_ORDER[0].1),
+            (elements.git, LINE2_LEFT_ORDER[1].1),
+            (elements.github, LINE2_LEFT_ORDER[2].1),
+            (elements.kubernetes, LINE2_LEFT_ORDER[3].1),
+            (elements.terraform, LINE2_LEFT_ORDER[4].1),
+            (elements.cloud, LINE2_LEFT_ORDER[5].1),
+            (elements.cloudstatus, LINE2_LEFT_ORDER[6].1),
         ]
         .iter()
         .filter_map(|(en, name)| en.then_some((*name).to_string()))
@@ -534,6 +539,7 @@ fn status_refresh_option_lines(
         ("netspeed", refresh.netspeed_cache_ttl_seconds),
         ("kubernetes", refresh.kubernetes_cache_ttl_seconds),
         ("cloud", refresh.cloud_cache_ttl_seconds),
+        ("forge", refresh.github_cache_ttl_seconds),
         ("github", refresh.github_cache_ttl_seconds),
     ] {
         if configured(plugin) {
@@ -1072,7 +1078,7 @@ mod tests {
         );
         assert!(
             conf.contains(
-                r#"@powerkit_plugins "aibox_log,aibox_oom,aibox_proc,aibox_ai,aibox_mcp,aibox_mig,weather,uptime,datetime,git,github,kubernetes,terraform,cloud,hostname,externalip,ssh,netspeed,ping,cpu,loadavg,memory,swap,disk,gpu""#
+                r#"@powerkit_plugins "aibox_log,aibox_oom,aibox_proc,aibox_ai,aibox_mcp,aibox_mig,weather,uptime,datetime,forge,kubernetes,terraform,cloud,hostname,externalip,ssh,netspeed,ping,cpu,loadavg,memory,swap,disk,gpu""#
             )
                 && conf.contains(r#"@powerkit_bar_layout "double""#)
                 && conf.contains(r#"@powerkit_status_order "session,plugins""#)
@@ -1085,7 +1091,7 @@ mod tests {
                 && conf.contains(r##"@powerkit_pane_border_status_bg "#282828""##)
                 && conf.contains(r##"@powerkit_pane_border_format "#{?client_prefix,PREFIX,NORMAL} #{pane_title} #{pane_current_command}""##)
                 && conf.contains(r#"@powerkit_line1_right "aibox_log,aibox_oom,aibox_proc,aibox_ai,aibox_mcp,aibox_mig,weather,uptime,datetime""#)
-                && conf.contains(r#"@powerkit_line2_left "git,github,kubernetes,terraform,cloud""#)
+                && conf.contains(r#"@powerkit_line2_left "forge,kubernetes,terraform,cloud""#)
                 && conf.contains(
                     r#"@powerkit_line2_right "hostname,externalip,ssh,netspeed,ping,cpu,loadavg,memory,swap,disk,gpu""#
                 )
@@ -1104,7 +1110,7 @@ mod tests {
                 && conf.contains(r#"@powerkit_plugin_netspeed_cache_ttl "10""#)
                 && conf.contains(r#"@powerkit_plugin_kubernetes_cache_ttl "120""#)
                 && conf.contains(r#"@powerkit_plugin_cloud_cache_ttl "120""#)
-                && conf.contains(r#"@powerkit_plugin_github_cache_ttl "120""#)
+                && conf.contains(r#"@powerkit_plugin_forge_cache_ttl "120""#)
                 && conf.contains(r#"@powerkit_plugin_aibox_log_label "󱖫""#)
                 && conf.contains(r#"@powerkit_plugin_aibox_oom_label "󰍛󰚌""#)
                 && conf.contains(r#"@powerkit_plugin_aibox_proc_label "󰊚""#)
@@ -1229,11 +1235,11 @@ mod tests {
             "line1_right slot order must be: aibox_log,aibox_oom,aibox_proc,aibox_ai,aibox_mcp,aibox_mig,weather,uptime,datetime\n{conf}"
         );
 
-        // Line 2 left: git → github → kubernetes → terraform → cloud
-        // (DEC-20260508_2115-SilentFern)
+        // Line 2 left: forge → kubernetes → terraform → cloud
+        // (DEC-20260508_2115-SilentFern; updated to replace git+github with forge)
         assert!(
-            conf.contains(r#"@powerkit_line2_left "git,github,kubernetes,terraform,cloud""#),
-            "line2_left slot order must be: git,github,kubernetes,terraform,cloud\n{conf}"
+            conf.contains(r#"@powerkit_line2_left "forge,kubernetes,terraform,cloud""#),
+            "line2_left slot order must be: forge,kubernetes,terraform,cloud\n{conf}"
         );
 
         // Line 2 right: hostname → externalip → ssh → netspeed → ping → cpu
@@ -1247,7 +1253,7 @@ mod tests {
         // Full plugin list snapshot (all three line components concatenated)
         assert!(
             conf.contains(
-                r#"@powerkit_plugins "aibox_log,aibox_oom,aibox_proc,aibox_ai,aibox_mcp,aibox_mig,weather,uptime,datetime,git,github,kubernetes,terraform,cloud,hostname,externalip,ssh,netspeed,ping,cpu,loadavg,memory,swap,disk,gpu""#
+                r#"@powerkit_plugins "aibox_log,aibox_oom,aibox_proc,aibox_ai,aibox_mcp,aibox_mig,weather,uptime,datetime,forge,kubernetes,terraform,cloud,hostname,externalip,ssh,netspeed,ping,cpu,loadavg,memory,swap,disk,gpu""#
             ),
             "full plugin list snapshot mismatch — slot order is fixed per DEC-20260508_2115-SilentFern\n{conf}"
         );
@@ -1256,7 +1262,7 @@ mod tests {
             conf.contains("set -g status 2")
                 && conf.contains("aibox-powerkit-render-session")
                 && conf.contains("aibox-powerkit-render-list right aibox_log,aibox_oom,aibox_proc,aibox_ai,aibox_mcp,aibox_mig,weather,uptime,datetime")
-                && conf.contains("aibox-powerkit-render-list left git,github,kubernetes,terraform,cloud")
+                && conf.contains("aibox-powerkit-render-list left forge,kubernetes,terraform,cloud")
                 && conf.contains("aibox-powerkit-render-list right hostname,externalip,ssh,netspeed,ping,cpu,loadavg,memory,swap,disk,gpu"),
             "generated status formats must keep the two-row PowerKit-aligned proof layout\n{conf}"
         );
@@ -1354,7 +1360,7 @@ mod tests {
 
         assert!(
             conf.contains(r#"@powerkit_line1_right "modelstatus_openai,modelstatus_anthropic,weather""#)
-                && conf.contains(r#"@powerkit_plugins "modelstatus_openai,modelstatus_anthropic,weather,git,github,kubernetes,terraform,cloud,hostname,externalip,ssh,netspeed,ping,cpu,loadavg,memory,swap,disk,gpu""#),
+                && conf.contains(r#"@powerkit_plugins "modelstatus_openai,modelstatus_anthropic,weather,forge,kubernetes,terraform,cloud,hostname,externalip,ssh,netspeed,ping,cpu,loadavg,memory,swap,disk,gpu""#),
             "explicit modelstatus_* layout entries should remain in the PowerKit plugin list:\n{conf}"
         );
         assert!(

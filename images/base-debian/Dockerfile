@@ -330,6 +330,20 @@ RUN mkdir -p /home/aibox/.config/tmux \
 # tmux
 RUN mkdir -p /usr/local/share/aibox/tmux/plugins
 COPY --from=fetch-tmux-plugins /tmux-plugins/ /usr/local/share/aibox/tmux/plugins/
+# ── Temporary local patch: surface-spacer fix for adjacent segment separators ──
+# When @powerkit_elements_spacing="both" the closing separator glyph and the
+# next segment's opening glyph are adjacent with mismatched backgrounds,
+# producing a doubled-arrow rendering artefact.  The fix emits a space cell at
+# spacing_bg between them so both the I2 invariant and the powerline convention
+# are satisfied.
+#
+# Tracked by BACK-20260515_1503-RefinedIvy.  Drop this patch block (and bump
+# TMUX_POWERKIT_REF past the fix) once the upstream PR is merged.
+RUN _f=/usr/local/share/aibox/tmux/plugins/tmux-powerkit/src/renderer/segment_builder.sh; \
+    grep -q "AIBOX-FIX-GH-SEPARATOR-MARKER" "$_f" || \
+    sed -i \
+      's|output+="#\[fg=\${current_spacing_fg},bg=\${prev_bg}\]\${spacing_sep}#\[none\]"|output+="#[fg=${current_spacing_fg},bg=${prev_bg}]${spacing_sep}" # AIBOX-FIX-GH-SEPARATOR-MARKER\n                output+="#[fg=${current_spacing_fg},bg=${current_spacing_bg}] #[none]"|' \
+      "$_f"
 COPY config/tmux/powerkit-plugins/aibox.sh /usr/local/share/aibox/tmux/plugins/tmux-powerkit/src/plugins/aibox.sh
 # aibox-metrics path-a split: one plugin script per metric segment so each
 # renders with chevron/color-rotation styling (BACK-20260508_1603-QuietCedar).
@@ -349,6 +363,8 @@ COPY config/tmux/powerkit-plugins/netspeed.sh   /usr/local/share/aibox/tmux/plug
 COPY config/tmux/powerkit-plugins/kubernetes.sh /usr/local/share/aibox/tmux/plugins/tmux-powerkit/src/plugins/kubernetes.sh
 COPY config/tmux/powerkit-plugins/cloud.sh      /usr/local/share/aibox/tmux/plugins/tmux-powerkit/src/plugins/cloud.sh
 COPY config/tmux/powerkit-plugins/github.sh     /usr/local/share/aibox/tmux/plugins/tmux-powerkit/src/plugins/github.sh
+# aibox forge plugin: multi-provider replacement for git+github (BACK-20260515_1503-RefinedIvy).
+COPY config/tmux/powerkit-plugins/forge.sh      /usr/local/share/aibox/tmux/plugins/tmux-powerkit/src/plugins/forge.sh
 COPY config/tmux/powerkit-plugins/modelstatus_provider.sh /usr/local/share/aibox/tmux/plugins/tmux-powerkit/src/plugins/modelstatus_provider.sh
 RUN for provider in openai anthropic google mistral deepseek cohere xai alibaba aws meta microsoft minimax moonshot nvidia xiaomi zai; do \
       cp /usr/local/share/aibox/tmux/plugins/tmux-powerkit/src/plugins/modelstatus_provider.sh \

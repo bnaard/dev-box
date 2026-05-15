@@ -1787,9 +1787,19 @@ pub struct TmuxStatusElementsSection {
     pub weather: bool,
     #[serde(default = "bool_true")]
     pub datetime: bool,
+    // forge is the default git-aware segment; it auto-detects provider and
+    // supersedes the upstream `git` + `github` plugins for default aibox
+    // installs.  Users who want to pin to the upstream behaviour can disable
+    // forge and enable git/github explicitly in their aibox.toml.
     #[serde(default = "bool_true")]
+    pub forge: bool,
+    // git and github are kept in the schema for opt-in / legacy configs.
+    // They default to false because forge covers their combined functionality.
+    // Migration note: if your aibox.toml has git=true or github=true alongside
+    // forge=true you will see doubled branch info; set forge=false to opt out.
+    #[serde(default = "bool_false")]
     pub git: bool,
-    #[serde(default = "bool_true")]
+    #[serde(default = "bool_false")]
     pub github: bool,
     #[serde(default = "bool_true")]
     pub kubernetes: bool,
@@ -1830,8 +1840,9 @@ impl Default for TmuxStatusElementsSection {
             uptime: true,
             weather: true,
             datetime: true,
-            git: true,
-            github: true,
+            forge: true,
+            git: false,
+            github: false,
             kubernetes: true,
             terraform: true,
             cloud: true,
@@ -3973,6 +3984,7 @@ impl AiboxConfig {
             "weather",
             "uptime",
             "datetime",
+            "forge",
             "git",
             "github",
             "kubernetes",
