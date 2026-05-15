@@ -12,6 +12,10 @@ use crate::runtime::{ContainerState, Runtime};
 /// Embedded schema document for v1.0.0.
 const SCHEMA_V1_0_0: &str = include_str!("../../schemas/v1.0.0/context-schema.md");
 const CURRENT_CONTEXT_SCHEMA_VERSION: &str = "1.0.0";
+const CONTAINER_DOCTOR_HOST_MESSAGE: &str =
+    "aibox doctor is a host-side diagnostic. Run it on the host.";
+const CONTAINER_DOCTOR_PK_DOCTOR_MESSAGE: &str =
+    "Inside the workspace container, run pk-doctor for processkit/runtime diagnostics.";
 
 /// Diagnostic counters.
 #[derive(Debug)]
@@ -37,11 +41,6 @@ struct ProcesskitTemplateFiles {
 fn check_host_container_runtime(diag: &mut DiagResult) {
     match Runtime::detect() {
         Ok(rt) => output::ok(&format!("Container runtime: {} detected", rt.runtime_bin)),
-        Err(_) if running_inside_container() => {
-            output::info(
-                "Host container runtime check skipped because aibox doctor is running inside a container; Docker/Podman availability is a host-side concern",
-            );
-        }
         Err(_) => {
             output::warn(
                 "No container runtime found (podman or docker needed for build/start/stop/attach)",
@@ -57,6 +56,11 @@ fn running_inside_container() -> bool {
 
 fn running_inside_container_from_paths(dockerenv: &Path, containerenv: &Path) -> bool {
     dockerenv.exists() || containerenv.exists()
+}
+
+fn print_container_doctor_boundary() {
+    output::info(CONTAINER_DOCTOR_HOST_MESSAGE);
+    output::info(CONTAINER_DOCTOR_PK_DOCTOR_MESSAGE);
 }
 
 /// Return the list of project-side files `aibox doctor` checks for.
@@ -84,6 +88,11 @@ pub fn cmd_doctor(config_path: &Option<String>) -> Result<()> {
     let mut diag = DiagResult::new();
 
     output::info("Running diagnostics...");
+
+    if running_inside_container() {
+        print_container_doctor_boundary();
+        return Ok(());
+    }
 
     // 1. Load and validate config
     let config = match AiboxConfig::from_cli_option(config_path) {
@@ -2026,6 +2035,14 @@ mod tests {
             &dockerenv,
             &containerenv
         ));
+    }
+
+    #[test]
+    fn container_boundary_message_points_to_host_and_pk_doctor() {
+        assert!(CONTAINER_DOCTOR_HOST_MESSAGE.contains("host-side diagnostic"));
+        assert!(CONTAINER_DOCTOR_HOST_MESSAGE.contains("host"));
+        assert!(CONTAINER_DOCTOR_PK_DOCTOR_MESSAGE.contains("pk-doctor"));
+        assert!(CONTAINER_DOCTOR_PK_DOCTOR_MESSAGE.contains("workspace container"));
     }
 
     #[test]
