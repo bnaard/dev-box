@@ -292,7 +292,7 @@ fn init_generates_tmux_customization_surface() {
             && toml.contains(r#"provider = "openai""#)
             && toml.contains(r#"line1-left = ["session", "windows"]"#)
             && toml
-                .contains(r#"line2-left = ["git", "github", "kubernetes", "terraform", "cloud"]"#),
+                .contains(r#"line2-left = ["forge", "kubernetes", "terraform", "cloud"]"#),
         "generated aibox.toml should explain tmux status mode aliases and row layout lists:\n{toml}"
     );
 }
