@@ -2891,6 +2891,118 @@ layout = "ai"
     }
 
     #[test]
+    fn standardize_aibox_toml_preserves_legacy_alternate_variant() {
+        // theme = "ayu-mirage" is a legacy concrete alternate variant.
+        // Standardize must rewrite it as theme = "ayu", mode = "dark",
+        // variant = "mirage" so the family-form round-trip preserves
+        // the user's original choice. Without the deserializer's
+        // mode/variant override, this would silently degrade to AyuDark.
+        let tmp = TempDir::new().unwrap();
+        fs::write(
+            tmp.path().join("aibox.toml"),
+            r#"[container]
+name = "demo"
+
+[ai]
+model_providers = ["openai"]
+
+[ai.harness.codex]
+enabled = true
+install = true
+
+[processkit]
+version = "unset"
+
+[customization]
+theme = "ayu-mirage"
+mode = "auto"
+layout = "ai"
+"#,
+        )
+        .unwrap();
+
+        standardize_aibox_toml(tmp.path()).unwrap();
+
+        let after = fs::read_to_string(tmp.path().join("aibox.toml")).unwrap();
+        assert!(
+            after.contains("theme  = \"ayu\""),
+            "family form expected:\n{after}"
+        );
+        assert!(
+            after.contains("mode   = \"dark\""),
+            "mode locked to dark expected:\n{after}"
+        );
+        assert!(
+            after.contains("variant = \"mirage\""),
+            "alternate variant expected:\n{after}"
+        );
+
+        // Round-trip: re-parse should resolve to the original concrete theme.
+        let config = crate::config::AiboxConfig::load(&tmp.path().join("aibox.toml")).unwrap();
+        assert_eq!(config.customization.theme, crate::config::ThemeFamily::Ayu);
+        assert_eq!(
+            config.customization.variant.as_deref(),
+            Some("mirage"),
+            "variant should round-trip"
+        );
+        // host_mode = None to make the test deterministic.
+        let resolved = config.customization.resolved_theme_for_host_mode(None);
+        assert_eq!(resolved, crate::config::Theme::AyuMirage);
+    }
+
+    #[test]
+    fn standardize_aibox_toml_preserves_legacy_light_theme_under_auto_mode() {
+        // theme = "ayu-light" with mode = "auto" must lock to mode = "light"
+        // on standardize. Otherwise the family-form round-trip would resolve
+        // via the auto fallback (None -> Dark) and give AyuDark instead.
+        let tmp = TempDir::new().unwrap();
+        fs::write(
+            tmp.path().join("aibox.toml"),
+            r#"[container]
+name = "demo"
+
+[ai]
+model_providers = ["openai"]
+
+[ai.harness.codex]
+enabled = true
+install = true
+
+[processkit]
+version = "unset"
+
+[customization]
+theme = "ayu-light"
+mode = "auto"
+layout = "ai"
+"#,
+        )
+        .unwrap();
+
+        standardize_aibox_toml(tmp.path()).unwrap();
+
+        let after = fs::read_to_string(tmp.path().join("aibox.toml")).unwrap();
+        assert!(after.contains("theme  = \"ayu\""), "expected family form:\n{after}");
+        assert!(
+            after.contains("mode   = \"light\""),
+            "mode locked to light expected:\n{after}"
+        );
+        // The scaffold prints a commented "# variant = <name>" hint; assert no
+        // active (uncommented) variant line was emitted for the canonical light.
+        assert!(
+            !after.lines().any(|l| {
+                let trimmed = l.trim_start();
+                !trimmed.starts_with('#') && trimmed.starts_with("variant")
+            }),
+            "no active variant line should be emitted for canonical light:\n{after}"
+        );
+
+        let config = crate::config::AiboxConfig::load(&tmp.path().join("aibox.toml")).unwrap();
+        let resolved = config.customization.resolved_theme_for_host_mode(None);
+        assert_eq!(resolved, crate::config::Theme::AyuLight);
+    }
+
+    #[test]
     fn standardize_aibox_toml_rejects_legacy_multiplexer_status_table() {
         // BR-LEGACY-MUX-EXCISE (DEC-20260508_1515-SilentAsh, v0.25.6):
         // legacy multiplexer aliases were hard-cut. standardize_aibox_toml

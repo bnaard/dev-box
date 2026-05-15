@@ -2486,20 +2486,26 @@ impl<'de> serde::Deserialize<'de> for CustomizationSection {
                     }
                 }
 
-                // Resolve the raw theme string into (family, legacy_theme).
-                let (theme, legacy_theme) = match raw_theme {
-                    None => (ThemeFamily::default(), None),
+                // Resolve the raw theme string into (family, legacy_theme,
+                // overridden mode, overridden variant). When a legacy concrete
+                // name is supplied, mode and variant are derived from it so
+                // that re-serialisation (e.g. via `--standardize-config`)
+                // captures the user's full intent — otherwise alternate
+                // variants like "ayu-mirage" or light themes like "ayu-light"
+                // would silently degrade to the family default on rewrite.
+                let (theme, legacy_theme, derived_mode, derived_variant) = match raw_theme {
+                    None => (ThemeFamily::default(), None, None, None),
                     Some(ref s) => {
                         // Try new family form first.
                         use clap::ValueEnum as _;
                         if let Ok(family) = ThemeFamily::from_str(s, true) {
-                            (family, None)
+                            (family, None, None, None)
                         } else if let Ok(concrete) = Theme::from_str(s, true) {
-                            // Legacy concrete name — lock it and derive the family.
+                            // Legacy concrete name — lock it and derive the
+                            // family + mode + variant so a standardize-config
+                            // round-trip preserves the user's exact choice.
                             let family = family_of(&concrete);
-                            // Emit the deprecation warning once on first parse.
-                            let fam_str = family.to_string();
-                            let mode_str = match &concrete {
+                            let mode_for_concrete = match &concrete {
                                 Theme::GruvboxLight
                                 | Theme::CatppuccinLatte
                                 | Theme::TokyoNightDay
@@ -2508,19 +2514,28 @@ impl<'de> serde::Deserialize<'de> for CustomizationSection {
                                 | Theme::SolarizedLight
                                 | Theme::GithubLight
                                 | Theme::AyuLight
-                                | Theme::NightOwlLight => "light",
-                                _ => "dark",
+                                | Theme::NightOwlLight => ThemeMode::Light,
+                                _ => ThemeMode::Dark,
                             };
+                            let variant_for_concrete = variant_name_of(&concrete);
+                            // Emit the deprecation warning once on first parse.
+                            let fam_str = family.to_string();
+                            let mode_str = mode_for_concrete.to_string();
                             let mut hint = format!(
                                 "theme = \"{s}\" is the legacy concrete form; \
                                  run `aibox apply --standardize-config` to rewrite as \
                                  theme = \"{fam_str}\", mode = \"{mode_str}\""
                             );
-                            if let Some(v) = variant_name_of(&concrete) {
+                            if let Some(v) = variant_for_concrete {
                                 hint.push_str(&format!(", variant = \"{v}\""));
                             }
                             crate::output::warn(&hint);
-                            (family, Some(concrete))
+                            (
+                                family,
+                                Some(concrete),
+                                Some(mode_for_concrete),
+                                variant_for_concrete.map(|v| v.to_string()),
+                            )
                         } else {
                             return Err(DeError::custom(format!(
                                 "unknown theme or theme family: \"{s}\""
@@ -2531,8 +2546,14 @@ impl<'de> serde::Deserialize<'de> for CustomizationSection {
 
                 Ok(CustomizationSection {
                     theme,
-                    mode: mode.unwrap_or_default(),
-                    variant,
+                    // Legacy concrete names override the user's `mode` field
+                    // so that a re-serialised file (after standardize-config)
+                    // resolves to the same concrete theme. Without this
+                    // override, a `theme = "ayu-light", mode = "auto"` config
+                    // would round-trip to `theme = "ayu", mode = "auto"` and
+                    // resolve to AyuDark via the auto fallback.
+                    mode: derived_mode.unwrap_or_else(|| mode.unwrap_or_default()),
+                    variant: derived_variant.or(variant),
                     prompt: prompt.unwrap_or_default(),
                     layout: layout.unwrap_or_else(default_layout),
                     tmux: tmux.unwrap_or_default(),
@@ -4798,10 +4819,15 @@ name = "my-project"
 
         // [customization] (parsed from legacy [appearance] via serde alias)
         // full_toml has `theme = "gruvbox-dark"` (legacy concrete form) → parsed
-        // as ThemeFamily::Gruvbox with legacy_theme lock.
+        // as ThemeFamily::Gruvbox with legacy_theme lock. The deserializer also
+        // overrides mode to Dark so that a standardize-config round-trip
+        // preserves the user's intent (otherwise re-serialised theme="gruvbox"
+        // + mode="auto" would resolve via auto-fallback to GruvboxDark anyway,
+        // but the explicit lock keeps light themes and alternate variants
+        // round-trippable too).
         assert_eq!(config.customization.theme, ThemeFamily::Gruvbox);
         assert_eq!(config.customization.legacy_theme, Some(Theme::GruvboxDark));
-        assert_eq!(config.customization.mode, ThemeMode::Auto);
+        assert_eq!(config.customization.mode, ThemeMode::Dark);
         assert_eq!(config.customization.prompt, StarshipPreset::Default);
         assert_eq!(
             config.customization.tmux.status.mode,
