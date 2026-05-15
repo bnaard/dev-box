@@ -1,7 +1,7 @@
 use clap::{Parser, Subcommand, ValueEnum};
 
 use crate::config::{
-    AiHarness, AiProvider, AiboxProfile, BaseImage, StarshipPreset, Theme, TmuxStatusMode,
+    AiHarness, AiProvider, AiboxProfile, BaseImage, StarshipPreset, ThemeFamily, TmuxStatusMode,
 };
 
 /// Parse a truthy/falsy string for env-var-driven boolean flags.
@@ -133,9 +133,9 @@ pub enum Commands {
         #[arg(long)]
         user: Option<String>,
 
-        /// Color theme for all tools (default: gruvbox-dark)
+        /// Theme family for all tools (default: gruvbox)
         #[arg(long, value_enum)]
-        theme: Option<Theme>,
+        theme: Option<ThemeFamily>,
 
         /// Starship prompt preset (default: default)
         #[arg(long, value_enum)]

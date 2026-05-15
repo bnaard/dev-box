@@ -2285,7 +2285,7 @@ mod tests {
         let root = dir.path().join("root");
         let mut config = make_config(false, root.clone());
         config.ai.harnesses = vec![AiProvider::Codex];
-        config.customization.theme = Theme::Nord;
+        config.customization.theme = ThemeFamily::Nord;
         seed_root_dir(&config).unwrap();
 
         assert!(root.join(".codex").is_dir());
@@ -2307,7 +2307,7 @@ mod tests {
         let root = dir.path().join("root");
         let mut config = make_config(false, root.clone());
         config.ai.harnesses = vec![AiProvider::Codex];
-        config.customization.theme = Theme::TokyoNight;
+        config.customization.theme = ThemeFamily::TokyoNight;
         seed_root_dir(&config).unwrap();
 
         let codex_config_path = root.join(".codex").join("config.toml");
@@ -2782,7 +2782,7 @@ mod tests {
         let dir = tempfile::tempdir().unwrap();
         let root = dir.path().join("root");
         let mut config = make_config(false, root.clone());
-        config.customization.theme = Theme::GruvboxDark;
+        config.customization.theme = ThemeFamily::Gruvbox;
         config.customization.mode = ThemeMode::Light;
         seed_root_dir(&config).unwrap();
 

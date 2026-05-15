@@ -3,7 +3,7 @@ use std::path::{Path, PathBuf};
 
 use crate::config::{
     AiHarness, AiProvider, AiboxConfig, AiboxProfile, BaseImage, McpGatewayMode, StarshipPreset,
-    Theme, ThemeMode, TmuxStatusMode,
+    ThemeFamily, ThemeMode, TmuxStatusMode,
 };
 use crate::context;
 use crate::generate;
@@ -39,7 +39,7 @@ pub struct InitParams {
     pub process: Option<Vec<String>>,
     pub ai: Option<Vec<AiProvider>>,
     pub user: Option<String>,
-    pub theme: Option<Theme>,
+    pub theme: Option<ThemeFamily>,
     pub prompt: Option<StarshipPreset>,
     pub tmux_status: Option<TmuxStatusMode>,
     pub addons: Option<Vec<String>>,
@@ -1502,24 +1502,30 @@ pub(crate) fn serialize_config_with_comments(config: &AiboxConfig) -> String {
     out.push_str("# [customization] — color theme, shell prompt, and tmux layout\n");
     out.push_str(sep);
     out.push_str("# Theme is applied consistently across tmux, Vim, Yazi, lazygit, and bat.\n");
-    out.push_str("# tmux-powerkit popular themes and variants supported by aibox:\n");
-    out.push_str("# - tokyo-night, tokyo-night-storm, tokyo-night-day\n");
+    out.push_str("# Theme families:\n");
     out.push_str(
-        "# - catppuccin-mocha, catppuccin-macchiato, catppuccin-frappe, catppuccin-latte\n",
+        "# - ayu, catppuccin, dracula, github, gruvbox, material, moonlight, night-owl,\n",
     );
-    out.push_str("# - dracula, nord, gruvbox-dark, gruvbox-light\n");
-    out.push_str("# - rose-pine, rose-pine-moon, rose-pine-dawn\n");
-    out.push_str("# - material, material-ocean, material-palenight, material-lighter\n");
-    out.push_str("# - solarized-dark, solarized-light, github-dark, github-light\n");
-    out.push_str("# - ayu-dark, ayu-mirage, ayu-light, night-owl, night-owl-light, moonlight\n");
-    out.push_str("# - projectious (aibox extension)\n");
+    out.push_str("#   nord, projectious, rose-pine, solarized, tokyo-night\n");
     out.push_str("[customization]\n");
+    // Always emit the family form. If the user had a legacy concrete name and
+    // has not yet run `aibox apply --standardize-config`, the family is already
+    // correct (the deserializer derived it). The legacy lock is runtime-only.
     out.push_str(&format!("theme  = \"{}\"\n", config.customization.theme));
-    out.push_str("# Global mode overlay. `auto` follows the host OS appearance when detectable.\n");
-    out.push_str("# Paired families follow light/dark variants; genuinely dark-only themes\n");
-    out.push_str("# (dracula, nord, moonlight, projectious) keep their selected concrete theme.\n");
+    out.push_str("# Light/dark variant. `auto` follows host OS appearance when detectable.\n");
+    out.push_str("# Solo families (dracula, moonlight, nord, projectious) ignore mode.\n");
     out.push_str("# Options: auto | light | dark\n");
     out.push_str(&format!("mode   = \"{}\"\n", config.customization.mode));
+    out.push_str("# Optional alternate variant override (per family). Default = unset.\n");
+    out.push_str(
+        "#   ayu: \"mirage\"  catppuccin: \"macchiato\" | \"frappe\"  material: \"ocean\" | \"palenight\"\n",
+    );
+    out.push_str("#   rose-pine: \"moon\"  tokyo-night: \"storm\"\n");
+    if let Some(ref v) = config.customization.variant {
+        out.push_str(&format!("variant = \"{v}\"\n"));
+    } else {
+        out.push_str("# variant = \"<name>\"\n");
+    }
     out.push_str("# Starship prompt preset.\n");
     out.push_str("# Options: default | plain | minimal | nerd-font | pastel | powerline-pastel | bracketed | arrow\n");
     out.push_str("# ASCII sketches:\n");
@@ -2650,6 +2656,7 @@ pub fn cmd_init(config_path: &Option<String>, params: InitParams) -> Result<()> 
         customization: CustomizationSection {
             theme: params.theme.unwrap_or_default(),
             mode: ThemeMode::Auto,
+            variant: None,
             prompt: params.prompt.unwrap_or_default(),
             layout: crate::config::ConfigLayout::default(),
             tmux: crate::config::TmuxSection {
@@ -2659,6 +2666,7 @@ pub fn cmd_init(config_path: &Option<String>, params: InitParams) -> Result<()> 
                 },
                 ..crate::config::TmuxSection::default()
             },
+            legacy_theme: None,
         },
         agents: crate::config::AgentsSection::default(),
         audio: AudioSection::default(),
@@ -3823,44 +3831,41 @@ mod tests {
     }
 
     #[test]
-    fn serialized_config_comments_include_full_popular_theme_roster() {
+    fn serialized_config_comments_include_theme_family_catalog() {
         let config = crate::config::test_config();
         let body = serialize_config_with_comments(&config);
 
-        for theme in [
-            "tokyo-night",
-            "tokyo-night-storm",
-            "tokyo-night-day",
-            "catppuccin-mocha",
-            "catppuccin-macchiato",
-            "catppuccin-frappe",
-            "catppuccin-latte",
+        // New family-form catalog.
+        for family in [
+            "ayu",
+            "catppuccin",
             "dracula",
-            "nord",
-            "gruvbox-dark",
-            "gruvbox-light",
-            "rose-pine",
-            "rose-pine-moon",
-            "rose-pine-dawn",
+            "github",
+            "gruvbox",
             "material",
-            "material-ocean",
-            "material-palenight",
-            "material-lighter",
-            "solarized-dark",
-            "solarized-light",
-            "github-dark",
-            "github-light",
-            "ayu-dark",
-            "ayu-mirage",
-            "ayu-light",
-            "night-owl",
-            "night-owl-light",
             "moonlight",
+            "night-owl",
+            "nord",
             "projectious",
+            "rose-pine",
+            "solarized",
+            "tokyo-night",
         ] {
-            assert!(body.contains(theme), "missing theme comment entry: {theme}");
+            assert!(
+                body.contains(family),
+                "missing theme family comment entry: {family}"
+            );
         }
-        assert!(body.contains("`auto` follows the host OS appearance"));
+        // Variant hint comments.
+        assert!(
+            body.contains("\"mirage\""),
+            "ayu mirage variant hint missing"
+        );
+        assert!(
+            body.contains("\"storm\""),
+            "tokyo-night storm variant hint missing"
+        );
+        assert!(body.contains("`auto` follows host OS appearance"));
     }
 
     #[test]

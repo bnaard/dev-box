@@ -1051,6 +1051,167 @@ pub enum Theme {
     Projectious,
 }
 
+/// User-facing theme family selector. Pairs with `ThemeMode` (and optional
+/// `variant`) to resolve to a concrete `Theme`. Solo families (dracula, moonlight,
+/// nord, projectious) have no light/dark partner and ignore mode.
+#[derive(Debug, Clone, Default, Serialize, Deserialize, PartialEq, clap::ValueEnum)]
+#[serde(rename_all = "kebab-case")]
+#[clap(rename_all = "kebab-case")]
+pub enum ThemeFamily {
+    Ayu,
+    Catppuccin,
+    Dracula,
+    Github,
+    #[default]
+    Gruvbox,
+    Material,
+    Moonlight,
+    NightOwl,
+    Nord,
+    Projectious,
+    RosePine,
+    Solarized,
+    TokyoNight,
+}
+
+impl std::fmt::Display for ThemeFamily {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            ThemeFamily::Ayu => write!(f, "ayu"),
+            ThemeFamily::Catppuccin => write!(f, "catppuccin"),
+            ThemeFamily::Dracula => write!(f, "dracula"),
+            ThemeFamily::Github => write!(f, "github"),
+            ThemeFamily::Gruvbox => write!(f, "gruvbox"),
+            ThemeFamily::Material => write!(f, "material"),
+            ThemeFamily::Moonlight => write!(f, "moonlight"),
+            ThemeFamily::NightOwl => write!(f, "night-owl"),
+            ThemeFamily::Nord => write!(f, "nord"),
+            ThemeFamily::Projectious => write!(f, "projectious"),
+            ThemeFamily::RosePine => write!(f, "rose-pine"),
+            ThemeFamily::Solarized => write!(f, "solarized"),
+            ThemeFamily::TokyoNight => write!(f, "tokyo-night"),
+        }
+    }
+}
+
+/// Family that owns a concrete Theme, for legacy migration and resolution.
+pub fn family_of(theme: &Theme) -> ThemeFamily {
+    match theme {
+        Theme::AyuDark | Theme::AyuMirage | Theme::AyuLight => ThemeFamily::Ayu,
+        Theme::CatppuccinMocha
+        | Theme::CatppuccinMacchiato
+        | Theme::CatppuccinFrappe
+        | Theme::CatppuccinLatte => ThemeFamily::Catppuccin,
+        Theme::Dracula => ThemeFamily::Dracula,
+        Theme::GithubDark | Theme::GithubLight => ThemeFamily::Github,
+        Theme::GruvboxDark | Theme::GruvboxLight => ThemeFamily::Gruvbox,
+        Theme::Material
+        | Theme::MaterialOcean
+        | Theme::MaterialPalenight
+        | Theme::MaterialLighter => ThemeFamily::Material,
+        Theme::Moonlight => ThemeFamily::Moonlight,
+        Theme::NightOwl | Theme::NightOwlLight => ThemeFamily::NightOwl,
+        Theme::Nord => ThemeFamily::Nord,
+        Theme::Projectious => ThemeFamily::Projectious,
+        Theme::RosePine | Theme::RosePineMoon | Theme::RosePineDawn => ThemeFamily::RosePine,
+        Theme::SolarizedDark | Theme::SolarizedLight => ThemeFamily::Solarized,
+        Theme::TokyoNight | Theme::TokyoNightStorm | Theme::TokyoNightDay => {
+            ThemeFamily::TokyoNight
+        }
+    }
+}
+
+/// The alternate variant name of a concrete Theme, if any.
+/// Returns `Some("mirage")` for AyuMirage, `Some("frappe")` for CatppuccinFrappe, etc.
+/// Returns `None` for canonical dark/light/solo variants.
+pub fn variant_name_of(theme: &Theme) -> Option<&'static str> {
+    match theme {
+        Theme::AyuMirage => Some("mirage"),
+        Theme::CatppuccinMacchiato => Some("macchiato"),
+        Theme::CatppuccinFrappe => Some("frappe"),
+        Theme::MaterialOcean => Some("ocean"),
+        Theme::MaterialPalenight => Some("palenight"),
+        Theme::RosePineMoon => Some("moon"),
+        Theme::TokyoNightStorm => Some("storm"),
+        _ => None,
+    }
+}
+
+/// Resolve (family, effective_mode, optional variant) → concrete Theme.
+///
+/// `mode` must already be resolved (not Auto); callers are responsible for
+/// collapsing Auto → Light | Dark before calling this.
+pub(crate) fn resolve_theme_from_family(
+    family: &ThemeFamily,
+    mode: ThemeMode,
+    variant: Option<&str>,
+) -> Theme {
+    // Solo families ignore both mode and variant.
+    match family {
+        ThemeFamily::Dracula => return Theme::Dracula,
+        ThemeFamily::Moonlight => return Theme::Moonlight,
+        ThemeFamily::Nord => return Theme::Nord,
+        ThemeFamily::Projectious => return Theme::Projectious,
+        _ => {}
+    }
+
+    match mode {
+        ThemeMode::Light => match family {
+            ThemeFamily::Ayu => Theme::AyuLight,
+            ThemeFamily::Catppuccin => Theme::CatppuccinLatte,
+            ThemeFamily::Github => Theme::GithubLight,
+            ThemeFamily::Gruvbox => Theme::GruvboxLight,
+            ThemeFamily::Material => Theme::MaterialLighter,
+            ThemeFamily::NightOwl => Theme::NightOwlLight,
+            ThemeFamily::RosePine => Theme::RosePineDawn,
+            ThemeFamily::Solarized => Theme::SolarizedLight,
+            ThemeFamily::TokyoNight => Theme::TokyoNightDay,
+            // Solo families already returned above.
+            ThemeFamily::Dracula
+            | ThemeFamily::Moonlight
+            | ThemeFamily::Nord
+            | ThemeFamily::Projectious => {
+                unreachable!("solo families handled above")
+            }
+        },
+        ThemeMode::Dark | ThemeMode::Auto => match family {
+            ThemeFamily::Ayu => match variant {
+                Some("mirage") => Theme::AyuMirage,
+                _ => Theme::AyuDark,
+            },
+            ThemeFamily::Catppuccin => match variant {
+                Some("macchiato") => Theme::CatppuccinMacchiato,
+                Some("frappe") => Theme::CatppuccinFrappe,
+                _ => Theme::CatppuccinMocha,
+            },
+            ThemeFamily::Github => Theme::GithubDark,
+            ThemeFamily::Gruvbox => Theme::GruvboxDark,
+            ThemeFamily::Material => match variant {
+                Some("ocean") => Theme::MaterialOcean,
+                Some("palenight") => Theme::MaterialPalenight,
+                _ => Theme::Material,
+            },
+            ThemeFamily::NightOwl => Theme::NightOwl,
+            ThemeFamily::RosePine => match variant {
+                Some("moon") => Theme::RosePineMoon,
+                _ => Theme::RosePine,
+            },
+            ThemeFamily::Solarized => Theme::SolarizedDark,
+            ThemeFamily::TokyoNight => match variant {
+                Some("storm") => Theme::TokyoNightStorm,
+                _ => Theme::TokyoNight,
+            },
+            // Solo families already returned above.
+            ThemeFamily::Dracula
+            | ThemeFamily::Moonlight
+            | ThemeFamily::Nord
+            | ThemeFamily::Projectious => {
+                unreachable!("solo families handled above")
+            }
+        },
+    }
+}
+
 /// Global light/dark preference applied on top of the selected theme.
 #[derive(Debug, Clone, Default, Serialize, Deserialize, PartialEq, clap::ValueEnum)]
 #[serde(rename_all = "kebab-case")]
@@ -1262,10 +1423,6 @@ impl std::fmt::Display for Theme {
             Theme::Projectious => write!(f, "projectious"),
         }
     }
-}
-
-fn default_theme() -> Theme {
-    Theme::default()
 }
 
 /// Starship prompt presets.
@@ -2236,49 +2393,179 @@ impl Default for TmuxThemeSwitchSection {
 }
 
 /// [customization] section — color theme, shell prompt, and tmux layout.
-#[derive(Debug, Clone, Serialize, Deserialize)]
+///
+/// Deserialization is implemented manually (see `impl<'de> Deserialize`) to
+/// support both the new family-form (`theme = "ayu"`) and legacy concrete names
+/// (`theme = "ayu-dark"`). When a legacy concrete name is detected the
+/// `legacy_theme` sidecar is populated and `resolved_theme()` returns it
+/// directly (locked, no auto-flipping).
+#[derive(Debug, Clone)]
 pub struct CustomizationSection {
-    #[serde(default = "default_theme")]
-    pub theme: Theme,
-    #[serde(default = "default_theme_mode")]
+    /// Theme family. Set via custom deserializer (see below).
+    pub theme: ThemeFamily,
     pub mode: ThemeMode,
-    #[serde(default = "default_prompt")]
+    /// Optional alternate variant override (per-family). Validated at resolve
+    /// time; unknown values fall through to the family default.
+    pub variant: Option<String>,
     pub prompt: StarshipPreset,
-    #[serde(default = "default_layout")]
     pub layout: ConfigLayout,
-    #[serde(default)]
     pub tmux: TmuxSection,
+    /// Populated by the deserializer when the user supplied a legacy concrete
+    /// theme name (e.g. `"ayu-dark"`). Forces `resolved_theme()` to return this
+    /// locked concrete theme rather than running family/mode/variant resolution.
+    /// Skipped during serialization — callers that emit TOML (container.rs)
+    /// always use the family form.
+    pub legacy_theme: Option<Theme>,
+}
+
+impl Serialize for CustomizationSection {
+    fn serialize<S: serde::Serializer>(&self, serializer: S) -> Result<S::Ok, S::Error> {
+        use serde::ser::SerializeStruct;
+        // Always serialize as the family form; legacy_theme is deliberately omitted.
+        let field_count = 5 + self.variant.is_some() as usize;
+        let mut s = serializer.serialize_struct("CustomizationSection", field_count)?;
+        s.serialize_field("theme", &self.theme)?;
+        s.serialize_field("mode", &self.mode)?;
+        if let Some(ref v) = self.variant {
+            s.serialize_field("variant", v)?;
+        }
+        s.serialize_field("prompt", &self.prompt)?;
+        s.serialize_field("layout", &self.layout)?;
+        s.serialize_field("tmux", &self.tmux)?;
+        s.end()
+    }
+}
+
+impl<'de> serde::Deserialize<'de> for CustomizationSection {
+    fn deserialize<D: serde::Deserializer<'de>>(deserializer: D) -> Result<Self, D::Error> {
+        use serde::de::{MapAccess, Visitor};
+
+        struct CustomizationVisitor;
+
+        impl<'de> Visitor<'de> for CustomizationVisitor {
+            type Value = CustomizationSection;
+
+            fn expecting(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+                write!(f, "a customization/appearance table")
+            }
+
+            fn visit_map<A: MapAccess<'de>>(self, mut map: A) -> Result<Self::Value, A::Error> {
+                use serde::de::Error as DeError;
+
+                let mut raw_theme: Option<String> = None;
+                let mut mode: Option<ThemeMode> = None;
+                let mut variant: Option<String> = None;
+                let mut prompt: Option<StarshipPreset> = None;
+                let mut layout: Option<ConfigLayout> = None;
+                let mut tmux: Option<TmuxSection> = None;
+
+                while let Some(key) = map.next_key::<String>()? {
+                    match key.as_str() {
+                        "theme" => {
+                            raw_theme = Some(map.next_value()?);
+                        }
+                        "mode" => {
+                            mode = Some(map.next_value()?);
+                        }
+                        "variant" => {
+                            variant = Some(map.next_value()?);
+                        }
+                        "prompt" => {
+                            prompt = Some(map.next_value()?);
+                        }
+                        "layout" => {
+                            layout = Some(map.next_value()?);
+                        }
+                        "tmux" => {
+                            tmux = Some(map.next_value()?);
+                        }
+                        _ => {
+                            // Ignore unknown keys (forward compat).
+                            let _ = map.next_value::<serde::de::IgnoredAny>()?;
+                        }
+                    }
+                }
+
+                // Resolve the raw theme string into (family, legacy_theme).
+                let (theme, legacy_theme) = match raw_theme {
+                    None => (ThemeFamily::default(), None),
+                    Some(ref s) => {
+                        // Try new family form first.
+                        use clap::ValueEnum as _;
+                        if let Ok(family) = ThemeFamily::from_str(s, true) {
+                            (family, None)
+                        } else if let Ok(concrete) = Theme::from_str(s, true) {
+                            // Legacy concrete name — lock it and derive the family.
+                            let family = family_of(&concrete);
+                            // Emit the deprecation warning once on first parse.
+                            let fam_str = family.to_string();
+                            let mode_str = match &concrete {
+                                Theme::GruvboxLight
+                                | Theme::CatppuccinLatte
+                                | Theme::TokyoNightDay
+                                | Theme::RosePineDawn
+                                | Theme::MaterialLighter
+                                | Theme::SolarizedLight
+                                | Theme::GithubLight
+                                | Theme::AyuLight
+                                | Theme::NightOwlLight => "light",
+                                _ => "dark",
+                            };
+                            let mut hint = format!(
+                                "theme = \"{s}\" is the legacy concrete form; \
+                                 run `aibox apply --standardize-config` to rewrite as \
+                                 theme = \"{fam_str}\", mode = \"{mode_str}\""
+                            );
+                            if let Some(v) = variant_name_of(&concrete) {
+                                hint.push_str(&format!(", variant = \"{v}\""));
+                            }
+                            crate::output::warn(&hint);
+                            (family, Some(concrete))
+                        } else {
+                            return Err(DeError::custom(format!(
+                                "unknown theme or theme family: \"{s}\""
+                            )));
+                        }
+                    }
+                };
+
+                Ok(CustomizationSection {
+                    theme,
+                    mode: mode.unwrap_or_default(),
+                    variant,
+                    prompt: prompt.unwrap_or_default(),
+                    layout: layout.unwrap_or_else(default_layout),
+                    tmux: tmux.unwrap_or_default(),
+                    legacy_theme,
+                })
+            }
+        }
+
+        deserializer.deserialize_map(CustomizationVisitor)
+    }
 }
 
 impl CustomizationSection {
     /// Resolve the concrete palette rendered into tool config files.
     ///
-    /// `theme` remains the user's selected concrete/default palette for
-    /// backward compatibility. `mode` is a global override layered on top;
-    /// `auto` follows the host OS when a light/dark signal is available.
+    /// When a legacy concrete theme name was supplied in aibox.toml, the
+    /// `legacy_theme` lock is returned directly (no auto-flipping). Otherwise,
+    /// family + mode + variant are resolved via the resolution matrix.
     pub fn resolved_theme(&self) -> Theme {
         self.resolved_theme_for_host_mode(detected_host_theme_mode())
     }
 
     pub(crate) fn resolved_theme_for_host_mode(&self, host_mode: Option<ThemeMode>) -> Theme {
+        // Legacy concrete name: locked, never auto-flipped.
+        if let Some(locked) = &self.legacy_theme {
+            return locked.clone();
+        }
         let effective_mode = match self.mode {
-            ThemeMode::Auto => host_mode.unwrap_or(ThemeMode::Auto),
+            ThemeMode::Auto => host_mode.unwrap_or(ThemeMode::Dark),
             ThemeMode::Light => ThemeMode::Light,
             ThemeMode::Dark => ThemeMode::Dark,
         };
-        self.resolved_theme_for_mode(effective_mode)
-    }
-
-    fn resolved_theme_for_mode(&self, mode: ThemeMode) -> Theme {
-        match mode {
-            ThemeMode::Auto => self.theme.clone(),
-            ThemeMode::Light => {
-                light_theme_partner(&self.theme).unwrap_or_else(|| self.theme.clone())
-            }
-            ThemeMode::Dark => {
-                dark_theme_partner(&self.theme).unwrap_or_else(|| self.theme.clone())
-            }
-        }
+        resolve_theme_from_family(&self.theme, effective_mode, self.variant.as_deref())
     }
 
     pub fn tmux_layout(&self) -> ConfigLayout {
@@ -2289,76 +2576,16 @@ impl CustomizationSection {
     }
 }
 
-fn light_theme_partner(theme: &Theme) -> Option<Theme> {
-    match theme {
-        Theme::GruvboxDark => Some(Theme::GruvboxLight),
-        Theme::CatppuccinMocha | Theme::CatppuccinMacchiato | Theme::CatppuccinFrappe => {
-            Some(Theme::CatppuccinLatte)
-        }
-        Theme::TokyoNight | Theme::TokyoNightStorm => Some(Theme::TokyoNightDay),
-        Theme::RosePine | Theme::RosePineMoon => Some(Theme::RosePineDawn),
-        Theme::Material | Theme::MaterialOcean | Theme::MaterialPalenight => {
-            Some(Theme::MaterialLighter)
-        }
-        Theme::SolarizedDark => Some(Theme::SolarizedLight),
-        Theme::GithubDark => Some(Theme::GithubLight),
-        Theme::AyuDark | Theme::AyuMirage => Some(Theme::AyuLight),
-        Theme::NightOwl => Some(Theme::NightOwlLight),
-        Theme::GruvboxLight
-        | Theme::CatppuccinLatte
-        | Theme::TokyoNightDay
-        | Theme::RosePineDawn
-        | Theme::MaterialLighter
-        | Theme::SolarizedLight
-        | Theme::GithubLight
-        | Theme::AyuLight
-        | Theme::NightOwlLight => Some(theme.clone()),
-        Theme::Dracula | Theme::Nord | Theme::Moonlight | Theme::Projectious => None,
-    }
-}
-
-fn dark_theme_partner(theme: &Theme) -> Option<Theme> {
-    match theme {
-        Theme::GruvboxLight => Some(Theme::GruvboxDark),
-        Theme::CatppuccinLatte => Some(Theme::CatppuccinMocha),
-        Theme::TokyoNightDay => Some(Theme::TokyoNight),
-        Theme::RosePineDawn => Some(Theme::RosePine),
-        Theme::MaterialLighter => Some(Theme::Material),
-        Theme::SolarizedLight => Some(Theme::SolarizedDark),
-        Theme::GithubLight => Some(Theme::GithubDark),
-        Theme::AyuLight => Some(Theme::AyuDark),
-        Theme::NightOwlLight => Some(Theme::NightOwl),
-        Theme::GruvboxDark
-        | Theme::CatppuccinMocha
-        | Theme::CatppuccinMacchiato
-        | Theme::CatppuccinFrappe
-        | Theme::Dracula
-        | Theme::TokyoNight
-        | Theme::TokyoNightStorm
-        | Theme::Nord
-        | Theme::RosePine
-        | Theme::RosePineMoon
-        | Theme::Material
-        | Theme::MaterialOcean
-        | Theme::MaterialPalenight
-        | Theme::SolarizedDark
-        | Theme::GithubDark
-        | Theme::AyuDark
-        | Theme::AyuMirage
-        | Theme::NightOwl
-        | Theme::Moonlight
-        | Theme::Projectious => Some(theme.clone()),
-    }
-}
-
 impl Default for CustomizationSection {
     fn default() -> Self {
         Self {
-            theme: default_theme(),
+            theme: ThemeFamily::default(),
             mode: default_theme_mode(),
+            variant: None,
             prompt: default_prompt(),
             layout: default_layout(),
             tmux: TmuxSection::default(),
+            legacy_theme: None,
         }
     }
 }
@@ -4570,7 +4797,10 @@ name = "my-project"
         assert_eq!(config.skills.include, vec!["flutter-development"]);
 
         // [customization] (parsed from legacy [appearance] via serde alias)
-        assert_eq!(config.customization.theme, Theme::GruvboxDark);
+        // full_toml has `theme = "gruvbox-dark"` (legacy concrete form) → parsed
+        // as ThemeFamily::Gruvbox with legacy_theme lock.
+        assert_eq!(config.customization.theme, ThemeFamily::Gruvbox);
+        assert_eq!(config.customization.legacy_theme, Some(Theme::GruvboxDark));
         assert_eq!(config.customization.mode, ThemeMode::Auto);
         assert_eq!(config.customization.prompt, StarshipPreset::Default);
         assert_eq!(
@@ -4824,7 +5054,9 @@ mode = "dark"
 prompt = "minimal"
 "#;
         let config = parse_toml(toml).unwrap();
-        assert_eq!(config.customization.theme, Theme::Dracula);
+        // "dracula" is both a family and a concrete name; family takes precedence.
+        assert_eq!(config.customization.theme, ThemeFamily::Dracula);
+        assert_eq!(config.customization.legacy_theme, None);
         assert_eq!(config.customization.mode, ThemeMode::Dark);
         assert_eq!(config.customization.prompt, StarshipPreset::Minimal);
     }
@@ -5412,38 +5644,80 @@ exclude = ["standup-context"]
 
     // -- Appearance ---------------------------------------------------------
 
+    /// Legacy concrete theme names must parse successfully: the family is
+    /// inferred from the concrete name and `legacy_theme` is populated.
     #[test]
-    fn appearance_all_themes() {
-        for (input, expected) in [
-            ("gruvbox-dark", Theme::GruvboxDark),
-            ("gruvbox-light", Theme::GruvboxLight),
-            ("catppuccin-mocha", Theme::CatppuccinMocha),
-            ("catppuccin-macchiato", Theme::CatppuccinMacchiato),
-            ("catppuccin-frappe", Theme::CatppuccinFrappe),
-            ("catppuccin-latte", Theme::CatppuccinLatte),
-            ("dracula", Theme::Dracula),
-            ("tokyo-night", Theme::TokyoNight),
-            ("tokyo-night-storm", Theme::TokyoNightStorm),
-            ("tokyo-night-day", Theme::TokyoNightDay),
-            ("nord", Theme::Nord),
-            ("rose-pine", Theme::RosePine),
-            ("rose-pine-moon", Theme::RosePineMoon),
-            ("rose-pine-dawn", Theme::RosePineDawn),
-            ("material", Theme::Material),
-            ("material-ocean", Theme::MaterialOcean),
-            ("material-palenight", Theme::MaterialPalenight),
-            ("material-lighter", Theme::MaterialLighter),
-            ("solarized-dark", Theme::SolarizedDark),
-            ("solarized-light", Theme::SolarizedLight),
-            ("github-dark", Theme::GithubDark),
-            ("github-light", Theme::GithubLight),
-            ("ayu-dark", Theme::AyuDark),
-            ("ayu-mirage", Theme::AyuMirage),
-            ("ayu-light", Theme::AyuLight),
-            ("night-owl", Theme::NightOwl),
-            ("night-owl-light", Theme::NightOwlLight),
-            ("moonlight", Theme::Moonlight),
-            ("projectious", Theme::Projectious),
+    fn appearance_legacy_concrete_names_parse_into_family_and_lock() {
+        for (input, expected_family, expected_legacy) in [
+            ("gruvbox-dark", ThemeFamily::Gruvbox, Theme::GruvboxDark),
+            ("gruvbox-light", ThemeFamily::Gruvbox, Theme::GruvboxLight),
+            (
+                "catppuccin-mocha",
+                ThemeFamily::Catppuccin,
+                Theme::CatppuccinMocha,
+            ),
+            (
+                "catppuccin-macchiato",
+                ThemeFamily::Catppuccin,
+                Theme::CatppuccinMacchiato,
+            ),
+            (
+                "catppuccin-frappe",
+                ThemeFamily::Catppuccin,
+                Theme::CatppuccinFrappe,
+            ),
+            (
+                "catppuccin-latte",
+                ThemeFamily::Catppuccin,
+                Theme::CatppuccinLatte,
+            ),
+            (
+                "tokyo-night-storm",
+                ThemeFamily::TokyoNight,
+                Theme::TokyoNightStorm,
+            ),
+            (
+                "tokyo-night-day",
+                ThemeFamily::TokyoNight,
+                Theme::TokyoNightDay,
+            ),
+            ("rose-pine-moon", ThemeFamily::RosePine, Theme::RosePineMoon),
+            ("rose-pine-dawn", ThemeFamily::RosePine, Theme::RosePineDawn),
+            (
+                "material-ocean",
+                ThemeFamily::Material,
+                Theme::MaterialOcean,
+            ),
+            (
+                "material-palenight",
+                ThemeFamily::Material,
+                Theme::MaterialPalenight,
+            ),
+            (
+                "material-lighter",
+                ThemeFamily::Material,
+                Theme::MaterialLighter,
+            ),
+            (
+                "solarized-dark",
+                ThemeFamily::Solarized,
+                Theme::SolarizedDark,
+            ),
+            (
+                "solarized-light",
+                ThemeFamily::Solarized,
+                Theme::SolarizedLight,
+            ),
+            ("github-dark", ThemeFamily::Github, Theme::GithubDark),
+            ("github-light", ThemeFamily::Github, Theme::GithubLight),
+            ("ayu-dark", ThemeFamily::Ayu, Theme::AyuDark),
+            ("ayu-mirage", ThemeFamily::Ayu, Theme::AyuMirage),
+            ("ayu-light", ThemeFamily::Ayu, Theme::AyuLight),
+            (
+                "night-owl-light",
+                ThemeFamily::NightOwl,
+                Theme::NightOwlLight,
+            ),
         ] {
             let toml = format!(
                 r#"
@@ -5458,12 +5732,66 @@ theme = "{input}"
 "#
             );
             let config = parse_toml(&toml).unwrap();
-            assert_eq!(config.customization.theme, expected);
+            assert_eq!(
+                config.customization.theme, expected_family,
+                "family for {input}"
+            );
+            assert_eq!(
+                config.customization.legacy_theme,
+                Some(expected_legacy),
+                "legacy_theme for {input}"
+            );
+        }
+    }
+
+    /// Family theme names (and solo themes that double as family names) parse
+    /// into the family form with no legacy_theme lock.
+    #[test]
+    fn appearance_family_names_parse_without_legacy_lock() {
+        for (input, expected_family) in [
+            ("ayu", ThemeFamily::Ayu),
+            ("catppuccin", ThemeFamily::Catppuccin),
+            ("dracula", ThemeFamily::Dracula),
+            ("github", ThemeFamily::Github),
+            ("gruvbox", ThemeFamily::Gruvbox),
+            // "material" is BOTH a family name and a concrete name
+            // (Theme::Material). Family check runs first → no legacy lock.
+            ("material", ThemeFamily::Material),
+            ("moonlight", ThemeFamily::Moonlight),
+            ("night-owl", ThemeFamily::NightOwl),
+            ("nord", ThemeFamily::Nord),
+            ("projectious", ThemeFamily::Projectious),
+            ("rose-pine", ThemeFamily::RosePine),
+            ("solarized", ThemeFamily::Solarized),
+            ("tokyo-night", ThemeFamily::TokyoNight),
+        ] {
+            let toml = format!(
+                r#"
+[aibox]
+version = "0.9.0"
+
+[container]
+name = "test"
+
+[appearance]
+theme = "{input}"
+"#
+            );
+            let config = parse_toml(&toml).unwrap();
+            assert_eq!(
+                config.customization.theme, expected_family,
+                "family for {input}"
+            );
+            assert_eq!(
+                config.customization.legacy_theme, None,
+                "no legacy lock for family name {input}"
+            );
         }
     }
 
     #[test]
     fn appearance_mode_resolves_concrete_theme() {
+        // Solo family (dracula): ignores mode, always returns Dracula.
         let toml = r#"
 [aibox]
 version = "0.9.0"
@@ -5476,10 +5804,11 @@ theme = "dracula"
 mode = "light"
 "#;
         let config = parse_toml(toml).unwrap();
-        assert_eq!(config.customization.theme, Theme::Dracula);
+        assert_eq!(config.customization.theme, ThemeFamily::Dracula);
         assert_eq!(config.customization.mode, ThemeMode::Light);
         assert_eq!(config.customization.resolved_theme(), Theme::Dracula);
 
+        // Legacy concrete name (catppuccin-latte) is locked — mode override does NOT flip it.
         let toml = r#"
 [aibox]
 version = "0.9.0"
@@ -5492,6 +5821,25 @@ theme = "catppuccin-latte"
 mode = "dark"
 "#;
         let config = parse_toml(toml).unwrap();
+        // Legacy lock: "catppuccin-latte" is preserved, NOT flipped to mocha.
+        assert_eq!(
+            config.customization.resolved_theme(),
+            Theme::CatppuccinLatte
+        );
+
+        // New family form with mode = "dark" → canonical dark variant.
+        let toml = r#"
+[aibox]
+version = "0.9.0"
+
+[container]
+name = "test"
+
+[customization]
+theme = "catppuccin"
+mode = "dark"
+"#;
+        let config = parse_toml(toml).unwrap();
         assert_eq!(
             config.customization.resolved_theme(),
             Theme::CatppuccinMocha
@@ -5501,7 +5849,7 @@ mode = "dark"
     #[test]
     fn appearance_auto_resolves_from_host_mode_when_theme_has_partner() {
         let mut config = test_config();
-        config.customization.theme = Theme::GruvboxDark;
+        config.customization.theme = ThemeFamily::Gruvbox;
         config.customization.mode = ThemeMode::Auto;
         assert_eq!(
             config
@@ -5520,13 +5868,125 @@ mode = "dark"
     #[test]
     fn appearance_auto_preserves_dark_only_themes_in_light_host_mode() {
         let mut config = test_config();
-        config.customization.theme = Theme::Nord;
+        // Nord is a solo family — always Nord regardless of mode.
+        config.customization.theme = ThemeFamily::Nord;
         config.customization.mode = ThemeMode::Auto;
         assert_eq!(
             config
                 .customization
                 .resolved_theme_for_host_mode(Some(ThemeMode::Light)),
             Theme::Nord
+        );
+    }
+
+    // -- New family-based resolution tests -----------------------------------
+
+    #[test]
+    fn resolved_theme_for_ayu_family_with_dark_mode_returns_ayu_dark() {
+        let mut config = test_config();
+        config.customization.theme = ThemeFamily::Ayu;
+        config.customization.mode = ThemeMode::Dark;
+        assert_eq!(config.customization.resolved_theme(), Theme::AyuDark);
+    }
+
+    #[test]
+    fn resolved_theme_for_ayu_family_with_light_mode_returns_ayu_light() {
+        let mut config = test_config();
+        config.customization.theme = ThemeFamily::Ayu;
+        config.customization.mode = ThemeMode::Light;
+        assert_eq!(config.customization.resolved_theme(), Theme::AyuLight);
+    }
+
+    #[test]
+    fn resolved_theme_for_ayu_with_variant_mirage_returns_ayu_mirage() {
+        let mut config = test_config();
+        config.customization.theme = ThemeFamily::Ayu;
+        config.customization.mode = ThemeMode::Dark;
+        config.customization.variant = Some("mirage".to_string());
+        assert_eq!(config.customization.resolved_theme(), Theme::AyuMirage);
+    }
+
+    #[test]
+    fn resolved_theme_for_solo_family_ignores_mode_and_variant() {
+        // Nord stays Nord regardless of mode and variant.
+        let mut config = test_config();
+        config.customization.theme = ThemeFamily::Nord;
+        config.customization.mode = ThemeMode::Light;
+        config.customization.variant = Some("anything".to_string());
+        assert_eq!(config.customization.resolved_theme(), Theme::Nord);
+
+        config.customization.theme = ThemeFamily::Dracula;
+        config.customization.mode = ThemeMode::Auto;
+        assert_eq!(config.customization.resolved_theme(), Theme::Dracula);
+    }
+
+    #[test]
+    fn legacy_concrete_theme_locks_resolved_output_against_mode_flip() {
+        // theme = "ayu-dark", mode = auto, host = light → MUST resolve AyuDark (locked).
+        let toml = r#"
+[aibox]
+version = "0.9.0"
+
+[container]
+name = "test"
+
+[customization]
+theme = "ayu-dark"
+mode = "auto"
+"#;
+        let config = parse_toml(toml).unwrap();
+        assert_eq!(
+            config
+                .customization
+                .resolved_theme_for_host_mode(Some(ThemeMode::Light)),
+            Theme::AyuDark,
+            "legacy lock must prevent auto-flip to AyuLight"
+        );
+    }
+
+    #[test]
+    fn legacy_concrete_theme_populates_legacy_theme_field_after_deserialize() {
+        let toml = r#"
+[aibox]
+version = "0.9.0"
+
+[container]
+name = "test"
+
+[customization]
+theme = "ayu-dark"
+"#;
+        let config = parse_toml(toml).unwrap();
+        assert_eq!(config.customization.theme, ThemeFamily::Ayu);
+        assert_eq!(config.customization.legacy_theme, Some(Theme::AyuDark));
+    }
+
+    #[test]
+    fn new_family_form_does_not_populate_legacy_theme_field() {
+        let toml = r#"
+[aibox]
+version = "0.9.0"
+
+[container]
+name = "test"
+
+[customization]
+theme = "ayu"
+"#;
+        let config = parse_toml(toml).unwrap();
+        assert_eq!(config.customization.theme, ThemeFamily::Ayu);
+        assert_eq!(config.customization.legacy_theme, None);
+    }
+
+    #[test]
+    fn auto_with_none_host_falls_back_to_dark() {
+        let mut config = test_config();
+        config.customization.theme = ThemeFamily::Gruvbox;
+        config.customization.mode = ThemeMode::Auto;
+        // None host mode → dark fallback (new behaviour; old code preserved selected theme as-is)
+        assert_eq!(
+            config.customization.resolved_theme_for_host_mode(None),
+            Theme::GruvboxDark
         );
     }
 

@@ -1,7 +1,7 @@
 use anyhow::{Context, Result, bail};
 use std::path::{Path, PathBuf};
 
-use crate::config::{AiboxConfig, Theme, ThemeMode};
+use crate::config::{AiboxConfig, ThemeFamily, ThemeMode};
 use crate::output;
 use crate::runtime::{ContainerState, Runtime};
 
@@ -12,7 +12,12 @@ fn toml_path(config_path: &Option<String>) -> PathBuf {
     }
 }
 
-fn update_theme_toml(path: &Path, mode: &ThemeMode, theme: Option<&Theme>) -> Result<bool> {
+fn update_theme_toml(
+    path: &Path,
+    mode: &ThemeMode,
+    theme: Option<&ThemeFamily>,
+    variant: Option<&str>,
+) -> Result<bool> {
     if !path.exists() {
         bail!("No aibox.toml found. Run 'aibox init' first.");
     }
@@ -43,6 +48,17 @@ fn update_theme_toml(path: &Path, mode: &ThemeMode, theme: Option<&Theme>) -> Re
     doc[table_name]["mode"] = toml_edit::value(mode.to_string());
     if let Some(theme) = theme {
         doc[table_name]["theme"] = toml_edit::value(theme.to_string());
+    }
+    match variant {
+        Some(v) => {
+            doc[table_name]["variant"] = toml_edit::value(v);
+        }
+        None => {
+            // Remove any existing variant key if no variant is requested.
+            if let Some(tbl) = doc[table_name].as_table_mut() {
+                tbl.remove("variant");
+            }
+        }
     }
 
     let after = doc.to_string();
@@ -91,15 +107,19 @@ fn restart_tmux_session(config: &AiboxConfig) -> Result<()> {
     Ok(())
 }
 
-/// Switch the global light/dark theme mode.
+/// Switch the global theme family and/or mode.
 pub fn cmd_theme(
     config_path: &Option<String>,
     mode: ThemeMode,
-    theme: Option<Theme>,
+    theme: Option<ThemeFamily>,
     restart_session: bool,
 ) -> Result<()> {
     let path = toml_path(config_path);
-    let changed = update_theme_toml(&path, &mode, theme.as_ref())?;
+    // When only switching mode (theme is None), preserve the existing variant.
+    // When switching to a new family, clear the variant (caller can set it
+    // explicitly via a follow-up if needed).
+    let variant: Option<&str> = None;
+    let changed = update_theme_toml(&path, &mode, theme.as_ref(), variant)?;
     if changed {
         output::ok("Updated theme settings in aibox.toml");
     } else {
@@ -123,7 +143,7 @@ pub fn cmd_theme(
         .resolved_theme_for_host_mode(host_mode.clone());
     let mode_note = match (&config.customization.mode, host_mode) {
         (ThemeMode::Auto, Some(mode)) => format!("auto -> host {mode}"),
-        (ThemeMode::Auto, None) => "auto -> selected theme".to_string(),
+        (ThemeMode::Auto, None) => "auto -> dark (fallback)".to_string(),
         (mode, _) => mode.to_string(),
     };
     output::info(&format!(
@@ -145,6 +165,7 @@ pub fn cmd_theme(
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::config::{Theme, ThemeFamily};
 
     #[test]
     fn update_theme_toml_adds_mode_without_touching_theme() {
@@ -165,7 +186,7 @@ theme = "dracula"
         )
         .unwrap();
 
-        let changed = update_theme_toml(&path, &ThemeMode::Light, None).unwrap();
+        let changed = update_theme_toml(&path, &ThemeMode::Light, None, None).unwrap();
         assert!(changed);
 
         let updated = std::fs::read_to_string(&path).unwrap();
@@ -174,13 +195,15 @@ theme = "dracula"
         assert!(updated.contains(r#"mode = "light""#));
 
         let config: AiboxConfig = toml::from_str(&updated).unwrap();
-        assert_eq!(config.customization.theme, Theme::Dracula);
+        // "dracula" is a legacy concrete name — deserialized as ThemeFamily::Dracula.
+        assert_eq!(config.customization.theme, ThemeFamily::Dracula);
         assert_eq!(config.customization.mode, ThemeMode::Light);
+        // Solo family ignores mode → always Dracula.
         assert_eq!(config.customization.resolved_theme(), Theme::Dracula);
     }
 
     #[test]
-    fn update_theme_toml_can_set_concrete_theme() {
+    fn update_theme_toml_can_set_family_theme() {
         let dir = tempfile::tempdir().unwrap();
         let path = dir.path().join("aibox.toml");
         std::fs::write(
@@ -194,7 +217,13 @@ name = "test"
         )
         .unwrap();
 
-        let changed = update_theme_toml(&path, &ThemeMode::Dark, Some(&Theme::TokyoNight)).unwrap();
+        let changed = update_theme_toml(
+            &path,
+            &ThemeMode::Dark,
+            Some(&ThemeFamily::TokyoNight),
+            None,
+        )
+        .unwrap();
         assert!(changed);
 
         let updated = std::fs::read_to_string(&path).unwrap();

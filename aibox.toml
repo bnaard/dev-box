@@ -475,12 +475,12 @@ schema_version = "1.0.0"      # Context schema version — updated automatically
 # - ayu-dark, ayu-mirage, ayu-light, night-owl, night-owl-light, moonlight
 # - projectious (aibox extension)
 [customization]
-theme  = "ayu-dark"
+theme  = "ayu"
 # Global mode overlay. `auto` follows the host OS appearance when detectable.
 # Paired families follow light/dark variants; genuinely dark-only themes
 # (dracula, nord, moonlight, projectious) keep their selected concrete theme.
 # Options: auto | light | dark
-mode   = "auto"
+mode   = "dark"
 # Starship prompt preset.
 # Options: default | plain | minimal | nerd-font | pastel | powerline-pastel | bracketed | arrow
 # ASCII sketches:

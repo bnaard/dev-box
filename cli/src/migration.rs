@@ -773,32 +773,72 @@ pub fn standardize_aibox_toml_file(path: &Path) -> Result<()> {
     Ok(())
 }
 
+/// Preserve the theme family (and variant) from the raw TOML string into the
+/// loaded config, overriding what serde deserialized. This guards against any
+/// edge case where the full AiboxConfig deserialization path might drop the
+/// explicit user choice (e.g. when only one of [appearance]/[customization] is
+/// present and serde aliases behave unexpectedly).
+///
+/// With the custom `CustomizationSection` deserializer this function is mostly
+/// redundant, but it is kept as a belt-and-suspenders guard.
 fn preserve_explicit_customization_theme(
     raw: &str,
     config: &mut crate::config::AiboxConfig,
 ) -> Result<()> {
-    if let Some(theme) = explicit_customization_theme(raw)? {
-        config.customization.theme = theme;
+    if let Some((family, legacy, variant)) = explicit_customization_theme_parts(raw)? {
+        config.customization.theme = family;
+        config.customization.legacy_theme = legacy;
+        if variant.is_some() {
+            config.customization.variant = variant;
+        }
     }
     Ok(())
 }
 
-fn explicit_customization_theme(raw: &str) -> Result<Option<crate::config::Theme>> {
+/// Resolved customization theme parts: (family, legacy_concrete, variant_string).
+type ThemeParts = (
+    crate::config::ThemeFamily,
+    Option<crate::config::Theme>,
+    Option<String>,
+);
+
+/// Parse the raw theme string from `[customization]` or `[appearance]` in the
+/// TOML document and return `(ThemeFamily, Option<Theme>, Option<String>)`.
+///
+/// Returns `None` if neither table has a `theme` key.
+fn explicit_customization_theme_parts(raw: &str) -> Result<Option<ThemeParts>> {
     let doc: toml_edit::DocumentMut = raw
         .parse()
         .with_context(|| "Failed to parse aibox.toml with toml_edit")?;
 
     for table in ["customization", "appearance"] {
-        let Some(theme) = doc
+        let Some(theme_str) = doc
             .get(table)
             .and_then(|item| item.get("theme"))
             .and_then(|item| item.as_str())
         else {
             continue;
         };
-        let parsed = crate::config::Theme::from_str(theme, true)
-            .map_err(|err| anyhow::anyhow!("invalid theme in [{table}].theme: {err}"))?;
-        return Ok(Some(parsed));
+
+        // Parse explicit variant field, if present.
+        let explicit_variant = doc
+            .get(table)
+            .and_then(|item| item.get("variant"))
+            .and_then(|item| item.as_str())
+            .map(|s| s.to_string());
+
+        if let Ok(family) = crate::config::ThemeFamily::from_str(theme_str, true) {
+            return Ok(Some((family, None, explicit_variant)));
+        } else if let Ok(concrete) = crate::config::Theme::from_str(theme_str, true) {
+            let family = crate::config::family_of(&concrete);
+            let variant = crate::config::variant_name_of(&concrete).map(|s| s.to_string());
+            return Ok(Some((family, Some(concrete), variant.or(explicit_variant))));
+        } else {
+            return Err(anyhow::anyhow!(
+                "invalid theme in [{table}].theme: \"{}\"",
+                theme_str
+            ));
+        }
     }
 
     Ok(None)

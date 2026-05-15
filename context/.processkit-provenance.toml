@@ -14,4 +14,4 @@ schema_count = 18
 process_count = 0
 state_machine_count = 7
 release_asset_sha256 = "4f22fb5e1669c61439a23a15d0756879c6547f8b0c00200dccc0eedb2c6392d8"
-install_hash = "v2:c14009001a2651b9b72cce97bb9ace2ad9232ffa48cdc05ee45652282947d031"
+install_hash = "v2:336f54d065bcf46d14ebbb25eebd9943c10c381487b2e8d7c012d73a04aff545"

@@ -952,7 +952,7 @@ pub fn lnav_theme(theme: &Theme) -> &'static str {
 
 /// fzf `--color` clause string (without the leading `--color=`).
 pub fn fzf_color_spec(theme: &Theme) -> String {
-    let (bg, fg, accent, green, _red, yellow, _orange, _cyan, muted) = theme_palette(theme);
+    let (bg, fg, accent, green, _red, _yellow, _orange, _cyan, muted) = theme_palette(theme);
     // Reuse the yazi surface for the selected-row background so hover state
     // matches the file manager.
     let surface = yazi_surface_color(theme);
@@ -960,8 +960,7 @@ pub fn fzf_color_spec(theme: &Theme) -> String {
         "bg+:{surface},bg:{bg},fg:{fg},fg+:{fg},hl:{accent},hl+:{accent},\
 pointer:{accent},marker:{green},spinner:{accent},info:{muted},header:{muted},\
 border:{muted},prompt:{accent},query:{fg},disabled:{muted},gutter:{bg},\
-preview-bg:{bg},preview-fg:{fg},separator:{muted},label:{accent},\
-nth:{yellow}"
+preview-bg:{bg},preview-fg:{fg},separator:{muted},label:{accent}"
     )
 }
 
@@ -1390,6 +1389,15 @@ mod tests {
                 "theme {theme}: powerkit theme should embed accent {accent}"
             );
         }
+    }
+
+    #[test]
+    fn fzf_color_spec_avoids_nth_color() {
+        let spec = fzf_color_spec(&Theme::Nord);
+        assert!(
+            !spec.contains("nth:"),
+            "fzf 0.72 accepts only ANSI attributes for nth, not colors:\n{spec}"
+        );
     }
 
     /// Preset-specific format expectations. Catches regressions where a preset

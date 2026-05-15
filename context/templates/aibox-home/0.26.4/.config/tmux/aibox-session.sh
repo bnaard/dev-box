@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-layout="${1:-${AIBOX_TMUX_LAYOUT:-ai}}"
+layout="${1:-${AIBOX_TMUX_LAYOUT:-cowork}}"
 session="${2:-${AIBOX_TMUX_SESSION:-aibox}}"
 socket="${AIBOX_TMUX_SOCKET:-$HOME/.tmux/aibox.sock}"
 

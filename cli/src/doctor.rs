@@ -1,8 +1,6 @@
 use anyhow::Result;
 use std::collections::BTreeSet;
-use std::fs;
 use std::path::{Path, PathBuf};
-use std::process::{Command, Stdio};
 
 use crate::config::{
     AiHarness, AiboxConfig, CONTAINER_WORKSPACE_DIR, McpGatewayMode, PROCESSKIT_VERSION_UNSET,
@@ -122,8 +120,8 @@ pub fn cmd_doctor(config_path: &Option<String>) -> Result<()> {
         // Check mount source paths match config (AI providers, audio)
         check_mount_sources(&root, &root_label, &config, &mut diag);
 
-        // When doctor runs inside the container, directly probe the mounted
-        // runtime-home dirs for writes.
+        // Host doctor validates runtime-home mount declarations through
+        // runtime inspect later. Actual write probes belong in pk-doctor.
         check_container_home_mount_writability(&config, &mut diag);
 
         // Check standard runtime theme/config files against the current
@@ -448,101 +446,11 @@ fn lazygit_effective_enabled(config: &AiboxConfig) -> bool {
         .unwrap_or(true)
 }
 
-fn check_runtime_resource_pressure(config: &AiboxConfig, diag: &mut DiagResult) {
-    if !is_running_inside_aibox_container() {
-        output::ok(
-            "Runtime resource pressure: skipped outside the aibox container \
-             (run doctor inside the workspace container for cgroup/procfs counters)",
-        );
-        return;
-    }
-
-    let diagnostics = crate::runtime_resources::read_runtime_resource_diagnostics();
-    let thresholds = &config.container.resource_thresholds;
-
-    if let Some(memory_current) = diagnostics.memory_current_bytes {
-        if let Some(limit_mib) = thresholds.memory_mib_warn {
-            let limit_bytes = limit_mib.saturating_mul(1024 * 1024);
-            if memory_current > limit_bytes {
-                output::warn(&format!(
-                    "Runtime memory usage is {} above configured warning threshold {}",
-                    crate::runtime_resources::format_bytes(memory_current),
-                    crate::runtime_resources::format_bytes(limit_bytes)
-                ));
-                diag.warnings += 1;
-            } else {
-                output::ok(&format!(
-                    "Runtime memory usage: {}",
-                    crate::runtime_resources::format_bytes(memory_current)
-                ));
-            }
-        } else {
-            output::ok(&format!(
-                "Runtime memory usage: {}",
-                crate::runtime_resources::format_bytes(memory_current)
-            ));
-        }
-    } else {
-        output::warn("Runtime memory usage unavailable (missing cgroup memory.current)");
-        diag.warnings += 1;
-    }
-
-    if let Some(max) = diagnostics.memory_max {
-        output::ok(&format!(
-            "Runtime memory limit: {}",
-            crate::runtime_resources::format_memory_max(max)
-        ));
-    }
-
-    if let Some(oom_kill_count) = diagnostics.oom_kill_count {
-        if thresholds
-            .oom_kill_warn
-            .is_some_and(|threshold| oom_kill_count > threshold)
-        {
-            output::warn(&format!(
-                "Runtime cgroup reports {} OOM kill(s)",
-                oom_kill_count
-            ));
-            diag.warnings += 1;
-        } else {
-            output::ok(&format!("Runtime OOM kills: {}", oom_kill_count));
-        }
-    } else {
-        output::warn("Runtime OOM counter unavailable (missing cgroup memory.events)");
-        diag.warnings += 1;
-    }
-
-    if let Some(threshold) = thresholds.process_count_warn
-        && threshold > 0
-        && diagnostics.total_process_count > threshold
-    {
-        output::warn(&format!(
-            "Runtime process count is {} above warning threshold {}",
-            diagnostics.total_process_count, threshold
-        ));
-        diag.warnings += 1;
-    } else {
-        output::ok(&format!(
-            "Runtime process count: {}",
-            diagnostics.total_process_count
-        ));
-    }
-
-    if let Some(threshold) = thresholds.processkit_mcp_python_warn
-        && threshold > 0
-        && diagnostics.processkit_mcp_python_process_count > threshold
-    {
-        output::warn(&format!(
-            "processkit MCP Python process count is {} above warning threshold {}",
-            diagnostics.processkit_mcp_python_process_count, threshold
-        ));
-        diag.warnings += 1;
-    } else {
-        output::ok(&format!(
-            "processkit MCP Python processes: {}",
-            diagnostics.processkit_mcp_python_process_count
-        ));
-    }
+fn check_runtime_resource_pressure(_config: &AiboxConfig, _diag: &mut DiagResult) {
+    output::ok(
+        "Runtime resource pressure: skipped by host doctor \
+         (container-local cgroup/procfs probes belong in pk-doctor)",
+    );
 }
 
 /// Check that hot skills still belong to the current processkit template.
@@ -979,11 +887,11 @@ fn check_processkit_mcp_gateway(config: &AiboxConfig, diag: &mut DiagResult) {
                     "Codex MCP config uses single-process processkit MCP fallback \
                      (reduced startup latency)",
                 );
-                check_codex_hidden_apps_mcp_state(diag);
+                check_codex_hidden_apps_mcp_state();
             }
             Ok(_) => {
                 output::ok("Codex MCP config points at processkit-gateway");
-                check_codex_hidden_apps_mcp_state(diag);
+                check_codex_hidden_apps_mcp_state();
             }
             Err(_) => {
                 output::warn(
@@ -995,20 +903,19 @@ fn check_processkit_mcp_gateway(config: &AiboxConfig, diag: &mut DiagResult) {
     }
 }
 
-fn check_codex_hidden_apps_mcp_state(diag: &mut DiagResult) {
+fn check_codex_hidden_apps_mcp_state() {
     let codex_home = codex_home_dir();
     let apps_cache = codex_home.join("cache").join("codex_apps_tools");
     if !dir_has_entries(&apps_cache) {
         return;
     }
 
-    output::warn(
+    output::info(
         "Codex hidden app-tool cache detected at cache/codex_apps_tools. \
          Some Codex versions eagerly start a hidden `codex_apps` MCP server for subagents; \
          if subagents hang on MCP startup, avoid delegation or clear that Codex app cache \
          until the upstream Codex behavior is fixed.",
     );
-    diag.warnings += 1;
 }
 
 fn check_claude_code_runtime_drift(config: &AiboxConfig, diag: &mut DiagResult) {
@@ -1195,7 +1102,7 @@ fn is_non_container_processkit_script_path(arg: &str) -> bool {
         && !arg.starts_with(&format!("{}/", CONTAINER_WORKSPACE_DIR))
 }
 
-fn check_processkit_semantic_capability(diag: &mut DiagResult) {
+fn check_processkit_semantic_capability(_diag: &mut DiagResult) {
     let scripts = [
         Path::new("context/skills/processkit/index-management/mcp/server.py"),
         Path::new("context/skills/processkit/processkit-gateway/mcp/server.py"),
@@ -1209,56 +1116,10 @@ fn check_processkit_semantic_capability(diag: &mut DiagResult) {
         return;
     }
 
-    if !is_running_inside_aibox_container() {
-        output::info(
-            "processkit semantic search probe skipped outside the aibox container; run doctor inside the workspace container to verify sqlite-vec in the runtime uv cache",
-        );
-        return;
-    }
-
-    let uv = find_command_on_path(&["uv"]);
-    let Some(uv) = uv else {
-        output::warn(
-            "processkit semantic search: installed MCP scripts declare sqlite-vec, but `uv` is not available to resolve PEP 723 dependencies",
-        );
-        diag.warnings += 1;
-        return;
-    };
-
-    let status = Command::new(uv)
-        .env("UV_CACHE_DIR", "/tmp/aibox/uv-cache")
-        .stdout(Stdio::null())
-        .stderr(Stdio::null())
-        .args([
-            "run",
-            "--offline",
-            "--no-project",
-            "--with",
-            "sqlite-vec>=0.1.0",
-            "python",
-            "-c",
-            "import sqlite3, sqlite_vec; db=sqlite3.connect(':memory:'); db.enable_load_extension(True); sqlite_vec.load(db); print('ok')",
-        ])
-        .status();
-
-    match status {
-        Ok(status) if status.success() => {
-            output::ok("processkit semantic search: sqlite-vec is available to uv");
-        }
-        Ok(_) => {
-            output::warn(
-                "processkit semantic search degraded: sqlite-vec is declared but not available in the current uv cache; MCP servers will fall back to FTS until uv can install sqlite-vec",
-            );
-            diag.warnings += 1;
-        }
-        Err(err) => {
-            output::warn(&format!(
-                "processkit semantic search: sqlite-vec probe could not run: {}",
-                err
-            ));
-            diag.warnings += 1;
-        }
-    }
+    output::info(
+        "processkit semantic search runtime probe skipped by host doctor; \
+         sqlite-vec availability belongs in pk-doctor",
+    );
 }
 
 fn check_provider_backend_metadata(config: &AiboxConfig, diag: &mut DiagResult) {
@@ -1351,52 +1212,10 @@ fn check_codex_sandbox_environment(config: &AiboxConfig, diag: &mut DiagResult) 
     }
 
     output::info("Checking Codex sandbox environment...");
-
-    if !is_running_inside_aibox_container() {
-        output::ok(
-            "codex: sandbox probe skipped outside the aibox container \
-             (bubblewrap is validated inside the generated workspace runtime)",
-        );
-        return;
-    }
-
-    let bwrap = find_command_on_path(&["bwrap", "bubblewrap"]);
-    let Some(bwrap) = bwrap else {
-        output::warn(
-            "codex: bubblewrap/bwrap not found on PATH. Codex sandboxed shell commands may fail; run `aibox apply` and rebuild the container.",
-        );
-        diag.warnings += 1;
-        return;
-    };
-
-    output::ok(&format!(
-        "codex: bubblewrap helper available as `{}`",
-        bwrap
-    ));
-
-    if pid1_is_sleep_infinity() {
-        output::warn(
-            "codex: current container PID 1 is `sleep infinity`; skipping active bubblewrap namespace probe. Run `aibox apply` and recreate the container so Compose init can reap sandbox helpers, then rerun doctor.",
-        );
-        diag.warnings += 1;
-    } else {
-        match run_bwrap_smoke_probe(&bwrap) {
-            Ok(true) => output::ok("codex: bubblewrap user-namespace smoke probe succeeded"),
-            Ok(false) => {
-                output::warn(
-                    "codex: bubblewrap user-namespace smoke probe failed. Ordinary sandboxed file reads may require escalation until the container runtime allows unprivileged user namespaces and seccomp=unconfined is active.",
-                );
-                diag.warnings += 1;
-            }
-            Err(err) => {
-                output::warn(&format!(
-                    "codex: bubblewrap user-namespace smoke probe could not run: {}",
-                    err
-                ));
-                diag.warnings += 1;
-            }
-        }
-    }
+    output::ok(
+        "codex: runtime bubblewrap probe skipped by host doctor \
+         (container-local sandbox health belongs in pk-doctor)",
+    );
 
     for path in [
         crate::config::COMPOSE_FILE,
@@ -1444,36 +1263,14 @@ fn check_codex_sandbox_environment(config: &AiboxConfig, diag: &mut DiagResult) 
     }
 }
 
-fn find_command_on_path(candidates: &[&str]) -> Option<String> {
-    candidates
-        .iter()
-        .find(|candidate| {
-            Command::new("sh")
-                .args(["-c", &format!("command -v {} >/dev/null 2>&1", candidate)])
-                .status()
-                .map(|status| status.success())
-                .unwrap_or(false)
-        })
-        .map(|candidate| (*candidate).to_string())
-}
-
-/// BR-LOG-PANEL (v0.25.6): warn if `lnav` is not on PATH. The `Prefix L`
-/// log viewer helper defaults to jq + less and only needs lnav for the
-/// optional structured mode, so this is a warning rather than an error.
-fn check_lnav_installed(diag: &mut DiagResult) {
-    if find_command_on_path(&["lnav"]).is_some() {
-        output::ok("lnav: installed (Prefix L opens the structured log popup)");
-    } else if !is_running_inside_aibox_container() {
-        output::info(
-            "lnav check skipped outside the aibox container; the container image owns the Prefix L structured log viewer dependency",
-        );
-    } else {
-        output::warn(
-            "lnav not found on PATH — Prefix L log popup will fall back to less. \
-             Rebuild the container image to install it (added to base-debian in v0.25.6).",
-        );
-        diag.warnings += 1;
-    }
+/// BR-LOG-PANEL (v0.25.6): the Prefix L dependency lives in the runtime
+/// image. Host doctor does not inspect container-local PATH; pk-doctor owns
+/// that runtime probe.
+fn check_lnav_installed(_diag: &mut DiagResult) {
+    output::info(
+        "lnav runtime dependency check skipped by host doctor \
+         (container-local PATH probes belong in pk-doctor)",
+    );
 }
 
 // ---------------------------------------------------------------------------
@@ -1504,10 +1301,9 @@ fn check_tmux_conf_drift_signature(config: &AiboxConfig, diag: &mut DiagResult) 
     }
 }
 
-/// When extended/PowerKit status mode is selected, ensure the PowerKit
-/// plugin tree exists either in the host's managed plugin dir or baked
-/// into the image. Missing plugin tree means the status row silently
-/// fails to render — exactly the symptom DEC-1515 was reacting to.
+/// When extended/PowerKit status mode is selected, host doctor verifies the
+/// generated host projection. The default projection loads PowerKit from the
+/// container image; the image-local filesystem is a pk-doctor/runtime probe.
 fn check_powerkit_plugin_tree(config: &AiboxConfig, diag: &mut DiagResult) {
     use crate::config::TmuxStatusMode;
     if !matches!(
@@ -1519,27 +1315,18 @@ fn check_powerkit_plugin_tree(config: &AiboxConfig, diag: &mut DiagResult) {
     let host = config
         .host_root_dir()
         .join(".tmux/plugins/tmux-powerkit/tmux-powerkit.tmux");
-    let in_image =
-        Path::new("/usr/local/share/aibox/tmux/plugins/tmux-powerkit/tmux-powerkit.tmux");
-    if host.exists() || in_image.exists() {
+    if host.exists() {
         output::ok("PowerKit plugin tree present");
-    } else if !is_running_inside_aibox_container() {
+    } else if generated_tmux_conf_uses_image_powerkit(config) {
+        output::ok(
+            "PowerKit host plugin mirror not required; generated tmux config loads the image-owned plugin path",
+        );
+    } else {
         output::warn(&format!(
-            "PowerKit host plugin mirror missing at {}. Generated tmux config loads \
-             PowerKit from the container image path; run `aibox doctor` inside the \
-             workspace container to verify the image copy, or rebuild if the status \
-             line is blank.",
-            host.display(),
+            "PowerKit host plugin mirror missing at {} and generated tmux config does not reference the image-owned plugin path. Run `aibox apply` to regenerate tmux config.",
+            host.display()
         ));
         diag.warnings += 1;
-    } else {
-        output::error(&format!(
-            "PowerKit plugin tree missing: neither {} nor {} exist. \
-             Rebuild the container image and run `aibox apply`.",
-            host.display(),
-            in_image.display(),
-        ));
-        diag.errors += 1;
     }
 }
 
@@ -1565,22 +1352,18 @@ fn check_powerkit_status_plugins(config: &AiboxConfig, diag: &mut DiagResult) {
         return;
     }
 
-    // Resolve the PowerKit plugin scripts directory: prefer the host-root
-    // installation, fall back to the in-image path.
+    // Resolve only the host-root installation. Image-local script presence is
+    // a runtime/pk-doctor check; host doctor only verifies that generated tmux
+    // config points at the image-owned tree.
     let host_plugins_dir = config
         .host_root_dir()
         .join(".tmux/plugins/tmux-powerkit/src/plugins");
-    let image_plugins_dir =
-        std::path::PathBuf::from("/usr/local/share/aibox/tmux/plugins/tmux-powerkit/src/plugins");
-    let plugins_dir = if host_plugins_dir.exists() {
-        host_plugins_dir
-    } else {
-        image_plugins_dir
-    };
-
-    if !plugins_dir.exists() {
-        // PowerKit tree itself is missing — check_powerkit_plugin_tree() already
-        // reports this; do not double-count.
+    if !host_plugins_dir.exists() {
+        if generated_tmux_conf_uses_image_powerkit(config) {
+            output::info(
+                "PowerKit status plugin script check skipped by host doctor; generated tmux config loads image-owned scripts",
+            );
+        }
         return;
     }
 
@@ -1599,7 +1382,7 @@ fn check_powerkit_status_plugins(config: &AiboxConfig, diag: &mut DiagResult) {
 
     let mut missing = Vec::new();
     for name in &required {
-        let script = plugins_dir.join(format!("{name}.sh"));
+        let script = host_plugins_dir.join(format!("{name}.sh"));
         if !script.exists() {
             missing.push(name);
         }
@@ -1612,13 +1395,22 @@ fn check_powerkit_status_plugins(config: &AiboxConfig, diag: &mut DiagResult) {
             output::warn(&format!(
                 "[LINT-POWERKIT-STATUS-PLUGINS] Required PowerKit plugin script \
                  missing: {name}.sh (expected under {}). \
-                 Rebuild the container image to install it; the segment will \
-                 render blank until then.",
-                plugins_dir.display()
+                 Run `aibox apply` to regenerate the host plugin mirror or use \
+                 the image-owned PowerKit path.",
+                host_plugins_dir.display()
             ));
             diag.warnings += 1;
         }
     }
+}
+
+fn generated_tmux_conf_uses_image_powerkit(config: &AiboxConfig) -> bool {
+    let tmux_conf = config.host_root_dir().join(".config/tmux/tmux.conf");
+    std::fs::read_to_string(tmux_conf)
+        .map(|body| {
+            body.contains("/usr/local/share/aibox/tmux/plugins/tmux-powerkit/tmux-powerkit.tmux")
+        })
+        .unwrap_or(false)
 }
 
 /// Scan for legacy multiplexer artifacts under the host root. Variant 1
@@ -1682,13 +1474,7 @@ fn check_runtime_startup_hygiene(config: &AiboxConfig, diag: &mut DiagResult) {
     }
 }
 
-fn run_bwrap_smoke_probe(binary: &str) -> Result<bool> {
-    let status = Command::new(binary)
-        .args(bwrap_smoke_probe_args())
-        .status()?;
-    Ok(status.success())
-}
-
+#[cfg(test)]
 fn bwrap_smoke_probe_args() -> [&'static str; 13] {
     [
         "--unshare-user",
@@ -1705,26 +1491,6 @@ fn bwrap_smoke_probe_args() -> [&'static str; 13] {
         "/proc",
         "/bin/true",
     ]
-}
-
-fn pid1_is_sleep_infinity() -> bool {
-    let comm = std::fs::read_to_string("/proc/1/comm")
-        .map(|value| value.trim().to_string())
-        .unwrap_or_default();
-    if comm != "sleep" {
-        return false;
-    }
-
-    std::fs::read("/proc/1/cmdline")
-        .map(|bytes| {
-            let cmdline = bytes
-                .split(|byte| *byte == b'\0')
-                .filter(|part| !part.is_empty())
-                .map(|part| String::from_utf8_lossy(part).to_string())
-                .collect::<Vec<_>>();
-            cmdline.len() == 2 && cmdline[0] == "sleep" && cmdline[1] == "infinity"
-        })
-        .unwrap_or(false)
 }
 
 #[derive(Debug, Default, PartialEq, Eq)]
@@ -1855,68 +1621,10 @@ fn check_mount_sources(root: &Path, root_label: &str, config: &AiboxConfig, diag
     }
 }
 
-fn check_container_home_mount_writability(config: &AiboxConfig, diag: &mut DiagResult) {
-    if std::env::var_os("CODEX_CI").is_some()
-        || std::env::var_os("CODEX_SANDBOX_NETWORK_DISABLED").is_some()
-    {
-        output::info(
-            "Container home write-probe skipped inside the Codex sandbox; use runtime mount inspection or run doctor in a normal shell to verify writable home mounts",
-        );
-        return;
-    }
-
-    let container_home = PathBuf::from(config.container_home());
-    if !container_home.is_dir() {
-        return;
-    }
-
-    let mut dirs: Vec<String> = crate::runtime_home::writable_runtime_home_destinations(config)
-        .into_iter()
-        .filter_map(|destination| {
-            destination
-                .strip_prefix(&format!("{}/", config.container_home()))
-                .map(|rel| rel.to_string())
-        })
-        .collect();
-    dirs.extend(
-        crate::runtime_home::legacy_runtime_home_destinations(config)
-            .into_iter()
-            .filter_map(|destination| {
-                destination
-                    .strip_prefix(&format!("{}/", config.container_home()))
-                    .map(|rel| rel.to_string())
-            }),
+fn check_container_home_mount_writability(_config: &AiboxConfig, _diag: &mut DiagResult) {
+    output::info(
+        "Container home write-probe skipped by host doctor; mount declarations are checked through runtime inspect and write probes belong in pk-doctor",
     );
-    dirs.sort();
-    dirs.dedup();
-
-    let mut checked = 0usize;
-    for rel in dirs {
-        let dir = container_home.join(&rel);
-        if !dir.is_dir() {
-            continue;
-        }
-        checked += 1;
-        let probe = dir.join(format!(".aibox-doctor-write-probe-{}", std::process::id()));
-        match fs::write(&probe, b"probe").and_then(|_| fs::remove_file(&probe)) {
-            Ok(()) => output::ok(&format!(
-                "{} is writable in the active container",
-                dir.display()
-            )),
-            Err(err) => {
-                output::error(&format!(
-                    "{} is not writable in the active container: {}",
-                    dir.display(),
-                    err
-                ));
-                diag.errors += 1;
-            }
-        }
-    }
-
-    if checked == 0 {
-        output::info("Container home mount writability check skipped (no mounted runtime dirs)");
-    }
 }
 
 fn check_runtime_home_mount_modes(runtime: &Runtime, config: &AiboxConfig, diag: &mut DiagResult) {
@@ -2219,10 +1927,6 @@ fn expected_container_image_version(config: &AiboxConfig) -> Option<String> {
         .filter(|version| !version.is_empty())
 }
 
-fn is_running_inside_aibox_container() -> bool {
-    Path::new("/etc/aibox-version").is_file()
-}
-
 /// Warn if `aibox.lock [aibox].cli_version` is out of step with the
 /// running CLI in a way the user should act on. v0.25.6 BR-DOCTOR-GAPS:
 /// upgraded from string-equality to semver-aware comparison so a
@@ -2420,6 +2124,64 @@ args = ["run", "/workspace/context/skills/processkit/processkit-gateway/mcp/serv
 "#;
 
         assert!(!codex_config_has_non_container_processkit_script_path(body));
+    }
+
+    fn powerkit_test_config() -> AiboxConfig {
+        AiboxConfig::from_str(
+            r#"
+[aibox]
+version = "0.25.6"
+
+[container]
+name = "doctor-powerkit"
+
+[customization.tmux.status]
+mode = "extended"
+"#,
+        )
+        .expect("test config parses")
+    }
+
+    #[test]
+    #[serial_test::serial]
+    fn powerkit_image_owned_projection_does_not_require_host_mirror() {
+        let temp = tempfile::tempdir().unwrap();
+        fs::create_dir_all(temp.path().join(".config/tmux")).unwrap();
+        fs::write(
+            temp.path().join(".config/tmux/tmux.conf"),
+            "if-shell '[ -f /usr/local/share/aibox/tmux/plugins/tmux-powerkit/tmux-powerkit.tmux ]' 'run-shell /usr/local/share/aibox/tmux/plugins/tmux-powerkit/tmux-powerkit.tmux'\n",
+        )
+        .unwrap();
+
+        crate::config::set_test_host_root(Some(temp.path().to_path_buf()));
+        let cfg = powerkit_test_config();
+        let mut diag = DiagResult::new();
+        check_powerkit_plugin_tree(&cfg, &mut diag);
+        check_powerkit_status_plugins(&cfg, &mut diag);
+        crate::config::set_test_host_root(None);
+
+        assert_eq!(diag.warnings, 0);
+        assert_eq!(diag.errors, 0);
+    }
+
+    #[test]
+    fn container_home_write_probe_is_not_a_host_doctor_warning() {
+        let cfg = AiboxConfig::from_str(
+            r#"
+[aibox]
+version = "0.25.6"
+
+[container]
+name = "doctor-container-home"
+"#,
+        )
+        .expect("test config parses");
+        let mut diag = DiagResult::new();
+
+        check_container_home_mount_writability(&cfg, &mut diag);
+
+        assert_eq!(diag.warnings, 0);
+        assert_eq!(diag.errors, 0);
     }
 
     #[test]

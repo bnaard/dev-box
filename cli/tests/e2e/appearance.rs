@@ -181,7 +181,7 @@ fn init_seeds_themed_files_at_expected_paths() {
 #[test]
 fn theme_change_auto_applies_untouched_runtime_files() {
     let dir = tempfile::tempdir().unwrap();
-    init_with_appearance(dir.path(), "gruvbox-dark", "default");
+    init_with_appearance(dir.path(), "gruvbox", "default");
 
     let aibox_home = dir.path().join(".aibox-home");
 
@@ -243,7 +243,7 @@ fn theme_change_auto_applies_untouched_runtime_files() {
 #[test]
 fn yazi_keymap_includes_edit_in_pane_binding() {
     let dir = tempfile::tempdir().unwrap();
-    init_with_appearance(dir.path(), "gruvbox-dark", "default");
+    init_with_appearance(dir.path(), "gruvbox", "default");
 
     let keymap =
         fs::read_to_string(dir.path().join(".aibox-home/.config/yazi/keymap.toml")).unwrap();
@@ -269,7 +269,7 @@ fn yazi_keymap_includes_edit_in_pane_binding() {
 #[test]
 fn prompt_pastel_powerline_alias_is_still_accepted() {
     let dir = tempfile::tempdir().unwrap();
-    init_with_appearance(dir.path(), "gruvbox-dark", "pastel-powerline");
+    init_with_appearance(dir.path(), "gruvbox", "pastel-powerline");
 
     let content = fs::read_to_string(dir.path().join(".aibox-home/.config/starship.toml")).unwrap();
 

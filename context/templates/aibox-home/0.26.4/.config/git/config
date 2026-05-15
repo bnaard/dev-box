@@ -8,13 +8,13 @@
 [interactive]
     diffFilter = delta --color-only
 [delta]
-    syntax-theme = Nord
+    syntax-theme = Coldark-Dark
     light = false
     navigate = true
     line-numbers = true
     side-by-side = false
-    hunk-header-decoration-style = "#4C566A" box
-    file-decoration-style = "#88C0D0" ul
+    hunk-header-decoration-style = "#626A73" box
+    file-decoration-style = "#39BAE6" ul
     minus-style = syntax "#3B1F22"
     minus-emph-style = syntax "#6B1E25"
     plus-style = syntax "#1F3B25"

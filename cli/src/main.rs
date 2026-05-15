@@ -457,8 +457,8 @@ fn cmd_set(
         }
         "theme.name" | "theme" => {
             let raw = required_name(value, "theme name")?;
-            let theme =
-                crate::config::Theme::from_str(&raw, true).map_err(|e| anyhow::anyhow!("{e}"))?;
+            let theme = crate::config::ThemeFamily::from_str(&raw, true)
+                .map_err(|e| anyhow::anyhow!("{e}"))?;
             let config = crate::config::AiboxConfig::from_cli_option(config_path)?;
             theme_cmd::cmd_theme(
                 config_path,
