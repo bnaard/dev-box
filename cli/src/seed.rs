@@ -1786,6 +1786,13 @@ pub fn sync_theme_files(config: &AiboxConfig) -> Result<Vec<String>> {
 
     for (rel_path, content) in managed_runtime_files(config) {
         let path = root.join(&rel_path);
+        // Bind-mount stub files (e.g. `.claude.json`) only exist in the
+        // managed list so the docker bind mount has a target on first
+        // build. The harness rewrites them at runtime to hold login state,
+        // so force-overwriting them here destroys the user's session.
+        if is_bind_mount_stub_file(&rel_path) {
+            continue;
+        }
         if force_seed_file(&path, &content)? {
             if is_executable_managed_runtime_file(&rel_path) {
                 ensure_executable(&path)?;
@@ -1849,6 +1856,14 @@ pub fn sync_theme_files(config: &AiboxConfig) -> Result<Vec<String>> {
     updated.extend(sync_managed_runtime_permissions(config)?);
 
     Ok(updated)
+}
+
+/// Files that appear in `managed_runtime_files` only so docker can bind-mount
+/// them on first build, but whose contents the harness owns at runtime
+/// (login state, OAuth tokens, project list, etc.). Seed write-if-missing,
+/// never force-overwrite.
+fn is_bind_mount_stub_file(rel_path: &Path) -> bool {
+    rel_path == Path::new(".claude.json")
 }
 
 fn is_executable_managed_runtime_file(rel_path: &Path) -> bool {
@@ -2859,6 +2874,38 @@ mod tests {
             fs::metadata(&list_path).unwrap().permissions().mode() & 0o111,
             0,
             "aibox-powerkit-render-list should be executable after apply-time sync"
+        );
+        clear_test_host_root();
+    }
+
+    #[test]
+    #[serial]
+    fn sync_theme_files_preserves_claude_login_state() {
+        // `.claude.json` is in managed_runtime_files only so the docker
+        // bind mount has a target on first build. Claude Code rewrites it
+        // at runtime to hold OAuth account / project state. Re-running
+        // `aibox up` (which calls sync_theme_files) must not clobber that
+        // login state back to the empty `{}` stub.
+        let dir = tempfile::tempdir().unwrap();
+        let root = dir.path().join("root");
+        let mut config = make_config(false, root.clone());
+        config.ai.harnesses = vec![AiProvider::Claude];
+        seed_root_dir(&config).unwrap();
+
+        let claude_state = root.join(".claude.json");
+        let logged_in = r#"{"oauthAccount":{"accountUuid":"u-1"},"userID":"u-1"}"#;
+        fs::write(&claude_state, logged_in).unwrap();
+
+        let updated = sync_theme_files(&config).unwrap();
+
+        assert_eq!(
+            fs::read_to_string(&claude_state).unwrap(),
+            logged_in,
+            "sync_theme_files must not overwrite the user's logged-in .claude.json"
+        );
+        assert!(
+            !updated.iter().any(|path| path == ".claude.json"),
+            "sync_theme_files must not report .claude.json as updated: {updated:?}"
         );
         clear_test_host_root();
     }
