@@ -1,39 +1,31 @@
 ╔══════════════════════════════════════════════════════════════════════════════╗
-║                     aibox — Quick Reference                              ║
+║                   aibox — Quick Reference  (prefix = Ctrl+g)              ║
 ╠══════════════════════════════════════════════════════════════════════════════╣
 ║                                                                            ║
-║  TMUX (leader: Ctrl+g)              YAZI (file manager)                   ║
-║  ───────────────────────────         ──────────────────────────────        ║
-║  Ctrl+g h/j/k/l  Move panes        h/j/k/l    Navigate                  ║
-║  Ctrl+g n/p      Prev/next window  Enter      Open in vim pane          ║
-║  Ctrl+g 1..5     Jump to window    O          Open in-place (fallback)  ║
-║  Ctrl+g f        Zoom pane         .          Toggle hidden files       ║
-║  Ctrl+g c        New window        /          Search files              ║
-║  Ctrl+g x          Close pane        q          Quit yazi                 ║
-║  Ctrl+g -          Split down        Space      Select file               ║
-║  Ctrl+g |          Split right       d          Trash selected            ║
-║  Ctrl+g X          Close window      r          Rename                    ║
-║  Ctrl+g r          Reload config     a          Create file               ║
-║  Ctrl+g s          Sessions          ~          Go to home                ║
-║  Ctrl+g m          Session manager   Tab        Preview next              ║
-║  Ctrl+g [          Copy mode         w s        Size selection            ║
-║  Ctrl+g /          Search           VIM                                   ║
-║  Ctrl+g z          Toggle status     c p/d/f    Copy path/dir/name        ║
-║  Ctrl+g e          Embed/float      ──────────────────────────────        ║
-║                                      Space+e    Netrw file explorer       ║
-║  Ctrl+g =/-        Resize pane       Space+w    Save                     ║
-║  Ctrl+g d          Detach session    Space+q    Quit                     ║
-║                                      Space+n/p  Next/prev buffer         ║
-║  COPY MODE                           :e <file>  Open file                ║
-║  ───────────────────────────         :wq        Save and quit            ║
-║  Ctrl+g [            Enter mode      :q!        Quit without saving      ║
-║  v / y                Select/copy    Ctrl+h/j/k/l  Navigate splits       ║
-║                                                                           ║
-║  LAYOUTS                            TABS                                  ║
-║  ───────────────────────────        ──────────────────────────────        ║
-║  aibox start --layout dev         Ctrl+g 1  dev  (files+editor+term)   ║
-║  aibox start --layout cowork      Ctrl+g 2  shell (extra terminal)     ║
-║  aibox start --layout focus       Ctrl+g 3  help (this cheatsheet)     ║
-║                                                                           ║
+║  PANES                              WINDOWS / SESSIONS                     ║
+║  ─────────────────────────────      ─────────────────────────────          ║
+║  prefix h/j/k/l  Navigate panes     prefix c        New window            ║
+║  prefix r        Split right        prefix 1-9      Jump to window N      ║
+║  prefix d        Split down         prefix g        lazygit window        ║
+║  prefix x        Kill pane          prefix s        shell window          ║
+║  prefix f / z    Zoom / toggle zoom prefix q        Quit session          ║
+║                                                                            ║
+║  LAYOUTS & THEMES                   COPY MODE / MISC                      ║
+║  ─────────────────────────────      ─────────────────────────────          ║
+║  prefix L        Layout picker      prefix [        Enter copy mode (vi)  ║
+║    d=Dev  a=AI   f=Focus  w=Cowork  v / y           Select / copy         ║
+║  prefix T        Theme picker       prefix /        Search scrollback     ║
+║    pick theme or toggle light/dark  prefix R        Reload tmux config    ║
+║  prefix z        Toggle status bar  prefix ?        Full keybinding popup ║
+║                                                                            ║
+║  YAZI (file manager)                VIM (via vim-tmux-navigator)           ║
+║  ─────────────────────────────      ─────────────────────────────          ║
+║  h/j/k/l         Navigate           Ctrl+h/j/k/l   Navigate splits        ║
+║  Enter           Open in vim pane   Space+w        Save                   ║
+║  e               Open in editor     Space+q        Quit                   ║
+║  g s / g c       Git status/changes c p/d/f        Copy path/dir/name    ║
+║  w s / w h       Size / horiz prev  :e <file>      Open file              ║
+║                                                                            ║
+║  For the full keybinding reference: Ctrl+g then ?                         ║
 ╚══════════════════════════════════════════════════════════════════════════════╝
   Press q to exit this help screen.

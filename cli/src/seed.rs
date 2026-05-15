@@ -688,6 +688,9 @@ const DEFAULT_AIBOX_TMUX_CONFIRM_AND_SWITCH_SH: &str =
 /// menu, skippable via `AIBOX_THEME_CONFIRM_RESTART_TUIS=false`).
 const DEFAULT_AIBOX_TMUX_REFRESH_THEME_SH: &str =
     include_str!("templates/aibox-tmux-refresh-theme.sh");
+/// aibox-tmux-cheatsheet — categorized keybinding reference displayed by `prefix + ?`.
+const DEFAULT_AIBOX_TMUX_CHEATSHEET_SH: &str =
+    include_str!("templates/aibox-tmux-cheatsheet.sh");
 /// aibox-copy helper — forward stdin to tmux/OSC52 host clipboard integration.
 const DEFAULT_AIBOX_COPY_SH: &str = r#"#!/usr/bin/env bash
 set -euo pipefail
@@ -756,24 +759,28 @@ prepend_keymap = [
 ]
 "#;
 
-/// Quick reference cheatsheet.
-const DEFAULT_CHEATSHEET: &str = r#"  aibox Quick Reference
+/// Quick reference cheatsheet (seeded to .config/cheatsheet.txt; also shown
+/// in the help window at session start).  The authoritative in-tmux reference
+/// is `prefix + ?` which opens the categorized aibox-tmux-cheatsheet popup.
+const DEFAULT_CHEATSHEET: &str = r#"  aibox Quick Reference  (prefix = Ctrl+g)
   -----------------------------------------------
-  TMUX (prefix: Ctrl+g)      YAZI (file manager)
-  Ctrl+g h/j/k/l Move pane  h/j/k/l  Navigate
-  Ctrl+g r/d     Split pane Enter    Edit (in pane)
-  Ctrl+g x       Close pane e        Edit (popup)
-  Ctrl+g f       Zoom pane  g s      Git summary
-  Ctrl+g c       New win    g c      Git changes
-  Ctrl+g n/p     Next/prev  w s      Size selection
-  Ctrl+g 1-5     Jump win   w h      Horizontal preview
-  Ctrl+g [       Copy mode  w p      Watch PDF
-  Ctrl+g ]       Paste      c p/d/f  Copy path/dir/name
-  Ctrl+g L       Log popup  g r      Refresh git
-  Ctrl+g R       Reload
-  Ctrl+g q       QUIT
+  TMUX                       YAZI (file manager)
+  prefix h/j/k/l  Navigate   h/j/k/l  Navigate
+  prefix r        Split right Enter    Edit (in pane)
+  prefix d        Split down  e        Edit (popup)
+  prefix x        Kill pane   g s      Git summary
+  prefix f/z      Zoom pane   g c      Git changes
+  prefix c        New window  w s      Size selection
+  prefix 1-9      Jump window w h      Horizontal preview
+  prefix g/s      lazygit/shell win
+  prefix L        Layout menu c p/d/f  Copy path/dir/name
+  prefix T        Theme menu  g r      Refresh git
+  prefix [        Copy mode
+  prefix R        Reload cfg
+  prefix q        Quit session
+  prefix ?        Full cheatsheet popup
 
-  LAYOUTS: aibox up --layout dev|focus|cowork|ai
+  LAYOUTS: aibox start --layout dev|ai|focus|cowork
   No persistent vim pane: e = popup, Enter = in-yazi (`:q` closes both).
 "#;
 
@@ -1081,6 +1088,10 @@ pub fn managed_runtime_files(config: &AiboxConfig) -> Vec<(std::path::PathBuf, S
         (
             std::path::PathBuf::from(".local/bin/aibox-tmux-refresh-theme"),
             DEFAULT_AIBOX_TMUX_REFRESH_THEME_SH.to_string(),
+        ),
+        (
+            std::path::PathBuf::from(".local/bin/aibox-tmux-cheatsheet"),
+            DEFAULT_AIBOX_TMUX_CHEATSHEET_SH.to_string(),
         ),
         (
             std::path::PathBuf::from(".local/bin/aibox-copy"),

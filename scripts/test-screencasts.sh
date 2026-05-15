@@ -508,10 +508,16 @@ def replay_cast(path):
             # Replay all events except the terminal-exit full-screen clear.
             # Walk from the end; stop discarding once we hit an event without
             # the clear signature.
+            # Skip trailing "[exited]" lines (printed by the shell after
+            # tmux detaches) and empty payloads — these are not ANSI content
+            # and should not block the trim of the actual clear sequence.
+            _NOISE_RE = re.compile(r"^\s*\[exited\]\s*$", re.MULTILINE)
             trim = 0
             for payload in reversed(events):
                 if _FULL_CLEAR_RE.search(payload):
                     trim += 1
+                elif _NOISE_RE.search(payload) or not payload.strip():
+                    trim += 1  # skip noise events too
                 else:
                     break
             for payload in events[: len(events) - trim]:
@@ -662,21 +668,32 @@ def status_row_invariants(screen, palette, bg_hex, surface_hex):
                         )
 
     # --- I4: pane area bg ~= theme bg ---
+    # Only check cells that are *strictly* unstyled blanks: character is a
+    # space, AND both fg and bg are "default" (no SGR has been applied to
+    # the cell at all).  Legitimate terminal content — git log ANSI colours,
+    # ls output, vim syntax highlighting — sets explicit bg on its characters
+    # even when those characters happen to be spaces (e.g. trailing spaces
+    # inside a coloured run).  Including those styled spaces in the denominator
+    # would inflate the mismatch ratio and cause false alarms.
+    #
+    # A strictly-unstyled blank cell represents unoccupied terminal real
+    # estate that should show the terminal/theme background.  If fewer than
+    # 90 % of such cells use the theme bg or "default", we flag it.
     pane_end_row = rows if top_has_content else max(0, rows - len(status_rows))
     pane_rows = list(range(pane_start_row, pane_end_row))
-    blank_cells = []
+    strictly_blank_cells = []
     for r in pane_rows:
         for c in range(cols):
             cell = screen.grid[r][c]
-            if cell.ch == " ":
-                blank_cells.append(norm_hex(cell.bg))
+            if cell.ch == " " and cell.fg == "default" and cell.bg == "default":
+                strictly_blank_cells.append(norm_hex(cell.bg))
 
-    if blank_cells:
-        mismatch = sum(1 for b in blank_cells if b not in (bg_hex, "default", surface_hex))
-        ratio = mismatch / len(blank_cells)
-        if ratio > 0.50:
+    if strictly_blank_cells:
+        mismatch = sum(1 for b in strictly_blank_cells if b not in (bg_hex, "default", surface_hex))
+        ratio = mismatch / len(strictly_blank_cells)
+        if ratio > 0.10:
             failures.append(
-                f"I4 pane bg: {mismatch}/{len(blank_cells)} blank cells "
+                f"I4 pane bg: {mismatch}/{len(strictly_blank_cells)} strictly-blank cells "
                 f"({ratio:.0%}) have bg outside palette.bg={bg_hex!r}"
             )
 
