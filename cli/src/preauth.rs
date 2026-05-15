@@ -359,7 +359,7 @@ fn codex_allowed_tools_for_project(
     let mut current = codex_allowed_tools(spec);
     if codex_config_uses_processkit_gateway(project_root)? {
         current.clear();
-        current.insert("processkit-gateway".to_string());
+        current.insert("mcp__processkit-gateway__*".to_string());
     }
     Ok(current)
 }
@@ -1003,7 +1003,10 @@ mod tests {
         assert!(allow.contains(&"mcp__processkit-gateway__*".to_string()));
 
         let codex_body = fs::read_to_string(codex_dir.join("config.toml")).unwrap();
-        assert!(codex_body.contains("\"processkit-gateway\""));
+        assert!(codex_body.contains("\"mcp__processkit-gateway__*\""));
+        assert!(
+            !codex_body.contains("_processkit_managed_allowed_tools = [\"processkit-gateway\"]")
+        );
     }
 
     #[test]

@@ -357,9 +357,12 @@ def run(ctx) -> list[CheckResult]:
             ))
         else:
             missing_codex_tools = sorted(spec_codex_tools - live_codex_tools)
-            if missing_codex_tools and "processkit-gateway" in live_codex_tools:
+            if (
+                missing_codex_tools
+                and "mcp__processkit-gateway__*" in live_codex_tools
+            ):
                 # aibox collapsed Codex MCP registration to the gateway. The
-                # gateway tool entry replaces per-skill preauth wildcards.
+                # gateway wildcard replaces per-skill preauth wildcards.
                 missing_codex_tools = []
             if missing_codex_tools:
                 preview = ", ".join(missing_codex_tools[:5])

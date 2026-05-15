@@ -592,6 +592,22 @@ pub fn decide_sync(
         return Ok(SyncDecision::Install { reason });
     }
 
+    let missing_selected = crate::content_init::missing_selected_live_skills(project_root, config)?;
+    if !missing_selected.is_empty() {
+        return Ok(SyncDecision::Reinstall {
+            reason: format!(
+                "selected skill(s) missing from live install: {}",
+                missing_selected.join(", ")
+            ),
+            prior_state: IntegrityStatus::Stale {
+                version: config.processkit.version.clone(),
+                reason: "selected_skills_missing".to_string(),
+                observed_hash: None,
+                expected_hash: None,
+            },
+        });
+    }
+
     let status = verify_install_integrity(project_root, lock)?;
     match status {
         IntegrityStatus::Healthy | IntegrityStatus::NotInstalled => Ok(SyncDecision::Skip),
@@ -855,6 +871,18 @@ mod tests {
             fs::create_dir_all(&dir).unwrap();
             fs::write(dir.join("SKILL.md"), "---\nname: x\n---\n").unwrap();
         }
+    }
+
+    fn write_mirror_skill(project_root: &Path, version: &str, skill: &str) {
+        let dir = project_root
+            .join(TEMPLATES_PROCESSKIT_DIR)
+            .join(version)
+            .join("context")
+            .join("skills")
+            .join("processkit")
+            .join(skill);
+        fs::create_dir_all(&dir).unwrap();
+        fs::write(dir.join("SKILL.md"), format!("---\nname: {skill}\n---\n")).unwrap();
     }
 
     // ── 1. kind() tags ─────────────────────────────────────────────────────
@@ -1165,6 +1193,37 @@ mod tests {
         let lock = Some(make_lock_with_version("v0.19.1"));
         let decision = decide_sync(&cfg, tmp.path(), &lock).unwrap();
         assert_eq!(decision, SyncDecision::Skip);
+    }
+
+    #[test]
+    fn decide_sync_reinstalls_when_selected_skill_missing() {
+        let tmp = TempDir::new().unwrap();
+        write_mirror_provenance(tmp.path(), "v0.19.1", "v0.19.1");
+        write_mirror_skill(tmp.path(), "v0.19.1", "runtime-prune");
+        write_live_provenance_for(tmp.path(), "v0.19.1", 1, None);
+
+        let mut cfg = config_with_pk_version("v0.19.1");
+        cfg.context.packages.clear();
+        cfg.skills.include = vec!["runtime-prune".to_string()];
+        let lock = Some(make_lock_with_version("v0.19.1"));
+        let decision = decide_sync(&cfg, tmp.path(), &lock).unwrap();
+
+        match decision {
+            SyncDecision::Reinstall {
+                reason,
+                prior_state,
+            } => {
+                assert!(reason.contains("runtime-prune"), "reason: {reason}");
+                assert!(
+                    matches!(
+                        prior_state,
+                        IntegrityStatus::Stale { ref reason, .. } if reason == "selected_skills_missing"
+                    ),
+                    "prior_state: {prior_state:?}"
+                );
+            }
+            other => panic!("expected Reinstall, got {other:?}"),
+        }
     }
 
     // ── 15. decide_sync reinstall on integrity failure ─────────────────────

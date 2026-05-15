@@ -213,6 +213,35 @@ fn collect_available_skill_names_inner(root: &Path, names: &mut HashSet<String>)
     }
 }
 
+/// Return selected skills that exist in the templates mirror but are missing
+/// from the live `context/skills/` tree.
+///
+/// This catches `[skills].enabled` changes when the pinned processkit version
+/// did not change. Without this check, `aibox apply` can skip the content
+/// installer as "already at version X" while MCP registration is regenerated
+/// from the template mirror for a skill that was never copied live.
+pub(crate) fn missing_selected_live_skills(
+    project_root: &Path,
+    config: &AiboxConfig,
+) -> Result<Vec<String>> {
+    let Some(effective) = build_effective_skill_set(project_root, config)? else {
+        return Ok(Vec::new());
+    };
+    let Some(mirror_skills_dir) = mirror_skills_dir(project_root, &config.processkit.version)
+    else {
+        return Ok(Vec::new());
+    };
+
+    let available = collect_available_skill_names(&mirror_skills_dir);
+    let live = collect_available_skill_names(&project_root.join("context").join("skills"));
+    let mut missing: Vec<String> = effective
+        .into_iter()
+        .filter(|skill| available.contains(skill) && !live.contains(skill))
+        .collect();
+    missing.sort();
+    Ok(missing)
+}
+
 /// Walk `skills_dir` (the templates mirror's `skills/` subdirectory) and
 /// return the names of skills whose frontmatter declares `core: true`.
 ///
@@ -1138,6 +1167,33 @@ mod tests {
         assert!(set.contains("decision-record"));
         assert!(set.contains("pk-doctor"));
         assert!(!set.contains("research-with-confidence"));
+    }
+
+    #[test]
+    fn missing_selected_live_skills_detects_newly_enabled_skill() {
+        let tmp = TempDir::new().unwrap();
+        write_synth_skills_dir(
+            tmp.path(),
+            crate::processkit_vocab::PROCESSKIT_DEFAULT_VERSION,
+            &["decision-record", "runtime-prune"],
+        );
+        let live_skill = tmp.path().join("context/skills/processkit/decision-record");
+        fs::create_dir_all(&live_skill).unwrap();
+        fs::write(
+            live_skill.join(SKILL_FILENAME),
+            "---\nname: decision-record\n---\n",
+        )
+        .unwrap();
+
+        let config = config_with_packages_and_skills(
+            crate::processkit_vocab::PROCESSKIT_DEFAULT_VERSION,
+            &["product"],
+            &["decision-record", "runtime-prune"],
+            &[],
+        );
+        let missing = missing_selected_live_skills(tmp.path(), &config).unwrap();
+
+        assert_eq!(missing, vec!["runtime-prune".to_string()]);
     }
 
     #[test]

@@ -234,11 +234,18 @@ fn dispatch(cli: cli::Cli) -> anyhow::Result<()> {
         }
         cli::Commands::Prune {
             scope,
+            scopes,
             dry_run,
+            json,
             yes,
         } => {
             let timer = crate::log::LogTimer::start("prune");
-            let result = prune::cmd_prune(scope, dry_run || !yes);
+            let result = prune::cmd_prune(prune::PruneOptions {
+                positional_scope: scope,
+                scopes,
+                dry_run: dry_run || !yes,
+                json,
+            });
             timer.finish(
                 Path::new("."),
                 if result.is_ok() { 0 } else { 1 },

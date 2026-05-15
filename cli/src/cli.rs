@@ -282,12 +282,20 @@ pub enum Commands {
     /// apply the selected cleanup scope.
     Prune {
         /// Cleanup scope to inspect or apply
-        #[arg(value_enum, default_value = "safe")]
-        scope: PruneScope,
+        #[arg(value_enum)]
+        scope: Option<PruneScope>,
+
+        /// Additional cleanup scope to inspect or apply; repeat for multiple scopes
+        #[arg(long = "scope", value_enum)]
+        scopes: Vec<PruneScope>,
 
         /// Preview only, even when --yes is supplied
         #[arg(long)]
         dry_run: bool,
+
+        /// Emit structured JSON for automation
+        #[arg(long)]
+        json: bool,
 
         /// Apply the selected cleanup
         #[arg(long)]
@@ -523,10 +531,27 @@ pub enum PruneScope {
     RuntimeHome,
     /// Provider-created Git worktrees under .claude/worktrees
     AgentWorktrees,
+    /// Local aibox-owned container cleanup when available
+    Containers,
     /// Nested E2E companion containers, workspaces, images, and volumes
     E2eCompanion,
     /// All known cleanup scopes, including provider worktrees
     All,
+}
+
+impl std::fmt::Display for PruneScope {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        let value = match self {
+            PruneScope::Safe => "safe",
+            PruneScope::BuildCache => "build-cache",
+            PruneScope::RuntimeHome => "runtime-home",
+            PruneScope::AgentWorktrees => "agent-worktrees",
+            PruneScope::Containers => "containers",
+            PruneScope::E2eCompanion => "e2e-companion",
+            PruneScope::All => "all",
+        };
+        write!(f, "{value}")
+    }
 }
 
 #[derive(Subcommand)]

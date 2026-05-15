@@ -116,6 +116,7 @@ pub const STANDARD_PROCESSKIT_SKILLS: &[&str] = &[
     "release-audit",
     "retrospective",
     "role-management",
+    "runtime-prune",
     "schedule-management",
     "scope-management",
     "security-projections",
@@ -583,6 +584,22 @@ mod tests {
         assert!(PROCESSKIT_DEFAULT_VERSION.starts_with('v'));
         let bare = PROCESSKIT_DEFAULT_VERSION.trim_start_matches('v');
         semver::Version::parse(bare).expect("PROCESSKIT_DEFAULT_VERSION must be valid semver");
+    }
+
+    #[test]
+    fn standard_processkit_skills_include_runtime_prune() {
+        assert!(
+            STANDARD_PROCESSKIT_SKILLS.contains(&"runtime-prune"),
+            "runtime-prune is part of the standard processkit operating surface"
+        );
+    }
+
+    #[test]
+    fn standard_processkit_skills_no_duplicates() {
+        let mut seen = std::collections::HashSet::new();
+        for skill in STANDARD_PROCESSKIT_SKILLS {
+            assert!(seen.insert(*skill), "duplicate standard skill: {skill}");
+        }
     }
 
     #[test]
