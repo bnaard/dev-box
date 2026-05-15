@@ -2982,7 +2982,10 @@ layout = "ai"
         standardize_aibox_toml(tmp.path()).unwrap();
 
         let after = fs::read_to_string(tmp.path().join("aibox.toml")).unwrap();
-        assert!(after.contains("theme  = \"ayu\""), "expected family form:\n{after}");
+        assert!(
+            after.contains("theme  = \"ayu\""),
+            "expected family form:\n{after}"
+        );
         assert!(
             after.contains("mode   = \"light\""),
             "mode locked to light expected:\n{after}"

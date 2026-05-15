@@ -34,6 +34,31 @@ struct ProcesskitTemplateFiles {
     known: BTreeSet<String>,
 }
 
+fn check_host_container_runtime(diag: &mut DiagResult) {
+    match Runtime::detect() {
+        Ok(rt) => output::ok(&format!("Container runtime: {} detected", rt.runtime_bin)),
+        Err(_) if running_inside_container() => {
+            output::info(
+                "Host container runtime check skipped because aibox doctor is running inside a container; Docker/Podman availability is a host-side concern",
+            );
+        }
+        Err(_) => {
+            output::warn(
+                "No container runtime found (podman or docker needed for build/start/stop/attach)",
+            );
+            diag.warnings += 1;
+        }
+    }
+}
+
+fn running_inside_container() -> bool {
+    running_inside_container_from_paths(Path::new("/.dockerenv"), Path::new("/run/.containerenv"))
+}
+
+fn running_inside_container_from_paths(dockerenv: &Path, containerenv: &Path) -> bool {
+    dockerenv.exists() || containerenv.exists()
+}
+
 /// Return the list of project-side files `aibox doctor` checks for.
 ///
 /// Since v0.16.0 the bulk of context content (BACKLOG, DECISIONS, skills,
@@ -78,16 +103,10 @@ pub fn cmd_doctor(config_path: &Option<String>) -> Result<()> {
         }
     };
 
-    // 2. Check container runtime (informational — not required for init/generate/doctor)
-    match Runtime::detect() {
-        Ok(rt) => output::ok(&format!("Container runtime: {} detected", rt.runtime_bin)),
-        Err(_) => {
-            output::warn(
-                "No container runtime found (podman or docker needed for build/start/stop/attach)",
-            );
-            diag.warnings += 1;
-        }
-    }
+    // 2. Check host container runtime availability. If someone invokes the
+    // host-only doctor from inside an existing container, do not imply that
+    // Docker/Podman should be installed there.
+    check_host_container_runtime(&mut diag);
 
     // If we couldn't load config, we can't do the remaining checks
     let config = match config {
@@ -1983,6 +2002,31 @@ fn print_summary(diag: &DiagResult) {
 mod tests {
     use super::*;
     use std::fs;
+
+    #[test]
+    fn container_runtime_marker_detects_container_context() {
+        let temp = tempfile::tempdir().unwrap();
+        let dockerenv = temp.path().join(".dockerenv");
+        let containerenv = temp.path().join("containerenv");
+
+        assert!(!running_inside_container_from_paths(
+            &dockerenv,
+            &containerenv
+        ));
+
+        fs::write(&dockerenv, "").unwrap();
+        assert!(running_inside_container_from_paths(
+            &dockerenv,
+            &containerenv
+        ));
+
+        fs::remove_file(&dockerenv).unwrap();
+        fs::write(&containerenv, "").unwrap();
+        assert!(running_inside_container_from_paths(
+            &dockerenv,
+            &containerenv
+        ));
+    }
 
     #[test]
     fn codex_compose_posture_warns_on_privileged_and_sys_admin() {
