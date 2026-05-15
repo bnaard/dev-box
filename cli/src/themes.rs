@@ -238,8 +238,17 @@ pub fn vim_background(theme: &Theme) -> &'static str {
         | Theme::MaterialLighter
         | Theme::SolarizedLight
         | Theme::GithubLight
+        | Theme::GithubLightHighContrast
         | Theme::AyuLight
-        | Theme::NightOwlLight => "light",
+        | Theme::NightOwlLight
+        | Theme::OneLight
+        | Theme::VitesseLight
+        | Theme::MinLight
+        | Theme::KanagawaLotus
+        | Theme::EverforestLight
+        | Theme::VsCodeLightPlus
+        | Theme::SlackOchin
+        | Theme::SnazzyLight => "light",
         _ => "dark",
     }
 }
@@ -409,11 +418,20 @@ fn yazi_surface_color(theme: &Theme) -> &'static str {
         | Theme::MaterialLighter
         | Theme::SolarizedLight
         | Theme::GithubLight
+        | Theme::GithubLightHighContrast
         | Theme::AyuLight
-        | Theme::NightOwlLight => "#CCD0DA",
+        | Theme::NightOwlLight
+        | Theme::OneLight
+        | Theme::VitesseLight
+        | Theme::MinLight
+        | Theme::KanagawaLotus
+        | Theme::EverforestLight
+        | Theme::VsCodeLightPlus
+        | Theme::SlackOchin
+        | Theme::SnazzyLight => "#CCD0DA",
         Theme::GruvboxDark => "#3C3836",
         Theme::Nord => "#3B4252",
-        Theme::Dracula => "#44475A",
+        Theme::Dracula | Theme::DraculaSoft => "#44475A",
         Theme::TokyoNight | Theme::TokyoNightStorm | Theme::Moonlight => "#283457",
         Theme::Projectious => "#131E2B",
         _ => "#313244",
@@ -568,6 +586,136 @@ fn theme_palette(theme: &Theme) -> (&str, &str, &str, &str, &str, &str, &str, &s
         Theme::Projectious => (
             "#0E1720", "#C5DAF0", "#E05232", "#4FB07A", "#E55B5B", "#E0B85B", "#F2A65A", "#8AACC8",
             "#7B8DA3",
+        ),
+        // ── NEW THEMES ───────────────────────────────────────────────────────
+        // bg, fg, accent, green(string), red(error), yellow(warn), orange(number), cyan(func), muted(comment)
+        Theme::DraculaSoft => (
+            "#22212C", "#F8F8F2", "#C8A8F9", "#62E884", "#E76D6D", "#E9E987", "#FFCA80", "#A1F0FE",
+            "#7970A9",
+        ),
+        Theme::MaterialDarker => (
+            "#212121", "#EEFFFF", "#89DDFF", "#C3E88D", "#FF5370", "#FFCB6B", "#F78C6C", "#82AAFF",
+            "#546E7A",
+        ),
+        Theme::GithubDarkDimmed => (
+            "#22272E", "#ADBAC7", "#539BF5", "#57AB5A", "#F47067", "#C69026", "#F47067", "#6CB6FF",
+            "#768390",
+        ),
+        Theme::GithubDarkHighContrast => (
+            "#0A0C10", "#F0F3F6", "#71B7FF", "#26CD4D", "#FF6A69", "#F0B72F", "#FF6A69", "#91CBFF",
+            "#9198A1",
+        ),
+        Theme::GithubLightHighContrast => (
+            "#FFFFFF", "#0E1116", "#1A69DB", "#104F24", "#A0111F", "#7D4E00", "#A0111F", "#034188",
+            "#69717B",
+        ),
+        Theme::Andromeeda => (
+            "#23262E", "#D5CED9", "#00E8C6", "#89E044", "#EE5D43", "#FFCC00", "#F39C12", "#00E8C6",
+            "#6B6B6B",
+        ),
+        Theme::AuroraX => (
+            "#07090F", "#D4D4D4", "#569CD6", "#B5CEA8", "#F44747", "#CE9178", "#CE9178", "#4EC9B0",
+            "#5C6370",
+        ),
+        Theme::EverforestDark => (
+            "#2D353B", "#D3C6AA", "#7FBBB3", "#A7C080", "#E67E80", "#DBBC7F", "#D699B6", "#83C092",
+            "#7A8478",
+        ),
+        Theme::EverforestLight => (
+            "#FDF6E3", "#5C6A72", "#3A94C5", "#8DA101", "#F85552", "#DFA000", "#DF69BA", "#35A77C",
+            "#939F91",
+        ),
+        Theme::Houston => (
+            "#17191E", "#CDD6F4", "#F9C86A", "#4AF2C8", "#FF5370", "#FFA726", "#81D4FA", "#4AF2C8",
+            "#545878",
+        ),
+        Theme::KanagawaWave => (
+            "#1F1F28", "#DCD7BA", "#7E9CD8", "#98BB6C", "#C34043", "#FF9E3B", "#D27E99", "#7AA89F",
+            "#727169",
+        ),
+        Theme::KanagawaDragon => (
+            "#181616", "#C5C9C5", "#7EB3C9", "#87A987", "#C4746E", "#B6927B", "#C4746E", "#8EA4A2",
+            "#8A8980",
+        ),
+        Theme::KanagawaLotus => (
+            "#F2ECBC", "#545464", "#1F5F8A", "#4E7C3F", "#C84053", "#835C00", "#B5485D", "#536A5B",
+            "#A09F8F",
+        ),
+        Theme::Laserwave => (
+            "#27212E", "#FFFFFF", "#EB64B9", "#74DFC4", "#FE4450", "#FFEE79", "#FFEE79", "#74DFC4",
+            "#6B5F7D",
+        ),
+        Theme::MinDark => (
+            "#1F1F1F", "#B2B2B2", "#569CD6", "#B5CEA8", "#F44747", "#CCA700", "#CE9178", "#4EC9B0",
+            "#525252",
+        ),
+        Theme::MinLight => (
+            "#F8F8F8", "#333333", "#0000FF", "#098658", "#E50000", "#865F00", "#C1440E", "#267F99",
+            "#9A9A9A",
+        ),
+        Theme::Monokai => (
+            "#272822", "#F8F8F2", "#F92672", "#A6E22E", "#F92672", "#E6DB74", "#AE81FF", "#66D9EF",
+            "#75715E",
+        ),
+        Theme::OneDarkPro => (
+            "#282C34", "#ABB2BF", "#61AFEF", "#98C379", "#E06C75", "#E5C07B", "#D19A66", "#56B6C2",
+            "#5C6370",
+        ),
+        Theme::OneLight => (
+            "#FAFAFA", "#383A42", "#4078F2", "#50A14F", "#CA1243", "#C18401", "#986801", "#0184BC",
+            "#A0A1A7",
+        ),
+        Theme::Plastic => (
+            "#1B1D23", "#ABB2BF", "#61AFEF", "#98C379", "#E06C75", "#E5C07B", "#D19A66", "#56B6C2",
+            "#7A7E8A",
+        ),
+        Theme::Poimandres => (
+            "#1B1E28", "#A6ACCD", "#A6DA95", "#5DE4C7", "#D0679D", "#FFFAC2", "#D0679D", "#ADD7FF",
+            "#767C9D",
+        ),
+        Theme::Red => (
+            "#390000", "#F8F8F8", "#FF6666", "#F4C2C2", "#FF0000", "#FF8800", "#FFD0D0", "#FF9999",
+            "#A06060",
+        ),
+        Theme::SlackDark => (
+            "#222529", "#D1D2D3", "#8CC4FF", "#AFE3A4", "#E07070", "#DFC55A", "#DFC55A", "#98D1E0",
+            "#60656A",
+        ),
+        Theme::SlackOchin => (
+            "#F9F9F9", "#383A3C", "#0070D1", "#268829", "#D0104C", "#C64B10", "#C64B10", "#007A7A",
+            "#A0A4A8",
+        ),
+        Theme::SnazzyLight => (
+            "#FAFBFC", "#2D2D2D", "#57C7FF", "#5AF78E", "#FF5C57", "#FF9F43", "#FF6AC1", "#57C7FF",
+            "#9E9E9E",
+        ),
+        Theme::Synthwave84 => (
+            "#2A2139", "#FFFFFF", "#36F9F6", "#FF7EDB", "#FE4450", "#FEDE5D", "#F97E72", "#36F9F6",
+            "#848082",
+        ),
+        Theme::Vesper => (
+            "#101010", "#FFFFFF", "#FF7B00", "#99FFE4", "#F44747", "#FF7B00", "#FFC799", "#FFC799",
+            "#5C5C5C",
+        ),
+        Theme::VitesseDark => (
+            "#121212", "#DBD7CA", "#4D9375", "#C98A7D", "#E06C75", "#D4976C", "#6496C8", "#80A0C0",
+            "#758575",
+        ),
+        Theme::VitesseLight => (
+            "#FFFFFF", "#393A34", "#1E754F", "#B56959", "#AB5959", "#B07D48", "#296AA3", "#2E808F",
+            "#A0A077",
+        ),
+        Theme::VitesseBlack => (
+            "#000000", "#DBD7CA", "#4D9375", "#C98A7D", "#E06C75", "#D4976C", "#6496C8", "#80A0C0",
+            "#606060",
+        ),
+        Theme::VsCodeDarkPlus => (
+            "#1E1E1E", "#D4D4D4", "#569CD6", "#B5CEA8", "#F44747", "#CCA700", "#CE9178", "#4EC9B0",
+            "#6A9955",
+        ),
+        Theme::VsCodeLightPlus => (
+            "#FFFFFF", "#000000", "#0000FF", "#098658", "#CD3131", "#A65E00", "#A31515", "#267F99",
+            "#008000",
         ),
     }
 }
@@ -919,6 +1067,37 @@ pub fn bat_theme(theme: &Theme) -> &'static str {
         Theme::NightOwl => "Coldark-Dark",
         Theme::NightOwlLight => "Coldark-Cold",
         Theme::Projectious => "Coldark-Dark",
+        // New themes
+        Theme::DraculaSoft => "Dracula",
+        Theme::MaterialDarker => "Coldark-Dark",
+        Theme::GithubDarkDimmed => "Visual Studio Dark+",
+        Theme::GithubDarkHighContrast => "Visual Studio Dark+",
+        Theme::GithubLightHighContrast => "GitHub",
+        Theme::Andromeeda => "Coldark-Dark",
+        Theme::AuroraX => "Visual Studio Dark+",
+        Theme::EverforestDark => "Coldark-Dark",
+        Theme::EverforestLight => "Coldark-Cold",
+        Theme::Houston => "Coldark-Dark",
+        Theme::KanagawaWave | Theme::KanagawaDragon => "Coldark-Dark",
+        Theme::KanagawaLotus => "Coldark-Cold",
+        Theme::Laserwave => "Coldark-Dark",
+        Theme::MinDark => "Visual Studio Dark+",
+        Theme::MinLight => "Coldark-Cold",
+        Theme::Monokai => "Monokai Extended",
+        Theme::OneDarkPro => "OneHalfDark",
+        Theme::OneLight => "OneHalfLight",
+        Theme::Plastic => "OneHalfDark",
+        Theme::Poimandres => "Coldark-Dark",
+        Theme::Red => "Coldark-Dark",
+        Theme::SlackDark => "Coldark-Dark",
+        Theme::SlackOchin => "Coldark-Cold",
+        Theme::SnazzyLight => "Coldark-Cold",
+        Theme::Synthwave84 => "Coldark-Dark",
+        Theme::Vesper => "Coldark-Dark",
+        Theme::VitesseDark | Theme::VitesseBlack => "Coldark-Dark",
+        Theme::VitesseLight => "Coldark-Cold",
+        Theme::VsCodeDarkPlus => "Visual Studio Dark+",
+        Theme::VsCodeLightPlus => "Coldark-Cold",
     }
 }
 
@@ -937,11 +1116,20 @@ pub fn lnav_theme(theme: &Theme) -> &'static str {
         | Theme::RosePineDawn
         | Theme::MaterialLighter
         | Theme::GithubLight
+        | Theme::GithubLightHighContrast
         | Theme::AyuLight
         | Theme::TokyoNightDay
-        | Theme::NightOwlLight => "solarized-light",
+        | Theme::NightOwlLight
+        | Theme::OneLight
+        | Theme::VitesseLight
+        | Theme::MinLight
+        | Theme::KanagawaLotus
+        | Theme::EverforestLight
+        | Theme::VsCodeLightPlus
+        | Theme::SlackOchin
+        | Theme::SnazzyLight => "solarized-light",
         Theme::SolarizedDark => "solarized-dark",
-        Theme::Dracula => "dracula",
+        Theme::Dracula | Theme::DraculaSoft => "dracula",
         Theme::NightOwl => "night-owl",
         Theme::TokyoNight | Theme::TokyoNightStorm | Theme::Moonlight | Theme::Projectious => {
             "tokyo-night"
@@ -1162,7 +1350,18 @@ pub fn aider_code_theme(theme: &Theme) -> &'static str {
         | Theme::RosePineDawn
         | Theme::MaterialLighter
         | Theme::AyuLight
-        | Theme::NightOwlLight => "default",
+        | Theme::NightOwlLight
+        | Theme::OneLight
+        | Theme::VitesseLight
+        | Theme::MinLight
+        | Theme::KanagawaLotus
+        | Theme::EverforestLight
+        | Theme::VsCodeLightPlus
+        | Theme::GithubLightHighContrast
+        | Theme::SlackOchin
+        | Theme::SnazzyLight => "default",
+        Theme::DraculaSoft => "dracula",
+        Theme::Monokai | Theme::OneDarkPro | Theme::Plastic => "monokai",
         _ => "monokai",
     }
 }
@@ -1171,18 +1370,27 @@ pub fn aider_code_theme(theme: &Theme) -> &'static str {
 /// set of named themes. We map each aibox theme to its closest match.
 pub fn gemini_theme(theme: &Theme) -> &'static str {
     match theme {
-        Theme::Dracula => "Dracula",
-        Theme::GithubDark => "GitHub",
-        Theme::GithubLight => "GitHub Light",
+        Theme::Dracula | Theme::DraculaSoft => "Dracula",
+        Theme::GithubDark | Theme::GithubDarkDimmed | Theme::GithubDarkHighContrast => "GitHub",
+        Theme::GithubLight | Theme::GithubLightHighContrast => "GitHub Light",
         Theme::AyuDark | Theme::AyuMirage => "Ayu",
         Theme::AyuLight => "Ayu Light",
+        Theme::Monokai => "Monokai",
         Theme::CatppuccinLatte
         | Theme::GruvboxLight
         | Theme::TokyoNightDay
         | Theme::RosePineDawn
         | Theme::MaterialLighter
         | Theme::SolarizedLight
-        | Theme::NightOwlLight => "Default Light",
+        | Theme::NightOwlLight
+        | Theme::OneLight
+        | Theme::VitesseLight
+        | Theme::MinLight
+        | Theme::KanagawaLotus
+        | Theme::EverforestLight
+        | Theme::VsCodeLightPlus
+        | Theme::SlackOchin
+        | Theme::SnazzyLight => "Default Light",
         Theme::NightOwl => "Atom One Dark",
         _ => "Default",
     }
@@ -1199,7 +1407,7 @@ pub fn opencode_theme(theme: &Theme) -> &'static str {
         | Theme::CatppuccinMacchiato
         | Theme::CatppuccinFrappe
         | Theme::CatppuccinLatte => "catppuccin",
-        Theme::Dracula => "dracula",
+        Theme::Dracula | Theme::DraculaSoft => "dracula",
         Theme::TokyoNight | Theme::TokyoNightStorm | Theme::TokyoNightDay | Theme::Moonlight => {
             "tokyonight"
         }
@@ -1208,12 +1416,40 @@ pub fn opencode_theme(theme: &Theme) -> &'static str {
         Theme::Material
         | Theme::MaterialOcean
         | Theme::MaterialPalenight
-        | Theme::MaterialLighter => "onedark",
+        | Theme::MaterialLighter
+        | Theme::MaterialDarker => "onedark",
         Theme::AyuDark | Theme::AyuMirage | Theme::AyuLight => "ayu",
-        Theme::GithubDark | Theme::GithubLight => "opencode",
+        Theme::GithubDark
+        | Theme::GithubLight
+        | Theme::GithubDarkDimmed
+        | Theme::GithubDarkHighContrast
+        | Theme::GithubLightHighContrast => "opencode",
         Theme::SolarizedDark | Theme::SolarizedLight => "opencode",
         Theme::NightOwl | Theme::NightOwlLight => "tokyonight",
         Theme::Projectious => "tokyonight",
+        Theme::KanagawaWave | Theme::KanagawaDragon | Theme::KanagawaLotus => "kanagawa",
+        Theme::EverforestDark | Theme::EverforestLight => "everforest",
+        Theme::Monokai => "monokai",
+        Theme::OneDarkPro | Theme::OneLight | Theme::Plastic => "onedark",
+        // Remaining new themes — closest available
+        Theme::Andromeeda
+        | Theme::AuroraX
+        | Theme::Houston
+        | Theme::Laserwave
+        | Theme::MinDark
+        | Theme::MinLight
+        | Theme::Poimandres
+        | Theme::Red
+        | Theme::SlackDark
+        | Theme::SlackOchin
+        | Theme::SnazzyLight
+        | Theme::Synthwave84
+        | Theme::Vesper
+        | Theme::VitesseDark
+        | Theme::VitesseLight
+        | Theme::VitesseBlack
+        | Theme::VsCodeDarkPlus
+        | Theme::VsCodeLightPlus => "opencode",
     }
 }
 
@@ -1269,6 +1505,7 @@ mod tests {
         Theme::CatppuccinFrappe,
         Theme::CatppuccinLatte,
         Theme::Dracula,
+        Theme::DraculaSoft,
         Theme::TokyoNight,
         Theme::TokyoNightStorm,
         Theme::TokyoNightDay,
@@ -1280,10 +1517,14 @@ mod tests {
         Theme::MaterialOcean,
         Theme::MaterialPalenight,
         Theme::MaterialLighter,
+        Theme::MaterialDarker,
         Theme::SolarizedDark,
         Theme::SolarizedLight,
         Theme::GithubDark,
         Theme::GithubLight,
+        Theme::GithubDarkDimmed,
+        Theme::GithubDarkHighContrast,
+        Theme::GithubLightHighContrast,
         Theme::AyuDark,
         Theme::AyuMirage,
         Theme::AyuLight,
@@ -1291,6 +1532,34 @@ mod tests {
         Theme::NightOwlLight,
         Theme::Moonlight,
         Theme::Projectious,
+        // New themes
+        Theme::Andromeeda,
+        Theme::AuroraX,
+        Theme::EverforestDark,
+        Theme::EverforestLight,
+        Theme::Houston,
+        Theme::KanagawaWave,
+        Theme::KanagawaDragon,
+        Theme::KanagawaLotus,
+        Theme::Laserwave,
+        Theme::MinDark,
+        Theme::MinLight,
+        Theme::Monokai,
+        Theme::OneDarkPro,
+        Theme::OneLight,
+        Theme::Plastic,
+        Theme::Poimandres,
+        Theme::Red,
+        Theme::SlackDark,
+        Theme::SlackOchin,
+        Theme::SnazzyLight,
+        Theme::Synthwave84,
+        Theme::Vesper,
+        Theme::VitesseDark,
+        Theme::VitesseLight,
+        Theme::VitesseBlack,
+        Theme::VsCodeDarkPlus,
+        Theme::VsCodeLightPlus,
     ];
 
     const ALL_PROMPTS: &[StarshipPreset] = &[

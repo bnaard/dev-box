@@ -1027,6 +1027,7 @@ pub enum Theme {
     CatppuccinFrappe,
     CatppuccinLatte,
     Dracula,
+    DraculaSoft,
     TokyoNight,
     TokyoNightStorm,
     TokyoNightDay,
@@ -1038,10 +1039,14 @@ pub enum Theme {
     MaterialOcean,
     MaterialPalenight,
     MaterialLighter,
+    MaterialDarker,
     SolarizedDark,
     SolarizedLight,
     GithubDark,
     GithubLight,
+    GithubDarkDimmed,
+    GithubDarkHighContrast,
+    GithubLightHighContrast,
     AyuDark,
     AyuMirage,
     AyuLight,
@@ -1049,6 +1054,34 @@ pub enum Theme {
     NightOwlLight,
     Moonlight,
     Projectious,
+    // NEW families
+    Andromeeda,
+    AuroraX,
+    EverforestDark,
+    EverforestLight,
+    Houston,
+    KanagawaWave,
+    KanagawaDragon,
+    KanagawaLotus,
+    Laserwave,
+    MinDark,
+    MinLight,
+    Monokai,
+    OneDarkPro,
+    OneLight,
+    Plastic,
+    Poimandres,
+    Red,
+    SlackDark,
+    SlackOchin,
+    SnazzyLight,
+    Synthwave84,
+    Vesper,
+    VitesseDark,
+    VitesseLight,
+    VitesseBlack,
+    VsCodeDarkPlus,
+    VsCodeLightPlus,
 }
 
 /// User-facing theme family selector. Pairs with `ThemeMode` (and optional
@@ -1058,38 +1091,74 @@ pub enum Theme {
 #[serde(rename_all = "kebab-case")]
 #[clap(rename_all = "kebab-case")]
 pub enum ThemeFamily {
+    Andromeeda,
+    AuroraX,
     Ayu,
     Catppuccin,
     Dracula,
+    Everforest,
     Github,
     #[default]
     Gruvbox,
+    Houston,
+    Kanagawa,
+    Laserwave,
     Material,
+    Min,
+    Monokai,
     Moonlight,
     NightOwl,
     Nord,
+    OneDark,
+    Plastic,
+    Poimandres,
     Projectious,
+    Red,
     RosePine,
+    Slack,
+    Snazzy,
     Solarized,
+    Synthwave84,
     TokyoNight,
+    Vesper,
+    Vitesse,
+    VsCode,
 }
 
 impl std::fmt::Display for ThemeFamily {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
+            ThemeFamily::Andromeeda => write!(f, "andromeeda"),
+            ThemeFamily::AuroraX => write!(f, "aurora-x"),
             ThemeFamily::Ayu => write!(f, "ayu"),
             ThemeFamily::Catppuccin => write!(f, "catppuccin"),
             ThemeFamily::Dracula => write!(f, "dracula"),
+            ThemeFamily::Everforest => write!(f, "everforest"),
             ThemeFamily::Github => write!(f, "github"),
             ThemeFamily::Gruvbox => write!(f, "gruvbox"),
+            ThemeFamily::Houston => write!(f, "houston"),
+            ThemeFamily::Kanagawa => write!(f, "kanagawa"),
+            ThemeFamily::Laserwave => write!(f, "laserwave"),
             ThemeFamily::Material => write!(f, "material"),
+            ThemeFamily::Min => write!(f, "min"),
+            ThemeFamily::Monokai => write!(f, "monokai"),
             ThemeFamily::Moonlight => write!(f, "moonlight"),
             ThemeFamily::NightOwl => write!(f, "night-owl"),
             ThemeFamily::Nord => write!(f, "nord"),
+            ThemeFamily::OneDark => write!(f, "one-dark"),
+            ThemeFamily::Plastic => write!(f, "plastic"),
+            ThemeFamily::Poimandres => write!(f, "poimandres"),
             ThemeFamily::Projectious => write!(f, "projectious"),
+            ThemeFamily::Red => write!(f, "red"),
             ThemeFamily::RosePine => write!(f, "rose-pine"),
+            ThemeFamily::Slack => write!(f, "slack"),
+            ThemeFamily::Snazzy => write!(f, "snazzy"),
             ThemeFamily::Solarized => write!(f, "solarized"),
+            ThemeFamily::Synthwave84 => write!(f, "synthwave-84"),
             ThemeFamily::TokyoNight => write!(f, "tokyo-night"),
+            ThemeFamily::Vesper => write!(f, "vesper"),
+            ThemeFamily::Vitesse => write!(f, "vitesse"),
+            ThemeFamily::VsCode => write!(f, "vscode"),
         }
     }
 }
@@ -1102,13 +1171,18 @@ pub fn family_of(theme: &Theme) -> ThemeFamily {
         | Theme::CatppuccinMacchiato
         | Theme::CatppuccinFrappe
         | Theme::CatppuccinLatte => ThemeFamily::Catppuccin,
-        Theme::Dracula => ThemeFamily::Dracula,
-        Theme::GithubDark | Theme::GithubLight => ThemeFamily::Github,
+        Theme::Dracula | Theme::DraculaSoft => ThemeFamily::Dracula,
+        Theme::GithubDark
+        | Theme::GithubLight
+        | Theme::GithubDarkDimmed
+        | Theme::GithubDarkHighContrast
+        | Theme::GithubLightHighContrast => ThemeFamily::Github,
         Theme::GruvboxDark | Theme::GruvboxLight => ThemeFamily::Gruvbox,
         Theme::Material
         | Theme::MaterialOcean
         | Theme::MaterialPalenight
-        | Theme::MaterialLighter => ThemeFamily::Material,
+        | Theme::MaterialLighter
+        | Theme::MaterialDarker => ThemeFamily::Material,
         Theme::Moonlight => ThemeFamily::Moonlight,
         Theme::NightOwl | Theme::NightOwlLight => ThemeFamily::NightOwl,
         Theme::Nord => ThemeFamily::Nord,
@@ -1118,6 +1192,25 @@ pub fn family_of(theme: &Theme) -> ThemeFamily {
         Theme::TokyoNight | Theme::TokyoNightStorm | Theme::TokyoNightDay => {
             ThemeFamily::TokyoNight
         }
+        // New families
+        Theme::Andromeeda => ThemeFamily::Andromeeda,
+        Theme::AuroraX => ThemeFamily::AuroraX,
+        Theme::EverforestDark | Theme::EverforestLight => ThemeFamily::Everforest,
+        Theme::Houston => ThemeFamily::Houston,
+        Theme::KanagawaWave | Theme::KanagawaDragon | Theme::KanagawaLotus => ThemeFamily::Kanagawa,
+        Theme::Laserwave => ThemeFamily::Laserwave,
+        Theme::MinDark | Theme::MinLight => ThemeFamily::Min,
+        Theme::Monokai => ThemeFamily::Monokai,
+        Theme::OneDarkPro | Theme::OneLight => ThemeFamily::OneDark,
+        Theme::Plastic => ThemeFamily::Plastic,
+        Theme::Poimandres => ThemeFamily::Poimandres,
+        Theme::Red => ThemeFamily::Red,
+        Theme::SlackDark | Theme::SlackOchin => ThemeFamily::Slack,
+        Theme::SnazzyLight => ThemeFamily::Snazzy,
+        Theme::Synthwave84 => ThemeFamily::Synthwave84,
+        Theme::Vesper => ThemeFamily::Vesper,
+        Theme::VitesseDark | Theme::VitesseLight | Theme::VitesseBlack => ThemeFamily::Vitesse,
+        Theme::VsCodeDarkPlus | Theme::VsCodeLightPlus => ThemeFamily::VsCode,
     }
 }
 
@@ -1129,10 +1222,18 @@ pub fn variant_name_of(theme: &Theme) -> Option<&'static str> {
         Theme::AyuMirage => Some("mirage"),
         Theme::CatppuccinMacchiato => Some("macchiato"),
         Theme::CatppuccinFrappe => Some("frappe"),
+        Theme::DraculaSoft => Some("soft"),
+        Theme::GithubDarkDimmed => Some("dimmed"),
+        Theme::GithubDarkHighContrast => Some("high-contrast-dark"),
+        Theme::GithubLightHighContrast => Some("high-contrast-light"),
+        Theme::KanagawaDragon => Some("dragon"),
         Theme::MaterialOcean => Some("ocean"),
         Theme::MaterialPalenight => Some("palenight"),
+        Theme::MaterialDarker => Some("darker"),
         Theme::RosePineMoon => Some("moon"),
+        Theme::SlackOchin => Some("ochin"),
         Theme::TokyoNightStorm => Some("storm"),
+        Theme::VitesseBlack => Some("black"),
         _ => None,
     }
 }
@@ -1148,10 +1249,20 @@ pub(crate) fn resolve_theme_from_family(
 ) -> Theme {
     // Solo families ignore both mode and variant.
     match family {
-        ThemeFamily::Dracula => return Theme::Dracula,
+        ThemeFamily::Andromeeda => return Theme::Andromeeda,
+        ThemeFamily::AuroraX => return Theme::AuroraX,
+        ThemeFamily::Houston => return Theme::Houston,
+        ThemeFamily::Laserwave => return Theme::Laserwave,
+        ThemeFamily::Monokai => return Theme::Monokai,
         ThemeFamily::Moonlight => return Theme::Moonlight,
         ThemeFamily::Nord => return Theme::Nord,
+        ThemeFamily::Plastic => return Theme::Plastic,
+        ThemeFamily::Poimandres => return Theme::Poimandres,
         ThemeFamily::Projectious => return Theme::Projectious,
+        ThemeFamily::Red => return Theme::Red,
+        ThemeFamily::Snazzy => return Theme::SnazzyLight,
+        ThemeFamily::Synthwave84 => return Theme::Synthwave84,
+        ThemeFamily::Vesper => return Theme::Vesper,
         _ => {}
     }
 
@@ -1159,18 +1270,39 @@ pub(crate) fn resolve_theme_from_family(
         ThemeMode::Light => match family {
             ThemeFamily::Ayu => Theme::AyuLight,
             ThemeFamily::Catppuccin => Theme::CatppuccinLatte,
-            ThemeFamily::Github => Theme::GithubLight,
+            ThemeFamily::Dracula => Theme::Dracula, // no light variant — return dark canonical
+            ThemeFamily::Everforest => Theme::EverforestLight,
+            ThemeFamily::Github => match variant {
+                Some("high-contrast-light") => Theme::GithubLightHighContrast,
+                _ => Theme::GithubLight,
+            },
             ThemeFamily::Gruvbox => Theme::GruvboxLight,
+            ThemeFamily::Kanagawa => Theme::KanagawaLotus,
             ThemeFamily::Material => Theme::MaterialLighter,
+            ThemeFamily::Min => Theme::MinLight,
             ThemeFamily::NightOwl => Theme::NightOwlLight,
+            ThemeFamily::OneDark => Theme::OneLight,
             ThemeFamily::RosePine => Theme::RosePineDawn,
+            ThemeFamily::Slack => Theme::SlackOchin,
             ThemeFamily::Solarized => Theme::SolarizedLight,
             ThemeFamily::TokyoNight => Theme::TokyoNightDay,
+            ThemeFamily::Vitesse => Theme::VitesseLight,
+            ThemeFamily::VsCode => Theme::VsCodeLightPlus,
             // Solo families already returned above.
-            ThemeFamily::Dracula
+            ThemeFamily::Andromeeda
+            | ThemeFamily::AuroraX
+            | ThemeFamily::Houston
+            | ThemeFamily::Laserwave
+            | ThemeFamily::Monokai
             | ThemeFamily::Moonlight
             | ThemeFamily::Nord
-            | ThemeFamily::Projectious => {
+            | ThemeFamily::Plastic
+            | ThemeFamily::Poimandres
+            | ThemeFamily::Projectious
+            | ThemeFamily::Red
+            | ThemeFamily::Snazzy
+            | ThemeFamily::Synthwave84
+            | ThemeFamily::Vesper => {
                 unreachable!("solo families handled above")
             }
         },
@@ -1184,28 +1316,60 @@ pub(crate) fn resolve_theme_from_family(
                 Some("frappe") => Theme::CatppuccinFrappe,
                 _ => Theme::CatppuccinMocha,
             },
-            ThemeFamily::Github => Theme::GithubDark,
+            ThemeFamily::Dracula => match variant {
+                Some("soft") => Theme::DraculaSoft,
+                _ => Theme::Dracula,
+            },
+            ThemeFamily::Everforest => Theme::EverforestDark,
+            ThemeFamily::Github => match variant {
+                Some("dimmed") => Theme::GithubDarkDimmed,
+                Some("high-contrast-dark") => Theme::GithubDarkHighContrast,
+                _ => Theme::GithubDark,
+            },
             ThemeFamily::Gruvbox => Theme::GruvboxDark,
+            ThemeFamily::Kanagawa => match variant {
+                Some("dragon") => Theme::KanagawaDragon,
+                _ => Theme::KanagawaWave,
+            },
             ThemeFamily::Material => match variant {
                 Some("ocean") => Theme::MaterialOcean,
                 Some("palenight") => Theme::MaterialPalenight,
+                Some("darker") => Theme::MaterialDarker,
                 _ => Theme::Material,
             },
+            ThemeFamily::Min => Theme::MinDark,
             ThemeFamily::NightOwl => Theme::NightOwl,
+            ThemeFamily::OneDark => Theme::OneDarkPro,
             ThemeFamily::RosePine => match variant {
                 Some("moon") => Theme::RosePineMoon,
                 _ => Theme::RosePine,
             },
+            ThemeFamily::Slack => Theme::SlackDark,
             ThemeFamily::Solarized => Theme::SolarizedDark,
             ThemeFamily::TokyoNight => match variant {
                 Some("storm") => Theme::TokyoNightStorm,
                 _ => Theme::TokyoNight,
             },
+            ThemeFamily::Vitesse => match variant {
+                Some("black") => Theme::VitesseBlack,
+                _ => Theme::VitesseDark,
+            },
+            ThemeFamily::VsCode => Theme::VsCodeDarkPlus,
             // Solo families already returned above.
-            ThemeFamily::Dracula
+            ThemeFamily::Andromeeda
+            | ThemeFamily::AuroraX
+            | ThemeFamily::Houston
+            | ThemeFamily::Laserwave
+            | ThemeFamily::Monokai
             | ThemeFamily::Moonlight
             | ThemeFamily::Nord
-            | ThemeFamily::Projectious => {
+            | ThemeFamily::Plastic
+            | ThemeFamily::Poimandres
+            | ThemeFamily::Projectious
+            | ThemeFamily::Red
+            | ThemeFamily::Snazzy
+            | ThemeFamily::Synthwave84
+            | ThemeFamily::Vesper => {
                 unreachable!("solo families handled above")
             }
         },
@@ -1399,6 +1563,7 @@ impl std::fmt::Display for Theme {
             Theme::CatppuccinFrappe => write!(f, "catppuccin-frappe"),
             Theme::CatppuccinLatte => write!(f, "catppuccin-latte"),
             Theme::Dracula => write!(f, "dracula"),
+            Theme::DraculaSoft => write!(f, "dracula-soft"),
             Theme::TokyoNight => write!(f, "tokyo-night"),
             Theme::TokyoNightStorm => write!(f, "tokyo-night-storm"),
             Theme::TokyoNightDay => write!(f, "tokyo-night-day"),
@@ -1410,10 +1575,14 @@ impl std::fmt::Display for Theme {
             Theme::MaterialOcean => write!(f, "material-ocean"),
             Theme::MaterialPalenight => write!(f, "material-palenight"),
             Theme::MaterialLighter => write!(f, "material-lighter"),
+            Theme::MaterialDarker => write!(f, "material-darker"),
             Theme::SolarizedDark => write!(f, "solarized-dark"),
             Theme::SolarizedLight => write!(f, "solarized-light"),
             Theme::GithubDark => write!(f, "github-dark"),
             Theme::GithubLight => write!(f, "github-light"),
+            Theme::GithubDarkDimmed => write!(f, "github-dark-dimmed"),
+            Theme::GithubDarkHighContrast => write!(f, "github-dark-high-contrast"),
+            Theme::GithubLightHighContrast => write!(f, "github-light-high-contrast"),
             Theme::AyuDark => write!(f, "ayu-dark"),
             Theme::AyuMirage => write!(f, "ayu-mirage"),
             Theme::AyuLight => write!(f, "ayu-light"),
@@ -1421,6 +1590,34 @@ impl std::fmt::Display for Theme {
             Theme::NightOwlLight => write!(f, "night-owl-light"),
             Theme::Moonlight => write!(f, "moonlight"),
             Theme::Projectious => write!(f, "projectious"),
+            // New themes
+            Theme::Andromeeda => write!(f, "andromeeda"),
+            Theme::AuroraX => write!(f, "aurora-x"),
+            Theme::EverforestDark => write!(f, "everforest-dark"),
+            Theme::EverforestLight => write!(f, "everforest-light"),
+            Theme::Houston => write!(f, "houston"),
+            Theme::KanagawaWave => write!(f, "kanagawa-wave"),
+            Theme::KanagawaDragon => write!(f, "kanagawa-dragon"),
+            Theme::KanagawaLotus => write!(f, "kanagawa-lotus"),
+            Theme::Laserwave => write!(f, "laserwave"),
+            Theme::MinDark => write!(f, "min-dark"),
+            Theme::MinLight => write!(f, "min-light"),
+            Theme::Monokai => write!(f, "monokai"),
+            Theme::OneDarkPro => write!(f, "one-dark-pro"),
+            Theme::OneLight => write!(f, "one-light"),
+            Theme::Plastic => write!(f, "plastic"),
+            Theme::Poimandres => write!(f, "poimandres"),
+            Theme::Red => write!(f, "red"),
+            Theme::SlackDark => write!(f, "slack-dark"),
+            Theme::SlackOchin => write!(f, "slack-ochin"),
+            Theme::SnazzyLight => write!(f, "snazzy-light"),
+            Theme::Synthwave84 => write!(f, "synthwave-84"),
+            Theme::Vesper => write!(f, "vesper"),
+            Theme::VitesseDark => write!(f, "vitesse-dark"),
+            Theme::VitesseLight => write!(f, "vitesse-light"),
+            Theme::VitesseBlack => write!(f, "vitesse-black"),
+            Theme::VsCodeDarkPlus => write!(f, "vscode-dark-plus"),
+            Theme::VsCodeLightPlus => write!(f, "vscode-light-plus"),
         }
     }
 }
@@ -2513,8 +2710,17 @@ impl<'de> serde::Deserialize<'de> for CustomizationSection {
                                 | Theme::MaterialLighter
                                 | Theme::SolarizedLight
                                 | Theme::GithubLight
+                                | Theme::GithubLightHighContrast
                                 | Theme::AyuLight
-                                | Theme::NightOwlLight => ThemeMode::Light,
+                                | Theme::NightOwlLight
+                                | Theme::OneLight
+                                | Theme::VitesseLight
+                                | Theme::MinLight
+                                | Theme::KanagawaLotus
+                                | Theme::EverforestLight
+                                | Theme::VsCodeLightPlus
+                                | Theme::SlackOchin
+                                | Theme::SnazzyLight => ThemeMode::Light,
                                 _ => ThemeMode::Dark,
                             };
                             let variant_for_concrete = variant_name_of(&concrete);
@@ -6809,5 +7015,192 @@ target = "/home/aibox/.config/gh"
         // Volume appended
         assert_eq!(config.container.extra_volumes.len(), 1);
         assert_eq!(config.container.extra_volumes[0].source, "~/.config/gh");
+    }
+
+    #[test]
+    fn resolve_theme_from_family_handles_all_new_families() {
+        use Theme as T;
+        use ThemeFamily as F;
+        // OneDark
+        assert_eq!(
+            resolve_theme_from_family(&F::OneDark, ThemeMode::Dark, None),
+            T::OneDarkPro
+        );
+        assert_eq!(
+            resolve_theme_from_family(&F::OneDark, ThemeMode::Light, None),
+            T::OneLight
+        );
+        // Vitesse
+        assert_eq!(
+            resolve_theme_from_family(&F::Vitesse, ThemeMode::Dark, None),
+            T::VitesseDark
+        );
+        assert_eq!(
+            resolve_theme_from_family(&F::Vitesse, ThemeMode::Light, None),
+            T::VitesseLight
+        );
+        assert_eq!(
+            resolve_theme_from_family(&F::Vitesse, ThemeMode::Dark, Some("black")),
+            T::VitesseBlack
+        );
+        // Kanagawa
+        assert_eq!(
+            resolve_theme_from_family(&F::Kanagawa, ThemeMode::Dark, None),
+            T::KanagawaWave
+        );
+        assert_eq!(
+            resolve_theme_from_family(&F::Kanagawa, ThemeMode::Dark, Some("dragon")),
+            T::KanagawaDragon
+        );
+        assert_eq!(
+            resolve_theme_from_family(&F::Kanagawa, ThemeMode::Light, None),
+            T::KanagawaLotus
+        );
+        // Min
+        assert_eq!(
+            resolve_theme_from_family(&F::Min, ThemeMode::Dark, None),
+            T::MinDark
+        );
+        assert_eq!(
+            resolve_theme_from_family(&F::Min, ThemeMode::Light, None),
+            T::MinLight
+        );
+        // Slack
+        assert_eq!(
+            resolve_theme_from_family(&F::Slack, ThemeMode::Dark, None),
+            T::SlackDark
+        );
+        assert_eq!(
+            resolve_theme_from_family(&F::Slack, ThemeMode::Light, None),
+            T::SlackOchin
+        );
+        // Everforest
+        assert_eq!(
+            resolve_theme_from_family(&F::Everforest, ThemeMode::Dark, None),
+            T::EverforestDark
+        );
+        assert_eq!(
+            resolve_theme_from_family(&F::Everforest, ThemeMode::Light, None),
+            T::EverforestLight
+        );
+        // VsCode
+        assert_eq!(
+            resolve_theme_from_family(&F::VsCode, ThemeMode::Dark, None),
+            T::VsCodeDarkPlus
+        );
+        assert_eq!(
+            resolve_theme_from_family(&F::VsCode, ThemeMode::Light, None),
+            T::VsCodeLightPlus
+        );
+        // Dracula (multi-variant)
+        assert_eq!(
+            resolve_theme_from_family(&F::Dracula, ThemeMode::Dark, None),
+            T::Dracula
+        );
+        assert_eq!(
+            resolve_theme_from_family(&F::Dracula, ThemeMode::Dark, Some("soft")),
+            T::DraculaSoft
+        );
+        // Github new variants
+        assert_eq!(
+            resolve_theme_from_family(&F::Github, ThemeMode::Dark, Some("dimmed")),
+            T::GithubDarkDimmed
+        );
+        assert_eq!(
+            resolve_theme_from_family(&F::Github, ThemeMode::Dark, Some("high-contrast-dark")),
+            T::GithubDarkHighContrast
+        );
+        assert_eq!(
+            resolve_theme_from_family(&F::Github, ThemeMode::Light, Some("high-contrast-light")),
+            T::GithubLightHighContrast
+        );
+        // Material new variant
+        assert_eq!(
+            resolve_theme_from_family(&F::Material, ThemeMode::Dark, Some("darker")),
+            T::MaterialDarker
+        );
+        // Solo new families
+        assert_eq!(
+            resolve_theme_from_family(&F::Snazzy, ThemeMode::Dark, None),
+            T::SnazzyLight
+        );
+        assert_eq!(
+            resolve_theme_from_family(&F::Monokai, ThemeMode::Dark, None),
+            T::Monokai
+        );
+        assert_eq!(
+            resolve_theme_from_family(&F::Poimandres, ThemeMode::Dark, None),
+            T::Poimandres
+        );
+        assert_eq!(
+            resolve_theme_from_family(&F::Synthwave84, ThemeMode::Dark, None),
+            T::Synthwave84
+        );
+        assert_eq!(
+            resolve_theme_from_family(&F::Andromeeda, ThemeMode::Dark, None),
+            T::Andromeeda
+        );
+        assert_eq!(
+            resolve_theme_from_family(&F::AuroraX, ThemeMode::Dark, None),
+            T::AuroraX
+        );
+        assert_eq!(
+            resolve_theme_from_family(&F::Vesper, ThemeMode::Dark, None),
+            T::Vesper
+        );
+        assert_eq!(
+            resolve_theme_from_family(&F::Laserwave, ThemeMode::Dark, None),
+            T::Laserwave
+        );
+        assert_eq!(
+            resolve_theme_from_family(&F::Plastic, ThemeMode::Dark, None),
+            T::Plastic
+        );
+        assert_eq!(
+            resolve_theme_from_family(&F::Houston, ThemeMode::Dark, None),
+            T::Houston
+        );
+        assert_eq!(
+            resolve_theme_from_family(&F::Red, ThemeMode::Dark, None),
+            T::Red
+        );
+    }
+
+    #[test]
+    fn family_of_round_trips_for_new_themes() {
+        use Theme as T;
+        use ThemeFamily as F;
+        assert_eq!(family_of(&T::OneDarkPro), F::OneDark);
+        assert_eq!(family_of(&T::OneLight), F::OneDark);
+        assert_eq!(family_of(&T::VitesseDark), F::Vitesse);
+        assert_eq!(family_of(&T::VitesseLight), F::Vitesse);
+        assert_eq!(family_of(&T::VitesseBlack), F::Vitesse);
+        assert_eq!(family_of(&T::KanagawaWave), F::Kanagawa);
+        assert_eq!(family_of(&T::KanagawaDragon), F::Kanagawa);
+        assert_eq!(family_of(&T::KanagawaLotus), F::Kanagawa);
+        assert_eq!(family_of(&T::MinDark), F::Min);
+        assert_eq!(family_of(&T::MinLight), F::Min);
+        assert_eq!(family_of(&T::SlackDark), F::Slack);
+        assert_eq!(family_of(&T::SlackOchin), F::Slack);
+        assert_eq!(family_of(&T::EverforestDark), F::Everforest);
+        assert_eq!(family_of(&T::EverforestLight), F::Everforest);
+        assert_eq!(family_of(&T::VsCodeDarkPlus), F::VsCode);
+        assert_eq!(family_of(&T::VsCodeLightPlus), F::VsCode);
+        assert_eq!(family_of(&T::DraculaSoft), F::Dracula);
+        assert_eq!(family_of(&T::GithubDarkDimmed), F::Github);
+        assert_eq!(family_of(&T::GithubDarkHighContrast), F::Github);
+        assert_eq!(family_of(&T::GithubLightHighContrast), F::Github);
+        assert_eq!(family_of(&T::MaterialDarker), F::Material);
+        assert_eq!(family_of(&T::SnazzyLight), F::Snazzy);
+        assert_eq!(family_of(&T::Monokai), F::Monokai);
+        assert_eq!(family_of(&T::Poimandres), F::Poimandres);
+        assert_eq!(family_of(&T::Synthwave84), F::Synthwave84);
+        assert_eq!(family_of(&T::Andromeeda), F::Andromeeda);
+        assert_eq!(family_of(&T::AuroraX), F::AuroraX);
+        assert_eq!(family_of(&T::Vesper), F::Vesper);
+        assert_eq!(family_of(&T::Laserwave), F::Laserwave);
+        assert_eq!(family_of(&T::Plastic), F::Plastic);
+        assert_eq!(family_of(&T::Houston), F::Houston);
+        assert_eq!(family_of(&T::Red), F::Red);
     }
 }

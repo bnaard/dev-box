@@ -465,18 +465,25 @@ schema_version = "1.0.0"      # Context schema version — updated automatically
 # [customization] — color theme, shell prompt, and tmux layout
 # =============================================================================
 # Theme is applied consistently across tmux, Vim, Yazi, lazygit, and bat.
-# Theme families:
-# - ayu, catppuccin, dracula, github, gruvbox, material, moonlight, night-owl,
-#   nord, projectious, rose-pine, solarized, tokyo-night
+# Theme families (31 total):
+#   Multi-variant: ayu, catppuccin, dracula, everforest, github, gruvbox,
+#     kanagawa, material, min, night-owl, one-dark, rose-pine, slack,
+#     solarized, tokyo-night, vitesse, vscode
+#   Solo (mode ignored): andromeeda, aurora-x, houston, laserwave,
+#     monokai, moonlight, nord, plastic, poimandres, projectious, red,
+#     snazzy, synthwave-84, vesper
 [customization]
 theme  = "ayu"
 # Light/dark variant. `auto` follows host OS appearance when detectable.
-# Solo families (dracula, moonlight, nord, projectious) ignore mode.
+# Solo families (see list above) ignore mode.
 # Options: auto | light | dark
 mode   = "dark"
 # Optional alternate variant override (per family). Default = unset.
-#   ayu: "mirage"  catppuccin: "macchiato" | "frappe"  material: "ocean" | "palenight"
-#   rose-pine: "moon"  tokyo-night: "storm"
+#   ayu: "mirage"           catppuccin: "macchiato" | "frappe"
+#   dracula: "soft"         github: "dimmed" | "high-contrast-dark" | "high-contrast-light"
+#   kanagawa: "dragon"      material: "ocean" | "palenight" | "darker"
+#   rose-pine: "moon"       slack: "ochin"
+#   tokyo-night: "storm"    vitesse: "black"
 # variant = "<name>"
 # Starship prompt preset.
 # Options: default | plain | minimal | nerd-font | pastel | powerline-pastel | bracketed | arrow

@@ -1502,25 +1502,46 @@ pub(crate) fn serialize_config_with_comments(config: &AiboxConfig) -> String {
     out.push_str("# [customization] — color theme, shell prompt, and tmux layout\n");
     out.push_str(sep);
     out.push_str("# Theme is applied consistently across tmux, Vim, Yazi, lazygit, and bat.\n");
-    out.push_str("# Theme families:\n");
+    out.push_str("# Theme families (31 total):\n");
     out.push_str(
-        "# - ayu, catppuccin, dracula, github, gruvbox, material, moonlight, night-owl,\n",
+        "#   Multi-variant: ayu, catppuccin, dracula, everforest, github, gruvbox,\n",
     );
-    out.push_str("#   nord, projectious, rose-pine, solarized, tokyo-night\n");
+    out.push_str(
+        "#     kanagawa, material, min, night-owl, one-dark, rose-pine, slack,\n",
+    );
+    out.push_str("#     solarized, tokyo-night, vitesse, vscode\n");
+    out.push_str(
+        "#   Solo (mode ignored): andromeeda, aurora-x, houston, laserwave,\n",
+    );
+    out.push_str(
+        "#     monokai, moonlight, nord, plastic, poimandres, projectious, red,\n",
+    );
+    out.push_str("#     snazzy, synthwave-84, vesper\n");
     out.push_str("[customization]\n");
     // Always emit the family form. If the user had a legacy concrete name and
     // has not yet run `aibox apply --standardize-config`, the family is already
     // correct (the deserializer derived it). The legacy lock is runtime-only.
     out.push_str(&format!("theme  = \"{}\"\n", config.customization.theme));
     out.push_str("# Light/dark variant. `auto` follows host OS appearance when detectable.\n");
-    out.push_str("# Solo families (dracula, moonlight, nord, projectious) ignore mode.\n");
+    out.push_str("# Solo families (see list above) ignore mode.\n");
     out.push_str("# Options: auto | light | dark\n");
     out.push_str(&format!("mode   = \"{}\"\n", config.customization.mode));
     out.push_str("# Optional alternate variant override (per family). Default = unset.\n");
     out.push_str(
-        "#   ayu: \"mirage\"  catppuccin: \"macchiato\" | \"frappe\"  material: \"ocean\" | \"palenight\"\n",
+        "#   ayu: \"mirage\"           catppuccin: \"macchiato\" | \"frappe\"\n",
     );
-    out.push_str("#   rose-pine: \"moon\"  tokyo-night: \"storm\"\n");
+    out.push_str(
+        "#   dracula: \"soft\"         github: \"dimmed\" | \"high-contrast-dark\" | \"high-contrast-light\"\n",
+    );
+    out.push_str(
+        "#   kanagawa: \"dragon\"      material: \"ocean\" | \"palenight\" | \"darker\"\n",
+    );
+    out.push_str(
+        "#   rose-pine: \"moon\"       slack: \"ochin\"\n",
+    );
+    out.push_str(
+        "#   tokyo-night: \"storm\"    vitesse: \"black\"\n",
+    );
     if let Some(ref v) = config.customization.variant {
         out.push_str(&format!("variant = \"{v}\"\n"));
     } else {
