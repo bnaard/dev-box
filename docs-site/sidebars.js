@@ -33,7 +33,14 @@ const sidebars = {
     },
     {
       type: 'category', label: 'Customization',
-      items: ['customization/themes', 'customization/prompts', 'customization/layouts', 'customization/custom-themes', 'customization/custom-prompts'],
+      items: [
+        'customization/themes',
+        {type: 'link', label: 'Theme Gallery', href: '/aibox/themes'},
+        'customization/prompts',
+        'customization/layouts',
+        'customization/custom-themes',
+        'customization/custom-prompts',
+      ],
     },
     {
       type: 'category', label: 'Reference',

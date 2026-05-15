@@ -52,6 +52,7 @@ const config = {
       items: [
         { type: 'docSidebar', sidebarId: 'docs', position: 'left', label: 'Docs' },
         { to: '/features', label: 'Features', position: 'left' },
+        { to: '/themes', label: 'Themes', position: 'left' },
         { to: '/changelog', label: 'Changelog', position: 'left' },
         { href: 'https://github.com/projectious-work/aibox', label: 'GitHub', position: 'right' },
       ],
