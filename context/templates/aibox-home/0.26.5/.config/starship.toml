@@ -1,0 +1,66 @@
+# aibox starship config — pastel powerline preset
+# One-line prompt inspired by https://starship.rs/presets/#pastel-powerline.
+palette = "aibox"
+
+format = """
+[](fg:#88C0D0)\
+$directory\
+[](fg:#88C0D0 bg:#A3BE8C)\
+$git_branch\
+$git_status\
+[](fg:#A3BE8C bg:#D08770)\
+$python\
+$rust\
+$nodejs\
+$golang\
+[](fg:#D08770 bg:#2E3440)\
+$cmd_duration\
+$character"""
+
+[directory]
+style = "bold bg:#88C0D0 fg:#2E3440"
+format = "[ $path ]($style)"
+truncation_length = 3
+truncate_to_repo = true
+
+[git_branch]
+style = "bg:#A3BE8C fg:#2E3440"
+symbol = " "
+format = "[ $symbol$branch ]($style)"
+
+[git_status]
+style = "bg:#A3BE8C fg:#2E3440"
+format = "[$all_status$ahead_behind ]($style)"
+ahead = "⇡$count"
+behind = "⇣$count"
+diverged = "⇕⇡$ahead_count⇣$behind_count"
+modified = "!$count"
+staged = "+$count"
+untracked = "?$count"
+
+[python]
+style = "bg:#D08770 fg:#2E3440"
+format = "[ $symbol$version ]($style)"
+[rust]
+style = "bg:#D08770 fg:#2E3440"
+format = "[ $symbol$version ]($style)"
+[nodejs]
+style = "bg:#D08770 fg:#2E3440"
+format = "[ $symbol$version ]($style)"
+[golang]
+style = "bg:#D08770 fg:#2E3440"
+format = "[ $symbol$version ]($style)"
+
+[cmd_duration]
+style = "fg:#4C566A"
+min_time = 2_000
+format = "[ $duration ]($style)"
+
+[character]
+success_symbol = "[❯](bold fg:#88C0D0) "
+error_symbol = "[❯](bold fg:#BF616A) "
+
+[palettes.aibox]
+bg = "#2E3440"
+fg = "#D8DEE9"
+accent = "#88C0D0"
