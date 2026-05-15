@@ -689,8 +689,7 @@ const DEFAULT_AIBOX_TMUX_CONFIRM_AND_SWITCH_SH: &str =
 const DEFAULT_AIBOX_TMUX_REFRESH_THEME_SH: &str =
     include_str!("templates/aibox-tmux-refresh-theme.sh");
 /// aibox-tmux-cheatsheet — categorized keybinding reference displayed by `prefix + ?`.
-const DEFAULT_AIBOX_TMUX_CHEATSHEET_SH: &str =
-    include_str!("templates/aibox-tmux-cheatsheet.sh");
+const DEFAULT_AIBOX_TMUX_CHEATSHEET_SH: &str = include_str!("templates/aibox-tmux-cheatsheet.sh");
 /// aibox-copy helper — forward stdin to tmux/OSC52 host clipboard integration.
 const DEFAULT_AIBOX_COPY_SH: &str = r#"#!/usr/bin/env bash
 set -euo pipefail
