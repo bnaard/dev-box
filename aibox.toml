@@ -473,11 +473,11 @@ schema_version = "1.0.0"      # Context schema version — updated automatically
 #     monokai, moonlight, nord, plastic, poimandres, projectious, red,
 #     snazzy, synthwave-84, vesper
 [customization]
-theme  = "ayu"
+theme  = "nord"
 # Light/dark variant. `auto` follows host OS appearance when detectable.
 # Solo families (see list above) ignore mode.
 # Options: auto | light | dark
-mode   = "dark"
+mode   = "auto"
 # Optional alternate variant override (per family). Default = unset.
 #   ayu: "mirage"           catppuccin: "macchiato" | "frappe"
 #   dracula: "soft"         github: "dimmed" | "high-contrast-dark" | "high-contrast-light"
