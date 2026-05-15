@@ -465,22 +465,19 @@ schema_version = "1.0.0"      # Context schema version — updated automatically
 # [customization] — color theme, shell prompt, and tmux layout
 # =============================================================================
 # Theme is applied consistently across tmux, Vim, Yazi, lazygit, and bat.
-# tmux-powerkit popular themes and variants supported by aibox:
-# - tokyo-night, tokyo-night-storm, tokyo-night-day
-# - catppuccin-mocha, catppuccin-macchiato, catppuccin-frappe, catppuccin-latte
-# - dracula, nord, gruvbox-dark, gruvbox-light
-# - rose-pine, rose-pine-moon, rose-pine-dawn
-# - material, material-ocean, material-palenight, material-lighter
-# - solarized-dark, solarized-light, github-dark, github-light
-# - ayu-dark, ayu-mirage, ayu-light, night-owl, night-owl-light, moonlight
-# - projectious (aibox extension)
+# Theme families:
+# - ayu, catppuccin, dracula, github, gruvbox, material, moonlight, night-owl,
+#   nord, projectious, rose-pine, solarized, tokyo-night
 [customization]
 theme  = "ayu"
-# Global mode overlay. `auto` follows the host OS appearance when detectable.
-# Paired families follow light/dark variants; genuinely dark-only themes
-# (dracula, nord, moonlight, projectious) keep their selected concrete theme.
+# Light/dark variant. `auto` follows host OS appearance when detectable.
+# Solo families (dracula, moonlight, nord, projectious) ignore mode.
 # Options: auto | light | dark
 mode   = "dark"
+# Optional alternate variant override (per family). Default = unset.
+#   ayu: "mirage"  catppuccin: "macchiato" | "frappe"  material: "ocean" | "palenight"
+#   rose-pine: "moon"  tokyo-night: "storm"
+# variant = "<name>"
 # Starship prompt preset.
 # Options: default | plain | minimal | nerd-font | pastel | powerline-pastel | bracketed | arrow
 # ASCII sketches:
