@@ -13,7 +13,21 @@ use std::time::{Duration, Instant};
 
 use super::runner::E2eRunner;
 
-const THEMES: &[(&str, u8, u8, u8)] = &[
+// Per-theme broad coverage (ANSI status-bar invariants I1–I4) is now in
+// `scripts/test-screencasts.sh` — it exercises all 61 theme slugs on every
+// CI run without spinning up containers. This companion test is a deployment
+// smoke test: it only needs to prove the end-to-end pipeline (init → apply →
+// tmux config → asciinema cast) works for one representative theme.
+//
+// To restore the full 7-theme sweep (e.g. on a release branch), set:
+//   AIBOX_E2E_VISUAL_FULL_MATRIX=1
+// The full list is preserved in FULL_MATRIX_THEMES below.
+const THEMES: &[(&str, u8, u8, u8)] = &[("projectious", 45, 106, 79)];
+
+/// Full theme list used when AIBOX_E2E_VISUAL_FULL_MATRIX=1 is set.
+/// Accent RGB values are sampled from each theme's `green` palette entry,
+/// which is what the generated tmux config embeds for colour verification.
+const FULL_MATRIX_THEMES: &[(&str, u8, u8, u8)] = &[
     ("gruvbox-dark", 152, 151, 26),
     ("catppuccin-mocha", 166, 227, 161),
     ("catppuccin-latte", 64, 160, 43),
@@ -50,6 +64,16 @@ fn full_visual_matrix_enabled() -> bool {
     )
 }
 
+/// Returns the active theme list: full 7-theme sweep when
+/// `AIBOX_E2E_VISUAL_FULL_MATRIX` is set, otherwise the 1-theme smoke list.
+fn active_themes() -> &'static [(&'static str, u8, u8, u8)] {
+    if full_visual_matrix_enabled() {
+        FULL_MATRIX_THEMES
+    } else {
+        THEMES
+    }
+}
+
 fn status_matrix_layouts_for_theme(theme: &str) -> Vec<&'static str> {
     if full_visual_matrix_enabled() || theme == DEFAULT_STATUS_THEME {
         LAYOUTS.to_vec()
@@ -59,10 +83,11 @@ fn status_matrix_layouts_for_theme(theme: &str) -> Vec<&'static str> {
 }
 
 fn status_matrix_total_cases() -> usize {
+    let themes = active_themes();
     if full_visual_matrix_enabled() {
-        THEMES.len() * LAYOUTS.len()
+        themes.len() * LAYOUTS.len()
     } else {
-        LAYOUTS.len() + THEMES.len() - 1
+        LAYOUTS.len() + themes.len() - 1
     }
 }
 
@@ -624,13 +649,14 @@ fn visual_generated_layouts_render_across_all_themes() {
     runner.ensure_deployed();
 
     let total_cases = status_matrix_total_cases();
+    let themes = active_themes();
     let mut case = 0;
-    for (theme_index, &(theme, r, g, b)) in THEMES.iter().enumerate() {
+    for (theme_index, &(theme, r, g, b)) in themes.iter().enumerate() {
         let test_name = format!("visual-matrix-theme-{theme}");
         log_visual_progress(format!(
             "status matrix: init theme {}/{} ({theme})",
             theme_index + 1,
-            THEMES.len()
+            themes.len()
         ));
         init_project(&runner, &test_name, theme, false, &["git-ui"]);
         install_visual_fixtures(&runner, &test_name);
