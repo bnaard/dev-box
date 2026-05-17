@@ -285,7 +285,7 @@ fn init_generates_tmux_customization_surface() {
             && toml.contains("edge-style = \"rounded\"")
             && toml.contains("elements-spacing = \"both\"")
             && toml.contains("[customization.tmux.status.refresh]")
-            && toml.contains("interval-seconds = 10")
+            && toml.contains("interval-seconds = 15")
             && toml.contains("aibox-metrics-cache-ttl-seconds = 30")
             && toml.contains("[customization.tmux.status.model-providers]")
             && toml.contains("#   Symbols: ✓ ok, 󰀦 degraded, 󰚌 outage, ? unknown.")
