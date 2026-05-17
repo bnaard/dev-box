@@ -589,16 +589,17 @@ Controls which MCP servers harnesses are permitted to use, eliminating repetitiv
 
 ```toml
 [ai.mcp.permissions.harness.claude-code]
-mode = "allow"              # Override global default if needed
-extra_patterns = []         # Add harness-specific patterns
+default_mode = "allow"      # Override global default if needed
+allow_patterns = []         # Add harness-specific patterns
 
 [ai.mcp.permissions.harness.opencode]
-mode = "allow"
+default_mode = "allow"
 deny_patterns = []          # Restrict specific tools per harness
-
-[ai.mcp.permissions.harness.codex]
-trust_level = "trusted"     # Codex uses project-level trust instead of per-tool lists
 ```
+
+aibox maps this provider-neutral permission intent to each harness's native
+configuration format. Sandbox, approval, and network policy are configured
+separately in `[ai.execution]`.
 
 **Example:**
 
@@ -613,12 +614,39 @@ deny_patterns   = ["mcp__processkit-dangerous-admin"]  # Deny a specific pattern
 
 [ai.mcp.permissions.harness.continue]
 # Continue defaults to "ask" for safety; override to "allow" to auto-approve
-mode = "allow"
+default_mode = "allow"
 ```
 
 :::tip Personal MCP servers
 Servers that require personal credentials or are not relevant to all team members belong in `[[mcp.servers]]` in `.aibox-local.toml`, not committed `[[ai.mcp.servers]]`. See [Local Config](./local-config.md).
 :::
+
+### [ai.execution]
+
+Controls the default execution policy intent for AI harnesses. aibox uses stable
+cross-harness vocabulary here and maps it to each harness where supported.
+
+```toml
+[ai.execution]
+filesystem = "workspace-write" # read-only | workspace-write | container-full
+approval   = "on-request"      # ask | on-request | never
+network    = "ask"             # deny | ask | allow
+
+[ai.harness.codex.execution]
+filesystem = "container-full"
+approval   = "on-request"
+network    = "ask"
+```
+
+`filesystem = "container-full"` means the devcontainer is the filesystem
+security boundary. For Codex this maps to `sandbox_mode = "danger-full-access"`,
+which keeps `.git` writable inside a trusted aibox devcontainer. It is distinct
+from Codex's `--dangerously-bypass-approvals-and-sandbox`: approvals remain
+controlled by the `approval` axis.
+
+Unsupported axes for a harness are best-effort projections; they are retained in
+`aibox.toml` as project intent even when the current harness has no exact native
+setting.
 
 ### [ai.agents]
 

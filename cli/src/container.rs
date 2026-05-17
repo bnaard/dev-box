@@ -1436,6 +1436,7 @@ pub(crate) fn serialize_config_with_comments(config: &AiboxConfig) -> String {
     out.push_str("[ai]\n");
     render_ai_model_provider_catalog(&mut out, &config.ai.model_providers);
     render_ai_harness_detail_catalog(&mut out, config);
+    render_ai_execution_section(&mut out, config);
 
     out.push('\n');
     out.push_str("[ai.agents]\n");
@@ -1952,16 +1953,16 @@ fn render_ai_mcp_section(out: &mut String, config: &AiboxConfig, sep: &str) {
             out.push('\n');
             out.push_str(&format!("[ai.mcp.permissions.harness.{}]\n", harness));
             out.push_str(&format!("enabled = {}\n", override_cfg.enabled));
-            if let Some(mode) = &override_cfg.mode {
-                out.push_str(&format!("mode = \"{}\"\n", mode));
+            if let Some(mode) = &override_cfg.default_mode {
+                out.push_str(&format!("default_mode = \"{}\"\n", mode));
             } else {
                 out.push_str(
-                    "# mode = \"ask\"          # optional harness-specific mode override\n",
+                    "# default_mode = \"ask\"  # optional harness-specific default override\n",
                 );
             }
             out.push_str(&format!(
-                "extra_patterns = {}\n",
-                toml_string_array(&override_cfg.extra_patterns)
+                "allow_patterns = {}\n",
+                toml_string_array(&override_cfg.allow_patterns)
             ));
             out.push_str(&format!(
                 "deny_patterns  = {}\n",
@@ -2087,6 +2088,47 @@ fn render_ai_harness_detail_catalog(out: &mut String, config: &AiboxConfig) {
         render_ai_harness_detail_catalog_entry(out, config, harness);
     }
     out.push_str("]\n");
+}
+
+fn render_ai_execution_section(out: &mut String, config: &AiboxConfig) {
+    out.push_str("\n# AI harness execution policy. These are aibox-level intent settings;\n");
+    out.push_str("# aibox maps them to each harness where supported.\n");
+    out.push_str("# filesystem: read-only | workspace-write | container-full\n");
+    out.push_str("# approval:   ask | on-request | never\n");
+    out.push_str("# network:    deny | ask | allow\n");
+    out.push_str("[ai.execution]\n");
+    out.push_str(&format!(
+        "filesystem = \"{}\"\n",
+        config.ai.execution.filesystem
+    ));
+    out.push_str(&format!(
+        "approval   = \"{}\"\n",
+        config.ai.execution.approval
+    ));
+    out.push_str(&format!(
+        "network    = \"{}\"\n",
+        config.ai.execution.network
+    ));
+
+    for harness in &config.ai.harnesses {
+        let Some(harness_config) = config.ai.harness.get(harness) else {
+            continue;
+        };
+        let Some(execution) = &harness_config.execution else {
+            continue;
+        };
+        out.push('\n');
+        out.push_str(&format!("[ai.harness.{}.execution]\n", harness));
+        if let Some(filesystem) = execution.filesystem {
+            out.push_str(&format!("filesystem = \"{}\"\n", filesystem));
+        }
+        if let Some(approval) = execution.approval {
+            out.push_str(&format!("approval   = \"{}\"\n", approval));
+        }
+        if let Some(network) = execution.network {
+            out.push_str(&format!("network    = \"{}\"\n", network));
+        }
+    }
 }
 
 fn render_ai_harness_detail_catalog_entry(
@@ -2607,6 +2649,7 @@ pub fn cmd_init(config_path: &Option<String>, params: InitParams) -> Result<()> 
             harnesses: ai_providers,
             harness_order: Vec::new(),
             model_providers: Vec::new(),
+            execution: crate::config::AiExecutionPolicy::default(),
             harness: std::collections::HashMap::new(),
             providers: Vec::new(),
             agents: crate::config::AgentsSection::default(),
@@ -3953,6 +3996,10 @@ mod tests {
         assert!(body.contains(
             "{ harness = \"codex\", enable = true, install = true, version = \"1.2.3\" }"
         ));
+        assert!(body.contains("[ai.execution]"));
+        assert!(body.contains("filesystem = \"workspace-write\""));
+        assert!(body.contains("approval   = \"on-request\""));
+        assert!(body.contains("network    = \"ask\""));
         assert!(body.contains("version = \"1.2.3\""));
         assert!(!body.contains("[[ai.harnesses]]"));
         assert!(!body.contains("[addons.ai-claude.tools]"));
@@ -3977,6 +4024,30 @@ mod tests {
             codex < claude && claude < gemini,
             "enabled harness entries must keep user/layout order:\n{body}"
         );
+    }
+
+    #[test]
+    fn serialized_config_exposes_per_harness_execution_overrides() {
+        let mut config = crate::config::test_config();
+        config.ai.harnesses = vec![crate::config::AiHarness::Codex];
+        config.ai.harness.insert(
+            crate::config::AiHarness::Codex,
+            crate::config::AiHarnessConfig {
+                enabled: Some(true),
+                install: Some(true),
+                version: None,
+                execution: Some(crate::config::AiHarnessExecutionOverride {
+                    filesystem: Some(crate::config::AiExecutionFilesystem::ContainerFull),
+                    approval: None,
+                    network: None,
+                }),
+            },
+        );
+
+        let body = serialize_config_with_comments(&config);
+        assert!(body.contains("[ai.harness.codex.execution]"));
+        assert!(body.contains("filesystem = \"container-full\""));
+        assert!(!body.contains("trust_level"));
     }
 
     #[test]

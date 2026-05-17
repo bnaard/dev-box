@@ -412,6 +412,14 @@ harnesses = [
 #   { harness = "hermes", enable = true, install = true },
 ]
 
+[ai.execution]
+filesystem = "workspace-write"
+approval   = "on-request"
+network    = "ask"
+
+[ai.harness.codex.execution]
+filesystem = "container-full"
+
 [ai.agents]
 canonical     = "AGENTS.md"
 provider_mode = "pointer"  # options: pointer, full

@@ -641,6 +641,114 @@ fn default_ai_harnesses() -> Vec<AiHarness> {
     vec![AiHarness::Claude]
 }
 
+#[derive(Debug, Clone, Copy, Default, Serialize, Deserialize, PartialEq, Eq)]
+#[serde(rename_all = "kebab-case")]
+pub enum AiExecutionFilesystem {
+    ReadOnly,
+    #[default]
+    WorkspaceWrite,
+    ContainerFull,
+}
+
+impl AiExecutionFilesystem {
+    pub fn as_str(self) -> &'static str {
+        match self {
+            AiExecutionFilesystem::ReadOnly => "read-only",
+            AiExecutionFilesystem::WorkspaceWrite => "workspace-write",
+            AiExecutionFilesystem::ContainerFull => "container-full",
+        }
+    }
+}
+
+impl std::fmt::Display for AiExecutionFilesystem {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.write_str(self.as_str())
+    }
+}
+
+#[derive(Debug, Clone, Copy, Default, Serialize, Deserialize, PartialEq, Eq)]
+#[serde(rename_all = "kebab-case")]
+pub enum AiExecutionApproval {
+    Ask,
+    #[default]
+    OnRequest,
+    Never,
+}
+
+impl AiExecutionApproval {
+    pub fn as_str(self) -> &'static str {
+        match self {
+            AiExecutionApproval::Ask => "ask",
+            AiExecutionApproval::OnRequest => "on-request",
+            AiExecutionApproval::Never => "never",
+        }
+    }
+}
+
+impl std::fmt::Display for AiExecutionApproval {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.write_str(self.as_str())
+    }
+}
+
+#[derive(Debug, Clone, Copy, Default, Serialize, Deserialize, PartialEq, Eq)]
+#[serde(rename_all = "kebab-case")]
+pub enum AiExecutionNetwork {
+    Deny,
+    #[default]
+    Ask,
+    Allow,
+}
+
+impl AiExecutionNetwork {
+    pub fn as_str(self) -> &'static str {
+        match self {
+            AiExecutionNetwork::Deny => "deny",
+            AiExecutionNetwork::Ask => "ask",
+            AiExecutionNetwork::Allow => "allow",
+        }
+    }
+}
+
+impl std::fmt::Display for AiExecutionNetwork {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.write_str(self.as_str())
+    }
+}
+
+/// Global AI execution policy under `[ai.execution]`.
+#[derive(Debug, Clone, Copy, Default, Serialize, Deserialize, PartialEq, Eq)]
+pub struct AiExecutionPolicy {
+    #[serde(default)]
+    pub filesystem: AiExecutionFilesystem,
+    #[serde(default)]
+    pub approval: AiExecutionApproval,
+    #[serde(default)]
+    pub network: AiExecutionNetwork,
+}
+
+/// Optional per-harness execution policy overrides under
+/// `[ai.harness.<name>.execution]`.
+#[derive(Debug, Clone, Copy, Default, Serialize, Deserialize, PartialEq, Eq)]
+pub struct AiHarnessExecutionOverride {
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub filesystem: Option<AiExecutionFilesystem>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub approval: Option<AiExecutionApproval>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub network: Option<AiExecutionNetwork>,
+}
+
+impl AiExecutionPolicy {
+    pub fn with_harness_override(self, override_policy: AiHarnessExecutionOverride) -> Self {
+        Self {
+            filesystem: override_policy.filesystem.unwrap_or(self.filesystem),
+            approval: override_policy.approval.unwrap_or(self.approval),
+            network: override_policy.network.unwrap_or(self.network),
+        }
+    }
+}
+
 /// Per-harness install controls under `[ai.harness.<name>]`.
 ///
 /// `enabled` controls whether the harness participates in generated config.
@@ -654,6 +762,8 @@ pub struct AiHarnessConfig {
     pub install: Option<bool>,
     #[serde(default)]
     pub version: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub execution: Option<AiHarnessExecutionOverride>,
 }
 
 /// [ai] section — AI harness and model provider configuration.
@@ -689,6 +799,8 @@ struct RawAiSection {
     #[serde(default)]
     model_providers: Vec<AiModelProvider>,
     #[serde(default)]
+    execution: AiExecutionPolicy,
+    #[serde(default)]
     harness: HashMap<AiHarness, AiHarnessConfig>,
     #[serde(default)]
     providers: Vec<AiHarness>,
@@ -715,6 +827,11 @@ pub struct AiSection {
     /// Which model provider API key/base URL env vars are available (optional hint).
     #[serde(default)]
     pub model_providers: Vec<AiModelProvider>,
+
+    /// Global AI execution policy. Per-harness tables may override individual
+    /// axes through `[ai.harness.<name>.execution]`.
+    #[serde(default)]
+    pub execution: AiExecutionPolicy,
 
     /// Per-harness enable/install/version controls. New configs should prefer
     /// this as the user-facing selector.
@@ -768,6 +885,7 @@ impl<'de> Deserialize<'de> for AiSection {
                             enabled: Some(enabled),
                             install: Some(install),
                             version,
+                            execution: None,
                         },
                     );
                     if enabled && !harnesses.contains(&harness) {
@@ -781,6 +899,7 @@ impl<'de> Deserialize<'de> for AiSection {
             harnesses,
             harness_order: raw.harness_order,
             model_providers: raw.model_providers,
+            execution: raw.execution,
             harness: harness_config,
             providers: raw.providers,
             agents: raw.agents,
@@ -862,6 +981,14 @@ impl AiSection {
             .and_then(|config| config.version.as_deref())
             .filter(|version| !version.is_empty())
     }
+
+    pub fn execution_for_harness(&self, harness: &AiHarness) -> AiExecutionPolicy {
+        self.harness
+            .get(harness)
+            .and_then(|config| config.execution)
+            .map(|override_policy| self.execution.with_harness_override(override_policy))
+            .unwrap_or(self.execution)
+    }
 }
 
 impl AiHarnessConfig {
@@ -880,6 +1007,7 @@ impl Default for AiSection {
             harnesses: default_ai_harnesses(),
             harness_order: Vec::new(),
             model_providers: Vec::new(),
+            execution: AiExecutionPolicy::default(),
             harness: HashMap::new(),
             providers: Vec::new(),
             agents: AgentsSection::default(),
@@ -3750,6 +3878,7 @@ impl AiboxConfig {
                 "harnesses",
                 "harness_order",
                 "model_providers",
+                "execution",
                 "harness",
                 "providers",
                 "agents",
@@ -3758,13 +3887,25 @@ impl AiboxConfig {
             &mut mismatches,
         );
         if let Some(ai) = table_child(root, "ai") {
+            check_child_table(
+                ai,
+                "execution",
+                &["filesystem", "approval", "network"],
+                &mut mismatches,
+            );
             if let Some(harnesses) = table_child(ai, "harness") {
                 for (harness, value) in harnesses {
                     if let Some(table) = value.as_table() {
                         check_unknown_keys(
                             &format!("[ai.harness.{harness}]"),
                             table,
-                            &["enabled", "install", "version"],
+                            &["enabled", "install", "version", "execution"],
+                            &mut mismatches,
+                        );
+                        check_child_table(
+                            table,
+                            "execution",
+                            &["filesystem", "approval", "network"],
                             &mut mismatches,
                         );
                     }
@@ -4740,7 +4881,14 @@ fn check_mcp_table(root: &toml::map::Map<String, toml::Value>, mismatches: &mut 
                 check_unknown_keys(
                     &format!("[mcp.permissions.harness.{harness}]"),
                     table,
-                    &["enabled", "mode", "extra_patterns", "deny_patterns"],
+                    &[
+                        "enabled",
+                        "default_mode",
+                        "mode",
+                        "allow_patterns",
+                        "extra_patterns",
+                        "deny_patterns",
+                    ],
                     mismatches,
                 );
             }
@@ -5091,6 +5239,12 @@ mode = "{mode}"
         assert_eq!(config.container.hostname, "aibox");
         assert_eq!(config.context.schema_version, "1.0.0");
         assert_eq!(config.ai.harnesses, vec![AiProvider::Claude]);
+        assert_eq!(
+            config.ai.execution.filesystem,
+            AiExecutionFilesystem::WorkspaceWrite
+        );
+        assert_eq!(config.ai.execution.approval, AiExecutionApproval::OnRequest);
+        assert_eq!(config.ai.execution.network, AiExecutionNetwork::Ask);
         assert_eq!(config.context.packages, vec!["product"]);
         assert!(config.addons.addons.is_empty());
         assert!(config.skills.include.is_empty());
@@ -5112,11 +5266,111 @@ mode = "{mode}"
     }
 
     #[test]
+    fn ai_execution_policy_parses_global_and_harness_overrides() {
+        let toml = r#"
+[aibox]
+version = "0.26.5"
+
+[container]
+name = "test"
+
+[ai.execution]
+filesystem = "container-full"
+approval = "never"
+network = "allow"
+
+[ai.harness.codex]
+enabled = true
+install = true
+
+[ai.harness.codex.execution]
+filesystem = "read-only"
+network = "deny"
+"#;
+        let config = parse_toml(toml).unwrap();
+        assert_eq!(
+            config.ai.execution.filesystem,
+            AiExecutionFilesystem::ContainerFull
+        );
+        assert_eq!(config.ai.execution.approval, AiExecutionApproval::Never);
+        assert_eq!(config.ai.execution.network, AiExecutionNetwork::Allow);
+
+        let codex = config.ai.harness.get(&AiProvider::Codex).unwrap();
+        let execution = codex.execution.unwrap();
+        assert_eq!(execution.filesystem, Some(AiExecutionFilesystem::ReadOnly));
+        assert_eq!(execution.approval, None);
+        assert_eq!(execution.network, Some(AiExecutionNetwork::Deny));
+    }
+
+    #[test]
+    fn ai_execution_axes_display_as_canonical_config_values() {
+        assert_eq!(AiExecutionFilesystem::ReadOnly.to_string(), "read-only");
+        assert_eq!(
+            AiExecutionFilesystem::WorkspaceWrite.to_string(),
+            "workspace-write"
+        );
+        assert_eq!(
+            AiExecutionFilesystem::ContainerFull.to_string(),
+            "container-full"
+        );
+        assert_eq!(AiExecutionApproval::Ask.to_string(), "ask");
+        assert_eq!(AiExecutionApproval::OnRequest.to_string(), "on-request");
+        assert_eq!(AiExecutionApproval::Never.to_string(), "never");
+        assert_eq!(AiExecutionNetwork::Deny.to_string(), "deny");
+        assert_eq!(AiExecutionNetwork::Ask.to_string(), "ask");
+        assert_eq!(AiExecutionNetwork::Allow.to_string(), "allow");
+    }
+
+    #[test]
+    fn ai_execution_policy_rejects_unknown_axis_values() {
+        let toml = r#"
+[aibox]
+version = "0.26.5"
+
+[container]
+name = "test"
+
+[ai.execution]
+filesystem = "host-full"
+"#;
+        let result = parse_toml(toml);
+        assert!(result.is_err(), "unknown filesystem axis value must fail");
+    }
+
+    #[test]
     fn schema_mismatches_accepts_known_full_config_shape() {
         let mismatches = AiboxConfig::schema_mismatches(full_toml()).unwrap();
         assert!(
             mismatches.is_empty(),
             "full known config shape should not report unknown keys: {mismatches:?}"
+        );
+    }
+
+    #[test]
+    fn schema_mismatches_accepts_ai_execution_policy_tables() {
+        let toml = r#"
+[aibox]
+version = "0.26.5"
+
+[container]
+name = "test"
+
+[ai.execution]
+filesystem = "workspace-write"
+approval = "on-request"
+network = "ask"
+
+[ai.harness.claude]
+enabled = true
+
+[ai.harness.claude.execution]
+approval = "ask"
+network = "deny"
+"#;
+        let mismatches = AiboxConfig::schema_mismatches(toml).unwrap();
+        assert!(
+            mismatches.is_empty(),
+            "ai execution policy tables should be schema-valid: {mismatches:?}"
         );
     }
 

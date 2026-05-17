@@ -52,7 +52,10 @@ use anyhow::{Context, Result};
 use serde::{Deserialize, Serialize};
 use sha2::{Digest, Sha256};
 
-use crate::config::{AiProvider, AiboxConfig, CONTAINER_WORKSPACE_DIR, McpGatewayMode};
+use crate::config::{
+    AiExecutionApproval, AiExecutionFilesystem, AiExecutionPolicy, AiProvider, AiboxConfig,
+    CONTAINER_WORKSPACE_DIR, McpGatewayMode,
+};
 use crate::output;
 use crate::processkit_vocab::mirror_skills_dir;
 
@@ -152,13 +155,13 @@ pub struct HarnessOverride {
     #[serde(default = "default_true")]
     pub enabled: bool,
 
-    /// Override global mode for this harness.
-    #[serde(default)]
-    pub mode: Option<String>,
+    /// Override global default mode for this harness.
+    #[serde(default, alias = "mode")]
+    pub default_mode: Option<String>,
 
     /// Additional allow patterns for this harness only.
-    #[serde(default)]
-    pub extra_patterns: Vec<String>,
+    #[serde(default, alias = "extra_patterns")]
+    pub allow_patterns: Vec<String>,
 
     /// Patterns to deny for this harness (override global allow).
     #[serde(default)]
@@ -169,8 +172,8 @@ impl Default for HarnessOverride {
     fn default() -> Self {
         Self {
             enabled: true,
-            mode: None,
-            extra_patterns: Vec::new(),
+            default_mode: None,
+            allow_patterns: Vec::new(),
             deny_patterns: Vec::new(),
         }
     }
@@ -745,11 +748,11 @@ pub fn generate_aider_permissions(
 
     // Add per-harness overrides if present
     if let Some(aider_override) = config.harness.get("aider") {
-        if let Some(mode) = &aider_override.mode {
+        if let Some(mode) = &aider_override.default_mode {
             permissions["mode"] = serde_json::Value::String(mode.clone());
         }
-        if !aider_override.extra_patterns.is_empty() {
-            let extra = expand_mcp_patterns(&aider_override.extra_patterns, all_tool_names);
+        if !aider_override.allow_patterns.is_empty() {
+            let extra = expand_mcp_patterns(&aider_override.allow_patterns, all_tool_names);
             let mut current_allowed: Vec<String> =
                 serde_json::from_value(permissions["allowed_tools"].clone()).unwrap_or_default();
             for tool in extra {
@@ -877,6 +880,7 @@ pub fn generate_codex_permissions(
     project_root: &Path,
     config: &McpConfig,
     all_tool_names: &[String],
+    execution: AiExecutionPolicy,
 ) -> Result<()> {
     let config_path = project_root.join(".codex").join("config.toml");
 
@@ -896,6 +900,8 @@ pub fn generate_codex_permissions(
         document["project"] = toml_edit::table();
     }
     document["project"]["trust_level"] = toml_edit::value("trusted");
+    document["sandbox_mode"] = toml_edit::value(codex_sandbox_mode(execution.filesystem));
+    document["approval_policy"] = toml_edit::value(codex_approval_policy(execution.approval));
 
     // Also set mcp section with allowed tools for reference/fallback
     if !document.contains_key("mcp") {
@@ -928,6 +934,22 @@ pub fn generate_codex_permissions(
     })?;
 
     Ok(())
+}
+
+fn codex_sandbox_mode(filesystem: AiExecutionFilesystem) -> &'static str {
+    match filesystem {
+        AiExecutionFilesystem::ReadOnly => "read-only",
+        AiExecutionFilesystem::WorkspaceWrite => "workspace-write",
+        AiExecutionFilesystem::ContainerFull => "danger-full-access",
+    }
+}
+
+fn codex_approval_policy(approval: AiExecutionApproval) -> &'static str {
+    match approval {
+        AiExecutionApproval::Ask => "untrusted",
+        AiExecutionApproval::OnRequest => "on-request",
+        AiExecutionApproval::Never => "never",
+    }
 }
 
 fn read_toml_string_array(item: &toml_edit::Item, key: &str) -> Result<Vec<String>> {
@@ -2157,7 +2179,12 @@ fn generate_all_harness_permissions(
     }
 
     if config.ai.harnesses.contains(&AiProvider::Codex)
-        && let Err(e) = generate_codex_permissions(project_root, mcp_config, &tool_names)
+        && let Err(e) = generate_codex_permissions(
+            project_root,
+            mcp_config,
+            &tool_names,
+            config.ai.execution_for_harness(&AiProvider::Codex),
+        )
     {
         output::warn(&format!("Failed to generate Codex MCP permissions: {}", e));
     }
@@ -4880,7 +4907,8 @@ args = ["server.js"]
         };
         let tools = vec!["processkit-workitem".to_string(), "other".to_string()];
 
-        let result = generate_codex_permissions(tmp.path(), &config, &tools);
+        let result =
+            generate_codex_permissions(tmp.path(), &config, &tools, AiExecutionPolicy::default());
         assert!(result.is_ok());
 
         let config_path = tmp.path().join(".codex").join("config.toml");
@@ -4889,6 +4917,8 @@ args = ["server.js"]
         let content = fs::read_to_string(&config_path).unwrap();
         assert!(content.contains("[project]"));
         assert!(content.contains("trust_level = \"trusted\""));
+        assert!(content.contains("sandbox_mode = \"workspace-write\""));
+        assert!(content.contains("approval_policy = \"on-request\""));
         assert!(content.contains("[mcp]"));
         assert!(content.contains("allowed_tools"));
         assert!(content.contains("processkit-workitem"));
@@ -4912,7 +4942,16 @@ args = ["server.js"]
         };
         let tools = vec!["new-tool".to_string()];
 
-        generate_codex_permissions(tmp.path(), &config, &tools).unwrap();
+        generate_codex_permissions(
+            tmp.path(),
+            &config,
+            &tools,
+            AiExecutionPolicy {
+                filesystem: AiExecutionFilesystem::ContainerFull,
+                ..AiExecutionPolicy::default()
+            },
+        )
+        .unwrap();
 
         let content = fs::read_to_string(&config_path).unwrap();
 
@@ -4923,6 +4962,7 @@ args = ["server.js"]
         // New sections should be added
         assert!(content.contains("[project]"));
         assert!(content.contains("trust_level = \"trusted\""));
+        assert!(content.contains("sandbox_mode = \"danger-full-access\""));
         assert!(content.contains("[mcp]"));
     }
 
@@ -4945,9 +4985,19 @@ args = ["server.js"]
         };
         let tools = vec!["processkit-new".to_string()];
 
-        generate_codex_permissions(tmp.path(), &config, &tools).unwrap();
+        generate_codex_permissions(
+            tmp.path(),
+            &config,
+            &tools,
+            AiExecutionPolicy {
+                approval: AiExecutionApproval::Ask,
+                ..AiExecutionPolicy::default()
+            },
+        )
+        .unwrap();
 
         let content = fs::read_to_string(&config_path).unwrap();
+        assert!(content.contains("approval_policy = \"untrusted\""));
         assert!(content.contains("\"user-tool\""));
         assert!(content.contains("\"processkit-new\""));
         assert!(!content.contains("\"old-managed\""));
