@@ -2080,7 +2080,7 @@ impl Default for TmuxStatusSeparatorsSection {
 }
 
 fn default_tmux_status_refresh_interval_seconds() -> u32 {
-    10
+    15
 }
 
 fn default_tmux_status_aibox_metrics_cache_ttl_seconds() -> u32 {

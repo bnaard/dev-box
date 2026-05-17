@@ -102,6 +102,7 @@ fn run_starship_prompt(config: &std::path::Path, cwd: &std::path::Path) -> Vec<u
         .args(["prompt"])
         .env("STARSHIP_CONFIG", config)
         .env("STARSHIP_LOG", "error")
+        .env("TERM", "xterm-256color")
         .env("PATH", std::env::var("PATH").unwrap_or_default())
         .current_dir(cwd)
         .output()

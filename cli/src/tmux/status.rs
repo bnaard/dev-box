@@ -938,22 +938,73 @@ if [[ -S "${socket}" && -z "${TMUX:-}" ]]; then
     export TMUX="${socket},0,0"
 fi
 cache_root="${AIBOX_POWERKIT_CACHE_DIR:-${XDG_CACHE_HOME:-${HOME}/.cache}}"
-mkdir -p "${cache_root}" 2>/dev/null || true
+cache_probe="${cache_root}/.aibox-powerkit-write-test"
+if ! { mkdir -p "${cache_root}" && : >"${cache_probe}"; } 2>/dev/null; then
+    cache_root="${AIBOX_POWERKIT_FALLBACK_CACHE_DIR:-/tmp/aibox/tmux-powerkit-cache}"
+    mkdir -p "${cache_root}" 2>/dev/null || true
+else
+    rm -f "${cache_probe}" 2>/dev/null || true
+fi
 export XDG_CACHE_HOME="${cache_root}"
 
 if [[ ! -r "${POWERKIT_ROOT}/src/core/bootstrap.sh" ]]; then
     exit 0
 fi
 
-. "${POWERKIT_ROOT}/src/core/bootstrap.sh"
-load_powerkit_theme
-. "${POWERKIT_ROOT}/src/renderer/segment_builder.sh"
+render_powerkit_line() {
+    . "${POWERKIT_ROOT}/src/core/bootstrap.sh"
+    load_powerkit_theme
+    . "${POWERKIT_ROOT}/src/renderer/segment_builder.sh"
 
-reset_all_cycle_caches
-_batch_load_tmux_options
-_TMUX_OPTIONS_CACHE["@powerkit_plugins"]="$plugins"
+    reset_all_cycle_caches
+    _batch_load_tmux_options
+    _TMUX_OPTIONS_CACHE["@powerkit_plugins"]="$plugins"
 
-render_plugins "$side"
+    render_plugins "$side"
+}
+
+cache_dir="${cache_root}/tmux-powerkit/aibox-lines"
+mkdir -p "${cache_dir}" 2>/dev/null || true
+cache_key="$(printf '%s' "${side}|${plugins}" | cksum | awk '{print $1}')"
+cache_file="${cache_dir}/list-${cache_key}.cache"
+lock_file="${cache_file}.lock"
+ttl="${AIBOX_POWERKIT_LINE_CACHE_TTL:-15}"
+
+if [[ "${AIBOX_POWERKIT_REFRESH_CACHE:-}" == "1" ]]; then
+    render_powerkit_line
+    exit 0
+fi
+
+now="$(date +%s)"
+if [[ -s "${cache_file}" ]]; then
+    mtime="$(stat -c %Y "${cache_file}" 2>/dev/null || printf '0')"
+    age=$((now - mtime))
+    if (( age <= ttl )); then
+        cat "${cache_file}"
+        exit 0
+    fi
+
+    if [[ ! -e "${lock_file}" || $((now - $(stat -c %Y "${lock_file}" 2>/dev/null || printf '0'))) -gt 60 ]]; then
+        : >"${lock_file}" 2>/dev/null || true
+        (
+            tmp="${cache_file}.$$"
+            trap 'rm -f "${lock_file}" "${tmp}"' EXIT
+            if AIBOX_POWERKIT_REFRESH_CACHE=1 "$0" "$side" "$plugins" >"${tmp}" 2>/dev/null; then
+                mv "${tmp}" "${cache_file}" 2>/dev/null || true
+            fi
+        ) >/dev/null 2>&1 &
+    fi
+    cat "${cache_file}"
+    exit 0
+fi
+
+tmp="${cache_file}.$$"
+if render_powerkit_line >"${tmp}"; then
+    cat "${tmp}"
+    mv "${tmp}" "${cache_file}" 2>/dev/null || true
+else
+    rm -f "${tmp}" 2>/dev/null || true
+fi
 "#;
 
 pub const POWERKIT_RENDER_SESSION_SH: &str = r#"#!/usr/bin/env bash
@@ -969,19 +1020,69 @@ if [[ -S "${socket}" && -z "${TMUX:-}" ]]; then
     export TMUX="${socket},0,0"
 fi
 cache_root="${AIBOX_POWERKIT_CACHE_DIR:-${XDG_CACHE_HOME:-${HOME}/.cache}}"
-mkdir -p "${cache_root}" 2>/dev/null || true
+cache_probe="${cache_root}/.aibox-powerkit-write-test"
+if ! { mkdir -p "${cache_root}" && : >"${cache_probe}"; } 2>/dev/null; then
+    cache_root="${AIBOX_POWERKIT_FALLBACK_CACHE_DIR:-/tmp/aibox/tmux-powerkit-cache}"
+    mkdir -p "${cache_root}" 2>/dev/null || true
+else
+    rm -f "${cache_probe}" 2>/dev/null || true
+fi
 export XDG_CACHE_HOME="${cache_root}"
 
 if [[ ! -r "${POWERKIT_ROOT}/src/core/bootstrap.sh" ]]; then
     exit 0
 fi
 
-. "${POWERKIT_ROOT}/src/core/bootstrap.sh"
-load_powerkit_theme
-. "${POWERKIT_ROOT}/src/renderer/compositor.sh"
+render_powerkit_session() {
+    . "${POWERKIT_ROOT}/src/core/bootstrap.sh"
+    load_powerkit_theme
+    . "${POWERKIT_ROOT}/src/renderer/compositor.sh"
 
-printf '%s' "$(_render_entity session left)"
-printf '%s' "$(_build_edge_separator session end left)"
+    printf '%s' "$(_render_entity session left)"
+    printf '%s' "$(_build_edge_separator session end left)"
+}
+
+cache_dir="${cache_root}/tmux-powerkit/aibox-lines"
+mkdir -p "${cache_dir}" 2>/dev/null || true
+cache_file="${cache_dir}/session.cache"
+lock_file="${cache_file}.lock"
+ttl="${AIBOX_POWERKIT_LINE_CACHE_TTL:-15}"
+
+if [[ "${AIBOX_POWERKIT_REFRESH_CACHE:-}" == "1" ]]; then
+    render_powerkit_session
+    exit 0
+fi
+
+now="$(date +%s)"
+if [[ -s "${cache_file}" ]]; then
+    mtime="$(stat -c %Y "${cache_file}" 2>/dev/null || printf '0')"
+    age=$((now - mtime))
+    if (( age <= ttl )); then
+        cat "${cache_file}"
+        exit 0
+    fi
+
+    if [[ ! -e "${lock_file}" || $((now - $(stat -c %Y "${lock_file}" 2>/dev/null || printf '0'))) -gt 60 ]]; then
+        : >"${lock_file}" 2>/dev/null || true
+        (
+            tmp="${cache_file}.$$"
+            trap 'rm -f "${lock_file}" "${tmp}"' EXIT
+            if AIBOX_POWERKIT_REFRESH_CACHE=1 "$0" >"${tmp}" 2>/dev/null; then
+                mv "${tmp}" "${cache_file}" 2>/dev/null || true
+            fi
+        ) >/dev/null 2>&1 &
+    fi
+    cat "${cache_file}"
+    exit 0
+fi
+
+tmp="${cache_file}.$$"
+if render_powerkit_session >"${tmp}"; then
+    cat "${tmp}"
+    mv "${tmp}" "${cache_file}" 2>/dev/null || true
+else
+    rm -f "${tmp}" 2>/dev/null || true
+fi
 "#;
 
 /// Hard-delete the tmux-powerkit plugin cache. Variant 1: every apply
@@ -1082,8 +1183,8 @@ mod tests {
             )
                 && conf.contains(r#"@powerkit_bar_layout "double""#)
                 && conf.contains(r#"@powerkit_status_order "session,plugins""#)
-                && conf.contains(r#"set -g status-interval 10"#)
-                && conf.contains(r#"@powerkit_status_interval "10""#)
+                && conf.contains(r#"set -g status-interval 15"#)
+                && conf.contains(r#"@powerkit_status_interval "15""#)
                 && conf.contains(r#"@powerkit_transparent "false""#)
                 && conf.contains(r#"@powerkit_pane_border_status "top""#)
                 && conf.contains(r##"@powerkit_active_pane_border_color "#D79921""##)
@@ -1307,12 +1408,16 @@ mod tests {
         for helper in [POWERKIT_RENDER_LIST_SH, POWERKIT_RENDER_SESSION_SH] {
             assert!(
                 helper.contains(r#"AIBOX_POWERKIT_CACHE_DIR:-${XDG_CACHE_HOME:-${HOME}/.cache}"#)
+                    && helper.contains(
+                        r#"AIBOX_POWERKIT_FALLBACK_CACHE_DIR:-/tmp/aibox/tmux-powerkit-cache"#
+                    )
+                    && helper.contains(r#"AIBOX_POWERKIT_LINE_CACHE_TTL:-15"#)
+                    && helper.contains(r#"AIBOX_POWERKIT_REFRESH_CACHE"#)
                     && helper.contains(r#"export XDG_CACHE_HOME="${cache_root}""#)
                     && helper
                         .contains(r#"socket="${AIBOX_TMUX_SOCKET:-${HOME}/.tmux/aibox.sock}""#)
-                    && !helper
-                        .contains(r#"AIBOX_POWERKIT_CACHE_DIR:-/tmp/aibox/tmux-powerkit-cache"#),
-                "PowerKit helpers should use the managed writable XDG cache home:\n{helper}"
+                    && helper.contains(r#"cat "${cache_file}""#),
+                "PowerKit helpers should prefer the managed cache, fall back when it is read-only, and serve cached full-line output:\n{helper}"
             );
         }
     }

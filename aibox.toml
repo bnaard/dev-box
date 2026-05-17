@@ -619,7 +619,7 @@ elements-spacing = "both"
 #   not poll live clusters and does not need second-level freshness.
 # cloud-cache-ttl-seconds: local cloud CLI/context cache TTL; this avoids auth/network probes.
 # github-cache-ttl-seconds: local repo + GitHub issue/PR count cache TTL.
-interval-seconds = 10
+interval-seconds = 15
 aibox-metrics-cache-ttl-seconds = 30
 netspeed-cache-ttl-seconds = 10
 kubernetes-cache-ttl-seconds = 120
