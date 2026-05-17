@@ -64,16 +64,32 @@ def _sha256(text: str) -> str:
     return hashlib.sha256(text.encode("utf-8")).hexdigest()
 
 
+def _context_rel(path: Path, repo_root: Path) -> str:
+    rel = path.relative_to(repo_root)
+    parts = rel.parts
+    if len(parts) >= 2 and parts[0] == "src" and parts[1] == "context":
+        return Path("context", *parts[2:]).as_posix()
+    return rel.as_posix()
+
+
 def _collect_current(repo_root: Path) -> dict[str, str]:
     """Return {posix_path: sha256} for every server.py with a PEP 723 block."""
-    skills_root = repo_root / "context" / "skills"
     found: dict[str, str] = {}
-    for server in sorted(skills_root.glob("*/*/mcp/server.py")):
-        rel = server.relative_to(repo_root).as_posix()
-        header = _extract_header(server)
-        if header is None:
+    skills_roots = [
+        repo_root / "context" / "skills",
+        repo_root / "src" / "context" / "skills",
+    ]
+    for skills_root in skills_roots:
+        if not skills_root.is_dir():
             continue
-        found[rel] = _sha256(header)
+        for server in sorted(skills_root.glob("*/*/mcp/server.py")):
+            rel = _context_rel(server, repo_root)
+            if rel in found:
+                continue
+            header = _extract_header(server)
+            if header is None:
+                continue
+            found[rel] = _sha256(header)
     return found
 
 

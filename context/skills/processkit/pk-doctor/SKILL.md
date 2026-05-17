@@ -1,7 +1,7 @@
 ---
 name: pk-doctor
 description: |
-  Aggregator health-check for a processkit-managed repository. Runs a fixed suite of detect-only checks over the live context/ tree plus src/context/ drift and surfaces ERROR / WARN / INFO findings in a single report. Use when the user invokes `/pk-doctor`, asks "is this repo healthy", or has just finished an upgrade and wants a sanity pass. Detect-only by default; `--fix` / `--fix-all` opt in to scoped repairs that route through existing MCP write tools only — doctor never hand-edits files under `context/`.
+  Aggregator health-check for a processkit-managed repository. Runs a fixed suite of checks over the live context/ tree plus src/context/ drift, then resolves ERROR / WARN / actionable INFO findings by default. Use when the user invokes `/pk-doctor`, asks "is this repo healthy", or has just finished an upgrade and wants a sanity pass. Info-only mode is opt-in: stop after the report only when the user explicitly says info-only, dry-run, report-only, check-only, or no fixes.
 metadata:
   processkit:
     apiVersion: processkit.projectious.work/v2
@@ -19,8 +19,8 @@ metadata:
         purpose: (future) surface index errors alongside doctor findings in Phase 2.
     commands:
       - name: pk-doctor
-        args: "[--category=... | --fix=... | --fix-all | --since=<ref> | --yes]"
-        description: "Run the health-check aggregator and print a single report."
+        args: "[info-only | dry-run | --category=... | --fix=... | --fix-all | --since=<ref> | --yes]"
+        description: "Run health checks and resolve actionable findings by default."
     provides:
       mcp_tools:
         - run_pk_doctor
@@ -31,11 +31,28 @@ metadata:
 ## Intro
 
 `/pk-doctor` is the single user-visible health-check surface for a
-processkit repository. It is the diagnostic you run after an upgrade,
-before a release, or any time you need to answer the question "is this
-repo healthy?" in one command. The skill pattern is deliberately modelled
-on `npm doctor`, `brew doctor`, and `rustup doctor`: detect by default,
-fix only when explicitly asked, and keep the report skimmable.
+processkit repository. It is the diagnostic and remediation entry point
+you run after an upgrade, before a release, or any time you need to
+answer the question "is this repo healthy?" in one command. The skill
+pattern is deliberately modelled on `npm doctor`, `brew doctor`, and
+`rustup doctor`, with one processkit-specific default: agents resolve
+findings by default and stop at report-only mode only when the user
+explicitly asks for info-only/dry-run output.
+
+### Container/host boundary
+
+`/pk-doctor`, `run_pk_doctor`, and `doctor.py` are the derived-project
+health surfaces for the running development container. In aibox-derived
+projects, agents must use these processkit surfaces from inside the
+container for processkit repository, MCP, migration, context, and
+runtime-health checks.
+
+Host-side installer diagnostics belong to the owner/operator outside the
+container. pk-doctor skill text, command text, MCP descriptions, and
+findings must not direct an in-container agent to run host-side
+orchestrator health checks. When a finding requires host installer repair
+such as sync or rebuild, phrase it as an explicit host action for the
+owner and keep the processkit-side fix generic.
 
 Severity and actionability are separate contracts. `ERROR`/`WARN`/`INFO`
 describe blocking severity; `action_required`, `action_kind`,
@@ -45,7 +62,7 @@ downgrade is not a resolution. Clean means no blocking findings and no
 unresolved actionable findings, or a durable disposition for every
 actionable finding.
 
-This skill is the Phase 1 landing. It ships four checks. Phase 2 and
+This skill is the Phase 1 landing. It started with four checks. Phase 2 and
 Phase 3 add more checks, lift the aggregator into an MCP server, and
 harden the `--fix` paths — each with their own WorkItem.
 
@@ -54,17 +71,49 @@ harden the `--fix` paths — each with their own WorkItem.
 ### Invocation
 
 ```
-/pk-doctor                              # detect-only; all 4 checks; report + log
+/pk-doctor                              # check, then resolve actionable findings
+/pk-doctor info-only                    # report only; do not resolve
+/pk-doctor dry-run                      # synonym for info-only
 /pk-doctor --category=schemas,migrations
-/pk-doctor --fix=migrations             # opt-in scoped fix
-/pk-doctor --fix-all                    # every fix path enabled
+/pk-doctor --fix=migrations             # script-level scoped fixer
+/pk-doctor --fix-all                    # script-level fixers only; still review output
 /pk-doctor --since=v0.18.2              # scope file-walk checks only
 /pk-doctor --yes                        # non-interactive (auto-confirms safe fixes)
 ```
 
-`--fix` and `--fix-all` are mutually exclusive. Exit code is `0` if no
-ERRORs were produced, `1` otherwise. Every run — regardless of outcome —
-writes exactly one `doctor.report` LogEntry via the event-log MCP.
+The script flags `--fix` and `--fix-all` are mutually exclusive. Exit
+code is `0` if no ERRORs were produced, `1` otherwise. Every script run
+— regardless of outcome — writes exactly one `doctor.report` LogEntry
+via the event-log MCP.
+
+### Default remediation workflow
+
+When a user invokes `/pk-doctor` or asks to check repository health, the
+agent must treat remediation as the default:
+
+1. Run `run_pk_doctor()` or the local `doctor.py` report.
+2. Build a queue of every `ERROR`, every `WARN`, and every finding whose
+   `action_required` is true, including actionable INFO findings.
+3. Resolve safe local fixes immediately through the owning script,
+   command, or MCP tool. Use the reported `fix_mcp_tool`,
+   `suggested_fix`, `action_kind`, and `default_agent_action` fields to
+   choose the narrowest correction.
+4. For migration findings, route through migration-management. Apply or
+   continue unambiguous migrations; reject malformed no-op migrations
+   only when the finding itself identifies the defect and a rejection
+   reason is clear. Ask the user only when the migration changes policy,
+   deletes data, has unclear intent, or conflicts with local work.
+5. For archive, policy, external-dependency, or user-confirmation
+   findings, either resolve them if the fix is already known and
+   non-destructive, create/link tracking when the finding calls for
+   tracking, or ask a concise question when a human decision is required.
+6. Rerun pk-doctor after remediation and report the final ERROR/WARN and
+   action totals.
+
+If the user explicitly says "info only", "dry run", "report only",
+"check only", "no fixes", or equivalent, stop after the report and do
+not mutate anything. In that mode, still highlight the concrete next
+actions so the report is actionable.
 
 ### The four Phase 1 checks
 
@@ -105,12 +154,12 @@ Additional checks added after Phase 1:
   or stale aggregate surfaces as WARN (run the generator). In a
   derived-project context (`aibox.lock` + `.mcp.json` both present at
   the repo root), any processkit server missing from `.mcp.json`'s
-  `mcpServers` map surfaces as ERROR with a "run `aibox sync` to
-  re-merge" hint. Exists because `aibox sync` currently gates
-  `.mcp.json` re-merge on processkit version delta only, so per-skill
-  MCP-config edits within a release cycle never reach derived projects
-  until the next version bump — see DEC-20260423_2049-VastLake and
-  projectious-work/aibox#54.
+  `mcpServers` map surfaces as ERROR with an explicit host-action hint
+  asking the owner to re-run the project installer/sync tool outside the
+  container. Exists because some host installers gate `.mcp.json`
+  re-merge on processkit version delta only, so per-skill MCP-config
+  edits within a release cycle may not reach derived projects until the
+  next version bump — see DEC-20260423_2049-VastLake.
 - **`server_header_drift`** — walks every `context/skills/processkit/*/mcp/server.py`,
   hashes its PEP 723 inline metadata block (`# /// script` ... `# ///`),
   and compares against the manifest's `per_server_header` baseline. WARN
@@ -142,6 +191,15 @@ Additional checks added after Phase 1:
   not provider-billed usage.
 - **`v2_contracts`** — validates v2 API contract invariants across WorkItem, Binding, Artifact, and LogEntry entities. Catches process-instance definitions missing their definition reference, time-window bindings without a recurrence rule, orphaned cost-policy artifacts (not bound to a budget), policy supersession chains with breaks, uncalibrated eval-spec judges, and stale or missing agent-card projections. Emits ERROR for all contract violations; detect-only.
 - **`context_hygiene`** — validates artifact naming policies (model-spec and model-profile use timestamped `ART-YYYYMMDD_HHMM-*` scheme), model binding integrity (role/TeamMember defaults must target provider-neutral model-profile artifacts unless marked direct_model_pin), and cross-reference health. Also detects demoted schema kinds still present in src/, detects archive candidates, warns on mixed binding filename styles, and checks sqlite-vec semantic index health. Emits WARN / ERROR depending on severity; detect-only.
+- **`runtime_health`** — owns in-container runtime probes that host-side
+  installer diagnostics cannot verify directly. Checks lnav availability
+  for the Prefix L structured log viewer, sqlite-vec import/load health
+  in the pk-doctor/MCP runtime, Codex bubblewrap sandbox smoke status
+  when Codex is enabled, PID 1 sleep-infinity hygiene, cgroup
+  memory/pid/OOM pressure, processkit Python MCP process counts,
+  PowerKit image/plugin tree, status plugin scripts, local render
+  helpers, and runtime-home write probes. Emits WARN only for
+  container-local actionable failures; host-only runs emit a skip INFO.
 - **`entity_storage_hygiene`** — validates local `context/`
   storage policy separately from template freshness: unmanaged host
   artifacts, demoted legacy roots such as `context/models/`,
@@ -177,7 +235,10 @@ Additional checks added after Phase 1:
   `mcp/mcp-config.json` and gateway catalog instead).
 - Write to `context/logs/` directly — reports go through
   `mcp__processkit-event-log__log_event`.
-- Run fixes without an explicit `--fix=<category>` or `--fix-all` flag.
+- Treat a clean severity tally as done while actionable INFO findings
+  remain unresolved.
+- Stop after the report unless the user explicitly asked for info-only,
+  dry-run, report-only, check-only, or no-fix behavior.
 
 ### Report shape
 
@@ -263,11 +324,15 @@ These were agreed with the owner during shape review:
 
 Agent-specific failure modes — provider-neutral pause-and-self-check items:
 
-- **Running doctor with implicit fixes.** Detect-only by default. An
-  agent that invokes doctor with `--fix-all` "to be safe" without
-  owner approval is the opposite of safe: it applies migrations,
-  potentially across unrelated upgrade cycles, with no per-entry
-  review. Always confirm scope with the owner before any `--fix`.
+- **Confusing remediation mode with blind `--fix-all`.** The skill is
+  remediation-first by default, but that does not mean `doctor.py
+  --fix-all --yes` is safe. First run the report, read actionability,
+  then apply the narrowest known fix through the owning tool. Ask only
+  when a finding is destructive, policy-sensitive, external, or unclear.
+- **Stopping after a report when the user did not ask for info-only.**
+  `/pk-doctor` means "check and clean up what can be cleaned up." If the
+  user only wants a briefing, they must say info-only, dry-run,
+  report-only, check-only, or no fixes.
 - **Treating drift warnings as noise.** The drift check exists because
   v0.15.0–v0.18.0 shipped four releases with silent drift. If the
   drift check produces a WARN, it has found a real divergence —

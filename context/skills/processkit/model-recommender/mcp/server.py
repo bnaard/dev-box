@@ -439,7 +439,8 @@ def _runtime_capacity_guidance(
             "runtime capacity is unknown; do not assume subscription quota is available"
         )
         recommendations.append(
-            "ask the harness or aibox for a fresh capacity observation before large parallel work"
+            "ask the active harness or runtime manager for a fresh capacity "
+            "observation before large parallel work"
         )
     elif remaining_percent < 5:
         status = "critical"
@@ -1173,8 +1174,8 @@ def plan_runtime_capacity(
     ``runtime_capacity`` is provider-neutral caller-supplied data, for
     example ``{provider, surface, model_pool, remaining_percent, reset_at,
     confidence, source}``. processkit does not scrape harness-private
-    subscription state; aibox or the active harness should provide the
-    freshest observation it can.
+    subscription state; the active harness or runtime manager should
+    provide the freshest observation it can.
     """
     return _runtime_capacity_guidance(
         runtime_capacity,

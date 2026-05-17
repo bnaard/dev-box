@@ -54,7 +54,7 @@ unbind C-b
 bind AIBOX_TMUX_PREFIX send-prefix
 
 # Pane navigation mirrors the old aibox leader muscle memory.
-bind-key -N "Show aibox/tmux key bindings" ? display-popup -w 82 -h 90% -E "aibox-tmux-cheatsheet | less -R"
+bind-key -N "Show aibox/tmux key bindings" ? display-popup -w 110 -h 90% -E "bash \"$HOME/.local/bin/aibox-tmux-cheatsheet\" | less -RS"
 bind-key -N "Select pane left" h select-pane -L
 bind-key -N "Select pane down / next harness pane" j select-pane -D
 bind-key -N "Select pane up / prev harness pane" k select-pane -U
@@ -1121,7 +1121,7 @@ mod tests {
         );
         assert!(
             conf.contains(
-                r#"bind-key -N "Show aibox/tmux key bindings" ? display-popup -w 82 -h 90% -E "aibox-tmux-cheatsheet | less -R""#
+            r#"bind-key -N "Show aibox/tmux key bindings" ? display-popup -w 110 -h 90% -E "bash \"$HOME/.local/bin/aibox-tmux-cheatsheet\" | less -RS""#
             )
                 && conf.contains(r#"bind-key -N "Select pane left" h select-pane -L"#)
                 && conf.contains(

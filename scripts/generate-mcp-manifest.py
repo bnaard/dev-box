@@ -49,6 +49,16 @@ def _collect_configs(root: Path, *, gateway: bool) -> list[dict[str, str]]:
     return entries
 
 
+def _collect_entries(root: Path) -> list[dict[str, str]]:
+    """Backward-compatible alias used by pk-doctor smoke tests."""
+    return _collect_configs(root, gateway=False)
+
+
+def _collect_gateway_entries(root: Path) -> list[dict[str, str]]:
+    """Backward-compatible alias used by pk-doctor smoke tests."""
+    return _collect_configs(root, gateway=True)
+
+
 def _extract_header(path: Path) -> str | None:
     lines = path.read_text(encoding="utf-8").splitlines()
     in_block = False

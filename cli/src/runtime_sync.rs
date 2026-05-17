@@ -49,6 +49,15 @@ pub fn templates_dir_for_version(project_root: &Path, version: &str) -> PathBuf 
     project_root.join(RUNTIME_TEMPLATES_DIR).join(version)
 }
 
+fn runtime_sync_managed_files(
+    config: &crate::config::AiboxConfig,
+) -> Vec<(std::path::PathBuf, String)> {
+    crate::seed::managed_runtime_files(config)
+        .into_iter()
+        .filter(|(rel_path, _)| !crate::seed::is_bind_mount_stub_file(rel_path))
+        .collect()
+}
+
 pub fn copy_runtime_templates(
     project_root: &Path,
     version: &str,
@@ -66,7 +75,7 @@ pub fn copy_runtime_templates(
     fs::create_dir_all(&dest)
         .with_context(|| format!("failed to create runtime templates dir {}", dest.display()))?;
 
-    for (rel_path, content) in crate::seed::managed_runtime_files(config) {
+    for (rel_path, content) in runtime_sync_managed_files(config) {
         let target = dest.join(&rel_path);
         if let Some(parent) = target.parent() {
             fs::create_dir_all(parent)
@@ -83,7 +92,7 @@ pub fn refresh_runtime_home_template_lock(
     project_root: &Path,
     config: &crate::config::AiboxConfig,
 ) -> Result<()> {
-    let generated_hashes: BTreeMap<String, String> = crate::seed::managed_runtime_files(config)
+    let generated_hashes: BTreeMap<String, String> = runtime_sync_managed_files(config)
         .into_iter()
         .map(|(path, content)| {
             (
@@ -110,7 +119,7 @@ pub fn run_runtime_sync(
     // Auto-apply ChangedUpstreamOnly files: the user hasn't touched them,
     // so it's safe to overwrite with the new generated content (e.g. theme
     // changed in aibox.toml). Also auto-apply NewUpstream files.
-    let generated = crate::seed::managed_runtime_files(config);
+    let generated = runtime_sync_managed_files(config);
     let generated_map: BTreeMap<String, String> = generated
         .into_iter()
         .map(|(p, c)| (p.to_string_lossy().replace('\\', "/"), c))
@@ -296,7 +305,7 @@ fn three_way_diff(
 ) -> Result<Vec<RuntimeFileDiff>> {
     let reference_dir = templates_dir_for_version(project_root, from_version);
     let host_root = config.host_root_dir();
-    let generated = crate::seed::managed_runtime_files(config);
+    let generated = runtime_sync_managed_files(config);
     let mut diffs = Vec::new();
     let mut seen = BTreeSet::new();
 
@@ -1034,6 +1043,7 @@ fn collect_drifted_files(
                 diff.classification,
                 FileClassification::ChangedLocallyOnly | FileClassification::Conflict
             ) && generated_hashes.contains_key(&diff.rel_path)
+                && !crate::seed::is_bind_mount_stub_file(Path::new(&diff.rel_path))
         })
         .map(|diff| DriftedFile {
             rel_path: diff.rel_path.clone(),
@@ -1678,6 +1688,27 @@ rules = [
         }];
         // Empty generated_hashes — the file has no canonical counterpart.
         let generated_hashes: BTreeMap<String, String> = BTreeMap::new();
+
+        let drifted = collect_drifted_files(root, &diffs, &generated_hashes);
+        assert!(drifted.is_empty());
+    }
+
+    #[test]
+    fn collect_drifted_files_excludes_bind_mount_stub_files() {
+        // Bind-mount stub files like `.claude.json` are seeded for first-build
+        // mount compatibility, but they are harness-owned runtime state and
+        // must never generate runtime drift migrations.
+        let tmp = TempDir::new().unwrap();
+        let root = tmp.path();
+
+        let rel = ".claude.json";
+        let diffs = vec![RuntimeFileDiff {
+            rel_path: rel.to_string(),
+            project_path: PathBuf::from(".aibox-home").join(rel),
+            classification: FileClassification::ChangedLocallyOnly,
+        }];
+        let mut generated_hashes = BTreeMap::new();
+        generated_hashes.insert(rel.to_string(), "stub".to_string());
 
         let drifted = collect_drifted_files(root, &diffs, &generated_hashes);
         assert!(drifted.is_empty());

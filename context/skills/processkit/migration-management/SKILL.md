@@ -1,7 +1,7 @@
 ---
 name: migration-management
 description: |
-  Manage Migration entities — pending, in-progress, and applied transitions between upstream source versions. Use when an upstream source bumps version (processkit, aibox, a community package), when a user wants to draft a migration plan, when an agent needs to reason about pending migrations, or when working through an in-progress migration.
+  Manage Migration entities — pending, in-progress, and applied transitions between upstream source versions. Use when an upstream source bumps version (processkit, a host installer, or a community package), when a user wants to draft a migration plan, when an agent needs to reason about pending migrations, or when working through an in-progress migration.
 metadata:
   processkit:
     apiVersion: processkit.projectious.work/v2
@@ -29,8 +29,9 @@ metadata:
 ## Intro
 
 A Migration is processkit's tracked representation of an upstream version
-bump. When `aibox sync` notices a new processkit (or aibox, or community
-package) version, it writes a Migration entity into `context/migrations/pending/`.
+bump. When a host installer/sync tool notices a new processkit,
+host-installer, or community-package version, it writes a Migration
+entity into `context/migrations/pending/`.
 The agent and the user work through it together over one or more sessions —
 drafting a plan, applying changes, then archiving the result. This skill is
 how the agent navigates that lifecycle.
@@ -78,7 +79,7 @@ the file move and the spec update atomically.
 
 ```
                 ┌──────────────┐
-                │   pending    │ ← aibox sync writes new migrations here
+                │   pending    │ ← host sync writes new migrations here
                 └──────┬───────┘
                        │ user reviews briefing, approves a plan
                        ▼
@@ -169,7 +170,7 @@ If the user decides not to take an upstream change:
 - Move the file from `pending/` (or `in-progress/`) to `applied/`
   (rejected migrations live in `applied/` because that's their terminal home —
   "applied" here means "decision finalized", not "code applied")
-- Future `aibox sync` runs see this migration in `applied/` and do NOT
+- Future host sync runs see this migration in `applied/` and do NOT
   re-propose the same transition.
 
 ## Gotchas
@@ -264,31 +265,31 @@ Three reasons:
 
 ### Interaction with PROVENANCE.toml
 
-When `aibox sync` generates a Migration, it diffs the `PROVENANCE.toml` files
-of the old and new upstream versions. This gives the change set without having
-to walk every file. The diff script (`scripts/processkit-diff.sh`) is the
-canonical implementation; aibox calls it (or reimplements its logic in Rust)
-during sync.
+When a host sync tool generates a Migration, it diffs the
+`PROVENANCE.toml` files of the old and new upstream versions. This gives
+the change set without having to walk every file. The diff script
+(`scripts/processkit-diff.sh`) is the canonical implementation; host
+installers can call it or reimplement its logic.
 
 ### Interaction with the upstream reference templates
 
 The project's `context/templates/processkit/<version>/` directory holds
 a verbatim copy of every file shipped by the pinned processkit release
-(installed by `aibox init`, refreshed by `aibox sync`). The migration's
-`affected_files` classification is computed by comparing three SHAs
-on the fly:
+(installed and refreshed by the host installer). The migration's
+`affected_files` classification is computed by comparing three SHAs on
+the fly:
 
 - **template SHA** — read from
   `context/templates/processkit/<version>/<file>` (the as-installed
   reference)
-- **cache SHA** — what upstream NOW says (from aibox's runtime cache,
-  fetched from the pinned processkit tag)
+- **cache SHA** — what upstream NOW says (from the host installer's
+  runtime cache, fetched from the pinned processkit tag)
 - **live SHA** — what's in the project right now
 
-Three SHAs → five classifications. See the migration generation logic
-in `aibox sync` for the truth table. The pinned source URL + version +
-resolved commit live in `aibox.lock` at the project root (Cargo-style),
-not in a separate manifest file.
+Three SHAs → five classifications. See the host installer migration
+generation logic for the truth table. The pinned source URL + version +
+resolved commit live in the project lockfile at the project root
+(Cargo-style), not in a separate manifest file.
 
 ### Agent-facing MCP tools
 
@@ -320,7 +321,7 @@ and must be requested explicitly with `state="applied"` or
 
 ### What this skill does NOT do (yet)
 
-- **Generate** migrations — that's `aibox sync`'s job.
+- **Generate** migrations — that's the host installer/sync tool's job.
 - **Apply file changes** — the agent does the actual edits as part of
   walking the plan. This skill describes the workflow but doesn't ship a
   tool that auto-edits.

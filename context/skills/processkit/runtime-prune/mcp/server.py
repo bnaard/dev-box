@@ -10,7 +10,6 @@ from __future__ import annotations
 
 import os
 import shutil
-import subprocess
 import sys
 from pathlib import Path
 from typing import Iterable, Optional
@@ -54,7 +53,10 @@ DEFAULT_SCOPES = [
 ]
 
 RUNTIME_HOME_REL_PATHS = [
-    ".aibox-home",
+    ".aibox-home/cache",
+    ".aibox-home/caches",
+    ".aibox-home/diagnostics",
+    ".aibox-home/tmp",
     ".aibox/cache",
     ".aibox/caches",
     ".aibox/diagnostics",
@@ -66,6 +68,12 @@ BUILD_CACHE_REL_PATHS = [
     "target/release/incremental",
     "target/release/build",
 ]
+PROCESSKIT_APPLY_SCOPES = {"runtime-home", "build-cache"}
+DELEGATED_APPLY_SCOPES = {
+    "agent-worktrees",
+    "e2e-companion",
+    "containers",
+}
 
 
 def _project_root(project_root: Optional[str] = None) -> Path:
@@ -220,22 +228,6 @@ def _looks_managed_worktree(path: Path) -> bool:
     )
 
 
-def _aibox_prune_available() -> bool:
-    return shutil.which("aibox") is not None
-
-
-def _aibox_command(scopes: list[str], *, dry_run: bool) -> list[str]:
-    command = ["aibox", "prune"]
-    for scope in scopes:
-        command.extend(["--scope", scope])
-    if dry_run:
-        command.append("--dry-run")
-    else:
-        command.append("--yes")
-    command.append("--json")
-    return command
-
-
 def _confirmation(scopes: list[str]) -> str:
     return "apply-prune:" + ",".join(scopes)
 
@@ -286,7 +278,11 @@ def _analyze(root: Path, scopes: list[str]) -> dict:
             "managed_hint_count": len(managed),
             "targets": worktrees,
             "notes": [
-                "Inventory only; deletion is delegated to aibox prune.",
+                (
+                    "Inventory only; deletion is delegated to the host "
+                    "runtime manager because worktree ownership is external "
+                    "to processkit."
+                ),
             ],
         })
 
@@ -298,8 +294,9 @@ def _analyze(root: Path, scopes: list[str]) -> dict:
             "targets": [],
             "notes": [
                 (
-                    "Container cleanup is delegated to aibox; this tool does "
-                    "not call local Docker or Podman directly."
+                    "Container cleanup is delegated to the host runtime "
+                    "manager; this tool does not call local Docker, Podman, "
+                    "or host CLI wrappers directly."
                 ),
             ],
         })
@@ -312,8 +309,8 @@ def _analyze(root: Path, scopes: list[str]) -> dict:
             "targets": [],
             "notes": [
                 (
-                    "Companion cleanup must use aibox SSH reachability checks, "
-                    "not local container inspection."
+                    "Companion cleanup must use the host runtime manager's "
+                    "reachability checks, not local container inspection."
                 ),
             ],
         })
@@ -323,8 +320,89 @@ def _analyze(root: Path, scopes: list[str]) -> dict:
         "scopes": scopes,
         "supported_scopes": sorted(SUPPORTED_SCOPES),
         "total_expected_reclaim_bytes": total,
-        "aibox_prune_available": _aibox_prune_available(),
         "scope_data": scope_data,
+    }
+
+
+def _targets_for_scope(root: Path, scope: str) -> list[dict]:
+    if scope == "runtime-home":
+        return _path_targets(root, RUNTIME_HOME_REL_PATHS)
+    if scope == "build-cache":
+        return _path_targets(root, BUILD_CACHE_REL_PATHS)
+    return []
+
+
+def _remove_target(root: Path, rel_path: str) -> dict:
+    path = root / rel_path
+    evidence = {
+        "path": rel_path,
+        "existed": path.exists(),
+        "applied": False,
+        "reclaimed_bytes": 0,
+        "file_count": 0,
+    }
+    if not path.exists():
+        evidence["reason"] = "target absent"
+        return evidence
+    try:
+        resolved = path.resolve()
+        resolved.relative_to(root.resolve())
+    except (OSError, ValueError):
+        evidence["error"] = "target is outside project_root"
+        return evidence
+    if path.is_symlink():
+        evidence["error"] = "refusing to remove symlink target"
+        return evidence
+
+    size, file_count = _dir_size(path)
+    try:
+        if path.is_dir():
+            shutil.rmtree(path)
+        else:
+            path.unlink()
+    except OSError as exc:
+        evidence["error"] = str(exc)
+        return evidence
+
+    evidence["applied"] = True
+    evidence["reclaimed_bytes"] = size
+    evidence["file_count"] = file_count
+    return evidence
+
+
+def _apply_processkit_scope(root: Path, scope: str) -> dict:
+    targets = _targets_for_scope(root, scope)
+    target_results = [
+        _remove_target(root, target["path"])
+        for target in targets
+        if target["exists"]
+    ]
+    errors = [item for item in target_results if item.get("error")]
+    reclaimed = sum(item["reclaimed_bytes"] for item in target_results)
+    applied_any = any(item["applied"] for item in target_results)
+    return {
+        "scope": scope,
+        "owner": "processkit",
+        "applied": applied_any and not errors,
+        "unsupported": False,
+        "reclaimed_bytes": reclaimed,
+        "targets": target_results,
+        "errors": errors,
+        "reason": None if target_results else "no allowlisted targets present",
+    }
+
+
+def _apply_external_scope(root: Path, scope: str) -> dict:
+    return {
+        "scope": scope,
+        "owner": "host runtime manager",
+        "applied": False,
+        "unsupported": True,
+        "reason": (
+            "scope is external to processkit; ask the owner to run the "
+            "project's host-side runtime cleanup tool outside the container"
+        ),
+        "project_root": root.as_posix(),
     }
 
 
@@ -365,21 +443,21 @@ def plan_prune(
         return {"error": str(exc)}
 
     analysis = _analyze(root, normalized)
-    aibox_available = analysis["aibox_prune_available"]
-    dry_run_command = _aibox_command(normalized, dry_run=True)
-    apply_command = _aibox_command(normalized, dry_run=False)
-
     actions = []
     for item in analysis["scope_data"]:
+        processkit_owned = item["scope"] in PROCESSKIT_APPLY_SCOPES
         actions.append({
             "scope": item["scope"],
             "risk": item["risk"],
             "destructive": True,
-            "apply_supported": aibox_available,
+            "apply_supported": processkit_owned,
+            "apply_owner": (
+                "processkit" if processkit_owned else "host runtime manager"
+            ),
             "expected_reclaim_bytes": item["expected_reclaim_bytes"],
             "targets": item.get("targets", []),
-            "dry_run_command": dry_run_command,
-            "apply_command": apply_command,
+            "dry_run_command": None,
+            "apply_command": None,
             "notes": item.get("notes", []),
         })
 
@@ -387,7 +465,6 @@ def plan_prune(
         "project_root": root.as_posix(),
         "scopes": normalized,
         "dry_run": True,
-        "aibox_prune_available": aibox_available,
         "required_confirmation": _confirmation(normalized),
         "total_expected_reclaim_bytes": (
             analysis["total_expected_reclaim_bytes"]
@@ -396,7 +473,12 @@ def plan_prune(
         "safety": {
             "manual_deletion_performed": False,
             "apply_requires_confirmation": True,
-            "destructive_logic_owner": "aibox prune",
+            "destructive_logic_owner": (
+                "processkit allowlist for supported scopes; host runtime "
+                "manager for external scopes"
+            ),
+            "processkit_apply_scopes": sorted(PROCESSKIT_APPLY_SCOPES),
+            "external_apply_scopes": sorted(DELEGATED_APPLY_SCOPES),
         },
     }
 
@@ -412,7 +494,7 @@ def apply_prune(
     scopes: Optional[list[str] | str] = None,
     confirmation: Optional[str] = None,
 ) -> dict:
-    """Invoke aibox prune for explicitly confirmed scopes."""
+    """Apply confirmed cleanup for processkit-owned scopes."""
     try:
         root = _project_root(project_root)
         normalized = _normalize_scopes(scopes)
@@ -426,38 +508,20 @@ def apply_prune(
             "required_confirmation": required,
             "applied": False,
         }
-    if not _aibox_prune_available():
-        return {
-            "error": "aibox prune is not available on PATH",
-            "required_confirmation": required,
-            "applied": False,
-        }
-
-    command = _aibox_command(normalized, dry_run=False)
-    try:
-        completed = subprocess.run(
-            command,
-            cwd=root,
-            check=False,
-            capture_output=True,
-            text=True,
-            timeout=600,
-        )
-    except (OSError, subprocess.TimeoutExpired) as exc:
-        return {
-            "error": str(exc),
-            "command": command,
-            "applied": False,
-        }
+    results = []
+    for scope in normalized:
+        if scope in PROCESSKIT_APPLY_SCOPES:
+            results.append(_apply_processkit_scope(root, scope))
+        else:
+            results.append(_apply_external_scope(root, scope))
 
     return {
-        "applied": completed.returncode == 0,
+        "applied": all(item["applied"] for item in results),
+        "partial": any(item["applied"] for item in results),
         "project_root": root.as_posix(),
         "scopes": normalized,
-        "command": command,
-        "exit_code": completed.returncode,
-        "stdout": completed.stdout,
-        "stderr": completed.stderr,
+        "required_confirmation": required,
+        "results": results,
     }
 
 

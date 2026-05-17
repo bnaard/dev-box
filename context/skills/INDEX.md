@@ -15,7 +15,7 @@ utilities (not a public skill category).
 skills/
   processkit/    — 45 skills for operating the processkit system
   engineering/   — 46 skills: software design, architecture, backend, languages
-  devops/        — 15 skills: infrastructure, CI/CD, ops, monitoring
+  devops/        — 16 skills: infrastructure, CI/CD, ops, monitoring
   data-ai/       — 11 skills: data science, ML, AI/LLM, embeddings
   product/       — 11 skills: product management, discovery, communication
   documents/     —  8 skills: document and content authoring

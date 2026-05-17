@@ -303,8 +303,8 @@ Each MCP-bearing skill ships its own `mcp/mcp-config.json` declaring
 how to launch the server (typically `uv run …/server.py`). Agent
 harnesses (Claude Code, Codex CLI, Cursor, …) read a single merged MCP
 config at startup, so the per-skill blocks must be merged and placed at
-the harness-specific path. If an installer set the project up (e.g.
-an aibox-managed devcontainer), the installer owns that wiring; if
+the harness-specific path. If an installer set the project up (for
+example a managed devcontainer), the installer owns that wiring; if
 processkit was installed manually, the project owner merges the blocks
 by hand. Either way, MCP-bearing skills require **`uv`** and **Python
 ≥ 3.10** on PATH — each `server.py` is a PEP 723 script and `uv run`

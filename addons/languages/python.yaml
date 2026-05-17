@@ -8,7 +8,7 @@ exported_surfaces: ["language-runtime", "build-toolchain", "cli-binary"]
 builder_weight: null
 
 # As of aibox v0.16.5 (DEC-036), python3 (Debian Trixie default, 3.13.x)
-# and uv (0.11.11 from ghcr.io/astral-sh/uv) are unconditionally present
+# and uv (0.11.14 from ghcr.io/astral-sh/uv) are unconditionally present
 # in the base-debian image. This addon now provides ADDITIONAL Python
 # tooling beyond that minimum: alternative Python versions (3.12, 3.14),
 # poetry, pdm, and the recommended skills below.
@@ -27,8 +27,8 @@ tools:
   - name: uv
     description: "Fast Python package manager and virtual environment tool"
     default_enabled: true
-    default_version: "0.11.11"
-    supported_versions: ["0.7", "0.11.10", "0.11.11"]
+    default_version: "0.11.14"
+    supported_versions: ["0.7", "0.11.10", "0.11.11", "0.11.14"]
   - name: pip
     description: "Python package installer for pip-based projects"
     default_enabled: false
@@ -61,7 +61,7 @@ runtime: |
       && rm -rf /var/lib/apt/lists/*
   {% endif %}
 
-  {% if tools.uv.enabled and tools.uv.version != "0.11.11" %}
+  {% if tools.uv.version != "0.11.14" %}
   COPY --from=ghcr.io/astral-sh/uv:{{ tools.uv.version }} /uv /usr/local/bin/uv
   COPY --from=ghcr.io/astral-sh/uv:{{ tools.uv.version }} /uvx /usr/local/bin/uvx
   {% endif %}

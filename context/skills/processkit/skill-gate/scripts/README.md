@@ -108,17 +108,20 @@ processkit MCP tool on container rebuild — see
 
 #### Preauth block (consumed by aibox#55)
 
-aibox sync reads `context/skills/processkit/skill-gate/assets/preauth.json`
-and additively merges its `permissions.allow[]` and `enabledMcpjsonServers[]`
-arrays into `.claude/settings.json`. User-added entries are preserved; only
-entries originating from the spec are managed by sync. Write-side processkit
-tools remain safety-gated by the `check_route_task_called.py` PreToolUse hook
-above — preauth is not a safety regression.
+Host installers may read
+`context/skills/processkit/skill-gate/assets/preauth.json` and
+additively merge its `permissions.allow[]` and
+`enabledMcpjsonServers[]` arrays into `.claude/settings.json`.
+User-added entries are preserved; only entries originating from the spec
+are managed by the installer. Write-side processkit tools remain
+safety-gated by the `check_route_task_called.py` PreToolUse hook above
+— preauth is not a safety regression.
 
 The `pk-doctor preauth_applied` check WARNs derived projects when the
 preauth surface is missing from Claude Code or Codex config — a
-self-diagnostic for "your aibox is older than v0.x.y; run `aibox sync`
-after upgrading".
+self-diagnostic for "your host installer did not merge current
+processkit preauth; ask the owner to rerun the installer/sync step
+outside the container".
 
 ### Codex CLI — `.codex/hooks.json`
 

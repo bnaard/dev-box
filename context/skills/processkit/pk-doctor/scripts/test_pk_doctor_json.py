@@ -135,6 +135,27 @@ else:
           str(payload.get("findings")))
 
 # ---------------------------------------------------------------------------
+# Test 5: doctor/aibox boundary guard stays clean
+# ---------------------------------------------------------------------------
+print("\n[5] doctor/aibox boundary guard stays clean")
+
+boundary = run_doctor("--json", "--category=doctor_boundary")
+check("doctor_boundary exits 0", boundary.returncode == 0,
+      f"returncode={boundary.returncode}, stderr={boundary.stderr[:200]}")
+try:
+    boundary_payload = json.loads(boundary.stdout)
+    boundary_findings = boundary_payload.get("findings", [])
+    boundary_errors = [
+        item for item in boundary_findings
+        if item.get("category") == "doctor_boundary"
+        and item.get("severity") == "ERROR"
+    ]
+    check("doctor_boundary has no errors", not boundary_errors,
+          str(boundary_errors[:3]))
+except json.JSONDecodeError as e:
+    check("doctor_boundary stdout is valid JSON", False, str(e))
+
+# ---------------------------------------------------------------------------
 # Summary
 # ---------------------------------------------------------------------------
 print()

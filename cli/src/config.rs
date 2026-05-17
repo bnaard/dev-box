@@ -918,7 +918,7 @@ pub struct AddonToolsSection {
 /// ```toml
 /// [addons.python.tools]
 /// python = { version = "3.13" }
-/// uv = { version = "0.11.11" }
+/// uv = { version = "0.11.14" }
 /// ```
 ///
 /// Deserialized as `HashMap<String, AddonToolsSection>` where the outer key
@@ -4503,7 +4503,7 @@ fn check_customization_table(
     check_child_table(
         root,
         key,
-        &["theme", "mode", "prompt", "layout", "tmux"],
+        &["theme", "mode", "variant", "prompt", "layout", "tmux"],
         mismatches,
     );
     if let Some(customization) = table_child(root, key) {
@@ -5117,6 +5117,27 @@ mode = "{mode}"
         assert!(
             mismatches.is_empty(),
             "full known config shape should not report unknown keys: {mismatches:?}"
+        );
+    }
+
+    #[test]
+    fn schema_mismatches_accepts_customization_variant_key() {
+        let toml = r#"
+[aibox]
+version = "0.26.5"
+
+[container]
+name = "test"
+
+[customization]
+theme = "ayu"
+mode = "dark"
+variant = "mirage"
+"#;
+        let mismatches = AiboxConfig::schema_mismatches(toml).unwrap();
+        assert!(
+            mismatches.is_empty(),
+            "customization.variant should be schema-valid: {mismatches:?}"
         );
     }
 

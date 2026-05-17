@@ -128,6 +128,7 @@ that skill before proceeding.
 | "groom the context", "clean up context" | `context-grooming` |
 | "archive context", "cold tier", "archive old workitems" | `context-archiving` |
 | "prune runtime", "cleanup aibox runtime", "clean up agent worktrees", "reclaim runtime disk" | `runtime-prune` |
+| "check all open issues", "check all PRs", "merge ready PRs", "repo reconcile", "commit and push all", "repository cleanup" | `repo-management` |
 | "second opinion", "devil's advocate", "poke holes in this" | `devils-advocate` |
 | "multiple perspectives", "board of advisors" | `board-of-advisors` |
 | "research this", "I'm not sure about this fact" | `research-with-confidence` |
@@ -156,7 +157,7 @@ directory name as the `category:` value when authoring or filtering:
 |---|---|
 | `processkit/` | 45 skills for operating the processkit system |
 | `engineering/` | 46 skills: software design, architecture, backend, languages |
-| `devops/` | 15 skills: infrastructure, CI/CD, ops, monitoring |
+| `devops/` | 16 skills: infrastructure, CI/CD, ops, monitoring |
 | `data-ai/` | 11 skills: data science, ML, AI/LLM, embeddings |
 | `product/` | 11 skills: product management, discovery, communication |
 | `documents/` | 8 skills: document and content authoring |
@@ -178,8 +179,8 @@ For the full catalog, read `skills/INDEX.md`.
 - `standup-context` — write a standup update (done / doing / next / blockers)
 - `status-briefing` — generate a session-start orientation from project state
 - `context-grooming` — periodically prune and compact the project context
-- `runtime-prune` — inspect and invoke safe cleanup for aibox-managed
-  runtime state
+- `runtime-prune` — inspect and invoke safe cleanup for
+  runtime-manager-owned state
 - `release-semver` — plan and execute a semver release
 - `retrospective` — post-release blameless retrospective (4 signals, dual-emit Artifact+LogEntry)
 

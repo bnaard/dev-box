@@ -3031,7 +3031,7 @@
       },
       "rate_limits": {
         "source": "codex-status",
-        "note": "Use interactive Codex /status or aibox-fed runtime_capacity observations for subscription limits."
+        "note": "Use interactive Codex /status or runtime-manager-fed runtime_capacity observations for subscription limits."
       }
     },
     {

@@ -523,16 +523,16 @@ def run(ctx) -> list[CheckResult]:
         ))
 
     if not _sqlite_vec_available():
-        results.append(CheckResult(
-            severity="WARN",
-            category="context_hygiene",
-            id="semantic.sqlite-vec-unavailable",
-            message=(
-                "sqlite-vec is not importable/loadable; semantic_search_entities "
-                "will return no vector results and hybrid search falls back to FTS"
-            ),
-            suggested_fix="install sqlite-vec in the MCP runtime or fix aibox dependency provisioning",
-        ))
+            results.append(CheckResult(
+                severity="WARN",
+                category="context_hygiene",
+                id="semantic.sqlite-vec-unavailable",
+                message=(
+                    "sqlite-vec is not importable/loadable; semantic_search_entities "
+                    "will return no vector results and hybrid search falls back to FTS"
+                ),
+                suggested_fix="install sqlite-vec in the MCP runtime or ensure runtime dependencies are provisioned",
+            ))
     else:
         results.extend(_semantic_index_health(repo_root))
 

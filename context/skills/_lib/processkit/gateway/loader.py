@@ -28,13 +28,13 @@ def iter_server_paths(
     root: Path | None = None,
     exclude_skills: set[str] | None = None,
 ) -> list[Path]:
-    """List processkit skill MCP server scripts, excluding ``self_skill``."""
+    """List skill MCP server scripts, excluding ``self_skill``."""
     root = root or skills_root()
     excluded = set(exclude_skills or set())
     if self_skill:
         excluded.add(self_skill)
     paths: list[Path] = []
-    for candidate in root.glob("processkit/*/mcp/server.py"):
+    for candidate in root.glob("*/*/mcp/server.py"):
         skill = candidate.parents[1].name
         if skill in excluded:
             continue
@@ -72,7 +72,7 @@ def collect_source_tools(
     root: Path | None = None,
     exclude_skills: set[str] | None = None,
 ) -> list[dict[str, Any]]:
-    """Collect FastMCP tool objects from source processkit MCP servers."""
+    """Collect FastMCP tool objects from source MCP servers."""
     entries: list[dict[str, Any]] = []
     for path in iter_server_paths(
         self_skill=self_skill,

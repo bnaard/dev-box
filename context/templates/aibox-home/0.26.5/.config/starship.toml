@@ -3,33 +3,33 @@
 palette = "aibox"
 
 format = """
-[](fg:#88C0D0)\
+[](fg:#58A6FF)\
 $directory\
-[](fg:#88C0D0 bg:#A3BE8C)\
+[](fg:#58A6FF bg:#3FB950)\
 $git_branch\
 $git_status\
-[](fg:#A3BE8C bg:#D08770)\
+[](fg:#3FB950 bg:#DB6D28)\
 $python\
 $rust\
 $nodejs\
 $golang\
-[](fg:#D08770 bg:#2E3440)\
+[](fg:#DB6D28 bg:#0D1117)\
 $cmd_duration\
 $character"""
 
 [directory]
-style = "bold bg:#88C0D0 fg:#2E3440"
+style = "bold bg:#58A6FF fg:#0D1117"
 format = "[ $path ]($style)"
 truncation_length = 3
 truncate_to_repo = true
 
 [git_branch]
-style = "bg:#A3BE8C fg:#2E3440"
+style = "bg:#3FB950 fg:#0D1117"
 symbol = " "
 format = "[ $symbol$branch ]($style)"
 
 [git_status]
-style = "bg:#A3BE8C fg:#2E3440"
+style = "bg:#3FB950 fg:#0D1117"
 format = "[$all_status$ahead_behind ]($style)"
 ahead = "⇡$count"
 behind = "⇣$count"
@@ -39,28 +39,28 @@ staged = "+$count"
 untracked = "?$count"
 
 [python]
-style = "bg:#D08770 fg:#2E3440"
+style = "bg:#DB6D28 fg:#0D1117"
 format = "[ $symbol$version ]($style)"
 [rust]
-style = "bg:#D08770 fg:#2E3440"
+style = "bg:#DB6D28 fg:#0D1117"
 format = "[ $symbol$version ]($style)"
 [nodejs]
-style = "bg:#D08770 fg:#2E3440"
+style = "bg:#DB6D28 fg:#0D1117"
 format = "[ $symbol$version ]($style)"
 [golang]
-style = "bg:#D08770 fg:#2E3440"
+style = "bg:#DB6D28 fg:#0D1117"
 format = "[ $symbol$version ]($style)"
 
 [cmd_duration]
-style = "fg:#4C566A"
+style = "fg:#8B949E"
 min_time = 2_000
 format = "[ $duration ]($style)"
 
 [character]
-success_symbol = "[❯](bold fg:#88C0D0) "
-error_symbol = "[❯](bold fg:#BF616A) "
+success_symbol = "[❯](bold fg:#58A6FF) "
+error_symbol = "[❯](bold fg:#F85149) "
 
 [palettes.aibox]
-bg = "#2E3440"
-fg = "#D8DEE9"
-accent = "#88C0D0"
+bg = "#0D1117"
+fg = "#C9D1D9"
+accent = "#58A6FF"

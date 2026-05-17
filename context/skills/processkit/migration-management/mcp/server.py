@@ -387,7 +387,7 @@ def _regenerate_index(root: Path) -> Path:
             lines.append(f"| {date} | {header} | {reason} |")
     lines.append("")
 
-    # ── Preserved CLI tail (aibox-owned) ──
+    # ── Preserved host-installer CLI tail ──
     if cli_tail:
         lines.append(cli_tail.rstrip())
         lines.append("")

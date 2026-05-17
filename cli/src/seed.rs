@@ -175,7 +175,8 @@ vnoremap <End>  $
 " Paste from the host still uses the terminal paste shortcut.
 function! s:AiboxCopyRegister() abort
   if executable('aibox-copy')
-    call system('aibox-copy', getreg(v:register))
+    let l:register = empty(v:register) ? '"' : v:register
+    call system('aibox-copy', getreg(l:register))
   endif
 endfunction
 xnoremap <silent> y y:<C-u>call <SID>AiboxCopyRegister()<CR>
@@ -697,12 +698,8 @@ set -euo pipefail
 tmp="${TMPDIR:-/tmp}/aibox-copy.$$"
 trap 'rm -f "$tmp"' EXIT
 cat >"$tmp"
-
-loaded_tmux=0
 if [[ -n "${TMUX:-}" ]] && command -v tmux >/dev/null 2>&1; then
-    if tmux load-buffer -w "$tmp" >/dev/null 2>&1; then
-        loaded_tmux=1
-    fi
+    tmux load-buffer -w "$tmp" >/dev/null 2>&1 || true
 fi
 
 encoded="$(base64 <"$tmp" | tr -d '\n')"
@@ -720,10 +717,6 @@ else
     if [[ -t 1 ]]; then
         printf '\033]52;c;%s\a' "$encoded" >/dev/tty
     fi
-fi
-
-if [[ "$loaded_tmux" == "1" ]]; then
-    exit 0
 fi
 "#;
 
@@ -1679,6 +1672,7 @@ pub fn restore_missing_managed_runtime_files(config: &AiboxConfig) -> Result<Vec
             || rel_path == Path::new(".local/bin/aibox-preview")
             || rel_path == Path::new(".local/bin/aibox-status-toggle")
             || rel_path == Path::new(".local/bin/aibox-copy")
+            || rel_path == Path::new(".local/bin/aibox-tmux-cheatsheet")
             || rel_path == Path::new(".local/bin/aibox-powerkit-render-list")
             || rel_path == Path::new(".local/bin/aibox-powerkit-render-session")
             || (rel_path.starts_with(".config/tmux/")
@@ -1872,7 +1866,7 @@ pub fn sync_theme_files(config: &AiboxConfig) -> Result<Vec<String>> {
 /// them on first build, but whose contents the harness owns at runtime
 /// (login state, OAuth tokens, project list, etc.). Seed write-if-missing,
 /// never force-overwrite.
-fn is_bind_mount_stub_file(rel_path: &Path) -> bool {
+pub(crate) fn is_bind_mount_stub_file(rel_path: &Path) -> bool {
     rel_path == Path::new(".claude.json")
 }
 
@@ -1884,6 +1878,7 @@ fn is_executable_managed_runtime_file(rel_path: &Path) -> bool {
         || rel_path == Path::new(".local/bin/aibox-tmux-switch-layout")
         || rel_path == Path::new(".local/bin/aibox-tmux-confirm-and-switch")
         || rel_path == Path::new(".local/bin/aibox-tmux-refresh-theme")
+        || rel_path == Path::new(".local/bin/aibox-tmux-cheatsheet")
         || rel_path == Path::new(".local/bin/aibox-copy")
         || rel_path == Path::new(".local/bin/aibox-powerkit-render-list")
         || rel_path == Path::new(".local/bin/aibox-powerkit-render-session")
@@ -2146,6 +2141,7 @@ pub fn sync_managed_runtime_permissions(config: &AiboxConfig) -> Result<Vec<Stri
         ".local/bin/aibox-tmux-switch-layout",
         ".local/bin/aibox-tmux-confirm-and-switch",
         ".local/bin/aibox-tmux-refresh-theme",
+        ".local/bin/aibox-tmux-cheatsheet",
         ".local/bin/aibox-copy",
         ".local/bin/aibox-powerkit-render-list",
         ".local/bin/aibox-powerkit-render-session",
@@ -2579,12 +2575,17 @@ mod tests {
             .join(".local")
             .join("bin")
             .join("aibox-tmux-confirm-and-switch");
+        let cheatsheet = root
+            .join(".local")
+            .join("bin")
+            .join("aibox-tmux-cheatsheet");
 
         assert!(switch.exists(), "aibox-tmux-switch-layout must be seeded");
         assert!(
             confirm.exists(),
             "aibox-tmux-confirm-and-switch must be seeded"
         );
+        assert!(cheatsheet.exists(), "aibox-tmux-cheatsheet must be seeded");
 
         #[cfg(unix)]
         {
@@ -2598,6 +2599,11 @@ mod tests {
                 fs::metadata(&confirm).unwrap().permissions().mode() & 0o111,
                 0,
                 "aibox-tmux-confirm-and-switch should be executable"
+            );
+            assert_ne!(
+                fs::metadata(&cheatsheet).unwrap().permissions().mode() & 0o111,
+                0,
+                "aibox-tmux-cheatsheet should be executable"
             );
         }
 
@@ -3249,7 +3255,8 @@ rules = [
                 && DEFAULT_VIMRC.contains("inoremap <A-Left>")
                 && DEFAULT_VIMRC.contains("inoremap <M-b>")
                 && DEFAULT_VIMRC.contains("function! s:AiboxCopyRegister() abort")
-                && DEFAULT_VIMRC.contains("getreg(v:register)")
+                && DEFAULT_VIMRC.contains("empty(v:register)")
+                && DEFAULT_VIMRC.contains("getreg(l:register)")
                 && DEFAULT_VIMRC.contains("xnoremap <silent> y")
                 && DEFAULT_VIMRC.contains("nnoremap <silent> yy")
                 && DEFAULT_VIMRC.contains("nnoremap <silent> Y")

@@ -65,6 +65,9 @@ def run_pk_doctor(
     Invokes ``pk-doctor/scripts/doctor.py --json`` as a subprocess and
     parses the output. The raw human-readable report is available by
     running the script directly without the ``--json`` flag.
+    This is the in-container processkit health surface for derived
+    projects; host-side installer diagnostics are outside this tool's
+    scope.
 
     Parameters
     ----------

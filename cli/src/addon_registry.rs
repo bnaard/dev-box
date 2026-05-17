@@ -188,8 +188,8 @@ mod tests {
         assert!(py.supported_versions.contains(&"3.13"));
         assert_eq!(py.default_version, "3.13");
         let uv = addon.tools.iter().find(|t| t.name == "uv").unwrap();
-        assert!(uv.supported_versions.contains(&"0.11.11"));
-        assert_eq!(uv.default_version, "0.11.11");
+        assert!(uv.supported_versions.contains(&"0.11.14"));
+        assert_eq!(uv.default_version, "0.11.14");
     }
 
     #[test]
@@ -242,7 +242,7 @@ mod tests {
     #[test]
     fn python_runtime_uses_base_python_uv_without_extra_layers() {
         ensure_loaded();
-        let tools = tc(&[("python", true, "3.13"), ("uv", true, "0.11.11")]);
+        let tools = tc(&[("python", true, "3.13"), ("uv", true, "0.11.14")]);
         let cmds = generate_runtime_commands("python", &tools);
         assert!(
             !cmds.contains("python3-pip"),

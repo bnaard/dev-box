@@ -1,7 +1,7 @@
 ---
 name: status-briefing
 description: |
-  Generates a concise status briefing from project context — synthesizing current state, open decisions, key risks, and today's priority actions into a focused session-start orientation. Use at the start of a session when asked for a briefing, "what's the state of things", "catch me up", or "what should I focus on today."
+  Generates a concise status briefing from project context after resolving active migrations by default — synthesizing current state, open decisions, key risks, and today's priority actions into a focused session-start orientation. Use at the start of a session when asked for a briefing, "what's the state of things", "catch me up", "pk-resume", or "what should I focus on today." Info-only mode is opt-in.
 metadata:
   processkit:
     apiVersion: processkit.projectious.work/v2
@@ -18,13 +18,13 @@ metadata:
       - skill: workitem-management
         purpose: Query in-progress and next-up WorkItems for the today's priorities section.
       - skill: migration-management
-        purpose: Surface pending and in-progress migrations before normal work.
+        purpose: Resolve pending and in-progress migrations before normal work.
       - skill: pk-doctor
         purpose: Include current repository health in the session-start briefing.
     commands:
       - name: pk-resume
         args: ""
-        description: "Generate a session-start orientation from current project state"
+        description: "Resolve active migrations, then generate a session-start orientation"
 ---
 
 # Status Briefing
@@ -35,8 +35,10 @@ A status briefing is a single-screen orientation that a person or
 agent reads at the start of a session to immediately know what
 matters today. It distills project context, backlog state, open
 decisions, and upcoming deadlines into a focused, actionable
-summary. The reader should be ready to start working within three
-minutes of reading it.
+summary. Before writing the briefing, `/pk-resume` resolves active
+migration work by default so the user does not need a second "please
+resolve migrations" turn. The reader should be ready to start working
+within three minutes of reading it.
 
 ## Overview
 
@@ -70,6 +72,30 @@ highest-priority actionable findings in the briefing. If
 surface that as an MCP configuration defect; do not silently fall back
 to a local script path unless the user explicitly asks for an
 implementation-level workaround.
+
+For the migrations source, remediation is the default. Query
+pending and in-progress migrations before writing the briefing:
+
+1. If there are no active migrations, include no migration section unless
+   the user asked for full detail.
+2. If migrations are active and the user did not explicitly ask for
+   info-only/report-only/dry-run/no-fix behavior, resolve them before
+   the briefing. Use migration-management MCP tools rather than moving
+   files by hand.
+3. Continue or apply unambiguous migrations whose metadata and body make
+   the intended change clear and whose checks pass.
+4. Reject malformed no-op or empty-baseline migrations when the defect is
+   explicit and the rejection reason is clear.
+5. Ask the user before applying or rejecting any migration that changes
+   policy, deletes data, has unclear intent, conflicts with local work,
+   or needs a product/domain decision.
+6. After resolving, re-query migrations and include the final active
+   count plus any blocked items in the briefing.
+
+If the user explicitly says "info only", "dry run", "report only",
+"check only", "no fixes", or equivalent, do not resolve migrations.
+In that mode, surface pending/in-progress migrations before normal
+priorities and state the concrete next action for each one.
 
 For the GitHub collaboration source, first confirm the working directory
 is inside a git repository and has a GitHub remote. If `gh` is installed
@@ -130,9 +156,11 @@ the user configuring anything.
 - [Decision X] — owner: [name], due by: [date or "unscheduled"]
 - [Decision Y] — [brief description]
 
-## Pending migrations
+## Migrations
 
-- [Migration ID] — [source/version], next action: review/apply/reject
+- [If resolved] Resolved [N] active migration(s); [0] remain.
+- [If blocked] [Migration ID] — blocked on [decision/conflict], next
+  action: [ask/apply/reject/continue]
 
 ## Blockers and risks
 
@@ -216,14 +244,19 @@ Length signals:
 
 Agent-specific failure modes — provider-neutral pause-and-self-check items:
 
+- **Treating pk-resume as report-only.** `/pk-resume` is a session-start
+  cleanup and briefing workflow. Resolve active migrations first unless
+  the user explicitly asked for info-only, dry-run, report-only,
+  check-only, or no-fix behavior. Do not leave the user to ask a second
+  time for "resolve migrations" when the next action is clear.
 - **Treating a stale handover as current.** A `session.handover` written 10 days ago reflects a state that may have completely changed. Always check `details.session_date` before using a handover as a source. If it is more than 7 days old, skip it and reconstruct from git log and WorkItem state instead. Presenting stale handover content as "what happened last session" when the last session was a week ago misleads the user.
 - **Reading only the handover note without checking WorkItem state.** The handover captures what was true at session end; WorkItem state shows what has been actively changed since. A briefing that contradicts current WorkItem state (e.g., listing an item as "next up" when it is now done) will erode trust immediately. Always cross-check both.
-- **Hiding pending migrations.** Session start is the safest point to catch
-  upgrade drift. Always query pending and in-progress migrations. If any are
-  present, surface them before normal priorities and require an explicit
-  disposition: apply, reject, inspect first, or defer with a durable reason
-  or tracking item. Propose review via `migration-management`; do not
-  silently apply them.
+- **Leaving active migrations for a second prompt.** Session start is the
+  safest point to catch upgrade drift. Always query pending and
+  in-progress migrations. If any are present, resolve the unambiguous
+  ones through `migration-management` before writing the briefing, then
+  report what changed. Ask only when the migration is destructive,
+  policy-sensitive, ambiguous, conflicting, or externally blocked.
 - **Skipping repository health.** `pk-resume` should include the current
   `pk-doctor` result. A clean doctor pass can be one line only when both
   severity and action queues are clean. ERROR/WARN findings and

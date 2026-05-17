@@ -52,26 +52,40 @@ def _aggregate(entries: list[dict]) -> str:
     return hashlib.sha256(joined.encode("utf-8")).hexdigest()
 
 
+def _context_rel(path: Path, repo_root: Path) -> str:
+    rel = path.relative_to(repo_root)
+    parts = rel.parts
+    if len(parts) >= 2 and parts[0] == "src" and parts[1] == "context":
+        return Path("context", *parts[2:]).as_posix()
+    return rel.as_posix()
+
+
 def _collect_current(repo_root: Path) -> list[dict]:
-    skills_root = repo_root / "context" / "skills"
     entries: list[dict] = []
     seen: set[str] = set()
-    for cfg in sorted(skills_root.glob("*/*/mcp/mcp-config.json")):
-        rel = cfg.relative_to(repo_root).as_posix()
-        if rel == GATEWAY_CONFIG_REL.as_posix():
+    skills_roots = [
+        repo_root / "context" / "skills",
+        repo_root / "src" / "context" / "skills",
+    ]
+    for skills_root in skills_roots:
+        if not skills_root.is_dir():
             continue
-        if rel in seen:
-            continue
-        seen.add(rel)
-        entries.append({"path": rel, "sha256": _sha256_of_file(cfg)})
-    for cfg in sorted(skills_root.glob("*/mcp/mcp-config.json")):
-        rel = cfg.relative_to(repo_root).as_posix()
-        if rel == GATEWAY_CONFIG_REL.as_posix():
-            continue
-        if rel in seen:
-            continue
-        seen.add(rel)
-        entries.append({"path": rel, "sha256": _sha256_of_file(cfg)})
+        for cfg in sorted(skills_root.glob("*/*/mcp/mcp-config.json")):
+            rel = _context_rel(cfg, repo_root)
+            if rel == GATEWAY_CONFIG_REL.as_posix():
+                continue
+            if rel in seen:
+                continue
+            seen.add(rel)
+            entries.append({"path": rel, "sha256": _sha256_of_file(cfg)})
+        for cfg in sorted(skills_root.glob("*/mcp/mcp-config.json")):
+            rel = _context_rel(cfg, repo_root)
+            if rel == GATEWAY_CONFIG_REL.as_posix():
+                continue
+            if rel in seen:
+                continue
+            seen.add(rel)
+            entries.append({"path": rel, "sha256": _sha256_of_file(cfg)})
     entries.sort(key=lambda e: e["path"])
     return entries
 
@@ -234,10 +248,14 @@ def run(ctx) -> list[CheckResult]:
                 id="mcp_config_drift.harness-stale",
                 message=(
                     f"{len(missing)} processkit server(s) missing from "
-                    f".mcp.json ({preview}); run `aibox sync` (or "
-                    f"`aibox sync --force`) to re-merge .mcp.json."
+                    f".mcp.json ({preview}); host action: ask the owner "
+                    f"to re-run the project installer/sync tool outside "
+                    f"the container to re-merge .mcp.json."
                 ),
-                suggested_fix="aibox sync",
+                suggested_fix=(
+                    "host action: re-run the project installer/sync tool "
+                    "outside the container"
+                ),
             )]
 
     return [CheckResult(

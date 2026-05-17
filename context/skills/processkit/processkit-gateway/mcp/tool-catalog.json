@@ -5987,7 +5987,7 @@
       ],
       "collision_status": "unique",
       "deduplicated": false,
-      "description": "Invoke aibox prune for explicitly confirmed scopes.",
+      "description": "Run runtime prune for explicitly confirmed scopes via the runtime-prune action.",
       "name": "apply_prune",
       "output_schema": null,
       "parameters": {

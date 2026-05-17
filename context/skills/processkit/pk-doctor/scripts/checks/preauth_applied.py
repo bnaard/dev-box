@@ -290,17 +290,17 @@ def run(ctx) -> list[CheckResult]:
                 preview = ", ".join(missing_perms[:5])
                 if len(missing_perms) > 5:
                     preview += f" (+{len(missing_perms) - 5} more)"
-                results.append(CheckResult(
-                    severity="WARN",
-                    category="preauth_applied",
-                    id="preauth_applied.permissions-missing",
-                    message=(
-                        f"{len(missing_perms)} preauth permission pattern(s) "
-                        f"not in .claude/settings.json permissions.allow "
-                        f"({preview}); merge gated by aibox#55"
-                    ),
-                    suggested_fix="aibox sync (once aibox#55 ships)",
-                ))
+                    results.append(CheckResult(
+                        severity="WARN",
+                        category="preauth_applied",
+                        id="preauth_applied.permissions-missing",
+                        message=(
+                            f"{len(missing_perms)} preauth permission pattern(s) "
+                            f"not in .claude/settings.json permissions.allow "
+                            f"({preview}); merge gated by aibox#55"
+                        ),
+                        suggested_fix="run the host orchestrator sync path once preauth-merge is shipped",
+                    ))
 
             missing_servers = sorted(spec_servers - live_servers)
             if missing_servers and in_gateway_mode:
@@ -311,17 +311,17 @@ def run(ctx) -> list[CheckResult]:
                 preview = ", ".join(missing_servers[:5])
                 if len(missing_servers) > 5:
                     preview += f" (+{len(missing_servers) - 5} more)"
-                results.append(CheckResult(
-                    severity="WARN",
-                    category="preauth_applied",
-                    id="preauth_applied.servers-missing",
-                    message=(
-                        f"{len(missing_servers)} preauth server(s) not in "
-                        f".claude/settings.json enabledMcpjsonServers "
-                        f"({preview}); merge gated by aibox#55"
-                    ),
-                    suggested_fix="aibox sync (once aibox#55 ships)",
-                ))
+                    results.append(CheckResult(
+                        severity="WARN",
+                        category="preauth_applied",
+                        id="preauth_applied.servers-missing",
+                        message=(
+                            f"{len(missing_servers)} preauth server(s) not in "
+                            f".claude/settings.json enabledMcpjsonServers "
+                            f"({preview}); merge gated by aibox#55"
+                        ),
+                        suggested_fix="run the host orchestrator sync path once preauth-merge is shipped",
+                    ))
             if not missing_perms and not missing_servers:
                 results.append(CheckResult(
                     severity="INFO",
@@ -377,7 +377,7 @@ def run(ctx) -> list[CheckResult]:
                         f"not in .codex/config.toml [mcp].allowed_tools "
                         f"({preview}); merge gated by aibox#55"
                     ),
-                    suggested_fix="aibox sync (once aibox#55 ships)",
+                    suggested_fix="run the host orchestrator sync path once preauth-merge is shipped",
                 ))
             else:
                 results.append(CheckResult(
