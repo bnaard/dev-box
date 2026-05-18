@@ -419,6 +419,47 @@ image_source_tag() {
   printf '%s:%s-source-%s' "${IMAGE_REGISTRY}" "${flavor}" "${source_sha}"
 }
 
+image_manifest_complete() {
+  local ref="$1"
+
+  if ! ${RUNTIME_BIN} buildx version >/dev/null 2>&1; then
+    return 1
+  fi
+  if ! command -v jq >/dev/null 2>&1; then
+    warn "jq is unavailable; cannot verify ${ref} manifest children before reuse"
+    return 1
+  fi
+
+  local raw
+  if ! raw="$(${RUNTIME_BIN} buildx imagetools inspect --raw "${ref}" 2>/dev/null)"; then
+    return 1
+  fi
+
+  local digests=()
+  local digest
+  while IFS= read -r digest; do
+    [[ -n "${digest}" ]] && digests+=("${digest}")
+  done < <(
+    printf '%s' "${raw}" \
+      | jq -r '
+          if (.mediaType == "application/vnd.oci.image.index.v1+json"
+              or .mediaType == "application/vnd.docker.distribution.manifest.list.v2+json")
+          then .manifests[]?.digest // empty
+          else empty
+          end
+        ' 2>/dev/null
+  )
+
+  for digest in "${digests[@]}"; do
+    [[ -z "${digest}" ]] && continue
+    if ! ${RUNTIME_BIN} buildx imagetools inspect "${IMAGE_REGISTRY}@${digest}" >/dev/null 2>&1; then
+      return 1
+    fi
+  done
+
+  return 0
+}
+
 ensure_ghcr_login() {
   if ! ${RUNTIME_BIN} login ghcr.io --get-login &>/dev/null 2>&1; then
     if command -v gh &>/dev/null && gh auth status &>/dev/null; then
@@ -484,12 +525,22 @@ cmd_build_images() {
       ${RUNTIME_BIN} pull "${latest}" >/dev/null 2>&1 \
         || warn "Could not pull ${latest} as a remote build cache seed"
       if ${RUNTIME_BIN} buildx version >/dev/null 2>&1; then
+        local cache_from_args=()
+        if image_manifest_complete "${build_cache_ref}"; then
+          cache_from_args+=(--cache-from "type=registry,ref=${build_cache_ref}")
+        else
+          warn "Skipping unusable remote build cache ${build_cache_ref}"
+        fi
+        if image_manifest_complete "${latest}"; then
+          cache_from_args+=(--cache-from "type=registry,ref=${latest}")
+        else
+          warn "Skipping unusable remote image cache ${latest}"
+        fi
         ${RUNTIME_BIN} buildx build --load \
           --build-arg BUILDKIT_INLINE_CACHE=1 \
           --build-arg "AIBOX_IMAGE_SOURCE_SHA=${source_sha}" \
           --build-arg "AIBOX_IMAGE_BUILD_VERSION=${build_version}" \
-          --cache-from "type=registry,ref=${build_cache_ref}" \
-          --cache-from "type=registry,ref=${latest}" \
+          "${cache_from_args[@]}" \
           --cache-to "type=registry,ref=${build_cache_ref},mode=max,ignore-error=true" \
           -t "${latest}" \
           -f "${PROJECT_ROOT}/images/${flavor}/Dockerfile" \
@@ -579,7 +630,7 @@ cmd_publish_images_for_release() {
     source_tag="$(image_source_tag "${flavor}" "${current_sha}")"
 
     if ${RUNTIME_BIN} buildx version >/dev/null 2>&1 \
-      && ${RUNTIME_BIN} buildx imagetools inspect "${source_tag}" >/dev/null 2>&1; then
+      && image_manifest_complete "${source_tag}"; then
       info "${flavor} source unchanged (${current_sha}); retagging existing GHCR manifest"
       ${RUNTIME_BIN} buildx imagetools create \
         -t "${versioned}" \
@@ -591,6 +642,8 @@ cmd_publish_images_for_release() {
       all_retagged=false
       if ! ${RUNTIME_BIN} buildx version >/dev/null 2>&1; then
         warn "buildx is unavailable; rebuilding ${flavor} instead of retagging by source hash"
+      elif ${RUNTIME_BIN} buildx imagetools inspect "${source_tag}" >/dev/null 2>&1; then
+        warn "${flavor} source marker ${source_tag} exists but references missing GHCR manifest children; rebuilding instead of retagging"
       else
         info "${flavor} source hash ${current_sha} has no GHCR marker tag yet; rebuilding once to seed it"
       fi
