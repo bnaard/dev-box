@@ -865,7 +865,7 @@ fn write_migration_document(
 
     let now = chrono::Utc::now();
     let now_iso = now.format("%Y-%m-%dT%H:%M:%SZ").to_string();
-    let id = format!("MIG-RUNTIME-{}", now.format("%Y%m%dT%H%M%S"));
+    let id = runtime_migration_id(&now, "RuntimeSync");
     let out_path = pending_dir.join(format!("{}.md", id));
 
     let mut affected_groups = BTreeSet::new();
@@ -1052,12 +1052,12 @@ fn collect_drifted_files(
         .collect()
 }
 
-/// Emit a `MIG-RUNTIME-DRIFT-<timestamp>.md` pending Migration entity
+/// Emit a pending Migration entity
 /// listing every drifted-but-not-historical file with a per-file
 /// recommendation.
 ///
 /// Returns `Ok(None)` when a drift migration already exists for the same
-/// set (idempotent guard: checks for any existing `MIG-RUNTIME-DRIFT-*`
+/// set (idempotent guard: checks for any existing runtime-drift Migration
 /// in `context/migrations/pending/`).
 fn write_drift_migration_document(
     project_root: &Path,
@@ -1076,7 +1076,7 @@ fn write_drift_migration_document(
 
     let now = chrono::Utc::now();
     let now_iso = now.format("%Y-%m-%dT%H:%M:%SZ").to_string();
-    let id = format!("MIG-RUNTIME-DRIFT-{}", now.format("%Y%m%dT%H%M%S"));
+    let id = runtime_migration_id(&now, "RuntimeDrift");
     let out_path = pending_dir.join(format!("{}.md", id));
 
     let summary_line = format!(
@@ -1148,7 +1148,15 @@ fn write_drift_migration_document(
     Ok(Some(out_path))
 }
 
-/// Returns `true` if any `MIG-RUNTIME-DRIFT-*` file already exists in `dir`.
+fn runtime_migration_id(now: &chrono::DateTime<chrono::Utc>, wordpair: &str) -> String {
+    format!(
+        "MIG-{}-{}-aibox-runtime",
+        now.format("%Y%m%d_%H%M"),
+        wordpair
+    )
+}
+
+/// Returns `true` if any runtime-drift Migration already exists in `dir`.
 fn existing_drift_migration_pending(dir: &Path) -> Result<bool> {
     if !dir.is_dir() {
         return Ok(false);
@@ -1163,6 +1171,15 @@ fn existing_drift_migration_pending(dir: &Path) -> Result<bool> {
             continue;
         };
         if name.starts_with("MIG-RUNTIME-DRIFT-") && name.ends_with(".md") {
+            return Ok(true);
+        }
+        if !name.starts_with("MIG-") || !name.ends_with(".md") {
+            continue;
+        }
+        let Ok(body) = fs::read_to_string(&path) else {
+            continue;
+        };
+        if migration_source_url(&body).as_deref() == Some(RUNTIME_DRIFT_SOURCE_URL) {
             return Ok(true);
         }
     }
@@ -1217,6 +1234,19 @@ fn extract_migration_pair(body: &str) -> Option<(String, String, String)> {
         }
     }
     Some((source_url?, from_version?, to_version?))
+}
+
+fn migration_source_url(body: &str) -> Option<String> {
+    let rest = body.strip_prefix("---\n")?;
+    let end = rest.find("\n---")?;
+    let frontmatter = &rest[..end];
+    for line in frontmatter.lines() {
+        let trimmed = line.trim_start();
+        if let Some(v) = trimmed.strip_prefix("source_url:") {
+            return Some(parse_yaml_scalar_value(v.trim()));
+        }
+    }
+    None
 }
 
 fn parse_yaml_scalar_value(s: &str) -> String {
@@ -1386,7 +1416,12 @@ mod tests {
         let written =
             write_migration_document(tmp.path(), "0.18.6", "0.18.6", &summary, &diffs, &hops)
                 .unwrap();
-        assert!(written.is_some());
+        let path = written.expect("should write runtime migration");
+        let filename = path.file_name().unwrap().to_str().unwrap();
+        assert!(
+            filename.starts_with("MIG-") && filename.contains("-RuntimeSync-"),
+            "filename should use the processkit Migration id policy"
+        );
     }
 
     #[test]
@@ -1734,8 +1769,8 @@ rules = [
         assert!(path.exists(), "drift migration file should exist on disk");
         let filename = path.file_name().unwrap().to_str().unwrap();
         assert!(
-            filename.starts_with("MIG-RUNTIME-DRIFT-"),
-            "filename should start with MIG-RUNTIME-DRIFT-"
+            filename.starts_with("MIG-") && filename.contains("-RuntimeDrift-"),
+            "filename should use the processkit Migration id policy"
         );
         assert!(filename.ends_with(".md"), "filename should end with .md");
 
@@ -1756,7 +1791,7 @@ rules = [
     #[test]
     fn write_drift_migration_document_is_idempotent() {
         // Calling write_drift_migration_document a second time when a
-        // MIG-RUNTIME-DRIFT-* file already exists must return Ok(None)
+        // runtime-drift Migration already exists must return Ok(None)
         // rather than creating a second file.
         let tmp = TempDir::new().unwrap();
         let root = tmp.path();
@@ -1780,7 +1815,7 @@ rules = [
             .filter(|e| {
                 e.file_name()
                     .to_str()
-                    .map(|n| n.starts_with("MIG-RUNTIME-DRIFT-"))
+                    .map(|n| n.starts_with("MIG-"))
                     .unwrap_or(false)
             })
             .count();

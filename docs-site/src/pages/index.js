@@ -85,7 +85,7 @@ function QuickStart() {
         <h2>Quick Start</h2>
         <pre><code>{`curl -fsSL https://raw.githubusercontent.com/projectious-work/aibox/main/scripts/install.sh | bash
 mkdir my-project && cd my-project
-aibox init my-project --context managed --harness claude --addon python
+aibox init my-project --harness claude --addon python
 aibox apply
 aibox up`}</code></pre>
       </div>

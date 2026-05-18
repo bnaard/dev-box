@@ -1,14 +1,14 @@
 [aibox]
 cli_version = "0.26.7"
-synced_at = "2026-05-17T04:44:34Z"
+synced_at = "2026-05-17T17:06:46.044537673+00:00"
 
 [processkit]
 source = "https://github.com/projectious-work/processkit.git"
-version = "v0.26.14"
+version = "v0.26.15"
 src_path = "src"
-release_asset_sha256 = "c260f7ec44c0c0df814c7491721360627f41d61ee284d8fd450e03c1005b6cff"
-installed_at = "2026-05-17T04:44:34Z"
-processkit_install_hash = "v2:4cd13d8550672b29ab6bfce92d73f18d82703a656dff4ae88ff97498a9dd9a23"
+release_asset_sha256 = "239550f6f82e993aee912040498f275d019fc8a9554de2f7e9753ca197d64e73"
+installed_at = "2026-05-17T17:06:46.044537673+00:00"
+processkit_install_hash = "v2:ada07ad55a0e3b795fc19f4c39cc658bd2ee2aed54fc456069f26b14dff0c399"
 
 [addons]
 resolved_at = "2026-05-09T10:41:25Z"
@@ -34,7 +34,7 @@ rust = [
 ]
 
 [runtime_home]
-generated_at = "2026-05-17T09:59:03.865615894+00:00"
+generated_at = "2026-05-17T11:31:58.235998+00:00"
 
 [runtime_home.files]
 ".asoundrc" = "f34609b11d315cd613cb5333b561032baec860faf4a7eccb28b5567ae72019af"

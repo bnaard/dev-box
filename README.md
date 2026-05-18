@@ -12,7 +12,7 @@ The design goal is simple: a fresh clone plus `aibox apply` should reproduce the
 same workspace, with the same tools, the same agent entry points, and the same
 project context.
 
-![aibox dev layout](docs-site/build/img/readme-dev-layout.gif)
+![aibox dev layout](docs-site/static/screencasts/layout-dev.gif)
 
 ## Why aibox
 
@@ -58,7 +58,7 @@ More options are covered in the
 mkdir my-project && cd my-project
 git init
 
-aibox init my-project --context managed --harness claude --addon python
+aibox init my-project --harness claude --addon python
 aibox apply
 aibox up
 ```

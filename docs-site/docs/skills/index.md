@@ -26,19 +26,19 @@ context/
 ├── skills/                          # Active, editable skill copies
 └── templates/
     └── processkit/
-        └── v0.25.4/                 # Immutable upstream snapshot, git-tracked
+        └── v0.26.15/                # Immutable upstream snapshot, git-tracked
             ├── context/
             │   └── skills/
             ├── .processkit/
             └── AGENTS.md
 ```
 
-The version in the path (`v0.25.4`) is whatever you pinned in `aibox.toml`:
+The version in the path (`v0.26.15`) is whatever you pinned in `aibox.toml`:
 
 ```toml
 [processkit]
 source  = "https://github.com/projectious-work/processkit.git"
-version = "v0.25.4"
+version = "v0.26.15"
 ```
 
 The `context/skills/` copies are yours to edit. The `context/templates/processkit/<version>/`

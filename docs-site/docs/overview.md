@@ -15,7 +15,7 @@ processkit context layer.
 ## The Short Version
 
 ```bash
-aibox init my-app --context managed --harness claude --addon python
+aibox init my-app --harness claude --addon python
 aibox apply
 aibox up
 ```

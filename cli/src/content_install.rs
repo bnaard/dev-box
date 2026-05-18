@@ -352,6 +352,14 @@ mod tests {
     }
 
     #[test]
+    fn v8_context_processkit_manifest_is_installed() {
+        assert_installs_to(
+            "context/.processkit-mcp-manifest.json",
+            "context/.processkit-mcp-manifest.json",
+        );
+    }
+
+    #[test]
     fn v8_provenance_toml_is_skipped() {
         assert_skipped("PROVENANCE.toml");
     }

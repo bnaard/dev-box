@@ -220,9 +220,12 @@ fn theme_change_auto_applies_untouched_runtime_files() {
         .flat_map(|entries| entries.filter_map(|entry| entry.ok()))
         .map(|entry| entry.path())
         .filter(|path| {
-            path.file_name()
+            let name_matches = path
+                .file_name()
                 .and_then(|s| s.to_str())
-                .is_some_and(|name| name.starts_with("MIG-RUNTIME-"))
+                .is_some_and(|name| name.starts_with("MIG-") && name.ends_with(".md"));
+            name_matches
+                && fs::read_to_string(path).is_ok_and(|body| body.contains("aibox://runtime"))
         })
         .collect();
     assert!(

@@ -1,0 +1,203 @@
+{
+  "archive_id": "ARCHIVE-20260517_125021-migration-applied",
+  "archive_path": "context/archives/2026/05/ARCHIVE-20260517_125021-migration-applied.tar.gz",
+  "created_at": "2026-05-17T12:50:21+00:00",
+  "entities": [
+    {
+      "apiVersion": "processkit.projectious.work/v1",
+      "body_index": "# Migration MIG-RUNTIME-20260517T113158\n\nManaged `.aibox-home/` runtime changes from `0.26.5` to `0.26.7`.\n\n0 changed upstream, 0 conflicts, 0 new, 1 removed (1 groups affected)\n\n## Counts\n\n- unchanged: 42\n- changed-locally-only: 0\n- changed-upstream-only: 0\n- conflict: 0\n- new-upstream: 0\n- removed-upstream: 1\n\n- removed-upstream-stale: 0\n\n## Per-intermediate review\n\nEvery released version between `from_version` and `to_version` whose              template snapshot is present on disk is listed below, with the number              of files that changed between consecutive snapshots. Useful for              catching scaffolding changes that were introduced and later reverted              across the span of a multi-version upgrade.\n\n- `0.26.5` \u2192 `0.26.6`: 7 file(s) changed of 43\n- `0.26.6` \u2192 `0.26.7`: 0 file(s) changed of 42\n\n## Changes by group\n\n### runtime-misc\n\n**removed-upstream**\n\n- `.aibox-home/.claude.json` -> `.aibox-home/.claude.json`\n",
+      "id": "MIG-RUNTIME-20260517T113158",
+      "kind": "Migration",
+      "labels": {},
+      "member_path": "context/migrations/applied/MIG-RUNTIME-20260517T113158.md",
+      "metadata": {
+        "created": "2026-05-17T11:31:58+00:00",
+        "id": "MIG-RUNTIME-20260517T113158",
+        "updated": "2026-05-17T11:42:42+00:00"
+      },
+      "original_path": "context/migrations/applied/MIG-RUNTIME-20260517T113158.md",
+      "sha256": "6db36e2676146c344bbfbdf1fd473d918d49e0733447223c323f5cb25e4c443d",
+      "spec": {
+        "affected_files": [
+          {
+            "classification": "removed-upstream",
+            "path": ".claude.json"
+          }
+        ],
+        "affected_groups": [
+          "runtime-misc"
+        ],
+        "applied_at": "2026-05-17T11:42:42+00:00",
+        "from_version": "0.26.5",
+        "generated_at": "2026-05-17T11:31:58+00:00",
+        "generated_by": "aibox apply",
+        "progress_notes": [
+          {
+            "actor": "mcp",
+            "note": "Applied during pk-resume; migration had no conflicts or local-only changes and only removed the upstream-stale runtime-home .claude.json projection.",
+            "timestamp": "2026-05-17T11:42:42+00:00"
+          }
+        ],
+        "source": "aibox-runtime-home",
+        "source_url": "aibox://runtime-home",
+        "started_at": "2026-05-17T11:42:42+00:00",
+        "state": "applied",
+        "summary": "0 changed upstream, 0 conflicts, 0 new, 1 removed (1 groups affected)",
+        "to_version": "0.26.7"
+      },
+      "storage_location": "context/archives/2026/05/ARCHIVE-20260517_125021-migration-applied.tar.gz::context/migrations/applied/MIG-RUNTIME-20260517T113158.md"
+    },
+    {
+      "apiVersion": "processkit.projectious.work/v1",
+      "body_index": "# Migration MIG-RUNTIME-DRIFT-20260516T092734\n\n## Drifted managed runtime files (Variant 3 \u2014 BR-CLEANUP-ARCH item 6)\n\nThe following managed `.aibox-home/` runtime files have been modified on the host and match **neither** the current canonical aibox generation **nor** any known archived template snapshot. They may represent intentional user customisations.\n\n`aibox apply` left these files **untouched**. Review each one and decide whether to preserve the local edit or restore the canonical generated content.\n\n## Per-file recommendations\n\n| file | reason-for-classification | recommendation |\n|------|--------------------------|----------------|\n| `.aibox-home/.claude.json` | content matches neither current canonical nor any archived snapshot | review-manually |\n\n## How to resolve\n\nFor each file above, choose one of:\n- **`preserve-as-is`** \u2014 keep your local edit; mark this migration applied.\n- **`overwrite-with-canonical`** \u2014 run `aibox apply --force-runtime-file <path>` (once that flag ships) or manually copy the canonical content from `context/templates/aibox-home/<version>/<path>`.\n- **`review-manually`** \u2014 compare live vs canonical using your diff tool and cherry-pick the parts you ",
+      "id": "MIG-RUNTIME-DRIFT-20260516T092734",
+      "kind": "Migration",
+      "labels": {},
+      "member_path": "context/migrations/applied/MIG-RUNTIME-DRIFT-20260516T092734.md",
+      "metadata": {
+        "created": "2026-05-16T09:27:34+00:00",
+        "id": "MIG-RUNTIME-DRIFT-20260516T092734",
+        "updated": "2026-05-16T09:37:16+00:00"
+      },
+      "original_path": "context/migrations/applied/MIG-RUNTIME-DRIFT-20260516T092734.md",
+      "sha256": "548e0741cbdf80b0b65e617a47247f951b85dfebf47f24da5a23613426131dc9",
+      "spec": {
+        "applied_at": "2026-05-16T09:37:16+00:00",
+        "generated_at": "2026-05-16T09:27:34+00:00",
+        "generated_by": "aibox apply",
+        "progress_notes": [
+          {
+            "actor": "mcp",
+            "note": "Restored .aibox-home/.claude.json to canonical 0.26.5 content ({}). The drifted file contained runtime-generated Claude session/account state rather than project-local managed configuration, so no relevant local edits were preserved.",
+            "timestamp": "2026-05-16T09:37:16+00:00"
+          }
+        ],
+        "source": "aibox-runtime-drift",
+        "source_url": "aibox://runtime-drift",
+        "started_at": "2026-05-16T09:37:16+00:00",
+        "state": "applied",
+        "summary": "1 drifted managed runtime file(s) found at 0.26.5",
+        "to_version": "0.26.5",
+        "variant": 3
+      },
+      "storage_location": "context/archives/2026/05/ARCHIVE-20260517_125021-migration-applied.tar.gz::context/migrations/applied/MIG-RUNTIME-DRIFT-20260516T092734.md"
+    },
+    {
+      "apiVersion": "processkit.projectious.work/v1",
+      "body_index": "# Migration MIG-20260515T183935\n\nFrom `v0.26.10` to `v0.26.13` (source: `https://github.com/projectious-work/processkit.git`).\n\n0 changed upstream, 0 conflicts, 8 new, 0 removed, 0 stale-removed (3 groups affected)\n\n## Counts\n\n- unchanged: 684\n- changed-locally-only: 1\n- changed-upstream-only: 0\n- conflict: 0\n- new-upstream: 8\n- removed-upstream: 0\n- removed-upstream-stale: 0\n\n## Changes by group\n\n### AGENTS\n\n**changed-locally-only**\n\n- `AGENTS.md` \u2192 `AGENTS.md`\n\n### skills/devops\n\n**new-upstream**\n\n- `context/skills/devops/repo-management/mcp/server.py` \u2192 `context/skills/devops/repo-management/mcp/server.py`\n- `context/skills/devops/repo-management/mcp/SERVER.md` \u2192 `context/skills/devops/repo-management/mcp/SERVER.md`\n- `context/skills/devops/repo-management/mcp/mcp-config.json` \u2192 `context/skills/devops/repo-management/mcp/mcp-config.json`\n- `context/skills/devops/repo-management/scripts/test_repo_management.py` \u2192 `context/skills/devops/repo-management/scripts/test_repo_management.py`\n- `context/skills/devops/repo-management/SKILL.md` \u2192 `context/skills/devops/repo-management/SKILL.md`\n- `context/skills/devops/repo-management/commands/pk-repo-reconcile.md` \u2192 `context/skills/devops/",
+      "id": "MIG-20260515T183935",
+      "kind": "Migration",
+      "labels": {},
+      "member_path": "context/migrations/applied/MIG-20260515T183935.md",
+      "metadata": {
+        "created": "2026-05-15T18:39:35+00:00",
+        "id": "MIG-20260515T183935",
+        "updated": "2026-05-15T19:22:37+00:00"
+      },
+      "original_path": "context/migrations/applied/MIG-20260515T183935.md",
+      "sha256": "0ab9f37bfecc06d350234508524459e6c1770add3d5ed133114362b6334813ad",
+      "spec": {
+        "affected_files": [
+          {
+            "classification": "changed-locally-only",
+            "path": "AGENTS.md"
+          },
+          {
+            "classification": "new-upstream",
+            "path": "context/skills/devops/repo-management/SKILL.md"
+          },
+          {
+            "classification": "new-upstream",
+            "path": "context/skills/devops/repo-management/commands/pk-repo-reconcile.md"
+          },
+          {
+            "classification": "new-upstream",
+            "path": "context/skills/devops/repo-management/mcp/SERVER.md"
+          },
+          {
+            "classification": "new-upstream",
+            "path": "context/skills/devops/repo-management/mcp/mcp-config.json"
+          },
+          {
+            "classification": "new-upstream",
+            "path": "context/skills/devops/repo-management/mcp/server.py"
+          },
+          {
+            "classification": "new-upstream",
+            "path": "context/skills/devops/repo-management/scripts/test_repo_management.py"
+          },
+          {
+            "classification": "new-upstream",
+            "path": "context/skills/processkit/pk-doctor/scripts/checks/doctor_boundary.py"
+          },
+          {
+            "classification": "new-upstream",
+            "path": "context/skills/processkit/pk-doctor/scripts/checks/runtime_health.py"
+          }
+        ],
+        "affected_groups": [
+          "AGENTS",
+          "skills/devops",
+          "skills/processkit"
+        ],
+        "applied_at": "2026-05-15T19:22:37+00:00",
+        "from_version": "v0.26.10",
+        "generated_at": "2026-05-15T18:39:35+00:00",
+        "generated_by": "aibox apply",
+        "progress_notes": [
+          {
+            "actor": "mcp",
+            "note": "Applied during pk-resume after review: 0 upstream changes, 0 conflicts, 8 new upstream files; local AGENTS.md remains a changed-locally-only file.",
+            "timestamp": "2026-05-15T19:22:37+00:00"
+          }
+        ],
+        "source": "processkit",
+        "source_url": "https://github.com/projectious-work/processkit.git",
+        "started_at": "2026-05-15T19:22:37+00:00",
+        "state": "applied",
+        "summary": "0 changed upstream, 0 conflicts, 8 new, 0 removed, 0 stale-removed (3 groups affected)",
+        "to_version": "v0.26.13"
+      },
+      "storage_location": "context/archives/2026/05/ARCHIVE-20260517_125021-migration-applied.tar.gz::context/migrations/applied/MIG-20260515T183935.md"
+    },
+    {
+      "apiVersion": "processkit.projectious.work/v1",
+      "body_index": "# Migration MIG-RUNTIME-DRIFT-20260515T183935\n\n## Drifted managed runtime files (Variant 3 \u2014 BR-CLEANUP-ARCH item 6)\n\nThe following managed `.aibox-home/` runtime files have been modified on the host and match **neither** the current canonical aibox generation **nor** any known archived template snapshot. They may represent intentional user customisations.\n\n`aibox apply` left these files **untouched**. Review each one and decide whether to preserve the local edit or restore the canonical generated content.\n\n## Per-file recommendations\n\n| file | reason-for-classification | recommendation |\n|------|--------------------------|----------------|\n| `.aibox-home/.claude.json` | content matches neither current canonical nor any archived snapshot | review-manually |\n\n## How to resolve\n\nFor each file above, choose one of:\n- **`preserve-as-is`** \u2014 keep your local edit; mark this migration applied.\n- **`overwrite-with-canonical`** \u2014 run `aibox apply --force-runtime-file <path>` (once that flag ships) or manually copy the canonical content from `context/templates/aibox-home/<version>/<path>`.\n- **`review-manually`** \u2014 compare live vs canonical using your diff tool and cherry-pick the parts you ",
+      "id": "MIG-RUNTIME-DRIFT-20260515T183935",
+      "kind": "Migration",
+      "labels": {},
+      "member_path": "context/migrations/applied/MIG-RUNTIME-DRIFT-20260515T183935.md",
+      "metadata": {
+        "created": "2026-05-15T18:39:35+00:00",
+        "id": "MIG-RUNTIME-DRIFT-20260515T183935",
+        "updated": "2026-05-15T19:33:04+00:00"
+      },
+      "original_path": "context/migrations/applied/MIG-RUNTIME-DRIFT-20260515T183935.md",
+      "sha256": "51837bc1235addade18e148ee0cff5aa4fa8495bed3f16ecac5869a699d80b9a",
+      "spec": {
+        "applied_at": "2026-05-15T19:33:04+00:00",
+        "generated_at": "2026-05-15T18:39:35+00:00",
+        "generated_by": "aibox apply",
+        "progress_notes": [
+          {
+            "actor": "mcp",
+            "note": "Resolved during pk-doctor remediation with preserve-as-is disposition. The live .aibox-home/.claude.json is runtime-local Claude state, while the canonical generated template for 0.26.5 is {}. Preserved local runtime state rather than overwriting it.",
+            "timestamp": "2026-05-15T19:33:04+00:00"
+          }
+        ],
+        "source": "aibox-runtime-drift",
+        "source_url": "aibox://runtime-drift",
+        "started_at": "2026-05-15T19:33:04+00:00",
+        "state": "applied",
+        "summary": "1 drifted managed runtime file(s) found at 0.26.5",
+        "to_version": "0.26.5",
+        "variant": 3
+      },
+      "storage_location": "context/archives/2026/05/ARCHIVE-20260517_125021-migration-applied.tar.gz::context/migrations/applied/MIG-RUNTIME-DRIFT-20260515T183935.md"
+    }
+  ],
+  "kind": "Migration",
+  "older_than_days": 0,
+  "sha256": "57e95499d2724421599f711067a048be2d6cd86651762174ff76b0299ffd818f",
+  "state": "applied"
+}

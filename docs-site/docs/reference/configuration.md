@@ -95,7 +95,7 @@ args    = ["-y", "@acme/team-server"] # Arguments
 # API_KEY = "..."
 
 [customization]
-theme  = "gruvbox-dark"               # Color theme (7 options)
+theme  = "gruvbox"                    # Theme family; concrete legacy names still parse
 mode   = "auto"                       # Theme mode: auto, light, dark
 prompt = "default"                    # Starship preset (8 options)
 layout = "dev"                        # tmux layout (4 options)
@@ -463,7 +463,7 @@ repo, but any processkit-compatible source works (forks, self-hosted, private
 mirrors).
 
 If `version` is the sentinel `unset`, both `aibox init` and `aibox apply` skip
-the processkit fetch entirely. Pin a real tag (e.g. `v0.25.4`) to land the
+the processkit fetch entirely. Pin a real tag (e.g. `v0.26.15`) to land the
 content. The downloaded tarball is git-tracked under
 `context/templates/processkit/<version>/` so derived projects always have the
 original to diff against.
@@ -511,24 +511,24 @@ version                    = "v1.2.0"
 release_asset_url_template = "https://gitea.acme.com/{org}/{name}/releases/download/{version}/{name}-{version}.tar.gz"
 ```
 
-### [ai.mcp]
+### [mcp]
 
 MCP server definitions and permission configuration. `aibox apply` merges servers from three sources and regenerates all MCP client config files:
 
-1. **Built-in processkit servers** — either the processkit gateway or separate per-skill servers, depending on `[ai.mcp.gateway]`
-2. **`aibox.toml [ai.mcp]`** — team-shared servers committed to version control
+1. **Built-in processkit servers** — either the processkit gateway or separate per-skill servers, depending on `[mcp.gateway]`
+2. **`aibox.toml [[mcp.servers]]`** — team-shared servers committed to version control
 3. **`.aibox-local.toml [mcp]`** — personal servers, gitignored
 
 Generated files (`.mcp.json`, `.cursor/mcp.json`, `.gemini/settings.json`, `.codex/config.toml`, `.codex/hooks.json`, `.continue/mcpServers/`) are **gitignored**. They are always reproducible from the config sources above and must not be committed — doing so would embed personal server definitions or credentials from `.aibox-local.toml`.
 
-#### processkit Gateway: [ai.mcp.gateway]
+#### processkit Gateway: [mcp.gateway]
 
 When the selected processkit release provides `processkit-gateway`, its stdio
 proxy can start the matching localhost daemon on demand. It can replace the
 one-process-per-skill MCP topology with a single processkit MCP entry.
 
 ```toml
-[ai.mcp.gateway]
+[mcp.gateway]
 mode = "auto"          # auto | daemon | stdio | separate
 lazy_catalog = true
 host = "127.0.0.1"
@@ -632,11 +632,14 @@ filesystem = "workspace-write" # read-only | workspace-write | container-full
 approval   = "on-request"      # ask | on-request | never
 network    = "ask"             # deny | ask | allow
 
-[ai.harness.codex.execution]
+[ai.execution.codex]
 filesystem = "container-full"
 approval   = "on-request"
 network    = "ask"
 ```
+
+The legacy `[ai.harness.<name>.execution]` table is still accepted for existing
+configs, but new scaffolds use `[ai.execution.<name>]`.
 
 `filesystem = "container-full"` means the devcontainer is the filesystem
 security boundary. For Codex this maps to `sandbox_mode = "danger-full-access"`,

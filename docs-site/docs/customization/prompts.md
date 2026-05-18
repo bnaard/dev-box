@@ -23,8 +23,6 @@ Full-featured two-line prompt with directory, git branch/status, language versio
 ❯
 ```
 
-<div class="asciinema" data-cast="assets/screencasts/prompt-default.cast" data-poster="npt:2" data-loop="true" data-fit="width"></div>
-
 ---
 
 ### plain
@@ -35,8 +33,6 @@ Same information as `default` but uses ASCII characters only — no Nerd Font or
 ~/workspace/myproject [main +1 !2] [v1.75.0] took 2s
 >
 ```
-
-<div class="asciinema" data-cast="assets/screencasts/prompt-plain.cast" data-poster="npt:2" data-loop="true" data-fit="width"></div>
 
 Good for remote SSH sessions or environments without font customization.
 
@@ -51,8 +47,6 @@ Directory and git branch only, with a `❯` indicator. Two-line. For distraction
 ❯
 ```
 
-<div class="asciinema" data-cast="assets/screencasts/prompt-minimal.cast" data-poster="npt:2" data-loop="true" data-fit="width"></div>
-
 ---
 
 ### nerd-font
@@ -64,8 +58,6 @@ Rich prompt with Nerd Font icons for OS, language runtimes, git status, Docker c
 ❯
 ```
 
-<div class="asciinema" data-cast="assets/screencasts/prompt-nerd-font.cast" data-poster="npt:2" data-loop="true" data-fit="width"></div>
-
 ---
 
 ### pastel
@@ -76,8 +68,6 @@ One-line pastel powerline prompt inspired by Starship's Pastel Powerline preset.
  ~/workspace/myproject  main +1 
 ❯
 ```
-
-<div class="asciinema" data-cast="assets/screencasts/prompt-pastel.cast" data-poster="npt:2" data-loop="true" data-fit="width"></div>
 
 ### powerline-pastel
 
@@ -94,8 +84,6 @@ Each segment wrapped in square brackets — `[dir] [branch] [status]`. Clean, st
 ❯
 ```
 
-<div class="asciinema" data-cast="assets/screencasts/prompt-bracketed.cast" data-poster="npt:2" data-loop="true" data-fit="width"></div>
-
 ---
 
 ### arrow
@@ -106,8 +94,6 @@ Airline/powerline-style prompt with hard chevron separators (`►`). Segments fo
  ~/workspace/myproject  main +1 !2  took 3s
 ❯
 ```
-
-<div class="asciinema" data-cast="assets/screencasts/prompt-arrow.cast" data-poster="npt:2" data-loop="true" data-fit="width"></div>
 
 ---
 

@@ -13,7 +13,7 @@ If your project does not yet have a `aibox.toml`, create one manually or use `in
 
 ```bash
 cd my-existing-project
-aibox init my-existing-project --context managed
+aibox init my-existing-project --harness claude
 ```
 
 :::warning init will not overwrite
@@ -53,7 +53,7 @@ enabled = false
 
 :::tip Pin processkit before apply
 
-Set `[processkit].version` to a real tag (e.g. `v0.25.4`) before the first
+Set `[processkit].version` to a real tag (e.g. `v0.26.15`) before the first
 `aibox apply`. The default sentinel `unset` skips processkit content
 installation entirely — you will get devcontainer files but no skills,
 processes, or `AGENTS.md`.

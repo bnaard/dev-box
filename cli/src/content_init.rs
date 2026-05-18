@@ -1608,6 +1608,27 @@ mod tests {
     }
 
     #[test]
+    fn install_copies_processkit_mcp_manifest_to_context() {
+        let tmp = TempDir::new().unwrap();
+        let cache = tmp.path().join("cache");
+        let proj = tmp.path().join("proj");
+        fs::create_dir_all(cache.join("context")).unwrap();
+        fs::write(
+            cache.join("context/.processkit-mcp-manifest.json"),
+            "{\"mcp_config_hash\":\"abc123\"}",
+        )
+        .unwrap();
+        fs::create_dir_all(&proj).unwrap();
+
+        install_files_from_cache(&cache, &proj).unwrap();
+
+        assert!(
+            proj.join("context/.processkit-mcp-manifest.json").exists(),
+            "processkit manifest should be preserved under context"
+        );
+    }
+
+    #[test]
     fn install_filter_skips_unselected_category_nested_skills() {
         let tmp = TempDir::new().unwrap();
         let cache = tmp.path().join("cache");

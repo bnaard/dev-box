@@ -26,15 +26,21 @@ The selected theme is applied to **tmux**, **Vim**, **Yazi**, **lazygit**, and *
 
 ## Available Themes
 
-aibox supports the tmux-powerkit popular theme roster:
+aibox supports the tmux-powerkit popular theme roster plus aibox-specific
+extensions:
 
 - `tokyo-night`, `tokyo-night-storm`, `tokyo-night-day`
 - `catppuccin-mocha`, `catppuccin-macchiato`, `catppuccin-frappe`, `catppuccin-latte`
-- `dracula`, `nord`, `gruvbox-dark`, `gruvbox-light`
+- `dracula`, `dracula-soft`, `nord`, `gruvbox-dark`, `gruvbox-light`
 - `rose-pine`, `rose-pine-moon`, `rose-pine-dawn`
-- `material`, `material-ocean`, `material-palenight`, `material-lighter`
-- `solarized-dark`, `solarized-light`, `github-dark`, `github-light`
+- `material`, `material-ocean`, `material-palenight`, `material-lighter`, `material-darker`
+- `solarized-dark`, `solarized-light`
+- `github-dark`, `github-dark-dimmed`, `github-dark-high-contrast`, `github-light`, `github-light-high-contrast`
 - `ayu-dark`, `ayu-mirage`, `ayu-light`, `night-owl`, `night-owl-light`, `moonlight`
+- `everforest-dark`, `everforest-light`, `kanagawa-wave`, `kanagawa-dragon`, `kanagawa-lotus`
+- `min-dark`, `min-light`, `one-dark-pro`, `one-light`, `slack-dark`, `slack-ochin`
+- `vitesse-dark`, `vitesse-light`, `vitesse-black`, `vscode-dark-plus`, `vscode-light-plus`
+- `andromeeda`, `aurora-x`, `houston`, `laserwave`, `monokai`, `plastic`, `poimandres`, `red`, `snazzy-light`, `synthwave-84`, `vesper`
 - `projectious`
 
 ## Light/Dark Partners
@@ -50,8 +56,17 @@ aibox supports the tmux-powerkit popular theme roster:
 | GitHub | `github-dark` | `github-light` |
 | Ayu | `ayu-dark`, `ayu-mirage` | `ayu-light` |
 | Night Owl | `night-owl` | `night-owl-light` |
+| Everforest | `everforest-dark` | `everforest-light` |
+| Kanagawa | `kanagawa-wave`, `kanagawa-dragon` | `kanagawa-lotus` |
+| Min | `min-dark` | `min-light` |
+| One Dark | `one-dark-pro` | `one-light` |
+| Slack | `slack-dark` | `slack-ochin` |
+| Vitesse | `vitesse-dark`, `vitesse-black` | `vitesse-light` |
+| VS Code | `vscode-dark-plus` | `vscode-light-plus` |
 
-Dark-only themes with no light partner in the tmux-powerkit popular roster: `dracula`, `nord`, `moonlight`. The `projectious` aibox extension is also currently dark-only.
+Dark-only or single-variant themes with no light partner: `andromeeda`,
+`aurora-x`, `houston`, `laserwave`, `monokai`, `moonlight`, `nord`, `plastic`,
+`poimandres`, `projectious`, `red`, `snazzy-light`, `synthwave-84`, and `vesper`.
 
 ### gruvbox-dark (default)
 

@@ -238,7 +238,7 @@ docusaurus = { version = "3.10.1" } # React and MDX documentation site generator
 
 # Documentation/docs-hugo — Hugo static site generator (Go)
 # [addons.docs-hugo.tools]
-# hugo = {} # Fast Go-based static site generator; default on; options: {}, { enabled = true|false }, { version = "x.y.z" or "latest" }
+# hugo = { enabled = true } # Fast Go-based static site generator; default off; options: {}, { enabled = true|false }, { version = "x.y.z" or "latest" }
 
 # Documentation/docs-mdbook — mdBook – Rust-powered book builder
 # [addons.docs-mdbook.tools]
@@ -412,13 +412,64 @@ harnesses = [
 #   { harness = "hermes", enable = true, install = true },
 ]
 
+# AI harness execution policy. These are aibox-level intent settings;
+# aibox maps them to each harness where supported.
+# Optional per-harness overrides use `[ai.execution.<harness>]`.
+# filesystem: read-only | workspace-write | container-full
+# approval:   ask | on-request | never
+# network:    deny | ask | allow
 [ai.execution]
-filesystem = "workspace-write"
+filesystem = "container-full"
 approval   = "on-request"
 network    = "ask"
 
-[ai.harness.codex.execution]
-filesystem = "container-full"
+# Per-harness execution overrides. Uncomment a section and only the axes
+# you want to override; omitted axes inherit `[ai.execution]`.
+
+# [ai.execution.codex]
+# filesystem = "workspace-write"
+# approval   = "on-request"
+# network    = "ask"
+
+# [ai.execution.claude]
+# filesystem = "workspace-write"
+# approval   = "on-request"
+# network    = "ask"
+
+# [ai.execution.gemini]
+# filesystem = "workspace-write"
+# approval   = "on-request"
+# network    = "ask"
+
+# [ai.execution.aider]
+# filesystem = "workspace-write"
+# approval   = "on-request"
+# network    = "ask"
+
+# [ai.execution.continue]
+# filesystem = "workspace-write"
+# approval   = "on-request"
+# network    = "ask"
+
+# [ai.execution.cursor]
+# filesystem = "workspace-write"
+# approval   = "on-request"
+# network    = "ask"
+
+# [ai.execution.copilot]
+# filesystem = "workspace-write"
+# approval   = "on-request"
+# network    = "ask"
+
+# [ai.execution.opencode]
+# filesystem = "workspace-write"
+# approval   = "on-request"
+# network    = "ask"
+
+# [ai.execution.hermes]
+# filesystem = "workspace-write"
+# approval   = "on-request"
+# network    = "ask"
 
 [ai.agents]
 canonical     = "AGENTS.md"

@@ -71,10 +71,10 @@ Key fields:
 An `oom_kill_count` above zero is strong evidence that a missing agent or
 terminated tool was killed by the operating system rather than by the CLI.
 
-With processkit v0.25.4, `[ai.mcp.gateway].mode = "auto"` registers a
-self-starting `processkit-gateway` daemon for MCP-capable harnesses. The stdio
-proxy starts the local daemon on demand when no listener exists, so generated
-devcontainer startup no longer has to supervise the gateway in the default mode.
+With current processkit releases, `[mcp.gateway].mode = "auto"` registers a
+`processkit-gateway` stdio proxy for MCP-capable harnesses. The proxy starts the
+local gateway on demand when no listener exists, so generated devcontainer
+startup no longer has to supervise one Python process per skill in the default mode.
 Use `separate` only when a harness needs the older one-server-per-skill layout.
 
 ## Resource Thresholds

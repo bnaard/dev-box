@@ -13,7 +13,7 @@ builder_weight: null
 tools:
   - name: hugo
     description: "Fast Go-based static site generator"
-    default_enabled: true
+    default_enabled: false
     default_version: ""
     supported_versions: []
 
@@ -21,6 +21,7 @@ builder: null
 
 runtime: |
   # Addon: docs-hugo
+  {% if tools.hugo.enabled %}
   RUN ARCH="$(dpkg --print-architecture)" && \
       HUGO_VERSION="0.141.0" && \
       curl -fsSL \
@@ -32,3 +33,6 @@ runtime: |
       grep "hugo_extended_${HUGO_VERSION}_linux-${ARCH}.tar.gz" /tmp/hugo_checksums.txt | sha256sum -c && \
       tar -xz -C /usr/local/bin -f /tmp/hugo.tar.gz hugo && \
       rm /tmp/hugo.tar.gz /tmp/hugo_checksums.txt
+  {% else %}
+  RUN rm -f /usr/local/bin/hugo
+  {% endif %}

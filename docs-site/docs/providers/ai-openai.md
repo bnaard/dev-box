@@ -43,7 +43,7 @@ Separately, aibox also generates project-local `.codex/config.toml` MCP server r
 
 ## MCP Integration
 
-Codex has a native MCP client. aibox generates `.codex/config.toml` automatically on `aibox apply`, merging processkit MCP entries, team servers from `aibox.toml [ai.mcp]`, and personal servers from `.aibox-local.toml [mcp]`. With processkit v0.25.4 and `[ai.mcp.gateway].mode = "auto"`, Codex uses a self-starting `processkit-gateway` stdio proxy instead of one Python process per skill.
+Codex has a native MCP client. aibox generates `.codex/config.toml` automatically on `aibox apply`, merging processkit MCP entries, team servers from `aibox.toml [ai.mcp]`, and personal servers from `.aibox-local.toml [mcp]`. With current processkit releases and `[mcp.gateway].mode = "auto"`, Codex uses the `processkit-gateway` stdio proxy instead of one Python process per skill.
 
 `.codex/config.toml` and `.codex/hooks.json` are **gitignored** — they are regenerated on every `aibox apply` and must not be committed.
 

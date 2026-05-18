@@ -1348,4 +1348,25 @@ runtime: |
             );
         }
     }
+
+    #[test]
+    fn docs_hugo_is_default_non_installed() {
+        let addon = load_repo_addon("docs-hugo");
+        let hugo = addon
+            .tools
+            .iter()
+            .find(|tool| tool.name == "hugo")
+            .expect("docs-hugo should define a hugo tool");
+        assert!(
+            !hugo.default_enabled,
+            "Hugo should be opt-in within the docs-hugo addon"
+        );
+
+        let rendered = render_runtime(&addon, &all_disabled_tools(&addon)).unwrap();
+        assert!(
+            !rendered.contains("hugo_extended_"),
+            "disabled Hugo must not download/install Hugo: {rendered}"
+        );
+        assert!(rendered.contains("rm -f /usr/local/bin/hugo"));
+    }
 }

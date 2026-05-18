@@ -12,6 +12,9 @@ below shows the minimum compatible processkit version for each aibox release.
 
 | aibox version | Min. processkit | Notes |
 |--------------|-----------------|-------|
+| 0.26.7 | v0.26.15 | integrates processkit v0.26.15; adds provider-neutral AI execution policy axes and per-harness overrides, maps execution policy to Codex settings, preserves the processkit MCP manifest in derived installs, and refreshes documentation recordings |
+| 0.26.6 | v0.26.14 | integrates processkit v0.26.14; updates processkit metadata to the new release and preserves tmux/Vim/cheatsheet and clipboard behavior consistency |
+| 0.26.5 | v0.26.13 | re-architects theme selection around theme families plus mode/variant, adds the 61-theme gallery and per-theme recordings, ships PowerKit/cheatsheet/runtime theme fixes, and preserves legacy concrete theme intent during standardization |
 | 0.26.4 | v0.26.10 | integrates processkit v0.26.10; makes explicit tmux model-provider status elements render even without global provider polling; preserves Claude Code OAuth/state across container rebuilds via Claude XDG cache/config/state mounts; enables terminal extended-key passthrough for Alt-Enter; adds PowerKit GitHub issue/PR counts; and fixes `aibox-status` AI agent counting so vendor helper processes do not inflate provider instance totals |
 | 0.26.3 | v0.26.9 | fixes GHCR latest-version resolution by requesting larger tag-list pages and following Docker Registry v2 pagination links so freshly-published images are visible to `aibox apply` |
 | 0.26.2 | v0.26.9 | fixes duplicate `[customization.tmux.status]` table parsing, routes tmux helper scripts through the managed socket, removes structurally broken capture-pane visual tests, and keeps visual layout/theme work tracked for asciinema coverage |

@@ -158,8 +158,7 @@ vnoremap <End>  $
 " Paste from the host still uses the terminal paste shortcut.
 function! s:AiboxCopyRegister() abort
   if executable('aibox-copy')
-    let l:register = empty(v:register) ? '"' : v:register
-    call system('aibox-copy', getreg(l:register))
+    call system('aibox-copy', getreg(v:register))
   endif
 endfunction
 xnoremap <silent> y y:<C-u>call <SID>AiboxCopyRegister()<CR>

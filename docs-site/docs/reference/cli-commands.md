@@ -18,7 +18,7 @@ aibox uses a small verb/resource grammar. `aibox.toml` is desired state, `aibox 
 ## Core Workflow
 
 ```bash
-aibox init my-app --context managed --harness claude --addon python
+aibox init my-app --harness claude --addon python
 aibox apply
 aibox up
 aibox down
@@ -48,7 +48,7 @@ Create `aibox.toml`, generated devcontainer files, `.aibox-home/`, context scaff
 
 ```bash
 aibox init
-aibox init my-app --context managed
+aibox init my-app --harness claude
 aibox init runner --profile headless-runner
 aibox init my-app --addon python --addon infrastructure
 aibox init my-app --harness claude --harness codex

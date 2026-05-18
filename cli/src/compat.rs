@@ -485,8 +485,8 @@ pub static COMPAT_TABLE: &[CompatEntry] = &[
     },
     CompatEntry {
         aibox_version: "0.26.7",
-        processkit_version: "v0.26.14",
-        note: "Patch release: integrates processkit v0.26.14; adds provider-neutral AI execution policy axes for filesystem, approval, and network behavior; adds per-harness execution overrides; maps execution policy to Codex settings generation; and keeps MCP permission configuration focused on tool allow/deny intent.",
+        processkit_version: "v0.26.15",
+        note: "Patch release: integrates processkit v0.26.15; adds provider-neutral AI execution policy axes for filesystem, approval, and network behavior; adds per-harness execution overrides; maps execution policy to Codex settings generation; preserves the processkit MCP manifest in derived installs; refreshes documentation recordings; and keeps MCP permission configuration focused on tool allow/deny intent.",
     },
 ];
 

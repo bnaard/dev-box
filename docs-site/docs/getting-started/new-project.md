@@ -13,7 +13,7 @@ This guide walks through creating a new project from scratch with aibox.
 mkdir my-app && cd my-app
 git init
 
-aibox init my-app --context managed
+aibox init my-app --harness claude --addon python
 ```
 
 The `init` command accepts these options:
@@ -23,10 +23,10 @@ The `init` command accepts these options:
 | `--base` | `debian` | Base image |
 | `<NAME>` | Current directory name | Container and hostname |
 | `--profile` | `human-dev` | Usage profile: `human-dev` or warning-mode `headless-runner` |
-| `--context` | `managed` | processkit package(s): `minimal`, `managed`, `software`, `research`, `product` (can be repeated) |
 | `--harness` | `claude` | AI harnesses (can be repeated): `claude`, `codex`, `gemini`, `aider`, etc. |
 | `--addon` | — | Addon names (can be repeated): `python`, `rust`, `node`, `go`, `latex`, etc. |
-| `--theme` | `gruvbox-dark` | Color theme |
+| `--theme` | `gruvbox` | Theme family |
+| `--processkit-version` | latest available tag | processkit content release to pin |
 
 If you omit options, `aibox init` runs interactively and prompts for each value.
 
@@ -58,7 +58,7 @@ my-app/
     ├── state-machines/         # state machine definitions
     └── templates/
         └── processkit/
-            └── v0.25.4/        # Immutable upstream snapshot, used by `aibox apply` for three-way diffs
+            └── v0.26.15/       # Immutable upstream snapshot, used by `aibox apply` for three-way diffs
 ```
 
 :::tip .aibox-local.toml — secrets and per-developer overrides
@@ -85,7 +85,7 @@ pins it in `aibox.toml`. Use `--processkit-version` to pin a specific tag
 non-interactively:
 
 ```bash
-aibox init my-app --processkit-version v0.25.4
+aibox init my-app --processkit-version v0.26.15
 ```
 
 :::
@@ -128,12 +128,13 @@ schema_version = "1.0.0"
 # uv     = { version = "0.7" }
 
 # AI harnesses — controls which AI CLIs/configs are enabled.
-[ai.harness.claude]
-enabled = true
-install = true
+[ai]
+harnesses = [
+  { harness = "claude", enable = true, install = true },
+]
 
 [customization]
-theme  = "gruvbox-dark"
+theme  = "gruvbox"
 mode   = "auto"
 prompt = "default"
 layout = "dev"

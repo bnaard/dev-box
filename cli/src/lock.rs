@@ -361,6 +361,9 @@ pub fn sha256_of_file(path: &Path) -> Result<String> {
 /// the same skip rules — an inconsistency between them would silently
 /// corrupt the 3-way comparison.
 pub fn should_skip_entry(name: &str) -> bool {
+    if name == crate::processkit_vocab::PROCESSKIT_MCP_MANIFEST_BASENAME {
+        return false;
+    }
     if name == ".git" || name == "__pycache__" || name == ".fetch-complete" {
         return true;
     }
@@ -1040,6 +1043,9 @@ kubectl = "v1.30.0"
         assert!(should_skip_entry(".fetch-complete"));
         assert!(should_skip_entry(".DS_Store"));
         assert!(should_skip_entry("foo.pyc"));
+        assert!(!should_skip_entry(
+            crate::processkit_vocab::PROCESSKIT_MCP_MANIFEST_BASENAME
+        ));
         assert!(!should_skip_entry("SKILL.md"));
         assert!(!should_skip_entry("workitem.yaml"));
         assert!(!should_skip_entry("event-log"));

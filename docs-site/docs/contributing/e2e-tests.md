@@ -135,7 +135,7 @@ output must contain `missing` or equivalent wording.
 `[lifecycle.rs · status_without_container_shows_missing]`
 
 **Managed package writes the slim project skeleton**
-If `aibox init --context managed` is run, then the slim project skeleton must
+If `aibox init --harness claude` is run, then the slim project skeleton must
 exist: `aibox.toml`, an empty `context/` directory, `AGENTS.md`, and the thin
 provider pointer files for enabled harnesses. The single-file context tracks
 (`BACKLOG.md`, `DECISIONS.md`, `STANDUPS.md`) are **not** scaffolded by `init`
@@ -430,7 +430,7 @@ are **not** created at init time — the corresponding processkit skills create
 them in place on first use.
 
 **Managed package is the recommended default**
-If `aibox init --context managed` is run, then the slim project skeleton must
+If `aibox init --harness claude` is run, then the slim project skeleton must
 exist. With a real `[processkit].version` pinned, `aibox apply` then installs
 the full processkit skill catalogue under `context/skills/` and the immutable
 upstream snapshot under `context/templates/processkit/<version>/`.

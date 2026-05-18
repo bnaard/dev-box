@@ -728,7 +728,7 @@ pub struct AiExecutionPolicy {
 }
 
 /// Optional per-harness execution policy overrides under
-/// `[ai.harness.<name>.execution]`.
+/// `[ai.execution.<name>]` or the legacy `[ai.harness.<name>.execution]`.
 #[derive(Debug, Clone, Copy, Default, Serialize, Deserialize, PartialEq, Eq)]
 pub struct AiHarnessExecutionOverride {
     #[serde(default, skip_serializing_if = "Option::is_none")]
@@ -788,6 +788,31 @@ enum AiHarnessListEntry {
     },
 }
 
+/// Raw serde shape for `[ai.execution]`. The scalar fields are the global
+/// defaults; nested `[ai.execution.<harness>]` tables are per-harness
+/// overrides.
+#[derive(Debug, Clone, Deserialize, Default)]
+struct RawAiExecutionSection {
+    #[serde(default)]
+    filesystem: AiExecutionFilesystem,
+    #[serde(default)]
+    approval: AiExecutionApproval,
+    #[serde(default)]
+    network: AiExecutionNetwork,
+    #[serde(default, flatten)]
+    harness: HashMap<AiHarness, AiHarnessExecutionOverride>,
+}
+
+impl RawAiExecutionSection {
+    fn global_policy(&self) -> AiExecutionPolicy {
+        AiExecutionPolicy {
+            filesystem: self.filesystem,
+            approval: self.approval,
+            network: self.network,
+        }
+    }
+}
+
 /// Raw serde shape for `[ai]`. `harnesses` accepts both the legacy
 /// `["codex"]` list and the canonical ordered list of dictionaries.
 #[derive(Debug, Clone, Deserialize, Default)]
@@ -799,7 +824,7 @@ struct RawAiSection {
     #[serde(default)]
     model_providers: Vec<AiModelProvider>,
     #[serde(default)]
-    execution: AiExecutionPolicy,
+    execution: RawAiExecutionSection,
     #[serde(default)]
     harness: HashMap<AiHarness, AiHarnessConfig>,
     #[serde(default)]
@@ -829,7 +854,8 @@ pub struct AiSection {
     pub model_providers: Vec<AiModelProvider>,
 
     /// Global AI execution policy. Per-harness tables may override individual
-    /// axes through `[ai.harness.<name>.execution]`.
+    /// axes through `[ai.execution.<name>]`; the legacy
+    /// `[ai.harness.<name>.execution]` form remains accepted.
     #[serde(default)]
     pub execution: AiExecutionPolicy,
 
@@ -895,11 +921,16 @@ impl<'de> Deserialize<'de> for AiSection {
             }
         }
 
+        let execution_policy = raw.execution.global_policy();
+        for (harness, execution) in raw.execution.harness {
+            harness_config.entry(harness).or_default().execution = Some(execution);
+        }
+
         Ok(Self {
             harnesses,
             harness_order: raw.harness_order,
             model_providers: raw.model_providers,
-            execution: raw.execution,
+            execution: execution_policy,
             harness: harness_config,
             providers: raw.providers,
             agents: raw.agents,
@@ -1250,6 +1281,8 @@ pub enum ThemeFamily {
     TokyoNight,
     Vesper,
     Vitesse,
+    #[clap(alias = "vscode")]
+    #[serde(alias = "vscode")]
     VsCode,
 }
 
@@ -3890,9 +3923,33 @@ impl AiboxConfig {
             check_child_table(
                 ai,
                 "execution",
-                &["filesystem", "approval", "network"],
+                &[
+                    "filesystem",
+                    "approval",
+                    "network",
+                    "claude",
+                    "codex",
+                    "gemini",
+                    "aider",
+                    "continue",
+                    "cursor",
+                    "copilot",
+                    "opencode",
+                    "hermes",
+                    "mistral",
+                ],
                 &mut mismatches,
             );
+            if let Some(execution) = table_child(ai, "execution") {
+                for harness in AiHarness::all() {
+                    check_child_table(
+                        execution,
+                        &harness.to_string(),
+                        &["filesystem", "approval", "network"],
+                        &mut mismatches,
+                    );
+                }
+            }
             if let Some(harnesses) = table_child(ai, "harness") {
                 for (harness, value) in harnesses {
                     if let Some(table) = value.as_table() {
@@ -5283,9 +5340,15 @@ network = "allow"
 enabled = true
 install = true
 
-[ai.harness.codex.execution]
+[ai.execution.codex]
 filesystem = "read-only"
 network = "deny"
+
+[ai.harness.claude]
+enabled = true
+
+[ai.harness.claude.execution]
+approval = "ask"
 "#;
         let config = parse_toml(toml).unwrap();
         assert_eq!(
@@ -5300,6 +5363,12 @@ network = "deny"
         assert_eq!(execution.filesystem, Some(AiExecutionFilesystem::ReadOnly));
         assert_eq!(execution.approval, None);
         assert_eq!(execution.network, Some(AiExecutionNetwork::Deny));
+
+        let claude = config.ai.harness.get(&AiProvider::Claude).unwrap();
+        let execution = claude.execution.unwrap();
+        assert_eq!(execution.filesystem, None);
+        assert_eq!(execution.approval, Some(AiExecutionApproval::Ask));
+        assert_eq!(execution.network, None);
     }
 
     #[test]
@@ -5363,7 +5432,7 @@ network = "ask"
 [ai.harness.claude]
 enabled = true
 
-[ai.harness.claude.execution]
+[ai.execution.claude]
 approval = "ask"
 network = "deny"
 "#;
@@ -6279,6 +6348,7 @@ theme = "{input}"
             ("moonlight", ThemeFamily::Moonlight),
             ("night-owl", ThemeFamily::NightOwl),
             ("nord", ThemeFamily::Nord),
+            ("vscode", ThemeFamily::VsCode),
             ("projectious", ThemeFamily::Projectious),
             ("rose-pine", ThemeFamily::RosePine),
             ("solarized", ThemeFamily::Solarized),

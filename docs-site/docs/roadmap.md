@@ -24,9 +24,8 @@ predictable:
 
 ### processkit Gateway Follow-Through
 
-Validate the processkit v0.25.4 self-starting gateway defaults in downstream
-projects and tune daemon guidance once more host/container runtime
-combinations have been exercised.
+Keep validating the gateway-mode MCP defaults in downstream projects and tune
+daemon guidance as more host/container runtime combinations are exercised.
 
 ### Runtime Diagnostics
 

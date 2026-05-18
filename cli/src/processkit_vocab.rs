@@ -161,7 +161,7 @@ pub const TIER_SPECIFIC_MCP_SKILLS: &[&str] = &[
 /// constant serves as the canonical reference for tests and documentation.
 // Used in #[cfg(test)] blocks across multiple modules and in documentation.
 #[allow(dead_code)]
-pub const PROCESSKIT_DEFAULT_VERSION: &str = "v0.26.14";
+pub const PROCESSKIT_DEFAULT_VERSION: &str = "v0.26.15";
 
 // ---------------------------------------------------------------------------
 // v0.26.0 — RoleSlot MCP tools (team-manager skill)
@@ -311,6 +311,8 @@ pub const LIVE_LIB_DIR: &str = "context/skills/_lib";
 /// Processkit manifest file containing MCP config metadata (e.g., expected hash).
 /// Shipped by processkit at the root of the `context/` directory.
 pub const PROCESSKIT_MCP_MANIFEST: &str = "context/.processkit-mcp-manifest.json";
+/// Basename of the processkit MCP manifest file.
+pub const PROCESSKIT_MCP_MANIFEST_BASENAME: &str = ".processkit-mcp-manifest.json";
 
 // ---------------------------------------------------------------------------
 // Templates mirror path helpers

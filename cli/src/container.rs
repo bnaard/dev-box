@@ -253,9 +253,10 @@ fn resolve_processkit_section(
     };
 
     if interactive {
+        let visible_versions = processkit_wizard_visible_versions(&versions);
         // Build the menu with the latest at the top + an explicit
         // "skip" escape hatch at the bottom.
-        let mut items: Vec<String> = versions
+        let mut items: Vec<String> = visible_versions
             .iter()
             .enumerate()
             .map(|(i, v)| {
@@ -275,10 +276,10 @@ fn resolve_processkit_section(
             .items(&items)
             .default(0)
             .interact()?;
-        if idx == versions.len() {
+        if idx == visible_versions.len() {
             section.version = PROCESSKIT_VERSION_UNSET.to_string();
         } else {
-            section.version = versions[idx].clone();
+            section.version = visible_versions[idx].clone();
         }
     } else {
         // Non-interactive: pick the latest.
@@ -290,6 +291,29 @@ fn resolve_processkit_section(
     }
 
     Ok(section)
+}
+
+fn processkit_wizard_visible_versions(versions: &[String]) -> Vec<String> {
+    const MAX_MINOR_LINES: usize = 3;
+
+    let mut minor_lines: Vec<(u64, u64)> = Vec::new();
+    let mut visible = Vec::new();
+
+    for version in versions {
+        let Some(parsed) = crate::content_source::parse_loose_semver(version) else {
+            continue;
+        };
+        let minor_line = (parsed.major, parsed.minor);
+        if !minor_lines.contains(&minor_line) {
+            if minor_lines.len() >= MAX_MINOR_LINES {
+                continue;
+            }
+            minor_lines.push(minor_line);
+        }
+        visible.push(version.clone());
+    }
+
+    visible
 }
 
 // ---------------------------------------------------------------------------
@@ -2093,6 +2117,7 @@ fn render_ai_harness_detail_catalog(out: &mut String, config: &AiboxConfig) {
 fn render_ai_execution_section(out: &mut String, config: &AiboxConfig) {
     out.push_str("\n# AI harness execution policy. These are aibox-level intent settings;\n");
     out.push_str("# aibox maps them to each harness where supported.\n");
+    out.push_str("# Optional per-harness overrides use `[ai.execution.<harness>]`.\n");
     out.push_str("# filesystem: read-only | workspace-write | container-full\n");
     out.push_str("# approval:   ask | on-request | never\n");
     out.push_str("# network:    deny | ask | allow\n");
@@ -2110,15 +2135,36 @@ fn render_ai_execution_section(out: &mut String, config: &AiboxConfig) {
         config.ai.execution.network
     ));
 
+    out.push_str("\n# Per-harness execution overrides. Uncomment a section and only the axes\n");
+    out.push_str("# you want to override; omitted axes inherit `[ai.execution]`.\n");
+    let mut rendered = Vec::new();
     for harness in &config.ai.harnesses {
-        let Some(harness_config) = config.ai.harness.get(harness) else {
-            continue;
-        };
-        let Some(execution) = &harness_config.execution else {
-            continue;
-        };
+        render_ai_harness_execution_override(out, config, harness, &mut rendered);
+    }
+    for harness in crate::config::AiHarness::all() {
+        render_ai_harness_execution_override(out, config, harness, &mut rendered);
+    }
+}
+
+fn render_ai_harness_execution_override(
+    out: &mut String,
+    config: &AiboxConfig,
+    harness: &crate::config::AiHarness,
+    rendered: &mut Vec<crate::config::AiHarness>,
+) {
+    if rendered.contains(harness) {
+        return;
+    }
+    rendered.push(harness.clone());
+
+    if let Some(execution) = config
+        .ai
+        .harness
+        .get(harness)
+        .and_then(|harness_config| harness_config.execution.as_ref())
+    {
         out.push('\n');
-        out.push_str(&format!("[ai.harness.{}.execution]\n", harness));
+        out.push_str(&format!("[ai.execution.{}]\n", harness));
         if let Some(filesystem) = execution.filesystem {
             out.push_str(&format!("filesystem = \"{}\"\n", filesystem));
         }
@@ -2128,6 +2174,12 @@ fn render_ai_execution_section(out: &mut String, config: &AiboxConfig) {
         if let Some(network) = execution.network {
             out.push_str(&format!("network    = \"{}\"\n", network));
         }
+    } else {
+        out.push('\n');
+        out.push_str(&format!("# [ai.execution.{}]\n", harness));
+        out.push_str("# filesystem = \"workspace-write\"\n");
+        out.push_str("# approval   = \"on-request\"\n");
+        out.push_str("# network    = \"ask\"\n");
     }
 }
 
@@ -3860,6 +3912,44 @@ mod tests {
     }
 
     #[test]
+    fn processkit_wizard_versions_keep_latest_and_two_prior_minor_lines() {
+        let versions = vec![
+            "v0.26.14".to_string(),
+            "v0.26.13".to_string(),
+            "v0.25.8".to_string(),
+            "v0.25.1".to_string(),
+            "v0.24.3".to_string(),
+            "v0.24.0".to_string(),
+            "v0.23.9".to_string(),
+            "v0.22.0".to_string(),
+        ];
+
+        let visible = processkit_wizard_visible_versions(&versions);
+
+        assert_eq!(
+            visible,
+            vec![
+                "v0.26.14", "v0.26.13", "v0.25.8", "v0.25.1", "v0.24.3", "v0.24.0"
+            ]
+        );
+    }
+
+    #[test]
+    fn processkit_wizard_versions_follow_release_order_across_major_lines() {
+        let versions = vec![
+            "v1.0.1".to_string(),
+            "v1.0.0".to_string(),
+            "v0.99.4".to_string(),
+            "v0.98.7".to_string(),
+            "v0.97.2".to_string(),
+        ];
+
+        let visible = processkit_wizard_visible_versions(&versions);
+
+        assert_eq!(visible, vec!["v1.0.1", "v1.0.0", "v0.99.4", "v0.98.7"]);
+    }
+
+    #[test]
     fn serialized_config_groups_nested_sections_near_parent_sections() {
         let config = crate::config::test_config();
         let body = serialize_config_with_comments(&config);
@@ -4045,8 +4135,9 @@ mod tests {
         );
 
         let body = serialize_config_with_comments(&config);
-        assert!(body.contains("[ai.harness.codex.execution]"));
+        assert!(body.contains("[ai.execution.codex]"));
         assert!(body.contains("filesystem = \"container-full\""));
+        assert!(body.contains("# [ai.execution.claude]"));
         assert!(!body.contains("trust_level"));
     }
 

@@ -2884,6 +2884,9 @@ layout = "ai"
         assert!(!after.to_ascii_lowercase().contains("deprecated"));
         assert!(after.contains("    \"actor-profile\", # processkit;"));
         assert!(!after.contains("    # \"actor-profile\", # explicitly enable;"));
+        assert!(after.contains("[ai.execution]"));
+        assert!(after.contains("# [ai.execution.claude]"));
+        assert!(after.contains("# [ai.execution.codex]"));
         let ai = after.find("[ai]").unwrap();
         let ai_mcp = after.find("[ai.mcp.gateway]").unwrap();
         let processkit = after.find("[processkit]").unwrap();
