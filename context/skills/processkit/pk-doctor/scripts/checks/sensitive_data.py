@@ -190,8 +190,8 @@ _DETERMINISTIC_EXAMPLES = [
     {
         "class": "embedded credentials",
         "look_for": [
-            "https://[user]:[password]@[host]/...",
-            "postgres://[user]:[password]@[host]/[database]",
+            "https URL containing user, password, and host",
+            "postgres URL containing user, password, host, and database",
         ],
     },
     {
