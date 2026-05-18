@@ -5,7 +5,7 @@ title: "Overview"
 
 # Addons
 
-aibox uses a single base image (`base-debian`) with **30 composable addons** that install language runtimes, tool bundles, documentation frameworks, and AI coding agents into your container.
+aibox uses the Debian runtime image family (`base-debian-v0.26.x` for legacy releases, `base-debian-runtime-v0.27.0+` after the image-tag cutover) with **30 composable addons** that install language runtimes, tool bundles, documentation frameworks, and AI coding agents into your container.
 
 ## Managing Addons
 
@@ -33,7 +33,7 @@ aibox describe addon-catalog -o json
 ```toml
 [addons.python.tools]
 python = { version = "3.13" }
-uv = { version = "0.11.14" }
+uv = { version = "0.11.15" }
 
 [addons.rust.tools]
 rustc = { version = "1.87" }
@@ -61,7 +61,7 @@ After editing `aibox.toml`, run `aibox apply` to regenerate the Dockerfile and r
 
 | Addon | Default Tools | Optional Tools |
 |-------|--------------|----------------|
-| `python` | python (3.12/3.13/3.14), uv (0.7/0.11.10/0.11.11/0.11.14) | poetry, pdm |
+| `python` | python (3.12/3.13/3.14), uv (0.7/0.11.10/0.11.11/0.11.15) | poetry, pdm |
 | `rust` | rustc (1.85/1.87), clippy, rustfmt | — |
 | `node` | node (20/22), pnpm (9/10) | yarn, bun |
 | `go` | go (1.25/1.26) | — |
@@ -178,7 +178,7 @@ Recipe version: 1.0.0
 
   TOOL      DEFAULT    VERSION  SUPPORTED
   python        yes       3.13  3.12, 3.13, 3.14
-  uv            yes    0.11.14  0.7, 0.11.10, 0.11.11, 0.11.14
+  uv            yes    0.11.15  0.7, 0.11.10, 0.11.11, 0.11.15
   poetry         no        2.0  1.8, 2.0
   pdm            no       2.22  2.22
 ```

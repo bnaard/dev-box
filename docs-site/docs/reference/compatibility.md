@@ -12,6 +12,8 @@ below shows the minimum compatible processkit version for each aibox release.
 
 | aibox version | Min. processkit | Notes |
 |--------------|-----------------|-------|
+| 0.27.0 | v0.27.0 | integrates processkit v0.27.0 and the v0.26.17 supply-chain audit surface; switches the next-minor GHCR image scheme to foundation/runtime tags, stops publishing public source-hash marker tags, preserves legacy `base-debian-v0.26.x` compatibility, adds GHCR source-tag cleanup tooling, adds release LICENSE guardrails, and fixes pasted host newlines by removing global tmux `C-j` navigation |
+| 0.26.8 | v0.26.16 | integrates processkit v0.26.16; refreshes the processkit template mirror, provenance, MCP manifest, TeamMember privacy defaults, and team consistency checks; makes latest image resolution skip GHCR tags whose multi-arch manifest children have been pruned |
 | 0.26.7 | v0.26.15 | integrates processkit v0.26.15; adds provider-neutral AI execution policy axes and per-harness overrides, maps execution policy to Codex settings, preserves the processkit MCP manifest in derived installs, and refreshes documentation recordings |
 | 0.26.6 | v0.26.14 | integrates processkit v0.26.14; updates processkit metadata to the new release and preserves tmux/Vim/cheatsheet and clipboard behavior consistency |
 | 0.26.5 | v0.26.13 | re-architects theme selection around theme families plus mode/variant, adds the 61-theme gallery and per-theme recordings, ships PowerKit/cheatsheet/runtime theme fixes, and preserves legacy concrete theme intent during standardization |

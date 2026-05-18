@@ -12,7 +12,7 @@
 #   test              Run cargo fmt, clippy, and tests
 #   test-e2e          Run SSH companion E2E tests
 #   test-e2e-visual   Run all opt-in SSH/asciinema visual E2E tiers
-#   build-images      Build all 10 published images locally
+#   build-images      Build published foundation/runtime images locally
 #   release-runtime-smoke <version> Run generated runtime smoke against a release
 #   docs-serve        Serve MkDocs locally for preview
 #   docs-deploy       Build MkDocs and push HTML to gh-pages
@@ -117,6 +117,8 @@ ${bold}Development:${reset}
                            Set AIBOX_E2E_VISUAL_FULL_MATRIX=1 for exhaustive layout/theme coverage
   build-images [--no-cache] Build published container images locally
   push-images <version>    Push images to GHCR (requires ghcr.io login)
+  ghcr-prune-source-tags [--repair-mixed] [--execute]
+                           Plan, repair, or delete GHCR source-hash package versions
   release-runtime-smoke <version>
                            Run host-side generated-runtime smoke and write logs
   docs-serve               Serve MkDocs locally (http://localhost:8000)
@@ -414,9 +416,68 @@ image_source_sha() {
   done < <(find "${image_dir}" -type f | LC_ALL=C sort) | sha256_stdin
 }
 
-image_source_tag() {
-  local flavor="$1" source_sha="$2"
-  printf '%s:%s-source-%s' "${IMAGE_REGISTRY}" "${flavor}" "${source_sha}"
+image_foundation_source_sha() {
+  local flavor="$1"
+  local image_dir="${PROJECT_ROOT}/images/${flavor}"
+  local dockerfile="${image_dir}/Dockerfile"
+  [[ -f "${dockerfile}" ]] || die "Image Dockerfile not found: ${dockerfile}"
+
+  {
+    awk '
+      /^FROM foundation AS runtime$/ { exit }
+      { print }
+    ' "${dockerfile}"
+    local rel file
+    for file in \
+      "${image_dir}/config/bin/aibox_status_core.rs" \
+      "${image_dir}/config/bin/aibox-status.rs" \
+      "${image_dir}/config/bin/aibox-diagnostics.rs"
+    do
+      [[ -f "${file}" ]] || continue
+      rel="${file#${PROJECT_ROOT}/}"
+      printf '%s  %s\n' "$(sha256_file "${file}")" "${rel}"
+    done
+  } | sha256_stdin
+}
+
+image_foundation_tag() {
+  local flavor="$1" version="$2"
+  printf '%s:%s-foundation-v%s' "${IMAGE_REGISTRY}" "${flavor}" "${version}"
+}
+
+image_runtime_tag() {
+  local flavor="$1" version="$2"
+  printf '%s:%s-runtime-v%s' "${IMAGE_REGISTRY}" "${flavor}" "${version}"
+}
+
+image_runtime_latest_tag() {
+  local flavor="$1"
+  printf '%s:%s-runtime-latest' "${IMAGE_REGISTRY}" "${flavor}"
+}
+
+legacy_image_tag() {
+  local flavor="$1" version="$2"
+  printf '%s:%s-v%s' "${IMAGE_REGISTRY}" "${flavor}" "${version}"
+}
+
+recent_patch_versions() {
+  local version="$1" count="${2:-3}"
+  local major minor patch
+  IFS=. read -r major minor patch <<<"${version}"
+  local emitted=0
+  while (( patch > 0 && emitted < count )); do
+    patch=$((patch - 1))
+    printf '%s.%s.%s\n' "${major}" "${minor}" "${patch}"
+    emitted=$((emitted + 1))
+  done
+}
+
+use_runtime_image_tags() {
+  local version="$1"
+  local major minor patch
+  IFS=. read -r major minor patch <<<"${version}"
+  [[ "${major}" =~ ^[0-9]+$ && "${minor}" =~ ^[0-9]+$ ]] || return 1
+  (( major > 0 || minor >= 27 ))
 }
 
 image_manifest_complete() {
@@ -458,6 +519,45 @@ image_manifest_complete() {
   done
 
   return 0
+}
+
+image_label_value() {
+  local ref="$1" label="$2"
+
+  if ! ${RUNTIME_BIN} buildx version >/dev/null 2>&1; then
+    return 1
+  fi
+  if ! command -v jq >/dev/null 2>&1; then
+    return 1
+  fi
+
+  local raw
+  raw="$(${RUNTIME_BIN} buildx imagetools inspect --format '{{json .Image.Config.Labels}}' "${ref}" 2>/dev/null || true)"
+  [[ -n "${raw}" && "${raw}" != "null" ]] || return 1
+  printf '%s' "${raw}" | jq -er --arg label "${label}" '.[$label] // empty' 2>/dev/null
+}
+
+find_reusable_image_by_label() {
+  local flavor="$1" version="$2" kind="$3" label="$4" expected="$5"
+  local prior candidate value
+  while IFS= read -r prior; do
+    [[ -z "${prior}" ]] && continue
+    case "${kind}" in
+      foundation) candidate="$(image_foundation_tag "${flavor}" "${prior}")" ;;
+      runtime) candidate="$(image_runtime_tag "${flavor}" "${prior}")" ;;
+      legacy) candidate="$(legacy_image_tag "${flavor}" "${prior}")" ;;
+      *) die "Unknown reusable image kind: ${kind}" ;;
+    esac
+
+    image_manifest_complete "${candidate}" || continue
+    value="$(image_label_value "${candidate}" "${label}" || true)"
+    if [[ "${value}" == "${expected}" ]]; then
+      printf '%s\n' "${candidate}"
+      return 0
+    fi
+  done < <(recent_patch_versions "${version}" 3)
+
+  return 1
 }
 
 ensure_ghcr_login() {
@@ -507,56 +607,102 @@ cmd_build_images() {
   local flavors=("base-debian")
 
   for flavor in "${flavors[@]}"; do
-    info "Building ${flavor} image..."
-    local latest="${IMAGE_REGISTRY}:${flavor}-latest"
-    local build_cache_ref="${IMAGE_REGISTRY}:${flavor}-buildcache"
-    local source_sha
+    info "Building ${flavor} foundation/runtime images..."
+    local runtime_latest foundation_local runtime_local foundation_cache_ref runtime_cache_ref
+    runtime_latest="$(image_runtime_latest_tag "${flavor}")"
+    foundation_local="${IMAGE_REGISTRY}:${flavor}-foundation-local"
+    runtime_local="${IMAGE_REGISTRY}:${flavor}-runtime-local"
+    foundation_cache_ref="${IMAGE_REGISTRY}:${flavor}-foundation-buildcache"
+    runtime_cache_ref="${IMAGE_REGISTRY}:${flavor}-runtime-buildcache"
+    local source_sha foundation_sha runtime_sha
     source_sha="$(image_source_sha "${flavor}")"
+    foundation_sha="$(image_foundation_source_sha "${flavor}")"
+    runtime_sha="${source_sha}"
     local build_version="${release_version:-dev}"
     if [[ -n "${no_cache}" ]]; then
       "${build_env[@]}" ${RUNTIME_BIN} build --no-cache \
+        --target foundation \
         --build-arg BUILDKIT_INLINE_CACHE=1 \
         --build-arg "AIBOX_IMAGE_SOURCE_SHA=${source_sha}" \
+        --build-arg "AIBOX_FOUNDATION_SOURCE_SHA=${foundation_sha}" \
+        --build-arg "AIBOX_RUNTIME_SOURCE_SHA=${runtime_sha}" \
         --build-arg "AIBOX_IMAGE_BUILD_VERSION=${build_version}" \
-        -t "${latest}" \
+        -t "${foundation_local}" \
+        -f "${PROJECT_ROOT}/images/${flavor}/Dockerfile" \
+        "${PROJECT_ROOT}/images/${flavor}/"
+      "${build_env[@]}" ${RUNTIME_BIN} build --no-cache \
+        --target runtime \
+        --build-arg BUILDKIT_INLINE_CACHE=1 \
+        --build-arg "AIBOX_IMAGE_SOURCE_SHA=${source_sha}" \
+        --build-arg "AIBOX_FOUNDATION_SOURCE_SHA=${foundation_sha}" \
+        --build-arg "AIBOX_RUNTIME_SOURCE_SHA=${runtime_sha}" \
+        --build-arg "AIBOX_IMAGE_BUILD_VERSION=${build_version}" \
+        -t "${runtime_local}" \
+        -t "${runtime_latest}" \
         -f "${PROJECT_ROOT}/images/${flavor}/Dockerfile" \
         "${PROJECT_ROOT}/images/${flavor}/"
     else
-      ${RUNTIME_BIN} pull "${latest}" >/dev/null 2>&1 \
-        || warn "Could not pull ${latest} as a remote build cache seed"
+      ${RUNTIME_BIN} pull "${runtime_latest}" >/dev/null 2>&1 \
+        || warn "Could not pull ${runtime_latest} as a remote build cache seed"
       if ${RUNTIME_BIN} buildx version >/dev/null 2>&1; then
-        local cache_from_args=()
-        if image_manifest_complete "${build_cache_ref}"; then
-          cache_from_args+=(--cache-from "type=registry,ref=${build_cache_ref}")
+        local foundation_cache_from_args=()
+        local runtime_cache_from_args=()
+        if image_manifest_complete "${foundation_cache_ref}"; then
+          foundation_cache_from_args+=(--cache-from "type=registry,ref=${foundation_cache_ref}")
         else
-          warn "Skipping unusable remote build cache ${build_cache_ref}"
+          warn "Skipping unusable remote build cache ${foundation_cache_ref}"
         fi
-        if image_manifest_complete "${latest}"; then
-          cache_from_args+=(--cache-from "type=registry,ref=${latest}")
+        if image_manifest_complete "${runtime_cache_ref}"; then
+          runtime_cache_from_args+=(--cache-from "type=registry,ref=${runtime_cache_ref}")
         else
-          warn "Skipping unusable remote image cache ${latest}"
+          warn "Skipping unusable remote build cache ${runtime_cache_ref}"
+        fi
+        if image_manifest_complete "${runtime_latest}"; then
+          runtime_cache_from_args+=(--cache-from "type=registry,ref=${runtime_latest}")
+        else
+          warn "Skipping unusable remote image cache ${runtime_latest}"
         fi
         ${RUNTIME_BIN} buildx build --load \
+          --target foundation \
           --build-arg BUILDKIT_INLINE_CACHE=1 \
           --build-arg "AIBOX_IMAGE_SOURCE_SHA=${source_sha}" \
+          --build-arg "AIBOX_FOUNDATION_SOURCE_SHA=${foundation_sha}" \
+          --build-arg "AIBOX_RUNTIME_SOURCE_SHA=${runtime_sha}" \
           --build-arg "AIBOX_IMAGE_BUILD_VERSION=${build_version}" \
-          "${cache_from_args[@]}" \
-          --cache-to "type=registry,ref=${build_cache_ref},mode=max,ignore-error=true" \
-          -t "${latest}" \
+          "${foundation_cache_from_args[@]}" \
+          --cache-to "type=registry,ref=${foundation_cache_ref},mode=max,ignore-error=true" \
+          -t "${foundation_local}" \
+          -f "${PROJECT_ROOT}/images/${flavor}/Dockerfile" \
+          "${PROJECT_ROOT}/images/${flavor}/"
+        ${RUNTIME_BIN} buildx build --load \
+          --target runtime \
+          --build-arg BUILDKIT_INLINE_CACHE=1 \
+          --build-arg "AIBOX_IMAGE_SOURCE_SHA=${source_sha}" \
+          --build-arg "AIBOX_FOUNDATION_SOURCE_SHA=${foundation_sha}" \
+          --build-arg "AIBOX_RUNTIME_SOURCE_SHA=${runtime_sha}" \
+          --build-arg "AIBOX_IMAGE_BUILD_VERSION=${build_version}" \
+          "${runtime_cache_from_args[@]}" \
+          --cache-to "type=registry,ref=${runtime_cache_ref},mode=max,ignore-error=true" \
+          -t "${runtime_local}" \
+          -t "${runtime_latest}" \
           -f "${PROJECT_ROOT}/images/${flavor}/Dockerfile" \
           "${PROJECT_ROOT}/images/${flavor}/"
       else
         "${build_env[@]}" ${RUNTIME_BIN} build \
+          --target runtime \
           --build-arg BUILDKIT_INLINE_CACHE=1 \
           --build-arg "AIBOX_IMAGE_SOURCE_SHA=${source_sha}" \
+          --build-arg "AIBOX_FOUNDATION_SOURCE_SHA=${foundation_sha}" \
+          --build-arg "AIBOX_RUNTIME_SOURCE_SHA=${runtime_sha}" \
           --build-arg "AIBOX_IMAGE_BUILD_VERSION=${build_version}" \
-          --cache-from "${latest}" \
-          -t "${latest}" \
+          --cache-from "${runtime_latest}" \
+          -t "${runtime_local}" \
+          -t "${runtime_latest}" \
           -f "${PROJECT_ROOT}/images/${flavor}/Dockerfile" \
           "${PROJECT_ROOT}/images/${flavor}/"
       fi
     fi
-    ok "Built ${latest}"
+    ok "Built ${foundation_local} and ${runtime_local}"
   done
 
   ok "All images built"
@@ -575,36 +721,57 @@ cmd_push_images() {
 
   local flavors=("base-debian")
 
-  # Verify all latest images exist and create versioned tags
+  # Verify local runtime/foundation images exist and create versioned tags.
   for flavor in "${flavors[@]}"; do
-    local latest="${IMAGE_REGISTRY}:${flavor}-latest"
-    local versioned="${IMAGE_REGISTRY}:${flavor}-v${version}"
-    local source_sha source_tag
-    source_sha="$(image_source_sha "${flavor}")"
-    source_tag="$(image_source_tag "${flavor}" "${source_sha}")"
-    if ! ${RUNTIME_BIN} image exists "${latest}" 2>/dev/null && \
-       ! ${RUNTIME_BIN} inspect "${latest}" &>/dev/null; then
-      die "Image ${latest} not found locally. Run 'build-images' first."
+    local foundation_local runtime_local foundation_versioned runtime_versioned runtime_latest legacy_versioned legacy_latest
+    foundation_local="${IMAGE_REGISTRY}:${flavor}-foundation-local"
+    runtime_local="${IMAGE_REGISTRY}:${flavor}-runtime-local"
+    foundation_versioned="$(image_foundation_tag "${flavor}" "${version}")"
+    runtime_versioned="$(image_runtime_tag "${flavor}" "${version}")"
+    runtime_latest="$(image_runtime_latest_tag "${flavor}")"
+    legacy_versioned="$(legacy_image_tag "${flavor}" "${version}")"
+    legacy_latest="${IMAGE_REGISTRY}:${flavor}-latest"
+    if ! ${RUNTIME_BIN} image exists "${foundation_local}" 2>/dev/null && \
+       ! ${RUNTIME_BIN} inspect "${foundation_local}" &>/dev/null; then
+      die "Image ${foundation_local} not found locally. Run 'build-images' first."
     fi
-    ${RUNTIME_BIN} tag "${latest}" "${versioned}"
-    ${RUNTIME_BIN} tag "${latest}" "${source_tag}"
+    if ! ${RUNTIME_BIN} image exists "${runtime_local}" 2>/dev/null && \
+       ! ${RUNTIME_BIN} inspect "${runtime_local}" &>/dev/null; then
+      die "Image ${runtime_local} not found locally. Run 'build-images' first."
+    fi
+    if use_runtime_image_tags "${version}"; then
+      ${RUNTIME_BIN} tag "${foundation_local}" "${foundation_versioned}"
+      ${RUNTIME_BIN} tag "${runtime_local}" "${runtime_versioned}"
+      ${RUNTIME_BIN} tag "${runtime_local}" "${runtime_latest}"
+    else
+      ${RUNTIME_BIN} tag "${runtime_local}" "${legacy_versioned}"
+      ${RUNTIME_BIN} tag "${runtime_local}" "${legacy_latest}"
+    fi
   done
 
   ok "All images found and tagged for v${version}"
 
-  # Push versioned and latest tags
+  # Push versioned foundation and versioned/latest runtime tags. Do not publish
+  # source-hash marker tags; source hashes live in image labels only.
   for flavor in "${flavors[@]}"; do
-    local versioned="${IMAGE_REGISTRY}:${flavor}-v${version}"
-    local latest="${IMAGE_REGISTRY}:${flavor}-latest"
-    local source_sha source_tag
-    source_sha="$(image_source_sha "${flavor}")"
-    source_tag="$(image_source_tag "${flavor}" "${source_sha}")"
+    local foundation_versioned runtime_versioned runtime_latest legacy_versioned legacy_latest
+    foundation_versioned="$(image_foundation_tag "${flavor}" "${version}")"
+    runtime_versioned="$(image_runtime_tag "${flavor}" "${version}")"
+    runtime_latest="$(image_runtime_latest_tag "${flavor}")"
+    legacy_versioned="$(legacy_image_tag "${flavor}" "${version}")"
+    legacy_latest="${IMAGE_REGISTRY}:${flavor}-latest"
 
     info "Pushing ${flavor}..."
-    ${RUNTIME_BIN} push "${versioned}" || die "Failed to push ${versioned}"
-    ${RUNTIME_BIN} push "${latest}" || die "Failed to push ${latest}"
-    ${RUNTIME_BIN} push "${source_tag}" || die "Failed to push ${source_tag}"
-    ok "Pushed ${flavor}-v${version} + ${flavor}-latest + source cache marker"
+    if use_runtime_image_tags "${version}"; then
+      ${RUNTIME_BIN} push "${foundation_versioned}" || die "Failed to push ${foundation_versioned}"
+      ${RUNTIME_BIN} push "${runtime_versioned}" || die "Failed to push ${runtime_versioned}"
+      ${RUNTIME_BIN} push "${runtime_latest}" || die "Failed to push ${runtime_latest}"
+      ok "Pushed ${flavor}-foundation-v${version} + ${flavor}-runtime-v${version} + ${flavor}-runtime-latest"
+    else
+      ${RUNTIME_BIN} push "${legacy_versioned}" || die "Failed to push ${legacy_versioned}"
+      ${RUNTIME_BIN} push "${legacy_latest}" || die "Failed to push ${legacy_latest}"
+      ok "Pushed ${flavor}-v${version} + ${flavor}-latest"
+    fi
   done
 
   echo ""
@@ -623,29 +790,60 @@ cmd_publish_images_for_release() {
   local flavors=("base-debian")
   local all_retagged=true
   for flavor in "${flavors[@]}"; do
-    local latest="${IMAGE_REGISTRY}:${flavor}-latest"
-    local versioned="${IMAGE_REGISTRY}:${flavor}-v${version}"
-    local current_sha source_tag
+    local foundation_versioned runtime_versioned runtime_latest legacy_versioned legacy_latest
+    local current_sha foundation_sha runtime_sha reusable_foundation reusable_runtime reusable_legacy
+    foundation_versioned="$(image_foundation_tag "${flavor}" "${version}")"
+    runtime_versioned="$(image_runtime_tag "${flavor}" "${version}")"
+    runtime_latest="$(image_runtime_latest_tag "${flavor}")"
+    legacy_versioned="$(legacy_image_tag "${flavor}" "${version}")"
+    legacy_latest="${IMAGE_REGISTRY}:${flavor}-latest"
     current_sha="$(image_source_sha "${flavor}")"
-    source_tag="$(image_source_tag "${flavor}" "${current_sha}")"
+    foundation_sha="$(image_foundation_source_sha "${flavor}")"
+    runtime_sha="${current_sha}"
 
-    if ${RUNTIME_BIN} buildx version >/dev/null 2>&1 \
-      && image_manifest_complete "${source_tag}"; then
-      info "${flavor} source unchanged (${current_sha}); retagging existing GHCR manifest"
+    if ! use_runtime_image_tags "${version}"; then
+      reusable_legacy="$(find_reusable_image_by_label "${flavor}" "${version}" legacy "org.projectious-work.aibox.image-source-sha" "${current_sha}" || true)"
+      if [[ -n "${reusable_legacy}" ]]; then
+        info "${flavor} source unchanged; retagging recent legacy manifest"
+        ${RUNTIME_BIN} buildx imagetools create \
+          -t "${legacy_versioned}" \
+          -t "${legacy_latest}" \
+          "${reusable_legacy}" \
+          || die "Failed to retag ${reusable_legacy} as ${legacy_versioned} and ${legacy_latest}"
+        ok "Retagged ${reusable_legacy} without rebuilding layers"
+        continue
+      fi
+
+      all_retagged=false
+      info "${flavor} has no recent reusable legacy manifest for current source hash; rebuilding"
+      continue
+    fi
+
+    reusable_foundation="$(find_reusable_image_by_label "${flavor}" "${version}" foundation "org.projectious-work.aibox.image-foundation-source-sha" "${foundation_sha}" || true)"
+    reusable_runtime="$(find_reusable_image_by_label "${flavor}" "${version}" runtime "org.projectious-work.aibox.image-runtime-source-sha" "${runtime_sha}" || true)"
+
+    if [[ -n "${reusable_foundation}" && -n "${reusable_runtime}" ]]; then
+      info "${flavor} foundation/runtime sources unchanged; retagging recent manifests"
       ${RUNTIME_BIN} buildx imagetools create \
-        -t "${versioned}" \
-        -t "${latest}" \
-        "${source_tag}" \
-        || die "Failed to retag ${latest} as ${versioned}"
-      ok "Retagged ${source_tag} as ${versioned} and ${latest} without rebuilding layers"
+        -t "${foundation_versioned}" \
+        "${reusable_foundation}" \
+        || die "Failed to retag ${reusable_foundation} as ${foundation_versioned}"
+      ${RUNTIME_BIN} buildx imagetools create \
+        -t "${runtime_versioned}" \
+        -t "${runtime_latest}" \
+        "${reusable_runtime}" \
+        || die "Failed to retag ${reusable_runtime} as ${runtime_versioned} and ${runtime_latest}"
+      ok "Retagged ${reusable_foundation} and ${reusable_runtime} without rebuilding layers"
     else
       all_retagged=false
       if ! ${RUNTIME_BIN} buildx version >/dev/null 2>&1; then
         warn "buildx is unavailable; rebuilding ${flavor} instead of retagging by source hash"
-      elif ${RUNTIME_BIN} buildx imagetools inspect "${source_tag}" >/dev/null 2>&1; then
-        warn "${flavor} source marker ${source_tag} exists but references missing GHCR manifest children; rebuilding instead of retagging"
+      elif [[ -z "${reusable_foundation}" && -z "${reusable_runtime}" ]]; then
+        info "${flavor} has no recent reusable foundation/runtime manifests for current source hashes; rebuilding"
+      elif [[ -z "${reusable_foundation}" ]]; then
+        info "${flavor} runtime is reusable but foundation is not; rebuilding to keep release tags consistent"
       else
-        info "${flavor} source hash ${current_sha} has no GHCR marker tag yet; rebuilding once to seed it"
+        info "${flavor} foundation is reusable but runtime is not; rebuilding runtime/foundation pair"
       fi
     fi
   done
@@ -661,13 +859,9 @@ cmd_publish_images_for_release() {
   verify_release_images_in_ghcr "${version}" "${flavors[@]}"
 }
 
-# Post-publish guard: confirm every release-image tag is actually live in
-# GHCR before declaring success. v0.26.0's host-side release passed all of
-# build → upload → retag → smoke locally but landed in GHCR with the source
-# marker present and the versioned + latest tags missing, leaving downstream
-# `aibox apply` runs resolving 'latest' → v0.25.12 forever. The earlier code
-# trusted `buildx imagetools create` and `${RUNTIME_BIN} push` exit codes;
-# this verifier re-asserts state-of-the-world afterwards.
+# Post-publish guard: confirm every release-image tag is actually live in GHCR
+# before declaring success. This validates the public foundation/runtime tags
+# and rejects tags whose manifest index points at pruned child manifests.
 verify_release_images_in_ghcr() {
   local version="${1:-}"
   shift || true
@@ -683,24 +877,66 @@ verify_release_images_in_ghcr() {
 
   local missing=()
   for flavor in "${flavors[@]}"; do
-    local versioned="${IMAGE_REGISTRY}:${flavor}-v${version}"
-    local latest="${IMAGE_REGISTRY}:${flavor}-latest"
-    local versioned_digest latest_digest
-    versioned_digest="$(${probe} buildx imagetools inspect --raw "${versioned}" 2>/dev/null | sha256sum 2>/dev/null | awk '{print $1}')"
-    latest_digest="$(${probe} buildx imagetools inspect --raw "${latest}" 2>/dev/null | sha256sum 2>/dev/null | awk '{print $1}')"
-    if [[ -z "${versioned_digest}" ]]; then
-      missing+=("${versioned}")
+    local foundation_versioned runtime_versioned runtime_latest legacy_versioned legacy_latest
+    local foundation_digest runtime_digest latest_digest legacy_digest
+    foundation_versioned="$(image_foundation_tag "${flavor}" "${version}")"
+    runtime_versioned="$(image_runtime_tag "${flavor}" "${version}")"
+    runtime_latest="$(image_runtime_latest_tag "${flavor}")"
+    legacy_versioned="$(legacy_image_tag "${flavor}" "${version}")"
+    legacy_latest="${IMAGE_REGISTRY}:${flavor}-latest"
+
+    if ! use_runtime_image_tags "${version}"; then
+      if image_manifest_complete "${legacy_versioned}"; then
+        legacy_digest="$(${probe} buildx imagetools inspect --raw "${legacy_versioned}" 2>/dev/null | sha256sum 2>/dev/null | awk '{print $1}')"
+      else
+        legacy_digest=""
+        missing+=("${legacy_versioned}")
+      fi
+      if image_manifest_complete "${legacy_latest}"; then
+        latest_digest="$(${probe} buildx imagetools inspect --raw "${legacy_latest}" 2>/dev/null | sha256sum 2>/dev/null | awk '{print $1}')"
+      else
+        latest_digest=""
+        missing+=("${legacy_latest}")
+      fi
+      if [[ -n "${legacy_digest}" && -n "${latest_digest}" \
+         && "${legacy_digest}" != "${latest_digest}" ]]; then
+        warn "${legacy_versioned} and ${legacy_latest} resolve to different manifests in GHCR — latest likely stale"
+        missing+=("${legacy_latest} (digest mismatch with ${legacy_versioned})")
+      fi
+      if [[ -n "${legacy_digest}" ]]; then
+        ok "Verified ${legacy_versioned} is live in GHCR"
+      fi
+      continue
     fi
-    if [[ -z "${latest_digest}" ]]; then
-      missing+=("${latest}")
+
+    if image_manifest_complete "${foundation_versioned}"; then
+      foundation_digest="$(${probe} buildx imagetools inspect --raw "${foundation_versioned}" 2>/dev/null | sha256sum 2>/dev/null | awk '{print $1}')"
+    else
+      foundation_digest=""
+      missing+=("${foundation_versioned}")
     fi
-    if [[ -n "${versioned_digest}" && -n "${latest_digest}" \
-       && "${versioned_digest}" != "${latest_digest}" ]]; then
-      warn "${versioned} and ${latest} resolve to different manifests in GHCR — 'latest' likely stale"
-      missing+=("${latest} (digest mismatch with ${versioned})")
+    if image_manifest_complete "${runtime_versioned}"; then
+      runtime_digest="$(${probe} buildx imagetools inspect --raw "${runtime_versioned}" 2>/dev/null | sha256sum 2>/dev/null | awk '{print $1}')"
+    else
+      runtime_digest=""
+      missing+=("${runtime_versioned}")
     fi
-    if [[ -n "${versioned_digest}" ]]; then
-      ok "Verified ${versioned} is live in GHCR"
+    if image_manifest_complete "${runtime_latest}"; then
+      latest_digest="$(${probe} buildx imagetools inspect --raw "${runtime_latest}" 2>/dev/null | sha256sum 2>/dev/null | awk '{print $1}')"
+    else
+      latest_digest=""
+      missing+=("${runtime_latest}")
+    fi
+    if [[ -n "${runtime_digest}" && -n "${latest_digest}" \
+       && "${runtime_digest}" != "${latest_digest}" ]]; then
+      warn "${runtime_versioned} and ${runtime_latest} resolve to different manifests in GHCR — latest likely stale"
+      missing+=("${runtime_latest} (digest mismatch with ${runtime_versioned})")
+    fi
+    if [[ -n "${foundation_digest}" ]]; then
+      ok "Verified ${foundation_versioned} is live in GHCR"
+    fi
+    if [[ -n "${runtime_digest}" ]]; then
+      ok "Verified ${runtime_versioned} is live in GHCR"
     fi
   done
 
@@ -723,6 +959,184 @@ cmd_release_runtime_smoke() {
 
   "${SCRIPT_DIR}/release-runtime-smoke.sh" "${version}" \
     || die "Release runtime smoke failed. See dist/release-smoke/v${version}/ for logs."
+}
+
+ghcr_package_versions_json() {
+  local versions_json
+  if ! versions_json="$(gh api /orgs/projectious-work/packages/container/aibox/versions --paginate 2>&1)"; then
+    if [[ "${versions_json}" == *"read:packages"* || "${versions_json}" == *"HTTP 403"* ]]; then
+      die "GHCR package cleanup requires a GitHub token with read:packages. Add delete:packages too when running with --execute."
+    fi
+    die "Failed to list GHCR package versions: ${versions_json}"
+  fi
+  printf '%s' "${versions_json}"
+}
+
+ghcr_source_tag_sets() {
+  local versions_json="$1"
+  local source_only_var="$2"
+  local mixed_var="$3"
+  local source_only_json mixed_json
+
+  source_only_json="$(
+    printf '%s' "${versions_json}" | jq -sc '
+      add
+      |
+      [
+        .[]
+        | {id, name, tags: (.metadata.container.tags // [])}
+        | select([.tags[] | startswith("base-") and contains("-source-")] | any)
+        | select((.tags | length) > 0)
+        | select(all(.tags[]; contains("-source-")))
+      ]
+    '
+  )"
+  mixed_json="$(
+    printf '%s' "${versions_json}" | jq -sc '
+      add
+      |
+      [
+        .[]
+        | {
+            id,
+            name,
+            tags: (.metadata.container.tags // []),
+            source_tags: [(.metadata.container.tags // [])[] | select(startswith("base-") and contains("-source-"))],
+            keep_tags: [(.metadata.container.tags // [])[] | select((startswith("base-") and contains("-source-")) | not)]
+          }
+        | select((.source_tags | length) > 0 and (.keep_tags | length) > 0)
+      ]
+    '
+  )"
+
+  printf -v "${source_only_var}" '%s' "${source_only_json}"
+  printf -v "${mixed_var}" '%s' "${mixed_json}"
+}
+
+ghcr_repair_mixed_source_tags() {
+  local mixed_json="$1"
+  local execute="$2"
+  local mixed_count
+  mixed_count="$(printf '%s' "${mixed_json}" | jq 'length')"
+  (( mixed_count > 0 )) || return 0
+
+  if [[ "${execute}" == "true" ]]; then
+    require_docker_buildx_for_images
+  fi
+
+  warn "Repairing mixed source-hash package versions works by moving non-source tags to a fresh manifest copy."
+  warn "The old package version should then become source-only and deletable by this command."
+
+  local row id digest annotation source_ref
+  local -a keep_tags tag_args
+  while IFS= read -r row; do
+    [[ -z "${row}" ]] && continue
+    id="$(printf '%s' "${row}" | jq -r '.id')"
+    digest="$(printf '%s' "${row}" | jq -r '.name')"
+    source_ref="${IMAGE_REGISTRY}@${digest}"
+    mapfile -t keep_tags < <(printf '%s' "${row}" | jq -r '.keep_tags[]')
+    (( ${#keep_tags[@]} > 0 )) || continue
+
+    tag_args=()
+    local keep_tag
+    for keep_tag in "${keep_tags[@]}"; do
+      tag_args+=(-t "${IMAGE_REGISTRY}:${keep_tag}")
+    done
+    annotation="index:org.projectious-work.aibox.source-tag-detached=$(date -u +%Y%m%dT%H%M%SZ)"
+
+    if [[ "${execute}" != "true" ]]; then
+      printf '  repair/mixed id=%s source=%s keep-tags=%s\n' \
+        "${id}" "${source_ref}" "$(IFS=,; printf '%s' "${keep_tags[*]}")"
+      continue
+    fi
+
+    info "Moving non-source tag(s) off mixed GHCR package version ${id}: $(IFS=,; printf '%s' "${keep_tags[*]}")"
+    ${RUNTIME_BIN} buildx imagetools create \
+      --prefer-index=true \
+      --annotation "${annotation}" \
+      "${tag_args[@]}" \
+      "${source_ref}" \
+      || die "Failed to move non-source tags off mixed GHCR package version ${id}"
+    ok "Moved non-source tag(s) for mixed GHCR package version ${id}"
+  done < <(printf '%s' "${mixed_json}" | jq -c '.[]')
+}
+
+cmd_ghcr_prune_source_tags() {
+  local execute=false
+  local repair_mixed=false
+  while [[ $# -gt 0 ]]; do
+    case "$1" in
+      --execute) execute=true ;;
+      --repair-mixed) repair_mixed=true ;;
+      --dry-run) ;;
+      *) die "Usage: ./scripts/maintain.sh ghcr-prune-source-tags [--repair-mixed] [--execute]" ;;
+    esac
+    shift
+  done
+
+  if ! command -v gh >/dev/null 2>&1; then
+    die "gh CLI is required for GHCR package cleanup"
+  fi
+  if ! command -v jq >/dev/null 2>&1; then
+    die "jq is required for GHCR package cleanup"
+  fi
+
+  info "Scanning GHCR aibox package versions for public source-hash tags..."
+  local versions_json
+  versions_json="$(ghcr_package_versions_json)"
+  local source_only_json mixed_json source_only_count mixed_count
+  ghcr_source_tag_sets "${versions_json}" source_only_json mixed_json
+  source_only_count="$(printf '%s' "${source_only_json}" | jq 'length')"
+  mixed_count="$(printf '%s' "${mixed_json}" | jq 'length')"
+
+  if (( mixed_count > 0 )); then
+    warn "Found ${mixed_count} package version(s) where source-hash tags share a manifest with non-source tags."
+    warn "GitHub's package-version delete API would delete every tag on those versions, so these are reported but not deleted directly."
+    printf '%s' "${mixed_json}" | jq -r '.[] | "  keep/mixed id=\(.id) tags=\(.tags | join(","))"'
+    if [[ "${repair_mixed}" == "true" ]]; then
+      ghcr_repair_mixed_source_tags "${mixed_json}" "${execute}"
+      if [[ "${execute}" == "true" ]]; then
+        info "Re-scanning GHCR after mixed-version repair..."
+        versions_json="$(ghcr_package_versions_json)"
+        ghcr_source_tag_sets "${versions_json}" source_only_json mixed_json
+        source_only_count="$(printf '%s' "${source_only_json}" | jq 'length')"
+        mixed_count="$(printf '%s' "${mixed_json}" | jq 'length')"
+        if (( mixed_count > 0 )); then
+          warn "${mixed_count} mixed source-hash package version(s) remain after repair attempt."
+          printf '%s' "${mixed_json}" | jq -r '.[] | "  keep/mixed id=\(.id) tags=\(.tags | join(","))"'
+        fi
+      else
+        warn "Dry run only. Re-run with --repair-mixed --execute to move non-source tags off mixed versions."
+      fi
+    else
+      warn "Re-run with --repair-mixed to plan moving non-source tags off mixed versions."
+      warn "Use --repair-mixed --execute only after reviewing the plan."
+    fi
+  fi
+
+  if (( source_only_count == 0 )); then
+    ok "No source-hash-only GHCR package versions found."
+    return 0
+  fi
+
+  printf '%s' "${source_only_json}" | jq -r '.[] | "  source-only id=\(.id) tags=\(.tags | join(","))"'
+  if [[ "${execute}" != "true" ]]; then
+    warn "Dry run only. Re-run with --execute to delete the ${source_only_count} source-hash-only package version(s)."
+    return 0
+  fi
+
+  warn "Deleting ${source_only_count} source-hash-only GHCR package version(s)."
+  local id delete_output
+  while IFS= read -r id; do
+    [[ -z "${id}" ]] && continue
+    if ! delete_output="$(gh api -X DELETE "/orgs/projectious-work/packages/container/aibox/versions/${id}" 2>&1)"; then
+      if [[ "${delete_output}" == *"delete:packages"* || "${delete_output}" == *"HTTP 403"* ]]; then
+        die "Deleting GHCR package versions requires a GitHub token with delete:packages as well as read:packages."
+      fi
+      die "Failed to delete GHCR package version ${id}: ${delete_output}"
+    fi
+    ok "Deleted GHCR package version ${id}"
+  done < <(printf '%s' "${source_only_json}" | jq -r '.[].id')
 }
 
 cmd_docs_serve() {
@@ -787,13 +1201,14 @@ cmd_docs_deploy() {
   # into the URL when (a) the URL is HTTPS-on-github.com and (b) `gh auth
   # token` succeeds. SSH and other hosts pass through unchanged.
   local push_url="${remote_url}"
+  local push_auth_extraheader=()
   if [[ "${remote_url}" == https://github.com/* ]] && command -v gh &>/dev/null; then
     local gh_token
     if gh_token=$(gh auth token 2>/dev/null) && [[ -n "${gh_token}" ]]; then
-      push_url="https://x-access-token:${gh_token}@github.com/${repo_slug}.git"
+      push_auth_extraheader=(-c "http.https://github.com/.extraheader=AUTHORIZATION: bearer ${gh_token}")
     fi
   fi
-  git push --force "${push_url}" gh-pages:gh-pages
+  git "${push_auth_extraheader[@]}" push --force "${push_url}" gh-pages:gh-pages
   cd "${PROJECT_ROOT}"
   ok "Deployed to gh-pages branch"
 
@@ -1239,6 +1654,7 @@ release_requires_clean_tree() {
 
 release_collect_linux_archives() {
   local version="$1" target archive checksum
+  [[ -f "${PROJECT_ROOT}/LICENSE" ]] || die "LICENSE file is required for release archives."
   built_archives=()
   for target in aarch64-unknown-linux-gnu x86_64-unknown-linux-gnu; do
     archive="${DIST_DIR}/aibox-v${version}-${target}.tar.gz"
@@ -1247,6 +1663,26 @@ release_collect_linux_archives() {
     [[ -f "${checksum}" ]] || die "Missing release checksum ${checksum}; run --steps build first."
     built_archives+=("${archive}" "${checksum}")
   done
+}
+
+release_license_name() {
+  local first_line
+  first_line="$(sed -n '1p' "${PROJECT_ROOT}/LICENSE" | tr -d '\r')"
+  [[ -n "${first_line}" ]] || die "LICENSE first line is empty; cannot derive README license notice."
+  printf '%s' "${first_line}"
+}
+
+release_validate_license_guardrails() {
+  [[ -f "${PROJECT_ROOT}/LICENSE" ]] || die "LICENSE file is required before release."
+  [[ -f "${PROJECT_ROOT}/README.md" ]] || die "README.md is required before release."
+
+  local license_name expected_notice readme_text
+  license_name="$(release_license_name)"
+  expected_notice="Unless otherwise noted, the copyright holder grants the ${license_name} for all versions of this repository, including historical commits and tags."
+  readme_text="$(tr '\n' ' ' < "${PROJECT_ROOT}/README.md" | tr -s ' ')"
+  if [[ "${readme_text}" != *"${expected_notice}"* ]]; then
+    die "README.md must contain the retroactive license notice: ${expected_notice}"
+  fi
 }
 
 cmd_release() {
@@ -1300,6 +1736,7 @@ cmd_release() {
   local built_archives=()
   release_parse_steps "${steps_spec}"
   release_apply_skip_steps "${skip_spec}"
+  release_validate_license_guardrails
 
   info "Preparing release ${tag} with steps: $(release_steps_joined)"
 
@@ -1458,7 +1895,9 @@ cmd_release() {
         || die "cargo build failed for ${target}"
       local binary_name="aibox-v${version}-${target}"
       cp "${CLI_DIR}/target/${target}/release/aibox" "${DIST_DIR}/${binary_name}"
-      tar -czf "${DIST_DIR}/${binary_name}.tar.gz" -C "${DIST_DIR}" "${binary_name}"
+      tar -czf "${DIST_DIR}/${binary_name}.tar.gz" \
+        -C "${DIST_DIR}" "${binary_name}" \
+        -C "${PROJECT_ROOT}" LICENSE
       rm "${DIST_DIR}/${binary_name}"
       sha256sum "${DIST_DIR}/${binary_name}.tar.gz" | awk '{print $1}' > "${DIST_DIR}/${binary_name}.tar.gz.sha256"
       built_archives+=("${DIST_DIR}/${binary_name}.tar.gz")
@@ -1533,8 +1972,9 @@ cmd_release() {
       --repo "${GITHUB_REPO}" \
       --title "aibox ${tag}" \
       --notes-file "${notes_file}" \
+      "${PROJECT_ROOT}/LICENSE" \
       "${built_archives[@]}"
-    ok "GitHub release ${tag} created with Linux binaries"
+    ok "GitHub release ${tag} created with Linux binaries and LICENSE"
   fi
 
   if release_step_requested docs; then
@@ -1636,10 +2076,14 @@ cmd_release_host() {
   if ! gh release view "${tag}" --repo "${GITHUB_REPO}" &>/dev/null; then
     die "GitHub release ${tag} not found. Run 'release' in the container first."
   fi
+  gh release upload "${tag}" "${PROJECT_ROOT}/LICENSE" \
+    --repo "${GITHUB_REPO}" \
+    --clobber \
+    || warn "LICENSE upload failed — verify the GitHub release includes LICENSE"
   gh release upload "${tag}" "${DIST_DIR}"/aibox-v${version}-*-apple-darwin.tar.gz "${DIST_DIR}"/aibox-v${version}-*-apple-darwin.tar.gz.sha256 \
     --repo "${GITHUB_REPO}" \
     || warn "Upload failed — binaries may already be attached"
-  ok "macOS binaries and checksums uploaded to ${tag}"
+  ok "macOS binaries, checksums, and LICENSE uploaded to ${tag}"
 
   # ── Step 3: Publish container images ─────────────────────────────────────
   info "Publishing container images..."
@@ -1784,6 +2228,7 @@ case "${COMMAND}" in
   test-e2e-doc-captures) cmd_test_e2e_doc_captures ;;
   build-images) cmd_build_images "$@" ;;
   push-images)  cmd_push_images "$@" ;;
+  ghcr-prune-source-tags) cmd_ghcr_prune_source_tags "$@" ;;
   release-runtime-smoke) cmd_release_runtime_smoke "$@" ;;
   docs-serve)   cmd_docs_serve ;;
   docs-deploy)  cmd_docs_deploy "$@" ;;

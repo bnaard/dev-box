@@ -83,7 +83,9 @@ for target in "${TARGETS[@]}"; do
 
   local_name="aibox-${VERSION_TAG}${target}"
   cp "${CLI_DIR}/target/${target}/release/aibox" "${DIST_DIR}/${local_name}"
-  tar -czf "${DIST_DIR}/${local_name}.tar.gz" -C "${DIST_DIR}" "${local_name}"
+  tar -czf "${DIST_DIR}/${local_name}.tar.gz" \
+    -C "${DIST_DIR}" "${local_name}" \
+    -C "${PROJECT_ROOT}" LICENSE
   rm "${DIST_DIR}/${local_name}"
   shasum -a 256 "${DIST_DIR}/${local_name}.tar.gz" | awk '{print $1}' > "${DIST_DIR}/${local_name}.tar.gz.sha256"
   ok "Built ${local_name}.tar.gz"

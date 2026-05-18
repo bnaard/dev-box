@@ -461,7 +461,7 @@ name = "test"
 
 [addons.python.tools]
 python = { version = "3.13" }
-	uv = { version = "0.11.14" }
+	uv = { version = "0.11.15" }
 "#,
         )
         .unwrap();

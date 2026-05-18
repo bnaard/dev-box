@@ -61,7 +61,7 @@ schema_version = "1.0.0"              # Context schema version (semver)
 
 [addons.python.tools]                 # Addon: Python runtime
 python = { version = "3.13" }
-uv     = { version = "0.11.14" }
+uv     = { version = "0.11.15" }
 
 [addons.rust.tools]                   # Addon: Rust toolchain
 rustc   = { version = "1.87" }
@@ -364,7 +364,7 @@ to install their CLIs.
 ```toml
 [addons.python.tools]
 python = { version = "3.13" }
-uv = { version = "0.11.14" }
+uv = { version = "0.11.15" }
 ```
 
 For interactive Git tooling:

@@ -6,6 +6,14 @@ log_path="${AIBOX_LOG_PATH:-${workspace}/.aibox/aibox.log}"
 rotated_path="${AIBOX_LOG_ROTATED_PATH:-${log_path}.1}"
 runtime_log_path="${AIBOX_RUNTIME_EVENTS_LOG:-${workspace}/.aibox/runtime-events.log}"
 runtime_rotated_path="${AIBOX_RUNTIME_EVENTS_ROTATED_PATH:-${runtime_log_path}.1}"
+runtime_session_path="${AIBOX_RUNTIME_SESSION_PATH:-${workspace}/.aibox/runtime-session.json}"
+runtime_session_id="${AIBOX_RUNTIME_SESSION_ID:-}"
+runtime_started_at="${AIBOX_RUNTIME_STARTED_AT:-}"
+
+if [ -z "$runtime_session_id" ] && [ -r "$runtime_session_path" ] && command -v jq >/dev/null 2>&1; then
+  runtime_session_id="$(jq -r '.runtime_session_id // empty' "$runtime_session_path" 2>/dev/null || true)"
+  runtime_started_at="$(jq -r '.container_started_at // empty' "$runtime_session_path" 2>/dev/null || true)"
+fi
 
 logs=()
 if [ -r "$rotated_path" ]; then
@@ -36,15 +44,36 @@ if command -v aibox-log-viewer-vim >/dev/null 2>&1; then
   export EDITOR=aibox-log-viewer-vim
 fi
 
-less_flags=(-R +G)
+less_flags=(-R -S)
 if less --help 2>&1 | grep -q -- '--mouse'; then
   less_flags=(--mouse --wheel-lines=3 "${less_flags[@]}")
 fi
 
+less_key_args=()
+less_key_file=""
+if less --help 2>&1 | grep -q -- '--lesskey-src'; then
+  less_key_file="$(mktemp -t aibox-log-viewer-lesskey.XXXXXX)"
+cat > "$less_key_file" <<'LESSKEY'
+#command
+E noaction
+; filter ERROR\n
+, filter ERROR|WARN|WARNING\n
+LESSKEY
+  less_key_args=(--lesskey-src="$less_key_file")
+fi
+
+write_less_help() {
+  printf '\033[2mKeys: ; errors | , warnings+errors | & custom filter | / search | n/N next/prev | Left/Right horizontal | q quit\033[0m\n\n'
+  if [ -n "$runtime_session_id" ]; then
+    printf '\033[2mScope: current runtime session %s started=%s, newest first. Set AIBOX_LOG_VIEWER_ALL_SESSIONS=1 to inspect historical sessions.\033[0m\n\n' "$runtime_session_id" "${runtime_started_at:-unknown}"
+  fi
+}
+
 if command -v jq >/dev/null 2>&1; then
   tmp="$(mktemp -t aibox-log-viewer.XXXXXX)"
-  trap 'rm -f "$tmp"' EXIT
-  jq -r -n '
+  trap 'rm -f "$tmp" "$less_key_file"' EXIT
+  write_less_help > "$tmp"
+  jq -r -n --arg runtime_session_id "$runtime_session_id" --arg all_sessions "${AIBOX_LOG_VIEWER_ALL_SESSIONS:-0}" '
     def value($v): ($v // "-") | tostring;
     def source($row):
       if ($row.source // "") == "runtime" then "runtime" else "cli" end;
@@ -75,15 +104,18 @@ if command -v jq >/dev/null 2>&1; then
       else
         "\(display_ts($row))  \(painted_level($row))  [cli] \(value($row.cmd // $row.command))  v\(value($row.version))  \(value($row.duration_ms))ms  exit=\(value($row.exit_code))  \(value($row.msg // $row.message))"
       end;
-    foreach ([inputs] | sort_by([sort_ts(.), source(.)]))[] as $row ({first: true, last: null};
+    foreach ([inputs]
+      | map(select(($all_sessions == "1") or ($runtime_session_id == "") or (session_id(.) == $runtime_session_id)))
+      | sort_by([sort_ts(.), source(.)])
+      | reverse)[] as $row ({first: true, last: null};
       (session_id($row)) as $sid
       | .emit_header = (.first or .last != $sid)
       | .first = false
       | .last = $sid;
       (if .emit_header then session_header($row) else empty end), render($row)
     )
-  ' "${logs[@]}" > "$tmp"
-  less "${less_flags[@]}" "$tmp"
+  ' "${logs[@]}" >> "$tmp"
+  less "${less_key_args[@]}" "${less_flags[@]}" "$tmp"
   exit $?
 fi
 
@@ -92,10 +124,16 @@ if command -v lnav >/dev/null 2>&1; then
 fi
 
 if [ "${#logs[@]}" -eq 1 ]; then
-  exec less "${less_flags[@]}" "${logs[0]}"
+  tmp="$(mktemp -t aibox-log-viewer.XXXXXX)"
+  trap 'rm -f "$tmp" "$less_key_file"' EXIT
+  write_less_help > "$tmp"
+  cat "${logs[0]}" >> "$tmp"
+  less "${less_key_args[@]}" "${less_flags[@]}" "$tmp"
+  exit $?
 fi
 
 tmp="$(mktemp -t aibox-log-viewer.XXXXXX)"
-trap 'rm -f "$tmp"' EXIT
-cat "${logs[@]}" > "$tmp"
-less "${less_flags[@]}" "$tmp"
+trap 'rm -f "$tmp" "$less_key_file"' EXIT
+write_less_help > "$tmp"
+cat "${logs[@]}" >> "$tmp"
+less "${less_key_args[@]}" "${less_flags[@]}" "$tmp"

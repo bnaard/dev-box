@@ -145,7 +145,9 @@ After release:
 - `gh release view vX.Y.Z` shows all expected binary assets.
 - `curl -fsSL https://raw.githubusercontent.com/projectious-work/aibox/main/scripts/install.sh | VERSION=X.Y.Z bash` installs the expected version.
 - `aibox --version` reports `X.Y.Z`.
-- `docker pull ghcr.io/projectious-work/aibox:base-debian-vX.Y.Z` or the matching Podman pull succeeds.
+- For `v0.26.x`, `docker pull ghcr.io/projectious-work/aibox:base-debian-vX.Y.Z` or the matching Podman pull succeeds.
+- For `v0.27.0+`, `docker pull ghcr.io/projectious-work/aibox:base-debian-runtime-vX.Y.Z` and `base-debian-runtime-latest` succeed. Foundation images are published as `base-debian-foundation-vX.Y.Z`; source-hash marker tags are not published.
+- To remove historical source-hash marker tags from GHCR, first run `./scripts/maintain.sh ghcr-prune-source-tags --repair-mixed` and review the mixed-version repair plan. Then run `./scripts/maintain.sh ghcr-prune-source-tags --repair-mixed --execute` with `read:packages`, `delete:packages`, and Docker Buildx available on the host.
 - The docs site at `https://projectious-work.github.io/aibox/` reflects the release.
 
 ## Project Devcontainer

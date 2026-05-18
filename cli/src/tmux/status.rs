@@ -54,7 +54,7 @@ unbind C-b
 bind AIBOX_TMUX_PREFIX send-prefix
 
 # Pane navigation mirrors the old aibox leader muscle memory.
-bind-key -N "Show aibox/tmux key bindings" ? display-popup -w 110 -h 90% -E "bash \"$HOME/.local/bin/aibox-tmux-cheatsheet\" | less -RS"
+bind-key -N "Show aibox/tmux key bindings" ? display-popup -w 110 -h 90% -E "bash \"$HOME/.local/bin/aibox-tmux-cheatsheet\""
 bind-key -N "Select pane left" h select-pane -L
 bind-key -N "Select pane down / next harness pane" j select-pane -D
 bind-key -N "Select pane up / prev harness pane" k select-pane -U
@@ -66,13 +66,20 @@ bind-key -N "Toggle pane zoom" f resize-pane -Z
 bind-key -N "Toggle pane zoom (alias)" z resize-pane -Z
 bind-key -N "Kill tmux session" q confirm-before -p "kill tmux session AIBOX_TMUX_SESSION? (y/n)" kill-session
 bind-key -N "Reload tmux config" R source-file ~/.config/tmux/tmux.conf \; display-message "aibox tmux config reloaded"
-bind-key -N "Open log pane (lnav)" L display-popup -E -w 90% -h 80% "aibox-log-viewer"
+bind-key -N "Open log pane (lnav)" o display-popup -E -w 90% -h 80% "aibox-log-viewer"
 
 # BR-TOOLS-AS-WINDOWS (BACK-20260510_0726-GrandDaisy, v0.25.7): one-letter
 # prefix shortcuts to jump directly to named tool/harness windows.
 # find-window -Z focuses the target window; silently no-ops when absent.
 bind-key -N "Switch to lazygit window" g find-window -Z 'lazygit'
 bind-key -N "Switch to shell window" s find-window -Z 'shell'
+
+# Host paste sends line-feed bytes for newlines, and line-feed is C-j.
+# Binding global C-j makes pasted multiline text corrupt in panes. Keep smart
+# down navigation on C-Down and prefix j instead.
+unbind-key -q -n C-j
+unbind-key -q -T copy-mode-vi C-j
+set -g @vim_navigator_mapping_down "C-Down"
 
 AIBOX_TMUX_LAYOUT_SWITCH_BINDING
 AIBOX_TMUX_THEME_SWITCH_BINDING
@@ -1178,6 +1185,13 @@ mod tests {
             "aibox-managed tmux plugins should load from preinstalled pinned runtime paths:\n{conf}"
         );
         assert!(
+            conf.contains(r#"set -g @vim_navigator_mapping_down "C-Down""#)
+                && conf.contains("unbind-key -q -n C-j")
+                && conf.contains("unbind-key -q -T copy-mode-vi C-j")
+                && !conf.contains("bind-key -n C-j"),
+            "generated tmux config must not bind global C-j because pasted newlines arrive as LF/C-j:\n{conf}"
+        );
+        assert!(
             conf.contains(
                 r#"@powerkit_plugins "aibox_log,aibox_oom,aibox_proc,aibox_ai,aibox_mcp,aibox_mig,weather,uptime,datetime,forge,kubernetes,terraform,cloud,hostname,externalip,ssh,netspeed,ping,cpu,loadavg,memory,swap,disk,gpu""#
             )
@@ -1222,11 +1236,11 @@ mod tests {
         );
         assert!(
             conf.contains(
-            r#"bind-key -N "Show aibox/tmux key bindings" ? display-popup -w 110 -h 90% -E "bash \"$HOME/.local/bin/aibox-tmux-cheatsheet\" | less -RS""#
+            r#"bind-key -N "Show aibox/tmux key bindings" ? display-popup -w 110 -h 90% -E "bash \"$HOME/.local/bin/aibox-tmux-cheatsheet\"""#
             )
                 && conf.contains(r#"bind-key -N "Select pane left" h select-pane -L"#)
                 && conf.contains(
-                    r#"bind-key -N "Open log pane (lnav)" L display-popup -E -w 90% -h 80% "aibox-log-viewer""#
+                    r#"bind-key -N "Open log pane (lnav)" o display-popup -E -w 90% -h 80% "aibox-log-viewer""#
                 ),
             "generated persistent tmux config should expose the categorized cheatsheet popup:\n{conf}"
         );

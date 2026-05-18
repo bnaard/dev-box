@@ -149,9 +149,17 @@ fn release_scripts_publish_checksum_sidecars() {
         "maintain.sh must generate and upload sha256 sidecars for Linux and macOS release assets"
     );
     assert!(
+        maintain.contains("release_validate_license_guardrails")
+            && maintain.contains(r#"-C "${PROJECT_ROOT}" LICENSE"#)
+            && maintain.contains(r#""${PROJECT_ROOT}/LICENSE""#)
+            && maintain.contains("--clobber"),
+        "maintain.sh must enforce README license notice, include LICENSE in Linux tarballs, and upload LICENSE to GitHub releases"
+    );
+    assert!(
         build_macos.contains(r#"shasum -a 256 "${DIST_DIR}/${local_name}.tar.gz""#)
-            && build_macos.contains(r#"${DIST_DIR}/${local_name}.tar.gz.sha256"#),
-        "build-macos.sh must generate sha256 sidecars on macOS"
+            && build_macos.contains(r#"${DIST_DIR}/${local_name}.tar.gz.sha256"#)
+            && build_macos.contains(r#"-C "${PROJECT_ROOT}" LICENSE"#),
+        "build-macos.sh must generate sha256 sidecars on macOS and include LICENSE in macOS tarballs"
     );
     assert!(
         install.contains("sha256_digest()")
@@ -163,12 +171,38 @@ fn release_scripts_publish_checksum_sidecars() {
     );
     assert!(
         maintain.contains("image_source_sha()")
-            && maintain.contains("image_source_tag()")
+            && maintain.contains("image_foundation_tag()")
+            && maintain.contains("image_runtime_tag()")
+            && maintain.contains("image_runtime_latest_tag()")
+            && maintain.contains("read:packages")
+            && maintain.contains("delete:packages")
+            && maintain.contains("--repair-mixed")
+            && maintain.contains("--prefer-index=true")
+            && maintain.contains("source-tag-detached")
             && maintain.contains("buildx imagetools inspect")
             && maintain.contains("without rebuilding layers")
             && maintain.contains("require_docker_buildx_for_images")
             && maintain.contains("Docker Buildx is required"),
-        "maintain.sh must support source-hash image retagging and require Docker Buildx for BuildKit-only image builds"
+        "maintain.sh must support label-based image retagging and require Docker Buildx for BuildKit-only image builds"
+    );
+}
+
+#[test]
+fn image_fallback_tmux_config_does_not_bind_global_ctrl_j() {
+    let manifest_dir = env!("CARGO_MANIFEST_DIR");
+    let repo_root = std::path::Path::new(manifest_dir).parent().unwrap();
+    let tmux = std::fs::read_to_string(repo_root.join("images/base-debian/config/tmux/tmux.conf"))
+        .expect("read image fallback tmux.conf");
+
+    assert!(
+        tmux.contains(r#"set -g @vim_navigator_mapping_down "C-Down""#)
+            && tmux.contains("unbind-key -q -n C-j")
+            && tmux.contains("unbind-key -q -T copy-mode-vi C-j")
+            && tmux.contains("bind-key -n C-Down")
+            && tmux.contains("bind-key -T copy-mode-vi C-Down")
+            && !tmux.contains("bind-key -n C-j")
+            && !tmux.contains("bind-key -T copy-mode-vi C-j"),
+        "image fallback tmux.conf must not bind global C-j because pasted newlines arrive as LF/C-j:\n{tmux}"
     );
 }
 

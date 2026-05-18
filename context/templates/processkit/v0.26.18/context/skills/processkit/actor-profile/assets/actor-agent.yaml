@@ -1,0 +1,17 @@
+---
+apiVersion: processkit.projectious.work/v2
+kind: Actor
+metadata:
+  id: ACTOR-TODO
+  created: TODO
+spec:
+  type: ai-agent
+  name: TODO
+  handle: TODO
+  expertise: []
+  preferences:
+    model_id: TODO
+    provider: TODO
+  active: true
+  joined_at: TODO
+---

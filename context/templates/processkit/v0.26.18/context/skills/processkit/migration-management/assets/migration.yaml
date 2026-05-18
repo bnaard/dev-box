@@ -1,0 +1,48 @@
+---
+apiVersion: processkit.projectious.work/v2
+kind: Migration
+metadata:
+  id: MIG-TODO
+  created: TODO
+spec:
+  source: TODO
+  kind: source-upgrade
+  source_url: TODO
+  from_version: TODO
+  to_version: TODO
+  state: pending
+  generated_by: TODO
+  generated_at: TODO
+  summary: TODO
+  affected_files: []
+  affected_groups: []
+  plan: ''
+  progress_notes: []
+  source_api_version: processkit.projectious.work/v1
+  source_processkit_version: TODO
+  target_api_version: processkit.projectious.work/v2
+  target_processkit_version: TODO
+  apply_mode: one-shot
+---
+
+# Migration briefing
+
+## Summary
+
+TODO — what this migration is about, in 1-2 paragraphs.
+
+## What changed upstream
+
+TODO — bullet list of changed/added/removed entities.
+
+## Affected project files
+
+TODO — table or list of files in this project, classified.
+
+## Plan (drafted by agent + user, approved before transition)
+
+TODO — fill in after user reviews the briefing.
+
+## Progress notes
+
+(append-only as work proceeds)

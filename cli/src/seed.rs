@@ -768,6 +768,7 @@ const DEFAULT_CHEATSHEET: &str = r#"  aibox Quick Reference  (prefix = Ctrl+g)
   prefix L        Layout menu c p/d/f  Copy path/dir/name
   prefix T        Theme menu  g r      Refresh git
   prefix [        Copy mode
+  prefix o        Log viewer
   prefix R        Reload cfg
   prefix q        Quit session
   prefix ?        Full cheatsheet popup
@@ -2586,6 +2587,11 @@ mod tests {
             "aibox-tmux-confirm-and-switch must be seeded"
         );
         assert!(cheatsheet.exists(), "aibox-tmux-cheatsheet must be seeded");
+        let cheatsheet_body = fs::read_to_string(&cheatsheet).unwrap();
+        assert!(
+            cheatsheet_body.is_ascii(),
+            "aibox-tmux-cheatsheet must stay ASCII-only so line art does not render as raw UTF-8 bytes in conservative terminals"
+        );
 
         #[cfg(unix)]
         {

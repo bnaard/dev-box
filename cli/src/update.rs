@@ -35,6 +35,15 @@ const GHCR_MANIFEST_ACCEPT: &str = concat!(
     "application/vnd.oci.image.manifest.v1+json, ",
     "application/vnd.docker.distribution.manifest.v2+json"
 );
+const IMAGE_TAG_PREFIX_RUNTIME: &str = "base-{}-runtime-v";
+const IMAGE_TAG_PREFIX_LEGACY: &str = "base-{}-v";
+
+#[derive(Debug)]
+struct ImageTagCandidate {
+    is_runtime: bool,
+    tag: String,
+    version: semver::Version,
+}
 
 /// Query the GHCR tags list for the given image flavor and return the highest
 /// semver version found.
@@ -45,27 +54,27 @@ const GHCR_MANIFEST_ACCEPT: &str = concat!(
 /// fresh `aibox apply` would keep resolving `latest` to a long-stale image
 /// (BACK-20260514_1902-ShinyLake).
 pub(crate) fn fetch_latest_image_version(flavor: &str) -> Result<semver::Version> {
-    let prefix = format!("base-{}-v", flavor);
     let all_tags = fetch_all_ghcr_tags()?;
 
-    let mut versions: Vec<semver::Version> = all_tags
+    let mut versions: Vec<ImageTagCandidate> = all_tags
         .iter()
-        .filter_map(|tag| {
-            tag.strip_prefix(&prefix)
-                .and_then(|v| semver::Version::parse(v).ok())
-        })
+        .filter_map(|tag| parse_image_tag_version(tag, flavor))
         .collect();
 
     if versions.is_empty() {
         anyhow::bail!("No published tags found for flavor '{}'", flavor);
     }
 
-    versions.sort_by(|a, b| b.cmp(a));
+    versions.sort_by(|a, b| {
+        b.version
+            .cmp(&a.version)
+            .then_with(|| b.is_runtime.cmp(&a.is_runtime))
+    });
 
-    for version in versions {
-        let tag = format!("{}{}", prefix, version);
+    for candidate in versions {
+        let tag = candidate.tag;
         match ghcr_image_manifest_is_complete(&tag) {
-            Ok(true) => return Ok(version),
+            Ok(true) => return Ok(candidate.version),
             Ok(false) => continue,
             Err(err) => {
                 return Err(err).with_context(|| format!("Failed to verify GHCR tag '{tag}'"));
@@ -77,6 +86,33 @@ pub(crate) fn fetch_latest_image_version(flavor: &str) -> Result<semver::Version
         "No usable published tags found for flavor '{}' — all matching GHCR tags have incomplete manifests",
         flavor
     )
+}
+
+fn parse_image_tag_version(tag: &str, flavor: &str) -> Option<ImageTagCandidate> {
+    let runtime_prefix = IMAGE_TAG_PREFIX_RUNTIME.replace("{}", flavor);
+    let legacy_prefix = IMAGE_TAG_PREFIX_LEGACY.replace("{}", flavor);
+
+    if let Some(raw_version) = tag.strip_prefix(&runtime_prefix) {
+        return semver::Version::parse(raw_version)
+            .ok()
+            .map(|version| ImageTagCandidate {
+                is_runtime: true,
+                tag: tag.to_string(),
+                version,
+            });
+    }
+
+    if let Some(raw_version) = tag.strip_prefix(&legacy_prefix) {
+        return semver::Version::parse(raw_version)
+            .ok()
+            .map(|version| ImageTagCandidate {
+                is_runtime: false,
+                tag: tag.to_string(),
+                version,
+            });
+    }
+
+    None
 }
 
 /// Walk every page of the GHCR tag listing for the aibox repository,
@@ -564,6 +600,26 @@ mod tests {
         assert_eq!(parse_next_link_url(""), None);
         assert_eq!(parse_next_link_url(r#"rel="next""#), None);
         assert_eq!(parse_next_link_url("<>; rel=\"next\""), None);
+    }
+
+    #[test]
+    fn parse_image_tag_version_supports_runtime_and_legacy_prefixes() {
+        let runtime = parse_image_tag_version("base-debian-runtime-v0.27.0", "debian")
+            .expect("runtime tag should parse");
+        assert_eq!(runtime.version.to_string(), "0.27.0");
+        assert!(runtime.is_runtime);
+
+        let legacy = parse_image_tag_version("base-debian-v0.26.0", "debian")
+            .expect("legacy tag should parse");
+        assert_eq!(legacy.version.to_string(), "0.26.0");
+        assert!(!legacy.is_runtime);
+    }
+
+    #[test]
+    fn parse_image_tag_version_ignores_non_semver_suffixes() {
+        assert!(parse_image_tag_version("base-debian-runtime-latest", "debian").is_none());
+        assert!(parse_image_tag_version("base-debian-latest", "debian").is_none());
+        assert!(parse_image_tag_version("base-ubuntu-v1.2.3", "debian").is_none());
     }
 
     #[test]

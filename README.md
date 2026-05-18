@@ -167,3 +167,6 @@ Do not hardcode processkit vocabulary in production Rust code. Add constants to
 ## License
 
 MIT. See [LICENSE](LICENSE).
+
+Unless otherwise noted, the copyright holder grants the MIT License for all
+versions of this repository, including historical commits and tags.

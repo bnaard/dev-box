@@ -1,4 +1,5 @@
 use anyhow::{Context, Result, bail};
+use semver::Version;
 use std::path::{Path, PathBuf};
 
 use crate::config::{
@@ -3818,15 +3819,38 @@ fn resolve_aibox_image_version_for_generation(config: &mut AiboxConfig, project_
 fn previous_concrete_image_version(project_root: &Path) -> Option<String> {
     let dockerfile = project_root.join(crate::config::DOCKERFILE);
     let content = std::fs::read_to_string(dockerfile).ok()?;
-    content.lines().find_map(|line| {
-        let (_, tag) = line.split_once("base-debian-v")?;
-        let version = tag
+    let base = crate::config::BaseImage::Debian.to_string();
+    content
+        .lines()
+        .find_map(|line| parse_dockerfile_image_version(line, &base))
+}
+
+fn parse_dockerfile_image_version(line: &str, base: &str) -> Option<String> {
+    let image_ref = line.split_whitespace().find(|part| part.contains(':'))?;
+    let (_, tag) = image_ref.rsplit_once(':')?;
+    let prefixes = [
+        format!("base-{}-runtime-v", base),
+        format!("base-{}-v", base),
+    ];
+
+    for prefix in &prefixes {
+        let Some(version_str) = tag.strip_prefix(prefix) else {
+            continue;
+        };
+        let version = version_str
             .split(|ch: char| !(ch.is_ascii_digit() || ch == '.'))
             .next()
             .unwrap_or_default();
-        (!version.is_empty() && version != "latest" && version != "unset")
-            .then(|| version.to_string())
-    })
+        if version.is_empty() || version == "latest" || version == "unset" {
+            return None;
+        }
+        if Version::parse(version).is_err() {
+            return None;
+        }
+        return Some(version.to_string());
+    }
+
+    None
 }
 
 /// Probe for a container runtime and build the project image.
@@ -4485,6 +4509,59 @@ rich = {}
         assert!(
             should_warn_version_mismatch("0.0.1", "0.0.1"),
             "warning must fire when user pinned a concrete version that differs from CLI"
+        );
+    }
+
+    #[test]
+    fn parse_dockerfile_image_version_supports_legacy_and_runtime_tag_families() {
+        assert_eq!(
+            parse_dockerfile_image_version(
+                "FROM ghcr.io/projectious-work/aibox:base-debian-runtime-v0.27.3 AS aibox",
+                "debian"
+            ),
+            Some("0.27.3".to_string())
+        );
+        assert_eq!(
+            parse_dockerfile_image_version(
+                "FROM ghcr.io/projectious-work/aibox:base-debian-v0.26.3 AS aibox",
+                "debian"
+            ),
+            Some("0.26.3".to_string())
+        );
+    }
+
+    #[test]
+    fn parse_dockerfile_image_version_ignores_non_versioned_aliases() {
+        assert_eq!(
+            parse_dockerfile_image_version(
+                "FROM ghcr.io/projectious-work/aibox:base-debian-runtime-latest AS aibox",
+                "debian"
+            ),
+            None
+        );
+        assert_eq!(
+            parse_dockerfile_image_version(
+                "FROM ghcr.io/projectious-work/aibox:base-debian-latest AS aibox",
+                "debian"
+            ),
+            None
+        );
+    }
+
+    #[test]
+    fn previous_concrete_image_version_recovers_from_legacy_and_runtime_dockerfile_tags() {
+        let tmp = tempfile::tempdir().unwrap();
+        let dockerfile = tmp.path().join(".devcontainer/Dockerfile");
+        std::fs::create_dir_all(dockerfile.parent().unwrap()).unwrap();
+        std::fs::write(
+            &dockerfile,
+            "FROM ghcr.io/projectious-work/aibox:base-debian-runtime-v0.27.1 AS aibox\n",
+        )
+        .unwrap();
+
+        assert_eq!(
+            previous_concrete_image_version(tmp.path()),
+            Some("0.27.1".to_string())
         );
     }
 

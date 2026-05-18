@@ -493,6 +493,11 @@ pub static COMPAT_TABLE: &[CompatEntry] = &[
         processkit_version: "v0.26.16",
         note: "Patch release: integrates processkit v0.26.16; refreshes the processkit template mirror, provenance, MCP manifest, TeamMember privacy defaults, and team consistency checks; makes latest image resolution skip GHCR tags whose multi-arch manifest children have been pruned.",
     },
+    CompatEntry {
+        aibox_version: "0.27.0",
+        processkit_version: "v0.27.0",
+        note: "Minor release: integrates processkit v0.27.0 and the v0.26.17 supply-chain audit surface; switches the next-minor GHCR image scheme to foundation/runtime tags, stops publishing public source-hash marker tags, preserves legacy base-debian-v0.26.x compatibility, adds GHCR source-tag cleanup tooling, adds release LICENSE guardrails, and fixes pasted host newlines by removing global tmux C-j navigation.",
+    },
 ];
 
 /// Find the minimum compatible processkit version for the given aibox version.

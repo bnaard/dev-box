@@ -336,7 +336,7 @@ check_github_pin "starship" "${BASE_DOCKERFILE}" "STARSHIP_VERSION" "starship/st
 section "Unpinned Image Inputs"
 line "| Input | Current selector | Latest/Review target | Status |"
 line "|---|---|---|---|"
-uv_pin="0.11.14"
+uv_pin="0.11.15"
 uv_latest="$(github_latest_release astral-sh/uv || true)"
 uv_status="current"
 if [[ -z "${uv_latest}" ]]; then

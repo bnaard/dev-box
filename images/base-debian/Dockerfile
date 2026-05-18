@@ -171,21 +171,9 @@ RUN mkdir -p /vim-colors/colors \
       https://raw.githubusercontent.com/dracula/vim/master/autoload/dracula.vim
 
 # =============================================================================
-# Runtime — minimal dev-container base image
+# Foundation image — OS + toolchain base shared across runtime variants.
 # =============================================================================
-# Estimated layer sizes (arm64, approximate):
-#   debian:trixie-slim base .............. ~75 MB
-#   Core apt (curl, git, vim, etc.) ...... ~105 MB
-#   Static binaries (10 tools) ........... ~85 MB
-#   Vim colorschemes ..................... ~0.1 MB
-#   Config files ......................... ~0.1 MB
-#   ─────────────────────────────────────────────
-#   Total estimate ....................... ~365 MB
-#
-# Preview/archive and audio helpers are opt-in addons; keep the base focused on
-# core aibox/processkit operation plus the interactive shell/file-manager core.
-# =============================================================================
-FROM debian:trixie-slim AS runtime
+FROM debian:trixie-slim AS foundation
 
 # Suppress debconf warnings during build — no TTY available in docker build
 ENV DEBIAN_FRONTEND=noninteractive
@@ -290,8 +278,23 @@ COPY --from=build-aibox-runtime-tools /build/aibox-runtime-tools/bin/aibox-diagn
 # image since v0.16.5 (DEC-036) so processkit's PEP 723 MCP server
 # scripts run via `uv run` out of the box. Works against the
 # externally-installed python3 from apt above.
-COPY --from=ghcr.io/astral-sh/uv:0.11.14 /uv /uvx /usr/local/bin/
+COPY --from=ghcr.io/astral-sh/uv:0.11.15 /uv /uvx /usr/local/bin/
 ENV UV_CACHE_DIR=/tmp/aibox/uv-cache
+
+ARG AIBOX_IMAGE_SOURCE_SHA=unknown
+ARG AIBOX_FOUNDATION_SOURCE_SHA=unknown
+ARG AIBOX_RUNTIME_SOURCE_SHA=unknown
+ARG AIBOX_IMAGE_BUILD_VERSION=unknown
+LABEL org.projectious-work.aibox.image-kind="foundation" \
+      org.projectious-work.aibox.image-source-sha="${AIBOX_IMAGE_SOURCE_SHA}" \
+      org.projectious-work.aibox.image-foundation-source-sha="${AIBOX_FOUNDATION_SOURCE_SHA}" \
+      org.projectious-work.aibox.image-runtime-source-sha="${AIBOX_RUNTIME_SOURCE_SHA}" \
+      org.projectious-work.aibox.image-build-version="${AIBOX_IMAGE_BUILD_VERSION}"
+
+# =============================================================================
+# Runtime image — managed defaults and full dev-container behavior.
+# =============================================================================
+FROM foundation AS runtime
 
 # ── Bake default configs into the image ───────────────────────────────────────
 # These act as fallback defaults when no host directory is mounted.
@@ -444,8 +447,13 @@ ENTRYPOINT ["/usr/local/bin/entrypoint.sh"]
 WORKDIR /workspace
 
 ARG AIBOX_IMAGE_SOURCE_SHA=unknown
+ARG AIBOX_FOUNDATION_SOURCE_SHA=unknown
+ARG AIBOX_RUNTIME_SOURCE_SHA=unknown
 ARG AIBOX_IMAGE_BUILD_VERSION=unknown
 LABEL org.projectious-work.aibox.image-source-sha="${AIBOX_IMAGE_SOURCE_SHA}" \
+      org.projectious-work.aibox.image-kind="runtime" \
+      org.projectious-work.aibox.image-foundation-source-sha="${AIBOX_FOUNDATION_SOURCE_SHA}" \
+      org.projectious-work.aibox.image-runtime-source-sha="${AIBOX_RUNTIME_SOURCE_SHA}" \
       org.projectious-work.aibox.image-build-version="${AIBOX_IMAGE_BUILD_VERSION}"
 
 # Keep the container alive — VS Code execs into it; tmux is launched via the terminal profile
