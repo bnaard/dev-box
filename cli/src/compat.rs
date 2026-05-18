@@ -491,7 +491,7 @@ pub static COMPAT_TABLE: &[CompatEntry] = &[
     CompatEntry {
         aibox_version: "0.26.8",
         processkit_version: "v0.26.16",
-        note: "Patch release: integrates processkit v0.26.16; refreshes the processkit template mirror, provenance, MCP manifest, TeamMember privacy defaults, and team consistency checks.",
+        note: "Patch release: integrates processkit v0.26.16; refreshes the processkit template mirror, provenance, MCP manifest, TeamMember privacy defaults, and team consistency checks; makes latest image resolution skip GHCR tags whose multi-arch manifest children have been pruned.",
     },
 ];
 

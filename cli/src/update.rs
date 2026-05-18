@@ -1,4 +1,5 @@
 use anyhow::{Context, Result};
+use serde_json::Value;
 use std::path::{Path, PathBuf};
 
 use crate::config::AiboxConfig;
@@ -28,6 +29,12 @@ struct GhRelease {
 /// the resolver capitulates — orders of magnitude past current usage and
 /// past Docker Registry's typical per-page cap.
 const GHCR_MAX_PAGES: usize = 50;
+const GHCR_MANIFEST_ACCEPT: &str = concat!(
+    "application/vnd.oci.image.index.v1+json, ",
+    "application/vnd.docker.distribution.manifest.list.v2+json, ",
+    "application/vnd.oci.image.manifest.v1+json, ",
+    "application/vnd.docker.distribution.manifest.v2+json"
+);
 
 /// Query the GHCR tags list for the given image flavor and return the highest
 /// semver version found.
@@ -53,8 +60,23 @@ pub(crate) fn fetch_latest_image_version(flavor: &str) -> Result<semver::Version
         anyhow::bail!("No published tags found for flavor '{}'", flavor);
     }
 
-    versions.sort();
-    Ok(versions.pop().unwrap())
+    versions.sort_by(|a, b| b.cmp(a));
+
+    for version in versions {
+        let tag = format!("{}{}", prefix, version);
+        match ghcr_image_manifest_is_complete(&tag) {
+            Ok(true) => return Ok(version),
+            Ok(false) => continue,
+            Err(err) => {
+                return Err(err).with_context(|| format!("Failed to verify GHCR tag '{tag}'"));
+            }
+        }
+    }
+
+    anyhow::bail!(
+        "No usable published tags found for flavor '{}' — all matching GHCR tags have incomplete manifests",
+        flavor
+    )
 }
 
 /// Walk every page of the GHCR tag listing for the aibox repository,
@@ -111,6 +133,76 @@ fn ghcr_get_tags_page(url: &str) -> Result<(Vec<String>, Option<String>)> {
     let body = response.into_body().read_to_string()?;
     let tags_list: TagsList = serde_json::from_str(&body)?;
     Ok((tags_list.tags, next))
+}
+
+fn ghcr_image_manifest_is_complete(tag: &str) -> Result<bool> {
+    let Some(manifest) = ghcr_get_manifest_json(tag)? else {
+        return Ok(false);
+    };
+
+    for digest in manifest_child_digests(&manifest) {
+        if ghcr_get_manifest_json(&digest)?.is_none() {
+            return Ok(false);
+        }
+    }
+
+    Ok(true)
+}
+
+fn ghcr_get_manifest_json(reference: &str) -> Result<Option<Value>> {
+    let url = format!("https://ghcr.io/v2/projectious-work/aibox/manifests/{reference}");
+    let response = match ureq::get(&url)
+        .header("User-Agent", "aibox-cli")
+        .header("Accept", GHCR_MANIFEST_ACCEPT)
+        .call()
+    {
+        Ok(r) => r,
+        Err(ureq::Error::StatusCode(401)) | Err(ureq::Error::StatusCode(403)) => {
+            let token_url = "https://ghcr.io/token?service=ghcr.io&scope=repository:projectious-work/aibox:pull";
+            let token_resp = ureq::get(token_url)
+                .header("User-Agent", "aibox-cli")
+                .call()?;
+            let token_body = token_resp.into_body().read_to_string()?;
+            let token_data: TokenResponse = serde_json::from_str(&token_body)?;
+            match ureq::get(&url)
+                .header("User-Agent", "aibox-cli")
+                .header("Accept", GHCR_MANIFEST_ACCEPT)
+                .header("Authorization", &format!("Bearer {}", token_data.token))
+                .call()
+            {
+                Ok(r) => r,
+                Err(ureq::Error::StatusCode(404)) => return Ok(None),
+                Err(e) => return Err(e.into()),
+            }
+        }
+        Err(ureq::Error::StatusCode(404)) => return Ok(None),
+        Err(e) => return Err(e.into()),
+    };
+
+    let body = response.into_body().read_to_string()?;
+    Ok(Some(serde_json::from_str(&body)?))
+}
+
+fn manifest_child_digests(manifest: &Value) -> Vec<String> {
+    let Some(media_type) = manifest.get("mediaType").and_then(Value::as_str) else {
+        return Vec::new();
+    };
+    if !matches!(
+        media_type,
+        "application/vnd.oci.image.index.v1+json"
+            | "application/vnd.docker.distribution.manifest.list.v2+json"
+    ) {
+        return Vec::new();
+    }
+
+    manifest
+        .get("manifests")
+        .and_then(Value::as_array)
+        .into_iter()
+        .flatten()
+        .filter_map(|entry| entry.get("digest").and_then(Value::as_str))
+        .map(ToOwned::to_owned)
+        .collect()
 }
 
 /// Parse a Docker Registry v2 / RFC 5988 `Link` header and extract the URL
@@ -472,6 +564,33 @@ mod tests {
         assert_eq!(parse_next_link_url(""), None);
         assert_eq!(parse_next_link_url(r#"rel="next""#), None);
         assert_eq!(parse_next_link_url("<>; rel=\"next\""), None);
+    }
+
+    #[test]
+    fn manifest_child_digests_extracts_index_children() {
+        let manifest = serde_json::json!({
+            "mediaType": "application/vnd.oci.image.index.v1+json",
+            "manifests": [
+                { "digest": "sha256:111" },
+                { "digest": "sha256:222" },
+                { "mediaType": "application/vnd.oci.image.manifest.v1+json" }
+            ]
+        });
+
+        assert_eq!(
+            manifest_child_digests(&manifest),
+            vec!["sha256:111".to_string(), "sha256:222".to_string()]
+        );
+    }
+
+    #[test]
+    fn manifest_child_digests_ignores_single_platform_manifest() {
+        let manifest = serde_json::json!({
+            "mediaType": "application/vnd.oci.image.manifest.v1+json",
+            "layers": []
+        });
+
+        assert!(manifest_child_digests(&manifest).is_empty());
     }
 
     #[test]
