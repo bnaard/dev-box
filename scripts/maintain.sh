@@ -669,7 +669,7 @@ cmd_build_images() {
           --build-arg "AIBOX_FOUNDATION_SOURCE_SHA=${foundation_sha}" \
           --build-arg "AIBOX_RUNTIME_SOURCE_SHA=${runtime_sha}" \
           --build-arg "AIBOX_IMAGE_BUILD_VERSION=${build_version}" \
-          "${foundation_cache_from_args[@]}" \
+          ${foundation_cache_from_args[@]+"${foundation_cache_from_args[@]}"} \
           --cache-to "type=registry,ref=${foundation_cache_ref},mode=max,ignore-error=true" \
           -t "${foundation_local}" \
           -f "${PROJECT_ROOT}/images/${flavor}/Dockerfile" \
@@ -681,7 +681,7 @@ cmd_build_images() {
           --build-arg "AIBOX_FOUNDATION_SOURCE_SHA=${foundation_sha}" \
           --build-arg "AIBOX_RUNTIME_SOURCE_SHA=${runtime_sha}" \
           --build-arg "AIBOX_IMAGE_BUILD_VERSION=${build_version}" \
-          "${runtime_cache_from_args[@]}" \
+          ${runtime_cache_from_args[@]+"${runtime_cache_from_args[@]}"} \
           --cache-to "type=registry,ref=${runtime_cache_ref},mode=max,ignore-error=true" \
           -t "${runtime_local}" \
           -t "${runtime_latest}" \
