@@ -90,7 +90,7 @@ RUN ARCH=$(uname -m) && \
     fi
 
 
-FROM ghcr.io/projectious-work/aibox:base-debian-v0.26.7 AS aibox
+FROM ghcr.io/projectious-work/aibox:base-debian-runtime-v0.27.0 AS aibox
 
 ENV SHELL=/bin/bash
 ENV UV_CACHE_DIR=/tmp/aibox/uv-cache
@@ -198,6 +198,8 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 
 # Addon: python (runtime)
 
+COPY --from=ghcr.io/astral-sh/uv:0.11.14 /uv /usr/local/bin/uv
+COPY --from=ghcr.io/astral-sh/uv:0.11.14 /uvx /usr/local/bin/uvx
 
 
 
@@ -260,6 +262,6 @@ EOF
 
 # Record image version inside container for runtime checks
 USER root
-LABEL aibox.version="0.26.7"
+LABEL aibox.version="0.27.0"
 LABEL aibox.profile="human-dev"
-RUN echo "0.26.7" > /etc/aibox-version
+RUN echo "0.27.0" > /etc/aibox-version
