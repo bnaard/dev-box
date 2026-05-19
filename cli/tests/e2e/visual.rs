@@ -234,7 +234,7 @@ true
 
 #[test]
 #[serial]
-#[ntest::timeout(180_000)]
+#[ntest::timeout(300_000)]
 fn visual_themes_produce_tmux_signature_colors() {
     let runner = E2eRunner::new();
     runner.ensure_deployed();

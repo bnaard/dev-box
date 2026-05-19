@@ -445,13 +445,12 @@ impl E2eRunner {
     /// During Phase 1 of a release the CLI version can be ahead of GHCR images,
     /// because versioned base images are pushed by the host-side Phase 2. Tests
     /// that only need a runnable published image should pin the published tag.
-    pub fn latest_published_image_version(&self, test_name: &str) -> String {
+    pub fn latest_published_image_version(&self, test_name: &str) -> Option<String> {
         let workspace = format!("/workspaces/{test_name}");
         let output = self.exec(&format!(
             "cd {workspace} && \
              sed -i 's/^release_version = .*/release_version = \"latest\"/' aibox.toml && \
-             AIBOX_ADDONS_DIR={REMOTE_ADDONS_DIR} {REMOTE_AIBOX_BIN} self update --check 2>&1 | \
-             sed -n 's/.*New image version available.* -> \\([0-9][0-9.]*\\).*/\\1/p' | tail -n 1"
+             AIBOX_ADDONS_DIR={REMOTE_ADDONS_DIR} {REMOTE_AIBOX_BIN} self update --check"
         ));
         assert!(
             output.status.success(),
@@ -459,10 +458,26 @@ impl E2eRunner {
             String::from_utf8_lossy(&output.stdout),
             String::from_utf8_lossy(&output.stderr)
         );
-        let version = String::from_utf8_lossy(&output.stdout).trim().to_string();
+        let stdout = String::from_utf8_lossy(&output.stdout);
+        let stderr = String::from_utf8_lossy(&output.stderr);
+        let combined = format!("{stdout}{stderr}");
+        if combined.contains("No usable published tags found for flavor")
+            && combined.contains("incomplete manifests")
+        {
+            return None;
+        }
+        let version = combined.lines().find_map(|line| {
+            let (_, version) = line.rsplit_once(" -> ")?;
+            let version = version.trim();
+            if version.chars().next().is_some_and(|c| c.is_ascii_digit()) {
+                Some(version.to_string())
+            } else {
+                None
+            }
+        });
         assert!(
-            !version.is_empty(),
-            "failed to parse latest published base image from `aibox self update --check` output"
+            version.is_some(),
+            "failed to parse latest published base image from `aibox self update --check` output:\n{combined}"
         );
         version
     }

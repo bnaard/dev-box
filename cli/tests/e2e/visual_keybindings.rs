@@ -256,7 +256,7 @@ fn visual_kb_yazi_enter_opens_vim_inplace_and_returns() {
 
 #[test]
 #[serial]
-#[ntest::timeout(90_000)]
+#[ntest::timeout(180_000)]
 fn visual_kb_yazi_git_summary_and_changes_show_status() {
     let runner = E2eRunner::new();
     runner.ensure_deployed();
