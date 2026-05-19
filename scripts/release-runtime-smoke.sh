@@ -198,7 +198,7 @@ init_args=(
   --theme tokyo-night
   --prompt arrow
   --tmux-status "${tmux_status}"
-  --processkit-version latest
+  --processkit-version unset
   --no-container
 )
 if [[ "${smoke_git_ui}" == "1" ]]; then

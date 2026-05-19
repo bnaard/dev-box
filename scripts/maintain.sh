@@ -119,6 +119,8 @@ ${bold}Development:${reset}
   push-images <version>    Push images to GHCR (requires ghcr.io login)
   ghcr-prune-source-tags [--repair-mixed] [--execute]
                            Plan, repair, or delete GHCR source-hash package versions
+  ghcr-prune-buildcache-tags [--execute]
+                           Plan or delete GHCR BuildKit cache package versions
   release-runtime-smoke <version>
                            Run host-side generated-runtime smoke and write logs
   docs-serve               Serve MkDocs locally (http://localhost:8000)
@@ -608,12 +610,10 @@ cmd_build_images() {
 
   for flavor in "${flavors[@]}"; do
     info "Building ${flavor} foundation/runtime images..."
-    local runtime_latest foundation_local runtime_local foundation_cache_ref runtime_cache_ref
+    local runtime_latest foundation_local runtime_local
     runtime_latest="$(image_runtime_latest_tag "${flavor}")"
     foundation_local="${IMAGE_REGISTRY}:${flavor}-foundation-local"
     runtime_local="${IMAGE_REGISTRY}:${flavor}-runtime-local"
-    foundation_cache_ref="${IMAGE_REGISTRY}:${flavor}-foundation-buildcache"
-    runtime_cache_ref="${IMAGE_REGISTRY}:${flavor}-runtime-buildcache"
     local source_sha foundation_sha runtime_sha
     source_sha="$(image_source_sha "${flavor}")"
     foundation_sha="$(image_foundation_source_sha "${flavor}")"
@@ -647,17 +647,8 @@ cmd_build_images() {
       if ${RUNTIME_BIN} buildx version >/dev/null 2>&1; then
         local foundation_cache_from_args=()
         local runtime_cache_from_args=()
-        if image_manifest_complete "${foundation_cache_ref}"; then
-          foundation_cache_from_args+=(--cache-from "type=registry,ref=${foundation_cache_ref}")
-        else
-          warn "Skipping unusable remote build cache ${foundation_cache_ref}"
-        fi
-        if image_manifest_complete "${runtime_cache_ref}"; then
-          runtime_cache_from_args+=(--cache-from "type=registry,ref=${runtime_cache_ref}")
-        else
-          warn "Skipping unusable remote build cache ${runtime_cache_ref}"
-        fi
         if image_manifest_complete "${runtime_latest}"; then
+          foundation_cache_from_args+=(--cache-from "type=registry,ref=${runtime_latest}")
           runtime_cache_from_args+=(--cache-from "type=registry,ref=${runtime_latest}")
         else
           warn "Skipping unusable remote image cache ${runtime_latest}"
@@ -670,7 +661,6 @@ cmd_build_images() {
           --build-arg "AIBOX_RUNTIME_SOURCE_SHA=${runtime_sha}" \
           --build-arg "AIBOX_IMAGE_BUILD_VERSION=${build_version}" \
           ${foundation_cache_from_args[@]+"${foundation_cache_from_args[@]}"} \
-          --cache-to "type=registry,ref=${foundation_cache_ref},mode=max,ignore-error=true" \
           -t "${foundation_local}" \
           -f "${PROJECT_ROOT}/images/${flavor}/Dockerfile" \
           "${PROJECT_ROOT}/images/${flavor}/"
@@ -682,7 +672,6 @@ cmd_build_images() {
           --build-arg "AIBOX_RUNTIME_SOURCE_SHA=${runtime_sha}" \
           --build-arg "AIBOX_IMAGE_BUILD_VERSION=${build_version}" \
           ${runtime_cache_from_args[@]+"${runtime_cache_from_args[@]}"} \
-          --cache-to "type=registry,ref=${runtime_cache_ref},mode=max,ignore-error=true" \
           -t "${runtime_local}" \
           -t "${runtime_latest}" \
           -f "${PROJECT_ROOT}/images/${flavor}/Dockerfile" \
@@ -1137,6 +1126,91 @@ cmd_ghcr_prune_source_tags() {
     fi
     ok "Deleted GHCR package version ${id}"
   done < <(printf '%s' "${source_only_json}" | jq -r '.[].id')
+}
+
+cmd_ghcr_prune_buildcache_tags() {
+  local execute=false
+  while [[ $# -gt 0 ]]; do
+    case "$1" in
+      --execute) execute=true ;;
+      --dry-run) ;;
+      *) die "Usage: ./scripts/maintain.sh ghcr-prune-buildcache-tags [--execute]" ;;
+    esac
+    shift
+  done
+
+  if ! command -v gh >/dev/null 2>&1; then
+    die "gh CLI is required for GHCR package cleanup"
+  fi
+  if ! command -v jq >/dev/null 2>&1; then
+    die "jq is required for GHCR package cleanup"
+  fi
+
+  info "Scanning GHCR aibox package versions for BuildKit cache tags..."
+  local versions_json cache_only_json mixed_json cache_only_count mixed_count
+  versions_json="$(ghcr_package_versions_json)"
+  cache_only_json="$(
+    printf '%s' "${versions_json}" | jq -sc '
+      add
+      |
+      [
+        .[]
+        | {id, name, tags: (.metadata.container.tags // [])}
+        | select([.tags[] | endswith("-buildcache")] | any)
+        | select((.tags | length) > 0)
+        | select(all(.tags[]; endswith("-buildcache")))
+      ]
+    '
+  )"
+  mixed_json="$(
+    printf '%s' "${versions_json}" | jq -sc '
+      add
+      |
+      [
+        .[]
+        | {
+            id,
+            name,
+            tags: (.metadata.container.tags // []),
+            cache_tags: [(.metadata.container.tags // [])[] | select(endswith("-buildcache"))],
+            keep_tags: [(.metadata.container.tags // [])[] | select((endswith("-buildcache")) | not)]
+          }
+        | select((.cache_tags | length) > 0 and (.keep_tags | length) > 0)
+      ]
+    '
+  )"
+  cache_only_count="$(printf '%s' "${cache_only_json}" | jq 'length')"
+  mixed_count="$(printf '%s' "${mixed_json}" | jq 'length')"
+
+  if (( mixed_count > 0 )); then
+    warn "Found ${mixed_count} package version(s) where buildcache tags share a manifest with non-cache tags."
+    warn "GitHub's package-version delete API would delete every tag on those versions, so these are reported but not deleted."
+    printf '%s' "${mixed_json}" | jq -r '.[] | "  keep/mixed id=\(.id) tags=\(.tags | join(","))"'
+  fi
+
+  if (( cache_only_count == 0 )); then
+    ok "No buildcache-only GHCR package versions found."
+    return 0
+  fi
+
+  printf '%s' "${cache_only_json}" | jq -r '.[] | "  buildcache-only id=\(.id) tags=\(.tags | join(","))"'
+  if [[ "${execute}" != "true" ]]; then
+    warn "Dry run only. Re-run with --execute to delete the ${cache_only_count} buildcache-only package version(s)."
+    return 0
+  fi
+
+  warn "Deleting ${cache_only_count} buildcache-only GHCR package version(s)."
+  local id delete_output
+  while IFS= read -r id; do
+    [[ -z "${id}" ]] && continue
+    if ! delete_output="$(gh api -X DELETE "/orgs/projectious-work/packages/container/aibox/versions/${id}" 2>&1)"; then
+      if [[ "${delete_output}" == *"delete:packages"* || "${delete_output}" == *"HTTP 403"* ]]; then
+        die "Deleting GHCR package versions requires a GitHub token with delete:packages as well as read:packages."
+      fi
+      die "Failed to delete GHCR package version ${id}: ${delete_output}"
+    fi
+    ok "Deleted GHCR package version ${id}"
+  done < <(printf '%s' "${cache_only_json}" | jq -r '.[].id')
 }
 
 cmd_docs_serve() {
@@ -2236,6 +2310,7 @@ case "${COMMAND}" in
   build-images) cmd_build_images "$@" ;;
   push-images)  cmd_push_images "$@" ;;
   ghcr-prune-source-tags) cmd_ghcr_prune_source_tags "$@" ;;
+  ghcr-prune-buildcache-tags) cmd_ghcr_prune_buildcache_tags "$@" ;;
   release-runtime-smoke) cmd_release_runtime_smoke "$@" ;;
   docs-serve)   cmd_docs_serve ;;
   docs-deploy)  cmd_docs_deploy "$@" ;;

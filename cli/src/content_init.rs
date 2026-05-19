@@ -48,7 +48,7 @@ use std::collections::{BTreeSet, HashMap, HashSet, VecDeque};
 use std::fs;
 use std::path::{Path, PathBuf};
 
-use anyhow::{Context, Result};
+use anyhow::{Context, Result, anyhow};
 use chrono::Utc;
 use serde::Deserialize;
 
@@ -362,15 +362,46 @@ pub fn install_content_source(project_root: &Path, config: &AiboxConfig) -> Resu
         });
     }
 
+    let resolved_version;
+    let install_version =
+        if pk.version == crate::config::PROCESSKIT_VERSION_LATEST && pk.branch.is_none() {
+            let versions = content_source::list_versions(&pk.source).with_context(|| {
+                format!(
+                    "failed to resolve processkit '{}' at {}",
+                    crate::config::PROCESSKIT_VERSION_LATEST,
+                    pk.source
+                )
+            })?;
+            resolved_version = versions.first().cloned().ok_or_else(|| {
+                anyhow!(
+                    "no semver-tagged processkit versions found at {}",
+                    pk.source
+                )
+            })?;
+            crate::output::info(&format!(
+                "Resolved processkit '{}' → {} for content install",
+                crate::config::PROCESSKIT_VERSION_LATEST,
+                resolved_version
+            ));
+            resolved_version.as_str()
+        } else {
+            pk.version.as_str()
+        };
+
     // 2. Fetch into cache.
     let fetched = content_source::fetch(
         &pk.source,
-        &pk.version,
+        install_version,
         pk.branch.as_deref(),
         &pk.src_path,
         pk.release_asset_url_template.as_deref(),
     )
-    .with_context(|| format!("failed to fetch processkit {}@{}", pk.source, pk.version))?;
+    .with_context(|| {
+        format!(
+            "failed to fetch processkit {}@{}",
+            pk.source, install_version
+        )
+    })?;
 
     // 3. Walk cache and install live files. Templated files are
     //    rendered through the Class A substitution vocabulary at copy
@@ -403,7 +434,7 @@ pub fn install_content_source(project_root: &Path, config: &AiboxConfig) -> Resu
     copy_templates_from_cache_with_vars(
         &fetched.src_path,
         project_root,
-        &pk.version,
+        install_version,
         &template_vars,
     )
     .context("failed to copy cache to templates dir")?;
@@ -422,7 +453,7 @@ pub fn install_content_source(project_root: &Path, config: &AiboxConfig) -> Resu
     #[allow(deprecated)]
     let prospective_pk = lock::ProcessKitLockSection {
         source: pk.source.clone(),
-        version: pk.version.clone(),
+        version: install_version.to_string(),
         src_path: pk.src_path.clone(),
         branch: pk.branch.clone(),
         resolved_commit: fetched.resolved_commit.clone(),
@@ -495,12 +526,12 @@ pub fn install_content_source(project_root: &Path, config: &AiboxConfig) -> Resu
     //     Both the change-case and the unchanged-lock fast path go
     //     through this write so a `rm context/.processkit-provenance.toml`
     //     recovers on the next sync without dirtying the lock.
-    let manifest_counts = crate::integrity::count_from_mirror(project_root, &pk.version)
+    let manifest_counts = crate::integrity::count_from_mirror(project_root, install_version)
         .context("failed to count manifest entries from template mirror")?;
     let live_prov = crate::integrity::LiveProvenance {
         schema_version: crate::integrity::LIVE_PROVENANCE_SCHEMA_VERSION,
         install: crate::integrity::LiveProvenanceInstall {
-            processkit_version: pk.version.clone(),
+            processkit_version: install_version.to_string(),
             processkit_source: pk.source.clone(),
             installed_at: installed_at.clone(),
             cli_version: cli_version.clone(),
@@ -527,7 +558,7 @@ pub fn install_content_source(project_root: &Path, config: &AiboxConfig) -> Resu
         files_skipped,
         groups_touched,
         fetched_from: pk.source.clone(),
-        fetched_version: pk.version.clone(),
+        fetched_version: install_version.to_string(),
         skipped_due_to_unset: false,
     })
 }
