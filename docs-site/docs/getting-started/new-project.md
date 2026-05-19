@@ -80,8 +80,10 @@ Shared settings stay in `aibox.toml`; personal secrets go here.
 
 :::tip processkit version
 
-By default, `aibox init` interactively picks the latest processkit version and
-pins it in `aibox.toml`. Use `--processkit-version` to pin a specific tag
+By default, the interactive `aibox init` picker offers `latest` first, then the
+10 newest concrete processkit tags. Choosing `latest` writes
+`version = "latest"` to `aibox.toml` so `aibox apply` tracks the newest
+compatible content. Use `--processkit-version` to pin a specific tag
 non-interactively:
 
 ```bash

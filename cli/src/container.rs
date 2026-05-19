@@ -183,9 +183,10 @@ fn run_install(cwd: &std::path::Path, config: &AiboxConfig) {
 /// 3. Version:
 ///    - `--processkit-version` if given → use as-is
 ///    - else: list available versions at the source.
-///      - Interactive: show a `dialoguer::Select` with the latest as the
-///        default. Includes an "unset (skip processkit install)" entry
-///        as the escape hatch when the user explicitly wants no install.
+///      - Interactive: show a `dialoguer::Select` with a literal "latest"
+///        tracking entry as the default, followed by the 10 newest concrete
+///        tags. Includes an "unset (skip processkit install)" entry as the
+///        escape hatch when the user explicitly wants no install.
 ///      - Non-interactive: pick the first (latest) entry. If listing
 ///        fails or returns nothing, fall back to the `unset` sentinel
 ///        and warn — the user can edit aibox.toml + re-run sync.
@@ -255,19 +256,11 @@ fn resolve_processkit_section(
 
     if interactive {
         let visible_versions = processkit_wizard_visible_versions(&versions);
-        // Build the menu with the latest at the top + an explicit
+        // Build the menu with a literal "latest" tracking entry at the top,
+        // followed by a bounded set of concrete pin choices and an explicit
         // "skip" escape hatch at the bottom.
-        let mut items: Vec<String> = visible_versions
-            .iter()
-            .enumerate()
-            .map(|(i, v)| {
-                if i == 0 {
-                    format!("{} (latest)", v)
-                } else {
-                    v.clone()
-                }
-            })
-            .collect();
+        let mut items: Vec<String> = vec!["latest (always track newest)".to_string()];
+        items.extend(visible_versions.iter().cloned());
         items.push(format!(
             "{} — skip processkit install (configure later)",
             PROCESSKIT_VERSION_UNSET
@@ -277,10 +270,12 @@ fn resolve_processkit_section(
             .items(&items)
             .default(0)
             .interact()?;
-        if idx == visible_versions.len() {
+        if idx == 0 {
+            section.version = crate::config::PROCESSKIT_VERSION_LATEST.to_string();
+        } else if idx == visible_versions.len() + 1 {
             section.version = PROCESSKIT_VERSION_UNSET.to_string();
         } else {
-            section.version = visible_versions[idx].clone();
+            section.version = visible_versions[idx - 1].clone();
         }
     } else {
         // Non-interactive: pick the latest.
@@ -295,26 +290,14 @@ fn resolve_processkit_section(
 }
 
 fn processkit_wizard_visible_versions(versions: &[String]) -> Vec<String> {
-    const MAX_MINOR_LINES: usize = 3;
+    const MAX_CONCRETE_VERSIONS: usize = 10;
 
-    let mut minor_lines: Vec<(u64, u64)> = Vec::new();
-    let mut visible = Vec::new();
-
-    for version in versions {
-        let Some(parsed) = crate::content_source::parse_loose_semver(version) else {
-            continue;
-        };
-        let minor_line = (parsed.major, parsed.minor);
-        if !minor_lines.contains(&minor_line) {
-            if minor_lines.len() >= MAX_MINOR_LINES {
-                continue;
-            }
-            minor_lines.push(minor_line);
-        }
-        visible.push(version.clone());
-    }
-
-    visible
+    versions
+        .iter()
+        .filter(|version| crate::content_source::parse_loose_semver(version).is_some())
+        .take(MAX_CONCRETE_VERSIONS)
+        .cloned()
+        .collect()
 }
 
 // ---------------------------------------------------------------------------
@@ -3936,16 +3919,20 @@ mod tests {
     }
 
     #[test]
-    fn processkit_wizard_versions_keep_latest_and_two_prior_minor_lines() {
+    fn processkit_wizard_versions_keep_ten_newest_concrete_tags() {
         let versions = vec![
+            "v0.27.0".to_string(),
+            "v0.26.18".to_string(),
+            "v0.26.17".to_string(),
+            "v0.26.16".to_string(),
+            "v0.26.15".to_string(),
             "v0.26.14".to_string(),
             "v0.26.13".to_string(),
+            "v0.26.12".to_string(),
+            "v0.26.11".to_string(),
+            "v0.26.10".to_string(),
+            "v0.26.9".to_string(),
             "v0.25.8".to_string(),
-            "v0.25.1".to_string(),
-            "v0.24.3".to_string(),
-            "v0.24.0".to_string(),
-            "v0.23.9".to_string(),
-            "v0.22.0".to_string(),
         ];
 
         let visible = processkit_wizard_visible_versions(&versions);
@@ -3953,24 +3940,26 @@ mod tests {
         assert_eq!(
             visible,
             vec![
-                "v0.26.14", "v0.26.13", "v0.25.8", "v0.25.1", "v0.24.3", "v0.24.0"
+                "v0.27.0", "v0.26.18", "v0.26.17", "v0.26.16", "v0.26.15", "v0.26.14", "v0.26.13",
+                "v0.26.12", "v0.26.11", "v0.26.10"
             ]
         );
     }
 
     #[test]
-    fn processkit_wizard_versions_follow_release_order_across_major_lines() {
+    fn processkit_wizard_versions_filter_non_semver_entries() {
         let versions = vec![
             "v1.0.1".to_string(),
+            "latest".to_string(),
             "v1.0.0".to_string(),
+            "main".to_string(),
+            "not-a-version".to_string(),
             "v0.99.4".to_string(),
-            "v0.98.7".to_string(),
-            "v0.97.2".to_string(),
         ];
 
         let visible = processkit_wizard_visible_versions(&versions);
 
-        assert_eq!(visible, vec!["v1.0.1", "v1.0.0", "v0.99.4", "v0.98.7"]);
+        assert_eq!(visible, vec!["v1.0.1", "v1.0.0", "v0.99.4"]);
     }
 
     #[test]
