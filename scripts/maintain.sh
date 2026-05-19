@@ -655,6 +655,8 @@ cmd_build_images() {
         fi
         ${RUNTIME_BIN} buildx build --load \
           --target foundation \
+          --provenance=false \
+          --sbom=false \
           --build-arg BUILDKIT_INLINE_CACHE=1 \
           --build-arg "AIBOX_IMAGE_SOURCE_SHA=${source_sha}" \
           --build-arg "AIBOX_FOUNDATION_SOURCE_SHA=${foundation_sha}" \
@@ -666,6 +668,8 @@ cmd_build_images() {
           "${PROJECT_ROOT}/images/${flavor}/"
         ${RUNTIME_BIN} buildx build --load \
           --target runtime \
+          --provenance=false \
+          --sbom=false \
           --build-arg BUILDKIT_INLINE_CACHE=1 \
           --build-arg "AIBOX_IMAGE_SOURCE_SHA=${source_sha}" \
           --build-arg "AIBOX_FOUNDATION_SOURCE_SHA=${foundation_sha}" \
