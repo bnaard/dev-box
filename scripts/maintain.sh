@@ -2076,8 +2076,12 @@ cmd_release_host() {
 
   # ── Step 2: Upload macOS binaries to existing GitHub release ──────────────
   info "Uploading macOS binaries to GitHub release ${tag}..."
-  if ! gh release view "${tag}" --repo "${GITHUB_REPO}" &>/dev/null; then
-    die "GitHub release ${tag} not found. Run 'release' in the container first."
+  local release_view_output
+  if ! release_view_output=$(gh release view "${tag}" --repo "${GITHUB_REPO}" 2>&1); then
+    if grep -qiE 'not[[:space:]]+found|HTTP 404' <<<"${release_view_output}"; then
+      die "GitHub release ${tag} not found in ${GITHUB_REPO}. Run 'release' in the container first."
+    fi
+    die "Could not verify GitHub release ${tag} in ${GITHUB_REPO}: ${release_view_output}"
   fi
   gh release upload "${tag}" "${PROJECT_ROOT}/LICENSE" \
     --repo "${GITHUB_REPO}" \
