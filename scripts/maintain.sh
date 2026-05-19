@@ -1197,15 +1197,18 @@ cmd_docs_deploy() {
     commit -q -m "${commit_msg}"
   # The fresh tmpdir worktree has no credential helper inherited from the
   # project. When `remote_url` is HTTPS, plain git push prompts for a
-  # username and aborts non-interactively. Inject the gh CLI's OAuth token
-  # into the URL when (a) the URL is HTTPS-on-github.com and (b) `gh auth
-  # token` succeeds. SSH and other hosts pass through unchanged.
+  # username and aborts non-interactively. Inject the gh CLI's OAuth token as
+  # GitHub's documented Basic x-access-token credential when (a) the URL is
+  # HTTPS-on-github.com and (b) `gh auth token` succeeds. SSH and other hosts
+  # pass through unchanged.
   local push_url="${remote_url}"
   local push_auth_extraheader=()
   if [[ "${remote_url}" == https://github.com/* ]] && command -v gh &>/dev/null; then
     local gh_token
     if gh_token=$(gh auth token 2>/dev/null) && [[ -n "${gh_token}" ]]; then
-      push_auth_extraheader=(-c "http.https://github.com/.extraheader=AUTHORIZATION: bearer ${gh_token}")
+      local gh_basic
+      gh_basic=$(printf 'x-access-token:%s' "${gh_token}" | base64 | tr -d '\n')
+      push_auth_extraheader=(-c "http.https://github.com/.extraheader=AUTHORIZATION: basic ${gh_basic}")
     fi
   fi
   git "${push_auth_extraheader[@]}" push --force "${push_url}" gh-pages:gh-pages
