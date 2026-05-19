@@ -176,13 +176,26 @@ fn ghcr_image_manifest_is_complete(tag: &str) -> Result<bool> {
         return Ok(false);
     };
 
-    for digest in manifest_child_digests(&manifest) {
-        if ghcr_get_manifest_json(&digest)?.is_none() {
-            return Ok(false);
-        }
+    let Some(media_type) = manifest.get("mediaType").and_then(Value::as_str) else {
+        return Ok(false);
+    };
+    if matches!(
+        media_type,
+        "application/vnd.oci.image.manifest.v1+json"
+            | "application/vnd.docker.distribution.manifest.v2+json"
+    ) {
+        return Ok(true);
     }
 
-    Ok(true)
+    if matches!(
+        media_type,
+        "application/vnd.oci.image.index.v1+json"
+            | "application/vnd.docker.distribution.manifest.list.v2+json"
+    ) {
+        return Ok(!runnable_manifest_child_digests(&manifest).is_empty());
+    }
+
+    Ok(false)
 }
 
 fn ghcr_get_manifest_json(reference: &str) -> Result<Option<Value>> {
@@ -219,7 +232,7 @@ fn ghcr_get_manifest_json(reference: &str) -> Result<Option<Value>> {
     Ok(Some(serde_json::from_str(&body)?))
 }
 
-fn manifest_child_digests(manifest: &Value) -> Vec<String> {
+fn runnable_manifest_child_digests(manifest: &Value) -> Vec<String> {
     let Some(media_type) = manifest.get("mediaType").and_then(Value::as_str) else {
         return Vec::new();
     };
@@ -236,9 +249,24 @@ fn manifest_child_digests(manifest: &Value) -> Vec<String> {
         .and_then(Value::as_array)
         .into_iter()
         .flatten()
+        .filter(|entry| manifest_child_is_runnable_platform(entry))
         .filter_map(|entry| entry.get("digest").and_then(Value::as_str))
         .map(ToOwned::to_owned)
         .collect()
+}
+
+fn manifest_child_is_runnable_platform(entry: &Value) -> bool {
+    let platform = entry.get("platform").and_then(Value::as_object);
+    let os = platform
+        .and_then(|p| p.get("os"))
+        .and_then(Value::as_str)
+        .unwrap_or_default();
+    let architecture = platform
+        .and_then(|p| p.get("architecture"))
+        .and_then(Value::as_str)
+        .unwrap_or_default();
+
+    !os.is_empty() && !architecture.is_empty() && os != "unknown" && architecture != "unknown"
 }
 
 /// Parse a Docker Registry v2 / RFC 5988 `Link` header and extract the URL
@@ -623,30 +651,59 @@ mod tests {
     }
 
     #[test]
-    fn manifest_child_digests_extracts_index_children() {
+    fn runnable_manifest_child_digests_extracts_platform_children() {
         let manifest = serde_json::json!({
             "mediaType": "application/vnd.oci.image.index.v1+json",
             "manifests": [
-                { "digest": "sha256:111" },
-                { "digest": "sha256:222" },
+                {
+                    "digest": "sha256:111",
+                    "platform": { "os": "linux", "architecture": "amd64" }
+                },
+                {
+                    "digest": "sha256:222",
+                    "platform": { "os": "linux", "architecture": "arm64" }
+                },
                 { "mediaType": "application/vnd.oci.image.manifest.v1+json" }
             ]
         });
 
         assert_eq!(
-            manifest_child_digests(&manifest),
+            runnable_manifest_child_digests(&manifest),
             vec!["sha256:111".to_string(), "sha256:222".to_string()]
         );
     }
 
     #[test]
-    fn manifest_child_digests_ignores_single_platform_manifest() {
+    fn runnable_manifest_child_digests_ignores_attestation_children() {
+        let manifest = serde_json::json!({
+            "mediaType": "application/vnd.oci.image.index.v1+json",
+            "manifests": [
+                {
+                    "digest": "sha256:111",
+                    "platform": { "os": "linux", "architecture": "arm64" }
+                },
+                {
+                    "digest": "sha256:attestation",
+                    "platform": { "os": "unknown", "architecture": "unknown" },
+                    "annotations": { "vnd.docker.reference.type": "attestation-manifest" }
+                }
+            ]
+        });
+
+        assert_eq!(
+            runnable_manifest_child_digests(&manifest),
+            vec!["sha256:111".to_string()]
+        );
+    }
+
+    #[test]
+    fn runnable_manifest_child_digests_ignores_single_platform_manifest() {
         let manifest = serde_json::json!({
             "mediaType": "application/vnd.oci.image.manifest.v1+json",
             "layers": []
         });
 
-        assert!(manifest_child_digests(&manifest).is_empty());
+        assert!(runnable_manifest_child_digests(&manifest).is_empty());
     }
 
     #[test]
