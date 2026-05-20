@@ -1369,4 +1369,25 @@ runtime: |
         );
         assert!(rendered.contains("rm -f /usr/local/bin/hugo"));
     }
+
+    #[test]
+    fn docs_hugo_installer_uses_existing_release_assets() {
+        let addon = load_repo_addon("docs-hugo");
+        let mut tools = all_disabled_tools(&addon);
+        tools.insert(
+            "hugo".to_string(),
+            ToolConfig {
+                enabled: true,
+                version: String::new(),
+            },
+        );
+
+        let rendered = render_runtime(&addon, &tools).unwrap();
+        assert!(
+            rendered
+                .contains("HUGO_ASSET=\"hugo_extended_${HUGO_VERSION}_linux-${HUGO_ARCH}.tar.gz\"")
+        );
+        assert!(rendered.contains("hugo_${HUGO_VERSION}_checksums.txt"));
+        assert!(rendered.contains("grep \" ${HUGO_ASSET}$\""));
+    }
 }
