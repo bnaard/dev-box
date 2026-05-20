@@ -503,6 +503,11 @@ pub static COMPAT_TABLE: &[CompatEntry] = &[
         processkit_version: "v0.27.0",
         note: "Patch release: refreshes addon and user-facing toolchain pins, including documentation generators, language package managers, infrastructure tooling, Kubernetes tools, Helm, and OpenCode; adds release-state coverage for addon pins plus LaTeX and apt-managed inputs; keeps Python interpreter selection tied to the Debian base image package set; fixes OpenCode release asset naming and checksum verification; updates docs-site dependencies and clears npm audit findings.",
     },
+    CompatEntry {
+        aibox_version: "0.27.2",
+        processkit_version: "v0.27.0",
+        note: "Patch release: fixes the docs-hugo addon checksum verification so Hugo archives downloaded to /tmp/hugo.tar.gz are checked against the matching release checksum entry instead of the upstream asset filename.",
+    },
 ];
 
 /// Find the minimum compatible processkit version for the given aibox version.
