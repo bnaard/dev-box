@@ -1388,6 +1388,8 @@ runtime: |
                 .contains("HUGO_ASSET=\"hugo_extended_${HUGO_VERSION}_linux-${HUGO_ARCH}.tar.gz\"")
         );
         assert!(rendered.contains("hugo_${HUGO_VERSION}_checksums.txt"));
-        assert!(rendered.contains("grep \" ${HUGO_ASSET}$\""));
+        assert!(rendered.contains(
+            "grep \" ${HUGO_ASSET}$\" /tmp/hugo_checksums.txt | sed 's#  .*#  /tmp/hugo.tar.gz#' | sha256sum -c"
+        ));
     }
 }
