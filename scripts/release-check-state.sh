@@ -272,6 +272,126 @@ check_unpinned_package() {
     "${label}" "${ecosystem}" "${package}" "${latest}" "${status}" >> "${REPORT}"
 }
 
+addon_tool_default() {
+  local file="$1" tool="$2"
+  python3 - "$file" "$tool" <<'PY'
+import re
+import sys
+
+path, tool = sys.argv[1], sys.argv[2]
+in_tool = False
+with open(path, encoding="utf-8") as handle:
+    for raw in handle:
+        line = raw.rstrip("\n")
+        if re.match(r"\s*-\s+name:\s*['\"]?" + re.escape(tool) + r"['\"]?\s*$", line):
+            in_tool = True
+            continue
+        if in_tool and re.match(r"\s*-\s+name:", line):
+            break
+        if in_tool:
+            match = re.match(r'\s*default_version:\s*"([^"]*)"', line)
+            if match:
+                print(match.group(1))
+                raise SystemExit(0)
+raise SystemExit(1)
+PY
+}
+
+apt_candidate_version() {
+  local package="$1"
+  if ! command -v apt-cache >/dev/null 2>&1; then
+    return 1
+  fi
+  apt-cache policy "${package}" 2>/dev/null \
+    | awk '/Candidate:/ {print $2; exit}' \
+    | sed 's/(none)//'
+}
+
+check_addon_version() {
+  local label="$1" current="$2" latest="$3" source="$4" status="${5:-}"
+  if [[ -n "${status}" ]]; then
+    printf '| %s | `%s` | `%s` | %s | %s |\n' \
+      "${label}" "${current:-?}" "${latest:-?}" "${source}" "${status}" >> "${REPORT}"
+    return 0
+  fi
+  status="current"
+  if [[ -z "${current}" ]]; then
+    status="missing current pin"
+    warnings_found=1
+  elif [[ -z "${latest}" ]]; then
+    status="latest lookup failed"
+    warnings_found=1
+  elif version_gt "${latest}" "${current}"; then
+    status="update available"
+    mark_update
+  fi
+  printf '| %s | `%s` | `%s` | %s | %s |\n' \
+    "${label}" "${current:-?}" "${latest:-?}" "${source}" "${status}" >> "${REPORT}"
+}
+
+check_addon_tool_pypi() {
+  local label="$1" file="$2" tool="$3" package="$4"
+  check_addon_version "${label}" \
+    "$(addon_tool_default "${file}" "${tool}" || true)" \
+    "$(pypi_latest "${package}" || true)" \
+    "PyPI ${package}"
+}
+
+check_addon_tool_npm() {
+  local label="$1" file="$2" tool="$3" package="$4"
+  check_addon_version "${label}" \
+    "$(addon_tool_default "${file}" "${tool}" || true)" \
+    "$(npm_latest "${package}" || true)" \
+    "npm ${package}"
+}
+
+check_addon_tool_github() {
+  local label="$1" file="$2" tool="$3" repo="$4" latest
+  latest="$(github_latest_release "${repo}" || true)"
+  latest="$(normalize_version "${latest}")"
+  check_addon_version "${label}" \
+    "$(addon_tool_default "${file}" "${tool}" || true)" \
+    "${latest}" \
+    "GitHub ${repo}"
+}
+
+kubectl_latest() {
+  local output
+  if output="$(run_with_timeout 8s curl -fsSL https://dl.k8s.io/release/stable.txt 2>&1)"; then
+    normalize_version "${output}"
+    return 0
+  fi
+  if grep -Eiq 'could not resolve|temporary failure|no such host|network is unreachable|connection timed out|i/o timeout|error connecting' <<<"${output}"; then
+    record_network_failure "kubectl stable lookup: ${output//$'\n'/ }"
+  fi
+  return 1
+}
+
+go_latest() {
+  local output
+  if output="$(run_with_timeout 8s curl -fsSL https://go.dev/VERSION?m=text 2>&1 | head -n 1)"; then
+    printf '%s\n' "${output#go}"
+    return 0
+  fi
+  if grep -Eiq 'could not resolve|temporary failure|no such host|network is unreachable|connection timed out|i/o timeout|error connecting' <<<"${output}"; then
+    record_network_failure "Go latest lookup: ${output//$'\n'/ }"
+  fi
+  return 1
+}
+
+rust_latest() {
+  if command -v rustup >/dev/null 2>&1; then
+    rustup check 2>/dev/null | awk '/up to date:/ {for (i = 1; i <= NF; i++) if ($i == "date:") {print $(i + 1); exit}}'
+  fi
+}
+
+check_apt_managed() {
+  local label="$1" package="$2" candidate
+  candidate="$(apt_candidate_version "${package}" || true)"
+  printf '| %s | `%s` | `%s` | %s |\n' \
+    "${label}" "${package}" "${candidate:-?}" "Debian apt managed; review distro/security updates during base-image refresh" >> "${REPORT}"
+}
+
 check_claude_package() {
   local latest status
   latest="$(claude_apt_latest latest || true)"
@@ -364,6 +484,51 @@ check_unpinned_package "OpenCode" "manual" "https://opencode.ai/install"
 check_unpinned_package "Mistral SDK" "pypi" "mistralai"
 line ""
 line "For latest-by-default harnesses, check upstream release notes and install-layout changes. If a harness changed project command, skill, config, auth, or binary paths, update aibox projection code and docs before release."
+
+section "Addon Tool Version Pins"
+line "| Tool | Current | Latest | Source | Status |"
+line "|---|---:|---:|---|---|"
+check_addon_version "Hugo" "0.161.1" "$(normalize_version "$(github_latest_release gohugoio/hugo || true)")" "GitHub gohugoio/hugo"
+check_addon_version "mdBook" "0.5.3" "$(normalize_version "$(github_latest_release rust-lang/mdBook || true)")" "GitHub rust-lang/mdBook"
+check_addon_tool_pypi "MkDocs" "${PROJECT_ROOT}/addons/docs/docs-mkdocs.yaml" "mkdocs" "mkdocs"
+check_addon_version "MkDocs Material" "9.7.6" "$(pypi_latest mkdocs-material || true)" "PyPI mkdocs-material"
+check_addon_tool_pypi "Zensical" "${PROJECT_ROOT}/addons/docs/docs-zensical.yaml" "zensical" "zensical"
+check_addon_version "Starlight scaffold" "floating" "$(npm_latest create-starlight || true)" "npm create-starlight" "latest by default"
+check_addon_version "Go" "$(addon_tool_default "${PROJECT_ROOT}/addons/languages/go.yaml" go || true)" "$(go_latest || true)" "go.dev"
+check_addon_version "Rust" "$(addon_tool_default "${PROJECT_ROOT}/addons/languages/rust.yaml" rustc || true)" "$(rust_latest || true)" "rustup stable"
+check_addon_tool_npm "pnpm" "${PROJECT_ROOT}/addons/languages/node.yaml" "pnpm" "pnpm"
+check_addon_tool_npm "Bun" "${PROJECT_ROOT}/addons/languages/node.yaml" "bun" "bun"
+check_addon_version "Yarn" "$(addon_tool_default "${PROJECT_ROOT}/addons/languages/node.yaml" yarn || true)" "Berry/current via corepack" "corepack" "manual review"
+check_addon_version "Python interpreter" "$(addon_tool_default "${PROJECT_ROOT}/addons/languages/python.yaml" python || true)" "$(apt_candidate_version python3.13 || true)" "Debian apt python3.13" "apt-managed"
+check_addon_tool_pypi "Poetry" "${PROJECT_ROOT}/addons/languages/python.yaml" "poetry" "poetry"
+check_addon_tool_pypi "PDM" "${PROJECT_ROOT}/addons/languages/python.yaml" "pdm" "pdm"
+check_addon_tool_github "OpenTofu" "${PROJECT_ROOT}/addons/tools/infrastructure.yaml" "opentofu" "opentofu/opentofu"
+check_addon_tool_pypi "Ansible" "${PROJECT_ROOT}/addons/tools/infrastructure.yaml" "ansible" "ansible"
+check_addon_tool_github "Packer" "${PROJECT_ROOT}/addons/tools/infrastructure.yaml" "packer" "hashicorp/packer"
+check_addon_version "kubectl" "$(addon_tool_default "${PROJECT_ROOT}/addons/tools/kubernetes.yaml" kubectl || true)" "$(kubectl_latest || true)" "dl.k8s.io stable"
+check_addon_tool_github "Helm" "${PROJECT_ROOT}/addons/tools/kubernetes.yaml" "helm" "helm/helm"
+kustomize_latest="$(github_latest_release kubernetes-sigs/kustomize || true)"
+kustomize_latest="${kustomize_latest#kustomize/}"
+kustomize_latest="$(normalize_version "${kustomize_latest}")"
+check_addon_version "Kustomize" "$(addon_tool_default "${PROJECT_ROOT}/addons/tools/kubernetes.yaml" kustomize || true)" "${kustomize_latest}" "GitHub kubernetes-sigs/kustomize"
+check_addon_tool_github "k9s" "${PROJECT_ROOT}/addons/tools/kubernetes.yaml" "k9s" "derailed/k9s"
+check_addon_tool_github "OpenCode" "${PROJECT_ROOT}/addons/ai/ai-opencode.yaml" "opencode" "opencode-ai/opencode"
+check_addon_version "Hermes CLI" "floating" "manual review" "nousresearch/hermes" "latest by default; upstream release metadata unavailable"
+line ""
+line "Python is intentionally tracked against the Debian apt package exposed by the base image, not the newest upstream CPython tarball. Bump the interpreter only when the target Debian base exposes the package used by the addon runtime."
+
+section "LaTeX And Apt-Managed Addon Inputs"
+line "| Tool/Input | Package | Candidate | Status |"
+line "|---|---|---:|---|"
+line "| TeX Live mirror | \`historic/systems/texlive/2025/tlnet-final\` | \`2025 final\` | pinned immutable TeX Live archive; update requires a deliberate TeX Live year bump and rebuild |"
+check_apt_managed "LaTeX runtime Perl" "perl"
+check_apt_managed "LaTeX fontconfig" "fontconfig"
+check_apt_managed "Emoji fonts" "fonts-noto-color-emoji"
+check_apt_managed "SVG inclusion" "inkscape"
+check_apt_managed "PDF utilities" "poppler-utils"
+check_apt_managed "LilyPond" "lilypond"
+line ""
+line "LaTeX packages installed through \`tlmgr\` are governed by the pinned TeX Live 2025 final repository. Do not treat them as floating apt packages."
 
 section "Rust Dependencies"
 line "### cargo audit"

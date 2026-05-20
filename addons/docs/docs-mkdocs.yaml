@@ -17,12 +17,12 @@ tools:
   - name: mkdocs
     description: "Python Markdown documentation site generator"
     default_enabled: true
-    default_version: ""
-    supported_versions: []
+    default_version: "1.6.1"
+    supported_versions: ["1.6.1"]
 
 builder: null
 
 runtime: |
   # Addon: docs-mkdocs
-  RUN UV_CACHE_DIR=/tmp/aibox-uv-cache uv tool install 'mkdocs<2' --with mkdocs-material && \
+  RUN UV_CACHE_DIR=/tmp/aibox-uv-cache uv tool install 'mkdocs=={{ tools.mkdocs.version }}' --with 'mkdocs-material==9.7.6' && \
       rm -rf /tmp/aibox-uv-cache

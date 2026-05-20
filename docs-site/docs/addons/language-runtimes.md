@@ -13,8 +13,8 @@ Language runtimes install compilers, interpreters, and package managers into you
 [addons.python.tools]
 python = { version = "3.13" }   # 3.12, 3.13, 3.14
 uv = { version = "0.11.15" }    # 0.7, 0.11.10, 0.11.11, 0.11.15
-# poetry = { version = "2.0" }  # Optional: 1.8, 2.0
-# pdm = { version = "2.22" }    # Optional
+# poetry = { version = "2.4.1" } # Optional: 1.8, 2.0, 2.4.1
+# pdm = { version = "2.26.9" }   # Optional: 2.22, 2.26.9
 ```
 
 Installs Python, pip, venv, and [uv](https://github.com/astral-sh/uv) (fast package manager). The base image pins uv to the curated default instead of following a floating `latest` image tag. Poetry and PDM are available but not enabled by default.
@@ -23,7 +23,7 @@ Installs Python, pip, venv, and [uv](https://github.com/astral-sh/uv) (fast pack
 
 ```toml
 [addons.rust.tools]
-rustc = { version = "1.87" }    # 1.85, 1.87
+rustc = { version = "1.94.1" }  # 1.90, 1.91, 1.92, 1.93, 1.94, 1.94.1
 clippy = {}                     # Linter (no version selection)
 rustfmt = {}                    # Formatter (no version selection)
 ```
@@ -35,9 +35,9 @@ Installs the Rust toolchain via rustup with clippy and rustfmt. Uses a multi-sta
 ```toml
 [addons.node.tools]
 node = { version = "22" }       # 20, 22
-pnpm = { version = "10" }       # 9, 10
+pnpm = { version = "11.1.3" }   # 9, 10, 11.1.3
 # yarn = { version = "4" }      # Optional
-# bun = { version = "1.2" }     # Optional
+# bun = { version = "1.3.14" }  # Optional
 ```
 
 Installs Node.js via NodeSource, plus pnpm as default package manager. Yarn and Bun are available but not enabled by default.
@@ -46,7 +46,7 @@ Installs Node.js via NodeSource, plus pnpm as default package manager. Yarn and 
 
 ```toml
 [addons.go.tools]
-go = { version = "1.26" }       # 1.25, 1.26
+go = { version = "1.26.3" }     # 1.25, 1.26, 1.26.3
 ```
 
 Installs Go and sets up GOPATH.

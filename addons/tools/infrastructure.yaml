@@ -14,18 +14,18 @@ tools:
   - name: opentofu
     description: "Open-source Terraform-compatible infrastructure as code CLI"
     default_enabled: true
-    default_version: ""
-    supported_versions: []
+    default_version: "1.12.0"
+    supported_versions: ["1.9.0", "1.12.0"]
   - name: ansible
     description: "Configuration management and automation engine"
     default_enabled: true
-    default_version: ""
-    supported_versions: []
+    default_version: "13.7.0"
+    supported_versions: ["13.7.0"]
   - name: packer
     description: "Machine image build automation tool"
     default_enabled: true
-    default_version: ""
-    supported_versions: []
+    default_version: "1.15.3"
+    supported_versions: ["1.11.2", "1.15.3"]
 
 builder: |
   # ── Infrastructure builder ────────────────────────────────────────────
@@ -41,7 +41,7 @@ builder: |
 
   RUN mkdir -p /build/bin && \
   {% if tools.opentofu.enabled %}
-      TOFU_VERSION="1.9.0" && \
+      TOFU_VERSION="{{ tools.opentofu.version }}" && \
       ARCH="$(uname -m | sed 's/x86_64/amd64/;s/aarch64/arm64/')" && \
       curl -fsSL "https://github.com/opentofu/opentofu/releases/download/v${TOFU_VERSION}/tofu_${TOFU_VERSION}_linux_${ARCH}.tar.gz" -o /tmp/tofu.tar.gz && \
       curl -fsSL "https://github.com/opentofu/opentofu/releases/download/v${TOFU_VERSION}/tofu_${TOFU_VERSION}_SHA256SUMS" -o /tmp/tofu_SHA256SUMS && \
@@ -52,7 +52,7 @@ builder: |
   {% endif %}
   {% if tools.packer.enabled %}
       ARCH="$(dpkg --print-architecture)" && \
-      PACKER_VERSION="1.11.2" && \
+      PACKER_VERSION="{{ tools.packer.version }}" && \
       curl -fsSL "https://releases.hashicorp.com/packer/${PACKER_VERSION}/packer_${PACKER_VERSION}_linux_${ARCH}.zip" \
         -o /tmp/packer.zip && \
       curl -fsSL "https://releases.hashicorp.com/packer/${PACKER_VERSION}/packer_${PACKER_VERSION}_SHA256SUMS" \
@@ -71,7 +71,7 @@ runtime: |
   COPY --from=infra-builder /build/bin/packer /usr/local/bin/packer
   {% endif %}
   {% if tools.ansible.enabled %}
-  RUN pip3 install --no-cache-dir ansible
+  RUN pip3 install --no-cache-dir 'ansible=={{ tools.ansible.version }}'
   {% endif %}
   # ── Variant 1 disable-then-purge guards ───────────────────────────────
   {% if not tools.opentofu.enabled %}

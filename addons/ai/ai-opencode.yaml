@@ -11,8 +11,8 @@ tools:
   - name: opencode
     description: "OpenCode open-source coding-agent CLI"
     default_enabled: true
-    default_version: ""
-    supported_versions: []
+    default_version: "0.0.55"
+    supported_versions: ["0.0.55"]
 
 builder: null
 
@@ -24,34 +24,33 @@ runtime: |
   # Config: ~/.opencode/  |  Binary: opencode
   # Auth: Set the relevant provider API key (ANTHROPIC_API_KEY, OPENAI_API_KEY, etc.)
   #
-  # Supply-chain note (S7 — BR-SEC-HARDEN):
-  # opencode.ai does not publish per-release SHA-256 checksum files or GPG
-  # signatures for its release artefacts as of 2026-05-08.  The curl-pipe-bash
-  # installer has been replaced with a direct versioned binary download from
-  # the GitHub release assets.  Version pinning provides meaningful
-  # supply-chain integrity over the curl-pipe-bash method.
-  #
-  # TODO(sec): if/when https://github.com/opencode-ai/opencode/releases begins
-  # publishing checksums, add sha256sum verification mirroring
-  # addons/tools/infrastructure.yaml:43-45.
+  # Supply-chain note (S7 — BR-SEC-HARDEN): install from a direct versioned
+  # GitHub release asset and verify the release-provided SHA-256 checksum.
   USER aibox
   {% if tools.opencode.version %}
   RUN OPENCODE_VERSION="{{ tools.opencode.version }}" && \
-      ARCH="$(uname -m | sed 's/x86_64/x86_64/;s/aarch64/aarch64/')" && \
+      ARCH="$(uname -m | sed 's/aarch64/arm64/')" && \
+      OPENCODE_ASSET="opencode-linux-${ARCH}.tar.gz" && \
       curl -fsSL \
-        "https://github.com/opencode-ai/opencode/releases/download/v${OPENCODE_VERSION}/opencode_Linux_${ARCH}.tar.gz" \
-        | tar -xz -C /home/aibox/.local/bin opencode && \
+        "https://github.com/opencode-ai/opencode/releases/download/v${OPENCODE_VERSION}/${OPENCODE_ASSET}" \
+        -o /tmp/opencode.tar.gz && \
+      curl -fsSL \
+        "https://github.com/opencode-ai/opencode/releases/download/v${OPENCODE_VERSION}/checksums.txt" \
+        -o /tmp/opencode.checksums.txt && \
+      grep "  ${OPENCODE_ASSET}$" /tmp/opencode.checksums.txt | sed 's#  .*#  /tmp/opencode.tar.gz#' | sha256sum -c && \
+      tar -xz -C /home/aibox/.local/bin -f /tmp/opencode.tar.gz opencode && \
+      rm /tmp/opencode.tar.gz /tmp/opencode.checksums.txt && \
       chmod +x /home/aibox/.local/bin/opencode
   {% else %}
   # No version pinned — fall back to latest tag redirect.
   # TODO(sec): pin tools.opencode.version in aibox.toml to enable
   # deterministic builds.
-  RUN ARCH="$(uname -m | sed 's/x86_64/x86_64/;s/aarch64/aarch64/')" && \
+  RUN ARCH="$(uname -m | sed 's/aarch64/arm64/')" && \
       OPENCODE_VERSION="$(curl -fsSL -o /dev/null -w '%{url_effective}' \
         https://github.com/opencode-ai/opencode/releases/latest \
         | sed 's|.*/v||')" && \
       curl -fsSL \
-        "https://github.com/opencode-ai/opencode/releases/download/v${OPENCODE_VERSION}/opencode_Linux_${ARCH}.tar.gz" \
+        "https://github.com/opencode-ai/opencode/releases/download/v${OPENCODE_VERSION}/opencode-linux-${ARCH}.tar.gz" \
         | tar -xz -C /home/aibox/.local/bin opencode && \
       chmod +x /home/aibox/.local/bin/opencode
   {% endif %}

@@ -37,13 +37,13 @@ tools:
   - name: poetry
     description: "Python dependency and packaging workflow manager"
     default_enabled: false
-    default_version: "2.0"
-    supported_versions: ["1.8", "2.0"]
+    default_version: "2.4.1"
+    supported_versions: ["1.8", "2.0", "2.4.1"]
   - name: pdm
     description: "Python project and dependency manager using PEP standards"
     default_enabled: false
-    default_version: "2.22"
-    supported_versions: ["2.22"]
+    default_version: "2.26.9"
+    supported_versions: ["2.22", "2.26.9"]
 
 builder: null
 
@@ -70,12 +70,12 @@ runtime: |
   RUN apt-get update && apt-get install -y --no-install-recommends \
       python3-pip \
       && rm -rf /var/lib/apt/lists/*
-  RUN pip3 install --no-cache-dir 'poetry~={{ tools.poetry.version }}.0'
+  RUN pip3 install --no-cache-dir 'poetry=={{ tools.poetry.version }}'
   {% endif %}
 
   {% if tools.pdm.enabled %}
   RUN apt-get update && apt-get install -y --no-install-recommends \
       python3-pip \
       && rm -rf /var/lib/apt/lists/*
-  RUN pip3 install --no-cache-dir 'pdm~={{ tools.pdm.version }}.0'
+  RUN pip3 install --no-cache-dir 'pdm=={{ tools.pdm.version }}'
   {% endif %}

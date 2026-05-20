@@ -22,7 +22,7 @@ builder: null
 runtime: |
   # Addon: docs-mdbook
   RUN ARCH="$(uname -m)" && \
-      MDBOOK_VERSION="0.4.43" && \
+      MDBOOK_VERSION="0.5.3" && \
       curl -fsSL \
         "https://github.com/rust-lang/mdBook/releases/download/v${MDBOOK_VERSION}/mdbook-v${MDBOOK_VERSION}-${ARCH}-unknown-linux-musl.tar.gz" \
         -o /tmp/mdbook.tar.gz && \

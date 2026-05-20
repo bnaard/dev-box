@@ -498,6 +498,11 @@ pub static COMPAT_TABLE: &[CompatEntry] = &[
         processkit_version: "v0.27.0",
         note: "Minor release: integrates processkit v0.27.0 and the v0.26.17 supply-chain audit surface; switches the next-minor GHCR image scheme to foundation/runtime tags, stops publishing public source-hash marker tags, preserves legacy base-debian-v0.26.x compatibility, adds GHCR source-tag cleanup tooling, adds release LICENSE guardrails, and fixes pasted host newlines by removing global tmux C-j navigation.",
     },
+    CompatEntry {
+        aibox_version: "0.27.1",
+        processkit_version: "v0.27.0",
+        note: "Patch release: refreshes addon and user-facing toolchain pins, including documentation generators, language package managers, infrastructure tooling, Kubernetes tools, Helm, and OpenCode; adds release-state coverage for addon pins plus LaTeX and apt-managed inputs; keeps Python interpreter selection tied to the Debian base image package set; fixes OpenCode release asset naming and checksum verification; updates docs-site dependencies and clears npm audit findings.",
+    },
 ];
 
 /// Find the minimum compatible processkit version for the given aibox version.

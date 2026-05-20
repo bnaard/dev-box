@@ -5063,10 +5063,10 @@ uv = { version = "0.7" }
 
 [addons.node.tools]
 node = { version = "22" }
-pnpm = { version = "10" }
+pnpm = { version = "11.1.3" }
 
 [addons.rust.tools]
-rustc = { version = "1.89" }
+rustc = { version = "1.94.1" }
 clippy = {}
 rustfmt = {}
 

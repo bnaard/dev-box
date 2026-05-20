@@ -15,23 +15,23 @@ tools:
   - name: kubectl
     description: "Kubernetes command-line client"
     default_enabled: true
-    default_version: ""
-    supported_versions: []
+    default_version: "1.36.1"
+    supported_versions: ["1.36.1"]
   - name: helm
     description: "Kubernetes package manager for charts"
     default_enabled: true
-    default_version: ""
-    supported_versions: []
+    default_version: "4.2.0"
+    supported_versions: ["3.17.2", "4.2.0"]
   - name: kustomize
     description: "Kubernetes manifest overlay and patching tool"
     default_enabled: true
-    default_version: ""
-    supported_versions: []
+    default_version: "5.8.1"
+    supported_versions: ["5.6.0", "5.8.1"]
   - name: k9s
     description: "Interactive terminal UI for Kubernetes clusters"
     default_enabled: false
-    default_version: ""
-    supported_versions: []
+    default_version: "0.50.18"
+    supported_versions: ["0.50.18"]
 
 builder: |
   # ── Kubernetes builder ────────────────────────────────────────────────
@@ -47,7 +47,7 @@ builder: |
   RUN mkdir -p /build/bin && \
   {% if tools.kubectl.enabled %}
       ARCH="$(dpkg --print-architecture)" && \
-      KUBECTL_VERSION="$(curl -fsSL https://dl.k8s.io/release/stable.txt)" && \
+      KUBECTL_VERSION="v{{ tools.kubectl.version }}" && \
       curl -fsSL "https://dl.k8s.io/release/${KUBECTL_VERSION}/bin/linux/${ARCH}/kubectl"        -o /build/bin/kubectl && \
       curl -fsSL "https://dl.k8s.io/release/${KUBECTL_VERSION}/bin/linux/${ARCH}/kubectl.sha256" -o /tmp/kubectl.sha256 && \
       echo "$(cat /tmp/kubectl.sha256)  /build/bin/kubectl" | sha256sum -c && \
@@ -56,7 +56,7 @@ builder: |
   {% endif %}
   {% endif %}
   {% if tools.helm.enabled %}
-      HELM_VERSION="3.17.2" && \
+      HELM_VERSION="{{ tools.helm.version }}" && \
       ARCH="$(uname -m | sed 's/x86_64/amd64/;s/aarch64/arm64/')" && \
       curl -fsSL "https://get.helm.sh/helm-v${HELM_VERSION}-linux-${ARCH}.tar.gz" -o /tmp/helm.tar.gz && \
       curl -fsSL "https://get.helm.sh/helm-v${HELM_VERSION}-linux-${ARCH}.tar.gz.sha256sum" -o /tmp/helm.tar.gz.sha256sum && \
@@ -66,7 +66,7 @@ builder: |
   {% endif %}
   {% endif %}
   {% if tools.kustomize.enabled %}
-      KUSTOMIZE_VERSION="5.6.0" && \
+      KUSTOMIZE_VERSION="{{ tools.kustomize.version }}" && \
       ARCH="$(uname -m | sed 's/x86_64/amd64/;s/aarch64/arm64/')" && \
       curl -fsSL "https://github.com/kubernetes-sigs/kustomize/releases/download/kustomize/v${KUSTOMIZE_VERSION}/kustomize_${KUSTOMIZE_VERSION}_linux_${ARCH}.tar.gz" -o /tmp/kustomize.tar.gz && \
       curl -fsSL "https://github.com/kubernetes-sigs/kustomize/releases/download/kustomize/v${KUSTOMIZE_VERSION}/checksums.txt" -o /tmp/kustomize.checksums.txt && \
@@ -77,8 +77,7 @@ builder: |
   {% endif %}
   {% if tools.k9s.enabled %}
       ARCH="$(dpkg --print-architecture)" && \
-      K9S_VERSION="$(curl -fsSL -o /dev/null -w '%{url_effective}' \
-        https://github.com/derailed/k9s/releases/latest | sed 's|.*/v||')" && \
+      K9S_VERSION="{{ tools.k9s.version }}" && \
       curl -fsSL "https://github.com/derailed/k9s/releases/download/v${K9S_VERSION}/k9s_Linux_${ARCH}.tar.gz" \
         -o /tmp/k9s.tar.gz && \
       curl -fsSL "https://github.com/derailed/k9s/releases/download/v${K9S_VERSION}/checksums.sha256" \

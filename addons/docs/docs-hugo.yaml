@@ -28,7 +28,7 @@ runtime: |
         arm64) HUGO_ARCH="arm64" ;; \
         *) echo "Unsupported Hugo architecture: ${DEB_ARCH}" >&2; exit 1 ;; \
       esac && \
-      HUGO_VERSION="0.141.0" && \
+      HUGO_VERSION="0.161.1" && \
       HUGO_ASSET="hugo_extended_${HUGO_VERSION}_linux-${HUGO_ARCH}.tar.gz" && \
       curl -fsSL \
         "https://github.com/gohugoio/hugo/releases/download/v${HUGO_VERSION}/${HUGO_ASSET}" \

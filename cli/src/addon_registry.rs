@@ -197,8 +197,8 @@ mod tests {
         ensure_loaded();
         let addon = get_addon("rust").unwrap();
         let rustc = addon.tools.iter().find(|t| t.name == "rustc").unwrap();
-        assert!(rustc.supported_versions.contains(&"1.94"));
-        assert_eq!(rustc.default_version, "1.94");
+        assert!(rustc.supported_versions.contains(&"1.94.1"));
+        assert_eq!(rustc.default_version, "1.94.1");
     }
 
     #[test]
@@ -216,7 +216,7 @@ mod tests {
     fn rust_has_builder_stage() {
         ensure_loaded();
         let tools = tc(&[
-            ("rustc", true, "1.94"),
+            ("rustc", true, "1.94.1"),
             ("clippy", true, ""),
             ("rustfmt", true, ""),
         ]);
@@ -227,7 +227,10 @@ mod tests {
             stage.contains("rust-builder"),
             "missing rust-builder in:\n{stage}"
         );
-        assert!(stage.contains("1.94"), "missing version 1.94 in:\n{stage}");
+        assert!(
+            stage.contains("1.94.1"),
+            "missing version 1.94.1 in:\n{stage}"
+        );
     }
 
     #[test]
@@ -265,7 +268,7 @@ mod tests {
     #[test]
     fn rust_runtime_copies_from_builder() {
         ensure_loaded();
-        let tools = tc(&[("rustc", true, "1.94"), ("x86_64-cross", true, "")]);
+        let tools = tc(&[("rustc", true, "1.94.1"), ("x86_64-cross", true, "")]);
         let cmds = generate_runtime_commands("rust", &tools);
         assert!(
             cmds.contains("COPY --from=rust-builder"),

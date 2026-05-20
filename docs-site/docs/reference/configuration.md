@@ -64,7 +64,7 @@ python = { version = "3.13" }
 uv     = { version = "0.11.15" }
 
 [addons.rust.tools]                   # Addon: Rust toolchain
-rustc   = { version = "1.87" }
+rustc   = { version = "1.94.1" }
 clippy  = {}
 rustfmt = {}
 

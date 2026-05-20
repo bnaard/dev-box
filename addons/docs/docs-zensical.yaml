@@ -17,12 +17,12 @@ tools:
   - name: zensical
     description: "Python documentation site generator"
     default_enabled: true
-    default_version: ""
-    supported_versions: []
+    default_version: "0.0.43"
+    supported_versions: ["0.0.43"]
 
 builder: null
 
 runtime: |
   # Addon: docs-zensical
-  RUN UV_CACHE_DIR=/tmp/aibox-uv-cache uv tool install zensical && \
+  RUN UV_CACHE_DIR=/tmp/aibox-uv-cache uv tool install 'zensical=={{ tools.zensical.version }}' && \
       rm -rf /tmp/aibox-uv-cache
