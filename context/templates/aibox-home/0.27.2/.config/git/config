@@ -1,0 +1,24 @@
+[core]
+    editor = vim
+    pager = delta
+[init]
+    defaultBranch = main
+[pull]
+    rebase = true
+[interactive]
+    diffFilter = delta --color-only
+[delta]
+    syntax-theme = Visual Studio Dark+
+    light = false
+    navigate = true
+    line-numbers = true
+    side-by-side = false
+    hunk-header-decoration-style = "#8B949E" box
+    file-decoration-style = "#58A6FF" ul
+    minus-style = syntax "#3B1F22"
+    minus-emph-style = syntax "#6B1E25"
+    plus-style = syntax "#1F3B25"
+    plus-emph-style = syntax "#1F5B33"
+    zero-style = syntax
+[merge]
+    conflictStyle = zdiff3
