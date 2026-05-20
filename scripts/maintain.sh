@@ -498,10 +498,12 @@ image_manifest_complete() {
     return 1
   fi
 
-  local digests=()
   local digest
   while IFS= read -r digest; do
-    [[ -n "${digest}" ]] && digests+=("${digest}")
+    [[ -z "${digest}" ]] && continue
+    if ! ${RUNTIME_BIN} buildx imagetools inspect "${IMAGE_REGISTRY}@${digest}" >/dev/null 2>&1; then
+      return 1
+    fi
   done < <(
     printf '%s' "${raw}" \
       | jq -r '
@@ -512,13 +514,6 @@ image_manifest_complete() {
           end
         ' 2>/dev/null
   )
-
-  for digest in "${digests[@]}"; do
-    [[ -z "${digest}" ]] && continue
-    if ! ${RUNTIME_BIN} buildx imagetools inspect "${IMAGE_REGISTRY}@${digest}" >/dev/null 2>&1; then
-      return 1
-    fi
-  done
 
   return 0
 }
