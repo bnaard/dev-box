@@ -270,13 +270,7 @@ fn resolve_processkit_section(
             .items(&items)
             .default(0)
             .interact()?;
-        if idx == 0 {
-            section.version = crate::config::PROCESSKIT_VERSION_LATEST.to_string();
-        } else if idx == visible_versions.len() + 1 {
-            section.version = PROCESSKIT_VERSION_UNSET.to_string();
-        } else {
-            section.version = visible_versions[idx - 1].clone();
-        }
+        section.version = selected_processkit_wizard_version(idx, &visible_versions);
     } else {
         // Non-interactive: pick the latest.
         section.version = versions[0].clone();
@@ -298,6 +292,16 @@ fn processkit_wizard_visible_versions(versions: &[String]) -> Vec<String> {
         .take(MAX_CONCRETE_VERSIONS)
         .cloned()
         .collect()
+}
+
+fn selected_processkit_wizard_version(idx: usize, visible_versions: &[String]) -> String {
+    if idx == 0 {
+        crate::config::PROCESSKIT_VERSION_LATEST.to_string()
+    } else if idx == visible_versions.len() + 1 {
+        crate::config::PROCESSKIT_VERSION_UNSET.to_string()
+    } else {
+        visible_versions[idx - 1].clone()
+    }
 }
 
 // ---------------------------------------------------------------------------
@@ -3960,6 +3964,16 @@ mod tests {
         let visible = processkit_wizard_visible_versions(&versions);
 
         assert_eq!(visible, vec!["v1.0.1", "v1.0.0", "v0.99.4"]);
+    }
+
+    #[test]
+    fn processkit_wizard_selection_writes_literal_latest_or_selected_pin() {
+        let visible = vec!["v0.27.0".to_string(), "v0.26.18".to_string()];
+
+        assert_eq!(selected_processkit_wizard_version(0, &visible), "latest");
+        assert_eq!(selected_processkit_wizard_version(1, &visible), "v0.27.0");
+        assert_eq!(selected_processkit_wizard_version(2, &visible), "v0.26.18");
+        assert_eq!(selected_processkit_wizard_version(3, &visible), "unset");
     }
 
     #[test]
