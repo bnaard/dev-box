@@ -468,7 +468,7 @@ impl E2eRunner {
         }
         let version = combined.lines().find_map(|line| {
             let (_, version) = line.rsplit_once(" -> ")?;
-            let version = version.trim();
+            let version = version.trim().split_whitespace().next().unwrap_or("");
             if version.chars().next().is_some_and(|c| c.is_ascii_digit()) {
                 Some(version.to_string())
             } else {
@@ -479,7 +479,29 @@ impl E2eRunner {
             version.is_some(),
             "failed to parse latest published base image from `aibox self update --check` output:\n{combined}"
         );
-        version
+        let version = version?;
+        let parts: Vec<u32> = version
+            .split('.')
+            .filter_map(|part| part.parse::<u32>().ok())
+            .collect();
+        let is_runtime_tag = parts
+            .first()
+            .zip(parts.get(1))
+            .is_some_and(|(major, minor)| *major > 0 || (*major == 0 && *minor >= 27));
+        let image_tag = if is_runtime_tag {
+            format!("ghcr.io/projectious-work/aibox:base-debian-runtime-v{version}")
+        } else {
+            format!("ghcr.io/projectious-work/aibox:base-debian-v{version}")
+        };
+        let runtime = self.runtime_bin();
+        let pull = self.exec(&format!("{runtime} pull {image_tag} >/dev/null 2>&1"));
+        if !pull.status.success() {
+            eprintln!(
+                "skipping container start check: published image tag {image_tag} is not pullable"
+            );
+            return None;
+        }
+        Some(version)
     }
 
     /// Clean up a test workspace directory.
