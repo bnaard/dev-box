@@ -5223,7 +5223,7 @@ name = "my-project"
         // Check specific tool versions
         assert_eq!(config.addons.tool_version("python", "python"), Some("3.13"));
         assert_eq!(config.addons.tool_version("python", "uv"), Some("0.7"));
-        assert_eq!(config.addons.tool_version("rust", "rustc"), Some("1.89"));
+        assert_eq!(config.addons.tool_version("rust", "rustc"), Some("1.94.1"));
         assert_eq!(config.addons.tool_version("rust", "clippy"), None);
         assert_eq!(config.addons.tool_version("rust", "rustfmt"), None);
         assert!(config.addons.has_tool("kubernetes", "kubectl"));
@@ -6129,7 +6129,7 @@ harnesses = []
         assert!(config.addons.has_tool("python", "uv"));
         assert!(!config.addons.has_tool("python", "poetry"));
         assert_eq!(config.addons.tool_version("node", "node"), Some("22"));
-        assert_eq!(config.addons.tool_version("node", "pnpm"), Some("10"));
+        assert_eq!(config.addons.tool_version("node", "pnpm"), Some("11.1.3"));
         assert_eq!(config.addons.tool_version("cloud-aws", "aws-cli"), None);
     }
 
