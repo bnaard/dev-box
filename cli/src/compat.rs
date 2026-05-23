@@ -508,6 +508,11 @@ pub static COMPAT_TABLE: &[CompatEntry] = &[
         processkit_version: "v0.27.0",
         note: "Patch release: fixes the docs-hugo addon checksum verification so Hugo archives downloaded to /tmp/hugo.tar.gz are checked against the matching release checksum entry instead of the upstream asset filename.",
     },
+    CompatEntry {
+        aibox_version: "0.27.3",
+        processkit_version: "v0.27.1",
+        note: "Patch release: integrates processkit v0.27.1 derived-project health cleanup, including quieter pk-doctor sensitive-data checks, gateway-aware preauth validation, sqlite-vec availability for pk-doctor MCP runs, supply-chain policy no-policy INFO handling, and a Codex processkit-gateway startup timeout so uv-backed gateway startup does not trip Codex's 30-second default.",
+    },
 ];
 
 /// Find the minimum compatible processkit version for the given aibox version.

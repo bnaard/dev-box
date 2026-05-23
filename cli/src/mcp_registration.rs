@@ -2401,6 +2401,9 @@ fn write_codex_config_toml(
     for spec in specs {
         let mut server_table = Table::new();
         server_table.insert("command", value(spec.command.clone()));
+        if spec.name == "processkit-gateway" {
+            server_table.insert("startup_timeout_sec", value(90));
+        }
         let args = codex_mcp_args(&spec.args);
         if !args.is_empty() {
             let mut args_array = Array::new();
@@ -3105,6 +3108,10 @@ mod tests {
         assert!(
             body.contains(&expected),
             "Codex MCP script paths must use the container workspace path so subagents that start from a non-project cwd can spawn the server inside the aibox runtime:\n{body}"
+        );
+        assert!(
+            body.contains("startup_timeout_sec = 90"),
+            "Codex should wait long enough for uv plus the processkit gateway daemon to start:\n{body}"
         );
     }
 

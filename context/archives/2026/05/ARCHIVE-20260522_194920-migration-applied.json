@@ -1,0 +1,157 @@
+{
+  "archive_id": "ARCHIVE-20260522_194920-migration-applied",
+  "archive_path": "context/archives/2026/05/ARCHIVE-20260522_194920-migration-applied.tar.gz",
+  "created_at": "2026-05-22T19:49:20+00:00",
+  "entities": [
+    {
+      "apiVersion": "processkit.projectious.work/v1",
+      "body_index": "# Migration MIG-20260518T153318\n\nFrom `v0.26.16` to `v0.26.18` (source: `https://github.com/projectious-work/processkit.git`).\n\n0 changed upstream, 0 conflicts, 13 new, 0 removed, 0 stale-removed (2 groups affected)\n\n## Counts\n\n- unchanged: 693\n- changed-locally-only: 1\n- changed-upstream-only: 0\n- conflict: 0\n- new-upstream: 13\n- removed-upstream: 0\n- removed-upstream-stale: 0\n\n## Changes by group\n\n### AGENTS\n\n**changed-locally-only**\n\n- `AGENTS.md` \u2192 `AGENTS.md`\n\n### skills/processkit\n\n**new-upstream**\n\n- `context/skills/processkit/eval-gate-authoring/scripts/test_eval_gate_authoring.py` \u2192 `context/skills/processkit/eval-gate-authoring/scripts/test_eval_gate_authoring.py`\n- `context/skills/processkit/binding-management/scripts/test_binding_management.py` \u2192 `context/skills/processkit/binding-management/scripts/test_binding_management.py`\n- `context/skills/processkit/workitem-management/scripts/test_workitem_management.py` \u2192 `context/skills/processkit/workitem-management/scripts/test_workitem_management.py`\n- `context/skills/processkit/pk-doctor/scripts/checks/sensitive_data.py` \u2192 `context/skills/processkit/pk-doctor/scripts/checks/sensitive_data.py`\n- `context/skills/processkit/pk",
+      "id": "MIG-20260518T153318",
+      "kind": "Migration",
+      "labels": {},
+      "member_path": "context/migrations/applied/MIG-20260518T153318.md",
+      "metadata": {
+        "created": "2026-05-18T15:33:18+00:00",
+        "id": "MIG-20260518T153318",
+        "updated": "2026-05-18T15:34:03+00:00"
+      },
+      "original_path": "context/migrations/applied/MIG-20260518T153318.md",
+      "sha256": "6cbec9deb1f57ad37be51a30499adeb456126ef2b7a552dd449ec0f2604440ba",
+      "spec": {
+        "affected_files": [
+          {
+            "classification": "changed-locally-only",
+            "path": "AGENTS.md"
+          },
+          {
+            "classification": "new-upstream",
+            "path": "context/skills/processkit/binding-management/scripts/test_binding_management.py"
+          },
+          {
+            "classification": "new-upstream",
+            "path": "context/skills/processkit/eval-gate-authoring/scripts/test_eval_gate_authoring.py"
+          },
+          {
+            "classification": "new-upstream",
+            "path": "context/skills/processkit/gate-management/scripts/test_gate_management.py"
+          },
+          {
+            "classification": "new-upstream",
+            "path": "context/skills/processkit/pk-doctor/scripts/checks/sensitive_data.py"
+          },
+          {
+            "classification": "new-upstream",
+            "path": "context/skills/processkit/pk-doctor/scripts/checks/supply_chain.py"
+          },
+          {
+            "classification": "new-upstream",
+            "path": "context/skills/processkit/supply-chain-audit/SKILL.md"
+          },
+          {
+            "classification": "new-upstream",
+            "path": "context/skills/processkit/supply-chain-audit/commands/pk-supply-chain.md"
+          },
+          {
+            "classification": "new-upstream",
+            "path": "context/skills/processkit/supply-chain-audit/mcp/SERVER.md"
+          },
+          {
+            "classification": "new-upstream",
+            "path": "context/skills/processkit/supply-chain-audit/mcp/mcp-config.json"
+          },
+          {
+            "classification": "new-upstream",
+            "path": "context/skills/processkit/supply-chain-audit/mcp/server.py"
+          },
+          {
+            "classification": "new-upstream",
+            "path": "context/skills/processkit/supply-chain-audit/scripts/supply_chain_audit.py"
+          },
+          {
+            "classification": "new-upstream",
+            "path": "context/skills/processkit/supply-chain-audit/scripts/test_supply_chain_audit.py"
+          },
+          {
+            "classification": "new-upstream",
+            "path": "context/skills/processkit/workitem-management/scripts/test_workitem_management.py"
+          }
+        ],
+        "affected_groups": [
+          "AGENTS",
+          "skills/processkit"
+        ],
+        "applied_at": "2026-05-18T15:34:03+00:00",
+        "from_version": "v0.26.16",
+        "generated_at": "2026-05-18T15:33:18+00:00",
+        "generated_by": "aibox apply",
+        "progress_notes": [
+          {
+            "actor": "mcp",
+            "note": "Reviewed during aibox 0.27.0 release preparation. Migration contains no conflicts and only new upstream processkit v0.26.17/v0.26.18 files plus AGENTS.md classified as local-only; apply accepts the already-installed upstream additions.",
+            "timestamp": "2026-05-18T15:34:03+00:00"
+          }
+        ],
+        "source": "processkit",
+        "source_url": "https://github.com/projectious-work/processkit.git",
+        "started_at": "2026-05-18T15:34:03+00:00",
+        "state": "applied",
+        "summary": "0 changed upstream, 0 conflicts, 13 new, 0 removed, 0 stale-removed (2 groups affected)",
+        "to_version": "v0.26.18"
+      },
+      "storage_location": "context/archives/2026/05/ARCHIVE-20260522_194920-migration-applied.tar.gz::context/migrations/applied/MIG-20260518T153318.md"
+    },
+    {
+      "apiVersion": "processkit.projectious.work/v1",
+      "body_index": "# Migration MIG-20260517T170647\n\nFrom `v0.26.14` to `v0.26.15` (source: `https://github.com/projectious-work/processkit.git`).\n\n0 changed upstream, 0 conflicts, 1 new, 0 removed, 0 stale-removed (2 groups affected)\n\n## Counts\n\n- unchanged: 692\n- changed-locally-only: 1\n- changed-upstream-only: 0\n- conflict: 0\n- new-upstream: 1\n- removed-upstream: 0\n- removed-upstream-stale: 0\n\n## Changes by group\n\n### AGENTS\n\n**changed-locally-only**\n\n- `AGENTS.md` \u2192 `AGENTS.md`\n\n### context\n\n**new-upstream**\n\n- `context/.processkit-mcp-manifest.json` \u2192 `context/.processkit-mcp-manifest.json`\n",
+      "id": "MIG-20260517T170647",
+      "kind": "Migration",
+      "labels": {},
+      "member_path": "context/migrations/applied/MIG-20260517T170647.md",
+      "metadata": {
+        "created": "2026-05-17T17:06:47+00:00",
+        "id": "MIG-20260517T170647",
+        "updated": "2026-05-17T17:07:03+00:00"
+      },
+      "original_path": "context/migrations/applied/MIG-20260517T170647.md",
+      "sha256": "dfb870c3200df15bf7df4fec3c799a35ee98345058c1dc676c86e97958255574",
+      "spec": {
+        "affected_files": [
+          {
+            "classification": "changed-locally-only",
+            "path": "AGENTS.md"
+          },
+          {
+            "classification": "new-upstream",
+            "path": "context/.processkit-mcp-manifest.json"
+          }
+        ],
+        "affected_groups": [
+          "AGENTS",
+          "context"
+        ],
+        "applied_at": "2026-05-17T17:07:03+00:00",
+        "from_version": "v0.26.14",
+        "generated_at": "2026-05-17T17:06:47+00:00",
+        "generated_by": "aibox apply",
+        "progress_notes": [
+          {
+            "actor": "mcp",
+            "note": "Reviewed v0.26.15 migration: only new upstream file is context/.processkit-mcp-manifest.json; AGENTS.md is local-only and not overwritten.",
+            "timestamp": "2026-05-17T17:07:03+00:00"
+          }
+        ],
+        "source": "processkit",
+        "source_url": "https://github.com/projectious-work/processkit.git",
+        "started_at": "2026-05-17T17:07:03+00:00",
+        "state": "applied",
+        "summary": "0 changed upstream, 0 conflicts, 1 new, 0 removed, 0 stale-removed (2 groups affected)",
+        "to_version": "v0.26.15"
+      },
+      "storage_location": "context/archives/2026/05/ARCHIVE-20260522_194920-migration-applied.tar.gz::context/migrations/applied/MIG-20260517T170647.md"
+    }
+  ],
+  "kind": "Migration",
+  "older_than_days": 0,
+  "sha256": "55e8549fe0cac8c8d87f352badb039d978b1db23ed6a7158fad9e838f8899b3d",
+  "state": "applied"
+}
