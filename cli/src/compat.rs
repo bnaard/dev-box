@@ -513,6 +513,11 @@ pub static COMPAT_TABLE: &[CompatEntry] = &[
         processkit_version: "v0.27.1",
         note: "Patch release: integrates processkit v0.27.1 derived-project health cleanup, including quieter pk-doctor sensitive-data checks, gateway-aware preauth validation, sqlite-vec availability for pk-doctor MCP runs, supply-chain policy no-policy INFO handling, and a Codex processkit-gateway startup timeout so uv-backed gateway startup does not trip Codex's 30-second default.",
     },
+    CompatEntry {
+        aibox_version: "0.27.4",
+        processkit_version: "v0.27.1",
+        note: "Patch release: refreshes all shipped addon and harness tool defaults to current upstream releases, fixes Yarn 4 and Python 3.14 installation paths, moves Hermes to the current hermes-agent package installer, updates Rust/docs dependencies, and quiets actionable pk-doctor false positives while making release-integrity checks bounded.",
+    },
 ];
 
 /// Find the minimum compatible processkit version for the given aibox version.
