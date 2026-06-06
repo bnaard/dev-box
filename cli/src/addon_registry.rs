@@ -186,10 +186,11 @@ mod tests {
         let addon = get_addon("python").unwrap();
         let py = addon.tools.iter().find(|t| t.name == "python").unwrap();
         assert!(py.supported_versions.contains(&"3.13"));
-        assert_eq!(py.default_version, "3.13");
+        assert!(py.supported_versions.contains(&"3.14"));
+        assert_eq!(py.default_version, "3.14");
         let uv = addon.tools.iter().find(|t| t.name == "uv").unwrap();
-        assert!(uv.supported_versions.contains(&"0.11.15"));
-        assert_eq!(uv.default_version, "0.11.15");
+        assert!(uv.supported_versions.contains(&"0.11.19"));
+        assert_eq!(uv.default_version, "0.11.19");
     }
 
     #[test]
@@ -197,8 +198,8 @@ mod tests {
         ensure_loaded();
         let addon = get_addon("rust").unwrap();
         let rustc = addon.tools.iter().find(|t| t.name == "rustc").unwrap();
-        assert!(rustc.supported_versions.contains(&"1.94.1"));
-        assert_eq!(rustc.default_version, "1.94.1");
+        assert!(rustc.supported_versions.contains(&"1.96.0"));
+        assert_eq!(rustc.default_version, "1.96.0");
     }
 
     #[test]
@@ -216,7 +217,7 @@ mod tests {
     fn rust_has_builder_stage() {
         ensure_loaded();
         let tools = tc(&[
-            ("rustc", true, "1.94.1"),
+            ("rustc", true, "1.96.0"),
             ("clippy", true, ""),
             ("rustfmt", true, ""),
         ]);
@@ -228,8 +229,8 @@ mod tests {
             "missing rust-builder in:\n{stage}"
         );
         assert!(
-            stage.contains("1.94.1"),
-            "missing version 1.94.1 in:\n{stage}"
+            stage.contains("1.96.0"),
+            "missing version 1.96.0 in:\n{stage}"
         );
     }
 
@@ -245,7 +246,7 @@ mod tests {
     #[test]
     fn python_runtime_uses_base_python_uv_without_extra_layers() {
         ensure_loaded();
-        let tools = tc(&[("python", true, "3.13"), ("uv", true, "0.11.15")]);
+        let tools = tc(&[("python", true, "3.13"), ("uv", true, "0.11.19")]);
         let cmds = generate_runtime_commands("python", &tools);
         assert!(
             !cmds.contains("python3-pip"),
@@ -254,6 +255,21 @@ mod tests {
         assert!(
             !cmds.contains("ghcr.io/astral-sh/uv:0.7"),
             "base uv default should not recopy uv from its image:\n{cmds}"
+        );
+    }
+
+    #[test]
+    fn python_runtime_installs_alternate_python_with_uv() {
+        ensure_loaded();
+        let tools = tc(&[("python", true, "3.14"), ("uv", true, "0.11.19")]);
+        let cmds = generate_runtime_commands("python", &tools);
+        assert!(
+            cmds.contains("uv python install 3.14"),
+            "alternate Python versions should use uv-managed CPython:\n{cmds}"
+        );
+        assert!(
+            !cmds.contains("python3.14 \\\n"),
+            "alternate Python versions should not rely on Debian packages:\n{cmds}"
         );
     }
 
@@ -268,7 +284,7 @@ mod tests {
     #[test]
     fn rust_runtime_copies_from_builder() {
         ensure_loaded();
-        let tools = tc(&[("rustc", true, "1.94.1"), ("x86_64-cross", true, "")]);
+        let tools = tc(&[("rustc", true, "1.96.0"), ("x86_64-cross", true, "")]);
         let cmds = generate_runtime_commands("rust", &tools);
         assert!(
             cmds.contains("COPY --from=rust-builder"),
@@ -356,5 +372,8 @@ mod tests {
 
         let mistral = generate_runtime_commands("ai-mistral", &tc(&[("mistral", true, "2.4.4")]));
         assert!(mistral.contains("mistralai==2.4.4"), "{mistral}");
+
+        let hermes = generate_runtime_commands("ai-hermes", &tc(&[("hermes", true, "0.16.0")]));
+        assert!(hermes.contains("hermes-agent==0.16.0"), "{hermes}");
     }
 }

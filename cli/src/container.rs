@@ -617,7 +617,7 @@ pub fn resolve_init_values(
             let profiles = [AiboxProfile::HumanDev, AiboxProfile::HeadlessRunner];
             let idx = dialoguer::Select::new()
                 .with_prompt("Usage profile")
-                .items(&labels)
+                .items(labels)
                 .default(0)
                 .interact()?;
             profiles[idx]
@@ -2599,7 +2599,7 @@ pub fn cmd_init(config_path: &Option<String>, params: InitParams) -> Result<()> 
             ];
             let idx = dialoguer::Select::new()
                 .with_prompt("tmux status")
-                .items(&labels)
+                .items(labels)
                 .default(0)
                 .interact()?;
             modes[idx].clone()

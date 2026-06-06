@@ -31,6 +31,15 @@ _EXAMPLE_PARTS = {
     "test", "tests", "fixtures", "fixture", "examples", "example",
     "docs", "docs-site", "references", "templates",
 }
+_RESERVED_EXAMPLE_DOMAINS = {
+    "example.com",
+    "example.net",
+    "example.org",
+}
+_CODE_SUFFIXES = {
+    ".c", ".cc", ".cpp", ".go", ".java", ".js", ".jsx", ".lua",
+    ".mjs", ".py", ".rs", ".ts", ".tsx",
+}
 
 
 @dataclass(frozen=True)
@@ -443,6 +452,9 @@ def _is_false_positive(
     if pattern.id == "sensitive-data.email-address":
         if _team_member_pii_opted_in(path):
             return True
+        domain = lowered_excerpt.rsplit("@", 1)[-1]
+        if domain in _RESERVED_EXAMPLE_DOMAINS:
+            return True
         synthetic = {
             "alice@example.com",
             "alex@example.com",
@@ -460,6 +472,10 @@ def _is_false_positive(
         if path.suffix == ".md" and "skills" in path.parts:
             return True
         digits = re.sub(r"\D", "", excerpt)
+        if path.suffix in _CODE_SUFFIXES and excerpt == digits:
+            code_tokens = ("<", ">", "=", "+", "-", "*", "/")
+            if any(token in line_text for token in code_tokens):
+                return True
         if re.fullmatch(r"20\d{10}", digits):
             return True
         if "/" in excerpt:

@@ -806,7 +806,7 @@ fn download_and_extract_release_asset(url: &str, dest: &Path) -> Result<Option<S
     // verification and the lock-file marker.
     let mut hasher = Sha256::new();
     hasher.update(&bytes);
-    let actual_sha = format!("{:x}", hasher.finalize());
+    let actual_sha = crate::lock::hex_lower(hasher.finalize());
 
     // Optional checksum verification.
     let checksum_url = format!("{}.sha256", url);

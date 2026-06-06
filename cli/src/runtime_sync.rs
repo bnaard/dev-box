@@ -598,7 +598,7 @@ fn runtime_group_for(rel_path: &str) -> String {
 fn sha256_of_bytes(bytes: &[u8]) -> String {
     let mut hasher = Sha256::new();
     hasher.update(bytes);
-    format!("{:x}", hasher.finalize())
+    crate::lock::hex_lower(hasher.finalize())
 }
 
 fn live_file_matches(host_root: &Path, rel_path: &str, expected_sha: &str) -> bool {

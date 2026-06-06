@@ -44,7 +44,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 
 ENV CARGO_HOME=/cargo RUSTUP_HOME=/rustup PATH="/cargo/bin:${PATH}"
 RUN curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | \
-    sh -s -- -y --profile minimal --default-toolchain 1.94
+    sh -s -- -y --profile minimal --default-toolchain 1.96.0
 
 COPY config/bin/aibox_status_core.rs config/bin/aibox-status.rs config/bin/aibox-diagnostics.rs /build/aibox-runtime-tools/
 RUN mkdir -p /build/aibox-runtime-tools/bin && \
@@ -120,7 +120,7 @@ RUN ARCH=$(uname -m) && \
 
 # ── fzf (uses amd64/arm64 instead of x86_64/aarch64) ────────────────────────
 FROM fetch-base AS fetch-fzf
-ARG FZF_VERSION=0.72.0
+ARG FZF_VERSION=0.73.1
 RUN ARCH=$(uname -m) && \
     FZF_ARCH=$(case $ARCH in aarch64) echo arm64;; x86_64) echo amd64;; esac) && \
     curl -fsSL --retry 5 --retry-delay 3 --retry-all-errors \
@@ -278,7 +278,7 @@ COPY --from=build-aibox-runtime-tools /build/aibox-runtime-tools/bin/aibox-diagn
 # image since v0.16.5 (DEC-036) so processkit's PEP 723 MCP server
 # scripts run via `uv run` out of the box. Works against the
 # externally-installed python3 from apt above.
-COPY --from=ghcr.io/astral-sh/uv:0.11.15 /uv /uvx /usr/local/bin/
+COPY --from=ghcr.io/astral-sh/uv:0.11.19 /uv /uvx /usr/local/bin/
 ENV UV_CACHE_DIR=/tmp/aibox/uv-cache
 
 ARG AIBOX_IMAGE_SOURCE_SHA=unknown

@@ -11,8 +11,8 @@ tools:
   - name: hermes
     description: "Nous Hermes autonomous AI agent CLI"
     default_enabled: true
-    default_version: ""
-    supported_versions: []
+    default_version: "0.16.0"
+    supported_versions: ["0.16.0"]
 
 builder: null
 
@@ -24,41 +24,14 @@ runtime: |
   # Config: ~/.hermes/  |  Binary: hermes
   # Auth: Set the relevant provider API key (ANTHROPIC_API_KEY, OPENAI_API_KEY, etc.)
   #
-  # Supply-chain note (S1 — BR-SEC-HARDEN):
-  # The Hermes vendor (nousresearch.com) does not publish signed release
-  # artefacts or separate SHA-256 checksum files for the `hermes` binary.
-  # The previous pipe-to-shell install pattern has been replaced with a direct
-  # versioned download from the GitHub release asset, pinning by version
-  # tag.  Version pinning provides meaningful supply-chain integrity over
-  # the curl-pipe-bash method (an attacker must compromise a specific tagged
-  # release rather than the install script endpoint).
-  #
-  # TODO(sec): if/when Nous Research adds per-release SHA-256SUMS or GPG
-  # signatures to https://github.com/nousresearch/hermes/releases, replace
-  # the version-pinned download below with a full checksum/GPG verify step
-  # mirroring the OpenTofu pattern in addons/tools/infrastructure.yaml:43-45.
+  # Hermes Agent currently publishes Python package artifacts rather than
+  # per-platform hermes-linux-* binaries. Install through uv tool so pinned
+  # versions resolve through PyPI metadata and the unpinned path follows the
+  # latest package release.
   USER aibox
   {% if tools.hermes.version %}
-  RUN HERMES_VERSION="{{ tools.hermes.version }}" && \
-      ARCH="$(uname -m | sed 's/x86_64/x86_64/;s/aarch64/aarch64/')" && \
-      curl -fsSL \
-        "https://github.com/nousresearch/hermes/releases/download/v${HERMES_VERSION}/hermes-linux-${ARCH}" \
-        -o /tmp/hermes && \
-      chmod +x /tmp/hermes && \
-      mv /tmp/hermes /home/aibox/.local/bin/hermes
+  RUN uv tool install hermes-agent=={{ tools.hermes.version }}
   {% else %}
-  # No version pinned — fall back to latest tag redirect.
-  # TODO(sec): pin HERMES_VERSION to a known-good release in aibox.toml
-  # [addons."ai-hermes".tools.hermes] version = "x.y.z" to enable
-  # deterministic builds.
-  RUN ARCH="$(uname -m | sed 's/x86_64/x86_64/;s/aarch64/aarch64/')" && \
-      HERMES_VERSION="$(curl -fsSL -o /dev/null -w '%{url_effective}' \
-        https://github.com/nousresearch/hermes/releases/latest \
-        | sed 's|.*/v||')" && \
-      curl -fsSL \
-        "https://github.com/nousresearch/hermes/releases/download/v${HERMES_VERSION}/hermes-linux-${ARCH}" \
-        -o /tmp/hermes && \
-      chmod +x /tmp/hermes && \
-      mv /tmp/hermes /home/aibox/.local/bin/hermes
+  RUN uv tool install hermes-agent
   {% endif %}
   USER root

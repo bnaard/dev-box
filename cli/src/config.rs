@@ -1053,7 +1053,7 @@ impl Default for AiSection {
 
 /// Configuration for a single tool within an addon.
 ///
-/// In TOML this appears as e.g. `python = { version = "3.13" }`,
+/// In TOML this appears as e.g. `python = { version = "3.14" }`,
 /// `clippy = {}`, or `lazygit = { enabled = false }`.
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 pub struct ToolEntry {
@@ -1076,8 +1076,8 @@ pub struct AddonToolsSection {
 /// In TOML:
 /// ```toml
 /// [addons.python.tools]
-/// python = { version = "3.13" }
-/// uv = { version = "0.11.15" }
+/// python = { version = "3.14" }
+/// uv = { version = "0.11.19" }
 /// ```
 ///
 /// Deserialized as `HashMap<String, AddonToolsSection>` where the outer key
@@ -5058,15 +5058,15 @@ harnesses = ["claude", "aider", "mistral"]
 packages = ["managed", "code", "documentation"]
 
 [addons.python.tools]
-python = { version = "3.13" }
+python = { version = "3.14" }
 uv = { version = "0.7" }
 
 [addons.node.tools]
-node = { version = "22" }
-pnpm = { version = "11.1.3" }
+node = { version = "26" }
+pnpm = { version = "11.5.2" }
 
 [addons.rust.tools]
-rustc = { version = "1.94.1" }
+rustc = { version = "1.96.0" }
 clippy = {}
 rustfmt = {}
 
@@ -5221,9 +5221,9 @@ name = "my-project"
         assert!(config.addons.has_addon("cloud-aws"));
 
         // Check specific tool versions
-        assert_eq!(config.addons.tool_version("python", "python"), Some("3.13"));
+        assert_eq!(config.addons.tool_version("python", "python"), Some("3.14"));
         assert_eq!(config.addons.tool_version("python", "uv"), Some("0.7"));
-        assert_eq!(config.addons.tool_version("rust", "rustc"), Some("1.94.1"));
+        assert_eq!(config.addons.tool_version("rust", "rustc"), Some("1.96.0"));
         assert_eq!(config.addons.tool_version("rust", "clippy"), None);
         assert_eq!(config.addons.tool_version("rust", "rustfmt"), None);
         assert!(config.addons.has_tool("kubernetes", "kubectl"));
@@ -6128,8 +6128,8 @@ harnesses = []
         assert!(config.addons.has_tool("python", "python"));
         assert!(config.addons.has_tool("python", "uv"));
         assert!(!config.addons.has_tool("python", "poetry"));
-        assert_eq!(config.addons.tool_version("node", "node"), Some("22"));
-        assert_eq!(config.addons.tool_version("node", "pnpm"), Some("11.1.3"));
+        assert_eq!(config.addons.tool_version("node", "node"), Some("26"));
+        assert_eq!(config.addons.tool_version("node", "pnpm"), Some("11.5.2"));
         assert_eq!(config.addons.tool_version("cloud-aws", "aws-cli"), None);
     }
 

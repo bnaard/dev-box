@@ -31,11 +31,9 @@ fn resolve_rustc() -> Result<Option<String>> {
             && let Some(ver) = rest.split_whitespace().next()
         {
             let ver = ver.trim_matches('"');
-            let parts: Vec<&str> = ver.split('.').collect();
-            if parts.len() >= 2 {
-                let short = format!("{}.{}", parts[0], parts[1]);
-                output::ok(&format!("Resolved rustc latest -> {}", short));
-                return Ok(Some(short));
+            if ver.split('.').count() >= 2 {
+                output::ok(&format!("Resolved rustc latest -> {}", ver));
+                return Ok(Some(ver.to_string()));
             }
         }
     }

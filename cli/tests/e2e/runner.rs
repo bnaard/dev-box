@@ -468,7 +468,7 @@ impl E2eRunner {
         }
         let version = combined.lines().find_map(|line| {
             let (_, version) = line.rsplit_once(" -> ")?;
-            let version = version.trim().split_whitespace().next().unwrap_or("");
+            let version = version.split_whitespace().next().unwrap_or("");
             if version.chars().next().is_some_and(|c| c.is_ascii_digit()) {
                 Some(version.to_string())
             } else {

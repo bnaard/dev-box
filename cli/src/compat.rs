@@ -384,7 +384,7 @@ pub static COMPAT_TABLE: &[CompatEntry] = &[
                new [apply].purge_disabled_harness_state toml key (default false); \
                BREAKING: [customization.zellij_status] is now schema-rejected — remove from aibox.toml before upgrade (see docs-site/docs/migrations/zellij-eol.md); \
                six new doctor checks + semver-aware version-skew reporting; \
-               addon download integrity hardening — 11 addons use SHA-256/GPG/.sha256 sidecar verification; ai-hermes and ai-opencode pinned to GitHub release assets (vendors publish no SHA256SUMS — see TODO annotations); \
+               addon download integrity hardening — 11 addons use SHA-256/GPG/.sha256 sidecar verification; ai-opencode pinned to GitHub release assets (vendor publishes no SHA256SUMS — see TODO annotations); \
                BREAKING: seccomp=unconfined now requires [security].acknowledge_seccomp_unconfined = true in aibox.toml; aibox init --harness codex auto-sets this; existing Codex projects must add it manually (see docs-site/docs/reference/security.md); \
                aibox.toml [skills] dedup — single array of strings, comment-out to disable; \
                two-line powerline status bar with six chevron-styled aibox metrics segments (slot order fixed per DEC-20260508_2115-SilentFern); \

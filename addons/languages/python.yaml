@@ -8,7 +8,7 @@ exported_surfaces: ["language-runtime", "build-toolchain", "cli-binary"]
 builder_weight: null
 
 # As of aibox v0.16.5 (DEC-036), python3 (Debian Trixie default, 3.13.x)
-# and uv (0.11.15 from ghcr.io/astral-sh/uv) are unconditionally present
+# and uv (0.11.19 from ghcr.io/astral-sh/uv) are unconditionally present
 # in the base-debian image. This addon now provides ADDITIONAL Python
 # tooling beyond that minimum: alternative Python versions (3.12, 3.14),
 # poetry, pdm, and the recommended skills below.
@@ -22,13 +22,13 @@ tools:
   - name: python
     description: "Python interpreter runtime for applications and scripts"
     default_enabled: true
-    default_version: "3.13"
+    default_version: "3.14"
     supported_versions: ["3.12", "3.13", "3.14"]
   - name: uv
     description: "Fast Python package manager and virtual environment tool"
     default_enabled: true
-    default_version: "0.11.15"
-    supported_versions: ["0.7", "0.11.10", "0.11.11", "0.11.15"]
+    default_version: "0.11.19"
+    supported_versions: ["0.7", "0.11.10", "0.11.11", "0.11.15", "0.11.19"]
   - name: pip
     description: "Python package installer for pip-based projects"
     default_enabled: false
@@ -42,26 +42,32 @@ tools:
   - name: pdm
     description: "Python project and dependency manager using PEP standards"
     default_enabled: false
-    default_version: "2.26.9"
-    supported_versions: ["2.22", "2.26.9"]
+    default_version: "2.27.0"
+    supported_versions: ["2.22", "2.26.9", "2.27.0"]
 
 builder: null
 
 runtime: |
   # Addon: python (runtime)
-  {% if tools.python.version != "3.13" or tools.pip.enabled %}
-  RUN apt-get update && apt-get install -y --no-install-recommends \
   {% if tools.python.version != "3.13" %}
-      python{{ tools.python.version }} \
+  RUN UV_PYTHON_INSTALL_DIR=/opt/aibox-python uv python install {{ tools.python.version }} && \
+      py_bin="$(find /opt/aibox-python -path '*/bin/python{{ tools.python.version }}' -type f | sort | tail -n 1)" && \
+      py_dir="$(dirname "$py_bin")" && \
+      ln -sf "$py_bin" /usr/local/bin/python{{ tools.python.version }} && \
+      ln -sf "$py_dir/python3" /usr/local/bin/python3 && \
+      ln -sf "$py_dir/python" /usr/local/bin/python && \
+      ln -sf "$py_dir/pip3" /usr/local/bin/pip3 && \
+      ln -sf "$py_dir/pip" /usr/local/bin/pip
   {% endif %}
+
   {% if tools.pip.enabled %}
+  RUN apt-get update && apt-get install -y --no-install-recommends \
       python3-pip \
-  {% endif %}
       python3-venv \
       && rm -rf /var/lib/apt/lists/*
   {% endif %}
 
-  {% if tools.uv.version != "0.11.15" %}
+  {% if tools.uv.version != "0.11.19" %}
   COPY --from=ghcr.io/astral-sh/uv:{{ tools.uv.version }} /uv /usr/local/bin/uv
   COPY --from=ghcr.io/astral-sh/uv:{{ tools.uv.version }} /uvx /usr/local/bin/uvx
   {% endif %}

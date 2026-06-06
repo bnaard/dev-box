@@ -1787,9 +1787,9 @@ pub fn compute_processkit_install_fingerprint(project_root: &Path) -> Option<Str
     }
 
     Some(format!(
-        "{}:{:x}",
+        "{}:{}",
         INSTALL_HASH_FORMAT_TAG,
-        hasher.finalize()
+        crate::lock::hex_lower(hasher.finalize())
     ))
 }
 

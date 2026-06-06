@@ -460,8 +460,8 @@ version = "0.9.0"
 name = "test"
 
 [addons.python.tools]
-python = { version = "3.13" }
-	uv = { version = "0.11.15" }
+python = { version = "3.14" }
+	uv = { version = "0.11.19" }
 "#,
         )
         .unwrap();
