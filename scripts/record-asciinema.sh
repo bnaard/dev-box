@@ -330,12 +330,12 @@ mkdir -p my-project && cd my-project
 sleep 0.3
 echo -ne '\033[32m❯\033[0m '
 sleep 0.3
-for c in a i b o x ' ' i n i t ' ' m y - p r o j e c t ' ' - - y e s ' ' - - b a s e ' ' d e b i a n ' ' - - p r o f i l e ' ' h u m a n - d e v ' ' - - u s e r ' ' a i b o x ' ' - - t h e m e ' ' g r u v b o x ' ' - - p r o m p t ' ' d e f a u l t ' ' - - t m u x - s t a t u s ' ' e x t e n d e d ' ' - - a d d o n ' ' p y t h o n ' ' - - a d d o n - t o o l ' ' p y t h o n : p y t h o n = 3 . 1 3 ' ' - - a d d o n - t o o l ' ' p y t h o n : u v = 0 . 1 1 . 1 4 ' ' - - h a r n e s s ' ' c l a u d e ' ' - - p r o c e s s k i t - v e r s i o n ' ' v 0 . 2 6 . 1 5 ' ' - - n o - c o n t a i n e r; do
+for c in a i b o x ' ' i n i t ' ' m y - p r o j e c t ' ' - - y e s ' ' - - b a s e ' ' d e b i a n ' ' - - p r o f i l e ' ' h u m a n - d e v ' ' - - u s e r ' ' a i b o x ' ' - - t h e m e ' ' g r u v b o x ' ' - - p r o m p t ' ' d e f a u l t ' ' - - t m u x - s t a t u s ' ' e x t e n d e d ' ' - - a d d o n ' ' p y t h o n ' ' - - a d d o n - t o o l ' ' p y t h o n : p y t h o n = 3 . 1 4 ' ' - - a d d o n - t o o l ' ' p y t h o n : u v = 0 . 1 1 . 1 9 ' ' - - h a r n e s s ' ' c l a u d e ' ' - - p r o c e s s k i t - v e r s i o n ' ' v 0 . 2 6 . 1 5 ' ' - - n o - c o n t a i n e r; do
   printf '%s' "\$c"
   sleep 0.06
 done
 echo
-printf 'y\n' | aibox init my-project --yes --base debian --profile human-dev --user aibox --theme gruvbox --prompt default --tmux-status extended --addon python --addon-tool python:python=3.13 --addon-tool python:uv=0.11.15 --harness claude --processkit-version v0.26.15 --no-container 2>&1 || true
+printf 'y\n' | aibox init my-project --yes --base debian --profile human-dev --user aibox --theme gruvbox --prompt default --tmux-status extended --addon python --addon-tool python:python=3.14 --addon-tool python:uv=0.11.19 --harness claude --processkit-version v0.26.15 --no-container 2>&1 || true
 
 sleep 1
 echo -ne '\033[32m❯\033[0m '

@@ -126,8 +126,8 @@ schema_version = "1.0.0"
 # Addons install tool sets into the container.
 # Run `aibox get addon` to see all available addons.
 # [addons.python.tools]
-# python = { version = "3.13" }
-# uv     = { version = "0.7" }
+# python = { version = "3.14" }
+# uv     = { version = "0.11.19" }
 
 # AI harnesses — controls which AI CLIs/configs are enabled.
 [ai]

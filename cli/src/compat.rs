@@ -518,6 +518,11 @@ pub static COMPAT_TABLE: &[CompatEntry] = &[
         processkit_version: "v0.27.1",
         note: "Patch release: refreshes all shipped addon and harness tool defaults to current upstream releases, fixes Yarn 4 and Python 3.14 installation paths, moves Hermes to the current hermes-agent package installer, updates Rust/docs dependencies, and quiets actionable pk-doctor false positives while making release-integrity checks bounded.",
     },
+    CompatEntry {
+        aibox_version: "0.27.5",
+        processkit_version: "v0.27.1",
+        note: "Patch release: refreshes the shipped docs-hugo pin to Hugo 0.162.1 and aligns release-state/docs inventory with the current addon and harness defaults from v0.27.4.",
+    },
 ];
 
 /// Find the minimum compatible processkit version for the given aibox version.
