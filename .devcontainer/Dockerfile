@@ -45,7 +45,7 @@ RUN ARCH="$(uname -m)" && \
     (cd /tmp && sha256sum -c rustup-init.sha256) && \
     chmod +x /tmp/rustup-init && \
     /tmp/rustup-init -y \
-      --default-toolchain 1.94 \
+      --default-toolchain 1.96.0 \
       --component clippy \
       --component rustfmt && \
     rm /tmp/rustup-init /tmp/rustup-init.sha256
@@ -90,7 +90,7 @@ RUN ARCH=$(uname -m) && \
     fi
 
 
-FROM ghcr.io/projectious-work/aibox:base-debian-runtime-v0.27.2 AS aibox
+FROM ghcr.io/projectious-work/aibox:base-debian-runtime-v0.27.5 AS aibox
 
 ENV SHELL=/bin/bash
 ENV UV_CACHE_DIR=/tmp/aibox/uv-cache
@@ -148,13 +148,12 @@ RUN if dpkg-query -W -f='${Status}' lazygit 2>/dev/null | grep -q 'install ok in
 RUN apt-get update && apt-get install -y --no-install-recommends ca-certificates curl gpg && \
     mkdir -p /etc/apt/keyrings && \
     curl -fsSL https://deb.nodesource.com/gpgkey/nodesource-repo.gpg.key | gpg --dearmor -o /etc/apt/keyrings/nodesource.gpg && \
-    echo "deb [signed-by=/etc/apt/keyrings/nodesource.gpg] https://deb.nodesource.com/node_22.x nodistro main" > /etc/apt/sources.list.d/nodesource.list && \
+    echo "deb [signed-by=/etc/apt/keyrings/nodesource.gpg] https://deb.nodesource.com/node_26.x nodistro main" > /etc/apt/sources.list.d/nodesource.list && \
     apt-get update && apt-get install -y --no-install-recommends nodejs && \
     rm -rf /var/lib/apt/lists/*
 
-RUN npm install -g pnpm@10 && \
+RUN npm install -g pnpm@11.5.2 && \
     npm cache clean --force
-
 
 
 # Addon: ai-codex
@@ -197,6 +196,15 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 
 
 # Addon: python (runtime)
+RUN UV_PYTHON_INSTALL_DIR=/opt/aibox-python uv python install 3.14 && \
+    py_bin="$(find /opt/aibox-python -path '*/bin/python3.14' -type f | sort | tail -n 1)" && \
+    py_dir="$(dirname "$py_bin")" && \
+    ln -sf "$py_bin" /usr/local/bin/python3.14 && \
+    ln -sf "$py_dir/python3" /usr/local/bin/python3 && \
+    ln -sf "$py_dir/python" /usr/local/bin/python && \
+    ln -sf "$py_dir/pip3" /usr/local/bin/pip3 && \
+    ln -sf "$py_dir/pip" /usr/local/bin/pip
+
 
 
 
@@ -260,6 +268,6 @@ EOF
 
 # Record image version inside container for runtime checks
 USER root
-LABEL aibox.version="0.27.2"
+LABEL aibox.version="0.27.5"
 LABEL aibox.profile="human-dev"
-RUN echo "0.27.2" > /etc/aibox-version
+RUN echo "0.27.5" > /etc/aibox-version
