@@ -580,7 +580,7 @@ prompt = "powerline-pastel"
 # |     |     |  |ai1  |     |  ai1 ai2 ... |  +-----------+
 # +-----------+  +-----------+  +-----------+  ai1 ai2 ...
 # Extra windows: ai holds additional harnesses; lazygit and shell open when enabled.
-layout = "cowork"
+layout = "ai"
 
 # tmux runtime options. `layout` may override [customization].layout for tmux only.
 [customization.tmux]

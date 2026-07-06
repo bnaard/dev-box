@@ -25,11 +25,6 @@ REQUIRED_MANAGED_BLOCKS = {
     "pk-compliance-contract-v2": "processkit compliance contract",
     "pk-commands": "project command adapter block",
 }
-PROJECT_LOCAL_MANAGED_BLOCKS = {
-    # The wrapper commands are a project adapter: processkit owns the schema,
-    # while the consuming repo owns the concrete command strings.
-    "pk-commands",
-}
 LEGACY_BLOCK_MARKERS = {
     "pk-compliance-contract-v2": (
         "<!-- pk-compliance-contract v2 BEGIN -->",
@@ -341,8 +336,6 @@ def _managed_block_findings(
     reference_path, reference_text = reference
     reference_blocks = _managed_blocks(reference_text)
     for block_id in sorted(set(blocks) & set(reference_blocks)):
-        if block_id in PROJECT_LOCAL_MANAGED_BLOCKS:
-            continue
         local_hash = hashlib.sha256(
             _normalize_block(blocks[block_id]).encode("utf-8")
         ).hexdigest()
