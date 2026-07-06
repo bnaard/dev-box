@@ -34,7 +34,7 @@ rust = [
 ]
 
 [runtime_home]
-generated_at = "2026-07-06T08:08:33.930331454+00:00"
+generated_at = "2026-07-06T10:43:50.436877+00:00"
 
 [runtime_home.files]
 ".asoundrc" = "f34609b11d315cd613cb5333b561032baec860faf4a7eccb28b5567ae72019af"
@@ -48,7 +48,7 @@ generated_at = "2026-07-06T08:08:33.930331454+00:00"
 ".config/starship.toml" = "dfec07a447d2256b33f32bf6c9fa4bec39f023edf7b4a8fca9dffae067f4e838"
 ".config/tmux/aibox-powerkit-overrides.tmux" = "45f8cd05192ac455c314a6420bf2d47012c8fccbe8e06f02205ca8bf57cd20b2"
 ".config/tmux/aibox-powerkit-theme.sh" = "b7d540f6938f11c78877eb6a7b7f02e15f2720a95b421513aaf7ba8eebe1a59f"
-".config/tmux/aibox-session.sh" = "a288b00ba715dfe0ac37e5315761c0d0de9ddb30afea4702a03a4e3d1189ac88"
+".config/tmux/aibox-session.sh" = "a2cb0ad6276471ad6f438d7a6379b6f43bbe29b5743da8f7dc7030d890400c50"
 ".config/tmux/layouts/ai.sh" = "a718f855cccd7be90ab2d9be42b31bcf5fd0d112ad9c4fc331d05db9c1f0fb07"
 ".config/tmux/layouts/cowork.sh" = "8b08dcb8f1536d6e3010f27a8ead9fbcb8eb81eb844899f7d0a6ce781f16827b"
 ".config/tmux/layouts/dev.sh" = "6cd191524e8f27fee08e1efe2f7b133c7d2cfd01c08b4dc249ac6680c6cbd22c"

@@ -24,7 +24,7 @@
           "tmux": {
             "args": [
               "-lc",
-              "exec ~/.config/tmux/layouts/cowork.sh"
+              "exec ~/.config/tmux/layouts/ai.sh"
             ],
             "path": "/bin/bash"
           }
