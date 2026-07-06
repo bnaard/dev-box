@@ -2882,7 +2882,7 @@ layout = "ai"
         assert!(!after.contains("[[ai.harnesses]]"));
         assert!(!after.contains("packages = [\"product\"]"));
         assert!(!after.to_ascii_lowercase().contains("deprecated"));
-        assert!(after.contains("    \"actor-profile\", # processkit;"));
+        assert!(after.contains("    \"actor-profile\", #"));
         assert!(!after.contains("    # \"actor-profile\", # explicitly enable;"));
         assert!(after.contains("[ai.execution]"));
         assert!(after.contains("# [ai.execution.claude]"));

@@ -523,6 +523,11 @@ pub static COMPAT_TABLE: &[CompatEntry] = &[
         processkit_version: "v0.27.1",
         note: "Patch release: refreshes the shipped docs-hugo pin to Hugo 0.162.1 and aligns release-state/docs inventory with the current addon and harness defaults from v0.27.4.",
     },
+    CompatEntry {
+        aibox_version: "0.27.6",
+        processkit_version: "v0.27.1",
+        note: "Patch release: refreshes tool and harness pins, updates generated runtime/docs references, and adds the GitHub CLI credential-helper integration for HTTPS Git operations.",
+    },
 ];
 
 /// Find the minimum compatible processkit version for the given aibox version.
