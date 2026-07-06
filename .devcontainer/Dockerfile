@@ -45,7 +45,7 @@ RUN ARCH="$(uname -m)" && \
     (cd /tmp && sha256sum -c rustup-init.sha256) && \
     chmod +x /tmp/rustup-init && \
     /tmp/rustup-init -y \
-      --default-toolchain 1.96.0 \
+      --default-toolchain 1.96.1 \
       --component clippy \
       --component rustfmt && \
     rm /tmp/rustup-init /tmp/rustup-init.sha256
@@ -152,7 +152,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends ca-certificates
     apt-get update && apt-get install -y --no-install-recommends nodejs && \
     rm -rf /var/lib/apt/lists/*
 
-RUN npm install -g pnpm@11.5.2 && \
+RUN npm install -g pnpm@11.10.0 && \
     npm cache clean --force
 
 

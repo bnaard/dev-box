@@ -686,6 +686,7 @@ mod tests {
             // seed::sync_theme_files / seed_root_dir
             ".aibox-home/.vim/vimrc",
             ".aibox-home/.config/git/config",
+            ".aibox-home/.config/git/aibox-github.inc",
             ".aibox-home/.config/tmux/tmux.conf",
             ".aibox-home/.config/tmux/aibox-session.sh",
             ".aibox-home/.config/tmux/layouts/dev.sh",

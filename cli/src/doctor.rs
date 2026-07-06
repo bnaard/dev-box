@@ -407,6 +407,18 @@ fn check_runtime_theme_template_drift(config: &AiboxConfig, diag: &mut DiagResul
         }
     }
 
+    if !crate::seed::include_github_credential_helper(config) {
+        let stale_helper = root.join(".config").join("git").join("aibox-github.inc");
+        if stale_helper.exists() {
+            output::warn(
+                "Runtime theme/template drift: .config/git/aibox-github.inc exists but \
+                 integrations.github.credential_helper does not enable it. Run `aibox apply` \
+                 to remove the managed GitHub credential helper.",
+            );
+            drift += 1;
+        }
+    }
+
     if drift == 0 {
         output::ok("Runtime theme files match the current aibox reference");
     } else {
@@ -424,6 +436,8 @@ fn runtime_theme_reference_files(config: &AiboxConfig) -> Vec<(std::path::PathBu
 fn is_runtime_theme_reference_file(path: &Path) -> bool {
     let rel = path.to_string_lossy().replace('\\', "/");
     rel == ".vim/vimrc"
+        || rel == ".config/git/config"
+        || rel == ".config/git/aibox-github.inc"
         || rel == ".config/tmux/tmux.conf"
         || rel.starts_with(".config/tmux/layouts/")
         || rel == ".config/yazi/theme.toml"

@@ -14,8 +14,8 @@ tools:
   - name: typst
     description: "Typst compiler for modern document typesetting"
     default_enabled: true
-    default_version: "0.14.2"
-    supported_versions: ["0.13.1", "0.14.2"]
+    default_version: "0.15.0"
+    supported_versions: ["0.13.1", "0.14.2", "0.15.0"]
 
 builder: null
 

@@ -1591,6 +1591,7 @@ mod tests {
             agents: crate::config::AgentsSection::default(),
             customization: CustomizationSection::default(),
             audio: AudioSection::default(),
+            integrations: crate::config::IntegrationsSection::default(),
             apply: crate::config::ApplySection::default(),
             security: SecuritySection::default(),
             mcp: crate::config::McpSection::default(),

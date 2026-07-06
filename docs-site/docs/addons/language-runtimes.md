@@ -12,9 +12,9 @@ Language runtimes install compilers, interpreters, and package managers into you
 ```toml
 [addons.python.tools]
 python = { version = "3.14" }   # 3.12, 3.13, 3.14
-uv = { version = "0.11.19" }    # 0.7, 0.11.10, 0.11.11, 0.11.15, 0.11.19
+uv = { version = "0.11.26" }    # 0.7, 0.11.10, 0.11.11, 0.11.15, 0.11.19, 0.11.26
 # poetry = { version = "2.4.1" } # Optional: 1.8, 2.0, 2.4.1
-# pdm = { version = "2.27.0" }   # Optional: 2.22, 2.26.9, 2.27.0
+# pdm = { version = "2.28.0" }   # Optional: 2.22, 2.26.9, 2.27.0, 2.28.0
 ```
 
 Installs Python, pip, venv, and [uv](https://github.com/astral-sh/uv) (fast package manager). The base image pins uv to the curated default instead of following a floating `latest` image tag. Poetry and PDM are available but not enabled by default.
@@ -23,7 +23,7 @@ Installs Python, pip, venv, and [uv](https://github.com/astral-sh/uv) (fast pack
 
 ```toml
 [addons.rust.tools]
-rustc = { version = "1.96.0" }  # 1.90, 1.91, 1.92, 1.93, 1.94, 1.94.1, 1.96.0
+rustc = { version = "1.96.1" }  # 1.90, 1.91, 1.92, 1.93, 1.94, 1.94.1, 1.96.0, 1.96.1
 clippy = {}                     # Linter (no version selection)
 rustfmt = {}                    # Formatter (no version selection)
 ```
@@ -35,8 +35,8 @@ Installs the Rust toolchain via rustup with clippy and rustfmt. Uses a multi-sta
 ```toml
 [addons.node.tools]
 node = { version = "26" }       # 20, 22, 24, 26
-pnpm = { version = "11.5.2" }   # 9, 10, 11.1.3, 11.5.2
-# yarn = { version = "4.16.0" } # Optional: 4, 4.16.0
+pnpm = { version = "11.10.0" }  # 9, 10, 11.1.3, 11.5.2, 11.10.0
+# yarn = { version = "4.17.0" } # Optional: 4, 4.16.0, 4.17.0
 # bun = { version = "1.3.14" }  # Optional
 ```
 
@@ -55,7 +55,7 @@ Installs Go and sets up GOPATH.
 
 ```toml
 [addons.typst.tools]
-typst = { version = "0.14" }    # 0.13, 0.14
+typst = { version = "0.15.0" }  # 0.13.1, 0.14.2, 0.15.0
 ```
 
 Installs the [Typst](https://typst.app/) typesetting system for modern document creation.

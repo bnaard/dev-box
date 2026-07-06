@@ -61,16 +61,19 @@ schema_version = "1.0.0"              # Context schema version (semver)
 
 [addons.python.tools]                 # Addon: Python runtime
 python = { version = "3.14" }
-uv     = { version = "0.11.19" }
+uv     = { version = "0.11.26" }
 
 [addons.rust.tools]                   # Addon: Rust toolchain
-rustc   = { version = "1.96.0" }
+rustc   = { version = "1.96.1" }
 clippy  = {}
 rustfmt = {}
 
 [addons.git-ui.tools]                 # Optional: GitHub CLI and lazygit
 gh      = {}
 lazygit = {}
+
+[integrations.github]
+credential_helper = "auto"            # auto | gh | none
 
 [ai]
 model_providers = ["anthropic"]       # Optional provider env hints (API key + base URL)
@@ -364,7 +367,7 @@ to install their CLIs.
 ```toml
 [addons.python.tools]
 python = { version = "3.14" }
-uv = { version = "0.11.19" }
+uv = { version = "0.11.26" }
 ```
 
 For interactive Git tooling:
@@ -704,6 +707,14 @@ Audio bridging configuration.
 
 Legacy `[container.audio]` input is still accepted for compatibility. Fresh
 scaffolding writes top-level `[audio]`.
+
+### [integrations.github]
+
+GitHub integration behavior for generated runtime Git configuration.
+
+| Field | Type | Required | Default | Description |
+|-------|------|----------|---------|-------------|
+| `credential_helper` | String | No | `"auto"` | `auto` writes a managed Git include when the `git-ui` addon installs `gh`; `gh` always writes it; `none` skips and removes the managed include. The include delegates HTTPS Git credentials to `gh auth git-credential` and never stores token values. |
 
 ## Environment Variable Overrides
 

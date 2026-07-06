@@ -12,10 +12,10 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 
 # ── tmux plugins ─────────────────────────────────────────────────────────────
 FROM fetch-base AS fetch-tmux-plugins
-ARG TMUX_POWERKIT_REF=139be6bbd57dbedfc6c534e72a440147ad0ab4d4
+ARG TMUX_POWERKIT_REF=6ac71f0d22827af7324e527a3ad69334f80f0641
 ARG TMUX_SENSIBLE_REF=25cb91f42d020f675bb0a2ce3fbd3a5d96119efa
 ARG VIM_TMUX_NAVIGATOR_REF=e41c431a0c7b7388ae7ba341f01a0d217eb3a432
-ARG TPM_REF=99469c4a9b1ccf77fade25842dc7bafbc8ce9946
+ARG TPM_REF=e261deb1b47614eed3400089ce7197dc68acc4eb
 ARG TMUX_CONTINUUM_REF=0698e8f4b17d6454c71bf5212895ec055c578da0
 ARG TMUX_YANK_REF=acfd36e4fcba99f8310a7dfb432111c242fe7392
 ARG TMUX_RESURRECT_REF=cff343cf9e81983d3da0c8562b01616f12e8d548
@@ -44,7 +44,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 
 ENV CARGO_HOME=/cargo RUSTUP_HOME=/rustup PATH="/cargo/bin:${PATH}"
 RUN curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | \
-    sh -s -- -y --profile minimal --default-toolchain 1.96.0
+    sh -s -- -y --profile minimal --default-toolchain 1.96.1
 
 COPY config/bin/aibox_status_core.rs config/bin/aibox-status.rs config/bin/aibox-diagnostics.rs /build/aibox-runtime-tools/
 RUN mkdir -p /build/aibox-runtime-tools/bin && \
@@ -111,7 +111,7 @@ RUN ARCH=$(uname -m) && \
 
 # ── zoxide ───────────────────────────────────────────────────────────────────
 FROM fetch-base AS fetch-zoxide
-ARG ZOXIDE_VERSION=0.9.9
+ARG ZOXIDE_VERSION=0.10.0
 RUN ARCH=$(uname -m) && \
     curl -fsSL --retry 5 --retry-delay 3 --retry-all-errors \
       "https://github.com/ajeetdsouza/zoxide/releases/download/v${ZOXIDE_VERSION}/zoxide-${ZOXIDE_VERSION}-${ARCH}-unknown-linux-musl.tar.gz" \
@@ -141,7 +141,7 @@ RUN ARCH=$(uname -m) && \
 
 # ── starship ─────────────────────────────────────────────────────────────────
 FROM fetch-base AS fetch-starship
-ARG STARSHIP_VERSION=1.25.1
+ARG STARSHIP_VERSION=1.26.0
 RUN ARCH=$(uname -m) && \
     curl -fsSL --retry 5 --retry-delay 3 --retry-all-errors \
       "https://github.com/starship/starship/releases/download/v${STARSHIP_VERSION}/starship-${ARCH}-unknown-linux-musl.tar.gz" \
@@ -278,7 +278,7 @@ COPY --from=build-aibox-runtime-tools /build/aibox-runtime-tools/bin/aibox-diagn
 # image since v0.16.5 (DEC-036) so processkit's PEP 723 MCP server
 # scripts run via `uv run` out of the box. Works against the
 # externally-installed python3 from apt above.
-COPY --from=ghcr.io/astral-sh/uv:0.11.19 /uv /uvx /usr/local/bin/
+COPY --from=ghcr.io/astral-sh/uv:0.11.26 /uv /uvx /usr/local/bin/
 ENV UV_CACHE_DIR=/tmp/aibox/uv-cache
 
 ARG AIBOX_IMAGE_SOURCE_SHA=unknown

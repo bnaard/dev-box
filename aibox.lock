@@ -34,14 +34,15 @@ rust = [
 ]
 
 [runtime_home]
-generated_at = "2026-05-19T07:45:35.486997+00:00"
+generated_at = "2026-07-06T08:08:33.930331454+00:00"
 
 [runtime_home.files]
 ".asoundrc" = "f34609b11d315cd613cb5333b561032baec860faf4a7eccb28b5567ae72019af"
 ".claude/keybindings.json" = "187a3f75b831cbec4b025eecd23f06e76a77f46d6f47e4e730ef341f0d1db21c"
 ".config/aibox/theme-env.sh" = "48b48eccb745d97292050d4e7bc12da23e9e1af4f82db0d3edca6eb911b0b571"
 ".config/cheatsheet.txt" = "8f8cd32d9f0b6e3d92015f440c78b11afd87d20ff2a517e5dea009135dc7e0fa"
-".config/git/config" = "0a0e1c347a02255999315c968d4d87bb2e5d94012bda7b6bfa5f2ccd656ad51f"
+".config/git/aibox-github.inc" = "43194b7e2452cee72f61ced12e4203b72b3e09a88f12d827f178b5b229a0aa6b"
+".config/git/config" = "34cef2ed3a460b805802176b4d7c1b90736a8c36cf36700a616b2d1fbaec089f"
 ".config/lnav/config.json" = "5ff30db2fce0d3e56843dd771f1c48ffbbc6a586ea22aa5f97360b59906c10c7"
 ".config/lnav/formats/aibox/aibox.json" = "10e1af791380119ecd6860f8d31becb183a26b01868d9b20b2e277177e17c660"
 ".config/starship.toml" = "dfec07a447d2256b33f32bf6c9fa4bec39f023edf7b4a8fca9dffae067f4e838"

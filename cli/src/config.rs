@@ -1077,7 +1077,7 @@ pub struct AddonToolsSection {
 /// ```toml
 /// [addons.python.tools]
 /// python = { version = "3.14" }
-/// uv = { version = "0.11.19" }
+/// uv = { version = "0.11.26" }
 /// ```
 ///
 /// Deserialized as `HashMap<String, AddonToolsSection>` where the outer key
@@ -3337,6 +3337,45 @@ fn audio_section_is_explicit(audio: &AudioSection) -> bool {
 }
 
 // ---------------------------------------------------------------------------
+// [integrations] section
+// ---------------------------------------------------------------------------
+
+/// GitHub HTTPS credential helper mode.
+#[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq, Default)]
+#[serde(rename_all = "kebab-case")]
+pub enum GithubCredentialHelper {
+    /// Configure the helper when the GitHub CLI is part of the generated toolset.
+    #[default]
+    Auto,
+    /// Always configure Git to ask `gh auth git-credential` for GitHub HTTPS remotes.
+    Gh,
+    /// Do not configure the managed GitHub credential helper.
+    None,
+}
+
+impl std::fmt::Display for GithubCredentialHelper {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Self::Auto => write!(f, "auto"),
+            Self::Gh => write!(f, "gh"),
+            Self::None => write!(f, "none"),
+        }
+    }
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, Default)]
+pub struct GithubIntegrationSection {
+    #[serde(default)]
+    pub credential_helper: GithubCredentialHelper,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, Default)]
+pub struct IntegrationsSection {
+    #[serde(default)]
+    pub github: GithubIntegrationSection,
+}
+
+// ---------------------------------------------------------------------------
 // [apply] section — knobs that govern `aibox apply` cleanup behaviour
 // ---------------------------------------------------------------------------
 
@@ -3472,6 +3511,8 @@ pub struct AiboxConfig {
     pub customization: CustomizationSection,
     #[serde(default)]
     pub audio: AudioSection,
+    #[serde(default)]
+    pub integrations: IntegrationsSection,
     #[serde(default)]
     pub apply: ApplySection,
 
@@ -3792,6 +3833,7 @@ impl AiboxConfig {
                 "appearance",
                 "customization",
                 "audio",
+                "integrations",
                 "apply",
                 "mcp",
                 "security",
@@ -3805,6 +3847,16 @@ impl AiboxConfig {
             &["purge_disabled_harness_state"],
             &mut mismatches,
         );
+
+        check_child_table(root, "integrations", &["github"], &mut mismatches);
+        if let Some(integrations) = table_child(root, "integrations") {
+            check_child_table(
+                integrations,
+                "github",
+                &["credential_helper"],
+                &mut mismatches,
+            );
+        }
 
         check_child_table(
             root,
@@ -5003,6 +5055,7 @@ pub fn test_config() -> AiboxConfig {
         agents: AgentsSection::default(),
         customization: CustomizationSection::default(),
         audio: AudioSection::default(),
+        integrations: IntegrationsSection::default(),
         apply: ApplySection::default(),
         process: None,
         mcp: McpSection::default(),
@@ -5063,10 +5116,10 @@ uv = { version = "0.7" }
 
 [addons.node.tools]
 node = { version = "26" }
-pnpm = { version = "11.5.2" }
+pnpm = { version = "11.10.0" }
 
 [addons.rust.tools]
-rustc = { version = "1.96.0" }
+rustc = { version = "1.96.1" }
 clippy = {}
 rustfmt = {}
 
@@ -5223,7 +5276,7 @@ name = "my-project"
         // Check specific tool versions
         assert_eq!(config.addons.tool_version("python", "python"), Some("3.14"));
         assert_eq!(config.addons.tool_version("python", "uv"), Some("0.7"));
-        assert_eq!(config.addons.tool_version("rust", "rustc"), Some("1.96.0"));
+        assert_eq!(config.addons.tool_version("rust", "rustc"), Some("1.96.1"));
         assert_eq!(config.addons.tool_version("rust", "clippy"), None);
         assert_eq!(config.addons.tool_version("rust", "rustfmt"), None);
         assert!(config.addons.has_tool("kubernetes", "kubectl"));
@@ -6129,7 +6182,7 @@ harnesses = []
         assert!(config.addons.has_tool("python", "uv"));
         assert!(!config.addons.has_tool("python", "poetry"));
         assert_eq!(config.addons.tool_version("node", "node"), Some("26"));
-        assert_eq!(config.addons.tool_version("node", "pnpm"), Some("11.5.2"));
+        assert_eq!(config.addons.tool_version("node", "pnpm"), Some("11.10.0"));
         assert_eq!(config.addons.tool_version("cloud-aws", "aws-cli"), None);
     }
 

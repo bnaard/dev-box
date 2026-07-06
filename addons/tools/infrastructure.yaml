@@ -14,13 +14,13 @@ tools:
   - name: opentofu
     description: "Open-source Terraform-compatible infrastructure as code CLI"
     default_enabled: true
-    default_version: "1.12.1"
-    supported_versions: ["1.9.0", "1.12.0", "1.12.1"]
+    default_version: "1.12.3"
+    supported_versions: ["1.9.0", "1.12.0", "1.12.1", "1.12.3"]
   - name: ansible
     description: "Configuration management and automation engine"
     default_enabled: true
-    default_version: "14.0.0"
-    supported_versions: ["13.7.0", "14.0.0"]
+    default_version: "14.1.0"
+    supported_versions: ["13.7.0", "14.0.0", "14.1.0"]
   - name: packer
     description: "Machine image build automation tool"
     default_enabled: true

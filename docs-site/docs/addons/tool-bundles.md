@@ -76,7 +76,7 @@ kustomize = {}     # Configuration customization
 # k9s = {}         # Optional: terminal UI for Kubernetes
 ```
 
-kubectl defaults to 1.36.1, Helm to 4.2.0, Kustomize to 5.8.1, and k9s to 0.50.18.
+kubectl defaults to 1.36.2, Helm to 4.2.2, Kustomize to 5.8.1, and k9s to 0.51.0.
 All tools are downloaded as static binaries in a multi-stage builder.
 
 ## Cloud Providers

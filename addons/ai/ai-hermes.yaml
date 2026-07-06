@@ -11,8 +11,8 @@ tools:
   - name: hermes
     description: "Nous Hermes autonomous AI agent CLI"
     default_enabled: true
-    default_version: "0.16.0"
-    supported_versions: ["0.16.0"]
+    default_version: "0.18.0"
+    supported_versions: ["0.16.0", "0.18.0"]
 
 builder: null
 

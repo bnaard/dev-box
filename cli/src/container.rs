@@ -1289,6 +1289,21 @@ pub(crate) fn serialize_config_with_comments(config: &AiboxConfig) -> String {
         }
     }
     render_audio_section(&mut out, config, sep);
+    out.push('\n');
+    out.push_str(sep);
+    out.push_str("# [integrations.github] — GitHub CLI backed HTTPS git credentials\n");
+    out.push_str(sep);
+    out.push_str(
+        "# credential_helper: auto enables when git-ui.gh is installed; gh forces it; none removes it.\n",
+    );
+    out.push_str(
+        "# Tokens are never written to git config; Git asks `gh auth git-credential` at runtime.\n",
+    );
+    out.push_str("[integrations.github]\n");
+    out.push_str(&format!(
+        "credential_helper = \"{}\"  # options: auto, gh, none\n",
+        config.integrations.github.credential_helper
+    ));
     if !config.container.environment.is_empty() {
         out.push_str(
             "\n# Team-shared environment variables. Put secrets in .aibox-local.toml instead.\n",
@@ -2760,6 +2775,7 @@ pub fn cmd_init(config_path: &Option<String>, params: InitParams) -> Result<()> 
         },
         agents: crate::config::AgentsSection::default(),
         audio: AudioSection::default(),
+        integrations: crate::config::IntegrationsSection::default(),
         apply: crate::config::ApplySection::default(),
         mcp: crate::config::McpSection::default(),
         // S5 — BR-SEC-HARDEN: Codex consent is plumbed in after struct init
@@ -3982,14 +3998,15 @@ mod tests {
         let body = serialize_config_with_comments(&config);
         let container = body.find("[container]").unwrap();
         let audio = body.find("[audio]").unwrap();
+        let integrations = body.find("[integrations.github]").unwrap();
         let skills = body.find("[skills]").unwrap();
         let ai = body.find("[ai]").unwrap();
         let ai_mcp = body.find("[ai.mcp.gateway]").unwrap();
         let processkit = body.find("[processkit]").unwrap();
 
         assert!(
-            container < audio && audio < skills,
-            "[audio] should stay near the container section"
+            container < audio && audio < integrations && integrations < skills,
+            "[audio] and [integrations.github] should stay near the container section"
         );
         assert!(
             ai < ai_mcp && ai_mcp < processkit,

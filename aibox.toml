@@ -56,6 +56,14 @@ install = true  # selects the internal audio-voice recipe
 pulse_server = "tcp:host.docker.internal:4714"  # PulseAudio TCP endpoint (default port: 4714)
 
 # =============================================================================
+# [integrations.github] — GitHub CLI backed HTTPS git credentials
+# =============================================================================
+# credential_helper: auto enables when git-ui.gh is installed; gh forces it; none removes it.
+# Tokens are never written to git config; Git asks `gh auth git-credential` at runtime.
+[integrations.github]
+credential_helper = "auto"  # options: auto, gh, none
+
+# =============================================================================
 # [skills] — processkit skill catalog
 # =============================================================================
 # Each known skill appears once. Uncomment a line to enable that skill;
@@ -255,7 +263,7 @@ docusaurus = { version = "3.10.1" } # React and MDX documentation site generator
 
 # Documentation/docs-zensical — Zensical – Python docs site; requires python
 # [addons.docs-zensical.tools]
-# zensical = {} # Python documentation site generator; default on; options: {}, { enabled = true|false }, { version = "0.0.43" | "0.0.44" (default) or "latest" }
+# zensical = {} # Python documentation site generator; default on; options: {}, { enabled = true|false }, { version = "0.0.43" | "0.0.44" | "0.0.47" (default) or "latest" }
 
 # ---- Languages ------------------------------------------------------------
 
@@ -280,21 +288,21 @@ docusaurus = { version = "3.10.1" } # React and MDX documentation site generator
 # Languages/node — Node.js runtime with pnpm, yarn, or bun
 [addons.node.tools]
 node = { version = "26" } # Node.js JavaScript and TypeScript runtime; default on; options: {}, { enabled = true|false }, { version = "20" | "22" | "24" | "26" (default) or "latest" }
-pnpm = { version = "11.5.2" } # Fast disk-efficient Node package manager; default on; options: {}, { enabled = true|false }, { version = "9" | "10" | "11.1.3" | "11.5.2" (default) or "latest" }
-# yarn = { enabled = true } # Yarn Node package manager; default off; options: {}, { enabled = true|false }, { version = "4" | "4.16.0" (default) or "latest" }
+pnpm = { version = "11.10.0" } # Fast disk-efficient Node package manager; default on; options: {}, { enabled = true|false }, { version = "9" | "10" | "11.1.3" | "11.5.2" | "11.10.0" (default) or "latest" }
+# yarn = { enabled = true } # Yarn Node package manager; default off; options: {}, { enabled = true|false }, { version = "4" | "4.16.0" | "4.17.0" (default) or "latest" }
 # bun = { enabled = true } # Bun JavaScript runtime, package manager, and test runner; default off; options: {}, { enabled = true|false }, { version = "1.2" | "1.3.14" (default) or "latest" }
 
 # Languages/python — Python runtime with uv, poetry, or pdm
 [addons.python.tools]
 python = { version = "3.14" } # Python interpreter runtime for applications and scripts; default on; options: {}, { enabled = true|false }, { version = "3.12" | "3.13" | "3.14" (default) or "latest" }
-uv = { version = "0.11.19" } # Fast Python package manager and virtual environment tool; default on; options: {}, { enabled = true|false }, { version = "0.7" | "0.11.10" | "0.11.11" | "0.11.15" | "0.11.19" (default) or "latest" }
+uv = { version = "0.11.26" } # Fast Python package manager and virtual environment tool; default on; options: {}, { enabled = true|false }, { version = "0.7" | "0.11.10" | "0.11.11" | "0.11.15" | "0.11.19" | "0.11.26" (default) or "latest" }
 # pip = { enabled = true } # Python package installer for pip-based projects; default off; options: {}, { enabled = true|false }, { version = "x.y.z" or "latest" }
 # poetry = { enabled = true } # Python dependency and packaging workflow manager; default off; options: {}, { enabled = true|false }, { version = "1.8" | "2.0" | "2.4.1" (default) or "latest" }
-# pdm = { enabled = true } # Python project and dependency manager using PEP standards; default off; options: {}, { enabled = true|false }, { version = "2.22" | "2.26.9" | "2.27.0" (default) or "latest" }
+# pdm = { enabled = true } # Python project and dependency manager using PEP standards; default off; options: {}, { enabled = true|false }, { version = "2.22" | "2.26.9" | "2.27.0" | "2.28.0" (default) or "latest" }
 
 # Languages/rust — Rust toolchain via rustup
 [addons.rust.tools]
-rustc = { version = "1.96.0" } # Rust compiler toolchain installed via rustup; default on; options: {}, { enabled = true|false }, { version = "1.90" | "1.91" | "1.92" | "1.93" | "1.94" | "1.94.1" | "1.96.0" (default) or "latest" }
+rustc = { version = "1.96.1" } # Rust compiler toolchain installed via rustup; default on; options: {}, { enabled = true|false }, { version = "1.90" | "1.91" | "1.92" | "1.93" | "1.94" | "1.94.1" | "1.96.0" | "1.96.1" (default) or "latest" }
 clippy = {} # Rust linter for catching common mistakes and style issues; default on; options: {}, { enabled = true|false }, { version = "x.y.z" or "latest" }
 rustfmt = {} # Rust code formatter; default on; options: {}, { enabled = true|false }, { version = "x.y.z" or "latest" }
 cargo-audit = {} # Rust dependency vulnerability scanner; default on; options: {}, { enabled = true|false }, { version = "x.y.z" or "latest" }
@@ -302,7 +310,7 @@ cargo-audit = {} # Rust dependency vulnerability scanner; default on; options: {
 
 # Languages/typst — Typst – modern typesetting system
 # [addons.typst.tools]
-# typst = {} # Typst compiler for modern document typesetting; default on; options: {}, { enabled = true|false }, { version = "0.13.1" | "0.14.2" (default) or "latest" }
+# typst = {} # Typst compiler for modern document typesetting; default on; options: {}, { enabled = true|false }, { version = "0.13.1" | "0.14.2" | "0.15.0" (default) or "latest" }
 
 # ---- Tools ------------------------------------------------------------
 
@@ -330,14 +338,14 @@ lazygit = { enabled = false } # Interactive terminal UI for Git status, commits,
 
 # Tools/infrastructure — OpenTofu, Ansible, Packer
 # [addons.infrastructure.tools]
-# opentofu = {} # Open-source Terraform-compatible infrastructure as code CLI; default on; options: {}, { enabled = true|false }, { version = "1.9.0" | "1.12.0" | "1.12.1" (default) or "latest" }
-# ansible = {} # Configuration management and automation engine; default on; options: {}, { enabled = true|false }, { version = "13.7.0" | "14.0.0" (default) or "latest" }
+# opentofu = {} # Open-source Terraform-compatible infrastructure as code CLI; default on; options: {}, { enabled = true|false }, { version = "1.9.0" | "1.12.0" | "1.12.1" | "1.12.3" (default) or "latest" }
+# ansible = {} # Configuration management and automation engine; default on; options: {}, { enabled = true|false }, { version = "13.7.0" | "14.0.0" | "14.1.0" (default) or "latest" }
 # packer = {} # Machine image build automation tool; default on; options: {}, { enabled = true|false }, { version = "1.11.2" | "1.15.3" | "1.15.4" (default) or "latest" }
 
 # Tools/kubernetes — kubectl, Helm, Kustomize, k9s
 # [addons.kubernetes.tools]
-# kubectl = {} # Kubernetes command-line client; default on; options: {}, { enabled = true|false }, { version = "1.36.1" (default) or "latest" }
-# helm = {} # Kubernetes package manager for charts; default on; options: {}, { enabled = true|false }, { version = "3.17.2" | "4.2.0" (default) or "latest" }
+# kubectl = {} # Kubernetes command-line client; default on; options: {}, { enabled = true|false }, { version = "1.36.1" | "1.36.2" (default) or "latest" }
+# helm = {} # Kubernetes package manager for charts; default on; options: {}, { enabled = true|false }, { version = "3.17.2" | "4.2.0" | "4.2.2" (default) or "latest" }
 # kustomize = {} # Kubernetes manifest overlay and patching tool; default on; options: {}, { enabled = true|false }, { version = "5.6.0" | "5.8.1" (default) or "latest" }
 # k9s = { enabled = true } # Interactive terminal UI for Kubernetes clusters; default off; options: {}, { enabled = true|false }, { version = "0.50.18" | "0.51.0" (default) or "latest" }
 
