@@ -109,9 +109,13 @@ crate-update pass.
 
 ## Host-Side Release
 
-Run this on the macOS host after the container-side release succeeds:
+Run this on the macOS host after the container-side release succeeds. Sync the
+host checkout first; the container-side release may have pushed version-bump
+and tag-prep commits from another clone:
 
 ```bash
+git fetch origin main
+git reset --keep origin/main
 ./scripts/maintain.sh release-host X.Y.Z
 ```
 

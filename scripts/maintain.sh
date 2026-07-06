@@ -2065,13 +2065,16 @@ cmd_release() {
       echo "# Host-side steps for aibox ${tag}"
       echo ""
       echo "Linux binaries are already uploaded to the GitHub release."
-      echo "Run the following on the macOS host to complete the release:"
+      echo "Run the following on the macOS host to sync the checkout and complete the release:"
       echo ""
       echo "\`\`\`bash"
+      echo "git fetch origin main"
+      echo "git reset --keep origin/main"
       echo "./scripts/maintain.sh release-host ${version}"
       echo "\`\`\`"
       echo ""
       echo "This will:"
+      echo "- Verify the host checkout is at the just-pushed origin/main"
       echo "- Build macOS binaries (aarch64-apple-darwin, x86_64-apple-darwin)"
       echo "- Upload them to the existing GitHub release ${tag}"
       echo "- Build and push container images to GHCR"
@@ -2133,6 +2136,23 @@ cmd_release_finalize_runtime() {
 
 # ── Host-side release (run on macOS after container-side `release`) ──────────
 
+ensure_release_host_checkout_current() {
+  info "Verifying host checkout is current with origin/main..."
+  (
+    cd "${PROJECT_ROOT}"
+    git fetch origin main >/dev/null
+
+    local head remote_head
+    head=$(git rev-parse HEAD)
+    remote_head=$(git rev-parse origin/main)
+
+    if [[ "${head}" != "${remote_head}" ]]; then
+      die "release-host must run from the current origin/main after container-side release. Run: git fetch origin main && git reset --keep origin/main"
+    fi
+  )
+  ok "Host checkout matches origin/main"
+}
+
 cmd_release_host() {
   local version="${1:-}"
   [[ -z "${version}" ]] && die "Usage: ./scripts/maintain.sh release-host <version>  (e.g. 0.10.2)"
@@ -2142,6 +2162,7 @@ cmd_release_host() {
   fi
 
   local tag="v${version}"
+  ensure_release_host_checkout_current
 
   # ── Step 1: Build macOS binaries ──────────────────────────────────────────
   info "Building macOS binaries..."
