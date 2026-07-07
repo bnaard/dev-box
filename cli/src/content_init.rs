@@ -353,7 +353,7 @@ pub fn install_content_source(project_root: &Path, config: &AiboxConfig) -> Resu
     let pk = &config.processkit;
 
     // 1. Sentinel check — no fetch, no I/O, caller prints a skip message.
-    if pk.version == PROCESSKIT_VERSION_UNSET {
+    if !config.processkit_enabled() || pk.version == PROCESSKIT_VERSION_UNSET {
         return Ok(InstallReport {
             fetched_from: pk.source.clone(),
             fetched_version: PROCESSKIT_VERSION_UNSET.to_string(),

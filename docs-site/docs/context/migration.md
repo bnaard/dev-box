@@ -5,15 +5,21 @@ title: "Migration"
 
 # Migration
 
-When the aibox context schema evolves between versions, existing projects may need to update their context files. The `aibox doctor` command helps identify gaps and produces migration artifacts.
+When the aibox context schema evolves between versions, existing projects may
+need to update their context files. The `aibox doctor` command helps identify
+schema gaps and produces review artifacts under `.aibox/migration/`.
+
+Separate processkit content and generated-runtime changes are surfaced as
+Migration entities under `context/migrations/` in processkit mode.
 
 :::warning v0.16.0 — `context/AIBOX.md` is gone
 
 Pre-v0.16 releases generated a `context/AIBOX.md` "universal baseline" file
 on every `aibox apply`. That file has been **removed** as part of the
 aibox⇄processkit split. The canonical agent entry document is now `AGENTS.md`
-at the project root, owned by processkit and rendered at `aibox init` time
-(write-if-missing — never overwritten).
+at the project root. In processkit mode it is rendered from processkit
+scaffolding; in harness-only mode it is a minimal aibox-owned file. In both
+modes `aibox init` writes it only when missing.
 
 Existing projects upgrading to v0.16.0 can safely delete `context/AIBOX.md`.
 Anything you wrote into it by hand should be moved into `AGENTS.md`,
@@ -26,15 +32,20 @@ its nature.
 
 Two pieces track the version:
 
-1. **`aibox.toml`** contains the target schema version:
+1. **`aibox.toml`** contains the target context schema version. Current
+   canonical processkit-mode configs render this under `[processkit.context]`;
+   `[context].schema_version` is still accepted for compatibility:
    ```toml
-   [context]
+   [processkit.context]
    schema_version = "1.0.0"
    ```
 
-2. **`.aibox-version`** in the project root records the version that was last applied. This file is created during `aibox init` and updated after successful migrations.
+2. **`aibox.lock`** records the aibox CLI/runtime state last applied to the
+   project. Legacy `.aibox-version` files from older projects are absorbed into
+   `aibox.lock` and removed by the migration path.
 
-When `aibox doctor` detects a mismatch between these two values, it flags the project as needing migration.
+When `aibox doctor` detects a schema mismatch, it flags the project as needing
+migration and writes schema review artifacts.
 
 ## Running Doctor
 
@@ -47,8 +58,9 @@ Doctor performs the following checks:
 - Validates `aibox.toml` syntax and field values
 - Detects the container runtime (podman or docker)
 - Checks for `.aibox-home/` and `.devcontainer/` directories
-- Compares `.aibox-version` against `context.schema_version`
-- Validates that expected context files exist for the chosen process flavor
+- Compares the current embedded context schema against the configured target
+  schema version
+- Validates expected context/processkit files for the chosen context mode
 
 Example output when migration is needed:
 
@@ -61,13 +73,26 @@ Example output when migration is needed:
  ✓ Container runtime: podman
  ✓ .aibox-home/ directory exists at .aibox-home
  ✓ .devcontainer/ directory exists
- ! Schema version mismatch: .aibox-version says 0.9.0, config says 1.0.0
+ ! Context schema: current 1.0.0, target 2.0.0 (migration needed)
  ✓ Diagnostics complete
 ```
 
 ## Migration Artifacts
 
-When a version mismatch is detected, `doctor` generates migration artifacts in
+When a schema mismatch is detected, `doctor` generates review artifacts in
+`.aibox/migration/`:
+
+```
+.aibox/
+└── migration/
+    ├── schema-current.md
+    ├── schema-target.md
+    ├── diff.md
+    └── migration-prompt.md
+```
+
+When processkit content, runtime-home drift, model/provider changes, or similar
+processkit-mode updates need human review, aibox emits Migration entities in
 `context/migrations/`:
 
 ```
@@ -78,9 +103,9 @@ context/
     └── applied/       # Completed migrations (archived for reference)
 ```
 
-Each migration is identified by a MIG-ID and lives as a versioned document in
-the appropriate subdirectory. Migrations are managed through the normal
-resource grammar:
+Each processkit Migration is identified by a MIG-ID and lives as a versioned
+document in the appropriate subdirectory. These Migration entities are managed
+through the normal resource grammar:
 
 ```bash
 aibox get migration                       # show pending/in-progress migrations

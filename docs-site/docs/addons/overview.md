@@ -99,18 +99,11 @@ AI harnesses are selected under `[ai]`, not as public addon blocks. aibox still
 uses internal install recipes for container CLIs when `install = true`.
 
 ```toml
-[ai.harness.claude]
-enabled = true
-install = true
-
-[ai.harness.codex]
-enabled = true
-install = true
-
-[ai.harness.codex]
-enabled = true
-install = true
-version = "latest"
+[ai]
+harnesses = [
+  { harness = "claude", enable = true, install = true },
+  { harness = "codex", enable = true, install = true, version = "latest" },
+]
 ```
 
 Legacy `[addons.ai-*.tools]` entries are accepted for compatibility, but fresh
@@ -118,10 +111,11 @@ scaffolding keeps AI configuration in the `[ai]` section.
 
 ## Addons and Skills
 
-As of v0.16.0, all skills live in [processkit](https://github.com/projectious-work/processkit)
-and **every project gets every skill installed** under `context/skills/`,
-regardless of which addons are active. There is no longer an addon-driven
-"auto-deploy a skill" mechanism, and no `[skills].include` to manage.
+As of v0.16.0, all skills live in [processkit](https://github.com/projectious-work/processkit).
+Projects using `context.mode = "processkit"` install processkit skills under
+`context/skills/` independently from addons. Projects using
+`context.mode = "harness-only"` do not install processkit skills at all. There
+is no longer an addon-driven "auto-deploy a skill" mechanism.
 
 The relevant skills for each addon's tooling are still in the catalogue —
 agents pick them up via skill descriptions, not via addon membership:

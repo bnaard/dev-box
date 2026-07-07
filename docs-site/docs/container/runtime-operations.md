@@ -42,8 +42,10 @@ aibox apply --config-only
 
 Use `--no-cache` after base-image, addon, or package-cache issues. `--rebuild`
 is kept as a visible alias for the same behavior. Use `--config-only` when you
-only want to regenerate files and refresh processkit content without building
-the image.
+only want to regenerate files, and in processkit mode refresh processkit
+content, without building the image. In harness-only projects,
+`--config-only` regenerates config/runtime surfaces without processkit content
+work.
 
 ## Inspect Runtime State
 
@@ -71,11 +73,12 @@ Key fields:
 An `oom_kill_count` above zero is strong evidence that a missing agent or
 terminated tool was killed by the operating system rather than by the CLI.
 
-With current processkit releases, `[mcp.gateway].mode = "auto"` registers a
+With current processkit releases, `[ai.mcp.gateway].mode = "auto"` registers a
 `processkit-gateway` stdio proxy for MCP-capable harnesses. The proxy starts the
 local gateway on demand when no listener exists, so generated devcontainer
 startup no longer has to supervise one Python process per skill in the default mode.
 Use `separate` only when a harness needs the older one-server-per-skill layout.
+Harness-only projects do not register the processkit gateway.
 
 ## Resource Thresholds
 
@@ -83,7 +86,7 @@ Configure warning thresholds in `aibox.toml`:
 
 ```toml
 [container.resource_thresholds]
-memory_warn_percent = 80
+memory_mib_warn = 4096
 process_count_warn = 400
 processkit_mcp_python_warn = 50
 ```

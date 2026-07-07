@@ -95,7 +95,7 @@ Press `Escape` or `Ctrl+g` again to cancel the leader and return to normal mode.
 
 ### Layouts
 
-aibox ships four tmux layouts. Select one with `aibox up --layout <name>` (the default is `dev`). Layouts include harness windows based on enabled `[ai.harness.<name>]` tables and `[ai].harness_order`; they include the **lazygit** window only when the `git-ui` addon selects `lazygit`.
+aibox ships four tmux layouts. Select one with `aibox up --layout <name>` (the default is `dev`). Layouts include harness windows based on the enabled entries in `[ai].harnesses` and `[ai].harness_order`; they include the **lazygit** window only when the `git-ui` addon selects `lazygit`.
 
 #### dev (default)
 
@@ -158,8 +158,8 @@ Using a directory mount (rather than a single-file mount) allows a `credentials`
 
 AI coding agents (Claude, Codex, Aider, Gemini, and others) are **not**
 pre-installed in the base image. They are installed per-project when you select
-them under `[ai.harness.<name>]`, for example
-`[ai.harness.claude] enabled = true` plus `install = true`.
+them in the ordered `[ai].harnesses` list, for example
+`{ harness = "claude", enable = true, install = true }`.
 
 ## Audio Support
 

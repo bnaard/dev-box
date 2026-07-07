@@ -1,24 +1,17 @@
 //! Context and project-root scaffolding that aibox owns directly.
 //!
-//! After v0.16.0, the bulk of project content (skills, primitives,
-//! processes, the canonical `AGENTS.md` template) lives in processkit
-//! and is installed at `aibox init` time by [`crate::content_init`] via
-//! the install map in [`crate::content_install`]. This module owns only
-//! the slice of project setup that is intrinsic to aibox itself:
+//! This module owns the slice of project setup that is intrinsic to
+//! aibox itself:
 //!
 //! - `.gitignore` (created and kept current with aibox-required entries)
 //! - `.aibox-version` (CLI version marker for migrations)
 //! - `.devcontainer/Dockerfile.local` and
 //!   `.devcontainer/docker-compose.override.yml` placeholders
 //! - Provider thin-pointer files at the project root (`CLAUDE.md`,
-//!   future `CODEX.md`, …) that point at processkit-shipped `AGENTS.md`,
-//!   gated on the enabled `[ai.harness.<name>]` tables
-//! - The empty `context/` directory itself (processkit content lands here
-//!   later, during the same init pass)
-//!
-//! Everything else — `BACKLOG.md`, `DECISIONS.md`, `STANDUPS.md`, work
-//! instructions, the canonical `AGENTS.md`, all 100+ skills — is owned
-//! by processkit and arrives via the content-source install pipeline.
+//!   future `CODEX.md`, …), gated on the enabled `[ai.harness.<name>]`
+//!   tables
+//! - The empty `context/` directory itself when the configured context
+//!   mode needs one
 
 use anyhow::{Context, Result};
 use std::collections::HashMap;
@@ -33,12 +26,10 @@ use crate::output;
 // Provider thin-pointer template
 // ---------------------------------------------------------------------------
 
-/// Thin-pointer body written to `CLAUDE.md` when the user has
-/// enabled `[ai.harness.<name>]` tables. The canonical instructions live
-/// in `AGENTS.md` (shipped by processkit). Claude Code auto-loads
-/// `CLAUDE.md`, so this pointer file exists solely to satisfy that
-/// convention without duplicating instructions.
-const CLAUDE_POINTER_TEMPLATE: &str = r#"# CLAUDE.md — {{PROJECT_NAME}}
+/// Thin-pointer body written to `CLAUDE.md` when the user has enabled
+/// Claude Code and the configured context layer owns the canonical
+/// `AGENTS.md`.
+const CLAUDE_PROCESSKIT_POINTER_TEMPLATE: &str = r#"# CLAUDE.md — {{PROJECT_NAME}}
 
 > **Pointer file.** Canonical instructions live in [`AGENTS.md`](./AGENTS.md).
 >
@@ -51,6 +42,37 @@ Read **[`AGENTS.md`](./AGENTS.md)** in the project root for project
 instructions. It is the single, provider-neutral entry point for any AI
 agent (or human) working on this project, including strict processkit
 schema, filename, and directory-layout migration policy.
+"#;
+
+const CLAUDE_HARNESS_ONLY_POINTER_TEMPLATE: &str = r#"# CLAUDE.md — {{PROJECT_NAME}}
+
+> **Pointer file.** Canonical instructions live in [`AGENTS.md`](./AGENTS.md).
+>
+> Claude Code auto-loads `CLAUDE.md` on startup, so this thin file exists
+> only to satisfy that convention. Edit `AGENTS.md` instead of this file.
+
+Read **[`AGENTS.md`](./AGENTS.md)** in the project root for project
+instructions. It is the single, provider-neutral entry point for any AI
+agent or human working on this project.
+"#;
+
+const HARNESS_ONLY_AGENTS_TEMPLATE: &str = r#"# AGENTS.md — {{PROJECT_NAME}}
+
+This project uses aibox for a reproducible dev container and AI harness
+configuration.
+
+## Working In This Project
+
+- Treat repository files as the source of truth.
+- Keep changes scoped to the requested task.
+- Preserve user changes unless explicitly asked to replace them.
+- Run the relevant project checks before committing when the task changes code.
+
+## Runtime
+
+- The workspace is mounted at `/workspace` inside the container.
+- Container, addon, theme, and harness settings live in `aibox.toml`.
+- Re-run `aibox apply` after changing `aibox.toml`.
 "#;
 
 // ---------------------------------------------------------------------------
@@ -178,29 +200,31 @@ pub(crate) fn write_if_changed(path: &Path, content: &str) -> Result<bool> {
 // ---------------------------------------------------------------------------
 
 /// Set up the aibox-owned slice of a project: provider thin pointers,
-/// the empty `context/` directory, `.gitignore`, and
+/// optional context scaffolding, `.gitignore`, and
 /// the user-owned `.devcontainer/` overlay placeholders.
-///
-/// Called from `cmd_init` *before* [`crate::content_init::install_content_source`]
-/// installs processkit content. The two layers compose: aibox sets up
-/// the bare project skeleton, then processkit fills it with skills,
-/// primitives, processes, and the canonical `AGENTS.md`.
 pub fn scaffold_context(config: &AiboxConfig) -> Result<()> {
     let addons = &config.addons;
 
     output::info("Scaffolding project skeleton...");
 
+    if !config.processkit_enabled() {
+        let vars = build_substitution_map(config);
+        let body = render(HARNESS_ONLY_AGENTS_TEMPLATE, &vars);
+        write_if_missing(Path::new("AGENTS.md"), &body)?;
+        output::ok("Created AGENTS.md");
+    }
+
     // 1. Provider thin pointers (CLAUDE.md, future CODEX.md, …) per
-    //    enabled [ai.harness.<name>] tables. The pointers reference AGENTS.md, which
-    //    processkit installs in the same init pass.
+    //    enabled [ai.harness.<name>] tables.
     scaffold_provider_pointers(config)?;
 
-    // 2. context/ directory exists so processkit content has a home.
-    //    A .gitkeep keeps the directory present until processkit
-    //    populates it.
-    let context = Path::new("context");
-    fs::create_dir_all(context).context("Failed to create context/")?;
-    write_if_missing(&context.join(".gitkeep"), "")?;
+    if config.processkit_enabled() {
+        // 2. context/ directory exists so content has a home. A .gitkeep
+        //    keeps the directory present until the content source populates it.
+        let context = Path::new("context");
+        fs::create_dir_all(context).context("Failed to create context/")?;
+        write_if_missing(&context.join(".gitkeep"), "")?;
+    }
 
     // 3. .gitignore — aibox entries plus language-specific blocks based
     //    on the configured addons.
@@ -271,13 +295,16 @@ pub fn scaffold_context(config: &AiboxConfig) -> Result<()> {
 /// Mistral) use config files (`.aider.conf.yml`, `.gemini/settings.json`,
 /// `.mistral/config.json`) which are scaffolded elsewhere.
 ///
-/// The pointer points at `AGENTS.md`, which processkit installs into
-/// the project root in the same init pass.
 fn scaffold_provider_pointers(config: &AiboxConfig) -> Result<()> {
     let vars = build_substitution_map(config);
     for harness in &config.ai.harnesses {
         if *harness == AiProvider::Claude {
-            let body = render(CLAUDE_POINTER_TEMPLATE, &vars);
+            let template = if config.processkit_enabled() {
+                CLAUDE_PROCESSKIT_POINTER_TEMPLATE
+            } else {
+                CLAUDE_HARNESS_ONLY_POINTER_TEMPLATE
+            };
+            let body = render(template, &vars);
             write_if_missing(Path::new("CLAUDE.md"), &body)?;
             output::ok("Created CLAUDE.md (pointer to AGENTS.md)");
         }

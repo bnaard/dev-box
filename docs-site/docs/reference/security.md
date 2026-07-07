@@ -6,9 +6,10 @@ This page documents aibox's security model and trust boundaries.
 
 ### How processkit skills are registered
 
-When `aibox apply` registers processkit skills (such as `processkit-gateway`,
-`workitem-management`, etc.), it calls into `cli/src/mcp_registration.rs`.
-At line 898, the registration sets:
+When `[context].mode = "processkit"` and `aibox apply` registers processkit
+skills (such as `processkit-gateway`, `workitem-management`, etc.), it calls
+into `cli/src/mcp_registration.rs`. For Codex, the generated project config
+sets:
 
 ```toml
 [project]
@@ -19,6 +20,12 @@ This means every installed skill's `mcp/server.py` runs with **project-user
 trust** inside the aibox container — the same trust level as the project owner
 who launched the container. The MCP server process inherits the container
 filesystem and environment, including any mounted credentials.
+
+When `[context].mode = "harness-only"`, aibox does not install or register
+processkit skills, processkit hooks, processkit preauth rules, or the
+processkit MCP gateway. Team and personal MCP servers configured under
+`[ai.mcp]` / `.aibox-local.toml [[mcp.servers]]` are still generated for
+enabled harnesses and carry their own trust review burden.
 
 ### Implications
 

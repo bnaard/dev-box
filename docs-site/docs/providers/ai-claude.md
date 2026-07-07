@@ -10,9 +10,10 @@ title: "Claude"
 ## Setup
 
 ```toml
-[ai.harness.claude]
-enabled = true
-install = true
+[ai]
+harnesses = [
+  { harness = "claude", enable = true, install = true },
+]
 ```
 
 Run `aibox apply`, then inside the container:
@@ -35,10 +36,11 @@ Key files:
 - `.claude.json` — Claude Code account/install state
 - `.cache/claude*`, `.config/claude/`, `.local/share/claude/`, `.local/state/claude/` — Claude Code login and runtime state
 - `.claude/projects/` — Per-project memory and context
-- `.claude/skills/<name>/SKILL.md` — generated processkit command shims when Claude is enabled
+- `.claude/skills/<name>/SKILL.md` — generated processkit command shims when Claude is enabled in processkit mode
 
 The generated `.claude/skills/` entries are adapters. The canonical skill
-instructions remain in `context/skills/`.
+instructions remain in `context/skills/`. Harness-only projects do not generate
+processkit command shims.
 
 ## Audio (Voice)
 
@@ -51,7 +53,7 @@ enabled = true
 
 ## MCP Integration
 
-Claude Code's native MCP client reads `.mcp.json`. aibox generates `.mcp.json` automatically on `aibox apply`, merging processkit built-in servers, team servers from `aibox.toml [ai.mcp]`, and personal servers from `.aibox-local.toml [mcp]`.
+Claude Code's native MCP client reads `.mcp.json`. aibox generates `.mcp.json` automatically on `aibox apply`, merging processkit built-in servers in processkit mode, team servers from `aibox.toml [ai.mcp]`, and personal servers from `.aibox-local.toml [mcp]`.
 
 `.mcp.json` is **gitignored** — it is regenerated on every `aibox apply` and must not be committed.
 
@@ -59,7 +61,7 @@ To add MCP servers:
 
 ```toml
 # aibox.toml — team-shared servers
-[[mcp.servers]]
+[[ai.mcp.servers]]
 name    = "github"
 command = "npx"
 args    = ["-y", "@modelcontextprotocol/server-github"]

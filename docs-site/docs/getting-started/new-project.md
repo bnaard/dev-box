@@ -26,6 +26,7 @@ The `init` command accepts these options:
 | `--harness` | `claude` | AI harnesses (can be repeated): `claude`, `codex`, `gemini`, `aider`, etc. |
 | `--addon` | — | Addon names (can be repeated): `python`, `rust`, `node`, `go`, `latex`, etc. |
 | `--theme` | `gruvbox` | Theme family |
+| `--context-mode` | `processkit` | Context layer: `processkit` or `harness-only` |
 | `--processkit-version` | latest available tag | processkit content release to pin |
 
 If you omit options, `aibox init` runs interactively and prompts for each value.
@@ -34,16 +35,15 @@ If you omit options, `aibox init` runs interactively and prompts for each value.
 
 ## What Gets Created
 
-`aibox init` lays down a **slim project skeleton**: devcontainer files,
-config, and an empty `context/` directory. The actual content (skills,
-processes, the canonical `AGENTS.md`) is then installed by **processkit** as
-the last step of `init`.
+By default, `aibox init` lays down a **processkit-backed project skeleton**:
+devcontainer files, config, an empty `context/` directory, and processkit
+content (skills, processes, and the canonical `AGENTS.md`).
 
 ```
 my-app/
 ├── aibox.toml                  # Single source of truth (includes [processkit])
 ├── AGENTS.md                   # Canonical agent entry — rendered from processkit scaffolding
-├── CLAUDE.md                   # Thin pointer to AGENTS.md (when [ai.harness.claude] is enabled)
+├── CLAUDE.md                   # Thin pointer to AGENTS.md (when Claude is enabled in [ai].harnesses)
 ├── .gitignore                  # Generated with language-specific blocks
 ├── .aibox-version              # Tracks installed CLI version
 ├── .aibox-home/                # Persistent config (git-ignored)
@@ -60,6 +60,20 @@ my-app/
         └── processkit/
             └── v0.26.15/       # Immutable upstream snapshot, used by `aibox apply` for three-way diffs
 ```
+
+For projects that only want the generated devcontainer and AI harness setup,
+use harness-only mode:
+
+```bash
+aibox init my-app --context-mode harness-only --harness claude
+```
+
+Harness-only projects still get `aibox.toml`, `.devcontainer/`, `.aibox-home/`,
+selected harness config, `AGENTS.md`, and provider pointer files such as
+`CLAUDE.md`. They do **not** get processkit content, `context/skills/`,
+`context/templates/processkit/`, processkit MCP gateway config, processkit
+hooks/preauth, processkit command adapters, or processkit Migration entities.
+The minimal generated `AGENTS.md` contains no processkit references.
 
 :::tip .aibox-local.toml — secrets and per-developer overrides
 
@@ -90,6 +104,8 @@ non-interactively:
 aibox init my-app --processkit-version v0.26.15
 ```
 
+This picker is skipped when `--context-mode harness-only` is selected.
+
 :::
 
 ## The Generated aibox.toml
@@ -115,6 +131,10 @@ hostname = "my-app"
 [container.image]
 release_version = "latest"
 base = "debian"
+
+[context]
+mode = "processkit"
+packages = ["product"]
 
 [processkit]
 source  = "https://github.com/projectious-work/processkit.git"

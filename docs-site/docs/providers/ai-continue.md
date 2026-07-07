@@ -10,9 +10,10 @@ title: "Continue"
 ## Setup
 
 ```toml
-[ai.harness.continue]
-enabled = true
-install = true
+[ai]
+harnesses = [
+  { harness = "continue", enable = true, install = true },
+]
 ```
 
 Run `aibox apply`, then inside the container:
@@ -42,7 +43,7 @@ Continue's configuration is persisted in `.aibox-home/.continue/`, mounted at `/
 
 ## MCP Integration
 
-Continue has a native MCP client with a per-server file model. aibox generates files in `.continue/mcpServers/` (one file per server) automatically on `aibox apply`, merging processkit built-in servers, team servers from `aibox.toml [ai.mcp]`, and personal servers from `.aibox-local.toml [mcp]`.
+Continue has a native MCP client with a per-server file model. aibox generates files in `.continue/mcpServers/` (one file per server) automatically on `aibox apply`, merging processkit built-in servers in processkit mode, team servers from `aibox.toml [ai.mcp]`, and personal servers from `.aibox-local.toml [mcp]`.
 
 `.continue/mcpServers/` is **gitignored** — it is regenerated on every `aibox apply` and must not be committed.
 
@@ -50,7 +51,7 @@ To add MCP servers:
 
 ```toml
 # aibox.toml — team-shared servers
-[[mcp.servers]]
+[[ai.mcp.servers]]
 name    = "github"
 command = "npx"
 args    = ["-y", "@modelcontextprotocol/server-github"]

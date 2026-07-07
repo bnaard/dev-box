@@ -1,7 +1,8 @@
 use clap::{Parser, Subcommand, ValueEnum};
 
 use crate::config::{
-    AiHarness, AiProvider, AiboxProfile, BaseImage, StarshipPreset, ThemeFamily, TmuxStatusMode,
+    AiHarness, AiProvider, AiboxProfile, BaseImage, ContextMode, StarshipPreset, ThemeFamily,
+    TmuxStatusMode,
 };
 
 /// Parse a truthy/falsy string for env-var-driven boolean flags.
@@ -124,6 +125,10 @@ pub enum Commands {
         /// Deprecated: processkit package tier. New scaffolds use explicit standard skills.
         #[arg(long = "context", visible_alias = "package", num_args = 1.., hide = true)]
         process: Option<Vec<String>>,
+
+        /// Project context mode (default: processkit)
+        #[arg(long = "context-mode", value_enum)]
+        context_mode: Option<ContextMode>,
 
         /// AI harnesses to configure (default: claude)
         #[arg(long = "harness", value_enum, num_args = 1..)]

@@ -10,9 +10,10 @@ title: "Copilot (GitHub)"
 ## Setup
 
 ```toml
-[ai.harness.copilot]
-enabled = true
-install = true
+[ai]
+harnesses = [
+  { harness = "copilot", enable = true, install = true },
+]
 ```
 
 Run `aibox apply`, then inside the container:
@@ -35,7 +36,7 @@ Key files:
 
 ## MCP Integration
 
-GitHub Copilot CLI reads `.mcp.json` (the Claude Code MCP format). aibox generates `.mcp.json` automatically on `aibox apply`, merging processkit built-in servers, team servers from `aibox.toml [ai.mcp]`, and personal servers from `.aibox-local.toml [mcp]`.
+GitHub Copilot CLI reads `.mcp.json` (the Claude Code MCP format). aibox generates `.mcp.json` automatically on `aibox apply`, merging processkit built-in servers in processkit mode, team servers from `aibox.toml [ai.mcp]`, and personal servers from `.aibox-local.toml [mcp]`.
 
 `.mcp.json` is **gitignored** — it is regenerated on every `aibox apply` and must not be committed.
 
@@ -43,7 +44,7 @@ To add MCP servers:
 
 ```toml
 # aibox.toml — team-shared servers
-[[mcp.servers]]
+[[ai.mcp.servers]]
 name    = "github"
 command = "npx"
 args    = ["-y", "@modelcontextprotocol/server-github"]

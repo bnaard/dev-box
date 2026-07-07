@@ -933,6 +933,14 @@ fn check_and_generate_migration_in(root: &Path) -> Result<()> {
         return Ok(());
     }
 
+    if config.as_ref().is_some_and(|c| !c.processkit_enabled()) {
+        let mut updated_lock = lock;
+        updated_lock.aibox.cli_version = current_version;
+        crate::lock::write_lock(root, &updated_lock)
+            .context("Failed to update aibox.lock after migration check")?;
+        return Ok(());
+    }
+
     output::info(&format!(
         "Version change detected: {} \u{2192} {}",
         stored_version, current_version
@@ -1438,6 +1446,10 @@ fn ensure_processkit_section_in(root: &Path) -> Result<()> {
         return Ok(());
     }
 
+    if context_mode_is_harness_only(&original) {
+        return Ok(());
+    }
+
     let updated = insert_processkit_section(&original);
     fs::write(&toml_path, &updated)
         .with_context(|| format!("Failed to write {}", toml_path.display()))?;
@@ -1452,6 +1464,30 @@ fn ensure_processkit_section_in(root: &Path) -> Result<()> {
     write_processkit_migration_note(&note_path)?;
 
     Ok(())
+}
+
+fn context_mode_is_harness_only(toml_src: &str) -> bool {
+    let mut in_context = false;
+    for line in toml_src.lines() {
+        let without_comment = line.split_once('#').map_or(line, |(head, _)| head);
+        let trimmed = without_comment.trim();
+        if trimmed.is_empty() {
+            continue;
+        }
+        if trimmed.starts_with('[') && trimmed.ends_with(']') {
+            in_context = trimmed == "[context]";
+            continue;
+        }
+        if in_context {
+            let Some((key, value)) = trimmed.split_once('=') else {
+                continue;
+            };
+            if key.trim() == "mode" && value.trim().trim_matches('"') == "harness-only" {
+                return true;
+            }
+        }
+    }
+    false
 }
 
 /// Detect whether the TOML source already contains a `[processkit]` section
@@ -1621,7 +1657,7 @@ migration will re-run on the next `aibox apply`.
 /// The aibox-owned keys that belong permanently in `[context]`.
 /// Everything else in `[context]` is a processkit runtime setting that
 /// should live in per-skill `config/settings.toml` files.
-const AIBOX_CONTEXT_KEYS: &[&str] = &["schema_version", "packages"];
+const AIBOX_CONTEXT_KEYS: &[&str] = &["mode", "schema_version", "packages"];
 
 /// Migrate old processkit runtime settings out of `aibox.toml [context]`.
 ///
@@ -2880,7 +2916,7 @@ layout = "ai"
         assert!(after.contains("harnesses = ["));
         assert!(after.contains("{ harness = \"codex\", enable = true, install = true }"));
         assert!(!after.contains("[[ai.harnesses]]"));
-        assert!(!after.contains("packages = [\"product\"]"));
+        assert!(after.contains("[context]\nmode = \"processkit\"\npackages = [\"product\"]"));
         assert!(!after.to_ascii_lowercase().contains("deprecated"));
         assert!(after.contains("    \"actor-profile\", #"));
         assert!(!after.contains("    # \"actor-profile\", # explicitly enable;"));

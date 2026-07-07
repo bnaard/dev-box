@@ -6,31 +6,32 @@ title: "Skill Selection"
 # Skill Selection
 
 New aibox projects list the standard processkit operating skills explicitly in
-`[skills].enabled`. This makes skill selection a direct comment/uncomment
+`[skills].include`. This makes skill selection a direct comment/uncomment
 workflow in `aibox.toml` without relying on legacy package tiers.
 
-Use `[skills].enabled` for explicit additions and `[skills].disabled` for
+Use `[skills].include` for explicit additions and `[skills].exclude` for
 explicit removals:
 
 ```toml
 [skills]
-enabled = [
+include = [
   "pk-doctor",
   "status-briefing",
 ]
-disabled = [
+exclude = [
   # "skill-to-omit",
 ]
 ```
 
 Legacy package tiers (`minimal`, `managed`, `software`, `research`, `product`)
-are still accepted for compatibility when present under
-`[processkit.context].packages` or old `[context].packages`, but new generated
-configs treat them as deprecated.
+are still accepted for compatibility under `[context].packages` when
+`[context].mode = "processkit"`, but explicit `[skills]` selection is the
+preferred control surface.
 
 ## Where the Content Lands
 
-After `aibox init` and `aibox apply` with `[processkit].version` pinned:
+After `aibox init` and `aibox apply` with `[context].mode = "processkit"` and
+`[processkit].version` pinned:
 
 ```
 context/
@@ -51,6 +52,9 @@ context/
 
 The version path (`v0.25.7` above) is whatever `[processkit].version` is pinned
 to in `aibox.toml`.
+
+Harness-only projects do not install this content and do not create
+`context/templates/processkit/`.
 
 ## Upstream Source
 

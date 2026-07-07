@@ -10,9 +10,10 @@ title: "OpenAI (Codex CLI)"
 ## Setup
 
 ```toml
-[ai.harness.codex]
-enabled = true
-install = true
+[ai]
+harnesses = [
+  { harness = "codex", enable = true, install = true },
+]
 ```
 
 Run `aibox apply`, then inside the container:
@@ -39,11 +40,11 @@ Key files:
 - `.aibox-home/.codex/rules/` — home-directory Codex rules and local state
 - `.aibox-home/.codex/sessions/` — Codex session history
 
-Separately, aibox also generates project-local `.codex/config.toml` MCP server registration and `.codex/hooks.json` processkit hook configuration.
+Separately, aibox also generates project-local `.codex/config.toml` MCP server registration. In processkit mode it also generates `.codex/hooks.json` processkit hook configuration.
 
 ## MCP Integration
 
-Codex has a native MCP client. aibox generates `.codex/config.toml` automatically on `aibox apply`, merging processkit MCP entries, team servers from `aibox.toml [ai.mcp]`, and personal servers from `.aibox-local.toml [mcp]`. With current processkit releases and `[mcp.gateway].mode = "auto"`, Codex uses the `processkit-gateway` stdio proxy instead of one Python process per skill.
+Codex has a native MCP client. aibox generates `.codex/config.toml` automatically on `aibox apply`, merging processkit MCP entries in processkit mode, team servers from `aibox.toml [ai.mcp]`, and personal servers from `.aibox-local.toml [mcp]`. With current processkit releases and `[ai.mcp.gateway].mode = "auto"`, Codex uses the `processkit-gateway` stdio proxy instead of one Python process per skill.
 
 `.codex/config.toml` and `.codex/hooks.json` are **gitignored** — they are regenerated on every `aibox apply` and must not be committed.
 
@@ -51,7 +52,7 @@ To add MCP servers:
 
 ```toml
 # aibox.toml — team-shared servers
-[[mcp.servers]]
+[[ai.mcp.servers]]
 name    = "github"
 command = "npx"
 args    = ["-y", "@modelcontextprotocol/server-github"]
@@ -68,10 +69,10 @@ args    = ["-y", "@acme/internal-mcp-server"]
 Codex CLI is installed via npm (`npm install -g @openai/codex`). To pin a specific version, set it in `aibox.toml`:
 
 ```toml
-[ai.harness.codex]
-enabled = true
-install = true
-version = "0.1.0"
+[ai]
+harnesses = [
+  { harness = "codex", enable = true, install = true, version = "0.1.0" },
+]
 ```
 
 ## Sandbox prerequisites

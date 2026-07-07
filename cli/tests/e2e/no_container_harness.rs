@@ -768,6 +768,88 @@ fn smoke_no_container_init_then_apply() {
 }
 
 #[test]
+fn harness_only_no_container_init_then_apply_has_no_processkit_surface() {
+    let tmp = tempfile::TempDir::new().expect("create tempdir");
+    let dir = tmp.path();
+
+    let init_out = run_in(
+        dir,
+        &[
+            "init",
+            "fixture",
+            "--base",
+            "debian",
+            "--context-mode",
+            "harness-only",
+            "--harness",
+            "claude",
+        ],
+    );
+    assert!(
+        init_out.status.success(),
+        "init failed.\n{}",
+        fmt_output("init", &init_out)
+    );
+
+    let sync_out = run_in(dir, &["apply"]);
+    assert!(
+        sync_out.status.success(),
+        "apply failed.\n{}",
+        fmt_output("apply", &sync_out)
+    );
+
+    for rel in [
+        "aibox.toml",
+        "AGENTS.md",
+        "CLAUDE.md",
+        ".devcontainer/Dockerfile",
+        ".devcontainer/docker-compose.yml",
+        ".devcontainer/devcontainer.json",
+    ] {
+        assert!(dir.join(rel).exists(), "expected {rel} to exist");
+    }
+
+    for rel in ["aibox.toml", "AGENTS.md", "CLAUDE.md"] {
+        let body = std::fs::read_to_string(dir.join(rel)).expect("read generated file");
+        assert!(
+            !body.to_ascii_lowercase().contains("processkit"),
+            "{rel} should not mention processkit:\n{body}"
+        );
+    }
+    assert_tree_has_no_processkit_refs(dir, dir);
+
+    assert!(
+        !dir.join("context/templates/processkit").exists(),
+        "harness-only init/apply must not install a processkit template mirror"
+    );
+    assert!(
+        !dir.join("context/skills/processkit").exists(),
+        "harness-only init/apply must not install processkit skills"
+    );
+}
+
+fn assert_tree_has_no_processkit_refs(root: &Path, dir: &Path) {
+    for entry in std::fs::read_dir(dir).expect("read generated dir") {
+        let entry = entry.expect("read generated entry");
+        let path = entry.path();
+        if path.is_dir() {
+            assert_tree_has_no_processkit_refs(root, &path);
+            continue;
+        }
+        let Ok(body) = std::fs::read_to_string(&path) else {
+            continue;
+        };
+        let rel = path.strip_prefix(root).unwrap_or(&path);
+        assert!(
+            !body.to_ascii_lowercase().contains("processkit"),
+            "{} should not mention processkit:\n{}",
+            rel.display(),
+            body
+        );
+    }
+}
+
+#[test]
 fn generated_runtime_apply_does_not_touch_provider_or_live_runtime_files() {
     let tmp = tempfile::TempDir::new().expect("create tempdir");
     let dir = tmp.path();

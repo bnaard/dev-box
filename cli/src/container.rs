@@ -3,8 +3,8 @@ use semver::Version;
 use std::path::{Path, PathBuf};
 
 use crate::config::{
-    AiHarness, AiProvider, AiboxConfig, AiboxProfile, BaseImage, McpGatewayMode, StarshipPreset,
-    ThemeFamily, ThemeMode, TmuxStatusMode,
+    AiHarness, AiProvider, AiboxConfig, AiboxProfile, BaseImage, ContextMode, McpGatewayMode,
+    StarshipPreset, ThemeFamily, ThemeMode, TmuxStatusMode,
 };
 use crate::context;
 use crate::generate;
@@ -38,6 +38,7 @@ pub struct InitParams {
     pub base: Option<BaseImage>,
     pub profile: Option<AiboxProfile>,
     pub process: Option<Vec<String>>,
+    pub context_mode: Option<ContextMode>,
     pub ai: Option<Vec<AiProvider>>,
     pub user: Option<String>,
     pub theme: Option<ThemeFamily>,
@@ -1251,9 +1252,11 @@ pub(crate) fn serialize_config_with_comments(config: &AiboxConfig) -> String {
     out.push_str(
         "# process_count_warn = 400     # Optional warning limit for total live processes; 0 disables\n",
     );
-    out.push_str(
-        "# processkit_mcp_python_warn = 50  # Optional warning limit for live Python MCP server processes; 0 disables\n",
-    );
+    if config.processkit_enabled() {
+        out.push_str(
+            "# processkit_mcp_python_warn = 50  # Optional warning limit for live Python MCP server processes; 0 disables\n",
+        );
+    }
     out.push_str(
         "# oom_kill_warn = 0            # Optional warning threshold for cgroup OOM kill count\n",
     );
@@ -1277,10 +1280,11 @@ pub(crate) fn serialize_config_with_comments(config: &AiboxConfig) -> String {
         if let Some(value) = config.container.resource_thresholds.process_count_warn {
             out.push_str(&format!("process_count_warn = {}\n", value));
         }
-        if let Some(value) = config
-            .container
-            .resource_thresholds
-            .processkit_mcp_python_warn
+        if config.processkit_enabled()
+            && let Some(value) = config
+                .container
+                .resource_thresholds
+                .processkit_mcp_python_warn
         {
             out.push_str(&format!("processkit_mcp_python_warn = {}\n", value));
         }
@@ -1335,17 +1339,36 @@ pub(crate) fn serialize_config_with_comments(config: &AiboxConfig) -> String {
         }
     }
 
-    // [skills] section
     out.push('\n');
     out.push_str(sep);
-    out.push_str("# [skills] — processkit skill catalog\n");
+    out.push_str("# [context]\n");
     out.push_str(sep);
-    out.push_str("# Each known skill appears once. Uncomment a line to enable that skill;\n");
-    out.push_str("# comment it out (leading `#`) to disable. Core skills are always\n");
-    out.push_str("# installed; disabling one only triggers a doctor warning.\n");
-    out.push_str("[skills]\n");
-    let skill_catalog = skill_catalog_entries_for_comments(config);
-    render_skill_array(&mut out, "enabled", &config.skills.include, &skill_catalog);
+    if config.processkit_enabled() {
+        out.push_str("# mode: processkit installs the project context layer.\n");
+        out.push_str("[context]\n");
+        out.push_str("mode = \"processkit\"\n");
+        out.push_str(&format!(
+            "packages = {}\n",
+            toml_string_array(&config.context.packages)
+        ));
+    } else {
+        out.push_str("[context]\n");
+        out.push_str("mode = \"harness-only\"\n");
+    }
+
+    if config.processkit_enabled() {
+        // [skills] section
+        out.push('\n');
+        out.push_str(sep);
+        out.push_str("# [skills] — processkit skill catalog\n");
+        out.push_str(sep);
+        out.push_str("# Each known skill appears once. Uncomment a line to enable that skill;\n");
+        out.push_str("# comment it out (leading `#`) to disable. Core skills are always\n");
+        out.push_str("# installed; disabling one only triggers a doctor warning.\n");
+        out.push_str("[skills]\n");
+        let skill_catalog = skill_catalog_entries_for_comments(config);
+        render_skill_array(&mut out, "enabled", &config.skills.include, &skill_catalog);
+    }
 
     // [addons] section
     out.push('\n');
@@ -1481,48 +1504,58 @@ pub(crate) fn serialize_config_with_comments(config: &AiboxConfig) -> String {
     ));
     render_ai_mcp_section(&mut out, config, sep);
 
-    // [processkit] section
-    out.push('\n');
-    out.push_str(sep);
-    out.push_str("# [processkit] — content layer source (skills, primitives, processes)\n");
-    out.push_str(sep);
-    out.push_str("# processkit ships the skills and primitives that aibox installs into the\n");
-    out.push_str("# project. The default upstream is the canonical projectious-work/processkit\n");
-    out.push_str(
-        "# repo. Companies can fork processkit and have their projects consume the fork\n",
-    );
-    out.push_str("# by changing `source` to point at their fork.\n");
-    out.push_str("#\n");
-    out.push_str(
-        "# `version` is the git tag of the processkit source to consume. Special values:\n",
-    );
-    out.push_str("#   \"unset\"  — no version pinned yet; processkit content is not installed.\n");
-    out.push_str("#   \"latest\" — resolve to the newest available tag at every `aibox apply`.\n");
-    out.push_str("[processkit]\n");
-    out.push_str(&format!("source   = \"{}\"\n", config.processkit.source));
-    out.push_str(&format!("version  = \"{}\"\n", config.processkit.version));
-    out.push_str(&format!("src_path = \"{}\"\n", config.processkit.src_path));
-    match &config.processkit.branch {
-        Some(branch) => out.push_str(&format!("branch   = \"{}\"\n", branch)),
-        None => out.push_str(
-            "# branch = \"main\"   # optional — for tracking a moving branch (discouraged)\n",
-        ),
+    if config.processkit_enabled() {
+        // [processkit] section
+        out.push('\n');
+        out.push_str(sep);
+        out.push_str("# [processkit] — content layer source (skills, primitives, processes)\n");
+        out.push_str(sep);
+        out.push_str("# processkit ships the skills and primitives that aibox installs into the\n");
+        out.push_str(
+            "# project. The default upstream is the canonical projectious-work/processkit\n",
+        );
+        out.push_str(
+            "# repo. Companies can fork processkit and have their projects consume the fork\n",
+        );
+        out.push_str("# by changing `source` to point at their fork.\n");
+        out.push_str("#\n");
+        out.push_str(
+            "# `version` is the git tag of the processkit source to consume. Special values:\n",
+        );
+        out.push_str(
+            "#   \"unset\"  — no version pinned yet; processkit content is not installed.\n",
+        );
+        out.push_str(
+            "#   \"latest\" — resolve to the newest available tag at every `aibox apply`.\n",
+        );
+        out.push_str("[processkit]\n");
+        out.push_str(&format!("source   = \"{}\"\n", config.processkit.source));
+        out.push_str(&format!("version  = \"{}\"\n", config.processkit.version));
+        out.push_str(&format!("src_path = \"{}\"\n", config.processkit.src_path));
+        match &config.processkit.branch {
+            Some(branch) => out.push_str(&format!("branch   = \"{}\"\n", branch)),
+            None => out.push_str(
+                "# branch = \"main\"   # optional — for tracking a moving branch (discouraged)\n",
+            ),
+        }
+        out.push_str("#\n");
+        out.push_str(
+            "# Optional release-asset URL template for non-GitHub hosts (Gitea, GitLab,\n",
+        );
+        out.push_str("# self-hosted). When unset, the fetcher uses the GitHub-style default:\n");
+        out.push_str("#   {source}/releases/download/{version}/{name}-{version}.tar.gz\n");
+        out.push_str("# Placeholders: {source} (.git stripped), {version}, {org}, {name}.\n");
+        match &config.processkit.release_asset_url_template {
+            Some(t) => out.push_str(&format!("release_asset_url_template = \"{}\"\n", t)),
+            None => out.push_str("# release_asset_url_template = \"https://gitea.example.com/{org}/{name}/releases/download/{version}/payload.tar.gz\"\n"),
+        }
+        out.push('\n');
+        out.push_str("[processkit.context]\n");
+        out.push_str(&format!(
+            "schema_version = {:12} # Context schema version — updated automatically by `aibox apply`\n",
+            format!("\"{}\"", config.processkit.context.schema_version)
+        ));
     }
-    out.push_str("#\n");
-    out.push_str("# Optional release-asset URL template for non-GitHub hosts (Gitea, GitLab,\n");
-    out.push_str("# self-hosted). When unset, the fetcher uses the GitHub-style default:\n");
-    out.push_str("#   {source}/releases/download/{version}/{name}-{version}.tar.gz\n");
-    out.push_str("# Placeholders: {source} (.git stripped), {version}, {org}, {name}.\n");
-    match &config.processkit.release_asset_url_template {
-        Some(t) => out.push_str(&format!("release_asset_url_template = \"{}\"\n", t)),
-        None => out.push_str("# release_asset_url_template = \"https://gitea.example.com/{org}/{name}/releases/download/{version}/payload.tar.gz\"\n"),
-    }
-    out.push('\n');
-    out.push_str("[processkit.context]\n");
-    out.push_str(&format!(
-        "schema_version = {:12} # Context schema version — updated automatically by `aibox apply`\n",
-        format!("\"{}\"", config.processkit.context.schema_version)
-    ));
 
     // [customization] section
     out.push('\n');
@@ -1625,8 +1658,10 @@ pub(crate) fn serialize_config_with_comments(config: &AiboxConfig) -> String {
     out.push_str("# - aibox_oom: cgroup OOM kill counters\n");
     out.push_str("# - aibox_proc: live process count versus configured process warning limit\n");
     out.push_str("# - aibox_ai: detected AI-agent/runtime process count\n");
-    out.push_str("# - aibox_mcp: processkit/MCP daemon and server process status\n");
-    out.push_str("# - aibox_mig: pending processkit migration count\n");
+    if config.processkit_enabled() {
+        out.push_str("# - aibox_mcp: processkit/MCP daemon and server process status\n");
+        out.push_str("# - aibox_mig: pending processkit migration count\n");
+    }
     out.push_str("# - weather: weather segment from tmux-powerkit\n");
     out.push_str("# - uptime: container uptime\n");
     out.push_str("# - datetime: local date/time\n");
@@ -1685,8 +1720,10 @@ pub(crate) fn serialize_config_with_comments(config: &AiboxConfig) -> String {
     out.push_str("# aibox-oom: cgroup OOM event/kill counter header.\n");
     out.push_str("# aibox-proc: process/thread count header.\n");
     out.push_str("# aibox-ai: active AI-agent process count header.\n");
-    out.push_str("# aibox-mcp: processkit/MCP topology header.\n");
-    out.push_str("# aibox-mig: pending processkit migration count header.\n");
+    if config.processkit_enabled() {
+        out.push_str("# aibox-mcp: processkit/MCP topology header.\n");
+        out.push_str("# aibox-mig: pending processkit migration count header.\n");
+    }
     out.push_str("# kubernetes: Kubernetes segment icon/header.\n");
     out.push_str(
         "# cloud/cloud-aws/cloud-gcp/cloud-azure/cloud-multi: local cloud context icons.\n",
@@ -1710,14 +1747,16 @@ pub(crate) fn serialize_config_with_comments(config: &AiboxConfig) -> String {
         "aibox-ai = {}\n",
         toml_string_value(&labels.aibox_ai)
     ));
-    out.push_str(&format!(
-        "aibox-mcp = {}\n",
-        toml_string_value(&labels.aibox_mcp)
-    ));
-    out.push_str(&format!(
-        "aibox-mig = {}\n",
-        toml_string_value(&labels.aibox_mig)
-    ));
+    if config.processkit_enabled() {
+        out.push_str(&format!(
+            "aibox-mcp = {}\n",
+            toml_string_value(&labels.aibox_mcp)
+        ));
+        out.push_str(&format!(
+            "aibox-mig = {}\n",
+            toml_string_value(&labels.aibox_mig)
+        ));
+    }
     out.push_str(&format!(
         "kubernetes = {}\n",
         toml_string_value(&labels.kubernetes)
@@ -1951,11 +1990,7 @@ fn render_ai_mcp_section(out: &mut String, config: &AiboxConfig, sep: &str) {
     out.push_str(sep);
     out.push_str("# [ai.mcp] — MCP gateway, permissions, and extra servers\n");
     out.push_str(sep);
-    out.push_str("# Auto-allow / deny MCP tools by glob pattern. processkit's own MCP tools are\n");
-    out.push_str(
-        "# pre-approved separately via the skill-gate preauth spec — these patterns are\n",
-    );
-    out.push_str("# for user-added MCP servers. See:\n");
+    out.push_str("# Auto-allow / deny MCP tools by glob pattern. See:\n");
     out.push_str("# https://projectious-work.github.io/aibox/docs/reference/configuration#permission-configuration-mcppermissions\n");
     out.push_str("# [ai.mcp.permissions]\n");
     out.push_str("# default_mode   = \"ask\"\n");
@@ -1997,23 +2032,25 @@ fn render_ai_mcp_section(out: &mut String, config: &AiboxConfig, sep: &str) {
             ));
         }
     }
-    out.push('\n');
-    out.push_str("# [ai.mcp.gateway] — processkit MCP topology. Options for mode: auto | daemon | stdio | separate\n");
-    out.push_str("[ai.mcp.gateway]\n");
-    out.push_str(&format!(
-        "mode = \"{}\"          # auto uses daemon when processkit-gateway is installed\n",
-        mcp_gateway_mode_str(config.ai.mcp.gateway.mode)
-    ));
-    out.push_str(&format!(
-        "lazy_catalog = {}    # Use processkit's lazy catalog where supported\n",
-        config.ai.mcp.gateway.lazy_catalog
-    ));
-    out.push_str(&format!(
-        "host = \"{}\"     # daemon is always localhost-only\n",
-        config.ai.mcp.gateway.host
-    ));
-    out.push_str(&format!("port = {}\n", config.ai.mcp.gateway.port));
-    out.push_str(&format!("path = \"{}\"\n", config.ai.mcp.gateway.path));
+    if config.processkit_enabled() {
+        out.push('\n');
+        out.push_str("# [ai.mcp.gateway] — processkit MCP topology. Options for mode: auto | daemon | stdio | separate\n");
+        out.push_str("[ai.mcp.gateway]\n");
+        out.push_str(&format!(
+            "mode = \"{}\"          # auto uses daemon when processkit-gateway is installed\n",
+            mcp_gateway_mode_str(config.ai.mcp.gateway.mode)
+        ));
+        out.push_str(&format!(
+            "lazy_catalog = {}    # Use processkit's lazy catalog where supported\n",
+            config.ai.mcp.gateway.lazy_catalog
+        ));
+        out.push_str(&format!(
+            "host = \"{}\"     # daemon is always localhost-only\n",
+            config.ai.mcp.gateway.host
+        ));
+        out.push_str(&format!("port = {}\n", config.ai.mcp.gateway.port));
+        out.push_str(&format!("path = \"{}\"\n", config.ai.mcp.gateway.path));
+    }
     if !config.ai.mcp.servers.is_empty() {
         out.push('\n');
         out.push_str(
@@ -2597,6 +2634,7 @@ pub fn cmd_init(config_path: &Option<String>, params: InitParams) -> Result<()> 
         params.addons,
         interactive,
     )?;
+    let context_mode = params.context_mode.unwrap_or_default();
 
     let container_user = params.user.unwrap_or_else(|| "aibox".to_string());
     let tmux_status_mode = match params.tmux_status {
@@ -2697,7 +2735,12 @@ pub fn cmd_init(config_path: &Option<String>, params: InitParams) -> Result<()> 
             audio: AudioSection::default(),
         },
         context: ContextSection {
-            packages: resolved.process_packages,
+            mode: context_mode,
+            packages: if context_mode == ContextMode::HarnessOnly {
+                Vec::new()
+            } else {
+                resolved.process_packages
+            },
             ..ContextSection::default()
         },
         ai: AiSection {
@@ -2746,18 +2789,26 @@ pub fn cmd_init(config_path: &Option<String>, params: InitParams) -> Result<()> 
             section
         },
         skills: SkillsSection {
-            include: crate::processkit_vocab::STANDARD_PROCESSKIT_SKILLS
-                .iter()
-                .map(|skill| (*skill).to_string())
-                .collect(),
+            include: if context_mode == ContextMode::HarnessOnly {
+                Vec::new()
+            } else {
+                crate::processkit_vocab::STANDARD_PROCESSKIT_SKILLS
+                    .iter()
+                    .map(|skill| (*skill).to_string())
+                    .collect()
+            },
             exclude: Vec::new(),
         },
-        processkit: resolve_processkit_section(
-            params.processkit_source.as_deref(),
-            params.processkit_version.as_deref(),
-            params.processkit_branch.as_deref(),
-            interactive,
-        )?,
+        processkit: if context_mode == ContextMode::HarnessOnly {
+            crate::config::ProcessKitSection::default()
+        } else {
+            resolve_processkit_section(
+                params.processkit_source.as_deref(),
+                params.processkit_version.as_deref(),
+                params.processkit_branch.as_deref(),
+                interactive,
+            )?
+        },
         customization: CustomizationSection {
             theme: params.theme.unwrap_or_default(),
             mode: ThemeMode::Auto,
@@ -2811,7 +2862,10 @@ pub fn cmd_init(config_path: &Option<String>, params: InitParams) -> Result<()> 
         println!("  Project:     {}", config.container.name);
         println!("  Base:        {}", config.container.image.base);
         println!("  Profile:     {}", config.aibox.profile);
-        println!("  Process:     {}", config.context.packages.join(", "));
+        println!("  Context:     {}", config.context.mode);
+        if config.processkit_enabled() {
+            println!("  Packages:    {}", config.context.packages.join(", "));
+        }
         let addon_list: Vec<String> = config
             .addons
             .addons
@@ -2835,7 +2889,9 @@ pub fn cmd_init(config_path: &Option<String>, params: InitParams) -> Result<()> 
             "  Theme:       {} (mode: {})",
             config.customization.theme, config.customization.mode
         );
-        println!("  processkit:  {}", config.processkit.version);
+        if config.processkit_enabled() {
+            println!("  processkit:  {}", config.processkit.version);
+        }
         println!();
         let proceed = dialoguer::Confirm::new()
             .with_prompt("Generate project with these settings?")
@@ -2862,69 +2918,63 @@ pub fn cmd_init(config_path: &Option<String>, params: InitParams) -> Result<()> 
     // network hiccup or bad processkit URL doesn't wedge the user's
     // whole init — they get a working aibox project either way and can
     // fix the [processkit] section then re-run `aibox apply`.
-    output::info("Installing processkit content...");
     let project_root = std::env::current_dir()
         .map_err(|e| anyhow::anyhow!("failed to resolve current directory: {}", e))?;
-    match crate::content_init::install_content_source(&project_root, &config) {
-        Ok(report) if report.skipped_due_to_unset => {
-            output::warn(&format!(
-                "Skipped processkit install — [processkit] version is \"{}\". \
-                 Edit aibox.toml and run `aibox apply` to install processkit content.",
-                crate::config::PROCESSKIT_VERSION_UNSET
-            ));
+    if config.processkit_enabled() {
+        output::info("Installing processkit content...");
+        match crate::content_init::install_content_source(&project_root, &config) {
+            Ok(report) if report.skipped_due_to_unset => {
+                output::warn(&format!(
+                    "Skipped processkit install — [processkit] version is \"{}\". \
+                     Edit aibox.toml and run `aibox apply` to install processkit content.",
+                    crate::config::PROCESSKIT_VERSION_UNSET
+                ));
+            }
+            Ok(report) => {
+                output::ok(&format!(
+                    "Installed {} files from processkit {}@{} ({} groups, {} skipped)",
+                    report.files_installed,
+                    report.fetched_from,
+                    report.fetched_version,
+                    report.groups_touched,
+                    report.files_skipped,
+                ));
+                if let Err(e) =
+                    crate::mcp_registration::regenerate_mcp_configs(&config, &project_root)
+                {
+                    output::warn(&format!("MCP registration failed: {}", e));
+                }
+                if let Err(e) =
+                    crate::hook_registration::regenerate_hook_configs(&config, &project_root)
+                {
+                    output::warn(&format!("Hook registration failed: {}", e));
+                }
+                if let Err(e) =
+                    crate::preauth::merge_processkit_preauth_for_config(&project_root, &config)
+                {
+                    output::warn(&format!("Preauth merge failed: {}", e));
+                }
+                if let Err(e) =
+                    crate::compliance::regenerate_compliance_configs(&config, &project_root, false)
+                {
+                    output::warn(&format!("Compliance config generation failed: {}", e));
+                }
+                if let Err(e) =
+                    crate::harness_commands::sync_harness_commands(&project_root, &config)
+                {
+                    output::warn(&format!("Harness command sync failed: {}", e));
+                }
+            }
+            Err(e) => {
+                output::warn(&format!(
+                    "Processkit install failed: {}. The project is set up but processkit \
+                     content was not installed. Run `aibox apply` to retry.",
+                    e
+                ));
+            }
         }
-        Ok(report) => {
-            output::ok(&format!(
-                "Installed {} files from processkit {}@{} ({} groups, {} skipped)",
-                report.files_installed,
-                report.fetched_from,
-                report.fetched_version,
-                report.groups_touched,
-                report.files_skipped,
-            ));
-            // After install, regenerate per-harness MCP config files.
-            // Best-effort: any failure is warned-and-continued so an
-            // MCP-registration glitch doesn't break the rest of init.
-            if let Err(e) = crate::mcp_registration::regenerate_mcp_configs(&config, &project_root)
-            {
-                output::warn(&format!("MCP registration failed: {}", e));
-            }
-            // Wire processkit enforcement hooks into harness config files.
-            // Best-effort: a hook-registration failure must not abort init.
-            if let Err(e) =
-                crate::hook_registration::regenerate_hook_configs(&config, &project_root)
-            {
-                output::warn(&format!("Hook registration failed: {}", e));
-            }
-            // Merge processkit's preauth.json into enabled harness settings.
-            // Best-effort and provider-scoped: Codex-only projects should not
-            // create or warn about Claude-specific config files.
-            if let Err(e) =
-                crate::preauth::merge_processkit_preauth_for_config(&project_root, &config)
-            {
-                output::warn(&format!("Preauth merge failed: {}", e));
-            }
-            // Surface the processkit compliance contract to each harness.
-            // Best-effort.
-            if let Err(e) =
-                crate::compliance::regenerate_compliance_configs(&config, &project_root, false)
-            {
-                output::warn(&format!("Compliance config generation failed: {}", e));
-            }
-            // Sync processkit command adapter files to per-harness command
-            // directories (Claude, Codex, Cursor, Gemini, OpenCode) so each
-            // harness can tab-complete them as slash commands. Best-effort.
-            if let Err(e) = crate::harness_commands::sync_harness_commands(&project_root, &config) {
-                output::warn(&format!("Harness command sync failed: {}", e));
-            }
-        }
-        Err(e) => {
-            output::warn(&format!(
-                "Processkit install failed: {}. The project is set up but processkit \
-                 content was not installed. Run `aibox apply` to retry.",
-                e
-            ));
-        }
+    } else if let Err(e) = crate::mcp_registration::regenerate_mcp_configs(&config, &project_root) {
+        output::warn(&format!("MCP registration failed: {}", e));
     }
 
     // Ensure aibox.lock exists even if processkit install was skipped or failed.
@@ -3176,7 +3226,9 @@ pub fn cmd_sync(
     //   - Patch or minor upgrade (same major): apply automatically.
     //   - Major upgrade: block and warn; take best available within current major.
     //     User must pin an explicit version in aibox.toml to cross a major boundary.
-    if config.processkit.version == crate::config::PROCESSKIT_VERSION_LATEST {
+    if config.processkit_enabled()
+        && config.processkit.version == crate::config::PROCESSKIT_VERSION_LATEST
+    {
         match crate::content_source::list_versions(&config.processkit.source) {
             Ok(versions) if !versions.is_empty() => {
                 // Read the currently installed version tag from the lock file.
@@ -3275,7 +3327,8 @@ pub fn cmd_sync(
     // Warn if processkit version is below minimum for this aibox.
     // Skip when version was "latest" (already resolved to the newest available).
     let current_aibox = env!("CARGO_PKG_VERSION");
-    if let Some(compat) = crate::compat::min_processkit_for(current_aibox)
+    if config.processkit_enabled()
+        && let Some(compat) = crate::compat::min_processkit_for(current_aibox)
         && !crate::compat::processkit_meets_minimum(
             &config.processkit.version,
             compat.processkit_version,
@@ -3345,7 +3398,12 @@ pub fn cmd_sync(
     // applies see the fields populated and short-circuit). Emits a
     // pending Migration the first time it runs.
     if let Ok(cwd) = std::env::current_dir() {
-        match crate::lock::backfill_lock_selection(&cwd, &config) {
+        let backfill_result = if config.processkit_enabled() {
+            crate::lock::backfill_lock_selection(&cwd, &config)
+        } else {
+            crate::lock::backfill_lock_selection_without_migration(&cwd, &config)
+        };
+        match backfill_result {
             Ok(Some(path)) => output::ok(&format!(
                 "Backfilled lock previous_selection; wrote migration: {}",
                 path.display()
@@ -3407,69 +3465,75 @@ pub fn cmd_sync(
     // again after install_content_source would return the new version, making
     // the diff compare new-against-new and recording from_version == to_version.
     let pre_install_processkit_lock: Option<crate::lock::ProcessKitLockSection> =
-        std::env::current_dir()
-            .ok()
-            .and_then(|cwd| crate::lock::read_lock(&cwd).ok().flatten())
-            .and_then(|lock| lock.processkit);
+        if config.processkit_enabled() {
+            std::env::current_dir()
+                .ok()
+                .and_then(|cwd| crate::lock::read_lock(&cwd).ok().flatten())
+                .and_then(|lock| lock.processkit)
+        } else {
+            None
+        };
 
     // Decide install / reinstall / skip based on lock+config drift AND
     // the live install-integrity check (WS-1). The integrity check is
     // best-effort — if it errors, fall back to Skip with a warning so a
     // corrupt live marker can't brick `aibox apply` outright.
-    match std::env::current_dir() {
-        Ok(cwd) => {
-            let lock = crate::lock::read_lock(&cwd).ok().flatten();
-            let decision =
-                crate::integrity::decide_sync(&config, &cwd, &lock).unwrap_or_else(|e| {
-                    output::warn(&format!(
-                        "integrity check failed: {} — falling back to skip",
-                        e
-                    ));
-                    crate::integrity::SyncDecision::Skip
-                });
-            match &decision {
-                crate::integrity::SyncDecision::Skip => {}
-                crate::integrity::SyncDecision::Install { reason } => {
-                    output::info(&format!(
-                        "Installing processkit {}@{} ({})",
-                        config.processkit.source, config.processkit.version, reason
-                    ));
-                    run_install(&cwd, &config);
-                }
-                crate::integrity::SyncDecision::Reinstall {
-                    reason,
-                    prior_state,
-                } => {
-                    // The `install_hash_mismatch` reason is self-healing
-                    // by design — the install machinery silently restores
-                    // the pinned upstream payload. Demote it to an info
-                    // line so derived projects don't see a scary
-                    // recurring warn for a non-issue. Other prior states
-                    // (MissingProvenance, MismatchedVersion, …) signal
-                    // genuinely unusual conditions and keep the warn.
-                    if matches!(
-                        &prior_state,
-                        crate::integrity::IntegrityStatus::Stale { reason: r, .. }
-                            if r == "install_hash_mismatch"
-                    ) {
-                        output::info(&format!(
-                            "Refreshing pinned processkit install for {}@{} (detected drift in upstream-shipped files since the last sync; reinstalling).",
-                            config.processkit.source, config.processkit.version
-                        ));
-                    } else {
+    if config.processkit_enabled() {
+        match std::env::current_dir() {
+            Ok(cwd) => {
+                let lock = crate::lock::read_lock(&cwd).ok().flatten();
+                let decision =
+                    crate::integrity::decide_sync(&config, &cwd, &lock).unwrap_or_else(|e| {
                         output::warn(&format!(
-                            "Repairing processkit template mirror for {}@{}: {}. No manual action is required; aibox will reinstall the pinned processkit files now.",
+                            "integrity check failed: {} — falling back to skip",
+                            e
+                        ));
+                        crate::integrity::SyncDecision::Skip
+                    });
+                match &decision {
+                    crate::integrity::SyncDecision::Skip => {}
+                    crate::integrity::SyncDecision::Install { reason } => {
+                        output::info(&format!(
+                            "Installing processkit {}@{} ({})",
                             config.processkit.source, config.processkit.version, reason
                         ));
+                        run_install(&cwd, &config);
                     }
-                    run_install(&cwd, &config);
+                    crate::integrity::SyncDecision::Reinstall {
+                        reason,
+                        prior_state,
+                    } => {
+                        // The `install_hash_mismatch` reason is self-healing
+                        // by design — the install machinery silently restores
+                        // the pinned upstream payload. Demote it to an info
+                        // line so derived projects don't see a scary
+                        // recurring warn for a non-issue. Other prior states
+                        // (MissingProvenance, MismatchedVersion, …) signal
+                        // genuinely unusual conditions and keep the warn.
+                        if matches!(
+                            &prior_state,
+                            crate::integrity::IntegrityStatus::Stale { reason: r, .. }
+                                if r == "install_hash_mismatch"
+                        ) {
+                            output::info(&format!(
+                                "Refreshing pinned processkit install for {}@{} (detected drift in upstream-shipped files since the last sync; reinstalling).",
+                                config.processkit.source, config.processkit.version
+                            ));
+                        } else {
+                            output::warn(&format!(
+                                "Repairing processkit template mirror for {}@{}: {}. No manual action is required; aibox will reinstall the pinned processkit files now.",
+                                config.processkit.source, config.processkit.version, reason
+                            ));
+                        }
+                        run_install(&cwd, &config);
+                    }
                 }
             }
+            Err(e) => output::warn(&format!(
+                "Failed to determine working directory; skipping processkit install: {}",
+                e
+            )),
         }
-        Err(e) => output::warn(&format!(
-            "Failed to determine working directory; skipping processkit install: {}",
-            e
-        )),
     }
 
     // Regenerate per-harness MCP config files (.mcp.json,
@@ -3480,39 +3544,24 @@ pub fn cmd_sync(
     // produces byte-identical output. Best-effort: any failure is
     // warned-and-continued. See DEC-033.
     if let Ok(cwd) = std::env::current_dir() {
-        // ── Processkit-install fingerprint drift check ───────────────────
-        // WS-7: broadened from the narrow `mcp_config_hash` to cover the
-        // full processkit-shipped install payload (skill source,
-        // schemas, processes, state-machines, _lib). Any edit under
-        // those paths between syncs invalidates the hash here.
-        let stored_hash = crate::lock::read_lock(&cwd)
-            .ok()
-            .flatten()
-            .and_then(|l| l.processkit)
-            .and_then(|p| p.processkit_install_hash);
+        let stored_hash = if config.processkit_enabled() {
+            let stored_hash = crate::lock::read_lock(&cwd)
+                .ok()
+                .flatten()
+                .and_then(|l| l.processkit)
+                .and_then(|p| p.processkit_install_hash);
 
-        // If processkit ships a manifest with an expected hash, warn on drift.
-        // The manifest still publishes a narrow `mcp_config_hash` value, so
-        // this is currently a best-effort cross-check rather than a strict
-        // equality. A future processkit release that publishes the broad
-        // hash will tighten this comparison automatically.
-        let manifest_hash = crate::mcp_registration::read_processkit_mcp_manifest_hash(&cwd);
-        #[allow(clippy::collapsible_if)]
-        if let (Some(mh), Some(sh)) = (&manifest_hash, &stored_hash) {
-            if mh != sh {
-                output::warn(
-                    "processkit MCP manifest hash differs from last sync — \
-                     per-skill configs may have changed; regenerating .mcp.json",
-                );
+            let manifest_hash = crate::mcp_registration::read_processkit_mcp_manifest_hash(&cwd);
+            #[allow(clippy::collapsible_if)]
+            if let (Some(mh), Some(sh)) = (&manifest_hash, &stored_hash) {
+                if mh != sh {
+                    output::warn(
+                        "processkit MCP manifest hash differs from last sync — \
+                         per-skill configs may have changed; regenerating .mcp.json",
+                    );
+                }
             }
-        }
 
-        // ── Per-skill drift attribution (GitHub #54) ─────────────────────
-        // Complement to the coarse fingerprint: identify *which* skill's
-        // mcp-config.json has drifted from the current .mcp.json so the
-        // user sees an actionable message, not just "something changed".
-        // Best-effort — a failure here must not abort sync.
-        {
             let dot_mcp = cwd.join(".mcp.json");
             match crate::mcp_registration::detect_per_skill_mcp_config_drift(&cwd, &dot_mcp) {
                 Ok(drifts) if !drifts.is_empty() => {
@@ -3535,7 +3584,10 @@ pub fn cmd_sync(
                     output::warn(&format!("per-skill MCP drift check failed: {e}"));
                 }
             }
-        }
+            stored_hash
+        } else {
+            None
+        };
 
         // ── Regenerate (already unconditional) ───────────────────────────
         if let Err(e) = crate::mcp_registration::regenerate_mcp_configs(&config, &cwd) {
@@ -3543,51 +3595,48 @@ pub fn cmd_sync(
         }
 
         // ── Update fingerprint in lock ───────────────────────────────────
-        let new_hash = crate::mcp_registration::compute_processkit_install_fingerprint(&cwd);
-        #[allow(clippy::collapsible_if)]
-        if new_hash != stored_hash {
-            // Fingerprint changed — update the lock so future runs have a fresh baseline.
-            if let Ok(Some(mut lock)) = crate::lock::read_lock(&cwd) {
-                if let Some(pk) = lock.processkit.as_mut() {
-                    pk.processkit_install_hash = new_hash.clone();
-                    // Clear the deprecated narrow field so old values
-                    // don't linger past the first post-WS-7 sync.
-                    #[allow(deprecated)]
-                    {
-                        pk.mcp_config_hash = None;
-                    }
-                    if let Err(e) = crate::lock::write_lock(&cwd, &lock) {
-                        output::warn(&format!(
-                            "Failed to update processkit_install_hash in lock: {}",
-                            e
-                        ));
+        if config.processkit_enabled() {
+            let new_hash = crate::mcp_registration::compute_processkit_install_fingerprint(&cwd);
+            #[allow(clippy::collapsible_if)]
+            if new_hash != stored_hash {
+                // Fingerprint changed — update the lock so future runs have a fresh baseline.
+                if let Ok(Some(mut lock)) = crate::lock::read_lock(&cwd) {
+                    if let Some(pk) = lock.processkit.as_mut() {
+                        pk.processkit_install_hash = new_hash.clone();
+                        // Clear the deprecated narrow field so old values
+                        // don't linger past the first post-WS-7 sync.
+                        #[allow(deprecated)]
+                        {
+                            pk.mcp_config_hash = None;
+                        }
+                        if let Err(e) = crate::lock::write_lock(&cwd, &lock) {
+                            output::warn(&format!(
+                                "Failed to update processkit_install_hash in lock: {}",
+                                e
+                            ));
+                        }
                     }
                 }
             }
         }
 
-        // Wire processkit enforcement hooks into harness config files.
-        // Best-effort: a hook-registration failure must not abort sync.
-        if let Err(e) = crate::hook_registration::regenerate_hook_configs(&config, &cwd) {
-            output::warn(&format!("Hook registration failed: {}", e));
-        }
-        // Merge processkit's preauth.json into enabled harness settings.
-        // Best-effort and provider-scoped.
-        if let Err(e) = crate::preauth::merge_processkit_preauth_for_config(&cwd, &config) {
-            output::warn(&format!("Preauth merge failed: {}", e));
-        }
-        // Surface the processkit compliance contract to each harness
-        // (drift check, Cursor rules, Aider conf). Best-effort.
-        if let Err(e) =
-            crate::compliance::regenerate_compliance_configs(&config, &cwd, fix_compliance_contract)
-        {
-            output::warn(&format!("Compliance config generation failed: {}", e));
-        }
-        // Sync processkit command adapter files to per-harness command
-        // directories (Claude, Codex, Cursor, Gemini, OpenCode) so each
-        // harness can tab-complete them as slash commands. Best-effort.
-        if let Err(e) = crate::harness_commands::sync_harness_commands(&cwd, &config) {
-            output::warn(&format!("Harness command sync failed: {}", e));
+        if config.processkit_enabled() {
+            if let Err(e) = crate::hook_registration::regenerate_hook_configs(&config, &cwd) {
+                output::warn(&format!("Hook registration failed: {}", e));
+            }
+            if let Err(e) = crate::preauth::merge_processkit_preauth_for_config(&cwd, &config) {
+                output::warn(&format!("Preauth merge failed: {}", e));
+            }
+            if let Err(e) = crate::compliance::regenerate_compliance_configs(
+                &config,
+                &cwd,
+                fix_compliance_contract,
+            ) {
+                output::warn(&format!("Compliance config generation failed: {}", e));
+            }
+            if let Err(e) = crate::harness_commands::sync_harness_commands(&cwd, &config) {
+                output::warn(&format!("Harness command sync failed: {}", e));
+            }
         }
     }
 
@@ -4012,6 +4061,24 @@ mod tests {
             ai < ai_mcp && ai_mcp < processkit,
             "[ai.mcp] should stay with the ai section"
         );
+    }
+
+    #[test]
+    fn serialized_harness_only_config_omits_processkit_surfaces() {
+        let mut config = crate::config::test_config();
+        config.context.mode = crate::config::ContextMode::HarnessOnly;
+        config.context.packages.clear();
+        config.processkit.context = config.context.clone();
+        config.skills.include.clear();
+
+        let body = serialize_config_with_comments(&config);
+
+        assert!(body.contains("[context]\nmode = \"harness-only\""));
+        assert!(!body.contains("processkit"), "{body}");
+        assert!(!body.contains("[skills]"), "{body}");
+        assert!(!body.contains("[ai.mcp.gateway]"), "{body}");
+        assert!(!body.contains("aibox_mcp"), "{body}");
+        assert!(!body.contains("aibox-mcp"), "{body}");
     }
 
     #[test]

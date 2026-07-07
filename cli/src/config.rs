@@ -364,9 +364,30 @@ fn default_oom_kill_warn() -> Option<u64> {
 // [context] section — merged with former [process]
 // ---------------------------------------------------------------------------
 
-/// [context] section — context system versioning and process packages.
+/// Context content mode.
+#[derive(Debug, Clone, Copy, Default, Serialize, Deserialize, PartialEq, Eq, clap::ValueEnum)]
+#[serde(rename_all = "kebab-case")]
+#[clap(rename_all = "kebab-case")]
+pub enum ContextMode {
+    #[default]
+    Processkit,
+    HarnessOnly,
+}
+
+impl std::fmt::Display for ContextMode {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            ContextMode::Processkit => write!(f, "processkit"),
+            ContextMode::HarnessOnly => write!(f, "harness-only"),
+        }
+    }
+}
+
+/// [context] section — context system versioning and package selection.
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
 pub struct ContextSection {
+    #[serde(default)]
+    pub mode: ContextMode,
     #[serde(default = "default_schema_version")]
     pub schema_version: String,
     #[serde(default = "default_context_packages")]
@@ -384,6 +405,7 @@ fn default_context_packages() -> Vec<String> {
 impl Default for ContextSection {
     fn default() -> Self {
         Self {
+            mode: ContextMode::default(),
             schema_version: default_schema_version(),
             packages: default_context_packages(),
         }
@@ -3543,6 +3565,11 @@ pub struct AiboxConfig {
 }
 
 impl AiboxConfig {
+    /// Whether processkit-backed project context should be installed and wired.
+    pub fn processkit_enabled(&self) -> bool {
+        self.context.mode == ContextMode::Processkit
+    }
+
     /// Return the tmux session name used by generated runtime files.
     ///
     /// The configured `[customization.tmux].session_name` wins. When it is not
@@ -4137,7 +4164,7 @@ impl AiboxConfig {
         }
 
         // Validate context packages have safe names
-        if self.context.packages.is_empty() {
+        if self.processkit_enabled() && self.context.packages.is_empty() {
             bail!("context.packages must not be empty (at minimum ['core'] is required)");
         }
         for pkg in &self.context.packages {
@@ -6218,7 +6245,43 @@ rustfmt = {}
     #[test]
     fn context_packages_default_is_product() {
         let config = parse_toml(minimal_toml()).unwrap();
+        assert_eq!(config.context.mode, ContextMode::Processkit);
         assert_eq!(config.context.packages, vec!["product"]);
+    }
+
+    #[test]
+    fn context_mode_harness_only_allows_empty_packages() {
+        let toml = r#"
+[aibox]
+version = "0.9.0"
+
+[container]
+name = "test"
+
+[context]
+mode = "harness-only"
+packages = []
+"#;
+        let config = parse_toml(toml).unwrap();
+        assert_eq!(config.context.mode, ContextMode::HarnessOnly);
+        assert!(config.context.packages.is_empty());
+        assert!(!config.processkit_enabled());
+    }
+
+    #[test]
+    fn context_mode_rejects_unknown_value() {
+        let toml = r#"
+[aibox]
+version = "0.9.0"
+
+[container]
+name = "test"
+
+[context]
+mode = "unknown"
+"#;
+        let result = parse_toml(toml);
+        assert!(result.is_err(), "should reject unknown context mode");
     }
 
     #[test]

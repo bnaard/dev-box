@@ -49,6 +49,10 @@ source    = "~/.config/gh"            # Host path (~ expanded)
 target    = "/home/aibox/.config/gh"  # Container path
 read_only = true
 
+[context]
+mode = "processkit"                   # processkit | harness-only
+packages = ["product"]                # processkit package selection
+
 [processkit]
 source   = "https://github.com/projectious-work/processkit.git"
 version  = "latest"                   # "latest", "unset", or a real tag
@@ -117,8 +121,8 @@ mode = "extended"                     # extended | plain | disabled (legacy: pow
 # - aibox_oom: cgroup OOM kill counters
 # - aibox_proc: live process count versus configured process warning limit
 # - aibox_ai: detected AI-agent/runtime process count
-# - aibox_mcp: processkit/MCP daemon and server process status
-# - aibox_mig: pending processkit migration count
+# - aibox_mcp: processkit/MCP daemon and server process status (processkit mode)
+# - aibox_mig: pending processkit migration count (processkit mode)
 # - weather: weather segment from tmux-powerkit
 # - uptime: container uptime
 # - datetime: local date/time
@@ -305,7 +309,7 @@ operating system starts killing processes.
 |-------|------|---------|-------------|
 | `memory_mib_warn` | Integer | unset | Warn when cgroup `memory.current` exceeds this many MiB. |
 | `process_count_warn` | Integer | `400` | Warn when `/proc` contains more processes than this. Set to `0` to disable. |
-| `processkit_mcp_python_warn` | Integer | `50` | Warn when many Python processkit MCP server processes are live. Set to `0` to disable. |
+| `processkit_mcp_python_warn` | Integer | `50` | Warn when many Python processkit MCP server processes are live. Only rendered and used in processkit mode. Set to `0` to disable. |
 | `oom_kill_warn` | Integer | `0` | Warn when cgroup `memory.events` reports more OOM kills than this. |
 
 #### [[container.extra_volumes]]
@@ -347,16 +351,33 @@ All other configuration (container name, addons, processkit version, etc.) must 
 
 See the dedicated [Local Config reference](./local-config.md) for a full example and merge-behavior details.
 
-### [processkit.context]
+### [context]
 
-Context-system metadata owned by the processkit content layer.
+Selects the project context layer.
 
 | Field | Type | Required | Default | Description |
 |-------|------|----------|---------|-------------|
-| `schema_version` | String (semver) | No | `"1.0.0"` | Context schema version |
-| `packages` | Array of strings | No | `["product"]` | Legacy compatibility field. New projects use explicit standard skills in `[skills].enabled`; canonical config rendering omits this field. |
+| `mode` | String | No | `processkit` | `processkit` installs the processkit-backed project context layer. `harness-only` skips processkit content and uses only generated container/harness configuration. |
+| `packages` | Array of strings | No | `["product"]` in processkit mode, `[]` in harness-only mode | processkit package selection. Required to be non-empty in processkit mode. Ignored in harness-only mode. |
+| `schema_version` | String (semver) | No | `"1.0.0"` | Accepted for compatibility. Canonical processkit-mode rendering stores the schema version under `[processkit.context]`. |
 
-Use `[skills].enabled` and `[skills].disabled` for explicit skill-level overrides.
+`aibox init --context-mode harness-only` writes:
+
+```toml
+[context]
+mode = "harness-only"
+```
+
+In harness-only mode, generated `aibox.toml`, `AGENTS.md`, provider pointer
+files, MCP config, status comments, and migration surfaces do not mention
+processkit. `aibox apply` still regenerates `.devcontainer/`, `.aibox-home/`,
+selected harness config, addon files, and team/personal MCP servers; it does
+not install `context/skills/`, `context/templates/processkit/`, processkit
+hooks, processkit preauth, processkit command adapters, or processkit Migration
+entities.
+
+Use `[skills].include` and `[skills].exclude` for explicit skill-level
+overrides when `mode = "processkit"`.
 
 ### [addons]
 
@@ -388,20 +409,23 @@ Run `aibox get addon` to see all available addons, or `aibox describe addon <nam
 
 Controls which skills from processkit are installed into `context/skills/`.
 Fresh `aibox.toml` scaffolds list the standard processkit operating skills in
-`enabled`. If `enabled` is empty, aibox falls back to installing every skill in
-the pinned processkit version minus anything listed in `disabled`.
+`include`. If `include` is empty, aibox falls back to installing every skill in
+the pinned processkit version minus anything listed in `exclude`.
 
 ```toml
 [skills]
-enabled = ["pk-doctor", "status-briefing"]  # install only these plus core skills
-disabled = ["research-with-confidence"]     # omit from the default all-skills set
+include = ["pk-doctor", "status-briefing"]  # install only these plus core skills
+exclude = ["research-with-confidence"]      # omit from the default all-skills set
 ```
 
 `include` and `exclude` are mutually exclusive: use one or the other, not both.
-Both accept skill names (the filename without `.md`). An empty `[skills]` table
-(or omitting the section entirely) installs all skills.
+Both accept skill names (the filename without `.md`). `enabled` and `disabled`
+are accepted as aliases for older configs. An empty `[skills]` table (or
+omitting the section entirely) installs all skills.
 
 See the [Skills page](../skills/index.md) for the full processkit boundary.
+
+This section is omitted and ignored in `context.mode = "harness-only"`.
 
 ### [ai]
 
@@ -465,6 +489,10 @@ canonical `AGENTS.md` template. The default upstream is the canonical
 repo, but any processkit-compatible source works (forks, self-hosted, private
 mirrors).
 
+This section is only active when `[context].mode = "processkit"`. In
+`harness-only` mode it is omitted from generated configs and ignored by
+`aibox apply`.
+
 If `version` is the sentinel `unset`, both `aibox init` and `aibox apply` skip
 the processkit fetch entirely. Pin a real tag (e.g. `v0.26.15`) to land the
 content. The downloaded tarball is git-tracked under
@@ -478,6 +506,14 @@ original to diff against.
 | `src_path` | String | No | `src` | Subdirectory inside the source repo containing the shippable payload. Auto-detected for flat release-asset tarballs. |
 | `branch` | String | No | _(none)_ | Optional branch override for testing pre-release work. Discouraged but supported. |
 | `release_asset_url_template` | String | No | _(GitHub-style default)_ | URL template for the release-asset tarball. Placeholders: `{source}` (`.git` stripped), `{version}`, `{org}`, `{name}`. Set this for non-GitHub hosts. |
+
+#### [processkit.context]
+
+Processkit-mode context-system metadata.
+
+| Field | Type | Required | Default | Description |
+|-------|------|----------|---------|-------------|
+| `schema_version` | String (semver) | No | `"1.0.0"` | Context schema version. Canonical rendering keeps this under `[processkit.context]` for processkit-backed projects. |
 
 #### Fetch strategy
 
@@ -514,24 +550,29 @@ version                    = "v1.2.0"
 release_asset_url_template = "https://gitea.acme.com/{org}/{name}/releases/download/{version}/{name}-{version}.tar.gz"
 ```
 
-### [mcp]
+### [ai.mcp]
 
-MCP server definitions and permission configuration. `aibox apply` merges servers from three sources and regenerates all MCP client config files:
+MCP server definitions and permission configuration. `aibox apply` merges
+servers from these sources and regenerates all MCP client config files:
 
-1. **Built-in processkit servers** — either the processkit gateway or separate per-skill servers, depending on `[mcp.gateway]`
-2. **`aibox.toml [[mcp.servers]]`** — team-shared servers committed to version control
-3. **`.aibox-local.toml [mcp]`** — personal servers, gitignored
+1. **Built-in processkit servers** — only in `context.mode = "processkit"`, either the processkit gateway or separate per-skill servers, depending on `[ai.mcp.gateway]`
+2. **`aibox.toml [[ai.mcp.servers]]`** — team-shared servers committed to version control
+3. **`.aibox-local.toml [[mcp.servers]]`** — personal servers, gitignored
 
 Generated files (`.mcp.json`, `.cursor/mcp.json`, `.gemini/settings.json`, `.codex/config.toml`, `.codex/hooks.json`, `.continue/mcpServers/`) are **gitignored**. They are always reproducible from the config sources above and must not be committed — doing so would embed personal server definitions or credentials from `.aibox-local.toml`.
 
-#### processkit Gateway: [mcp.gateway]
+In harness-only mode, processkit servers and the processkit gateway are not
+registered. Team and personal MCP servers are still generated for enabled
+harnesses.
+
+#### processkit Gateway: [ai.mcp.gateway]
 
 When the selected processkit release provides `processkit-gateway`, its stdio
 proxy can start the matching localhost daemon on demand. It can replace the
 one-process-per-skill MCP topology with a single processkit MCP entry.
 
 ```toml
-[mcp.gateway]
+[ai.mcp.gateway]
 mode = "auto"          # auto | daemon | stdio | separate
 lazy_catalog = true
 host = "127.0.0.1"
@@ -556,7 +597,7 @@ this section so generated harness configs stay in sync.
 
 #### Server Definitions: [[ai.mcp.servers]]
 
-Each `[[mcp.servers]]` entry has these fields:
+Each `[[ai.mcp.servers]]` entry has these fields:
 
 | Field | Type | Required | Default | Description |
 |-------|------|----------|---------|-------------|

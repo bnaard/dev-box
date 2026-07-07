@@ -9,7 +9,12 @@ title: "Local Config (.aibox-local.toml)"
 
 ## Why it exists
 
-`aibox.toml` is committed and shared across the team. That's the right place for project-wide settings: container name, addons, processkit version, shared environment variables, and so on. But tokens and personal bind mounts don't belong there. `.aibox-local.toml` gives every developer a private escape valve without requiring `.gitignore` discipline on every secret.
+`aibox.toml` is committed and shared across the team. That's the right place
+for project-wide settings: container name, context mode, processkit version
+when processkit is enabled, addons, shared environment variables, and so on.
+But tokens and personal bind mounts don't belong there. `.aibox-local.toml`
+gives every developer a private escape valve without requiring `.gitignore`
+discipline on every secret.
 
 ## Location and gitignore
 
@@ -86,7 +91,11 @@ args    = ["-y", "@stripe/mcp"]
 STRIPE_SECRET_KEY = "sk_test_..."
 ```
 
-`aibox apply` merges personal servers with team servers (from `aibox.toml [ai.mcp]`) and built-in processkit servers, then regenerates all MCP client config files. The generated files are **gitignored** — they are never committed to version control, so personal keys and server definitions stay private.
+`aibox apply` merges personal servers with team servers (from
+`aibox.toml [ai.mcp]`) and, in processkit mode, built-in processkit servers,
+then regenerates all MCP client config files. The generated files are
+**gitignored** — they are never committed to version control, so personal keys
+and server definitions stay private.
 
 ## Merge behavior
 
@@ -132,10 +141,11 @@ args    = ["-y", "@acme/internal-mcp-server"]
 Everything outside of `[container.environment]`, `[[container.extra_volumes]]`, and `[[mcp.servers]]` is ignored. The following must remain in `aibox.toml`:
 
 - Container name, hostname, user, lifecycle, image, and generated paths
+- `[context]` — context mode and processkit package selection
 - `[addons]` — addon configuration
-- `[processkit]` — content source and version pin
-- `[skills]` — enabled/disabled lists
-- `[ai]` / `[ai.harness.<name>]` — harnesses, agents, and MCP
+- `[processkit]` — content source and version pin when processkit mode is enabled
+- `[skills]` — enabled/disabled lists when processkit mode is enabled
+- `[ai]` — harnesses, agents, and team MCP servers
 - `[customization]` — theme, mode, prompt, layout
 - `[audio]` — audio bridging
 

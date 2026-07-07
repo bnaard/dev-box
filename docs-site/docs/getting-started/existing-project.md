@@ -36,6 +36,10 @@ hostname = "my-existing-project"
 release_version = "latest"
 base = "debian"
 
+[context]
+mode = "processkit"
+packages = ["product"]
+
 [processkit]
 source  = "https://github.com/projectious-work/processkit.git"
 version = "latest"
@@ -43,20 +47,39 @@ version = "latest"
 [processkit.context]
 schema_version = "1.0.0"
 
-[ai.harness.claude]
-enabled = true
-install = true
+[ai]
+harnesses = [
+  { harness = "claude", enable = true, install = true },
+]
 
 [audio]
 enabled = false
 ```
+
+For a container-and-harness-only adoption with no processkit content, use:
+
+```toml
+[context]
+mode = "harness-only"
+
+[ai]
+harnesses = [
+  { harness = "claude", enable = true, install = true },
+]
+```
+
+In harness-only mode, omit `[processkit]`, `[processkit.context]`, and
+`[skills]`; `aibox apply` will not create processkit skill mirrors or
+processkit Migration entities.
 
 :::tip Pin processkit before apply
 
 Set `[processkit].version` to a real tag (e.g. `v0.26.15`) before the first
 `aibox apply`. The default sentinel `unset` skips processkit content
 installation entirely — you will get devcontainer files but no skills,
-processes, or `AGENTS.md`.
+processes, or processkit-rendered `AGENTS.md` template.
+
+This tip only applies when `[context].mode = "processkit"`.
 
 :::
 
@@ -92,7 +115,10 @@ If your project already has a `.devcontainer/` directory with hand-written files
 
 ### Option B: Keep hand-written files
 
-If your devcontainer setup is heavily customized, you can still use aibox for context management and skip the container lifecycle commands. Just use `aibox.toml` for the `[aibox]` and `[processkit]` sections, and manage `.devcontainer/` yourself.
+If your devcontainer setup is heavily customized, you can still use aibox for
+context or harness configuration and skip the container lifecycle commands. Use
+`aibox.toml` for the `[aibox]`, `[context]`, `[ai]`, and, when applicable,
+`[processkit]` sections, and manage `.devcontainer/` yourself.
 
 ## Running Diagnostics
 

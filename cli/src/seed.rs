@@ -1165,10 +1165,7 @@ pub fn managed_runtime_files(config: &AiboxConfig) -> Vec<(std::path::PathBuf, S
         files.push((std::path::PathBuf::from(".claude.json"), "{}\n".to_string()));
     }
 
-    // OpenCode: ship the processkit-gate plugin so an OpenCode session in this
-    // project enforces the same compliance contract as Claude Code's PreToolUse
-    // hook. Closes aibox#51.
-    if providers.contains(&crate::config::AiProvider::OpenCode) {
+    if config.processkit_enabled() && providers.contains(&crate::config::AiProvider::OpenCode) {
         files.push((
             std::path::PathBuf::from(".opencode/plugins/processkit-gate.ts"),
             DEFAULT_OPENCODE_PROCESSKIT_GATE_TS.to_string(),
@@ -1376,7 +1373,7 @@ fn cleanup_disabled_harness_state(config: &AiboxConfig, root: &Path) -> Result<V
                 ));
             }
         }
-    } else {
+    } else if config.processkit_enabled() {
         // Emit a pending Migration document. Migration files live at the
         // project workspace root (NOT under host_root).
         let project_root = std::path::Path::new(".");

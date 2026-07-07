@@ -731,6 +731,9 @@ fn yaml_value_contains_ci(value: &serde_yaml::Value, needle: &str) -> bool {
 }
 
 fn should_start_processkit_gateway_daemon(config: &AiboxConfig, _devcontainer_dir: &Path) -> bool {
+    if !config.processkit_enabled() {
+        return false;
+    }
     match config.mcp.gateway.mode {
         McpGatewayMode::DaemonProxy => true,
         // processkit v0.25.4 made stdio-proxy own local daemon startup by

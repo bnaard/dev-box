@@ -52,6 +52,7 @@ aibox init my-app --harness claude
 aibox init runner --profile headless-runner
 aibox init my-app --addon python --addon infrastructure
 aibox init my-app --harness claude --harness codex
+aibox init my-app --context-mode harness-only --harness claude
 aibox init my-app --theme catppuccin-mocha
 ```
 
@@ -60,11 +61,19 @@ aibox init my-app --theme catppuccin-mocha
 | `[NAME]` | Current directory | Project/container name |
 | `--base <BASE>` | `debian` | Base image |
 | `--profile <PROFILE>` | `human-dev` | Usage profile: `human-dev` or warning-mode `headless-runner` |
-| `--context <PKG>` | `managed` | processkit package, repeatable |
+| `--context-mode <MODE>` | `processkit` | Context layer: `processkit` or `harness-only` |
 | `--harness <NAME>` | `claude` | AI harness, repeatable |
 | `--addon <NAME>` | -- | Addon name, repeatable |
-| `--theme <THEME>` | `gruvbox-dark` | Runtime UI theme |
+| `--theme <THEME>` | `gruvbox` | Runtime UI theme family |
 | `--processkit-version <TAG>` | latest prompt/default | Pin processkit |
+
+The hidden legacy `--context <PKG>` option is still accepted as a processkit
+package selector for compatibility. New configs use `[context].mode` and,
+when processkit is enabled, `[context].packages`.
+
+`--context-mode harness-only` creates a container-and-harness project with no
+processkit install, no processkit MCP gateway, no processkit hooks/preauth, no
+processkit command adapters, and no processkit Migration entities.
 
 ## apply
 
@@ -160,7 +169,7 @@ publishes more detailed canonical Artifact schemas.
 | Command | Schema | Contents |
 |---------|--------|----------|
 | `describe addon-catalog` | `aibox.addon-catalog.v0` | Built-in addon metadata, profile intent, automation usage class, exported surfaces, dependencies, and tool versions |
-| `describe workspace-manifest` | `aibox.workspace-manifest.v0` | Sorted projection of `aibox.toml`: project, processkit source, context packages, AI harnesses, addons, and MCP server keys |
+| `describe workspace-manifest` | `aibox.workspace-manifest.v0` | Sorted projection of `aibox.toml`: project, context mode/packages, processkit source when enabled, AI harnesses, addons, and MCP server keys |
 | `describe provider-backends` | `aibox.provider-backends.v0-preview` | Supported AI harness backends, selected status, addon availability, MCP config targets, and permission targets |
 | `describe image-provenance-policy` | `aibox.image-provenance-policy.v0-preview` | GHCR image tag or tag template, generated file paths, runtime version/profile markers, selected addons, and release phase commands |
 

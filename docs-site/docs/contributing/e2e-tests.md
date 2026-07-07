@@ -134,18 +134,22 @@ If `aibox get runtime` is run in a project with no running container, then the
 output must contain `missing` or equivalent wording.
 `[lifecycle.rs · status_without_container_shows_missing]`
 
-**Managed package writes the slim project skeleton**
+**Default processkit mode writes the project skeleton**
 If `aibox init --harness claude` is run, then the slim project skeleton must
 exist: `aibox.toml`, an empty `context/` directory, `AGENTS.md`, and the thin
-provider pointer files for enabled harnesses. The single-file context tracks
+provider pointer files for enabled harnesses. This is the default processkit
+mode, so a later `aibox apply` with a real `[processkit].version` can install
+processkit content under `context/`. The single-file context tracks
 (`BACKLOG.md`, `DECISIONS.md`, `STANDUPS.md`) are **not** scaffolded by `init`
 — the corresponding processkit skills create entities in place on first use.
 `[lifecycle.rs · init_with_managed_preset_creates_context_files]`
 
-**Software package selection is recorded in aibox.toml**
-If `aibox init --context software` is run, then the same slim project skeleton
-must exist. Concrete processkit content lands under `context/skills/` only
-after `aibox apply` with a real `[processkit].version` pinned.
+**Legacy processkit package selection is recorded in aibox.toml**
+If `aibox init --context software` is run, then the same processkit-mode
+project skeleton must exist and the package selection is recorded under
+`[context].packages`. The `--context <PKG>` option is retained as a hidden
+legacy package selector; new flows should use `[context].mode` for the context
+backend and `[skills]` for explicit processkit skill selection.
 `[lifecycle.rs · init_with_software_preset_creates_code_files]`
 
 ---
@@ -422,24 +426,26 @@ is run, then `.devcontainer/Dockerfile` must contain install content for
 both.
 `[config_coverage.rs · addon_multiple_in_dockerfile]`
 
-**Minimal package creates slim project skeleton**
+**Legacy minimal package creates processkit project skeleton**
 If `aibox init --context minimal` is run, then `aibox.toml`, `aibox.lock`,
 an empty `context/` directory, and a thin `CLAUDE.md` pointer must exist.
 The single-file context tracks (`BACKLOG.md`, `DECISIONS.md`, `STANDUPS.md`)
 are **not** created at init time — the corresponding processkit skills create
 them in place on first use.
 
-**Managed package is the recommended default**
+**Default processkit mode is the recommended full context path**
 If `aibox init --harness claude` is run, then the slim project skeleton must
 exist. With a real `[processkit].version` pinned, `aibox apply` then installs
-the full processkit skill catalogue under `context/skills/` and the immutable
-upstream snapshot under `context/templates/processkit/<version>/`.
+the selected processkit skill catalogue under `context/skills/` and the
+immutable upstream snapshot under `context/templates/processkit/<version>/`.
 
 **Product / research / software packages**
-The five processkit packages (`minimal`, `managed`, `software`, `research`,
-`product`) are declarative metadata in `[processkit.context].packages`. In v0.16.0 they
-do not change which files land on disk — every project gets every processkit
-skill — but they tell agents which subset to prefer.
+The legacy processkit packages (`minimal`, `managed`, `software`, `research`,
+`product`) are declarative metadata in `[context].packages` when
+`[context].mode = "processkit"`. Current projects should prefer explicit
+`[skills]` selection for installed processkit skills. Harness-only mode ignores
+processkit package and skill selection entirely and does not create processkit
+content or processkit references.
 
 ---
 

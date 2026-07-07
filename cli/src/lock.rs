@@ -581,6 +581,21 @@ pub fn backfill_lock_selection(
     project_root: &Path,
     config: &crate::config::AiboxConfig,
 ) -> Result<Option<PathBuf>> {
+    backfill_lock_selection_inner(project_root, config, true)
+}
+
+pub fn backfill_lock_selection_without_migration(
+    project_root: &Path,
+    config: &crate::config::AiboxConfig,
+) -> Result<Option<PathBuf>> {
+    backfill_lock_selection_inner(project_root, config, false)
+}
+
+fn backfill_lock_selection_inner(
+    project_root: &Path,
+    config: &crate::config::AiboxConfig,
+    emit_migration: bool,
+) -> Result<Option<PathBuf>> {
     let Some(mut lock) = read_lock(project_root)? else {
         return Ok(None);
     };
@@ -632,6 +647,10 @@ pub fn backfill_lock_selection(
     }
 
     write_lock(project_root, &lock)?;
+    if !emit_migration {
+        return Ok(None);
+    }
+
     let migration_path = write_lock_backfill_migration(
         project_root,
         &addon_selection,

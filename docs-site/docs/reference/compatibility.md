@@ -12,6 +12,7 @@ below shows the minimum compatible processkit version for each aibox release.
 
 | aibox version | Min. processkit | Notes |
 |--------------|-----------------|-------|
+| 0.27.6 | v0.27.1 | refreshes tool and harness pins, updates generated runtime/docs references, and adds the GitHub CLI credential-helper integration for HTTPS Git operations |
 | 0.27.5 | v0.27.1 | refreshes the shipped docs-hugo pin to Hugo 0.162.1 and aligns release-state/docs inventory with the current addon and harness defaults from v0.27.4 |
 | 0.27.4 | v0.27.1 | refreshes all shipped addon and harness tool defaults to current upstream releases; fixes Yarn 4 and Python 3.14 installation paths; moves Hermes to the current `hermes-agent` package installer; updates Rust/docs dependencies; and quiets actionable pk-doctor false positives while making release-integrity checks bounded |
 | 0.27.3 | v0.27.1 | integrates processkit v0.27.1 derived-project health cleanup, including quieter pk-doctor sensitive-data checks, gateway-aware preauth validation, sqlite-vec availability for pk-doctor MCP runs, supply-chain policy no-policy INFO handling, and a Codex processkit-gateway startup timeout so uv-backed gateway startup does not trip Codex's 30-second default |
@@ -83,9 +84,10 @@ below shows the minimum compatible processkit version for each aibox release.
 
 ## How compatibility is enforced
 
-`aibox apply` compares the `[processkit].version` in your `aibox.toml` against
-the minimum required version for the running aibox binary. If the pinned
-processkit version is older than the minimum, a warning is emitted:
+In processkit mode, `aibox apply` compares the `[processkit].version` in your
+`aibox.toml` against the minimum required version for the running aibox binary.
+If the pinned processkit version is older than the minimum, a warning is
+emitted:
 
 ```
 Warning: processkit v0.24.0 is below the minimum recommended version v0.25.0 for aibox v0.23.0 ...
@@ -93,7 +95,8 @@ Warning: processkit v0.24.0 is below the minimum recommended version v0.25.0 for
 
 This is a warning, not an error — older processkit versions can still install
 successfully when their layout is still supported. The warning is a nudge to
-upgrade, not a blocker.
+upgrade, not a blocker. Harness-only projects do not install processkit content,
+so this matrix only matters when `[context].mode = "processkit"`.
 
 ## Upgrading processkit
 

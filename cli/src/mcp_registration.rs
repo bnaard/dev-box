@@ -1884,24 +1884,33 @@ pub fn regenerate_mcp_configs(config: &AiboxConfig, project_root: &Path) -> Resu
     // is missing (first install or processkit version unset), the
     // set is None and we register every skill that has an mcp/
     // directory in the mirror.
-    let effective = crate::content_init::build_effective_skill_set(project_root, config)
-        .ok()
-        .flatten();
-    let mut processkit_specs = collect_processkit_mcp_specs(
-        project_root,
-        &config.processkit.version,
-        effective.as_ref(),
-        crate::processkit_vocab::MANDATORY_MCP_SKILLS,
-    )?;
+    let effective = if config.processkit_enabled() {
+        crate::content_init::build_effective_skill_set(project_root, config)
+            .ok()
+            .flatten()
+    } else {
+        None
+    };
+    let mut processkit_specs = if config.processkit_enabled() {
+        collect_processkit_mcp_specs(
+            project_root,
+            &config.processkit.version,
+            effective.as_ref(),
+            crate::processkit_vocab::MANDATORY_MCP_SKILLS,
+        )?
+    } else {
+        Vec::new()
+    };
 
-    // Also collect from live-installed skills in context/skills/ to handle
-    // incomplete processkit releases (e.g. v0.19.1) where some skills have
-    // mcp/mcp-config.json files only in the live installation.
-    let live_skills_specs = collect_live_skills_mcp_specs(
-        project_root,
-        effective.as_ref(),
-        crate::processkit_vocab::MANDATORY_MCP_SKILLS,
-    )?;
+    let live_skills_specs = if config.processkit_enabled() {
+        collect_live_skills_mcp_specs(
+            project_root,
+            effective.as_ref(),
+            crate::processkit_vocab::MANDATORY_MCP_SKILLS,
+        )?
+    } else {
+        Vec::new()
+    };
 
     // Build the full spec list: processkit + live skills first, then team-shared
     // (aibox.toml [mcp.servers]), then personal (.aibox-local.toml
@@ -1917,10 +1926,15 @@ pub fn regenerate_mcp_configs(config: &AiboxConfig, project_root: &Path) -> Resu
     processkit_specs.sort_by(|a, b| a.name.cmp(&b.name));
     let granular_processkit_managed = managed_set(&processkit_specs);
 
-    let gateway_selected = config.mcp.gateway.mode != McpGatewayMode::Granular
+    let gateway_selected = config.processkit_enabled()
+        && config.mcp.gateway.mode != McpGatewayMode::Granular
         && (gateway_spec(&processkit_specs).is_some()
             || aggregate_mcp_spec(project_root).is_some());
-    let mut specs = select_processkit_gateway_specs(config, project_root, processkit_specs);
+    let mut specs = if config.processkit_enabled() {
+        select_processkit_gateway_specs(config, project_root, processkit_specs)
+    } else {
+        Vec::new()
+    };
     for s in &config.mcp.servers {
         specs.push(McpServerSpec {
             name: s.name.clone(),
@@ -1949,7 +1963,8 @@ pub fn regenerate_mcp_configs(config: &AiboxConfig, project_root: &Path) -> Resu
     // that has no `mcp/mcp-config.json` in the templates mirror means the
     // processkit version installed is too old or is broken — warn the user so
     // they know entity-layer coverage is incomplete.
-    if !gateway_selected
+    if config.processkit_enabled()
+        && !gateway_selected
         && let Some(skills_dir) =
             crate::processkit_vocab::mirror_skills_dir(project_root, &config.processkit.version)
     {
@@ -1987,10 +2002,10 @@ pub fn regenerate_mcp_configs(config: &AiboxConfig, project_root: &Path) -> Resu
     validate_script_paths(&specs, project_root)?;
 
     let mut managed = managed_set(&specs);
-    managed.extend(granular_processkit_managed);
-    // Always include processkit-aggregate-mcp in the managed set so that switching
-    // away from aggregate mode removes the entry from harness configs on the next apply.
-    managed.insert("processkit-aggregate-mcp".to_string());
+    if config.processkit_enabled() {
+        managed.extend(granular_processkit_managed);
+        managed.insert("processkit-aggregate-mcp".to_string());
+    }
     let providers: HashSet<&AiProvider> = config.ai.harnesses.iter().collect();
 
     // 1. Claude / Copilot / OpenCode / Hermes / Mistral use the Claude-shape
@@ -2004,7 +2019,7 @@ pub fn regenerate_mcp_configs(config: &AiboxConfig, project_root: &Path) -> Resu
         let path = project_root.join(".mcp.json");
         write_mcp_servers_json(&specs, &managed, &path)?;
         output::ok(&format!(
-            "Wrote {} processkit MCP servers to {}",
+            "Wrote {} MCP servers to {}",
             specs.len(),
             path.display()
         ));
@@ -2013,7 +2028,7 @@ pub fn regenerate_mcp_configs(config: &AiboxConfig, project_root: &Path) -> Resu
         let path = project_root.join(".cursor/mcp.json");
         write_mcp_servers_json(&specs, &managed, &path)?;
         output::ok(&format!(
-            "Wrote {} processkit MCP servers to {}",
+            "Wrote {} MCP servers to {}",
             specs.len(),
             path.display()
         ));
@@ -2022,7 +2037,7 @@ pub fn regenerate_mcp_configs(config: &AiboxConfig, project_root: &Path) -> Resu
         let path = project_root.join(".gemini/settings.json");
         write_gemini_settings_json(&specs, &managed, &path)?;
         output::ok(&format!(
-            "Wrote {} processkit MCP servers to {}",
+            "Wrote {} MCP servers to {}",
             specs.len(),
             path.display()
         ));
@@ -2033,7 +2048,7 @@ pub fn regenerate_mcp_configs(config: &AiboxConfig, project_root: &Path) -> Resu
         let path = project_root.join(".codex/config.toml");
         write_codex_config_toml(&specs, &managed, &path)?;
         output::ok(&format!(
-            "Wrote {} processkit MCP servers to {}",
+            "Wrote {} MCP servers to {}",
             specs.len(),
             path.display()
         ));
@@ -2044,7 +2059,7 @@ pub fn regenerate_mcp_configs(config: &AiboxConfig, project_root: &Path) -> Resu
         let dir = project_root.join(".continue/mcpServers");
         write_continue_mcp_dir(&specs, &managed, &dir)?;
         output::ok(&format!(
-            "Wrote {} processkit MCP servers to {}",
+            "Wrote {} MCP servers to {}",
             specs.len(),
             dir.display()
         ));
@@ -2052,7 +2067,7 @@ pub fn regenerate_mcp_configs(config: &AiboxConfig, project_root: &Path) -> Resu
 
     // 4. Aider — no MCP client. Warn if listed AND processkit ships
     //    MCP servers (the user is missing functionality).
-    if providers.contains(&AiProvider::Aider) {
+    if config.processkit_enabled() && providers.contains(&AiProvider::Aider) {
         output::warn(
             "`aider` is enabled as an AI harness but does not have a built-in MCP client. \
              processkit's MCP-based skills (workitem-management, decision-record, …) \

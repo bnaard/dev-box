@@ -14,12 +14,17 @@ The `ai-mistral` addon installs the **mistralai Python SDK**, not an interactive
 ## Setup
 
 ```toml
-[ai.harness.mistral]
-enabled = true
-install = true
+[ai]
+model_providers = ["mistral"]
+
+[addons.ai-mistral.tools]
+mistral = {}
 ```
 
-Run `aibox apply`. Inside the container the `mistralai` Python SDK is available for scripting:
+`mistral` is retained as a legacy harness value for old configs, but it is not
+a current interactive CLI harness. Use the addon directly for SDK installs.
+Run `aibox apply`. Inside the container the `mistralai` Python SDK is available
+for scripting:
 
 ```python
 from mistralai import Mistral
@@ -35,7 +40,7 @@ MISTRAL_API_KEY = "..."
 
 ## MCP Integration
 
-aibox generates `.mcp.json` (the Claude Code MCP format) on `aibox apply`, merging processkit built-in servers, team servers from `aibox.toml [ai.mcp]`, and personal servers from `.aibox-local.toml [mcp]`. A custom Mistral SDK-based tool you build can read MCP server registrations from this file.
+aibox generates `.mcp.json` (the Claude Code MCP format) on `aibox apply` when a compatible harness is enabled, merging processkit built-in servers in processkit mode, team servers from `aibox.toml [ai.mcp]`, and personal servers from `.aibox-local.toml [mcp]`. A custom Mistral SDK-based tool you build can read MCP server registrations from this file.
 
 `.mcp.json` is **gitignored** — it is regenerated on every `aibox apply` and must not be committed.
 

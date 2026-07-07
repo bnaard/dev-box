@@ -19,7 +19,8 @@ changes.
 ## Where skills land in your project
 
 After running `aibox init` and `aibox apply` in your project, processkit content
-is materialised under your `context/` directory:
+is materialised under your `context/` directory when
+`[context].mode = "processkit"`:
 
 ```
 context/
@@ -36,10 +37,18 @@ context/
 The version in the path (`v0.26.15`) is whatever you pinned in `aibox.toml`:
 
 ```toml
+[context]
+mode = "processkit"
+
 [processkit]
 source  = "https://github.com/projectious-work/processkit.git"
 version = "v0.26.15"
 ```
+
+When `[context].mode = "harness-only"`, aibox does not install processkit
+skills, does not create `context/templates/processkit/`, and does not project
+processkit command adapters into harness-specific surfaces. The generated
+`AGENTS.md` is a minimal aibox-owned file with no processkit references.
 
 The `context/skills/` copies are yours to edit. The `context/templates/processkit/<version>/`
 copies are the immutable upstream snapshot — `aibox apply` uses them as the base
@@ -72,22 +81,24 @@ aibox describe skill <name>        # frontmatter + description for one skill
 ## Skill Selection
 
 New projects list the standard processkit operating skills explicitly in
-`[skills].enabled`. Use `[skills].enabled` and `[skills].disabled` for
-skill-level overrides:
+`[skills].include`. Use `[skills].include` and `[skills].exclude` for
+skill-level overrides in processkit mode:
 
 ```toml
 [skills]
-enabled = [
+include = [
   "pk-doctor",
   "status-briefing",
 ]
-disabled = [
+exclude = [
   # "skill-to-omit",
 ]
 ```
 
 Legacy package selections are still accepted for compatibility, but new
 `aibox.toml` files use explicit skill selection as the primary control surface.
+`enabled` and `disabled` are accepted as aliases for older configs. `[skills]`
+is omitted and ignored in harness-only mode.
 
 ## Custom skills
 

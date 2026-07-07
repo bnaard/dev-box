@@ -323,8 +323,14 @@ pub(crate) fn resolved_tmux_status_layout(config: &AiboxConfig) -> ResolvedTmuxS
             (metrics.oom, LINE1_RIGHT_AIBOX_METRICS_ORDER[1].1),
             (metrics.proc, LINE1_RIGHT_AIBOX_METRICS_ORDER[2].1),
             (metrics.ai, LINE1_RIGHT_AIBOX_METRICS_ORDER[3].1),
-            (metrics.mcp, LINE1_RIGHT_AIBOX_METRICS_ORDER[4].1),
-            (metrics.mig, LINE1_RIGHT_AIBOX_METRICS_ORDER[5].1),
+            (
+                config.processkit_enabled() && metrics.mcp,
+                LINE1_RIGHT_AIBOX_METRICS_ORDER[4].1,
+            ),
+            (
+                config.processkit_enabled() && metrics.mig,
+                LINE1_RIGHT_AIBOX_METRICS_ORDER[5].1,
+            ),
         ]
         .iter()
         .filter_map(|(en, plugin)| en.then_some((*plugin).to_string()))
