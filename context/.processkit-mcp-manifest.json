@@ -1,6 +1,5 @@
 {
-  "aggregate_sha256": "676bfe83ab55146810b947d34d262a3344427c5377de6c5c815126092f347483",
-  "generated_at": "2026-05-23T03:39:46Z",
+  "aggregate_sha256": "cc428414abe18fb997ee1ca70ccf56a87292935c348b999a5290828e5dabd903",
   "per_gateway": [
     {
       "path": "context/skills/processkit/processkit-gateway/mcp/mcp-config.json",
@@ -8,10 +7,6 @@
     }
   ],
   "per_server_header": [
-    {
-      "path": "context/skills/devops/repo-management/mcp/server.py",
-      "sha256": "c9f972ec122a2ce2da062ecc96374be9841607eea11f2f09518362d3185b5b24"
-    },
     {
       "path": "context/skills/processkit/actor-profile/mcp/server.py",
       "sha256": "221f3168ecb64e5325f4ea52af9b818595440e4f71393ec3c3836947ad431a30"
@@ -113,10 +108,6 @@
       "sha256": "c9f972ec122a2ce2da062ecc96374be9841607eea11f2f09518362d3185b5b24"
     },
     {
-      "path": "context/skills/processkit/supply-chain-audit/mcp/server.py",
-      "sha256": "c9f972ec122a2ce2da062ecc96374be9841607eea11f2f09518362d3185b5b24"
-    },
-    {
       "path": "context/skills/processkit/task-router/mcp/server.py",
       "sha256": "aba8150d6533eadba8e7152a09c36740959d81dddfb3b6199fbf53a2edccaa71"
     },
@@ -130,10 +121,6 @@
     }
   ],
   "per_skill": [
-    {
-      "path": "context/skills/devops/repo-management/mcp/mcp-config.json",
-      "sha256": "9c87a158dec87b259589134b25e0bce872b97a06715b66bd4460312d12e2c6c1"
-    },
     {
       "path": "context/skills/processkit/actor-profile/mcp/mcp-config.json",
       "sha256": "b5b6f3137c0503707427dc45c508b51096d3681758500f312d237fee766539ef"
@@ -219,10 +206,6 @@
       "sha256": "03f85f9d1b916f262c5de12c5bc43f78945027989e87a29e75de753dcf990564"
     },
     {
-      "path": "context/skills/processkit/supply-chain-audit/mcp/mcp-config.json",
-      "sha256": "b498c1f8922b7ea7578f42e4eddbf2b674e0d8fc1f42f6814b47117c9605a44e"
-    },
-    {
       "path": "context/skills/processkit/task-router/mcp/mcp-config.json",
       "sha256": "aa4e91bd4d9276016738a11ab61d76538f9bf1261674de410dfdfa9dfcd7d832"
     },
@@ -235,6 +218,5 @@
       "sha256": "a4ae7e26a980aeebed953f3cc2e761cde6dd8692fb033c81c9e3c8927e8b5898"
     }
   ],
-  "processkit_version": "v0.27.1",
-  "version": 1
+  "schema_version": 1
 }

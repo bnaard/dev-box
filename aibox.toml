@@ -64,6 +64,14 @@ pulse_server = "tcp:host.docker.internal:4714"  # PulseAudio TCP endpoint (defau
 credential_helper = "auto"  # options: auto, gh, none
 
 # =============================================================================
+# [context]
+# =============================================================================
+# mode: processkit installs the project context layer.
+[context]
+mode = "processkit"
+packages = ["product"]
+
+# =============================================================================
 # [skills] — processkit skill catalog
 # =============================================================================
 # Each known skill appears once. Uncomment a line to enable that skill;
@@ -487,9 +495,7 @@ provider_mode = "pointer"  # options: pointer, full
 # =============================================================================
 # [ai.mcp] — MCP gateway, permissions, and extra servers
 # =============================================================================
-# Auto-allow / deny MCP tools by glob pattern. processkit's own MCP tools are
-# pre-approved separately via the skill-gate preauth spec — these patterns are
-# for user-added MCP servers. See:
+# Auto-allow / deny MCP tools by glob pattern. See:
 # https://projectious-work.github.io/aibox/docs/reference/configuration#permission-configuration-mcppermissions
 # [ai.mcp.permissions]
 # default_mode   = "ask"

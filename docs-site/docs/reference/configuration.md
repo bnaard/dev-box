@@ -757,6 +757,13 @@ GitHub integration behavior for generated runtime Git configuration.
 |-------|------|----------|---------|-------------|
 | `credential_helper` | String | No | `"auto"` | `auto` writes a managed Git include when the `git-ui` addon installs `gh`; `gh` always writes it; `none` skips and removes the managed include. The include delegates HTTPS Git credentials to `gh auth git-credential` and never stores token values. |
 
+## Apply Behavior
+
+| Field | Type | Required | Default | Description |
+|-------|------|----------|---------|-------------|
+| `preserve_disabled_harness_state` | Boolean | No | `false` | Records the owner's decision to retain `.aibox-home` state for disabled AI harnesses. Without a decision, `aibox apply` retains the state and prints the preserve-or-purge path without creating a Migration. |
+| `purge_disabled_harness_state` | Boolean | No | `false` | Explicitly removes retained state for disabled AI harnesses on the next `aibox apply`. |
+
 ## Environment Variable Overrides
 
 Some settings can be overridden via environment variables:

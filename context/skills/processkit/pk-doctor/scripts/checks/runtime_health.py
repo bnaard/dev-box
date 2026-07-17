@@ -57,6 +57,10 @@ def _codex_enabled(repo_root: Path) -> bool:
     return _codex_enabled_from_text(_aibox_toml(repo_root))
 
 
+def _disabled_harness_preservation_recorded(repo_root: Path) -> bool:
+    return "preserve_disabled_harness_state = true" in _aibox_toml(repo_root)
+
+
 def _configured_lnav(repo_root: Path) -> bool:
     tmux_conf_candidates = [
         repo_root / ".aibox-home" / ".config" / "tmux" / "tmux.conf",
@@ -329,6 +333,17 @@ def run(ctx) -> list[CheckResult]:
         id="runtime.container-detected",
         message="container runtime detected; running in-container health probes",
     ))
+
+    if _disabled_harness_preservation_recorded(repo_root):
+        results.append(CheckResult(
+            severity="INFO",
+            category=CATEGORY,
+            id="runtime.disabled-harness-state-preserved",
+            message=(
+                "aibox records preservation of disabled harness state; "
+                "purge remains an explicit apply-time choice"
+            ),
+        ))
 
     if _configured_lnav(repo_root):
         lnav = shutil.which("lnav")

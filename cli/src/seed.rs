@@ -1252,9 +1252,7 @@ pub fn cleanup_disabled_runtime_files(config: &AiboxConfig) -> Result<Vec<String
     updated.extend(cleanup_stale_tmux_plugins(config, &root)?);
     updated.extend(cleanup_retired_yazi_omp_files(&root)?);
 
-    // Item 4 (BR-CLEANUP-ARCH): per-harness state cleanup. When the user
-    // opted into purge_disabled_harness_state, hard-delete; otherwise emit
-    // a pending Migration document describing what would be removed.
+    // Per-harness state cleanup: purge is explicit; retention is non-blocking.
     updated.extend(cleanup_disabled_harness_state(config, &root)?);
 
     Ok(updated)
@@ -1291,9 +1289,9 @@ fn cleanup_retired_yazi_omp_files(root: &Path) -> Result<Vec<String>> {
 ///
 /// For every harness that has `config_dir() == Some(_)` but is NOT in
 /// `config.ai.harnesses`, look for stale state under `.aibox-home/`. When
-/// `[apply].purge_disabled_harness_state = true`, remove that state. When
-/// false (default), emit a pending Migration document describing exactly
-/// what would be removed and let the project owner decide.
+/// `[apply].purge_disabled_harness_state = true`, remove that state. Otherwise
+/// retain it and report either the recorded preservation decision or the
+/// preserve-or-purge disposition path.
 fn cleanup_disabled_harness_state(config: &AiboxConfig, root: &Path) -> Result<Vec<String>> {
     use crate::config::AiHarness;
 
@@ -1373,25 +1371,34 @@ fn cleanup_disabled_harness_state(config: &AiboxConfig, root: &Path) -> Result<V
                 ));
             }
         }
-    } else if config.processkit_enabled() {
-        // Emit a pending Migration document. Migration files live at the
-        // project workspace root (NOT under host_root).
-        let project_root = std::path::Path::new(".");
-        if let Err(err) = write_disabled_harness_migration(project_root, &stale, root) {
-            crate::output::warn(&format!(
-                "Failed to write disabled-harness migration: {err}"
-            ));
-        } else {
-            updated.push(
-                "context/migrations/pending/MIG-DISABLED-HARNESS-STATE.md (advisory written)"
-                    .to_string(),
-            );
+    } else {
+        for (harness, paths) in &stale {
+            let state = paths
+                .iter()
+                .map(|path| {
+                    path.strip_prefix(root)
+                        .unwrap_or(path)
+                        .display()
+                        .to_string()
+                })
+                .collect::<Vec<_>>()
+                .join(", ");
+            if config.apply.preserve_disabled_harness_state {
+                updated.push(format!(
+                    "{state} (retained disabled-{harness} harness state; preservation recorded)"
+                ));
+            } else {
+                updated.push(format!(
+                    "{state} (retained disabled-{harness} harness state; set [apply].preserve_disabled_harness_state = true to preserve or [apply].purge_disabled_harness_state = true to purge)"
+                ));
+            }
         }
     }
 
     Ok(updated)
 }
 
+#[allow(dead_code)]
 fn write_disabled_harness_migration(
     project_root: &Path,
     stale: &[(crate::config::AiHarness, Vec<std::path::PathBuf>)],
@@ -1479,6 +1486,7 @@ fn write_disabled_harness_migration(
     Ok(())
 }
 
+#[allow(dead_code)]
 fn disabled_harness_migration_already_recorded(project_root: &Path) -> bool {
     let migrations_root = project_root.join("context").join("migrations");
     [
@@ -3791,7 +3799,7 @@ rules = [
 
     #[test]
     #[serial]
-    fn disabled_harness_emits_migration_when_purge_disabled() {
+    fn disabled_harness_retention_is_informational_when_purge_disabled() {
         let dir = tempfile::tempdir().unwrap();
         let project = dir.path();
         let root = project.join("root");
@@ -3803,7 +3811,7 @@ rules = [
         fs::create_dir_all(root.join(".gemini")).unwrap();
         fs::write(root.join(".gemini/settings.json"), b"{}").unwrap();
 
-        // Run from the project dir so context/migrations/pending lands there.
+        // Retention does not create a migration or block future doctor runs.
         let prev = std::env::current_dir().unwrap();
         std::env::set_current_dir(project).unwrap();
         let result = cleanup_disabled_runtime_files(&config);
@@ -3815,16 +3823,17 @@ rules = [
             root.join(".gemini").exists(),
             ".gemini must survive when purge is disabled"
         );
-        let migration = project.join("context/migrations/pending/MIG-DISABLED-HARNESS-STATE.md");
         assert!(
-            migration.exists(),
-            "advisory migration must be written, updated={updated:?}"
+            !project
+                .join("context/migrations/pending/MIG-DISABLED-HARNESS-STATE.md")
+                .exists(),
+            "retention must not create a migration, updated={updated:?}"
         );
-        let body = fs::read_to_string(&migration).unwrap();
-        assert!(body.contains("kind: Migration"));
-        assert!(body.contains("id: MIG-DISABLED-HARNESS-STATE"));
-        assert!(body.contains("gemini"));
-        assert!(body.contains(".gemini"));
+        assert!(updated.iter().any(|entry| {
+            entry.contains("retained disabled-gemini")
+                && entry.contains("preserve_disabled_harness_state")
+                && entry.contains("purge_disabled_harness_state")
+        }));
         clear_test_host_root();
     }
 

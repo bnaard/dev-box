@@ -22,3 +22,6 @@
     zero-style = syntax
 [merge]
     conflictStyle = zdiff3
+
+[include]
+    path = ~/.config/git/aibox-github.inc

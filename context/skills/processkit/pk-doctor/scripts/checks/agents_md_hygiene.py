@@ -336,6 +336,10 @@ def _managed_block_findings(
     reference_path, reference_text = reference
     reference_blocks = _managed_blocks(reference_text)
     for block_id in sorted(set(blocks) & set(reference_blocks)):
+        # Command values are deliberately project-specific adapters, not
+        # processkit-owned template content.
+        if block_id == "pk-commands":
+            continue
         local_hash = hashlib.sha256(
             _normalize_block(blocks[block_id]).encode("utf-8")
         ).hexdigest()

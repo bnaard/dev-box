@@ -3405,19 +3405,22 @@ pub struct IntegrationsSection {
 /// detects state on the host that no longer matches the config (e.g. an AI
 /// harness that was previously enabled and is now disabled).
 ///
-/// Defaults are conservative — when a harness is removed, aibox emits a
-/// pending Migration document describing what *would* be cleaned up, but does
-/// not delete anything itself. Set `purge_disabled_harness_state = true` to
-/// have apply hard-delete the harness's `.aibox-home` config directory and
-/// any MCP-registration files belonging to that harness.
+/// Defaults are conservative — when a harness is removed, aibox retains its
+/// state and reports the available preserve-or-purge disposition. Set
+/// `preserve_disabled_harness_state = true` to record the preserve decision,
+/// or `purge_disabled_harness_state = true` to remove the state explicitly.
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, Default)]
 pub struct ApplySection {
     /// When true, `aibox apply` hard-deletes per-harness state directories
     /// and MCP registration files for any harness that is no longer listed
-    /// in `[ai].harnesses`. Defaults to false (emit a Migration document
-    /// instead so the project owner can review).
+    /// in `[ai].harnesses`. Defaults to false.
     #[serde(default)]
     pub purge_disabled_harness_state: bool,
+    /// Persist the owner's decision to retain state for disabled AI harnesses.
+    /// Defaults to false, which keeps the state and emits a one-time
+    /// disposition reminder without creating a Migration entity.
+    #[serde(default)]
+    pub preserve_disabled_harness_state: bool,
 }
 
 // ---------------------------------------------------------------------------
@@ -3871,7 +3874,10 @@ impl AiboxConfig {
         check_child_table(
             root,
             "apply",
-            &["purge_disabled_harness_state"],
+            &[
+                "purge_disabled_harness_state",
+                "preserve_disabled_harness_state",
+            ],
             &mut mismatches,
         );
 

@@ -453,6 +453,8 @@ def _is_false_positive(
         }
         if lowered_excerpt in synthetic:
             return True
+        if lowered_excerpt.endswith("@example.com"):
+            return True
         if "identity.toml" in lowered_line:
             return True
 
@@ -465,6 +467,8 @@ def _is_false_positive(
         if "/" in excerpt:
             return True
         if "http://" in lowered_line or "https://" in lowered_line:
+            return True
+        if "string.format(" in lowered_line:
             return True
         if "phone number" in lowered_line or "working_hours" in lowered_line:
             return True

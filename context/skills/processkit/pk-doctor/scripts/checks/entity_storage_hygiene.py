@@ -299,10 +299,6 @@ def _migration_briefings(repo_root: Path) -> list[CheckResult]:
             f"{len(briefings)} root-level migration briefing file(s) exist; "
             "they are historical CLI upgrade notes, not Migration entities"
         ),
-        suggested_fix=(
-            "archive old CLI migration briefings or move them outside the "
-            "Migration entity lifecycle tree"
-        ),
         extra={"sample": _sample(briefings, repo_root)},
     )]
 

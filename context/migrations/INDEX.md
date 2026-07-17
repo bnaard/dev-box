@@ -8,13 +8,12 @@ None.
 
 None.
 
-## Applied (2)
-
-| Date       | Migration                                | Notes |
-|------------|------------------------------------------|-------|
-| 2026-05-17 | MIG-20260517T170647 — processkit v0.26.14 → v0.26.15 | 0 changed upstream, 0 conflicts, 1 new, 0 removed, 0 stale-removed (2 groups affected) |
-| 2026-05-18 | MIG-20260518T153318 — processkit v0.26.16 → v0.26.18 | 0 changed upstream, 0 conflicts, 13 new, 0 removed, 0 stale-removed (2 groups affected) |
-
-## Rejected (0)
+## Applied (0)
 
 None.
+
+## Rejected (1)
+
+| Date       | Migration                                | Reason |
+|------------|------------------------------------------|--------|
+| 2026-07-17 | MIG-20260717_1220-RuntimeSync-aibox-runtime — aibox-runtime-home 0.27.6 → 0.27.5 | Malformed no-op runtime sync: reports zero changed/conflicted/new/removed files and a backwards version transition from… |
