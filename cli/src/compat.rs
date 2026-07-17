@@ -528,6 +528,11 @@ pub static COMPAT_TABLE: &[CompatEntry] = &[
         processkit_version: "v0.27.1",
         note: "Patch release: refreshes tool and harness pins, updates generated runtime/docs references, and adds the GitHub CLI credential-helper integration for HTTPS Git operations.",
     },
+    CompatEntry {
+        aibox_version: "0.27.7",
+        processkit_version: "v0.27.1",
+        note: "Patch release: fixes TeX Live's historic installer mirror, resolves pk-doctor false positives, adds disabled harness-state preservation controls, and accepts context mode in schema validation.",
+    },
 ];
 
 /// Find the minimum compatible processkit version for the given aibox version.
