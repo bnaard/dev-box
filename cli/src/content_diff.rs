@@ -642,8 +642,15 @@ pub fn write_migration_document(
 
     let now = chrono::Utc::now();
     let now_iso = now.format("%Y-%m-%dT%H:%M:%SZ").to_string();
-    let id_ts = now.format("%Y%m%dT%H%M%S").to_string();
-    let id = format!("MIG-{}", id_ts);
+    // Migration entity IDs must follow the configured processkit filename
+    // policy: datetime token, CamelCase word pair, then a descriptive slug.
+    // The source/version pair remains the idempotency key, so minute-level
+    // timestamps are sufficient here and keep generated IDs interoperable
+    // with migration-management and pk-doctor.
+    let id = format!(
+        "MIG-{}-ContentSync-processkit-content-sync",
+        now.format("%Y%m%d_%H%M")
+    );
     let out_path = pending_dir.join(format!("{}.md", id));
 
     // Determine affected groups (groups with at least one non-Unchanged
@@ -1432,6 +1439,16 @@ mod tests {
                 .expect("should write a document");
 
         assert!(written.exists());
+        assert!(
+            written
+                .file_name()
+                .and_then(|name| name.to_str())
+                .is_some_and(|name| {
+                    name.starts_with("MIG-")
+                        && name.contains("-ContentSync-processkit-content-sync.md")
+                }),
+            "content-sync Migration filenames must follow the configured datetime-wordpair policy"
+        );
         let body = fs::read_to_string(&written).unwrap();
         assert!(body.starts_with("---\n"));
         assert!(body.contains("kind: Migration"));

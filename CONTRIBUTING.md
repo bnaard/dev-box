@@ -91,6 +91,12 @@ See `context/notes/NOTE-20260411_0000-LoyalSpruce-aibox-release-process.md` for 
 Quick summary: `./scripts/maintain.sh release X.Y.Z` (in container) then
 `./scripts/maintain.sh release-host X.Y.Z` (on macOS host).
 
+Release validation and publication run locally. Do not introduce GitHub Actions
+or another hosted CI release path. The local release tooling runs independent
+gates concurrently, records exact-commit evidence under `dist/release-evidence/`,
+and reuses that evidence only when its source, toolchain, environment scope,
+and produced artifact checksums still match.
+
 ## Repository layout
 
 | Path | Owns |

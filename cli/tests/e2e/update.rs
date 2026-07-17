@@ -3,8 +3,6 @@
 //! Requires the e2e-runner companion container (feature = "e2e").
 //! Tests `aibox self update` behavior in a derived project context.
 
-use serial_test::serial;
-
 use super::runner::E2eRunner;
 
 /// Verify that `aibox self update --check` successfully fetches version info from GHCR.
@@ -13,7 +11,6 @@ use super::runner::E2eRunner;
 /// the CLI should find published tags matching the `base-debian-v*` pattern.
 /// This test catches tag-prefix mismatches between the CLI and the registry.
 #[test]
-#[serial]
 fn update_check_fetches_from_registry() {
     let runner = E2eRunner::new();
     let test = "update-registry-fetch";
@@ -71,7 +68,6 @@ fn update_check_fetches_from_registry() {
 /// This exercises the full `do_upgrade` code path including the tag-prefix
 /// matching, but stops before writing to aibox.toml thanks to `--dry-run`.
 #[test]
-#[serial]
 fn update_dry_run_fetches_from_registry() {
     let runner = E2eRunner::new();
     let test = "update-dry-run";

@@ -1,0 +1,12 @@
+{
+  "mcpServers": {
+    "processkit-agent-card": {
+      "command": "uv",
+      "args": [
+        "run",
+        "context/skills/processkit/agent-card/mcp/server.py"
+      ],
+      "env": {}
+    }
+  }
+}

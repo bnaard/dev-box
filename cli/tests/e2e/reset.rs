@@ -2,12 +2,9 @@
 //!
 //! Requires the e2e-runner companion container (feature = "e2e").
 
-use serial_test::serial;
-
 use super::runner::E2eRunner;
 
 #[test]
-#[serial]
 fn reset_project_creates_backup() {
     let runner = E2eRunner::new();
     let test = "reset-backup";
@@ -48,7 +45,6 @@ fn reset_project_creates_backup() {
 }
 
 #[test]
-#[serial]
 fn reset_project_no_backup_deletes_all() {
     let runner = E2eRunner::new();
     let test = "reset-no-backup";

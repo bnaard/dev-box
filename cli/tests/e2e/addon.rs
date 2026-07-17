@@ -2,12 +2,9 @@
 //!
 //! Requires the e2e-runner companion container (feature = "e2e").
 
-use serial_test::serial;
-
 use super::runner::E2eRunner;
 
 #[test]
-#[serial]
 fn set_addon_modifies_toml() {
     let runner = E2eRunner::new();
     let test = "addon-add";
@@ -37,7 +34,6 @@ fn set_addon_modifies_toml() {
 }
 
 #[test]
-#[serial]
 fn delete_addon_cleans_toml() {
     let runner = E2eRunner::new();
     let test = "addon-remove";
@@ -84,7 +80,6 @@ fn delete_addon_cleans_toml() {
 }
 
 #[test]
-#[serial]
 fn addon_rebuild_includes_tools_in_dockerfile() {
     let runner = E2eRunner::new();
     let test = "addon-rebuild";
@@ -120,7 +115,6 @@ fn addon_rebuild_includes_tools_in_dockerfile() {
 }
 
 #[test]
-#[serial]
 fn get_addon_shows_available() {
     let runner = E2eRunner::new();
     let test = "addon-list";

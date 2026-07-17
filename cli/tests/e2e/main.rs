@@ -12,14 +12,24 @@ pub mod runner;
 #[cfg(feature = "e2e-render")]
 pub mod vt_render;
 
-// Tier 1 tests (fast, no container needed)
+// Tier 1 tests (fast, no container needed). Release validation runs the
+// default target before the feature-specific tiers, so do not compile and run
+// these modules again in either feature-enabled invocation.
+#[cfg(not(any(feature = "e2e", feature = "e2e-render")))]
 mod addon_disablement;
+#[cfg(not(any(feature = "e2e", feature = "e2e-render")))]
 mod appearance;
+#[cfg(not(any(feature = "e2e", feature = "e2e-render")))]
 mod config_coverage;
+#[cfg(not(any(feature = "e2e", feature = "e2e-render")))]
 mod no_container_harness;
+#[cfg(not(any(feature = "e2e", feature = "e2e-render")))]
 mod preauth_merge;
+#[cfg(not(any(feature = "e2e", feature = "e2e-render")))]
 mod preview;
+#[cfg(not(any(feature = "e2e", feature = "e2e-render")))]
 mod runtime_recovery;
+#[cfg(not(any(feature = "e2e", feature = "e2e-render")))]
 mod version_upgrade;
 
 // Tier 2 tests (require e2e-runner companion container)

@@ -8,7 +8,7 @@ use serial_test::serial;
 use super::runner::E2eRunner;
 
 #[test]
-#[serial]
+#[serial(companion_visual)]
 #[ntest::timeout(180_000)]
 fn generated_runtime_yazi_lazygit_tmux_and_status_are_usable() {
     let runner = E2eRunner::new();
@@ -173,7 +173,7 @@ exit "$fail"
 }
 
 #[test]
-#[serial]
+#[serial(companion_visual)]
 #[ntest::timeout(120_000)]
 fn generated_runtime_tmux_status_panes_and_buffer_are_visible() {
     let runner = E2eRunner::new();
@@ -247,7 +247,13 @@ tmux_conf="$HOME/.tmux.conf"
   tmux split-window -v -t {test_name}:1.1 -c "{workspace}" "printf 'AIBOX-TMUX-LOWER-PANE\n'; exec bash"
   tmux set-buffer -b aibox-yank "AIBOX_TMUX_BUFFER_MARKER"
   tmux save-buffer -b aibox-yank "{workspace}/tmux-buffer.txt"
-  sleep 3
+  for _ in $(seq 1 40); do
+    left="$(tmux capture-pane -p -t {test_name}:1.1 2>/dev/null || true)"
+    right="$(tmux capture-pane -p -t {test_name}:1.2 2>/dev/null || true)"
+    printf '%s\n%s\n' "$left" "$right" | grep -qF 'AIBOX-TMUX-RIGHT-PANE' && \
+      printf '%s\n%s\n' "$left" "$right" | grep -qF 'AIBOX-TMUX-LOWER-PANE' && break
+    sleep 0.1
+  done
   tmux capture-pane -p -t {test_name}:1.1 > "{workspace}/screen-left.txt" 2>/dev/null || true
   tmux capture-pane -p -t {test_name}:1.2 > "{workspace}/screen-right.txt" 2>/dev/null || true
   tmux display-message -p -t {test_name} '#S #W #{{window_panes}} #{{status-left}} #{{status-right}}' > "{workspace}/status.txt" 2>/dev/null || true
@@ -293,7 +299,7 @@ fi
 // Mirrors the assertions from `scripts/release-runtime-smoke.sh` for the
 // tmux status-format tokens (hostname, external_ip, datetime, git, aibox).
 #[test]
-#[serial]
+#[serial(companion_visual)]
 #[ignore]
 #[ntest::timeout(120_000)]
 fn h3_powerkit_status_tokens_present_in_tmux() {
@@ -401,7 +407,7 @@ exit "$fail"
 // Run on demand:
 //   cargo test m3_yazi_debug_no_terminal_timeout -- --ignored
 #[test]
-#[serial]
+#[serial(companion_visual)]
 #[ignore]
 #[ntest::timeout(180_000)]
 fn m3_yazi_debug_no_terminal_timeout() {

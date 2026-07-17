@@ -233,7 +233,7 @@ true
 }
 
 #[test]
-#[serial]
+#[serial(companion_visual)]
 #[ntest::timeout(300_000)]
 fn visual_themes_produce_tmux_signature_colors() {
     let runner = E2eRunner::new();
@@ -279,7 +279,7 @@ fn visual_themes_produce_tmux_signature_colors() {
 }
 
 #[test]
-#[serial]
+#[serial(companion_visual)]
 #[ntest::timeout(90_000)]
 fn visual_tmux_status_and_panes_render_without_legacy_artifacts() {
     let runner = E2eRunner::new();
@@ -330,7 +330,7 @@ fn visual_tmux_status_and_panes_render_without_legacy_artifacts() {
 }
 
 #[test]
-#[serial]
+#[serial(companion_visual)]
 #[ntest::timeout(90_000)]
 fn visual_yazi_renders_in_tmux_pane() {
     let runner = E2eRunner::new();

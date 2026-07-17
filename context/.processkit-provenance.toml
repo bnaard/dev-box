@@ -3,15 +3,15 @@
 schema_version = 1
 
 [install]
-processkit_version = "v0.27.1"
+processkit_version = "v0.27.2"
 processkit_source = "https://github.com/projectious-work/processkit.git"
-installed_at = "2026-05-23T04:00:54.055351073+00:00"
-cli_version = "0.27.5"
+installed_at = "2026-07-17T14:31:43.006410826+00:00"
+cli_version = "0.27.7"
 
 [manifest]
-skill_count = 46
-schema_count = 18
+skill_count = 36
+schema_count = 0
 process_count = 0
 state_machine_count = 7
-release_asset_sha256 = "d70444e226c3ad194ec3544b403b66a45d0bc91f44bc444c8a521a781d13ac09"
-install_hash = "v2:9e36af5bb0cdfc38a5ac44046c0b1f1790966ffa9f921aa94cabe0339bc14bde"
+release_asset_sha256 = "db21022363c18a2a714fba1bb8625e945cca59a7e330bfa9f596a9987596f481"
+install_hash = "v2:ffe816a73bf9f433041368111f905a8a027e90b0f42983670ec5f1679e254413"

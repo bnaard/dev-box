@@ -642,7 +642,7 @@ fn assert_generated_layout_created_real_tmux_surfaces(layout: &str, logs: &str) 
 }
 
 #[test]
-#[serial]
+#[serial(companion_visual)]
 #[ignore = "visual e2e matrix is release-gated; run explicitly via scripts/maintain.sh test-e2e-visual-status or test-e2e-visual"]
 #[ntest::timeout(720_000)]
 fn visual_generated_layouts_render_across_all_themes() {
@@ -689,7 +689,7 @@ fn visual_generated_layouts_render_across_all_themes() {
 }
 
 #[test]
-#[serial]
+#[serial(companion_visual)]
 #[ignore = "visual tab-traversal e2e is release-gated; run explicitly via scripts/maintain.sh test-e2e-visual-tabs or test-e2e-visual"]
 #[ntest::timeout(300_000)]
 fn visual_generated_tools_and_harness_windows_render_when_enabled() {
@@ -748,7 +748,7 @@ fn visual_generated_tools_and_harness_windows_render_when_enabled() {
 }
 
 #[test]
-#[serial]
+#[serial(companion_visual)]
 #[ignore = "visual Yazi preview e2e is release-gated; run explicitly via scripts/maintain.sh test-e2e-visual-yazi or test-e2e-visual"]
 #[ntest::timeout(300_000)]
 fn visual_yazi_previews_git_symbols_and_optional_plugins_render() {

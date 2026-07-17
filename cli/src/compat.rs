@@ -533,6 +533,11 @@ pub static COMPAT_TABLE: &[CompatEntry] = &[
         processkit_version: "v0.27.1",
         note: "Patch release: fixes TeX Live's historic installer mirror, resolves pk-doctor false positives, adds disabled harness-state preservation controls, and accepts context mode in schema validation.",
     },
+    CompatEntry {
+        aibox_version: "0.27.8",
+        processkit_version: "v0.27.2",
+        note: "Patch release: integrates processkit v0.27.2 derived-project remediation, preserving project-local pk-commands during schema validation, accepting timestamped role-slot bindings, forwarding explicit doctor confirmations, exposing archive remediation metadata, and refreshing gateway metadata.",
+    },
 ];
 
 /// Find the minimum compatible processkit version for the given aibox version.

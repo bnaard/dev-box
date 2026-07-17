@@ -8,14 +8,14 @@ use serial_test::serial;
 use super::runner::E2eRunner;
 
 #[test]
-#[serial]
+#[serial(companion_runtime)]
 fn companion_is_reachable() {
     let runner = E2eRunner::new();
     runner.assert_reachable();
 }
 
 #[test]
-#[serial]
+#[serial(companion_runtime)]
 fn lifecycle_init_apply() {
     let runner = E2eRunner::new();
     let test = "lifecycle-init-apply";
@@ -62,7 +62,7 @@ fn lifecycle_init_apply() {
 }
 
 #[test]
-#[serial]
+#[serial(companion_runtime)]
 #[ntest::timeout(240_000)]
 fn lifecycle_apply_starts_generated_container() {
     let runner = E2eRunner::new();
@@ -153,7 +153,7 @@ fn lifecycle_apply_starts_generated_container() {
 }
 
 #[test]
-#[serial]
+#[serial(companion_runtime)]
 fn claudemd_preserved_on_sync() {
     let runner = E2eRunner::new();
     let test = "claudemd-preserve";
@@ -186,7 +186,7 @@ fn claudemd_preserved_on_sync() {
 }
 
 #[test]
-#[serial]
+#[serial(companion_runtime)]
 fn generated_files_overwritten_on_sync() {
     let runner = E2eRunner::new();
     let test = "gen-overwrite";
@@ -223,7 +223,7 @@ fn generated_files_overwritten_on_sync() {
 }
 
 #[test]
-#[serial]
+#[serial(companion_runtime)]
 fn runtime_without_container_shows_missing() {
     let runner = E2eRunner::new();
     let test = "runtime-missing";
@@ -255,7 +255,7 @@ fn runtime_without_container_shows_missing() {
 /// processkit owns concrete workitem/decision/standup entities now; aibox init
 /// only creates the project shell, context directory, and provider pointers.
 #[test]
-#[serial]
+#[serial(companion_runtime)]
 fn init_with_managed_preset_creates_context_files() {
     let runner = E2eRunner::new();
     let test = "init-managed-preset";
@@ -302,7 +302,7 @@ fn init_with_managed_preset_creates_context_files() {
 
 /// Verify that `aibox init --context software` still creates the slim project shell.
 #[test]
-#[serial]
+#[serial(companion_runtime)]
 fn init_with_software_preset_creates_code_files() {
     let runner = E2eRunner::new();
     let test = "init-software-preset";
@@ -340,7 +340,7 @@ fn init_with_software_preset_creates_code_files() {
 // `scripts/release-runtime-smoke.sh:303-340` into Rust e2e so they run
 // every PR when the companion suite is available.
 #[test]
-#[serial]
+#[serial(companion_runtime)]
 #[ignore]
 #[ntest::timeout(300_000)]
 fn m1_forget_tmux_state_no_connect_error() {

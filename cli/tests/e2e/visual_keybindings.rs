@@ -97,8 +97,31 @@ tmux kill-session -t "{session}" >/dev/null 2>&1 || true
     tmux has-session -t "{session}" >/dev/null 2>&1 && break
     sleep 0.1
   done
+  wait_for_pane_command() {{
+    target="$1"
+    shift
+    for _ in $(seq 1 50); do
+      current="$(tmux display-message -p -t "$target" '#{{pane_current_command}}' 2>/dev/null || true)"
+      for expected in "$@"; do
+        [ "$current" = "$expected" ] && return 0
+      done
+      sleep 0.1
+    done
+    return 1
+  }}
+  wait_for_pane_text() {{
+    target="$1"
+    pattern="$2"
+    output="$3"
+    for _ in $(seq 1 50); do
+      tmux capture-pane -p -t "$target" > "$output" 2>/dev/null || true
+      grep -qF "$pattern" "$output" && return 0
+      sleep 0.1
+    done
+    return 1
+  }}
 {actions}
-  sleep 0.4
+  sleep 0.1
   tmux capture-pane -p -t "{session}:1.1" > "{ws}/final-screen.txt" 2>/dev/null || true
   tmux kill-session -t "{session}" >/dev/null 2>&1 || true
 ) &
@@ -115,7 +138,7 @@ fn quoted_shell(command: &str) -> String {
 }
 
 #[test]
-#[serial]
+#[serial(companion_visual)]
 #[ntest::timeout(120_000)]
 fn visual_kb_yazi_e_opens_file_in_vim_pane() {
     // Per DEC-20260508_1604-LuckySeal (v0.25.6): yazi `e` opens the marked
@@ -205,7 +228,7 @@ fn visual_kb_yazi_e_opens_file_in_vim_pane() {
 }
 
 #[test]
-#[serial]
+#[serial(companion_visual)]
 #[ntest::timeout(90_000)]
 fn visual_kb_yazi_enter_opens_vim_inplace_and_returns() {
     let runner = E2eRunner::new();
@@ -223,11 +246,11 @@ fn visual_kb_yazi_enter_opens_vim_inplace_and_returns() {
     let ws = format!("/workspaces/{test_name}");
     let actions = format!(
         r#"  tmux send-keys -t "{test_name}:1.1" "cd {ws}/src && EDITOR=vim exec yazi ." C-m
-  sleep 1.5
+  wait_for_pane_text "{test_name}:1.1" "alpha.rs" "{ws}/yazi-ready-screen.txt"
   tmux send-keys -t "{test_name}:1.1" Enter
-  sleep 1
+  wait_for_pane_command "{test_name}:1.1" vim nvim
   tmux send-keys -t "{test_name}:1.1" Escape ":q" Enter
-  sleep 0.8
+  wait_for_pane_text "{test_name}:1.1" "alpha.rs" "{ws}/yazi-return-screen.txt"
   tmux send-keys -t "{test_name}:1.1" "j" Enter
   for _ in $(seq 1 40); do
     tmux capture-pane -p -t "{test_name}:1.1" > "{ws}/return-screen.txt" 2>/dev/null || true
@@ -255,7 +278,7 @@ fn visual_kb_yazi_enter_opens_vim_inplace_and_returns() {
 }
 
 #[test]
-#[serial]
+#[serial(companion_visual)]
 #[ntest::timeout(180_000)]
 fn visual_kb_yazi_git_summary_and_changes_show_status() {
     let runner = E2eRunner::new();
@@ -274,14 +297,14 @@ fn visual_kb_yazi_git_summary_and_changes_show_status() {
     ));
     let actions = format!(
         r#"  tmux send-keys -t "{test_name}:1.1" "cd {ws} && exec yazi ." C-m
-  sleep 1.5
+  wait_for_pane_text "{test_name}:1.1" "changed.txt" "{ws}/yazi-ready-screen.txt"
   tmux send-keys -t "{test_name}:1.1" "gs"
-  sleep 1.2
+  wait_for_pane_text "{test_name}:1.1" "changed.txt" "{ws}/git-summary-screen.txt" || true
   tmux send-keys -t "{test_name}:1.1" "q"
-  sleep 0.4
+  wait_for_pane_text "{test_name}:1.1" "changed.txt" "{ws}/yazi-return-screen.txt"
   tmux send-keys -t "{test_name}:1.1" "gc"
-  sleep 1.2
-  tmux capture-pane -p -t "{test_name}:1.1" > "{ws}/git-screen.txt" 2>/dev/null || true
+  wait_for_pane_text "{test_name}:1.1" "changed.txt" "{ws}/git-screen.txt" || \
+    tmux capture-pane -p -t "{test_name}:1.1" > "{ws}/git-screen.txt" 2>/dev/null || true
 "#
     );
     let cast = record(
@@ -304,7 +327,7 @@ fn visual_kb_yazi_git_summary_and_changes_show_status() {
 }
 
 #[test]
-#[serial]
+#[serial(companion_visual)]
 #[ntest::timeout(90_000)]
 fn visual_kb_yazi_pane_toggles_keep_file_list_alive() {
     let runner = E2eRunner::new();
@@ -319,7 +342,7 @@ fn visual_kb_yazi_pane_toggles_keep_file_list_alive() {
     let ws = format!("/workspaces/{test_name}");
     let actions = format!(
         r#"  tmux send-keys -t "{test_name}:1.1" "cd {ws} && exec yazi ." C-m
-  sleep 1.5
+  wait_for_pane_text "{test_name}:1.1" "visible.txt" "{ws}/yazi-ready-screen.txt"
   tmux send-keys -t "{test_name}:1.1" "zl"
   sleep 0.3
   tmux send-keys -t "{test_name}:1.1" "zm"
@@ -352,7 +375,7 @@ fn visual_kb_yazi_pane_toggles_keep_file_list_alive() {
 }
 
 #[test]
-#[serial]
+#[serial(companion_visual)]
 #[ntest::timeout(90_000)]
 fn visual_kb_tmux_prefix_splits_windows_and_status_render() {
     let runner = E2eRunner::new();
@@ -409,7 +432,7 @@ fn vim_driver(ws: &str, session: &str, vim_args: &str, actions: &str) -> String 
 }
 
 #[test]
-#[serial]
+#[serial(companion_visual)]
 #[ntest::timeout(90_000)]
 fn visual_kb_vim_leader_e_opens_netrw() {
     let runner = E2eRunner::new();
@@ -423,12 +446,12 @@ fn visual_kb_vim_leader_e_opens_netrw() {
 
     let ws = format!("/workspaces/{test_name}");
     let actions = format!(
-        r#"  sleep 1
+        r#"  wait_for_pane_command "{test_name}:1.1" vim nvim
   tmux send-keys -t "{test_name}:1.1" " l"
-  sleep 0.4
+  wait_for_pane_text "{test_name}:1.1" "project.toml" "{ws}/vim-screen.txt" || true
   tmux send-keys -t "{test_name}:1.1" " e"
-  sleep 1
-  tmux capture-pane -p -t "{test_name}:1.1" > "{ws}/vim-screen.txt" 2>/dev/null || true
+  wait_for_pane_text "{test_name}:1.1" "netrw" "{ws}/vim-screen.txt" || \
+    tmux capture-pane -p -t "{test_name}:1.1" > "{ws}/vim-screen.txt" 2>/dev/null || true
 "#
     );
     let cast = record(
@@ -448,7 +471,7 @@ fn visual_kb_vim_leader_e_opens_netrw() {
 }
 
 #[test]
-#[serial]
+#[serial(companion_visual)]
 #[ntest::timeout(90_000)]
 fn visual_kb_vim_leader_l_shows_buffer_list() {
     let runner = E2eRunner::new();
@@ -463,10 +486,10 @@ fn visual_kb_vim_leader_l_shows_buffer_list() {
 
     let ws = format!("/workspaces/{test_name}");
     let actions = format!(
-        r#"  sleep 1
+        r#"  wait_for_pane_command "{test_name}:1.1" vim nvim
   tmux send-keys -t "{test_name}:1.1" " l"
-  sleep 0.8
-  tmux capture-pane -p -t "{test_name}:1.1" > "{ws}/vim-screen.txt" 2>/dev/null || true
+  wait_for_pane_text "{test_name}:1.1" "beta" "{ws}/vim-screen.txt" || \
+    tmux capture-pane -p -t "{test_name}:1.1" > "{ws}/vim-screen.txt" 2>/dev/null || true
 "#
     );
     let _cast = record(
@@ -488,7 +511,7 @@ fn visual_kb_vim_leader_l_shows_buffer_list() {
 }
 
 #[test]
-#[serial]
+#[serial(companion_visual)]
 #[ntest::timeout(90_000)]
 fn visual_kb_vim_leader_w_saves_file() {
     let runner = E2eRunner::new();
@@ -502,9 +525,12 @@ fn visual_kb_vim_leader_w_saves_file() {
 
     let ws = format!("/workspaces/{test_name}");
     let actions = format!(
-        r#"  sleep 1
+        r#"  wait_for_pane_command "{test_name}:1.1" vim nvim
   tmux send-keys -t "{test_name}:1.1" "A edited" Escape " w"
-  sleep 0.8
+  for _ in $(seq 1 50); do
+    grep -qF 'edited' "{ws}/save_me.rs" && break
+    sleep 0.1
+  done
   tmux capture-pane -p -t "{test_name}:1.1" > "{ws}/vim-screen.txt" 2>/dev/null || true
 "#
     );
@@ -523,7 +549,7 @@ fn visual_kb_vim_leader_w_saves_file() {
 }
 
 #[test]
-#[serial]
+#[serial(companion_visual)]
 #[ntest::timeout(90_000)]
 fn visual_kb_vim_leader_x_writes_and_quits_vim() {
     let runner = E2eRunner::new();
@@ -537,9 +563,13 @@ fn visual_kb_vim_leader_x_writes_and_quits_vim() {
 
     let ws = format!("/workspaces/{test_name}");
     let actions = format!(
-        r#"  sleep 1
+        r#"  wait_for_pane_command "{test_name}:1.1" vim nvim
   tmux send-keys -t "{test_name}:1.1" "A // saved" Escape " x"
-  sleep 1
+  for _ in $(seq 1 50); do
+    pane_cmd="$(tmux display-message -p -t "{test_name}:1.1" '#{{pane_current_command}}' 2>/dev/null || true)"
+    [ "$pane_cmd" != "vim" ] && [ "$pane_cmd" != "nvim" ] && break
+    sleep 0.1
+  done
   pane_cmd="$(tmux display-message -p -t "{test_name}:1.1" '#{{pane_current_command}}' 2>/dev/null || true)"
   if [ "$pane_cmd" != "vim" ] && [ "$pane_cmd" != "nvim" ]; then touch "{ws}/writequit-ok"; fi
   tmux capture-pane -p -t "{test_name}:1.1" > "{ws}/vim-screen.txt" 2>/dev/null || true
@@ -560,7 +590,7 @@ fn visual_kb_vim_leader_x_writes_and_quits_vim() {
 }
 
 #[test]
-#[serial]
+#[serial(companion_visual)]
 #[ntest::timeout(90_000)]
 fn visual_kb_vim_leader_n_p_cycles_buffers() {
     let runner = E2eRunner::new();
@@ -575,13 +605,11 @@ fn visual_kb_vim_leader_n_p_cycles_buffers() {
 
     let ws = format!("/workspaces/{test_name}");
     let actions = format!(
-        r#"  sleep 1
+        r#"  wait_for_pane_command "{test_name}:1.1" vim nvim
   tmux send-keys -t "{test_name}:1.1" " n"
-  sleep 0.6
-  tmux capture-pane -p -t "{test_name}:1.1" > "{ws}/next-screen.txt" 2>/dev/null || true
+  wait_for_pane_text "{test_name}:1.1" "AIBOX_BETA_BUFFER" "{ws}/next-screen.txt" || true
   tmux send-keys -t "{test_name}:1.1" " p"
-  sleep 0.6
-  tmux capture-pane -p -t "{test_name}:1.1" > "{ws}/prev-screen.txt" 2>/dev/null || true
+  wait_for_pane_text "{test_name}:1.1" "AIBOX_ALPHA_BUFFER" "{ws}/prev-screen.txt" || true
 "#
     );
     let _cast = record(
@@ -607,7 +635,7 @@ fn visual_kb_vim_leader_n_p_cycles_buffers() {
 }
 
 #[test]
-#[serial]
+#[serial(companion_visual)]
 #[ntest::timeout(60_000)]
 fn visual_kb_tmux_buffer_yank_round_trip() {
     let runner = E2eRunner::new();

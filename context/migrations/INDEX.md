@@ -8,9 +8,11 @@ None.
 
 None.
 
-## Applied (0)
+## Applied (1)
 
-None.
+| Date       | Migration                                | Notes |
+|------------|------------------------------------------|-------|
+| 2026-07-17 | MIG-20260717T143144 — processkit v0.27.1 → v0.27.2 | 0 changed upstream, 0 conflicts, 1 new, 289 removed, 0 stale-removed (28 groups affected) |
 
 ## Rejected (1)
 

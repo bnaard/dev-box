@@ -258,6 +258,7 @@ ensure_e2e_companion() {
 
 prune_e2e_companion_storage() {
   local key="${PROJECT_ROOT}/.aibox-e2e-runner-home/.ssh/id_ed25519"
+  local host="${AIBOX_E2E_HOST:-aibox-e2e-testrunner}"
   ensure_e2e_companion
   info "Pruning SSH companion nested runtime state..."
   ssh -i "${key}" \
@@ -265,18 +266,20 @@ prune_e2e_companion_storage() {
       -o UserKnownHostsFile=/dev/null \
       -o ConnectTimeout=5 \
       -o LogLevel=ERROR \
-      testuser@aibox-e2e-testrunner \
-      'runtime=""; if command -v docker >/dev/null 2>&1 && docker info >/dev/null 2>&1; then runtime=docker; elif command -v podman >/dev/null 2>&1 && podman info >/dev/null 2>&1; then runtime=podman; fi; test -n "$runtime" || exit 0; ids=$("$runtime" ps -aq 2>/dev/null || true); if [ -n "$ids" ]; then "$runtime" rm -f $ids >/dev/null 2>&1 || true; fi; "$runtime" system prune -af --volumes >/dev/null 2>&1 || true; find /workspaces -mindepth 1 -maxdepth 1 -exec rm -rf {} + 2>/dev/null || sudo find /workspaces -mindepth 1 -maxdepth 1 -exec rm -rf {} +' \
+      "testuser@${host}" \
+      'runtime=""; if command -v docker >/dev/null 2>&1 && docker info >/dev/null 2>&1; then runtime=docker; elif command -v podman >/dev/null 2>&1 && podman info >/dev/null 2>&1; then runtime=podman; fi; test -n "$runtime" || exit 0; for workspace in /workspaces/*; do [ -d "$workspace" ] || continue; if [ -f "$workspace/.devcontainer/docker-compose.yml" ]; then (cd "$workspace" && "$runtime" compose -f .devcontainer/docker-compose.yml down -v --remove-orphans >/dev/null 2>&1) || true; fi; done; for id in $("$runtime" ps -aq --filter label=com.docker.compose.project.working_dir 2>/dev/null || true); do working_dir=$("$runtime" inspect --format "{{ index .Config.Labels \"com.docker.compose.project.working_dir\" }}" "$id" 2>/dev/null || true); case "$working_dir" in /workspaces/*) "$runtime" rm -f "$id" >/dev/null 2>&1 || true ;; esac; done; find /workspaces -mindepth 1 -maxdepth 1 -exec rm -rf {} + 2>/dev/null || sudo find /workspaces -mindepth 1 -maxdepth 1 -exec rm -rf {} +' \
     || return 1
-  ok "SSH companion nested runtime state pruned"
+  ok "SSH companion E2E state pruned (images and BuildKit cache preserved)"
 }
 
 cmd_test_e2e() {
+  local status=0 test_threads="${AIBOX_E2E_TEST_THREADS:-4}"
+  [[ "${test_threads}" =~ ^[1-9][0-9]*$ ]] \
+    || die "AIBOX_E2E_TEST_THREADS must be a positive integer"
   ensure_e2e_companion
   prune_e2e_companion_storage || die "Failed to prune SSH companion nested runtime state"
   info "Running Tier 2 SSH companion E2E tests..."
-  local status=0
-  (cd "${CLI_DIR}" && cargo test --features e2e --test e2e -- --test-threads=1) \
+  (cd "${CLI_DIR}" && cargo test --features e2e --test e2e -- --test-threads="${test_threads}") \
     || status=$?
   prune_e2e_companion_storage || warn "Post-suite SSH companion prune failed"
   [[ "${status}" -eq 0 ]] || die "Tier 2 SSH companion E2E tests failed"
@@ -1761,8 +1764,391 @@ release_validate_license_guardrails() {
   fi
 }
 
+# Release validation evidence is local by design. Each marker is bound to the
+# exact candidate commit, requested version, and Rust toolchain. This lets an
+# interrupted release resume without weakening the gate or trusting evidence
+# from a different source tree.
+release_evidence_init() {
+  local version="$1"
+  RELEASE_PHASE="${2:-container}"
+  RELEASE_CANDIDATE_SHA="$(git rev-parse HEAD)"
+  RELEASE_TOOLCHAIN_FINGERPRINT="$(rustc -Vv | sha256_stdin)"
+  if [[ -n "$(git status --porcelain)" ]]; then
+    RELEASE_TREE_STATE="dirty"
+  else
+    RELEASE_TREE_STATE="clean"
+  fi
+  RELEASE_EVIDENCE_DIR="${DIST_DIR}/release-evidence/v${version}/${RELEASE_CANDIDATE_SHA}"
+  RELEASE_LOG_DIR="${RELEASE_EVIDENCE_DIR}/logs"
+  mkdir -p "${RELEASE_LOG_DIR}"
+  export RELEASE_PHASE RELEASE_CANDIDATE_SHA RELEASE_TOOLCHAIN_FINGERPRINT RELEASE_TREE_STATE RELEASE_EVIDENCE_DIR RELEASE_LOG_DIR
+}
+
+release_evidence_key_path() {
+  local key="$1"
+  printf '%s/%s.env' "${RELEASE_EVIDENCE_DIR}" "${key//[^a-zA-Z0-9._-]/_}"
+}
+
+release_companion_fingerprint() {
+  local key="${PROJECT_ROOT}/.aibox-e2e-runner-home/.ssh/id_ed25519"
+  local host="${AIBOX_E2E_HOST:-aibox-e2e-testrunner}"
+  [[ -f "${key}" ]] || return 1
+  {
+    printf 'host=%s\n' "${host}"
+    ssh -i "${key}" \
+      -o StrictHostKeyChecking=no \
+      -o UserKnownHostsFile=/dev/null \
+      -o ConnectTimeout=5 \
+      -o LogLevel=ERROR \
+      "testuser@${host}" \
+      'printf "container="; cat /etc/hostname 2>/dev/null || true; uname -a; cat /etc/os-release 2>/dev/null || true; tmux -V 2>/dev/null || true; yazi --version 2>/dev/null || true; asciinema --version 2>/dev/null || true; if command -v docker >/dev/null 2>&1; then docker version --format "{{.Server.Version}}" 2>/dev/null || true; elif command -v podman >/dev/null 2>&1; then podman version --format "{{.Server.Version}}" 2>/dev/null || true; fi'
+  } | sha256_stdin
+}
+
+release_evidence_scope() {
+  local key="$1"
+  case "${key}" in
+    audit)
+      # Advisory data changes independently of the repository. A UTC-day scope
+      # gives audit evidence a maximum useful lifetime of 24 hours.
+      date -u +%Y-%m-%d
+      ;;
+    e2e|visual-*)
+      release_companion_fingerprint
+      ;;
+    test)
+      printf 'render-local=%s' "${AIBOX_RELEASE_SKIP_RENDER_LOCAL:-0}"
+      ;;
+    *)
+      printf 'source-bound'
+      ;;
+  esac
+}
+
+release_evidence_valid() {
+  local key="$1" version="$2" marker scope
+  marker="$(release_evidence_key_path "${key}")"
+  [[ "${AIBOX_RELEASE_REUSE_EVIDENCE:-1}" != "0" ]] || return 1
+  [[ "${RELEASE_TREE_STATE}" == "clean" ]] || return 1
+  [[ -f "${marker}" ]] || return 1
+  grep -Fqx "version=${version}" "${marker}" || return 1
+  grep -Fqx "commit=${RELEASE_CANDIDATE_SHA}" "${marker}" || return 1
+  grep -Fqx "toolchain=${RELEASE_TOOLCHAIN_FINGERPRINT}" "${marker}" || return 1
+  grep -Fqx "tree_state=clean" "${marker}" || return 1
+  grep -Fqx "phase=${RELEASE_PHASE}" "${marker}" || return 1
+  scope="$(release_evidence_scope "${key}")" || return 1
+  grep -Fqx "scope=${scope}" "${marker}" || return 1
+
+  if [[ "${key}" == "build-linux" ]]; then
+    local target archive checksum expected actual
+    for target in aarch64-unknown-linux-gnu x86_64-unknown-linux-gnu; do
+      archive="${DIST_DIR}/aibox-v${version}-${target}.tar.gz"
+      checksum="${archive}.sha256"
+      [[ -f "${archive}" && -f "${checksum}" ]] || return 1
+      expected="$(awk 'NR == 1 { print $1 }' "${checksum}")"
+      actual="$(sha256_file "${archive}")"
+      [[ -n "${expected}" && "${expected}" == "${actual}" ]] || return 1
+    done
+  fi
+
+  if [[ "${key}" == "build-macos" ]]; then
+    local target archive checksum expected actual
+    for target in aarch64-apple-darwin x86_64-apple-darwin; do
+      archive="${DIST_DIR}/aibox-v${version}-${target}.tar.gz"
+      checksum="${archive}.sha256"
+      [[ -f "${archive}" && -f "${checksum}" ]] || return 1
+      expected="$(awk 'NR == 1 { print $1 }' "${checksum}")"
+      actual="$(sha256_file "${archive}")"
+      [[ -n "${expected}" && "${expected}" == "${actual}" ]] || return 1
+    done
+  fi
+
+  # Published image tags are external mutable state. Always invoke the image
+  # publisher; BuildKit can reuse its cache and the publisher verifies GHCR.
+  [[ "${key}" != "publish-images" ]] || return 1
+}
+
+release_record_evidence() {
+  local key="$1" version="$2" duration="$3" marker tmp scope
+  marker="$(release_evidence_key_path "${key}")"
+  tmp="${marker}.tmp.$$"
+  scope="$(release_evidence_scope "${key}")" \
+    || die "Could not fingerprint release evidence scope for ${key}"
+  {
+    printf 'version=%s\n' "${version}"
+    printf 'commit=%s\n' "${RELEASE_CANDIDATE_SHA}"
+    printf 'toolchain=%s\n' "${RELEASE_TOOLCHAIN_FINGERPRINT}"
+    printf 'tree_state=%s\n' "${RELEASE_TREE_STATE}"
+    printf 'phase=%s\n' "${RELEASE_PHASE}"
+    printf 'scope=%s\n' "${scope}"
+    printf 'step=%s\n' "${key}"
+    printf 'duration_seconds=%s\n' "${duration}"
+    printf 'completed_at=%s\n' "$(date -u +%Y-%m-%dT%H:%M:%SZ)"
+  } > "${tmp}"
+  mv "${tmp}" "${marker}"
+}
+
+release_run_evidenced_step() {
+  local key="$1" version="$2" label="$3"
+  shift 3
+  if release_evidence_valid "${key}" "${version}"; then
+    ok "${label}: reusing evidence for ${RELEASE_CANDIDATE_SHA:0:12}"
+    return 0
+  fi
+
+  local started duration
+  started="$(date +%s)"
+  "$@"
+  duration=$(( $(date +%s) - started ))
+  release_record_evidence "${key}" "${version}" "${duration}"
+  ok "${label}: completed in ${duration}s"
+}
+
+release_local_test_gate() {
+  cmd_test
+  case "${AIBOX_RELEASE_SKIP_RENDER_LOCAL:-}" in
+    1|true|yes)
+      warn "Skipping Tier 3 local Starship rendered-color tests because AIBOX_RELEASE_SKIP_RENDER_LOCAL=${AIBOX_RELEASE_SKIP_RENDER_LOCAL}."
+      ;;
+    *)
+      cmd_test_e2e_render_starship
+      ;;
+  esac
+}
+
+release_companion_e2e_gate() {
+  case "${AIBOX_RELEASE_SKIP_COMPANION_E2E:-}" in
+    1|true|yes)
+      warn "Skipping Tier 2 SSH companion E2E during release because AIBOX_RELEASE_SKIP_COMPANION_E2E=${AIBOX_RELEASE_SKIP_COMPANION_E2E}. Re-run ./scripts/maintain.sh test-e2e after rebuilding the companion."
+      ;;
+    *)
+      cmd_test_e2e
+      ;;
+  esac
+}
+
+release_visual_gate() {
+  case "${AIBOX_RELEASE_VISUAL_E2E:-skip}" in
+    status) cmd_test_e2e_visual_status ;;
+    tabs|tools) cmd_test_e2e_visual_tabs ;;
+    yazi) cmd_test_e2e_visual_yazi ;;
+    render)
+      cmd_test_e2e_render_tmux
+      cmd_test_e2e_render_yazi
+      ;;
+    full)
+      cmd_test_e2e_visual
+      cmd_test_e2e_render_tmux
+      cmd_test_e2e_render_yazi
+      ;;
+    docs|captures) cmd_test_e2e_doc_captures ;;
+    *)
+      die "Unknown AIBOX_RELEASE_VISUAL_E2E=${AIBOX_RELEASE_VISUAL_E2E:-}; expected skip, status, tabs, yazi, render, full, or docs"
+      ;;
+  esac
+}
+
+release_audit_gate() {
+  info "Running cargo audit..."
+  command -v cargo-audit &>/dev/null \
+    || (cd "${CLI_DIR}" && cargo install cargo-audit --quiet)
+  local audit_db="${TMPDIR:-/tmp}/aibox-cargo-advisory-db"
+  mkdir -p "${audit_db}"
+  (cd "${CLI_DIR}" && cargo audit --db "${audit_db}") \
+    || die "cargo audit found advisories — resolve before releasing"
+  ok "Audit clean"
+}
+
+release_build_linux_target() {
+  local version="$1" target="$2"
+  info "  → ${target}"
+  (cd "${CLI_DIR}" && \
+    CARGO_TARGET_X86_64_UNKNOWN_LINUX_GNU_LINKER=x86_64-linux-gnu-gcc \
+    cargo build --release --target "${target}") \
+    || return 1
+
+  local binary_name="aibox-v${version}-${target}"
+  cp "${CLI_DIR}/target/${target}/release/aibox" "${DIST_DIR}/${binary_name}"
+  tar -czf "${DIST_DIR}/${binary_name}.tar.gz" \
+    -C "${DIST_DIR}" "${binary_name}" \
+    -C "${PROJECT_ROOT}" LICENSE
+  rm "${DIST_DIR}/${binary_name}"
+  sha256_file "${DIST_DIR}/${binary_name}.tar.gz" > "${DIST_DIR}/${binary_name}.tar.gz.sha256"
+  ok "Built ${binary_name}.tar.gz"
+}
+
+release_build_linux_gate() {
+  local version="$1" target pid status=0
+  local targets=(aarch64-unknown-linux-gnu x86_64-unknown-linux-gnu)
+  local pids=()
+  mkdir -p "${DIST_DIR}"
+  info "Building CLI release targets in parallel..."
+  for target in "${targets[@]}"; do
+    release_build_linux_target "${version}" "${target}" &
+    pids+=("$!")
+  done
+  for pid in "${pids[@]}"; do
+    if ! wait "${pid}"; then
+      status=1
+    fi
+  done
+  [[ "${status}" -eq 0 ]] || die "cargo build failed for one or more Linux targets"
+}
+
+release_version_smoke_gate() {
+  local version="$1" machine target candidate reported
+  machine="$(uname -m)"
+  case "${machine}" in
+    x86_64|amd64) target="x86_64-unknown-linux-gnu" ;;
+    aarch64|arm64) target="aarch64-unknown-linux-gnu" ;;
+    *) target="" ;;
+  esac
+  candidate="${CLI_DIR}/target/${target}/release/aibox"
+  if [[ -z "${target}" || ! -x "${candidate}" ]]; then
+    info "No runnable cross-target binary found; building the native release binary..."
+    (cd "${CLI_DIR}" && cargo build --release --quiet) \
+      || die "native cargo build failed (needed for --version smoke test)"
+    candidate="${CLI_DIR}/target/release/aibox"
+  fi
+  reported="$("${candidate}" --version | awk '{print $NF}')"
+  [[ "${reported}" == "${version}" ]] \
+    || die "aibox --version reports '${reported}' but the tag being cut is '${version}'. Fix Cargo.toml before retrying."
+  ok "aibox --version = ${reported} (matches tag)"
+}
+
+release_build_macos_gate() {
+  local version="$1"
+  info "Building macOS release artifacts..."
+  "${SCRIPT_DIR}/build-macos.sh" "${version}"
+}
+
+release_publish_images_gate() {
+  local version="$1"
+  info "Publishing container images..."
+  cmd_publish_images_for_release "${version}"
+}
+
+release_cleanup_parallel_children() {
+  local index pid
+  for index in "${!pids[@]}"; do
+    pid="${pids[$index]}"
+    kill "${pid}" 2>/dev/null || true
+  done
+  for index in "${!pids[@]}"; do
+    wait "${pids[$index]}" 2>/dev/null || true
+  done
+}
+
+release_run_parallel_validation() {
+  local version="$1"
+  shift
+  local max_jobs="${AIBOX_RELEASE_PARALLELISM:-2}"
+  [[ "${max_jobs}" =~ ^[1-9][0-9]*$ ]] \
+    || die "AIBOX_RELEASE_PARALLELISM must be a positive integer"
+
+  local specs=("$@") active=0 status=0 next=0 total="${#specs[@]}"
+  local spec key label command log pid index completed job_status status_file
+  local pids=() labels=() logs=() status_files=()
+
+  trap 'release_cleanup_parallel_children' EXIT
+  trap 'release_cleanup_parallel_children; exit 130' INT TERM
+
+  while [[ "${next}" -lt "${total}" || "${active}" -gt 0 ]]; do
+    while [[ "${next}" -lt "${total}" && "${active}" -lt "${max_jobs}" ]]; do
+      spec="${specs[$next]}"
+      IFS='|' read -r key label command <<< "${spec}"
+      log="${RELEASE_LOG_DIR}/${key}.log"
+      status_file="${log}.status"
+      rm -f "${status_file}"
+      (
+        trap - EXIT INT TERM
+        set +e
+        (release_run_evidenced_step "${key}" "${version}" "${label}" "${command}" "${version}") \
+          > "${log}" 2>&1
+        job_status="$?"
+        printf '%s\n' "${job_status}" > "${status_file}.tmp.$$"
+        mv "${status_file}.tmp.$$" "${status_file}"
+        exit "${job_status}"
+      ) &
+      pid="$!"
+      pids+=("${pid}")
+      labels+=("${label}")
+      logs+=("${log}")
+      status_files+=("${status_file}")
+      active=$((active + 1))
+      next=$((next + 1))
+    done
+
+    completed=0
+    while [[ "${completed}" -eq 0 ]]; do
+      for index in "${!pids[@]}"; do
+        status_file="${status_files[$index]}"
+        if [[ -f "${status_file}" ]]; then
+          job_status="$(sed -n '1p' "${status_file}")"
+        elif kill -0 "${pids[$index]}" 2>/dev/null; then
+          continue
+        else
+          job_status=1
+          warn "${labels[$index]} terminated without reporting status"
+        fi
+        wait "${pids[$index]}" 2>/dev/null || true
+        if [[ "${job_status}" -eq 0 ]]; then
+          tail -n 200 "${logs[$index]}"
+        else
+          warn "${labels[$index]} failed; log follows: ${logs[$index]}"
+          tail -n 240 "${logs[$index]}" >&2
+          status=1
+        fi
+        rm -f "${status_file}"
+        unset 'pids[index]' 'labels[index]' 'logs[index]' 'status_files[index]'
+        active=$((active - 1))
+        completed=1
+        break
+      done
+      [[ "${completed}" -eq 1 ]] || sleep 0.2
+    done
+  done
+
+  trap - EXIT INT TERM
+  [[ "${status}" -eq 0 ]] || die "One or more parallel release validation jobs failed"
+}
+
+release_write_timing_report() {
+  local version="$1" total_duration="${2:-}" report phase_label marker
+  case "${RELEASE_PHASE}" in
+    host)
+      report="${DIST_DIR}/RELEASE-HOST-TIMINGS.md"
+      phase_label="Host"
+      ;;
+    *)
+      report="${DIST_DIR}/RELEASE-TIMINGS.md"
+      phase_label="Container"
+      ;;
+  esac
+  {
+    printf '# %s release timings for v%s\n\n' "${phase_label}" "${version}"
+    printf -- '- Candidate: `%s`\n' "${RELEASE_CANDIDATE_SHA}"
+    printf -- '- Parallelism: `%s`\n\n' "${AIBOX_RELEASE_PARALLELISM:-2}"
+    if [[ -n "${total_duration}" ]]; then
+      printf -- '- End-to-end command duration: `%ss`\n\n' "${total_duration}"
+    fi
+    printf '| Step | Duration | Completed |\n'
+    printf '|---|---:|---|\n'
+    for marker in "${RELEASE_EVIDENCE_DIR}"/*.env; do
+      [[ -f "${marker}" ]] || continue
+      grep -Fqx "phase=${RELEASE_PHASE}" "${marker}" || continue
+      printf '| %s | %ss | %s |\n' \
+        "$(awk -F= '$1 == "step" { print $2 }' "${marker}")" \
+        "$(awk -F= '$1 == "duration_seconds" { print $2 }' "${marker}")" \
+        "$(awk -F= '$1 == "completed_at" { print $2 }' "${marker}")"
+    done
+  } > "${report}"
+  ok "Release timing evidence written to ${report}"
+}
+
 cmd_release() {
   local version="${1:-}"
+  local release_started_epoch="$(date +%s)"
   if [[ "${version}" == "--list-steps" ]]; then
     release_list_steps
     return 0
@@ -1881,33 +2267,37 @@ cmd_release() {
     fi
   fi
 
-  if release_step_requested test; then
-    info "Running tests..."
-    cmd_test
-    # Starship Tier 3 (vt100 rendered-color) runs locally without a companion
-    # and only adds ~6s. Run it alongside the regular test step so we always
-    # catch a regression where the generated starship.toml is silently
-    # ignored or rendered with the wrong palette. Skip gracefully via
-    # AIBOX_RELEASE_SKIP_RENDER_LOCAL=1 if the host doesn't have `starship`.
-    case "${AIBOX_RELEASE_SKIP_RENDER_LOCAL:-}" in
-      1|true|yes)
-        warn "Skipping Tier 3 local Starship rendered-color tests because AIBOX_RELEASE_SKIP_RENDER_LOCAL=${AIBOX_RELEASE_SKIP_RENDER_LOCAL}."
-        ;;
-      *)
-        cmd_test_e2e_render_starship
-        ;;
-    esac
-  fi
+  # Everything below this point is validated against the immutable candidate
+  # commit. Evidence from an interrupted run is reusable only for this SHA.
+  release_evidence_init "${version}"
+  info "Release candidate: ${RELEASE_CANDIDATE_SHA}"
 
+  # These gates own independent resources. Run a bounded number concurrently,
+  # retain separate logs, wait for every job, then fail as a group. The default
+  # of two avoids oversubscribing developer laptops; override locally with
+  # AIBOX_RELEASE_PARALLELISM when more CPU and memory are available.
+  local validation_specs=()
+  if release_step_requested test; then
+    validation_specs+=("test|Local fmt, Clippy, tests, and Starship render|release_local_test_gate")
+  fi
+  if release_step_requested audit; then
+    validation_specs+=("audit|Cargo dependency audit|release_audit_gate")
+  fi
   if release_step_requested e2e; then
     case "${AIBOX_RELEASE_SKIP_COMPANION_E2E:-}" in
       1|true|yes)
         warn "Skipping Tier 2 SSH companion E2E during release because AIBOX_RELEASE_SKIP_COMPANION_E2E=${AIBOX_RELEASE_SKIP_COMPANION_E2E}. Re-run ./scripts/maintain.sh test-e2e after rebuilding the companion."
         ;;
       *)
-        cmd_test_e2e
+        validation_specs+=("e2e|Tier 2 companion E2E|release_companion_e2e_gate")
         ;;
     esac
+  fi
+  if release_step_requested build-linux; then
+    validation_specs+=("build-linux|Linux release artifacts|release_build_linux_gate")
+  fi
+  if [[ "${#validation_specs[@]}" -gt 0 ]]; then
+    release_run_parallel_validation "${version}" "${validation_specs[@]}"
   fi
 
   if release_step_requested visual; then
@@ -1915,84 +2305,17 @@ cmd_release() {
       skip|"")
         warn "Skipping opt-in visual E2E during release. The release agent must justify this in notes or handover, or run AIBOX_RELEASE_VISUAL_E2E=<status|tabs|yazi|render|full|docs>."
         ;;
-      status)
-        cmd_test_e2e_visual_status
-        ;;
-      tabs|tools)
-        cmd_test_e2e_visual_tabs
-        ;;
-      yazi)
-        cmd_test_e2e_visual_yazi
-        ;;
-      render)
-        # Tier 3 vt100 cell-color suite (tmux + yazi). Starship Tier 3
-        # already ran during the `test` step; this adds the companion tiers.
-        cmd_test_e2e_render_tmux
-        cmd_test_e2e_render_yazi
-        ;;
-      full)
-        cmd_test_e2e_visual
-        # `full` extends to Tier 3 companion tiers too — release gating
-        # should verify every themed surface actually paints palette colors.
-        cmd_test_e2e_render_tmux
-        cmd_test_e2e_render_yazi
-        ;;
-      docs|captures)
-        cmd_test_e2e_doc_captures
-        ;;
       *)
-        die "Unknown AIBOX_RELEASE_VISUAL_E2E=${AIBOX_RELEASE_VISUAL_E2E}; expected skip, status, tabs, yazi, render, full, or docs"
+        release_run_evidenced_step "visual-${AIBOX_RELEASE_VISUAL_E2E}" "${version}" \
+          "Visual E2E (${AIBOX_RELEASE_VISUAL_E2E})" release_visual_gate
         ;;
     esac
   fi
 
-  if release_step_requested audit; then
-    info "Running cargo audit..."
-    command -v cargo-audit &>/dev/null \
-      || (cd "${CLI_DIR}" && cargo install cargo-audit --quiet)
-    local audit_db="${TMPDIR:-/tmp}/aibox-cargo-advisory-db"
-    mkdir -p "${audit_db}"
-    (cd "${CLI_DIR}" && cargo audit --db "${audit_db}") \
-      || die "cargo audit found advisories — resolve before releasing"
-    ok "Audit clean"
-  fi
-
-  if release_step_requested build-linux; then
-    info "Building CLI (release mode) for all Linux targets..."
-    mkdir -p "${DIST_DIR}"
-
-    local linux_targets=("aarch64-unknown-linux-gnu" "x86_64-unknown-linux-gnu")
-
-    for target in "${linux_targets[@]}"; do
-      info "  → ${target}"
-      (cd "${CLI_DIR}" && \
-        CARGO_TARGET_X86_64_UNKNOWN_LINUX_GNU_LINKER=x86_64-linux-gnu-gcc \
-        cargo build --release --target "${target}") \
-        || die "cargo build failed for ${target}"
-      local binary_name="aibox-v${version}-${target}"
-      cp "${CLI_DIR}/target/${target}/release/aibox" "${DIST_DIR}/${binary_name}"
-      tar -czf "${DIST_DIR}/${binary_name}.tar.gz" \
-        -C "${DIST_DIR}" "${binary_name}" \
-        -C "${PROJECT_ROOT}" LICENSE
-      rm "${DIST_DIR}/${binary_name}"
-      sha256sum "${DIST_DIR}/${binary_name}.tar.gz" | awk '{print $1}' > "${DIST_DIR}/${binary_name}.tar.gz.sha256"
-      built_archives+=("${DIST_DIR}/${binary_name}.tar.gz")
-      built_archives+=("${DIST_DIR}/${binary_name}.tar.gz.sha256")
-      ok "Built ${binary_name}.tar.gz"
-    done
-  fi
-
   if release_step_requested version-smoke; then
     info "Verifying 'aibox --version' matches ${version}..."
-    local host_binary="${CLI_DIR}/target/release/aibox"
-    (cd "${CLI_DIR}" && cargo build --release --quiet) \
-      || die "native cargo build failed (needed for --version smoke test)"
-    local reported
-    reported=$("${host_binary}" --version | awk '{print $NF}')
-    if [[ "${reported}" != "${version}" ]]; then
-      die "aibox --version reports '${reported}' but the tag being cut is '${version}'. Fix Cargo.toml before retrying."
-    fi
-    ok "aibox --version = ${reported} (matches tag)"
+    release_run_evidenced_step "version-smoke" "${version}" "CLI version smoke" \
+      release_version_smoke_gate "${version}"
   fi
 
   if release_step_requested push-main; then
@@ -2087,6 +2410,7 @@ cmd_release() {
 
   # ── Summary ──────────────────────────────────────────────────────────────
   echo ""
+  release_write_timing_report "${version}" "$(( $(date +%s) - release_started_epoch ))"
   echo "${bold}Release ${tag} selected steps complete: $(release_steps_joined).${reset}"
   echo ""
   echo "  GitHub release: https://github.com/projectious-work/aibox/releases/tag/${tag}"
@@ -2155,6 +2479,7 @@ ensure_release_host_checkout_current() {
 
 cmd_release_host() {
   local version="${1:-}"
+  local release_started_epoch="$(date +%s)"
   [[ -z "${version}" ]] && die "Usage: ./scripts/maintain.sh release-host <version>  (e.g. 0.10.2)"
 
   if ! [[ "${version}" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
@@ -2163,10 +2488,15 @@ cmd_release_host() {
 
   local tag="v${version}"
   ensure_release_host_checkout_current
+  release_evidence_init "${version}" host
+  info "Host release source: ${RELEASE_CANDIDATE_SHA}"
 
   # ── Step 1: Build macOS binaries ──────────────────────────────────────────
-  info "Building macOS binaries..."
-  "${SCRIPT_DIR}/build-macos.sh" "${version}"
+  # macOS compilation and image publication are independent. Run both with
+  # separate logs and aggregate their failures before continuing.
+  release_run_parallel_validation "${version}" \
+    "build-macos|macOS release artifacts|release_build_macos_gate" \
+    "publish-images|GHCR image publication|release_publish_images_gate"
 
   # ── Step 2: Upload macOS binaries to existing GitHub release ──────────────
   info "Uploading macOS binaries to GitHub release ${tag}..."
@@ -2187,9 +2517,6 @@ cmd_release_host() {
   ok "macOS binaries, checksums, and LICENSE uploaded to ${tag}"
 
   # ── Step 3: Publish container images ─────────────────────────────────────
-  info "Publishing container images..."
-  cmd_publish_images_for_release "${version}"
-
   # ── Step 4: Run generated-runtime smoke against the pushed image ──────────
   info "Running generated runtime smoke..."
   cmd_release_runtime_smoke "${version}"
@@ -2204,6 +2531,7 @@ cmd_release_host() {
   # locally but didn't propagate to GHCR.
   info "Re-verifying GHCR tags after smoke + runtime finalize..."
   verify_release_images_in_ghcr "${version}" "base-debian"
+  release_write_timing_report "${version}" "$(( $(date +%s) - release_started_epoch ))"
 
   # ── Done ──────────────────────────────────────────────────────────────────
   echo ""
@@ -2310,6 +2638,10 @@ cmd_record_docs() {
 # =============================================================================
 # Entrypoint
 # =============================================================================
+if [[ "${AIBOX_MAINTAIN_SOURCE_ONLY:-0}" == "1" ]]; then
+  return 0 2>/dev/null || exit 0
+fi
+
 COMMAND="${1:-help}"
 shift || true
 

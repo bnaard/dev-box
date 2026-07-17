@@ -29,6 +29,7 @@ tmux_status="${AIBOX_RELEASE_SMOKE_TMUX_STATUS:-extended}"
 smoke_tier="${AIBOX_RELEASE_SMOKE_TIER:-addons}"
 probe_script="${log_dir}/container-probe.sh"
 run_log="${log_dir}/run.log"
+attach_pid=""
 
 mkdir -p "${log_dir}"
 exec > >(tee -a "${run_log}") 2>&1
@@ -113,6 +114,11 @@ collect_artifacts() {
   trap - EXIT INT TERM
   set +e
   stty sane >/dev/null 2>&1 || true
+
+  if [[ -n "${attach_pid}" ]] && kill -0 "${attach_pid}" >/dev/null 2>&1; then
+    kill "${attach_pid}" >/dev/null 2>&1 || true
+    wait "${attach_pid}" >/dev/null 2>&1 || true
+  fi
 
   info "Collecting release smoke artifacts..."
   {
@@ -302,36 +308,65 @@ run env AIBOX_ADDONS_DIR="${PROJECT_ROOT}/addons" "${aibox_bin}" "${apply_args[@
 
 attach_smoke_log="${log_dir}/up-forget-tmux-state.log"
 info "Running attach smoke: aibox up --forget-tmux-state"
-if command -v timeout >/dev/null 2>&1; then
-  if env AIBOX_ADDONS_DIR="${PROJECT_ROOT}/addons" timeout 25s \
-    "${aibox_bin}" up --forget-tmux-state >"${attach_smoke_log}" 2>&1 < /dev/null; then
-    ok "Attach smoke exited cleanly"
-  else
-    code=$?
-    if [[ "${code}" -eq 124 ]]; then
-      ok "Attach smoke reached timeout while attached (expected for interactive tmux)"
-    elif grep -q "stdin is not a terminal" "${attach_smoke_log}"; then
-      ok "Attach smoke reached non-interactive attach boundary"
-    else
-      warn "Attach smoke failed with ${code}; see ${attach_smoke_log}"
-      exit "${code}"
-    fi
+attach_timeout="${AIBOX_RELEASE_SMOKE_ATTACH_TIMEOUT:-25}"
+[[ "${attach_timeout}" =~ ^[1-9][0-9]*$ ]] \
+  || die "AIBOX_RELEASE_SMOKE_ATTACH_TIMEOUT must be a positive integer (got: ${attach_timeout})"
+
+env AIBOX_ADDONS_DIR="${PROJECT_ROOT}/addons" \
+  "${aibox_bin}" up --forget-tmux-state >"${attach_smoke_log}" 2>&1 < /dev/null &
+attach_pid=$!
+attach_started_at=${SECONDS}
+attach_ready=0
+attach_exited=0
+attach_code=0
+while (( SECONDS - attach_started_at < attach_timeout )); do
+  if ! kill -0 "${attach_pid}" >/dev/null 2>&1; then
+    set +e
+    wait "${attach_pid}"
+    attach_code=$?
+    set -e
+    attach_pid=""
+    attach_exited=1
+    break
   fi
+  if runtime exec --user aibox "${container_name}" bash -lc \
+    'socket="$HOME/.tmux/aibox.sock"; session="$1"; with_git_ui="$2"; \
+     tmux -S "$socket" has-session -t "$session" 2>/dev/null || exit 1; \
+     windows="$(tmux -S "$socket" list-windows -t "$session" -F "#W")"; \
+     grep -qx work <<<"$windows" && grep -qx shell <<<"$windows" || exit 1; \
+     [[ "$with_git_ui" != 1 ]] || grep -qx lazygit <<<"$windows" || exit 1; \
+     [[ "$(tmux -S "$socket" list-panes -t "$session:" -F "#P" | wc -l | tr -d " ")" -ge 2 ]]' \
+    aibox-release-smoke "${container_name}" "${smoke_git_ui}" >/dev/null 2>&1; then
+    attach_ready=1
+    break
+  fi
+  sleep 0.2
+done
+
+if [[ "${attach_ready}" -eq 1 ]]; then
+  runtime exec --user aibox "${container_name}" bash -lc \
+    'tmux -S "$HOME/.tmux/aibox.sock" detach-client -s "$1"' \
+    aibox-release-smoke "${container_name}" >/dev/null 2>&1 || true
+  for _ in {1..20}; do
+    kill -0 "${attach_pid}" >/dev/null 2>&1 || break
+    sleep 0.1
+  done
+  kill "${attach_pid}" >/dev/null 2>&1 || true
+  wait "${attach_pid}" >/dev/null 2>&1 || true
+  attach_pid=""
+  ok "Attach smoke created the expected tmux session"
+elif [[ "${attach_exited}" -eq 1 && "${attach_code}" -eq 0 ]]; then
+  ok "Attach smoke exited cleanly"
+elif [[ "${attach_exited}" -eq 1 ]] && grep -q "stdin is not a terminal" "${attach_smoke_log}"; then
+  ok "Attach smoke reached non-interactive attach boundary"
 else
-  warn "timeout command missing on host; running attach smoke without timeout"
-  set +e
-  env AIBOX_ADDONS_DIR="${PROJECT_ROOT}/addons" \
-    "${aibox_bin}" up --forget-tmux-state >"${attach_smoke_log}" 2>&1 < /dev/null
-  code=$?
-  set -e
-  if [[ "${code}" -ne 0 ]]; then
-    if grep -q "stdin is not a terminal" "${attach_smoke_log}"; then
-      ok "Attach smoke reached non-interactive attach boundary"
-    else
-      warn "Attach smoke failed with ${code}; see ${attach_smoke_log}"
-      exit "${code}"
-    fi
+  if [[ -n "${attach_pid}" ]]; then
+    kill "${attach_pid}" >/dev/null 2>&1 || true
+    wait "${attach_pid}" >/dev/null 2>&1 || true
+    attach_pid=""
   fi
+  warn "Attach smoke did not become ready within ${attach_timeout}s; see ${attach_smoke_log}"
+  exit 1
 fi
 
 if grep -q "can't find pane: 1" "${attach_smoke_log}"; then
@@ -484,9 +519,6 @@ section tmux-pty
 if ! command -v script >/dev/null 2>&1; then
   echo "script command missing; cannot run tmux PTY smoke"
   fail=1
-elif ! command -v timeout >/dev/null 2>&1; then
-  echo "timeout command missing; cannot run tmux PTY smoke"
-  fail=1
 else
   layout_script="$HOME/.config/tmux/layouts/ai.sh"
   tmux_socket="$HOME/.tmux/aibox-smoke.sock"
@@ -498,8 +530,50 @@ else
   ln -sf "$HOME/.config/tmux/tmux.conf" "$HOME/.tmux.conf"
   tmux -S "${tmux_socket}" kill-session -t aibox-smoke >/dev/null 2>&1 || true
   if [[ -x "${layout_script}" ]]; then
-    timeout 16s script -q -c "AIBOX_TMUX_SOCKET=\"${tmux_socket}\" AIBOX_TMUX_SESSION=aibox-smoke AIBOX_WORKSPACE=/workspace \"${layout_script}\"" /tmp/aibox-tmux.typescript >/tmp/aibox-tmux-pty.log 2>&1
+    expected_windows="work shell"
+    if [[ "${smoke_git_ui}" == "1" ]]; then
+      expected_windows="${expected_windows} lazygit"
+    fi
+    script -q -c "AIBOX_TMUX_SOCKET=\"${tmux_socket}\" AIBOX_TMUX_SESSION=aibox-smoke AIBOX_WORKSPACE=/workspace \"${layout_script}\"" /tmp/aibox-tmux.typescript >/tmp/aibox-tmux-pty.log 2>&1 &
+    pty_pid=$!
+    pty_ready=0
+    for _ in {1..160}; do
+      if ! kill -0 "${pty_pid}" >/dev/null 2>&1; then
+        break
+      fi
+      windows_ready=1
+      for expected_window in ${expected_windows}; do
+        tmux -S "${tmux_socket}" list-windows -t aibox-smoke -F '#W' 2>/dev/null \
+          | grep -qx "${expected_window}" || windows_ready=0
+      done
+      panes_ready=0
+      pane_count="$(tmux -S "${tmux_socket}" list-panes -t aibox-smoke: -F '#P' 2>/dev/null | wc -l | tr -d ' ')"
+      [[ "${pane_count:-0}" -ge 2 ]] && panes_ready=1
+      transcript_ready=0
+      if [[ "${tmux_status}" == "disabled" && -s /tmp/aibox-tmux.typescript ]]; then
+        transcript_ready=1
+      elif grep -aEi 'Ctrl-g|Prefix|pane|window|tmux|AI|dev|shell|aibox' /tmp/aibox-tmux.typescript >/dev/null 2>&1; then
+        transcript_ready=1
+      fi
+      runtime_row_ready=1
+      if [[ "${tmux_status}" == "extended" ]] \
+        && ! grep -aE 'AIBOX|MEM .+/unlimited|OOM [0-9]+|PROC [0-9]+ AI [0-9]+|MCP (dmn|stdio|sep|none|unknown|degraded)' /tmp/aibox-tmux.typescript >/dev/null 2>&1; then
+        runtime_row_ready=0
+      fi
+      if [[ "${windows_ready}" -eq 1 && "${panes_ready}" -eq 1 \
+        && "${transcript_ready}" -eq 1 && "${runtime_row_ready}" -eq 1 ]]; then
+        pty_ready=1
+        break
+      fi
+      sleep 0.1
+    done
+    if kill -0 "${pty_pid}" >/dev/null 2>&1; then
+      kill "${pty_pid}" >/dev/null 2>&1 || true
+    fi
+    set +e
+    wait "${pty_pid}"
     code=$?
+    set -e
     {
       echo "--- sessions ---"
       tmux -S "${tmux_socket}" list-sessions 2>&1 || true
@@ -510,17 +584,16 @@ else
     } >/tmp/aibox-tmux-generated-state.txt
     cat /tmp/aibox-tmux-generated-state.txt
     tmux -S "${tmux_socket}" kill-session -t aibox-smoke >/dev/null 2>&1 || true
-    if [[ "${code}" -ne 0 && "${code}" -ne 124 ]]; then
+    if [[ "${pty_ready}" -ne 1 ]]; then
+      echo "generated ai tmux PTY smoke did not become ready within 16s (script exit=${code})"
+      fail=1
+    elif [[ "${code}" -ne 0 && "${code}" -ne 143 ]]; then
       echo "generated ai tmux PTY smoke failed with ${code}"
       fail=1
     fi
     if [[ ! -s /tmp/aibox-tmux.typescript ]]; then
       echo "tmux PTY transcript is empty"
       fail=1
-    fi
-    expected_windows="work shell"
-    if [[ "${smoke_git_ui}" == "1" ]]; then
-      expected_windows="${expected_windows} lazygit"
     fi
     for expected_window in ${expected_windows}; do
       if ! grep -E "^[0-9]+ ${expected_window} " /tmp/aibox-tmux-generated-state.txt >/tmp/aibox-tmux-layout-windows.txt 2>&1; then

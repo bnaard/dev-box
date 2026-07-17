@@ -2,12 +2,9 @@
 //!
 //! Requires the e2e-runner companion container (feature = "e2e").
 
-use serial_test::serial;
-
 use super::runner::E2eRunner;
 
 #[test]
-#[serial]
 fn apply_absorbs_legacy_version_file_into_lock() {
     let runner = E2eRunner::new();
     let test = "migration-version";

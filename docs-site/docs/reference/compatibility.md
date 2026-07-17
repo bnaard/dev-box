@@ -12,6 +12,8 @@ below shows the minimum compatible processkit version for each aibox release.
 
 | aibox version | Min. processkit | Notes |
 |--------------|-----------------|-------|
+| 0.27.8 | v0.27.2 | integrates processkit derived-project remediation: project-local `pk-commands` preservation/schema validation, timestamped role-slot binding IDs, explicit doctor confirmation forwarding, archive remediation metadata, migration archive policy documentation, and refreshed gateway metadata |
+| 0.27.7 | v0.27.1 | fixes the TeX Live historic installer mirror, resolves pk-doctor false positives, preserves disabled harness state, and accepts context mode in schema validation |
 | 0.27.6 | v0.27.1 | refreshes tool and harness pins, updates generated runtime/docs references, and adds the GitHub CLI credential-helper integration for HTTPS Git operations |
 | 0.27.5 | v0.27.1 | refreshes the shipped docs-hugo pin to Hugo 0.162.1 and aligns release-state/docs inventory with the current addon and harness defaults from v0.27.4 |
 | 0.27.4 | v0.27.1 | refreshes all shipped addon and harness tool defaults to current upstream releases; fixes Yarn 4 and Python 3.14 installation paths; moves Hermes to the current `hermes-agent` package installer; updates Rust/docs dependencies; and quiets actionable pk-doctor false positives while making release-integrity checks bounded |

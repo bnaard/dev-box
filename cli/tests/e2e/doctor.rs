@@ -2,12 +2,9 @@
 //!
 //! Requires the e2e-runner companion container (feature = "e2e").
 
-use serial_test::serial;
-
 use super::runner::E2eRunner;
 
 #[test]
-#[serial]
 fn doctor_reports_missing_files() {
     let runner = E2eRunner::new();
     let test = "doctor-missing";
@@ -29,7 +26,6 @@ fn doctor_reports_missing_files() {
 }
 
 #[test]
-#[serial]
 fn doctor_after_init_reports_healthy() {
     let runner = E2eRunner::new();
     let test = "doctor-healthy";

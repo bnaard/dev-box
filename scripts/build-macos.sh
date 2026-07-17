@@ -69,17 +69,54 @@ fi
 TARGETS=("aarch64-apple-darwin" "x86_64-apple-darwin")
 
 info "Ensuring Rust targets are installed..."
+installed_targets="$(rustup target list --installed)"
 for target in "${TARGETS[@]}"; do
-  rustup target add "${target}" 2>/dev/null || true
+  if ! grep -qx "${target}" <<<"${installed_targets}"; then
+    rustup target add "${target}"
+  fi
 done
 ok "Targets ready: ${TARGETS[*]}"
 
 # ── Build ────────────────────────────────────────────────────────────────────
 mkdir -p "${DIST_DIR}"
 
+build_log_dir="$(mktemp -d "${TMPDIR:-/tmp}/aibox-macos-build.XXXXXX")"
+build_pids=()
+cleanup_build_logs() {
+  local pid
+  for pid in "${build_pids[@]}"; do
+    if kill -0 "${pid}" >/dev/null 2>&1; then
+      kill "${pid}" >/dev/null 2>&1 || true
+      wait "${pid}" >/dev/null 2>&1 || true
+    fi
+  done
+  rm -rf "${build_log_dir}"
+}
+trap cleanup_build_logs EXIT
+
+info "Building macOS targets in parallel..."
 for target in "${TARGETS[@]}"; do
-  info "Building for ${target}..."
-  (cd "${CLI_DIR}" && cargo build --release --target "${target}")
+  (
+    cd "${CLI_DIR}"
+    cargo build --release --target "${target}"
+  ) >"${build_log_dir}/${target}.log" 2>&1 &
+  build_pids+=("$!")
+done
+
+build_failed=0
+for i in "${!TARGETS[@]}"; do
+  target="${TARGETS[${i}]}"
+  if wait "${build_pids[${i}]}"; then
+    ok "Built ${target}"
+  else
+    warn "Build failed for ${target}:"
+    sed 's/^/  /' "${build_log_dir}/${target}.log" >&2
+    build_failed=1
+  fi
+done
+[[ "${build_failed}" -eq 0 ]] || die "One or more macOS target builds failed."
+
+for target in "${TARGETS[@]}"; do
 
   local_name="aibox-${VERSION_TAG}${target}"
   cp "${CLI_DIR}/target/${target}/release/aibox" "${DIST_DIR}/${local_name}"
@@ -88,7 +125,7 @@ for target in "${TARGETS[@]}"; do
     -C "${PROJECT_ROOT}" LICENSE
   rm "${DIST_DIR}/${local_name}"
   shasum -a 256 "${DIST_DIR}/${local_name}.tar.gz" | awk '{print $1}' > "${DIST_DIR}/${local_name}.tar.gz.sha256"
-  ok "Built ${local_name}.tar.gz"
+  ok "Packaged ${local_name}.tar.gz"
 done
 
 # ── Summary ──────────────────────────────────────────────────────────────────

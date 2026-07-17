@@ -143,8 +143,10 @@ fn release_scripts_publish_checksum_sidecars() {
         std::fs::read_to_string(repo_root.join("scripts/install.sh")).expect("read install.sh");
 
     assert!(
-        maintain.contains(r#"sha256sum "${DIST_DIR}/${binary_name}.tar.gz""#)
-            && maintain.contains(r#"built_archives+=("${DIST_DIR}/${binary_name}.tar.gz.sha256")"#)
+        maintain.contains(
+            r#"sha256_file "${DIST_DIR}/${binary_name}.tar.gz" > "${DIST_DIR}/${binary_name}.tar.gz.sha256""#,
+        )
+            && maintain.contains(r#"built_archives+=("${archive}" "${checksum}")"#)
             && maintain.contains(r#""${DIST_DIR}"/aibox-v${version}-*-apple-darwin.tar.gz.sha256"#),
         "maintain.sh must generate and upload sha256 sidecars for Linux and macOS release assets"
     );

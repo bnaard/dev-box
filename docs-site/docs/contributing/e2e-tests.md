@@ -59,11 +59,19 @@ not general dogfood escape hatches.
 The container-side release command runs Tier 2 as part of Phase 1 with
 `cargo test --features e2e --test e2e`, so the SSH companion, generated
 runtime probes, and non-ignored asciinema checks are release gates.
+Tier 1 modules are excluded from feature-enabled test binaries because the
+default `cargo test` invocation already covers them.
 The default Tier 2 suite intentionally performs only one full generated
 container build/start/probe. File-generation contracts use `--no-container`,
-and the companion's nested container storage is pruned once before and after
-the suite by `./scripts/maintain.sh test-e2e` so Podman `vfs` cache is bounded
-without discarding layers between every test.
+and `./scripts/maintain.sh test-e2e` removes only E2E-owned containers,
+networks, volumes, and workspaces before and after the suite. Images and
+BuildKit caches survive for later runs.
+
+The suite defaults to four test threads. Workspace-isolated tests run in
+parallel, while tests that mutate the companion runtime and tests that own
+interactive tmux/Yazi state use separate keyed serialization lanes. Override
+the worker count with `AIBOX_E2E_TEST_THREADS`; use `1` when diagnosing ordering
+or isolation failures.
 
 The release process also has a host-side generated-runtime smoke:
 `./scripts/maintain.sh release-runtime-smoke X.Y.Z`. It is not an SSH

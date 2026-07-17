@@ -1,5 +1,5 @@
 {
-  "aggregate_sha256": "cc428414abe18fb997ee1ca70ccf56a87292935c348b999a5290828e5dabd903",
+  "aggregate_sha256": "1bdc84321cbc5ebd54e0fde76935fd9751a51104ba4bc02afd32a59741a4a769",
   "per_gateway": [
     {
       "path": "context/skills/processkit/processkit-gateway/mcp/mcp-config.json",
@@ -108,6 +108,10 @@
       "sha256": "c9f972ec122a2ce2da062ecc96374be9841607eea11f2f09518362d3185b5b24"
     },
     {
+      "path": "context/skills/processkit/supply-chain-audit/mcp/server.py",
+      "sha256": "c9f972ec122a2ce2da062ecc96374be9841607eea11f2f09518362d3185b5b24"
+    },
+    {
       "path": "context/skills/processkit/task-router/mcp/server.py",
       "sha256": "aba8150d6533eadba8e7152a09c36740959d81dddfb3b6199fbf53a2edccaa71"
     },
@@ -204,6 +208,10 @@
     {
       "path": "context/skills/processkit/skill-gate/mcp/mcp-config.json",
       "sha256": "03f85f9d1b916f262c5de12c5bc43f78945027989e87a29e75de753dcf990564"
+    },
+    {
+      "path": "context/skills/processkit/supply-chain-audit/mcp/mcp-config.json",
+      "sha256": "b498c1f8922b7ea7578f42e4eddbf2b674e0d8fc1f42f6814b47117c9605a44e"
     },
     {
       "path": "context/skills/processkit/task-router/mcp/mcp-config.json",

@@ -67,6 +67,12 @@ Releases are intentionally split:
 | Container side | aibox devcontainer | `./scripts/maintain.sh release X.Y.Z` | check dependency/harness state, sync processkit default, bump CLI version, test, audit, build Linux binaries, tag, create GitHub release, deploy docs |
 | Host side | macOS host | `./scripts/maintain.sh release-host X.Y.Z` | build macOS binaries, upload them to the release, build and push GHCR images, run the generated-runtime smoke, then refresh repo-owned runtime surfaces |
 
+Both phases run locally. The project deliberately does not use GitHub Actions
+for release validation, artifact builds, image publication, or deployment.
+Release speed comes from bounded local concurrency, persistent caches, and
+reuse of evidence for the exact release commit rather than from moving gates to
+a hosted runner.
+
 Do not create GitHub releases by hand with `gh release create`. The release
 script attaches binaries and writes the release notes expected by users.
 
@@ -97,6 +103,20 @@ The command performs:
 - GitHub release creation with Linux binaries
 - Docusaurus docs deployment
 - `dist/RELEASE-PROMPT.md` for host-side completion
+
+Independent validation gates run concurrently. The default worker limit is
+two; set `AIBOX_RELEASE_PARALLELISM` to a positive integer that fits the local
+machine. Linux release targets build concurrently inside the build gate, and
+the version smoke reuses the matching release artifact instead of compiling a
+third binary.
+
+Successful gates write local evidence under
+`dist/release-evidence/vX.Y.Z/<commit>/`. Evidence is bound to the exact commit,
+Rust toolchain, clean-tree state, release phase, and gate-specific environment.
+Companion evidence includes the companion fingerprint, audit evidence expires
+daily, and binary evidence rechecks archive checksums. Set
+`AIBOX_RELEASE_REUSE_EVIDENCE=0` to force every selected gate to run again.
+Container-side timings are written to `dist/RELEASE-TIMINGS.md`.
 
 Run `./scripts/maintain.sh release-check-state` standalone when you want the
 same pre-release report without bumping, tagging, or building.
@@ -130,6 +150,13 @@ By default, this smoke runs with `AIBOX_RELEASE_SMOKE_TIER=addons`, so `git-ui`
 (`lazygit`) startup is exercised in addition to the core runtime contract.
 It is host-side because macOS binaries and host runtime access are not
 available from the Linux devcontainer.
+
+The two macOS targets build concurrently. The host release also overlaps that
+build lane with source-hash-aware image reuse or publication, then joins both
+lanes before uploading binaries and starting the runtime smoke. Healthy tmux
+smoke probes advance on observed session, window, pane, and status readiness;
+their timeouts are failure ceilings rather than fixed delays. Host timings are
+written to `dist/RELEASE-HOST-TIMINGS.md`.
 
 The Linux-side Tier 2 E2E companion is separate from this host phase. From the
 devcontainer, verify that companion over SSH/SCP; do not use local

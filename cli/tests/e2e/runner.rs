@@ -28,6 +28,7 @@ const EXPECTED_YAZI_VERSION: &str = "26.5.6";
 static DEPLOY_ONCE: Once = Once::new();
 static COMPANION_START_ONCE: Once = Once::new();
 static COMPANION_START_ERROR: OnceLock<String> = OnceLock::new();
+static RUNTIME_BIN: OnceLock<String> = OnceLock::new();
 
 /// SSH-based runner for executing commands on the aibox-e2e-testrunner companion container.
 pub struct E2eRunner {
@@ -217,24 +218,30 @@ impl E2eRunner {
     ///
     /// Prefers docker when both are present to match the CLI's main runtime
     /// detection policy (OrbStack / Docker Desktop first, Podman fallback).
+    /// Detection requires an SSH round trip, so the result is cached for the
+    /// process; a companion runtime cannot change during one suite run.
     pub fn runtime_bin(&self) -> String {
-        if let Ok(explicit) = std::env::var("E2E_RUNTIME") {
-            let trimmed = explicit.trim();
-            if !trimmed.is_empty() {
-                return trimmed.to_string();
-            }
-        }
+        RUNTIME_BIN
+            .get_or_init(|| {
+                if let Ok(explicit) = std::env::var("E2E_RUNTIME") {
+                    let trimmed = explicit.trim();
+                    if !trimmed.is_empty() {
+                        return trimmed.to_string();
+                    }
+                }
 
-        for candidate in ["docker", "podman"] {
-            let output = self.exec(&format!("{candidate} info >/dev/null 2>&1"));
-            if output.status.success() {
-                return candidate.to_string();
-            }
-        }
+                for candidate in ["docker", "podman"] {
+                    let output = self.exec(&format!("{candidate} info >/dev/null 2>&1"));
+                    if output.status.success() {
+                        return candidate.to_string();
+                    }
+                }
 
-        panic!(
-            "no responsive container runtime found on aibox-e2e-testrunner; tried docker and podman"
-        );
+                panic!(
+                    "no responsive container runtime found on aibox-e2e-testrunner; tried docker and podman"
+                );
+            })
+            .clone()
     }
 
     /// Copy a local file to the companion container via SCP.
@@ -382,10 +389,10 @@ impl E2eRunner {
 
     /// Ensure the binary is deployed (called automatically, once per test run).
     pub fn ensure_deployed(&self) {
-        self.assert_companion_tool_versions();
         // We need to capture `self` for the closure, but Once::call_once
         // requires a static lifetime. Work around by checking a file marker.
         DEPLOY_ONCE.call_once(|| {
+            self.assert_companion_tool_versions();
             self.deploy();
         });
     }
@@ -529,18 +536,25 @@ impl E2eRunner {
         );
     }
 
-    /// Prune all nested runtime state on the companion.
+    /// Remove E2E-owned nested runtime state on the companion.
     ///
-    /// This is intentionally suite-scoped. Per-test cleanup removes containers
-    /// and workspaces but preserves image cache so the default Tier 2 suite
-    /// does not rebuild/pull the same layers repeatedly.
+    /// This is intentionally suite-scoped. It removes compose containers whose
+    /// working directory is under the E2E workspace root, removes their project
+    /// volumes, and preserves images and BuildKit cache for subsequent runs.
     pub fn prune_companion_storage(&self) {
         let runtime = self.runtime_bin();
         let cmd = format!(
             "runtime={runtime}; \
-             ids=$(\"$runtime\" ps -aq 2>/dev/null || true); \
-             if [ -n \"$ids\" ]; then \"$runtime\" rm -f $ids >/dev/null 2>&1 || true; fi; \
-             \"$runtime\" system prune -af --volumes >/dev/null 2>&1 || true; \
+             for workspace in /workspaces/*; do \
+               [ -d \"$workspace\" ] || continue; \
+               if [ -f \"$workspace/.devcontainer/docker-compose.yml\" ]; then \
+                 (cd \"$workspace\" && \"$runtime\" compose -f .devcontainer/docker-compose.yml down -v --remove-orphans >/dev/null 2>&1) || true; \
+               fi; \
+             done; \
+             for id in $(\"$runtime\" ps -aq --filter label=com.docker.compose.project.working_dir 2>/dev/null || true); do \
+               working_dir=$(\"$runtime\" inspect --format '{{{{ index .Config.Labels \"com.docker.compose.project.working_dir\" }}}}' \"$id\" 2>/dev/null || true); \
+               case \"$working_dir\" in /workspaces/*) \"$runtime\" rm -f \"$id\" >/dev/null 2>&1 || true ;; esac; \
+             done; \
              find /workspaces -mindepth 1 -maxdepth 1 -exec rm -rf {{}} + 2>/dev/null || \
                sudo find /workspaces -mindepth 1 -maxdepth 1 -exec rm -rf {{}} +"
         );

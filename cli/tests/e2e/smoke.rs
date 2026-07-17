@@ -14,7 +14,7 @@ use super::runner::E2eRunner;
 
 /// Verify that a responsive container runtime is available on the companion.
 #[test]
-#[serial]
+#[serial(companion_runtime)]
 fn runtime_available_on_companion() {
     let runner = E2eRunner::new();
     let runtime = runner.runtime_bin();
@@ -35,7 +35,7 @@ fn runtime_available_on_companion() {
 
 /// Verify that the companion runtime can pull and run a minimal image.
 #[test]
-#[serial]
+#[serial(companion_runtime)]
 #[ntest::timeout(120_000)]
 fn runtime_can_pull_and_run_container() {
     let runner = E2eRunner::new();

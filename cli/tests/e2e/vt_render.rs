@@ -209,7 +209,7 @@ pub fn row_text(screen: &Screen, row: u16) -> String {
             if contents.is_empty() {
                 s.push(' ');
             } else {
-                s.push_str(&contents);
+                s.push_str(contents);
             }
         } else {
             s.push(' ');
