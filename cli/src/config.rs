@@ -3985,7 +3985,7 @@ impl AiboxConfig {
         check_child_table(
             root,
             "context",
-            &["schema_version", "packages"],
+            &["schema_version", "mode", "packages"],
             &mut mismatches,
         );
         check_child_table(root, "process", &["packages"], &mut mismatches);
@@ -6272,6 +6272,26 @@ packages = []
         assert_eq!(config.context.mode, ContextMode::HarnessOnly);
         assert!(config.context.packages.is_empty());
         assert!(!config.processkit_enabled());
+    }
+
+    #[test]
+    fn schema_mismatches_accepts_context_mode() {
+        let toml = r#"
+[aibox]
+version = "0.9.0"
+
+[container]
+name = "test"
+
+[context]
+mode = "harness-only"
+packages = []
+"#;
+        let mismatches = AiboxConfig::schema_mismatches(toml).unwrap();
+        assert!(
+            mismatches.is_empty(),
+            "context.mode should be schema-valid: {mismatches:?}"
+        );
     }
 
     #[test]
