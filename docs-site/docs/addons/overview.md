@@ -5,7 +5,7 @@ title: "Overview"
 
 # Addons
 
-aibox uses the Debian runtime image family (`base-debian-v0.26.x` for legacy releases, `base-debian-runtime-v0.27.0+` after the image-tag cutover) with **30 composable addons** that install language runtimes, tool bundles, documentation frameworks, and AI coding agents into your container.
+aibox uses the Debian runtime image family (`base-debian-v0.26.x` for legacy releases, `base-debian-runtime-v0.27.0+` after the image-tag cutover) with **31 composable addons** that install language runtimes, tool bundles, documentation frameworks, and AI coding agents into your container.
 
 ## Managing Addons
 
@@ -74,8 +74,9 @@ After editing `aibox.toml`, run `aibox apply` to regenerate the Dockerfile and r
 |-------|--------------|----------------|
 | `infrastructure` | opentofu, ansible, packer | — |
 | `git-ui` | gh, lazygit | — |
-| `preview-archive` | chafa, timg, poppler-utils, mupdf-tools, entr, p7zip-full, resvg | — |
-| `preview-enhanced` | python3-rich, ffmpeg, ghostscript | — |
+| `preview-archive` | chafa, librsvg, poppler, timg, mupdf, entr, p7zip, resvg | — |
+| `preview-enhanced` | rich, ffmpeg, ghostscript | — |
+| `data-preview` | sqlite3, csvkit | — |
 | `audio-voice` | sox, pulseaudio-utils, ALSA PulseAudio plugins | — |
 | `kubernetes` | kubectl, helm, kustomize | k9s |
 | `cloud-aws` | aws-cli | — |

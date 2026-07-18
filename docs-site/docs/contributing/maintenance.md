@@ -29,10 +29,13 @@ The public docs live in `docs-site/` and use Docusaurus.
 
 ```bash
 cd docs-site
-npm install
+npm ci
 npm start
 npm run build
 ```
+
+`npm run build` is the local verification build. It writes the static site to
+`docs-site/build/` and prints any broken-link warnings from Docusaurus.
 
 The maintenance script also exposes:
 
@@ -43,7 +46,16 @@ The maintenance script also exposes:
 ```
 
 `docs-deploy` builds the site and pushes the static output to the `gh-pages`
-branch. The release script runs it as part of the container-side release phase.
+branch from the local checkout. It does not use GitHub Actions. Use
+`--dry-run` to validate the production build without pushing; use the command
+without that flag only when the current checkout is the source that should be
+published. The release script runs the same deployment as part of the
+container-side release phase.
+
+Use the repository maintenance command for publication rather than
+`npm run deploy`. The maintenance command preserves the project's local-only
+release flow, publishes the already configured `/aibox/` site, and ensures
+GitHub Pages serves the `gh-pages` branch.
 
 ## Published Image
 
@@ -89,6 +101,8 @@ the CLI needs review before release.
 The command performs:
 
 - dependency, addon, image, and harness state report in `dist/RELEASE-STATE.md`
+- processkit and host-context aibox doctor runs in `dist/RELEASE-DOCTORS.md`;
+  doctor errors block the release and warnings remain visible for review
 - processkit release sync check
 - `cli/Cargo.toml` and `Cargo.lock` version bump when needed
 - format, Clippy, and test checks
@@ -119,7 +133,8 @@ daily, and binary evidence rechecks archive checksums. Set
 Container-side timings are written to `dist/RELEASE-TIMINGS.md`.
 
 Run `./scripts/maintain.sh release-check-state` standalone when you want the
-same pre-release report without bumping, tagging, or building.
+dependency and tool-state report without bumping, tagging, or building. Run
+`./scripts/maintain.sh release-doctors` for the matching diagnostic report.
 
 If a report finding is deferred, create a processkit WorkItem before continuing
 the release and mention that WorkItem ID in the release notes or handover.

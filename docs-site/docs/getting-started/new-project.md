@@ -45,7 +45,7 @@ my-app/
 ├── AGENTS.md                   # Canonical agent entry — rendered from processkit scaffolding
 ├── CLAUDE.md                   # Thin pointer to AGENTS.md (when Claude is enabled in [ai].harnesses)
 ├── .gitignore                  # Generated with language-specific blocks
-├── .aibox-version              # Tracks installed CLI version
+├── aibox.lock                  # Records resolved CLI, image, addon, and processkit state
 ├── .aibox-home/                # Persistent config (git-ignored)
 ├── .devcontainer/
 │   ├── Dockerfile              # Generated from aibox.toml
@@ -58,7 +58,7 @@ my-app/
     ├── state-machines/         # state machine definitions
     └── templates/
         └── processkit/
-            └── v0.26.15/       # Immutable upstream snapshot, used by `aibox apply` for three-way diffs
+            └── v0.27.4/        # Immutable upstream snapshot, used by `aibox apply` for three-way diffs
 ```
 
 For projects that only want the generated devcontainer and AI harness setup,
@@ -82,13 +82,13 @@ The minimal generated `AGENTS.md` contains no processkit references.
 ```toml
 [container.environment]
 ANTHROPIC_API_KEY = "sk-ant-..."
-
-[[container.extra_volumes]]
-source = "~/.config/gh"
-target = "/home/aibox/.config/gh"
+GH_TOKEN = "github_pat_project_scoped_token"
 ```
 
 Shared settings stay in `aibox.toml`; personal secrets go here.
+Use narrowly scoped PATs by default. For the alternative persistent
+`gh auth login` flow and multi-token commands, see
+[GitHub authentication](../reference/local-config.md#github-authentication).
 
 :::
 
@@ -101,7 +101,7 @@ compatible content. Use `--processkit-version` to pin a specific tag
 non-interactively:
 
 ```bash
-aibox init my-app --processkit-version v0.26.15
+aibox init my-app --processkit-version v0.27.4
 ```
 
 This picker is skipped when `--context-mode harness-only` is selected.

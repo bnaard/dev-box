@@ -27,14 +27,14 @@ context/
 ├── skills/                          # Active, editable skill copies
 └── templates/
     └── processkit/
-        └── v0.26.15/                # Immutable upstream snapshot, git-tracked
+        └── v0.27.4/                 # Immutable upstream snapshot, git-tracked
             ├── context/
             │   └── skills/
             ├── .processkit/
             └── AGENTS.md
 ```
 
-The version in the path (`v0.26.15`) is whatever you pinned in `aibox.toml`:
+The version in the path (`v0.27.4`) is whatever you pinned in `aibox.toml`:
 
 ```toml
 [context]
@@ -42,7 +42,7 @@ mode = "processkit"
 
 [processkit]
 source  = "https://github.com/projectious-work/processkit.git"
-version = "v0.26.15"
+version = "v0.27.4"
 ```
 
 When `[context].mode = "harness-only"`, aibox does not install processkit

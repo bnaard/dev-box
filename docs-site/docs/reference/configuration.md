@@ -45,8 +45,8 @@ oom_kill_warn = 0                     # Optional warning threshold for cgroup OO
 NODE_ENV = "development"              # Project-wide env vars (non-secret; use .aibox-local.toml for secrets)
 
 [[container.extra_volumes]]
-source    = "~/.config/gh"            # Host path (~ expanded)
-target    = "/home/aibox/.config/gh"  # Container path
+source    = "~/.aws"                  # Host path (~ expanded)
+target    = "/home/aibox/.aws"        # Container path
 read_only = true
 
 [context]
@@ -322,14 +322,19 @@ Each entry in the `extra_volumes` array is an `ExtraVolume` with these fields:
 | `target` | String | Yes | -- | Container path where the volume is mounted |
 | `read_only` | Boolean | No | `false` | Mount the volume read-only |
 
-Example — mount your GitHub CLI config:
+Example — mount a personal host configuration directory:
 
 ```toml
 [[container.extra_volumes]]
-source    = "~/.config/gh"
-target    = "/home/aibox/.config/gh"
+source    = "~/.aws"
+target    = "/home/aibox/.aws"
 read_only = true
 ```
+
+GitHub CLI configuration created inside the container does not need an extra
+volume: `/home/aibox/.config/gh` is already persisted through the managed
+`.aibox-home/.config` mount. See [GitHub authentication](./local-config.md#github-authentication)
+for the least-privilege PAT and persistent-login options.
 
 :::tip Customizing ports, packages, volumes, and environment variables
 Use `Dockerfile.local` for installing additional packages, and `docker-compose.override.yml` for ports and additional services. Both files are scaffolded by `aibox init` and are never overwritten by `aibox apply`.
@@ -494,7 +499,7 @@ This section is only active when `[context].mode = "processkit"`. In
 `aibox apply`.
 
 If `version` is the sentinel `unset`, both `aibox init` and `aibox apply` skip
-the processkit fetch entirely. Pin a real tag (e.g. `v0.26.15`) to land the
+the processkit fetch entirely. Pin a real tag (e.g. `v0.27.4`) to land the
 content. The downloaded tarball is git-tracked under
 `context/templates/processkit/<version>/` so derived projects always have the
 original to diff against.
@@ -610,12 +615,16 @@ Example:
 
 ```toml
 [[ai.mcp.servers]]
-name    = "github"
-command = "npx"
-args    = ["-y", "@modelcontextprotocol/server-github"]
+name    = "internal-docs"
+command = "/usr/local/bin/internal-docs-mcp"
+args    = ["--stdio"]
 [ai.mcp.servers.env]
-GITHUB_TOKEN = "ghp_..."
+LOG_LEVEL = "info"
 ```
+
+Credential-bearing personal servers belong in the gitignored
+`.aibox-local.toml` `[[mcp.servers]]` section. Do not commit GitHub tokens in
+`aibox.toml`; see [GitHub authentication](./local-config.md#github-authentication).
 
 #### Permission Configuration: [ai.mcp.permissions]
 
@@ -756,6 +765,10 @@ GitHub integration behavior for generated runtime Git configuration.
 | Field | Type | Required | Default | Description |
 |-------|------|----------|---------|-------------|
 | `credential_helper` | String | No | `"auto"` | `auto` writes a managed Git include when the `git-ui` addon installs `gh`; `gh` always writes it; `none` skips and removes the managed include. The include delegates HTTPS Git credentials to `gh auth git-credential` and never stores token values. |
+
+This setting selects the generated Git credential helper; it does not select
+or store a GitHub token. Configure scoped tokens or a persistent GitHub CLI
+login through the [local GitHub authentication guidance](./local-config.md#github-authentication).
 
 ## Apply Behavior
 

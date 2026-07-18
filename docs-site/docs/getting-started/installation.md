@@ -51,7 +51,7 @@ Options:
 
 ```bash
 # Install a specific version
-curl -fsSL https://raw.githubusercontent.com/projectious-work/aibox/main/scripts/install.sh | VERSION=0.23.0 bash
+curl -fsSL https://raw.githubusercontent.com/projectious-work/aibox/main/scripts/install.sh | VERSION=X.Y.Z bash
 
 # Install to a custom directory
 curl -fsSL https://raw.githubusercontent.com/projectious-work/aibox/main/scripts/install.sh | INSTALL_DIR=/usr/local/bin sudo -E bash
@@ -63,19 +63,21 @@ Download the binary for your platform from the [releases page](https://github.co
 
 ```bash
 # Example for macOS ARM64
-tar xzf aibox-v0.23.0-aarch64-apple-darwin.tar.gz
-mv aibox-v0.23.0-aarch64-apple-darwin ~/.local/bin/aibox
+tar xzf aibox-vX.Y.Z-aarch64-apple-darwin.tar.gz
+mv aibox-vX.Y.Z-aarch64-apple-darwin ~/.local/bin/aibox
 chmod +x ~/.local/bin/aibox
 ```
+
+Replace `X.Y.Z` with the release version you downloaded.
 
 Available binaries:
 
 | Platform | File |
 |----------|------|
-| macOS ARM64 (Apple Silicon) | `aibox-v0.23.0-aarch64-apple-darwin.tar.gz` |
-| macOS x86_64 (Intel) | `aibox-v0.23.0-x86_64-apple-darwin.tar.gz` |
-| Linux ARM64 | `aibox-v0.23.0-aarch64-unknown-linux-gnu.tar.gz` |
-| Linux x86_64 | `aibox-v0.23.0-x86_64-unknown-linux-gnu.tar.gz` |
+| macOS ARM64 (Apple Silicon) | `aibox-vX.Y.Z-aarch64-apple-darwin.tar.gz` |
+| macOS x86_64 (Intel) | `aibox-vX.Y.Z-x86_64-apple-darwin.tar.gz` |
+| Linux ARM64 | `aibox-vX.Y.Z-aarch64-unknown-linux-gnu.tar.gz` |
+| Linux x86_64 | `aibox-vX.Y.Z-x86_64-unknown-linux-gnu.tar.gz` |
 
 ## Build from source
 
@@ -93,7 +95,7 @@ Installs the binary to `~/.cargo/bin/`.
 
 ```bash
 aibox --version
-# aibox 0.23.0
+# aibox X.Y.Z
 ```
 
 ## Shell completion scripts

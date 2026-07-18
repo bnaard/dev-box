@@ -6,7 +6,7 @@ with [Docusaurus](https://docusaurus.io/) and is published to GitHub Pages.
 ## Installation
 
 ```bash
-npm install
+npm ci
 ```
 
 ## Local Development
@@ -31,7 +31,11 @@ The repository release script deploys docs as part of the release flow. For a
 manual deployment:
 
 ```bash
-npm run deploy
+cd ..
+./scripts/maintain.sh docs-deploy --dry-run
+./scripts/maintain.sh docs-deploy
 ```
 
-If you are using GitHub pages for hosting, this command is a convenient way to build the website and push to the `gh-pages` branch.
+The maintenance command builds locally and pushes the static output to the
+`gh-pages` branch. The project does not use GitHub Actions for documentation
+deployment. Do not use the generic `npm run deploy` path for this repository.

@@ -44,7 +44,7 @@ const sidebars = {
     },
     {
       type: 'category', label: 'Reference',
-      items: ['reference/cli-commands', 'reference/configuration', 'reference/local-config', 'reference/compatibility', 'reference/cheatsheet'],
+      items: ['reference/cli-commands', 'reference/configuration', 'reference/local-config', 'reference/security', 'reference/compatibility', 'reference/cheatsheet'],
     },
     'roadmap',
     {

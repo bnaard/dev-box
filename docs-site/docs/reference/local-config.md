@@ -40,21 +40,23 @@ Inject environment variables into the container. These are merged **on top of** 
 
 ```toml
 [container.environment]
-GH_TOKEN            = "ghp_xxxxxxxxxxxxxxxxxxxx"
+GH_TOKEN            = "github_pat_xxxxxxxxxxxx"
 ANTHROPIC_API_KEY   = "sk-ant-api03-..."
 OPENAI_API_KEY      = "sk-proj-..."
 AWS_PROFILE         = "my-dev-profile"
 ```
+
+`aibox apply` writes these values to the gitignored `.aibox-local.env`, which
+Docker Compose loads into the container. The values therefore survive
+container replacement and image rebuilds. They are still normal container
+environment variables: processes running as the container user, including an
+AI agent, can read them.
 
 ### [[container.extra_volumes]]
 
 Personal bind mounts appended **after** any volumes declared in `aibox.toml`. Each entry requires `source` (host path) and `target` (container path). `read_only` defaults to `false`.
 
 ```toml
-[[container.extra_volumes]]
-source = "~/.config/gh"
-target = "/home/aibox/.config/gh"
-
 [[container.extra_volumes]]
 source = "~/.aws"
 target = "/home/aibox/.aws"
@@ -105,6 +107,101 @@ and server definitions stay private.
 | `[[container.extra_volumes]]` | Appended after `aibox.toml` volumes; no deduplication |
 | `[[mcp.servers]]` | Appended after `aibox.toml` MCP servers; all sources merged into each generated config file |
 
+## GitHub authentication
+
+Choose the authentication model according to how much GitHub access the
+container and its AI agents should receive. A narrowly scoped personal access
+token (PAT) is the recommended default. An interactive GitHub CLI login is more
+convenient, but may grant the container substantially broader access.
+
+### Recommended: least-privilege PATs
+
+Put the token used for normal GitHub CLI commands in `GH_TOKEN`. GitHub CLI
+reads it automatically:
+
+```toml
+[container.environment]
+GH_TOKEN = "github_pat_default_project_token"
+```
+
+Grant this token only the repositories and permissions the project normally
+needs. When one workflow needs access to another repository or organization,
+add a second, purpose-specific variable instead of broadening the default
+token. For example, a derived project can receive permission to report issues
+to an upstream project without receiving wider upstream access:
+
+```toml
+[container.environment]
+GH_TOKEN = "github_pat_default_project_token"
+PROJECTXXX_ISSUES_TOKEN = "github_pat_upstream_issues_token"
+```
+
+Select the second credential only for the command that needs it:
+
+```bash
+GH_TOKEN="$PROJECTXXX_ISSUES_TOKEN" \
+  gh issue create --repo projectious-work/aibox
+```
+
+The temporary assignment overrides `GH_TOKEN` for that invocation only. The
+default token remains active for subsequent commands. Give the additional PAT
+only the target repository's `Issues: read and write` permission plus the
+metadata access GitHub requires.
+
+This arrangement makes the authorization boundary visible in both the local
+configuration and the command. It also lets a human decide exactly which
+rights are available to an AI agent in the container.
+
+For a fine-grained PAT that targets an organization repository, select that
+organization as the token's resource owner and include the target repository.
+Organization policy may require an administrator to approve the token. The
+fact that the user can create an issue in a public repository through the
+GitHub website does not automatically authorize a repository-scoped PAT to do
+the same through the API.
+
+### Alternative: persistent GitHub CLI login
+
+For a trusted personal workspace where broad account access is acceptable, log
+in from inside the running container:
+
+```bash
+gh auth login --hostname github.com --web --git-protocol https --insecure-storage
+```
+
+`--insecure-storage` tells GitHub CLI to store its OAuth token in its config
+file instead of a system keyring. In an aibox container that file is under
+`/home/aibox/.config/gh/`, backed by the project's gitignored
+`.aibox-home/.config/gh/` directory. It survives container restarts,
+replacements, and image rebuilds. The token is a GitHub bearer credential; it
+is not tied to a particular container ID or image.
+
+:::warning Remove token environment variables first
+
+`GH_TOKEN` and `GITHUB_TOKEN` take precedence over credentials saved by
+`gh auth login`. To use the stored login, remove both variables from
+`.aibox-local.toml` and from any other container environment configuration,
+then run `aibox apply` to regenerate `.aibox-local.env` and recreate or restart
+the container as needed.
+
+Check the effective authentication inside the container with:
+
+```bash
+env | grep -E '^(GH_TOKEN|GITHUB_TOKEN)='
+gh auth status
+gh api user --jq .login
+```
+
+The first command should produce no output.
+
+:::
+
+The stored OAuth token is plaintext in `.aibox-home/.config/gh/hosts.yml`.
+Gitignore prevents accidental normal commits, but it does not encrypt the
+credential or protect it from the host user, container processes, AI agents,
+backups, malware, or an explicit `git add --force`. Treat `.aibox-home/` as
+secret-bearing local state. Prefer scoped PATs when the container should not
+inherit the human user's broader GitHub authority.
+
 ## Full example
 
 A typical `.aibox-local.toml` for a developer working with Claude, GitHub, and AWS, plus a personal MCP server:
@@ -112,13 +209,9 @@ A typical `.aibox-local.toml` for a developer working with Claude, GitHub, and A
 ```toml
 [container.environment]
 ANTHROPIC_API_KEY = "sk-ant-api03-..."
-GH_TOKEN          = "ghp_xxxxxxxxxxxxxxxxxxxx"
+GH_TOKEN          = "github_pat_xxxxxxxxxxxx"
 AWS_PROFILE       = "my-dev-profile"
 AWS_REGION        = "eu-west-1"
-
-[[container.extra_volumes]]
-source = "~/.config/gh"
-target = "/home/aibox/.config/gh"
 
 [[container.extra_volumes]]
 source = "~/.aws"

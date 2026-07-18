@@ -13,7 +13,7 @@ structured working memory are available to AI harnesses. It has two modes:
 As of **v0.16.0**, the system is split across two cleanly separated projects:
 
 - **aibox** owns the **container** — devcontainers, addons, the CLI, the
-  install/apply/migrate machinery, and the project skeleton (`.aibox-version`,
+  install/apply/migrate machinery, and the project skeleton (`aibox.lock`,
   `.gitignore`, provider pointer files, and, in harness-only mode, a minimal
   `AGENTS.md`).
 - **[processkit](https://github.com/projectious-work/processkit)** owns the
@@ -56,7 +56,7 @@ my-project/
     ├── state-machines/             # state machine definitions
     └── templates/
         └── processkit/
-            └── v0.26.15/           # Immutable upstream snapshot, base of three-way diffs
+            └── v0.27.4/            # Immutable upstream snapshot, base of three-way diffs
 ```
 
 With `context.mode = "harness-only"`, aibox writes only the container and
@@ -119,22 +119,23 @@ skills are organised, and which packages to use, see:
 
 ## Version Tracking
 
-Two pieces track the version:
+Resolved versions are split between desired and applied state:
 
 ```toml
-[aibox]
-version = "0.23.0"
-
 [context]
 mode = "processkit"
 packages = ["product"]
 
 [processkit]
-version = "v0.26.15"
+version = "v0.27.4"
 
 [processkit.context]
 schema_version = "1.0.0"
 ```
+
+`aibox.toml` declares the desired image and processkit versions. `aibox.lock`
+records the CLI version and exact resolved processkit release, checksum, addon
+selection, and managed runtime-home state last applied to the project.
 
 When the schema evolves, `aibox doctor` flags version mismatches and `aibox apply`
 runs the relevant migrations. See [Migration](migration.md) for details.
@@ -152,7 +153,7 @@ packages = ["product"]
 
 [processkit]
 source  = "https://github.com/projectious-work/processkit.git"
-version = "v0.26.15"
+version = "v0.27.4"
 ```
 
 Run `aibox apply` after editing `[processkit].version` to pull a new release.

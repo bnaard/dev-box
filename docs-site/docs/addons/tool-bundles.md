@@ -27,8 +27,8 @@ default.
 [addons.preview-archive.tools]
 chafa = {}
 timg = {}
-poppler-utils = {}
-mupdf-tools = {}
+poppler = {}
+mupdf = {}
 entr = {}
 p7zip = {}
 resvg = {}
@@ -41,6 +41,17 @@ the terminal.
 
 `preview-enhanced` layers Markdown, EPS, video, and Ghostscript support on top
 of `preview-archive`.
+
+## Data Preview
+
+```toml
+[addons.data-preview.tools]
+sqlite3 = {}
+csvkit = {}
+```
+
+`data-preview` adds read-only SQLite inspection and CSV, TSV, XLS, and XLSX
+formatting for the generated Yazi preview plugins.
 
 ## Audio and Voice
 

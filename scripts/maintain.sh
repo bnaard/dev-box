@@ -14,8 +14,8 @@
 #   test-e2e-visual   Run all opt-in SSH/asciinema visual E2E tiers
 #   build-images      Build published foundation/runtime images locally
 #   release-runtime-smoke <version> Run generated runtime smoke against a release
-#   docs-serve        Serve MkDocs locally for preview
-#   docs-deploy       Build MkDocs and push HTML to gh-pages
+#   docs-serve        Serve Docusaurus locally for preview
+#   docs-deploy       Build Docusaurus and push HTML to gh-pages
 #   release <version> Tag, build, compile CLI, generate release prompt
 #   start             Start this project's dev-container
 #   stop              Stop this project's dev-container
@@ -123,8 +123,8 @@ ${bold}Development:${reset}
                            Plan or delete GHCR BuildKit cache package versions
   release-runtime-smoke <version>
                            Run host-side generated-runtime smoke and write logs
-  docs-serve               Serve MkDocs locally (http://localhost:8000)
-  docs-deploy [--dry-run]  Build MkDocs and push to gh-pages branch
+  docs-serve               Serve Docusaurus locally (http://localhost:3000)
+  docs-deploy [--dry-run]  Build Docusaurus and push to gh-pages branch
   test-visual              Run screencast smoke tests (~40s)
   record-docs              Regenerate all docs screencasts + README GIF
 
@@ -1248,7 +1248,7 @@ cmd_docs_deploy() {
   ok "Site built in docs-site/build/"
 
   if [[ "${dry_run}" == "true" ]]; then
-    warn "Dry run — site is in site/"
+    warn "Dry run — site is in docs-site/build/"
     return 0
   fi
 
@@ -1294,8 +1294,8 @@ cmd_docs_deploy() {
   # Configure GitHub Pages if gh is available. Probe-first: only POST when
   # Pages doesn't exist yet. Avoids the spurious "Could not configure"
   # warning we used to print on every release because PUT 422s when Pages
-  # is already managed by an Actions workflow or already pinned to gh-pages
-  # with identical settings.
+  # is already configured by another Pages source or already pinned to
+  # gh-pages with identical settings.
   if command -v gh &>/dev/null && [[ -n "${repo_slug}" ]]; then
     if gh api "repos/${repo_slug}/pages" --silent 2>/dev/null; then
       ok "GitHub Pages already configured (skipping)"
@@ -1304,7 +1304,7 @@ cmd_docs_deploy() {
            --silent 2>/dev/null; then
       ok "GitHub Pages configured"
     else
-      warn "Pages auto-config skipped (likely managed by an Actions workflow — non-fatal)"
+      warn "Pages auto-config skipped (already configured or unavailable — non-fatal)"
     fi
   fi
 

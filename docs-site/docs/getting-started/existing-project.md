@@ -74,7 +74,7 @@ processkit Migration entities.
 
 :::tip Pin processkit before apply
 
-Set `[processkit].version` to a real tag (e.g. `v0.26.15`) before the first
+Set `[processkit].version` to a real tag (e.g. `v0.27.4`) before the first
 `aibox apply`. The default sentinel `unset` skips processkit content
 installation entirely — you will get devcontainer files but no skills,
 processes, or processkit-rendered `AGENTS.md` template.

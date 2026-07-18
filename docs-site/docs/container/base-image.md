@@ -182,7 +182,16 @@ All user configuration is persisted on the host under `.aibox-home/` and bind-mo
 
 The Dockerfile bakes identical defaults into the image as a fallback. If no mounts are present, the container still works out of the box.
 
-On first `aibox init` or `aibox up`, the `.aibox-home/` directory is auto-seeded from built-in templates. Existing files are never overwritten.
+On first `aibox init` or `aibox up`, the `.aibox-home/` directory is auto-seeded
+from built-in templates. User-owned files are retained. Files explicitly
+managed by aibox may be refreshed on `aibox apply` when their upstream template
+changes.
+
+Tool credentials saved below `/home/aibox/.config`, including a GitHub CLI
+login stored in `/home/aibox/.config/gh`, therefore survive container
+replacement and image rebuilds. They remain local secret-bearing files rather
+than encrypted storage. See [GitHub authentication](../reference/local-config.md#github-authentication)
+for the security tradeoffs and the recommended scoped-PAT alternative.
 
 ## File Preview
 

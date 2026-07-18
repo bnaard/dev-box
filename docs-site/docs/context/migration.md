@@ -168,7 +168,9 @@ states.
 
 **Run doctor after migrating.** After applying changes, run `aibox doctor` again to confirm everything is clean.
 
-**Keep .aibox-version in version control.** This file should be committed so all team members know which schema version the project uses.
+**Keep `aibox.lock` in version control.** It records the resolved CLI,
+processkit, addon, and managed runtime state shared by the project. A legacy
+`.aibox-version` file is migration input only and is removed by `aibox apply`.
 
 ## Schema Document Format
 

@@ -28,7 +28,7 @@ workspace.
 
 | Area | Output |
 | --- | --- |
-| Project contract | `aibox.toml`, `aibox.lock`, `.aibox-version` |
+| Project contract | `aibox.toml` desired state and `aibox.lock` resolved state |
 | Devcontainer | `.devcontainer/Dockerfile`, Compose files, `devcontainer.json` |
 | Runtime home | `.aibox-home/` with tmux, shell, prompt, theme, and tool config |
 | Addons | tool and runtime selection from `addons/` YAML definitions |
