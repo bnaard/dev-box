@@ -27,6 +27,7 @@
 //! | `aibox.lock`                                  | Pinned `(source, version)` written by the processkit installer  |
 //! | `.gitignore`                                  | Required generated-runtime ignore entries, appended only         |
 //! | `.aibox-version`                              | Tracks installed CLI version for migration detection             |
+//! | `AIBOX-LATEX.md`                              | Managed commands for configured LaTeX documents                  |
 //! | `.aibox-home/`                                | Runtime config seed (shells, vim, tmux, yazi, …); gitignored     |
 //! | `.devcontainer/Dockerfile`                    | Regenerated from `aibox.toml`                                    |
 //! | `.devcontainer/docker-compose.yml`            | Regenerated from `aibox.toml`                                    |
@@ -112,6 +113,7 @@ pub const SYNC_PERIMETER: &[&str] = &[
     "aibox.toml",
     "aibox.lock",
     ".gitignore",
+    "AIBOX-LATEX.md",
     // ── Runtime config seed (gitignored) ────────────────────────────────
     ".aibox-home/",
     // ── Devcontainer (the three files; nothing else under .devcontainer/) ─
@@ -679,6 +681,8 @@ mod tests {
             "context/migrations/aibox-processkit-section-added.md",
             // context::update_gitignore
             ".gitignore",
+            // latex::sync_agent_guidance
+            "AIBOX-LATEX.md",
             // generate::generate_all
             ".devcontainer/Dockerfile",
             ".devcontainer/docker-compose.yml",

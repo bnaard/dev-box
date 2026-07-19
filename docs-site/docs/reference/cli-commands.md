@@ -39,6 +39,8 @@ aibox edit <RESOURCE>
 aibox reset <RESOURCE> [OPTIONS]
 aibox delete <RESOURCE> [NAME] [OPTIONS]
 aibox create <RESOURCE> [NAME] [OPTIONS]
+aibox latex <BUILD|WATCH|STATUS> [DOCUMENT] [OPTIONS]
+aibox preview latex <DOCUMENT>
 aibox self <ACTION> [OPTIONS]
 ```
 
@@ -238,6 +240,25 @@ aibox doctor security
 ```
 
 `doctor audio` checks host PulseAudio readiness. `doctor security` runs available dependency/image scanners.
+
+## LaTeX
+
+Named LaTeX documents are configured under `[[latex.documents]]`. The commands
+use a host TeX installation when present and otherwise execute inside the
+running project container.
+
+```bash
+aibox latex build                 # build all documents
+aibox latex build overview
+aibox latex watch overview        # latexmk continuous build, no PDF viewer
+aibox latex status
+aibox latex status -o json
+aibox preview latex overview      # EmbedPDF live preview
+```
+
+`latex status` reports PDF readiness, watcher and preview processes, access
+URLs, and recent TeX errors. See [LaTeX Build and Preview](../addons/latex-workflow.md)
+for automatic startup through `aibox up`, remote forwarding, and security details.
 
 ## Self Management
 

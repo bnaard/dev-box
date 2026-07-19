@@ -31,6 +31,7 @@ chrono = "0.4"
 sha2 = "0.11"
 tar = "0.4"
 flate2 = "1"
+tiny_http = "0.12"
 
 [features]
 default = []

@@ -77,6 +77,10 @@ texlive-math = {}               # Math packages
 
 Installs TeX Live via a multi-stage Docker build. The full TeX Live installation happens in a builder stage and only the final tree is copied to the runtime image, keeping layer sizes manageable.
 
+Use the [LaTeX build and preview workflow](./latex-workflow.md) to define named
+documents, run reproducible `latexmk` builds, watch sources, and serve live PDFs
+through EmbedPDF.
+
 ### Emoji rendering with LuaLaTeX
 
 The runtime image ships `fonts-noto-color-emoji` so emoji glyphs render

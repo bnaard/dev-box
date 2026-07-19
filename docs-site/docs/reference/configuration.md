@@ -384,6 +384,51 @@ entities.
 Use `[skills].include` and `[skills].exclude` for explicit skill-level
 overrides when `mode = "processkit"`.
 
+### [latex]
+
+Defines named LaTeX documents and their shared build/preview behavior. Add the
+`latex` addon separately to install TeX Live in the container.
+
+```toml
+[latex]
+engine = "lualatex"
+cache_dir = ".latex-cache"
+options = []
+
+[[latex.documents]]
+name = "overview"
+source = "docs/overview.tex"
+output_dir = ".latex-cache/overview"
+
+[latex.preview]
+enabled = true
+engine = "embedpdf"
+bind = "127.0.0.1"
+port = 8765
+document = "overview"
+allow_public = false
+```
+
+| Key | Type | Required | Default | Description |
+|-----|------|----------|---------|-------------|
+| `engine` | String | No | `lualatex` | `lualatex`, `pdflatex`, `xelatex`, or `tectonic`. Tectonic supports build but not watch. |
+| `cache_dir` | Relative path | No | `.latex-cache` | Root for project-local `TEXMFVAR` and `TEXMFCONFIG`. Parent traversal is rejected. |
+| `options` | Array | No | `[]` | Additional single-line engine arguments. |
+| `documents[].name` | String | Yes | -- | Unique command-safe document name. |
+| `documents[].source` | Relative path | Yes | -- | Main TeX source. |
+| `documents[].output_dir` | Relative path | No | `.latex-cache/output` | PDF, log, and auxiliary output directory. |
+| `preview.enabled` | Boolean | No | `false` | Enables `aibox preview latex <document>`. |
+| `preview.engine` | String | No | `embedpdf` | Viewer implementation; currently only `embedpdf` is supported. |
+| `preview.bind` | IP address | No | `127.0.0.1` | HTTP bind address. |
+| `preview.port` | Integer | No | `8765` | HTTP port between 1 and 65535. |
+| `preview.document` | String | No | first configured document | Document automatically previewed by `aibox up`. |
+| `preview.allow_public` | Boolean | No | `false` | Required for a non-loopback bind. The preview has no authentication. |
+
+Run `aibox apply` after changing this section. Besides refreshing the canonical
+config comments, apply writes the managed `AIBOX-LATEX.md` agent workflow. See
+[LaTeX Build and Preview](../addons/latex-workflow.md) for commands and remote
+access.
+
 ### [addons]
 
 Addons install language runtimes and tool bundles into the container. AI

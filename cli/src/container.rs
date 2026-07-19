@@ -817,6 +817,12 @@ pub fn cmd_start(
         ));
     }
 
+    if let Err(error) = crate::latex::start_enabled_preview(config_path, &config) {
+        output::warn(&format!(
+            "LaTeX preview could not be started: {error}. Continuing with container attach."
+        ));
+    }
+
     output::info(&format!("Attaching via tmux (layout: {})...", layout));
 
     // When explicitly requested or after starting a non-running container, discard
@@ -1293,6 +1299,7 @@ pub(crate) fn serialize_config_with_comments(config: &AiboxConfig) -> String {
         }
     }
     render_audio_section(&mut out, config, sep);
+    render_latex_section(&mut out, config, sep);
     out.push('\n');
     out.push_str(sep);
     out.push_str("# [integrations.github] — GitHub CLI backed HTTPS git credentials\n");
@@ -1983,6 +1990,65 @@ fn render_audio_section(out: &mut String, config: &AiboxConfig, sep: &str) {
     } else {
         out.push_str("# pulse_server = \"tcp:host.docker.internal:4714\"  # PulseAudio TCP endpoint (default port: 4714)\n");
     }
+}
+
+fn render_latex_section(out: &mut String, config: &AiboxConfig, sep: &str) {
+    out.push('\n');
+    out.push_str(sep);
+    out.push_str("# [latex] — reproducible document builds and live PDF preview\n");
+    out.push_str(sep);
+    out.push_str("[latex]\n");
+    out.push_str(&format!(
+        "engine = \"{}\"  # lualatex, pdflatex, xelatex, or tectonic\n",
+        config.latex.engine
+    ));
+    out.push_str(&format!(
+        "cache_dir = {}\n",
+        toml_string_value(&config.latex.cache_dir)
+    ));
+    out.push_str(&format!(
+        "options = [{}]\n",
+        toml_string_list(&config.latex.options)
+    ));
+    if config.latex.documents.is_empty() {
+        out.push_str("# [[latex.documents]]\n");
+        out.push_str("# name = \"overview\"\n");
+        out.push_str("# source = \"docs/overview.tex\"\n");
+        out.push_str("# output_dir = \".latex-cache/overview\"\n");
+    } else {
+        for document in &config.latex.documents {
+            out.push_str("\n[[latex.documents]]\n");
+            out.push_str(&format!("name = {}\n", toml_string_value(&document.name)));
+            out.push_str(&format!(
+                "source = {}\n",
+                toml_string_value(&document.source)
+            ));
+            out.push_str(&format!(
+                "output_dir = {}\n",
+                toml_string_value(&document.output_dir)
+            ));
+        }
+    }
+    out.push_str("\n[latex.preview]\n");
+    out.push_str(&format!("enabled = {}\n", config.latex.preview.enabled));
+    out.push_str(&format!(
+        "engine = {}\n",
+        toml_string_value(&config.latex.preview.engine)
+    ));
+    out.push_str(&format!(
+        "bind = {}\n",
+        toml_string_value(&config.latex.preview.bind)
+    ));
+    out.push_str(&format!("port = {}\n", config.latex.preview.port));
+    if let Some(document) = &config.latex.preview.document {
+        out.push_str(&format!("document = {}\n", toml_string_value(document)));
+    } else {
+        out.push_str("# document = \"overview\"  # defaults to the first configured document\n");
+    }
+    out.push_str(&format!(
+        "allow_public = {}\n",
+        config.latex.preview.allow_public
+    ));
 }
 
 fn render_ai_mcp_section(out: &mut String, config: &AiboxConfig, sep: &str) {
@@ -2826,6 +2892,7 @@ pub fn cmd_init(config_path: &Option<String>, params: InitParams) -> Result<()> 
         },
         agents: crate::config::AgentsSection::default(),
         audio: AudioSection::default(),
+        latex: crate::config::LatexSection::default(),
         integrations: crate::config::IntegrationsSection::default(),
         apply: crate::config::ApplySection::default(),
         mcp: crate::config::McpSection::default(),
@@ -2908,6 +2975,8 @@ pub fn cmd_init(config_path: &Option<String>, params: InitParams) -> Result<()> 
         .map_err(|e| anyhow::anyhow!("Failed to write {}: {}", toml_path.display(), e))?;
 
     output::ok(&format!("Created {}", toml_path.display()));
+
+    crate::latex::sync_agent_guidance(&config, toml_path.parent().unwrap_or(Path::new(".")))?;
 
     generate::generate_all(&config)?;
     context::scaffold_context(&config)?;
@@ -3208,6 +3277,11 @@ pub fn cmd_sync(
     warn_if_legacy_powerline_mode(config_path);
 
     let mut config = AiboxConfig::from_cli_option(config_path)?;
+    let config_root = resolve_aibox_toml_path(config_path)
+        .parent()
+        .unwrap_or(Path::new("."))
+        .to_path_buf();
+    crate::latex::sync_agent_guidance(&config, &config_root)?;
 
     // v0.25.6 S3 — gate apply on explicit seccomp=unconfined consent for
     // Codex projects before any generation runs. Fires before doctor and

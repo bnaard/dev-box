@@ -308,6 +308,16 @@ pub enum Commands {
     },
     /// Stop the running workspace
     Down,
+    /// Build, watch, and inspect configured LaTeX documents
+    Latex {
+        #[command(subcommand)]
+        action: LatexAction,
+    },
+    /// Run project preview services
+    Preview {
+        #[command(subcommand)]
+        action: PreviewAction,
+    },
     /// List compact state for a resource
     Get {
         /// Resource to list
@@ -605,6 +615,40 @@ pub enum SelfAction {
     },
 }
 
+#[derive(Subcommand)]
+pub enum LatexAction {
+    /// Build one configured document, or all documents when omitted
+    Build {
+        /// Configured document name, or `all`
+        document: Option<String>,
+    },
+    /// Continuously rebuild one configured document
+    Watch {
+        /// Configured document name
+        document: String,
+    },
+    /// Show configured documents, outputs, watchers, and recent errors
+    Status {
+        #[arg(
+            long,
+            short = 'o',
+            visible_alias = "output",
+            value_enum,
+            default_value = "table"
+        )]
+        format: OutputFormat,
+    },
+}
+
+#[derive(Subcommand)]
+pub enum PreviewAction {
+    /// Serve a configured LaTeX PDF through EmbedPDF with live reload
+    Latex {
+        /// Configured document name
+        document: String,
+    },
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -618,5 +662,24 @@ mod tests {
             } => assert!(forget_tmux_state),
             _ => panic!("expected up command"),
         }
+    }
+
+    #[test]
+    fn parses_latex_and_preview_commands() {
+        let cli = Cli::parse_from(["aibox", "latex", "build", "overview"]);
+        assert!(matches!(
+            cli.command,
+            Commands::Latex {
+                action: LatexAction::Build { document: Some(ref name) }
+            } if name == "overview"
+        ));
+
+        let cli = Cli::parse_from(["aibox", "preview", "latex", "overview"]);
+        assert!(matches!(
+            cli.command,
+            Commands::Preview {
+                action: PreviewAction::Latex { ref document }
+            } if document == "overview"
+        ));
     }
 }

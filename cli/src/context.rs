@@ -347,6 +347,7 @@ pub(crate) fn update_gitignore(addons: &AddonsSection) -> Result<()> {
     content.push_str(".root/\n");
     content.push_str(".aibox/\n");
     content.push_str(".aibox-env/\n");
+    content.push_str(".latex-cache/\n");
     content.push_str(".agents/skills/\n");
     // Personal overlays — never committed.
     content.push_str(".aibox-local.toml\n");
@@ -506,6 +507,8 @@ fn ensure_aibox_entries(gitignore_path: &Path) -> Result<()> {
         ".devcontainer/devcontainer.json",
         ".aibox-home/",
         ".aibox-env/",
+        // Default project-local LaTeX auxiliary and TeX cache root.
+        ".latex-cache/",
         // Generated Codex Skills adapters from processkit commands.
         ".agents/skills/",
         // Personal overlay with credentials and per-developer mounts.

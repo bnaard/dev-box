@@ -3359,6 +3359,114 @@ fn audio_section_is_explicit(audio: &AudioSection) -> bool {
 }
 
 // ---------------------------------------------------------------------------
+// [latex] section
+// ---------------------------------------------------------------------------
+
+#[derive(Debug, Clone, Copy, Default, Serialize, Deserialize, PartialEq, Eq)]
+#[serde(rename_all = "kebab-case")]
+pub enum LatexEngine {
+    #[default]
+    Lualatex,
+    Pdflatex,
+    Xelatex,
+    Tectonic,
+}
+
+impl std::fmt::Display for LatexEngine {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.write_str(match self {
+            Self::Lualatex => "lualatex",
+            Self::Pdflatex => "pdflatex",
+            Self::Xelatex => "xelatex",
+            Self::Tectonic => "tectonic",
+        })
+    }
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+pub struct LatexDocument {
+    pub name: String,
+    pub source: String,
+    #[serde(default = "default_latex_output_dir")]
+    pub output_dir: String,
+}
+
+fn default_latex_output_dir() -> String {
+    ".latex-cache/output".to_string()
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+pub struct LatexPreviewSection {
+    #[serde(default)]
+    pub enabled: bool,
+    #[serde(default = "default_latex_preview_engine")]
+    pub engine: String,
+    #[serde(default = "default_latex_preview_bind")]
+    pub bind: String,
+    #[serde(default = "default_latex_preview_port")]
+    pub port: u16,
+    #[serde(default)]
+    pub document: Option<String>,
+    #[serde(default)]
+    pub allow_public: bool,
+}
+
+fn default_latex_preview_engine() -> String {
+    "embedpdf".to_string()
+}
+
+fn default_latex_preview_bind() -> String {
+    "127.0.0.1".to_string()
+}
+
+fn default_latex_preview_port() -> u16 {
+    8765
+}
+
+impl Default for LatexPreviewSection {
+    fn default() -> Self {
+        Self {
+            enabled: false,
+            engine: default_latex_preview_engine(),
+            bind: default_latex_preview_bind(),
+            port: default_latex_preview_port(),
+            document: None,
+            allow_public: false,
+        }
+    }
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+pub struct LatexSection {
+    #[serde(default)]
+    pub engine: LatexEngine,
+    #[serde(default = "default_latex_cache_dir")]
+    pub cache_dir: String,
+    #[serde(default)]
+    pub options: Vec<String>,
+    #[serde(default)]
+    pub documents: Vec<LatexDocument>,
+    #[serde(default)]
+    pub preview: LatexPreviewSection,
+}
+
+fn default_latex_cache_dir() -> String {
+    ".latex-cache".to_string()
+}
+
+impl Default for LatexSection {
+    fn default() -> Self {
+        Self {
+            engine: LatexEngine::default(),
+            cache_dir: default_latex_cache_dir(),
+            options: Vec::new(),
+            documents: Vec::new(),
+            preview: LatexPreviewSection::default(),
+        }
+    }
+}
+
+// ---------------------------------------------------------------------------
 // [integrations] section
 // ---------------------------------------------------------------------------
 
@@ -3536,6 +3644,8 @@ pub struct AiboxConfig {
     pub customization: CustomizationSection,
     #[serde(default)]
     pub audio: AudioSection,
+    #[serde(default)]
+    pub latex: LatexSection,
     #[serde(default)]
     pub integrations: IntegrationsSection,
     #[serde(default)]
@@ -3863,6 +3973,7 @@ impl AiboxConfig {
                 "appearance",
                 "customization",
                 "audio",
+                "latex",
                 "integrations",
                 "apply",
                 "mcp",
@@ -4102,6 +4213,39 @@ impl AiboxConfig {
             &["enabled", "backend", "install", "pulse_server"],
             &mut mismatches,
         );
+        check_child_table(
+            root,
+            "latex",
+            &["engine", "cache_dir", "options", "documents", "preview"],
+            &mut mismatches,
+        );
+        if let Some(latex) = table_child(root, "latex") {
+            check_child_table(
+                latex,
+                "preview",
+                &[
+                    "enabled",
+                    "engine",
+                    "bind",
+                    "port",
+                    "document",
+                    "allow_public",
+                ],
+                &mut mismatches,
+            );
+            if let Some(documents) = latex.get("documents").and_then(toml::Value::as_array) {
+                for (index, document) in documents.iter().enumerate() {
+                    if let Some(table) = document.as_table() {
+                        check_unknown_keys(
+                            &format!("[[latex.documents]][{index}]"),
+                            table,
+                            &["name", "source", "output_dir"],
+                            &mut mismatches,
+                        );
+                    }
+                }
+            }
+        }
         check_mcp_table(root, &mut mismatches);
         check_addons_table(root, &mut mismatches);
 
@@ -4247,11 +4391,79 @@ impl AiboxConfig {
         // Validate extra volumes path safety
         self.validate_extra_volumes()?;
         self.validate_container_paths()?;
+        self.validate_latex()?;
         self.validate_tmux_status_layout()?;
         self.validate_tmux_status_labels()?;
         self.validate_tmux_status_refresh()?;
         self.validate_tmux_model_provider_status()?;
 
+        Ok(())
+    }
+
+    fn validate_latex(&self) -> Result<()> {
+        use std::net::IpAddr;
+
+        fn safe_relative(field: &str, value: &str) -> Result<()> {
+            let path = Path::new(value);
+            if value.trim().is_empty() || path.is_absolute() {
+                bail!("{field} must be a non-empty project-relative path");
+            }
+            if path
+                .components()
+                .any(|part| matches!(part, std::path::Component::ParentDir))
+            {
+                bail!("{field} must not contain '..'");
+            }
+            Ok(())
+        }
+
+        safe_relative("latex.cache_dir", &self.latex.cache_dir)?;
+        let mut names = BTreeSet::new();
+        for document in &self.latex.documents {
+            if !is_safe_name(&document.name) {
+                bail!(
+                    "latex document name '{}' must contain only [a-zA-Z0-9_-]",
+                    document.name
+                );
+            }
+            if !names.insert(document.name.as_str()) {
+                bail!("latex document name '{}' is duplicated", document.name);
+            }
+            safe_relative("latex.documents.source", &document.source)?;
+            safe_relative("latex.documents.output_dir", &document.output_dir)?;
+        }
+        for option in &self.latex.options {
+            if option.contains('\0') || option.contains('\n') || option.contains('\r') {
+                bail!("latex.options entries must be single-line arguments");
+            }
+        }
+        if self.latex.preview.engine != "embedpdf" {
+            bail!(
+                "latex.preview.engine '{}' is unsupported; expected 'embedpdf'",
+                self.latex.preview.engine
+            );
+        }
+        if self.latex.preview.port == 0 {
+            bail!("latex.preview.port must be between 1 and 65535");
+        }
+        if let Some(name) = &self.latex.preview.document
+            && !self
+                .latex
+                .documents
+                .iter()
+                .any(|document| document.name == *name)
+        {
+            bail!("latex.preview.document '{}' is not configured", name);
+        }
+        let bind: IpAddr = self.latex.preview.bind.parse().with_context(|| {
+            format!(
+                "latex.preview.bind '{}' must be an IP address",
+                self.latex.preview.bind
+            )
+        })?;
+        if !bind.is_loopback() && !self.latex.preview.allow_public {
+            bail!("latex.preview.bind must be loopback unless latex.preview.allow_public = true");
+        }
         Ok(())
     }
 
@@ -5088,6 +5300,7 @@ pub fn test_config() -> AiboxConfig {
         agents: AgentsSection::default(),
         customization: CustomizationSection::default(),
         audio: AudioSection::default(),
+        latex: LatexSection::default(),
         integrations: IntegrationsSection::default(),
         apply: ApplySection::default(),
         process: None,
@@ -7701,5 +7914,40 @@ target = "/home/aibox/.config/gh"
         assert_eq!(family_of(&T::Plastic), F::Plastic);
         assert_eq!(family_of(&T::Houston), F::Houston);
         assert_eq!(family_of(&T::Red), F::Red);
+    }
+
+    #[test]
+    fn latex_config_parses_and_validates() {
+        let toml = r#"
+[container]
+name = "latex-project"
+
+[latex]
+engine = "lualatex"
+cache_dir = ".latex-cache"
+options = ["-shell-escape"]
+
+[[latex.documents]]
+name = "overview"
+source = "docs/overview.tex"
+output_dir = ".latex-cache/overview"
+
+[latex.preview]
+enabled = true
+engine = "embedpdf"
+bind = "127.0.0.1"
+port = 8765
+"#;
+        let config = AiboxConfig::from_str(toml).unwrap();
+        assert_eq!(config.latex.documents[0].name, "overview");
+        assert!(AiboxConfig::schema_mismatches(toml).unwrap().is_empty());
+    }
+
+    #[test]
+    fn latex_preview_requires_explicit_public_consent() {
+        let mut config = test_config();
+        config.latex.preview.bind = "0.0.0.0".to_string();
+        let error = config.validate().unwrap_err().to_string();
+        assert!(error.contains("allow_public"));
     }
 }

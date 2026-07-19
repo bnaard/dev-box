@@ -15,6 +15,7 @@ const sidebars = {
       items: [
         'addons/overview',
         'addons/language-runtimes',
+        'addons/latex-workflow',
         'addons/tool-bundles',
         'addons/documentation',
       ],
