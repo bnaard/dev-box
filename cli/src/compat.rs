@@ -538,6 +538,11 @@ pub static COMPAT_TABLE: &[CompatEntry] = &[
         processkit_version: "v0.27.2",
         note: "Patch release: integrates processkit v0.27.2 derived-project remediation, preserving project-local pk-commands during schema validation, accepting timestamped role-slot bindings, forwarding explicit doctor confirmations, exposing archive remediation metadata, and refreshing gateway metadata.",
     },
+    CompatEntry {
+        aibox_version: "0.28.0",
+        processkit_version: "v0.27.4",
+        note: "Minor release: adds named LaTeX build, watch, status, and EmbedPDF live-preview workflows; manages preview startup and teardown with the workspace lifecycle; generates project-local agent guidance; and documents persistent, least-privilege GitHub authentication with explicit per-destination tokens.",
+    },
 ];
 
 /// Find the minimum compatible processkit version for the given aibox version.
