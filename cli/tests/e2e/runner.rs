@@ -346,6 +346,11 @@ impl E2eRunner {
                 true,
             );
         }
+        self.deploy_image_asset(
+            &format!("{}/bin/aibox-latex-preview.py", image_config),
+            "/opt/aibox/aibox-latex-preview.py",
+            true,
+        );
         let runtime_tools = compile_runtime_tool_binaries(&image_config);
         self.deploy_image_asset(
             &runtime_tools.join("aibox-status").to_string_lossy(),

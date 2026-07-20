@@ -368,6 +368,58 @@ fn generate_docker_compose(
     // Rust addon flag — drives cargo registry mounts in the template
     let compose_project_name = sanitize_compose_project_name(&config.container.name);
     let compose_image_name = format!("{}-devcontainer:latest", compose_project_name);
+    let latex_preview_enabled = config.latex.preview.enabled && !config.latex.documents.is_empty();
+    let latex_preview_documents = config
+        .latex
+        .documents
+        .iter()
+        .map(|document| {
+            let stem = Path::new(&document.source)
+                .file_stem()
+                .unwrap_or_default()
+                .to_string_lossy();
+            serde_json::json!({
+                "name": document.name,
+                "source": document.source,
+                "pdf": format!(
+                    "/workspace/{}/{}.pdf",
+                    document.output_dir.trim_end_matches('/'),
+                    stem
+                ),
+            })
+        })
+        .collect::<Vec<_>>();
+    let latex_preview_documents_json = serde_json::to_string(&latex_preview_documents)?
+        .replace('\\', "\\\\")
+        .replace('"', "\\\"");
+    let latex_preview_preferred_document = config
+        .latex
+        .preview
+        .document
+        .as_deref()
+        .or_else(|| {
+            config
+                .latex
+                .documents
+                .first()
+                .map(|document| document.name.as_str())
+        })
+        .unwrap_or_default()
+        .replace('\\', "\\\\")
+        .replace('"', "\\\"");
+    let latex_preview_bind: std::net::IpAddr = config
+        .latex
+        .preview
+        .bind
+        .parse()
+        .expect("validated LaTeX preview bind address");
+    let latex_preview_publish = match latex_preview_bind {
+        std::net::IpAddr::V6(_) => format!(
+            "[{}]:{}:8765",
+            latex_preview_bind, config.latex.preview.port
+        ),
+        _ => format!("{}:{}:8765", latex_preview_bind, config.latex.preview.port),
+    };
 
     let tmpl = env
         .get_template("docker-compose.yml")
@@ -405,6 +457,10 @@ fn generate_docker_compose(
             env_keys => env_keys,
             env_vals => escaped_env,
             extra_volumes => extra_volumes,
+            latex_preview_enabled => latex_preview_enabled,
+            latex_preview_documents_json => latex_preview_documents_json,
+            latex_preview_preferred_document => latex_preview_preferred_document,
+            latex_preview_publish => latex_preview_publish,
         })
         .context("Failed to render docker-compose template")?;
 
@@ -958,6 +1014,79 @@ mod tests {
         assert!(content.contains("container_name: test-ctr"));
         assert!(content.contains("hostname: test-host"));
         assert!(content.contains("user: root"));
+    }
+
+    #[test]
+    fn compose_latex_preview_sidecar_is_conditional_and_hardened() {
+        let dir = tempfile::tempdir().unwrap();
+        let mut config = make_config(&[], false);
+        config.latex.preview.enabled = true;
+        config.latex.documents = vec![
+            crate::config::LatexDocument {
+                name: "overview".into(),
+                source: "docs/overview.tex".into(),
+                output_dir: ".latex-cache/overview".into(),
+            },
+            crate::config::LatexDocument {
+                name: "appendix".into(),
+                source: "docs/appendix.tex".into(),
+                output_dir: ".latex-cache/appendix".into(),
+            },
+        ];
+        config.latex.preview.document = Some("appendix".into());
+
+        generate_docker_compose(&config, dir.path(), &test_env()).unwrap();
+        let content = fs::read_to_string(dir.path().join("docker-compose.yml")).unwrap();
+        serde_yaml::from_str::<serde_yaml::Value>(&content)
+            .expect("generated preview Compose must be valid YAML");
+
+        assert!(content.contains("container_name: test-ctr-latex-preview"));
+        assert!(content.contains("user: aibox\n    entrypoint: []"));
+        assert!(content.contains("${WORKSPACE_DIR:-..}:/workspace:ro"));
+        assert!(content.contains("\"127.0.0.1:8765:8765\""));
+        assert!(content.contains("/usr/local/bin/aibox-latex-preview"));
+        assert!(content.contains("AIBOX_LATEX_PREFERRED_DOCUMENT: \"appendix\""));
+        assert!(content.contains("/workspace/.latex-cache/overview/overview.pdf"));
+        assert!(content.contains("/workspace/.latex-cache/appendix/appendix.pdf"));
+        assert!(content.contains("read_only: true"));
+        assert!(content.contains("no-new-privileges:true"));
+        assert!(content.contains("cap_drop:\n      - ALL"));
+        assert!(content.contains("http://127.0.0.1:8765/health"));
+    }
+
+    #[test]
+    fn compose_omits_latex_preview_sidecar_when_preview_is_disabled() {
+        let dir = tempfile::tempdir().unwrap();
+        let mut config = make_config(&[], false);
+        config.latex.documents.push(crate::config::LatexDocument {
+            name: "overview".into(),
+            source: "docs/overview.tex".into(),
+            output_dir: ".latex-cache/overview".into(),
+        });
+
+        generate_docker_compose(&config, dir.path(), &test_env()).unwrap();
+        let content = fs::read_to_string(dir.path().join("docker-compose.yml")).unwrap();
+        assert!(!content.contains("test-ctr-latex-preview"));
+        assert!(!content.contains("AIBOX_LATEX_DOCUMENTS_JSON"));
+    }
+
+    #[test]
+    fn compose_latex_preview_public_bind_is_explicit() {
+        let dir = tempfile::tempdir().unwrap();
+        let mut config = make_config(&[], false);
+        config.latex.preview.enabled = true;
+        config.latex.preview.bind = "0.0.0.0".into();
+        config.latex.preview.port = 9876;
+        config.latex.preview.allow_public = true;
+        config.latex.documents.push(crate::config::LatexDocument {
+            name: "overview".into(),
+            source: "docs/overview.tex".into(),
+            output_dir: ".latex-cache/overview".into(),
+        });
+
+        generate_docker_compose(&config, dir.path(), &test_env()).unwrap();
+        let content = fs::read_to_string(dir.path().join("docker-compose.yml")).unwrap();
+        assert!(content.contains("\"0.0.0.0:9876:8765\""));
     }
 
     #[test]

@@ -4462,7 +4462,9 @@ impl AiboxConfig {
             )
         })?;
         if !bind.is_loopback() && !self.latex.preview.allow_public {
-            bail!("latex.preview.bind must be loopback unless latex.preview.allow_public = true");
+            bail!(
+                "latex.preview.bind must publish on host loopback unless latex.preview.allow_public = true"
+            );
         }
         Ok(())
     }

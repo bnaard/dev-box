@@ -39,8 +39,26 @@ Key files:
 - `.aibox-home/.codex/auth.json` — cached ChatGPT/device authentication reused across rebuilds
 - `.aibox-home/.codex/rules/` — home-directory Codex rules and local state
 - `.aibox-home/.codex/sessions/` — Codex session history
+- `.aibox-home/.codex/prompts/pk-*.md` — generated processkit custom-prompt aliases
 
 Separately, aibox also generates project-local `.codex/config.toml` MCP server registration. In processkit mode it also generates `.codex/hooks.json` processkit hook configuration.
+
+## processkit commands
+
+After `aibox apply`, processkit workflows are available through both Codex
+invocation surfaces:
+
+- Type `$pk-resume`, `$pk-doctor`, and similar names to invoke the generated
+  project skills under `.agents/skills/`. You can also select them through
+  `/skills`.
+- Type `/prompts:pk-resume`, `/prompts:pk-doctor`, and similar names to use the
+  generated custom-prompt aliases persisted under
+  `.aibox-home/.codex/prompts/`.
+
+Codex reserves top-level slash commands and does not support registering a
+custom `/pk-resume` command. Custom prompts always use the `/prompts:`
+namespace. Restart the Codex session after the first `aibox apply` if newly
+generated prompt aliases do not appear immediately.
 
 ## MCP Integration
 

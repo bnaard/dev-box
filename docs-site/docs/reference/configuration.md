@@ -417,17 +417,21 @@ allow_public = false
 | `documents[].name` | String | Yes | -- | Unique command-safe document name. |
 | `documents[].source` | Relative path | Yes | -- | Main TeX source. |
 | `documents[].output_dir` | Relative path | No | `.latex-cache/output` | PDF, log, and auxiliary output directory. |
-| `preview.enabled` | Boolean | No | `false` | Enables `aibox preview latex <document>`. |
+| `preview.enabled` | Boolean | No | `false` | Generates one shared read-only Compose preview sidecar; host-side `aibox up` starts it and it serves every configured document. |
 | `preview.engine` | String | No | `embedpdf` | Viewer implementation; currently only `embedpdf` is supported. |
-| `preview.bind` | IP address | No | `127.0.0.1` | HTTP bind address. |
-| `preview.port` | Integer | No | `8765` | HTTP port between 1 and 65535. |
-| `preview.document` | String | No | first configured document | Document automatically previewed by `aibox up`. |
-| `preview.allow_public` | Boolean | No | `false` | Required for a non-loopback bind. The preview has no authentication. |
+| `preview.bind` | IP address | No | `127.0.0.1` | Compose host-publish address. Loopback is accessible only from that host; use `0.0.0.0` only for other machines. |
+| `preview.port` | Integer | No | `8765` | Host-published port for the document index and all viewers. It maps to sidecar port `8765`. |
+| `preview.document` | String | No | first configured document | Default for legacy `/document.pdf` and `/events` routes. All configured documents are served. |
+| `preview.allow_public` | Boolean | No | `false` | Required for a non-loopback host bind. The preview has no authentication. |
 
 Run `aibox apply` after changing this section. Besides refreshing the canonical
-config comments, apply writes the managed `AIBOX-LATEX.md` agent workflow. See
-[LaTeX Build and Preview](../addons/latex-workflow.md) for commands and remote
-access.
+config comments, apply writes `AIBOX-LATEX.md` and installs the managed
+`aibox-latex-build` and `aibox-latex-watch` scripts into the development
+container's runtime home. Compilation and watch mode run only in that main
+container. See [LaTeX Build and Preview](../addons/latex-workflow.md) for the
+workflow and remote access. aibox generates the read-only serving sidecar and
+its port mapping; do not add a duplicate mapping to
+`docker-compose.override.yml`.
 
 ### [addons]
 

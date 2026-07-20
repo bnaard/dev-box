@@ -262,19 +262,9 @@ fn dispatch(cli: cli::Cli) -> anyhow::Result<()> {
         }
         cli::Commands::Down => {
             let config = crate::config::AiboxConfig::from_cli_option(config_path)?;
-            latex::stop_previews(config_path, &config)?;
+            latex::cleanup_legacy_host_previews(config_path, &config)?;
             container::cmd_stop(config_path)
         }
-        cli::Commands::Latex { action } => match action {
-            cli::LatexAction::Build { document } => {
-                latex::cmd_build(config_path, document.as_deref())
-            }
-            cli::LatexAction::Watch { document } => latex::cmd_watch(config_path, &document),
-            cli::LatexAction::Status { format } => latex::cmd_status(config_path, format),
-        },
-        cli::Commands::Preview { action } => match action {
-            cli::PreviewAction::Latex { document } => latex::cmd_preview(config_path, &document),
-        },
         cli::Commands::Get {
             resource,
             resources,

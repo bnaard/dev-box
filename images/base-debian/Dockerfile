@@ -400,6 +400,7 @@ COPY --chmod=755 config/bin/open-in-editor.sh /usr/local/bin/open-in-editor
 COPY --chmod=755 config/bin/aibox-preview.sh   /usr/local/bin/aibox-preview
 COPY --chmod=755 config/bin/vim-loop.sh       /usr/local/bin/vim-loop
 COPY --chmod=755 config/bin/pdf-watch.sh      /usr/local/bin/pdf-watch
+COPY --chmod=755 config/bin/aibox-latex-preview.py /usr/local/bin/aibox-latex-preview
 COPY --chmod=755 config/bin/aibox-log-viewer.sh /usr/local/bin/aibox-log-viewer
 COPY --chmod=755 config/bin/aibox-log-viewer-vim.sh /usr/local/bin/aibox-log-viewer-vim
 COPY --chmod=755 config/bin/aibox-status-toggle.sh /usr/local/bin/aibox-status-toggle

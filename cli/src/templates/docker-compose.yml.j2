@@ -62,6 +62,49 @@ services:
 {% endfor %}
     command: sleep infinity
 
+{% if latex_preview_enabled %}
+  {{ name }}-latex-preview:
+    image: {{ image_name }}
+    container_name: {{ name }}-latex-preview
+    hostname: {{ hostname }}-latex-preview
+    user: aibox
+    entrypoint: []
+    init: true
+    working_dir: /workspace
+    read_only: true
+    pids_limit: 64
+    mem_limit: 128m
+    cpus: 0.25
+    restart: "on-failure:3"
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+    volumes:
+      # The preview can read generated PDFs but cannot mutate the project.
+      - ${WORKSPACE_DIR:-{{ workspace_dir }}}:/workspace:ro
+    ports:
+      # Host exposure is explicit and defaults to loopback only.
+      - "{{ latex_preview_publish }}"
+    environment:
+      AIBOX_LATEX_DOCUMENTS_JSON: "{{ latex_preview_documents_json }}"
+      AIBOX_LATEX_PREFERRED_DOCUMENT: "{{ latex_preview_preferred_document }}"
+    tmpfs:
+      - /tmp:size=16m,mode=1777
+    healthcheck:
+      test: ["CMD", "curl", "-fsS", "http://127.0.0.1:8765/health"]
+      interval: 10s
+      timeout: 2s
+      retries: 3
+      start_period: 2s
+    command:
+      - /usr/local/bin/aibox-latex-preview
+      - --bind
+      - 0.0.0.0
+      - --port
+      - "8765"
+
+{% endif %}
   {{ name }}-diagnostics:
     image: {{ image_name }}
     container_name: {{ name }}-diagnostics

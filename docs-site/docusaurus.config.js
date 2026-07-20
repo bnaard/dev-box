@@ -38,6 +38,20 @@ const config = {
     blog: false,
     theme: { customCss: './src/css/custom.css' },
   }]],
+  themes: [[
+    '@easyops-cn/docusaurus-search-local',
+    {
+      hashed: true,
+      indexDocs: true,
+      indexBlog: false,
+      indexPages: true,
+      language: 'en',
+      fuzzyMatchingDistance: 2,
+      highlightSearchTermsOnTargetPage: true,
+      searchResultLimits: 10,
+      searchResultContextMaxLength: 90,
+    },
+  ]],
   themeConfig: {
     colorMode: { defaultMode: 'dark', respectPrefersColorScheme: true },
     navbar: {

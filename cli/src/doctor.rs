@@ -238,11 +238,8 @@ pub fn cmd_doctor(config_path: &Option<String>) -> Result<()> {
     check_processkit_mcp_gateway(&config, &mut diag);
     check_claude_code_runtime_drift(&config, &mut diag);
 
-    // 6f. Codex prompt-path drift check (BACK-20260426_1627-StrongHawk).
-    // Loud failure if `pk-*` managed files reappear in the legacy
-    // `~/.codex/prompts/` path that aibox v0.21.1 mistakenly used —
-    // catches a regression in the codex profile of harness_commands.
-    check_codex_prompt_path_drift(&config, &mut diag);
+    // 6f. Codex skill and custom-prompt command surfaces.
+    check_codex_command_surfaces(&config, &mut diag);
 
     // 6g. Codex sandbox prerequisites and compose posture.
     check_codex_sandbox_environment(&config, &mut diag);
@@ -728,6 +725,12 @@ fn check_command_registrations(
         config.ai.harnesses.contains(&AiHarness::Codex),
     ));
     targets.push((
+        "codex-prompts",
+        ".aibox-home/.codex/prompts",
+        ".aibox-home/.codex/prompts/{stem}.md",
+        config.ai.harnesses.contains(&AiHarness::Codex),
+    ));
+    targets.push((
         "cursor",
         ".cursor/commands",
         ".cursor/commands/{stem}.md",
@@ -1170,59 +1173,61 @@ fn check_image_provenance_policy(config: &AiboxConfig, diag: &mut DiagResult) {
     }
 }
 
-/// Detect drift on the Codex slash-command path. Codex CLI 0.125.0 surfaces
-/// custom workflows as Skills under `<workspace>/.agents/skills/<name>/SKILL.md`
-/// — NOT from `~/.codex/prompts/` (the legacy aibox v0.21.1 location). If
-/// any managed `pk-*.md` file reappears in the legacy path, treat that as
-/// a regression error: aibox is again writing to the wrong place. Also
-/// errors if Codex is enabled but no skills landed under `.agents/skills/`.
-///
-/// See DEC-20260426_1636-MightySky and BACK-20260426_1627-StrongHawk.
-fn check_codex_prompt_path_drift(config: &AiboxConfig, diag: &mut DiagResult) {
+/// Validate both Codex invocation surfaces. Skills are canonical and appear
+/// through `$name` and `/skills`; persisted custom prompts provide the
+/// `/prompts:name` compatibility aliases. Codex does not support custom
+/// top-level `/name` slash commands.
+fn check_codex_command_surfaces(config: &AiboxConfig, diag: &mut DiagResult) {
     let codex_enabled = config.ai.harnesses.contains(&AiHarness::Codex);
-
-    let legacy_dir = std::path::Path::new(".aibox-home/.codex/prompts");
-    if let Ok(entries) = std::fs::read_dir(legacy_dir) {
-        let stale: Vec<String> = entries
-            .flatten()
-            .filter_map(|e| e.file_name().into_string().ok())
-            .filter(|n| n.starts_with("pk-") && n.ends_with(".md"))
-            .collect();
-        if !stale.is_empty() {
-            output::error(&format!(
-                "codex: stale managed prompt(s) in legacy path .aibox-home/.codex/prompts/: \
-                 {}. Codex 0.125.0 ignores this directory; commands must be Codex Skills \
-                 under .agents/skills/<name>/SKILL.md (DEC-20260426_1636-MightySky). \
-                 Run 'aibox apply' to migrate.",
-                stale.join(", ")
-            ));
-            diag.errors += 1;
-        }
+    if !codex_enabled {
+        return;
     }
 
-    if codex_enabled {
-        let skills_dir = std::path::Path::new(".agents/skills");
-        let has_pk_skill = std::fs::read_dir(skills_dir)
-            .map(|it| {
-                it.flatten().any(|e| {
-                    e.file_name()
-                        .to_str()
-                        .map(|n| n.starts_with("pk-"))
-                        .unwrap_or(false)
-                        && e.path().join("SKILL.md").is_file()
-                })
+    let skills_dir = std::path::Path::new(".agents/skills");
+    let has_pk_skill = std::fs::read_dir(skills_dir)
+        .map(|it| {
+            it.flatten().any(|e| {
+                e.file_name()
+                    .to_str()
+                    .map(|n| n.starts_with("pk-"))
+                    .unwrap_or(false)
+                    && e.path().join("SKILL.md").is_file()
             })
-            .unwrap_or(false);
-        if !has_pk_skill {
-            output::warn(
-                "codex: no pk-* Codex Skills found under .agents/skills/ — \
-                 run 'aibox apply' to scaffold them (Codex 0.125.0 surfaces \
-                 these as $skill-name mentions and via /skills)",
-            );
-            diag.warnings += 1;
-        } else {
-            output::ok("codex: pk-* Codex Skills present under .agents/skills/");
-        }
+        })
+        .unwrap_or(false);
+    if !has_pk_skill {
+        output::warn(
+            "codex: no pk-* Codex Skills found under .agents/skills/ — \
+             run 'aibox apply' to scaffold $pk-* and /skills entries",
+        );
+        diag.warnings += 1;
+    } else {
+        output::ok("codex: pk-* Codex Skills present under .agents/skills/");
+    }
+
+    let prompts_dir = std::path::Path::new(".aibox-home/.codex/prompts");
+    let has_pk_prompt = std::fs::read_dir(prompts_dir)
+        .map(|it| {
+            it.flatten().any(|e| {
+                e.path().is_file()
+                    && e.file_name()
+                        .to_str()
+                        .is_some_and(|name| name.starts_with("pk-") && name.ends_with(".md"))
+            })
+        })
+        .unwrap_or(false);
+    if !has_pk_prompt {
+        output::warn(
+            "codex: no pk-* custom-prompt aliases found under \
+             .aibox-home/.codex/prompts/ — run 'aibox apply' to scaffold \
+             /prompts:pk-* entries",
+        );
+        diag.warnings += 1;
+    } else {
+        output::ok(
+            "codex: pk-* prompt aliases present under .aibox-home/.codex/prompts/ \
+             (invoke as /prompts:pk-*)",
+        );
     }
 }
 

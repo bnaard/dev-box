@@ -21,16 +21,18 @@
 //! |----------|--------------------------------------------|--------|
 //! | Claude   | `.claude/skills/<name>/SKILL.md`           | Claude Skill |
 //! | Codex    | `.agents/skills/<name>/SKILL.md`           | Codex Skill |
+//! | Codex    | `.aibox-home/.codex/prompts/<name>.md`     | Codex prompt alias |
 //! | Cursor   | `.cursor/commands/<name>.md`               | md verbatim |
 //! | Gemini   | `.gemini/commands/<name>.toml`             | TOML (converted) |
 //! | OpenCode | `.opencode/commands/<name>.md`             | md verbatim |
 //!
-//! Codex CLI 0.125.0 does not surface arbitrary `~/.codex/prompts/<name>.md`
-//! files as `/<name>` slash commands; the supported customization mechanism
-//! is **Codex Skills** at `<workspace>/.agents/skills/<name>/SKILL.md`. See
-//! DEC-20260426_1636-MightySky. Aibox v0.21.1 incorrectly wrote to the
-//! legacy prompts dir; v0.21.2+ writes Codex Skills and cleans up the
-//! orphaned prompt files at sync time.
+//! Codex Skills are the supported reusable-workflow surface and are invoked
+//! with `$<name>` or selected through `/skills`. Codex custom prompts provide
+//! the only user-defined slash-command surface, namespaced as
+//! `/prompts:<name>`. Aibox writes both forms so processkit workflows remain
+//! available through canonical skill invocation and a keyboard-friendly
+//! compatibility alias. Codex does not support custom top-level `/<name>`
+//! commands.
 //!
 //! Universe / wanted / cleanup semantics carry over verbatim from the
 //! original `claude_commands.rs` — see comments below.
@@ -59,6 +61,9 @@ enum CommandFormat {
     /// Convert the source markdown to a Codex Skill (`SKILL.md` with
     /// `name` + `description` front-matter).
     CodexSkill,
+    /// Convert the source markdown to a Codex custom prompt. Codex exposes
+    /// these under the `/prompts:<name>` namespace.
+    CodexPrompt,
 }
 
 /// Per-harness scaffolding profile.
@@ -106,6 +111,9 @@ impl HarnessCommandProfile {
             CommandFormat::CodexSkill => {
                 Ok(render_codex_skill(source_md_filename, source_bytes)?.into_bytes())
             }
+            CommandFormat::CodexPrompt => {
+                Ok(render_codex_prompt(source_md_filename, source_bytes)?.into_bytes())
+            }
         }
     }
 }
@@ -124,10 +132,7 @@ fn profile_for(harness: AiHarness, project_root: &Path) -> Option<HarnessCommand
         }),
         AiHarness::Codex => Some(HarnessCommandProfile {
             harness,
-            // Codex Skills layout: <workspace>/.agents/skills/<name>/SKILL.md.
-            // The legacy ~/.codex/prompts/<name>.md mechanism (used by
-            // aibox v0.21.1) is not surfaced as slash commands by Codex
-            // CLI 0.125.0; see DEC-20260426_1636-MightySky.
+            // Canonical Codex Skills layout.
             target_dir: project_root.join(".agents").join("skills"),
             file_extension: "md",
             format: CommandFormat::CodexSkill,
@@ -160,6 +165,21 @@ fn profile_for(harness: AiHarness, project_root: &Path) -> Option<HarnessCommand
         | AiHarness::Copilot
         | AiHarness::Hermes
         | AiHarness::Mistral => None,
+    }
+}
+
+fn codex_prompt_profile(project_root: &Path) -> HarnessCommandProfile {
+    HarnessCommandProfile {
+        harness: AiHarness::Codex,
+        // Mounted at /home/aibox/.codex, where Codex discovers custom
+        // prompts and exposes them as /prompts:<name>.
+        target_dir: project_root
+            .join(".aibox-home")
+            .join(".codex")
+            .join("prompts"),
+        file_extension: "md",
+        format: CommandFormat::CodexPrompt,
+        subdir_per_command: false,
     }
 }
 
@@ -221,6 +241,14 @@ pub fn sync_harness_commands(project_root: &Path, config: &AiboxConfig) -> Resul
             continue;
         }
         sync_one_profile(&profile, &universe, &historical_sources, &wanted)?;
+        if *harness == AiHarness::Codex {
+            sync_one_profile(
+                &codex_prompt_profile(project_root),
+                &universe,
+                &historical_sources,
+                &wanted,
+            )?;
+        }
     }
 
     // Sweep up legacy Claude command files left behind by aibox <= v0.23.15.
@@ -229,11 +257,12 @@ pub fn sync_harness_commands(project_root: &Path, config: &AiboxConfig) -> Resul
     // commands from keeping Claude surfaces alive after the harness is disabled.
     cleanup_legacy_claude_commands(project_root, &universe, &historical_sources, &wanted);
 
-    // Sweep up legacy Codex prompt files left behind by aibox v0.21.1.
-    // Runs unconditionally (independent of whether Codex is currently
-    // enabled) because the legacy files were written in v0.21.1 even for
-    // configs that have since dropped Codex from their enabled AI harnesses.
-    cleanup_legacy_codex_prompts(project_root, &universe);
+    // A disabled Codex harness must not retain managed prompt aliases in the
+    // persisted Codex home. The pk-* namespace is reserved for processkit;
+    // unrelated user prompts are left untouched.
+    if !config.ai.harnesses.contains(&AiHarness::Codex) {
+        remove_managed_for_profile(&codex_prompt_profile(project_root), &universe)?;
+    }
 
     Ok(())
 }
@@ -475,6 +504,9 @@ pub fn remove_managed_commands_all(project_root: &Path, config: &AiboxConfig) ->
             continue;
         }
         remove_managed_for_profile(&profile, &universe)?;
+        if *harness == AiHarness::Codex {
+            remove_managed_for_profile(&codex_prompt_profile(project_root), &universe)?;
+        }
     }
     Ok(())
 }
@@ -953,6 +985,43 @@ fn render_codex_skill(source_filename: &str, source_bytes: &[u8]) -> Result<Stri
     ))
 }
 
+/// Convert a processkit command adapter into a Codex custom prompt. Codex
+/// discovers these from `$CODEX_HOME/prompts` and exposes them as
+/// `/prompts:<name>`. Only Codex-supported prompt metadata is retained.
+fn render_codex_prompt(source_filename: &str, source_bytes: &[u8]) -> Result<String> {
+    let text = std::str::from_utf8(source_bytes)
+        .with_context(|| format!("source file {source_filename} is not valid UTF-8"))?;
+    let stem = source_filename
+        .strip_suffix(".md")
+        .unwrap_or(source_filename);
+    let (frontmatter_yaml, body) = split_frontmatter(text);
+    let description = frontmatter_yaml
+        .as_ref()
+        .and_then(|yaml| extract_yaml_scalar(yaml, "description"))
+        .or_else(|| {
+            body.lines()
+                .find(|line| !line.trim().is_empty())
+                .map(|line| line.trim_start_matches("# ").trim().to_string())
+        })
+        .unwrap_or_default();
+    let argument_hint = frontmatter_yaml
+        .as_ref()
+        .and_then(|yaml| extract_yaml_scalar(yaml, "argument-hint"));
+
+    let mut frontmatter = format!("---\ndescription: {}\n", yaml_scalar(&description));
+    if let Some(hint) = argument_hint.filter(|hint| !hint.is_empty()) {
+        frontmatter.push_str(&format!("argument-hint: {}\n", yaml_scalar(&hint)));
+    }
+    frontmatter.push_str("---\n\n");
+
+    Ok(format!(
+        "{frontmatter}{body}\n\n---\n\n\
+         This is the Codex prompt alias for the processkit `{stem}` skill. Load and follow the \
+         matching skill from `.agents/skills/{stem}/SKILL.md`.\n",
+        body = body.trim_start_matches('\n').trim_end_matches('\n'),
+    ))
+}
+
 /// Render a string as a YAML scalar suitable for inline front-matter use.
 /// Quotes the value with double quotes when it contains characters that
 /// would otherwise change YAML parsing (`:`, `#`, `'`, `"`, leading/trailing
@@ -961,8 +1030,12 @@ fn yaml_scalar(s: &str) -> String {
     let needs_quote = s.is_empty()
         || s.starts_with(' ')
         || s.ends_with(' ')
-        || s.chars()
-            .any(|c| matches!(c, ':' | '#' | '"' | '\'' | '\n' | '\r' | '\t' | '\\'));
+        || s.chars().any(|c| {
+            matches!(
+                c,
+                ':' | '#' | '"' | '\'' | '\n' | '\r' | '\t' | '\\' | '[' | ']' | '{' | '}' | ','
+            )
+        });
     if !needs_quote {
         return s.to_string();
     }
@@ -980,54 +1053,6 @@ fn yaml_scalar(s: &str) -> String {
     }
     out.push('"');
     out
-}
-
-/// One-shot migration: remove orphaned `pk-*` prompt files that aibox
-/// v0.21.1 wrote to `.aibox-home/.codex/prompts/` before v0.21.2 moved
-/// the Codex scaffold to `.agents/skills/`. Idempotent — a no-op when
-/// the legacy directory is absent or contains no managed files.
-///
-/// Only files whose source-md-name appears in `universe` (the set of
-/// known pk-* command names) are touched. User-authored files in the
-/// legacy directory are preserved.
-fn cleanup_legacy_codex_prompts(project_root: &Path, universe: &HashSet<String>) {
-    let legacy_dir = project_root
-        .join(".aibox-home")
-        .join(".codex")
-        .join("prompts");
-    if !legacy_dir.is_dir() {
-        return;
-    }
-    let Ok(entries) = fs::read_dir(&legacy_dir) else {
-        return;
-    };
-    let mut removed = 0usize;
-    for entry in entries.flatten() {
-        let name = entry.file_name();
-        let Some(name_str) = name.to_str() else {
-            continue;
-        };
-        if !name_str.ends_with(".md") {
-            continue;
-        }
-        if !universe.contains(name_str) {
-            continue;
-        }
-        if fs::remove_file(entry.path()).is_ok() {
-            removed += 1;
-        }
-    }
-    let dir_now_empty = fs::read_dir(&legacy_dir)
-        .map(|mut d| d.next().is_none())
-        .unwrap_or(false);
-    if dir_now_empty {
-        let _ = fs::remove_dir(&legacy_dir);
-    }
-    if removed > 0 {
-        output::ok(&format!(
-            "Removed {removed} orphaned legacy Codex prompt file(s) (pre-v0.21.2 layout) from .aibox-home/.codex/prompts/"
-        ));
-    }
 }
 
 /// Split `---\n...\n---\n` frontmatter off the front of a markdown
@@ -1062,9 +1087,16 @@ fn split_frontmatter(text: &str) -> (Option<String>, &str) {
 /// frontmatter shape varies across processkit-generated and hand-authored
 /// command files). Returns None when absent.
 fn extract_yaml_description(yaml: &str) -> Option<String> {
+    extract_yaml_scalar(yaml, "description")
+}
+
+fn extract_yaml_scalar(yaml: &str, key: &str) -> Option<String> {
     for line in yaml.lines() {
         let trimmed = line.trim_start();
-        if let Some(rest) = trimmed.strip_prefix("description:") {
+        if let Some(rest) = trimmed
+            .strip_prefix(key)
+            .and_then(|rest| rest.strip_prefix(':'))
+        {
             let v = rest.trim();
             // strip surrounding quotes if any
             let v = v
@@ -1296,7 +1328,7 @@ mod tests {
         assert!(!project.join(".claude/skills/pk-resume/SKILL.md").exists());
     }
 
-    // ----- Codex profile (Codex Skills layout, v0.21.2+) -----
+    // ----- Codex profile (Skills plus /prompts: aliases) -----
 
     #[test]
     fn codex_profile_writes_skill_to_agents_skills() {
@@ -1309,6 +1341,8 @@ mod tests {
 
         let dest = project.join(".agents/skills/pk-resume/SKILL.md");
         assert!(dest.exists(), "codex skill target should exist");
+        let prompt = project.join(".aibox-home/.codex/prompts/pk-resume.md");
+        assert!(prompt.exists(), "codex prompt alias should exist");
 
         let content = fs::read_to_string(&dest).unwrap();
         // Front-matter has only Codex-supported keys.
@@ -1328,6 +1362,12 @@ mod tests {
         );
         // Body is preserved.
         assert!(content.contains("Do the thing."));
+
+        let prompt_content = fs::read_to_string(prompt).unwrap();
+        assert!(prompt_content.contains("description: Resume the session"));
+        assert!(!prompt_content.contains("argument-hint:"));
+        assert!(prompt_content.contains("processkit `pk-resume` skill"));
+        assert!(!prompt_content.contains("allowed-tools"));
     }
 
     #[test]
@@ -1376,7 +1416,18 @@ mod tests {
     }
 
     #[test]
-    fn codex_legacy_prompts_are_cleaned_up_on_sync() {
+    fn codex_prompt_keeps_supported_metadata_and_routes_to_skill() {
+        let src = "---\ndescription: Resume work\nargument-hint: \"[scope]\"\nallowed-tools: [Bash]\n---\n\nUse the status briefing workflow.\n";
+        let out = render_codex_prompt("pk-resume.md", src.as_bytes()).unwrap();
+        assert!(out.contains("description: Resume work\n"));
+        assert!(out.contains("argument-hint: \"[scope]\"\n"));
+        assert!(!out.contains("allowed-tools"));
+        assert!(out.contains("Use the status briefing workflow."));
+        assert!(out.contains(".agents/skills/pk-resume/SKILL.md"));
+    }
+
+    #[test]
+    fn codex_legacy_prompt_is_replaced_with_current_alias_on_sync() {
         let tmp = tempfile::tempdir().unwrap();
         let project = tmp.path();
         fixture_with_pk_resume(project);
@@ -1393,8 +1444,9 @@ mod tests {
 
         // New location populated.
         assert!(project.join(".agents/skills/pk-resume/SKILL.md").exists());
-        // Managed legacy file removed.
-        assert!(!legacy_dir.join("pk-resume.md").exists());
+        // Managed legacy file replaced by the current Codex prompt alias.
+        let prompt = fs::read_to_string(legacy_dir.join("pk-resume.md")).unwrap();
+        assert!(prompt.contains("processkit `pk-resume` skill"));
         // User file preserved (its name is not in the universe).
         assert_eq!(
             fs::read_to_string(legacy_dir.join("user-thing.md")).unwrap(),
@@ -1403,7 +1455,7 @@ mod tests {
     }
 
     #[test]
-    fn codex_legacy_prompts_cleanup_runs_even_when_codex_disabled() {
+    fn codex_prompt_alias_cleanup_runs_when_codex_disabled() {
         let tmp = tempfile::tempdir().unwrap();
         let project = tmp.path();
         fixture_with_pk_resume(project);
@@ -1522,6 +1574,11 @@ mod tests {
 
         assert!(project.join(".claude/skills/pk-resume/SKILL.md").exists());
         assert!(project.join(".agents/skills/pk-resume/SKILL.md").exists());
+        assert!(
+            project
+                .join(".aibox-home/.codex/prompts/pk-resume.md")
+                .exists()
+        );
         assert!(project.join(".cursor/commands/pk-resume.md").exists());
         assert!(project.join(".gemini/commands/pk-resume.toml").exists());
         assert!(project.join(".opencode/commands/pk-resume.md").exists());

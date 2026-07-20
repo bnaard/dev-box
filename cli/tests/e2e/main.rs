@@ -38,6 +38,8 @@ mod addon;
 #[cfg(feature = "e2e")]
 mod doctor;
 #[cfg(feature = "e2e")]
+mod latex_preview;
+#[cfg(feature = "e2e")]
 mod lifecycle;
 #[cfg(feature = "e2e")]
 mod migration;

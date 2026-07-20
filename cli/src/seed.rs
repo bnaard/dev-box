@@ -1190,6 +1190,17 @@ pub fn managed_runtime_files(config: &AiboxConfig) -> Vec<(std::path::PathBuf, S
         ));
     }
 
+    if !config.latex.documents.is_empty() {
+        files.push((
+            std::path::PathBuf::from(crate::latex::BUILD_SCRIPT_PATH),
+            crate::latex::build_script(config),
+        ));
+        files.push((
+            std::path::PathBuf::from(crate::latex::WATCH_SCRIPT_PATH),
+            crate::latex::watch_script(config),
+        ));
+    }
+
     if include_github_credential_helper(config) {
         files.push((
             std::path::PathBuf::from(".config/git/aibox-github.inc"),
@@ -1224,6 +1235,20 @@ pub fn cleanup_disabled_runtime_files(config: &AiboxConfig) -> Result<Vec<String
             fs::remove_file(&github_helper)
                 .with_context(|| format!("Failed to remove {}", github_helper.display()))?;
             updated.push(".config/git/aibox-github.inc (removed)".to_string());
+        }
+    }
+
+    if config.latex.documents.is_empty() {
+        for rel_path in [
+            crate::latex::BUILD_SCRIPT_PATH,
+            crate::latex::WATCH_SCRIPT_PATH,
+        ] {
+            let path = root.join(rel_path);
+            if crate::latex::is_managed_script(&path) {
+                fs::remove_file(&path)
+                    .with_context(|| format!("Failed to remove {}", path.display()))?;
+                updated.push(format!("{rel_path} (removed)"));
+            }
         }
     }
 
@@ -1722,17 +1747,7 @@ pub fn restore_missing_managed_runtime_files(config: &AiboxConfig) -> Result<Vec
         }
         fs::write(&path, content)
             .with_context(|| format!("Failed to restore {}", path.display()))?;
-        if rel_path == Path::new(".local/bin/pdf-watch")
-            || rel_path == Path::new(".local/bin/open-in-editor")
-            || rel_path == Path::new(".local/bin/aibox-preview")
-            || rel_path == Path::new(".local/bin/aibox-status-toggle")
-            || rel_path == Path::new(".local/bin/aibox-copy")
-            || rel_path == Path::new(".local/bin/aibox-tmux-cheatsheet")
-            || rel_path == Path::new(".local/bin/aibox-powerkit-render-list")
-            || rel_path == Path::new(".local/bin/aibox-powerkit-render-session")
-            || (rel_path.starts_with(".config/tmux/")
-                && rel_path.extension().is_some_and(|ext| ext == "sh"))
-        {
+        if is_executable_managed_runtime_file(&rel_path) {
             ensure_executable(&path)?;
         }
         restored.push(rel_path.to_string_lossy().replace('\\', "/"));
@@ -1937,6 +1952,8 @@ fn is_executable_managed_runtime_file(rel_path: &Path) -> bool {
         || rel_path == Path::new(".local/bin/aibox-copy")
         || rel_path == Path::new(".local/bin/aibox-powerkit-render-list")
         || rel_path == Path::new(".local/bin/aibox-powerkit-render-session")
+        || rel_path == Path::new(crate::latex::BUILD_SCRIPT_PATH)
+        || rel_path == Path::new(crate::latex::WATCH_SCRIPT_PATH)
         || (rel_path.starts_with(".config/tmux/")
             && rel_path.extension().is_some_and(|ext| ext == "sh"))
 }
@@ -2188,7 +2205,7 @@ pub fn sync_managed_runtime_permissions(config: &AiboxConfig) -> Result<Vec<Stri
     let root = config.host_root_dir();
     let mut updated = Vec::new();
 
-    for rel_path in [
+    let mut paths = vec![
         ".local/bin/pdf-watch",
         ".local/bin/open-in-editor",
         ".local/bin/aibox-preview",
@@ -2200,7 +2217,14 @@ pub fn sync_managed_runtime_permissions(config: &AiboxConfig) -> Result<Vec<Stri
         ".local/bin/aibox-copy",
         ".local/bin/aibox-powerkit-render-list",
         ".local/bin/aibox-powerkit-render-session",
-    ] {
+    ];
+    if !config.latex.documents.is_empty() {
+        paths.extend([
+            crate::latex::BUILD_SCRIPT_PATH,
+            crate::latex::WATCH_SCRIPT_PATH,
+        ]);
+    }
+    for rel_path in paths {
         if ensure_executable_if_present(&root.join(rel_path))? {
             updated.push(format!("{} (chmod +x)", rel_path));
         }
@@ -2667,6 +2691,37 @@ mod tests {
             );
         }
 
+        clear_test_host_root();
+    }
+
+    #[test]
+    #[serial]
+    #[cfg(unix)]
+    fn seed_root_dir_deploys_configured_latex_scripts_as_executables() {
+        let dir = tempfile::tempdir().unwrap();
+        let root = dir.path().join("root");
+        let mut config = make_config(false, root.clone());
+        config.latex.documents.push(LatexDocument {
+            name: "overview".to_string(),
+            source: "docs/overview.tex".to_string(),
+            output_dir: ".latex-cache/overview".to_string(),
+        });
+
+        seed_root_dir(&config).unwrap();
+
+        for rel_path in [
+            crate::latex::BUILD_SCRIPT_PATH,
+            crate::latex::WATCH_SCRIPT_PATH,
+        ] {
+            let path = root.join(rel_path);
+            assert!(path.is_file(), "{} must be deployed", path.display());
+            assert_ne!(
+                fs::metadata(&path).unwrap().permissions().mode() & 0o111,
+                0,
+                "{} must be executable",
+                path.display()
+            );
+        }
         clear_test_host_root();
     }
 

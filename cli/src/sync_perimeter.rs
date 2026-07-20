@@ -158,15 +158,12 @@ pub const SYNC_PERIMETER: &[&str] = &[
     ".cursor/commands/",
     ".gemini/commands/",
     ".opencode/commands/",
-    // ── Codex Skills (v0.21.2+, DEC-20260426_1636-MightySky) ────────────
-    // Codex CLI 0.125.0 surfaces custom workflows from this layout, NOT
-    // from ~/.codex/prompts/. aibox writes one subdirectory per pk-*
-    // command: .agents/skills/<name>/SKILL.md.
+    // ── Codex Skills ────────────────────────────────────────────────────
+    // Canonical skill surface: $pk-* mentions and the /skills selector.
     ".agents/skills/",
-    // ── Legacy Codex prompts dir (cleanup-only as of v0.21.2) ───────────
-    // Kept in perimeter so v0.21.2's one-shot migration in
-    // harness_commands::cleanup_legacy_codex_prompts can remove orphan
-    // files left by v0.21.1.
+    // ── Codex custom-prompt aliases ─────────────────────────────────────
+    // Persisted through the mounted Codex home and exposed by Codex as
+    // /prompts:pk-* (custom top-level /pk-* commands are not supported).
     ".aibox-home/.codex/prompts/",
 ];
 
@@ -581,10 +578,7 @@ mod tests {
     }
 
     #[test]
-    fn legacy_codex_prompts_dir_remains_in_perimeter_for_cleanup() {
-        // v0.21.2+: kept in perimeter so the one-shot migration in
-        // harness_commands::cleanup_legacy_codex_prompts can remove
-        // orphans left by v0.21.1.
+    fn codex_prompt_aliases_are_in_perimeter() {
         assert!(within(".aibox-home/.codex/prompts/pk-resume.md"));
     }
 

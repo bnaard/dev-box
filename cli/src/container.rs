@@ -817,9 +817,9 @@ pub fn cmd_start(
         ));
     }
 
-    if let Err(error) = crate::latex::start_enabled_preview(config_path, &config) {
+    if let Err(error) = crate::latex::start_enabled_preview(config_path, &runtime, &config) {
         output::warn(&format!(
-            "LaTeX preview could not be started: {error}. Continuing with container attach."
+            "LaTeX preview sidecar could not be started: {error}. Continuing with container attach."
         ));
     }
 
@@ -1012,23 +1012,22 @@ pub fn cmd_stop(config_path: &Option<String>) -> Result<()> {
     let name = &config.container.name;
 
     let state = runtime.container_status(name)?;
-    match state {
-        ContainerState::Running => {
-            output::info("Stopping container...");
-            runtime.compose_stop_all(crate::config::COMPOSE_FILE)?;
-            if runtime.container_status(name)? == ContainerState::Running {
-                output::info(
-                    "Stopping stale same-name container outside current compose project...",
-                );
-                runtime.stop_container_by_name(name)?;
-            }
-            output::ok("Container stopped");
+    let preview_state = runtime
+        .container_status(&crate::latex::preview_service_name(&config))
+        .unwrap_or(ContainerState::Missing);
+    if state == ContainerState::Running || preview_state == ContainerState::Running {
+        output::info("Stopping workspace services...");
+        runtime.compose_stop_all(crate::config::COMPOSE_FILE)?;
+        if runtime.container_status(name)? == ContainerState::Running {
+            output::info("Stopping stale same-name container outside current compose project...");
+            runtime.stop_container_by_name(name)?;
         }
-        ContainerState::Stopped => {
-            output::info("Container is already stopped");
-        }
-        ContainerState::Missing => {
-            output::warn("No container found");
+        output::ok("Workspace services stopped");
+    } else {
+        match state {
+            ContainerState::Running => unreachable!(),
+            ContainerState::Stopped => output::info("Container is already stopped"),
+            ContainerState::Missing => output::warn("No container found"),
         }
     }
 
@@ -1997,56 +1996,83 @@ fn render_latex_section(out: &mut String, config: &AiboxConfig, sep: &str) {
     out.push_str(sep);
     out.push_str("# [latex] — reproducible document builds and live PDF preview\n");
     out.push_str(sep);
+    out.push_str("# Configure one or more named documents. Inside the container,\n");
+    out.push_str("# `aibox-latex-build` builds all and `aibox-latex-watch <name>` watches one.\n");
+    out.push_str("# A Compose sidecar serves every configured PDF from one index page.\n");
     out.push_str("[latex]\n");
     out.push_str(&format!(
-        "engine = \"{}\"  # lualatex, pdflatex, xelatex, or tectonic\n",
+        "engine = \"{}\"  # Shared engine: lualatex, pdflatex, xelatex, or tectonic (build-only; no watch).\n",
         config.latex.engine
     ));
     out.push_str(&format!(
-        "cache_dir = {}\n",
+        "cache_dir = {}  # Project-local TEXMFVAR/TEXMFCONFIG root; keep this gitignored.\n",
         toml_string_value(&config.latex.cache_dir)
     ));
     out.push_str(&format!(
-        "options = [{}]\n",
+        "options = [{}]  # Extra engine/latexmk arguments applied to every document.\n",
         toml_string_list(&config.latex.options)
     ));
     if config.latex.documents.is_empty() {
+        out.push_str(
+            "# Repeat this block for every independently built PDF. Names must be unique.\n",
+        );
         out.push_str("# [[latex.documents]]\n");
-        out.push_str("# name = \"overview\"\n");
-        out.push_str("# source = \"docs/overview.tex\"\n");
-        out.push_str("# output_dir = \".latex-cache/overview\"\n");
+        out.push_str(
+            "# name = \"overview\"                    # CLI name and URL slug: [a-zA-Z0-9_-].\n",
+        );
+        out.push_str("# source = \"docs/overview.tex\"         # Main TeX file, relative to the project root.\n");
+        out.push_str(
+            "# output_dir = \".latex-cache/overview\"  # Separate output directory per document.\n",
+        );
     } else {
         for document in &config.latex.documents {
             out.push_str("\n[[latex.documents]]\n");
-            out.push_str(&format!("name = {}\n", toml_string_value(&document.name)));
             out.push_str(&format!(
-                "source = {}\n",
+                "name = {}  # CLI name and preview URL slug.\n",
+                toml_string_value(&document.name)
+            ));
+            out.push_str(&format!(
+                "source = {}  # Main TeX file, relative to the project root.\n",
                 toml_string_value(&document.source)
             ));
             out.push_str(&format!(
-                "output_dir = {}\n",
+                "output_dir = {}  # PDF, log, and auxiliary output directory.\n",
                 toml_string_value(&document.output_dir)
             ));
         }
     }
     out.push_str("\n[latex.preview]\n");
-    out.push_str(&format!("enabled = {}\n", config.latex.preview.enabled));
+    out.push_str("# `aibox apply` generates a dedicated Compose sidecar and port mapping. The\n");
+    out.push_str(
+        "# server listens on port 8765 inside that sidecar; bind/port below control only\n",
+    );
+    out.push_str("# how Compose publishes it on the host. `aibox up` starts the sidecar.\n");
     out.push_str(&format!(
-        "engine = {}\n",
+        "enabled = {}  # Generate and run the shared preview sidecar.\n",
+        config.latex.preview.enabled
+    ));
+    out.push_str(&format!(
+        "engine = {}  # PDF viewer implementation; currently only embedpdf.\n",
         toml_string_value(&config.latex.preview.engine)
     ));
     out.push_str(&format!(
-        "bind = {}\n",
+        "bind = {}  # Host publish address: 127.0.0.1 = local only; 0.0.0.0 = network access.\n",
         toml_string_value(&config.latex.preview.bind)
     ));
-    out.push_str(&format!("port = {}\n", config.latex.preview.port));
+    out.push_str(&format!(
+        "port = {}  # Host port; maps to the sidecar's fixed internal port 8765.\n",
+        config.latex.preview.port
+    ));
     if let Some(document) = &config.latex.preview.document {
-        out.push_str(&format!("document = {}\n", toml_string_value(document)));
+        out.push_str(&format!(
+            "document = {}  # Preferred document for legacy root PDF/events routes; all are served.\n",
+            toml_string_value(document)
+        ));
     } else {
-        out.push_str("# document = \"overview\"  # defaults to the first configured document\n");
+        out.push_str("# document = \"overview\"  # Optional legacy-route default; all configured PDFs are served.\n");
     }
     out.push_str(&format!(
-        "allow_public = {}\n",
+        "allow_public = {}  # Required for a non-loopback host bind; endpoint has no authentication.\n",
         config.latex.preview.allow_public
     ));
 }
@@ -4376,6 +4402,21 @@ mod tests {
         assert!(body.contains("install = true"));
         assert!(!body.contains("[container.audio]"));
         assert!(!body.contains("[addons.audio-voice.tools]"));
+    }
+
+    #[test]
+    fn serialized_config_explains_container_build_and_multi_document_host_preview() {
+        let config = crate::config::test_config();
+        let body = serialize_config_with_comments(&config);
+        assert!(body.contains("Inside the container"));
+        assert!(body.contains("aibox-latex-build"));
+        assert!(body.contains("aibox-latex-watch <name>"));
+        assert!(body.contains("serves every configured PDF from one index page"));
+        assert!(body.contains("dedicated Compose sidecar and port mapping"));
+        assert!(body.contains("bind/port below control only"));
+        assert!(body.contains("0.0.0.0 = network access"));
+        assert!(body.contains("fixed internal port 8765"));
+        assert!(body.contains("all configured PDFs are served"));
     }
 
     #[test]

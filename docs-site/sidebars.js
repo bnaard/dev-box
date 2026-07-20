@@ -15,11 +15,11 @@ const sidebars = {
       items: [
         'addons/overview',
         'addons/language-runtimes',
-        'addons/latex-workflow',
         'addons/tool-bundles',
         'addons/documentation',
       ],
     },
+    {type: 'doc', id: 'addons/latex-workflow', label: 'LaTeX & PDF Preview'},
     {
       type: 'category', label: 'AI Providers',
       items: ['providers/ai-claude', 'providers/ai-aider', 'providers/ai-gemini', 'providers/ai-openai', 'providers/ai-copilot', 'providers/ai-continue', 'providers/ai-mistral'],

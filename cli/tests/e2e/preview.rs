@@ -355,6 +355,37 @@ fn pdf_watch_helper_seeded() {
     }
 }
 
+/// The runtime image must include the server used by the generated LaTeX sidecar.
+#[test]
+fn latex_preview_sidecar_helper_is_baked_into_runtime_image() {
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("../images/base-debian");
+    let helper_path = root.join("config/bin/aibox-latex-preview.py");
+    let dockerfile = fs::read_to_string(root.join("Dockerfile"))
+        .expect("failed to read base runtime Dockerfile");
+    let helper = fs::read_to_string(&helper_path)
+        .unwrap_or_else(|error| panic!("failed to read {}: {error}", helper_path.display()));
+
+    assert!(
+        dockerfile.contains(
+            "COPY --chmod=755 config/bin/aibox-latex-preview.py /usr/local/bin/aibox-latex-preview"
+        ),
+        "runtime Dockerfile must install the LaTeX preview helper"
+    );
+    assert!(helper.contains("ThreadingHTTPServer"));
+    assert!(helper.contains("EMBEDPDF_VERSION = \"2.14.3\""));
+
+    #[cfg(unix)]
+    {
+        use std::os::unix::fs::PermissionsExt;
+
+        let mode = fs::metadata(&helper_path)
+            .unwrap_or_else(|error| panic!("failed to stat {}: {error}", helper_path.display()))
+            .permissions()
+            .mode();
+        assert_ne!(mode & 0o111, 0, "source helper should be executable");
+    }
+}
+
 /// SVG and EPS entries must appear before the built-in image/pdf entries
 /// (prepend_previewers semantics: first match wins).
 #[test]

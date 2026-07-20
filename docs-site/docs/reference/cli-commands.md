@@ -39,8 +39,6 @@ aibox edit <RESOURCE>
 aibox reset <RESOURCE> [OPTIONS]
 aibox delete <RESOURCE> [NAME] [OPTIONS]
 aibox create <RESOURCE> [NAME] [OPTIONS]
-aibox latex <BUILD|WATCH|STATUS> [DOCUMENT] [OPTIONS]
-aibox preview latex <DOCUMENT>
 aibox self <ACTION> [OPTIONS]
 ```
 
@@ -241,24 +239,22 @@ aibox doctor security
 
 `doctor audio` checks host PulseAudio readiness. `doctor security` runs available dependency/image scanners.
 
-## LaTeX
+## LaTeX container scripts
 
-Named LaTeX documents are configured under `[[latex.documents]]`. The commands
-use a host TeX installation when present and otherwise execute inside the
-running project container.
+Named LaTeX documents are configured under `[[latex.documents]]`. `aibox apply`
+deploys the following managed scripts to `.aibox-home/.local/bin`; they are on
+`PATH` inside the development container and are not host CLI commands.
 
 ```bash
-aibox latex build                 # build all documents
-aibox latex build overview
-aibox latex watch overview        # latexmk continuous build, no PDF viewer
-aibox latex status
-aibox latex status -o json
-aibox preview latex overview      # EmbedPDF live preview
+aibox-latex-build                 # build all configured documents
+aibox-latex-build overview        # build one configured document
+aibox-latex-watch overview        # continuous foreground build inside the container
 ```
 
-`latex status` reports PDF readiness, watcher and preview processes, access
-URLs, and recent TeX errors. See [LaTeX Build and Preview](../addons/latex-workflow.md)
-for automatic startup through `aibox up`, remote forwarding, and security details.
+Host-side `aibox up` starts the read-only Compose preview sidecar when preview is
+enabled. It serves every configured PDF and shows a selection page at its root
+when more than one exists. See [LaTeX Build and Preview](../addons/latex-workflow.md)
+for container workflow, remote forwarding, and security details.
 
 ## Self Management
 

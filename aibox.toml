@@ -56,6 +56,33 @@ install = true  # selects the internal audio-voice recipe
 pulse_server = "tcp:host.docker.internal:4714"  # PulseAudio TCP endpoint (default port: 4714)
 
 # =============================================================================
+# [latex] — reproducible document builds and live PDF preview
+# =============================================================================
+# Configure one or more named documents. Inside the container,
+# `aibox-latex-build` builds all and `aibox-latex-watch <name>` watches one.
+# A Compose sidecar serves every configured PDF from one index page.
+[latex]
+engine = "lualatex"  # Shared engine: lualatex, pdflatex, xelatex, or tectonic (build-only; no watch).
+cache_dir = ".latex-cache"  # Project-local TEXMFVAR/TEXMFCONFIG root; keep this gitignored.
+options = []  # Extra engine/latexmk arguments applied to every document.
+# Repeat this block for every independently built PDF. Names must be unique.
+# [[latex.documents]]
+# name = "overview"                    # CLI name and URL slug: [a-zA-Z0-9_-].
+# source = "docs/overview.tex"         # Main TeX file, relative to the project root.
+# output_dir = ".latex-cache/overview"  # Separate output directory per document.
+
+[latex.preview]
+# `aibox apply` generates a dedicated Compose sidecar and port mapping. The
+# server listens on port 8765 inside that sidecar; bind/port below control only
+# how Compose publishes it on the host. `aibox up` starts the sidecar.
+enabled = false  # Generate and run the shared preview sidecar.
+engine = "embedpdf"  # PDF viewer implementation; currently only embedpdf.
+bind = "127.0.0.1"  # Host publish address: 127.0.0.1 = local only; 0.0.0.0 = network access.
+port = 8765  # Host port; maps to the sidecar's fixed internal port 8765.
+# document = "overview"  # Optional legacy-route default; all configured PDFs are served.
+allow_public = false  # Required for a non-loopback host bind; endpoint has no authentication.
+
+# =============================================================================
 # [integrations.github] — GitHub CLI backed HTTPS git credentials
 # =============================================================================
 # credential_helper: auto enables when git-ui.gh is installed; gh forces it; none removes it.

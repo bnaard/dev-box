@@ -39,7 +39,7 @@ enabled = true
 engine = "embedpdf"
 bind = "127.0.0.1"
 port = 8765
-document = "overview" # optional; defaults to the first configured document
+# document = "overview" # optional compatibility-route default
 allow_public = false
 ```
 
@@ -49,59 +49,103 @@ one-shot builds only.
 
 ## Build and watch
 
+Run these commands **inside the development container**. `aibox apply` generates
+them under `.aibox-home/.local/bin`, which is already on the container `PATH`:
+
 ```bash
-aibox latex build                 # every configured document
-aibox latex build overview
-aibox latex watch overview
-aibox latex status
-aibox latex status -o json
+aibox-latex-build                 # every configured document
+aibox-latex-build overview        # one configured document
+aibox-latex-watch overview        # foreground watcher; stop with Ctrl-C
 ```
 
 Builds use non-interactive, file-and-line-error, halt-on-error flags. Watch mode
-adds `latexmk -pvc -view=none`, leaving browser preview ownership to aibox.
+adds `latexmk -pvc -view=none`, leaving browser preview ownership to the sidecar.
 `TEXMFVAR` and `TEXMFCONFIG` live below `latex.cache_dir`, so TeX does not write
 mutable state to the user's global TeX tree.
 
-The CLI uses a host TeX installation when the configured engine is available.
-Otherwise it executes the same command inside the running project container.
-Source and output paths are project-relative and may contain spaces.
-
-`aibox latex status` reports output readiness, active watchers and previews,
-the preview URL, and the latest error line from each TeX log. PID files prevent
-accidentally starting a second watcher or preview for the same document.
+Compilation never runs on the host or in the preview sidecar. The scripts use
+the TeX installation in the main development container, keep the watch process
+in the foreground, and write PDFs below each configured `output_dir`. Run one
+watcher per document when several documents should rebuild concurrently.
 
 Running `aibox apply` also writes `AIBOX-LATEX.md` in the project root. This
-managed file gives AI agents the configured commands and document paths without
-duplicating processkit-owned instructions.
+managed file gives AI agents the configured container commands, preview URLs,
+and document paths without duplicating processkit-owned instructions.
 
 ## Live PDF preview
 
-When preview is enabled, `aibox up` starts it in the background for
-`latex.preview.document`, or for the first configured document when that key is
-omitted. The log is stored under `.aibox/latex/`. Start the same service
-explicitly in the foreground when working without `aibox up`:
+When preview is enabled, `aibox apply` generates a dedicated Compose sidecar and
+port mapping. Host-side `aibox up` starts that sidecar, which serves every
+configured document from the project workspace mounted read-only. The sidecar
+does not contain a TeX toolchain and cannot modify the workspace.
+`latex.preview.document` chooses the preferred document used by compatibility
+routes; it does not exclude the others.
+
+Inspect its logs with:
 
 ```bash
-aibox preview latex overview
+docker compose -f .devcontainer/docker-compose.yml logs <project-container-name>-latex-preview
 ```
 
-`aibox down` stops a background or foreground preview registered for the
-project. A subsequent `aibox up` starts it again.
+`aibox down` stops the sidecar with the rest of the Compose project. A
+subsequent `aibox up` starts it again. With multiple documents, the root URL
+displays a selection page. Each PDF also has a stable direct URL:
+
+```text
+http://127.0.0.1:8765/
+http://127.0.0.1:8765/documents/overview/
+http://127.0.0.1:8765/documents/appendix/
+```
 
 The stable URL is `http://127.0.0.1:8765/`. The service watches the completed
-PDF output, waits for its metadata to remain stable across multiple polls, and
-then sends an SSE revision event. This prevents the browser from fetching a
-partially-written PDF. The browser requests a versioned PDF URL on reload so a
-stale cache cannot hide a new build.
+PDF output for every document, waits for its metadata to remain stable across
+multiple polls, and then sends a document-specific SSE revision event. This
+prevents the browser from fetching a partially-written PDF. The browser
+requests a versioned PDF URL on reload so a stale cache cannot hide a new
+build. Page and zoom state are retained separately for each document.
 
 The viewer uses the pinned
 [`@embedpdf/snippet`](https://www.embedpdf.com/docs/snippet/getting-started)
 browser package. Its default toolbar provides navigation, zoom, search,
 thumbnails, and outline support when the PDF contains an outline. The browser
 must be able to reach jsDelivr to load the pinned viewer module; the PDF itself
-is served only by the local aibox process.
+is served by the local preview sidecar.
 
-### Remote hosts
+### Host and network access
+
+The preview helper listens on `0.0.0.0:8765` inside its isolated sidecar. The
+generated Compose mapping publishes that internal port only on the configured
+host address and port. The secure default is therefore accessible from the
+host browser but not from other machines:
+
+```toml
+[latex.preview]
+enabled = true
+bind = "127.0.0.1"
+port = 8765
+allow_public = false
+```
+
+Run `aibox apply` after changing this configuration, then run `aibox up` on the
+host. Do not add a manual override mapping;
+aibox generates `127.0.0.1:8765:8765` in `.devcontainer/docker-compose.yml`.
+
+For access from another machine on the local network, explicitly expose the
+unauthenticated endpoint:
+
+```toml
+[latex.preview]
+enabled = true
+bind = "0.0.0.0"
+port = 8765
+allow_public = true
+```
+
+This generates `0.0.0.0:8765:8765`. Open `http://<host-ip>:8765/` and ensure
+the host firewall permits the port. Prefer the loopback default plus SSH
+forwarding when possible.
+
+### Remote hosts over SSH
 
 The default bind address is loopback and is suitable for SSH forwarding:
 
@@ -109,6 +153,6 @@ The default bind address is loopback and is suitable for SSH forwarding:
 ssh -L 8765:127.0.0.1:8765 user@remote-host
 ```
 
-Then open `http://127.0.0.1:8765/` locally. Binding to a non-loopback address is
-rejected unless `allow_public = true` is also set. That opt-in exposes an
-unauthenticated PDF endpoint; prefer an SSH tunnel.
+Then open `http://127.0.0.1:8765/` locally. Publishing on a non-loopback host
+address is rejected unless `allow_public = true` is also set. That opt-in
+exposes an unauthenticated PDF endpoint; prefer an SSH tunnel.
