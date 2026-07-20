@@ -4,9 +4,12 @@ kind: Note
 metadata:
   id: NOTE-20260609_1604-ZestfulQuail-aibox-multitarget-devcontainer-snapshot
   created: '2026-06-09T16:04:16+00:00'
+  updated: '2026-07-20T14:09:07+00:00'
 spec:
   title: DISC-FirmRose state snapshot — aibox scripts + SSH + multi-target / devcontainer
     standard
+  type: insight
+  state: captured
   body: |
     # Discussion snapshot — DISC-20260608_1419-FirmRose
 
@@ -212,8 +215,6 @@ spec:
     When the owner confirms the charter line + picks on (1)/(2), promote to a
     **DecisionRecord** extending DISC-CuriousRobin, and `add_outcome` it to
     DISC-FirmRose.
-  type: insight
-  state: captured
   review_due: '2026-06-16'
   tags:
   - aibox
