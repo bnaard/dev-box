@@ -1,14 +1,14 @@
 [aibox]
 cli_version = "0.28.1"
-synced_at = "2026-07-17T15:33:59.358508592+00:00"
+synced_at = "2026-07-20T13:50:35.603054024+00:00"
 
 [processkit]
 source = "https://github.com/projectious-work/processkit.git"
-version = "v0.27.4"
+version = "v0.27.5"
 src_path = "src"
-release_asset_sha256 = "cdb8fb4c9cfdbbd055fc7acd69bb5fe605d537de39aab41eab08b9dd347fc094"
-installed_at = "2026-07-17T15:33:59.358508592+00:00"
-processkit_install_hash = "v2:76a30f52e382f5e1104d900240965699190ee2a3d33f04120afb6d2eb0eb9b3f"
+release_asset_sha256 = "d96f5ee0ff765ee2079df98231002b019ccb88824d51902f3e91c2f54b08a48f"
+installed_at = "2026-07-20T13:50:35.603054024+00:00"
+processkit_install_hash = "v2:bfaa91cb31768be3ccdf97d23bcea737a5ac88498506ad362195a6aa67cea7ed"
 
 [addons]
 resolved_at = "2026-05-09T10:41:25Z"

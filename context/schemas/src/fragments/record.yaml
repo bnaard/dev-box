@@ -1,0 +1,5 @@
+spec:
+  interfaces:
+    __merge: concat
+    value:
+      - Record

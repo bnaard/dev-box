@@ -548,6 +548,11 @@ pub static COMPAT_TABLE: &[CompatEntry] = &[
         processkit_version: "v0.27.4",
         note: "Patch release: restores Codex processkit command aliases through /prompts:pk-*; adds local fuzzy documentation search; moves LaTeX build and watch ownership into the development container; and adds a hardened read-only, multi-document preview sidecar with full lifecycle coverage.",
     },
+    CompatEntry {
+        aibox_version: "0.28.2",
+        processkit_version: "v0.27.5",
+        note: "Patch release: integrates processkit v0.27.5 derived-project doctor fixes, Git-ignore-aware sensitive-data scanning, archive-age enforcement, generated schema foundations, migration drafting, repository portfolio review, and refreshed gateway metadata.",
+    },
 ];
 
 /// Find the minimum compatible processkit version for the given aibox version.

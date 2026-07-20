@@ -1,0 +1,12 @@
+{
+  "mcpServers": {
+    "processkit-runtime-prune": {
+      "command": "uv",
+      "args": [
+        "run",
+        "context/skills/processkit/runtime-prune/mcp/server.py"
+      ],
+      "env": {}
+    }
+  }
+}

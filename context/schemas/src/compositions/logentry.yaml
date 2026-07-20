@@ -1,0 +1,154 @@
+---
+extends:
+  - ../fragments/entity.yaml
+  - ../fragments/record.yaml
+apiVersion: processkit.projectious.work/v2
+kind: Schema
+metadata:
+  id: SCHEMA-logentry
+  target_kind: LogEntry
+  version: "2.0.0-alpha.1"
+  created: 2026-04-06T00:00:00Z
+spec:
+  description: >
+    An immutable record of something that happened. LogEntries are append-only —
+    once written they are never edited. They form the event log for the project
+    and are the source of truth for "what happened and when." Per DISC-002,
+    LogEntries are probabilistic (agent-written via the event-log skill); there
+    is no second deterministic event source.
+  id_prefix: LOG
+  state_machine: null
+  default_directory: context/logs
+  append_only: true
+  known_event_types:
+    - actor.created
+    - actor.deactivated
+    - actor.updated
+    - artifact.created
+    - artifact.updated
+    - binding.created
+    - binding.ended
+    - binding.role-assigned
+    - context.groomed
+    - context_archive.created
+    - decision.created
+    - decision.transitioned
+    - decision.superseded
+    - discussion.opened
+    - discussion.transitioned
+    - doctor.report
+    - gate.created
+    - gate.passed
+    - gate.failed
+    - gate.waived
+    - github.issue.closed
+    - external_issue.created
+    - inbox.captured
+    - inbox.claimed
+    - inbox.completed
+    - inbox.failed
+    - inbox.triaged
+    - inbox.injected
+    - interrupt.fired
+    - interrupt.drained
+    - logentry.corrected
+    - metric.recorded
+    - milestone
+    - migration.transitioned
+    - migration.applied
+    - migration.rejected
+    - migration.v2-context-converted
+    - note.created
+    - process.backlog_review
+    - process.behavioral_norms_encoded
+    - process.id-format-redesign
+    - process.instance.created
+    - process.prd_review_completed
+    - process.prd_review_started
+    - process.prd_relocated
+    - process.prd_updated
+    - process.skill_updated
+    - research.completed
+    - release.published
+    - retro.action_item_created
+    - retro.completed
+    - role.created
+    - role.updated
+    - scope.created
+    - scope.transitioned
+    - session.ended
+    - session.handover
+    - session.release
+    - session.standup
+    - session.start
+    - session.started
+    - state-machine.updated
+    - team_member.created
+    - team_member.active_interlocutor_set
+    - team_member.claude_subagent_exported
+    - team_member.claude_subagents_exported
+    - team_member.auto_deactivated
+    - team_member.deactivated
+    - team_member.exported
+    - team_member.imported
+    - team_member.reactivated
+    - team_member.updated
+    - workitem.archive-moved
+    - workitem.created
+    - workitem.note
+    - workitem.rewritten
+    - workitem.transitioned
+    - scope.archive-moved
+    - note.archive-moved
+    - cost.call.accounted
+    - cost.budget.warning
+    - cost.budget.breach
+    - cost.sep-escalated
+    - eval.bound
+    - eval.judge.calibrated
+    - eval.spec.created
+    - agent_card.projected
+    - security.agent_ids_rule_projected
+    - security.tetragon_policy_projected
+    - sep.handoff.created
+    - skill.implemented
+    - decision.re-recorded
+    - entity.renamed
+    - test.event
+    - test.fixture
+  spec_schema:
+    $schema: https://json-schema.org/draft/2020-12/schema
+    type: object
+    required: [event_type, actor, timestamp]
+    additionalProperties: true
+    properties:
+      event_type:
+        type: string
+        description: "Closed v2 event type declared in spec.known_event_types."
+      timestamp:
+        type: string
+        format: date-time
+        description: >
+          When the event occurred (ISO 8601 UTC). Distinct from
+          metadata.created which is when the log file was written.
+      actor:
+        type: string
+        description: >
+          ID of the actor who caused the event. May be an ACTOR- ID or
+          a raw agent name.
+      subject:
+        type: string
+        description: "ID of the entity the event concerns (work item, decision, etc.)."
+      subject_kind:
+        type: string
+        description: "Kind of the subject entity, for fast filtering."
+      summary:
+        type: string
+        description: "One-line human-readable summary."
+      details:
+        type: object
+        description: "Event-specific structured payload. Shape depends on event_type."
+        additionalProperties: true
+      correlation_id:
+        type: string
+        description: "Optional ID linking related events (e.g. all events in one workflow run)."

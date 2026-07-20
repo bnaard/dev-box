@@ -1,0 +1,36 @@
+version: 1
+entity_api_version: processkit.projectious.work/v2
+release_track: v1.0
+interfaces:
+  - Entity
+  - Record
+  - Relationship
+  - Versioned
+alpha_concepts:
+  - WorkItem
+  - DecisionRecord
+  - Artifact
+  - LogEntry
+  - Binding
+  - Gate
+  - Role
+  - TeamMember
+  - Skill
+  - Capability
+  - Proposition
+  - Risk
+  - Scope
+  - Migration
+kinds:
+  workitem:
+    source: primitives/workitem.yaml
+    output: workitem.yaml
+  decisionrecord:
+    source: compositions/decisionrecord.yaml
+    output: decisionrecord.yaml
+  binding:
+    source: primitives/binding.yaml
+    output: binding.yaml
+  logentry:
+    source: compositions/logentry.yaml
+    output: logentry.yaml

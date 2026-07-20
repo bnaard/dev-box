@@ -12,6 +12,7 @@ below shows the minimum compatible processkit version for each aibox release.
 
 | aibox version | Min. processkit | Notes |
 |--------------|-----------------|-------|
+| 0.28.2 | v0.27.5 | integrates derived-project doctor applicability fixes, Git-ignore-aware sensitive-data scanning, 30-day archive-age enforcement, generated schema foundations, migration drafting, repository portfolio review, and refreshed gateway metadata |
 | 0.28.1 | v0.27.4 | restores Codex processkit aliases through `/prompts:pk-*`; adds local fuzzy documentation search; moves LaTeX build and watch ownership into the development container; and adds a hardened read-only, multi-document preview sidecar with full lifecycle coverage |
 | 0.28.0 | v0.27.4 | adds named LaTeX build, watch, status, and EmbedPDF live-preview workflows; manages preview lifecycle through `aibox up`/`down`; generates project-local agent guidance; and documents persistent, least-privilege GitHub authentication with explicit per-destination tokens |
 | 0.27.8 | v0.27.2 | integrates processkit derived-project remediation: project-local `pk-commands` preservation/schema validation, timestamped role-slot binding IDs, explicit doctor confirmation forwarding, archive remediation metadata, migration archive policy documentation, and refreshed gateway metadata |

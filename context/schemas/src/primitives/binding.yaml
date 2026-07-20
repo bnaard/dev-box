@@ -1,0 +1,317 @@
+---
+extends:
+  - ../fragments/entity.yaml
+  - ../fragments/versioned.yaml
+  - ../fragments/relationship.yaml
+apiVersion: processkit.projectious.work/v2
+kind: Schema
+metadata:
+  id: SCHEMA-binding
+  target_kind: Binding
+  version: "2.0.0-alpha.1"
+  created: 2026-04-07T00:00:00Z
+  updated: 2026-04-22T00:00:00Z
+spec:
+  description: >
+    A scoped, temporal, attribute-bearing relationship between two
+    entities. The junction-table pattern promoted to a primitive
+    (DEC-023). Use a Binding when a relationship has scope, time, or
+    its own attributes; otherwise prefer a frontmatter cross-reference.
+    Bindings are descriptive — there is no enforcement attached.
+
+    v1.1.0 change (DEC-20260422_0234-LoyalComet): added conditional
+    validation for type='model-assignment' bindings, enumerating the
+    fields used by the 8-layer resolution precedence.
+
+    v2.0.0 model routing change
+    (DEC-20260503_1424-ShinyBear,
+    DEC-20260503_1424-WiseBird,
+    DEC-20260503_1829-LoyalComet): default model-assignment bindings
+    from Roles and TeamMembers target Artifact(kind=model-profile)
+    entities. Profiles expand to concrete Artifact(kind=model-spec)
+    candidates after runtime access gates are applied. Direct model-spec
+    targets remain valid for explicit pins, project overrides, and
+    compatibility. model-recommender JSON is a projection/cache, not a
+    canonical binding target.
+
+    v2.0.0 change: Binding type is a closed vocabulary declared in
+    spec.known_types. Forks extend the vocabulary through schema-extension
+    migrations rather than ad hoc values.
+  id_prefix: BIND
+  state_machine: null
+  default_directory: context/bindings
+  known_types:
+    - role-assignment
+    - role-slot-fill
+    - model-assignment
+    - work-assignment
+    - process-gate
+    - process-scope
+    - schedule-scope
+    - constraint-scope
+    - category-assignment
+    - cross-project-link
+    - triage-classification
+    - portfolio-coordinates
+    - portfolio-scope-member
+    - provider-route
+    - ids-rule-applies-to
+    - agent-card-publication
+    - channel-binds-team
+    - budget-application
+    - credential-scope
+    - policy-application
+    - time-window
+  spec_schema:
+    $schema: https://json-schema.org/draft/2020-12/schema
+    type: object
+    required: [type, subject, target]
+    additionalProperties: true
+    properties:
+      type:
+        type: string
+        minLength: 1
+        description: >
+          Closed v2 binding type declared in spec.known_types.
+      subject:
+        type: string
+        description: "ID of the entity on the from side of the relationship."
+      target:
+        type: string
+        description: "ID of the entity on the to side of the relationship."
+      subject_kind:
+        type: string
+        description: >
+          Optional. The primitive kind of the subject. Set by the
+          binding-management MCP server when known; queries can filter
+          by it.
+      target_kind:
+        type: string
+        description: "Optional. The primitive kind of the target."
+      scope:
+        type: [string, "null"]
+        pattern: "^SCOPE-[a-zA-Z0-9_-]+$"
+        description: "Optional. Scope ID within which this binding applies."
+      valid_from:
+        type: [string, "null"]
+        description: >
+          Optional. When the binding starts being in effect. Date or
+          ISO 8601 datetime.
+      valid_until:
+        type: [string, "null"]
+        description: "Optional. When the binding stops being in effect."
+      conditions:
+        type: object
+        additionalProperties: true
+        description: "Optional. Freeform constraints attached to the binding."
+      description:
+        type: string
+        description: "One-line human-readable summary."
+    allOf:
+      - if:
+          properties:
+            type:
+              const: model-assignment
+          required: [type]
+        then:
+          properties:
+            target:
+              type: string
+              pattern: "^ART-[0-9]{8}_[0-9]{4}-(ModelSpec|ModelProfile)-[a-z0-9-]+$"
+              description: >
+                Target must be a timestamped Artifact(kind=model-profile)
+                or Artifact(kind=model-spec) entity. Role/TeamMember
+                defaults should use model-profile; direct model-spec is
+                reserved for explicit pins, project overrides, and
+                migration compatibility.
+            target_kind:
+              const: Artifact
+              description: >
+                Model-assignment targets are model-spec Artifacts.
+            conditions:
+              type: object
+              additionalProperties: true
+              description: >
+                Resolution inputs for 'model-assignment' bindings; see
+                DEC-20260422_0234-LoyalComet, §8-layer precedence.
+              properties:
+                seniority:
+                  type: string
+                  enum: [junior, specialist, expert, senior, principal]
+                  description: "Layer 5 match key when subject is a Role."
+                rank:
+                  type: integer
+                  minimum: 1
+                  description: "1 = primary, 2 = first alternate, etc."
+                effort_floor:
+                  type: string
+                  enum: [none, low, medium, high, extra-high, max]
+                effort_ceiling:
+                  type: string
+                  enum: [none, low, medium, high, extra-high, max]
+                version_pin:
+                  type: string
+                  description: "If set, pin to this version_id of the target model."
+                blocked:
+                  type: boolean
+                  description: >
+                    Layer 3 veto flag. When true, the subject (usually
+                    a ProjectScope) hard-excludes this model.
+                provider_preference:
+                  type: array
+                  items:
+                    type: string
+                  description: "Layer 7 tie-breaker provider ordering."
+                cost_bias:
+                  type: number
+                  description: "Layer 7 bias; positive = prefer cheaper."
+                cost_cap:
+                  type: number
+                  description: >
+                    Layer 3 hard filter if this model's usage would
+                    exceed cap for the expected task cost.
+                rationale:
+                  type: string
+                  description: "One-line reason this binding exists."
+                direct_model_pin:
+                  type: boolean
+                  description: >
+                    True only when a direct model-spec target is
+                    intentional rather than a default role/team routing
+                    contract.
+      - if:
+          properties:
+            type:
+              const: triage-classification
+          required: [type]
+        then:
+          properties:
+            subject:
+              type: string
+              pattern: "^NOTE-[a-zA-Z0-9_-]+$"
+            target:
+              type: string
+              pattern: "^BACK-[a-zA-Z0-9_-]+$"
+            conditions:
+              type: object
+              required: [injection_mode]
+              properties:
+                injection_mode:
+                  type: string
+                  enum: [interrupt, ambient, next-cycle]
+      - if:
+          properties:
+            type:
+              const: policy-application
+          required: [type]
+        then:
+          properties:
+            conditions:
+              type: object
+              properties:
+                enforcement_point:
+                  type: string
+                signing_required:
+                  type: boolean
+      - if:
+          properties:
+            type:
+              const: budget-application
+          required: [type]
+        then:
+          properties:
+            subject:
+              type: string
+              pattern: "^ART-[a-zA-Z0-9_-]+$"
+              description: "Subject must be a cost-policy Artifact."
+            conditions:
+              type: object
+              required: [enforcement_point]
+              properties:
+                enforcement_point:
+                  type: string
+                cap_usd:
+                  type: number
+                  minimum: 0
+                warning_threshold:
+                  type: number
+                  minimum: 0
+                  maximum: 1
+      - if:
+          properties:
+            type:
+              const: provider-route
+          required: [type]
+        then:
+          properties:
+            conditions:
+              type: object
+              required: [provider, model, enforcement_point]
+              properties:
+                provider:
+                  type: string
+                  minLength: 1
+                model:
+                  type: string
+                  minLength: 1
+                version:
+                  type: string
+                effort:
+                  type: string
+                enforcement_point:
+                  type: string
+      - if:
+          properties:
+            type:
+              const: ids-rule-applies-to
+          required: [type]
+        then:
+          properties:
+            subject:
+              type: string
+              pattern: "^ART-[a-zA-Z0-9_-]+$"
+              description: "Subject must be an agent-ids-rule Artifact."
+            conditions:
+              type: object
+              properties:
+                enforcement_point:
+                  type: string
+                rule_checksum:
+                  type: string
+      - if:
+          properties:
+            type:
+              const: time-window
+          required: [type]
+        then:
+          properties:
+            conditions:
+              type: object
+              properties:
+                recurrence_rule:
+                  type: string
+                  pattern: "^ART-[a-zA-Z0-9_-]+$"
+      - if:
+          properties:
+            type:
+              const: role-slot-fill
+          required: [type]
+        then:
+          properties:
+            subject:
+              type: string
+              pattern: "^TEAMMEMBER-[a-z][a-z0-9-]*$"
+              description: "TeamMember filling the slot."
+            target:
+              type: string
+              pattern: "^SLOT-[a-z0-9][a-z0-9-]*-[1-9][0-9]*$"
+              description: "RoleSlot being filled."
+            target_kind:
+              const: RoleSlot
+            conditions:
+              type: object
+              additionalProperties: true
+              properties:
+                rationale:
+                  type: string
+                  description: "Why this TeamMember was placed in this slot."
