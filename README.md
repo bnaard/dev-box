@@ -2,6 +2,10 @@
 
 **Reproducible AI workspaces from one `aibox.toml`.**
 
+> **Project status:** actively maintained. The latest minor release line is
+> supported; security and correctness fixes are released on the newest version.
+> See [SECURITY.md](SECURITY.md) for reporting and support details.
+
 `aibox` is a Rust CLI for projects that want a dependable terminal-first AI
 development environment without hand-maintaining devcontainer glue. It turns a
 declarative `aibox.toml` into standard `.devcontainer/` files, a project image,
@@ -163,6 +167,11 @@ under [`docs-site/docs/contributing/`](docs-site/docs/contributing/).
 
 Do not hardcode processkit vocabulary in production Rust code. Add constants to
 `cli/src/processkit_vocab.rs` instead.
+
+All build, test, documentation, and release gates run locally. This repository
+does not use GitHub Actions; see the
+[maintenance guide](https://projectious-work.github.io/aibox/docs/contributing/maintenance)
+for the exact commands and release phases.
 
 ## License
 

@@ -79,6 +79,19 @@ cd cli && cargo test && cargo clippy --all-targets -- -D warnings
 
 Both must be clean. `cargo audit` must also be clean before tagging a release.
 
+Use the repository's canonical Git identity for release and maintenance
+commits:
+
+```bash
+git config user.name projectious
+git config --get user.name
+git config --get user.email
+```
+
+The reported email must match the canonical maintainer identity configured for
+the repository. Do not substitute a harness-generated or container-local
+identity in release commits.
+
 ## Commit message format
 
 Conventional commits: `feat:`, `fix:`, `chore:`, `docs:`.

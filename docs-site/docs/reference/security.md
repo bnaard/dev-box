@@ -2,6 +2,63 @@
 
 This page documents aibox's security model and trust boundaries.
 
+## Support and vulnerability reporting
+
+aibox is actively maintained. The latest minor release line is supported;
+security and correctness fixes are released on the newest version rather than
+backported across older minor lines. See the repository
+[`SECURITY.md`](https://github.com/projectious-work/aibox/blob/main/SECURITY.md)
+for private reporting instructions and response expectations.
+
+## Dependency and asset provenance review
+
+The project uses several independent integrity layers:
+
+| Surface | Provenance control | Release validation |
+| --- | --- | --- |
+| Rust CLI | `cli/Cargo.lock` pins the complete dependency graph | `cargo test`, Clippy with warnings denied, and `cargo audit` |
+| Documentation | `docs-site/package-lock.json` pins npm dependencies | clean `npm ci`, production Docusaurus build, and npm audit |
+| processkit | source, version, and release-asset SHA-256 are recorded in `aibox.lock` and live provenance | installer hash verification, three-way content comparison, and pk-doctor integrity checks |
+| Base images | release-specific image tags, OCI source/profile labels, and generated version markers | cross-platform build, GHCR publication verification, and downstream runtime smoke |
+| Addon downloads | pinned versions plus SHA-256, signed checksum, or upstream sidecar verification where available | release-state inventory and real container lifecycle tests |
+| Release binaries | locally cross-compiled artifacts attached to a signed release tag | version smoke tests and evidence-bound artifact checksums |
+
+The release-state report records floating inputs and available updates before
+each release. A clean security audit is mandatory; routine non-security drift
+may be deferred only into a processkit WorkItem. Provenance exceptions are
+documented next to the relevant installer instead of being silently accepted.
+
+This review was consolidated for
+[aibox issue #80](https://github.com/projectious-work/aibox/issues/80). It is
+kept current through the local release gate and the public maintenance guide.
+
+## Data handling review
+
+aibox does not provide a hosted service and does not send product telemetry.
+The CLI operates on the local project, generates container configuration, and
+contacts external services only for requested dependency, image, processkit,
+GitHub, documentation, or release operations.
+
+- `aibox.toml`, generated `.devcontainer/` files, and processkit context are
+  project data and are normally committed.
+- `.aibox-local.toml`, `.aibox-home/`, `.aibox/`, authentication state, SSH
+  material, local caches, diagnostics, and release evidence are local state and
+  must remain ignored unless a specific artifact has been reviewed for
+  publication.
+- Tokens enter containers through explicit local environment configuration.
+  Prefer separate least-privilege tokens and select cross-account tokens per
+  command instead of exposing a human account's full authorization.
+- Enabled AI harnesses and MCP servers execute with the container user's access
+  to the workspace and mounted credentials. Their providers may receive prompt,
+  tool, and file content according to the provider's own service terms.
+- `aibox doctor` and pk-doctor inspect local state. Diagnostic reports must be
+  reviewed and redacted before they are attached to public issues.
+
+No generated local credential, cache, or diagnostic directory belongs in a
+release artifact. The release process builds from tracked source, verifies the
+exact commit, and publishes only the declared binaries, documentation output,
+and container images.
+
 ## MCP Gateway Trust Scope
 
 ### How processkit skills are registered
