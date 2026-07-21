@@ -101,8 +101,12 @@ Include `Cargo.lock` in version bump commits.
 ## Release
 
 See `context/notes/NOTE-20260411_0000-LoyalSpruce-aibox-release-process.md` for the full release process.
-Quick summary: `./scripts/maintain.sh release X.Y.Z` (in container) then
-`./scripts/maintain.sh release-host X.Y.Z` (on macOS host).
+Run a release only from its designated protected integration branch: stable
+v0 releases from `v0.x-release`, v1 prereleases from `v1.x-pre-release`, and
+v1 GA releases from `v1.x-release` once created. Quick summary:
+`./scripts/maintain.sh release X.Y.Z` (in container) then
+`./scripts/maintain.sh release-host X.Y.Z` (on macOS host). Merge the tagged
+release branch into `main` through a pull request afterward.
 
 Release validation and publication run locally. Do not introduce GitHub Actions
 or another hosted CI release path. The local release tooling runs independent
