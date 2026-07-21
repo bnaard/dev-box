@@ -2316,6 +2316,25 @@ impl Default for TmuxStatusRefreshSection {
     }
 }
 
+fn default_tmux_status_forge_github_hosts() -> Vec<String> {
+    vec!["github.com".to_string()]
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+#[serde(rename_all = "kebab-case")]
+pub struct TmuxStatusForgeSection {
+    #[serde(default = "default_tmux_status_forge_github_hosts")]
+    pub github_hosts: Vec<String>,
+}
+
+impl Default for TmuxStatusForgeSection {
+    fn default() -> Self {
+        Self {
+            github_hosts: default_tmux_status_forge_github_hosts(),
+        }
+    }
+}
+
 fn default_model_provider_status_cache_ttl_seconds() -> u32 {
     300
 }
@@ -2570,6 +2589,8 @@ pub struct TmuxStatusSection {
     #[serde(default)]
     pub refresh: TmuxStatusRefreshSection,
     #[serde(default)]
+    pub forge: TmuxStatusForgeSection,
+    #[serde(default)]
     pub model_providers: TmuxStatusModelProviderStatusSection,
 }
 
@@ -2582,6 +2603,7 @@ impl Default for TmuxStatusSection {
             labels: TmuxStatusLabelsSection::default(),
             separators: TmuxStatusSeparatorsSection::default(),
             refresh: TmuxStatusRefreshSection::default(),
+            forge: TmuxStatusForgeSection::default(),
             model_providers: TmuxStatusModelProviderStatusSection::default(),
         }
     }
@@ -4395,6 +4417,7 @@ impl AiboxConfig {
         self.validate_tmux_status_layout()?;
         self.validate_tmux_status_labels()?;
         self.validate_tmux_status_refresh()?;
+        self.validate_tmux_status_forge()?;
         self.validate_tmux_model_provider_status()?;
 
         Ok(())
@@ -4622,6 +4645,27 @@ impl AiboxConfig {
             if value < min || value > max {
                 bail!(
                     "customization.tmux.status.refresh.{field} must be between {min} and {max} seconds"
+                );
+            }
+        }
+        Ok(())
+    }
+
+    fn validate_tmux_status_forge(&self) -> Result<()> {
+        let mut seen = BTreeSet::new();
+        for host in &self.customization.tmux.status.forge.github_hosts {
+            if host.is_empty()
+                || !host
+                    .chars()
+                    .all(|ch| ch.is_ascii_alphanumeric() || matches!(ch, '.' | '_' | '-'))
+            {
+                bail!(
+                    "customization.tmux.status.forge.github-hosts contains invalid SSH host alias '{host}'; use only ASCII letters, digits, dots, underscores, and hyphens"
+                );
+            }
+            if !seen.insert(host) {
+                bail!(
+                    "customization.tmux.status.forge.github-hosts contains duplicate entry '{host}'"
                 );
             }
         }
@@ -5021,6 +5065,7 @@ fn check_customization_table(
                     "labels",
                     "separators",
                     "refresh",
+                    "forge",
                     "model-providers",
                 ],
                 mismatches,
@@ -5068,6 +5113,7 @@ fn check_customization_table(
                     ],
                     mismatches,
                 );
+                check_child_table(status, "forge", &["github-hosts"], mismatches);
                 check_child_table(
                     status,
                     "model-providers",
@@ -6129,6 +6175,34 @@ elements-spacing = "plugins"
             mismatches.is_empty(),
             "tmux status separator options should be schema-clean: {mismatches:?}"
         );
+    }
+
+    #[test]
+    fn schema_and_validation_accept_tmux_forge_github_hosts() {
+        let toml = r#"
+apiVersion = "aibox.projectious.work/v1"
+kind = "Workspace"
+
+[customization.tmux.status.forge]
+        github-hosts = ["github.com", "github-bnaard", "github_work"]
+"#;
+        assert!(AiboxConfig::schema_mismatches(toml).unwrap().is_empty());
+        let mut config = test_config();
+        config.customization.tmux.status.forge.github_hosts = vec![
+            "github.com".to_string(),
+            "github-bnaard".to_string(),
+            "github_work".to_string(),
+        ];
+        config.validate().unwrap();
+    }
+
+    #[test]
+    fn validation_rejects_unsafe_tmux_forge_github_host_alias() {
+        let mut config = test_config();
+        config.customization.tmux.status.forge.github_hosts =
+            vec!["github.com;run-shell".to_string()];
+        let error = config.validate().unwrap_err().to_string();
+        assert!(error.contains("contains invalid SSH host alias"), "{error}");
     }
 
     #[test]

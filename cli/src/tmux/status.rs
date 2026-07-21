@@ -450,6 +450,7 @@ pub fn tmux_powerkit_settings(config: &AiboxConfig) -> (String, String, String) 
         .collect();
     let refresh_option_lines =
         status_refresh_option_lines(config, &line1_right, &line2_left, &line2_right);
+    let forge_option_lines = forge_option_lines(config, &line1_right, &line2_left, &line2_right);
     let status_label_option_lines =
         status_label_option_lines(config, &line1_right, &line2_left, &line2_right);
     let model_provider_option_lines = model_provider_option_lines(config, &line1_right);
@@ -487,7 +488,7 @@ set -g @powerkit_pane_border_format "#{{?client_prefix,PREFIX,NORMAL}} #{{pane_t
 set -g @powerkit_line1_right "{}"
 set -g @powerkit_line2_left "{}"
 set -g @powerkit_line2_right "{}"
-set -g @powerkit_plugin_netspeed_speed_width "7"{}{}{}{}"##,
+set -g @powerkit_plugin_netspeed_speed_width "7"{}{}{}{}{}"##,
         resolved_theme,
         plugin_order.join(","),
         separators.style,
@@ -504,6 +505,7 @@ set -g @powerkit_plugin_netspeed_speed_width "7"{}{}{}{}"##,
         line2_right.join(","),
         metric_option_lines,
         refresh_option_lines,
+        forge_option_lines,
         status_label_option_lines,
         model_provider_option_lines
     );
@@ -516,6 +518,28 @@ set -g @powerkit_plugin_netspeed_speed_width "7"{}{}{}{}"##,
         &surface,
     );
     (powerkit_block, powerkit_plugin, powerkit_formats)
+}
+
+fn forge_option_lines(
+    config: &AiboxConfig,
+    line1_right: &[String],
+    line2_left: &[String],
+    line2_right: &[String],
+) -> String {
+    let configured = line1_right.iter().chain(line2_left).chain(line2_right);
+    if !configured.into_iter().any(|item| item == "forge") {
+        return String::new();
+    }
+    format!(
+        "\nset -g @powerkit_plugin_forge_github_hosts \"{}\"",
+        config
+            .customization
+            .tmux
+            .status
+            .forge
+            .github_hosts
+            .join(" ")
+    )
 }
 
 pub fn tmux_powerkit_overrides(config: &AiboxConfig) -> String {
@@ -1232,6 +1256,7 @@ mod tests {
                 && conf.contains(r#"@powerkit_plugin_kubernetes_cache_ttl "120""#)
                 && conf.contains(r#"@powerkit_plugin_cloud_cache_ttl "120""#)
                 && conf.contains(r#"@powerkit_plugin_forge_cache_ttl "120""#)
+                && conf.contains(r#"@powerkit_plugin_forge_github_hosts "github.com""#)
                 && conf.contains(r#"@powerkit_plugin_aibox_log_label "󱖫""#)
                 && conf.contains(r#"@powerkit_plugin_aibox_oom_label "󰍛󰚌""#)
                 && conf.contains(r#"@powerkit_plugin_aibox_proc_label "󰊚""#)
@@ -1262,6 +1287,22 @@ mod tests {
             conf.contains("TPM is\n# only a user convenience layer"),
             "TPM should be documented as user convenience, not the managed plugin source:\n{conf}"
         );
+    }
+
+    #[test]
+    fn tmux_forge_renders_configured_github_ssh_aliases() {
+        let mut config = crate::config::test_config();
+        config.customization.tmux.status.forge.github_hosts = vec![
+            "github.com".to_string(),
+            "github-bnaard".to_string(),
+            "github_work".to_string(),
+        ];
+
+        let conf = tmux_conf(&config);
+
+        assert!(conf.contains(
+            r#"@powerkit_plugin_forge_github_hosts "github.com github-bnaard github_work""#
+        ));
     }
 
     #[test]

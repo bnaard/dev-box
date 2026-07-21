@@ -474,6 +474,9 @@ mod tests {
         assert!(helper.contains("EMBEDPDF_VERSION = \"2.14.3\""));
         assert!(helper.contains("new EventSource('{events_url}')"));
         assert!(helper.contains("ThreadingHTTPServer"));
+        assert!(helper.contains("scroll?.forDocument('live-preview')"));
+        assert!(helper.contains("!event.isInitial"));
+        assert!(helper.contains("let restoringView = true"));
     }
 
     #[test]

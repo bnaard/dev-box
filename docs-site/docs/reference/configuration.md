@@ -196,6 +196,10 @@ kubernetes-cache-ttl-seconds = 120
 cloud-cache-ttl-seconds = 120
 github-cache-ttl-seconds = 120
 
+[customization.tmux.status.forge]
+# Exact GitHub SSH hostnames and aliases recognized by the Forge segment.
+github-hosts = ["github.com", "github-work"]
+
 [customization.tmux.status.model-providers]
 # Optional networked model-provider health segments for the extended tmux status line.
 # Each configured provider becomes one PowerKit segment when enabled, for example OAI ✓ or ANT 󰚌.
@@ -792,6 +796,7 @@ Visual and layout configuration. See [Themes](../customization/themes.md) and [L
 | `tmux.status.separators.style` | String | No | `"rounded"` | PowerKit separator style: `normal`, `rounded`, `slant`, `slantup`, `trapezoid`, `flame`, `pixel`, `honeycomb`, `none`. |
 | `tmux.status.separators.edge-style` | String | No | `"rounded"` | PowerKit edge separator style for status boundaries. Uses the same values as `style`. |
 | `tmux.status.separators.elements-spacing` | String | No | `"both"` | PowerKit spacing mode: `false`, `true`, `both`, `windows`, `plugins`. |
+| `tmux.status.forge.github-hosts` | Array of strings | No | `["github.com"]` | Exact GitHub SSH hostnames and aliases recognized by the Forge status segment. Add aliases declared in SSH config, such as `github-work`. |
 
 ### [audio]
 

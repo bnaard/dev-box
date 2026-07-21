@@ -1861,6 +1861,14 @@ pub(crate) fn serialize_config_with_comments(config: &AiboxConfig) -> String {
         refresh.github_cache_ttl_seconds
     ));
     out.push('\n');
+    out.push_str("[customization.tmux.status.forge]\n");
+    out.push_str("# Exact GitHub SSH hostnames and aliases recognized by the Forge segment.\n");
+    out.push_str("# Add aliases from ~/.ssh/config here (for example, github-work).\n");
+    out.push_str(&format!(
+        "github-hosts = {}\n",
+        toml_string_array(&config.customization.tmux.status.forge.github_hosts)
+    ));
+    out.push('\n');
     out.push_str("[customization.tmux.status.model-providers]\n");
     out.push_str(
         "# Optional networked model-provider health segments for the extended tmux status line.\n",

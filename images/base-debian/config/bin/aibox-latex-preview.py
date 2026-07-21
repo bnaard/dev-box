@@ -100,18 +100,23 @@ async function openPdf() {{
   if (!viewer) return;
   const registry = await viewer.registry;
   const scroll = registry.getPlugin('scroll')?.provides();
+  const documentScroll = scroll?.forDocument('live-preview');
   const zoom = registry.getPlugin('zoom')?.provides()?.forDocument('live-preview');
   const savedPage = Number(sessionStorage.getItem('{storage_key}-page') || '1');
   const savedZoom = JSON.parse(sessionStorage.getItem('{storage_key}-zoom') || 'null');
+  let restoringView = true;
   scroll?.onLayoutReady(event => {{
-    if (event.documentId !== 'live-preview') return;
-    scroll.scrollToPage({{pageNumber:savedPage, behavior:'instant'}});
+    if (event.documentId !== 'live-preview' || !event.isInitial) return;
+    documentScroll?.scrollToPage({{pageNumber:savedPage, behavior:'instant'}});
     if (savedZoom !== null) zoom?.requestZoom(savedZoom);
+    requestAnimationFrame(() => {{ restoringView = false; }});
   }});
   scroll?.onPageChange(event => {{
-    if (event.documentId === 'live-preview') sessionStorage.setItem('{storage_key}-page', String(event.pageNumber));
+    if (event.documentId === 'live-preview' && !restoringView) sessionStorage.setItem('{storage_key}-page', String(event.pageNumber));
   }});
-  zoom?.onStateChange(state => sessionStorage.setItem('{storage_key}-zoom', JSON.stringify(state.currentZoomLevel)));
+  zoom?.onStateChange(state => {{
+    if (!restoringView) sessionStorage.setItem('{storage_key}-zoom', JSON.stringify(state.currentZoomLevel));
+  }});
 }}
 await openPdf();
 const events = new EventSource('{events_url}');
