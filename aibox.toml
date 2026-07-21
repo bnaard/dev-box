@@ -402,6 +402,10 @@ p7zip = {} # Archive listing and extraction support for previews; default on; op
 # ghostscript = { enabled = false } # PostScript and EPS rendering support for document previews; default on; options: {}, { enabled = true|false }, { version = "x.y.z" or "latest" }
 rich = {} # Markdown, JSON, RST, and notebook terminal rendering for Yazi previews; default on; options: {}, { enabled = true|false }, { version = "x.y.z" or "latest" }
 
+# Tools/yazi-omp — oh-my-posh for the omp.yazi header prompt
+# [addons.yazi-omp.tools]
+# oh-my-posh = {} # default on; options: {}, { enabled = true|false }, { version = "x.y.z" or "latest" }
+
 # =============================================================================
 # [ai] — AI agent harnesses and model providers
 # =============================================================================

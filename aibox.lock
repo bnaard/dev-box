@@ -8,7 +8,7 @@ version = "v0.27.5"
 src_path = "src"
 release_asset_sha256 = "d96f5ee0ff765ee2079df98231002b019ccb88824d51902f3e91c2f54b08a48f"
 installed_at = "2026-07-20T13:50:35.603054024+00:00"
-processkit_install_hash = "v2:bfaa91cb31768be3ccdf97d23bcea737a5ac88498506ad362195a6aa67cea7ed"
+processkit_install_hash = "v2:cabf6c2d9aabfb33a0816972f4de38a6bb26a35a5dbaa1570113e92baa2bd51f"
 
 [addons]
 resolved_at = "2026-05-09T10:41:25Z"
