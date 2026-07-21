@@ -85,6 +85,26 @@ Release speed comes from bounded local concurrency, persistent caches, and
 reuse of evidence for the exact release commit rather than from moving gates to
 a hosted runner.
 
+## Version-line branches
+
+Long-lived branches are protected: direct pushes, force-pushes, and deletion
+are disabled; changes arrive through pull requests with resolved conversations.
+No GitHub Actions or required hosted checks are used.
+
+| Line | Development | Release authority | Purpose |
+| --- | --- | --- | --- |
+| v0 maintenance | `v0.x-dev` | `v0.x-release` | Stable v0 releases and hotfixes |
+| v1 prerelease | `v1.x-dev` | `v1.x-pre-release` | Alpha, beta, and release-candidate tags |
+| v1 GA | `v1.x-dev` | `v1.x-release` (created at GA) | Stable v1 releases |
+
+`main` is the published-history branch. After a tag is cut on its designated
+release branch, merge that branch into `main` through a pull request. Apply or
+verify the policy from an administrator checkout with:
+
+```bash
+./scripts/configure-branch-protection.sh
+```
+
 Do not create GitHub releases by hand with `gh release create`. The release
 script attaches binaries and writes the release notes expected by users.
 

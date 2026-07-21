@@ -234,7 +234,10 @@ typecheck: ""
 
 ### Pull requests
 
-- **Direct commits to `main`** — no PR ceremony on this repo.
+- **Version-line integration** — long-lived branches (`main`, `v0.x-dev`,
+  `v0.x-release`, `v1.x-dev`, `v1.x-pre-release`) are PR-only. Tag releases
+  only on their designated release branch; merge the tagged branch into `main`
+  as published history. Do not use GitHub Actions or workflow files.
 - **"Ship it" means the full release ritual** end-to-end: build, test, commit, tag,
   push, GitHub release, deploy docs. Do not ask permission at each step.
 - **Phase 0 runs three steps before any version bump:** (1) `./scripts/maintain.sh release-check-state`

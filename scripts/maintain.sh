@@ -39,6 +39,30 @@ DIST_DIR="${PROJECT_ROOT}/dist"
 IMAGE_REGISTRY="ghcr.io/projectious-work/aibox"
 GITHUB_REPO="${AIBOX_GITHUB_REPO:-projectious-work/aibox}"
 
+# Releases are tagged only from their protected integration branches. This is a
+# local maintainer workflow; no GitHub Actions participate in it.
+release_branch_for_version() {
+  local version="$1"
+  case "${version}" in
+    0.*) printf '%s\n' 'v0.x-release' ;;
+    1.*-*) printf '%s\n' 'v1.x-pre-release' ;;
+    1.*) printf '%s\n' 'v1.x-release' ;;
+    *) die "Unsupported release line for ${version}; add a branch mapping first." ;;
+  esac
+}
+
+ensure_release_branch() {
+  local version="$1" expected actual remote
+  expected="$(release_branch_for_version "${version}")"
+  actual="$(git branch --show-current)"
+  [[ "${actual}" == "${expected}" ]] \
+    || die "Release ${version} must run on ${expected}, not ${actual}."
+  git fetch origin "${expected}" >/dev/null
+  remote="$(git rev-parse "origin/${expected}")"
+  [[ "$(git rev-parse HEAD)" == "${remote}" ]] \
+    || die "${expected} is behind origin; update it before tagging."
+}
+
 # ── Read container name from docker-compose.yml ─────────────────────────────
 _init_names() {
   local svc cn
@@ -704,8 +728,8 @@ cmd_push_images() {
   local version="${1:-}"
   [[ -z "${version}" ]] && die "Usage: ./scripts/maintain.sh push-images <version>  (e.g. 0.2.0)"
 
-  if ! [[ "${version}" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
-    die "Version must be semver: X.Y.Z (got: ${version})"
+  if ! [[ "${version}" =~ ^[0-9]+\.[0-9]+\.[0-9]+(-[0-9A-Za-z][0-9A-Za-z.-]*)?$ ]]; then
+    die "Version must be semver: X.Y.Z or X.Y.Z-prerelease (got: ${version})"
   fi
 
   ensure_ghcr_login
@@ -1582,11 +1606,11 @@ release_usage() {
 release_list_steps() {
   cat <<'STEPS'
 Release step aliases:
-  all       state,doctors,sync,version,test,e2e,visual,audit,build-linux,version-smoke,push-main,notes,tag,github-release,docs,prompt
+  all       state,doctors,sync,version,test,e2e,visual,audit,build-linux,version-smoke,notes,tag,github-release,docs,prompt
   phase0    state,doctors
   checks    sync,version,test,e2e,visual,audit
   build     build-linux,version-smoke
-  publish   push-main,notes,tag,github-release
+  publish   notes,tag,github-release
 
 Concrete release steps:
   state           Generate dist/RELEASE-STATE.md with dependency and harness network lookups
@@ -1599,7 +1623,6 @@ Concrete release steps:
   audit           Run cargo audit
   build-linux     Build Linux release archives and checksums
   version-smoke   Verify the native release binary reports the requested version
-  push-main       Push main to origin
   notes           Prepare or reuse dist/RELEASE-NOTES.md
   tag             Create and push the annotated release tag
   github-release  Create the GitHub release with Linux archives
@@ -1650,12 +1673,11 @@ release_expand_step_token() {
       release_add_step version-smoke
       ;;
     publish)
-      release_add_step push-main
       release_add_step notes
       release_add_step tag
       release_add_step github-release
       ;;
-    state|doctors|sync|version|test|e2e|visual|audit|build-linux|version-smoke|push-main|notes|tag|github-release|docs|prompt)
+    state|doctors|sync|version|test|e2e|visual|audit|build-linux|version-smoke|notes|tag|github-release|docs|prompt)
       release_add_step "${token}"
       ;;
     "")
@@ -1723,7 +1745,7 @@ release_requires_clean_tree() {
   local step
   for step in "${release_steps[@]}"; do
     case "${step}" in
-      sync|version|push-main|tag|github-release|docs)
+      sync|version|tag|github-release|docs)
         return 0
         ;;
     esac
@@ -2188,8 +2210,8 @@ cmd_release() {
   done
 
   # Validate semver (simple check)
-  if ! [[ "${version}" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
-    die "Version must be semver: X.Y.Z (got: ${version})"
+  if ! [[ "${version}" =~ ^[0-9]+\.[0-9]+\.[0-9]+(-[0-9A-Za-z][0-9A-Za-z.-]*)?$ ]]; then
+    die "Version must be semver: X.Y.Z or X.Y.Z-prerelease (got: ${version})"
   fi
 
   local tag="v${version}"
@@ -2199,6 +2221,7 @@ cmd_release() {
   release_parse_steps "${steps_spec}"
   release_apply_skip_steps "${skip_spec}"
   release_validate_license_guardrails
+  ensure_release_branch "${version}"
 
   info "Preparing release ${tag} with steps: $(release_steps_joined)"
 
@@ -2248,20 +2271,7 @@ cmd_release() {
     local current_cargo_version
     current_cargo_version=$(grep -m1 '^version = ' "${CLI_DIR}/Cargo.toml" | sed -E 's/version = "(.+)"/\1/')
     if [[ "${current_cargo_version}" != "${version}" ]]; then
-      info "Bumping cli/Cargo.toml ${current_cargo_version} → ${version}..."
-      # macOS/BSD sed and GNU sed differ on -i; write atomically via a tmp file.
-      local tmp_cargo
-      tmp_cargo=$(mktemp)
-      sed -E "s/^version = \"${current_cargo_version}\"$/version = \"${version}\"/" \
-        "${CLI_DIR}/Cargo.toml" > "${tmp_cargo}"
-      mv "${tmp_cargo}" "${CLI_DIR}/Cargo.toml"
-      # Refresh Cargo.lock so the new version is locked.
-      (cd "${CLI_DIR}" && cargo metadata --format-version 1 --quiet >/dev/null) \
-        || die "cargo metadata failed after version bump — review Cargo.toml"
-      git add "${CLI_DIR}/Cargo.toml" "${CLI_DIR}/Cargo.lock"
-      git commit -m "chore: bump CLI version to ${version}" \
-        || die "failed to commit Cargo.toml/Cargo.lock bump"
-      ok "Cargo.toml bumped and committed"
+      die "Cargo.toml is ${current_cargo_version}, not ${version}. Bump the version on the matching development branch and merge it into $(release_branch_for_version "${version}") through a pull request before running release."
     else
       ok "Cargo.toml already at ${version}"
     fi
@@ -2316,12 +2326,6 @@ cmd_release() {
     info "Verifying 'aibox --version' matches ${version}..."
     release_run_evidenced_step "version-smoke" "${version}" "CLI version smoke" \
       release_version_smoke_gate "${version}"
-  fi
-
-  if release_step_requested push-main; then
-    info "Pushing main to origin (version-bump commit)..."
-    git push origin main
-    ok "main pushed to origin"
   fi
 
   if release_step_requested notes; then
@@ -2391,13 +2395,13 @@ cmd_release() {
       echo "Run the following on the macOS host to sync the checkout and complete the release:"
       echo ""
       echo "\`\`\`bash"
-      echo "git fetch origin main"
-      echo "git reset --keep origin/main"
+      echo "git fetch origin $(release_branch_for_version "${version}")"
+      echo "git reset --keep origin/$(release_branch_for_version "${version}")"
       echo "./scripts/maintain.sh release-host ${version}"
       echo "\`\`\`"
       echo ""
       echo "This will:"
-      echo "- Verify the host checkout is at the just-pushed origin/main"
+      echo "- Verify the host checkout is at the just-pushed release branch"
       echo "- Build macOS binaries (aarch64-apple-darwin, x86_64-apple-darwin)"
       echo "- Upload them to the existing GitHub release ${tag}"
       echo "- Build and push container images to GHCR"
@@ -2433,13 +2437,14 @@ cmd_release_finalize_runtime() {
   local version="${1:-}"
   [[ -z "${version}" ]] && die "Usage: ./scripts/maintain.sh release-finalize-runtime <version>  (e.g. 0.10.2)"
 
-  if ! [[ "${version}" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
-    die "Version must be semver: X.Y.Z (got: ${version})"
+  if ! [[ "${version}" =~ ^[0-9]+\.[0-9]+\.[0-9]+(-[0-9A-Za-z][0-9A-Za-z.-]*)?$ ]]; then
+    die "Version must be semver: X.Y.Z or X.Y.Z-prerelease (got: ${version})"
   fi
 
   info "Refreshing repo-owned generated runtime surfaces..."
   (
     cd "${PROJECT_ROOT}"
+    ensure_release_branch "${version}"
     if ! git diff --cached --quiet; then
       die "Staged changes are already present; commit or unstage them before release runtime finalization."
     fi
@@ -2451,9 +2456,12 @@ cmd_release_finalize_runtime() {
     if git diff --cached --quiet -- .devcontainer aibox.lock context/migrations context/templates/aibox-home; then
       ok "Generated runtime surfaces already match v${version}; no commit needed."
     else
+      local topic_branch
+      topic_branch="release/v${version}-runtime-refresh"
+      git switch -c "${topic_branch}"
       git commit -m "chore: refresh generated runtime for v${version}"
-      git push origin main
-      ok "Generated runtime surfaces committed and pushed for v${version}."
+      git push -u origin "${topic_branch}"
+      warn "Generated runtime refresh is on ${topic_branch}; open and merge a PR into $(release_branch_for_version "${version}") before continuing."
     fi
   )
 }
@@ -2461,20 +2469,22 @@ cmd_release_finalize_runtime() {
 # ── Host-side release (run on macOS after container-side `release`) ──────────
 
 ensure_release_host_checkout_current() {
-  info "Verifying host checkout is current with origin/main..."
+  local version="$1" release_branch
+  release_branch="$(release_branch_for_version "${version}")"
+  info "Verifying host checkout is current with origin/${release_branch}..."
   (
     cd "${PROJECT_ROOT}"
-    git fetch origin main >/dev/null
+    git fetch origin "${release_branch}" >/dev/null
 
     local head remote_head
     head=$(git rev-parse HEAD)
-    remote_head=$(git rev-parse origin/main)
+    remote_head=$(git rev-parse "origin/${release_branch}")
 
     if [[ "${head}" != "${remote_head}" ]]; then
-      die "release-host must run from the current origin/main after container-side release. Run: git fetch origin main && git reset --keep origin/main"
+      die "release-host must run from origin/${release_branch}. Run: git fetch origin ${release_branch} && git reset --keep origin/${release_branch}"
     fi
   )
-  ok "Host checkout matches origin/main"
+  ok "Host checkout matches origin/${release_branch}"
 }
 
 cmd_release_host() {
@@ -2482,12 +2492,12 @@ cmd_release_host() {
   local release_started_epoch="$(date +%s)"
   [[ -z "${version}" ]] && die "Usage: ./scripts/maintain.sh release-host <version>  (e.g. 0.10.2)"
 
-  if ! [[ "${version}" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
-    die "Version must be semver: X.Y.Z (got: ${version})"
+  if ! [[ "${version}" =~ ^[0-9]+\.[0-9]+\.[0-9]+(-[0-9A-Za-z][0-9A-Za-z.-]*)?$ ]]; then
+    die "Version must be semver: X.Y.Z or X.Y.Z-prerelease (got: ${version})"
   fi
 
   local tag="v${version}"
-  ensure_release_host_checkout_current
+  ensure_release_host_checkout_current "${version}"
   release_evidence_init "${version}" host
   info "Host release source: ${RELEASE_CANDIDATE_SHA}"
 
