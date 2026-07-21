@@ -7,6 +7,7 @@
 #
 # Supported providers:
 #   github.com          → label GH, API via `gh` CLI
+#   @powerkit_plugin_forge_github_hosts (whitespace-separated) → label GH, API via `gh` CLI
 #   gitlab.com / gitlab*→ label GL, API via `glab` CLI or curl
 #   codeberg.org        → label CB, Gitea-compatible REST API
 #   @powerkit_plugin_forge_gitea_hosts (whitespace-separated) → label FJ, Gitea REST API
@@ -24,6 +25,7 @@
 #   show_counts   Fetch and show open issue/PR counts (default true).
 #   timeout       Network call timeout in seconds (default 3).
 #   cache_ttl     Cache lifetime in seconds (default 120).
+#   github_hosts  Whitespace-separated GitHub hostnames and SSH aliases (default github.com).
 #   gitea_hosts   Whitespace-separated hostnames treated as Gitea instances.
 #   forgejo_hosts Whitespace-separated hostnames treated as Forgejo instances.
 #
@@ -53,6 +55,7 @@ plugin_declare_options() {
     declare_option "show_counts"   "bool"   "true" "Show open issue and PR counts"
     declare_option "timeout"       "number" "3"   "Network call timeout in seconds"
     declare_option "cache_ttl"     "number" "120" "Cache duration in seconds"
+    declare_option "github_hosts"  "string" "github.com" "Whitespace-separated GitHub hostnames and SSH aliases"
     declare_option "gitea_hosts"   "string" ""    "Whitespace-separated Gitea hostnames"
     declare_option "forgejo_hosts" "string" ""    "Whitespace-separated Forgejo hostnames"
 }
@@ -117,8 +120,9 @@ _current_branch() {
 # Sets globals: _provider, _label, _owner, _repo_name, _api_base
 _detect_provider() {
     local url="$1"
-    local gitea_hosts forgejo_hosts host path
+    local github_hosts gitea_hosts forgejo_hosts host path
 
+    github_hosts="$(get_option github_hosts)"
     gitea_hosts="$(get_option gitea_hosts)"
     forgejo_hosts="$(get_option forgejo_hosts)"
 
@@ -174,6 +178,15 @@ _detect_provider() {
         *)
             # Check user-configured lists before giving up
             local h
+            for h in $github_hosts; do
+                if [[ "$host" == "$h" ]]; then
+                    _provider="github"
+                    _label="GH"
+                    # GitHub SSH aliases still use the public GitHub API and gh CLI.
+                    _api_base="https://api.github.com"
+                    return 0
+                fi
+            done
             for h in $forgejo_hosts; do
                 if [[ "$host" == "$h" ]]; then
                     _provider="forgejo"
