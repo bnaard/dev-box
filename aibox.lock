@@ -1,5 +1,5 @@
 [aibox]
-cli_version = "0.28.2"
+cli_version = "0.28.3"
 synced_at = "2026-07-20T13:50:35.603054024+00:00"
 
 [processkit]
@@ -34,14 +34,14 @@ rust = [
 ]
 
 [runtime_home]
-generated_at = "2026-07-06T10:43:50.436877+00:00"
+generated_at = "2026-07-21T18:17:57.372384+00:00"
 
 [runtime_home.files]
 ".asoundrc" = "f34609b11d315cd613cb5333b561032baec860faf4a7eccb28b5567ae72019af"
 ".claude/keybindings.json" = "187a3f75b831cbec4b025eecd23f06e76a77f46d6f47e4e730ef341f0d1db21c"
 ".config/aibox/theme-env.sh" = "48b48eccb745d97292050d4e7bc12da23e9e1af4f82db0d3edca6eb911b0b571"
 ".config/cheatsheet.txt" = "8f8cd32d9f0b6e3d92015f440c78b11afd87d20ff2a517e5dea009135dc7e0fa"
-".config/git/aibox-github.inc" = "43194b7e2452cee72f61ced12e4203b72b3e09a88f12d827f178b5b229a0aa6b"
+".config/git/aibox-github.inc" = "e60ec3914a092744bdd505724030bb3a3757133df8d90917332a96ad8d05a765"
 ".config/git/config" = "34cef2ed3a460b805802176b4d7c1b90736a8c36cf36700a616b2d1fbaec089f"
 ".config/lnav/config.json" = "5ff30db2fce0d3e56843dd771f1c48ffbbc6a586ea22aa5f97360b59906c10c7"
 ".config/lnav/formats/aibox/aibox.json" = "10e1af791380119ecd6860f8d31becb183a26b01868d9b20b2e277177e17c660"
@@ -53,7 +53,7 @@ generated_at = "2026-07-06T10:43:50.436877+00:00"
 ".config/tmux/layouts/cowork.sh" = "8b08dcb8f1536d6e3010f27a8ead9fbcb8eb81eb844899f7d0a6ce781f16827b"
 ".config/tmux/layouts/dev.sh" = "6cd191524e8f27fee08e1efe2f7b133c7d2cfd01c08b4dc249ac6680c6cbd22c"
 ".config/tmux/layouts/focus.sh" = "f14b7114b98fec7e0a806625700f7d8fd1a80d413da48ec2be9ed2df20562963"
-".config/tmux/tmux.conf" = "544db501fb544f45b5ec33ff9837a6902eb22705a4dc0152c12d4c3103940698"
+".config/tmux/tmux.conf" = "3cc81b579d4e6cb69cfb69a37994e5a6bdbd2a25f7c691f28a91596b15babb3f"
 ".config/yazi/init.lua" = "eae04462c0b3bcbb486ee59aa9c2c9e9595680a0626997c942e5abb2ae5a48d7"
 ".config/yazi/keymap.toml" = "0b20be4e5f58d0af2ba72b8621e288ef2d6a7665a8a73c5fca5a172f83c6ebdd"
 ".config/yazi/plugins/dir-preview.yazi/main.lua" = "1700f0400a0a8362d895d247b27bfae2478c1e76385d4b076846a6a7c16c74f4"
