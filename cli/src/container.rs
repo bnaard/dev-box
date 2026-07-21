@@ -3002,8 +3002,6 @@ pub fn cmd_init(config_path: &Option<String>, params: InitParams) -> Result<()> 
 
     output::ok(&format!("Created {}", toml_path.display()));
 
-    crate::latex::sync_agent_guidance(&config, toml_path.parent().unwrap_or(Path::new(".")))?;
-
     generate::generate_all(&config)?;
     context::scaffold_context(&config)?;
     seed::seed_root_dir(&config)?;
@@ -3071,6 +3069,8 @@ pub fn cmd_init(config_path: &Option<String>, params: InitParams) -> Result<()> 
     } else if let Err(e) = crate::mcp_registration::regenerate_mcp_configs(&config, &project_root) {
         output::warn(&format!("MCP registration failed: {}", e));
     }
+
+    crate::latex::sync_agent_guidance(&config, &project_root)?;
 
     // Ensure aibox.lock exists even if processkit install was skipped or failed.
     // If install_content_source succeeded, it already created the lock. If it was
@@ -3307,8 +3307,6 @@ pub fn cmd_sync(
         .parent()
         .unwrap_or(Path::new("."))
         .to_path_buf();
-    crate::latex::sync_agent_guidance(&config, &config_root)?;
-
     // v0.25.6 S3 — gate apply on explicit seccomp=unconfined consent for
     // Codex projects before any generation runs. Fires before doctor and
     // generate so the user is prompted (or refused) at the earliest point
@@ -3635,6 +3633,8 @@ pub fn cmd_sync(
             )),
         }
     }
+
+    crate::latex::sync_agent_guidance(&config, &config_root)?;
 
     // Regenerate per-harness MCP config files (.mcp.json,
     // .cursor/mcp.json, .gemini/settings.json, .codex/config.toml,

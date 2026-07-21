@@ -6,29 +6,67 @@ use std::net::{IpAddr, SocketAddr};
 use std::path::{Path, PathBuf};
 use std::process::{Command, Stdio};
 
-const GUIDANCE_FILE: &str = "AIBOX-LATEX.md";
-const GUIDANCE_HEADER: &str = "<!-- aibox-managed:latex-guidance -->";
+const LEGACY_GUIDANCE_FILE: &str = "AIBOX-LATEX.md";
+const LEGACY_GUIDANCE_HEADER: &str = "<!-- aibox-managed:latex-guidance -->";
+const AGENTS_GUIDANCE_BEGIN: &str = "<!-- aibox-managed:latex-runtime BEGIN -->";
+const AGENTS_GUIDANCE_END: &str = "<!-- aibox-managed:latex-runtime END -->";
 pub const BUILD_SCRIPT_PATH: &str = ".local/bin/aibox-latex-build";
 pub const WATCH_SCRIPT_PATH: &str = ".local/bin/aibox-latex-watch";
 const SCRIPT_HEADER: &str = "# aibox-managed:latex-container-script";
 
 pub fn sync_agent_guidance(config: &AiboxConfig, root: &Path) -> Result<()> {
-    crate::sync_perimeter::check_perimeter(Path::new(GUIDANCE_FILE))?;
-    let path = root.join(GUIDANCE_FILE);
-    if config.latex.documents.is_empty() {
-        if fs::read_to_string(&path).is_ok_and(|body| body.starts_with(GUIDANCE_HEADER)) {
-            fs::remove_file(path)?;
-        }
+    remove_legacy_guidance(root)?;
+    crate::sync_perimeter::check_perimeter(Path::new(crate::processkit_vocab::AGENTS_FILENAME))?;
+    let path = root.join(crate::processkit_vocab::AGENTS_FILENAME);
+    let Ok(existing) = fs::read_to_string(&path) else {
         return Ok(());
-    }
-    if path.exists()
-        && fs::read_to_string(&path).is_ok_and(|body| !body.starts_with(GUIDANCE_HEADER))
-    {
-        bail!("Refusing to overwrite user-owned {}", path.display());
-    }
+    };
 
+    let retained = remove_managed_block(&existing)?;
+    let body = if config.latex.documents.is_empty() {
+        retained
+    } else {
+        format!(
+            "{}\n\n{}",
+            retained.trim_end(),
+            render_agent_guidance(config)
+        )
+    };
+    if body != existing {
+        fs::write(path, body)?;
+    }
+    Ok(())
+}
+
+fn remove_legacy_guidance(root: &Path) -> Result<()> {
+    let path = root.join(LEGACY_GUIDANCE_FILE);
+    if fs::read_to_string(&path).is_ok_and(|body| body.starts_with(LEGACY_GUIDANCE_HEADER)) {
+        crate::sync_perimeter::check_perimeter(Path::new(LEGACY_GUIDANCE_FILE))?;
+        fs::remove_file(path)?;
+    }
+    Ok(())
+}
+
+fn remove_managed_block(body: &str) -> Result<String> {
+    let begin = body.find(AGENTS_GUIDANCE_BEGIN);
+    let end = body.find(AGENTS_GUIDANCE_END);
+    match (begin, end) {
+        (None, None) => Ok(body.to_string()),
+        (Some(begin), Some(end)) if end >= begin => {
+            let after = end + AGENTS_GUIDANCE_END.len();
+            Ok(format!("{}{}", &body[..begin], &body[after..])
+                .trim_end()
+                .to_string())
+        }
+        _ => bail!("Malformed aibox-managed LaTeX guidance block in AGENTS.md"),
+    }
+}
+
+fn render_agent_guidance(config: &AiboxConfig) -> String {
+    let service = preview_service_name(config);
     let mut body = format!(
-        "{GUIDANCE_HEADER}\n# LaTeX Project Workflow\n\nBuild and watch LaTeX only inside the development container. The managed scripts below apply the project's configured engine, options, output directories, and project-local TeX caches. The read-only preview sidecar serves completed PDFs and never compiles source files.\n\n"
+        "{AGENTS_GUIDANCE_BEGIN}\n## LaTeX preview companion\n\nBuild and watch LaTeX only inside the development container. The read-only preview sidecar serves completed PDFs and never compiles source files. Check it from the development container with `curl -fsS http://{service}:8765/health`. Tell the user to open `{}`; the browser refreshes after each completed PDF rebuild.\n\n",
+        preview_url(config)
     );
     body.push_str("| Document | Source | Build | Watch | Preview |\n|---|---|---|---|---|\n");
     for document in &config.latex.documents {
@@ -46,13 +84,10 @@ pub fn sync_agent_guidance(config: &AiboxConfig, root: &Path) -> Result<()> {
             preview_document_url(config, &document.name)
         ));
     }
-    body.push_str("\nRun `aibox-latex-build` with no argument to build every configured document. Run one `aibox-latex-watch <name>` process per document that should rebuild continuously; stop it with Ctrl-C. Host-side `aibox up` starts the shared Compose preview sidecar when `latex.preview.enabled = true`. The sidecar index is at `");
-    body.push_str(&preview_url(config));
-    body.push_str("`. Loopback previews on a remote host require SSH port forwarding.\n");
-    if fs::read_to_string(&path).ok().as_deref() != Some(body.as_str()) {
-        fs::write(path, body)?;
-    }
-    Ok(())
+    body.push_str("\nRun `aibox-latex-build` with no argument to build every configured document. Run one `aibox-latex-watch <name>` process per document that should rebuild continuously; stop it with Ctrl-C. Host-side `aibox up` starts the shared Compose preview sidecar when `latex.preview.enabled = true`. Loopback previews on a remote host require SSH port forwarding.\n");
+    body.push_str(AGENTS_GUIDANCE_END);
+    body.push('\n');
+    body
 }
 
 pub fn build_script(config: &AiboxConfig) -> String {
@@ -442,14 +477,47 @@ mod tests {
     }
 
     #[test]
-    fn guidance_uses_only_container_build_commands() {
+    fn guidance_is_a_conditional_agents_block_with_container_commands() {
         let root = tempfile::tempdir().unwrap();
         let config = config_with_documents();
+        fs::write(
+            root.path().join(crate::processkit_vocab::AGENTS_FILENAME),
+            "# Project\n",
+        )
+        .unwrap();
+        fs::write(
+            root.path().join(LEGACY_GUIDANCE_FILE),
+            format!("{LEGACY_GUIDANCE_HEADER}\nlegacy guidance\n"),
+        )
+        .unwrap();
         sync_agent_guidance(&config, root.path()).unwrap();
-        let body = fs::read_to_string(root.path().join(GUIDANCE_FILE)).unwrap();
+        let body =
+            fs::read_to_string(root.path().join(crate::processkit_vocab::AGENTS_FILENAME)).unwrap();
         assert!(body.contains("aibox-latex-build overview"));
         assert!(body.contains("aibox-latex-watch overview"));
+        assert!(body.contains("http://test-proj-latex-preview:8765/health"));
+        assert!(body.contains(AGENTS_GUIDANCE_BEGIN));
+        assert!(body.contains(AGENTS_GUIDANCE_END));
         assert!(!body.contains("aibox latex"));
         assert!(!body.contains("aibox preview"));
+        assert!(!root.path().join(LEGACY_GUIDANCE_FILE).exists());
+
+        sync_agent_guidance(&config, root.path()).unwrap();
+        let repeated =
+            fs::read_to_string(root.path().join(crate::processkit_vocab::AGENTS_FILENAME)).unwrap();
+        assert_eq!(repeated.matches(AGENTS_GUIDANCE_BEGIN).count(), 1);
+    }
+
+    #[test]
+    fn disabled_latex_removes_only_its_managed_agents_block() {
+        let root = tempfile::tempdir().unwrap();
+        let config = config_with_documents();
+        let agents = root.path().join(crate::processkit_vocab::AGENTS_FILENAME);
+        fs::write(&agents, "# Project\n").unwrap();
+        sync_agent_guidance(&config, root.path()).unwrap();
+
+        let disabled = crate::config::test_config();
+        sync_agent_guidance(&disabled, root.path()).unwrap();
+        assert_eq!(fs::read_to_string(agents).unwrap(), "# Project");
     }
 }

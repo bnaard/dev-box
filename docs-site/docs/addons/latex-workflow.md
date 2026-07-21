@@ -68,9 +68,10 @@ the TeX installation in the main development container, keep the watch process
 in the foreground, and write PDFs below each configured `output_dir`. Run one
 watcher per document when several documents should rebuild concurrently.
 
-Running `aibox apply` also writes `AIBOX-LATEX.md` in the project root. This
-managed file gives AI agents the configured container commands, preview URLs,
-and document paths without duplicating processkit-owned instructions.
+Running `aibox apply` adds a concise, conditional aibox-managed LaTeX section
+to `AGENTS.md`. This is the primary instruction surface for AI agents and gives
+them the configured container commands, companion health check, preview URLs,
+and document paths without adding another root-level guidance file.
 
 ## Live PDF preview
 

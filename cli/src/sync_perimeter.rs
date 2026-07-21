@@ -27,7 +27,6 @@
 //! | `aibox.lock`                                  | Pinned `(source, version)` written by the processkit installer  |
 //! | `.gitignore`                                  | Required generated-runtime ignore entries, appended only         |
 //! | `.aibox-version`                              | Tracks installed CLI version for migration detection             |
-//! | `AIBOX-LATEX.md`                              | Managed commands for configured LaTeX documents                  |
 //! | `.aibox-home/`                                | Runtime config seed (shells, vim, tmux, yazi, …); gitignored     |
 //! | `.devcontainer/Dockerfile`                    | Regenerated from `aibox.toml`                                    |
 //! | `.devcontainer/docker-compose.yml`            | Regenerated from `aibox.toml`                                    |

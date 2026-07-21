@@ -425,12 +425,12 @@ allow_public = false
 | `preview.allow_public` | Boolean | No | `false` | Required for a non-loopback host bind. The preview has no authentication. |
 
 Run `aibox apply` after changing this section. Besides refreshing the canonical
-config comments, apply writes `AIBOX-LATEX.md` and installs the managed
-`aibox-latex-build` and `aibox-latex-watch` scripts into the development
-container's runtime home. Compilation and watch mode run only in that main
-container. See [LaTeX Build and Preview](../addons/latex-workflow.md) for the
-workflow and remote access. aibox generates the read-only serving sidecar and
-its port mapping; do not add a duplicate mapping to
+config comments, apply adds conditional LaTeX companion guidance to `AGENTS.md`
+and installs the managed `aibox-latex-build` and `aibox-latex-watch` scripts
+into the development container's runtime home. Compilation and watch mode run
+only in that main container. See [LaTeX Build and Preview](../addons/latex-workflow.md)
+for the workflow and remote access. aibox generates the read-only serving
+sidecar and its port mapping; do not add a duplicate mapping to
 `docker-compose.override.yml`.
 
 ### [addons]
