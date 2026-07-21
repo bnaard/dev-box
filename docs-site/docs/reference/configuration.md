@@ -818,7 +818,7 @@ GitHub integration behavior for generated runtime Git configuration.
 
 | Field | Type | Required | Default | Description |
 |-------|------|----------|---------|-------------|
-| `credential_helper` | String | No | `"auto"` | `auto` writes a managed Git include when the `git-ui` addon installs `gh`; `gh` always writes it; `none` skips and removes the managed include. The include delegates HTTPS Git credentials to `gh auth git-credential` and never stores token values. |
+| `credential_helper` | String | No | `"auto"` | `auto` writes a managed Git include when the `git-ui` addon installs `gh`; `gh` always writes it; `none` skips and removes the managed include. For `github.com` HTTPS remotes, the include resets earlier credential helpers before delegating to `gh auth git-credential`, and never stores token values. |
 
 This setting selects the generated Git credential helper; it does not select
 or store a GitHub token. Configure scoped tokens or a persistent GitHub CLI

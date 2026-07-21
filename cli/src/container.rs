@@ -1307,7 +1307,7 @@ pub(crate) fn serialize_config_with_comments(config: &AiboxConfig) -> String {
         "# credential_helper: auto enables when git-ui.gh is installed; gh forces it; none removes it.\n",
     );
     out.push_str(
-        "# Tokens are never written to git config; Git asks `gh auth git-credential` at runtime.\n",
+        "# Tokens are never written to git config; Git uses `gh auth git-credential` as the authoritative GitHub HTTPS helper.\n",
     );
     out.push_str("[integrations.github]\n");
     out.push_str(&format!(
