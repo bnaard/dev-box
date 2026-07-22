@@ -97,9 +97,10 @@ pub fn build_script(config: &AiboxConfig) -> String {
     );
     for (index, document) in config.latex.documents.iter().enumerate() {
         script.push_str(&format!(
-            "build_{index}() {{\n  prepare {} {}\n  printf '%s\\n' {}\n  {}\n}}\n\n",
+            "build_{index}() {{\n  prepare {} {}{}\n  printf '%s\\n' {}\n  {}\n}}\n\n",
             shell_quote(&document.source),
             shell_quote(&document.output_dir),
+            shell_extra_dirs(&document.extra_dirs),
             shell_quote(&format!("Building LaTeX document '{}'", document.name)),
             shell_command(config, document, false)
         ));
@@ -139,9 +140,10 @@ pub fn watch_script(config: &AiboxConfig) -> String {
             script.push_str("    printf '%s\\n' 'Watch mode requires a latexmk engine; tectonic supports build only.' >&2\n    exit 2\n");
         } else {
             script.push_str(&format!(
-                "    prepare {} {}\n    printf '%s\\n' {}\n    exec {}\n",
+                "    prepare {} {}{}\n    printf '%s\\n' {}\n    exec {}\n",
                 shell_quote(&document.source),
                 shell_quote(&document.output_dir),
+                shell_extra_dirs(&document.extra_dirs),
                 shell_quote(&format!(
                     "Watching LaTeX document '{}' (Ctrl-C to stop)",
                     document.name
@@ -158,7 +160,7 @@ pub fn watch_script(config: &AiboxConfig) -> String {
 
 fn script_prelude(description: &str, config: &AiboxConfig) -> String {
     format!(
-        "#!/bin/sh\n{SCRIPT_HEADER}\n# {description}\nset -eu\n\nworkspace=${{AIBOX_WORKSPACE:-/workspace}}\ncd \"$workspace\"\nexport TEXMFVAR=\"$workspace/{}\"\nexport TEXMFCONFIG=\"$workspace/{}\"\n\nprepare() {{\n  source_path=$1\n  output_dir=$2\n  if [ ! -f \"$workspace/$source_path\" ]; then\n    printf 'LaTeX source does not exist: %s\\n' \"$workspace/$source_path\" >&2\n    exit 1\n  fi\n  mkdir -p \"$workspace/$output_dir\" \"$TEXMFVAR\" \"$TEXMFCONFIG\"\n}}\n\n",
+        "#!/bin/sh\n{SCRIPT_HEADER}\n# {description}\nset -eu\n\nworkspace=${{AIBOX_WORKSPACE:-/workspace}}\ncd \"$workspace\"\nexport TEXMFVAR=\"$workspace/{}\"\nexport TEXMFCONFIG=\"$workspace/{}\"\n\nprepare() {{\n  source_path=$1\n  output_dir=$2\n  shift 2\n  if [ ! -f \"$workspace/$source_path\" ]; then\n    printf 'LaTeX source does not exist: %s\\n' \"$workspace/$source_path\" >&2\n    exit 1\n  fi\n  mkdir -p \"$workspace/$output_dir\" \"$TEXMFVAR\" \"$TEXMFCONFIG\"\n  for extra_dir in \"$@\"; do\n    mkdir -p \"$workspace/$output_dir/$extra_dir\"\n  done\n}}\n\n",
         join_relative(&config.latex.cache_dir, "texmf-var"),
         join_relative(&config.latex.cache_dir, "texmf-config")
     )
@@ -181,6 +183,7 @@ fn build_command(
     if config.latex.engine == LatexEngine::Tectonic {
         let mut args = vec!["--outdir".to_string(), document.output_dir.clone()];
         args.extend(config.latex.options.clone());
+        args.extend(document.options.clone());
         args.push(document.source.clone());
         return ("tectonic".to_string(), args);
     }
@@ -201,6 +204,7 @@ fn build_command(
         args.extend(["-pvc".to_string(), "-view=none".to_string()]);
     }
     args.extend(config.latex.options.clone());
+    args.extend(document.options.clone());
     args.push(document.source.clone());
     ("latexmk".to_string(), args)
 }
@@ -233,6 +237,13 @@ fn shell_word(value: &str) -> String {
     } else {
         shell_quote(value)
     }
+}
+
+fn shell_extra_dirs(extra_dirs: &[String]) -> String {
+    extra_dirs
+        .iter()
+        .map(|dir| format!(" {}", shell_quote(dir)))
+        .collect()
 }
 
 fn shell_quote(value: &str) -> String {
@@ -381,16 +392,21 @@ mod tests {
 
     fn config_with_documents() -> AiboxConfig {
         let mut config = crate::config::test_config();
+        config.latex.options = vec!["-halt-on-error".into()];
         config.latex.documents = vec![
             LatexDocument {
                 name: "overview".into(),
                 source: "docs/overview.tex".into(),
                 output_dir: ".latex-cache/overview".into(),
+                options: vec!["-shell-escape".into()],
+                extra_dirs: vec!["figs".into()],
             },
             LatexDocument {
                 name: "appendix".into(),
                 source: "docs/appendix file.tex".into(),
                 output_dir: ".latex-cache/appendix output".into(),
+                options: Vec::new(),
+                extra_dirs: Vec::new(),
             },
         ];
         config
@@ -402,6 +418,8 @@ mod tests {
         assert!(script.contains("build_0\n    build_1"));
         assert!(script.contains("'docs/appendix file.tex'"));
         assert!(script.contains("'-outdir=.latex-cache/appendix output'"));
+        assert!(script.contains("'-halt-on-error' '-shell-escape'"));
+        assert!(script.contains("prepare 'docs/overview.tex' '.latex-cache/overview' 'figs'"));
         assert!(script.contains("AIBOX_WORKSPACE:-/workspace"));
     }
 

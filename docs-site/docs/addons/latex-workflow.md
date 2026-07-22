@@ -28,11 +28,15 @@ options = []
 name = "overview"
 source = "docs/overview/overview.tex"
 output_dir = ".latex-cache/overview"
+options = []
+extra_dirs = []
 
 [[latex.documents]]
 name = "appendix"
 source = "docs/appendix/appendix.tex"
 output_dir = ".latex-cache/appendix"
+options = ["-shell-escape"]
+extra_dirs = ["figs"]
 
 [latex.preview]
 enabled = true

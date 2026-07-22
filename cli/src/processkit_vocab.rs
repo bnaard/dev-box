@@ -115,6 +115,7 @@ pub const STANDARD_PROCESSKIT_SKILLS: &[&str] = &[
     "process-management",
     "release-audit",
     "retrospective",
+    "repo-management",
     "role-management",
     "runtime-prune",
     "schedule-management",

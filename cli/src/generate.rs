@@ -1026,11 +1026,15 @@ mod tests {
                 name: "overview".into(),
                 source: "docs/overview.tex".into(),
                 output_dir: ".latex-cache/overview".into(),
+                options: Vec::new(),
+                extra_dirs: Vec::new(),
             },
             crate::config::LatexDocument {
                 name: "appendix".into(),
                 source: "docs/appendix.tex".into(),
                 output_dir: ".latex-cache/appendix".into(),
+                options: Vec::new(),
+                extra_dirs: Vec::new(),
             },
         ];
         config.latex.preview.document = Some("appendix".into());
@@ -1062,6 +1066,8 @@ mod tests {
             name: "overview".into(),
             source: "docs/overview.tex".into(),
             output_dir: ".latex-cache/overview".into(),
+            options: Vec::new(),
+            extra_dirs: Vec::new(),
         });
 
         generate_docker_compose(&config, dir.path(), &test_env()).unwrap();
@@ -1082,6 +1088,8 @@ mod tests {
             name: "overview".into(),
             source: "docs/overview.tex".into(),
             output_dir: ".latex-cache/overview".into(),
+            options: Vec::new(),
+            extra_dirs: Vec::new(),
         });
 
         generate_docker_compose(&config, dir.path(), &test_env()).unwrap();
