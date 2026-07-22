@@ -149,7 +149,7 @@ matching version-line release branch first; the container-side release may have
 pushed version-bump and tag-prep commits from another clone. For a v0 release:
 
 ```bash
-git fetch origin v0.x-release --tags
+git fetch origin v0.x-release
 git switch v0.x-release
 git reset --keep origin/v0.x-release
 ./scripts/maintain.sh release-host X.Y.Z
