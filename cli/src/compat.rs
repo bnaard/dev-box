@@ -558,6 +558,11 @@ pub static COMPAT_TABLE: &[CompatEntry] = &[
         processkit_version: "v0.27.6",
         note: "Patch release: integrates processkit v0.27.6; makes GitHub CLI authoritative for github.com HTTPS credentials when enabled by resetting earlier credential helpers; exposes exact GitHub SSH aliases through the Forge tmux status configuration; and preserves the active page and zoom across LaTeX live-preview rebuilds.",
     },
+    CompatEntry {
+        aibox_version: "0.28.4",
+        processkit_version: "v0.28.1",
+        note: "Patch release: integrates processkit v0.28.1 and refreshes the maintained v0.x processkit compatibility baseline.",
+    },
 ];
 
 /// Find the minimum compatible processkit version for the given aibox version.
