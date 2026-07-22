@@ -145,14 +145,19 @@ crate-update pass.
 ## Host-Side Release
 
 Run this on the macOS host after the container-side release succeeds. Sync the
-host checkout first; the container-side release may have pushed version-bump
-and tag-prep commits from another clone:
+matching version-line release branch first; the container-side release may have
+pushed version-bump and tag-prep commits from another clone. For a v0 release:
 
 ```bash
-git fetch origin main
-git reset --keep origin/main
+git fetch origin v0.x-release --tags
+git switch v0.x-release
+git reset --keep origin/v0.x-release
 ./scripts/maintain.sh release-host X.Y.Z
 ```
+
+`release-host` derives the expected branch from the major version (`v0.x-release`
+for `0.*`, `v1.x-release` for `1.*`) and verifies that the requested release tag
+is reachable from that branch. It does not build host artifacts from `main`.
 
 This phase builds Darwin binaries, uploads them to the existing GitHub release,
 pushes GHCR images, then runs a fresh downstream-style runtime smoke against
@@ -172,6 +177,11 @@ lanes before uploading binaries and starting the runtime smoke. Healthy tmux
 smoke probes advance on observed session, window, pane, and status readiness;
 their timeouts are failure ceilings rather than fixed delays. Host timings are
 written to `dist/RELEASE-HOST-TIMINGS.md`.
+
+If publishing the image changes repo-owned generated runtime surfaces, the host
+script creates and merges a short-lived PR back into the release branch rather
+than pushing directly to a protected long-lived branch. Promote that finalized
+release branch to `main` and the corresponding development branch afterwards.
 
 The Linux-side Tier 2 E2E companion is separate from this host phase. From the
 devcontainer, verify that companion over SSH/SCP; do not use local
