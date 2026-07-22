@@ -1,5 +1,5 @@
 [aibox]
-cli_version = "0.28.3"
+cli_version = "0.28.4"
 synced_at = "2026-07-20T13:50:35.603054024+00:00"
 
 [processkit]
@@ -34,7 +34,7 @@ rust = [
 ]
 
 [runtime_home]
-generated_at = "2026-07-21T18:17:57.372384+00:00"
+generated_at = "2026-07-22T12:23:36.580121+00:00"
 
 [runtime_home.files]
 ".asoundrc" = "f34609b11d315cd613cb5333b561032baec860faf4a7eccb28b5567ae72019af"
