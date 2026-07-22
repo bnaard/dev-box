@@ -2193,6 +2193,8 @@ cmd_release() {
   fi
 
   local tag="v${version}"
+  local release_branch
+  release_branch="$(release_branch_for_version "${version}")"
   local release_steps=()
   local release_step_tokens=()
   local built_archives=()
@@ -2391,13 +2393,14 @@ cmd_release() {
       echo "Run the following on the macOS host to sync the checkout and complete the release:"
       echo ""
       echo "\`\`\`bash"
-      echo "git fetch origin main"
-      echo "git reset --keep origin/main"
+      echo "git fetch origin ${release_branch}"
+      echo "git switch ${release_branch}"
+      echo "git reset --keep origin/${release_branch}"
       echo "./scripts/maintain.sh release-host ${version}"
       echo "\`\`\`"
       echo ""
       echo "This will:"
-      echo "- Verify the host checkout is at the just-pushed origin/main"
+      echo "- Verify the host checkout is current with the version-line release branch and contains ${tag}"
       echo "- Build macOS binaries (aarch64-apple-darwin, x86_64-apple-darwin)"
       echo "- Upload them to the existing GitHub release ${tag}"
       echo "- Build and push container images to GHCR"
@@ -2429,6 +2432,14 @@ cmd_release() {
   fi
 }
 
+release_branch_for_version() {
+  local version="$1" major
+  major="${version%%.*}"
+  [[ "${major}" =~ ^[0-9]+$ ]] \
+    || die "Cannot infer a release branch from version '${version}'."
+  printf 'v%s.x-release' "${major}"
+}
+
 cmd_release_finalize_runtime() {
   local version="${1:-}"
   [[ -z "${version}" ]] && die "Usage: ./scripts/maintain.sh release-finalize-runtime <version>  (e.g. 0.10.2)"
@@ -2436,6 +2447,10 @@ cmd_release_finalize_runtime() {
   if ! [[ "${version}" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
     die "Version must be semver: X.Y.Z (got: ${version})"
   fi
+
+  local release_branch finalization_branch pr_url
+  release_branch="$(release_branch_for_version "${version}")"
+  finalization_branch="chore/refresh-generated-runtime-v${version}"
 
   info "Refreshing repo-owned generated runtime surfaces..."
   (
@@ -2451,9 +2466,26 @@ cmd_release_finalize_runtime() {
     if git diff --cached --quiet -- .devcontainer aibox.lock context/migrations context/templates/aibox-home; then
       ok "Generated runtime surfaces already match v${version}; no commit needed."
     else
+      [[ "$(git branch --show-current)" == "${release_branch}" ]] \
+        || die "Generated runtime finalization for v${version} must start on ${release_branch}."
+      if git ls-remote --exit-code --heads origin "${finalization_branch}" >/dev/null 2>&1; then
+        die "Remote branch ${finalization_branch} already exists; inspect or merge it before rerunning release finalization."
+      fi
+
+      git switch -c "${finalization_branch}"
       git commit -m "chore: refresh generated runtime for v${version}"
-      git push origin main
-      ok "Generated runtime surfaces committed and pushed for v${version}."
+      git push -u origin "${finalization_branch}"
+      pr_url="$(gh pr create \
+        --base "${release_branch}" \
+        --head "${finalization_branch}" \
+        --title "chore: refresh generated runtime for v${version}" \
+        --body "Post-image generated runtime refresh for v${version}.")" \
+        || die "Could not create generated-runtime finalization PR."
+      gh pr merge "${pr_url}" --merge --delete-branch \
+        || die "Could not merge generated-runtime finalization PR ${pr_url}."
+      git switch "${release_branch}"
+      git pull --ff-only origin "${release_branch}"
+      ok "Generated runtime surfaces merged into ${release_branch} for v${version}."
     fi
   )
 }
@@ -2461,20 +2493,32 @@ cmd_release_finalize_runtime() {
 # ── Host-side release (run on macOS after container-side `release`) ──────────
 
 ensure_release_host_checkout_current() {
-  info "Verifying host checkout is current with origin/main..."
+  local version="$1" tag release_branch
+  tag="v${version}"
+  release_branch="$(release_branch_for_version "${version}")"
+
+  info "Verifying host checkout is current with origin/${release_branch} and ${tag}..."
   (
     cd "${PROJECT_ROOT}"
-    git fetch origin main >/dev/null
+    git fetch origin \
+      "refs/heads/${release_branch}:refs/remotes/origin/${release_branch}" \
+      "refs/tags/${tag}:refs/tags/${tag}" >/dev/null
 
-    local head remote_head
+    local head remote_head tag_commit
     head=$(git rev-parse HEAD)
-    remote_head=$(git rev-parse origin/main)
+    remote_head=$(git rev-parse "origin/${release_branch}")
+    tag_commit=$(git rev-parse "${tag}^{commit}" 2>/dev/null) \
+      || die "Release tag ${tag} is missing locally. Fetch it from origin before running release-host."
+
+    if ! git merge-base --is-ancestor "${tag_commit}" "${remote_head}"; then
+      die "Release tag ${tag} is not reachable from origin/${release_branch}; refusing to build host artifacts from the wrong version line."
+    fi
 
     if [[ "${head}" != "${remote_head}" ]]; then
-      die "release-host must run from the current origin/main after container-side release. Run: git fetch origin main && git reset --keep origin/main"
+      die "release-host must run from current origin/${release_branch} containing ${tag}. Run: git fetch origin ${release_branch} && git switch ${release_branch} && git reset --keep origin/${release_branch}"
     fi
   )
-  ok "Host checkout matches origin/main"
+  ok "Host checkout matches the ${release_branch} release line and contains ${tag}"
 }
 
 cmd_release_host() {
@@ -2487,7 +2531,7 @@ cmd_release_host() {
   fi
 
   local tag="v${version}"
-  ensure_release_host_checkout_current
+  ensure_release_host_checkout_current "${version}"
   release_evidence_init "${version}" host
   info "Host release source: ${RELEASE_CANDIDATE_SHA}"
 
