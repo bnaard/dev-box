@@ -2393,7 +2393,7 @@ cmd_release() {
       echo "Run the following on the macOS host to sync the checkout and complete the release:"
       echo ""
       echo "\`\`\`bash"
-      echo "git fetch origin ${release_branch} --tags"
+      echo "git fetch origin ${release_branch}"
       echo "git switch ${release_branch}"
       echo "git reset --keep origin/${release_branch}"
       echo "./scripts/maintain.sh release-host ${version}"
@@ -2493,13 +2493,16 @@ cmd_release_finalize_runtime() {
 # ── Host-side release (run on macOS after container-side `release`) ──────────
 
 ensure_release_host_checkout_current() {
-  local version="$1" tag="v${version}" release_branch
+  local version="$1" tag release_branch
+  tag="v${version}"
   release_branch="$(release_branch_for_version "${version}")"
 
   info "Verifying host checkout is current with origin/${release_branch} and ${tag}..."
   (
     cd "${PROJECT_ROOT}"
-    git fetch origin "${release_branch}" --tags >/dev/null
+    git fetch origin \
+      "refs/heads/${release_branch}:refs/remotes/origin/${release_branch}" \
+      "refs/tags/${tag}:refs/tags/${tag}" >/dev/null
 
     local head remote_head tag_commit
     head=$(git rev-parse HEAD)
@@ -2512,7 +2515,7 @@ ensure_release_host_checkout_current() {
     fi
 
     if [[ "${head}" != "${remote_head}" ]]; then
-      die "release-host must run from current origin/${release_branch} containing ${tag}. Run: git fetch origin ${release_branch} --tags && git switch ${release_branch} && git reset --keep origin/${release_branch}"
+      die "release-host must run from current origin/${release_branch} containing ${tag}. Run: git fetch origin ${release_branch} && git switch ${release_branch} && git reset --keep origin/${release_branch}"
     fi
   )
   ok "Host checkout matches the ${release_branch} release line and contains ${tag}"
