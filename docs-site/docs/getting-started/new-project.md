@@ -27,7 +27,7 @@ The `init` command accepts these options:
 | `--addon` | — | Addon names (can be repeated): `python`, `rust`, `node`, `go`, `latex`, etc. |
 | `--theme` | `gruvbox` | Theme family |
 | `--context-mode` | `processkit` | Context layer: `processkit` or `harness-only` |
-| `--processkit-version` | latest available tag | processkit content release to pin |
+| `--processkit-version` | latest stable tag | processkit content release to pin; explicit prerelease pins are supported |
 
 If you omit options, `aibox init` runs interactively and prompts for each value.
 
@@ -95,13 +95,21 @@ Use narrowly scoped PATs by default. For the alternative persistent
 :::tip processkit version
 
 By default, the interactive `aibox init` picker offers `latest` first, then the
-10 newest concrete processkit tags. Choosing `latest` writes
+10 newest stable processkit tags. Choosing `latest` writes
 `version = "latest"` to `aibox.toml` so `aibox apply` tracks the newest
 compatible content. Use `--processkit-version` to pin a specific tag
 non-interactively:
 
 ```bash
 aibox init my-app --processkit-version v0.27.4
+```
+
+To evaluate prerelease processkit content without changing the stable default,
+pin the prerelease explicitly or opt into prerelease selection:
+
+```sh
+aibox init my-app --processkit-version v1.0.0-alpha.1
+aibox init my-app --include-prerelease
 ```
 
 This picker is skipped when `--context-mode harness-only` is selected.

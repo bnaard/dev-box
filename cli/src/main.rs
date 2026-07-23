@@ -114,6 +114,7 @@ fn dispatch(cli: cli::Cli) -> anyhow::Result<()> {
             addon_tool,
             processkit_source,
             processkit_version,
+            include_prerelease,
             processkit_branch,
             no_container,
         } => {
@@ -135,6 +136,7 @@ fn dispatch(cli: cli::Cli) -> anyhow::Result<()> {
                     addon_tool,
                     processkit_source,
                     processkit_version,
+                    include_prerelease,
                     processkit_branch,
                     no_container,
                 },

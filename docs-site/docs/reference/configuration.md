@@ -55,7 +55,7 @@ packages = ["product"]                # processkit package selection
 
 [processkit]
 source   = "https://github.com/projectious-work/processkit.git"
-version  = "latest"                   # "latest", "unset", or a real tag
+version  = "latest"                   # newest stable release, "unset", or a real tag (including an explicit prerelease)
 src_path = "src"
 # branch = "main"                     # Optional; tarball-first, branch as fallback
 # release_asset_url_template = "..."  # Optional, for non-GitHub hosts

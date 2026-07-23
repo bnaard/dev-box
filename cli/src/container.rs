@@ -57,6 +57,9 @@ pub struct InitParams {
     /// configured source and pick interactively (or pick latest in
     /// non-interactive mode; fall back to "unset" if listing fails).
     pub processkit_version: Option<String>,
+    /// Include prerelease processkit tags in automatic and interactive
+    /// selection. Explicit prerelease pins do not require this opt-in.
+    pub include_prerelease: bool,
     /// Track a moving processkit branch. Wins over `processkit_version`
     /// at fetch time per the existing fetcher contract.
     pub processkit_branch: Option<String>,
@@ -184,9 +187,10 @@ fn run_install(cwd: &std::path::Path, config: &AiboxConfig) {
 /// 3. Version:
 ///    - `--processkit-version` if given → use as-is
 ///    - else: list available versions at the source.
-///      - Interactive: show a `dialoguer::Select` with a literal "latest"
-///        tracking entry as the default, followed by the 10 newest concrete
-///        tags. Includes an "unset (skip processkit install)" entry as the
+///      - Interactive: show a `dialoguer::Select` with a literal stable-only
+///        "latest" tracking entry as the default, followed by the 10 newest
+///        concrete tags (including prereleases only with explicit opt-in).
+///        Includes an "unset (skip processkit install)" entry as the
 ///        escape hatch when the user explicitly wants no install.
 ///      - Non-interactive: pick the first (latest) entry. If listing
 ///        fails or returns nothing, fall back to the `unset` sentinel
@@ -195,6 +199,7 @@ fn resolve_processkit_section(
     source_override: Option<&str>,
     version_override: Option<&str>,
     branch_override: Option<&str>,
+    include_prerelease: bool,
     interactive: bool,
 ) -> Result<crate::config::ProcessKitSection> {
     use crate::config::{PROCESSKIT_VERSION_UNSET, ProcessKitSection};
@@ -217,7 +222,11 @@ fn resolve_processkit_section(
         "Querying available processkit versions at {}...",
         section.source
     ));
-    let versions = match crate::content_source::list_versions(&section.source) {
+    let versions = match if include_prerelease {
+        crate::content_source::list_versions_including_prereleases(&section.source)
+    } else {
+        crate::content_source::list_versions(&section.source)
+    } {
         Ok(v) if !v.is_empty() => v,
         Ok(_) => {
             if interactive {
@@ -260,8 +269,13 @@ fn resolve_processkit_section(
         // Build the menu with a literal "latest" tracking entry at the top,
         // followed by a bounded set of concrete pin choices and an explicit
         // "skip" escape hatch at the bottom.
-        let mut items: Vec<String> = vec!["latest (always track newest)".to_string()];
-        items.extend(visible_versions.iter().cloned());
+        let mut items: Vec<String> =
+            vec!["latest (always track newest stable release)".to_string()];
+        items.extend(
+            visible_versions
+                .iter()
+                .map(|version| processkit_wizard_version_label(version)),
+        );
         items.push(format!(
             "{} — skip processkit install (configure later)",
             PROCESSKIT_VERSION_UNSET
@@ -293,6 +307,13 @@ fn processkit_wizard_visible_versions(versions: &[String]) -> Vec<String> {
         .take(MAX_CONCRETE_VERSIONS)
         .cloned()
         .collect()
+}
+
+fn processkit_wizard_version_label(version: &str) -> String {
+    match crate::content_source::parse_loose_semver(version) {
+        Some(parsed) if !parsed.pre.is_empty() => format!("{} (prerelease)", version),
+        _ => version.to_string(),
+    }
 }
 
 fn selected_processkit_wizard_version(idx: usize, visible_versions: &[String]) -> String {
@@ -2906,6 +2927,7 @@ pub fn cmd_init(config_path: &Option<String>, params: InitParams) -> Result<()> 
                 params.processkit_source.as_deref(),
                 params.processkit_version.as_deref(),
                 params.processkit_branch.as_deref(),
+                params.include_prerelease,
                 interactive,
             )?
         },
@@ -4137,6 +4159,23 @@ mod tests {
         let visible = processkit_wizard_visible_versions(&versions);
 
         assert_eq!(visible, vec!["v1.0.1", "v1.0.0", "v0.99.4"]);
+    }
+
+    #[test]
+    fn processkit_wizard_labels_prereleases() {
+        assert_eq!(
+            processkit_wizard_version_label("v1.0.0-alpha.1"),
+            "v1.0.0-alpha.1 (prerelease)"
+        );
+        assert_eq!(processkit_wizard_version_label("v0.28.3"), "v0.28.3");
+    }
+
+    #[test]
+    fn explicit_prerelease_processkit_pin_is_preserved() {
+        let section = resolve_processkit_section(None, Some("v1.0.0-alpha.1"), None, false, false)
+            .expect("explicit prerelease pins should not need version listing");
+
+        assert_eq!(section.version, "v1.0.0-alpha.1");
     }
 
     #[test]
