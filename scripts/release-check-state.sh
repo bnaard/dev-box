@@ -16,6 +16,7 @@ mkdir -p "${DIST_DIR}"
 
 updates_found=0
 warnings_found=0
+ports_failure=0
 network_failure_marker="$(mktemp)"
 export AIBOX_RELEASE_NETWORK_FAILURE_MARKER="${network_failure_marker}"
 trap 'rm -f "${network_failure_marker}"' EXIT
@@ -583,6 +584,17 @@ line "- For every harness, verify install location, binary path, config path, co
 line "- For every Dockerfile pin bump, rebuild the base image and run at least the layout/status/Yazi smoke path if the tool affects runtime UX."
 line "- Confirm \`cargo audit\` is clean. The release script also enforces this before building binaries."
 
+section "Version-Line Port Gate"
+release_major="$(sed -nE 's/^version = "([0-9]+)\..*/\1/p' "${CLI_DIR}/Cargo.toml" | head -n 1)"
+if "${SCRIPT_DIR}/check-version-line-ports.sh" check "v${release_major}" >> "${REPORT}" 2>&1; then
+  line ""
+  line "Status: no open cross-line port obligations target this release line."
+else
+  ports_failure=1
+  line ""
+  line "Status: release blocked by an open cross-line port obligation."
+fi
+
 section "Summary"
 if [[ "${updates_found}" -eq 1 ]]; then
   line "- Dependency or security drift was detected. Agent review is required before release."
@@ -604,6 +616,10 @@ fi
 printf 'Release state report written to %s\n' "${REPORT}"
 if [[ "${updates_found}" -eq 1 || "${warnings_found}" -eq 1 ]]; then
   printf 'Review required before release continues.\n'
+fi
+if [[ "${ports_failure}" -eq 1 ]]; then
+  printf 'ERR: open version-line port obligations block this release. See %s.\n' "${REPORT}" >&2
+  exit 1
 fi
 if [[ -s "${network_failure_marker}" && "${AIBOX_RELEASE_REQUIRE_NETWORK:-0}" == "1" ]]; then
   printf 'ERR: release-check-state requires network access for release gating; DNS/network lookup failed. See %s.\n' "${REPORT}" >&2

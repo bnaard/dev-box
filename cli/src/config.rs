@@ -3411,6 +3411,10 @@ pub struct LatexDocument {
     pub source: String,
     #[serde(default = "default_latex_output_dir")]
     pub output_dir: String,
+    #[serde(default)]
+    pub options: Vec<String>,
+    #[serde(default)]
+    pub extra_dirs: Vec<String>,
 }
 
 fn default_latex_output_dir() -> String {
@@ -4261,7 +4265,7 @@ impl AiboxConfig {
                         check_unknown_keys(
                             &format!("[[latex.documents]][{index}]"),
                             table,
-                            &["name", "source", "output_dir"],
+                            &["name", "source", "output_dir", "options", "extra_dirs"],
                             &mut mismatches,
                         );
                     }
@@ -4454,6 +4458,14 @@ impl AiboxConfig {
             }
             safe_relative("latex.documents.source", &document.source)?;
             safe_relative("latex.documents.output_dir", &document.output_dir)?;
+            for extra_dir in &document.extra_dirs {
+                safe_relative("latex.documents.extra_dirs", extra_dir)?;
+            }
+            for option in &document.options {
+                if option.contains('\0') || option.contains('\n') || option.contains('\r') {
+                    bail!("latex.documents.options entries must be single-line arguments");
+                }
+            }
         }
         for option in &self.latex.options {
             if option.contains('\0') || option.contains('\n') || option.contains('\r') {

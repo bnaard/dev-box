@@ -8,14 +8,15 @@ None.
 
 None.
 
-## Applied (4)
+## Applied (5)
 
 | Date       | Migration                                | Notes |
 |------------|------------------------------------------|-------|
-| 2026-07-17 | MIG-20260717T143144 — processkit v0.27.1 → v0.27.2 | 0 changed upstream, 0 conflicts, 1 new, 289 removed, 0 stale-removed (28 groups affected) |
+| 2026-07-17 | MIG-20260717_1431-ContentSync — processkit v0.27.1 → v0.27.2 | 0 changed upstream, 0 conflicts, 1 new, 289 removed, 0 stale-removed (28 groups affected) |
 | 2026-07-17 | MIG-20260717_1534-ContentSync-processkit-content-sync — processkit v0.27.2 → v0.27.4 | 0 changed upstream, 0 conflicts, 289 new, 0 removed, 0 stale-removed (28 groups affected) |
 | 2026-07-20 | MIG-20260720_1350-ContentSync-processkit-content-sync — processkit v0.27.4 → v0.27.5 | 0 changed upstream, 0 conflicts, 17 new, 1 removed, 0 stale-removed (5 groups affected) |
 | 2026-07-20 | MIG-20260720_1408-SnappyComet-canonicalize-note-spec-key-order-for — local-project  → | Canonicalize Note spec key order for v0.27.5 doctor |
+| 2026-07-23 | MIG-20260723_0850-ContentSync-processkit-content-sync — processkit v0.27.5 → v0.28.1 | 2 changed upstream, 4 conflicts, 5 new, 16 removed, 0 stale-removed (11 groups affected) |
 
 ## Rejected (3)
 

@@ -115,6 +115,7 @@ pub const STANDARD_PROCESSKIT_SKILLS: &[&str] = &[
     "process-management",
     "release-audit",
     "retrospective",
+    "repo-management",
     "role-management",
     "runtime-prune",
     "schedule-management",
@@ -161,7 +162,7 @@ pub const TIER_SPECIFIC_MCP_SKILLS: &[&str] = &[
 /// constant serves as the canonical reference for tests and documentation.
 // Used in #[cfg(test)] blocks across multiple modules and in documentation.
 #[allow(dead_code)]
-pub const PROCESSKIT_DEFAULT_VERSION: &str = "v0.27.6";
+pub const PROCESSKIT_DEFAULT_VERSION: &str = "v0.28.1";
 
 // ---------------------------------------------------------------------------
 // v0.26.0 — RoleSlot MCP tools (team-manager skill)

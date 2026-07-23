@@ -85,6 +85,26 @@ Release speed comes from bounded local concurrency, persistent caches, and
 reuse of evidence for the exact release commit rather than from moving gates to
 a hosted runner.
 
+## Version-line branches
+
+Long-lived branches are protected: direct pushes, force-pushes, and deletion
+are disabled; changes arrive through pull requests with resolved conversations.
+No GitHub Actions or required hosted checks are used.
+
+| Line | Development | Release authority | Purpose |
+| --- | --- | --- | --- |
+| v0 maintenance | `v0.x-dev` | `v0.x-release` | Stable v0 releases and hotfixes |
+| v1 prerelease | `v1.x-dev` | `v1.x-pre-release` | Alpha, beta, and release-candidate tags |
+| v1 GA | `v1.x-dev` | `v1.x-release` (created at GA) | Stable v1 releases |
+
+`main` is the published-history branch. After a tag is cut on its designated
+release branch, merge that branch into `main` through a pull request. Apply or
+verify the policy from an administrator checkout with:
+
+```bash
+./scripts/configure-branch-protection.sh
+```
+
 Do not create GitHub releases by hand with `gh release create`. The release
 script attaches binaries and writes the release notes expected by users.
 
@@ -145,14 +165,20 @@ crate-update pass.
 ## Host-Side Release
 
 Run this on the macOS host after the container-side release succeeds. Sync the
-host checkout first; the container-side release may have pushed version-bump
-and tag-prep commits from another clone:
+matching version-line release branch first; the container-side release may have
+pushed tag-prep commits from another clone. For a v0 release:
 
 ```bash
-git fetch origin main
-git reset --keep origin/main
+git fetch origin v0.x-release
+git switch v0.x-release
+git reset --keep origin/v0.x-release
 ./scripts/maintain.sh release-host X.Y.Z
 ```
+
+`release-host` derives the protected release branch from the version:
+`v0.x-release` for v0, `v1.x-pre-release` for v1 prereleases, and
+`v1.x-release` for v1 GA. It fetches only that branch and the requested tag,
+then verifies that the tag is reachable from the branch before building.
 
 This phase builds Darwin binaries, uploads them to the existing GitHub release,
 pushes GHCR images, then runs a fresh downstream-style runtime smoke against
