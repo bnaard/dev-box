@@ -1314,6 +1314,35 @@ runtime: |
     }
 
     #[test]
+    fn infrastructure_builder_verifies_archives_using_upstream_filenames() {
+        let addon = load_repo_addon("infrastructure");
+        let tools = all_enabled_tools(&addon);
+        let rendered = render_builder(&addon, &tools).unwrap().unwrap();
+
+        for expected in [
+            r#"TOFU_ARCHIVE="tofu_${TOFU_VERSION}_linux_${ARCH}.tar.gz""#,
+            r#"(cd /tmp && grep "${TOFU_ARCHIVE}$" tofu_SHA256SUMS | sha256sum -c -)"#,
+            r#"PACKER_ARCHIVE="packer_${PACKER_VERSION}_linux_${ARCH}.zip""#,
+            r#"(cd /tmp && grep "${PACKER_ARCHIVE}$" packer_SHA256SUMS | sha256sum -c -)"#,
+        ] {
+            assert!(
+                rendered.contains(expected),
+                "Infrastructure builder must verify the downloaded upstream filename ({expected}): {rendered}"
+            );
+        }
+
+        for stale in [
+            "grep \"tofu_${TOFU_VERSION}_linux_${ARCH}.tar.gz\" /tmp/tofu_SHA256SUMS | sha256sum -c",
+            "grep \"packer_${PACKER_VERSION}_linux_${ARCH}.zip\" /tmp/packer_SHA256SUMS | sha256sum -c",
+        ] {
+            assert!(
+                !rendered.contains(stale),
+                "Infrastructure builder must not verify a renamed archive ({stale}): {rendered}"
+            );
+        }
+    }
+
+    #[test]
     fn purge_cloud_aws_uninstalls_when_disabled() {
         let addon = load_repo_addon("cloud-aws");
         let tools = all_disabled_tools(&addon);
