@@ -86,7 +86,7 @@ allow_public = false  # Required for a non-loopback host bind; endpoint has no a
 # [integrations.github] — GitHub CLI backed HTTPS git credentials
 # =============================================================================
 # credential_helper: auto enables when git-ui.gh is installed; gh forces it; none removes it.
-# Tokens are never written to git config; Git asks `gh auth git-credential` at runtime.
+# Tokens are never written to git config; Git uses `gh auth git-credential` as the authoritative GitHub HTTPS helper.
 [integrations.github]
 credential_helper = "auto"  # options: auto, gh, none
 
@@ -370,7 +370,7 @@ cargo-audit = {} # Rust dependency vulnerability scanner; default on; options: {
 # Tools/git-ui — GitHub CLI and lazygit interactive Git UI
 [addons.git-ui.tools]
 gh = {} # GitHub CLI for issues, PRs, releases, and auth; default on; options: {}, { enabled = true|false }, { version = "x.y.z" or "latest" }
-lazygit = { enabled = false } # Interactive terminal UI for Git status, commits, and branches; default on; options: {}, { enabled = true|false }, { version = "x.y.z" or "latest" }
+lazygit = { enabled = true } # Interactive terminal UI for Git status, commits, and branches; default on; options: {}, { enabled = true|false }, { version = "x.y.z" or "latest" }
 
 # Tools/infrastructure — OpenTofu, Ansible, Packer
 # [addons.infrastructure.tools]
@@ -401,10 +401,6 @@ p7zip = {} # Archive listing and extraction support for previews; default on; op
 # ffmpeg = { enabled = false } # Video and audio metadata plus thumbnail support for previews; default on; options: {}, { enabled = true|false }, { version = "x.y.z" or "latest" }
 # ghostscript = { enabled = false } # PostScript and EPS rendering support for document previews; default on; options: {}, { enabled = true|false }, { version = "x.y.z" or "latest" }
 rich = {} # Markdown, JSON, RST, and notebook terminal rendering for Yazi previews; default on; options: {}, { enabled = true|false }, { version = "x.y.z" or "latest" }
-
-# Tools/yazi-omp — oh-my-posh for the omp.yazi header prompt
-# [addons.yazi-omp.tools]
-# oh-my-posh = {} # default on; options: {}, { enabled = true|false }, { version = "x.y.z" or "latest" }
 
 # =============================================================================
 # [ai] — AI agent harnesses and model providers
@@ -731,6 +727,11 @@ netspeed-cache-ttl-seconds = 10
 kubernetes-cache-ttl-seconds = 120
 cloud-cache-ttl-seconds = 120
 github-cache-ttl-seconds = 120
+
+[customization.tmux.status.forge]
+# Exact GitHub SSH hostnames and aliases recognized by the Forge segment.
+# Add aliases from ~/.ssh/config here (for example, github-work).
+github-hosts = ["github.com"]
 
 [customization.tmux.status.model-providers]
 # Optional networked model-provider health segments for the extended tmux status line.

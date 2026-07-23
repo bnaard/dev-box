@@ -134,14 +134,8 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 USER root
 RUN apt-get update && apt-get install -y --no-install-recommends \
     gh \
+    lazygit \
     && rm -rf /var/lib/apt/lists/*
-# Older base images shipped lazygit in the base layer. Treat explicit
-# lazygit disablement as an absence contract, not just "do not install".
-RUN if dpkg-query -W -f='${Status}' lazygit 2>/dev/null | grep -q 'install ok installed'; then \
-      apt-get purge -y --auto-remove lazygit; \
-    fi && \
-    rm -f /usr/local/bin/lazygit /usr/bin/lazygit && \
-    rm -rf /var/lib/apt/lists/*
 
 
 # Addon: node (runtime)

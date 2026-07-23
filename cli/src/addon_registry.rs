@@ -375,5 +375,13 @@ mod tests {
 
         let hermes = generate_runtime_commands("ai-hermes", &tc(&[("hermes", true, "0.18.0")]));
         assert!(hermes.contains("hermes-agent==0.18.0"), "{hermes}");
+        assert!(
+            hermes.contains("UV_TOOL_DIR=/opt/aibox/uv-tools"),
+            "Hermes tool environment must remain traversable by the runtime user: {hermes}"
+        );
+        assert!(
+            !hermes.contains("USER aibox"),
+            "Hermes installation must retain root access to /usr/local/bin: {hermes}"
+        );
     }
 }

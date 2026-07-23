@@ -1,0 +1,12 @@
+{
+  "mcpServers": {
+    "processkit-pk-doctor": {
+      "command": "uv",
+      "args": [
+        "run",
+        "context/skills/processkit/pk-doctor/mcp/server.py"
+      ],
+      "env": {}
+    }
+  }
+}
