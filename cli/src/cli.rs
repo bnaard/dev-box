@@ -177,6 +177,12 @@ pub enum Commands {
         #[arg(long)]
         processkit_version: Option<String>,
 
+        /// Include prerelease processkit tags in automatic and interactive
+        /// version selection. Explicit --processkit-version prerelease pins
+        /// always work without this flag.
+        #[arg(long)]
+        include_prerelease: bool,
+
         /// processkit branch override. Tracks the moving HEAD of a branch
         /// instead of a pinned tag — discouraged for production use, fine
         /// for testing pre-release work. Mutually informative with

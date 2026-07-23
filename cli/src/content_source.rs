@@ -258,7 +258,7 @@ fn base_cache_dir() -> Result<PathBuf> {
 // Version listing
 // ---------------------------------------------------------------------------
 
-/// List the versions available at `source`, newest first.
+/// List the stable versions available at `source`, newest first.
 ///
 /// Strategy:
 ///
@@ -273,20 +273,37 @@ fn base_cache_dir() -> Result<PathBuf> {
 /// 2. **Anything else** (GitLab, Gitea, self-hosted, file://, SSH,
 ///    scp-like): `git ls-remote --tags --refs <source>` directly.
 ///
-/// Filtering: only tags that parse as semver (with an optional leading
-/// `v`) are returned. Sorted descending by semver. Duplicates after the
-/// `v` strip are deduplicated. Empty result is `Ok(vec![])`, not an error.
+/// Filtering: only stable tags that parse as semver (with an optional leading
+/// `v`) are returned. Sorted descending by semver. Duplicates after the `v`
+/// strip are deduplicated. Empty result is `Ok(vec![])`, not an error.
+///
+/// Use [`list_versions_including_prereleases`] only for an explicit
+/// prerelease-selection flow. Keeping the default stable-only protects every
+/// `processkit.version = "latest"` resolution path, including the git-tag
+/// fallback where GitHub Release prerelease metadata is unavailable.
 ///
 /// Used by `aibox init`'s interactive picker (and the
 /// `--processkit-version` flag's "default to latest" path).
 pub fn list_versions(source: &str) -> Result<Vec<String>> {
+    list_versions_with_prereleases(source, false)
+}
+
+/// List the versions available at `source`, optionally including prereleases.
+///
+/// This is for explicit opt-in selection flows. Callers resolving `latest`
+/// should use [`list_versions`] instead.
+pub fn list_versions_including_prereleases(source: &str) -> Result<Vec<String>> {
+    list_versions_with_prereleases(source, true)
+}
+
+fn list_versions_with_prereleases(source: &str, include_prereleases: bool) -> Result<Vec<String>> {
     // git ls-remote is always the authoritative source: it sees every pushed
     // tag, including those not yet published as a formal GitHub Release.
     // The GitHub Releases API is used only as a fallback (e.g. if git is
     // unavailable in the environment) because it can miss tags that have been
     // pushed but not formally released.
     match list_git_tags(source) {
-        Ok(v) if !v.is_empty() => return Ok(v),
+        Ok(v) if !v.is_empty() => return Ok(filter_and_sort_semver_tags(v, include_prereleases)),
         Ok(_) => {
             tracing::debug!(
                 "git ls-remote returned no semver tags for {}; \
@@ -305,13 +322,13 @@ pub fn list_versions(source: &str) -> Result<Vec<String>> {
 
     let parsed = parse_source(source)?;
     if parsed.host == "github.com" {
-        list_github_releases(&parsed.org, &parsed.name)
+        list_github_releases(&parsed.org, &parsed.name, include_prereleases)
     } else {
         bail!("Could not list any semver-tagged versions at {}", source)
     }
 }
 
-fn list_github_releases(org: &str, name: &str) -> Result<Vec<String>> {
+fn list_github_releases(org: &str, name: &str, include_prereleases: bool) -> Result<Vec<String>> {
     let url = format!(
         "https://api.github.com/repos/{}/{}/releases?per_page=100",
         org, name
@@ -338,7 +355,7 @@ fn list_github_releases(org: &str, name: &str) -> Result<Vec<String>> {
         .iter()
         .filter_map(|r| r.get("tag_name").and_then(|t| t.as_str()).map(String::from))
         .collect();
-    Ok(filter_and_sort_semver_tags(tags))
+    Ok(filter_and_sort_semver_tags(tags, include_prereleases))
 }
 
 fn list_git_tags(source: &str) -> Result<Vec<String>> {
@@ -360,16 +377,17 @@ fn list_git_tags(source: &str) -> Result<Vec<String>> {
         .filter_map(|ref_path| ref_path.strip_prefix("refs/tags/"))
         .map(String::from)
         .collect();
-    Ok(filter_and_sort_semver_tags(tags))
+    Ok(tags)
 }
 
 /// Keep only semver-looking tags, sort descending, and dedupe by the
 /// stripped semver form (so `v1.2.3` and `1.2.3` collapse to one entry,
 /// preferring the input that came first).
-fn filter_and_sort_semver_tags(tags: Vec<String>) -> Vec<String> {
+fn filter_and_sort_semver_tags(tags: Vec<String>, include_prereleases: bool) -> Vec<String> {
     let mut keep: Vec<(semver::Version, String)> = tags
         .into_iter()
         .filter_map(|t| parse_loose_semver(&t).map(|v| (v, t)))
+        .filter(|(version, _)| include_prereleases || version.pre.is_empty())
         .collect();
     keep.sort_by(|a, b| b.0.cmp(&a.0));
     let mut seen = std::collections::HashSet::new();
@@ -1120,7 +1138,7 @@ mod tests {
             "v0.4.0".to_string(),
             "release-candidate".to_string(),
         ];
-        let out = filter_and_sort_semver_tags(raw);
+        let out = filter_and_sort_semver_tags(raw, false);
         assert_eq!(out, vec!["v0.5.1", "v0.4.0"]);
     }
 
@@ -1132,7 +1150,7 @@ mod tests {
             "v0.5.0".to_string(),
             "v0.4.1".to_string(),
         ];
-        let out = filter_and_sort_semver_tags(raw);
+        let out = filter_and_sort_semver_tags(raw, false);
         assert_eq!(out, vec!["v0.5.1", "v0.5.0", "v0.4.1", "v0.4.0"]);
     }
 
@@ -1145,25 +1163,35 @@ mod tests {
             "0.5.1".to_string(),
             "v0.4.0".to_string(),
         ];
-        let out = filter_and_sort_semver_tags(raw);
+        let out = filter_and_sort_semver_tags(raw, false);
         assert_eq!(out, vec!["v0.5.1", "v0.4.0"]);
     }
 
     #[test]
-    fn filter_and_sort_handles_prerelease() {
+    fn filter_and_sort_excludes_prereleases_by_default() {
         let raw = vec![
-            "v1.0.0".to_string(),
-            "v1.0.0-rc1".to_string(),
-            "v0.9.0".to_string(),
+            "v0.28.3".to_string(),
+            "v1.0.0-alpha.1".to_string(),
+            "v1.0.0-rc.1".to_string(),
         ];
-        let out = filter_and_sort_semver_tags(raw);
-        // Per semver, 1.0.0 > 1.0.0-rc1, so the stable comes first.
-        assert_eq!(out, vec!["v1.0.0", "v1.0.0-rc1", "v0.9.0"]);
+        let out = filter_and_sort_semver_tags(raw, false);
+        assert_eq!(out, vec!["v0.28.3"]);
+    }
+
+    #[test]
+    fn filter_and_sort_includes_prereleases_when_requested() {
+        let raw = vec![
+            "v0.28.3".to_string(),
+            "v1.0.0-alpha.1".to_string(),
+            "v1.0.0-rc.1".to_string(),
+        ];
+        let out = filter_and_sort_semver_tags(raw, true);
+        assert_eq!(out, vec!["v1.0.0-rc.1", "v1.0.0-alpha.1", "v0.28.3"]);
     }
 
     #[test]
     fn filter_and_sort_empty_in_empty_out() {
-        assert!(filter_and_sort_semver_tags(vec![]).is_empty());
+        assert!(filter_and_sort_semver_tags(vec![], false).is_empty());
     }
 
     // -- URL parsing --------------------------------------------------------
