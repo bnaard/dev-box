@@ -1282,6 +1282,38 @@ runtime: |
     }
 
     #[test]
+    fn kubernetes_builder_verifies_archives_using_upstream_filenames() {
+        let addon = load_repo_addon("kubernetes");
+        let tools = all_enabled_tools(&addon);
+        let rendered = render_builder(&addon, &tools).unwrap().unwrap();
+
+        for expected in [
+            r#"HELM_ARCHIVE="helm-v${HELM_VERSION}-linux-${ARCH}.tar.gz""#,
+            r#"(cd /tmp && sha256sum -c "${HELM_ARCHIVE}.sha256sum")"#,
+            r#"KUSTOMIZE_ARCHIVE="kustomize_v${KUSTOMIZE_VERSION}_linux_${ARCH}.tar.gz""#,
+            r#"(cd /tmp && grep "${KUSTOMIZE_ARCHIVE}$" kustomize.checksums.txt | sha256sum -c -)"#,
+            r#"K9S_ARCHIVE="k9s_Linux_${ARCH}.tar.gz""#,
+            r#"(cd /tmp && grep "${K9S_ARCHIVE}$" k9s_checksums.sha256 | sha256sum -c -)"#,
+        ] {
+            assert!(
+                rendered.contains(expected),
+                "Kubernetes builder must verify the downloaded upstream filename ({expected}): {rendered}"
+            );
+        }
+
+        for stale in [
+            "sha256sum -c /tmp/helm.tar.gz.sha256sum",
+            "kustomize.checksums.txt | sha256sum -c &&",
+            "k9s_checksums.sha256 | sha256sum -c &&",
+        ] {
+            assert!(
+                !rendered.contains(stale),
+                "Kubernetes builder must not verify a renamed archive ({stale}): {rendered}"
+            );
+        }
+    }
+
+    #[test]
     fn purge_cloud_aws_uninstalls_when_disabled() {
         let addon = load_repo_addon("cloud-aws");
         let tools = all_disabled_tools(&addon);
