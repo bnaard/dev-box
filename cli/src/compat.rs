@@ -573,6 +573,11 @@ pub static COMPAT_TABLE: &[CompatEntry] = &[
         processkit_version: "v0.28.3",
         note: "Patch release: fixes Kubernetes addon checksum verification for Helm, Kustomize, and k9s archives on amd64 and arm64; and integrates processkit v0.28.3 authenticated GitHub repository reconciliation.",
     },
+    CompatEntry {
+        aibox_version: "0.28.7",
+        processkit_version: "v0.28.3",
+        note: "Patch release: fixes OpenTofu and Packer addon checksum verification on amd64 and arm64 by preserving upstream archive filenames during checksum validation.",
+    },
 ];
 
 /// Find the minimum compatible processkit version for the given aibox version.
