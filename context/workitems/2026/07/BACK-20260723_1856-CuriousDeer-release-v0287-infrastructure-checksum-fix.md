@@ -4,10 +4,10 @@ kind: WorkItem
 metadata:
   id: BACK-20260723_1856-CuriousDeer-release-v0287-infrastructure-checksum-fix
   created: '2026-07-23T18:56:34+00:00'
-  updated: '2026-07-23T18:56:36+00:00'
+  updated: '2026-07-23T19:10:56+00:00'
 spec:
   title: Release aibox v0.28.7 infrastructure checksum verification fix
-  state: in-progress
+  state: review
   type: bug
   priority: high
   description: Prepare and publish the v0.28.7 patch release containing the OpenTofu
@@ -20,3 +20,8 @@ spec:
 ## Transition note (2026-07-23T18:56:36+00:00)
 
 Release preparation started on v0.x-release.
+
+
+## Transition note (2026-07-23T19:10:56+00:00)
+
+Repository-side v0.28.7 release published and verified: GitHub release has Linux archives/checksums and LICENSE; docs deployed. Awaiting owner-run macOS/GHCR Phase 2.
