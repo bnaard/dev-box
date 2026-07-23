@@ -12,6 +12,9 @@ below shows the minimum compatible processkit version for each aibox release.
 
 | aibox version | Min. processkit | Notes |
 |--------------|-----------------|-------|
+| 0.28.5 | v0.28.1 | fixes Hermes Agent installation under the non-root runtime model; restores configured lazygit runtime surfaces; completes processkit reconciliation; and enforces traceable ports between maintained v0.x and v1.x lines |
+| 0.28.4 | v0.28.1 | integrates processkit v0.28.1 and refreshes the maintained v0.x processkit compatibility baseline |
+| 0.28.3 | v0.27.6 | integrates processkit v0.27.6; makes GitHub CLI authoritative for `github.com` HTTPS credentials; exposes exact GitHub SSH aliases through Forge; and preserves LaTeX preview state across rebuilds |
 | 0.28.2 | v0.27.5 | integrates derived-project doctor applicability fixes, Git-ignore-aware sensitive-data scanning, 30-day archive-age enforcement, generated schema foundations, migration drafting, repository portfolio review, and refreshed gateway metadata |
 | 0.28.1 | v0.27.4 | restores Codex processkit aliases through `/prompts:pk-*`; adds local fuzzy documentation search; moves LaTeX build and watch ownership into the development container; and adds a hardened read-only, multi-document preview sidecar with full lifecycle coverage |
 | 0.28.0 | v0.27.4 | adds named LaTeX build, watch, status, and EmbedPDF live-preview workflows; manages preview lifecycle through `aibox up`/`down`; generates project-local agent guidance; and documents persistent, least-privilege GitHub authentication with explicit per-destination tokens |

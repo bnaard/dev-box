@@ -563,6 +563,11 @@ pub static COMPAT_TABLE: &[CompatEntry] = &[
         processkit_version: "v0.28.1",
         note: "Patch release: integrates processkit v0.28.1 and refreshes the maintained v0.x processkit compatibility baseline.",
     },
+    CompatEntry {
+        aibox_version: "0.28.5",
+        processkit_version: "v0.28.1",
+        note: "Patch release: fixes Hermes Agent installation under the non-root runtime model; restores the configured lazygit runtime surfaces; completes processkit reconciliation; and enforces traceable ports between maintained v0.x and v1.x lines.",
+    },
 ];
 
 /// Find the minimum compatible processkit version for the given aibox version.

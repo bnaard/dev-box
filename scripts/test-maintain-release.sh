@@ -10,6 +10,8 @@ AIBOX_MAINTAIN_SOURCE_ONLY=1 source "${SCRIPT_DIR}/maintain.sh"
   || die "v0 release versions must resolve to v0.x-release"
 [[ "$(release_branch_for_version 1.0.0)" == "v1.x-release" ]] \
   || die "v1 release versions must resolve to v1.x-release"
+declare -F publish_release_candidate >/dev/null \
+  || die "release candidate protected-branch publisher is missing"
 
 test_root="$(mktemp -d)"
 trap 'rm -rf "${test_root}"' EXIT
