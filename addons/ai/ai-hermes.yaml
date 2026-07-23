@@ -28,10 +28,13 @@ runtime: |
   # per-platform hermes-linux-* binaries. Install through uv tool so pinned
   # versions resolve through PyPI metadata and the unpinned path follows the
   # latest package release.
-  USER aibox
+  # The base image routes uv tool entrypoints to /usr/local/bin. Install as
+  # root, but keep the Python environment outside /root so the aibox runtime
+  # user can traverse it when the /usr/local/bin/hermes symlink is invoked.
   {% if tools.hermes.version %}
-  RUN uv tool install hermes-agent=={{ tools.hermes.version }}
+  RUN UV_TOOL_DIR=/opt/aibox/uv-tools uv tool install hermes-agent=={{ tools.hermes.version }} \
+      && chmod -R a+rX /opt/aibox/uv-tools
   {% else %}
-  RUN uv tool install hermes-agent
+  RUN UV_TOOL_DIR=/opt/aibox/uv-tools uv tool install hermes-agent \
+      && chmod -R a+rX /opt/aibox/uv-tools
   {% endif %}
-  USER root

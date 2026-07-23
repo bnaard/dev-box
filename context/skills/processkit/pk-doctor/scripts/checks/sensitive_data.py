@@ -409,6 +409,8 @@ def _credit_cards(text: str):
         digits = re.sub(r"\D", "", raw)
         if 13 <= len(digits) <= 19 and _luhn(digits):
             line = text.count("\n", 0, match.start()) + 1
+            if _looks_like_url_identifier(_line_at(text, line), raw):
+                continue
             yield line, raw
 
 
@@ -454,6 +456,8 @@ def _is_false_positive(
     if pattern.id == "sensitive-data.url-credential":
         if "[" in excerpt and "]" in excerpt:
             return True
+        if "${" in excerpt or "$" in excerpt:
+            return True
 
     if pattern.id == "sensitive-data.email-address":
         if _team_member_pii_opted_in(path):
@@ -472,6 +476,9 @@ def _is_false_positive(
             return True
         if "identity.toml" in lowered_line:
             return True
+        domain = lowered_excerpt.rsplit("@", 1)[-1]
+        if domain == "example.com" or domain.endswith(".example") or domain.endswith(".local"):
+            return True
 
     if pattern.id == "sensitive-data.phone-number":
         if path.suffix == ".md" and "skills" in path.parts:
@@ -485,6 +492,10 @@ def _is_false_positive(
             return True
         if "phone number" in lowered_line or "working_hours" in lowered_line:
             return True
+        # A bare ten-digit integer is commonly a byte-size threshold, ID, or
+        # other numeric literal. Require phone-like formatting for that form.
+        if re.fullmatch(r"\d{10}", excerpt):
+            return True
 
     if pattern.id == "sensitive-data.generic-assigned-secret":
         if "lexical_token_from_id" in line_text:
@@ -493,6 +504,16 @@ def _is_false_positive(
             return True
 
     return False
+
+
+def _looks_like_url_identifier(line_text: str, raw: str) -> bool:
+    """Avoid treating numeric social-media URL path segments as card data."""
+    escaped = re.escape(raw)
+    return bool(re.search(
+        rf"https?://[^\s]+/(?:status|posts?|reel|video)/{escaped}(?:\b|[/?#])",
+        line_text,
+        re.IGNORECASE,
+    ))
 
 
 def _email_allowlist(repo_root: Path) -> set[str]:

@@ -1599,7 +1599,7 @@ Concrete release steps:
   audit           Run cargo audit
   build-linux     Build Linux release archives and checksums
   version-smoke   Verify the native release binary reports the requested version
-  push-main       Push main to origin
+  push-main       Promote the candidate to its protected release branch
   notes           Prepare or reuse dist/RELEASE-NOTES.md
   tag             Create and push the annotated release tag
   github-release  Create the GitHub release with Linux archives
@@ -2262,6 +2262,7 @@ cmd_release() {
         || die "cargo metadata failed after version bump — review Cargo.toml"
       git add "${CLI_DIR}/Cargo.toml" "${CLI_DIR}/Cargo.lock"
       git commit -m "chore: bump CLI version to ${version}" \
+        -m "Version-Line-Port: not-applicable" \
         || die "failed to commit Cargo.toml/Cargo.lock bump"
       ok "Cargo.toml bumped and committed"
     else
@@ -2321,9 +2322,7 @@ cmd_release() {
   fi
 
   if release_step_requested push-main; then
-    info "Pushing main to origin (version-bump commit)..."
-    git push origin main
-    ok "main pushed to origin"
+    publish_release_candidate "${version}" "${release_branch}"
   fi
 
   if release_step_requested notes; then
@@ -2440,6 +2439,42 @@ release_branch_for_version() {
   printf 'v%s.x-release' "${major}"
 }
 
+publish_release_candidate() {
+  local version="$1" release_branch="$2"
+  local candidate_branch="chore/release-v${version}" pr_url
+
+  [[ "$(git branch --show-current)" == "${release_branch}" ]] \
+    || die "Release ${version} must be published from ${release_branch}."
+
+  git fetch origin "${release_branch}"
+  git merge-base --is-ancestor "origin/${release_branch}" HEAD \
+    || die "Local ${release_branch} does not descend from origin/${release_branch}; reconcile it before publishing."
+
+  if [[ "$(git rev-parse HEAD)" == "$(git rev-parse "origin/${release_branch}")" ]]; then
+    ok "${release_branch} is already current on origin"
+    return
+  fi
+
+  if git ls-remote --exit-code --heads origin "${candidate_branch}" >/dev/null 2>&1; then
+    die "Remote branch ${candidate_branch} already exists; inspect or merge it before publishing."
+  fi
+
+  info "Promoting the release candidate to protected branch ${release_branch}..."
+  git switch -c "${candidate_branch}"
+  git push -u origin "${candidate_branch}"
+  pr_url="$(gh pr create \
+    --base "${release_branch}" \
+    --head "${candidate_branch}" \
+    --title "chore: release v${version}" \
+    --body "Promotes the validated v${version} release candidate to ${release_branch}.")" \
+    || die "Could not create release-candidate PR."
+  gh pr merge "${pr_url}" --merge --delete-branch \
+    || die "Could not merge release-candidate PR ${pr_url}."
+  git switch "${release_branch}"
+  git pull --ff-only origin "${release_branch}"
+  ok "Release candidate merged into ${release_branch}"
+}
+
 cmd_release_finalize_runtime() {
   local version="${1:-}"
   [[ -z "${version}" ]] && die "Usage: ./scripts/maintain.sh release-finalize-runtime <version>  (e.g. 0.10.2)"
@@ -2473,7 +2508,8 @@ cmd_release_finalize_runtime() {
       fi
 
       git switch -c "${finalization_branch}"
-      git commit -m "chore: refresh generated runtime for v${version}"
+      git commit -m "chore: refresh generated runtime for v${version}" \
+        -m "Version-Line-Port: not-applicable"
       git push -u origin "${finalization_branch}"
       pr_url="$(gh pr create \
         --base "${release_branch}" \
