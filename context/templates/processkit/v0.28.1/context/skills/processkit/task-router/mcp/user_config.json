@@ -1,0 +1,4 @@
+{
+  "_comment": "Per-project task-router knobs. The MCP server reads this on every call. v1_entity_penalty multiplies the score of router candidates that target v1 primitives (Process, Actor, StateMachine, Model) when a v2 successor exists. Default 0.3 down-weights v1 so v2 candidates win unless v1 is the only match. Set to 1.0 to disable for projects intentionally on v1.",
+  "v1_entity_penalty": 0.3
+}

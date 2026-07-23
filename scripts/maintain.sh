@@ -2262,6 +2262,7 @@ cmd_release() {
         || die "cargo metadata failed after version bump — review Cargo.toml"
       git add "${CLI_DIR}/Cargo.toml" "${CLI_DIR}/Cargo.lock"
       git commit -m "chore: bump CLI version to ${version}" \
+        -m "Version-Line-Port: not-applicable" \
         || die "failed to commit Cargo.toml/Cargo.lock bump"
       ok "Cargo.toml bumped and committed"
     else
@@ -2473,7 +2474,8 @@ cmd_release_finalize_runtime() {
       fi
 
       git switch -c "${finalization_branch}"
-      git commit -m "chore: refresh generated runtime for v${version}"
+      git commit -m "chore: refresh generated runtime for v${version}" \
+        -m "Version-Line-Port: not-applicable"
       git push -u origin "${finalization_branch}"
       pr_url="$(gh pr create \
         --base "${release_branch}" \
