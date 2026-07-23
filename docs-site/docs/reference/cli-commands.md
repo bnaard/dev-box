@@ -66,6 +66,7 @@ aibox init my-app --theme catppuccin-mocha
 | `--addon <NAME>` | -- | Addon name, repeatable |
 | `--theme <THEME>` | `gruvbox` | Runtime UI theme family |
 | `--processkit-version <TAG>` | latest prompt/default | Pin processkit |
+| `--include-prerelease` | off | Include processkit prereleases when init selects a version; explicit prerelease pins always work |
 
 The hidden legacy `--context <PKG>` option is still accepted as a processkit
 package selector for compatibility. New configs use `[context].mode` and,

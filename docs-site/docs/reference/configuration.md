@@ -55,7 +55,7 @@ packages = ["product"]                # processkit package selection
 
 [processkit]
 source   = "https://github.com/projectious-work/processkit.git"
-version  = "latest"                   # "latest", "unset", or a real tag
+version  = "latest"                   # newest stable release, "unset", or a real tag (including an explicit prerelease)
 src_path = "src"
 # branch = "main"                     # Optional; tarball-first, branch as fallback
 # release_asset_url_template = "..."  # Optional, for non-GitHub hosts
@@ -421,8 +421,6 @@ allow_public = false
 | `documents[].name` | String | Yes | -- | Unique command-safe document name. |
 | `documents[].source` | Relative path | Yes | -- | Main TeX source. |
 | `documents[].output_dir` | Relative path | No | `.latex-cache/output` | PDF, log, and auxiliary output directory. |
-| `documents[].options` | Array | No | `[]` | Additional arguments for this document only; appended after the global `latex.options`. |
-| `documents[].extra_dirs` | Array | No | `[]` | Relative directories created below `output_dir` before building or watching, useful for TikZ externalization output. |
 | `preview.enabled` | Boolean | No | `false` | Generates one shared read-only Compose preview sidecar; host-side `aibox up` starts it and it serves every configured document. |
 | `preview.engine` | String | No | `embedpdf` | Viewer implementation; currently only `embedpdf` is supported. |
 | `preview.bind` | IP address | No | `127.0.0.1` | Compose host-publish address. Loopback is accessible only from that host; use `0.0.0.0` only for other machines. |
