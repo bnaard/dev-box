@@ -73,6 +73,9 @@ runtime: |
   COPY --from=infra-builder /build/bin/packer /usr/local/bin/packer
   {% endif %}
   {% if tools.ansible.enabled %}
+  RUN apt-get update && apt-get install -y --no-install-recommends \
+      python3-pip \
+      && rm -rf /var/lib/apt/lists/*
   RUN pip3 install --no-cache-dir 'ansible=={{ tools.ansible.version }}'
   {% endif %}
   # ── Variant 1 disable-then-purge guards ───────────────────────────────
