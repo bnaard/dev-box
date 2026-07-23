@@ -578,6 +578,11 @@ pub static COMPAT_TABLE: &[CompatEntry] = &[
         processkit_version: "v0.28.3",
         note: "Patch release: fixes OpenTofu and Packer addon checksum verification on amd64 and arm64 by preserving upstream archive filenames during checksum validation.",
     },
+    CompatEntry {
+        aibox_version: "0.28.8",
+        processkit_version: "v0.28.3",
+        note: "Patch release: makes the infrastructure addon self-sufficient by installing python3-pip before installing Ansible, so generated Dockerfiles build without the Python addon.",
+    },
 ];
 
 /// Find the minimum compatible processkit version for the given aibox version.
