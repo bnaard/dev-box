@@ -58,6 +58,7 @@ tmux -S "$socket" new-window -t "$session:" -n "ai" -c "$workspace" "$(tool_or_s
 ai_pane="$(tmux -S "$socket" display-message -p -t "$session:ai" '#{pane_id}')"
 tmux -S "$socket" split-window -t "$session:ai" -h -c "$workspace" "$(tool_or_shell claude)"
 tmux -S "$socket" select-layout -t "$session:ai" even-horizontal
+tmux -S "$socket" new-window -t "$session:" -n "lazygit" -c "$workspace" "$(tool_or_shell lazygit)"
 tmux -S "$socket" select-window -t "$session:work"
 
   exit 0
@@ -77,5 +78,6 @@ tmux -S "$socket" new-window -t "$session:" -n "ai" -c "$workspace" "$(tool_or_s
 ai_pane="$(tmux -S "$socket" display-message -p -t "$session:ai" '#{pane_id}')"
 tmux -S "$socket" split-window -t "$session:ai" -h -c "$workspace" "$(tool_or_shell claude)"
 tmux -S "$socket" select-layout -t "$session:ai" even-horizontal
+tmux -S "$socket" new-window -t "$session:" -n "lazygit" -c "$workspace" "$(tool_or_shell lazygit)"
 tmux -S "$socket" select-window -t "$session:work"
 exec tmux -S "$socket" -f "$config" attach-session -t "$session"

@@ -90,7 +90,7 @@ RUN ARCH=$(uname -m) && \
     fi
 
 
-FROM ghcr.io/projectious-work/aibox:base-debian-runtime-v0.28.3 AS aibox
+FROM ghcr.io/projectious-work/aibox:base-debian-runtime-v0.28.4 AS aibox
 
 ENV SHELL=/bin/bash
 ENV UV_CACHE_DIR=/tmp/aibox/uv-cache
@@ -134,14 +134,8 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 USER root
 RUN apt-get update && apt-get install -y --no-install-recommends \
     gh \
+    lazygit \
     && rm -rf /var/lib/apt/lists/*
-# Older base images shipped lazygit in the base layer. Treat explicit
-# lazygit disablement as an absence contract, not just "do not install".
-RUN if dpkg-query -W -f='${Status}' lazygit 2>/dev/null | grep -q 'install ok installed'; then \
-      apt-get purge -y --auto-remove lazygit; \
-    fi && \
-    rm -f /usr/local/bin/lazygit /usr/bin/lazygit && \
-    rm -rf /var/lib/apt/lists/*
 
 
 # Addon: node (runtime)
@@ -268,6 +262,6 @@ EOF
 
 # Record image version inside container for runtime checks
 USER root
-LABEL aibox.version="0.28.3"
+LABEL aibox.version="0.28.4"
 LABEL aibox.profile="human-dev"
-RUN echo "0.28.3" > /etc/aibox-version
+RUN echo "0.28.4" > /etc/aibox-version

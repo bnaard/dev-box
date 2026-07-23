@@ -6,6 +6,13 @@ PROJECT_ROOT="$(cd "${SCRIPT_DIR}/.." && pwd)"
 
 AIBOX_MAINTAIN_SOURCE_ONLY=1 source "${SCRIPT_DIR}/maintain.sh"
 
+[[ "$(release_branch_for_version 0.28.5)" == "v0.x-release" ]] \
+  || die "v0 release versions must resolve to v0.x-release"
+[[ "$(release_branch_for_version 1.0.0-alpha.1)" == "v1.x-pre-release" ]] \
+  || die "v1 prereleases must resolve to v1.x-pre-release"
+[[ "$(release_branch_for_version 1.0.0)" == "v1.x-release" ]] \
+  || die "v1 GA versions must resolve to v1.x-release"
+
 test_root="$(mktemp -d)"
 trap 'rm -rf "${test_root}"' EXIT
 

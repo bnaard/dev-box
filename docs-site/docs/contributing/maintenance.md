@@ -165,14 +165,20 @@ crate-update pass.
 ## Host-Side Release
 
 Run this on the macOS host after the container-side release succeeds. Sync the
-host checkout first; the container-side release may have pushed version-bump
-and tag-prep commits from another clone:
+matching version-line release branch first; the container-side release may have
+pushed tag-prep commits from another clone. For a v0 release:
 
 ```bash
-git fetch origin main
-git reset --keep origin/main
+git fetch origin v0.x-release
+git switch v0.x-release
+git reset --keep origin/v0.x-release
 ./scripts/maintain.sh release-host X.Y.Z
 ```
+
+`release-host` derives the protected release branch from the version:
+`v0.x-release` for v0, `v1.x-pre-release` for v1 prereleases, and
+`v1.x-release` for v1 GA. It fetches only that branch and the requested tag,
+then verifies that the tag is reachable from the branch before building.
 
 This phase builds Darwin binaries, uploads them to the existing GitHub release,
 pushes GHCR images, then runs a fresh downstream-style runtime smoke against
