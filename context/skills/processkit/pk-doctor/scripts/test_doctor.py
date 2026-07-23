@@ -484,6 +484,99 @@ with tempfile.TemporaryDirectory() as tmp:
     )
 
 # ---------------------------------------------------------------------------
+# Test 6b3: pruned derived installs use their installed MCP surface
+# ---------------------------------------------------------------------------
+print("\n[6b3] derived install — pruned MCP skills do not cause drift")
+
+from checks.mcp_config_drift import (  # noqa: E402
+    _aggregate as _pruned_aggregate,
+    _sha256_of_file as _pruned_sha256,
+    run as _pruned_mcp_run,
+)
+from checks.server_header_drift import (  # noqa: E402
+    _extract_header as _pruned_header,
+    _sha256 as _pruned_header_sha256,
+    run as _pruned_header_run,
+)
+
+with tempfile.TemporaryDirectory() as tmp:
+    root = Path(tmp)
+    spec_dir = (
+        root / "context" / "skills" / "processkit" / "skill-gate" / "assets"
+    )
+    spec_dir.mkdir(parents=True)
+    (spec_dir / "preauth.json").write_text(
+        json.dumps({
+            "permissions": {
+                "allow": ["mcp__processkit-a__*", "mcp__processkit-b__*"],
+            },
+            "enabledMcpjsonServers": ["processkit-a", "processkit-b"],
+            "codex": {
+                "mcp": {
+                    "allowed_tools": [
+                        "mcp__processkit-a__*", "mcp__processkit-b__*",
+                    ],
+                },
+            },
+        }),
+        encoding="utf-8",
+    )
+    cfg_a = root / "context" / "skills" / "processkit" / "a" / "mcp" / "mcp-config.json"
+    cfg_a.parent.mkdir(parents=True)
+    cfg_a.write_text('{"mcpServers":{"processkit-a":{}}}\n', encoding="utf-8")
+    server_a = cfg_a.parent / "server.py"
+    server_a.write_text("# /// script\n# ///\n", encoding="utf-8")
+    per_skill = [{
+        "path": "context/skills/processkit/a/mcp/mcp-config.json",
+        "sha256": _pruned_sha256(cfg_a),
+    }, {
+        "path": "context/skills/processkit/b/mcp/mcp-config.json",
+        "sha256": "removed-skill",
+    }]
+    per_header = [{
+        "path": "context/skills/processkit/a/mcp/server.py",
+        "sha256": _pruned_header_sha256(_pruned_header(server_a) or ""),
+    }, {
+        "path": "context/skills/processkit/b/mcp/server.py",
+        "sha256": "removed-skill",
+    }]
+    (root / "context" / ".processkit-mcp-manifest.json").write_text(
+        json.dumps({
+            "per_skill": per_skill,
+            "per_gateway": [],
+            "per_server_header": per_header,
+            "aggregate_sha256": _pruned_aggregate(per_skill),
+        }),
+        encoding="utf-8",
+    )
+    (root / ".claude").mkdir()
+    (root / ".claude" / "settings.json").write_text(
+        json.dumps({
+            "permissions": {"allow": ["mcp__processkit-a__*"]},
+            "enabledMcpjsonServers": ["processkit-a"],
+        }),
+        encoding="utf-8",
+    )
+    results = _preauth_run({"repo_root": root})
+    check(
+        "pruned derived preauth has no false drift",
+        not any(r.id == "preauth_applied.spec-drift" for r in results),
+        [r.to_dict() for r in results],
+    )
+    mcp_results = _pruned_mcp_run({"repo_root": root})
+    check(
+        "pruned derived manifest is in sync",
+        any(r.id == "mcp_config_drift.in-sync" for r in mcp_results),
+        [r.to_dict() for r in mcp_results],
+    )
+    header_results = _pruned_header_run({"repo_root": root})
+    check(
+        "pruned derived server headers are in sync",
+        any(r.id == "server_header_drift.in-sync" for r in header_results),
+        [r.to_dict() for r in header_results],
+    )
+
+# ---------------------------------------------------------------------------
 # Test 6c: MCP gateway mode is an intentional derived-project alternative
 # ---------------------------------------------------------------------------
 print("\n[6c] mcp gateway — manifest + harness gateway mode")
@@ -911,6 +1004,58 @@ with tempfile.TemporaryDirectory() as tmp:
         "walked > 0 entity files (no longer silent zero)",
         "walked 1 entity file" in result.stdout,
         result.stdout[-400:],
+    )
+
+# ---------------------------------------------------------------------------
+# Test 8a: schema_filename preserves block scalars containing --- (issue #88)
+# ---------------------------------------------------------------------------
+print("\n[8a] schema_filename — YAML block scalar delimiter regression")
+
+with tempfile.TemporaryDirectory() as tmp:
+    root = Path(tmp)
+    (root / "context" / "schemas").mkdir(parents=True)
+    src_note = _SCHEMAS_SRC / "note.yaml"
+    if src_note.is_file():
+        (root / "context" / "schemas" / "note.yaml").write_text(
+            src_note.read_text(encoding="utf-8"), encoding="utf-8"
+        )
+    (root / "scripts").mkdir()
+    drift = root / "scripts" / "check-src-context-drift.sh"
+    drift.write_text("#!/usr/bin/env bash\nexit 0\n", encoding="utf-8")
+    drift.chmod(0o755)
+    (root / "context" / "notes").mkdir()
+    (root / "context" / "notes" / "NOTE-20260720_1407-PlainCedar-frontmatter.md").write_text(
+        textwrap.dedent("""\
+            ---
+            apiVersion: processkit.projectious.work/v2
+            kind: Note
+            metadata:
+              id: NOTE-20260720_1407-PlainCedar-frontmatter
+              created: '2026-07-20T14:07:00Z'
+            spec:
+              title: Frontmatter delimiter regression
+              body: |
+                A Markdown horizontal rule must remain within this scalar.
+                ---
+                Parsing must continue after it.
+              type: insight
+              state: captured
+            ---
+            """),
+        encoding="utf-8",
+    )
+    stub = root / ".doctor-logentry.json"
+    result = _run_doctor(root, "--category=schema_filename", stub_path=stub)
+    check(
+        "block scalar delimiter does not truncate frontmatter",
+        result.returncode == 0,
+        f"got {result.returncode}; stdout: {result.stdout[-600:]}",
+    )
+    check(
+        "block scalar fixture has no missing Note fields",
+        "'type' is a required property" not in result.stdout
+        and "'state' is a required property" not in result.stdout,
+        result.stdout[-600:],
     )
 
 # ---------------------------------------------------------------------------
@@ -1982,9 +2127,9 @@ with tempfile.TemporaryDirectory() as tmp:
 
 
 # ---------------------------------------------------------------------------
-# Test 17b: binding filename warning stays strict and actionable
+# Test 17b: runtime Binding IDs coexist with deterministic policy Bindings
 # ---------------------------------------------------------------------------
-print("\n[17b] context hygiene — mixed Binding filenames advise data fix")
+print("\n[17b] context hygiene — runtime Binding filename policy")
 
 from checks.context_hygiene import (  # noqa: E402
     run as _context_hygiene_run,
@@ -2031,13 +2176,17 @@ with tempfile.TemporaryDirectory() as tmp:
         r.to_dict() for r in results
         if r.id == "binding.filename-style-mixed"
     ]
-    check("17b: mixed Binding filenames still WARN", bool(mixed), results)
+    check("17b: role-slot-fill Binding IDs do not WARN", not mixed, results)
+
+    storage_results = _entity_storage_run({"repo_root": root})
+    storage_mixed = [
+        r.to_dict() for r in storage_results
+        if r.id == "storage.filename-policy-mixed"
+    ]
     check(
-        "17b: warning calls out role-slot-fill and LogEntry rewrites",
-        bool(mixed)
-        and "role-slot-fill" in mixed[0]["message"]
-        and "LogEntry references" in mixed[0]["suggested_fix"],
-        json.dumps(mixed, indent=2),
+        "17b: storage policy accepts role-slot-fill Binding IDs",
+        not storage_mixed,
+        json.dumps(storage_mixed, indent=2),
     )
 
 
@@ -2228,6 +2377,25 @@ with tempfile.TemporaryDirectory() as tmp:
         "18: clean AGENTS.md emits clean INFO",
         [r.id for r in clean_results] == ["agents_md_hygiene.clean"],
         [r.to_dict() for r in clean_results],
+    )
+
+    reference_text = agents_text.replace(
+        'build: "make build"',
+        'build: "npm --prefix docs-site run build"',
+    )
+    (root / "src" / "AGENTS.md").write_text(
+        reference_text,
+        encoding="utf-8",
+    )
+    project_commands = _agents_md_hygiene_run({"repo_root": root})
+    check(
+        "18: project-local pk-commands values do not drift",
+        not [
+            r for r in project_commands
+            if r.id == "agents_md_hygiene.managed-block-drift"
+            and r.extra.get("block_id") == "pk-commands"
+        ],
+        [r.to_dict() for r in project_commands],
     )
 
 print("\n[19] runtime_health — container-local probe helpers")
@@ -2513,6 +2681,7 @@ with tempfile.TemporaryDirectory() as tmp:
 print("\n[22] sensitive_data — deterministic findings plus briefing")
 
 from checks import sensitive_data  # noqa: E402
+from checks.schema_filename import _parse_frontmatter as _parse_entity_frontmatter  # noqa: E402
 
 with tempfile.TemporaryDirectory() as tmp:
     root = Path(tmp)
@@ -2564,6 +2733,55 @@ with tempfile.TemporaryDirectory() as tmp:
             )),
             sample,
         )
+        url_with_variable = "https://user:${GH_TOKEN}@github.com/org/repo"
+        check(
+            "22: URL environment-variable credential is ignored",
+            not list(sensitive_data._matches(
+                root / "AGENTS.md", url_with_variable, url_pattern
+            )),
+            url_with_variable,
+        )
+        social_url = "https://x.com/example/status/1745511940351287394"
+        check(
+            "22: social-media numeric URL identifier is not a card",
+            not list(sensitive_data._credit_cards(social_url)),
+            social_url,
+        )
+        email_pattern = next(
+            pattern for pattern in sensitive_data._PATTERNS
+            if pattern.id == "sensitive-data.email-address"
+        )
+        synthetic_emails = "dev@example.com deploy@example.local git@unit.example"
+        check(
+            "22: reserved example email domains are ignored",
+            not list(sensitive_data._matches(
+                root / "AGENTS.md", synthetic_emails, email_pattern
+            )),
+            synthetic_emails,
+        )
+        phone_pattern = next(
+            pattern for pattern in sensitive_data._PATTERNS
+            if pattern.id == "sensitive-data.phone-number"
+        )
+        numeric_threshold = "MAX_ARCHIVE_BYTES=4294967296"
+        check(
+            "22: bare ten-digit numeric threshold is not a phone number",
+            not list(sensitive_data._matches(
+                root / "config.py", numeric_threshold, phone_pattern
+            )),
+            numeric_threshold,
+        )
+    frontmatter_path = root / "frontmatter.md"
+    frontmatter_path.write_text(
+        "---\nspec:\n  divider: '|---|---|'\n---\nbody\n",
+        encoding="utf-8",
+    )
+    parsed, parse_error = _parse_entity_frontmatter(frontmatter_path)
+    check(
+        "22: frontmatter parser accepts literal --- content",
+        parsed is not None and parse_error is None,
+        parse_error or "",
+    )
 
 # ---------------------------------------------------------------------------
 # Test 23: fresh derived-project doctor regressions

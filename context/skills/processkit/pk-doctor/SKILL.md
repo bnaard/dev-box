@@ -81,6 +81,10 @@ harden the `--fix` paths — each with their own WorkItem.
 /pk-doctor --yes                        # non-interactive (auto-confirms safe fixes)
 ```
 
+The MCP wrapper accepts the same confirmation explicitly as
+`run_pk_doctor(fix="...", yes=true)`. Calls without `yes=true` remain
+detect-only when a category requires confirmation.
+
 The script flags `--fix` and `--fix-all` are mutually exclusive. Exit
 code is `0` if no ERRORs were produced, `1` otherwise. Every script run
 — regardless of outcome — writes exactly one `doctor.report` LogEntry
@@ -195,7 +199,7 @@ Additional checks added after Phase 1:
   addresses may be listed in `.pk-doctor-allowlist.toml`:
   ```toml
   [sensitive_data.email_allowlist]
-  addresses = ["info@projectious.work", "deploy@example.local"]
+  addresses = ["deploy@example.local"]
   ```
   The allowlist applies only to email-address findings; secrets and other PII
   are never suppressed.

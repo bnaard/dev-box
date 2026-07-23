@@ -2706,6 +2706,8 @@ mod tests {
             name: "overview".to_string(),
             source: "docs/overview.tex".to_string(),
             output_dir: ".latex-cache/overview".to_string(),
+            options: Vec::new(),
+            extra_dirs: Vec::new(),
         });
 
         seed_root_dir(&config).unwrap();

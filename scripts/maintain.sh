@@ -2396,6 +2396,7 @@ cmd_release() {
       echo ""
       echo "\`\`\`bash"
       echo "git fetch origin $(release_branch_for_version "${version}")"
+      echo "git switch $(release_branch_for_version "${version}")"
       echo "git reset --keep origin/$(release_branch_for_version "${version}")"
       echo "./scripts/maintain.sh release-host ${version}"
       echo "\`\`\`"
@@ -2441,6 +2442,10 @@ cmd_release_finalize_runtime() {
     die "Version must be semver: X.Y.Z or X.Y.Z-prerelease (got: ${version})"
   fi
 
+  local release_branch topic_branch pr_url
+  release_branch="$(release_branch_for_version "${version}")"
+  topic_branch="release/v${version}-runtime-refresh"
+
   info "Refreshing repo-owned generated runtime surfaces..."
   (
     cd "${PROJECT_ROOT}"
@@ -2456,12 +2461,24 @@ cmd_release_finalize_runtime() {
     if git diff --cached --quiet -- .devcontainer aibox.lock context/migrations context/templates/aibox-home; then
       ok "Generated runtime surfaces already match v${version}; no commit needed."
     else
-      local topic_branch
-      topic_branch="release/v${version}-runtime-refresh"
+      if git ls-remote --exit-code --heads origin "${topic_branch}" >/dev/null 2>&1; then
+        die "Remote branch ${topic_branch} already exists; inspect or merge it before rerunning release finalization."
+      fi
       git switch -c "${topic_branch}"
-      git commit -m "chore: refresh generated runtime for v${version}"
+      git commit -m "chore: refresh generated runtime for v${version}" \
+        -m "Version-Line-Port: not-applicable"
       git push -u origin "${topic_branch}"
-      warn "Generated runtime refresh is on ${topic_branch}; open and merge a PR into $(release_branch_for_version "${version}") before continuing."
+      pr_url="$(gh pr create \
+        --base "${release_branch}" \
+        --head "${topic_branch}" \
+        --title "chore: refresh generated runtime for v${version}" \
+        --body "Post-image generated runtime refresh for v${version}.")" \
+        || die "Could not create generated-runtime finalization PR."
+      gh pr merge "${pr_url}" --merge --delete-branch \
+        || die "Could not merge generated-runtime finalization PR ${pr_url}."
+      git switch "${release_branch}"
+      git pull --ff-only origin "${release_branch}"
+      ok "Generated runtime surfaces merged into ${release_branch} for v${version}."
     fi
   )
 }
@@ -2469,22 +2486,31 @@ cmd_release_finalize_runtime() {
 # ── Host-side release (run on macOS after container-side `release`) ──────────
 
 ensure_release_host_checkout_current() {
-  local version="$1" release_branch
+  local version="$1" tag release_branch
+  tag="v${version}"
   release_branch="$(release_branch_for_version "${version}")"
-  info "Verifying host checkout is current with origin/${release_branch}..."
+  info "Verifying host checkout is current with origin/${release_branch} and ${tag}..."
   (
     cd "${PROJECT_ROOT}"
-    git fetch origin "${release_branch}" >/dev/null
+    git fetch origin \
+      "refs/heads/${release_branch}:refs/remotes/origin/${release_branch}" \
+      "refs/tags/${tag}:refs/tags/${tag}" >/dev/null
 
-    local head remote_head
+    local head remote_head tag_commit
     head=$(git rev-parse HEAD)
     remote_head=$(git rev-parse "origin/${release_branch}")
+    tag_commit=$(git rev-parse "${tag}^{commit}" 2>/dev/null) \
+      || die "Release tag ${tag} is missing locally. Fetch it from origin before running release-host."
+
+    if ! git merge-base --is-ancestor "${tag_commit}" "${remote_head}"; then
+      die "Release tag ${tag} is not reachable from origin/${release_branch}; refusing to build host artifacts from the wrong version line."
+    fi
 
     if [[ "${head}" != "${remote_head}" ]]; then
-      die "release-host must run from origin/${release_branch}. Run: git fetch origin ${release_branch} && git reset --keep origin/${release_branch}"
+      die "release-host must run from current origin/${release_branch} containing ${tag}. Run: git fetch origin ${release_branch} && git switch ${release_branch} && git reset --keep origin/${release_branch}"
     fi
   )
-  ok "Host checkout matches origin/${release_branch}"
+  ok "Host checkout matches the ${release_branch} release line and contains ${tag}"
 }
 
 cmd_release_host() {
