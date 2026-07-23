@@ -58,33 +58,36 @@ builder: |
   {% if tools.helm.enabled %}
       HELM_VERSION="{{ tools.helm.version }}" && \
       ARCH="$(uname -m | sed 's/x86_64/amd64/;s/aarch64/arm64/')" && \
-      curl -fsSL "https://get.helm.sh/helm-v${HELM_VERSION}-linux-${ARCH}.tar.gz" -o /tmp/helm.tar.gz && \
-      curl -fsSL "https://get.helm.sh/helm-v${HELM_VERSION}-linux-${ARCH}.tar.gz.sha256sum" -o /tmp/helm.tar.gz.sha256sum && \
-      sha256sum -c /tmp/helm.tar.gz.sha256sum && \
-      tar -xz --strip-components=1 -C /build/bin -f /tmp/helm.tar.gz "linux-${ARCH}/helm" && \
-      rm /tmp/helm.tar.gz /tmp/helm.tar.gz.sha256sum{% if tools.kustomize.enabled or tools.k9s.enabled %} && \
+      HELM_ARCHIVE="helm-v${HELM_VERSION}-linux-${ARCH}.tar.gz" && \
+      curl -fsSL "https://get.helm.sh/${HELM_ARCHIVE}" -o "/tmp/${HELM_ARCHIVE}" && \
+      curl -fsSL "https://get.helm.sh/${HELM_ARCHIVE}.sha256sum" -o "/tmp/${HELM_ARCHIVE}.sha256sum" && \
+      (cd /tmp && sha256sum -c "${HELM_ARCHIVE}.sha256sum") && \
+      tar -xz --strip-components=1 -C /build/bin -f "/tmp/${HELM_ARCHIVE}" "linux-${ARCH}/helm" && \
+      rm "/tmp/${HELM_ARCHIVE}" "/tmp/${HELM_ARCHIVE}.sha256sum"{% if tools.kustomize.enabled or tools.k9s.enabled %} && \
   {% endif %}
   {% endif %}
   {% if tools.kustomize.enabled %}
       KUSTOMIZE_VERSION="{{ tools.kustomize.version }}" && \
       ARCH="$(uname -m | sed 's/x86_64/amd64/;s/aarch64/arm64/')" && \
-      curl -fsSL "https://github.com/kubernetes-sigs/kustomize/releases/download/kustomize/v${KUSTOMIZE_VERSION}/kustomize_${KUSTOMIZE_VERSION}_linux_${ARCH}.tar.gz" -o /tmp/kustomize.tar.gz && \
+      KUSTOMIZE_ARCHIVE="kustomize_v${KUSTOMIZE_VERSION}_linux_${ARCH}.tar.gz" && \
+      curl -fsSL "https://github.com/kubernetes-sigs/kustomize/releases/download/kustomize/v${KUSTOMIZE_VERSION}/${KUSTOMIZE_ARCHIVE}" -o "/tmp/${KUSTOMIZE_ARCHIVE}" && \
       curl -fsSL "https://github.com/kubernetes-sigs/kustomize/releases/download/kustomize/v${KUSTOMIZE_VERSION}/checksums.txt" -o /tmp/kustomize.checksums.txt && \
-      grep "kustomize_${KUSTOMIZE_VERSION}_linux_${ARCH}.tar.gz" /tmp/kustomize.checksums.txt | sha256sum -c && \
-      tar -xz -C /build/bin -f /tmp/kustomize.tar.gz kustomize && \
-      rm /tmp/kustomize.tar.gz /tmp/kustomize.checksums.txt{% if tools.k9s.enabled %} && \
+      (cd /tmp && grep "${KUSTOMIZE_ARCHIVE}$" kustomize.checksums.txt | sha256sum -c -) && \
+      tar -xz -C /build/bin -f "/tmp/${KUSTOMIZE_ARCHIVE}" kustomize && \
+      rm "/tmp/${KUSTOMIZE_ARCHIVE}" /tmp/kustomize.checksums.txt{% if tools.k9s.enabled %} && \
   {% endif %}
   {% endif %}
   {% if tools.k9s.enabled %}
       ARCH="$(dpkg --print-architecture)" && \
       K9S_VERSION="{{ tools.k9s.version }}" && \
-      curl -fsSL "https://github.com/derailed/k9s/releases/download/v${K9S_VERSION}/k9s_Linux_${ARCH}.tar.gz" \
-        -o /tmp/k9s.tar.gz && \
+      K9S_ARCHIVE="k9s_Linux_${ARCH}.tar.gz" && \
+      curl -fsSL "https://github.com/derailed/k9s/releases/download/v${K9S_VERSION}/${K9S_ARCHIVE}" \
+        -o "/tmp/${K9S_ARCHIVE}" && \
       curl -fsSL "https://github.com/derailed/k9s/releases/download/v${K9S_VERSION}/checksums.sha256" \
         -o /tmp/k9s_checksums.sha256 && \
-      grep "k9s_Linux_${ARCH}.tar.gz" /tmp/k9s_checksums.sha256 | sha256sum -c && \
-      tar xz -C /build/bin -f /tmp/k9s.tar.gz k9s && \
-      rm /tmp/k9s.tar.gz /tmp/k9s_checksums.sha256
+      (cd /tmp && grep "${K9S_ARCHIVE}$" k9s_checksums.sha256 | sha256sum -c -) && \
+      tar xz -C /build/bin -f "/tmp/${K9S_ARCHIVE}" k9s && \
+      rm "/tmp/${K9S_ARCHIVE}" /tmp/k9s_checksums.sha256
   {% endif %}
 
 runtime: |
