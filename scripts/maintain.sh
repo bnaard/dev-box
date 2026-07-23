@@ -63,6 +63,42 @@ ensure_release_branch() {
     || die "${expected} is behind origin; update it before tagging."
 }
 
+publish_release_candidate() {
+  local version="$1" release_branch="$2"
+  local candidate_branch="chore/release-v${version}" pr_url
+
+  [[ "$(git branch --show-current)" == "${release_branch}" ]] \
+    || die "Release ${version} must be published from ${release_branch}."
+
+  git fetch origin "${release_branch}"
+  git merge-base --is-ancestor "origin/${release_branch}" HEAD \
+    || die "Local ${release_branch} does not descend from origin/${release_branch}; reconcile it before publishing."
+
+  if [[ "$(git rev-parse HEAD)" == "$(git rev-parse "origin/${release_branch}")" ]]; then
+    ok "${release_branch} is already current on origin"
+    return
+  fi
+
+  if git ls-remote --exit-code --heads origin "${candidate_branch}" >/dev/null 2>&1; then
+    die "Remote branch ${candidate_branch} already exists; inspect or merge it before publishing."
+  fi
+
+  info "Promoting the release candidate to protected branch ${release_branch}..."
+  git switch -c "${candidate_branch}"
+  git push -u origin "${candidate_branch}"
+  pr_url="$(gh pr create \
+    --base "${release_branch}" \
+    --head "${candidate_branch}" \
+    --title "chore: release v${version}" \
+    --body "Promotes the validated v${version} release candidate to ${release_branch}.")" \
+    || die "Could not create release-candidate PR."
+  gh pr merge "${pr_url}" --merge --delete-branch \
+    || die "Could not merge release-candidate PR ${pr_url}."
+  git switch "${release_branch}"
+  git pull --ff-only origin "${release_branch}"
+  ok "Release candidate merged into ${release_branch}"
+}
+
 # ── Read container name from docker-compose.yml ─────────────────────────────
 _init_names() {
   local svc cn
@@ -1606,11 +1642,11 @@ release_usage() {
 release_list_steps() {
   cat <<'STEPS'
 Release step aliases:
-  all       state,doctors,sync,version,test,e2e,visual,audit,build-linux,version-smoke,notes,tag,github-release,docs,prompt
+  all       state,doctors,sync,version,test,e2e,visual,audit,build-linux,version-smoke,push-main,notes,tag,github-release,docs,prompt
   phase0    state,doctors
   checks    sync,version,test,e2e,visual,audit
   build     build-linux,version-smoke
-  publish   notes,tag,github-release
+  publish   push-main,notes,tag,github-release
 
 Concrete release steps:
   state           Generate dist/RELEASE-STATE.md with dependency and harness network lookups
@@ -1623,6 +1659,7 @@ Concrete release steps:
   audit           Run cargo audit
   build-linux     Build Linux release archives and checksums
   version-smoke   Verify the native release binary reports the requested version
+  push-main       Promote the candidate to its protected release branch
   notes           Prepare or reuse dist/RELEASE-NOTES.md
   tag             Create and push the annotated release tag
   github-release  Create the GitHub release with Linux archives
@@ -1673,11 +1710,12 @@ release_expand_step_token() {
       release_add_step version-smoke
       ;;
     publish)
+      release_add_step push-main
       release_add_step notes
       release_add_step tag
       release_add_step github-release
       ;;
-    state|doctors|sync|version|test|e2e|visual|audit|build-linux|version-smoke|notes|tag|github-release|docs|prompt)
+    state|doctors|sync|version|test|e2e|visual|audit|build-linux|version-smoke|push-main|notes|tag|github-release|docs|prompt)
       release_add_step "${token}"
       ;;
     "")
@@ -1745,7 +1783,7 @@ release_requires_clean_tree() {
   local step
   for step in "${release_steps[@]}"; do
     case "${step}" in
-      sync|version|tag|github-release|docs)
+      sync|version|push-main|tag|github-release|docs)
         return 0
         ;;
     esac
@@ -2326,6 +2364,10 @@ cmd_release() {
     info "Verifying 'aibox --version' matches ${version}..."
     release_run_evidenced_step "version-smoke" "${version}" "CLI version smoke" \
       release_version_smoke_gate "${version}"
+  fi
+
+  if release_step_requested push-main; then
+    publish_release_candidate "${version}" "${release_branch}"
   fi
 
   if release_step_requested notes; then
