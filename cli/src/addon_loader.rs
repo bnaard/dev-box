@@ -1429,7 +1429,8 @@ runtime: |
         let rendered = render_runtime(&addon, &tools).unwrap();
         assert!(rendered.contains("rm -f /usr/local/bin/tofu"));
         assert!(rendered.contains("rm -f /usr/local/bin/packer"));
-        assert!(rendered.contains("pip3 uninstall -y ansible"));
+        assert!(rendered.contains("rm -rf /opt/aibox/ansible"));
+        assert!(rendered.contains("rm -f /usr/local/bin/ansible*"));
     }
 
     #[test]
