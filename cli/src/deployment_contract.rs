@@ -422,7 +422,7 @@ mod tests {
         ))
         .unwrap();
         let backend: BackendDescriptor = serde_json::from_str(include_str!(
-            "../contracts/v1alpha1/fixtures/valid/deployment-backend.json"
+            "../contracts/v1alpha1/fixtures/valid/backend-descriptor.json"
         ))
         .unwrap();
         let connection: ConnectionTarget = serde_json::from_str(include_str!(
@@ -458,7 +458,7 @@ mod tests {
             include_str!("../contracts/v1alpha1/schemas/workspace-fleet-spec.schema.json"),
             include_str!("../contracts/v1alpha1/schemas/deployment-target.schema.json"),
             include_str!("../contracts/v1alpha1/schemas/deployment-record.schema.json"),
-            include_str!("../contracts/v1alpha1/schemas/deployment-backend.schema.json"),
+            include_str!("../contracts/v1alpha1/schemas/backend-descriptor.schema.json"),
             include_str!("../contracts/v1alpha1/schemas/connection-target.schema.json"),
         ] {
             let value: serde_json::Value = serde_json::from_str(schema).unwrap();

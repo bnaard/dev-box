@@ -2,7 +2,7 @@
 
 This report is the human-readable companion to the machine-readable
 [boundary ledger](v1-processkit-boundary-ledger.json). It implements WS-A of
-the [v1 workplan](../v1-workplan.md) and is based on the scope in GitHub #179.
+the v1 workplan recorded from GitHub #179.
 It is an inventory, not an implementation change.
 
 ## Result
