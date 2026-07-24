@@ -588,6 +588,11 @@ pub static COMPAT_TABLE: &[CompatEntry] = &[
         processkit_version: "v0.28.3",
         note: "Patch release: installs Ansible, Poetry, PDM, and Azure CLI in isolated virtual environments so generated Debian trixie Dockerfiles comply with PEP 668 while keeping their commands available on PATH.",
     },
+    CompatEntry {
+        aibox_version: "0.28.10",
+        processkit_version: "v0.28.3",
+        note: "Patch release: reconciles the standard processkit skills, recommends tooling-linked skills interactively, upgrades prerelease processkit surfaces, and serializes release Tier 2 E2E validation for the shared companion.",
+    },
 ];
 
 /// Find the minimum compatible processkit version for the given aibox version.
