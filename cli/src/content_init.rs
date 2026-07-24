@@ -1595,6 +1595,7 @@ mod tests {
             integrations: crate::config::IntegrationsSection::default(),
             apply: crate::config::ApplySection::default(),
             security: SecuritySection::default(),
+            orchestration: crate::config::OrchestrationSection::default(),
             mcp: crate::config::McpSection::default(),
             local_env: std::collections::HashMap::new(),
             local_mcp_servers: vec![],

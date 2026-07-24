@@ -1,6 +1,6 @@
 use anyhow::{Context, Result, bail};
 use serde::{Deserialize, Deserializer, Serialize};
-use std::collections::{BTreeSet, HashMap};
+use std::collections::{BTreeMap, BTreeSet, HashMap};
 use std::path::{Path, PathBuf};
 use std::sync::OnceLock;
 
@@ -3580,6 +3580,183 @@ pub struct SecuritySection {
     pub acknowledge_seccomp_unconfined: bool,
 }
 
+// ---------------------------------------------------------------------------
+// [orchestration] section — v1 desired-state input (no backend behaviour)
+// ---------------------------------------------------------------------------
+
+/// Versioned, backend-neutral deployment intent for the v1 line.
+///
+/// This is deliberately an input model only.  It contains the user's semantic
+/// intent and never compose manifests, Kubernetes object templates, discovered
+/// capabilities, credentials values, or backend defaults.  Those are the
+/// responsibility of the later compiler and backend layers.
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, Default)]
+#[serde(deny_unknown_fields)]
+pub struct OrchestrationSection {
+    /// A v0 configuration remains a container configuration unless this is
+    /// explicitly enabled.  Keeping the opt-in here makes v1 parsing fully
+    /// backwards compatible and prevents an apply operation from implicitly
+    /// building or deploying an image.
+    #[serde(default)]
+    pub enabled: bool,
+    #[serde(default)]
+    pub image: Option<OrchestrationImageSection>,
+    #[serde(default)]
+    pub fleet: Option<OrchestrationFleetSection>,
+    #[serde(default)]
+    pub target: Option<OrchestrationTargetSection>,
+    #[serde(default)]
+    pub deployment: Option<OrchestrationDeploymentSection>,
+    #[serde(default)]
+    pub connections: Vec<ConnectionIntentSection>,
+}
+
+impl OrchestrationSection {
+    fn has_intent(&self) -> bool {
+        self.image.is_some()
+            || self.fleet.is_some()
+            || self.target.is_some()
+            || self.deployment.is_some()
+            || !self.connections.is_empty()
+    }
+}
+
+/// An immutable image selected by deployment intent.  Image construction is
+/// intentionally not represented here: a future explicit build command may
+/// produce a digest, but apply-time deployment only consumes this immutable
+/// reference.
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+#[serde(deny_unknown_fields)]
+pub struct OrchestrationImageSection {
+    pub reference: String,
+    pub digest: String,
+    pub platform: OrchestrationPlatform,
+}
+
+#[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq)]
+#[serde(rename_all = "kebab-case")]
+pub enum OrchestrationPlatform {
+    LinuxAmd64,
+    LinuxArm64,
+}
+
+/// A portable fleet description.  Backend rendering details must not be added
+/// to this type; they belong to a backend adapter's defaults and renderer.
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+#[serde(deny_unknown_fields)]
+pub struct OrchestrationFleetSection {
+    pub name: String,
+    pub services: Vec<OrchestrationServiceSection>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+#[serde(deny_unknown_fields)]
+pub struct OrchestrationServiceSection {
+    pub name: String,
+    #[serde(default)]
+    pub ports: Vec<OrchestrationPortSection>,
+    #[serde(default)]
+    pub environment: Vec<OrchestrationEnvironmentSection>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+#[serde(deny_unknown_fields)]
+pub struct OrchestrationPortSection {
+    pub container_port: u16,
+    #[serde(default)]
+    pub host_port: Option<u16>,
+    #[serde(default)]
+    pub protocol: OrchestrationPortProtocol,
+}
+
+#[derive(Debug, Clone, Copy, Default, Serialize, Deserialize, PartialEq, Eq, PartialOrd, Ord)]
+#[serde(rename_all = "kebab-case")]
+pub enum OrchestrationPortProtocol {
+    #[default]
+    Tcp,
+    Udp,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+#[serde(deny_unknown_fields)]
+pub struct OrchestrationEnvironmentSection {
+    pub name: String,
+    pub value_from: CredentialReferenceSection,
+}
+
+/// A credential locator only.  Aibox configuration must never contain a
+/// credential value; resolving a locator is a backend/runtime responsibility.
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+#[serde(deny_unknown_fields)]
+pub struct CredentialReferenceSection {
+    pub kind: CredentialReferenceKind,
+    pub reference: String,
+}
+
+#[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq)]
+#[serde(rename_all = "kebab-case")]
+pub enum CredentialReferenceKind {
+    EnvironmentVariable,
+    File,
+    SecretManager,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+#[serde(deny_unknown_fields)]
+pub struct OrchestrationTargetSection {
+    pub backend: OrchestrationBackend,
+    pub reference: String,
+    pub scope: String,
+    #[serde(default)]
+    pub credentials: Vec<CredentialReferenceSection>,
+    /// Select only an already-provisioned class.  Aibox never provisions an
+    /// ingress controller, gateway, DNS zone, or any other cluster infra.
+    #[serde(default)]
+    pub ingress_class: Option<String>,
+    #[serde(default)]
+    pub gateway_class: Option<String>,
+}
+
+#[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq)]
+#[serde(rename_all = "kebab-case")]
+pub enum OrchestrationBackend {
+    Compose,
+    Kubernetes,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+#[serde(deny_unknown_fields)]
+pub struct OrchestrationDeploymentSection {
+    pub name: String,
+    #[serde(default)]
+    pub labels: BTreeMap<String, String>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+#[serde(deny_unknown_fields)]
+pub struct ConnectionIntentSection {
+    pub name: String,
+    pub service: String,
+    pub transport: ConnectionTransport,
+    #[serde(default)]
+    pub interactive: bool,
+    #[serde(default)]
+    pub endpoint: Option<String>,
+    #[serde(default)]
+    pub invocation: Vec<String>,
+    #[serde(default)]
+    pub credentials: Vec<CredentialReferenceSection>,
+}
+
+#[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq)]
+#[serde(rename_all = "kebab-case")]
+pub enum ConnectionTransport {
+    ComposeExec,
+    KubernetesExec,
+    KubernetesPortForward,
+    Ssh,
+}
+
 fn mcp_section_is_explicit(mcp: &McpSection) -> bool {
     !mcp.servers.is_empty()
         || mcp.gateway != McpGatewaySection::default()
@@ -3679,6 +3856,11 @@ pub struct AiboxConfig {
 
     #[serde(default)]
     pub security: SecuritySection,
+
+    /// v1 deployment intent.  It is opt-in and does not alter v0 container
+    /// generation when absent.
+    #[serde(default)]
+    pub orchestration: OrchestrationSection,
 
     /// Legacy [process] section — if present, packages are merged into [context].
     #[serde(default, skip_serializing)]
@@ -4004,9 +4186,12 @@ impl AiboxConfig {
                 "apply",
                 "mcp",
                 "security",
+                "orchestration",
             ],
             &mut mismatches,
         );
+
+        check_orchestration_table(root, &mut mismatches);
 
         check_child_table(
             root,
@@ -4423,7 +4608,158 @@ impl AiboxConfig {
         self.validate_tmux_status_refresh()?;
         self.validate_tmux_status_forge()?;
         self.validate_tmux_model_provider_status()?;
+        self.validate_orchestration()?;
 
+        Ok(())
+    }
+
+    /// Validate v1 desired-state input without consulting a runtime or a
+    /// backend.  Backend discovery and rendering intentionally happen later.
+    fn validate_orchestration(&self) -> Result<()> {
+        let orchestration = &self.orchestration;
+        if !orchestration.enabled {
+            if orchestration.has_intent() {
+                bail!(
+                    "orchestration intent requires orchestration.enabled = true; \
+                     aibox never deploys from an implicit v1 configuration"
+                );
+            }
+            return Ok(());
+        }
+
+        let image = orchestration
+            .image
+            .as_ref()
+            .context("orchestration.image is required when orchestration.enabled = true")?;
+        validate_image_reference(&image.reference, &image.digest)?;
+
+        let fleet = orchestration
+            .fleet
+            .as_ref()
+            .context("orchestration.fleet is required when orchestration.enabled = true")?;
+        validate_orchestration_identifier("orchestration.fleet.name", &fleet.name)?;
+        if fleet.services.is_empty() {
+            bail!("orchestration.fleet.services must not be empty");
+        }
+        let mut service_names = BTreeSet::new();
+        let mut host_ports = BTreeSet::new();
+        for service in &fleet.services {
+            validate_orchestration_identifier("orchestration.fleet.services.name", &service.name)?;
+            if !service_names.insert(service.name.as_str()) {
+                bail!(
+                    "orchestration service name '{}' is duplicated",
+                    service.name
+                );
+            }
+            let mut service_ports = BTreeSet::new();
+            let mut environment_names = BTreeSet::new();
+            for port in &service.ports {
+                if port.container_port == 0 {
+                    bail!(
+                        "orchestration port for service '{}' must be between 1 and 65535",
+                        service.name
+                    );
+                }
+                let service_key = (port.container_port, port.protocol);
+                if !service_ports.insert(service_key) {
+                    bail!(
+                        "orchestration service '{}' has duplicate {} {:?} port",
+                        service.name,
+                        port.container_port,
+                        port.protocol
+                    );
+                }
+                if let Some(host_port) = port.host_port {
+                    if host_port == 0 {
+                        bail!(
+                            "orchestration host port for service '{}' must be between 1 and 65535",
+                            service.name
+                        );
+                    }
+                    let host_key = (host_port, port.protocol);
+                    if !host_ports.insert(host_key) {
+                        bail!(
+                            "orchestration host {} {:?} port is duplicated",
+                            host_port,
+                            port.protocol
+                        );
+                    }
+                }
+            }
+            for environment in &service.environment {
+                validate_environment_name(&environment.name)?;
+                if !environment_names.insert(environment.name.as_str()) {
+                    bail!(
+                        "orchestration environment name '{}' is duplicated for service '{}'",
+                        environment.name,
+                        service.name
+                    );
+                }
+                validate_credential_reference(&environment.value_from)?;
+            }
+        }
+
+        let target = orchestration
+            .target
+            .as_ref()
+            .context("orchestration.target is required when orchestration.enabled = true")?;
+        validate_orchestration_target(target)?;
+        for credential in &target.credentials {
+            validate_credential_reference(credential)?;
+        }
+
+        let deployment = orchestration
+            .deployment
+            .as_ref()
+            .context("orchestration.deployment is required when orchestration.enabled = true")?;
+        validate_orchestration_identifier("orchestration.deployment.name", &deployment.name)?;
+        for (key, value) in &deployment.labels {
+            if key.trim().is_empty() || value.contains('\n') || value.contains('\r') {
+                bail!(
+                    "orchestration.deployment.labels must have non-empty, single-line keys and values"
+                );
+            }
+        }
+
+        let mut connection_names = BTreeSet::new();
+        for connection in &orchestration.connections {
+            validate_orchestration_identifier("orchestration.connections.name", &connection.name)?;
+            if !connection_names.insert(connection.name.as_str()) {
+                bail!(
+                    "orchestration connection name '{}' is duplicated",
+                    connection.name
+                );
+            }
+            if !service_names.contains(connection.service.as_str()) {
+                bail!(
+                    "orchestration connection '{}' references unknown service '{}'",
+                    connection.name,
+                    connection.service
+                );
+            }
+            validate_connection_for_backend(connection, target.backend)?;
+            if let Some(endpoint) = &connection.endpoint
+                && (endpoint.trim().is_empty()
+                    || endpoint.contains('\n')
+                    || endpoint.contains('\r'))
+            {
+                bail!(
+                    "orchestration connection '{}' endpoint must be a non-empty single-line value",
+                    connection.name
+                );
+            }
+            for arg in &connection.invocation {
+                if arg.contains('\0') || arg.contains('\n') || arg.contains('\r') {
+                    bail!(
+                        "orchestration connection '{}' invocation entries must be single-line arguments",
+                        connection.name
+                    );
+                }
+            }
+            for credential in &connection.credentials {
+                validate_credential_reference(credential)?;
+            }
+        }
         Ok(())
     }
 
@@ -5012,6 +5348,153 @@ impl AiboxConfig {
     }
 }
 
+fn validate_orchestration_identifier(field: &str, value: &str) -> Result<()> {
+    if !is_safe_name(value) {
+        bail!(
+            "{field} '{}' contains invalid characters; expected [a-zA-Z0-9_-]",
+            value
+        );
+    }
+    Ok(())
+}
+
+fn validate_image_reference(reference: &str, digest: &str) -> Result<()> {
+    if reference.trim().is_empty()
+        || reference.chars().any(char::is_whitespace)
+        || reference.contains('@')
+    {
+        bail!(
+            "orchestration.image.reference must be a non-empty image reference without whitespace or an embedded digest"
+        );
+    }
+    let Some(hex) = digest.strip_prefix("sha256:") else {
+        bail!("orchestration.image.digest must be a sha256 digest");
+    };
+    if hex.len() != 64 || !hex.chars().all(|character| character.is_ascii_hexdigit()) {
+        bail!("orchestration.image.digest must contain exactly 64 hexadecimal characters");
+    }
+    Ok(())
+}
+
+fn validate_environment_name(name: &str) -> Result<()> {
+    let mut characters = name.chars();
+    if !matches!(characters.next(), Some(character) if character.is_ascii_alphabetic() || character == '_')
+        || !characters.all(|character| character.is_ascii_alphanumeric() || character == '_')
+    {
+        bail!(
+            "orchestration environment name '{}' must match [A-Za-z_][A-Za-z0-9_]*",
+            name
+        );
+    }
+    Ok(())
+}
+
+fn validate_credential_reference(credential: &CredentialReferenceSection) -> Result<()> {
+    if credential.reference.trim().is_empty()
+        || credential.reference.contains('\n')
+        || credential.reference.contains('\r')
+    {
+        bail!("orchestration credential reference must be a non-empty single-line locator");
+    }
+    match credential.kind {
+        CredentialReferenceKind::EnvironmentVariable => {
+            validate_environment_name(&credential.reference)
+                .context("orchestration environment-variable credential reference is invalid")?;
+        }
+        CredentialReferenceKind::File => {
+            let path = Path::new(&credential.reference);
+            if !path.is_absolute()
+                || path
+                    .components()
+                    .any(|component| matches!(component, std::path::Component::ParentDir))
+            {
+                bail!(
+                    "orchestration file credential reference '{}' must be an absolute path without '..'",
+                    credential.reference
+                );
+            }
+        }
+        CredentialReferenceKind::SecretManager => {
+            if credential.reference.chars().any(char::is_whitespace) {
+                bail!(
+                    "orchestration secret-manager credential reference must not contain whitespace"
+                );
+            }
+        }
+    }
+    Ok(())
+}
+
+fn validate_orchestration_target(target: &OrchestrationTargetSection) -> Result<()> {
+    if target.reference.trim().is_empty() || target.reference.chars().any(char::is_whitespace) {
+        bail!("orchestration.target.reference must be a non-empty reference without whitespace");
+    }
+    if target.scope.trim().is_empty() {
+        bail!("orchestration.target.scope must not be empty");
+    }
+    match target.backend {
+        OrchestrationBackend::Compose => {
+            if !target.reference.starts_with("docker-context:") {
+                bail!("orchestration compose target.reference must start with 'docker-context:'");
+            }
+            validate_orchestration_identifier("orchestration.target.scope", &target.scope)?;
+            if target.ingress_class.is_some() || target.gateway_class.is_some() {
+                bail!(
+                    "orchestration.target ingress_class and gateway_class require the kubernetes backend"
+                );
+            }
+        }
+        OrchestrationBackend::Kubernetes => {
+            if !target.reference.starts_with("kube-context:") {
+                bail!("orchestration kubernetes target.reference must start with 'kube-context:'");
+            }
+            validate_dns_label("orchestration.target.scope", &target.scope)?;
+            if let Some(class) = &target.ingress_class {
+                validate_dns_label("orchestration.target.ingress_class", class)?;
+            }
+            if let Some(class) = &target.gateway_class {
+                validate_dns_label("orchestration.target.gateway_class", class)?;
+            }
+        }
+    }
+    Ok(())
+}
+
+fn validate_dns_label(field: &str, value: &str) -> Result<()> {
+    if value.is_empty()
+        || value.len() > 63
+        || !value.chars().all(|character| {
+            character.is_ascii_lowercase() || character.is_ascii_digit() || character == '-'
+        })
+        || value.starts_with('-')
+        || value.ends_with('-')
+    {
+        bail!("{field} '{}' must be a DNS label", value);
+    }
+    Ok(())
+}
+
+fn validate_connection_for_backend(
+    connection: &ConnectionIntentSection,
+    backend: OrchestrationBackend,
+) -> Result<()> {
+    match (backend, connection.transport) {
+        (OrchestrationBackend::Compose, ConnectionTransport::ComposeExec)
+        | (OrchestrationBackend::Compose, ConnectionTransport::Ssh)
+        | (OrchestrationBackend::Kubernetes, ConnectionTransport::KubernetesExec)
+        | (OrchestrationBackend::Kubernetes, ConnectionTransport::KubernetesPortForward)
+        | (OrchestrationBackend::Kubernetes, ConnectionTransport::Ssh) => Ok(()),
+        (OrchestrationBackend::Compose, _) => bail!(
+            "orchestration connection '{}' uses a Kubernetes transport with a Compose target",
+            connection.name
+        ),
+        (OrchestrationBackend::Kubernetes, _) => bail!(
+            "orchestration connection '{}' uses a Compose transport with a Kubernetes target",
+            connection.name
+        ),
+    }
+}
+
 fn allowed_set(keys: &[&str]) -> BTreeSet<String> {
     keys.iter().map(|key| (*key).to_string()).collect()
 }
@@ -5045,6 +5528,143 @@ fn check_child_table(
 ) {
     if let Some(table) = table_child(parent, key) {
         check_unknown_keys(&format!("[{key}]"), table, allowed, mismatches);
+    }
+}
+
+fn check_orchestration_table(
+    root: &toml::map::Map<String, toml::Value>,
+    mismatches: &mut Vec<String>,
+) {
+    let Some(orchestration) = table_child(root, "orchestration") else {
+        return;
+    };
+    check_unknown_keys(
+        "[orchestration]",
+        orchestration,
+        &[
+            "enabled",
+            "image",
+            "fleet",
+            "target",
+            "deployment",
+            "connections",
+        ],
+        mismatches,
+    );
+    check_child_table(
+        orchestration,
+        "image",
+        &["reference", "digest", "platform"],
+        mismatches,
+    );
+    check_child_table(orchestration, "fleet", &["name", "services"], mismatches);
+    check_child_table(
+        orchestration,
+        "target",
+        &[
+            "backend",
+            "reference",
+            "scope",
+            "credentials",
+            "ingress_class",
+            "gateway_class",
+        ],
+        mismatches,
+    );
+    check_child_table(orchestration, "deployment", &["name", "labels"], mismatches);
+
+    if let Some(fleet) = table_child(orchestration, "fleet")
+        && let Some(services) = fleet.get("services").and_then(toml::Value::as_array)
+    {
+        for (index, service) in services.iter().enumerate() {
+            let Some(service) = service.as_table() else {
+                continue;
+            };
+            check_unknown_keys(
+                &format!("[[orchestration.fleet.services]][{index}]"),
+                service,
+                &["name", "ports", "environment"],
+                mismatches,
+            );
+            if let Some(ports) = service.get("ports").and_then(toml::Value::as_array) {
+                for (port_index, port) in ports.iter().enumerate() {
+                    if let Some(port) = port.as_table() {
+                        check_unknown_keys(
+                            &format!("orchestration.fleet.services[{index}].ports[{port_index}]"),
+                            port,
+                            &["container_port", "host_port", "protocol"],
+                            mismatches,
+                        );
+                    }
+                }
+            }
+            if let Some(environment) = service.get("environment").and_then(toml::Value::as_array) {
+                for (entry_index, entry) in environment.iter().enumerate() {
+                    if let Some(entry) = entry.as_table() {
+                        check_unknown_keys(
+                            &format!(
+                                "orchestration.fleet.services[{index}].environment[{entry_index}]"
+                            ),
+                            entry,
+                            &["name", "value_from"],
+                            mismatches,
+                        );
+                        if let Some(value_from) = table_child(entry, "value_from") {
+                            check_unknown_keys(
+                                &format!(
+                                    "orchestration.fleet.services[{index}].environment[{entry_index}].value_from"
+                                ),
+                                value_from,
+                                &["kind", "reference"],
+                                mismatches,
+                            );
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    for list_name in ["credentials", "connections"] {
+        if let Some(entries) = orchestration.get(list_name).and_then(toml::Value::as_array) {
+            for (index, entry) in entries.iter().enumerate() {
+                if let Some(entry) = entry.as_table() {
+                    let allowed = if list_name == "connections" {
+                        &[
+                            "name",
+                            "service",
+                            "transport",
+                            "interactive",
+                            "endpoint",
+                            "invocation",
+                            "credentials",
+                        ][..]
+                    } else {
+                        &["kind", "reference"][..]
+                    };
+                    check_unknown_keys(
+                        &format!("orchestration.{list_name}[{index}]"),
+                        entry,
+                        allowed,
+                        mismatches,
+                    );
+                }
+            }
+        }
+    }
+    if let Some(target) = table_child(orchestration, "target")
+        && let Some(credentials) = target.get("credentials").and_then(toml::Value::as_array)
+    {
+        for (index, credential) in credentials.iter().enumerate() {
+            if let Some(credential) = credential.as_table() {
+                check_unknown_keys(
+                    &format!("orchestration.target.credentials[{index}]"),
+                    credential,
+                    &["kind", "reference"],
+                    mismatches,
+                );
+            }
+        }
     }
 }
 
@@ -5366,6 +5986,7 @@ pub fn test_config() -> AiboxConfig {
         process: None,
         mcp: McpSection::default(),
         security: SecuritySection::default(),
+        orchestration: OrchestrationSection::default(),
         local_env: HashMap::new(),
         local_mcp_servers: vec![],
     };
@@ -8037,5 +8658,180 @@ port = 8765
         config.latex.preview.bind = "0.0.0.0".to_string();
         let error = config.validate().unwrap_err().to_string();
         assert!(error.contains("allow_public"));
+    }
+
+    #[test]
+    fn legacy_config_keeps_orchestration_disabled_by_default() {
+        let config = parse_toml(minimal_toml()).unwrap();
+        assert_eq!(config.orchestration, OrchestrationSection::default());
+    }
+
+    #[test]
+    fn orchestration_intent_parses_without_backend_discovery() {
+        let toml = r#"
+[container]
+name = "v1-project"
+
+[orchestration]
+enabled = true
+
+[orchestration.image]
+reference = "ghcr.io/acme/workspace"
+digest = "sha256:0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef"
+platform = "linux-amd64"
+
+[orchestration.fleet]
+name = "workspace"
+services = [
+  { name = "workspace", ports = [{ container_port = 8080, host_port = 18080 }], environment = [{ name = "API_TOKEN", value_from = { kind = "environment-variable", reference = "AIBOX_API_TOKEN" } }] }
+]
+
+[orchestration.target]
+backend = "kubernetes"
+reference = "kube-context:staging"
+scope = "workspace-dev"
+ingress_class = "nginx"
+
+[orchestration.deployment]
+name = "workspace-dev"
+
+[[orchestration.connections]]
+name = "shell"
+service = "workspace"
+transport = "kubernetes-exec"
+interactive = true
+"#;
+        let config = parse_toml(toml).unwrap();
+        assert!(config.orchestration.enabled);
+        assert_eq!(
+            config.orchestration.target.unwrap().backend,
+            OrchestrationBackend::Kubernetes
+        );
+        assert!(AiboxConfig::schema_mismatches(toml).unwrap().is_empty());
+    }
+
+    #[test]
+    fn orchestration_rejects_non_immutable_images_and_duplicate_port_bindings() {
+        let mut config = test_config();
+        config.orchestration = OrchestrationSection {
+            enabled: true,
+            image: Some(OrchestrationImageSection {
+                reference: "ghcr.io/acme/workspace".to_string(),
+                digest: "latest".to_string(),
+                platform: OrchestrationPlatform::LinuxAmd64,
+            }),
+            fleet: Some(OrchestrationFleetSection {
+                name: "workspace".to_string(),
+                services: vec![
+                    OrchestrationServiceSection {
+                        name: "first".to_string(),
+                        ports: vec![OrchestrationPortSection {
+                            container_port: 8080,
+                            host_port: Some(18080),
+                            protocol: OrchestrationPortProtocol::Tcp,
+                        }],
+                        environment: vec![],
+                    },
+                    OrchestrationServiceSection {
+                        name: "second".to_string(),
+                        ports: vec![OrchestrationPortSection {
+                            container_port: 8081,
+                            host_port: Some(18080),
+                            protocol: OrchestrationPortProtocol::Tcp,
+                        }],
+                        environment: vec![],
+                    },
+                ],
+            }),
+            target: Some(OrchestrationTargetSection {
+                backend: OrchestrationBackend::Compose,
+                reference: "docker-context:default".to_string(),
+                scope: "workspace".to_string(),
+                credentials: vec![],
+                ingress_class: None,
+                gateway_class: None,
+            }),
+            deployment: Some(OrchestrationDeploymentSection {
+                name: "workspace".to_string(),
+                labels: BTreeMap::new(),
+            }),
+            connections: vec![],
+        };
+        assert!(
+            config
+                .validate()
+                .unwrap_err()
+                .to_string()
+                .contains("sha256")
+        );
+
+        config.orchestration.image.as_mut().unwrap().digest =
+            "sha256:0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef".to_string();
+        assert!(
+            config
+                .validate()
+                .unwrap_err()
+                .to_string()
+                .contains("host 18080")
+        );
+    }
+
+    #[test]
+    fn orchestration_requires_explicit_enablement_and_backend_compatible_connections() {
+        let mut config = test_config();
+        config.orchestration.image = Some(OrchestrationImageSection {
+            reference: "ghcr.io/acme/workspace".to_string(),
+            digest: "sha256:0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef"
+                .to_string(),
+            platform: OrchestrationPlatform::LinuxAmd64,
+        });
+        assert!(
+            config
+                .validate()
+                .unwrap_err()
+                .to_string()
+                .contains("enabled")
+        );
+
+        config.orchestration = OrchestrationSection {
+            enabled: true,
+            image: config.orchestration.image.take(),
+            fleet: Some(OrchestrationFleetSection {
+                name: "workspace".to_string(),
+                services: vec![OrchestrationServiceSection {
+                    name: "workspace".to_string(),
+                    ports: vec![],
+                    environment: vec![],
+                }],
+            }),
+            target: Some(OrchestrationTargetSection {
+                backend: OrchestrationBackend::Compose,
+                reference: "docker-context:default".to_string(),
+                scope: "workspace".to_string(),
+                credentials: vec![],
+                ingress_class: None,
+                gateway_class: None,
+            }),
+            deployment: Some(OrchestrationDeploymentSection {
+                name: "workspace".to_string(),
+                labels: BTreeMap::new(),
+            }),
+            connections: vec![ConnectionIntentSection {
+                name: "shell".to_string(),
+                service: "workspace".to_string(),
+                transport: ConnectionTransport::KubernetesExec,
+                interactive: true,
+                endpoint: None,
+                invocation: vec![],
+                credentials: vec![],
+            }],
+        };
+        assert!(
+            config
+                .validate()
+                .unwrap_err()
+                .to_string()
+                .contains("Kubernetes transport")
+        );
     }
 }
