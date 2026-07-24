@@ -229,8 +229,30 @@ cmd_test() {
   ok "All tests passed"
 }
 
+e2e_ssh_key() {
+  local project_key="${PROJECT_ROOT}/.aibox-e2e-runner-home/.ssh/id_ed25519"
+  if [[ -n "${AIBOX_E2E_SSH_KEY:-}" ]]; then
+    printf '%s\n' "${AIBOX_E2E_SSH_KEY}"
+    return
+  fi
+  if [[ -f "${project_key}" ]]; then
+    printf '%s\n' "${project_key}"
+    return
+  fi
+
+  # Release work happens in a linked worktree, while the ignored companion
+  # credentials remain in the primary checkout. Resolve that checkout through
+  # the shared Git directory instead of incorrectly requiring local Docker.
+  local common_dir primary_root primary_key
+  common_dir="$(git -C "${PROJECT_ROOT}" rev-parse --path-format=absolute --git-common-dir 2>/dev/null || true)"
+  primary_root="$(dirname "${common_dir}")"
+  primary_key="${primary_root}/.aibox-e2e-runner-home/.ssh/id_ed25519"
+  printf '%s\n' "${primary_key}"
+}
+
 ensure_e2e_companion() {
-  local key="${PROJECT_ROOT}/.aibox-e2e-runner-home/.ssh/id_ed25519"
+  local key
+  key="$(e2e_ssh_key)"
   local host="${AIBOX_E2E_HOST:-aibox-e2e-testrunner}"
   info "Checking SSH companion E2E container..."
   local ssh_output=""
@@ -257,7 +279,8 @@ ensure_e2e_companion() {
 }
 
 prune_e2e_companion_storage() {
-  local key="${PROJECT_ROOT}/.aibox-e2e-runner-home/.ssh/id_ed25519"
+  local key
+  key="$(e2e_ssh_key)"
   local host="${AIBOX_E2E_HOST:-aibox-e2e-testrunner}"
   ensure_e2e_companion
   info "Pruning SSH companion nested runtime state..."
@@ -279,6 +302,8 @@ cmd_test_e2e() {
   ensure_e2e_companion
   prune_e2e_companion_storage || die "Failed to prune SSH companion nested runtime state"
   info "Running Tier 2 SSH companion E2E tests..."
+  AIBOX_E2E_SSH_KEY="$(e2e_ssh_key)"
+  export AIBOX_E2E_SSH_KEY
   (cd "${CLI_DIR}" && cargo test --features e2e --test e2e -- --test-threads="${test_threads}") \
     || status=$?
   prune_e2e_companion_storage || warn "Post-suite SSH companion prune failed"
@@ -1790,7 +1815,8 @@ release_evidence_key_path() {
 }
 
 release_companion_fingerprint() {
-  local key="${PROJECT_ROOT}/.aibox-e2e-runner-home/.ssh/id_ed25519"
+  local key
+  key="$(e2e_ssh_key)"
   local host="${AIBOX_E2E_HOST:-aibox-e2e-testrunner}"
   [[ -f "${key}" ]] || return 1
   {
