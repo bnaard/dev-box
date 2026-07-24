@@ -1,0 +1,12 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://aibox.projectious.work/contracts/v1alpha1/deployment-backend.schema.json",
+  "title": "BackendDescriptor v1alpha1", "type": "object", "additionalProperties": false,
+  "required": ["apiVersion", "kind", "metadata", "spec"],
+  "properties": {
+    "apiVersion": { "const": "aibox.projectious.work/v1alpha1" }, "kind": { "const": "BackendDescriptor" },
+    "metadata": { "$ref": "#/$defs/metadata" },
+    "spec": { "type": "object", "additionalProperties": false, "required": ["backend", "capabilities", "connectionTransports"], "properties": { "backend": { "enum": ["compose", "kubernetes"] }, "capabilities": { "type": "array", "uniqueItems": true, "items": { "enum": ["validate", "plan", "apply", "status", "destroy", "logs", "exec", "port-forward"] } }, "connectionTransports": { "type": "array", "uniqueItems": true, "items": { "enum": ["compose-exec", "kubernetes-exec", "kubernetes-port-forward", "ssh"] } } } }
+  },
+  "$defs": { "metadata": { "type": "object", "additionalProperties": false, "required": ["name", "owner"], "properties": { "name": { "type": "string" }, "owner": { "type": "object", "additionalProperties": false, "required": ["ownerId"], "properties": { "ownerId": { "type": "string" } } }, "labels": { "type": "object", "additionalProperties": { "type": "string" } } } } }
+}

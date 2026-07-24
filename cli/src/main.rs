@@ -3,6 +3,8 @@ mod addon_loader;
 #[allow(dead_code)]
 mod addon_registry;
 pub mod compat;
+#[allow(dead_code)]
+mod deployment_contract;
 mod dirs;
 mod kit;
 mod latex;

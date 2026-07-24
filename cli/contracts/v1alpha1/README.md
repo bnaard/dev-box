@@ -1,0 +1,14 @@
+# aibox deployment contracts — v1alpha1
+
+This package publishes the backend-neutral contracts introduced by M1. They are
+public API, independent of command and renderer implementation.
+
+Every document has `apiVersion: aibox.projectious.work/v1alpha1` and one stable
+`kind`. Schema envelopes reject undeclared fields; a later compatible version
+will publish a new schema rather than silently reinterpret input. Credentials
+are always `{ kind, reference }` values. Tokens, key material, kubeconfig
+contents, and secret values are intentionally absent from these contracts.
+
+The `fixtures/valid` documents are representative canonical examples. The
+`fixtures/invalid` documents are negative corpus seeds for schema validators.
+They are not backend configuration and must not be rendered or applied.

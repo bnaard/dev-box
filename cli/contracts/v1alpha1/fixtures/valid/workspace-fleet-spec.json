@@ -1,0 +1,13 @@
+{
+  "apiVersion": "aibox.projectious.work/v1alpha1",
+  "kind": "WorkspaceFleetSpec",
+  "metadata": { "name": "demo-fleet", "owner": { "ownerId": "team-a" } },
+  "spec": {
+    "image": { "reference": "ghcr.io/acme/demo", "digest": "sha256:image" },
+    "services": [{
+      "name": "workspace",
+      "environment": [{ "name": "REGISTRY_TOKEN", "valueFrom": { "kind": "environment-variable", "reference": "AIBOX_REGISTRY_TOKEN" } }],
+      "ports": [{ "containerPort": 3000, "protocol": "tcp" }]
+    }]
+  }
+}

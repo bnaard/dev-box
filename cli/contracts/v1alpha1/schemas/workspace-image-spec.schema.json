@@ -1,0 +1,29 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://aibox.projectious.work/contracts/v1alpha1/workspace-image-spec.schema.json",
+  "title": "WorkspaceImageSpec v1alpha1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["apiVersion", "kind", "metadata", "spec"],
+  "properties": {
+    "apiVersion": { "const": "aibox.projectious.work/v1alpha1" },
+    "kind": { "const": "WorkspaceImageSpec" },
+    "metadata": { "$ref": "#/$defs/metadata" },
+    "spec": {
+      "type": "object", "additionalProperties": false,
+      "required": ["baseImage", "platform"],
+      "properties": {
+        "baseImage": { "$ref": "#/$defs/image" },
+        "platform": { "enum": ["linux-amd64", "linux-arm64"] },
+        "addons": { "type": "array", "items": { "$ref": "#/$defs/addon" } },
+        "buildInputs": { "type": "array", "items": { "$ref": "#/$defs/digestSource" } }
+      }
+    }
+  },
+  "$defs": {
+    "metadata": { "type": "object", "additionalProperties": false, "required": ["name", "owner"], "properties": { "name": { "type": "string", "minLength": 1 }, "owner": { "type": "object", "additionalProperties": false, "required": ["ownerId"], "properties": { "ownerId": { "type": "string", "minLength": 1 } } }, "labels": { "type": "object", "additionalProperties": { "type": "string" } } } },
+    "image": { "type": "object", "additionalProperties": false, "required": ["reference", "digest"], "properties": { "reference": { "type": "string", "minLength": 1 }, "digest": { "type": "string", "pattern": "^sha256:" } } },
+    "addon": { "type": "object", "additionalProperties": false, "required": ["name", "version", "checksum"], "properties": { "name": { "type": "string" }, "version": { "type": "string" }, "checksum": { "type": "string", "pattern": "^sha256:" } } },
+    "digestSource": { "type": "object", "additionalProperties": false, "required": ["source", "digest"], "properties": { "source": { "type": "string" }, "digest": { "type": "string", "pattern": "^sha256:" } } }
+  }
+}

@@ -1,0 +1,11 @@
+{
+  "apiVersion": "aibox.projectious.work/v1alpha1",
+  "kind": "DeploymentTarget",
+  "metadata": { "name": "local-compose", "owner": { "ownerId": "team-a" } },
+  "spec": {
+    "backend": "compose",
+    "targetRef": "docker-context:default",
+    "scope": "demo",
+    "credentials": [{ "kind": "environment-variable", "reference": "AIBOX_COMPOSE_TOKEN" }]
+  }
+}
