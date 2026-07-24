@@ -1,0 +1,84 @@
+#!/usr/bin/env bash
+set -uo pipefail
+
+side="${1:-right}"
+plugins="${2:-}"
+[[ -z "$plugins" ]] && exit 0
+
+POWERKIT_ROOT="${POWERKIT_ROOT:-/usr/local/share/aibox/tmux/plugins/tmux-powerkit}"
+export POWERKIT_ROOT
+
+script_dir="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
+export HOME="$(cd -- "${script_dir}/../.." && pwd)"
+socket="${AIBOX_TMUX_SOCKET:-${HOME}/.tmux/aibox.sock}"
+if [[ -S "${socket}" && -z "${TMUX:-}" ]]; then
+    export TMUX="${socket},0,0"
+fi
+cache_root="${AIBOX_POWERKIT_CACHE_DIR:-${XDG_CACHE_HOME:-${HOME}/.cache}}"
+cache_probe="${cache_root}/.aibox-powerkit-write-test"
+if ! { mkdir -p "${cache_root}" && : >"${cache_probe}"; } 2>/dev/null; then
+    cache_root="${AIBOX_POWERKIT_FALLBACK_CACHE_DIR:-/tmp/aibox/tmux-powerkit-cache}"
+    mkdir -p "${cache_root}" 2>/dev/null || true
+else
+    rm -f "${cache_probe}" 2>/dev/null || true
+fi
+export XDG_CACHE_HOME="${cache_root}"
+
+if [[ ! -r "${POWERKIT_ROOT}/src/core/bootstrap.sh" ]]; then
+    exit 0
+fi
+
+render_powerkit_line() {
+    . "${POWERKIT_ROOT}/src/core/bootstrap.sh"
+    load_powerkit_theme
+    . "${POWERKIT_ROOT}/src/renderer/segment_builder.sh"
+
+    reset_all_cycle_caches
+    _batch_load_tmux_options
+    _TMUX_OPTIONS_CACHE["@powerkit_plugins"]="$plugins"
+
+    render_plugins "$side"
+}
+
+cache_dir="${cache_root}/tmux-powerkit/aibox-lines"
+mkdir -p "${cache_dir}" 2>/dev/null || true
+cache_key="$(printf '%s' "${side}|${plugins}" | cksum | awk '{print $1}')"
+cache_file="${cache_dir}/list-${cache_key}.cache"
+lock_file="${cache_file}.lock"
+ttl="${AIBOX_POWERKIT_LINE_CACHE_TTL:-15}"
+
+if [[ "${AIBOX_POWERKIT_REFRESH_CACHE:-}" == "1" ]]; then
+    render_powerkit_line
+    exit 0
+fi
+
+now="$(date +%s)"
+if [[ -s "${cache_file}" ]]; then
+    mtime="$(stat -c %Y "${cache_file}" 2>/dev/null || printf '0')"
+    age=$((now - mtime))
+    if (( age <= ttl )); then
+        cat "${cache_file}"
+        exit 0
+    fi
+
+    if [[ ! -e "${lock_file}" || $((now - $(stat -c %Y "${lock_file}" 2>/dev/null || printf '0'))) -gt 60 ]]; then
+        : >"${lock_file}" 2>/dev/null || true
+        (
+            tmp="${cache_file}.$$"
+            trap 'rm -f "${lock_file}" "${tmp}"' EXIT
+            if AIBOX_POWERKIT_REFRESH_CACHE=1 "$0" "$side" "$plugins" >"${tmp}" 2>/dev/null; then
+                mv "${tmp}" "${cache_file}" 2>/dev/null || true
+            fi
+        ) >/dev/null 2>&1 &
+    fi
+    cat "${cache_file}"
+    exit 0
+fi
+
+tmp="${cache_file}.$$"
+if render_powerkit_line >"${tmp}"; then
+    cat "${tmp}"
+    mv "${tmp}" "${cache_file}" 2>/dev/null || true
+else
+    rm -f "${tmp}" 2>/dev/null || true
+fi
