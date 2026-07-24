@@ -1,0 +1,21 @@
+  aibox Quick Reference  (prefix = Ctrl+g)
+  -----------------------------------------------
+  TMUX                       YAZI (file manager)
+  prefix h/j/k/l  Navigate   h/j/k/l  Navigate
+  prefix r        Split right Enter    Edit (in pane)
+  prefix d        Split down  e        Edit (popup)
+  prefix x        Kill pane   g s      Git summary
+  prefix f/z      Zoom pane   g c      Git changes
+  prefix c        New window  w s      Size selection
+  prefix 1-9      Jump window w h      Horizontal preview
+  prefix g/s      lazygit/shell win
+  prefix L        Layout menu c p/d/f  Copy path/dir/name
+  prefix T        Theme menu  g r      Refresh git
+  prefix [        Copy mode
+  prefix o        Log viewer
+  prefix R        Reload cfg
+  prefix q        Quit session
+  prefix ?        Full cheatsheet popup
+
+  LAYOUTS: aibox start --layout dev|ai|focus|cowork
+  No persistent vim pane: e = popup, Enter = in-yazi (`:q` closes both).
