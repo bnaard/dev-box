@@ -496,10 +496,10 @@ fn persist_skill_includes(config_path: &Option<String>, skills: &[String]) -> Re
     for skill in enabled {
         array.push(skill);
     }
-    if !doc
+    if doc
         .get("skills")
         .and_then(toml_edit::Item::as_table)
-        .is_some()
+        .is_none()
     {
         doc["skills"] = toml_edit::table();
     }
