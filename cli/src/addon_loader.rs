@@ -1343,21 +1343,50 @@ runtime: |
     }
 
     #[test]
-    fn infrastructure_runtime_installs_pip_before_ansible() {
+    fn infrastructure_runtime_installs_ansible_in_isolated_venv() {
         let addon = load_repo_addon("infrastructure");
         let tools = all_enabled_tools(&addon);
         let rendered = render_runtime(&addon, &tools).unwrap();
 
-        let pip_install = rendered
-            .find("python3-pip")
-            .expect("enabled Ansible must install python3-pip: {rendered}");
+        let venv_install = rendered
+            .find("python3-venv")
+            .expect("enabled Ansible must install python3-venv: {rendered}");
         let ansible_install = rendered
-            .find("pip3 install --no-cache-dir 'ansible==")
-            .expect("enabled Ansible must be installed with pip3: {rendered}");
+            .find("/opt/aibox/ansible/bin/pip install --no-cache-dir 'ansible==")
+            .expect("enabled Ansible must be installed in its virtual environment: {rendered}");
         assert!(
-            pip_install < ansible_install,
-            "python3-pip must be installed before pip3 installs Ansible: {rendered}"
+            venv_install < ansible_install,
+            "python3-venv must be installed before the Ansible virtual environment: {rendered}"
         );
+        assert!(
+            rendered.contains("ln -sf \"$bin\" \"/usr/local/bin/$(basename \"$bin\")\""),
+            "Ansible commands must be exposed on PATH: {rendered}"
+        );
+    }
+
+    #[test]
+    fn pip_packaged_runtime_tools_use_isolated_venvs() {
+        for (addon_name, venv, command) in [
+            ("cloud-azure", "azure-cli", "az"),
+            ("python", "poetry", "poetry"),
+            ("python", "pdm", "pdm"),
+        ] {
+            let addon = load_repo_addon(addon_name);
+            let tools = all_enabled_tools(&addon);
+            let rendered = render_runtime(&addon, &tools).unwrap();
+            let venv_path = format!("/opt/aibox/{venv}/bin/pip install");
+            let command_path = format!("/opt/aibox/{venv}/bin/{command}");
+            assert!(
+                rendered.contains("python3-venv")
+                    && rendered.contains(&venv_path)
+                    && rendered.contains(&command_path),
+                "{addon_name} must install {command} through the {venv} virtual environment: {rendered}"
+            );
+            assert!(
+                !rendered.contains("RUN pip3 install"),
+                "{addon_name} must not install Python packages into Debian's externally managed Python: {rendered}"
+            );
+        }
     }
 
     #[test]
@@ -1372,13 +1401,13 @@ runtime: |
     }
 
     #[test]
-    fn purge_cloud_azure_pip_uninstalls_when_disabled() {
+    fn purge_cloud_azure_removes_venv_when_disabled() {
         let addon = load_repo_addon("cloud-azure");
         let tools = all_disabled_tools(&addon);
         let rendered = render_runtime(&addon, &tools).unwrap();
         assert!(
-            rendered.contains("pip3 uninstall -y azure-cli"),
-            "disabled azure-cli must pip uninstall: {rendered}"
+            rendered.contains("rm -rf /opt/aibox/azure-cli"),
+            "disabled azure-cli must remove its virtual environment: {rendered}"
         );
     }
 
