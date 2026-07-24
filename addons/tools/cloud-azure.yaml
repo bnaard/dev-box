@@ -19,10 +19,15 @@ builder: null
 runtime: |
   # Addon: cloud-azure
   {% if tools["azure-cli"].enabled %}
-  RUN pip3 install --no-cache-dir azure-cli
+  RUN apt-get update && apt-get install -y --no-install-recommends \
+      python3-venv \
+      && rm -rf /var/lib/apt/lists/*
+  RUN python3 -m venv /opt/aibox/azure-cli && \
+      /opt/aibox/azure-cli/bin/pip install --no-cache-dir azure-cli && \
+      ln -sf /opt/aibox/azure-cli/bin/az /usr/local/bin/az
   {% endif %}
   {% if not tools["azure-cli"].enabled %}
   # Variant 1 disable-then-purge: azure-cli installs as a pip package.
   USER root
-  RUN pip3 uninstall -y azure-cli azure-cli-core 2>/dev/null || true
+  RUN rm -rf /opt/aibox/azure-cli && rm -f /usr/local/bin/az
   {% endif %}

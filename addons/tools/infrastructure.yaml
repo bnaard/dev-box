@@ -74,9 +74,13 @@ runtime: |
   {% endif %}
   {% if tools.ansible.enabled %}
   RUN apt-get update && apt-get install -y --no-install-recommends \
-      python3-pip \
+      python3-venv \
       && rm -rf /var/lib/apt/lists/*
-  RUN pip3 install --no-cache-dir 'ansible=={{ tools.ansible.version }}'
+  RUN python3 -m venv /opt/aibox/ansible && \
+      /opt/aibox/ansible/bin/pip install --no-cache-dir 'ansible=={{ tools.ansible.version }}' && \
+      for bin in /opt/aibox/ansible/bin/ansible*; do \
+        ln -sf "$bin" "/usr/local/bin/$(basename "$bin")"; \
+      done
   {% endif %}
   # ── Variant 1 disable-then-purge guards ───────────────────────────────
   {% if not tools.opentofu.enabled %}
@@ -89,5 +93,5 @@ runtime: |
   {% endif %}
   {% if not tools.ansible.enabled %}
   USER root
-  RUN pip3 uninstall -y ansible ansible-core 2>/dev/null || true
+  RUN rm -rf /opt/aibox/ansible && rm -f /usr/local/bin/ansible*
   {% endif %}

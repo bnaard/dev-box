@@ -74,14 +74,18 @@ runtime: |
 
   {% if tools.poetry.enabled %}
   RUN apt-get update && apt-get install -y --no-install-recommends \
-      python3-pip \
+      python3-venv \
       && rm -rf /var/lib/apt/lists/*
-  RUN pip3 install --no-cache-dir 'poetry=={{ tools.poetry.version }}'
+  RUN python3 -m venv /opt/aibox/poetry && \
+      /opt/aibox/poetry/bin/pip install --no-cache-dir 'poetry=={{ tools.poetry.version }}' && \
+      ln -sf /opt/aibox/poetry/bin/poetry /usr/local/bin/poetry
   {% endif %}
 
   {% if tools.pdm.enabled %}
   RUN apt-get update && apt-get install -y --no-install-recommends \
-      python3-pip \
+      python3-venv \
       && rm -rf /var/lib/apt/lists/*
-  RUN pip3 install --no-cache-dir 'pdm=={{ tools.pdm.version }}'
+  RUN python3 -m venv /opt/aibox/pdm && \
+      /opt/aibox/pdm/bin/pip install --no-cache-dir 'pdm=={{ tools.pdm.version }}' && \
+      ln -sf /opt/aibox/pdm/bin/pdm /usr/local/bin/pdm
   {% endif %}
