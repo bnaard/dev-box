@@ -470,6 +470,13 @@ Fresh `aibox.toml` scaffolds list the standard processkit operating skills in
 `include`. If `include` is empty, aibox falls back to installing every skill in
 the pinned processkit version minus anything listed in `exclude`.
 
+`aibox apply` reconciles newly introduced standard skills into existing
+processkit projects while respecting explicit `exclude` entries. Tooling-linked
+skills remain opt-in: an interactive apply asks before persisting a
+recommendation. For example, selecting the `latex` addon offers to add
+`latex-authoring`; a non-interactive apply prints the recommendation without
+changing skill selection.
+
 ```toml
 [skills]
 include = ["pk-doctor", "status-briefing"]  # install only these plus core skills
