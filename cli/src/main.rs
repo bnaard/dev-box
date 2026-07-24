@@ -4,6 +4,8 @@ mod addon_loader;
 mod addon_registry;
 pub mod compat;
 #[allow(dead_code)]
+mod deployment_compiler;
+#[allow(dead_code)]
 mod deployment_contract;
 mod dirs;
 mod kit;
