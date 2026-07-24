@@ -5,6 +5,7 @@
 
 use anyhow::{Context, Result};
 
+use crate::cli::CompileOutputFormat;
 use crate::config::{
     AiboxConfig, CredentialReferenceKind as ConfigCredentialKind, CredentialReferenceSection,
     OrchestrationBackend, OrchestrationPortProtocol,
@@ -18,6 +19,44 @@ use crate::deployment_contract::{
     ObjectMeta, OwnershipReference, PortProtocol, PortSpec, WorkspaceFleetSpec,
     WorkspaceFleetSpecBody, WorkspaceFleetSpecKind, WorkspaceService,
 };
+
+/// Print a deterministic deployment plan without performing discovery or mutation.
+pub fn cmd_config_compile(config_path: &Option<String>, format: CompileOutputFormat) -> Result<()> {
+    let config = AiboxConfig::from_cli_option(config_path)?;
+    let plan = compile_config(&config)?;
+
+    match format {
+        CompileOutputFormat::Json => {
+            println!("{}", serde_json::to_string_pretty(&plan)?);
+        }
+        CompileOutputFormat::Human => {
+            let backend = match plan.target.backend {
+                BackendKind::Compose => "compose",
+                BackendKind::Kubernetes => "kubernetes",
+            };
+            let image_build = plan.actions.iter().any(|action| {
+                matches!(
+                    action,
+                    crate::deployment_compiler::DesiredDeploymentAction::BuildImage { .. }
+                )
+            });
+            println!("Deployment plan");
+            println!("  target: {backend}:{}", plan.target.target_ref);
+            println!("  scope: {}", plan.target.scope);
+            println!("  desired spec digest: {}", plan.desired_spec_digest);
+            println!(
+                "  image build: {}",
+                if image_build {
+                    "explicitly enabled"
+                } else {
+                    "disabled"
+                }
+            );
+            println!("  actions: {}", plan.actions.len());
+        }
+    }
+    Ok(())
+}
 
 /// Compile validated orchestration intent into a deterministic, mutation-free plan.
 pub fn compile_config(config: &AiboxConfig) -> Result<DesiredDeploymentPlan> {

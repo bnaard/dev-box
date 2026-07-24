@@ -94,6 +94,9 @@ fn dispatch(cli: cli::Cli) -> anyhow::Result<()> {
             cli::Commands::SelfCmd {
                 action: cli::SelfAction::Completion { .. },
             } => {} // doesn't need addons
+            cli::Commands::Config {
+                action: cli::ConfigAction::Compile { .. },
+            } => {} // pure config compilation doesn't need addons
             _ => {
                 output::error(&format!("Failed to load addon definitions: {:#}", e));
                 std::process::exit(1);
@@ -203,6 +206,11 @@ fn dispatch(cli: cli::Cli) -> anyhow::Result<()> {
             );
             result
         }
+        cli::Commands::Config { action } => match action {
+            cli::ConfigAction::Compile { format } => {
+                orchestration_compile::cmd_config_compile(config_path, format)
+            }
+        },
         cli::Commands::Up {
             layout,
             apply,
