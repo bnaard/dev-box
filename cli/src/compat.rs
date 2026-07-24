@@ -598,6 +598,11 @@ pub static COMPAT_TABLE: &[CompatEntry] = &[
         processkit_version: "v0.28.3",
         note: "Patch release: adds the Cloudflare addon, installing cloudflared from Cloudflare's signed repository instead of Debian's archive so generated trixie images build on amd64 and arm64.",
     },
+    CompatEntry {
+        aibox_version: "0.28.12",
+        processkit_version: "v0.28.4",
+        note: "Patch release: integrates processkit v0.28.4 and makes companion E2E validation work from linked release worktrees.",
+    },
 ];
 
 /// Find the minimum compatible processkit version for the given aibox version.
