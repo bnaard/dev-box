@@ -1922,6 +1922,12 @@ release_companion_e2e_gate() {
       warn "Skipping Tier 2 SSH companion E2E during release because AIBOX_RELEASE_SKIP_COMPANION_E2E=${AIBOX_RELEASE_SKIP_COMPANION_E2E}. Re-run ./scripts/maintain.sh test-e2e after rebuilding the companion."
       ;;
     *)
+      # Visual and lifecycle tests each serialize within their own group, but
+      # both groups exercise the same SSH companion runtime. Release runs
+      # prioritize deterministic evidence over throughput; callers may still
+      # opt into parallelism explicitly.
+      : "${AIBOX_E2E_TEST_THREADS:=1}"
+      export AIBOX_E2E_TEST_THREADS
       cmd_test_e2e
       ;;
   esac
