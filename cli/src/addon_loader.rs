@@ -1343,6 +1343,24 @@ runtime: |
     }
 
     #[test]
+    fn infrastructure_runtime_installs_pip_before_ansible() {
+        let addon = load_repo_addon("infrastructure");
+        let tools = all_enabled_tools(&addon);
+        let rendered = render_runtime(&addon, &tools).unwrap();
+
+        let pip_install = rendered
+            .find("python3-pip")
+            .expect("enabled Ansible must install python3-pip: {rendered}");
+        let ansible_install = rendered
+            .find("pip3 install --no-cache-dir 'ansible==")
+            .expect("enabled Ansible must be installed with pip3: {rendered}");
+        assert!(
+            pip_install < ansible_install,
+            "python3-pip must be installed before pip3 installs Ansible: {rendered}"
+        );
+    }
+
+    #[test]
     fn purge_cloud_aws_uninstalls_when_disabled() {
         let addon = load_repo_addon("cloud-aws");
         let tools = all_disabled_tools(&addon);
