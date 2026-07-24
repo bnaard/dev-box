@@ -3728,6 +3728,7 @@ pub enum OrchestrationBackend {
 #[serde(deny_unknown_fields)]
 pub struct OrchestrationDeploymentSection {
     pub name: String,
+    pub owner_id: String,
     #[serde(default)]
     pub labels: BTreeMap<String, String>,
 }
@@ -4713,6 +4714,10 @@ impl AiboxConfig {
             .as_ref()
             .context("orchestration.deployment is required when orchestration.enabled = true")?;
         validate_orchestration_identifier("orchestration.deployment.name", &deployment.name)?;
+        validate_orchestration_identifier(
+            "orchestration.deployment.owner_id",
+            &deployment.owner_id,
+        )?;
         for (key, value) in &deployment.labels {
             if key.trim().is_empty() || value.contains('\n') || value.contains('\r') {
                 bail!(
@@ -5571,7 +5576,12 @@ fn check_orchestration_table(
         ],
         mismatches,
     );
-    check_child_table(orchestration, "deployment", &["name", "labels"], mismatches);
+    check_child_table(
+        orchestration,
+        "deployment",
+        &["name", "owner_id", "labels"],
+        mismatches,
+    );
 
     if let Some(fleet) = table_child(orchestration, "fleet")
         && let Some(services) = fleet.get("services").and_then(toml::Value::as_array)
@@ -8694,6 +8704,7 @@ ingress_class = "nginx"
 
 [orchestration.deployment]
 name = "workspace-dev"
+owner_id = "team-a"
 
 [[orchestration.connections]]
 name = "shell"
@@ -8753,6 +8764,7 @@ interactive = true
             }),
             deployment: Some(OrchestrationDeploymentSection {
                 name: "workspace".to_string(),
+                owner_id: "team-a".to_string(),
                 labels: BTreeMap::new(),
             }),
             connections: vec![],
@@ -8814,6 +8826,7 @@ interactive = true
             }),
             deployment: Some(OrchestrationDeploymentSection {
                 name: "workspace".to_string(),
+                owner_id: "team-a".to_string(),
                 labels: BTreeMap::new(),
             }),
             connections: vec![ConnectionIntentSection {

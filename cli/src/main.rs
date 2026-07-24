@@ -41,6 +41,8 @@ mod log;
 mod mcp_registration;
 mod migration;
 mod model_migration;
+#[allow(dead_code)]
+mod orchestration_compile;
 mod output;
 mod preauth;
 mod processkit_vocab;
