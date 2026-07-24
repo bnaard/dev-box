@@ -583,6 +583,11 @@ pub static COMPAT_TABLE: &[CompatEntry] = &[
         processkit_version: "v0.28.3",
         note: "Patch release: makes the infrastructure addon self-sufficient by installing python3-pip before installing Ansible, so generated Dockerfiles build without the Python addon.",
     },
+    CompatEntry {
+        aibox_version: "0.28.9",
+        processkit_version: "v0.28.3",
+        note: "Patch release: installs Ansible, Poetry, PDM, and Azure CLI in isolated virtual environments so generated Debian trixie Dockerfiles comply with PEP 668 while keeping their commands available on PATH.",
+    },
 ];
 
 /// Find the minimum compatible processkit version for the given aibox version.
