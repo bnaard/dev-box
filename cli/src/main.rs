@@ -3,12 +3,16 @@ mod addon_loader;
 #[allow(dead_code)]
 mod addon_registry;
 pub mod compat;
+mod compose_plan;
+#[allow(dead_code)]
+mod deployment_backend;
 #[allow(dead_code)]
 mod deployment_compiler;
 #[allow(dead_code)]
 mod deployment_contract;
 mod dirs;
 mod kit;
+mod kubernetes_plan;
 mod latex;
 
 mod addons;
@@ -45,6 +49,8 @@ mod model_migration;
 mod orchestration_compile;
 mod output;
 mod preauth;
+#[allow(dead_code)]
+mod processkit_protocol;
 mod processkit_vocab;
 mod provider_backend;
 mod prune;
@@ -94,9 +100,9 @@ fn dispatch(cli: cli::Cli) -> anyhow::Result<()> {
             cli::Commands::SelfCmd {
                 action: cli::SelfAction::Completion { .. },
             } => {} // doesn't need addons
-            cli::Commands::Config {
-                action: cli::ConfigAction::Compile { .. },
-            } => {} // pure config compilation doesn't need addons
+            cli::Commands::Config { .. }
+            | cli::Commands::Deploy { .. }
+            | cli::Commands::Connect(_) => {} // v1 orchestration does not need addons
             _ => {
                 output::error(&format!("Failed to load addon definitions: {:#}", e));
                 std::process::exit(1);
@@ -211,6 +217,20 @@ fn dispatch(cli: cli::Cli) -> anyhow::Result<()> {
                 orchestration_compile::cmd_config_compile(config_path, format)
             }
         },
+        cli::Commands::Deploy { action } => match action {
+            cli::DeployAction::Plan { format } => {
+                orchestration_compile::cmd_deploy_plan(config_path, format)
+            }
+            cli::DeployAction::Apply => orchestration_compile::cmd_deploy_apply(config_path),
+            cli::DeployAction::Status => orchestration_compile::cmd_deploy_status(config_path),
+            cli::DeployAction::Destroy => orchestration_compile::cmd_deploy_destroy(config_path),
+            cli::DeployAction::Logs { service } => {
+                orchestration_compile::cmd_deploy_logs(config_path, service)
+            }
+        },
+        cli::Commands::Connect(args) => {
+            orchestration_compile::cmd_connect(config_path, &args.name, args.command)
+        }
         cli::Commands::Up {
             layout,
             apply,

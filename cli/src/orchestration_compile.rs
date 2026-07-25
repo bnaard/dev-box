@@ -5,19 +5,25 @@
 
 use anyhow::{Context, Result};
 
-use crate::cli::CompileOutputFormat;
+use crate::cli::{CompileOutputFormat, DeployPlanOutputFormat};
 use crate::config::{
     AiboxConfig, CredentialReferenceKind as ConfigCredentialKind, CredentialReferenceSection,
     OrchestrationBackend, OrchestrationPortProtocol,
 };
+use crate::deployment_backend::{
+    ApplyRequest, BackendRegistry, ConnectionRequest, DestroyRequest, LogsRequest, PlanRequest,
+    StatusRequest, preflight,
+};
 use crate::deployment_compiler::{
     CompileRequest, DesiredDeploymentPlan, ImageBuildIntent, compile,
 };
+use crate::deployment_contract::BackendCapability;
 use crate::deployment_contract::{
-    ApiVersion, BackendKind, CredentialReference, CredentialReferenceKind, DeploymentTarget,
+    ApiVersion, BackendKind, ConnectionTarget, ConnectionTargetKind, ConnectionTargetSpec,
+    ConnectionTransport, CredentialReference, CredentialReferenceKind, DeploymentTarget,
     DeploymentTargetKind, DeploymentTargetSpec, EnvironmentReference, ImmutableImageReference,
-    ObjectMeta, OwnershipReference, PortProtocol, PortSpec, WorkspaceFleetSpec,
-    WorkspaceFleetSpecBody, WorkspaceFleetSpecKind, WorkspaceService,
+    KubernetesReconciliationIntent, ObjectMeta, OwnershipReference, PortProtocol, PortSpec,
+    WorkspaceFleetSpec, WorkspaceFleetSpecBody, WorkspaceFleetSpecKind, WorkspaceService,
 };
 
 /// Print a deterministic deployment plan without performing discovery or mutation.
@@ -56,6 +62,218 @@ pub fn cmd_config_compile(config_path: &Option<String>, format: CompileOutputFor
         }
     }
     Ok(())
+}
+
+/// Render a backend-specific deployment plan without runtime discovery, file writes, or mutation.
+pub fn cmd_deploy_plan(config_path: &Option<String>, format: DeployPlanOutputFormat) -> Result<()> {
+    let config = AiboxConfig::from_cli_option(config_path)?;
+    let plan = compile_config(&config)?;
+    let registry = BackendRegistry::built_in();
+    let backend = registry
+        .get(&plan.target.backend)
+        .map_err(anyhow::Error::msg)?;
+    preflight(backend, BackendCapability::Plan).map_err(anyhow::Error::msg)?;
+    let rendered = backend
+        .plan(PlanRequest { plan })
+        .map_err(anyhow::Error::msg)?
+        .rendered;
+    match format {
+        DeployPlanOutputFormat::Json => println!("{}", serde_json::to_string_pretty(&rendered)?),
+        DeployPlanOutputFormat::Human => {
+            println!("Deployment plan");
+            println!(
+                "  backend: {}",
+                match rendered.backend {
+                    BackendKind::Compose => "compose",
+                    BackendKind::Kubernetes => "kubernetes",
+                }
+            );
+            println!("  deployment id: {}", rendered.deployment_id);
+            println!("  desired spec digest: {}", rendered.desired_spec_digest);
+            println!("  image digest: {}", rendered.image_digest);
+            match rendered.backend {
+                BackendKind::Compose => {
+                    println!("  artifacts: docker-compose.yml, devcontainer.json")
+                }
+                BackendKind::Kubernetes => {
+                    println!("  artifacts: kubernetes.yaml, kubernetes.json")
+                }
+            }
+        }
+    }
+    Ok(())
+}
+
+pub fn cmd_deploy_apply(config_path: &Option<String>) -> Result<()> {
+    let plan = load_plan(config_path)?;
+    let registry = BackendRegistry::built_in();
+    let backend = registry
+        .get(&plan.target.backend)
+        .map_err(anyhow::Error::msg)?;
+    preflight(backend, BackendCapability::Apply).map_err(anyhow::Error::msg)?;
+    let record = backend
+        .apply(ApplyRequest { plan })
+        .map_err(anyhow::Error::msg)?
+        .record;
+    println!(
+        "deployment {}: {:?}",
+        record.spec.deployment_id, record.spec.status
+    );
+    Ok(())
+}
+
+pub fn cmd_deploy_status(config_path: &Option<String>) -> Result<()> {
+    let (plan, deployment_id) = plan_and_id(config_path)?;
+    let registry = BackendRegistry::built_in();
+    let backend = registry
+        .get(&plan.target.backend)
+        .map_err(anyhow::Error::msg)?;
+    preflight(backend, BackendCapability::Status).map_err(anyhow::Error::msg)?;
+    let record = backend
+        .status(StatusRequest { deployment_id })
+        .map_err(anyhow::Error::msg)?
+        .record;
+    println!(
+        "deployment {}: {:?}",
+        record.spec.deployment_id, record.spec.status
+    );
+    Ok(())
+}
+
+pub fn cmd_deploy_destroy(config_path: &Option<String>) -> Result<()> {
+    let (plan, deployment_id) = plan_and_id(config_path)?;
+    let registry = BackendRegistry::built_in();
+    let backend = registry
+        .get(&plan.target.backend)
+        .map_err(anyhow::Error::msg)?;
+    preflight(backend, BackendCapability::Destroy).map_err(anyhow::Error::msg)?;
+    let record = backend
+        .destroy(DestroyRequest { deployment_id })
+        .map_err(anyhow::Error::msg)?
+        .record;
+    println!(
+        "deployment {}: {:?}",
+        record.spec.deployment_id, record.spec.status
+    );
+    Ok(())
+}
+
+pub fn cmd_deploy_logs(config_path: &Option<String>, service: Option<String>) -> Result<()> {
+    let (plan, deployment_id) = plan_and_id(config_path)?;
+    let registry = BackendRegistry::built_in();
+    let backend = registry
+        .get(&plan.target.backend)
+        .map_err(anyhow::Error::msg)?;
+    preflight(backend, BackendCapability::Logs).map_err(anyhow::Error::msg)?;
+    for line in backend
+        .logs(LogsRequest {
+            deployment_id,
+            service,
+        })
+        .map_err(anyhow::Error::msg)?
+        .lines
+    {
+        println!("{line}");
+    }
+    Ok(())
+}
+
+pub fn cmd_connect(config_path: &Option<String>, name: &str, command: Vec<String>) -> Result<()> {
+    let config = AiboxConfig::from_cli_option(config_path)?;
+    let plan = compile_config(&config)?;
+    let rendered = BackendRegistry::built_in()
+        .get(&plan.target.backend)
+        .map_err(anyhow::Error::msg)?
+        .plan(PlanRequest { plan: plan.clone() })
+        .map_err(anyhow::Error::msg)?
+        .rendered;
+    let connection = config
+        .orchestration
+        .connections
+        .iter()
+        .find(|connection| connection.name == name)
+        .context("orchestration connection not found")?;
+    let target = ConnectionTarget {
+        api_version: ApiVersion::V1Alpha1,
+        kind: ConnectionTargetKind::V1Alpha1,
+        metadata: ObjectMeta {
+            name: connection.name.clone(),
+            owner: OwnershipReference {
+                owner_id: config
+                    .orchestration
+                    .deployment
+                    .as_ref()
+                    .context("orchestration.deployment is required")?
+                    .owner_id
+                    .clone(),
+            },
+            labels: Default::default(),
+        },
+        spec: ConnectionTargetSpec {
+            deployment_id: rendered.deployment_id,
+            service: connection.service.clone(),
+            transport: match connection.transport {
+                crate::config::ConnectionTransport::ComposeExec => ConnectionTransport::ComposeExec,
+                crate::config::ConnectionTransport::KubernetesExec => {
+                    ConnectionTransport::KubernetesExec
+                }
+                crate::config::ConnectionTransport::KubernetesPortForward => {
+                    ConnectionTransport::KubernetesPortForward
+                }
+                crate::config::ConnectionTransport::Ssh => ConnectionTransport::Ssh,
+            },
+            interactive: connection.interactive,
+            endpoint: connection.endpoint.clone().unwrap_or_else(|| {
+                format!(
+                    "compose://{}/{}",
+                    plan.target.target_ref, connection.service
+                )
+            }),
+            invocation: if command.is_empty() {
+                connection.invocation.clone()
+            } else {
+                command
+            },
+            credentials: connection
+                .credentials
+                .iter()
+                .map(credential_reference)
+                .collect(),
+        },
+    };
+    let registry = BackendRegistry::built_in();
+    let backend = registry
+        .get(&plan.target.backend)
+        .map_err(anyhow::Error::msg)?;
+    preflight(backend, BackendCapability::Exec).map_err(anyhow::Error::msg)?;
+    let argv = backend
+        .connection(ConnectionRequest { target })
+        .map_err(anyhow::Error::msg)?
+        .command;
+    let (program, args) = argv.split_first().context("empty connection command")?;
+    let status = std::process::Command::new(program)
+        .args(args)
+        .status()
+        .context("could not start connection")?;
+    if status.success() {
+        Ok(())
+    } else {
+        anyhow::bail!("connection command failed with {status}")
+    }
+}
+
+fn load_plan(config_path: &Option<String>) -> Result<DesiredDeploymentPlan> {
+    compile_config(&AiboxConfig::from_cli_option(config_path)?)
+}
+fn plan_and_id(config_path: &Option<String>) -> Result<(DesiredDeploymentPlan, String)> {
+    let plan = load_plan(config_path)?;
+    let rendered = BackendRegistry::built_in()
+        .get(&plan.target.backend)
+        .map_err(anyhow::Error::msg)?
+        .plan(PlanRequest { plan: plan.clone() })
+        .map_err(anyhow::Error::msg)?
+        .rendered;
+    Ok((plan, rendered.deployment_id))
 }
 
 /// Compile validated orchestration intent into a deterministic, mutation-free plan.
@@ -149,6 +367,18 @@ pub fn compile_config(config: &AiboxConfig) -> Result<DesiredDeploymentPlan> {
                 .iter()
                 .map(credential_reference)
                 .collect(),
+            kubernetes: (target.backend == OrchestrationBackend::Kubernetes).then(|| {
+                KubernetesReconciliationIntent {
+                    ingress_class: target.ingress_class.clone(),
+                    gateway_class: target.gateway_class.clone(),
+                    dns_zone: target.dns_zone.clone(),
+                    dns_credentials: target
+                        .dns_credentials
+                        .iter()
+                        .map(credential_reference)
+                        .collect(),
+                }
+            }),
         },
     };
 

@@ -3715,6 +3715,12 @@ pub struct OrchestrationTargetSection {
     pub ingress_class: Option<String>,
     #[serde(default)]
     pub gateway_class: Option<String>,
+    /// Existing DNS zone only.  Planning never creates zones or resolves its
+    /// credential references.
+    #[serde(default)]
+    pub dns_zone: Option<String>,
+    #[serde(default)]
+    pub dns_credentials: Vec<CredentialReferenceSection>,
 }
 
 #[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq)]
@@ -5443,9 +5449,13 @@ fn validate_orchestration_target(target: &OrchestrationTargetSection) -> Result<
                 bail!("orchestration compose target.reference must start with 'docker-context:'");
             }
             validate_orchestration_identifier("orchestration.target.scope", &target.scope)?;
-            if target.ingress_class.is_some() || target.gateway_class.is_some() {
+            if target.ingress_class.is_some()
+                || target.gateway_class.is_some()
+                || target.dns_zone.is_some()
+                || !target.dns_credentials.is_empty()
+            {
                 bail!(
-                    "orchestration.target ingress_class and gateway_class require the kubernetes backend"
+                    "orchestration.target ingress_class, gateway_class, and DNS intent require the kubernetes backend"
                 );
             }
         }
@@ -5459,6 +5469,12 @@ fn validate_orchestration_target(target: &OrchestrationTargetSection) -> Result<
             }
             if let Some(class) = &target.gateway_class {
                 validate_dns_label("orchestration.target.gateway_class", class)?;
+            }
+            if let Some(zone) = &target.dns_zone {
+                validate_dns_zone("orchestration.target.dns_zone", zone)?;
+            }
+            for credential in &target.dns_credentials {
+                validate_credential_reference(credential)?;
             }
         }
     }
@@ -5475,6 +5491,18 @@ fn validate_dns_label(field: &str, value: &str) -> Result<()> {
         || value.ends_with('-')
     {
         bail!("{field} '{}' must be a DNS label", value);
+    }
+    Ok(())
+}
+
+fn validate_dns_zone(field: &str, value: &str) -> Result<()> {
+    if value.trim().is_empty()
+        || value.len() > 253
+        || value
+            .split('.')
+            .any(|label| validate_dns_label(field, label).is_err())
+    {
+        bail!("{field} '{value}' must be a DNS name");
     }
     Ok(())
 }
@@ -5573,6 +5601,8 @@ fn check_orchestration_table(
             "credentials",
             "ingress_class",
             "gateway_class",
+            "dns_zone",
+            "dns_credentials",
         ],
         mismatches,
     );
@@ -8761,6 +8791,8 @@ interactive = true
                 credentials: vec![],
                 ingress_class: None,
                 gateway_class: None,
+                dns_zone: None,
+                dns_credentials: Vec::new(),
             }),
             deployment: Some(OrchestrationDeploymentSection {
                 name: "workspace".to_string(),
@@ -8823,6 +8855,8 @@ interactive = true
                 credentials: vec![],
                 ingress_class: None,
                 gateway_class: None,
+                dns_zone: None,
+                dns_credentials: Vec::new(),
             }),
             deployment: Some(OrchestrationDeploymentSection {
                 name: "workspace".to_string(),

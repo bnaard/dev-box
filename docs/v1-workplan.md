@@ -1,9 +1,12 @@
 # aibox v1 workplan — image and deployment orchestration
 
-Status: implementation in progress — M0 through M2 implemented for integration  
+Status: implementation in progress — M0 through M4 and M6 implemented
 Source: [GitHub issue #179](https://github.com/projectious-work/aibox/issues/179)  
-Implementation: M0 boundary ledger, M1 contract alpha, and M2 deterministic
-configuration compiler are implemented on the v1 feature stack; M3 is next.
+Implementation: M0 boundary ledger, M1 contract alpha, M2 deterministic
+configuration compiler, M3 Compose planning, M4 Compose lifecycle, and M6
+Kubernetes planning are implemented on the v1 feature stack. M5 has a tested
+provisional protocol adapter and fixtures, but production integration remains
+gated on the processkit #118 producer release.
 
 ## 1. Outcome and boundary
 

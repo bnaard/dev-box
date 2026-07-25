@@ -373,6 +373,7 @@ fn target_identity(target: &DeploymentTarget) -> DeploymentTargetIdentity {
         backend: target.spec.backend.clone(),
         target_ref: target.spec.target_ref.clone(),
         scope: target.spec.scope.clone(),
+        kubernetes: target.spec.kubernetes.clone(),
     }
 }
 

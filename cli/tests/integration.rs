@@ -180,6 +180,44 @@ fn config_compile_human_reports_digest_and_disabled_build() {
 }
 
 #[test]
+fn deploy_plan_renders_compose_artifacts_without_writing_project_files() {
+    let dir = tempfile::tempdir().unwrap();
+    write_orchestration_compile_fixture(dir.path());
+    let before = std::fs::read_dir(dir.path())
+        .unwrap()
+        .map(|entry| entry.unwrap().file_name())
+        .collect::<Vec<_>>();
+
+    let output = run_in_dir(dir.path(), &["deploy", "plan", "--output", "json"]);
+    let json = parse_json(&output);
+    assert_eq!(json["backend"], "compose");
+    assert!(
+        json["deploymentId"]
+            .as_str()
+            .unwrap()
+            .starts_with("workspace-")
+    );
+    assert!(
+        json["composeYaml"]
+            .as_str()
+            .unwrap()
+            .contains("aibox.projectious.work/deployment-id")
+    );
+    assert!(
+        json["devcontainerJson"]
+            .as_str()
+            .unwrap()
+            .contains("dockerComposeFile")
+    );
+
+    let after = std::fs::read_dir(dir.path())
+        .unwrap()
+        .map(|entry| entry.unwrap().file_name())
+        .collect::<Vec<_>>();
+    assert_eq!(before, after, "deploy plan must not write project files");
+}
+
+#[test]
 fn config_compile_rejects_disabled_orchestration() {
     let dir = tempfile::tempdir().unwrap();
     std::fs::write(

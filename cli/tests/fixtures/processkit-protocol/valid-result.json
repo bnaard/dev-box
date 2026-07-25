@@ -1,0 +1,8 @@
+{
+  "apiVersion": "processkit.projectious.work/install/v1alpha1",
+  "outcome": "succeeded",
+  "provenance": {
+    "producerVersion": "1.0.0-alpha.1",
+    "invocationId": "fixture-invocation"
+  }
+}
