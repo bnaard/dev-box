@@ -188,7 +188,7 @@ elements-spacing = "both"
 # netspeed-cache-ttl-seconds: network throughput cache TTL.
 # kubernetes-cache-ttl-seconds: local kubeconfig context cache TTL.
 # cloud-cache-ttl-seconds: local cloud CLI/context cache TTL.
-# github-cache-ttl-seconds: local repo + GitHub issue/PR count cache TTL.
+# github-cache-ttl-seconds: local repo + GitHub issue/PR/discussion count cache TTL.
 interval-seconds = 15
 aibox-metrics-cache-ttl-seconds = 30
 netspeed-cache-ttl-seconds = 10

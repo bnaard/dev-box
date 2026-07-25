@@ -1855,7 +1855,9 @@ pub(crate) fn serialize_config_with_comments(config: &AiboxConfig) -> String {
     );
     out.push_str("#   not poll live clusters and does not need second-level freshness.\n");
     out.push_str("# cloud-cache-ttl-seconds: local cloud CLI/context cache TTL; this avoids auth/network probes.\n");
-    out.push_str("# github-cache-ttl-seconds: local repo + GitHub issue/PR count cache TTL.\n");
+    out.push_str(
+        "# github-cache-ttl-seconds: local repo + GitHub issue/PR/discussion count cache TTL.\n",
+    );
     let refresh = &config.customization.tmux.status.refresh;
     out.push_str(&format!(
         "interval-seconds = {}\n",
