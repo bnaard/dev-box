@@ -183,9 +183,11 @@ fn decode_output(status: &ExitStatus, stdout: &[u8]) -> Result<InstallResult> {
 mod tests {
     use super::*;
     use std::fs;
+    use std::sync::atomic::{AtomicUsize, Ordering};
     use tempfile::TempDir;
 
     const CANARY: &str = "M5_SECRET_CANARY_DO_NOT_LEAK";
+    static FAKE_CLI_SEQUENCE: AtomicUsize = AtomicUsize::new(0);
     fn fixture(name: &str) -> &'static str {
         match name {
             "valid" => include_str!("../tests/fixtures/processkit-protocol/valid-result.json"),
@@ -201,7 +203,8 @@ mod tests {
         r
     }
     fn fake_cli(dir: &TempDir, body: &str) -> PathBuf {
-        let path = dir.path().join("processkit");
+        let sequence = FAKE_CLI_SEQUENCE.fetch_add(1, Ordering::Relaxed);
+        let path = dir.path().join(format!("processkit-{sequence}"));
         fs::write(&path, format!("#!/bin/sh\n{}\n", body)).unwrap();
         #[cfg(unix)]
         {
