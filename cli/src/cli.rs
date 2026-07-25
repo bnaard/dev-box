@@ -41,13 +41,23 @@ pub enum CompileOutputFormat {
     Json,
 }
 
-/// Output format for backend deployment plans.
+/// Output format for v1 deployment and image operations.
 #[derive(Clone, Debug, Default, ValueEnum)]
-pub enum DeployPlanOutputFormat {
-    /// Concise human-readable rendered artifact summary
+pub enum DeployOutputFormat {
+    /// Concise human-readable operation result
     #[default]
     Human,
-    /// Complete deterministic backend plan as JSON
+    /// Complete machine-readable operation result as JSON
+    Json,
+}
+
+/// Output format for the stable-v1 release-readiness audit.
+#[derive(Clone, Debug, Default, ValueEnum)]
+pub enum V1ReadinessOutputFormat {
+    /// Concise, operator-oriented gate report.
+    #[default]
+    Human,
+    /// Machine-readable gate report. The command still exits non-zero when blocked.
     Json,
 }
 
@@ -290,26 +300,33 @@ pub enum Commands {
         #[command(subcommand)]
         action: DeployAction,
     },
+    /// Inspect or explicitly resolve the immutable image consumed by a v1 deployment.
+    Image {
+        #[command(subcommand)]
+        action: ImageAction,
+    },
     /// Connect to a named v1 deployment service.
     Connect(ConnectArgs),
-    /// Start container and attach via tmux
+    /// Apply the v1 deployment; use `connect` separately to open a session.
     ///
-    /// Seeds .aibox-home/ if needed, generates devcontainer files,
-    /// creates/starts the container, then attaches via tmux.
-    /// If already running, just attaches.
-    ///
-    /// Available layouts: dev (default), focus, cowork, ai.
+    /// The legacy attach behavior is available only through `--legacy-runtime`
+    /// during the v1 prerelease transition and is scheduled for removal on
+    /// 2026-12-31.
     Up {
-        /// tmux layout to use (dev, focus, cowork, ai)
+        /// Use the deprecated v0 container runtime path (removed 2026-12-31).
+        #[arg(long)]
+        legacy_runtime: bool,
+
+        /// tmux layout to use with --legacy-runtime (dev, focus, cowork, ai)
         #[arg(long, value_enum)]
         layout: Option<Layout>,
 
-        /// Reconcile desired state before starting
-        #[arg(long)]
+        /// Reconcile generated v0 state before attaching; requires --legacy-runtime.
+        #[arg(long, requires = "legacy_runtime")]
         apply: bool,
 
-        /// Discard saved tmux session state and recreate the configured layout
-        #[arg(long)]
+        /// Recreate the tmux layout; requires --legacy-runtime.
+        #[arg(long, requires = "legacy_runtime")]
         forget_tmux_state: bool,
     },
     /// Recover into the workspace without tmux, Yazi, or status tooling
@@ -344,8 +361,15 @@ pub enum Commands {
         #[arg(long)]
         yes: bool,
     },
-    /// Stop the running workspace
-    Down,
+    /// Destroy the v1 deployment guarded by its ownership record.
+    ///
+    /// The deprecated v0 stop behavior requires --legacy-runtime and is
+    /// scheduled for removal on 2026-12-31.
+    Down {
+        /// Use the deprecated v0 container runtime path (removed 2026-12-31).
+        #[arg(long)]
+        legacy_runtime: bool,
+    },
     /// List compact state for a resource
     Get {
         /// Resource to list
@@ -513,6 +537,36 @@ pub enum ConfigAction {
         )]
         format: CompileOutputFormat,
     },
+    /// Preview or apply the explicit, reversible v0 configuration migration.
+    MigrateV1 {
+        /// Write the disabled v1 orchestration boundary after making an exact v0 backup.
+        #[arg(long, conflicts_with = "restore")]
+        apply: bool,
+        /// Restore an exact v0 backup created by `config migrate-v1 --apply`.
+        #[arg(long, value_name = "BACKUP", conflicts_with = "apply")]
+        restore: Option<String>,
+        /// Emit a machine-readable preview or result.
+        #[arg(
+            long,
+            short = 'o',
+            visible_alias = "output",
+            value_enum,
+            default_value = "human"
+        )]
+        format: V1ReadinessOutputFormat,
+    },
+    /// Evaluate stable-v1 release gates without changing project state.
+    ReleaseReadiness {
+        /// Output format. JSON output remains parseable even when gates block the command.
+        #[arg(
+            long,
+            short = 'o',
+            visible_alias = "output",
+            value_enum,
+            default_value = "human"
+        )]
+        format: V1ReadinessOutputFormat,
+    },
 }
 
 #[derive(Clone, Debug, Subcommand)]
@@ -527,18 +581,88 @@ pub enum DeployAction {
             value_enum,
             default_value = "human"
         )]
-        format: DeployPlanOutputFormat,
+        format: DeployOutputFormat,
     },
     /// Reconcile the rendered v1 deployment using the selected backend.
-    Apply,
+    Apply {
+        /// Output format
+        #[arg(
+            long,
+            short = 'o',
+            visible_alias = "output",
+            value_enum,
+            default_value = "human"
+        )]
+        format: DeployOutputFormat,
+    },
     /// Read and classify the current runtime state of the v1 deployment.
-    Status,
+    Status {
+        /// Output format
+        #[arg(
+            long,
+            short = 'o',
+            visible_alias = "output",
+            value_enum,
+            default_value = "human"
+        )]
+        format: DeployOutputFormat,
+    },
     /// Remove only resources proven to belong to the recorded deployment.
-    Destroy,
+    Destroy {
+        /// Output format
+        #[arg(
+            long,
+            short = 'o',
+            visible_alias = "output",
+            value_enum,
+            default_value = "human"
+        )]
+        format: DeployOutputFormat,
+    },
     /// Print backend logs, optionally restricted to one service.
     Logs {
         #[arg(long)]
         service: Option<String>,
+        /// Output format
+        #[arg(
+            long,
+            short = 'o',
+            visible_alias = "output",
+            value_enum,
+            default_value = "human"
+        )]
+        format: DeployOutputFormat,
+    },
+}
+
+#[derive(Clone, Debug, Subcommand)]
+pub enum ImageAction {
+    /// Build an image from the explicit orchestration source contract.
+    Build {
+        /// Push the tagged image and resolve its registry manifest digest.
+        #[arg(long)]
+        push: bool,
+        /// Output format
+        #[arg(
+            long,
+            short = 'o',
+            visible_alias = "output",
+            value_enum,
+            default_value = "human"
+        )]
+        format: DeployOutputFormat,
+    },
+    /// Show the immutable image selected by orchestration configuration.
+    Inspect {
+        /// Output format
+        #[arg(
+            long,
+            short = 'o',
+            visible_alias = "output",
+            value_enum,
+            default_value = "human"
+        )]
+        format: DeployOutputFormat,
     },
 }
 
@@ -702,13 +826,18 @@ mod tests {
 
     #[test]
     fn up_accepts_forget_tmux_state_flag() {
-        let cli = Cli::parse_from(["aibox", "up", "--forget-tmux-state"]);
+        let cli = Cli::parse_from(["aibox", "up", "--legacy-runtime", "--forget-tmux-state"]);
         match cli.command {
             Commands::Up {
                 forget_tmux_state, ..
             } => assert!(forget_tmux_state),
             _ => panic!("expected up command"),
         }
+    }
+
+    #[test]
+    fn v1_up_rejects_legacy_attach_flags_without_explicit_escape_hatch() {
+        assert!(Cli::try_parse_from(["aibox", "up", "--forget-tmux-state"]).is_err());
     }
 
     #[test]

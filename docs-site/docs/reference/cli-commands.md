@@ -5,7 +5,9 @@ title: CLI Commands
 
 # CLI Commands
 
-aibox uses a small verb/resource grammar. `aibox.toml` is desired state, `aibox apply` reconciles generated files and images, and `aibox up` enters the workspace.
+aibox uses a small verb/resource grammar. `aibox.toml` is desired state. The
+established v0 runtime uses `apply` then `up`; v1 orchestration uses `image`,
+`deploy`, `up` (apply-only), and an explicit `connect`.
 
 ## Global Options
 
@@ -20,8 +22,8 @@ aibox uses a small verb/resource grammar. `aibox.toml` is desired state, `aibox 
 ```bash
 aibox init my-app --harness claude --addon python
 aibox apply
-aibox up
-aibox down
+aibox up --legacy-runtime
+aibox down --legacy-runtime
 aibox doctor
 ```
 
@@ -31,7 +33,10 @@ aibox doctor
 aibox init [NAME] [OPTIONS]
 aibox apply [RESOURCE] [NAME] [OPTIONS]
 aibox up [OPTIONS]
-aibox down
+aibox down [--legacy-runtime]
+aibox image <build|inspect> [--output human|json]
+aibox deploy <plan|apply|status|destroy|logs> [OPTIONS]
+aibox connect <NAME> [-- COMMAND...]
 aibox get <RESOURCE> [OPTIONS]
 aibox describe <RESOURCE> [NAME] [OPTIONS]
 aibox set <TARGET> [VALUE] [EXTRA...] [OPTIONS]
@@ -103,10 +108,11 @@ aibox apply env research
 ## Runtime
 
 ```bash
-aibox up
-aibox up --layout focus
-aibox up --apply
-aibox down
+aibox up                         # v1 deploy apply; does not attach
+aibox down                       # v1 guarded deploy destroy
+aibox up --legacy-runtime --layout focus
+aibox up --legacy-runtime --apply
+aibox down --legacy-runtime
 aibox get runtime
 aibox get runtime --resources
 aibox get runtime --resources -o json
@@ -114,7 +120,82 @@ aibox describe runtime
 aibox delete runtime
 ```
 
-`up` starts or creates the workspace container and attaches through tmux. `down` stops the compose project. `delete runtime` removes the container while preserving project files and `.aibox-home/`.
+`aibox up --legacy-runtime` starts or creates the v0 workspace container and
+attaches through tmux. `aibox down --legacy-runtime` stops that compose project.
+This compatibility path is deprecated and will be removed on **2026-12-31**;
+migrate to the v1 workflow below. `delete runtime` removes the v0 container
+while preserving project files and `.aibox-home/`.
+
+## V1 deployment workflow
+
+V1 has no implicit attach step. `up` is an alias for a guarded deployment
+apply; connect only after the deployment operation finishes. The alias requires
+an enabled `[orchestration]` configuration.
+
+```bash
+# Inspect the immutable deployment input, or explicitly build its source contract.
+aibox image inspect
+aibox image build --output json
+aibox image build --push --output json
+
+# Plan without mutation, then reconcile and observe the deployment.
+aibox deploy plan --output json
+aibox deploy apply --output json
+aibox deploy status
+aibox deploy logs --service workspace --output json
+
+# Open an interactive shell or run a noninteractive command with its exit code.
+aibox connect shell
+aibox connect shell -- sh -lc 'make test'
+
+# Alias for deploy apply / guarded deploy destroy; neither attaches a terminal.
+aibox up
+aibox down
+```
+
+`image build` is an explicit source-backed operation. Configure it beneath the
+deployment image with a build context and, when needed, a Dockerfile and named
+stage:
+
+```toml
+[orchestration.image]
+reference = "ghcr.io/acme/workspace:build"
+digest = "sha256:<currently-selected-deployment-manifest-digest>"
+platform = "linux-amd64"
+
+[orchestration.image.build]
+context = "image-source"
+dockerfile = "Containerfile" # optional; relative to context
+target = "runtime"            # optional
+```
+
+The command passes this contract as typed Docker or Podman arguments; it does
+not accept build arguments, environment values, or secrets. A normal build
+returns its immutable local image ID and deliberately reports no deployable
+reference. Use `--push` to publish the explicit tag and verify the runtime's
+registry `RepoDigests`; only then does the output include a pullable
+`reference@sha256:<manifest>` value. Copy that digest into
+`orchestration.image.digest` when you are ready to promote it for deployment.
+
+Deploy operations always consume the configured immutable image and never build
+or push implicitly.
+
+Every v1 `deploy` command accepts `-o, --output human|json`. JSON is a single
+machine-readable document on stdout; progress, warnings, and errors use stderr.
+`deploy apply`, `status`, and `destroy` emit the deployment record in JSON.
+`deploy logs` emits `{ deploymentId, service?, lines }`. Human output is concise
+for terminals. Backend failures preserve their nonzero exit status; `connect`
+also forwards the remote command exit code. Kubernetes port-forward stays in
+the foreground until it is interrupted, while Kubernetes exec uses TTY/stdin
+only for connections configured as interactive.
+
+`down` only destroys resources whose deployment record and ownership labels
+prove that aibox created them. It refuses untracked, foreign, or
+digest-mismatched resources.
+
+These commands do not enable processkit production delegation. The published
+processkit protocol remains a separate stable-v1 release gate; until it is
+available, aibox retains its existing bounded/provisional integration behavior.
 
 `get runtime` reports the configured container name and detected state
 (`running`, `stopped`, or `missing`). With `--resources`, it reports a

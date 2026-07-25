@@ -138,7 +138,9 @@ impl BackendRegistry {
         Self {
             backends: vec![
                 Box::new(ComposeBackend::for_current_dir()),
-                Box::new(KubernetesBackend::plan_only()),
+                Box::new(KubernetesBackend::for_project(
+                    std::env::current_dir().unwrap_or_else(|_| std::path::PathBuf::from(".")),
+                )),
             ],
         }
     }
@@ -149,8 +151,8 @@ impl BackendRegistry {
     pub fn built_in_for(project_dir: std::path::PathBuf) -> Self {
         Self {
             backends: vec![
-                Box::new(ComposeBackend::for_project(project_dir)),
-                Box::new(KubernetesBackend::plan_only()),
+                Box::new(ComposeBackend::for_project(project_dir.clone())),
+                Box::new(KubernetesBackend::for_project(project_dir)),
             ],
         }
     }
@@ -199,16 +201,11 @@ mod tests {
     }
 
     #[test]
-    fn kubernetes_is_registered_for_non_mutating_plan_only() {
+    fn kubernetes_is_registered_for_lifecycle_operations() {
         let registry = BackendRegistry::built_in();
         let backend = registry.get(&BackendKind::Kubernetes).unwrap();
         assert!(preflight(backend, BackendCapability::Plan).is_ok());
-        assert_eq!(
-            preflight(backend, BackendCapability::Apply)
-                .unwrap_err()
-                .code,
-            ContractErrorCode::CapabilityUnsupported
-        );
+        assert!(preflight(backend, BackendCapability::Apply).is_ok());
     }
 
     #[test]

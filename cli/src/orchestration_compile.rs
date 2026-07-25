@@ -4,8 +4,11 @@
 //! boundary explicit and keeps apply-time image builds disabled.
 
 use anyhow::{Context, Result};
+use std::path::{Path, PathBuf};
 
-use crate::cli::{CompileOutputFormat, DeployPlanOutputFormat};
+use serde::Serialize;
+
+use crate::cli::{CompileOutputFormat, DeployOutputFormat};
 use crate::config::{
     AiboxConfig, CredentialReferenceKind as ConfigCredentialKind, CredentialReferenceSection,
     OrchestrationBackend, OrchestrationPortProtocol,
@@ -65,7 +68,7 @@ pub fn cmd_config_compile(config_path: &Option<String>, format: CompileOutputFor
 }
 
 /// Render a backend-specific deployment plan without runtime discovery, file writes, or mutation.
-pub fn cmd_deploy_plan(config_path: &Option<String>, format: DeployPlanOutputFormat) -> Result<()> {
+pub fn cmd_deploy_plan(config_path: &Option<String>, format: DeployOutputFormat) -> Result<()> {
     let config = AiboxConfig::from_cli_option(config_path)?;
     let plan = compile_config(&config)?;
     let registry = BackendRegistry::built_in();
@@ -78,8 +81,8 @@ pub fn cmd_deploy_plan(config_path: &Option<String>, format: DeployPlanOutputFor
         .map_err(anyhow::Error::msg)?
         .rendered;
     match format {
-        DeployPlanOutputFormat::Json => println!("{}", serde_json::to_string_pretty(&rendered)?),
-        DeployPlanOutputFormat::Human => {
+        DeployOutputFormat::Json => println!("{}", serde_json::to_string_pretty(&rendered)?),
+        DeployOutputFormat::Human => {
             println!("Deployment plan");
             println!(
                 "  backend: {}",
@@ -104,7 +107,8 @@ pub fn cmd_deploy_plan(config_path: &Option<String>, format: DeployPlanOutputFor
     Ok(())
 }
 
-pub fn cmd_deploy_apply(config_path: &Option<String>) -> Result<()> {
+pub fn cmd_deploy_apply(config_path: &Option<String>, format: DeployOutputFormat) -> Result<()> {
+    crate::output::info("Reconciling deployment...");
     let plan = load_plan(config_path)?;
     let registry = BackendRegistry::built_in();
     let backend = registry
@@ -115,14 +119,12 @@ pub fn cmd_deploy_apply(config_path: &Option<String>) -> Result<()> {
         .apply(ApplyRequest { plan })
         .map_err(anyhow::Error::msg)?
         .record;
-    println!(
-        "deployment {}: {:?}",
-        record.spec.deployment_id, record.spec.status
-    );
+    print_deployment_record(&record, format)?;
     Ok(())
 }
 
-pub fn cmd_deploy_status(config_path: &Option<String>) -> Result<()> {
+pub fn cmd_deploy_status(config_path: &Option<String>, format: DeployOutputFormat) -> Result<()> {
+    crate::output::info("Observing deployment...");
     let (plan, deployment_id) = plan_and_id(config_path)?;
     let registry = BackendRegistry::built_in();
     let backend = registry
@@ -133,14 +135,12 @@ pub fn cmd_deploy_status(config_path: &Option<String>) -> Result<()> {
         .status(StatusRequest { deployment_id })
         .map_err(anyhow::Error::msg)?
         .record;
-    println!(
-        "deployment {}: {:?}",
-        record.spec.deployment_id, record.spec.status
-    );
+    print_deployment_record(&record, format)?;
     Ok(())
 }
 
-pub fn cmd_deploy_destroy(config_path: &Option<String>) -> Result<()> {
+pub fn cmd_deploy_destroy(config_path: &Option<String>, format: DeployOutputFormat) -> Result<()> {
+    crate::output::info("Checking ownership before destroy...");
     let (plan, deployment_id) = plan_and_id(config_path)?;
     let registry = BackendRegistry::built_in();
     let backend = registry
@@ -151,31 +151,318 @@ pub fn cmd_deploy_destroy(config_path: &Option<String>) -> Result<()> {
         .destroy(DestroyRequest { deployment_id })
         .map_err(anyhow::Error::msg)?
         .record;
-    println!(
-        "deployment {}: {:?}",
-        record.spec.deployment_id, record.spec.status
-    );
+    print_deployment_record(&record, format)?;
     Ok(())
 }
 
-pub fn cmd_deploy_logs(config_path: &Option<String>, service: Option<String>) -> Result<()> {
+pub fn cmd_deploy_logs(
+    config_path: &Option<String>,
+    service: Option<String>,
+    format: DeployOutputFormat,
+) -> Result<()> {
+    crate::output::info("Reading deployment logs...");
     let (plan, deployment_id) = plan_and_id(config_path)?;
     let registry = BackendRegistry::built_in();
     let backend = registry
         .get(&plan.target.backend)
         .map_err(anyhow::Error::msg)?;
     preflight(backend, BackendCapability::Logs).map_err(anyhow::Error::msg)?;
-    for line in backend
+    let response = backend
         .logs(LogsRequest {
-            deployment_id,
-            service,
+            deployment_id: deployment_id.clone(),
+            service: service.clone(),
         })
-        .map_err(anyhow::Error::msg)?
-        .lines
-    {
-        println!("{line}");
+        .map_err(anyhow::Error::msg)?;
+    match format {
+        DeployOutputFormat::Json => println!(
+            "{}",
+            serde_json::to_string_pretty(&DeploymentLogsOutput {
+                deployment_id,
+                service,
+                lines: response.lines,
+            })?
+        ),
+        DeployOutputFormat::Human => {
+            for line in response.lines {
+                println!("{line}");
+            }
+        }
     }
     Ok(())
+}
+
+/// Build an image only from an explicit source-backed image build contract.
+/// Deploy/apply deliberately do not call this command or construct its source
+/// inputs, so deployment can never smuggle a mutable local build into a remote
+/// reconciliation.
+pub fn cmd_image_build(
+    config_path: &Option<String>,
+    format: DeployOutputFormat,
+    push: bool,
+) -> Result<()> {
+    let config = AiboxConfig::from_cli_option(config_path)?;
+    config.validate()?;
+    let image = selected_image_from_config(&config)?;
+    let build = image_build_request(config_path, &image)?;
+    let runtime = crate::runtime::Runtime::detect()
+        .context("aibox image build requires a responsive Docker or Podman runtime")?;
+    let result = runtime.build_image(&build)?;
+    let deployable_reference = if push {
+        runtime.push_image(&image.reference)?;
+        Some(runtime.repo_digest(&image.reference, &result.local_image_id)?)
+    } else {
+        None
+    };
+    print_built_image_output(
+        &image.reference,
+        &result.local_image_id,
+        deployable_reference.as_deref(),
+        &image.platform,
+        format,
+    )
+}
+
+/// Print the immutable image selected by the deployment configuration.
+pub fn cmd_image_inspect(config_path: &Option<String>, format: DeployOutputFormat) -> Result<()> {
+    let image = selected_image(config_path)?;
+    print_image_output(
+        &image.reference,
+        &image.digest,
+        &image.platform,
+        format,
+        "inspected",
+    )
+}
+
+#[derive(Serialize)]
+#[serde(rename_all = "camelCase")]
+struct DeploymentLogsOutput {
+    deployment_id: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    service: Option<String>,
+    lines: Vec<String>,
+}
+
+#[derive(Serialize)]
+#[serde(rename_all = "camelCase")]
+struct ImageOutput<'a> {
+    operation: &'a str,
+    reference: &'a str,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    digest: Option<&'a str>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    immutable_reference: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    local_image_id: Option<&'a str>,
+    deployable_reference: Option<String>,
+    platform: &'a crate::config::OrchestrationPlatform,
+    immutable: bool,
+}
+
+fn selected_image(
+    config_path: &Option<String>,
+) -> Result<crate::config::OrchestrationImageSection> {
+    let config = AiboxConfig::from_cli_option(config_path)?;
+    config.validate()?;
+    selected_image_from_config(&config)
+}
+
+fn selected_image_from_config(
+    config: &AiboxConfig,
+) -> Result<crate::config::OrchestrationImageSection> {
+    if !config.orchestration.enabled {
+        anyhow::bail!("orchestration is not enabled");
+    }
+    config
+        .orchestration
+        .image
+        .clone()
+        .context("orchestration.image is required when orchestration.enabled = true")
+}
+
+fn image_build_request(
+    config_path: &Option<String>,
+    image: &crate::config::OrchestrationImageSection,
+) -> Result<crate::runtime::ImageBuildRequest> {
+    let contract = image.build.as_ref().context(
+        "orchestration.image.build is required for `aibox image build`; configure an explicit source context",
+    )?;
+    let base_dir = config_directory(config_path)?;
+    let context = resolve_source_path(&base_dir, &contract.context)
+        .with_context(|| "could not resolve orchestration.image.build.context")?;
+    if !context.is_dir() {
+        anyhow::bail!(
+            "orchestration.image.build.context '{}' is not a directory",
+            context.display()
+        );
+    }
+    let dockerfile = contract
+        .dockerfile
+        .as_deref()
+        .map(|dockerfile| {
+            let path = resolve_source_path(&context, dockerfile)?;
+            if !path.is_file() {
+                anyhow::bail!(
+                    "orchestration.image.build.dockerfile '{}' is not a file",
+                    path.display()
+                );
+            }
+            Ok(path)
+        })
+        .transpose()?;
+
+    Ok(crate::runtime::ImageBuildRequest {
+        reference: image.reference.clone(),
+        context,
+        dockerfile,
+        target: contract.target.clone(),
+    })
+}
+
+fn config_directory(config_path: &Option<String>) -> Result<PathBuf> {
+    let config_path = config_path
+        .as_deref()
+        .map(Path::new)
+        .unwrap_or_else(|| Path::new("aibox.toml"));
+    let parent = config_path
+        .parent()
+        .filter(|path| !path.as_os_str().is_empty())
+        .unwrap_or_else(|| Path::new("."));
+    parent.canonicalize().with_context(|| {
+        format!(
+            "could not resolve configuration directory {}",
+            parent.display()
+        )
+    })
+}
+
+fn resolve_source_path(base: &Path, configured: &str) -> Result<PathBuf> {
+    let path = Path::new(configured);
+    let candidate = if path.is_absolute() {
+        path.to_path_buf()
+    } else {
+        base.join(path)
+    };
+    candidate
+        .canonicalize()
+        .with_context(|| format!("path '{}' does not exist", candidate.display()))
+}
+
+fn print_image_output(
+    reference: &str,
+    digest: &str,
+    platform: &crate::config::OrchestrationPlatform,
+    format: DeployOutputFormat,
+    operation: &str,
+) -> Result<()> {
+    match format {
+        DeployOutputFormat::Json => println!(
+            "{}",
+            serde_json::to_string_pretty(&ImageOutput {
+                operation,
+                reference,
+                digest: Some(digest),
+                immutable_reference: Some(format!("{reference}@{digest}")),
+                local_image_id: None,
+                deployable_reference: Some(format!("{reference}@{digest}")),
+                platform,
+                immutable: true,
+            })?
+        ),
+        DeployOutputFormat::Human => {
+            println!("Image {operation}");
+            println!("  reference: {reference}");
+            println!("  digest: {digest}");
+            println!("  immutable reference: {reference}@{digest}");
+            println!("  platform: {}", platform_name(platform));
+            println!("  immutable: yes");
+        }
+    }
+    Ok(())
+}
+
+fn print_built_image_output(
+    reference: &str,
+    local_image_id: &str,
+    deployable_reference: Option<&str>,
+    platform: &crate::config::OrchestrationPlatform,
+    format: DeployOutputFormat,
+) -> Result<()> {
+    match format {
+        DeployOutputFormat::Json => println!(
+            "{}",
+            serde_json::to_string_pretty(&ImageOutput {
+                operation: "built",
+                reference,
+                digest: None,
+                immutable_reference: None,
+                local_image_id: Some(local_image_id),
+                deployable_reference: deployable_reference.map(str::to_owned),
+                platform,
+                immutable: true,
+            })?
+        ),
+        DeployOutputFormat::Human => {
+            println!("Image built");
+            println!("  reference: {reference}");
+            println!("  local image ID: {local_image_id}");
+            println!("  platform: {}", platform_name(platform));
+            match deployable_reference {
+                Some(reference) => println!("  deployable reference: {reference}"),
+                None => println!("  deployable reference: not pushed"),
+            }
+            println!("  immutable: yes");
+            println!(
+                "  note: deploy does not build implicitly; use --push to resolve a registry manifest digest"
+            );
+        }
+    }
+    Ok(())
+}
+
+fn print_deployment_record(
+    record: &crate::deployment_contract::DeploymentRecord,
+    format: DeployOutputFormat,
+) -> Result<()> {
+    match format {
+        DeployOutputFormat::Json => println!("{}", serde_json::to_string_pretty(record)?),
+        DeployOutputFormat::Human => {
+            println!("Deployment");
+            println!("  id: {}", record.spec.deployment_id);
+            println!("  backend: {}", backend_name(&record.spec.target.backend));
+            println!("  scope: {}", record.spec.target.scope);
+            println!("  status: {}", deployment_status_name(&record.spec.status));
+            println!("  desired spec digest: {}", record.spec.desired_spec_digest);
+            println!("  image digest: {}", record.spec.image.digest);
+            println!("  services: {}", record.spec.services.len());
+        }
+    }
+    Ok(())
+}
+
+fn backend_name(backend: &BackendKind) -> &'static str {
+    match backend {
+        BackendKind::Compose => "compose",
+        BackendKind::Kubernetes => "kubernetes",
+    }
+}
+
+fn platform_name(platform: &crate::config::OrchestrationPlatform) -> &'static str {
+    match platform {
+        crate::config::OrchestrationPlatform::LinuxAmd64 => "linux-amd64",
+        crate::config::OrchestrationPlatform::LinuxArm64 => "linux-arm64",
+    }
+}
+
+fn deployment_status_name(status: &crate::deployment_contract::DeploymentStatus) -> &'static str {
+    match status {
+        crate::deployment_contract::DeploymentStatus::Desired => "desired",
+        crate::deployment_contract::DeploymentStatus::Observed => "observed",
+        crate::deployment_contract::DeploymentStatus::Degraded => "degraded",
+        crate::deployment_contract::DeploymentStatus::Unavailable => "unavailable",
+        crate::deployment_contract::DeploymentStatus::Orphaned => "orphaned",
+        crate::deployment_contract::DeploymentStatus::Destroyed => "destroyed",
+    }
 }
 
 pub fn cmd_connect(config_path: &Option<String>, name: &str, command: Vec<String>) -> Result<()> {
@@ -193,6 +480,10 @@ pub fn cmd_connect(config_path: &Option<String>, name: &str, command: Vec<String
         .iter()
         .find(|connection| connection.name == name)
         .context("orchestration connection not found")?;
+    let endpoint = match &connection.endpoint {
+        Some(endpoint) => endpoint.clone(),
+        None => default_connection_endpoint(&config.orchestration, &plan, connection)?,
+    };
     let target = ConnectionTarget {
         api_version: ApiVersion::V1Alpha1,
         kind: ConnectionTargetKind::V1Alpha1,
@@ -223,12 +514,7 @@ pub fn cmd_connect(config_path: &Option<String>, name: &str, command: Vec<String
                 crate::config::ConnectionTransport::Ssh => ConnectionTransport::Ssh,
             },
             interactive: connection.interactive,
-            endpoint: connection.endpoint.clone().unwrap_or_else(|| {
-                format!(
-                    "compose://{}/{}",
-                    plan.target.target_ref, connection.service
-                )
-            }),
+            endpoint,
             invocation: if command.is_empty() {
                 connection.invocation.clone()
             } else {
@@ -245,20 +531,80 @@ pub fn cmd_connect(config_path: &Option<String>, name: &str, command: Vec<String
     let backend = registry
         .get(&plan.target.backend)
         .map_err(anyhow::Error::msg)?;
-    preflight(backend, BackendCapability::Exec).map_err(anyhow::Error::msg)?;
+    let capability = match target.spec.transport {
+        ConnectionTransport::KubernetesPortForward => BackendCapability::PortForward,
+        _ => BackendCapability::Exec,
+    };
+    preflight(backend, capability).map_err(anyhow::Error::msg)?;
     let argv = backend
         .connection(ConnectionRequest { target })
         .map_err(anyhow::Error::msg)?
         .command;
     let (program, args) = argv.split_first().context("empty connection command")?;
+    crate::output::info("Opening deployment connection (Ctrl-C cancels foreground connections)...");
     let status = std::process::Command::new(program)
         .args(args)
         .status()
         .context("could not start connection")?;
     if status.success() {
-        Ok(())
-    } else {
-        anyhow::bail!("connection command failed with {status}")
+        return Ok(());
+    }
+    // `kubectl exec` reports the remote command's code.  Do not flatten it
+    // to aibox's generic error status: callers need it for scripts.  A
+    // cancelled port-forward has no numeric status; its signal is preserved
+    // by the terminal/process group and is represented as a generic failure
+    // only if this process remains alive to observe it.
+    std::process::exit(status.code().unwrap_or(1));
+}
+
+fn default_connection_endpoint(
+    orchestration: &crate::config::OrchestrationSection,
+    plan: &DesiredDeploymentPlan,
+    connection: &crate::config::ConnectionIntentSection,
+) -> Result<String> {
+    match connection.transport {
+        crate::config::ConnectionTransport::KubernetesExec => {
+            let context = plan
+                .target
+                .target_ref
+                .strip_prefix("kube-context:")
+                .context("Kubernetes target must use kube-context:<context>")?;
+            Ok(format!(
+                "kubernetes://{context}/{}/{}",
+                plan.target.scope, connection.service
+            ))
+        }
+        crate::config::ConnectionTransport::KubernetesPortForward => {
+            let context = plan
+                .target
+                .target_ref
+                .strip_prefix("kube-context:")
+                .context("Kubernetes target must use kube-context:<context>")?;
+            let service = orchestration
+                .fleet
+                .as_ref()
+                .and_then(|fleet| {
+                    fleet
+                        .services
+                        .iter()
+                        .find(|service| service.name == connection.service)
+                })
+                .context("Kubernetes port-forward service is missing from orchestration.fleet")?;
+            let port = service
+                .ports
+                .iter()
+                .find(|port| port.protocol == crate::config::OrchestrationPortProtocol::Tcp)
+                .context("Kubernetes port-forward requires a TCP port on its service")?;
+            let local_port = port.host_port.unwrap_or(port.container_port);
+            Ok(format!(
+                "kubernetes-port-forward://{context}/{}/{}/127.0.0.1/{local_port}:{}",
+                plan.target.scope, connection.service, port.container_port
+            ))
+        }
+        _ => Ok(format!(
+            "compose://{}/{}",
+            plan.target.target_ref, connection.service
+        )),
     }
 }
 
@@ -479,6 +825,52 @@ labels = { environment = "development" }
         assert_ne!(
             compile_config(&first).unwrap().desired_spec_digest,
             compile_config(&changed).unwrap().desired_spec_digest
+        );
+    }
+
+    #[test]
+    fn kubernetes_connection_defaults_are_typed_endpoints() {
+        let config_text = format!(
+            "{}{}",
+            VALID_CONFIG
+                .replace("backend = \"compose\"", "backend = \"kubernetes\"")
+                .replace(
+                    "reference = \"docker-context:default\"",
+                    "reference = \"kube-context:staging\"",
+                ),
+            r#"
+
+[[orchestration.connections]]
+name = "shell"
+service = "web"
+transport = "kubernetes-exec"
+interactive = true
+
+[[orchestration.connections]]
+name = "web-forward"
+service = "web"
+transport = "kubernetes-port-forward"
+"#
+        );
+        let config = AiboxConfig::from_str(&config_text).unwrap();
+        let plan = compile_config(&config).unwrap();
+        assert_eq!(
+            default_connection_endpoint(
+                &config.orchestration,
+                &plan,
+                &config.orchestration.connections[0]
+            )
+            .unwrap(),
+            "kubernetes://staging/workspace/web"
+        );
+        assert_eq!(
+            default_connection_endpoint(
+                &config.orchestration,
+                &plan,
+                &config.orchestration.connections[1]
+            )
+            .unwrap(),
+            "kubernetes-port-forward://staging/workspace/web/127.0.0.1/18080:8080"
         );
     }
 }

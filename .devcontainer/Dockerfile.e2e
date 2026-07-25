@@ -41,8 +41,26 @@ ARG STARSHIP_VERSION=1.25.1
 RUN ARCH=$(uname -m) && \
     curl -fsSL \
       "https://github.com/starship/starship/releases/download/v${STARSHIP_VERSION}/starship-${ARCH}-unknown-linux-musl.tar.gz" \
-      | tar -xz -C /usr/local/bin && \
+    | tar -xz -C /usr/local/bin && \
     chmod +x /usr/local/bin/starship
+
+FROM fetch-base AS fetch-kubernetes-e2e
+ARG KUBECTL_VERSION=v1.36.3
+ARG KIND_VERSION=v0.32.0
+RUN UNAME_ARCH="$(uname -m)" && \
+    case "${UNAME_ARCH}" in \
+      x86_64) ARCH="amd64" ;; \
+      aarch64) ARCH="arm64" ;; \
+      *) echo "Unsupported Kubernetes E2E architecture: ${UNAME_ARCH}" >&2; exit 1 ;; \
+    esac && \
+    curl -fsSLO "https://dl.k8s.io/release/${KUBECTL_VERSION}/bin/linux/${ARCH}/kubectl" && \
+    curl -fsSLO "https://dl.k8s.io/release/${KUBECTL_VERSION}/bin/linux/${ARCH}/kubectl.sha256" && \
+    printf '%s  %s\n' "$(cat kubectl.sha256)" kubectl | sha256sum --check --strict && \
+    install -m 0755 kubectl /usr/local/bin/kubectl && \
+    curl -fsSLo kind "https://github.com/kubernetes-sigs/kind/releases/download/${KIND_VERSION}/kind-linux-${ARCH}" && \
+    curl -fsSLo kind.sha256sum "https://github.com/kubernetes-sigs/kind/releases/download/${KIND_VERSION}/kind-linux-${ARCH}.sha256sum" && \
+    printf '%s  %s\n' "$(cut -d' ' -f1 kind.sha256sum)" kind | sha256sum --check --strict && \
+    install -m 0755 kind /usr/local/bin/kind
 
 # ── Vim colorschemes ─────────────────────────────────────────────────────────
 FROM fetch-base AS fetch-vim-colors
@@ -116,6 +134,8 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 COPY --from=fetch-yazi    /usr/local/bin/yazi     /usr/local/bin/yazi
 COPY --from=fetch-starship /usr/local/bin/starship /usr/local/bin/starship
 COPY --from=fetch-lazygit /usr/local/bin/lazygit  /usr/local/bin/lazygit
+COPY --from=fetch-kubernetes-e2e /usr/local/bin/kubectl /usr/local/bin/kubectl
+COPY --from=fetch-kubernetes-e2e /usr/local/bin/kind /usr/local/bin/kind
 RUN ln -sf /usr/local/bin/yazi /usr/local/bin/ya
 RUN printf '%s\n' \
     '#!/bin/bash' \
