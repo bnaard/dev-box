@@ -12,6 +12,7 @@ mod deployment_compiler;
 mod deployment_contract;
 mod dirs;
 mod kit;
+mod kubernetes_plan;
 mod latex;
 
 mod addons;

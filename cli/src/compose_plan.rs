@@ -37,6 +37,10 @@ pub struct RenderedDeploymentPlan {
     pub ownership_labels: BTreeMap<String, String>,
     pub compose_yaml: String,
     pub devcontainer_json: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub kubernetes_yaml: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub kubernetes_json: Option<String>,
 }
 
 /// A small command boundary keeps lifecycle tests independent of Docker or
@@ -665,6 +669,8 @@ pub fn render(plan: &DesiredDeploymentPlan) -> Result<RenderedDeploymentPlan, Ba
         compose_yaml: serde_yaml::to_string(&compose).map_err(serialization_error)?,
         devcontainer_json: serde_json::to_string_pretty(&devcontainer)
             .map_err(serialization_error)?,
+        kubernetes_yaml: None,
+        kubernetes_json: None,
     })
 }
 

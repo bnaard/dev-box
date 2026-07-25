@@ -182,6 +182,25 @@ pub struct DeploymentTargetSpec {
     pub scope: String,
     #[serde(default)]
     pub credentials: Vec<CredentialReference>,
+    /// Kubernetes-only intent.  This names already-provisioned facilities;
+    /// it is not a request for aibox to create cluster infrastructure.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub kubernetes: Option<KubernetesReconciliationIntent>,
+}
+
+/// Optional reconciliation intent for resources which must already exist.
+/// DNS credentials are references only and are never resolved by planning.
+#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct KubernetesReconciliationIntent {
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub ingress_class: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub gateway_class: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub dns_zone: Option<String>,
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub dns_credentials: Vec<CredentialReference>,
 }
 
 #[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
@@ -220,6 +239,8 @@ pub enum BackendCapability {
     Logs,
     Exec,
     PortForward,
+    ReconcileIngress,
+    ReconcileDns,
 }
 
 #[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
@@ -255,6 +276,8 @@ pub struct DeploymentTargetIdentity {
     pub backend: BackendKind,
     pub target_ref: String,
     pub scope: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub kubernetes: Option<KubernetesReconciliationIntent>,
 }
 
 #[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
@@ -394,6 +417,7 @@ mod tests {
                     kind: CredentialReferenceKind::EnvironmentVariable,
                     reference: "AIBOX_COMPOSE_TOKEN".to_string(),
                 }],
+                kubernetes: None,
             },
         };
 

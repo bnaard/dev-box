@@ -6,7 +6,7 @@
   "properties": {
     "apiVersion": { "const": "aibox.projectious.work/v1alpha1" }, "kind": { "const": "BackendDescriptor" },
     "metadata": { "$ref": "#/$defs/metadata" },
-    "spec": { "type": "object", "additionalProperties": false, "required": ["backend", "capabilities", "connectionTransports"], "properties": { "backend": { "enum": ["compose", "kubernetes"] }, "capabilities": { "type": "array", "uniqueItems": true, "items": { "enum": ["validate", "plan", "apply", "status", "destroy", "logs", "exec", "port-forward"] } }, "connectionTransports": { "type": "array", "uniqueItems": true, "items": { "enum": ["compose-exec", "kubernetes-exec", "kubernetes-port-forward", "ssh"] } } } }
+    "spec": { "type": "object", "additionalProperties": false, "required": ["backend", "capabilities", "connectionTransports"], "properties": { "backend": { "enum": ["compose", "kubernetes"] }, "capabilities": { "type": "array", "uniqueItems": true, "items": { "enum": ["validate", "plan", "apply", "status", "destroy", "logs", "exec", "port-forward", "reconcile-ingress", "reconcile-dns"] } }, "connectionTransports": { "type": "array", "uniqueItems": true, "items": { "enum": ["compose-exec", "kubernetes-exec", "kubernetes-port-forward", "ssh"] } } } }
   },
   "$defs": { "metadata": { "type": "object", "additionalProperties": false, "required": ["name", "owner"], "properties": { "name": { "type": "string" }, "owner": { "type": "object", "additionalProperties": false, "required": ["ownerId"], "properties": { "ownerId": { "type": "string" } } }, "labels": { "type": "object", "additionalProperties": { "type": "string" } } } } }
 }

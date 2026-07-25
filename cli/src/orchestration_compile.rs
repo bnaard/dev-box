@@ -22,8 +22,8 @@ use crate::deployment_contract::{
     ApiVersion, BackendKind, ConnectionTarget, ConnectionTargetKind, ConnectionTargetSpec,
     ConnectionTransport, CredentialReference, CredentialReferenceKind, DeploymentTarget,
     DeploymentTargetKind, DeploymentTargetSpec, EnvironmentReference, ImmutableImageReference,
-    ObjectMeta, OwnershipReference, PortProtocol, PortSpec, WorkspaceFleetSpec,
-    WorkspaceFleetSpecBody, WorkspaceFleetSpecKind, WorkspaceService,
+    KubernetesReconciliationIntent, ObjectMeta, OwnershipReference, PortProtocol, PortSpec,
+    WorkspaceFleetSpec, WorkspaceFleetSpecBody, WorkspaceFleetSpecKind, WorkspaceService,
 };
 
 /// Print a deterministic deployment plan without performing discovery or mutation.
@@ -81,11 +81,24 @@ pub fn cmd_deploy_plan(config_path: &Option<String>, format: DeployPlanOutputFor
         DeployPlanOutputFormat::Json => println!("{}", serde_json::to_string_pretty(&rendered)?),
         DeployPlanOutputFormat::Human => {
             println!("Deployment plan");
-            println!("  backend: compose");
+            println!(
+                "  backend: {}",
+                match rendered.backend {
+                    BackendKind::Compose => "compose",
+                    BackendKind::Kubernetes => "kubernetes",
+                }
+            );
             println!("  deployment id: {}", rendered.deployment_id);
             println!("  desired spec digest: {}", rendered.desired_spec_digest);
             println!("  image digest: {}", rendered.image_digest);
-            println!("  artifacts: docker-compose.yml, devcontainer.json");
+            match rendered.backend {
+                BackendKind::Compose => {
+                    println!("  artifacts: docker-compose.yml, devcontainer.json")
+                }
+                BackendKind::Kubernetes => {
+                    println!("  artifacts: kubernetes.yaml, kubernetes.json")
+                }
+            }
         }
     }
     Ok(())
@@ -354,6 +367,18 @@ pub fn compile_config(config: &AiboxConfig) -> Result<DesiredDeploymentPlan> {
                 .iter()
                 .map(credential_reference)
                 .collect(),
+            kubernetes: (target.backend == OrchestrationBackend::Kubernetes).then(|| {
+                KubernetesReconciliationIntent {
+                    ingress_class: target.ingress_class.clone(),
+                    gateway_class: target.gateway_class.clone(),
+                    dns_zone: target.dns_zone.clone(),
+                    dns_credentials: target
+                        .dns_credentials
+                        .iter()
+                        .map(credential_reference)
+                        .collect(),
+                }
+            }),
         },
     };
 

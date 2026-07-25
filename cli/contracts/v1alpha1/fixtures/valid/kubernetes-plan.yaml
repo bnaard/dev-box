@@ -1,0 +1,48 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  labels:
+    aibox.projectious.work/deployment-id: demo-fleet-6c8573d067a49bf0
+    aibox.projectious.work/desired-spec-digest: sha256:2cf37010bdc74bc2961125b40c3a1396e6c3206d8f4a70dcbc3b62d67e4545bc
+    aibox.projectious.work/image-digest: sha256:image
+    aibox.projectious.work/namespace: workspace-dev
+  name: workspace
+  namespace: workspace-dev
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      aibox.projectious.work/service: workspace
+  template:
+    metadata:
+      labels:
+        aibox.projectious.work/service: workspace
+    spec:
+      containers:
+      - env:
+        - name: REGISTRY_TOKEN
+          value: aibox-ref:environment-variable:AIBOX_REGISTRY_TOKEN
+        image: ghcr.io/acme/demo@sha256:image
+        name: workspace
+        ports:
+        - containerPort: 3000
+          protocol: TCP
+---
+apiVersion: v1
+kind: Service
+metadata:
+  labels:
+    aibox.projectious.work/deployment-id: demo-fleet-6c8573d067a49bf0
+    aibox.projectious.work/desired-spec-digest: sha256:2cf37010bdc74bc2961125b40c3a1396e6c3206d8f4a70dcbc3b62d67e4545bc
+    aibox.projectious.work/image-digest: sha256:image
+    aibox.projectious.work/namespace: workspace-dev
+  name: workspace
+  namespace: workspace-dev
+spec:
+  ports:
+  - port: 3000
+    protocol: TCP
+    targetPort: 3000
+  selector:
+    aibox.projectious.work/service: workspace
+  type: ClusterIP

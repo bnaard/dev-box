@@ -13,6 +13,7 @@ use crate::deployment_compiler::DesiredDeploymentPlan;
 use crate::deployment_contract::{
     BackendCapability, BackendKind, ConnectionTarget, ContractErrorCode, DeploymentRecord,
 };
+use crate::kubernetes_plan::KubernetesBackend;
 
 #[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
 #[serde(rename_all = "camelCase")]
@@ -135,7 +136,10 @@ pub struct BackendRegistry {
 impl BackendRegistry {
     pub fn built_in() -> Self {
         Self {
-            backends: vec![Box::new(ComposeBackend::for_current_dir())],
+            backends: vec![
+                Box::new(ComposeBackend::for_current_dir()),
+                Box::new(KubernetesBackend::plan_only()),
+            ],
         }
     }
 
@@ -144,7 +148,10 @@ impl BackendRegistry {
     /// process current directory.
     pub fn built_in_for(project_dir: std::path::PathBuf) -> Self {
         Self {
-            backends: vec![Box::new(ComposeBackend::for_project(project_dir))],
+            backends: vec![
+                Box::new(ComposeBackend::for_project(project_dir)),
+                Box::new(KubernetesBackend::plan_only()),
+            ],
         }
     }
     pub fn get(&self, kind: &BackendKind) -> Result<&dyn Backend, BackendError> {
@@ -172,6 +179,8 @@ pub fn preflight(backend: &dyn Backend, capability: BackendCapability) -> Result
             BackendCapability::Logs => "logs",
             BackendCapability::Exec => "connection",
             BackendCapability::PortForward => "port-forward",
+            BackendCapability::ReconcileIngress => "reconcile-ingress",
+            BackendCapability::ReconcileDns => "reconcile-dns",
         }))
     }
 }
@@ -187,6 +196,19 @@ mod tests {
         let backend = registry.get(&BackendKind::Compose).unwrap();
         assert!(preflight(backend, BackendCapability::Plan).is_ok());
         assert!(preflight(backend, BackendCapability::Apply).is_ok());
+    }
+
+    #[test]
+    fn kubernetes_is_registered_for_non_mutating_plan_only() {
+        let registry = BackendRegistry::built_in();
+        let backend = registry.get(&BackendKind::Kubernetes).unwrap();
+        assert!(preflight(backend, BackendCapability::Plan).is_ok());
+        assert_eq!(
+            preflight(backend, BackendCapability::Apply)
+                .unwrap_err()
+                .code,
+            ContractErrorCode::CapabilityUnsupported
+        );
     }
 
     #[test]
