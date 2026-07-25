@@ -133,9 +133,10 @@ apply; connect only after the deployment operation finishes. The alias requires
 an enabled `[orchestration]` configuration.
 
 ```bash
-# Inspect or explicitly resolve the immutable image selected by configuration.
+# Inspect the immutable deployment input, or explicitly build its source contract.
 aibox image inspect
 aibox image build --output json
+aibox image build --push --output json
 
 # Plan without mutation, then reconcile and observe the deployment.
 aibox deploy plan --output json
@@ -152,11 +153,32 @@ aibox up
 aibox down
 ```
 
-`image build` deliberately resolves and validates the configured immutable
-`reference@digest`; it does not invent a mutable Dockerfile build. Deploy
-operations consume that immutable image and never build it implicitly. This
-keeps remote apply reproducible and makes any future source-backed image builder
-an explicit capability rather than hidden work.
+`image build` is an explicit source-backed operation. Configure it beneath the
+deployment image with a build context and, when needed, a Dockerfile and named
+stage:
+
+```toml
+[orchestration.image]
+reference = "ghcr.io/acme/workspace:build"
+digest = "sha256:<currently-selected-deployment-manifest-digest>"
+platform = "linux-amd64"
+
+[orchestration.image.build]
+context = "image-source"
+dockerfile = "Containerfile" # optional; relative to context
+target = "runtime"            # optional
+```
+
+The command passes this contract as typed Docker or Podman arguments; it does
+not accept build arguments, environment values, or secrets. A normal build
+returns its immutable local image ID and deliberately reports no deployable
+reference. Use `--push` to publish the explicit tag and verify the runtime's
+registry `RepoDigests`; only then does the output include a pullable
+`reference@sha256:<manifest>` value. Copy that digest into
+`orchestration.image.digest` when you are ready to promote it for deployment.
+
+Deploy operations always consume the configured immutable image and never build
+or push implicitly.
 
 Every v1 `deploy` command accepts `-o, --output human|json`. JSON is a single
 machine-readable document on stdout; progress, warnings, and errors use stderr.

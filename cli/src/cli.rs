@@ -637,8 +637,11 @@ pub enum DeployAction {
 
 #[derive(Clone, Debug, Subcommand)]
 pub enum ImageAction {
-    /// Validate and explicitly resolve the immutable image consumed by a deployment.
+    /// Build an image from the explicit orchestration source contract.
     Build {
+        /// Push the tagged image and resolve its registry manifest digest.
+        #[arg(long)]
+        push: bool,
         /// Output format
         #[arg(
             long,

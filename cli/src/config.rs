@@ -3621,16 +3621,36 @@ impl OrchestrationSection {
     }
 }
 
-/// An immutable image selected by deployment intent.  Image construction is
-/// intentionally not represented here: a future explicit build command may
-/// produce a digest, but apply-time deployment only consumes this immutable
-/// reference.
+/// An immutable image selected by deployment intent.  Deployments consume this
+/// reference as-is; an optional source build contract is only used by the
+/// explicit `aibox image build` command.
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
 #[serde(deny_unknown_fields)]
 pub struct OrchestrationImageSection {
     pub reference: String,
     pub digest: String,
     pub platform: OrchestrationPlatform,
+    #[serde(default)]
+    pub build: Option<OrchestrationImageBuildSection>,
+}
+
+/// Explicit, source-backed input for `aibox image build`.
+///
+/// This intentionally has no build arguments, environment, or secret fields.
+/// Build-time credentials must remain in the container runtime's established
+/// credential flow rather than becoming configuration values that can leak into
+/// plans, logs, or generated deployment artifacts.
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+#[serde(deny_unknown_fields)]
+pub struct OrchestrationImageBuildSection {
+    /// Directory sent to the selected container runtime as the build context.
+    pub context: String,
+    /// Optional Dockerfile/Containerfile path, resolved relative to `context`.
+    #[serde(default)]
+    pub dockerfile: Option<String>,
+    /// Optional named Dockerfile stage.
+    #[serde(default)]
+    pub target: Option<String>,
 }
 
 #[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq)]
@@ -4639,6 +4659,9 @@ impl AiboxConfig {
             .as_ref()
             .context("orchestration.image is required when orchestration.enabled = true")?;
         validate_image_reference(&image.reference, &image.digest)?;
+        if let Some(build) = &image.build {
+            validate_orchestration_build_contract(build)?;
+        }
 
         let fleet = orchestration
             .fleet
@@ -5383,6 +5406,31 @@ fn validate_image_reference(reference: &str, digest: &str) -> Result<()> {
     };
     if hex.len() != 64 || !hex.chars().all(|character| character.is_ascii_hexdigit()) {
         bail!("orchestration.image.digest must contain exactly 64 hexadecimal characters");
+    }
+    Ok(())
+}
+
+fn validate_orchestration_build_contract(build: &OrchestrationImageBuildSection) -> Result<()> {
+    validate_orchestration_build_value("orchestration.image.build.context", &build.context)?;
+    if let Some(dockerfile) = &build.dockerfile {
+        validate_orchestration_build_value("orchestration.image.build.dockerfile", dockerfile)?;
+    }
+    if let Some(target) = &build.target {
+        validate_orchestration_build_value("orchestration.image.build.target", target)?;
+        if target.chars().any(char::is_whitespace) {
+            bail!("orchestration.image.build.target must not contain whitespace");
+        }
+    }
+    Ok(())
+}
+
+fn validate_orchestration_build_value(field: &str, value: &str) -> Result<()> {
+    if value.trim().is_empty()
+        || value.contains('\0')
+        || value.contains('\n')
+        || value.contains('\r')
+    {
+        bail!("{field} must be a non-empty, single-line value");
     }
     Ok(())
 }
@@ -8760,6 +8808,7 @@ interactive = true
                 reference: "ghcr.io/acme/workspace".to_string(),
                 digest: "latest".to_string(),
                 platform: OrchestrationPlatform::LinuxAmd64,
+                build: None,
             }),
             fleet: Some(OrchestrationFleetSection {
                 name: "workspace".to_string(),
@@ -8821,6 +8870,24 @@ interactive = true
     }
 
     #[test]
+    fn orchestration_build_contract_rejects_blank_or_multiline_values() {
+        let valid = OrchestrationImageBuildSection {
+            context: "image-source".to_string(),
+            dockerfile: Some("Containerfile".to_string()),
+            target: Some("runtime".to_string()),
+        };
+        assert!(validate_orchestration_build_contract(&valid).is_ok());
+
+        let mut invalid = valid.clone();
+        invalid.context = "\n".to_string();
+        assert!(validate_orchestration_build_contract(&invalid).is_err());
+
+        invalid = valid;
+        invalid.target = Some("runtime stage".to_string());
+        assert!(validate_orchestration_build_contract(&invalid).is_err());
+    }
+
+    #[test]
     fn orchestration_requires_explicit_enablement_and_backend_compatible_connections() {
         let mut config = test_config();
         config.orchestration.image = Some(OrchestrationImageSection {
@@ -8828,6 +8895,7 @@ interactive = true
             digest: "sha256:0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef"
                 .to_string(),
             platform: OrchestrationPlatform::LinuxAmd64,
+            build: None,
         });
         assert!(
             config

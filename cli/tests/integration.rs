@@ -1,3 +1,4 @@
+use std::io::Write;
 use std::process::Command;
 
 use serde_json::Value;
@@ -32,6 +33,22 @@ fn run_in_dir(dir: &std::path::Path, args: &[&str]) -> std::process::Output {
         .env("AIBOX_ADDONS_DIR", addons_dir())
         .output()
         .expect("failed to execute aibox binary")
+}
+
+fn run_in_dir_with_env(
+    dir: &std::path::Path,
+    args: &[&str],
+    env: &[(&str, std::ffi::OsString)],
+) -> std::process::Output {
+    let mut command = Command::new(aibox_bin());
+    command
+        .args(args)
+        .current_dir(dir)
+        .env("AIBOX_ADDONS_DIR", addons_dir());
+    for (key, value) in env {
+        command.env(key, value);
+    }
+    command.output().expect("failed to execute aibox binary")
 }
 
 fn parse_json(output: &std::process::Output) -> Value {
@@ -121,6 +138,27 @@ owner_id = "team-a"
 "#,
     )
     .unwrap();
+}
+
+fn write_image_build_fixture(dir: &std::path::Path) {
+    write_orchestration_compile_fixture(dir);
+    let source = dir.join("image-source");
+    std::fs::create_dir_all(&source).unwrap();
+    std::fs::write(source.join("Containerfile"), "FROM scratch\n").unwrap();
+    std::fs::OpenOptions::new()
+        .append(true)
+        .open(dir.join("aibox.toml"))
+        .unwrap()
+        .write_all(
+            br#"
+
+[orchestration.image.build]
+context = "image-source"
+dockerfile = "Containerfile"
+target = "runtime"
+"#,
+        )
+        .unwrap();
 }
 
 #[test]
@@ -218,7 +256,7 @@ fn deploy_plan_renders_compose_artifacts_without_writing_project_files() {
 }
 
 #[test]
-fn image_commands_expose_only_the_immutable_deployment_input() {
+fn image_build_requires_an_explicit_source_contract() {
     let dir = tempfile::tempdir().unwrap();
     write_orchestration_compile_fixture(dir.path());
 
@@ -229,10 +267,138 @@ fn image_commands_expose_only_the_immutable_deployment_input() {
     assert!(inspect_json["immutable"].as_bool().unwrap());
 
     let build = run_in_dir(dir.path(), &["image", "build", "--output", "json"]);
-    let build_json = parse_json(&build);
-    assert_eq!(build_json["operation"], "resolved");
-    assert_eq!(build_json["digest"], inspect_json["digest"]);
-    assert!(build_json["immutable"].as_bool().unwrap());
+    assert!(!build.status.success());
+    assert!(
+        String::from_utf8_lossy(&build.stderr).contains("orchestration.image.build is required")
+    );
+}
+
+#[cfg(unix)]
+fn write_fake_container_runtime(dir: &std::path::Path) -> std::path::PathBuf {
+    use std::os::unix::fs::PermissionsExt;
+
+    let bin_dir = dir.join("fake-bin");
+    std::fs::create_dir_all(&bin_dir).unwrap();
+    let runtime = bin_dir.join("docker");
+    std::fs::write(
+        &runtime,
+        r#"#!/bin/sh
+case "$1" in
+  info)
+    exit 0
+    ;;
+  build)
+    shift
+    iidfile=""
+    while [ "$#" -gt 0 ]; do
+      printf '%s\n' "$1" >> "$AIBOX_FAKE_RUNTIME_LOG"
+      if [ "$1" = "--iidfile" ]; then
+        iidfile="$2"
+      fi
+      shift
+    done
+    printf '%s\n' "$AIBOX_FAKE_IMAGE_ID" > "$iidfile"
+    exit 0
+    ;;
+  push)
+    printf 'push %s\n' "$2" >> "$AIBOX_FAKE_RUNTIME_LOG"
+    exit 0
+    ;;
+  image)
+    printf 'image %s %s\n' "$2" "$3" >> "$AIBOX_FAKE_RUNTIME_LOG"
+    printf '%s\n' "${AIBOX_FAKE_REPO_DIGESTS:-[]}"
+    exit 0
+    ;;
+esac
+exit 1
+"#,
+    )
+    .unwrap();
+    std::fs::set_permissions(&runtime, std::fs::Permissions::from_mode(0o755)).unwrap();
+    bin_dir
+}
+
+#[cfg(unix)]
+fn fake_runtime_env(
+    dir: &std::path::Path,
+    repo_digests: &str,
+) -> Vec<(&'static str, std::ffi::OsString)> {
+    let bin_dir = write_fake_container_runtime(dir);
+    let path = std::env::var_os("PATH").unwrap_or_default();
+    let mut paths = std::env::split_paths(&path).collect::<Vec<_>>();
+    paths.insert(0, bin_dir);
+    vec![
+        ("PATH", std::env::join_paths(paths).unwrap()),
+        (
+            "AIBOX_FAKE_RUNTIME_LOG",
+            dir.join("runtime-args.log").into_os_string(),
+        ),
+        (
+            "AIBOX_FAKE_IMAGE_ID",
+            "sha256:0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef".into(),
+        ),
+        ("AIBOX_FAKE_REPO_DIGESTS", repo_digests.into()),
+    ]
+}
+
+#[cfg(unix)]
+#[test]
+fn image_build_uses_source_contract_and_reports_only_a_local_identity_without_push() {
+    let dir = tempfile::tempdir().unwrap();
+    write_image_build_fixture(dir.path());
+    let env = fake_runtime_env(dir.path(), "[]");
+
+    let output = run_in_dir_with_env(dir.path(), &["image", "build", "--output", "json"], &env);
+    let json = parse_json(&output);
+    assert_eq!(json["operation"], "built");
+    assert_eq!(
+        json["localImageId"],
+        "sha256:0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef"
+    );
+    assert!(json["deployableReference"].is_null());
+    assert!(json.get("immutableReference").is_none());
+
+    let argv = std::fs::read_to_string(dir.path().join("runtime-args.log")).unwrap();
+    assert!(argv.contains("--tag\nghcr.io/acme/workspace\n"));
+    assert!(argv.contains("--file\n"));
+    assert!(argv.contains("Containerfile\n"));
+    assert!(argv.contains("--target\nruntime\n"));
+    assert!(argv.contains("--iidfile\n"));
+}
+
+#[cfg(unix)]
+#[test]
+fn image_build_push_returns_only_a_verified_registry_manifest_reference() {
+    let dir = tempfile::tempdir().unwrap();
+    write_image_build_fixture(dir.path());
+    let repo_digests = "[\"ghcr.io/acme/workspace@sha256:abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789\"]";
+    let env = fake_runtime_env(dir.path(), repo_digests);
+
+    let output = run_in_dir_with_env(
+        dir.path(),
+        &["image", "build", "--push", "--output", "json"],
+        &env,
+    );
+    let json = parse_json(&output);
+    assert_eq!(
+        json["deployableReference"],
+        "ghcr.io/acme/workspace@sha256:abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789"
+    );
+    let argv = std::fs::read_to_string(dir.path().join("runtime-args.log")).unwrap();
+    assert!(argv.contains("push ghcr.io/acme/workspace"));
+    assert!(argv.contains("image inspect --format"));
+}
+
+#[cfg(unix)]
+#[test]
+fn image_build_push_rejects_an_unresolved_registry_result() {
+    let dir = tempfile::tempdir().unwrap();
+    write_image_build_fixture(dir.path());
+    let env = fake_runtime_env(dir.path(), "[]");
+
+    let output = run_in_dir_with_env(dir.path(), &["image", "build", "--push"], &env);
+    assert!(!output.status.success());
+    assert!(String::from_utf8_lossy(&output.stderr).contains("registry manifest digest"));
 }
 
 #[test]

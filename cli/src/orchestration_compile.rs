@@ -4,6 +4,7 @@
 //! boundary explicit and keeps apply-time image builds disabled.
 
 use anyhow::{Context, Result};
+use std::path::{Path, PathBuf};
 
 use serde::Serialize;
 
@@ -190,19 +191,47 @@ pub fn cmd_deploy_logs(
     Ok(())
 }
 
-/// Validate the selected immutable image as an explicit, non-mutating build
-/// operation. A v1 image selector always consumes `reference@digest`; it does
-/// not carry a mutable Dockerfile/build context, so this command deliberately
-/// cannot smuggle a local build into deploy/apply.
-pub fn cmd_image_build(config_path: &Option<String>, format: DeployOutputFormat) -> Result<()> {
-    let image = selected_image(config_path)?;
-    print_image_output(&image, format, "resolved")
+/// Build an image only from an explicit source-backed image build contract.
+/// Deploy/apply deliberately do not call this command or construct its source
+/// inputs, so deployment can never smuggle a mutable local build into a remote
+/// reconciliation.
+pub fn cmd_image_build(
+    config_path: &Option<String>,
+    format: DeployOutputFormat,
+    push: bool,
+) -> Result<()> {
+    let config = AiboxConfig::from_cli_option(config_path)?;
+    config.validate()?;
+    let image = selected_image_from_config(&config)?;
+    let build = image_build_request(config_path, &image)?;
+    let runtime = crate::runtime::Runtime::detect()
+        .context("aibox image build requires a responsive Docker or Podman runtime")?;
+    let result = runtime.build_image(&build)?;
+    let deployable_reference = if push {
+        runtime.push_image(&image.reference)?;
+        Some(runtime.repo_digest(&image.reference, &result.local_image_id)?)
+    } else {
+        None
+    };
+    print_built_image_output(
+        &image.reference,
+        &result.local_image_id,
+        deployable_reference.as_deref(),
+        &image.platform,
+        format,
+    )
 }
 
 /// Print the immutable image selected by the deployment configuration.
 pub fn cmd_image_inspect(config_path: &Option<String>, format: DeployOutputFormat) -> Result<()> {
     let image = selected_image(config_path)?;
-    print_image_output(&image, format, "inspected")
+    print_image_output(
+        &image.reference,
+        &image.digest,
+        &image.platform,
+        format,
+        "inspected",
+    )
 }
 
 #[derive(Serialize)]
@@ -219,7 +248,13 @@ struct DeploymentLogsOutput {
 struct ImageOutput<'a> {
     operation: &'a str,
     reference: &'a str,
-    digest: &'a str,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    digest: Option<&'a str>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    immutable_reference: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    local_image_id: Option<&'a str>,
+    deployable_reference: Option<String>,
     platform: &'a crate::config::OrchestrationPlatform,
     immutable: bool,
 }
@@ -229,17 +264,94 @@ fn selected_image(
 ) -> Result<crate::config::OrchestrationImageSection> {
     let config = AiboxConfig::from_cli_option(config_path)?;
     config.validate()?;
+    selected_image_from_config(&config)
+}
+
+fn selected_image_from_config(
+    config: &AiboxConfig,
+) -> Result<crate::config::OrchestrationImageSection> {
     if !config.orchestration.enabled {
         anyhow::bail!("orchestration is not enabled");
     }
     config
         .orchestration
         .image
+        .clone()
         .context("orchestration.image is required when orchestration.enabled = true")
 }
 
-fn print_image_output(
+fn image_build_request(
+    config_path: &Option<String>,
     image: &crate::config::OrchestrationImageSection,
+) -> Result<crate::runtime::ImageBuildRequest> {
+    let contract = image.build.as_ref().context(
+        "orchestration.image.build is required for `aibox image build`; configure an explicit source context",
+    )?;
+    let base_dir = config_directory(config_path)?;
+    let context = resolve_source_path(&base_dir, &contract.context)
+        .with_context(|| "could not resolve orchestration.image.build.context")?;
+    if !context.is_dir() {
+        anyhow::bail!(
+            "orchestration.image.build.context '{}' is not a directory",
+            context.display()
+        );
+    }
+    let dockerfile = contract
+        .dockerfile
+        .as_deref()
+        .map(|dockerfile| {
+            let path = resolve_source_path(&context, dockerfile)?;
+            if !path.is_file() {
+                anyhow::bail!(
+                    "orchestration.image.build.dockerfile '{}' is not a file",
+                    path.display()
+                );
+            }
+            Ok(path)
+        })
+        .transpose()?;
+
+    Ok(crate::runtime::ImageBuildRequest {
+        reference: image.reference.clone(),
+        context,
+        dockerfile,
+        target: contract.target.clone(),
+    })
+}
+
+fn config_directory(config_path: &Option<String>) -> Result<PathBuf> {
+    let config_path = config_path
+        .as_deref()
+        .map(Path::new)
+        .unwrap_or_else(|| Path::new("aibox.toml"));
+    let parent = config_path
+        .parent()
+        .filter(|path| !path.as_os_str().is_empty())
+        .unwrap_or_else(|| Path::new("."));
+    parent.canonicalize().with_context(|| {
+        format!(
+            "could not resolve configuration directory {}",
+            parent.display()
+        )
+    })
+}
+
+fn resolve_source_path(base: &Path, configured: &str) -> Result<PathBuf> {
+    let path = Path::new(configured);
+    let candidate = if path.is_absolute() {
+        path.to_path_buf()
+    } else {
+        base.join(path)
+    };
+    candidate
+        .canonicalize()
+        .with_context(|| format!("path '{}' does not exist", candidate.display()))
+}
+
+fn print_image_output(
+    reference: &str,
+    digest: &str,
+    platform: &crate::config::OrchestrationPlatform,
     format: DeployOutputFormat,
     operation: &str,
 ) -> Result<()> {
@@ -248,23 +360,61 @@ fn print_image_output(
             "{}",
             serde_json::to_string_pretty(&ImageOutput {
                 operation,
-                reference: &image.reference,
-                digest: &image.digest,
-                platform: &image.platform,
+                reference,
+                digest: Some(digest),
+                immutable_reference: Some(format!("{reference}@{digest}")),
+                local_image_id: None,
+                deployable_reference: Some(format!("{reference}@{digest}")),
+                platform,
                 immutable: true,
             })?
         ),
         DeployOutputFormat::Human => {
             println!("Image {operation}");
-            println!("  reference: {}", image.reference);
-            println!("  digest: {}", image.digest);
-            println!("  platform: {}", platform_name(&image.platform));
+            println!("  reference: {reference}");
+            println!("  digest: {digest}");
+            println!("  immutable reference: {reference}@{digest}");
+            println!("  platform: {}", platform_name(platform));
             println!("  immutable: yes");
-            if operation == "resolved" {
-                println!(
-                    "  note: deploy consumes this immutable image; it does not build it implicitly"
-                );
+        }
+    }
+    Ok(())
+}
+
+fn print_built_image_output(
+    reference: &str,
+    local_image_id: &str,
+    deployable_reference: Option<&str>,
+    platform: &crate::config::OrchestrationPlatform,
+    format: DeployOutputFormat,
+) -> Result<()> {
+    match format {
+        DeployOutputFormat::Json => println!(
+            "{}",
+            serde_json::to_string_pretty(&ImageOutput {
+                operation: "built",
+                reference,
+                digest: None,
+                immutable_reference: None,
+                local_image_id: Some(local_image_id),
+                deployable_reference: deployable_reference.map(str::to_owned),
+                platform,
+                immutable: true,
+            })?
+        ),
+        DeployOutputFormat::Human => {
+            println!("Image built");
+            println!("  reference: {reference}");
+            println!("  local image ID: {local_image_id}");
+            println!("  platform: {}", platform_name(platform));
+            match deployable_reference {
+                Some(reference) => println!("  deployable reference: {reference}"),
+                None => println!("  deployable reference: not pushed"),
             }
+            println!("  immutable: yes");
+            println!(
+                "  note: deploy does not build implicitly; use --push to resolve a registry manifest digest"
+            );
         }
     }
     Ok(())

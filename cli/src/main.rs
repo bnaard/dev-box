@@ -251,8 +251,8 @@ fn dispatch(cli: cli::Cli) -> anyhow::Result<()> {
             }
         },
         cli::Commands::Image { action } => match action {
-            cli::ImageAction::Build { format } => {
-                orchestration_compile::cmd_image_build(config_path, format)
+            cli::ImageAction::Build { format, push } => {
+                orchestration_compile::cmd_image_build(config_path, format, push)
             }
             cli::ImageAction::Inspect { format } => {
                 orchestration_compile::cmd_image_inspect(config_path, format)
