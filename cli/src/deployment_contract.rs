@@ -295,6 +295,9 @@ pub enum DeploymentStatus {
     Observed,
     Degraded,
     Unavailable,
+    /// Resources bearing this deployment id exist, but their ownership
+    /// metadata no longer proves that aibox may manage them.
+    Orphaned,
     Destroyed,
 }
 
