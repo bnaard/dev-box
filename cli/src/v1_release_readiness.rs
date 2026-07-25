@@ -21,7 +21,8 @@ use crate::config::AiboxConfig;
 const BACKUP_RELATIVE_DIR: &str = ".aibox/backups/v1-config";
 const RECEIPT_RELATIVE_PATH: &str = ".aibox/migrations/v1-config.json";
 const M7C_EVIDENCE_RELATIVE_PATH: &str = ".aibox/release-evidence/m7c-live.json";
-const M5_PROVISIONAL_MARKER: &str = "production use remains disabled";
+const M5_PROVISIONAL_MARKER: &str =
+    "Stable-v1 release remains gated on a tagged processkit prerelease";
 
 #[derive(Clone, Debug, Eq, PartialEq, Serialize)]
 #[serde(rename_all = "camelCase")]
@@ -161,17 +162,15 @@ fn threat_model_gate() -> ReleaseGate {
 
 fn m5_gate() -> ReleaseGate {
     let protocol_source = include_str!("processkit_protocol.rs");
-    let provisional = protocol_source.contains(M5_PROVISIONAL_MARKER)
-        || protocol_source
-            .contains("fixture schema is frozen for joint review with processkit#118");
+    let provisional = protocol_source.contains(M5_PROVISIONAL_MARKER);
     if provisional {
         ReleaseGate {
             id: "m5-processkit-production-integration".to_string(),
             title: "M5 production processkit protocol integration (#118)".to_string(),
             status: GateStatus::Blocked,
             blocking: true,
-            evidence: "The compiled protocol boundary still declares production use disabled and relies on the joint processkit#118 fixture contract.".to_string(),
-            remediation: "Wait for the compatible processkit #118 producer release, integrate its real CLI protocol, and replace provisional-fixture parity with production invocation evidence.".to_string(),
+            evidence: "The real installer/v1alpha1 consumer adapter is implemented, but its compatibility evidence is not yet tied to a tagged processkit prerelease.".to_string(),
+            remediation: "Fix the producer lifecycle mismatch reported in aibox Discussion #186, tag the compatible processkit alpha, and pass both producer and aibox consumer gates against that tag.".to_string(),
         }
     } else {
         ReleaseGate {
