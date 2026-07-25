@@ -181,7 +181,7 @@ fn dockerfile_contains_etc_aibox_version_write() {
 
 // ─── Test 3: cmd_up version mismatch hard-error ──────────────────────────────
 
-/// `aibox up` must exit non-zero with a clear error message when the running
+/// `aibox up --legacy-runtime` must exit non-zero with a clear error message when the running
 /// container was built from an older image than the version pinned in aibox.toml.
 /// Running with a stale image risks subtle behaviour differences — BACK-060
 /// makes this a hard failure rather than a silent continue.
@@ -196,7 +196,7 @@ fn up_fails_on_image_version_mismatch() {
     // Simulate: container is running but was built from an old image (v0.0.1)
     let output = run_in_with_mock(
         dir.path(),
-        &["up"],
+        &["up", "--legacy-runtime"],
         &mock,
         "running", // MOCK_CONTAINER_STATE
         "0.0.1",   // MOCK_CONTAINER_VERSION — old, mismatches config
@@ -220,7 +220,7 @@ fn up_fails_on_image_version_mismatch() {
 
 // ─── Test 4: cmd_up happy path — versions match ──────────────────────────────
 
-/// `aibox up` must NOT error when the container's image label matches the
+/// `aibox up --legacy-runtime` must NOT error when the container's image label matches the
 /// version pinned in aibox.toml. This is the normal day-to-day path.
 #[test]
 fn up_does_not_error_when_versions_match() {
@@ -235,7 +235,7 @@ fn up_does_not_error_when_versions_match() {
 
     let output = run_in_with_mock(
         dir.path(),
-        &["up"],
+        &["up", "--legacy-runtime"],
         &mock,
         "running",       // MOCK_CONTAINER_STATE
         current_version, // MOCK_CONTAINER_VERSION — matches config
@@ -275,7 +275,7 @@ rich = {{}}
     let mock = super::mock_runtime::MockRuntime::new();
     let output = run_in_with_mock(
         dir.path(),
-        &["up"],
+        &["up", "--legacy-runtime"],
         &mock,
         "running",
         env!("CARGO_PKG_VERSION"),

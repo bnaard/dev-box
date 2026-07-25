@@ -5,7 +5,9 @@
 
 use anyhow::{Context, Result};
 
-use crate::cli::{CompileOutputFormat, DeployPlanOutputFormat};
+use serde::Serialize;
+
+use crate::cli::{CompileOutputFormat, DeployOutputFormat};
 use crate::config::{
     AiboxConfig, CredentialReferenceKind as ConfigCredentialKind, CredentialReferenceSection,
     OrchestrationBackend, OrchestrationPortProtocol,
@@ -65,7 +67,7 @@ pub fn cmd_config_compile(config_path: &Option<String>, format: CompileOutputFor
 }
 
 /// Render a backend-specific deployment plan without runtime discovery, file writes, or mutation.
-pub fn cmd_deploy_plan(config_path: &Option<String>, format: DeployPlanOutputFormat) -> Result<()> {
+pub fn cmd_deploy_plan(config_path: &Option<String>, format: DeployOutputFormat) -> Result<()> {
     let config = AiboxConfig::from_cli_option(config_path)?;
     let plan = compile_config(&config)?;
     let registry = BackendRegistry::built_in();
@@ -78,8 +80,8 @@ pub fn cmd_deploy_plan(config_path: &Option<String>, format: DeployPlanOutputFor
         .map_err(anyhow::Error::msg)?
         .rendered;
     match format {
-        DeployPlanOutputFormat::Json => println!("{}", serde_json::to_string_pretty(&rendered)?),
-        DeployPlanOutputFormat::Human => {
+        DeployOutputFormat::Json => println!("{}", serde_json::to_string_pretty(&rendered)?),
+        DeployOutputFormat::Human => {
             println!("Deployment plan");
             println!(
                 "  backend: {}",
@@ -104,7 +106,8 @@ pub fn cmd_deploy_plan(config_path: &Option<String>, format: DeployPlanOutputFor
     Ok(())
 }
 
-pub fn cmd_deploy_apply(config_path: &Option<String>) -> Result<()> {
+pub fn cmd_deploy_apply(config_path: &Option<String>, format: DeployOutputFormat) -> Result<()> {
+    crate::output::info("Reconciling deployment...");
     let plan = load_plan(config_path)?;
     let registry = BackendRegistry::built_in();
     let backend = registry
@@ -115,14 +118,12 @@ pub fn cmd_deploy_apply(config_path: &Option<String>) -> Result<()> {
         .apply(ApplyRequest { plan })
         .map_err(anyhow::Error::msg)?
         .record;
-    println!(
-        "deployment {}: {:?}",
-        record.spec.deployment_id, record.spec.status
-    );
+    print_deployment_record(&record, format)?;
     Ok(())
 }
 
-pub fn cmd_deploy_status(config_path: &Option<String>) -> Result<()> {
+pub fn cmd_deploy_status(config_path: &Option<String>, format: DeployOutputFormat) -> Result<()> {
+    crate::output::info("Observing deployment...");
     let (plan, deployment_id) = plan_and_id(config_path)?;
     let registry = BackendRegistry::built_in();
     let backend = registry
@@ -133,14 +134,12 @@ pub fn cmd_deploy_status(config_path: &Option<String>) -> Result<()> {
         .status(StatusRequest { deployment_id })
         .map_err(anyhow::Error::msg)?
         .record;
-    println!(
-        "deployment {}: {:?}",
-        record.spec.deployment_id, record.spec.status
-    );
+    print_deployment_record(&record, format)?;
     Ok(())
 }
 
-pub fn cmd_deploy_destroy(config_path: &Option<String>) -> Result<()> {
+pub fn cmd_deploy_destroy(config_path: &Option<String>, format: DeployOutputFormat) -> Result<()> {
+    crate::output::info("Checking ownership before destroy...");
     let (plan, deployment_id) = plan_and_id(config_path)?;
     let registry = BackendRegistry::built_in();
     let backend = registry
@@ -151,31 +150,169 @@ pub fn cmd_deploy_destroy(config_path: &Option<String>) -> Result<()> {
         .destroy(DestroyRequest { deployment_id })
         .map_err(anyhow::Error::msg)?
         .record;
-    println!(
-        "deployment {}: {:?}",
-        record.spec.deployment_id, record.spec.status
-    );
+    print_deployment_record(&record, format)?;
     Ok(())
 }
 
-pub fn cmd_deploy_logs(config_path: &Option<String>, service: Option<String>) -> Result<()> {
+pub fn cmd_deploy_logs(
+    config_path: &Option<String>,
+    service: Option<String>,
+    format: DeployOutputFormat,
+) -> Result<()> {
+    crate::output::info("Reading deployment logs...");
     let (plan, deployment_id) = plan_and_id(config_path)?;
     let registry = BackendRegistry::built_in();
     let backend = registry
         .get(&plan.target.backend)
         .map_err(anyhow::Error::msg)?;
     preflight(backend, BackendCapability::Logs).map_err(anyhow::Error::msg)?;
-    for line in backend
+    let response = backend
         .logs(LogsRequest {
-            deployment_id,
-            service,
+            deployment_id: deployment_id.clone(),
+            service: service.clone(),
         })
-        .map_err(anyhow::Error::msg)?
-        .lines
-    {
-        println!("{line}");
+        .map_err(anyhow::Error::msg)?;
+    match format {
+        DeployOutputFormat::Json => println!(
+            "{}",
+            serde_json::to_string_pretty(&DeploymentLogsOutput {
+                deployment_id,
+                service,
+                lines: response.lines,
+            })?
+        ),
+        DeployOutputFormat::Human => {
+            for line in response.lines {
+                println!("{line}");
+            }
+        }
     }
     Ok(())
+}
+
+/// Validate the selected immutable image as an explicit, non-mutating build
+/// operation. A v1 image selector always consumes `reference@digest`; it does
+/// not carry a mutable Dockerfile/build context, so this command deliberately
+/// cannot smuggle a local build into deploy/apply.
+pub fn cmd_image_build(config_path: &Option<String>, format: DeployOutputFormat) -> Result<()> {
+    let image = selected_image(config_path)?;
+    print_image_output(&image, format, "resolved")
+}
+
+/// Print the immutable image selected by the deployment configuration.
+pub fn cmd_image_inspect(config_path: &Option<String>, format: DeployOutputFormat) -> Result<()> {
+    let image = selected_image(config_path)?;
+    print_image_output(&image, format, "inspected")
+}
+
+#[derive(Serialize)]
+#[serde(rename_all = "camelCase")]
+struct DeploymentLogsOutput {
+    deployment_id: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    service: Option<String>,
+    lines: Vec<String>,
+}
+
+#[derive(Serialize)]
+#[serde(rename_all = "camelCase")]
+struct ImageOutput<'a> {
+    operation: &'a str,
+    reference: &'a str,
+    digest: &'a str,
+    platform: &'a crate::config::OrchestrationPlatform,
+    immutable: bool,
+}
+
+fn selected_image(
+    config_path: &Option<String>,
+) -> Result<crate::config::OrchestrationImageSection> {
+    let config = AiboxConfig::from_cli_option(config_path)?;
+    config.validate()?;
+    if !config.orchestration.enabled {
+        anyhow::bail!("orchestration is not enabled");
+    }
+    config
+        .orchestration
+        .image
+        .context("orchestration.image is required when orchestration.enabled = true")
+}
+
+fn print_image_output(
+    image: &crate::config::OrchestrationImageSection,
+    format: DeployOutputFormat,
+    operation: &str,
+) -> Result<()> {
+    match format {
+        DeployOutputFormat::Json => println!(
+            "{}",
+            serde_json::to_string_pretty(&ImageOutput {
+                operation,
+                reference: &image.reference,
+                digest: &image.digest,
+                platform: &image.platform,
+                immutable: true,
+            })?
+        ),
+        DeployOutputFormat::Human => {
+            println!("Image {operation}");
+            println!("  reference: {}", image.reference);
+            println!("  digest: {}", image.digest);
+            println!("  platform: {}", platform_name(&image.platform));
+            println!("  immutable: yes");
+            if operation == "resolved" {
+                println!(
+                    "  note: deploy consumes this immutable image; it does not build it implicitly"
+                );
+            }
+        }
+    }
+    Ok(())
+}
+
+fn print_deployment_record(
+    record: &crate::deployment_contract::DeploymentRecord,
+    format: DeployOutputFormat,
+) -> Result<()> {
+    match format {
+        DeployOutputFormat::Json => println!("{}", serde_json::to_string_pretty(record)?),
+        DeployOutputFormat::Human => {
+            println!("Deployment");
+            println!("  id: {}", record.spec.deployment_id);
+            println!("  backend: {}", backend_name(&record.spec.target.backend));
+            println!("  scope: {}", record.spec.target.scope);
+            println!("  status: {}", deployment_status_name(&record.spec.status));
+            println!("  desired spec digest: {}", record.spec.desired_spec_digest);
+            println!("  image digest: {}", record.spec.image.digest);
+            println!("  services: {}", record.spec.services.len());
+        }
+    }
+    Ok(())
+}
+
+fn backend_name(backend: &BackendKind) -> &'static str {
+    match backend {
+        BackendKind::Compose => "compose",
+        BackendKind::Kubernetes => "kubernetes",
+    }
+}
+
+fn platform_name(platform: &crate::config::OrchestrationPlatform) -> &'static str {
+    match platform {
+        crate::config::OrchestrationPlatform::LinuxAmd64 => "linux-amd64",
+        crate::config::OrchestrationPlatform::LinuxArm64 => "linux-arm64",
+    }
+}
+
+fn deployment_status_name(status: &crate::deployment_contract::DeploymentStatus) -> &'static str {
+    match status {
+        crate::deployment_contract::DeploymentStatus::Desired => "desired",
+        crate::deployment_contract::DeploymentStatus::Observed => "observed",
+        crate::deployment_contract::DeploymentStatus::Degraded => "degraded",
+        crate::deployment_contract::DeploymentStatus::Unavailable => "unavailable",
+        crate::deployment_contract::DeploymentStatus::Orphaned => "orphaned",
+        crate::deployment_contract::DeploymentStatus::Destroyed => "destroyed",
+    }
 }
 
 pub fn cmd_connect(config_path: &Option<String>, name: &str, command: Vec<String>) -> Result<()> {
@@ -254,6 +391,7 @@ pub fn cmd_connect(config_path: &Option<String>, name: &str, command: Vec<String
         .map_err(anyhow::Error::msg)?
         .command;
     let (program, args) = argv.split_first().context("empty connection command")?;
+    crate::output::info("Opening deployment connection (Ctrl-C cancels foreground connections)...");
     let status = std::process::Command::new(program)
         .args(args)
         .status()

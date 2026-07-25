@@ -218,6 +218,40 @@ fn deploy_plan_renders_compose_artifacts_without_writing_project_files() {
 }
 
 #[test]
+fn image_commands_expose_only_the_immutable_deployment_input() {
+    let dir = tempfile::tempdir().unwrap();
+    write_orchestration_compile_fixture(dir.path());
+
+    let inspect = run_in_dir(dir.path(), &["image", "inspect", "--output", "json"]);
+    let inspect_json = parse_json(&inspect);
+    assert_eq!(inspect_json["operation"], "inspected");
+    assert_eq!(inspect_json["reference"], "ghcr.io/acme/workspace");
+    assert!(inspect_json["immutable"].as_bool().unwrap());
+
+    let build = run_in_dir(dir.path(), &["image", "build", "--output", "json"]);
+    let build_json = parse_json(&build);
+    assert_eq!(build_json["operation"], "resolved");
+    assert_eq!(build_json["digest"], inspect_json["digest"]);
+    assert!(build_json["immutable"].as_bool().unwrap());
+}
+
+#[test]
+fn v1_up_and_down_default_to_deployment_lifecycle_and_document_legacy_escape_hatch() {
+    let help = run(&["up", "--help"]);
+    assert!(help.status.success());
+    let help_text = String::from_utf8_lossy(&help.stdout);
+    assert!(help_text.contains("Apply the v1 deployment"));
+    assert!(help_text.contains("--legacy-runtime"));
+    assert!(help_text.contains("2026-12-31"));
+
+    let down_help = run(&["down", "--help"]);
+    assert!(down_help.status.success());
+    let down_help_text = String::from_utf8_lossy(&down_help.stdout);
+    assert!(down_help_text.contains("ownership record"));
+    assert!(down_help_text.contains("--legacy-runtime"));
+}
+
+#[test]
 fn config_compile_rejects_disabled_orchestration() {
     let dir = tempfile::tempdir().unwrap();
     std::fs::write(
