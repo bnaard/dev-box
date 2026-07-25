@@ -174,7 +174,12 @@ impl Backend for KubernetesBackend {
         BackendKind::Kubernetes
     }
     fn capabilities(&self) -> Vec<BackendCapability> {
-        let mut capabilities = vec![BackendCapability::Validate, BackendCapability::Plan];
+        let mut capabilities = vec![
+            BackendCapability::Validate,
+            BackendCapability::Plan,
+            BackendCapability::Exec,
+            BackendCapability::PortForward,
+        ];
         if self.lifecycle.is_some() {
             capabilities.extend([
                 BackendCapability::Apply,
@@ -205,6 +210,15 @@ impl Backend for KubernetesBackend {
     }
     fn logs(&self, request: LogsRequest) -> Result<LogsResponse, BackendError> {
         self.logs_lifecycle(request)
+    }
+    fn connection(
+        &self,
+        request: crate::deployment_backend::ConnectionRequest,
+    ) -> Result<crate::deployment_backend::ConnectionResponse, BackendError> {
+        let command = crate::kubernetes_connection::connection_command(&request.target)?;
+        Ok(crate::deployment_backend::ConnectionResponse {
+            command: command.argv,
+        })
     }
 }
 

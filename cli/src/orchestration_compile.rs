@@ -193,6 +193,10 @@ pub fn cmd_connect(config_path: &Option<String>, name: &str, command: Vec<String
         .iter()
         .find(|connection| connection.name == name)
         .context("orchestration connection not found")?;
+    let endpoint = match &connection.endpoint {
+        Some(endpoint) => endpoint.clone(),
+        None => default_connection_endpoint(&config.orchestration, &plan, connection)?,
+    };
     let target = ConnectionTarget {
         api_version: ApiVersion::V1Alpha1,
         kind: ConnectionTargetKind::V1Alpha1,
@@ -223,12 +227,7 @@ pub fn cmd_connect(config_path: &Option<String>, name: &str, command: Vec<String
                 crate::config::ConnectionTransport::Ssh => ConnectionTransport::Ssh,
             },
             interactive: connection.interactive,
-            endpoint: connection.endpoint.clone().unwrap_or_else(|| {
-                format!(
-                    "compose://{}/{}",
-                    plan.target.target_ref, connection.service
-                )
-            }),
+            endpoint,
             invocation: if command.is_empty() {
                 connection.invocation.clone()
             } else {
@@ -245,7 +244,11 @@ pub fn cmd_connect(config_path: &Option<String>, name: &str, command: Vec<String
     let backend = registry
         .get(&plan.target.backend)
         .map_err(anyhow::Error::msg)?;
-    preflight(backend, BackendCapability::Exec).map_err(anyhow::Error::msg)?;
+    let capability = match target.spec.transport {
+        ConnectionTransport::KubernetesPortForward => BackendCapability::PortForward,
+        _ => BackendCapability::Exec,
+    };
+    preflight(backend, capability).map_err(anyhow::Error::msg)?;
     let argv = backend
         .connection(ConnectionRequest { target })
         .map_err(anyhow::Error::msg)?
@@ -256,9 +259,64 @@ pub fn cmd_connect(config_path: &Option<String>, name: &str, command: Vec<String
         .status()
         .context("could not start connection")?;
     if status.success() {
-        Ok(())
-    } else {
-        anyhow::bail!("connection command failed with {status}")
+        return Ok(());
+    }
+    // `kubectl exec` reports the remote command's code.  Do not flatten it
+    // to aibox's generic error status: callers need it for scripts.  A
+    // cancelled port-forward has no numeric status; its signal is preserved
+    // by the terminal/process group and is represented as a generic failure
+    // only if this process remains alive to observe it.
+    std::process::exit(status.code().unwrap_or(1));
+}
+
+fn default_connection_endpoint(
+    orchestration: &crate::config::OrchestrationSection,
+    plan: &DesiredDeploymentPlan,
+    connection: &crate::config::ConnectionIntentSection,
+) -> Result<String> {
+    match connection.transport {
+        crate::config::ConnectionTransport::KubernetesExec => {
+            let context = plan
+                .target
+                .target_ref
+                .strip_prefix("kube-context:")
+                .context("Kubernetes target must use kube-context:<context>")?;
+            Ok(format!(
+                "kubernetes://{context}/{}/{}",
+                plan.target.scope, connection.service
+            ))
+        }
+        crate::config::ConnectionTransport::KubernetesPortForward => {
+            let context = plan
+                .target
+                .target_ref
+                .strip_prefix("kube-context:")
+                .context("Kubernetes target must use kube-context:<context>")?;
+            let service = orchestration
+                .fleet
+                .as_ref()
+                .and_then(|fleet| {
+                    fleet
+                        .services
+                        .iter()
+                        .find(|service| service.name == connection.service)
+                })
+                .context("Kubernetes port-forward service is missing from orchestration.fleet")?;
+            let port = service
+                .ports
+                .iter()
+                .find(|port| port.protocol == crate::config::OrchestrationPortProtocol::Tcp)
+                .context("Kubernetes port-forward requires a TCP port on its service")?;
+            let local_port = port.host_port.unwrap_or(port.container_port);
+            Ok(format!(
+                "kubernetes-port-forward://{context}/{}/{}/127.0.0.1/{local_port}:{}",
+                plan.target.scope, connection.service, port.container_port
+            ))
+        }
+        _ => Ok(format!(
+            "compose://{}/{}",
+            plan.target.target_ref, connection.service
+        )),
     }
 }
 
@@ -479,6 +537,52 @@ labels = { environment = "development" }
         assert_ne!(
             compile_config(&first).unwrap().desired_spec_digest,
             compile_config(&changed).unwrap().desired_spec_digest
+        );
+    }
+
+    #[test]
+    fn kubernetes_connection_defaults_are_typed_endpoints() {
+        let config_text = format!(
+            "{}{}",
+            VALID_CONFIG
+                .replace("backend = \"compose\"", "backend = \"kubernetes\"")
+                .replace(
+                    "reference = \"docker-context:default\"",
+                    "reference = \"kube-context:staging\"",
+                ),
+            r#"
+
+[[orchestration.connections]]
+name = "shell"
+service = "web"
+transport = "kubernetes-exec"
+interactive = true
+
+[[orchestration.connections]]
+name = "web-forward"
+service = "web"
+transport = "kubernetes-port-forward"
+"#
+        );
+        let config = AiboxConfig::from_str(&config_text).unwrap();
+        let plan = compile_config(&config).unwrap();
+        assert_eq!(
+            default_connection_endpoint(
+                &config.orchestration,
+                &plan,
+                &config.orchestration.connections[0]
+            )
+            .unwrap(),
+            "kubernetes://staging/workspace/web"
+        );
+        assert_eq!(
+            default_connection_endpoint(
+                &config.orchestration,
+                &plan,
+                &config.orchestration.connections[1]
+            )
+            .unwrap(),
+            "kubernetes-port-forward://staging/workspace/web/127.0.0.1/18080:8080"
         );
     }
 }
