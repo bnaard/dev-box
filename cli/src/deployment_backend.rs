@@ -135,7 +135,16 @@ pub struct BackendRegistry {
 impl BackendRegistry {
     pub fn built_in() -> Self {
         Self {
-            backends: vec![Box::new(ComposeBackend)],
+            backends: vec![Box::new(ComposeBackend::for_current_dir())],
+        }
+    }
+
+    /// Construct the built-ins against an explicit project root.  This is
+    /// primarily useful for callers and tests that must not inherit the
+    /// process current directory.
+    pub fn built_in_for(project_dir: std::path::PathBuf) -> Self {
+        Self {
+            backends: vec![Box::new(ComposeBackend::for_project(project_dir))],
         }
     }
     pub fn get(&self, kind: &BackendKind) -> Result<&dyn Backend, BackendError> {
@@ -173,16 +182,15 @@ mod tests {
     use crate::deployment_contract::BackendCapability;
 
     #[test]
-    fn compose_is_registered_for_non_mutating_operations_only() {
+    fn compose_is_registered_for_lifecycle_operations() {
         let registry = BackendRegistry::built_in();
         let backend = registry.get(&BackendKind::Compose).unwrap();
         assert!(preflight(backend, BackendCapability::Plan).is_ok());
-        let error = preflight(backend, BackendCapability::Apply).unwrap_err();
-        assert_eq!(error.code, ContractErrorCode::CapabilityUnsupported);
+        assert!(preflight(backend, BackendCapability::Apply).is_ok());
     }
 
     #[test]
-    fn unsupported_mutation_has_stable_error_code() {
+    fn untracked_destroy_has_stable_ownership_error_code() {
         let registry = BackendRegistry::built_in();
         let backend = registry.get(&BackendKind::Compose).unwrap();
         let error = backend
@@ -190,6 +198,6 @@ mod tests {
                 deployment_id: "d".to_string(),
             })
             .unwrap_err();
-        assert_eq!(error.code, ContractErrorCode::CapabilityUnsupported);
+        assert_eq!(error.code, ContractErrorCode::Ownership);
     }
 }

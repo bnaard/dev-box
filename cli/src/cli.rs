@@ -1,4 +1,4 @@
-use clap::{Parser, Subcommand, ValueEnum};
+use clap::{Args, Parser, Subcommand, ValueEnum};
 
 use crate::config::{
     AiHarness, AiProvider, AiboxProfile, BaseImage, ContextMode, StarshipPreset, ThemeFamily,
@@ -290,6 +290,8 @@ pub enum Commands {
         #[command(subcommand)]
         action: DeployAction,
     },
+    /// Connect to a named v1 deployment service.
+    Connect(ConnectArgs),
     /// Start container and attach via tmux
     ///
     /// Seeds .aibox-home/ if needed, generates devcontainer files,
@@ -527,6 +529,27 @@ pub enum DeployAction {
         )]
         format: DeployPlanOutputFormat,
     },
+    /// Reconcile the rendered v1 deployment using the selected backend.
+    Apply,
+    /// Read and classify the current runtime state of the v1 deployment.
+    Status,
+    /// Remove only resources proven to belong to the recorded deployment.
+    Destroy,
+    /// Print backend logs, optionally restricted to one service.
+    Logs {
+        #[arg(long)]
+        service: Option<String>,
+    },
+}
+
+/// Connect to a named v1 orchestration connection target.
+#[derive(Clone, Debug, Args)]
+pub struct ConnectArgs {
+    /// Name from [[orchestration.connections]].
+    pub name: String,
+    /// Override the configured command. Values after `--` are passed as argv.
+    #[arg(last = true)]
+    pub command: Vec<String>,
 }
 
 #[derive(Clone, Debug, ValueEnum)]
