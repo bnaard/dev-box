@@ -8,6 +8,7 @@ use std::collections::{BTreeMap, BTreeSet};
 use std::fs::{self, OpenOptions};
 use std::io::Write;
 use std::path::{Path, PathBuf};
+use std::process::{Command, Stdio};
 use std::sync::Arc;
 
 use serde::{Deserialize, Serialize};
@@ -51,9 +52,8 @@ pub trait KubernetesDiscovery: Send + Sync {
     fn discover(&self, context: &str) -> Result<KubernetesCapabilityDescriptor, BackendError>;
 }
 
-/// Narrow, typed Kubernetes lifecycle boundary.  The production adapter is
-/// deliberately deferred; reconciliation policy depends only on these typed
-/// resources and is consequently exercised with the in-memory fake below.
+/// Narrow, typed Kubernetes lifecycle boundary.  Resources carry their full
+/// manifest, so the transport never has to reconstruct workload semantics.
 pub trait KubernetesClient: Send + Sync {
     fn context(&self) -> &str;
     fn apply(&self, resource: KubernetesResource) -> Result<(), BackendError>;
@@ -98,6 +98,271 @@ pub struct KubernetesResource {
     #[serde(default)]
     pub annotations: BTreeMap<String, String>,
     pub health: KubernetesResourceHealth,
+    /// Canonical workload document sent to the Kubernetes API.  This retains
+    /// the immutable image reference, credential placeholders, ports, service
+    /// shape, and ownership metadata rendered from the deployment contract.
+    #[serde(default)]
+    pub manifest: serde_json::Value,
+}
+
+/// Production `kubectl` discovery and lifecycle adapter.  It deliberately
+/// passes argv directly to `Command`, never through a shell.  Kubernetes API
+/// objects remain the typed boundary; kubectl is just the authenticated API
+/// transport available in every supported aibox image.
+#[derive(Clone, Debug)]
+pub struct KubectlClient {
+    context: String,
+}
+impl KubectlClient {
+    pub fn new(context: impl Into<String>) -> Self {
+        Self {
+            context: context.into(),
+        }
+    }
+    fn command(
+        &self,
+        args: impl IntoIterator<Item = String>,
+    ) -> Result<std::process::Output, BackendError> {
+        let output = Command::new("kubectl")
+            .args(args)
+            .output()
+            .map_err(|error| BackendError {
+                code: ContractErrorCode::Observation,
+                message: format!("could not execute kubectl: {error}"),
+            })?;
+        if output.status.success() {
+            Ok(output)
+        } else {
+            Err(BackendError {
+                code: ContractErrorCode::Observation,
+                message: format!(
+                    "kubectl failed: {}",
+                    String::from_utf8_lossy(&output.stderr).trim()
+                ),
+            })
+        }
+    }
+    fn prefix(&self) -> Vec<String> {
+        vec!["--context".to_string(), self.context.clone()]
+    }
+    fn resources_from_json(
+        &self,
+        output: std::process::Output,
+    ) -> Result<Vec<KubernetesResource>, BackendError> {
+        let value: serde_json::Value =
+            serde_json::from_slice(&output.stdout).map_err(serialization_error)?;
+        let items = value
+            .get("items")
+            .and_then(serde_json::Value::as_array)
+            .ok_or_else(|| error("kubectl response did not contain items"))?;
+        items
+            .iter()
+            .filter_map(resource_from_object)
+            .collect::<Result<_, _>>()
+    }
+}
+impl KubernetesDiscovery for KubectlClient {
+    fn discover(&self, context: &str) -> Result<KubernetesCapabilityDescriptor, BackendError> {
+        if context != self.context {
+            return Err(error("Kubernetes discovery context does not match client"));
+        }
+        let namespaces = self
+            .resources_from_json(self.command([
+                "--context".into(),
+                context.into(),
+                "get".into(),
+                "namespace".into(),
+                "-o".into(),
+                "json".into(),
+            ])?)?
+            .into_iter()
+            .map(|resource| resource.key.name)
+            .collect();
+        Ok(KubernetesCapabilityDescriptor {
+            context: context.to_string(),
+            authorized_namespaces: namespaces,
+            ingress_classes: self.class_names("ingressclass")?,
+            gateway_classes: self
+                .class_names("gatewayclass.gateway.networking.k8s.io")
+                .unwrap_or_default(),
+            // DNS zones are provider-specific and intentionally cannot be
+            // invented by this adapter; a configured zone needs a provider adapter.
+            dns_zones: BTreeSet::new(),
+        })
+    }
+}
+impl KubectlClient {
+    fn class_names(&self, kind: &str) -> Result<BTreeSet<String>, BackendError> {
+        let mut args = self.prefix();
+        args.extend(["get".into(), kind.into(), "-o".into(), "json".into()]);
+        self.resources_from_json(self.command(args)?)
+            .map(|resources| {
+                resources
+                    .into_iter()
+                    .map(|resource| resource.key.name)
+                    .collect()
+            })
+    }
+}
+impl KubernetesClient for KubectlClient {
+    fn context(&self) -> &str {
+        &self.context
+    }
+    fn apply(&self, resource: KubernetesResource) -> Result<(), BackendError> {
+        let manifest = serde_json::to_vec(&resource.manifest).map_err(serialization_error)?;
+        let mut args = self.prefix();
+        args.extend([
+            "apply".into(),
+            "--server-side".into(),
+            "--field-manager=aibox".into(),
+            "-f".into(),
+            "-".into(),
+        ]);
+        let mut child = Command::new("kubectl")
+            .args(args)
+            .stdin(Stdio::piped())
+            .stdout(Stdio::null())
+            .stderr(Stdio::piped())
+            .spawn()
+            .map_err(|e| BackendError {
+                code: ContractErrorCode::Mutation,
+                message: format!("could not execute kubectl: {e}"),
+            })?;
+        use std::io::Write as _;
+        child
+            .stdin
+            .take()
+            .ok_or_else(|| error("could not open kubectl stdin"))?
+            .write_all(&manifest)
+            .map_err(store_error)?;
+        let output = child.wait_with_output().map_err(store_error)?;
+        if output.status.success() {
+            Ok(())
+        } else {
+            Err(BackendError {
+                code: ContractErrorCode::Mutation,
+                message: format!(
+                    "kubectl apply failed: {}",
+                    String::from_utf8_lossy(&output.stderr).trim()
+                ),
+            })
+        }
+    }
+    fn list_by_deployment(
+        &self,
+        deployment_id: &str,
+    ) -> Result<Vec<KubernetesResource>, BackendError> {
+        let mut args = self.prefix();
+        args.extend([
+            "get".into(),
+            "deployment,service".into(),
+            "--all-namespaces".into(),
+            "-l".into(),
+            format!("{LABEL_DEPLOYMENT_ID}={deployment_id}"),
+            "-o".into(),
+            "json".into(),
+        ]);
+        self.resources_from_json(self.command(args)?)
+    }
+    fn list_namespace(&self, namespace: &str) -> Result<Vec<KubernetesResource>, BackendError> {
+        let mut args = self.prefix();
+        args.extend([
+            "--namespace".into(),
+            namespace.into(),
+            "get".into(),
+            "deployment,service".into(),
+            "-o".into(),
+            "json".into(),
+        ]);
+        self.resources_from_json(self.command(args)?)
+    }
+    fn delete(&self, key: &KubernetesResourceKey) -> Result<(), BackendError> {
+        let kind = match key.kind {
+            KubernetesResourceKind::Deployment => "deployment",
+            KubernetesResourceKind::Service => "service",
+        };
+        let mut args = self.prefix();
+        args.extend([
+            "--namespace".into(),
+            key.namespace.clone(),
+            "delete".into(),
+            format!("{kind}/{}", key.name),
+            "--ignore-not-found=true".into(),
+        ]);
+        self.command(args).map(|_| ())
+    }
+    fn logs(&self, key: &KubernetesResourceKey) -> Result<Vec<String>, BackendError> {
+        let mut args = self.prefix();
+        args.extend([
+            "--namespace".into(),
+            key.namespace.clone(),
+            "logs".into(),
+            format!("deployment/{}", key.name),
+            "--all-containers=true".into(),
+        ]);
+        let output = self.command(args)?;
+        Ok(String::from_utf8_lossy(&output.stdout)
+            .lines()
+            .map(str::to_string)
+            .collect())
+    }
+}
+
+fn resource_from_object(
+    value: &serde_json::Value,
+) -> Option<Result<KubernetesResource, BackendError>> {
+    let kind = match value.get("kind")?.as_str()? {
+        "Deployment" => KubernetesResourceKind::Deployment,
+        "Service" => KubernetesResourceKind::Service,
+        "Namespace" | "IngressClass" | "GatewayClass" => KubernetesResourceKind::Service,
+        _ => return None,
+    };
+    let metadata = value.get("metadata")?;
+    let name = metadata.get("name")?.as_str()?.to_string();
+    let namespace = metadata
+        .get("namespace")
+        .and_then(serde_json::Value::as_str)
+        .unwrap_or_default()
+        .to_string();
+    let string_map = |key: &str| {
+        metadata
+            .get(key)
+            .and_then(serde_json::Value::as_object)
+            .map(|m| {
+                m.iter()
+                    .filter_map(|(k, v)| v.as_str().map(|v| (k.clone(), v.to_string())))
+                    .collect()
+            })
+            .unwrap_or_default()
+    };
+    let health = if kind == KubernetesResourceKind::Deployment {
+        let available = value
+            .pointer("/status/availableReplicas")
+            .and_then(serde_json::Value::as_u64)
+            .unwrap_or(0);
+        let desired = value
+            .pointer("/spec/replicas")
+            .and_then(serde_json::Value::as_u64)
+            .unwrap_or(1);
+        if available >= desired {
+            KubernetesResourceHealth::Ready
+        } else {
+            KubernetesResourceHealth::Degraded
+        }
+    } else {
+        KubernetesResourceHealth::Ready
+    };
+    Some(Ok(KubernetesResource {
+        key: KubernetesResourceKey {
+            kind,
+            namespace,
+            name,
+        },
+        labels: string_map("labels"),
+        annotations: string_map("annotations"),
+        health,
+        manifest: value.clone(),
+    }))
 }
 
 /// In-memory test implementation.  It is the only client used by this milestone.
@@ -136,19 +401,32 @@ pub struct KubernetesBackend {
 
 struct KubernetesLifecycle {
     project_dir: PathBuf,
-    client: Arc<dyn KubernetesClient>,
+    client: Option<Arc<dyn KubernetesClient>>,
 }
 impl KubernetesBackend {
+    #[allow(dead_code)] // deterministic fake-client and plan-only tests
     pub fn new(discovery: Arc<dyn KubernetesDiscovery>) -> Self {
         Self {
             discovery,
             lifecycle: None,
         }
     }
+    #[allow(dead_code)] // deterministic fake-client and plan-only tests
     pub fn plan_only() -> Self {
         Self::new(Arc::new(PlanOnlyDiscovery))
     }
-    #[allow(dead_code)] // wired by the production Kubernetes adapter in the next increment
+    /// Build the production backend.  The concrete kubectl client is selected
+    /// from each target's explicit `kube-context:` at operation time.
+    pub fn for_project(project_dir: PathBuf) -> Self {
+        Self {
+            discovery: Arc::new(PlanOnlyDiscovery),
+            lifecycle: Some(KubernetesLifecycle {
+                project_dir,
+                client: None,
+            }),
+        }
+    }
+    #[allow(dead_code)] // deterministic fake-client tests
     pub fn with_client(
         project_dir: PathBuf,
         discovery: Arc<dyn KubernetesDiscovery>,
@@ -158,7 +436,7 @@ impl KubernetesBackend {
             discovery,
             lifecycle: Some(KubernetesLifecycle {
                 project_dir,
-                client,
+                client: Some(client),
             }),
         }
     }
@@ -167,6 +445,34 @@ impl KubernetesBackend {
         self.lifecycle
             .as_ref()
             .ok_or_else(|| BackendError::unsupported("Kubernetes lifecycle"))
+    }
+}
+impl KubernetesLifecycle {
+    fn client_for_plan(
+        &self,
+        plan: &DesiredDeploymentPlan,
+    ) -> Result<Arc<dyn KubernetesClient>, BackendError> {
+        if let Some(client) = &self.client {
+            return Ok(client.clone());
+        }
+        let (context, _, _) = target(plan)?;
+        Ok(Arc::new(KubectlClient::new(context)))
+    }
+    fn client_for_record(
+        &self,
+        record: &DeploymentRecord,
+    ) -> Result<Arc<dyn KubernetesClient>, BackendError> {
+        if let Some(client) = &self.client {
+            return Ok(client.clone());
+        }
+        let context = record
+            .spec
+            .target
+            .target_ref
+            .strip_prefix("kube-context:")
+            .filter(|context| !context.is_empty())
+            .ok_or_else(|| error("Kubernetes deployment record has no explicit kube-context"))?;
+        Ok(Arc::new(KubectlClient::new(context)))
     }
 }
 impl Backend for KubernetesBackend {
@@ -192,7 +498,15 @@ impl Backend for KubernetesBackend {
     }
     fn validate(&self, request: ValidateRequest) -> Result<ValidateResponse, BackendError> {
         let (context, namespace, intent) = target(&request.plan)?;
-        let descriptor = self.discovery.discover(context)?;
+        let descriptor = if self
+            .lifecycle
+            .as_ref()
+            .is_some_and(|lifecycle| lifecycle.client.is_none())
+        {
+            KubectlClient::new(context).discover(context)?
+        } else {
+            self.discovery.discover(context)?
+        };
         validate_discovery(&descriptor, namespace, intent)?;
         Ok(ValidateResponse { valid: true })
     }
@@ -225,9 +539,10 @@ impl Backend for KubernetesBackend {
 impl KubernetesBackend {
     fn apply_lifecycle(&self, request: ApplyRequest) -> Result<ApplyResponse, BackendError> {
         let lifecycle = self.lifecycle()?;
+        let client = lifecycle.client_for_plan(&request.plan)?;
         let rendered = render(&request.plan)?;
         let (_context, namespace, _intent) = target(&request.plan)?;
-        if lifecycle.client.context()
+        if client.context()
             != request
                 .plan
                 .target
@@ -248,18 +563,16 @@ impl KubernetesBackend {
                 && existing.spec.desired_spec_digest == rendered.desired_spec_digest
                 && existing.spec.image.digest == rendered.image_digest
             {
-                let observed = observe(lifecycle.client.as_ref(), &existing)?;
+                let observed = observe(client.as_ref(), &existing)?;
                 store.save(&observed)?;
                 if observed.spec.status == DeploymentStatus::Observed {
                     return Ok(ApplyResponse { record: observed });
                 }
             }
-        } else if let Some(reconstructed) = reconstruct(
-            lifecycle.client.as_ref(),
-            &rendered.deployment_id,
-            Some(namespace),
-        )? {
-            let observed = observe(lifecycle.client.as_ref(), &reconstructed)?;
+        } else if let Some(reconstructed) =
+            reconstruct(client.as_ref(), &rendered.deployment_id, Some(namespace))?
+        {
+            let observed = observe(client.as_ref(), &reconstructed)?;
             store.save(&observed)?;
             if observed.spec.status == DeploymentStatus::Observed
                 && observed.spec.desired_spec_digest == rendered.desired_spec_digest
@@ -274,13 +587,13 @@ impl KubernetesBackend {
         store.save(&record)?;
         let resources = desired_resources(&request.plan, &record)?;
         for resource in resources {
-            if let Err(error) = lifecycle.client.apply(resource) {
+            if let Err(error) = client.apply(resource) {
                 let unavailable = with_status(&record, DeploymentStatus::Unavailable);
                 store.save(&unavailable)?;
                 return Err(error);
             }
         }
-        let observed = observe(lifecycle.client.as_ref(), &record)?;
+        let observed = observe(client.as_ref(), &record)?;
         store.save(&observed)?;
         Ok(ApplyResponse { record: observed })
     }
@@ -290,13 +603,12 @@ impl KubernetesBackend {
         let store = KubernetesDeploymentStore::new(lifecycle.project_dir.clone());
         let record = match store.load(&request.deployment_id)? {
             Some(record) => record,
-            None => reconstruct(lifecycle.client.as_ref(), &request.deployment_id, None)?
-                .ok_or_else(|| BackendError {
-                    code: ContractErrorCode::Observation,
-                    message: "deployment record not found and remote ownership metadata could not reconstruct it".to_string(),
-                })?,
+            None => match &lifecycle.client {
+                Some(client) => reconstruct(client.as_ref(), &request.deployment_id, None)?.ok_or_else(|| BackendError { code: ContractErrorCode::Observation, message: "deployment record not found and remote ownership metadata could not reconstruct it".to_string() })?,
+                None => return Err(BackendError { code: ContractErrorCode::Observation, message: "deployment record not found; status requires local record for production Kubernetes targets".to_string() }),
+            },
         };
-        let observed = observe(lifecycle.client.as_ref(), &record)?;
+        let observed = observe(lifecycle.client_for_record(&record)?.as_ref(), &record)?;
         store.save(&observed)?;
         Ok(StatusResponse { record: observed })
     }
@@ -307,11 +619,21 @@ impl KubernetesBackend {
         let _lock = store.lock(&request.deployment_id)?;
         let mut record = match store.load(&request.deployment_id)? {
             Some(record) => record,
-            None => reconstruct(lifecycle.client.as_ref(), &request.deployment_id, None)?
-                .ok_or_else(|| BackendError {
-                    code: ContractErrorCode::Ownership,
-                    message: "deployment record not found; refusing untracked destroy".to_string(),
-                })?,
+            None => match &lifecycle.client {
+                Some(client) => reconstruct(client.as_ref(), &request.deployment_id, None)?
+                    .ok_or_else(|| BackendError {
+                        code: ContractErrorCode::Ownership,
+                        message: "deployment record not found; refusing untracked destroy"
+                            .to_string(),
+                    })?,
+                None => {
+                    return Err(BackendError {
+                        code: ContractErrorCode::Ownership,
+                        message: "deployment record not found; refusing untracked destroy"
+                            .to_string(),
+                    });
+                }
+            },
         };
         if record.spec.status == DeploymentStatus::Destroyed {
             return Ok(DestroyResponse { record });
@@ -325,8 +647,8 @@ impl KubernetesBackend {
             .iter()
             .map(|service| service.name.as_str())
             .collect::<BTreeSet<_>>();
-        let resources = lifecycle
-            .client
+        let client = lifecycle.client_for_record(&record)?;
+        let resources = client
             .list_namespace(&record.spec.target.scope)?
             .into_iter()
             .filter(|resource| {
@@ -338,7 +660,7 @@ impl KubernetesBackend {
             .collect::<Vec<_>>();
         assert_owned(&record, &resources)?;
         for resource in resources {
-            lifecycle.client.delete(&resource.key)?;
+            client.delete(&resource.key)?;
         }
         record.spec.status = DeploymentStatus::Destroyed;
         store.save(&record)?;
@@ -350,11 +672,19 @@ impl KubernetesBackend {
         let store = KubernetesDeploymentStore::new(lifecycle.project_dir.clone());
         let record = match store.load(&request.deployment_id)? {
             Some(record) => record,
-            None => reconstruct(lifecycle.client.as_ref(), &request.deployment_id, None)?
-                .ok_or_else(|| BackendError {
-                    code: ContractErrorCode::Observation,
-                    message: "deployment record not found".to_string(),
-                })?,
+            None => match &lifecycle.client {
+                Some(client) => reconstruct(client.as_ref(), &request.deployment_id, None)?
+                    .ok_or_else(|| BackendError {
+                        code: ContractErrorCode::Observation,
+                        message: "deployment record not found".to_string(),
+                    })?,
+                None => {
+                    return Err(BackendError {
+                        code: ContractErrorCode::Observation,
+                        message: "deployment record not found".to_string(),
+                    });
+                }
+            },
         };
         if record.spec.status == DeploymentStatus::Destroyed {
             return Err(BackendError {
@@ -362,9 +692,8 @@ impl KubernetesBackend {
                 message: "deployment has been destroyed".to_string(),
             });
         }
-        let resources = lifecycle
-            .client
-            .list_by_deployment(&record.spec.deployment_id)?;
+        let client = lifecycle.client_for_record(&record)?;
+        let resources = client.list_by_deployment(&record.spec.deployment_id)?;
         assert_owned(&record, &resources)?;
         let deployments = resources
             .into_iter()
@@ -384,7 +713,7 @@ impl KubernetesBackend {
         }
         let mut lines = Vec::new();
         for deployment in deployments {
-            lines.extend(lifecycle.client.logs(&deployment.key)?);
+            lines.extend(client.logs(&deployment.key)?);
         }
         Ok(LogsResponse { lines })
     }
@@ -399,6 +728,15 @@ fn desired_resources(
     let annotations = record_annotations(record)?;
     let mut resources = Vec::new();
     for service in fleet.spec.services.iter().chain(&fleet.spec.sidecars) {
+        let deployment_manifest = managed_manifest(
+            deployment_resource(
+                service,
+                &format!("{}@{}", fleet.spec.image.reference, fleet.spec.image.digest),
+                namespace,
+                &record.metadata.labels,
+            ),
+            &annotations,
+        );
         resources.push(KubernetesResource {
             key: KubernetesResourceKey {
                 kind: KubernetesResourceKind::Deployment,
@@ -408,8 +746,13 @@ fn desired_resources(
             labels: record.metadata.labels.clone(),
             annotations: annotations.clone(),
             health: KubernetesResourceHealth::Ready,
+            manifest: deployment_manifest,
         });
         if !service.ports.is_empty() {
+            let service_manifest = managed_manifest(
+                service_resource(service, namespace, &record.metadata.labels),
+                &annotations,
+            );
             resources.push(KubernetesResource {
                 key: KubernetesResourceKey {
                     kind: KubernetesResourceKind::Service,
@@ -419,10 +762,23 @@ fn desired_resources(
                 labels: record.metadata.labels.clone(),
                 annotations: annotations.clone(),
                 health: KubernetesResourceHealth::Ready,
+                manifest: service_manifest,
             });
         }
     }
     Ok(resources)
+}
+
+fn managed_manifest(
+    mut manifest: serde_json::Value,
+    annotations: &BTreeMap<String, String>,
+) -> serde_json::Value {
+    let metadata = manifest
+        .get_mut("metadata")
+        .and_then(serde_json::Value::as_object_mut)
+        .expect("Kubernetes renderer always provides metadata");
+    metadata.insert("annotations".to_string(), serde_json::json!(annotations));
+    manifest
 }
 
 fn record_annotations(record: &DeploymentRecord) -> Result<BTreeMap<String, String>, BackendError> {
@@ -1504,6 +1860,44 @@ mod tests {
                 .unwrap()
                 .lines,
             vec!["one", "two"]
+        );
+    }
+
+    #[test]
+    fn lifecycle_resources_keep_the_full_rendered_workload_semantics() {
+        let root = tempdir().unwrap();
+        let client = Arc::new(FakeKubernetesClient::new("staging"));
+        let backend = lifecycle_backend(root.path(), client.clone());
+        let record = backend.apply(ApplyRequest { plan: plan() }).unwrap().record;
+        let deployment = client
+            .resources
+            .lock()
+            .unwrap()
+            .get(&deployment_key("workspace"))
+            .cloned()
+            .unwrap();
+        assert_eq!(
+            deployment
+                .manifest
+                .pointer("/spec/template/spec/containers/0/image")
+                .and_then(serde_json::Value::as_str),
+            Some("ghcr.io/acme/demo@sha256:image")
+        );
+        let embedded: DeploymentRecord = serde_json::from_str(
+            deployment
+                .manifest
+                .pointer("/metadata/annotations/aibox.projectious.work~1deployment-record")
+                .and_then(serde_json::Value::as_str)
+                .unwrap(),
+        )
+        .unwrap();
+        assert_eq!(embedded.spec.deployment_id, record.spec.deployment_id);
+        assert_eq!(embedded.spec.status, DeploymentStatus::Desired);
+        assert!(
+            deployment
+                .manifest
+                .pointer("/spec/template/spec/containers/0/ports/0/containerPort")
+                .is_some()
         );
     }
 }
