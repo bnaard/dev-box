@@ -603,6 +603,11 @@ pub static COMPAT_TABLE: &[CompatEntry] = &[
         processkit_version: "v0.28.4",
         note: "Patch release: integrates processkit v0.28.4 and makes companion E2E validation work from linked release worktrees.",
     },
+    CompatEntry {
+        aibox_version: "0.28.13",
+        processkit_version: "v0.28.4",
+        note: "Patch release: adds open GitHub Discussion counts to the tmux Forge status segment and restores the complete generated Codex command projection set.",
+    },
 ];
 
 /// Find the minimum compatible processkit version for the given aibox version.
