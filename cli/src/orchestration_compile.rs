@@ -5,14 +5,16 @@
 
 use anyhow::{Context, Result};
 
-use crate::cli::CompileOutputFormat;
+use crate::cli::{CompileOutputFormat, DeployPlanOutputFormat};
 use crate::config::{
     AiboxConfig, CredentialReferenceKind as ConfigCredentialKind, CredentialReferenceSection,
     OrchestrationBackend, OrchestrationPortProtocol,
 };
+use crate::deployment_backend::{BackendRegistry, PlanRequest, preflight};
 use crate::deployment_compiler::{
     CompileRequest, DesiredDeploymentPlan, ImageBuildIntent, compile,
 };
+use crate::deployment_contract::BackendCapability;
 use crate::deployment_contract::{
     ApiVersion, BackendKind, CredentialReference, CredentialReferenceKind, DeploymentTarget,
     DeploymentTargetKind, DeploymentTargetSpec, EnvironmentReference, ImmutableImageReference,
@@ -53,6 +55,33 @@ pub fn cmd_config_compile(config_path: &Option<String>, format: CompileOutputFor
                 }
             );
             println!("  actions: {}", plan.actions.len());
+        }
+    }
+    Ok(())
+}
+
+/// Render a backend-specific deployment plan without runtime discovery, file writes, or mutation.
+pub fn cmd_deploy_plan(config_path: &Option<String>, format: DeployPlanOutputFormat) -> Result<()> {
+    let config = AiboxConfig::from_cli_option(config_path)?;
+    let plan = compile_config(&config)?;
+    let registry = BackendRegistry::built_in();
+    let backend = registry
+        .get(&plan.target.backend)
+        .map_err(anyhow::Error::msg)?;
+    preflight(backend, BackendCapability::Plan).map_err(anyhow::Error::msg)?;
+    let rendered = backend
+        .plan(PlanRequest { plan })
+        .map_err(anyhow::Error::msg)?
+        .rendered;
+    match format {
+        DeployPlanOutputFormat::Json => println!("{}", serde_json::to_string_pretty(&rendered)?),
+        DeployPlanOutputFormat::Human => {
+            println!("Deployment plan");
+            println!("  backend: compose");
+            println!("  deployment id: {}", rendered.deployment_id);
+            println!("  desired spec digest: {}", rendered.desired_spec_digest);
+            println!("  image digest: {}", rendered.image_digest);
+            println!("  artifacts: docker-compose.yml, devcontainer.json");
         }
     }
     Ok(())

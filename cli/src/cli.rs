@@ -41,6 +41,16 @@ pub enum CompileOutputFormat {
     Json,
 }
 
+/// Output format for backend deployment plans.
+#[derive(Clone, Debug, Default, ValueEnum)]
+pub enum DeployPlanOutputFormat {
+    /// Concise human-readable rendered artifact summary
+    #[default]
+    Human,
+    /// Complete deterministic backend plan as JSON
+    Json,
+}
+
 /// Available tmux IDE layouts.
 #[derive(Clone, Debug, ValueEnum)]
 pub enum Layout {
@@ -275,6 +285,11 @@ pub enum Commands {
         #[command(subcommand)]
         action: ConfigAction,
     },
+    /// Plan a v1 deployment without writing files or contacting a runtime
+    Deploy {
+        #[command(subcommand)]
+        action: DeployAction,
+    },
     /// Start container and attach via tmux
     ///
     /// Seeds .aibox-home/ if needed, generates devcontainer files,
@@ -495,6 +510,22 @@ pub enum ConfigAction {
             default_value = "human"
         )]
         format: CompileOutputFormat,
+    },
+}
+
+#[derive(Clone, Debug, Subcommand)]
+pub enum DeployAction {
+    /// Render backend artifacts from validated v1 orchestration intent
+    Plan {
+        /// Output format
+        #[arg(
+            long,
+            short = 'o',
+            visible_alias = "output",
+            value_enum,
+            default_value = "human"
+        )]
+        format: DeployPlanOutputFormat,
     },
 }
 

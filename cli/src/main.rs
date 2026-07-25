@@ -3,6 +3,9 @@ mod addon_loader;
 #[allow(dead_code)]
 mod addon_registry;
 pub mod compat;
+mod compose_plan;
+#[allow(dead_code)]
+mod deployment_backend;
 #[allow(dead_code)]
 mod deployment_compiler;
 #[allow(dead_code)]
@@ -96,9 +99,7 @@ fn dispatch(cli: cli::Cli) -> anyhow::Result<()> {
             cli::Commands::SelfCmd {
                 action: cli::SelfAction::Completion { .. },
             } => {} // doesn't need addons
-            cli::Commands::Config {
-                action: cli::ConfigAction::Compile { .. },
-            } => {} // pure config compilation doesn't need addons
+            cli::Commands::Config { .. } | cli::Commands::Deploy { .. } => {} // pure v1 planning doesn't need addons
             _ => {
                 output::error(&format!("Failed to load addon definitions: {:#}", e));
                 std::process::exit(1);
@@ -211,6 +212,11 @@ fn dispatch(cli: cli::Cli) -> anyhow::Result<()> {
         cli::Commands::Config { action } => match action {
             cli::ConfigAction::Compile { format } => {
                 orchestration_compile::cmd_config_compile(config_path, format)
+            }
+        },
+        cli::Commands::Deploy { action } => match action {
+            cli::DeployAction::Plan { format } => {
+                orchestration_compile::cmd_deploy_plan(config_path, format)
             }
         },
         cli::Commands::Up {
