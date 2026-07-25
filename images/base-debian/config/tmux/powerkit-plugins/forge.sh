@@ -2,7 +2,7 @@
 # aibox-shipped PowerKit plugin: forge — multi-provider git forge status.
 #
 # Auto-detects the hosting provider from `git remote get-url origin` and
-# renders a "<LABEL> <branch> I<issues> P<prs>" segment with graceful
+# renders a "<LABEL> <branch> I<issues> P<prs> D<discussions>" segment with graceful
 # degradation when network calls fail or credentials are absent.
 #
 # Supported providers:
@@ -22,7 +22,7 @@
 # Configuration options (all via tmux set -g @powerkit_plugin_forge_<name>):
 #   label         Override the provider label (e.g. "MY" for a custom Gitea).
 #   show_branch   Show current branch name (default true).
-#   show_counts   Fetch and show open issue/PR counts (default true).
+#   show_counts   Fetch and show open issue/PR/discussion counts (default true).
 #   timeout       Network call timeout in seconds (default 3).
 #   cache_ttl     Cache lifetime in seconds (default 120).
 #   github_hosts  Whitespace-separated GitHub hostnames and SSH aliases (default github.com).
@@ -42,7 +42,7 @@ POWERKIT_ROOT="${POWERKIT_ROOT:-$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && p
 plugin_get_metadata() {
     metadata_set "id" "forge"
     metadata_set "name" "Forge"
-    metadata_set "description" "Display git forge branch plus open issue and PR counts (multi-provider)"
+    metadata_set "description" "Display git forge branch plus open issue, PR, and discussion counts (multi-provider)"
 }
 
 # =============================================================================
@@ -52,7 +52,7 @@ plugin_get_metadata() {
 plugin_declare_options() {
     declare_option "label"         "string" ""    "Segment label override (empty = auto from provider)"
     declare_option "show_branch"   "bool"   "true" "Show the current git branch"
-    declare_option "show_counts"   "bool"   "true" "Show open issue and PR counts"
+    declare_option "show_counts"   "bool"   "true" "Show open issue, PR, and discussion counts"
     declare_option "timeout"       "number" "3"   "Network call timeout in seconds"
     declare_option "cache_ttl"     "number" "120" "Cache duration in seconds"
     declare_option "github_hosts"  "string" "github.com" "Whitespace-separated GitHub hostnames and SSH aliases"
@@ -228,28 +228,36 @@ _urlencode() {
 # Count helpers
 # =============================================================================
 
-# GitHub: use gh CLI (matches upstream github.sh exactly)
+# GitHub: use independent GraphQL totalCount queries so the values are exact
+# and one unavailable metric does not suppress the other two.
 _gh_count_github() {
     local kind="$1" owner="$2" name="$3" timeout_s="$4"
     has_cmd gh || return 1
-    local repo="${owner}/${name}" count
+    local count query jq_filter
     case "$kind" in
         issues)
-            if has_cmd timeout; then
-                count="$(timeout "${timeout_s}s" gh issue list --repo "$repo" --state open --json number --jq 'length' 2>/dev/null)" || return 1
-            else
-                count="$(gh issue list --repo "$repo" --state open --json number --jq 'length' 2>/dev/null)" || return 1
-            fi
+            query='query($owner:String!,$name:String!){repository(owner:$owner,name:$name){issues(states:OPEN){totalCount}}}'
+            jq_filter='.data.repository.issues.totalCount'
             ;;
         prs)
-            if has_cmd timeout; then
-                count="$(timeout "${timeout_s}s" gh pr list --repo "$repo" --state open --json number --jq 'length' 2>/dev/null)" || return 1
-            else
-                count="$(gh pr list --repo "$repo" --state open --json number --jq 'length' 2>/dev/null)" || return 1
-            fi
+            query='query($owner:String!,$name:String!){repository(owner:$owner,name:$name){pullRequests(states:OPEN){totalCount}}}'
+            jq_filter='.data.repository.pullRequests.totalCount'
+            ;;
+        discussions)
+            query='query($owner:String!,$name:String!){repository(owner:$owner,name:$name){discussions(first:1,states:OPEN){totalCount}}}'
+            jq_filter='.data.repository.discussions.totalCount'
             ;;
         *) return 1 ;;
     esac
+    if has_cmd timeout; then
+        count="$(timeout "${timeout_s}s" gh api graphql \
+            -f query="$query" -F owner="$owner" -F name="$name" \
+            --jq "$jq_filter" 2>/dev/null)" || return 1
+    else
+        count="$(gh api graphql \
+            -f query="$query" -F owner="$owner" -F name="$name" \
+            --jq "$jq_filter" 2>/dev/null)" || return 1
+    fi
     [[ "$count" =~ ^[0-9]+$ ]] || return 1
     printf '%s' "$count"
 }
@@ -335,7 +343,7 @@ _gh_count_gitea() {
 
 plugin_collect() {
     local remote url provider label owner repo_name api_base
-    local branch show_counts timeout_s issues prs
+    local branch show_counts timeout_s issues prs discussions
 
     # Must be inside a git repo
     _git rev-parse --is-inside-work-tree >/dev/null || return 0
@@ -369,6 +377,7 @@ plugin_collect() {
         github)
             issues="$(_gh_count_github issues "$owner" "$repo_name" "$timeout_s")" || issues=""
             prs="$(_gh_count_github prs    "$owner" "$repo_name" "$timeout_s")" || prs=""
+            discussions="$(_gh_count_github discussions "$owner" "$repo_name" "$timeout_s")" || discussions=""
             ;;
         gitlab)
             issues="$(_gh_count_gitlab issues "$owner" "$repo_name" "$timeout_s" "$api_base")" || issues=""
@@ -382,6 +391,7 @@ plugin_collect() {
 
     [[ -n "$issues" ]] && plugin_data_set "issues" "$issues"
     [[ -n "$prs" ]]    && plugin_data_set "prs"    "$prs"
+    [[ -n "$discussions" ]] && plugin_data_set "discussions" "$discussions"
 }
 
 # =============================================================================
@@ -389,7 +399,7 @@ plugin_collect() {
 # =============================================================================
 
 plugin_render() {
-    local label branch issues prs show_branch
+    local label branch issues prs discussions show_branch
     local -a parts=()
 
     # Only render when a provider was detected
@@ -406,8 +416,10 @@ plugin_render() {
 
     issues="$(plugin_data_get issues)"
     prs="$(plugin_data_get prs)"
+    discussions="$(plugin_data_get discussions)"
     [[ -n "$issues" ]] && parts+=("I${issues}")
     [[ -n "$prs" ]]    && parts+=("P${prs}")
+    [[ -n "$discussions" ]] && parts+=("D${discussions}")
 
     local IFS=' '
     printf '%s' "${parts[*]}"
