@@ -51,6 +51,16 @@ pub enum DeployOutputFormat {
     Json,
 }
 
+/// Output format for the stable-v1 release-readiness audit.
+#[derive(Clone, Debug, Default, ValueEnum)]
+pub enum V1ReadinessOutputFormat {
+    /// Concise, operator-oriented gate report.
+    #[default]
+    Human,
+    /// Machine-readable gate report. The command still exits non-zero when blocked.
+    Json,
+}
+
 /// Available tmux IDE layouts.
 #[derive(Clone, Debug, ValueEnum)]
 pub enum Layout {
@@ -526,6 +536,36 @@ pub enum ConfigAction {
             default_value = "human"
         )]
         format: CompileOutputFormat,
+    },
+    /// Preview or apply the explicit, reversible v0 configuration migration.
+    MigrateV1 {
+        /// Write the disabled v1 orchestration boundary after making an exact v0 backup.
+        #[arg(long, conflicts_with = "restore")]
+        apply: bool,
+        /// Restore an exact v0 backup created by `config migrate-v1 --apply`.
+        #[arg(long, value_name = "BACKUP", conflicts_with = "apply")]
+        restore: Option<String>,
+        /// Emit a machine-readable preview or result.
+        #[arg(
+            long,
+            short = 'o',
+            visible_alias = "output",
+            value_enum,
+            default_value = "human"
+        )]
+        format: V1ReadinessOutputFormat,
+    },
+    /// Evaluate stable-v1 release gates without changing project state.
+    ReleaseReadiness {
+        /// Output format. JSON output remains parseable even when gates block the command.
+        #[arg(
+            long,
+            short = 'o',
+            visible_alias = "output",
+            value_enum,
+            default_value = "human"
+        )]
+        format: V1ReadinessOutputFormat,
     },
 }
 

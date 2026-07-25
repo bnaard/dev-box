@@ -265,6 +265,94 @@ fn config_compile_rejects_disabled_orchestration() {
     assert!(String::from_utf8_lossy(&output.stderr).contains("orchestration is not enabled"));
 }
 
+#[test]
+fn v1_config_migration_preview_apply_and_restore_are_explicit_and_isolated() {
+    const CANARY: &str = "AIBOX_V1_SECRET_CANARY_DO_NOT_LEAK";
+    let dir = tempfile::tempdir().unwrap();
+    let config = dir.path().join("aibox.toml");
+    let original = format!(
+        "[container]\nname = \"legacy\"\n\n[container.environment]\nTOKEN = \"{CANARY}\"\n"
+    );
+    std::fs::write(&config, &original).unwrap();
+
+    let preview = run_in_dir(dir.path(), &["config", "migrate-v1", "--output", "json"]);
+    let preview_json = parse_json(&preview);
+    assert!(preview_json["changed"].as_bool().unwrap());
+    assert!(!String::from_utf8_lossy(&preview.stdout).contains(CANARY));
+    assert_eq!(std::fs::read_to_string(&config).unwrap(), original);
+    assert!(!dir.path().join(".aibox").exists());
+
+    let applied = run_in_dir(
+        dir.path(),
+        &["config", "migrate-v1", "--apply", "--output", "json"],
+    );
+    let applied_json = parse_json(&applied);
+    let backup = applied_json["backupPath"].as_str().unwrap();
+    assert_eq!(
+        std::fs::read_to_string(dir.path().join(backup)).unwrap_or_else(|error| {
+            panic!(
+                "backup path from apply result should exist ({backup}): {error}; stdout: {}",
+                String::from_utf8_lossy(&applied.stdout)
+            )
+        }),
+        original
+    );
+    assert!(
+        std::fs::read_to_string(&config)
+            .unwrap()
+            .contains("[orchestration]\nenabled = false")
+    );
+
+    // This is a v1-owned receipt. Configuration rollback must leave it alone;
+    // v0 lifecycle commands have no authority over deployment state.
+    let deployment = dir.path().join(".aibox/deployments/v1-owned.json");
+    std::fs::create_dir_all(deployment.parent().unwrap()).unwrap();
+    std::fs::write(&deployment, "v1 receipt").unwrap();
+    let restored = run_in_dir(
+        dir.path(),
+        &[
+            "config",
+            "migrate-v1",
+            "--restore",
+            backup,
+            "--output",
+            "json",
+        ],
+    );
+    let restored_json = parse_json(&restored);
+    assert_eq!(restored_json["operation"], "restore");
+    assert_eq!(std::fs::read_to_string(&config).unwrap(), original);
+    assert_eq!(std::fs::read_to_string(&deployment).unwrap(), "v1 receipt");
+}
+
+#[test]
+fn stable_v1_readiness_json_is_machine_readable_while_blocked() {
+    let dir = tempfile::tempdir().unwrap();
+    std::fs::write(
+        dir.path().join("aibox.toml"),
+        "[container]\nname = \"legacy\"\n",
+    )
+    .unwrap();
+    let output = run_in_dir(
+        dir.path(),
+        &["config", "release-readiness", "--output", "json"],
+    );
+    assert!(
+        !output.status.success(),
+        "stable v1 must not be declared ready"
+    );
+    let report: Value = serde_json::from_slice(&output.stdout).unwrap();
+    assert_eq!(report["kind"], "StableV1ReleaseReadiness");
+    assert_eq!(report["ready"], false);
+    let gates = report["gates"].as_array().unwrap();
+    assert!(gates.iter().any(|gate| {
+        gate["id"] == "m5-processkit-production-integration" && gate["status"] == "blocked"
+    }));
+    assert!(gates.iter().any(|gate| {
+        gate["id"] == "m7c-live-disposable-cluster-evidence" && gate["status"] == "blocked"
+    }));
+}
+
 fn installed_addon_files_from_install_script() -> Vec<String> {
     let manifest_dir = env!("CARGO_MANIFEST_DIR");
     let script_path = std::path::Path::new(manifest_dir)

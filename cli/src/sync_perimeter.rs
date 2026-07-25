@@ -395,6 +395,15 @@ mod tests {
     }
 
     #[test]
+    fn v0_sync_cannot_manage_v1_deployment_records() {
+        // Deployment records are exclusively owned by the v1 deployment
+        // backends.  Keeping them outside the v0 `apply` perimeter makes
+        // coexistence and config rollback non-destructive by contract.
+        assert!(!within(".aibox/deployments/v1-owned.json"));
+        assert!(!within(".aibox/release-evidence/m7c-live.json"));
+    }
+
+    #[test]
     fn devcontainer_dockerfile_is_in_perimeter() {
         assert!(within(".devcontainer/Dockerfile"));
     }

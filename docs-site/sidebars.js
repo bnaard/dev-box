@@ -29,6 +29,10 @@ const sidebars = {
       items: ['context/overview', 'context/process-packages', 'context/migration'],
     },
     {
+      type: 'category', label: 'Migrations',
+      items: ['migrations/lockfile-v0-25-6', 'migrations/zellij-eol', 'migrations/v0-to-v1-deployments'],
+    },
+    {
       type: 'category', label: 'Skills (via processkit)',
       items: ['skills/index'],
     },
@@ -45,7 +49,7 @@ const sidebars = {
     },
     {
       type: 'category', label: 'Reference',
-      items: ['reference/cli-commands', 'reference/configuration', 'reference/local-config', 'reference/security', 'reference/compatibility', 'reference/cheatsheet'],
+      items: ['reference/cli-commands', 'reference/configuration', 'reference/local-config', 'reference/security', 'reference/v1-deployment-boundaries', 'reference/compatibility', 'reference/cheatsheet'],
     },
     'roadmap',
     {

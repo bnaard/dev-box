@@ -66,6 +66,7 @@ mod theme_cmd;
 mod themes;
 mod tmux;
 mod update;
+mod v1_release_readiness;
 mod v1_v2_migration;
 mod version_resolve;
 mod workspace_manifest;
@@ -217,6 +218,19 @@ fn dispatch(cli: cli::Cli) -> anyhow::Result<()> {
         cli::Commands::Config { action } => match action {
             cli::ConfigAction::Compile { format } => {
                 orchestration_compile::cmd_config_compile(config_path, format)
+            }
+            cli::ConfigAction::MigrateV1 {
+                apply,
+                restore,
+                format,
+            } => v1_release_readiness::cmd_config_migrate_v1(
+                config_path,
+                apply,
+                restore.as_deref(),
+                format,
+            ),
+            cli::ConfigAction::ReleaseReadiness { format } => {
+                v1_release_readiness::cmd_release_readiness(config_path, format)
             }
         },
         cli::Commands::Deploy { action } => match action {
