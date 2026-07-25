@@ -45,6 +45,8 @@ mod model_migration;
 mod orchestration_compile;
 mod output;
 mod preauth;
+#[allow(dead_code)]
+mod processkit_protocol;
 mod processkit_vocab;
 mod provider_backend;
 mod prune;
