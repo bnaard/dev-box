@@ -1,0 +1,17 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://aibox.projectious.work/contracts/v1alpha1/workspace-fleet-spec.schema.json",
+  "title": "WorkspaceFleetSpec v1alpha1", "type": "object", "additionalProperties": false,
+  "required": ["apiVersion", "kind", "metadata", "spec"],
+  "properties": {
+    "apiVersion": { "const": "aibox.projectious.work/v1alpha1" }, "kind": { "const": "WorkspaceFleetSpec" },
+    "metadata": { "$ref": "#/$defs/metadata" },
+    "spec": { "type": "object", "additionalProperties": false, "required": ["image", "services"], "properties": { "image": { "$ref": "#/$defs/image" }, "services": { "type": "array", "minItems": 1, "items": { "$ref": "#/$defs/service" } }, "sidecars": { "type": "array", "items": { "$ref": "#/$defs/service" } } } }
+  },
+  "$defs": {
+    "metadata": { "type": "object", "additionalProperties": false, "required": ["name", "owner"], "properties": { "name": { "type": "string" }, "owner": { "type": "object", "additionalProperties": false, "required": ["ownerId"], "properties": { "ownerId": { "type": "string" } } }, "labels": { "type": "object", "additionalProperties": { "type": "string" } } } },
+    "image": { "type": "object", "additionalProperties": false, "required": ["reference", "digest"], "properties": { "reference": { "type": "string" }, "digest": { "type": "string", "pattern": "^sha256:" } } },
+    "credential": { "type": "object", "additionalProperties": false, "required": ["kind", "reference"], "properties": { "kind": { "enum": ["environment-variable", "file", "secret-manager"] }, "reference": { "type": "string", "minLength": 1 } } },
+    "service": { "type": "object", "additionalProperties": false, "required": ["name"], "properties": { "name": { "type": "string", "minLength": 1 }, "environment": { "type": "array", "items": { "type": "object", "additionalProperties": false, "required": ["name", "valueFrom"], "properties": { "name": { "type": "string" }, "valueFrom": { "$ref": "#/$defs/credential" } } } }, "mounts": { "type": "array" }, "ports": { "type": "array" }, "resources": { "type": "object" } } }
+  }
+}

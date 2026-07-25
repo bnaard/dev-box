@@ -1,0 +1,11 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://aibox.projectious.work/contracts/v1alpha1/connection-target.schema.json",
+  "title": "ConnectionTarget v1alpha1", "type": "object", "additionalProperties": false,
+  "required": ["apiVersion", "kind", "metadata", "spec"],
+  "properties": {
+    "apiVersion": { "const": "aibox.projectious.work/v1alpha1" }, "kind": { "const": "ConnectionTarget" }, "metadata": { "$ref": "#/$defs/metadata" },
+    "spec": { "type": "object", "additionalProperties": false, "required": ["deploymentId", "service", "transport", "interactive", "endpoint"], "properties": { "deploymentId": { "type": "string" }, "service": { "type": "string" }, "transport": { "enum": ["compose-exec", "kubernetes-exec", "kubernetes-port-forward", "ssh"] }, "interactive": { "type": "boolean" }, "endpoint": { "type": "string" }, "invocation": { "type": "array", "items": { "type": "string" } }, "credentials": { "type": "array", "items": { "$ref": "#/$defs/credential" } } } }
+  },
+  "$defs": { "metadata": { "type": "object", "additionalProperties": false, "required": ["name", "owner"], "properties": { "name": { "type": "string" }, "owner": { "type": "object", "additionalProperties": false, "required": ["ownerId"], "properties": { "ownerId": { "type": "string" } } }, "labels": { "type": "object", "additionalProperties": { "type": "string" } } } }, "credential": { "type": "object", "additionalProperties": false, "required": ["kind", "reference"], "properties": { "kind": { "enum": ["environment-variable", "file", "secret-manager"] }, "reference": { "type": "string" } } } }
+}

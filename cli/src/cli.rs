@@ -31,6 +31,16 @@ pub enum OutputFormat {
     Yaml,
 }
 
+/// Output format for deterministic configuration compilation.
+#[derive(Clone, Debug, Default, ValueEnum)]
+pub enum CompileOutputFormat {
+    /// Concise human-readable plan
+    #[default]
+    Human,
+    /// Canonical plan as JSON
+    Json,
+}
+
 /// Available tmux IDE layouts.
 #[derive(Clone, Debug, ValueEnum)]
 pub enum Layout {
@@ -260,6 +270,11 @@ pub enum Commands {
         )]
         no_container: bool,
     },
+    /// Inspect compiled v1 orchestration intent without changing project state
+    Config {
+        #[command(subcommand)]
+        action: ConfigAction,
+    },
     /// Start container and attach via tmux
     ///
     /// Seeds .aibox-home/ if needed, generates devcontainer files,
@@ -464,6 +479,22 @@ pub enum Commands {
     SelfCmd {
         #[command(subcommand)]
         action: SelfAction,
+    },
+}
+
+#[derive(Clone, Debug, Subcommand)]
+pub enum ConfigAction {
+    /// Validate and compile orchestration intent into a deterministic plan
+    Compile {
+        /// Output format
+        #[arg(
+            long,
+            short = 'o',
+            visible_alias = "output",
+            value_enum,
+            default_value = "human"
+        )]
+        format: CompileOutputFormat,
     },
 }
 

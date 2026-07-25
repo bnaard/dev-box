@@ -92,6 +92,107 @@ TEAM_TOKEN = "secret-token"
     .unwrap();
 }
 
+fn write_orchestration_compile_fixture(dir: &std::path::Path) {
+    std::fs::write(
+        dir.join("aibox.toml"),
+        r#"[container]
+name = "compile-test"
+
+[orchestration]
+enabled = true
+
+[orchestration.image]
+reference = "ghcr.io/acme/workspace"
+digest = "sha256:0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef"
+platform = "linux-amd64"
+
+[orchestration.fleet]
+name = "workspace"
+services = [{ name = "workspace", ports = [{ container_port = 8080 }] }]
+
+[orchestration.target]
+backend = "compose"
+reference = "docker-context:default"
+scope = "workspace"
+
+[orchestration.deployment]
+name = "workspace-dev"
+owner_id = "team-a"
+"#,
+    )
+    .unwrap();
+}
+
+#[test]
+fn config_compile_json_is_deterministic_and_read_only() {
+    let dir = tempfile::tempdir().unwrap();
+    write_orchestration_compile_fixture(dir.path());
+    let before = std::fs::read_dir(dir.path())
+        .unwrap()
+        .map(|entry| entry.unwrap().file_name())
+        .collect::<Vec<_>>();
+
+    let first = Command::new(aibox_bin())
+        .args(["config", "compile", "--output", "json"])
+        .current_dir(dir.path())
+        .env("AIBOX_ADDONS_DIR", dir.path().join("missing-addons"))
+        .output()
+        .expect("run config compile without an addon catalog");
+    let second = run_in_dir(dir.path(), &["config", "compile", "--output", "json"]);
+    let first_json = parse_json(&first);
+    let second_json = parse_json(&second);
+
+    assert_eq!(first_json, second_json);
+    assert!(
+        first_json["desiredSpecDigest"]
+            .as_str()
+            .unwrap()
+            .starts_with("sha256:")
+    );
+    assert_eq!(first_json["actions"].as_array().unwrap().len(), 1);
+    assert_eq!(first_json["actions"][0]["type"], "deploy-fleet");
+
+    let after = std::fs::read_dir(dir.path())
+        .unwrap()
+        .map(|entry| entry.unwrap().file_name())
+        .collect::<Vec<_>>();
+    assert_eq!(
+        before, after,
+        "config compile must not create project files"
+    );
+}
+
+#[test]
+fn config_compile_human_reports_digest_and_disabled_build() {
+    let dir = tempfile::tempdir().unwrap();
+    write_orchestration_compile_fixture(dir.path());
+
+    let output = run_in_dir(dir.path(), &["config", "compile"]);
+    assert!(
+        output.status.success(),
+        "stderr: {}",
+        String::from_utf8_lossy(&output.stderr)
+    );
+    let stdout = String::from_utf8_lossy(&output.stdout);
+    assert!(stdout.contains("desired spec digest: sha256:"));
+    assert!(stdout.contains("image build: disabled"));
+    assert!(stdout.contains("target: compose:docker-context:default"));
+}
+
+#[test]
+fn config_compile_rejects_disabled_orchestration() {
+    let dir = tempfile::tempdir().unwrap();
+    std::fs::write(
+        dir.path().join("aibox.toml"),
+        "[container]\nname = \"legacy\"\n",
+    )
+    .unwrap();
+
+    let output = run_in_dir(dir.path(), &["config", "compile", "--output", "json"]);
+    assert!(!output.status.success());
+    assert!(String::from_utf8_lossy(&output.stderr).contains("orchestration is not enabled"));
+}
+
 fn installed_addon_files_from_install_script() -> Vec<String> {
     let manifest_dir = env!("CARGO_MANIFEST_DIR");
     let script_path = std::path::Path::new(manifest_dir)

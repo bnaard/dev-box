@@ -2955,6 +2955,7 @@ pub fn cmd_init(config_path: &Option<String>, params: InitParams) -> Result<()> 
         // S5 — BR-SEC-HARDEN: Codex consent is plumbed in after struct init
         // (ai_providers has been moved into config.ai.harnesses by this point).
         security: crate::config::SecuritySection::default(),
+        orchestration: crate::config::OrchestrationSection::default(),
         local_env: std::collections::HashMap::new(),
         local_mcp_servers: vec![],
     };

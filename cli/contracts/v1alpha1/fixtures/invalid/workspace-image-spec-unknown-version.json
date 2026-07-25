@@ -1,0 +1,6 @@
+{
+  "apiVersion": "aibox.projectious.work/v2alpha1",
+  "kind": "WorkspaceImageSpec",
+  "metadata": { "name": "wrong-version", "owner": { "ownerId": "team-a" } },
+  "spec": { "baseImage": { "reference": "debian:bookworm", "digest": "sha256:base" }, "platform": "linux-amd64" }
+}
