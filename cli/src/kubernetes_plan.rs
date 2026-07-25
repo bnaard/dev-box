@@ -27,6 +27,10 @@ use crate::deployment_contract::{
     DeploymentRecordSpec, DeploymentStatus, KubernetesReconciliationIntent, ObjectMeta,
     PortProtocol, WorkspaceFleetSpec, WorkspaceService,
 };
+use crate::kubernetes_connection::{
+    KubectlNetworkApi, KubernetesNetworkApi, NetworkOwnership, NetworkReconciliationRequest,
+    destroy_network, preflight_network, reconcile_network,
+};
 
 const LABEL_DEPLOYMENT_ID: &str = "aibox.projectious.work/deployment-id";
 const LABEL_SPEC_DIGEST: &str = "aibox.projectious.work/desired-spec-digest";
@@ -402,6 +406,7 @@ pub struct KubernetesBackend {
 struct KubernetesLifecycle {
     project_dir: PathBuf,
     client: Option<Arc<dyn KubernetesClient>>,
+    network: Option<Arc<dyn KubernetesNetworkApi>>,
 }
 impl KubernetesBackend {
     #[allow(dead_code)] // deterministic fake-client and plan-only tests
@@ -423,6 +428,7 @@ impl KubernetesBackend {
             lifecycle: Some(KubernetesLifecycle {
                 project_dir,
                 client: None,
+                network: None,
             }),
         }
     }
@@ -437,6 +443,7 @@ impl KubernetesBackend {
             lifecycle: Some(KubernetesLifecycle {
                 project_dir,
                 client: Some(client),
+                network: None,
             }),
         }
     }
@@ -473,6 +480,32 @@ impl KubernetesLifecycle {
             .filter(|context| !context.is_empty())
             .ok_or_else(|| error("Kubernetes deployment record has no explicit kube-context"))?;
         Ok(Arc::new(KubectlClient::new(context)))
+    }
+    fn network_api(&self, context: &str) -> Option<Arc<dyn KubernetesNetworkApi>> {
+        self.network.clone().or_else(|| {
+            self.client
+                .is_none()
+                .then(|| Arc::new(KubectlNetworkApi::new(context)) as Arc<dyn KubernetesNetworkApi>)
+        })
+    }
+}
+
+#[cfg(test)]
+impl KubernetesBackend {
+    fn with_clients(
+        project_dir: PathBuf,
+        discovery: Arc<dyn KubernetesDiscovery>,
+        client: Arc<dyn KubernetesClient>,
+        network: Arc<dyn KubernetesNetworkApi>,
+    ) -> Self {
+        Self {
+            discovery,
+            lifecycle: Some(KubernetesLifecycle {
+                project_dir,
+                client: Some(client),
+                network: Some(network),
+            }),
+        }
     }
 }
 impl Backend for KubernetesBackend {
@@ -558,6 +591,16 @@ impl KubernetesBackend {
         let _lock = store.lock(&rendered.deployment_id)?;
         let record = record_for(&request.plan, &rendered)?;
 
+        // DNS provider and class discovery are a transaction precondition. Do
+        // this before persisting/applying the workload so unsupported external
+        // DNS cannot cause any workload mutation.
+        let network_requests = network_requests(&record)?;
+        if let Some(network) = lifecycle.network_api(client.context()) {
+            for request in &network_requests {
+                preflight_network(network.as_ref(), request)?;
+            }
+        }
+
         if let Some(existing) = store.load(&rendered.deployment_id)? {
             if existing.spec.status == DeploymentStatus::Observed
                 && existing.spec.desired_spec_digest == rendered.desired_spec_digest
@@ -566,6 +609,11 @@ impl KubernetesBackend {
                 let observed = observe(client.as_ref(), &existing)?;
                 store.save(&observed)?;
                 if observed.spec.status == DeploymentStatus::Observed {
+                    if let Some(network) = lifecycle.network_api(client.context()) {
+                        for request in &network_requests {
+                            reconcile_network(network.as_ref(), request)?;
+                        }
+                    }
                     return Ok(ApplyResponse { record: observed });
                 }
             }
@@ -578,6 +626,11 @@ impl KubernetesBackend {
                 && observed.spec.desired_spec_digest == rendered.desired_spec_digest
                 && observed.spec.image.digest == rendered.image_digest
             {
+                if let Some(network) = lifecycle.network_api(client.context()) {
+                    for request in &network_requests {
+                        reconcile_network(network.as_ref(), request)?;
+                    }
+                }
                 return Ok(ApplyResponse { record: observed });
             }
         }
@@ -585,6 +638,11 @@ impl KubernetesBackend {
         // Persist before the first mutation.  A failed or interrupted apply is
         // therefore resumable, and never leaves an untracked resource set.
         store.save(&record)?;
+        if let Some(network) = lifecycle.network_api(client.context()) {
+            for request in &network_requests {
+                reconcile_network(network.as_ref(), request)?;
+            }
+        }
         let resources = desired_resources(&request.plan, &record)?;
         for resource in resources {
             if let Err(error) = client.apply(resource) {
@@ -638,6 +696,12 @@ impl KubernetesBackend {
         if record.spec.status == DeploymentStatus::Destroyed {
             return Ok(DestroyResponse { record });
         }
+        let client = lifecycle.client_for_record(&record)?;
+        if let Some(network) = lifecycle.network_api(client.context()) {
+            for request in network_requests(&record)? {
+                destroy_network(network.as_ref(), &request)?;
+            }
+        }
         // Select by namespace and expected names rather than solely by the
         // ownership label: a changed or removed label must cause a guarded
         // refusal, never make a resource invisible to destroy.
@@ -647,7 +711,6 @@ impl KubernetesBackend {
             .iter()
             .map(|service| service.name.as_str())
             .collect::<BTreeSet<_>>();
-        let client = lifecycle.client_for_record(&record)?;
         let resources = client
             .list_namespace(&record.spec.target.scope)?
             .into_iter()
@@ -960,6 +1023,44 @@ fn record_for(
             processkit_result: None,
         },
     })
+}
+
+fn network_requests(
+    record: &DeploymentRecord,
+) -> Result<Vec<NetworkReconciliationRequest>, BackendError> {
+    let Some(intent) = record.spec.target.kubernetes.as_ref() else {
+        return Ok(Vec::new());
+    };
+    if intent.ingress_class.is_none() && intent.gateway_class.is_none() && intent.dns_zone.is_none()
+    {
+        return Ok(Vec::new());
+    }
+    Ok(record
+        .spec
+        .services
+        .iter()
+        .map(|service| {
+            let hostname = intent.dns_zone.as_ref().map_or_else(
+                || format!("{}.{}.local", service.name, record.spec.target.scope),
+                |zone| format!("{}.{}", service.name, zone),
+            );
+            NetworkReconciliationRequest {
+                namespace: record.spec.target.scope.clone(),
+                service: service.name.clone(),
+                hostname,
+                ownership: NetworkOwnership {
+                    deployment_id: record.spec.deployment_id.clone(),
+                    desired_spec_digest: record.spec.desired_spec_digest.clone(),
+                },
+                ingress_class: intent.ingress_class.clone(),
+                gateway_class: intent.gateway_class.clone(),
+                dns_zone: intent.dns_zone.clone(),
+                // References remain in the typed request but the generic
+                // kubectl adapter never serializes them into a manifest.
+                dns_credentials: intent.dns_credentials.clone(),
+            }
+        })
+        .collect())
 }
 
 fn with_status(record: &DeploymentRecord, status: DeploymentStatus) -> DeploymentRecord {
@@ -1429,6 +1530,70 @@ mod tests {
         }
     }
 
+    #[derive(Default)]
+    struct FakeNetworkApi {
+        ingress: BTreeSet<String>,
+        gateway: BTreeSet<String>,
+        zones: BTreeSet<String>,
+        resources: Mutex<
+            BTreeMap<
+                (String, String, String),
+                crate::kubernetes_connection::ManagedNetworkResource,
+            >,
+        >,
+        applies: Mutex<usize>,
+        deletes: Mutex<usize>,
+    }
+    impl KubernetesNetworkApi for FakeNetworkApi {
+        fn ingress_classes(&self) -> Result<BTreeSet<String>, BackendError> {
+            Ok(self.ingress.clone())
+        }
+        fn gateway_classes(&self) -> Result<BTreeSet<String>, BackendError> {
+            Ok(self.gateway.clone())
+        }
+        fn dns_zones(&self) -> Result<BTreeSet<String>, BackendError> {
+            Ok(self.zones.clone())
+        }
+        fn get(
+            &self,
+            kind: &str,
+            namespace: &str,
+            name: &str,
+        ) -> Result<Option<crate::kubernetes_connection::ManagedNetworkResource>, BackendError>
+        {
+            Ok(self
+                .resources
+                .lock()
+                .unwrap()
+                .get(&(kind.to_string(), namespace.to_string(), name.to_string()))
+                .cloned())
+        }
+        fn apply(
+            &self,
+            resource: crate::kubernetes_connection::ManagedNetworkResource,
+        ) -> Result<(), BackendError> {
+            *self.applies.lock().unwrap() += 1;
+            self.resources.lock().unwrap().insert(
+                (
+                    resource.kind.clone(),
+                    resource.namespace.clone(),
+                    resource.name.clone(),
+                ),
+                resource,
+            );
+            Ok(())
+        }
+        fn delete(&self, kind: &str, namespace: &str, name: &str) -> Result<(), BackendError> {
+            *self.deletes.lock().unwrap() += 1;
+            self.resources.lock().unwrap().remove(&(
+                kind.to_string(),
+                namespace.to_string(),
+                name.to_string(),
+            ));
+            Ok(())
+        }
+    }
+
     fn plan() -> DesiredDeploymentPlan {
         let fleet: WorkspaceFleetSpec = serde_json::from_str(include_str!(
             "../contracts/v1alpha1/fixtures/valid/workspace-fleet-spec.json"
@@ -1470,6 +1635,28 @@ mod tests {
                 descriptors: [("staging".to_string(), descriptor)].into_iter().collect(),
             }),
             client,
+        )
+    }
+
+    fn lifecycle_backend_with_network(
+        root: &Path,
+        client: Arc<FakeKubernetesClient>,
+        network: Arc<FakeNetworkApi>,
+    ) -> KubernetesBackend {
+        let descriptor = KubernetesCapabilityDescriptor {
+            context: "staging".to_string(),
+            authorized_namespaces: ["workspace-dev".to_string()].into_iter().collect(),
+            ingress_classes: ["nginx".to_string()].into_iter().collect(),
+            gateway_classes: BTreeSet::new(),
+            dns_zones: BTreeSet::new(),
+        };
+        KubernetesBackend::with_clients(
+            root.to_path_buf(),
+            Arc::new(FakeKubernetesDiscovery {
+                descriptors: [("staging".to_string(), descriptor)].into_iter().collect(),
+            }),
+            client,
+            network,
         )
     }
 
@@ -1898,6 +2085,110 @@ mod tests {
                 .manifest
                 .pointer("/spec/template/spec/containers/0/ports/0/containerPort")
                 .is_some()
+        );
+    }
+
+    fn ingress_only_plan() -> DesiredDeploymentPlan {
+        let mut plan = plan();
+        plan.target.kubernetes.as_mut().unwrap().gateway_class = None;
+        plan.target.kubernetes.as_mut().unwrap().dns_zone = None;
+        plan
+    }
+
+    #[test]
+    fn network_preflight_happens_before_any_workload_mutation() {
+        let root = tempdir().unwrap();
+        let client = Arc::new(FakeKubernetesClient::new("staging"));
+        let network = Arc::new(FakeNetworkApi::default());
+        let backend = lifecycle_backend_with_network(root.path(), client.clone(), network);
+        assert_eq!(
+            backend
+                .apply(ApplyRequest {
+                    plan: ingress_only_plan()
+                })
+                .unwrap_err()
+                .code,
+            ContractErrorCode::CapabilityUnsupported
+        );
+        assert_eq!(
+            client.applies(),
+            0,
+            "missing facilities must not partially apply workloads"
+        );
+    }
+
+    #[test]
+    fn network_resources_are_reconciled_and_guarded_before_repeatable_destroy() {
+        let root = tempdir().unwrap();
+        let client = Arc::new(FakeKubernetesClient::new("staging"));
+        let network = Arc::new(FakeNetworkApi {
+            ingress: ["nginx".to_string()].into_iter().collect(),
+            ..Default::default()
+        });
+        let backend = lifecycle_backend_with_network(root.path(), client.clone(), network.clone());
+        let record = backend
+            .apply(ApplyRequest {
+                plan: ingress_only_plan(),
+            })
+            .unwrap()
+            .record;
+        assert_eq!(*network.applies.lock().unwrap(), 1);
+        let key = network
+            .resources
+            .lock()
+            .unwrap()
+            .keys()
+            .next()
+            .cloned()
+            .unwrap();
+        network
+            .resources
+            .lock()
+            .unwrap()
+            .get_mut(&key)
+            .unwrap()
+            .labels
+            .clear();
+        assert_eq!(
+            backend
+                .destroy(DestroyRequest {
+                    deployment_id: record.spec.deployment_id.clone()
+                })
+                .unwrap_err()
+                .code,
+            ContractErrorCode::Ownership
+        );
+        assert_eq!(
+            client.deletes(),
+            0,
+            "foreign network resource must guard workload destruction"
+        );
+        network
+            .resources
+            .lock()
+            .unwrap()
+            .get_mut(&key)
+            .unwrap()
+            .labels = NetworkOwnership {
+            deployment_id: record.spec.deployment_id.clone(),
+            desired_spec_digest: record.spec.desired_spec_digest.clone(),
+        }
+        .labels();
+        backend
+            .destroy(DestroyRequest {
+                deployment_id: record.spec.deployment_id.clone(),
+            })
+            .unwrap();
+        let deletes = *network.deletes.lock().unwrap();
+        backend
+            .destroy(DestroyRequest {
+                deployment_id: record.spec.deployment_id,
+            })
+            .unwrap();
+        assert_eq!(
+            *network.deletes.lock().unwrap(),
+            deletes,
+            "repeat destroy must not delete network resources again"
         );
     }
 }

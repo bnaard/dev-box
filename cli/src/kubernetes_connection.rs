@@ -8,6 +8,8 @@
 //! the typed target has been validated.
 
 use std::collections::{BTreeMap, BTreeSet};
+use std::io::Write;
+use std::process::{Command, Stdio};
 
 use serde::{Deserialize, Serialize};
 
@@ -334,6 +336,236 @@ pub trait KubernetesNetworkApi: Send + Sync {
     fn delete(&self, kind: &str, namespace: &str, name: &str) -> Result<(), BackendError>;
 }
 
+/// Production network adapter.  It sends typed manifests to kubectl with a
+/// direct argv and stdin boundary; no shell interpolation is involved.
+///
+/// External DNS is deliberately absent: DNS providers need their own explicit
+/// adapter and credential-resolution policy.  Returning no zones makes DNS
+/// intent fail capability preflight before any workload mutation.
+#[derive(Clone, Debug)]
+pub struct KubectlNetworkApi {
+    context: String,
+}
+impl KubectlNetworkApi {
+    pub fn new(context: impl Into<String>) -> Self {
+        Self {
+            context: context.into(),
+        }
+    }
+    fn prefix(&self, namespace: &str) -> Vec<String> {
+        vec![
+            "--context".to_string(),
+            self.context.clone(),
+            "--namespace".to_string(),
+            namespace.to_string(),
+        ]
+    }
+    fn output(&self, args: Vec<String>) -> Result<std::process::Output, BackendError> {
+        Command::new("kubectl")
+            .args(args)
+            .output()
+            .map_err(|error| BackendError {
+                code: ContractErrorCode::Observation,
+                message: format!("could not execute kubectl: {error}"),
+            })
+    }
+    fn names(&self, resource: &str) -> Result<BTreeSet<String>, BackendError> {
+        let mut args = vec![
+            "--context".to_string(),
+            self.context.clone(),
+            "get".to_string(),
+            resource.to_string(),
+            "-o".to_string(),
+            "json".to_string(),
+        ];
+        let output = self.output(std::mem::take(&mut args))?;
+        if !output.status.success() {
+            return Err(BackendError {
+                code: ContractErrorCode::CapabilityUnsupported,
+                message: format!(
+                    "kubectl cannot discover {resource}: {}",
+                    String::from_utf8_lossy(&output.stderr).trim()
+                ),
+            });
+        }
+        let json: serde_json::Value =
+            serde_json::from_slice(&output.stdout).map_err(|error| BackendError {
+                code: ContractErrorCode::Observation,
+                message: format!("invalid kubectl discovery response: {error}"),
+            })?;
+        Ok(json
+            .get("items")
+            .and_then(serde_json::Value::as_array)
+            .into_iter()
+            .flatten()
+            .filter_map(|item| {
+                item.pointer("/metadata/name")
+                    .and_then(serde_json::Value::as_str)
+                    .map(str::to_string)
+            })
+            .collect())
+    }
+    fn manifest(resource: &ManagedNetworkResource) -> Result<serde_json::Value, BackendError> {
+        let metadata = serde_json::json!({"name": resource.name, "namespace": resource.namespace, "labels": resource.labels});
+        match resource.kind.as_str() {
+            "Ingress" => Ok(serde_json::json!({"apiVersion":"networking.k8s.io/v1","kind":"Ingress","metadata":metadata,"spec":{"ingressClassName":resource.class,"rules":[{"host":resource.hostname,"http":{"paths":[{"path":"/","pathType":"Prefix","backend":{"service":{"name":resource.service,"port":{"number":80}}}}]}}]}})),
+            "Gateway" => Ok(serde_json::json!({"apiVersion":"gateway.networking.k8s.io/v1","kind":"Gateway","metadata":metadata,"spec":{"gatewayClassName":resource.class,"listeners":[{"name":"http","hostname":resource.hostname,"port":80,"protocol":"HTTP"}]}})),
+            "HTTPRoute" => Ok(serde_json::json!({"apiVersion":"gateway.networking.k8s.io/v1","kind":"HTTPRoute","metadata":metadata,"spec":{"parentRefs":[{"name":resource.parent}],"hostnames":[resource.hostname],"rules":[{"backendRefs":[{"name":resource.service,"port":80}]}]}})),
+            "DNSRecord" => Err(BackendError { code: ContractErrorCode::CapabilityUnsupported, message: "external DNS requires an explicit provider adapter; generic kubectl cannot create DNS records".to_string() }),
+            _ => Err(BackendError { code: ContractErrorCode::Validation, message: format!("unsupported managed network resource kind '{}'", resource.kind) }),
+        }
+    }
+}
+impl KubernetesNetworkApi for KubectlNetworkApi {
+    fn ingress_classes(&self) -> Result<BTreeSet<String>, BackendError> {
+        self.names("ingressclass")
+    }
+    fn gateway_classes(&self) -> Result<BTreeSet<String>, BackendError> {
+        self.names("gatewayclass.gateway.networking.k8s.io")
+    }
+    fn dns_zones(&self) -> Result<BTreeSet<String>, BackendError> {
+        Ok(BTreeSet::new())
+    }
+    fn get(
+        &self,
+        kind: &str,
+        namespace: &str,
+        name: &str,
+    ) -> Result<Option<ManagedNetworkResource>, BackendError> {
+        if kind == "DNSRecord" {
+            return Ok(None);
+        }
+        let resource = kind.to_ascii_lowercase();
+        let mut args = self.prefix(namespace);
+        args.extend([
+            "get".to_string(),
+            format!("{resource}/{name}"),
+            "-o".to_string(),
+            "json".to_string(),
+        ]);
+        let output = self.output(args)?;
+        if !output.status.success() {
+            if String::from_utf8_lossy(&output.stderr).contains("NotFound") {
+                return Ok(None);
+            }
+            return Err(BackendError {
+                code: ContractErrorCode::Observation,
+                message: format!(
+                    "kubectl get {kind} failed: {}",
+                    String::from_utf8_lossy(&output.stderr).trim()
+                ),
+            });
+        }
+        let value: serde_json::Value =
+            serde_json::from_slice(&output.stdout).map_err(|e| BackendError {
+                code: ContractErrorCode::Observation,
+                message: format!("invalid kubectl {kind} response: {e}"),
+            })?;
+        let labels = value
+            .pointer("/metadata/labels")
+            .and_then(serde_json::Value::as_object)
+            .map(|labels| {
+                labels
+                    .iter()
+                    .filter_map(|(key, value)| {
+                        value.as_str().map(|value| (key.clone(), value.to_string()))
+                    })
+                    .collect()
+            })
+            .unwrap_or_default();
+        Ok(Some(ManagedNetworkResource {
+            kind: kind.to_string(),
+            namespace: namespace.to_string(),
+            name: name.to_string(),
+            labels,
+            hostname: String::new(),
+            class: None,
+            service: None,
+            parent: None,
+            zone: None,
+        }))
+    }
+    fn apply(&self, resource: ManagedNetworkResource) -> Result<(), BackendError> {
+        let namespace = resource.namespace.clone();
+        let manifest =
+            serde_json::to_vec(&Self::manifest(&resource)?).map_err(|e| BackendError {
+                code: ContractErrorCode::Mutation,
+                message: format!("could not serialize network manifest: {e}"),
+            })?;
+        let mut args = self.prefix(&namespace);
+        args.extend([
+            "apply".to_string(),
+            "--server-side".to_string(),
+            "--field-manager=aibox".to_string(),
+            "-f".to_string(),
+            "-".to_string(),
+        ]);
+        let mut child = Command::new("kubectl")
+            .args(args)
+            .stdin(Stdio::piped())
+            .stdout(Stdio::null())
+            .stderr(Stdio::piped())
+            .spawn()
+            .map_err(|e| BackendError {
+                code: ContractErrorCode::Mutation,
+                message: format!("could not execute kubectl: {e}"),
+            })?;
+        child
+            .stdin
+            .take()
+            .ok_or_else(|| BackendError {
+                code: ContractErrorCode::Mutation,
+                message: "could not open kubectl stdin".to_string(),
+            })?
+            .write_all(&manifest)
+            .map_err(|e| BackendError {
+                code: ContractErrorCode::Mutation,
+                message: format!("could not write network manifest: {e}"),
+            })?;
+        let output = child.wait_with_output().map_err(|e| BackendError {
+            code: ContractErrorCode::Mutation,
+            message: format!("could not await kubectl: {e}"),
+        })?;
+        if output.status.success() {
+            Ok(())
+        } else {
+            Err(BackendError {
+                code: ContractErrorCode::Mutation,
+                message: format!(
+                    "kubectl network apply failed: {}",
+                    String::from_utf8_lossy(&output.stderr).trim()
+                ),
+            })
+        }
+    }
+    fn delete(&self, kind: &str, namespace: &str, name: &str) -> Result<(), BackendError> {
+        if kind == "DNSRecord" {
+            return Err(BackendError {
+                code: ContractErrorCode::CapabilityUnsupported,
+                message: "external DNS requires an explicit provider adapter".to_string(),
+            });
+        }
+        let mut args = self.prefix(namespace);
+        args.extend([
+            "delete".to_string(),
+            format!("{}/{}", kind.to_ascii_lowercase(), name),
+            "--ignore-not-found=true".to_string(),
+        ]);
+        let output = self.output(args)?;
+        if output.status.success() {
+            Ok(())
+        } else {
+            Err(BackendError {
+                code: ContractErrorCode::Mutation,
+                message: format!(
+                    "kubectl network delete failed: {}",
+                    String::from_utf8_lossy(&output.stderr).trim()
+                ),
+            })
+        }
+    }
+}
+
 /// Reconcile namespaced workload entry resources and a record in an existing
 /// zone. An IngressClass creates an Ingress; a GatewayClass creates a
 /// deployment-owned Gateway and HTTPRoute whose parent ref is that Gateway.
@@ -487,6 +719,16 @@ fn validate_network_request(
         }
     }
     Ok(())
+}
+
+/// Validate every facility before the first managed network resource is
+/// created.  Lifecycle callers use this to guarantee a missing DNS provider,
+/// class, or zone cannot leave partially applied workloads behind.
+pub fn preflight_network(
+    api: &dyn KubernetesNetworkApi,
+    request: &NetworkReconciliationRequest,
+) -> Result<(), BackendError> {
+    validate_network_request(api, request)
 }
 fn network_name(deployment_id: &str, service: &str) -> String {
     format!("{deployment_id}-{service}")
@@ -828,5 +1070,48 @@ mod tests {
         reconcile_network(&api, &request()).unwrap();
         destroy_network(&api, &request()).unwrap();
         destroy_network(&api, &request()).unwrap();
+    }
+
+    #[test]
+    fn kubectl_network_manifest_is_typed_and_never_contains_credential_material() {
+        let resource = ManagedNetworkResource {
+            kind: "Ingress".to_string(),
+            namespace: "workspace-dev".to_string(),
+            name: "workspace".to_string(),
+            labels: NetworkOwnership {
+                deployment_id: "deployment".to_string(),
+                desired_spec_digest: "sha256:spec".to_string(),
+            }
+            .labels(),
+            hostname: "workspace.example.test".to_string(),
+            class: Some("nginx".to_string()),
+            service: Some("workspace".to_string()),
+            parent: None,
+            zone: None,
+        };
+        let manifest = KubectlNetworkApi::manifest(&resource).unwrap();
+        assert_eq!(
+            manifest
+                .pointer("/spec/ingressClassName")
+                .and_then(serde_json::Value::as_str),
+            Some("nginx")
+        );
+        assert_eq!(
+            manifest
+                .pointer("/spec/rules/0/http/paths/0/backend/service/name")
+                .and_then(serde_json::Value::as_str),
+            Some("workspace")
+        );
+        let encoded = serde_json::to_string(&manifest).unwrap();
+        assert!(!encoded.contains("credential") && !encoded.contains("secret-token"));
+        assert_eq!(
+            KubectlNetworkApi::manifest(&ManagedNetworkResource {
+                kind: "DNSRecord".to_string(),
+                ..resource
+            })
+            .unwrap_err()
+            .code,
+            ContractErrorCode::CapabilityUnsupported
+        );
     }
 }
