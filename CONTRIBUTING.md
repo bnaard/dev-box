@@ -121,7 +121,7 @@ and produced artifact checksums still match.
 | `cli/` | The Rust CLI — the only shipped artifact besides addon YAMLs |
 | `addons/` | YAML addon definitions (python, rust, node, latex, …) |
 | `images/` | Container image build recipes published to GHCR |
-| `docs-site/` | Docusaurus documentation site |
+| `docs-site/` | Hugo/Docsy documentation site |
 | `scripts/` | Release and maintenance tooling |
 | `context/` | This project's context (workitems, decisions, notes, …) |
 
@@ -153,7 +153,7 @@ Rust source — add constants to `processkit_vocab.rs` instead.
 
 **We are in a dev-container building dev-containers.**
 
-- **`.devcontainer/`** — THIS project's dev environment (Rust + Python/uv + Docusaurus).
+- **`.devcontainer/`** — THIS project's dev environment (Rust + Python/uv + Hugo/Docsy).
 - **`images/`** — Published images for OTHER projects (pushed to GHCR).
 
 Never confuse these two. Changes to `.devcontainer/` affect our development.
