@@ -1,22 +1,35 @@
-# V1 processkit protocol fixtures
+# V1 processkit installer integration
 
-This is a provisional fixture contract for WS-G / M5. It is deliberately
-limited to a versioned opaque install request and result. Aibox retains only
-enabled state, source/channel/version, profile, harnesses, workspace root,
-and environment/path facts. The producer owns all policy and interprets the
-request without aibox inspecting processkit layouts, skills, templates,
-migrations, MCP topology, or harness projections.
+The M5 consumer is aligned with the producer-owned
+`processkit.projectious.work/installer/v1alpha1` contract implemented by
+processkit PR #123. Aibox supplies only the operation, target root, release
+input paths, profiles, harness intent, and explicit mutation acknowledgement.
+Processkit owns all installation policy and interprets the request without
+aibox inspecting layouts, skills, templates, migrations, MCP topology, or
+harness projections.
 
-The request is passed to `processkit install --request-json <json> --output json`
-as typed argv, never a persisted shell command. Results preserve only outcome,
-retryable error code, and producer provenance. The fixtures cover success,
-no-op, failure/retry, interruption, malformed output, incompatible versions,
-availability discovery, and secret-canary non-leakage.
+The request is written to a private temporary file and passed as typed argv to
+`processkit execute --request <path>`, never through a shell. The file is
+removed after invocation. Aibox validates the versioned result envelope and
+preserves producer extensions without interpreting processkit-owned state,
+changes, conflicts, warnings, errors, or provenance.
 
-## Producer-release gate
+For development compatibility testing against a processkit checkout:
 
-This code is **not wired to production installation**. It may not replace or
-remove the bounded v0 bridge until processkit issue #118 ships a compatible,
-released CLI and the parties ratify these fixtures with representative golden
-project parity. A compatible producer release remains the explicit gate for
-M5 production integration.
+```sh
+./scripts/test-processkit-v1-consumer.sh /path/to/processkit
+```
+
+The gate builds the standalone producer and exercises install, verify, update,
+and uninstall through the aibox adapter in an arbitrary disposable project.
+Unit coverage additionally fixes request validation, forward-compatible result
+decoding, exit/status agreement, request-file cleanup, and recover-before-retry
+semantics.
+
+## Stable-release gate
+
+The bounded v0 installer remains intact. Stable v1 stays blocked until a tagged
+processkit prerelease contains this protocol, the producer's
+`scripts/test-installer-local.sh` passes for that tag, and this consumer gate
+passes against the same tag. Cancellation is process cancellation; the only
+supported next operation is `recover`, followed by one retry.

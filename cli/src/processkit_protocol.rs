@@ -1,94 +1,224 @@
-//! Provisional, producer-gated processkit CLI protocol boundary.
+//! Opaque processkit installer protocol boundary for aibox v1.
 //!
-//! This module owns only opaque intent, typed command arguments, and result
-//! provenance.  It deliberately has no knowledge of processkit layouts,
-//! skills, packages, templates, migrations, or harness projections.  The
-//! fixture schema is frozen for joint review with processkit#118; production
-//! use remains disabled until a compatible producer release is available.
+//! The wire contract is owned by processkit. Aibox selects an operation and
+//! supplies paths and user intent, then treats the structured result as opaque
+//! evidence. It has no knowledge of processkit layouts, skills, packages,
+//! templates, migrations, or harness projections.
+//!
+//! Consumer compatibility is currently validated against processkit PR #123.
+//! Stable-v1 release remains gated on a tagged processkit prerelease containing
+//! this protocol and matching producer and consumer compatibility evidence.
 
-use std::collections::BTreeMap;
-use std::ffi::OsString;
 use std::path::{Path, PathBuf};
 use std::process::{Command, ExitStatus};
 
 use anyhow::{Context, Result, bail};
 use serde::{Deserialize, Serialize};
+use serde_json::Value;
+use tempfile::NamedTempFile;
 
-pub const PROCESSKIT_INSTALL_PROTOCOL_V1ALPHA1: &str =
-    "processkit.projectious.work/install/v1alpha1";
+pub const PROCESSKIT_INSTALLER_PROTOCOL_V1ALPHA1: &str =
+    "processkit.projectious.work/installer/v1alpha1";
 
-#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
-#[serde(rename_all = "camelCase", deny_unknown_fields)]
-pub struct InstallRequest {
-    #[serde(rename = "apiVersion")]
-    pub api_version: String,
-    pub enabled: bool,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub source: Option<String>,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub channel: Option<String>,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub version: Option<String>,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub profile: Option<String>,
-    #[serde(default)]
-    pub harnesses: Vec<String>,
-    pub root: PathBuf,
-    #[serde(default, skip_serializing_if = "BTreeMap::is_empty")]
-    pub environment: BTreeMap<String, String>,
+#[derive(Clone, Copy, Debug, Deserialize, Eq, PartialEq, Serialize)]
+#[serde(rename_all = "kebab-case")]
+pub enum InstallerOperation {
+    Plan,
+    Install,
+    Update,
+    Verify,
+    Uninstall,
+    Recover,
 }
 
-impl InstallRequest {
-    pub fn new(enabled: bool, root: PathBuf) -> Self {
-        Self {
-            api_version: PROCESSKIT_INSTALL_PROTOCOL_V1ALPHA1.into(),
-            enabled,
-            source: None,
-            channel: None,
-            version: None,
-            profile: None,
-            harnesses: Vec::new(),
-            root,
-            environment: BTreeMap::new(),
-        }
+impl InstallerOperation {
+    fn needs_release(self) -> bool {
+        matches!(self, Self::Plan | Self::Install | Self::Update)
+    }
+
+    fn mutates(self) -> bool {
+        matches!(
+            self,
+            Self::Install | Self::Update | Self::Uninstall | Self::Recover
+        )
     }
 }
 
 #[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
 #[serde(rename_all = "camelCase", deny_unknown_fields)]
-pub struct InstallResult {
+pub struct InstallerRequest {
     #[serde(rename = "apiVersion")]
     pub api_version: String,
-    pub outcome: InstallOutcome,
+    pub operation: InstallerOperation,
+    pub root: PathBuf,
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub message: Option<String>,
+    pub distribution_path: Option<PathBuf>,
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub error: Option<ProtocolError>,
+    pub envelope_path: Option<PathBuf>,
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub provenance: Option<InstallProvenance>,
+    pub signature_path: Option<PathBuf>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub trust_store_path: Option<PathBuf>,
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub profiles: Vec<String>,
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub harnesses: Vec<String>,
+    #[serde(default)]
+    pub yes: bool,
+}
+
+impl InstallerRequest {
+    pub fn development(
+        operation: InstallerOperation,
+        root: PathBuf,
+        distribution_path: PathBuf,
+    ) -> Self {
+        Self {
+            api_version: PROCESSKIT_INSTALLER_PROTOCOL_V1ALPHA1.into(),
+            operation,
+            root,
+            distribution_path: Some(distribution_path),
+            envelope_path: None,
+            signature_path: None,
+            trust_store_path: None,
+            profiles: Vec::new(),
+            harnesses: Vec::new(),
+            yes: operation.mutates(),
+        }
+    }
+
+    pub fn signed_release(
+        operation: InstallerOperation,
+        root: PathBuf,
+        envelope_path: PathBuf,
+        signature_path: PathBuf,
+        trust_store_path: PathBuf,
+    ) -> Self {
+        Self {
+            api_version: PROCESSKIT_INSTALLER_PROTOCOL_V1ALPHA1.into(),
+            operation,
+            root,
+            distribution_path: None,
+            envelope_path: Some(envelope_path),
+            signature_path: Some(signature_path),
+            trust_store_path: Some(trust_store_path),
+            profiles: Vec::new(),
+            harnesses: Vec::new(),
+            yes: operation.mutates(),
+        }
+    }
+
+    pub fn local(operation: InstallerOperation, root: PathBuf) -> Self {
+        Self {
+            api_version: PROCESSKIT_INSTALLER_PROTOCOL_V1ALPHA1.into(),
+            operation,
+            root,
+            distribution_path: None,
+            envelope_path: None,
+            signature_path: None,
+            trust_store_path: None,
+            profiles: Vec::new(),
+            harnesses: Vec::new(),
+            yes: operation.mutates(),
+        }
+    }
+
+    pub fn validate(&self) -> Result<()> {
+        if self.api_version != PROCESSKIT_INSTALLER_PROTOCOL_V1ALPHA1 {
+            bail!(
+                "unsupported processkit installer request apiVersion: {}",
+                self.api_version
+            );
+        }
+        if self.root.as_os_str().is_empty() {
+            bail!("processkit installer request root must not be empty");
+        }
+        let signed_count = [
+            self.envelope_path.is_some(),
+            self.signature_path.is_some(),
+            self.trust_store_path.is_some(),
+        ]
+        .into_iter()
+        .filter(|present| *present)
+        .count();
+        if !matches!(signed_count, 0 | 3) {
+            bail!("signed processkit release requires envelope, signature, and trust-store paths");
+        }
+        if signed_count == 3 && self.distribution_path.is_some() {
+            bail!("signed and development processkit release inputs are mutually exclusive");
+        }
+        if self.operation.needs_release() && self.distribution_path.is_none() && signed_count == 0 {
+            bail!("processkit {:?} requires a release input", self.operation);
+        }
+        if !self.operation.needs_release()
+            && (self.distribution_path.is_some() || signed_count != 0)
+        {
+            bail!(
+                "processkit {:?} does not accept a release input",
+                self.operation
+            );
+        }
+        if self.operation.mutates() && !self.yes {
+            bail!(
+                "processkit {:?} requires explicit mutation acknowledgement",
+                self.operation
+            );
+        }
+        if self.profiles.iter().any(|value| value.trim().is_empty())
+            || self.harnesses.iter().any(|value| value.trim().is_empty())
+        {
+            bail!("processkit profiles and harnesses must not contain empty values");
+        }
+        Ok(())
+    }
 }
 
 #[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
 #[serde(rename_all = "kebab-case")]
-pub enum InstallOutcome {
-    Succeeded,
-    Noop,
-    Failed,
-    Interrupted,
+pub enum InstallerStatus {
+    Planned,
+    Conflict,
+    Invalid,
+    Installed,
+    Updated,
+    Uninstalled,
+    Recovered,
+    Verified,
+    Drifted,
 }
 
-#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
-#[serde(rename_all = "camelCase", deny_unknown_fields)]
-pub struct ProtocolError {
-    pub code: String,
-    pub retryable: bool,
+impl InstallerStatus {
+    pub fn is_success(&self) -> bool {
+        matches!(
+            self,
+            Self::Planned
+                | Self::Installed
+                | Self::Updated
+                | Self::Uninstalled
+                | Self::Recovered
+                | Self::Verified
+        )
+    }
 }
 
-#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
-#[serde(rename_all = "camelCase", deny_unknown_fields)]
-pub struct InstallProvenance {
-    pub producer_version: String,
-    pub invocation_id: String,
+#[derive(Clone, Debug, Deserialize, PartialEq, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct InstallerResult {
+    #[serde(rename = "apiVersion")]
+    pub api_version: String,
+    pub status: InstallerStatus,
+    pub changes: Vec<Value>,
+    pub conflicts: Vec<Value>,
+    pub warnings: Vec<Value>,
+    pub errors: Vec<Value>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub state: Option<Value>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub checked: Option<u64>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub provenance: Option<Value>,
+    #[serde(flatten)]
+    pub extensions: serde_json::Map<String, Value>,
 }
 
 #[derive(Clone, Debug, Eq, PartialEq)]
@@ -111,70 +241,72 @@ pub fn discover_cli(path: Option<&Path>) -> CliAvailability {
     }
 }
 
-/// Invokes the producer through an argv vector.  The request JSON is passed as
-/// one argument; no shell is involved and no command string is persisted.
-pub fn invoke(cli: &Path, request: &InstallRequest, retry_once: bool) -> Result<InstallResult> {
-    let argv = request_argv(request)?;
-    let attempts = if retry_once { 2 } else { 1 };
-    for attempt in 0..attempts {
-        let output = Command::new(cli)
-            .args(&argv)
-            .output()
-            .with_context(|| format!("invoke processkit CLI at {}", cli.display()))?;
-        let result = decode_output(&output.status, &output.stdout)?;
-        if !(result.outcome == InstallOutcome::Failed
-            && result.error.as_ref().is_some_and(|error| error.retryable)
-            && attempt + 1 < attempts)
-        {
-            return Ok(result);
-        }
+/// Invoke the producer using its request-file boundary.
+///
+/// The temporary request is private, is deleted when this function returns,
+/// and is never rendered into a shell command or retained as release evidence.
+pub fn invoke(cli: &Path, request: &InstallerRequest) -> Result<InstallerResult> {
+    request.validate()?;
+    let mut request_file =
+        NamedTempFile::new().context("create private processkit installer request")?;
+    #[cfg(unix)]
+    {
+        use std::os::unix::fs::PermissionsExt;
+        request_file
+            .as_file()
+            .set_permissions(std::fs::Permissions::from_mode(0o600))
+            .context("restrict processkit installer request permissions")?;
     }
-    unreachable!("attempt count is always positive")
+    serde_json::to_writer(request_file.as_file_mut(), request)
+        .context("write processkit installer request")?;
+    request_file
+        .as_file_mut()
+        .sync_all()
+        .context("flush processkit installer request")?;
+
+    let output = Command::new(cli)
+        .arg("execute")
+        .arg("--request")
+        .arg(request_file.path())
+        .output()
+        .with_context(|| format!("invoke processkit CLI at {}", cli.display()))?;
+    decode_output(&output.status, &output.stdout)
 }
 
-pub fn request_argv(request: &InstallRequest) -> Result<Vec<OsString>> {
-    if request.api_version != PROCESSKIT_INSTALL_PROTOCOL_V1ALPHA1 {
+/// Recover an interrupted target and retry the original operation once.
+pub fn recover_then_retry(
+    cli: &Path,
+    interrupted_request: &InstallerRequest,
+) -> Result<InstallerResult> {
+    let recovery = InstallerRequest::local(
+        InstallerOperation::Recover,
+        interrupted_request.root.clone(),
+    );
+    let recovery_result = invoke(cli, &recovery)?;
+    if !recovery_result.status.is_success() {
         bail!(
-            "unsupported processkit install request apiVersion: {}",
-            request.api_version
+            "processkit recovery did not succeed: {:?}",
+            recovery_result.status
         );
     }
-    // Environment facts are optional producer context, never a channel for
-    // credentials. Preserve non-secret facts while excluding conventional
-    // credential names before serialisation or process execution.
-    let mut wire = request.clone();
-    wire.environment
-        .retain(|name, _| !is_secret_environment_name(name));
-    Ok(vec![
-        "install".into(),
-        "--request-json".into(),
-        serde_json::to_string(&wire)?.into(),
-        "--output".into(),
-        "json".into(),
-    ])
+    invoke(cli, interrupted_request)
 }
 
-fn is_secret_environment_name(name: &str) -> bool {
-    let upper = name.to_ascii_uppercase();
-    ["TOKEN", "SECRET", "PASSWORD", "CREDENTIAL", "API_KEY"]
-        .iter()
-        .any(|marker| upper.contains(marker))
-}
-
-fn decode_output(status: &ExitStatus, stdout: &[u8]) -> Result<InstallResult> {
-    let result: InstallResult =
+fn decode_output(status: &ExitStatus, stdout: &[u8]) -> Result<InstallerResult> {
+    let result: InstallerResult =
         serde_json::from_slice(stdout).context("malformed processkit CLI result JSON")?;
-    if result.api_version != PROCESSKIT_INSTALL_PROTOCOL_V1ALPHA1 {
+    if result.api_version != PROCESSKIT_INSTALLER_PROTOCOL_V1ALPHA1 {
         bail!(
-            "incompatible processkit install result apiVersion: {}",
+            "incompatible processkit installer result apiVersion: {}",
             result.api_version
         );
     }
-    if !status.success()
-        && result.outcome != InstallOutcome::Interrupted
-        && result.outcome != InstallOutcome::Failed
-    {
-        bail!("processkit CLI exited unsuccessfully without a failed or interrupted result");
+    if status.success() != result.status.is_success() {
+        bail!(
+            "processkit exit status and structured status disagree: exit={} status={:?}",
+            status,
+            result.status
+        );
     }
     Ok(result)
 }
@@ -186,26 +318,23 @@ mod tests {
     use std::sync::atomic::{AtomicUsize, Ordering};
     use tempfile::TempDir;
 
-    const CANARY: &str = "M5_SECRET_CANARY_DO_NOT_LEAK";
     static FAKE_CLI_SEQUENCE: AtomicUsize = AtomicUsize::new(0);
-    fn fixture(name: &str) -> &'static str {
-        match name {
-            "valid" => include_str!("../tests/fixtures/processkit-protocol/valid-result.json"),
-            "invalid" => include_str!("../tests/fixtures/processkit-protocol/invalid-result.json"),
-            _ => unreachable!(),
-        }
+
+    fn request() -> InstallerRequest {
+        let mut request = InstallerRequest::development(
+            InstallerOperation::Install,
+            PathBuf::from("/project"),
+            PathBuf::from("/release"),
+        );
+        request.profiles = vec!["managed".into()];
+        request.harnesses = vec!["codex".into()];
+        request
     }
-    fn request() -> InstallRequest {
-        let mut r = InstallRequest::new(true, PathBuf::from("/project"));
-        r.source = Some("https://example.invalid/processkit".into());
-        r.harnesses = vec!["codex".into()];
-        r.environment.insert("PATH".into(), "/bin".into());
-        r
-    }
+
     fn fake_cli(dir: &TempDir, body: &str) -> PathBuf {
         let sequence = FAKE_CLI_SEQUENCE.fetch_add(1, Ordering::Relaxed);
         let path = dir.path().join(format!("processkit-{sequence}"));
-        fs::write(&path, format!("#!/bin/sh\n{}\n", body)).unwrap();
+        fs::write(&path, format!("#!/bin/sh\nset -eu\n{body}\n")).unwrap();
         #[cfg(unix)]
         {
             use std::os::unix::fs::PermissionsExt;
@@ -214,15 +343,43 @@ mod tests {
         path
     }
 
-    #[test]
-    fn valid_fixture_round_trips() {
-        let got: InstallResult = serde_json::from_str(fixture("valid")).unwrap();
-        assert_eq!(got.outcome, InstallOutcome::Succeeded);
+    fn result(status: &str) -> String {
+        format!(
+            "{{\"apiVersion\":\"{PROCESSKIT_INSTALLER_PROTOCOL_V1ALPHA1}\",\
+             \"status\":\"{status}\",\"changes\":[],\"conflicts\":[],\
+             \"warnings\":[],\"errors\":[]}}"
+        )
     }
+
     #[test]
-    fn invalid_fixture_is_rejected() {
-        assert!(serde_json::from_str::<InstallResult>(fixture("invalid")).is_err());
+    fn request_matches_producer_execute_contract() {
+        let request = request();
+        request.validate().unwrap();
+        let value = serde_json::to_value(request).unwrap();
+        assert_eq!(value["apiVersion"], PROCESSKIT_INSTALLER_PROTOCOL_V1ALPHA1);
+        assert_eq!(value["operation"], "install");
+        assert_eq!(value["profiles"], serde_json::json!(["managed"]));
+        assert_eq!(value["harnesses"], serde_json::json!(["codex"]));
+        assert_eq!(value["yes"], true);
+        assert!(value.get("enabled").is_none());
+        assert!(value.get("source").is_none());
+        assert!(value.get("environment").is_none());
     }
+
+    #[test]
+    fn request_rejects_mixed_or_incomplete_release_inputs() {
+        let mut mixed = request();
+        mixed.envelope_path = Some("/envelope".into());
+        mixed.signature_path = Some("/signature".into());
+        mixed.trust_store_path = Some("/trust".into());
+        assert!(mixed.validate().is_err());
+
+        let mut incomplete = request();
+        incomplete.distribution_path = None;
+        incomplete.envelope_path = Some("/envelope".into());
+        assert!(incomplete.validate().is_err());
+    }
+
     #[test]
     fn availability_discovery_is_explicit() {
         let dir = TempDir::new().unwrap();
@@ -233,66 +390,157 @@ mod tests {
             CliAvailability::Unavailable
         );
     }
+
     #[test]
-    fn typed_argv_never_contains_secret_canary() {
-        let mut r = request();
-        r.environment.insert("TOKEN".into(), CANARY.into());
-        let encoded = request_argv(&r).unwrap();
-        assert!(
-            !encoded
-                .iter()
-                .any(|arg| arg.to_string_lossy().contains(CANARY))
-        );
-    }
-    #[test]
-    fn success_noop_and_interruption_are_preserved() {
+    fn invocation_uses_execute_request_file_and_removes_it() {
         let dir = TempDir::new().unwrap();
-        for (outcome, exit) in [("succeeded", 0), ("noop", 0), ("interrupted", 130)] {
-            let cli = fake_cli(
-                &dir,
-                &format!(
-                    "printf '%s' '{{\"apiVersion\":\"{}\",\"outcome\":\"{}\"}}'; exit {}",
-                    PROCESSKIT_INSTALL_PROTOCOL_V1ALPHA1, outcome, exit
-                ),
-            );
-            assert_eq!(
-                invoke(&cli, &request(), false).unwrap().outcome,
-                match outcome {
-                    "succeeded" => InstallOutcome::Succeeded,
-                    "noop" => InstallOutcome::Noop,
-                    _ => InstallOutcome::Interrupted,
-                }
-            );
-        }
-    }
-    #[test]
-    fn retryable_failure_retries_once() {
-        let dir = TempDir::new().unwrap();
-        let mark = dir.path().join("attempt");
+        let argv_log = dir.path().join("argv");
+        let request_copy = dir.path().join("request.json");
         let cli = fake_cli(
             &dir,
             &format!(
-                "if [ -e '{}' ]; then printf '%s' '{{\"apiVersion\":\"{}\",\"outcome\":\"succeeded\"}}'; else touch '{}'; printf '%s' '{{\"apiVersion\":\"{}\",\"outcome\":\"failed\",\"error\":{{\"code\":\"temporary\",\"retryable\":true}}}}'; exit 1; fi",
-                mark.display(),
-                PROCESSKIT_INSTALL_PROTOCOL_V1ALPHA1,
-                mark.display(),
-                PROCESSKIT_INSTALL_PROTOCOL_V1ALPHA1
+                "printf '%s\\n' \"$@\" > '{}'\ncp \"$3\" '{}'\nprintf '%s' '{}'",
+                argv_log.display(),
+                request_copy.display(),
+                result("installed")
             ),
         );
+        let got = invoke(&cli, &request()).unwrap();
+        assert_eq!(got.status, InstallerStatus::Installed);
+        let argv = fs::read_to_string(argv_log).unwrap();
+        let args: Vec<_> = argv.lines().collect();
+        assert_eq!(args[0], "execute");
+        assert_eq!(args[1], "--request");
+        assert!(!Path::new(args[2]).exists());
+        let wire: InstallerRequest =
+            serde_json::from_slice(&fs::read(request_copy).unwrap()).unwrap();
+        assert_eq!(wire, request());
+    }
+
+    #[test]
+    fn result_accepts_forward_compatible_extensions() {
+        let mut value: Value = serde_json::from_str(&result("verified")).unwrap();
+        value["producerExtension"] = serde_json::json!({"new": true});
+        let parsed: InstallerResult = serde_json::from_value(value).unwrap();
+        assert_eq!(parsed.status, InstallerStatus::Verified);
         assert_eq!(
-            invoke(&cli, &request(), true).unwrap().outcome,
-            InstallOutcome::Succeeded
+            parsed.extensions["producerExtension"],
+            serde_json::json!({"new": true})
         );
     }
+
     #[test]
-    fn malformed_and_incompatible_results_fail() {
+    fn malformed_incompatible_and_exit_status_mismatch_fail() {
         let dir = TempDir::new().unwrap();
         for body in [
             "printf nope",
-            "printf '%s' '{\"apiVersion\":\"other/v1\",\"outcome\":\"succeeded\"}'",
+            "printf '%s' '{\"apiVersion\":\"other/v1\",\"status\":\"installed\",\"changes\":[],\"conflicts\":[],\"warnings\":[],\"errors\":[]}'",
+            &format!("printf '%s' '{}'; exit 3", result("installed")),
+            &format!("printf '%s' '{}'", result("invalid")),
         ] {
             let cli = fake_cli(&dir, body);
-            assert!(invoke(&cli, &request(), false).is_err());
+            assert!(invoke(&cli, &request()).is_err());
         }
+    }
+
+    #[test]
+    fn recover_then_retry_uses_the_only_supported_interruption_path() {
+        let dir = TempDir::new().unwrap();
+        let calls = dir.path().join("calls");
+        let cli = fake_cli(
+            &dir,
+            &format!(
+                "operation=$(sed -n 's/.*\"operation\":\"\\([^\"]*\\)\".*/\\1/p' \"$3\")\nprintf '%s\\n' \"$operation\" >> '{}'\nif [ \"$operation\" = recover ]; then printf '%s' '{}'; else printf '%s' '{}'; fi",
+                calls.display(),
+                result("recovered"),
+                result("installed")
+            ),
+        );
+        assert_eq!(
+            recover_then_retry(&cli, &request()).unwrap().status,
+            InstallerStatus::Installed
+        );
+        assert_eq!(fs::read_to_string(calls).unwrap(), "recover\ninstall\n");
+    }
+
+    #[test]
+    fn real_producer_lifecycle_when_configured() {
+        let Some(cli) = std::env::var_os("AIBOX_PROCESSKIT_V1_TEST_CLI") else {
+            return;
+        };
+        let distribution = std::env::var_os("AIBOX_PROCESSKIT_V1_TEST_DISTRIBUTION")
+            .expect("consumer gate requires AIBOX_PROCESSKIT_V1_TEST_DISTRIBUTION");
+        let project = TempDir::new().unwrap();
+
+        let mut install = InstallerRequest::development(
+            InstallerOperation::Install,
+            project.path().to_path_buf(),
+            distribution.into(),
+        );
+        install.profiles = vec!["minimal".into()];
+        install.harnesses = vec!["codex".into()];
+
+        let mut plan = install.clone();
+        plan.operation = InstallerOperation::Plan;
+        plan.yes = false;
+        let planned = invoke(Path::new(&cli), &plan).unwrap();
+        assert_eq!(planned.status, InstallerStatus::Planned);
+        assert!(
+            !project.path().join(".processkit").exists(),
+            "planning must not create installer state"
+        );
+        assert!(
+            !project.path().join(".mcp.json").exists(),
+            "planning must not project harness configuration"
+        );
+
+        assert_eq!(
+            invoke(Path::new(&cli), &install).unwrap().status,
+            InstallerStatus::Installed
+        );
+        assert!(project.path().join(".processkit/state.json").is_file());
+        assert_eq!(
+            invoke(
+                Path::new(&cli),
+                &InstallerRequest::local(InstallerOperation::Verify, project.path().to_path_buf())
+            )
+            .unwrap()
+            .status,
+            InstallerStatus::Verified
+        );
+
+        let mut update = install.clone();
+        update.operation = InstallerOperation::Update;
+        let updated = invoke(Path::new(&cli), &update).unwrap();
+        assert_eq!(updated.status, InstallerStatus::Updated);
+        assert_eq!(
+            updated.changes,
+            vec![serde_json::json!({"count": 0})],
+            "an unchanged producer update must report zero changes"
+        );
+        let state: Value = serde_json::from_slice(
+            &fs::read(project.path().join(".processkit/state.json")).unwrap(),
+        )
+        .unwrap();
+        assert!(
+            state["ownedPaths"].as_array().is_some_and(|paths| paths
+                .iter()
+                .any(|path| path["ownership"] == "managed-keys"
+                    && path["operation"] == "managed-keys-create/v1")),
+            "unchanged update must retain create ownership for uninstall"
+        );
+        assert_eq!(
+            invoke(
+                Path::new(&cli),
+                &InstallerRequest::local(
+                    InstallerOperation::Uninstall,
+                    project.path().to_path_buf()
+                )
+            )
+            .unwrap()
+            .status,
+            InstallerStatus::Uninstalled
+        );
+        assert!(!project.path().join(".mcp.json").exists());
     }
 }
