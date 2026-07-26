@@ -1,0 +1,26 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+row="${1:-runtime}"
+
+case "$row" in
+  --keys|keys)
+    printf 'aibox-status-toggle: tmux has no separate key row to toggle\n' >&2
+    exit 0
+    ;;
+  --runtime|runtime|status)
+    if [ -z "${TMUX:-}" ] || ! command -v tmux >/dev/null 2>&1; then
+      printf 'aibox-status-toggle: not running inside tmux\n' >&2
+      exit 1
+    fi
+    current="$(tmux show -gqv status)"
+    if [ "$current" = "off" ]; then
+      exec tmux set -g status on
+    fi
+    exec tmux set -g status off
+    ;;
+  *)
+    printf 'usage: %s [runtime|keys]\n' "${0##*/}" >&2
+    exit 2
+    ;;
+esac

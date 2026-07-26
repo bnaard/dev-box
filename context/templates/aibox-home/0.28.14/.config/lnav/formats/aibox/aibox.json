@@ -1,0 +1,49 @@
+{
+  "$schema": "https://lnav.org/schemas/format-v1.schema.json",
+  "aibox_log": {
+    "title": "aibox NDJSON log",
+    "description": "Structured aibox CLI command log emitted to .aibox/aibox.log (one JSON record per line).",
+    "url": "https://github.com/projectious-work/aibox",
+    "json": true,
+    "file-pattern": "aibox\\.log(\\.\\d+)?$",
+    "line-format": [
+      { "field": "ts", "timestamp-format": "%Y-%m-%dT%H:%M:%S%z" },
+      " ",
+      { "field": "__level__", "min-width": 5 },
+      " ",
+      { "field": "cmd", "min-width": 8 },
+      " v",
+      { "field": "version" },
+      " (",
+      { "field": "duration_ms", "min-width": 5 },
+      "ms) exit=",
+      { "field": "exit_code" },
+      " ",
+      { "field": "msg" }
+    ],
+    "timestamp-field": "ts",
+    "level-field": "level",
+    "level": {
+      "error": "ERROR",
+      "warning": "WARN",
+      "info": "INFO"
+    },
+    "value": {
+      "ts":          { "kind": "string",  "identifier": false },
+      "cmd":         { "kind": "string",  "identifier": true  },
+      "version":     { "kind": "string",  "identifier": true  },
+      "exit_code":   { "kind": "integer", "identifier": false },
+      "duration_ms": { "kind": "integer", "identifier": false, "unit": { "field": "ms" } },
+      "msg":         { "kind": "string",  "identifier": false },
+      "level":       { "kind": "string",  "identifier": true  }
+    },
+    "highlights": {
+      "exit_nonzero": { "pattern": "exit=[1-9][0-9]*", "color": "Red" },
+      "exit_zero":    { "pattern": "exit=0",            "color": "Green" }
+    },
+    "sample": [
+      { "line": "{\"ts\":\"2026-05-08T13:38:00+00:00\",\"cmd\":\"sync\",\"version\":\"0.25.5\",\"exit_code\":0,\"duration_ms\":4230,\"msg\":\"ok\"}" },
+      { "line": "{\"ts\":\"2026-05-08T13:39:00+00:00\",\"cmd\":\"build\",\"version\":\"0.25.5\",\"exit_code\":1,\"duration_ms\":12030,\"msg\":\"docker build failed\",\"level\":\"ERROR\"}" }
+    ]
+  }
+}
