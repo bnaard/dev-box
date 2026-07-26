@@ -44,6 +44,10 @@ services:
     security_opt:
       - seccomp=unconfined
     privileged: true
+    # kind's Podman provider starts a systemd-based node container. Keep the
+    # companion in the host cgroup namespace so controllers delegated by the
+    # outer runtime remain available to that nested node.
+    cgroup: host
     cap_add:
       - SYS_ADMIN
       - NET_ADMIN
