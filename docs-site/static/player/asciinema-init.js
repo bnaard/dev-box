@@ -40,13 +40,6 @@ function initAsciinemaPlayers() {
   });
 }
 
-document.addEventListener("DOMContentLoaded", initAsciinemaPlayers);
+window.initAsciinemaPlayers = initAsciinemaPlayers;
 
-// Docusaurus client-side navigation: re-run after each page transition
-if (typeof window !== "undefined") {
-  var _origPushState = history.pushState;
-  history.pushState = function () {
-    _origPushState.apply(this, arguments);
-    setTimeout(initAsciinemaPlayers, 300);
-  };
-}
+document.addEventListener("DOMContentLoaded", initAsciinemaPlayers);

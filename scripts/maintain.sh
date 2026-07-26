@@ -14,8 +14,8 @@
 #   test-e2e-visual   Run all opt-in SSH/asciinema visual E2E tiers
 #   build-images      Build published foundation/runtime images locally
 #   release-runtime-smoke <version> Run generated runtime smoke against a release
-#   docs-serve        Serve Docusaurus locally for preview
-#   docs-deploy       Build Docusaurus and push HTML to gh-pages
+#   docs-serve        Serve Hugo/Docsy locally for preview
+#   docs-deploy       Build Hugo/Docsy and push HTML to gh-pages
 #   release <version> Tag, build, compile CLI, generate release prompt
 #   start             Start this project's dev-container
 #   stop              Stop this project's dev-container
@@ -123,8 +123,8 @@ ${bold}Development:${reset}
                            Plan or delete GHCR BuildKit cache package versions
   release-runtime-smoke <version>
                            Run host-side generated-runtime smoke and write logs
-  docs-serve               Serve Docusaurus locally (http://localhost:3000)
-  docs-deploy [--dry-run]  Build Docusaurus and push to gh-pages branch
+  docs-serve               Serve Hugo/Docsy locally (http://localhost:1313/aibox/)
+  docs-deploy [--dry-run]  Build Hugo/Docsy and push to gh-pages branch
   test-visual              Run screencast smoke tests (~40s)
   record-docs              Regenerate all docs screencasts + README GIF
 
@@ -1216,9 +1216,17 @@ cmd_ghcr_prune_buildcache_tags() {
 }
 
 cmd_docs_serve() {
-  cd "${PROJECT_ROOT}/docs-site"
-  info "Serving docs with Docusaurus at http://localhost:3000 ..."
-  npx docusaurus start --host 0.0.0.0
+  command -v hugo &>/dev/null || die "Hugo extended not found. Install Hugo >= 0.157.0."
+  command -v npm &>/dev/null  || die "npm not found. Install Node.js."
+  if [[ ! -f "${PROJECT_ROOT}/docs-site/themes/docsy/theme.toml" ]]; then
+    git -C "${PROJECT_ROOT}" submodule update --init --recursive docs-site/themes/docsy
+  fi
+  if [[ ! -d "${PROJECT_ROOT}/docs-site/node_modules" ]]; then
+    npm --prefix "${PROJECT_ROOT}/docs-site" ci
+  fi
+  info "Serving docs with Hugo and Docsy at http://localhost:1313/aibox/ ..."
+  hugo server --source "${PROJECT_ROOT}/docs-site" \
+    --bind 0.0.0.0 --baseURL "http://localhost:1313/aibox/"
 }
 
 cmd_docs_deploy() {
@@ -1228,7 +1236,8 @@ cmd_docs_deploy() {
   local tmpdir=""
   [[ "${1:-}" == "--dry-run" ]] && dry_run=true
 
-  command -v npx &>/dev/null    || die "npx not found. Install Node.js."
+  command -v hugo &>/dev/null   || die "Hugo extended not found. Install Hugo >= 0.157.0."
+  command -v npm &>/dev/null    || die "npm not found. Install Node.js."
   command -v git &>/dev/null    || die "git not found"
   git rev-parse --is-inside-work-tree &>/dev/null || die "Not inside a git repository"
 
@@ -1242,13 +1251,13 @@ cmd_docs_deploy() {
   info "Remote: ${remote_url}"
   info "Source: ${current_branch}@${commit_sha}"
 
-  cd "${PROJECT_ROOT}/docs-site"
-  info "Building docs with Docusaurus..."
-  npx docusaurus build
-  ok "Site built in docs-site/build/"
+  cd "${PROJECT_ROOT}"
+  info "Building docs with Hugo and Docsy..."
+  "${PROJECT_ROOT}/scripts/build-docs.sh"
+  ok "Site built in docs-site/public/"
 
   if [[ "${dry_run}" == "true" ]]; then
-    warn "Dry run — site is in docs-site/build/"
+    warn "Dry run — site is in docs-site/public/"
     return 0
   fi
 
@@ -1256,7 +1265,7 @@ cmd_docs_deploy() {
   # Bug (b): use ${tmpdir:-} so trap is safe even if mktemp never ran (set -u).
   trap '[[ -n "${tmpdir:-}" ]] && rm -rf "${tmpdir}"' EXIT
 
-  cp -r build/* "${tmpdir}/"
+  cp -r "${PROJECT_ROOT}/docs-site/public/." "${tmpdir}/"
   touch "${tmpdir}/.nojekyll"
 
   info "Pushing to gh-pages branch..."
