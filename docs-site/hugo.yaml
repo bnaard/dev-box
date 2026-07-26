@@ -1,0 +1,93 @@
+baseURL: "https://projectious-work.github.io/aibox/"
+title: aibox
+description: "Reproducible AI workspaces from one aibox.toml"
+theme: [docsy]
+enableRobotsTXT: true
+enableGitInfo: true
+enableEmoji: true
+
+markup:
+  goldmark:
+    renderer:
+      unsafe: true
+    parser:
+      attribute:
+        block: true
+        title: true
+  highlight:
+    noClasses: false
+  tableOfContents:
+    endLevel: 4
+
+outputs:
+  home: [HTML, RSS]
+  page: [HTML, markdown]
+  section: [HTML, RSS, print, markdown]
+
+params:
+  hugoMinVersion: "0.157.0"
+  productionURL: "https://projectious-work.github.io/aibox/"
+  offlineSearch: true
+  offlineSearchSummaryLength: 200
+  offlineSearchMaxResults: 25
+  version: "v1.x"
+  github_repo: "https://github.com/projectious-work/aibox"
+  github_branch: "v1.x-dev"
+  path_base_for_github_subdir: "docs-site/content"
+  ui:
+    navbar_logo: true
+    navbar_theme: dark
+    showLightDarkModeMenu: true
+    sidebar_menu_compact: true
+    sidebar_menu_foldable: true
+    sidebar_search_disable: false
+    feedback:
+      enable: false
+  links:
+    user:
+      - name: GitHub
+        url: "https://github.com/projectious-work/aibox"
+        icon: "fa-brands fa-github"
+        desc: Source code and issue tracker
+  copyright:
+    authors: "Projectious"
+    from_year: 2026
+
+menu:
+  main:
+    - name: Documentation
+      weight: 10
+      url: "/docs/"
+    - name: Features
+      weight: 20
+      url: "/features/"
+    - name: Themes
+      weight: 30
+      url: "/themes/"
+    - name: Changelog
+      weight: 40
+      url: "/changelog/"
+    - name: GitHub
+      weight: 50
+      url: "https://github.com/projectious-work/aibox"
+      pre: "<i class='fa-brands fa-github' aria-hidden='true'></i>"
+
+module:
+  replacements:
+    - "github.com/FortAwesome/Font-Awesome -> ../node_modules/@fortawesome/fontawesome-free"
+    - "github.com/twbs/bootstrap -> ../node_modules/bootstrap"
+  mounts:
+    - source: assets
+      target: assets
+    - source: static
+      target: static
+    - source: node_modules/bootstrap
+      target: assets/vendor/bootstrap
+    - source: node_modules/@fortawesome/fontawesome-free
+      target: assets/vendor/Font-Awesome
+    - source: node_modules/@fortawesome/fontawesome-free/webfonts
+      target: static/webfonts
+
+taxonomies:
+  tag: tags
+  category: categories
