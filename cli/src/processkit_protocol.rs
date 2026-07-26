@@ -479,6 +479,21 @@ mod tests {
         );
         install.profiles = vec!["minimal".into()];
         install.harnesses = vec!["codex".into()];
+
+        let mut plan = install.clone();
+        plan.operation = InstallerOperation::Plan;
+        plan.yes = false;
+        let planned = invoke(Path::new(&cli), &plan).unwrap();
+        assert_eq!(planned.status, InstallerStatus::Planned);
+        assert!(
+            !project.path().join(".processkit").exists(),
+            "planning must not create installer state"
+        );
+        assert!(
+            !project.path().join(".mcp.json").exists(),
+            "planning must not project harness configuration"
+        );
+
         assert_eq!(
             invoke(Path::new(&cli), &install).unwrap().status,
             InstallerStatus::Installed
@@ -496,9 +511,23 @@ mod tests {
 
         let mut update = install.clone();
         update.operation = InstallerOperation::Update;
+        let updated = invoke(Path::new(&cli), &update).unwrap();
+        assert_eq!(updated.status, InstallerStatus::Updated);
         assert_eq!(
-            invoke(Path::new(&cli), &update).unwrap().status,
-            InstallerStatus::Updated
+            updated.changes,
+            vec![serde_json::json!({"count": 0})],
+            "an unchanged producer update must report zero changes"
+        );
+        let state: Value = serde_json::from_slice(
+            &fs::read(project.path().join(".processkit/state.json")).unwrap(),
+        )
+        .unwrap();
+        assert!(
+            state["ownedPaths"].as_array().is_some_and(|paths| paths
+                .iter()
+                .any(|path| path["ownership"] == "managed-keys"
+                    && path["operation"] == "managed-keys-create/v1")),
+            "unchanged update must retain create ownership for uninstall"
         );
         assert_eq!(
             invoke(
