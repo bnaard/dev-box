@@ -4603,6 +4603,8 @@ mod tests {
         let body = serialize_config_with_comments(&config);
         assert!(body.contains("enabled = ["));
         assert!(body.contains("\"pk-doctor\""));
+        assert!(body.contains("\"project-reconciliation\""));
+        assert!(body.contains("\"repo-management\""));
         assert!(body.contains("\"status-briefing\""));
         assert!(body.contains("\"workitem-management\""));
     }
@@ -4614,6 +4616,8 @@ mod tests {
         config.skills.exclude = vec!["legal-review".to_string()];
         let added = add_missing_standard_processkit_skills(&mut config);
         assert!(added.contains(&"changelog".to_string()));
+        assert!(added.contains(&"project-reconciliation".to_string()));
+        assert!(added.contains(&"repo-management".to_string()));
         assert!(!config.skills.include.contains(&"legal-review".to_string()));
         assert!(config.skills.include.contains(&"logo-design".to_string()));
     }

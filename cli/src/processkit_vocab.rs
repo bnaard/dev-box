@@ -124,8 +124,10 @@ pub const STANDARD_PROCESSKIT_SKILLS: &[&str] = &[
     "pk-doctor",
     "processkit-gateway",
     "process-management",
+    "project-reconciliation",
     "prompt-engineering",
     "release-audit",
+    "repo-management",
     "retrospective",
     "role-management",
     "runtime-prune",
@@ -605,6 +607,18 @@ mod tests {
         assert!(
             STANDARD_PROCESSKIT_SKILLS.contains(&"runtime-prune"),
             "runtime-prune is part of the standard processkit operating surface"
+        );
+    }
+
+    #[test]
+    fn standard_processkit_skills_include_reconciliation_dependencies() {
+        assert!(
+            STANDARD_PROCESSKIT_SKILLS.contains(&"project-reconciliation"),
+            "pk-reconcile requires its owning project-reconciliation skill"
+        );
+        assert!(
+            STANDARD_PROCESSKIT_SKILLS.contains(&"repo-management"),
+            "project-reconciliation and pk-repo-reconcile require repo-management"
         );
     }
 
