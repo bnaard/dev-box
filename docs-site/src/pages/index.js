@@ -19,9 +19,13 @@ function Hero() {
         <h1 className="hero__title">{siteConfig.title}</h1>
         <p className="hero__subtitle">{siteConfig.tagline}</p>
         <p className={styles.heroDescription}>
-          Generate standard devcontainer files, selected tool addons,
-          provider-neutral agent context, and a terminal workspace from one
-          project contract.
+          Turn one project contract into a reproducible devcontainer, selected
+          tools, provider-neutral agent entry points, and a managed terminal
+          workspace.
+        </p>
+        <p className={styles.maturity}>
+          Usable project — active development · Linux containers · macOS host
+          support · Docker, Podman, and OrbStack
         </p>
         <div className={styles.buttons}>
           <Link className="button button--secondary button--lg" to="/docs/getting-started/installation">
@@ -93,6 +97,51 @@ aibox up`}</code></pre>
   );
 }
 
+function Boundaries() {
+  return (
+    <section className={styles.boundaries}>
+      <div className="container">
+        <h2>Useful today, explicit about tomorrow</h2>
+        <div className="row">
+          <div className="col col--4">
+            <h3>What works</h3>
+            <p>
+              The maintained v0.x line generates and runs reproducible local
+              AI workspaces from <code>aibox.toml</code>, including pinned
+              processkit context.
+            </p>
+          </div>
+          <div className="col col--4">
+            <h3>What changes in v1</h3>
+            <p>
+              Aibox becomes the workspace image and deployment layer for
+              existing Compose and Kubernetes targets. Processkit installation
+              is delegated to processkit&apos;s versioned CLI protocol.
+            </p>
+          </div>
+          <div className="col col--4">
+            <h3>What aibox does not own</h3>
+            <p>
+              Aibox does not provision clusters, VMs, networks, identities, or
+              cloud accounts, and it is not a general production application
+              orchestrator.
+            </p>
+          </div>
+        </div>
+        <p className={styles.boundaryLinks}>
+          <Link to="/docs/reference/compatibility">Compatibility and support</Link>
+          {' · '}
+          <Link to="https://github.com/projectious-work/aibox/issues/179">
+            v1 architecture and progress
+          </Link>
+          {' · '}
+          <Link to="https://projectious.work/">Projectious ecosystem</Link>
+        </p>
+      </div>
+    </section>
+  );
+}
+
 export default function Home() {
   const {siteConfig} = useDocusaurusContext();
   return (
@@ -101,6 +150,7 @@ export default function Home() {
       <main>
         <Features />
         <QuickStart />
+        <Boundaries />
       </main>
     </Layout>
   );
