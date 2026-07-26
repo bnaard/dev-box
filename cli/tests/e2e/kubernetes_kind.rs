@@ -18,17 +18,35 @@ fn kubernetes_kind_prerequisite_and_deterministic_cleanup() {
         "Kubernetes release gate is intentionally pinned to the Podman companion provider"
     );
 
-    let preflight = runner.exec("kind version && kubectl version --client && grep -qw pids /sys/fs/cgroup/cgroup.controllers");
+    let preflight = runner.exec(
+        "set -eu; \
+         kind version; \
+         kubectl version --client; \
+         test \"$(cat /proc/self/cgroup)\" = '0::/'; \
+         grep -qw pids /sys/fs/cgroup/cgroup.controllers; \
+         grep -qw pids /sys/fs/cgroup/cgroup.subtree_control; \
+         test -d /lib/modules",
+    );
     assert!(
         preflight.status.success(),
-        "kind requires nested Podman cgroup delegation including the pids controller. The current companion cannot create a kind node until that host prerequisite is enabled:\n{}",
+        "kind requires a host cgroup namespace, delegated pids controller, and /lib/modules mount. Rebuild the companion from the current Dockerfile.e2e and docker-compose.override.yml:\nstdout:\n{}\nstderr:\n{}",
+        String::from_utf8_lossy(&preflight.stdout),
         String::from_utf8_lossy(&preflight.stderr)
     );
 
     // A unique name keeps concurrent release jobs isolated.  Trap cleanup is
     // registered before cluster creation so a failed first/changed/drift run
     // cannot leak node containers or kubeconfig state.
-    let run = runner.exec("set -eu; name=aibox-m7c-${RANDOM}; trap 'kind delete cluster --name \"$name\" >/dev/null 2>&1 || true' EXIT; kind create cluster --name \"$name\" --wait 90s; kubectl --context \"kind-$name\" get nodes; kind delete cluster --name \"$name\"; trap - EXIT");
+    let run = runner.exec(
+        "set -eu; \
+         export KIND_EXPERIMENTAL_PROVIDER=podman; \
+         name=aibox-m7c-${RANDOM}; \
+         trap 'kind delete cluster --name \"$name\" >/dev/null 2>&1 || true' EXIT; \
+         kind create cluster --name \"$name\" --wait 90s; \
+         kubectl --context \"kind-$name\" get nodes; \
+         kind delete cluster --name \"$name\"; \
+         trap - EXIT",
+    );
     assert!(
         run.status.success(),
         "kind disposable-cluster smoke failed:\nstdout:\n{}\nstderr:\n{}",
