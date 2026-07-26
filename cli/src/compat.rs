@@ -608,6 +608,11 @@ pub static COMPAT_TABLE: &[CompatEntry] = &[
         processkit_version: "v0.28.4",
         note: "Patch release: adds open GitHub Discussion counts to the tmux Forge status segment and restores the complete generated Codex command projection set.",
     },
+    CompatEntry {
+        aibox_version: "0.28.14",
+        processkit_version: "v0.28.4",
+        note: "Patch release: ensures pk-reconcile and pk-repo-reconcile install their project-reconciliation and repo-management skill dependencies.",
+    },
 ];
 
 /// Find the minimum compatible processkit version for the given aibox version.
