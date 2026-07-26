@@ -1,22 +1,43 @@
 # aibox
 
-**Reproducible AI workspaces from one `aibox.toml`.**
+**Turn one project contract into a reproducible, AI-ready workspace.**
 
-> **Project status:** actively maintained. The latest minor release line is
-> supported; security and correctness fixes are released on the newest version.
-> See [SECURITY.md](SECURITY.md) for reporting and support details.
+> **Maturity:** usable project — active development. The maintained v0.x line
+> supports Linux containers on Docker, Podman, and OrbStack; macOS is supported
+> as a container host. Windows hosts and production workload orchestration are
+> not supported. See the [compatibility matrix](https://projectious-work.github.io/aibox/docs/reference/compatibility)
+> and [SECURITY.md](SECURITY.md).
 
-`aibox` is a Rust CLI for projects that want a dependable terminal-first AI
-development environment without hand-maintaining devcontainer glue. It turns a
-declarative `aibox.toml` into standard `.devcontainer/` files, a project image,
-runtime UI configuration, selected AI harnesses, and pinned processkit context
-under `context/`.
+`aibox` is a Rust CLI for developers who want a dependable terminal-first AI
+environment without rebuilding devcontainer, toolchain, and agent-runtime glue
+for every repository. Today, the maintained v0.x line turns a declarative
+`aibox.toml` into standard `.devcontainer/` files, a project image, runtime UI
+configuration, selected AI harnesses, and pinned processkit context.
 
-The design goal is simple: a fresh clone plus `aibox apply` should reproduce the
-same workspace, with the same tools, the same agent entry points, and the same
-project context.
+The useful outcome is a workspace another developer or agent can reproduce from
+a fresh clone with the same tools, entry points, and project context:
+`aibox init` → `aibox apply` → `aibox up`.
 
 ![aibox dev layout](docs-site/static/screencasts/layout-dev.gif)
+
+_The recording shows the generated development container running the managed
+tmux layout, shell, editor, file browser, diagnostics, and configured AI
+harnesses from one project contract._
+
+## What works, what is changing
+
+| Area | Current maintained v0.x | Accepted v1 direction |
+| --- | --- | --- |
+| Workspace image and local runtime | Generates and runs Docker/Podman/OrbStack devcontainers | Owns reproducible workspace images and deploys them to pre-existing Compose or Kubernetes targets |
+| Processkit | Downloads, installs, and updates pinned processkit content | Delegates installation policy to the versioned processkit CLI protocol |
+| Connection | `aibox up` starts and attaches locally | Deployment and `aibox connect` are separate, backend-neutral operations |
+| Infrastructure | Uses an existing container runtime | Consumes existing targets; never provisions clusters, VMs, networks, identities, or cloud accounts |
+
+V1 is under active development in the independent `v1.x` line. The supported
+v0.x workflow remains available while its migration and rollback gates are
+proven. Follow [the v1 architecture epic](https://github.com/projectious-work/aibox/issues/179)
+for implementation status; do not treat planned v1 behavior as current v0
+behavior.
 
 ## Why aibox
 
@@ -110,6 +131,12 @@ aibox intentionally does not own process semantics. If a behavior is about how
 agents plan, record decisions, or manage work items, it belongs in processkit.
 If it is about generating containers, selecting addons, wiring harness config,
 or launching the workspace, it belongs in aibox.
+
+Within the [Projectious](https://projectious.work/) ecosystem, aibox is the
+workspace image and deployment layer. Processkit owns agent-working practices
+and their installation policy; infrastructure templates may supply target
+references. Aibox is deliberately not a generic application platform or an
+infrastructure provisioner.
 
 ## Documentation
 
