@@ -1,12 +1,27 @@
+<div align="center">
+
+<img src="docs-site/static/logo/aibox-light.svg" alt="aibox" width="96" height="96">
+
 # aibox
 
 **Turn one project contract into a reproducible, AI-ready workspace.**
 
+[![Status: usable project](https://img.shields.io/badge/status-usable%20project-1d3352)](SECURITY.md)
+[![License: MIT](https://img.shields.io/badge/license-MIT-1d3352)](LICENSE)
+[![Docs](https://img.shields.io/badge/docs-projectious--work.github.io-E05232)](https://projectious-work.github.io/aibox/)
+
+</div>
+
+---
+
+> [!NOTE]
 > **Maturity:** usable project — active development. The maintained v0.x line
 > supports Linux containers on Docker, Podman, and OrbStack; macOS is supported
 > as a container host. Windows hosts and production workload orchestration are
 > not supported. See the [compatibility matrix](https://projectious-work.github.io/aibox/docs/reference/compatibility)
 > and [SECURITY.md](SECURITY.md).
+
+---
 
 `aibox` is a Rust CLI for developers who want a dependable terminal-first AI
 environment without rebuilding devcontainer, toolchain, and agent-runtime glue
@@ -140,15 +155,19 @@ infrastructure provisioner.
 
 ## Documentation
 
-Start here:
+Full documentation lives at
+**[projectious-work.github.io/aibox](https://projectious-work.github.io/aibox/)**.
 
-- [What aibox does](https://projectious-work.github.io/aibox/docs/overview)
-- [New project guide](https://projectious-work.github.io/aibox/docs/getting-started/new-project)
-- [Existing project guide](https://projectious-work.github.io/aibox/docs/getting-started/existing-project)
-- [Container configuration](https://projectious-work.github.io/aibox/docs/container/configuration)
-- [Runtime operations](https://projectious-work.github.io/aibox/docs/container/runtime-operations)
-- [Configuration reference](https://projectious-work.github.io/aibox/docs/reference/configuration)
-- [Compatibility matrix](https://projectious-work.github.io/aibox/docs/reference/compatibility)
+| Section | Contents |
+|---------|----------|
+| [Getting Started](https://projectious-work.github.io/aibox/docs/getting-started/) | Installation, new project, existing project |
+| [Container](https://projectious-work.github.io/aibox/docs/container/) | Base image, configuration, runtime operations, audio, file preview |
+| [Addons](https://projectious-work.github.io/aibox/docs/addons/) | Overview, language runtimes, tool bundles, documentation frameworks |
+| [Providers](https://projectious-work.github.io/aibox/docs/providers/) | Claude, OpenAI, Gemini, Copilot, Continue, Aider, Mistral |
+| [Context System](https://projectious-work.github.io/aibox/docs/context/) | Overview, skill selection, migration |
+| [Customization](https://projectious-work.github.io/aibox/docs/customization/) | Themes, layouts, prompts |
+| [Reference](https://projectious-work.github.io/aibox/docs/reference/) | Configuration, CLI commands, compatibility, cheatsheet |
+| [Contributing](https://projectious-work.github.io/aibox/docs/contributing/) | Maintenance, e2e tests, version-line porting |
 
 ## Development
 
@@ -206,3 +225,6 @@ MIT. See [LICENSE](LICENSE).
 
 Unless otherwise noted, the copyright holder grants the MIT License for all
 versions of this repository, including historical commits and tags.
+
+Brand and design system © [projectious.work](https://github.com/projectious-work/brand).
+The aibox mark is derived from that system.
