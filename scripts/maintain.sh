@@ -11,6 +11,7 @@
 # Commands:
 #   test              Run cargo fmt, clippy, and tests
 #   test-e2e          Run SSH companion E2E tests
+#                     including the release-gated disposable kind cluster
 #   test-e2e-visual   Run all opt-in SSH/asciinema visual E2E tiers
 #   build-images      Build published foundation/runtime images locally
 #   release-runtime-smoke <version> Run generated runtime smoke against a release
@@ -160,7 +161,7 @@ ${bold}Usage:${reset}
 
 ${bold}Development:${reset}
   test                     Run cargo fmt check, clippy, and tests
-  test-e2e                 Run Tier 2 SSH companion E2E tests
+  test-e2e                 Run Tier 2 SSH companion E2E tests and disposable kind gate
   test-e2e-visual-status   Run opt-in visual matrix for layouts/themes/status rows
   test-e2e-visual-tabs     Run opt-in tab traversal for tools and harnesses
   test-e2e-visual-yazi     Run opt-in Yazi previews/git/plugin visual checks
@@ -341,6 +342,12 @@ cmd_test_e2e() {
   info "Running Tier 2 SSH companion E2E tests..."
   (cd "${CLI_DIR}" && cargo test --features e2e --test e2e -- --test-threads="${test_threads}") \
     || status=$?
+  if [[ "${status}" -eq 0 ]]; then
+    info "Running release-gated disposable Kubernetes cluster E2E..."
+    (cd "${CLI_DIR}" && cargo test --features e2e --test e2e \
+      kubernetes_kind -- --ignored --nocapture --test-threads=1) \
+      || status=$?
+  fi
   prune_e2e_companion_storage || warn "Post-suite SSH companion prune failed"
   [[ "${status}" -eq 0 ]] || die "Tier 2 SSH companion E2E tests failed"
   ok "Tier 2 SSH companion E2E tests passed"

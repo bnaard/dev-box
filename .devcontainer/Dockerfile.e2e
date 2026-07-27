@@ -2,7 +2,9 @@
 # E2E Test Companion Container
 # =============================================================================
 # Simulates a user's host machine for end-to-end testing of the aibox CLI.
-# Runs podman (rootless) for container operations and sshd for remote access.
+# Runs podman (rootless) for container operations and systemd-managed sshd for
+# remote access.  systemd owns the companion cgroup boundary so SSH sessions
+# receive a delegated user slice capable of hosting nested kind nodes.
 # Also includes terminal tools (tmux, yazi, vim, starship, asciinema) for
 # headless visual testing via asciinema recordings.
 # Started alongside the dev-container as the "e2e-runner" service.
@@ -95,6 +97,11 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     nftables \
     # SSH server for remote test execution
     openssh-server \
+    # PID 1 and the per-user manager provide cgroup v2 delegation to kind
+    systemd \
+    systemd-sysv \
+    dbus \
+    dbus-user-session \
     # Utilities needed by aibox and tests
     bubblewrap \
     curl \
@@ -165,13 +172,23 @@ RUN mkdir -p /run/sshd \
     && sed -i 's/#PermitRootLogin.*/PermitRootLogin no/' /etc/ssh/sshd_config \
     && sed -i 's/#PubkeyAuthentication.*/PubkeyAuthentication yes/' /etc/ssh/sshd_config \
     && sed -i 's/#PasswordAuthentication.*/PasswordAuthentication no/' /etc/ssh/sshd_config \
-    && sed -i 's/^AcceptEnv.*/#AcceptEnv/' /etc/ssh/sshd_config
+    && sed -i 's/^AcceptEnv.*/#AcceptEnv/' /etc/ssh/sshd_config \
+    && systemctl enable ssh.service
 
 # ── Test user ─────────────────────────────────────────────────────────────────
 RUN groupadd --gid 1000 testuser \
     && useradd --uid 1000 --gid testuser --shell /bin/bash --create-home testuser \
     && echo "testuser ALL=(ALL) NOPASSWD:ALL" > /etc/sudoers.d/testuser \
-    && chmod 0440 /etc/sudoers.d/testuser
+    && chmod 0440 /etc/sudoers.d/testuser \
+    && mkdir -p /var/lib/systemd/linger \
+    && touch /var/lib/systemd/linger/testuser
+
+# kind's rootless Podman provider must run in a delegated systemd user scope.
+# Keep this explicit even though systemd 252+ delegates controllers by default,
+# so the companion contract remains stable across base-image changes.
+RUN mkdir -p /etc/systemd/system/user@.service.d \
+    && printf '[Service]\nDelegate=yes\n' \
+       > /etc/systemd/system/user@.service.d/delegate.conf
 
 # ── SSH directory for authorized keys (mounted at runtime) ───────────────────
 # The .ssh directory is mounted from .aibox-e2e-runner-home/.ssh/ via
@@ -184,6 +201,8 @@ RUN mkdir -p /home/testuser/.ssh && chmod 700 /home/testuser/.ssh \
 RUN mkdir -p /home/testuser/.config/containers \
     && printf '[storage]\ndriver = "vfs"\n' \
        > /home/testuser/.config/containers/storage.conf \
+    && printf '[engine]\ncgroup_manager = "systemd"\n\n[containers]\nlog_driver = "k8s-file"\npids_limit = 8192\n' \
+       > /home/testuser/.config/containers/containers.conf \
     && chown -R testuser:testuser /home/testuser/.config
 
 # Ensure subuid/subgid ranges exist for rootless podman
@@ -201,6 +220,7 @@ RUN mkdir -p /workspaces && chown testuser:testuser /workspaces
 # deploy the latest build without rebuilding this image.
 RUN mkdir -p /opt/aibox/addons && chown -R testuser:testuser /opt/aibox
 
-# ── Entrypoint: start sshd ───────────────────────────────────────────────────
+# ── Entrypoint: systemd starts sshd and the lingering testuser manager ───────
 EXPOSE 22
-CMD ["sh", "-c", "mkdir -p /run/sshd && exec /usr/sbin/sshd -D -e"]
+STOPSIGNAL SIGRTMIN+3
+CMD ["/sbin/init"]
