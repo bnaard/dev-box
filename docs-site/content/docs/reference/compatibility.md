@@ -12,6 +12,7 @@ below shows the minimum compatible processkit version for each aibox release.
 
 | aibox version | Min. processkit | Notes |
 |--------------|-----------------|-------|
+| 1.0.0-alpha.1 | v0.28.4 stable bridge; v1.0.0-alpha.3 installer exact pin | opt-in v1 orchestration alpha with signed opaque processkit installer delegation; the v0 bridge remains until parity, rollback, interruption, migration, and secret-safety gates pass |
 | 0.28.5 | v0.28.1 | fixes Hermes Agent installation under the non-root runtime model; restores configured lazygit runtime surfaces; completes processkit reconciliation; and enforces traceable ports between maintained v0.x and v1.x lines |
 | 0.28.4 | v0.28.1 | integrates processkit v0.28.1 and refreshes the maintained v0.x processkit compatibility baseline |
 | 0.28.3 | v0.27.6 | integrates processkit v0.27.6; makes GitHub CLI authoritative for `github.com` HTTPS credentials; exposes exact GitHub SSH aliases through Forge; and preserves LaTeX preview state across rebuilds |

@@ -568,6 +568,11 @@ pub static COMPAT_TABLE: &[CompatEntry] = &[
         processkit_version: "v0.28.1",
         note: "Patch release: fixes Hermes Agent installation under the non-root runtime model; restores the configured lazygit runtime surfaces; completes processkit reconciliation; and enforces traceable ports between maintained v0.x and v1.x lines.",
     },
+    CompatEntry {
+        aibox_version: "1.0.0-alpha.1",
+        processkit_version: "v0.28.4",
+        note: "Opt-in v1 alpha: adds image and deployment orchestration, exact-pins the signed processkit v1.0.0-alpha.3 installer protocol for M5 consumer validation, and retains the v0.28.4 compatibility bridge.",
+    },
 ];
 
 /// Find the minimum compatible processkit version for the given aibox version.
