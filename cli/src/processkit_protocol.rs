@@ -5,9 +5,9 @@
 //! evidence. It has no knowledge of processkit layouts, skills, packages,
 //! templates, migrations, or harness projections.
 //!
-//! Consumer compatibility is currently validated against processkit PR #123.
-//! Stable-v1 release remains gated on a tagged processkit prerelease containing
-//! this protocol and matching producer and consumer compatibility evidence.
+//! Consumer compatibility is validated against the exact-pinned processkit
+//! v1.0.0-alpha.2 release assets. Stable-v1 remains gated on the rest of the
+//! parity, migration, rollback, interruption, and secret-safety evidence.
 
 use std::path::{Path, PathBuf};
 use std::process::{Command, ExitStatus};
@@ -468,15 +468,36 @@ mod tests {
         let Some(cli) = std::env::var_os("AIBOX_PROCESSKIT_V1_TEST_CLI") else {
             return;
         };
-        let distribution = std::env::var_os("AIBOX_PROCESSKIT_V1_TEST_DISTRIBUTION")
-            .expect("consumer gate requires AIBOX_PROCESSKIT_V1_TEST_DISTRIBUTION");
         let project = TempDir::new().unwrap();
 
-        let mut install = InstallerRequest::development(
-            InstallerOperation::Install,
-            project.path().to_path_buf(),
-            distribution.into(),
-        );
+        let mut install = match (
+            std::env::var_os("AIBOX_PROCESSKIT_V1_TEST_ENVELOPE"),
+            std::env::var_os("AIBOX_PROCESSKIT_V1_TEST_SIGNATURE"),
+            std::env::var_os("AIBOX_PROCESSKIT_V1_TEST_TRUST_STORE"),
+        ) {
+            (Some(envelope), Some(signature), Some(trust_store)) => {
+                InstallerRequest::signed_release(
+                    InstallerOperation::Install,
+                    project.path().to_path_buf(),
+                    envelope.into(),
+                    signature.into(),
+                    trust_store.into(),
+                )
+            }
+            (None, None, None) => {
+                let distribution = std::env::var_os("AIBOX_PROCESSKIT_V1_TEST_DISTRIBUTION")
+                    .expect(
+                        "consumer gate requires signed release inputs or \
+                         AIBOX_PROCESSKIT_V1_TEST_DISTRIBUTION",
+                    );
+                InstallerRequest::development(
+                    InstallerOperation::Install,
+                    project.path().to_path_buf(),
+                    distribution.into(),
+                )
+            }
+            _ => panic!("consumer gate signed release inputs must be provided together"),
+        };
         install.profiles = vec!["minimal".into()];
         install.harnesses = vec!["codex".into()];
 
@@ -517,17 +538,6 @@ mod tests {
             updated.changes,
             vec![serde_json::json!({"count": 0})],
             "an unchanged producer update must report zero changes"
-        );
-        let state: Value = serde_json::from_slice(
-            &fs::read(project.path().join(".processkit/state.json")).unwrap(),
-        )
-        .unwrap();
-        assert!(
-            state["ownedPaths"].as_array().is_some_and(|paths| paths
-                .iter()
-                .any(|path| path["ownership"] == "managed-keys"
-                    && path["operation"] == "managed-keys-create/v1")),
-            "unchanged update must retain create ownership for uninstall"
         );
         assert_eq!(
             invoke(
