@@ -13,6 +13,11 @@
   max-width: 760px;
 }
 
+.heroBanner :global(.hero__title),
+.heroBanner :global(.hero__subtitle) {
+  color: #fff;
+}
+
 .heroDescription {
   font-size: 1.2rem;
   max-width: 600px;
