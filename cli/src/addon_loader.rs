@@ -1501,4 +1501,32 @@ runtime: |
             "grep \" ${HUGO_ASSET}$\" /tmp/hugo_checksums.txt | sed 's#  .*#  /tmp/hugo.tar.gz#' | sha256sum -c"
         ));
     }
+
+    #[test]
+    fn docs_mdbook_installer_uses_published_asset_digests() {
+        let addon = load_repo_addon("docs-mdbook");
+        let mut tools = all_disabled_tools(&addon);
+        tools.insert(
+            "mdbook".to_string(),
+            ToolConfig {
+                enabled: true,
+                version: String::new(),
+            },
+        );
+        let rendered = render_runtime(&addon, &tools).unwrap();
+
+        assert!(rendered.contains(
+            "aarch64) MDBOOK_SHA256=\"753e5c5c363ee8a56972344dcf91466f005a51db84a7aeffe427ae3ef83d6d44\""
+        ));
+        assert!(rendered.contains(
+            "x86_64) MDBOOK_SHA256=\"5222beabd3e37dc5be0d18ff99b79058469354db5c220153a1b92db5ba12be89\""
+        ));
+        assert!(
+            rendered.contains("echo \"${MDBOOK_SHA256}  /tmp/mdbook.tar.gz\" | sha256sum -c -")
+        );
+        assert!(
+            !rendered.contains(".tar.gz.sha256"),
+            "mdBook 0.5.4 does not publish separate checksum assets: {rendered}"
+        );
+    }
 }
