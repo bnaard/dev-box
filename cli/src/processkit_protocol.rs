@@ -6,7 +6,7 @@
 //! templates, migrations, or harness projections.
 //!
 //! Consumer compatibility is validated against the exact-pinned processkit
-//! v1.0.0-alpha.2 release assets. Stable-v1 remains gated on the rest of the
+//! v1.0.0-alpha.3 release assets. Stable-v1 remains gated on the rest of the
 //! parity, migration, rollback, interruption, and secret-safety evidence.
 
 use std::path::{Path, PathBuf};
@@ -246,6 +246,14 @@ pub fn discover_cli(path: Option<&Path>) -> CliAvailability {
 /// The temporary request is private, is deleted when this function returns,
 /// and is never rendered into a shell command or retained as release evidence.
 pub fn invoke(cli: &Path, request: &InstallerRequest) -> Result<InstallerResult> {
+    invoke_with_environment(cli, request, &[])
+}
+
+fn invoke_with_environment(
+    cli: &Path,
+    request: &InstallerRequest,
+    environment: &[(&str, &str)],
+) -> Result<InstallerResult> {
     request.validate()?;
     let mut request_file =
         NamedTempFile::new().context("create private processkit installer request")?;
@@ -268,6 +276,7 @@ pub fn invoke(cli: &Path, request: &InstallerRequest) -> Result<InstallerResult>
         .arg("execute")
         .arg("--request")
         .arg(request_file.path())
+        .envs(environment.iter().copied())
         .output()
         .with_context(|| format!("invoke processkit CLI at {}", cli.display()))?;
     decode_output(&output.status, &output.stdout)
@@ -464,42 +473,111 @@ mod tests {
     }
 
     #[test]
+    fn real_producer_interruption_recovery_lock_and_secret_safety_when_configured() {
+        let Some(cli) = std::env::var_os("AIBOX_PROCESSKIT_V1_TEST_CLI") else {
+            return;
+        };
+        let (install, project) = signed_or_development_install();
+        let cli = Path::new(&cli);
+        let v0_bridge = project.path().join(".aibox-v0-bridge-canary");
+        fs::write(&v0_bridge, "retain v0 bridge\n").unwrap();
+
+        let interruption = invoke_with_environment(
+            cli,
+            &install,
+            &[("PROCESSKIT_INSTALLER_FAIL_AFTER_ACTION", "0")],
+        );
+        assert!(
+            interruption.is_err(),
+            "the producer failpoint must interrupt mutation"
+        );
+        assert!(
+            project.path().join(".processkit/transactions").is_dir(),
+            "an interrupted mutation must leave durable recovery evidence"
+        );
+        assert_eq!(
+            invoke(cli, &install).unwrap().status,
+            InstallerStatus::Invalid,
+            "normal retry must be refused until recovery"
+        );
+        assert_eq!(
+            invoke(
+                cli,
+                &InstallerRequest::local(InstallerOperation::Recover, project.path().to_path_buf())
+            )
+            .unwrap()
+            .status,
+            InstallerStatus::Recovered
+        );
+        assert!(
+            !project.path().join(".processkit/transactions").exists()
+                || fs::read_dir(project.path().join(".processkit/transactions"))
+                    .unwrap()
+                    .next()
+                    .is_none(),
+            "recovery must leave no ambiguous transaction journal"
+        );
+        assert!(
+            v0_bridge.is_file(),
+            "v1 recovery must not modify the v0 bridge"
+        );
+
+        let installed = invoke_with_environment(
+            cli,
+            &install,
+            &[("AIBOX_PROCESSKIT_SECRET_CANARY", "v1-secret-canary")],
+        )
+        .unwrap();
+        assert_eq!(installed.status, InstallerStatus::Installed);
+        let rendered_result = serde_json::to_string(&installed).unwrap();
+        assert!(
+            !rendered_result.contains("v1-secret-canary"),
+            "producer result must not disclose inherited secret canaries"
+        );
+        let state = fs::read_to_string(project.path().join(".processkit/state.json")).unwrap();
+        assert!(
+            !state.contains("v1-secret-canary"),
+            "installation state must not retain inherited secret canaries"
+        );
+
+        let lock = project.path().join(".processkit/lock");
+        fs::write(&lock, format!("test:{}\n", std::process::id())).unwrap();
+        let mut update = install.clone();
+        update.operation = InstallerOperation::Update;
+        let refused = invoke(cli, &update).unwrap();
+        assert_eq!(refused.status, InstallerStatus::Invalid);
+        assert!(
+            serde_json::to_string(&refused)
+                .unwrap()
+                .contains("another processkit operation is already in progress"),
+            "a held target lock must refuse a concurrent mutation"
+        );
+        fs::remove_file(lock).unwrap();
+
+        assert_eq!(
+            invoke(
+                cli,
+                &InstallerRequest::local(
+                    InstallerOperation::Uninstall,
+                    project.path().to_path_buf()
+                )
+            )
+            .unwrap()
+            .status,
+            InstallerStatus::Uninstalled
+        );
+        assert!(
+            v0_bridge.is_file(),
+            "v1 uninstall must leave the v0 bridge intact"
+        );
+    }
+
+    #[test]
     fn real_producer_lifecycle_when_configured() {
         let Some(cli) = std::env::var_os("AIBOX_PROCESSKIT_V1_TEST_CLI") else {
             return;
         };
-        let project = TempDir::new().unwrap();
-
-        let mut install = match (
-            std::env::var_os("AIBOX_PROCESSKIT_V1_TEST_ENVELOPE"),
-            std::env::var_os("AIBOX_PROCESSKIT_V1_TEST_SIGNATURE"),
-            std::env::var_os("AIBOX_PROCESSKIT_V1_TEST_TRUST_STORE"),
-        ) {
-            (Some(envelope), Some(signature), Some(trust_store)) => {
-                InstallerRequest::signed_release(
-                    InstallerOperation::Install,
-                    project.path().to_path_buf(),
-                    envelope.into(),
-                    signature.into(),
-                    trust_store.into(),
-                )
-            }
-            (None, None, None) => {
-                let distribution = std::env::var_os("AIBOX_PROCESSKIT_V1_TEST_DISTRIBUTION")
-                    .expect(
-                        "consumer gate requires signed release inputs or \
-                         AIBOX_PROCESSKIT_V1_TEST_DISTRIBUTION",
-                    );
-                InstallerRequest::development(
-                    InstallerOperation::Install,
-                    project.path().to_path_buf(),
-                    distribution.into(),
-                )
-            }
-            _ => panic!("consumer gate signed release inputs must be provided together"),
-        };
-        install.profiles = vec!["minimal".into()];
-        install.harnesses = vec!["codex".into()];
+        let (install, project) = signed_or_development_install();
 
         let mut plan = install.clone();
         plan.operation = InstallerOperation::Plan;
@@ -552,5 +630,40 @@ mod tests {
             InstallerStatus::Uninstalled
         );
         assert!(!project.path().join(".mcp.json").exists());
+    }
+
+    fn signed_or_development_install() -> (InstallerRequest, TempDir) {
+        let project = TempDir::new().unwrap();
+        let mut install = match (
+            std::env::var_os("AIBOX_PROCESSKIT_V1_TEST_ENVELOPE"),
+            std::env::var_os("AIBOX_PROCESSKIT_V1_TEST_SIGNATURE"),
+            std::env::var_os("AIBOX_PROCESSKIT_V1_TEST_TRUST_STORE"),
+        ) {
+            (Some(envelope), Some(signature), Some(trust_store)) => {
+                InstallerRequest::signed_release(
+                    InstallerOperation::Install,
+                    project.path().to_path_buf(),
+                    envelope.into(),
+                    signature.into(),
+                    trust_store.into(),
+                )
+            }
+            (None, None, None) => {
+                let distribution = std::env::var_os("AIBOX_PROCESSKIT_V1_TEST_DISTRIBUTION")
+                    .expect(
+                        "consumer gate requires signed release inputs or \
+                         AIBOX_PROCESSKIT_V1_TEST_DISTRIBUTION",
+                    );
+                InstallerRequest::development(
+                    InstallerOperation::Install,
+                    project.path().to_path_buf(),
+                    distribution.into(),
+                )
+            }
+            _ => panic!("consumer gate signed release inputs must be provided together"),
+        };
+        install.profiles = vec!["minimal".into()];
+        install.harnesses = vec!["codex".into()];
+        (install, project)
     }
 }
