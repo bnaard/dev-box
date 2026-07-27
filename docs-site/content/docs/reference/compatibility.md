@@ -13,6 +13,7 @@ below shows the minimum compatible processkit version for each aibox release.
 | aibox version | Min. processkit | Notes |
 |--------------|-----------------|-------|
 | 0.28.14 | v0.28.4 | ensures `pk-reconcile` and `pk-repo-reconcile` install their `project-reconciliation` and `repo-management` skill dependencies |
+| 0.28.15 | v0.28.4 | refreshes bundled maintenance tools, locks `cargo-audit` installation for Rust compatibility, and publishes the Hugo/Docsy documentation site |
 | 0.28.13 | v0.28.4 | adds open GitHub Discussion counts to the tmux Forge status segment and restores the complete generated Codex command projection set |
 | 0.28.12 | v0.28.4 | integrates processkit v0.28.4 and makes companion E2E validation work from linked release worktrees |
 | 0.28.11 | v0.28.3 | adds the `cloudflare` addon, which installs cloudflared from Cloudflare's signed package repository rather than Debian's archive |
