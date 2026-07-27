@@ -37,15 +37,27 @@ The repo devcontainer also needs an SSH client (`openssh-client`) because Tier 2
 cd /workspace/cli && cargo build
 
 # 2. Run E2E tier 2 tests (deploys binary to companion via SCP on first run).
-# The expensive visual matrix tests are opt-in and do not run here.
-cd /workspace/cli && cargo test --features e2e
+# This also runs the release-gated disposable kind cluster; visual matrices
+# remain opt-in.
+cd /workspace && ./scripts/maintain.sh test-e2e
 
 # Run a specific E2E test
 cd /workspace/cli && cargo test --features e2e -- lifecycle
 ```
 
 The deploy step is guarded by `std::sync::Once` — runs once per `cargo test` invocation.
-Re-running after a code change: `cargo build` again, then re-run `cargo test --features e2e`.
+Re-running after a code change: `cargo build` again, then re-run
+`./scripts/maintain.sh test-e2e`.
+
+The companion must be rebuilt after changes to its Dockerfile or Compose
+override. It runs systemd as PID 1 in a private cgroup namespace so SSH
+sessions receive a delegated user slice for rootless Podman:
+
+```bash
+docker compose -f .devcontainer/docker-compose.yml \
+  -f .devcontainer/docker-compose.override.yml \
+  up -d --build --force-recreate aibox-e2e-testrunner
+```
 
 ### Visual E2E tiers
 

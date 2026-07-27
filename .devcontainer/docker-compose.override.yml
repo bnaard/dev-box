@@ -44,10 +44,10 @@ services:
     security_opt:
       - seccomp=unconfined
     privileged: true
-    # kind's Podman provider starts a systemd-based node container. Keep the
-    # companion in the host cgroup namespace so controllers delegated by the
-    # outer runtime remain available to that nested node.
-    cgroup: host
+    # systemd is PID 1 inside a private cgroup namespace. It delegates a user
+    # slice to testuser, where SSH-triggered kind runs in a Delegate=yes scope.
+    # A private namespace confines systemd to this companion's subtree.
+    cgroup: private
     cap_add:
       - SYS_ADMIN
       - NET_ADMIN
@@ -56,3 +56,5 @@ services:
     tmpfs:
       - /tmp
       - /run
+      - /run/lock
+    stop_grace_period: 30s

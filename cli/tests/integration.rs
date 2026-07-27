@@ -617,6 +617,26 @@ fn release_scripts_publish_checksum_sidecars() {
 }
 
 #[test]
+fn e2e_companion_delegates_kind_through_systemd() {
+    let manifest_dir = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+    let root = manifest_dir.parent().unwrap();
+    let dockerfile = std::fs::read_to_string(root.join(".devcontainer/Dockerfile.e2e")).unwrap();
+    let compose =
+        std::fs::read_to_string(root.join(".devcontainer/docker-compose.override.yml")).unwrap();
+    let kind_gate =
+        std::fs::read_to_string(manifest_dir.join("tests/e2e/kubernetes_kind.rs")).unwrap();
+    let maintain = std::fs::read_to_string(root.join("scripts/maintain.sh")).unwrap();
+
+    assert!(dockerfile.contains("CMD [\"/sbin/init\"]"));
+    assert!(dockerfile.contains("Delegate=yes"));
+    assert!(dockerfile.contains("cgroup_manager = \"systemd\""));
+    assert!(dockerfile.contains("log_driver = \"k8s-file\""));
+    assert!(compose.contains("cgroup: private"));
+    assert!(kind_gate.contains("systemd-run --user --scope -p Delegate=yes"));
+    assert!(maintain.contains("kubernetes_kind -- --ignored --nocapture"));
+}
+
+#[test]
 fn image_fallback_tmux_config_does_not_bind_global_ctrl_j() {
     let manifest_dir = env!("CARGO_MANIFEST_DIR");
     let repo_root = std::path::Path::new(manifest_dir).parent().unwrap();
