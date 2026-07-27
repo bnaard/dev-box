@@ -169,6 +169,7 @@ mod tests {
         assert!(get_addon("latex").is_some());
         assert!(get_addon("kubernetes").is_some());
         assert!(get_addon("cloud-aws").is_some());
+        assert!(get_addon("cloudflare").is_some());
         assert!(get_addon("docs-zensical").is_some());
     }
 

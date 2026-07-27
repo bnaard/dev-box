@@ -130,6 +130,7 @@ agents pick them up via skill descriptions, not via addon membership:
 | `latex` / `typst` | `documentation` |
 | `git-ui` | `git-workflow` |
 | `kubernetes` | `container-orchestration` |
+| `cloudflare` | Cloudflare Tunnel workflows |
 | `infrastructure` | terraform-flavoured patterns shipped upstream |
 
 See [Skills (via processkit)](../skills/index.md) for the full split.
