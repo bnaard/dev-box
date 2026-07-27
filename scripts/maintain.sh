@@ -1284,9 +1284,9 @@ cmd_docs_serve() {
   if [[ ! -d "${PROJECT_ROOT}/docs-site/node_modules" ]]; then
     npm --prefix "${PROJECT_ROOT}/docs-site" ci
   fi
-  info "Serving docs with Hugo and Docsy at http://localhost:1313/aibox/ ..."
+  info "Serving docs with Hugo and Docsy at http://localhost:1313/aibox/v1.x/ ..."
   hugo server --source "${PROJECT_ROOT}/docs-site" \
-    --bind 0.0.0.0 --baseURL "http://localhost:1313/aibox/"
+    --bind 0.0.0.0 --baseURL "http://localhost:1313/aibox/v1.x/"
 }
 
 cmd_docs_deploy() {
@@ -1325,7 +1325,20 @@ cmd_docs_deploy() {
   # Bug (b): use ${tmpdir:-} so trap is safe even if mktemp never ran (set -u).
   trap '[[ -n "${tmpdir:-}" ]] && rm -rf "${tmpdir}"' EXIT
 
-  cp -r "${PROJECT_ROOT}/docs-site/public/." "${tmpdir}/"
+  # This branch publishes the v1.x preview docs under the /v1.x/ subpath.
+  # The stable v0.x line publishes at the site root on the same gh-pages
+  # branch. Clone the existing gh-pages tree first (if any) so a
+  # v1.x-only rebuild here never touches the root; only replace the
+  # v1.x/ subtree.
+  if git clone -q --depth 1 --branch gh-pages "${remote_url}" "${tmpdir}" 2>/dev/null; then
+    info "Found existing gh-pages branch — preserving everything outside v1.x/"
+    rm -rf "${tmpdir}/.git" "${tmpdir}/v1.x"
+  else
+    info "No existing gh-pages branch — starting fresh"
+  fi
+
+  mkdir -p "${tmpdir}/v1.x"
+  cp -r "${PROJECT_ROOT}/docs-site/public/." "${tmpdir}/v1.x/"
   touch "${tmpdir}/.nojekyll"
 
   info "Pushing to gh-pages branch..."

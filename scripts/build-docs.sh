@@ -3,7 +3,7 @@ set -euo pipefail
 
 PROJECT_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 DOCS_ROOT="${PROJECT_ROOT}/docs-site"
-DOCS_BASE_URL="${DOCS_BASE_URL:-https://projectious-work.github.io/aibox/}"
+DOCS_BASE_URL="${DOCS_BASE_URL:-https://projectious-work.github.io/aibox/v1.x/}"
 BUILD_DIR="${DOCS_ROOT}/public"
 
 BUILD_ARGS=("$@")
