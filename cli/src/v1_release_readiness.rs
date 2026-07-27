@@ -178,7 +178,7 @@ fn m5_gate() -> ReleaseGate {
             title: "M5 production processkit protocol integration (#118)".to_string(),
             status: GateStatus::Passed,
             blocking: true,
-            evidence: "The compiled protocol boundary no longer declares the processkit producer integration provisional.".to_string(),
+            evidence: "The installer/v1alpha1 consumer gate is exact-pinned to the signed processkit v1.0.0-alpha.2 release and validates plan, install, verify, unchanged update, and uninstall.".to_string(),
             remediation: "Keep producer-version, migration, interruption, and rollback evidence with the release candidate.".to_string(),
         }
     }
@@ -706,7 +706,7 @@ mod tests {
     }
 
     #[test]
-    fn audit_blocks_known_m5_and_missing_m7c_evidence() {
+    fn audit_passes_tagged_m5_and_blocks_missing_m7c_evidence() {
         let dir = TempDir::new().unwrap();
         let report = release_readiness(dir.path());
         assert!(!report.ready);
@@ -715,7 +715,7 @@ mod tests {
                 .gates
                 .iter()
                 .any(|gate| gate.id == "m5-processkit-production-integration"
-                    && gate.status == GateStatus::Blocked)
+                    && gate.status == GateStatus::Passed)
         );
         assert!(
             report

@@ -512,7 +512,7 @@ fn stable_v1_readiness_json_is_machine_readable_while_blocked() {
     assert_eq!(report["ready"], false);
     let gates = report["gates"].as_array().unwrap();
     assert!(gates.iter().any(|gate| {
-        gate["id"] == "m5-processkit-production-integration" && gate["status"] == "blocked"
+        gate["id"] == "m5-processkit-production-integration" && gate["status"] == "passed"
     }));
     assert!(gates.iter().any(|gate| {
         gate["id"] == "m7c-live-disposable-cluster-evidence" && gate["status"] == "blocked"
