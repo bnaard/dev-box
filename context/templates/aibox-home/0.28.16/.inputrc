@@ -1,0 +1,14 @@
+# aibox readline bindings
+set editing-mode emacs
+set enable-bracketed-paste on
+
+# Option/Alt-left and Option/Alt-right word movement. These match the
+# Esc-b/Esc-f sequences many macOS terminal profiles emit and complement
+# Vim's matching <M-b>/<M-f> bindings.
+"\eb": backward-word
+"\ef": forward-word
+
+# Shift-Option-left/right: set mark, then move one word. Readline marks the
+# region; terminal-visible highlighting depends on the terminal.
+"\e[1;10D": "\C-@\eb"
+"\e[1;10C": "\C-@\ef"
