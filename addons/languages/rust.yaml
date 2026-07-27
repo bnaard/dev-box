@@ -79,7 +79,7 @@ builder: |
   ENV PATH="/home/aibox/.cargo/bin:${PATH}"
 
   {% if tools["cargo-audit"].enabled %}
-  RUN cargo install cargo-audit
+  RUN cargo install cargo-audit --locked
   {% endif %}
 
   RUN install -d /usr/local/bin && \
