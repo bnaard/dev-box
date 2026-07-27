@@ -130,6 +130,26 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 # ── Variant 1 disable-then-purge guards ───────────────────────────────
 
 
+# Addon: docs-hugo
+RUN DEB_ARCH="$(dpkg --print-architecture)" && \
+    case "${DEB_ARCH}" in \
+      amd64) HUGO_ARCH="amd64" ;; \
+      arm64) HUGO_ARCH="arm64" ;; \
+      *) echo "Unsupported Hugo architecture: ${DEB_ARCH}" >&2; exit 1 ;; \
+    esac && \
+    HUGO_VERSION="0.163.3" && \
+    HUGO_ASSET="hugo_extended_${HUGO_VERSION}_linux-${HUGO_ARCH}.tar.gz" && \
+    curl -fsSL \
+      "https://github.com/gohugoio/hugo/releases/download/v${HUGO_VERSION}/${HUGO_ASSET}" \
+      -o /tmp/hugo.tar.gz && \
+    curl -fsSL \
+      "https://github.com/gohugoio/hugo/releases/download/v${HUGO_VERSION}/hugo_${HUGO_VERSION}_checksums.txt" \
+      -o /tmp/hugo_checksums.txt && \
+    grep " ${HUGO_ASSET}$" /tmp/hugo_checksums.txt | sed 's#  .*#  /tmp/hugo.tar.gz#' | sha256sum -c && \
+    tar -xz -C /usr/local/bin -f /tmp/hugo.tar.gz hugo && \
+    rm /tmp/hugo.tar.gz /tmp/hugo_checksums.txt
+
+
 # Addon: git-ui — GitHub CLI and lazygit
 USER root
 RUN apt-get update && apt-get install -y --no-install-recommends \
