@@ -221,6 +221,7 @@ mod tests {
             ("rustc", true, "1.96.1"),
             ("clippy", true, ""),
             ("rustfmt", true, ""),
+            ("cargo-audit", true, ""),
         ]);
         let stage = generate_builder_stage("rust", &tools);
         assert!(stage.is_some());
@@ -232,6 +233,10 @@ mod tests {
         assert!(
             stage.contains("1.96.1"),
             "missing version 1.96.1 in:\n{stage}"
+        );
+        assert!(
+            stage.contains("cargo install cargo-audit --locked"),
+            "cargo-audit must use its published lockfile to avoid MSRV drift:\n{stage}"
         );
     }
 

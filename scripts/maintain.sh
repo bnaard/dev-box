@@ -2005,7 +2005,7 @@ release_visual_gate() {
 release_audit_gate() {
   info "Running cargo audit..."
   command -v cargo-audit &>/dev/null \
-    || (cd "${CLI_DIR}" && cargo install cargo-audit --quiet)
+    || (cd "${CLI_DIR}" && cargo install cargo-audit --locked --quiet)
   local audit_db="${TMPDIR:-/tmp}/aibox-cargo-advisory-db"
   mkdir -p "${audit_db}"
   (cd "${CLI_DIR}" && cargo audit --db "${audit_db}") \
