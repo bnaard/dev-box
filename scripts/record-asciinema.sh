@@ -30,7 +30,7 @@
 #   - Output files: prompt-default.cast, prompt-plain.cast, prompt-minimal.cast,
 #                   prompt-nerd-font.cast, prompt-pastel.cast, prompt-bracketed.cast, prompt-arrow.cast
 # This requires a running container environment so cannot be done in the dev-container build step.
-# Docs placeholders: see docs-site/docs/customization/prompts.md (<!-- recording pending --> comments)
+# Docs placeholders: see docs-site/content/docs/customization/prompts.md (<!-- recording pending --> comments)
 
 set -euo pipefail
 

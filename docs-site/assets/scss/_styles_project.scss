@@ -1,0 +1,99 @@
+// Project-specific composition built on the projectious.work design tokens in
+// _variables_project.scss. Keep shared tokens aligned with the brand repository.
+
+.td-navbar {
+  border-bottom: 3px solid $brand-accent;
+}
+
+.navbar-brand {
+  font-family: $headings-font-family;
+  font-weight: 800;
+  letter-spacing: -0.02em;
+}
+
+.navbar-brand__logo img {
+  height: 2rem;
+  width: 2rem;
+}
+
+.td-cover-block {
+  background:
+    linear-gradient(90deg, rgba(10, 18, 30, 0.96), rgba(19, 36, 64, 0.82)),
+    url("/aibox/img/layouts/layout-dev.svg") center / cover;
+}
+
+.td-content > h1,
+.td-content > h2,
+.td-content > h3 {
+  scroll-margin-top: 5rem;
+}
+
+code,
+pre {
+  font-variant-ligatures: none;
+}
+
+.theme-gallery-filters {
+  border: 1px solid var(--bs-border-color);
+  border-radius: $border-radius-lg;
+  margin: 1.5rem 0;
+  padding: 1rem;
+}
+
+.theme-filter-row {
+  align-items: center;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  margin-bottom: 0.75rem;
+}
+
+.theme-filter-row:last-child {
+  margin-bottom: 0;
+}
+
+.theme-filter-row strong {
+  min-width: 4rem;
+}
+
+.theme-gallery-grid {
+  display: grid;
+  gap: 1.25rem;
+  grid-template-columns: repeat(auto-fill, minmax(22rem, 1fr));
+}
+
+@media (max-width: 26rem) {
+  .theme-gallery-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+.theme-card {
+  background: var(--bs-body-bg);
+  border: 1px solid var(--bs-border-color);
+  border-radius: $border-radius-lg;
+  overflow: hidden;
+}
+
+.theme-card header {
+  display: flex;
+  flex-direction: column;
+  padding: 0.75rem 1rem;
+}
+
+.theme-card header strong {
+  font-family: $font-family-monospace;
+}
+
+.theme-card header small {
+  color: var(--bs-secondary-color);
+}
+
+.theme-player {
+  align-items: center;
+  background: #111;
+  color: #999;
+  display: flex;
+  justify-content: center;
+  min-height: 7rem;
+}

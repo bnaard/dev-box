@@ -1,18 +1,20 @@
 # aibox Documentation Site
 
-This directory contains the public aibox documentation site. The site is built
-with [Docusaurus](https://docusaurus.io/) and is published to GitHub Pages.
+This directory contains the public aibox documentation site. It uses
+[Hugo](https://gohugo.io/) with the [Docsy](https://www.docsy.dev/) theme and
+the [projectious.work brand system](https://github.com/projectious-work/brand).
 
 ## Installation
 
 ```bash
-npm ci
+git submodule update --init --recursive docs-site/themes/docsy
+npm --prefix docs-site ci
 ```
 
 ## Local Development
 
 ```bash
-npm start
+./scripts/maintain.sh docs-serve
 ```
 
 This command starts a local development server and opens up a browser window. Most changes are reflected live without having to restart the server.
@@ -20,10 +22,10 @@ This command starts a local development server and opens up a browser window. Mo
 ## Build
 
 ```bash
-npm run build
+./scripts/build-docs.sh
 ```
 
-This command generates static content into `build/`.
+This command generates static content into `docs-site/public/`.
 
 ## Deployment
 
