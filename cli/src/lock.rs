@@ -655,6 +655,7 @@ fn backfill_lock_selection_inner(
         project_root,
         &addon_selection,
         &harness_selection,
+        &config.processkit.version,
         &now_iso,
     )?;
     Ok(migration_path)
@@ -668,6 +669,7 @@ fn write_lock_backfill_migration(
     project_root: &Path,
     addon_selection: &BTreeMap<String, BTreeSet<String>>,
     harness_selection: &BTreeSet<String>,
+    processkit_version: &str,
     now_iso: &str,
 ) -> Result<Option<PathBuf>> {
     let pending_dir = project_root.join("context/migrations/pending");
@@ -693,7 +695,13 @@ fn write_lock_backfill_migration(
 
     let mut body = String::new();
     body.push_str("---\n");
-    body.push_str("apiVersion: processkit.projectious.work/v1\n");
+    let is_v2 = semver::Version::parse(processkit_version.trim_start_matches('v'))
+        .is_ok_and(|version| version.major >= 1);
+    body.push_str(if is_v2 {
+        "apiVersion: processkit.projectious.work/v2\n"
+    } else {
+        "apiVersion: processkit.projectious.work/v1\n"
+    });
     body.push_str("kind: Migration\n");
     body.push_str("metadata:\n");
     body.push_str(&format!("  id: {}\n", id));
@@ -705,6 +713,18 @@ fn write_lock_backfill_migration(
     body.push_str("  state: pending\n");
     body.push_str("  generated_by: aibox apply\n");
     body.push_str(&format!("  generated_at: {}\n", now_iso));
+    if is_v2 {
+        body.push_str("  source_api_version: processkit.projectious.work/v2\n");
+        body.push_str(&format!(
+            "  source_processkit_version: {}\n",
+            processkit_version
+        ));
+        body.push_str("  target_api_version: processkit.projectious.work/v2\n");
+        body.push_str(&format!(
+            "  target_processkit_version: {}\n",
+            processkit_version
+        ));
+    }
     body.push_str(&format!("  summary: {}\n", yaml_scalar_lock(&summary_line)));
     body.push_str("---\n\n");
     body.push_str(&format!("# Migration {}\n\n", id));
@@ -1027,13 +1047,37 @@ kubectl = "v1.30.0"
         );
         let harnesses: BTreeSet<String> = ["claude"].iter().map(|s| s.to_string()).collect();
 
-        let result =
-            write_lock_backfill_migration(tmp.path(), &addons, &harnesses, "2026-05-08T16:00:00Z")
-                .unwrap();
+        let result = write_lock_backfill_migration(
+            tmp.path(),
+            &addons,
+            &harnesses,
+            "v0.28.3",
+            "2026-05-08T16:00:00Z",
+        )
+        .unwrap();
         assert!(
             result.is_none(),
             "should skip when MIG-LOCK-* already exists"
         );
+    }
+
+    #[test]
+    fn lock_backfill_migration_uses_v2_for_processkit_v1() {
+        let tmp = TempDir::new().unwrap();
+        let addons = BTreeMap::new();
+        let harnesses = BTreeSet::new();
+        let path = write_lock_backfill_migration(
+            tmp.path(),
+            &addons,
+            &harnesses,
+            "v1.0.0-alpha.1",
+            "2026-07-24T10:00:00Z",
+        )
+        .unwrap()
+        .unwrap();
+        let body = fs::read_to_string(path).unwrap();
+        assert!(body.contains("apiVersion: processkit.projectious.work/v2"));
+        assert!(body.contains("target_processkit_version: v1.0.0-alpha.1"));
     }
 
     // -- Hashing ------------------------------------------------------------

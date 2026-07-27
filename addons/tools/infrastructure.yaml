@@ -14,18 +14,18 @@ tools:
   - name: opentofu
     description: "Open-source Terraform-compatible infrastructure as code CLI"
     default_enabled: true
-    default_version: "1.12.3"
-    supported_versions: ["1.9.0", "1.12.0", "1.12.1", "1.12.3"]
+    default_version: "1.12.5"
+    supported_versions: ["1.9.0", "1.12.0", "1.12.1", "1.12.3", "1.12.5"]
   - name: ansible
     description: "Configuration management and automation engine"
     default_enabled: true
-    default_version: "14.1.0"
-    supported_versions: ["13.7.0", "14.0.0", "14.1.0"]
+    default_version: "14.2.0"
+    supported_versions: ["13.7.0", "14.0.0", "14.1.0", "14.2.0"]
   - name: packer
     description: "Machine image build automation tool"
     default_enabled: true
-    default_version: "1.15.4"
-    supported_versions: ["1.11.2", "1.15.3", "1.15.4"]
+    default_version: "1.16.0"
+    supported_versions: ["1.11.2", "1.15.3", "1.15.4", "1.16.0"]
 
 builder: |
   # ── Infrastructure builder ────────────────────────────────────────────
@@ -73,7 +73,14 @@ runtime: |
   COPY --from=infra-builder /build/bin/packer /usr/local/bin/packer
   {% endif %}
   {% if tools.ansible.enabled %}
-  RUN pip3 install --no-cache-dir 'ansible=={{ tools.ansible.version }}'
+  RUN apt-get update && apt-get install -y --no-install-recommends \
+      python3-venv \
+      && rm -rf /var/lib/apt/lists/*
+  RUN python3 -m venv /opt/aibox/ansible && \
+      /opt/aibox/ansible/bin/pip install --no-cache-dir 'ansible=={{ tools.ansible.version }}' && \
+      for bin in /opt/aibox/ansible/bin/ansible*; do \
+        ln -sf "$bin" "/usr/local/bin/$(basename "$bin")"; \
+      done
   {% endif %}
   # ── Variant 1 disable-then-purge guards ───────────────────────────────
   {% if not tools.opentofu.enabled %}
@@ -86,5 +93,5 @@ runtime: |
   {% endif %}
   {% if not tools.ansible.enabled %}
   USER root
-  RUN pip3 uninstall -y ansible ansible-core 2>/dev/null || true
+  RUN rm -rf /opt/aibox/ansible && rm -f /usr/local/bin/ansible*
   {% endif %}

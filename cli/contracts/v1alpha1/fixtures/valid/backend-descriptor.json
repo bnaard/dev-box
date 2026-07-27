@@ -1,0 +1,10 @@
+{
+  "apiVersion": "aibox.projectious.work/v1alpha1",
+  "kind": "BackendDescriptor",
+  "metadata": { "name": "compose", "owner": { "ownerId": "aibox" } },
+  "spec": {
+    "backend": "compose",
+    "capabilities": ["validate", "plan", "apply", "status", "destroy", "logs", "exec"],
+    "connectionTransports": ["compose-exec"]
+  }
+}

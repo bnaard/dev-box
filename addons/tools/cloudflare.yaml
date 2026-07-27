@@ -1,0 +1,38 @@
+name: cloudflare
+version: "1.0.0"
+description: "Cloudflare Tunnel connector (cloudflared)"
+profile_intent: runtime
+usage_class: automated
+profiles: ["human-dev", "headless-runner"]
+exported_surfaces: ["cli-binary", "config-files"]
+builder_weight: null
+
+tools:
+  - name: cloudflared
+    description: "Cloudflare Tunnel connector and command-line client"
+    default_enabled: true
+    default_version: ""
+    supported_versions: []
+
+builder: null
+
+runtime: |
+  # Addon: cloudflare
+  {% if tools.cloudflared.enabled %}
+  # cloudflared is not in Debian's archive. Install it from Cloudflare's
+  # signed package repository, which supports both amd64 and arm64.
+  USER root
+  RUN mkdir -p --mode=0755 /usr/share/keyrings && \
+      curl -fsSL https://pkg.cloudflare.com/cloudflare-main.gpg \
+        -o /usr/share/keyrings/cloudflare-main.gpg && \
+      echo "deb [signed-by=/usr/share/keyrings/cloudflare-main.gpg] https://pkg.cloudflare.com/cloudflared any main" > /etc/apt/sources.list.d/cloudflared.list && \
+      apt-get update && apt-get install -y --no-install-recommends cloudflared && \
+      rm -rf /var/lib/apt/lists/*
+  {% endif %}
+  {% if not tools.cloudflared.enabled %}
+  USER root
+  RUN if dpkg-query -W -f='${Status}' cloudflared 2>/dev/null | grep -q 'install ok installed'; then \
+        apt-get purge -y --auto-remove cloudflared && rm -rf /var/lib/apt/lists/*; \
+      fi && \
+      rm -f /etc/apt/sources.list.d/cloudflared.list /usr/share/keyrings/cloudflare-main.gpg
+  {% endif %}

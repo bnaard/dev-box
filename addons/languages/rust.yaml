@@ -15,8 +15,8 @@ tools:
   - name: rustc
     description: "Rust compiler toolchain installed via rustup"
     default_enabled: true
-    default_version: "1.96.1"
-    supported_versions: ["1.90", "1.91", "1.92", "1.93", "1.94", "1.94.1", "1.96.0", "1.96.1"]
+    default_version: "1.97.1"
+    supported_versions: ["1.90", "1.91", "1.92", "1.93", "1.94", "1.94.1", "1.96.0", "1.96.1", "1.97.1"]
   - name: clippy
     description: "Rust linter for catching common mistakes and style issues"
     default_enabled: true
@@ -79,7 +79,7 @@ builder: |
   ENV PATH="/home/aibox/.cargo/bin:${PATH}"
 
   {% if tools["cargo-audit"].enabled %}
-  RUN cargo install cargo-audit
+  RUN cargo install cargo-audit --locked
   {% endif %}
 
   RUN install -d /usr/local/bin && \

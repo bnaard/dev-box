@@ -17,7 +17,7 @@ fn check_cargo_audit() -> Result<()> {
         .output()
         .is_err()
     {
-        output::warn("cargo-audit not installed. Install: cargo install cargo-audit");
+        output::warn("cargo-audit not installed. Install: cargo install cargo-audit --locked");
         return Ok(());
     }
 
@@ -124,7 +124,7 @@ pub fn doctor_check_audit_tools() {
     if cargo_audit_available {
         output::ok("cargo-audit available");
     } else {
-        output::warn("cargo-audit not installed (optional: cargo install cargo-audit)");
+        output::warn("cargo-audit not installed (optional: cargo install cargo-audit --locked)");
     }
 
     if pip_audit_available {

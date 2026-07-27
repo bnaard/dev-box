@@ -8,7 +8,7 @@
 
 [![Status: actively maintained](https://img.shields.io/badge/status-actively%20maintained-1d3352)](SECURITY.md)
 [![License: MIT](https://img.shields.io/badge/license-MIT-1d3352)](LICENSE)
-[![Docs](https://img.shields.io/badge/docs-projectious--work.github.io-E05232)](https://projectious-work.github.io/aibox/)
+[![Docs](https://img.shields.io/badge/docs-projectious--work.github.io-E05232)](https://projectious-work.github.io/aibox/v1.x/)
 
 </div>
 
@@ -128,19 +128,20 @@ or launching the workspace, it belongs in aibox.
 
 ## Documentation
 
-Full documentation lives at
-**[projectious-work.github.io/aibox](https://projectious-work.github.io/aibox/)**.
+Full documentation for this v1 preview line lives at
+**[projectious-work.github.io/aibox/v1.x/](https://projectious-work.github.io/aibox/v1.x/)**
+(the stable v0.x docs are at the site root).
 
 | Section | Contents |
 |---------|----------|
-| [Getting Started](https://projectious-work.github.io/aibox/docs/getting-started/) | Installation, new project, existing project |
-| [Container](https://projectious-work.github.io/aibox/docs/container/) | Base image, configuration, runtime operations, audio, file preview |
-| [Addons](https://projectious-work.github.io/aibox/docs/addons/) | Overview, language runtimes, tool bundles, documentation frameworks |
-| [Providers](https://projectious-work.github.io/aibox/docs/providers/) | Claude, OpenAI, Gemini, Copilot, Continue, Aider, Mistral |
-| [Context System](https://projectious-work.github.io/aibox/docs/context/) | Overview, skill selection, migration |
-| [Customization](https://projectious-work.github.io/aibox/docs/customization/) | Themes, layouts, prompts |
-| [Reference](https://projectious-work.github.io/aibox/docs/reference/) | Configuration, CLI commands, compatibility, cheatsheet |
-| [Contributing](https://projectious-work.github.io/aibox/docs/contributing/) | Maintenance, e2e tests, version-line porting |
+| [Getting Started](https://projectious-work.github.io/aibox/v1.x/docs/getting-started/) | Installation, new project, existing project |
+| [Container](https://projectious-work.github.io/aibox/v1.x/docs/container/) | Base image, configuration, runtime operations, audio, file preview |
+| [Addons](https://projectious-work.github.io/aibox/v1.x/docs/addons/) | Overview, language runtimes, tool bundles, documentation frameworks |
+| [Providers](https://projectious-work.github.io/aibox/v1.x/docs/providers/) | Claude, OpenAI, Gemini, Copilot, Continue, Aider, Mistral |
+| [Context System](https://projectious-work.github.io/aibox/v1.x/docs/context/) | Overview, skill selection, migration |
+| [Customization](https://projectious-work.github.io/aibox/v1.x/docs/customization/) | Themes, layouts, prompts |
+| [Reference](https://projectious-work.github.io/aibox/v1.x/docs/reference/) | Configuration, CLI commands, compatibility, cheatsheet, v1 deployment boundaries |
+| [Contributing](https://projectious-work.github.io/aibox/v1.x/docs/contributing/) | Maintenance, e2e tests, version-line porting |
 
 ## Development
 
@@ -173,7 +174,7 @@ Release quality expectations are strict:
 | `cli/` | Rust CLI source for the `aibox` binary |
 | `addons/` | YAML addon definitions for runtimes, tools, docs frameworks, and AI CLIs |
 | `images/` | Base image recipes published for downstream projects |
-| `docs-site/` | Docusaurus documentation site |
+| `docs-site/` | Hugo/Docsy documentation site |
 | `context/` | This repository's processkit-managed project context |
 | `scripts/` | Release, install, and maintenance tooling |
 | `.devcontainer/` | This repository's own development container |
@@ -182,7 +183,7 @@ Release quality expectations are strict:
 
 Direct commits to `main` are the norm in this repository. Before contributing,
 read [AGENTS.md](AGENTS.md), [CONTRIBUTING.md](CONTRIBUTING.md), and the docs
-under [`docs-site/docs/contributing/`](docs-site/docs/contributing/).
+under [`docs-site/content/docs/contributing/`](docs-site/content/docs/contributing/).
 
 Do not hardcode processkit vocabulary in production Rust code. Add constants to
 `cli/src/processkit_vocab.rs` instead.

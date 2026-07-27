@@ -128,36 +128,41 @@ pub fn build_effective_skill_set(
         return Ok(Some(effective));
     };
 
-    // Step 1: walk every selected [context].packages package, recursively
-    // expand `extends:`, collect the union of skill names.
-    let mut effective: HashSet<String> = HashSet::new();
-    let mut queue: VecDeque<String> = config.context.packages.iter().cloned().collect();
-    let mut visited: HashSet<String> = HashSet::new();
-    while let Some(pkg_name) = queue.pop_front() {
-        if !visited.insert(pkg_name.clone()) {
-            // Already processed — cycle protection.
-            continue;
+    // Alpha releases are evaluated as a coherent preview surface. Package
+    // manifests may lag newly introduced skills, so installing only their
+    // package subset leaves the release's MCP/preauth manifest inconsistent.
+    // Explicit excludes remain authoritative below.
+    let mut effective: HashSet<String> = if is_prerelease_version(&config.processkit.version) {
+        let skills_dir =
+            mirror_skills_dir(project_root, &config.processkit.version).unwrap_or_default();
+        collect_available_skill_names(&skills_dir)
+    } else {
+        // Step 1: walk every selected [context].packages package, recursively
+        // expand `extends:`, collect the union of skill names.
+        let mut selected = HashSet::new();
+        let mut queue: VecDeque<String> = config.context.packages.iter().cloned().collect();
+        let mut visited: HashSet<String> = HashSet::new();
+        while let Some(pkg_name) = queue.pop_front() {
+            if !visited.insert(pkg_name.clone()) {
+                continue;
+            }
+            let pkg_path = packages_dir.join(format!("{}.yaml", pkg_name));
+            if !pkg_path.is_file() {
+                anyhow::bail!(
+                    "package '{}' selected in [context].packages does not exist at {}",
+                    pkg_name,
+                    pkg_path.display()
+                );
+            }
+            let body = fs::read_to_string(&pkg_path)
+                .with_context(|| format!("failed to read {}", pkg_path.display()))?;
+            let parsed: PackageYaml = serde_yaml::from_str(&body)
+                .with_context(|| format!("failed to parse package YAML {}", pkg_path.display()))?;
+            selected.extend(parsed.spec.includes.skills);
+            queue.extend(parsed.spec.extends);
         }
-        let pkg_path = packages_dir.join(format!("{}.yaml", pkg_name));
-        if !pkg_path.is_file() {
-            anyhow::bail!(
-                "package '{}' selected in [context].packages does not exist at {}",
-                pkg_name,
-                pkg_path.display()
-            );
-        }
-        let body = fs::read_to_string(&pkg_path)
-            .with_context(|| format!("failed to read {}", pkg_path.display()))?;
-        let parsed: PackageYaml = serde_yaml::from_str(&body)
-            .with_context(|| format!("failed to parse package YAML {}", pkg_path.display()))?;
-
-        for skill in parsed.spec.includes.skills {
-            effective.insert(skill);
-        }
-        for parent in parsed.spec.extends {
-            queue.push_back(parent);
-        }
-    }
+        selected
+    };
 
     // Step 2: add user includes.
     for skill in &config.skills.include {
@@ -182,6 +187,11 @@ pub fn build_effective_skill_set(
     }
 
     Ok(Some(effective))
+}
+
+fn is_prerelease_version(version: &str) -> bool {
+    semver::Version::parse(version.trim_start_matches('v'))
+        .is_ok_and(|parsed| !parsed.pre.is_empty())
 }
 
 fn collect_available_skill_names(skills_dir: &Path) -> HashSet<String> {
@@ -1273,6 +1283,33 @@ mod tests {
     }
 
     #[test]
+    fn effective_skill_set_installs_complete_prerelease_surface() {
+        let tmp = TempDir::new().unwrap();
+        let version = "v1.0.0-alpha.1";
+        write_synth_packages_dir(
+            tmp.path(),
+            version,
+            &[("product", &[], &["decision-record"])],
+        );
+        write_synth_skills_dir(
+            tmp.path(),
+            version,
+            &[
+                "decision-record",
+                "capability-management",
+                "okf-compatibility",
+            ],
+        );
+        let config = config_with_packages_and_skills(version, &["product"], &[], &[]);
+        let set = build_effective_skill_set(tmp.path(), &config)
+            .unwrap()
+            .unwrap();
+        assert!(set.contains("decision-record"));
+        assert!(set.contains("capability-management"));
+        assert!(set.contains("okf-compatibility"));
+    }
+
+    #[test]
     fn effective_skill_set_expands_extends_chain() {
         let tmp = TempDir::new().unwrap();
         write_synth_packages_dir(
@@ -1595,6 +1632,7 @@ mod tests {
             integrations: crate::config::IntegrationsSection::default(),
             apply: crate::config::ApplySection::default(),
             security: SecuritySection::default(),
+            orchestration: crate::config::OrchestrationSection::default(),
             mcp: crate::config::McpSection::default(),
             local_env: std::collections::HashMap::new(),
             local_mcp_servers: vec![],
