@@ -15,8 +15,8 @@ tools:
   - name: go
     description: "Go compiler, tooling, and module workflow"
     default_enabled: true
-    default_version: "1.26.4"
-    supported_versions: ["1.25", "1.26", "1.26.3", "1.26.4"]
+    default_version: "1.26.5"
+    supported_versions: ["1.25", "1.26", "1.26.3", "1.26.4", "1.26.5"]
 
 builder: null
 

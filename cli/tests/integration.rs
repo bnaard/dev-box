@@ -637,6 +637,41 @@ fn e2e_companion_delegates_kind_through_systemd() {
 }
 
 #[test]
+fn release_state_reads_tool_pins_from_their_sources() {
+    let manifest_dir = env!("CARGO_MANIFEST_DIR");
+    let repo_root = std::path::Path::new(manifest_dir).parent().unwrap();
+    let state = std::fs::read_to_string(repo_root.join("scripts/release-check-state.sh"))
+        .expect("read release-check-state.sh");
+
+    assert!(
+        state.contains(
+            r#"uv_pin="$(container_image_tag "${BASE_DOCKERFILE}" "ghcr.io/astral-sh/uv" || true)""#
+        ),
+        "uv release-state inventory must derive the image tag from the Dockerfile"
+    );
+    assert!(
+        state.contains(
+            r#""$(quoted_assignment "${PROJECT_ROOT}/addons/docs/docs-hugo.yaml" HUGO_VERSION || true)""#
+        ) && state.contains(
+            r#""$(quoted_assignment "${PROJECT_ROOT}/addons/docs/docs-mdbook.yaml" MDBOOK_VERSION || true)""#
+        ) && state.contains(
+            r#""$(package_pin "${PROJECT_ROOT}/addons/docs/docs-mkdocs.yaml" mkdocs-material || true)""#
+        ),
+        "documentation tool inventory must derive pins from addon manifests"
+    );
+    assert!(
+        state.contains("https://static.rust-lang.org/dist/channel-rust-stable.toml")
+            && state.contains(r#"/^\[pkg\.rust\]$/"#),
+        "Rust latest lookup must read the stable toolchain manifest rather than rustup's own version"
+    );
+    assert!(
+        state.contains("Status: Cargo.lock is current for the active Rust toolchain.")
+            && state.contains("Locking 0 packages"),
+        "a current Cargo.lock must not produce an actionable update disposition"
+    );
+}
+
+#[test]
 fn image_fallback_tmux_config_does_not_bind_global_ctrl_j() {
     let manifest_dir = env!("CARGO_MANIFEST_DIR");
     let repo_root = std::path::Path::new(manifest_dir).parent().unwrap();
