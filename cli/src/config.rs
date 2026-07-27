@@ -1099,7 +1099,7 @@ pub struct AddonToolsSection {
 /// ```toml
 /// [addons.python.tools]
 /// python = { version = "3.14" }
-/// uv = { version = "0.11.26" }
+/// uv = { version = "0.11.32" }
 /// ```
 ///
 /// Deserialized as `HashMap<String, AddonToolsSection>` where the outer key
@@ -5410,10 +5410,10 @@ uv = { version = "0.7" }
 
 [addons.node.tools]
 node = { version = "26" }
-pnpm = { version = "11.10.0" }
+pnpm = { version = "11.17.0" }
 
 [addons.rust.tools]
-rustc = { version = "1.96.1" }
+rustc = { version = "1.97.1" }
 clippy = {}
 rustfmt = {}
 
@@ -5570,7 +5570,7 @@ name = "my-project"
         // Check specific tool versions
         assert_eq!(config.addons.tool_version("python", "python"), Some("3.14"));
         assert_eq!(config.addons.tool_version("python", "uv"), Some("0.7"));
-        assert_eq!(config.addons.tool_version("rust", "rustc"), Some("1.96.1"));
+        assert_eq!(config.addons.tool_version("rust", "rustc"), Some("1.97.1"));
         assert_eq!(config.addons.tool_version("rust", "clippy"), None);
         assert_eq!(config.addons.tool_version("rust", "rustfmt"), None);
         assert!(config.addons.has_tool("kubernetes", "kubectl"));
@@ -6504,7 +6504,7 @@ harnesses = []
         assert!(config.addons.has_tool("python", "uv"));
         assert!(!config.addons.has_tool("python", "poetry"));
         assert_eq!(config.addons.tool_version("node", "node"), Some("26"));
-        assert_eq!(config.addons.tool_version("node", "pnpm"), Some("11.10.0"));
+        assert_eq!(config.addons.tool_version("node", "pnpm"), Some("11.17.0"));
         assert_eq!(config.addons.tool_version("cloud-aws", "aws-cli"), None);
     }
 
