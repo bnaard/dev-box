@@ -1,4 +1,4 @@
-baseURL: "https://projectious-work.github.io/aibox/"
+baseURL: "https://projectious-work.github.io/aibox/v1.x/"
 title: aibox
 description: "Reproducible AI workspaces from one aibox.toml"
 theme: [docsy]
