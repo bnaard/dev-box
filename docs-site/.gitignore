@@ -1,12 +1,10 @@
 # Dependencies
 /node_modules
 
-# Production
-/build
-
-# Generated files
-.docusaurus
-.cache-loader
+# Hugo output and generated resources
+/public
+/resources
+/.hugo_build.lock
 
 # Misc
 .DS_Store

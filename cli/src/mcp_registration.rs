@@ -428,7 +428,7 @@ pub fn generate_claude_code_permissions(
     // Claude Code reads `settings.permissions.allow` as a NESTED object
     // access. Writing a flat dotted key like `"permissions.allow"` at the
     // top level (the historical pre-v0.19.3 bug) is silently ignored by
-    // the harness — see `docs-site/docs/reference/configuration.md`. The
+    // the harness — see `docs-site/content/docs/reference/configuration.md`. The
     // merge must use a real nested structure and additively union with
     // any user-added entries already present at `permissions.allow[]`.
     let (previous_allow, previous_deny) = read_claude_local_managed_permissions(&settings)?;

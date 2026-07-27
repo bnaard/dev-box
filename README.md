@@ -1,10 +1,25 @@
+<div align="center">
+
+<img src="docs-site/static/logo/aibox-light.svg" alt="aibox" width="96" height="96">
+
 # aibox
 
 **Reproducible AI workspaces from one `aibox.toml`.**
 
+[![Status: actively maintained](https://img.shields.io/badge/status-actively%20maintained-1d3352)](SECURITY.md)
+[![License: MIT](https://img.shields.io/badge/license-MIT-1d3352)](LICENSE)
+[![Docs](https://img.shields.io/badge/docs-projectious--work.github.io-E05232)](https://projectious-work.github.io/aibox/)
+
+</div>
+
+---
+
+> [!NOTE]
 > **Project status:** actively maintained. The latest minor release line is
 > supported; security and correctness fixes are released on the newest version.
 > See [SECURITY.md](SECURITY.md) for reporting and support details.
+
+---
 
 `aibox` is a Rust CLI for projects that want a dependable terminal-first AI
 development environment without hand-maintaining devcontainer glue. It turns a
@@ -113,15 +128,19 @@ or launching the workspace, it belongs in aibox.
 
 ## Documentation
 
-Start here:
+Full documentation lives at
+**[projectious-work.github.io/aibox](https://projectious-work.github.io/aibox/)**.
 
-- [What aibox does](https://projectious-work.github.io/aibox/docs/overview)
-- [New project guide](https://projectious-work.github.io/aibox/docs/getting-started/new-project)
-- [Existing project guide](https://projectious-work.github.io/aibox/docs/getting-started/existing-project)
-- [Container configuration](https://projectious-work.github.io/aibox/docs/container/configuration)
-- [Runtime operations](https://projectious-work.github.io/aibox/docs/container/runtime-operations)
-- [Configuration reference](https://projectious-work.github.io/aibox/docs/reference/configuration)
-- [Compatibility matrix](https://projectious-work.github.io/aibox/docs/reference/compatibility)
+| Section | Contents |
+|---------|----------|
+| [Getting Started](https://projectious-work.github.io/aibox/docs/getting-started/) | Installation, new project, existing project |
+| [Container](https://projectious-work.github.io/aibox/docs/container/) | Base image, configuration, runtime operations, audio, file preview |
+| [Addons](https://projectious-work.github.io/aibox/docs/addons/) | Overview, language runtimes, tool bundles, documentation frameworks |
+| [Providers](https://projectious-work.github.io/aibox/docs/providers/) | Claude, OpenAI, Gemini, Copilot, Continue, Aider, Mistral |
+| [Context System](https://projectious-work.github.io/aibox/docs/context/) | Overview, skill selection, migration |
+| [Customization](https://projectious-work.github.io/aibox/docs/customization/) | Themes, layouts, prompts |
+| [Reference](https://projectious-work.github.io/aibox/docs/reference/) | Configuration, CLI commands, compatibility, cheatsheet |
+| [Contributing](https://projectious-work.github.io/aibox/docs/contributing/) | Maintenance, e2e tests, version-line porting |
 
 ## Development
 
@@ -154,7 +173,7 @@ Release quality expectations are strict:
 | `cli/` | Rust CLI source for the `aibox` binary |
 | `addons/` | YAML addon definitions for runtimes, tools, docs frameworks, and AI CLIs |
 | `images/` | Base image recipes published for downstream projects |
-| `docs-site/` | Docusaurus documentation site |
+| `docs-site/` | Hugo + Docsy documentation site |
 | `context/` | This repository's processkit-managed project context |
 | `scripts/` | Release, install, and maintenance tooling |
 | `.devcontainer/` | This repository's own development container |
@@ -163,7 +182,7 @@ Release quality expectations are strict:
 
 Direct commits to `main` are the norm in this repository. Before contributing,
 read [AGENTS.md](AGENTS.md), [CONTRIBUTING.md](CONTRIBUTING.md), and the docs
-under [`docs-site/docs/contributing/`](docs-site/docs/contributing/).
+under [`docs-site/content/docs/contributing/`](docs-site/content/docs/contributing/).
 
 Do not hardcode processkit vocabulary in production Rust code. Add constants to
 `cli/src/processkit_vocab.rs` instead.
@@ -179,3 +198,6 @@ MIT. See [LICENSE](LICENSE).
 
 Unless otherwise noted, the copyright holder grants the MIT License for all
 versions of this repository, including historical commits and tags.
+
+Brand and design system © [projectious.work](https://github.com/projectious-work/brand).
+The aibox mark is derived from that system.

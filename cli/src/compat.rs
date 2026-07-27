@@ -382,10 +382,10 @@ pub static COMPAT_TABLE: &[CompatEntry] = &[
                cross-version sync auto-recovers corrupted managed runtime files (off_RIGHT fix, commit e0ee7bc); \
                generic purge-on-disable for all addon tools — kubernetes, cloud-aws/azure/gcp, infrastructure, audio-voice, preview-archive, preview-enhanced, data-preview, yazi-omp, and existing git-ui pattern; \
                new [apply].purge_disabled_harness_state toml key (default false); \
-               BREAKING: [customization.zellij_status] is now schema-rejected — remove from aibox.toml before upgrade (see docs-site/docs/migrations/zellij-eol.md); \
+               BREAKING: [customization.zellij_status] is now schema-rejected — remove from aibox.toml before upgrade (see docs-site/content/docs/migrations/zellij-eol.md); \
                six new doctor checks + semver-aware version-skew reporting; \
                addon download integrity hardening — 11 addons use SHA-256/GPG/.sha256 sidecar verification; ai-opencode pinned to GitHub release assets (vendor publishes no SHA256SUMS — see TODO annotations); \
-               BREAKING: seccomp=unconfined now requires [security].acknowledge_seccomp_unconfined = true in aibox.toml; aibox init --harness codex auto-sets this; existing Codex projects must add it manually (see docs-site/docs/reference/security.md); \
+               BREAKING: seccomp=unconfined now requires [security].acknowledge_seccomp_unconfined = true in aibox.toml; aibox init --harness codex auto-sets this; existing Codex projects must add it manually (see docs-site/content/docs/reference/security.md); \
                aibox.toml [skills] dedup — single array of strings, comment-out to disable; \
                two-line powerline status bar with six chevron-styled aibox metrics segments (slot order fixed per DEC-20260508_2115-SilentFern); \
                internal: cli/src/seed.rs split into cli/src/tmux/ module (3,613 → 2,929 lines); \
