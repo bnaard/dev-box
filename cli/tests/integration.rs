@@ -511,9 +511,18 @@ fn stable_v1_readiness_json_is_machine_readable_while_blocked() {
     assert_eq!(report["kind"], "StableV1ReleaseReadiness");
     assert_eq!(report["ready"], false);
     let gates = report["gates"].as_array().unwrap();
-    assert!(gates.iter().any(|gate| {
-        gate["id"] == "m5-processkit-production-integration" && gate["status"] == "passed"
-    }));
+    for id in [
+        "m5-alpha3-exact-lifecycle",
+        "m5-interruption-recovery",
+        "m5-v0-coexistence-and-rollback",
+        "m5-secret-safety",
+    ] {
+        assert!(
+            gates
+                .iter()
+                .any(|gate| { gate["id"] == id && gate["status"] == "passed" })
+        );
+    }
     assert!(gates.iter().any(|gate| {
         gate["id"] == "m7c-live-disposable-cluster-evidence" && gate["status"] == "blocked"
     }));

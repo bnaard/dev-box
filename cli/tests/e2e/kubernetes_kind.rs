@@ -91,7 +91,7 @@ fn kubernetes_kind_lifecycle_produces_release_candidate_evidence() {
     let path = PathBuf::from(env!("CARGO_MANIFEST_DIR"))
         .parent()
         .expect("cli has a repository parent")
-        .join("dist/release-evidence/m7c-live.json");
+        .join(".aibox/release-evidence/m7c-live.json");
     fs::create_dir_all(path.parent().expect("attestation parent"))
         .expect("create local M7c evidence directory");
     fs::write(
