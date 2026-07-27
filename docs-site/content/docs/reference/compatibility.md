@@ -12,6 +12,7 @@ below shows the minimum compatible processkit version for each aibox release.
 
 | aibox version | Min. processkit | Notes |
 |--------------|-----------------|-------|
+| 0.28.16 | v0.28.4 | installs Node.js from checksum-verified official release archives after the NodeSource signing-key endpoint became unavailable and refreshes generated runtime and processkit package-selection state |
 | 0.28.14 | v0.28.4 | ensures `pk-reconcile` and `pk-repo-reconcile` install their `project-reconciliation` and `repo-management` skill dependencies |
 | 0.28.15 | v0.28.4 | refreshes bundled maintenance tools, locks `cargo-audit` installation for Rust compatibility, and publishes the Hugo/Docsy documentation site |
 | 0.28.13 | v0.28.4 | adds open GitHub Discussion counts to the tmux Forge status segment and restores the complete generated Codex command projection set |
