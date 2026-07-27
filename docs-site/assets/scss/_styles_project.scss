@@ -22,6 +22,19 @@
     url("/aibox/img/layouts/layout-dev.svg") center / cover;
 }
 
+// Docsy's dark/primary box wrappers set body text to white, but headings
+// render via var(--bs-heading-color), which only tracks the site-wide
+// light/dark toggle -- not an individually-colored dark block. Without this,
+// headings on the cover/lead sections render in the light-mode heading color
+// (dark navy) on a dark background and are unreadable.
+.td-box--dark,
+.td-box--primary {
+  h1, h2, h3, h4, h5, h6,
+  .h1, .h2, .h3, .h4, .h5, .h6 {
+    color: #fff;
+  }
+}
+
 .td-content > h1,
 .td-content > h2,
 .td-content > h3 {
