@@ -594,6 +594,13 @@ fn release_scripts_publish_checksum_sidecars() {
         "maintain.sh must enforce README license notice, include LICENSE in Linux tarballs, and upload LICENSE to GitHub releases"
     );
     assert!(
+        maintain.contains("release_github_classification_args")
+            && maintain.contains(r#"[[ "${version}" == *-* ]]"#)
+            && maintain.contains("'--prerelease'")
+            && maintain.contains(r#""${github_classification_args[@]}""#),
+        "maintain.sh must publish semver prereleases as GitHub prereleases"
+    );
+    assert!(
         build_macos.contains(r#"shasum -a 256 "${DIST_DIR}/${local_name}.tar.gz""#)
             && build_macos.contains(r#"${DIST_DIR}/${local_name}.tar.gz.sha256"#)
             && build_macos.contains(r#"-C "${PROJECT_ROOT}" LICENSE"#),

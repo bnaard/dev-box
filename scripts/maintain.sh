@@ -52,6 +52,13 @@ release_branch_for_version() {
   esac
 }
 
+release_github_classification_args() {
+  local version="$1"
+  if [[ "${version}" == *-* ]]; then
+    printf '%s\n' '--prerelease'
+  fi
+}
+
 ensure_release_branch() {
   local version="$1" expected actual remote
   expected="$(release_branch_for_version "${version}")"
@@ -2466,12 +2473,15 @@ cmd_release() {
       release_collect_linux_archives "${version}"
     fi
     local notes_file="${DIST_DIR}/RELEASE-NOTES.md"
+    local github_classification_args=()
     [[ -f "${notes_file}" ]] || die "Missing ${notes_file}; run the 'notes' step first or include the publish alias."
+    mapfile -t github_classification_args < <(release_github_classification_args "${version}")
     info "Creating GitHub release ${tag}..."
     gh release create "${tag}" \
       --repo "${GITHUB_REPO}" \
       --title "aibox ${tag}" \
       --notes-file "${notes_file}" \
+      "${github_classification_args[@]}" \
       "${PROJECT_ROOT}/LICENSE" \
       "${built_archives[@]}"
     ok "GitHub release ${tag} created with Linux binaries and LICENSE"
