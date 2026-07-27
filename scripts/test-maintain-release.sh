@@ -83,4 +83,49 @@ release_run_parallel_validation 9.9.9 \
 [[ -f "$(release_evidence_key_path scheduler-fast)" ]] \
   || die "parallel scheduler did not record the fast probe"
 
+host_remote="${test_root}/host-remote.git"
+host_seed="${test_root}/host-seed"
+host_primary="${test_root}/host-primary"
+host_linked="${test_root}/host-linked"
+git init --bare "${host_remote}" >/dev/null
+git init -b main "${host_seed}" >/dev/null
+git -C "${host_seed}" config user.name "Release Test"
+git -C "${host_seed}" config user.email "release-test@example.invalid"
+printf 'base\n' > "${host_seed}/tracked.txt"
+git -C "${host_seed}" add tracked.txt
+git -C "${host_seed}" commit -m "test: seed release repo" >/dev/null
+git -C "${host_seed}" branch v0.x-release
+git -C "${host_seed}" tag v0.28.13
+git -C "${host_seed}" remote add origin "${host_remote}"
+git -C "${host_seed}" push origin main v0.x-release v0.28.13 >/dev/null
+git -C "${host_remote}" symbolic-ref HEAD refs/heads/main
+git clone "${host_remote}" "${host_primary}" >/dev/null
+git -C "${host_primary}" config user.name "Release Test"
+git -C "${host_primary}" config user.email "release-test@example.invalid"
+git -C "${host_primary}" worktree add "${host_linked}" v0.x-release >/dev/null
+
+printf 'primary dirty\n' >> "${host_primary}/tracked.txt"
+printf 'primary untracked\n' > "${host_primary}/primary-untracked.txt"
+printf 'linked dirty\n' >> "${host_linked}/tracked.txt"
+printf 'linked untracked\n' > "${host_linked}/linked-untracked.txt"
+
+saved_project_root="${PROJECT_ROOT}"
+PROJECT_ROOT="${host_primary}"
+prepare_release_host_checkout 0.28.13
+[[ "$(git -C "${host_primary}" branch --show-current)" == "v0.x-release" ]] \
+  || die "release-host preparation did not switch the primary checkout"
+[[ "$(git -C "${host_primary}" rev-parse HEAD)" == \
+   "$(git -C "${host_primary}" rev-parse origin/v0.x-release)" ]] \
+  || die "release-host preparation did not synchronize the release branch"
+[[ -z "$(git -C "${host_primary}" status --porcelain --untracked-files=all)" ]] \
+  || die "release-host preparation left the primary checkout dirty"
+[[ -z "$(git -C "${host_linked}" branch --show-current)" ]] \
+  || die "release-host preparation did not detach the linked release worktree"
+[[ -z "$(git -C "${host_linked}" status --porcelain --untracked-files=all)" ]] \
+  || die "release-host preparation left the linked release worktree dirty"
+[[ "$(git -C "${host_primary}" stash list --format='%s' | \
+    grep -c 'pre-release-host-v0.28.13-')" -eq 2 ]] \
+  || die "release-host preparation did not preserve both dirty checkouts"
+PROJECT_ROOT="${saved_project_root}"
+
 ok "maintain.sh release evidence probe passed"

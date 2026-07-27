@@ -2,18 +2,18 @@
 set -euo pipefail
 
 PROJECT_ROOT="$(cd "$(dirname "$0")/.." && pwd)"
-PROCESSKIT_VERSION="v1.0.0-alpha.2"
+PROCESSKIT_VERSION="v1.0.0-alpha.3"
 PROCESSKIT_RELEASE_BASE="https://github.com/projectious-work/processkit/releases/download/${PROCESSKIT_VERSION}"
-PROCESSKIT_ARCHIVE_SHA256="7fae02905fb07c56261a38aee1c0c07aea7c1c96152ae226ddde8898eeaf7b5c"
-PROCESSKIT_INSTALLER_SHA256="7a67abedb63bc151700c4a72a8ec7e71b35d820da052c59ad75c7e3bdf095d1e"
-PROCESSKIT_SIGNING_KEY_ID="74d3034333501f61162b8d392392b4533982b5f7d020a838d724fe0d429bf01f"
+PROCESSKIT_ARCHIVE_SHA256="cfeb5d028c961437aa394d15689490eb95a6d69e33a0bda567a0d5e4f5c09184"
+PROCESSKIT_INSTALLER_SHA256="1aa51614830dd4b7e844f1a7ab7c1b1c76aaf480b5c5a3ffbfe83b20fdba3a26"
+PROCESSKIT_SIGNING_KEY_ID="dbf471226f3124c2171510e8b931ab3e5c27d1943f22d562333b0a1468e8f188"
 PROCESSKIT_TARGET="aarch64-unknown-linux-gnu"
 
 run_gate() {
   cargo test \
     --manifest-path "${PROJECT_ROOT}/cli/Cargo.toml" \
-    processkit_protocol::tests::real_producer_lifecycle_when_configured \
-    -- --exact --nocapture
+    processkit_protocol::tests::real_producer_ \
+    -- --nocapture
 }
 
 if [[ -n "${1:-}" ]]; then
@@ -42,12 +42,14 @@ RELEASE_DIR="$(mktemp -d)"
 trap 'rm -rf "${RELEASE_DIR}"' EXIT
 
 archive="processkit-${PROCESSKIT_VERSION}.tar.gz"
+archive_checksum="${archive}.sha256"
 installer="processkit-${PROCESSKIT_VERSION}-${PROCESSKIT_TARGET}"
+installer_checksum="${installer}.sha256"
 envelope="processkit-${PROCESSKIT_VERSION}.release.json"
 signature="processkit-${PROCESSKIT_VERSION}.release.sig"
 public_key="processkit-${PROCESSKIT_VERSION}.release.pub.pem"
 
-for asset in "${archive}" "${installer}" "${envelope}" "${signature}" "${public_key}"; do
+for asset in "${archive}" "${archive_checksum}" "${installer}" "${installer_checksum}" "${envelope}" "${signature}" "${public_key}"; do
   curl --fail --silent --show-error --location \
     --output "${RELEASE_DIR}/${asset}" \
     "${PROCESSKIT_RELEASE_BASE}/${asset}"
@@ -57,6 +59,10 @@ printf '%s  %s\n' "${PROCESSKIT_ARCHIVE_SHA256}" "${RELEASE_DIR}/${archive}" \
   | sha256sum --check
 printf '%s  %s\n' "${PROCESSKIT_INSTALLER_SHA256}" "${RELEASE_DIR}/${installer}" \
   | sha256sum --check
+sed "s|  |  ${RELEASE_DIR}/|" "${RELEASE_DIR}/${archive_checksum}" | sha256sum --check
+sed "s|  |  ${RELEASE_DIR}/|" "${RELEASE_DIR}/${installer_checksum}" | sha256sum --check
+grep --fixed-strings --quiet "\"version\": \"${PROCESSKIT_VERSION}\"" "${RELEASE_DIR}/${envelope}"
+grep --fixed-strings --quiet "\"keyId\": \"${PROCESSKIT_SIGNING_KEY_ID}\"" "${RELEASE_DIR}/${envelope}"
 chmod 0755 "${RELEASE_DIR}/${installer}"
 
 cat >"${RELEASE_DIR}/trust-store.json" <<EOF

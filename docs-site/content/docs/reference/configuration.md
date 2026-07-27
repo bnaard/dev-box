@@ -65,10 +65,10 @@ schema_version = "1.0.0"              # Context schema version (semver)
 
 [addons.python.tools]                 # Addon: Python runtime
 python = { version = "3.14" }
-uv     = { version = "0.11.26" }
+uv     = { version = "0.11.32" }
 
 [addons.rust.tools]                   # Addon: Rust toolchain
-rustc   = { version = "1.96.1" }
+rustc   = { version = "1.97.1" }
 clippy  = {}
 rustfmt = {}
 
@@ -446,7 +446,7 @@ to install their CLIs.
 ```toml
 [addons.python.tools]
 python = { version = "3.14" }
-uv = { version = "0.11.26" }
+uv = { version = "0.11.32" }
 ```
 
 For interactive Git tooling:
@@ -469,6 +469,13 @@ Controls which skills from processkit are installed into `context/skills/`.
 Fresh `aibox.toml` scaffolds list the standard processkit operating skills in
 `include`. If `include` is empty, aibox falls back to installing every skill in
 the pinned processkit version minus anything listed in `exclude`.
+
+`aibox apply` reconciles newly introduced standard skills into existing
+processkit projects while respecting explicit `exclude` entries. Tooling-linked
+skills remain opt-in: an interactive apply asks before persisting a
+recommendation. For example, selecting the `latex` addon offers to add
+`latex-authoring`; a non-interactive apply prints the recommendation without
+changing skill selection.
 
 ```toml
 [skills]

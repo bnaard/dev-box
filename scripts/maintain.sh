@@ -52,6 +52,13 @@ release_branch_for_version() {
   esac
 }
 
+release_github_classification_args() {
+  local version="$1"
+  if [[ "${version}" == *-* ]]; then
+    printf '%s\n' '--prerelease'
+  fi
+}
+
 ensure_release_branch() {
   local version="$1" expected actual remote
   expected="$(release_branch_for_version "${version}")"
@@ -2011,9 +2018,32 @@ release_companion_e2e_gate() {
       warn "Skipping Tier 2 SSH companion E2E during release because AIBOX_RELEASE_SKIP_COMPANION_E2E=${AIBOX_RELEASE_SKIP_COMPANION_E2E}. Re-run ./scripts/maintain.sh test-e2e after rebuilding the companion."
       ;;
     *)
+      # Visual and lifecycle tests each serialize within their own group, but
+      # both groups exercise the same SSH companion runtime. Release runs
+      # prioritize deterministic evidence over throughput; callers may still
+      # opt into parallelism explicitly.
+      : "${AIBOX_E2E_TEST_THREADS:=1}"
+      export AIBOX_E2E_TEST_THREADS
       cmd_test_e2e
       ;;
   esac
+}
+
+# A v1 prerelease is allowed to publish only with fresh real-producer and
+# disposable-cluster evidence.  The stable-v1 readiness command deliberately
+# remains stricter than an alpha, but it is still the canonical parser for the
+# M5/M7c attestations and must accept the candidate evidence before tagging.
+release_v1_alpha_evidence_gate() {
+  local version="$1" evidence="${PROJECT_ROOT}/.aibox/release-evidence/m7c-live.json"
+  [[ "${version}" == 1.*-* ]] || return 0
+  [[ -f "${evidence}" ]] \
+    || die "v1 alpha release requires M7c evidence at ${evidence}; run the live disposable-cluster suite first"
+  grep -Eq "\"commit\"[[:space:]]*:[[:space:]]*\"${RELEASE_CANDIDATE_SHA}\"" "${evidence}" \
+    || die "M7c evidence is not bound to release candidate ${RELEASE_CANDIDATE_SHA}"
+  "${PROJECT_ROOT}/scripts/test-processkit-v1-consumer.sh"
+  (cd "${PROJECT_ROOT}" && cargo run --quiet --manifest-path "${CLI_DIR}/Cargo.toml" -- \
+    config release-readiness --output json) \
+    || die "v1 alpha release readiness evidence is incomplete"
 }
 
 release_visual_gate() {
@@ -2040,7 +2070,7 @@ release_visual_gate() {
 release_audit_gate() {
   info "Running cargo audit..."
   command -v cargo-audit &>/dev/null \
-    || (cd "${CLI_DIR}" && cargo install cargo-audit --quiet)
+    || (cd "${CLI_DIR}" && cargo install cargo-audit --locked --quiet)
   local audit_db="${TMPDIR:-/tmp}/aibox-cargo-advisory-db"
   mkdir -p "${audit_db}"
   (cd "${CLI_DIR}" && cargo audit --db "${audit_db}") \
@@ -2377,6 +2407,15 @@ cmd_release() {
     release_run_parallel_validation "${version}" "${validation_specs[@]}"
   fi
 
+  if [[ "${version}" == 1.*-* ]] && \
+     { release_step_requested tag || release_step_requested github-release; }; then
+    release_step_requested e2e \
+      || die "v1 alpha publication requires the e2e step so M7c evidence is generated"
+    release_run_evidenced_step "v1-alpha-evidence" "${version}" \
+      "V1 alpha producer and disposable-cluster evidence" \
+      release_v1_alpha_evidence_gate "${version}"
+  fi
+
   if release_step_requested visual; then
     case "${AIBOX_RELEASE_VISUAL_E2E:-skip}" in
       skip|"")
@@ -2440,12 +2479,15 @@ cmd_release() {
       release_collect_linux_archives "${version}"
     fi
     local notes_file="${DIST_DIR}/RELEASE-NOTES.md"
+    local github_classification_args=()
     [[ -f "${notes_file}" ]] || die "Missing ${notes_file}; run the 'notes' step first or include the publish alias."
+    mapfile -t github_classification_args < <(release_github_classification_args "${version}")
     info "Creating GitHub release ${tag}..."
     gh release create "${tag}" \
       --repo "${GITHUB_REPO}" \
       --title "aibox ${tag}" \
       --notes-file "${notes_file}" \
+      "${github_classification_args[@]}" \
       "${PROJECT_ROOT}/LICENSE" \
       "${built_archives[@]}"
     ok "GitHub release ${tag} created with Linux binaries and LICENSE"
@@ -2556,17 +2598,80 @@ cmd_release_finalize_runtime() {
 
 # ── Host-side release (run on macOS after container-side `release`) ──────────
 
-ensure_release_host_checkout_current() {
-  local version="$1" tag release_branch
+release_worktree_for_branch() {
+  local release_branch="$1"
+  git -C "${PROJECT_ROOT}" worktree list --porcelain | awk \
+    -v wanted="refs/heads/${release_branch}" '
+      $1 == "worktree" {
+        path = substr($0, length("worktree ") + 1)
+      }
+      $1 == "branch" && $2 == wanted {
+        print path
+        exit
+      }
+    '
+}
+
+stash_release_host_changes() {
+  local worktree="$1" tag="$2" label="$3"
+  if [[ -z "$(git -C "${worktree}" status --porcelain --untracked-files=all)" ]]; then
+    return
+  fi
+
+  local stash_message="pre-release-host-${tag}-${label}-$(date -u +%Y%m%dT%H%M%SZ)"
+  info "Preserving dirty ${label} checkout in a named stash..."
+  git -C "${worktree}" stash push --include-untracked -m "${stash_message}" >/dev/null \
+    || die "Could not preserve dirty ${label} checkout at ${worktree}."
+  ok "Saved ${label} checkout as stash '${stash_message}'"
+}
+
+prepare_release_host_checkout() {
+  local version="$1" tag release_branch branch_owner project_root_real owner_real
   tag="v${version}"
   release_branch="$(release_branch_for_version "${version}")"
-  info "Verifying host checkout is current with origin/${release_branch} and ${tag}..."
+
+  info "Preparing a clean host checkout for ${release_branch} and ${tag}..."
   (
     cd "${PROJECT_ROOT}"
+    git worktree prune
     git fetch origin \
       "refs/heads/${release_branch}:refs/remotes/origin/${release_branch}" \
       "refs/tags/${tag}:refs/tags/${tag}" >/dev/null
 
+    branch_owner="$(release_worktree_for_branch "${release_branch}")"
+    project_root_real="$(cd "${PROJECT_ROOT}" && pwd -P)"
+    if [[ -n "${branch_owner}" ]]; then
+      owner_real="$(cd "${branch_owner}" 2>/dev/null && pwd -P || true)"
+    else
+      owner_real=""
+    fi
+
+    if [[ -n "${branch_owner}" && "${owner_real}" != "${project_root_real}" ]]; then
+      stash_release_host_changes "${branch_owner}" "${tag}" "linked-worktree"
+      git -C "${branch_owner}" switch --detach >/dev/null \
+        || die "Could not detach ${release_branch} from linked worktree ${branch_owner}."
+      ok "Released ${release_branch} from linked worktree ${branch_owner}"
+    fi
+
+    stash_release_host_changes "${PROJECT_ROOT}" "${tag}" "primary"
+    if [[ "$(git branch --show-current)" != "${release_branch}" ]]; then
+      git switch "${release_branch}" >/dev/null \
+        || die "Could not switch the primary checkout to ${release_branch}."
+    fi
+    git reset --keep "origin/${release_branch}" \
+      || die "Could not synchronize the clean host checkout with origin/${release_branch}."
+  )
+  ok "Host checkout prepared at origin/${release_branch}"
+}
+
+ensure_release_host_checkout_current() {
+  local version="$1" tag release_branch
+  tag="v${version}"
+  release_branch="$(release_branch_for_version "${version}")"
+  prepare_release_host_checkout "${version}"
+  info "Verifying host checkout is current with origin/${release_branch} and ${tag}..."
+  (
+    cd "${PROJECT_ROOT}"
     local head remote_head tag_commit
     head=$(git rev-parse HEAD)
     remote_head=$(git rev-parse "origin/${release_branch}")
@@ -2578,7 +2683,7 @@ ensure_release_host_checkout_current() {
     fi
 
     if [[ "${head}" != "${remote_head}" ]]; then
-      die "release-host must run from current origin/${release_branch} containing ${tag}. Run: git fetch origin ${release_branch} && git switch ${release_branch} && git reset --keep origin/${release_branch}"
+      die "release-host could not prepare current origin/${release_branch} containing ${tag}; inspect the checkout and named pre-release-host stashes."
     fi
   )
   ok "Host checkout matches the ${release_branch} release line and contains ${tag}"

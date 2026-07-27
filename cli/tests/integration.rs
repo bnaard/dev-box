@@ -511,9 +511,18 @@ fn stable_v1_readiness_json_is_machine_readable_while_blocked() {
     assert_eq!(report["kind"], "StableV1ReleaseReadiness");
     assert_eq!(report["ready"], false);
     let gates = report["gates"].as_array().unwrap();
-    assert!(gates.iter().any(|gate| {
-        gate["id"] == "m5-processkit-production-integration" && gate["status"] == "passed"
-    }));
+    for id in [
+        "m5-alpha3-exact-lifecycle",
+        "m5-interruption-recovery",
+        "m5-v0-coexistence-and-rollback",
+        "m5-secret-safety",
+    ] {
+        assert!(
+            gates
+                .iter()
+                .any(|gate| { gate["id"] == id && gate["status"] == "passed" })
+        );
+    }
     assert!(gates.iter().any(|gate| {
         gate["id"] == "m7c-live-disposable-cluster-evidence" && gate["status"] == "blocked"
     }));
@@ -585,6 +594,13 @@ fn release_scripts_publish_checksum_sidecars() {
         "maintain.sh must enforce README license notice, include LICENSE in Linux tarballs, and upload LICENSE to GitHub releases"
     );
     assert!(
+        maintain.contains("release_github_classification_args")
+            && maintain.contains(r#"[[ "${version}" == *-* ]]"#)
+            && maintain.contains("'--prerelease'")
+            && maintain.contains(r#""${github_classification_args[@]}""#),
+        "maintain.sh must publish semver prereleases as GitHub prereleases"
+    );
+    assert!(
         build_macos.contains(r#"shasum -a 256 "${DIST_DIR}/${local_name}.tar.gz""#)
             && build_macos.contains(r#"${DIST_DIR}/${local_name}.tar.gz.sha256"#)
             && build_macos.contains(r#"-C "${PROJECT_ROOT}" LICENSE"#),
@@ -625,6 +641,8 @@ fn e2e_companion_delegates_kind_through_systemd() {
         std::fs::read_to_string(root.join(".devcontainer/docker-compose.override.yml")).unwrap();
     let kind_gate =
         std::fs::read_to_string(manifest_dir.join("tests/e2e/kubernetes_kind.rs")).unwrap();
+    let kind_lifecycle =
+        std::fs::read_to_string(root.join("scripts/test-kubernetes-kind.sh")).unwrap();
     let maintain = std::fs::read_to_string(root.join("scripts/maintain.sh")).unwrap();
 
     assert!(dockerfile.contains("CMD [\"/sbin/init\"]"));
@@ -633,7 +651,59 @@ fn e2e_companion_delegates_kind_through_systemd() {
     assert!(dockerfile.contains("log_driver = \"k8s-file\""));
     assert!(compose.contains("cgroup: private"));
     assert!(kind_gate.contains("systemd-run --user --scope -p Delegate=yes"));
+    assert!(kind_gate.contains("copy_file_to"));
+    for required in [
+        "deploy apply",
+        "deploy status",
+        "deploy logs",
+        "connect shell",
+        "connect web-forward",
+        "rollout status",
+        "operation already in progress",
+        "refusing resources not owned",
+        "DisposableClusterEvidence",
+    ] {
+        assert!(
+            kind_lifecycle.contains(required),
+            "M7c live lifecycle must cover {required}"
+        );
+    }
     assert!(maintain.contains("kubernetes_kind -- --ignored --nocapture"));
+}
+
+#[test]
+fn release_state_reads_tool_pins_from_their_sources() {
+    let manifest_dir = env!("CARGO_MANIFEST_DIR");
+    let repo_root = std::path::Path::new(manifest_dir).parent().unwrap();
+    let state = std::fs::read_to_string(repo_root.join("scripts/release-check-state.sh"))
+        .expect("read release-check-state.sh");
+
+    assert!(
+        state.contains(
+            r#"uv_pin="$(container_image_tag "${BASE_DOCKERFILE}" "ghcr.io/astral-sh/uv" || true)""#
+        ),
+        "uv release-state inventory must derive the image tag from the Dockerfile"
+    );
+    assert!(
+        state.contains(
+            r#""$(quoted_assignment "${PROJECT_ROOT}/addons/docs/docs-hugo.yaml" HUGO_VERSION || true)""#
+        ) && state.contains(
+            r#""$(quoted_assignment "${PROJECT_ROOT}/addons/docs/docs-mdbook.yaml" MDBOOK_VERSION || true)""#
+        ) && state.contains(
+            r#""$(package_pin "${PROJECT_ROOT}/addons/docs/docs-mkdocs.yaml" mkdocs-material || true)""#
+        ),
+        "documentation tool inventory must derive pins from addon manifests"
+    );
+    assert!(
+        state.contains("https://static.rust-lang.org/dist/channel-rust-stable.toml")
+            && state.contains(r#"/^\[pkg\.rust\]$/"#),
+        "Rust latest lookup must read the stable toolchain manifest rather than rustup's own version"
+    );
+    assert!(
+        state.contains("Status: Cargo.lock is current for the active Rust toolchain.")
+            && state.contains("Locking 0 packages"),
+        "a current Cargo.lock must not produce an actionable update disposition"
+    );
 }
 
 #[test]
