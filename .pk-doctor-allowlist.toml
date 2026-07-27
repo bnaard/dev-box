@@ -1,0 +1,9 @@
+[sensitive_data.email_allowlist]
+# Intentional public contact and RFC-reserved synthetic test identities.
+addresses = [
+  "info@projectious.work",
+  "dev@example.com",
+  "deploy@example.local",
+  "git@unconfigured.example",
+  "release-test@example.invalid",
+]

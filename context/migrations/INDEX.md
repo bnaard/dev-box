@@ -8,7 +8,7 @@ None.
 
 None.
 
-## Applied (5)
+## Applied (6)
 
 | Date       | Migration                                | Notes |
 |------------|------------------------------------------|-------|
@@ -17,6 +17,7 @@ None.
 | 2026-07-20 | MIG-20260720_1350-ContentSync-processkit-content-sync — processkit v0.27.4 → v0.27.5 | 0 changed upstream, 0 conflicts, 17 new, 1 removed, 0 stale-removed (5 groups affected) |
 | 2026-07-20 | MIG-20260720_1408-SnappyComet-canonicalize-note-spec-key-order-for — local-project  → | Canonicalize Note spec key order for v0.27.5 doctor |
 | 2026-07-22 | MIG-20260722_1623-ContentSync-processkit-content-sync — processkit v0.27.5 → v0.28.1 | 0 changed upstream, 0 conflicts, 5 new, 16 removed, 0 stale-removed (6 groups affected) |
+| 2026-07-26 | MIG-20260726_1903-ContentSync-processkit-content-sync — processkit v0.28.3 → v0.28.4 | 0 changed upstream, 0 conflicts, 722 new, 0 removed, 0 stale-removed (44 groups affected) |
 
 ## Rejected (3)
 

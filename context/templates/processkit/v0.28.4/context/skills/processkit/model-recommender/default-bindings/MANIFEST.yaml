@@ -1,0 +1,485 @@
+apiVersion: processkit.projectious.work/v2
+kind: DefaultBindingPack
+metadata:
+  id: PACK-default-model-assignments
+  version: 1.0.0
+  created: 2026-04-22 00:00:00+00:00
+spec:
+  description: Shipped defaults mapping (role, seniority) to Artifact(kind=model-profile)
+    at rank 1. Each profile expands to provider-specific Artifact(kind=model-spec)
+    candidates after runtime access gates are applied. Projects override by creating
+    their own bindings or provider/access policy. See DEC-20260503_1829-LoyalComet.
+  bindings:
+  - type: model-assignment
+    subject: ROLE-software-engineer
+    target: ART-20260503_1832-ModelProfile-code-fast
+    conditions:
+      seniority: junior
+      rank: 1
+      effort_floor: low
+      effort_ceiling: medium
+      rationale: "Junior IC coding \u2014 fast, cheap, sufficient for routine tickets"
+  - type: model-assignment
+    subject: ROLE-software-engineer
+    target: ART-20260503_1832-ModelProfile-code-balanced
+    conditions:
+      seniority: senior
+      rank: 1
+      effort_floor: medium
+      effort_ceiling: high
+      rationale: "Senior IC coding \u2014 best price-capability ratio for day-to-day\
+        \ work"
+  - type: model-assignment
+    subject: ROLE-software-engineer
+    target: ART-20260503_1832-ModelProfile-code-deep
+    conditions:
+      seniority: principal
+      rank: 1
+      effort_floor: high
+      effort_ceiling: extra-high
+      rationale: "Principal IC coding \u2014 reserve for architecture-scale changes"
+  - type: model-assignment
+    subject: ROLE-software-engineer
+    target: ART-20260503_1832-ModelProfile-code-fast
+    conditions:
+      seniority: specialist
+      rank: 1
+      effort_floor: low
+      effort_ceiling: medium
+      rationale: "Seed: Specialist software-engineer \u2014 inherits junior defaults\
+        \ pending role-specific tuning (KeenFern v0.21.0)"
+  - type: model-assignment
+    subject: ROLE-software-engineer
+    target: ART-20260503_1832-ModelProfile-code-balanced
+    conditions:
+      seniority: expert
+      rank: 1
+      effort_floor: medium
+      effort_ceiling: high
+      rationale: "Seed: Expert software-engineer \u2014 inherits senior defaults pending\
+        \ role-specific tuning (KeenFern v0.21.0)"
+  - type: model-assignment
+    subject: ROLE-solutions-architect
+    target: ART-20260503_1832-ModelProfile-general-balanced
+    conditions:
+      seniority: junior
+      rank: 1
+      effort_floor: low
+      effort_ceiling: medium
+      rationale: "Junior architect \u2014 mid-frontier is enough for scoped design\
+        \ work"
+  - type: model-assignment
+    subject: ROLE-solutions-architect
+    target: ART-20260503_1832-ModelProfile-general-deep
+    conditions:
+      seniority: senior
+      rank: 1
+      effort_floor: medium
+      effort_ceiling: high
+      rationale: "Senior architect \u2014 frontier reasoning for system-design trade-offs"
+  - type: model-assignment
+    subject: ROLE-solutions-architect
+    target: ART-20260503_1832-ModelProfile-general-deep
+    conditions:
+      seniority: principal
+      rank: 1
+      effort_floor: high
+      effort_ceiling: extra-high
+      rationale: "Principal architect \u2014 maximum thinking budget for novel designs"
+  - type: model-assignment
+    subject: ROLE-solutions-architect
+    target: ART-20260503_1832-ModelProfile-general-balanced
+    conditions:
+      seniority: specialist
+      rank: 1
+      effort_floor: low
+      effort_ceiling: medium
+      rationale: "Seed: Specialist solutions-architect \u2014 inherits junior defaults\
+        \ pending role-specific tuning (KeenFern v0.21.0)"
+  - type: model-assignment
+    subject: ROLE-solutions-architect
+    target: ART-20260503_1832-ModelProfile-general-deep
+    conditions:
+      seniority: expert
+      rank: 1
+      effort_floor: medium
+      effort_ceiling: high
+      rationale: "Seed: Expert solutions-architect \u2014 inherits senior defaults\
+        \ pending role-specific tuning (KeenFern v0.21.0)"
+  - type: model-assignment
+    subject: ROLE-product-manager
+    target: ART-20260503_1832-ModelProfile-general-fast
+    conditions:
+      seniority: junior
+      rank: 1
+      effort_floor: low
+      effort_ceiling: medium
+      rationale: "Junior PM \u2014 fast iteration on briefs and summaries"
+  - type: model-assignment
+    subject: ROLE-product-manager
+    target: ART-20260503_1832-ModelProfile-general-balanced
+    conditions:
+      seniority: senior
+      rank: 1
+      effort_floor: medium
+      effort_ceiling: high
+      rationale: "Senior PM \u2014 discovery synthesis and roadmap writing"
+  - type: model-assignment
+    subject: ROLE-product-manager
+    target: ART-20260503_1832-ModelProfile-general-deep
+    conditions:
+      seniority: principal
+      rank: 1
+      effort_floor: high
+      effort_ceiling: extra-high
+      rationale: "Principal PM \u2014 frontier reasoning for portfolio-scale trade-offs"
+  - type: model-assignment
+    subject: ROLE-product-manager
+    target: ART-20260503_1832-ModelProfile-general-fast
+    conditions:
+      seniority: specialist
+      rank: 1
+      effort_floor: low
+      effort_ceiling: medium
+      rationale: "Seed: Specialist product-manager \u2014 inherits junior defaults\
+        \ pending role-specific tuning (KeenFern v0.21.0)"
+  - type: model-assignment
+    subject: ROLE-product-manager
+    target: ART-20260503_1832-ModelProfile-general-balanced
+    conditions:
+      seniority: expert
+      rank: 1
+      effort_floor: medium
+      effort_ceiling: high
+      rationale: "Seed: Expert product-manager \u2014 inherits senior defaults pending\
+        \ role-specific tuning (KeenFern v0.21.0)"
+  - type: model-assignment
+    subject: ROLE-research-scientist
+    target: ART-20260503_1832-ModelProfile-research-deep
+    conditions:
+      seniority: junior
+      rank: 1
+      effort_floor: medium
+      effort_ceiling: high
+      rationale: "Junior researcher \u2014 paper reading and hypothesis drafting"
+  - type: model-assignment
+    subject: ROLE-research-scientist
+    target: ART-20260503_1832-ModelProfile-research-deep
+    conditions:
+      seniority: senior
+      rank: 1
+      effort_floor: high
+      effort_ceiling: extra-high
+      rationale: "Senior researcher \u2014 rigorous scientific reasoning"
+  - type: model-assignment
+    subject: ROLE-research-scientist
+    target: ART-20260503_1832-ModelProfile-research-deep
+    conditions:
+      seniority: principal
+      rank: 1
+      effort_floor: extra-high
+      effort_ceiling: max
+      rationale: "Principal researcher \u2014 maximum thinking for novel problem spaces"
+  - type: model-assignment
+    subject: ROLE-research-scientist
+    target: ART-20260503_1832-ModelProfile-research-deep
+    conditions:
+      seniority: specialist
+      rank: 1
+      effort_floor: medium
+      effort_ceiling: high
+      rationale: "Seed: Specialist research-scientist \u2014 inherits junior defaults\
+        \ pending role-specific tuning (KeenFern v0.21.0)"
+  - type: model-assignment
+    subject: ROLE-research-scientist
+    target: ART-20260503_1832-ModelProfile-research-deep
+    conditions:
+      seniority: expert
+      rank: 1
+      effort_floor: high
+      effort_ceiling: extra-high
+      rationale: "Seed: Expert research-scientist \u2014 inherits senior defaults\
+        \ pending role-specific tuning (KeenFern v0.21.0)"
+  - type: model-assignment
+    subject: ROLE-ai-research-scientist
+    target: ART-20260503_1832-ModelProfile-research-deep
+    conditions:
+      seniority: junior
+      rank: 1
+      effort_floor: medium
+      effort_ceiling: high
+      rationale: "Junior AI researcher \u2014 familiar with agentic+tool-use patterns"
+  - type: model-assignment
+    subject: ROLE-ai-research-scientist
+    target: ART-20260503_1832-ModelProfile-research-deep
+    conditions:
+      seniority: senior
+      rank: 1
+      effort_floor: high
+      effort_ceiling: extra-high
+      rationale: "Senior AI researcher \u2014 frontier reasoning for novel ML work"
+  - type: model-assignment
+    subject: ROLE-ai-research-scientist
+    target: ART-20260503_1832-ModelProfile-research-deep
+    conditions:
+      seniority: principal
+      rank: 1
+      effort_floor: extra-high
+      effort_ceiling: max
+      rationale: "Principal AI researcher \u2014 deep reasoning on state-of-the-art\
+        \ ML"
+  - type: model-assignment
+    subject: ROLE-ai-research-scientist
+    target: ART-20260503_1832-ModelProfile-research-deep
+    conditions:
+      seniority: specialist
+      rank: 1
+      effort_floor: medium
+      effort_ceiling: high
+      rationale: "Seed: Specialist ai-research-scientist \u2014 inherits junior defaults\
+        \ pending role-specific tuning (KeenFern v0.21.0)"
+  - type: model-assignment
+    subject: ROLE-ai-research-scientist
+    target: ART-20260503_1832-ModelProfile-research-deep
+    conditions:
+      seniority: expert
+      rank: 1
+      effort_floor: high
+      effort_ceiling: extra-high
+      rationale: "Seed: Expert ai-research-scientist \u2014 inherits senior defaults\
+        \ pending role-specific tuning (KeenFern v0.21.0)"
+  - type: model-assignment
+    subject: ROLE-data-scientist
+    target: ART-20260503_1832-ModelProfile-general-fast
+    conditions:
+      seniority: junior
+      rank: 1
+      effort_floor: low
+      effort_ceiling: medium
+      rationale: "Junior data scientist \u2014 cheap SQL and quick analyses"
+  - type: model-assignment
+    subject: ROLE-data-scientist
+    target: ART-20260503_1832-ModelProfile-general-balanced
+    conditions:
+      seniority: senior
+      rank: 1
+      effort_floor: medium
+      effort_ceiling: high
+      rationale: "Senior data scientist \u2014 modelling and notebook work"
+  - type: model-assignment
+    subject: ROLE-data-scientist
+    target: ART-20260503_1832-ModelProfile-research-deep
+    conditions:
+      seniority: principal
+      rank: 1
+      effort_floor: high
+      effort_ceiling: extra-high
+      rationale: "Principal data scientist \u2014 methodology design and audits"
+  - type: model-assignment
+    subject: ROLE-data-scientist
+    target: ART-20260503_1832-ModelProfile-general-fast
+    conditions:
+      seniority: specialist
+      rank: 1
+      effort_floor: low
+      effort_ceiling: medium
+      rationale: "Seed: Specialist data-scientist \u2014 inherits junior defaults\
+        \ pending role-specific tuning (KeenFern v0.21.0)"
+  - type: model-assignment
+    subject: ROLE-data-scientist
+    target: ART-20260503_1832-ModelProfile-research-deep
+    conditions:
+      seniority: expert
+      rank: 1
+      effort_floor: medium
+      effort_ceiling: high
+      rationale: "Seed: Expert data-scientist \u2014 inherits senior defaults pending\
+        \ role-specific tuning (KeenFern v0.21.0)"
+  - type: model-assignment
+    subject: ROLE-qa-engineer
+    target: ART-20260503_1832-ModelProfile-code-fast
+    conditions:
+      seniority: junior
+      rank: 1
+      effort_floor: low
+      effort_ceiling: medium
+      rationale: "Junior QA \u2014 high-volume test-case generation"
+  - type: model-assignment
+    subject: ROLE-qa-engineer
+    target: ART-20260503_1832-ModelProfile-code-balanced
+    conditions:
+      seniority: senior
+      rank: 1
+      effort_floor: medium
+      effort_ceiling: high
+      rationale: "Senior QA \u2014 test-strategy and flaky-test triage"
+  - type: model-assignment
+    subject: ROLE-qa-engineer
+    target: ART-20260503_1832-ModelProfile-code-deep
+    conditions:
+      seniority: principal
+      rank: 1
+      effort_floor: high
+      effort_ceiling: extra-high
+      rationale: "Principal QA \u2014 test-architecture for complex systems"
+  - type: model-assignment
+    subject: ROLE-qa-engineer
+    target: ART-20260503_1832-ModelProfile-code-fast
+    conditions:
+      seniority: specialist
+      rank: 1
+      effort_floor: low
+      effort_ceiling: medium
+      rationale: "Seed: Specialist qa-engineer \u2014 inherits junior defaults pending\
+        \ role-specific tuning (KeenFern v0.21.0)"
+  - type: model-assignment
+    subject: ROLE-qa-engineer
+    target: ART-20260503_1832-ModelProfile-code-balanced
+    conditions:
+      seniority: expert
+      rank: 1
+      effort_floor: medium
+      effort_ceiling: high
+      rationale: "Seed: Expert qa-engineer \u2014 inherits senior defaults pending\
+        \ role-specific tuning (KeenFern v0.21.0)"
+  - type: model-assignment
+    subject: ROLE-security-architect
+    target: ART-20260503_1832-ModelProfile-governed-deep
+    conditions:
+      seniority: junior
+      rank: 1
+      effort_floor: medium
+      effort_ceiling: high
+      rationale: "Junior security architect \u2014 threat-model drafting; G:5 required"
+  - type: model-assignment
+    subject: ROLE-security-architect
+    target: ART-20260503_1832-ModelProfile-governed-deep
+    conditions:
+      seniority: senior
+      rank: 1
+      effort_floor: high
+      effort_ceiling: extra-high
+      rationale: "Senior security architect \u2014 rigorous threat analysis; G:5"
+  - type: model-assignment
+    subject: ROLE-security-architect
+    target: ART-20260503_1832-ModelProfile-governed-deep
+    conditions:
+      seniority: principal
+      rank: 1
+      effort_floor: extra-high
+      effort_ceiling: max
+      rationale: "Principal security architect \u2014 adversarial deep-dive; G:5"
+  - type: model-assignment
+    subject: ROLE-security-architect
+    target: ART-20260503_1832-ModelProfile-governed-deep
+    conditions:
+      seniority: specialist
+      rank: 1
+      effort_floor: medium
+      effort_ceiling: high
+      rationale: "Seed: Specialist security-architect \u2014 inherits junior defaults\
+        \ pending role-specific tuning (KeenFern v0.21.0)"
+  - type: model-assignment
+    subject: ROLE-security-architect
+    target: ART-20260503_1832-ModelProfile-governed-deep
+    conditions:
+      seniority: expert
+      rank: 1
+      effort_floor: high
+      effort_ceiling: extra-high
+      rationale: "Seed: Expert security-architect \u2014 inherits senior defaults\
+        \ pending role-specific tuning (KeenFern v0.21.0)"
+  - type: model-assignment
+    subject: ROLE-technical-writer
+    target: ART-20260503_1832-ModelProfile-general-fast
+    conditions:
+      seniority: junior
+      rank: 1
+      effort_floor: low
+      effort_ceiling: medium
+      rationale: "Junior tech writer \u2014 fast drafts of routine docs"
+  - type: model-assignment
+    subject: ROLE-technical-writer
+    target: ART-20260503_1832-ModelProfile-writing-balanced
+    conditions:
+      seniority: senior
+      rank: 1
+      effort_floor: low
+      effort_ceiling: medium
+      rationale: "Senior tech writer \u2014 style-sensitive long-form authoring"
+  - type: model-assignment
+    subject: ROLE-technical-writer
+    target: ART-20260503_1832-ModelProfile-writing-balanced
+    conditions:
+      seniority: principal
+      rank: 1
+      effort_floor: medium
+      effort_ceiling: high
+      rationale: "Principal tech writer \u2014 reference docs and API-design prose"
+  - type: model-assignment
+    subject: ROLE-technical-writer
+    target: ART-20260503_1832-ModelProfile-general-fast
+    conditions:
+      seniority: specialist
+      rank: 1
+      effort_floor: low
+      effort_ceiling: medium
+      rationale: "Seed: Specialist technical-writer \u2014 inherits junior defaults\
+        \ pending role-specific tuning (KeenFern v0.21.0)"
+  - type: model-assignment
+    subject: ROLE-technical-writer
+    target: ART-20260503_1832-ModelProfile-writing-balanced
+    conditions:
+      seniority: expert
+      rank: 1
+      effort_floor: low
+      effort_ceiling: medium
+      rationale: "Seed: Expert technical-writer \u2014 inherits senior defaults pending\
+        \ role-specific tuning (KeenFern v0.21.0)"
+  - type: model-assignment
+    subject: ROLE-assistant
+    target: ART-20260503_1832-ModelProfile-general-fast
+    conditions:
+      seniority: junior
+      rank: 1
+      effort_floor: none
+      effort_ceiling: low
+      rationale: "Junior assistant \u2014 fast, cheap, low-latency chat"
+  - type: model-assignment
+    subject: ROLE-assistant
+    target: ART-20260503_1832-ModelProfile-general-balanced
+    conditions:
+      seniority: senior
+      rank: 1
+      effort_floor: low
+      effort_ceiling: medium
+      rationale: "Senior assistant \u2014 still fast, slightly more thinking budget"
+  - type: model-assignment
+    subject: ROLE-assistant
+    target: ART-20260503_1832-ModelProfile-general-balanced
+    conditions:
+      seniority: principal
+      rank: 1
+      effort_floor: medium
+      effort_ceiling: high
+      rationale: "Principal assistant \u2014 full frontier capabilities when needed"
+  - type: model-assignment
+    subject: ROLE-assistant
+    target: ART-20260503_1832-ModelProfile-general-fast
+    conditions:
+      seniority: specialist
+      rank: 1
+      effort_floor: none
+      effort_ceiling: low
+      rationale: "Seed: Specialist assistant \u2014 inherits junior defaults pending\
+        \ role-specific tuning (KeenFern v0.21.0)"
+  - type: model-assignment
+    subject: ROLE-assistant
+    target: ART-20260503_1832-ModelProfile-general-fast
+    conditions:
+      seniority: expert
+      rank: 1
+      effort_floor: low
+      effort_ceiling: medium
+      rationale: "Seed: Expert assistant \u2014 inherits senior defaults pending role-specific\
+        \ tuning (KeenFern v0.21.0)"
