@@ -7,7 +7,7 @@ source = "https://github.com/projectious-work/processkit.git"
 version = "v0.28.4"
 src_path = "src"
 installed_at = "2026-07-26T19:03:38.355962+00:00"
-processkit_install_hash = "v2:4a4dc07f2d754648248bea5efe42b34509d2cdfb923f0bb37461379e21b249c1"
+processkit_install_hash = "v2:cca2c868fdd0d121d93f69d6dda0a9f857d0e88ec4d073d293d683fc3fdd6d5b"
 
 [addons]
 resolved_at = "2026-05-09T10:41:25Z"

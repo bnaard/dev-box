@@ -618,6 +618,11 @@ pub static COMPAT_TABLE: &[CompatEntry] = &[
         processkit_version: "v0.28.4",
         note: "Patch release: refreshes the bundled maintenance tools, locks cargo-audit installation for Rust compatibility, and publishes the Hugo/Docsy documentation site.",
     },
+    CompatEntry {
+        aibox_version: "0.28.16",
+        processkit_version: "v0.28.4",
+        note: "Patch release: installs Node.js from checksum-verified official release archives after the NodeSource signing-key endpoint became unavailable and refreshes generated runtime and processkit package-selection state.",
+    },
 ];
 
 /// Find the minimum compatible processkit version for the given aibox version.

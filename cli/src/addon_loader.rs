@@ -1503,6 +1503,20 @@ runtime: |
     }
 
     #[test]
+    fn node_installer_uses_verified_official_release_archive() {
+        let addon = load_repo_addon("node");
+        let rendered = render_runtime(&addon, &all_enabled_tools(&addon)).unwrap();
+
+        assert!(rendered.contains("https://nodejs.org/dist/latest-v26.x"));
+        assert!(rendered.contains("SHASUMS256.txt"));
+        assert!(rendered.contains("sha256sum -c -"));
+        assert!(
+            !rendered.contains("deb.nodesource.com"),
+            "Node installation must not depend on the retired NodeSource key endpoint: {rendered}"
+        );
+    }
+
+    #[test]
     fn docs_mdbook_installer_uses_published_asset_digests() {
         let addon = load_repo_addon("docs-mdbook");
         let mut tools = all_disabled_tools(&addon);
