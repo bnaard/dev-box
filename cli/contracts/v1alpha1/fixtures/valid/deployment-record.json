@@ -1,0 +1,15 @@
+{
+  "apiVersion": "aibox.projectious.work/v1alpha1",
+  "kind": "DeploymentRecord",
+  "metadata": { "name": "demo-20260724", "owner": { "ownerId": "team-a" } },
+  "spec": {
+    "deploymentId": "dep-demo-20260724",
+    "target": { "backend": "compose", "targetRef": "docker-context:default", "scope": "demo" },
+    "desiredSpecDigest": "sha256:fleet",
+    "image": { "reference": "ghcr.io/acme/demo", "digest": "sha256:image" },
+    "ownership": { "deploymentIdLabel": "dep-demo-20260724", "desiredSpecDigestLabel": "sha256:fleet", "imageDigestLabel": "sha256:image" },
+    "status": "observed",
+    "services": [{ "name": "workspace", "resourceId": "demo-workspace-1" }],
+    "connections": [{ "service": "workspace", "endpoint": "compose://demo/workspace" }]
+  }
+}

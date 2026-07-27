@@ -1,0 +1,16 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://aibox.projectious.work/contracts/v1alpha1/deployment-target.schema.json",
+  "title": "DeploymentTarget v1alpha1", "type": "object", "additionalProperties": false,
+  "required": ["apiVersion", "kind", "metadata", "spec"],
+  "properties": {
+    "apiVersion": { "const": "aibox.projectious.work/v1alpha1" }, "kind": { "const": "DeploymentTarget" },
+    "metadata": { "$ref": "#/$defs/metadata" },
+    "spec": { "type": "object", "additionalProperties": false, "required": ["backend", "targetRef", "scope"], "properties": { "backend": { "enum": ["compose", "kubernetes"] }, "targetRef": { "type": "string", "minLength": 1 }, "scope": { "type": "string", "minLength": 1 }, "credentials": { "type": "array", "items": { "$ref": "#/$defs/credential" } }, "kubernetes": { "$ref": "#/$defs/kubernetesReconciliationIntent" } } }
+  },
+  "$defs": {
+    "metadata": { "type": "object", "additionalProperties": false, "required": ["name", "owner"], "properties": { "name": { "type": "string" }, "owner": { "type": "object", "additionalProperties": false, "required": ["ownerId"], "properties": { "ownerId": { "type": "string" } } }, "labels": { "type": "object", "additionalProperties": { "type": "string" } } } },
+    "credential": { "type": "object", "additionalProperties": false, "required": ["kind", "reference"], "properties": { "kind": { "enum": ["environment-variable", "file", "secret-manager"] }, "reference": { "type": "string", "minLength": 1 } } },
+    "kubernetesReconciliationIntent": { "type": "object", "additionalProperties": false, "properties": { "ingressClass": { "type": "string", "minLength": 1 }, "gatewayClass": { "type": "string", "minLength": 1 }, "dnsZone": { "type": "string", "minLength": 1 }, "dnsCredentials": { "type": "array", "items": { "$ref": "#/$defs/credential" } } } }
+  }
+}

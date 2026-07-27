@@ -1,4 +1,4 @@
 # Enforcement begins after these branch commits. Earlier history predates the
 # cross-line port contract and is intentionally grandfathered.
-v0 = "e785d1f2e22d8bf90886f979773b63c28885d7e5"
+v0 = "ec9530fafdd3fbdc833c4c620d40740683a02028"
 v1 = "6266f1e9fd8c4bd90130203d8c46f392a1480ea4"

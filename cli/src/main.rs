@@ -3,8 +3,17 @@ mod addon_loader;
 #[allow(dead_code)]
 mod addon_registry;
 pub mod compat;
+mod compose_plan;
+#[allow(dead_code)]
+mod deployment_backend;
+#[allow(dead_code)]
+mod deployment_compiler;
+#[allow(dead_code)]
+mod deployment_contract;
 mod dirs;
 mod kit;
+pub mod kubernetes_connection;
+mod kubernetes_plan;
 mod latex;
 
 mod addons;
@@ -37,8 +46,12 @@ mod log;
 mod mcp_registration;
 mod migration;
 mod model_migration;
+#[allow(dead_code)]
+mod orchestration_compile;
 mod output;
 mod preauth;
+#[allow(dead_code)]
+mod processkit_protocol;
 mod processkit_vocab;
 mod provider_backend;
 mod prune;
@@ -53,6 +66,7 @@ mod theme_cmd;
 mod themes;
 mod tmux;
 mod update;
+mod v1_release_readiness;
 mod v1_v2_migration;
 mod version_resolve;
 mod workspace_manifest;
@@ -88,6 +102,10 @@ fn dispatch(cli: cli::Cli) -> anyhow::Result<()> {
             cli::Commands::SelfCmd {
                 action: cli::SelfAction::Completion { .. },
             } => {} // doesn't need addons
+            cli::Commands::Config { .. }
+            | cli::Commands::Deploy { .. }
+            | cli::Commands::Image { .. }
+            | cli::Commands::Connect(_) => {} // v1 orchestration does not need addons
             _ => {
                 output::error(&format!("Failed to load addon definitions: {:#}", e));
                 std::process::exit(1);
@@ -197,11 +215,75 @@ fn dispatch(cli: cli::Cli) -> anyhow::Result<()> {
             );
             result
         }
+        cli::Commands::Config { action } => match action {
+            cli::ConfigAction::Compile { format } => {
+                orchestration_compile::cmd_config_compile(config_path, format)
+            }
+            cli::ConfigAction::MigrateV1 {
+                apply,
+                restore,
+                format,
+            } => v1_release_readiness::cmd_config_migrate_v1(
+                config_path,
+                apply,
+                restore.as_deref(),
+                format,
+            ),
+            cli::ConfigAction::ReleaseReadiness { format } => {
+                v1_release_readiness::cmd_release_readiness(config_path, format)
+            }
+        },
+        cli::Commands::Deploy { action } => match action {
+            cli::DeployAction::Plan { format } => {
+                orchestration_compile::cmd_deploy_plan(config_path, format)
+            }
+            cli::DeployAction::Apply { format } => {
+                orchestration_compile::cmd_deploy_apply(config_path, format)
+            }
+            cli::DeployAction::Status { format } => {
+                orchestration_compile::cmd_deploy_status(config_path, format)
+            }
+            cli::DeployAction::Destroy { format } => {
+                orchestration_compile::cmd_deploy_destroy(config_path, format)
+            }
+            cli::DeployAction::Logs { service, format } => {
+                orchestration_compile::cmd_deploy_logs(config_path, service, format)
+            }
+        },
+        cli::Commands::Image { action } => match action {
+            cli::ImageAction::Build { format, push } => {
+                orchestration_compile::cmd_image_build(config_path, format, push)
+            }
+            cli::ImageAction::Inspect { format } => {
+                orchestration_compile::cmd_image_inspect(config_path, format)
+            }
+        },
+        cli::Commands::Connect(args) => {
+            orchestration_compile::cmd_connect(config_path, &args.name, args.command)
+        }
         cli::Commands::Up {
+            legacy_runtime,
             layout,
             apply,
             forget_tmux_state,
         } => {
+            if !legacy_runtime {
+                if layout.is_some() || apply || forget_tmux_state {
+                    anyhow::bail!(
+                        "`aibox up` applies the v1 deployment and does not attach. Use `aibox connect <name>` after it completes. The legacy attach flags require `aibox up --legacy-runtime` (removed 2026-12-31)."
+                    );
+                }
+                output::info(
+                    "Applying v1 deployment; use `aibox connect <name>` to open a session after it completes.",
+                );
+                return orchestration_compile::cmd_deploy_apply(
+                    config_path,
+                    cli::DeployOutputFormat::Human,
+                );
+            }
+            output::warn(
+                "`aibox up --legacy-runtime` is deprecated and will be removed on 2026-12-31; migrate to `aibox up` plus `aibox connect`.",
+            );
             if apply {
                 container::cmd_sync(config_path, false, false, false, false, false)?;
             }
@@ -262,7 +344,17 @@ fn dispatch(cli: cli::Cli) -> anyhow::Result<()> {
             );
             result
         }
-        cli::Commands::Down => {
+        cli::Commands::Down { legacy_runtime } => {
+            if !legacy_runtime {
+                output::info("Destroying v1 deployment with ownership safeguards...");
+                return orchestration_compile::cmd_deploy_destroy(
+                    config_path,
+                    cli::DeployOutputFormat::Human,
+                );
+            }
+            output::warn(
+                "`aibox down --legacy-runtime` is deprecated and will be removed on 2026-12-31; migrate to `aibox down`.",
+            );
             let config = crate::config::AiboxConfig::from_cli_option(config_path)?;
             latex::cleanup_legacy_host_previews(config_path, &config)?;
             container::cmd_stop(config_path)

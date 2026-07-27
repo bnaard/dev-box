@@ -1,6 +1,27 @@
 use anyhow::{Context, Result, bail};
 use serde::Deserialize;
+use std::ffi::OsString;
+use std::fs::OpenOptions;
+use std::path::{Path, PathBuf};
 use std::process::Command;
+use std::time::{SystemTime, UNIX_EPOCH};
+
+/// Typed input for an explicit image build.  It deliberately maps only to
+/// argv values supported by both Docker and Podman; callers cannot supply a
+/// shell fragment, environment map, or secret value.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct ImageBuildRequest {
+    pub reference: String,
+    pub context: PathBuf,
+    pub dockerfile: Option<PathBuf>,
+    pub target: Option<String>,
+}
+
+/// The immutable local image identity reported by the container runtime.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct ImageBuildResult {
+    pub local_image_id: String,
+}
 
 /// Container state as detected by runtime inspect.
 #[derive(Debug, Clone, PartialEq)]
@@ -75,6 +96,82 @@ impl Runtime {
             ),
             _ => bail!("Neither podman nor docker found. Please install one of them."),
         }
+    }
+
+    /// Build an image from an explicit source contract and return the image ID
+    /// written by the runtime. Docker and Podman both support `--iidfile`; it
+    /// avoids parsing progress output and gives us a digest that can be
+    /// validated before exposing it as an immutable reference.
+    pub fn build_image(&self, request: &ImageBuildRequest) -> Result<ImageBuildResult> {
+        let iid_file = create_iid_file()?;
+        let result = (|| {
+            let args = image_build_argv(request, &iid_file);
+            let output = Command::new(&self.runtime_bin)
+                .args(args)
+                .output()
+                .with_context(|| format!("could not start {} image build", self.runtime_bin))?;
+            if !output.status.success() {
+                // Do not attach raw build output: Dockerfile output can contain a
+                // credential accidentally echoed by a user-provided build step.
+                bail!(
+                    "{} image build failed with status {}; inspect the runtime output directly",
+                    self.runtime_bin,
+                    output.status
+                );
+            }
+
+            let raw_digest = std::fs::read_to_string(&iid_file).context(
+                "container runtime completed the build without writing an image identity",
+            )?;
+            let local_image_id = parse_image_digest(&raw_digest)?;
+            Ok(ImageBuildResult { local_image_id })
+        })();
+        let _ = std::fs::remove_file(iid_file);
+        result
+    }
+
+    /// Push an explicitly built image.  This is a separate operation so local
+    /// source builds remain useful without silently publishing user artifacts.
+    pub fn push_image(&self, reference: &str) -> Result<()> {
+        let output = Command::new(&self.runtime_bin)
+            .args(["push", reference])
+            .output()
+            .with_context(|| format!("could not start {} image push", self.runtime_bin))?;
+        if !output.status.success() {
+            bail!(
+                "{} image push failed with status {}; inspect the runtime output directly",
+                self.runtime_bin,
+                output.status
+            );
+        }
+        Ok(())
+    }
+
+    /// Resolve the registry manifest digest recorded by Docker or Podman after
+    /// a push.  An iidfile is an image-config digest, not necessarily a
+    /// pullable registry manifest digest, so it must never be converted into a
+    /// `reference@digest` deployment reference.
+    pub fn repo_digest(&self, reference: &str, local_image_id: &str) -> Result<String> {
+        let output = Command::new(&self.runtime_bin)
+            .args([
+                "image",
+                "inspect",
+                "--format",
+                "{{json .RepoDigests}}",
+                local_image_id,
+            ])
+            .output()
+            .with_context(|| {
+                format!("could not inspect image identity with {}", self.runtime_bin)
+            })?;
+        if !output.status.success() {
+            bail!(
+                "{} could not inspect the pushed image for a registry manifest digest",
+                self.runtime_bin
+            );
+        }
+        let raw_repo_digests = String::from_utf8_lossy(&output.stdout);
+        parse_repo_digest(reference, &raw_repo_digests)
     }
 
     /// Read the `aibox.version` label from a container image.
@@ -436,6 +533,85 @@ impl Runtime {
     }
 }
 
+fn create_iid_file() -> Result<PathBuf> {
+    let process_id = std::process::id();
+    let timestamp = SystemTime::now()
+        .duration_since(UNIX_EPOCH)
+        .context("system clock is before the Unix epoch")?
+        .as_nanos();
+    for attempt in 0..32 {
+        let path = std::env::temp_dir().join(format!(
+            "aibox-image-iid-{process_id}-{timestamp}-{attempt}"
+        ));
+        match OpenOptions::new().write(true).create_new(true).open(&path) {
+            Ok(_) => return Ok(path),
+            Err(error) if error.kind() == std::io::ErrorKind::AlreadyExists => continue,
+            Err(error) => {
+                return Err(error).context("could not create an image identity file for the build");
+            }
+        }
+    }
+    bail!("could not create a unique image identity file for the build")
+}
+
+fn image_build_argv(request: &ImageBuildRequest, iid_file: &Path) -> Vec<OsString> {
+    let mut args = vec![OsString::from("build"), OsString::from("--tag")];
+    args.push(OsString::from(&request.reference));
+    if let Some(dockerfile) = &request.dockerfile {
+        args.push(OsString::from("--file"));
+        args.push(dockerfile.as_os_str().to_os_string());
+    }
+    if let Some(target) = &request.target {
+        args.push(OsString::from("--target"));
+        args.push(OsString::from(target));
+    }
+    args.push(OsString::from("--iidfile"));
+    args.push(iid_file.as_os_str().to_os_string());
+    args.push(request.context.as_os_str().to_os_string());
+    args
+}
+
+fn parse_image_digest(raw_digest: &str) -> Result<String> {
+    let digest = raw_digest.trim();
+    let Some(hex) = digest.strip_prefix("sha256:") else {
+        bail!("container runtime returned a mutable or unresolved image identity");
+    };
+    if hex.len() != 64 || !hex.chars().all(|character| character.is_ascii_hexdigit()) {
+        bail!("container runtime returned a mutable or unresolved image identity");
+    }
+    Ok(format!("sha256:{}", hex.to_ascii_lowercase()))
+}
+
+fn parse_repo_digest(reference: &str, raw_repo_digests: &str) -> Result<String> {
+    let repo_digests: Vec<String> =
+        serde_json::from_str(raw_repo_digests.trim()).map_err(|_| {
+            anyhow::anyhow!("container runtime did not report a registry manifest digest")
+        })?;
+    let repository = image_repository(reference);
+    let prefix = format!("{repository}@");
+    for repo_digest in repo_digests {
+        if let Some(digest) = repo_digest.strip_prefix(&prefix)
+            && parse_image_digest(digest).is_ok()
+        {
+            return Ok(format!("{repository}@{}", parse_image_digest(digest)?));
+        }
+    }
+    bail!(
+        "container runtime did not report a registry manifest digest for '{}'; a local image ID is not deployable as reference@digest",
+        reference
+    )
+}
+
+fn image_repository(reference: &str) -> &str {
+    let last_slash = reference.rfind('/');
+    if let Some(colon) = reference.rfind(':')
+        && (last_slash.is_none() || last_slash.is_some_and(|slash| colon > slash))
+    {
+        return &reference[..colon];
+    }
+    reference
+}
+
 fn compose_override_has_content(path: &std::path::Path) -> bool {
     let Ok(content) = std::fs::read_to_string(path) else {
         return false;
@@ -475,6 +651,80 @@ fn runtime_is_responsive(cmd: &str) -> bool {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn image_build_argv_is_typed_and_preserves_optional_source_fields() {
+        let request = ImageBuildRequest {
+            reference: "ghcr.io/acme/workspace".to_string(),
+            context: PathBuf::from("source directory"),
+            dockerfile: Some(PathBuf::from("source directory/Containerfile")),
+            target: Some("runtime".to_string()),
+        };
+        let args = image_build_argv(&request, Path::new("/tmp/image-id"));
+        let args = args
+            .iter()
+            .map(|argument| argument.to_string_lossy().into_owned())
+            .collect::<Vec<_>>();
+
+        assert_eq!(
+            args,
+            vec![
+                "build",
+                "--tag",
+                "ghcr.io/acme/workspace",
+                "--file",
+                "source directory/Containerfile",
+                "--target",
+                "runtime",
+                "--iidfile",
+                "/tmp/image-id",
+                "source directory",
+            ]
+        );
+    }
+
+    #[test]
+    fn image_build_rejects_mutable_or_malformed_runtime_identity() {
+        assert!(parse_image_digest("latest\n").is_err());
+        assert!(parse_image_digest("sha256:not-a-digest\n").is_err());
+        assert_eq!(
+            parse_image_digest(
+                "sha256:0123456789ABCDEF0123456789ABCDEF0123456789ABCDEF0123456789ABCDEF\n"
+            )
+            .unwrap(),
+            "sha256:0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef"
+        );
+    }
+
+    #[test]
+    fn repo_digest_requires_matching_pullable_manifest_reference() {
+        assert_eq!(
+            parse_repo_digest(
+                "ghcr.io/acme/workspace:build",
+                r#"["ghcr.io/acme/workspace@sha256:0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef"]"#,
+            )
+            .unwrap(),
+            "ghcr.io/acme/workspace@sha256:0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef"
+        );
+        assert!(parse_repo_digest("ghcr.io/acme/workspace", "[]").is_err());
+        assert!(parse_repo_digest(
+            "ghcr.io/acme/workspace",
+            r#"["ghcr.io/other/workspace@sha256:0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef"]"#,
+        )
+        .is_err());
+    }
+
+    #[test]
+    fn image_repository_removes_a_tag_but_not_registry_port() {
+        assert_eq!(
+            image_repository("ghcr.io/acme/workspace:build"),
+            "ghcr.io/acme/workspace"
+        );
+        assert_eq!(
+            image_repository("registry:5000/acme/workspace"),
+            "registry:5000/acme/workspace"
+        );
+    }
 
     #[test]
     fn container_state_display_running() {

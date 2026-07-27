@@ -89,6 +89,25 @@ dockerfile_arg() {
   grep -E "^ARG ${arg}=" "${file}" | head -n 1 | sed -E "s/^ARG ${arg}=//"
 }
 
+quoted_assignment() {
+  local file="$1" name="$2"
+  sed -nE "s/.*${name}=\"([^\"]+)\".*/\\1/p" "${file}" | head -n 1
+}
+
+package_pin() {
+  local file="$1" package="$2"
+  grep -oE "${package}==[0-9]+([.][0-9]+)+" "${file}" \
+    | head -n 1 \
+    | sed -E "s/^${package}==//"
+}
+
+container_image_tag() {
+  local file="$1" image="$2"
+  grep -oE "${image}:[0-9]+([.][0-9]+)+" "${file}" \
+    | head -n 1 \
+    | sed -E "s#^${image}:##"
+}
+
 sha256_file() {
   local file="$1"
   if command -v sha256sum >/dev/null 2>&1; then
@@ -381,9 +400,24 @@ go_latest() {
 }
 
 rust_latest() {
-  if command -v rustup >/dev/null 2>&1; then
-    rustup check 2>/dev/null | awk '/up to date:/ {for (i = 1; i <= NF; i++) if ($i == "date:") {print $(i + 1); exit}}'
+  local output
+  if output="$(run_with_timeout 8s curl -fsSL https://static.rust-lang.org/dist/channel-rust-stable.toml 2>&1)"; then
+    awk '
+      /^\[pkg\.rust\]$/ { in_rust = 1; next }
+      in_rust && /^version = / {
+        value = $0
+        sub(/^version = "/, "", value)
+        sub(/ .*/, "", value)
+        print value
+        exit
+      }
+    ' <<<"${output}"
+    return 0
   fi
+  if grep -Eiq 'could not resolve|temporary failure|no such host|network is unreachable|connection timed out|i/o timeout|error connecting' <<<"${output}"; then
+    record_network_failure "Rust stable lookup: ${output//$'\n'/ }"
+  fi
+  return 1
 }
 
 check_apt_managed() {
@@ -457,7 +491,7 @@ check_github_pin "starship" "${BASE_DOCKERFILE}" "STARSHIP_VERSION" "starship/st
 section "Unpinned Image Inputs"
 line "| Input | Current selector | Latest/Review target | Status |"
 line "|---|---|---|---|"
-uv_pin="0.11.26"
+uv_pin="$(container_image_tag "${BASE_DOCKERFILE}" "ghcr.io/astral-sh/uv" || true)"
 uv_latest="$(github_latest_release astral-sh/uv || true)"
 uv_status="current"
 if [[ -z "${uv_latest}" ]]; then
@@ -491,10 +525,10 @@ line "For latest-by-default harnesses, check upstream release notes and install-
 section "Addon Tool Version Pins"
 line "| Tool | Current | Latest | Source | Status |"
 line "|---|---:|---:|---|---|"
-check_addon_version "Hugo" "0.162.1" "$(normalize_version "$(github_latest_release gohugoio/hugo || true)")" "GitHub gohugoio/hugo"
-check_addon_version "mdBook" "0.5.3" "$(normalize_version "$(github_latest_release rust-lang/mdBook || true)")" "GitHub rust-lang/mdBook"
+check_addon_version "Hugo" "$(quoted_assignment "${PROJECT_ROOT}/addons/docs/docs-hugo.yaml" HUGO_VERSION || true)" "$(normalize_version "$(github_latest_release gohugoio/hugo || true)")" "GitHub gohugoio/hugo"
+check_addon_version "mdBook" "$(quoted_assignment "${PROJECT_ROOT}/addons/docs/docs-mdbook.yaml" MDBOOK_VERSION || true)" "$(normalize_version "$(github_latest_release rust-lang/mdBook || true)")" "GitHub rust-lang/mdBook"
 check_addon_tool_pypi "MkDocs" "${PROJECT_ROOT}/addons/docs/docs-mkdocs.yaml" "mkdocs" "mkdocs"
-check_addon_version "MkDocs Material" "9.7.6" "$(pypi_latest mkdocs-material || true)" "PyPI mkdocs-material"
+check_addon_version "MkDocs Material" "$(package_pin "${PROJECT_ROOT}/addons/docs/docs-mkdocs.yaml" mkdocs-material || true)" "$(pypi_latest mkdocs-material || true)" "PyPI mkdocs-material"
 check_addon_tool_pypi "Zensical" "${PROJECT_ROOT}/addons/docs/docs-zensical.yaml" "zensical" "zensical"
 check_addon_version "Starlight scaffold" "floating" "$(npm_latest create-starlight || true)" "npm create-starlight" "latest by default"
 check_addon_version "Go" "$(addon_tool_default "${PROJECT_ROOT}/addons/languages/go.yaml" go || true)" "$(go_latest || true)" "go.dev"
@@ -554,15 +588,25 @@ line "### cargo update --dry-run"
 if ! command -v cargo >/dev/null 2>&1; then
   line "cargo is not available on PATH in this environment. Run this check in the release container before publishing."
   warnings_found=1
-elif (cd "${CLI_DIR}" && run_with_timeout 120s cargo update --dry-run) >> "${REPORT}" 2>&1; then
-  line ""
-  line "Status: dry-run completed. Review the output above for lockfile-resolvable crate updates."
-  line ""
-  line "Disposition required: if updates are listed, either apply them with a real \`cargo update\` and rerun validation, or create a processkit WorkItem for the deferred crate-update pass before continuing the release."
 else
-  line ""
-  line "Status: cargo update --dry-run failed or could not reach the index; rerun before release if network was unavailable."
-  warnings_found=1
+  cargo_update_output=""
+  if cargo_update_output="$(cd "${CLI_DIR}" && run_with_timeout 120s cargo update --dry-run 2>&1)"; then
+    printf '%s\n' "${cargo_update_output}" >> "${REPORT}"
+    line ""
+    if grep -Eq 'Locking 0 packages' <<<"${cargo_update_output}"; then
+      line "Status: Cargo.lock is current for the active Rust toolchain."
+    else
+      line "Status: lockfile-resolvable crate updates are available."
+      line ""
+      line "Disposition required: apply them with a real \`cargo update\` and rerun validation, or create a processkit WorkItem for the deferred crate-update pass before continuing the release."
+      mark_update
+    fi
+  else
+    printf '%s\n' "${cargo_update_output}" >> "${REPORT}"
+    line ""
+    line "Status: cargo update --dry-run failed or could not reach the index; rerun before release if network was unavailable."
+    warnings_found=1
+  fi
 fi
 
 section "Addon Inventory"

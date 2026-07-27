@@ -1,0 +1,12 @@
+version: '3.9'
+services:
+  workspace:
+    image: ghcr.io/acme/demo@sha256:image
+    labels:
+      aibox.projectious.work/deployment-id: demo-fleet-8865c305b94335d0
+      aibox.projectious.work/desired-spec-digest: sha256:90d9ae90e084bf89d139831cda3ae5bf5c81543ef9e951617250e11e7b707164
+      aibox.projectious.work/image-digest: sha256:image
+    environment:
+      REGISTRY_TOKEN: ${AIBOX_REGISTRY_TOKEN}
+    ports:
+    - 3000:tcp

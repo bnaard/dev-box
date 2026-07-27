@@ -267,6 +267,12 @@ impl E2eRunner {
         );
     }
 
+    /// Copy a checked-in test fixture to the companion without exposing SSH
+    /// details to individual E2E cases.
+    pub fn copy_file_to(&self, local_path: &str, remote_path: &str) {
+        self.scp(local_path, remote_path);
+    }
+
     /// Recursively copy a local directory to the companion via SCP.
     fn scp_recursive(&self, local_path: &str, remote_path: &str) {
         self.assert_local_prereqs();

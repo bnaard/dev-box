@@ -230,6 +230,7 @@ main() {
     tools/cloud-aws.yaml
     tools/cloud-gcp.yaml
     tools/cloud-azure.yaml
+    tools/cloudflare.yaml
     tools/audio-voice.yaml
     tools/data-preview.yaml
     tools/git-ui.yaml

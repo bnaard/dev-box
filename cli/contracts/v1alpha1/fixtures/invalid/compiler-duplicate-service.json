@@ -1,0 +1,12 @@
+{
+  "apiVersion": "aibox.projectious.work/v1alpha1",
+  "kind": "WorkspaceFleetSpec",
+  "metadata": { "name": "invalid-fleet", "owner": { "ownerId": "team-a" } },
+  "spec": {
+    "image": { "reference": "ghcr.io/acme/demo", "digest": "sha256:image" },
+    "services": [
+      { "name": "workspace" },
+      { "name": "workspace" }
+    ]
+  }
+}

@@ -1,0 +1,13 @@
+{
+  "apiVersion": "aibox.projectious.work/v1alpha1",
+  "kind": "ConnectionTarget",
+  "metadata": { "name": "demo-workspace", "owner": { "ownerId": "team-a" } },
+  "spec": {
+    "deploymentId": "dep-demo-20260724",
+    "service": "workspace",
+    "transport": "compose-exec",
+    "interactive": true,
+    "endpoint": "compose://demo/workspace",
+    "invocation": ["sh"]
+  }
+}

@@ -44,6 +44,10 @@ services:
     security_opt:
       - seccomp=unconfined
     privileged: true
+    # systemd is PID 1 inside a private cgroup namespace. It delegates a user
+    # slice to testuser, where SSH-triggered kind runs in a Delegate=yes scope.
+    # A private namespace confines systemd to this companion's subtree.
+    cgroup: private
     cap_add:
       - SYS_ADMIN
       - NET_ADMIN
@@ -52,3 +56,5 @@ services:
     tmpfs:
       - /tmp
       - /run
+      - /run/lock
+    stop_grace_period: 30s

@@ -94,18 +94,29 @@ pub const STANDARD_PROCESSKIT_SKILLS: &[&str] = &[
     "aggregate-mcp",
     "artifact-management",
     "binding-management",
+    "board-of-advisors",
     "category-management",
+    "changelog",
+    "code-review",
     "constraint-management",
     "context-archiving",
     "context-grooming",
     "cross-reference-management",
     "decision-record",
+    "devils-advocate",
+    "documentation",
     "discussion-management",
     "eval-gate-authoring",
     "event-log",
+    "feature-engineering",
     "gate-management",
+    "git-branching",
+    "git-workflow",
     "id-management",
+    "infographics",
     "index-management",
+    "legal-review",
+    "logo-design",
     "migration-management",
     "model-recommender",
     "note-management",
@@ -113,9 +124,11 @@ pub const STANDARD_PROCESSKIT_SKILLS: &[&str] = &[
     "pk-doctor",
     "processkit-gateway",
     "process-management",
+    "project-reconciliation",
+    "prompt-engineering",
     "release-audit",
-    "retrospective",
     "repo-management",
+    "retrospective",
     "role-management",
     "runtime-prune",
     "schedule-management",
@@ -162,7 +175,7 @@ pub const TIER_SPECIFIC_MCP_SKILLS: &[&str] = &[
 /// constant serves as the canonical reference for tests and documentation.
 // Used in #[cfg(test)] blocks across multiple modules and in documentation.
 #[allow(dead_code)]
-pub const PROCESSKIT_DEFAULT_VERSION: &str = "v0.28.3";
+pub const PROCESSKIT_DEFAULT_VERSION: &str = "v0.28.4";
 
 // ---------------------------------------------------------------------------
 // v0.26.0 — RoleSlot MCP tools (team-manager skill)
@@ -594,6 +607,18 @@ mod tests {
         assert!(
             STANDARD_PROCESSKIT_SKILLS.contains(&"runtime-prune"),
             "runtime-prune is part of the standard processkit operating surface"
+        );
+    }
+
+    #[test]
+    fn standard_processkit_skills_include_reconciliation_dependencies() {
+        assert!(
+            STANDARD_PROCESSKIT_SKILLS.contains(&"project-reconciliation"),
+            "pk-reconcile requires its owning project-reconciliation skill"
+        );
+        assert!(
+            STANDARD_PROCESSKIT_SKILLS.contains(&"repo-management"),
+            "project-reconciliation and pk-repo-reconcile require repo-management"
         );
     }
 

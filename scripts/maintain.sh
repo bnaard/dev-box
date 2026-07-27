@@ -11,11 +11,12 @@
 # Commands:
 #   test              Run cargo fmt, clippy, and tests
 #   test-e2e          Run SSH companion E2E tests
+#                     including the release-gated disposable kind cluster
 #   test-e2e-visual   Run all opt-in SSH/asciinema visual E2E tiers
 #   build-images      Build published foundation/runtime images locally
 #   release-runtime-smoke <version> Run generated runtime smoke against a release
-#   docs-serve        Serve Docusaurus locally for preview
-#   docs-deploy       Build Docusaurus and push HTML to gh-pages
+#   docs-serve        Serve Hugo/Docsy locally for preview
+#   docs-deploy       Build Hugo/Docsy and push HTML to gh-pages
 #   release <version> Tag, build, compile CLI, generate release prompt
 #   start             Start this project's dev-container
 #   stop              Stop this project's dev-container
@@ -49,6 +50,13 @@ release_branch_for_version() {
     1.*) printf '%s\n' 'v1.x-release' ;;
     *) die "Unsupported release line for ${version}; add a branch mapping first." ;;
   esac
+}
+
+release_github_classification_args() {
+  local version="$1"
+  if [[ "${version}" == *-* ]]; then
+    printf '%s\n' '--prerelease'
+  fi
 }
 
 ensure_release_branch() {
@@ -160,7 +168,7 @@ ${bold}Usage:${reset}
 
 ${bold}Development:${reset}
   test                     Run cargo fmt check, clippy, and tests
-  test-e2e                 Run Tier 2 SSH companion E2E tests
+  test-e2e                 Run Tier 2 SSH companion E2E tests and disposable kind gate
   test-e2e-visual-status   Run opt-in visual matrix for layouts/themes/status rows
   test-e2e-visual-tabs     Run opt-in tab traversal for tools and harnesses
   test-e2e-visual-yazi     Run opt-in Yazi previews/git/plugin visual checks
@@ -183,8 +191,8 @@ ${bold}Development:${reset}
                            Plan or delete GHCR BuildKit cache package versions
   release-runtime-smoke <version>
                            Run host-side generated-runtime smoke and write logs
-  docs-serve               Serve Docusaurus locally (http://localhost:3000)
-  docs-deploy [--dry-run]  Build Docusaurus and push to gh-pages branch
+  docs-serve               Serve Hugo/Docsy locally (http://localhost:1313/aibox/)
+  docs-deploy [--dry-run]  Build Hugo/Docsy and push to gh-pages branch
   test-visual              Run screencast smoke tests (~40s)
   record-docs              Regenerate all docs screencasts + README GIF
 
@@ -341,6 +349,12 @@ cmd_test_e2e() {
   info "Running Tier 2 SSH companion E2E tests..."
   (cd "${CLI_DIR}" && cargo test --features e2e --test e2e -- --test-threads="${test_threads}") \
     || status=$?
+  if [[ "${status}" -eq 0 ]]; then
+    info "Running release-gated disposable Kubernetes cluster E2E..."
+    (cd "${CLI_DIR}" && cargo test --features e2e --test e2e \
+      kubernetes_kind -- --ignored --nocapture --test-threads=1) \
+      || status=$?
+  fi
   prune_e2e_companion_storage || warn "Post-suite SSH companion prune failed"
   [[ "${status}" -eq 0 ]] || die "Tier 2 SSH companion E2E tests failed"
   ok "Tier 2 SSH companion E2E tests passed"
@@ -1276,9 +1290,17 @@ cmd_ghcr_prune_buildcache_tags() {
 }
 
 cmd_docs_serve() {
-  cd "${PROJECT_ROOT}/docs-site"
-  info "Serving docs with Docusaurus at http://localhost:3000 ..."
-  npx docusaurus start --host 0.0.0.0
+  command -v hugo &>/dev/null || die "Hugo extended not found. Install Hugo >= 0.157.0."
+  command -v npm &>/dev/null  || die "npm not found. Install Node.js."
+  if [[ ! -f "${PROJECT_ROOT}/docs-site/themes/docsy/theme.toml" ]]; then
+    git -C "${PROJECT_ROOT}" submodule update --init --recursive docs-site/themes/docsy
+  fi
+  if [[ ! -d "${PROJECT_ROOT}/docs-site/node_modules" ]]; then
+    npm --prefix "${PROJECT_ROOT}/docs-site" ci
+  fi
+  info "Serving docs with Hugo and Docsy at http://localhost:1313/aibox/v1.x/ ..."
+  hugo server --source "${PROJECT_ROOT}/docs-site" \
+    --bind 0.0.0.0 --baseURL "http://localhost:1313/aibox/v1.x/"
 }
 
 cmd_docs_deploy() {
@@ -1288,7 +1310,8 @@ cmd_docs_deploy() {
   local tmpdir=""
   [[ "${1:-}" == "--dry-run" ]] && dry_run=true
 
-  command -v npx &>/dev/null    || die "npx not found. Install Node.js."
+  command -v hugo &>/dev/null   || die "Hugo extended not found. Install Hugo >= 0.157.0."
+  command -v npm &>/dev/null    || die "npm not found. Install Node.js."
   command -v git &>/dev/null    || die "git not found"
   git rev-parse --is-inside-work-tree &>/dev/null || die "Not inside a git repository"
 
@@ -1302,13 +1325,13 @@ cmd_docs_deploy() {
   info "Remote: ${remote_url}"
   info "Source: ${current_branch}@${commit_sha}"
 
-  cd "${PROJECT_ROOT}/docs-site"
-  info "Building docs with Docusaurus..."
-  npx docusaurus build
-  ok "Site built in docs-site/build/"
+  cd "${PROJECT_ROOT}"
+  info "Building docs with Hugo and Docsy..."
+  "${PROJECT_ROOT}/scripts/build-docs.sh"
+  ok "Site built in docs-site/public/"
 
   if [[ "${dry_run}" == "true" ]]; then
-    warn "Dry run — site is in docs-site/build/"
+    warn "Dry run — site is in docs-site/public/"
     return 0
   fi
 
@@ -1316,7 +1339,20 @@ cmd_docs_deploy() {
   # Bug (b): use ${tmpdir:-} so trap is safe even if mktemp never ran (set -u).
   trap '[[ -n "${tmpdir:-}" ]] && rm -rf "${tmpdir}"' EXIT
 
-  cp -r build/* "${tmpdir}/"
+  # This branch publishes the v1.x preview docs under the /v1.x/ subpath.
+  # The stable v0.x line publishes at the site root on the same gh-pages
+  # branch. Clone the existing gh-pages tree first (if any) so a
+  # v1.x-only rebuild here never touches the root; only replace the
+  # v1.x/ subtree.
+  if git clone -q --depth 1 --branch gh-pages "${remote_url}" "${tmpdir}" 2>/dev/null; then
+    info "Found existing gh-pages branch — preserving everything outside v1.x/"
+    rm -rf "${tmpdir}/.git" "${tmpdir}/v1.x"
+  else
+    info "No existing gh-pages branch — starting fresh"
+  fi
+
+  mkdir -p "${tmpdir}/v1.x"
+  cp -r "${PROJECT_ROOT}/docs-site/public/." "${tmpdir}/v1.x/"
   touch "${tmpdir}/.nojekyll"
 
   info "Pushing to gh-pages branch..."
@@ -1982,9 +2018,32 @@ release_companion_e2e_gate() {
       warn "Skipping Tier 2 SSH companion E2E during release because AIBOX_RELEASE_SKIP_COMPANION_E2E=${AIBOX_RELEASE_SKIP_COMPANION_E2E}. Re-run ./scripts/maintain.sh test-e2e after rebuilding the companion."
       ;;
     *)
+      # Visual and lifecycle tests each serialize within their own group, but
+      # both groups exercise the same SSH companion runtime. Release runs
+      # prioritize deterministic evidence over throughput; callers may still
+      # opt into parallelism explicitly.
+      : "${AIBOX_E2E_TEST_THREADS:=1}"
+      export AIBOX_E2E_TEST_THREADS
       cmd_test_e2e
       ;;
   esac
+}
+
+# A v1 prerelease is allowed to publish only with fresh real-producer and
+# disposable-cluster evidence.  The stable-v1 readiness command deliberately
+# remains stricter than an alpha, but it is still the canonical parser for the
+# M5/M7c attestations and must accept the candidate evidence before tagging.
+release_v1_alpha_evidence_gate() {
+  local version="$1" evidence="${PROJECT_ROOT}/.aibox/release-evidence/m7c-live.json"
+  [[ "${version}" == 1.*-* ]] || return 0
+  [[ -f "${evidence}" ]] \
+    || die "v1 alpha release requires M7c evidence at ${evidence}; run the live disposable-cluster suite first"
+  grep -Eq "\"commit\"[[:space:]]*:[[:space:]]*\"${RELEASE_CANDIDATE_SHA}\"" "${evidence}" \
+    || die "M7c evidence is not bound to release candidate ${RELEASE_CANDIDATE_SHA}"
+  "${PROJECT_ROOT}/scripts/test-processkit-v1-consumer.sh"
+  (cd "${PROJECT_ROOT}" && cargo run --quiet --manifest-path "${CLI_DIR}/Cargo.toml" -- \
+    config release-readiness --output json) \
+    || die "v1 alpha release readiness evidence is incomplete"
 }
 
 release_visual_gate() {
@@ -2011,7 +2070,7 @@ release_visual_gate() {
 release_audit_gate() {
   info "Running cargo audit..."
   command -v cargo-audit &>/dev/null \
-    || (cd "${CLI_DIR}" && cargo install cargo-audit --quiet)
+    || (cd "${CLI_DIR}" && cargo install cargo-audit --locked --quiet)
   local audit_db="${TMPDIR:-/tmp}/aibox-cargo-advisory-db"
   mkdir -p "${audit_db}"
   (cd "${CLI_DIR}" && cargo audit --db "${audit_db}") \
@@ -2348,6 +2407,15 @@ cmd_release() {
     release_run_parallel_validation "${version}" "${validation_specs[@]}"
   fi
 
+  if [[ "${version}" == 1.*-* ]] && \
+     { release_step_requested tag || release_step_requested github-release; }; then
+    release_step_requested e2e \
+      || die "v1 alpha publication requires the e2e step so M7c evidence is generated"
+    release_run_evidenced_step "v1-alpha-evidence" "${version}" \
+      "V1 alpha producer and disposable-cluster evidence" \
+      release_v1_alpha_evidence_gate "${version}"
+  fi
+
   if release_step_requested visual; then
     case "${AIBOX_RELEASE_VISUAL_E2E:-skip}" in
       skip|"")
@@ -2411,12 +2479,15 @@ cmd_release() {
       release_collect_linux_archives "${version}"
     fi
     local notes_file="${DIST_DIR}/RELEASE-NOTES.md"
+    local github_classification_args=()
     [[ -f "${notes_file}" ]] || die "Missing ${notes_file}; run the 'notes' step first or include the publish alias."
+    mapfile -t github_classification_args < <(release_github_classification_args "${version}")
     info "Creating GitHub release ${tag}..."
     gh release create "${tag}" \
       --repo "${GITHUB_REPO}" \
       --title "aibox ${tag}" \
       --notes-file "${notes_file}" \
+      "${github_classification_args[@]}" \
       "${PROJECT_ROOT}/LICENSE" \
       "${built_archives[@]}"
     ok "GitHub release ${tag} created with Linux binaries and LICENSE"
@@ -2527,17 +2598,80 @@ cmd_release_finalize_runtime() {
 
 # ── Host-side release (run on macOS after container-side `release`) ──────────
 
-ensure_release_host_checkout_current() {
-  local version="$1" tag release_branch
+release_worktree_for_branch() {
+  local release_branch="$1"
+  git -C "${PROJECT_ROOT}" worktree list --porcelain | awk \
+    -v wanted="refs/heads/${release_branch}" '
+      $1 == "worktree" {
+        path = substr($0, length("worktree ") + 1)
+      }
+      $1 == "branch" && $2 == wanted {
+        print path
+        exit
+      }
+    '
+}
+
+stash_release_host_changes() {
+  local worktree="$1" tag="$2" label="$3"
+  if [[ -z "$(git -C "${worktree}" status --porcelain --untracked-files=all)" ]]; then
+    return
+  fi
+
+  local stash_message="pre-release-host-${tag}-${label}-$(date -u +%Y%m%dT%H%M%SZ)"
+  info "Preserving dirty ${label} checkout in a named stash..."
+  git -C "${worktree}" stash push --include-untracked -m "${stash_message}" >/dev/null \
+    || die "Could not preserve dirty ${label} checkout at ${worktree}."
+  ok "Saved ${label} checkout as stash '${stash_message}'"
+}
+
+prepare_release_host_checkout() {
+  local version="$1" tag release_branch branch_owner project_root_real owner_real
   tag="v${version}"
   release_branch="$(release_branch_for_version "${version}")"
-  info "Verifying host checkout is current with origin/${release_branch} and ${tag}..."
+
+  info "Preparing a clean host checkout for ${release_branch} and ${tag}..."
   (
     cd "${PROJECT_ROOT}"
+    git worktree prune
     git fetch origin \
       "refs/heads/${release_branch}:refs/remotes/origin/${release_branch}" \
       "refs/tags/${tag}:refs/tags/${tag}" >/dev/null
 
+    branch_owner="$(release_worktree_for_branch "${release_branch}")"
+    project_root_real="$(cd "${PROJECT_ROOT}" && pwd -P)"
+    if [[ -n "${branch_owner}" ]]; then
+      owner_real="$(cd "${branch_owner}" 2>/dev/null && pwd -P || true)"
+    else
+      owner_real=""
+    fi
+
+    if [[ -n "${branch_owner}" && "${owner_real}" != "${project_root_real}" ]]; then
+      stash_release_host_changes "${branch_owner}" "${tag}" "linked-worktree"
+      git -C "${branch_owner}" switch --detach >/dev/null \
+        || die "Could not detach ${release_branch} from linked worktree ${branch_owner}."
+      ok "Released ${release_branch} from linked worktree ${branch_owner}"
+    fi
+
+    stash_release_host_changes "${PROJECT_ROOT}" "${tag}" "primary"
+    if [[ "$(git branch --show-current)" != "${release_branch}" ]]; then
+      git switch "${release_branch}" >/dev/null \
+        || die "Could not switch the primary checkout to ${release_branch}."
+    fi
+    git reset --keep "origin/${release_branch}" \
+      || die "Could not synchronize the clean host checkout with origin/${release_branch}."
+  )
+  ok "Host checkout prepared at origin/${release_branch}"
+}
+
+ensure_release_host_checkout_current() {
+  local version="$1" tag release_branch
+  tag="v${version}"
+  release_branch="$(release_branch_for_version "${version}")"
+  prepare_release_host_checkout "${version}"
+  info "Verifying host checkout is current with origin/${release_branch} and ${tag}..."
+  (
+    cd "${PROJECT_ROOT}"
     local head remote_head tag_commit
     head=$(git rev-parse HEAD)
     remote_head=$(git rev-parse "origin/${release_branch}")
@@ -2549,7 +2683,7 @@ ensure_release_host_checkout_current() {
     fi
 
     if [[ "${head}" != "${remote_head}" ]]; then
-      die "release-host must run from current origin/${release_branch} containing ${tag}. Run: git fetch origin ${release_branch} && git switch ${release_branch} && git reset --keep origin/${release_branch}"
+      die "release-host could not prepare current origin/${release_branch} containing ${tag}; inspect the checkout and named pre-release-host stashes."
     fi
   )
   ok "Host checkout matches the ${release_branch} release line and contains ${tag}"

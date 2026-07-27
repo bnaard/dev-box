@@ -1,0 +1,248 @@
+// =============================================================================
+// projectious.work brand tokens -> Bootstrap / Docsy SCSS variables
+// =============================================================================
+// Source of truth: github.com/projectious-work/brand (brand/tokens/*,
+// brand/html/projectious-brand-system-final.html,
+// brand/html/projectious-digital-experience.html)
+//
+// The brand uses three 12-step Radix-convention scales (midnight, orange,
+// slate) in two modes. Step roles:
+//
+//   1 app bg      2 subtle bg   3 element bg   4 hover bg
+//   5 active bg   6 subtle brd  7 border       8 strong brd
+//   9 solid bg   10 solid hover 11 low text   12 high text
+//
+// Step 9 (solid accent) is constant across modes.
+// =============================================================================
+
+// -----------------------------------------------------------------------------
+// Scale: Midnight (light mode)
+// -----------------------------------------------------------------------------
+$midnight-1: #f8f9fb;
+$midnight-2: #f0f3f8;
+$midnight-3: #e2e9f2;
+$midnight-4: #d3deec;
+$midnight-5: #c3d1e3;
+$midnight-6: #b0c1d6;
+$midnight-7: #96abc6;
+$midnight-8: #7490b2;
+$midnight-9: #1d3352;
+$midnight-10: #162944;
+$midnight-11: #3a5a82;
+$midnight-12: #142438;
+
+// Scale: Midnight (dark mode)
+$midnight-dark-1: #0e1720;
+$midnight-dark-2: #131e2b;
+$midnight-dark-3: #1a2b3e;
+$midnight-dark-4: #20354d;
+$midnight-dark-5: #263f5a;
+$midnight-dark-6: #2e4b68;
+$midnight-dark-7: #3a5c7e;
+$midnight-dark-8: #4d7098;
+$midnight-dark-9: #1d3352;
+$midnight-dark-10: #2b4d78;
+$midnight-dark-11: #8aacc8;
+$midnight-dark-12: #c5daf0;
+
+// -----------------------------------------------------------------------------
+// Scale: Orange / accent (light mode)
+// -----------------------------------------------------------------------------
+$orange-1: #fef9f7;
+$orange-2: #fef0ea;
+$orange-3: #fde0d5;
+$orange-4: #fccebd;
+$orange-5: #f8baa5;
+$orange-6: #f0a48c;
+$orange-7: #e58a6e;
+$orange-8: #d86e4e;
+$orange-9: #e05232;
+$orange-10: #cc4528;
+$orange-11: #c04424;
+$orange-12: #6e2714;
+
+// Scale: Orange / accent (dark mode)
+$orange-dark-1: #1c110d;
+$orange-dark-2: #271610;
+$orange-dark-3: #3d1e13;
+$orange-dark-4: #522616;
+$orange-dark-5: #643019;
+$orange-dark-6: #7a3c20;
+$orange-dark-7: #974b28;
+$orange-dark-8: #b85c32;
+$orange-dark-9: #e05232;
+$orange-dark-10: #ea7558;
+$orange-dark-11: #f09878;
+$orange-dark-12: #fcddd2;
+
+// -----------------------------------------------------------------------------
+// Scale: Slate (light mode)
+// -----------------------------------------------------------------------------
+$slate-1: #f9f9fa;
+$slate-2: #f1f2f4;
+$slate-3: #e6e8eb;
+$slate-4: #dadce0;
+$slate-5: #cdd0d5;
+$slate-6: #bec2c8;
+$slate-7: #adb2ba;
+$slate-8: #9299a4;
+$slate-9: #546a82;
+$slate-10: #4a5e74;
+$slate-11: #5c6f82;
+$slate-12: #1e2b38;
+
+// Scale: Slate (dark mode)
+$slate-dark-1: #111416;
+$slate-dark-2: #171b1f;
+$slate-dark-3: #20262c;
+$slate-dark-4: #283038;
+$slate-dark-5: #303a43;
+$slate-dark-6: #3a454f;
+$slate-dark-7: #47545f;
+$slate-dark-8: #5a6a78;
+$slate-dark-9: #546a82;
+$slate-dark-10: #627a92;
+$slate-dark-11: #97a8b8;
+$slate-dark-12: #d5dee8;
+
+// -----------------------------------------------------------------------------
+// Named brand aliases (tokens/variables.css)
+// -----------------------------------------------------------------------------
+$brand-primary: $midnight-9; // #1d3352 Midnight
+$brand-primary-light: #2b4d78;
+$brand-primary-dark: #132440;
+$brand-accent: $orange-9; // #E05232
+$brand-accent-light: #ea7558;
+$brand-accent-dark: #b84228;
+$brand-secondary: $slate-9; // #546a82
+
+// -----------------------------------------------------------------------------
+// Bootstrap theme colors
+// -----------------------------------------------------------------------------
+// Brand assigns no explicit success/danger hues. Orange step 9 carries
+// "warning" per the digital-experience error treatment (orange-9 border,
+// orange-1 background); success and danger are tuned to sit in the same
+// desaturated, midnight-adjacent register.
+$primary: $brand-primary;
+$secondary: $brand-secondary;
+$info: $midnight-11;
+$success: #2f7d65;
+$warning: $orange-9;
+$danger: #a8261c;
+$light: $midnight-1;
+$dark: $brand-primary-dark;
+
+// -----------------------------------------------------------------------------
+// Body, links, borders (light mode)
+// -----------------------------------------------------------------------------
+// Brand rule: never pure #000 / #fff as text -- use step 12.
+$body-bg: #ffffff;
+$body-color: $midnight-12;
+$body-secondary-color: $slate-11;
+$body-tertiary-color: $slate-9;
+$body-secondary-bg: $midnight-1;
+$body-tertiary-bg: $midnight-2;
+
+$headings-color: $brand-primary;
+$link-color: $midnight-11;
+$link-hover-color: $orange-10;
+$border-color: $slate-4;
+$border-color-translucent: rgba($midnight-9, 0.12);
+
+// -----------------------------------------------------------------------------
+// Dark mode (Bootstrap 5.3 colour-mode variables)
+// -----------------------------------------------------------------------------
+$enable-dark-mode: true;
+
+$body-bg-dark: $midnight-dark-1;
+$body-color-dark: $midnight-dark-12;
+$body-secondary-color-dark: $slate-dark-11;
+$body-tertiary-color-dark: $slate-dark-10;
+$body-secondary-bg-dark: $midnight-dark-2;
+$body-tertiary-bg-dark: $midnight-dark-3;
+
+$headings-color-dark: $midnight-dark-12;
+$link-color-dark: $midnight-dark-11;
+$link-hover-color-dark: $orange-dark-10;
+$border-color-dark: rgba(255, 255, 255, 0.08);
+$border-color-translucent-dark: rgba(255, 255, 255, 0.08);
+
+// -----------------------------------------------------------------------------
+// Typography -- three fonts, three voices
+// -----------------------------------------------------------------------------
+// Plus Jakarta Sans 600/700/800 -- headings, display, buttons, nav, wordmark
+// Source Sans 3   400/500/600  -- body, UI, labels, captions
+// IBM Plex Mono   400/500      -- code, terminal output, data
+$font-family-sans-serif: "Source Sans 3", system-ui, -apple-system, sans-serif;
+$font-family-monospace: "IBM Plex Mono", ui-monospace, SFMono-Regular, monospace;
+$headings-font-family: "Plus Jakarta Sans", system-ui, -apple-system, sans-serif;
+$display-font-family: $headings-font-family;
+$td-enable-google-fonts: false;
+
+// Brand "Body L" (16px / 1.65) is the reading size for documentation prose.
+$font-size-base: 1rem;
+$line-height-base: 1.65;
+$font-weight-normal: 400;
+$font-weight-medium: 500;
+$font-weight-semibold: 600;
+$font-weight-bold: 700;
+
+// Brand type scale (px -> rem at a 16px root)
+$h1-font-size: 2.25rem; // Display/H1 36
+$h2-font-size: 1.75rem; // H2 28
+$h3-font-size: 1.375rem; // H3 22
+$h4-font-size: 1.125rem; // H4 18
+$h5-font-size: 0.9375rem; // H5 15
+$h6-font-size: 0.8125rem; // below scale -- overline-adjacent
+$headings-font-weight: 700;
+$headings-line-height: 1.2;
+
+$display-font-weight: 800; // Display 48/800/1.1
+$display-line-height: 1.1;
+
+$small-font-size: 0.75rem; // Caption 12
+$code-font-size: 0.8125rem; // Code 13
+$lead-font-size: 1.125rem;
+$lead-font-weight: 400;
+
+// -----------------------------------------------------------------------------
+// Component tokens -- radius, elevation, motion
+// -----------------------------------------------------------------------------
+$border-radius-sm: 3px; // tags
+$border-radius: 6px; // buttons
+$border-radius-lg: 9px; // cards
+$border-radius-xl: 13px; // panels
+$border-radius-xxl: 13px;
+$border-radius-pill: 9999px;
+
+$enable-shadows: false;
+$box-shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.06); // shadow-1
+$box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08); // shadow-2
+$box-shadow-lg: 0 8px 24px rgba(0, 0, 0, 0.12); // shadow-3
+
+$transition-base: all 200ms cubic-bezier(0.33, 1, 0.68, 1);
+$transition-collapse: height 300ms cubic-bezier(0.33, 1, 0.68, 1);
+
+// -----------------------------------------------------------------------------
+// Forms -- 40px default height, slate-7 border, midnight focus ring
+// -----------------------------------------------------------------------------
+$input-btn-padding-y: 0.5rem;
+$input-btn-padding-x: 0.875rem;
+$input-border-color: $slate-7;
+$input-focus-border-color: $midnight-9;
+$input-btn-focus-width: 2px;
+$input-btn-focus-color: rgba($midnight-9, 0.15);
+$input-disabled-bg: $slate-4;
+$input-disabled-color: $slate-8;
+$form-label-font-weight: 600;
+
+$btn-font-family: $headings-font-family;
+$btn-font-weight: 600;
+
+// -----------------------------------------------------------------------------
+// Docsy chrome
+// -----------------------------------------------------------------------------
+$td-navbar-bg-color: $brand-primary-dark;
+$td-navbar-border-bottom: 3px solid $brand-accent;
+$td-sidebar-bg-color: transparent;
+$td-sidebar-border-color: $border-color;

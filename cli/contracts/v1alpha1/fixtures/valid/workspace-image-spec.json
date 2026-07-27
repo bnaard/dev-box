@@ -1,0 +1,11 @@
+{
+  "apiVersion": "aibox.projectious.work/v1alpha1",
+  "kind": "WorkspaceImageSpec",
+  "metadata": { "name": "demo-image", "owner": { "ownerId": "team-a" } },
+  "spec": {
+    "baseImage": { "reference": "debian:bookworm", "digest": "sha256:base" },
+    "platform": "linux-amd64",
+    "addons": [{ "name": "rust", "version": "1.88", "checksum": "sha256:addon" }],
+    "buildInputs": [{ "source": "addons/rust.yaml", "digest": "sha256:input" }]
+  }
+}
