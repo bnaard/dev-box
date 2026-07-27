@@ -45,14 +45,14 @@ RUN ARCH="$(uname -m)" && \
     (cd /tmp && sha256sum -c rustup-init.sha256) && \
     chmod +x /tmp/rustup-init && \
     /tmp/rustup-init -y \
-      --default-toolchain 1.96.1 \
+      --default-toolchain 1.97.1 \
       --component clippy \
       --component rustfmt && \
     rm /tmp/rustup-init /tmp/rustup-init.sha256
 
 ENV PATH="/home/aibox/.cargo/bin:${PATH}"
 
-RUN cargo install cargo-audit
+RUN cargo install cargo-audit --locked
 
 RUN install -d /usr/local/bin && \
     for bin in /home/aibox/.cargo/bin/*; do \
@@ -90,7 +90,7 @@ RUN ARCH=$(uname -m) && \
     fi
 
 
-FROM ghcr.io/projectious-work/aibox:base-debian-runtime-v0.28.14 AS aibox
+FROM ghcr.io/projectious-work/aibox:base-debian-runtime-v0.28.15 AS aibox
 
 ENV SHELL=/bin/bash
 ENV UV_CACHE_DIR=/tmp/aibox/uv-cache
@@ -137,7 +137,7 @@ RUN DEB_ARCH="$(dpkg --print-architecture)" && \
       arm64) HUGO_ARCH="arm64" ;; \
       *) echo "Unsupported Hugo architecture: ${DEB_ARCH}" >&2; exit 1 ;; \
     esac && \
-    HUGO_VERSION="0.163.3" && \
+    HUGO_VERSION="0.164.0" && \
     HUGO_ASSET="hugo_extended_${HUGO_VERSION}_linux-${HUGO_ARCH}.tar.gz" && \
     curl -fsSL \
       "https://github.com/gohugoio/hugo/releases/download/v${HUGO_VERSION}/${HUGO_ASSET}" \
@@ -166,7 +166,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends ca-certificates
     apt-get update && apt-get install -y --no-install-recommends nodejs && \
     rm -rf /var/lib/apt/lists/*
 
-RUN npm install -g pnpm@11.10.0 && \
+RUN npm install -g pnpm@11.17.0 && \
     npm cache clean --force
 
 
@@ -282,6 +282,6 @@ EOF
 
 # Record image version inside container for runtime checks
 USER root
-LABEL aibox.version="0.28.14"
+LABEL aibox.version="0.28.15"
 LABEL aibox.profile="human-dev"
-RUN echo "0.28.14" > /etc/aibox-version
+RUN echo "0.28.15" > /etc/aibox-version
