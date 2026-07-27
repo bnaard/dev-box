@@ -11,7 +11,7 @@ This document defines the stable-v1 release boundary. It is intentionally strict
 | Kubernetes/Compose resources | backend runtime | apply/status/logs/destroy address only the recorded deployment; destroy refuses untracked, foreign, unlabeled, or digest-mismatched resources |
 | Credentials | operator secret store/environment/filesystem | contracts contain locators only; plans, records, diagnostics, and process argv must never contain secret values |
 | Processkit installer request | aibox-to-producer CLI | typed argv, secret-name filtering, producer provenance, and no aibox interpretation of producer content |
-| Release evidence | disposable-cluster CI | generated evidence artifact tied to a release-candidate commit; no fixture or fake-client result satisfies M7c |
+| Release evidence | exact producer and disposable-cluster CI | generated artifacts tied to a release-candidate commit; no fixture or fake-client result satisfies M5 interruption/recovery or M7c |
 
 ## Threats and canaries
 
@@ -23,17 +23,26 @@ This document defines the stable-v1 release boundary. It is intentionally strict
 | v0 lifecycle touches a v1 deployment | migration/restore coexistence test places a v1 deployment receipt before rollback | receipt is byte-for-byte unchanged |
 | Destroy deletes a foreign resource | Compose and Kubernetes ownership tests change/miss labels or digests | guarded destroy returns the ownership error and performs no deletion |
 | Processkit request leaks a credential | protocol test injects an environment secret canary | serialized argv omits it |
-| Fixture success is mistaken for production readiness | release audit reads the compiled M5 provisional marker | audit blocks until real producer integration replaces it |
-| Fake Kubernetes success is mistaken for live evidence | release audit requires complete M7c disposable-cluster evidence | audit blocks when file is absent, malformed, or incomplete |
+| Alpha pin drifts or unsigned assets are accepted | exact alpha.3 consumer gate verifies both published checksums and the signing key | only reviewed release assets reach the producer |
+| Interrupted producer state is retried unsafely | real-producer gate interrupts after a durable journal, refuses normal retry, then runs recover and one retry | retry proceeds only from an unambiguous recovered state |
+| A producer or recovery path leaks a credential | real-producer canaries scan argv, diagnostics, journal/state, logs, and recovery output | canary values are absent |
+| Fake Kubernetes success is mistaken for live evidence | release audit requires complete M7c disposable-cluster lifecycle evidence | audit blocks when file is absent, malformed, incomplete, or bound to another candidate |
 
 ## Stable-v1 release audit
 
 `aibox config release-readiness` is the machine/human gate. It must never declare readiness merely because a marker says “passed.” Today it blocks for:
 
-1. M5: the processkit #118 producer protocol remains fixture-only.
-2. M7c: no live disposable-cluster attestation is present.
+1. M5 exact alpha.3 lifecycle, interruption/recovery, coexistence/rollback,
+   and secret-safety evidence is incomplete.
+2. M7c complete live disposable-cluster lifecycle evidence is absent.
 
-The M5 check is source-backed: it detects the compiled provisional-protocol marker, rather than accepting a manually created project file. M7c requires a CI-generated attestation with a commit, cluster identifier, Kubernetes command, and timestamp. Release review must retain the CI run itself alongside that attestation.
+M5 is split into explicit gates so the checked-in adapter and retained
+release-candidate evidence cannot be conflated. The alpha pipeline runs the
+exact alpha.3 consumer gate and checks its SHA-256 pins before tag creation.
+M7c requires a CI-generated attestation with the candidate commit, cluster,
+Kubernetes command, timestamp, and passed first/unchanged/changed apply,
+drift/recovery, status/logs, exec/port-forward, ingress, and foreign-destroy
+refusal scenarios. Release review retains the CI run alongside the attestation.
 
 ## Non-goals
 

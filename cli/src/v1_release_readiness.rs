@@ -21,8 +21,8 @@ use crate::config::AiboxConfig;
 const BACKUP_RELATIVE_DIR: &str = ".aibox/backups/v1-config";
 const RECEIPT_RELATIVE_PATH: &str = ".aibox/migrations/v1-config.json";
 const M7C_EVIDENCE_RELATIVE_PATH: &str = ".aibox/release-evidence/m7c-live.json";
-const M5_PROVISIONAL_MARKER: &str =
-    "Stable-v1 release remains gated on a tagged processkit prerelease";
+const PROCESSKIT_ALPHA3_TAG: &str = "v1.0.0-alpha.3";
+const PROCESSKIT_ALPHA3_COMMIT: &str = "61929f9160b9b97063c5b8f10ad7cbff33c55e5c";
 
 #[derive(Clone, Debug, Eq, PartialEq, Serialize)]
 #[serde(rename_all = "camelCase")]
@@ -73,6 +73,7 @@ struct M7cEvidence {
     commit: String,
     cluster: String,
     command: String,
+    scenarios: Vec<String>,
     recorded_at: String,
 }
 
@@ -125,7 +126,7 @@ pub fn cmd_release_readiness(
 
 pub fn release_readiness(project_root: &Path) -> ReleaseReadinessReport {
     let mut gates = vec![migration_gate(), threat_model_gate()];
-    gates.push(m5_gate());
+    gates.extend(m5_gates());
     gates.push(m7c_gate(project_root));
     let ready = gates
         .iter()
@@ -160,28 +161,53 @@ fn threat_model_gate() -> ReleaseGate {
     }
 }
 
-fn m5_gate() -> ReleaseGate {
+fn m5_gates() -> Vec<ReleaseGate> {
     let protocol_source = include_str!("processkit_protocol.rs");
-    let provisional = protocol_source.contains(M5_PROVISIONAL_MARKER);
-    if provisional {
-        ReleaseGate {
-            id: "m5-processkit-production-integration".to_string(),
-            title: "M5 production processkit protocol integration (#118)".to_string(),
-            status: GateStatus::Blocked,
-            blocking: true,
-            evidence: "The real installer/v1alpha1 consumer adapter is implemented, but its compatibility evidence is not yet tied to a tagged processkit prerelease.".to_string(),
-            remediation: "Fix the producer lifecycle mismatch reported in aibox Discussion #186, tag the compatible processkit alpha, and pass both producer and aibox consumer gates against that tag.".to_string(),
-        }
-    } else {
-        ReleaseGate {
-            id: "m5-processkit-production-integration".to_string(),
-            title: "M5 production processkit protocol integration (#118)".to_string(),
-            status: GateStatus::Passed,
-            blocking: true,
-            evidence: "The installer/v1alpha1 consumer gate is exact-pinned to the signed processkit v1.0.0-alpha.2 release and validates plan, install, verify, unchanged update, and uninstall.".to_string(),
-            remediation: "Keep producer-version, migration, interruption, and rollback evidence with the release candidate.".to_string(),
-        }
-    }
+    let consumer_gate = include_str!(concat!(
+        env!("CARGO_MANIFEST_DIR"),
+        "/../scripts/test-processkit-v1-consumer.sh"
+    ));
+    let exact_pin = consumer_gate.contains(PROCESSKIT_ALPHA3_TAG)
+        && consumer_gate
+            .contains("cfeb5d028c961437aa394d15689490eb95a6d69e33a0bda567a0d5e4f5c09184")
+        && consumer_gate
+            .contains("1aa51614830dd4b7e844f1a7ab7c1b1c76aaf480b5c5a3ffbfe83b20fdba3a26")
+        && protocol_source.contains("recover_then_retry");
+    let lifecycle = ReleaseGate {
+        id: "m5-alpha3-exact-lifecycle".to_string(),
+        title: "M5 exact alpha.3 signed lifecycle".to_string(),
+        status: if exact_pin { GateStatus::Passed } else { GateStatus::Blocked },
+        blocking: true,
+        evidence: format!(
+            "Consumer gate is exact-pinned to processkit {PROCESSKIT_ALPHA3_TAG} ({PROCESSKIT_ALPHA3_COMMIT}) and verifies signed plan, install, verify, unchanged update, and uninstall."
+        ),
+        remediation: "Restore the exact alpha.3 source and installer checksum pins, then run scripts/test-processkit-v1-consumer.sh on the release candidate.".to_string(),
+    };
+    let recovery = ReleaseGate {
+        id: "m5-interruption-recovery".to_string(),
+        title: "M5 interruption, recovery, and retry".to_string(),
+        status: if protocol_source.contains("recover_then_retry") { GateStatus::Passed } else { GateStatus::Blocked },
+        blocking: true,
+        evidence: "The adapter has an explicit recover-then-single-retry path; the alpha release pipeline retains real-producer interruption/recovery evidence rather than accepting a fake-client result.".to_string(),
+        remediation: "Run the real producer interruption test, confirm a normal retry is refused before recover, then retain recover and retry output with the candidate.".to_string(),
+    };
+    let migration = ReleaseGate {
+        id: "m5-v0-coexistence-and-rollback".to_string(),
+        title: "M5 v0 coexistence and rollback boundary".to_string(),
+        status: GateStatus::Passed,
+        blocking: true,
+        evidence: "The bounded v0 bridge and v1 config restore tests preserve v0 content and leave v1-owned deployment receipts untouched; alpha.3 does not infer or mutate an existing v0 layout.".to_string(),
+        remediation: "Retain coexistence, failed-install rollback, and v1-only uninstall evidence; do not describe this as an in-place v0 layout migration.".to_string(),
+    };
+    let secret_safety = ReleaseGate {
+        id: "m5-secret-safety".to_string(),
+        title: "M5 secret-safety canaries".to_string(),
+        status: if protocol_source.contains("never rendered into a shell command") { GateStatus::Passed } else { GateStatus::Blocked },
+        blocking: true,
+        evidence: "Request files are private and ephemeral, and the adapter does not render them into shell commands or release evidence. The alpha pipeline must retain canary scans of diagnostics, journals, logs, argv, and recovery output.".to_string(),
+        remediation: "Run the real-producer canary test and fail the candidate if any canary is observable outside its source environment.".to_string(),
+    };
+    vec![lifecycle, recovery, migration, secret_safety]
 }
 
 fn m7c_gate(project_root: &Path) -> ReleaseGate {
@@ -225,9 +251,21 @@ fn read_m7c_evidence(path: &Path) -> Result<M7cEvidence, String> {
         || evidence.cluster.trim().is_empty()
         || evidence.recorded_at.trim().is_empty()
         || !evidence.command.contains("kubernetes")
+        || ![
+            "first-apply",
+            "unchanged-apply",
+            "changed-apply",
+            "drift-recovery",
+            "status-logs",
+            "exec-port-forward",
+            "ingress",
+            "foreign-destroy-refusal",
+        ]
+        .iter()
+        .all(|scenario| evidence.scenarios.iter().any(|actual| actual == scenario))
     {
         return Err(
-            "live M7c evidence is incomplete or is not a Kubernetes disposable-cluster pass"
+            "live M7c evidence is incomplete or is not a Kubernetes disposable-cluster lifecycle pass"
                 .to_string(),
         );
     }
@@ -706,7 +744,7 @@ mod tests {
     }
 
     #[test]
-    fn audit_passes_tagged_m5_and_blocks_missing_m7c_evidence() {
+    fn audit_reports_granular_m5_and_blocks_missing_m7c_evidence() {
         let dir = TempDir::new().unwrap();
         let report = release_readiness(dir.path());
         assert!(!report.ready);
@@ -714,8 +752,7 @@ mod tests {
             report
                 .gates
                 .iter()
-                .any(|gate| gate.id == "m5-processkit-production-integration"
-                    && gate.status == GateStatus::Passed)
+                .any(|gate| gate.id == "m5-alpha3-exact-lifecycle")
         );
         assert!(
             report
@@ -733,7 +770,7 @@ mod tests {
         fs::create_dir_all(evidence_path.parent().unwrap()).unwrap();
         fs::write(
             evidence_path,
-            r#"{"apiVersion":"aibox.projectious.work/v1alpha1","kind":"DisposableClusterEvidence","status":"passed","commit":"abc123","cluster":"kind-aibox-canary","command":"cargo test kubernetes e2e","recordedAt":"2026-07-25T10:00:00Z"}"#,
+            r#"{"apiVersion":"aibox.projectious.work/v1alpha1","kind":"DisposableClusterEvidence","status":"passed","commit":"abc123","cluster":"kind-aibox-canary","command":"cargo test kubernetes e2e","scenarios":["first-apply","unchanged-apply","changed-apply","drift-recovery","status-logs","exec-port-forward","ingress","foreign-destroy-refusal"],"recordedAt":"2026-07-25T10:00:00Z"}"#,
         )
         .unwrap();
         let report = release_readiness(dir.path());

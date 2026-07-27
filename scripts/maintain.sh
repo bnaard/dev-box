@@ -2016,6 +2016,23 @@ release_companion_e2e_gate() {
   esac
 }
 
+# A v1 prerelease is allowed to publish only with fresh real-producer and
+# disposable-cluster evidence.  The stable-v1 readiness command deliberately
+# remains stricter than an alpha, but it is still the canonical parser for the
+# M5/M7c attestations and must accept the candidate evidence before tagging.
+release_v1_alpha_evidence_gate() {
+  local version="$1" evidence="${PROJECT_ROOT}/.aibox/release-evidence/m7c-live.json"
+  [[ "${version}" == 1.*-* ]] || return 0
+  [[ -f "${evidence}" ]] \
+    || die "v1 alpha release requires M7c evidence at ${evidence}; run the live disposable-cluster suite first"
+  grep -Eq "\"commit\"[[:space:]]*:[[:space:]]*\"${RELEASE_CANDIDATE_SHA}\"" "${evidence}" \
+    || die "M7c evidence is not bound to release candidate ${RELEASE_CANDIDATE_SHA}"
+  "${PROJECT_ROOT}/scripts/test-processkit-v1-consumer.sh"
+  (cd "${PROJECT_ROOT}" && cargo run --quiet --manifest-path "${CLI_DIR}/Cargo.toml" -- \
+    config release-readiness --output json) \
+    || die "v1 alpha release readiness evidence is incomplete"
+}
+
 release_visual_gate() {
   case "${AIBOX_RELEASE_VISUAL_E2E:-skip}" in
     status) cmd_test_e2e_visual_status ;;
@@ -2375,6 +2392,15 @@ cmd_release() {
   fi
   if [[ "${#validation_specs[@]}" -gt 0 ]]; then
     release_run_parallel_validation "${version}" "${validation_specs[@]}"
+  fi
+
+  if [[ "${version}" == 1.*-* ]] && \
+     { release_step_requested tag || release_step_requested github-release; }; then
+    release_step_requested e2e \
+      || die "v1 alpha publication requires the e2e step so M7c evidence is generated"
+    release_run_evidenced_step "v1-alpha-evidence" "${version}" \
+      "V1 alpha producer and disposable-cluster evidence" \
+      release_v1_alpha_evidence_gate "${version}"
   fi
 
   if release_step_requested visual; then

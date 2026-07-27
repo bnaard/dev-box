@@ -287,11 +287,11 @@ what aibox will never provision or destroy.
 | M2 Configuration compiler | WS-C | M1 | TOML to deterministic canonical plans |
 | M3 Compose plan | WS-D + WS-E increment 1 | M2 | backend descriptor and golden non-mutating plan |
 | M4 Compose lifecycle | WS-E increments 2–4, WS-F | M3 | apply/status/logs/connect/destroy with records |
-| M5 Processkit delegation | WS-G | M1 and processkit#118 release | opaque request/result integration and parity; mandatory before stable v1 |
+| M5 Processkit delegation | WS-G | M1 and processkit alpha.3 release | opaque exact-pin request/result integration, interruption/recovery, coexistence/rollback, and secret-safety evidence; mandatory before stable v1 |
 | M6 Kubernetes plan | WS-H increments 1–2 | M3 | same fleet model renders to Kubernetes |
-| M7 Kubernetes lifecycle | WS-H increments 3–7 | M4, M6 | disposable-cluster lifecycle and connection |
+| M7 Kubernetes lifecycle | WS-H increments 3–7 | M4, M6 | disposable-cluster first/unchanged/changed apply, drift recovery, status/logs, exec/port-forward, ingress, and guarded destroy |
 | M8 UX convergence | WS-I | M4, M5, M7 | final commands and alias transition |
-| M9 v1 release gate | WS-J | all | migration, rollback, security, docs, release audit |
+| M9 v1 release gate | WS-J | all | migration, rollback, security, docs, exact alpha.3 evidence, and release audit |
 
 M5 and M6 may proceed in parallel after their dependencies. Compose work must not wait
 for processkit or ainfra-templates, but M5 is a mandatory stable-v1 release gate.
