@@ -625,6 +625,8 @@ fn e2e_companion_delegates_kind_through_systemd() {
         std::fs::read_to_string(root.join(".devcontainer/docker-compose.override.yml")).unwrap();
     let kind_gate =
         std::fs::read_to_string(manifest_dir.join("tests/e2e/kubernetes_kind.rs")).unwrap();
+    let kind_lifecycle =
+        std::fs::read_to_string(root.join("scripts/test-kubernetes-kind.sh")).unwrap();
     let maintain = std::fs::read_to_string(root.join("scripts/maintain.sh")).unwrap();
 
     assert!(dockerfile.contains("CMD [\"/sbin/init\"]"));
@@ -633,6 +635,23 @@ fn e2e_companion_delegates_kind_through_systemd() {
     assert!(dockerfile.contains("log_driver = \"k8s-file\""));
     assert!(compose.contains("cgroup: private"));
     assert!(kind_gate.contains("systemd-run --user --scope -p Delegate=yes"));
+    assert!(kind_gate.contains("copy_file_to"));
+    for required in [
+        "deploy apply",
+        "deploy status",
+        "deploy logs",
+        "connect shell",
+        "connect web-forward",
+        "rollout status",
+        "operation already in progress",
+        "refusing resources not owned",
+        "DisposableClusterEvidence",
+    ] {
+        assert!(
+            kind_lifecycle.contains(required),
+            "M7c live lifecycle must cover {required}"
+        );
+    }
     assert!(maintain.contains("kubernetes_kind -- --ignored --nocapture"));
 }
 
