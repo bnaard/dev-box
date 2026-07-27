@@ -573,6 +573,11 @@ pub static COMPAT_TABLE: &[CompatEntry] = &[
         processkit_version: "v0.28.4",
         note: "Opt-in v1 alpha: adds image and deployment orchestration, exact-pins the signed processkit v1.0.0-alpha.3 installer protocol for M5 consumer validation, and retains the v0.28.4 compatibility bridge.",
     },
+    CompatEntry {
+        aibox_version: "0.28.10",
+        processkit_version: "v0.28.3",
+        note: "Patch release: reconciles the standard processkit skills, recommends tooling-linked skills interactively, upgrades prerelease processkit surfaces, and serializes release Tier 2 E2E validation for the shared companion.",
+    },
 ];
 
 /// Find the minimum compatible processkit version for the given aibox version.
