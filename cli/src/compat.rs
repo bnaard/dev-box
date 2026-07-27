@@ -613,6 +613,11 @@ pub static COMPAT_TABLE: &[CompatEntry] = &[
         processkit_version: "v0.28.4",
         note: "Patch release: ensures pk-reconcile and pk-repo-reconcile install their project-reconciliation and repo-management skill dependencies.",
     },
+    CompatEntry {
+        aibox_version: "0.28.15",
+        processkit_version: "v0.28.4",
+        note: "Patch release: refreshes the bundled maintenance tools, locks cargo-audit installation for Rust compatibility, and publishes the Hugo/Docsy documentation site.",
+    },
 ];
 
 /// Find the minimum compatible processkit version for the given aibox version.
