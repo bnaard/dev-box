@@ -82,7 +82,7 @@ fn replace_toml_section(dir: &std::path::Path, section: &str, replacement: &str)
         let new_content = format!(
             "{}{}\n{}{}",
             &content[..start],
-            &section_header,
+            section_header,
             replacement,
             &content[end..]
         );
