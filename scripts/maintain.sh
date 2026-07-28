@@ -2080,7 +2080,7 @@ release_companion_e2e_gate() {
 # remains stricter than an alpha, but it is still the canonical parser for the
 # M5/M7c attestations and must accept the candidate evidence before tagging.
 release_v1_alpha_evidence_gate() {
-  local version="$1" evidence="${PROJECT_ROOT}/.aibox/release-evidence/m7c-live.json"
+  local version="$1" evidence="${PROJECT_ROOT}/.aibox/release-evidence/m7c-live.json" candidate_binary_sha256
   [[ "${version}" == 1.*-* ]] || return 0
   [[ -f "${evidence}" ]] \
     || die "v1 alpha release requires M7c evidence at ${evidence}; run the live disposable-cluster suite first"
@@ -2088,8 +2088,13 @@ release_v1_alpha_evidence_gate() {
     || die "M7c evidence is not bound to release candidate ${RELEASE_CANDIDATE_SHA}"
   grep -Eq "\"binarySha256\"[[:space:]]*:[[:space:]]*\"sha256:[0-9a-f]{64}\"" "${evidence}" \
     || die "M7c evidence does not bind the tested candidate binary digest"
+  [[ -f "${CLI_DIR}/target/debug/aibox" && -x "${CLI_DIR}/target/debug/aibox" && ! -L "${CLI_DIR}/target/debug/aibox" ]] \
+    || die "M7c candidate binary is missing; run the disposable-cluster suite before release gating"
+  candidate_binary_sha256="sha256:$(sha256_file "${CLI_DIR}/target/debug/aibox")"
+  grep -Eq "\"binarySha256\"[[:space:]]*:[[:space:]]*\"${candidate_binary_sha256}\"" "${evidence}" \
+    || die "M7c evidence is not bound to the exact candidate binary"
   "${PROJECT_ROOT}/scripts/test-processkit-v1-consumer.sh"
-  (cd "${PROJECT_ROOT}" && cargo run --quiet --manifest-path "${CLI_DIR}/Cargo.toml" -- \
+  (cd "${PROJECT_ROOT}" && AIBOX_RELEASE_BINARY_SHA256="${candidate_binary_sha256}" cargo run --quiet --manifest-path "${CLI_DIR}/Cargo.toml" -- \
     config release-readiness --output json) \
     || die "v1 alpha release readiness evidence is incomplete"
 }
