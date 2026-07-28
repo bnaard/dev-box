@@ -90,7 +90,7 @@ RUN ARCH=$(uname -m) && \
     fi
 
 
-FROM ghcr.io/projectious-work/aibox:base-debian-runtime-v0.28.16 AS aibox
+FROM ghcr.io/projectious-work/aibox:base-debian-runtime-v0.28.17 AS aibox
 
 ENV SHELL=/bin/bash
 ENV UV_CACHE_DIR=/tmp/aibox/uv-cache
@@ -159,7 +159,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 
 
 # Addon: node (runtime)
-RUN apt-get update && apt-get install -y --no-install-recommends ca-certificates curl xz-utils && \
+RUN apt-get update && apt-get install -y --no-install-recommends ca-certificates curl libatomic1 xz-utils && \
     rm -rf /var/lib/apt/lists/* && \
     DEB_ARCH="$(dpkg --print-architecture)" && \
     case "${DEB_ARCH}" in \
@@ -293,6 +293,6 @@ EOF
 
 # Record image version inside container for runtime checks
 USER root
-LABEL aibox.version="0.28.16"
+LABEL aibox.version="0.28.17"
 LABEL aibox.profile="human-dev"
-RUN echo "0.28.16" > /etc/aibox-version
+RUN echo "0.28.17" > /etc/aibox-version
