@@ -1401,6 +1401,25 @@ runtime: |
     }
 
     #[test]
+    fn cloud_aws_installer_vendors_and_verifies_documented_signing_key() {
+        let addon = load_repo_addon("cloud-aws");
+        let rendered = render_runtime(&addon, &all_enabled_tools(&addon)).unwrap();
+
+        assert!(
+            rendered.contains("gpg gpg-agent")
+                && rendered.contains("AWS_CLI_PGP_KEY_BASE64=")
+                && rendered.contains("FB5DB77FD5C118B80511ADA8A6310ACC4672475C")
+                && rendered.contains("gpg --batch --import /tmp/aws-cli-public-key.asc"),
+            "AWS CLI verification must use the fingerprint-checked key from AWS's install guide: {rendered}"
+        );
+        assert!(rendered.contains("gpg --verify /tmp/awscli.sig /tmp/awscli.zip"));
+        assert!(
+            !rendered.contains("gpg --keyserver"),
+            "AWS CLI builds must not depend on external keyserver availability: {rendered}"
+        );
+    }
+
+    #[test]
     fn purge_cloud_azure_removes_venv_when_disabled() {
         let addon = load_repo_addon("cloud-azure");
         let tools = all_disabled_tools(&addon);
@@ -1511,8 +1530,52 @@ runtime: |
         assert!(rendered.contains("SHASUMS256.txt"));
         assert!(rendered.contains("sha256sum -c -"));
         assert!(
+            rendered.contains("libatomic1"),
+            "official Node.js ARM64 archives require libatomic.so.1: {rendered}"
+        );
+        assert!(
             !rendered.contains("deb.nodesource.com"),
             "Node installation must not depend on the retired NodeSource key endpoint: {rendered}"
+        );
+    }
+
+    #[test]
+    fn go_installer_uses_published_archive_digests() {
+        let addon = load_repo_addon("go");
+        let rendered = render_runtime(&addon, &all_enabled_tools(&addon)).unwrap();
+
+        assert!(rendered.contains(
+            r#"1.26.5:amd64) GO_SHA256="5c2c3b16caefa1d968a94c1daca04a7ca301a496d9b086e17ad77bb81393f053""#
+        ));
+        assert!(rendered.contains(
+            r#"1.26.5:arm64) GO_SHA256="fe4789e92b1f33358680864bbe8704289e7bb5fc207d80623c308935bd696d49""#
+        ));
+        assert!(rendered.contains(r#"echo "${GO_SHA256}  /tmp/go.tar.gz" | sha256sum -c -"#));
+        assert!(
+            !rendered.contains(".tar.gz.sha256"),
+            "go.dev does not publish per-archive checksum sidecars: {rendered}"
+        );
+        assert_eq!(
+            addon.tools[0].supported_versions,
+            ["1.25.12", "1.26.3", "1.26.4", "1.26.5"]
+        );
+    }
+
+    #[test]
+    fn typst_installer_uses_published_archive_digests() {
+        let addon = load_repo_addon("typst");
+        let rendered = render_runtime(&addon, &all_enabled_tools(&addon)).unwrap();
+
+        assert!(rendered.contains(
+            r#"0.15.0:aarch64) TYPST_SHA256="cdf50ffc7b8ba759ed02200632eda3d78eb8b99aacb6611f4f75684990647620""#
+        ));
+        assert!(rendered.contains(
+            r#"0.15.0:x86_64) TYPST_SHA256="59b207df01be2dab9f13e80f73d04d7ff8273ffd46b3dd1b9eef5c60f3eeabea""#
+        ));
+        assert!(rendered.contains(r#"echo "${TYPST_SHA256}  /tmp/typst.tar.xz" | sha256sum -c -"#));
+        assert!(
+            !rendered.contains(".tar.xz.sha256"),
+            "Typst does not publish per-archive checksum sidecars: {rendered}"
         );
     }
 

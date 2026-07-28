@@ -623,6 +623,11 @@ pub static COMPAT_TABLE: &[CompatEntry] = &[
         processkit_version: "v0.28.4",
         note: "Patch release: installs Node.js from checksum-verified official release archives after the NodeSource signing-key endpoint became unavailable and refreshes generated runtime and processkit package-selection state.",
     },
+    CompatEntry {
+        aibox_version: "0.28.17",
+        processkit_version: "v0.28.4",
+        note: "Patch release: repairs Go, Typst, AWS CLI, and Node.js add-on installers and adds a clean companion-container build gate for download-based add-on defaults.",
+    },
 ];
 
 /// Find the minimum compatible processkit version for the given aibox version.

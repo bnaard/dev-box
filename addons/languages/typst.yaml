@@ -25,14 +25,20 @@ runtime: |
       && rm -rf /var/lib/apt/lists/* \
       && ARCH=$(uname -m) \
       && TYPST_VERSION="{{ tools.typst.version }}" \
+      && case "${TYPST_VERSION}:${ARCH}" in \
+        0.13.1:aarch64) TYPST_SHA256="4f5b7ee6e57fb639019ee0f6bffcf940edad228ede6ff5269a9f05a1544ceed4" ;; \
+        0.13.1:x86_64) TYPST_SHA256="7d214bfeffc2e585dc422d1a09d2b144969421281e8c7f5d784b65fc69b5673f" ;; \
+        0.14.2:aarch64) TYPST_SHA256="491b101aa40a3a7ea82a3f8a6232cabb4e6a7e233810082e5ac812d43fdcd47a" ;; \
+        0.14.2:x86_64) TYPST_SHA256="a6044cbad2a954deb921167e257e120ac0a16b20339ec01121194ff9d394996d" ;; \
+        0.15.0:aarch64) TYPST_SHA256="cdf50ffc7b8ba759ed02200632eda3d78eb8b99aacb6611f4f75684990647620" ;; \
+        0.15.0:x86_64) TYPST_SHA256="59b207df01be2dab9f13e80f73d04d7ff8273ffd46b3dd1b9eef5c60f3eeabea" ;; \
+        *) echo "Unsupported Typst version/architecture: ${TYPST_VERSION}/${ARCH}" >&2; exit 1 ;; \
+      esac \
       && curl -fsSL \
         "https://github.com/typst/typst/releases/download/v${TYPST_VERSION}/typst-${ARCH}-unknown-linux-musl.tar.xz" \
         -o /tmp/typst.tar.xz \
-      && curl -fsSL \
-        "https://github.com/typst/typst/releases/download/v${TYPST_VERSION}/typst-${ARCH}-unknown-linux-musl.tar.xz.sha256" \
-        -o /tmp/typst.tar.xz.sha256 \
-      && (cd /tmp && sha256sum -c typst.tar.xz.sha256) \
+      && echo "${TYPST_SHA256}  /tmp/typst.tar.xz" | sha256sum -c - \
       && tar -xJ --strip-components=1 -C /usr/local/bin -f /tmp/typst.tar.xz \
           "typst-${ARCH}-unknown-linux-musl/typst" \
       && chmod +x /usr/local/bin/typst \
-      && rm /tmp/typst.tar.xz /tmp/typst.tar.xz.sha256
+      && rm /tmp/typst.tar.xz
