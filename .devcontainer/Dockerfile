@@ -139,12 +139,23 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 
 
 # Addon: node (runtime)
-RUN apt-get update && apt-get install -y --no-install-recommends ca-certificates curl gpg && \
-    mkdir -p /etc/apt/keyrings && \
-    curl -fsSL https://deb.nodesource.com/gpgkey/nodesource-repo.gpg.key | gpg --dearmor -o /etc/apt/keyrings/nodesource.gpg && \
-    echo "deb [signed-by=/etc/apt/keyrings/nodesource.gpg] https://deb.nodesource.com/node_26.x nodistro main" > /etc/apt/sources.list.d/nodesource.list && \
-    apt-get update && apt-get install -y --no-install-recommends nodejs && \
-    rm -rf /var/lib/apt/lists/*
+RUN apt-get update && apt-get install -y --no-install-recommends ca-certificates curl libatomic1 xz-utils && \
+    rm -rf /var/lib/apt/lists/* && \
+    DEB_ARCH="$(dpkg --print-architecture)" && \
+    case "${DEB_ARCH}" in \
+      amd64) NODE_ARCH="x64" ;; \
+      arm64) NODE_ARCH="arm64" ;; \
+      *) echo "Unsupported Node.js architecture: ${DEB_ARCH}" >&2; exit 1 ;; \
+    esac && \
+    NODE_DIST_URL="https://nodejs.org/dist/latest-v26.x" && \
+    curl -fsSL "${NODE_DIST_URL}/SHASUMS256.txt" -o /tmp/node-shasums.txt && \
+    NODE_ARCHIVE="$(awk -v arch="${NODE_ARCH}" '$2 ~ ("node-v[0-9.]+-linux-" arch "\\\\.tar\\\\.xz$") { print $2; exit }' /tmp/node-shasums.txt)" && \
+    test -n "${NODE_ARCHIVE}" && \
+    curl -fsSL "${NODE_DIST_URL}/${NODE_ARCHIVE}" -o "/tmp/${NODE_ARCHIVE}" && \
+    (cd /tmp && grep "  ${NODE_ARCHIVE}$" node-shasums.txt | sha256sum -c -) && \
+    tar -xJf "/tmp/${NODE_ARCHIVE}" -C /usr/local --strip-components=1 && \
+    rm -f "/tmp/${NODE_ARCHIVE}" /tmp/node-shasums.txt && \
+    node --version && npm --version
 
 RUN npm install -g pnpm@11.10.0 && \
     npm cache clean --force

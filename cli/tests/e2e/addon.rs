@@ -115,6 +115,51 @@ fn addon_rebuild_includes_tools_in_dockerfile() {
 }
 
 #[test]
+fn download_based_addons_build_with_published_defaults() {
+    let runner = E2eRunner::new();
+    let test = "addon-download-smoke";
+    runner.cleanup(test);
+
+    let mut args = vec!["init", test, "--base", "debian", "--context", "managed"];
+    for addon in [
+        "ai-claude",
+        "ai-opencode",
+        "cloud-aws",
+        "cloud-gcp",
+        "cloudflare",
+        "docs-hugo",
+        "docs-mdbook",
+        "go",
+        "infrastructure",
+        "kubernetes",
+        "node",
+        "preview-archive",
+        "rust",
+        "typst",
+    ] {
+        args.extend(["--addon", addon]);
+    }
+
+    let init = runner.aibox(test, &args);
+    assert!(
+        init.status.success(),
+        "initializing the download-based add-on smoke project failed:\nstdout:\n{}\nstderr:\n{}",
+        String::from_utf8_lossy(&init.stdout),
+        String::from_utf8_lossy(&init.stderr)
+    );
+
+    let apply = runner.aibox(test, &["apply"]);
+    assert!(
+        apply.status.success(),
+        "one or more published add-on defaults cannot build:\nstdout:\n{}\nstderr:\n{}",
+        String::from_utf8_lossy(&apply.stdout),
+        String::from_utf8_lossy(&apply.stderr)
+    );
+
+    runner.cleanup(test);
+}
+
+#[test]
 fn get_addon_shows_available() {
     let runner = E2eRunner::new();
     let test = "addon-list";
