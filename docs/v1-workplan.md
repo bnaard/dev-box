@@ -296,6 +296,28 @@ what aibox will never provision or destroy.
 M5 and M6 may proceed in parallel after their dependencies. Compose work must not wait
 for processkit or ainfra-templates, but M5 is a mandatory stable-v1 release gate.
 
+### Alpha.1 stabilization status
+
+GitHub issue #236 fixes the Phase 0 ordering and evidence-contract defects without
+adding deployment scope:
+
+- `DisposableClusterEvidence/v1alpha1` is a shared schema and Rust model. The live
+  producer must emit the complete executed scenario set and bind it to the candidate
+  commit and binary digest; the readiness parser rejects missing, unknown, duplicate,
+  or unexecuted scenarios.
+- Kubernetes apply preflights workload and network intent without mutation, applies
+  and observes workloads first, then reconciles and verifies deployment-owned ingress
+  and DNS endpoints.
+- Kubernetes destroy discovers and validates the complete workload and network
+  resource set before its first mutation, persists an action journal, and refuses all
+  mutations on any ownership mismatch.
+- `v1.x-pre-release` history is reconciled back into the development candidate before
+  the fixed candidate is promoted monotonically.
+
+These changes make honest evidence possible; they are not live M7c evidence. Alpha
+publication remains blocked until the exact candidate passes the disposable-cluster
+suite and all other release gates.
+
 ## 5. Version-line and support policy
 
 - V1 work uses feature branches rooted in the independent v1.x development line.
