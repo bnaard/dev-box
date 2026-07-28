@@ -32,6 +32,28 @@ Missing `docker` or `podman` in the main devcontainer does not mean Tier 2
 cannot talk to the companion. The tests deploy the current `aibox` binary and
 addons with SCP, then use the companion's own runtime for lifecycle checks.
 
+### Rebuilding the Kubernetes-capable companion
+
+The release-gated disposable-cluster test requires the companion to run
+`systemd` as PID 1, use cgroup v2 delegation for rootless Podman, expose the
+read-only host `/lib/modules` tree, and contain both `kind` and `kubectl`.
+`./scripts/maintain.sh test-e2e` verifies this contract before it runs Cargo;
+when the reachable companion is an older image, it automatically rebuilds and
+recreates the service.
+
+If a host daemon restart or a failed build prevents automatic recreation, run
+this from the repository root on the Docker host, then rerun the E2E command:
+
+```bash
+docker compose -f .devcontainer/docker-compose.yml -f .devcontainer/docker-compose.override.yml \
+  up -d --build --force-recreate aibox-e2e-testrunner
+./scripts/maintain.sh test-e2e
+```
+
+Do not accept SSH reachability alone as evidence that this companion is ready:
+an old SSH-only image reports `sshd` as PID 1 and fails the preflight without
+mutating a disposable cluster.
+
 ## `aibox` commands inside the devcontainer
 
 In normal dogfood use, the workspace container is the processkit/runtime side of

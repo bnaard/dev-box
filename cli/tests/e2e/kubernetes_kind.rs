@@ -46,10 +46,10 @@ fn kubernetes_kind_lifecycle_produces_release_candidate_evidence() {
         "set -eu; kind version; kubectl version --client; \
          test \"$(ps -p 1 -o comm= | tr -d ' ')\" = systemd; \
          test \"$(stat -fc %T /sys/fs/cgroup)\" = cgroup2fs; \
-         grep -qw pids /sys/fs/cgroup/cgroup.controllers; \
-         grep -qw pids /sys/fs/cgroup/cgroup.subtree_control; \
          test \"$(podman info --format '{{.Host.CgroupManager}}')\" = systemd; \
-         systemd-run --user --scope -p Delegate=yes --quiet true; test -d /lib/modules",
+         systemd-run --user --scope --wait --quiet -p Delegate=yes \\
+           /bin/sh -ec 'scope=$(awk -F: \"$1 == 0 { print $3 }\" /proc/self/cgroup); base=/sys/fs/cgroup${scope}; test -r \"${base}/cgroup.controllers\"; for controller in cpu cpuset io memory pids; do grep -qw \"${controller}\" \"${base}/cgroup.controllers\"; done'; \
+         test -d /lib/modules",
     );
     assert!(
         preflight.status.success(),
