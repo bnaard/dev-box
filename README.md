@@ -61,15 +61,24 @@ Install a supported container runtime first:
 - Docker or Docker Desktop
 - OrbStack with Docker-compatible Compose
 
-Then install the CLI:
+Install the stable CLI:
 
 ```bash
 curl -fsSL https://raw.githubusercontent.com/projectious-work/aibox/main/scripts/install.sh | bash
 aibox --version
 ```
 
-More options are covered in the
-[installation guide](https://projectious-work.github.io/aibox/docs/getting-started/installation).
+This branch documents the v1 preview. After `v1.0.0-alpha.1` is published,
+install that exact prerelease instead of relying on the stable channel:
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/projectious-work/aibox/main/scripts/install.sh |
+  VERSION=1.0.0-alpha.1 bash
+aibox --version
+```
+
+Prerelease installation and rollback are covered in the
+[v1 installation guide](https://projectious-work.github.io/aibox/v1.x/docs/getting-started/installation/).
 
 ## Quick Start
 

@@ -108,7 +108,7 @@ To evaluate prerelease processkit content without changing the stable default,
 pin the prerelease explicitly or opt into prerelease selection:
 
 ```sh
-aibox init my-app --processkit-version v1.0.0-alpha.1
+aibox init my-app --processkit-version v1.0.0-alpha.3
 aibox init my-app --include-prerelease
 ```
 

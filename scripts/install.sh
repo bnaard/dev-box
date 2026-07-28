@@ -127,7 +127,9 @@ check_existing() {
   local install_dir="$1" version="$2"
   if [[ -x "${install_dir}/${BINARY_NAME}" ]]; then
     local current
-    current=$("${install_dir}/${BINARY_NAME}" --version 2>/dev/null | grep -oE '[0-9]+\.[0-9]+\.[0-9]+' || echo "unknown")
+    current=$("${install_dir}/${BINARY_NAME}" --version 2>/dev/null \
+      | grep -oE '[0-9]+\.[0-9]+\.[0-9]+(-[0-9A-Za-z.-]+)?' \
+      || echo "unknown")
     if [[ "${current}" == "${version}" ]]; then
       ok "aibox v${version} is already installed at ${install_dir}/${BINARY_NAME}"
       exit 0
