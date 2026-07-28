@@ -651,9 +651,7 @@ fn e2e_companion_delegates_kind_through_systemd() {
     assert!(dockerfile.contains("log_driver = \"k8s-file\""));
     assert!(compose.contains("cgroup: private"));
     assert!(compose.contains("/lib/modules:/lib/modules:ro"));
-    assert!(
-        kind_gate.contains("systemd-run --user --scope --wait --quiet -p Delegate=yes")
-    );
+    assert!(kind_gate.contains("systemd-run --user --scope --wait --quiet -p Delegate=yes"));
     assert!(maintain.contains("e2e_companion_preflight"));
     assert!(maintain.contains("E2E companion is stale. Rebuild it on the Docker host"));
     assert!(kind_gate.contains("copy_file_to"));

@@ -179,15 +179,28 @@ def _iter_files(root: Path, names: set[str]) -> list[Path]:
         return found
 
     for dirpath, dirnames, filenames in os.walk(root):
+        current = Path(dirpath)
         dirnames[:] = [
             d
             for d in dirnames
-            if d not in _SKIP_DIRS and not d.startswith(".")
+            if d not in _SKIP_DIRS
+            and not d.startswith(".")
+            and not _is_nested_repository(root, current / d)
         ]
         for filename in filenames:
             if _normalize(filename) in wanted:
                 found.append(Path(dirpath) / filename)
     return sorted(found)
+
+
+def _is_nested_repository(repo_root: Path, directory: Path) -> bool:
+    """Return whether ``directory`` is a repository nested below ``repo_root``.
+
+    A Git submodule checkout has a ``.git`` *file*, while a standalone nested
+    checkout has a ``.git`` directory.  Neither is part of the owning
+    project's dependency surface, so both must be pruned before discovery.
+    """
+    return directory != repo_root and (directory / ".git").exists()
 
 
 def _collect_inventory(
@@ -233,10 +246,13 @@ def _find_sbom_files(repo_root: Path) -> list[Path]:
             found.append(path)
 
     for dirpath, dirnames, filenames in os.walk(repo_root):
+        current = Path(dirpath)
         dirnames[:] = [
             d
             for d in dirnames
-            if d not in _SKIP_DIRS and not d.startswith(".")
+            if d not in _SKIP_DIRS
+            and not d.startswith(".")
+            and not _is_nested_repository(repo_root, current / d)
         ]
         for filename in filenames:
             lower = filename.lower()
