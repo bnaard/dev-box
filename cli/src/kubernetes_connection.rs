@@ -575,10 +575,52 @@ pub fn reconcile_network(
     request: &NetworkReconciliationRequest,
 ) -> Result<Vec<ManagedNetworkResource>, BackendError> {
     validate_network_request(api, request)?;
-    let name = network_name(&request.ownership.deployment_id, &request.service);
     let mut applied = Vec::new();
+    for resource in expected_network_resources(request) {
+        api.apply(resource.clone())?;
+        applied.push(resource);
+    }
+    Ok(applied)
+}
+
+/// Confirm that every externally visible endpoint was created with the exact
+/// request and is still owned by this deployment.  This check deliberately
+/// happens after workload observation so a failed workload cannot publish a
+/// route or DNS record.
+pub fn verify_network(
+    api: &dyn KubernetesNetworkApi,
+    request: &NetworkReconciliationRequest,
+) -> Result<(), BackendError> {
+    for expected in expected_network_resources(request) {
+        let actual = api
+            .get(&expected.kind, &expected.namespace, &expected.name)?
+            .ok_or_else(|| BackendError {
+                code: ContractErrorCode::Observation,
+                message: format!(
+                    "managed {} '{}/{}' was not observed after reconciliation",
+                    expected.kind, expected.namespace, expected.name
+                ),
+            })?;
+        if actual != expected || !request.ownership.matches(&actual.labels) {
+            return Err(BackendError {
+                code: ContractErrorCode::Ownership,
+                message: format!(
+                    "managed {} '{}/{}' does not match the verified deployment endpoint",
+                    expected.kind, expected.namespace, expected.name
+                ),
+            });
+        }
+    }
+    Ok(())
+}
+
+fn expected_network_resources(
+    request: &NetworkReconciliationRequest,
+) -> Vec<ManagedNetworkResource> {
+    let name = network_name(&request.ownership.deployment_id, &request.service);
+    let mut resources = Vec::new();
     if let Some(class) = &request.ingress_class {
-        let resource = ManagedNetworkResource {
+        resources.push(ManagedNetworkResource {
             kind: "Ingress".to_string(),
             namespace: request.namespace.clone(),
             name: name.clone(),
@@ -588,12 +630,10 @@ pub fn reconcile_network(
             service: Some(request.service.clone()),
             parent: None,
             zone: None,
-        };
-        api.apply(resource.clone())?;
-        applied.push(resource);
+        });
     }
     if let Some(class) = &request.gateway_class {
-        let gateway = ManagedNetworkResource {
+        resources.push(ManagedNetworkResource {
             kind: "Gateway".to_string(),
             namespace: request.namespace.clone(),
             name: name.clone(),
@@ -603,10 +643,8 @@ pub fn reconcile_network(
             service: None,
             parent: None,
             zone: None,
-        };
-        api.apply(gateway.clone())?;
-        applied.push(gateway);
-        let route = ManagedNetworkResource {
+        });
+        resources.push(ManagedNetworkResource {
             kind: "HTTPRoute".to_string(),
             namespace: request.namespace.clone(),
             name: name.clone(),
@@ -616,12 +654,10 @@ pub fn reconcile_network(
             service: Some(request.service.clone()),
             parent: Some(name.clone()),
             zone: None,
-        };
-        api.apply(route.clone())?;
-        applied.push(route);
+        });
     }
     if let Some(zone) = &request.dns_zone {
-        let resource = ManagedNetworkResource {
+        resources.push(ManagedNetworkResource {
             kind: "DNSRecord".to_string(),
             namespace: request.namespace.clone(),
             name,
@@ -631,11 +667,9 @@ pub fn reconcile_network(
             service: Some(request.service.clone()),
             parent: None,
             zone: Some(zone.clone()),
-        };
-        api.apply(resource.clone())?;
-        applied.push(resource);
+        });
     }
-    Ok(applied)
+    resources
 }
 
 pub fn destroy_network(
@@ -1070,6 +1104,29 @@ mod tests {
         reconcile_network(&api, &request()).unwrap();
         destroy_network(&api, &request()).unwrap();
         destroy_network(&api, &request()).unwrap();
+    }
+
+    #[test]
+    fn endpoint_verification_rejects_a_missing_or_mismatched_resource() {
+        let api = FakeNetworkApi {
+            ingress_classes: ["nginx".to_string()].into_iter().collect(),
+            dns_zones: ["example.test".to_string()].into_iter().collect(),
+            ..Default::default()
+        };
+        reconcile_network(&api, &request()).unwrap();
+        verify_network(&api, &request()).unwrap();
+
+        let name = network_name("workspace-12345678", "workspace");
+        api.resources
+            .lock()
+            .unwrap()
+            .get_mut(&("Ingress".to_string(), "workspace-dev".to_string(), name))
+            .unwrap()
+            .hostname = "foreign.example.test".to_string();
+        assert_eq!(
+            verify_network(&api, &request()).unwrap_err().code,
+            ContractErrorCode::Ownership
+        );
     }
 
     #[test]

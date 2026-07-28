@@ -29,7 +29,7 @@ use crate::deployment_contract::{
 };
 use crate::kubernetes_connection::{
     KubectlNetworkApi, KubernetesNetworkApi, NetworkOwnership, NetworkReconciliationRequest,
-    destroy_network, preflight_network, reconcile_network,
+    destroy_network, preflight_network, reconcile_network, verify_network,
 };
 
 const LABEL_DEPLOYMENT_ID: &str = "aibox.projectious.work/deployment-id";
@@ -607,43 +607,45 @@ impl KubernetesBackend {
                 && existing.spec.image.digest == rendered.image_digest
             {
                 let observed = observe(client.as_ref(), &existing)?;
-                store.save(&observed)?;
                 if observed.spec.status == DeploymentStatus::Observed {
-                    if let Some(network) = lifecycle.network_api(client.context()) {
-                        for request in &network_requests {
-                            reconcile_network(network.as_ref(), request)?;
-                        }
-                    }
-                    return Ok(ApplyResponse { record: observed });
+                    Self::reconcile_and_verify_network(
+                        lifecycle.network_api(client.context()),
+                        &network_requests,
+                    )?;
                 }
+                store.save(&observed)?;
+                return Ok(ApplyResponse { record: observed });
             }
         } else if let Some(reconstructed) =
             reconstruct(client.as_ref(), &rendered.deployment_id, Some(namespace))?
         {
             let observed = observe(client.as_ref(), &reconstructed)?;
+            if observed.spec.status == DeploymentStatus::Observed
+                && observed.spec.desired_spec_digest == rendered.desired_spec_digest
+                && observed.spec.image.digest == rendered.image_digest
+            {
+                Self::reconcile_and_verify_network(
+                    lifecycle.network_api(client.context()),
+                    &network_requests,
+                )?;
+            }
             store.save(&observed)?;
             if observed.spec.status == DeploymentStatus::Observed
                 && observed.spec.desired_spec_digest == rendered.desired_spec_digest
                 && observed.spec.image.digest == rendered.image_digest
             {
-                if let Some(network) = lifecycle.network_api(client.context()) {
-                    for request in &network_requests {
-                        reconcile_network(network.as_ref(), request)?;
-                    }
-                }
                 return Ok(ApplyResponse { record: observed });
             }
         }
 
+        // Build every workload object before the first mutation. Together with
+        // network preflight this makes capability and rendering failures fully
+        // non-mutating.
+        let resources = desired_resources(&request.plan, &record)?;
+
         // Persist before the first mutation.  A failed or interrupted apply is
         // therefore resumable, and never leaves an untracked resource set.
         store.save(&record)?;
-        if let Some(network) = lifecycle.network_api(client.context()) {
-            for request in &network_requests {
-                reconcile_network(network.as_ref(), request)?;
-            }
-        }
-        let resources = desired_resources(&request.plan, &record)?;
         for resource in resources {
             if let Err(error) = client.apply(resource) {
                 let unavailable = with_status(&record, DeploymentStatus::Unavailable);
@@ -652,8 +654,27 @@ impl KubernetesBackend {
             }
         }
         let observed = observe(client.as_ref(), &record)?;
+        if observed.spec.status == DeploymentStatus::Observed {
+            Self::reconcile_and_verify_network(
+                lifecycle.network_api(client.context()),
+                &network_requests,
+            )?;
+        }
         store.save(&observed)?;
         Ok(ApplyResponse { record: observed })
+    }
+
+    fn reconcile_and_verify_network(
+        network: Option<Arc<dyn KubernetesNetworkApi>>,
+        requests: &[NetworkReconciliationRequest],
+    ) -> Result<(), BackendError> {
+        if let Some(network) = network {
+            for request in requests {
+                reconcile_network(network.as_ref(), request)?;
+                verify_network(network.as_ref(), request)?;
+            }
+        }
+        Ok(())
     }
 
     fn status_lifecycle(&self, request: StatusRequest) -> Result<StatusResponse, BackendError> {
@@ -2114,6 +2135,33 @@ mod tests {
             client.applies(),
             0,
             "missing facilities must not partially apply workloads"
+        );
+    }
+
+    #[test]
+    fn partial_workload_failure_does_not_publish_network_endpoints() {
+        let root = tempdir().unwrap();
+        let client = Arc::new(FakeKubernetesClient::new("staging"));
+        client.fail_after(Some(1));
+        let network = Arc::new(FakeNetworkApi {
+            ingress: ["nginx".to_string()].into_iter().collect(),
+            ..Default::default()
+        });
+        let backend = lifecycle_backend_with_network(root.path(), client, network.clone());
+
+        assert_eq!(
+            backend
+                .apply(ApplyRequest {
+                    plan: ingress_only_plan(),
+                })
+                .unwrap_err()
+                .code,
+            ContractErrorCode::Mutation
+        );
+        assert_eq!(
+            *network.applies.lock().unwrap(),
+            0,
+            "a failed workload must not publish ingress or DNS endpoints"
         );
     }
 
