@@ -1,0 +1,475 @@
+<!doctype html><html itemscope itemtype=http://schema.org/WebPage lang=en class=no-js data-theme-init><head><meta charset=utf-8><meta name=viewport content="width=device-width,initial-scale=1,shrink-to-fit=no"><meta name=color-scheme content="light dark"><meta name=theme-color media="(prefers-color-scheme: light)" content="#ffffff"><meta name=theme-color media="(prefers-color-scheme: dark)" content="#000000"><style>html{background:Canvas;color:CanvasText}@media(prefers-color-scheme:dark){html{background:#0b0d12;color:#e6e6e6}}html[data-theme-init] *{transition:none!important}</style><script>(function(){const t="td-color-theme",n=localStorage.getItem(t);let e=n||(window.matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light");e==="auto"&&(e=window.matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light"),document.documentElement.setAttribute("data-bs-theme",e)})()</script><link rel=canonical type=text/html href=https://projectious-work.github.io/aibox/v1.x/docs/contributing/><link rel=alternate type=application/rss+xml href=https://projectious-work.github.io/aibox/v1.x/docs/contributing/index.xml><link rel=alternate type=text/markdown href=https://projectious-work.github.io/aibox/v1.x/docs/contributing/index.md><meta name=robots content="noindex, nofollow"><link rel=icon href=/aibox/v1.x/favicons/favicon.ico sizes=any><link rel=icon type=image/svg+xml href=/aibox/v1.x/favicons/favicon.svg><link rel=icon type=image/png href=/aibox/v1.x/favicons/favicon-16x16.png sizes=16x16><link rel=icon type=image/png href=/aibox/v1.x/favicons/favicon-32x32.png sizes=32x32><link rel=icon type=image/png href=/aibox/v1.x/favicons/favicon-48x48.png sizes=48x48><link rel=icon type=image/png href=/aibox/v1.x/favicons/icon-128x128.png sizes=128x128><link rel=icon type=image/png href=/aibox/v1.x/favicons/icon-256x256.png sizes=256x256><link rel=apple-touch-icon href=/aibox/v1.x/favicons/apple-touch-icon-180x180.png sizes=180x180><title>Contributing | aibox</title><meta name=description content="Contributing Thank you for your interest in contributing to aibox!
+Getting Started Fork and clone the repository:
+git clone https://github.com/projectious-work/aibox.git cd aibox Start the development container:
+cd .devcontainer docker compose up -d docker compose exec aibox bash Or open in VS Code with the Dev Containers extension.
+Build the CLI:
+cd cli cargo build Run the tests:
+cargo test cargo clippy -- -D warnings cargo fmt -- --check Project Structure cli/ — Rust CLI source code images/ — Published container image Dockerfiles addons/ — Addon definitions (language runtimes, tool bundles, AI agents) docs-site/ — Hugo/Docsy documentation source .devcontainer/ — This project’s own dev environment Process content (skills, packages, primitives, processes, the canonical AGENTS.md) lives in processkit, not in this repository. As of v0.16.0 aibox no longer ships a templates/ directory or a schemas/ directory — both have moved upstream to processkit."><meta property="og:url" content="https://projectious-work.github.io/aibox/v1.x/docs/contributing/"><meta property="og:site_name" content="aibox"><meta property="og:title" content="Contributing"><meta property="og:description" content="Contributing Thank you for your interest in contributing to aibox!
+Getting Started Fork and clone the repository:
+git clone https://github.com/projectious-work/aibox.git cd aibox Start the development container:
+cd .devcontainer docker compose up -d docker compose exec aibox bash Or open in VS Code with the Dev Containers extension.
+Build the CLI:
+cd cli cargo build Run the tests:
+cargo test cargo clippy -- -D warnings cargo fmt -- --check Project Structure cli/ — Rust CLI source code images/ — Published container image Dockerfiles addons/ — Addon definitions (language runtimes, tool bundles, AI agents) docs-site/ — Hugo/Docsy documentation source .devcontainer/ — This project’s own dev environment Process content (skills, packages, primitives, processes, the canonical AGENTS.md) lives in processkit, not in this repository. As of v0.16.0 aibox no longer ships a templates/ directory or a schemas/ directory — both have moved upstream to processkit."><meta property="og:locale" content="en"><meta property="og:type" content="website"><meta itemprop=name content="Contributing"><meta itemprop=description content="Contributing Thank you for your interest in contributing to aibox!
+Getting Started Fork and clone the repository:
+git clone https://github.com/projectious-work/aibox.git cd aibox Start the development container:
+cd .devcontainer docker compose up -d docker compose exec aibox bash Or open in VS Code with the Dev Containers extension.
+Build the CLI:
+cd cli cargo build Run the tests:
+cargo test cargo clippy -- -D warnings cargo fmt -- --check Project Structure cli/ — Rust CLI source code images/ — Published container image Dockerfiles addons/ — Addon definitions (language runtimes, tool bundles, AI agents) docs-site/ — Hugo/Docsy documentation source .devcontainer/ — This project’s own dev environment Process content (skills, packages, primitives, processes, the canonical AGENTS.md) lives in processkit, not in this repository. As of v0.16.0 aibox no longer ships a templates/ directory or a schemas/ directory — both have moved upstream to processkit."><meta itemprop=dateModified content="2026-07-26T19:11:40+02:00"><meta itemprop=wordCount content="312"><meta name=twitter:card content="summary"><meta name=twitter:title content="Contributing"><meta name=twitter:description content="Contributing Thank you for your interest in contributing to aibox!
+Getting Started Fork and clone the repository:
+git clone https://github.com/projectious-work/aibox.git cd aibox Start the development container:
+cd .devcontainer docker compose up -d docker compose exec aibox bash Or open in VS Code with the Dev Containers extension.
+Build the CLI:
+cd cli cargo build Run the tests:
+cargo test cargo clippy -- -D warnings cargo fmt -- --check Project Structure cli/ — Rust CLI source code images/ — Published container image Dockerfiles addons/ — Addon definitions (language runtimes, tool bundles, AI agents) docs-site/ — Hugo/Docsy documentation source .devcontainer/ — This project’s own dev environment Process content (skills, packages, primitives, processes, the canonical AGENTS.md) lives in processkit, not in this repository. As of v0.16.0 aibox no longer ships a templates/ directory or a schemas/ directory — both have moved upstream to processkit."><link rel=preload href=/aibox/v1.x/scss/main.min.bc82299f2e41dc73fd9098fda4710750856d4f534b7526c5a672ec279dc99c42.css as=style integrity="sha256-vIIpny5B3HP9kJj9pHEHUIVtT1NLdSbFpnLsJ53JnEI=" crossorigin=anonymous><link href=/aibox/v1.x/scss/main.min.bc82299f2e41dc73fd9098fda4710750856d4f534b7526c5a672ec279dc99c42.css rel=stylesheet integrity="sha256-vIIpny5B3HP9kJj9pHEHUIVtT1NLdSbFpnLsJ53JnEI=" crossorigin=anonymous><script src=https://code.jquery.com/jquery-3.7.1.min.js integrity="sha512-v2CJ7UaYy4JwqLDIrZUI/4hqeoQieOmAZNXBeQyjo21dadnwR+8ZaIJVT8EE2iyI61OV8e6M8PP2/4hpQINQ/g==" crossorigin=anonymous></script><script defer src=https://unpkg.com/lunr@2.3.9/lunr.min.js integrity=sha384-203J0SNzyqHby3iU6hzvzltrWi/M41wOP5Gu+BiJMz5nwKykbkUx8Kp7iti0Lpli crossorigin=anonymous></script><link rel=preconnect href=https://fonts.googleapis.com><link rel=preconnect href=https://fonts.gstatic.com crossorigin><link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=Source+Sans+3:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap" rel=stylesheet><meta name=theme-color content="#132440"><link rel=stylesheet href=/aibox/v1.x/player/asciinema-player.css><link rel=stylesheet href=/aibox/v1.x/player/asciinema-fonts.css><script src=/aibox/v1.x/player/asciinema-player.min.js></script><script src=/aibox/v1.x/player/asciinema-init.js defer></script></head><body class=td-section><header><nav class="td-navbar js-navbar-scroll" data-bs-theme=dark><div class="td-navbar-container container-fluid flex-column flex-md-row"><a class=navbar-brand href=/aibox/v1.x/><span class="navbar-brand__logo navbar-logo"><svg viewBox="0 0 40 40" role="img" aria-labelledby="aiboxMarkTitle" class="aibox-mark"><title id="aiboxMarkTitle">aibox</title><path d="M20 3 33 9.5 37 23 28 36H12L3 23 7 9.5z" fill="#1d3352"/><path d="M13 18h14a1.5 1.5.0 011.5 1.5v9A1.5 1.5.0 0127 30H13a1.5 1.5.0 01-1.5-1.5v-9A1.5 1.5.0 0113 18zm0 0L8 9l10 5zm14 0 5-9-10 5z" fill="#fff"/><circle cx="20" cy="24" r="1.8" fill="#E05232"/></svg></span><span class=navbar-brand__name>aibox</span></a><div class="td-navbar__main td-navbar-nav-scroll td-navbar-nav-scroll--indicator" id=main_navbar><div class="scroll-indicator scroll-left"></div><ul class=navbar-nav><li class=nav-item><a class=nav-link href=/aibox/v1.x/docs/><span>Documentation</span></a></li><li class=nav-item><a class=nav-link href=/aibox/v1.x/features/><span>Features</span></a></li><li class=nav-item><a class=nav-link href=/aibox/v1.x/themes/><span>Themes</span></a></li><li class=nav-item><a class=nav-link href=/aibox/v1.x/changelog/><span>Changelog</span></a></li><li class=nav-item><a class=nav-link href=https://github.com/projectious-work/aibox target=_blank rel=noopener><i class='fa-brands fa-github' aria-hidden=true></i><span>GitHub</span></a></li><li class="nav-item td-navbar__light-dark-menu"><div class="td-light-dark-menu dropdown"><svg class="d-none"><symbol id="check2" viewBox="0 0 16 16"><path d="M13.854 3.646a.5.5.0 010 .708l-7 7a.5.5.0 01-.708.0l-3.5-3.5a.5.5.0 11.708-.708L6.5 10.293l6.646-6.647a.5.5.0 01.708.0z"/></symbol><symbol id="circle-half" viewBox="0 0 16 16"><path d="M8 15A7 7 0 108 1v14zm0 1A8 8 0 118 0a8 8 0 010 16z"/></symbol><symbol id="moon-stars-fill" viewBox="0 0 16 16"><path d="M6 .278a.768.768.0 01.08.858 7.208 7.208.0 00-.878 3.46c0 4.021 3.278 7.277 7.318 7.277.527.0 1.04-.055 1.533-.16a.787.787.0 01.81.316.733.733.0 01-.031.893A8.349 8.349.0 018.344 16C3.734 16 0 12.286.0 7.71.0 4.266 2.114 1.312 5.124.06A.752.752.0 016 .278z"/><path d="M10.794 3.148a.217.217.0 01.412.0l.387 1.162c.173.518.579.924 1.097 1.097l1.162.387a.217.217.0 010 .412l-1.162.387A1.734 1.734.0 0011.593 7.69l-.387 1.162a.217.217.0 01-.412.0l-.387-1.162A1.734 1.734.0 009.31 6.593l-1.162-.387a.217.217.0 010-.412l1.162-.387a1.734 1.734.0 001.097-1.097l.387-1.162zM13.863.099a.145.145.0 01.274.0l.258.774c.115.346.386.617.732.732l.774.258a.145.145.0 010 .274l-.774.258a1.156 1.156.0 00-.732.732l-.258.774a.145.145.0 01-.274.0l-.258-.774a1.156 1.156.0 00-.732-.732l-.774-.258a.145.145.0 010-.274l.774-.258c.346-.115.617-.386.732-.732L13.863.1z"/></symbol><symbol id="sun-fill" viewBox="0 0 16 16"><path d="M8 12a4 4 0 100-8 4 4 0 000 8zM8 0a.5.5.0 01.5.5v2a.5.5.0 01-1 0v-2A.5.5.0 018 0zm0 13a.5.5.0 01.5.5v2a.5.5.0 01-1 0v-2A.5.5.0 018 13zm8-5a.5.5.0 01-.5.5h-2a.5.5.0 010-1h2a.5.5.0 01.5.5zM3 8a.5.5.0 01-.5.5h-2a.5.5.0 010-1h2A.5.5.0 013 8zm10.657-5.657a.5.5.0 010 .707l-1.414 1.415a.5.5.0 11-.707-.708l1.414-1.414a.5.5.0 01.707.0zm-9.193 9.193a.5.5.0 010 .707L3.05 13.657a.5.5.0 01-.707-.707l1.414-1.414a.5.5.0 01.707.0zm9.193 2.121a.5.5.0 01-.707.0l-1.414-1.414a.5.5.0 01.707-.707l1.414 1.414a.5.5.0 010 .707zM4.464 4.465a.5.5.0 01-.707.0L2.343 3.05a.5.5.0 11.707-.707l1.414 1.414a.5.5.0 010 .708z"/></symbol></svg>
+<button class="btn btn-link nav-link dropdown-toggle d-flex align-items-center" id=bd-theme type=button aria-expanded=false data-bs-toggle=dropdown aria-label="Toggle theme (auto)">
+<svg class="bi my-1 theme-icon-active"><use href="#circle-half"/></svg></button><ul class=dropdown-menu aria-labelledby=bd-theme><li><button type=button class="dropdown-item d-flex align-items-center" data-bs-theme-value=light aria-pressed=false>
+<svg class="bi me-2 opacity-50"><use href="#sun-fill"/></svg>
+Light
+<svg class="bi ms-auto d-none"><use href="#check2"/></svg></button></li><li><button type=button class="dropdown-item d-flex align-items-center" data-bs-theme-value=dark aria-pressed=false>
+<svg class="bi me-2 opacity-50"><use href="#moon-stars-fill"/></svg>
+Dark
+<svg class="bi ms-auto d-none"><use href="#check2"/></svg></button></li><li><button type=button class="dropdown-item d-flex align-items-center active" data-bs-theme-value=auto aria-pressed=true>
+<svg class="bi me-2 opacity-50"><use href="#circle-half"/></svg>
+Auto
+<svg class="bi ms-auto d-none"><use href="#check2"/></svg></button></li></ul></div></li></ul><div class="scroll-indicator scroll-right"></div></div><div class="td-navbar__search d-none d-lg-block"><div class="td-search td-search--offline"><div class=td-search__icon></div><input type=search name=q class="td-search__input form-control" placeholder='Search this site…' aria-label='Search this site…' autocomplete=off data-offline-search-index-json-src=/aibox/v1.x/offline-search-index.126369baeeefe551fa3ba814d46ee6e6.json data-offline-search-base-href=/ data-offline-search-max-results=25></div></div></div></nav></header><div class="container-fluid td-outer"><div class=td-main><div class="row flex-xl-nowrap"><main class="col-12 col-md-9 col-xl-8 ps-md-5" role=main><div class=td-content><div class="pageinfo pageinfo-primary d-print-none"><p>This is the multi-page printable view of this section.
+<a href=# onclick="return print(),!1">Click here to print</a>.</p><p><a href=/aibox/v1.x/docs/contributing/>Return to the regular view of this page</a>.</p></div><h1 class=title>Contributing</h1><ul><li>1: <a href=#pg-8566528a16f14e761aa65d74c448fcc5>Maintenance</a></li><li>2: <a href=#pg-f657492a8d2edb25e6823477d64c464c>E2E Test Catalogue</a></li><li>3: <a href=#pg-adf0d2cd1145865b8af49c2fe979f6bf>Version-line porting</a></li></ul><div class=content><h1 id=contributing>Contributing</h1><p>Thank you for your interest in contributing to aibox!</p><h2 id=getting-started>Getting Started</h2><ol><li><p>Fork and clone the repository:</p><div class=highlight><pre tabindex=0 class=chroma><code class=language-bash data-lang=bash><span class=line><span class=cl>git clone https://github.com/projectious-work/aibox.git
+</span></span><span class=line><span class=cl><span class=nb>cd</span> aibox
+</span></span></code></pre></div></li><li><p>Start the development container:</p><div class=highlight><pre tabindex=0 class=chroma><code class=language-bash data-lang=bash><span class=line><span class=cl><span class=nb>cd</span> .devcontainer
+</span></span><span class=line><span class=cl>docker compose up -d
+</span></span><span class=line><span class=cl>docker compose <span class=nb>exec</span> aibox bash
+</span></span></code></pre></div><p>Or open in VS Code with the Dev Containers extension.</p></li><li><p>Build the CLI:</p><div class=highlight><pre tabindex=0 class=chroma><code class=language-bash data-lang=bash><span class=line><span class=cl><span class=nb>cd</span> cli
+</span></span><span class=line><span class=cl>cargo build
+</span></span></code></pre></div></li><li><p>Run the tests:</p><div class=highlight><pre tabindex=0 class=chroma><code class=language-bash data-lang=bash><span class=line><span class=cl>cargo <span class=nb>test</span>
+</span></span><span class=line><span class=cl>cargo clippy -- -D warnings
+</span></span><span class=line><span class=cl>cargo fmt -- --check
+</span></span></code></pre></div></li></ol><h2 id=project-structure>Project Structure</h2><ul><li><strong><code>cli/</code></strong> — Rust CLI source code</li><li><strong><code>images/</code></strong> — Published container image Dockerfiles</li><li><strong><code>addons/</code></strong> — Addon definitions (language runtimes, tool bundles, AI agents)</li><li><strong><code>docs-site/</code></strong> — Hugo/Docsy documentation source</li><li><strong><code>.devcontainer/</code></strong> — This project&rsquo;s own dev environment</li></ul><blockquote><p>Process content (skills, packages, primitives, processes, the canonical
+<code>AGENTS.md</code>) lives in <strong><a href=https://github.com/projectious-work/processkit>processkit</a></strong>,
+not in this repository. As of v0.16.0 aibox no longer ships a <code>templates/</code>
+directory or a <code>schemas/</code> directory — both have moved upstream to processkit.</p></blockquote><p>See <a href=https://github.com/projectious-work/aibox/blob/main/CLAUDE.md>CLAUDE.md</a> for detailed architecture notes.</p><h2 id=development-workflow>Development Workflow</h2><h3 id=cli-changes>CLI Changes</h3><ol><li>Make your changes in <code>cli/src/</code></li><li>Run <code>cargo test</code> to verify all tests pass</li><li>Run <code>cargo clippy -- -D warnings</code> for lint checks</li><li>Run <code>cargo fmt</code> to format code</li></ol><h3 id=image-changes>Image Changes</h3><ol><li>Edit the relevant Dockerfile in <code>images/</code></li><li>Build locally to verify: <code>docker build -t aibox-test images/&lt;flavor>/</code></li><li>Test that derived images still build if you changed the base</li></ol><h3 id=documentation-changes>Documentation Changes</h3><ol><li>Edit or add pages in <code>docs-site/docs/</code></li><li>Update <code>docs-site/sidebars.js</code> if adding new pages</li><li>Preview locally: <code>./scripts/maintain.sh docs-serve</code></li></ol><h2 id=pull-requests>Pull Requests</h2><ul><li>Keep PRs focused on a single change</li><li>Include a clear description of what and why</li><li>Ensure all tests pass and clippy is clean</li><li>Update documentation if your change affects user-facing behavior</li></ul><h2 id=reporting-issues>Reporting Issues</h2><p>File issues at <a href=https://github.com/projectious-work/aibox/issues>github.com/projectious-work/aibox/issues</a>.</p><p>When filing an issue, please:</p><ul><li>Use a descriptive title</li><li>Label it: <code>bug</code> for broken behavior, <code>enhancement</code> for feature requests, <code>documentation</code> for doc gaps</li><li>Include steps to reproduce (for bugs) or a use case description (for enhancements)</li><li>Mention the aibox version (<code>aibox --version</code>) and container image flavor if relevant</li></ul></div></div><div class=td-content style=page-break-before:always><h1 id=pg-8566528a16f14e761aa65d74c448fcc5>1 - Maintenance</h1><h1 id=maintenance>Maintenance</h1><p>Internal procedures for building, testing, documenting, and releasing aibox.
+The canonical step-by-step release note remains in <code>context/notes/</code>; this page
+is the public contributor summary.</p><h2 id=development-checks>Development Checks</h2><div class=highlight><pre tabindex=0 class=chroma><code class=language-bash data-lang=bash><span class=line><span class=cl><span class=nb>cd</span> cli <span class=o>&amp;&amp;</span> cargo fmt -- --check
+</span></span><span class=line><span class=cl><span class=nb>cd</span> cli <span class=o>&amp;&amp;</span> cargo clippy --all-targets -- -D warnings
+</span></span><span class=line><span class=cl><span class=nb>cd</span> cli <span class=o>&amp;&amp;</span> cargo <span class=nb>test</span>
+</span></span></code></pre></div><p>The helper script wraps the same checks:</p><div class=highlight><pre tabindex=0 class=chroma><code class=language-bash data-lang=bash><span class=line><span class=cl>./scripts/maintain.sh <span class=nb>test</span>
+</span></span></code></pre></div><h2 id=documentation-site>Documentation Site</h2><p>The public docs live in <code>docs-site/</code> and use Hugo with the Docsy theme.</p><div class=highlight><pre tabindex=0 class=chroma><code class=language-bash data-lang=bash><span class=line><span class=cl>git submodule update --init --recursive docs-site/themes/docsy
+</span></span><span class=line><span class=cl>npm --prefix docs-site ci
+</span></span><span class=line><span class=cl>./scripts/maintain.sh docs-serve
+</span></span><span class=line><span class=cl>./scripts/build-docs.sh
+</span></span></code></pre></div><p><code>./scripts/build-docs.sh</code> is the local verification build. It writes the static
+site to <code>docs-site/public/</code> and prints Hugo render warnings.</p><p>The maintenance script also exposes:</p><div class=highlight><pre tabindex=0 class=chroma><code class=language-bash data-lang=bash><span class=line><span class=cl>./scripts/maintain.sh docs-serve
+</span></span><span class=line><span class=cl>./scripts/maintain.sh docs-deploy --dry-run
+</span></span><span class=line><span class=cl>./scripts/maintain.sh docs-deploy
+</span></span></code></pre></div><p><code>docs-deploy</code> builds the site and pushes the static output to the <code>gh-pages</code>
+branch from the local checkout. It does not use GitHub Actions. Use
+<code>--dry-run</code> to validate the production build without pushing; use the command
+without that flag only when the current checkout is the source that should be
+published. The release script runs the same deployment as part of the
+container-side release phase.</p><p>Use the repository maintenance command for publication rather than
+<code>npm run deploy</code>. The maintenance command preserves the project&rsquo;s local-only
+release flow, publishes the already configured <code>/aibox/</code> site, and ensures
+GitHub Pages serves the <code>gh-pages</code> branch.</p><h2 id=published-image>Published Image</h2><p>aibox publishes the base Debian image used by generated downstream projects:</p><div class=highlight><pre tabindex=0 class=chroma><code class=language-bash data-lang=bash><span class=line><span class=cl>./scripts/maintain.sh build-images
+</span></span><span class=line><span class=cl>./scripts/maintain.sh build-images --no-cache
+</span></span><span class=line><span class=cl>./scripts/maintain.sh push-images X.Y.Z
+</span></span></code></pre></div><p>Generated project images are built per project by <code>aibox apply</code>. They are not
+published from this repository.</p><h2 id=release-boundary>Release Boundary</h2><p>Releases are intentionally split:</p><table><thead><tr><th>Phase</th><th>Where</th><th>Command</th><th>Purpose</th></tr></thead><tbody><tr><td>Container side</td><td>aibox devcontainer</td><td><code>./scripts/maintain.sh release X.Y.Z</code></td><td>check dependency/harness state, sync processkit default, bump CLI version, test, audit, build Linux binaries, tag, create GitHub release, deploy docs</td></tr><tr><td>Host side</td><td>macOS host</td><td><code>./scripts/maintain.sh release-host X.Y.Z</code></td><td>build macOS binaries, upload them to the release, build and push GHCR images, run the generated-runtime smoke, then refresh repo-owned runtime surfaces</td></tr></tbody></table><p>Both phases run locally. The project deliberately does not use GitHub Actions
+for release validation, artifact builds, image publication, or deployment.
+Release speed comes from bounded local concurrency, persistent caches, and
+reuse of evidence for the exact release commit rather than from moving gates to
+a hosted runner.</p><h2 id=version-line-branches>Version-line branches</h2><p>Long-lived branches are protected: direct pushes, force-pushes, and deletion
+are disabled; changes arrive through pull requests with resolved conversations.
+No GitHub Actions or required hosted checks are used.</p><table><thead><tr><th>Line</th><th>Development</th><th>Release authority</th><th>Purpose</th></tr></thead><tbody><tr><td>v0 maintenance</td><td><code>v0.x-dev</code></td><td><code>v0.x-release</code></td><td>Stable v0 releases and hotfixes</td></tr><tr><td>v1 prerelease</td><td><code>v1.x-dev</code></td><td><code>v1.x-pre-release</code></td><td>Alpha, beta, and release-candidate tags</td></tr><tr><td>v1 GA</td><td><code>v1.x-dev</code></td><td><code>v1.x-release</code> (created at GA)</td><td>Stable v1 releases</td></tr></tbody></table><p><code>main</code> is the published-history branch. After a tag is cut on its designated
+release branch, merge that branch into <code>main</code> through a pull request. Apply or
+verify the policy from an administrator checkout with:</p><div class=highlight><pre tabindex=0 class=chroma><code class=language-bash data-lang=bash><span class=line><span class=cl>./scripts/configure-branch-protection.sh
+</span></span></code></pre></div><p>Do not create GitHub releases by hand with <code>gh release create</code>. The release
+script attaches binaries and writes the release notes expected by users.</p><h2 id=container-side-release>Container-Side Release</h2><div class=highlight><pre tabindex=0 class=chroma><code class=language-bash data-lang=bash><span class=line><span class=cl>./scripts/maintain.sh release X.Y.Z
+</span></span></code></pre></div><p>This command requires a clean working tree. It may stop after
+<code>sync-processkit</code> if a newer processkit release changes the pinned default and
+the CLI needs review before release.</p><p>The command performs:</p><ul><li>dependency, addon, image, and harness state report in <code>dist/RELEASE-STATE.md</code></li><li>processkit and host-context aibox doctor runs in <code>dist/RELEASE-DOCTORS.md</code>;
+doctor errors block the release and warnings remain visible for review</li><li>processkit release sync check</li><li><code>cli/Cargo.toml</code> and <code>Cargo.lock</code> version bump when needed</li><li>format, Clippy, and test checks</li><li>Tier 2 SSH companion E2E tests, including generated runtime and visual
+asciinema probes</li><li><code>cargo audit</code></li><li><code>cargo update --dry-run</code> review for lockfile-resolvable crate updates</li><li>Linux release builds for <code>aarch64-unknown-linux-gnu</code> and
+<code>x86_64-unknown-linux-gnu</code></li><li>binary version smoke check</li><li>annotated git tag push</li><li>GitHub release creation with Linux binaries</li><li>Hugo/Docsy docs deployment</li><li><code>dist/RELEASE-PROMPT.md</code> for host-side completion</li></ul><p>Independent validation gates run concurrently. The default worker limit is
+two; set <code>AIBOX_RELEASE_PARALLELISM</code> to a positive integer that fits the local
+machine. Linux release targets build concurrently inside the build gate, and
+the version smoke reuses the matching release artifact instead of compiling a
+third binary.</p><p>Successful gates write local evidence under
+<code>dist/release-evidence/vX.Y.Z/&lt;commit>/</code>. Evidence is bound to the exact commit,
+Rust toolchain, clean-tree state, release phase, and gate-specific environment.
+Companion evidence includes the companion fingerprint, audit evidence expires
+daily, and binary evidence rechecks archive checksums. Set
+<code>AIBOX_RELEASE_REUSE_EVIDENCE=0</code> to force every selected gate to run again.
+Container-side timings are written to <code>dist/RELEASE-TIMINGS.md</code>.</p><p>Run <code>./scripts/maintain.sh release-check-state</code> standalone when you want the
+dependency and tool-state report without bumping, tagging, or building. Run
+<code>./scripts/maintain.sh release-doctors</code> for the matching diagnostic report.</p><p>If a report finding is deferred, create a processkit WorkItem before continuing
+the release and mention that WorkItem ID in the release notes or handover.
+For <code>cargo update --dry-run</code>, either apply available crate updates in the
+release with full validation, or create a WorkItem for the deferred
+crate-update pass.</p><h2 id=host-side-release>Host-Side Release</h2><p>Run this on the macOS host after the container-side release succeeds. Sync the
+matching version-line release branch first; the container-side release may have
+pushed tag-prep commits from another clone. For a v0 release:</p><div class=highlight><pre tabindex=0 class=chroma><code class=language-bash data-lang=bash><span class=line><span class=cl>git fetch origin v0.x-release
+</span></span><span class=line><span class=cl>git switch v0.x-release
+</span></span><span class=line><span class=cl>git reset --keep origin/v0.x-release
+</span></span><span class=line><span class=cl>./scripts/maintain.sh release-host X.Y.Z
+</span></span></code></pre></div><p><code>release-host</code> derives the protected release branch from the version:
+<code>v0.x-release</code> for v0, <code>v1.x-pre-release</code> for v1 prereleases, and
+<code>v1.x-release</code> for v1 GA. It fetches only that branch and the requested tag,
+then verifies that the tag is reachable from the branch before building.</p><p>This phase builds Darwin binaries, uploads them to the existing GitHub release,
+pushes GHCR images, then runs a fresh downstream-style runtime smoke against
+the pushed release tag. The smoke creates a temporary project, runs
+<code>aibox init</code> and <code>aibox apply --no-cache --standardize-config</code>, starts the
+generated container, probes Yazi, the aibox status helper, tmux state, and the
+diagnostics sidecar, and writes a bundle to
+<code>dist/release-smoke/vX.Y.Z/&lt;timestamp>/</code>.
+By default, this smoke runs with <code>AIBOX_RELEASE_SMOKE_TIER=addons</code>, so <code>git-ui</code>
+(<code>lazygit</code>) startup is exercised in addition to the core runtime contract.
+It is host-side because macOS binaries and host runtime access are not
+available from the Linux devcontainer.</p><p>The two macOS targets build concurrently. The host release also overlaps that
+build lane with source-hash-aware image reuse or publication, then joins both
+lanes before uploading binaries and starting the runtime smoke. Healthy tmux
+smoke probes advance on observed session, window, pane, and status readiness;
+their timeouts are failure ceilings rather than fixed delays. Host timings are
+written to <code>dist/RELEASE-HOST-TIMINGS.md</code>.</p><p>The Linux-side Tier 2 E2E companion is separate from this host phase. From the
+devcontainer, verify that companion over SSH/SCP; do not use local
+Docker/Podman availability in the main devcontainer as the reachability check.</p><p><code>release-doctors</code> is an aibox CLI development exception to the normal
+host/container diagnostic split. Inside the workspace container, ordinary
+dogfood diagnostics use <code>pk-doctor</code>; <code>aibox doctor</code> is host-side. During release
+Phase 0, however, <code>./scripts/maintain.sh release-doctors</code> runs <code>aibox doctor</code>
+as a host-context simulation so the CLI&rsquo;s host diagnostic behavior remains
+gated.</p><h2 id=verification>Verification</h2><p>After release:</p><ul><li><code>gh release view vX.Y.Z</code> shows all expected binary assets.</li><li><code>curl -fsSL https://raw.githubusercontent.com/projectious-work/aibox/main/scripts/install.sh | VERSION=X.Y.Z bash</code> installs the expected version.</li><li><code>aibox --version</code> reports <code>X.Y.Z</code>.</li><li>For <code>v0.26.x</code>, <code>docker pull ghcr.io/projectious-work/aibox:base-debian-vX.Y.Z</code> or the matching Podman pull succeeds.</li><li>For <code>v0.27.0+</code>, <code>docker pull ghcr.io/projectious-work/aibox:base-debian-runtime-vX.Y.Z</code> and <code>base-debian-runtime-latest</code> succeed. Foundation images are published as <code>base-debian-foundation-vX.Y.Z</code>; source-hash marker tags are not published.</li><li>To remove historical source-hash marker tags from GHCR, first run <code>./scripts/maintain.sh ghcr-prune-source-tags --repair-mixed</code> and review the mixed-version repair plan. Then run <code>./scripts/maintain.sh ghcr-prune-source-tags --repair-mixed --execute</code> with <code>read:packages</code>, <code>delete:packages</code>, and Docker Buildx available on the host.</li><li>The docs site at <code>https://projectious-work.github.io/aibox/</code> reflects the release.</li></ul><h2 id=project-devcontainer>Project Devcontainer</h2><p>The maintenance script can also operate this repository&rsquo;s own devcontainer:</p><div class=highlight><pre tabindex=0 class=chroma><code class=language-bash data-lang=bash><span class=line><span class=cl>./scripts/maintain.sh start
+</span></span><span class=line><span class=cl>./scripts/maintain.sh status
+</span></span><span class=line><span class=cl>./scripts/maintain.sh attach
+</span></span><span class=line><span class=cl>./scripts/maintain.sh stop
+</span></span></code></pre></div><p>Do not confuse <code>.devcontainer/</code> in this repository with <code>images/</code>. The former
+is the environment used to develop aibox. The latter contains image recipes
+published for downstream projects.</p></div><div class=td-content style=page-break-before:always><h1 id=pg-f657492a8d2edb25e6823477d64c464c>2 - E2E Test Catalogue</h1><h1 id=e2e-test-catalogue>E2E Test Catalogue</h1><p>This page describes every end-to-end and integration test in <code>cli/tests/e2e/</code>
+in plain language. Each entry states the precondition and the expected outcome,
+followed by a reference to the exact test function for traceability.</p><h2 id=test-tiers>Test tiers</h2><table><thead><tr><th>Tier</th><th>Where it runs</th><th>What it needs</th></tr></thead><tbody><tr><td><strong>Tier 1</strong></td><td>Local temp directory</td><td>The compiled <code>aibox</code> binary only</td></tr><tr><td><strong>Tier 1 + Mock</strong></td><td>Local temp directory</td><td>Binary + mock <code>docker</code>/<code>podman</code> scripts on PATH</td></tr><tr><td><strong>Tier 2</strong></td><td>Remote SSH companion</td><td><code>aibox-e2e-testrunner</code> container reachable (feature flag <code>e2e</code>)</td></tr></tbody></table><p>Tier 1 tests run automatically with <code>cargo test</code>. Tier 2 tests require the
+companion container and the <code>--features e2e</code> flag. The expensive visual matrix
+tests are opt-in and are not included in the default Tier 2 command.</p><p>From inside the aibox devcontainer, the companion is a remote SSH target, not a
+local Docker/Podman dependency. Check it with:</p><div class=highlight><pre tabindex=0 class=chroma><code class=language-bash data-lang=bash><span class=line><span class=cl>ssh -i /workspace/.aibox-e2e-runner-home/.ssh/id_ed25519 testuser@aibox-e2e-testrunner <span class=s1>&#39;echo ok&#39;</span>
+</span></span></code></pre></div><p>Missing <code>docker</code> or <code>podman</code> in the main devcontainer does not mean Tier 2
+cannot talk to the companion. The tests deploy the current <code>aibox</code> binary and
+addons with SCP, then use the companion&rsquo;s own runtime for lifecycle checks.</p><h2 id=aibox-commands-inside-the-devcontainer><code>aibox</code> commands inside the devcontainer</h2><p>In normal dogfood use, the workspace container is the processkit/runtime side of
+the project: run <code>pk-doctor</code> there. <code>aibox doctor</code> is a host-side diagnostic and
+should not be used from inside the container to judge the live dogfood project.
+It still can run inside containers when that container is intentionally
+simulating a host environment for CLI development.</p><p>The aibox repository has deliberate exceptions because it develops the <code>aibox</code>
+CLI. Those exceptions simulate host-user behavior in controlled test projects:</p><ul><li>Tier 1 tests run <code>aibox init</code>, <code>aibox apply</code>, <code>aibox doctor</code>, and related
+commands in temporary directories, usually without starting containers.</li><li>Tier 1 mock tests put fake <code>docker</code>/<code>podman</code> scripts on <code>PATH</code> to verify host
+runtime behavior without requiring a real runtime in the main devcontainer.</li><li>Tier 2 tests deploy the current binary to <code>aibox-e2e-testrunner</code> over SSH and
+may run <code>aibox apply</code>, <code>aibox up</code>, or <code>aibox doctor</code> there because the
+companion owns the nested container runtime for the test.</li><li>Release Phase 0 runs <code>./scripts/maintain.sh release-doctors</code>, which invokes
+<code>aibox doctor</code> as an explicit host-context simulation.</li></ul><p>Use these exceptions only in aibox CLI development/release harnesses. They are
+not general dogfood escape hatches.</p><p>The container-side release command runs Tier 2 as part of Phase 1 with
+<code>cargo test --features e2e --test e2e</code>, so the SSH companion, generated
+runtime probes, and non-ignored asciinema checks are release gates.
+Tier 1 modules are excluded from feature-enabled test binaries because the
+default <code>cargo test</code> invocation already covers them.
+The default Tier 2 suite intentionally performs only one full generated
+container build/start/probe. File-generation contracts use <code>--no-container</code>,
+and <code>./scripts/maintain.sh test-e2e</code> removes only E2E-owned containers,
+networks, volumes, and workspaces before and after the suite. Images and
+BuildKit caches survive for later runs.</p><p>The suite defaults to four test threads. Workspace-isolated tests run in
+parallel, while tests that mutate the companion runtime and tests that own
+interactive tmux/Yazi state use separate keyed serialization lanes. Override
+the worker count with <code>AIBOX_E2E_TEST_THREADS</code>; use <code>1</code> when diagnosing ordering
+or isolation failures.</p><p>The release process also has a host-side generated-runtime smoke:
+<code>./scripts/maintain.sh release-runtime-smoke X.Y.Z</code>. It is not an SSH
+companion test; it runs on the macOS host during <code>release-host</code>, creates a
+fresh downstream-style project, runs <code>aibox init</code> and
+<code>aibox apply --standardize-config</code>, starts the generated container, probes
+tmux-native status output and the diagnostics sidecar, and writes logs under
+<code>dist/release-smoke/vX.Y.Z/</code>. The default <code>AIBOX_RELEASE_SMOKE_TIER=addons</code>
+includes <code>git-ui</code> (<code>lazygit</code>) probes. Use <code>minimal</code> only for a quicker
+non-addon pass, or <code>full</code> to include preview addons and force <code>--no-cache</code>.</p><h3 id=opt-in-visual-e2e>Opt-in visual E2E</h3><p>Use these commands when the release diff touches generated runtime visuals or
+when the periodic full visual sweep is due:</p><table><thead><tr><th>Command</th><th>Covers</th></tr></thead><tbody><tr><td><code>./scripts/maintain.sh test-e2e-visual-status</code></td><td>all generated layouts across all themes, tmux status/key rows, and theme RGB signatures</td></tr><tr><td><code>./scripts/maintain.sh test-e2e-visual-tabs</code></td><td>tmux window traversal, Yazi surface, Vim, shell, lazygit, and every enabled AI harness</td></tr><tr><td><code>./scripts/maintain.sh test-e2e-visual-yazi</code></td><td>Yazi preview plugins, optional preview tools, git symbols, and preview modes</td></tr><tr><td><code>./scripts/maintain.sh test-e2e-visual</code></td><td>all visual tiers</td></tr><tr><td><code>./scripts/maintain.sh test-e2e-doc-captures</code></td><td>all visual tiers plus <code>.cast</code>, <code>.screen.txt</code>, tmux log, and metadata artifacts under <code>docs-site/static/img/e2e/</code></td></tr></tbody></table><p>Set <code>AIBOX_E2E_VISUAL_ARTIFACT_DIR</code> to write documentation capture artifacts
+elsewhere. The artifacts are intended as source material for current-release
+website screenshots and screencasts.</p><hr><h2 id=lifecycle--lifecyclers>Lifecycle — <code>lifecycle.rs</code></h2><p><strong>Companion is reachable</strong>
+If the SSH connection to <code>aibox-e2e-testrunner</code> is attempted, then the host
+must respond with <code>ok</code>, confirming the companion container is up and reachable
+before any other Tier 2 test runs. The test also asserts that the companion
+image has the expected tmux and Yazi tools for the visual/runtime tests; stale
+companion images fail here with a rebuild hint.
+<code>[lifecycle.rs · companion_is_reachable]</code></p><p><strong>Init then apply produces valid project</strong>
+If <code>aibox init</code> is run followed by <code>aibox apply</code>, then
+<code>aibox.toml</code>, <code>.devcontainer/Dockerfile</code>, <code>.devcontainer/docker-compose.yml</code>,
+and <code>CLAUDE.md</code> must all exist in the workspace.
+<code>[lifecycle.rs · lifecycle_init_apply]</code></p><p><strong>Generated container starts</strong>
+If a fresh project is initialized, applied, and the generated Compose service is
+started on the companion runtime, then the running container must expose
+<code>/etc/aibox-version</code>, tmux, Yazi, and valid <code>aibox-status --plugin-json</code>
+output.
+<code>[lifecycle.rs · lifecycle_apply_starts_generated_container]</code></p><p><strong>CLAUDE.md user content is preserved on apply</strong>
+If a user edits <code>CLAUDE.md</code> after <code>aibox init</code> and then runs <code>aibox apply</code>,
+then the edited content must still be present — aibox must not overwrite
+user-modified files.
+<code>[lifecycle.rs · claudemd_preserved_on_sync]</code></p><p><strong>Generated files are overwritten on apply</strong>
+If a generated file (e.g. <code>.devcontainer/Dockerfile</code>) is manually tampered
+with and <code>aibox apply</code> is run, then the file must contain regenerated content
+and the tampered content must be gone.
+<code>[lifecycle.rs · generated_files_overwritten_on_sync]</code></p><p><strong>Status reports missing when no container exists</strong>
+If <code>aibox get runtime</code> is run in a project with no running container, then the
+output must contain <code>missing</code> or equivalent wording.
+<code>[lifecycle.rs · status_without_container_shows_missing]</code></p><p><strong>Default processkit mode writes the project skeleton</strong>
+If <code>aibox init --harness claude</code> is run, then the slim project skeleton must
+exist: <code>aibox.toml</code>, an empty <code>context/</code> directory, <code>AGENTS.md</code>, and the thin
+provider pointer files for enabled harnesses. This is the default processkit
+mode, so a later <code>aibox apply</code> with a real <code>[processkit].version</code> can install
+processkit content under <code>context/</code>. The single-file context tracks
+(<code>BACKLOG.md</code>, <code>DECISIONS.md</code>, <code>STANDUPS.md</code>) are <strong>not</strong> scaffolded by <code>init</code>
+— the corresponding processkit skills create entities in place on first use.
+<code>[lifecycle.rs · init_with_managed_preset_creates_context_files]</code></p><p><strong>Legacy processkit package selection is recorded in aibox.toml</strong>
+If <code>aibox init --context software</code> is run, then the same processkit-mode
+project skeleton must exist and the package selection is recorded under
+<code>[context].packages</code>. The <code>--context &lt;PKG></code> option is retained as a hidden
+legacy package selector; new flows should use <code>[context].mode</code> for the context
+backend and <code>[skills]</code> for explicit processkit skill selection.
+<code>[lifecycle.rs · init_with_software_preset_creates_code_files]</code></p><hr><h2 id=addon-management--addonrs>Addon management — <code>addon.rs</code></h2><p><strong>Addon add writes to aibox.toml</strong>
+If <code>aibox set addon python</code> is run in an initialized project, then
+<code>aibox.toml</code> must contain an <code>[addons.python]</code> section afterwards.
+<code>[addon.rs · set_addon_modifies_toml]</code></p><p><strong>Addon remove cleans aibox.toml</strong>
+If a project is initialized with the <code>python</code> addon and then <code>aibox delete addon python</code> is run, then the <code>[addons.python]</code> section must no
+longer appear in <code>aibox.toml</code>.
+<code>[addon.rs · delete_addon_cleans_toml]</code></p><p><strong>Addon content appears in generated Dockerfile after apply</strong>
+If a project is initialized with the <code>python</code> addon and <code>aibox apply</code> is run,
+then <code>.devcontainer/Dockerfile</code> must contain Python-related content (install
+commands or references to <code>uv</code>).
+<code>[addon.rs · addon_rebuild_includes_tools_in_dockerfile]</code></p><p><strong>Addon list shows available addons</strong>
+If <code>aibox get addon</code> is run in an initialized project, then the output must
+list known addons such as <code>python</code>.
+<code>[addon.rs · addon_list_shows_available]</code></p><hr><h2 id=reset-and-backup--resetrs>Reset and backup — <code>reset.rs</code></h2><p><strong>Reset with backup removes files and creates backup directory</strong>
+If <code>aibox reset project --yes</code> is run in an initialized project, then <code>aibox.toml</code>
+must be deleted and <code>.aibox/backup/</code> must be created containing the backed-up
+files.
+<code>[reset.rs · reset_creates_backup]</code></p><p><strong>Reset with &ndash;no-backup removes all files without creating a backup</strong>
+If <code>aibox reset project --no-backup --yes</code> is run, then <code>aibox.toml</code> and
+<code>.devcontainer/</code> must be deleted and <code>.aibox/backup/</code> must not be created.
+<code>[reset.rs · reset_no_backup_deletes_all]</code></p><hr><h2 id=doctor-diagnostics--doctorrs>Doctor diagnostics — <code>doctor.rs</code></h2><p><strong>Doctor without a config reports an error</strong>
+If <code>aibox doctor</code> is run in a directory that has no <code>aibox.toml</code>, then the
+output must mention the missing config or config error and the command must
+still exit 0 (doctor is always non-fatal).
+<code>[doctor.rs · doctor_reports_missing_files]</code></p><p><strong>Doctor after init reports healthy checks</strong>
+If <code>aibox doctor</code> is run immediately after a successful <code>aibox init</code>, then
+the output must contain at least one passing check indicator (<code>ok</code>, <code>✓</code>, or
+similar).
+<code>[doctor.rs · doctor_after_init_reports_healthy]</code></p><hr><h2 id=version-upgrade-flows--version_upgraders>Version upgrade flows — <code>version_upgrade.rs</code></h2><p><strong>Generated Dockerfile contains version label</strong>
+If <code>aibox init</code> is run, then the generated <code>.devcontainer/Dockerfile</code> must
+contain a <code>LABEL aibox.version</code> line so the built image carries a
+machine-readable version stamp.
+<code>[version_upgrade.rs · dockerfile_contains_aibox_version_label]</code></p><p><strong>Generated Dockerfile writes version to /etc/aibox-version</strong>
+If <code>aibox init</code> is run, then the generated <code>.devcontainer/Dockerfile</code> must
+contain a <code>RUN</code> statement that writes to <code>/etc/aibox-version</code> inside the
+image, making the build version queryable from within a running container.
+<code>[version_upgrade.rs · dockerfile_contains_etc_aibox_version_write]</code></p><p><strong>Up fails when container image version mismatches config</strong>
+If an existing container was built from image <code>v0.0.1</code> (mock label) and
+<code>aibox.toml</code> pins the current version, then <code>aibox up</code> must exit non-zero
+and output a message containing <code>mismatch</code> and a suggestion to run
+<code>aibox apply</code>.
+<code>[version_upgrade.rs · start_fails_on_image_version_mismatch]</code></p><p><strong>Up succeeds when container image version matches config</strong>
+If an existing container reports the same image version as the one pinned in
+<code>aibox.toml</code>, then <code>aibox up</code> must not produce a version mismatch error.
+<code>[version_upgrade.rs · start_does_not_error_when_versions_match]</code></p><p><strong>Update -y exits zero without hanging</strong>
+If <code>aibox self update -y</code> is run (the global <code>--yes</code> flag), then the command must
+exit 0 regardless of registry availability — confirming the flag is correctly
+wired to <code>cmd_update</code> and does not block on an interactive prompt.
+<code>[version_upgrade.rs · update_yes_flag_exits_zero]</code></p><p><strong>Update &ndash;dry-run does not mention .aibox-version</strong>
+If <code>aibox self update --dry-run</code> is run, then the output must not contain the
+phrase <code>Would update .aibox-version</code> — that write was removed in BACK-060
+because the image version is now tracked exclusively in <code>aibox.toml</code>.
+<code>[version_upgrade.rs · update_dry_run_does_not_mention_aibox_version_file]</code></p><p><strong>Doctor warns when running container has a stale image label</strong>
+If the running container reports <code>aibox.version=0.0.1</code> (mock label) but
+<code>aibox.toml</code> pins the current version, then <code>aibox doctor</code> must emit a
+warning containing <code>mismatch</code> while still exiting 0.
+<code>[version_upgrade.rs · doctor_warns_on_container_version_mismatch]</code></p><p><strong>Doctor warns when .aibox-version is outdated</strong>
+If <code>.aibox-version</code> is overwritten with <code>0.0.1</code> (an old CLI version) and
+<code>aibox doctor</code> is run, then the output must contain <code>CLI version mismatch</code>
+and suggest running <code>aibox apply</code> to update generated files.
+<code>[version_upgrade.rs · doctor_warns_on_cli_version_file_mismatch]</code></p><hr><h2 id=migration--migrationrs>Migration — <code>migration.rs</code></h2><p><strong>Apply absorbs legacy .aibox-version into aibox.lock</strong>
+If <code>.aibox-version</code> is overwritten with <code>0.1.0</code> (an old version) and
+<code>aibox apply</code> is run, then <code>.aibox-version</code> must be removed and <code>aibox.lock</code>
+must contain the current <code>[aibox].cli_version</code> sync state.
+<code>[migration.rs · apply_absorbs_legacy_version_file_into_lock]</code></p><hr><h2 id=update-command--updaters>Update command — <code>update.rs</code></h2><p><strong>Update exits zero when registry returns an error</strong>
+If <code>aibox self update</code> is run in a project where the GHCR registry is unreachable
+or returns a non-2xx response, then the command must still exit 0 — the error
+must be treated as a warning, not a hard failure.
+<code>[update.rs · update_runs_without_crashing_in_derived_project]</code></p><p><strong>Update &ndash;check exits zero</strong>
+If <code>aibox self update --check</code> is run in an initialized project, then the command
+must exit 0 and print output containing either <code>Current CLI version:</code> or
+<code>Checking for updates</code>, regardless of whether the registry is reachable.
+<code>[update.rs · update_check_exits_cleanly]</code></p><hr><h2 id=appearance--appearancers>Appearance — <code>appearance.rs</code></h2><p><strong>All themes render without error and without leftover placeholders</strong>
+If <code>aibox init</code> is run for each of the seven supported themes
+(<code>gruvbox-dark</code>, <code>catppuccin-mocha</code>, <code>catppuccin-latte</code>, <code>dracula</code>,
+<code>tokyo-night</code>, <code>nord</code>, <code>projectious</code>), then the seeded config files must
+contain no unreplaced template placeholders such as <code>AIBOX_THEME</code> or
+<code>AIBOX_VIM_COLORSCHEME</code>.
+<code>[appearance.rs · all_themes_render_without_error]</code></p><p><strong>Gruvbox theme sets the correct vim colorscheme and tmux theme</strong>
+If <code>aibox init --theme gruvbox-dark</code> is run, then <code>vimrc</code> must contain
+<code>gruvbox</code> or <code>retrobox</code> as the colorscheme and <code>tmux.conf</code> must reference
+<code>gruvbox-dark</code>.
+<code>[appearance.rs · theme_gruvbox_renders_correctly]</code></p><p><strong>Catppuccin-mocha theme is reflected in tmux config</strong>
+If <code>aibox init --theme catppuccin-mocha</code> is run, then <code>tmux.conf</code> must
+reference <code>catppuccin-mocha</code>.
+<code>[appearance.rs · theme_catppuccin_mocha_renders]</code></p><p><strong>Changing the theme updates all themed tool configs</strong>
+If a project is initialized with <code>gruvbox-dark</code> and the theme is changed to
+<code>dracula</code> via <code>aibox apply</code>, then <code>tmux.conf</code> must contain <code>dracula</code> and no
+longer <code>gruvbox-dark</code>, and <code>vimrc</code>, <code>yazi/theme.toml</code>, and <code>starship.toml</code>
+must be updated. Lazygit config is optional and is checked only when the
+<code>git-ui</code> addon enables it.
+<code>[appearance.rs · theme_change_auto_applies_untouched_runtime_files]</code></p><p><strong>Each theme produces matching configs across all tools</strong>
+If <code>aibox init</code> is run for each of five themes with known vim colorscheme
+names, then <code>vimrc</code> must contain the exact <code>colorscheme &lt;name></code> line,
+<code>tmux.conf</code> must reference the theme name, yazi and starship configs must
+be non-empty, and lazygit config must be non-empty when present.
+<code>[appearance.rs · theme_alignment_all_tools_match_selected_theme]</code></p><p><strong>Yazi keymap includes the open-in-editor binding</strong>
+If <code>aibox init</code> is run, then <code>yazi/keymap.toml</code> must contain an <code>"e"</code> key
+binding that invokes <code>open-in-editor</code>.
+<code>[appearance.rs · yazi_keymap_includes_edit_in_pane_binding]</code></p><p><strong>All prompt presets produce a non-empty starship config</strong>
+If <code>aibox init</code> is run for each prompt preset (<code>default</code>, <code>plain</code>,
+<code>minimal</code>, <code>nerd-font</code>, <code>pastel</code>, <code>powerline-pastel</code>, <code>bracketed</code>, <code>arrow</code>), then
+<code>starship.toml</code> must exist and be non-empty.
+<code>[appearance.rs · all_prompts_render_without_error]</code></p><p><strong>Default prompt includes directory and git_branch modules</strong>
+If <code>aibox init --prompt default</code> is run, then <code>starship.toml</code> must contain
+both <code>directory</code> and <code>git_branch</code> module sections.
+<code>[appearance.rs · prompt_default_generates_starship]</code></p><p><strong>Plain prompt uses ASCII-only symbols</strong>
+If <code>aibox init --prompt plain</code> is run, then <code>starship.toml</code> must not contain
+Nerd Font glyph characters (e.g. no <code>\ue0b0</code> powerline arrow).
+<code>[appearance.rs · prompt_plain_no_nerd_font]</code></p><hr><h2 id=config-coverage--config_coveragers>Config coverage — <code>config_coverage.rs</code></h2><p><strong>Container name appears in docker-compose.yml</strong>
+If <code>aibox.toml</code> specifies a container name and <code>aibox apply</code> is run, then
+<code>docker-compose.yml</code> must contain that name.
+<code>[config_coverage.rs · container_name_in_compose]</code></p><p><strong>Container hostname appears in docker-compose.yml</strong>
+If <code>aibox.toml</code> specifies a hostname and <code>aibox apply</code> is run, then
+<code>docker-compose.yml</code> must contain that hostname.
+<code>[config_coverage.rs · container_hostname_in_compose]</code></p><p><strong>Port mappings appear in docker-compose.yml</strong>
+If <code>aibox.toml</code> defines ports (e.g. <code>"8080:80"</code>) and <code>aibox apply</code> is run,
+then <code>docker-compose.yml</code> must contain those port entries.
+<code>[config_coverage.rs · container_ports_in_compose]</code></p><p><strong>Extra packages appear in the generated Dockerfile</strong>
+If <code>aibox.toml</code> lists extra packages and <code>aibox apply</code> is run, then
+<code>.devcontainer/Dockerfile</code> must contain those package names in an apt install
+block.
+<code>[config_coverage.rs · container_extra_packages_in_dockerfile]</code></p><p><strong>Environment variables appear in docker-compose.yml</strong>
+If <code>aibox.toml</code> defines environment variables and <code>aibox apply</code> is run, then
+<code>docker-compose.yml</code> must contain those key-value pairs.
+<code>[config_coverage.rs · container_environment_in_compose]</code></p><p><strong>Extra volumes appear in docker-compose.yml</strong>
+If <code>aibox.toml</code> defines extra volume mounts and <code>aibox apply</code> is run, then
+<code>docker-compose.yml</code> must contain those source and target paths.
+<code>[config_coverage.rs · container_extra_volumes_in_compose]</code></p><p><strong>Claude AI provider adds volume mount</strong>
+If <code>aibox.toml</code> lists <code>claude</code> as an AI provider and <code>aibox apply</code> is run,
+then <code>docker-compose.yml</code> must contain a volume mount for the <code>.claude</code>
+config directory.
+<code>[config_coverage.rs · ai_claude_provider_volume_mount]</code></p><p><strong>Aider AI provider adds volume mount</strong>
+If <code>aibox.toml</code> lists <code>aider</code> as an AI provider and <code>aibox apply</code> is run,
+then <code>docker-compose.yml</code> must contain a volume mount for the <code>.aider</code>
+config directory.
+<code>[config_coverage.rs · ai_aider_provider_volume_mount]</code></p><p><strong>Multiple AI providers each add their own volume mounts</strong>
+If <code>aibox.toml</code> lists both <code>claude</code> and <code>gemini</code> as providers and <code>aibox apply</code> is run, then <code>docker-compose.yml</code> must contain volume mounts for both
+<code>.claude</code> and <code>.gemini</code>.
+<code>[config_coverage.rs · ai_multiple_providers_volume_mounts]</code></p><p><strong>Audio enabled adds PulseAudio mounts and socket</strong>
+If <code>aibox.toml</code> enables audio and <code>aibox apply</code> is run, then
+<code>docker-compose.yml</code> must contain audio-related volume mounts or socket
+references.
+<code>[config_coverage.rs · audio_enabled_adds_mounts]</code></p><p><strong>Audio disabled produces no audio mounts</strong>
+If <code>aibox.toml</code> has audio disabled (the default) and <code>aibox apply</code> is run,
+then <code>docker-compose.yml</code> must not contain audio-related content.
+<code>[config_coverage.rs · audio_disabled_no_mounts]</code></p><p><strong>Python addon adds install commands to Dockerfile</strong>
+If <code>aibox.toml</code> includes the <code>python</code> addon and <code>aibox apply</code> is run, then
+<code>.devcontainer/Dockerfile</code> must contain Python install instructions.
+<code>[config_coverage.rs · addon_python_in_dockerfile]</code></p><p><strong>Rust addon adds rustup install to Dockerfile</strong>
+If <code>aibox.toml</code> includes the <code>rust</code> addon and <code>aibox apply</code> is run, then
+<code>.devcontainer/Dockerfile</code> must contain <code>rustup</code> installation instructions.
+<code>[config_coverage.rs · addon_rust_in_dockerfile]</code></p><p><strong>Multiple addons each contribute to the Dockerfile</strong>
+If <code>aibox.toml</code> includes both the <code>python</code> and <code>rust</code> addons and <code>aibox apply</code>
+is run, then <code>.devcontainer/Dockerfile</code> must contain install content for
+both.
+<code>[config_coverage.rs · addon_multiple_in_dockerfile]</code></p><p><strong>Legacy minimal package creates processkit project skeleton</strong>
+If <code>aibox init --context minimal</code> is run, then <code>aibox.toml</code>, <code>aibox.lock</code>,
+an empty <code>context/</code> directory, and a thin <code>CLAUDE.md</code> pointer must exist.
+The single-file context tracks (<code>BACKLOG.md</code>, <code>DECISIONS.md</code>, <code>STANDUPS.md</code>)
+are <strong>not</strong> created at init time — the corresponding processkit skills create
+them in place on first use.</p><p><strong>Default processkit mode is the recommended full context path</strong>
+If <code>aibox init --harness claude</code> is run, then the slim project skeleton must
+exist. With a real <code>[processkit].version</code> pinned, <code>aibox apply</code> then installs
+the selected processkit skill catalogue under <code>context/skills/</code> and the
+immutable upstream snapshot under <code>context/templates/processkit/&lt;version>/</code>.</p><p><strong>Product / research / software packages</strong>
+The legacy processkit packages (<code>minimal</code>, <code>managed</code>, <code>software</code>, <code>research</code>,
+<code>product</code>) are declarative metadata in <code>[context].packages</code> when
+<code>[context].mode = "processkit"</code>. Current projects should prefer explicit
+<code>[skills]</code> selection for installed processkit skills. Harness-only mode ignores
+processkit package and skill selection entirely and does not create processkit
+content or processkit references.</p><hr><h2 id=file-preview--previewrs>File preview — <code>preview.rs</code></h2><p><strong>svg.yazi plugin is seeded into .aibox-home after init</strong>
+If <code>aibox init</code> is run, then
+<code>.aibox-home/.config/yazi/plugins/svg.yazi/init.lua</code> must exist.
+<code>[preview.rs · svg_yazi_plugin_seeded]</code></p><p><strong>eps.yazi plugin is seeded into .aibox-home after init</strong>
+If <code>aibox init</code> is run, then
+<code>.aibox-home/.config/yazi/plugins/eps.yazi/init.lua</code> must exist.
+<code>[preview.rs · eps_yazi_plugin_seeded]</code></p><p><strong>svg.yazi plugin invokes resvg for conversion</strong>
+If <code>svg.yazi/init.lua</code> is read after init, then its content must reference
+<code>resvg</code> as the SVG-to-PNG conversion tool.
+<code>[preview.rs · svg_yazi_plugin_uses_resvg]</code></p><p><strong>eps.yazi plugin invokes ghostscript for conversion</strong>
+If <code>eps.yazi/init.lua</code> is read after init, then its content must reference
+<code>gs</code> (ghostscript) as the EPS-to-PNG conversion tool.
+<code>[preview.rs · eps_yazi_plugin_uses_ghostscript]</code></p><p><strong>yazi.toml has a [plugin] section with prepend_previewers</strong>
+If <code>aibox init</code> is run, then <code>yazi.toml</code> must contain a <code>[plugin]</code> section
+that defines <code>prepend_previewers</code>.
+<code>[preview.rs · yazi_toml_has_plugin_section]</code></p><p>*<em>yazi.toml routes <em>.svg to the svg previewer</em></em>
+If <code>aibox init</code> is run, then <code>yazi.toml</code> must contain a
+<code>prepend_previewers</code> entry matching <code>*.svg</code> with <code>run = "svg"</code>.
+<code>[preview.rs · yazi_toml_svg_previewer_entry]</code></p><p>*<em>yazi.toml routes <em>.eps to the eps previewer</em></em>
+If <code>aibox init</code> is run, then <code>yazi.toml</code> must contain a
+<code>prepend_previewers</code> entry matching <code>*.eps</code> with <code>run = "eps"</code>.
+<code>[preview.rs · yazi_toml_eps_previewer_entry]</code></p><p><strong>SVG and EPS entries appear before built-in image entries</strong>
+If <code>aibox init</code> is run, then the <code>*.svg</code> and <code>*.eps</code> entries in
+<code>prepend_previewers</code> must appear at a lower byte offset than the <code>*.jpg</code>
+entry, ensuring first-match semantics dispatch SVG/EPS to the custom
+plugins rather than the built-in image previewer.
+<code>[preview.rs · yazi_toml_svg_and_eps_precede_builtin_previewers]</code></p><p><strong>sample.svg fixture is valid XML</strong>
+If <code>tests/e2e/fixtures/sample.svg</code> is read, then its content must start
+with <code>&lt;svg</code> or <code>&lt;?xml</code>, confirming the fixture file is intact.
+<code>[preview.rs · fixture_sample_svg_is_valid_xml]</code></p><p><strong>sample.eps fixture has a valid EPS header</strong>
+If <code>tests/e2e/fixtures/sample.eps</code> is read, then its content must start
+with <code>%!PS-Adobe</code> or contain <code>%%BoundingBox</code>, confirming the fixture file
+is intact.
+<code>[preview.rs · fixture_sample_eps_has_eps_header]</code></p><hr><h2 id=generated-runtime--runtime_generatedrs>Generated runtime — <code>runtime_generated.rs</code></h2><p><strong>Generated runtime tools are usable</strong>
+If a fresh project is initialized with git-ui and shell status enabled, then
+<code>aibox apply --no-container --standardize-config</code> must generate Yazi config
+that parses with the pinned Yazi binary, lazygit state directories that permit
+startup, and an <code>aibox-status --plugin-json</code> payload with required fields.
+<code>[runtime_generated.rs · generated_runtime_yazi_lazygit_and_status_are_usable]</code></p><p><strong>Generated tmux status renders</strong>
+If the generated dev layout is launched under asciinema with tmux status
+enabled, then the cast must show key/status row text and runtime status output.
+<code>[runtime_generated.rs · generated_runtime_tmux_status_renders_key_and_status_rows]</code></p><hr><h2 id=visual-matrix--visual_matrixrs>Visual matrix — <code>visual_matrix.rs</code></h2><p>These tests are ignored by default and run only through the explicit visual
+E2E commands above.</p><p><strong>Generated layouts render across all themes</strong>
+If each generated layout is launched for each supported theme, then the
+recording must include the theme RGB signature and tmux status/key row text.
+<code>[visual_matrix.rs · visual_generated_layouts_render_across_all_themes]</code></p><p><strong>Generated tools and harness windows render when enabled</strong>
+If all harnesses and visual runtime addons are enabled, then window traversal must
+show the expected Yazi surface, Vim, shell, lazygit, and every harness marker.
+<code>[visual_matrix.rs · visual_generated_tools_and_harness_windows_render_when_enabled]</code></p><p><strong>Yazi previews, git symbols, and optional plugins render</strong>
+If the Yazi preview addons are enabled, then generated Yazi config must parse,
+preview plugins must be installed, git symbols must be configured, and directory,
+Markdown, CSV, TSV, and SQLite previews must render their markers.
+<code>[visual_matrix.rs · visual_yazi_previews_git_symbols_and_optional_plugins_render]</code></p><hr><h2 id=smoke-tests--smokers>Smoke tests — <code>smoke.rs</code></h2><p>These tests validate that the Tier 2 companion container&rsquo;s container runtime
+is functional end-to-end (Tier 2 only).</p><p><strong>Container runtime is available on the companion</strong>
+If the companion container is queried for its selected runtime, then the
+command must succeed and the output must contain either <code>docker</code> or <code>podman</code>.
+<code>[smoke.rs · runtime_available_on_companion]</code></p><p><strong>Container runtime can pull and run a container</strong>
+If the selected runtime runs <code>alpine echo hello-e2e</code> on the companion, then
+the image pull, container creation, and command execution must succeed, and the
+output must contain <code>hello-e2e</code>.
+<code>[smoke.rs · runtime_can_pull_and_run_container]</code></p></div><div class=td-content style=page-break-before:always><h1 id=pg-adf0d2cd1145865b8af49c2fe979f6bf>3 - Version-line porting</h1><h1 id=version-line-porting>Version-line porting</h1><p>aibox maintains the v0.x and v1.x lines in parallel. A fix landing on either
+line must be reconciled with the other line when applicable.</p><p>The release gate compares both maintained branches after the recorded
+enforcement baselines in <code>.github/version-line-port-baselines.toml</code>. Every
+non-merge source commit must have a matching port on the target line or an
+explicit not-applicable disposition. This derives obligations from Git history,
+so it does not depend on labels, manually created issues, or workflow tokens.</p><p>When the equivalent change lands on the other line, add this commit trailer:</p><div class=highlight><pre tabindex=0 class=chroma><code class=language-text data-lang=text><span class=line><span class=cl>Version-Line-Port: ported-from=&lt;full source commit SHA&gt;
+</span></span></code></pre></div><p>The target line&rsquo;s release gate recognizes and settles the matching obligation.
+When a change genuinely cannot or should not cross lines, document the reason
+in the commit body and add:</p><div class=highlight><pre tabindex=0 class=chroma><code class=language-text data-lang=text><span class=line><span class=cl>Version-Line-Port: not-applicable
+</span></span></code></pre></div><p>Use <code>not-applicable</code> only for line-specific version metadata, generated release
+artifacts, or code that does not exist on the other line. Do not use it to defer
+an applicable fix.</p><p>Before publishing, run:</p><div class=highlight><pre tabindex=0 class=chroma><code class=language-sh data-lang=sh><span class=line><span class=cl>scripts/check-version-line-ports.sh check v0
+</span></span><span class=line><span class=cl>scripts/check-version-line-ports.sh check v1
+</span></span></code></pre></div><p>The release workflow automatically runs the gate for the major version being
+published.</p></div></main></div></div><footer class="td-footer row d-print-none"><div class=container-fluid><div class="row mx-md-2"><div class="td-footer__left col-6 col-sm-4 order-sm-1"><ul class=td-footer__links-list><li class=td-footer__links-item data-bs-toggle=tooltip title=GitHub aria-label=GitHub><a href=https://github.com/projectious-work/aibox aria-label=GitHub target=_blank rel=noopener><i class="fa-brands fa-github"></i></a></li></ul></div><div class="td-footer__right col-6 col-sm-4 order-sm-3"></div><div class="td-footer__center col-12 col-sm-4 py-2 order-sm-2"><span class=td-footer__copyright>&copy;
+2026&ndash;2026
+<span class=td-footer__authors>Projectious</span></span><span class=td-footer__all_rights_reserved>All Rights Reserved</span></div></div></div></footer></div><script src=/aibox/v1.x/js/main.min.65d702cee0bf35691ed701b78b7b713d03be4a9f1f184f95e8049d065c07bc57.js integrity="sha256-ZdcCzuC/NWke1wG3i3txPQO+Sp8fGE+V6ASdBlwHvFc=" crossorigin=anonymous></script><script defer src=/aibox/v1.x/js/click-to-copy.min.24576ff9fe9f85bb1948ecae52ce227cafce53757a3ad52301f2a79260f6b97d.js integrity="sha256-JFdv+f6fhbsZSOyuUs4ifK/OU3V6OtUjAfKnkmD2uX0=" crossorigin=anonymous></script><script src=/aibox/v1.x/js/tabpane-persist.js></script></body></html>

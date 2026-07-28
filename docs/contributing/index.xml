@@ -1,0 +1,58 @@
+<?xml version="1.0" encoding="utf-8" standalone="yes"?><rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom"><channel><title>Contributing on aibox</title><link>https://projectious-work.github.io/aibox/docs/contributing/</link><description>Recent content in Contributing on aibox</description><generator>Hugo</generator><language>en</language><atom:link href="https://projectious-work.github.io/aibox/docs/contributing/index.xml" rel="self" type="application/rss+xml"/><item><title>Maintenance</title><link>https://projectious-work.github.io/aibox/docs/contributing/maintenance/</link><pubDate>Mon, 01 Jan 0001 00:00:00 +0000</pubDate><guid>https://projectious-work.github.io/aibox/docs/contributing/maintenance/</guid><description>&lt;h1 id="maintenance"&gt;Maintenance&lt;/h1&gt;
+&lt;p&gt;Internal procedures for building, testing, documenting, and releasing aibox.
+The canonical step-by-step release note remains in &lt;code&gt;context/notes/&lt;/code&gt;; this page
+is the public contributor summary.&lt;/p&gt;
+&lt;h2 id="development-checks"&gt;Development Checks&lt;/h2&gt;
+&lt;div class="highlight"&gt;&lt;pre tabindex="0" class="chroma"&gt;&lt;code class="language-bash" data-lang="bash"&gt;&lt;span class="line"&gt;&lt;span class="cl"&gt;&lt;span class="nb"&gt;cd&lt;/span&gt; cli &lt;span class="o"&gt;&amp;amp;&amp;amp;&lt;/span&gt; cargo fmt -- --check
+&lt;/span&gt;&lt;/span&gt;&lt;span class="line"&gt;&lt;span class="cl"&gt;&lt;span class="nb"&gt;cd&lt;/span&gt; cli &lt;span class="o"&gt;&amp;amp;&amp;amp;&lt;/span&gt; cargo clippy --all-targets -- -D warnings
+&lt;/span&gt;&lt;/span&gt;&lt;span class="line"&gt;&lt;span class="cl"&gt;&lt;span class="nb"&gt;cd&lt;/span&gt; cli &lt;span class="o"&gt;&amp;amp;&amp;amp;&lt;/span&gt; cargo &lt;span class="nb"&gt;test&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;p&gt;The helper script wraps the same checks:&lt;/p&gt;
+&lt;div class="highlight"&gt;&lt;pre tabindex="0" class="chroma"&gt;&lt;code class="language-bash" data-lang="bash"&gt;&lt;span class="line"&gt;&lt;span class="cl"&gt;./scripts/maintain.sh &lt;span class="nb"&gt;test&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;h2 id="documentation-site"&gt;Documentation Site&lt;/h2&gt;
+&lt;p&gt;The public docs live in &lt;code&gt;docs-site/&lt;/code&gt; and use Hugo with the Docsy theme.&lt;/p&gt;
+&lt;div class="highlight"&gt;&lt;pre tabindex="0" class="chroma"&gt;&lt;code class="language-bash" data-lang="bash"&gt;&lt;span class="line"&gt;&lt;span class="cl"&gt;git submodule update --init --recursive docs-site/themes/docsy
+&lt;/span&gt;&lt;/span&gt;&lt;span class="line"&gt;&lt;span class="cl"&gt;npm --prefix docs-site ci
+&lt;/span&gt;&lt;/span&gt;&lt;span class="line"&gt;&lt;span class="cl"&gt;./scripts/maintain.sh docs-serve
+&lt;/span&gt;&lt;/span&gt;&lt;span class="line"&gt;&lt;span class="cl"&gt;./scripts/build-docs.sh
+&lt;/span&gt;&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;p&gt;&lt;code&gt;./scripts/build-docs.sh&lt;/code&gt; is the local verification build. It writes the static
+site to &lt;code&gt;docs-site/public/&lt;/code&gt; and prints Hugo render warnings.&lt;/p&gt;</description></item><item><title>E2E Test Catalogue</title><link>https://projectious-work.github.io/aibox/docs/contributing/e2e-tests/</link><pubDate>Mon, 01 Jan 0001 00:00:00 +0000</pubDate><guid>https://projectious-work.github.io/aibox/docs/contributing/e2e-tests/</guid><description>&lt;h1 id="e2e-test-catalogue"&gt;E2E Test Catalogue&lt;/h1&gt;
+&lt;p&gt;This page describes every end-to-end and integration test in &lt;code&gt;cli/tests/e2e/&lt;/code&gt;
+in plain language. Each entry states the precondition and the expected outcome,
+followed by a reference to the exact test function for traceability.&lt;/p&gt;
+&lt;h2 id="test-tiers"&gt;Test tiers&lt;/h2&gt;
+&lt;table&gt;
+	&lt;thead&gt;
+			&lt;tr&gt;
+					&lt;th&gt;Tier&lt;/th&gt;
+					&lt;th&gt;Where it runs&lt;/th&gt;
+					&lt;th&gt;What it needs&lt;/th&gt;
+			&lt;/tr&gt;
+	&lt;/thead&gt;
+	&lt;tbody&gt;
+			&lt;tr&gt;
+					&lt;td&gt;&lt;strong&gt;Tier 1&lt;/strong&gt;&lt;/td&gt;
+					&lt;td&gt;Local temp directory&lt;/td&gt;
+					&lt;td&gt;The compiled &lt;code&gt;aibox&lt;/code&gt; binary only&lt;/td&gt;
+			&lt;/tr&gt;
+			&lt;tr&gt;
+					&lt;td&gt;&lt;strong&gt;Tier 1 + Mock&lt;/strong&gt;&lt;/td&gt;
+					&lt;td&gt;Local temp directory&lt;/td&gt;
+					&lt;td&gt;Binary + mock &lt;code&gt;docker&lt;/code&gt;/&lt;code&gt;podman&lt;/code&gt; scripts on PATH&lt;/td&gt;
+			&lt;/tr&gt;
+			&lt;tr&gt;
+					&lt;td&gt;&lt;strong&gt;Tier 2&lt;/strong&gt;&lt;/td&gt;
+					&lt;td&gt;Remote SSH companion&lt;/td&gt;
+					&lt;td&gt;&lt;code&gt;aibox-e2e-testrunner&lt;/code&gt; container reachable (feature flag &lt;code&gt;e2e&lt;/code&gt;)&lt;/td&gt;
+			&lt;/tr&gt;
+	&lt;/tbody&gt;
+&lt;/table&gt;
+&lt;p&gt;Tier 1 tests run automatically with &lt;code&gt;cargo test&lt;/code&gt;. Tier 2 tests require the
+companion container and the &lt;code&gt;--features e2e&lt;/code&gt; flag. The expensive visual matrix
+tests are opt-in and are not included in the default Tier 2 command.&lt;/p&gt;</description></item><item><title>Version-line porting</title><link>https://projectious-work.github.io/aibox/docs/contributing/version-line-porting/</link><pubDate>Mon, 01 Jan 0001 00:00:00 +0000</pubDate><guid>https://projectious-work.github.io/aibox/docs/contributing/version-line-porting/</guid><description>&lt;h1 id="version-line-porting"&gt;Version-line porting&lt;/h1&gt;
+&lt;p&gt;aibox maintains the v0.x and v1.x lines in parallel. A fix landing on either
+line must be reconciled with the other line when applicable.&lt;/p&gt;
+&lt;p&gt;The release gate compares both maintained branches after the recorded
+enforcement baselines in &lt;code&gt;.github/version-line-port-baselines.toml&lt;/code&gt;. Every
+non-merge source commit must have a matching port on the target line or an
+explicit not-applicable disposition. This derives obligations from Git history,
+so it does not depend on labels, manually created issues, or workflow tokens.&lt;/p&gt;</description></item></channel></rss>
