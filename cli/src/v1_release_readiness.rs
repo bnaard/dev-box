@@ -252,10 +252,14 @@ fn evidence_matches_candidate(
     expected_commit: Option<&str>,
     expected_binary: Option<&str>,
 ) -> bool {
-    let commit_matches =
-        expected_commit.is_none_or(|expected| expected == evidence.candidate_commit);
-    let binary_matches = expected_binary.is_none_or(|expected| expected == evidence.binary_sha256);
-    commit_matches && binary_matches
+    // Evidence without both expectations is only a well-formed attestation,
+    // not release evidence.  Accepting it here would let the public readiness
+    // command report a stale or hand-written file as passed when it was not
+    // bound to the candidate being released.
+    let (Some(expected_commit), Some(expected_binary)) = (expected_commit, expected_binary) else {
+        return false;
+    };
+    expected_commit == evidence.candidate_commit && expected_binary == evidence.binary_sha256
 }
 
 fn read_m7c_evidence(path: &Path) -> Result<DisposableClusterEvidence, String> {
@@ -757,22 +761,29 @@ mod tests {
     }
 
     #[test]
-    fn actual_shell_producer_shape_is_accepted_by_the_readiness_parser() {
+    fn actual_shell_producer_shape_requires_candidate_binding_inputs() {
         let dir = TempDir::new().unwrap();
         let evidence_path = dir.path().join(M7C_EVIDENCE_RELATIVE_PATH);
         fs::create_dir_all(evidence_path.parent().unwrap()).unwrap();
         fs::write(
-            evidence_path,
+            &evidence_path,
             include_str!("../contracts/v1alpha1/fixtures/valid/disposable-cluster-evidence.json"),
         )
         .unwrap();
+        let evidence = read_m7c_evidence(&evidence_path).unwrap();
+        assert!(evidence_matches_candidate(
+            &evidence,
+            Some("0123456789abcdef0123456789abcdef01234567"),
+            Some("sha256:0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef"),
+        ));
+
         let report = release_readiness(dir.path());
         assert!(
             report
                 .gates
                 .iter()
                 .any(|gate| gate.id == "m7c-live-disposable-cluster-evidence"
-                    && gate.status == GateStatus::Passed)
+                    && gate.status == GateStatus::Blocked)
         );
     }
 
@@ -791,6 +802,21 @@ mod tests {
             &evidence,
             Some("ffffffffffffffffffffffffffffffffffffffff"),
             Some("sha256:ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff"),
+        ));
+    }
+
+    #[test]
+    fn evidence_without_both_candidate_binding_inputs_is_rejected() {
+        let evidence = DisposableClusterEvidence::from_json(
+            include_str!("../contracts/v1alpha1/fixtures/valid/disposable-cluster-evidence.json")
+                .as_bytes(),
+        )
+        .unwrap();
+        assert!(!evidence_matches_candidate(&evidence, None, None));
+        assert!(!evidence_matches_candidate(
+            &evidence,
+            Some("0123456789abcdef0123456789abcdef01234567"),
+            None,
         ));
     }
 }
