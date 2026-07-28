@@ -6,6 +6,7 @@ metadata:
     aibox.projectious.work/desired-spec-digest: sha256:2cf37010bdc74bc2961125b40c3a1396e6c3206d8f4a70dcbc3b62d67e4545bc
     aibox.projectious.work/image-digest: sha256:image
     aibox.projectious.work/namespace: workspace-dev
+    aibox.projectious.work/owner-id: team-a
   name: workspace
   namespace: workspace-dev
 spec:
@@ -36,6 +37,7 @@ metadata:
     aibox.projectious.work/desired-spec-digest: sha256:2cf37010bdc74bc2961125b40c3a1396e6c3206d8f4a70dcbc3b62d67e4545bc
     aibox.projectious.work/image-digest: sha256:image
     aibox.projectious.work/namespace: workspace-dev
+    aibox.projectious.work/owner-id: team-a
   name: workspace
   namespace: workspace-dev
 spec:

@@ -2038,8 +2038,10 @@ release_v1_alpha_evidence_gate() {
   [[ "${version}" == 1.*-* ]] || return 0
   [[ -f "${evidence}" ]] \
     || die "v1 alpha release requires M7c evidence at ${evidence}; run the live disposable-cluster suite first"
-  grep -Eq "\"commit\"[[:space:]]*:[[:space:]]*\"${RELEASE_CANDIDATE_SHA}\"" "${evidence}" \
+  grep -Eq "\"candidateCommit\"[[:space:]]*:[[:space:]]*\"${RELEASE_CANDIDATE_SHA}\"" "${evidence}" \
     || die "M7c evidence is not bound to release candidate ${RELEASE_CANDIDATE_SHA}"
+  grep -Eq "\"binarySha256\"[[:space:]]*:[[:space:]]*\"sha256:[0-9a-f]{64}\"" "${evidence}" \
+    || die "M7c evidence does not bind the tested candidate binary digest"
   "${PROJECT_ROOT}/scripts/test-processkit-v1-consumer.sh"
   (cd "${PROJECT_ROOT}" && cargo run --quiet --manifest-path "${CLI_DIR}/Cargo.toml" -- \
     config release-readiness --output json) \
