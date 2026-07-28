@@ -11,12 +11,13 @@ use std::path::{Component, Path, PathBuf};
 use std::time::{SystemTime, UNIX_EPOCH};
 
 use anyhow::{Context, Result, bail};
-use serde::{Deserialize, Serialize};
+use serde::Serialize;
 use sha2::{Digest, Sha256};
 
 use crate::cli::V1ReadinessOutputFormat;
 #[cfg(test)]
 use crate::config::AiboxConfig;
+use crate::release_evidence::DisposableClusterEvidence;
 
 const BACKUP_RELATIVE_DIR: &str = ".aibox/backups/v1-config";
 const RECEIPT_RELATIVE_PATH: &str = ".aibox/migrations/v1-config.json";
@@ -62,19 +63,6 @@ pub struct ReleaseGate {
 pub enum GateStatus {
     Passed,
     Blocked,
-}
-
-#[derive(Clone, Debug, Deserialize)]
-#[serde(rename_all = "camelCase", deny_unknown_fields)]
-struct M7cEvidence {
-    api_version: String,
-    kind: String,
-    status: String,
-    commit: String,
-    cluster: String,
-    command: String,
-    scenarios: Vec<String>,
-    recorded_at: String,
 }
 
 #[derive(Clone, Debug, Serialize)]
@@ -213,17 +201,27 @@ fn m5_gates() -> Vec<ReleaseGate> {
 fn m7c_gate(project_root: &Path) -> ReleaseGate {
     let path = project_root.join(M7C_EVIDENCE_RELATIVE_PATH);
     match read_m7c_evidence(&path) {
-        Ok(evidence) => ReleaseGate {
+        Ok(evidence) if evidence_matches_runtime_candidate(&evidence) => ReleaseGate {
             id: "m7c-live-disposable-cluster-evidence".to_string(),
             title: "M7c live disposable-cluster evidence".to_string(),
             status: GateStatus::Passed,
             blocking: true,
             evidence: format!(
                 "{} on cluster {} at {} (commit {})",
-                evidence.command, evidence.cluster, evidence.recorded_at, evidence.commit
+                evidence.command, evidence.cluster, evidence.recorded_at, evidence.candidate_commit
             ),
             remediation: "Retain the evidence artifact and rerun it for every release candidate."
                 .to_string(),
+        },
+        Ok(_) => ReleaseGate {
+            id: "m7c-live-disposable-cluster-evidence".to_string(),
+            title: "M7c live disposable-cluster evidence".to_string(),
+            status: GateStatus::Blocked,
+            blocking: true,
+            evidence: "live M7c evidence is not bound to the runtime release candidate".to_string(),
+            remediation:
+                "Rerun the live disposable-cluster suite with the candidate commit and binary."
+                    .to_string(),
         },
         Err(reason) => ReleaseGate {
             id: "m7c-live-disposable-cluster-evidence".to_string(),
@@ -239,37 +237,32 @@ fn m7c_gate(project_root: &Path) -> ReleaseGate {
     }
 }
 
-fn read_m7c_evidence(path: &Path) -> Result<M7cEvidence, String> {
+fn evidence_matches_runtime_candidate(evidence: &DisposableClusterEvidence) -> bool {
+    let expected_commit = std::env::var("RELEASE_CANDIDATE_SHA").ok();
+    let expected_binary = std::env::var("AIBOX_RELEASE_BINARY_SHA256").ok();
+    evidence_matches_candidate(
+        evidence,
+        expected_commit.as_deref(),
+        expected_binary.as_deref(),
+    )
+}
+
+fn evidence_matches_candidate(
+    evidence: &DisposableClusterEvidence,
+    expected_commit: Option<&str>,
+    expected_binary: Option<&str>,
+) -> bool {
+    let commit_matches =
+        expected_commit.is_none_or(|expected| expected == evidence.candidate_commit);
+    let binary_matches = expected_binary.is_none_or(|expected| expected == evidence.binary_sha256);
+    commit_matches && binary_matches
+}
+
+fn read_m7c_evidence(path: &Path) -> Result<DisposableClusterEvidence, String> {
     let bytes =
         fs::read(path).map_err(|_| format!("missing live M7c evidence at {}", path.display()))?;
-    let evidence: M7cEvidence = serde_json::from_slice(&bytes)
-        .map_err(|error| format!("invalid live M7c evidence: {error}"))?;
-    if evidence.api_version != "aibox.projectious.work/v1alpha1"
-        || evidence.kind != "DisposableClusterEvidence"
-        || evidence.status != "passed"
-        || evidence.commit.trim().is_empty()
-        || evidence.cluster.trim().is_empty()
-        || evidence.recorded_at.trim().is_empty()
-        || !evidence.command.contains("kubernetes")
-        || ![
-            "first-apply",
-            "unchanged-apply",
-            "changed-apply",
-            "drift-recovery",
-            "status-logs",
-            "exec-port-forward",
-            "ingress",
-            "foreign-destroy-refusal",
-        ]
-        .iter()
-        .all(|scenario| evidence.scenarios.iter().any(|actual| actual == scenario))
-    {
-        return Err(
-            "live M7c evidence is incomplete or is not a Kubernetes disposable-cluster lifecycle pass"
-                .to_string(),
-        );
-    }
-    Ok(evidence)
+    DisposableClusterEvidence::from_json(&bytes)
+        .map_err(|error| format!("invalid live M7c evidence: {error}"))
 }
 
 fn config_path_for(config_path: &Option<String>) -> Result<PathBuf> {
@@ -764,13 +757,13 @@ mod tests {
     }
 
     #[test]
-    fn audit_accepts_only_complete_disposable_cluster_evidence() {
+    fn actual_shell_producer_shape_is_accepted_by_the_readiness_parser() {
         let dir = TempDir::new().unwrap();
         let evidence_path = dir.path().join(M7C_EVIDENCE_RELATIVE_PATH);
         fs::create_dir_all(evidence_path.parent().unwrap()).unwrap();
         fs::write(
             evidence_path,
-            r#"{"apiVersion":"aibox.projectious.work/v1alpha1","kind":"DisposableClusterEvidence","status":"passed","commit":"abc123","cluster":"kind-aibox-canary","command":"cargo test kubernetes e2e","scenarios":["first-apply","unchanged-apply","changed-apply","drift-recovery","status-logs","exec-port-forward","ingress","foreign-destroy-refusal"],"recordedAt":"2026-07-25T10:00:00Z"}"#,
+            include_str!("../contracts/v1alpha1/fixtures/valid/disposable-cluster-evidence.json"),
         )
         .unwrap();
         let report = release_readiness(dir.path());
@@ -781,5 +774,23 @@ mod tests {
                 .any(|gate| gate.id == "m7c-live-disposable-cluster-evidence"
                     && gate.status == GateStatus::Passed)
         );
+    }
+
+    #[test]
+    fn audit_rejects_evidence_bound_to_another_runtime_candidate() {
+        let dir = TempDir::new().unwrap();
+        let evidence_path = dir.path().join(M7C_EVIDENCE_RELATIVE_PATH);
+        fs::create_dir_all(evidence_path.parent().unwrap()).unwrap();
+        fs::write(
+            evidence_path,
+            include_str!("../contracts/v1alpha1/fixtures/valid/disposable-cluster-evidence.json"),
+        )
+        .unwrap();
+        let evidence = read_m7c_evidence(&dir.path().join(M7C_EVIDENCE_RELATIVE_PATH)).unwrap();
+        assert!(!evidence_matches_candidate(
+            &evidence,
+            Some("ffffffffffffffffffffffffffffffffffffffff"),
+            Some("sha256:ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff"),
+        ));
     }
 }

@@ -82,7 +82,17 @@ fn kubernetes_kind_lifecycle_produces_release_candidate_evidence() {
     let evidence: serde_json::Value =
         serde_json::from_slice(&run.stdout).expect("live M7c suite must return JSON evidence");
     assert_eq!(evidence["status"], "passed");
-    assert_eq!(evidence["commit"], commit);
+    assert_eq!(evidence["candidateCommit"], commit);
+    assert!(
+        evidence["binarySha256"]
+            .as_str()
+            .is_some_and(|digest| digest.starts_with("sha256:") && digest.len() == 71)
+    );
+    assert_eq!(
+        evidence["scenarios"].as_array().map(Vec::len),
+        Some(8),
+        "the live producer must report every executed scenario"
+    );
     assert!(
         evidence["cluster"]
             .as_str()
