@@ -37,7 +37,7 @@ builder: null
 
 runtime: |
   # Addon: node (runtime)
-  RUN apt-get update && apt-get install -y --no-install-recommends ca-certificates curl xz-utils && \
+  RUN apt-get update && apt-get install -y --no-install-recommends ca-certificates curl libatomic1 xz-utils && \
       rm -rf /var/lib/apt/lists/* && \
       DEB_ARCH="$(dpkg --print-architecture)" && \
       case "${DEB_ARCH}" in \
