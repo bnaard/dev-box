@@ -650,7 +650,10 @@ fn e2e_companion_delegates_kind_through_systemd() {
     assert!(dockerfile.contains("cgroup_manager = \"systemd\""));
     assert!(dockerfile.contains("log_driver = \"k8s-file\""));
     assert!(compose.contains("cgroup: private"));
-    assert!(kind_gate.contains("systemd-run --user --scope -p Delegate=yes"));
+    assert!(compose.contains("/lib/modules:/lib/modules:ro"));
+    assert!(kind_gate.contains("systemd-run --user --scope --wait --quiet -p Delegate=yes"));
+    assert!(maintain.contains("e2e_companion_preflight"));
+    assert!(maintain.contains("E2E companion is stale. Rebuild it on the Docker host"));
     assert!(kind_gate.contains("copy_file_to"));
     for required in [
         "deploy apply",
@@ -664,6 +667,8 @@ fn e2e_companion_delegates_kind_through_systemd() {
         "DisposableClusterEvidence",
         "candidateCommit",
         "binarySha256",
+        "AIBOX_M7C_BINARY_SHA256",
+        "deployed candidate binary digest does not match",
         "foreign-destroy-refusal",
     ] {
         assert!(
@@ -671,6 +676,17 @@ fn e2e_companion_delegates_kind_through_systemd() {
             "M7c live lifecycle must cover {required}"
         );
     }
+    assert!(
+        kind_gate.contains("candidate_binary_sha256")
+            && kind_gate
+                .contains("M7c evidence must be bound to the checked-out release candidate"),
+        "the M7c harness must bind the deployed binary and commit to the checked-out candidate"
+    );
+    assert!(
+        maintain.contains("M7c evidence is not bound to the exact candidate binary")
+            && maintain.contains("AIBOX_RELEASE_BINARY_SHA256"),
+        "the release gate must reject evidence from another candidate binary"
+    );
     assert!(maintain.contains("kubernetes_kind -- --ignored --nocapture"));
 }
 

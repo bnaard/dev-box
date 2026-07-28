@@ -3,8 +3,19 @@
 set -euo pipefail
 
 : "${AIBOX_M7C_COMMIT:?missing release candidate commit}"
+: "${AIBOX_M7C_BINARY_SHA256:?missing release candidate binary digest}"
 : "${AIBOX_BIN:?missing aibox binary path}"
 : "${AIBOX_ADDONS_DIR:?missing addon directory}"
+
+[[ "${AIBOX_M7C_COMMIT}" =~ ^[0-9a-f]{40}$ ]] \
+  || { echo "invalid release candidate commit" >&2; exit 2; }
+[[ "${AIBOX_M7C_BINARY_SHA256}" =~ ^sha256:[0-9a-f]{64}$ ]] \
+  || { echo "invalid release candidate binary digest" >&2; exit 2; }
+[[ -f "${AIBOX_BIN}" && -x "${AIBOX_BIN}" && ! -L "${AIBOX_BIN}" ]] \
+  || { echo "candidate binary must be an executable regular file" >&2; exit 2; }
+actual_binary_sha256="sha256:$(sha256sum "${AIBOX_BIN}" | awk '{print $1}')"
+[[ "${actual_binary_sha256}" == "${AIBOX_M7C_BINARY_SHA256}" ]] \
+  || { echo "deployed candidate binary digest does not match the release candidate" >&2; exit 2; }
 
 name="aibox-m7c-${RANDOM}-${RANDOM}"
 namespace="aibox-m7c"
@@ -151,11 +162,10 @@ scenarios+=("foreign-destroy-refusal")
 ! kubectl --context "${context}" --namespace "${namespace}" get service/web >/dev/null 2>&1
 ! kubectl --context "${context}" --namespace "${namespace}" get ingress -o name | grep -q .
 
-binary_sha256="sha256:$(sha256sum "${AIBOX_BIN}" | awk '{print $1}')"
 scenarios_json="$(printf '%s\n' "${scenarios[@]}" | jq -R . | jq -s '[.[] | {id: ., status: "passed"}]')"
 jq -n \
   --arg candidateCommit "${AIBOX_M7C_COMMIT}" \
-  --arg binarySha256 "${binary_sha256}" \
+  --arg binarySha256 "${actual_binary_sha256}" \
   --arg cluster "${name}" \
   --arg command 'cargo test --features e2e --test e2e kubernetes_kind -- --ignored --nocapture --test-threads=1' \
   --arg recordedAt "$(date -u +%Y-%m-%dT%H:%M:%SZ)" \
@@ -168,7 +178,7 @@ jq -n \
 mkdir -p .aibox/release-evidence
 cp "${attestation}" .aibox/release-evidence/m7c-live.json
 RELEASE_CANDIDATE_SHA="${AIBOX_M7C_COMMIT}" \
-  AIBOX_RELEASE_BINARY_SHA256="${binary_sha256}" \
+  AIBOX_RELEASE_BINARY_SHA256="${actual_binary_sha256}" \
   "$AIBOX_BIN" config release-readiness --output json > readiness.json
 jq -e '.ready == true and (.gates[] | select(.id == "m7c-live-disposable-cluster-evidence").status == "passed")' readiness.json >/dev/null
 

@@ -11,6 +11,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import os
 import re
 import shutil
 import subprocess
@@ -170,7 +171,16 @@ def run_audit(
 def discover_manifests(repo_root: Path | str) -> list[Manifest]:
     root = Path(repo_root).resolve()
     manifests: list[Manifest] = []
-    for package_json in sorted(root.rglob("package.json")):
+    for dirpath, dirnames, filenames in os.walk(root):
+        directory = Path(dirpath)
+        dirnames[:] = [
+            name
+            for name in dirnames
+            if not _is_nested_repository(root, directory / name)
+        ]
+        if "package.json" not in filenames:
+            continue
+        package_json = directory / "package.json"
         if _skip_path(root, package_json):
             continue
         rel_manifest = _rel(root, package_json)
@@ -660,6 +670,11 @@ def _skip_path(root: Path, path: Path) -> bool:
         or part.startswith(".")
         for part in rel.parts
     )
+
+
+def _is_nested_repository(repo_root: Path, directory: Path) -> bool:
+    """Ignore standalone checkouts and submodule worktrees below the project."""
+    return directory != repo_root and (directory / ".git").exists()
 
 
 def _rel(root: Path, path: Path) -> str:

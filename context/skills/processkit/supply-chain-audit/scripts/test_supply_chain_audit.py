@@ -59,3 +59,17 @@ with tempfile.TemporaryDirectory() as tmp:
     audit = sca.run_audit(root)
     ids = {finding["id"] for finding in audit["findings"]}
     check("missing app lockfile is error", "supply-chain.lockfile-missing" in ids)
+
+    # Nested repositories are separate ownership domains.  A submodule checkout
+    # uses a .git file rather than a directory, so cover that Git representation.
+    nested = root / "docs-site" / "themes" / "docsy"
+    nested.mkdir(parents=True)
+    (nested / ".git").write_text("gitdir: ../../../.git/modules/docsy\n", encoding="utf-8")
+    (nested / "package.json").write_text(
+        json.dumps({"name": "docsy-theme", "private": True}), encoding="utf-8"
+    )
+    nested_manifests = sca.discover_manifests(root)
+    check(
+        "excludes nested gitfile repository manifests",
+        all(manifest.manifest_path != "docs-site/themes/docsy/package.json" for manifest in nested_manifests),
+    )

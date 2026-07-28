@@ -34,6 +34,9 @@ services:
     volumes:
       # SSH keys — mounted from host (never committed to git)
       - ../.aibox-e2e-runner-home/.ssh:/home/testuser/.ssh:ro
+      # kind needs the host kernel module tree when it starts nested nodes.
+      # Keep it read-only: the companion must never mutate host modules.
+      - /lib/modules:/lib/modules:ro
     # Podman rootless inside a container needs:
     #   seccomp=unconfined  — allows syscalls used by user-namespace creation
     #   SYS_ADMIN           — allows newuidmap to write /proc/PID/uid_map
