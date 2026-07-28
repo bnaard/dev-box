@@ -20,18 +20,24 @@ runtime: |
   # Addon: cloud-aws
   {% if tools["aws-cli"].enabled %}
   # S2 — BR-SEC-HARDEN: GPG signature verification before install.
-  # AWS CLI public key fingerprint: FB5D B77F D5C1 18B8 0511  ADA8 A631 4593 B8B2 1122
-  # Ref: https://docs.aws.amazon.com/cli/latest/userguide/install-cliv2-linux.html#install-cliv2-linux-verify
-  RUN apt-get update && apt-get install -y --no-install-recommends gpg && \
+  # AWS CLI public key fingerprint: FB5D B77F D5C1 18B8 0511  ADA8 A631 0ACC 4672 475C
+  # Ref: https://docs.aws.amazon.com/cli/latest/userguide/getting-started-install.html
+  # AWS publishes its signing key inline in the installation guide rather than
+  # as a stable key download. Vendor that documented key so clean builds do not
+  # depend on an SKS/Hockeypuck keyserver being reachable or synchronized.
+  ARG AWS_CLI_PGP_KEY_BASE64=LS0tLS1CRUdJTiBQR1AgUFVCTElDIEtFWSBCTE9DSy0tLS0tCgptUUlOQkYyQ3I3VUJFQURKWkhjZ3VzT0psN0VOU3l1bVhoODV6MFRSVjB4Sm9yTTJCL0pMMGtIT3lpZ1FsdVVHClpNTGhFTmFHMGJZYXRkcktQKzNIOTFsdkswNTBwWHduTy9SN2ZCL0ZTVG91a2k0Y2lJeDVPdUxsbkpaSXhTengKUHFHbDBta3hJbUxOYkdXb2k2THRvMExZeHFITjJpUXR6bHdUVm1xOTczM3pkM1hmY1hyWjMrTGJsSEFnRXQ1RwpUZk54RUtKOHNvUEx5V213REg2SFdDbmpaL2FJUVJCVElRMDV1VmVFb1l4U2g2d09haTdzcy9LdmVvU05CYll6CmdiZHpvcUkyWThjZ0gybmJmZ3AzRFNhc2FMWkVkQ1NzSXNLMXUwNUNpbkU3azJxWjdLZ0tBVUljVC9jUi9ncmsKQzZWd3NuRFUwT1VDaWRlWGNROFdlSHV0cXZnWkgxSmdLRGJ6bm9JemVRSEpEMjM4R0V1K2VLaFJIY3o4L2plRwo5NHprY2dKT3ozS2JaR1lNaVRoMjc3RnZqOXp6dlpzYk1CQ2VkVjFCVGczVHFndmRYNGJka2hmNWNIKzdOdFdPCmxyRmo2VXdBc0d1a0JUQU94QzBsL2RuU21aaEo3WjFLbUVXaWxyby9nT3JqdE94cVJRdXRsSXFHMjJUYXFvUEcKZllWTitlbjNad2J0OTdrY2daRHdxYnV5a050NjRvWldjNFhLQ2EzbXByRUdDM0liSlRCRnFnbFhtWjdsOXl3RwpFRVVKWU9sYjJYclN1UFdtbDM5YmVXZEtNOGt6cjFPam5sT202K2xwVFJDQmZvMHdhOUY4WVpSaEhQQWt3S2tYClhEZU9HcFdSajRvaE94MGQyR1dreVY1eHlOMTRwMnRRT0NkT09EbXo4MHlVVGdScFBWUVV0T0VoWFFBUkFRQUIKdENGQlYxTWdRMHhKSUZSbFlXMGdQR0YzY3kxamJHbEFZVzFoZW05dUxtTnZiVDZKQWxRRUV3RUlBRDRDR3dNRgpDd2tJQndJR0ZRb0pDQXNDQkJZQ0F3RUNIZ0VDRjRBV0lRVDdYYmQvMWNFWXVBVVJyYWltTVFyTVJuSkhYQVVDCmFrVjB5Z1VKRHFQNGxRQUtDUkNtTVFyTVJuSkhYRkhqRC85ZXlaTFljS3VRT2xMdnRxU0R0VUJpRVpmNlpaak0KaTN5Z1lIOHJKTnR1VG9VSCtIdlNwZTgxOXVySkNxdVhoRHJsSzZOK2FxVzBoQ0x0TkFCSkcvdnNhZklndklZSgpoU0dncGd0Tm5ReU1WMWpWaVJXcVBqYm91dzhPa1lLQlRoVWZUMWkyWSt3bjU4aWZzNk9EQkNtVGV4V3RYc3BBClNpK0d0NDl4RE9XMEFQbWJPUG5JK2E0SEpXNnRWRW82TVdTMFdqenBpQmF5UjNkMUE0cHQ0WXJQZlNkRGdwTG8KaDJTTFFxbFJxdnZWWkphV0JqaGtFck5GcGZzQkEwNnNEY1BFT2IwRzhMQlViUjRXT2NkdmhlNUx1YkpiWnV4QwpBRzlrTlBDVmVRUDFpeHdqZ2pYS3lzYXhlUTZydjBWeklRZ1JwNnRMVkxXaHk2QUtETnZMakZTc21YWjFXbDA4ClkvUmxPSFhsekx1UU1SRTZzUjF3T2RSeGM5VHNyTldUR2lCSzY1Y3ZTV095MDNKZUJrUVE4cGVzcWx0aXl4STkKVTIxa2tnaVh0VFNLTkdmS0s4cE8yN0Q4MVlBTmhScVBLN2lUcDZrdUZpWTJXdE9nOTBLVE1ObElUK0ZmODVZMgpiMXJIajZaMFNyQ2tKdWpoV2szSUJQaWMvd0pnejAxTEVjL09BZFVQbGJ5OTBSSlpjSUJoU2xXaFQ3bVhuWElPCmMwSFdsTlFybnMyczNDVHlZd1pTaVNsWWU5QXBlTHdoakRvOE5oYkZ1Q0F5NjFsNk81VXNSNEFmWnh4L3JHS3YKMndGYjEvUk4vUDRnTmU2dm14WkFQalIwQVFjd0QzdGMyTWNpbU9Mci8yMmttUHo4SUgzSTBYN1dvU0ZyMEJpegpFOTFHN2JiMGhPYi9jQT09Cj1rbnY3Ci0tLS0tRU5EIFBHUCBQVUJMSUMgS0VZIEJMT0NLLS0tLS0K
+  RUN apt-get update && apt-get install -y --no-install-recommends gpg gpg-agent && \
       rm -rf /var/lib/apt/lists/* && \
+      printf '%s' "${AWS_CLI_PGP_KEY_BASE64}" | base64 -d > /tmp/aws-cli-public-key.asc && \
+      test "$(gpg --show-keys --with-colons /tmp/aws-cli-public-key.asc | awk -F: '$1 == "fpr" { print $10; exit }')" = "FB5DB77FD5C118B80511ADA8A6310ACC4672475C" && \
+      gpg --batch --import /tmp/aws-cli-public-key.asc && \
       ARCH="$(uname -m)" && \
       curl -fsSL "https://awscli.amazonaws.com/awscli-exe-linux-${ARCH}.zip"     -o /tmp/awscli.zip && \
       curl -fsSL "https://awscli.amazonaws.com/awscli-exe-linux-${ARCH}.zip.sig" -o /tmp/awscli.sig && \
-      gpg --keyserver hkps://keyserver.ubuntu.com --recv-keys A6314593B8B21122 && \
       gpg --verify /tmp/awscli.sig /tmp/awscli.zip && \
       unzip -q /tmp/awscli.zip -d /tmp && \
       /tmp/aws/install && \
-      rm -rf /tmp/aws /tmp/awscli.zip /tmp/awscli.sig
+      rm -rf /tmp/aws /tmp/awscli.zip /tmp/awscli.sig /tmp/aws-cli-public-key.asc
   {% endif %}
   {% if not tools["aws-cli"].enabled %}
   # Variant 1 disable-then-purge: aws CLI v2 installs into /usr/local/aws-cli/
