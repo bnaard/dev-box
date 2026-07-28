@@ -6,6 +6,7 @@
 
 use std::collections::HashSet;
 
+use chrono::DateTime;
 use serde::{Deserialize, Serialize};
 
 pub const DISPOSABLE_CLUSTER_EVIDENCE_API_VERSION: &str = "aibox.projectious.work/v1alpha1";
@@ -87,7 +88,7 @@ impl DisposableClusterEvidence {
             || !is_sha256_digest(&self.binary_sha256)
             || self.cluster.trim().is_empty()
             || !self.command.contains("kubernetes")
-            || self.recorded_at.trim().is_empty()
+            || DateTime::parse_from_rfc3339(&self.recorded_at).is_err()
         {
             return Err("incomplete disposable-cluster evidence envelope".to_string());
         }
@@ -146,5 +147,11 @@ mod tests {
         ] {
             assert!(DisposableClusterEvidence::from_json(fixture.as_bytes()).is_err());
         }
+    }
+
+    #[test]
+    fn rejects_non_rfc3339_recorded_at() {
+        let invalid = VALID.replace("2026-07-28T12:00:00Z", "not-a-timestamp");
+        assert!(DisposableClusterEvidence::from_json(invalid.as_bytes()).is_err());
     }
 }
