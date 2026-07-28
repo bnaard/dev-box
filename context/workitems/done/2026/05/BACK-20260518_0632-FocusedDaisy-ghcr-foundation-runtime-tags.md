@@ -7,10 +7,10 @@ metadata:
   labels:
     decision: DEC-20260518_0631-ToughSwan-adopt-foundation-runtime-ghcr-image-tags
     defer_image_uploads: true
-  updated: '2026-05-18T06:38:32+00:00'
+  updated: '2026-07-28T05:56:21+00:00'
 spec:
   title: Implement GHCR foundation/runtime image tagging redesign
-  state: in-progress
+  state: done
   type: task
   priority: high
   description: Implement the approved next-minor aibox image publishing redesign.
@@ -21,8 +21,19 @@ spec:
     cleanup planning. Do not build or upload images while the owner is on slow/low-quota
     network.
   started_at: '2026-05-18T06:38:32+00:00'
+  completed_at: '2026-07-28T05:56:21+00:00'
 ---
 
 ## Transition note (2026-05-18T06:38:32+00:00)
 
 Implementation started after owner approval. Image builds/uploads are explicitly deferred due to low-quota network.
+
+
+## Transition note (2026-07-28T05:56:21+00:00)
+
+Foundation/runtime tag model, source labels, in-situ reuse inspection, compatibility, cleanup planning, and docs are implemented; v0.28.16 public tags were verified.
+
+
+## Transition note (2026-07-28T05:56:21+00:00)
+
+Acceptance evidence reconciled; no remaining implementation gap.
