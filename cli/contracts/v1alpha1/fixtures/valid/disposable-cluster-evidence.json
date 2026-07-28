@@ -1,0 +1,16 @@
+{
+  "apiVersion": "aibox.projectious.work/v1alpha1",
+  "kind": "DisposableClusterEvidence",
+  "status": "passed",
+  "candidateCommit": "0123456789abcdef0123456789abcdef01234567",
+  "binarySha256": "sha256:0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef",
+  "cluster": "aibox-m7c-fixture",
+  "command": "cargo test --features e2e --test e2e kubernetes_kind",
+  "scenarios": [
+    { "id": "first-apply", "status": "passed" }, { "id": "unchanged-apply", "status": "passed" },
+    { "id": "changed-apply", "status": "passed" }, { "id": "drift-recovery", "status": "passed" },
+    { "id": "status-logs", "status": "passed" }, { "id": "exec-port-forward", "status": "passed" },
+    { "id": "ingress", "status": "passed" }, { "id": "foreign-destroy-refusal", "status": "passed" }
+  ],
+  "recordedAt": "2026-07-28T12:00:00Z"
+}

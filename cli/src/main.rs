@@ -55,6 +55,7 @@ mod processkit_protocol;
 mod processkit_vocab;
 mod provider_backend;
 mod prune;
+mod release_evidence;
 mod reset;
 mod runtime;
 mod runtime_home;

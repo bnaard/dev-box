@@ -1,0 +1,28 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://aibox.projectious.work/contracts/v1alpha1/disposable-cluster-evidence.schema.json",
+  "title": "DisposableClusterEvidence v1alpha1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["apiVersion", "kind", "status", "candidateCommit", "binarySha256", "cluster", "command", "scenarios", "recordedAt"],
+  "properties": {
+    "apiVersion": { "const": "aibox.projectious.work/v1alpha1" },
+    "kind": { "const": "DisposableClusterEvidence" },
+    "status": { "const": "passed" },
+    "candidateCommit": { "type": "string", "pattern": "^[0-9a-fA-F]{40}$" },
+    "binarySha256": { "type": "string", "pattern": "^sha256:[0-9a-fA-F]{64}$" },
+    "cluster": { "type": "string", "minLength": 1 },
+    "command": { "type": "string", "minLength": 1 },
+    "recordedAt": { "type": "string", "format": "date-time" },
+    "scenarios": { "type": "array", "minItems": 8, "maxItems": 8, "uniqueItems": true, "items": { "$ref": "#/$defs/scenario" } }
+  },
+  "$defs": {
+    "scenario": {
+      "type": "object", "additionalProperties": false, "required": ["id", "status"],
+      "properties": {
+        "id": { "enum": ["first-apply", "unchanged-apply", "changed-apply", "drift-recovery", "status-logs", "exec-port-forward", "ingress", "foreign-destroy-refusal"] },
+        "status": { "const": "passed" }
+      }
+    }
+  }
+}

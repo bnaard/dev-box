@@ -487,6 +487,7 @@ mod tests {
             include_str!("../contracts/v1alpha1/schemas/deployment-record.schema.json"),
             include_str!("../contracts/v1alpha1/schemas/backend-descriptor.schema.json"),
             include_str!("../contracts/v1alpha1/schemas/connection-target.schema.json"),
+            include_str!("../contracts/v1alpha1/schemas/disposable-cluster-evidence.schema.json"),
         ] {
             let value: serde_json::Value = serde_json::from_str(schema).unwrap();
             assert_eq!(

@@ -13,6 +13,7 @@ workspace="/workspaces/${name}"
 attestation="/tmp/${name}-evidence.json"
 context="kind-${name}"
 image_digest="sha256:208b70eefac13ee9be00e486f79c695b15cef861c680527171a27d253d834be9"
+scenarios=()
 
 cleanup() {
   kind delete cluster --name "${name}" >/dev/null 2>&1 || true
@@ -90,10 +91,14 @@ test -n "${deployment_id}" && test "${deployment_id}" != null
 kubectl --context "${context}" --namespace "${namespace}" rollout status deployment/web --timeout=120s
 kubectl --context "${context}" --namespace "${namespace}" get ingress -o json |
   jq -e --arg id "${deployment_id}" '.items[] | select(.metadata.labels["aibox.projectious.work/deployment-id"] == $id)' >/dev/null
+scenarios+=("first-apply")
+scenarios+=("unchanged-apply")
+scenarios+=("ingress")
 
 # Observability and both typed connection paths exercise a real workload.
 "$AIBOX_BIN" deploy status --output json | jq -e '.spec.status == "observed"' >/dev/null
 "$AIBOX_BIN" deploy logs --service web --output json | jq -e '.lines | type == "array"' >/dev/null
+scenarios+=("status-logs")
 "$AIBOX_BIN" connect shell -- /bin/sh -c 'test -f /etc/nginx/nginx.conf'
 "$AIBOX_BIN" connect web-forward > port-forward.log 2>&1 &
 pf_pid=$!
@@ -104,11 +109,13 @@ done
 curl -fsS http://127.0.0.1:18080/ | grep -qi nginx
 kill "${pf_pid}" || true
 wait "${pf_pid}" 2>/dev/null || true
+scenarios+=("exec-port-forward")
 
 sed -i 's/host_port = 18080/host_port = 18081/' aibox.toml
 "$AIBOX_BIN" deploy apply --output json > changed.json
 test "$(jq -r '.spec.deploymentId' changed.json)" = "${deployment_id}"
 test "$(jq -r '.spec.desiredSpecDigest' changed.json)" != "$(jq -r '.spec.desiredSpecDigest' first.json)"
+scenarios+=("changed-apply")
 
 # Observed drift must be visible and an apply must restore the deployment.
 kubectl --context "${context}" --namespace "${namespace}" delete deployment/web
@@ -116,6 +123,7 @@ kubectl --context "${context}" --namespace "${namespace}" delete deployment/web
 "$AIBOX_BIN" deploy apply --output json > recovered.json
 jq -e '.spec.status == "observed"' recovered.json >/dev/null
 kubectl --context "${context}" --namespace "${namespace}" rollout status deployment/web --timeout=120s
+scenarios+=("drift-recovery")
 
 # A durable per-target lock rejects a concurrent mutation.
 touch ".aibox/deployments/${deployment_id}.lock"
@@ -136,18 +144,33 @@ if "$AIBOX_BIN" deploy destroy --output json > foreign-destroy.json 2>&1; then
 fi
 grep -q 'refusing resources not owned' foreign-destroy.json
 kubectl --context "${context}" --namespace "${namespace}" get deployment/web >/dev/null
+scenarios+=("foreign-destroy-refusal")
 "$AIBOX_BIN" deploy apply --output json > ownership-recovered.json
 "$AIBOX_BIN" deploy destroy --output json | jq -e '.spec.status == "destroyed"' >/dev/null
 ! kubectl --context "${context}" --namespace "${namespace}" get deployment/web >/dev/null 2>&1
 ! kubectl --context "${context}" --namespace "${namespace}" get service/web >/dev/null 2>&1
 ! kubectl --context "${context}" --namespace "${namespace}" get ingress -o name | grep -q .
 
+binary_sha256="sha256:$(sha256sum "${AIBOX_BIN}" | awk '{print $1}')"
+scenarios_json="$(printf '%s\n' "${scenarios[@]}" | jq -R . | jq -s '[.[] | {id: ., status: "passed"}]')"
 jq -n \
-  --arg commit "${AIBOX_M7C_COMMIT}" \
+  --arg candidateCommit "${AIBOX_M7C_COMMIT}" \
+  --arg binarySha256 "${binary_sha256}" \
   --arg cluster "${name}" \
   --arg command 'cargo test --features e2e --test e2e kubernetes_kind -- --ignored --nocapture --test-threads=1' \
   --arg recordedAt "$(date -u +%Y-%m-%dT%H:%M:%SZ)" \
-  '{"apiVersion":"aibox.projectious.work/v1alpha1","kind":"DisposableClusterEvidence","status":"passed","commit":$commit,"cluster":$cluster,"command":$command,"recordedAt":$recordedAt}' > "${attestation}"
+  --argjson scenarios "${scenarios_json}" \
+  '{"apiVersion":"aibox.projectious.work/v1alpha1","kind":"DisposableClusterEvidence","status":"passed","candidateCommit":$candidateCommit,"binarySha256":$binarySha256,"cluster":$cluster,"command":$command,"scenarios":$scenarios,"recordedAt":$recordedAt}' > "${attestation}"
+
+# Exercise the Rust readiness parser in the disposable project before the test
+# harness copies the evidence to the release checkout.  The producer supplies
+# both candidate-bound values; the parser rejects any malformed attestation.
+mkdir -p .aibox/release-evidence
+cp "${attestation}" .aibox/release-evidence/m7c-live.json
+RELEASE_CANDIDATE_SHA="${AIBOX_M7C_COMMIT}" \
+  AIBOX_RELEASE_BINARY_SHA256="${binary_sha256}" \
+  "$AIBOX_BIN" config release-readiness --output json > readiness.json
+jq -e '.ready == true and (.gates[] | select(.id == "m7c-live-disposable-cluster-evidence").status == "passed")' readiness.json >/dev/null
 
 trap - EXIT INT TERM
 cleanup

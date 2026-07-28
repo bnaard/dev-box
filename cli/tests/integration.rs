@@ -662,6 +662,9 @@ fn e2e_companion_delegates_kind_through_systemd() {
         "operation already in progress",
         "refusing resources not owned",
         "DisposableClusterEvidence",
+        "candidateCommit",
+        "binarySha256",
+        "foreign-destroy-refusal",
     ] {
         assert!(
             kind_lifecycle.contains(required),
