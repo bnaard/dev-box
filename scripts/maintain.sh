@@ -2493,7 +2493,11 @@ cmd_release() {
 
   if release_step_requested notes; then
     local notes_file="${DIST_DIR}/RELEASE-NOTES.md"
-    if [[ ! -f "${notes_file}" ]] || ! grep -q "${tag}" "${notes_file}" 2>/dev/null; then
+    local tracked_notes_file="${PROJECT_ROOT}/release-notes/${tag}.md"
+    if [[ -f "${tracked_notes_file}" ]]; then
+      cp "${tracked_notes_file}" "${notes_file}"
+      ok "Using tracked release notes from ${tracked_notes_file}"
+    elif [[ ! -f "${notes_file}" ]] || ! grep -q "${tag}" "${notes_file}" 2>/dev/null; then
       info "Generating release-notes scaffold at ${notes_file}..."
       local prev_tag
       prev_tag=$(git describe --tags --abbrev=0 2>/dev/null || echo "")
