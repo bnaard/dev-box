@@ -301,7 +301,7 @@ ensure_e2e_companion() {
   local key="${PROJECT_ROOT}/.aibox-e2e-runner-home/.ssh/id_ed25519"
   local host="${AIBOX_E2E_HOST:-aibox-e2e-testrunner}"
   info "Checking SSH companion E2E container..."
-  local ssh_output=""
+  local ssh_output="" rebuilt=0 attempt
   if [[ -f "${key}" ]] && ssh_output=$(ssh -i "${key}" \
       -o StrictHostKeyChecking=no \
       -o UserKnownHostsFile=/dev/null \
@@ -309,8 +309,12 @@ ensure_e2e_companion() {
       -o LogLevel=ERROR \
       "testuser@${host}" 'echo ok' 2>&1); then
     if grep -qx ok <<<"${ssh_output}"; then
-      ok "SSH companion E2E container is reachable"
-      return
+      if e2e_companion_preflight "${key}" "${host}"; then
+        ok "SSH companion E2E container is reachable and kind-ready"
+        return
+      fi
+      warn "SSH companion is reachable but does not satisfy the systemd/kind contract"
+      rebuilt=1
     fi
   fi
 
@@ -318,10 +322,52 @@ ensure_e2e_companion() {
     warn "SSH companion host '${host}' did not resolve. In restricted Codex sandboxes, Docker DNS for the companion is often unavailable."
     warn "For partial release validation, use --skip e2e,visual or select steps that do not need the companion."
   fi
+  if [[ "${rebuilt}" -eq 1 ]]; then
+    die "E2E companion is stale. Rebuild it on the Docker host: docker compose -f .devcontainer/docker-compose.yml -f .devcontainer/docker-compose.override.yml up -d --build --force-recreate aibox-e2e-testrunner"
+  fi
   _require_runtime
   info "SSH companion not reachable; starting aibox-e2e-testrunner via Compose..."
-  compose up -d aibox-e2e-testrunner \
+  compose up -d --build --force-recreate aibox-e2e-testrunner \
     || die "Failed to start aibox-e2e-testrunner"
+
+  for attempt in $(seq 1 30); do
+    if [[ -f "${key}" ]] && ssh -i "${key}" \
+        -o StrictHostKeyChecking=no \
+        -o UserKnownHostsFile=/dev/null \
+        -o ConnectTimeout=5 \
+        -o LogLevel=ERROR \
+        "testuser@${host}" 'echo ok' >/dev/null 2>&1 \
+        && e2e_companion_preflight "${key}" "${host}"; then
+      ok "SSH companion E2E container is kind-ready"
+      return
+    fi
+    sleep 2
+  done
+  die "E2E companion did not become kind-ready after rebuild. On the host run: docker compose -f .devcontainer/docker-compose.yml -f .devcontainer/docker-compose.override.yml up -d --build --force-recreate aibox-e2e-testrunner"
+}
+
+# The release-gated kind suite needs more than an SSH daemon.  In particular,
+# a service created before the systemd companion migration remains reachable
+# but has sshd as PID 1 and cannot delegate cgroup v2 controllers to rootless
+# Podman.  Keep this probe shell-only so it runs before Cargo deploys any test
+# payload to the companion.
+e2e_companion_preflight() {
+  local key="$1" host="$2"
+  ssh -i "${key}" \
+    -o StrictHostKeyChecking=no \
+    -o UserKnownHostsFile=/dev/null \
+    -o ConnectTimeout=5 \
+    -o LogLevel=ERROR \
+    "testuser@${host}" \
+    'set -eu
+     command -v kind >/dev/null
+     command -v kubectl >/dev/null
+     test "$(ps -p 1 -o comm= | tr -d " ")" = systemd
+     test "$(stat -fc %T /sys/fs/cgroup)" = cgroup2fs
+     test -d /lib/modules
+     test "$(podman info --format "{{.Host.CgroupManager}}")" = systemd
+     systemd-run --user --scope --wait --quiet -p Delegate=yes \
+       /bin/sh -ec '\''scope=$(awk -F: "\$1 == 0 { print \$3 }" /proc/self/cgroup); base=/sys/fs/cgroup${scope}; test -r "${base}/cgroup.controllers"; for controller in cpu cpuset io memory pids; do grep -qw "${controller}" "${base}/cgroup.controllers"; done'\'''
 }
 
 prune_e2e_companion_storage() {
@@ -2034,7 +2080,7 @@ release_companion_e2e_gate() {
 # remains stricter than an alpha, but it is still the canonical parser for the
 # M5/M7c attestations and must accept the candidate evidence before tagging.
 release_v1_alpha_evidence_gate() {
-  local version="$1" evidence="${PROJECT_ROOT}/.aibox/release-evidence/m7c-live.json"
+  local version="$1" evidence="${PROJECT_ROOT}/.aibox/release-evidence/m7c-live.json" candidate_binary_sha256
   [[ "${version}" == 1.*-* ]] || return 0
   [[ -f "${evidence}" ]] \
     || die "v1 alpha release requires M7c evidence at ${evidence}; run the live disposable-cluster suite first"
@@ -2042,8 +2088,13 @@ release_v1_alpha_evidence_gate() {
     || die "M7c evidence is not bound to release candidate ${RELEASE_CANDIDATE_SHA}"
   grep -Eq "\"binarySha256\"[[:space:]]*:[[:space:]]*\"sha256:[0-9a-f]{64}\"" "${evidence}" \
     || die "M7c evidence does not bind the tested candidate binary digest"
+  [[ -f "${CLI_DIR}/target/debug/aibox" && -x "${CLI_DIR}/target/debug/aibox" && ! -L "${CLI_DIR}/target/debug/aibox" ]] \
+    || die "M7c candidate binary is missing; run the disposable-cluster suite before release gating"
+  candidate_binary_sha256="sha256:$(sha256_file "${CLI_DIR}/target/debug/aibox")"
+  grep -Eq "\"binarySha256\"[[:space:]]*:[[:space:]]*\"${candidate_binary_sha256}\"" "${evidence}" \
+    || die "M7c evidence is not bound to the exact candidate binary"
   "${PROJECT_ROOT}/scripts/test-processkit-v1-consumer.sh"
-  (cd "${PROJECT_ROOT}" && cargo run --quiet --manifest-path "${CLI_DIR}/Cargo.toml" -- \
+  (cd "${PROJECT_ROOT}" && AIBOX_RELEASE_BINARY_SHA256="${candidate_binary_sha256}" cargo run --quiet --manifest-path "${CLI_DIR}/Cargo.toml" -- \
     config release-readiness --output json) \
     || die "v1 alpha release readiness evidence is incomplete"
 }

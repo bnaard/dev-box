@@ -2609,6 +2609,32 @@ with tempfile.TemporaryDirectory() as tmp:
 
 with tempfile.TemporaryDirectory() as tmp:
     root = Path(tmp)
+    (root / "package.json").write_text(
+        '{"name": "owning-app", "private": true}\n',
+        encoding="utf-8",
+    )
+    (root / "package-lock.json").write_text("{}\n", encoding="utf-8")
+    nested_repo = root / "docs-site" / "themes" / "docsy"
+    nested_repo.mkdir(parents=True)
+    (nested_repo / ".git").write_text(
+        "gitdir: ../../../.git/modules/docs-site/themes/docsy\n",
+        encoding="utf-8",
+    )
+    (nested_repo / "package.json").write_text(
+        '{"name": "docsy-theme", "private": true}\n',
+        encoding="utf-8",
+    )
+    findings = _supply_chain_run({"repo_root": root, "since_files": None})
+    missing = [item for item in findings if item.id == "supply_chain.missing-lockfile"]
+    inventory = next(item for item in findings if item.id == "supply_chain.inventory")
+    check("21c1: nested gitfile repository manifests are excluded", not missing)
+    check(
+        "21c2: nested gitfile repository is absent from inventory",
+        inventory.extra["manifest_counts"] == {"Node": 1, "package.json": 1},
+    )
+
+with tempfile.TemporaryDirectory() as tmp:
+    root = Path(tmp)
     policy = root / ".processkit"
     policy.mkdir()
     (policy / "supply-chain-policy.yaml").write_text(

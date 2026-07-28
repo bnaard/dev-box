@@ -31,6 +31,26 @@ fn candidate_commit() -> String {
         .to_string()
 }
 
+fn candidate_binary_sha256() -> String {
+    let binary = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("target/debug/aibox");
+    let output = Command::new("sha256sum")
+        .arg(&binary)
+        .output()
+        .expect("hash test candidate binary");
+    assert!(
+        output.status.success(),
+        "sha256sum of test candidate binary must succeed: {}",
+        String::from_utf8_lossy(&output.stderr)
+    );
+    let digest = String::from_utf8(output.stdout)
+        .expect("sha256sum output is UTF-8")
+        .split_whitespace()
+        .next()
+        .expect("sha256sum output contains digest")
+        .to_string();
+    format!("sha256:{digest}")
+}
+
 #[test]
 #[ignore = "release gate: run through maintain.sh test-e2e"]
 fn kubernetes_kind_lifecycle_produces_release_candidate_evidence() {
@@ -46,19 +66,41 @@ fn kubernetes_kind_lifecycle_produces_release_candidate_evidence() {
         "set -eu; kind version; kubectl version --client; \
          test \"$(ps -p 1 -o comm= | tr -d ' ')\" = systemd; \
          test \"$(stat -fc %T /sys/fs/cgroup)\" = cgroup2fs; \
-         grep -qw pids /sys/fs/cgroup/cgroup.controllers; \
-         grep -qw pids /sys/fs/cgroup/cgroup.subtree_control; \
          test \"$(podman info --format '{{.Host.CgroupManager}}')\" = systemd; \
-         systemd-run --user --scope -p Delegate=yes --quiet true; test -d /lib/modules",
+         systemd-run --user --scope --wait --quiet -p Delegate=yes \\
+           /bin/sh -ec 'scope=$(awk -F: \"$1 == 0 { print $3 }\" /proc/self/cgroup); base=/sys/fs/cgroup${scope}; test -r \"${base}/cgroup.controllers\"; for controller in cpu cpuset io memory pids; do grep -qw \"${controller}\" \"${base}/cgroup.controllers\"; done'; \
+         test -d /lib/modules",
     );
     assert!(
         preflight.status.success(),
-        "kind prerequisite failed:\nstdout:\n{}\nstderr:\n{}",
+        "kind companion is stale or incomplete. Rebuild it from the host with:\n\
+         docker compose -f .devcontainer/docker-compose.yml \
+         -f .devcontainer/docker-compose.override.yml up -d --build --force-recreate \
+         aibox-e2e-testrunner\n\
+         stdout:\n{}\nstderr:\n{}",
         String::from_utf8_lossy(&preflight.stdout),
         String::from_utf8_lossy(&preflight.stderr)
     );
 
     let commit = candidate_commit();
+    let checked_out_commit = Command::new("git")
+        .args(["rev-parse", "HEAD"])
+        .current_dir(
+            PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+                .parent()
+                .expect("cli has a repository parent"),
+        )
+        .output()
+        .expect("resolve checked out candidate commit");
+    assert!(checked_out_commit.status.success());
+    assert_eq!(
+        commit,
+        String::from_utf8(checked_out_commit.stdout)
+            .expect("commit is UTF-8")
+            .trim(),
+        "M7c evidence must be bound to the checked-out release candidate"
+    );
+    let binary_sha256 = candidate_binary_sha256();
     let script = PathBuf::from(env!("CARGO_MANIFEST_DIR"))
         .parent()
         .expect("cli has a repository parent")
@@ -69,7 +111,8 @@ fn kubernetes_kind_lifecycle_produces_release_candidate_evidence() {
     );
     let run = runner.exec(&format!(
         "chmod +x /tmp/test-kubernetes-kind.sh && \
-         AIBOX_M7C_COMMIT={commit} AIBOX_BIN=/usr/local/bin/aibox \
+         AIBOX_M7C_COMMIT={commit} AIBOX_M7C_BINARY_SHA256={binary_sha256} \
+         AIBOX_BIN=/usr/local/bin/aibox \
          AIBOX_ADDONS_DIR=/opt/aibox/addons /tmp/test-kubernetes-kind.sh"
     ));
     assert!(
@@ -83,11 +126,7 @@ fn kubernetes_kind_lifecycle_produces_release_candidate_evidence() {
         serde_json::from_slice(&run.stdout).expect("live M7c suite must return JSON evidence");
     assert_eq!(evidence["status"], "passed");
     assert_eq!(evidence["candidateCommit"], commit);
-    assert!(
-        evidence["binarySha256"]
-            .as_str()
-            .is_some_and(|digest| digest.starts_with("sha256:") && digest.len() == 71)
-    );
+    assert_eq!(evidence["binarySha256"], binary_sha256);
     assert_eq!(
         evidence["scenarios"].as_array().map(Vec::len),
         Some(8),
