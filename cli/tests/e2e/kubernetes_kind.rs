@@ -73,7 +73,11 @@ fn kubernetes_kind_lifecycle_produces_release_candidate_evidence() {
     );
     assert!(
         preflight.status.success(),
-        "kind prerequisite failed:\nstdout:\n{}\nstderr:\n{}",
+        "kind companion is stale or incomplete. Rebuild it from the host with:\n\
+         docker compose -f .devcontainer/docker-compose.yml \
+         -f .devcontainer/docker-compose.override.yml up -d --build --force-recreate \
+         aibox-e2e-testrunner\n\
+         stdout:\n{}\nstderr:\n{}",
         String::from_utf8_lossy(&preflight.stdout),
         String::from_utf8_lossy(&preflight.stderr)
     );
