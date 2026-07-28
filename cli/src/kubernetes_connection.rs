@@ -264,23 +264,39 @@ fn connection_error(message: &str) -> BackendError {
 pub struct NetworkOwnership {
     pub deployment_id: String,
     pub desired_spec_digest: String,
+    /// The complete non-secret ownership identity copied from the deployment
+    /// record.  Older records did not carry this field, so the three required
+    /// aibox labels remain the minimum compatible identity.
+    #[serde(default, skip_serializing_if = "BTreeMap::is_empty")]
+    pub resource_labels: BTreeMap<String, String>,
 }
 impl NetworkOwnership {
     pub fn labels(&self) -> BTreeMap<String, String> {
-        BTreeMap::from([
+        let mut labels = self.resource_labels.clone();
+        labels.extend(BTreeMap::from([
             (LABEL_MANAGED_BY.to_string(), MANAGED_BY_VALUE.to_string()),
             (LABEL_DEPLOYMENT_ID.to_string(), self.deployment_id.clone()),
             (
                 LABEL_SPEC_DIGEST.to_string(),
                 self.desired_spec_digest.clone(),
             ),
-        ])
+        ]));
+        labels
     }
     fn matches(&self, labels: &BTreeMap<String, String>) -> bool {
-        labels.get(LABEL_MANAGED_BY) == Some(&MANAGED_BY_VALUE.to_string())
-            && labels.get(LABEL_DEPLOYMENT_ID) == Some(&self.deployment_id)
-            && labels.get(LABEL_SPEC_DIGEST) == Some(&self.desired_spec_digest)
+        self.labels()
+            .iter()
+            .all(|(key, value)| labels.get(key) == Some(value))
     }
+}
+
+/// A discovered, deployment-owned network resource which is safe to delete
+/// only after the entire destroy plan has been validated.
+#[derive(Clone, Debug, Eq, PartialEq, Ord, PartialOrd)]
+pub struct ManagedNetworkResourceKey {
+    pub kind: String,
+    pub namespace: String,
+    pub name: String,
 }
 
 /// Desired bindings to facilities which must be present before reconciliation.
@@ -676,6 +692,18 @@ pub fn destroy_network(
     api: &dyn KubernetesNetworkApi,
     request: &NetworkReconciliationRequest,
 ) -> Result<(), BackendError> {
+    let plan = plan_network_destroy(api, request)?;
+    execute_network_destroy(api, &plan)?;
+    verify_network_absent(api, &plan)
+}
+
+/// Discover and validate every network resource for one service without
+/// mutating it.  Callers that destroy several services must collect every
+/// plan before executing any of them.
+pub fn plan_network_destroy(
+    api: &dyn KubernetesNetworkApi,
+    request: &NetworkReconciliationRequest,
+) -> Result<Vec<ManagedNetworkResourceKey>, BackendError> {
     let name = network_name(&request.ownership.deployment_id, &request.service);
     let mut owned = Vec::new();
     for kind in ["HTTPRoute", "Gateway", "Ingress", "DNSRecord"] {
@@ -691,10 +719,56 @@ pub fn destroy_network(
                 ),
             });
         }
-        owned.push(kind);
+        if existing.kind != kind || existing.namespace != request.namespace || existing.name != name
+        {
+            return Err(BackendError {
+                code: ContractErrorCode::Ownership,
+                message: format!(
+                    "refusing to delete {kind} '{}/{}': discovered identity does not match deployment record",
+                    request.namespace, name
+                ),
+            });
+        }
+        owned.push(ManagedNetworkResourceKey {
+            kind: kind.to_string(),
+            namespace: request.namespace.clone(),
+            name: name.clone(),
+        });
     }
-    for kind in owned {
-        api.delete(kind, &request.namespace, &name)?;
+    Ok(owned)
+}
+
+/// Execute a previously validated network destroy plan.  This deliberately
+/// accepts only concrete discovered keys, never a selector.
+pub fn execute_network_destroy(
+    api: &dyn KubernetesNetworkApi,
+    plan: &[ManagedNetworkResourceKey],
+) -> Result<(), BackendError> {
+    for resource in plan {
+        api.delete(&resource.kind, &resource.namespace, &resource.name)?;
+    }
+    Ok(())
+}
+
+/// Verify a completed network destroy plan before the deployment record is
+/// marked destroyed.
+pub fn verify_network_absent(
+    api: &dyn KubernetesNetworkApi,
+    plan: &[ManagedNetworkResourceKey],
+) -> Result<(), BackendError> {
+    for resource in plan {
+        if api
+            .get(&resource.kind, &resource.namespace, &resource.name)?
+            .is_some()
+        {
+            return Err(BackendError {
+                code: ContractErrorCode::Mutation,
+                message: format!(
+                    "Kubernetes network resource {}/{} remained after destroy",
+                    resource.kind, resource.name
+                ),
+            });
+        }
     }
     Ok(())
 }
@@ -982,6 +1056,7 @@ mod tests {
             ownership: NetworkOwnership {
                 deployment_id: "workspace-12345678".to_string(),
                 desired_spec_digest: "sha256:abc".to_string(),
+                resource_labels: BTreeMap::new(),
             },
             ingress_class: Some("nginx".to_string()),
             gateway_class: None,
@@ -1138,6 +1213,7 @@ mod tests {
             labels: NetworkOwnership {
                 deployment_id: "deployment".to_string(),
                 desired_spec_digest: "sha256:spec".to_string(),
+                resource_labels: BTreeMap::new(),
             }
             .labels(),
             hostname: "workspace.example.test".to_string(),
