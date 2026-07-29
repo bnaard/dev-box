@@ -444,6 +444,25 @@ fn v1_config_migration_preview_apply_and_restore_are_explicit_and_isolated() {
     let preview = run_in_dir(dir.path(), &["config", "migrate-v1", "--output", "json"]);
     let preview_json = parse_json(&preview);
     assert!(preview_json["changed"].as_bool().unwrap());
+    assert_eq!(preview_json["readyToEnable"], false);
+    assert!(
+        preview_json["mappedFields"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .any(|mapping| mapping["source"] == "container.name")
+    );
+    let decisions = preview_json["unresolvedDecisions"].as_array().unwrap();
+    for id in [
+        "immutable-image",
+        "platform",
+        "target",
+        "owner-id",
+        "connections",
+        "environment",
+    ] {
+        assert!(decisions.iter().any(|decision| decision["id"] == id));
+    }
     assert!(!String::from_utf8_lossy(&preview.stdout).contains(CANARY));
     assert_eq!(std::fs::read_to_string(&config).unwrap(), original);
     assert!(!dir.path().join(".aibox").exists());

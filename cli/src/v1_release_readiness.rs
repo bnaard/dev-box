@@ -36,6 +36,26 @@ struct ConfigMigrationReport {
     resulting_sha256: String,
     #[serde(skip_serializing_if = "Option::is_none")]
     note: Option<String>,
+    mapped_fields: Vec<ConfigMigrationMapping>,
+    unresolved_decisions: Vec<ConfigMigrationDecision>,
+    ready_to_enable: bool,
+}
+
+#[derive(Clone, Debug, Eq, PartialEq, Serialize)]
+#[serde(rename_all = "camelCase")]
+struct ConfigMigrationMapping {
+    source: String,
+    targets: Vec<String>,
+    value: String,
+}
+
+#[derive(Clone, Debug, Eq, PartialEq, Serialize)]
+#[serde(rename_all = "camelCase")]
+struct ConfigMigrationDecision {
+    id: String,
+    target: String,
+    reason: String,
+    allowed_values: Vec<String>,
 }
 
 #[derive(Clone, Debug, Eq, PartialEq, Serialize)]
@@ -407,6 +427,7 @@ fn project_root(config_path: &Option<String>) -> Result<PathBuf> {
 fn preview_v1_config_migration(path: &Path) -> Result<ConfigMigrationReport> {
     let original = read_v0_config(path)?;
     let original_digest = sha256(&original);
+    let (mapped_fields, unresolved_decisions) = migration_analysis(&original)?;
     let Some(migrated) = migrated_config(&original)? else {
         return Ok(ConfigMigrationReport {
             operation: "preview".to_string(),
@@ -416,6 +437,9 @@ fn preview_v1_config_migration(path: &Path) -> Result<ConfigMigrationReport> {
             original_sha256: original_digest.clone(),
             resulting_sha256: original_digest,
             note: Some("[orchestration] already exists; no migration is proposed".to_string()),
+            mapped_fields: Vec::new(),
+            unresolved_decisions: Vec::new(),
+            ready_to_enable: false,
         });
     };
     Ok(ConfigMigrationReport {
@@ -426,15 +450,19 @@ fn preview_v1_config_migration(path: &Path) -> Result<ConfigMigrationReport> {
         original_sha256: original_digest,
         resulting_sha256: sha256(&migrated),
         note: Some(
-            "would append [orchestration] enabled = false; no deployment is enabled or contacted"
+            "would append a disabled boundary; resolve every reported decision before enabling deployment"
                 .to_string(),
         ),
+        mapped_fields,
+        ready_to_enable: unresolved_decisions.is_empty(),
+        unresolved_decisions,
     })
 }
 
 fn apply_v1_config_migration(path: &Path) -> Result<ConfigMigrationReport> {
     let original = read_v0_config(path)?;
     let original_digest = sha256(&original);
+    let (mapped_fields, unresolved_decisions) = migration_analysis(&original)?;
     let Some(migrated) = migrated_config(&original)? else {
         return Ok(ConfigMigrationReport {
             operation: "apply".to_string(),
@@ -446,6 +474,9 @@ fn apply_v1_config_migration(path: &Path) -> Result<ConfigMigrationReport> {
             note: Some(
                 "[orchestration] already exists; original config was left untouched".to_string(),
             ),
+            mapped_fields: Vec::new(),
+            unresolved_decisions: Vec::new(),
+            ready_to_enable: false,
         });
     };
     let backup_dir = create_private_backup_dir(path)?;
@@ -472,7 +503,13 @@ fn apply_v1_config_migration(path: &Path) -> Result<ConfigMigrationReport> {
         backup_path: Some(backup.display().to_string()),
         original_sha256: original_digest,
         resulting_sha256: sha256(&migrated),
-        note: Some("backup was committed before the disabled v1 boundary was written".to_string()),
+        note: Some(
+            "backup was committed before the disabled boundary; resolve every reported decision before enabling deployment"
+                .to_string(),
+        ),
+        mapped_fields,
+        ready_to_enable: unresolved_decisions.is_empty(),
+        unresolved_decisions,
     })
 }
 
@@ -501,7 +538,119 @@ fn restore_v0_config(path: &Path, backup: &Path) -> Result<ConfigMigrationReport
             "restored exact v0-compatible config; deployment records were not read or changed"
                 .to_string(),
         ),
+        mapped_fields: Vec::new(),
+        unresolved_decisions: Vec::new(),
+        ready_to_enable: false,
     })
+}
+
+fn migration_analysis(
+    original: &[u8],
+) -> Result<(Vec<ConfigMigrationMapping>, Vec<ConfigMigrationDecision>)> {
+    let value: toml::Value = toml::from_str(std::str::from_utf8(original)?)?;
+    let container = value
+        .get("container")
+        .and_then(toml::Value::as_table)
+        .context("[container] is required for v0-to-v1 migration")?;
+    let name = container
+        .get("name")
+        .and_then(toml::Value::as_str)
+        .context("[container].name is required for v0-to-v1 migration")?;
+    let mapped = vec![ConfigMigrationMapping {
+        source: "container.name".to_string(),
+        targets: vec![
+            "orchestration.fleet.name".to_string(),
+            "orchestration.fleet.services[0].name".to_string(),
+            "orchestration.deployment.name".to_string(),
+        ],
+        value: name.to_string(),
+    }];
+    let mut decisions = vec![
+        migration_decision(
+            "immutable-image",
+            "orchestration.image.reference,digest",
+            "a v0 generated image tag is mutable and cannot prove a deployable image digest",
+            &["registry reference plus sha256 digest"],
+        ),
+        migration_decision(
+            "platform",
+            "orchestration.image.platform",
+            "the deployment platform is an operator choice, not a property of the v0 config",
+            &["linux-amd64", "linux-arm64"],
+        ),
+        migration_decision(
+            "target",
+            "orchestration.target",
+            "v0 local-container settings do not identify an authorized deployment target",
+            &[
+                "compose context and scope",
+                "kubernetes context and namespace",
+            ],
+        ),
+        migration_decision(
+            "owner-id",
+            "orchestration.deployment.owner_id",
+            "resource ownership must be explicitly assigned",
+            &["stable non-secret owner identifier"],
+        ),
+        migration_decision(
+            "connections",
+            "orchestration.connections",
+            "v0 attach behavior does not determine the intended v1 connection transports",
+            &[
+                "compose-exec",
+                "kubernetes-exec",
+                "kubernetes-port-forward",
+                "ssh",
+            ],
+        ),
+    ];
+    if container
+        .get("environment")
+        .and_then(toml::Value::as_table)
+        .is_some_and(|environment| !environment.is_empty())
+    {
+        decisions.push(migration_decision(
+            "environment",
+            "orchestration.fleet.services[0].environment",
+            "v0 environment values may contain secrets and cannot be copied into deployment intent",
+            &[
+                "environment-variable reference",
+                "file reference",
+                "secret-manager reference",
+            ],
+        ));
+    }
+    if container
+        .get("extra_volumes")
+        .and_then(toml::Value::as_array)
+        .is_some_and(|volumes| !volumes.is_empty())
+    {
+        decisions.push(migration_decision(
+            "volumes",
+            "orchestration fleet storage",
+            "host bind mounts are local v0 behavior with no portable v1 deployment equivalent",
+            &["remove", "backend-owned storage configuration"],
+        ));
+    }
+    Ok((mapped, decisions))
+}
+
+fn migration_decision(
+    id: &str,
+    target: &str,
+    reason: &str,
+    allowed_values: &[&str],
+) -> ConfigMigrationDecision {
+    ConfigMigrationDecision {
+        id: id.to_string(),
+        target: target.to_string(),
+        reason: reason.to_string(),
+        allowed_values: allowed_values
+            .iter()
+            .map(|value| (*value).to_string())
+            .collect(),
+    }
 }
 
 fn read_v0_config(path: &Path) -> Result<Vec<u8>> {
@@ -715,6 +864,24 @@ fn print_migration_report(report: &ConfigMigrationReport, format: V1ReadinessOut
             }
             if let Some(note) = &report.note {
                 println!("  note: {note}");
+            }
+            for mapping in &report.mapped_fields {
+                println!(
+                    "  mapped: {} -> {} ({})",
+                    mapping.source,
+                    mapping.targets.join(", "),
+                    mapping.value
+                );
+            }
+            println!("  ready to enable: {}", report.ready_to_enable);
+            for decision in &report.unresolved_decisions {
+                println!(
+                    "  unresolved {}: {} — {} (choose: {})",
+                    decision.id,
+                    decision.target,
+                    decision.reason,
+                    decision.allowed_values.join(", ")
+                );
             }
         }
     }
