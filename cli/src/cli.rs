@@ -542,6 +542,14 @@ pub enum ConfigAction {
         /// Write the disabled v1 orchestration boundary after making an exact v0 backup.
         #[arg(long, conflicts_with = "restore")]
         apply: bool,
+        /// Reviewed TOML document containing one complete [orchestration] table.
+        #[arg(
+            long,
+            value_name = "FILE",
+            requires = "apply",
+            conflicts_with = "restore"
+        )]
+        intent_file: Option<String>,
         /// Restore an exact v0 backup created by `config migrate-v1 --apply`.
         #[arg(long, value_name = "BACKUP", conflicts_with = "apply")]
         restore: Option<String>,

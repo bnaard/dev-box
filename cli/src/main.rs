@@ -222,11 +222,13 @@ fn dispatch(cli: cli::Cli) -> anyhow::Result<()> {
             }
             cli::ConfigAction::MigrateV1 {
                 apply,
+                intent_file,
                 restore,
                 format,
             } => v1_release_readiness::cmd_config_migrate_v1(
                 config_path,
                 apply,
+                intent_file.as_deref(),
                 restore.as_deref(),
                 format,
             ),

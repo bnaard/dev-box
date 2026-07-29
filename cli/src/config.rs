@@ -4644,13 +4644,7 @@ impl AiboxConfig {
     /// backend.  Backend discovery and rendering intentionally happen later.
     fn validate_orchestration(&self) -> Result<()> {
         let orchestration = &self.orchestration;
-        if !orchestration.enabled {
-            if orchestration.has_intent() {
-                bail!(
-                    "orchestration intent requires orchestration.enabled = true; \
-                     aibox never deploys from an implicit v1 configuration"
-                );
-            }
+        if !orchestration.enabled && !orchestration.has_intent() {
             return Ok(());
         }
 
