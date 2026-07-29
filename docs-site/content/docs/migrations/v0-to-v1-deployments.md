@@ -14,6 +14,24 @@ Preview first. This reads only `aibox.toml`, reports digests rather than printin
 aibox config migrate-v1 --output json
 ```
 
+The preview maps the safe, deterministic part of the old configuration:
+`container.name` becomes the proposed fleet, first service, and deployment
+name. It then returns an `unresolvedDecisions` array for facts that aibox must
+not guess:
+
+- immutable image reference and digest;
+- target platform;
+- Compose context/scope or Kubernetes context/namespace;
+- stable deployment owner;
+- connection transports;
+- credential references for any v0 environment entries;
+- a remove-or-redesign disposition for host bind mounts.
+
+The report never includes environment values. `readyToEnable` remains false
+until these operator decisions have explicit v1 values. This makes the command
+a migration planner, rather than a textual marker that implies the v0
+configuration was fully converted.
+
 Apply the narrow migration only after reviewing the preview:
 
 ```sh
@@ -27,7 +45,9 @@ The command creates an exact original copy under `.aibox/backups/v1-config/` bef
 enabled = false
 ```
 
-That disabled boundary is intentional: aibox cannot safely infer an immutable image digest, deployment owner, target, namespace, credential references, or ingress/DNS prerequisites from a v0 devcontainer configuration. Add those values explicitly, review `aibox deploy plan`, and only then set `enabled = true`.
+That disabled boundary is intentional. Add the reported unresolved values
+explicitly, run `aibox config compile`, review `aibox deploy plan`, and only
+then set `enabled = true`.
 
 ## Roll back configuration
 
