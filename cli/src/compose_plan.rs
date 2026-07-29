@@ -7,13 +7,14 @@ use std::path::{Path, PathBuf};
 use std::process::Command;
 use std::sync::Arc;
 
-use serde::{Deserialize, Serialize};
+use serde::Serialize;
 use sha2::{Digest, Sha256};
 
 use crate::deployment_backend::{
     ApplyRequest, ApplyResponse, Backend, BackendError, ConnectionRequest, ConnectionResponse,
     DestroyRequest, DestroyResponse, LogsRequest, LogsResponse, PlanRequest, PlanResponse,
-    StatusRequest, StatusResponse, ValidateRequest, ValidateResponse,
+    RenderedDeploymentArtifacts, RenderedDeploymentPlan, StatusRequest, StatusResponse,
+    ValidateRequest, ValidateResponse,
 };
 use crate::deployment_compiler::{DesiredDeploymentAction, DesiredDeploymentPlan};
 use crate::deployment_contract::{
@@ -26,22 +27,6 @@ use crate::deployment_contract::{
 pub const LABEL_DEPLOYMENT_ID: &str = "aibox.projectious.work/deployment-id";
 pub const LABEL_SPEC_DIGEST: &str = "aibox.projectious.work/desired-spec-digest";
 pub const LABEL_IMAGE_DIGEST: &str = "aibox.projectious.work/image-digest";
-
-#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
-#[serde(rename_all = "camelCase")]
-pub struct RenderedDeploymentPlan {
-    pub backend: BackendKind,
-    pub deployment_id: String,
-    pub desired_spec_digest: String,
-    pub image_digest: String,
-    pub ownership_labels: BTreeMap<String, String>,
-    pub compose_yaml: String,
-    pub devcontainer_json: String,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub kubernetes_yaml: Option<String>,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub kubernetes_json: Option<String>,
-}
 
 /// A small command boundary keeps lifecycle tests independent of Docker or
 /// Podman.  It deliberately transports argv as a vector, never through a
@@ -418,13 +403,18 @@ impl DeploymentStore {
     fn write_artifacts(&self, rendered: &RenderedDeploymentPlan) -> Result<(), BackendError> {
         let directory = self.root.join(&rendered.deployment_id);
         fs::create_dir_all(&directory).map_err(store_error)?;
+        let (compose_yaml, devcontainer_json) =
+            rendered.artifacts.compose().ok_or_else(|| BackendError {
+                code: ContractErrorCode::Planning,
+                message: "Compose backend received non-Compose rendered artifacts".to_string(),
+            })?;
         atomic_write(
             &directory.join("docker-compose.yml"),
-            rendered.compose_yaml.as_bytes(),
+            compose_yaml.as_bytes(),
         )?;
         atomic_write(
             &directory.join("devcontainer.json"),
-            rendered.devcontainer_json.as_bytes(),
+            devcontainer_json.as_bytes(),
         )
     }
 }
@@ -666,11 +656,13 @@ pub fn render(plan: &DesiredDeploymentPlan) -> Result<RenderedDeploymentPlan, Ba
         desired_spec_digest: plan.desired_spec_digest.clone(),
         image_digest: fleet.spec.image.digest.clone(),
         ownership_labels: labels,
-        compose_yaml: serde_yaml::to_string(&compose).map_err(serialization_error)?,
-        devcontainer_json: serde_json::to_string_pretty(&devcontainer)
-            .map_err(serialization_error)?,
-        kubernetes_yaml: None,
-        kubernetes_json: None,
+        artifacts: RenderedDeploymentArtifacts::Compose {
+            compose_yaml: serde_yaml::to_string(&compose).map_err(serialization_error)?,
+            devcontainer_json: serde_json::to_string_pretty(&devcontainer)
+                .map_err(serialization_error)?,
+            kubernetes_yaml: None,
+            kubernetes_json: None,
+        },
     })
 }
 
@@ -851,15 +843,16 @@ mod tests {
         })
         .unwrap();
         let first = render(&plan).unwrap();
+        let (compose_yaml, _) = first.artifacts.compose().unwrap();
         assert_eq!(first, render(&plan).unwrap());
         assert_eq!(
-            first.compose_yaml,
+            compose_yaml,
             include_str!("../contracts/v1alpha1/fixtures/valid/compose-plan.yaml")
         );
-        assert!(first.compose_yaml.contains(LABEL_DEPLOYMENT_ID));
-        assert!(first.compose_yaml.contains("${AIBOX_REGISTRY_TOKEN}"));
-        assert!(!first.compose_yaml.contains("secret-token"));
-        assert!(first.compose_yaml.contains("@sha256:"));
+        assert!(compose_yaml.contains(LABEL_DEPLOYMENT_ID));
+        assert!(compose_yaml.contains("${AIBOX_REGISTRY_TOKEN}"));
+        assert!(!compose_yaml.contains("secret-token"));
+        assert!(compose_yaml.contains("@sha256:"));
     }
 
     #[test]

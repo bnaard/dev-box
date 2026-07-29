@@ -14,6 +14,11 @@ AIBOX_MAINTAIN_SOURCE_ONLY=1 source "${SCRIPT_DIR}/maintain.sh"
   || die "v1 GA versions must resolve to v1.x-release"
 declare -F publish_release_candidate >/dev/null \
   || die "release candidate protected-branch publisher is missing"
+declare -F release_docs_gate >/dev/null \
+  || die "release documentation gate is missing"
+release_parse_steps all
+release_step_requested docs-check \
+  || die "the full release process must include docs-check"
 
 test_root="$(mktemp -d)"
 trap 'rm -rf "${test_root}"' EXIT

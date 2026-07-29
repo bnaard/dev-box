@@ -17,13 +17,13 @@ use sha2::{Digest, Sha256};
 use crate::cli::V1ReadinessOutputFormat;
 #[cfg(test)]
 use crate::config::AiboxConfig;
-use crate::release_evidence::DisposableClusterEvidence;
+use crate::release_evidence::{DisposableClusterEvidence, ReleaseGateEvidence};
 
 const BACKUP_RELATIVE_DIR: &str = ".aibox/backups/v1-config";
 const RECEIPT_RELATIVE_PATH: &str = ".aibox/migrations/v1-config.json";
 const M7C_EVIDENCE_RELATIVE_PATH: &str = ".aibox/release-evidence/m7c-live.json";
+const GATE_EVIDENCE_RELATIVE_DIR: &str = ".aibox/release-evidence/v1-readiness";
 const PROCESSKIT_ALPHA3_TAG: &str = "v1.0.0-alpha.3";
-const PROCESSKIT_ALPHA3_COMMIT: &str = "61929f9160b9b97063c5b8f10ad7cbff33c55e5c";
 
 #[derive(Clone, Debug, Eq, PartialEq, Serialize)]
 #[serde(rename_all = "camelCase")]
@@ -113,8 +113,11 @@ pub fn cmd_release_readiness(
 }
 
 pub fn release_readiness(project_root: &Path) -> ReleaseReadinessReport {
-    let mut gates = vec![migration_gate(), threat_model_gate()];
-    gates.extend(m5_gates());
+    let mut gates = vec![
+        migration_gate(project_root),
+        threat_model_gate(project_root),
+    ];
+    gates.extend(m5_gates(project_root));
     gates.push(m7c_gate(project_root));
     let ready = gates
         .iter()
@@ -127,29 +130,27 @@ pub fn release_readiness(project_root: &Path) -> ReleaseReadinessReport {
     }
 }
 
-fn migration_gate() -> ReleaseGate {
-    ReleaseGate {
-        id: "v0-to-v1-config-migration".to_string(),
-        title: "Previewable v0-to-v1 migration and rollback".to_string(),
-        status: GateStatus::Passed,
-        blocking: true,
-        evidence: "aibox config migrate-v1 previews by default, writes an exact atomic backup before changing aibox.toml, and can explicitly restore that backup".to_string(),
-        remediation: "Run the migration and restore integration tests on the release candidate.".to_string(),
-    }
+fn migration_gate(project_root: &Path) -> ReleaseGate {
+    candidate_evidence_gate(
+        project_root,
+        "v0-to-v1-config-migration",
+        "Previewable v0-to-v1 migration and rollback",
+        true,
+        "Run the migration and restore integration tests on the release candidate and retain their candidate-bound record.",
+    )
 }
 
-fn threat_model_gate() -> ReleaseGate {
-    ReleaseGate {
-        id: "ownership-credentials-supply-chain-canaries".to_string(),
-        title: "Ownership, credential, and supply-chain canaries".to_string(),
-        status: GateStatus::Passed,
-        blocking: true,
-        evidence: "The release candidate contains the versioned threat model and canary tests for secret-free previews, backup confinement, and v0/v1 deployment-state isolation.".to_string(),
-        remediation: "Run the documented canary tests and retain their CI output with the release candidate.".to_string(),
-    }
+fn threat_model_gate(project_root: &Path) -> ReleaseGate {
+    candidate_evidence_gate(
+        project_root,
+        "ownership-credentials-supply-chain-canaries",
+        "Ownership, credential, and supply-chain canaries",
+        true,
+        "Run the documented canary tests and retain their candidate-bound evidence record.",
+    )
 }
 
-fn m5_gates() -> Vec<ReleaseGate> {
+fn m5_gates(project_root: &Path) -> Vec<ReleaseGate> {
     let protocol_source = include_str!("processkit_protocol.rs");
     let consumer_gate = include_str!(concat!(
         env!("CARGO_MANIFEST_DIR"),
@@ -161,41 +162,104 @@ fn m5_gates() -> Vec<ReleaseGate> {
         && consumer_gate
             .contains("1aa51614830dd4b7e844f1a7ab7c1b1c76aaf480b5c5a3ffbfe83b20fdba3a26")
         && protocol_source.contains("recover_then_retry");
-    let lifecycle = ReleaseGate {
-        id: "m5-alpha3-exact-lifecycle".to_string(),
-        title: "M5 exact alpha.3 signed lifecycle".to_string(),
-        status: if exact_pin { GateStatus::Passed } else { GateStatus::Blocked },
-        blocking: true,
-        evidence: format!(
-            "Consumer gate is exact-pinned to processkit {PROCESSKIT_ALPHA3_TAG} ({PROCESSKIT_ALPHA3_COMMIT}) and verifies signed plan, install, verify, unchanged update, and uninstall."
-        ),
-        remediation: "Restore the exact alpha.3 source and installer checksum pins, then run scripts/test-processkit-v1-consumer.sh on the release candidate.".to_string(),
-    };
-    let recovery = ReleaseGate {
-        id: "m5-interruption-recovery".to_string(),
-        title: "M5 interruption, recovery, and retry".to_string(),
-        status: if protocol_source.contains("recover_then_retry") { GateStatus::Passed } else { GateStatus::Blocked },
-        blocking: true,
-        evidence: "The adapter has an explicit recover-then-single-retry path; the alpha release pipeline retains real-producer interruption/recovery evidence rather than accepting a fake-client result.".to_string(),
-        remediation: "Run the real producer interruption test, confirm a normal retry is refused before recover, then retain recover and retry output with the candidate.".to_string(),
-    };
-    let migration = ReleaseGate {
-        id: "m5-v0-coexistence-and-rollback".to_string(),
-        title: "M5 v0 coexistence and rollback boundary".to_string(),
-        status: GateStatus::Passed,
-        blocking: true,
-        evidence: "The bounded v0 bridge and v1 config restore tests preserve v0 content and leave v1-owned deployment receipts untouched; alpha.3 does not infer or mutate an existing v0 layout.".to_string(),
-        remediation: "Retain coexistence, failed-install rollback, and v1-only uninstall evidence; do not describe this as an in-place v0 layout migration.".to_string(),
-    };
-    let secret_safety = ReleaseGate {
-        id: "m5-secret-safety".to_string(),
-        title: "M5 secret-safety canaries".to_string(),
-        status: if protocol_source.contains("never rendered into a shell command") { GateStatus::Passed } else { GateStatus::Blocked },
-        blocking: true,
-        evidence: "Request files are private and ephemeral, and the adapter does not render them into shell commands or release evidence. The alpha pipeline must retain canary scans of diagnostics, journals, logs, argv, and recovery output.".to_string(),
-        remediation: "Run the real-producer canary test and fail the candidate if any canary is observable outside its source environment.".to_string(),
-    };
+    let lifecycle = candidate_evidence_gate(
+        project_root,
+        "m5-alpha3-exact-lifecycle",
+        "M5 exact alpha.3 signed lifecycle",
+        exact_pin,
+        "Restore the exact alpha.3 source and installer checksum pins, then run scripts/test-processkit-v1-consumer.sh and retain its candidate-bound evidence.",
+    );
+    let recovery = candidate_evidence_gate(
+        project_root,
+        "m5-interruption-recovery",
+        "M5 interruption, recovery, and retry",
+        protocol_source.contains("recover_then_retry"),
+        "Run the real producer interruption test, confirm a normal retry is refused before recover, then retain recover and retry evidence bound to the candidate.",
+    );
+    let migration = candidate_evidence_gate(
+        project_root,
+        "m5-v0-coexistence-and-rollback",
+        "M5 v0 coexistence and rollback boundary",
+        true,
+        "Retain coexistence, failed-install rollback, and v1-only uninstall evidence bound to the candidate; do not describe this as an in-place v0 layout migration.",
+    );
+    let secret_safety = candidate_evidence_gate(
+        project_root,
+        "m5-secret-safety",
+        "M5 secret-safety canaries",
+        protocol_source.contains("never rendered into a shell command"),
+        "Run the real-producer canary test and retain a candidate-bound canary record that fails if a canary is observable outside its source environment.",
+    );
     vec![lifecycle, recovery, migration, secret_safety]
+}
+
+fn candidate_evidence_gate(
+    project_root: &Path,
+    id: &str,
+    title: &str,
+    implementation_present: bool,
+    remediation: &str,
+) -> ReleaseGate {
+    if !implementation_present {
+        return ReleaseGate {
+            id: id.to_string(),
+            title: title.to_string(),
+            status: GateStatus::Blocked,
+            blocking: true,
+            evidence: "required implementation surface is missing; source inspection is not release evidence".to_string(),
+            remediation: remediation.to_string(),
+        };
+    }
+
+    let path = project_root
+        .join(GATE_EVIDENCE_RELATIVE_DIR)
+        .join(format!("{id}.json"));
+    match read_release_gate_evidence(&path) {
+        Ok(evidence)
+            if evidence.gate == id
+                && release_gate_evidence_matches_runtime_candidate(&evidence) =>
+        {
+            ReleaseGate {
+                id: id.to_string(),
+                title: title.to_string(),
+                status: GateStatus::Passed,
+                blocking: true,
+                evidence: format!(
+                    "candidate-bound record from {} completed at {}",
+                    evidence.command, evidence.completed_at
+                ),
+                remediation: remediation.to_string(),
+            }
+        }
+        Ok(evidence) if evidence.gate != id => ReleaseGate {
+            id: id.to_string(),
+            title: title.to_string(),
+            status: GateStatus::Blocked,
+            blocking: true,
+            evidence: format!(
+                "candidate evidence names gate {}, expected {id}",
+                evidence.gate
+            ),
+            remediation: remediation.to_string(),
+        },
+        Ok(_) => ReleaseGate {
+            id: id.to_string(),
+            title: title.to_string(),
+            status: GateStatus::Blocked,
+            blocking: true,
+            evidence: "candidate evidence is not bound to the runtime release candidate"
+                .to_string(),
+            remediation: remediation.to_string(),
+        },
+        Err(reason) => ReleaseGate {
+            id: id.to_string(),
+            title: title.to_string(),
+            status: GateStatus::Blocked,
+            blocking: true,
+            evidence: reason,
+            remediation: remediation.to_string(),
+        },
+    }
 }
 
 fn m7c_gate(project_root: &Path) -> ReleaseGate {
@@ -247,6 +311,17 @@ fn evidence_matches_runtime_candidate(evidence: &DisposableClusterEvidence) -> b
     )
 }
 
+fn release_gate_evidence_matches_runtime_candidate(evidence: &ReleaseGateEvidence) -> bool {
+    let expected_commit = std::env::var("RELEASE_CANDIDATE_SHA").ok();
+    let expected_binary = std::env::var("AIBOX_RELEASE_BINARY_SHA256").ok();
+    evidence_matches_candidate_values(
+        &evidence.candidate_commit,
+        &evidence.binary_sha256,
+        expected_commit.as_deref(),
+        expected_binary.as_deref(),
+    )
+}
+
 fn evidence_matches_candidate(
     evidence: &DisposableClusterEvidence,
     expected_commit: Option<&str>,
@@ -256,10 +331,24 @@ fn evidence_matches_candidate(
     // not release evidence.  Accepting it here would let the public readiness
     // command report a stale or hand-written file as passed when it was not
     // bound to the candidate being released.
+    evidence_matches_candidate_values(
+        &evidence.candidate_commit,
+        &evidence.binary_sha256,
+        expected_commit,
+        expected_binary,
+    )
+}
+
+fn evidence_matches_candidate_values(
+    candidate_commit: &str,
+    binary_sha256: &str,
+    expected_commit: Option<&str>,
+    expected_binary: Option<&str>,
+) -> bool {
     let (Some(expected_commit), Some(expected_binary)) = (expected_commit, expected_binary) else {
         return false;
     };
-    expected_commit == evidence.candidate_commit && expected_binary == evidence.binary_sha256
+    expected_commit == candidate_commit && expected_binary == binary_sha256
 }
 
 fn read_m7c_evidence(path: &Path) -> Result<DisposableClusterEvidence, String> {
@@ -267,6 +356,17 @@ fn read_m7c_evidence(path: &Path) -> Result<DisposableClusterEvidence, String> {
         fs::read(path).map_err(|_| format!("missing live M7c evidence at {}", path.display()))?;
     DisposableClusterEvidence::from_json(&bytes)
         .map_err(|error| format!("invalid live M7c evidence: {error}"))
+}
+
+fn read_release_gate_evidence(path: &Path) -> Result<ReleaseGateEvidence, String> {
+    let bytes = fs::read(path).map_err(|_| {
+        format!(
+            "missing candidate-bound gate evidence at {}",
+            path.display()
+        )
+    })?;
+    ReleaseGateEvidence::from_json(&bytes)
+        .map_err(|error| format!("invalid candidate-bound gate evidence: {error}"))
 }
 
 fn config_path_for(config_path: &Option<String>) -> Result<PathBuf> {
@@ -817,6 +917,26 @@ mod tests {
             &evidence,
             Some("0123456789abcdef0123456789abcdef01234567"),
             None,
+        ));
+    }
+
+    #[test]
+    fn generic_gate_evidence_requires_the_same_candidate_binding() {
+        let evidence = ReleaseGateEvidence::from_json(include_bytes!(
+            "../contracts/v1alpha1/fixtures/valid/release-gate-evidence.json"
+        ))
+        .unwrap();
+        assert!(evidence_matches_candidate_values(
+            &evidence.candidate_commit,
+            &evidence.binary_sha256,
+            Some("0123456789abcdef0123456789abcdef01234567"),
+            Some("sha256:0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef"),
+        ));
+        assert!(!evidence_matches_candidate_values(
+            &evidence.candidate_commit,
+            &evidence.binary_sha256,
+            Some("ffffffffffffffffffffffffffffffffffffffff"),
+            Some("sha256:0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef"),
         ));
     }
 }

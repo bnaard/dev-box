@@ -126,6 +126,8 @@ The command performs:
 - processkit release sync check
 - `cli/Cargo.toml` and `Cargo.lock` version bump when needed
 - format, Clippy, and test checks
+- tracked `release-notes/vX.Y.Z.md`, compatibility-matrix, README, contributor
+  guidance, and Hugo/Docsy production-build validation
 - Tier 2 SSH companion E2E tests, including generated runtime and visual
   asciinema probes
 - `cargo audit`
@@ -151,6 +153,12 @@ Companion evidence includes the companion fingerprint, audit evidence expires
 daily, and binary evidence rechecks archive checksums. Set
 `AIBOX_RELEASE_REUSE_EVIDENCE=0` to force every selected gate to run again.
 Container-side timings are written to `dist/RELEASE-TIMINGS.md`.
+
+The `docs-check` gate is mandatory whenever a tag or GitHub release is
+selected. It runs before publication, so missing release notes, stale
+compatibility metadata, incomplete v1 branch guidance, or a broken Hugo build
+cannot leave a published release with incomplete documentation. The later
+`docs` step deploys exactly that candidate's site.
 
 Run `./scripts/maintain.sh release-check-state` standalone when you want the
 dependency and tool-state report without bumping, tagging, or building. Run

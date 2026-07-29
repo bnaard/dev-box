@@ -512,6 +512,8 @@ fn stable_v1_readiness_json_is_machine_readable_while_blocked() {
     assert_eq!(report["ready"], false);
     let gates = report["gates"].as_array().unwrap();
     for id in [
+        "v0-to-v1-config-migration",
+        "ownership-credentials-supply-chain-canaries",
         "m5-alpha3-exact-lifecycle",
         "m5-interruption-recovery",
         "m5-v0-coexistence-and-rollback",
@@ -520,7 +522,8 @@ fn stable_v1_readiness_json_is_machine_readable_while_blocked() {
         assert!(
             gates
                 .iter()
-                .any(|gate| { gate["id"] == id && gate["status"] == "passed" })
+                .any(|gate| { gate["id"] == id && gate["status"] == "blocked" }),
+            "{id} must remain blocked without a candidate-bound evidence record"
         );
     }
     assert!(gates.iter().any(|gate| {
@@ -660,10 +663,16 @@ fn e2e_companion_delegates_kind_through_systemd() {
     assert!(dockerfile.contains("log_driver = \"k8s-file\""));
     assert!(compose.contains("cgroup: private"));
     assert!(compose.contains("/lib/modules:/lib/modules:ro"));
-    assert!(kind_gate.contains("systemd-run --user --scope --wait --quiet -p Delegate=yes"));
+    assert!(kind_gate.contains("systemd-run --user --scope --quiet -p Delegate=yes"));
+    assert!(kind_gate.contains(r#"awk -F: \"\\$1 == 0 { print \\$3 }\""#));
+    assert!(maintain.contains("systemd-run --user --scope --quiet -p Delegate=yes"));
     assert!(maintain.contains("e2e_companion_preflight"));
     assert!(maintain.contains("E2E companion is stale. Rebuild it on the Docker host"));
     assert!(kind_gate.contains("copy_file_to"));
+    assert!(kind_gate.contains("/bin/bash /tmp/test-kubernetes-kind.sh"));
+    assert!(kind_lifecycle.contains("snapshotter = \"native\""));
+    assert!(kind_lifecycle.contains("kubernetesAPICall: 3m"));
+    assert!(kind_lifecycle.contains("--config \"${kind_config}\""));
     for required in [
         "deploy apply",
         "deploy status",

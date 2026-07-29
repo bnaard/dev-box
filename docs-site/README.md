@@ -29,8 +29,16 @@ This command generates static content into `docs-site/public/`.
 
 ## Deployment
 
-The repository release script deploys docs as part of the release flow. For a
-manual deployment:
+The repository release script validates release notes, compatibility metadata,
+the root README and contributor release guidance, then runs a production Hugo
+build before publication. It deploys the validated docs as part of the release
+flow:
+
+```bash
+./scripts/maintain.sh release X.Y.Z
+```
+
+For a manual deployment:
 
 ```bash
 cd ..
