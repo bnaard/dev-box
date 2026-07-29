@@ -35,9 +35,18 @@ aibox config release-readiness --output json
 ```
 
 It exits non-zero while a blocking gate is incomplete, but JSON is still printed
-for CI ingestion. In particular it blocks until the exact processkit alpha.3
-lifecycle, interruption/recovery, coexistence/rollback, and secret-safety
-gates are met, and M7c has complete live disposable-cluster evidence at
+for automation ingestion. Stable publication runs
+`scripts/test-v1-stable-readiness.sh` first. That harness executes the real
+migration/restore, ownership and secret canaries, dependency audit, and exact
+processkit alpha.3 producer tests. It writes one typed, candidate-bound
+`ReleaseGateEvidence` record per gate under
+`.aibox/release-evidence/v1-readiness/`. A record is retained only after its
+producer succeeds.
+
+The readiness parser verifies the candidate commit, tested-binary digest, gate
+identity, and SHA-256 digest of every referenced producer log. Missing,
+candidate-mismatched, or modified logs block the release. M7c separately
+requires complete live disposable-cluster evidence at
 `.aibox/release-evidence/m7c-live.json`.
 
 M7c passes only when the release workflow supplies both the exact candidate

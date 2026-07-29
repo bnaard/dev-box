@@ -217,7 +217,8 @@ fn candidate_evidence_gate(
     match read_release_gate_evidence(&path) {
         Ok(evidence)
             if evidence.gate == id
-                && release_gate_evidence_matches_runtime_candidate(&evidence) =>
+                && release_gate_evidence_matches_runtime_candidate(&evidence)
+                && release_gate_artifacts_match(project_root, &evidence) =>
         {
             ReleaseGate {
                 id: id.to_string(),
@@ -320,6 +321,15 @@ fn release_gate_evidence_matches_runtime_candidate(evidence: &ReleaseGateEvidenc
         expected_commit.as_deref(),
         expected_binary.as_deref(),
     )
+}
+
+fn release_gate_artifacts_match(project_root: &Path, evidence: &ReleaseGateEvidence) -> bool {
+    evidence.artifacts.iter().all(|artifact| {
+        let path = project_root.join(&artifact.path);
+        fs::read(path)
+            .map(|bytes| sha256(&bytes) == artifact.sha256)
+            .unwrap_or(false)
+    })
 }
 
 fn evidence_matches_candidate(
@@ -938,5 +948,23 @@ mod tests {
             Some("ffffffffffffffffffffffffffffffffffffffff"),
             Some("sha256:0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef"),
         ));
+    }
+
+    #[test]
+    fn generic_gate_evidence_requires_untampered_artifacts() {
+        let dir = TempDir::new().unwrap();
+        let mut evidence = ReleaseGateEvidence::from_json(include_bytes!(
+            "../contracts/v1alpha1/fixtures/valid/release-gate-evidence.json"
+        ))
+        .unwrap();
+        let artifact = dir.path().join("logs/gate.log");
+        fs::create_dir_all(artifact.parent().unwrap()).unwrap();
+        fs::write(&artifact, b"producer passed\n").unwrap();
+        evidence.artifacts[0].path = "logs/gate.log".to_string();
+        evidence.artifacts[0].sha256 = sha256(b"producer passed\n");
+        assert!(release_gate_artifacts_match(dir.path(), &evidence));
+
+        fs::write(&artifact, b"tampered\n").unwrap();
+        assert!(!release_gate_artifacts_match(dir.path(), &evidence));
     }
 }
