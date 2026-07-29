@@ -647,6 +647,7 @@ fn stable_v1_readiness_json_is_machine_readable_while_blocked() {
         "support-deprecation-retirement-policy",
         "portfolio-boundary-audit",
         "four-platform-release-rollback-rehearsal",
+        "external-pilot-feedback",
     ] {
         assert!(
             gates

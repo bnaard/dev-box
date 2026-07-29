@@ -168,6 +168,13 @@ pub fn release_readiness(project_root: &Path) -> ReleaseReadinessReport {
         true,
         "Run both release phases and the rollback rehearsal from the final candidate, then record the retained artifacts with scripts/record-v1-platform-rehearsal.sh.",
     ));
+    gates.push(candidate_evidence_gate(
+        project_root,
+        "external-pilot-feedback",
+        "External operator adoption feedback",
+        true,
+        "Run all five documented real-project pilots and retain their structured feedback with scripts/record-v1-external-pilot-feedback.sh.",
+    ));
     let ready = gates
         .iter()
         .all(|gate| !gate.blocking || gate.status == GateStatus::Passed);

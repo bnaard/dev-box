@@ -24,6 +24,14 @@ declare -F release_v1_stable_evidence_gate >/dev/null \
   || die "v1 operational-readiness evidence harness is missing or not executable"
 [[ -x "${SCRIPT_DIR}/record-v1-platform-rehearsal.sh" ]] \
   || die "v1 platform-rehearsal recorder is missing or not executable"
+[[ -x "${SCRIPT_DIR}/record-v1-external-pilot-feedback.sh" ]] \
+  || die "v1 external-pilot feedback recorder is missing or not executable"
+grep -Fq 'new-compose-without-processkit' \
+  "${SCRIPT_DIR}/record-v1-external-pilot-feedback.sh" \
+  || die "external-pilot evidence does not require the processkit-disabled journey"
+grep -Fq '.operatorFeedback' \
+  "${SCRIPT_DIR}/record-v1-external-pilot-feedback.sh" \
+  || die "external-pilot evidence does not require operator feedback"
 grep -Fq 'tar -tzf "${archive}"' "${SCRIPT_DIR}/record-v1-platform-rehearsal.sh" \
   || die "platform rehearsal does not inspect archive contents"
 grep -Fq 'release phase=host status=passed candidate=' \
