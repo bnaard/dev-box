@@ -64,3 +64,39 @@ Retirement is evidence-based. V0 remains available until all of these are true:
 
 Retirement requires a reviewed decision after this evidence exists. Automated
 journeys cannot stand in for external operator feedback.
+
+## External pilot evidence
+
+Stable readiness requires structured feedback for all five representative
+journeys: aibox self-hosting, an existing v0 migration, a clean Compose project
+without processkit, an existing Kubernetes target, and direct processkit use.
+Each `<journey>.json` uses this shape:
+
+```json
+{
+  "apiVersion": "aibox.projectious.work/pilot-feedback/v1alpha1",
+  "kind": "ExternalPilotFeedback",
+  "journey": "aibox-self-host",
+  "candidateCommit": "<40-character-commit>",
+  "status": "completed",
+  "operatorFeedback": "What the operator experienced",
+  "configurationFriction": [],
+  "recoverySteps": [],
+  "migrationDecisions": [],
+  "runtimeErrors": [],
+  "documentationGaps": [],
+  "terminologyConfusion": []
+}
+```
+
+After review, retain the five files against the exact candidate:
+
+```bash
+RELEASE_CANDIDATE_SHA=<40-character-commit> \
+AIBOX_RELEASE_BINARY_SHA256=sha256:<tested-binary-digest> \
+  ./scripts/record-v1-external-pilot-feedback.sh \
+    dist/v1-pilot-feedback/<40-character-commit>
+```
+
+Empty finding arrays are honest; empty operator feedback, missing journeys, or
+candidate-mismatched feedback block stable publication.

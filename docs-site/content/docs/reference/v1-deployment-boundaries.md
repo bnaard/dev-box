@@ -64,6 +64,11 @@ manufactured inside the Linux container: after both native release phases and
 an exact-version rollback rehearsal, retain their artifacts with
 `scripts/record-v1-platform-rehearsal.sh`.
 
+Automated adoption journeys are necessary but not sufficient. Stable readiness
+also requires all five external pilot feedback documents described in the
+[support and retirement policy](../v1-support-and-retirement/), recorded by
+`scripts/record-v1-external-pilot-feedback.sh` against the same candidate.
+
 The readiness parser verifies the candidate commit, tested-binary digest, gate
 identity, and SHA-256 digest of every referenced producer log. Missing,
 candidate-mismatched, or modified logs block the release. M7c separately
