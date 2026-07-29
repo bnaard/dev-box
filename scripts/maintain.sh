@@ -2154,6 +2154,9 @@ release_v1_stable_evidence_gate() {
   RELEASE_CANDIDATE_SHA="${RELEASE_CANDIDATE_SHA}" \
   AIBOX_RELEASE_BINARY_SHA256="${candidate_binary_sha256}" \
     "${PROJECT_ROOT}/scripts/test-v1-adoption-pilots.sh"
+  RELEASE_CANDIDATE_SHA="${RELEASE_CANDIDATE_SHA}" \
+  AIBOX_RELEASE_BINARY_SHA256="${candidate_binary_sha256}" \
+    "${PROJECT_ROOT}/scripts/test-v1-operational-readiness.sh"
   (cd "${PROJECT_ROOT}" && \
     RELEASE_CANDIDATE_SHA="${RELEASE_CANDIDATE_SHA}" \
     AIBOX_RELEASE_BINARY_SHA256="${candidate_binary_sha256}" \
