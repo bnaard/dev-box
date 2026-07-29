@@ -511,6 +511,112 @@ fn v1_config_migration_preview_apply_and_restore_are_explicit_and_isolated() {
 }
 
 #[test]
+fn v1_config_migration_applies_a_reviewed_complete_intent_but_keeps_it_disabled() {
+    let dir = tempfile::tempdir().unwrap();
+    let config = dir.path().join("aibox.toml");
+    std::fs::write(&config, "[container]\nname = \"legacy\"\n").unwrap();
+    let intent = dir.path().join("v1-intent.toml");
+    std::fs::write(
+        &intent,
+        r#"[orchestration]
+enabled = true
+
+[orchestration.image]
+reference = "ghcr.io/acme/workspace"
+digest = "sha256:0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef"
+platform = "linux-amd64"
+
+[orchestration.fleet]
+name = "legacy"
+services = [{ name = "legacy" }]
+
+[orchestration.target]
+backend = "compose"
+reference = "docker-context:default"
+scope = "legacy"
+
+[orchestration.deployment]
+name = "legacy"
+owner_id = "team-a"
+
+[[orchestration.connections]]
+name = "shell"
+service = "legacy"
+transport = "compose-exec"
+interactive = true
+"#,
+    )
+    .unwrap();
+
+    let applied = run_in_dir(
+        dir.path(),
+        &[
+            "config",
+            "migrate-v1",
+            "--apply",
+            "--intent-file",
+            "v1-intent.toml",
+            "--output",
+            "json",
+        ],
+    );
+    let report = parse_json(&applied);
+    assert_eq!(report["readyToEnable"], true);
+    assert!(report["unresolvedDecisions"].as_array().unwrap().is_empty());
+    let migrated = std::fs::read_to_string(&config).unwrap();
+    assert!(migrated.contains("[orchestration.image]"));
+    assert!(migrated.contains("enabled = false"));
+
+    let compile = run_in_dir(dir.path(), &["config", "compile", "--output", "json"]);
+    assert!(
+        !compile.status.success(),
+        "disabled intent must not compile or deploy"
+    );
+    assert!(String::from_utf8_lossy(&compile.stderr).contains("not enabled"));
+}
+
+#[test]
+fn v1_config_migration_rejects_incomplete_or_secret_bearing_intent_before_backup() {
+    let dir = tempfile::tempdir().unwrap();
+    let config = dir.path().join("aibox.toml");
+    let original = "[container]\nname = \"legacy\"\n";
+    std::fs::write(&config, original).unwrap();
+    std::fs::write(
+        dir.path().join("invalid-intent.toml"),
+        r#"[orchestration]
+enabled = true
+
+[orchestration.image]
+reference = "ghcr.io/acme/workspace"
+digest = "sha256:0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef"
+platform = "linux-amd64"
+
+[orchestration.fleet]
+name = "legacy"
+services = [{ name = "legacy", environment = [{ name = "TOKEN", value = "must-not-copy" }] }]
+"#,
+    )
+    .unwrap();
+
+    let output = run_in_dir(
+        dir.path(),
+        &[
+            "config",
+            "migrate-v1",
+            "--apply",
+            "--intent-file",
+            "invalid-intent.toml",
+            "--output",
+            "json",
+        ],
+    );
+    assert!(!output.status.success());
+    assert!(!String::from_utf8_lossy(&output.stderr).contains("must-not-copy"));
+    assert_eq!(std::fs::read_to_string(&config).unwrap(), original);
+    assert!(!dir.path().join(".aibox").exists());
+}
+
+#[test]
 fn stable_v1_readiness_json_is_machine_readable_while_blocked() {
     let dir = tempfile::tempdir().unwrap();
     std::fs::write(
