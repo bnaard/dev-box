@@ -18,6 +18,8 @@ declare -F release_docs_gate >/dev/null \
   || die "release documentation gate is missing"
 declare -F release_v1_stable_evidence_gate >/dev/null \
   || die "stable-v1 producer evidence gate is missing"
+[[ -x "${SCRIPT_DIR}/test-v1-adoption-pilots.sh" ]] \
+  || die "v1 adoption-pilot evidence harness is missing or not executable"
 if declare -f release_v1_alpha_evidence_gate | grep -Fq 'config release-readiness'; then
   die "v1 alpha publication must not require stable-v1 readiness"
 fi

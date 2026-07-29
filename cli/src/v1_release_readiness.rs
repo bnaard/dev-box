@@ -140,6 +140,13 @@ pub fn release_readiness(project_root: &Path) -> ReleaseReadinessReport {
     ];
     gates.extend(m5_gates(project_root));
     gates.push(m7c_gate(project_root));
+    gates.push(candidate_evidence_gate(
+        project_root,
+        "adoption-pilots",
+        "Representative v1 adoption pilots",
+        true,
+        "Run scripts/test-v1-adoption-pilots.sh against the exact candidate after M5 and M7c evidence exists.",
+    ));
     let ready = gates
         .iter()
         .all(|gate| !gate.blocking || gate.status == GateStatus::Passed);

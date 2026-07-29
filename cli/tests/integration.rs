@@ -643,6 +643,7 @@ fn stable_v1_readiness_json_is_machine_readable_while_blocked() {
         "m5-interruption-recovery",
         "m5-v0-coexistence-and-rollback",
         "m5-secret-safety",
+        "adoption-pilots",
     ] {
         assert!(
             gates
