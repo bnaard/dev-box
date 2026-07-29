@@ -2122,9 +2122,9 @@ release_companion_e2e_gate() {
 }
 
 # A v1 prerelease is allowed to publish only with fresh real-producer and
-# disposable-cluster evidence.  The stable-v1 readiness command deliberately
-# remains stricter than an alpha, but it is still the canonical parser for the
-# M5/M7c attestations and must accept the candidate evidence before tagging.
+# disposable-cluster evidence. Stable-v1 readiness deliberately includes
+# additional migration, security, adoption, and support gates, so it must not
+# be used as an alpha publication gate.
 release_v1_alpha_evidence_gate() {
   local version="$1" evidence="${PROJECT_ROOT}/.aibox/release-evidence/m7c-live.json" candidate_binary_sha256
   [[ "${version}" == 1.*-* ]] || return 0
@@ -2140,9 +2140,6 @@ release_v1_alpha_evidence_gate() {
   grep -Eq "\"binarySha256\"[[:space:]]*:[[:space:]]*\"${candidate_binary_sha256}\"" "${evidence}" \
     || die "M7c evidence is not bound to the exact candidate binary"
   "${PROJECT_ROOT}/scripts/test-processkit-v1-consumer.sh"
-  (cd "${PROJECT_ROOT}" && AIBOX_RELEASE_BINARY_SHA256="${candidate_binary_sha256}" cargo run --quiet --manifest-path "${CLI_DIR}/Cargo.toml" -- \
-    config release-readiness --output json) \
-    || die "v1 alpha release readiness evidence is incomplete"
 }
 
 release_visual_gate() {
