@@ -366,7 +366,7 @@ e2e_companion_preflight() {
      test "$(stat -fc %T /sys/fs/cgroup)" = cgroup2fs
      test -d /lib/modules
      test "$(podman info --format "{{.Host.CgroupManager}}")" = systemd
-     systemd-run --user --scope --wait --quiet -p Delegate=yes \
+     systemd-run --user --scope --quiet -p Delegate=yes \
        /bin/sh -ec '\''scope=$(awk -F: "\$1 == 0 { print \$3 }" /proc/self/cgroup); base=/sys/fs/cgroup${scope}; test -r "${base}/cgroup.controllers"; for controller in cpu cpuset io memory pids; do grep -qw "${controller}" "${base}/cgroup.controllers"; done'\'''
 }
 
@@ -1724,7 +1724,7 @@ release_usage() {
 release_list_steps() {
   cat <<'STEPS'
 Release step aliases:
-  all       state,doctors,sync,version,test,e2e,visual,audit,build-linux,version-smoke,push-main,notes,tag,github-release,docs,prompt
+  all       state,doctors,sync,version,test,docs-check,e2e,visual,audit,build-linux,version-smoke,push-main,notes,tag,github-release,docs,prompt
   phase0    state,doctors
   checks    sync,version,test,e2e,visual,audit
   build     build-linux,version-smoke
@@ -1736,6 +1736,7 @@ Concrete release steps:
   sync            Check/sync processkit default version
   version         Bump cli/Cargo.toml and Cargo.lock if needed, then commit
   test            Run fmt, clippy, and unit/integration tests
+  docs-check      Verify release notes, README/contributor surfaces, compatibility metadata, and the Hugo build
   e2e             Run Tier 2 SSH companion E2E
   visual          Run the selected visual E2E tier from AIBOX_RELEASE_VISUAL_E2E
   audit           Run cargo audit
@@ -1783,6 +1784,7 @@ release_expand_step_token() {
       release_add_step sync
       release_add_step version
       release_add_step test
+      release_add_step docs-check
       release_add_step e2e
       release_add_step visual
       release_add_step audit
@@ -1797,7 +1799,7 @@ release_expand_step_token() {
       release_add_step tag
       release_add_step github-release
       ;;
-    state|doctors|sync|version|test|e2e|visual|audit|build-linux|version-smoke|push-main|notes|tag|github-release|docs|prompt)
+    state|doctors|sync|version|test|docs-check|e2e|visual|audit|build-linux|version-smoke|push-main|notes|tag|github-release|docs|prompt)
       release_add_step "${token}"
       ;;
     "")
@@ -1904,6 +1906,50 @@ release_validate_license_guardrails() {
   if [[ "${readme_text}" != *"${expected_notice}"* ]]; then
     die "README.md must contain the retroactive license notice: ${expected_notice}"
   fi
+}
+
+release_docs_gate() {
+  local version="$1"
+  local tag="v${version}"
+  local notes="${PROJECT_ROOT}/release-notes/${tag}.md"
+  local compatibility="${PROJECT_ROOT}/docs-site/content/docs/reference/compatibility.md"
+  local maintenance="${PROJECT_ROOT}/docs-site/content/docs/contributing/maintenance.md"
+  local docs_readme="${PROJECT_ROOT}/docs-site/README.md"
+  local build_dir
+
+  [[ -f "${notes}" ]] \
+    || die "Tracked release notes are required at release-notes/${tag}.md before publication."
+  grep -Fqx "# aibox ${tag}" "${notes}" \
+    || die "release-notes/${tag}.md must start with '# aibox ${tag}'."
+  for heading in "## Added" "## Changed" "## Fixed" "## Known limitations" "## Install" "## Roll back"; do
+    grep -Fqx "${heading}" "${notes}" \
+      || die "release-notes/${tag}.md is missing required section '${heading}'."
+  done
+
+  [[ -f "${compatibility}" ]] \
+    || die "The Hugo compatibility page is required before release."
+  grep -Eq "^[|][[:space:]]*${version//./\\.}[[:space:]]*[|]" "${compatibility}" \
+    || die "The Hugo compatibility matrix must contain an entry for ${version}."
+  grep -Fq "projectious-work.github.io/aibox/v1.x/" "${PROJECT_ROOT}/README.md" \
+    || die "README.md must link to the maintained v1.x documentation."
+  grep -Fq "v1.x-pre-release" "${PROJECT_ROOT}/CONTRIBUTING.md" \
+    || die "CONTRIBUTING.md must document the v1 prerelease authority branch."
+  grep -Fq "v1.x-release" "${maintenance}" \
+    || die "The Hugo maintenance guide must document the v1 GA release branch."
+  grep -Fq "./scripts/maintain.sh release X.Y.Z" "${docs_readme}" \
+    || die "docs-site/README.md must document release-driven publication."
+
+  build_dir="$(mktemp -d)"
+  if ! "${PROJECT_ROOT}/scripts/build-docs.sh" --destination "${build_dir}"; then
+    rm -rf "${build_dir}"
+    die "Hugo/Docsy production build failed."
+  fi
+  [[ -f "${build_dir}/index.html" ]] || {
+    rm -rf "${build_dir}"
+    die "Hugo/Docsy build did not produce index.html."
+  }
+  rm -rf "${build_dir}"
+  ok "Release documentation is complete and the Hugo production build passes"
 }
 
 # Release validation evidence is local by design. Each marker is bound to the
@@ -2440,6 +2486,9 @@ cmd_release() {
   if release_step_requested test; then
     validation_specs+=("test|Local fmt, Clippy, tests, and Starship render|release_local_test_gate")
   fi
+  if release_step_requested docs-check; then
+    validation_specs+=("docs-check|Release documentation and Hugo build|release_docs_gate")
+  fi
   if release_step_requested audit; then
     validation_specs+=("audit|Cargo dependency audit|release_audit_gate")
   fi
@@ -2467,6 +2516,11 @@ cmd_release() {
     release_run_evidenced_step "v1-alpha-evidence" "${version}" \
       "V1 alpha producer and disposable-cluster evidence" \
       release_v1_alpha_evidence_gate "${version}"
+  fi
+
+  if release_step_requested tag || release_step_requested github-release; then
+    release_step_requested docs-check \
+      || die "Publication requires the docs-check step; release notes, compatibility metadata, README/contributor guidance, and Hugo output must be validated."
   fi
 
   if release_step_requested visual; then

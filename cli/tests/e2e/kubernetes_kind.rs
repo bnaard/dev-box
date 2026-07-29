@@ -67,8 +67,8 @@ fn kubernetes_kind_lifecycle_produces_release_candidate_evidence() {
          test \"$(ps -p 1 -o comm= | tr -d ' ')\" = systemd; \
          test \"$(stat -fc %T /sys/fs/cgroup)\" = cgroup2fs; \
          test \"$(podman info --format '{{.Host.CgroupManager}}')\" = systemd; \
-         systemd-run --user --scope --wait --quiet -p Delegate=yes \\
-           /bin/sh -ec 'scope=$(awk -F: \"$1 == 0 { print $3 }\" /proc/self/cgroup); base=/sys/fs/cgroup${scope}; test -r \"${base}/cgroup.controllers\"; for controller in cpu cpuset io memory pids; do grep -qw \"${controller}\" \"${base}/cgroup.controllers\"; done'; \
+         systemd-run --user --scope --quiet -p Delegate=yes \\
+           /bin/sh -ec 'scope=$(awk -F: \"\\$1 == 0 { print \\$3 }\" /proc/self/cgroup); base=/sys/fs/cgroup${scope}; test -r \"${base}/cgroup.controllers\"; for controller in cpu cpuset io memory pids; do grep -qw \"${controller}\" \"${base}/cgroup.controllers\"; done'; \
          test -d /lib/modules",
     );
     assert!(
@@ -110,10 +110,10 @@ fn kubernetes_kind_lifecycle_produces_release_candidate_evidence() {
         "/tmp/test-kubernetes-kind.sh",
     );
     let run = runner.exec(&format!(
-        "chmod +x /tmp/test-kubernetes-kind.sh && \
-         AIBOX_M7C_COMMIT={commit} AIBOX_M7C_BINARY_SHA256={binary_sha256} \
+        "AIBOX_M7C_COMMIT={commit} AIBOX_M7C_BINARY_SHA256={binary_sha256} \
          AIBOX_BIN=/usr/local/bin/aibox \
-         AIBOX_ADDONS_DIR=/opt/aibox/addons /tmp/test-kubernetes-kind.sh"
+         AIBOX_ADDONS_DIR=/opt/aibox/addons \
+         /bin/bash /tmp/test-kubernetes-kind.sh"
     ));
     assert!(
         run.status.success(),
@@ -122,8 +122,14 @@ fn kubernetes_kind_lifecycle_produces_release_candidate_evidence() {
         String::from_utf8_lossy(&run.stderr)
     );
 
+    let evidence_line = run
+        .stdout
+        .split(|byte| *byte == b'\n')
+        .rev()
+        .find(|line| !line.is_empty())
+        .expect("live M7c suite must return JSON evidence");
     let evidence: serde_json::Value =
-        serde_json::from_slice(&run.stdout).expect("live M7c suite must return JSON evidence");
+        serde_json::from_slice(evidence_line).expect("live M7c suite must end with JSON evidence");
     assert_eq!(evidence["status"], "passed");
     assert_eq!(evidence["candidateCommit"], commit);
     assert_eq!(evidence["binarySha256"], binary_sha256);

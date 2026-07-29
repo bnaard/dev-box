@@ -174,6 +174,8 @@ Release quality expectations are strict:
 - zero Clippy warnings
 - all tests passing
 - `cargo audit` clean before tagging
+- tracked release notes, compatibility metadata, and a successful Hugo/Docsy
+  production build before publication
 - releases created through `./scripts/maintain.sh release <version>`
 
 ## Repository Structure
@@ -190,7 +192,7 @@ Release quality expectations are strict:
 
 ## Contributing
 
-Direct commits to `main` are the norm in this repository. Before contributing,
+Long-lived `main`, v0.x, and v1.x branches are PR-only. Before contributing,
 read [AGENTS.md](AGENTS.md), [CONTRIBUTING.md](CONTRIBUTING.md), and the docs
 under [`docs-site/content/docs/contributing/`](docs-site/content/docs/contributing/).
 
@@ -199,7 +201,7 @@ Do not hardcode processkit vocabulary in production Rust code. Add constants to
 
 All build, test, documentation, and release gates run locally. This repository
 does not use GitHub Actions; see the
-[maintenance guide](https://projectious-work.github.io/aibox/docs/contributing/maintenance)
+[v1 maintenance guide](https://projectious-work.github.io/aibox/v1.x/docs/contributing/maintenance/)
 for the exact commands and release phases.
 
 ## License

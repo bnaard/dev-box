@@ -1,0 +1,12 @@
+{
+  "apiVersion": "aibox.projectious.work/release-evidence/v1alpha1",
+  "kind": "ReleaseGateEvidence",
+  "gate": "m5-alpha3-exact-lifecycle",
+  "status": "passed",
+  "candidateCommit": "0123456789abcdef0123456789abcdef01234567",
+  "binarySha256": "sha256:0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef",
+  "command": "scripts/test-processkit-v1-consumer.sh",
+  "startedAt": "2026-07-28T12:00:00Z",
+  "completedAt": "2026-07-28T12:01:00Z",
+  "scenarios": ["install"]
+}
