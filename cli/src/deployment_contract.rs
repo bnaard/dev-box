@@ -399,6 +399,21 @@ kinds!(
 #[cfg(test)]
 mod tests {
     use super::*;
+    use sha2::{Digest, Sha256};
+    use std::collections::{BTreeMap, BTreeSet};
+    use std::fs;
+    use std::path::{Path, PathBuf};
+
+    fn contract_files(directory: &Path, root: &Path, found: &mut BTreeSet<PathBuf>) {
+        for entry in fs::read_dir(directory).unwrap() {
+            let path = entry.unwrap().path();
+            if path.is_dir() {
+                contract_files(&path, root, found);
+            } else {
+                found.insert(path.strip_prefix(root).unwrap().to_path_buf());
+            }
+        }
+    }
 
     #[test]
     fn deployment_target_serializes_credential_references_without_secret_values() {
@@ -495,6 +510,44 @@ mod tests {
                 "https://json-schema.org/draft/2020-12/schema"
             );
             assert!(value["$id"].as_str().unwrap().contains("/v1alpha1/"));
+        }
+    }
+
+    #[test]
+    fn v1alpha1_contract_freeze_matches_public_files() {
+        let root = Path::new(env!("CARGO_MANIFEST_DIR")).join("contracts/v1alpha1");
+        let manifest = fs::read_to_string(root.join("contract-freeze.sha256")).unwrap();
+        let expected = manifest
+            .lines()
+            .map(|line| {
+                let (digest, path) = line
+                    .split_once("  ")
+                    .expect("contract freeze entries use sha256sum format");
+                (PathBuf::from(path), digest.to_string())
+            })
+            .collect::<BTreeMap<_, _>>();
+
+        let mut actual = BTreeSet::new();
+        contract_files(&root.join("schemas"), &root, &mut actual);
+        contract_files(&root.join("fixtures"), &root, &mut actual);
+        assert_eq!(
+            actual,
+            expected.keys().cloned().collect(),
+            "contract inventory changed; review compatibility and update contract-freeze.sha256"
+        );
+
+        for (path, expected_digest) in expected {
+            let bytes = fs::read(root.join(&path)).unwrap();
+            let actual_digest = Sha256::digest(bytes)
+                .iter()
+                .map(|byte| format!("{byte:02x}"))
+                .collect::<String>();
+            assert_eq!(
+                actual_digest,
+                expected_digest,
+                "{} changed; review compatibility and update contract-freeze.sha256",
+                path.display()
+            );
         }
     }
 }

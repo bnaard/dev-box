@@ -13,6 +13,7 @@ mod deployment_contract;
 mod dirs;
 mod kit;
 pub mod kubernetes_connection;
+mod kubernetes_ownership;
 mod kubernetes_plan;
 mod latex;
 
