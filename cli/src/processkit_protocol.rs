@@ -227,6 +227,33 @@ pub enum CliAvailability {
     Unavailable,
 }
 
+/// The complete v1 integration choice. Disabled means no discovery, request
+/// file, subprocess, or filesystem mutation. Direct delegates one already
+/// validated request to the processkit-owned CLI and returns its opaque result.
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub enum ProcesskitExecution {
+    Disabled,
+    Direct {
+        cli: PathBuf,
+        request: Box<InstallerRequest>,
+    },
+}
+
+#[derive(Clone, Debug, PartialEq)]
+pub enum ProcesskitExecutionResult {
+    Disabled,
+    Delegated(Box<InstallerResult>),
+}
+
+pub fn execute(execution: &ProcesskitExecution) -> Result<ProcesskitExecutionResult> {
+    match execution {
+        ProcesskitExecution::Disabled => Ok(ProcesskitExecutionResult::Disabled),
+        ProcesskitExecution::Direct { cli, request } => Ok(ProcesskitExecutionResult::Delegated(
+            Box::new(invoke(cli, request)?),
+        )),
+    }
+}
+
 pub fn discover_cli(path: Option<&Path>) -> CliAvailability {
     match path {
         Some(path) if path.is_file() => CliAvailability::Available(path.to_path_buf()),
@@ -360,6 +387,18 @@ mod tests {
         )
     }
 
+    fn execute_direct(cli: &Path, request: InstallerRequest) -> InstallerResult {
+        match execute(&ProcesskitExecution::Direct {
+            cli: cli.to_path_buf(),
+            request: Box::new(request),
+        })
+        .unwrap()
+        {
+            ProcesskitExecutionResult::Delegated(result) => *result,
+            ProcesskitExecutionResult::Disabled => panic!("direct execution was skipped"),
+        }
+    }
+
     #[test]
     fn request_matches_producer_execute_contract() {
         let request = request();
@@ -424,6 +463,72 @@ mod tests {
         let wire: InstallerRequest =
             serde_json::from_slice(&fs::read(request_copy).unwrap()).unwrap();
         assert_eq!(wire, request());
+    }
+
+    #[test]
+    fn disabled_boundary_performs_no_discovery_or_process_invocation() {
+        let result = execute(&ProcesskitExecution::Disabled).unwrap();
+        assert_eq!(result, ProcesskitExecutionResult::Disabled);
+    }
+
+    #[test]
+    fn direct_boundary_matches_the_opaque_protocol_outcome() {
+        let dir = TempDir::new().unwrap();
+        let calls = dir.path().join("calls");
+        let cli = fake_cli(
+            &dir,
+            &format!(
+                "printf called >> '{}'\nprintf '%s' '{}'",
+                calls.display(),
+                result("installed")
+            ),
+        );
+        let request = request();
+        let delegated = execute(&ProcesskitExecution::Direct {
+            cli,
+            request: Box::new(request.clone()),
+        })
+        .unwrap();
+        assert_eq!(
+            delegated,
+            ProcesskitExecutionResult::Delegated(Box::new(InstallerResult {
+                api_version: PROCESSKIT_INSTALLER_PROTOCOL_V1ALPHA1.into(),
+                status: InstallerStatus::Installed,
+                changes: Vec::new(),
+                conflicts: Vec::new(),
+                warnings: Vec::new(),
+                errors: Vec::new(),
+                state: None,
+                checked: None,
+                provenance: None,
+                extensions: serde_json::Map::new(),
+            }))
+        );
+        assert_eq!(fs::read_to_string(calls).unwrap(), "called");
+    }
+
+    #[test]
+    fn v1_boundary_contains_no_legacy_distribution_or_layout_policy() {
+        let source = include_str!("processkit_protocol.rs");
+        let production = source
+            .split("#[cfg(test)]")
+            .next()
+            .expect("production source precedes tests");
+        for forbidden in [
+            "processkit_vocab",
+            "content_install",
+            "content_source",
+            "context/templates/processkit",
+            ".processkit-version",
+            "AGENTS.md",
+            "SKILL.md",
+            "mcp-config.json",
+        ] {
+            assert!(
+                !production.contains(forbidden),
+                "v1 opaque boundary must not contain legacy policy token {forbidden}"
+            );
+        }
     }
 
     #[test]
@@ -594,23 +699,22 @@ mod tests {
         );
 
         assert_eq!(
-            invoke(Path::new(&cli), &install).unwrap().status,
+            execute_direct(Path::new(&cli), install.clone()).status,
             InstallerStatus::Installed
         );
         assert!(project.path().join(".processkit/state.json").is_file());
         assert_eq!(
-            invoke(
+            execute_direct(
                 Path::new(&cli),
-                &InstallerRequest::local(InstallerOperation::Verify, project.path().to_path_buf())
+                InstallerRequest::local(InstallerOperation::Verify, project.path().to_path_buf())
             )
-            .unwrap()
             .status,
             InstallerStatus::Verified
         );
 
         let mut update = install.clone();
         update.operation = InstallerOperation::Update;
-        let updated = invoke(Path::new(&cli), &update).unwrap();
+        let updated = execute_direct(Path::new(&cli), update);
         assert_eq!(updated.status, InstallerStatus::Updated);
         assert_eq!(
             updated.changes,
@@ -618,14 +722,13 @@ mod tests {
             "an unchanged producer update must report zero changes"
         );
         assert_eq!(
-            invoke(
+            execute_direct(
                 Path::new(&cli),
-                &InstallerRequest::local(
+                InstallerRequest::local(
                     InstallerOperation::Uninstall,
                     project.path().to_path_buf()
                 )
             )
-            .unwrap()
             .status,
             InstallerStatus::Uninstalled
         );

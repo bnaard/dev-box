@@ -25,6 +25,20 @@ Aibox refuses foreign, unlabeled, digest-mismatched, or missing-record resources
 
 Processkit production delegation is a separate stable-v1 release gate. The current fixture protocol is not production authority. Likewise, fake-client Kubernetes tests are not evidence that a live disposable cluster behaves correctly.
 
+The v1 processkit boundary has only two states:
+
+- **disabled** — aibox performs no CLI discovery, creates no request file,
+  starts no subprocess, and changes no project or harness state;
+- **direct** — aibox passes one versioned request file to `processkit execute
+  --request ...` and retains only the opaque structured result/provenance.
+
+The boundary does not import aibox's legacy processkit vocabulary, content
+fetch/install machinery, template paths, skill names, migration layouts, or MCP
+projection policy. Install, verify, unchanged update, recovery, and uninstall
+tests exercise the same direct boundary against the exact pinned processkit
+producer. Users may invoke that producer directly; aibox does not add a second
+interpretation of its result.
+
 ## Release evidence
 
 Run the diagnostic before declaring a stable-v1 release:
