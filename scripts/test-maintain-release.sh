@@ -16,6 +16,8 @@ declare -F publish_release_candidate >/dev/null \
   || die "release candidate protected-branch publisher is missing"
 declare -F release_docs_gate >/dev/null \
   || die "release documentation gate is missing"
+declare -F release_v1_stable_evidence_gate >/dev/null \
+  || die "stable-v1 producer evidence gate is missing"
 if declare -f release_v1_alpha_evidence_gate | grep -Fq 'config release-readiness'; then
   die "v1 alpha publication must not require stable-v1 readiness"
 fi

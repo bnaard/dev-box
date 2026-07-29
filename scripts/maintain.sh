@@ -2142,6 +2142,23 @@ release_v1_alpha_evidence_gate() {
   "${PROJECT_ROOT}/scripts/test-processkit-v1-consumer.sh"
 }
 
+release_v1_stable_evidence_gate() {
+  local version="$1" candidate_binary_sha256
+  [[ "${version}" == 1.* && "${version}" != *-* ]] || return 0
+  [[ -f "${CLI_DIR}/target/debug/aibox" && -x "${CLI_DIR}/target/debug/aibox" && ! -L "${CLI_DIR}/target/debug/aibox" ]] \
+    || die "stable-v1 candidate binary is missing; run the local release test gate first"
+  candidate_binary_sha256="sha256:$(sha256_file "${CLI_DIR}/target/debug/aibox")"
+  RELEASE_CANDIDATE_SHA="${RELEASE_CANDIDATE_SHA}" \
+  AIBOX_RELEASE_BINARY_SHA256="${candidate_binary_sha256}" \
+    "${PROJECT_ROOT}/scripts/test-v1-stable-readiness.sh"
+  (cd "${PROJECT_ROOT}" && \
+    RELEASE_CANDIDATE_SHA="${RELEASE_CANDIDATE_SHA}" \
+    AIBOX_RELEASE_BINARY_SHA256="${candidate_binary_sha256}" \
+      cargo run --quiet --manifest-path "${CLI_DIR}/Cargo.toml" -- \
+        config release-readiness --output json) \
+    || die "stable-v1 release readiness evidence is incomplete"
+}
+
 release_visual_gate() {
   case "${AIBOX_RELEASE_VISUAL_E2E:-skip}" in
     status) cmd_test_e2e_visual_status ;;
@@ -2513,6 +2530,18 @@ cmd_release() {
     release_run_evidenced_step "v1-alpha-evidence" "${version}" \
       "V1 alpha producer and disposable-cluster evidence" \
       release_v1_alpha_evidence_gate "${version}"
+  fi
+  if [[ "${version}" == 1.* && "${version}" != *-* ]] && \
+     { release_step_requested tag || release_step_requested github-release; }; then
+    release_step_requested test \
+      || die "stable-v1 publication requires the local test step"
+    release_step_requested audit \
+      || die "stable-v1 publication requires the dependency audit step"
+    release_step_requested e2e \
+      || die "stable-v1 publication requires the e2e step so M7c evidence is generated"
+    release_run_evidenced_step "v1-stable-evidence" "${version}" \
+      "Stable-v1 migration, security, M5, and M7c evidence" \
+      release_v1_stable_evidence_gate "${version}"
   fi
 
   if release_step_requested tag || release_step_requested github-release; then
