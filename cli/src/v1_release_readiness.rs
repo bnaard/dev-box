@@ -147,6 +147,27 @@ pub fn release_readiness(project_root: &Path) -> ReleaseReadinessReport {
         true,
         "Run scripts/test-v1-adoption-pilots.sh against the exact candidate after M5 and M7c evidence exists.",
     ));
+    gates.push(candidate_evidence_gate(
+        project_root,
+        "support-deprecation-retirement-policy",
+        "Support, deprecation, coexistence, and v0 retirement policy",
+        true,
+        "Run scripts/test-v1-operational-readiness.sh and retain its candidate-bound support-policy evidence.",
+    ));
+    gates.push(candidate_evidence_gate(
+        project_root,
+        "portfolio-boundary-audit",
+        "Ainfra, aibox, and processkit portfolio boundary",
+        true,
+        "Run scripts/test-v1-operational-readiness.sh and retain its candidate-bound portfolio audit.",
+    ));
+    gates.push(candidate_evidence_gate(
+        project_root,
+        "four-platform-release-rollback-rehearsal",
+        "Four-platform release and rollback rehearsal",
+        true,
+        "Run both release phases and the rollback rehearsal from the final candidate, then record the retained artifacts with scripts/record-v1-platform-rehearsal.sh.",
+    ));
     let ready = gates
         .iter()
         .all(|gate| !gate.blocking || gate.status == GateStatus::Passed);

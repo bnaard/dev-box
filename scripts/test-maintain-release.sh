@@ -20,6 +20,21 @@ declare -F release_v1_stable_evidence_gate >/dev/null \
   || die "stable-v1 producer evidence gate is missing"
 [[ -x "${SCRIPT_DIR}/test-v1-adoption-pilots.sh" ]] \
   || die "v1 adoption-pilot evidence harness is missing or not executable"
+[[ -x "${SCRIPT_DIR}/test-v1-operational-readiness.sh" ]] \
+  || die "v1 operational-readiness evidence harness is missing or not executable"
+[[ -x "${SCRIPT_DIR}/record-v1-platform-rehearsal.sh" ]] \
+  || die "v1 platform-rehearsal recorder is missing or not executable"
+grep -Fq 'tar -tzf "${archive}"' "${SCRIPT_DIR}/record-v1-platform-rehearsal.sh" \
+  || die "platform rehearsal does not inspect archive contents"
+grep -Fq 'release phase=host status=passed candidate=' \
+  "${SCRIPT_DIR}/record-v1-platform-rehearsal.sh" \
+  || die "platform rehearsal does not require exact-candidate host evidence"
+grep -Fq 'rollback status=passed candidate=' \
+  "${SCRIPT_DIR}/record-v1-platform-rehearsal.sh" \
+  || die "platform rehearsal does not require exact-candidate rollback evidence"
+declare -f release_v1_stable_evidence_gate |
+  grep -Fq 'test-v1-operational-readiness.sh' \
+  || die "stable-v1 release does not run the operational evidence producer"
 if declare -f release_v1_alpha_evidence_gate | grep -Fq 'config release-readiness'; then
   die "v1 alpha publication must not require stable-v1 readiness"
 fi
