@@ -200,6 +200,34 @@ By default, this smoke runs with `AIBOX_RELEASE_SMOKE_TIER=addons`, so `git-ui`
 It is host-side because macOS binaries and host runtime access are not
 available from the Linux devcontainer.
 
+For a final v1 release candidate, retain the two Linux archives, two macOS
+archives, their checksum sidecars, the container- and host-release logs, and an
+exact-version rollback/reinstall log under one project-relative rehearsal
+directory. Record the completed rehearsal against the exact candidate and
+tested binary:
+
+The final line of each retained log is the corresponding completion marker:
+
+```text
+release phase=container status=passed candidate=<40-character-commit>
+release phase=host status=passed candidate=<40-character-commit>
+rollback status=passed candidate=<40-character-commit> version=<version>
+```
+
+Append a marker only after its command succeeds. The recorder also opens every
+archive, verifies the expected target-named binary, validates every checksum,
+and refuses symlinked inputs.
+
+```bash
+RELEASE_CANDIDATE_SHA=<40-character-commit> \
+AIBOX_RELEASE_BINARY_SHA256=sha256:<tested-binary-digest> \
+  ./scripts/record-v1-platform-rehearsal.sh \
+    dist/v1-platform-rehearsal/1.0.0 1.0.0
+```
+
+Stable readiness remains blocked if this evidence is missing, stale, bound to a
+different candidate, or references a missing or modified artifact.
+
 The two macOS targets build concurrently. The host release also overlaps that
 build lane with source-hash-aware image reuse or publication, then joins both
 lanes before uploading binaries and starting the runtime smoke. Healthy tmux

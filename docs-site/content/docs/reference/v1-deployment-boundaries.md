@@ -57,6 +57,13 @@ processkit alpha.3 producer tests. It writes one typed, candidate-bound
 `.aibox/release-evidence/v1-readiness/`. A record is retained only after its
 producer succeeds.
 
+Stable readiness also runs `scripts/test-v1-operational-readiness.sh` for the
+support/deprecation/retirement policy and the ainfra/aibox/processkit portfolio
+boundary. The four-platform release and rollback gate is deliberately not
+manufactured inside the Linux container: after both native release phases and
+an exact-version rollback rehearsal, retain their artifacts with
+`scripts/record-v1-platform-rehearsal.sh`.
+
 The readiness parser verifies the candidate commit, tested-binary digest, gate
 identity, and SHA-256 digest of every referenced producer log. Missing,
 candidate-mismatched, or modified logs block the release. M7c separately
