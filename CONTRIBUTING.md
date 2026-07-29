@@ -119,6 +119,10 @@ v1 GA releases from `v1.x-release` once created. Quick summary:
 `./scripts/maintain.sh release X.Y.Z` (in container) then
 `./scripts/maintain.sh release-host X.Y.Z` (on macOS host). Merge the tagged
 release branch into `main` through a pull request afterward.
+The container-side command requires tracked release notes and compatibility
+metadata, validates the root README and contributor guidance, and completes a
+production Hugo/Docsy build before it permits tag or GitHub-release
+publication.
 
 Release validation and publication run locally. Do not introduce GitHub Actions
 or another hosted CI release path. The local release tooling runs independent

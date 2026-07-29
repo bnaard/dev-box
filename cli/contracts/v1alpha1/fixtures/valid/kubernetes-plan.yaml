@@ -3,8 +3,8 @@ kind: Deployment
 metadata:
   labels:
     aibox.projectious.work/deployment-id: demo-fleet-6c8573d067a49bf0
-    aibox.projectious.work/desired-spec-digest: sha256:2cf37010bdc74bc2961125b40c3a1396e6c3206d8f4a70dcbc3b62d67e4545bc
-    aibox.projectious.work/image-digest: sha256:image
+    aibox.projectious.work/desired-spec-digest: s256-2cf37010bdc74bc2961125b40c3a1396e6c3206d8f4a70dcbc3b62d67e
+    aibox.projectious.work/image-digest: s256-6c650af53e90fed167d577a704931c3cde11d5254b3b2f736928a06730
     aibox.projectious.work/namespace: workspace-dev
     aibox.projectious.work/owner-id: team-a
   name: workspace
@@ -34,8 +34,8 @@ kind: Service
 metadata:
   labels:
     aibox.projectious.work/deployment-id: demo-fleet-6c8573d067a49bf0
-    aibox.projectious.work/desired-spec-digest: sha256:2cf37010bdc74bc2961125b40c3a1396e6c3206d8f4a70dcbc3b62d67e4545bc
-    aibox.projectious.work/image-digest: sha256:image
+    aibox.projectious.work/desired-spec-digest: s256-2cf37010bdc74bc2961125b40c3a1396e6c3206d8f4a70dcbc3b62d67e
+    aibox.projectious.work/image-digest: s256-6c650af53e90fed167d577a704931c3cde11d5254b3b2f736928a06730
     aibox.projectious.work/namespace: workspace-dev
     aibox.projectious.work/owner-id: team-a
   name: workspace

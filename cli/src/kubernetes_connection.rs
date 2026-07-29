@@ -263,6 +263,7 @@ fn connection_error(message: &str) -> BackendError {
 #[serde(rename_all = "camelCase")]
 pub struct NetworkOwnership {
     pub deployment_id: String,
+    /// Kubernetes-safe label representation of the desired-spec digest.
     pub desired_spec_digest: String,
     /// The complete non-secret ownership identity copied from the deployment
     /// record.  Older records did not carry this field, so the three required
@@ -489,15 +490,42 @@ impl KubernetesNetworkApi for KubectlNetworkApi {
                     .collect()
             })
             .unwrap_or_default();
+        let string_at = |pointer: &str| {
+            value
+                .pointer(pointer)
+                .and_then(serde_json::Value::as_str)
+                .map(str::to_string)
+        };
+        let (hostname, class, service, parent) = match kind {
+            "Ingress" => (
+                string_at("/spec/rules/0/host").unwrap_or_default(),
+                string_at("/spec/ingressClassName"),
+                string_at("/spec/rules/0/http/paths/0/backend/service/name"),
+                None,
+            ),
+            "Gateway" => (
+                string_at("/spec/listeners/0/hostname").unwrap_or_default(),
+                string_at("/spec/gatewayClassName"),
+                None,
+                None,
+            ),
+            "HTTPRoute" => (
+                string_at("/spec/hostnames/0").unwrap_or_default(),
+                None,
+                string_at("/spec/rules/0/backendRefs/0/name"),
+                string_at("/spec/parentRefs/0/name"),
+            ),
+            _ => (String::new(), None, None, None),
+        };
         Ok(Some(ManagedNetworkResource {
             kind: kind.to_string(),
             namespace: namespace.to_string(),
             name: name.to_string(),
             labels,
-            hostname: String::new(),
-            class: None,
-            service: None,
-            parent: None,
+            hostname,
+            class,
+            service,
+            parent,
             zone: None,
         }))
     }
@@ -706,7 +734,17 @@ pub fn plan_network_destroy(
 ) -> Result<Vec<ManagedNetworkResourceKey>, BackendError> {
     let name = network_name(&request.ownership.deployment_id, &request.service);
     let mut owned = Vec::new();
-    for kind in ["HTTPRoute", "Gateway", "Ingress", "DNSRecord"] {
+    let mut kinds = Vec::new();
+    if request.gateway_class.is_some() {
+        kinds.extend(["HTTPRoute", "Gateway"]);
+    }
+    if request.ingress_class.is_some() {
+        kinds.push("Ingress");
+    }
+    if request.dns_zone.is_some() {
+        kinds.push("DNSRecord");
+    }
+    for kind in kinds {
         let Some(existing) = api.get(kind, &request.namespace, &name)? else {
             continue;
         };

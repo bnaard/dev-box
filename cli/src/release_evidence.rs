@@ -5,12 +5,16 @@
 //! so a later producer change cannot silently weaken a release gate.
 
 use std::collections::HashSet;
+use std::path::{Component, Path};
 
 use chrono::DateTime;
 use serde::{Deserialize, Serialize};
 
 pub const DISPOSABLE_CLUSTER_EVIDENCE_API_VERSION: &str = "aibox.projectious.work/v1alpha1";
 pub const DISPOSABLE_CLUSTER_EVIDENCE_KIND: &str = "DisposableClusterEvidence";
+pub const RELEASE_GATE_EVIDENCE_API_VERSION: &str =
+    "aibox.projectious.work/release-evidence/v1alpha1";
+pub const RELEASE_GATE_EVIDENCE_KIND: &str = "ReleaseGateEvidence";
 
 pub const REQUIRED_M7C_SCENARIOS: [M7cScenarioId; 8] = [
     M7cScenarioId::FirstApply,
@@ -69,6 +73,33 @@ pub enum ScenarioStatus {
     Passed,
 }
 
+/// Candidate-bound attestation for every readiness gate that is not itself a
+/// domain-specific producer contract such as M7c.  This is deliberately an
+/// output record: source probes can establish that an implementation exists,
+/// but cannot establish that the candidate actually exercised it.
+#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+pub struct ReleaseGateEvidence {
+    pub api_version: String,
+    pub kind: String,
+    pub gate: String,
+    pub status: EvidenceStatus,
+    pub candidate_commit: String,
+    pub binary_sha256: String,
+    pub command: String,
+    pub started_at: String,
+    pub completed_at: String,
+    pub scenarios: Vec<String>,
+    pub artifacts: Vec<ReleaseEvidenceArtifact>,
+}
+
+#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+pub struct ReleaseEvidenceArtifact {
+    pub path: String,
+    pub sha256: String,
+}
+
 impl DisposableClusterEvidence {
     pub fn from_json(bytes: &[u8]) -> Result<Self, String> {
         let evidence: Self = serde_json::from_slice(bytes)
@@ -108,12 +139,61 @@ impl DisposableClusterEvidence {
     }
 }
 
+impl ReleaseGateEvidence {
+    pub fn from_json(bytes: &[u8]) -> Result<Self, String> {
+        let evidence: Self = serde_json::from_slice(bytes)
+            .map_err(|error| format!("invalid ReleaseGateEvidence: {error}"))?;
+        evidence.validate()?;
+        Ok(evidence)
+    }
+
+    pub fn validate(&self) -> Result<(), String> {
+        let started_at = DateTime::parse_from_rfc3339(&self.started_at)
+            .map_err(|_| "invalid release-gate evidence timestamp".to_string())?;
+        let completed_at = DateTime::parse_from_rfc3339(&self.completed_at)
+            .map_err(|_| "invalid release-gate evidence timestamp".to_string())?;
+        let unique_scenarios: HashSet<_> = self.scenarios.iter().collect();
+        if self.api_version != RELEASE_GATE_EVIDENCE_API_VERSION
+            || self.kind != RELEASE_GATE_EVIDENCE_KIND
+            || self.gate.trim().is_empty()
+            || !is_commit_sha(&self.candidate_commit)
+            || !is_sha256_digest(&self.binary_sha256)
+            || self.command.trim().is_empty()
+            || completed_at < started_at
+            || self.scenarios.is_empty()
+            || unique_scenarios.len() != self.scenarios.len()
+            || self
+                .scenarios
+                .iter()
+                .any(|scenario| scenario.trim().is_empty())
+            || self.artifacts.is_empty()
+            || self.artifacts.iter().any(|artifact| {
+                !is_relative_artifact_path(&artifact.path) || !is_sha256_digest(&artifact.sha256)
+            })
+        {
+            return Err("incomplete release-gate evidence envelope".to_string());
+        }
+        Ok(())
+    }
+}
+
 fn is_sha256_digest(value: &str) -> bool {
     value.len() == "sha256:".len() + 64
         && value.starts_with("sha256:")
         && value["sha256:".len()..]
             .bytes()
             .all(|byte| byte.is_ascii_hexdigit())
+}
+
+fn is_commit_sha(value: &str) -> bool {
+    value.len() == 40 && value.bytes().all(|byte| byte.is_ascii_hexdigit())
+}
+
+fn is_relative_artifact_path(value: &str) -> bool {
+    !value.trim().is_empty()
+        && Path::new(value)
+            .components()
+            .all(|component| matches!(component, Component::Normal(_)))
 }
 
 #[cfg(test)]
@@ -153,5 +233,22 @@ mod tests {
     fn rejects_non_rfc3339_recorded_at() {
         let invalid = VALID.replace("2026-07-28T12:00:00Z", "not-a-timestamp");
         assert!(DisposableClusterEvidence::from_json(invalid.as_bytes()).is_err());
+    }
+
+    #[test]
+    fn accepts_candidate_bound_release_gate_fixture() {
+        let evidence = ReleaseGateEvidence::from_json(include_bytes!(
+            "../contracts/v1alpha1/fixtures/valid/release-gate-evidence.json"
+        ))
+        .unwrap();
+        assert_eq!(evidence.gate, "m5-alpha3-exact-lifecycle");
+    }
+
+    #[test]
+    fn rejects_incomplete_release_gate_fixture() {
+        assert!(ReleaseGateEvidence::from_json(include_bytes!(
+            "../contracts/v1alpha1/fixtures/invalid/release-gate-evidence-missing-artifacts.json"
+        ))
+        .is_err());
     }
 }

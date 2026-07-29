@@ -14,11 +14,10 @@ use std::sync::Arc;
 use serde::{Deserialize, Serialize};
 use sha2::{Digest, Sha256};
 
-use crate::compose_plan::RenderedDeploymentPlan;
 use crate::deployment_backend::{
     ApplyRequest, ApplyResponse, Backend, BackendError, DestroyRequest, DestroyResponse,
-    LogsRequest, LogsResponse, PlanRequest, PlanResponse, StatusRequest, StatusResponse,
-    ValidateRequest, ValidateResponse,
+    LogsRequest, LogsResponse, PlanRequest, PlanResponse, RenderedDeploymentArtifacts,
+    RenderedDeploymentPlan, StatusRequest, StatusResponse, ValidateRequest, ValidateResponse,
 };
 use crate::deployment_compiler::{DesiredDeploymentAction, DesiredDeploymentPlan};
 use crate::deployment_contract::{
@@ -1115,8 +1114,8 @@ fn record_for(
             image: fleet.spec.image.clone(),
             ownership: DeploymentOwnership {
                 deployment_id_label: rendered.deployment_id.clone(),
-                desired_spec_digest_label: rendered.desired_spec_digest.clone(),
-                image_digest_label: rendered.image_digest.clone(),
+                desired_spec_digest_label: rendered.ownership_labels[LABEL_SPEC_DIGEST].clone(),
+                image_digest_label: rendered.ownership_labels[LABEL_IMAGE_DIGEST].clone(),
             },
             status: DeploymentStatus::Desired,
             services: fleet
@@ -1160,7 +1159,7 @@ fn network_requests(
                 hostname,
                 ownership: NetworkOwnership {
                     deployment_id: record.spec.deployment_id.clone(),
-                    desired_spec_digest: record.spec.desired_spec_digest.clone(),
+                    desired_spec_digest: record.spec.ownership.desired_spec_digest_label.clone(),
                     resource_labels: record.metadata.labels.clone(),
                 },
                 ingress_class: intent.ingress_class.clone(),
@@ -1370,6 +1369,20 @@ fn sha256_digest(bytes: &[u8]) -> String {
     )
 }
 
+fn digest_label_value(digest: &str) -> String {
+    let canonical_hex = digest
+        .strip_prefix("sha256:")
+        .filter(|value| value.len() == 64 && value.bytes().all(|byte| byte.is_ascii_hexdigit()))
+        .map(str::to_ascii_lowercase)
+        .unwrap_or_else(|| {
+            Sha256::digest(digest.as_bytes())
+                .iter()
+                .map(|byte| format!("{byte:02x}"))
+                .collect()
+        });
+    format!("s256-{}", &canonical_hex[..58])
+}
+
 /// Render deterministic YAML and JSON resources from the same canonical fleet used by Compose.
 pub fn render(plan: &DesiredDeploymentPlan) -> Result<RenderedDeploymentPlan, BackendError> {
     let (context, namespace, _intent) = target(plan)?;
@@ -1379,11 +1392,11 @@ pub fn render(plan: &DesiredDeploymentPlan) -> Result<RenderedDeploymentPlan, Ba
     labels.insert(LABEL_DEPLOYMENT_ID.to_string(), deployment_id.clone());
     labels.insert(
         LABEL_SPEC_DIGEST.to_string(),
-        plan.desired_spec_digest.clone(),
+        digest_label_value(&plan.desired_spec_digest),
     );
     labels.insert(
         LABEL_IMAGE_DIGEST.to_string(),
-        fleet.spec.image.digest.clone(),
+        digest_label_value(&fleet.spec.image.digest),
     );
     labels.insert(LABEL_NAMESPACE.to_string(), namespace.to_string());
     labels.insert(
@@ -1416,10 +1429,12 @@ pub fn render(plan: &DesiredDeploymentPlan) -> Result<RenderedDeploymentPlan, Ba
         desired_spec_digest: plan.desired_spec_digest.clone(),
         image_digest: fleet.spec.image.digest.clone(),
         ownership_labels: labels,
-        compose_yaml: String::new(),
-        devcontainer_json: String::new(),
-        kubernetes_yaml: Some(yaml),
-        kubernetes_json: Some(json),
+        artifacts: RenderedDeploymentArtifacts::Kubernetes {
+            compose_yaml: String::new(),
+            devcontainer_json: String::new(),
+            kubernetes_yaml: yaml,
+            kubernetes_json: json,
+        },
     })
 }
 
@@ -1880,7 +1895,7 @@ mod tests {
         let plan = plan();
         let first = render(&plan).unwrap();
         assert_eq!(first, render(&plan).unwrap());
-        let yaml = first.kubernetes_yaml.unwrap();
+        let (yaml, _) = first.artifacts.kubernetes().unwrap();
         assert_eq!(
             yaml,
             include_str!("../contracts/v1alpha1/fixtures/valid/kubernetes-plan.yaml")
@@ -1964,11 +1979,20 @@ mod tests {
         let compose = crate::compose_plan::render(&compose_plan).unwrap();
         let kubernetes = render(&kubernetes_plan).unwrap();
         assert_eq!(compose.image_digest, kubernetes.image_digest);
-        assert!(compose.compose_yaml.contains("workspace:"));
+        assert!(
+            compose
+                .artifacts
+                .compose()
+                .unwrap()
+                .0
+                .contains("workspace:")
+        );
         assert!(
             kubernetes
-                .kubernetes_yaml
+                .artifacts
+                .kubernetes()
                 .unwrap()
+                .0
                 .contains("name: workspace")
         );
     }
@@ -2411,7 +2435,7 @@ mod tests {
             .unwrap()
             .labels = NetworkOwnership {
             deployment_id: record.spec.deployment_id.clone(),
-            desired_spec_digest: record.spec.desired_spec_digest.clone(),
+            desired_spec_digest: record.spec.ownership.desired_spec_digest_label.clone(),
             resource_labels: record.metadata.labels.clone(),
         }
         .labels();

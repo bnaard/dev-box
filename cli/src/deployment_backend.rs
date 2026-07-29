@@ -8,7 +8,7 @@ use std::fmt::{Display, Formatter};
 
 use serde::{Deserialize, Serialize};
 
-use crate::compose_plan::{ComposeBackend, RenderedDeploymentPlan};
+use crate::compose_plan::ComposeBackend;
 use crate::deployment_compiler::DesiredDeploymentPlan;
 use crate::deployment_contract::{
     BackendCapability, BackendKind, ConnectionTarget, ContractErrorCode, DeploymentRecord,
@@ -30,6 +30,70 @@ pub struct ValidateResponse {
 pub struct PlanRequest {
     pub plan: DesiredDeploymentPlan,
 }
+
+/// Backend-neutral artifact payload produced by a deployment renderer.
+///
+/// The wire shape is deliberately flattened into [`RenderedDeploymentPlan`]
+/// to retain the v1alpha1 CLI JSON projection.  Backend adapters therefore
+/// share one plan boundary without inheriting Compose implementation types.
+#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
+#[serde(untagged, rename_all_fields = "camelCase")]
+pub enum RenderedDeploymentArtifacts {
+    /// Kubernetes retains the historical empty Compose fields in its JSON
+    /// projection so existing consumers and fixtures remain compatible.
+    Kubernetes {
+        compose_yaml: String,
+        devcontainer_json: String,
+        kubernetes_yaml: String,
+        kubernetes_json: String,
+    },
+    Compose {
+        compose_yaml: String,
+        devcontainer_json: String,
+        #[serde(skip_serializing_if = "Option::is_none")]
+        kubernetes_yaml: Option<String>,
+        #[serde(skip_serializing_if = "Option::is_none")]
+        kubernetes_json: Option<String>,
+    },
+}
+
+impl RenderedDeploymentArtifacts {
+    pub fn compose(&self) -> Option<(&str, &str)> {
+        match self {
+            Self::Compose {
+                compose_yaml,
+                devcontainer_json,
+                ..
+            } => Some((compose_yaml, devcontainer_json)),
+            Self::Kubernetes { .. } => None,
+        }
+    }
+
+    pub fn kubernetes(&self) -> Option<(&str, &str)> {
+        match self {
+            Self::Kubernetes {
+                kubernetes_yaml,
+                kubernetes_json,
+                ..
+            } => Some((kubernetes_yaml, kubernetes_json)),
+            Self::Compose { .. } => None,
+        }
+    }
+}
+
+/// A rendered, non-mutating backend plan with backend-neutral artifacts.
+#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct RenderedDeploymentPlan {
+    pub backend: BackendKind,
+    pub deployment_id: String,
+    pub desired_spec_digest: String,
+    pub image_digest: String,
+    pub ownership_labels: std::collections::BTreeMap<String, String>,
+    #[serde(flatten)]
+    pub artifacts: RenderedDeploymentArtifacts,
+}
+
 #[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct PlanResponse {
@@ -218,5 +282,41 @@ mod tests {
             })
             .unwrap_err();
         assert_eq!(error.code, ContractErrorCode::Ownership);
+    }
+
+    #[test]
+    fn rendered_artifact_variants_keep_the_v1alpha1_wire_projection_flat() {
+        let artifacts = RenderedDeploymentArtifacts::Compose {
+            compose_yaml: "services: {}".to_string(),
+            devcontainer_json: "{}".to_string(),
+            kubernetes_yaml: None,
+            kubernetes_json: None,
+        };
+        let json = serde_json::to_value(&artifacts).unwrap();
+        assert_eq!(json["composeYaml"], "services: {}");
+        assert_eq!(json["devcontainerJson"], "{}");
+        assert!(json.get("kubernetesYaml").is_none());
+    }
+
+    #[test]
+    fn rendered_plan_round_trips_without_a_backend_module_dependency() {
+        let rendered = RenderedDeploymentPlan {
+            backend: BackendKind::Kubernetes,
+            deployment_id: "workspace-abc".to_string(),
+            desired_spec_digest: "sha256:abc".to_string(),
+            image_digest: "sha256:def".to_string(),
+            ownership_labels: std::collections::BTreeMap::new(),
+            artifacts: RenderedDeploymentArtifacts::Kubernetes {
+                compose_yaml: String::new(),
+                devcontainer_json: String::new(),
+                kubernetes_yaml: "apiVersion: v1".to_string(),
+                kubernetes_json: "[]".to_string(),
+            },
+        };
+        let encoded = serde_json::to_vec(&rendered).unwrap();
+        assert_eq!(
+            serde_json::from_slice::<RenderedDeploymentPlan>(&encoded).unwrap(),
+            rendered
+        );
     }
 }
