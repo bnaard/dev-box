@@ -32,6 +32,22 @@ until these operator decisions have explicit v1 values. This makes the command
 a migration planner, rather than a textual marker that implies the v0
 configuration was fully converted.
 
+Create a reviewed TOML document containing only one complete
+`[orchestration]` tree, then apply it with the migration:
+
+```sh
+aibox config migrate-v1 --apply --intent-file v1-intent.toml --output json
+```
+
+The intent file may say `enabled = true` for validation, but the migration
+always writes it as `enabled = false`. Aibox validates the complete image,
+fleet, target, deployment, connection, and credential-reference contract
+offline before it creates the backup or changes `aibox.toml`. Extra top-level
+tables, incomplete intent, symlinked files, and raw credential values are
+rejected. The result reports `readyToEnable: true`; activation remains a
+separate reviewed edit followed by `aibox config compile` and
+`aibox deploy plan`.
+
 Apply the narrow migration only after reviewing the preview:
 
 ```sh

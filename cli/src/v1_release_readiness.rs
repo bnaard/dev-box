@@ -101,13 +101,14 @@ struct MigrationReceipt {
 pub fn cmd_config_migrate_v1(
     config_path: &Option<String>,
     apply: bool,
+    intent_file: Option<&str>,
     restore: Option<&str>,
     format: V1ReadinessOutputFormat,
 ) -> Result<()> {
     let path = config_path_for(config_path)?;
     let report = match restore {
         Some(backup) => restore_v0_config(&path, Path::new(backup))?,
-        None if apply => apply_v1_config_migration(&path)?,
+        None if apply => apply_v1_config_migration(&path, intent_file.map(Path::new))?,
         None => preview_v1_config_migration(&path)?,
     };
     print_migration_report(&report, format);
@@ -459,11 +460,18 @@ fn preview_v1_config_migration(path: &Path) -> Result<ConfigMigrationReport> {
     })
 }
 
-fn apply_v1_config_migration(path: &Path) -> Result<ConfigMigrationReport> {
+fn apply_v1_config_migration(
+    path: &Path,
+    intent_file: Option<&Path>,
+) -> Result<ConfigMigrationReport> {
     let original = read_v0_config(path)?;
     let original_digest = sha256(&original);
-    let (mapped_fields, unresolved_decisions) = migration_analysis(&original)?;
-    let Some(migrated) = migrated_config(&original)? else {
+    let (mapped_fields, mut unresolved_decisions) = migration_analysis(&original)?;
+    let intent = intent_file.map(read_migration_intent).transpose()?;
+    if intent.is_some() {
+        unresolved_decisions.clear();
+    }
+    let Some(migrated) = migrated_config_with_intent(&original, intent.as_deref())? else {
         return Ok(ConfigMigrationReport {
             operation: "apply".to_string(),
             changed: false,
@@ -508,7 +516,7 @@ fn apply_v1_config_migration(path: &Path) -> Result<ConfigMigrationReport> {
                 .to_string(),
         ),
         mapped_fields,
-        ready_to_enable: unresolved_decisions.is_empty(),
+        ready_to_enable: intent.is_some() && unresolved_decisions.is_empty(),
         unresolved_decisions,
     })
 }
@@ -664,6 +672,10 @@ fn read_v0_config(path: &Path) -> Result<Vec<u8>> {
 }
 
 fn migrated_config(original: &[u8]) -> Result<Option<Vec<u8>>> {
+    migrated_config_with_intent(original, None)
+}
+
+fn migrated_config_with_intent(original: &[u8], intent: Option<&[u8]>) -> Result<Option<Vec<u8>>> {
     if contains_orchestration(original)? {
         return Ok(None);
     }
@@ -672,9 +684,52 @@ fn migrated_config(original: &[u8]) -> Result<Option<Vec<u8>>> {
         result.push(b'\n');
     }
     result.extend_from_slice(
-        b"\n# aibox v1 migration boundary: explicit opt-in keeps v0 lifecycle behavior unchanged.\n# Fill the nested orchestration sections and set enabled = true only after reviewing the v1 guide.\n[orchestration]\nenabled = false\n",
+        b"\n# aibox v1 migration boundary: disabled until explicit activation after plan review.\n",
     );
+    match intent {
+        Some(intent) => result.extend_from_slice(intent),
+        None => result.extend_from_slice(
+            b"# Fill the nested orchestration sections and set enabled = true only after reviewing the v1 guide.\n[orchestration]\nenabled = false\n",
+        ),
+    }
     Ok(Some(result))
+}
+
+fn read_migration_intent(path: &Path) -> Result<Vec<u8>> {
+    if fs::symlink_metadata(path)?.file_type().is_symlink() || !path.is_file() {
+        bail!("refusing non-regular migration intent: {}", path.display());
+    }
+    let bytes =
+        fs::read(path).with_context(|| format!("read migration intent {}", path.display()))?;
+    let text = std::str::from_utf8(&bytes)
+        .map_err(|_| anyhow::anyhow!("migration intent must be UTF-8 TOML"))?;
+    let mut value: toml::Value =
+        toml::from_str(text).map_err(|_| anyhow::anyhow!("migration intent must be valid TOML"))?;
+    let root = value
+        .as_table_mut()
+        .context("migration intent must be a TOML document")?;
+    if root.len() != 1 || !root.contains_key("orchestration") {
+        bail!("migration intent may contain only one [orchestration] document");
+    }
+    let orchestration = root
+        .get_mut("orchestration")
+        .and_then(toml::Value::as_table_mut)
+        .context("migration intent requires an [orchestration] table")?;
+    orchestration.insert("enabled".to_string(), toml::Value::Boolean(false));
+
+    let rendered = toml::to_string(&value)?;
+    let mut validation_document = value;
+    validation_document
+        .get_mut("orchestration")
+        .and_then(toml::Value::as_table_mut)
+        .expect("validated orchestration table")
+        .insert("enabled".to_string(), toml::Value::Boolean(true));
+    let validation_toml = toml::to_string(&validation_document)?;
+    let validation = format!("[container]\nname = \"migration-validation\"\n\n{validation_toml}");
+    crate::config::AiboxConfig::from_str(&validation).map_err(|_| {
+        anyhow::anyhow!("migration intent is not a complete valid v1 orchestration configuration")
+    })?;
+    Ok(rendered.into_bytes())
 }
 
 fn contains_orchestration(bytes: &[u8]) -> Result<bool> {
@@ -958,7 +1013,7 @@ mod tests {
         let dir = TempDir::new().unwrap();
         let path = config(&dir);
         let original = fs::read(&path).unwrap();
-        let report = apply_v1_config_migration(&path).unwrap();
+        let report = apply_v1_config_migration(&path, None).unwrap();
         let backup = PathBuf::from(report.backup_path.unwrap());
         assert_eq!(fs::read(&backup).unwrap(), original);
         assert_eq!(
@@ -981,7 +1036,7 @@ mod tests {
         let dir = TempDir::new().unwrap();
         let path = config(&dir);
         let original = fs::read(&path).unwrap();
-        let applied = apply_v1_config_migration(&path).unwrap();
+        let applied = apply_v1_config_migration(&path, None).unwrap();
         let deployment = dir.path().join(".aibox/deployments/v1-owned.json");
         fs::create_dir_all(deployment.parent().unwrap()).unwrap();
         fs::write(&deployment, "v1 deployment receipt").unwrap();
@@ -1013,7 +1068,9 @@ mod tests {
         let path = config(&dir);
         let outside = TempDir::new().unwrap();
         symlink(outside.path(), dir.path().join(".aibox")).unwrap();
-        let error = apply_v1_config_migration(&path).unwrap_err().to_string();
+        let error = apply_v1_config_migration(&path, None)
+            .unwrap_err()
+            .to_string();
         assert!(error.contains("unsafe backup directory component"));
     }
 
