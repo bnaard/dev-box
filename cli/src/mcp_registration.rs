@@ -1509,14 +1509,24 @@ fn gateway_daemon_proxy_spec(
     specs: &[McpServerSpec],
 ) -> Option<McpServerSpec> {
     let gateway = gateway_spec(specs)?;
-    let script = gateway
+    let script_index = gateway
         .args
         .iter()
-        .find(|arg| arg.ends_with(".py") && arg.contains("processkit-gateway/mcp/server.py"))
-        .cloned()
+        .position(|arg| arg.ends_with(".py") && arg.contains("processkit-gateway/mcp/server.py"));
+    let mut args = script_index
+        .map(|index| gateway.args[..=index].to_vec())
         .unwrap_or_else(|| {
-            "context/skills/processkit/processkit-gateway/mcp/server.py".to_string()
+            vec![
+                "run".to_string(),
+                "--script".to_string(),
+                "context/skills/processkit/processkit-gateway/mcp/server.py".to_string(),
+            ]
         });
+    args.extend([
+        "stdio-proxy".to_string(),
+        "--url".to_string(),
+        config.mcp.gateway.url(),
+    ]);
     let mut env = processkit_mcp_env(BTreeMap::new());
     env.insert("PROCESSKIT_MCP_MODE".to_string(), "gateway".to_string());
     if config.mcp.gateway.lazy_catalog {
@@ -1529,13 +1539,7 @@ fn gateway_daemon_proxy_spec(
     Some(McpServerSpec {
         name: "processkit-gateway".to_string(),
         command: gateway.command,
-        args: vec![
-            "run".to_string(),
-            script,
-            "stdio-proxy".to_string(),
-            "--url".to_string(),
-            config.mcp.gateway.url(),
-        ],
+        args,
         env,
     })
 }
@@ -3648,7 +3652,7 @@ args = ["server.js"]
             version,
             "processkit",
             "processkit-gateway",
-            r#"{"mcpServers":{"processkit-gateway":{"command":"uv","args":["run","context/skills/processkit/processkit-gateway/mcp/server.py"]}}}"#,
+            r#"{"mcpServers":{"processkit-gateway":{"command":"uv","args":["run","--script","context/skills/processkit/processkit-gateway/mcp/server.py"]}}}"#,
         );
         fs::write(
             tmp.path().join(".mcp.json"),
@@ -3697,6 +3701,11 @@ args = ["server.js"]
         assert!(
             args.iter().any(|arg| arg == "stdio-proxy"),
             "auto mode should use the daemon stdio proxy when processkit-gateway is installed: {}",
+            body
+        );
+        assert!(
+            args.iter().any(|arg| arg == "--script"),
+            "auto mode must preserve uv's --script flag so inline gateway dependencies are installed: {}",
             body
         );
         assert!(
