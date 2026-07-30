@@ -47,7 +47,7 @@ Thank you for your interest in contributing to aibox!
 - **`cli/`** — Rust CLI source code
 - **`images/`** — Published container image Dockerfiles
 - **`addons/`** — Addon definitions (language runtimes, tool bundles, AI agents)
-- **`docs-site/`** — Docusaurus documentation source
+- **`docs-site/`** — Hugo/Docsy documentation source
 - **`.devcontainer/`** — This project's own dev environment
 
 > Process content (skills, packages, primitives, processes, the canonical
@@ -74,8 +74,8 @@ See [CLAUDE.md](https://github.com/projectious-work/aibox/blob/main/CLAUDE.md) f
 
 ### Documentation Changes
 
-1. Edit or add pages in `docs-site/content/docs/`
-2. Add a `_index.md` to a new category directory so it appears in the sidebar
+1. Edit or add pages in `docs-site/docs/`
+2. Update `docs-site/sidebars.js` if adding new pages
 3. Preview locally: `./scripts/maintain.sh docs-serve`
 
 ## Pull Requests

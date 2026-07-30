@@ -13,14 +13,6 @@ below shows the minimum compatible processkit version for each aibox release.
 
 | aibox version | Min. processkit | Notes |
 |--------------|-----------------|-------|
-| 0.28.17 | v0.28.4 | repairs Go, Typst, AWS CLI, and Node.js add-on installers and adds a clean companion-container build gate for download-based add-on defaults |
-| 0.28.16 | v0.28.4 | installs Node.js from checksum-verified official release archives after the NodeSource signing-key endpoint became unavailable and refreshes generated runtime and processkit package-selection state |
-| 0.28.14 | v0.28.4 | ensures `pk-reconcile` and `pk-repo-reconcile` install their `project-reconciliation` and `repo-management` skill dependencies |
-| 0.28.15 | v0.28.4 | refreshes bundled maintenance tools, locks `cargo-audit` installation for Rust compatibility, and publishes the Hugo/Docsy documentation site |
-| 0.28.13 | v0.28.4 | adds open GitHub Discussion counts to the tmux Forge status segment and restores the complete generated Codex command projection set |
-| 0.28.12 | v0.28.4 | integrates processkit v0.28.4 and makes companion E2E validation work from linked release worktrees |
-| 0.28.11 | v0.28.3 | adds the `cloudflare` addon, which installs cloudflared from Cloudflare's signed package repository rather than Debian's archive |
-| 0.28.10 | v0.28.3 | reconciles standard processkit skills, recommends tooling-linked skills interactively, upgrades prerelease processkit surfaces, and serializes release Tier 2 E2E validation |
 | 0.28.6 | v0.28.3 | fixes Kubernetes addon checksum verification for Helm, Kustomize, and k9s archives on amd64 and arm64; and integrates processkit v0.28.3 authenticated GitHub repository reconciliation |
 | 0.28.5 | v0.28.1 | fixes Hermes Agent installation under the non-root runtime model; restores configured lazygit runtime surfaces; completes processkit reconciliation; and enforces traceable ports between maintained v0.x and v1.x lines |
 | 0.28.4 | v0.28.1 | integrates processkit v0.28.1 and refreshes the maintained v0.x processkit compatibility baseline |

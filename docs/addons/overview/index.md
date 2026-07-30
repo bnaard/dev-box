@@ -34,16 +34,16 @@ aibox describe addon-catalog -o json
 ```toml
 [addons.python.tools]
 python = { version = "3.14" }
-uv = { version = "0.11.32" }
+uv = { version = "0.11.26" }
 
 [addons.rust.tools]
-rustc = { version = "1.97.1" }
+rustc = { version = "1.96.1" }
 clippy = {}
 rustfmt = {}
 
 [addons.node.tools]
 node = { version = "26" }
-pnpm = { version = "11.17.0" }
+pnpm = { version = "11.10.0" }
 ```
 
 Each addon has **default-enabled tools** that are included automatically, and **optional tools** you can enable explicitly. Tools with version selection let you pick from curated, tested versions.
@@ -62,10 +62,10 @@ After editing `aibox.toml`, run `aibox apply` to regenerate the Dockerfile and r
 
 | Addon | Default Tools | Optional Tools |
 |-------|--------------|----------------|
-| `python` | python (3.12/3.13/3.14), uv (0.7/0.11.10/0.11.11/0.11.15/0.11.19/0.11.26/0.11.32) | poetry (1.8/2.0/2.4.1), pdm (2.22/2.26.9/2.27.0/2.28.0) |
-| `rust` | rustc (1.90/1.91/1.92/1.93/1.94/1.94.1/1.96.0/1.96.1/1.97.1), clippy, rustfmt | — |
-| `node` | node (20/22/24/26), pnpm (9/10/11.1.3/11.5.2/11.10.0/11.17.0) | yarn (4/4.16.0/4.17.0), bun (1.2/1.3.14) |
-| `go` | go (1.25/1.26/1.26.3/1.26.4/1.26.5) | — |
+| `python` | python (3.12/3.13/3.14), uv (0.7/0.11.10/0.11.11/0.11.15/0.11.19/0.11.26) | poetry (1.8/2.0/2.4.1), pdm (2.22/2.26.9/2.27.0/2.28.0) |
+| `rust` | rustc (1.90/1.91/1.92/1.93/1.94/1.94.1/1.96.0/1.96.1), clippy, rustfmt | — |
+| `node` | node (20/22/24/26), pnpm (9/10/11.1.3/11.5.2/11.10.0) | yarn (4/4.16.0/4.17.0), bun (1.2/1.3.14) |
+| `go` | go (1.25/1.26/1.26.3/1.26.4) | — |
 | `typst` | typst (0.13.1/0.14.2/0.15.0) | — |
 | `latex` | texlive-core, texlive-recommended, texlive-fonts, biber, texlive-code, texlive-diagrams, texlive-math | texlive-music, texlive-chemistry |
 
@@ -131,7 +131,6 @@ agents pick them up via skill descriptions, not via addon membership:
 | `latex` / `typst` | `documentation` |
 | `git-ui` | `git-workflow` |
 | `kubernetes` | `container-orchestration` |
-| `cloudflare` | Cloudflare Tunnel workflows |
 | `infrastructure` | terraform-flavoured patterns shipped upstream |
 
 See [Skills (via processkit)](../skills/index.md) for the full split.
@@ -175,7 +174,7 @@ Recipe version: 1.0.0
 
   TOOL      DEFAULT    VERSION  SUPPORTED
   python        yes       3.14  3.12, 3.13, 3.14
-  uv            yes    0.11.32  0.7, 0.11.10, 0.11.11, 0.11.15, 0.11.19, 0.11.26, 0.11.32
+  uv            yes    0.11.26  0.7, 0.11.10, 0.11.11, 0.11.15, 0.11.19, 0.11.26
   poetry         no      2.4.1  1.8, 2.0, 2.4.1
   pdm            no     2.28.0  2.22, 2.26.9, 2.27.0, 2.28.0
 ```

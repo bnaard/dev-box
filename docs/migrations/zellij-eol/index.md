@@ -62,7 +62,7 @@ b. **Migrate any custom status configuration to tmux.** If you previously
 
    The `extended` mode renders a two-line powerline bar with aibox metrics
    (log/OOM/proc/AI/MCP/migration counters). The `minimal` mode renders a
-   single line. See `docs-site/content/docs/customization/layouts.md` for full
+   single line. See `docs-site/docs/customization/layouts.md` for full
    reference.
 
 c. **Run `aibox apply`** from a v0.25.6+ host CLI. This purges the stale

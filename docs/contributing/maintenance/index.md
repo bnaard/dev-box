@@ -116,7 +116,7 @@ The command performs:
 - binary version smoke check
 - annotated git tag push
 - GitHub release creation with Linux binaries
-- Docusaurus docs deployment
+- Hugo/Docsy docs deployment
 - `dist/RELEASE-PROMPT.md` for host-side completion
 
 Independent validation gates run concurrently. The default worker limit is

@@ -23,7 +23,7 @@ The project uses several independent integrity layers:
 | Surface | Provenance control | Release validation |
 | --- | --- | --- |
 | Rust CLI | `cli/Cargo.lock` pins the complete dependency graph | `cargo test`, Clippy with warnings denied, and `cargo audit` |
-| Documentation | `docs-site/package-lock.json` pins npm dependencies | clean `npm ci`, production Docusaurus build, and npm audit |
+| Documentation | `docs-site/package-lock.json` and the Docsy submodule pin dependencies | clean `npm ci`, production Hugo build, and npm audit |
 | processkit | source, version, and release-asset SHA-256 are recorded in `aibox.lock` and live provenance | installer hash verification, three-way content comparison, and pk-doctor integrity checks |
 | Base images | release-specific image tags, OCI source/profile labels, and generated version markers | cross-platform build, GHCR publication verification, and downstream runtime smoke |
 | Addon downloads | pinned versions plus SHA-256, signed checksum, or upstream sidecar verification where available | release-state inventory and real container lifecycle tests |
