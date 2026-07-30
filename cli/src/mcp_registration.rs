@@ -1989,7 +1989,7 @@ pub fn regenerate_mcp_configs(config: &AiboxConfig, project_root: &Path) -> Resu
                      in the {} templates mirror — its server will not be registered. \
                      Entity-layer coverage is incomplete. Run `aibox apply` after \
                      upgrading processkit to a version that includes this skill.",
-                    &config.processkit.version,
+                    config.processkit.version,
                 ));
             }
         }
