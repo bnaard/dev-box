@@ -46,6 +46,20 @@ pre {
   font-variant-ligatures: none;
 }
 
+.td-release-menu {
+  min-width: 13rem;
+}
+
+.td-release-menu .dropdown-header:not(:first-child) {
+  border-top: 1px solid var(--bs-border-color);
+  margin-top: 0.35rem;
+  padding-top: 0.65rem;
+}
+
+.td-release-menu__alias {
+  font-weight: 600;
+}
+
 .theme-gallery-filters {
   border: 1px solid var(--bs-border-color);
   border-radius: $border-radius-lg;
