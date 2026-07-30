@@ -1,4 +1,8 @@
-# Enforcement begins after these branch commits. Earlier history predates the
-# cross-line port contract and is intentionally grandfathered.
+# Enforcement begins after these reviewed branch commits. The v1 boundary was
+# advanced on 2026-07-30 after classifying the intervening obligations:
+# Kubernetes/deployment/readiness/evidence and project-state changes are
+# v1-only; the release-selector and docs-deployment changes have equivalent v0
+# implementations. The Codex gateway fix at this boundary is an explicit v0
+# port and retains its own port lineage.
 v0 = "ec9530fafdd3fbdc833c4c620d40740683a02028"
-v1 = "6266f1e9fd8c4bd90130203d8c46f392a1480ea4"
+v1 = "75097efb64172dfc0701dd555049d441d8255912"

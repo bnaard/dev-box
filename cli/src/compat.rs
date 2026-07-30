@@ -628,6 +628,11 @@ pub static COMPAT_TABLE: &[CompatEntry] = &[
         processkit_version: "v0.28.4",
         note: "Patch release: repairs Go, Typst, AWS CLI, and Node.js add-on installers and adds a clean companion-container build gate for download-based add-on defaults.",
     },
+    CompatEntry {
+        aibox_version: "0.28.18",
+        processkit_version: "v0.28.5",
+        note: "Patch release: restores Codex processkit MCP startup by preserving uv run --script in gateway daemon-proxy commands, integrates processkit v0.28.5's MCP 1.x compatibility bound, and restores zero-warning clippy under Rust 1.97.",
+    },
 ];
 
 /// Find the minimum compatible processkit version for the given aibox version.
