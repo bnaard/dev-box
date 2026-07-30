@@ -124,7 +124,8 @@ ${bold}Development:${reset}
   release-runtime-smoke <version>
                            Run host-side generated-runtime smoke and write logs
   docs-serve               Serve Hugo/Docsy locally (http://localhost:1313/aibox/)
-  docs-deploy [--dry-run]  Build Hugo/Docsy and push to gh-pages branch
+  docs-deploy --line <v0.x|v1.x> [--version vX.Y.Z] [--dry-run]
+                           Build Hugo/Docsy, retain release snapshots, and push gh-pages
   test-visual              Run screencast smoke tests (~40s)
   record-docs              Regenerate all docs screencasts + README GIF
 
@@ -229,30 +230,8 @@ cmd_test() {
   ok "All tests passed"
 }
 
-e2e_ssh_key() {
-  local project_key="${PROJECT_ROOT}/.aibox-e2e-runner-home/.ssh/id_ed25519"
-  if [[ -n "${AIBOX_E2E_SSH_KEY:-}" ]]; then
-    printf '%s\n' "${AIBOX_E2E_SSH_KEY}"
-    return
-  fi
-  if [[ -f "${project_key}" ]]; then
-    printf '%s\n' "${project_key}"
-    return
-  fi
-
-  # Release work happens in a linked worktree, while the ignored companion
-  # credentials remain in the primary checkout. Resolve that checkout through
-  # the shared Git directory instead of incorrectly requiring local Docker.
-  local common_dir primary_root primary_key
-  common_dir="$(git -C "${PROJECT_ROOT}" rev-parse --path-format=absolute --git-common-dir 2>/dev/null || true)"
-  primary_root="$(dirname "${common_dir}")"
-  primary_key="${primary_root}/.aibox-e2e-runner-home/.ssh/id_ed25519"
-  printf '%s\n' "${primary_key}"
-}
-
 ensure_e2e_companion() {
-  local key
-  key="$(e2e_ssh_key)"
+  local key="${PROJECT_ROOT}/.aibox-e2e-runner-home/.ssh/id_ed25519"
   local host="${AIBOX_E2E_HOST:-aibox-e2e-testrunner}"
   info "Checking SSH companion E2E container..."
   local ssh_output=""
@@ -279,8 +258,7 @@ ensure_e2e_companion() {
 }
 
 prune_e2e_companion_storage() {
-  local key
-  key="$(e2e_ssh_key)"
+  local key="${PROJECT_ROOT}/.aibox-e2e-runner-home/.ssh/id_ed25519"
   local host="${AIBOX_E2E_HOST:-aibox-e2e-testrunner}"
   ensure_e2e_companion
   info "Pruning SSH companion nested runtime state..."
@@ -302,8 +280,6 @@ cmd_test_e2e() {
   ensure_e2e_companion
   prune_e2e_companion_storage || die "Failed to prune SSH companion nested runtime state"
   info "Running Tier 2 SSH companion E2E tests..."
-  AIBOX_E2E_SSH_KEY="$(e2e_ssh_key)"
-  export AIBOX_E2E_SSH_KEY
   (cd "${CLI_DIR}" && cargo test --features e2e --test e2e -- --test-threads="${test_threads}") \
     || status=$?
   prune_e2e_companion_storage || warn "Post-suite SSH companion prune failed"
@@ -1255,15 +1231,21 @@ cmd_docs_serve() {
 }
 
 cmd_docs_deploy() {
+  "${PROJECT_ROOT}/scripts/deploy-docs.sh" "$@"
+}
+
+# Retained temporarily for line-history comparison while the versioned
+# deployment path rolls out. It is not called by the command dispatcher.
+cmd_docs_deploy_legacy() {
   local dry_run=false
   # Bug (b): declare tmpdir early so the EXIT trap below never sees an unbound
   # variable under set -u if the function exits before reaching mktemp -d.
   local tmpdir=""
   [[ "${1:-}" == "--dry-run" ]] && dry_run=true
 
-  command -v hugo &>/dev/null    || die "Hugo extended not found. Install Hugo >= 0.157.0."
-  command -v npm &>/dev/null     || die "npm not found. Install Node.js."
-  command -v git &>/dev/null     || die "git not found"
+  command -v hugo &>/dev/null   || die "Hugo extended not found. Install Hugo >= 0.157.0."
+  command -v npm &>/dev/null    || die "npm not found. Install Node.js."
+  command -v git &>/dev/null    || die "git not found"
   git rev-parse --is-inside-work-tree &>/dev/null || die "Not inside a git repository"
 
   local remote_url current_branch commit_sha commit_msg repo_slug
@@ -1289,19 +1271,6 @@ cmd_docs_deploy() {
   tmpdir=$(mktemp -d)
   # Bug (b): use ${tmpdir:-} so trap is safe even if mktemp never ran (set -u).
   trap '[[ -n "${tmpdir:-}" ]] && rm -rf "${tmpdir}"' EXIT
-
-  # This branch publishes the stable v0.x docs at the site root. A sibling
-  # line (v1.x preview) publishes under the /v1.x/ subpath on the same
-  # gh-pages branch. Clone the existing gh-pages tree first (if any) so a
-  # root-only rebuild here never deletes that subtree; only replace files
-  # outside of v1.x/.
-  if git clone -q --depth 1 --branch gh-pages "${remote_url}" "${tmpdir}" 2>/dev/null; then
-    info "Found existing gh-pages branch — preserving any v1.x/ subtree"
-    rm -rf "${tmpdir}/.git"
-    find "${tmpdir}" -mindepth 1 -maxdepth 1 ! -name 'v1.x' -exec rm -rf {} +
-  else
-    info "No existing gh-pages branch — starting fresh"
-  fi
 
   cp -r "${PROJECT_ROOT}/docs-site/public/." "${tmpdir}/"
   touch "${tmpdir}/.nojekyll"
@@ -1837,8 +1806,7 @@ release_evidence_key_path() {
 }
 
 release_companion_fingerprint() {
-  local key
-  key="$(e2e_ssh_key)"
+  local key="${PROJECT_ROOT}/.aibox-e2e-runner-home/.ssh/id_ed25519"
   local host="${AIBOX_E2E_HOST:-aibox-e2e-testrunner}"
   [[ -f "${key}" ]] || return 1
   {
@@ -1970,12 +1938,6 @@ release_companion_e2e_gate() {
       warn "Skipping Tier 2 SSH companion E2E during release because AIBOX_RELEASE_SKIP_COMPANION_E2E=${AIBOX_RELEASE_SKIP_COMPANION_E2E}. Re-run ./scripts/maintain.sh test-e2e after rebuilding the companion."
       ;;
     *)
-      # Visual and lifecycle tests each serialize within their own group, but
-      # both groups exercise the same SSH companion runtime. Release runs
-      # prioritize deterministic evidence over throughput; callers may still
-      # opt into parallelism explicitly.
-      : "${AIBOX_E2E_TEST_THREADS:=1}"
-      export AIBOX_E2E_TEST_THREADS
       cmd_test_e2e
       ;;
   esac
@@ -2005,7 +1967,7 @@ release_visual_gate() {
 release_audit_gate() {
   info "Running cargo audit..."
   command -v cargo-audit &>/dev/null \
-    || (cd "${CLI_DIR}" && cargo install cargo-audit --locked --quiet)
+    || (cd "${CLI_DIR}" && cargo install cargo-audit --quiet)
   local audit_db="${TMPDIR:-/tmp}/aibox-cargo-advisory-db"
   mkdir -p "${audit_db}"
   (cd "${CLI_DIR}" && cargo audit --db "${audit_db}") \
@@ -2433,7 +2395,8 @@ cmd_release() {
 
   if release_step_requested docs; then
     info "Deploying documentation..."
-    cmd_docs_deploy
+    local docs_line="v${version%%.*}.x"
+    cmd_docs_deploy --line "${docs_line}" --version "v${version}"
     ok "Documentation deployed"
   fi
 
@@ -2582,81 +2545,18 @@ cmd_release_finalize_runtime() {
 
 # ── Host-side release (run on macOS after container-side `release`) ──────────
 
-release_worktree_for_branch() {
-  local release_branch="$1"
-  git -C "${PROJECT_ROOT}" worktree list --porcelain | awk \
-    -v wanted="refs/heads/${release_branch}" '
-      $1 == "worktree" {
-        path = substr($0, length("worktree ") + 1)
-      }
-      $1 == "branch" && $2 == wanted {
-        print path
-        exit
-      }
-    '
-}
-
-stash_release_host_changes() {
-  local worktree="$1" tag="$2" label="$3"
-  if [[ -z "$(git -C "${worktree}" status --porcelain --untracked-files=all)" ]]; then
-    return
-  fi
-
-  local stash_message="pre-release-host-${tag}-${label}-$(date -u +%Y%m%dT%H%M%SZ)"
-  info "Preserving dirty ${label} checkout in a named stash..."
-  git -C "${worktree}" stash push --include-untracked -m "${stash_message}" >/dev/null \
-    || die "Could not preserve dirty ${label} checkout at ${worktree}."
-  ok "Saved ${label} checkout as stash '${stash_message}'"
-}
-
-prepare_release_host_checkout() {
-  local version="$1" tag release_branch branch_owner project_root_real owner_real
-  tag="v${version}"
-  release_branch="$(release_branch_for_version "${version}")"
-
-  info "Preparing a clean host checkout for ${release_branch} and ${tag}..."
-  (
-    cd "${PROJECT_ROOT}"
-    git worktree prune
-    git fetch origin \
-      "refs/heads/${release_branch}:refs/remotes/origin/${release_branch}" \
-      "refs/tags/${tag}:refs/tags/${tag}" >/dev/null
-
-    branch_owner="$(release_worktree_for_branch "${release_branch}")"
-    project_root_real="$(cd "${PROJECT_ROOT}" && pwd -P)"
-    if [[ -n "${branch_owner}" ]]; then
-      owner_real="$(cd "${branch_owner}" 2>/dev/null && pwd -P || true)"
-    else
-      owner_real=""
-    fi
-
-    if [[ -n "${branch_owner}" && "${owner_real}" != "${project_root_real}" ]]; then
-      stash_release_host_changes "${branch_owner}" "${tag}" "linked-worktree"
-      git -C "${branch_owner}" switch --detach >/dev/null \
-        || die "Could not detach ${release_branch} from linked worktree ${branch_owner}."
-      ok "Released ${release_branch} from linked worktree ${branch_owner}"
-    fi
-
-    stash_release_host_changes "${PROJECT_ROOT}" "${tag}" "primary"
-    if [[ "$(git branch --show-current)" != "${release_branch}" ]]; then
-      git switch "${release_branch}" >/dev/null \
-        || die "Could not switch the primary checkout to ${release_branch}."
-    fi
-    git reset --keep "origin/${release_branch}" \
-      || die "Could not synchronize the clean host checkout with origin/${release_branch}."
-  )
-  ok "Host checkout prepared at origin/${release_branch}"
-}
-
 ensure_release_host_checkout_current() {
   local version="$1" tag release_branch
   tag="v${version}"
   release_branch="$(release_branch_for_version "${version}")"
 
-  prepare_release_host_checkout "${version}"
   info "Verifying host checkout is current with origin/${release_branch} and ${tag}..."
   (
     cd "${PROJECT_ROOT}"
+    git fetch origin \
+      "refs/heads/${release_branch}:refs/remotes/origin/${release_branch}" \
+      "refs/tags/${tag}:refs/tags/${tag}" >/dev/null
+
     local head remote_head tag_commit
     head=$(git rev-parse HEAD)
     remote_head=$(git rev-parse "origin/${release_branch}")
@@ -2668,7 +2568,7 @@ ensure_release_host_checkout_current() {
     fi
 
     if [[ "${head}" != "${remote_head}" ]]; then
-      die "release-host could not prepare current origin/${release_branch} containing ${tag}; inspect the checkout and named pre-release-host stashes."
+      die "release-host must run from current origin/${release_branch} containing ${tag}. Run: git fetch origin ${release_branch} && git switch ${release_branch} && git reset --keep origin/${release_branch}"
     fi
   )
   ok "Host checkout matches the ${release_branch} release line and contains ${tag}"
