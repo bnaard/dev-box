@@ -192,7 +192,8 @@ ${bold}Development:${reset}
   release-runtime-smoke <version>
                            Run host-side generated-runtime smoke and write logs
   docs-serve               Serve Hugo/Docsy locally (http://localhost:1313/aibox/)
-  docs-deploy [--dry-run]  Build Hugo/Docsy and push to gh-pages branch
+  docs-deploy --line <v0.x|v1.x> [--version vX.Y.Z] [--dry-run]
+                           Build Hugo/Docsy, retain release snapshots, and push gh-pages
   test-visual              Run screencast smoke tests (~40s)
   record-docs              Regenerate all docs screencasts + README GIF
 
@@ -1350,6 +1351,12 @@ cmd_docs_serve() {
 }
 
 cmd_docs_deploy() {
+  "${PROJECT_ROOT}/scripts/deploy-docs.sh" "$@"
+}
+
+# Retained temporarily for line-history comparison while the versioned
+# deployment path rolls out. It is not called by the command dispatcher.
+cmd_docs_deploy_legacy() {
   local dry_run=false
   # Bug (b): declare tmpdir early so the EXIT trap below never sees an unbound
   # variable under set -u if the function exits before reaching mktemp -d.
@@ -2638,7 +2645,8 @@ cmd_release() {
 
   if release_step_requested docs; then
     info "Deploying documentation..."
-    cmd_docs_deploy
+    local docs_line="v${version%%.*}.x"
+    cmd_docs_deploy --line "${docs_line}" --version "v${version}"
     ok "Documentation deployed"
   fi
 

@@ -30,7 +30,19 @@ params:
   offlineSearch: true
   offlineSearchSummaryLength: 200
   offlineSearchMaxResults: 25
-  version: "v1.x"
+  version: "v1.x preview"
+  version_menu: "Releases"
+  version_menu_pagelinks: true
+  # The deployment script replaces this fallback with the shared
+  # releases.json manifest. Keeping both line aliases here makes the selector
+  # useful in local previews and when the manifest cannot be fetched.
+  versions:
+    - name: "v0.x current"
+      version: "v0.x"
+      url: "https://projectious-work.github.io/aibox/"
+    - name: "v1.x preview"
+      version: "v1.x preview"
+      url: "https://projectious-work.github.io/aibox/v1.x/"
   github_repo: "https://github.com/projectious-work/aibox"
   github_branch: "v1.x-dev"
   path_base_for_github_subdir: "docs-site/content"
