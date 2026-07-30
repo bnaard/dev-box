@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="utf-8" standalone="yes"?><rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom"><channel><title>Tutorials on aibox</title><link>https://projectious-work.github.io/aibox/v1.x/v1.0.0-alpha.1/docs/tutorials/</link><description>Recent content in Tutorials on aibox</description><generator>Hugo</generator><language>en</language><atom:link href="https://projectious-work.github.io/aibox/v1.x/v1.0.0-alpha.1/docs/tutorials/index.xml" rel="self" type="application/rss+xml"/><item><title>Create a local project with processkit</title><link>https://projectious-work.github.io/aibox/v1.x/v1.0.0-alpha.1/docs/tutorials/local-project-processkit/</link><pubDate>Mon, 01 Jan 0001 00:00:00 +0000</pubDate><guid>https://projectious-work.github.io/aibox/v1.x/v1.0.0-alpha.1/docs/tutorials/local-project-processkit/</guid><description>&lt;h1 id="create-a-local-project-with-processkit"&gt;Create a local project with processkit&lt;/h1&gt;
+&lt;p&gt;This tutorial starts with an empty directory, deploys a workspace through the
+v1 Compose backend, and installs the processkit v1 process base into the
+project. Both products are prereleases, so the example uses exact versions.&lt;/p&gt;
+&lt;h2 id="before-you-begin"&gt;Before you begin&lt;/h2&gt;
+&lt;p&gt;Install a Docker- or Podman-compatible Compose runtime, &lt;code&gt;curl&lt;/code&gt;, &lt;code&gt;tar&lt;/code&gt;, and
+&lt;code&gt;sha256sum&lt;/code&gt;. Then install the exact aibox v1 release shown on the
+&lt;a href="https://github.com/projectious-work/aibox/releases"&gt;releases page&lt;/a&gt;:&lt;/p&gt;
+&lt;div class="highlight"&gt;&lt;pre tabindex="0" class="chroma"&gt;&lt;code class="language-sh" data-lang="sh"&gt;&lt;span class="line"&gt;&lt;span class="cl"&gt;curl -fsSL https://raw.githubusercontent.com/projectious-work/aibox/main/scripts/install.sh &lt;span class="p"&gt;|&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span class="line"&gt;&lt;span class="cl"&gt; &lt;span class="nv"&gt;VERSION&lt;/span&gt;&lt;span class="o"&gt;=&lt;/span&gt;1.0.0-alpha.1 bash
+&lt;/span&gt;&lt;/span&gt;&lt;span class="line"&gt;&lt;span class="cl"&gt;aibox --version
+&lt;/span&gt;&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;p&gt;If that release is not published yet, use the latest v1 prerelease shown on the
+releases page and substitute its version below.&lt;/p&gt;</description></item></channel></rss>

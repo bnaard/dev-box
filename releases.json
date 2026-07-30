@@ -18,10 +18,15 @@
     {
       "line": "v1.x",
       "current": {
-        "version": "preview",
+        "version": "v1.0.0-alpha.1",
         "url": "https://projectious-work.github.io/aibox/v1.x/"
       },
-      "releases": []
+      "releases": [
+        {
+          "version": "v1.0.0-alpha.1",
+          "url": "https://projectious-work.github.io/aibox/v1.x/v1.0.0-alpha.1/"
+        }
+      ]
     }
   ]
 }

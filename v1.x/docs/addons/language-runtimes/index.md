@@ -13,7 +13,7 @@ Language runtimes install compilers, interpreters, and package managers into you
 ```toml
 [addons.python.tools]
 python = { version = "3.14" }   # 3.12, 3.13, 3.14
-uv = { version = "0.11.32" }    # 0.7, 0.11.10, 0.11.11, 0.11.15, 0.11.19, 0.11.26, 0.11.32
+uv = { version = "0.12.0" }    # 0.7, 0.11.10, 0.11.11, 0.11.15, 0.11.19, 0.11.26, 0.11.32, 0.12.0
 # poetry = { version = "2.4.1" } # Optional: 1.8, 2.0, 2.4.1
 # pdm = { version = "2.28.0" }   # Optional: 2.22, 2.26.9, 2.27.0, 2.28.0
 ```
@@ -36,7 +36,7 @@ Installs the Rust toolchain via rustup with clippy and rustfmt. Uses a multi-sta
 ```toml
 [addons.node.tools]
 node = { version = "26" }       # 20, 22, 24, 26
-pnpm = { version = "11.17.0" }  # 9, 10, 11.1.3, 11.5.2, 11.10.0, 11.17.0
+pnpm = { version = "11.18.0" }  # 9, 10, 11.1.3, 11.5.2, 11.10.0, 11.17.0, 11.18.0
 # yarn = { version = "4.17.0" } # Optional: 4, 4.16.0, 4.17.0
 # bun = { version = "1.3.14" }  # Optional
 ```
