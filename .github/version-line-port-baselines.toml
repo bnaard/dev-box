@@ -1,4 +1,9 @@
 # Enforcement begins after these branch commits. Earlier history predates the
 # cross-line port contract and is intentionally grandfathered.
-v0 = "ec9530fafdd3fbdc833c4c620d40740683a02028"
+# Reviewed through v0.28.18:
+# - the Codex MCP gateway startup correction is implemented on v1 by PR #279;
+# - the Hugo/Docsy and release-selector changes have equivalent v1 implementations;
+# - v0 compatibility metadata and generated-runtime refreshes are line-specific;
+# - the Rust 1.97 cleanup is already satisfied by the zero-warning v1 Clippy gate.
+v0 = "da6e4c788d041dd62b64499d7ddb325b0f3de7b7"
 v1 = "6266f1e9fd8c4bd90130203d8c46f392a1480ea4"
