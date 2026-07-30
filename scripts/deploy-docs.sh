@@ -49,12 +49,8 @@ if [[ -n "${VERSION}" ]]; then
     "${ROOT_DIR}/scripts/build-docs.sh" --destination "${BUILD_DIR}/archive"
 fi
 
-if git -C "${ROOT_DIR}" show-ref --verify --quiet "refs/heads/${PAGES_BRANCH}"; then
-  git -C "${ROOT_DIR}" worktree add "${PAGES_DIR}" "${PAGES_BRANCH}"
-else
-  git -C "${ROOT_DIR}" fetch origin "${PAGES_BRANCH}:${PAGES_BRANCH}"
-  git -C "${ROOT_DIR}" worktree add "${PAGES_DIR}" "${PAGES_BRANCH}"
-fi
+git -C "${ROOT_DIR}" fetch origin "+${PAGES_BRANCH}:${PAGES_BRANCH}"
+git -C "${ROOT_DIR}" worktree add "${PAGES_DIR}" "${PAGES_BRANCH}"
 
 TARGET="${PAGES_DIR}/${CURRENT_PATH}"
 mkdir -p "${TARGET}"
