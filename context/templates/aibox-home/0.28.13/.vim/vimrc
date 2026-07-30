@@ -1,0 +1,177 @@
+" aibox default vimrc
+set nocompatible
+let mapleader=" "
+
+set number relativenumber
+set tabstop=4 shiftwidth=4 expandtab smartindent
+set undofile undodir=~/.vim/undo
+set noswapfile
+set colorcolumn=88
+set scrolloff=8
+set signcolumn=yes
+set cursorline
+set t_u7=
+set t_RV=
+set wildmenu wildmode=longest:full,full
+set incsearch hlsearch ignorecase smartcase
+set backspace=indent,eol,start
+set nowrap nolinebreak
+set sidescroll=1
+set sidescrolloff=4
+set mouse=a
+if !has('nvim')
+    set ttymouse=sgr
+endif
+set laststatus=2
+set ruler showcmd
+
+" Filetype-specific indentation
+autocmd FileType yaml,json,kdl,html,css,javascript setlocal tabstop=2 shiftwidth=2
+autocmd FileType markdown setlocal nowrap nolinebreak
+autocmd VimEnter * redraw!
+
+" Use ripgrep if available
+if executable('rg')
+  set grepprg=rg\ --vimgrep\ --smart-case
+endif
+
+" Netrw settings
+let g:netrw_liststyle=3
+let g:netrw_banner=0
+let g:netrw_winsize=25
+
+" ── VSCode-like cursor movement (v0.16.6+) ──────────────────────────────────
+"
+" Word and line jumps with the chords macOS / VSCode users expect, in
+" insert mode AND in normal/visual modes so the same fingers work
+" everywhere.
+"
+" Reliability:
+"   <A-Left>/<A-Right>  → reliable across iTerm2, Ghostty, Alacritty,
+"                          WezTerm, and tmux. Most terminals send
+"                          ^[[1;3D / ^[[1;3C and vim recognises both.
+"   <Home>/<End>        → universally reliable. Use these for line
+"                          begin/end. To get macOS-native Cmd+Left /
+"                          Cmd+Right behaviour, configure your
+"                          terminal (iTerm2: Profiles → Keys; Ghostty:
+"                          keybind config) to send Home/End on
+"                          Cmd+Left / Cmd+Right.
+"
+" Alt/Option word movement — keep INSERT mode while jumping.
+"
+" The challenge: most terminals send Alt+x as raw `ESC + x` bytes, NOT
+" as the synthetic <A-x>/<M-x> Vim keycode. Without explicit setup,
+" Vim sees the bare ESC, exits INSERT mode, then runs `x` as a normal
+" command — so Alt+Left mis-fires as "leave insert, jump back one word"
+" instead of "jump back one word, stay in insert".
+"
+" Two-part fix:
+"   1. `set <M-x>=^[x` tells Vim to recognise the byte sequence as a
+"      single key event. This is what unblocks <C-o>b without leaving
+"      insert mode.
+"   2. `ttimeoutlen=100` resolves the multi-byte sequence quickly so
+"      there is no perceptible mode flicker on a slow link.
+"
+" `:exec "set <M-".c.">=\<Esc>".c` builds the keycode for each letter.
+" The trailing `\<Esc>` in the execute string materialises a literal
+" 0x1B byte at the start of the right-hand side.
+set ttimeout
+set ttimeoutlen=100
+if !has('gui_running')
+  " Register alt+letter byte sequences so terminals that send ESC+letter
+  " get coalesced into <M-letter>. We intentionally SKIP punctuation
+  " (`:` `,` `;` `.` `/`) — registering `<M-:>` would consume the colon
+  " that follows a normal-mode Escape, breaking the `Esc:q` quit
+  " sequence and any other ad-hoc `Esc` → `:` command-line entry.
+  let s:alt_alpha = 'abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ'
+  for s:c in split(s:alt_alpha, '\zs')
+    execute "set <M-" . s:c . ">=\<Esc>" . s:c
+  endfor
+  unlet! s:alt_alpha s:c
+  " Alt+arrow / Shift-Alt+arrow: vim's `set <A-Left>=...` syntax was
+  " removed in 9.x (E518: Unknown option). Modern vim auto-recognises
+  " CSI 1;3D etc. as <A-Left> when TERM=xterm-* and the corresponding
+  " keycode lookup runs. Terminals that send ESC+b for Alt+b are
+  " already covered by the per-letter <M-x>=ESC-x table above.
+endif
+
+" Insert-mode word movement uses <C-o> (one-shot normal command, then
+" back to insert). The <Right> after `e` puts the cursor AFTER the
+" word's last character, matching VSCode's "select to next word end"
+" semantics; without it the cursor lands ON the last character.
+" Some macOS/WezTerm profiles send Esc-b / Esc-f for Option-left/right
+" instead of CSI 1;3D / CSI 1;3C, so map both encodings.
+inoremap <A-Left>  <C-o>b
+inoremap <A-Right> <C-o>e<Right>
+nnoremap <A-Left>  b
+nnoremap <A-Right> e
+vnoremap <A-Left>  b
+vnoremap <A-Right> e
+onoremap <A-Left>  b
+onoremap <A-Right> e
+cnoremap <A-Left>  <C-Left>
+cnoremap <A-Right> <C-Right>
+inoremap <M-b>     <C-o>b
+inoremap <M-f>     <C-o>e<Right>
+nnoremap <M-b>     b
+nnoremap <M-f>     e
+vnoremap <M-b>     b
+vnoremap <M-f>     e
+onoremap <M-b>     b
+onoremap <M-f>     e
+cnoremap <M-b>     <C-Left>
+cnoremap <M-f>     <C-Right>
+
+" Shift-Alt+Left / Shift-Alt+Right — extend selection by one word.
+"
+" In Vim there is no "select while in insert mode"; selection lives in
+" Visual mode. INSERT-mode shift-alt-arrow therefore leaves INSERT and
+" enters Visual with the cursor moved by one word. The user can then
+" operate on the selection (y/d/c/...) or extend with further presses.
+" Uppercase <M-B>/<M-F> covers terminals that send ESC+<shift-b/f>
+" instead of CSI 1;4 D/C.
+inoremap <S-A-Left>  <Esc>vb
+inoremap <S-A-Right> <Esc>ve
+nnoremap <S-A-Left>  vb
+nnoremap <S-A-Right> ve
+vnoremap <S-A-Left>  b
+vnoremap <S-A-Right> e
+inoremap <M-B>       <Esc>vb
+inoremap <M-F>       <Esc>ve
+nnoremap <M-B>       vb
+nnoremap <M-F>       ve
+vnoremap <M-B>       b
+vnoremap <M-F>       e
+
+" Smart Home/End. Insert-mode <Home> goes to first non-whitespace
+" (matches IDE 'smart home'); a second press goes to column 0.
+" Vim's default insert-mode <End> already does the right thing
+" (jumps past the last character) so we don't override it, but we
+" also map normal/visual mode for consistency.
+inoremap <expr> <Home> col('.') == match(getline('.'), '\S') + 1 ? "\<C-o>0" : "\<C-o>^"
+nnoremap <Home> ^
+nnoremap <End>  $
+vnoremap <Home> ^
+vnoremap <End>  $
+
+" Copy Vim selections to the host clipboard through tmux/OSC52.
+" Paste from the host still uses the terminal paste shortcut.
+function! s:AiboxCopyRegister() abort
+  if executable('aibox-copy')
+    let l:register = empty(v:register) ? '"' : v:register
+    call system('aibox-copy', getreg(l:register))
+  endif
+endfunction
+xnoremap <silent> y y:<C-u>call <SID>AiboxCopyRegister()<CR>
+nnoremap <silent> yy yy:call <SID>AiboxCopyRegister()<CR>
+nnoremap <silent> Y Y:call <SID>AiboxCopyRegister()<CR>
+if executable('aibox-copy')
+  xnoremap <silent> <leader>y y:<C-u>call <SID>AiboxCopyRegister()<CR>
+  nnoremap <silent> <leader>Y yy:call <SID>AiboxCopyRegister()<CR>
+endif
+
+set background=dark
+set termguicolors
+colorscheme aibox
+syntax on
+filetype plugin indent on

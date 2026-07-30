@@ -30,7 +30,7 @@
 #   - Output files: prompt-default.cast, prompt-plain.cast, prompt-minimal.cast,
 #                   prompt-nerd-font.cast, prompt-pastel.cast, prompt-bracketed.cast, prompt-arrow.cast
 # This requires a running container environment so cannot be done in the dev-container build step.
-# Docs placeholders: see docs-site/docs/customization/prompts.md (<!-- recording pending --> comments)
+# Docs placeholders: see docs-site/content/docs/customization/prompts.md (<!-- recording pending --> comments)
 
 set -euo pipefail
 
@@ -335,7 +335,7 @@ for c in a i b o x ' ' i n i t ' ' m y - p r o j e c t ' ' - - y e s ' ' - - b a
   sleep 0.06
 done
 echo
-printf 'y\n' | aibox init my-project --yes --base debian --profile human-dev --user aibox --theme gruvbox --prompt default --tmux-status extended --addon python --addon-tool python:python=3.14 --addon-tool python:uv=0.11.26 --harness claude --processkit-version v0.26.15 --no-container 2>&1 || true
+printf 'y\n' | aibox init my-project --yes --base debian --profile human-dev --user aibox --theme gruvbox --prompt default --tmux-status extended --addon python --addon-tool python:python=3.14 --addon-tool python:uv=0.11.32 --harness claude --processkit-version v0.26.15 --no-container 2>&1 || true
 
 sleep 1
 echo -ne '\033[32m❯\033[0m '

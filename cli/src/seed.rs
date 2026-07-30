@@ -531,8 +531,8 @@ local function fmt_size(n)
 	if not n or n < 0 then s = "-"
 	elseif n < 1024 then s = string.format("%d", n)
 	elseif n < 1048576 then s = string.format("%.0fK", n / 1024)
-	elseif n < 1073741824 then s = string.format("%.1fM", n / 1048576)
-	else s = string.format("%.1fG", n / 1073741824)
+	elseif n < 1024 * 1024 * 1024 then s = string.format("%.1fM", n / 1048576)
+	else s = string.format("%.1fG", n / (1024 * 1024 * 1024))
 	end
 	return string.format("%6s", s)
 end

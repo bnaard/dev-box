@@ -382,10 +382,10 @@ pub static COMPAT_TABLE: &[CompatEntry] = &[
                cross-version sync auto-recovers corrupted managed runtime files (off_RIGHT fix, commit e0ee7bc); \
                generic purge-on-disable for all addon tools — kubernetes, cloud-aws/azure/gcp, infrastructure, audio-voice, preview-archive, preview-enhanced, data-preview, yazi-omp, and existing git-ui pattern; \
                new [apply].purge_disabled_harness_state toml key (default false); \
-               BREAKING: [customization.zellij_status] is now schema-rejected — remove from aibox.toml before upgrade (see docs-site/docs/migrations/zellij-eol.md); \
+               BREAKING: [customization.zellij_status] is now schema-rejected — remove from aibox.toml before upgrade (see docs-site/content/docs/migrations/zellij-eol.md); \
                six new doctor checks + semver-aware version-skew reporting; \
                addon download integrity hardening — 11 addons use SHA-256/GPG/.sha256 sidecar verification; ai-opencode pinned to GitHub release assets (vendor publishes no SHA256SUMS — see TODO annotations); \
-               BREAKING: seccomp=unconfined now requires [security].acknowledge_seccomp_unconfined = true in aibox.toml; aibox init --harness codex auto-sets this; existing Codex projects must add it manually (see docs-site/docs/reference/security.md); \
+               BREAKING: seccomp=unconfined now requires [security].acknowledge_seccomp_unconfined = true in aibox.toml; aibox init --harness codex auto-sets this; existing Codex projects must add it manually (see docs-site/content/docs/reference/security.md); \
                aibox.toml [skills] dedup — single array of strings, comment-out to disable; \
                two-line powerline status bar with six chevron-styled aibox metrics segments (slot order fixed per DEC-20260508_2115-SilentFern); \
                internal: cli/src/seed.rs split into cli/src/tmux/ module (3,613 → 2,929 lines); \
@@ -582,6 +582,51 @@ pub static COMPAT_TABLE: &[CompatEntry] = &[
         aibox_version: "0.28.8",
         processkit_version: "v0.28.3",
         note: "Patch release: makes the infrastructure addon self-sufficient by installing python3-pip before installing Ansible, so generated Dockerfiles build without the Python addon.",
+    },
+    CompatEntry {
+        aibox_version: "0.28.9",
+        processkit_version: "v0.28.3",
+        note: "Patch release: installs Ansible, Poetry, PDM, and Azure CLI in isolated virtual environments so generated Debian trixie Dockerfiles comply with PEP 668 while keeping their commands available on PATH.",
+    },
+    CompatEntry {
+        aibox_version: "0.28.10",
+        processkit_version: "v0.28.3",
+        note: "Patch release: reconciles the standard processkit skills, recommends tooling-linked skills interactively, upgrades prerelease processkit surfaces, and serializes release Tier 2 E2E validation for the shared companion.",
+    },
+    CompatEntry {
+        aibox_version: "0.28.11",
+        processkit_version: "v0.28.3",
+        note: "Patch release: adds the Cloudflare addon, installing cloudflared from Cloudflare's signed repository instead of Debian's archive so generated trixie images build on amd64 and arm64.",
+    },
+    CompatEntry {
+        aibox_version: "0.28.12",
+        processkit_version: "v0.28.4",
+        note: "Patch release: integrates processkit v0.28.4 and makes companion E2E validation work from linked release worktrees.",
+    },
+    CompatEntry {
+        aibox_version: "0.28.13",
+        processkit_version: "v0.28.4",
+        note: "Patch release: adds open GitHub Discussion counts to the tmux Forge status segment and restores the complete generated Codex command projection set.",
+    },
+    CompatEntry {
+        aibox_version: "0.28.14",
+        processkit_version: "v0.28.4",
+        note: "Patch release: ensures pk-reconcile and pk-repo-reconcile install their project-reconciliation and repo-management skill dependencies.",
+    },
+    CompatEntry {
+        aibox_version: "0.28.15",
+        processkit_version: "v0.28.4",
+        note: "Patch release: refreshes the bundled maintenance tools, locks cargo-audit installation for Rust compatibility, and publishes the Hugo/Docsy documentation site.",
+    },
+    CompatEntry {
+        aibox_version: "0.28.16",
+        processkit_version: "v0.28.4",
+        note: "Patch release: installs Node.js from checksum-verified official release archives after the NodeSource signing-key endpoint became unavailable and refreshes generated runtime and processkit package-selection state.",
+    },
+    CompatEntry {
+        aibox_version: "0.28.17",
+        processkit_version: "v0.28.4",
+        note: "Patch release: repairs Go, Typst, AWS CLI, and Node.js add-on installers and adds a clean companion-container build gate for download-based add-on defaults.",
     },
 ];
 

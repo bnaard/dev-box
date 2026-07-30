@@ -45,14 +45,14 @@ RUN ARCH="$(uname -m)" && \
     (cd /tmp && sha256sum -c rustup-init.sha256) && \
     chmod +x /tmp/rustup-init && \
     /tmp/rustup-init -y \
-      --default-toolchain 1.96.1 \
+      --default-toolchain 1.97.1 \
       --component clippy \
       --component rustfmt && \
     rm /tmp/rustup-init /tmp/rustup-init.sha256
 
 ENV PATH="/home/aibox/.cargo/bin:${PATH}"
 
-RUN cargo install cargo-audit
+RUN cargo install cargo-audit --locked
 
 RUN install -d /usr/local/bin && \
     for bin in /home/aibox/.cargo/bin/*; do \
@@ -90,7 +90,7 @@ RUN ARCH=$(uname -m) && \
     fi
 
 
-FROM ghcr.io/projectious-work/aibox:base-debian-runtime-v0.28.8 AS aibox
+FROM ghcr.io/projectious-work/aibox:base-debian-runtime-v0.28.17 AS aibox
 
 ENV SHELL=/bin/bash
 ENV UV_CACHE_DIR=/tmp/aibox/uv-cache
@@ -130,6 +130,26 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 # ── Variant 1 disable-then-purge guards ───────────────────────────────
 
 
+# Addon: docs-hugo
+RUN DEB_ARCH="$(dpkg --print-architecture)" && \
+    case "${DEB_ARCH}" in \
+      amd64) HUGO_ARCH="amd64" ;; \
+      arm64) HUGO_ARCH="arm64" ;; \
+      *) echo "Unsupported Hugo architecture: ${DEB_ARCH}" >&2; exit 1 ;; \
+    esac && \
+    HUGO_VERSION="0.164.0" && \
+    HUGO_ASSET="hugo_extended_${HUGO_VERSION}_linux-${HUGO_ARCH}.tar.gz" && \
+    curl -fsSL \
+      "https://github.com/gohugoio/hugo/releases/download/v${HUGO_VERSION}/${HUGO_ASSET}" \
+      -o /tmp/hugo.tar.gz && \
+    curl -fsSL \
+      "https://github.com/gohugoio/hugo/releases/download/v${HUGO_VERSION}/hugo_${HUGO_VERSION}_checksums.txt" \
+      -o /tmp/hugo_checksums.txt && \
+    grep " ${HUGO_ASSET}$" /tmp/hugo_checksums.txt | sed 's#  .*#  /tmp/hugo.tar.gz#' | sha256sum -c && \
+    tar -xz -C /usr/local/bin -f /tmp/hugo.tar.gz hugo && \
+    rm /tmp/hugo.tar.gz /tmp/hugo_checksums.txt
+
+
 # Addon: git-ui — GitHub CLI and lazygit
 USER root
 RUN apt-get update && apt-get install -y --no-install-recommends \
@@ -139,14 +159,25 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 
 
 # Addon: node (runtime)
-RUN apt-get update && apt-get install -y --no-install-recommends ca-certificates curl gpg && \
-    mkdir -p /etc/apt/keyrings && \
-    curl -fsSL https://deb.nodesource.com/gpgkey/nodesource-repo.gpg.key | gpg --dearmor -o /etc/apt/keyrings/nodesource.gpg && \
-    echo "deb [signed-by=/etc/apt/keyrings/nodesource.gpg] https://deb.nodesource.com/node_26.x nodistro main" > /etc/apt/sources.list.d/nodesource.list && \
-    apt-get update && apt-get install -y --no-install-recommends nodejs && \
-    rm -rf /var/lib/apt/lists/*
+RUN apt-get update && apt-get install -y --no-install-recommends ca-certificates curl libatomic1 xz-utils && \
+    rm -rf /var/lib/apt/lists/* && \
+    DEB_ARCH="$(dpkg --print-architecture)" && \
+    case "${DEB_ARCH}" in \
+      amd64) NODE_ARCH="x64" ;; \
+      arm64) NODE_ARCH="arm64" ;; \
+      *) echo "Unsupported Node.js architecture: ${DEB_ARCH}" >&2; exit 1 ;; \
+    esac && \
+    NODE_DIST_URL="https://nodejs.org/dist/latest-v26.x" && \
+    curl -fsSL "${NODE_DIST_URL}/SHASUMS256.txt" -o /tmp/node-shasums.txt && \
+    NODE_ARCHIVE="$(awk -v arch="${NODE_ARCH}" '$2 ~ ("node-v[0-9.]+-linux-" arch "\\.tar\\.xz$") { print $2; exit }' /tmp/node-shasums.txt)" && \
+    test -n "${NODE_ARCHIVE}" && \
+    curl -fsSL "${NODE_DIST_URL}/${NODE_ARCHIVE}" -o "/tmp/${NODE_ARCHIVE}" && \
+    (cd /tmp && grep "  ${NODE_ARCHIVE}$" node-shasums.txt | sha256sum -c -) && \
+    tar -xJf "/tmp/${NODE_ARCHIVE}" -C /usr/local --strip-components=1 && \
+    rm -f "/tmp/${NODE_ARCHIVE}" /tmp/node-shasums.txt && \
+    node --version && npm --version
 
-RUN npm install -g pnpm@11.10.0 && \
+RUN npm install -g pnpm@11.17.0 && \
     npm cache clean --force
 
 
@@ -262,6 +293,6 @@ EOF
 
 # Record image version inside container for runtime checks
 USER root
-LABEL aibox.version="0.28.8"
+LABEL aibox.version="0.28.17"
 LABEL aibox.profile="human-dev"
-RUN echo "0.28.8" > /etc/aibox-version
+RUN echo "0.28.17" > /etc/aibox-version

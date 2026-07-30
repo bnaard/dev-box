@@ -262,6 +262,62 @@ gcloud-cli = { enabled = false }
     );
 }
 
+// ─── H1-e2: cloudflare — cloudflared disabled ──────────────────────────────
+
+#[test]
+fn cloudflare_default_uses_signed_vendor_repository() {
+    let toml = r#"[aibox]
+version = "0.28.10"
+base = "debian"
+
+[container]
+name = "h1-cloudflare"
+
+[processkit]
+version = "unset"
+
+[addons.cloudflare.tools]
+cloudflared = {}
+"#;
+
+    let dockerfile = render_dockerfile(toml);
+
+    assert!(
+        dockerfile.contains("https://pkg.cloudflare.com/cloudflare-main.gpg")
+            && dockerfile.contains("https://pkg.cloudflare.com/cloudflared any main")
+            && dockerfile.contains("apt-get install -y --no-install-recommends cloudflared"),
+        "Dockerfile must install cloudflared from Cloudflare's signed repository:\n{dockerfile}"
+    );
+}
+
+#[test]
+fn cloudflare_disabled_omits_repo_install_and_adds_purge() {
+    let toml = r#"[aibox]
+version = "0.28.10"
+base = "debian"
+
+[container]
+name = "h1-cloudflare"
+
+[processkit]
+version = "unset"
+
+[addons.cloudflare.tools]
+cloudflared = { enabled = false }
+"#;
+
+    let dockerfile = render_dockerfile(toml);
+
+    assert!(
+        !dockerfile.contains("https://pkg.cloudflare.com/cloudflared"),
+        "Dockerfile must not add the Cloudflare repository when cloudflared is disabled:\n{dockerfile}"
+    );
+    assert!(
+        dockerfile.contains("apt-get purge -y --auto-remove cloudflared"),
+        "Dockerfile must purge cloudflared when disabled:\n{dockerfile}"
+    );
+}
+
 // ─── H1-f: infrastructure — opentofu and packer disabled ─────────────────────
 
 #[test]

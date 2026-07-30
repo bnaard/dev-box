@@ -131,7 +131,7 @@ Since v0.16.0 it has a strict two-part scope:
 permission files for all MCP servers. Configure `[mcp.permissions]` in `aibox.toml`
 to eliminate repetitive permission prompts. Glob patterns expand into concrete
 server names; deny patterns take precedence over allow for security. See
-[Configuration / MCP Permissions](./docs-site/docs/reference/configuration.md#permission-configuration-mcppermissions).
+[Configuration / MCP Permissions](./docs-site/content/docs/reference/configuration.md#permission-configuration-mcppermissions).
 
 Target users: solo developers, small teams, and consultants who want
 reproducible AI-ready dev environments without manual Docker/devcontainer setup.

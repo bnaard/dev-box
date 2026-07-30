@@ -1343,21 +1343,50 @@ runtime: |
     }
 
     #[test]
-    fn infrastructure_runtime_installs_pip_before_ansible() {
+    fn infrastructure_runtime_installs_ansible_in_isolated_venv() {
         let addon = load_repo_addon("infrastructure");
         let tools = all_enabled_tools(&addon);
         let rendered = render_runtime(&addon, &tools).unwrap();
 
-        let pip_install = rendered
-            .find("python3-pip")
-            .expect("enabled Ansible must install python3-pip: {rendered}");
+        let venv_install = rendered
+            .find("python3-venv")
+            .expect("enabled Ansible must install python3-venv: {rendered}");
         let ansible_install = rendered
-            .find("pip3 install --no-cache-dir 'ansible==")
-            .expect("enabled Ansible must be installed with pip3: {rendered}");
+            .find("/opt/aibox/ansible/bin/pip install --no-cache-dir 'ansible==")
+            .expect("enabled Ansible must be installed in its virtual environment: {rendered}");
         assert!(
-            pip_install < ansible_install,
-            "python3-pip must be installed before pip3 installs Ansible: {rendered}"
+            venv_install < ansible_install,
+            "python3-venv must be installed before the Ansible virtual environment: {rendered}"
         );
+        assert!(
+            rendered.contains("ln -sf \"$bin\" \"/usr/local/bin/$(basename \"$bin\")\""),
+            "Ansible commands must be exposed on PATH: {rendered}"
+        );
+    }
+
+    #[test]
+    fn pip_packaged_runtime_tools_use_isolated_venvs() {
+        for (addon_name, venv, command) in [
+            ("cloud-azure", "azure-cli", "az"),
+            ("python", "poetry", "poetry"),
+            ("python", "pdm", "pdm"),
+        ] {
+            let addon = load_repo_addon(addon_name);
+            let tools = all_enabled_tools(&addon);
+            let rendered = render_runtime(&addon, &tools).unwrap();
+            let venv_path = format!("/opt/aibox/{venv}/bin/pip install");
+            let command_path = format!("/opt/aibox/{venv}/bin/{command}");
+            assert!(
+                rendered.contains("python3-venv")
+                    && rendered.contains(&venv_path)
+                    && rendered.contains(&command_path),
+                "{addon_name} must install {command} through the {venv} virtual environment: {rendered}"
+            );
+            assert!(
+                !rendered.contains("RUN pip3 install"),
+                "{addon_name} must not install Python packages into Debian's externally managed Python: {rendered}"
+            );
+        }
     }
 
     #[test]
@@ -1372,13 +1401,32 @@ runtime: |
     }
 
     #[test]
-    fn purge_cloud_azure_pip_uninstalls_when_disabled() {
+    fn cloud_aws_installer_vendors_and_verifies_documented_signing_key() {
+        let addon = load_repo_addon("cloud-aws");
+        let rendered = render_runtime(&addon, &all_enabled_tools(&addon)).unwrap();
+
+        assert!(
+            rendered.contains("gpg gpg-agent")
+                && rendered.contains("AWS_CLI_PGP_KEY_BASE64=")
+                && rendered.contains("FB5DB77FD5C118B80511ADA8A6310ACC4672475C")
+                && rendered.contains("gpg --batch --import /tmp/aws-cli-public-key.asc"),
+            "AWS CLI verification must use the fingerprint-checked key from AWS's install guide: {rendered}"
+        );
+        assert!(rendered.contains("gpg --verify /tmp/awscli.sig /tmp/awscli.zip"));
+        assert!(
+            !rendered.contains("gpg --keyserver"),
+            "AWS CLI builds must not depend on external keyserver availability: {rendered}"
+        );
+    }
+
+    #[test]
+    fn purge_cloud_azure_removes_venv_when_disabled() {
         let addon = load_repo_addon("cloud-azure");
         let tools = all_disabled_tools(&addon);
         let rendered = render_runtime(&addon, &tools).unwrap();
         assert!(
-            rendered.contains("pip3 uninstall -y azure-cli"),
-            "disabled azure-cli must pip uninstall: {rendered}"
+            rendered.contains("rm -rf /opt/aibox/azure-cli"),
+            "disabled azure-cli must remove its virtual environment: {rendered}"
         );
     }
 
@@ -1400,7 +1448,8 @@ runtime: |
         let rendered = render_runtime(&addon, &tools).unwrap();
         assert!(rendered.contains("rm -f /usr/local/bin/tofu"));
         assert!(rendered.contains("rm -f /usr/local/bin/packer"));
-        assert!(rendered.contains("pip3 uninstall -y ansible"));
+        assert!(rendered.contains("rm -rf /opt/aibox/ansible"));
+        assert!(rendered.contains("rm -f /usr/local/bin/ansible*"));
     }
 
     #[test]
@@ -1470,5 +1519,91 @@ runtime: |
         assert!(rendered.contains(
             "grep \" ${HUGO_ASSET}$\" /tmp/hugo_checksums.txt | sed 's#  .*#  /tmp/hugo.tar.gz#' | sha256sum -c"
         ));
+    }
+
+    #[test]
+    fn node_installer_uses_verified_official_release_archive() {
+        let addon = load_repo_addon("node");
+        let rendered = render_runtime(&addon, &all_enabled_tools(&addon)).unwrap();
+
+        assert!(rendered.contains("https://nodejs.org/dist/latest-v26.x"));
+        assert!(rendered.contains("SHASUMS256.txt"));
+        assert!(rendered.contains("sha256sum -c -"));
+        assert!(
+            rendered.contains("libatomic1"),
+            "official Node.js ARM64 archives require libatomic.so.1: {rendered}"
+        );
+        assert!(
+            !rendered.contains("deb.nodesource.com"),
+            "Node installation must not depend on the retired NodeSource key endpoint: {rendered}"
+        );
+    }
+
+    #[test]
+    fn go_installer_uses_published_archive_digests() {
+        let addon = load_repo_addon("go");
+        let rendered = render_runtime(&addon, &all_enabled_tools(&addon)).unwrap();
+
+        assert!(rendered.contains(
+            r#"1.26.5:amd64) GO_SHA256="5c2c3b16caefa1d968a94c1daca04a7ca301a496d9b086e17ad77bb81393f053""#
+        ));
+        assert!(rendered.contains(
+            r#"1.26.5:arm64) GO_SHA256="fe4789e92b1f33358680864bbe8704289e7bb5fc207d80623c308935bd696d49""#
+        ));
+        assert!(rendered.contains(r#"echo "${GO_SHA256}  /tmp/go.tar.gz" | sha256sum -c -"#));
+        assert!(
+            !rendered.contains(".tar.gz.sha256"),
+            "go.dev does not publish per-archive checksum sidecars: {rendered}"
+        );
+        assert_eq!(
+            addon.tools[0].supported_versions,
+            ["1.25.12", "1.26.3", "1.26.4", "1.26.5"]
+        );
+    }
+
+    #[test]
+    fn typst_installer_uses_published_archive_digests() {
+        let addon = load_repo_addon("typst");
+        let rendered = render_runtime(&addon, &all_enabled_tools(&addon)).unwrap();
+
+        assert!(rendered.contains(
+            r#"0.15.0:aarch64) TYPST_SHA256="cdf50ffc7b8ba759ed02200632eda3d78eb8b99aacb6611f4f75684990647620""#
+        ));
+        assert!(rendered.contains(
+            r#"0.15.0:x86_64) TYPST_SHA256="59b207df01be2dab9f13e80f73d04d7ff8273ffd46b3dd1b9eef5c60f3eeabea""#
+        ));
+        assert!(rendered.contains(r#"echo "${TYPST_SHA256}  /tmp/typst.tar.xz" | sha256sum -c -"#));
+        assert!(
+            !rendered.contains(".tar.xz.sha256"),
+            "Typst does not publish per-archive checksum sidecars: {rendered}"
+        );
+    }
+
+    #[test]
+    fn docs_mdbook_installer_uses_published_asset_digests() {
+        let addon = load_repo_addon("docs-mdbook");
+        let mut tools = all_disabled_tools(&addon);
+        tools.insert(
+            "mdbook".to_string(),
+            ToolConfig {
+                enabled: true,
+                version: String::new(),
+            },
+        );
+        let rendered = render_runtime(&addon, &tools).unwrap();
+
+        assert!(rendered.contains(
+            "aarch64) MDBOOK_SHA256=\"753e5c5c363ee8a56972344dcf91466f005a51db84a7aeffe427ae3ef83d6d44\""
+        ));
+        assert!(rendered.contains(
+            "x86_64) MDBOOK_SHA256=\"5222beabd3e37dc5be0d18ff99b79058469354db5c220153a1b92db5ba12be89\""
+        ));
+        assert!(
+            rendered.contains("echo \"${MDBOOK_SHA256}  /tmp/mdbook.tar.gz\" | sha256sum -c -")
+        );
+        assert!(
+            !rendered.contains(".tar.gz.sha256"),
+            "mdBook 0.5.4 does not publish separate checksum assets: {rendered}"
+        );
     }
 }

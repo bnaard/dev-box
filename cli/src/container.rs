@@ -428,6 +428,121 @@ fn complete_missing_required_addons(config: &mut AiboxConfig) -> Vec<(String, St
     added
 }
 
+/// Add the baseline processkit operating surface to an existing project.
+/// Explicit exclusions remain an opt-out, so an apply never silently reverses
+/// a user's deliberate choice.
+fn add_missing_standard_processkit_skills(config: &mut AiboxConfig) -> Vec<String> {
+    if !config.processkit_enabled() {
+        return Vec::new();
+    }
+    let mut added = Vec::new();
+    for skill in crate::processkit_vocab::STANDARD_PROCESSKIT_SKILLS {
+        let skill = (*skill).to_string();
+        if !config.skills.exclude.contains(&skill) && !config.skills.include.contains(&skill) {
+            config.skills.include.push(skill.clone());
+            added.push(skill);
+        }
+    }
+    config.skills.include.sort();
+    added
+}
+
+/// Recommendations remain opt-in because they follow a project's selected
+/// tooling rather than its universal processkit baseline.
+fn recommended_skills_for_tooling(config: &AiboxConfig) -> Vec<String> {
+    if !config.processkit_enabled() {
+        return Vec::new();
+    }
+    let mut recommended = Vec::new();
+    if config.addons.has_latex() {
+        recommended.push("latex-authoring".to_string());
+    }
+    recommended
+        .into_iter()
+        .filter(|skill| {
+            !config.skills.exclude.contains(skill) && !config.skills.include.contains(skill)
+        })
+        .collect()
+}
+
+fn persist_skill_includes(config_path: &Option<String>, skills: &[String]) -> Result<()> {
+    if skills.is_empty() {
+        return Ok(());
+    }
+    let toml_path = resolve_aibox_toml_path(config_path);
+    let content = std::fs::read_to_string(&toml_path)
+        .with_context(|| format!("Failed to read {}", toml_path.display()))?;
+    let mut doc: toml_edit::DocumentMut = content
+        .parse()
+        .with_context(|| format!("Failed to parse {}", toml_path.display()))?;
+    let mut enabled: Vec<String> = doc
+        .get("skills")
+        .and_then(|skills| skills.get("enabled"))
+        .and_then(toml_edit::Item::as_array)
+        .map(|array| {
+            array
+                .iter()
+                .filter_map(|value| value.as_str().map(str::to_string))
+                .collect()
+        })
+        .unwrap_or_default();
+    for skill in skills {
+        if !enabled.contains(skill) {
+            enabled.push(skill.clone());
+        }
+    }
+    enabled.sort();
+    let mut array = toml_edit::Array::default();
+    for skill in enabled {
+        array.push(skill);
+    }
+    if doc
+        .get("skills")
+        .and_then(toml_edit::Item::as_table)
+        .is_none()
+    {
+        doc["skills"] = toml_edit::table();
+    }
+    doc["skills"]["enabled"] = toml_edit::Item::Value(toml_edit::Value::Array(array));
+    std::fs::write(&toml_path, doc.to_string())
+        .with_context(|| format!("Failed to write {}", toml_path.display()))?;
+    Ok(())
+}
+
+fn reconcile_tooling_skill_recommendations(
+    config: &mut AiboxConfig,
+    config_path: &Option<String>,
+) -> Result<()> {
+    let recommended = recommended_skills_for_tooling(config);
+    if recommended.is_empty() {
+        return Ok(());
+    }
+    if !std::io::IsTerminal::is_terminal(&std::io::stdin()) {
+        output::info(&format!(
+            "Selected tooling recommends processkit skill(s): {}. Re-run `aibox apply` interactively to enable them.",
+            recommended.join(", ")
+        ));
+        return Ok(());
+    }
+    let accepted = dialoguer::Confirm::new()
+        .with_prompt(format!(
+            "Selected tooling recommends enabling processkit skill(s): {}. Enable them?",
+            recommended.join(", ")
+        ))
+        .default(true)
+        .interact()?;
+    if accepted {
+        config.skills.include.extend(recommended.iter().cloned());
+        config.skills.include.sort();
+        persist_skill_includes(config_path, &recommended)?;
+        output::ok(&format!(
+            "Enabled tooling-recommended processkit skill(s): {}",
+            recommended.join(", ")
+        ));
+    }
+    Ok(())
+}
+
 fn persist_missing_required_addons(
     config_path: &Option<String>,
     added_required_addons: &[(String, String)],
@@ -1855,7 +1970,9 @@ pub(crate) fn serialize_config_with_comments(config: &AiboxConfig) -> String {
     );
     out.push_str("#   not poll live clusters and does not need second-level freshness.\n");
     out.push_str("# cloud-cache-ttl-seconds: local cloud CLI/context cache TTL; this avoids auth/network probes.\n");
-    out.push_str("# github-cache-ttl-seconds: local repo + GitHub issue/PR count cache TTL.\n");
+    out.push_str(
+        "# github-cache-ttl-seconds: local repo + GitHub issue/PR/discussion count cache TTL.\n",
+    );
     let refresh = &config.customization.tmux.status.refresh;
     out.push_str(&format!(
         "interval-seconds = {}\n",
@@ -3343,6 +3460,16 @@ pub fn cmd_sync(
     // a downstream step would have failed.
     ensure_seccomp_consent(&mut config, config_path)?;
 
+    let added_standard_skills = add_missing_standard_processkit_skills(&mut config);
+    if !added_standard_skills.is_empty() {
+        persist_skill_includes(config_path, &added_standard_skills)?;
+        output::ok(&format!(
+            "Enabled standard processkit skill(s): {}",
+            added_standard_skills.join(", ")
+        ));
+    }
+    reconcile_tooling_skill_recommendations(&mut config, config_path)?;
+
     crate::context::update_gitignore(&config.addons)?;
 
     // Resolve [processkit].version = "latest" to a concrete tag before any
@@ -4476,8 +4603,38 @@ mod tests {
         let body = serialize_config_with_comments(&config);
         assert!(body.contains("enabled = ["));
         assert!(body.contains("\"pk-doctor\""));
+        assert!(body.contains("\"project-reconciliation\""));
+        assert!(body.contains("\"repo-management\""));
         assert!(body.contains("\"status-briefing\""));
         assert!(body.contains("\"workitem-management\""));
+    }
+
+    #[test]
+    fn standard_processkit_skill_reconciliation_respects_exclusions() {
+        let mut config = crate::config::test_config();
+        config.skills.include = vec!["pk-doctor".to_string()];
+        config.skills.exclude = vec!["legal-review".to_string()];
+        let added = add_missing_standard_processkit_skills(&mut config);
+        assert!(added.contains(&"changelog".to_string()));
+        assert!(added.contains(&"project-reconciliation".to_string()));
+        assert!(added.contains(&"repo-management".to_string()));
+        assert!(!config.skills.include.contains(&"legal-review".to_string()));
+        assert!(config.skills.include.contains(&"logo-design".to_string()));
+    }
+
+    #[test]
+    fn latex_tooling_recommends_latex_authoring_only_when_not_enabled() {
+        let mut config = crate::config::test_config();
+        config.addons.addons.insert(
+            "latex".to_string(),
+            crate::config::AddonToolsSection::default(),
+        );
+        assert_eq!(
+            recommended_skills_for_tooling(&config),
+            vec!["latex-authoring"]
+        );
+        config.skills.include.push("latex-authoring".to_string());
+        assert!(recommended_skills_for_tooling(&config).is_empty());
     }
 
     #[test]
