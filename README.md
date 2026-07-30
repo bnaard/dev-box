@@ -173,7 +173,7 @@ Release quality expectations are strict:
 | `cli/` | Rust CLI source for the `aibox` binary |
 | `addons/` | YAML addon definitions for runtimes, tools, docs frameworks, and AI CLIs |
 | `images/` | Base image recipes published for downstream projects |
-| `docs-site/` | Hugo + Docsy documentation site |
+| `docs-site/` | Hugo/Docsy documentation site |
 | `context/` | This repository's processkit-managed project context |
 | `scripts/` | Release, install, and maintenance tooling |
 | `.devcontainer/` | This repository's own development container |
@@ -182,7 +182,7 @@ Release quality expectations are strict:
 
 Direct commits to `main` are the norm in this repository. Before contributing,
 read [AGENTS.md](AGENTS.md), [CONTRIBUTING.md](CONTRIBUTING.md), and the docs
-under [`docs-site/content/docs/contributing/`](docs-site/content/docs/contributing/).
+under [`docs-site/docs/contributing/`](docs-site/docs/contributing/).
 
 Do not hardcode processkit vocabulary in production Rust code. Add constants to
 `cli/src/processkit_vocab.rs` instead.
