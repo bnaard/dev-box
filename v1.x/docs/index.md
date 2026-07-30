@@ -26,6 +26,7 @@ Section pages:
 - [Skills (via processkit)](/aibox/v1.x/docs/skills/)
 - [Getting Started](/aibox/v1.x/docs/getting-started/)
 - [Container](/aibox/v1.x/docs/container/)
+- [Tutorials](/aibox/v1.x/docs/tutorials/): End-to-end aibox v1 project walkthroughs.
 - [Addons](/aibox/v1.x/docs/addons/)
 - [AI Providers](/aibox/v1.x/docs/providers/)
 - [Project Context](/aibox/v1.x/docs/context/)

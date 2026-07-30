@@ -103,3 +103,4 @@ Section pages:
 - [Maintenance](/aibox/v1.x/docs/contributing/maintenance/)
 - [E2E Test Catalogue](/aibox/v1.x/docs/contributing/e2e-tests/)
 - [Version-line porting](/aibox/v1.x/docs/contributing/version-line-porting/)
+- [V1 adoption pilots](/aibox/v1.x/docs/contributing/v1-adoption-pilots/)

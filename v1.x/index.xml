@@ -212,7 +212,19 @@ immutable upstream snapshot is kept under
 &lt;p&gt;AI coding agents like Claude operate best when they understand not just the
 code, but the project&amp;rsquo;s goals, decisions, and current state. Without structure,
 this information ends up scattered across chat histories, stale comments, and
-the developer&amp;rsquo;s memory.&lt;/p&gt;</description></item><item><title>Installation</title><link>https://projectious-work.github.io/aibox/v1.x/docs/getting-started/installation/</link><pubDate>Mon, 01 Jan 0001 00:00:00 +0000</pubDate><guid>https://projectious-work.github.io/aibox/v1.x/docs/getting-started/installation/</guid><description>&lt;h1 id="installation"&gt;Installation&lt;/h1&gt;
+the developer&amp;rsquo;s memory.&lt;/p&gt;</description></item><item><title>Create a local project with processkit</title><link>https://projectious-work.github.io/aibox/v1.x/docs/tutorials/local-project-processkit/</link><pubDate>Mon, 01 Jan 0001 00:00:00 +0000</pubDate><guid>https://projectious-work.github.io/aibox/v1.x/docs/tutorials/local-project-processkit/</guid><description>&lt;h1 id="create-a-local-project-with-processkit"&gt;Create a local project with processkit&lt;/h1&gt;
+&lt;p&gt;This tutorial starts with an empty directory, deploys a workspace through the
+v1 Compose backend, and installs the processkit v1 process base into the
+project. Both products are prereleases, so the example uses exact versions.&lt;/p&gt;
+&lt;h2 id="before-you-begin"&gt;Before you begin&lt;/h2&gt;
+&lt;p&gt;Install a Docker- or Podman-compatible Compose runtime, &lt;code&gt;curl&lt;/code&gt;, &lt;code&gt;tar&lt;/code&gt;, and
+&lt;code&gt;sha256sum&lt;/code&gt;. Then install the exact aibox v1 release shown on the
+&lt;a href="https://github.com/projectious-work/aibox/releases"&gt;releases page&lt;/a&gt;:&lt;/p&gt;
+&lt;div class="highlight"&gt;&lt;pre tabindex="0" class="chroma"&gt;&lt;code class="language-sh" data-lang="sh"&gt;&lt;span class="line"&gt;&lt;span class="cl"&gt;curl -fsSL https://raw.githubusercontent.com/projectious-work/aibox/main/scripts/install.sh &lt;span class="p"&gt;|&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span class="line"&gt;&lt;span class="cl"&gt; &lt;span class="nv"&gt;VERSION&lt;/span&gt;&lt;span class="o"&gt;=&lt;/span&gt;1.0.0-alpha.1 bash
+&lt;/span&gt;&lt;/span&gt;&lt;span class="line"&gt;&lt;span class="cl"&gt;aibox --version
+&lt;/span&gt;&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;p&gt;If that release is not published yet, use the latest v1 prerelease shown on the
+releases page and substitute its version below.&lt;/p&gt;</description></item><item><title>Installation</title><link>https://projectious-work.github.io/aibox/v1.x/docs/getting-started/installation/</link><pubDate>Mon, 01 Jan 0001 00:00:00 +0000</pubDate><guid>https://projectious-work.github.io/aibox/v1.x/docs/getting-started/installation/</guid><description>&lt;h1 id="installation"&gt;Installation&lt;/h1&gt;
 &lt;h2 id="prerequisites"&gt;Prerequisites&lt;/h2&gt;
 &lt;p&gt;aibox requires a container runtime and a Compose-compatible provider on your
 host machine.&lt;/p&gt;
@@ -256,16 +268,16 @@ OrbStack works through its Docker-compatible runtime and Compose integration.&lt
 &lt;/span&gt;&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;h3 id="via-aiboxtoml"&gt;Via aibox.toml&lt;/h3&gt;
 &lt;div class="highlight"&gt;&lt;pre tabindex="0" class="chroma"&gt;&lt;code class="language-toml" data-lang="toml"&gt;&lt;span class="line"&gt;&lt;span class="cl"&gt;&lt;span class="p"&gt;[&lt;/span&gt;&lt;span class="nx"&gt;addons&lt;/span&gt;&lt;span class="p"&gt;.&lt;/span&gt;&lt;span class="nx"&gt;python&lt;/span&gt;&lt;span class="p"&gt;.&lt;/span&gt;&lt;span class="nx"&gt;tools&lt;/span&gt;&lt;span class="p"&gt;]&lt;/span&gt;
 &lt;/span&gt;&lt;/span&gt;&lt;span class="line"&gt;&lt;span class="cl"&gt;&lt;span class="nx"&gt;python&lt;/span&gt; &lt;span class="p"&gt;=&lt;/span&gt; &lt;span class="p"&gt;{&lt;/span&gt; &lt;span class="nx"&gt;version&lt;/span&gt; &lt;span class="p"&gt;=&lt;/span&gt; &lt;span class="s2"&gt;&amp;#34;3.14&amp;#34;&lt;/span&gt; &lt;span class="p"&gt;}&lt;/span&gt;
-&lt;/span&gt;&lt;/span&gt;&lt;span class="line"&gt;&lt;span class="cl"&gt;&lt;span class="nx"&gt;uv&lt;/span&gt; &lt;span class="p"&gt;=&lt;/span&gt; &lt;span class="p"&gt;{&lt;/span&gt; &lt;span class="nx"&gt;version&lt;/span&gt; &lt;span class="p"&gt;=&lt;/span&gt; &lt;span class="s2"&gt;&amp;#34;0.11.26&amp;#34;&lt;/span&gt; &lt;span class="p"&gt;}&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span class="line"&gt;&lt;span class="cl"&gt;&lt;span class="nx"&gt;uv&lt;/span&gt; &lt;span class="p"&gt;=&lt;/span&gt; &lt;span class="p"&gt;{&lt;/span&gt; &lt;span class="nx"&gt;version&lt;/span&gt; &lt;span class="p"&gt;=&lt;/span&gt; &lt;span class="s2"&gt;&amp;#34;0.11.32&amp;#34;&lt;/span&gt; &lt;span class="p"&gt;}&lt;/span&gt;
 &lt;/span&gt;&lt;/span&gt;&lt;span class="line"&gt;&lt;span class="cl"&gt;
 &lt;/span&gt;&lt;/span&gt;&lt;span class="line"&gt;&lt;span class="cl"&gt;&lt;span class="p"&gt;[&lt;/span&gt;&lt;span class="nx"&gt;addons&lt;/span&gt;&lt;span class="p"&gt;.&lt;/span&gt;&lt;span class="nx"&gt;rust&lt;/span&gt;&lt;span class="p"&gt;.&lt;/span&gt;&lt;span class="nx"&gt;tools&lt;/span&gt;&lt;span class="p"&gt;]&lt;/span&gt;
-&lt;/span&gt;&lt;/span&gt;&lt;span class="line"&gt;&lt;span class="cl"&gt;&lt;span class="nx"&gt;rustc&lt;/span&gt; &lt;span class="p"&gt;=&lt;/span&gt; &lt;span class="p"&gt;{&lt;/span&gt; &lt;span class="nx"&gt;version&lt;/span&gt; &lt;span class="p"&gt;=&lt;/span&gt; &lt;span class="s2"&gt;&amp;#34;1.96.1&amp;#34;&lt;/span&gt; &lt;span class="p"&gt;}&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span class="line"&gt;&lt;span class="cl"&gt;&lt;span class="nx"&gt;rustc&lt;/span&gt; &lt;span class="p"&gt;=&lt;/span&gt; &lt;span class="p"&gt;{&lt;/span&gt; &lt;span class="nx"&gt;version&lt;/span&gt; &lt;span class="p"&gt;=&lt;/span&gt; &lt;span class="s2"&gt;&amp;#34;1.97.1&amp;#34;&lt;/span&gt; &lt;span class="p"&gt;}&lt;/span&gt;
 &lt;/span&gt;&lt;/span&gt;&lt;span class="line"&gt;&lt;span class="cl"&gt;&lt;span class="nx"&gt;clippy&lt;/span&gt; &lt;span class="p"&gt;=&lt;/span&gt; &lt;span class="p"&gt;{}&lt;/span&gt;
 &lt;/span&gt;&lt;/span&gt;&lt;span class="line"&gt;&lt;span class="cl"&gt;&lt;span class="nx"&gt;rustfmt&lt;/span&gt; &lt;span class="p"&gt;=&lt;/span&gt; &lt;span class="p"&gt;{}&lt;/span&gt;
 &lt;/span&gt;&lt;/span&gt;&lt;span class="line"&gt;&lt;span class="cl"&gt;
 &lt;/span&gt;&lt;/span&gt;&lt;span class="line"&gt;&lt;span class="cl"&gt;&lt;span class="p"&gt;[&lt;/span&gt;&lt;span class="nx"&gt;addons&lt;/span&gt;&lt;span class="p"&gt;.&lt;/span&gt;&lt;span class="nx"&gt;node&lt;/span&gt;&lt;span class="p"&gt;.&lt;/span&gt;&lt;span class="nx"&gt;tools&lt;/span&gt;&lt;span class="p"&gt;]&lt;/span&gt;
 &lt;/span&gt;&lt;/span&gt;&lt;span class="line"&gt;&lt;span class="cl"&gt;&lt;span class="nx"&gt;node&lt;/span&gt; &lt;span class="p"&gt;=&lt;/span&gt; &lt;span class="p"&gt;{&lt;/span&gt; &lt;span class="nx"&gt;version&lt;/span&gt; &lt;span class="p"&gt;=&lt;/span&gt; &lt;span class="s2"&gt;&amp;#34;26&amp;#34;&lt;/span&gt; &lt;span class="p"&gt;}&lt;/span&gt;
-&lt;/span&gt;&lt;/span&gt;&lt;span class="line"&gt;&lt;span class="cl"&gt;&lt;span class="nx"&gt;pnpm&lt;/span&gt; &lt;span class="p"&gt;=&lt;/span&gt; &lt;span class="p"&gt;{&lt;/span&gt; &lt;span class="nx"&gt;version&lt;/span&gt; &lt;span class="p"&gt;=&lt;/span&gt; &lt;span class="s2"&gt;&amp;#34;11.10.0&amp;#34;&lt;/span&gt; &lt;span class="p"&gt;}&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span class="line"&gt;&lt;span class="cl"&gt;&lt;span class="nx"&gt;pnpm&lt;/span&gt; &lt;span class="p"&gt;=&lt;/span&gt; &lt;span class="p"&gt;{&lt;/span&gt; &lt;span class="nx"&gt;version&lt;/span&gt; &lt;span class="p"&gt;=&lt;/span&gt; &lt;span class="s2"&gt;&amp;#34;11.17.0&amp;#34;&lt;/span&gt; &lt;span class="p"&gt;}&lt;/span&gt;
 &lt;/span&gt;&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;p&gt;Each addon has &lt;strong&gt;default-enabled tools&lt;/strong&gt; that are included automatically, and &lt;strong&gt;optional tools&lt;/strong&gt; you can enable explicitly. Tools with version selection let you pick from curated, tested versions.&lt;/p&gt;</description></item><item><title>Overview</title><link>https://projectious-work.github.io/aibox/v1.x/docs/overview/</link><pubDate>Mon, 01 Jan 0001 00:00:00 +0000</pubDate><guid>https://projectious-work.github.io/aibox/v1.x/docs/overview/</guid><description>&lt;h1 id="overview"&gt;Overview&lt;/h1&gt;
 &lt;p&gt;aibox creates reproducible, AI-ready development workspaces from one project
 configuration file. It is not a new container runtime and it is not a process
@@ -336,10 +348,10 @@ workspace.&lt;/p&gt;</description></item><item><title>Configuration</title><link
 &lt;/span&gt;&lt;/span&gt;&lt;span class="line"&gt;&lt;span class="cl"&gt;
 &lt;/span&gt;&lt;/span&gt;&lt;span class="line"&gt;&lt;span class="cl"&gt;&lt;span class="p"&gt;[&lt;/span&gt;&lt;span class="nx"&gt;addons&lt;/span&gt;&lt;span class="p"&gt;.&lt;/span&gt;&lt;span class="nx"&gt;python&lt;/span&gt;&lt;span class="p"&gt;.&lt;/span&gt;&lt;span class="nx"&gt;tools&lt;/span&gt;&lt;span class="p"&gt;]&lt;/span&gt; &lt;span class="c"&gt;# Addon: Python runtime&lt;/span&gt;
 &lt;/span&gt;&lt;/span&gt;&lt;span class="line"&gt;&lt;span class="cl"&gt;&lt;span class="nx"&gt;python&lt;/span&gt; &lt;span class="p"&gt;=&lt;/span&gt; &lt;span class="p"&gt;{&lt;/span&gt; &lt;span class="nx"&gt;version&lt;/span&gt; &lt;span class="p"&gt;=&lt;/span&gt; &lt;span class="s2"&gt;&amp;#34;3.14&amp;#34;&lt;/span&gt; &lt;span class="p"&gt;}&lt;/span&gt;
-&lt;/span&gt;&lt;/span&gt;&lt;span class="line"&gt;&lt;span class="cl"&gt;&lt;span class="nx"&gt;uv&lt;/span&gt; &lt;span class="p"&gt;=&lt;/span&gt; &lt;span class="p"&gt;{&lt;/span&gt; &lt;span class="nx"&gt;version&lt;/span&gt; &lt;span class="p"&gt;=&lt;/span&gt; &lt;span class="s2"&gt;&amp;#34;0.11.26&amp;#34;&lt;/span&gt; &lt;span class="p"&gt;}&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span class="line"&gt;&lt;span class="cl"&gt;&lt;span class="nx"&gt;uv&lt;/span&gt; &lt;span class="p"&gt;=&lt;/span&gt; &lt;span class="p"&gt;{&lt;/span&gt; &lt;span class="nx"&gt;version&lt;/span&gt; &lt;span class="p"&gt;=&lt;/span&gt; &lt;span class="s2"&gt;&amp;#34;0.11.32&amp;#34;&lt;/span&gt; &lt;span class="p"&gt;}&lt;/span&gt;
 &lt;/span&gt;&lt;/span&gt;&lt;span class="line"&gt;&lt;span class="cl"&gt;
 &lt;/span&gt;&lt;/span&gt;&lt;span class="line"&gt;&lt;span class="cl"&gt;&lt;span class="p"&gt;[&lt;/span&gt;&lt;span class="nx"&gt;addons&lt;/span&gt;&lt;span class="p"&gt;.&lt;/span&gt;&lt;span class="nx"&gt;rust&lt;/span&gt;&lt;span class="p"&gt;.&lt;/span&gt;&lt;span class="nx"&gt;tools&lt;/span&gt;&lt;span class="p"&gt;]&lt;/span&gt; &lt;span class="c"&gt;# Addon: Rust toolchain&lt;/span&gt;
-&lt;/span&gt;&lt;/span&gt;&lt;span class="line"&gt;&lt;span class="cl"&gt;&lt;span class="nx"&gt;rustc&lt;/span&gt; &lt;span class="p"&gt;=&lt;/span&gt; &lt;span class="p"&gt;{&lt;/span&gt; &lt;span class="nx"&gt;version&lt;/span&gt; &lt;span class="p"&gt;=&lt;/span&gt; &lt;span class="s2"&gt;&amp;#34;1.96.1&amp;#34;&lt;/span&gt; &lt;span class="p"&gt;}&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span class="line"&gt;&lt;span class="cl"&gt;&lt;span class="nx"&gt;rustc&lt;/span&gt; &lt;span class="p"&gt;=&lt;/span&gt; &lt;span class="p"&gt;{&lt;/span&gt; &lt;span class="nx"&gt;version&lt;/span&gt; &lt;span class="p"&gt;=&lt;/span&gt; &lt;span class="s2"&gt;&amp;#34;1.97.1&amp;#34;&lt;/span&gt; &lt;span class="p"&gt;}&lt;/span&gt;
 &lt;/span&gt;&lt;/span&gt;&lt;span class="line"&gt;&lt;span class="cl"&gt;&lt;span class="nx"&gt;clippy&lt;/span&gt; &lt;span class="p"&gt;=&lt;/span&gt; &lt;span class="p"&gt;{}&lt;/span&gt;
 &lt;/span&gt;&lt;/span&gt;&lt;span class="line"&gt;&lt;span class="cl"&gt;&lt;span class="nx"&gt;rustfmt&lt;/span&gt; &lt;span class="p"&gt;=&lt;/span&gt; &lt;span class="p"&gt;{}&lt;/span&gt;
 &lt;/span&gt;&lt;/span&gt;&lt;span class="line"&gt;&lt;span class="cl"&gt;
@@ -535,7 +547,7 @@ project/container names instead of under a generic &lt;code&gt;devcontainer&lt;/
 &lt;h2 id="python"&gt;Python&lt;/h2&gt;
 &lt;div class="highlight"&gt;&lt;pre tabindex="0" class="chroma"&gt;&lt;code class="language-toml" data-lang="toml"&gt;&lt;span class="line"&gt;&lt;span class="cl"&gt;&lt;span class="p"&gt;[&lt;/span&gt;&lt;span class="nx"&gt;addons&lt;/span&gt;&lt;span class="p"&gt;.&lt;/span&gt;&lt;span class="nx"&gt;python&lt;/span&gt;&lt;span class="p"&gt;.&lt;/span&gt;&lt;span class="nx"&gt;tools&lt;/span&gt;&lt;span class="p"&gt;]&lt;/span&gt;
 &lt;/span&gt;&lt;/span&gt;&lt;span class="line"&gt;&lt;span class="cl"&gt;&lt;span class="nx"&gt;python&lt;/span&gt; &lt;span class="p"&gt;=&lt;/span&gt; &lt;span class="p"&gt;{&lt;/span&gt; &lt;span class="nx"&gt;version&lt;/span&gt; &lt;span class="p"&gt;=&lt;/span&gt; &lt;span class="s2"&gt;&amp;#34;3.14&amp;#34;&lt;/span&gt; &lt;span class="p"&gt;}&lt;/span&gt; &lt;span class="c"&gt;# 3.12, 3.13, 3.14&lt;/span&gt;
-&lt;/span&gt;&lt;/span&gt;&lt;span class="line"&gt;&lt;span class="cl"&gt;&lt;span class="nx"&gt;uv&lt;/span&gt; &lt;span class="p"&gt;=&lt;/span&gt; &lt;span class="p"&gt;{&lt;/span&gt; &lt;span class="nx"&gt;version&lt;/span&gt; &lt;span class="p"&gt;=&lt;/span&gt; &lt;span class="s2"&gt;&amp;#34;0.11.26&amp;#34;&lt;/span&gt; &lt;span class="p"&gt;}&lt;/span&gt; &lt;span class="c"&gt;# 0.7, 0.11.10, 0.11.11, 0.11.15, 0.11.19, 0.11.26&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span class="line"&gt;&lt;span class="cl"&gt;&lt;span class="nx"&gt;uv&lt;/span&gt; &lt;span class="p"&gt;=&lt;/span&gt; &lt;span class="p"&gt;{&lt;/span&gt; &lt;span class="nx"&gt;version&lt;/span&gt; &lt;span class="p"&gt;=&lt;/span&gt; &lt;span class="s2"&gt;&amp;#34;0.11.32&amp;#34;&lt;/span&gt; &lt;span class="p"&gt;}&lt;/span&gt; &lt;span class="c"&gt;# 0.7, 0.11.10, 0.11.11, 0.11.15, 0.11.19, 0.11.26, 0.11.32&lt;/span&gt;
 &lt;/span&gt;&lt;/span&gt;&lt;span class="line"&gt;&lt;span class="cl"&gt;&lt;span class="c"&gt;# poetry = { version = &amp;#34;2.4.1&amp;#34; } # Optional: 1.8, 2.0, 2.4.1&lt;/span&gt;
 &lt;/span&gt;&lt;/span&gt;&lt;span class="line"&gt;&lt;span class="cl"&gt;&lt;span class="c"&gt;# pdm = { version = &amp;#34;2.28.0&amp;#34; } # Optional: 2.22, 2.26.9, 2.27.0, 2.28.0&lt;/span&gt;
 &lt;/span&gt;&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;p&gt;Installs Python, pip, venv, and &lt;a href="https://github.com/astral-sh/uv"&gt;uv&lt;/a&gt; (fast package manager). The base image pins uv to the curated default instead of following a floating &lt;code&gt;latest&lt;/code&gt; image tag. Poetry and PDM are available but not enabled by default.&lt;/p&gt;</description></item><item><title>Maintenance</title><link>https://projectious-work.github.io/aibox/v1.x/docs/contributing/maintenance/</link><pubDate>Mon, 01 Jan 0001 00:00:00 +0000</pubDate><guid>https://projectious-work.github.io/aibox/v1.x/docs/contributing/maintenance/</guid><description>&lt;h1 id="maintenance"&gt;Maintenance&lt;/h1&gt;
@@ -969,8 +981,8 @@ default.&lt;/p&gt;</description></item><item><title>Cheatsheet</title><link>http
 			&lt;/tr&gt;
 	&lt;/tbody&gt;
 &lt;/table&gt;
-&lt;p&gt;Current curated pins are Docusaurus 3.10.1, Hugo 0.163.3, mdBook 0.5.3,
-MkDocs 1.6.1 with Material 9.7.6, and Zensical 0.0.47. Starlight remains
+&lt;p&gt;Current curated pins are Docusaurus 3.10.1, Hugo 0.164.0, mdBook 0.5.4,
+MkDocs 1.6.1 with Material 9.7.7, and Zensical 0.0.51. Starlight remains
 scaffolded through the upstream &lt;code&gt;create-starlight&lt;/code&gt; package.&lt;/p&gt;
 &lt;h2 id="example"&gt;Example&lt;/h2&gt;
 &lt;div class="highlight"&gt;&lt;pre tabindex="0" class="chroma"&gt;&lt;code class="language-toml" data-lang="toml"&gt;&lt;span class="line"&gt;&lt;span class="cl"&gt;&lt;span class="p"&gt;[&lt;/span&gt;&lt;span class="nx"&gt;addons&lt;/span&gt;&lt;span class="p"&gt;.&lt;/span&gt;&lt;span class="nx"&gt;docs-docusaurus&lt;/span&gt;&lt;span class="p"&gt;.&lt;/span&gt;&lt;span class="nx"&gt;tools&lt;/span&gt;&lt;span class="p"&gt;]&lt;/span&gt;
@@ -1107,7 +1119,24 @@ so it does not depend on labels, manually created issues, or workflow tokens.&lt
 &lt;/span&gt;&lt;/span&gt;&lt;span class="line"&gt;&lt;span class="cl"&gt;&lt;span class="nx"&gt;OPENAI_API_KEY&lt;/span&gt; &lt;span class="p"&gt;=&lt;/span&gt; &lt;span class="s2"&gt;&amp;#34;sk-...&amp;#34;&lt;/span&gt;
 &lt;/span&gt;&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;p&gt;Alternatively, use a ChatGPT Plus/Pro/Team/Enterprise account — Codex prompts for authentication on first launch.&lt;/p&gt;
 &lt;h2 id="configuration"&gt;Configuration&lt;/h2&gt;
-&lt;p&gt;Codex&amp;rsquo;s home-directory state is persisted in &lt;code&gt;.aibox-home/.codex/&lt;/code&gt;, mounted at &lt;code&gt;/home/aibox/.codex/&lt;/code&gt;. This survives devcontainer rebuilds, so device sign-in only needs to be completed once per host cache unless you clear it.&lt;/p&gt;</description></item><item><title>Copilot (GitHub)</title><link>https://projectious-work.github.io/aibox/v1.x/docs/providers/ai-copilot/</link><pubDate>Mon, 01 Jan 0001 00:00:00 +0000</pubDate><guid>https://projectious-work.github.io/aibox/v1.x/docs/providers/ai-copilot/</guid><description>&lt;h1 id="github-copilot-cli"&gt;GitHub Copilot CLI&lt;/h1&gt;
+&lt;p&gt;Codex&amp;rsquo;s home-directory state is persisted in &lt;code&gt;.aibox-home/.codex/&lt;/code&gt;, mounted at &lt;code&gt;/home/aibox/.codex/&lt;/code&gt;. This survives devcontainer rebuilds, so device sign-in only needs to be completed once per host cache unless you clear it.&lt;/p&gt;</description></item><item><title>V1 support, deprecation, and retirement</title><link>https://projectious-work.github.io/aibox/v1.x/docs/reference/v1-support-and-retirement/</link><pubDate>Mon, 01 Jan 0001 00:00:00 +0000</pubDate><guid>https://projectious-work.github.io/aibox/v1.x/docs/reference/v1-support-and-retirement/</guid><description>&lt;h1 id="v1-support-deprecation-and-retirement"&gt;V1 support, deprecation, and retirement&lt;/h1&gt;
+&lt;p&gt;V1 prereleases are evaluation releases. Until a stable v1 release satisfies
+every candidate-bound readiness gate, v0 remains supported as the stable line.
+V1 and v0 may coexist while projects evaluate migration; neither line may
+manage or destroy the other line&amp;rsquo;s deployment records or resources.&lt;/p&gt;
+&lt;h2 id="product-boundaries"&gt;Product boundaries&lt;/h2&gt;
+&lt;ul&gt;
+&lt;li&gt;&lt;strong&gt;ainfra provisions&lt;/strong&gt; accounts, hosts, networks, clusters, identities, DNS
+zones, and other infrastructure, then exposes non-secret target references.&lt;/li&gt;
+&lt;li&gt;&lt;strong&gt;aibox deploys&lt;/strong&gt; immutable AI workspace images onto existing Compose or
+Kubernetes targets. It does not provision infrastructure.&lt;/li&gt;
+&lt;li&gt;&lt;strong&gt;processkit owns&lt;/strong&gt; process distribution, installation, migrations, MCP,
+skills, schemas, and harness projections. Aibox&amp;rsquo;s v1 integration is disabled
+or delegates one opaque request to the processkit CLI.&lt;/li&gt;
+&lt;/ul&gt;
+&lt;p&gt;These boundaries are release requirements. The portfolio audit fails if the v1
+production path begins interpreting processkit policy or provisioning
+infrastructure.&lt;/p&gt;</description></item><item><title>Copilot (GitHub)</title><link>https://projectious-work.github.io/aibox/v1.x/docs/providers/ai-copilot/</link><pubDate>Mon, 01 Jan 0001 00:00:00 +0000</pubDate><guid>https://projectious-work.github.io/aibox/v1.x/docs/providers/ai-copilot/</guid><description>&lt;h1 id="github-copilot-cli"&gt;GitHub Copilot CLI&lt;/h1&gt;
 &lt;p&gt;&lt;a href="https://github.com/github/copilot-cli"&gt;GitHub Copilot CLI&lt;/a&gt; is GitHub&amp;rsquo;s terminal coding agent. GA since February 2026, validated as a Dev Container feature.&lt;/p&gt;
 &lt;h2 id="setup"&gt;Setup&lt;/h2&gt;
 &lt;div class="highlight"&gt;&lt;pre tabindex="0" class="chroma"&gt;&lt;code class="language-toml" data-lang="toml"&gt;&lt;span class="line"&gt;&lt;span class="cl"&gt;&lt;span class="p"&gt;[&lt;/span&gt;&lt;span class="nx"&gt;ai&lt;/span&gt;&lt;span class="p"&gt;]&lt;/span&gt;
@@ -1145,7 +1174,18 @@ so it does not depend on labels, manually created issues, or workflow tokens.&lt
 &lt;/span&gt;&lt;/span&gt;&lt;span class="line"&gt;&lt;span class="cl"&gt;&lt;span class="c"&gt;# ANTHROPIC_API_KEY = &amp;#34;sk-ant-...&amp;#34;&lt;/span&gt;
 &lt;/span&gt;&lt;/span&gt;&lt;span class="line"&gt;&lt;span class="cl"&gt;&lt;span class="c"&gt;# OPENAI_API_KEY = &amp;#34;sk-...&amp;#34;&lt;/span&gt;
 &lt;/span&gt;&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;h2 id="configuration"&gt;Configuration&lt;/h2&gt;
-&lt;p&gt;Continue&amp;rsquo;s configuration is persisted in &lt;code&gt;.aibox-home/.continue/&lt;/code&gt;, mounted at &lt;code&gt;/home/aibox/.continue/&lt;/code&gt;.&lt;/p&gt;</description></item><item><title>Compatibility</title><link>https://projectious-work.github.io/aibox/v1.x/docs/reference/compatibility/</link><pubDate>Mon, 01 Jan 0001 00:00:00 +0000</pubDate><guid>https://projectious-work.github.io/aibox/v1.x/docs/reference/compatibility/</guid><description>&lt;h1 id="compatibility"&gt;Compatibility&lt;/h1&gt;
+&lt;p&gt;Continue&amp;rsquo;s configuration is persisted in &lt;code&gt;.aibox-home/.continue/&lt;/code&gt;, mounted at &lt;code&gt;/home/aibox/.continue/&lt;/code&gt;.&lt;/p&gt;</description></item><item><title>V1 adoption pilots</title><link>https://projectious-work.github.io/aibox/v1.x/docs/contributing/v1-adoption-pilots/</link><pubDate>Mon, 01 Jan 0001 00:00:00 +0000</pubDate><guid>https://projectious-work.github.io/aibox/v1.x/docs/contributing/v1-adoption-pilots/</guid><description>&lt;h1 id="v1-adoption-pilots"&gt;V1 adoption pilots&lt;/h1&gt;
+&lt;p&gt;Stable-v1 readiness requires four repeatable journeys against the exact
+candidate and binary:&lt;/p&gt;
+&lt;ol&gt;
+&lt;li&gt;a new Compose workspace can compile and render a deterministic plan;&lt;/li&gt;
+&lt;li&gt;a representative v0 project can preview, apply, and roll back a reviewed
+v1 intent without exposing secrets or touching v1 deployment records;&lt;/li&gt;
+&lt;li&gt;an existing Kubernetes target passes the complete live M7c lifecycle;&lt;/li&gt;
+&lt;li&gt;exact-pinned processkit install, verify, unchanged update, recovery, and
+uninstall pass through the direct opaque boundary.&lt;/li&gt;
+&lt;/ol&gt;
+&lt;p&gt;After the live M7c and M5 producer evidence has been generated, run:&lt;/p&gt;</description></item><item><title>Compatibility</title><link>https://projectious-work.github.io/aibox/v1.x/docs/reference/compatibility/</link><pubDate>Mon, 01 Jan 0001 00:00:00 +0000</pubDate><guid>https://projectious-work.github.io/aibox/v1.x/docs/reference/compatibility/</guid><description>&lt;h1 id="compatibility"&gt;Compatibility&lt;/h1&gt;
 &lt;h2 id="aibox--processkit-version-matrix"&gt;aibox ↔ processkit Version Matrix&lt;/h2&gt;
 &lt;p&gt;Each aibox release is tested against a specific processkit version. The table
 below shows the minimum compatible processkit version for each aibox release.&lt;/p&gt;
@@ -1158,6 +1198,46 @@ below shows the minimum compatible processkit version for each aibox release.&lt
 			&lt;/tr&gt;
 	&lt;/thead&gt;
 	&lt;tbody&gt;
+			&lt;tr&gt;
+					&lt;td&gt;1.0.0-alpha.1&lt;/td&gt;
+					&lt;td&gt;v0.28.4 stable bridge; v1.0.0-alpha.3 installer exact pin&lt;/td&gt;
+					&lt;td&gt;opt-in v1 orchestration alpha with signed opaque processkit installer delegation; the v0 bridge remains until parity, rollback, interruption, migration, and secret-safety gates pass&lt;/td&gt;
+			&lt;/tr&gt;
+			&lt;tr&gt;
+					&lt;td&gt;0.28.14&lt;/td&gt;
+					&lt;td&gt;v0.28.4&lt;/td&gt;
+					&lt;td&gt;ensures &lt;code&gt;pk-reconcile&lt;/code&gt; and &lt;code&gt;pk-repo-reconcile&lt;/code&gt; install their &lt;code&gt;project-reconciliation&lt;/code&gt; and &lt;code&gt;repo-management&lt;/code&gt; skill dependencies&lt;/td&gt;
+			&lt;/tr&gt;
+			&lt;tr&gt;
+					&lt;td&gt;0.28.15&lt;/td&gt;
+					&lt;td&gt;v0.28.4&lt;/td&gt;
+					&lt;td&gt;refreshes bundled maintenance tools, locks &lt;code&gt;cargo-audit&lt;/code&gt; installation for Rust compatibility, and publishes the Hugo/Docsy documentation site&lt;/td&gt;
+			&lt;/tr&gt;
+			&lt;tr&gt;
+					&lt;td&gt;0.28.13&lt;/td&gt;
+					&lt;td&gt;v0.28.4&lt;/td&gt;
+					&lt;td&gt;adds open GitHub Discussion counts to the tmux Forge status segment and restores the complete generated Codex command projection set&lt;/td&gt;
+			&lt;/tr&gt;
+			&lt;tr&gt;
+					&lt;td&gt;0.28.12&lt;/td&gt;
+					&lt;td&gt;v0.28.4&lt;/td&gt;
+					&lt;td&gt;integrates processkit v0.28.4 and makes companion E2E validation work from linked release worktrees&lt;/td&gt;
+			&lt;/tr&gt;
+			&lt;tr&gt;
+					&lt;td&gt;0.28.11&lt;/td&gt;
+					&lt;td&gt;v0.28.3&lt;/td&gt;
+					&lt;td&gt;adds the &lt;code&gt;cloudflare&lt;/code&gt; addon, which installs cloudflared from Cloudflare&amp;rsquo;s signed package repository rather than Debian&amp;rsquo;s archive&lt;/td&gt;
+			&lt;/tr&gt;
+			&lt;tr&gt;
+					&lt;td&gt;0.28.10&lt;/td&gt;
+					&lt;td&gt;v0.28.3&lt;/td&gt;
+					&lt;td&gt;reconciles standard processkit skills, recommends tooling-linked skills interactively, upgrades prerelease processkit surfaces, and serializes release Tier 2 E2E validation&lt;/td&gt;
+			&lt;/tr&gt;
+			&lt;tr&gt;
+					&lt;td&gt;0.28.6&lt;/td&gt;
+					&lt;td&gt;v0.28.3&lt;/td&gt;
+					&lt;td&gt;fixes Kubernetes addon checksum verification for Helm, Kustomize, and k9s archives on amd64 and arm64; and integrates processkit v0.28.3 authenticated GitHub repository reconciliation&lt;/td&gt;
+			&lt;/tr&gt;
 			&lt;tr&gt;
 					&lt;td&gt;0.28.5&lt;/td&gt;
 					&lt;td&gt;v0.28.1&lt;/td&gt;

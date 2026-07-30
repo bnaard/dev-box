@@ -127,6 +127,8 @@ The command performs:
 - processkit release sync check
 - `cli/Cargo.toml` and `Cargo.lock` version bump when needed
 - format, Clippy, and test checks
+- tracked `release-notes/vX.Y.Z.md`, compatibility-matrix, README, contributor
+  guidance, and Hugo/Docsy production-build validation
 - Tier 2 SSH companion E2E tests, including generated runtime and visual
   asciinema probes
 - `cargo audit`
@@ -152,6 +154,12 @@ Companion evidence includes the companion fingerprint, audit evidence expires
 daily, and binary evidence rechecks archive checksums. Set
 `AIBOX_RELEASE_REUSE_EVIDENCE=0` to force every selected gate to run again.
 Container-side timings are written to `dist/RELEASE-TIMINGS.md`.
+
+The `docs-check` gate is mandatory whenever a tag or GitHub release is
+selected. It runs before publication, so missing release notes, stale
+compatibility metadata, incomplete v1 branch guidance, or a broken Hugo build
+cannot leave a published release with incomplete documentation. The later
+`docs` step deploys exactly that candidate's site.
 
 Run `./scripts/maintain.sh release-check-state` standalone when you want the
 dependency and tool-state report without bumping, tagging, or building. Run
@@ -192,6 +200,34 @@ By default, this smoke runs with `AIBOX_RELEASE_SMOKE_TIER=addons`, so `git-ui`
 (`lazygit`) startup is exercised in addition to the core runtime contract.
 It is host-side because macOS binaries and host runtime access are not
 available from the Linux devcontainer.
+
+For a final v1 release candidate, retain the two Linux archives, two macOS
+archives, their checksum sidecars, the container- and host-release logs, and an
+exact-version rollback/reinstall log under one project-relative rehearsal
+directory. Record the completed rehearsal against the exact candidate and
+tested binary:
+
+The final line of each retained log is the corresponding completion marker:
+
+```text
+release phase=container status=passed candidate=<40-character-commit>
+release phase=host status=passed candidate=<40-character-commit>
+rollback status=passed candidate=<40-character-commit> version=<version>
+```
+
+Append a marker only after its command succeeds. The recorder also opens every
+archive, verifies the expected target-named binary, validates every checksum,
+and refuses symlinked inputs.
+
+```bash
+RELEASE_CANDIDATE_SHA=<40-character-commit> \
+AIBOX_RELEASE_BINARY_SHA256=sha256:<tested-binary-digest> \
+  ./scripts/record-v1-platform-rehearsal.sh \
+    dist/v1-platform-rehearsal/1.0.0 1.0.0
+```
+
+Stable readiness remains blocked if this evidence is missing, stale, bound to a
+different candidate, or references a missing or modified artifact.
 
 The two macOS targets build concurrently. The host release also overlaps that
 build lane with source-hash-aware image reuse or publication, then joins both

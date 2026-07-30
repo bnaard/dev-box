@@ -114,7 +114,7 @@ To evaluate prerelease processkit content without changing the stable default,
 pin the prerelease explicitly or opt into prerelease selection:
 
 ```sh
-aibox init my-app --processkit-version v1.0.0-alpha.1
+aibox init my-app --processkit-version v1.0.0-alpha.3
 aibox init my-app --include-prerelease
 ```
 
@@ -162,7 +162,7 @@ schema_version = "1.0.0"
 # Run `aibox get addon` to see all available addons.
 # [addons.python.tools]
 # python = { version = "3.14" }
-# uv     = { version = "0.11.26" }
+# uv     = { version = "0.11.32" }
 
 # AI harnesses — controls which AI CLIs/configs are enabled.
 [ai]

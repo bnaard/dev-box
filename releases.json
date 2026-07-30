@@ -1,0 +1,22 @@
+{
+  "schemaVersion": 1,
+  "siteBase": "https://projectious-work.github.io/aibox/",
+  "lines": [
+    {
+      "line": "v0.x",
+      "current": {
+        "version": "v0.x",
+        "url": "https://projectious-work.github.io/aibox/"
+      },
+      "releases": []
+    },
+    {
+      "line": "v1.x",
+      "current": {
+        "version": "preview",
+        "url": "https://projectious-work.github.io/aibox/v1.x/"
+      },
+      "releases": []
+    }
+  ]
+}

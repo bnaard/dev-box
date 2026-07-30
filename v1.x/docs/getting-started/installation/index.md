@@ -42,13 +42,45 @@ OrbStack works through its Docker-compatible runtime and Compose integration.
 
 ## Install script (recommended)
 
+Install the latest stable release:
+
 ```bash
 curl -fsSL https://raw.githubusercontent.com/projectious-work/aibox/main/scripts/install.sh | bash
 ```
 
 Downloads the correct pre-built binary for your platform (Linux or macOS, x86_64 or ARM64) and installs it to `~/.local/bin/`.
 
-Options:
+### Install the v1 alpha
+
+The v1 line is a prerelease and is never selected by the stable channel.
+After the GitHub prerelease exists, install its exact version:
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/projectious-work/aibox/main/scripts/install.sh |
+  VERSION=1.0.0-alpha.1 bash
+aibox --version
+```
+
+Do not use a moving branch name as the installed version. Exact pins make
+reinstallation and rollback reproducible.
+
+### Roll back from the alpha
+
+Reinstall the last known-good v0 release by exact version:
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/projectious-work/aibox/main/scripts/install.sh |
+  VERSION=0.28.17 bash
+aibox --version
+```
+
+This replaces the CLI binary; it does not destroy v1 deployments or rewrite
+their receipts. Remove a v1 deployment with the v1 CLI's guarded
+`aibox deploy destroy` flow before rolling back when cleanup is required.
+Configuration rollback is separate: use the exact backup created by
+`aibox config migrate-v1 --apply`, and preview restoration before applying it.
+
+### Other options
 
 ```bash
 # Install a specific version

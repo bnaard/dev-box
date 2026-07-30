@@ -114,10 +114,10 @@ established v0 runtime uses &lt;code&gt;apply&lt;/code&gt; then &lt;code&gt;up&l
 &lt;/span&gt;&lt;/span&gt;&lt;span class="line"&gt;&lt;span class="cl"&gt;
 &lt;/span&gt;&lt;/span&gt;&lt;span class="line"&gt;&lt;span class="cl"&gt;&lt;span class="p"&gt;[&lt;/span&gt;&lt;span class="nx"&gt;addons&lt;/span&gt;&lt;span class="p"&gt;.&lt;/span&gt;&lt;span class="nx"&gt;python&lt;/span&gt;&lt;span class="p"&gt;.&lt;/span&gt;&lt;span class="nx"&gt;tools&lt;/span&gt;&lt;span class="p"&gt;]&lt;/span&gt; &lt;span class="c"&gt;# Addon: Python runtime&lt;/span&gt;
 &lt;/span&gt;&lt;/span&gt;&lt;span class="line"&gt;&lt;span class="cl"&gt;&lt;span class="nx"&gt;python&lt;/span&gt; &lt;span class="p"&gt;=&lt;/span&gt; &lt;span class="p"&gt;{&lt;/span&gt; &lt;span class="nx"&gt;version&lt;/span&gt; &lt;span class="p"&gt;=&lt;/span&gt; &lt;span class="s2"&gt;&amp;#34;3.14&amp;#34;&lt;/span&gt; &lt;span class="p"&gt;}&lt;/span&gt;
-&lt;/span&gt;&lt;/span&gt;&lt;span class="line"&gt;&lt;span class="cl"&gt;&lt;span class="nx"&gt;uv&lt;/span&gt; &lt;span class="p"&gt;=&lt;/span&gt; &lt;span class="p"&gt;{&lt;/span&gt; &lt;span class="nx"&gt;version&lt;/span&gt; &lt;span class="p"&gt;=&lt;/span&gt; &lt;span class="s2"&gt;&amp;#34;0.11.26&amp;#34;&lt;/span&gt; &lt;span class="p"&gt;}&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span class="line"&gt;&lt;span class="cl"&gt;&lt;span class="nx"&gt;uv&lt;/span&gt; &lt;span class="p"&gt;=&lt;/span&gt; &lt;span class="p"&gt;{&lt;/span&gt; &lt;span class="nx"&gt;version&lt;/span&gt; &lt;span class="p"&gt;=&lt;/span&gt; &lt;span class="s2"&gt;&amp;#34;0.11.32&amp;#34;&lt;/span&gt; &lt;span class="p"&gt;}&lt;/span&gt;
 &lt;/span&gt;&lt;/span&gt;&lt;span class="line"&gt;&lt;span class="cl"&gt;
 &lt;/span&gt;&lt;/span&gt;&lt;span class="line"&gt;&lt;span class="cl"&gt;&lt;span class="p"&gt;[&lt;/span&gt;&lt;span class="nx"&gt;addons&lt;/span&gt;&lt;span class="p"&gt;.&lt;/span&gt;&lt;span class="nx"&gt;rust&lt;/span&gt;&lt;span class="p"&gt;.&lt;/span&gt;&lt;span class="nx"&gt;tools&lt;/span&gt;&lt;span class="p"&gt;]&lt;/span&gt; &lt;span class="c"&gt;# Addon: Rust toolchain&lt;/span&gt;
-&lt;/span&gt;&lt;/span&gt;&lt;span class="line"&gt;&lt;span class="cl"&gt;&lt;span class="nx"&gt;rustc&lt;/span&gt; &lt;span class="p"&gt;=&lt;/span&gt; &lt;span class="p"&gt;{&lt;/span&gt; &lt;span class="nx"&gt;version&lt;/span&gt; &lt;span class="p"&gt;=&lt;/span&gt; &lt;span class="s2"&gt;&amp;#34;1.96.1&amp;#34;&lt;/span&gt; &lt;span class="p"&gt;}&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span class="line"&gt;&lt;span class="cl"&gt;&lt;span class="nx"&gt;rustc&lt;/span&gt; &lt;span class="p"&gt;=&lt;/span&gt; &lt;span class="p"&gt;{&lt;/span&gt; &lt;span class="nx"&gt;version&lt;/span&gt; &lt;span class="p"&gt;=&lt;/span&gt; &lt;span class="s2"&gt;&amp;#34;1.97.1&amp;#34;&lt;/span&gt; &lt;span class="p"&gt;}&lt;/span&gt;
 &lt;/span&gt;&lt;/span&gt;&lt;span class="line"&gt;&lt;span class="cl"&gt;&lt;span class="nx"&gt;clippy&lt;/span&gt; &lt;span class="p"&gt;=&lt;/span&gt; &lt;span class="p"&gt;{}&lt;/span&gt;
 &lt;/span&gt;&lt;/span&gt;&lt;span class="line"&gt;&lt;span class="cl"&gt;&lt;span class="nx"&gt;rustfmt&lt;/span&gt; &lt;span class="p"&gt;=&lt;/span&gt; &lt;span class="p"&gt;{}&lt;/span&gt;
 &lt;/span&gt;&lt;/span&gt;&lt;span class="line"&gt;&lt;span class="cl"&gt;
@@ -324,7 +324,24 @@ discipline on every secret.&lt;/p&gt;</description></item><item><title>Cheatshee
 &lt;li&gt;an immutable image reference and &lt;code&gt;sha256:&lt;/code&gt; digest;&lt;/li&gt;
 &lt;li&gt;a least-privilege identity limited to the target namespace and the selected DNS record scope.&lt;/li&gt;
 &lt;/ul&gt;
-&lt;p&gt;Aibox refuses foreign, unlabeled, digest-mismatched, or missing-record resources during guarded destroy. These checks protect against accidental deletion; they are not a replacement for namespace policy, admission control, or credential rotation.&lt;/p&gt;</description></item><item><title>Compatibility</title><link>https://projectious-work.github.io/aibox/v1.x/docs/reference/compatibility/</link><pubDate>Mon, 01 Jan 0001 00:00:00 +0000</pubDate><guid>https://projectious-work.github.io/aibox/v1.x/docs/reference/compatibility/</guid><description>&lt;h1 id="compatibility"&gt;Compatibility&lt;/h1&gt;
+&lt;p&gt;Aibox refuses foreign, unlabeled, digest-mismatched, or missing-record resources during guarded destroy. These checks protect against accidental deletion; they are not a replacement for namespace policy, admission control, or credential rotation.&lt;/p&gt;</description></item><item><title>V1 support, deprecation, and retirement</title><link>https://projectious-work.github.io/aibox/v1.x/docs/reference/v1-support-and-retirement/</link><pubDate>Mon, 01 Jan 0001 00:00:00 +0000</pubDate><guid>https://projectious-work.github.io/aibox/v1.x/docs/reference/v1-support-and-retirement/</guid><description>&lt;h1 id="v1-support-deprecation-and-retirement"&gt;V1 support, deprecation, and retirement&lt;/h1&gt;
+&lt;p&gt;V1 prereleases are evaluation releases. Until a stable v1 release satisfies
+every candidate-bound readiness gate, v0 remains supported as the stable line.
+V1 and v0 may coexist while projects evaluate migration; neither line may
+manage or destroy the other line&amp;rsquo;s deployment records or resources.&lt;/p&gt;
+&lt;h2 id="product-boundaries"&gt;Product boundaries&lt;/h2&gt;
+&lt;ul&gt;
+&lt;li&gt;&lt;strong&gt;ainfra provisions&lt;/strong&gt; accounts, hosts, networks, clusters, identities, DNS
+zones, and other infrastructure, then exposes non-secret target references.&lt;/li&gt;
+&lt;li&gt;&lt;strong&gt;aibox deploys&lt;/strong&gt; immutable AI workspace images onto existing Compose or
+Kubernetes targets. It does not provision infrastructure.&lt;/li&gt;
+&lt;li&gt;&lt;strong&gt;processkit owns&lt;/strong&gt; process distribution, installation, migrations, MCP,
+skills, schemas, and harness projections. Aibox&amp;rsquo;s v1 integration is disabled
+or delegates one opaque request to the processkit CLI.&lt;/li&gt;
+&lt;/ul&gt;
+&lt;p&gt;These boundaries are release requirements. The portfolio audit fails if the v1
+production path begins interpreting processkit policy or provisioning
+infrastructure.&lt;/p&gt;</description></item><item><title>Compatibility</title><link>https://projectious-work.github.io/aibox/v1.x/docs/reference/compatibility/</link><pubDate>Mon, 01 Jan 0001 00:00:00 +0000</pubDate><guid>https://projectious-work.github.io/aibox/v1.x/docs/reference/compatibility/</guid><description>&lt;h1 id="compatibility"&gt;Compatibility&lt;/h1&gt;
 &lt;h2 id="aibox--processkit-version-matrix"&gt;aibox ↔ processkit Version Matrix&lt;/h2&gt;
 &lt;p&gt;Each aibox release is tested against a specific processkit version. The table
 below shows the minimum compatible processkit version for each aibox release.&lt;/p&gt;
@@ -337,6 +354,46 @@ below shows the minimum compatible processkit version for each aibox release.&lt
 			&lt;/tr&gt;
 	&lt;/thead&gt;
 	&lt;tbody&gt;
+			&lt;tr&gt;
+					&lt;td&gt;1.0.0-alpha.1&lt;/td&gt;
+					&lt;td&gt;v0.28.4 stable bridge; v1.0.0-alpha.3 installer exact pin&lt;/td&gt;
+					&lt;td&gt;opt-in v1 orchestration alpha with signed opaque processkit installer delegation; the v0 bridge remains until parity, rollback, interruption, migration, and secret-safety gates pass&lt;/td&gt;
+			&lt;/tr&gt;
+			&lt;tr&gt;
+					&lt;td&gt;0.28.14&lt;/td&gt;
+					&lt;td&gt;v0.28.4&lt;/td&gt;
+					&lt;td&gt;ensures &lt;code&gt;pk-reconcile&lt;/code&gt; and &lt;code&gt;pk-repo-reconcile&lt;/code&gt; install their &lt;code&gt;project-reconciliation&lt;/code&gt; and &lt;code&gt;repo-management&lt;/code&gt; skill dependencies&lt;/td&gt;
+			&lt;/tr&gt;
+			&lt;tr&gt;
+					&lt;td&gt;0.28.15&lt;/td&gt;
+					&lt;td&gt;v0.28.4&lt;/td&gt;
+					&lt;td&gt;refreshes bundled maintenance tools, locks &lt;code&gt;cargo-audit&lt;/code&gt; installation for Rust compatibility, and publishes the Hugo/Docsy documentation site&lt;/td&gt;
+			&lt;/tr&gt;
+			&lt;tr&gt;
+					&lt;td&gt;0.28.13&lt;/td&gt;
+					&lt;td&gt;v0.28.4&lt;/td&gt;
+					&lt;td&gt;adds open GitHub Discussion counts to the tmux Forge status segment and restores the complete generated Codex command projection set&lt;/td&gt;
+			&lt;/tr&gt;
+			&lt;tr&gt;
+					&lt;td&gt;0.28.12&lt;/td&gt;
+					&lt;td&gt;v0.28.4&lt;/td&gt;
+					&lt;td&gt;integrates processkit v0.28.4 and makes companion E2E validation work from linked release worktrees&lt;/td&gt;
+			&lt;/tr&gt;
+			&lt;tr&gt;
+					&lt;td&gt;0.28.11&lt;/td&gt;
+					&lt;td&gt;v0.28.3&lt;/td&gt;
+					&lt;td&gt;adds the &lt;code&gt;cloudflare&lt;/code&gt; addon, which installs cloudflared from Cloudflare&amp;rsquo;s signed package repository rather than Debian&amp;rsquo;s archive&lt;/td&gt;
+			&lt;/tr&gt;
+			&lt;tr&gt;
+					&lt;td&gt;0.28.10&lt;/td&gt;
+					&lt;td&gt;v0.28.3&lt;/td&gt;
+					&lt;td&gt;reconciles standard processkit skills, recommends tooling-linked skills interactively, upgrades prerelease processkit surfaces, and serializes release Tier 2 E2E validation&lt;/td&gt;
+			&lt;/tr&gt;
+			&lt;tr&gt;
+					&lt;td&gt;0.28.6&lt;/td&gt;
+					&lt;td&gt;v0.28.3&lt;/td&gt;
+					&lt;td&gt;fixes Kubernetes addon checksum verification for Helm, Kustomize, and k9s archives on amd64 and arm64; and integrates processkit v0.28.3 authenticated GitHub repository reconciliation&lt;/td&gt;
+			&lt;/tr&gt;
 			&lt;tr&gt;
 					&lt;td&gt;0.28.5&lt;/td&gt;
 					&lt;td&gt;v0.28.1&lt;/td&gt;
