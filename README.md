@@ -173,7 +173,7 @@ Release quality expectations are strict:
 | `cli/` | Rust CLI source for the `aibox` binary |
 | `addons/` | YAML addon definitions for runtimes, tools, docs frameworks, and AI CLIs |
 | `images/` | Base image recipes published for downstream projects |
-| `docs-site/` | Docusaurus documentation site |
+| `docs-site/` | Hugo/Docsy documentation site |
 | `context/` | This repository's processkit-managed project context |
 | `scripts/` | Release, install, and maintenance tooling |
 | `.devcontainer/` | This repository's own development container |

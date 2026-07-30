@@ -1,0 +1,11 @@
+{{ define "main" }}
+<div class="td-content container py-5">
+  <h1>{{ .Title }}</h1>
+  <p>{{ .Content }}</p>
+  <div id="theme-gallery" data-index="{{ "asciinema/themes/index.json" | relURL }}"
+       data-base="{{ "asciinema/themes/" | relURL }}">
+    <p class="text-secondary">Loading theme recordings…</p>
+  </div>
+</div>
+<script src="{{ "js/theme-gallery.js" | relURL }}" defer></script>
+{{ end }}
