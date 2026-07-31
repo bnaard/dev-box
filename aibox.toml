@@ -307,7 +307,7 @@ docusaurus = { version = "3.10.1" } # React and MDX documentation site generator
 
 # Languages/go — Go programming language toolchain
 # [addons.go.tools]
-# go = {} # Go compiler, tooling, and module workflow; default on; options: {}, { enabled = true|false }, { version = "1.25" | "1.26" | "1.26.3" | "1.26.4" | "1.26.5" (default) or "latest" }
+# go = {} # Go compiler, tooling, and module workflow; default on; options: {}, { enabled = true|false }, { version = "1.25.12" | "1.26.3" | "1.26.4" | "1.26.5" (default) or "latest" }
 
 # Languages/latex — TeX Live LaTeX typesetting system
 # [addons.latex.tools]
@@ -363,6 +363,10 @@ cargo-audit = {} # Rust dependency vulnerability scanner; default on; options: {
 # Tools/cloud-gcp — Google Cloud SDK (gcloud)
 # [addons.cloud-gcp.tools]
 # gcloud-cli = {} # Google Cloud command-line client and SDK; default on; options: {}, { enabled = true|false }, { version = "x.y.z" or "latest" }
+
+# Tools/cloudflare — Cloudflare Tunnel connector (cloudflared)
+# [addons.cloudflare.tools]
+# cloudflared = {} # Cloudflare Tunnel connector and command-line client; default on; options: {}, { enabled = true|false }, { version = "x.y.z" or "latest" }
 
 # Tools/data-preview — SQLite and tabular data preview tools for Yazi
 # [addons.data-preview.tools]
@@ -722,7 +726,7 @@ elements-spacing = "both"
 # kubernetes-cache-ttl-seconds: local kubeconfig context cache TTL; this should
 #   not poll live clusters and does not need second-level freshness.
 # cloud-cache-ttl-seconds: local cloud CLI/context cache TTL; this avoids auth/network probes.
-# github-cache-ttl-seconds: local repo + GitHub issue/PR count cache TTL.
+# github-cache-ttl-seconds: local repo + GitHub issue/PR/discussion count cache TTL.
 interval-seconds = 15
 aibox-metrics-cache-ttl-seconds = 30
 netspeed-cache-ttl-seconds = 10
