@@ -45,14 +45,14 @@ RUN ARCH="$(uname -m)" && \
     (cd /tmp && sha256sum -c rustup-init.sha256) && \
     chmod +x /tmp/rustup-init && \
     /tmp/rustup-init -y \
-      --default-toolchain 1.96.1 \
+      --default-toolchain 1.97.1 \
       --component clippy \
       --component rustfmt && \
     rm /tmp/rustup-init /tmp/rustup-init.sha256
 
 ENV PATH="/home/aibox/.cargo/bin:${PATH}"
 
-RUN cargo install cargo-audit
+RUN cargo install cargo-audit --locked
 
 RUN install -d /usr/local/bin && \
     for bin in /home/aibox/.cargo/bin/*; do \
@@ -90,7 +90,7 @@ RUN ARCH=$(uname -m) && \
     fi
 
 
-FROM ghcr.io/projectious-work/aibox:base-debian-runtime-v0.28.4 AS aibox
+FROM ghcr.io/projectious-work/aibox:base-debian-runtime-v1.0.0 AS aibox
 
 ENV SHELL=/bin/bash
 ENV UV_CACHE_DIR=/tmp/aibox/uv-cache
@@ -149,7 +149,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends ca-certificates
     esac && \
     NODE_DIST_URL="https://nodejs.org/dist/latest-v26.x" && \
     curl -fsSL "${NODE_DIST_URL}/SHASUMS256.txt" -o /tmp/node-shasums.txt && \
-    NODE_ARCHIVE="$(awk -v arch="${NODE_ARCH}" '$2 ~ ("node-v[0-9.]+-linux-" arch "\\\\.tar\\\\.xz$") { print $2; exit }' /tmp/node-shasums.txt)" && \
+    NODE_ARCHIVE="$(awk -v arch="${NODE_ARCH}" '$2 ~ ("node-v[0-9.]+-linux-" arch "\\.tar\\.xz$") { print $2; exit }' /tmp/node-shasums.txt)" && \
     test -n "${NODE_ARCHIVE}" && \
     curl -fsSL "${NODE_DIST_URL}/${NODE_ARCHIVE}" -o "/tmp/${NODE_ARCHIVE}" && \
     (cd /tmp && grep "  ${NODE_ARCHIVE}$" node-shasums.txt | sha256sum -c -) && \
@@ -157,7 +157,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends ca-certificates
     rm -f "/tmp/${NODE_ARCHIVE}" /tmp/node-shasums.txt && \
     node --version && npm --version
 
-RUN npm install -g pnpm@11.10.0 && \
+RUN npm install -g pnpm@11.18.0 && \
     npm cache clean --force
 
 
@@ -273,6 +273,6 @@ EOF
 
 # Record image version inside container for runtime checks
 USER root
-LABEL aibox.version="0.28.4"
+LABEL aibox.version="1.0.0"
 LABEL aibox.profile="human-dev"
-RUN echo "0.28.4" > /etc/aibox-version
+RUN echo "1.0.0" > /etc/aibox-version
