@@ -633,6 +633,11 @@ pub static COMPAT_TABLE: &[CompatEntry] = &[
         processkit_version: "v0.28.5",
         note: "Patch release: restores Codex processkit MCP startup by preserving uv run --script in gateway daemon-proxy commands, integrates processkit v0.28.5's MCP 1.x compatibility bound, and restores zero-warning clippy under Rust 1.97.",
     },
+    CompatEntry {
+        aibox_version: "0.28.19",
+        processkit_version: "v0.28.5",
+        note: "Patch release: preserves prerelease identifiers when resolving the latest published GHCR image so v1.0.0-alpha.1 is not rewritten to the nonexistent v1.0.0 tag.",
+    },
 ];
 
 /// Find the minimum compatible processkit version for the given aibox version.
