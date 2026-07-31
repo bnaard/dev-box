@@ -181,10 +181,7 @@ pub fn generate_all(config: &AiboxConfig) -> Result<()> {
 }
 
 pub(crate) fn image_version_for_generation(published_latest: Version) -> String {
-    format!(
-        "{}.{}.{}",
-        published_latest.major, published_latest.minor, published_latest.patch
-    )
+    published_latest.to_string()
 }
 
 /// Generate the Dockerfile. Returns true if file was written.
@@ -884,6 +881,16 @@ mod tests {
         assert_eq!(
             selected, "0.24.3",
             "image generation must not couple a newer CLI version to an unpublished base image tag"
+        );
+    }
+
+    #[test]
+    fn image_version_for_generation_preserves_prerelease_tag() {
+        let published = semver::Version::parse("1.0.0-alpha.1").unwrap();
+        let selected = image_version_for_generation(published);
+        assert_eq!(
+            selected, "1.0.0-alpha.1",
+            "image generation must preserve the exact published GHCR tag"
         );
     }
 
