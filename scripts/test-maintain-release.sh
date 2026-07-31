@@ -60,6 +60,34 @@ release_parse_steps all
 release_step_requested docs-check \
   || die "the full release process must include docs-check"
 
+# A full publication and a reduced-step publication resume both pass the
+# designated branch into the protected-branch publisher. Keep this behavioral
+# probe lightweight by selecting only push-main after cmd_release has parsed
+# each public invocation form.
+release_branch_probe="$(mktemp)"
+(
+  release_parse_steps() { :; }
+  release_apply_skip_steps() { :; }
+  release_validate_license_guardrails() { :; }
+  ensure_release_branch() { :; }
+  release_steps_joined() { printf '%s' 'push-main'; }
+  release_requires_clean_tree() { return 1; }
+  release_step_requested() { [[ "$1" == "push-main" ]]; }
+  release_evidence_init() { RELEASE_CANDIDATE_SHA="test-candidate"; }
+  release_write_timing_report() { :; }
+  publish_release_candidate() { printf '%s\n' "$2" >> "${release_branch_probe}"; }
+
+  cmd_release 1.0.0-alpha.1 >/dev/null
+  cmd_release 1.0.0-alpha.1 --steps push-main >/dev/null
+)
+[[ "$(wc -l < "${release_branch_probe}" | tr -d ' ')" -eq 2 ]] \
+  || die "full and resumed publications did not both reach the branch publisher"
+while IFS= read -r published_branch; do
+  [[ "${published_branch}" == "v1.x-pre-release" ]] \
+    || die "release publication did not resolve the v1 prerelease branch"
+done < "${release_branch_probe}"
+rm -f "${release_branch_probe}"
+
 test_root="$(mktemp -d)"
 trap 'rm -rf "${test_root}"' EXIT
 
