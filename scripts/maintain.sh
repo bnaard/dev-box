@@ -1065,8 +1065,8 @@ cmd_release_runtime_smoke() {
   local version="${1:-}"
   [[ -z "${version}" ]] && die "Usage: ./scripts/maintain.sh release-runtime-smoke <version>  (e.g. 0.10.2)"
 
-  if ! [[ "${version}" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
-    die "Version must be semver: X.Y.Z (got: ${version})"
+  if ! [[ "${version}" =~ ^[0-9]+\.[0-9]+\.[0-9]+(-[0-9A-Za-z][0-9A-Za-z.-]*)?$ ]]; then
+    die "Version must be semver: X.Y.Z or X.Y.Z-prerelease (got: ${version})"
   fi
 
   "${SCRIPT_DIR}/release-runtime-smoke.sh" "${version}" \

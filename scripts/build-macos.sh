@@ -57,8 +57,8 @@ fi
 # ── Parse arguments ──────────────────────────────────────────────────────────
 VERSION="${1:-}"
 if [[ -n "${VERSION}" ]]; then
-  if ! [[ "${VERSION}" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
-    die "Version must be semver: X.Y.Z (got: ${VERSION})"
+  if ! [[ "${VERSION}" =~ ^[0-9]+\.[0-9]+\.[0-9]+(-[0-9A-Za-z][0-9A-Za-z.-]*)?$ ]]; then
+    die "Version must be semver: X.Y.Z or X.Y.Z-prerelease (got: ${VERSION})"
   fi
   VERSION_TAG="v${VERSION}-"
 else
