@@ -2438,6 +2438,8 @@ cmd_release() {
   fi
 
   local tag="v${version}"
+  local release_branch
+  release_branch="$(release_branch_for_version "${version}")"
   local release_steps=()
   local release_step_tokens=()
   local built_archives=()
