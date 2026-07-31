@@ -90,7 +90,7 @@ RUN ARCH=$(uname -m) && \
     fi
 
 
-FROM ghcr.io/projectious-work/aibox:base-debian-runtime-v0.28.18 AS aibox
+FROM ghcr.io/projectious-work/aibox:base-debian-runtime-v1.0.0-alpha.1 AS aibox
 
 ENV SHELL=/bin/bash
 ENV UV_CACHE_DIR=/tmp/aibox/uv-cache
@@ -293,6 +293,6 @@ EOF
 
 # Record image version inside container for runtime checks
 USER root
-LABEL aibox.version="0.28.18"
+LABEL aibox.version="1.0.0-alpha.1"
 LABEL aibox.profile="human-dev"
-RUN echo "0.28.18" > /etc/aibox-version
+RUN echo "1.0.0-alpha.1" > /etc/aibox-version
