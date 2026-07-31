@@ -18,6 +18,10 @@ grep -Fq 'X.Y.Z or X.Y.Z-prerelease' "${SCRIPT_DIR}/build-macos.sh" \
   || die "macOS artifact builds must accept prerelease SemVer"
 grep -Fq 'X.Y.Z or X.Y.Z-prerelease' "${SCRIPT_DIR}/release-runtime-smoke.sh" \
   || die "release runtime smoke must accept prerelease SemVer"
+grep -Fq 'attach_args=(up --legacy-runtime --forget-tmux-state)' "${SCRIPT_DIR}/release-runtime-smoke.sh" \
+  || die "v1 release runtime smoke must select the legacy attach lifecycle explicitly"
+grep -Fq 'jobs -pr | grep -qx "${attach_pid}"' "${SCRIPT_DIR}/release-runtime-smoke.sh" \
+  || die "release runtime smoke must detect an exited background attach process"
 declare -F publish_release_candidate >/dev/null \
   || die "release candidate protected-branch publisher is missing"
 declare -F release_docs_gate >/dev/null \
