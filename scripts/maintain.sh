@@ -705,8 +705,8 @@ cmd_push_images() {
   local version="${1:-}"
   [[ -z "${version}" ]] && die "Usage: ./scripts/maintain.sh push-images <version>  (e.g. 0.2.0)"
 
-  if ! [[ "${version}" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
-    die "Version must be semver: X.Y.Z (got: ${version})"
+  if ! [[ "${version}" =~ ^[0-9]+\.[0-9]+\.[0-9]+(-[0-9A-Za-z][0-9A-Za-z.-]*)?$ ]]; then
+    die "Version must be semver: X.Y.Z or X.Y.Z-prerelease (got: ${version})"
   fi
 
   ensure_ghcr_login
@@ -945,8 +945,8 @@ cmd_release_runtime_smoke() {
   local version="${1:-}"
   [[ -z "${version}" ]] && die "Usage: ./scripts/maintain.sh release-runtime-smoke <version>  (e.g. 0.10.2)"
 
-  if ! [[ "${version}" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
-    die "Version must be semver: X.Y.Z (got: ${version})"
+  if ! [[ "${version}" =~ ^[0-9]+\.[0-9]+\.[0-9]+(-[0-9A-Za-z][0-9A-Za-z.-]*)?$ ]]; then
+    die "Version must be semver: X.Y.Z or X.Y.Z-prerelease (got: ${version})"
   fi
 
   "${SCRIPT_DIR}/release-runtime-smoke.sh" "${version}" \
@@ -2204,8 +2204,8 @@ cmd_release() {
   done
 
   # Validate semver (simple check)
-  if ! [[ "${version}" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
-    die "Version must be semver: X.Y.Z (got: ${version})"
+  if ! [[ "${version}" =~ ^[0-9]+\.[0-9]+\.[0-9]+(-[0-9A-Za-z][0-9A-Za-z.-]*)?$ ]]; then
+    die "Version must be semver: X.Y.Z or X.Y.Z-prerelease (got: ${version})"
   fi
 
   local tag="v${version}"
@@ -2449,11 +2449,13 @@ cmd_release() {
 }
 
 release_branch_for_version() {
-  local version="$1" major
-  major="${version%%.*}"
-  [[ "${major}" =~ ^[0-9]+$ ]] \
-    || die "Cannot infer a release branch from version '${version}'."
-  printf 'v%s.x-release' "${major}"
+  local version="$1"
+  case "${version}" in
+    0.*) printf '%s\n' 'v0.x-release' ;;
+    1.*-*) printf '%s\n' 'v1.x-pre-release' ;;
+    1.*) printf '%s\n' 'v1.x-release' ;;
+    *) die "Unsupported release line for ${version}; add a branch mapping first." ;;
+  esac
 }
 
 publish_release_candidate() {
@@ -2496,8 +2498,8 @@ cmd_release_finalize_runtime() {
   local version="${1:-}"
   [[ -z "${version}" ]] && die "Usage: ./scripts/maintain.sh release-finalize-runtime <version>  (e.g. 0.10.2)"
 
-  if ! [[ "${version}" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
-    die "Version must be semver: X.Y.Z (got: ${version})"
+  if ! [[ "${version}" =~ ^[0-9]+\.[0-9]+\.[0-9]+(-[0-9A-Za-z][0-9A-Za-z.-]*)?$ ]]; then
+    die "Version must be semver: X.Y.Z or X.Y.Z-prerelease (got: ${version})"
   fi
 
   local release_branch finalization_branch pr_url
@@ -2579,8 +2581,8 @@ cmd_release_host() {
   local release_started_epoch="$(date +%s)"
   [[ -z "${version}" ]] && die "Usage: ./scripts/maintain.sh release-host <version>  (e.g. 0.10.2)"
 
-  if ! [[ "${version}" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
-    die "Version must be semver: X.Y.Z (got: ${version})"
+  if ! [[ "${version}" =~ ^[0-9]+\.[0-9]+\.[0-9]+(-[0-9A-Za-z][0-9A-Za-z.-]*)?$ ]]; then
+    die "Version must be semver: X.Y.Z or X.Y.Z-prerelease (got: ${version})"
   fi
 
   local tag="v${version}"
