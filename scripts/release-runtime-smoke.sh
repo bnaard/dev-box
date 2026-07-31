@@ -307,20 +307,28 @@ fi
 run env AIBOX_ADDONS_DIR="${PROJECT_ROOT}/addons" "${aibox_bin}" "${apply_args[@]}"
 
 attach_smoke_log="${log_dir}/up-forget-tmux-state.log"
-info "Running attach smoke: aibox up --forget-tmux-state"
+# This probe intentionally exercises the compatibility runtime: its purpose is
+# to validate the generated devcontainer/tmux UX. Native v1 `aibox up` applies
+# orchestration and does not attach, so attach-only flags must be paired with
+# the explicit legacy-runtime selector while that compatibility surface exists.
+attach_args=(up --legacy-runtime --forget-tmux-state)
+info "Running attach smoke: aibox ${attach_args[*]}"
 attach_timeout="${AIBOX_RELEASE_SMOKE_ATTACH_TIMEOUT:-25}"
 [[ "${attach_timeout}" =~ ^[1-9][0-9]*$ ]] \
   || die "AIBOX_RELEASE_SMOKE_ATTACH_TIMEOUT must be a positive integer (got: ${attach_timeout})"
 
 env AIBOX_ADDONS_DIR="${PROJECT_ROOT}/addons" \
-  "${aibox_bin}" up --forget-tmux-state >"${attach_smoke_log}" 2>&1 < /dev/null &
+  "${aibox_bin}" "${attach_args[@]}" >"${attach_smoke_log}" 2>&1 < /dev/null &
 attach_pid=$!
 attach_started_at=${SECONDS}
 attach_ready=0
 attach_exited=0
 attach_code=0
 while (( SECONDS - attach_started_at < attach_timeout )); do
-  if ! kill -0 "${attach_pid}" >/dev/null 2>&1; then
+  # `kill -0` also succeeds for an exited child that has not been reaped yet
+  # on some hosts (including macOS). `jobs -pr` lists only running jobs, so an
+  # immediate CLI failure is reported now instead of as a misleading timeout.
+  if ! jobs -pr | grep -qx "${attach_pid}"; then
     set +e
     wait "${attach_pid}"
     attach_code=$?
