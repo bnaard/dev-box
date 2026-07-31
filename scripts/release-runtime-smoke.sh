@@ -16,8 +16,8 @@ if [[ -z "${version}" ]]; then
   echo "Usage: ./scripts/release-runtime-smoke.sh <version>" >&2
   exit 2
 fi
-if ! [[ "${version}" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
-  echo "Version must be semver: X.Y.Z (got: ${version})" >&2
+if ! [[ "${version}" =~ ^[0-9]+\.[0-9]+\.[0-9]+(-[0-9A-Za-z][0-9A-Za-z.-]*)?$ ]]; then
+  echo "Version must be semver: X.Y.Z or X.Y.Z-prerelease (got: ${version})" >&2
   exit 2
 fi
 
