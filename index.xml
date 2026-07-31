@@ -962,7 +962,7 @@ default.&lt;/p&gt;</description></item><item><title>Cheatsheet</title><link>http
 	&lt;/tbody&gt;
 &lt;/table&gt;
 &lt;p&gt;Current curated pins are Docusaurus 3.10.1, Hugo 0.164.0, mdBook 0.5.4,
-MkDocs 1.6.1 with Material 9.7.7, and Zensical 0.0.51. Starlight remains
+MkDocs 1.6.1 with Material 9.7.7, and Zensical 0.0.52. Starlight remains
 scaffolded through the upstream &lt;code&gt;create-starlight&lt;/code&gt; package.&lt;/p&gt;
 &lt;h2 id="example"&gt;Example&lt;/h2&gt;
 &lt;div class="highlight"&gt;&lt;pre tabindex="0" class="chroma"&gt;&lt;code class="language-toml" data-lang="toml"&gt;&lt;span class="line"&gt;&lt;span class="cl"&gt;&lt;span class="p"&gt;[&lt;/span&gt;&lt;span class="nx"&gt;addons&lt;/span&gt;&lt;span class="p"&gt;.&lt;/span&gt;&lt;span class="nx"&gt;docs-docusaurus&lt;/span&gt;&lt;span class="p"&gt;.&lt;/span&gt;&lt;span class="nx"&gt;tools&lt;/span&gt;&lt;span class="p"&gt;]&lt;/span&gt;
@@ -1138,6 +1138,11 @@ below shows the minimum compatible processkit version for each aibox release.&lt
 			&lt;/tr&gt;
 	&lt;/thead&gt;
 	&lt;tbody&gt;
+			&lt;tr&gt;
+					&lt;td&gt;0.28.19&lt;/td&gt;
+					&lt;td&gt;v0.28.5&lt;/td&gt;
+					&lt;td&gt;preserves prerelease identifiers when resolving the latest published GHCR image so &lt;code&gt;v1.0.0-alpha.1&lt;/code&gt; is not rewritten to the nonexistent &lt;code&gt;v1.0.0&lt;/code&gt; tag&lt;/td&gt;
+			&lt;/tr&gt;
 			&lt;tr&gt;
 					&lt;td&gt;0.28.18&lt;/td&gt;
 					&lt;td&gt;v0.28.5&lt;/td&gt;

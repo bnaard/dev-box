@@ -321,6 +321,11 @@ below shows the minimum compatible processkit version for each aibox release.&lt
 	&lt;/thead&gt;
 	&lt;tbody&gt;
 			&lt;tr&gt;
+					&lt;td&gt;0.28.19&lt;/td&gt;
+					&lt;td&gt;v0.28.5&lt;/td&gt;
+					&lt;td&gt;preserves prerelease identifiers when resolving the latest published GHCR image so &lt;code&gt;v1.0.0-alpha.1&lt;/code&gt; is not rewritten to the nonexistent &lt;code&gt;v1.0.0&lt;/code&gt; tag&lt;/td&gt;
+			&lt;/tr&gt;
+			&lt;tr&gt;
 					&lt;td&gt;0.28.18&lt;/td&gt;
 					&lt;td&gt;v0.28.5&lt;/td&gt;
 					&lt;td&gt;restores Codex processkit MCP startup by preserving &lt;code&gt;uv run --script&lt;/code&gt; in gateway daemon-proxy commands, integrates processkit&amp;rsquo;s MCP 1.x compatibility bound, and restores zero-warning clippy under Rust 1.97&lt;/td&gt;
