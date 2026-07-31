@@ -12,6 +12,12 @@ AIBOX_MAINTAIN_SOURCE_ONLY=1 source "${SCRIPT_DIR}/maintain.sh"
   || die "v1 prereleases must resolve to v1.x-pre-release"
 [[ "$(release_branch_for_version 1.0.0)" == "v1.x-release" ]] \
   || die "v1 GA versions must resolve to v1.x-release"
+declare -f cmd_release_host | grep -Fq 'X.Y.Z or X.Y.Z-prerelease' \
+  || die "release-host must accept prerelease SemVer"
+grep -Fq 'X.Y.Z or X.Y.Z-prerelease' "${SCRIPT_DIR}/build-macos.sh" \
+  || die "macOS artifact builds must accept prerelease SemVer"
+grep -Fq 'X.Y.Z or X.Y.Z-prerelease' "${SCRIPT_DIR}/release-runtime-smoke.sh" \
+  || die "release runtime smoke must accept prerelease SemVer"
 declare -F publish_release_candidate >/dev/null \
   || die "release candidate protected-branch publisher is missing"
 declare -F release_docs_gate >/dev/null \
