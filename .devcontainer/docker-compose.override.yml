@@ -18,7 +18,8 @@ services:
     # namespace creation before bubblewrap gets control.
     # security_opt:
     #  - seccomp=unconfined
-
+    ports:
+      - "127.0.0.1:1316:1316"
   # ── E2E Test Companion Container ───────────────────────────────────────────
   # Simulates a user's host machine for end-to-end testing of the aibox CLI.
   # No shared volumes — the test harness SCPs the aibox binary + addons into

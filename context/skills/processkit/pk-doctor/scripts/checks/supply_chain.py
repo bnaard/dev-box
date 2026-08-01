@@ -197,8 +197,8 @@ def _is_nested_repository(repo_root: Path, directory: Path) -> bool:
     """Return whether ``directory`` is a repository nested below ``repo_root``.
 
     A Git submodule checkout has a ``.git`` *file*, while a standalone nested
-    checkout has a ``.git`` directory.  Neither is part of the owning
-    project's dependency surface, so both must be pruned before discovery.
+    checkout has a ``.git`` directory. Neither is part of the owning project's
+    dependency surface, so both must be pruned before discovery.
     """
     return directory != repo_root and (directory / ".git").exists()
 
