@@ -638,6 +638,11 @@ pub static COMPAT_TABLE: &[CompatEntry] = &[
         processkit_version: "v0.28.5",
         note: "Patch release: preserves prerelease identifiers when resolving the latest published GHCR image so v1.0.0-alpha.1 is not rewritten to the nonexistent v1.0.0 tag.",
     },
+    CompatEntry {
+        aibox_version: "0.29.0",
+        processkit_version: "v0.28.5",
+        note: "Minor release: adds Tau as a first-class multi-provider coding-agent harness with pinned installation, persistent runtime state, AGENTS.md discovery, Agent Skills projection, and explicit MCP capability reporting.",
+    },
 ];
 
 /// Find the minimum compatible processkit version for the given aibox version.
