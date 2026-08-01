@@ -1334,6 +1334,7 @@ fn cleanup_disabled_harness_state(config: &AiboxConfig, root: &Path) -> Result<V
             AiHarness::Claude => vec![".claude", ".mcp.json"],
             AiHarness::Copilot => vec![".copilot"],
             AiHarness::Hermes => vec![".hermes"],
+            AiHarness::Tau => vec![".tau"],
             AiHarness::Mistral => vec![],
         }
     }

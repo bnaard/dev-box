@@ -551,6 +551,7 @@ check_addon_version "Kustomize" "$(addon_tool_default "${PROJECT_ROOT}/addons/to
 check_addon_tool_github "k9s" "${PROJECT_ROOT}/addons/tools/kubernetes.yaml" "k9s" "derailed/k9s"
 check_addon_tool_github "OpenCode" "${PROJECT_ROOT}/addons/ai/ai-opencode.yaml" "opencode" "opencode-ai/opencode"
 check_addon_tool_pypi "Hermes Agent" "${PROJECT_ROOT}/addons/ai/ai-hermes.yaml" "hermes" "hermes-agent"
+check_addon_tool_pypi "Tau" "${PROJECT_ROOT}/addons/ai/ai-tau.yaml" "tau" "tau-ai"
 line ""
 line "Python defaults are curated in the addon catalog and installed through uv when they differ from the Debian base interpreter."
 
