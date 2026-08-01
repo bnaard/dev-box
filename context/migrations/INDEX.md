@@ -8,7 +8,7 @@ None.
 
 None.
 
-## Applied (6)
+## Applied (7)
 
 | Date       | Migration                                | Notes |
 |------------|------------------------------------------|-------|
@@ -18,11 +18,13 @@ None.
 | 2026-07-20 | MIG-20260720_1408-SnappyComet-canonicalize-note-spec-key-order-for — local-project  → | Canonicalize Note spec key order for v0.27.5 doctor |
 | 2026-07-23 | MIG-20260723_0850-ContentSync-processkit-content-sync — processkit v0.27.5 → v0.28.1 | 2 changed upstream, 4 conflicts, 5 new, 16 removed, 0 stale-removed (11 groups affected) |
 | 2026-07-23 | MIG-20260723_0911-RuntimeSync-aibox-runtime — aibox-runtime-home 0.28.3 → 0.28.4 | 0 changed upstream, 0 conflicts, 0 new, 0 removed (0 groups affected) |
+| 2026-08-01 | MIG-20260731_1724-ContentSync-processkit-content-sync — processkit v0.28.1 → v0.28.5 | 0 changed upstream, 1 conflicts, 9 new, 0 removed, 0 stale-removed (2 groups affected) |
 
-## Rejected (3)
+## Rejected (4)
 
 | Date       | Migration                                | Reason |
 |------------|------------------------------------------|--------|
 | 2026-07-17 | MIG-20260717_1220-RuntimeSync-aibox-runtime — aibox-runtime-home 0.27.6 → 0.27.5 | Malformed no-op runtime sync: reports zero changed/conflicted/new/removed files and a backwards version transition from… |
 | 2026-07-20 | MIG-20260720_1404-AgileBridge-normalize-legacy-note-frontmatter-for-v0 — local-project  → | Rejected after diagnosis: the Note is schema-valid; pk-doctor's naive frontmatter delimiter split truncates YAML block … |
 | 2026-07-20 | MIG-20260720_1407-FineForge-normalize-markdown-rule-in-note-yaml — local-project  → | Rejected after refinement: the first triple-hyphen occurs inside a Markdown table separator, so changing the content wo… |
+| 2026-08-01 | MIG-20260731_1724-RuntimeSync-aibox-runtime — aibox-runtime-home 1.0.0-alpha.1 → 0.28.18 | Malformed zero-change runtime migration caused by applying v0.28.18 host context to the independent v1.0.0-alpha.1 line… |

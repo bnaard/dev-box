@@ -1,0 +1,178 @@
+---
+apiVersion: processkit.projectious.work/v2
+kind: Schema
+metadata:
+  id: SCHEMA-roleslot
+  target_kind: RoleSlot
+  version: 1.0.0
+  created: 2026-05-09T00:00:00+00:00
+spec:
+  description: >
+    A scope-bounded capacity reservation for one parallel worker filling a
+    given (Role, seniority) within a chartering Scope. RoleSlot decouples
+    *capacity* (how many parallel workers a role needs in this charter)
+    from *identity* (who the persistent persona is). Persistent
+    TeamMembers carry stable memory and personality; RoleSlots carry no
+    memory and exist only inside the lifetime of their chartering Scope.
+
+    Introduced in Phase A of team-creator v2 (DEC-20260509_1906-CoolBadger,
+    ART-20260509_1836-SmartPanda). Phase A is additive and reversible:
+    the new resolver pre-step inserts before the existing 8-layer
+    model-assignment binding precedence without reshaping it; v0.16.0
+    capacity fields on Role/TeamMember stay readable during the
+    deprecation window.
+
+    A RoleSlot is filled through a Binding of type ``role-slot-fill``
+    (subject = TEAMMEMBER-<slug>, target = SLOT-<id>). State machine:
+    ``open → filled → closed``. ``closed`` is terminal — re-opening
+    means a new SLOT-id at the next charter. When the chartering Scope
+    closes, all open or filled slots auto-close.
+
+    For ephemeral worker invocations (no persistent TeamMember filled
+    in the slot), the slot's optional ``default_model_profile`` carries
+    forward as the Layer 8 fallback for the existing
+    model-assignment 8-layer resolver.
+  id_prefix: SLOT
+  state_machine: null
+  default_directory: context/roleslots
+  seniority_levels:
+    - junior
+    - specialist
+    - expert
+    - senior
+    - principal
+  states:
+    - open
+    - filled
+    - closed
+  metadata_schema:
+    $schema: https://json-schema.org/draft/2020-12/schema
+    type: object
+    required:
+      - id
+    properties:
+      id:
+        type: string
+        pattern: ^SLOT-[a-z0-9][a-z0-9-]*-[1-9][0-9]*$
+        description: >
+          ``SLOT-<scope-slug>-<role-slug>-<rank>``. Scope and role slugs
+          are kebab-case (lowercase letters, digits, dashes). Rank is a
+          positive integer with ``rank=1`` meaning the primary slot for
+          this (scope, role, seniority) triple, ``rank=2..N`` parallel
+          reservations.
+  spec_schema:
+    $schema: https://json-schema.org/draft/2020-12/schema
+    type: object
+    required:
+      - scope
+      - role
+      - seniority
+      - rank
+      - state
+      - rationale
+      - created
+    additionalProperties: true
+    properties:
+      scope:
+        type: string
+        pattern: ^SCOPE-[a-zA-Z0-9_-]+$
+        description: >
+          ID of the chartering Scope. Mandatory — slots have no meaning
+          outside a Scope. When the Scope closes, all open or filled
+          slots auto-close.
+      role:
+        type: string
+        pattern: ^ROLE-[a-z][a-z0-9-]*$
+        description: >
+          FK into ``context/roles/``. The catalog Role this slot
+          reserves capacity for. v2 schema (DEC-20260422_0234-BraveFalcon)
+          requires the slug to be seniority-free.
+      seniority:
+        type: string
+        enum:
+          - junior
+          - specialist
+          - expert
+          - senior
+          - principal
+        description: >
+          Pure ordinal seniority for this slot. Resolved through
+          (role, seniority) → (model, effort) via model-assignment
+          bindings.
+      rank:
+        type: integer
+        minimum: 1
+        description: >
+          1 = primary slot for this (scope, role, seniority); 2..N =
+          parallel reservations. Two slots with the same (scope, role,
+          seniority) must have distinct ranks.
+      state:
+        type: string
+        enum:
+          - open
+          - filled
+          - closed
+        description: >
+          State machine: ``open → filled → closed``. ``closed`` is
+          terminal. Reverse transitions are rejected.
+      filled_by:
+        type:
+          - string
+          - "null"
+        pattern: ^TEAMMEMBER-[a-z][a-z0-9-]*$
+        description: >
+          ID of the TeamMember currently filling this slot, or null if
+          the slot is open. Set when state transitions to ``filled``;
+          cleared when the slot is closed.
+      default_model_profile:
+        type:
+          - string
+          - "null"
+        pattern: ^ART-[0-9]{8}_[0-9]{4}-ModelProfile-[a-z0-9-]+$
+        description: >
+          Optional pin for ephemeral dispatches when no TeamMember is
+          filled in this slot. Carried forward as the Layer 8 fallback
+          of the existing 8-layer model-assignment binding precedence.
+      effort_floor:
+        type:
+          - string
+          - "null"
+        enum:
+          - low
+          - medium
+          - high
+          - extra-high
+          - max
+          - null
+        description: Optional minimum effort tier for dispatches through this slot.
+      effort_ceiling:
+        type:
+          - string
+          - "null"
+        enum:
+          - low
+          - medium
+          - high
+          - extra-high
+          - max
+          - null
+        description: Optional maximum effort tier for dispatches through this slot.
+      rationale:
+        type: string
+        minLength: 1
+        description: One-line reason this slot exists in the charter.
+      created:
+        type: string
+        format: date-time
+        description: ISO-8601 timestamp when the slot was opened.
+      closed_at:
+        type:
+          - string
+          - "null"
+        format: date-time
+        description: ISO-8601 timestamp when the slot was closed (terminal).
+      close_reason:
+        type:
+          - string
+          - "null"
+        description: Optional one-line reason recorded when the slot closes.

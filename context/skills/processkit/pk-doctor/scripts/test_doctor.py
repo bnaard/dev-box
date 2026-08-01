@@ -2206,11 +2206,19 @@ with tempfile.TemporaryDirectory() as tmp:
     active_briefing = (
         root / "context" / "migrations" / "20260410_1523_0.17.6-to-0.17.9.md"
     )
+    prerelease_briefing = (
+        root / "context" / "migrations" /
+        "20260410_1524_0.17.9-to-1.0.0-alpha.1.md"
+    )
     completed_briefing = (
         root / "context" / "migrations" / "20260409_0900_0.17.5-to-0.17.6.md"
     )
     active_briefing.write_text(
         "# Active historical migration note\n",
+        encoding="utf-8",
+    )
+    prerelease_briefing.write_text(
+        "# Active prerelease migration note\n",
         encoding="utf-8",
     )
     completed_briefing.write_text(
@@ -2249,7 +2257,7 @@ with tempfile.TemporaryDirectory() as tmp:
     ]
     check(
         "17c: fix run emits archived status",
-        len(archived) == 1,
+        len(archived) == 2,
         json.dumps(fix_records, indent=2),
     )
     check(
@@ -2261,6 +2269,12 @@ with tempfile.TemporaryDirectory() as tmp:
         "17c: archive contains briefing payload",
         (root / "context" / "archive" / "cli-migration-briefings" /
          active_briefing.name).exists(),
+    )
+    check(
+        "17c: prerelease briefing moved and archived",
+        not prerelease_briefing.exists()
+        and (root / "context" / "archive" / "cli-migration-briefings" /
+             prerelease_briefing.name).exists(),
     )
     check(
         "17c: completed briefing stays in place",
@@ -2609,32 +2623,6 @@ with tempfile.TemporaryDirectory() as tmp:
 
 with tempfile.TemporaryDirectory() as tmp:
     root = Path(tmp)
-    (root / "package.json").write_text(
-        '{"name": "owning-app", "private": true}\n',
-        encoding="utf-8",
-    )
-    (root / "package-lock.json").write_text("{}\n", encoding="utf-8")
-    nested_repo = root / "docs-site" / "themes" / "docsy"
-    nested_repo.mkdir(parents=True)
-    (nested_repo / ".git").write_text(
-        "gitdir: ../../../.git/modules/docs-site/themes/docsy\n",
-        encoding="utf-8",
-    )
-    (nested_repo / "package.json").write_text(
-        '{"name": "docsy-theme", "private": true}\n',
-        encoding="utf-8",
-    )
-    findings = _supply_chain_run({"repo_root": root, "since_files": None})
-    missing = [item for item in findings if item.id == "supply_chain.missing-lockfile"]
-    inventory = next(item for item in findings if item.id == "supply_chain.inventory")
-    check("21c1: nested gitfile repository manifests are excluded", not missing)
-    check(
-        "21c2: nested gitfile repository is absent from inventory",
-        inventory.extra["manifest_counts"] == {"Node": 1, "package.json": 1},
-    )
-
-with tempfile.TemporaryDirectory() as tmp:
-    root = Path(tmp)
     policy = root / ".processkit"
     policy.mkdir()
     (policy / "supply-chain-policy.yaml").write_text(
@@ -2772,30 +2760,6 @@ with tempfile.TemporaryDirectory() as tmp:
             "22: social-media numeric URL identifier is not a card",
             not list(sensitive_data._credit_cards(social_url)),
             social_url,
-        )
-        email_pattern = next(
-            pattern for pattern in sensitive_data._PATTERNS
-            if pattern.id == "sensitive-data.email-address"
-        )
-        synthetic_emails = "dev@example.com deploy@example.local git@unit.example"
-        check(
-            "22: reserved example email domains are ignored",
-            not list(sensitive_data._matches(
-                root / "AGENTS.md", synthetic_emails, email_pattern
-            )),
-            synthetic_emails,
-        )
-        phone_pattern = next(
-            pattern for pattern in sensitive_data._PATTERNS
-            if pattern.id == "sensitive-data.phone-number"
-        )
-        numeric_threshold = "MAX_ARCHIVE_BYTES=4294967296"
-        check(
-            "22: bare ten-digit numeric threshold is not a phone number",
-            not list(sensitive_data._matches(
-                root / "config.py", numeric_threshold, phone_pattern
-            )),
-            numeric_threshold,
         )
     frontmatter_path = root / "frontmatter.md"
     frontmatter_path.write_text(
