@@ -2304,15 +2304,12 @@ cmd_release() {
   fi
 
   if release_step_requested visual; then
-    case "${AIBOX_RELEASE_VISUAL_E2E:-skip}" in
-      skip|"")
-        warn "Skipping opt-in visual E2E during release. The release agent must justify this in notes or handover, or run AIBOX_RELEASE_VISUAL_E2E=<status|tabs|yazi|render|full|docs>."
-        ;;
-      *)
-        release_run_evidenced_step "visual-${AIBOX_RELEASE_VISUAL_E2E}" "${version}" \
-          "Visual E2E (${AIBOX_RELEASE_VISUAL_E2E})" release_visual_gate
-        ;;
-    esac
+    if [[ "${AIBOX_RELEASE_SKIP_VISUAL:-}" == "1" ]]; then
+      warn "AIBOX_RELEASE_SKIP_VISUAL=1 set — skipping the mandatory visual gate. Record the emergency justification in the release notes or handover."
+    else
+      AIBOX_RELEASE_VISUAL_E2E=full release_run_evidenced_step \
+        "visual-full" "${version}" "Mandatory visual E2E" release_visual_gate
+    fi
   fi
 
   if release_step_requested version-smoke; then
