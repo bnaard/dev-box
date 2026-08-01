@@ -1,14 +1,20 @@
-# aibox v0.28.19 — 2026-07-31
+# aibox v0.29.0 — 2026-08-01
 
-**Summary:** This patch restores `aibox apply` for projects that track the latest published image after the v1 alpha appeared. Users can upgrade normally; no configuration change is required.
+**Summary:** This minor release adds Tau as a first-class coding-agent harness for users who want its readable, provider-neutral terminal workflow inside an aibox dev container. Enable the new tau harness and rebuild the container; existing configurations remain compatible.
 
-## Fixed
+## Added
 
-- Preserve the complete published image SemVer, including prerelease identifiers, so `v1.0.0-alpha.1` resolves to its real GHCR runtime tag instead of the nonexistent `v1.0.0` tag.
-- Add regression coverage for exact prerelease image-tag generation.
+- Add tau to the supported AI harness catalog and generated aibox.toml configuration.
+- Install the pinned tau-ai 0.3.5 package through the shared uv tool environment and persist Tau state under ~/.tau.
+- Project processkit command adapters into Tau's Agent Skills-compatible .agents/skills/ directory.
+- Add Tau to terminal profiles, tmux layout coverage, addon publication, release pin validation, and user documentation.
+
+## Changed
+
+- Provider-backend reporting now states that Tau loads root AGENTS.md instructions and Agent Skills but does not currently provide a built-in MCP client.
 
 ## Upgrade notes
 
-Upgrade the host CLI to v0.28.19 and rerun `aibox apply`.
+Add { harness = "tau", enable = true, install = true } to [ai].harnesses, then run aibox apply.
 
-[v0.28.19]: https://github.com/projectious-work/aibox/compare/v0.28.18...v0.28.19
+[v0.29.0]: https://github.com/projectious-work/aibox/compare/v0.28.19...v0.29.0
