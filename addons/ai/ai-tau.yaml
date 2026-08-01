@@ -1,0 +1,35 @@
+name: ai-tau
+version: "1.0.0"
+description: "Tau educational coding agent (multi-provider)"
+profile_intent: provider-cli
+usage_class: manual-escalation-only
+profiles: ["human-dev"]
+exported_surfaces: ["cli-binary", "config-files"]
+builder_weight: null
+
+tools:
+  - name: tau
+    description: "Tau terminal coding agent"
+    default_enabled: true
+    default_version: "0.3.5"
+    supported_versions: ["0.3.5"]
+
+builder: null
+
+runtime: |
+  # Addon: ai-tau
+  # Tau: https://twotimespi.dev/
+  # Python coding agent with durable sessions, AGENTS.md project instructions,
+  # and Agent Skills discovery from .agents/skills.
+  # Config: ~/.tau/  |  Binary: tau
+  # Auth: start Tau and use /login, or configure a supported provider.
+  #
+  # Install through uv tool using the pinned PyPI package. Keep the tool
+  # environment outside /root so the non-root runtime user can execute it.
+  {% if tools.tau.version %}
+  RUN UV_TOOL_DIR=/opt/aibox/uv-tools uv tool install tau-ai=={{ tools.tau.version }} \
+      && chmod -R a+rX /opt/aibox/uv-tools
+  {% else %}
+  RUN UV_TOOL_DIR=/opt/aibox/uv-tools uv tool install tau-ai \
+      && chmod -R a+rX /opt/aibox/uv-tools
+  {% endif %}

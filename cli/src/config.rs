@@ -475,6 +475,8 @@ pub enum AiHarness {
     OpenCode,
     /// Nous Research autonomous agent.
     Hermes,
+    /// Tau educational multi-provider coding agent.
+    Tau,
     /// Mistral has no CLI harness; retained only so old config can be parsed.
     #[serde(rename = "mistral")]
     #[clap(skip)]
@@ -493,6 +495,7 @@ impl std::fmt::Display for AiHarness {
             AiHarness::Copilot => write!(f, "copilot"),
             AiHarness::OpenCode => write!(f, "opencode"),
             AiHarness::Hermes => write!(f, "hermes"),
+            AiHarness::Tau => write!(f, "tau"),
             AiHarness::Mistral => write!(f, "mistral"),
         }
     }
@@ -511,6 +514,7 @@ impl AiHarness {
             AiHarness::Copilot => "copilot",
             AiHarness::OpenCode => "opencode",
             AiHarness::Hermes => "hermes",
+            AiHarness::Tau => "tau",
             AiHarness::Mistral => "mistral",
         }
     }
@@ -527,6 +531,7 @@ impl AiHarness {
             AiHarness::Copilot => "GitHub Copilot (copilot)",
             AiHarness::OpenCode => "OpenCode (opencode)",
             AiHarness::Hermes => "Hermes (hermes)",
+            AiHarness::Tau => "Tau (tau)",
             AiHarness::Mistral => "Mistral (mistral, legacy)",
         }
     }
@@ -561,6 +566,7 @@ impl AiHarness {
             AiHarness::Copilot => Some(".copilot"),
             AiHarness::OpenCode => Some(".opencode"),
             AiHarness::Hermes => Some(".hermes"),
+            AiHarness::Tau => Some(".tau"),
             AiHarness::Mistral => None,
         }
     }
@@ -582,6 +588,7 @@ impl AiHarness {
             AiHarness::Copilot,
             AiHarness::OpenCode,
             AiHarness::Hermes,
+            AiHarness::Tau,
         ]
     }
 }

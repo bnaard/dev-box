@@ -501,7 +501,7 @@ controlled independently by `install = true`.
 
 | Field | Type | Required | Default | Description |
 |-------|------|----------|---------|-------------|
-| `harnesses[].harness` | String | Yes for each entry | none | Harness id. Supported values: `claude`, `codex`, `gemini`, `aider`, `continue`, `cursor`, `copilot`, `opencode`, `hermes`. |
+| `harnesses[].harness` | String | Yes for each entry | none | Harness id. Supported values: `claude`, `codex`, `gemini`, `aider`, `continue`, `cursor`, `copilot`, `opencode`, `hermes`, `tau`. Tau reads project instructions from `AGENTS.md` and Agent Skills from `.agents/skills/`; Tau does not currently expose a built-in MCP client. |
 | `harnesses[].enable` | Boolean | No | `false` | Include this harness in generated runtime, agent, and MCP config. Alias: `enabled`. |
 | `harnesses[].install` | Boolean | No | `false` | Install the matching in-container CLI recipe when available. Cursor has no container CLI, so keep this false for `cursor`. |
 | `harnesses[].version` | String | No | addon's default | Optional CLI version pin. |

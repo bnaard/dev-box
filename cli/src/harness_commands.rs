@@ -25,6 +25,7 @@
 //! | Cursor   | `.cursor/commands/<name>.md`               | md verbatim |
 //! | Gemini   | `.gemini/commands/<name>.toml`             | TOML (converted) |
 //! | OpenCode | `.opencode/commands/<name>.md`             | md verbatim |
+//! | Tau      | `.agents/skills/<name>/SKILL.md`           | Agent Skill |
 //!
 //! Codex Skills are the supported reusable-workflow surface and are invoked
 //! with `$<name>` or selected through `/skills`. Codex custom prompts provide
@@ -138,6 +139,15 @@ fn profile_for(harness: AiHarness, project_root: &Path) -> Option<HarnessCommand
             format: CommandFormat::CodexSkill,
             subdir_per_command: true,
         }),
+        AiHarness::Tau => Some(HarnessCommandProfile {
+            harness,
+            // Tau implements the Agent Skills specification and discovers
+            // project skills from .agents/skills.
+            target_dir: project_root.join(".agents").join("skills"),
+            file_extension: "md",
+            format: CommandFormat::CodexSkill,
+            subdir_per_command: true,
+        }),
         AiHarness::Cursor => Some(HarnessCommandProfile {
             harness,
             target_dir: project_root.join(".cursor").join("commands"),
@@ -197,6 +207,7 @@ const SCAFFOLDABLE_HARNESSES: &[AiHarness] = &[
     AiHarness::Cursor,
     AiHarness::Gemini,
     AiHarness::OpenCode,
+    AiHarness::Tau,
 ];
 
 /// Sync processkit command adapter files to every enabled harness target.
@@ -1382,6 +1393,26 @@ mod tests {
 
         assert!(!project.join(".agents/skills").exists());
         assert!(!project.join(".aibox-home/.codex/prompts").exists());
+    }
+
+    #[test]
+    fn tau_profile_writes_agent_skill_without_codex_prompt_alias() {
+        let tmp = tempfile::tempdir().unwrap();
+        let project = tmp.path();
+        fixture_with_pk_resume(project);
+
+        let config = config_with("v0.20.0", vec![AiHarness::Tau]);
+        sync_harness_commands(project, &config).unwrap();
+
+        let skill = project.join(".agents/skills/pk-resume/SKILL.md");
+        assert!(skill.exists(), "Tau must receive an Agent Skills adapter");
+        let content = fs::read_to_string(skill).unwrap();
+        assert!(content.contains("\nname: pk-resume\n"));
+        assert!(content.contains("Do the thing."));
+        assert!(
+            !project.join(".aibox-home/.codex/prompts").exists(),
+            "Tau must not create Codex-only prompt aliases"
+        );
     }
 
     #[test]
