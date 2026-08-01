@@ -191,7 +191,7 @@ ${bold}Development:${reset}
                            Plan or delete GHCR BuildKit cache package versions
   release-runtime-smoke <version>
                            Run host-side generated-runtime smoke and write logs
-  docs-serve               Serve Hugo/Docsy locally (http://localhost:1313/aibox/)
+  docs-serve               Serve Hugo/Docsy locally (http://localhost:1316/aibox/)
   docs-deploy --line <v0.x|v1.x> [--version vX.Y.Z] [--dry-run]
                            Build Hugo/Docsy, retain release snapshots, and push gh-pages
   test-visual              Run screencast smoke tests (~40s)
@@ -1346,9 +1346,9 @@ cmd_docs_serve() {
   if [[ ! -d "${PROJECT_ROOT}/docs-site/node_modules" ]]; then
     npm --prefix "${PROJECT_ROOT}/docs-site" ci
   fi
-  info "Serving docs with Hugo and Docsy at http://localhost:1313/aibox/v1.x/ ..."
+  info "Serving docs with Hugo and Docsy at http://localhost:1316/aibox/v1.x/ ..."
   hugo server --source "${PROJECT_ROOT}/docs-site" \
-    --bind 0.0.0.0 --baseURL "http://localhost:1313/aibox/v1.x/"
+    --bind 0.0.0.0 --port 1316 --baseURL "http://localhost:1316/aibox/v1.x/"
 }
 
 cmd_docs_deploy() {
