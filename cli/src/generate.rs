@@ -1990,6 +1990,25 @@ mod tests {
     }
 
     #[test]
+    fn e2e_companion_declares_the_systemd_kind_contract() {
+        let dockerfile = include_str!("../../.devcontainer/Dockerfile.e2e");
+        let compose = include_str!("../../.devcontainer/docker-compose.override.yml");
+
+        assert!(
+            dockerfile.contains("aibox-e2e-companion-contract=2")
+                && dockerfile.contains("CMD [\"/sbin/init\"]")
+                && dockerfile.contains("COPY --from=fetch-kubernetes-e2e /usr/local/bin/kind"),
+            "E2E companion Dockerfile must declare its systemd/kind compatibility contract"
+        );
+        assert!(
+            compose.contains("- /lib/modules:/lib/modules:ro")
+                && compose.contains("cgroup: private")
+                && compose.contains("- /run/lock"),
+            "E2E companion Compose service must provide the systemd/kind runtime contract"
+        );
+    }
+
+    #[test]
     fn compose_includes_aider_volume() {
         let dir = tempfile::tempdir().unwrap();
         let mut config = make_config(&[], false);

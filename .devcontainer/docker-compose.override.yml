@@ -34,6 +34,9 @@ services:
     volumes:
       # SSH keys — mounted from host (never committed to git)
       - ../.aibox-e2e-runner-home/.ssh:/home/testuser/.ssh:ro
+      # kind needs the host kernel module tree when it starts nested nodes.
+      # Keep it read-only: the companion must never mutate host modules.
+      - /lib/modules:/lib/modules:ro
     # Podman rootless inside a container needs:
     #   seccomp=unconfined  — allows syscalls used by user-namespace creation
     #   SYS_ADMIN           — allows newuidmap to write /proc/PID/uid_map
@@ -44,6 +47,10 @@ services:
     security_opt:
       - seccomp=unconfined
     privileged: true
+    # systemd is PID 1 inside a private cgroup namespace. It delegates a user
+    # slice to testuser, where SSH-triggered kind runs in a Delegate=yes scope.
+    # A private namespace confines systemd to this companion's subtree.
+    cgroup: private
     cap_add:
       - SYS_ADMIN
       - NET_ADMIN
@@ -52,3 +59,5 @@ services:
     tmpfs:
       - /tmp
       - /run
+      - /run/lock
+    stop_grace_period: 30s
