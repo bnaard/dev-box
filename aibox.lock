@@ -1,14 +1,14 @@
 [aibox]
-cli_version = "1.0.0-alpha.1"
-synced_at = "2026-07-23T08:50:33.605091468+00:00"
+cli_version = "0.28.18"
+synced_at = "2026-07-31T17:24:20.134779+00:00"
 
 [processkit]
 source = "https://github.com/projectious-work/processkit.git"
-version = "v0.28.1"
+version = "v0.28.5"
 src_path = "src"
-release_asset_sha256 = "8e4866d881d7a585eb496e66a02916ed5a4eeafcaf3d53351ffa6b9b854c069f"
-installed_at = "2026-07-23T08:50:33.605091468+00:00"
-processkit_install_hash = "v2:5165fc8892760bcf5b9e50f7d3045b027bb92960e406d41fd29a4b485c84cc4d"
+release_asset_sha256 = "18520c69c1e72587b59e135844527c6f6dcc440aecaf0fc2d74e9b8e776dca8c"
+installed_at = "2026-07-31T17:24:20.134779+00:00"
+processkit_install_hash = "v2:9cbe4fbc441ab8639b24e18e29373d779ca58bef761fc823c5fc9be79d5980f5"
 
 [addons]
 resolved_at = "2026-05-09T10:41:25Z"
@@ -34,7 +34,7 @@ rust = [
 ]
 
 [runtime_home]
-generated_at = "2026-07-23T08:49:18.512250937+00:00"
+generated_at = "2026-07-31T17:24:20.647199+00:00"
 
 [runtime_home.files]
 ".asoundrc" = "f34609b11d315cd613cb5333b561032baec860faf4a7eccb28b5567ae72019af"
@@ -57,7 +57,7 @@ generated_at = "2026-07-23T08:49:18.512250937+00:00"
 ".config/tmux/tmux.conf" = "3cc81b579d4e6cb69cfb69a37994e5a6bdbd2a25f7c691f28a91596b15babb3f"
 ".config/yazi/init.lua" = "eae04462c0b3bcbb486ee59aa9c2c9e9595680a0626997c942e5abb2ae5a48d7"
 ".config/yazi/keymap.toml" = "0b20be4e5f58d0af2ba72b8621e288ef2d6a7665a8a73c5fca5a172f83c6ebdd"
-".config/yazi/plugins/dir-preview.yazi/main.lua" = "1700f0400a0a8362d895d247b27bfae2478c1e76385d4b076846a6a7c16c74f4"
+".config/yazi/plugins/dir-preview.yazi/main.lua" = "333a25afe1dc850c344ff8c5844a27a9f16f2091eee0d7d1454b6e5129e1f175"
 ".config/yazi/plugins/eps.yazi/init.lua" = "edeaadeff1411fc9749eeae43c77754fd749db74790591ba75e9286ff36e94c5"
 ".config/yazi/plugins/git.yazi/main.lua" = "855f6bdf0ee33f503f575c2d75795c98ab1a9893c655940caf333d8fc87dc477"
 ".config/yazi/plugins/git.yazi/types.lua" = "16c54022dd327c35f533534f0b6995d800965e96d76f2e610b8b2fca0e5b4549"

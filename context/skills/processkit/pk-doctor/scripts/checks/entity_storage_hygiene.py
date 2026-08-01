@@ -20,8 +20,9 @@ from .common import CheckResult
 _FRONTMATTER_RE = re.compile(r"^---\n(.*?)\n---", re.S)
 _HOST_ARTIFACTS = {".DS_Store", "Thumbs.db", "desktop.ini"}
 _WORDPAIR_RE = re.compile(r"^[A-Z][a-z]+[A-Z][A-Za-z]+$")
+_SEMVER_RE = r"\d+\.\d+\.\d+(?:-[0-9A-Za-z.-]+)?"
 _CLI_MIGRATION_RE = re.compile(
-    r"^\d{8}_\d{4}_\d+\.\d+\.\d+-to-\d+\.\d+\.\d+\.md$"
+    rf"^\d{{8}}_\d{{4}}_{_SEMVER_RE}-to-{_SEMVER_RE}\.md$"
 )
 _LEGACY_RUNTIME_MIGRATION_RE = re.compile(
     r"^MIG-RUNTIME(?:-DRIFT)?-\d{8}T\d{6}$"
