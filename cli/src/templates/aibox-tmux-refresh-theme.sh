@@ -81,7 +81,7 @@ while IFS=$'\t' read -r pane_id pane_cmd; do
             tmux send-keys -t "$pane_id" ':plugin theme-reload' Enter
             (( refreshed_count += 1 )) || true
             ;;
-        lazygit|lnav|claude|codex|aider|gemini|opencode|hermes)
+        lazygit|lnav|claude|codex|aider|gemini|opencode|hermes|tau)
             # These need a full restart to pick up new colors (tier 2).
             # Collect them now; act on them only in tier 2.
             tui_panes+=("$pane_id")

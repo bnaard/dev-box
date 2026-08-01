@@ -249,6 +249,7 @@ main() {
     ai/ai-copilot.yaml
     ai/ai-gemini.yaml
     ai/ai-hermes.yaml
+    ai/ai-tau.yaml
     ai/ai-mistral.yaml
     ai/ai-opencode.yaml
   "

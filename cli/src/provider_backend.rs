@@ -161,7 +161,7 @@ fn has_container_cli(harness: &AiHarness) -> bool {
 }
 
 fn has_mcp_client(harness: &AiHarness) -> bool {
-    !matches!(harness, AiHarness::Aider)
+    !matches!(harness, AiHarness::Aider | AiHarness::Tau)
 }
 
 fn mcp_config_target(harness: &AiHarness) -> Option<&'static str> {
@@ -174,6 +174,7 @@ fn mcp_config_target(harness: &AiHarness) -> Option<&'static str> {
         AiHarness::Codex => Some(".codex/config.toml"),
         AiHarness::Continue => Some(".continue/mcpServers/"),
         AiHarness::Aider => None,
+        AiHarness::Tau => None,
         AiHarness::Mistral => Some(".mcp.json"),
     }
 }
@@ -188,7 +189,7 @@ fn permission_target(harness: &AiHarness) -> Option<&'static str> {
         AiHarness::Cursor => Some(".cursor/settings.json"),
         AiHarness::Copilot => Some(".copilot-env"),
         AiHarness::OpenCode => Some(".opencode/config.toml"),
-        AiHarness::Hermes | AiHarness::Mistral => None,
+        AiHarness::Hermes | AiHarness::Tau | AiHarness::Mistral => None,
     }
 }
 
@@ -197,6 +198,9 @@ fn notes(harness: &AiHarness) -> Vec<&'static str> {
         AiHarness::Aider => vec!["no built-in MCP client; aibox emits permission fallback only"],
         AiHarness::Cursor => vec!["host-side IDE backend; no in-container CLI addon"],
         AiHarness::Hermes => vec!["uses .mcp.json registration; no permission projection yet"],
+        AiHarness::Tau => {
+            vec!["no built-in MCP client; reads AGENTS.md and Agent Skills from .agents/skills"]
+        }
         _ => Vec::new(),
     }
 }

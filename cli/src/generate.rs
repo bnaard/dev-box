@@ -1876,6 +1876,24 @@ mod tests {
     }
 
     #[test]
+    fn dockerfile_installs_tau_in_shared_uv_tool_directory() {
+        let dir = tempfile::tempdir().unwrap();
+        let mut config = make_config(&[], false);
+        config.ai.harnesses = vec![crate::config::AiProvider::Tau];
+        config.resolve_ai_provider_addons();
+        generate_dockerfile(&config, dir.path(), &test_env()).unwrap();
+        let content = fs::read_to_string(dir.path().join("Dockerfile")).unwrap();
+        assert!(
+            content.contains("UV_TOOL_DIR=/opt/aibox/uv-tools uv tool install tau-ai==0.3.5"),
+            "Tau should be installed from its pinned PyPI package: {content}"
+        );
+        assert!(
+            content.contains("chmod -R a+rX /opt/aibox/uv-tools"),
+            "Tau tool environment must be traversable by the runtime user: {content}"
+        );
+    }
+
+    #[test]
     fn dockerfile_claude_installed_via_addon() {
         let dir = tempfile::tempdir().unwrap();
         let mut config = make_config(&[], false);
