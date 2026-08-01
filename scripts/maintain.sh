@@ -123,7 +123,7 @@ ${bold}Development:${reset}
                            Plan or delete GHCR BuildKit cache package versions
   release-runtime-smoke <version>
                            Run host-side generated-runtime smoke and write logs
-  docs-serve               Serve Docusaurus locally (http://localhost:3000)
+  docs-serve               Serve Docusaurus locally (http://localhost:1316)
   docs-deploy [--dry-run]  Build Docusaurus and push to gh-pages branch
   test-visual              Run screencast smoke tests (~40s)
   record-docs              Regenerate all docs screencasts + README GIF
@@ -1217,8 +1217,8 @@ cmd_ghcr_prune_buildcache_tags() {
 
 cmd_docs_serve() {
   cd "${PROJECT_ROOT}/docs-site"
-  info "Serving docs with Docusaurus at http://localhost:3000 ..."
-  npx docusaurus start --host 0.0.0.0
+  info "Serving docs with Docusaurus at http://localhost:1316 ..."
+  npx docusaurus start --host 0.0.0.0 --port 1316
 }
 
 cmd_docs_deploy() {
