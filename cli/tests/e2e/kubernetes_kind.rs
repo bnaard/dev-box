@@ -63,7 +63,7 @@ fn kubernetes_kind_lifecycle_produces_release_candidate_evidence() {
     );
 
     let preflight = runner.exec(
-        "set -eu; kind version; kubectl version --client; \
+        "set -eu; test \"$(cat /usr/local/share/aibox/e2e-companion-contract)\" = \"aibox-e2e-companion-contract=2\"; kind version; kubectl version --client; \
          test \"$(ps -p 1 -o comm= | tr -d ' ')\" = systemd; \
          test \"$(stat -fc %T /sys/fs/cgroup)\" = cgroup2fs; \
          test \"$(podman info --format '{{.Host.CgroupManager}}')\" = systemd; \

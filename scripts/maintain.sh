@@ -363,6 +363,7 @@ e2e_companion_preflight() {
     'set -eu
      command -v kind >/dev/null
      command -v kubectl >/dev/null
+     test "$(cat /usr/local/share/aibox/e2e-companion-contract)" = "aibox-e2e-companion-contract=2"
      test "$(ps -p 1 -o comm= | tr -d " ")" = systemd
      test "$(stat -fc %T /sys/fs/cgroup)" = cgroup2fs
      test -d /lib/modules
