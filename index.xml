@@ -1139,6 +1139,11 @@ below shows the minimum compatible processkit version for each aibox release.&lt
 	&lt;/thead&gt;
 	&lt;tbody&gt;
 			&lt;tr&gt;
+					&lt;td&gt;0.29.0&lt;/td&gt;
+					&lt;td&gt;v0.28.5&lt;/td&gt;
+					&lt;td&gt;adds Tau as a first-class multi-provider coding-agent harness with pinned installation, persistent runtime state, AGENTS.md discovery, Agent Skills projection, and explicit reporting that Tau does not currently expose a built-in MCP client&lt;/td&gt;
+			&lt;/tr&gt;
+			&lt;tr&gt;
 					&lt;td&gt;0.28.19&lt;/td&gt;
 					&lt;td&gt;v0.28.5&lt;/td&gt;
 					&lt;td&gt;preserves prerelease identifiers when resolving the latest published GHCR image so &lt;code&gt;v1.0.0-alpha.1&lt;/code&gt; is not rewritten to the nonexistent &lt;code&gt;v1.0.0&lt;/code&gt; tag&lt;/td&gt;

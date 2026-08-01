@@ -1,0 +1,31 @@
+<?xml version="1.0" encoding="utf-8" standalone="yes"?><rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom"><channel><title>Documentation on aibox</title><link>https://projectious-work.github.io/aibox/v0.x/v0.29.0/docs/</link><description>Recent content in Documentation on aibox</description><generator>Hugo</generator><language>en</language><atom:link href="https://projectious-work.github.io/aibox/v0.x/v0.29.0/docs/index.xml" rel="self" type="application/rss+xml"/><item><title>Overview</title><link>https://projectious-work.github.io/aibox/v0.x/v0.29.0/docs/overview/</link><pubDate>Mon, 01 Jan 0001 00:00:00 +0000</pubDate><guid>https://projectious-work.github.io/aibox/v0.x/v0.29.0/docs/overview/</guid><description>&lt;h1 id="overview"&gt;Overview&lt;/h1&gt;
+&lt;p&gt;aibox creates reproducible, AI-ready development workspaces from one project
+configuration file. It is not a new container runtime and it is not a process
+framework. It is the glue that turns a declared project shape into a standard
+devcontainer, selected tool bundles, AI harness configuration, and either a
+processkit-backed context layer or a harness-only project skeleton.&lt;/p&gt;
+&lt;h2 id="the-short-version"&gt;The Short Version&lt;/h2&gt;
+&lt;div class="highlight"&gt;&lt;pre tabindex="0" class="chroma"&gt;&lt;code class="language-bash" data-lang="bash"&gt;&lt;span class="line"&gt;&lt;span class="cl"&gt;aibox init my-app --harness claude --addon python
+&lt;/span&gt;&lt;/span&gt;&lt;span class="line"&gt;&lt;span class="cl"&gt;aibox apply
+&lt;/span&gt;&lt;/span&gt;&lt;span class="line"&gt;&lt;span class="cl"&gt;aibox up
+&lt;/span&gt;&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;p&gt;&lt;code&gt;aibox init&lt;/code&gt; writes the initial project contract. &lt;code&gt;aibox apply&lt;/code&gt; reconciles that
+contract into generated files and content. &lt;code&gt;aibox up&lt;/code&gt; starts or attaches to the
+workspace.&lt;/p&gt;</description></item><item><title>Roadmap</title><link>https://projectious-work.github.io/aibox/v0.x/v0.29.0/docs/roadmap/</link><pubDate>Mon, 01 Jan 0001 00:00:00 +0000</pubDate><guid>https://projectious-work.github.io/aibox/v0.x/v0.29.0/docs/roadmap/</guid><description>&lt;h1 id="roadmap"&gt;Roadmap&lt;/h1&gt;
+&lt;p&gt;This page outlines planned features and improvements for aibox. The internal
+source of truth is the processkit work item index under &lt;code&gt;context/&lt;/code&gt;; this page is
+the public-facing summary.&lt;/p&gt;
+&lt;h2 id="current-focus"&gt;Current Focus&lt;/h2&gt;
+&lt;p&gt;Current work is focused on making long-running AI workspaces cheaper and more
+predictable:&lt;/p&gt;
+&lt;ul&gt;
+&lt;li&gt;explicit Compose project and image names for each aibox project&lt;/li&gt;
+&lt;li&gt;optional tool bundles so idle containers do not carry unnecessary CLIs&lt;/li&gt;
+&lt;li&gt;suspended non-focused tmux panes&lt;/li&gt;
+&lt;li&gt;runtime resource snapshots and doctor thresholds&lt;/li&gt;
+&lt;li&gt;init-reaper support for orphaned helper processes&lt;/li&gt;
+&lt;li&gt;processkit MCP gateway adoption and daemon validation in real projects&lt;/li&gt;
+&lt;/ul&gt;
+&lt;h2 id="planned--near-term"&gt;Planned — Near Term&lt;/h2&gt;
+&lt;h3 id="processkit-gateway-follow-through"&gt;processkit Gateway Follow-Through&lt;/h3&gt;
+&lt;p&gt;Keep validating the gateway-mode MCP defaults in downstream projects and tune
+daemon guidance as more host/container runtime combinations are exercised.&lt;/p&gt;</description></item></channel></rss>

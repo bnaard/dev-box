@@ -1,0 +1,55 @@
+<?xml version="1.0" encoding="utf-8" standalone="yes"?><rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom"><channel><title>Project Context on aibox</title><link>https://projectious-work.github.io/aibox/v0.x/v0.29.0/docs/context/</link><description>Recent content in Project Context on aibox</description><generator>Hugo</generator><language>en</language><atom:link href="https://projectious-work.github.io/aibox/v0.x/v0.29.0/docs/context/index.xml" rel="self" type="application/rss+xml"/><item><title>Context Overview</title><link>https://projectious-work.github.io/aibox/v0.x/v0.29.0/docs/context/overview/</link><pubDate>Mon, 01 Jan 0001 00:00:00 +0000</pubDate><guid>https://projectious-work.github.io/aibox/v0.x/v0.29.0/docs/context/overview/</guid><description>&lt;h1 id="context-system-overview"&gt;Context System Overview&lt;/h1&gt;
+&lt;p&gt;The aibox context system controls what project-level instructions and
+structured working memory are available to AI harnesses. It has two modes:
+&lt;code&gt;processkit&lt;/code&gt;, which installs the full structured context layer, and
+&lt;code&gt;harness-only&lt;/code&gt;, which keeps only the generated container and harness setup.&lt;/p&gt;
+&lt;p&gt;As of &lt;strong&gt;v0.16.0&lt;/strong&gt;, the system is split across two cleanly separated projects:&lt;/p&gt;
+&lt;ul&gt;
+&lt;li&gt;&lt;strong&gt;aibox&lt;/strong&gt; owns the &lt;strong&gt;container&lt;/strong&gt; — devcontainers, addons, the CLI, the
+install/apply/migrate machinery, and the project skeleton (&lt;code&gt;aibox.lock&lt;/code&gt;,
+&lt;code&gt;.gitignore&lt;/code&gt;, provider pointer files, and, in harness-only mode, a minimal
+&lt;code&gt;AGENTS.md&lt;/code&gt;).&lt;/li&gt;
+&lt;li&gt;&lt;strong&gt;&lt;a href="https://github.com/projectious-work/processkit"&gt;processkit&lt;/a&gt;&lt;/strong&gt; owns the
+&lt;strong&gt;content&lt;/strong&gt; — every skill, every primitive schema, every state machine, the
+canonical &lt;code&gt;AGENTS.md&lt;/code&gt; template, the processes, and the package YAMLs that
+compose them.&lt;/li&gt;
+&lt;li&gt;&lt;strong&gt;The user-side &lt;code&gt;context/&lt;/code&gt; directory is shared territory in processkit mode.&lt;/strong&gt;
+aibox creates it, processkit fills it, and the user edits in place. An
+immutable upstream snapshot is kept under
+&lt;code&gt;context/templates/processkit/&amp;lt;version&amp;gt;/&lt;/code&gt; for the three-way diff that
+&lt;code&gt;aibox apply&lt;/code&gt; uses to detect upstream changes versus local edits.&lt;/li&gt;
+&lt;/ul&gt;
+&lt;h2 id="the-problem"&gt;The Problem&lt;/h2&gt;
+&lt;p&gt;AI coding agents like Claude operate best when they understand not just the
+code, but the project&amp;rsquo;s goals, decisions, and current state. Without structure,
+this information ends up scattered across chat histories, stale comments, and
+the developer&amp;rsquo;s memory.&lt;/p&gt;</description></item><item><title>Skill Selection</title><link>https://projectious-work.github.io/aibox/v0.x/v0.29.0/docs/context/process-packages/</link><pubDate>Mon, 01 Jan 0001 00:00:00 +0000</pubDate><guid>https://projectious-work.github.io/aibox/v0.x/v0.29.0/docs/context/process-packages/</guid><description>&lt;h1 id="skill-selection"&gt;Skill Selection&lt;/h1&gt;
+&lt;p&gt;New aibox projects list the standard processkit operating skills explicitly in
+&lt;code&gt;[skills].include&lt;/code&gt;. This makes skill selection a direct comment/uncomment
+workflow in &lt;code&gt;aibox.toml&lt;/code&gt; without relying on legacy package tiers.&lt;/p&gt;
+&lt;p&gt;Use &lt;code&gt;[skills].include&lt;/code&gt; for explicit additions and &lt;code&gt;[skills].exclude&lt;/code&gt; for
+explicit removals:&lt;/p&gt;
+&lt;div class="highlight"&gt;&lt;pre tabindex="0" class="chroma"&gt;&lt;code class="language-toml" data-lang="toml"&gt;&lt;span class="line"&gt;&lt;span class="cl"&gt;&lt;span class="p"&gt;[&lt;/span&gt;&lt;span class="nx"&gt;skills&lt;/span&gt;&lt;span class="p"&gt;]&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span class="line"&gt;&lt;span class="cl"&gt;&lt;span class="nx"&gt;include&lt;/span&gt; &lt;span class="p"&gt;=&lt;/span&gt; &lt;span class="p"&gt;[&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span class="line"&gt;&lt;span class="cl"&gt; &lt;span class="s2"&gt;&amp;#34;pk-doctor&amp;#34;&lt;/span&gt;&lt;span class="p"&gt;,&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span class="line"&gt;&lt;span class="cl"&gt; &lt;span class="s2"&gt;&amp;#34;status-briefing&amp;#34;&lt;/span&gt;&lt;span class="p"&gt;,&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span class="line"&gt;&lt;span class="cl"&gt;&lt;span class="p"&gt;]&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span class="line"&gt;&lt;span class="cl"&gt;&lt;span class="nx"&gt;exclude&lt;/span&gt; &lt;span class="p"&gt;=&lt;/span&gt; &lt;span class="p"&gt;[&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span class="line"&gt;&lt;span class="cl"&gt; &lt;span class="c"&gt;# &amp;#34;skill-to-omit&amp;#34;,&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span class="line"&gt;&lt;span class="cl"&gt;&lt;span class="p"&gt;]&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;p&gt;Legacy package tiers (&lt;code&gt;minimal&lt;/code&gt;, &lt;code&gt;managed&lt;/code&gt;, &lt;code&gt;software&lt;/code&gt;, &lt;code&gt;research&lt;/code&gt;, &lt;code&gt;product&lt;/code&gt;)
+are still accepted for compatibility under &lt;code&gt;[context].packages&lt;/code&gt; when
+&lt;code&gt;[context].mode = &amp;quot;processkit&amp;quot;&lt;/code&gt;, but explicit &lt;code&gt;[skills]&lt;/code&gt; selection is the
+preferred control surface.&lt;/p&gt;</description></item><item><title>Migration</title><link>https://projectious-work.github.io/aibox/v0.x/v0.29.0/docs/context/migration/</link><pubDate>Mon, 01 Jan 0001 00:00:00 +0000</pubDate><guid>https://projectious-work.github.io/aibox/v0.x/v0.29.0/docs/context/migration/</guid><description>&lt;h1 id="migration"&gt;Migration&lt;/h1&gt;
+&lt;p&gt;When the aibox context schema evolves between versions, existing projects may
+need to update their context files. The &lt;code&gt;aibox doctor&lt;/code&gt; command helps identify
+schema gaps and produces review artifacts under &lt;code&gt;.aibox/migration/&lt;/code&gt;.&lt;/p&gt;
+&lt;p&gt;Separate processkit content and generated-runtime changes are surfaced as
+Migration entities under &lt;code&gt;context/migrations/&lt;/code&gt; in processkit mode.&lt;/p&gt;
+&lt;div class="alert alert-warning" role="alert"&gt;&lt;div class="h4 alert-heading" role="heading"&gt;v0.16.0 — `context/AIBOX.md` is gone&lt;/div&gt;
+&lt;p&gt;Pre-v0.16 releases generated a &lt;code&gt;context/AIBOX.md&lt;/code&gt; &amp;ldquo;universal baseline&amp;rdquo; file
+on every &lt;code&gt;aibox apply&lt;/code&gt;. That file has been &lt;strong&gt;removed&lt;/strong&gt; as part of the
+aibox⇄processkit split. The canonical agent entry document is now &lt;code&gt;AGENTS.md&lt;/code&gt;
+at the project root. In processkit mode it is rendered from processkit
+scaffolding; in harness-only mode it is a minimal aibox-owned file. In both
+modes &lt;code&gt;aibox init&lt;/code&gt; writes it only when missing.&lt;/p&gt;</description></item></channel></rss>

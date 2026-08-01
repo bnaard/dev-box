@@ -13,6 +13,7 @@ below shows the minimum compatible processkit version for each aibox release.
 
 | aibox version | Min. processkit | Notes |
 |--------------|-----------------|-------|
+| 0.29.0 | v0.28.5 | adds Tau as a first-class multi-provider coding-agent harness with pinned installation, persistent runtime state, AGENTS.md discovery, Agent Skills projection, and explicit reporting that Tau does not currently expose a built-in MCP client |
 | 0.28.19 | v0.28.5 | preserves prerelease identifiers when resolving the latest published GHCR image so `v1.0.0-alpha.1` is not rewritten to the nonexistent `v1.0.0` tag |
 | 0.28.18 | v0.28.5 | restores Codex processkit MCP startup by preserving `uv run --script` in gateway daemon-proxy commands, integrates processkit's MCP 1.x compatibility bound, and restores zero-warning clippy under Rust 1.97 |
 | 0.28.17 | v0.28.4 | repairs Go, Typst, AWS CLI, and Node.js add-on installers and adds a clean companion-container build gate for download-based add-on defaults |
