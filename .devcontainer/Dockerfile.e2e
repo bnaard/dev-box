@@ -220,6 +220,15 @@ RUN mkdir -p /workspaces && chown testuser:testuser /workspaces
 # deploy the latest build without rebuilding this image.
 RUN mkdir -p /opt/aibox/addons && chown -R testuser:testuser /opt/aibox
 
+# ── Companion compatibility contract ─────────────────────────────────────────
+# This is intentionally an image-resident, root-owned marker rather than a
+# Compose label or environment-only setting: SSH readiness checks can verify it
+# after a rebuild and cannot be fooled by a stale service configuration.
+RUN install -d -m 0755 /usr/local/share/aibox \
+    && printf '%s\n' 'aibox-e2e-companion-contract=2' \
+       > /usr/local/share/aibox/e2e-companion-contract \
+    && chmod 0444 /usr/local/share/aibox/e2e-companion-contract
+
 # ── Entrypoint: systemd starts sshd and the lingering testuser manager ───────
 EXPOSE 22
 STOPSIGNAL SIGRTMIN+3

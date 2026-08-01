@@ -613,7 +613,8 @@ impl E2eRunner {
     /// low-level terminal or TOML errors.
     pub fn assert_companion_tool_versions(&self) {
         let output = self.exec(
-            "tmux -V && \
+            "test \"$(cat /usr/local/share/aibox/e2e-companion-contract)\" = \"aibox-e2e-companion-contract=2\" && \
+             tmux -V && \
              yazi --version && \
              command -v ya && \
              ya --version && \
@@ -641,7 +642,7 @@ impl E2eRunner {
                 && stdout.contains("newuidmap")
                 && stdout.contains("newgidmap")
                 && stdout.contains("bwrap-ok"),
-            "aibox-e2e-testrunner image is stale; expected tmux, Yazi {EXPECTED_YAZI_VERSION}, the ya companion entrypoint, uidmap helpers for rootless Podman, and a working bubblewrap user-namespace smoke probe.\n\
+            "aibox-e2e-testrunner image is stale; expected companion contract version 2, tmux, Yazi {EXPECTED_YAZI_VERSION}, the ya companion entrypoint, uidmap helpers for rootless Podman, and a working bubblewrap user-namespace smoke probe.\n\
              Rebuild/recreate the companion service from .devcontainer/Dockerfile.e2e, then rerun `./scripts/maintain.sh test-e2e`.\n\
              observed:\n{stdout}"
         );

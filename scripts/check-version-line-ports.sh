@@ -75,6 +75,11 @@ check_target() {
   git -C "${PROJECT_ROOT}" merge-base --is-ancestor "${source_baseline}" "${source_ref}" \
     || die "${source_baseline} is not an ancestor of ${source_ref}"
 
+  "${PROJECT_ROOT}/scripts/check-e2e-companion-contract.sh" \
+    --reference "${source_ref}" \
+    --candidate "${target_ref}" \
+    --require-reference
+
   while IFS= read -r sha; do
     [[ -n "${sha}" ]] || continue
     parents="$(git -C "${PROJECT_ROOT}" rev-list --parents -n 1 "${sha}")"

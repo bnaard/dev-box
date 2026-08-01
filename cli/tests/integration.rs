@@ -786,7 +786,11 @@ fn e2e_companion_delegates_kind_through_systemd() {
     let kind_lifecycle =
         std::fs::read_to_string(root.join("scripts/test-kubernetes-kind.sh")).unwrap();
     let maintain = std::fs::read_to_string(root.join("scripts/maintain.sh")).unwrap();
+    let contract_guard =
+        std::fs::read_to_string(root.join("scripts/check-e2e-companion-contract.sh")).unwrap();
 
+    assert!(dockerfile.contains("aibox-e2e-companion-contract=2"));
+    assert!(dockerfile.contains("/usr/local/share/aibox/e2e-companion-contract"));
     assert!(dockerfile.contains("CMD [\"/sbin/init\"]"));
     assert!(dockerfile.contains("Delegate=yes"));
     assert!(dockerfile.contains("cgroup_manager = \"systemd\""));
@@ -794,8 +798,10 @@ fn e2e_companion_delegates_kind_through_systemd() {
     assert!(compose.contains("cgroup: private"));
     assert!(compose.contains("/lib/modules:/lib/modules:ro"));
     assert!(kind_gate.contains("systemd-run --user --scope --quiet -p Delegate=yes"));
+    assert!(kind_gate.contains("aibox-e2e-companion-contract=2"));
     assert!(kind_gate.contains(r#"awk -F: \"\\$1 == 0 { print \\$3 }\""#));
     assert!(maintain.contains("systemd-run --user --scope --quiet -p Delegate=yes"));
+    assert!(maintain.contains("aibox-e2e-companion-contract=2"));
     assert!(maintain.contains("e2e_companion_preflight"));
     assert!(maintain.contains("E2E companion is stale. Rebuild it on the Docker host"));
     assert!(kind_gate.contains("copy_file_to"));
@@ -836,6 +842,14 @@ fn e2e_companion_delegates_kind_through_systemd() {
         "the release gate must reject evidence from another candidate binary"
     );
     assert!(maintain.contains("kubernetes_kind -- --ignored --nocapture"));
+    assert!(contract_guard.contains("--require-reference"));
+    assert!(contract_guard.contains("v0.x-release"));
+    assert!(contract_guard.contains(".devcontainer/Dockerfile.e2e"));
+    assert!(contract_guard.contains(".devcontainer/docker-compose.override.yml"));
+    let version_line_guard =
+        std::fs::read_to_string(root.join("scripts/check-version-line-ports.sh")).unwrap();
+    assert!(version_line_guard.contains("check-e2e-companion-contract.sh"));
+    assert!(version_line_guard.contains("--candidate \"${target_ref}\""));
 }
 
 #[test]
