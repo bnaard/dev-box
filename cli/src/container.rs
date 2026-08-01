@@ -1611,6 +1611,7 @@ pub(crate) fn serialize_config_with_comments(config: &AiboxConfig) -> String {
     out.push_str("# GitHub Copilot              copilot        (uses GITHUB_TOKEN)\n");
     out.push_str("# OpenCode                    opencode       any (multi-provider)\n");
     out.push_str("# Hermes                      hermes         any (multi-provider)\n");
+    out.push_str("# Tau                         tau            any (multi-provider)\n");
     out.push_str("#\n");
     out.push_str("# Harnesses are configured by the ordered `harnesses` list below.\n");
     out.push_str("# The list order is the tmux/layout order: 1st, 2nd, 3rd harness.\n");
@@ -2364,7 +2365,9 @@ fn render_ai_model_provider_catalog(out: &mut String, selected: &[crate::config:
 
 fn render_ai_harness_detail_catalog(out: &mut String, config: &AiboxConfig) {
     out.push_str("\n# Ordered harness list. Supported harness values:\n");
-    out.push_str("# claude, codex, gemini, aider, continue, cursor, copilot, opencode, hermes.\n");
+    out.push_str(
+        "# claude, codex, gemini, aider, continue, cursor, copilot, opencode, hermes, tau.\n",
+    );
     out.push_str(
         "# Each one-line entry is directly uncommentable; list order is tmux/layout order.\n",
     );

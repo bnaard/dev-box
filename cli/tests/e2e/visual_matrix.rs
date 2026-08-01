@@ -50,6 +50,7 @@ const HARNESSES: &[(&str, &str, &str)] = &[
     ("copilot", "copilot", "COPILOT"),
     ("opencode", "opencode", "OPENCODE"),
     ("hermes", "hermes", "HERMES"),
+    ("tau", "tau", "TAU"),
 ];
 
 const DEFAULT_STATUS_THEME: &str = "projectious";
@@ -567,7 +568,7 @@ fn record_generated_layout(runner: &E2eRunner, test_name: &str, layout: &str) ->
     let capture = format!(
         r#"{setup}{harness_windows}
   : > "{workspace}/{stem}.screens"
-  for win in work files ai lazygit shell claude codex gemini aider continue cursor copilot opencode hermes synthetic-files synthetic-editor synthetic-git synthetic-shell synthetic-claude synthetic-codex synthetic-gemini synthetic-aider synthetic-continue synthetic-cursor synthetic-copilot synthetic-opencode synthetic-hermes; do
+  for win in work files ai lazygit shell claude codex gemini aider continue cursor copilot opencode hermes tau synthetic-files synthetic-editor synthetic-git synthetic-shell synthetic-claude synthetic-codex synthetic-gemini synthetic-aider synthetic-continue synthetic-cursor synthetic-copilot synthetic-opencode synthetic-hermes synthetic-tau; do
     tmux select-window -t "{stem}:$win" >/dev/null 2>&1 || continue
     sleep 0.4
     printf '\n--- window:%s ---\n' "$win" >> "{workspace}/{stem}.screens"

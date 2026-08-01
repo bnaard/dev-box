@@ -422,6 +422,7 @@ rich = {} # Markdown, JSON, RST, and notebook terminal rendering for Yazi previe
 # GitHub Copilot              copilot        (uses GITHUB_TOKEN)
 # OpenCode                    opencode       any (multi-provider)
 # Hermes                      hermes         any (multi-provider)
+# Tau                         tau            any (multi-provider)
 #
 # Harnesses are configured by the ordered `harnesses` list below.
 # The list order is the tmux/layout order: 1st, 2nd, 3rd harness.
@@ -444,7 +445,7 @@ model_providers = [
 ]
 
 # Ordered harness list. Supported harness values:
-# claude, codex, gemini, aider, continue, cursor, copilot, opencode, hermes.
+# claude, codex, gemini, aider, continue, cursor, copilot, opencode, hermes, tau.
 # Each one-line entry is directly uncommentable; list order is tmux/layout order.
 # `enable = true` includes the harness in generated agent/MCP/runtime config.
 # `install = true` installs the matching in-container CLI recipe when one exists.
@@ -461,6 +462,7 @@ harnesses = [
 #   { harness = "copilot", enable = true, install = true },
 #   { harness = "opencode", enable = true, install = true },
 #   { harness = "hermes", enable = true, install = true },
+#   { harness = "tau", enable = true, install = true },
 ]
 
 # AI harness execution policy. These are aibox-level intent settings;
