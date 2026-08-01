@@ -2,7 +2,9 @@
 # E2E Test Companion Container
 # =============================================================================
 # Simulates a user's host machine for end-to-end testing of the aibox CLI.
-# Runs podman (rootless) for container operations and sshd for remote access.
+# Runs podman (rootless) for container operations and systemd-managed sshd for
+# remote access.  systemd owns the companion cgroup boundary so SSH sessions
+# receive a delegated user slice capable of hosting nested kind nodes.
 # Also includes terminal tools (tmux, yazi, vim, starship, asciinema) for
 # headless visual testing via asciinema recordings.
 # Started alongside the dev-container as the "e2e-runner" service.
@@ -41,8 +43,26 @@ ARG STARSHIP_VERSION=1.25.1
 RUN ARCH=$(uname -m) && \
     curl -fsSL \
       "https://github.com/starship/starship/releases/download/v${STARSHIP_VERSION}/starship-${ARCH}-unknown-linux-musl.tar.gz" \
-      | tar -xz -C /usr/local/bin && \
+    | tar -xz -C /usr/local/bin && \
     chmod +x /usr/local/bin/starship
+
+FROM fetch-base AS fetch-kubernetes-e2e
+ARG KUBECTL_VERSION=v1.36.3
+ARG KIND_VERSION=v0.32.0
+RUN UNAME_ARCH="$(uname -m)" && \
+    case "${UNAME_ARCH}" in \
+      x86_64) ARCH="amd64" ;; \
+      aarch64) ARCH="arm64" ;; \
+      *) echo "Unsupported Kubernetes E2E architecture: ${UNAME_ARCH}" >&2; exit 1 ;; \
+    esac && \
+    curl -fsSLO "https://dl.k8s.io/release/${KUBECTL_VERSION}/bin/linux/${ARCH}/kubectl" && \
+    curl -fsSLO "https://dl.k8s.io/release/${KUBECTL_VERSION}/bin/linux/${ARCH}/kubectl.sha256" && \
+    printf '%s  %s\n' "$(cat kubectl.sha256)" kubectl | sha256sum --check --strict && \
+    install -m 0755 kubectl /usr/local/bin/kubectl && \
+    curl -fsSLo kind "https://github.com/kubernetes-sigs/kind/releases/download/${KIND_VERSION}/kind-linux-${ARCH}" && \
+    curl -fsSLo kind.sha256sum "https://github.com/kubernetes-sigs/kind/releases/download/${KIND_VERSION}/kind-linux-${ARCH}.sha256sum" && \
+    printf '%s  %s\n' "$(cut -d' ' -f1 kind.sha256sum)" kind | sha256sum --check --strict && \
+    install -m 0755 kind /usr/local/bin/kind
 
 # ── Vim colorschemes ─────────────────────────────────────────────────────────
 FROM fetch-base AS fetch-vim-colors
@@ -77,6 +97,11 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     nftables \
     # SSH server for remote test execution
     openssh-server \
+    # PID 1 and the per-user manager provide cgroup v2 delegation to kind
+    systemd \
+    systemd-sysv \
+    dbus \
+    dbus-user-session \
     # Utilities needed by aibox and tests
     bubblewrap \
     curl \
@@ -116,6 +141,8 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 COPY --from=fetch-yazi    /usr/local/bin/yazi     /usr/local/bin/yazi
 COPY --from=fetch-starship /usr/local/bin/starship /usr/local/bin/starship
 COPY --from=fetch-lazygit /usr/local/bin/lazygit  /usr/local/bin/lazygit
+COPY --from=fetch-kubernetes-e2e /usr/local/bin/kubectl /usr/local/bin/kubectl
+COPY --from=fetch-kubernetes-e2e /usr/local/bin/kind /usr/local/bin/kind
 RUN ln -sf /usr/local/bin/yazi /usr/local/bin/ya
 RUN printf '%s\n' \
     '#!/bin/bash' \
@@ -145,13 +172,23 @@ RUN mkdir -p /run/sshd \
     && sed -i 's/#PermitRootLogin.*/PermitRootLogin no/' /etc/ssh/sshd_config \
     && sed -i 's/#PubkeyAuthentication.*/PubkeyAuthentication yes/' /etc/ssh/sshd_config \
     && sed -i 's/#PasswordAuthentication.*/PasswordAuthentication no/' /etc/ssh/sshd_config \
-    && sed -i 's/^AcceptEnv.*/#AcceptEnv/' /etc/ssh/sshd_config
+    && sed -i 's/^AcceptEnv.*/#AcceptEnv/' /etc/ssh/sshd_config \
+    && systemctl enable ssh.service
 
 # ── Test user ─────────────────────────────────────────────────────────────────
 RUN groupadd --gid 1000 testuser \
     && useradd --uid 1000 --gid testuser --shell /bin/bash --create-home testuser \
     && echo "testuser ALL=(ALL) NOPASSWD:ALL" > /etc/sudoers.d/testuser \
-    && chmod 0440 /etc/sudoers.d/testuser
+    && chmod 0440 /etc/sudoers.d/testuser \
+    && mkdir -p /var/lib/systemd/linger \
+    && touch /var/lib/systemd/linger/testuser
+
+# kind's rootless Podman provider must run in a delegated systemd user scope.
+# Keep this explicit even though systemd 252+ delegates controllers by default,
+# so the companion contract remains stable across base-image changes.
+RUN mkdir -p /etc/systemd/system/user@.service.d \
+    && printf '[Service]\nDelegate=yes\n' \
+       > /etc/systemd/system/user@.service.d/delegate.conf
 
 # ── SSH directory for authorized keys (mounted at runtime) ───────────────────
 # The .ssh directory is mounted from .aibox-e2e-runner-home/.ssh/ via
@@ -164,6 +201,8 @@ RUN mkdir -p /home/testuser/.ssh && chmod 700 /home/testuser/.ssh \
 RUN mkdir -p /home/testuser/.config/containers \
     && printf '[storage]\ndriver = "vfs"\n' \
        > /home/testuser/.config/containers/storage.conf \
+    && printf '[engine]\ncgroup_manager = "systemd"\n\n[containers]\nlog_driver = "k8s-file"\npids_limit = 8192\n' \
+       > /home/testuser/.config/containers/containers.conf \
     && chown -R testuser:testuser /home/testuser/.config
 
 # Ensure subuid/subgid ranges exist for rootless podman
@@ -181,6 +220,16 @@ RUN mkdir -p /workspaces && chown testuser:testuser /workspaces
 # deploy the latest build without rebuilding this image.
 RUN mkdir -p /opt/aibox/addons && chown -R testuser:testuser /opt/aibox
 
-# ── Entrypoint: start sshd ───────────────────────────────────────────────────
+# ── Companion compatibility contract ─────────────────────────────────────────
+# This is intentionally an image-resident, root-owned marker rather than a
+# Compose label or environment-only setting: SSH readiness checks can verify it
+# after a rebuild and cannot be fooled by a stale service configuration.
+RUN install -d -m 0755 /usr/local/share/aibox \
+    && printf '%s\n' 'aibox-e2e-companion-contract=2' \
+       > /usr/local/share/aibox/e2e-companion-contract \
+    && chmod 0444 /usr/local/share/aibox/e2e-companion-contract
+
+# ── Entrypoint: systemd starts sshd and the lingering testuser manager ───────
 EXPOSE 22
-CMD ["sh", "-c", "mkdir -p /run/sshd && exec /usr/sbin/sshd -D -e"]
+STOPSIGNAL SIGRTMIN+3
+CMD ["/sbin/init"]
