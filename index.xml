@@ -231,7 +231,7 @@ host machine.&lt;/p&gt;
 &lt;/span&gt;&lt;/span&gt;&lt;span class="line"&gt;&lt;span class="cl"&gt;&lt;span class="c1"&gt;# https://docs.docker.com/engine/install/&lt;/span&gt;
 &lt;/span&gt;&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;p&gt;aibox auto-detects which runtime is available. If both are installed, Podman takes priority.
 OrbStack works through its Docker-compatible runtime and Compose integration.&lt;/p&gt;</description></item><item><title>Overview</title><link>https://projectious-work.github.io/aibox/docs/addons/overview/</link><pubDate>Mon, 01 Jan 0001 00:00:00 +0000</pubDate><guid>https://projectious-work.github.io/aibox/docs/addons/overview/</guid><description>&lt;h1 id="addons"&gt;Addons&lt;/h1&gt;
-&lt;p&gt;aibox uses the Debian runtime image family (&lt;code&gt;base-debian-v0.26.x&lt;/code&gt; for legacy releases, &lt;code&gt;base-debian-runtime-v0.27.0+&lt;/code&gt; after the image-tag cutover) with &lt;strong&gt;31 composable addons&lt;/strong&gt; that install language runtimes, tool bundles, documentation frameworks, and AI coding agents into your container.&lt;/p&gt;
+&lt;p&gt;aibox uses the Debian runtime image family (&lt;code&gt;base-debian-v0.26.x&lt;/code&gt; for legacy releases, &lt;code&gt;base-debian-runtime-v0.27.0+&lt;/code&gt; after the image-tag cutover) with &lt;strong&gt;35 composable addons&lt;/strong&gt; that install language runtimes, tool bundles, documentation frameworks, and AI coding agents into your container.&lt;/p&gt;
 &lt;h2 id="managing-addons"&gt;Managing Addons&lt;/h2&gt;
 &lt;h3 id="via-cli"&gt;Via CLI&lt;/h3&gt;
 &lt;div class="highlight"&gt;&lt;pre tabindex="0" class="chroma"&gt;&lt;code class="language-bash" data-lang="bash"&gt;&lt;span class="line"&gt;&lt;span class="cl"&gt;&lt;span class="c1"&gt;# See all available addons&lt;/span&gt;
@@ -895,15 +895,23 @@ at the project root. In processkit mode it is rendered from processkit
 scaffolding; in harness-only mode it is a minimal aibox-owned file. In both
 modes &lt;code&gt;aibox init&lt;/code&gt; writes it only when missing.&lt;/p&gt;</description></item><item><title>Tool Bundles</title><link>https://projectious-work.github.io/aibox/docs/addons/tool-bundles/</link><pubDate>Mon, 01 Jan 0001 00:00:00 +0000</pubDate><guid>https://projectious-work.github.io/aibox/docs/addons/tool-bundles/</guid><description>&lt;h1 id="tool-bundle-addons"&gt;Tool Bundle Addons&lt;/h1&gt;
 &lt;p&gt;Tool bundles install infrastructure, orchestration, and cloud CLI tools.&lt;/p&gt;
-&lt;h2 id="git-ui"&gt;Git UI&lt;/h2&gt;
-&lt;div class="highlight"&gt;&lt;pre tabindex="0" class="chroma"&gt;&lt;code class="language-toml" data-lang="toml"&gt;&lt;span class="line"&gt;&lt;span class="cl"&gt;&lt;span class="p"&gt;[&lt;/span&gt;&lt;span class="nx"&gt;addons&lt;/span&gt;&lt;span class="p"&gt;.&lt;/span&gt;&lt;span class="nx"&gt;git-ui&lt;/span&gt;&lt;span class="p"&gt;.&lt;/span&gt;&lt;span class="nx"&gt;tools&lt;/span&gt;&lt;span class="p"&gt;]&lt;/span&gt;
-&lt;/span&gt;&lt;/span&gt;&lt;span class="line"&gt;&lt;span class="cl"&gt;&lt;span class="nx"&gt;gh&lt;/span&gt; &lt;span class="p"&gt;=&lt;/span&gt; &lt;span class="p"&gt;{}&lt;/span&gt; &lt;span class="c"&gt;# GitHub CLI&lt;/span&gt;
-&lt;/span&gt;&lt;/span&gt;&lt;span class="line"&gt;&lt;span class="cl"&gt;&lt;span class="nx"&gt;lazygit&lt;/span&gt; &lt;span class="p"&gt;=&lt;/span&gt; &lt;span class="p"&gt;{}&lt;/span&gt; &lt;span class="c"&gt;# Interactive Git TUI&lt;/span&gt;
-&lt;/span&gt;&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;p&gt;The &lt;code&gt;git-ui&lt;/code&gt; addon is optional. Select it when a project needs GitHub CLI
-automation or lazygit inside the container; omit it to avoid installing those
-tools. This aibox repo may enable it for maintenance workflows such as release
-checks and GitHub issue/release work, but downstream projects do not need it by
-default.&lt;/p&gt;</description></item><item><title>Cheatsheet</title><link>https://projectious-work.github.io/aibox/docs/reference/cheatsheet/</link><pubDate>Mon, 01 Jan 0001 00:00:00 +0000</pubDate><guid>https://projectious-work.github.io/aibox/docs/reference/cheatsheet/</guid><description>&lt;h1 id="keyboard-shortcuts"&gt;Keyboard Shortcuts&lt;/h1&gt;
+&lt;h2 id="supply-chain"&gt;Supply Chain&lt;/h2&gt;
+&lt;div class="highlight"&gt;&lt;pre tabindex="0" class="chroma"&gt;&lt;code class="language-toml" data-lang="toml"&gt;&lt;span class="line"&gt;&lt;span class="cl"&gt;&lt;span class="p"&gt;[&lt;/span&gt;&lt;span class="nx"&gt;addons&lt;/span&gt;&lt;span class="p"&gt;.&lt;/span&gt;&lt;span class="nx"&gt;supply-chain&lt;/span&gt;&lt;span class="p"&gt;.&lt;/span&gt;&lt;span class="nx"&gt;tools&lt;/span&gt;&lt;span class="p"&gt;]&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span class="line"&gt;&lt;span class="cl"&gt;&lt;span class="nx"&gt;gitleaks&lt;/span&gt; &lt;span class="p"&gt;=&lt;/span&gt; &lt;span class="p"&gt;{}&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span class="line"&gt;&lt;span class="cl"&gt;&lt;span class="nx"&gt;osv-scanner&lt;/span&gt; &lt;span class="p"&gt;=&lt;/span&gt; &lt;span class="p"&gt;{}&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span class="line"&gt;&lt;span class="cl"&gt;&lt;span class="nx"&gt;syft&lt;/span&gt; &lt;span class="p"&gt;=&lt;/span&gt; &lt;span class="p"&gt;{}&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span class="line"&gt;&lt;span class="cl"&gt;&lt;span class="nx"&gt;grype&lt;/span&gt; &lt;span class="p"&gt;=&lt;/span&gt; &lt;span class="p"&gt;{}&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span class="line"&gt;&lt;span class="cl"&gt;&lt;span class="nx"&gt;cosign&lt;/span&gt; &lt;span class="p"&gt;=&lt;/span&gt; &lt;span class="p"&gt;{}&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;p&gt;This language-neutral bundle covers secret scanning, dependency and artifact
+vulnerability checks, SBOM generation, and Sigstore signing. Release archives
+are pinned and checked against upstream-published checksums.&lt;/p&gt;
+&lt;h2 id="release-validation"&gt;Release Validation&lt;/h2&gt;
+&lt;div class="highlight"&gt;&lt;pre tabindex="0" class="chroma"&gt;&lt;code class="language-toml" data-lang="toml"&gt;&lt;span class="line"&gt;&lt;span class="cl"&gt;&lt;span class="p"&gt;[&lt;/span&gt;&lt;span class="nx"&gt;addons&lt;/span&gt;&lt;span class="p"&gt;.&lt;/span&gt;&lt;span class="nx"&gt;release&lt;/span&gt;&lt;span class="p"&gt;.&lt;/span&gt;&lt;span class="nx"&gt;tools&lt;/span&gt;&lt;span class="p"&gt;]&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span class="line"&gt;&lt;span class="cl"&gt;&lt;span class="nx"&gt;shellcheck&lt;/span&gt; &lt;span class="p"&gt;=&lt;/span&gt; &lt;span class="p"&gt;{}&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span class="line"&gt;&lt;span class="cl"&gt;&lt;span class="nx"&gt;hadolint&lt;/span&gt; &lt;span class="p"&gt;=&lt;/span&gt; &lt;span class="p"&gt;{}&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;p&gt;The language-neutral &lt;code&gt;release&lt;/code&gt; bundle validates shell scripts and Dockerfiles.
+Go projects should normally select &lt;code&gt;[addons.go.release]&lt;/code&gt;, which composes this
+bundle with the &lt;code&gt;go-release&lt;/code&gt; recipe and GoReleaser.&lt;/p&gt;</description></item><item><title>Cheatsheet</title><link>https://projectious-work.github.io/aibox/docs/reference/cheatsheet/</link><pubDate>Mon, 01 Jan 0001 00:00:00 +0000</pubDate><guid>https://projectious-work.github.io/aibox/docs/reference/cheatsheet/</guid><description>&lt;h1 id="keyboard-shortcuts"&gt;Keyboard Shortcuts&lt;/h1&gt;
 &lt;p&gt;Quick reference for all tools in the aibox environment. Press the tab for the tool you need.&lt;/p&gt;
 &lt;p&gt;!!! tip &amp;ldquo;In-app help&amp;rdquo;
 - &lt;strong&gt;tmux:&lt;/strong&gt; The status bar always shows available keys for the current mode
@@ -1138,6 +1146,11 @@ below shows the minimum compatible processkit version for each aibox release.&lt
 			&lt;/tr&gt;
 	&lt;/thead&gt;
 	&lt;tbody&gt;
+			&lt;tr&gt;
+					&lt;td&gt;0.30.0&lt;/td&gt;
+					&lt;td&gt;v0.28.5&lt;/td&gt;
+					&lt;td&gt;adds nested language addon groups, production Go quality tooling, and language-neutral supply-chain and release bundles with pinned versions, checksum verification, and per-tool overrides&lt;/td&gt;
+			&lt;/tr&gt;
 			&lt;tr&gt;
 					&lt;td&gt;0.29.0&lt;/td&gt;
 					&lt;td&gt;v0.28.5&lt;/td&gt;

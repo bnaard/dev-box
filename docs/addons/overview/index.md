@@ -6,7 +6,7 @@ LLMS index: [llms.txt](/aibox/llms.txt)
 
 # Addons
 
-aibox uses the Debian runtime image family (`base-debian-v0.26.x` for legacy releases, `base-debian-runtime-v0.27.0+` after the image-tag cutover) with **31 composable addons** that install language runtimes, tool bundles, documentation frameworks, and AI coding agents into your container.
+aibox uses the Debian runtime image family (`base-debian-v0.26.x` for legacy releases, `base-debian-runtime-v0.27.0+` after the image-tag cutover) with **35 composable addons** that install language runtimes, tool bundles, documentation frameworks, and AI coding agents into your container.
 
 ## Managing Addons
 
@@ -48,6 +48,13 @@ pnpm = { version = "11.18.0" }
 
 Each addon has **default-enabled tools** that are included automatically, and **optional tools** you can enable explicitly. Tools with version selection let you pick from curated, tested versions.
 
+Language addons also expose composable nested groups. For example,
+`[addons.go.quality]`, `[addons.go.supply-chain]`, and
+`[addons.go.release]` select the canonical `go-quality`, `supply-chain`, and
+`go-release` recipes and expand their dependencies automatically. Nested
+`[addons.<language>.<group>.tools]` entries use the same `version` and
+`enabled` overrides as flat addons.
+
 `aibox describe addon-catalog -o json` emits the stable `aibox.addon-catalog.v0`
 index used by downstream automation. It includes each addon's profile intent,
 automation usage class, supported aibox profiles, exported surfaces,
@@ -66,6 +73,7 @@ After editing `aibox.toml`, run `aibox apply` to regenerate the Dockerfile and r
 | `rust` | rustc (1.90/1.91/1.92/1.93/1.94/1.94.1/1.96.0/1.96.1/1.97.1), clippy, rustfmt | — |
 | `node` | node (20/22/24/26), pnpm (9/10/11.1.3/11.5.2/11.10.0/11.18.0) | yarn (4/4.16.0/4.17.0), bun (1.2/1.3.14) |
 | `go` | go (1.25/1.26/1.26.3/1.26.4/1.26.5) | — |
+| `go-quality` | goimports, staticcheck, golangci-lint, govulncheck, gosec | — |
 | `typst` | typst (0.13.1/0.14.2/0.15.0) | — |
 | `latex` | texlive-core, texlive-recommended, texlive-fonts, biber, texlive-code, texlive-diagrams, texlive-math | texlive-music, texlive-chemistry |
 
@@ -74,6 +82,9 @@ After editing `aibox.toml`, run `aibox apply` to regenerate the Dockerfile and r
 | Addon | Default Tools | Optional Tools |
 |-------|--------------|----------------|
 | `infrastructure` | opentofu, ansible, packer | — |
+| `supply-chain` | gitleaks, osv-scanner, syft, grype, cosign | — |
+| `release` | shellcheck, hadolint | — |
+| `go-release` | goreleaser (requires `go` and `release`) | — |
 | `git-ui` | gh, lazygit | — |
 | `preview-archive` | chafa, librsvg, poppler, timg, mupdf, entr, p7zip, resvg | — |
 | `preview-enhanced` | rich, ffmpeg, ghostscript | — |

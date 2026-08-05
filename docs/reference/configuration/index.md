@@ -467,6 +467,28 @@ not required for every generated project.
 
 Run `aibox get addon` to see all available addons, or `aibox describe addon <name>` for tool details and supported versions. See the [Addons page](../addons/overview.md) for full documentation.
 
+Language-scoped groups compose shared tooling and automatically expand their
+dependencies:
+
+```toml
+[addons.go]
+[addons.go.infrastructure]
+[addons.go.quality]
+[addons.go.supply-chain]
+[addons.go.release]
+
+[addons.go.quality.tools]
+staticcheck = { enabled = false }
+golangci-lint = { version = "v2.12.2" }
+```
+
+Every language addon supports `infrastructure`, `security`/`supply-chain`, and
+`release`; Go also supports `quality` and `lint`. Existing flat selections such
+as `[addons.infrastructure.tools]` and `[addons.supply-chain.tools]` remain
+valid and require no migration. To adopt language scoping, move only the table
+prefix—for example, `[addons.supply-chain.tools]` becomes
+`[addons.go.supply-chain.tools]`; tool entries and overrides are unchanged.
+
 ### [skills]
 
 Controls which skills from processkit are installed into `context/skills/`.

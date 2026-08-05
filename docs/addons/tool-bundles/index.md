@@ -8,6 +8,33 @@ LLMS index: [llms.txt](/aibox/llms.txt)
 
 Tool bundles install infrastructure, orchestration, and cloud CLI tools.
 
+## Supply Chain
+
+```toml
+[addons.supply-chain.tools]
+gitleaks = {}
+osv-scanner = {}
+syft = {}
+grype = {}
+cosign = {}
+```
+
+This language-neutral bundle covers secret scanning, dependency and artifact
+vulnerability checks, SBOM generation, and Sigstore signing. Release archives
+are pinned and checked against upstream-published checksums.
+
+## Release Validation
+
+```toml
+[addons.release.tools]
+shellcheck = {}
+hadolint = {}
+```
+
+The language-neutral `release` bundle validates shell scripts and Dockerfiles.
+Go projects should normally select `[addons.go.release]`, which composes this
+bundle with the `go-release` recipe and GoReleaser.
+
 ## Git UI
 
 ```toml
