@@ -819,6 +819,7 @@ mod tests {
                 name.to_string(),
                 AddonToolsSection {
                     tools: HashMap::new(),
+                    ..Default::default()
                 },
             );
         }

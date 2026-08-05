@@ -1,0 +1,57 @@
+name: supply-chain
+version: "1.0.0"
+description: "Secret scanning, vulnerability analysis, SBOM generation, and signing"
+profile_intent: build
+usage_class: automated
+profiles: ["human-dev", "headless-runner"]
+exported_surfaces: ["cli-binary", "build-toolchain"]
+builder_weight: "medium"
+
+tools:
+  - { name: gitleaks, description: "Repository secret scanner", default_enabled: true, default_version: "8.30.1", supported_versions: ["8.30.1"] }
+  - { name: osv-scanner, description: "OSV dependency vulnerability scanner", default_enabled: true, default_version: "2.4.0", supported_versions: ["2.4.0"] }
+  - { name: syft, description: "Software bill of materials generator", default_enabled: true, default_version: "1.50.0", supported_versions: ["1.50.0"] }
+  - { name: grype, description: "Artifact and container vulnerability scanner", default_enabled: true, default_version: "0.116.1", supported_versions: ["0.116.1"] }
+  - { name: cosign, description: "Sigstore artifact signing and verification CLI", default_enabled: true, default_version: "3.1.2", supported_versions: ["3.1.2"] }
+
+builder: |
+  FROM debian:trixie-slim AS supply-chain-builder
+  RUN apt-get update && apt-get install -y --no-install-recommends ca-certificates curl tar && rm -rf /var/lib/apt/lists/*
+  RUN mkdir -p /build/bin
+  {% if tools.gitleaks.enabled %}
+  RUN ARCH="$(dpkg --print-architecture)" && case "$ARCH" in amd64) ASSET_ARCH=x64 ;; arm64) ASSET_ARCH=arm64 ;; *) exit 1 ;; esac && \
+      FILE="gitleaks_{{ tools.gitleaks.version }}_linux_${ASSET_ARCH}.tar.gz" && \
+      BASE="https://github.com/gitleaks/gitleaks/releases/download/v{{ tools.gitleaks.version }}" && \
+      curl -fsSL "$BASE/$FILE" -o "/tmp/$FILE" && curl -fsSL "$BASE/gitleaks_{{ tools.gitleaks.version }}_checksums.txt" -o /tmp/checksums && \
+      (cd /tmp && grep "  $FILE$" checksums | sha256sum -c -) && tar -xzf "/tmp/$FILE" -C /build/bin gitleaks
+  {% endif %}
+  {% if tools["osv-scanner"].enabled %}
+  RUN ARCH="$(dpkg --print-architecture)" && FILE="osv-scanner_linux_${ARCH}" && BASE="https://github.com/google/osv-scanner/releases/download/v{{ tools["osv-scanner"].version }}" && \
+      curl -fsSL "$BASE/$FILE" -o "/build/bin/osv-scanner" && curl -fsSL "$BASE/osv-scanner_SHA256SUMS" -o /tmp/checksums && \
+      (cd /build/bin && grep "  $FILE$" /tmp/checksums | sed "s/$FILE/osv-scanner/" | sha256sum -c -) && chmod +x /build/bin/osv-scanner
+  {% endif %}
+  {% if tools.syft.enabled %}
+  RUN ARCH="$(dpkg --print-architecture)" && FILE="syft_{{ tools.syft.version }}_linux_${ARCH}.tar.gz" && BASE="https://github.com/anchore/syft/releases/download/v{{ tools.syft.version }}" && \
+      curl -fsSL "$BASE/$FILE" -o "/tmp/$FILE" && curl -fsSL "$BASE/syft_{{ tools.syft.version }}_checksums.txt" -o /tmp/checksums && \
+      (cd /tmp && grep "  $FILE$" checksums | sha256sum -c -) && tar -xzf "/tmp/$FILE" -C /build/bin syft
+  {% endif %}
+  {% if tools.grype.enabled %}
+  RUN ARCH="$(dpkg --print-architecture)" && FILE="grype_{{ tools.grype.version }}_linux_${ARCH}.tar.gz" && BASE="https://github.com/anchore/grype/releases/download/v{{ tools.grype.version }}" && \
+      curl -fsSL "$BASE/$FILE" -o "/tmp/$FILE" && curl -fsSL "$BASE/grype_{{ tools.grype.version }}_checksums.txt" -o /tmp/checksums && \
+      (cd /tmp && grep "  $FILE$" checksums | sha256sum -c -) && tar -xzf "/tmp/$FILE" -C /build/bin grype
+  {% endif %}
+  {% if tools.cosign.enabled %}
+  RUN ARCH="$(dpkg --print-architecture)" && FILE="cosign-linux-${ARCH}" && BASE="https://github.com/sigstore/cosign/releases/download/v{{ tools.cosign.version }}" && \
+      curl -fsSL "$BASE/$FILE" -o /build/bin/cosign && curl -fsSL "$BASE/cosign_checksums.txt" -o /tmp/checksums && \
+      (cd /build/bin && grep "  $FILE$" /tmp/checksums | sed "s/$FILE/cosign/" | sha256sum -c -) && chmod +x /build/bin/cosign
+  {% endif %}
+
+runtime: |
+  # Addon: supply-chain (runtime)
+  {% for tool in ["gitleaks", "osv-scanner", "syft", "grype", "cosign"] %}
+  {% if tools[tool].enabled %}
+  COPY --from=supply-chain-builder /build/bin/{{ tool }} /usr/local/bin/{{ tool }}
+  {% else %}
+  RUN rm -f /usr/local/bin/{{ tool }}
+  {% endif %}
+  {% endfor %}

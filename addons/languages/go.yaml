@@ -7,6 +7,14 @@ profiles: ["human-dev", "headless-runner"]
 exported_surfaces: ["language-runtime", "build-toolchain", "cli-binary"]
 builder_weight: null
 
+groups:
+  infrastructure: infrastructure
+  quality: go-quality
+  lint: go-quality
+  security: supply-chain
+  supply-chain: supply-chain
+  release: go-release
+
 skills:
   - go-conventions
   - concurrency-patterns

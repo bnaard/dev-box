@@ -628,7 +628,10 @@ fn populate_addon_tools(
     let Some(loaded) = crate::addon_loader::get_addon(addon_name) else {
         // Unknown addon — caller will surface this elsewhere; we just
         // return an empty section so the rest of init can proceed.
-        return Ok(AddonToolsSection { tools });
+        return Ok(AddonToolsSection {
+            tools,
+            ..Default::default()
+        });
     };
 
     for tool in &loaded.tools {
@@ -696,7 +699,10 @@ fn populate_addon_tools(
         );
     }
 
-    Ok(AddonToolsSection { tools })
+    Ok(AddonToolsSection {
+        tools,
+        ..Default::default()
+    })
 }
 
 /// Determine the default project name from the current directory.
@@ -4465,6 +4471,7 @@ mod tests {
                 )]
                 .into_iter()
                 .collect(),
+                ..Default::default()
             },
         );
 

@@ -224,6 +224,7 @@ mod tests {
             exported_surfaces: vec![AddonExportSurface::CliBinary],
             builder_weight: None,
             tools: Vec::new(),
+            groups: Default::default(),
             builder_template: None,
             runtime_template: None,
         }

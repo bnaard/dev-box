@@ -130,11 +130,14 @@ fn download_based_addons_build_with_published_defaults() {
         "docs-hugo",
         "docs-mdbook",
         "go",
+        "go-quality",
+        "go-release",
         "infrastructure",
         "kubernetes",
         "node",
         "preview-archive",
         "rust",
+        "supply-chain",
         "typst",
     ] {
         args.extend(["--addon", addon]);

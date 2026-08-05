@@ -7,6 +7,12 @@ profiles: ["human-dev", "headless-runner"]
 exported_surfaces: ["language-runtime", "build-toolchain", "cli-binary"]
 builder_weight: "medium"
 
+groups:
+  infrastructure: infrastructure
+  security: supply-chain
+  supply-chain: supply-chain
+  release: release
+
 skills:
   - rust-conventions
   - concurrency-patterns

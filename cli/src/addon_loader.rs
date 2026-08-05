@@ -48,6 +48,10 @@ pub struct AddonYaml {
     pub tools: Vec<ToolYaml>,
     #[serde(default)]
     pub requires: Vec<String>,
+    /// Nested configuration aliases exposed below `[addons.<language>]`.
+    /// Values are canonical addon names, e.g. `supply-chain: supply-chain`.
+    #[serde(default)]
+    pub groups: HashMap<String, String>,
     /// Tolerated for backwards-compat with addon YAML files that still
     /// declare a `skills:` block. Ignored since v0.16.0 — skills are
     /// owned by processkit and installed via the content-source pipeline.
@@ -194,6 +198,7 @@ pub struct LoadedAddon {
     pub builder_weight: Option<String>,
     pub tools: Vec<LoadedTool>,
     pub requires: Vec<String>,
+    pub groups: HashMap<String, String>,
     pub builder_template: Option<String>,
     pub runtime_template: Option<String>,
 }
@@ -226,6 +231,7 @@ pub struct AddonCatalogEntry {
     pub profiles: Vec<String>,
     pub exported_surfaces: Vec<String>,
     pub requires: Vec<String>,
+    pub groups: HashMap<String, String>,
     pub tools: Vec<AddonCatalogTool>,
 }
 
@@ -358,6 +364,7 @@ fn load_yaml_file(path: &Path) -> Result<LoadedAddon> {
         category,
         builder_weight: yaml.builder_weight,
         requires: yaml.requires,
+        groups: yaml.groups,
         tools: yaml
             .tools
             .into_iter()
@@ -425,6 +432,7 @@ pub fn addon_catalog_index(addons: &[LoadedAddon]) -> AddonCatalogIndex {
                 .map(|surface| surface.as_str().to_string())
                 .collect(),
             requires: addon.requires.clone(),
+            groups: addon.groups.clone(),
             tools: addon
                 .tools
                 .iter()
@@ -734,6 +742,49 @@ runtime: |
     }
 
     #[test]
+    fn load_addon_with_language_groups() {
+        let addon = load_repo_addon("go");
+        assert_eq!(
+            addon.groups.get("quality").map(String::as_str),
+            Some("go-quality")
+        );
+        assert_eq!(
+            addon.groups.get("supply-chain").map(String::as_str),
+            Some("supply-chain")
+        );
+        assert_eq!(
+            addon.groups.get("release").map(String::as_str),
+            Some("go-release")
+        );
+    }
+
+    #[test]
+    fn every_language_exposes_consistent_shared_groups() {
+        for language in ["go", "rust", "python", "node", "typst", "latex"] {
+            let addon = load_repo_addon(language);
+            assert_eq!(
+                addon.groups.get("infrastructure").map(String::as_str),
+                Some("infrastructure"),
+                "{language} infrastructure group"
+            );
+            assert_eq!(
+                addon.groups.get("security").map(String::as_str),
+                Some("supply-chain"),
+                "{language} security group"
+            );
+            assert_eq!(
+                addon.groups.get("supply-chain").map(String::as_str),
+                Some("supply-chain"),
+                "{language} supply-chain group"
+            );
+            assert!(
+                addon.groups.contains_key("release"),
+                "{language} release group"
+            );
+        }
+    }
+
+    #[test]
     fn render_runtime_substitutes_versions() {
         let addon = LoadedAddon {
             name: "test".to_string(),
@@ -753,6 +804,7 @@ runtime: |
                 default_version: "3.0".to_string(),
                 supported_versions: vec!["3.0".to_string()],
             }],
+            groups: HashMap::new(),
             builder_template: None,
             runtime_template: Some("RUN install mytool={{ tools.mytool.version }}".to_string()),
         };
@@ -799,6 +851,7 @@ runtime: |
                     supported_versions: vec![],
                 },
             ],
+            groups: HashMap::new(),
             builder_template: None,
             runtime_template: Some(
                 "RUN install required\n\
@@ -836,6 +889,7 @@ runtime: |
             builder_weight: Some("heavy".to_string()),
             tools: vec![],
             requires: vec![],
+            groups: HashMap::new(),
             builder_template: Some("FROM debian".to_string()),
             runtime_template: None,
         };
@@ -851,6 +905,7 @@ runtime: |
             builder_weight: Some("medium".to_string()),
             tools: vec![],
             requires: vec![],
+            groups: HashMap::new(),
             builder_template: Some("FROM debian".to_string()),
             runtime_template: None,
         };
@@ -866,6 +921,7 @@ runtime: |
             builder_weight: None,
             tools: vec![],
             requires: vec![],
+            groups: HashMap::new(),
             builder_template: None,
             runtime_template: None,
         };
@@ -906,6 +962,7 @@ runtime: |
                 default_version: "1.0".to_string(),
                 supported_versions: vec![],
             }],
+            groups: HashMap::new(),
             builder_template: None,
             runtime_template: Some(
                 "{% if tools.mytool.version %}RUN install mytool={{ tools.mytool.version }}{% else %}RUN install mytool{% endif %}"
@@ -1015,6 +1072,7 @@ runtime: |
                 builder_weight: None,
                 tools: vec![],
                 requires: vec![],
+                groups: HashMap::new(),
                 builder_template: None,
                 runtime_template: None,
             },
@@ -1030,6 +1088,7 @@ runtime: |
                 builder_weight: None,
                 tools: vec![],
                 requires: vec![],
+                groups: HashMap::new(),
                 builder_template: None,
                 runtime_template: None,
             },
@@ -1067,6 +1126,7 @@ runtime: |
                 builder_weight: None,
                 tools: vec![],
                 requires: vec![],
+                groups: HashMap::new(),
                 builder_template: None,
                 runtime_template: None,
             },
@@ -1082,6 +1142,7 @@ runtime: |
                 builder_weight: None,
                 tools: vec![],
                 requires: vec![],
+                groups: HashMap::new(),
                 builder_template: None,
                 runtime_template: None,
             },
@@ -1123,6 +1184,7 @@ runtime: |
                     supported_versions: vec!["2.0".to_string()],
                 }],
                 requires: vec!["base".to_string()],
+                groups: HashMap::new(),
                 builder_template: None,
                 runtime_template: None,
             },
@@ -1138,6 +1200,7 @@ runtime: |
                 builder_weight: None,
                 tools: vec![],
                 requires: vec![],
+                groups: HashMap::new(),
                 builder_template: None,
                 runtime_template: None,
             },
@@ -1211,6 +1274,30 @@ runtime: |
             missing.is_empty(),
             "addon tools must describe their purpose for generated aibox.toml comments: {missing:?}"
         );
+    }
+
+    #[test]
+    fn production_tool_addons_render_enabled_and_disabled_paths() {
+        for name in ["go-quality", "supply-chain", "release", "go-release"] {
+            let addon = load_repo_addon(name);
+            let enabled = all_enabled_tools(&addon);
+            if addon.builder_template.is_some() {
+                let rendered = render_builder(&addon, &enabled).unwrap().unwrap();
+                assert!(!rendered.trim().is_empty(), "{name} builder must render");
+            }
+            let rendered = render_runtime(&addon, &enabled).unwrap();
+            assert!(!rendered.trim().is_empty(), "{name} runtime must render");
+
+            let disabled = render_runtime(&addon, &all_disabled_tools(&addon)).unwrap();
+            for tool in &addon.tools {
+                assert!(
+                    disabled.contains(&format!("rm -f /usr/local/bin/{}", tool.name))
+                        || disabled.contains(&format!("rm -f /usr/local/bin/{} ", tool.name)),
+                    "{name}.{} must purge its disabled binary: {disabled}",
+                    tool.name
+                );
+            }
+        }
     }
 
     fn all_disabled_tools(addon: &LoadedAddon) -> HashMap<String, ToolConfig> {
