@@ -998,7 +998,10 @@ kubectl = "v1.30.0"
         let mut addons_map = HashMap::new();
         addons_map.insert(
             "kubernetes".to_string(),
-            AddonToolsSection { tools: k8s_tools },
+            AddonToolsSection {
+                tools: k8s_tools,
+                ..Default::default()
+            },
         );
         let addons = AddonsSection { addons: addons_map };
 

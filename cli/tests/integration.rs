@@ -339,6 +339,74 @@ lazygit = { enabled = false }
 }
 
 #[test]
+fn nested_go_groups_expand_render_and_honor_tool_disablement() {
+    let dir = tempfile::tempdir().unwrap();
+    let installed_addons = install_script_addons_dir();
+    std::fs::write(
+        dir.path().join("aibox.toml"),
+        r#"[aibox]
+version = "0.29.0"
+base = "debian"
+
+[container]
+name = "nested-go-groups"
+
+[processkit]
+version = "unset"
+
+[addons.go]
+
+[addons.go.quality.tools]
+staticcheck = { enabled = false }
+
+[addons.go.supply-chain.tools]
+grype = { enabled = false }
+
+[addons.go.release]
+"#,
+    )
+    .unwrap();
+
+    let output = Command::new(aibox_bin())
+        .args(["apply", "--no-container"])
+        .current_dir(dir.path())
+        .env("AIBOX_ADDONS_DIR", installed_addons.path())
+        .output()
+        .expect("failed to execute aibox apply");
+    assert!(
+        output.status.success(),
+        "nested Go groups should apply successfully\nstderr:\n{}\nstdout:\n{}",
+        String::from_utf8_lossy(&output.stderr),
+        String::from_utf8_lossy(&output.stdout)
+    );
+
+    let dockerfile = std::fs::read_to_string(dir.path().join(".devcontainer/Dockerfile")).unwrap();
+    for marker in [
+        "Addon: go (runtime)",
+        "Addon: go-quality (runtime)",
+        "Addon: supply-chain (runtime)",
+        "Addon: release (runtime)",
+        "Addon: go-release (runtime)",
+        "go test -race ./...",
+        "go install golang.org/x/tools/cmd/goimports@v0.48.0",
+        "goreleaser_Linux_",
+    ] {
+        assert!(
+            dockerfile.contains(marker),
+            "missing {marker}:\n{dockerfile}"
+        );
+    }
+    assert!(dockerfile.contains("rm -f /usr/local/bin/staticcheck"));
+    assert!(dockerfile.contains("rm -f /usr/local/bin/grype"));
+    assert!(!dockerfile.contains("go install honnef.co/go/tools/cmd/staticcheck"));
+    assert!(!dockerfile.contains("COPY --from=supply-chain-builder /build/bin/grype"));
+    let persisted = std::fs::read_to_string(dir.path().join("aibox.toml")).unwrap();
+    assert!(persisted.contains("[addons.go.quality.tools]"));
+    assert!(persisted.contains("[addons.go.supply-chain.tools]"));
+    assert!(persisted.contains("[addons.go.release]"));
+}
+
+#[test]
 fn init_help_exits_zero() {
     let output = run(&["init", "--help"]);
     assert!(output.status.success(), "aibox init --help should exit 0");
@@ -828,6 +896,14 @@ fn describe_addon_catalog_json_contract() {
             .iter()
             .any(|tool| tool["name"] == "python")
     );
+
+    let go = addons
+        .iter()
+        .find(|addon| addon["name"] == "go")
+        .expect("catalog should include go addon");
+    assert_eq!(go["groups"]["quality"], "go-quality");
+    assert_eq!(go["groups"]["supply-chain"], "supply-chain");
+    assert_eq!(go["groups"]["release"], "go-release");
 }
 
 #[test]

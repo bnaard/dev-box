@@ -1098,6 +1098,9 @@ pub struct ToolEntry {
 pub struct AddonToolsSection {
     #[serde(default)]
     pub tools: HashMap<String, ToolEntry>,
+    /// Language-scoped group selections such as `[addons.go.supply-chain]`.
+    #[serde(flatten)]
+    pub groups: HashMap<String, AddonToolsSection>,
 }
 
 /// [addons] section — each key is an addon name mapping to its tools table.
@@ -3740,6 +3743,7 @@ impl AiboxConfig {
             .with_context(|| format!("Failed to parse config file: {}", path.display()))?;
         config.migrate_legacy_sections();
         config.resolve_ai_provider_addons();
+        config.resolve_addon_groups();
         config.validate()?;
         Ok(config)
     }
@@ -3966,6 +3970,7 @@ impl AiboxConfig {
             toml::from_str(toml_str).context("Failed to parse TOML config")?;
         config.migrate_legacy_sections();
         config.resolve_ai_provider_addons();
+        config.resolve_addon_groups();
         config.validate()?;
         Ok(config)
     }
@@ -4765,6 +4770,46 @@ impl AiboxConfig {
                 }
                 bail!(message);
             }
+            for (group_name, group_tools) in &addon_tools.groups {
+                let Some(target_name) = addon.groups.get(group_name) else {
+                    bail!(
+                        "unknown group '{}' in [addons.{}]; '{}' supports: {}",
+                        group_name,
+                        addon_name,
+                        addon_name,
+                        addon
+                            .groups
+                            .keys()
+                            .cloned()
+                            .collect::<BTreeSet<_>>()
+                            .into_iter()
+                            .collect::<Vec<_>>()
+                            .join(", ")
+                    );
+                };
+                let target = crate::addon_loader::get_addon(target_name).ok_or_else(|| {
+                    anyhow::anyhow!(
+                        "addon '{}' group '{}' references unknown addon '{}'",
+                        addon_name,
+                        group_name,
+                        target_name
+                    )
+                })?;
+                let target_tools: BTreeSet<&str> =
+                    target.tools.iter().map(|tool| tool.name.as_str()).collect();
+                for tool_name in group_tools.tools.keys() {
+                    if !target_tools.contains(tool_name.as_str()) {
+                        bail!(
+                            "unknown tool '{}' in [addons.{}.{}.tools]; '{}' supports: {}",
+                            tool_name,
+                            addon_name,
+                            group_name,
+                            target_name,
+                            target_tools.iter().copied().collect::<Vec<_>>().join(", ")
+                        );
+                    }
+                }
+            }
         }
 
         Ok(())
@@ -4949,6 +4994,7 @@ impl AiboxConfig {
                     .entry(addon_name)
                     .or_insert_with(|| AddonToolsSection {
                         tools: HashMap::new(),
+                        groups: HashMap::new(),
                     });
             if let Some(version) = self.ai.harness_version(harness) {
                 addon_tools
@@ -4967,7 +5013,41 @@ impl AiboxConfig {
                 .entry("audio-voice".to_string())
                 .or_insert_with(|| AddonToolsSection {
                     tools: HashMap::new(),
+                    groups: HashMap::new(),
                 });
+        }
+    }
+
+    /// Expand `[addons.<language>.<group>]` aliases into canonical addons.
+    /// Existing flat selections remain authoritative; nested tool entries are
+    /// merged without overwriting explicitly configured flat overrides.
+    pub fn resolve_addon_groups(&mut self) {
+        let selected: Vec<(String, HashMap<String, AddonToolsSection>)> = self
+            .addons
+            .addons
+            .iter()
+            .map(|(name, section)| (name.clone(), section.groups.clone()))
+            .collect();
+
+        let mut expanded_targets = Vec::new();
+        for (parent_name, groups) in selected {
+            let Some(parent) = crate::addon_loader::get_addon(&parent_name) else {
+                continue;
+            };
+            for (group_name, group_section) in groups {
+                let Some(target_name) = parent.groups.get(&group_name) else {
+                    continue;
+                };
+                let target = self.addons.addons.entry(target_name.clone()).or_default();
+                for (tool, entry) in group_section.tools {
+                    target.tools.entry(tool).or_insert(entry);
+                }
+                expanded_targets.push(target_name.clone());
+            }
+        }
+
+        for addon_name in crate::container::expand_addon_requires(&expanded_targets) {
+            self.addons.addons.entry(addon_name).or_default();
         }
     }
 
@@ -5237,12 +5317,14 @@ fn check_addons_table(root: &toml::map::Map<String, toml::Value>, mismatches: &m
         let Some(addon_table) = addon_value.as_table() else {
             continue;
         };
-        check_unknown_keys(
-            &format!("[addons.{addon_name}]"),
-            addon_table,
-            &["tools"],
-            mismatches,
-        );
+        let known_groups = crate::addon_loader::get_addon(addon_name)
+            .map(|addon| addon.groups.keys().cloned().collect::<BTreeSet<_>>())
+            .unwrap_or_default();
+        for key in addon_table.keys() {
+            if key != "tools" && !known_groups.contains(key) {
+                mismatches.push(format!("[addons.{addon_name}]: unknown key `{key}`"));
+            }
+        }
         let Some(tools) = table_child(addon_table, "tools") else {
             continue;
         };
@@ -5256,6 +5338,30 @@ fn check_addons_table(root: &toml::map::Map<String, toml::Value>, mismatches: &m
                 &["version", "enabled"],
                 mismatches,
             );
+        }
+        for group_name in known_groups {
+            let Some(group) = table_child(addon_table, &group_name) else {
+                continue;
+            };
+            check_unknown_keys(
+                &format!("[addons.{addon_name}.{group_name}]"),
+                group,
+                &["tools"],
+                mismatches,
+            );
+            let Some(group_tools) = table_child(group, "tools") else {
+                continue;
+            };
+            for (tool_name, tool_value) in group_tools {
+                if let Some(tool_table) = tool_value.as_table() {
+                    check_unknown_keys(
+                        &format!("[addons.{addon_name}.{group_name}.tools.{tool_name}]"),
+                        tool_table,
+                        &["version", "enabled"],
+                        mismatches,
+                    );
+                }
+            }
         }
     }
 }

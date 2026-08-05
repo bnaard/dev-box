@@ -2302,10 +2302,13 @@ mod tests {
                 enabled: Some(true),
             },
         );
-        config
-            .addons
-            .addons
-            .insert("git-ui".to_string(), AddonToolsSection { tools });
+        config.addons.addons.insert(
+            "git-ui".to_string(),
+            AddonToolsSection {
+                tools,
+                ..Default::default()
+            },
+        );
 
         seed_root_dir(&config).unwrap();
 
@@ -2748,10 +2751,13 @@ mod tests {
                 enabled: Some(false),
             },
         );
-        config
-            .addons
-            .addons
-            .insert("git-ui".to_string(), AddonToolsSection { tools });
+        config.addons.addons.insert(
+            "git-ui".to_string(),
+            AddonToolsSection {
+                tools,
+                ..Default::default()
+            },
+        );
 
         let files = managed_runtime_files(&config);
         let generated_layouts: Vec<_> = files
@@ -2801,10 +2807,13 @@ mod tests {
                 enabled: None,
             },
         );
-        config
-            .addons
-            .addons
-            .insert("git-ui".to_string(), AddonToolsSection { tools });
+        config.addons.addons.insert(
+            "git-ui".to_string(),
+            AddonToolsSection {
+                tools,
+                ..Default::default()
+            },
+        );
 
         let files = managed_runtime_files(&config);
         let git_config = files

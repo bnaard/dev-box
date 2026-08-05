@@ -1,0 +1,24 @@
+name: go-release
+version: "1.0.0"
+description: "GoReleaser plus language-neutral release validation"
+profile_intent: build
+usage_class: automated
+profiles: ["human-dev", "headless-runner"]
+exported_surfaces: ["cli-binary", "build-toolchain"]
+builder_weight: "light"
+requires: ["go", "release"]
+
+tools:
+  - { name: goreleaser, description: "Multi-platform Go release packager", default_enabled: true, default_version: "2.17.1", supported_versions: ["2.17.1"] }
+
+builder: null
+runtime: |
+  # Addon: go-release (runtime)
+  {% if tools.goreleaser.enabled %}
+  RUN ARCH="$(uname -m)" && case "$ARCH" in x86_64) ASSET_ARCH=x86_64 ;; aarch64) ASSET_ARCH=arm64 ;; *) exit 1 ;; esac && \
+      FILE="goreleaser_Linux_${ASSET_ARCH}.tar.gz" && BASE="https://github.com/goreleaser/goreleaser/releases/download/v{{ tools.goreleaser.version }}" && \
+      curl -fsSL "$BASE/$FILE" -o "/tmp/$FILE" && curl -fsSL "$BASE/checksums.txt" -o /tmp/checksums && \
+      (cd /tmp && grep "  $FILE$" checksums | sha256sum -c -) && tar -xzf "/tmp/$FILE" -C /usr/local/bin goreleaser
+  {% else %}
+  RUN rm -f /usr/local/bin/goreleaser
+  {% endif %}

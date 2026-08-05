@@ -1,0 +1,74 @@
+name: go-quality
+version: "1.0.0"
+description: "Production Go formatting, linting, vulnerability, and security tools"
+profile_intent: build
+usage_class: automated
+profiles: ["human-dev", "headless-runner"]
+exported_surfaces: ["build-toolchain", "cli-binary"]
+builder_weight: null
+requires: ["go"]
+
+tools:
+  - name: goimports
+    description: "Go import organizer and formatter"
+    default_enabled: true
+    default_version: "v0.48.0"
+    supported_versions: ["v0.48.0"]
+  - name: staticcheck
+    description: "Advanced Go static analysis suite"
+    default_enabled: true
+    default_version: "v0.7.0"
+    supported_versions: ["v0.7.0"]
+  - name: golangci-lint
+    description: "Fast aggregate Go linter runner"
+    default_enabled: true
+    default_version: "v2.12.2"
+    supported_versions: ["v2.12.2"]
+  - name: govulncheck
+    description: "Official Go vulnerability analyzer"
+    default_enabled: true
+    default_version: "v1.6.0"
+    supported_versions: ["v1.6.0"]
+  - name: gosec
+    description: "Go source security analyzer"
+    default_enabled: true
+    default_version: "v2.28.0"
+    supported_versions: ["v2.28.0"]
+
+builder: null
+
+runtime: |
+  # Addon: go-quality (runtime)
+  # gcc and libc headers are the Linux prerequisites for `go test -race ./...`.
+  RUN apt-get update && apt-get install -y --no-install-recommends gcc libc6-dev && \
+      rm -rf /var/lib/apt/lists/*
+  {% if tools.goimports.enabled %}
+  RUN GOBIN=/usr/local/bin go install golang.org/x/tools/cmd/goimports@{{ tools.goimports.version }}
+  {% endif %}
+  {% if tools.staticcheck.enabled %}
+  RUN GOBIN=/usr/local/bin go install honnef.co/go/tools/cmd/staticcheck@{{ tools.staticcheck.version }}
+  {% endif %}
+  {% if tools["golangci-lint"].enabled %}
+  RUN GOBIN=/usr/local/bin go install github.com/golangci/golangci-lint/v2/cmd/golangci-lint@{{ tools["golangci-lint"].version }}
+  {% endif %}
+  {% if tools.govulncheck.enabled %}
+  RUN GOBIN=/usr/local/bin go install golang.org/x/vuln/cmd/govulncheck@{{ tools.govulncheck.version }}
+  {% endif %}
+  {% if tools.gosec.enabled %}
+  RUN GOBIN=/usr/local/bin go install github.com/securego/gosec/v2/cmd/gosec@{{ tools.gosec.version }}
+  {% endif %}
+  {% if not tools.goimports.enabled %}
+  RUN rm -f /usr/local/bin/goimports
+  {% endif %}
+  {% if not tools.staticcheck.enabled %}
+  RUN rm -f /usr/local/bin/staticcheck
+  {% endif %}
+  {% if not tools["golangci-lint"].enabled %}
+  RUN rm -f /usr/local/bin/golangci-lint
+  {% endif %}
+  {% if not tools.govulncheck.enabled %}
+  RUN rm -f /usr/local/bin/govulncheck
+  {% endif %}
+  {% if not tools.gosec.enabled %}
+  RUN rm -f /usr/local/bin/gosec
+  {% endif %}

@@ -51,6 +51,34 @@ go = { version = "1.26.5" }     # 1.25, 1.26, 1.26.3, 1.26.4, 1.26.5
 
 Installs Go and sets up GOPATH.
 
+### Production Go groups
+
+Go projects can compose production tooling without bloating the base runtime:
+
+```toml
+[addons.go]
+
+[addons.go.infrastructure]
+
+[addons.go.quality.tools]
+staticcheck = { enabled = false } # optional per-tool override
+
+[addons.go.supply-chain]
+
+[addons.go.release]
+```
+
+`quality` installs `goimports`, `staticcheck`, `golangci-lint`,
+`govulncheck`, and `gosec`, plus the Linux compiler and libc headers required
+by `go test -race ./...`. `supply-chain` adds `gitleaks`, `osv-scanner`,
+`syft`, `grype`, and `cosign`. `release` adds GoReleaser, ShellCheck, and
+Hadolint. The built-in `gofmt`, `go vet`, `go test`, fuzzing, and coverage
+commands remain part of the Go toolchain and need no extra binary.
+
+The same `infrastructure`, `security`/`supply-chain`, and `release` group names
+are accepted below every language addon. Go additionally exposes `quality`
+and its `lint` alias.
+
 ## Typst
 
 ```toml

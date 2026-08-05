@@ -7,6 +7,12 @@ profiles: ["human-dev", "headless-runner"]
 exported_surfaces: ["build-toolchain", "cli-binary"]
 builder_weight: null
 
+groups:
+  infrastructure: infrastructure
+  security: supply-chain
+  supply-chain: supply-chain
+  release: release
+
 skills:
   - documentation
 

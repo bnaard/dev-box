@@ -223,9 +223,13 @@ main() {
     languages/rust.yaml
     languages/node.yaml
     languages/go.yaml
+    languages/go-quality.yaml
     languages/typst.yaml
     languages/latex.yaml
     tools/infrastructure.yaml
+    tools/supply-chain.yaml
+    tools/release.yaml
+    tools/go-release.yaml
     tools/kubernetes.yaml
     tools/cloud-aws.yaml
     tools/cloud-gcp.yaml

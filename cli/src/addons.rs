@@ -395,6 +395,7 @@ mod tests {
             "nonexistent-addon".to_string(),
             crate::config::AddonToolsSection {
                 tools: HashMap::new(),
+                ..Default::default()
             },
         );
         let addons = AddonsSection { addons: addons_map };
