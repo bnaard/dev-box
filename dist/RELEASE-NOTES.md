@@ -1,20 +1,30 @@
-# aibox v0.29.0 — 2026-08-01
+# aibox v0.30.0 — 2026-08-05
 
-**Summary:** This minor release adds Tau as a first-class coding-agent harness for users who want its readable, provider-neutral terminal workflow inside an aibox dev container. Enable the new tau harness and rebuild the container; existing configurations remain compatible.
+**Summary:** This minor release gives Go teams production-ready quality, security, supply-chain, and release tooling through composable language addon groups. Existing flat addon configurations remain compatible; opt into nested groups and rebuild to install the new tools.
 
 ## Added
 
-- Add tau to the supported AI harness catalog and generated aibox.toml configuration.
-- Install the pinned tau-ai 0.3.5 package through the shared uv tool environment and persist Tau state under ~/.tau.
-- Project processkit command adapters into Tau's Agent Skills-compatible .agents/skills/ directory.
-- Add Tau to terminal profiles, tmux layout coverage, addon publication, release pin validation, and user documentation.
+- Add `[addons.go.quality]`, `[addons.go.supply-chain]`, and `[addons.go.release]` configuration groups.
+- Add pinned Go quality tools: goimports, Staticcheck, golangci-lint, govulncheck, and gosec.
+- Add language-neutral Gitleaks, OSV-Scanner, Syft, Grype, Cosign, ShellCheck, and Hadolint bundles.
+- Add pinned GoReleaser support and the native prerequisites for `go test -race`.
 
 ## Changed
 
-- Provider-backend reporting now states that Tau loads root AGENTS.md instructions and Agent Skills but does not currently provide a built-in MCP client.
+- Language addon definitions now expose consistent infrastructure, supply-chain/security, and release group mappings.
+- Nested group tool versions and enabled states merge into their target addons while preserving explicit flat-addon overrides.
+- Downloaded release assets use published checksum files wherever upstream provides them.
+
+## Fixed
+
+- Map Linux ARM64 architecture names to upstream release asset names, including Hadolint's `arm64` archive.
+
+## Removed
+
+- No existing addon or flat configuration surface was removed; legacy flat addon configuration remains supported.
 
 ## Upgrade notes
 
-Add { harness = "tau", enable = true, install = true } to [ai].harnesses, then run aibox apply.
+Add the desired nested Go groups to `aibox.toml`, then run `aibox apply` and rebuild the container. Existing flat addon configuration requires no migration.
 
-[v0.29.0]: https://github.com/projectious-work/aibox/compare/v0.28.19...v0.29.0
+[v0.30.0]: https://github.com/projectious-work/aibox/compare/v0.29.0...v0.30.0

@@ -643,6 +643,11 @@ pub static COMPAT_TABLE: &[CompatEntry] = &[
         processkit_version: "v0.28.5",
         note: "Minor release: adds Tau as a first-class multi-provider coding-agent harness with pinned installation, persistent runtime state, AGENTS.md discovery, Agent Skills projection, and explicit MCP capability reporting.",
     },
+    CompatEntry {
+        aibox_version: "0.30.0",
+        processkit_version: "v0.28.5",
+        note: "Minor release: adds nested language addon groups, production Go quality tooling, and language-neutral supply-chain and release bundles with pinned versions, checksum verification, and per-tool overrides.",
+    },
 ];
 
 /// Find the minimum compatible processkit version for the given aibox version.
