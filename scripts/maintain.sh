@@ -279,12 +279,26 @@ cmd_test_e2e() {
     || die "AIBOX_E2E_TEST_THREADS must be a positive integer"
   ensure_e2e_companion
   prune_e2e_companion_storage || die "Failed to prune SSH companion nested runtime state"
-  info "Running Tier 2 SSH companion E2E tests..."
-  (cd "${CLI_DIR}" && cargo test --features e2e --test e2e -- --test-threads="${test_threads}") \
+  info "Running Tier 2 SSH companion E2E shards..."
+  AIBOX_E2E_TEST_THREADS="${test_threads}" "${SCRIPT_DIR}/run-e2e-shards.sh" all \
     || status=$?
   prune_e2e_companion_storage || warn "Post-suite SSH companion prune failed"
   [[ "${status}" -eq 0 ]] || die "Tier 2 SSH companion E2E tests failed"
   ok "Tier 2 SSH companion E2E tests passed"
+}
+
+cmd_test_e2e_shard() {
+  local shard="$1" status=0 test_threads="${AIBOX_E2E_TEST_THREADS:-4}"
+  [[ "${test_threads}" =~ ^[1-9][0-9]*$ ]] \
+    || die "AIBOX_E2E_TEST_THREADS must be a positive integer"
+  ensure_e2e_companion
+  prune_e2e_companion_storage || die "Failed to prune SSH companion nested runtime state"
+  info "Running Tier 2 SSH companion E2E shard: ${shard}..."
+  AIBOX_E2E_TEST_THREADS="${test_threads}" "${SCRIPT_DIR}/run-e2e-shards.sh" "${shard}" \
+    || status=$?
+  prune_e2e_companion_storage || warn "Post-shard SSH companion prune failed"
+  [[ "${status}" -eq 0 ]] || return "${status}"
+  ok "Tier 2 SSH companion E2E shard passed: ${shard}"
 }
 
 cmd_test_e2e_visual_status() {
@@ -1796,13 +1810,57 @@ release_evidence_init() {
   fi
   RELEASE_EVIDENCE_DIR="${DIST_DIR}/release-evidence/v${version}/${RELEASE_CANDIDATE_SHA}"
   RELEASE_LOG_DIR="${RELEASE_EVIDENCE_DIR}/logs"
+  RELEASE_TIMING_LOG="${RELEASE_EVIDENCE_DIR}/timing-events.tsv"
   mkdir -p "${RELEASE_LOG_DIR}"
-  export RELEASE_PHASE RELEASE_CANDIDATE_SHA RELEASE_TOOLCHAIN_FINGERPRINT RELEASE_TREE_STATE RELEASE_EVIDENCE_DIR RELEASE_LOG_DIR
+  export RELEASE_PHASE RELEASE_CANDIDATE_SHA RELEASE_TOOLCHAIN_FINGERPRINT RELEASE_TREE_STATE RELEASE_EVIDENCE_DIR RELEASE_LOG_DIR RELEASE_TIMING_LOG
 }
 
 release_evidence_key_path() {
   local key="$1"
   printf '%s/%s.env' "${RELEASE_EVIDENCE_DIR}" "${key//[^a-zA-Z0-9._-]/_}"
+}
+
+# Timing events deliberately use an append-only log instead of the evidence
+# markers above. Markers describe the latest reusable successful result; this
+# event stream preserves failed attempts and every resumed invocation, which is
+# the information needed to account for real release wall time.
+release_timing_record_event() {
+  local event="$1" status="$2" step="$3" started_at="$4" completed_at="$5"
+  local duration="$6" exit_code="$7" details="${8:-}"
+  [[ -n "${RELEASE_TIMING_LOG:-}" ]] || return 0
+  if [[ ! -e "${RELEASE_TIMING_LOG}" ]]; then
+    printf 'event\trun_id\tphase\tstatus\tstep\tstarted_at\tcompleted_at\tduration_seconds\texit_code\tdetails\n' \
+      > "${RELEASE_TIMING_LOG}"
+  fi
+  # All fields are internal identifiers or ISO timestamps. Keep the event
+  # format one-record-per-line even if a future caller supplies prose details.
+  details="${details//$'\t'/ }"
+  details="${details//$'\n'/ }"
+  printf '%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\n' \
+    "${event}" "${RELEASE_TIMING_RUN_ID:-unknown}" "${RELEASE_PHASE}" \
+    "${status}" "${step}" "${started_at}" "${completed_at}" "${duration}" \
+    "${exit_code}" "${details}" >> "${RELEASE_TIMING_LOG}"
+}
+
+release_timing_begin() {
+  local selected_steps="${1:-}"
+  RELEASE_TIMING_RUN_STARTED_EPOCH="$(date +%s)"
+  RELEASE_TIMING_RUN_STARTED_AT="$(date -u +%Y-%m-%dT%H:%M:%SZ)"
+  RELEASE_TIMING_RUN_ID="${RELEASE_PHASE}-$(date -u +%Y%m%dT%H%M%SZ)-$$"
+  export RELEASE_TIMING_RUN_STARTED_EPOCH RELEASE_TIMING_RUN_STARTED_AT RELEASE_TIMING_RUN_ID
+  release_timing_record_event run started "release-${RELEASE_PHASE}" \
+    "${RELEASE_TIMING_RUN_STARTED_AT}" "" 0 0 \
+    "steps=${selected_steps};parallelism=${AIBOX_RELEASE_PARALLELISM:-2}"
+}
+
+release_timing_finish() {
+  local duration="${1:-$(( $(date +%s) - RELEASE_TIMING_RUN_STARTED_EPOCH ))}"
+  local status="${2:-completed}"
+  local exit_code=0
+  [[ "${status}" == "completed" ]] || exit_code=1
+  release_timing_record_event run "${status}" "release-${RELEASE_PHASE}" \
+    "${RELEASE_TIMING_RUN_STARTED_AT}" "$(date -u +%Y-%m-%dT%H:%M:%SZ)" \
+    "${duration}" "${exit_code}" ""
 }
 
 release_companion_fingerprint() {
@@ -1829,7 +1887,7 @@ release_evidence_scope() {
       # gives audit evidence a maximum useful lifetime of 24 hours.
       date -u +%Y-%m-%d
       ;;
-    e2e|visual-*)
+    e2e|e2e-*|visual-*)
       release_companion_fingerprint
       ;;
     test)
@@ -1908,15 +1966,31 @@ release_run_evidenced_step() {
   local key="$1" version="$2" label="$3"
   shift 3
   if release_evidence_valid "${key}" "${version}"; then
+    local reused_at
+    reused_at="$(date -u +%Y-%m-%dT%H:%M:%SZ)"
+    release_timing_record_event step reused "${key}" "${reused_at}" "${reused_at}" 0 0 ""
     ok "${label}: reusing evidence for ${RELEASE_CANDIDATE_SHA:0:12}"
     return 0
   fi
 
-  local started duration
+  local started started_at completed_at duration status
   started="$(date +%s)"
-  "$@"
+  started_at="$(date -u +%Y-%m-%dT%H:%M:%SZ)"
+  if "$@"; then
+    status=0
+  else
+    status="$?"
+  fi
   duration=$(( $(date +%s) - started ))
+  completed_at="$(date -u +%Y-%m-%dT%H:%M:%SZ)"
+  if [[ "${status}" -ne 0 ]]; then
+    release_timing_record_event step failed "${key}" "${started_at}" "${completed_at}" \
+      "${duration}" "${status}" ""
+    return "${status}"
+  fi
   release_record_evidence "${key}" "${version}" "${duration}"
+  release_timing_record_event step passed "${key}" "${started_at}" "${completed_at}" \
+    "${duration}" 0 ""
   ok "${label}: completed in ${duration}s"
 }
 
@@ -1941,6 +2015,18 @@ release_companion_e2e_gate() {
       cmd_test_e2e
       ;;
   esac
+}
+
+release_companion_e2e_core_gate() {
+  cmd_test_e2e_shard core
+}
+
+release_companion_e2e_addon_gate() {
+  cmd_test_e2e_shard addon
+}
+
+release_companion_e2e_latex_gate() {
+  cmd_test_e2e_shard latex
 }
 
 release_visual_gate() {
@@ -2126,11 +2212,20 @@ release_run_parallel_validation() {
   done
 
   trap - EXIT INT TERM
-  [[ "${status}" -eq 0 ]] || die "One or more parallel release validation jobs failed"
+  if [[ "${status}" -ne 0 ]]; then
+    # Failed validation attempts are already in the append-only timing log.
+    # Refresh the human-readable view before stopping so an interrupted release
+    # has an immediately useful cumulative report.
+    release_timing_finish "$(( $(date +%s) - RELEASE_TIMING_RUN_STARTED_EPOCH ))" failed
+    release_write_timing_report "${version}"
+    die "One or more parallel release validation jobs failed"
+  fi
 }
 
 release_write_timing_report() {
   local version="$1" total_duration="${2:-}" report phase_label marker
+  local timing_log total_steps passed_steps failed_steps reused_steps cumulative_duration
+  local completed_runs failed_runs cumulative_run_duration
   case "${RELEASE_PHASE}" in
     host)
       report="${DIST_DIR}/RELEASE-HOST-TIMINGS.md"
@@ -2141,13 +2236,38 @@ release_write_timing_report() {
       phase_label="Container"
       ;;
   esac
+  timing_log="${RELEASE_EVIDENCE_DIR}/timing-events.tsv"
   {
     printf '# %s release timings for v%s\n\n' "${phase_label}" "${version}"
     printf -- '- Candidate: `%s`\n' "${RELEASE_CANDIDATE_SHA}"
     printf -- '- Parallelism: `%s`\n\n' "${AIBOX_RELEASE_PARALLELISM:-2}"
     if [[ -n "${total_duration}" ]]; then
-      printf -- '- End-to-end command duration: `%ss`\n\n' "${total_duration}"
+      printf -- '- Most recent command duration: `%ss`\n\n' "${total_duration}"
     fi
+    if [[ -f "${timing_log}" ]]; then
+      total_steps="$(awk -F '\t' 'NR > 1 && $1 == "step" { count++ } END { print count + 0 }' "${timing_log}")"
+      passed_steps="$(awk -F '\t' 'NR > 1 && $1 == "step" && $4 == "passed" { count++ } END { print count + 0 }' "${timing_log}")"
+      failed_steps="$(awk -F '\t' 'NR > 1 && $1 == "step" && $4 == "failed" { count++ } END { print count + 0 }' "${timing_log}")"
+      reused_steps="$(awk -F '\t' 'NR > 1 && $1 == "step" && $4 == "reused" { count++ } END { print count + 0 }' "${timing_log}")"
+      cumulative_duration="$(awk -F '\t' 'NR > 1 && $1 == "step" { total += $8 } END { print total + 0 }' "${timing_log}")"
+      completed_runs="$(awk -F '\t' 'NR > 1 && $1 == "run" && $4 == "completed" { count++ } END { print count + 0 }' "${timing_log}")"
+      failed_runs="$(awk -F '\t' 'NR > 1 && $1 == "run" && $4 == "failed" { count++ } END { print count + 0 }' "${timing_log}")"
+      cumulative_run_duration="$(awk -F '\t' 'NR > 1 && $1 == "run" && ($4 == "completed" || $4 == "failed") { total += $8 } END { print total + 0 }' "${timing_log}")"
+      printf '## Cumulative attempts\n\n'
+      printf -- '- Recorded step attempts: `%s` (`%s` passed, `%s` failed, `%s` reused)\n' \
+        "${total_steps}" "${passed_steps}" "${failed_steps}" "${reused_steps}"
+      printf -- '- Cumulative executed-step duration: `%ss`\n' "${cumulative_duration}"
+      printf -- '- Completed command runs: `%s`; failed command runs: `%s`; cumulative command duration: `%ss`\n' \
+        "${completed_runs}" "${failed_runs}" "${cumulative_run_duration}"
+      printf -- '- Append-only event log: `%s`\n\n' "${timing_log#${PROJECT_ROOT}/}"
+      printf '| Run | Step | Result | Duration | Started | Completed |\n'
+      printf '|---|---|---|---:|---|---|\n'
+      awk -F '\t' 'NR > 1 && $1 == "step" {
+        printf "| %s | %s | %s | %ss | %s | %s |\\n", $2, $5, $4, $8, $6, $7
+      }' "${timing_log}"
+      printf '\n'
+    fi
+    printf '## Latest reusable evidence\n\n'
     printf '| Step | Duration | Completed |\n'
     printf '|---|---:|---|\n'
     for marker in "${RELEASE_EVIDENCE_DIR}"/*.env; do
@@ -2289,6 +2409,7 @@ cmd_release() {
   # Everything below this point is validated against the immutable candidate
   # commit. Evidence from an interrupted run is reusable only for this SHA.
   release_evidence_init "${version}"
+  release_timing_begin "$(release_steps_joined)"
   info "Release candidate: ${RELEASE_CANDIDATE_SHA}"
 
   # These gates own independent resources. Run a bounded number concurrently,
@@ -2308,7 +2429,7 @@ cmd_release() {
         warn "Skipping Tier 2 SSH companion E2E during release because AIBOX_RELEASE_SKIP_COMPANION_E2E=${AIBOX_RELEASE_SKIP_COMPANION_E2E}. Re-run ./scripts/maintain.sh test-e2e after rebuilding the companion."
         ;;
       *)
-        validation_specs+=("e2e|Tier 2 companion E2E|release_companion_e2e_gate")
+        validation_specs+=("e2e-core|Tier 2 companion E2E core shard|release_companion_e2e_core_gate")
         ;;
     esac
   fi
@@ -2317,6 +2438,22 @@ cmd_release() {
   fi
   if [[ "${#validation_specs[@]}" -gt 0 ]]; then
     release_run_parallel_validation "${version}" "${validation_specs[@]}"
+  fi
+
+  # The addon and LaTeX shards each build a large image on the single companion.
+  # Keep them outside the parallel validation pool and give each its own
+  # candidate-bound evidence marker so a resumed release reruns only the shard
+  # that failed.
+  if release_step_requested e2e; then
+    case "${AIBOX_RELEASE_SKIP_COMPANION_E2E:-}" in
+      1|true|yes) ;;
+      *)
+        release_run_parallel_validation "${version}" \
+          "e2e-addon|Tier 2 companion E2E addon shard|release_companion_e2e_addon_gate"
+        release_run_parallel_validation "${version}" \
+          "e2e-latex|Tier 2 companion E2E LaTeX shard|release_companion_e2e_latex_gate"
+        ;;
+    esac
   fi
 
   if release_step_requested visual; then
@@ -2429,7 +2566,9 @@ cmd_release() {
 
   # ── Summary ──────────────────────────────────────────────────────────────
   echo ""
-  release_write_timing_report "${version}" "$(( $(date +%s) - release_started_epoch ))"
+  local release_duration="$(( $(date +%s) - release_started_epoch ))"
+  release_timing_finish "${release_duration}"
+  release_write_timing_report "${version}" "${release_duration}"
   echo "${bold}Release ${tag} selected steps complete: $(release_steps_joined).${reset}"
   echo ""
   echo "  GitHub release: https://github.com/projectious-work/aibox/releases/tag/${tag}"
@@ -2588,6 +2727,7 @@ cmd_release_host() {
   local tag="v${version}"
   ensure_release_host_checkout_current "${version}"
   release_evidence_init "${version}" host
+  release_timing_begin "release-host"
   info "Host release source: ${RELEASE_CANDIDATE_SHA}"
 
   # ── Step 1: Build macOS binaries ──────────────────────────────────────────
@@ -2630,7 +2770,9 @@ cmd_release_host() {
   # locally but didn't propagate to GHCR.
   info "Re-verifying GHCR tags after smoke + runtime finalize..."
   verify_release_images_in_ghcr "${version}" "base-debian"
-  release_write_timing_report "${version}" "$(( $(date +%s) - release_started_epoch ))"
+  local release_duration="$(( $(date +%s) - release_started_epoch ))"
+  release_timing_finish "${release_duration}"
+  release_write_timing_report "${version}" "${release_duration}"
 
   # ── Done ──────────────────────────────────────────────────────────────────
   echo ""

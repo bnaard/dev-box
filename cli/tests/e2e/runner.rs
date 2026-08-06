@@ -618,6 +618,10 @@ impl E2eRunner {
              command -v newgidmap || { echo missing-newgidmap; exit 1; }; \
              unshare --user --map-root-user true && \
              bwrap --unshare-user --uid 0 --gid 0 --ro-bind / / --dev /dev --proc /proc /bin/true && \
+             cat /usr/local/share/aibox/e2e-companion-contract && \
+             test \"$(cat /usr/local/share/aibox/e2e-companion-contract)\" = \"aibox-e2e-companion-contract=3\" && \
+             command -v fuse-overlayfs && \
+             podman info --format 'podman-storage-driver={{ .Store.GraphDriverName }}' && \
              echo bwrap-ok",
         );
         assert!(
@@ -636,8 +640,12 @@ impl E2eRunner {
                 && stdout.contains("bubblewrap ")
                 && stdout.contains("newuidmap")
                 && stdout.contains("newgidmap")
+                && stdout.contains("aibox-e2e-companion-contract=3")
+                && stdout.contains("fuse-overlayfs")
+                && (stdout.contains("podman-storage-driver=overlay")
+                    || stdout.contains("podman-storage-driver=vfs"))
                 && stdout.contains("bwrap-ok"),
-            "aibox-e2e-testrunner image is stale; expected tmux, Yazi {EXPECTED_YAZI_VERSION}, the ya companion entrypoint, uidmap helpers for rootless Podman, and a working bubblewrap user-namespace smoke probe.\n\
+            "aibox-e2e-testrunner image is stale or has an unsupported Podman storage driver; expected tmux, Yazi {EXPECTED_YAZI_VERSION}, the ya companion entrypoint, uidmap helpers, fuse-overlayfs, companion contract v3, Podman overlay or safe vfs fallback, and a working bubblewrap user-namespace smoke probe.\n\
              Rebuild/recreate the companion service from .devcontainer/Dockerfile.e2e, then rerun `./scripts/maintain.sh test-e2e`.\n\
              observed:\n{stdout}"
         );

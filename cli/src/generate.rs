@@ -2014,7 +2014,7 @@ mod tests {
         let compose = include_str!("../../.devcontainer/docker-compose.override.yml");
 
         assert!(
-            dockerfile.contains("aibox-e2e-companion-contract=2")
+            dockerfile.contains("aibox-e2e-companion-contract=3")
                 && dockerfile.contains("CMD [\"/sbin/init\"]")
                 && dockerfile.contains("COPY --from=fetch-kubernetes-e2e /usr/local/bin/kind"),
             "E2E companion Dockerfile must declare its systemd/kind compatibility contract"
@@ -2024,6 +2024,17 @@ mod tests {
                 && compose.contains("cgroup: private")
                 && compose.contains("- /run/lock"),
             "E2E companion Compose service must provide the systemd/kind runtime contract"
+        );
+    }
+
+    #[test]
+    fn e2e_companion_prefers_fuse_overlay_without_forcing_a_storage_driver() {
+        let dockerfile = include_str!("../../.devcontainer/Dockerfile.e2e");
+
+        assert!(
+            dockerfile.contains("fuse-overlayfs")
+                && !dockerfile.contains("/home/testuser/.config/containers/storage.conf"),
+            "E2E companion must let rootless Podman select fuse-overlayfs when available and vfs otherwise"
         );
     }
 

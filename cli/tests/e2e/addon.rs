@@ -2,6 +2,8 @@
 //!
 //! Requires the e2e-runner companion container (feature = "e2e").
 
+use serial_test::serial;
+
 use super::runner::E2eRunner;
 
 #[test]
@@ -115,6 +117,9 @@ fn addon_rebuild_includes_tools_in_dockerfile() {
 }
 
 #[test]
+#[serial(companion_runtime)]
+#[ignore = "resource-heavy addon image build; run through scripts/run-e2e-shards.sh addon or all"]
+#[ntest::timeout(1_800_000)]
 fn download_based_addons_build_with_published_defaults() {
     let runner = E2eRunner::new();
     let test = "addon-download-smoke";

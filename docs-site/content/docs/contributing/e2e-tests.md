@@ -56,9 +56,15 @@ CLI. Those exceptions simulate host-user behavior in controlled test projects:
 Use these exceptions only in aibox CLI development/release harnesses. They are
 not general dogfood escape hatches.
 
-The container-side release command runs Tier 2 as part of Phase 1 with
-`cargo test --features e2e --test e2e`, so the SSH companion, generated
-runtime probes, and non-ignored asciinema checks are release gates.
+The container-side release command runs Tier 2 as three retryable shards via
+`scripts/run-e2e-shards.sh`: parallel-safe `core`, then the resource-heavy
+`addon` and `latex` image builds one at a time. The SSH companion, generated
+runtime probes, and non-ignored asciinema checks remain release gates. Each
+release shard has independent candidate-bound evidence, so resuming an
+unchanged candidate reruns only the failed shard. Use
+`./scripts/maintain.sh test-e2e` or `./scripts/run-e2e-shards.sh all` for the
+complete Tier 2 gate; a raw `cargo test --features e2e --test e2e` invocation
+runs the core shard only.
 Tier 1 modules are excluded from feature-enabled test binaries because the
 default `cargo test` invocation already covers them.
 The default Tier 2 suite intentionally performs only one full generated
@@ -72,6 +78,25 @@ parallel, while tests that mutate the companion runtime and tests that own
 interactive tmux/Yazi state use separate keyed serialization lanes. Override
 the worker count with `AIBOX_E2E_TEST_THREADS`; use `1` when diagnosing ordering
 or isolation failures.
+
+### Companion storage
+
+The companion installs `fuse-overlayfs` but intentionally does not pin a
+Podman storage driver. Rootless Podman selects overlay storage through FUSE
+when `/dev/fuse` is available, and automatically falls back to VFS on runtimes
+where it is unavailable. This keeps nested-container compatibility while
+avoiding VFS layer-copy costs on capable hosts. After pulling a change to
+`.devcontainer/Dockerfile.e2e`, rebuild and recreate the companion so it starts
+with a fresh Podman graphroot:
+
+```bash
+docker compose -f .devcontainer/docker-compose.yml -f .devcontainer/docker-compose.override.yml up -d --build --force-recreate aibox-e2e-testrunner
+```
+
+Check the effective driver over SSH with
+`podman info --format '{{ .Store.GraphDriverName }}'`. `overlay` is preferred;
+`vfs` is the supported safe fallback when the enclosing runtime cannot provide
+FUSE.
 
 The release process also has a host-side generated-runtime smoke:
 `./scripts/maintain.sh release-runtime-smoke X.Y.Z`. It is not an SSH

@@ -93,6 +93,10 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     # Podman for rootless container operations
     podman \
     podman-compose \
+    # Rootless image layers use this when /dev/fuse is available. Podman
+    # automatically falls back to vfs when it is not, which keeps the nested
+    # companion usable on runtimes that do not expose FUSE.
+    fuse-overlayfs \
     aardvark-dns \
     nftables \
     # SSH server for remote test execution
@@ -197,10 +201,14 @@ RUN mkdir -p /home/testuser/.ssh && chmod 700 /home/testuser/.ssh \
     && chown -R testuser:testuser /home/testuser/.ssh
 
 # ── Podman rootless configuration ─────────────────────────────────────────────
-# Use vfs storage driver (works without FUSE/overlay inside containers)
+# Deliberately do not create storage.conf. In rootless mode Podman discovers
+# fuse-overlayfs and uses overlay storage when the enclosing runtime exposes
+# /dev/fuse; otherwise it safely selects vfs. Pinning driver = "vfs" here made
+# every large E2E image build copy full layers even on FUSE-capable hosts.
+#
+# The companion has no persistent Podman graphroot volume, so recreating it
+# after this image change gives Podman a fresh, correctly selected store.
 RUN mkdir -p /home/testuser/.config/containers \
-    && printf '[storage]\ndriver = "vfs"\n' \
-       > /home/testuser/.config/containers/storage.conf \
     && printf '[engine]\ncgroup_manager = "systemd"\n\n[containers]\nlog_driver = "k8s-file"\npids_limit = 8192\n' \
        > /home/testuser/.config/containers/containers.conf \
     && chown -R testuser:testuser /home/testuser/.config
@@ -225,7 +233,7 @@ RUN mkdir -p /opt/aibox/addons && chown -R testuser:testuser /opt/aibox
 # Compose label or environment-only setting: SSH readiness checks can verify it
 # after a rebuild and cannot be fooled by a stale service configuration.
 RUN install -d -m 0755 /usr/local/share/aibox \
-    && printf '%s\n' 'aibox-e2e-companion-contract=2' \
+    && printf '%s\n' 'aibox-e2e-companion-contract=3' \
        > /usr/local/share/aibox/e2e-companion-contract \
     && chmod 0444 /usr/local/share/aibox/e2e-companion-contract
 
