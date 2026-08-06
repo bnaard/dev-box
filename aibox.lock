@@ -1,5 +1,5 @@
 [aibox]
-cli_version = "0.29.0"
+cli_version = "0.30.0"
 synced_at = "2026-07-31T18:57:00.640055+00:00"
 
 [processkit]
@@ -8,7 +8,7 @@ version = "v0.28.5"
 src_path = "src"
 release_asset_sha256 = "18520c69c1e72587b59e135844527c6f6dcc440aecaf0fc2d74e9b8e776dca8c"
 installed_at = "2026-07-31T18:57:00.640055+00:00"
-processkit_install_hash = "v2:832f135436103dae9ddba5a58e60eb6e2ce795dfff28cdbb952502af7f8a465d"
+processkit_install_hash = "v2:13e7f239b8daa3e6b497e06fb2b843a511ed3061222dc2bc6654fda13d05d099"
 
 [addons]
 resolved_at = "2026-05-09T10:41:25Z"
