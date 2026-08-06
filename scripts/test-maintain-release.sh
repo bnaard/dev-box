@@ -33,6 +33,8 @@ RELEASE_TREE_STATE="clean"
 RELEASE_PHASE="container"
 AIBOX_RELEASE_REUSE_EVIDENCE=0
 mkdir -p "${RELEASE_LOG_DIR}"
+RELEASE_TIMING_LOG="${RELEASE_EVIDENCE_DIR}/timing-events.tsv"
+release_timing_begin "test-evidence"
 
 probe_output="${test_root}/probe-ran"
 release_test_probe() {
@@ -53,6 +55,30 @@ AIBOX_RELEASE_REUSE_EVIDENCE=1
 release_run_evidenced_step \
   evidence-probe 9.9.9 "Evidence probe" release_test_probe
 [[ ! -e "${probe_output}" ]] || die "valid evidence did not skip command execution"
+
+release_test_fails() {
+  return 17
+}
+if release_run_evidenced_step timing-failure 9.9.9 "Timing failure probe" release_test_fails; then
+  die "failing evidenced step unexpectedly succeeded"
+fi
+grep -F $'step\t' "${RELEASE_TIMING_LOG}" >/dev/null \
+  || die "timing event log did not record step attempts"
+grep -F $'\tfailed\ttiming-failure\t' "${RELEASE_TIMING_LOG}" >/dev/null \
+  || die "timing event log did not retain failed step attempt"
+grep -F $'\treused\tevidence-probe\t' "${RELEASE_TIMING_LOG}" >/dev/null \
+  || die "timing event log did not retain evidence reuse"
+
+release_timing_finish 1
+release_write_timing_report 9.9.9 1
+timing_report="${DIST_DIR}/RELEASE-TIMINGS.md"
+[[ -f "${timing_report}" ]] || die "release timing report was not written"
+grep -Fq 'Cumulative attempts' "${timing_report}" \
+  || die "release timing report omitted cumulative attempts"
+grep -Fq 'cumulative command duration' "${timing_report}" \
+  || die "release timing report omitted cumulative command duration"
+grep -Fq 'timing-failure' "${timing_report}" \
+  || die "release timing report omitted failed attempt"
 
 RELEASE_TREE_STATE="dirty"
 release_run_evidenced_step \
@@ -89,6 +115,17 @@ release_run_parallel_validation 9.9.9 \
 [[ -f "$(release_evidence_key_path scheduler-fast)" ]] \
   || die "parallel scheduler did not record the fast probe"
 
+recorded_shard=""
+cmd_test_e2e_shard() {
+  recorded_shard="$1"
+}
+release_companion_e2e_core_gate
+[[ "${recorded_shard}" == "core" ]] || die "core E2E release gate selected the wrong shard"
+release_companion_e2e_addon_gate
+[[ "${recorded_shard}" == "addon" ]] || die "addon E2E release gate selected the wrong shard"
+release_companion_e2e_latex_gate
+[[ "${recorded_shard}" == "latex" ]] || die "LaTeX E2E release gate selected the wrong shard"
+
 host_remote="${test_root}/host-remote.git"
 host_seed="${test_root}/host-seed"
 host_primary="${test_root}/host-primary"
@@ -110,28 +147,16 @@ git -C "${host_primary}" config user.name "Release Test"
 git -C "${host_primary}" config user.email "release-test@example.invalid"
 git -C "${host_primary}" worktree add "${host_linked}" v0.x-release >/dev/null
 
-printf 'primary dirty\n' >> "${host_primary}/tracked.txt"
-printf 'primary untracked\n' > "${host_primary}/primary-untracked.txt"
-printf 'linked dirty\n' >> "${host_linked}/tracked.txt"
-printf 'linked untracked\n' > "${host_linked}/linked-untracked.txt"
-
 saved_project_root="${PROJECT_ROOT}"
 PROJECT_ROOT="${host_primary}"
-prepare_release_host_checkout 0.28.13
+git -C "${host_linked}" switch --detach >/dev/null
+git -C "${host_primary}" switch v0.x-release >/dev/null
+ensure_release_host_checkout_current 0.28.13
 [[ "$(git -C "${host_primary}" branch --show-current)" == "v0.x-release" ]] \
-  || die "release-host preparation did not switch the primary checkout"
+  || die "release-host validation changed the primary checkout"
 [[ "$(git -C "${host_primary}" rev-parse HEAD)" == \
    "$(git -C "${host_primary}" rev-parse origin/v0.x-release)" ]] \
-  || die "release-host preparation did not synchronize the release branch"
-[[ -z "$(git -C "${host_primary}" status --porcelain --untracked-files=all)" ]] \
-  || die "release-host preparation left the primary checkout dirty"
-[[ -z "$(git -C "${host_linked}" branch --show-current)" ]] \
-  || die "release-host preparation did not detach the linked release worktree"
-[[ -z "$(git -C "${host_linked}" status --porcelain --untracked-files=all)" ]] \
-  || die "release-host preparation left the linked release worktree dirty"
-[[ "$(git -C "${host_primary}" stash list --format='%s' | \
-    grep -c 'pre-release-host-v0.28.13-')" -eq 2 ]] \
-  || die "release-host preparation did not preserve both dirty checkouts"
+  || die "release-host validation accepted a stale release branch"
 PROJECT_ROOT="${saved_project_root}"
 
 ok "maintain.sh release evidence probe passed"

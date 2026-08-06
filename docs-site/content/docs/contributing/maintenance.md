@@ -130,7 +130,11 @@ Rust toolchain, clean-tree state, release phase, and gate-specific environment.
 Companion evidence includes the companion fingerprint, audit evidence expires
 daily, and binary evidence rechecks archive checksums. Set
 `AIBOX_RELEASE_REUSE_EVIDENCE=0` to force every selected gate to run again.
-Container-side timings are written to `dist/RELEASE-TIMINGS.md`.
+Container-side timings are summarized in `dist/RELEASE-TIMINGS.md`; host-side
+timings are summarized in `dist/RELEASE-HOST-TIMINGS.md`. Each summary is a
+cumulative view of the append-only `timing-events.tsv` file beside the
+candidate evidence, so retries and resumed release commands retain failed,
+passed, and reused gate attempts instead of replacing the earlier timings.
 
 Run `./scripts/maintain.sh release-check-state` standalone when you want the
 dependency and tool-state report without bumping, tagging, or building. Run

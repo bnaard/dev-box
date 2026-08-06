@@ -2,7 +2,10 @@
 //!
 //! - Tier 1 (always run): appearance tests, config coverage tests
 //! - Tier 2 (--features e2e): lifecycle, reset, migration, addon, doctor, smoke,
-//!   generated runtime, and visual tests
+//!   generated runtime, and visual tests. The two resource-heavy image builds
+//!   are intentionally ignored here and are run as isolated shards by
+//!   `scripts/run-e2e-shards.sh`; this prevents them from starving unrelated
+//!   companion work and lets a failed shard be retried independently.
 //! - Tier 3 (--features e2e-render): cell-level rendered-color assertions
 //!   replayed through vt100. Starship runs locally; tmux/yazi need the
 //!   companion (so combine with `--features e2e`).

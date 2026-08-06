@@ -8,7 +8,8 @@ const PREVIEW_PORT: u16 = 18765;
 
 #[test]
 #[serial(companion_runtime)]
-#[ntest::timeout(900_000)]
+#[ignore = "resource-heavy LaTeX image build; run through scripts/run-e2e-shards.sh latex or all"]
+#[ntest::timeout(1_800_000)]
 fn latex_watcher_builds_and_preview_sidecar_serves_updated_pdf() {
     let runner = E2eRunner::new();
     let test = "latex-watch-preview";
