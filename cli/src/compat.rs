@@ -648,6 +648,11 @@ pub static COMPAT_TABLE: &[CompatEntry] = &[
         processkit_version: "v0.28.5",
         note: "Minor release: adds nested language addon groups, production Go quality tooling, and language-neutral supply-chain and release bundles with pinned versions, checksum verification, and per-tool overrides.",
     },
+    CompatEntry {
+        aibox_version: "0.30.1",
+        processkit_version: "v0.28.5",
+        note: "Patch release: refreshes the companion E2E contract, repairs Starship cache isolation, resolves Codex latest pins before container builds, and updates security-relevant pnpm and Tau curated defaults.",
+    },
 ];
 
 /// Find the minimum compatible processkit version for the given aibox version.
