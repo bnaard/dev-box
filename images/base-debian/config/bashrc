@@ -42,6 +42,21 @@ if [ -r "$HOME/.config/aibox/theme-env.sh" ]; then
 fi
 
 # ── Tool integrations ──────────────────────────────────────────────────────
+# Starship writes session logs below this path. The runtime cache is bind-mounted
+# from `.aibox-home` and can contain user-created files, so repair a file
+# collision before Starship initializes instead of printing the same error for
+# every shell prompt. `aibox apply` performs the equivalent persistent repair.
+if [ -e "$HOME/.cache/starship" ] && [ ! -d "$HOME/.cache/starship" ]; then
+    _aibox_starship_backup="$HOME/.cache/starship.aibox-conflict"
+    _aibox_starship_suffix=2
+    while [ -e "$_aibox_starship_backup" ]; do
+        _aibox_starship_backup="$HOME/.cache/starship.aibox-conflict.$_aibox_starship_suffix"
+        _aibox_starship_suffix=$((_aibox_starship_suffix + 1))
+    done
+    mv "$HOME/.cache/starship" "$_aibox_starship_backup"
+    printf 'aibox: moved file blocking Starship cache to %s\n' "$_aibox_starship_backup" >&2
+fi
+mkdir -p "$HOME/.cache/starship"
 eval "$(starship init bash)"
 eval "$(zoxide init bash)"
 eval "$(fzf --bash)"
