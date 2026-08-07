@@ -1,6 +1,6 @@
 name: infrastructure
 version: "1.0.0"
-description: "OpenTofu, Ansible, Packer"
+description: "OpenTofu, Ansible, Packer, and optional rootless Podman"
 profile_intent: runtime
 usage_class: automated
 profiles: ["human-dev", "headless-runner"]
@@ -26,6 +26,11 @@ tools:
     default_enabled: true
     default_version: "1.16.0"
     supported_versions: ["1.11.2", "1.15.3", "1.15.4", "1.16.0"]
+  - name: podman
+    description: "Rootless container engine with Compose support"
+    default_enabled: false
+    default_version: ""
+    supported_versions: []
 
 builder: |
   # ── Infrastructure builder ────────────────────────────────────────────
@@ -39,20 +44,19 @@ builder: |
       unzip \
       && rm -rf /var/lib/apt/lists/*
 
-  RUN mkdir -p /build/bin && \
+  RUN mkdir -p /build/bin
   {% if tools.opentofu.enabled %}
-      TOFU_VERSION="{{ tools.opentofu.version }}" && \
+  RUN TOFU_VERSION="{{ tools.opentofu.version }}" && \
       ARCH="$(uname -m | sed 's/x86_64/amd64/;s/aarch64/arm64/')" && \
       TOFU_ARCHIVE="tofu_${TOFU_VERSION}_linux_${ARCH}.tar.gz" && \
       curl -fsSL "https://github.com/opentofu/opentofu/releases/download/v${TOFU_VERSION}/${TOFU_ARCHIVE}" -o "/tmp/${TOFU_ARCHIVE}" && \
       curl -fsSL "https://github.com/opentofu/opentofu/releases/download/v${TOFU_VERSION}/tofu_${TOFU_VERSION}_SHA256SUMS" -o /tmp/tofu_SHA256SUMS && \
       (cd /tmp && grep "${TOFU_ARCHIVE}$" tofu_SHA256SUMS | sha256sum -c -) && \
       tar -xz -C /build/bin -f "/tmp/${TOFU_ARCHIVE}" tofu && \
-      rm "/tmp/${TOFU_ARCHIVE}" /tmp/tofu_SHA256SUMS{% if tools.packer.enabled %} && \
-  {% endif %}
+      rm "/tmp/${TOFU_ARCHIVE}" /tmp/tofu_SHA256SUMS
   {% endif %}
   {% if tools.packer.enabled %}
-      ARCH="$(dpkg --print-architecture)" && \
+  RUN ARCH="$(dpkg --print-architecture)" && \
       PACKER_VERSION="{{ tools.packer.version }}" && \
       PACKER_ARCHIVE="packer_${PACKER_VERSION}_linux_${ARCH}.zip" && \
       curl -fsSL "https://releases.hashicorp.com/packer/${PACKER_VERSION}/${PACKER_ARCHIVE}" \
@@ -82,6 +86,22 @@ runtime: |
         ln -sf "$bin" "/usr/local/bin/$(basename "$bin")"; \
       done
   {% endif %}
+  {% if tools.podman.enabled %}
+  USER root
+  RUN apt-get update && apt-get install -y --no-install-recommends \
+      podman \
+      podman-compose \
+      fuse-overlayfs \
+      passt \
+      slirp4netns \
+      uidmap \
+      && rm -rf /var/lib/apt/lists/*
+  RUN grep -q '^aibox:' /etc/subuid || echo 'aibox:100000:65536' >> /etc/subuid; \
+      grep -q '^aibox:' /etc/subgid || echo 'aibox:100000:65536' >> /etc/subgid; \
+      mkdir -p /home/aibox/.config/containers && \
+      printf '[engine]\ncgroup_manager = "cgroupfs"\n' > /home/aibox/.config/containers/containers.conf && \
+      chown -R aibox:aibox /home/aibox/.config/containers
+  {% endif %}
   # ── Variant 1 disable-then-purge guards ───────────────────────────────
   {% if not tools.opentofu.enabled %}
   USER root
@@ -94,4 +114,9 @@ runtime: |
   {% if not tools.ansible.enabled %}
   USER root
   RUN rm -rf /opt/aibox/ansible && rm -f /usr/local/bin/ansible*
+  {% endif %}
+  {% if not tools.podman.enabled %}
+  USER root
+  RUN apt-get purge -y podman podman-compose 2>/dev/null || true; \
+      rm -f /usr/local/bin/podman /usr/bin/podman /usr/local/bin/podman-compose /usr/bin/podman-compose
   {% endif %}

@@ -171,6 +171,68 @@ fn download_based_addons_build_with_published_defaults() {
 }
 
 #[test]
+#[serial(companion_runtime)]
+#[ignore = "resource-heavy nested Podman image build; run explicitly on the E2E companion"]
+#[ntest::timeout(900_000)]
+fn infrastructure_podman_runs_rootless_inside_generated_container() {
+    let runner = E2eRunner::new();
+    let test = "infrastructure-podman";
+    runner.cleanup(test);
+
+    let init = runner.aibox(
+        test,
+        &["init", test, "--base", "debian", "--context", "managed"],
+    );
+    assert!(
+        init.status.success(),
+        "init failed: {}",
+        String::from_utf8_lossy(&init.stderr)
+    );
+
+    let mut config = runner.read_file(test, "aibox.toml");
+    config.push_str(
+        "\n[addons.infrastructure.tools]\n\
+         opentofu = { enabled = false }\n\
+         ansible = { enabled = false }\n\
+         packer = { enabled = false }\n\
+         podman = {}\n",
+    );
+    runner.write_file(test, "aibox.toml", &config);
+
+    let apply = runner.aibox(test, &["apply"]);
+    assert!(
+        apply.status.success(),
+        "Podman-enabled project failed to build:\nstdout:\n{}\nstderr:\n{}",
+        String::from_utf8_lossy(&apply.stdout),
+        String::from_utf8_lossy(&apply.stderr)
+    );
+
+    let runtime = runner.runtime_bin();
+    let up = runner.exec(&format!(
+        "{runtime} compose -f /workspaces/{test}/.devcontainer/docker-compose.yml up -d {test}"
+    ));
+    assert!(
+        up.status.success(),
+        "Podman-enabled project failed to start:\nstdout:\n{}\nstderr:\n{}",
+        String::from_utf8_lossy(&up.stdout),
+        String::from_utf8_lossy(&up.stderr)
+    );
+
+    let probe = runner.container_exec(
+        test,
+        "podman --version && podman-compose --version && podman info --format '{{.Host.Security.Rootless}}'",
+    );
+    assert!(
+        probe.status.success() && String::from_utf8_lossy(&probe.stdout).contains("true"),
+        "rootless Podman probe failed:\nstdout:\n{}\nstderr:\n{}",
+        String::from_utf8_lossy(&probe.stdout),
+        String::from_utf8_lossy(&probe.stderr)
+    );
+
+    runner.cleanup(test);
+}
+
+#[test]
 fn get_addon_shows_available() {
     let runner = E2eRunner::new();
     let test = "addon-list";

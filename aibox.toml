@@ -390,11 +390,12 @@ lazygit = { enabled = true } # Interactive terminal UI for Git status, commits, 
 # [addons.go-release.tools]
 # goreleaser = {} # Multi-platform Go release packager; default on; options: {}, { enabled = true|false }, { version = "2.17.1" (default) or "latest" }
 
-# Tools/infrastructure — OpenTofu, Ansible, Packer
+# Tools/infrastructure — OpenTofu, Ansible, Packer, and optional rootless Podman
 # [addons.infrastructure.tools]
 # opentofu = {} # Open-source Terraform-compatible infrastructure as code CLI; default on; options: {}, { enabled = true|false }, { version = "1.9.0" | "1.12.0" | "1.12.1" | "1.12.3" | "1.12.5" (default) or "latest" }
 # ansible = {} # Configuration management and automation engine; default on; options: {}, { enabled = true|false }, { version = "13.7.0" | "14.0.0" | "14.1.0" | "14.2.0" (default) or "latest" }
 # packer = {} # Machine image build automation tool; default on; options: {}, { enabled = true|false }, { version = "1.11.2" | "1.15.3" | "1.15.4" | "1.16.0" (default) or "latest" }
+# podman = { enabled = true } # Rootless container engine with Compose support; default off; options: {}, { enabled = true|false }, { version = "x.y.z" or "latest" }
 
 # Tools/kubernetes — kubectl, Helm, Kustomize, k9s
 # [addons.kubernetes.tools]
