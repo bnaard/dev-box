@@ -120,7 +120,7 @@ RUN ARCH=$(uname -m) && \
 
 # ── fzf (uses amd64/arm64 instead of x86_64/aarch64) ────────────────────────
 FROM fetch-base AS fetch-fzf
-ARG FZF_VERSION=0.74.1
+ARG FZF_VERSION=0.74.2
 RUN ARCH=$(uname -m) && \
     FZF_ARCH=$(case $ARCH in aarch64) echo arm64;; x86_64) echo amd64;; esac) && \
     curl -fsSL --retry 5 --retry-delay 3 --retry-all-errors \
@@ -278,7 +278,7 @@ COPY --from=build-aibox-runtime-tools /build/aibox-runtime-tools/bin/aibox-diagn
 # image since v0.16.5 (DEC-036) so processkit's PEP 723 MCP server
 # scripts run via `uv run` out of the box. Works against the
 # externally-installed python3 from apt above.
-COPY --from=ghcr.io/astral-sh/uv:0.12.0 /uv /uvx /usr/local/bin/
+COPY --from=ghcr.io/astral-sh/uv:0.12.2 /uv /uvx /usr/local/bin/
 ENV UV_CACHE_DIR=/tmp/aibox/uv-cache
 
 ARG AIBOX_IMAGE_SOURCE_SHA=unknown
