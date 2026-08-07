@@ -1,6 +1,8 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 40 40" role="img" aria-labelledby="aiboxMarkTitle" class="aibox-mark">
-  <title id="aiboxMarkTitle">aibox</title>
-  <path d="M20,3 L33,9.5 L37,23 L28,36 L12,36 L3,23 L7,9.5 Z" fill="#1d3352"/>
-  <path d="M13,18 h14 a1.5,1.5 0 0 1 1.5,1.5 v9 a1.5,1.5 0 0 1 -1.5,1.5 h-14 a1.5,1.5 0 0 1 -1.5,-1.5 v-9 a1.5,1.5 0 0 1 1.5,-1.5 Z M13,18 L8,9 L18,14 Z M27,18 L32,9 L22,14 Z" fill="#ffffff"/>
-  <circle cx="20" cy="24" r="1.8" fill="#E05232"/>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 400 400" role="img" aria-labelledby="aiboxLogoTitle">
+  <title id="aiboxLogoTitle">aibox</title>
+  <rect width="400" height="400" rx="60" fill="#132440"/>
+  <rect x="40" y="60" width="320" height="280" rx="40" fill="#6b8db2"/>
+  <path d="M248,210 C251.6,236.4 251.6,236.4 278,240 C251.6,243.6 251.6,243.6 248,270 C244.4,243.6 244.4,243.6 218,240 C244.4,236.4 244.4,236.4 248,210Z" fill="#E05232" opacity=".87" stroke="rgba(255,255,255,.35)" stroke-width="11.2" stroke-linejoin="round"/>
+  <path d="M200,112 C210.56,189.44 210.56,189.44 288,200 C210.56,210.56 210.56,210.56 200,288 C189.44,210.56 189.44,210.56 112,200 C189.44,189.44 189.44,189.44 200,112Z" fill="#E05232" stroke="#132440" stroke-width="14" stroke-linejoin="round"/>
+  <path d="M104,112 L68,200 L104,288 M296,112 L332,200 L296,288" fill="none" stroke="#132440" stroke-width="20" stroke-linecap="round" stroke-linejoin="round" opacity=".92"/>
 </svg>
