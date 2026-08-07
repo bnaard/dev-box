@@ -389,8 +389,8 @@ mod tests {
             !hermes.contains("USER aibox"),
             "Hermes installation must retain root access to /usr/local/bin: {hermes}"
         );
-        let tau = generate_runtime_commands("ai-tau", &tc(&[("tau", true, "0.3.5")]));
-        assert!(tau.contains("tau-ai==0.3.5"), "{tau}");
+        let tau = generate_runtime_commands("ai-tau", &tc(&[("tau", true, "0.3.7")]));
+        assert!(tau.contains("tau-ai==0.3.7"), "{tau}");
         assert!(
             tau.contains("UV_TOOL_DIR=/opt/aibox/uv-tools"),
             "Tau tool environment must use the shared uv path: {tau}"
