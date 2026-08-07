@@ -1,8 +1,79 @@
 // Project-specific composition built on the projectious.work design tokens in
 // _variables_project.scss. Keep shared tokens aligned with the brand repository.
 
+:root,
+[data-bs-theme="light"] {
+  --pj-canvas: #f8f9fb;
+  --pj-surface: #ffffff;
+  --pj-surface-hover: #e2e9f2;
+  --pj-text: #142438;
+  --pj-text-secondary: #5c6f82;
+  --pj-heading: #1d3352;
+  --pj-link: #3a5a82;
+  --pj-link-hover: #c04424;
+  --pj-border: #cdd0d5;
+  --pj-border-strong: #546a82;
+  --pj-focus: #cc4528;
+  --pj-navbar: rgba(248, 249, 251, 0.85);
+  --pj-hero-glow: rgba(224, 82, 50, 0.12);
+}
+
+[data-bs-theme="dark"] {
+  --pj-canvas: #0e1720;
+  --pj-surface: #131e2b;
+  --pj-surface-hover: #1a2b3e;
+  --pj-text: #c5daf0;
+  --pj-text-secondary: #97a8b8;
+  --pj-heading: #c5daf0;
+  --pj-link: #8aacc8;
+  --pj-link-hover: #ea7558;
+  --pj-border: #263f5a;
+  --pj-border-strong: #4d7098;
+  --pj-focus: #f09878;
+  --pj-navbar: rgba(14, 23, 32, 0.85);
+  --pj-hero-glow: rgba(224, 82, 50, 0.18);
+}
+
+:root {
+  --pj-action: #cc4528;
+  --pj-action-hover: #b84228;
+  --pj-action-label: #ffffff;
+  --pj-code: #0e1720;
+  --pj-code-text: #c5daf0;
+}
+
+:root,
+[data-bs-theme="light"],
+[data-bs-theme="dark"] {
+  --bs-body-bg: var(--pj-canvas);
+  --bs-body-color: var(--pj-text);
+  --bs-secondary-color: var(--pj-text-secondary);
+  --bs-secondary-bg: var(--pj-surface);
+  --bs-heading-color: var(--pj-heading);
+  --bs-link-color: var(--pj-link);
+  --bs-link-hover-color: var(--pj-link-hover);
+  --bs-border-color: var(--pj-border);
+}
+
+:root,
+[data-bs-theme="light"] {
+  --bs-body-color-rgb: 20, 36, 56;
+  --bs-link-color-rgb: 58, 90, 130;
+  --bs-link-hover-color-rgb: 204, 69, 40;
+  --bs-emphasis-color-rgb: 20, 36, 56;
+}
+
+[data-bs-theme="dark"] {
+  --bs-body-color-rgb: 197, 218, 240;
+  --bs-link-color-rgb: 138, 172, 200;
+  --bs-link-hover-color-rgb: 234, 117, 88;
+  --bs-emphasis-color-rgb: 197, 218, 240;
+}
+
 .td-navbar {
-  border-bottom: 3px solid $brand-accent;
+  --td-navbar-bg-color: var(--pj-navbar);
+  --td-navbar-border-bottom: 1px solid var(--pj-border);
+  backdrop-filter: blur(12px);
 }
 
 .navbar-brand {
@@ -18,8 +89,81 @@
 
 .td-cover-block {
   background:
-    linear-gradient(90deg, rgba(10, 18, 30, 0.96), rgba(19, 36, 64, 0.82)),
-    url("/aibox/img/layouts/layout-dev.svg") center / cover;
+    radial-gradient(circle at 82% 20%, var(--pj-hero-glow), transparent 30rem),
+    linear-gradient(145deg, var(--pj-surface), var(--pj-canvas));
+  color: var(--pj-text);
+}
+
+.td-cover-block.td-overlay::after {
+  background-color: transparent;
+}
+
+.td-home .td-cover-block .display-1 {
+  color: var(--pj-heading);
+  letter-spacing: -0.04em;
+}
+
+.td-home .td-cover-block .lead {
+  color: var(--pj-text-secondary);
+}
+
+.btn-primary {
+  background: var(--pj-action);
+  border-color: var(--pj-action);
+  color: var(--pj-action-label);
+}
+
+.btn-primary:hover,
+.btn-primary:focus-visible,
+.btn-primary:active {
+  background: var(--pj-action-hover);
+  border-color: var(--pj-action-hover);
+  color: var(--pj-action-label);
+}
+
+.td-home .td-cover-block .btn-outline-light {
+  border-color: var(--pj-border-strong);
+  color: var(--pj-heading);
+}
+
+.td-home .td-cover-block .btn-outline-light:hover,
+.td-home .td-cover-block .btn-outline-light:focus-visible {
+  background: var(--pj-surface-hover);
+  border-color: var(--pj-border-strong);
+  color: var(--pj-heading);
+}
+
+:focus-visible {
+  outline: 2px solid var(--pj-focus);
+  outline-offset: 2px;
+}
+
+.td-home .td-box--primary,
+.td-home .td-box--white {
+  background: var(--pj-canvas);
+  color: var(--pj-text);
+}
+
+.aibox-feature-grid > [class*="col-"] {
+  background: var(--pj-surface);
+  border: 1px solid var(--pj-border);
+  border-radius: $border-radius-lg;
+  padding: 2rem 1.5rem;
+}
+
+.aibox-feature-grid {
+  gap: 1rem;
+}
+
+.aibox-feature-grid h4,
+.aibox-feature-grid .h1 {
+  color: var(--pj-heading);
+}
+
+@include media-breakpoint-up(lg) {
+  .aibox-feature-grid > .col-lg-4 {
+    width: calc(33.333333% - 1rem);
+  }
 }
 
 .td-content > h1,
