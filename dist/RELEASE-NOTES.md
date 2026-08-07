@@ -10,6 +10,7 @@
 ## Changed
 
 - Document the existing Go `supply-chain` bundle (`gitleaks`, `osv-scanner`, `syft`, `grype`, and `cosign`) and `release` bundle (`goreleaser`, `shellcheck`, and `hadolint`).
+- Refresh curated fzf, uv, and Zensical versions and apply compatible Rust dependency updates after a clean security audit.
 
 ## Fixed
 
