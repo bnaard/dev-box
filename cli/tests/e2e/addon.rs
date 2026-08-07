@@ -119,7 +119,10 @@ fn addon_rebuild_includes_tools_in_dockerfile() {
 #[test]
 #[serial(companion_runtime)]
 #[ignore = "resource-heavy addon image build; run through scripts/run-e2e-shards.sh addon or all"]
-#[ntest::timeout(1_800_000)]
+// The all-defaults image validates every download-backed installer in one
+// build. On the nested companion, uncached package extraction can legitimately
+// exceed 30 minutes even when the build is making progress.
+#[ntest::timeout(3_600_000)]
 fn download_based_addons_build_with_published_defaults() {
     let runner = E2eRunner::new();
     let test = "addon-download-smoke";
