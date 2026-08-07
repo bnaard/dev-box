@@ -1452,6 +1452,27 @@ runtime: |
     }
 
     #[test]
+    fn infrastructure_runtime_installs_rootless_podman_prerequisites() {
+        let addon = load_repo_addon("infrastructure");
+        let tools = all_enabled_tools(&addon);
+        let rendered = render_runtime(&addon, &tools).unwrap();
+
+        for expected in [
+            "podman-compose",
+            "fuse-overlayfs",
+            "slirp4netns",
+            "uidmap",
+            "aibox:100000:65536",
+            "cgroup_manager = \"cgroupfs\"",
+        ] {
+            assert!(
+                rendered.contains(expected),
+                "Podman runtime must include {expected}: {rendered}"
+            );
+        }
+    }
+
+    #[test]
     fn pip_packaged_runtime_tools_use_isolated_venvs() {
         for (addon_name, venv, command) in [
             ("cloud-azure", "azure-cli", "az"),
@@ -1535,6 +1556,7 @@ runtime: |
         let rendered = render_runtime(&addon, &tools).unwrap();
         assert!(rendered.contains("rm -f /usr/local/bin/tofu"));
         assert!(rendered.contains("rm -f /usr/local/bin/packer"));
+        assert!(rendered.contains("apt-get purge -y podman podman-compose"));
         assert!(rendered.contains("rm -rf /opt/aibox/ansible"));
         assert!(rendered.contains("rm -f /usr/local/bin/ansible*"));
     }

@@ -99,10 +99,16 @@ automatically when `[audio] enabled = true` and `install = true`; projects norma
 opentofu = {}      # Infrastructure-as-code (Terraform alternative)
 ansible = {}       # Configuration management
 packer = {}        # Machine image builder
+podman = {}        # Optional rootless container engine + Compose
 ```
 
 OpenTofu defaults to 1.12.5, Packer to 1.16.0, and Ansible to 14.2.0.
 OpenTofu and Packer are installed in a multi-stage builder. Ansible is installed via pip.
+Podman is optional and installs the Debian-packaged rootless engine, Compose
+provider, user-namespace helpers, and overlay/networking prerequisites. Nested
+containers still depend on the outer runtime allowing user namespaces; FUSE
+overlay is used when `/dev/fuse` is available, with Podman's normal fallback
+otherwise.
 
 ## Kubernetes
 
