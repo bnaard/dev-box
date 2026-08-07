@@ -320,13 +320,18 @@ fn sync_one_profile(
             continue;
         }
         let remove_current_managed = universe.contains(&source_md_name);
+        // The pk-* command namespace is reserved for processkit. Remove an
+        // unwanted adapter even when its old source is no longer present in a
+        // retained template mirror; otherwise package changes can strand
+        // generated commands indefinitely in derived projects.
+        let remove_reserved_processkit = source_md_name.starts_with("pk-");
         let remove_historical_generated = deployed_matches_historical_source(
             profile,
             &source_md_name,
             &path,
             historical_sources,
         )?;
-        if remove_current_managed || remove_historical_generated {
+        if remove_current_managed || remove_reserved_processkit || remove_historical_generated {
             remove_deployed_command(profile, &path)?;
             removed += 1;
         }
@@ -1825,6 +1830,40 @@ mod tests {
                 .join(".agents/skills/morning-briefing-generate/SKILL.md")
                 .exists()
         );
+        assert!(project.join(".agents/skills/pk-resume/SKILL.md").exists());
+        assert!(project.join(".agents/skills/user-skill/SKILL.md").exists());
+    }
+
+    #[test]
+    fn stale_reserved_codex_command_removed_without_historical_source() {
+        let tmp = tempfile::tempdir().unwrap();
+        let project = tmp.path();
+        let live = project.join("context/skills");
+        make_skill_commands(
+            &live,
+            "processkit",
+            "status-briefing",
+            &["pk-resume.md"],
+            "---\ndescription: Resume\n---\n\n# Resume\n",
+        );
+
+        fs::create_dir_all(project.join(".agents/skills/pk-release")).unwrap();
+        fs::write(
+            project.join(".agents/skills/pk-release/SKILL.md"),
+            "---\nname: pk-release\ndescription: stale generated command\n---\n",
+        )
+        .unwrap();
+        fs::create_dir_all(project.join(".agents/skills/user-skill")).unwrap();
+        fs::write(
+            project.join(".agents/skills/user-skill/SKILL.md"),
+            "---\nname: user-skill\ndescription: user\n---\n",
+        )
+        .unwrap();
+
+        let config = config_with("v0.20.0", vec![AiHarness::Codex]);
+        sync_harness_commands(project, &config).unwrap();
+
+        assert!(!project.join(".agents/skills/pk-release").exists());
         assert!(project.join(".agents/skills/pk-resume/SKILL.md").exists());
         assert!(project.join(".agents/skills/user-skill/SKILL.md").exists());
     }

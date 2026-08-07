@@ -460,15 +460,27 @@ pub fn fetch(
                 cache_root.display()
             )
         })?;
-        let (commit, sha256) = read_marker(&marker);
-        return Ok(FetchedSource {
-            cache_root,
-            src_path: resolved_src,
-            resolved_commit: commit,
-            release_asset_sha256: sha256,
-            source: source.to_string(),
-            version: version.to_string(),
-        });
+        if cached_inventory_complete(&resolved_src) {
+            let (commit, sha256) = read_marker(&marker);
+            return Ok(FetchedSource {
+                cache_root,
+                src_path: resolved_src,
+                resolved_commit: commit,
+                release_asset_sha256: sha256,
+                source: source.to_string(),
+                version: version.to_string(),
+            });
+        }
+        output::warn(&format!(
+            "cached content source at {} is incomplete against PROVENANCE.toml; refetching",
+            cache_root.display()
+        ));
+        fs::remove_dir_all(&cache_root).with_context(|| {
+            format!(
+                "failed to remove incomplete cache dir {}",
+                cache_root.display()
+            )
+        })?;
     }
 
     // Make a clean target directory. If a previous attempt left a
@@ -626,6 +638,34 @@ pub fn fetch(
         source: source.to_string(),
         version: version.to_string(),
     })
+}
+
+/// Validate a release extraction against its shipped provenance inventory.
+/// Older aibox versions could leave a filtered processkit tree in the shared
+/// version cache while retaining `.fetch-complete`; shape-only validation then
+/// reused that partial tree indefinitely. Releases without a provenance file
+/// retain the historical shape-only behavior.
+fn cached_inventory_complete(resolved_src: &Path) -> bool {
+    #[derive(serde::Deserialize)]
+    struct ProvenanceInventory {
+        #[serde(default)]
+        files: std::collections::HashMap<String, String>,
+    }
+
+    let provenance = resolved_src.join("PROVENANCE.toml");
+    if !provenance.is_file() {
+        return true;
+    }
+    let Ok(body) = fs::read_to_string(&provenance) else {
+        return false;
+    };
+    let Ok(parsed) = toml::from_str::<ProvenanceInventory>(&body) else {
+        return false;
+    };
+    parsed
+        .files
+        .keys()
+        .all(|relative| resolved_src.join(relative).is_file())
 }
 
 // ---------------------------------------------------------------------------
@@ -1662,4 +1702,20 @@ mod tests {
             "5xx error message must not contain 'HTTP 404'"
         );
     }
+}
+#[test]
+fn cached_inventory_detects_missing_provenance_file() {
+    let tmp = tempfile::tempdir().unwrap();
+    fs::write(
+        tmp.path().join("PROVENANCE.toml"),
+        "[files]\n\"context/skills/one/SKILL.md\" = \"v0.1.0\"\n",
+    )
+    .unwrap();
+
+    assert!(!cached_inventory_complete(tmp.path()));
+
+    let skill = tmp.path().join("context/skills/one/SKILL.md");
+    fs::create_dir_all(skill.parent().unwrap()).unwrap();
+    fs::write(skill, "# one\n").unwrap();
+    assert!(cached_inventory_complete(tmp.path()));
 }
