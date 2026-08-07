@@ -321,6 +321,11 @@ below shows the minimum compatible processkit version for each aibox release.&lt
 	&lt;/thead&gt;
 	&lt;tbody&gt;
 			&lt;tr&gt;
+					&lt;td&gt;0.30.1&lt;/td&gt;
+					&lt;td&gt;v0.28.5&lt;/td&gt;
+					&lt;td&gt;refreshes the companion E2E contract, repairs Starship cache isolation, resolves Codex &lt;code&gt;latest&lt;/code&gt; pins before container builds, and updates security-relevant pnpm and Tau curated defaults&lt;/td&gt;
+			&lt;/tr&gt;
+			&lt;tr&gt;
 					&lt;td&gt;0.30.0&lt;/td&gt;
 					&lt;td&gt;v0.28.5&lt;/td&gt;
 					&lt;td&gt;adds nested language addon groups, production Go quality tooling, and language-neutral supply-chain and release bundles with pinned versions, checksum verification, and per-tool overrides&lt;/td&gt;

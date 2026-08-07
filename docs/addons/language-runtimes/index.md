@@ -36,7 +36,7 @@ Installs the Rust toolchain via rustup with clippy and rustfmt. Uses a multi-sta
 ```toml
 [addons.node.tools]
 node = { version = "26" }       # 20, 22, 24, 26
-pnpm = { version = "11.18.0" }  # 9, 10, 11.1.3, 11.5.2, 11.10.0, 11.18.0
+pnpm = { version = "11.20.0" }  # 9, 10, 11.1.3, 11.5.2, 11.10.0, 11.18.0, 11.20.0
 # yarn = { version = "4.17.0" } # Optional: 4, 4.16.0, 4.17.0
 # bun = { version = "1.3.14" }  # Optional
 ```
