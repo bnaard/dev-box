@@ -321,6 +321,11 @@ below shows the minimum compatible processkit version for each aibox release.&lt
 	&lt;/thead&gt;
 	&lt;tbody&gt;
 			&lt;tr&gt;
+					&lt;td&gt;0.31.1&lt;/td&gt;
+					&lt;td&gt;v0.28.6&lt;/td&gt;
+					&lt;td&gt;repairs incomplete processkit upgrade caches, installs declared skill dependencies, removes stale &lt;code&gt;pk-*&lt;/code&gt; command projections, and consumes source-specific MCP header manifests&lt;/td&gt;
+			&lt;/tr&gt;
+			&lt;tr&gt;
 					&lt;td&gt;0.31.0&lt;/td&gt;
 					&lt;td&gt;v0.28.5&lt;/td&gt;
 					&lt;td&gt;adds optional rootless Podman and Podman Compose tooling to the infrastructure addon, documents the Go supply-chain and release bundles, and repairs minimal infrastructure addon rendering&lt;/td&gt;
