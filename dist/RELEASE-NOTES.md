@@ -1,30 +1,27 @@
-# aibox v0.30.0 — 2026-08-05
+# aibox v0.30.1 — 2026-08-07
 
-**Summary:** This minor release gives Go teams production-ready quality, security, supply-chain, and release tooling through composable language addon groups. Existing flat addon configurations remain compatible; opt into nested groups and rebuild to install the new tools.
+**Summary:** This patch release makes container rebuilds honor Codex `latest`, hardens curated pnpm and Tau installations, and improves runtime and release validation reliability. Projects using `latest` or curated defaults should run `aibox apply` and rebuild their container.
 
 ## Added
 
-- Add `[addons.go.quality]`, `[addons.go.supply-chain]`, and `[addons.go.release]` configuration groups.
-- Add pinned Go quality tools: goimports, Staticcheck, golangci-lint, govulncheck, and gosec.
-- Add language-neutral Gitleaks, OSV-Scanner, Syft, Grype, Cosign, ShellCheck, and Hadolint bundles.
-- Add pinned GoReleaser support and the native prerequisites for `go test -race`.
+- Add candidate-bound, independently retryable release validation evidence and sharded Tier-2 E2E execution.
 
 ## Changed
 
-- Language addon definitions now expose consistent infrastructure, supply-chain/security, and release group mappings.
-- Nested group tool versions and enabled states merge into their target addons while preserving explicit flat-addon overrides.
-- Downloaded release assets use published checksum files wherever upstream provides them.
+- Update the curated pnpm default to 11.20.0 and Tau default to 0.3.7 while retaining earlier versions as explicit pins.
+- Refresh the E2E companion contract and validation for its current tmux, Yazi, Podman, and bubblewrap runtime.
 
 ## Fixed
 
-- Map Linux ARM64 architecture names to upstream release asset names, including Hadolint's `arm64` archive.
+- Resolve Codex `latest` to a concrete upstream version before Docker generation so rebuilds do not reuse a stale cached npm layer.
+- Isolate Starship cache files per shell to prevent cache-directory collisions in generated and image runtime configurations.
 
 ## Removed
 
-- No existing addon or flat configuration surface was removed; legacy flat addon configuration remains supported.
+- No configuration or addon surface was removed.
 
 ## Upgrade notes
 
-Add the desired nested Go groups to `aibox.toml`, then run `aibox apply` and rebuild the container. Existing flat addon configuration requires no migration.
+Run `aibox apply` and rebuild the container to receive newly resolved `latest` pins and curated addon defaults. Existing explicit addon pins remain unchanged.
 
-[v0.30.0]: https://github.com/projectious-work/aibox/compare/v0.29.0...v0.30.0
+[v0.30.1]: https://github.com/projectious-work/aibox/compare/v0.30.0...v0.30.1
