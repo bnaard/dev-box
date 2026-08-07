@@ -3605,55 +3605,7 @@ pub fn cmd_sync(
         ));
     }
 
-    // Resolve "latest" addon tool versions to concrete versions.
-    // The resolved versions are used in Dockerfile generation and recorded
-    // in aibox.lock so builds are reproducible.
-    let mut resolved_tools = std::collections::BTreeMap::new();
-    for (addon_name, addon_tools) in &mut config.addons.addons {
-        for (tool_name, tool_entry) in &mut addon_tools.tools {
-            if tool_entry.version.as_deref() == Some("latest") {
-                // Try upstream resolution for key tools
-                if let Some(resolved) = crate::version_resolve::resolve_latest(tool_name) {
-                    tool_entry.version = Some(resolved.clone());
-                    resolved_tools.insert(tool_name.clone(), resolved);
-                } else if let Some(addon) = crate::addon_loader::get_addon(addon_name)
-                    && let Some(tool_def) = addon.tools.iter().find(|t| &t.name == tool_name)
-                    && !tool_def.default_version.is_empty()
-                {
-                    // Fall back to addon's default_version
-                    let ver = tool_def.default_version.clone();
-                    tool_entry.version = Some(ver.clone());
-                    resolved_tools.insert(tool_name.clone(), ver);
-                }
-            }
-        }
-    }
-    if !resolved_tools.is_empty() {
-        output::info(&format!(
-            "Resolved {} 'latest' tool version(s) to concrete values",
-            resolved_tools.len()
-        ));
-        // Write resolved versions to aibox.lock
-        let project_root = std::env::current_dir().unwrap_or_default();
-        if let Ok(Some(mut lock)) = crate::lock::read_lock(&project_root) {
-            let preserved_previous_selection = lock
-                .addons
-                .as_ref()
-                .map(|a| a.previous_selection.clone())
-                .unwrap_or_default();
-            lock.addons = Some(crate::lock::AddonsLockSection {
-                resolved_at: chrono::Utc::now().format("%Y-%m-%dT%H:%M:%SZ").to_string(),
-                tools: resolved_tools,
-                previous_selection: preserved_previous_selection,
-            });
-            if let Err(e) = crate::lock::write_lock(&project_root, &lock) {
-                output::warn(&format!(
-                    "Failed to update aibox.lock with resolved tool versions: {}",
-                    e
-                ));
-            }
-        }
-    }
+    resolve_latest_addon_tool_versions(&mut config, Path::new("."));
 
     // v0.25.6 BR-CLEANUP-ARCH item 1 (DEC-20260508_1515-SilentAsh):
     // Backfill addon/harness `previous_selection` on the lock so future
@@ -4057,6 +4009,7 @@ pub fn cmd_apply_generated_runtime(config_path: &Option<String>) -> Result<()> {
 
     let mut config = AiboxConfig::from_cli_option(config_path)?;
     resolve_aibox_image_version_for_generation(&mut config, &project_root);
+    resolve_latest_addon_tool_versions(&mut config, &project_root);
 
     let added_required_addons = complete_missing_required_addons(&mut config);
     if !added_required_addons.is_empty() {
@@ -4093,6 +4046,56 @@ pub fn cmd_apply_generated_runtime(config_path: &Option<String>) -> Result<()> {
     );
 
     Ok(())
+}
+
+/// Resolve addon `version = "latest"` sentinels before rendering so the
+/// generated Dockerfile changes when upstream latest changes instead of
+/// silently reusing a stale Docker build layer.
+fn resolve_latest_addon_tool_versions(config: &mut AiboxConfig, project_root: &Path) {
+    let mut resolved_tools = std::collections::BTreeMap::new();
+    for (addon_name, addon_tools) in &mut config.addons.addons {
+        for (tool_name, tool_entry) in &mut addon_tools.tools {
+            if tool_entry.version.as_deref() == Some("latest") {
+                if let Some(resolved) = crate::version_resolve::resolve_latest(tool_name) {
+                    tool_entry.version = Some(resolved.clone());
+                    resolved_tools.insert(tool_name.clone(), resolved);
+                } else if let Some(addon) = crate::addon_loader::get_addon(addon_name)
+                    && let Some(tool_def) = addon.tools.iter().find(|t| &t.name == tool_name)
+                    && !tool_def.default_version.is_empty()
+                {
+                    let version = tool_def.default_version.clone();
+                    tool_entry.version = Some(version.clone());
+                    resolved_tools.insert(tool_name.clone(), version);
+                }
+            }
+        }
+    }
+    if resolved_tools.is_empty() {
+        return;
+    }
+
+    output::info(&format!(
+        "Resolved {} 'latest' tool version(s) to concrete values",
+        resolved_tools.len()
+    ));
+    if let Ok(Some(mut lock)) = crate::lock::read_lock(project_root) {
+        let preserved_previous_selection = lock
+            .addons
+            .as_ref()
+            .map(|addons| addons.previous_selection.clone())
+            .unwrap_or_default();
+        lock.addons = Some(crate::lock::AddonsLockSection {
+            resolved_at: chrono::Utc::now().format("%Y-%m-%dT%H:%M:%SZ").to_string(),
+            tools: resolved_tools,
+            previous_selection: preserved_previous_selection,
+        });
+        if let Err(error) = crate::lock::write_lock(project_root, &lock) {
+            output::warn(&format!(
+                "Failed to update aibox.lock with resolved tool versions: {}",
+                error
+            ));
+        }
+    }
 }
 
 fn resolve_aibox_image_version_for_generation(config: &mut AiboxConfig, project_root: &Path) {

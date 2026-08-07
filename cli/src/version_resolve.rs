@@ -1,6 +1,6 @@
 //! Resolve `version = "latest"` to concrete upstream versions.
 //!
-//! For key tools (rustc, node, python), queries upstream APIs to find the
+//! For key tools (rustc, node, python, Codex), queries upstream APIs to find the
 //! actual latest stable version. Other tools fall back to the addon's
 //! `default_version`. Resolvers fail gracefully — on network error, they
 //! return `None` and the caller falls back to the addon default.
@@ -16,8 +16,33 @@ pub fn resolve_latest(tool_name: &str) -> Option<String> {
         "rustc" => resolve_rustc().ok().flatten(),
         "node" => resolve_node().ok().flatten(),
         "python" => resolve_python().ok().flatten(),
+        "codex" => resolve_npm_latest("@openai/codex", "Codex").ok().flatten(),
         _ => None,
     }
+}
+
+/// Resolve an npm package's `latest` dist-tag to a concrete version.
+fn resolve_npm_latest(package: &str, display_name: &str) -> Result<Option<String>> {
+    let encoded_package = package.replace('/', "%2f");
+    let url = format!("https://registry.npmjs.org/{encoded_package}/latest");
+    output::info(&format!(
+        "Resolving latest stable {display_name} version..."
+    ));
+    let body = ureq::get(&url).call()?.body_mut().read_to_string()?;
+    let version = parse_npm_latest_version(&body)?;
+    if let Some(version) = &version {
+        output::ok(&format!("Resolved {} latest -> {}", display_name, version));
+    }
+    Ok(version)
+}
+
+fn parse_npm_latest_version(body: &str) -> Result<Option<String>> {
+    let metadata: serde_json::Value = serde_json::from_str(body)?;
+    Ok(metadata
+        .get("version")
+        .and_then(|value| value.as_str())
+        .filter(|version| !version.is_empty())
+        .map(str::to_string))
 }
 
 /// Resolve the latest stable Rust version from the release channel manifest.
@@ -90,5 +115,17 @@ mod tests {
     #[test]
     fn unknown_tool_returns_none() {
         assert!(resolve_latest("unknown-tool-xyz").is_none());
+    }
+
+    #[test]
+    fn parses_npm_latest_version() {
+        assert_eq!(
+            parse_npm_latest_version(r#"{"name":"@openai/codex","version":"0.147.0"}"#).unwrap(),
+            Some("0.147.0".to_string())
+        );
+        assert_eq!(
+            parse_npm_latest_version(r#"{"name":"@openai/codex"}"#).unwrap(),
+            None
+        );
     }
 }

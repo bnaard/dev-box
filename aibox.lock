@@ -11,9 +11,10 @@ installed_at = "2026-07-31T18:57:00.640055+00:00"
 processkit_install_hash = "v2:13e7f239b8daa3e6b497e06fb2b843a511ed3061222dc2bc6654fda13d05d099"
 
 [addons]
-resolved_at = "2026-05-09T10:41:25Z"
+resolved_at = "2026-08-07T09:28:57Z"
 
 [addons.tools]
+codex = "0.147.0"
 
 [addons.previous_selection]
 docs-docusaurus = ["docusaurus"]
