@@ -1958,6 +1958,7 @@ mod tests {
     #[test]
     fn base_image_prepares_writable_cache_home_and_shell_env() {
         let content = include_str!("../../images/base-debian/Dockerfile");
+        let bashrc = include_str!("../../images/base-debian/config/bashrc");
         assert!(content.contains("SHELL=/bin/bash"));
         assert!(
             content.contains("ENV UV_CACHE_DIR=/tmp/aibox/uv-cache")
@@ -1968,6 +1969,11 @@ mod tests {
                 && content.contains("chown -R aibox:aibox /home/aibox")
                 && content.contains("chown -R aibox:aibox /tmp/aibox"),
             "base image should create writable cache-home and uv cache paths before final ownership fix"
+        );
+        assert!(
+            bashrc.contains("moved file blocking Starship cache")
+                && bashrc.contains("mkdir -p \"$HOME/.cache/starship\""),
+            "interactive Bash must repair a file collision at Starship's cache path before initializing the prompt"
         );
     }
 
