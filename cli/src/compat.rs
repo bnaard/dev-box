@@ -653,6 +653,11 @@ pub static COMPAT_TABLE: &[CompatEntry] = &[
         processkit_version: "v0.28.5",
         note: "Patch release: refreshes the companion E2E contract, repairs Starship cache isolation, resolves Codex latest pins before container builds, and updates security-relevant pnpm and Tau curated defaults.",
     },
+    CompatEntry {
+        aibox_version: "0.31.0",
+        processkit_version: "v0.28.5",
+        note: "Minor release: adds optional rootless Podman and Podman Compose tooling to the infrastructure addon, documents the Go supply-chain and release bundles, and repairs minimal infrastructure addon rendering.",
+    },
 ];
 
 /// Find the minimum compatible processkit version for the given aibox version.

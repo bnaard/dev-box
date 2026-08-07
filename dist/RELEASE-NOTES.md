@@ -1,20 +1,19 @@
-# aibox v0.30.1 — 2026-08-07
+# aibox v0.31.0 — 2026-08-07
 
-**Summary:** This patch release makes container rebuilds honor Codex `latest`, hardens curated pnpm and Tau installations, and improves runtime and release validation reliability. Projects using `latest` or curated defaults should run `aibox apply` and rebuild their container.
+**Summary:** This minor release lets derived projects opt into rootless Podman and Podman Compose inside their development container, alongside the existing curated Go supply-chain and release bundles. Projects that need an internal container runtime can enable the new infrastructure tool and rebuild.
 
 ## Added
 
-- Add candidate-bound, independently retryable release validation evidence and sharded Tier-2 E2E execution.
+- Add an optional `podman` infrastructure tool with Podman Compose and rootless runtime prerequisites.
+- Add companion-backed E2E coverage that starts a generated container and verifies nested rootless Podman operation.
 
 ## Changed
 
-- Update the curated pnpm default to 11.20.0 and Tau default to 0.3.7 while retaining earlier versions as explicit pins.
-- Refresh the E2E companion contract and validation for its current tmux, Yazi, Podman, and bubblewrap runtime.
+- Document the existing Go `supply-chain` bundle (`gitleaks`, `osv-scanner`, `syft`, `grype`, and `cosign`) and `release` bundle (`goreleaser`, `shellcheck`, and `hadolint`).
 
 ## Fixed
 
-- Resolve Codex `latest` to a concrete upstream version before Docker generation so rebuilds do not reuse a stale cached npm layer.
-- Isolate Starship cache files per shell to prevent cache-directory collisions in generated and image runtime configurations.
+- Render a valid infrastructure builder stage when OpenTofu and Packer are both disabled.
 
 ## Removed
 
@@ -22,6 +21,6 @@
 
 ## Upgrade notes
 
-Run `aibox apply` and rebuild the container to receive newly resolved `latest` pins and curated addon defaults. Existing explicit addon pins remain unchanged.
+Enable the runtime with `[addons.go.infrastructure.tools] podman = {}` (or the equivalent language group), then run `aibox apply` and rebuild the container. Existing projects remain unchanged because Podman is disabled by default.
 
-[v0.30.1]: https://github.com/projectious-work/aibox/compare/v0.30.0...v0.30.1
+[v0.31.0]: https://github.com/projectious-work/aibox/compare/v0.30.1...v0.31.0
