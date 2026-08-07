@@ -99,7 +99,7 @@ bundle with the &lt;code&gt;go-release&lt;/code&gt; recipe and GoReleaser.&lt;/p
 	&lt;/tbody&gt;
 &lt;/table&gt;
 &lt;p&gt;Current curated pins are Docusaurus 3.10.1, Hugo 0.164.0, mdBook 0.5.4,
-MkDocs 1.6.1 with Material 9.7.7, and Zensical 0.0.52. Starlight remains
+MkDocs 1.6.1 with Material 9.7.7, and Zensical 0.0.53. Starlight remains
 scaffolded through the upstream &lt;code&gt;create-starlight&lt;/code&gt; package.&lt;/p&gt;
 &lt;h2 id="example"&gt;Example&lt;/h2&gt;
 &lt;div class="highlight"&gt;&lt;pre tabindex="0" class="chroma"&gt;&lt;code class="language-toml" data-lang="toml"&gt;&lt;span class="line"&gt;&lt;span class="cl"&gt;&lt;span class="p"&gt;[&lt;/span&gt;&lt;span class="nx"&gt;addons&lt;/span&gt;&lt;span class="p"&gt;.&lt;/span&gt;&lt;span class="nx"&gt;docs-docusaurus&lt;/span&gt;&lt;span class="p"&gt;.&lt;/span&gt;&lt;span class="nx"&gt;tools&lt;/span&gt;&lt;span class="p"&gt;]&lt;/span&gt;

@@ -18,7 +18,7 @@ Documentation addons install static site generators and documentation tools.
 | `docs-hugo` | Hugo Extended | Binary download |
 
 Current curated pins are Docusaurus 3.10.1, Hugo 0.164.0, mdBook 0.5.4,
-MkDocs 1.6.1 with Material 9.7.7, and Zensical 0.0.52. Starlight remains
+MkDocs 1.6.1 with Material 9.7.7, and Zensical 0.0.53. Starlight remains
 scaffolded through the upstream `create-starlight` package.
 
 ## Example

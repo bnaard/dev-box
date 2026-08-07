@@ -13,6 +13,7 @@ below shows the minimum compatible processkit version for each aibox release.
 
 | aibox version | Min. processkit | Notes |
 |--------------|-----------------|-------|
+| 0.31.0 | v0.28.5 | adds optional rootless Podman and Podman Compose tooling to the infrastructure addon, documents the Go supply-chain and release bundles, and repairs minimal infrastructure addon rendering |
 | 0.30.1 | v0.28.5 | refreshes the companion E2E contract, repairs Starship cache isolation, resolves Codex `latest` pins before container builds, and updates security-relevant pnpm and Tau curated defaults |
 | 0.30.0 | v0.28.5 | adds nested language addon groups, production Go quality tooling, and language-neutral supply-chain and release bundles with pinned versions, checksum verification, and per-tool overrides |
 | 0.29.0 | v0.28.5 | adds Tau as a first-class multi-provider coding-agent harness with pinned installation, persistent runtime state, AGENTS.md discovery, Agent Skills projection, and explicit reporting that Tau does not currently expose a built-in MCP client |

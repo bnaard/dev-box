@@ -81,7 +81,7 @@ After editing `aibox.toml`, run `aibox apply` to regenerate the Dockerfile and r
 
 | Addon | Default Tools | Optional Tools |
 |-------|--------------|----------------|
-| `infrastructure` | opentofu, ansible, packer | — |
+| `infrastructure` | opentofu, ansible, packer | podman (rootless engine and Compose) |
 | `supply-chain` | gitleaks, osv-scanner, syft, grype, cosign | — |
 | `release` | shellcheck, hadolint | — |
 | `go-release` | goreleaser (requires `go` and `release`) | — |

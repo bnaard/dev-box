@@ -67,6 +67,13 @@ staticcheck = { enabled = false } # optional per-tool override
 [addons.go.supply-chain]
 
 [addons.go.release]
+
+# Optional nested container engine without the other infrastructure defaults:
+[addons.go.infrastructure.tools]
+opentofu = { enabled = false }
+ansible = { enabled = false }
+packer = { enabled = false }
+podman = {}
 ```
 
 `quality` installs `goimports`, `staticcheck`, `golangci-lint`,
@@ -75,6 +82,9 @@ by `go test -race ./...`. `supply-chain` adds `gitleaks`, `osv-scanner`,
 `syft`, `grype`, and `cosign`. `release` adds GoReleaser, ShellCheck, and
 Hadolint. The built-in `gofmt`, `go vet`, `go test`, fuzzing, and coverage
 commands remain part of the Go toolchain and need no extra binary.
+The optional `podman` selection installs a rootless container engine and its
+Compose provider. The explicit disables keep OpenTofu, Ansible, and Packer out
+when the project only needs nested container operations.
 
 The same `infrastructure`, `security`/`supply-chain`, and `release` group names
 are accepted below every language addon. Go additionally exposes `quality`
