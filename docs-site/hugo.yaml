@@ -48,7 +48,7 @@ params:
   path_base_for_github_subdir: "docs-site/content"
   ui:
     navbar_logo: true
-    navbar_theme: dark
+    navbar_theme: light
     showLightDarkModeMenu: true
     sidebar_menu_compact: true
     sidebar_menu_foldable: true
