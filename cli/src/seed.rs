@@ -4,7 +4,7 @@ use std::fs;
 use std::os::unix::fs::PermissionsExt;
 #[cfg(unix)]
 use std::os::unix::fs::symlink;
-use std::path::Path;
+use std::path::{Path, PathBuf};
 
 use crate::config::{AiboxConfig, ConfigLayout, GithubCredentialHelper};
 use crate::output;
@@ -927,11 +927,48 @@ pub fn ensure_runtime_dirs(config: &AiboxConfig) -> Result<()> {
     let root = config.host_root_dir();
     for rel_dir in crate::runtime_home::runtime_home_scaffold_dirs(config) {
         let dir = root.join(rel_dir);
-        fs::create_dir_all(&dir)
-            .with_context(|| format!("Failed to create directory: {}", dir.display()))?;
+        ensure_runtime_dir(&dir)?;
     }
 
     Ok(())
+}
+
+/// Ensure a runtime-home path is a directory, preserving a blocking file.
+///
+/// `.aibox-home` is user-editable and bind-mounted into the container. A file
+/// at a cache/config directory path would otherwise make tools fail on every
+/// shell startup (for example, Starship's log directory). Keep the file under
+/// a deterministic conflict name instead of discarding user data.
+fn ensure_runtime_dir(dir: &Path) -> Result<()> {
+    if fs::symlink_metadata(dir).is_ok() && !dir.is_dir() {
+        let backup = runtime_dir_conflict_backup(dir);
+        fs::rename(dir, &backup).with_context(|| {
+            format!(
+                "Failed to preserve file blocking runtime directory {}",
+                dir.display()
+            )
+        })?;
+        output::warn(&format!(
+            "Moved file blocking runtime directory {} to {}",
+            dir.display(),
+            backup.display()
+        ));
+    }
+    fs::create_dir_all(dir)
+        .with_context(|| format!("Failed to create directory: {}", dir.display()))
+}
+
+fn runtime_dir_conflict_backup(dir: &Path) -> PathBuf {
+    let parent = dir.parent().unwrap_or_else(|| Path::new("."));
+    let name = dir.file_name().unwrap_or_default().to_string_lossy();
+    let base = format!("{name}.aibox-conflict");
+    let mut candidate = parent.join(&base);
+    let mut suffix = 2;
+    while candidate.exists() || candidate.is_symlink() {
+        candidate = parent.join(format!("{base}.{suffix}"));
+        suffix += 1;
+    }
+    candidate
 }
 
 /// Return the managed runtime files that aibox generates inside `.aibox-home/`.
@@ -2285,6 +2322,26 @@ mod tests {
         assert!(root.join(".config").join("yazi").is_dir());
         assert!(root.join(".config").join("git").is_dir());
         assert!(root.join(".claude").is_dir());
+        clear_test_host_root();
+    }
+
+    #[test]
+    #[serial]
+    fn ensure_runtime_dirs_preserves_file_blocking_starship_cache() {
+        let dir = tempfile::tempdir().unwrap();
+        let root = dir.path().join("root");
+        let config = make_config(false, root.clone());
+        let starship_cache = root.join(".cache/starship");
+        fs::create_dir_all(starship_cache.parent().unwrap()).unwrap();
+        fs::write(&starship_cache, "preserve this cache file").unwrap();
+
+        ensure_runtime_dirs(&config).unwrap();
+
+        assert!(starship_cache.is_dir());
+        assert_eq!(
+            fs::read_to_string(root.join(".cache/starship.aibox-conflict")).unwrap(),
+            "preserve this cache file"
+        );
         clear_test_host_root();
     }
 
