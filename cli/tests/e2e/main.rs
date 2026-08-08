@@ -36,7 +36,11 @@ mod preauth_merge;
 #[cfg(not(any(feature = "e2e", feature = "e2e-render")))]
 mod preview;
 #[cfg(not(any(feature = "e2e", feature = "e2e-render")))]
+mod runtime_generated;
+#[cfg(not(any(feature = "e2e", feature = "e2e-render")))]
 mod runtime_recovery;
+#[cfg(not(any(feature = "e2e", feature = "e2e-render")))]
+mod update;
 #[cfg(not(any(feature = "e2e", feature = "e2e-render")))]
 mod version_upgrade;
 
@@ -47,10 +51,6 @@ mod addon;
 mod latex_preview;
 #[cfg(feature = "e2e")]
 mod lifecycle;
-#[cfg(feature = "e2e")]
-mod runtime_generated;
-#[cfg(feature = "e2e")]
-mod update;
 #[cfg(feature = "e2e")]
 mod visual;
 #[cfg(feature = "e2e")]

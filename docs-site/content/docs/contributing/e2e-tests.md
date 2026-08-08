@@ -36,8 +36,13 @@ project-shell creation. These tests use unique `TempDir` workspaces,
 `AIBOX_NO_CONTAINER=1`, no SSH target, and no container-runtime authority.
 The reusable `local_runner` now also owns companion-independent doctor,
 legacy-lock migration, reset/backup, and addon configuration/rendering
-contracts. Heavy addon builds and genuine generated-container lifecycle tests
-remain runtime-gated during the transition.
+contracts. Public-GHCR update checks also run locally: network access does not
+justify remote runtime authority. Heavy addon builds and genuine
+generated-container lifecycle tests remain runtime-gated during the transition.
+Generated tmux, Yazi, lazygit, status-helper, PowerKit, and terminal-response
+probes now execute against generated files in unique local workspaces using the
+development container's installed tools. They no longer require SSH or a
+nested container runtime.
 The generic Alpine pull/run smoke and companion-runtime availability tests have
 been removed: building and running the actual candidate-generated image is the
 required product evidence. Transitional lifecycle, tmux-state, and LaTeX

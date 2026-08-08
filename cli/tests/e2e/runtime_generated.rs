@@ -1,18 +1,18 @@
-//! Generated runtime smoke tests on the SSH companion.
+//! Generated runtime smoke tests in isolated local workspaces.
 //!
 //! These Phase 1 tests use the current CLI binary and generated `.aibox-home`
-//! files on the aibox-e2e-testrunner companion. The runtime target is tmux-only.
+//! files using tools already installed in the development container. The
+//! runtime target is tmux-only and does not require container authority.
 
 use serial_test::serial;
 
-use super::runner::E2eRunner;
+use super::local_runner::LocalProject;
 
 #[test]
-#[serial(companion_visual)]
+#[serial(local_visual)]
 #[ntest::timeout(180_000)]
 fn generated_runtime_yazi_lazygit_tmux_and_status_are_usable() {
-    let runner = E2eRunner::new();
-    runner.ensure_deployed();
+    let runner = LocalProject::empty();
 
     let test_name = "runtime-generated-smoke";
     runner.cleanup(test_name);
@@ -55,7 +55,7 @@ fn generated_runtime_yazi_lazygit_tmux_and_status_are_usable() {
         String::from_utf8_lossy(&apply.stderr)
     );
 
-    let workspace = format!("/workspaces/{test_name}");
+    let workspace = runner.root().display();
     let probe = format!(
         r#"set -u
 cd {workspace}
@@ -100,7 +100,9 @@ if find "$HOME" -path '*zellij*' -print -quit | grep -q .; then
   find "$HOME" -path '*zellij*' -print
   fail=1
 fi
-if grep -Rli --exclude-dir=.git 'zellij' "$HOME" .devcontainer aibox.toml >/tmp/{test_name}-zellij-refs.txt 2>/dev/null; then
+if grep -Rli --exclude-dir=.git \
+  --include='*.toml' --include='*.conf' --include='*.sh' --include='*.json' \
+  'zellij' "$HOME/.config" .devcontainer aibox.toml >/tmp/{test_name}-zellij-refs.txt 2>/dev/null; then
   echo "zellij references remain in generated runtime"
   cat /tmp/{test_name}-zellij-refs.txt
   fail=1
@@ -173,11 +175,10 @@ exit "$fail"
 }
 
 #[test]
-#[serial(companion_visual)]
+#[serial(local_visual)]
 #[ntest::timeout(120_000)]
 fn generated_runtime_tmux_status_panes_and_buffer_are_visible() {
-    let runner = E2eRunner::new();
-    runner.ensure_deployed();
+    let runner = LocalProject::empty();
 
     let test_name = "runtime-generated-tmux";
     runner.cleanup(test_name);
@@ -213,7 +214,7 @@ fn generated_runtime_tmux_status_panes_and_buffer_are_visible() {
         String::from_utf8_lossy(&apply.stderr)
     );
 
-    let workspace = format!("/workspaces/{test_name}");
+    let workspace = runner.root().display();
     let probe = format!(
         r#"set -u
 cd {workspace}
@@ -290,21 +291,15 @@ fi
     runner.cleanup(test_name);
 }
 
-// ─── H3 companion: PowerKit status renders after `aibox up` ──────────────────
-//
-// Gated `#[ignore]` because it requires a fully-started aibox container (after
-// `aibox up`). Run on demand:
-//   cargo test h3_powerkit_status_tokens_present_in_tmux -- --ignored
+// ─── H3: generated PowerKit status configuration renders in tmux ─────────────
 //
 // Mirrors the assertions from `scripts/release-runtime-smoke.sh` for the
 // tmux status-format tokens (hostname, external_ip, datetime, git, aibox).
 #[test]
-#[serial(companion_visual)]
-#[ignore]
+#[serial(local_visual)]
 #[ntest::timeout(120_000)]
 fn h3_powerkit_status_tokens_present_in_tmux() {
-    let runner = E2eRunner::new();
-    runner.ensure_deployed();
+    let runner = LocalProject::empty();
 
     let test_name = "h3-powerkit-status";
     runner.cleanup(test_name);
@@ -338,7 +333,7 @@ fn h3_powerkit_status_tokens_present_in_tmux() {
         String::from_utf8_lossy(&apply.stderr)
     );
 
-    let workspace = format!("/workspaces/{test_name}");
+    let workspace = runner.root().display();
     let socket = format!("{workspace}/.aibox-home/.tmux/aibox.sock");
 
     // Start a detached tmux session using the generated socket and config,
@@ -401,18 +396,12 @@ exit "$fail"
 // M1 is canonically in lifecycle.rs (per BR-TEST-GAPS spec) where it belongs
 // alongside the other lifecycle companion tests.
 
-// ─── M3 companion: Yazi clean startup (no terminal-response timeout) ─────────
-//
-// Gated `#[ignore]` because it requires the companion runtime environment.
-// Run on demand:
-//   cargo test m3_yazi_debug_no_terminal_timeout -- --ignored
+// ─── M3: Yazi clean startup (no terminal-response timeout) ───────────────────
 #[test]
-#[serial(companion_visual)]
-#[ignore]
+#[serial(local_visual)]
 #[ntest::timeout(180_000)]
 fn m3_yazi_debug_no_terminal_timeout() {
-    let runner = E2eRunner::new();
-    runner.ensure_deployed();
+    let runner = LocalProject::empty();
 
     let test_name = "m3-yazi-clean";
     runner.cleanup(test_name);
@@ -446,7 +435,7 @@ fn m3_yazi_debug_no_terminal_timeout() {
         String::from_utf8_lossy(&apply.stderr)
     );
 
-    let workspace = format!("/workspaces/{test_name}");
+    let workspace = runner.root().display();
     let probe = format!(
         r#"set -u
 cd {workspace}

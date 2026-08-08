@@ -45,8 +45,41 @@ impl LocalProject {
     }
 
     pub fn run(&self, args: &[&str]) -> Output {
-        Command::new(format!("{}/target/debug/aibox", env!("CARGO_MANIFEST_DIR")))
+        let mut command =
+            Command::new(format!("{}/target/debug/aibox", env!("CARGO_MANIFEST_DIR")));
+        self.sanitize(&mut command);
+        command
             .args(args)
+            .output()
+            .expect("execute aibox in local E2E workspace")
+    }
+
+    pub fn shell(&self, script: &str) -> Output {
+        let mut command = Command::new("bash");
+        self.sanitize(&mut command);
+        command
+            .args(["-c", script])
+            .output()
+            .expect("execute local E2E probe")
+    }
+
+    /// Compatibility surface for tests being migrated from the SSH runner.
+    /// The workspace name is intentionally ignored because this project owns
+    /// one unique temporary root rather than a shared `/workspaces` namespace.
+    pub fn aibox(&self, _workspace_name: &str, args: &[&str]) -> Output {
+        self.run(args)
+    }
+
+    pub fn exec(&self, script: &str) -> Output {
+        self.shell(script)
+    }
+
+    pub fn cleanup(&self, _workspace_name: &str) {
+        // TempDir removes only this project's unique workspace on drop.
+    }
+
+    fn sanitize(&self, command: &mut Command) {
+        command
             .current_dir(&self.root)
             .env(
                 "AIBOX_ADDONS_DIR",
@@ -55,9 +88,7 @@ impl LocalProject {
             .env("AIBOX_NO_CONTAINER", "1")
             .env_remove("DOCKER_HOST")
             .env_remove("CONTAINER_HOST")
-            .env_remove("E2E_HOST")
-            .output()
-            .expect("execute aibox in local E2E workspace")
+            .env_remove("E2E_HOST");
     }
 
     pub fn assert_success(&self, label: &str, output: &Output) {

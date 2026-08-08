@@ -1,9 +1,9 @@
 //! Update command E2E tests.
 //!
-//! Requires the e2e-runner companion container (feature = "e2e").
-//! Tests `aibox self update` behavior in a derived project context.
+//! Runs in an isolated local project. These tests require public GHCR network
+//! access, but no container runtime, clean host, or elevated authority.
 
-use super::runner::E2eRunner;
+use super::local_runner::LocalProject;
 
 /// Verify that `aibox self update --check` successfully fetches version info from GHCR.
 ///
@@ -12,23 +12,10 @@ use super::runner::E2eRunner;
 /// This test catches tag-prefix mismatches between the CLI and the registry.
 #[test]
 fn update_check_fetches_from_registry() {
-    let runner = E2eRunner::new();
-    let test = "update-registry-fetch";
-    runner.cleanup(test);
-
-    // Init a derived project
-    let init_out = runner.aibox(
-        test,
-        &["init", test, "--base", "debian", "--context", "managed"],
-    );
-    assert!(
-        init_out.status.success(),
-        "init failed: {}",
-        String::from_utf8_lossy(&init_out.stderr)
-    );
+    let project = LocalProject::initialized("update-registry-fetch", "managed", &[]);
 
     // Run self update --check — should fetch real version info from GHCR.
-    let output = runner.aibox(test, &["self", "update", "--check"]);
+    let output = project.run(&["self", "update", "--check"]);
     let stdout = String::from_utf8_lossy(&output.stdout);
     let stderr = String::from_utf8_lossy(&output.stderr);
     let combined = format!("{}{}", stdout, stderr);
@@ -58,8 +45,6 @@ fn update_check_fetches_from_registry() {
         "expected image version status in output, got:\n{}",
         combined
     );
-
-    runner.cleanup(test);
 }
 
 /// Verify `aibox self update --dry-run` fetches the latest version from GHCR without
@@ -69,16 +54,9 @@ fn update_check_fetches_from_registry() {
 /// matching, but stops before writing to aibox.toml thanks to `--dry-run`.
 #[test]
 fn update_dry_run_fetches_from_registry() {
-    let runner = E2eRunner::new();
-    let test = "update-dry-run";
-    runner.cleanup(test);
+    let project = LocalProject::initialized("update-dry-run", "managed", &[]);
 
-    runner.aibox(
-        test,
-        &["init", test, "--base", "debian", "--context", "managed"],
-    );
-
-    let output = runner.aibox(test, &["self", "update", "--dry-run"]);
+    let output = project.run(&["self", "update", "--dry-run"]);
     let stdout = String::from_utf8_lossy(&output.stdout);
     let stderr = String::from_utf8_lossy(&output.stderr);
     let combined = format!("{}{}", stdout, stderr);
@@ -112,6 +90,4 @@ fn update_dry_run_fetches_from_registry() {
         "expected dry-run, up-to-date, or known incomplete-manifest fallback output, got:\n{}",
         combined
     );
-
-    runner.cleanup(test);
 }

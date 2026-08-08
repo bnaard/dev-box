@@ -510,9 +510,7 @@ impl E2eRunner {
         let runtime = self.runtime_bin();
         let pull = self.exec(&format!("{runtime} pull {image_tag} >/dev/null 2>&1"));
         if !pull.status.success() {
-            eprintln!(
-                "published image prerequisite is not pullable: {image_tag}"
-            );
+            eprintln!("published image prerequisite is not pullable: {image_tag}");
             return None;
         }
         Some(version)
