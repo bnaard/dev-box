@@ -10,6 +10,7 @@
 //!   replayed through vt100. Starship runs locally; tmux/yazi need the
 //!   companion (so combine with `--features e2e`).
 
+pub mod local_runner;
 pub mod mock_runtime;
 pub mod runner;
 #[cfg(feature = "e2e-render")]
@@ -24,6 +25,8 @@ mod addon_disablement;
 mod appearance;
 #[cfg(not(any(feature = "e2e", feature = "e2e-render")))]
 mod config_coverage;
+#[cfg(not(any(feature = "e2e", feature = "e2e-render")))]
+mod local_cli_contracts;
 #[cfg(not(any(feature = "e2e", feature = "e2e-render")))]
 mod local_lifecycle;
 #[cfg(not(any(feature = "e2e", feature = "e2e-render")))]
@@ -41,15 +44,9 @@ mod version_upgrade;
 #[cfg(feature = "e2e")]
 mod addon;
 #[cfg(feature = "e2e")]
-mod doctor;
-#[cfg(feature = "e2e")]
 mod latex_preview;
 #[cfg(feature = "e2e")]
 mod lifecycle;
-#[cfg(feature = "e2e")]
-mod migration;
-#[cfg(feature = "e2e")]
-mod reset;
 #[cfg(feature = "e2e")]
 mod runtime_generated;
 #[cfg(feature = "e2e")]

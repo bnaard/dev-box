@@ -34,6 +34,10 @@ The first migrated lifecycle group runs in the default suite as
 Dockerfile replacement, missing-runtime diagnostics, and managed/software
 project-shell creation. These tests use unique `TempDir` workspaces,
 `AIBOX_NO_CONTAINER=1`, no SSH target, and no container-runtime authority.
+The reusable `local_runner` now also owns companion-independent doctor,
+legacy-lock migration, reset/backup, and addon configuration/rendering
+contracts. Heavy addon builds and genuine generated-container lifecycle tests
+remain runtime-gated during the transition.
 
 From inside the aibox devcontainer, the companion is a remote SSH target, not a
 local Docker/Podman dependency. Check it with:
