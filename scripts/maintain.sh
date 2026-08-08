@@ -301,6 +301,21 @@ cmd_test_e2e_shard() {
   ok "Tier 2 SSH companion E2E shard passed: ${shard}"
 }
 
+# Run an isolated shard without suite-wide pruning. The caller must prune once
+# before and after a parallel batch; each test owns a unique workspace and
+# Compose project name, so shard-local cleanup remains safe under concurrency.
+cmd_test_e2e_shard_without_global_prune() {
+  local shard="$1" status=0 test_threads="${AIBOX_E2E_TEST_THREADS:-4}"
+  [[ "${test_threads}" =~ ^[1-9][0-9]*$ ]] \
+    || die "AIBOX_E2E_TEST_THREADS must be a positive integer"
+  ensure_e2e_companion
+  info "Running isolated Tier 2 SSH companion E2E shard: ${shard}..."
+  AIBOX_E2E_TEST_THREADS="${test_threads}" "${SCRIPT_DIR}/run-e2e-shards.sh" "${shard}" \
+    || status=$?
+  [[ "${status}" -eq 0 ]] || return "${status}"
+  ok "Isolated Tier 2 SSH companion E2E shard passed: ${shard}"
+}
+
 cmd_test_e2e_visual_status() {
   ensure_e2e_companion
   info "Running opt-in visual E2E: generated tmux layouts, themes, and status line..."
@@ -1641,6 +1656,12 @@ Examples:
   ./scripts/maintain.sh release 0.25.15 --skip e2e,visual
   ./scripts/maintain.sh release 0.25.15 --steps phase0
   ./scripts/maintain.sh release 0.25.15 --steps publish,prompt
+
+Heavy E2E controls:
+  AIBOX_RELEASE_HEAVY_E2E=auto|all             Select by changed paths or force all (default: auto)
+  AIBOX_RELEASE_IMPACT_BASE_REF=<ref>          Override the comparison base for auto selection
+  AIBOX_RELEASE_ADDON_PARALLELISM=<count>      Concurrent addon shard limit (default: 2)
+  AIBOX_RELEASE_PROGRESS_INTERVAL_SECONDS=<s>  Long-running-step progress interval (default: 30)
 STEPS
 }
 
@@ -2021,12 +2042,105 @@ release_companion_e2e_core_gate() {
   cmd_test_e2e_shard core
 }
 
-release_companion_e2e_addon_gate() {
-  cmd_test_e2e_shard addon
+release_companion_e2e_addon_languages_gate() {
+  cmd_test_e2e_shard_without_global_prune addon-languages
+}
+
+release_companion_e2e_addon_platforms_gate() {
+  cmd_test_e2e_shard_without_global_prune addon-platforms
+}
+
+release_companion_e2e_addon_tools_gate() {
+  cmd_test_e2e_shard_without_global_prune addon-tools
 }
 
 release_companion_e2e_latex_gate() {
   cmd_test_e2e_shard latex
+}
+
+release_classify_heavy_e2e_paths() {
+  local path addon=0 latex=0
+  for path in "$@"; do
+    case "${path}" in
+      cli/src/content_source.rs)
+        # Content acquisition does not participate in generated image builds.
+        ;;
+      scripts/maintain.sh|scripts/run-e2e-shards.sh|scripts/test-maintain-release.sh|\
+      .devcontainer/Dockerfile|.devcontainer/Dockerfile.e2e|\
+      images/*|cli/src/addon_cmd.rs|cli/src/addon_loader.rs|\
+      cli/src/addon_registry.rs|cli/src/addons.rs|cli/src/generate.rs|\
+      cli/src/templates/Dockerfile.j2|cli/src/templates/docker-compose.yml.j2|\
+      cli/tests/e2e/runner.rs)
+        addon=1
+        latex=1
+        ;;
+      addons/languages/latex.yaml|cli/tests/e2e/latex_preview.rs)
+        latex=1
+        ;;
+      addons/*|cli/tests/e2e/addon.rs)
+        addon=1
+        ;;
+      cli/src/*|cli/Cargo.toml|cli/Cargo.lock|aibox.toml)
+        # Unclassified production/config changes are treated conservatively:
+        # they can alter generated files or runtime behavior indirectly.
+        addon=1
+        latex=1
+        ;;
+    esac
+  done
+  printf 'addon=%s latex=%s\n' "${addon}" "${latex}"
+}
+
+release_previous_tag_for_version() {
+  local version="$1" pattern
+  case "${version}" in
+    0.*) pattern='v0.*' ;;
+    1.*) pattern='v1.*' ;;
+    *) return 1 ;;
+  esac
+  git describe --tags --abbrev=0 --match "${pattern}" HEAD 2>/dev/null
+}
+
+release_select_heavy_e2e() {
+  local version="$1" mode="${AIBOX_RELEASE_HEAVY_E2E:-auto}"
+  local base_ref path classification
+  local changed_paths=()
+
+  case "${mode}" in
+    all)
+      RELEASE_RUN_ADDON_E2E=1
+      RELEASE_RUN_LATEX_E2E=1
+      RELEASE_HEAVY_E2E_REASON='forced by AIBOX_RELEASE_HEAVY_E2E=all'
+      ;;
+    auto)
+      base_ref="${AIBOX_RELEASE_IMPACT_BASE_REF:-}"
+      if [[ -z "${base_ref}" ]]; then
+        base_ref="$(release_previous_tag_for_version "${version}" || true)"
+      fi
+      if [[ -z "${base_ref}" ]] || ! git rev-parse --verify "${base_ref}^{commit}" >/dev/null 2>&1; then
+        RELEASE_RUN_ADDON_E2E=1
+        RELEASE_RUN_LATEX_E2E=1
+        RELEASE_HEAVY_E2E_REASON='no trustworthy previous release tag; running conservatively'
+      else
+        while IFS= read -r path; do
+          [[ -n "${path}" ]] && changed_paths+=("${path}")
+        done < <(git diff --name-only "${base_ref}^{commit}" HEAD)
+        classification="$(release_classify_heavy_e2e_paths "${changed_paths[@]}")"
+        RELEASE_RUN_ADDON_E2E="${classification#addon=}"
+        RELEASE_RUN_ADDON_E2E="${RELEASE_RUN_ADDON_E2E%% *}"
+        RELEASE_RUN_LATEX_E2E="${classification##*latex=}"
+        RELEASE_HEAVY_E2E_REASON="auto-selected from ${base_ref}..${RELEASE_CANDIDATE_SHA:0:12} (${#changed_paths[@]} changed path(s))"
+      fi
+      ;;
+    *)
+      die "AIBOX_RELEASE_HEAVY_E2E must be 'auto' or 'all' (got: ${mode})"
+      ;;
+  esac
+  export RELEASE_RUN_ADDON_E2E RELEASE_RUN_LATEX_E2E RELEASE_HEAVY_E2E_REASON
+  info "Heavy E2E selection: addon=${RELEASE_RUN_ADDON_E2E}, latex=${RELEASE_RUN_LATEX_E2E} — ${RELEASE_HEAVY_E2E_REASON}"
+  release_timing_record_event selection selected heavy-e2e \
+    "$(date -u +%Y-%m-%dT%H:%M:%SZ)" "$(date -u +%Y-%m-%dT%H:%M:%SZ)" \
+    0 0 "addon=${RELEASE_RUN_ADDON_E2E};latex=${RELEASE_RUN_LATEX_E2E};${RELEASE_HEAVY_E2E_REASON}"
 }
 
 release_visual_gate() {
@@ -2145,12 +2259,16 @@ release_run_parallel_validation() {
   local version="$1"
   shift
   local max_jobs="${AIBOX_RELEASE_PARALLELISM:-2}"
+  local progress_interval="${AIBOX_RELEASE_PROGRESS_INTERVAL_SECONDS:-30}"
   [[ "${max_jobs}" =~ ^[1-9][0-9]*$ ]] \
     || die "AIBOX_RELEASE_PARALLELISM must be a positive integer"
+  [[ "${progress_interval}" =~ ^[1-9][0-9]*$ ]] \
+    || die "AIBOX_RELEASE_PROGRESS_INTERVAL_SECONDS must be a positive integer"
 
-  local specs=("$@") active=0 status=0 next=0 total="${#specs[@]}"
-  local spec key label command log pid index completed job_status status_file
-  local pids=() labels=() logs=() status_files=()
+  local specs=("$@") active=0 status=0 next=0 total="${#specs[@]}" now elapsed
+  local spec key label command log pid index completed job_status status_file started_at
+  local pids=() keys=() labels=() logs=() status_files=()
+  local started_epochs=() started_ats=() last_progress_epochs=()
 
   trap 'release_cleanup_parallel_children' EXIT
   trap 'release_cleanup_parallel_children; exit 130' INT TERM
@@ -2162,6 +2280,8 @@ release_run_parallel_validation() {
       log="${RELEASE_LOG_DIR}/${key}.log"
       status_file="${log}.status"
       rm -f "${status_file}"
+      now="$(date +%s)"
+      started_at="$(date -u +%Y-%m-%dT%H:%M:%SZ)"
       (
         trap - EXIT INT TERM
         set +e
@@ -2174,9 +2294,13 @@ release_run_parallel_validation() {
       ) &
       pid="$!"
       pids+=("${pid}")
+      keys+=("${key}")
       labels+=("${label}")
       logs+=("${log}")
       status_files+=("${status_file}")
+      started_epochs+=("${now}")
+      started_ats+=("${started_at}")
+      last_progress_epochs+=("${now}")
       active=$((active + 1))
       next=$((next + 1))
     done
@@ -2202,12 +2326,27 @@ release_run_parallel_validation() {
           status=1
         fi
         rm -f "${status_file}"
-        unset 'pids[index]' 'labels[index]' 'logs[index]' 'status_files[index]'
+        unset 'pids[index]' 'keys[index]' 'labels[index]' 'logs[index]' \
+          'status_files[index]' 'started_epochs[index]' 'started_ats[index]' \
+          'last_progress_epochs[index]'
         active=$((active - 1))
         completed=1
         break
       done
-      [[ "${completed}" -eq 1 ]] || sleep 0.2
+      if [[ "${completed}" -eq 0 ]]; then
+        now="$(date +%s)"
+        for index in "${!pids[@]}"; do
+          if (( now - last_progress_epochs[index] >= progress_interval )); then
+            elapsed=$(( now - started_epochs[index] ))
+            info "${labels[$index]} still running (${elapsed}s); log: ${logs[$index]}"
+            release_timing_record_event progress running "${keys[$index]}" \
+              "${started_ats[$index]}" "$(date -u +%Y-%m-%dT%H:%M:%SZ)" \
+              "${elapsed}" 0 "log=${logs[$index]}"
+            last_progress_epochs[$index]="${now}"
+          fi
+        done
+        sleep 0.2
+      fi
     done
   done
 
@@ -2412,6 +2551,15 @@ cmd_release() {
   release_timing_begin "$(release_steps_joined)"
   info "Release candidate: ${RELEASE_CANDIDATE_SHA}"
 
+  RELEASE_RUN_ADDON_E2E=0
+  RELEASE_RUN_LATEX_E2E=0
+  if release_step_requested e2e; then
+    case "${AIBOX_RELEASE_SKIP_COMPANION_E2E:-}" in
+      1|true|yes) ;;
+      *) release_select_heavy_e2e "${version}" ;;
+    esac
+  fi
+
   # These gates own independent resources. Run a bounded number concurrently,
   # retain separate logs, wait for every job, then fail as a group. The default
   # of two avoids oversubscribing developer laptops; override locally with
@@ -2440,18 +2588,44 @@ cmd_release() {
     release_run_parallel_validation "${version}" "${validation_specs[@]}"
   fi
 
-  # The addon and LaTeX shards each build a large image on the single companion.
-  # Keep them outside the parallel validation pool and give each its own
-  # candidate-bound evidence marker so a resumed release reruns only the shard
-  # that failed.
+  # Heavy addon coverage is split into isolated candidate-bound shards. Prune
+  # suite-wide state once around the batch; shard-local cleanup and unique
+  # Compose project names make bounded concurrency safe. LaTeX remains separate
+  # because it owns a different large image lifecycle.
   if release_step_requested e2e; then
     case "${AIBOX_RELEASE_SKIP_COMPANION_E2E:-}" in
       1|true|yes) ;;
       *)
-        release_run_parallel_validation "${version}" \
-          "e2e-addon|Tier 2 companion E2E addon shard|release_companion_e2e_addon_gate"
-        release_run_parallel_validation "${version}" \
-          "e2e-latex|Tier 2 companion E2E LaTeX shard|release_companion_e2e_latex_gate"
+        if [[ "${RELEASE_RUN_ADDON_E2E}" == "1" ]]; then
+          local saved_release_parallelism="${AIBOX_RELEASE_PARALLELISM:-}"
+          local addon_batch_status=0
+          prune_e2e_companion_storage \
+            || die "Failed to prune SSH companion state before addon shards"
+          AIBOX_RELEASE_PARALLELISM="${AIBOX_RELEASE_ADDON_PARALLELISM:-2}"
+          release_run_parallel_validation "${version}" \
+            "e2e-addon-languages|Tier 2 addon languages shard|release_companion_e2e_addon_languages_gate" \
+            "e2e-addon-platforms|Tier 2 addon platforms shard|release_companion_e2e_addon_platforms_gate" \
+            "e2e-addon-tools|Tier 2 addon tools shard|release_companion_e2e_addon_tools_gate" \
+            || addon_batch_status=$?
+          if [[ -n "${saved_release_parallelism}" ]]; then
+            AIBOX_RELEASE_PARALLELISM="${saved_release_parallelism}"
+          else
+            unset AIBOX_RELEASE_PARALLELISM
+          fi
+          prune_e2e_companion_storage \
+            || warn "Post-addon-batch SSH companion prune failed"
+          [[ "${addon_batch_status}" -eq 0 ]] \
+            || die "One or more addon E2E shards failed"
+        else
+          ok "Skipping addon image E2E: no addon/image/generator inputs changed"
+        fi
+
+        if [[ "${RELEASE_RUN_LATEX_E2E}" == "1" ]]; then
+          release_run_parallel_validation "${version}" \
+            "e2e-latex|Tier 2 companion E2E LaTeX shard|release_companion_e2e_latex_gate"
+        else
+          ok "Skipping LaTeX image E2E: no LaTeX/image/generator inputs changed"
+        fi
         ;;
     esac
   fi
