@@ -34,11 +34,14 @@ fn latex_watcher_builds_and_preview_sidecar_serves_updated_pdf() {
     );
     assert_output_ok("init LaTeX project", &init);
 
-    let Some(published_version) = runner.latest_published_image_version(test) else {
-        eprintln!("skipping LaTeX lifecycle: no pullable published Debian runtime image");
-        runner.cleanup(test);
-        return;
-    };
+    let published_version = runner
+        .latest_published_image_version(test)
+        .unwrap_or_else(|| {
+            panic!(
+                "required LaTeX preview gate has no pullable published Debian image; \
+             mandatory runtime evidence must not be recorded as a passing skip"
+            )
+        });
 
     let configure = runner.exec(&format!(
         r#"cd {workspace} && \

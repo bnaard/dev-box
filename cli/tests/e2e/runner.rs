@@ -511,7 +511,7 @@ impl E2eRunner {
         let pull = self.exec(&format!("{runtime} pull {image_tag} >/dev/null 2>&1"));
         if !pull.status.success() {
             eprintln!(
-                "skipping container start check: published image tag {image_tag} is not pullable"
+                "published image prerequisite is not pullable: {image_tag}"
             );
             return None;
         }

@@ -38,6 +38,11 @@ The reusable `local_runner` now also owns companion-independent doctor,
 legacy-lock migration, reset/backup, and addon configuration/rendering
 contracts. Heavy addon builds and genuine generated-container lifecycle tests
 remain runtime-gated during the transition.
+The generic Alpine pull/run smoke and companion-runtime availability tests have
+been removed: building and running the actual candidate-generated image is the
+required product evidence. Transitional lifecycle, tmux-state, and LaTeX
+runtime gates now fail when their image prerequisite is unavailable instead of
+returning a passing result.
 
 From inside the aibox devcontainer, the companion is a remote SSH target, not a
 local Docker/Podman dependency. Check it with:
@@ -608,21 +613,3 @@ If the Yazi preview addons are enabled, then generated Yazi config must parse,
 preview plugins must be installed, git symbols must be configured, and directory,
 Markdown, CSV, TSV, and SQLite previews must render their markers.
 `[visual_matrix.rs · visual_yazi_previews_git_symbols_and_optional_plugins_render]`
-
----
-
-## Smoke tests — `smoke.rs`
-
-These tests validate that the Tier 2 companion container's container runtime
-is functional end-to-end (Tier 2 only).
-
-**Container runtime is available on the companion**
-If the companion container is queried for its selected runtime, then the
-command must succeed and the output must contain either `docker` or `podman`.
-`[smoke.rs · runtime_available_on_companion]`
-
-**Container runtime can pull and run a container**
-If the selected runtime runs `alpine echo hello-e2e` on the companion, then
-the image pull, container creation, and command execution must succeed, and the
-output must contain `hello-e2e`.
-`[smoke.rs · runtime_can_pull_and_run_container]`

@@ -50,8 +50,6 @@ mod lifecycle;
 #[cfg(feature = "e2e")]
 mod runtime_generated;
 #[cfg(feature = "e2e")]
-mod smoke;
-#[cfg(feature = "e2e")]
 mod update;
 #[cfg(feature = "e2e")]
 mod visual;
