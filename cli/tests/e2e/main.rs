@@ -1,18 +1,14 @@
 //! E2E test suite for aibox CLI.
 //!
 //! - Tier 1 (always run): appearance tests, config coverage tests
-//! - Tier 2 (--features e2e): lifecycle, reset, migration, addon, doctor, smoke,
-//!   generated runtime, and visual tests. The two resource-heavy image builds
-//!   are intentionally ignored here and are run as isolated shards by
-//!   `scripts/run-e2e-shards.sh`; this prevents them from starving unrelated
-//!   companion work and lets a failed shard be retried independently.
+//! - Real container lifecycle and image-build validation runs only through the
+//!   owner-controlled macOS release host gate. The development container is
+//!   intentionally not given a container-runtime bridge.
 //! - Tier 3 (--features e2e-render): cell-level rendered-color assertions
-//!   replayed through vt100. Starship runs locally; tmux/yazi need the
-//!   companion (so combine with `--features e2e`).
+//!   replayed through vt100 in the development container.
 
 pub mod local_runner;
 pub mod mock_runtime;
-pub mod runner;
 #[cfg(feature = "e2e-render")]
 pub mod vt_render;
 
@@ -49,14 +45,6 @@ mod visual;
 mod visual_keybindings;
 #[cfg(not(any(feature = "e2e", feature = "e2e-render")))]
 mod visual_matrix;
-
-// Tier 2 tests (require e2e-runner companion container)
-#[cfg(feature = "e2e")]
-mod addon;
-#[cfg(feature = "e2e")]
-mod latex_preview;
-#[cfg(feature = "e2e")]
-mod lifecycle;
 
 // Tier 3 — vt100 cell-level rendered-color assertions.
 // visual_rendered_tmux + visual_rendered_yazi were removed in v0.26.2: they

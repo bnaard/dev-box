@@ -127,27 +127,6 @@ grep -F $'progress\t' "${RELEASE_TIMING_LOG}" | grep -F $'\trunning\tscheduler-s
   || die "parallel scheduler did not emit a progress timing event"
 unset AIBOX_RELEASE_PROGRESS_INTERVAL_SECONDS
 
-recorded_shard=""
-cmd_test_e2e_shard() {
-  recorded_shard="$1"
-}
-cmd_test_e2e_shard_without_global_prune() {
-  recorded_shard="$1"
-}
-release_companion_e2e_core_gate
-[[ "${recorded_shard}" == "core" ]] || die "core E2E release gate selected the wrong shard"
-release_companion_e2e_addon_languages_gate
-[[ "${recorded_shard}" == "addon-languages" ]] \
-  || die "addon languages release gate selected the wrong shard"
-release_companion_e2e_addon_platforms_gate
-[[ "${recorded_shard}" == "addon-platforms" ]] \
-  || die "addon platforms release gate selected the wrong shard"
-release_companion_e2e_addon_tools_gate
-[[ "${recorded_shard}" == "addon-tools" ]] \
-  || die "addon tools release gate selected the wrong shard"
-release_companion_e2e_latex_gate
-[[ "${recorded_shard}" == "latex" ]] || die "LaTeX E2E release gate selected the wrong shard"
-
 [[ "$(release_classify_heavy_e2e_paths cli/src/content_source.rs docs-site/content/docs/index.md)" == \
    "addon=0 latex=0" ]] \
   || die "processkit/docs-only changes must not select heavy image E2E"
