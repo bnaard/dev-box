@@ -1,5 +1,5 @@
 [aibox]
-cli_version = "0.31.0"
+cli_version = "0.31.1"
 synced_at = "2026-07-31T18:57:00.640055+00:00"
 
 [processkit]
@@ -11,7 +11,7 @@ installed_at = "2026-07-31T18:57:00.640055+00:00"
 processkit_install_hash = "v2:13e7f239b8daa3e6b497e06fb2b843a511ed3061222dc2bc6654fda13d05d099"
 
 [addons]
-resolved_at = "2026-08-07T18:11:01Z"
+resolved_at = "2026-08-08T02:50:38Z"
 
 [addons.tools]
 codex = "0.147.0"
