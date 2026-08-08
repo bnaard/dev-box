@@ -1,11 +1,11 @@
 #!/usr/bin/env bash
 # Run Tier 2 E2E in retryable shards.
 #
-# The addon-download and LaTeX tests both build sizeable derived images on the
-# single SSH companion.  They must never share that runtime with each other or
-# with the normal Tier 2 suite.  `all` therefore runs core, addon, and latex in
-# sequence.  A release orchestrator should capture evidence per invocation and
-# may rerun only the failed shard for the same candidate.
+# The addon-download tests use isolated workspace and Compose project names, so
+# their three groups may run concurrently. LaTeX still runs after them because
+# it owns a separate sizeable image lifecycle. A release orchestrator captures
+# evidence per invocation and may rerun only a failed shard for the same
+# candidate.
 set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
@@ -16,11 +16,14 @@ CORE_THREADS="${AIBOX_E2E_TEST_THREADS:-4}"
 
 usage() {
   cat <<'USAGE'
-Usage: ./scripts/run-e2e-shards.sh <all|core|addon|latex>
+Usage: ./scripts/run-e2e-shards.sh <all|core|addon|addon-languages|addon-platforms|addon-tools|latex>
 
 Runs Tier 2 SSH-companion tests in deterministic shards:
   core   normal Tier 2 suite; excludes the two ignored heavy image builds
-  addon  full download-addon composition build, one test thread
+  addon  all three isolated download-addon groups in parallel
+  addon-languages  language and documentation toolchains
+  addon-platforms  cloud, infrastructure, and Kubernetes tools
+  addon-tools      AI, preview, and supply-chain tools
   latex  LaTeX watcher/preview image build, one test thread
   all    core, addon, then latex (default)
 
@@ -42,14 +45,31 @@ run_core() {
   )
 }
 
-run_addon() {
-  echo "[e2e-shard] addon (one test thread)"
+run_addon_test() {
+  local group="$1"
+  echo "[e2e-shard] addon-${group} started at $(date -u +%Y-%m-%dT%H:%M:%SZ)"
   (
     cd "${CLI_DIR}"
     cargo test --features e2e --test e2e \
-      addon::download_based_addons_build_with_published_defaults \
-      -- --ignored --exact --test-threads=1
+      "addon::download_based_addons_build_with_published_defaults_${group}" \
+      -- --ignored --exact --nocapture --test-threads=1
   )
+  echo "[e2e-shard] addon-${group} completed at $(date -u +%Y-%m-%dT%H:%M:%SZ)"
+}
+
+run_addon() {
+  local group pid status=0
+  local groups=(languages platforms tools)
+  local pids=()
+  echo "[e2e-shard] addon groups (parallelism: ${#groups[@]})"
+  for group in "${groups[@]}"; do
+    run_addon_test "${group}" &
+    pids+=("$!")
+  done
+  for pid in "${pids[@]}"; do
+    wait "${pid}" || status=1
+  done
+  return "${status}"
 }
 
 run_latex() {
@@ -70,6 +90,9 @@ case "${SHARD}" in
     ;;
   core) run_core ;;
   addon) run_addon ;;
+  addon-languages) run_addon_test languages ;;
+  addon-platforms) run_addon_test platforms ;;
+  addon-tools) run_addon_test tools ;;
   latex) run_latex ;;
   help|--help|-h) usage ;;
   *)

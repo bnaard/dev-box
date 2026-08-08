@@ -56,15 +56,30 @@ CLI. Those exceptions simulate host-user behavior in controlled test projects:
 Use these exceptions only in aibox CLI development/release harnesses. They are
 not general dogfood escape hatches.
 
-The container-side release command runs Tier 2 as three retryable shards via
-`scripts/run-e2e-shards.sh`: parallel-safe `core`, then the resource-heavy
-`addon` and `latex` image builds one at a time. The SSH companion, generated
-runtime probes, and non-ignored asciinema checks remain release gates. Each
-release shard has independent candidate-bound evidence, so resuming an
-unchanged candidate reruns only the failed shard. Use
-`./scripts/maintain.sh test-e2e` or `./scripts/run-e2e-shards.sh all` for the
-complete Tier 2 gate; a raw `cargo test --features e2e --test e2e` invocation
-runs the core shard only.
+The container-side release command runs Tier 2 as retryable shards via
+`scripts/run-e2e-shards.sh`: parallel-safe `core`, three independently bounded
+addon groups (`addon-languages`, `addon-platforms`, and `addon-tools`), and the
+resource-heavy `latex` image build. The addon groups run concurrently with a
+single suite-wide companion cleanup. The SSH companion, generated runtime
+probes, and non-ignored asciinema checks remain release gates. Each release
+shard has independent candidate-bound evidence keyed by the candidate commit,
+toolchain, phase, and scope, so resuming an unchanged candidate reruns only a
+failed or missing shard. Evidence from a different candidate is never reused.
+Use `./scripts/maintain.sh test-e2e` or
+`./scripts/run-e2e-shards.sh all` for the complete Tier 2 gate; a raw
+`cargo test --features e2e --test e2e` invocation runs the core shard only.
+
+Release runs select the heavy addon and LaTeX gates from the paths changed
+since the previous version-line tag. Changes to release orchestration,
+generated container templates, images, or addon generation run both gates;
+addon-only and LaTeX-only changes run their respective gate; documentation and
+processkit-only changes skip both. If no trustworthy comparison tag exists,
+both gates run. Set `AIBOX_RELEASE_HEAVY_E2E=all` to force the complete heavy
+suite, or `AIBOX_RELEASE_IMPACT_BASE_REF=<ref>` to compare against an explicit
+base. `AIBOX_RELEASE_ADDON_PARALLELISM` controls the addon evidence scheduler
+(default `2`), and `AIBOX_RELEASE_PROGRESS_INTERVAL_SECONDS` controls periodic
+long-running-step progress events (default `30`).
+
 Tier 1 modules are excluded from feature-enabled test binaries because the
 default `cargo test` invocation already covers them.
 The default Tier 2 suite intentionally performs only one full generated

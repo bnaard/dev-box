@@ -56,6 +56,14 @@ release_run_evidenced_step \
   evidence-probe 9.9.9 "Evidence probe" release_test_probe
 [[ ! -e "${probe_output}" ]] || die "valid evidence did not skip command execution"
 
+RELEASE_CANDIDATE_SHA="different-candidate"
+release_run_evidenced_step \
+  evidence-probe 9.9.9 "Changed-candidate evidence probe" release_test_probe
+[[ -f "${probe_output}" ]] \
+  || die "evidence from a different candidate SHA was incorrectly reused"
+RELEASE_CANDIDATE_SHA="test-candidate"
+rm -f "${probe_output}"
+
 release_test_fails() {
   return 17
 }
@@ -101,12 +109,13 @@ if release_evidence_valid build-linux 9.9.9; then
 fi
 
 release_test_slow() {
-  sleep 0.2
+  sleep 1.2
 }
 release_test_fast() {
   sleep 0.05
 }
 AIBOX_RELEASE_PARALLELISM=2
+AIBOX_RELEASE_PROGRESS_INTERVAL_SECONDS=1
 release_run_parallel_validation 9.9.9 \
   "scheduler-slow|Scheduler slow probe|release_test_slow" \
   "scheduler-fast|Scheduler fast probe|release_test_fast"
@@ -114,17 +123,46 @@ release_run_parallel_validation 9.9.9 \
   || die "parallel scheduler did not record the slow probe"
 [[ -f "$(release_evidence_key_path scheduler-fast)" ]] \
   || die "parallel scheduler did not record the fast probe"
+grep -F $'progress\t' "${RELEASE_TIMING_LOG}" | grep -F $'\trunning\tscheduler-slow\t' >/dev/null \
+  || die "parallel scheduler did not emit a progress timing event"
+unset AIBOX_RELEASE_PROGRESS_INTERVAL_SECONDS
 
 recorded_shard=""
 cmd_test_e2e_shard() {
   recorded_shard="$1"
 }
+cmd_test_e2e_shard_without_global_prune() {
+  recorded_shard="$1"
+}
 release_companion_e2e_core_gate
 [[ "${recorded_shard}" == "core" ]] || die "core E2E release gate selected the wrong shard"
-release_companion_e2e_addon_gate
-[[ "${recorded_shard}" == "addon" ]] || die "addon E2E release gate selected the wrong shard"
+release_companion_e2e_addon_languages_gate
+[[ "${recorded_shard}" == "addon-languages" ]] \
+  || die "addon languages release gate selected the wrong shard"
+release_companion_e2e_addon_platforms_gate
+[[ "${recorded_shard}" == "addon-platforms" ]] \
+  || die "addon platforms release gate selected the wrong shard"
+release_companion_e2e_addon_tools_gate
+[[ "${recorded_shard}" == "addon-tools" ]] \
+  || die "addon tools release gate selected the wrong shard"
 release_companion_e2e_latex_gate
 [[ "${recorded_shard}" == "latex" ]] || die "LaTeX E2E release gate selected the wrong shard"
+
+[[ "$(release_classify_heavy_e2e_paths cli/src/content_source.rs docs-site/content/docs/index.md)" == \
+   "addon=0 latex=0" ]] \
+  || die "processkit/docs-only changes must not select heavy image E2E"
+[[ "$(release_classify_heavy_e2e_paths addons/tools/supply-chain.yaml)" == \
+   "addon=1 latex=0" ]] \
+  || die "addon changes must select addon image E2E"
+[[ "$(release_classify_heavy_e2e_paths addons/languages/latex.yaml)" == \
+   "addon=0 latex=1" ]] \
+  || die "LaTeX addon changes must select LaTeX image E2E"
+[[ "$(release_classify_heavy_e2e_paths cli/src/generate.rs)" == \
+   "addon=1 latex=1" ]] \
+  || die "Dockerfile generator changes must select every heavy image gate"
+[[ "$(release_classify_heavy_e2e_paths cli/src/config.rs)" == \
+   "addon=1 latex=1" ]] \
+  || die "unclassified production changes must conservatively select every heavy image gate"
 
 host_remote="${test_root}/host-remote.git"
 host_seed="${test_root}/host-seed"
