@@ -21,6 +21,20 @@ Tier 1 tests run automatically with `cargo test`. Tier 2 tests require the
 companion container and the `--features e2e` flag. The expensive visual matrix
 tests are opt-in and are not included in the default Tier 2 command.
 
+> **Privilege-boundary migration:** GitHub issue #372 is removing the remote
+> privileged companion. Test placement is determined by the product behavior,
+> not by the current runner: CLI/file-generation, preservation, configuration,
+> and missing-runtime contracts belong in isolated local temporary workspaces;
+> only real candidate-image build/start/probe/down behavior belongs in the
+> owner-controlled host release gate. The companion remains transitional until
+> every genuine runtime assertion has host-gate coverage.
+
+The first migrated lifecycle group runs in the default suite as
+`local_lifecycle`: init/apply generation, `CLAUDE.md` preservation, generated
+Dockerfile replacement, missing-runtime diagnostics, and managed/software
+project-shell creation. These tests use unique `TempDir` workspaces,
+`AIBOX_NO_CONTAINER=1`, no SSH target, and no container-runtime authority.
+
 From inside the aibox devcontainer, the companion is a remote SSH target, not a
 local Docker/Podman dependency. Check it with:
 

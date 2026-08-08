@@ -25,6 +25,8 @@ mod appearance;
 #[cfg(not(any(feature = "e2e", feature = "e2e-render")))]
 mod config_coverage;
 #[cfg(not(any(feature = "e2e", feature = "e2e-render")))]
+mod local_lifecycle;
+#[cfg(not(any(feature = "e2e", feature = "e2e-render")))]
 mod no_container_harness;
 #[cfg(not(any(feature = "e2e", feature = "e2e-render")))]
 mod preauth_merge;
