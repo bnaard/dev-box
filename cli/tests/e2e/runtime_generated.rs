@@ -4,12 +4,9 @@
 //! files using tools already installed in the development container. The
 //! runtime target is tmux-only and does not require container authority.
 
-use serial_test::serial;
-
 use super::local_runner::LocalProject;
 
 #[test]
-#[serial(local_visual)]
 #[ntest::timeout(180_000)]
 fn generated_runtime_yazi_lazygit_tmux_and_status_are_usable() {
     let runner = LocalProject::empty();
@@ -175,7 +172,6 @@ exit "$fail"
 }
 
 #[test]
-#[serial(local_visual)]
 #[ntest::timeout(120_000)]
 fn generated_runtime_tmux_status_panes_and_buffer_are_visible() {
     let runner = LocalProject::empty();
@@ -222,6 +218,11 @@ export HOME="{workspace}/.aibox-home"
 export TERM=xterm-256color
 export COLORTERM=truecolor
 export PATH="$HOME/.local/bin:/usr/local/bin:$PATH"
+tmux_socket="${{AIBOX_TMUX_SOCKET:?isolated tmux socket is required}}"
+mkdir -p "$(dirname "$tmux_socket")"
+tmux() {{
+  command tmux -S "$tmux_socket" "$@"
+}}
 
 tmux_conf="$HOME/.tmux.conf"
 [ -f "$tmux_conf" ] || tmux_conf="$HOME/.config/tmux/tmux.conf"
@@ -234,6 +235,11 @@ export HOME="{workspace}/.aibox-home"
 export TERM=xterm-256color
 export COLORTERM=truecolor
 export PATH="$HOME/.local/bin:/usr/local/bin:$PATH"
+tmux_socket="${{AIBOX_TMUX_SOCKET:?isolated tmux socket is required}}"
+mkdir -p "$(dirname "$tmux_socket")"
+tmux() {{
+  command tmux -S "$tmux_socket" "$@"
+}}
 tmux_conf="$HOME/.tmux.conf"
 [ -f "$tmux_conf" ] || tmux_conf="$HOME/.config/tmux/tmux.conf"
 (
@@ -296,7 +302,6 @@ fi
 // Mirrors the assertions from `scripts/release-runtime-smoke.sh` for the
 // tmux status-format tokens (hostname, external_ip, datetime, git, aibox).
 #[test]
-#[serial(local_visual)]
 #[ntest::timeout(120_000)]
 fn h3_powerkit_status_tokens_present_in_tmux() {
     let runner = LocalProject::empty();
@@ -398,7 +403,6 @@ exit "$fail"
 
 // ─── M3: Yazi clean startup (no terminal-response timeout) ───────────────────
 #[test]
-#[serial(local_visual)]
 #[ntest::timeout(180_000)]
 fn m3_yazi_debug_no_terminal_timeout() {
     let runner = LocalProject::empty();

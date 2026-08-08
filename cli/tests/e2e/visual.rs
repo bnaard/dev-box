@@ -4,9 +4,7 @@
 //! tmux directly. They assert that generated homes contain tmux configuration,
 //! render visible panes/status text, and do not carry legacy zellij artifacts.
 
-use serial_test::serial;
-
-use super::runner::E2eRunner;
+use super::local_runner::LocalProject as E2eRunner;
 
 // Family names (clap --theme value enum). Each resolves to its canonical
 // dark variant under default mode=auto with no host detection. The light
@@ -133,7 +131,7 @@ fn init_project(runner: &E2eRunner, test_name: &str, theme: &str) {
 }
 
 fn assert_generated_tmux_config(runner: &E2eRunner, test_name: &str, theme: &str) {
-    let workspace = format!("/workspaces/{test_name}");
+    let workspace = runner.root().display().to_string();
     let theme_pattern = theme.replace('-', "[- ]");
     let probe = runner.exec(&format!(
         r#"cd {workspace}
@@ -166,7 +164,7 @@ fn assert_theme_signature_config(
     g: u8,
     b: u8,
 ) {
-    let workspace = format!("/workspaces/{test_name}");
+    let workspace = runner.root().display().to_string();
     let expected = rgb_hex(r, g, b);
     let probe = runner.exec(&format!(
         "cd {workspace} && grep -Ri --exclude-dir=.git --exclude=claude '{expected}' .aibox-home >/tmp/{test_name}-theme-rgb.txt"
@@ -178,10 +176,7 @@ fn assert_theme_signature_config(
 }
 
 fn record_tmux(runner: &E2eRunner, test_name: &str, script: &str) -> String {
-    let workspace = format!("/workspaces/{test_name}");
-    runner.exec(
-        "tmux kill-server >/dev/null 2>&1 || true; rm -rf /tmp/tmux-* >/dev/null 2>&1 || true",
-    );
+    let workspace = runner.root().display().to_string();
     runner.write_file(test_name, "driver.sh", script);
     runner.exec(&format!("chmod +x {workspace}/driver.sh"));
     let output = runner.exec(&format!(
@@ -205,6 +200,11 @@ export HOME="{workspace}/.aibox-home"
 export TERM=xterm-256color
 export COLORTERM=truecolor
 export PATH="$HOME/.local/bin:/usr/local/bin:$PATH"
+tmux_socket="${{AIBOX_TMUX_SOCKET:?isolated tmux socket is required}}"
+mkdir -p "$(dirname "$tmux_socket")"
+tmux() {{
+  command tmux -S "$tmux_socket" "$@"
+}}
 tmux_conf="$HOME/.tmux.conf"
 [ -f "$tmux_conf" ] || tmux_conf="$HOME/.config/tmux/tmux.conf"
 if [ ! -f "$tmux_conf" ]; then
@@ -233,19 +233,17 @@ true
 }
 
 #[test]
-#[serial(companion_visual)]
 #[ntest::timeout(300_000)]
 fn visual_themes_produce_tmux_signature_colors() {
-    let runner = E2eRunner::new();
-    runner.ensure_deployed();
-
     for &(theme, r, g, b) in THEME_SIGNATURES {
+        let runner = E2eRunner::new();
+        runner.ensure_deployed();
         let test_name = format!("visual-theme-{theme}");
         init_project(&runner, &test_name, theme);
         assert_generated_tmux_config(&runner, &test_name, theme);
         assert_theme_signature_config(&runner, &test_name, theme, r, g, b);
 
-        let workspace = format!("/workspaces/{test_name}");
+        let workspace = runner.root().display().to_string();
         let hex = rgb_hex(r, g, b);
         let body = format!(
             r##"  tmux set-option -t "{test_name}" -g status on
@@ -279,7 +277,6 @@ fn visual_themes_produce_tmux_signature_colors() {
 }
 
 #[test]
-#[serial(companion_visual)]
 #[ntest::timeout(90_000)]
 fn visual_tmux_status_and_panes_render_without_legacy_artifacts() {
     let runner = E2eRunner::new();
@@ -289,7 +286,7 @@ fn visual_tmux_status_and_panes_render_without_legacy_artifacts() {
     init_project(&runner, test_name, "projectious");
     assert_generated_tmux_config(&runner, test_name, "projectious");
 
-    let workspace = format!("/workspaces/{test_name}");
+    let workspace = runner.root().display().to_string();
     let body = format!(
         r#"  tmux set-option -t "{test_name}" -g status on
   tmux set-option -t "{test_name}" -g status-left-length 80
@@ -330,7 +327,6 @@ fn visual_tmux_status_and_panes_render_without_legacy_artifacts() {
 }
 
 #[test]
-#[serial(companion_visual)]
 #[ntest::timeout(90_000)]
 fn visual_yazi_renders_in_tmux_pane() {
     let runner = E2eRunner::new();
@@ -341,7 +337,7 @@ fn visual_yazi_renders_in_tmux_pane() {
     runner.write_file(test_name, "project-files/README.md", "# Test\n");
     runner.write_file(test_name, "project-files/main.rs", "fn main() {}\n");
 
-    let workspace = format!("/workspaces/{test_name}");
+    let workspace = runner.root().display().to_string();
     let body = format!(
         r#"  tmux rename-window -t "{test_name}:1" files
   tmux send-keys -t "{test_name}:1.1" "cd {workspace}/project-files && exec yazi ." C-m

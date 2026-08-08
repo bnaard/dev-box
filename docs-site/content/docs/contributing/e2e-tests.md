@@ -43,6 +43,21 @@ Generated tmux, Yazi, lazygit, status-helper, PowerKit, and terminal-response
 probes now execute against generated files in unique local workspaces using the
 development container's installed tools. They no longer require SSH or a
 nested container runtime.
+
+Local visual coverage uses the smallest surface that proves each contract:
+
+| Contract | Test surface |
+|---|---|
+| Generated tmux files, colors, and status-format strings | Direct filesystem assertions; no tmux process |
+| Real panes, layouts, sessions, and keybindings | Detached tmux server on a unique socket inside the test `TempDir` |
+| Terminal escape sequences and recorded interactive output | The same isolated tmux server driven through asciinema |
+
+Every process-level visual test owns its tmux socket and session. It removes
+inherited `TMUX`/`TMUX_PANE` state and may clean up only that socket or its own
+session. Global `tmux kill-server`, broad `/tmp/tmux-*` deletion, and global
+`pkill` cleanup are prohibited because the test suite runs inside the same
+development container as the active developer session.
+
 The generic Alpine pull/run smoke and companion-runtime availability tests have
 been removed: building and running the actual candidate-generated image is the
 required product evidence. Transitional lifecycle, tmux-state, and LaTeX

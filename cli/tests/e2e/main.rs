@@ -43,6 +43,12 @@ mod runtime_recovery;
 mod update;
 #[cfg(not(any(feature = "e2e", feature = "e2e-render")))]
 mod version_upgrade;
+#[cfg(not(any(feature = "e2e", feature = "e2e-render")))]
+mod visual;
+#[cfg(not(any(feature = "e2e", feature = "e2e-render")))]
+mod visual_keybindings;
+#[cfg(not(any(feature = "e2e", feature = "e2e-render")))]
+mod visual_matrix;
 
 // Tier 2 tests (require e2e-runner companion container)
 #[cfg(feature = "e2e")]
@@ -51,12 +57,6 @@ mod addon;
 mod latex_preview;
 #[cfg(feature = "e2e")]
 mod lifecycle;
-#[cfg(feature = "e2e")]
-mod visual;
-#[cfg(feature = "e2e")]
-mod visual_keybindings;
-#[cfg(feature = "e2e")]
-mod visual_matrix;
 
 // Tier 3 — vt100 cell-level rendered-color assertions.
 // visual_rendered_tmux + visual_rendered_yazi were removed in v0.26.2: they

@@ -9,7 +9,17 @@ pub struct LocalProject {
     root: PathBuf,
 }
 
+impl Default for LocalProject {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl LocalProject {
+    pub fn new() -> Self {
+        Self::empty()
+    }
+
     pub fn empty() -> Self {
         let tempdir = tempfile::tempdir().expect("create local E2E workspace");
         let root = tempdir.path().to_path_buf();
@@ -42,6 +52,10 @@ impl LocalProject {
 
     pub fn root(&self) -> &Path {
         &self.root
+    }
+
+    pub fn tmux_socket(&self) -> PathBuf {
+        self.root.join("runtime/tmux.sock")
     }
 
     pub fn run(&self, args: &[&str]) -> Output {
@@ -78,6 +92,22 @@ impl LocalProject {
         // TempDir removes only this project's unique workspace on drop.
     }
 
+    pub fn ensure_deployed(&self) {
+        // The test binary and addon catalog are used directly from this checkout.
+    }
+
+    pub fn read_file(&self, _workspace_name: &str, path: &str) -> String {
+        self.read(path)
+    }
+
+    pub fn write_file(&self, _workspace_name: &str, path: &str, content: &str) {
+        self.write(path, content);
+    }
+
+    pub fn file_exists(&self, _workspace_name: &str, path: &str) -> bool {
+        self.exists(path)
+    }
+
     fn sanitize(&self, command: &mut Command) {
         command
             .current_dir(&self.root)
@@ -86,9 +116,13 @@ impl LocalProject {
                 format!("{}/../addons", env!("CARGO_MANIFEST_DIR")),
             )
             .env("AIBOX_NO_CONTAINER", "1")
+            .env("AIBOX_TMUX_SOCKET", self.tmux_socket())
+            .env("TMUX_TMPDIR", self.root.join("runtime/tmux-tmp"))
             .env_remove("DOCKER_HOST")
             .env_remove("CONTAINER_HOST")
-            .env_remove("E2E_HOST");
+            .env_remove("E2E_HOST")
+            .env_remove("TMUX")
+            .env_remove("TMUX_PANE");
     }
 
     pub fn assert_success(&self, label: &str, output: &Output) {
@@ -119,4 +153,39 @@ impl LocalProject {
         }
         fs::write(destination, content).expect("write local E2E file");
     }
+}
+
+#[test]
+fn local_tmux_cleanup_cannot_reach_an_existing_server() {
+    let external = tempfile::tempdir().expect("create external tmux socket directory");
+    let external_socket = external.path().join("existing.sock");
+    let external_status = Command::new("tmux")
+        .args(["-S"])
+        .arg(&external_socket)
+        .args(["new-session", "-d", "-s", "existing"])
+        .status()
+        .expect("start external tmux server");
+    assert!(external_status.success());
+
+    let project = LocalProject::new();
+    let isolated = project.shell(
+        "mkdir -p \"$(dirname \"$AIBOX_TMUX_SOCKET\")\" \"$TMUX_TMPDIR\" && \
+         tmux -S \"$AIBOX_TMUX_SOCKET\" new-session -d -s isolated && \
+         tmux -S \"$AIBOX_TMUX_SOCKET\" kill-server",
+    );
+    project.assert_success("isolated tmux cleanup", &isolated);
+
+    let external_survived = Command::new("tmux")
+        .args(["-S"])
+        .arg(&external_socket)
+        .args(["has-session", "-t", "existing"])
+        .status()
+        .expect("probe external tmux server");
+    assert!(external_survived.success());
+
+    let _ = Command::new("tmux")
+        .args(["-S"])
+        .arg(&external_socket)
+        .args(["kill-server"])
+        .status();
 }

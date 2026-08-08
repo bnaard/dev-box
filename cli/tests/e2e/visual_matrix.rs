@@ -11,7 +11,7 @@ use std::sync::mpsc::{self, RecvTimeoutError};
 use std::thread;
 use std::time::{Duration, Instant};
 
-use super::runner::E2eRunner;
+use super::local_runner::LocalProject as E2eRunner;
 
 // Per-theme broad coverage (ANSI status-bar invariants I1–I4) is now in
 // `scripts/test-screencasts.sh` — it exercises all 61 theme slugs on every
@@ -256,7 +256,7 @@ fn assert_generated_tmux_config(
     g: u8,
     b: u8,
 ) {
-    let workspace = format!("/workspaces/{test_name}");
+    let workspace = runner.root().display().to_string();
     let expected = rgb_hex(r, g, b);
     let theme_pattern = theme.replace('-', "[- ]");
     let probe = runner.exec(&format!(
@@ -283,8 +283,8 @@ fn assert_generated_tmux_config(
     );
 }
 
-fn generated_layout(runner: &E2eRunner, test_name: &str, layout: &str) -> String {
-    let workspace = format!("/workspaces/{test_name}");
+fn generated_layout(runner: &E2eRunner, _test_name: &str, layout: &str) -> String {
+    let workspace = runner.root().display().to_string();
     let output = runner.exec(&format!(
         "cd {workspace} && cat .aibox-home/.config/tmux/layouts/{layout}.sh 2>/dev/null"
     ));
@@ -305,7 +305,7 @@ fn assert_generated_tmux_layout(layout: &str, body: &str) {
 fn install_visual_fixtures(runner: &E2eRunner, test_name: &str) {
     let _progress =
         VisualProgressStep::start(format!("install visual fixtures project={test_name}"));
-    let workspace = format!("/workspaces/{test_name}");
+    let workspace = runner.root().display().to_string();
     runner.write_file(
         test_name,
         "setup-visual-fixtures.sh",
@@ -507,7 +507,7 @@ true
 fn record_layout_status(runner: &E2eRunner, test_name: &str, layout: &str) -> (String, String) {
     let _progress =
         VisualProgressStep::start(format!("record status project={test_name} layout={layout}"));
-    let workspace = format!("/workspaces/{test_name}");
+    let workspace = runner.root().display().to_string();
     let stem = format!("recording-status-{layout}");
     let setup = format!(
         r#"  tmux set-option -t "{stem}" -g status on
@@ -550,7 +550,7 @@ fn record_layout_status(runner: &E2eRunner, test_name: &str, layout: &str) -> (S
 fn record_generated_layout(runner: &E2eRunner, test_name: &str, layout: &str) -> (String, String) {
     let _progress =
         VisualProgressStep::start(format!("record tabs project={test_name} layout={layout}"));
-    let workspace = format!("/workspaces/{test_name}");
+    let workspace = runner.root().display().to_string();
     let stem = format!("recording-{layout}");
     let setup = format!(
         r#"  tmux new-window -t "{stem}" -n synthetic-files -c "{workspace}" "cd {workspace} && exec yazi ."
@@ -643,7 +643,7 @@ fn assert_generated_layout_created_real_tmux_surfaces(layout: &str, logs: &str) 
 }
 
 #[test]
-#[serial(companion_visual)]
+#[serial(local_visual)]
 #[ignore = "visual e2e matrix is release-gated; run explicitly via scripts/maintain.sh test-e2e-visual-status or test-e2e-visual"]
 #[ntest::timeout(720_000)]
 fn visual_generated_layouts_render_across_all_themes() {
@@ -690,7 +690,7 @@ fn visual_generated_layouts_render_across_all_themes() {
 }
 
 #[test]
-#[serial(companion_visual)]
+#[serial(local_visual)]
 #[ignore = "visual tab-traversal e2e is release-gated; run explicitly via scripts/maintain.sh test-e2e-visual-tabs or test-e2e-visual"]
 #[ntest::timeout(300_000)]
 fn visual_generated_tools_and_harness_windows_render_when_enabled() {
@@ -749,7 +749,7 @@ fn visual_generated_tools_and_harness_windows_render_when_enabled() {
 }
 
 #[test]
-#[serial(companion_visual)]
+#[serial(local_visual)]
 #[ignore = "visual Yazi preview e2e is release-gated; run explicitly via scripts/maintain.sh test-e2e-visual-yazi or test-e2e-visual"]
 #[ntest::timeout(300_000)]
 fn visual_yazi_previews_git_symbols_and_optional_plugins_render() {
@@ -757,11 +757,6 @@ fn visual_yazi_previews_git_symbols_and_optional_plugins_render() {
     runner.ensure_deployed();
 
     let test_name = "visual-matrix-yazi-previews";
-    runner.exec(
-        "timeout 2s tmux kill-server >/dev/null 2>&1 || true; \
-         timeout 2s pkill -x yazi >/dev/null 2>&1 || true; \
-         timeout 2s pkill -x asciinema >/dev/null 2>&1 || true",
-    );
     init_project(
         &runner,
         test_name,
@@ -771,7 +766,7 @@ fn visual_yazi_previews_git_symbols_and_optional_plugins_render() {
     );
     install_visual_fixtures(&runner, test_name);
 
-    let workspace = format!("/workspaces/{test_name}");
+    let workspace = runner.root().display().to_string();
     let home = format!("{workspace}/.aibox-home");
     let config_probe = runner.exec(&format!(
         "cd {workspace} && \
