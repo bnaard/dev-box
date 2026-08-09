@@ -14,6 +14,23 @@ import sys
 
 REPOSITORY = "projectious-work/aibox"
 RUN_ID = re.compile(r"^v[0-9]+\.[0-9]+\.[0-9]+(?:-[0-9A-Za-z][0-9A-Za-z.-]*)?-[0-9]{8}T[0-9]{6}Z-[0-9a-f]{12}$")
+BASE_REQUIRED_EVIDENCE = {
+    "evidence/darwin-smoke/complete.json",
+    "evidence/container-build/image-inspect.json",
+    "evidence/container-e2e/metadata.env",
+    "evidence/container-e2e/impact-selection.json",
+    "evidence/security/image-sbom.cdx.json",
+    "evidence/security/vulnerability-scan.json",
+    "evidence/commands.log",
+    "evidence/command-results.log",
+}
+IMPACT_EVIDENCE = {
+    "addon-languages": "evidence/container-e2e/addon-languages.json",
+    "addon-platforms": "evidence/container-e2e/addon-platforms.json",
+    "addon-tools": "evidence/container-e2e/addon-tools.json",
+    "latex-lifecycle": "evidence/container-e2e/latex-lifecycle.json",
+    "rootless-podman": "evidence/container-e2e/rootless-podman.json",
+}
 
 
 def fail(message: str) -> "None":
@@ -89,15 +106,15 @@ def main() -> None:
     }
     if {artifact.name for artifact in artifacts} != expected_names:
         fail("manifest Darwin artifact names are outside the fixed release contract")
-    required_evidence = {
-        "evidence/darwin-smoke/complete.json",
-        "evidence/container-build/image-inspect.json",
-        "evidence/container-e2e/metadata.env",
-        "evidence/security/image-sbom.cdx.json",
-        "evidence/security/vulnerability-scan.json",
-        "evidence/commands.log",
-        "evidence/command-results.log",
-    }
+    required_evidence = set(BASE_REQUIRED_EVIDENCE)
+    selection = json.loads((evidence / "container-e2e/impact-selection.json").read_text(encoding="utf-8"))
+    if set(selection) != {"comparison_tag", "comparison_commit", "changed_paths", "selected", "skipped"}:
+        fail("impact-selection evidence has an unexpected schema")
+    selected = set(selection["selected"])
+    skipped = set(selection["skipped"])
+    if selected & skipped or selected | skipped != set(IMPACT_EVIDENCE):
+        fail("impact-selection evidence does not partition every reviewed conditional check")
+    required_evidence.update(IMPACT_EVIDENCE[check] for check in selected)
     evidence_entries = {entry["path"]: entry["sha256"] for entry in manifest["evidence"]}
     if set(evidence_entries) != required_evidence:
         fail("manifest does not enumerate the complete required evidence set")

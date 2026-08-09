@@ -14,10 +14,53 @@ import stat
 import subprocess
 import sys
 import tarfile
+import time
+import urllib.request
 
 REPOSITORY = "projectious-work/aibox"
 EXPECTED_INPUTS = {"checksums.sha256", "provenance.json", "source.tar.gz"}
 RUN_ID = re.compile(r"^v[0-9]+\.[0-9]+\.[0-9]+(?:-[0-9A-Za-z][0-9A-Za-z.-]*)?-[0-9]{8}T[0-9]{6}Z-[0-9a-f]{12}$")
+VERSION_TAG = re.compile(r"^v[0-9]+\.[0-9]+\.[0-9]+(?:-[0-9A-Za-z][0-9A-Za-z.-]*)?$")
+
+ADDON_GROUPS = {
+    "addon-languages": ["docs-hugo", "docs-mdbook", "go", "go-quality", "go-release", "node", "rust", "typst"],
+    "addon-platforms": ["cloud-aws", "cloud-gcp", "cloudflare", "infrastructure", "kubernetes"],
+    "addon-tools": ["ai-claude", "ai-opencode", "preview-archive", "supply-chain"],
+}
+ADDON_GROUP_TRIGGERS = {
+    **ADDON_GROUPS,
+    # go-release consumes the shared release addon transitively.
+    "addon-languages": [*ADDON_GROUPS["addon-languages"], "release"],
+}
+ALL_IMPACT_CHECKS = {*ADDON_GROUPS, "latex-lifecycle", "rootless-podman"}
+BROAD_IMPACT_PREFIXES = (
+    "images/base-debian/", "cli/src/addon_loader.rs", "cli/src/addons.rs",
+    "cli/src/cli.rs", "cli/src/config.rs", "cli/src/container.rs", "cli/src/generate.rs",
+    "cli/src/runtime.rs", "cli/src/templates/", "scripts/release-host-",
+    "scripts/release_host_",
+)
+
+
+def select_impact_checks(changed_paths: list[str]) -> dict[str, str]:
+    """Return selected checks and the path/rule that selected each one."""
+    if changed_paths == ["*"]:
+        return {check: "no comparison tag; fail-safe full selection" for check in sorted(ALL_IMPACT_CHECKS)}
+    broad = next((path for path in changed_paths if path.startswith(BROAD_IMPACT_PREFIXES)), None)
+    if broad:
+        return {check: f"broad runtime impact: {broad}" for check in sorted(ALL_IMPACT_CHECKS)}
+
+    selected: dict[str, str] = {}
+    for group, addons in ADDON_GROUP_TRIGGERS.items():
+        for path in changed_paths:
+            if any(path.endswith(f"/{addon}.yaml") for addon in addons):
+                selected[group] = path
+                break
+    for path in changed_paths:
+        if path.endswith("/latex.yaml") or path.startswith("cli/src/latex.rs") or "aibox-latex-" in path:
+            selected["latex-lifecycle"] = path
+        if path.endswith("/infrastructure.yaml") or "podman" in path.lower():
+            selected["rootless-podman"] = path
+    return selected
 
 
 def fail(message: str) -> "None":
@@ -86,10 +129,168 @@ class Runner:
                 results.write(f"\n$ {rendered}\nexit={completed.returncode}\n".encode())
                 completed.check_returncode()
 
+    def capture(self, command: list[str], *, cwd: Path | None = None) -> str:
+        rendered = shlex.join(command)
+        print(f"+ {rendered}", flush=True)
+        with self.log.open("a", encoding="utf-8") as log:
+            log.write(rendered + "\n")
+        completed = subprocess.run(command, cwd=cwd, env=self.env, text=True,
+                                   stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
+        with (self.log.parent / "command-results.log").open("a", encoding="utf-8") as results:
+            results.write(f"$ {rendered}\n{completed.stdout}\nexit={completed.returncode}\n")
+        completed.check_returncode()
+        return completed.stdout
+
 
 def sandboxed(profile: Path, command: list[str], env: dict[str, str]) -> list[str]:
     assignments = [f"{key}={value}" for key, value in sorted(env.items())]
     return ["/usr/bin/sandbox-exec", "-f", str(profile), "/usr/bin/env", "-i", *assignments, *command]
+
+
+def pin_release_version(config_path: Path, version: str) -> None:
+    config = config_path.read_text(encoding="utf-8")
+    updated, count = re.subn(r'(?m)^release_version = ".*"', f'release_version = "{version}"', config, count=1)
+    if count != 1:
+        fail(f"could not pin release version in {config_path}")
+    config_path.write_text(updated, encoding="utf-8")
+
+
+def compose_cleanup(runner: Runner, compose_file: Path) -> None:
+    runner.run(["docker", "compose", "-f", str(compose_file), "down", "-v",
+                "--remove-orphans", "--rmi", "local"], cwd=compose_file.parent.parent)
+
+
+def init_project(runner: Runner, profile: Path, env: dict[str, str], candidate_bin: Path,
+                 project: Path, name: str, addons: list[str]) -> None:
+    project.mkdir()
+    command = [str(candidate_bin), "--yes", "init", name, "--base", "debian",
+               "--processkit-version", "unset", "--no-container"]
+    if addons:
+        command.extend(["--addon", *addons])
+    runner.run(sandboxed(profile, command, env), cwd=project)
+
+
+def run_addon_group(runner: Runner, profile: Path, env: dict[str, str], candidate_bin: Path,
+                    runtime: Path, evidence: Path, version: str, group: str) -> Path:
+    name = f"host-gate-{group}"
+    project = runtime / name
+    init_project(runner, profile, env, candidate_bin, project, name, ADDON_GROUPS[group])
+    pin_release_version(project / "aibox.toml", version)
+    compose_file = project / ".devcontainer/docker-compose.yml"
+    try:
+        runner.run(sandboxed(profile, [str(candidate_bin), "--yes", "apply", "--no-cache"], env), cwd=project)
+        marker = evidence / "container-e2e" / f"{group}.json"
+        marker.write_text(json.dumps({"status": "passed", "addons": ADDON_GROUPS[group]},
+                                     indent=2, sort_keys=True) + "\n", encoding="utf-8")
+        return marker
+    finally:
+        if compose_file.exists():
+            compose_cleanup(runner, compose_file)
+
+
+def wait_until(description: str, probe, *, attempts: int = 90, delay: float = 2.0) -> object:
+    last_error: Exception | None = None
+    for _ in range(attempts):
+        try:
+            value = probe()
+            if value:
+                return value
+        except Exception as error:  # Expected while containers and watchers start.
+            last_error = error
+        time.sleep(delay)
+    fail(f"timed out waiting for {description}: {last_error or 'probe remained false'}")
+
+
+def latex_document(marker: str) -> str:
+    return f"\\documentclass{{article}}\n\\begin{{document}}\n{marker}\n\\end{{document}}\n"
+
+
+def run_latex_lifecycle(runner: Runner, profile: Path, env: dict[str, str], candidate_bin: Path,
+                        runtime: Path, evidence: Path, version: str, port: int) -> Path:
+    name = "host-gate-latex"
+    project = runtime / name
+    init_project(runner, profile, env, candidate_bin, project, name, ["latex"])
+    pin_release_version(project / "aibox.toml", version)
+    config_path = project / "aibox.toml"
+    config = config_path.read_text(encoding="utf-8")
+    marker = "[latex.preview]"
+    if config.count(marker) != 1:
+        fail("generated LaTeX configuration has no unique preview section")
+    document = ('[[latex.documents]]\nname = "overview"\nsource = "docs/overview.tex"\n'
+                'output_dir = ".latex-cache/overview"\n\n')
+    before, after = config.split(marker)
+    after, enabled_count = re.subn(r'(?m)^enabled = false', "enabled = true", after, count=1)
+    after, port_count = re.subn(r'(?m)^port = [0-9]+.*$', f"port = {port}", after, count=1)
+    if enabled_count != 1 or port_count != 1:
+        fail("generated LaTeX preview settings could not be enabled")
+    config_path.write_text(before + document + marker + after, encoding="utf-8")
+    (project / "docs").mkdir(exist_ok=True)
+    source = project / "docs/overview.tex"
+    source.write_text(latex_document("WATCHREVISIONONE"), encoding="utf-8")
+    compose_file = project / ".devcontainer/docker-compose.yml"
+    try:
+        runner.run(sandboxed(profile, [str(candidate_bin), "--yes", "apply", "--no-container"], env), cwd=project)
+        runner.run(["docker", "compose", "-f", str(compose_file), "build", name], cwd=project)
+        runner.run(["docker", "compose", "-f", str(compose_file), "up", "-d", name,
+                    f"{name}-latex-preview"], cwd=project)
+        wait_until("latexmk", lambda: runner.capture(
+            ["docker", "exec", "--user", "aibox", name, "which", "latexmk"]).strip())
+        wait_until("LaTeX watcher", lambda: runner.capture(
+            ["docker", "exec", "--user", "aibox", name, "which", "aibox-latex-watch"]).strip())
+        wait_until("LaTeX preview health", lambda: urllib.request.urlopen(
+            f"http://127.0.0.1:{port}/health", timeout=2).read())
+        runner.run(["docker", "exec", "-d", "--user", "aibox", name,
+                    "aibox-latex-watch", "overview"])
+
+        def pdf_contains(expected: str) -> bool:
+            output = runner.capture(["docker", "exec", name, "pdftotext",
+                                     "/workspace/.latex-cache/overview/overview.pdf", "-"])
+            return expected in output
+
+        wait_until("first watched PDF revision", lambda: pdf_contains("WATCHREVISIONONE"))
+        source.write_text(latex_document("WATCHREVISIONTWO"), encoding="utf-8")
+        wait_until("second watched PDF revision", lambda: pdf_contains("WATCHREVISIONTWO"))
+        served = urllib.request.urlopen(
+            f"http://127.0.0.1:{port}/documents/overview/document.pdf", timeout=5).read()
+        generated = (project / ".latex-cache/overview/overview.pdf").read_bytes()
+        if not served.startswith(b"%PDF-") or served != generated:
+            fail("LaTeX preview did not serve the watched PDF byte-for-byte")
+        runner.run(["docker", "exec", name, "pgrep", "-f", "latexmk.*overview.tex"])
+        result = evidence / "container-e2e/latex-lifecycle.json"
+        result.write_text(json.dumps({"status": "passed", "revisions": 2, "preview_port": port},
+                                     indent=2, sort_keys=True) + "\n", encoding="utf-8")
+        return result
+    finally:
+        if compose_file.exists():
+            compose_cleanup(runner, compose_file)
+
+
+def run_rootless_podman(runner: Runner, profile: Path, env: dict[str, str], candidate_bin: Path,
+                        runtime: Path, evidence: Path, version: str) -> Path:
+    name = "host-gate-podman"
+    project = runtime / name
+    init_project(runner, profile, env, candidate_bin, project, name, [])
+    pin_release_version(project / "aibox.toml", version)
+    with (project / "aibox.toml").open("a", encoding="utf-8") as config:
+        config.write("\n[addons.infrastructure.tools]\nopentofu = { enabled = false }\n"
+                     "ansible = { enabled = false }\npacker = { enabled = false }\npodman = {}\n")
+    compose_file = project / ".devcontainer/docker-compose.yml"
+    try:
+        runner.run(sandboxed(profile, [str(candidate_bin), "--yes", "apply", "--no-cache"], env), cwd=project)
+        runner.run(["docker", "compose", "-f", str(compose_file), "up", "-d", name], cwd=project)
+        runner.run(["docker", "exec", "--user", "aibox", name, "podman", "--version"])
+        runner.run(["docker", "exec", "--user", "aibox", name, "podman-compose", "--version"])
+        rootless = runner.capture(["docker", "exec", "--user", "aibox", name, "podman",
+                                   "info", "--format", "{{.Host.Security.Rootless}}"])
+        if rootless.strip().lower() != "true":
+            fail("nested Podman did not report a rootless runtime")
+        result = evidence / "container-e2e/rootless-podman.json"
+        result.write_text(json.dumps({"status": "passed", "rootless": True}, indent=2) + "\n",
+                          encoding="utf-8")
+        return result
+    finally:
+        if compose_file.exists():
+            compose_cleanup(runner, compose_file)
 
 
 def main() -> None:
@@ -124,9 +325,10 @@ def main() -> None:
             fail(f"checksum mismatch: {name}")
 
     provenance = json.loads((input_dir / "provenance.json").read_text(encoding="utf-8"))
-    expected_keys = {"schema_version", "version", "tag", "commit", "repository", "source_archive"}
-    if set(provenance) != expected_keys or provenance["schema_version"] != 1:
-        fail("provenance schema is not the reviewed v1 shape")
+    expected_keys = {"schema_version", "version", "tag", "commit", "comparison_tag",
+                     "comparison_commit", "changed_paths", "repository", "source_archive"}
+    if set(provenance) != expected_keys or provenance["schema_version"] != 2:
+        fail("provenance schema is not the reviewed v2 shape")
     version = provenance["version"]
     if provenance["tag"] != f"v{version}" or provenance["repository"] != REPOSITORY:
         fail("provenance release identity is invalid")
@@ -138,6 +340,35 @@ def main() -> None:
     ).stdout.strip()
     if tag_commit != provenance["commit"]:
         fail("release tag does not resolve to the checksummed provenance commit")
+    changed_paths = provenance["changed_paths"]
+    if (not isinstance(changed_paths, list) or not changed_paths or
+            any(not isinstance(path, str) or not path or path.startswith("/") or
+                "\x00" in path or "\n" in path or ".." in Path(path).parts
+                for path in changed_paths)):
+        fail("provenance changed_paths must be a non-empty string array")
+    comparison_tag = provenance["comparison_tag"]
+    comparison_commit = provenance["comparison_commit"]
+    if comparison_tag or comparison_commit:
+        if not comparison_tag or not comparison_commit:
+            fail("comparison tag and commit must both be set")
+        if (not VERSION_TAG.fullmatch(comparison_tag) or
+                comparison_tag[1:].split(".", 1)[0] != version.split(".", 1)[0] or
+                not re.fullmatch(r"[0-9a-f]{40,64}", comparison_commit)):
+            fail("comparison release identity is invalid")
+        resolved_comparison = subprocess.run(
+            ["/usr/bin/git", "-C", str(project_root), "rev-parse", f"{comparison_tag}^{{commit}}"],
+            check=True, capture_output=True, text=True,
+        ).stdout.strip()
+        if resolved_comparison != comparison_commit:
+            fail("comparison tag does not resolve to the attested comparison commit")
+        actual_changed_paths = subprocess.run(
+            ["/usr/bin/git", "-C", str(project_root), "diff", "--name-only",
+             comparison_commit, provenance["commit"]], check=True, capture_output=True, text=True,
+        ).stdout.splitlines()
+        if changed_paths != actual_changed_paths:
+            fail("attested changed paths do not match the comparison diff")
+    elif changed_paths != ["*"]:
+        fail("missing comparison provenance must select every impact check")
     head_commit = subprocess.run(
         ["/usr/bin/git", "-C", str(project_root), "rev-parse", "HEAD"],
         check=True, capture_output=True, text=True,
@@ -178,6 +409,7 @@ def main() -> None:
         "CARGO_HOME": str(original_home / ".cargo"), "RUSTUP_HOME": str(original_home / ".rustup"),
         "CARGO_NET_OFFLINE": "true", "RUST_BACKTRACE": "1",
         "AIBOX_RELEASE_HOST_OFFLINE": "1",
+        "AIBOX_ADDONS_DIR": str(source_root / "addons"),
     }
     (runtime / "tmp").mkdir()
     profile = runtime / "credential-free.sb"
@@ -251,6 +483,32 @@ def main() -> None:
     })
     runner.run(sandboxed(profile, [str(source_root / "scripts/release-runtime-smoke.sh"), version], smoke_env), cwd=source_root)
 
+    selected_checks = select_impact_checks(changed_paths)
+    coverage_path = evidence / "container-e2e/impact-selection.json"
+    coverage = {
+        "comparison_tag": comparison_tag or None,
+        "comparison_commit": comparison_commit or None,
+        "changed_paths": changed_paths,
+        "selected": selected_checks,
+        "skipped": {
+            check: "no attested changed path affects this surface"
+            for check in sorted(ALL_IMPACT_CHECKS - set(selected_checks))
+        },
+    }
+    coverage_path.write_text(json.dumps(coverage, indent=2, sort_keys=True) + "\n", encoding="utf-8")
+    conditional_evidence: list[Path] = []
+    for group in ADDON_GROUPS:
+        if group in selected_checks:
+            conditional_evidence.append(run_addon_group(
+                runner, profile, fixed_env, candidate_bin, runtime, evidence, version, group))
+    if "latex-lifecycle" in selected_checks:
+        preview_port = 18000 + int(provenance["commit"][:8], 16) % 1000
+        conditional_evidence.append(run_latex_lifecycle(
+            runner, profile, fixed_env, candidate_bin, runtime, evidence, version, preview_port))
+    if "rootless-podman" in selected_checks:
+        conditional_evidence.append(run_rootless_podman(
+            runner, profile, fixed_env, candidate_bin, runtime, evidence, version))
+
     publisher = script_dir / "release-host-publish.sh"
     publisher_command = [str(publisher), str(run_dir)]
     rendered_publisher = shlex.join(publisher_command)
@@ -262,6 +520,7 @@ def main() -> None:
         evidence / "darwin-smoke/complete.json",
         evidence / "container-build/image-inspect.json",
         evidence / "container-e2e/metadata.env",
+        coverage_path,
         evidence / "security/image-sbom.cdx.json",
         evidence / "security/vulnerability-scan.json",
         evidence / "commands.log",
@@ -281,7 +540,7 @@ def main() -> None:
         ],
         "evidence": [
             {"path": str(path.relative_to(run_dir)), "sha256": sha256(path)}
-            for path in required_paths
+            for path in required_paths + conditional_evidence
         ],
     }
     manifest_path = evidence / "release-manifest.json"

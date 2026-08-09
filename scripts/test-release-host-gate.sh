@@ -35,12 +35,33 @@ script_dir = Path(sys.argv[1])
 spec = importlib.util.spec_from_file_location("gate", script_dir / "release_host_gate.py")
 gate = importlib.util.module_from_spec(spec)
 spec.loader.exec_module(gate)
+publisher_spec = importlib.util.spec_from_file_location("publisher", script_dir / "release_host_publish.py")
+publisher = importlib.util.module_from_spec(publisher_spec)
+publisher_spec.loader.exec_module(publisher)
 
 assert gate.EXPECTED_INPUTS == {"checksums.sha256", "provenance.json", "source.tar.gz"}
 assert gate.RUN_ID.fullmatch("v0.31.2-20260809T120000Z-0123456789ab")
 assert gate.RUN_ID.fullmatch("v1.0.0-alpha.2-20260809T120000Z-0123456789ab")
+assert gate.VERSION_TAG.fullmatch("v1.0.0-alpha.2")
 assert not gate.RUN_ID.fullmatch("../v0.31.2-20260809T120000Z-0123456789ab")
 assert not gate.RUN_ID.fullmatch("v0.31.2/latest")
+
+assert gate.select_impact_checks(["docs-site/content/docs/index.md"]) == {}
+latex = gate.select_impact_checks(["addons/languages/latex.yaml"])
+assert latex == {"latex-lifecycle": "addons/languages/latex.yaml"}
+infrastructure = gate.select_impact_checks(["addons/tools/infrastructure.yaml"])
+assert infrastructure == {
+    "addon-platforms": "addons/tools/infrastructure.yaml",
+    "rootless-podman": "addons/tools/infrastructure.yaml",
+}
+assert gate.select_impact_checks(["addons/tools/release.yaml"]) == {
+    "addon-languages": "addons/tools/release.yaml"
+}
+all_checks = gate.select_impact_checks(["images/base-debian/Dockerfile"])
+assert set(all_checks) == gate.ALL_IMPACT_CHECKS
+assert set(gate.select_impact_checks(["*"])) == gate.ALL_IMPACT_CHECKS
+assert set(publisher.IMPACT_EVIDENCE) == gate.ALL_IMPACT_CHECKS
+assert "evidence/container-e2e/impact-selection.json" in publisher.BASE_REQUIRED_EVIDENCE
 PY
 
 echo "release host gate contract tests passed"

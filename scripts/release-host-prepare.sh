@@ -18,6 +18,20 @@ HEAD_COMMIT="$(git -C "${PROJECT_ROOT}" rev-parse HEAD)"
   exit 1
 }
 
+VERSION_LINE="${VERSION%%.*}"
+COMPARISON_TAG="$(git -C "${PROJECT_ROOT}" describe --tags --abbrev=0 \
+  --match "v${VERSION_LINE}.*" "${COMMIT}^" 2>/dev/null || true)"
+if [[ -n "${COMPARISON_TAG}" ]]; then
+  COMPARISON_COMMIT="$(git -C "${PROJECT_ROOT}" rev-parse "${COMPARISON_TAG}^{commit}")"
+  CHANGED_PATHS_JSON="$(
+    git -C "${PROJECT_ROOT}" diff --name-only "${COMPARISON_COMMIT}" "${COMMIT}" |
+      jq -R -s 'split("\n") | map(select(length > 0))'
+  )"
+else
+  COMPARISON_COMMIT=""
+  CHANGED_PATHS_JSON='["*"]'
+fi
+
 RUN_ID="v${VERSION}-$(date -u +%Y%m%dT%H%M%SZ)-${COMMIT:0:12}"
 RUN_DIR="${PROJECT_ROOT}/tmp/host-gates/aibox-release/${RUN_ID}"
 INPUT_DIR="${RUN_DIR}/input"
@@ -30,8 +44,13 @@ jq -n \
   --arg version "${VERSION}" \
   --arg tag "v${VERSION}" \
   --arg commit "${COMMIT}" \
+  --arg comparison_tag "${COMPARISON_TAG}" \
+  --arg comparison_commit "${COMPARISON_COMMIT}" \
+  --argjson changed_paths "${CHANGED_PATHS_JSON}" \
   --arg repository "projectious-work/aibox" \
-  '{schema_version:1,version:$version,tag:$tag,commit:$commit,repository:$repository,source_archive:"source.tar.gz"}' \
+  '{schema_version:2,version:$version,tag:$tag,commit:$commit,
+    comparison_tag:$comparison_tag,comparison_commit:$comparison_commit,
+    changed_paths:$changed_paths,repository:$repository,source_archive:"source.tar.gz"}' \
   > "${INPUT_DIR}/provenance.json"
 (
   cd "${INPUT_DIR}"

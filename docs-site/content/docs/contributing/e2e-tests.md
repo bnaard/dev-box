@@ -56,6 +56,20 @@ These contracts inherently need ordinary host Docker and therefore run only in
 the macOS release gate. Missing Docker, Apple targets, Syft, Grype, or any other
 mandatory prerequisite is a failure, never a passing skip.
 
+Three expensive surfaces remain mandatory when their attested inputs change:
+
+- grouped builds for affected download-based addons;
+- a two-revision LaTeX watcher build with byte-identical preview-sidecar output;
+- the infrastructure addon's nested Podman probe, including a true rootless report.
+
+The immutable provenance records the previous version-line tag and commit plus
+the exact changed-path list. The gate recomputes that diff before selecting
+checks. Base-image, generator, addon-loader, template, or host-gate changes
+select every conditional surface; an addon definition selects its group, and
+LaTeX or infrastructure changes select their dedicated lifecycle probe. If no
+comparison tag exists, all conditional checks run. Every selection and
+non-selection is written to evidence. A selected check cannot pass by skipping.
+
 ## Host run-directory protocol
 
 The container-side release creates immutable input under:
@@ -103,8 +117,9 @@ does not build, test, execute candidate code, modify Git, or accept additional
 arguments.
 
 Evidence contains exact commands and results, toolchain/runtime metadata,
-Darwin build and smoke records, image inspection, generated-runtime logs,
-SBOM, vulnerability scan, release manifest, and remote publication checks.
+changed-path selection reasons, Darwin build and smoke records, image
+inspection, generated-runtime and selected conditional-check logs, SBOM,
+vulnerability scan, release manifest, and remote publication checks.
 
 ## Failure and rerun
 

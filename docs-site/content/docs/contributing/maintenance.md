@@ -176,9 +176,13 @@ interpreter or dependencies.
 The validation stage builds both Darwin targets, natively smokes the current
 architecture, builds the actual candidate foundation/runtime images, exercises
 the generated Compose lifecycle and `--forget-tmux-state`, requires cleanup,
-generates a CycloneDX SBOM, and fails Grype findings at high severity. Every
-command and result is retained beneath `evidence/` with toolchain metadata,
-image inspection, runtime logs, hashes, and a release manifest.
+generates a CycloneDX SBOM, and fails Grype findings at high severity. It also
+verifies the checksummed comparison tag, commit, and changed-path list, then
+runs affected addon build groups, the LaTeX watcher/preview lifecycle, and the
+rootless Podman probe when relevant inputs changed. No comparison tag selects
+all three surfaces. Every command, selection reason, skip reason, and result is
+retained beneath `evidence/` with toolchain metadata, image inspection, runtime
+logs, hashes, and a release manifest.
 
 Only after every gate succeeds does the separate publisher receive normal host
 GitHub/GHCR authority. It revalidates the immutable manifest and can upload

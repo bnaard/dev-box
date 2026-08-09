@@ -41,7 +41,10 @@ cd /workspace/cli && cargo test --test e2e local_lifecycle
 ```
 
 Real candidate-image lifecycle evidence runs only through the owner-controlled
-macOS release host gate.
+macOS release host gate. Its core candidate lifecycle, native Darwin smoke,
+cleanup, SBOM, and vulnerability checks run for every release. Checksummed
+changed-path provenance additionally selects affected download-based addon
+builds, the LaTeX watcher/preview lifecycle, and the rootless Podman probe.
 
 ### Visual E2E tiers
 
