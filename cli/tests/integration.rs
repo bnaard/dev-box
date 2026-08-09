@@ -139,6 +139,8 @@ fn release_scripts_publish_checksum_sidecars() {
         std::fs::read_to_string(repo_root.join("scripts/maintain.sh")).expect("read maintain.sh");
     let build_macos = std::fs::read_to_string(repo_root.join("scripts/build-macos.sh"))
         .expect("read build-macos.sh");
+    let host_publisher = std::fs::read_to_string(repo_root.join("scripts/release_host_publish.py"))
+        .expect("read release_host_publish.py");
     let install =
         std::fs::read_to_string(repo_root.join("scripts/install.sh")).expect("read install.sh");
 
@@ -147,14 +149,15 @@ fn release_scripts_publish_checksum_sidecars() {
             r#"sha256_file "${DIST_DIR}/${binary_name}.tar.gz" > "${DIST_DIR}/${binary_name}.tar.gz.sha256""#,
         )
             && maintain.contains(r#"built_archives+=("${archive}" "${checksum}")"#)
-            && maintain.contains(r#""${DIST_DIR}"/aibox-v${version}-*-apple-darwin.tar.gz.sha256"#),
+            && host_publisher.contains("manifest must list exactly two Darwin archives and two checksums")
+            && host_publisher.contains(r#"run(["gh", "release", "upload"#),
         "maintain.sh must generate and upload sha256 sidecars for Linux and macOS release assets"
     );
     assert!(
         maintain.contains("release_validate_license_guardrails")
             && maintain.contains(r#"-C "${PROJECT_ROOT}" LICENSE"#)
             && maintain.contains(r#""${PROJECT_ROOT}/LICENSE""#)
-            && maintain.contains("--clobber"),
+            && host_publisher.contains("--clobber"),
         "maintain.sh must enforce README license notice, include LICENSE in Linux tarballs, and upload LICENSE to GitHub releases"
     );
     assert!(
@@ -1023,6 +1026,6 @@ fn describe_image_provenance_policy_json_contract() {
     );
     assert_eq!(
         json["release_phase"]["host_command_template"],
-        "./scripts/maintain.sh release-host {version}"
+        "./scripts/maintain.sh release-host {run_dir}"
     );
 }

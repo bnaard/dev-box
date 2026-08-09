@@ -166,8 +166,12 @@ collect_artifacts() {
   if [[ "${AIBOX_RELEASE_SMOKE_KEEP:-0}" == "1" || "${status}" -ne 0 ]]; then
     warn "Keeping smoke project/container for inspection: ${project_dir}"
   elif [[ -f "$(compose_file)" ]]; then
-    compose -f "$(compose_file)" down -v > "${log_dir}/compose-down.log" 2>&1
-    rm -rf "${project_dir}"
+    if compose -f "$(compose_file)" down -v > "${log_dir}/compose-down.log" 2>&1; then
+      rm -rf "${project_dir}"
+    else
+      status=1
+      warn "Release smoke cleanup failed; preserving ${project_dir} and failing the gate."
+    fi
   fi
 
   if [[ "${status}" -eq 0 ]]; then

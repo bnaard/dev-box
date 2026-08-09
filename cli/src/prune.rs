@@ -3,7 +3,7 @@ use serde::Serialize;
 use std::collections::BTreeSet;
 use std::fs;
 use std::path::{Path, PathBuf};
-use std::process::{Command, Stdio};
+use std::process::Command;
 
 use crate::cli::PruneScope;
 use crate::output;
@@ -46,7 +46,6 @@ enum PruneActionStatus {
     Removed,
     Missing,
     Skipped,
-    Inspected,
 }
 
 pub fn cmd_prune(options: PruneOptions) -> Result<()> {
@@ -85,7 +84,6 @@ fn selected_scopes(
                 PruneScope::RuntimeHome,
                 PruneScope::AgentWorktrees,
                 PruneScope::Containers,
-                PruneScope::E2eCompanion,
             ],
             other => vec![other],
         };
@@ -128,7 +126,6 @@ fn run_prune(scopes: &[PruneScope], dry_run: bool) -> Result<PruneReport> {
             }
             PruneScope::AgentWorktrees => actions.extend(prune_agent_worktrees(dry_run)?),
             PruneScope::Containers => actions.push(prune_containers()),
-            PruneScope::E2eCompanion => actions.push(prune_e2e_companion(dry_run)?),
         }
     }
 
@@ -329,75 +326,6 @@ fn git_worktrees() -> Result<Vec<PathBuf>> {
         .collect())
 }
 
-fn prune_e2e_companion(dry_run: bool) -> Result<PruneAction> {
-    let key = Path::new(".aibox-e2e-runner-home/.ssh/id_ed25519");
-    if !key.exists() {
-        return Ok(PruneAction {
-            scope: scope_slug(&PruneScope::E2eCompanion).to_string(),
-            label: "E2E companion".to_string(),
-            status: PruneActionStatus::Skipped,
-            destructive: false,
-            path: None,
-            size_bytes: 0,
-            command: None,
-            stdout: None,
-            stderr: None,
-            notes: vec!["E2E companion SSH key missing; skipping companion prune".to_string()],
-        });
-    }
-
-    let host = std::env::var("E2E_HOST").unwrap_or_else(|_| "aibox-e2e-testrunner".to_string());
-    let port = std::env::var("E2E_PORT").unwrap_or_else(|_| "22".to_string());
-    let remote = if dry_run {
-        "echo 'podman system df'; podman system df; echo; echo 'container storage'; du -sh /home/testuser/.local/share/containers/storage 2>/dev/null || true; echo; echo 'workspaces'; du -sh /workspaces/* 2>/dev/null | sort -h | tail -20 || true"
-    } else {
-        "ids=$(podman ps -aq); if [ -n \"$ids\" ]; then podman rm -f $ids; fi; podman system prune -af --volumes; find /workspaces -mindepth 1 -maxdepth 1 -exec rm -rf {} + 2>/dev/null || sudo find /workspaces -mindepth 1 -maxdepth 1 -exec rm -rf {} +; podman system df; du -sh /home/testuser/.local/share/containers/storage 2>/dev/null || true"
-    };
-
-    let command = vec![
-        "ssh".to_string(),
-        "-i".to_string(),
-        key.to_string_lossy().to_string(),
-        "-o".to_string(),
-        "StrictHostKeyChecking=no".to_string(),
-        "-o".to_string(),
-        "UserKnownHostsFile=/dev/null".to_string(),
-        "-o".to_string(),
-        "ConnectTimeout=5".to_string(),
-        "-o".to_string(),
-        "LogLevel=ERROR".to_string(),
-        "-p".to_string(),
-        port,
-        format!("testuser@{host}"),
-        remote.to_string(),
-    ];
-    let completed = Command::new("ssh")
-        .args(&command[1..])
-        .stdin(Stdio::null())
-        .output()
-        .context("failed to run E2E companion prune over SSH")?;
-    if !completed.status.success() {
-        bail!("E2E companion prune failed");
-    }
-
-    Ok(PruneAction {
-        scope: scope_slug(&PruneScope::E2eCompanion).to_string(),
-        label: "E2E companion".to_string(),
-        status: if dry_run {
-            PruneActionStatus::Inspected
-        } else {
-            PruneActionStatus::Removed
-        },
-        destructive: !dry_run,
-        path: None,
-        size_bytes: 0,
-        command: Some(command),
-        stdout: Some(String::from_utf8_lossy(&completed.stdout).to_string()),
-        stderr: Some(String::from_utf8_lossy(&completed.stderr).to_string()),
-        notes: Vec::new(),
-    })
-}
-
 fn emit_human_report(report: &PruneReport) {
     if report.dry_run {
         output::info("Prune dry run; pass --yes to delete the selected scope");
@@ -427,15 +355,6 @@ fn emit_human_report(report: &PruneReport) {
                     .unwrap_or("nothing to prune");
                 output::ok(&format!("{}: {note}", action.label));
             }
-            PruneActionStatus::Inspected => {
-                output::info(&format!("{}: inspecting remote storage", action.label));
-                if let Some(stdout) = &action.stdout {
-                    print!("{stdout}");
-                }
-                if let Some(stderr) = &action.stderr {
-                    eprint!("{stderr}");
-                }
-            }
         }
     }
 }
@@ -447,7 +366,6 @@ fn scope_slug(scope: &PruneScope) -> &'static str {
         PruneScope::RuntimeHome => "runtime-home",
         PruneScope::AgentWorktrees => "agent-worktrees",
         PruneScope::Containers => "containers",
-        PruneScope::E2eCompanion => "e2e-companion",
         PruneScope::All => "all",
     }
 }
@@ -525,8 +443,7 @@ mod tests {
                 "build-cache",
                 "runtime-home",
                 "agent-worktrees",
-                "containers",
-                "e2e-companion"
+                "containers"
             ]
         );
     }

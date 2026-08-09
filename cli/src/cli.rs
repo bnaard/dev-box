@@ -288,9 +288,8 @@ pub enum Commands {
     },
     /// Reclaim aibox-managed disk usage
     ///
-    /// Reports reclaimable build caches, runtime-home caches, provider
-    /// worktrees, and E2E companion storage by default. Pass `--yes` to
-    /// apply the selected cleanup scope.
+    /// Reports reclaimable build caches, runtime-home caches, and provider
+    /// worktrees by default. Pass `--yes` to apply the selected cleanup scope.
     Prune {
         /// Cleanup scope to inspect or apply
         #[arg(value_enum)]
@@ -544,8 +543,6 @@ pub enum PruneScope {
     AgentWorktrees,
     /// Local aibox-owned container cleanup when available
     Containers,
-    /// Nested E2E companion containers, workspaces, images, and volumes
-    E2eCompanion,
     /// All known cleanup scopes, including provider worktrees
     All,
 }
@@ -558,7 +555,6 @@ impl std::fmt::Display for PruneScope {
             PruneScope::RuntimeHome => "runtime-home",
             PruneScope::AgentWorktrees => "agent-worktrees",
             PruneScope::Containers => "containers",
-            PruneScope::E2eCompanion => "e2e-companion",
             PruneScope::All => "all",
         };
         write!(f, "{value}")

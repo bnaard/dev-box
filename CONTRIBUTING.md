@@ -27,30 +27,26 @@ cd cli && cargo clippy --all-targets -- -D warnings
 cd cli && cargo fmt -- --check
 ```
 
-### E2E Tier 2 (full container lifecycle tests)
-
-Requires the `aibox-e2e-testrunner` companion service running alongside the devcontainer.
-The repo devcontainer also needs an SSH client (`openssh-client`) because Tier 2 tests deploy to the companion via SSH/SCP; rebuild the devcontainer after pulling changes that touch `.devcontainer/Dockerfile.local`.
+### Local E2E contracts
 
 ```bash
 # 1. Build the CLI binary
 cd /workspace/cli && cargo build
 
-# 2. Run E2E tier 2 tests (deploys binary to companion via SCP on first run).
-# The expensive visual matrix tests are opt-in and do not run here.
-cd /workspace/cli && cargo test --features e2e
+# 2. Run local E2E contracts. No Docker, SSH, or companion is used.
+cd /workspace/cli && cargo test --test e2e
 
 # Run a specific E2E test
-cd /workspace/cli && cargo test --features e2e -- lifecycle
+cd /workspace/cli && cargo test --test e2e local_lifecycle
 ```
 
-The deploy step is guarded by `std::sync::Once` — runs once per `cargo test` invocation.
-Re-running after a code change: `cargo build` again, then re-run `cargo test --features e2e`.
+Real candidate-image lifecycle evidence runs only through the owner-controlled
+macOS release host gate.
 
 ### Visual E2E tiers
 
-The generated tmux/Yazi visual tests run real SSH/asciinema sessions in the
-companion container. They are intentionally opt-in because they are slower and
+The generated tmux/Yazi visual tests run real isolated tmux/asciinema sessions
+inside the development container. They are intentionally opt-in because they are slower and
 because release validation should choose the tier that matches the changed
 surface:
 
@@ -101,8 +97,9 @@ Include `Cargo.lock` in version bump commits.
 ## Release
 
 See `context/notes/NOTE-20260411_0000-LoyalSpruce-aibox-release-process.md` for the full release process.
-Quick summary: `./scripts/maintain.sh release X.Y.Z` (in container) then
-`./scripts/maintain.sh release-host X.Y.Z` (on macOS host).
+Quick summary: `./scripts/maintain.sh release X.Y.Z` in the container prepares
+an immutable run directory. On macOS, run the single run-directory command
+printed in `dist/RELEASE-PROMPT.md`.
 
 Release validation and publication run locally. Do not introduce GitHub Actions
 or another hosted CI release path. The local release tooling runs independent

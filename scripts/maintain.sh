@@ -11,7 +11,7 @@
 # Commands:
 #   test              Run cargo fmt, clippy, and tests
 #   test-e2e          Run local E2E contracts
-#   test-e2e-visual   Run all opt-in SSH/asciinema visual E2E tiers
+#   test-e2e-visual   Run all opt-in isolated tmux/asciinema visual E2E tiers
 #   build-images      Build published foundation/runtime images locally
 #   release-runtime-smoke <version> Run generated runtime smoke against a release
 #   docs-serve        Serve Hugo/Docsy locally for preview
@@ -106,12 +106,12 @@ ${bold}Development:${reset}
   test-e2e-visual-yazi     Run opt-in Yazi previews/git/plugin visual checks
   test-e2e-visual          Run all opt-in visual E2E tiers
   test-e2e-render-starship Run Tier 3 vt100 cell-color tests for Starship (local, ~6s)
-  test-e2e-render-tmux     Run Tier 3 vt100 cell-color tests for tmux (companion)
+  test-e2e-render-tmux     Removed legacy command; points to local visual coverage
   test-e2e-render-layout-switch
-                           Run Tier 3 rendered test: live layout switch (companion)
+                           Removed legacy command pending local asciinema rewrite
   test-e2e-render-theme-switch
-                           Run Tier 3 rendered test: live theme switch (companion)
-  test-e2e-render-yazi     Run Tier 3 vt100 cell-color tests for Yazi (companion)
+                           Removed legacy command pending local asciinema rewrite
+  test-e2e-render-yazi     Removed legacy command; points to local visual coverage
   test-e2e-render          Run all Tier 3 vt100 rendered-color tests
   test-e2e-doc-captures    Run visual E2E and write docs-ready cast/screen artifacts
                            Set AIBOX_E2E_VISUAL_FULL_MATRIX=1 for exhaustive layout/theme coverage
@@ -142,8 +142,9 @@ ${bold}Release:${reset}
                            Add --skip list to exclude long or already-run steps.
   release <version> --list-steps
                            Print release step aliases and concrete step names
-  release-host <version>   Build/upload macOS binaries, push GHCR images,
-                           run runtime smoke, then refresh + commit generated runtime surfaces
+  release-host-prepare <version>
+                           Prepare immutable checksummed host-gate inputs
+  release-host <run-dir>   Run the reviewed macOS validation + publication gate
   release-finalize-runtime <version>
                            Refresh and commit repo-owned generated runtime files
 
@@ -1542,9 +1543,9 @@ release_usage() {
 release_list_steps() {
   cat <<'STEPS'
 Release step aliases:
-  all       state,doctors,sync,version,test,e2e,visual,audit,build-linux,version-smoke,push-main,notes,tag,github-release,docs,prompt
+  all       state,doctors,sync,version,test,visual,audit,build-linux,version-smoke,push-main,notes,tag,github-release,docs,prompt
   phase0    state,doctors
-  checks    sync,version,test,e2e,visual,audit
+  checks    sync,version,test,visual,audit
   build     build-linux,version-smoke
   publish   push-main,notes,tag,github-release
 
@@ -1554,7 +1555,6 @@ Concrete release steps:
   sync            Check/sync processkit default version
   version         Bump cli/Cargo.toml and Cargo.lock if needed, then commit
   test            Run fmt, clippy, and unit/integration tests
-  e2e             Run Tier 2 SSH companion E2E
   visual          Run the selected visual E2E tier from AIBOX_RELEASE_VISUAL_E2E
   audit           Run cargo audit
   build-linux     Build Linux release archives and checksums
@@ -1921,91 +1921,6 @@ release_local_test_gate() {
       cmd_test_e2e_render_starship
       ;;
   esac
-}
-
-release_classify_heavy_e2e_paths() {
-  local path addon=0 latex=0
-  for path in "$@"; do
-    case "${path}" in
-      cli/src/content_source.rs)
-        # Content acquisition does not participate in generated image builds.
-        ;;
-      scripts/maintain.sh|scripts/run-e2e-shards.sh|scripts/test-maintain-release.sh|\
-      .devcontainer/Dockerfile|.devcontainer/Dockerfile.e2e|\
-      images/*|cli/src/addon_cmd.rs|cli/src/addon_loader.rs|\
-      cli/src/addon_registry.rs|cli/src/addons.rs|cli/src/generate.rs|\
-      cli/src/templates/Dockerfile.j2|cli/src/templates/docker-compose.yml.j2|\
-      cli/tests/e2e/runner.rs)
-        addon=1
-        latex=1
-        ;;
-      addons/languages/latex.yaml|cli/tests/e2e/latex_preview.rs)
-        latex=1
-        ;;
-      addons/*|cli/tests/e2e/addon.rs)
-        addon=1
-        ;;
-      cli/src/*|cli/Cargo.toml|cli/Cargo.lock|aibox.toml)
-        # Unclassified production/config changes are treated conservatively:
-        # they can alter generated files or runtime behavior indirectly.
-        addon=1
-        latex=1
-        ;;
-    esac
-  done
-  printf 'addon=%s latex=%s\n' "${addon}" "${latex}"
-}
-
-release_previous_tag_for_version() {
-  local version="$1" pattern
-  case "${version}" in
-    0.*) pattern='v0.*' ;;
-    1.*) pattern='v1.*' ;;
-    *) return 1 ;;
-  esac
-  git describe --tags --abbrev=0 --match "${pattern}" HEAD 2>/dev/null
-}
-
-release_select_heavy_e2e() {
-  local version="$1" mode="${AIBOX_RELEASE_HEAVY_E2E:-auto}"
-  local base_ref path classification
-  local changed_paths=()
-
-  case "${mode}" in
-    all)
-      RELEASE_RUN_ADDON_E2E=1
-      RELEASE_RUN_LATEX_E2E=1
-      RELEASE_HEAVY_E2E_REASON='forced by AIBOX_RELEASE_HEAVY_E2E=all'
-      ;;
-    auto)
-      base_ref="${AIBOX_RELEASE_IMPACT_BASE_REF:-}"
-      if [[ -z "${base_ref}" ]]; then
-        base_ref="$(release_previous_tag_for_version "${version}" || true)"
-      fi
-      if [[ -z "${base_ref}" ]] || ! git rev-parse --verify "${base_ref}^{commit}" >/dev/null 2>&1; then
-        RELEASE_RUN_ADDON_E2E=1
-        RELEASE_RUN_LATEX_E2E=1
-        RELEASE_HEAVY_E2E_REASON='no trustworthy previous release tag; running conservatively'
-      else
-        while IFS= read -r path; do
-          [[ -n "${path}" ]] && changed_paths+=("${path}")
-        done < <(git diff --name-only "${base_ref}^{commit}" HEAD)
-        classification="$(release_classify_heavy_e2e_paths "${changed_paths[@]}")"
-        RELEASE_RUN_ADDON_E2E="${classification#addon=}"
-        RELEASE_RUN_ADDON_E2E="${RELEASE_RUN_ADDON_E2E%% *}"
-        RELEASE_RUN_LATEX_E2E="${classification##*latex=}"
-        RELEASE_HEAVY_E2E_REASON="auto-selected from ${base_ref}..${RELEASE_CANDIDATE_SHA:0:12} (${#changed_paths[@]} changed path(s))"
-      fi
-      ;;
-    *)
-      die "AIBOX_RELEASE_HEAVY_E2E must be 'auto' or 'all' (got: ${mode})"
-      ;;
-  esac
-  export RELEASE_RUN_ADDON_E2E RELEASE_RUN_LATEX_E2E RELEASE_HEAVY_E2E_REASON
-  info "Heavy E2E selection: addon=${RELEASE_RUN_ADDON_E2E}, latex=${RELEASE_RUN_LATEX_E2E} — ${RELEASE_HEAVY_E2E_REASON}"
-  release_timing_record_event selection selected heavy-e2e \
-    "$(date -u +%Y-%m-%dT%H:%M:%SZ)" "$(date -u +%Y-%m-%dT%H:%M:%SZ)" \
-    0 0 "addon=${RELEASE_RUN_ADDON_E2E};latex=${RELEASE_RUN_LATEX_E2E};${RELEASE_HEAVY_E2E_REASON}"
 }
 
 release_visual_gate() {
@@ -2517,6 +2432,8 @@ cmd_release() {
 
   if release_step_requested prompt; then
     local prompt_file="${DIST_DIR}/RELEASE-PROMPT.md"
+    local host_run_dir
+    host_run_dir="$("${SCRIPT_DIR}/release-host-prepare.sh" "${version}")"
     {
       echo "# Host-side steps for aibox ${tag}"
       echo ""
@@ -2527,16 +2444,15 @@ cmd_release() {
       echo "git fetch origin ${release_branch}"
       echo "git switch ${release_branch}"
       echo "git reset --keep origin/${release_branch}"
-      echo "./scripts/maintain.sh release-host ${version}"
+      echo "./scripts/maintain.sh release-host ${host_run_dir}"
       echo "\`\`\`"
       echo ""
       echo "This will:"
-      echo "- Verify the host checkout is current with the version-line release branch and contains ${tag}"
-      echo "- Build macOS binaries (aarch64-apple-darwin, x86_64-apple-darwin)"
-      echo "- Upload them to the existing GitHub release ${tag}"
-      echo "- Build and push container images to GHCR"
-      echo "- Refresh repo-owned generated runtime surfaces after the image tags exist"
-      echo "- Commit and push generated runtime changes if they drift"
+      echo "- Verify the immutable input provenance, checksums, tag, commit, and path policy"
+      echo "- Build and smoke-test both Darwin binaries without publication credentials"
+      echo "- Build and exercise the candidate image, including --forget-tmux-state"
+      echo "- Generate SBOM, vulnerability, command, manifest, and cleanup evidence"
+      echo "- Publish only manifest-listed artifacts and images after every gate passes"
     } > "${prompt_file}"
 
     ok "Host-side prompt written to dist/RELEASE-PROMPT.md"
@@ -2561,7 +2477,7 @@ cmd_release() {
   fi
   if release_step_requested prompt; then
     echo ""
-    echo "  ${bold}Remaining (macOS host):${reset} ./scripts/maintain.sh release-host ${version}"
+    echo "  ${bold}Remaining (macOS host):${reset} use the run-directory command in dist/RELEASE-PROMPT.md"
   fi
 }
 
@@ -2693,73 +2609,15 @@ ensure_release_host_checkout_current() {
   ok "Host checkout matches the ${release_branch} release line and contains ${tag}"
 }
 
+
+cmd_release_host_prepare() {
+  [[ "$#" -eq 1 ]] || die "Usage: ./scripts/maintain.sh release-host-prepare <version>"
+  "${SCRIPT_DIR}/release-host-prepare.sh" "$1"
+}
+
 cmd_release_host() {
-  local version="${1:-}"
-  local release_started_epoch="$(date +%s)"
-  [[ -z "${version}" ]] && die "Usage: ./scripts/maintain.sh release-host <version>  (e.g. 0.10.2)"
-
-  if ! [[ "${version}" =~ ^[0-9]+\.[0-9]+\.[0-9]+(-[0-9A-Za-z][0-9A-Za-z.-]*)?$ ]]; then
-    die "Version must be semver: X.Y.Z or X.Y.Z-prerelease (got: ${version})"
-  fi
-
-  local tag="v${version}"
-  ensure_release_host_checkout_current "${version}"
-  release_evidence_init "${version}" host
-  release_timing_begin "release-host"
-  info "Host release source: ${RELEASE_CANDIDATE_SHA}"
-
-  # ── Step 1: Build macOS binaries ──────────────────────────────────────────
-  # macOS compilation and image publication are independent. Run both with
-  # separate logs and aggregate their failures before continuing.
-  release_run_parallel_validation "${version}" \
-    "build-macos|macOS release artifacts|release_build_macos_gate" \
-    "publish-images|GHCR image publication|release_publish_images_gate"
-
-  # ── Step 2: Upload macOS binaries to existing GitHub release ──────────────
-  info "Uploading macOS binaries to GitHub release ${tag}..."
-  local release_view_output
-  if ! release_view_output=$(gh release view "${tag}" --repo "${GITHUB_REPO}" 2>&1); then
-    if grep -qiE 'not[[:space:]]+found|HTTP 404' <<<"${release_view_output}"; then
-      die "GitHub release ${tag} not found in ${GITHUB_REPO}. Run 'release' in the container first."
-    fi
-    die "Could not verify GitHub release ${tag} in ${GITHUB_REPO}: ${release_view_output}"
-  fi
-  gh release upload "${tag}" "${PROJECT_ROOT}/LICENSE" \
-    --repo "${GITHUB_REPO}" \
-    --clobber \
-    || warn "LICENSE upload failed — verify the GitHub release includes LICENSE"
-  gh release upload "${tag}" "${DIST_DIR}"/aibox-v${version}-*-apple-darwin.tar.gz "${DIST_DIR}"/aibox-v${version}-*-apple-darwin.tar.gz.sha256 \
-    --repo "${GITHUB_REPO}" \
-    || warn "Upload failed — binaries may already be attached"
-  ok "macOS binaries, checksums, and LICENSE uploaded to ${tag}"
-
-  # ── Step 3: Publish container images ─────────────────────────────────────
-  # ── Step 4: Run generated-runtime smoke against the pushed image ──────────
-  info "Running generated runtime smoke..."
-  cmd_release_runtime_smoke "${version}"
-
-  # ── Step 5: Commit generated runtime surfaces now that images exist ───────
-  cmd_release_finalize_runtime "${version}"
-
-  # ── Step 6: Final GHCR sanity check ───────────────────────────────────────
-  # cmd_publish_images_for_release also calls this internally; re-running at
-  # the end of release-host guards against any later step (smoke, finalize)
-  # accidentally clobbering the tags or against a retag that succeeded
-  # locally but didn't propagate to GHCR.
-  info "Re-verifying GHCR tags after smoke + runtime finalize..."
-  verify_release_images_in_ghcr "${version}" "base-debian"
-  local release_duration="$(( $(date +%s) - release_started_epoch ))"
-  release_timing_finish "${release_duration}"
-  release_write_timing_report "${version}" "${release_duration}"
-
-  # ── Done ──────────────────────────────────────────────────────────────────
-  echo ""
-  ok "Release ${tag} host-side steps complete."
-  echo ""
-  echo "  macOS binaries: uploaded to GitHub release"
-  echo "  Container images: pushed to GHCR and verified live"
-  echo "  Runtime smoke: passed (logs in dist/release-smoke/v${version}/)"
-  echo "  Generated runtime: refreshed and committed if needed"
+  [[ "$#" -eq 1 ]] || die "Usage: ./scripts/maintain.sh release-host <run-dir>"
+  "${SCRIPT_DIR}/release-host-gate.sh" "$1"
 }
 
 # ── Container commands ───────────────────────────────────────────────────────
@@ -2891,6 +2749,7 @@ case "${COMMAND}" in
   release)      cmd_release "$@" ;;
   release-check-state) cmd_release_check_state "$@" ;;
   release-doctors) cmd_release_doctors ;;
+  release-host-prepare) cmd_release_host_prepare "$@" ;;
   release-host) cmd_release_host "$@" ;;
   release-finalize-runtime) cmd_release_finalize_runtime "$@" ;;
   start)        cmd_start ;;

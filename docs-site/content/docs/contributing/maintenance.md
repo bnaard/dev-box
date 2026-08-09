@@ -77,7 +77,7 @@ Releases are intentionally split:
 | Phase | Where | Command | Purpose |
 | --- | --- | --- | --- |
 | Container side | aibox devcontainer | `./scripts/maintain.sh release X.Y.Z` | check dependency/harness state, sync processkit default, bump CLI version, test, audit, build Linux binaries, tag, create GitHub release, deploy docs |
-| Host side | macOS host | `./scripts/maintain.sh release-host X.Y.Z` | build macOS binaries, upload them to the release, build and push GHCR images, run the generated-runtime smoke, then refresh repo-owned runtime surfaces |
+| Host side | macOS host | run-directory command from `dist/RELEASE-PROMPT.md` | validate immutable inputs, build/smoke Darwin and candidate images without credentials, emit evidence, then publish the fixed manifest |
 
 Both phases run locally. The project deliberately does not use GitHub Actions
 for release validation, artifact builds, image publication, or deployment.
@@ -106,8 +106,7 @@ The command performs:
 - processkit release sync check
 - `cli/Cargo.toml` and `Cargo.lock` version bump when needed
 - format, Clippy, and test checks
-- Tier 2 SSH companion E2E tests, including generated runtime and visual
-  asciinema probes
+- local temporary-workspace E2E and isolated tmux/asciinema probes
 - `cargo audit`
 - `cargo update --dry-run` review for lockfile-resolvable crate updates
 - Linux release builds for `aarch64-unknown-linux-gnu` and
@@ -127,8 +126,7 @@ third binary.
 Successful gates write local evidence under
 `dist/release-evidence/vX.Y.Z/<commit>/`. Evidence is bound to the exact commit,
 Rust toolchain, clean-tree state, release phase, and gate-specific environment.
-Companion evidence includes the companion fingerprint, audit evidence expires
-daily, and binary evidence rechecks archive checksums. Set
+Audit evidence expires daily, and binary evidence rechecks archive checksums. Set
 `AIBOX_RELEASE_REUSE_EVIDENCE=0` to force every selected gate to run again.
 Container-side timings are summarized in `dist/RELEASE-TIMINGS.md`; host-side
 timings are summarized in `dist/RELEASE-HOST-TIMINGS.md`. Each summary is a
@@ -148,55 +146,51 @@ crate-update pass.
 
 ## Host-Side Release
 
-Run this on the macOS host after the container-side release succeeds. Sync the
-matching version-line release branch first; the container-side release may have
-pushed version-bump and tag-prep commits from another clone. For a v0 release:
+The container-side release prepares a checksummed source archive and provenance
+record under `tmp/host-gates/aibox-release/<run-id>/input/`. It writes the
+single owner command to `dist/RELEASE-PROMPT.md`:
 
 ```bash
-git fetch origin v0.x-release
-git switch v0.x-release
-git reset --keep origin/v0.x-release
-./scripts/maintain.sh release-host X.Y.Z
+./scripts/maintain.sh release-host tmp/host-gates/aibox-release/<run-id>
 ```
 
-`release-host` derives the expected branch from the major version (`v0.x-release`
-for `0.*`, `v1.x-release` for `1.*`) and verifies that the requested release tag
-is reachable from that branch. It does not build host artifacts from `main`.
+The reviewed entry point accepts only that run-directory path. It rejects
+traversal, symlinks, special files, hardlinks, unexpected inputs, unsafe
+permissions, checksum drift, and tag/commit mismatches. A previous partial run
+cannot be resumed: `runtime/` and `evidence/` must not exist when it starts.
 
-This phase builds Darwin binaries, uploads them to the existing GitHub release,
-pushes GHCR images, then runs a fresh downstream-style runtime smoke against
-the pushed release tag. The smoke creates a temporary project, runs
-`aibox init` and `aibox apply --no-cache --standardize-config`, starts the
-generated container, probes Yazi, the aibox status helper, tmux state, and the
-diagnostics sidecar, and writes a bundle to
-`dist/release-smoke/vX.Y.Z/<timestamp>/`.
-By default, this smoke runs with `AIBOX_RELEASE_SMOKE_TIER=addons`, so `git-ui`
-(`lazygit`) startup is exercised in addition to the core runtime contract.
-It is host-side because macOS binaries and host runtime access are not
-available from the Linux devcontainer.
+Validation and publication are separate security stages within the one owner
+invocation. Candidate-controlled native builds, build scripts, CLI commands,
+and the generated runtime smoke receive a fixed environment and run under a
+macOS sandbox that denies GitHub configuration, Docker configuration, SSH
+material, and Keychain services. Docker uses an empty per-run configuration;
+no publication credential, secret, broad mount, or runtime socket is exposed
+to the development container or candidate container.
 
-The two macOS targets build concurrently. The host release also overlaps that
-build lane with source-hash-aware image reuse or publication, then joins both
-lanes before uploading binaries and starting the runtime smoke. Healthy tmux
-smoke probes advance on observed session, window, pane, and status readiness;
-their timeouts are failure ceilings rather than fixed delays. Host timings are
-written to `dist/RELEASE-HOST-TIMINGS.md`.
+The entry point uses owner-installed uv with exact Python `3.12.11`,
+`--offline`, `--no-project`, fixed owner cache/managed-Python roots, and a
+fully rebuilt environment. Candidate project metadata, inherited `UV_*`
+settings, package indexes, and inline script metadata cannot select the
+interpreter or dependencies.
 
-If publishing the image changes repo-owned generated runtime surfaces, the host
-script creates and merges a short-lived PR back into the release branch rather
-than pushing directly to a protected long-lived branch. Promote that finalized
-release branch to `main` and the corresponding development branch afterwards.
+The validation stage builds both Darwin targets, natively smokes the current
+architecture, builds the actual candidate foundation/runtime images, exercises
+the generated Compose lifecycle and `--forget-tmux-state`, requires cleanup,
+generates a CycloneDX SBOM, and fails Grype findings at high severity. Every
+command and result is retained beneath `evidence/` with toolchain metadata,
+image inspection, runtime logs, hashes, and a release manifest.
 
-The Linux-side Tier 2 E2E companion is separate from this host phase. From the
-devcontainer, verify that companion over SSH/SCP; do not use local
-Docker/Podman availability in the main devcontainer as the reachability check.
+Only after every gate succeeds does the separate publisher receive normal host
+GitHub/GHCR authority. It revalidates the immutable manifest and can upload
+only the two Darwin archives plus checksums and push only the fixed aibox
+foundation-version, runtime-version, and runtime-latest tags. It cannot build,
+run tests, execute candidate code, commit, merge, or accept extra arguments.
+Remote asset and image inspection is mandatory.
 
-`release-doctors` is an aibox CLI development exception to the normal
-host/container diagnostic split. Inside the workspace container, ordinary
-dogfood diagnostics use `pk-doctor`; `aibox doctor` is host-side. During release
-Phase 0, however, `./scripts/maintain.sh release-doctors` runs `aibox doctor`
-as a host-context simulation so the CLI's host diagnostic behavior remains
-gated.
+On failure, keep the run directory as diagnostic evidence. Correct the source,
+create a new candidate commit/tag, and prepare a new run ID; do not edit the
+old input or selectively reuse its evidence. The owner must review changes to
+the gate and publisher before using a changed version.
 
 ## Verification
 
