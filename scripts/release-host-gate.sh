@@ -1,9 +1,17 @@
 #!/usr/bin/env bash
-# Owner-reviewed entry point. Its sole argument is a prepared release run dir.
+# Owner-reviewed entry point. Dry-run performs validation without publication.
 set -euo pipefail
 
-if [[ "$#" -ne 1 ]]; then
-  echo "Usage: ./scripts/release-host-gate.sh tmp/host-gates/aibox-release/<run-id>" >&2
+DRY_RUN=0
+case "$#:${1:-}:${2:-}" in
+  2:--dry-run:--dry-run) ;;
+  1:*:) RUN_DIR="$1" ;;
+  2:*:--dry-run) RUN_DIR="$1"; DRY_RUN=1 ;;
+  2:--dry-run:*) RUN_DIR="$2"; DRY_RUN=1 ;;
+esac
+
+if [[ -z "${RUN_DIR:-}" ]]; then
+  echo "Usage: ./scripts/release-host-gate.sh [--dry-run] tmp/host-gates/aibox-release/<run-id> [--dry-run]" >&2
   exit 2
 fi
 
@@ -24,5 +32,6 @@ exec /usr/bin/env -i \
   UV_CACHE_DIR="${OWNER_HOME}/Library/Caches/aibox-host-gates/uv" \
   UV_PYTHON_INSTALL_DIR="${OWNER_HOME}/Library/Application Support/aibox-host-gates/python" \
   UV_NO_CONFIG=1 UV_OFFLINE=1 AIBOX_HOST_GATE_UV_BIN="${UV_BIN}" \
+  AIBOX_RELEASE_HOST_DRY_RUN="${DRY_RUN}" \
   "${UV_BIN}" run --offline --no-project --python 3.12.11 \
-  "${SCRIPT_DIR}/release_host_gate.py" "$1"
+  "${SCRIPT_DIR}/release_host_gate.py" "${RUN_DIR}"

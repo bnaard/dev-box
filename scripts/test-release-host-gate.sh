@@ -11,6 +11,11 @@ bash -n \
   "${SCRIPT_DIR}/release_host_gate.py" \
   "${SCRIPT_DIR}/release_host_publish.py"
 
+if "${SCRIPT_DIR}/release-host-gate.sh" --dry-run --dry-run >/dev/null 2>&1; then
+  echo "release-host gate accepted duplicate dry-run flags" >&2
+  exit 1
+fi
+
 for entrypoint in release-host-gate.sh release-host-publish.sh; do
   if grep -Eq '(^|[[:space:]])(sudo|su|doas|eval|source)([[:space:]]|$)|bash -c|sh -c' \
       "${SCRIPT_DIR}/${entrypoint}"; then
@@ -43,6 +48,15 @@ assert gate.EXPECTED_INPUTS == {"checksums.sha256", "provenance.json", "source.t
 assert gate.RUN_ID.fullmatch("v0.31.2-20260809T120000Z-0123456789ab")
 assert gate.RUN_ID.fullmatch("v1.0.0-alpha.2-20260809T120000Z-0123456789ab")
 assert gate.VERSION_TAG.fullmatch("v1.0.0-alpha.2")
+assert gate.dry_run_enabled(None) is False
+assert gate.dry_run_enabled("0") is False
+assert gate.dry_run_enabled("1") is True
+try:
+    gate.dry_run_enabled("true")
+except SystemExit:
+    pass
+else:
+    raise AssertionError("ambiguous dry-run value was accepted")
 assert not gate.RUN_ID.fullmatch("../v0.31.2-20260809T120000Z-0123456789ab")
 assert not gate.RUN_ID.fullmatch("v0.31.2/latest")
 

@@ -104,6 +104,10 @@ Quick summary: `./scripts/maintain.sh release X.Y.Z` in the container prepares
 an immutable run directory. On macOS, run the single run-directory command
 printed in `dist/RELEASE-PROMPT.md`.
 
+To rehearse the complete host validation and evidence path without uploading
+artifacts or pushing images, append `--dry-run` to that command. A successful
+dry run prints the explicit publisher command for the verified run directory.
+
 Release validation and publication run locally. Do not introduce GitHub Actions
 or another hosted CI release path. The local release tooling runs independent
 gates concurrently, records exact-commit evidence under `dist/release-evidence/`,

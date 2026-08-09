@@ -88,7 +88,19 @@ The owner runs the single command printed in `dist/RELEASE-PROMPT.md`:
 ./scripts/maintain.sh release-host tmp/host-gates/aibox-release/<run-id>
 ```
 
-The entry point accepts exactly that one path. It canonicalizes the path,
+Append `--dry-run` to execute the same builds, runtime probes, cleanup,
+security scans, and manifest creation without invoking publication:
+
+```bash
+./scripts/maintain.sh release-host tmp/host-gates/aibox-release/<run-id> --dry-run
+```
+
+The completed run directory can later be published with the exact
+`release-host-publish.sh` command printed by the validator. Do not rerun the
+gate without `--dry-run`; populated `runtime/` and `evidence/` directories are
+intentionally non-resumable.
+
+The entry point accepts that one path plus the optional fixed `--dry-run` flag. It canonicalizes the path,
 requires one direct child of the approved root, rejects symlinks, special
 files, hardlinks, unexpected files, unsafe permissions, bad checksums, and
 tag/commit mismatches, then creates `runtime/` and `evidence/` itself.

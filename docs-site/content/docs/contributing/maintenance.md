@@ -154,6 +154,12 @@ single owner command to `dist/RELEASE-PROMPT.md`:
 ./scripts/maintain.sh release-host tmp/host-gates/aibox-release/<run-id>
 ```
 
+For an evidence-only rehearsal, append `--dry-run`. Validation still performs
+all candidate builds, probes, cleanup, SBOM generation, vulnerability scanning,
+and manifest hashing, but it does not invoke GitHub or GHCR publication. The
+validator prints the separate publisher command that can consume the verified
+run directory later.
+
 The reviewed entry point accepts only that run-directory path. It rejects
 traversal, symlinks, special files, hardlinks, unexpected inputs, unsafe
 permissions, checksum drift, and tag/commit mismatches. A previous partial run

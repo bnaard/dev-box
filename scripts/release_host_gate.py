@@ -4,8 +4,9 @@
 The shell entrypoint supplies a deliberately sparse environment and an exact
 Python interpreter. This module then verifies the prepared input, runs
 candidate-controlled build and test commands without owner credentials,
-records checksummed evidence, and invokes the separately constrained publisher
-only after every mandatory and impact-selected check passes.
+records checksummed evidence, and—unless dry-run mode was explicitly selected—
+invokes the separately constrained publisher only after every mandatory and
+impact-selected check passes.
 
 This is intentionally a macOS gate: it builds both Darwin artifacts, natively
 smokes the current architecture, and uses Apple's ``sandbox-exec`` boundary.
@@ -83,6 +84,15 @@ def select_impact_checks(changed_paths: list[str]) -> dict[str, str]:
 def fail(message: str) -> "None":
     """Terminate the gate with a consistently prefixed operator error."""
     raise SystemExit(f"release-host gate: {message}")
+
+
+def dry_run_enabled(value: str | None) -> bool:
+    """Parse the wrapper-controlled publication mode without truthy ambiguity."""
+    if value in (None, "0"):
+        return False
+    if value == "1":
+        return True
+    fail("AIBOX_RELEASE_HOST_DRY_RUN must be exactly 0 or 1")
 
 
 def sha256(path: Path) -> str:
@@ -354,6 +364,7 @@ def main() -> None:
     # Phase 1: constrain the platform and validate the immutable input envelope.
     if len(sys.argv) != 2:
         fail("expected exactly one run-directory argument")
+    dry_run = dry_run_enabled(os.environ.get("AIBOX_RELEASE_HOST_DRY_RUN"))
     if subprocess.run(["/usr/bin/uname", "-s"], check=True, capture_output=True, text=True).stdout.strip() != "Darwin":
         fail("this gate must run on macOS")
 
@@ -581,15 +592,16 @@ def main() -> None:
         conditional_evidence.append(run_rootless_podman(
             runner, profile, fixed_env, candidate_bin, runtime, evidence, version))
 
-    # Phase 8: assemble a fixed, checksummed manifest. Publication receives no
-    # arbitrary artifact list; it can act only on entries accepted by its own
-    # independent schema and checksum validation.
+    # Phase 8: assemble a fixed, checksummed manifest. When publication is
+    # enabled it receives no arbitrary artifact list; dry-run stops after the
+    # same manifest is complete and prints the separate promotion command.
     publisher = script_dir / "release-host-publish.sh"
     publisher_command = [str(publisher), str(run_dir)]
-    rendered_publisher = shlex.join(publisher_command)
-    print(f"+ {rendered_publisher}", flush=True)
-    with runner.log.open("a", encoding="utf-8") as log:
-        log.write(rendered_publisher + "\n")
+    if not dry_run:
+        rendered_publisher = shlex.join(publisher_command)
+        print(f"+ {rendered_publisher}", flush=True)
+        with runner.log.open("a", encoding="utf-8") as log:
+            log.write(rendered_publisher + "\n")
 
     required_paths = [
         evidence / "darwin-smoke/complete.json",
@@ -621,6 +633,11 @@ def main() -> None:
     manifest_path = evidence / "release-manifest.json"
     manifest_path.write_text(json.dumps(manifest, indent=2, sort_keys=True) + "\n", encoding="utf-8")
     (evidence / "release-manifest.sha256").write_text(f"{sha256(manifest_path)}  release-manifest.json\n", encoding="utf-8")
+
+    if dry_run:
+        print("release-host validation complete; publication was not invoked", flush=True)
+        print(f"To publish this verified run: {shlex.join(publisher_command)}", flush=True)
+        return
 
     subprocess.run(publisher_command, check=True)
 
