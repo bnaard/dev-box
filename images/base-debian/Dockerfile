@@ -278,7 +278,7 @@ COPY --from=build-aibox-runtime-tools /build/aibox-runtime-tools/bin/aibox-diagn
 # image since v0.16.5 (DEC-036) so processkit's PEP 723 MCP server
 # scripts run via `uv run` out of the box. Works against the
 # externally-installed python3 from apt above.
-COPY --from=ghcr.io/astral-sh/uv:0.12.2 /uv /uvx /usr/local/bin/
+COPY --from=ghcr.io/astral-sh/uv:0.12.3 /uv /uvx /usr/local/bin/
 ENV UV_CACHE_DIR=/tmp/aibox/uv-cache
 
 ARG AIBOX_IMAGE_SOURCE_SHA=unknown
