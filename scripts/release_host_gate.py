@@ -1,5 +1,15 @@
 #!/usr/bin/env python3
-"""Fail-closed macOS validation stage for an immutable aibox release input."""
+"""Validate and publish an immutable aibox release candidate on macOS.
+
+The shell entrypoint supplies a deliberately sparse environment and an exact
+Python interpreter. This module then verifies the prepared input, runs
+candidate-controlled build and test commands without owner credentials,
+records checksummed evidence, and invokes the separately constrained publisher
+only after every mandatory and impact-selected check passes.
+
+This is intentionally a macOS gate: it builds both Darwin artifacts, natively
+smokes the current architecture, and uses Apple's ``sandbox-exec`` boundary.
+"""
 
 from __future__ import annotations
 
@@ -42,7 +52,14 @@ BROAD_IMPACT_PREFIXES = (
 
 
 def select_impact_checks(changed_paths: list[str]) -> dict[str, str]:
-    """Return selected checks and the path/rule that selected each one."""
+    """Select expensive host checks from an already verified release diff.
+
+    The returned mapping is both the execution plan and human-readable audit
+    evidence: each key is a reviewed conditional check and each value explains
+    which path or fail-safe rule selected it. Broad runtime machinery selects
+    every conditional check. A missing comparison tag is represented by
+    ``["*"]`` and also selects everything rather than producing a passing skip.
+    """
     if changed_paths == ["*"]:
         return {check: "no comparison tag; fail-safe full selection" for check in sorted(ALL_IMPACT_CHECKS)}
     broad = next((path for path in changed_paths if path.startswith(BROAD_IMPACT_PREFIXES)), None)
@@ -64,10 +81,12 @@ def select_impact_checks(changed_paths: list[str]) -> dict[str, str]:
 
 
 def fail(message: str) -> "None":
+    """Terminate the gate with a consistently prefixed operator error."""
     raise SystemExit(f"release-host gate: {message}")
 
 
 def sha256(path: Path) -> str:
+    """Return the streaming SHA-256 digest of *path* as lowercase hex."""
     digest = hashlib.sha256()
     with path.open("rb") as stream:
         for chunk in iter(lambda: stream.read(1024 * 1024), b""):
@@ -76,6 +95,7 @@ def sha256(path: Path) -> str:
 
 
 def validate_regular(path: Path) -> None:
+    """Require an immutable, regular, single-link input file."""
     info = path.lstat()
     if not stat.S_ISREG(info.st_mode) or info.st_nlink != 1:
         fail(f"input must be a regular single-link file: {path.name}")
@@ -84,6 +104,7 @@ def validate_regular(path: Path) -> None:
 
 
 def validate_directory(path: Path) -> None:
+    """Require a real directory that is not writable by group or others."""
     info = path.lstat()
     if not stat.S_ISDIR(info.st_mode) or path.is_symlink():
         fail(f"expected a real directory: {path}")
@@ -92,6 +113,11 @@ def validate_directory(path: Path) -> None:
 
 
 def resolve_run_dir(argument: str, project_root: Path) -> Path:
+    """Resolve one run directory directly beneath the fixed release-gate root.
+
+    Keeping the accepted shape this narrow prevents traversal, symlink, and
+    arbitrary-path arguments from expanding the publisher's authority.
+    """
     approved = (project_root / "tmp/host-gates/aibox-release").resolve()
     supplied = Path(argument)
     if not supplied.is_absolute():
@@ -105,11 +131,20 @@ def resolve_run_dir(argument: str, project_root: Path) -> Path:
 
 
 class Runner:
+    """Run exact argv commands with a fixed environment and append-only logs.
+
+    Commands never pass through a shell. Both the rendered argv and combined
+    output/exit status are retained so a host rehearsal can be audited without
+    trusting terminal scrollback.
+    """
+
     def __init__(self, evidence: Path, env: dict[str, str]) -> None:
+        """Bind command logs to *evidence* and freeze the subprocess environment."""
         self.log = evidence / "commands.log"
         self.env = env
 
     def run(self, command: list[str], *, cwd: Path | None = None, output: Path | None = None) -> None:
+        """Run *command*, optionally writing stdout as a binary evidence file."""
         rendered = shlex.join(command)
         print(f"+ {rendered}", flush=True)
         with self.log.open("a", encoding="utf-8") as log:
@@ -130,6 +165,7 @@ class Runner:
                 completed.check_returncode()
 
     def capture(self, command: list[str], *, cwd: Path | None = None) -> str:
+        """Run *command*, log it, and return its combined textual output."""
         rendered = shlex.join(command)
         print(f"+ {rendered}", flush=True)
         with self.log.open("a", encoding="utf-8") as log:
@@ -143,11 +179,13 @@ class Runner:
 
 
 def sandboxed(profile: Path, command: list[str], env: dict[str, str]) -> list[str]:
+    """Wrap candidate-controlled argv in the macOS credential-denial sandbox."""
     assignments = [f"{key}={value}" for key, value in sorted(env.items())]
     return ["/usr/bin/sandbox-exec", "-f", str(profile), "/usr/bin/env", "-i", *assignments, *command]
 
 
 def pin_release_version(config_path: Path, version: str) -> None:
+    """Pin a generated project to the locally built candidate image version."""
     config = config_path.read_text(encoding="utf-8")
     updated, count = re.subn(r'(?m)^release_version = ".*"', f'release_version = "{version}"', config, count=1)
     if count != 1:
@@ -156,12 +194,18 @@ def pin_release_version(config_path: Path, version: str) -> None:
 
 
 def compose_cleanup(runner: Runner, compose_file: Path) -> None:
+    """Remove the probe's containers, volumes, orphans, and derived local image.
+
+    Cleanup is deliberately fail-closed: callers invoke this from ``finally``
+    blocks, and a cleanup error prevents publication just like a failed probe.
+    """
     runner.run(["docker", "compose", "-f", str(compose_file), "down", "-v",
                 "--remove-orphans", "--rmi", "local"], cwd=compose_file.parent.parent)
 
 
 def init_project(runner: Runner, profile: Path, env: dict[str, str], candidate_bin: Path,
                  project: Path, name: str, addons: list[str]) -> None:
+    """Create an isolated downstream project with the candidate Darwin binary."""
     project.mkdir()
     command = [str(candidate_bin), "--yes", "init", name, "--base", "debian",
                "--processkit-version", "unset", "--no-container"]
@@ -172,6 +216,7 @@ def init_project(runner: Runner, profile: Path, env: dict[str, str], candidate_b
 
 def run_addon_group(runner: Runner, profile: Path, env: dict[str, str], candidate_bin: Path,
                     runtime: Path, evidence: Path, version: str, group: str) -> Path:
+    """Build one reviewed group of download-based addons and record success."""
     name = f"host-gate-{group}"
     project = runtime / name
     init_project(runner, profile, env, candidate_bin, project, name, ADDON_GROUPS[group])
@@ -189,6 +234,7 @@ def run_addon_group(runner: Runner, profile: Path, env: dict[str, str], candidat
 
 
 def wait_until(description: str, probe, *, attempts: int = 90, delay: float = 2.0) -> object:
+    """Poll a transient readiness probe and fail after a bounded timeout."""
     last_error: Exception | None = None
     for _ in range(attempts):
         try:
@@ -202,11 +248,19 @@ def wait_until(description: str, probe, *, attempts: int = 90, delay: float = 2.
 
 
 def latex_document(marker: str) -> str:
+    """Return the minimal LaTeX fixture used to detect live rebuilds."""
     return f"\\documentclass{{article}}\n\\begin{{document}}\n{marker}\n\\end{{document}}\n"
 
 
 def run_latex_lifecycle(runner: Runner, profile: Path, env: dict[str, str], candidate_bin: Path,
                         runtime: Path, evidence: Path, version: str, port: int) -> Path:
+    """Prove LaTeX watch, rebuild, and preview behavior across two revisions.
+
+    The check builds the candidate-derived container, starts its preview
+    sidecar, launches the watcher without a shell wrapper, observes two PDF
+    revisions, and requires the served PDF to match the generated file byte for
+    byte. Cleanup runs regardless of the probe outcome.
+    """
     name = "host-gate-latex"
     project = runtime / name
     init_project(runner, profile, env, candidate_bin, project, name, ["latex"])
@@ -243,6 +297,7 @@ def run_latex_lifecycle(runner: Runner, profile: Path, env: dict[str, str], cand
                     "aibox-latex-watch", "overview"])
 
         def pdf_contains(expected: str) -> bool:
+            """Return whether the current generated PDF contains *expected*."""
             output = runner.capture(["docker", "exec", name, "pdftotext",
                                      "/workspace/.latex-cache/overview/overview.pdf", "-"])
             return expected in output
@@ -267,6 +322,7 @@ def run_latex_lifecycle(runner: Runner, profile: Path, env: dict[str, str], cand
 
 def run_rootless_podman(runner: Runner, profile: Path, env: dict[str, str], candidate_bin: Path,
                         runtime: Path, evidence: Path, version: str) -> Path:
+    """Build the infrastructure addon and prove nested Podman is rootless."""
     name = "host-gate-podman"
     project = runtime / name
     init_project(runner, profile, env, candidate_bin, project, name, [])
@@ -294,6 +350,8 @@ def run_rootless_podman(runner: Runner, profile: Path, env: dict[str, str], cand
 
 
 def main() -> None:
+    """Execute the complete fail-closed validation and publication sequence."""
+    # Phase 1: constrain the platform and validate the immutable input envelope.
     if len(sys.argv) != 2:
         fail("expected exactly one run-directory argument")
     if subprocess.run(["/usr/bin/uname", "-s"], check=True, capture_output=True, text=True).stdout.strip() != "Darwin":
@@ -311,6 +369,8 @@ def main() -> None:
     for item in input_dir.iterdir():
         validate_regular(item)
 
+    # The checksum allowlist prevents an input producer from adding an
+    # unreviewed payload that later code might accidentally consume.
     checksums: dict[str, str] = {}
     for line in (input_dir / "checksums.sha256").read_text(encoding="utf-8").splitlines():
         digest, name = line.split(maxsplit=1)
@@ -324,6 +384,7 @@ def main() -> None:
         if sha256(input_dir / name) != expected:
             fail(f"checksum mismatch: {name}")
 
+    # Phase 2: bind the archive and changed-path selection to real Git objects.
     provenance = json.loads((input_dir / "provenance.json").read_text(encoding="utf-8"))
     expected_keys = {"schema_version", "version", "tag", "commit", "comparison_tag",
                      "comparison_commit", "changed_paths", "repository", "source_archive"}
@@ -380,6 +441,8 @@ def main() -> None:
     if head_commit != provenance["commit"] or tracked_status:
         fail("host checkout must be the clean tagged candidate commit")
 
+    # Phase 3: create fresh mutable runtime/evidence trees. Refusing preexisting
+    # trees prevents a partial or previously published run from being resumed.
     runtime = run_dir / "runtime"
     evidence = run_dir / "evidence"
     if runtime.exists() or evidence.exists():
@@ -389,6 +452,7 @@ def main() -> None:
     for name in ("darwin-build", "darwin-smoke", "container-build", "container-e2e", "security", "publication"):
         (evidence / name).mkdir()
 
+    # Reject links, devices, and traversal before extracting candidate source.
     source_root = runtime / "source"
     with tarfile.open(input_dir / "source.tar.gz", "r:gz") as archive:
         for member in archive.getmembers():
@@ -397,6 +461,8 @@ def main() -> None:
                 fail(f"unsafe source archive member: {member.name}")
         archive.extractall(runtime)
 
+    # Phase 4: isolate mutable tool state and deny candidate access to owner
+    # credentials, Keychain services, Git metadata, and immutable inputs.
     home = runtime / "home"
     docker_config = runtime / "docker-config"
     home.mkdir(mode=0o700)
@@ -437,6 +503,7 @@ def main() -> None:
         "gh_config_dir": fixed_env["GH_CONFIG_DIR"],
     }, indent=2, sort_keys=True) + "\n", encoding="utf-8")
 
+    # Phase 5: build both Darwin archives and natively smoke the host target.
     build_script = source_root / "scripts/build-macos.sh"
     runner.run(sandboxed(profile, [str(build_script), version], fixed_env), cwd=source_root)
     artifacts = sorted((source_root / "dist").glob(f"aibox-v{version}-*-apple-darwin.tar.gz*"))
@@ -454,6 +521,7 @@ def main() -> None:
         encoding="utf-8",
     )
 
+    # Phase 6: build the candidate images, then produce supply-chain evidence.
     foundation_image = f"ghcr.io/{REPOSITORY}:base-debian-foundation-v{version}"
     runtime_image = f"ghcr.io/{REPOSITORY}:base-debian-runtime-v{version}"
     latest_image = f"ghcr.io/{REPOSITORY}:base-debian-runtime-latest"
@@ -473,6 +541,8 @@ def main() -> None:
     runner.run(["syft", runtime_image, "-o", "cyclonedx-json"], output=evidence / "security/image-sbom.cdx.json")
     runner.run(["grype", runtime_image, "--fail-on", "high", "-o", "json"], output=evidence / "security/vulnerability-scan.json")
 
+    # The canonical runtime smoke is mandatory for every candidate, independent
+    # of the changed-path-selected expensive checks below.
     smoke_env = dict(fixed_env)
     smoke_env.update({
         "AIBOX_RELEASE_SMOKE_BIN": str(candidate_bin),
@@ -483,6 +553,8 @@ def main() -> None:
     })
     runner.run(sandboxed(profile, [str(source_root / "scripts/release-runtime-smoke.sh"), version], smoke_env), cwd=source_root)
 
+    # Phase 7: execute only affected expensive surfaces, while recording a
+    # complete selected/skipped partition for publisher verification.
     selected_checks = select_impact_checks(changed_paths)
     coverage_path = evidence / "container-e2e/impact-selection.json"
     coverage = {
@@ -509,6 +581,9 @@ def main() -> None:
         conditional_evidence.append(run_rootless_podman(
             runner, profile, fixed_env, candidate_bin, runtime, evidence, version))
 
+    # Phase 8: assemble a fixed, checksummed manifest. Publication receives no
+    # arbitrary artifact list; it can act only on entries accepted by its own
+    # independent schema and checksum validation.
     publisher = script_dir / "release-host-publish.sh"
     publisher_command = [str(publisher), str(run_dir)]
     rendered_publisher = shlex.join(publisher_command)
