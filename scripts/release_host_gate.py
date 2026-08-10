@@ -218,6 +218,33 @@ def select_container_runtime(env: dict[str, str]) -> str:
     fail("no responsive container runtime found; start OrbStack or Docker Desktop, or install and start Podman")
 
 
+def stage_docker_compose_plugin(owner_home: Path, docker_config: Path) -> str | None:
+    """Copy only a trusted Compose plugin into the credential-empty config.
+
+    Docker CLI plugins normally live beside ``config.json``. Replacing
+    ``DOCKER_CONFIG`` protects registry credentials but would also hide
+    OrbStack's or Docker Desktop's Compose plugin. Staging the executable alone
+    restores the command without copying any owner configuration or secrets.
+    """
+    candidates = (
+        owner_home / ".docker/cli-plugins/docker-compose",
+        Path("/Applications/OrbStack.app/Contents/MacOS/xbin/docker-compose"),
+        Path("/Applications/Docker.app/Contents/Resources/cli-plugins/docker-compose"),
+    )
+    for candidate in candidates:
+        if not candidate.is_file() or not os.access(candidate, os.X_OK):
+            continue
+        info = candidate.stat()
+        if info.st_uid not in {0, os.getuid()} or info.st_mode & 0o022:
+            continue
+        destination = docker_config / "cli-plugins/docker-compose"
+        destination.parent.mkdir(mode=0o700)
+        shutil.copy2(candidate, destination)
+        destination.chmod(0o500)
+        return str(candidate)
+    return None
+
+
 def pin_release_version(config_path: Path, version: str) -> None:
     """Pin a generated project to the locally built candidate image version."""
     config = config_path.read_text(encoding="utf-8")
@@ -510,6 +537,7 @@ def main() -> None:
     docker_config.mkdir(mode=0o700)
     cargo_home.mkdir(mode=0o700)
     original_home = Path.home()
+    compose_plugin_source = stage_docker_compose_plugin(original_home, docker_config)
     fixed_env = {
         "PATH": f"{original_home}/.cargo/bin:/opt/homebrew/bin:/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin",
         "HOME": str(home), "TMPDIR": str(runtime / "tmp"),
@@ -561,6 +589,7 @@ def main() -> None:
         "home": fixed_env["HOME"], "docker_config": fixed_env["DOCKER_CONFIG"],
         "docker_buildkit": fixed_env["DOCKER_BUILDKIT"],
         "container_runtime": container_runtime,
+        "compose_plugin_source": compose_plugin_source,
         "gh_config_dir": fixed_env["GH_CONFIG_DIR"],
     }, indent=2, sort_keys=True) + "\n", encoding="utf-8")
 

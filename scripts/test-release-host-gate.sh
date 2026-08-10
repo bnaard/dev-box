@@ -60,6 +60,7 @@ fi
 import importlib.util
 from pathlib import Path
 import sys
+import tempfile
 
 script_dir = Path(sys.argv[1])
 spec = importlib.util.spec_from_file_location("gate", script_dir / "release_host_gate.py")
@@ -93,6 +94,18 @@ assert gate.dry_run_enabled(None) is False
 assert gate.dry_run_enabled("0") is False
 assert gate.dry_run_enabled("1") is True
 assert any("brew install syft" in value for value in gate.main.__code__.co_consts if isinstance(value, str))
+with tempfile.TemporaryDirectory() as temporary:
+    root = Path(temporary)
+    plugin = root / "owner/.docker/cli-plugins/docker-compose"
+    plugin.parent.mkdir(parents=True)
+    plugin.write_text("plugin")
+    plugin.chmod(0o700)
+    config = root / "config"
+    config.mkdir()
+    assert gate.stage_docker_compose_plugin(root / "owner", config) == str(plugin)
+    staged = config / "cli-plugins/docker-compose"
+    assert staged.read_text() == "plugin"
+    assert staged.stat().st_mode & 0o777 == 0o500
 try:
     gate.dry_run_enabled("true")
 except SystemExit:
