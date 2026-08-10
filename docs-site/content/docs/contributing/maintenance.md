@@ -177,9 +177,12 @@ The entry point accepts owner-installed uv from the official standalone path
 `~/.local/bin/uv` or the architecture-native Homebrew prefix. It verifies
 ownership and rejects group/world-writable executables instead of searching an
 inherited `PATH`. It uses exact Python `3.12.11`, `--offline`, `--no-project`,
-fixed owner cache/managed-Python roots, and a fully rebuilt environment.
-Candidate project metadata, inherited `UV_*` settings, package indexes, and
-inline script metadata cannot select the interpreter or dependencies.
+fixed owner cache/managed-Python roots, and a fully rebuilt environment. The
+trusted wrapper installs uv's verified Python `3.12.11` distribution into that
+dedicated root when it is missing; candidate validation then runs offline with
+further Python downloads disabled. Candidate project metadata, inherited
+`UV_*` settings, package indexes, and inline script metadata cannot select the
+interpreter or dependencies.
 
 The validation stage builds both Darwin targets, natively smokes the current
 architecture, builds the actual candidate foundation/runtime images, exercises

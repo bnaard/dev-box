@@ -24,6 +24,14 @@ if grep -Eq '(command -v|which)[[:space:]]+uv' "${SCRIPT_DIR}/release-host-gate.
   echo "release-host gate must not resolve uv through inherited PATH" >&2
   exit 1
 fi
+grep -Fq '"${UV_BIN}" python install 3.12.11' "${SCRIPT_DIR}/release-host-gate.sh" || {
+  echo "release-host gate does not bootstrap its exact managed Python" >&2
+  exit 1
+}
+grep -Fq 'UV_OFFLINE=1 UV_PYTHON_DOWNLOADS=never' "${SCRIPT_DIR}/release-host-gate.sh" || {
+  echo "release-host candidate validation is not pinned offline" >&2
+  exit 1
+}
 
 for entrypoint in release-host-gate.sh release-host-publish.sh; do
   if grep -Eq '(^|[[:space:]])(sudo|su|doas|eval|source)([[:space:]]|$)|bash -c|sh -c' \
