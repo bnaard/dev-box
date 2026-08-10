@@ -198,6 +198,11 @@ all three surfaces. Every command, selection reason, skip reason, and result is
 retained beneath `evidence/` with toolchain metadata, image inspection, runtime
 logs, hashes, and a release manifest.
 
+Before the Darwin build, the gate fetches the exact locked Cargo dependency
+graph into a per-run credential-free Cargo home. The actual compilation remains
+offline, so a newly locked crate does not require a pre-warmed owner cache and
+candidate build scripts do not receive network access.
+
 Only after every gate succeeds does the separate publisher receive normal host
 GitHub/GHCR authority. It revalidates the immutable manifest and can upload
 only the two Darwin archives plus checksums and push only the fixed aibox

@@ -486,14 +486,16 @@ def main() -> None:
     # credentials, Keychain services, Git metadata, and immutable inputs.
     home = runtime / "home"
     docker_config = runtime / "docker-config"
+    cargo_home = runtime / "cargo-home"
     home.mkdir(mode=0o700)
     docker_config.mkdir(mode=0o700)
+    cargo_home.mkdir(mode=0o700)
     original_home = Path.home()
     fixed_env = {
         "PATH": f"{original_home}/.cargo/bin:/opt/homebrew/bin:/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin",
         "HOME": str(home), "TMPDIR": str(runtime / "tmp"),
         "DOCKER_CONFIG": str(docker_config), "GH_CONFIG_DIR": str(runtime / "gh-config"),
-        "CARGO_HOME": str(original_home / ".cargo"), "RUSTUP_HOME": str(original_home / ".rustup"),
+        "CARGO_HOME": str(cargo_home), "RUSTUP_HOME": str(original_home / ".rustup"),
         "CARGO_NET_OFFLINE": "true", "RUST_BACKTRACE": "1",
         "AIBOX_RELEASE_HOST_OFFLINE": "1",
         "AIBOX_ADDONS_DIR": str(source_root / "addons"),
@@ -532,7 +534,16 @@ def main() -> None:
         "gh_config_dir": fixed_env["GH_CONFIG_DIR"],
     }, indent=2, sort_keys=True) + "\n", encoding="utf-8")
 
-    # Phase 5: build both Darwin archives and natively smoke the host target.
+    # Phase 5: fetch the exact lockfile graph into the credential-free gate
+    # cache, then build offline. This avoids depending on the owner's cache
+    # without granting candidate build scripts network access.
+    fetch_env = {**fixed_env, "CARGO_NET_OFFLINE": "false"}
+    runner.run(sandboxed(profile, [
+        "cargo", "fetch", "--locked", "--manifest-path", str(source_root / "cli/Cargo.toml"),
+        "--target", "aarch64-apple-darwin", "--target", "x86_64-apple-darwin",
+    ], fetch_env), cwd=source_root)
+
+    # Build both Darwin archives and natively smoke the host target.
     build_script = source_root / "scripts/build-macos.sh"
     runner.run(sandboxed(profile, [str(build_script), version], fixed_env), cwd=source_root)
     artifacts = sorted((source_root / "dist").glob(f"aibox-v{version}-*-apple-darwin.tar.gz*"))
