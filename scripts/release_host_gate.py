@@ -18,6 +18,7 @@ import hashlib
 import json
 import os
 from pathlib import Path
+import queue
 import re
 import shlex
 import shutil
@@ -25,6 +26,7 @@ import stat
 import subprocess
 import sys
 import tarfile
+import threading
 import time
 import urllib.request
 
@@ -155,31 +157,78 @@ class Runner:
     trusting terminal scrollback.
     """
 
-    def __init__(self, evidence: Path, env: dict[str, str]) -> None:
+    def __init__(self, evidence: Path, env: dict[str, str], *, heartbeat_interval: float = 10.0) -> None:
         """Bind command logs to *evidence* and freeze the subprocess environment."""
         self.log = evidence / "commands.log"
+        self.steps = evidence / "steps.log"
         self.env = env
+        self.heartbeat_interval = heartbeat_interval
 
-    def run(self, command: list[str], *, cwd: Path | None = None, output: Path | None = None) -> None:
-        """Run *command*, optionally writing stdout as a binary evidence file."""
+    def run(self, command: list[str], *, cwd: Path | None = None, output: Path | None = None,
+            label: str | None = None) -> None:
+        """Run *command* with live output and periodic quiet-command heartbeats."""
         rendered = shlex.join(command)
+        step = label or " ".join(command[:2])
+        started = time.monotonic()
+        self._step("running", step, 0.0)
         print(f"+ {rendered}", flush=True)
         with self.log.open("a", encoding="utf-8") as log:
             log.write(rendered + "\n")
         result_log = self.log.parent / "command-results.log"
-        if output is None:
+        stdout_target = subprocess.PIPE if output is None else output.open("wb")
+        try:
+            process = subprocess.Popen(
+                command, cwd=cwd, env=self.env, text=True, bufsize=1,
+                stdout=stdout_target, stderr=subprocess.STDOUT if output is None else subprocess.PIPE,
+            )
+            stream = process.stdout if output is None else process.stderr
+            assert stream is not None
+            messages: queue.Queue[str | None] = queue.Queue()
+
+            def pump() -> None:
+                """Read command output without blocking heartbeat rendering."""
+                for line in iter(stream.readline, ""):
+                    messages.put(line)
+                messages.put(None)
+
+            reader = threading.Thread(target=pump, daemon=True)
+            reader.start()
+            last_activity = time.monotonic()
             with result_log.open("a", encoding="utf-8") as results:
-                completed = subprocess.run(command, cwd=cwd, env=self.env, text=True,
-                                           stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
-                results.write(f"$ {rendered}\n{completed.stdout}\nexit={completed.returncode}\n")
-                print(completed.stdout, end="")
-                completed.check_returncode()
-        else:
-            with output.open("wb") as stream, result_log.open("ab") as results:
-                completed = subprocess.run(command, cwd=cwd, env=self.env, stdout=stream,
-                                           stderr=results)
-                results.write(f"\n$ {rendered}\nexit={completed.returncode}\n".encode())
-                completed.check_returncode()
+                results.write(f"$ {rendered}\n")
+                while True:
+                    try:
+                        message = messages.get(timeout=min(1.0, self.heartbeat_interval))
+                    except queue.Empty:
+                        now = time.monotonic()
+                        if now - last_activity >= self.heartbeat_interval:
+                            self._step("running", step, now - started)
+                            last_activity = now
+                        continue
+                    if message is None:
+                        break
+                    results.write(message)
+                    results.flush()
+                    print(message, end="", flush=True)
+                    last_activity = time.monotonic()
+                returncode = process.wait()
+                elapsed = time.monotonic() - started
+                results.write(f"exit={returncode}\n")
+            if returncode != 0:
+                self._step("failed", step, elapsed)
+                raise subprocess.CalledProcessError(returncode, command)
+            self._step("passed", step, elapsed)
+        finally:
+            if output is not None:
+                stdout_target.close()
+
+    def _step(self, state: str, label: str, elapsed: float) -> None:
+        """Print and retain one high-level progress transition."""
+        icons = {"running": "…", "passed": "✓", "failed": "✗"}
+        line = f"{icons[state]} {label} [{state}; {elapsed:.1f}s]"
+        print(line, flush=True)
+        with self.steps.open("a", encoding="utf-8") as stream:
+            stream.write(line + "\n")
 
     def capture(self, command: list[str], *, cwd: Path | None = None) -> str:
         """Run *command*, log it, and return its combined textual output."""
@@ -613,11 +662,12 @@ def main() -> None:
     runner.run(sandboxed(profile, [
         "cargo", "fetch", "--locked", "--manifest-path", str(source_root / "cli/Cargo.toml"),
         "--target", "aarch64-apple-darwin", "--target", "x86_64-apple-darwin",
-    ], fetch_env), cwd=source_root)
+    ], fetch_env), cwd=source_root, label="Fetch locked Rust dependencies")
 
     # Build both Darwin archives and natively smoke the host target.
     build_script = source_root / "scripts/build-macos.sh"
-    runner.run(sandboxed(profile, [str(build_script), version], fixed_env), cwd=source_root)
+    runner.run(sandboxed(profile, [str(build_script), version], fixed_env), cwd=source_root,
+               label="Build Darwin release artifacts")
     artifacts = sorted((source_root / "dist").glob(f"aibox-v{version}-*-apple-darwin.tar.gz*"))
     if len(artifacts) != 4:
         fail("Darwin build did not produce both archives and checksums")
@@ -627,7 +677,8 @@ def main() -> None:
     machine = subprocess.run(["/usr/bin/uname", "-m"], check=True, capture_output=True, text=True).stdout.strip()
     target = "aarch64-apple-darwin" if machine == "arm64" else "x86_64-apple-darwin"
     candidate_bin = source_root / f"cli/target/{target}/release/aibox"
-    runner.run(sandboxed(profile, [str(candidate_bin), "--version"], fixed_env), cwd=source_root)
+    runner.run(sandboxed(profile, [str(candidate_bin), "--version"], fixed_env), cwd=source_root,
+               label="Smoke native Darwin binary")
     (evidence / "darwin-smoke/complete.json").write_text(
         json.dumps({"target": target, "binary": str(candidate_bin), "status": "passed"}, indent=2) + "\n",
         encoding="utf-8",
@@ -644,15 +695,18 @@ def main() -> None:
     runner.run([container_runtime, "build", "--target", "foundation", "--tag", foundation_image,
                 *build_args,
                 "--file", str(source_root / "images/base-debian/Dockerfile"),
-                str(source_root / "images/base-debian")])
+                str(source_root / "images/base-debian")], label="Build foundation image")
     runner.run([container_runtime, "build", "--target", "runtime", "--tag", runtime_image,
                 "--tag", latest_image, "--file", str(source_root / "images/base-debian/Dockerfile"),
                 *build_args,
-                str(source_root / "images/base-debian")])
-    runner.run([container_runtime, "image", "inspect", runtime_image], output=evidence / "container-build/image-inspect.json")
+                str(source_root / "images/base-debian")], label="Build runtime image")
+    runner.run([container_runtime, "image", "inspect", runtime_image],
+               output=evidence / "container-build/image-inspect.json", label="Inspect runtime image")
     scanner_image = runtime_image if container_runtime == "docker" else f"podman:{runtime_image}"
-    runner.run(["syft", scanner_image, "-o", "cyclonedx-json"], output=evidence / "security/image-sbom.cdx.json")
-    runner.run(["grype", scanner_image, "--fail-on", "high", "-o", "json"], output=evidence / "security/vulnerability-scan.json")
+    runner.run(["syft", scanner_image, "-o", "cyclonedx-json"],
+               output=evidence / "security/image-sbom.cdx.json", label="Generate image SBOM")
+    runner.run(["grype", scanner_image, "--fail-on", "high", "-o", "json"],
+               output=evidence / "security/vulnerability-scan.json", label="Scan image vulnerabilities")
 
     # The canonical runtime smoke is mandatory for every candidate, independent
     # of the changed-path-selected expensive checks below.
@@ -664,7 +718,8 @@ def main() -> None:
         "AIBOX_RELEASE_SMOKE_CONTAINER": f"aibox-host-gate-{run_dir.name.lower()}",
         "AIBOX_RELEASE_SMOKE_TIER": "full",
     })
-    runner.run(sandboxed(profile, [str(source_root / "scripts/release-runtime-smoke.sh"), version], smoke_env), cwd=source_root)
+    runner.run(sandboxed(profile, [str(source_root / "scripts/release-runtime-smoke.sh"), version], smoke_env),
+               cwd=source_root, label="Run candidate container lifecycle")
 
     # Phase 7: execute only affected expensive surfaces, while recording a
     # complete selected/skipped partition for publisher verification.
@@ -716,6 +771,7 @@ def main() -> None:
         evidence / "security/vulnerability-scan.json",
         evidence / "commands.log",
         evidence / "command-results.log",
+        evidence / "steps.log",
     ]
     for required in required_paths:
         if not required.exists() or (required.is_file() and required.stat().st_size == 0):

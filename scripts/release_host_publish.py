@@ -23,6 +23,7 @@ BASE_REQUIRED_EVIDENCE = {
     "evidence/security/vulnerability-scan.json",
     "evidence/commands.log",
     "evidence/command-results.log",
+    "evidence/steps.log",
 }
 IMPACT_EVIDENCE = {
     "addon-languages": "evidence/container-e2e/addon-languages.json",

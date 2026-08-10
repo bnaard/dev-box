@@ -198,6 +198,13 @@ all three surfaces. Every command, selection reason, skip reason, and result is
 retained beneath `evidence/` with toolchain metadata, image inspection, runtime
 logs, hashes, and a release manifest.
 
+The terminal interface streams subprocess output as it is produced. Each
+high-level operation reports running, passed, or failed state with elapsed
+time, and quiet commands emit a heartbeat every ten seconds. The same
+transitions are retained in `evidence/steps.log`; full argv and output remain
+in `commands.log` and `command-results.log`, so interactive progress does not
+replace auditable evidence.
+
 The gate selects the first responsive runtime in this order: the `docker` CLI
 contract exposed by Docker Desktop or OrbStack, then Podman. All image builds,
 Compose lifecycles, exec probes, inspection, cleanup, scanning, and publication

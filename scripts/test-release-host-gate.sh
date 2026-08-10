@@ -58,6 +58,9 @@ fi
 
 /usr/bin/python3 -I - "${SCRIPT_DIR}" <<'PY'
 import importlib.util
+import contextlib
+import io
+import os
 from pathlib import Path
 import sys
 import tempfile
@@ -111,6 +114,14 @@ with tempfile.TemporaryDirectory() as temporary:
         staged = config / "cli-plugins" / name
         assert staged.read_text() == name
         assert staged.stat().st_mode & 0o777 == 0o500
+with tempfile.TemporaryDirectory() as temporary:
+    evidence = Path(temporary)
+    runner = gate.Runner(evidence, os.environ.copy(), heartbeat_interval=0.02)
+    with contextlib.redirect_stdout(io.StringIO()):
+        runner.run([sys.executable, "-c", "import time; time.sleep(0.07)"], label="quiet test")
+    progress = (evidence / "steps.log").read_text()
+    assert progress.count("quiet test [running") >= 2
+    assert "quiet test [passed" in progress
 try:
     gate.dry_run_enabled("true")
 except SystemExit:
