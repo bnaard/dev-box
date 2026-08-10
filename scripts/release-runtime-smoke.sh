@@ -27,6 +27,7 @@ project_dir="${AIBOX_RELEASE_SMOKE_PROJECT_DIR:-$(mktemp -d "${TMPDIR:-/tmp}/aib
 container_name="${AIBOX_RELEASE_SMOKE_CONTAINER:-aibox-release-smoke-${version//./-}}"
 tmux_status="${AIBOX_RELEASE_SMOKE_TMUX_STATUS:-extended}"
 smoke_tier="${AIBOX_RELEASE_SMOKE_TIER:-addons}"
+local_candidate_image="${AIBOX_RELEASE_SMOKE_LOCAL_CANDIDATE_IMAGE:-0}"
 probe_script="${log_dir}/container-probe.sh"
 run_log="${log_dir}/run.log"
 attach_pid=""
@@ -189,6 +190,20 @@ run() {
   "$@"
 }
 
+candidate_image_env() {
+  # A release-host dry run deliberately builds the versioned base image into
+  # the host runtime without publishing it. Some Docker-compatible runtimes
+  # (notably OrbStack when Buildx uses a separate builder image store) then try
+  # to resolve the generated GHCR FROM reference remotely. Route only the
+  # generated-project lifecycle through the daemon-local image store; the
+  # candidate base images themselves are still built with BuildKit.
+  if [[ "${local_candidate_image}" =~ ^(1|true|yes)$ && "${runtime_bin}" == "docker" ]]; then
+    env DOCKER_BUILDKIT=0 COMPOSE_DOCKER_CLI_BUILD=0 "$@"
+  else
+    "$@"
+  fi
+}
+
 info "Release runtime smoke for v${version}"
 echo "Project:       ${project_dir}"
 echo "Logs:          ${log_dir}"
@@ -308,7 +323,7 @@ apply_args=(apply --standardize-config)
 if [[ "${AIBOX_RELEASE_SMOKE_NO_CACHE:-0}" =~ ^(1|true|yes)$ || "${smoke_tier}" == "full" ]]; then
   apply_args+=(--no-cache)
 fi
-run env AIBOX_ADDONS_DIR="${PROJECT_ROOT}/addons" "${aibox_bin}" "${apply_args[@]}"
+run candidate_image_env env AIBOX_ADDONS_DIR="${PROJECT_ROOT}/addons" "${aibox_bin}" "${apply_args[@]}"
 
 attach_smoke_log="${log_dir}/up-forget-tmux-state.log"
 info "Running attach smoke: aibox up --forget-tmux-state"
@@ -316,7 +331,7 @@ attach_timeout="${AIBOX_RELEASE_SMOKE_ATTACH_TIMEOUT:-25}"
 [[ "${attach_timeout}" =~ ^[1-9][0-9]*$ ]] \
   || die "AIBOX_RELEASE_SMOKE_ATTACH_TIMEOUT must be a positive integer (got: ${attach_timeout})"
 
-env AIBOX_ADDONS_DIR="${PROJECT_ROOT}/addons" \
+candidate_image_env env AIBOX_ADDONS_DIR="${PROJECT_ROOT}/addons" \
   "${aibox_bin}" up --forget-tmux-state >"${attach_smoke_log}" 2>&1 < /dev/null &
 attach_pid=$!
 attach_started_at=${SECONDS}

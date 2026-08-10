@@ -37,6 +37,15 @@ grep -Fq 'python "${SCRIPT_DIR}/release_host_gate.py"' "${SCRIPT_DIR}/release-ho
   exit 1
 }
 
+grep -Fq 'AIBOX_RELEASE_SMOKE_LOCAL_CANDIDATE_IMAGE' "${SCRIPT_DIR}/release_host_gate.py" || {
+  echo "release host gate must select the unpublished local candidate image for runtime smoke" >&2
+  exit 1
+}
+grep -Fq 'DOCKER_BUILDKIT=0 COMPOSE_DOCKER_CLI_BUILD=0' "${SCRIPT_DIR}/release-runtime-smoke.sh" || {
+  echo "release runtime smoke must support Docker-compatible daemon-local candidate images" >&2
+  exit 1
+}
+
 for entrypoint in release-host-gate.sh release-host-publish.sh; do
   if grep -Eq '(^|[[:space:]])(sudo|su|doas|eval|source)([[:space:]]|$)|bash -c|sh -c' \
       "${SCRIPT_DIR}/${entrypoint}"; then

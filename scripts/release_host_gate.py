@@ -800,6 +800,10 @@ def main() -> None:
         "AIBOX_RELEASE_SMOKE_PROJECT_DIR": str(runtime / "smoke-project"),
         "AIBOX_RELEASE_SMOKE_CONTAINER": f"aibox-host-gate-{run_dir.name.lower()}",
         "AIBOX_RELEASE_SMOKE_TIER": "full",
+        # The versioned image intentionally exists only in the local runtime
+        # until publication. Keep the generated GHCR reference unchanged but
+        # make Docker/OrbStack resolve it from their daemon-local image store.
+        "AIBOX_RELEASE_SMOKE_LOCAL_CANDIDATE_IMAGE": "1",
     })
     runner.run(sandboxed(profile, [str(source_root / "scripts/release-runtime-smoke.sh"), version], smoke_env),
                cwd=source_root, label="Run candidate container lifecycle")
