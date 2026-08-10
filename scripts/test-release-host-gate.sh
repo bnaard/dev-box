@@ -16,6 +16,15 @@ if "${SCRIPT_DIR}/release-host-gate.sh" --dry-run --dry-run >/dev/null 2>&1; the
   exit 1
 fi
 
+grep -Fq '"${OWNER_HOME}/.local/bin/uv"' "${SCRIPT_DIR}/release-host-gate.sh" || {
+  echo "release-host gate does not accept uv's owner-local installer path" >&2
+  exit 1
+}
+if grep -Eq '(command -v|which)[[:space:]]+uv' "${SCRIPT_DIR}/release-host-gate.sh"; then
+  echo "release-host gate must not resolve uv through inherited PATH" >&2
+  exit 1
+fi
+
 for entrypoint in release-host-gate.sh release-host-publish.sh; do
   if grep -Eq '(^|[[:space:]])(sudo|su|doas|eval|source)([[:space:]]|$)|bash -c|sh -c' \
       "${SCRIPT_DIR}/${entrypoint}"; then

@@ -173,11 +173,13 @@ material, and Keychain services. Docker uses an empty per-run configuration;
 no publication credential, secret, broad mount, or runtime socket is exposed
 to the development container or candidate container.
 
-The entry point uses owner-installed uv with exact Python `3.12.11`,
-`--offline`, `--no-project`, fixed owner cache/managed-Python roots, and a
-fully rebuilt environment. Candidate project metadata, inherited `UV_*`
-settings, package indexes, and inline script metadata cannot select the
-interpreter or dependencies.
+The entry point accepts owner-installed uv from the official standalone path
+`~/.local/bin/uv` or the architecture-native Homebrew prefix. It verifies
+ownership and rejects group/world-writable executables instead of searching an
+inherited `PATH`. It uses exact Python `3.12.11`, `--offline`, `--no-project`,
+fixed owner cache/managed-Python roots, and a fully rebuilt environment.
+Candidate project metadata, inherited `UV_*` settings, package indexes, and
+inline script metadata cannot select the interpreter or dependencies.
 
 The validation stage builds both Darwin targets, natively smokes the current
 architecture, builds the actual candidate foundation/runtime images, exercises
