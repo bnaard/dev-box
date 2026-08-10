@@ -20,16 +20,20 @@ grep -Fq '"${OWNER_HOME}/.local/bin/uv"' "${SCRIPT_DIR}/release-host-gate.sh" ||
   echo "release-host gate does not accept uv's owner-local installer path" >&2
   exit 1
 }
+grep -Fq '"${OWNER_HOME}/.local/bin/uv"' "${SCRIPT_DIR}/release-host-publish.sh" || {
+  echo "release-host publisher does not accept uv's owner-local installer path" >&2
+  exit 1
+}
 if grep -Eq '(command -v|which)[[:space:]]+uv' "${SCRIPT_DIR}/release-host-gate.sh"; then
   echo "release-host gate must not resolve uv through inherited PATH" >&2
   exit 1
 fi
-grep -Fq '"${UV_BIN}" python install 3.12.11' "${SCRIPT_DIR}/release-host-gate.sh" || {
-  echo "release-host gate does not bootstrap its exact managed Python" >&2
+grep -Fq '"${UV_BIN}" run --no-project --python 3.12.11 --' "${SCRIPT_DIR}/release-host-gate.sh" || {
+  echo "release-host gate does not let uv manage its exact Python" >&2
   exit 1
 }
-grep -Fq 'UV_OFFLINE=1 UV_PYTHON_DOWNLOADS=never' "${SCRIPT_DIR}/release-host-gate.sh" || {
-  echo "release-host candidate validation is not pinned offline" >&2
+grep -Fq 'python "${SCRIPT_DIR}/release_host_gate.py"' "${SCRIPT_DIR}/release-host-gate.sh" || {
+  echo "release-host gate exposes its script to uv metadata handling" >&2
   exit 1
 }
 

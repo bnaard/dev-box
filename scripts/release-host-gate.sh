@@ -45,24 +45,12 @@ done
   exit 1
 }
 
-# Populate the gate-owned managed-Python directory before candidate code runs.
-# This trusted bootstrap may download uv's verified CPython distribution; the
-# subsequent validation process is still launched offline with a clean
-# environment, so candidate metadata cannot select an interpreter or index.
-/usr/bin/env -i \
-  HOME="${OWNER_HOME}" \
-  PATH="/opt/homebrew/bin:/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin" \
-  UV_CACHE_DIR="${OWNER_HOME}/Library/Caches/aibox-host-gates/uv" \
-  UV_PYTHON_INSTALL_DIR="${OWNER_HOME}/Library/Application Support/aibox-host-gates/python" \
-  UV_NO_CONFIG=1 UV_PYTHON_DOWNLOADS=automatic \
-  "${UV_BIN}" python install 3.12.11
-
 exec /usr/bin/env -i \
   HOME="${OWNER_HOME}" \
   PATH="/opt/homebrew/bin:/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin" \
   UV_CACHE_DIR="${OWNER_HOME}/Library/Caches/aibox-host-gates/uv" \
   UV_PYTHON_INSTALL_DIR="${OWNER_HOME}/Library/Application Support/aibox-host-gates/python" \
-  UV_NO_CONFIG=1 UV_OFFLINE=1 UV_PYTHON_DOWNLOADS=never AIBOX_HOST_GATE_UV_BIN="${UV_BIN}" \
+  UV_NO_CONFIG=1 UV_PYTHON_DOWNLOADS=automatic AIBOX_HOST_GATE_UV_BIN="${UV_BIN}" \
   AIBOX_RELEASE_HOST_DRY_RUN="${DRY_RUN}" \
-  "${UV_BIN}" run --offline --no-project --python 3.12.11 \
-  "${SCRIPT_DIR}/release_host_gate.py" "${RUN_DIR}"
+  "${UV_BIN}" run --no-project --python 3.12.11 -- \
+  python "${SCRIPT_DIR}/release_host_gate.py" "${RUN_DIR}"
