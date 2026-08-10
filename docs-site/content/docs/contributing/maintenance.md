@@ -204,10 +204,10 @@ Compose lifecycles, exec probes, inspection, cleanup, scanning, and publication
 use that selected runtime. Docker-compatible builds explicitly enable BuildKit
 for features such as `COPY --chmod`; OrbStack does not need Docker Desktop's
 separate Buildx component.
-When Compose is installed as a Docker CLI plugin, the gate copies only that
-owner/root-owned, non-group-writable executable into its empty per-run
-`DOCKER_CONFIG`. It does not copy the owner's Docker configuration, registry
-credentials, contexts, or other plugins.
+When Compose and Buildx are installed as Docker CLI plugins, the gate copies
+only those owner/root-owned, non-group-writable executables into its empty
+per-run `DOCKER_CONFIG`. It does not copy the owner's Docker configuration,
+registry credentials, contexts, or unrelated plugins.
 
 Before the Darwin build, the gate fetches the exact locked Cargo dependency
 graph into a per-run credential-free Cargo home. The actual compilation remains

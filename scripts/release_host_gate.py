@@ -218,31 +218,37 @@ def select_container_runtime(env: dict[str, str]) -> str:
     fail("no responsive container runtime found; start OrbStack or Docker Desktop, or install and start Podman")
 
 
-def stage_docker_compose_plugin(owner_home: Path, docker_config: Path) -> str | None:
-    """Copy only a trusted Compose plugin into the credential-empty config.
+def stage_docker_cli_plugins(owner_home: Path, docker_config: Path) -> dict[str, str]:
+    """Copy trusted Compose and Buildx plugins into the empty config.
 
     Docker CLI plugins normally live beside ``config.json``. Replacing
     ``DOCKER_CONFIG`` protects registry credentials but would also hide
-    OrbStack's or Docker Desktop's Compose plugin. Staging the executable alone
-    restores the command without copying any owner configuration or secrets.
+    OrbStack's or Docker Desktop's plugins. Staging the executables alone
+    restores Compose and BuildKit without copying owner configuration or secrets.
     """
-    candidates = (
-        owner_home / ".docker/cli-plugins/docker-compose",
-        Path("/Applications/OrbStack.app/Contents/MacOS/xbin/docker-compose"),
-        Path("/Applications/Docker.app/Contents/Resources/cli-plugins/docker-compose"),
-    )
-    for candidate in candidates:
-        if not candidate.is_file() or not os.access(candidate, os.X_OK):
-            continue
-        info = candidate.stat()
-        if info.st_uid not in {0, os.getuid()} or info.st_mode & 0o022:
-            continue
-        destination = docker_config / "cli-plugins/docker-compose"
-        destination.parent.mkdir(mode=0o700)
-        shutil.copy2(candidate, destination)
-        destination.chmod(0o500)
-        return str(candidate)
-    return None
+    staged: dict[str, str] = {}
+    destination_dir = docker_config / "cli-plugins"
+    destination_dir.mkdir(mode=0o700)
+    for plugin in ("docker-compose", "docker-buildx"):
+        candidates = (
+            owner_home / ".docker/cli-plugins" / plugin,
+            Path("/Applications/OrbStack.app/Contents/MacOS/xbin") / plugin,
+            Path("/Applications/Docker.app/Contents/Resources/cli-plugins") / plugin,
+            Path("/opt/homebrew/lib/docker/cli-plugins") / plugin,
+            Path("/usr/local/lib/docker/cli-plugins") / plugin,
+        )
+        for candidate in candidates:
+            if not candidate.is_file() or not os.access(candidate, os.X_OK):
+                continue
+            info = candidate.stat()
+            if info.st_uid not in {0, os.getuid()} or info.st_mode & 0o022:
+                continue
+            destination = destination_dir / plugin
+            shutil.copy2(candidate, destination)
+            destination.chmod(0o500)
+            staged[plugin] = str(candidate)
+            break
+    return staged
 
 
 def pin_release_version(config_path: Path, version: str) -> None:
@@ -537,7 +543,7 @@ def main() -> None:
     docker_config.mkdir(mode=0o700)
     cargo_home.mkdir(mode=0o700)
     original_home = Path.home()
-    compose_plugin_source = stage_docker_compose_plugin(original_home, docker_config)
+    docker_cli_plugin_sources = stage_docker_cli_plugins(original_home, docker_config)
     fixed_env = {
         "PATH": f"{original_home}/.cargo/bin:/opt/homebrew/bin:/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin",
         "HOME": str(home), "TMPDIR": str(runtime / "tmp"),
@@ -580,6 +586,13 @@ def main() -> None:
         hint = ("enable Docker Compose in OrbStack or Docker Desktop" if container_runtime == "docker"
                 else "install a Podman Compose provider, for example: brew install podman-compose")
         fail(f"{container_runtime} is responsive but its Compose command is unavailable; {hint}")
+    if container_runtime == "docker":
+        buildx = subprocess.run(
+            ["docker", "buildx", "version"], env=fixed_env,
+            stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True,
+        )
+        if buildx.returncode != 0:
+            fail("the Docker-compatible runtime cannot load its Buildx plugin from the isolated config; ensure OrbStack or Docker Desktop provides docker-buildx")
     (evidence / "darwin-build/toolchain.json").write_text(json.dumps({
         "python": sys.version, "python_executable": sys.executable,
         "python_requirement": "3.14.6", "uv": os.environ["AIBOX_HOST_GATE_UV_BIN"],
@@ -589,7 +602,7 @@ def main() -> None:
         "home": fixed_env["HOME"], "docker_config": fixed_env["DOCKER_CONFIG"],
         "docker_buildkit": fixed_env["DOCKER_BUILDKIT"],
         "container_runtime": container_runtime,
-        "compose_plugin_source": compose_plugin_source,
+        "docker_cli_plugin_sources": docker_cli_plugin_sources,
         "gh_config_dir": fixed_env["GH_CONFIG_DIR"],
     }, indent=2, sort_keys=True) + "\n", encoding="utf-8")
 

@@ -87,6 +87,7 @@ assert 'for candidate in ("docker", "podman")' in source
 assert '[container_runtime, "build"' in source
 assert '[container_runtime, "compose"' in source
 assert '[container_runtime, "compose", "version"]' in source
+assert '["docker", "buildx", "version"]' in source
 assert gate.RUN_ID.fullmatch("v0.31.2-20260809T120000Z-0123456789ab")
 assert gate.RUN_ID.fullmatch("v1.0.0-alpha.2-20260809T120000Z-0123456789ab")
 assert gate.VERSION_TAG.fullmatch("v1.0.0-alpha.2")
@@ -96,16 +97,20 @@ assert gate.dry_run_enabled("1") is True
 assert any("brew install syft" in value for value in gate.main.__code__.co_consts if isinstance(value, str))
 with tempfile.TemporaryDirectory() as temporary:
     root = Path(temporary)
-    plugin = root / "owner/.docker/cli-plugins/docker-compose"
-    plugin.parent.mkdir(parents=True)
-    plugin.write_text("plugin")
-    plugin.chmod(0o700)
+    plugin_dir = root / "owner/.docker/cli-plugins"
+    plugin_dir.mkdir(parents=True)
+    for name in ("docker-compose", "docker-buildx"):
+        plugin = plugin_dir / name
+        plugin.write_text(name)
+        plugin.chmod(0o700)
     config = root / "config"
     config.mkdir()
-    assert gate.stage_docker_compose_plugin(root / "owner", config) == str(plugin)
-    staged = config / "cli-plugins/docker-compose"
-    assert staged.read_text() == "plugin"
-    assert staged.stat().st_mode & 0o777 == 0o500
+    staged_sources = gate.stage_docker_cli_plugins(root / "owner", config)
+    assert set(staged_sources) == {"docker-compose", "docker-buildx"}
+    for name in staged_sources:
+        staged = config / "cli-plugins" / name
+        assert staged.read_text() == name
+        assert staged.stat().st_mode & 0o777 == 0o500
 try:
     gate.dry_run_enabled("true")
 except SystemExit:
