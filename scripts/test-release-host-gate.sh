@@ -61,6 +61,14 @@ grep -Fq '"--provenance=false"' "${SCRIPT_DIR}/release_host_gate.py" || {
   echo "release host gate must prepare a single-manifest local smoke image" >&2
   exit 1
 }
+grep -Fq 'stdin=subprocess.DEVNULL' "${SCRIPT_DIR}/release_host_gate.py" || {
+  echo "release host gate subprocesses must not inherit an interactive terminal" >&2
+  exit 1
+}
+grep -Fq 'def prepare_project_build' "${SCRIPT_DIR}/release_host_gate.py" || {
+  echo "release host gate conditional projects must share local-candidate build handling" >&2
+  exit 1
+}
 
 for entrypoint in release-host-gate.sh release-host-publish.sh; do
   if grep -Eq '(^|[[:space:]])(sudo|su|doas|eval|source)([[:space:]]|$)|bash -c|sh -c' \

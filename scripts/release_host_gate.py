@@ -247,6 +247,7 @@ class Runner:
         try:
             process = subprocess.Popen(
                 command, cwd=cwd, env=self.env, text=True, bufsize=1,
+                stdin=subprocess.DEVNULL,
                 stdout=stdout_target, stderr=subprocess.STDOUT if output is None else subprocess.PIPE,
             )
             stream = process.stdout if output is None else process.stderr
@@ -305,6 +306,7 @@ class Runner:
         with self.log.open("a", encoding="utf-8") as log:
             log.write(rendered + "\n")
         completed = subprocess.run(command, cwd=cwd, env=self.env, text=True,
+                                   stdin=subprocess.DEVNULL,
                                    stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
         with (self.log.parent / "command-results.log").open("a", encoding="utf-8") as results:
             results.write(f"$ {rendered}\n{completed.stdout}\nexit={completed.returncode}\n")
@@ -392,10 +394,42 @@ def init_project(runner: Runner, profile: Path, env: dict[str, str], candidate_b
     """Create an isolated downstream project with the candidate Darwin binary."""
     project.mkdir()
     command = [str(candidate_bin), "--yes", "init", name, "--base", "debian",
-               "--processkit-version", "unset", "--no-container"]
+               "--profile", "human-dev", "--theme", "tokyo-night", "--prompt", "arrow",
+               "--tmux-status", "extended", "--processkit-version", "unset", "--no-container"]
     if addons:
         command.extend(["--addon", *addons])
     runner.run(sandboxed(profile, command, env), cwd=project)
+
+
+def prepare_project_build(runner: Runner, profile: Path, env: dict[str, str], candidate_bin: Path,
+                          container_runtime: str, project: Path, version: str) -> None:
+    """Build a generated project against the unpublished local candidate.
+
+    Docker-compatible Buildx installations can keep attested images in a
+    store that their downstream builder cannot resolve by the future GHCR
+    name. For those hosts, generate without a runtime, make one exact FROM
+    substitution to the gate-built single-manifest alias, and use the daemon
+    builder. Podman continues through the normal candidate ``apply`` path.
+    """
+    local_ref = env.get("AIBOX_RELEASE_SMOKE_LOCAL_CANDIDATE_REF", "")
+    if not local_ref:
+        runner.run(sandboxed(profile, [str(candidate_bin), "--yes", "apply", "--no-cache"], env),
+                   cwd=project)
+        return
+
+    runner.run(sandboxed(profile, [str(candidate_bin), "--yes", "apply", "--no-container"], env),
+               cwd=project)
+    dockerfile = project / ".devcontainer/Dockerfile"
+    expected = f"FROM ghcr.io/{REPOSITORY}:base-debian-runtime-v{version} AS aibox"
+    replacement = f"FROM {local_ref} AS aibox"
+    content = dockerfile.read_text(encoding="utf-8")
+    if content.count(expected) != 1:
+        fail(f"generated Dockerfile in {project.name} has no unique candidate FROM line")
+    dockerfile.write_text(content.replace(expected, replacement, 1), encoding="utf-8")
+    compose_file = project / ".devcontainer/docker-compose.yml"
+    runner.run(["/usr/bin/env", "DOCKER_BUILDKIT=0", "COMPOSE_DOCKER_CLI_BUILD=0",
+                container_runtime, "compose", "-f", str(compose_file), "build", "--no-cache"],
+               cwd=project)
 
 
 def run_addon_group(runner: Runner, profile: Path, env: dict[str, str], candidate_bin: Path,
@@ -408,7 +442,8 @@ def run_addon_group(runner: Runner, profile: Path, env: dict[str, str], candidat
     pin_release_version(project / "aibox.toml", version)
     compose_file = project / ".devcontainer/docker-compose.yml"
     try:
-        runner.run(sandboxed(profile, [str(candidate_bin), "--yes", "apply", "--no-cache"], env), cwd=project)
+        prepare_project_build(runner, profile, env, candidate_bin, container_runtime,
+                              project, version)
         marker = evidence / "container-e2e" / f"{group}.json"
         marker.write_text(json.dumps({"status": "passed", "addons": ADDON_GROUPS[group]},
                                      indent=2, sort_keys=True) + "\n", encoding="utf-8")
@@ -470,7 +505,20 @@ def run_latex_lifecycle(runner: Runner, profile: Path, env: dict[str, str], cand
     compose_file = project / ".devcontainer/docker-compose.yml"
     try:
         runner.run(sandboxed(profile, [str(candidate_bin), "--yes", "apply", "--no-container"], env), cwd=project)
-        runner.run([container_runtime, "compose", "-f", str(compose_file), "build", name], cwd=project)
+        local_ref = env.get("AIBOX_RELEASE_SMOKE_LOCAL_CANDIDATE_REF", "")
+        if local_ref:
+            dockerfile = project / ".devcontainer/Dockerfile"
+            expected = f"FROM ghcr.io/{REPOSITORY}:base-debian-runtime-v{version} AS aibox"
+            content = dockerfile.read_text(encoding="utf-8")
+            if content.count(expected) != 1:
+                fail("generated LaTeX Dockerfile has no unique candidate FROM line")
+            dockerfile.write_text(content.replace(expected, f"FROM {local_ref} AS aibox", 1),
+                                  encoding="utf-8")
+            build_command = ["/usr/bin/env", "DOCKER_BUILDKIT=0", "COMPOSE_DOCKER_CLI_BUILD=0"]
+        else:
+            build_command = []
+        runner.run([*build_command, container_runtime, "compose", "-f", str(compose_file),
+                    "build", name], cwd=project)
         runner.run([container_runtime, "compose", "-f", str(compose_file), "up", "-d", name,
                     f"{name}-latex-preview"], cwd=project)
         wait_until("latexmk", lambda: runner.capture(
@@ -518,7 +566,8 @@ def run_rootless_podman(runner: Runner, profile: Path, env: dict[str, str], cand
                      "ansible = { enabled = false }\npacker = { enabled = false }\npodman = {}\n")
     compose_file = project / ".devcontainer/docker-compose.yml"
     try:
-        runner.run(sandboxed(profile, [str(candidate_bin), "--yes", "apply", "--no-cache"], env), cwd=project)
+        prepare_project_build(runner, profile, env, candidate_bin, container_runtime,
+                              project, version)
         runner.run([container_runtime, "compose", "-f", str(compose_file), "up", "-d", name], cwd=project)
         runner.run([container_runtime, "exec", "--user", "aibox", name, "podman", "--version"])
         runner.run([container_runtime, "exec", "--user", "aibox", name, "podman-compose", "--version"])
@@ -780,6 +829,7 @@ def main() -> None:
             "--tag", smoke_runtime_image, "--file", str(source_root / "images/base-debian/Dockerfile"),
             *build_args, str(source_root / "images/base-debian"),
         ], label="Prepare local runtime image for smoke")
+        fixed_env["AIBOX_RELEASE_SMOKE_LOCAL_CANDIDATE_REF"] = smoke_runtime_image
     runner.run([container_runtime, "image", "inspect", runtime_image],
                output=evidence / "container-build/image-inspect.json", label="Inspect runtime image")
     scanner_image = runtime_image if container_runtime == "docker" else f"podman:{runtime_image}"
