@@ -373,7 +373,12 @@ def stage_docker_cli_plugins(owner_home: Path, docker_config: Path) -> dict[str,
 def pin_release_version(config_path: Path, version: str) -> None:
     """Pin a generated project to the locally built candidate image version."""
     config = config_path.read_text(encoding="utf-8")
-    updated, count = re.subn(r'(?m)^release_version = ".*"', f'release_version = "{version}"', config, count=1)
+    updated, count = re.subn(
+        r'(?m)^release_version = "[^"]*"',
+        f'release_version = "{version}"',
+        config,
+        count=1,
+    )
     if count != 1:
         fail(f"could not pin release version in {config_path}")
     config_path.write_text(updated, encoding="utf-8")

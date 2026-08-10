@@ -132,6 +132,15 @@ assert gate.dry_run_enabled("0") is False
 assert gate.dry_run_enabled("1") is True
 assert any("brew install syft" in value for value in gate.main.__code__.co_consts if isinstance(value, str))
 with tempfile.TemporaryDirectory() as temporary:
+    config = Path(temporary) / "aibox.toml"
+    config.write_text(
+        '[container.image]\nrelease_version = "latest" # Set to "latest" to resolve newest published image on apply.\n'
+    )
+    gate.pin_release_version(config, "0.31.2")
+    assert config.read_text() == (
+        '[container.image]\nrelease_version = "0.31.2" # Set to "latest" to resolve newest published image on apply.\n'
+    )
+with tempfile.TemporaryDirectory() as temporary:
     root = Path(temporary)
     plugin_dir = root / "owner/.docker/cli-plugins"
     plugin_dir.mkdir(parents=True)
