@@ -52,5 +52,5 @@ exec /usr/bin/env -i \
   UV_PYTHON_INSTALL_DIR="${OWNER_HOME}/Library/Application Support/aibox-host-gates/python" \
   UV_NO_CONFIG=1 UV_PYTHON_DOWNLOADS=automatic AIBOX_HOST_GATE_UV_BIN="${UV_BIN}" \
   AIBOX_RELEASE_HOST_DRY_RUN="${DRY_RUN}" \
-  "${UV_BIN}" run --no-project --python 3.12.11 -- \
+  "${UV_BIN}" run --no-project --python 3.14.6 -- \
   python "${SCRIPT_DIR}/release_host_gate.py" "${RUN_DIR}"

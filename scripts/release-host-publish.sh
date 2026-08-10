@@ -38,5 +38,5 @@ exec /usr/bin/env -i \
   UV_CACHE_DIR="${OWNER_HOME}/Library/Caches/aibox-host-gates/uv" \
   UV_PYTHON_INSTALL_DIR="${OWNER_HOME}/Library/Application Support/aibox-host-gates/python" \
   UV_NO_CONFIG=1 UV_OFFLINE=1 UV_PYTHON_DOWNLOADS=never AIBOX_HOST_GATE_UV_BIN="${UV_BIN}" \
-  "${UV_BIN}" run --offline --no-project --python 3.12.11 -- \
+  "${UV_BIN}" run --offline --no-project --python 3.14.6 -- \
   python "${SCRIPT_DIR}/release_host_publish.py" "$1"

@@ -480,7 +480,7 @@ def main() -> None:
             target = (runtime / member.name).resolve()
             if runtime not in target.parents or member.issym() or member.islnk() or member.isdev():
                 fail(f"unsafe source archive member: {member.name}")
-        archive.extractall(runtime)
+        archive.extractall(runtime, filter="data")
 
     # Phase 4: isolate mutable tool state and deny candidate access to owner
     # credentials, Keychain services, Git metadata, and immutable inputs.
@@ -511,12 +511,20 @@ def main() -> None:
         '(global-name "com.apple.securityd.xpc"))\n', encoding="utf-8"
     )
     runner = Runner(evidence, fixed_env)
-    for tool in ("cargo", "rustc", "docker", "syft", "grype", "sandbox-exec"):
+    prerequisite_hints = {
+        "cargo": "install Rust with rustup from https://rustup.rs",
+        "rustc": "install Rust with rustup from https://rustup.rs",
+        "docker": "install and start Docker Desktop (for example: brew install --cask docker)",
+        "syft": "install Syft with: brew install syft",
+        "grype": "install Grype with: brew install grype",
+        "sandbox-exec": "sandbox-exec must be available at /usr/bin/sandbox-exec on macOS",
+    }
+    for tool, hint in prerequisite_hints.items():
         if shutil.which(tool, path=fixed_env["PATH"]) is None:
-            fail(f"required host prerequisite is missing: {tool}")
+            fail(f"required host prerequisite is missing: {tool}; {hint}")
     (evidence / "darwin-build/toolchain.json").write_text(json.dumps({
         "python": sys.version, "python_executable": sys.executable,
-        "python_requirement": "3.12.11", "uv": os.environ["AIBOX_HOST_GATE_UV_BIN"],
+        "python_requirement": "3.14.6", "uv": os.environ["AIBOX_HOST_GATE_UV_BIN"],
         "uv_cache_dir": os.environ["UV_CACHE_DIR"],
         "uv_python_install_dir": os.environ["UV_PYTHON_INSTALL_DIR"],
         "cargo_home": fixed_env["CARGO_HOME"], "rustup_home": fixed_env["RUSTUP_HOME"],

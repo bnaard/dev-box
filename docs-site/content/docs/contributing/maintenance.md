@@ -181,7 +181,7 @@ The entry point accepts owner-installed uv from the official standalone path
 `~/.local/bin/uv` or the architecture-native Homebrew prefix. It verifies
 ownership and rejects group/world-writable executables instead of searching an
 inherited `PATH`. It lets uv resolve, install when necessary, and run exact
-Python `3.12.11` under `--no-project`, fixed owner cache/managed-Python roots,
+Python `3.14.6` under `--no-project`, fixed owner cache/managed-Python roots,
 and a fully rebuilt environment. The gate invokes `python` as uv's command
 rather than handing the script to uv, so candidate inline script metadata is
 not processed. Candidate project metadata and inherited `UV_*` settings cannot

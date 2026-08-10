@@ -28,7 +28,7 @@ if grep -Eq '(command -v|which)[[:space:]]+uv' "${SCRIPT_DIR}/release-host-gate.
   echo "release-host gate must not resolve uv through inherited PATH" >&2
   exit 1
 fi
-grep -Fq '"${UV_BIN}" run --no-project --python 3.12.11 --' "${SCRIPT_DIR}/release-host-gate.sh" || {
+grep -Fq '"${UV_BIN}" run --no-project --python 3.14.6 --' "${SCRIPT_DIR}/release-host-gate.sh" || {
   echo "release-host gate does not let uv manage its exact Python" >&2
   exit 1
 }
@@ -83,6 +83,7 @@ assert gate.VERSION_TAG.fullmatch("v1.0.0-alpha.2")
 assert gate.dry_run_enabled(None) is False
 assert gate.dry_run_enabled("0") is False
 assert gate.dry_run_enabled("1") is True
+assert any("brew install syft" in value for value in gate.main.__code__.co_consts if isinstance(value, str))
 try:
     gate.dry_run_enabled("true")
 except SystemExit:
