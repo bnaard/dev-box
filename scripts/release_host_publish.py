@@ -74,9 +74,9 @@ def main() -> None:
     if checksum_line != f"{sha256(manifest_path)}  release-manifest.json":
         fail("release manifest checksum mismatch")
     manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
-    expected_manifest_keys = {"schema_version", "repository", "version", "tag", "commit", "images", "artifacts", "evidence"}
-    if set(manifest) != expected_manifest_keys or manifest["schema_version"] != 1:
-        fail("release manifest schema is not the reviewed v1 shape")
+    expected_manifest_keys = {"schema_version", "repository", "version", "tag", "commit", "container_runtime", "images", "artifacts", "evidence"}
+    if set(manifest) != expected_manifest_keys or manifest["schema_version"] != 2:
+        fail("release manifest schema is not the reviewed v2 shape")
     if manifest["repository"] != REPOSITORY or manifest["tag"] != f"v{manifest['version']}":
         fail("manifest release coordinates are not the fixed aibox repository contract")
     expected_images = [
@@ -86,6 +86,9 @@ def main() -> None:
     ]
     if manifest["images"] != expected_images:
         fail("manifest images are outside the fixed aibox package coordinates")
+    container_runtime = manifest["container_runtime"]
+    if container_runtime not in {"docker", "podman"}:
+        fail("manifest container runtime is outside the reviewed contract")
 
     artifacts: list[Path] = []
     for entry in manifest["artifacts"]:
@@ -129,8 +132,11 @@ def main() -> None:
     run(["gh", "release", "upload", manifest["tag"], *map(str, artifacts),
          "--repo", REPOSITORY, "--clobber"], log)
     for image in expected_images:
-        run(["docker", "push", image], log)
-        run(["docker", "buildx", "imagetools", "inspect", image], log)
+        run([container_runtime, "push", image], log)
+        if container_runtime == "docker":
+            run(["docker", "manifest", "inspect", image], log)
+        else:
+            run(["podman", "manifest", "inspect", f"docker://{image}"], log)
     assets_output = run(["gh", "release", "view", manifest["tag"], "--repo", REPOSITORY,
                          "--json", "assets"], log)
     remote_names = {asset["name"] for asset in json.loads(assets_output)["assets"]}

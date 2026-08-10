@@ -201,6 +201,23 @@ def sandboxed(profile: Path, command: list[str], env: dict[str, str]) -> list[st
     return ["/usr/bin/sandbox-exec", "-f", str(profile), "/usr/bin/env", "-i", *assignments, *command]
 
 
+def select_container_runtime(env: dict[str, str]) -> str:
+    """Return the first responsive Docker-compatible host runtime.
+
+    Docker is preferred because both Docker Desktop and OrbStack expose that
+    CLI contract. Podman is the fallback. Selection requires a responsive
+    daemon or machine, not merely an executable on ``PATH``.
+    """
+    for candidate in ("docker", "podman"):
+        if shutil.which(candidate, path=env["PATH"]) is None:
+            continue
+        probe = subprocess.run([candidate, "info"], env=env, stdout=subprocess.DEVNULL,
+                               stderr=subprocess.DEVNULL)
+        if probe.returncode == 0:
+            return candidate
+    fail("no responsive container runtime found; start OrbStack or Docker Desktop, or install and start Podman")
+
+
 def pin_release_version(config_path: Path, version: str) -> None:
     """Pin a generated project to the locally built candidate image version."""
     config = config_path.read_text(encoding="utf-8")
@@ -210,13 +227,13 @@ def pin_release_version(config_path: Path, version: str) -> None:
     config_path.write_text(updated, encoding="utf-8")
 
 
-def compose_cleanup(runner: Runner, compose_file: Path) -> None:
+def compose_cleanup(runner: Runner, container_runtime: str, compose_file: Path) -> None:
     """Remove the probe's containers, volumes, orphans, and derived local image.
 
     Cleanup is deliberately fail-closed: callers invoke this from ``finally``
     blocks, and a cleanup error prevents publication just like a failed probe.
     """
-    runner.run(["docker", "compose", "-f", str(compose_file), "down", "-v",
+    runner.run([container_runtime, "compose", "-f", str(compose_file), "down", "-v",
                 "--remove-orphans", "--rmi", "local"], cwd=compose_file.parent.parent)
 
 
@@ -232,7 +249,8 @@ def init_project(runner: Runner, profile: Path, env: dict[str, str], candidate_b
 
 
 def run_addon_group(runner: Runner, profile: Path, env: dict[str, str], candidate_bin: Path,
-                    runtime: Path, evidence: Path, version: str, group: str) -> Path:
+                    container_runtime: str, runtime: Path, evidence: Path,
+                    version: str, group: str) -> Path:
     """Build one reviewed group of download-based addons and record success."""
     name = f"host-gate-{group}"
     project = runtime / name
@@ -247,7 +265,7 @@ def run_addon_group(runner: Runner, profile: Path, env: dict[str, str], candidat
         return marker
     finally:
         if compose_file.exists():
-            compose_cleanup(runner, compose_file)
+            compose_cleanup(runner, container_runtime, compose_file)
 
 
 def wait_until(description: str, probe, *, attempts: int = 90, delay: float = 2.0) -> object:
@@ -270,7 +288,8 @@ def latex_document(marker: str) -> str:
 
 
 def run_latex_lifecycle(runner: Runner, profile: Path, env: dict[str, str], candidate_bin: Path,
-                        runtime: Path, evidence: Path, version: str, port: int) -> Path:
+                        container_runtime: str, runtime: Path, evidence: Path,
+                        version: str, port: int) -> Path:
     """Prove LaTeX watch, rebuild, and preview behavior across two revisions.
 
     The check builds the candidate-derived container, starts its preview
@@ -301,21 +320,21 @@ def run_latex_lifecycle(runner: Runner, profile: Path, env: dict[str, str], cand
     compose_file = project / ".devcontainer/docker-compose.yml"
     try:
         runner.run(sandboxed(profile, [str(candidate_bin), "--yes", "apply", "--no-container"], env), cwd=project)
-        runner.run(["docker", "compose", "-f", str(compose_file), "build", name], cwd=project)
-        runner.run(["docker", "compose", "-f", str(compose_file), "up", "-d", name,
+        runner.run([container_runtime, "compose", "-f", str(compose_file), "build", name], cwd=project)
+        runner.run([container_runtime, "compose", "-f", str(compose_file), "up", "-d", name,
                     f"{name}-latex-preview"], cwd=project)
         wait_until("latexmk", lambda: runner.capture(
-            ["docker", "exec", "--user", "aibox", name, "which", "latexmk"]).strip())
+            [container_runtime, "exec", "--user", "aibox", name, "which", "latexmk"]).strip())
         wait_until("LaTeX watcher", lambda: runner.capture(
-            ["docker", "exec", "--user", "aibox", name, "which", "aibox-latex-watch"]).strip())
+            [container_runtime, "exec", "--user", "aibox", name, "which", "aibox-latex-watch"]).strip())
         wait_until("LaTeX preview health", lambda: urllib.request.urlopen(
             f"http://127.0.0.1:{port}/health", timeout=2).read())
-        runner.run(["docker", "exec", "-d", "--user", "aibox", name,
+        runner.run([container_runtime, "exec", "-d", "--user", "aibox", name,
                     "aibox-latex-watch", "overview"])
 
         def pdf_contains(expected: str) -> bool:
             """Return whether the current generated PDF contains *expected*."""
-            output = runner.capture(["docker", "exec", name, "pdftotext",
+            output = runner.capture([container_runtime, "exec", name, "pdftotext",
                                      "/workspace/.latex-cache/overview/overview.pdf", "-"])
             return expected in output
 
@@ -327,18 +346,18 @@ def run_latex_lifecycle(runner: Runner, profile: Path, env: dict[str, str], cand
         generated = (project / ".latex-cache/overview/overview.pdf").read_bytes()
         if not served.startswith(b"%PDF-") or served != generated:
             fail("LaTeX preview did not serve the watched PDF byte-for-byte")
-        runner.run(["docker", "exec", name, "pgrep", "-f", "latexmk.*overview.tex"])
+        runner.run([container_runtime, "exec", name, "pgrep", "-f", "latexmk.*overview.tex"])
         result = evidence / "container-e2e/latex-lifecycle.json"
         result.write_text(json.dumps({"status": "passed", "revisions": 2, "preview_port": port},
                                      indent=2, sort_keys=True) + "\n", encoding="utf-8")
         return result
     finally:
         if compose_file.exists():
-            compose_cleanup(runner, compose_file)
+            compose_cleanup(runner, container_runtime, compose_file)
 
 
 def run_rootless_podman(runner: Runner, profile: Path, env: dict[str, str], candidate_bin: Path,
-                        runtime: Path, evidence: Path, version: str) -> Path:
+                        container_runtime: str, runtime: Path, evidence: Path, version: str) -> Path:
     """Build the infrastructure addon and prove nested Podman is rootless."""
     name = "host-gate-podman"
     project = runtime / name
@@ -350,10 +369,10 @@ def run_rootless_podman(runner: Runner, profile: Path, env: dict[str, str], cand
     compose_file = project / ".devcontainer/docker-compose.yml"
     try:
         runner.run(sandboxed(profile, [str(candidate_bin), "--yes", "apply", "--no-cache"], env), cwd=project)
-        runner.run(["docker", "compose", "-f", str(compose_file), "up", "-d", name], cwd=project)
-        runner.run(["docker", "exec", "--user", "aibox", name, "podman", "--version"])
-        runner.run(["docker", "exec", "--user", "aibox", name, "podman-compose", "--version"])
-        rootless = runner.capture(["docker", "exec", "--user", "aibox", name, "podman",
+        runner.run([container_runtime, "compose", "-f", str(compose_file), "up", "-d", name], cwd=project)
+        runner.run([container_runtime, "exec", "--user", "aibox", name, "podman", "--version"])
+        runner.run([container_runtime, "exec", "--user", "aibox", name, "podman-compose", "--version"])
+        rootless = runner.capture([container_runtime, "exec", "--user", "aibox", name, "podman",
                                    "info", "--format", "{{.Host.Security.Rootless}}"])
         if rootless.strip().lower() != "true":
             fail("nested Podman did not report a rootless runtime")
@@ -363,7 +382,7 @@ def run_rootless_podman(runner: Runner, profile: Path, env: dict[str, str], cand
         return result
     finally:
         if compose_file.exists():
-            compose_cleanup(runner, compose_file)
+            compose_cleanup(runner, container_runtime, compose_file)
 
 
 def main() -> None:
@@ -517,7 +536,6 @@ def main() -> None:
     prerequisite_hints = {
         "cargo": "install Rust with rustup from https://rustup.rs",
         "rustc": "install Rust with rustup from https://rustup.rs",
-        "docker": "install and start Docker Desktop (for example: brew install --cask docker)",
         "syft": "install Syft with: brew install syft",
         "grype": "install Grype with: brew install grype",
         "sandbox-exec": "sandbox-exec must be available at /usr/bin/sandbox-exec on macOS",
@@ -525,12 +543,15 @@ def main() -> None:
     for tool, hint in prerequisite_hints.items():
         if shutil.which(tool, path=fixed_env["PATH"]) is None:
             fail(f"required host prerequisite is missing: {tool}; {hint}")
-    buildx = subprocess.run(
-        ["docker", "buildx", "version"], env=fixed_env,
+    container_runtime = select_container_runtime(fixed_env)
+    compose = subprocess.run(
+        [container_runtime, "compose", "version"], env=fixed_env,
         stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True,
     )
-    if buildx.returncode != 0:
-        fail("required host prerequisite is missing: Docker Buildx; install or enable the Docker Buildx component in Docker Desktop")
+    if compose.returncode != 0:
+        hint = ("enable Docker Compose in OrbStack or Docker Desktop" if container_runtime == "docker"
+                else "install a Podman Compose provider, for example: brew install podman-compose")
+        fail(f"{container_runtime} is responsive but its Compose command is unavailable; {hint}")
     (evidence / "darwin-build/toolchain.json").write_text(json.dumps({
         "python": sys.version, "python_executable": sys.executable,
         "python_requirement": "3.14.6", "uv": os.environ["AIBOX_HOST_GATE_UV_BIN"],
@@ -539,6 +560,7 @@ def main() -> None:
         "cargo_home": fixed_env["CARGO_HOME"], "rustup_home": fixed_env["RUSTUP_HOME"],
         "home": fixed_env["HOME"], "docker_config": fixed_env["DOCKER_CONFIG"],
         "docker_buildkit": fixed_env["DOCKER_BUILDKIT"],
+        "container_runtime": container_runtime,
         "gh_config_dir": fixed_env["GH_CONFIG_DIR"],
     }, indent=2, sort_keys=True) + "\n", encoding="utf-8")
 
@@ -577,17 +599,18 @@ def main() -> None:
                   "--build-arg", f"AIBOX_FOUNDATION_SOURCE_SHA={provenance['commit']}",
                   "--build-arg", f"AIBOX_RUNTIME_SOURCE_SHA={provenance['commit']}",
                   "--build-arg", f"AIBOX_IMAGE_BUILD_VERSION={version}"]
-    runner.run(["docker", "build", "--target", "foundation", "--tag", foundation_image,
+    runner.run([container_runtime, "build", "--target", "foundation", "--tag", foundation_image,
                 *build_args,
                 "--file", str(source_root / "images/base-debian/Dockerfile"),
                 str(source_root / "images/base-debian")])
-    runner.run(["docker", "build", "--target", "runtime", "--tag", runtime_image,
+    runner.run([container_runtime, "build", "--target", "runtime", "--tag", runtime_image,
                 "--tag", latest_image, "--file", str(source_root / "images/base-debian/Dockerfile"),
                 *build_args,
                 str(source_root / "images/base-debian")])
-    runner.run(["docker", "image", "inspect", runtime_image], output=evidence / "container-build/image-inspect.json")
-    runner.run(["syft", runtime_image, "-o", "cyclonedx-json"], output=evidence / "security/image-sbom.cdx.json")
-    runner.run(["grype", runtime_image, "--fail-on", "high", "-o", "json"], output=evidence / "security/vulnerability-scan.json")
+    runner.run([container_runtime, "image", "inspect", runtime_image], output=evidence / "container-build/image-inspect.json")
+    scanner_image = runtime_image if container_runtime == "docker" else f"podman:{runtime_image}"
+    runner.run(["syft", scanner_image, "-o", "cyclonedx-json"], output=evidence / "security/image-sbom.cdx.json")
+    runner.run(["grype", scanner_image, "--fail-on", "high", "-o", "json"], output=evidence / "security/vulnerability-scan.json")
 
     # The canonical runtime smoke is mandatory for every candidate, independent
     # of the changed-path-selected expensive checks below.
@@ -620,14 +643,16 @@ def main() -> None:
     for group in ADDON_GROUPS:
         if group in selected_checks:
             conditional_evidence.append(run_addon_group(
-                runner, profile, fixed_env, candidate_bin, runtime, evidence, version, group))
+                runner, profile, fixed_env, candidate_bin, container_runtime,
+                runtime, evidence, version, group))
     if "latex-lifecycle" in selected_checks:
         preview_port = 18000 + int(provenance["commit"][:8], 16) % 1000
         conditional_evidence.append(run_latex_lifecycle(
-            runner, profile, fixed_env, candidate_bin, runtime, evidence, version, preview_port))
+            runner, profile, fixed_env, candidate_bin, container_runtime,
+            runtime, evidence, version, preview_port))
     if "rootless-podman" in selected_checks:
         conditional_evidence.append(run_rootless_podman(
-            runner, profile, fixed_env, candidate_bin, runtime, evidence, version))
+            runner, profile, fixed_env, candidate_bin, container_runtime, runtime, evidence, version))
 
     # Phase 8: assemble a fixed, checksummed manifest. When publication is
     # enabled it receives no arbitrary artifact list; dry-run stops after the
@@ -655,8 +680,9 @@ def main() -> None:
             fail(f"required evidence is missing or empty: {required.relative_to(run_dir)}")
 
     manifest = {
-        "schema_version": 1, "repository": REPOSITORY, "version": version,
+        "schema_version": 2, "repository": REPOSITORY, "version": version,
         "tag": provenance["tag"], "commit": provenance["commit"],
+        "container_runtime": container_runtime,
         "images": [foundation_image, runtime_image, latest_image],
         "artifacts": [
             {"path": str(path.relative_to(run_dir)), "sha256": sha256(path)}

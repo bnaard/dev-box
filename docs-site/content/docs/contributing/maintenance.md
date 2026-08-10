@@ -198,10 +198,12 @@ all three surfaces. Every command, selection reason, skip reason, and result is
 retained beneath `evidence/` with toolchain metadata, image inspection, runtime
 logs, hashes, and a release manifest.
 
-Docker Buildx is mandatory because the published Dockerfile uses BuildKit-only
-features such as `COPY --chmod`. The sanitized gate environment explicitly
-enables BuildKit for direct Docker and Compose builds and fails with an install
-hint when the Buildx component is unavailable.
+The gate selects the first responsive runtime in this order: the `docker` CLI
+contract exposed by Docker Desktop or OrbStack, then Podman. All image builds,
+Compose lifecycles, exec probes, inspection, cleanup, scanning, and publication
+use that selected runtime. Docker-compatible builds explicitly enable BuildKit
+for features such as `COPY --chmod`; OrbStack does not need Docker Desktop's
+separate Buildx component.
 
 Before the Darwin build, the gate fetches the exact locked Cargo dependency
 graph into a per-run credential-free Cargo home. The actual compilation remains
