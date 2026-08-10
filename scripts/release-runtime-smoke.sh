@@ -199,7 +199,7 @@ candidate_image_env() {
   # generated-project lifecycle through the daemon-local image store; the
   # candidate base images themselves are still built with BuildKit.
   if [[ "${local_candidate_image}" =~ ^(1|true|yes)$ && "${runtime_bin}" == "docker" ]]; then
-    env DOCKER_BUILDKIT=0 COMPOSE_DOCKER_CLI_BUILD=0 "$@"
+    DOCKER_BUILDKIT=0 COMPOSE_DOCKER_CLI_BUILD=0 "$@"
   else
     "$@"
   fi
@@ -303,7 +303,7 @@ path = "/mcp"
 
 [processkit]
 source = "https://github.com/projectious-work/processkit.git"
-version = "latest"
+version = "unset"
 src_path = "src"
 
 [processkit.context]

@@ -41,8 +41,16 @@ grep -Fq 'AIBOX_RELEASE_SMOKE_LOCAL_CANDIDATE_IMAGE' "${SCRIPT_DIR}/release_host
   echo "release host gate must select the unpublished local candidate image for runtime smoke" >&2
   exit 1
 }
-grep -Fq 'DOCKER_BUILDKIT=0 COMPOSE_DOCKER_CLI_BUILD=0' "${SCRIPT_DIR}/release-runtime-smoke.sh" || {
+grep -Fq 'DOCKER_BUILDKIT=0 COMPOSE_DOCKER_CLI_BUILD=0 "$@"' "${SCRIPT_DIR}/release-runtime-smoke.sh" || {
   echo "release runtime smoke must support Docker-compatible daemon-local candidate images" >&2
+  exit 1
+}
+if grep -Fq 'env DOCKER_BUILDKIT=0 COMPOSE_DOCKER_CLI_BUILD=0' "${SCRIPT_DIR}/release-runtime-smoke.sh"; then
+  echo "release runtime smoke must not dispatch shell functions through env" >&2
+  exit 1
+fi
+grep -A3 '^\[processkit\]$' "${SCRIPT_DIR}/release-runtime-smoke.sh" | grep -Fq 'version = "unset"' || {
+  echo "release runtime smoke must not install unrelated processkit content" >&2
   exit 1
 }
 grep -Fq 'local-candidate-substitution.env' "${SCRIPT_DIR}/release-runtime-smoke.sh" || {
