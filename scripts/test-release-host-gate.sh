@@ -51,6 +51,10 @@ if grep -Fq '["docker", "build"' "${SCRIPT_DIR}/release_host_publish.py" ||
   echo "publisher may not build, test, or mutate repository state" >&2
   exit 1
 fi
+if grep -Fq '"status", "--porcelain", "--untracked-files=no"' "${SCRIPT_DIR}/release_host_gate.py"; then
+  echo "release-host gate must not reject unrelated host worktree changes" >&2
+  exit 1
+fi
 
 /usr/bin/python3 -I - "${SCRIPT_DIR}" <<'PY'
 import importlib.util
@@ -66,6 +70,13 @@ publisher = importlib.util.module_from_spec(publisher_spec)
 publisher_spec.loader.exec_module(publisher)
 
 assert gate.EXPECTED_INPUTS == {"checksums.sha256", "provenance.json", "source.tar.gz"}
+assert set(gate.TRUSTED_CONTROL_PATHS) == {
+    "scripts/maintain.sh",
+    "scripts/release-host-gate.sh",
+    "scripts/release-host-publish.sh",
+    "scripts/release_host_gate.py",
+    "scripts/release_host_publish.py",
+}
 assert gate.RUN_ID.fullmatch("v0.31.2-20260809T120000Z-0123456789ab")
 assert gate.RUN_ID.fullmatch("v1.0.0-alpha.2-20260809T120000Z-0123456789ab")
 assert gate.VERSION_TAG.fullmatch("v1.0.0-alpha.2")

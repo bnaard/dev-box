@@ -32,6 +32,13 @@ REPOSITORY = "projectious-work/aibox"
 EXPECTED_INPUTS = {"checksums.sha256", "provenance.json", "source.tar.gz"}
 RUN_ID = re.compile(r"^v[0-9]+\.[0-9]+\.[0-9]+(?:-[0-9A-Za-z][0-9A-Za-z.-]*)?-[0-9]{8}T[0-9]{6}Z-[0-9a-f]{12}$")
 VERSION_TAG = re.compile(r"^v[0-9]+\.[0-9]+\.[0-9]+(?:-[0-9A-Za-z][0-9A-Za-z.-]*)?$")
+TRUSTED_CONTROL_PATHS = (
+    "scripts/maintain.sh",
+    "scripts/release-host-gate.sh",
+    "scripts/release-host-publish.sh",
+    "scripts/release_host_gate.py",
+    "scripts/release_host_publish.py",
+)
 
 ADDON_GROUPS = {
     "addon-languages": ["docs-hugo", "docs-mdbook", "go", "go-quality", "go-release", "node", "rust", "typst"],
@@ -445,12 +452,15 @@ def main() -> None:
         ["/usr/bin/git", "-C", str(project_root), "rev-parse", "HEAD"],
         check=True, capture_output=True, text=True,
     ).stdout.strip()
-    tracked_status = subprocess.run(
-        ["/usr/bin/git", "-C", str(project_root), "status", "--porcelain", "--untracked-files=no"],
+    if head_commit != provenance["commit"]:
+        fail("host checkout HEAD must be the tagged candidate commit")
+    control_plane_diff = subprocess.run(
+        ["/usr/bin/git", "-C", str(project_root), "diff", "--name-only", "HEAD", "--",
+         *TRUSTED_CONTROL_PATHS],
         check=True, capture_output=True, text=True,
     ).stdout.strip()
-    if head_commit != provenance["commit"] or tracked_status:
-        fail("host checkout must be the clean tagged candidate commit")
+    if control_plane_diff:
+        fail("host release control-plane files must match the tagged candidate commit")
 
     # Phase 3: create fresh mutable runtime/evidence trees. Refusing preexisting
     # trees prevents a partial or previously published run from being resumed.

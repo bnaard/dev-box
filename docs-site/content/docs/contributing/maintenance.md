@@ -164,6 +164,10 @@ The reviewed entry point accepts only that run-directory path. It rejects
 traversal, symlinks, special files, hardlinks, unexpected inputs, unsafe
 permissions, checksum drift, and tag/commit mismatches. A previous partial run
 cannot be resumed: `runtime/` and `evidence/` must not exist when it starts.
+The host checkout's `HEAD` must match the attested candidate commit, but
+unrelated tracked worktree edits do not invalidate the gate because all builds
+and probes use the immutable checksummed source archive rather than worktree
+contents.
 
 Validation and publication are separate security stages within the one owner
 invocation. Candidate-controlled native builds, build scripts, CLI commands,
