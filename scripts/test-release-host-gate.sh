@@ -81,6 +81,8 @@ source = (script_dir / "release_host_gate.py").read_text()
 assert '"CARGO_HOME": str(cargo_home)' in source
 assert '"cargo", "fetch", "--locked"' in source
 assert 'fetch_env = {**fixed_env, "CARGO_NET_OFFLINE": "false"}' in source
+assert '"DOCKER_BUILDKIT": "1"' in source
+assert '["docker", "buildx", "version"]' in source
 assert gate.RUN_ID.fullmatch("v0.31.2-20260809T120000Z-0123456789ab")
 assert gate.RUN_ID.fullmatch("v1.0.0-alpha.2-20260809T120000Z-0123456789ab")
 assert gate.VERSION_TAG.fullmatch("v1.0.0-alpha.2")

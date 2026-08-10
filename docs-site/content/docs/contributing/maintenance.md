@@ -198,6 +198,11 @@ all three surfaces. Every command, selection reason, skip reason, and result is
 retained beneath `evidence/` with toolchain metadata, image inspection, runtime
 logs, hashes, and a release manifest.
 
+Docker Buildx is mandatory because the published Dockerfile uses BuildKit-only
+features such as `COPY --chmod`. The sanitized gate environment explicitly
+enables BuildKit for direct Docker and Compose builds and fails with an install
+hint when the Buildx component is unavailable.
+
 Before the Darwin build, the gate fetches the exact locked Cargo dependency
 graph into a per-run credential-free Cargo home. The actual compilation remains
 offline, so a newly locked crate does not require a pre-warmed owner cache and

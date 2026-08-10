@@ -495,6 +495,7 @@ def main() -> None:
         "PATH": f"{original_home}/.cargo/bin:/opt/homebrew/bin:/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin",
         "HOME": str(home), "TMPDIR": str(runtime / "tmp"),
         "DOCKER_CONFIG": str(docker_config), "GH_CONFIG_DIR": str(runtime / "gh-config"),
+        "DOCKER_BUILDKIT": "1", "COMPOSE_DOCKER_CLI_BUILD": "1",
         "CARGO_HOME": str(cargo_home), "RUSTUP_HOME": str(original_home / ".rustup"),
         "CARGO_NET_OFFLINE": "true", "RUST_BACKTRACE": "1",
         "AIBOX_RELEASE_HOST_OFFLINE": "1",
@@ -524,6 +525,12 @@ def main() -> None:
     for tool, hint in prerequisite_hints.items():
         if shutil.which(tool, path=fixed_env["PATH"]) is None:
             fail(f"required host prerequisite is missing: {tool}; {hint}")
+    buildx = subprocess.run(
+        ["docker", "buildx", "version"], env=fixed_env,
+        stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True,
+    )
+    if buildx.returncode != 0:
+        fail("required host prerequisite is missing: Docker Buildx; install or enable the Docker Buildx component in Docker Desktop")
     (evidence / "darwin-build/toolchain.json").write_text(json.dumps({
         "python": sys.version, "python_executable": sys.executable,
         "python_requirement": "3.14.6", "uv": os.environ["AIBOX_HOST_GATE_UV_BIN"],
@@ -531,6 +538,7 @@ def main() -> None:
         "uv_python_install_dir": os.environ["UV_PYTHON_INSTALL_DIR"],
         "cargo_home": fixed_env["CARGO_HOME"], "rustup_home": fixed_env["RUSTUP_HOME"],
         "home": fixed_env["HOME"], "docker_config": fixed_env["DOCKER_CONFIG"],
+        "docker_buildkit": fixed_env["DOCKER_BUILDKIT"],
         "gh_config_dir": fixed_env["GH_CONFIG_DIR"],
     }, indent=2, sort_keys=True) + "\n", encoding="utf-8")
 
