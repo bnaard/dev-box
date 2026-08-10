@@ -127,9 +127,19 @@ with tempfile.TemporaryDirectory() as temporary:
     report.write_text('{"matches":['
                       '{"vulnerability":{"id":"CVE-1","severity":"High","fix":{"versions":["2.0"]}},'
                       '"artifact":{"name":"sample","version":"1.0"}},'
+                      '{"vulnerability":{"id":"CVE-1","severity":"High","fix":{"versions":[]}},'
+                      '"artifact":{"name":"sample-lib","version":"1.0"}},'
+                      '{"vulnerability":{"id":"CVE-3","severity":"Critical","fix":{"versions":[]}},'
+                      '"artifact":{"name":"unfixed","version":"1.0"}},'
                       '{"vulnerability":{"id":"CVE-2","severity":"Medium"},'
                       '"artifact":{"name":"ignored","version":"1.0"}}]}')
-    assert gate.grype_threshold_findings(report) == ["High: CVE-1 in sample 1.0; fixed in 2.0"]
+    summary = gate.grype_policy_summary(report)
+    assert summary["high_critical_package_matches"] == 3
+    assert summary["unique_advisories"] == 2
+    assert summary["actionable_package_matches"] == 1
+    assert summary["actionable_advisories"] == 1
+    assert summary["no_fix_advisories"] == 1
+    assert [advisory["id"] for advisory in summary["advisories"]] == ["CVE-1", "CVE-3"]
 try:
     gate.dry_run_enabled("true")
 except SystemExit:

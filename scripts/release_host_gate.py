@@ -90,23 +90,72 @@ def select_impact_checks(changed_paths: list[str]) -> dict[str, str]:
     return selected
 
 
-def grype_threshold_findings(report: Path) -> list[str]:
-    """Return concise High/Critical finding lines from a Grype JSON report."""
+def grype_policy_summary(report: Path) -> dict[str, object]:
+    """Group High/Critical Grype matches and classify fix availability."""
     payload = json.loads(report.read_text(encoding="utf-8"))
-    findings: list[str] = []
+    advisories: dict[str, dict[str, object]] = {}
+    package_matches = 0
+    actionable_matches = 0
     for match in payload.get("matches", []):
         vulnerability = match.get("vulnerability", {})
         severity = str(vulnerability.get("severity", "unknown"))
         if severity.lower() not in {"high", "critical"}:
             continue
+        package_matches += 1
         artifact = match.get("artifact", {})
-        fix_versions = vulnerability.get("fix", {}).get("versions", [])
-        fixed = f"; fixed in {', '.join(fix_versions)}" if fix_versions else "; no fix listed"
-        findings.append(
-            f"{severity}: {vulnerability.get('id', 'unknown')} in "
-            f"{artifact.get('name', 'unknown')} {artifact.get('version', 'unknown')}{fixed}"
+        fix_versions = sorted(set(vulnerability.get("fix", {}).get("versions", [])))
+        actionable_matches += bool(fix_versions)
+        identifier = str(vulnerability.get("id", "unknown"))
+        advisory = advisories.setdefault(identifier, {
+            "id": identifier, "severity": severity, "actionable": False, "packages": [],
+        })
+        if severity.lower() == "critical":
+            advisory["severity"] = "Critical"
+        advisory["actionable"] = bool(advisory["actionable"] or fix_versions)
+        advisory["packages"].append({
+            "name": str(artifact.get("name", "unknown")),
+            "version": str(artifact.get("version", "unknown")),
+            "fix_versions": fix_versions,
+        })
+    grouped = sorted(advisories.values(), key=lambda item: (not item["actionable"], item["id"]))
+    for advisory in grouped:
+        advisory["packages"] = sorted(
+            advisory["packages"], key=lambda package: (package["name"], package["version"])
         )
-    return sorted(set(findings))
+    actionable_advisories = sum(bool(advisory["actionable"]) for advisory in grouped)
+    return {
+        "schema_version": 1,
+        "policy": "block-high-critical-with-listed-fix",
+        "high_critical_package_matches": package_matches,
+        "unique_advisories": len(grouped),
+        "actionable_package_matches": actionable_matches,
+        "no_fix_package_matches": package_matches - actionable_matches,
+        "actionable_advisories": actionable_advisories,
+        "no_fix_advisories": len(grouped) - actionable_advisories,
+        "advisories": grouped,
+    }
+
+
+def print_grype_policy_summary(summary: dict[str, object]) -> None:
+    """Render a bounded advisory-level view of the vulnerability policy."""
+    print(
+        "Grype policy: "
+        f"{summary['unique_advisories']} unique High/Critical advisories across "
+        f"{summary['high_critical_package_matches']} package matches; "
+        f"{summary['actionable_advisories']} actionable, "
+        f"{summary['no_fix_advisories']} no-fix warnings.",
+        flush=True,
+    )
+    for advisory in summary["advisories"][:20]:
+        packages = advisory["packages"]
+        package_names = ", ".join(sorted({package["name"] for package in packages})[:4])
+        if len({package["name"] for package in packages}) > 4:
+            package_names += ", …"
+        fixes = sorted({version for package in packages for version in package["fix_versions"]})
+        disposition = f"BLOCK; fixed in {', '.join(fixes)}" if fixes else "WARN; no fix listed"
+        print(f"  - {advisory['severity']}: {advisory['id']} ({package_names}) — {disposition}", flush=True)
+    if len(summary["advisories"]) > 20:
+        print(f"  - … and {len(summary['advisories']) - 20} more advisories", flush=True)
 
 
 def fail(message: str) -> "None":
@@ -726,18 +775,21 @@ def main() -> None:
                output=evidence / "security/image-sbom.cdx.json", label="Generate image SBOM")
     vulnerability_report = evidence / "security/vulnerability-scan.json"
     try:
-        runner.run(["grype", scanner_image, "--fail-on", "high", "-o", "json"],
+        runner.run(["grype", scanner_image, "-o", "json"],
                    output=vulnerability_report, label="Scan image vulnerabilities")
     except subprocess.CalledProcessError as error:
-        if error.returncode == 2 and vulnerability_report.is_file():
-            findings = grype_threshold_findings(vulnerability_report)
-            print("Grype High/Critical findings:", flush=True)
-            for finding in findings[:20]:
-                print(f"  - {finding}", flush=True)
-            if len(findings) > 20:
-                print(f"  - … and {len(findings) - 20} more", flush=True)
-            fail(f"Grype found {len(findings)} High/Critical vulnerabilities; full report: {vulnerability_report}")
         fail(f"Grype scan failed with exit code {error.returncode}; see {runner.log.parent / 'command-results.log'}")
+    vulnerability_summary = grype_policy_summary(vulnerability_report)
+    vulnerability_policy = evidence / "security/vulnerability-policy.json"
+    vulnerability_policy.write_text(
+        json.dumps(vulnerability_summary, indent=2, sort_keys=True) + "\n", encoding="utf-8"
+    )
+    print_grype_policy_summary(vulnerability_summary)
+    if vulnerability_summary["actionable_advisories"]:
+        fail(
+            f"Grype found {vulnerability_summary['actionable_advisories']} fixable High/Critical advisories; "
+            f"policy report: {vulnerability_policy}"
+        )
 
     # The canonical runtime smoke is mandatory for every candidate, independent
     # of the changed-path-selected expensive checks below.
@@ -800,6 +852,7 @@ def main() -> None:
         coverage_path,
         evidence / "security/image-sbom.cdx.json",
         evidence / "security/vulnerability-scan.json",
+        evidence / "security/vulnerability-policy.json",
         evidence / "commands.log",
         evidence / "command-results.log",
         evidence / "steps.log",

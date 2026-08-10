@@ -21,6 +21,7 @@ BASE_REQUIRED_EVIDENCE = {
     "evidence/container-e2e/impact-selection.json",
     "evidence/security/image-sbom.cdx.json",
     "evidence/security/vulnerability-scan.json",
+    "evidence/security/vulnerability-policy.json",
     "evidence/commands.log",
     "evidence/command-results.log",
     "evidence/steps.log",

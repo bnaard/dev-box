@@ -190,7 +190,9 @@ select the interpreter or dependencies.
 The validation stage builds both Darwin targets, natively smokes the current
 architecture, builds the actual candidate foundation/runtime images, exercises
 the generated Compose lifecycle and `--forget-tmux-state`, requires cleanup,
-generates a CycloneDX SBOM, and fails Grype findings at high severity. It also
+generates a CycloneDX SBOM, and applies the reviewed Grype policy. High or
+Critical findings with a listed fixed version block the release; findings with
+no listed fix remain explicit non-blocking warnings in the evidence. It also
 verifies the checksummed comparison tag, commit, and changed-path list, then
 runs affected addon build groups, the LaTeX watcher/preview lifecycle, and the
 rootless Podman probe when relevant inputs changed. No comparison tag selects
@@ -204,10 +206,12 @@ time, and quiet commands emit a heartbeat every ten seconds. The same
 transitions are retained in `evidence/steps.log`; full argv and output remain
 in `commands.log` and `command-results.log`, so interactive progress does not
 replace auditable evidence.
-When Grype reaches the High/Critical threshold, the terminal prints a bounded
-summary with vulnerability ID, package/version, severity, and available fixed
-versions before exiting. The complete machine-readable report remains at
-`evidence/security/vulnerability-scan.json`.
+The terminal groups High/Critical package matches by unique advisory and prints
+a bounded summary with severity, affected package names, and disposition. The
+complete scanner report remains at `evidence/security/vulnerability-scan.json`;
+counts, grouped advisories, package versions, fix versions, and the blocking or
+warning classification are publication-required evidence in
+`evidence/security/vulnerability-policy.json`.
 
 The gate selects the first responsive runtime in this order: the `docker` CLI
 contract exposed by Docker Desktop or OrbStack, then Podman. All image builds,
