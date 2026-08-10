@@ -122,6 +122,14 @@ with tempfile.TemporaryDirectory() as temporary:
     progress = (evidence / "steps.log").read_text()
     assert progress.count("quiet test [running") >= 2
     assert "quiet test [passed" in progress
+with tempfile.TemporaryDirectory() as temporary:
+    report = Path(temporary) / "grype.json"
+    report.write_text('{"matches":['
+                      '{"vulnerability":{"id":"CVE-1","severity":"High","fix":{"versions":["2.0"]}},'
+                      '"artifact":{"name":"sample","version":"1.0"}},'
+                      '{"vulnerability":{"id":"CVE-2","severity":"Medium"},'
+                      '"artifact":{"name":"ignored","version":"1.0"}}]}')
+    assert gate.grype_threshold_findings(report) == ["High: CVE-1 in sample 1.0; fixed in 2.0"]
 try:
     gate.dry_run_enabled("true")
 except SystemExit:

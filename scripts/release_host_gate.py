@@ -90,6 +90,25 @@ def select_impact_checks(changed_paths: list[str]) -> dict[str, str]:
     return selected
 
 
+def grype_threshold_findings(report: Path) -> list[str]:
+    """Return concise High/Critical finding lines from a Grype JSON report."""
+    payload = json.loads(report.read_text(encoding="utf-8"))
+    findings: list[str] = []
+    for match in payload.get("matches", []):
+        vulnerability = match.get("vulnerability", {})
+        severity = str(vulnerability.get("severity", "unknown"))
+        if severity.lower() not in {"high", "critical"}:
+            continue
+        artifact = match.get("artifact", {})
+        fix_versions = vulnerability.get("fix", {}).get("versions", [])
+        fixed = f"; fixed in {', '.join(fix_versions)}" if fix_versions else "; no fix listed"
+        findings.append(
+            f"{severity}: {vulnerability.get('id', 'unknown')} in "
+            f"{artifact.get('name', 'unknown')} {artifact.get('version', 'unknown')}{fixed}"
+        )
+    return sorted(set(findings))
+
+
 def fail(message: str) -> "None":
     """Terminate the gate with a consistently prefixed operator error."""
     raise SystemExit(f"release-host gate: {message}")
@@ -705,8 +724,20 @@ def main() -> None:
     scanner_image = runtime_image if container_runtime == "docker" else f"podman:{runtime_image}"
     runner.run(["syft", scanner_image, "-o", "cyclonedx-json"],
                output=evidence / "security/image-sbom.cdx.json", label="Generate image SBOM")
-    runner.run(["grype", scanner_image, "--fail-on", "high", "-o", "json"],
-               output=evidence / "security/vulnerability-scan.json", label="Scan image vulnerabilities")
+    vulnerability_report = evidence / "security/vulnerability-scan.json"
+    try:
+        runner.run(["grype", scanner_image, "--fail-on", "high", "-o", "json"],
+                   output=vulnerability_report, label="Scan image vulnerabilities")
+    except subprocess.CalledProcessError as error:
+        if error.returncode == 2 and vulnerability_report.is_file():
+            findings = grype_threshold_findings(vulnerability_report)
+            print("Grype High/Critical findings:", flush=True)
+            for finding in findings[:20]:
+                print(f"  - {finding}", flush=True)
+            if len(findings) > 20:
+                print(f"  - … and {len(findings) - 20} more", flush=True)
+            fail(f"Grype found {len(findings)} High/Critical vulnerabilities; full report: {vulnerability_report}")
+        fail(f"Grype scan failed with exit code {error.returncode}; see {runner.log.parent / 'command-results.log'}")
 
     # The canonical runtime smoke is mandatory for every candidate, independent
     # of the changed-path-selected expensive checks below.

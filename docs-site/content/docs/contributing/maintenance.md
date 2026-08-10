@@ -204,6 +204,10 @@ time, and quiet commands emit a heartbeat every ten seconds. The same
 transitions are retained in `evidence/steps.log`; full argv and output remain
 in `commands.log` and `command-results.log`, so interactive progress does not
 replace auditable evidence.
+When Grype reaches the High/Critical threshold, the terminal prints a bounded
+summary with vulnerability ID, package/version, severity, and available fixed
+versions before exiting. The complete machine-readable report remains at
+`evidence/security/vulnerability-scan.json`.
 
 The gate selects the first responsive runtime in this order: the `docker` CLI
 contract exposed by Docker Desktop or OrbStack, then Podman. All image builds,
