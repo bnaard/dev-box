@@ -768,6 +768,18 @@ def main() -> None:
                 "--tag", latest_image, "--file", str(source_root / "images/base-debian/Dockerfile"),
                 *build_args,
                 str(source_root / "images/base-debian")], label="Build runtime image")
+    smoke_runtime_image = ""
+    if container_runtime == "docker":
+        # OrbStack can inspect an attested BuildKit manifest but its classic
+        # daemon-local builder cannot consume that manifest as a base image.
+        # Produce a cached, single-manifest alias solely for the unpublished
+        # downstream lifecycle; the publication candidate above is untouched.
+        smoke_runtime_image = f"aibox-release-smoke-base:{provenance['commit'][:12]}"
+        runner.run([
+            container_runtime, "build", "--provenance=false", "--target", "runtime",
+            "--tag", smoke_runtime_image, "--file", str(source_root / "images/base-debian/Dockerfile"),
+            *build_args, str(source_root / "images/base-debian"),
+        ], label="Prepare local runtime image for smoke")
     runner.run([container_runtime, "image", "inspect", runtime_image],
                output=evidence / "container-build/image-inspect.json", label="Inspect runtime image")
     scanner_image = runtime_image if container_runtime == "docker" else f"podman:{runtime_image}"
@@ -805,6 +817,8 @@ def main() -> None:
         # make Docker/OrbStack resolve it from their daemon-local image store.
         "AIBOX_RELEASE_SMOKE_LOCAL_CANDIDATE_IMAGE": "1",
     })
+    if smoke_runtime_image:
+        smoke_env["AIBOX_RELEASE_SMOKE_LOCAL_CANDIDATE_REF"] = smoke_runtime_image
     runner.run(sandboxed(profile, [str(source_root / "scripts/release-runtime-smoke.sh"), version], smoke_env),
                cwd=source_root, label="Run candidate container lifecycle")
 
@@ -861,6 +875,8 @@ def main() -> None:
         evidence / "command-results.log",
         evidence / "steps.log",
     ]
+    if smoke_runtime_image:
+        required_paths.append(evidence / "container-e2e/local-candidate-substitution.env")
     for required in required_paths:
         if not required.exists() or (required.is_file() and required.stat().st_size == 0):
             fail(f"required evidence is missing or empty: {required.relative_to(run_dir)}")

@@ -45,6 +45,14 @@ grep -Fq 'DOCKER_BUILDKIT=0 COMPOSE_DOCKER_CLI_BUILD=0' "${SCRIPT_DIR}/release-r
   echo "release runtime smoke must support Docker-compatible daemon-local candidate images" >&2
   exit 1
 }
+grep -Fq 'local-candidate-substitution.env' "${SCRIPT_DIR}/release-runtime-smoke.sh" || {
+  echo "release runtime smoke must retain evidence of its bounded local FROM substitution" >&2
+  exit 1
+}
+grep -Fq '"--provenance=false"' "${SCRIPT_DIR}/release_host_gate.py" || {
+  echo "release host gate must prepare a single-manifest local smoke image" >&2
+  exit 1
+}
 
 for entrypoint in release-host-gate.sh release-host-publish.sh; do
   if grep -Eq '(^|[[:space:]])(sudo|su|doas|eval|source)([[:space:]]|$)|bash -c|sh -c' \

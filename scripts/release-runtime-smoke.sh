@@ -28,6 +28,7 @@ container_name="${AIBOX_RELEASE_SMOKE_CONTAINER:-aibox-release-smoke-${version//
 tmux_status="${AIBOX_RELEASE_SMOKE_TMUX_STATUS:-extended}"
 smoke_tier="${AIBOX_RELEASE_SMOKE_TIER:-addons}"
 local_candidate_image="${AIBOX_RELEASE_SMOKE_LOCAL_CANDIDATE_IMAGE:-0}"
+local_candidate_ref="${AIBOX_RELEASE_SMOKE_LOCAL_CANDIDATE_REF:-}"
 probe_script="${log_dir}/container-probe.sh"
 run_log="${log_dir}/run.log"
 attach_pid=""
@@ -204,6 +205,25 @@ candidate_image_env() {
   fi
 }
 
+prepare_local_candidate_dockerfile() {
+  local dockerfile="${project_dir}/.devcontainer/Dockerfile"
+  local expected="FROM ghcr.io/projectious-work/aibox:base-debian-runtime-v${version} AS aibox"
+  local replacement="FROM ${local_candidate_ref} AS aibox"
+  local rewritten="${dockerfile}.release-smoke"
+
+  [[ "${local_candidate_ref}" =~ ^[a-zA-Z0-9][a-zA-Z0-9._/-]*:[a-zA-Z0-9][a-zA-Z0-9._-]*$ ]] \
+    || die "Invalid local candidate image reference: ${local_candidate_ref}"
+  [[ "$(grep -Fxc "${expected}" "${dockerfile}")" == "1" ]] \
+    || die "Generated Dockerfile does not contain exactly one expected candidate FROM line"
+  awk -v expected="${expected}" -v replacement="${replacement}" \
+    '{ print ($0 == expected ? replacement : $0) }' "${dockerfile}" > "${rewritten}"
+  mv "${rewritten}" "${dockerfile}"
+  {
+    echo "original=${expected}"
+    echo "replacement=${replacement}"
+  } > "${log_dir}/local-candidate-substitution.env"
+}
+
 info "Release runtime smoke for v${version}"
 echo "Project:       ${project_dir}"
 echo "Logs:          ${log_dir}"
@@ -323,7 +343,18 @@ apply_args=(apply --standardize-config)
 if [[ "${AIBOX_RELEASE_SMOKE_NO_CACHE:-0}" =~ ^(1|true|yes)$ || "${smoke_tier}" == "full" ]]; then
   apply_args+=(--no-cache)
 fi
-run candidate_image_env env AIBOX_ADDONS_DIR="${PROJECT_ROOT}/addons" "${aibox_bin}" "${apply_args[@]}"
+if [[ -n "${local_candidate_ref}" ]]; then
+  apply_args+=(--no-container)
+  run env AIBOX_ADDONS_DIR="${PROJECT_ROOT}/addons" "${aibox_bin}" "${apply_args[@]}"
+  prepare_local_candidate_dockerfile
+  build_args=(-f "$(compose_file)" build)
+  if [[ "${AIBOX_RELEASE_SMOKE_NO_CACHE:-0}" =~ ^(1|true|yes)$ || "${smoke_tier}" == "full" ]]; then
+    build_args+=(--no-cache)
+  fi
+  run candidate_image_env compose "${build_args[@]}"
+else
+  run env AIBOX_ADDONS_DIR="${PROJECT_ROOT}/addons" "${aibox_bin}" "${apply_args[@]}"
+fi
 
 attach_smoke_log="${log_dir}/up-forget-tmux-state.log"
 info "Running attach smoke: aibox up --forget-tmux-state"
