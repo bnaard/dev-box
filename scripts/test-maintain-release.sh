@@ -12,14 +12,18 @@ AIBOX_MAINTAIN_SOURCE_ONLY=1 source "${SCRIPT_DIR}/maintain.sh"
   || die "v1 prereleases must resolve to v1.x-pre-release"
 [[ "$(release_branch_for_version 1.0.0)" == "v1.x-release" ]] \
   || die "v1 release versions must resolve to v1.x-release"
-declare -f cmd_release_host | grep -Fq 'release-host [--dry-run] <run-dir> [--dry-run]' \
-  || die "release-host must accept a prepared run directory and optional dry-run mode"
+declare -f cmd_release_host | grep -Fq 'release-host [--dry-run] [--reuse-cache] [--ui=auto|textual|plain] <run-dir>' \
+  || die "release-host must accept a prepared run directory and fixed presentation/cache options"
 grep -Fq 'X.Y.Z or X.Y.Z-prerelease' "${SCRIPT_DIR}/build-macos.sh" \
   || die "macOS artifact builds must accept prerelease SemVer"
 grep -Fq 'X.Y.Z or X.Y.Z-prerelease' "${SCRIPT_DIR}/release-runtime-smoke.sh" \
   || die "release runtime smoke must accept prerelease SemVer"
 declare -F publish_release_candidate >/dev/null \
   || die "release candidate protected-branch publisher is missing"
+grep -Fq 'cargo test -- --test-threads=1' "${SCRIPT_DIR}/maintain.sh" \
+  || die "canonical release test gate must serialize process-level visual contracts"
+grep -Fq 'cargo test --test e2e -- --test-threads=1' "${SCRIPT_DIR}/maintain.sh" \
+  || die "canonical local E2E gate must serialize process-level visual contracts"
 
 test_root="$(mktemp -d)"
 trap 'rm -rf "${test_root}"' EXIT

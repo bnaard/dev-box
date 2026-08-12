@@ -228,13 +228,16 @@ cmd_test() {
   ok "Clippy OK"
 
   info "Running tests..."
-  (cd "${CLI_DIR}" && cargo test) || die "Tests failed"
+  # Process-level visual contracts use isolated tmux sockets but still share
+  # host CPU/PTY scheduling. Keep the canonical release invocation
+  # deterministic; callers do not need to remember a contention override.
+  (cd "${CLI_DIR}" && cargo test -- --test-threads=1) || die "Tests failed"
   ok "All tests passed"
 }
 
 cmd_test_e2e() {
   info "Running local E2E contracts (no container-runtime bridge)..."
-  (cd "${CLI_DIR}" && cargo test --test e2e) || die "Local E2E contracts failed"
+  (cd "${CLI_DIR}" && cargo test --test e2e -- --test-threads=1) || die "Local E2E contracts failed"
   ok "Local E2E contracts passed"
 }
 

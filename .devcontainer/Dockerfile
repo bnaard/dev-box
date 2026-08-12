@@ -139,10 +139,10 @@ RUN DEB_ARCH="$(dpkg --print-architecture)" && \
     esac && \
     HUGO_VERSION="0.164.0" && \
     HUGO_ASSET="hugo_extended_${HUGO_VERSION}_linux-${HUGO_ARCH}.tar.gz" && \
-    curl -fsSL \
+    curl -fsSL --retry 5 --retry-all-errors --retry-delay 2 --connect-timeout 30 \
       "https://github.com/gohugoio/hugo/releases/download/v${HUGO_VERSION}/${HUGO_ASSET}" \
       -o /tmp/hugo.tar.gz && \
-    curl -fsSL \
+    curl -fsSL --retry 5 --retry-all-errors --retry-delay 2 --connect-timeout 30 \
       "https://github.com/gohugoio/hugo/releases/download/v${HUGO_VERSION}/hugo_${HUGO_VERSION}_checksums.txt" \
       -o /tmp/hugo_checksums.txt && \
     grep " ${HUGO_ASSET}$" /tmp/hugo_checksums.txt | sed 's#  .*#  /tmp/hugo.tar.gz#' | sha256sum -c && \

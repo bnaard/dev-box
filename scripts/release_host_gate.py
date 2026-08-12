@@ -57,6 +57,54 @@ TASK_PLAN = (
     "addon-tools", "latex-lifecycle", "rootless-podman", "Assemble evidence manifest",
     "Dry-run completion", "Publication",
 )
+# Keep the selection size explicit: it is both an operator affordance and a
+# stable contract for the headless dashboard tests.
+LAST_LOG_LINES = 20
+TASK_GLYPHS = {
+    "pending": "○",
+    "running": "⠋",
+    "passed": "✓",
+    "warned": "!",
+    "skipped": "–",
+    "failed": "✗",
+}
+TASK_STATE_LABELS = {
+    "pending": "pending",
+    "running": "running",
+    "passed": "passed",
+    "warned": "warning",
+    "skipped": "skipped",
+    "failed": "failed",
+}
+
+
+class Problem(NamedTuple):
+    """Canonical dashboard problem model shared by the Problems view and yanks."""
+
+    task: str
+    state: str
+    lines: tuple[str, ...]
+
+
+def classify_log_line(text: str) -> str | None:
+    """Classify diagnostic lines without treating normal progress as errors.
+
+    Raw command output is sanitized only for this presentation model. The
+    authoritative evidence files retain the original text. Warning lines are
+    deliberately distinct: they become Problems only when the task itself
+    enters the warning state (for example, an accepted no-fix scan result).
+    """
+    line = sanitize_display(text).strip()
+    if not line:
+        return None
+    lowered = line.casefold()
+    if re.search(r"\b(?:0|no)\s+(?:fatal\s+)?errors?\b", lowered):
+        return None
+    if re.search(r"\b(?:error|fatal|panic|traceback|exception|failure)\b", lowered):
+        return "error"
+    if re.search(r"\bwarn(?:ing)?\b", lowered):
+        return "warning"
+    return None
 
 
 class PresentationEvent(NamedTuple):
@@ -131,11 +179,17 @@ def run_textual_dashboard(run_argument: str, dry_run: bool) -> int:
         CSS = """
         Screen { layout: vertical; }
         #summary { height: 3; border: round $accent; padding: 0 1; }
-        #progress { height: 3; margin: 0 1; }
+        #progress-box { height: 4; margin: 0 1; }
+        #progress { height: 3; }
+        #progress-label { height: 1; color: $text-muted; }
         #body { height: 1fr; }
-        #tasks { width: 34%; min-width: 28; border: round $accent; }
+        #tasks-panel { width: 34%; min-width: 28; }
+        #tasks { height: 1fr; border: round $accent; }
+        #legend { height: 2; border: round $accent; padding: 0 1; }
+        #problems-title { height: 1; padding: 0 1; color: $warning; }
+        #problems { height: 7; border: round $warning; }
         #log-panel { width: 66%; border: round $accent; }
-        #log { height: 1fr; }
+        #log { height: 1fr; border: round $accent; }
         #log-status { height: 1; color: $text-muted; }
         ListItem { padding: 0 1; }
         ListItem.-active { background: $boost; }
@@ -146,7 +200,9 @@ def run_textual_dashboard(run_argument: str, dry_run: bool) -> int:
             Binding("end", "follow_tail", "Live tail"),
             Binding("ctrl+a", "select_log", "Select log"),
             Binding("ctrl+c", "copy_log", "Copy"),
+            Binding("l", "select_last_lines", f"Last {LAST_LOG_LINES}"),
             Binding("y", "copy_task_log", "Copy task log"),
+            Binding("e", "yank_errors", "Yank errors"),
             Binding("p", "show_log_path", "Evidence path"),
             Binding("question_mark", "help", "Keys"),
             Binding("q", "quit_when_done", "Quit"),
@@ -166,19 +222,36 @@ def run_textual_dashboard(run_argument: str, dry_run: bool) -> int:
             self.container_runtime = "detecting"
             self.spinner_index = 0
             self.log_render_pending = False
+            self.diagnostics: dict[str, dict[str, list[str]]] = {}
+            self.problems: dict[str, Problem] = {}
+            self.problem_order: list[str] = []
 
         def compose(self) -> ComposeResult:
             mode = "dry run" if dry_run else "publication"
             yield Header(show_clock=True)
             yield Static(f"release-host • {mode} • {Path(run_argument).name}", id="summary")
-            yield ProgressBar(total=None, show_eta=False, id="progress")
+            with Vertical(id="progress-box"):
+                yield ProgressBar(total=len(TASK_PLAN), show_eta=False, id="progress")
+                yield Static(f"0/{len(TASK_PLAN)} tasks complete (0%)", id="progress-label")
             with Horizontal(id="body"):
-                yield ListView(
-                    ListItem(Label("● All output"), id="task-0"),
-                    *(ListItem(Label(f"○ {task}")) for task in TASK_PLAN), id="tasks",
-                )
+                with Vertical(id="tasks-panel"):
+                    yield ListView(
+                        ListItem(Label("● All output [all output]"), id="task-0"),
+                        *(ListItem(Label(f"○ {task} [pending]")) for task in TASK_PLAN), id="tasks",
+                    )
+                    yield Static(
+                        "Legend: ○ pending  ⠋ running  ✓ passed  ! warning  – skipped  ✗ failed",
+                        id="legend",
+                    )
+                    yield Static("Problems", id="problems-title")
+                    yield ListView(
+                        *(ListItem(Label("", markup=False), id=f"problem-{index}")
+                          for index in range(len(TASK_PLAN) + 8)),
+                        id="problems",
+                    )
                 with Vertical(id="log-panel"):
-                    yield TextArea("", read_only=True, show_line_numbers=False, soft_wrap=True, id="log")
+                    yield TextArea("", read_only=True, show_line_numbers=False, soft_wrap=True,
+                                   id="log", classes="log-view")
                     yield Static("FOLLOW • WRAP • full evidence: evidence/command-results.log", id="log-status")
             yield Footer()
 
@@ -221,6 +294,12 @@ def run_textual_dashboard(run_argument: str, dry_run: bool) -> int:
                 self.task_logs["All output"].append(clean)
                 if visible_task:
                     self.task_logs.setdefault(event.task, []).append(clean)
+                    for line in clean.splitlines():
+                        classification = classify_log_line(line)
+                        if classification:
+                            bucket = self.diagnostics.setdefault(event.task, {"error": [], "warning": []})
+                            if line.strip() and line not in bucket[classification]:
+                                bucket[classification].append(line)
                 if self.selected_task in {"All output", event.task}:
                     self._schedule_log_render()
                 return
@@ -231,30 +310,74 @@ def run_textual_dashboard(run_argument: str, dry_run: bool) -> int:
                 self._refresh_elapsed()
                 return
             if event.kind == "plan":
-                progress = self.query_one("#progress", ProgressBar)
-                progress.update(total=len(TASK_PLAN), progress=sum(
-                    state in {"passed", "warned", "failed", "skipped"}
-                    for state, _ in self.task_states.values()))
+                self._refresh_progress()
                 return
             if visible_task:
                 self.task_states[event.task] = (event.state or event.kind, event.elapsed)
+                state = event.state or event.kind
+                if state in {"warned", "failed"}:
+                    self._record_problem(event.task, state)
                 self._refresh_tasks()
-                completed = sum(
-                    self.task_states[task][0] in {"passed", "warned", "failed", "skipped"}
-                    for task in TASK_PLAN
-                )
-                progress = self.query_one("#progress", ProgressBar)
-                if progress.total is not None:
-                    progress.update(total=len(TASK_PLAN), progress=completed)
+                self._refresh_progress()
 
         def _refresh_tasks(self) -> None:
-            icons = {"passed": "✓", "warned": "!", "failed": "✗", "skipped": "-"}
             spinner = "⠋⠙⠹⠸⠼⠴⠦⠧⠇⠏"[self.spinner_index]
             view = self.query_one("#tasks", ListView)
             for index, task in enumerate(self.task_order[1:], start=1):
                 state, elapsed = self.task_states.get(task, ("pending", 0.0))
-                icon = spinner if state == "running" else icons.get(state, "○")
-                view.children[index].query_one(Label).update(f"{icon} {task}  {elapsed:.1f}s")
+                icon = spinner if state == "running" else TASK_GLYPHS.get(state, TASK_GLYPHS["pending"])
+                state_label = TASK_STATE_LABELS.get(state, state)
+                duration = f"{elapsed:.1f}s" if state != "skipped" else "skipped"
+                view.children[index].query_one(Label).update(
+                    f"{icon} {task} [{state_label}]  {duration}"
+                )
+
+        def _refresh_progress(self) -> None:
+            """Update fixed-denominator numeric progress, including skips."""
+            completed = sum(
+                self.task_states.get(task, ("pending", 0.0))[0]
+                in {"passed", "warned", "failed", "skipped"}
+                for task in TASK_PLAN
+            )
+            total = len(TASK_PLAN)
+            percent = int((completed * 100) / total) if total else 100
+            self.query_one("#progress", ProgressBar).update(total=total, progress=completed)
+            self.query_one("#progress-label", Static).update(
+                f"{completed}/{total} tasks complete ({percent}%)"
+            )
+
+        def _record_problem(self, task: str, state: str) -> None:
+            """Reduce state and captured diagnostics into one canonical problem."""
+            bucket = self.diagnostics.get(task, {"error": [], "warning": []})
+            lines = list(bucket["error"])
+            if state == "warned":
+                lines.extend(line for line in bucket["warning"] if line not in lines)
+            if not lines:
+                lines = [f"{TASK_STATE_LABELS.get(state, state).capitalize()}: {task}"]
+            previous = self.problems.get(task)
+            if previous and previous.state == "failed":
+                state = "failed"
+            self.problems[task] = Problem(task, state, tuple(lines))
+            if task not in self.problem_order:
+                self.problem_order.append(task)
+            self._refresh_problems()
+
+        def _refresh_problems(self) -> None:
+            view = self.query_one("#problems", ListView)
+            for index, child in enumerate(view.children):
+                if index >= len(self.problem_order):
+                    child.display = index == 0 and not self.problem_order
+                    if index == 0 and not self.problem_order:
+                        child.query_one(Label).update("No warnings or failures")
+                    continue
+                child.display = True
+                task = self.problem_order[index]
+                problem = self.problems[task]
+                label = TASK_STATE_LABELS.get(problem.state, problem.state)
+                text = problem.lines[0][:100]
+                child.query_one(Label).update(
+                    f"{TASK_GLYPHS[problem.state]} {task} [{label}] {text}"
+                )
 
         def _schedule_log_render(self) -> None:
             """Coalesce high-volume subprocess lines into one screen refresh."""
@@ -273,7 +396,12 @@ def run_textual_dashboard(run_argument: str, dry_run: bool) -> int:
                 log.move_cursor(log.document.end)
 
         def on_list_view_selected(self, event: ListView.Selected) -> None:
-            self.selected_task = self.task_order[event.list_view.index or 0]
+            if event.list_view.id == "problems":
+                index = event.list_view.index or 0
+                if index < len(self.problem_order):
+                    self.selected_task = self.problem_order[index]
+            else:
+                self.selected_task = self.task_order[event.list_view.index or 0]
             self._render_log()
 
         def _refresh_elapsed(self) -> None:
@@ -312,6 +440,34 @@ def run_textual_dashboard(run_argument: str, dry_run: bool) -> int:
             if text:
                 self.copy_to_clipboard(text)
                 self.notify("Selection copied")
+            else:
+                self.notify("No log selection to copy", severity="warning", timeout=3)
+
+        def action_select_last_lines(self) -> None:
+            log = self.query_one("#log", TextArea)
+            line_count = log.document.line_count
+            if not line_count:
+                self.notify("No log lines to select", severity="warning", timeout=3)
+                return
+            start = max(0, line_count - LAST_LOG_LINES)
+            end = line_count - 1
+            # Textual's public select_line API handles one row only. Its
+            # Selection reactive accepts the same (line, column) tuples and
+            # preserves normal mouse/keyboard selection behavior.
+            log.selection = ((start, 0), (end, len(log.document[end])))
+            self.notify(f"Selected last {min(LAST_LOG_LINES, line_count)} log lines")
+
+        def action_yank_errors(self) -> None:
+            if not self.problems:
+                self.notify("No warnings or failures to yank", severity="information", timeout=3)
+                return
+            lines = ["aibox release-host problems"]
+            for task in self.problem_order:
+                problem = self.problems[task]
+                lines.append(f"\n[{TASK_STATE_LABELS.get(problem.state, problem.state).upper()}] {task}")
+                lines.extend(f"  {line}" for line in problem.lines)
+            self.copy_to_clipboard("\n".join(lines) + "\n")
+            self.notify(f"Copied {len(self.problems)} warning/failure problem(s)")
 
         def action_copy_task_log(self) -> None:
             self.copy_to_clipboard("".join(self.task_logs.get(self.selected_task, [])))
@@ -321,7 +477,11 @@ def run_textual_dashboard(run_argument: str, dry_run: bool) -> int:
             self.notify("Authoritative log: evidence/command-results.log", timeout=8)
 
         def action_help(self) -> None:
-            self.notify("Tab focus • arrows/page scroll • Space follow • w wrap • Ctrl+A/C select/copy • y copy task • End tail • p evidence path • q quit", timeout=12)
+            self.notify(
+                f"Tab focus • arrows/page scroll • Space follow • w wrap • Ctrl+A/C select/copy • "
+                f"l last {LAST_LOG_LINES} lines • y task log • e yank errors • End tail • p evidence path • q quit",
+                timeout=12,
+            )
 
         def action_quit_when_done(self) -> None:
             if self.finished:

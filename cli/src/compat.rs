@@ -673,6 +673,11 @@ pub static COMPAT_TABLE: &[CompatEntry] = &[
         processkit_version: "v0.28.6",
         note: "Patch release: adds a locked Textual dashboard and reviewed content-addressed cache reuse to the restricted macOS host gate.",
     },
+    CompatEntry {
+        aibox_version: "0.31.4",
+        processkit_version: "v0.28.6",
+        note: "Patch release: makes Hugo downloads resilient to transient network failures, improves the release-host Textual problem workflow, and serializes contention-sensitive E2E gates.",
+    },
 ];
 
 /// Find the minimum compatible processkit version for the given aibox version.

@@ -167,6 +167,16 @@ assert gate.cache_reuse_enabled("1") is True
 assert gate.parse_ui_mode(None) == "auto"
 assert gate.parse_ui_mode("textual") == "textual"
 assert gate.sanitize_display("[bold]literal[/bold]\x1b[31m red\x1b[0m\x1b]0;title\x07") == "[bold]literal[/bold] red"
+assert gate.LAST_LOG_LINES == 20
+assert gate.classify_log_line("error: candidate failed [literal]") == "error"
+assert gate.classify_log_line("warning: no fix listed") == "warning"
+assert gate.classify_log_line("0 errors found") is None
+assert gate.classify_log_line("Build runtime image [running; 12.0s]") is None
+assert 'Binding("e", "yank_errors"' in source
+assert 'Binding("l", "select_last_lines"' in source
+assert 'No log selection to copy' in source
+assert 'id="problems"' in source
+assert 'total=len(TASK_PLAN)' in source
 class FakeTTY:
     def __init__(self, tty): self.tty = tty
     def isatty(self): return self.tty
@@ -289,12 +299,18 @@ def headless_run(self, *args, **kwargs):
     async def verify():
         async with self.run_test(size=size[0]) as pilot:
             await pilot.pause()
+            copied = []
+            notices = []
+            self.copy_to_clipboard = copied.append
+            self.notify = lambda message, **kwargs: notices.append(str(message))
+            lines = "".join(f"successful line {index}\n" for index in range(25))
             self.apply_gate_event(gate.PresentationEvent(
-                "output", task="Build runtime image", text="[bold]literal[/bold] \x1b[31mred\x1b[0m\n"
+                "output", task="Build runtime image",
+                text=lines + "[bold]literal[/bold] \x1b[31mred\x1b[0m\nerror: candidate failed [literal]\n"
             ))
-            self.apply_gate_event(gate.PresentationEvent(
-                "passed", task="Build runtime image", state="passed", elapsed=1.2
-            ))
+            self.apply_gate_event(gate.PresentationEvent("failed", task="Build runtime image", state="failed", elapsed=1.2))
+            self.apply_gate_event(gate.PresentationEvent("output", task="Vulnerability policy", text="warning: no fix listed\n"))
+            self.apply_gate_event(gate.PresentationEvent("warned", task="Vulnerability policy", state="warned", elapsed=2.0))
             self.apply_gate_event(gate.PresentationEvent("plan"))
             # Force the UI's intentionally batched log refresh in the pilot;
             # the synthetic gate worker exits faster than the 10 ms timer.
@@ -302,6 +318,25 @@ def headless_run(self, *args, **kwargs):
             await pilot.pause(0.05)
             assert "[bold]literal[/bold] red" in self.query_one("#log").text, repr(self.query_one("#log").text)
             assert self.query_one("#progress").total == len(gate.TASK_PLAN), self.query_one("#progress").total
+            assert "2/" in str(self.query_one("#progress-label").render()), self.query_one("#progress-label").render()
+            assert set(self.problems) == {"Build runtime image", "Vulnerability policy"}
+            assert sum(child.display for child in self.query_one("#problems").children) == 2
+            self.action_select_last_lines()
+            selected = self.query_one("#log").selected_text
+            assert selected and "successful line 9" in selected and "successful line 8" not in selected
+            self.action_copy_log()
+            assert copied[-1] == selected
+            self.query_one("#log").selection = ((0, 0), (0, 0))
+            self.action_copy_log()
+            assert copied[-1] == selected
+            assert any("No log selection" in notice for notice in notices)
+            self.action_yank_errors()
+            error_bundle = copied[-1]
+            assert "[FAILED] Build runtime image" in error_bundle
+            assert "error: candidate failed [literal]" in error_bundle
+            assert "[WARNING] Vulnerability policy" in error_bundle
+            assert "warning: no fix listed" in error_bundle
+            assert "successful line 1" not in error_bundle
     asyncio.run(verify())
     return 0
 

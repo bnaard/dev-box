@@ -722,6 +722,22 @@ with tempfile.TemporaryDirectory() as tmp:
         '{"mcpServers":{"processkit-runtime-prune":{}}}\n',
         encoding="utf-8",
     )
+    dogfood_server = (
+        root / "context/skills/processkit/actor-profile/mcp/server.py"
+    )
+    source_server = (
+        root / "src/context/skills/processkit/actor-profile/mcp/server.py"
+    )
+    dogfood_server.parent.mkdir(parents=True)
+    source_server.parent.mkdir(parents=True)
+    dogfood_server.write_text(
+        '# /// script\n# dependencies = ["mcp>=1"]\n# ///\n',
+        encoding="utf-8",
+    )
+    source_server.write_text(
+        '# /// script\n# dependencies = ["mcp>=1,<2"]\n# ///\n',
+        encoding="utf-8",
+    )
 
     generator_path = _REPO_ROOT / "scripts" / "generate-mcp-manifest.py"
     spec = importlib.util.spec_from_file_location(
@@ -753,6 +769,17 @@ with tempfile.TemporaryDirectory() as tmp:
             "context/skills/processkit/processkit-gateway/mcp/mcp-config.json"
         ],
         gateway_entries,
+    )
+    dogfood_headers = generator._collect_server_headers(
+        root, root / "context/skills"
+    )
+    source_headers = generator._collect_server_headers(
+        root, root / "src/context/skills"
+    )
+    check(
+        "manifest generator keeps dogfood and release headers distinct",
+        dogfood_headers[0]["sha256"] != source_headers[0]["sha256"],
+        {"dogfood": dogfood_headers, "source": source_headers},
     )
 
 # ---------------------------------------------------------------------------
@@ -2609,6 +2636,19 @@ with tempfile.TemporaryDirectory() as tmp:
 
 with tempfile.TemporaryDirectory() as tmp:
     root = Path(tmp)
+    nested = root / "vendor" / "nested-repo"
+    nested.mkdir(parents=True)
+    (nested / ".git").write_text("gitdir: elsewhere\n", encoding="utf-8")
+    (nested / "package.json").write_text('{"name":"nested"}\n', encoding="utf-8")
+    generated = root / "tmp" / "host-gates" / "cargo-home" / "crate"
+    generated.mkdir(parents=True)
+    (generated / "Cargo.toml").write_text("[package]\nname='cached'\n", encoding="utf-8")
+    findings = _supply_chain_run({"repo_root": root, "since_files": None})
+    missing = [item.message for item in findings if item.id == "supply_chain.missing-lockfile"]
+    check("21d: nested repositories and generated tmp trees are skipped", not missing, missing)
+
+with tempfile.TemporaryDirectory() as tmp:
+    root = Path(tmp)
     policy = root / ".processkit"
     policy.mkdir()
     (policy / "supply-chain-policy.yaml").write_text(
@@ -2666,14 +2706,14 @@ with tempfile.TemporaryDirectory() as tmp:
 
     core_findings = _supply_chain_run({"repo_root": root, "since_files": None})
     ids = {item.id for item in core_findings}
-    check("21d: denied license emits ERROR", "supply_chain.denied-license" in ids)
-    check("21e: review license emits WARN", "supply_chain.review-license" in ids)
-    check("21f: unknown license emits WARN", "supply_chain.unknown-license" in ids)
-    check("21g: skipped scanner is WARN", "supply_chain.scanner-skipped" in ids)
-    check("21h: high severity vulnerability emits ERROR", "supply_chain.high-or-critical-vulnerability" in ids)
-    check("21i: outdated signal remains advisory", "supply_chain.advisory-outdated" in ids)
-    check("21j: supplier quality remains advisory", "supply_chain.advisory-supplier-quality" in ids)
-    check("21k: sbom files are reported", "supply_chain.sbom-found" in ids)
+    check("21e: denied license emits ERROR", "supply_chain.denied-license" in ids)
+    check("21f: review license emits WARN", "supply_chain.review-license" in ids)
+    check("21g: unknown license emits WARN", "supply_chain.unknown-license" in ids)
+    check("21h: skipped scanner is WARN", "supply_chain.scanner-skipped" in ids)
+    check("21i: high severity vulnerability emits ERROR", "supply_chain.high-or-critical-vulnerability" in ids)
+    check("21j: outdated signal remains advisory", "supply_chain.advisory-outdated" in ids)
+    check("21k: supplier quality remains advisory", "supply_chain.advisory-supplier-quality" in ids)
+    check("21l: sbom files are reported", "supply_chain.sbom-found" in ids)
 
 # ---------------------------------------------------------------------------
 # Test 22: sensitive_data — deterministic findings plus briefing

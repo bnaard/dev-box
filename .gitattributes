@@ -1,0 +1,4 @@
+# Immutable upstream processkit mirrors may contain Markdown hard-break spaces
+# and terminal blank lines. Preserve them byte-for-byte without making local
+# whitespace validation fail.
+context/templates/processkit/** whitespace=-trailing-space,-blank-at-eof
