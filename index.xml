@@ -260,7 +260,7 @@ OrbStack works through its Docker-compatible runtime and Compose integration.&lt
 &lt;/span&gt;&lt;/span&gt;&lt;span class="line"&gt;&lt;span class="cl"&gt;
 &lt;/span&gt;&lt;/span&gt;&lt;span class="line"&gt;&lt;span class="cl"&gt;&lt;span class="p"&gt;[&lt;/span&gt;&lt;span class="nx"&gt;addons&lt;/span&gt;&lt;span class="p"&gt;.&lt;/span&gt;&lt;span class="nx"&gt;node&lt;/span&gt;&lt;span class="p"&gt;.&lt;/span&gt;&lt;span class="nx"&gt;tools&lt;/span&gt;&lt;span class="p"&gt;]&lt;/span&gt;
 &lt;/span&gt;&lt;/span&gt;&lt;span class="line"&gt;&lt;span class="cl"&gt;&lt;span class="nx"&gt;node&lt;/span&gt; &lt;span class="p"&gt;=&lt;/span&gt; &lt;span class="p"&gt;{&lt;/span&gt; &lt;span class="nx"&gt;version&lt;/span&gt; &lt;span class="p"&gt;=&lt;/span&gt; &lt;span class="s2"&gt;&amp;#34;26&amp;#34;&lt;/span&gt; &lt;span class="p"&gt;}&lt;/span&gt;
-&lt;/span&gt;&lt;/span&gt;&lt;span class="line"&gt;&lt;span class="cl"&gt;&lt;span class="nx"&gt;pnpm&lt;/span&gt; &lt;span class="p"&gt;=&lt;/span&gt; &lt;span class="p"&gt;{&lt;/span&gt; &lt;span class="nx"&gt;version&lt;/span&gt; &lt;span class="p"&gt;=&lt;/span&gt; &lt;span class="s2"&gt;&amp;#34;11.20.0&amp;#34;&lt;/span&gt; &lt;span class="p"&gt;}&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span class="line"&gt;&lt;span class="cl"&gt;&lt;span class="nx"&gt;pnpm&lt;/span&gt; &lt;span class="p"&gt;=&lt;/span&gt; &lt;span class="p"&gt;{&lt;/span&gt; &lt;span class="nx"&gt;version&lt;/span&gt; &lt;span class="p"&gt;=&lt;/span&gt; &lt;span class="s2"&gt;&amp;#34;11.21.0&amp;#34;&lt;/span&gt; &lt;span class="p"&gt;}&lt;/span&gt;
 &lt;/span&gt;&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;p&gt;Each addon has &lt;strong&gt;default-enabled tools&lt;/strong&gt; that are included automatically, and &lt;strong&gt;optional tools&lt;/strong&gt; you can enable explicitly. Tools with version selection let you pick from curated, tested versions.&lt;/p&gt;</description></item><item><title>Overview</title><link>https://projectious-work.github.io/aibox/docs/overview/</link><pubDate>Mon, 01 Jan 0001 00:00:00 +0000</pubDate><guid>https://projectious-work.github.io/aibox/docs/overview/</guid><description>&lt;h1 id="overview"&gt;Overview&lt;/h1&gt;
 &lt;p&gt;aibox creates reproducible, AI-ready development workspaces from one project
 configuration file. It is not a new container runtime and it is not a process
@@ -687,39 +687,39 @@ packages live in the optional &lt;code&gt;audio-voice&lt;/code&gt; addon.&lt;/p&
 &lt;/table&gt;
 &lt;h2 id="color-mapping"&gt;Color Mapping&lt;/h2&gt;
 &lt;p&gt;A theme needs these terminal color slots for tmux:&lt;/p&gt;</description></item><item><title>E2E Test Catalogue</title><link>https://projectious-work.github.io/aibox/docs/contributing/e2e-tests/</link><pubDate>Mon, 01 Jan 0001 00:00:00 +0000</pubDate><guid>https://projectious-work.github.io/aibox/docs/contributing/e2e-tests/</guid><description>&lt;h1 id="e2e-test-catalogue"&gt;E2E Test Catalogue&lt;/h1&gt;
-&lt;p&gt;This page describes every end-to-end and integration test in &lt;code&gt;cli/tests/e2e/&lt;/code&gt;
-in plain language. Each entry states the precondition and the expected outcome,
-followed by a reference to the exact test function for traceability.&lt;/p&gt;
-&lt;h2 id="test-tiers"&gt;Test tiers&lt;/h2&gt;
+&lt;p&gt;aibox deliberately has no container-runtime bridge from its development
+container. Tests are placed according to the product behavior they prove, not
+according to the historical runner that happened to execute them.&lt;/p&gt;
+&lt;h2 id="execution-surfaces"&gt;Execution surfaces&lt;/h2&gt;
 &lt;table&gt;
 	&lt;thead&gt;
 			&lt;tr&gt;
-					&lt;th&gt;Tier&lt;/th&gt;
+					&lt;th&gt;Surface&lt;/th&gt;
 					&lt;th&gt;Where it runs&lt;/th&gt;
-					&lt;th&gt;What it needs&lt;/th&gt;
+					&lt;th&gt;Contracts&lt;/th&gt;
 			&lt;/tr&gt;
 	&lt;/thead&gt;
 	&lt;tbody&gt;
 			&lt;tr&gt;
-					&lt;td&gt;&lt;strong&gt;Tier 1&lt;/strong&gt;&lt;/td&gt;
-					&lt;td&gt;Local temp directory&lt;/td&gt;
-					&lt;td&gt;The compiled &lt;code&gt;aibox&lt;/code&gt; binary only&lt;/td&gt;
+					&lt;td&gt;Local&lt;/td&gt;
+					&lt;td&gt;Development container, unique temporary directories&lt;/td&gt;
+					&lt;td&gt;CLI parsing, init/apply, generated files, preservation, configuration, migrations, mocked runtime behavior, terminal rendering&lt;/td&gt;
 			&lt;/tr&gt;
 			&lt;tr&gt;
-					&lt;td&gt;&lt;strong&gt;Tier 1 + Mock&lt;/strong&gt;&lt;/td&gt;
-					&lt;td&gt;Local temp directory&lt;/td&gt;
-					&lt;td&gt;Binary + mock &lt;code&gt;docker&lt;/code&gt;/&lt;code&gt;podman&lt;/code&gt; scripts on PATH&lt;/td&gt;
+					&lt;td&gt;Local visual&lt;/td&gt;
+					&lt;td&gt;Development container, per-test tmux socket&lt;/td&gt;
+					&lt;td&gt;Real panes, layouts, keybindings, Yazi/Vim interaction, asciinema output&lt;/td&gt;
 			&lt;/tr&gt;
 			&lt;tr&gt;
-					&lt;td&gt;&lt;strong&gt;Tier 2&lt;/strong&gt;&lt;/td&gt;
-					&lt;td&gt;Remote SSH companion&lt;/td&gt;
-					&lt;td&gt;&lt;code&gt;aibox-e2e-testrunner&lt;/code&gt; container reachable (feature flag &lt;code&gt;e2e&lt;/code&gt;)&lt;/td&gt;
+					&lt;td&gt;Release host&lt;/td&gt;
+					&lt;td&gt;Owner-controlled macOS gate&lt;/td&gt;
+					&lt;td&gt;Native Darwin binaries and genuine candidate-image build/start/probe/down behavior&lt;/td&gt;
 			&lt;/tr&gt;
 	&lt;/tbody&gt;
 &lt;/table&gt;
-&lt;p&gt;Tier 1 tests run automatically with &lt;code&gt;cargo test&lt;/code&gt;. Tier 2 tests require the
-companion container and the &lt;code&gt;--features e2e&lt;/code&gt; flag. The expensive visual matrix
-tests are opt-in and are not included in the default Tier 2 command.&lt;/p&gt;</description></item><item><title>Existing Project</title><link>https://projectious-work.github.io/aibox/docs/getting-started/existing-project/</link><pubDate>Mon, 01 Jan 0001 00:00:00 +0000</pubDate><guid>https://projectious-work.github.io/aibox/docs/getting-started/existing-project/</guid><description>&lt;h1 id="existing-project"&gt;Existing Project&lt;/h1&gt;
+&lt;p&gt;Run the complete local suite with &lt;code&gt;cd cli &amp;amp;&amp;amp; cargo test&lt;/code&gt;. The compatibility
+feature &lt;code&gt;e2e&lt;/code&gt; no longer grants access to another machine or runtime. Opt-in
+visual matrices run with:&lt;/p&gt;</description></item><item><title>Existing Project</title><link>https://projectious-work.github.io/aibox/docs/getting-started/existing-project/</link><pubDate>Mon, 01 Jan 0001 00:00:00 +0000</pubDate><guid>https://projectious-work.github.io/aibox/docs/getting-started/existing-project/</guid><description>&lt;h1 id="existing-project"&gt;Existing Project&lt;/h1&gt;
 &lt;p&gt;This guide covers adding aibox to a project that already exists.&lt;/p&gt;
 &lt;h2 id="create-aiboxtoml"&gt;Create aibox.toml&lt;/h2&gt;
 &lt;p&gt;If your project does not yet have a &lt;code&gt;aibox.toml&lt;/code&gt;, create one manually or use &lt;code&gt;init&lt;/code&gt;:&lt;/p&gt;
