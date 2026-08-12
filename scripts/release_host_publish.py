@@ -33,6 +33,7 @@ IMPACT_EVIDENCE = {
     "latex-lifecycle": "evidence/container-e2e/latex-lifecycle.json",
     "rootless-podman": "evidence/container-e2e/rootless-podman.json",
 }
+LOCAL_CANDIDATE_EVIDENCE = "evidence/container-e2e/local-candidate-substitution.env"
 
 
 def fail(message: str) -> "None":
@@ -112,6 +113,13 @@ def main() -> None:
     if {artifact.name for artifact in artifacts} != expected_names:
         fail("manifest Darwin artifact names are outside the fixed release contract")
     required_evidence = set(BASE_REQUIRED_EVIDENCE)
+    # OrbStack and other Docker-compatible daemons can require a daemon-local,
+    # single-manifest alias while exercising the unpublished candidate image.
+    # The validator records that substitution as evidence.  Require it in the
+    # manifest whenever the file exists, while retaining the exact allowlist so
+    # an arbitrary extra path cannot cross the publication boundary.
+    if (run_dir / LOCAL_CANDIDATE_EVIDENCE).exists():
+        required_evidence.add(LOCAL_CANDIDATE_EVIDENCE)
     selection = json.loads((evidence / "container-e2e/impact-selection.json").read_text(encoding="utf-8"))
     if set(selection) != {"comparison_tag", "comparison_commit", "changed_paths", "selected", "skipped"}:
         fail("impact-selection evidence has an unexpected schema")

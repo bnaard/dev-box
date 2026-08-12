@@ -95,24 +95,44 @@ security scans, and manifest creation without invoking publication:
 ./scripts/maintain.sh release-host tmp/host-gates/aibox-release/<run-id> --dry-run
 ```
 
+Add `--ui=textual` to require the interactive dashboard or `--ui=plain` to
+retain line-oriented output. `--ui=auto` is the default and selects Textual
+only for a suitable TTY. The dashboard shows completed high-level tasks in a
+progress bar, keeps passed/failed/skipped task rows visible, and lets the
+operator filter a bordered log by task. Space toggles follow mode, `w` toggles
+soft wrapping, Ctrl+A/C selects and copies, `y` copies the current task log,
+End returns to the live tail, and `p` reveals the evidence path.
+
+The dashboard is presentation, not evidence. Raw command output remains in
+`evidence/command-results.log` and high-level transitions remain in
+`evidence/steps.log`; use those files for complete copied or attached logs.
+
 The completed run directory can later be published with the exact
 `release-host-publish.sh` command printed by the validator. Do not rerun the
 gate without `--dry-run`; populated `runtime/` and `evidence/` directories are
 intentionally non-resumable.
 
-The entry point accepts that one path plus the optional fixed `--dry-run` flag. It canonicalizes the path,
+The entry point accepts that one path plus optional fixed `--dry-run`,
+`--reuse-cache`, and `--ui=auto|textual|plain` flags. It canonicalizes the path,
 requires one direct child of the approved root, rejects symlinks, special
 files, hardlinks, unexpected files, unsafe permissions, bad checksums, and
 tag/commit mismatches, then creates `runtime/` and `evidence/` itself.
 
-The entry point uses the owner-installed uv binary from the fixed Homebrew path
-and requires the exact Python `3.12.11` interpreter in offline mode with
-`--no-project`. Its cache and managed-Python roots are fixed beneath
+The entry point uses the owner-installed uv binary from a reviewed fixed path
+and requires exact Python `3.14.6` with `--no-project`. It provisions the
+hash-locked Textual `8.2.8` environment from `scripts/release-host-ui.lock`;
+candidate PEP 723 and project metadata remain disabled. Its cache and
+managed-Python roots are fixed beneath
 `~/Library/Caches/aibox-host-gates/uv` and
 `~/Library/Application Support/aibox-host-gates/python`; candidate
-`pyproject.toml`, inline metadata, uv configuration, package indexes, and
-inherited `UV_*` variables cannot affect execution. The resolved uv/Python
-versions and paths are recorded in evidence.
+`pyproject.toml`, inline metadata, uv configuration, and inherited `UV_*`
+variables cannot affect execution. The resolved uv, Python, Textual, lockfile,
+and tool paths are recorded in evidence.
+
+`--reuse-cache` is intended for repeated rehearsals. It permits
+content-addressed container layer reuse while retaining the complete command,
+runtime, scan, cleanup, and evidence surface. Without it, downstream images
+are rebuilt without cache.
 
 Candidate compilation, build scripts, CLI execution, and runtime smoke run
 with a fixed sanitized environment and a macOS sandbox that denies access to

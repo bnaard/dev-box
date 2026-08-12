@@ -108,6 +108,21 @@ To rehearse the complete host validation and evidence path without uploading
 artifacts or pushing images, append `--dry-run` to that command. A successful
 dry run prints the explicit publisher command for the verified run directory.
 
+The host gate defaults to `--ui=auto`: an interactive terminal receives a
+Textual dashboard with a task-count progress bar, persistent task states, and
+a bordered selectable log; redirected output retains the plain streaming
+renderer. Use `--ui=textual` to require the dashboard or `--ui=plain` for CI,
+captured logs, and troubleshooting. Space toggles live-tail, `w` toggles
+wrapping, Ctrl+A/C selects and copies log text, `y` copies the selected task
+log, End resumes following, and `p` shows the authoritative log path.
+Presentation is never release evidence: attach
+`evidence/command-results.log` when complete unabridged output is needed.
+
+For a repeated candidate rehearsal, add `--reuse-cache` to permit verified
+content-addressed container layers to be reused. The gate still runs every
+build command, smoke test, inspection, SBOM generation, vulnerability scan,
+and evidence check; the default remains fresh downstream image layers.
+
 Release validation and publication run locally. Do not introduce GitHub Actions
 or another hosted CI release path. The local release tooling runs independent
 gates concurrently, records exact-commit evidence under `dist/release-evidence/`,
