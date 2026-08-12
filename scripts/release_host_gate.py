@@ -310,6 +310,8 @@ class Runner:
                                    stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
         with (self.log.parent / "command-results.log").open("a", encoding="utf-8") as results:
             results.write(f"$ {rendered}\n{completed.stdout}\nexit={completed.returncode}\n")
+        if completed.returncode != 0 and completed.stdout:
+            print(completed.stdout, end="" if completed.stdout.endswith("\n") else "\n", flush=True)
         completed.check_returncode()
         return completed.stdout
 
@@ -576,8 +578,22 @@ def run_rootless_podman(runner: Runner, profile: Path, env: dict[str, str], cand
         runner.run([container_runtime, "compose", "-f", str(compose_file), "up", "-d", name], cwd=project)
         runner.run([container_runtime, "exec", "--user", "aibox", name, "podman", "--version"])
         runner.run([container_runtime, "exec", "--user", "aibox", name, "podman-compose", "--version"])
-        rootless = runner.capture([container_runtime, "exec", "--user", "aibox", name, "podman",
-                                   "info", "--format", "{{.Host.Security.Rootless}}"])
+        user_id = runner.capture(
+            [container_runtime, "exec", "--user", "aibox", name, "id", "-u"]
+        ).strip()
+        group_id = runner.capture(
+            [container_runtime, "exec", "--user", "aibox", name, "id", "-g"]
+        ).strip()
+        if not user_id.isdecimal() or not group_id.isdecimal():
+            fail("could not determine the aibox UID/GID for rootless Podman")
+        runtime_dir = f"/run/user/{user_id}"
+        runner.run([container_runtime, "exec", "--user", "root", name, "install", "-d",
+                    "-m", "0700", "-o", user_id, "-g", group_id, runtime_dir])
+        rootless = runner.capture([
+            container_runtime, "exec", "--user", "aibox",
+            "--env", "HOME=/home/aibox", "--env", f"XDG_RUNTIME_DIR={runtime_dir}",
+            name, "podman", "info", "--format", "{{.Host.Security.Rootless}}",
+        ])
         if rootless.strip().lower() != "true":
             fail("nested Podman did not report a rootless runtime")
         result = evidence / "container-e2e/rootless-podman.json"
