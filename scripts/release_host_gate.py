@@ -463,6 +463,15 @@ def dry_run_enabled(value: str | None) -> bool:
     fail("AIBOX_RELEASE_HOST_DRY_RUN must be exactly 0 or 1")
 
 
+def cache_reuse_enabled(value: str | None) -> bool:
+    """Parse the reviewed cache policy without accepting ambiguous values."""
+    if value in (None, "0"):
+        return False
+    if value == "1":
+        return True
+    fail("AIBOX_RELEASE_HOST_REUSE_CACHE must be exactly 0 or 1")
+
+
 def sha256(path: Path) -> str:
     """Return the streaming SHA-256 digest of *path* as lowercase hex."""
     digest = hashlib.sha256()
@@ -724,8 +733,12 @@ def prepare_project_build(runner: Runner, profile: Path, env: dict[str, str], ca
     builder. Podman continues through the normal candidate ``apply`` path.
     """
     local_ref = env.get("AIBOX_RELEASE_SMOKE_LOCAL_CANDIDATE_REF", "")
+    reuse_cache = env.get("AIBOX_RELEASE_HOST_REUSE_CACHE") == "1"
     if not local_ref:
-        runner.run(sandboxed(profile, [str(candidate_bin), "--yes", "apply", "--no-cache"], env),
+        apply_command = [str(candidate_bin), "--yes", "apply"]
+        if not reuse_cache:
+            apply_command.append("--no-cache")
+        runner.run(sandboxed(profile, apply_command, env),
                    cwd=project)
         return
 
@@ -739,8 +752,11 @@ def prepare_project_build(runner: Runner, profile: Path, env: dict[str, str], ca
         fail(f"generated Dockerfile in {project.name} has no unique candidate FROM line")
     dockerfile.write_text(content.replace(expected, replacement, 1), encoding="utf-8")
     compose_file = project / ".devcontainer/docker-compose.yml"
-    runner.run(["/usr/bin/env", "DOCKER_BUILDKIT=0", "COMPOSE_DOCKER_CLI_BUILD=0",
-                container_runtime, "compose", "-f", str(compose_file), "build", "--no-cache"],
+    build_command = ["/usr/bin/env", "DOCKER_BUILDKIT=0", "COMPOSE_DOCKER_CLI_BUILD=0",
+                     container_runtime, "compose", "-f", str(compose_file), "build"]
+    if not reuse_cache:
+        build_command.append("--no-cache")
+    runner.run(build_command,
                cwd=project)
 
 
@@ -926,6 +942,7 @@ def run_gate(renderer: object | None = None) -> None:
     if len(sys.argv) != 2:
         fail("expected exactly one run-directory argument")
     dry_run = dry_run_enabled(os.environ.get("AIBOX_RELEASE_HOST_DRY_RUN"))
+    reuse_cache = cache_reuse_enabled(os.environ.get("AIBOX_RELEASE_HOST_REUSE_CACHE"))
     if subprocess.run(["/usr/bin/uname", "-s"], check=True, capture_output=True, text=True).stdout.strip() != "Darwin":
         fail("this gate must run on macOS")
 
@@ -1054,6 +1071,7 @@ def run_gate(renderer: object | None = None) -> None:
         "CARGO_HOME": str(cargo_home), "RUSTUP_HOME": str(original_home / ".rustup"),
         "CARGO_NET_OFFLINE": "true", "RUST_BACKTRACE": "1",
         "AIBOX_RELEASE_HOST_OFFLINE": "1",
+        "AIBOX_RELEASE_HOST_REUSE_CACHE": "1" if reuse_cache else "0",
         "AIBOX_ADDONS_DIR": str(source_root / "addons"),
     }
     (runtime / "tmp").mkdir()
@@ -1114,6 +1132,7 @@ def run_gate(renderer: object | None = None) -> None:
         "home": fixed_env["HOME"], "docker_config": fixed_env["DOCKER_CONFIG"],
         "docker_buildkit": fixed_env["DOCKER_BUILDKIT"],
         "container_runtime": container_runtime,
+        "container_cache_policy": "reuse content-addressed layers" if reuse_cache else "force downstream rebuilds",
         "docker_cli_plugin_sources": docker_cli_plugin_sources,
         "gh_config_dir": fixed_env["GH_CONFIG_DIR"],
     }, indent=2, sort_keys=True) + "\n", encoding="utf-8")

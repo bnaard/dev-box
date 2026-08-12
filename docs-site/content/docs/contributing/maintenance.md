@@ -169,6 +169,11 @@ log, End resumes the live tail, and `p` displays the authoritative evidence
 path. The UI is presentation rather than evidence; full output is retained in
 `evidence/command-results.log`.
 
+For a repeated candidate rehearsal, append `--reuse-cache`. This permits the
+container engine to reuse content-addressed build layers but does not skip any
+gate task, runtime probe, security scan, cleanup, or evidence validation. Fresh
+downstream image layers remain the default.
+
 The reviewed entry point accepts only that run-directory path. It rejects
 traversal, symlinks, special files, hardlinks, unexpected inputs, unsafe
 permissions, checksum drift, and tag/commit mismatches. A previous partial run

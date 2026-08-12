@@ -15,6 +15,10 @@ if "${SCRIPT_DIR}/release-host-gate.sh" --dry-run --dry-run >/dev/null 2>&1; the
   echo "release-host gate accepted duplicate dry-run flags" >&2
   exit 1
 fi
+if "${SCRIPT_DIR}/release-host-gate.sh" --reuse-cache --reuse-cache >/dev/null 2>&1; then
+  echo "release-host gate accepted duplicate cache-reuse flags" >&2
+  exit 1
+fi
 
 grep -Fq '"${OWNER_HOME}/.local/bin/uv"' "${SCRIPT_DIR}/release-host-gate.sh" || {
   echo "release-host gate does not accept uv's owner-local installer path" >&2
@@ -157,6 +161,9 @@ assert gate.VERSION_TAG.fullmatch("v1.0.0-alpha.2")
 assert gate.dry_run_enabled(None) is False
 assert gate.dry_run_enabled("0") is False
 assert gate.dry_run_enabled("1") is True
+assert gate.cache_reuse_enabled(None) is False
+assert gate.cache_reuse_enabled("0") is False
+assert gate.cache_reuse_enabled("1") is True
 assert gate.parse_ui_mode(None) == "auto"
 assert gate.parse_ui_mode("textual") == "textual"
 assert gate.sanitize_display("[bold]literal[/bold]\x1b[31m red\x1b[0m\x1b]0;title\x07") == "[bold]literal[/bold] red"

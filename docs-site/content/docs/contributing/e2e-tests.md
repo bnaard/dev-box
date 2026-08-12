@@ -112,8 +112,8 @@ The completed run directory can later be published with the exact
 gate without `--dry-run`; populated `runtime/` and `evidence/` directories are
 intentionally non-resumable.
 
-The entry point accepts that one path plus optional fixed `--dry-run` and
-`--ui=auto|textual|plain` flags. It canonicalizes the path,
+The entry point accepts that one path plus optional fixed `--dry-run`,
+`--reuse-cache`, and `--ui=auto|textual|plain` flags. It canonicalizes the path,
 requires one direct child of the approved root, rejects symlinks, special
 files, hardlinks, unexpected files, unsafe permissions, bad checksums, and
 tag/commit mismatches, then creates `runtime/` and `evidence/` itself.
@@ -128,6 +128,11 @@ managed-Python roots are fixed beneath
 `pyproject.toml`, inline metadata, uv configuration, and inherited `UV_*`
 variables cannot affect execution. The resolved uv, Python, Textual, lockfile,
 and tool paths are recorded in evidence.
+
+`--reuse-cache` is intended for repeated rehearsals. It permits
+content-addressed container layer reuse while retaining the complete command,
+runtime, scan, cleanup, and evidence surface. Without it, downstream images
+are rebuilt without cache.
 
 Candidate compilation, build scripts, CLI execution, and runtime smoke run
 with a fixed sanitized environment and a macOS sandbox that denies access to

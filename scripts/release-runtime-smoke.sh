@@ -340,7 +340,8 @@ EOF
 fi
 
 apply_args=(apply --standardize-config)
-if [[ "${AIBOX_RELEASE_SMOKE_NO_CACHE:-0}" =~ ^(1|true|yes)$ || "${smoke_tier}" == "full" ]]; then
+if [[ ! "${AIBOX_RELEASE_HOST_REUSE_CACHE:-0}" =~ ^(1|true|yes)$ ]] \
+  && { [[ "${AIBOX_RELEASE_SMOKE_NO_CACHE:-0}" =~ ^(1|true|yes)$ ]] || [[ "${smoke_tier}" == "full" ]]; }; then
   apply_args+=(--no-cache)
 fi
 if [[ -n "${local_candidate_ref}" ]]; then
@@ -348,7 +349,8 @@ if [[ -n "${local_candidate_ref}" ]]; then
   run env AIBOX_ADDONS_DIR="${PROJECT_ROOT}/addons" "${aibox_bin}" "${apply_args[@]}"
   prepare_local_candidate_dockerfile
   build_args=(-f "$(compose_file)" build)
-  if [[ "${AIBOX_RELEASE_SMOKE_NO_CACHE:-0}" =~ ^(1|true|yes)$ || "${smoke_tier}" == "full" ]]; then
+  if [[ ! "${AIBOX_RELEASE_HOST_REUSE_CACHE:-0}" =~ ^(1|true|yes)$ ]] \
+    && { [[ "${AIBOX_RELEASE_SMOKE_NO_CACHE:-0}" =~ ^(1|true|yes)$ ]] || [[ "${smoke_tier}" == "full" ]]; }; then
     build_args+=(--no-cache)
   fi
   run candidate_image_env compose "${build_args[@]}"

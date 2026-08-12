@@ -118,6 +118,11 @@ log, End resumes following, and `p` shows the authoritative log path.
 Presentation is never release evidence: attach
 `evidence/command-results.log` when complete unabridged output is needed.
 
+For a repeated candidate rehearsal, add `--reuse-cache` to permit verified
+content-addressed container layers to be reused. The gate still runs every
+build command, smoke test, inspection, SBOM generation, vulnerability scan,
+and evidence check; the default remains fresh downstream image layers.
+
 Release validation and publication run locally. Do not introduce GitHub Actions
 or another hosted CI release path. The local release tooling runs independent
 gates concurrently, records exact-commit evidence under `dist/release-evidence/`,
