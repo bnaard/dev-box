@@ -195,7 +195,10 @@ Critical findings with a listed fixed version block the release; findings with
 no listed fix remain explicit non-blocking warnings in the evidence. It also
 verifies the checksummed comparison tag, commit, and changed-path list, then
 runs affected addon build groups, the LaTeX watcher/preview lifecycle, and the
-rootless Podman probe when relevant inputs changed. No comparison tag selects
+rootless Podman readiness probe when relevant inputs changed. The readiness
+probe verifies the unprivileged binaries, subordinate ID ranges, namespace
+helpers, storage/network helpers, and container configuration without granting
+the outer development container privileges for nested user-namespace execution. No comparison tag selects
 all three surfaces. Every command, selection reason, skip reason, and result is
 retained beneath `evidence/` with toolchain metadata, image inspection, runtime
 logs, hashes, and a release manifest.

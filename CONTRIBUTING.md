@@ -44,7 +44,7 @@ Real candidate-image lifecycle evidence runs only through the owner-controlled
 macOS release host gate. Its core candidate lifecycle, native Darwin smoke,
 cleanup, SBOM, and vulnerability checks run for every release. Checksummed
 changed-path provenance additionally selects affected download-based addon
-builds, the LaTeX watcher/preview lifecycle, and the rootless Podman probe.
+builds, the LaTeX watcher/preview lifecycle, and the rootless Podman readiness probe.
 
 ### Visual E2E tiers
 

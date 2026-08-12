@@ -69,10 +69,14 @@ grep -Fq 'def prepare_project_build' "${SCRIPT_DIR}/release_host_gate.py" || {
   echo "release host gate conditional projects must share local-candidate build handling" >&2
   exit 1
 }
-grep -Fq 'XDG_RUNTIME_DIR=' "${SCRIPT_DIR}/release_host_gate.py" || {
-  echo "rootless Podman probe must establish its ephemeral user runtime directory" >&2
+grep -Fq '"rootless_readiness": True' "${SCRIPT_DIR}/release_host_gate.py" || {
+  echo "rootless Podman probe must retain explicit readiness evidence" >&2
   exit 1
 }
+if grep -Fq 'Security.Rootless' "${SCRIPT_DIR}/release_host_gate.py"; then
+  echo "restricted host gate must not require nested user-namespace execution" >&2
+  exit 1
+fi
 
 for entrypoint in release-host-gate.sh release-host-publish.sh; do
   if grep -Eq '(^|[[:space:]])(sudo|su|doas|eval|source)([[:space:]]|$)|bash -c|sh -c' \
