@@ -29,6 +29,11 @@ visual matrices run with:
 ./scripts/maintain.sh test-e2e-visual
 ```
 
+The canonical release and local-E2E gates pass `--test-threads=1`. The visual
+tests share host PTY and tmux scheduling even though each owns a separate
+socket; keeping the default serialized prevents slow Yazi/Vim cases from
+timing out behind another process-level visual test.
+
 Every process-level visual test removes inherited `TMUX` and `TMUX_PANE`, owns
 a socket beneath its `TempDir`, and cleans up only its own server. Tests must
 not use global `tmux kill-server`, broad `/tmp/tmux-*` removal, or global
@@ -101,8 +106,11 @@ retain line-oriented output. `--ui=auto` is the default and selects Textual
 only for a suitable TTY. The dashboard shows completed high-level tasks in a
 progress bar, keeps passed/failed/skipped task rows visible, and lets the
 operator filter a bordered log by task. Space toggles follow mode, `w` toggles
-soft wrapping, Ctrl+A/C selects and copies, `y` copies the current task log,
-End returns to the live tail, and `p` reveals the evidence path.
+soft wrapping, Ctrl+A selects, Ctrl+C copies only the marked selection, `l`
+selects the last 20 log lines, `y` copies the current task log, and `e` copies
+the canonical warning/failure Problems bundle. The Problems panel can be
+selected to filter the log. End returns to the live tail, and `p` reveals the
+evidence path.
 
 The dashboard is presentation, not evidence. Raw command output remains in
 `evidence/command-results.log` and high-level transitions remain in

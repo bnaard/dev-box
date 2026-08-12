@@ -1147,6 +1147,11 @@ below shows the minimum compatible processkit version for each aibox release.&lt
 	&lt;/thead&gt;
 	&lt;tbody&gt;
 			&lt;tr&gt;
+					&lt;td&gt;0.31.4&lt;/td&gt;
+					&lt;td&gt;v0.28.6&lt;/td&gt;
+					&lt;td&gt;makes Hugo downloads resilient to transient network failures, improves the release-host Textual problem workflow, and serializes contention-sensitive E2E gates&lt;/td&gt;
+			&lt;/tr&gt;
+			&lt;tr&gt;
 					&lt;td&gt;0.31.3&lt;/td&gt;
 					&lt;td&gt;v0.28.6&lt;/td&gt;
 					&lt;td&gt;adds a locked Textual dashboard and reviewed content-addressed cache reuse to the restricted macOS host gate&lt;/td&gt;

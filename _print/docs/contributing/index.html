@@ -33,7 +33,7 @@ Dark
 <svg class="bi ms-auto d-none"><use href="#check2"/></svg></button></li><li><button type=button class="dropdown-item d-flex align-items-center active" data-bs-theme-value=auto aria-pressed=true>
 <svg class="bi me-2 opacity-50"><use href="#circle-half"/></svg>
 Auto
-<svg class="bi ms-auto d-none"><use href="#check2"/></svg></button></li></ul></div></li></ul><div class="scroll-indicator scroll-right"></div></div><div class="td-navbar__search d-none d-lg-block"><div class="td-search td-search--offline"><div class=td-search__icon></div><input type=search name=q class="td-search__input form-control" placeholder='Search this site…' aria-label='Search this site…' autocomplete=off data-offline-search-index-json-src=/aibox/offline-search-index.ee1221e49e366cda55500df323f246cc.json data-offline-search-base-href=/ data-offline-search-max-results=25></div></div></div></nav></header><div class="container-fluid td-outer"><div class=td-main><div class="row flex-xl-nowrap"><main class="col-12 col-md-9 col-xl-8 ps-md-5" role=main><div class=td-content><div class="pageinfo pageinfo-primary d-print-none"><p>This is the multi-page printable view of this section.
+<svg class="bi ms-auto d-none"><use href="#check2"/></svg></button></li></ul></div></li></ul><div class="scroll-indicator scroll-right"></div></div><div class="td-navbar__search d-none d-lg-block"><div class="td-search td-search--offline"><div class=td-search__icon></div><input type=search name=q class="td-search__input form-control" placeholder='Search this site…' aria-label='Search this site…' autocomplete=off data-offline-search-index-json-src=/aibox/offline-search-index.f8cdf55a45d8c6bf8d3bbd86363b8775.json data-offline-search-base-href=/ data-offline-search-max-results=25></div></div></div></nav></header><div class="container-fluid td-outer"><div class=td-main><div class="row flex-xl-nowrap"><main class="col-12 col-md-9 col-xl-8 ps-md-5" role=main><div class=td-content><div class="pageinfo pageinfo-primary d-print-none"><p>This is the multi-page printable view of this section.
 <a href=# onclick="return print(),!1">Click here to print</a>.</p><p><a href=/aibox/docs/contributing/>Return to the regular view of this page</a>.</p></div><h1 class=title>Contributing</h1><ul><li>1: <a href=#pg-8566528a16f14e761aa65d74c448fcc5>Maintenance</a></li><li>2: <a href=#pg-f657492a8d2edb25e6823477d64c464c>E2E Test Catalogue</a></li><li>3: <a href=#pg-adf0d2cd1145865b8af49c2fe979f6bf>Version-line porting</a></li></ul><div class=content><h1 id=contributing>Contributing</h1><p>Thank you for your interest in contributing to aibox!</p><h2 id=getting-started>Getting Started</h2><ol><li><p>Fork and clone the repository:</p><div class=highlight><pre tabindex=0 class=chroma><code class=language-bash data-lang=bash><span class=line><span class=cl>git clone https://github.com/projectious-work/aibox.git
 </span></span><span class=line><span class=cl><span class=nb>cd</span> aibox
 </span></span></code></pre></div></li><li><p>Start the development container:</p><div class=highlight><pre tabindex=0 class=chroma><code class=language-bash data-lang=bash><span class=line><span class=cl><span class=nb>cd</span> .devcontainer
@@ -199,7 +199,10 @@ visual matrices run with:</p><div class=highlight><pre tabindex=0 class=chroma><
 </span></span><span class=line><span class=cl>./scripts/maintain.sh test-e2e-visual-tabs
 </span></span><span class=line><span class=cl>./scripts/maintain.sh test-e2e-visual-yazi
 </span></span><span class=line><span class=cl>./scripts/maintain.sh test-e2e-visual
-</span></span></code></pre></div><p>Every process-level visual test removes inherited <code>TMUX</code> and <code>TMUX_PANE</code>, owns
+</span></span></code></pre></div><p>The canonical release and local-E2E gates pass <code>--test-threads=1</code>. The visual
+tests share host PTY and tmux scheduling even though each owns a separate
+socket; keeping the default serialized prevents slow Yazi/Vim cases from
+timing out behind another process-level visual test.</p><p>Every process-level visual test removes inherited <code>TMUX</code> and <code>TMUX_PANE</code>, owns
 a socket beneath its <code>TempDir</code>, and cleans up only its own server. Tests must
 not use global <code>tmux kill-server</code>, broad <code>/tmp/tmux-*</code> removal, or global
 <code>pkill</code>; those operations can terminate the developer&rsquo;s live session.</p><h2 id=removed-companion>Removed companion</h2><p>The former <code>aibox-e2e-testrunner</code>, SSH/SCP runner, nested Podman/systemd/kind
@@ -229,8 +232,11 @@ retain line-oriented output. <code>--ui=auto</code> is the default and selects T
 only for a suitable TTY. The dashboard shows completed high-level tasks in a
 progress bar, keeps passed/failed/skipped task rows visible, and lets the
 operator filter a bordered log by task. Space toggles follow mode, <code>w</code> toggles
-soft wrapping, Ctrl+A/C selects and copies, <code>y</code> copies the current task log,
-End returns to the live tail, and <code>p</code> reveals the evidence path.</p><p>The dashboard is presentation, not evidence. Raw command output remains in
+soft wrapping, Ctrl+A selects, Ctrl+C copies only the marked selection, <code>l</code>
+selects the last 20 log lines, <code>y</code> copies the current task log, and <code>e</code> copies
+the canonical warning/failure Problems bundle. The Problems panel can be
+selected to filter the log. End returns to the live tail, and <code>p</code> reveals the
+evidence path.</p><p>The dashboard is presentation, not evidence. Raw command output remains in
 <code>evidence/command-results.log</code> and high-level transitions remain in
 <code>evidence/steps.log</code>; use those files for complete copied or attached logs.</p><p>The completed run directory can later be published with the exact
 <code>release-host-publish.sh</code> command printed by the validator. Do not rerun the
