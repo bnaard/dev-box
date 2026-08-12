@@ -321,6 +321,16 @@ below shows the minimum compatible processkit version for each aibox release.&lt
 	&lt;/thead&gt;
 	&lt;tbody&gt;
 			&lt;tr&gt;
+					&lt;td&gt;0.31.3&lt;/td&gt;
+					&lt;td&gt;v0.28.6&lt;/td&gt;
+					&lt;td&gt;adds a locked Textual dashboard and reviewed content-addressed cache reuse to the restricted macOS host gate&lt;/td&gt;
+			&lt;/tr&gt;
+			&lt;tr&gt;
+					&lt;td&gt;0.31.2&lt;/td&gt;
+					&lt;td&gt;v0.28.6&lt;/td&gt;
+					&lt;td&gt;replaces privileged companion E2E coverage with isolated local contracts and an owner-controlled, evidence-producing macOS host gate&lt;/td&gt;
+			&lt;/tr&gt;
+			&lt;tr&gt;
 					&lt;td&gt;0.31.1&lt;/td&gt;
 					&lt;td&gt;v0.28.6&lt;/td&gt;
 					&lt;td&gt;repairs incomplete processkit upgrade caches, installs declared skill dependencies, removes stale &lt;code&gt;pk-*&lt;/code&gt; command projections, and consumes source-specific MCP header manifests&lt;/td&gt;

@@ -33,7 +33,7 @@ Dark
 <svg class="bi ms-auto d-none"><use href="#check2"/></svg></button></li><li><button type=button class="dropdown-item d-flex align-items-center active" data-bs-theme-value=auto aria-pressed=true>
 <svg class="bi me-2 opacity-50"><use href="#circle-half"/></svg>
 Auto
-<svg class="bi ms-auto d-none"><use href="#check2"/></svg></button></li></ul></div></li></ul><div class="scroll-indicator scroll-right"></div></div><div class="td-navbar__search d-none d-lg-block"><div class="td-search td-search--offline"><div class=td-search__icon></div><input type=search name=q class="td-search__input form-control" placeholder='Search this site…' aria-label='Search this site…' autocomplete=off data-offline-search-index-json-src=/aibox/offline-search-index.4289d134f54c4166417d96e567b4ba72.json data-offline-search-base-href=/ data-offline-search-max-results=25></div></div></div></nav></header><div class="container-fluid td-outer"><div class=td-main><div class="row flex-xl-nowrap"><main class="col-12 col-md-9 col-xl-8 ps-md-5" role=main><div class=td-content><div class="pageinfo pageinfo-primary d-print-none"><p>This is the multi-page printable view of this section.
+<svg class="bi ms-auto d-none"><use href="#check2"/></svg></button></li></ul></div></li></ul><div class="scroll-indicator scroll-right"></div></div><div class="td-navbar__search d-none d-lg-block"><div class="td-search td-search--offline"><div class=td-search__icon></div><input type=search name=q class="td-search__input form-control" placeholder='Search this site…' aria-label='Search this site…' autocomplete=off data-offline-search-index-json-src=/aibox/offline-search-index.ee1221e49e366cda55500df323f246cc.json data-offline-search-base-href=/ data-offline-search-max-results=25></div></div></div></nav></header><div class="container-fluid td-outer"><div class=td-main><div class="row flex-xl-nowrap"><main class="col-12 col-md-9 col-xl-8 ps-md-5" role=main><div class=td-content><div class="pageinfo pageinfo-primary d-print-none"><p>This is the multi-page printable view of this section.
 <a href=# onclick="return print(),!1">Click here to print</a>.</p><p><a href=/aibox/docs/contributing/>Return to the regular view of this page</a>.</p></div><h1 class=title>Contributing</h1><ul><li>1: <a href=#pg-8566528a16f14e761aa65d74c448fcc5>Maintenance</a></li><li>2: <a href=#pg-f657492a8d2edb25e6823477d64c464c>E2E Test Catalogue</a></li><li>3: <a href=#pg-adf0d2cd1145865b8af49c2fe979f6bf>Version-line porting</a></li></ul><div class=content><h1 id=contributing>Contributing</h1><p>Thank you for your interest in contributing to aibox!</p><h2 id=getting-started>Getting Started</h2><ol><li><p>Fork and clone the repository:</p><div class=highlight><pre tabindex=0 class=chroma><code class=language-bash data-lang=bash><span class=line><span class=cl>git clone https://github.com/projectious-work/aibox.git
 </span></span><span class=line><span class=cl><span class=nb>cd</span> aibox
 </span></span></code></pre></div></li><li><p>Start the development container:</p><div class=highlight><pre tabindex=0 class=chroma><code class=language-bash data-lang=bash><span class=line><span class=cl><span class=nb>cd</span> .devcontainer
@@ -109,7 +109,17 @@ single owner command to <code>dist/RELEASE-PROMPT.md</code>:</p><div class=highl
 all candidate builds, probes, cleanup, SBOM generation, vulnerability scanning,
 and manifest hashing, but it does not invoke GitHub or GHCR publication. The
 validator prints the separate publisher command that can consume the verified
-run directory later.</p><p>The reviewed entry point accepts only that run-directory path. It rejects
+run directory later.</p><p>Interactive terminals use the Textual dashboard by default (<code>--ui=auto</code>). Use
+<code>--ui=textual</code> to fail if the dashboard cannot start, or <code>--ui=plain</code> for
+redirected and captured output. The UI presents a high-level progress bar, a
+persistent task list, and a selectable task-filtered log. Space toggles follow,
+<code>w</code> toggles wrapping, Ctrl+A/C selects and copies, <code>y</code> copies the selected task
+log, End resumes the live tail, and <code>p</code> displays the authoritative evidence
+path. The UI is presentation rather than evidence; full output is retained in
+<code>evidence/command-results.log</code>.</p><p>For a repeated candidate rehearsal, append <code>--reuse-cache</code>. This permits the
+container engine to reuse content-addressed build layers but does not skip any
+gate task, runtime probe, security scan, cleanup, or evidence validation. Fresh
+downstream image layers remain the default.</p><p>The reviewed entry point accepts only that run-directory path. It rejects
 traversal, symlinks, special files, hardlinks, unexpected inputs, unsafe
 permissions, checksum drift, and tag/commit mismatches. A previous partial run
 cannot be resumed: <code>runtime/</code> and <code>evidence/</code> must not exist when it starts.
@@ -214,20 +224,34 @@ non-selection is written to evidence. A selected check cannot pass by skipping.<
 </span></span></code></pre></div><p>The owner runs the single command printed in <code>dist/RELEASE-PROMPT.md</code>:</p><div class=highlight><pre tabindex=0 class=chroma><code class=language-bash data-lang=bash><span class=line><span class=cl>./scripts/maintain.sh release-host tmp/host-gates/aibox-release/&lt;run-id&gt;
 </span></span></code></pre></div><p>Append <code>--dry-run</code> to execute the same builds, runtime probes, cleanup,
 security scans, and manifest creation without invoking publication:</p><div class=highlight><pre tabindex=0 class=chroma><code class=language-bash data-lang=bash><span class=line><span class=cl>./scripts/maintain.sh release-host tmp/host-gates/aibox-release/&lt;run-id&gt; --dry-run
-</span></span></code></pre></div><p>The completed run directory can later be published with the exact
+</span></span></code></pre></div><p>Add <code>--ui=textual</code> to require the interactive dashboard or <code>--ui=plain</code> to
+retain line-oriented output. <code>--ui=auto</code> is the default and selects Textual
+only for a suitable TTY. The dashboard shows completed high-level tasks in a
+progress bar, keeps passed/failed/skipped task rows visible, and lets the
+operator filter a bordered log by task. Space toggles follow mode, <code>w</code> toggles
+soft wrapping, Ctrl+A/C selects and copies, <code>y</code> copies the current task log,
+End returns to the live tail, and <code>p</code> reveals the evidence path.</p><p>The dashboard is presentation, not evidence. Raw command output remains in
+<code>evidence/command-results.log</code> and high-level transitions remain in
+<code>evidence/steps.log</code>; use those files for complete copied or attached logs.</p><p>The completed run directory can later be published with the exact
 <code>release-host-publish.sh</code> command printed by the validator. Do not rerun the
 gate without <code>--dry-run</code>; populated <code>runtime/</code> and <code>evidence/</code> directories are
-intentionally non-resumable.</p><p>The entry point accepts that one path plus the optional fixed <code>--dry-run</code> flag. It canonicalizes the path,
+intentionally non-resumable.</p><p>The entry point accepts that one path plus optional fixed <code>--dry-run</code>,
+<code>--reuse-cache</code>, and <code>--ui=auto|textual|plain</code> flags. It canonicalizes the path,
 requires one direct child of the approved root, rejects symlinks, special
 files, hardlinks, unexpected files, unsafe permissions, bad checksums, and
-tag/commit mismatches, then creates <code>runtime/</code> and <code>evidence/</code> itself.</p><p>The entry point uses the owner-installed uv binary from the fixed Homebrew path
-and requires the exact Python <code>3.12.11</code> interpreter in offline mode with
-<code>--no-project</code>. Its cache and managed-Python roots are fixed beneath
+tag/commit mismatches, then creates <code>runtime/</code> and <code>evidence/</code> itself.</p><p>The entry point uses the owner-installed uv binary from a reviewed fixed path
+and requires exact Python <code>3.14.6</code> with <code>--no-project</code>. It provisions the
+hash-locked Textual <code>8.2.8</code> environment from <code>scripts/release-host-ui.lock</code>;
+candidate PEP 723 and project metadata remain disabled. Its cache and
+managed-Python roots are fixed beneath
 <code>~/Library/Caches/aibox-host-gates/uv</code> and
 <code>~/Library/Application Support/aibox-host-gates/python</code>; candidate
-<code>pyproject.toml</code>, inline metadata, uv configuration, package indexes, and
-inherited <code>UV_*</code> variables cannot affect execution. The resolved uv/Python
-versions and paths are recorded in evidence.</p><p>Candidate compilation, build scripts, CLI execution, and runtime smoke run
+<code>pyproject.toml</code>, inline metadata, uv configuration, and inherited <code>UV_*</code>
+variables cannot affect execution. The resolved uv, Python, Textual, lockfile,
+and tool paths are recorded in evidence.</p><p><code>--reuse-cache</code> is intended for repeated rehearsals. It permits
+content-addressed container layer reuse while retaining the complete command,
+runtime, scan, cleanup, and evidence surface. Without it, downstream images
+are rebuilt without cache.</p><p>Candidate compilation, build scripts, CLI execution, and runtime smoke run
 with a fixed sanitized environment and a macOS sandbox that denies access to
 GitHub configuration, Docker configuration, SSH material, and Keychain
 security services. Docker receives an empty per-run configuration and no
