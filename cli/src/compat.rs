@@ -663,6 +663,11 @@ pub static COMPAT_TABLE: &[CompatEntry] = &[
         processkit_version: "v0.28.6",
         note: "Patch release: repairs incomplete processkit upgrade caches, installs declared skill dependencies, removes stale pk command projections, and consumes source-specific MCP header manifests.",
     },
+    CompatEntry {
+        aibox_version: "0.31.2",
+        processkit_version: "v0.28.6",
+        note: "Patch release: replaces privileged companion E2E coverage with isolated local contracts and an owner-controlled, evidence-producing macOS host gate.",
+    },
 ];
 
 /// Find the minimum compatible processkit version for the given aibox version.

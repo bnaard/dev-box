@@ -79,8 +79,8 @@ pub fn image_provenance_policy(config: &AiboxConfig) -> ImageProvenancePolicy {
         selected_addons,
         release_phase: ReleasePhasePolicy {
             container_phase: "./scripts/maintain.sh release <version>",
-            host_phase: "./scripts/maintain.sh release-host <version>",
-            host_command_template: "./scripts/maintain.sh release-host {version}",
+            host_phase: "./scripts/maintain.sh release-host <run-dir>",
+            host_command_template: "./scripts/maintain.sh release-host {run_dir}",
         },
     }
 }

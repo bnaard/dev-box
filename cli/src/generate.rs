@@ -1351,7 +1351,7 @@ mod tests {
         config.security.acknowledge_seccomp_unconfined = true;
         fs::write(
             dir.path().join("docker-compose.override.yml"),
-            "services:\n  aibox-e2e-testrunner:\n    security_opt:\n      - seccomp=unconfined\n",
+            "services:\n  unrelated-sidecar:\n    security_opt:\n      - seccomp=unconfined\n",
         )
         .unwrap();
         generate_docker_compose(&config, dir.path(), &test_env()).unwrap();
@@ -2002,45 +2002,6 @@ mod tests {
             content.contains("mkdir -p /tmp/aibox/uv-cache")
                 && content.contains("chown -R \"$TARGET_UID:$TARGET_GID\" /tmp/aibox"),
             "entrypoint must re-own /tmp/aibox after UID/GID remap so uv caches stay writable:\n{content}"
-        );
-    }
-
-    #[test]
-    fn e2e_companion_image_installs_yazi_companion_entrypoint() {
-        let content = include_str!("../../.devcontainer/Dockerfile.e2e");
-        assert!(
-            content.contains("ln -sf /usr/local/bin/yazi /usr/local/bin/ya"),
-            "E2E companion image should expose yazi's companion entrypoint"
-        );
-    }
-
-    #[test]
-    fn e2e_companion_declares_the_systemd_kind_contract() {
-        let dockerfile = include_str!("../../.devcontainer/Dockerfile.e2e");
-        let compose = include_str!("../../.devcontainer/docker-compose.override.yml");
-
-        assert!(
-            dockerfile.contains("aibox-e2e-companion-contract=3")
-                && dockerfile.contains("CMD [\"/sbin/init\"]")
-                && dockerfile.contains("COPY --from=fetch-kubernetes-e2e /usr/local/bin/kind"),
-            "E2E companion Dockerfile must declare its systemd/kind compatibility contract"
-        );
-        assert!(
-            compose.contains("- /lib/modules:/lib/modules:ro")
-                && compose.contains("cgroup: private")
-                && compose.contains("- /run/lock"),
-            "E2E companion Compose service must provide the systemd/kind runtime contract"
-        );
-    }
-
-    #[test]
-    fn e2e_companion_prefers_fuse_overlay_without_forcing_a_storage_driver() {
-        let dockerfile = include_str!("../../.devcontainer/Dockerfile.e2e");
-
-        assert!(
-            dockerfile.contains("fuse-overlayfs")
-                && !dockerfile.contains("/home/testuser/.config/containers/storage.conf"),
-            "E2E companion must let rootless Podman select fuse-overlayfs when available and vfs otherwise"
         );
     }
 

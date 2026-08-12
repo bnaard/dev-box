@@ -12,8 +12,8 @@ AIBOX_MAINTAIN_SOURCE_ONLY=1 source "${SCRIPT_DIR}/maintain.sh"
   || die "v1 prereleases must resolve to v1.x-pre-release"
 [[ "$(release_branch_for_version 1.0.0)" == "v1.x-release" ]] \
   || die "v1 release versions must resolve to v1.x-release"
-declare -f cmd_release_host | grep -Fq 'X.Y.Z or X.Y.Z-prerelease' \
-  || die "release-host must accept prerelease SemVer"
+declare -f cmd_release_host | grep -Fq 'release-host [--dry-run] <run-dir> [--dry-run]' \
+  || die "release-host must accept a prepared run directory and optional dry-run mode"
 grep -Fq 'X.Y.Z or X.Y.Z-prerelease' "${SCRIPT_DIR}/build-macos.sh" \
   || die "macOS artifact builds must accept prerelease SemVer"
 grep -Fq 'X.Y.Z or X.Y.Z-prerelease' "${SCRIPT_DIR}/release-runtime-smoke.sh" \
@@ -127,43 +127,6 @@ grep -F $'progress\t' "${RELEASE_TIMING_LOG}" | grep -F $'\trunning\tscheduler-s
   || die "parallel scheduler did not emit a progress timing event"
 unset AIBOX_RELEASE_PROGRESS_INTERVAL_SECONDS
 
-recorded_shard=""
-cmd_test_e2e_shard() {
-  recorded_shard="$1"
-}
-cmd_test_e2e_shard_without_global_prune() {
-  recorded_shard="$1"
-}
-release_companion_e2e_core_gate
-[[ "${recorded_shard}" == "core" ]] || die "core E2E release gate selected the wrong shard"
-release_companion_e2e_addon_languages_gate
-[[ "${recorded_shard}" == "addon-languages" ]] \
-  || die "addon languages release gate selected the wrong shard"
-release_companion_e2e_addon_platforms_gate
-[[ "${recorded_shard}" == "addon-platforms" ]] \
-  || die "addon platforms release gate selected the wrong shard"
-release_companion_e2e_addon_tools_gate
-[[ "${recorded_shard}" == "addon-tools" ]] \
-  || die "addon tools release gate selected the wrong shard"
-release_companion_e2e_latex_gate
-[[ "${recorded_shard}" == "latex" ]] || die "LaTeX E2E release gate selected the wrong shard"
-
-[[ "$(release_classify_heavy_e2e_paths cli/src/content_source.rs docs-site/content/docs/index.md)" == \
-   "addon=0 latex=0" ]] \
-  || die "processkit/docs-only changes must not select heavy image E2E"
-[[ "$(release_classify_heavy_e2e_paths addons/tools/supply-chain.yaml)" == \
-   "addon=1 latex=0" ]] \
-  || die "addon changes must select addon image E2E"
-[[ "$(release_classify_heavy_e2e_paths addons/languages/latex.yaml)" == \
-   "addon=0 latex=1" ]] \
-  || die "LaTeX addon changes must select LaTeX image E2E"
-[[ "$(release_classify_heavy_e2e_paths cli/src/generate.rs)" == \
-   "addon=1 latex=1" ]] \
-  || die "Dockerfile generator changes must select every heavy image gate"
-[[ "$(release_classify_heavy_e2e_paths cli/src/config.rs)" == \
-   "addon=1 latex=1" ]] \
-  || die "unclassified production changes must conservatively select every heavy image gate"
-
 host_remote="${test_root}/host-remote.git"
 host_seed="${test_root}/host-seed"
 host_primary="${test_root}/host-primary"
@@ -198,3 +161,4 @@ ensure_release_host_checkout_current 0.28.13
 PROJECT_ROOT="${saved_project_root}"
 
 ok "maintain.sh release evidence probe passed"
+"${SCRIPT_DIR}/test-release-host-gate.sh"

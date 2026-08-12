@@ -218,27 +218,9 @@ pub fn row_text(screen: &Screen, row: u16) -> String {
     s.trim_end().to_string()
 }
 
-/// Capture a tmux pane on the companion. Wraps `capture-pane -p -e` so the
-/// emitted ANSI sequences survive the SSH round-trip. The base64 transport
-/// is important: raw escapes through ssh+exec lose escape interpretation in
-/// some shells.
-pub fn capture_pane_ansi(runner: &super::runner::E2eRunner, session: &str, target: &str) -> String {
-    let socket = "$HOME/.tmux/aibox.sock";
-    let cmd = format!(
-        r#"export AIBOX_TMUX_SOCKET="{socket}"; \
-           tmux -S "$AIBOX_TMUX_SOCKET" capture-pane -p -e -t "{session}:{target}" | base64 -w0"#
-    );
-    let output = runner.exec(&cmd);
-    let b64 = String::from_utf8_lossy(&output.stdout).trim().to_string();
-    let decoded = base64_decode(&b64);
-    String::from_utf8_lossy(&decoded).to_string()
-}
-
 fn base64_decode(input: &str) -> Vec<u8> {
-    // Minimal RFC-4648 decoder; std doesn't ship one. The companion's
-    // `base64 -w0` output is well-formed (no whitespace, no URL-safe alphabet),
-    // so this is sufficient. We don't reach for the `base64` crate to keep
-    // dev-deps small.
+    // Minimal RFC-4648 decoder retained for rendered-fixture self-tests. Std
+    // does not ship one, and avoiding a crate keeps dev-dependencies small.
     const ALPHA: &[u8; 64] = b"ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
     let mut lut = [255u8; 256];
     for (i, &c) in ALPHA.iter().enumerate() {

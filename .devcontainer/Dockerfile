@@ -177,7 +177,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends ca-certificates
     rm -f "/tmp/${NODE_ARCHIVE}" /tmp/node-shasums.txt && \
     node --version && npm --version
 
-RUN npm install -g pnpm@11.20.0 && \
+RUN npm install -g pnpm@11.21.0 && \
     npm cache clean --force
 
 

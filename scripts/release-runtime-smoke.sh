@@ -27,6 +27,8 @@ project_dir="${AIBOX_RELEASE_SMOKE_PROJECT_DIR:-$(mktemp -d "${TMPDIR:-/tmp}/aib
 container_name="${AIBOX_RELEASE_SMOKE_CONTAINER:-aibox-release-smoke-${version//./-}}"
 tmux_status="${AIBOX_RELEASE_SMOKE_TMUX_STATUS:-extended}"
 smoke_tier="${AIBOX_RELEASE_SMOKE_TIER:-addons}"
+local_candidate_image="${AIBOX_RELEASE_SMOKE_LOCAL_CANDIDATE_IMAGE:-0}"
+local_candidate_ref="${AIBOX_RELEASE_SMOKE_LOCAL_CANDIDATE_REF:-}"
 probe_script="${log_dir}/container-probe.sh"
 run_log="${log_dir}/run.log"
 attach_pid=""
@@ -166,8 +168,12 @@ collect_artifacts() {
   if [[ "${AIBOX_RELEASE_SMOKE_KEEP:-0}" == "1" || "${status}" -ne 0 ]]; then
     warn "Keeping smoke project/container for inspection: ${project_dir}"
   elif [[ -f "$(compose_file)" ]]; then
-    compose -f "$(compose_file)" down -v > "${log_dir}/compose-down.log" 2>&1
-    rm -rf "${project_dir}"
+    if compose -f "$(compose_file)" down -v > "${log_dir}/compose-down.log" 2>&1; then
+      rm -rf "${project_dir}"
+    else
+      status=1
+      warn "Release smoke cleanup failed; preserving ${project_dir} and failing the gate."
+    fi
   fi
 
   if [[ "${status}" -eq 0 ]]; then
@@ -183,6 +189,39 @@ trap collect_artifacts EXIT INT TERM
 run() {
   echo "+ $*"
   "$@"
+}
+
+candidate_image_env() {
+  # A release-host dry run deliberately builds the versioned base image into
+  # the host runtime without publishing it. Some Docker-compatible runtimes
+  # (notably OrbStack when Buildx uses a separate builder image store) then try
+  # to resolve the generated GHCR FROM reference remotely. Route only the
+  # generated-project lifecycle through the daemon-local image store; the
+  # candidate base images themselves are still built with BuildKit.
+  if [[ "${local_candidate_image}" =~ ^(1|true|yes)$ && "${runtime_bin}" == "docker" ]]; then
+    DOCKER_BUILDKIT=0 COMPOSE_DOCKER_CLI_BUILD=0 "$@"
+  else
+    "$@"
+  fi
+}
+
+prepare_local_candidate_dockerfile() {
+  local dockerfile="${project_dir}/.devcontainer/Dockerfile"
+  local expected="FROM ghcr.io/projectious-work/aibox:base-debian-runtime-v${version} AS aibox"
+  local replacement="FROM ${local_candidate_ref} AS aibox"
+  local rewritten="${dockerfile}.release-smoke"
+
+  [[ "${local_candidate_ref}" =~ ^[a-zA-Z0-9][a-zA-Z0-9._/-]*:[a-zA-Z0-9][a-zA-Z0-9._-]*$ ]] \
+    || die "Invalid local candidate image reference: ${local_candidate_ref}"
+  [[ "$(grep -Fxc "${expected}" "${dockerfile}")" == "1" ]] \
+    || die "Generated Dockerfile does not contain exactly one expected candidate FROM line"
+  awk -v expected="${expected}" -v replacement="${replacement}" \
+    '{ print ($0 == expected ? replacement : $0) }' "${dockerfile}" > "${rewritten}"
+  mv "${rewritten}" "${dockerfile}"
+  {
+    echo "original=${expected}"
+    echo "replacement=${replacement}"
+  } > "${log_dir}/local-candidate-substitution.env"
 }
 
 info "Release runtime smoke for v${version}"
@@ -264,7 +303,7 @@ path = "/mcp"
 
 [processkit]
 source = "https://github.com/projectious-work/processkit.git"
-version = "latest"
+version = "unset"
 src_path = "src"
 
 [processkit.context]
@@ -304,7 +343,18 @@ apply_args=(apply --standardize-config)
 if [[ "${AIBOX_RELEASE_SMOKE_NO_CACHE:-0}" =~ ^(1|true|yes)$ || "${smoke_tier}" == "full" ]]; then
   apply_args+=(--no-cache)
 fi
-run env AIBOX_ADDONS_DIR="${PROJECT_ROOT}/addons" "${aibox_bin}" "${apply_args[@]}"
+if [[ -n "${local_candidate_ref}" ]]; then
+  apply_args+=(--no-container)
+  run env AIBOX_ADDONS_DIR="${PROJECT_ROOT}/addons" "${aibox_bin}" "${apply_args[@]}"
+  prepare_local_candidate_dockerfile
+  build_args=(-f "$(compose_file)" build)
+  if [[ "${AIBOX_RELEASE_SMOKE_NO_CACHE:-0}" =~ ^(1|true|yes)$ || "${smoke_tier}" == "full" ]]; then
+    build_args+=(--no-cache)
+  fi
+  run candidate_image_env compose "${build_args[@]}"
+else
+  run env AIBOX_ADDONS_DIR="${PROJECT_ROOT}/addons" "${aibox_bin}" "${apply_args[@]}"
+fi
 
 attach_smoke_log="${log_dir}/up-forget-tmux-state.log"
 info "Running attach smoke: aibox up --forget-tmux-state"
@@ -312,7 +362,7 @@ attach_timeout="${AIBOX_RELEASE_SMOKE_ATTACH_TIMEOUT:-25}"
 [[ "${attach_timeout}" =~ ^[1-9][0-9]*$ ]] \
   || die "AIBOX_RELEASE_SMOKE_ATTACH_TIMEOUT must be a positive integer (got: ${attach_timeout})"
 
-env AIBOX_ADDONS_DIR="${PROJECT_ROOT}/addons" \
+candidate_image_env env AIBOX_ADDONS_DIR="${PROJECT_ROOT}/addons" \
   "${aibox_bin}" up --forget-tmux-state >"${attach_smoke_log}" 2>&1 < /dev/null &
 attach_pid=$!
 attach_started_at=${SECONDS}

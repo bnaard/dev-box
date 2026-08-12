@@ -1,17 +1,14 @@
 //! E2E test suite for aibox CLI.
 //!
 //! - Tier 1 (always run): appearance tests, config coverage tests
-//! - Tier 2 (--features e2e): lifecycle, reset, migration, addon, doctor, smoke,
-//!   generated runtime, and visual tests. The two resource-heavy image builds
-//!   are intentionally ignored here and are run as isolated shards by
-//!   `scripts/run-e2e-shards.sh`; this prevents them from starving unrelated
-//!   companion work and lets a failed shard be retried independently.
+//! - Real container lifecycle and image-build validation runs only through the
+//!   owner-controlled macOS release host gate. The development container is
+//!   intentionally not given a container-runtime bridge.
 //! - Tier 3 (--features e2e-render): cell-level rendered-color assertions
-//!   replayed through vt100. Starship runs locally; tmux/yazi need the
-//!   companion (so combine with `--features e2e`).
+//!   replayed through vt100 in the development container.
 
+pub mod local_runner;
 pub mod mock_runtime;
-pub mod runner;
 #[cfg(feature = "e2e-render")]
 pub mod vt_render;
 
@@ -25,40 +22,28 @@ mod appearance;
 #[cfg(not(any(feature = "e2e", feature = "e2e-render")))]
 mod config_coverage;
 #[cfg(not(any(feature = "e2e", feature = "e2e-render")))]
+mod local_cli_contracts;
+#[cfg(not(any(feature = "e2e", feature = "e2e-render")))]
+mod local_lifecycle;
+#[cfg(not(any(feature = "e2e", feature = "e2e-render")))]
 mod no_container_harness;
 #[cfg(not(any(feature = "e2e", feature = "e2e-render")))]
 mod preauth_merge;
 #[cfg(not(any(feature = "e2e", feature = "e2e-render")))]
 mod preview;
 #[cfg(not(any(feature = "e2e", feature = "e2e-render")))]
+mod runtime_generated;
+#[cfg(not(any(feature = "e2e", feature = "e2e-render")))]
 mod runtime_recovery;
 #[cfg(not(any(feature = "e2e", feature = "e2e-render")))]
-mod version_upgrade;
-
-// Tier 2 tests (require e2e-runner companion container)
-#[cfg(feature = "e2e")]
-mod addon;
-#[cfg(feature = "e2e")]
-mod doctor;
-#[cfg(feature = "e2e")]
-mod latex_preview;
-#[cfg(feature = "e2e")]
-mod lifecycle;
-#[cfg(feature = "e2e")]
-mod migration;
-#[cfg(feature = "e2e")]
-mod reset;
-#[cfg(feature = "e2e")]
-mod runtime_generated;
-#[cfg(feature = "e2e")]
-mod smoke;
-#[cfg(feature = "e2e")]
 mod update;
-#[cfg(feature = "e2e")]
+#[cfg(not(any(feature = "e2e", feature = "e2e-render")))]
+mod version_upgrade;
+#[cfg(not(any(feature = "e2e", feature = "e2e-render")))]
 mod visual;
-#[cfg(feature = "e2e")]
+#[cfg(not(any(feature = "e2e", feature = "e2e-render")))]
 mod visual_keybindings;
-#[cfg(feature = "e2e")]
+#[cfg(not(any(feature = "e2e", feature = "e2e-render")))]
 mod visual_matrix;
 
 // Tier 3 — vt100 cell-level rendered-color assertions.

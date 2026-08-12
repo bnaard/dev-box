@@ -1,6 +1,6 @@
 [package]
 name = "aibox"
-version = "0.31.1"
+version = "0.31.2"
 edition = "2024"
 description = "aibox — manage AI-ready development container environments"
 license = "MIT"
@@ -38,7 +38,7 @@ e2e = []
 # Cell-level color assertion tests that replay tmux captures and asciinema
 # casts through the vt100 parser. Surfaces (tmux/yazi/vim/starship) are
 # gated by their own modules; `cargo test --test e2e --features e2e-render`
-# enables them. Local-only surfaces (starship) work without a companion.
+# enables them. These process/file surfaces run locally without a runtime bridge.
 e2e-render = []
 
 [dev-dependencies]

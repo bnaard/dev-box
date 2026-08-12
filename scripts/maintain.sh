@@ -10,8 +10,8 @@
 #
 # Commands:
 #   test              Run cargo fmt, clippy, and tests
-#   test-e2e          Run SSH companion E2E tests
-#   test-e2e-visual   Run all opt-in SSH/asciinema visual E2E tiers
+#   test-e2e          Run local E2E contracts
+#   test-e2e-visual   Run all opt-in isolated tmux/asciinema visual E2E tiers
 #   build-images      Build published foundation/runtime images locally
 #   release-runtime-smoke <version> Run generated runtime smoke against a release
 #   docs-serve        Serve Hugo/Docsy locally for preview
@@ -100,18 +100,18 @@ ${bold}Usage:${reset}
 
 ${bold}Development:${reset}
   test                     Run cargo fmt check, clippy, and tests
-  test-e2e                 Run Tier 2 SSH companion E2E tests
+  test-e2e                 Run local E2E contracts in temporary workspaces
   test-e2e-visual-status   Run opt-in visual matrix for layouts/themes/status rows
   test-e2e-visual-tabs     Run opt-in tab traversal for tools and harnesses
   test-e2e-visual-yazi     Run opt-in Yazi previews/git/plugin visual checks
   test-e2e-visual          Run all opt-in visual E2E tiers
   test-e2e-render-starship Run Tier 3 vt100 cell-color tests for Starship (local, ~6s)
-  test-e2e-render-tmux     Run Tier 3 vt100 cell-color tests for tmux (companion)
+  test-e2e-render-tmux     Removed legacy command; points to local visual coverage
   test-e2e-render-layout-switch
-                           Run Tier 3 rendered test: live layout switch (companion)
+                           Removed legacy command pending local asciinema rewrite
   test-e2e-render-theme-switch
-                           Run Tier 3 rendered test: live theme switch (companion)
-  test-e2e-render-yazi     Run Tier 3 vt100 cell-color tests for Yazi (companion)
+                           Removed legacy command pending local asciinema rewrite
+  test-e2e-render-yazi     Removed legacy command; points to local visual coverage
   test-e2e-render          Run all Tier 3 vt100 rendered-color tests
   test-e2e-doc-captures    Run visual E2E and write docs-ready cast/screen artifacts
                            Set AIBOX_E2E_VISUAL_FULL_MATRIX=1 for exhaustive layout/theme coverage
@@ -142,8 +142,10 @@ ${bold}Release:${reset}
                            Add --skip list to exclude long or already-run steps.
   release <version> --list-steps
                            Print release step aliases and concrete step names
-  release-host <version>   Build/upload macOS binaries, push GHCR images,
-                           run runtime smoke, then refresh + commit generated runtime surfaces
+  release-host-prepare <version>
+                           Prepare immutable checksummed host-gate inputs
+  release-host <run-dir> [--dry-run]
+                           Run macOS validation; --dry-run stops before publication
   release-finalize-runtime <version>
                            Refresh and commit repo-owned generated runtime files
 
@@ -230,114 +232,31 @@ cmd_test() {
   ok "All tests passed"
 }
 
-ensure_e2e_companion() {
-  local key="${PROJECT_ROOT}/.aibox-e2e-runner-home/.ssh/id_ed25519"
-  local host="${AIBOX_E2E_HOST:-aibox-e2e-testrunner}"
-  info "Checking SSH companion E2E container..."
-  local ssh_output=""
-  if [[ -f "${key}" ]] && ssh_output=$(ssh -i "${key}" \
-      -o StrictHostKeyChecking=no \
-      -o UserKnownHostsFile=/dev/null \
-      -o ConnectTimeout=5 \
-      -o LogLevel=ERROR \
-      "testuser@${host}" 'echo ok' 2>&1); then
-    if grep -qx ok <<<"${ssh_output}"; then
-      ok "SSH companion E2E container is reachable"
-      return
-    fi
-  fi
-
-  if grep -Eiq 'could not resolve|temporary failure|name or service not known|no such host' <<<"${ssh_output}"; then
-    warn "SSH companion host '${host}' did not resolve. In restricted Codex sandboxes, Docker DNS for the companion is often unavailable."
-    warn "For partial release validation, use --skip e2e,visual or select steps that do not need the companion."
-  fi
-  _require_runtime
-  info "SSH companion not reachable; starting aibox-e2e-testrunner via Compose..."
-  compose up -d aibox-e2e-testrunner \
-    || die "Failed to start aibox-e2e-testrunner"
-}
-
-prune_e2e_companion_storage() {
-  local key="${PROJECT_ROOT}/.aibox-e2e-runner-home/.ssh/id_ed25519"
-  local host="${AIBOX_E2E_HOST:-aibox-e2e-testrunner}"
-  ensure_e2e_companion
-  info "Pruning SSH companion nested runtime state..."
-  ssh -i "${key}" \
-      -o StrictHostKeyChecking=no \
-      -o UserKnownHostsFile=/dev/null \
-      -o ConnectTimeout=5 \
-      -o LogLevel=ERROR \
-      "testuser@${host}" \
-      'runtime=""; if command -v docker >/dev/null 2>&1 && docker info >/dev/null 2>&1; then runtime=docker; elif command -v podman >/dev/null 2>&1 && podman info >/dev/null 2>&1; then runtime=podman; fi; test -n "$runtime" || exit 0; for workspace in /workspaces/*; do [ -d "$workspace" ] || continue; if [ -f "$workspace/.devcontainer/docker-compose.yml" ]; then (cd "$workspace" && "$runtime" compose -f .devcontainer/docker-compose.yml down -v --remove-orphans >/dev/null 2>&1) || true; fi; done; for id in $("$runtime" ps -aq --filter label=com.docker.compose.project.working_dir 2>/dev/null || true); do working_dir=$("$runtime" inspect --format "{{ index .Config.Labels \"com.docker.compose.project.working_dir\" }}" "$id" 2>/dev/null || true); case "$working_dir" in /workspaces/*) "$runtime" rm -f "$id" >/dev/null 2>&1 || true ;; esac; done; find /workspaces -mindepth 1 -maxdepth 1 -exec rm -rf {} + 2>/dev/null || sudo find /workspaces -mindepth 1 -maxdepth 1 -exec rm -rf {} +' \
-    || return 1
-  ok "SSH companion E2E state pruned (images and BuildKit cache preserved)"
-}
-
 cmd_test_e2e() {
-  local status=0 test_threads="${AIBOX_E2E_TEST_THREADS:-4}"
-  [[ "${test_threads}" =~ ^[1-9][0-9]*$ ]] \
-    || die "AIBOX_E2E_TEST_THREADS must be a positive integer"
-  ensure_e2e_companion
-  prune_e2e_companion_storage || die "Failed to prune SSH companion nested runtime state"
-  info "Running Tier 2 SSH companion E2E shards..."
-  AIBOX_E2E_TEST_THREADS="${test_threads}" "${SCRIPT_DIR}/run-e2e-shards.sh" all \
-    || status=$?
-  prune_e2e_companion_storage || warn "Post-suite SSH companion prune failed"
-  [[ "${status}" -eq 0 ]] || die "Tier 2 SSH companion E2E tests failed"
-  ok "Tier 2 SSH companion E2E tests passed"
-}
-
-cmd_test_e2e_shard() {
-  local shard="$1" status=0 test_threads="${AIBOX_E2E_TEST_THREADS:-4}"
-  [[ "${test_threads}" =~ ^[1-9][0-9]*$ ]] \
-    || die "AIBOX_E2E_TEST_THREADS must be a positive integer"
-  ensure_e2e_companion
-  prune_e2e_companion_storage || die "Failed to prune SSH companion nested runtime state"
-  info "Running Tier 2 SSH companion E2E shard: ${shard}..."
-  AIBOX_E2E_TEST_THREADS="${test_threads}" "${SCRIPT_DIR}/run-e2e-shards.sh" "${shard}" \
-    || status=$?
-  prune_e2e_companion_storage || warn "Post-shard SSH companion prune failed"
-  [[ "${status}" -eq 0 ]] || return "${status}"
-  ok "Tier 2 SSH companion E2E shard passed: ${shard}"
-}
-
-# Run an isolated shard without suite-wide pruning. The caller must prune once
-# before and after a parallel batch; each test owns a unique workspace and
-# Compose project name, so shard-local cleanup remains safe under concurrency.
-cmd_test_e2e_shard_without_global_prune() {
-  local shard="$1" status=0 test_threads="${AIBOX_E2E_TEST_THREADS:-4}"
-  [[ "${test_threads}" =~ ^[1-9][0-9]*$ ]] \
-    || die "AIBOX_E2E_TEST_THREADS must be a positive integer"
-  ensure_e2e_companion
-  info "Running isolated Tier 2 SSH companion E2E shard: ${shard}..."
-  AIBOX_E2E_TEST_THREADS="${test_threads}" "${SCRIPT_DIR}/run-e2e-shards.sh" "${shard}" \
-    || status=$?
-  [[ "${status}" -eq 0 ]] || return "${status}"
-  ok "Isolated Tier 2 SSH companion E2E shard passed: ${shard}"
+  info "Running local E2E contracts (no container-runtime bridge)..."
+  (cd "${CLI_DIR}" && cargo test --test e2e) || die "Local E2E contracts failed"
+  ok "Local E2E contracts passed"
 }
 
 cmd_test_e2e_visual_status() {
-  ensure_e2e_companion
   info "Running opt-in visual E2E: generated tmux layouts, themes, and status line..."
-  (cd "${CLI_DIR}" && cargo test --features e2e --test e2e \
+  (cd "${CLI_DIR}" && cargo test --test e2e \
     visual_generated_layouts_render_across_all_themes -- --ignored --nocapture --test-threads=1) \
     || die "Visual E2E status/theme matrix failed"
   ok "Visual E2E status/theme matrix passed"
 }
 
 cmd_test_e2e_visual_tabs() {
-  ensure_e2e_companion
   info "Running opt-in visual E2E: generated tmux windows, tools, and harnesses..."
-  (cd "${CLI_DIR}" && cargo test --features e2e --test e2e \
+  (cd "${CLI_DIR}" && cargo test --test e2e \
     visual_generated_tools_and_harness_windows_render_when_enabled -- --ignored --nocapture --test-threads=1) \
     || die "Visual E2E generated window traversal failed"
   ok "Visual E2E generated window traversal passed"
 }
 
 cmd_test_e2e_visual_yazi() {
-  ensure_e2e_companion
   info "Running opt-in visual E2E: Yazi previews, git symbols, and plugins..."
-  (cd "${CLI_DIR}" && cargo test --features e2e --test e2e \
+  (cd "${CLI_DIR}" && cargo test --test e2e \
     visual_yazi_previews_git_symbols_and_optional_plugins_render -- --ignored --nocapture --test-threads=1) \
     || die "Visual E2E Yazi preview matrix failed"
   ok "Visual E2E Yazi preview matrix passed"
@@ -358,8 +277,7 @@ cmd_test_e2e_visual() {
 # tmux-bg-not-themed regression to ship undetected. Captures actual painted
 # terminal cells via `tmux capture-pane -p -e` / `starship prompt` stdout and
 # replays them through vt100 to assert per-cell bg/fg against the theme
-# palette. Starship tier is local (no companion). tmux+yazi tiers need the
-# companion and are #[ignore]-gated.
+# palette. All process/file visual tests run locally with isolated tmux sockets.
 cmd_test_e2e_render_starship() {
   info "Running Tier 3 rendered-color tests: Starship prompt (local, no companion)..."
   (cd "${CLI_DIR}" && cargo test --features e2e-render --test e2e \
@@ -414,12 +332,11 @@ cmd_test_e2e_render() {
 }
 
 cmd_test_e2e_doc_captures() {
-  ensure_e2e_companion
   local artifact_dir="${AIBOX_E2E_VISUAL_ARTIFACT_DIR:-${PROJECT_ROOT}/docs-site/static/img/e2e}"
   mkdir -p "${artifact_dir}"
   info "Running visual E2E with docs-ready artifacts at ${artifact_dir}..."
   (cd "${CLI_DIR}" && AIBOX_E2E_VISUAL_ARTIFACT_DIR="${artifact_dir}" \
-    cargo test --features e2e --test e2e visual_matrix -- --ignored --nocapture --test-threads=1) \
+    cargo test --test e2e visual_matrix -- --ignored --nocapture --test-threads=1) \
     || die "Visual E2E docs capture run failed"
   ok "Visual E2E docs artifacts written to ${artifact_dir}"
 }
@@ -1627,9 +1544,9 @@ release_usage() {
 release_list_steps() {
   cat <<'STEPS'
 Release step aliases:
-  all       state,doctors,sync,version,test,e2e,visual,audit,build-linux,version-smoke,push-main,notes,tag,github-release,docs,prompt
+  all       state,doctors,sync,version,test,visual,audit,build-linux,version-smoke,push-main,notes,tag,github-release,docs,prompt
   phase0    state,doctors
-  checks    sync,version,test,e2e,visual,audit
+  checks    sync,version,test,visual,audit
   build     build-linux,version-smoke
   publish   push-main,notes,tag,github-release
 
@@ -1639,7 +1556,6 @@ Concrete release steps:
   sync            Check/sync processkit default version
   version         Bump cli/Cargo.toml and Cargo.lock if needed, then commit
   test            Run fmt, clippy, and unit/integration tests
-  e2e             Run Tier 2 SSH companion E2E
   visual          Run the selected visual E2E tier from AIBOX_RELEASE_VISUAL_E2E
   audit           Run cargo audit
   build-linux     Build Linux release archives and checksums
@@ -1692,7 +1608,6 @@ release_expand_step_token() {
       release_add_step sync
       release_add_step version
       release_add_step test
-      release_add_step e2e
       release_add_step visual
       release_add_step audit
       ;;
@@ -1706,7 +1621,7 @@ release_expand_step_token() {
       release_add_step tag
       release_add_step github-release
       ;;
-    state|doctors|sync|version|test|e2e|visual|audit|build-linux|version-smoke|push-main|notes|tag|github-release|docs|prompt)
+    state|doctors|sync|version|test|visual|audit|build-linux|version-smoke|push-main|notes|tag|github-release|docs|prompt)
       release_add_step "${token}"
       ;;
     "")
@@ -1884,22 +1799,6 @@ release_timing_finish() {
     "${duration}" "${exit_code}" ""
 }
 
-release_companion_fingerprint() {
-  local key="${PROJECT_ROOT}/.aibox-e2e-runner-home/.ssh/id_ed25519"
-  local host="${AIBOX_E2E_HOST:-aibox-e2e-testrunner}"
-  [[ -f "${key}" ]] || return 1
-  {
-    printf 'host=%s\n' "${host}"
-    ssh -i "${key}" \
-      -o StrictHostKeyChecking=no \
-      -o UserKnownHostsFile=/dev/null \
-      -o ConnectTimeout=5 \
-      -o LogLevel=ERROR \
-      "testuser@${host}" \
-      'printf "container="; cat /etc/hostname 2>/dev/null || true; uname -a; cat /etc/os-release 2>/dev/null || true; tmux -V 2>/dev/null || true; yazi --version 2>/dev/null || true; asciinema --version 2>/dev/null || true; if command -v docker >/dev/null 2>&1; then docker version --format "{{.Server.Version}}" 2>/dev/null || true; elif command -v podman >/dev/null 2>&1; then podman version --format "{{.Server.Version}}" 2>/dev/null || true; fi'
-  } | sha256_stdin
-}
-
 release_evidence_scope() {
   local key="$1"
   case "${key}" in
@@ -1908,9 +1807,7 @@ release_evidence_scope() {
       # gives audit evidence a maximum useful lifetime of 24 hours.
       date -u +%Y-%m-%d
       ;;
-    e2e|e2e-*|visual-*)
-      release_companion_fingerprint
-      ;;
+    visual-*) printf 'local-isolated-visual' ;;
     test)
       printf 'render-local=%s' "${AIBOX_RELEASE_SKIP_RENDER_LOCAL:-0}"
       ;;
@@ -2025,122 +1922,6 @@ release_local_test_gate() {
       cmd_test_e2e_render_starship
       ;;
   esac
-}
-
-release_companion_e2e_gate() {
-  case "${AIBOX_RELEASE_SKIP_COMPANION_E2E:-}" in
-    1|true|yes)
-      warn "Skipping Tier 2 SSH companion E2E during release because AIBOX_RELEASE_SKIP_COMPANION_E2E=${AIBOX_RELEASE_SKIP_COMPANION_E2E}. Re-run ./scripts/maintain.sh test-e2e after rebuilding the companion."
-      ;;
-    *)
-      cmd_test_e2e
-      ;;
-  esac
-}
-
-release_companion_e2e_core_gate() {
-  cmd_test_e2e_shard core
-}
-
-release_companion_e2e_addon_languages_gate() {
-  cmd_test_e2e_shard_without_global_prune addon-languages
-}
-
-release_companion_e2e_addon_platforms_gate() {
-  cmd_test_e2e_shard_without_global_prune addon-platforms
-}
-
-release_companion_e2e_addon_tools_gate() {
-  cmd_test_e2e_shard_without_global_prune addon-tools
-}
-
-release_companion_e2e_latex_gate() {
-  cmd_test_e2e_shard latex
-}
-
-release_classify_heavy_e2e_paths() {
-  local path addon=0 latex=0
-  for path in "$@"; do
-    case "${path}" in
-      cli/src/content_source.rs)
-        # Content acquisition does not participate in generated image builds.
-        ;;
-      scripts/maintain.sh|scripts/run-e2e-shards.sh|scripts/test-maintain-release.sh|\
-      .devcontainer/Dockerfile|.devcontainer/Dockerfile.e2e|\
-      images/*|cli/src/addon_cmd.rs|cli/src/addon_loader.rs|\
-      cli/src/addon_registry.rs|cli/src/addons.rs|cli/src/generate.rs|\
-      cli/src/templates/Dockerfile.j2|cli/src/templates/docker-compose.yml.j2|\
-      cli/tests/e2e/runner.rs)
-        addon=1
-        latex=1
-        ;;
-      addons/languages/latex.yaml|cli/tests/e2e/latex_preview.rs)
-        latex=1
-        ;;
-      addons/*|cli/tests/e2e/addon.rs)
-        addon=1
-        ;;
-      cli/src/*|cli/Cargo.toml|cli/Cargo.lock|aibox.toml)
-        # Unclassified production/config changes are treated conservatively:
-        # they can alter generated files or runtime behavior indirectly.
-        addon=1
-        latex=1
-        ;;
-    esac
-  done
-  printf 'addon=%s latex=%s\n' "${addon}" "${latex}"
-}
-
-release_previous_tag_for_version() {
-  local version="$1" pattern
-  case "${version}" in
-    0.*) pattern='v0.*' ;;
-    1.*) pattern='v1.*' ;;
-    *) return 1 ;;
-  esac
-  git describe --tags --abbrev=0 --match "${pattern}" HEAD 2>/dev/null
-}
-
-release_select_heavy_e2e() {
-  local version="$1" mode="${AIBOX_RELEASE_HEAVY_E2E:-auto}"
-  local base_ref path classification
-  local changed_paths=()
-
-  case "${mode}" in
-    all)
-      RELEASE_RUN_ADDON_E2E=1
-      RELEASE_RUN_LATEX_E2E=1
-      RELEASE_HEAVY_E2E_REASON='forced by AIBOX_RELEASE_HEAVY_E2E=all'
-      ;;
-    auto)
-      base_ref="${AIBOX_RELEASE_IMPACT_BASE_REF:-}"
-      if [[ -z "${base_ref}" ]]; then
-        base_ref="$(release_previous_tag_for_version "${version}" || true)"
-      fi
-      if [[ -z "${base_ref}" ]] || ! git rev-parse --verify "${base_ref}^{commit}" >/dev/null 2>&1; then
-        RELEASE_RUN_ADDON_E2E=1
-        RELEASE_RUN_LATEX_E2E=1
-        RELEASE_HEAVY_E2E_REASON='no trustworthy previous release tag; running conservatively'
-      else
-        while IFS= read -r path; do
-          [[ -n "${path}" ]] && changed_paths+=("${path}")
-        done < <(git diff --name-only "${base_ref}^{commit}" HEAD)
-        classification="$(release_classify_heavy_e2e_paths "${changed_paths[@]}")"
-        RELEASE_RUN_ADDON_E2E="${classification#addon=}"
-        RELEASE_RUN_ADDON_E2E="${RELEASE_RUN_ADDON_E2E%% *}"
-        RELEASE_RUN_LATEX_E2E="${classification##*latex=}"
-        RELEASE_HEAVY_E2E_REASON="auto-selected from ${base_ref}..${RELEASE_CANDIDATE_SHA:0:12} (${#changed_paths[@]} changed path(s))"
-      fi
-      ;;
-    *)
-      die "AIBOX_RELEASE_HEAVY_E2E must be 'auto' or 'all' (got: ${mode})"
-      ;;
-  esac
-  export RELEASE_RUN_ADDON_E2E RELEASE_RUN_LATEX_E2E RELEASE_HEAVY_E2E_REASON
-  info "Heavy E2E selection: addon=${RELEASE_RUN_ADDON_E2E}, latex=${RELEASE_RUN_LATEX_E2E} — ${RELEASE_HEAVY_E2E_REASON}"
-  release_timing_record_event selection selected heavy-e2e \
-    "$(date -u +%Y-%m-%dT%H:%M:%SZ)" "$(date -u +%Y-%m-%dT%H:%M:%SZ)" \
-    0 0 "addon=${RELEASE_RUN_ADDON_E2E};latex=${RELEASE_RUN_LATEX_E2E};${RELEASE_HEAVY_E2E_REASON}"
 }
 
 release_visual_gate() {
@@ -2551,15 +2332,6 @@ cmd_release() {
   release_timing_begin "$(release_steps_joined)"
   info "Release candidate: ${RELEASE_CANDIDATE_SHA}"
 
-  RELEASE_RUN_ADDON_E2E=0
-  RELEASE_RUN_LATEX_E2E=0
-  if release_step_requested e2e; then
-    case "${AIBOX_RELEASE_SKIP_COMPANION_E2E:-}" in
-      1|true|yes) ;;
-      *) release_select_heavy_e2e "${version}" ;;
-    esac
-  fi
-
   # These gates own independent resources. Run a bounded number concurrently,
   # retain separate logs, wait for every job, then fail as a group. The default
   # of two avoids oversubscribing developer laptops; override locally with
@@ -2571,63 +2343,11 @@ cmd_release() {
   if release_step_requested audit; then
     validation_specs+=("audit|Cargo dependency audit|release_audit_gate")
   fi
-  if release_step_requested e2e; then
-    case "${AIBOX_RELEASE_SKIP_COMPANION_E2E:-}" in
-      1|true|yes)
-        warn "Skipping Tier 2 SSH companion E2E during release because AIBOX_RELEASE_SKIP_COMPANION_E2E=${AIBOX_RELEASE_SKIP_COMPANION_E2E}. Re-run ./scripts/maintain.sh test-e2e after rebuilding the companion."
-        ;;
-      *)
-        validation_specs+=("e2e-core|Tier 2 companion E2E core shard|release_companion_e2e_core_gate")
-        ;;
-    esac
-  fi
   if release_step_requested build-linux; then
     validation_specs+=("build-linux|Linux release artifacts|release_build_linux_gate")
   fi
   if [[ "${#validation_specs[@]}" -gt 0 ]]; then
     release_run_parallel_validation "${version}" "${validation_specs[@]}"
-  fi
-
-  # Heavy addon coverage is split into isolated candidate-bound shards. Prune
-  # suite-wide state once around the batch; shard-local cleanup and unique
-  # Compose project names make bounded concurrency safe. LaTeX remains separate
-  # because it owns a different large image lifecycle.
-  if release_step_requested e2e; then
-    case "${AIBOX_RELEASE_SKIP_COMPANION_E2E:-}" in
-      1|true|yes) ;;
-      *)
-        if [[ "${RELEASE_RUN_ADDON_E2E}" == "1" ]]; then
-          local saved_release_parallelism="${AIBOX_RELEASE_PARALLELISM:-}"
-          local addon_batch_status=0
-          prune_e2e_companion_storage \
-            || die "Failed to prune SSH companion state before addon shards"
-          AIBOX_RELEASE_PARALLELISM="${AIBOX_RELEASE_ADDON_PARALLELISM:-2}"
-          release_run_parallel_validation "${version}" \
-            "e2e-addon-languages|Tier 2 addon languages shard|release_companion_e2e_addon_languages_gate" \
-            "e2e-addon-platforms|Tier 2 addon platforms shard|release_companion_e2e_addon_platforms_gate" \
-            "e2e-addon-tools|Tier 2 addon tools shard|release_companion_e2e_addon_tools_gate" \
-            || addon_batch_status=$?
-          if [[ -n "${saved_release_parallelism}" ]]; then
-            AIBOX_RELEASE_PARALLELISM="${saved_release_parallelism}"
-          else
-            unset AIBOX_RELEASE_PARALLELISM
-          fi
-          prune_e2e_companion_storage \
-            || warn "Post-addon-batch SSH companion prune failed"
-          [[ "${addon_batch_status}" -eq 0 ]] \
-            || die "One or more addon E2E shards failed"
-        else
-          ok "Skipping addon image E2E: no addon/image/generator inputs changed"
-        fi
-
-        if [[ "${RELEASE_RUN_LATEX_E2E}" == "1" ]]; then
-          release_run_parallel_validation "${version}" \
-            "e2e-latex|Tier 2 companion E2E LaTeX shard|release_companion_e2e_latex_gate"
-        else
-          ok "Skipping LaTeX image E2E: no LaTeX/image/generator inputs changed"
-        fi
-        ;;
-    esac
   fi
 
   if release_step_requested visual; then
@@ -2713,6 +2433,8 @@ cmd_release() {
 
   if release_step_requested prompt; then
     local prompt_file="${DIST_DIR}/RELEASE-PROMPT.md"
+    local host_run_dir
+    host_run_dir="$("${SCRIPT_DIR}/release-host-prepare.sh" "${version}")"
     {
       echo "# Host-side steps for aibox ${tag}"
       echo ""
@@ -2723,16 +2445,15 @@ cmd_release() {
       echo "git fetch origin ${release_branch}"
       echo "git switch ${release_branch}"
       echo "git reset --keep origin/${release_branch}"
-      echo "./scripts/maintain.sh release-host ${version}"
+      echo "./scripts/maintain.sh release-host ${host_run_dir}"
       echo "\`\`\`"
       echo ""
       echo "This will:"
-      echo "- Verify the host checkout is current with the version-line release branch and contains ${tag}"
-      echo "- Build macOS binaries (aarch64-apple-darwin, x86_64-apple-darwin)"
-      echo "- Upload them to the existing GitHub release ${tag}"
-      echo "- Build and push container images to GHCR"
-      echo "- Refresh repo-owned generated runtime surfaces after the image tags exist"
-      echo "- Commit and push generated runtime changes if they drift"
+      echo "- Verify the immutable input provenance, checksums, tag, commit, and path policy"
+      echo "- Build and smoke-test both Darwin binaries without publication credentials"
+      echo "- Build and exercise the candidate image, including --forget-tmux-state"
+      echo "- Generate SBOM, vulnerability, command, manifest, and cleanup evidence"
+      echo "- Publish only manifest-listed artifacts and images after every gate passes"
     } > "${prompt_file}"
 
     ok "Host-side prompt written to dist/RELEASE-PROMPT.md"
@@ -2757,7 +2478,7 @@ cmd_release() {
   fi
   if release_step_requested prompt; then
     echo ""
-    echo "  ${bold}Remaining (macOS host):${reset} ./scripts/maintain.sh release-host ${version}"
+    echo "  ${bold}Remaining (macOS host):${reset} use the run-directory command in dist/RELEASE-PROMPT.md"
   fi
 }
 
@@ -2889,73 +2610,18 @@ ensure_release_host_checkout_current() {
   ok "Host checkout matches the ${release_branch} release line and contains ${tag}"
 }
 
+
+cmd_release_host_prepare() {
+  [[ "$#" -eq 1 ]] || die "Usage: ./scripts/maintain.sh release-host-prepare <version>"
+  "${SCRIPT_DIR}/release-host-prepare.sh" "$1"
+}
+
 cmd_release_host() {
-  local version="${1:-}"
-  local release_started_epoch="$(date +%s)"
-  [[ -z "${version}" ]] && die "Usage: ./scripts/maintain.sh release-host <version>  (e.g. 0.10.2)"
-
-  if ! [[ "${version}" =~ ^[0-9]+\.[0-9]+\.[0-9]+(-[0-9A-Za-z][0-9A-Za-z.-]*)?$ ]]; then
-    die "Version must be semver: X.Y.Z or X.Y.Z-prerelease (got: ${version})"
+  if [[ "$#" -ge 1 && "$#" -le 2 ]]; then
+    "${SCRIPT_DIR}/release-host-gate.sh" "$@"
+  else
+    die "Usage: ./scripts/maintain.sh release-host [--dry-run] <run-dir> [--dry-run]"
   fi
-
-  local tag="v${version}"
-  ensure_release_host_checkout_current "${version}"
-  release_evidence_init "${version}" host
-  release_timing_begin "release-host"
-  info "Host release source: ${RELEASE_CANDIDATE_SHA}"
-
-  # ── Step 1: Build macOS binaries ──────────────────────────────────────────
-  # macOS compilation and image publication are independent. Run both with
-  # separate logs and aggregate their failures before continuing.
-  release_run_parallel_validation "${version}" \
-    "build-macos|macOS release artifacts|release_build_macos_gate" \
-    "publish-images|GHCR image publication|release_publish_images_gate"
-
-  # ── Step 2: Upload macOS binaries to existing GitHub release ──────────────
-  info "Uploading macOS binaries to GitHub release ${tag}..."
-  local release_view_output
-  if ! release_view_output=$(gh release view "${tag}" --repo "${GITHUB_REPO}" 2>&1); then
-    if grep -qiE 'not[[:space:]]+found|HTTP 404' <<<"${release_view_output}"; then
-      die "GitHub release ${tag} not found in ${GITHUB_REPO}. Run 'release' in the container first."
-    fi
-    die "Could not verify GitHub release ${tag} in ${GITHUB_REPO}: ${release_view_output}"
-  fi
-  gh release upload "${tag}" "${PROJECT_ROOT}/LICENSE" \
-    --repo "${GITHUB_REPO}" \
-    --clobber \
-    || warn "LICENSE upload failed — verify the GitHub release includes LICENSE"
-  gh release upload "${tag}" "${DIST_DIR}"/aibox-v${version}-*-apple-darwin.tar.gz "${DIST_DIR}"/aibox-v${version}-*-apple-darwin.tar.gz.sha256 \
-    --repo "${GITHUB_REPO}" \
-    || warn "Upload failed — binaries may already be attached"
-  ok "macOS binaries, checksums, and LICENSE uploaded to ${tag}"
-
-  # ── Step 3: Publish container images ─────────────────────────────────────
-  # ── Step 4: Run generated-runtime smoke against the pushed image ──────────
-  info "Running generated runtime smoke..."
-  cmd_release_runtime_smoke "${version}"
-
-  # ── Step 5: Commit generated runtime surfaces now that images exist ───────
-  cmd_release_finalize_runtime "${version}"
-
-  # ── Step 6: Final GHCR sanity check ───────────────────────────────────────
-  # cmd_publish_images_for_release also calls this internally; re-running at
-  # the end of release-host guards against any later step (smoke, finalize)
-  # accidentally clobbering the tags or against a retag that succeeded
-  # locally but didn't propagate to GHCR.
-  info "Re-verifying GHCR tags after smoke + runtime finalize..."
-  verify_release_images_in_ghcr "${version}" "base-debian"
-  local release_duration="$(( $(date +%s) - release_started_epoch ))"
-  release_timing_finish "${release_duration}"
-  release_write_timing_report "${version}" "${release_duration}"
-
-  # ── Done ──────────────────────────────────────────────────────────────────
-  echo ""
-  ok "Release ${tag} host-side steps complete."
-  echo ""
-  echo "  macOS binaries: uploaded to GitHub release"
-  echo "  Container images: pushed to GHCR and verified live"
-  echo "  Runtime smoke: passed (logs in dist/release-smoke/v${version}/)"
-  echo "  Generated runtime: refreshed and committed if needed"
 }
 
 # ── Container commands ───────────────────────────────────────────────────────
@@ -3087,6 +2753,7 @@ case "${COMMAND}" in
   release)      cmd_release "$@" ;;
   release-check-state) cmd_release_check_state "$@" ;;
   release-doctors) cmd_release_doctors ;;
+  release-host-prepare) cmd_release_host_prepare "$@" ;;
   release-host) cmd_release_host "$@" ;;
   release-finalize-runtime) cmd_release_finalize_runtime "$@" ;;
   start)        cmd_start ;;

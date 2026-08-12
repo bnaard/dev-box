@@ -72,6 +72,9 @@ info "Ensuring Rust targets are installed..."
 installed_targets="$(rustup target list --installed)"
 for target in "${TARGETS[@]}"; do
   if ! grep -qx "${target}" <<<"${installed_targets}"; then
+    if [[ "${AIBOX_RELEASE_HOST_OFFLINE:-0}" == "1" ]]; then
+      die "Required Rust target ${target} is not installed; host validation is offline and will not acquire it."
+    fi
     rustup target add "${target}"
   fi
 done
