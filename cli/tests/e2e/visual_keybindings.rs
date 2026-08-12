@@ -5,6 +5,7 @@
 //! tmux buffer/yank behavior. All interaction is driven through tmux itself.
 
 use super::local_runner::LocalProject as E2eRunner;
+use serial_test::serial;
 
 fn extract_cast_output(cast_content: &str) -> String {
     cast_content
@@ -143,6 +144,7 @@ fn quoted_shell(command: &str) -> String {
 }
 
 #[test]
+#[serial(local_visual)]
 #[ntest::timeout(120_000)]
 fn visual_kb_yazi_e_opens_file_in_vim_pane() {
     // Per DEC-20260508_1604-LuckySeal (v0.25.6): yazi `e` opens the marked
@@ -232,6 +234,7 @@ fn visual_kb_yazi_e_opens_file_in_vim_pane() {
 }
 
 #[test]
+#[serial(local_visual)]
 #[ntest::timeout(90_000)]
 fn visual_kb_yazi_enter_opens_vim_inplace_and_returns() {
     let runner = E2eRunner::new();
@@ -281,6 +284,7 @@ fn visual_kb_yazi_enter_opens_vim_inplace_and_returns() {
 }
 
 #[test]
+#[serial(local_visual)]
 #[ntest::timeout(180_000)]
 fn visual_kb_yazi_git_summary_and_changes_show_status() {
     let runner = E2eRunner::new();
@@ -329,6 +333,7 @@ fn visual_kb_yazi_git_summary_and_changes_show_status() {
 }
 
 #[test]
+#[serial(local_visual)]
 #[ntest::timeout(90_000)]
 fn visual_kb_yazi_pane_toggles_keep_file_list_alive() {
     let runner = E2eRunner::new();
@@ -376,6 +381,7 @@ fn visual_kb_yazi_pane_toggles_keep_file_list_alive() {
 }
 
 #[test]
+#[serial(local_visual)]
 #[ntest::timeout(90_000)]
 fn visual_kb_tmux_prefix_splits_windows_and_status_render() {
     let runner = E2eRunner::new();
@@ -436,6 +442,7 @@ fn vim_driver(ws: &str, session: &str, vim_args: &str, actions: &str) -> String 
 }
 
 #[test]
+#[serial(local_visual)]
 #[ntest::timeout(90_000)]
 fn visual_kb_vim_leader_e_opens_netrw() {
     let runner = E2eRunner::new();
@@ -474,6 +481,7 @@ fn visual_kb_vim_leader_e_opens_netrw() {
 }
 
 #[test]
+#[serial(local_visual)]
 #[ntest::timeout(90_000)]
 fn visual_kb_vim_leader_l_shows_buffer_list() {
     let runner = E2eRunner::new();
@@ -513,6 +521,7 @@ fn visual_kb_vim_leader_l_shows_buffer_list() {
 }
 
 #[test]
+#[serial(local_visual)]
 #[ntest::timeout(90_000)]
 fn visual_kb_vim_leader_w_saves_file() {
     let runner = E2eRunner::new();
@@ -550,6 +559,7 @@ fn visual_kb_vim_leader_w_saves_file() {
 }
 
 #[test]
+#[serial(local_visual)]
 #[ntest::timeout(90_000)]
 fn visual_kb_vim_leader_x_writes_and_quits_vim() {
     let runner = E2eRunner::new();
@@ -590,6 +600,7 @@ fn visual_kb_vim_leader_x_writes_and_quits_vim() {
 }
 
 #[test]
+#[serial(local_visual)]
 #[ntest::timeout(90_000)]
 fn visual_kb_vim_leader_n_p_cycles_buffers() {
     let runner = E2eRunner::new();
@@ -634,6 +645,7 @@ fn visual_kb_vim_leader_n_p_cycles_buffers() {
 }
 
 #[test]
+#[serial(local_visual)]
 #[ntest::timeout(60_000)]
 fn visual_kb_tmux_buffer_yank_round_trip() {
     let runner = E2eRunner::new();

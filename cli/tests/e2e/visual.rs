@@ -5,6 +5,7 @@
 //! render visible panes/status text, and do not carry legacy zellij artifacts.
 
 use super::local_runner::LocalProject as E2eRunner;
+use serial_test::serial;
 
 // Family names (clap --theme value enum). Each resolves to its canonical
 // dark variant under default mode=auto with no host detection. The light
@@ -233,6 +234,7 @@ true
 }
 
 #[test]
+#[serial(local_visual)]
 #[ntest::timeout(300_000)]
 fn visual_themes_produce_tmux_signature_colors() {
     for &(theme, r, g, b) in THEME_SIGNATURES {
@@ -277,6 +279,7 @@ fn visual_themes_produce_tmux_signature_colors() {
 }
 
 #[test]
+#[serial(local_visual)]
 #[ntest::timeout(90_000)]
 fn visual_tmux_status_and_panes_render_without_legacy_artifacts() {
     let runner = E2eRunner::new();
@@ -327,6 +330,7 @@ fn visual_tmux_status_and_panes_render_without_legacy_artifacts() {
 }
 
 #[test]
+#[serial(local_visual)]
 #[ntest::timeout(90_000)]
 fn visual_yazi_renders_in_tmux_pane() {
     let runner = E2eRunner::new();

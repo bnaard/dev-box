@@ -48,6 +48,8 @@ _SKIP_DIRS = {
     ".git",
     ".venv",
     "node_modules",
+    "target",
+    "tmp",
     "dist",
     "build",
     ".pytest_cache",

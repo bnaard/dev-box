@@ -12,6 +12,7 @@ below shows the minimum compatible processkit version for each aibox release.
 
 | aibox version | Min. processkit | Notes |
 |--------------|-----------------|-------|
+| 0.31.4 | v0.28.6 | makes Hugo downloads resilient to transient network failures, improves the release-host Textual problem workflow, and serializes contention-sensitive E2E gates |
 | 0.31.3 | v0.28.6 | adds a locked Textual dashboard and reviewed content-addressed cache reuse to the restricted macOS host gate |
 | 0.31.2 | v0.28.6 | replaces privileged companion E2E coverage with isolated local contracts and an owner-controlled, evidence-producing macOS host gate |
 | 0.31.1 | v0.28.6 | repairs incomplete processkit upgrade caches, installs declared skill dependencies, removes stale `pk-*` command projections, and consumes source-specific MCP header manifests |
