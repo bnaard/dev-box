@@ -259,6 +259,14 @@ assert set(gate.select_impact_checks(["*"])) == gate.ALL_IMPACT_CHECKS
 assert set(publisher.IMPACT_EVIDENCE) == gate.ALL_IMPACT_CHECKS
 assert publisher.LOCAL_CANDIDATE_EVIDENCE == "evidence/container-e2e/local-candidate-substitution.env"
 assert "evidence/container-e2e/impact-selection.json" in publisher.BASE_REQUIRED_EVIDENCE
+with tempfile.TemporaryDirectory() as temporary:
+    steps = Path(temporary) / "steps.log"
+    attested = "… Assemble evidence manifest [running; 0.0s]\n".encode()
+    expected = __import__("hashlib").sha256(attested).hexdigest()
+    steps.write_bytes(attested + "✓ Assemble evidence manifest [passed; 0.1s]\n".encode())
+    assert publisher.evidence_checksum_matches(steps, "evidence/steps.log", expected)
+    steps.write_bytes(attested + "✓ Publication [passed; 0.1s]\n".encode())
+    assert not publisher.evidence_checksum_matches(steps, "evidence/steps.log", expected)
 PY
 
 echo "release host gate contract tests passed"

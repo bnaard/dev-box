@@ -1338,6 +1338,15 @@ def run_gate(renderer: object | None = None) -> None:
 
     manifest_started = time.monotonic()
     runner._step("running", "Assemble evidence manifest", 0.0)
+    # Finalize every step-log state before hashing it. Publication writes only
+    # to evidence/publication/, which is deliberately outside this manifest.
+    runner._step("passed", "Assemble evidence manifest", time.monotonic() - manifest_started)
+    if dry_run:
+        runner._step("passed", "Dry-run completion", 0.0)
+        runner._step("skipped", "Publication", 0.0)
+    else:
+        runner._step("running", "Publication", 0.0)
+        runner._step("skipped", "Dry-run completion", 0.0)
     manifest = {
         "schema_version": 2, "repository": REPOSITORY, "version": version,
         "tag": provenance["tag"], "commit": provenance["commit"],
@@ -1355,7 +1364,6 @@ def run_gate(renderer: object | None = None) -> None:
     manifest_path = evidence / "release-manifest.json"
     manifest_path.write_text(json.dumps(manifest, indent=2, sort_keys=True) + "\n", encoding="utf-8")
     (evidence / "release-manifest.sha256").write_text(f"{sha256(manifest_path)}  release-manifest.json\n", encoding="utf-8")
-    runner._step("passed", "Assemble evidence manifest", time.monotonic() - manifest_started)
 
     if dry_run:
         runner._emit(PresentationEvent(
@@ -1363,13 +1371,20 @@ def run_gate(renderer: object | None = None) -> None:
             text="release-host validation complete; publication was not invoked\n"
                  f"To publish this verified run: {shlex.join(publisher_command)}\n",
         ))
-        runner._step("passed", "Dry-run completion", 0.0)
-        runner._step("skipped", "Publication", 0.0)
         return
 
-    subprocess.run(publisher_command, check=True)
-    runner._step("passed", "Publication", 0.0)
-    runner._step("skipped", "Dry-run completion", 0.0)
+    publisher_process = subprocess.Popen(
+        publisher_command, text=True, stdin=subprocess.DEVNULL,
+        stdout=subprocess.PIPE, stderr=subprocess.STDOUT,
+    )
+    assert publisher_process.stdout is not None
+    for line in publisher_process.stdout:
+        renderer.emit(PresentationEvent("output", task="Publication", text=line))
+    publisher_returncode = publisher_process.wait()
+    if publisher_returncode:
+        renderer.emit(PresentationEvent("failed", task="Publication", state="failed"))
+        raise subprocess.CalledProcessError(publisher_returncode, publisher_command)
+    renderer.emit(PresentationEvent("passed", task="Publication", state="passed"))
 
 
 def main() -> None:
