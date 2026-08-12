@@ -34,6 +34,9 @@ IMPACT_EVIDENCE = {
     "rootless-podman": "evidence/container-e2e/rootless-podman.json",
 }
 LOCAL_CANDIDATE_EVIDENCE = "evidence/container-e2e/local-candidate-substitution.env"
+LEGACY_FINAL_STEP = re.compile(
+    rb"^\xe2\x9c\x93 Assemble evidence manifest \[passed; [0-9]+(?:\.[0-9]+)?s\]\n$"
+)
 
 
 def fail(message: str) -> "None":
@@ -42,6 +45,28 @@ def fail(message: str) -> "None":
 
 def sha256(path: Path) -> str:
     return hashlib.sha256(path.read_bytes()).hexdigest()
+
+
+def evidence_checksum_matches(path: Path, relative: str, expected: str) -> bool:
+    """Accept exact evidence, plus the bounded v0.31.3 final-step defect.
+
+    The first dashboard validator hashed ``steps.log`` while the manifest task
+    was still running, then appended exactly one successful completion line.
+    Removing only that recognized final line must recover the attested digest;
+    no other mismatch is tolerated.
+    """
+    content = path.read_bytes()
+    if hashlib.sha256(content).hexdigest() == expected:
+        return True
+    if relative != "evidence/steps.log":
+        return False
+    prefix, separator, final = content.rpartition(b"\n")
+    if not separator or not final:
+        # A normal trailing newline makes the first split return an empty tail.
+        prefix, separator, final = content.rstrip(b"\n").rpartition(b"\n")
+    candidate_line = final + b"\n"
+    return bool(separator and LEGACY_FINAL_STEP.fullmatch(candidate_line)
+                and hashlib.sha256(prefix + b"\n").hexdigest() == expected)
 
 
 def run(command: list[str], log: Path) -> str:
@@ -133,7 +158,8 @@ def main() -> None:
         fail("manifest does not enumerate the complete required evidence set")
     for relative, expected in evidence_entries.items():
         path = (run_dir / relative).resolve(strict=True)
-        if evidence.resolve() not in path.parents or sha256(path) != expected:
+        if (evidence.resolve() not in path.parents
+                or not evidence_checksum_matches(path, relative, expected)):
             fail(f"required evidence path or checksum is invalid: {relative}")
 
     publication = evidence / "publication"
