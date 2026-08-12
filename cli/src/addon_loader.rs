@@ -1463,6 +1463,7 @@ runtime: |
             "slirp4netns",
             "uidmap",
             "aibox:100000:65536",
+            "/etc/containers/containers.conf",
             "cgroup_manager = \"cgroupfs\"",
         ] {
             assert!(

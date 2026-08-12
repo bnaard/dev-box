@@ -73,6 +73,10 @@ grep -Fq '"rootless_readiness": True' "${SCRIPT_DIR}/release_host_gate.py" || {
   echo "rootless Podman probe must retain explicit readiness evidence" >&2
   exit 1
 }
+grep -Fq '"/etc/containers/containers.conf"' "${SCRIPT_DIR}/release_host_gate.py" || {
+  echo "rootless Podman readiness must verify configuration outside mounted user config" >&2
+  exit 1
+}
 if grep -Fq 'Security.Rootless' "${SCRIPT_DIR}/release_host_gate.py"; then
   echo "restricted host gate must not require nested user-namespace execution" >&2
   exit 1

@@ -597,7 +597,7 @@ def run_rootless_podman(runner: Runner, profile: Path, env: dict[str, str], cand
                                  "/usr/bin/grep", "-Fx", "aibox:100000:65536", "/etc/subgid"])
         config = runner.capture([container_runtime, "exec", "--user", "aibox", name,
                                  "/usr/bin/grep", "-Fx", 'cgroup_manager = "cgroupfs"',
-                                 "/home/aibox/.config/containers/containers.conf"])
+                                 "/etc/containers/containers.conf"])
         result = evidence / "container-e2e/rootless-podman.json"
         result.write_text(json.dumps({
             "status": "passed",

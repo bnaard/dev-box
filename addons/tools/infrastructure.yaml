@@ -98,9 +98,8 @@ runtime: |
       && rm -rf /var/lib/apt/lists/*
   RUN grep -q '^aibox:' /etc/subuid || echo 'aibox:100000:65536' >> /etc/subuid; \
       grep -q '^aibox:' /etc/subgid || echo 'aibox:100000:65536' >> /etc/subgid; \
-      mkdir -p /home/aibox/.config/containers && \
-      printf '[engine]\ncgroup_manager = "cgroupfs"\n' > /home/aibox/.config/containers/containers.conf && \
-      chown -R aibox:aibox /home/aibox/.config/containers
+      mkdir -p /etc/containers && \
+      printf '[engine]\ncgroup_manager = "cgroupfs"\n' > /etc/containers/containers.conf
   {% endif %}
   # ── Variant 1 disable-then-purge guards ───────────────────────────────
   {% if not tools.opentofu.enabled %}
