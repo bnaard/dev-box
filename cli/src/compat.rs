@@ -668,6 +668,11 @@ pub static COMPAT_TABLE: &[CompatEntry] = &[
         processkit_version: "v0.28.6",
         note: "Patch release: replaces privileged companion E2E coverage with isolated local contracts and an owner-controlled, evidence-producing macOS host gate.",
     },
+    CompatEntry {
+        aibox_version: "0.31.3",
+        processkit_version: "v0.28.6",
+        note: "Patch release: adds a locked Textual dashboard and reviewed content-addressed cache reuse to the restricted macOS host gate.",
+    },
 ];
 
 /// Find the minimum compatible processkit version for the given aibox version.
