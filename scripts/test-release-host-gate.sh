@@ -218,6 +218,7 @@ all_checks = gate.select_impact_checks(["images/base-debian/Dockerfile"])
 assert set(all_checks) == gate.ALL_IMPACT_CHECKS
 assert set(gate.select_impact_checks(["*"])) == gate.ALL_IMPACT_CHECKS
 assert set(publisher.IMPACT_EVIDENCE) == gate.ALL_IMPACT_CHECKS
+assert publisher.LOCAL_CANDIDATE_EVIDENCE == "evidence/container-e2e/local-candidate-substitution.env"
 assert "evidence/container-e2e/impact-selection.json" in publisher.BASE_REQUIRED_EVIDENCE
 PY
 
