@@ -29,6 +29,7 @@ import tarfile
 import threading
 import time
 import urllib.request
+from typing import NamedTuple
 
 REPOSITORY = "projectious-work/aibox"
 EXPECTED_INPUTS = {"checksums.sha256", "provenance.json", "source.tar.gz"}
@@ -40,7 +41,296 @@ TRUSTED_CONTROL_PATHS = (
     "scripts/release-host-publish.sh",
     "scripts/release_host_gate.py",
     "scripts/release_host_publish.py",
+    "scripts/release-host-ui.in",
+    "scripts/release-host-ui.lock",
 )
+
+TEXTUAL_VERSION = "8.2.8"
+UI_MODES = {"auto", "textual", "plain"}
+TASK_PLAN = (
+    "Validate immutable candidate", "Verify isolated prerequisites",
+    "Fetch locked Rust dependencies", "Build Darwin release artifacts",
+    "Smoke native Darwin binary", "Build foundation image", "Build runtime image",
+    "Prepare local runtime image for smoke", "Inspect runtime image",
+    "Generate image SBOM", "Scan image vulnerabilities", "Vulnerability policy",
+    "Run candidate container lifecycle", "addon-languages", "addon-platforms",
+    "addon-tools", "latex-lifecycle", "rootless-podman", "Assemble evidence manifest",
+    "Dry-run completion", "Publication",
+)
+
+
+class PresentationEvent(NamedTuple):
+    """Presentation-neutral state emitted only after evidence is flushed."""
+
+    kind: str
+    task: str = ""
+    text: str = ""
+    elapsed: float = 0.0
+    state: str = ""
+
+
+class PlainRenderer:
+    """Preserve the line-oriented interface used by automation and captures."""
+
+    def emit(self, event: PresentationEvent) -> None:
+        if event.kind == "output":
+            print(event.text, end="", flush=True)
+        elif event.kind in {"started", "heartbeat", "passed", "warned", "failed", "skipped"}:
+            icons = {"started": "…", "heartbeat": "…", "passed": "✓", "warned": "!", "failed": "✗", "skipped": "-"}
+            state = event.state or ("running" if event.kind in {"started", "heartbeat"} else event.kind)
+            print(f"{icons[event.kind]} {event.task} [{state}; {event.elapsed:.1f}s]", flush=True)
+
+
+def parse_ui_mode(value: str | None) -> str:
+    """Validate the wrapper-selected presentation mode."""
+    mode = value or "auto"
+    if mode not in UI_MODES:
+        fail("AIBOX_RELEASE_HOST_UI must be exactly auto, textual, or plain")
+    return mode
+
+
+def textual_terminal_available(stdin: object = sys.stdin, stdout: object = sys.stdout,
+                               term: str | None = None) -> bool:
+    """Return whether an interactive dashboard is appropriate."""
+    return bool(getattr(stdin, "isatty", lambda: False)()
+                and getattr(stdout, "isatty", lambda: False)()
+                and (term if term is not None else os.environ.get("TERM", "")) not in {"", "dumb"})
+
+
+def sanitize_display(text: str) -> str:
+    """Strip terminal controls for display while evidence retains raw text."""
+    text = re.sub(r"\x1b\][^\x07\x1b]*(?:\x07|\x1b\\)", "", text)
+    text = re.sub(r"\x1b\[[0-?]*[ -/]*[@-~]", "", text)
+    return "".join(character for character in text if character in "\n\t" or ord(character) >= 32)
+
+
+def locked_ui_dependencies(lock: Path) -> list[str]:
+    """Return the exact top-level package pins recorded in the uv lock."""
+    return [line.split(" \\", 1)[0] for line in lock.read_text(encoding="utf-8").splitlines()
+            if re.fullmatch(r"[a-z0-9-]+==[^ ]+ \\", line)]
+
+
+class TextualRenderer:
+    """Thread-safe bridge from the gate runner to the Textual application."""
+
+    def __init__(self, app: object) -> None:
+        self.app = app
+
+    def emit(self, event: PresentationEvent) -> None:
+        self.app.call_from_thread(self.app.apply_gate_event, event)
+
+
+def run_textual_dashboard(run_argument: str, dry_run: bool) -> int:
+    """Run the blocking gate in a worker while Textual owns the terminal."""
+    from textual.app import App, ComposeResult
+    from textual.binding import Binding
+    from textual.containers import Horizontal, Vertical
+    from textual.widgets import Footer, Header, Label, ListItem, ListView, ProgressBar, Static, TextArea
+
+    class GateDashboard(App[int]):
+        CSS = """
+        Screen { layout: vertical; }
+        #summary { height: 3; border: round $accent; padding: 0 1; }
+        #progress { height: 3; margin: 0 1; }
+        #body { height: 1fr; }
+        #tasks { width: 34%; min-width: 28; border: round $accent; }
+        #log-panel { width: 66%; border: round $accent; }
+        #log { height: 1fr; }
+        #log-status { height: 1; color: $text-muted; }
+        ListItem { padding: 0 1; }
+        ListItem.-active { background: $boost; }
+        """
+        BINDINGS = [
+            Binding("space", "toggle_follow", "Follow"),
+            Binding("w", "toggle_wrap", "Wrap"),
+            Binding("end", "follow_tail", "Live tail"),
+            Binding("ctrl+a", "select_log", "Select log"),
+            Binding("ctrl+c", "copy_log", "Copy"),
+            Binding("y", "copy_task_log", "Copy task log"),
+            Binding("p", "show_log_path", "Evidence path"),
+            Binding("question_mark", "help", "Keys"),
+            Binding("q", "quit_when_done", "Quit"),
+        ]
+
+        def __init__(self) -> None:
+            super().__init__()
+            self.started_at = time.monotonic()
+            self.finished = False
+            self.follow = True
+            self.wrap = True
+            self.task_states: dict[str, tuple[str, float]] = {}
+            self.task_logs: dict[str, list[str]] = {"All output": []}
+            self.task_order = ["All output"]
+            self.selected_task = "All output"
+            self.candidate = "pending"
+            self.container_runtime = "detecting"
+            self.spinner_index = 0
+            self.log_render_pending = False
+
+        def compose(self) -> ComposeResult:
+            mode = "dry run" if dry_run else "publication"
+            yield Header(show_clock=True)
+            yield Static(f"release-host • {mode} • {Path(run_argument).name}", id="summary")
+            yield ProgressBar(total=None, show_eta=False, id="progress")
+            with Horizontal(id="body"):
+                yield ListView(
+                    ListItem(Label("● All output"), id="task-0"),
+                    *(ListItem(Label(f"○ {task}")) for task in TASK_PLAN), id="tasks",
+                )
+                with Vertical(id="log-panel"):
+                    yield TextArea("", read_only=True, show_line_numbers=False, soft_wrap=True, id="log")
+                    yield Static("FOLLOW • WRAP • full evidence: evidence/command-results.log", id="log-status")
+            yield Footer()
+
+        def on_mount(self) -> None:
+            for task in TASK_PLAN:
+                self.task_logs[task] = []
+                self.task_order.append(task)
+                self.task_states[task] = ("pending", 0.0)
+            self.run_worker(self._execute_gate, thread=True, exclusive=True)
+            self.set_interval(1.0, self._refresh_elapsed)
+
+        def _execute_gate(self) -> None:
+            code = 0
+            try:
+                run_gate(TextualRenderer(self))
+            except SystemExit as error:
+                code = error.code if isinstance(error.code, int) else 1
+                self.call_from_thread(self.apply_gate_event, PresentationEvent("output", text=f"{error}\n"))
+            except BaseException as error:  # retain an actionable failure in the UI
+                code = 1
+                self.call_from_thread(self.apply_gate_event, PresentationEvent("output", text=f"{type(error).__name__}: {error}\n"))
+            self.call_from_thread(self._finish, code)
+
+        def _finish(self, code: int) -> None:
+            self.finished = True
+            self.exit_code = code
+            self.notify("Gate completed" if code == 0 else f"Gate failed (exit {code})",
+                        severity="information" if code == 0 else "error", timeout=10)
+            if not sys.stdin.isatty():
+                self.exit(code)
+
+        def apply_gate_event(self, event: PresentationEvent) -> None:
+            visible_task = event.task in TASK_PLAN or event.task.startswith("Cleanup ")
+            if event.task and visible_task and event.task not in self.task_logs:
+                self.task_logs[event.task] = []
+                self.task_order.append(event.task)
+                self.query_one("#tasks", ListView).append(ListItem(Label(f"○ {event.task}")))
+            if event.kind == "output":
+                clean = sanitize_display(event.text)
+                self.task_logs["All output"].append(clean)
+                if visible_task:
+                    self.task_logs.setdefault(event.task, []).append(clean)
+                if self.selected_task in {"All output", event.task}:
+                    self._schedule_log_render()
+                return
+            if event.kind == "metadata":
+                metadata = json.loads(event.text)
+                self.candidate = metadata.get("commit", self.candidate)
+                self.container_runtime = metadata.get("container_runtime", self.container_runtime)
+                self._refresh_elapsed()
+                return
+            if event.kind == "plan":
+                progress = self.query_one("#progress", ProgressBar)
+                progress.update(total=len(TASK_PLAN), progress=sum(
+                    state in {"passed", "warned", "failed", "skipped"}
+                    for state, _ in self.task_states.values()))
+                return
+            if visible_task:
+                self.task_states[event.task] = (event.state or event.kind, event.elapsed)
+                self._refresh_tasks()
+                completed = sum(
+                    self.task_states[task][0] in {"passed", "warned", "failed", "skipped"}
+                    for task in TASK_PLAN
+                )
+                progress = self.query_one("#progress", ProgressBar)
+                if progress.total is not None:
+                    progress.update(total=len(TASK_PLAN), progress=completed)
+
+        def _refresh_tasks(self) -> None:
+            icons = {"passed": "✓", "warned": "!", "failed": "✗", "skipped": "-"}
+            spinner = "⠋⠙⠹⠸⠼⠴⠦⠧⠇⠏"[self.spinner_index]
+            view = self.query_one("#tasks", ListView)
+            for index, task in enumerate(self.task_order[1:], start=1):
+                state, elapsed = self.task_states.get(task, ("pending", 0.0))
+                icon = spinner if state == "running" else icons.get(state, "○")
+                view.children[index].query_one(Label).update(f"{icon} {task}  {elapsed:.1f}s")
+
+        def _schedule_log_render(self) -> None:
+            """Coalesce high-volume subprocess lines into one screen refresh."""
+            if not self.log_render_pending:
+                self.log_render_pending = True
+                self.set_timer(0.01, self._flush_log_render)
+
+        def _flush_log_render(self) -> None:
+            self.log_render_pending = False
+            self._render_log()
+
+        def _render_log(self) -> None:
+            log = self.query_one("#log", TextArea)
+            log.load_text("".join(self.task_logs.get(self.selected_task, [])))
+            if self.follow:
+                log.move_cursor(log.document.end)
+
+        def on_list_view_selected(self, event: ListView.Selected) -> None:
+            self.selected_task = self.task_order[event.list_view.index or 0]
+            self._render_log()
+
+        def _refresh_elapsed(self) -> None:
+            self.spinner_index = (self.spinner_index + 1) % 10
+            self._refresh_tasks()
+            self.query_one("#summary", Static).update(
+                f"release-host • {'dry run' if dry_run else 'publication'} • {Path(run_argument).name} • "
+                f"{self.candidate[:12]} • {self.container_runtime} • {time.monotonic() - self.started_at:.0f}s"
+            )
+
+        def action_toggle_follow(self) -> None:
+            self.follow = not self.follow
+            self._update_log_status()
+
+        def action_toggle_wrap(self) -> None:
+            self.wrap = not self.wrap
+            self.query_one("#log", TextArea).soft_wrap = self.wrap
+            self._update_log_status()
+
+        def action_follow_tail(self) -> None:
+            self.follow = True
+            self._render_log()
+            self._update_log_status()
+
+        def _update_log_status(self) -> None:
+            self.query_one("#log-status", Static).update(
+                f"{'FOLLOW' if self.follow else 'PAUSED'} • {'WRAP' if self.wrap else 'NO WRAP'} • full evidence: evidence/command-results.log"
+            )
+
+        def action_select_log(self) -> None:
+            self.query_one("#log", TextArea).select_all()
+
+        def action_copy_log(self) -> None:
+            log = self.query_one("#log", TextArea)
+            text = log.selected_text
+            if text:
+                self.copy_to_clipboard(text)
+                self.notify("Selection copied")
+
+        def action_copy_task_log(self) -> None:
+            self.copy_to_clipboard("".join(self.task_logs.get(self.selected_task, [])))
+            self.notify(f"Copied {self.selected_task}")
+
+        def action_show_log_path(self) -> None:
+            self.notify("Authoritative log: evidence/command-results.log", timeout=8)
+
+        def action_help(self) -> None:
+            self.notify("Tab focus • arrows/page scroll • Space follow • w wrap • Ctrl+A/C select/copy • y copy task • End tail • p evidence path • q quit", timeout=12)
+
+        def action_quit_when_done(self) -> None:
+            if self.finished:
+                self.exit(getattr(self, "exit_code", 0))
+            else:
+                self.notify("Gate is running; quit is disabled to protect cleanup", severity="warning")
+
+    result = GateDashboard().run()
+    return int(result or 0)
 
 ADDON_GROUPS = {
     "addon-languages": ["docs-hugo", "docs-mdbook", "go", "go-quality", "go-release", "node", "rust", "typst"],
@@ -136,16 +426,15 @@ def grype_policy_summary(report: Path) -> dict[str, object]:
     }
 
 
-def print_grype_policy_summary(summary: dict[str, object]) -> None:
+def print_grype_policy_summary(summary: dict[str, object], renderer: object | None = None) -> None:
     """Render a bounded advisory-level view of the vulnerability policy."""
-    print(
+    lines = [
         "Grype policy: "
         f"{summary['unique_advisories']} unique High/Critical advisories across "
         f"{summary['high_critical_package_matches']} package matches; "
         f"{summary['actionable_advisories']} actionable, "
-        f"{summary['no_fix_advisories']} no-fix warnings.",
-        flush=True,
-    )
+        f"{summary['no_fix_advisories']} no-fix warnings."
+    ]
     for advisory in summary["advisories"][:20]:
         packages = advisory["packages"]
         package_names = ", ".join(sorted({package["name"] for package in packages})[:4])
@@ -153,9 +442,11 @@ def print_grype_policy_summary(summary: dict[str, object]) -> None:
             package_names += ", …"
         fixes = sorted({version for package in packages for version in package["fix_versions"]})
         disposition = f"BLOCK; fixed in {', '.join(fixes)}" if fixes else "WARN; no fix listed"
-        print(f"  - {advisory['severity']}: {advisory['id']} ({package_names}) — {disposition}", flush=True)
+        lines.append(f"  - {advisory['severity']}: {advisory['id']} ({package_names}) — {disposition}")
     if len(summary["advisories"]) > 20:
-        print(f"  - … and {len(summary['advisories']) - 20} more advisories", flush=True)
+        lines.append(f"  - … and {len(summary['advisories']) - 20} more advisories")
+    (renderer or PlainRenderer()).emit(PresentationEvent("output", task="Vulnerability policy",
+                                                          text="\n".join(lines) + "\n"))
 
 
 def fail(message: str) -> "None":
@@ -225,12 +516,19 @@ class Runner:
     trusting terminal scrollback.
     """
 
-    def __init__(self, evidence: Path, env: dict[str, str], *, heartbeat_interval: float = 10.0) -> None:
+    def __init__(self, evidence: Path, env: dict[str, str], *, heartbeat_interval: float = 10.0,
+                 renderer: object | None = None) -> None:
         """Bind command logs to *evidence* and freeze the subprocess environment."""
         self.log = evidence / "commands.log"
         self.steps = evidence / "steps.log"
         self.env = env
         self.heartbeat_interval = heartbeat_interval
+        self.renderer = renderer or PlainRenderer()
+        self.output_task: str | None = None
+
+    def _emit(self, event: PresentationEvent) -> None:
+        """Deliver one event after its authoritative evidence write."""
+        self.renderer.emit(event)
 
     def run(self, command: list[str], *, cwd: Path | None = None, output: Path | None = None,
             label: str | None = None) -> None:
@@ -239,9 +537,10 @@ class Runner:
         step = label or " ".join(command[:2])
         started = time.monotonic()
         self._step("running", step, 0.0)
-        print(f"+ {rendered}", flush=True)
         with self.log.open("a", encoding="utf-8") as log:
             log.write(rendered + "\n")
+            log.flush()
+        self._emit(PresentationEvent("output", task=self.output_task or step, text=f"+ {rendered}\n"))
         result_log = self.log.parent / "command-results.log"
         stdout_target = subprocess.PIPE if output is None else output.open("wb")
         try:
@@ -278,7 +577,7 @@ class Runner:
                         break
                     results.write(message)
                     results.flush()
-                    print(message, end="", flush=True)
+                    self._emit(PresentationEvent("output", task=self.output_task or step, text=message))
                     last_activity = time.monotonic()
                 returncode = process.wait()
                 elapsed = time.monotonic() - started
@@ -293,25 +592,30 @@ class Runner:
 
     def _step(self, state: str, label: str, elapsed: float) -> None:
         """Print and retain one high-level progress transition."""
-        icons = {"running": "…", "passed": "✓", "failed": "✗"}
+        icons = {"running": "…", "passed": "✓", "failed": "✗", "warned": "!", "skipped": "-"}
         line = f"{icons[state]} {label} [{state}; {elapsed:.1f}s]"
-        print(line, flush=True)
         with self.steps.open("a", encoding="utf-8") as stream:
             stream.write(line + "\n")
+            stream.flush()
+        kind = "heartbeat" if state == "running" and elapsed else "started" if state == "running" else state
+        self._emit(PresentationEvent(kind, task=label, elapsed=elapsed, state=state))
 
     def capture(self, command: list[str], *, cwd: Path | None = None) -> str:
         """Run *command*, log it, and return its combined textual output."""
         rendered = shlex.join(command)
-        print(f"+ {rendered}", flush=True)
         with self.log.open("a", encoding="utf-8") as log:
             log.write(rendered + "\n")
+            log.flush()
+        task = self.output_task or " ".join(command[:2])
+        self._emit(PresentationEvent("output", task=task, text=f"+ {rendered}\n"))
         completed = subprocess.run(command, cwd=cwd, env=self.env, text=True,
                                    stdin=subprocess.DEVNULL,
                                    stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
         with (self.log.parent / "command-results.log").open("a", encoding="utf-8") as results:
             results.write(f"$ {rendered}\n{completed.stdout}\nexit={completed.returncode}\n")
-        if completed.returncode != 0 and completed.stdout:
-            print(completed.stdout, end="" if completed.stdout.endswith("\n") else "\n", flush=True)
+        if completed.stdout:
+            self._emit(PresentationEvent("output", task=task,
+                                         text=completed.stdout + ("" if completed.stdout.endswith("\n") else "\n")))
         completed.check_returncode()
         return completed.stdout
 
@@ -393,7 +697,8 @@ def compose_cleanup(runner: Runner, container_runtime: str, compose_file: Path) 
     blocks, and a cleanup error prevents publication just like a failed probe.
     """
     runner.run([container_runtime, "compose", "-f", str(compose_file), "down", "-v",
-                "--remove-orphans", "--rmi", "local"], cwd=compose_file.parent.parent)
+                "--remove-orphans", "--rmi", "local"], cwd=compose_file.parent.parent,
+               label=f"Cleanup {compose_file.parent.parent.name}")
 
 
 def init_project(runner: Runner, profile: Path, env: dict[str, str], candidate_bin: Path,
@@ -612,7 +917,10 @@ def run_rootless_podman(runner: Runner, profile: Path, env: dict[str, str], cand
             compose_cleanup(runner, container_runtime, compose_file)
 
 
-def main() -> None:
+def run_gate(renderer: object | None = None) -> None:
+    """Execute the release gate independently of its terminal presentation."""
+    renderer = renderer or PlainRenderer()
+    validation_started = time.monotonic()
     """Execute the complete fail-closed validation and publication sequence."""
     # Phase 1: constrain the platform and validate the immutable input envelope.
     if len(sys.argv) != 2:
@@ -760,7 +1068,11 @@ def main() -> None:
         '(deny mach-lookup (global-name "com.apple.securityd") '
         '(global-name "com.apple.securityd.xpc"))\n', encoding="utf-8"
     )
-    runner = Runner(evidence, fixed_env)
+    runner = Runner(evidence, fixed_env, renderer=renderer)
+    runner._step("passed", "Validate immutable candidate", time.monotonic() - validation_started)
+    renderer.emit(PresentationEvent("metadata", text=json.dumps({"commit": provenance["commit"]})))
+    prerequisites_started = time.monotonic()
+    runner._step("running", "Verify isolated prerequisites", 0.0)
     prerequisite_hints = {
         "cargo": "install Rust with rustup from https://rustup.rs",
         "rustc": "install Rust with rustup from https://rustup.rs",
@@ -772,6 +1084,7 @@ def main() -> None:
         if shutil.which(tool, path=fixed_env["PATH"]) is None:
             fail(f"required host prerequisite is missing: {tool}; {hint}")
     container_runtime = select_container_runtime(fixed_env)
+    renderer.emit(PresentationEvent("metadata", text=json.dumps({"container_runtime": container_runtime})))
     compose = subprocess.run(
         [container_runtime, "compose", "version"], env=fixed_env,
         stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True,
@@ -787,9 +1100,14 @@ def main() -> None:
         )
         if buildx.returncode != 0:
             fail("the Docker-compatible runtime cannot load its Buildx plugin from the isolated config; ensure OrbStack or Docker Desktop provides docker-buildx")
+    runner._step("passed", "Verify isolated prerequisites", time.monotonic() - prerequisites_started)
     (evidence / "darwin-build/toolchain.json").write_text(json.dumps({
         "python": sys.version, "python_executable": sys.executable,
         "python_requirement": "3.14.6", "uv": os.environ["AIBOX_HOST_GATE_UV_BIN"],
+        "textual": TEXTUAL_VERSION,
+        "ui_lock": str(script_dir / "release-host-ui.lock"),
+        "ui_lock_sha256": sha256(script_dir / "release-host-ui.lock"),
+        "ui_dependencies": locked_ui_dependencies(script_dir / "release-host-ui.lock"),
         "uv_cache_dir": os.environ["UV_CACHE_DIR"],
         "uv_python_install_dir": os.environ["UV_PYTHON_INSTALL_DIR"],
         "cargo_home": fixed_env["CARGO_HOME"], "rustup_home": fixed_env["RUSTUP_HOME"],
@@ -874,12 +1192,15 @@ def main() -> None:
     vulnerability_policy.write_text(
         json.dumps(vulnerability_summary, indent=2, sort_keys=True) + "\n", encoding="utf-8"
     )
-    print_grype_policy_summary(vulnerability_summary)
+    print_grype_policy_summary(vulnerability_summary, renderer)
     if vulnerability_summary["actionable_advisories"]:
+        runner._step("failed", "Vulnerability policy", 0.0)
         fail(
             f"Grype found {vulnerability_summary['actionable_advisories']} fixable High/Critical advisories; "
             f"policy report: {vulnerability_policy}"
         )
+    runner._step("warned" if vulnerability_summary["no_fix_advisories"] else "passed",
+                 "Vulnerability policy", 0.0)
 
     # The canonical runtime smoke is mandatory for every candidate, independent
     # of the changed-path-selected expensive checks below.
@@ -915,20 +1236,56 @@ def main() -> None:
         },
     }
     coverage_path.write_text(json.dumps(coverage, indent=2, sort_keys=True) + "\n", encoding="utf-8")
+    for check, reason in coverage["skipped"].items():
+        runner._step("skipped", check, 0.0)
+    if not smoke_runtime_image:
+        runner._step("skipped", "Prepare local runtime image for smoke", 0.0)
+    renderer.emit(PresentationEvent("plan"))
     conditional_evidence: list[Path] = []
     for group in ADDON_GROUPS:
         if group in selected_checks:
-            conditional_evidence.append(run_addon_group(
-                runner, profile, fixed_env, candidate_bin, container_runtime,
-                runtime, evidence, version, group))
+            started = time.monotonic()
+            runner._step("running", group, 0.0)
+            runner.output_task = group
+            try:
+                conditional_evidence.append(run_addon_group(
+                    runner, profile, fixed_env, candidate_bin, container_runtime,
+                    runtime, evidence, version, group))
+            except BaseException:
+                runner._step("failed", group, time.monotonic() - started)
+                raise
+            finally:
+                runner.output_task = None
+            runner._step("passed", group, time.monotonic() - started)
     if "latex-lifecycle" in selected_checks:
         preview_port = 18000 + int(provenance["commit"][:8], 16) % 1000
-        conditional_evidence.append(run_latex_lifecycle(
-            runner, profile, fixed_env, candidate_bin, container_runtime,
-            runtime, evidence, version, preview_port))
+        started = time.monotonic()
+        runner._step("running", "latex-lifecycle", 0.0)
+        runner.output_task = "latex-lifecycle"
+        try:
+            conditional_evidence.append(run_latex_lifecycle(
+                runner, profile, fixed_env, candidate_bin, container_runtime,
+                runtime, evidence, version, preview_port))
+        except BaseException:
+            runner._step("failed", "latex-lifecycle", time.monotonic() - started)
+            raise
+        finally:
+            runner.output_task = None
+        runner._step("passed", "latex-lifecycle", time.monotonic() - started)
     if "rootless-podman" in selected_checks:
-        conditional_evidence.append(run_rootless_podman(
-            runner, profile, fixed_env, candidate_bin, container_runtime, runtime, evidence, version))
+        started = time.monotonic()
+        runner._step("running", "rootless-podman", 0.0)
+        runner.output_task = "rootless-podman"
+        try:
+            conditional_evidence.append(run_rootless_podman(
+                runner, profile, fixed_env, candidate_bin, container_runtime,
+                runtime, evidence, version))
+        except BaseException:
+            runner._step("failed", "rootless-podman", time.monotonic() - started)
+            raise
+        finally:
+            runner.output_task = None
+        runner._step("passed", "rootless-podman", time.monotonic() - started)
 
     # Phase 8: assemble a fixed, checksummed manifest. When publication is
     # enabled it receives no arbitrary artifact list; dry-run stops after the
@@ -937,9 +1294,10 @@ def main() -> None:
     publisher_command = [str(publisher), str(run_dir)]
     if not dry_run:
         rendered_publisher = shlex.join(publisher_command)
-        print(f"+ {rendered_publisher}", flush=True)
         with runner.log.open("a", encoding="utf-8") as log:
             log.write(rendered_publisher + "\n")
+            log.flush()
+        runner._emit(PresentationEvent("output", task="Publication", text=f"+ {rendered_publisher}\n"))
 
     required_paths = [
         evidence / "darwin-smoke/complete.json",
@@ -959,6 +1317,8 @@ def main() -> None:
         if not required.exists() or (required.is_file() and required.stat().st_size == 0):
             fail(f"required evidence is missing or empty: {required.relative_to(run_dir)}")
 
+    manifest_started = time.monotonic()
+    runner._step("running", "Assemble evidence manifest", 0.0)
     manifest = {
         "schema_version": 2, "repository": REPOSITORY, "version": version,
         "tag": provenance["tag"], "commit": provenance["commit"],
@@ -976,13 +1336,36 @@ def main() -> None:
     manifest_path = evidence / "release-manifest.json"
     manifest_path.write_text(json.dumps(manifest, indent=2, sort_keys=True) + "\n", encoding="utf-8")
     (evidence / "release-manifest.sha256").write_text(f"{sha256(manifest_path)}  release-manifest.json\n", encoding="utf-8")
+    runner._step("passed", "Assemble evidence manifest", time.monotonic() - manifest_started)
 
     if dry_run:
-        print("release-host validation complete; publication was not invoked", flush=True)
-        print(f"To publish this verified run: {shlex.join(publisher_command)}", flush=True)
+        runner._emit(PresentationEvent(
+            "output", task="Dry-run completion",
+            text="release-host validation complete; publication was not invoked\n"
+                 f"To publish this verified run: {shlex.join(publisher_command)}\n",
+        ))
+        runner._step("passed", "Dry-run completion", 0.0)
+        runner._step("skipped", "Publication", 0.0)
         return
 
     subprocess.run(publisher_command, check=True)
+    runner._step("passed", "Publication", 0.0)
+    runner._step("skipped", "Dry-run completion", 0.0)
+
+
+def main() -> None:
+    """Select Textual or plain rendering before candidate execution starts."""
+    mode = parse_ui_mode(os.environ.get("AIBOX_RELEASE_HOST_UI"))
+    dry_run = dry_run_enabled(os.environ.get("AIBOX_RELEASE_HOST_DRY_RUN"))
+    use_textual = mode == "textual" or (mode == "auto" and textual_terminal_available())
+    if use_textual:
+        try:
+            raise SystemExit(run_textual_dashboard(sys.argv[1], dry_run))
+        except ImportError as error:
+            if mode == "textual":
+                fail(f"Textual UI could not start: {error}")
+            print(f"release-host gate: Textual UI unavailable; continuing in plain mode: {error}", file=sys.stderr)
+    run_gate(PlainRenderer())
 
 
 if __name__ == "__main__":

@@ -2617,10 +2617,10 @@ cmd_release_host_prepare() {
 }
 
 cmd_release_host() {
-  if [[ "$#" -ge 1 && "$#" -le 2 ]]; then
+  if [[ "$#" -ge 1 && "$#" -le 3 ]]; then
     "${SCRIPT_DIR}/release-host-gate.sh" "$@"
   else
-    die "Usage: ./scripts/maintain.sh release-host [--dry-run] <run-dir> [--dry-run]"
+    die "Usage: ./scripts/maintain.sh release-host [--dry-run] [--ui=auto|textual|plain] <run-dir>"
   fi
 }
 

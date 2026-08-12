@@ -160,6 +160,15 @@ and manifest hashing, but it does not invoke GitHub or GHCR publication. The
 validator prints the separate publisher command that can consume the verified
 run directory later.
 
+Interactive terminals use the Textual dashboard by default (`--ui=auto`). Use
+`--ui=textual` to fail if the dashboard cannot start, or `--ui=plain` for
+redirected and captured output. The UI presents a high-level progress bar, a
+persistent task list, and a selectable task-filtered log. Space toggles follow,
+`w` toggles wrapping, Ctrl+A/C selects and copies, `y` copies the selected task
+log, End resumes the live tail, and `p` displays the authoritative evidence
+path. The UI is presentation rather than evidence; full output is retained in
+`evidence/command-results.log`.
+
 The reviewed entry point accepts only that run-directory path. It rejects
 traversal, symlinks, special files, hardlinks, unexpected inputs, unsafe
 permissions, checksum drift, and tag/commit mismatches. A previous partial run

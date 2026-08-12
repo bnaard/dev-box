@@ -3,15 +3,20 @@
 set -euo pipefail
 
 DRY_RUN=0
-case "$#:${1:-}:${2:-}" in
-  2:--dry-run:--dry-run) ;;
-  1:*:) RUN_DIR="$1" ;;
-  2:*:--dry-run) RUN_DIR="$1"; DRY_RUN=1 ;;
-  2:--dry-run:*) RUN_DIR="$2"; DRY_RUN=1 ;;
-esac
+UI_MODE=auto
+UI_SEEN=0
+RUN_DIR=""
+for ARGUMENT in "$@"; do
+  case "${ARGUMENT}" in
+    --dry-run) [[ "${DRY_RUN}" == 0 ]] || { echo "Duplicate --dry-run" >&2; exit 2; }; DRY_RUN=1 ;;
+    --ui=auto|--ui=textual|--ui=plain) [[ "${UI_SEEN}" == 0 ]] || { echo "Duplicate --ui" >&2; exit 2; }; UI_MODE="${ARGUMENT#--ui=}"; UI_SEEN=1 ;;
+    --*) echo "Unknown release-host option: ${ARGUMENT}" >&2; exit 2 ;;
+    *) [[ -z "${RUN_DIR}" ]] || { echo "Only one release-host run directory is accepted" >&2; exit 2; }; RUN_DIR="${ARGUMENT}" ;;
+  esac
+done
 
 if [[ -z "${RUN_DIR:-}" ]]; then
-  echo "Usage: ./scripts/release-host-gate.sh [--dry-run] tmp/host-gates/aibox-release/<run-id> [--dry-run]" >&2
+  echo "Usage: ./scripts/release-host-gate.sh [--dry-run] [--ui=auto|textual|plain] tmp/host-gates/aibox-release/<run-id>" >&2
   exit 2
 fi
 
@@ -51,6 +56,8 @@ exec /usr/bin/env -i \
   UV_CACHE_DIR="${OWNER_HOME}/Library/Caches/aibox-host-gates/uv" \
   UV_PYTHON_INSTALL_DIR="${OWNER_HOME}/Library/Application Support/aibox-host-gates/python" \
   UV_NO_CONFIG=1 UV_PYTHON_DOWNLOADS=automatic AIBOX_HOST_GATE_UV_BIN="${UV_BIN}" \
-  AIBOX_RELEASE_HOST_DRY_RUN="${DRY_RUN}" \
-  "${UV_BIN}" run --no-project --python 3.14.6 -- \
+  TERM="${TERM:-dumb}" COLORTERM="${COLORTERM:-}" \
+  AIBOX_RELEASE_HOST_DRY_RUN="${DRY_RUN}" AIBOX_RELEASE_HOST_UI="${UI_MODE}" \
+  "${UV_BIN}" run --no-project --python 3.14.6 \
+  --with-requirements "${SCRIPT_DIR}/release-host-ui.lock" -- \
   python "${SCRIPT_DIR}/release_host_gate.py" "${RUN_DIR}"
