@@ -1,21 +1,19 @@
-# aibox v0.31.4 — 2026-08-12
+# aibox v0.31.5 — 2026-08-13
 
-**Summary:** This patch makes Hugo-enabled container builds tolerate transient GitHub download failures and makes release-host failures easier to select, inspect, and copy. Release and visual E2E gates now serialize contention-sensitive execution automatically; no configuration change is required.
+**Summary:** This patch makes OpenCode-enabled container builds tolerate transient GitHub download failures and corrects Textual log-yank behavior in the macOS release gate. Operators can yank only the marked log range and receive useful diagnostic tails for failures that do not print an explicit error line; no configuration change is required.
 
 ## Added
 
-- Add a canonical Textual Problems panel with warning/failure extraction, selection-aware copying, last-20-line selection, and error-only yanking.
-- Add fixed-denominator numeric task progress and an accessible task-state legend to the release-host dashboard.
+- Add bounded failed-task output tails to the canonical Textual Problems bundle when command output lacks an explicit error classifier.
 
 ## Changed
 
-- Run canonical test and local visual E2E release gates with one test thread to avoid shared-runtime contention.
-- Keep generated processkit/runtime state aligned with processkit v0.28.6.
+- Bind lowercase `y` to the active Textual log selection, matching Vim visual-mode semantics; retain full selected-task copying on uppercase `Y`.
 
 ## Fixed
 
-- Retry Hugo release archive and checksum downloads across transient connection failures, including curl exit 56.
-- Exclude nested Git repositories and generated host-gate caches from application lockfile checks in `pk-doctor`.
-- Preserve literal candidate text and authoritative plain-output evidence while improving the Textual presentation layer.
+- Retry pinned OpenCode release archive and checksum downloads across transient connection failures, including curl exit 56.
+- Retry both release discovery and archive downloads in the unpinned OpenCode fallback path.
+- Preserve useful task output in Problems when a failed command exits non-zero without printing `error`, `fatal`, or a similar classifier.
 
-[v0.31.4]: https://github.com/projectious-work/aibox/compare/v0.31.3...v0.31.4
+[v0.31.5]: https://github.com/projectious-work/aibox/compare/v0.31.4...v0.31.5

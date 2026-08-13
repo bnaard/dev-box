@@ -678,6 +678,11 @@ pub static COMPAT_TABLE: &[CompatEntry] = &[
         processkit_version: "v0.28.6",
         note: "Patch release: makes Hugo downloads resilient to transient network failures, improves the release-host Textual problem workflow, and serializes contention-sensitive E2E gates.",
     },
+    CompatEntry {
+        aibox_version: "0.31.5",
+        processkit_version: "v0.28.6",
+        note: "Patch release: retries OpenCode release downloads and makes Textual yanks selection-aware while preserving actionable failed-task diagnostics.",
+    },
 ];
 
 /// Find the minimum compatible processkit version for the given aibox version.

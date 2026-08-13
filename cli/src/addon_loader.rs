@@ -1641,6 +1641,24 @@ runtime: |
     }
 
     #[test]
+    fn opencode_installer_retries_transient_release_download_failures() {
+        let addon = load_repo_addon("ai-opencode");
+        let rendered = render_runtime(&addon, &all_enabled_tools(&addon)).unwrap();
+
+        assert_eq!(
+            rendered
+                .matches(
+                    "curl -fsSL --retry 5 --retry-all-errors --retry-delay 2 --connect-timeout 30"
+                )
+                .count(),
+            2,
+            "both pinned OpenCode release downloads must retry transient GitHub failures: {rendered}"
+        );
+        assert!(rendered.contains("/checksums.txt"));
+        assert!(rendered.contains("sha256sum -c"));
+    }
+
+    #[test]
     fn node_installer_uses_verified_official_release_archive() {
         let addon = load_repo_addon("node");
         let rendered = render_runtime(&addon, &all_enabled_tools(&addon)).unwrap();
