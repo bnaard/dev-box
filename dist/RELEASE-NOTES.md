@@ -1,10 +1,16 @@
-# aibox v0.32.1 — 2026-08-13
+# aibox v0.32.2 — 2026-08-13
 
-**Summary:** This patch completes the browser-testing release by aligning the macOS host probe with the full Chromium binary installed by the addon. Projects using the addon need no configuration change.
+**Summary:** This patch completes the browser-testing host probe and substantially shortens future macOS release retries through safe, candidate-bound caching.
 
 ## Fixed
 
-- Launch Playwright with `channel: "chromium"` in the release-host fixture so `--no-shell` installations use full Chromium rather than searching for the intentionally omitted headless-shell executable.
-- Add a contract assertion that prevents the host probe from drifting back to the default headless-shell launch mode.
+- Create an explicit Playwright `BrowserContext` before running axe-core, matching axe's supported integration contract.
+- Preserve full-Chromium channel selection for the addon installed with Playwright `--no-shell`.
 
-[v0.32.1]: https://github.com/projectious-work/aibox/compare/v0.32.0...v0.32.1
+## Changed
+
+- Reuse content-addressed container layers by default; `--cold-cache` remains available for deliberate clean rebuilds.
+- Persist credential-free Cargo downloads and scope compiled macOS targets to the immutable candidate commit.
+- Add `--retry-from=<failed-run-dir>` for checksummed reuse of successful conditional host probes from byte-identical candidate inputs, while lifecycle and security evidence remain fresh.
+
+[v0.32.2]: https://github.com/projectious-work/aibox/compare/v0.32.1...v0.32.2
