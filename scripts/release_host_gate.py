@@ -651,6 +651,46 @@ def sha256(path: Path) -> str:
     return digest.hexdigest()
 
 
+def seal_checkpoint(path: Path) -> None:
+    """Bind a completed conditional check to its exact evidence bytes."""
+    path.with_suffix(path.suffix + ".sha256").write_text(
+        f"{sha256(path)}  {path.name}\n", encoding="utf-8"
+    )
+
+
+def reuse_checkpoint(retry_evidence: Path, evidence: Path, check: str) -> Path | None:
+    """Copy a valid completed conditional check from a candidate-identical run."""
+    marker = retry_evidence / "container-e2e" / f"{check}.json"
+    checksum = marker.with_suffix(marker.suffix + ".sha256")
+    if (not marker.is_file() or marker.is_symlink() or
+            not checksum.is_file() or checksum.is_symlink()):
+        return None
+    fields = checksum.read_text(encoding="utf-8").strip().split(maxsplit=1)
+    if len(fields) != 2 or fields[0] != sha256(marker) or fields[1].lstrip("*") != marker.name:
+        return None
+    payload = json.loads(marker.read_text(encoding="utf-8"))
+    if payload.get("status") != "passed":
+        return None
+    if check in ADDON_GROUPS:
+        expected = {"status": "passed", "addons": ADDON_GROUPS[check]}
+        if check == "addon-tools":
+            expected["browser_fixture"] = {"title": "Fixture", "violations": 0}
+        if payload != expected:
+            return None
+    elif check == "latex-lifecycle":
+        if payload.get("revisions") != 2 or not isinstance(payload.get("preview_port"), int):
+            return None
+    elif check == "rootless-podman":
+        if payload.get("rootless_readiness") is not True:
+            return None
+    else:
+        return None
+    destination = evidence / "container-e2e" / marker.name
+    shutil.copy2(marker, destination)
+    shutil.copy2(checksum, destination.with_suffix(destination.suffix + ".sha256"))
+    return destination
+
+
 def validate_regular(path: Path) -> None:
     """Require an immutable, regular, single-link input file."""
     info = path.lstat()
@@ -967,6 +1007,7 @@ def run_addon_group(runner: Runner, profile: Path, env: dict[str, str], candidat
         if browser_fixture is not None:
             payload["browser_fixture"] = browser_fixture
         marker.write_text(json.dumps(payload, indent=2, sort_keys=True) + "\n", encoding="utf-8")
+        seal_checkpoint(marker)
         return marker
     finally:
         if compose_file.exists():
@@ -1068,6 +1109,7 @@ def run_latex_lifecycle(runner: Runner, profile: Path, env: dict[str, str], cand
         result = evidence / "container-e2e/latex-lifecycle.json"
         result.write_text(json.dumps({"status": "passed", "revisions": 2, "preview_port": port},
                                      indent=2, sort_keys=True) + "\n", encoding="utf-8")
+        seal_checkpoint(result)
         return result
     finally:
         if compose_file.exists():
@@ -1119,6 +1161,7 @@ def run_rootless_podman(runner: Runner, profile: Path, env: dict[str, str], cand
             "execution_boundary": "outer runtime user-namespace privileges were not widened",
             "subuid": subuid.strip(), "subgid": subgid.strip(), "containers_conf": config.strip(),
         }, indent=2, sort_keys=True) + "\n", encoding="utf-8")
+        seal_checkpoint(result)
         return result
     finally:
         if compose_file.exists():
@@ -1164,6 +1207,23 @@ def run_gate(renderer: object | None = None) -> None:
     for name, expected in checksums.items():
         if sha256(input_dir / name) != expected:
             fail(f"checksum mismatch: {name}")
+
+    retry_evidence: Path | None = None
+    retry_argument = os.environ.get("AIBOX_RELEASE_HOST_RETRY_FROM", "")
+    if retry_argument:
+        retry_run = resolve_run_dir(retry_argument, project_root)
+        if retry_run == run_dir:
+            fail("retry source must be a different prepared run")
+        retry_input = retry_run / "input"
+        retry_evidence_candidate = retry_run / "evidence"
+        if not retry_input.is_dir() or not retry_evidence_candidate.is_dir():
+            fail("retry source has no input/evidence trees")
+        for name in ("checksums.sha256", "provenance.json", "source.tar.gz"):
+            retry_item = retry_input / name
+            if (not retry_item.is_file() or retry_item.is_symlink() or
+                    sha256(retry_item) != sha256(input_dir / name)):
+                fail(f"retry source candidate differs: {name}")
+        retry_evidence = retry_evidence_candidate
 
     # Phase 2: bind the archive and changed-path selection to real Git objects.
     provenance = json.loads((input_dir / "provenance.json").read_text(encoding="utf-8"))
@@ -1247,20 +1307,25 @@ def run_gate(renderer: object | None = None) -> None:
 
     # Phase 4: isolate mutable tool state and deny candidate access to owner
     # credentials, Keychain services, Git metadata, and immutable inputs.
+    original_home = Path.home()
     home = runtime / "home"
     docker_config = runtime / "docker-config"
-    cargo_home = runtime / "cargo-home"
+    cache_root = original_home / "Library/Caches/aibox-host-gates"
+    cargo_home = cache_root / "cargo-home"
+    cargo_target_dir = cache_root / "cargo-target" / provenance["commit"]
     home.mkdir(mode=0o700)
     docker_config.mkdir(mode=0o700)
-    cargo_home.mkdir(mode=0o700)
-    original_home = Path.home()
+    cache_root.mkdir(mode=0o700, parents=True, exist_ok=True)
+    cargo_home.mkdir(mode=0o700, exist_ok=True)
+    cargo_target_dir.mkdir(mode=0o700, parents=True, exist_ok=True)
     docker_cli_plugin_sources = stage_docker_cli_plugins(original_home, docker_config)
     fixed_env = {
         "PATH": f"{original_home}/.cargo/bin:/opt/homebrew/bin:/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin",
         "HOME": str(home), "TMPDIR": str(runtime / "tmp"),
         "DOCKER_CONFIG": str(docker_config), "GH_CONFIG_DIR": str(runtime / "gh-config"),
         "DOCKER_BUILDKIT": "1", "COMPOSE_DOCKER_CLI_BUILD": "1",
-        "CARGO_HOME": str(cargo_home), "RUSTUP_HOME": str(original_home / ".rustup"),
+        "CARGO_HOME": str(cargo_home), "CARGO_TARGET_DIR": str(cargo_target_dir),
+        "RUSTUP_HOME": str(original_home / ".rustup"),
         "CARGO_NET_OFFLINE": "true", "RUST_BACKTRACE": "1",
         "AIBOX_RELEASE_HOST_OFFLINE": "1",
         "AIBOX_RELEASE_HOST_REUSE_CACHE": "1" if reuse_cache else "0",
@@ -1320,11 +1385,15 @@ def run_gate(renderer: object | None = None) -> None:
         "ui_dependencies": locked_ui_dependencies(script_dir / "release-host-ui.lock"),
         "uv_cache_dir": os.environ["UV_CACHE_DIR"],
         "uv_python_install_dir": os.environ["UV_PYTHON_INSTALL_DIR"],
-        "cargo_home": fixed_env["CARGO_HOME"], "rustup_home": fixed_env["RUSTUP_HOME"],
+        "cargo_home": fixed_env["CARGO_HOME"],
+        "cargo_target_dir": fixed_env["CARGO_TARGET_DIR"],
+        "cargo_cache_scope": provenance["commit"],
+        "rustup_home": fixed_env["RUSTUP_HOME"],
         "home": fixed_env["HOME"], "docker_config": fixed_env["DOCKER_CONFIG"],
         "docker_buildkit": fixed_env["DOCKER_BUILDKIT"],
         "container_runtime": container_runtime,
         "container_cache_policy": "reuse content-addressed layers" if reuse_cache else "force downstream rebuilds",
+        "retry_evidence": str(retry_evidence) if retry_evidence else None,
         "docker_cli_plugin_sources": docker_cli_plugin_sources,
         "gh_config_dir": fixed_env["GH_CONFIG_DIR"],
     }, indent=2, sort_keys=True) + "\n", encoding="utf-8")
@@ -1350,7 +1419,7 @@ def run_gate(renderer: object | None = None) -> None:
 
     machine = subprocess.run(["/usr/bin/uname", "-m"], check=True, capture_output=True, text=True).stdout.strip()
     target = "aarch64-apple-darwin" if machine == "arm64" else "x86_64-apple-darwin"
-    candidate_bin = source_root / f"cli/target/{target}/release/aibox"
+    candidate_bin = cargo_target_dir / f"{target}/release/aibox"
     runner.run(sandboxed(profile, [str(candidate_bin), "--version"], fixed_env), cwd=source_root,
                label="Smoke native Darwin binary")
     (evidence / "darwin-smoke/complete.json").write_text(
@@ -1455,6 +1524,11 @@ def run_gate(renderer: object | None = None) -> None:
     conditional_evidence: list[Path] = []
     for group in ADDON_GROUPS:
         if group in selected_checks:
+            reused = reuse_checkpoint(retry_evidence, evidence, group) if retry_evidence else None
+            if reused:
+                conditional_evidence.append(reused)
+                runner._step("passed", f"{group} (reused candidate-bound checkpoint)", 0.0)
+                continue
             started = time.monotonic()
             runner._step("running", group, 0.0)
             runner.output_task = group
@@ -1469,34 +1543,44 @@ def run_gate(renderer: object | None = None) -> None:
                 runner.output_task = None
             runner._step("passed", group, time.monotonic() - started)
     if "latex-lifecycle" in selected_checks:
-        preview_port = 18000 + int(provenance["commit"][:8], 16) % 1000
-        started = time.monotonic()
-        runner._step("running", "latex-lifecycle", 0.0)
-        runner.output_task = "latex-lifecycle"
-        try:
-            conditional_evidence.append(run_latex_lifecycle(
-                runner, profile, fixed_env, candidate_bin, container_runtime,
-                runtime, evidence, version, preview_port))
-        except BaseException:
-            runner._step("failed", "latex-lifecycle", time.monotonic() - started)
-            raise
-        finally:
-            runner.output_task = None
-        runner._step("passed", "latex-lifecycle", time.monotonic() - started)
+        reused = reuse_checkpoint(retry_evidence, evidence, "latex-lifecycle") if retry_evidence else None
+        if reused:
+            conditional_evidence.append(reused)
+            runner._step("passed", "latex-lifecycle (reused candidate-bound checkpoint)", 0.0)
+        else:
+            preview_port = 18000 + int(provenance["commit"][:8], 16) % 1000
+            started = time.monotonic()
+            runner._step("running", "latex-lifecycle", 0.0)
+            runner.output_task = "latex-lifecycle"
+            try:
+                conditional_evidence.append(run_latex_lifecycle(
+                    runner, profile, fixed_env, candidate_bin, container_runtime,
+                    runtime, evidence, version, preview_port))
+            except BaseException:
+                runner._step("failed", "latex-lifecycle", time.monotonic() - started)
+                raise
+            finally:
+                runner.output_task = None
+            runner._step("passed", "latex-lifecycle", time.monotonic() - started)
     if "rootless-podman" in selected_checks:
-        started = time.monotonic()
-        runner._step("running", "rootless-podman", 0.0)
-        runner.output_task = "rootless-podman"
-        try:
-            conditional_evidence.append(run_rootless_podman(
-                runner, profile, fixed_env, candidate_bin, container_runtime,
-                runtime, evidence, version))
-        except BaseException:
-            runner._step("failed", "rootless-podman", time.monotonic() - started)
-            raise
-        finally:
-            runner.output_task = None
-        runner._step("passed", "rootless-podman", time.monotonic() - started)
+        reused = reuse_checkpoint(retry_evidence, evidence, "rootless-podman") if retry_evidence else None
+        if reused:
+            conditional_evidence.append(reused)
+            runner._step("passed", "rootless-podman (reused candidate-bound checkpoint)", 0.0)
+        else:
+            started = time.monotonic()
+            runner._step("running", "rootless-podman", 0.0)
+            runner.output_task = "rootless-podman"
+            try:
+                conditional_evidence.append(run_rootless_podman(
+                    runner, profile, fixed_env, candidate_bin, container_runtime,
+                    runtime, evidence, version))
+            except BaseException:
+                runner._step("failed", "rootless-podman", time.monotonic() - started)
+                raise
+            finally:
+                runner.output_task = None
+            runner._step("passed", "rootless-podman", time.monotonic() - started)
 
     # Phase 8: assemble a fixed, checksummed manifest. When publication is
     # enabled it receives no arbitrary artifact list; dry-run stops after the
