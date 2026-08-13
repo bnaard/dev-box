@@ -170,15 +170,32 @@ log, End resumes the live tail, and `p` displays the authoritative evidence
 path. The UI is presentation rather than evidence; full output is retained in
 `evidence/command-results.log`.
 
-For a repeated candidate rehearsal, append `--reuse-cache`. This permits the
-container engine to reuse content-addressed build layers but does not skip any
-gate task, runtime probe, security scan, cleanup, or evidence validation. Fresh
-downstream image layers remain the default.
+Content-addressed container layers are reused by default. The Rust registry is
+shared in a dedicated credential-free host-gate cache, while compiled artifacts
+are isolated by candidate commit so a failed candidate can be retried without a
+full two-target rebuild. Use `--cold-cache` only when deliberately investigating
+cache behavior. Cold mode retains downloaded Rust packages but forces downstream
+container layers to rebuild.
+
+To retry after a conditional addon or lifecycle check fails, prepare a new run
+and name the failed run as its checkpoint source:
+
+```bash
+NEW_RUN="$(./scripts/maintain.sh release-host-prepare X.Y.Z)"
+./scripts/maintain.sh release-host \
+  --retry-from=tmp/host-gates/aibox-release/<failed-run-id> "${NEW_RUN}"
+```
+
+The retry source must contain byte-identical immutable candidate inputs.
+Completed conditional checks are reused only when their candidate-bound
+checkpoint checksum is valid. The candidate lifecycle, SBOM, vulnerability
+scan, cleanup, manifest assembly, and publication verification remain fresh.
 
 The reviewed entry point accepts only that run-directory path. It rejects
 traversal, symlinks, special files, hardlinks, unexpected inputs, unsafe
 permissions, checksum drift, and tag/commit mismatches. A previous partial run
-cannot be resumed: `runtime/` and `evidence/` must not exist when it starts.
+is never resumed in place: `runtime/` and `evidence/` must not exist in the new
+run when it starts. Retry imports only validated conditional checkpoints.
 The host checkout's `HEAD` must match the attested candidate commit, but
 unrelated tracked worktree edits do not invalidate the gate because all builds
 and probes use the immutable checksummed source archive rather than worktree

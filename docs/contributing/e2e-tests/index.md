@@ -122,7 +122,8 @@ gate without `--dry-run`; populated `runtime/` and `evidence/` directories are
 intentionally non-resumable.
 
 The entry point accepts that one path plus optional fixed `--dry-run`,
-`--reuse-cache`, and `--ui=auto|textual|plain` flags. It canonicalizes the path,
+`--cold-cache`, `--retry-from=<failed-run-dir>`, and
+`--ui=auto|textual|plain` flags. It canonicalizes the path,
 requires one direct child of the approved root, rejects symlinks, special
 files, hardlinks, unexpected files, unsafe permissions, bad checksums, and
 tag/commit mismatches, then creates `runtime/` and `evidence/` itself.
@@ -138,10 +139,12 @@ managed-Python roots are fixed beneath
 variables cannot affect execution. The resolved uv, Python, Textual, lockfile,
 and tool paths are recorded in evidence.
 
-`--reuse-cache` is intended for repeated rehearsals. It permits
-content-addressed container layer reuse while retaining the complete command,
-runtime, scan, cleanup, and evidence surface. Without it, downstream images
-are rebuilt without cache.
+Content-addressed container layer reuse is the default. `--cold-cache` forces
+downstream image rebuilding for cache investigations. Rust downloads live in a
+dedicated credential-free cache and compiled output is scoped to the candidate
+commit. `--retry-from` accepts only a separate run with byte-identical immutable
+inputs and reuses checksummed successful conditional probes; core lifecycle,
+security scanning, cleanup, and publication evidence are always regenerated.
 
 Candidate compilation, build scripts, CLI execution, and runtime smoke run
 with a fixed sanitized environment and a macOS sandbox that denies access to
