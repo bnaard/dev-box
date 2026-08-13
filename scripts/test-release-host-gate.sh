@@ -185,6 +185,10 @@ with tempfile.TemporaryDirectory() as temporary:
 assert "browser-testing" in gate.ADDON_GROUPS["addon-tools"]
 assert "@axe-core/playwright" in source
 assert 'chromium.launch({ headless: true, channel: "chromium" })' in source
+assert 'const context = await browser.newContext()' in source
+assert 'const page = await context.newPage()' in source
+assert 'await context.close(); await browser.close()' in source
+assert 'browser.newPage()' not in source
 assert '"browser_fixture"' in source
 assert gate.parse_ui_mode(None) == "auto"
 assert gate.parse_ui_mode("textual") == "textual"

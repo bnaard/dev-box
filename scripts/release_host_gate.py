@@ -990,12 +990,14 @@ def run_addon_group(runner: Runner, profile: Path, env: dict[str, str], candidat
                 'const { chromium } = require("@playwright/test"); '
                 'const AxeBuilder = require("@axe-core/playwright").default; '
                 '(async () => { const browser = await chromium.launch({ headless: true, channel: "chromium" }); '
-                'const page = await browser.newPage(); '
+                'const context = await browser.newContext(); '
+                'const page = await context.newPage(); '
                 'await page.setContent("<!doctype html><html lang=\\"en\\"><head><title>Fixture</title></head>'
                 '<body><main><button type=\\"button\\">Ready</button></main></body></html>"); '
                 'const results = await new AxeBuilder({ page }).analyze(); '
                 'console.log(JSON.stringify({ title: await page.title(), violations: results.violations.length })); '
-                'await browser.close(); })().catch(error => { console.error(error); process.exit(1); });'
+                'await context.close(); await browser.close(); '
+                '})().catch(error => { console.error(error); process.exit(1); });'
             )
             output = runner.capture([container_runtime, "exec", "--user", "aibox", name,
                                      "node", "-e", fixture_script])
