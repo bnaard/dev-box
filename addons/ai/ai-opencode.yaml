@@ -31,10 +31,10 @@ runtime: |
   RUN OPENCODE_VERSION="{{ tools.opencode.version }}" && \
       ARCH="$(uname -m | sed 's/aarch64/arm64/')" && \
       OPENCODE_ASSET="opencode-linux-${ARCH}.tar.gz" && \
-      curl -fsSL \
+      curl -fsSL --retry 5 --retry-all-errors --retry-delay 2 --connect-timeout 30 \
         "https://github.com/opencode-ai/opencode/releases/download/v${OPENCODE_VERSION}/${OPENCODE_ASSET}" \
         -o /tmp/opencode.tar.gz && \
-      curl -fsSL \
+      curl -fsSL --retry 5 --retry-all-errors --retry-delay 2 --connect-timeout 30 \
         "https://github.com/opencode-ai/opencode/releases/download/v${OPENCODE_VERSION}/checksums.txt" \
         -o /tmp/opencode.checksums.txt && \
       grep "  ${OPENCODE_ASSET}$" /tmp/opencode.checksums.txt | sed 's#  .*#  /tmp/opencode.tar.gz#' | sha256sum -c && \
@@ -46,10 +46,10 @@ runtime: |
   # TODO(sec): pin tools.opencode.version in aibox.toml to enable
   # deterministic builds.
   RUN ARCH="$(uname -m | sed 's/aarch64/arm64/')" && \
-      OPENCODE_VERSION="$(curl -fsSL -o /dev/null -w '%{url_effective}' \
+      OPENCODE_VERSION="$(curl -fsSL --retry 5 --retry-all-errors --retry-delay 2 --connect-timeout 30 -o /dev/null -w '%{url_effective}' \
         https://github.com/opencode-ai/opencode/releases/latest \
         | sed 's|.*/v||')" && \
-      curl -fsSL \
+      curl -fsSL --retry 5 --retry-all-errors --retry-delay 2 --connect-timeout 30 \
         "https://github.com/opencode-ai/opencode/releases/download/v${OPENCODE_VERSION}/opencode-linux-${ARCH}.tar.gz" \
         | tar -xz -C /home/aibox/.local/bin opencode && \
       chmod +x /home/aibox/.local/bin/opencode

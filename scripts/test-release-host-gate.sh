@@ -174,6 +174,8 @@ assert gate.classify_log_line("0 errors found") is None
 assert gate.classify_log_line("Build runtime image [running; 12.0s]") is None
 assert 'Binding("e", "yank_errors"' in source
 assert 'Binding("l", "select_last_lines"' in source
+assert 'Binding("y", "copy_log", "Yank selection")' in source
+assert 'Binding("Y", "copy_task_log", "Yank task log")' in source
 assert 'No log selection to copy' in source
 assert 'id="problems"' in source
 assert 'total=len(TASK_PLAN)' in source
@@ -311,6 +313,8 @@ def headless_run(self, *args, **kwargs):
             self.apply_gate_event(gate.PresentationEvent("failed", task="Build runtime image", state="failed", elapsed=1.2))
             self.apply_gate_event(gate.PresentationEvent("output", task="Vulnerability policy", text="warning: no fix listed\n"))
             self.apply_gate_event(gate.PresentationEvent("warned", task="Vulnerability policy", state="warned", elapsed=2.0))
+            self.apply_gate_event(gate.PresentationEvent("output", task="addon-tools", text="tool output without classifier\nexit status 7\n"))
+            self.apply_gate_event(gate.PresentationEvent("failed", task="addon-tools", state="failed", elapsed=3.0))
             self.apply_gate_event(gate.PresentationEvent("plan"))
             # Force the UI's intentionally batched log refresh in the pilot;
             # the synthetic gate worker exits faster than the 10 ms timer.
@@ -318,17 +322,26 @@ def headless_run(self, *args, **kwargs):
             await pilot.pause(0.05)
             assert "[bold]literal[/bold] red" in self.query_one("#log").text, repr(self.query_one("#log").text)
             assert self.query_one("#progress").total == len(gate.TASK_PLAN), self.query_one("#progress").total
-            assert "2/" in str(self.query_one("#progress-label").render()), self.query_one("#progress-label").render()
-            assert set(self.problems) == {"Build runtime image", "Vulnerability policy"}
-            assert sum(child.display for child in self.query_one("#problems").children) == 2
+            assert "3/" in str(self.query_one("#progress-label").render()), self.query_one("#progress-label").render()
+            assert set(self.problems) == {"Build runtime image", "Vulnerability policy", "addon-tools"}
+            assert self.problems["addon-tools"].lines[-1] == "exit status 7"
+            assert sum(child.display for child in self.query_one("#problems").children) == 3
+            self.selected_task = "All output"
+            self._render_log()
             self.action_select_last_lines()
             selected = self.query_one("#log").selected_text
-            assert selected and "successful line 9" in selected and "successful line 8" not in selected
+            assert selected and "successful line 11" in selected and "successful line 10" not in selected
+            # `y` and Ctrl+C share action_copy_log: both must behave like a
+            # visual-mode yank and copy only the active marked range.
             self.action_copy_log()
             assert copied[-1] == selected
+            assert copied[-1] != self.query_one("#log").text
+            self.action_copy_task_log()
+            full_task_log = "".join(self.task_logs[self.selected_task])
+            assert copied[-1] == full_task_log
             self.query_one("#log").selection = ((0, 0), (0, 0))
             self.action_copy_log()
-            assert copied[-1] == selected
+            assert copied[-1] == full_task_log
             assert any("No log selection" in notice for notice in notices)
             self.action_yank_errors()
             error_bundle = copied[-1]
@@ -336,6 +349,8 @@ def headless_run(self, *args, **kwargs):
             assert "error: candidate failed [literal]" in error_bundle
             assert "[WARNING] Vulnerability policy" in error_bundle
             assert "warning: no fix listed" in error_bundle
+            assert "[FAILED] addon-tools" in error_bundle
+            assert "exit status 7" in error_bundle
             assert "successful line 1" not in error_bundle
     asyncio.run(verify())
     return 0

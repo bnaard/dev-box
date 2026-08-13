@@ -201,7 +201,8 @@ def run_textual_dashboard(run_argument: str, dry_run: bool) -> int:
             Binding("ctrl+a", "select_log", "Select log"),
             Binding("ctrl+c", "copy_log", "Copy"),
             Binding("l", "select_last_lines", f"Last {LAST_LOG_LINES}"),
-            Binding("y", "copy_task_log", "Copy task log"),
+            Binding("y", "copy_log", "Yank selection"),
+            Binding("Y", "copy_task_log", "Yank task log"),
             Binding("e", "yank_errors", "Yank errors"),
             Binding("p", "show_log_path", "Evidence path"),
             Binding("question_mark", "help", "Keys"),
@@ -352,6 +353,15 @@ def run_textual_dashboard(run_argument: str, dry_run: bool) -> int:
             lines = list(bucket["error"])
             if state == "warned":
                 lines.extend(line for line in bucket["warning"] if line not in lines)
+            if state == "failed" and not lines:
+                # Some tools exit non-zero without printing a line containing
+                # a classifier word such as "error". Preserve a bounded tail
+                # so Problems and its yank remain useful for diagnosis.
+                task_tail = [
+                    line for chunk in self.task_logs.get(task, [])
+                    for line in chunk.splitlines() if line.strip()
+                ]
+                lines = task_tail[-LAST_LOG_LINES:]
             if not lines:
                 lines = [f"{TASK_STATE_LABELS.get(state, state).capitalize()}: {task}"]
             previous = self.problems.get(task)
@@ -479,7 +489,7 @@ def run_textual_dashboard(run_argument: str, dry_run: bool) -> int:
         def action_help(self) -> None:
             self.notify(
                 f"Tab focus • arrows/page scroll • Space follow • w wrap • Ctrl+A/C select/copy • "
-                f"l last {LAST_LOG_LINES} lines • y task log • e yank errors • End tail • p evidence path • q quit",
+                f"l last {LAST_LOG_LINES} lines • y selection • Y task log • e yank errors • End tail • p evidence path • q quit",
                 timeout=12,
             )
 
