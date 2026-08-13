@@ -5,7 +5,7 @@ title: "Overview"
 
 # Addons
 
-aibox uses the Debian runtime image family (`base-debian-v0.26.x` for legacy releases, `base-debian-runtime-v0.27.0+` after the image-tag cutover) with **35 composable addons** that install language runtimes, tool bundles, documentation frameworks, and AI coding agents into your container.
+aibox uses the Debian runtime image family (`base-debian-v0.26.x` for legacy releases, `base-debian-runtime-v0.27.0+` after the image-tag cutover) with **36 composable addons** that install language runtimes, tool bundles, documentation frameworks, and AI coding agents into your container.
 
 ## Managing Addons
 
@@ -93,6 +93,7 @@ After editing `aibox.toml`, run `aibox apply` to regenerate the Dockerfile and r
 | `cloud-aws` | aws-cli | — |
 | `cloud-gcp` | gcloud-cli | — |
 | `cloud-azure` | azure-cli | — |
+| `browser-testing` | @playwright/test, @axe-core/playwright, Chromium | Firefox, WebKit |
 
 ### Documentation Frameworks
 

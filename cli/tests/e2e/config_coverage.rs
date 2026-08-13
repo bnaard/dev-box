@@ -468,6 +468,49 @@ node = { version = "22" }
     );
 }
 
+#[test]
+fn browser_testing_addon_renders_chromium_first_playwright_and_axe_contract() {
+    let dir = tempfile::tempdir().unwrap();
+    init_project(dir.path(), "addon-browser-testing");
+    patch_toml(
+        dir.path(),
+        r#"
+[addons.browser-testing.tools]
+"#,
+    );
+    sync_project(dir.path());
+    let dockerfile = read_generated(dir.path(), ".devcontainer/Dockerfile");
+    assert!(
+        dockerfile.contains("@playwright/test") && dockerfile.contains("@axe-core/playwright"),
+        "browser-testing must install the coherent Playwright Test and axe adapter packages:\n{dockerfile}"
+    );
+    assert!(
+        dockerfile.contains("playwright install --with-deps --no-shell")
+            && dockerfile.contains("chromium \\"),
+        "browser-testing must provision full Chromium by default:\n{dockerfile}"
+    );
+}
+
+#[test]
+fn browser_testing_addon_renders_optional_firefox_and_webkit() {
+    let dir = tempfile::tempdir().unwrap();
+    init_project(dir.path(), "addon-browser-testing-cross-engine");
+    patch_toml(
+        dir.path(),
+        r#"
+[addons.browser-testing.tools]
+firefox = { enabled = true }
+webkit = { enabled = true }
+"#,
+    );
+    sync_project(dir.path());
+    let dockerfile = read_generated(dir.path(), ".devcontainer/Dockerfile");
+    assert!(
+        dockerfile.contains("firefox \\") && dockerfile.contains("webkit \\"),
+        "browser-testing must render optional Firefox and WebKit installation when enabled:\n{dockerfile}"
+    );
+}
+
 // ─── processkit package selection tests ──────────────────────────────────────
 //
 // Since v0.16.0 aibox no longer scaffolds context-doc files (BACKLOG.md,

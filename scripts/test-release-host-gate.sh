@@ -164,6 +164,10 @@ assert gate.dry_run_enabled("1") is True
 assert gate.cache_reuse_enabled(None) is False
 assert gate.cache_reuse_enabled("0") is False
 assert gate.cache_reuse_enabled("1") is True
+assert "browser-testing" in gate.ADDON_GROUPS["addon-tools"]
+assert "@axe-core/playwright" in source
+assert 'chromium.launch({ headless: true })' in source
+assert '"browser_fixture"' in source
 assert gate.parse_ui_mode(None) == "auto"
 assert gate.parse_ui_mode("textual") == "textual"
 assert gate.sanitize_display("[bold]literal[/bold]\x1b[31m red\x1b[0m\x1b]0;title\x07") == "[bold]literal[/bold] red"
@@ -179,6 +183,11 @@ assert 'Binding("Y", "copy_task_log", "Yank task log")' in source
 assert 'No log selection to copy' in source
 assert 'id="problems"' in source
 assert 'total=len(TASK_PLAN)' in source
+assert '#progress-box { width: 100%;' in source
+assert '#progress { width: 100%;' in source
+assert '#log-panel { width: 66%; }' in source
+assert '#log-panel { width: 66%; border:' not in source
+assert '#legend { height: 1; padding: 0 1; color: $text-muted; }' in source
 class FakeTTY:
     def __init__(self, tty): self.tty = tty
     def isatty(self): return self.tty
@@ -320,6 +329,18 @@ def headless_run(self, *args, **kwargs):
             # the synthetic gate worker exits faster than the 10 ms timer.
             self._flush_log_render()
             await pilot.pause(0.05)
+            screen_width = self.screen.size.width
+            progress_region = self.query_one("#progress-box").region
+            tasks_region = self.query_one("#tasks-panel").region
+            log_panel = self.query_one("#log-panel")
+            log = self.query_one("#log")
+            legend = self.query_one("#legend")
+            assert progress_region.width == screen_width, (progress_region, self.screen.size)
+            assert progress_region.width > tasks_region.width
+            assert log_panel.styles.border_top[0] == ""
+            assert log.styles.border_top[0] == "round"
+            assert legend.styles.border_top[0] == ""
+            assert legend.region.height == 1
             assert "[bold]literal[/bold] red" in self.query_one("#log").text, repr(self.query_one("#log").text)
             assert self.query_one("#progress").total == len(gate.TASK_PLAN), self.query_one("#progress").total
             assert "3/" in str(self.query_one("#progress-label").render()), self.query_one("#progress-label").render()

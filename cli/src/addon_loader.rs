@@ -759,6 +759,88 @@ runtime: |
     }
 
     #[test]
+    fn browser_testing_addon_pins_stack_and_defaults_to_full_chromium() {
+        let addon = load_repo_addon("browser-testing");
+        assert_eq!(addon.requires, vec!["node"]);
+
+        let playwright = addon
+            .tools
+            .iter()
+            .find(|tool| tool.name == "playwright")
+            .expect("browser-testing should define the Playwright tool");
+        assert_eq!(playwright.default_version, "1.62.1");
+        assert_eq!(playwright.supported_versions, vec!["1.62.1"]);
+
+        let axe = addon
+            .tools
+            .iter()
+            .find(|tool| tool.name == "axe-playwright")
+            .expect("browser-testing should define the axe adapter tool");
+        assert_eq!(axe.default_version, "4.13.0");
+        assert_eq!(axe.supported_versions, vec!["4.13.0"]);
+
+        let chromium = addon
+            .tools
+            .iter()
+            .find(|tool| tool.name == "chromium")
+            .expect("browser-testing should define Chromium");
+        assert!(chromium.default_enabled);
+        assert!(
+            !addon
+                .tools
+                .iter()
+                .find(|tool| tool.name == "firefox")
+                .unwrap()
+                .default_enabled
+        );
+        assert!(
+            !addon
+                .tools
+                .iter()
+                .find(|tool| tool.name == "webkit")
+                .unwrap()
+                .default_enabled
+        );
+
+        let rendered = render_runtime(&addon, &all_enabled_tools(&addon)).unwrap();
+        assert!(rendered.contains("@playwright/test@1.62.1"));
+        assert!(rendered.contains("@axe-core/playwright@4.13.0"));
+        assert!(rendered.contains("axe-core@4.13.0"));
+        assert!(rendered.contains("PLAYWRIGHT_BROWSERS_PATH=/ms-playwright"));
+        assert!(rendered.contains("--no-shell"));
+        assert!(rendered.contains("chromium"));
+        assert!(rendered.contains("firefox"));
+        assert!(rendered.contains("webkit"));
+        assert!(!rendered.contains("chromium-headless-shell"));
+
+        let rendered_defaults = render_runtime(
+            &addon,
+            &addon
+                .tools
+                .iter()
+                .map(|tool| {
+                    (
+                        tool.name.clone(),
+                        ToolConfig {
+                            enabled: tool.default_enabled,
+                            version: tool.default_version.clone(),
+                        },
+                    )
+                })
+                .collect(),
+        )
+        .unwrap();
+        assert!(rendered_defaults.contains("chromium \\"));
+        assert!(!rendered_defaults.contains("      firefox \\"));
+        assert!(!rendered_defaults.contains("      webkit \\"));
+
+        let rendered_disabled = render_runtime(&addon, &all_disabled_tools(&addon)).unwrap();
+        assert!(rendered_disabled.contains("npm uninstall -g @playwright/test playwright"));
+        assert!(rendered_disabled.contains("npm uninstall -g @axe-core/playwright axe-core"));
+        assert!(!rendered_disabled.contains("playwright install --with-deps"));
+    }
+
+    #[test]
     fn every_language_exposes_consistent_shared_groups() {
         for language in ["go", "rust", "python", "node", "typst", "latex"] {
             let addon = load_repo_addon(language);
