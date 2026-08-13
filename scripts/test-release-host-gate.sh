@@ -147,6 +147,8 @@ assert set(gate.TRUSTED_CONTROL_PATHS) == {
 }
 source = (script_dir / "release_host_gate.py").read_text()
 assert '"CARGO_HOME": str(cargo_home)' in source
+assert '"CARGO_TARGET_DIR": str(cargo_target_dir)' in source
+assert '"cargo_cache_scope": provenance["commit"]' in source
 assert '"cargo", "fetch", "--locked"' in source
 assert 'fetch_env = {**fixed_env, "CARGO_NET_OFFLINE": "false"}' in source
 assert '"DOCKER_BUILDKIT": "1"' in source
@@ -164,9 +166,29 @@ assert gate.dry_run_enabled("1") is True
 assert gate.cache_reuse_enabled(None) is False
 assert gate.cache_reuse_enabled("0") is False
 assert gate.cache_reuse_enabled("1") is True
+with tempfile.TemporaryDirectory() as temporary:
+    root = Path(temporary)
+    old_evidence = root / "old" / "container-e2e"
+    new_evidence = root / "new"
+    old_evidence.mkdir(parents=True)
+    (new_evidence / "container-e2e").mkdir(parents=True)
+    marker = old_evidence / "addon-tools.json"
+    marker.write_text(__import__("json").dumps({
+        "status": "passed", "addons": gate.ADDON_GROUPS["addon-tools"],
+        "browser_fixture": {"title": "Fixture", "violations": 0},
+    }) + "\n")
+    gate.seal_checkpoint(marker)
+    reused = gate.reuse_checkpoint(root / "old", new_evidence, "addon-tools")
+    assert reused and reused.read_text() == marker.read_text()
+    marker.write_text('{"status":"failed"}\n')
+    assert gate.reuse_checkpoint(root / "old", new_evidence, "addon-tools") is None
 assert "browser-testing" in gate.ADDON_GROUPS["addon-tools"]
 assert "@axe-core/playwright" in source
 assert 'chromium.launch({ headless: true, channel: "chromium" })' in source
+assert 'const context = await browser.newContext()' in source
+assert 'const page = await context.newPage()' in source
+assert 'await context.close(); await browser.close()' in source
+assert 'browser.newPage()' not in source
 assert '"browser_fixture"' in source
 assert gate.parse_ui_mode(None) == "auto"
 assert gate.parse_ui_mode("textual") == "textual"

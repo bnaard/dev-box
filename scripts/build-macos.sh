@@ -82,6 +82,7 @@ ok "Targets ready: ${TARGETS[*]}"
 
 # ── Build ────────────────────────────────────────────────────────────────────
 mkdir -p "${DIST_DIR}"
+TARGET_DIR="${CARGO_TARGET_DIR:-${CLI_DIR}/target}"
 
 build_log_dir="$(mktemp -d "${TMPDIR:-/tmp}/aibox-macos-build.XXXXXX")"
 build_pids=()
@@ -122,7 +123,7 @@ done
 for target in "${TARGETS[@]}"; do
 
   local_name="aibox-${VERSION_TAG}${target}"
-  cp "${CLI_DIR}/target/${target}/release/aibox" "${DIST_DIR}/${local_name}"
+  cp "${TARGET_DIR}/${target}/release/aibox" "${DIST_DIR}/${local_name}"
   tar -czf "${DIST_DIR}/${local_name}.tar.gz" \
     -C "${DIST_DIR}" "${local_name}" \
     -C "${PROJECT_ROOT}" LICENSE

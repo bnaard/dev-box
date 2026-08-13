@@ -144,7 +144,7 @@ ${bold}Release:${reset}
                            Print release step aliases and concrete step names
   release-host-prepare <version>
                            Prepare immutable checksummed host-gate inputs
-  release-host <run-dir> [--dry-run]
+  release-host <run-dir> [--dry-run] [--cold-cache] [--retry-from=<failed-run-dir>]
                            Run macOS validation; --dry-run stops before publication
   release-finalize-runtime <version>
                            Refresh and commit repo-owned generated runtime files
@@ -2620,10 +2620,10 @@ cmd_release_host_prepare() {
 }
 
 cmd_release_host() {
-  if [[ "$#" -ge 1 && "$#" -le 4 ]]; then
+  if [[ "$#" -ge 1 && "$#" -le 5 ]]; then
     "${SCRIPT_DIR}/release-host-gate.sh" "$@"
   else
-    die "Usage: ./scripts/maintain.sh release-host [--dry-run] [--reuse-cache] [--ui=auto|textual|plain] <run-dir>"
+    die "Usage: ./scripts/maintain.sh release-host [--dry-run] [--cold-cache] [--retry-from=<failed-run-dir>] [--ui=auto|textual|plain] <run-dir>"
   fi
 }
 
