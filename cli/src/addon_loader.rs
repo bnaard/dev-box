@@ -806,8 +806,11 @@ runtime: |
         assert!(rendered.contains("@playwright/test@1.62.1"));
         assert!(rendered.contains("@axe-core/playwright@4.13.0"));
         assert!(rendered.contains("axe-core@4.13.0"));
-        assert!(rendered.contains("PLAYWRIGHT_BROWSERS_PATH=/ms-playwright"));
         assert!(rendered.contains("--no-shell"));
+        assert!(
+            rendered.contains("PLAYWRIGHT_BROWSERS_PATH=/ms-playwright"),
+            "full Chromium must be installed in a shared browser path"
+        );
         assert!(rendered.contains("chromium"));
         assert!(rendered.contains("firefox"));
         assert!(rendered.contains("webkit"));
