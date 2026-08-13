@@ -683,6 +683,11 @@ pub static COMPAT_TABLE: &[CompatEntry] = &[
         processkit_version: "v0.28.6",
         note: "Patch release: retries OpenCode release downloads and makes Textual yanks selection-aware while preserving actionable failed-task diagnostics.",
     },
+    CompatEntry {
+        aibox_version: "0.32.0",
+        processkit_version: "v0.28.6",
+        note: "Minor release: adds a pinned Chromium-first Playwright and axe browser-testing addon with optional Firefox/WebKit, live release-host browser evidence, and a cleaner full-width Textual release dashboard.",
+    },
 ];
 
 /// Find the minimum compatible processkit version for the given aibox version.
