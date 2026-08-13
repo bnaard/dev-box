@@ -231,7 +231,7 @@ host machine.&lt;/p&gt;
 &lt;/span&gt;&lt;/span&gt;&lt;span class="line"&gt;&lt;span class="cl"&gt;&lt;span class="c1"&gt;# https://docs.docker.com/engine/install/&lt;/span&gt;
 &lt;/span&gt;&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;p&gt;aibox auto-detects which runtime is available. If both are installed, Podman takes priority.
 OrbStack works through its Docker-compatible runtime and Compose integration.&lt;/p&gt;</description></item><item><title>Overview</title><link>https://projectious-work.github.io/aibox/docs/addons/overview/</link><pubDate>Mon, 01 Jan 0001 00:00:00 +0000</pubDate><guid>https://projectious-work.github.io/aibox/docs/addons/overview/</guid><description>&lt;h1 id="addons"&gt;Addons&lt;/h1&gt;
-&lt;p&gt;aibox uses the Debian runtime image family (&lt;code&gt;base-debian-v0.26.x&lt;/code&gt; for legacy releases, &lt;code&gt;base-debian-runtime-v0.27.0+&lt;/code&gt; after the image-tag cutover) with &lt;strong&gt;35 composable addons&lt;/strong&gt; that install language runtimes, tool bundles, documentation frameworks, and AI coding agents into your container.&lt;/p&gt;
+&lt;p&gt;aibox uses the Debian runtime image family (&lt;code&gt;base-debian-v0.26.x&lt;/code&gt; for legacy releases, &lt;code&gt;base-debian-runtime-v0.27.0+&lt;/code&gt; after the image-tag cutover) with &lt;strong&gt;36 composable addons&lt;/strong&gt; that install language runtimes, tool bundles, documentation frameworks, and AI coding agents into your container.&lt;/p&gt;
 &lt;h2 id="managing-addons"&gt;Managing Addons&lt;/h2&gt;
 &lt;h3 id="via-cli"&gt;Via CLI&lt;/h3&gt;
 &lt;div class="highlight"&gt;&lt;pre tabindex="0" class="chroma"&gt;&lt;code class="language-bash" data-lang="bash"&gt;&lt;span class="line"&gt;&lt;span class="cl"&gt;&lt;span class="c1"&gt;# See all available addons&lt;/span&gt;
@@ -1146,6 +1146,11 @@ below shows the minimum compatible processkit version for each aibox release.&lt
 			&lt;/tr&gt;
 	&lt;/thead&gt;
 	&lt;tbody&gt;
+			&lt;tr&gt;
+					&lt;td&gt;0.32.0&lt;/td&gt;
+					&lt;td&gt;v0.28.6&lt;/td&gt;
+					&lt;td&gt;adds a pinned Chromium-first Playwright and axe browser-testing addon with optional Firefox/WebKit, live release-host browser evidence, and a cleaner full-width Textual release dashboard&lt;/td&gt;
+			&lt;/tr&gt;
 			&lt;tr&gt;
 					&lt;td&gt;0.31.5&lt;/td&gt;
 					&lt;td&gt;v0.28.6&lt;/td&gt;

@@ -1,0 +1,433 @@
+{
+  "version": 1,
+  "generated_at": "2026-05-17T18:00:48Z",
+  "themes": [
+    {
+      "slug": "gruvbox-dark",
+      "family": "gruvbox",
+      "mode": "dark",
+      "variant": null,
+      "cast": "themes/gruvbox-dark.cast"
+    },
+    {
+      "slug": "gruvbox-light",
+      "family": "gruvbox",
+      "mode": "light",
+      "variant": null,
+      "cast": "themes/gruvbox-light.cast"
+    },
+    {
+      "slug": "catppuccin-mocha",
+      "family": "catppuccin",
+      "mode": "dark",
+      "variant": "mocha",
+      "cast": "themes/catppuccin-mocha.cast"
+    },
+    {
+      "slug": "catppuccin-macchiato",
+      "family": "catppuccin",
+      "mode": "dark",
+      "variant": "macchiato",
+      "cast": "themes/catppuccin-macchiato.cast"
+    },
+    {
+      "slug": "catppuccin-frappe",
+      "family": "catppuccin",
+      "mode": "dark",
+      "variant": "frappe",
+      "cast": "themes/catppuccin-frappe.cast"
+    },
+    {
+      "slug": "catppuccin-latte",
+      "family": "catppuccin",
+      "mode": "light",
+      "variant": "latte",
+      "cast": "themes/catppuccin-latte.cast"
+    },
+    {
+      "slug": "dracula",
+      "family": "",
+      "mode": "dark",
+      "variant": "dracula",
+      "cast": "themes/dracula.cast"
+    },
+    {
+      "slug": "dracula-soft",
+      "family": "dracula",
+      "mode": "dark",
+      "variant": "soft",
+      "cast": "themes/dracula-soft.cast"
+    },
+    {
+      "slug": "tokyo-night",
+      "family": "tokyo",
+      "mode": "dark",
+      "variant": "night",
+      "cast": "themes/tokyo-night.cast"
+    },
+    {
+      "slug": "tokyo-night-storm",
+      "family": "tokyo-night",
+      "mode": "dark",
+      "variant": "storm",
+      "cast": "themes/tokyo-night-storm.cast"
+    },
+    {
+      "slug": "tokyo-night-day",
+      "family": "tokyo-night",
+      "mode": "day",
+      "variant": null,
+      "cast": "themes/tokyo-night-day.cast"
+    },
+    {
+      "slug": "nord",
+      "family": "",
+      "mode": "dark",
+      "variant": "nord",
+      "cast": "themes/nord.cast"
+    },
+    {
+      "slug": "rose-pine",
+      "family": "rose",
+      "mode": "dark",
+      "variant": "pine",
+      "cast": "themes/rose-pine.cast"
+    },
+    {
+      "slug": "rose-pine-moon",
+      "family": "rose-pine",
+      "mode": "dark",
+      "variant": "moon",
+      "cast": "themes/rose-pine-moon.cast"
+    },
+    {
+      "slug": "rose-pine-dawn",
+      "family": "rose-pine",
+      "mode": "light",
+      "variant": "dawn",
+      "cast": "themes/rose-pine-dawn.cast"
+    },
+    {
+      "slug": "material",
+      "family": "",
+      "mode": "dark",
+      "variant": "material",
+      "cast": "themes/material.cast"
+    },
+    {
+      "slug": "material-ocean",
+      "family": "material",
+      "mode": "dark",
+      "variant": "ocean",
+      "cast": "themes/material-ocean.cast"
+    },
+    {
+      "slug": "material-palenight",
+      "family": "material",
+      "mode": "dark",
+      "variant": "palenight",
+      "cast": "themes/material-palenight.cast"
+    },
+    {
+      "slug": "material-lighter",
+      "family": "material",
+      "mode": "light",
+      "variant": "lighter",
+      "cast": "themes/material-lighter.cast"
+    },
+    {
+      "slug": "material-darker",
+      "family": "material",
+      "mode": "dark",
+      "variant": "darker",
+      "cast": "themes/material-darker.cast"
+    },
+    {
+      "slug": "solarized-dark",
+      "family": "solarized",
+      "mode": "dark",
+      "variant": null,
+      "cast": "themes/solarized-dark.cast"
+    },
+    {
+      "slug": "solarized-light",
+      "family": "solarized",
+      "mode": "light",
+      "variant": null,
+      "cast": "themes/solarized-light.cast"
+    },
+    {
+      "slug": "github-dark",
+      "family": "github",
+      "mode": "dark",
+      "variant": null,
+      "cast": "themes/github-dark.cast"
+    },
+    {
+      "slug": "github-light",
+      "family": "github",
+      "mode": "light",
+      "variant": null,
+      "cast": "themes/github-light.cast"
+    },
+    {
+      "slug": "github-dark-dimmed",
+      "family": "github-dark",
+      "mode": "dark",
+      "variant": "dimmed",
+      "cast": "themes/github-dark-dimmed.cast"
+    },
+    {
+      "slug": "github-dark-high-contrast",
+      "family": "github-dark",
+      "mode": "dark",
+      "variant": "high-contrast",
+      "cast": "themes/github-dark-high-contrast.cast"
+    },
+    {
+      "slug": "github-light-high-contrast",
+      "family": "github-light",
+      "mode": "light",
+      "variant": "high-contrast",
+      "cast": "themes/github-light-high-contrast.cast"
+    },
+    {
+      "slug": "ayu-dark",
+      "family": "ayu",
+      "mode": "dark",
+      "variant": null,
+      "cast": "themes/ayu-dark.cast"
+    },
+    {
+      "slug": "ayu-mirage",
+      "family": "ayu",
+      "mode": "dark",
+      "variant": "mirage",
+      "cast": "themes/ayu-mirage.cast"
+    },
+    {
+      "slug": "ayu-light",
+      "family": "ayu",
+      "mode": "light",
+      "variant": null,
+      "cast": "themes/ayu-light.cast"
+    },
+    {
+      "slug": "night-owl",
+      "family": "night",
+      "mode": "dark",
+      "variant": "owl",
+      "cast": "themes/night-owl.cast"
+    },
+    {
+      "slug": "night-owl-light",
+      "family": "night-owl",
+      "mode": "light",
+      "variant": null,
+      "cast": "themes/night-owl-light.cast"
+    },
+    {
+      "slug": "moonlight",
+      "family": "",
+      "mode": "dark",
+      "variant": "moonlight",
+      "cast": "themes/moonlight.cast"
+    },
+    {
+      "slug": "projectious",
+      "family": "",
+      "mode": "dark",
+      "variant": "projectious",
+      "cast": "themes/projectious.cast"
+    },
+    {
+      "slug": "andromeeda",
+      "family": "",
+      "mode": "dark",
+      "variant": "andromeeda",
+      "cast": "themes/andromeeda.cast"
+    },
+    {
+      "slug": "aurora-x",
+      "family": "aurora",
+      "mode": "dark",
+      "variant": "x",
+      "cast": "themes/aurora-x.cast"
+    },
+    {
+      "slug": "everforest-dark",
+      "family": "everforest",
+      "mode": "dark",
+      "variant": null,
+      "cast": "themes/everforest-dark.cast"
+    },
+    {
+      "slug": "everforest-light",
+      "family": "everforest",
+      "mode": "light",
+      "variant": null,
+      "cast": "themes/everforest-light.cast"
+    },
+    {
+      "slug": "houston",
+      "family": "",
+      "mode": "dark",
+      "variant": "houston",
+      "cast": "themes/houston.cast"
+    },
+    {
+      "slug": "kanagawa-wave",
+      "family": "kanagawa",
+      "mode": "dark",
+      "variant": "wave",
+      "cast": "themes/kanagawa-wave.cast"
+    },
+    {
+      "slug": "kanagawa-dragon",
+      "family": "kanagawa",
+      "mode": "dark",
+      "variant": "dragon",
+      "cast": "themes/kanagawa-dragon.cast"
+    },
+    {
+      "slug": "kanagawa-lotus",
+      "family": "kanagawa",
+      "mode": "light",
+      "variant": "lotus",
+      "cast": "themes/kanagawa-lotus.cast"
+    },
+    {
+      "slug": "laserwave",
+      "family": "",
+      "mode": "dark",
+      "variant": "laserwave",
+      "cast": "themes/laserwave.cast"
+    },
+    {
+      "slug": "min-dark",
+      "family": "min",
+      "mode": "dark",
+      "variant": null,
+      "cast": "themes/min-dark.cast"
+    },
+    {
+      "slug": "min-light",
+      "family": "min",
+      "mode": "light",
+      "variant": null,
+      "cast": "themes/min-light.cast"
+    },
+    {
+      "slug": "monokai",
+      "family": "",
+      "mode": "dark",
+      "variant": "monokai",
+      "cast": "themes/monokai.cast"
+    },
+    {
+      "slug": "one-dark-pro",
+      "family": "one-dark",
+      "mode": "dark",
+      "variant": "pro",
+      "cast": "themes/one-dark-pro.cast"
+    },
+    {
+      "slug": "one-light",
+      "family": "one",
+      "mode": "light",
+      "variant": null,
+      "cast": "themes/one-light.cast"
+    },
+    {
+      "slug": "plastic",
+      "family": "",
+      "mode": "dark",
+      "variant": "plastic",
+      "cast": "themes/plastic.cast"
+    },
+    {
+      "slug": "poimandres",
+      "family": "",
+      "mode": "dark",
+      "variant": "poimandres",
+      "cast": "themes/poimandres.cast"
+    },
+    {
+      "slug": "red",
+      "family": "",
+      "mode": "dark",
+      "variant": "red",
+      "cast": "themes/red.cast"
+    },
+    {
+      "slug": "slack-dark",
+      "family": "slack",
+      "mode": "dark",
+      "variant": null,
+      "cast": "themes/slack-dark.cast"
+    },
+    {
+      "slug": "slack-ochin",
+      "family": "slack",
+      "mode": "light",
+      "variant": "ochin",
+      "cast": "themes/slack-ochin.cast"
+    },
+    {
+      "slug": "snazzy-light",
+      "family": "snazzy",
+      "mode": "light",
+      "variant": null,
+      "cast": "themes/snazzy-light.cast"
+    },
+    {
+      "slug": "synthwave-84",
+      "family": "synthwave",
+      "mode": "dark",
+      "variant": "84",
+      "cast": "themes/synthwave-84.cast"
+    },
+    {
+      "slug": "vesper",
+      "family": "",
+      "mode": "dark",
+      "variant": "vesper",
+      "cast": "themes/vesper.cast"
+    },
+    {
+      "slug": "vitesse-dark",
+      "family": "vitesse",
+      "mode": "dark",
+      "variant": null,
+      "cast": "themes/vitesse-dark.cast"
+    },
+    {
+      "slug": "vitesse-light",
+      "family": "vitesse",
+      "mode": "light",
+      "variant": null,
+      "cast": "themes/vitesse-light.cast"
+    },
+    {
+      "slug": "vitesse-black",
+      "family": "vitesse",
+      "mode": "black",
+      "variant": null,
+      "cast": "themes/vitesse-black.cast"
+    },
+    {
+      "slug": "vscode-dark-plus",
+      "family": "vscode-dark",
+      "mode": "dark",
+      "variant": "plus",
+      "cast": "themes/vscode-dark-plus.cast"
+    },
+    {
+      "slug": "vscode-light-plus",
+      "family": "vscode-light",
+      "mode": "light",
+      "variant": "plus",
+      "cast": "themes/vscode-light-plus.cast"
+    }
+  ]
+}

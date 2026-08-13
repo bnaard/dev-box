@@ -321,6 +321,11 @@ below shows the minimum compatible processkit version for each aibox release.&lt
 	&lt;/thead&gt;
 	&lt;tbody&gt;
 			&lt;tr&gt;
+					&lt;td&gt;0.32.0&lt;/td&gt;
+					&lt;td&gt;v0.28.6&lt;/td&gt;
+					&lt;td&gt;adds a pinned Chromium-first Playwright and axe browser-testing addon with optional Firefox/WebKit, live release-host browser evidence, and a cleaner full-width Textual release dashboard&lt;/td&gt;
+			&lt;/tr&gt;
+			&lt;tr&gt;
 					&lt;td&gt;0.31.5&lt;/td&gt;
 					&lt;td&gt;v0.28.6&lt;/td&gt;
 					&lt;td&gt;retries transient OpenCode release downloads and makes Textual yanks selection-aware while preserving actionable failed-task diagnostics&lt;/td&gt;

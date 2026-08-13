@@ -1,0 +1,189 @@
+<?xml version="1.0" encoding="utf-8" standalone="yes"?><rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom"><channel><title>Container on aibox</title><link>https://projectious-work.github.io/aibox/v0.x/v0.32.0/docs/container/</link><description>Recent content in Container on aibox</description><generator>Hugo</generator><language>en</language><atom:link href="https://projectious-work.github.io/aibox/v0.x/v0.32.0/docs/container/index.xml" rel="self" type="application/rss+xml"/><item><title>Base Image</title><link>https://projectious-work.github.io/aibox/v0.x/v0.32.0/docs/container/base-image/</link><pubDate>Mon, 01 Jan 0001 00:00:00 +0000</pubDate><guid>https://projectious-work.github.io/aibox/v0.x/v0.32.0/docs/container/base-image/</guid><description>&lt;h1 id="base-image"&gt;Base Image&lt;/h1&gt;
+&lt;p&gt;The base image is the foundation for all aibox container flavors. It provides a complete, opinionated development environment built on &lt;strong&gt;Debian Trixie Slim&lt;/strong&gt;.&lt;/p&gt;
+&lt;h2 id="installed-tools"&gt;Installed Tools&lt;/h2&gt;
+&lt;table&gt;
+	&lt;thead&gt;
+			&lt;tr&gt;
+					&lt;th&gt;Tool&lt;/th&gt;
+					&lt;th&gt;Version / Source&lt;/th&gt;
+					&lt;th&gt;Purpose&lt;/th&gt;
+			&lt;/tr&gt;
+	&lt;/thead&gt;
+	&lt;tbody&gt;
+			&lt;tr&gt;
+					&lt;td&gt;tmux&lt;/td&gt;
+					&lt;td&gt;Debian package&lt;/td&gt;
+					&lt;td&gt;Terminal multiplexer&lt;/td&gt;
+			&lt;/tr&gt;
+			&lt;tr&gt;
+					&lt;td&gt;Yazi&lt;/td&gt;
+					&lt;td&gt;25.4.8 (prebuilt binary from GitHub releases)&lt;/td&gt;
+					&lt;td&gt;Terminal file manager&lt;/td&gt;
+			&lt;/tr&gt;
+			&lt;tr&gt;
+					&lt;td&gt;Vim&lt;/td&gt;
+					&lt;td&gt;Debian package (&lt;code&gt;vim&lt;/code&gt; + &lt;code&gt;vim-runtime&lt;/code&gt;)&lt;/td&gt;
+					&lt;td&gt;Editor&lt;/td&gt;
+			&lt;/tr&gt;
+			&lt;tr&gt;
+					&lt;td&gt;Git&lt;/td&gt;
+					&lt;td&gt;Debian package&lt;/td&gt;
+					&lt;td&gt;Version control&lt;/td&gt;
+			&lt;/tr&gt;
+			&lt;tr&gt;
+					&lt;td&gt;Claude CLI&lt;/td&gt;
+					&lt;td&gt;Official install script&lt;/td&gt;
+					&lt;td&gt;AI assistant&lt;/td&gt;
+			&lt;/tr&gt;
+			&lt;tr&gt;
+					&lt;td&gt;ripgrep (&lt;code&gt;rg&lt;/code&gt;)&lt;/td&gt;
+					&lt;td&gt;Debian package&lt;/td&gt;
+					&lt;td&gt;Fast recursive search (grep replacement)&lt;/td&gt;
+			&lt;/tr&gt;
+			&lt;tr&gt;
+					&lt;td&gt;fd&lt;/td&gt;
+					&lt;td&gt;Debian package&lt;/td&gt;
+					&lt;td&gt;Fast file finder (find replacement)&lt;/td&gt;
+			&lt;/tr&gt;
+			&lt;tr&gt;
+					&lt;td&gt;bat&lt;/td&gt;
+					&lt;td&gt;Debian package&lt;/td&gt;
+					&lt;td&gt;Syntax-highlighting cat replacement&lt;/td&gt;
+			&lt;/tr&gt;
+			&lt;tr&gt;
+					&lt;td&gt;eza&lt;/td&gt;
+					&lt;td&gt;Debian package&lt;/td&gt;
+					&lt;td&gt;Modern ls replacement with git integration&lt;/td&gt;
+			&lt;/tr&gt;
+			&lt;tr&gt;
+					&lt;td&gt;zoxide&lt;/td&gt;
+					&lt;td&gt;Debian package&lt;/td&gt;
+					&lt;td&gt;Smarter cd that learns your habits&lt;/td&gt;
+			&lt;/tr&gt;
+			&lt;tr&gt;
+					&lt;td&gt;fzf&lt;/td&gt;
+					&lt;td&gt;Debian package&lt;/td&gt;
+					&lt;td&gt;Fuzzy finder for files, history, and more&lt;/td&gt;
+			&lt;/tr&gt;
+			&lt;tr&gt;
+					&lt;td&gt;delta&lt;/td&gt;
+					&lt;td&gt;Debian package&lt;/td&gt;
+					&lt;td&gt;Syntax-highlighting diff viewer (used by git)&lt;/td&gt;
+			&lt;/tr&gt;
+			&lt;tr&gt;
+					&lt;td&gt;starship&lt;/td&gt;
+					&lt;td&gt;Prebuilt binary&lt;/td&gt;
+					&lt;td&gt;Minimal, fast shell prompt with context&lt;/td&gt;
+			&lt;/tr&gt;
+			&lt;tr&gt;
+					&lt;td&gt;curl&lt;/td&gt;
+					&lt;td&gt;Debian package&lt;/td&gt;
+					&lt;td&gt;HTTP client&lt;/td&gt;
+			&lt;/tr&gt;
+			&lt;tr&gt;
+					&lt;td&gt;jq&lt;/td&gt;
+					&lt;td&gt;Debian package&lt;/td&gt;
+					&lt;td&gt;JSON processor&lt;/td&gt;
+			&lt;/tr&gt;
+			&lt;tr&gt;
+					&lt;td&gt;less&lt;/td&gt;
+					&lt;td&gt;Debian package&lt;/td&gt;
+					&lt;td&gt;Pager&lt;/td&gt;
+			&lt;/tr&gt;
+			&lt;tr&gt;
+					&lt;td&gt;unzip&lt;/td&gt;
+					&lt;td&gt;Debian package&lt;/td&gt;
+					&lt;td&gt;Archive extraction&lt;/td&gt;
+			&lt;/tr&gt;
+			&lt;tr&gt;
+					&lt;td&gt;iproute2&lt;/td&gt;
+					&lt;td&gt;Debian package&lt;/td&gt;
+					&lt;td&gt;Network route/interface inspection for status segments&lt;/td&gt;
+			&lt;/tr&gt;
+			&lt;tr&gt;
+					&lt;td&gt;iputils-ping&lt;/td&gt;
+					&lt;td&gt;Debian package&lt;/td&gt;
+					&lt;td&gt;ICMP latency checks for status segments&lt;/td&gt;
+			&lt;/tr&gt;
+			&lt;tr&gt;
+					&lt;td&gt;bash-completion&lt;/td&gt;
+					&lt;td&gt;Debian package&lt;/td&gt;
+					&lt;td&gt;Shell completions&lt;/td&gt;
+			&lt;/tr&gt;
+			&lt;tr&gt;
+					&lt;td&gt;ca-certificates&lt;/td&gt;
+					&lt;td&gt;Debian package&lt;/td&gt;
+					&lt;td&gt;TLS root certificates&lt;/td&gt;
+			&lt;/tr&gt;
+			&lt;tr&gt;
+					&lt;td&gt;locales&lt;/td&gt;
+					&lt;td&gt;Debian package&lt;/td&gt;
+					&lt;td&gt;Locale support (en_US.UTF-8)&lt;/td&gt;
+			&lt;/tr&gt;
+			&lt;tr&gt;
+					&lt;td&gt;tzdata&lt;/td&gt;
+					&lt;td&gt;Debian package&lt;/td&gt;
+					&lt;td&gt;Timezone data&lt;/td&gt;
+			&lt;/tr&gt;
+	&lt;/tbody&gt;
+&lt;/table&gt;
+&lt;p&gt;GitHub CLI (&lt;code&gt;gh&lt;/code&gt;) and lazygit are provided by the optional
+&lt;a href="../addons/tool-bundles.md#git-ui"&gt;&lt;code&gt;git-ui&lt;/code&gt; addon&lt;/a&gt;, not by the base image. Add
+&lt;code&gt;[addons.git-ui.tools]&lt;/code&gt; to &lt;code&gt;aibox.toml&lt;/code&gt; when a project needs those tools.&lt;/p&gt;</description></item><item><title>Container Configuration</title><link>https://projectious-work.github.io/aibox/v0.x/v0.32.0/docs/container/configuration/</link><pubDate>Mon, 01 Jan 0001 00:00:00 +0000</pubDate><guid>https://projectious-work.github.io/aibox/v0.x/v0.32.0/docs/container/configuration/</guid><description>&lt;h1 id="container-configuration"&gt;Container Configuration&lt;/h1&gt;
+&lt;p&gt;The &lt;code&gt;[container]&lt;/code&gt; section in &lt;code&gt;aibox.toml&lt;/code&gt; controls per-project container settings.&lt;/p&gt;
+&lt;h2 id="container-identity"&gt;Container Identity&lt;/h2&gt;
+&lt;div class="highlight"&gt;&lt;pre tabindex="0" class="chroma"&gt;&lt;code class="language-toml" data-lang="toml"&gt;&lt;span class="line"&gt;&lt;span class="cl"&gt;&lt;span class="p"&gt;[&lt;/span&gt;&lt;span class="nx"&gt;container&lt;/span&gt;&lt;span class="p"&gt;]&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span class="line"&gt;&lt;span class="cl"&gt;&lt;span class="nx"&gt;name&lt;/span&gt; &lt;span class="p"&gt;=&lt;/span&gt; &lt;span class="s2"&gt;&amp;#34;my-project&amp;#34;&lt;/span&gt; &lt;span class="c"&gt;# Container name (used by compose)&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span class="line"&gt;&lt;span class="cl"&gt;&lt;span class="nx"&gt;hostname&lt;/span&gt; &lt;span class="p"&gt;=&lt;/span&gt; &lt;span class="s2"&gt;&amp;#34;my-project&amp;#34;&lt;/span&gt; &lt;span class="c"&gt;# Container hostname&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span class="line"&gt;&lt;span class="cl"&gt;&lt;span class="nx"&gt;user&lt;/span&gt; &lt;span class="p"&gt;=&lt;/span&gt; &lt;span class="s2"&gt;&amp;#34;aibox&amp;#34;&lt;/span&gt; &lt;span class="c"&gt;# Container user (default: aibox)&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;p&gt;The &lt;code&gt;user&lt;/code&gt; field determines the non-root user inside the container. The default &lt;code&gt;aibox&lt;/code&gt; user (UID 1000) is recommended. Set &lt;code&gt;user = &amp;quot;root&amp;quot;&lt;/code&gt; only if needed for specific tools.&lt;/p&gt;
+&lt;p&gt;&lt;code&gt;aibox apply&lt;/code&gt; generates a Compose file with an explicit top-level project name,
+an explicit service image, and &lt;code&gt;container_name = [container].name&lt;/code&gt;. Docker
+Desktop, OrbStack, and Compose UIs therefore group aibox projects by their
+project/container names instead of under a generic &lt;code&gt;devcontainer&lt;/code&gt; identity.&lt;/p&gt;</description></item><item><title>Audio Support</title><link>https://projectious-work.github.io/aibox/v0.x/v0.32.0/docs/container/audio/</link><pubDate>Mon, 01 Jan 0001 00:00:00 +0000</pubDate><guid>https://projectious-work.github.io/aibox/v0.x/v0.32.0/docs/container/audio/</guid><description>&lt;h1 id="audio-support"&gt;Audio Support&lt;/h1&gt;
+&lt;p&gt;aibox can enable audio support for voice-capable tools. Audio is bridged from
+the container to the host via PulseAudio over TCP, and the required container
+packages live in the optional &lt;code&gt;audio-voice&lt;/code&gt; addon.&lt;/p&gt;
+&lt;h2 id="why-audio-matters"&gt;Why Audio Matters&lt;/h2&gt;
+&lt;p&gt;Claude Code supports voice interaction. For this to work inside a container, audio output (and optionally input) must be forwarded to the host&amp;rsquo;s sound system. aibox handles this by installing PulseAudio client utilities in the container and connecting them to a PulseAudio server running on the host.&lt;/p&gt;</description></item><item><title>File Preview</title><link>https://projectious-work.github.io/aibox/v0.x/v0.32.0/docs/container/file-preview/</link><pubDate>Mon, 01 Jan 0001 00:00:00 +0000</pubDate><guid>https://projectious-work.github.io/aibox/v0.x/v0.32.0/docs/container/file-preview/</guid><description>&lt;h1 id="file-preview"&gt;File Preview&lt;/h1&gt;
+&lt;p&gt;aibox containers ship with Yazi preview configuration and can install
+TUI-native preview tools for raster images, vector graphics, PDF, archives, and
+video through optional addons. Several formats also support &lt;strong&gt;watch-mode
+preview&lt;/strong&gt;, where the rendered output updates automatically whenever the source
+file changes.&lt;/p&gt;
+&lt;h2 id="overview"&gt;Overview&lt;/h2&gt;
+&lt;p&gt;There are two independent preview mechanisms:&lt;/p&gt;
+&lt;table&gt;
+	&lt;thead&gt;
+			&lt;tr&gt;
+					&lt;th&gt;Mechanism&lt;/th&gt;
+					&lt;th&gt;When to use&lt;/th&gt;
+			&lt;/tr&gt;
+	&lt;/thead&gt;
+	&lt;tbody&gt;
+			&lt;tr&gt;
+					&lt;td&gt;&lt;a href="#yazi-file-preview"&gt;Yazi file preview&lt;/a&gt;&lt;/td&gt;
+					&lt;td&gt;Browsing files — preview appears automatically in the right panel as you navigate&lt;/td&gt;
+			&lt;/tr&gt;
+			&lt;tr&gt;
+					&lt;td&gt;&lt;a href="#standalone-tui-viewers"&gt;Standalone TUI viewers&lt;/a&gt;&lt;/td&gt;
+					&lt;td&gt;Viewing a specific file in a pane, or piping output from a build tool&lt;/td&gt;
+			&lt;/tr&gt;
+	&lt;/tbody&gt;
+&lt;/table&gt;
+&lt;p&gt;Watch-mode (live-updating preview) is available via the standalone tools — see &lt;a href="#watch-mode-preview"&gt;Watch-Mode Preview&lt;/a&gt;.&lt;/p&gt;</description></item><item><title>Runtime Operations</title><link>https://projectious-work.github.io/aibox/v0.x/v0.32.0/docs/container/runtime-operations/</link><pubDate>Mon, 01 Jan 0001 00:00:00 +0000</pubDate><guid>https://projectious-work.github.io/aibox/v0.x/v0.32.0/docs/container/runtime-operations/</guid><description>&lt;h1 id="runtime-operations"&gt;Runtime Operations&lt;/h1&gt;
+&lt;p&gt;The generated devcontainer is standard Compose output, but the normal workflow
+should go through aibox so generated files, runtime home state, and diagnostics
+stay aligned.&lt;/p&gt;
+&lt;h2 id="start-and-attach"&gt;Start and Attach&lt;/h2&gt;
+&lt;div class="highlight"&gt;&lt;pre tabindex="0" class="chroma"&gt;&lt;code class="language-bash" data-lang="bash"&gt;&lt;span class="line"&gt;&lt;span class="cl"&gt;aibox up
+&lt;/span&gt;&lt;/span&gt;&lt;span class="line"&gt;&lt;span class="cl"&gt;aibox up --layout focus
+&lt;/span&gt;&lt;/span&gt;&lt;span class="line"&gt;&lt;span class="cl"&gt;aibox up --apply
+&lt;/span&gt;&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;p&gt;&lt;code&gt;aibox up&lt;/code&gt; creates or starts the container and attaches through tmux. Use
+&lt;code&gt;--layout&lt;/code&gt; for a one-session layout override. Use &lt;code&gt;--apply&lt;/code&gt; when you want aibox
+to reconcile configuration before starting.&lt;/p&gt;
+&lt;h2 id="stop-or-remove"&gt;Stop or Remove&lt;/h2&gt;
+&lt;div class="highlight"&gt;&lt;pre tabindex="0" class="chroma"&gt;&lt;code class="language-bash" data-lang="bash"&gt;&lt;span class="line"&gt;&lt;span class="cl"&gt;aibox down
+&lt;/span&gt;&lt;/span&gt;&lt;span class="line"&gt;&lt;span class="cl"&gt;aibox delete runtime
+&lt;/span&gt;&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;p&gt;&lt;code&gt;down&lt;/code&gt; stops the Compose project. &lt;code&gt;delete runtime&lt;/code&gt; removes the container while
+preserving project files and &lt;code&gt;.aibox-home/&lt;/code&gt;.&lt;/p&gt;</description></item></channel></rss>

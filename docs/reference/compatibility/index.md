@@ -13,6 +13,7 @@ below shows the minimum compatible processkit version for each aibox release.
 
 | aibox version | Min. processkit | Notes |
 |--------------|-----------------|-------|
+| 0.32.0 | v0.28.6 | adds a pinned Chromium-first Playwright and axe browser-testing addon with optional Firefox/WebKit, live release-host browser evidence, and a cleaner full-width Textual release dashboard |
 | 0.31.5 | v0.28.6 | retries transient OpenCode release downloads and makes Textual yanks selection-aware while preserving actionable failed-task diagnostics |
 | 0.31.4 | v0.28.6 | makes Hugo downloads resilient to transient network failures, improves the release-host Textual problem workflow, and serializes contention-sensitive E2E gates |
 | 0.31.3 | v0.28.6 | adds a locked Textual dashboard and reviewed content-addressed cache reuse to the restricted macOS host gate |
