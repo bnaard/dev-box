@@ -693,6 +693,11 @@ pub static COMPAT_TABLE: &[CompatEntry] = &[
         processkit_version: "v0.28.6",
         note: "Patch release: makes the browser-testing host gate launch the full Chromium channel installed by Playwright --no-shell instead of requesting the omitted headless-shell executable.",
     },
+    CompatEntry {
+        aibox_version: "0.32.2",
+        processkit_version: "v0.28.6",
+        note: "Patch release: uses an explicit Playwright BrowserContext for axe host validation and makes safe release-host caches and candidate-bound retries available by default.",
+    },
 ];
 
 /// Find the minimum compatible processkit version for the given aibox version.
