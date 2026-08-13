@@ -949,7 +949,7 @@ def run_addon_group(runner: Runner, profile: Path, env: dict[str, str], candidat
             fixture_script = (
                 'const { chromium } = require("@playwright/test"); '
                 'const AxeBuilder = require("@axe-core/playwright").default; '
-                '(async () => { const browser = await chromium.launch({ headless: true }); '
+                '(async () => { const browser = await chromium.launch({ headless: true, channel: "chromium" }); '
                 'const page = await browser.newPage(); '
                 'await page.setContent("<!doctype html><html lang=\\"en\\"><head><title>Fixture</title></head>'
                 '<body><main><button type=\\"button\\">Ready</button></main></body></html>"); '

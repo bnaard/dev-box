@@ -688,6 +688,11 @@ pub static COMPAT_TABLE: &[CompatEntry] = &[
         processkit_version: "v0.28.6",
         note: "Minor release: adds a pinned Chromium-first Playwright and axe browser-testing addon with optional Firefox/WebKit, live release-host browser evidence, and a cleaner full-width Textual release dashboard.",
     },
+    CompatEntry {
+        aibox_version: "0.32.1",
+        processkit_version: "v0.28.6",
+        note: "Patch release: makes the browser-testing host gate launch the full Chromium channel installed by Playwright --no-shell instead of requesting the omitted headless-shell executable.",
+    },
 ];
 
 /// Find the minimum compatible processkit version for the given aibox version.

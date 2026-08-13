@@ -1,21 +1,10 @@
-# aibox v0.32.0 — 2026-08-13
+# aibox v0.32.1 — 2026-08-13
 
-**Summary:** This minor release adds an opt-in, reproducible browser-testing environment for projects that need responsive, keyboard, theme, reduced-motion, accessibility, and screenshot checks. Existing projects require no changes; enable the new addon when browser testing is wanted.
-
-## Added
-
-- Add the `browser-testing` addon with pinned Playwright Test 1.62.1 and `@axe-core/playwright` 4.13.0.
-- Install Playwright-managed full Chromium by default, with Firefox and WebKit available as opt-in tools.
-- Exercise a minimal Chromium launch and axe accessibility fixture in the macOS release-host gate.
-
-## Changed
-
-- Make the release-host progress bar span the viewport instead of matching only the task-list width.
-- Document that derived projects own their application-specific responsive, keyboard-focus, light/dark, reduced-motion, accessibility, and visual-regression matrices.
+**Summary:** This patch completes the browser-testing release by aligning the macOS host probe with the full Chromium binary installed by the addon. Projects using the addon need no configuration change.
 
 ## Fixed
 
-- Remove the redundant outer border around the Textual log and the empty bordered legend row above Problems.
-- Keep browser-testing package and browser installation consistent when individual addon tools are disabled.
+- Launch Playwright with `channel: "chromium"` in the release-host fixture so `--no-shell` installations use full Chromium rather than searching for the intentionally omitted headless-shell executable.
+- Add a contract assertion that prevents the host probe from drifting back to the default headless-shell launch mode.
 
-[v0.32.0]: https://github.com/projectious-work/aibox/compare/v0.31.5...v0.32.0
+[v0.32.1]: https://github.com/projectious-work/aibox/compare/v0.32.0...v0.32.1
