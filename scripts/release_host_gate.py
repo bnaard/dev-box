@@ -179,16 +179,16 @@ def run_textual_dashboard(run_argument: str, dry_run: bool) -> int:
         CSS = """
         Screen { layout: vertical; }
         #summary { height: 3; border: round $accent; padding: 0 1; }
-        #progress-box { height: 4; margin: 0 1; }
-        #progress { height: 3; }
+        #progress-box { width: 100%; height: 4; padding: 0 1; }
+        #progress { width: 100%; height: 3; }
         #progress-label { height: 1; color: $text-muted; }
         #body { height: 1fr; }
         #tasks-panel { width: 34%; min-width: 28; }
         #tasks { height: 1fr; border: round $accent; }
-        #legend { height: 2; border: round $accent; padding: 0 1; }
+        #legend { height: 1; padding: 0 1; color: $text-muted; }
         #problems-title { height: 1; padding: 0 1; color: $warning; }
         #problems { height: 7; border: round $warning; }
-        #log-panel { width: 66%; border: round $accent; }
+        #log-panel { width: 66%; }
         #log { height: 1fr; border: round $accent; }
         #log-status { height: 1; color: $text-muted; }
         ListItem { padding: 0 1; }
@@ -505,7 +505,7 @@ def run_textual_dashboard(run_argument: str, dry_run: bool) -> int:
 ADDON_GROUPS = {
     "addon-languages": ["docs-hugo", "docs-mdbook", "go", "go-quality", "go-release", "node", "rust", "typst"],
     "addon-platforms": ["cloud-aws", "cloud-gcp", "cloudflare", "infrastructure", "kubernetes"],
-    "addon-tools": ["ai-claude", "ai-opencode", "preview-archive", "supply-chain"],
+    "addon-tools": ["ai-claude", "ai-opencode", "browser-testing", "preview-archive", "supply-chain"],
 }
 ADDON_GROUP_TRIGGERS = {
     **ADDON_GROUPS,
@@ -942,9 +942,31 @@ def run_addon_group(runner: Runner, profile: Path, env: dict[str, str], candidat
     try:
         prepare_project_build(runner, profile, env, candidate_bin, container_runtime,
                               project, version)
+        browser_fixture = None
+        if group == "addon-tools":
+            runner.run([container_runtime, "compose", "-f", str(compose_file), "up", "-d", name],
+                       cwd=project)
+            fixture_script = (
+                'const { chromium } = require("@playwright/test"); '
+                'const AxeBuilder = require("@axe-core/playwright").default; '
+                '(async () => { const browser = await chromium.launch({ headless: true }); '
+                'const page = await browser.newPage(); '
+                'await page.setContent("<!doctype html><html lang=\\"en\\"><head><title>Fixture</title></head>'
+                '<body><main><button type=\\"button\\">Ready</button></main></body></html>"); '
+                'const results = await new AxeBuilder({ page }).analyze(); '
+                'console.log(JSON.stringify({ title: await page.title(), violations: results.violations.length })); '
+                'await browser.close(); })().catch(error => { console.error(error); process.exit(1); });'
+            )
+            output = runner.capture([container_runtime, "exec", "--user", "aibox", name,
+                                     "node", "-e", fixture_script])
+            browser_fixture = json.loads(output.strip().splitlines()[-1])
+            if browser_fixture != {"title": "Fixture", "violations": 0}:
+                fail(f"browser-testing fixture returned unexpected evidence: {browser_fixture}")
         marker = evidence / "container-e2e" / f"{group}.json"
-        marker.write_text(json.dumps({"status": "passed", "addons": ADDON_GROUPS[group]},
-                                     indent=2, sort_keys=True) + "\n", encoding="utf-8")
+        payload = {"status": "passed", "addons": ADDON_GROUPS[group]}
+        if browser_fixture is not None:
+            payload["browser_fixture"] = browser_fixture
+        marker.write_text(json.dumps(payload, indent=2, sort_keys=True) + "\n", encoding="utf-8")
         return marker
     finally:
         if compose_file.exists():

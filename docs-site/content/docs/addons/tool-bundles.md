@@ -48,6 +48,66 @@ tools. This aibox repo may enable it for maintenance workflows such as release
 checks and GitHub issue/release work, but downstream projects do not need it by
 default.
 
+## Browser Visual Testing
+
+The `browser-testing` addon provides a pinned Node-based Playwright Test stack
+(`@playwright/test` plus `@axe-core/playwright`) for headless browser checks.
+Playwright-managed full Chromium is enabled by default; Firefox and WebKit are
+opt-in so a project can keep its image smaller when cross-engine coverage is
+not required.
+
+```toml
+[addons.browser-testing.tools]
+# Playwright Test and @axe-core/playwright are enabled by default.
+# Optional cross-engine coverage:
+firefox = { enabled = true }
+webkit = { enabled = true }
+```
+
+The v0.x catalog currently couples Playwright `1.62.1` with
+`@axe-core/playwright` `4.13.0` and the matching browser revisions. The addon
+provides that pinned runner/browser environment; keep the derived project's
+`package.json` and lockfile authoritative, and install the packages locally
+when the project's package manager does not resolve the environment's global
+packages. After applying the configuration, a derived project can keep its
+tests and baselines beside the application, for example:
+
+```ts
+// playwright.config.ts
+import { defineConfig, devices } from "@playwright/test";
+
+export default defineConfig({
+  testDir: "./tests/browser",
+  use: {
+    baseURL: "http://127.0.0.1:4173",
+    ...devices["Desktop Chrome"],
+    colorScheme: "light",
+    reducedMotion: "reduce",
+  },
+  projects: [{ name: "chromium", use: { ...devices["Desktop Chrome"] } }],
+});
+```
+
+```ts
+// tests/browser/home.spec.ts
+import { test, expect } from "@playwright/test";
+import AxeBuilder from "@axe-core/playwright";
+
+test("home page is keyboard reachable and accessible", async ({ page }) => {
+  await page.goto("/");
+  await expect(page.getByRole("main")).toBeVisible();
+  await page.keyboard.press("Tab");
+  const results = await new AxeBuilder({ page }).analyze();
+  expect(results.violations).toEqual([]);
+});
+```
+
+The example is only a starting point. The derived project owns the responsive
+viewport set, focus and keyboard flows, light/dark themes, reduced-motion
+behavior, accessibility assertions, and screenshot-baseline matrix. aibox
+tests validate the addon installation, generated contract, browser launch, and
+a minimal fixture; they do not prescribe an application's visual matrix.
+
 ## Preview and Archive Tools
 
 ```toml

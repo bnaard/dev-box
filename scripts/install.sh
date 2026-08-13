@@ -228,6 +228,7 @@ main() {
     languages/latex.yaml
     tools/infrastructure.yaml
     tools/supply-chain.yaml
+    tools/browser-testing.yaml
     tools/release.yaml
     tools/go-release.yaml
     tools/kubernetes.yaml
@@ -258,15 +259,18 @@ main() {
     ai/ai-opencode.yaml
   "
   local failed=0
+  local installed=0
   for file in ${addon_files}; do
     if ! curl -fsSL -o "${addons_dir}/${file}" "${addons_base_url}/${file}" 2>/dev/null; then
       warn "Failed to download addon: ${file}"
       failed=$((failed + 1))
+    else
+      installed=$((installed + 1))
     fi
   done
 
   if [[ "${failed}" -eq 0 ]]; then
-    ok "Installed 32 addon definitions"
+    ok "Installed ${installed} addon definitions"
   else
     warn "Installed with ${failed} addon download failures — re-run to retry"
   fi

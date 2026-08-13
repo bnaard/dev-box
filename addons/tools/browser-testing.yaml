@@ -1,0 +1,76 @@
+name: browser-testing
+version: "1.0.0"
+description: "Playwright visual and accessibility testing with Chromium by default"
+profile_intent: build
+usage_class: automated
+profiles: ["human-dev", "headless-runner"]
+exported_surfaces: ["cli-binary", "config-files"]
+builder_weight: "heavy"
+requires:
+  - node
+
+tools:
+  - name: playwright
+    description: "Pinned Playwright Test runner and browser automation library"
+    default_enabled: true
+    default_version: "1.62.1"
+    supported_versions: ["1.62.1"]
+  - name: axe-playwright
+    description: "Pinned axe-core accessibility checks for Playwright pages"
+    default_enabled: true
+    default_version: "4.13.0"
+    supported_versions: ["4.13.0"]
+  - name: chromium
+    description: "Playwright-managed full Chromium browser (enabled by default)"
+    default_enabled: true
+    default_version: ""
+    supported_versions: []
+  - name: firefox
+    description: "Optional Playwright-managed Firefox browser"
+    default_enabled: false
+    default_version: ""
+    supported_versions: []
+  - name: webkit
+    description: "Optional Playwright-managed WebKit browser"
+    default_enabled: false
+    default_version: ""
+    supported_versions: []
+
+builder: null
+
+runtime: |
+  # Addon: browser-testing — pinned Playwright Test + axe-core integration.
+  # Browser revisions are coupled to the pinned Playwright package version.
+  USER root
+  ENV NODE_PATH=/usr/local/lib/node_modules
+  ENV PLAYWRIGHT_BROWSERS_PATH=/ms-playwright
+  {% if tools.playwright.enabled or tools["axe-playwright"].enabled %}
+  RUN npm install -g --no-fund --no-audit \
+  {% if tools.playwright.enabled %}
+      @playwright/test@{{ tools.playwright.version }} \
+  {% endif %}
+  {% if tools["axe-playwright"].enabled %}
+      @axe-core/playwright@{{ tools["axe-playwright"].version }} \
+      axe-core@{{ tools["axe-playwright"].version }} \
+  {% endif %}
+      && npm cache clean --force
+  {% endif %}
+  {% if not tools.playwright.enabled %}
+  RUN npm uninstall -g @playwright/test playwright || true
+  {% endif %}
+  {% if not tools["axe-playwright"].enabled %}
+  RUN npm uninstall -g @axe-core/playwright axe-core || true
+  {% endif %}
+  {% if tools.playwright.enabled and (tools.chromium.enabled or tools.firefox.enabled or tools.webkit.enabled) %}
+  RUN mkdir -p /ms-playwright && playwright install --with-deps --no-shell \
+  {% if tools.chromium.enabled %}
+      chromium \
+  {% endif %}
+  {% if tools.firefox.enabled %}
+      firefox \
+  {% endif %}
+  {% if tools.webkit.enabled %}
+      webkit \
+  {% endif %}
+      && chmod -R a+rX /ms-playwright
+  {% endif %}
