@@ -703,6 +703,11 @@ pub static COMPAT_TABLE: &[CompatEntry] = &[
         processkit_version: "v0.28.6",
         note: "Patch release: makes the axe host fixture accessibility-clean and records structured violation diagnostics when a future browser probe fails.",
     },
+    CompatEntry {
+        aibox_version: "0.32.4",
+        processkit_version: "v0.28.6",
+        note: "Patch release: keeps latest image resolution on the active v0 line, refreshes generated addon comments when the catalog changes, and fixes stale or collapsed Yazi Markdown previews.",
+    },
 ];
 
 /// Find the minimum compatible processkit version for the given aibox version.
