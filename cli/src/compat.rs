@@ -698,6 +698,11 @@ pub static COMPAT_TABLE: &[CompatEntry] = &[
         processkit_version: "v0.28.6",
         note: "Patch release: uses an explicit Playwright BrowserContext for axe host validation and makes safe release-host caches and candidate-bound retries available by default.",
     },
+    CompatEntry {
+        aibox_version: "0.32.3",
+        processkit_version: "v0.28.6",
+        note: "Patch release: makes the axe host fixture accessibility-clean and records structured violation diagnostics when a future browser probe fails.",
+    },
 ];
 
 /// Find the minimum compatible processkit version for the given aibox version.
