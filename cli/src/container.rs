@@ -1545,6 +1545,10 @@ pub(crate) fn serialize_config_with_comments(config: &AiboxConfig) -> String {
     out.push_str(
         "# Addon catalog — uncomment/comment one block header to enable or remove an addon.\n",
     );
+    out.push_str(&format!(
+        "# Addon catalog fingerprint: {}\n",
+        crate::addon_loader::catalog_fingerprint()
+    ));
     out.push_str(
         "# Inside an enabled addon, omitted default-enabled tools stay enabled. Uncomment\n",
     );
@@ -4421,6 +4425,10 @@ mod tests {
         let config = crate::config::test_config();
         let body = serialize_config_with_comments(&config);
 
+        assert!(body.contains("# Addon catalog fingerprint: "));
+        assert!(body.contains("# [addons.browser-testing.tools]"));
+        assert!(body.contains("# playwright = {}"));
+        assert!(body.contains("version = \"1.62.1\" (default)"));
         assert!(body.contains("Terminal image renderer used by Yazi image and SVG previews"));
         assert!(
             body.contains("Markdown, JSON, RST, and notebook terminal rendering for Yazi previews")

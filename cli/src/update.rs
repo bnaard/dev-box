@@ -54,15 +54,31 @@ struct ImageTagCandidate {
 /// fresh `aibox apply` would keep resolving `latest` to a long-stale image
 /// (BACK-20260514_1902-ShinyLake).
 pub(crate) fn fetch_latest_image_version(flavor: &str) -> Result<semver::Version> {
+    let running_version = semver::Version::parse(env!("CARGO_PKG_VERSION"))
+        .context("running aibox CLI has an invalid package version")?;
+    fetch_latest_image_version_for_major(flavor, running_version.major)
+}
+
+/// Resolve the newest published image within one maintained major release line.
+///
+/// The registry contains independent v0.x and v1.x images. Treating all tags as
+/// one SemVer stream allowed a v0 CLI configured with `latest` to select a v1
+/// prerelease image. The running CLI's major version is the release-line
+/// boundary; prereleases remain eligible inside that boundary.
+fn fetch_latest_image_version_for_major(
+    flavor: &str,
+    release_major: u64,
+) -> Result<semver::Version> {
     let all_tags = fetch_all_ghcr_tags()?;
 
-    let mut versions: Vec<ImageTagCandidate> = all_tags
-        .iter()
-        .filter_map(|tag| parse_image_tag_version(tag, flavor))
-        .collect();
+    let mut versions = image_tag_candidates_for_major(&all_tags, flavor, release_major);
 
     if versions.is_empty() {
-        anyhow::bail!("No published tags found for flavor '{}'", flavor);
+        anyhow::bail!(
+            "No published v{}.x tags found for flavor '{}'",
+            release_major,
+            flavor
+        );
     }
 
     versions.sort_by(|a, b| {
@@ -83,9 +99,22 @@ pub(crate) fn fetch_latest_image_version(flavor: &str) -> Result<semver::Version
     }
 
     anyhow::bail!(
-        "No usable published tags found for flavor '{}' — all matching GHCR tags have incomplete manifests",
-        flavor
+        "No usable published v{}.x tags found for flavor '{}' — all matching GHCR tags have incomplete manifests",
+        release_major,
+        flavor,
     )
+}
+
+fn image_tag_candidates_for_major(
+    all_tags: &[String],
+    flavor: &str,
+    release_major: u64,
+) -> Vec<ImageTagCandidate> {
+    all_tags
+        .iter()
+        .filter_map(|tag| parse_image_tag_version(tag, flavor))
+        .filter(|candidate| candidate.version.major == release_major)
+        .collect()
 }
 
 fn parse_image_tag_version(tag: &str, flavor: &str) -> Option<ImageTagCandidate> {
@@ -648,6 +677,20 @@ mod tests {
         assert!(parse_image_tag_version("base-debian-runtime-latest", "debian").is_none());
         assert!(parse_image_tag_version("base-debian-latest", "debian").is_none());
         assert!(parse_image_tag_version("base-ubuntu-v1.2.3", "debian").is_none());
+    }
+
+    #[test]
+    fn image_latest_candidates_stay_within_running_cli_major_line() {
+        let tags = vec![
+            "base-debian-runtime-v0.32.3".to_string(),
+            "base-debian-runtime-v1.0.0-alpha.1".to_string(),
+        ];
+        let versions: Vec<_> = image_tag_candidates_for_major(&tags, "debian", 0)
+            .into_iter()
+            .map(|candidate| candidate.version)
+            .collect();
+
+        assert_eq!(versions, vec![semver::Version::parse("0.32.3").unwrap()]);
     }
 
     #[test]
