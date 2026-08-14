@@ -1147,6 +1147,11 @@ below shows the minimum compatible processkit version for each aibox release.&lt
 	&lt;/thead&gt;
 	&lt;tbody&gt;
 			&lt;tr&gt;
+					&lt;td&gt;0.32.4&lt;/td&gt;
+					&lt;td&gt;v0.28.6&lt;/td&gt;
+					&lt;td&gt;keeps &lt;code&gt;latest&lt;/code&gt; image resolution on the active v0 line, refreshes generated addon comments when the catalog changes, and fixes stale or collapsed Yazi Markdown previews&lt;/td&gt;
+			&lt;/tr&gt;
+			&lt;tr&gt;
 					&lt;td&gt;0.32.3&lt;/td&gt;
 					&lt;td&gt;v0.28.6&lt;/td&gt;
 					&lt;td&gt;makes the axe host fixture accessibility-clean and records structured violation diagnostics when a future browser probe fails&lt;/td&gt;

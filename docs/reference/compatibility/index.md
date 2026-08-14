@@ -13,6 +13,7 @@ below shows the minimum compatible processkit version for each aibox release.
 
 | aibox version | Min. processkit | Notes |
 |--------------|-----------------|-------|
+| 0.32.4 | v0.28.6 | keeps `latest` image resolution on the active v0 line, refreshes generated addon comments when the catalog changes, and fixes stale or collapsed Yazi Markdown previews |
 | 0.32.3 | v0.28.6 | makes the axe host fixture accessibility-clean and records structured violation diagnostics when a future browser probe fails |
 | 0.32.2 | v0.28.6 | uses an explicit Playwright BrowserContext for axe host validation and makes safe release-host caches and candidate-bound retries available by default |
 | 0.32.1 | v0.28.6 | makes the browser-testing host gate launch the full Chromium channel installed by Playwright `--no-shell` instead of requesting the omitted headless-shell executable |
