@@ -13,6 +13,7 @@ below shows the minimum compatible processkit version for each aibox release.
 
 | aibox version | Min. processkit | Notes |
 |--------------|-----------------|-------|
+| 0.32.3 | v0.28.6 | makes the axe host fixture accessibility-clean and records structured violation diagnostics when a future browser probe fails |
 | 0.32.2 | v0.28.6 | uses an explicit Playwright BrowserContext for axe host validation and makes safe release-host caches and candidate-bound retries available by default |
 | 0.32.1 | v0.28.6 | makes the browser-testing host gate launch the full Chromium channel installed by Playwright `--no-shell` instead of requesting the omitted headless-shell executable |
 | 0.32.0 | v0.28.6 | adds a pinned Chromium-first Playwright and axe browser-testing addon with optional Firefox/WebKit, live release-host browser evidence, and a cleaner full-width Textual release dashboard |
