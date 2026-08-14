@@ -674,7 +674,9 @@ def reuse_checkpoint(retry_evidence: Path, evidence: Path, check: str) -> Path |
     if check in ADDON_GROUPS:
         expected = {"status": "passed", "addons": ADDON_GROUPS[check]}
         if check == "addon-tools":
-            expected["browser_fixture"] = {"title": "Fixture", "violations": 0}
+            expected["browser_fixture"] = {
+                "title": "Fixture", "violations": 0, "violation_details": [],
+            }
         if payload != expected:
             return None
     elif check == "latex-lifecycle":
@@ -992,17 +994,24 @@ def run_addon_group(runner: Runner, profile: Path, env: dict[str, str], candidat
                 '(async () => { const browser = await chromium.launch({ headless: true, channel: "chromium" }); '
                 'const context = await browser.newContext(); '
                 'const page = await context.newPage(); '
-                'await page.setContent("<!doctype html><html lang=\\"en\\"><head><title>Fixture</title></head>'
-                '<body><main><button type=\\"button\\">Ready</button></main></body></html>"); '
+                'await page.setContent("<!doctype html><html lang=\\"en\\"><head><meta charset=\\"utf-8\\">'
+                '<title>Fixture</title></head><body><main><h1>Fixture</h1>'
+                '<button type=\\"button\\">Ready</button></main></body></html>"); '
                 'const results = await new AxeBuilder({ page }).analyze(); '
-                'console.log(JSON.stringify({ title: await page.title(), violations: results.violations.length })); '
+                'const violation_details = results.violations.map(violation => ({ '
+                'id: violation.id, impact: violation.impact, help: violation.help, '
+                'helpUrl: violation.helpUrl, nodes: violation.nodes.map(node => ({ '
+                'target: node.target, html: node.html, failureSummary: node.failureSummary })) })); '
+                'console.log(JSON.stringify({ title: await page.title(), '
+                'violations: violation_details.length, violation_details })); '
                 'await context.close(); await browser.close(); '
                 '})().catch(error => { console.error(error); process.exit(1); });'
             )
             output = runner.capture([container_runtime, "exec", "--user", "aibox", name,
                                      "node", "-e", fixture_script])
             browser_fixture = json.loads(output.strip().splitlines()[-1])
-            if browser_fixture != {"title": "Fixture", "violations": 0}:
+            if browser_fixture != {
+                    "title": "Fixture", "violations": 0, "violation_details": []}:
                 fail(f"browser-testing fixture returned unexpected evidence: {browser_fixture}")
         marker = evidence / "container-e2e" / f"{group}.json"
         payload = {"status": "passed", "addons": ADDON_GROUPS[group]}

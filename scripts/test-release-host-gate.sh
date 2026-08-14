@@ -175,7 +175,9 @@ with tempfile.TemporaryDirectory() as temporary:
     marker = old_evidence / "addon-tools.json"
     marker.write_text(__import__("json").dumps({
         "status": "passed", "addons": gate.ADDON_GROUPS["addon-tools"],
-        "browser_fixture": {"title": "Fixture", "violations": 0},
+        "browser_fixture": {
+            "title": "Fixture", "violations": 0, "violation_details": [],
+        },
     }) + "\n")
     gate.seal_checkpoint(marker)
     reused = gate.reuse_checkpoint(root / "old", new_evidence, "addon-tools")
@@ -189,6 +191,9 @@ assert 'const context = await browser.newContext()' in source
 assert 'const page = await context.newPage()' in source
 assert 'await context.close(); await browser.close()' in source
 assert 'browser.newPage()' not in source
+assert '<main><h1>Fixture</h1>' in source
+assert 'violation_details = results.violations.map' in source
+assert 'failureSummary: node.failureSummary' in source
 assert '"browser_fixture"' in source
 assert gate.parse_ui_mode(None) == "auto"
 assert gate.parse_ui_mode("textual") == "textual"
