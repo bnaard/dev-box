@@ -153,6 +153,15 @@ fn rich_preview_plugin_seeded_with_preview_enhanced() {
         plugin_path.display()
     );
 
+    let plugin = fs::read_to_string(&plugin_path)
+        .unwrap_or_else(|e| panic!("failed to read rich-preview plugin: {e}"));
+    assert!(
+        plugin.contains("h1 = (h1 * 33 + byte)")
+            && plugin.contains("h2 = (h2 * 65599 + byte)")
+            && !plugin.contains(":sub(1, 32)"),
+        "rich-preview must distinguish files that share a long directory prefix"
+    );
+
     let yazi_toml = read_yazi_toml(dir.path());
     assert!(
         yazi_toml.contains("rich-preview"),

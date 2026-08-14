@@ -105,15 +105,18 @@ local function cache_root()
 end
 
 local function path_key(url)
-	-- Hex-encode the path so the cache filename is filesystem-safe and bounded.
-	-- Truncate to 32 chars — collisions are vanishingly rare and the full
-	-- (mtime, width) suffix guards against semantic clashes.
+	-- Hash the entire path into a bounded, filesystem-safe key. The previous
+	-- implementation truncated a hex-encoded path to its first 32 characters,
+	-- so files sharing the same first 16 path bytes collided whenever their
+	-- mtimes and preview widths also matched.
 	local s = tostring(url)
-	local out = {}
+	local h1, h2 = 5381, 52711
 	for i = 1, #s do
-		out[i] = string.format("%02x", s:byte(i))
+		local byte = s:byte(i)
+		h1 = (h1 * 33 + byte) % 4294967296
+		h2 = (h2 * 65599 + byte) % 4294967296
 	end
-	return table.concat(out):sub(1, 32)
+	return string.format("%08x%08x", h1, h2)
 end
 
 local function cache_file(url, mtime, width)

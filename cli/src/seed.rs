@@ -3576,6 +3576,12 @@ rules = [
                 && DEFAULT_YAZI_PLUGIN_RICH_PREVIEW.contains("read_window"),
             "rich-preview must cache rendered output and read windowed slices on re-peek"
         );
+        assert!(
+            DEFAULT_YAZI_PLUGIN_RICH_PREVIEW.contains("h1 = (h1 * 33 + byte)")
+                && DEFAULT_YAZI_PLUGIN_RICH_PREVIEW.contains("h2 = (h2 * 65599 + byte)")
+                && !DEFAULT_YAZI_PLUGIN_RICH_PREVIEW.contains(":sub(1, 32)"),
+            "rich-preview cache identity must hash the entire selected path instead of truncating its shared directory prefix"
+        );
     }
 
     #[test]
