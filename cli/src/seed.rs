@@ -2656,6 +2656,8 @@ mod tests {
             aibox_preview.contains("preview_rich")
                 && aibox_preview.contains("_aibox_preview_have_rich")
                 && aibox_preview.contains("from rich.markdown import Markdown")
+                && aibox_preview.contains("def split_front_matter(value):")
+                && aibox_preview.contains("Syntax(front_matter, lexer")
                 && aibox_preview.contains("glow -s")
                 && aibox_preview.contains("bat --paging=never")
                 && aibox_preview.contains("--mouse"),
@@ -3581,6 +3583,13 @@ rules = [
                 && DEFAULT_YAZI_PLUGIN_RICH_PREVIEW.contains("h2 = (h2 * 65599 + byte)")
                 && !DEFAULT_YAZI_PLUGIN_RICH_PREVIEW.contains(":sub(1, 32)"),
             "rich-preview cache identity must hash the entire selected path instead of truncating its shared directory prefix"
+        );
+        assert!(
+            DEFAULT_YAZI_PLUGIN_RICH_PREVIEW.contains("def split_front_matter(value):")
+                && DEFAULT_YAZI_PLUGIN_RICH_PREVIEW
+                    .contains("Syntax(front_matter, lexer, theme=\"ansi_dark\", word_wrap=False)")
+                && DEFAULT_YAZI_PLUGIN_RICH_PREVIEW.contains("console.print(Markdown(body))"),
+            "rich-preview must preserve Hugo TOML/YAML front-matter rows before rendering the Markdown body"
         );
     }
 

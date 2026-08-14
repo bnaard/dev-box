@@ -161,6 +161,12 @@ fn rich_preview_plugin_seeded_with_preview_enhanced() {
             && !plugin.contains(":sub(1, 32)"),
         "rich-preview must distinguish files that share a long directory prefix"
     );
+    assert!(
+        plugin.contains("def split_front_matter(value):")
+            && plugin.contains("Syntax(front_matter, lexer")
+            && plugin.contains("console.print(Markdown(body))"),
+        "rich-preview must render Hugo front matter verbatim and Markdown separately"
+    );
 
     let yazi_toml = read_yazi_toml(dir.path());
     assert!(

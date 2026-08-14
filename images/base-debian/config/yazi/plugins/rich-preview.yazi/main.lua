@@ -38,6 +38,20 @@ width = int(sys.argv[2])
 cache = pathlib.Path(sys.argv[3])
 text = src.read_text(errors="replace")
 
+def split_front_matter(value):
+    lines = value.splitlines()
+    if not lines or lines[0] not in {"+++", "---"}:
+        return None, value, None
+    fence = lines[0]
+    try:
+        end = lines.index(fence, 1)
+    except ValueError:
+        return None, value, None
+    lexer = "toml" if fence == "+++" else "yaml"
+    front_matter = "\n".join(lines[: end + 1])
+    body = "\n".join(lines[end + 1 :]).lstrip("\n")
+    return front_matter, body, lexer
+
 try:
     from rich.console import Console
     from rich.markdown import Markdown
@@ -63,7 +77,14 @@ console = Console(
     soft_wrap=False,
 )
 if src.suffix.lower() in {".md", ".markdown"}:
-    console.print(Markdown(text))
+    front_matter, body, lexer = split_front_matter(text)
+    if front_matter is not None:
+        # Markdown soft-break rules collapse front-matter rows into one
+        # paragraph. Render the fenced metadata verbatim, then render only the
+        # document body as Markdown.
+        console.print(Syntax(front_matter, lexer, theme="ansi_dark", word_wrap=False))
+    if body:
+        console.print(Markdown(body))
 else:
     language = src.suffix.lstrip(".") or "text"
     console.print(Syntax(text, language, theme="ansi_dark", line_numbers=True, word_wrap=False))
