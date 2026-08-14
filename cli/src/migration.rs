@@ -845,10 +845,23 @@ fn explicit_customization_theme_parts(raw: &str) -> Result<Option<ThemeParts>> {
 }
 
 fn should_refresh_generated_aibox_toml_comments(raw: &str) -> bool {
+    should_refresh_generated_aibox_toml_comments_for_catalog(
+        raw,
+        &crate::addon_loader::catalog_fingerprint(),
+    )
+}
+
+fn should_refresh_generated_aibox_toml_comments_for_catalog(
+    raw: &str,
+    expected_catalog_fingerprint: &str,
+) -> bool {
+    let expected_catalog_marker =
+        format!("# Addon catalog fingerprint: {expected_catalog_fingerprint}");
     let generated_header = raw.contains("# aibox.toml — single source of truth")
         || raw.contains("# [addons] — language runtimes and tool bundles");
     generated_header
         && (!raw.contains("# Addon catalog — uncomment/comment one block header")
+            || !raw.contains(&expected_catalog_marker)
             || !raw.contains("# Skill catalog — uncomment/comment one line")
             || !raw.contains("disable a default-on tool")
             || raw.contains("config_schema =")
@@ -2852,6 +2865,30 @@ enabled = false
             codex < claude && claude < gemini,
             "comment refresh must keep original harness order:\n{after}"
         );
+    }
+
+    #[test]
+    fn generated_comment_refresh_detects_addon_catalog_changes() {
+        let base = "# aibox.toml — single source of truth\n\
+# Addon catalog — uncomment/comment one block header\n\
+# Skill catalog — uncomment/comment one line\n\
+# Inside an enabled addon, omitted default-enabled tools stay enabled. Uncomment\n\
+# a tool line to pin a version, enable an off-by-default tool, or disable a default-on tool.\n";
+        let current = format!("{base}# Addon catalog fingerprint: new-catalog\n");
+        let stale = format!("{base}# Addon catalog fingerprint: old-catalog\n");
+
+        assert!(!should_refresh_generated_aibox_toml_comments_for_catalog(
+            &current,
+            "new-catalog"
+        ));
+        assert!(should_refresh_generated_aibox_toml_comments_for_catalog(
+            &stale,
+            "new-catalog"
+        ));
+        assert!(should_refresh_generated_aibox_toml_comments_for_catalog(
+            base,
+            "new-catalog"
+        ));
     }
 
     #[test]

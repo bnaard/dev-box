@@ -14,6 +14,7 @@
 
 use anyhow::{Context, Result, bail};
 use serde::{Deserialize, Serialize};
+use sha2::{Digest, Sha256};
 use std::collections::HashMap;
 use std::fs;
 use std::path::{Path, PathBuf};
@@ -404,6 +405,40 @@ pub fn init_from_dir(dir: &Path) -> Result<()> {
 /// Get all loaded addons.
 pub fn all_addons() -> &'static [LoadedAddon] {
     ADDONS.get().map(|v| v.as_slice()).unwrap_or(&[])
+}
+
+/// Stable fingerprint of the loaded addon option catalog.
+///
+/// Generated `aibox.toml` files record this value so a newly shipped addon or
+/// tool causes the comment catalog to be refreshed even when the config schema
+/// itself did not change.
+pub fn catalog_fingerprint() -> String {
+    let mut addons: Vec<_> = all_addons().iter().collect();
+    addons.sort_by(|a, b| a.name.cmp(&b.name));
+
+    let mut hasher = Sha256::new();
+    hasher.update(ADDON_CATALOG_SCHEMA_VERSION.as_bytes());
+    for addon in addons {
+        hasher.update([0]);
+        hasher.update(addon.name.as_bytes());
+        hasher.update([0]);
+        hasher.update(addon.addon_version.as_bytes());
+        for tool in &addon.tools {
+            hasher.update([0]);
+            hasher.update(tool.name.as_bytes());
+            hasher.update([tool.default_enabled as u8]);
+            hasher.update(tool.default_version.as_bytes());
+            for version in &tool.supported_versions {
+                hasher.update([0]);
+                hasher.update(version.as_bytes());
+            }
+        }
+    }
+    hasher
+        .finalize()
+        .iter()
+        .map(|byte| format!("{byte:02x}"))
+        .collect()
 }
 
 /// Find an addon by name.
