@@ -370,6 +370,58 @@ lazygit = { enabled = false }
 }
 
 #[test]
+fn apply_with_stale_installed_catalog_uses_embedded_supply_chain_addon() {
+    let dir = tempfile::tempdir().unwrap();
+    let stale_catalog = tempfile::tempdir().unwrap();
+    std::fs::create_dir_all(stale_catalog.path().join("tools")).unwrap();
+    std::fs::write(
+        stale_catalog.path().join("tools/git-ui.yaml"),
+        std::fs::read_to_string(
+            std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("../addons/tools/git-ui.yaml"),
+        )
+        .unwrap(),
+    )
+    .unwrap();
+    std::fs::write(
+        dir.path().join("aibox.toml"),
+        r#"[aibox]
+version = "0.32.4"
+base = "debian"
+
+[container]
+name = "embedded-supply-chain"
+
+[processkit]
+version = "unset"
+
+[addons.supply-chain.tools]
+syft = { version = "1.50.0" }
+grype = { version = "0.116.1" }
+"#,
+    )
+    .unwrap();
+
+    let output = Command::new(aibox_bin())
+        .args(["apply", "--no-container"])
+        .current_dir(dir.path())
+        .env("AIBOX_ADDONS_DIR", stale_catalog.path())
+        .output()
+        .expect("failed to execute aibox apply");
+    assert!(
+        output.status.success(),
+        "embedded catalog apply should succeed\nstderr:\n{}\nstdout:\n{}",
+        String::from_utf8_lossy(&output.stderr),
+        String::from_utf8_lossy(&output.stdout)
+    );
+
+    let dockerfile = std::fs::read_to_string(dir.path().join(".devcontainer/Dockerfile")).unwrap();
+    assert!(dockerfile.contains("Addon: supply-chain"));
+    assert!(!dockerfile.contains("unknown addon 'supply-chain'"));
+    assert!(dockerfile.contains("syft_1.50.0_linux_${ARCH}.tar.gz"));
+    assert!(dockerfile.contains("grype_0.116.1_linux_${ARCH}.tar.gz"));
+}
+
+#[test]
 fn nested_go_groups_expand_render_and_honor_tool_disablement() {
     let dir = tempfile::tempdir().unwrap();
     let installed_addons = install_script_addons_dir();

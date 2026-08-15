@@ -1,7 +1,8 @@
 //! Loads addon definitions from YAML files and renders Dockerfile templates.
 //!
-//! Addon YAML files are stored in `$XDG_CONFIG_HOME/aibox/addons/` with
-//! category subdirectories (languages/, tools/, docs/, ai/).
+//! Canonical addon YAML files are embedded in the executable. Optional files
+//! in `$XDG_CONFIG_HOME/aibox/addons/` (or `AIBOX_ADDONS_DIR`) override matching
+//! canonical definitions and may add custom definitions.
 //!
 //! Each YAML file defines:
 //! - Metadata (name, version, builder_weight)
@@ -17,10 +18,14 @@ use serde::{Deserialize, Serialize};
 use sha2::{Digest, Sha256};
 use std::collections::HashMap;
 use std::fs;
-use std::path::{Path, PathBuf};
+use std::path::Path;
 use std::sync::OnceLock;
 
 use crate::addon_registry::{ToolConfig, ToolDef};
+
+mod embedded {
+    include!(concat!(env!("OUT_DIR"), "/embedded_addons.rs"));
+}
 
 pub const ADDON_CATALOG_SCHEMA_VERSION: &str = "aibox.addon-catalog.v0";
 
@@ -252,27 +257,6 @@ static ADDONS: OnceLock<Vec<LoadedAddon>> = OnceLock::new();
 // Loading
 // ---------------------------------------------------------------------------
 
-/// Get the addons directory path.
-///
-/// Checks `AIBOX_ADDONS_DIR` first. In source checkouts, fall back to the
-/// repository's bundled `addons/` directory so `cargo run ... -- doctor` works
-/// without requiring a separate global install. Packaged binaries still use the
-/// XDG install path from `scripts/install.sh`.
-pub fn addons_dir() -> Result<PathBuf> {
-    if let Ok(dir) = std::env::var("AIBOX_ADDONS_DIR") {
-        return Ok(PathBuf::from(dir));
-    }
-
-    let repo_addons = Path::new(env!("CARGO_MANIFEST_DIR")).join("../addons");
-    if repo_addons.is_dir() {
-        return Ok(repo_addons);
-    }
-
-    crate::dirs::config_dir()
-        .map(|d| d.join("addons"))
-        .ok_or_else(|| anyhow::anyhow!("Could not determine XDG config directory"))
-}
-
 /// Load all addon YAML files from the addons directory.
 /// Walks subdirectories (languages/, tools/, docs/, ai/).
 fn load_from_dir(dir: &Path) -> Result<Vec<LoadedAddon>> {
@@ -343,9 +327,6 @@ fn category_from_dir_name(dir_name: &str) -> &'static str {
 fn load_yaml_file(path: &Path) -> Result<LoadedAddon> {
     let content = fs::read_to_string(path)
         .with_context(|| format!("Failed to read addon file: {}", path.display()))?;
-    let yaml: AddonYaml = serde_yaml::from_str(&content)
-        .with_context(|| format!("Failed to parse addon YAML: {}", path.display()))?;
-
     let category = path
         .parent()
         .and_then(|p| p.file_name())
@@ -353,6 +334,13 @@ fn load_yaml_file(path: &Path) -> Result<LoadedAddon> {
         .map(category_from_dir_name)
         .unwrap_or("Other")
         .to_string();
+
+    load_yaml_content(&content, &category, &path.display().to_string())
+}
+
+fn load_yaml_content(content: &str, category: &str, source: &str) -> Result<LoadedAddon> {
+    let yaml: AddonYaml = serde_yaml::from_str(content)
+        .with_context(|| format!("Failed to parse addon YAML: {source}"))?;
 
     Ok(LoadedAddon {
         name: yaml.name,
@@ -362,7 +350,7 @@ fn load_yaml_file(path: &Path) -> Result<LoadedAddon> {
         usage_class: yaml.usage_class,
         profiles: yaml.profiles,
         exported_surfaces: yaml.exported_surfaces,
-        category,
+        category: category.to_string(),
         builder_weight: yaml.builder_weight,
         requires: yaml.requires,
         groups: yaml.groups,
@@ -382,18 +370,66 @@ fn load_yaml_file(path: &Path) -> Result<LoadedAddon> {
     })
 }
 
+fn load_embedded_catalog() -> Result<Vec<LoadedAddon>> {
+    let mut addons = embedded::EMBEDDED_ADDON_YAMLS
+        .iter()
+        .map(|(category, source, content)| {
+            load_yaml_content(content, category_from_dir_name(category), source)
+        })
+        .collect::<Result<Vec<_>>>()?;
+    addons.sort_by(|a, b| a.name.cmp(&b.name));
+    Ok(addons)
+}
+
+fn merge_catalogs(embedded: Vec<LoadedAddon>, overrides: Vec<LoadedAddon>) -> Vec<LoadedAddon> {
+    let mut by_name: HashMap<String, LoadedAddon> = embedded
+        .into_iter()
+        .map(|addon| (addon.name.clone(), addon))
+        .collect();
+    for addon in overrides {
+        by_name.insert(addon.name.clone(), addon);
+    }
+    let mut addons: Vec<_> = by_name.into_values().collect();
+    addons.sort_by(|a, b| a.name.cmp(&b.name));
+    addons
+}
+
 // ---------------------------------------------------------------------------
 // Global access
 // ---------------------------------------------------------------------------
 
-/// Initialize the addon store from the default XDG path. Call once at startup.
+/// Initialize the embedded addon store plus optional filesystem overrides.
 pub fn init() -> Result<()> {
-    let dir = addons_dir()?;
-    init_from_dir(&dir)
+    if let Ok(dir) = std::env::var("AIBOX_ADDONS_DIR") {
+        let addons = merge_catalogs(load_embedded_catalog()?, load_from_dir(Path::new(&dir))?);
+        ADDONS
+            .set(addons)
+            .map_err(|_| anyhow::anyhow!("Addon store already initialized"))?;
+        return Ok(());
+    }
+
+    let repo_addons = Path::new(env!("CARGO_MANIFEST_DIR")).join("../addons");
+    let addons = if repo_addons.is_dir() {
+        load_from_dir(&repo_addons)?
+    } else {
+        let embedded = load_embedded_catalog()?;
+        let installed = crate::dirs::config_dir()
+            .map(|dir| dir.join("addons"))
+            .filter(|dir| dir.is_dir())
+            .map(|dir| load_from_dir(&dir))
+            .transpose()?
+            .unwrap_or_default();
+        merge_catalogs(embedded, installed)
+    };
+    ADDONS
+        .set(addons)
+        .map_err(|_| anyhow::anyhow!("Addon store already initialized"))?;
+    Ok(())
 }
 
 /// Initialize the addon store from a specific directory.
 /// Used by tests to point at the repo's addons/ directory.
+#[cfg(test)]
 pub fn init_from_dir(dir: &Path) -> Result<()> {
     let addons = load_from_dir(dir)?;
     ADDONS
@@ -709,19 +745,6 @@ mod tests {
     }
 
     #[test]
-    fn addons_dir_defaults_to_repo_addons_in_source_checkout() {
-        unsafe {
-            std::env::remove_var("AIBOX_ADDONS_DIR");
-        }
-        let dir = addons_dir().unwrap();
-        assert!(
-            dir.ends_with("addons") && dir.is_dir(),
-            "source checkout should resolve bundled addons dir, got {}",
-            dir.display()
-        );
-    }
-
-    #[test]
     fn load_from_dir_finds_yaml_files() {
         let dir = tempfile::tempdir().unwrap();
         write_test_yaml(
@@ -748,6 +771,59 @@ runtime: |
         assert_eq!(addons[0].tools[0].name, "test-tool");
         assert_eq!(addons[0].tools[0].default_version, "1.0");
         assert!(addons[0].requires.is_empty());
+    }
+
+    #[test]
+    fn embedded_catalog_contains_release_addons() {
+        let addons = load_embedded_catalog().unwrap();
+        for name in [
+            "browser-testing",
+            "cloudflare",
+            "go-quality",
+            "release",
+            "supply-chain",
+        ] {
+            assert!(
+                addons.iter().any(|addon| addon.name == name),
+                "embedded catalog should contain {name}"
+            );
+        }
+    }
+
+    #[test]
+    fn incomplete_installed_catalog_overrides_without_hiding_embedded_addons() {
+        let dir = tempfile::tempdir().unwrap();
+        write_test_yaml(
+            dir.path(),
+            "tools",
+            "git-ui",
+            r#"
+name: git-ui
+version: "override"
+tools:
+  - name: gh
+    default_enabled: true
+runtime: |
+  RUN echo override
+"#,
+        );
+
+        let merged = merge_catalogs(
+            load_embedded_catalog().unwrap(),
+            load_from_dir(dir.path()).unwrap(),
+        );
+        assert_eq!(
+            merged
+                .iter()
+                .find(|addon| addon.name == "git-ui")
+                .unwrap()
+                .addon_version,
+            "override"
+        );
+        assert!(
+            merged.iter().any(|addon| addon.name == "supply-chain"),
+            "a stale installed catalog must not hide embedded canonical addons"
+        );
     }
 
     #[test]
