@@ -774,11 +774,13 @@ prepend_keymap = [
     { on = [ "z", "0" ], run = "plugin toggle-pane", desc = "Reset pane layout" },
     { on = [ "w", "s" ], run = "shell 'du -sch \"$@\" | ${PAGER:-less}' --block", desc = "Size selected files" },
     { on = [ "w", "h" ], run = "shell 'bat --color=always --style=plain --paging=never \"$1\" | less -R -S' --block", desc = "Preview with horizontal scroll" },
+    { on = [ "w", "v" ], run = "shell 'vim -R \"$1\"' --block", desc = "Select preview text in read-only Vim" },
     { on = [ "w", "p" ], run = "shell 'if [ -f \"$HOME/.local/bin/pdf-watch\" ]; then bash \"$HOME/.local/bin/pdf-watch\" \"$1\"; else pdf-watch \"$1\"; fi' --block", desc = "Watch PDF preview" },
     { on = [ "c", "p" ], run = "copy path", desc = "Copy selected paths" },
     { on = [ "c", "d" ], run = "copy dirname", desc = "Copy selected directories" },
     { on = [ "c", "f" ], run = "copy filename", desc = "Copy selected filenames" },
     { on = [ "c", "n" ], run = "copy name_without_ext", desc = "Copy names without extension" },
+    { on = [ "c", "c" ], run = "shell 'aibox-copy < \"$1\"'", desc = "Copy file contents to host clipboard" },
     { on = [ "g", "s" ], run = "shell 'git -c color.status=always status --short --branch --ignored=matching --untracked-files=all | ${PAGER:-less} -R' --block", desc = "Git summary" },
     { on = [ "g", "c" ], run = "shell 'git -c color.status=always status --short --ignored=matching --untracked-files=all | ${PAGER:-less} -R' --block", desc = "Show git changes" },
     { on = [ "g", "r" ], run = "cd .", desc = "Refresh directory" },
@@ -798,8 +800,10 @@ const DEFAULT_CHEATSHEET: &str = r#"  aibox Quick Reference  (prefix = Ctrl+g)
   prefix f/z      Zoom pane   g c      Git changes
   prefix c        New window  w s      Size selection
   prefix 1-9      Jump window w h      Horizontal preview
+                              w v      Select/yank preview text
   prefix g/s      lazygit/shell win
   prefix L        Layout menu c p/d/f  Copy path/dir/name
+                              c c      Copy file contents
   prefix T        Theme menu  g r      Refresh git
   prefix [        Copy mode
   prefix o        Log viewer

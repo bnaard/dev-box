@@ -126,6 +126,8 @@ Quick reference for all tools in the aibox environment. Press the tab for the to
     | `Enter` | Open file in-place (suspends Yazi, `:q` returns) |
     | `e` | Open in adjacent Vim pane (stays in Yazi) |
     | `O` | Interactive opener selection |
+    | `w` `h` | Open a no-wrap pager; use arrow keys to scroll horizontally |
+    | `w` `v` | Open the file read-only in Vim for mouse/Visual selection; `y` copies the selection to tmux and the host clipboard |
 
     ### File Operations
 
@@ -141,6 +143,7 @@ Quick reference for all tools in the aibox environment. Press the tab for the to
     | `Space` | Toggle selection on current file |
     | `v` | Visual mode (select range) |
     | `V` | Invert selection |
+    | `c` `c` | Copy the hovered file's contents to the tmux and host clipboard |
 
     ### Search & Filter
 
@@ -158,6 +161,11 @@ Quick reference for all tools in the aibox environment. Press the tab for the to
     | `t` | Create new tab |
     | `1`..`9` | Switch to tab by number |
     | `[` / `]` | Previous / next tab |
+
+    The embedded Yazi preview is a rendered widget rather than an editable text
+    buffer, so it cannot provide Vim-style character selection. Use `w v` for
+    selectable raw text, or enter tmux copy mode (`Ctrl+g` then `[`) to select
+    rendered terminal cells with the keyboard or mouse.
 
     ### Misc
 

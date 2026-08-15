@@ -82,7 +82,8 @@ endif
 " without +clipboard. aibox-copy uses tmux load-buffer -w and OSC52 fallback.
 function! s:AiboxCopyRegister() abort
     if executable('aibox-copy')
-        call system('aibox-copy', getreg(v:register))
+        let l:register = empty(v:register) ? '"' : v:register
+        call system('aibox-copy', getreg(l:register))
     endif
 endfunction
 
