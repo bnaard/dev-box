@@ -5,10 +5,14 @@
     {
       "line": "v0.x",
       "current": {
-        "version": "v0.32.4",
+        "version": "v0.32.5",
         "url": "https://projectious-work.github.io/aibox/"
       },
       "releases": [
+        {
+          "version": "v0.32.5",
+          "url": "https://projectious-work.github.io/aibox/v0.x/v0.32.5/"
+        },
         {
           "version": "v0.32.4",
           "url": "https://projectious-work.github.io/aibox/v0.x/v0.32.4/"

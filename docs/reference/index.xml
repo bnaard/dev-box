@@ -321,6 +321,11 @@ below shows the minimum compatible processkit version for each aibox release.&lt
 	&lt;/thead&gt;
 	&lt;tbody&gt;
 			&lt;tr&gt;
+					&lt;td&gt;0.32.5&lt;/td&gt;
+					&lt;td&gt;v0.28.6&lt;/td&gt;
+					&lt;td&gt;embeds the canonical addon catalog so stale host installs cannot hide shipped tools, refreshes same-version installs, and adds Yazi/Vim clipboard and selectable-preview workflows&lt;/td&gt;
+			&lt;/tr&gt;
+			&lt;tr&gt;
 					&lt;td&gt;0.32.4&lt;/td&gt;
 					&lt;td&gt;v0.28.6&lt;/td&gt;
 					&lt;td&gt;keeps &lt;code&gt;latest&lt;/code&gt; image resolution on the active v0 line, refreshes generated addon comments when the catalog changes, and fixes stale or collapsed Yazi Markdown previews&lt;/td&gt;
