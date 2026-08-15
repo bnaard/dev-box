@@ -12,6 +12,7 @@ below shows the minimum compatible processkit version for each aibox release.
 
 | aibox version | Min. processkit | Notes |
 |--------------|-----------------|-------|
+| 0.32.5 | v0.28.6 | embeds the canonical addon catalog so stale host installs cannot hide shipped tools, refreshes same-version installs, and adds Yazi/Vim clipboard and selectable-preview workflows |
 | 0.32.4 | v0.28.6 | keeps `latest` image resolution on the active v0 line, refreshes generated addon comments when the catalog changes, and fixes stale or collapsed Yazi Markdown previews |
 | 0.32.3 | v0.28.6 | makes the axe host fixture accessibility-clean and records structured violation diagnostics when a future browser probe fails |
 | 0.32.2 | v0.28.6 | uses an explicit Playwright BrowserContext for axe host validation and makes safe release-host caches and candidate-bound retries available by default |
