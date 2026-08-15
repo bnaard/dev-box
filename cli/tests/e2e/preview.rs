@@ -273,6 +273,37 @@ fn yazi_keymap_has_horizontal_scroll_pager() {
     );
 }
 
+/// Yazi should expose whole-file host-copy and a selectable read-only preview.
+#[test]
+fn yazi_keymap_has_content_copy_and_selectable_preview() {
+    let dir = tempfile::tempdir().unwrap();
+    init_project(dir.path(), "preview-copy-select");
+
+    let keymap_toml = read_yazi_keymap(dir.path());
+
+    assert!(
+        keymap_toml.contains(r#"{ on = [ "c", "c" ], run = "shell 'aibox-copy < \"$1\"'"#),
+        "keymap.toml should copy the hovered file contents through aibox-copy"
+    );
+    assert!(
+        keymap_toml.contains(r#"{ on = [ "w", "v" ], run = "shell 'vim -R \"$1\"' --block"#),
+        "keymap.toml should expose a read-only Vim surface for selecting preview text"
+    );
+}
+
+/// The image fallback must match the generated Yazi clipboard/selection bindings.
+#[test]
+fn image_yazi_keymap_matches_content_copy_and_selectable_preview() {
+    let image_keymap = fs::read_to_string(
+        std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
+            .join("../images/base-debian/config/yazi/keymap.toml"),
+    )
+    .expect("read image Yazi keymap");
+
+    assert!(image_keymap.contains(r#"aibox-copy < \"$1\""#));
+    assert!(image_keymap.contains(r#"vim -R \"$1\""#));
+}
+
 /// The Yazi keymap should expose the PDF live-watch helper for selected PDFs.
 #[test]
 fn yazi_keymap_has_pdf_watch_binding() {

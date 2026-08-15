@@ -129,8 +129,8 @@ check_existing() {
     local current
     current=$("${install_dir}/${BINARY_NAME}" --version 2>/dev/null | grep -oE '[0-9]+\.[0-9]+\.[0-9]+' || echo "unknown")
     if [[ "${current}" == "${version}" ]]; then
-      ok "aibox v${version} is already installed at ${install_dir}/${BINARY_NAME}"
-      exit 0
+      ok "aibox v${version} is already installed at ${install_dir}/${BINARY_NAME}; refreshing binary and addon catalog"
+      return
     fi
     warn "Upgrading aibox from v${current} to v${version}"
   fi

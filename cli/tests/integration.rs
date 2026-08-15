@@ -290,6 +290,34 @@ fn install_script_lists_every_repo_addon_yaml() {
 }
 
 #[test]
+fn install_script_refreshes_addons_when_binary_version_is_unchanged() {
+    let manifest_dir = env!("CARGO_MANIFEST_DIR");
+    let script = std::fs::read_to_string(
+        std::path::Path::new(manifest_dir)
+            .parent()
+            .unwrap()
+            .join("scripts/install.sh"),
+    )
+    .expect("read scripts/install.sh");
+
+    let same_version_branch = script
+        .split_once(r#"if [[ "${current}" == "${version}" ]]; then"#)
+        .expect("install script should detect an unchanged version")
+        .1
+        .split_once("fi")
+        .expect("same-version branch should be closed")
+        .0;
+    assert!(
+        !same_version_branch.contains("exit 0"),
+        "same-version installs must continue to refresh addon definitions"
+    );
+    assert!(
+        same_version_branch.contains("refreshing binary and addon catalog"),
+        "same-version refresh behavior should be visible to users"
+    );
+}
+
+#[test]
 fn apply_with_installed_catalog_installs_gh_from_git_ui() {
     let dir = tempfile::tempdir().unwrap();
     let installed_addons = install_script_addons_dir();
