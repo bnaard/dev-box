@@ -90,7 +90,7 @@ RUN ARCH=$(uname -m) && \
     fi
 
 
-FROM ghcr.io/projectious-work/aibox:base-debian-runtime-v1.0.0-alpha.1 AS aibox
+FROM ghcr.io/projectious-work/aibox:base-debian-runtime-v0.32.5 AS aibox
 
 ENV SHELL=/bin/bash
 ENV UV_CACHE_DIR=/tmp/aibox/uv-cache
@@ -137,7 +137,7 @@ RUN DEB_ARCH="$(dpkg --print-architecture)" && \
       arm64) HUGO_ARCH="arm64" ;; \
       *) echo "Unsupported Hugo architecture: ${DEB_ARCH}" >&2; exit 1 ;; \
     esac && \
-    HUGO_VERSION="0.164.0" && \
+    HUGO_VERSION="0.165.0" && \
     HUGO_ASSET="hugo_extended_${HUGO_VERSION}_linux-${HUGO_ARCH}.tar.gz" && \
     curl -fsSL --retry 5 --retry-all-errors --retry-delay 2 --connect-timeout 30 \
       "https://github.com/gohugoio/hugo/releases/download/v${HUGO_VERSION}/${HUGO_ASSET}" \
@@ -177,7 +177,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends ca-certificates
     rm -f "/tmp/${NODE_ARCHIVE}" /tmp/node-shasums.txt && \
     node --version && npm --version
 
-RUN npm install -g pnpm@11.21.0 && \
+RUN npm install -g pnpm@11.22.0 && \
     npm cache clean --force
 
 
@@ -293,6 +293,6 @@ EOF
 
 # Record image version inside container for runtime checks
 USER root
-LABEL aibox.version="1.0.0-alpha.1"
+LABEL aibox.version="0.32.5"
 LABEL aibox.profile="human-dev"
-RUN echo "1.0.0-alpha.1" > /etc/aibox-version
+RUN echo "0.32.5" > /etc/aibox-version

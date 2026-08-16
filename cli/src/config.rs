@@ -1109,7 +1109,7 @@ pub struct AddonToolsSection {
 /// ```toml
 /// [addons.python.tools]
 /// python = { version = "3.14" }
-/// uv = { version = "0.12.0" }
+/// uv = { version = "0.12.5" }
 /// ```
 ///
 /// Deserialized as `HashMap<String, AddonToolsSection>` where the outer key

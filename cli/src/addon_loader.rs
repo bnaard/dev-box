@@ -1878,10 +1878,10 @@ runtime: |
         let rendered = render_runtime(&addon, &all_enabled_tools(&addon)).unwrap();
 
         assert!(rendered.contains(
-            r#"1.26.5:amd64) GO_SHA256="5c2c3b16caefa1d968a94c1daca04a7ca301a496d9b086e17ad77bb81393f053""#
+            r#"1.26.6:amd64) GO_SHA256="708effb774be8237570d0add163225abbdfaf4fca28b2611df167beba4feef89""#
         ));
         assert!(rendered.contains(
-            r#"1.26.5:arm64) GO_SHA256="fe4789e92b1f33358680864bbe8704289e7bb5fc207d80623c308935bd696d49""#
+            r#"1.26.6:arm64) GO_SHA256="d0507e9e9d7fe012aae570108cbd76c15de879e17130ab8cb90d4d7445cb1f2e""#
         ));
         assert!(rendered.contains(r#"echo "${GO_SHA256}  /tmp/go.tar.gz" | sha256sum -c -"#));
         assert!(
@@ -1890,7 +1890,7 @@ runtime: |
         );
         assert_eq!(
             addon.tools[0].supported_versions,
-            ["1.25.12", "1.26.3", "1.26.4", "1.26.5"]
+            ["1.25.12", "1.26.3", "1.26.4", "1.26.5", "1.26.6"]
         );
     }
 

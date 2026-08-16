@@ -1,5 +1,5 @@
 [aibox]
-cli_version = "0.31.4"
+cli_version = "0.32.5"
 synced_at = "2026-08-12T16:45:44.454608+00:00"
 
 [processkit]
@@ -11,7 +11,7 @@ installed_at = "2026-08-12T16:45:44.454608+00:00"
 processkit_install_hash = "v2:cf156c633bdd237acfd00b4964d5a06db0798973e8032d428303ebebb51fef83"
 
 [addons]
-resolved_at = "2026-08-13T08:02:40Z"
+resolved_at = "2026-08-16T16:45:41Z"
 
 [addons.tools]
 codex = "0.147.0"
@@ -35,13 +35,13 @@ rust = [
 ]
 
 [runtime_home]
-generated_at = "2026-08-01T20:01:37.318761+00:00"
+generated_at = "2026-08-16T16:45:41.054057975+00:00"
 
 [runtime_home.files]
 ".asoundrc" = "f34609b11d315cd613cb5333b561032baec860faf4a7eccb28b5567ae72019af"
 ".claude/keybindings.json" = "187a3f75b831cbec4b025eecd23f06e76a77f46d6f47e4e730ef341f0d1db21c"
 ".config/aibox/theme-env.sh" = "48b48eccb745d97292050d4e7bc12da23e9e1af4f82db0d3edca6eb911b0b571"
-".config/cheatsheet.txt" = "8f8cd32d9f0b6e3d92015f440c78b11afd87d20ff2a517e5dea009135dc7e0fa"
+".config/cheatsheet.txt" = "204c6aba64405c63d2fe6c7067de6c08efee9fc1eb72435324a21d9b808c8607"
 ".config/git/aibox-github.inc" = "e60ec3914a092744bdd505724030bb3a3757133df8d90917332a96ad8d05a765"
 ".config/git/config" = "34cef2ed3a460b805802176b4d7c1b90736a8c36cf36700a616b2d1fbaec089f"
 ".config/lazygit/config.yml" = "86065f74208795a2ea7cc4e74bc8cdeb5da3f83f982dfd84d7cbc8398afab06f"
@@ -57,12 +57,12 @@ generated_at = "2026-08-01T20:01:37.318761+00:00"
 ".config/tmux/layouts/focus.sh" = "96b6bfac9adfe3fc490452f67e1af1cc5f0228b53bfcd2aee5e3697ca67ebc76"
 ".config/tmux/tmux.conf" = "3cc81b579d4e6cb69cfb69a37994e5a6bdbd2a25f7c691f28a91596b15babb3f"
 ".config/yazi/init.lua" = "eae04462c0b3bcbb486ee59aa9c2c9e9595680a0626997c942e5abb2ae5a48d7"
-".config/yazi/keymap.toml" = "0b20be4e5f58d0af2ba72b8621e288ef2d6a7665a8a73c5fca5a172f83c6ebdd"
+".config/yazi/keymap.toml" = "f10e141c8f34b491397b0c93ddacf8060bfd066ef3deeb325c5c5a2b51501da7"
 ".config/yazi/plugins/dir-preview.yazi/main.lua" = "333a25afe1dc850c344ff8c5844a27a9f16f2091eee0d7d1454b6e5129e1f175"
 ".config/yazi/plugins/eps.yazi/init.lua" = "edeaadeff1411fc9749eeae43c77754fd749db74790591ba75e9286ff36e94c5"
 ".config/yazi/plugins/git.yazi/main.lua" = "855f6bdf0ee33f503f575c2d75795c98ab1a9893c655940caf333d8fc87dc477"
 ".config/yazi/plugins/git.yazi/types.lua" = "16c54022dd327c35f533534f0b6995d800965e96d76f2e610b8b2fca0e5b4549"
-".config/yazi/plugins/rich-preview.yazi/main.lua" = "06ebdf2c2d637c0d5c68c8516c87b376ea29a94756cd91a8ffef6d2819759077"
+".config/yazi/plugins/rich-preview.yazi/main.lua" = "e36493fd73d9e580bb1e0b2be2353d2d81558e63ed3621b1d0edfbdc07c71f6e"
 ".config/yazi/plugins/status-git.yazi/main.lua" = "bedc0ba5bf4ea01605b1b7cb444ee3a09b0a4ba35ce99306d974d5977a4d32d2"
 ".config/yazi/plugins/svg.yazi/init.lua" = "ba5e7ebbb9870eda80d7be179010494cac3896b4b29fb8f1011809e217ecc278"
 ".config/yazi/plugins/toggle-pane.yazi/main.lua" = "86b2306f6c9d880f0a6f777bdefb451393eb6a0c88718be355ebe31495e59f1c"
@@ -72,7 +72,7 @@ generated_at = "2026-08-01T20:01:37.318761+00:00"
 ".local/bin/aibox-copy" = "8ad9b94df76a00b938aa933bbda8305d5222bf7f9374a3bd5afef5f0fc361654"
 ".local/bin/aibox-powerkit-render-list" = "2fee132c86c69deb2198d2ed32d895d008c77ca7f5c68f910d1793e6edadfdbc"
 ".local/bin/aibox-powerkit-render-session" = "3e5ca872bdc0bcec25616f5a2f469d64ec13bb9342415344171b204c42c28b77"
-".local/bin/aibox-preview" = "d0d568ae510a3decb743da7458320755f84b5a3627703e601b82701e0fb4413c"
+".local/bin/aibox-preview" = "23dd64645a9c95aa944e4af20091349fd22e3214e48ef15f5757646b5bc375f6"
 ".local/bin/aibox-status-toggle" = "026c6a1dc7f1bcf650aa0bd4f587adfb5de6744df66fc138bef9b435bad1049a"
 ".local/bin/aibox-tmux-cheatsheet" = "2e3f8745cbb2039c521354f8bf48fa4059600f0c8b7bb462a8a8ed086d0473d9"
 ".local/bin/aibox-tmux-confirm-and-switch" = "a8771bb55db28dc35a7c1cfb742ec60299784b96cd8550e45aaac1cae19446f2"

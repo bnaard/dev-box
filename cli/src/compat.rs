@@ -713,6 +713,11 @@ pub static COMPAT_TABLE: &[CompatEntry] = &[
         processkit_version: "v0.28.6",
         note: "Patch release: embeds the canonical addon catalog so stale host installs cannot hide shipped tools, refreshes same-version installs, and adds Yazi/Vim clipboard and selectable-preview workflows.",
     },
+    CompatEntry {
+        aibox_version: "0.32.6",
+        processkit_version: "v0.28.6",
+        note: "Patch release: refreshes curated tool pins, including Go 1.26.6, and routes every Yazi copy action through the tmux and host clipboard bridge.",
+    },
 ];
 
 /// Find the minimum compatible processkit version for the given aibox version.

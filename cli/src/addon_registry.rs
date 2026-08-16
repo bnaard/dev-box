@@ -190,8 +190,8 @@ mod tests {
         assert!(py.supported_versions.contains(&"3.14"));
         assert_eq!(py.default_version, "3.14");
         let uv = addon.tools.iter().find(|t| t.name == "uv").unwrap();
-        assert!(uv.supported_versions.contains(&"0.12.0"));
-        assert_eq!(uv.default_version, "0.12.0");
+        assert!(uv.supported_versions.contains(&"0.12.5"));
+        assert_eq!(uv.default_version, "0.12.5");
     }
 
     #[test]
@@ -389,8 +389,8 @@ mod tests {
             !hermes.contains("USER aibox"),
             "Hermes installation must retain root access to /usr/local/bin: {hermes}"
         );
-        let tau = generate_runtime_commands("ai-tau", &tc(&[("tau", true, "0.3.7")]));
-        assert!(tau.contains("tau-ai==0.3.7"), "{tau}");
+        let tau = generate_runtime_commands("ai-tau", &tc(&[("tau", true, "0.3.10")]));
+        assert!(tau.contains("tau-ai==0.3.10"), "{tau}");
         assert!(
             tau.contains("UV_TOOL_DIR=/opt/aibox/uv-tools"),
             "Tau tool environment must use the shared uv path: {tau}"
