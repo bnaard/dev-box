@@ -162,7 +162,7 @@ packer = {}        # Machine image builder
 podman = {}        # Optional rootless container engine + Compose
 ```
 
-OpenTofu defaults to 1.12.5, Packer to 1.16.0, and Ansible to 14.2.0.
+OpenTofu defaults to 1.12.5, Packer to 1.16.0, and Ansible to 14.3.1.
 OpenTofu and Packer are installed in a multi-stage builder. Ansible is installed via pip.
 Podman is optional and installs the Debian-packaged rootless engine, Compose
 provider, user-namespace helpers, and overlay/networking prerequisites. Nested
@@ -180,7 +180,7 @@ kustomize = {}     # Configuration customization
 # k9s = {}         # Optional: terminal UI for Kubernetes
 ```
 
-kubectl defaults to 1.36.3, Helm to 4.2.3, Kustomize to 5.8.1, and k9s to 0.51.0.
+kubectl defaults to 1.36.3, Helm to 4.2.4, Kustomize to 5.8.1, and k9s to 0.51.0.
 All tools are downloaded as static binaries in a multi-stage builder.
 
 ## Cloud Providers

@@ -1,25 +1,19 @@
-# aibox v0.32.5 — 2026-08-15
+# aibox v0.32.6 — 2026-08-16
 
-**Summary:** This patch makes addon discovery reliable for derived projects and improves text-copy workflows in Yazi and Vim. Users upgrading from an older or partially refreshed catalog no longer need to repair addon YAML files manually.
-
-## Added
-
-- Added `c c` in Yazi to copy the hovered file's contents to the tmux/host clipboard.
-- Added `w v` in Yazi to open a selectable, read-only Vim view of the hovered file.
+**Summary:** This patch refreshes the v0.x toolchain catalog and makes Yazi's path-copy menu reliably reach the tmux and host clipboard.
 
 ## Changed
 
-- The CLI now embeds the complete canonical addon catalog and treats installed catalog files as optional name-based overrides.
-- Reinstalling the same aibox version refreshes both the executable and addon catalog instead of exiting early.
-- The Yazi cheatsheet documents horizontal preview scrolling and selectable preview alternatives.
+- Updated curated tool versions, including Go 1.26.6, Yazi 26.8.15, uv 0.12.5, Hugo 0.165.0, pnpm 11.22.0, PDM 2.28.1, Ansible 14.3.1, Helm 4.2.4, Tau 0.3.10, and Zensical 0.0.55.
+- Updated the Rust dependency lockfile to the current compatible patch releases.
 
 ## Fixed
 
-- Fixed valid configured addons such as `supply-chain`, `browser-testing`, `go-quality`, and `release` being skipped when a host had a stale or incomplete addon catalog.
-- Fixed Vim visual yanks so the selected text is forwarded to the tmux/host clipboard.
+- Fixed `govulncheck` installation failures caused by the previous Go 1.26.5 pin.
+- Fixed Yazi's `c p`, `c d`, `c f`, and `c n` actions so copied paths, directory names, filenames, and stems are sent through `aibox-copy` to both the tmux buffer and host clipboard.
 
 ## Upgrade notes
 
-Upgrade the host CLI to v0.32.5 and run `aibox apply`. No manual addon-catalog repair is required.
+Upgrade the host CLI to v0.32.6 and run `aibox apply` to regenerate the container and managed Yazi configuration.
 
-[v0.32.5]: https://github.com/projectious-work/aibox/compare/v0.32.4...v0.32.5
+[v0.32.6]: https://github.com/projectious-work/aibox/compare/v0.32.5...v0.32.6

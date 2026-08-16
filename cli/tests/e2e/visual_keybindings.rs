@@ -688,3 +688,52 @@ fn visual_kb_tmux_buffer_yank_round_trip() {
     );
     runner.cleanup(test_name);
 }
+
+#[test]
+#[serial(local_visual)]
+#[ntest::timeout(90_000)]
+fn visual_kb_yazi_copy_path_reaches_tmux_buffer() {
+    let runner = E2eRunner::new();
+    runner.ensure_deployed();
+
+    let test_name = "visual-kb-yazi-copy-path";
+    runner.cleanup(test_name);
+    init_managed_project(&runner, test_name);
+    assert_tmux_only_runtime(&runner, test_name);
+    runner.write_file(
+        test_name,
+        "copy-fixture/copied-path.txt",
+        "clipboard fixture\n",
+    );
+
+    let ws = runner.root().display().to_string();
+    let fixture = format!("{ws}/copy-fixture");
+    let actions = format!(
+        r#"  tmux send-keys -t "{test_name}:1.1" "cd {fixture} && exec yazi ." C-m
+  wait_for_pane_text "{test_name}:1.1" "copied-path.txt" "{ws}/yazi-copy-ready.txt" || true
+  tmux send-keys -t "{test_name}:1.1" "c" "p"
+  for _ in $(seq 1 40); do
+    tmux save-buffer "{ws}/yazi-path-buffer.txt" 2>/dev/null || true
+    grep -qF "{fixture}/copied-path.txt" "{ws}/yazi-path-buffer.txt" 2>/dev/null && break
+    sleep 0.25
+  done
+"#
+    );
+    let _cast = record(
+        &runner,
+        test_name,
+        &tmux_driver(
+            &ws,
+            test_name,
+            &quoted_shell("printf 'files pane'; exec bash"),
+            &actions,
+        ),
+    );
+    let copied = runner.read_file(test_name, "yazi-path-buffer.txt");
+    assert_eq!(
+        copied.trim(),
+        format!("{fixture}/copied-path.txt"),
+        "Yazi c p should copy the hovered absolute path into the tmux/host clipboard bridge"
+    );
+    runner.cleanup(test_name);
+}

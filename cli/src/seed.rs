@@ -776,10 +776,10 @@ prepend_keymap = [
     { on = [ "w", "h" ], run = "shell 'bat --color=always --style=plain --paging=never \"$1\" | less -R -S' --block", desc = "Preview with horizontal scroll" },
     { on = [ "w", "v" ], run = "shell 'vim -R \"$1\"' --block", desc = "Select preview text in read-only Vim" },
     { on = [ "w", "p" ], run = "shell 'if [ -f \"$HOME/.local/bin/pdf-watch\" ]; then bash \"$HOME/.local/bin/pdf-watch\" \"$1\"; else pdf-watch \"$1\"; fi' --block", desc = "Watch PDF preview" },
-    { on = [ "c", "p" ], run = "copy path", desc = "Copy selected paths" },
-    { on = [ "c", "d" ], run = "copy dirname", desc = "Copy selected directories" },
-    { on = [ "c", "f" ], run = "copy filename", desc = "Copy selected filenames" },
-    { on = [ "c", "n" ], run = "copy name_without_ext", desc = "Copy names without extension" },
+    { on = [ "c", "p" ], run = "shell 'printf \"%s\\n\" \"$@\" | aibox-copy'", desc = "Copy selected paths" },
+    { on = [ "c", "d" ], run = "shell 'for path in \"$@\"; do dirname \"$path\"; done | aibox-copy'", desc = "Copy selected directories" },
+    { on = [ "c", "f" ], run = "shell 'for path in \"$@\"; do basename \"$path\"; done | aibox-copy'", desc = "Copy selected filenames" },
+    { on = [ "c", "n" ], run = "shell 'for path in \"$@\"; do name=${path##*/}; printf \"%s\\n\" \"${name%.*}\"; done | aibox-copy'", desc = "Copy names without extension" },
     { on = [ "c", "c" ], run = "shell 'aibox-copy < \"$1\"'", desc = "Copy file contents to host clipboard" },
     { on = [ "g", "s" ], run = "shell 'git -c color.status=always status --short --branch --ignored=matching --untracked-files=all | ${PAGER:-less} -R' --block", desc = "Git summary" },
     { on = [ "g", "c" ], run = "shell 'git -c color.status=always status --short --ignored=matching --untracked-files=all | ${PAGER:-less} -R' --block", desc = "Show git changes" },
@@ -3500,20 +3500,20 @@ rules = [
             "default yazi keymap should expose PDF watch helper"
         );
         assert!(
-            DEFAULT_YAZI_KEYMAP.contains(r#"{ on = [ "c", "p" ], run = "copy path""#),
-            "default yazi keymap should expose path copy"
+            DEFAULT_YAZI_KEYMAP.contains(r#"printf \"%s\\n\" \"$@\" | aibox-copy"#),
+            "default yazi keymap should bridge path copy to the host clipboard"
         );
         assert!(
-            DEFAULT_YAZI_KEYMAP.contains(r#"{ on = [ "c", "d" ], run = "copy dirname""#),
-            "default yazi keymap should expose directory copy"
+            DEFAULT_YAZI_KEYMAP.contains(r#"dirname \"$path\"; done | aibox-copy"#),
+            "default yazi keymap should bridge directory copy to the host clipboard"
         );
         assert!(
-            DEFAULT_YAZI_KEYMAP.contains(r#"{ on = [ "c", "f" ], run = "copy filename""#),
-            "default yazi keymap should expose filename copy"
+            DEFAULT_YAZI_KEYMAP.contains(r#"basename \"$path\"; done | aibox-copy"#),
+            "default yazi keymap should bridge filename copy to the host clipboard"
         );
         assert!(
-            DEFAULT_YAZI_KEYMAP.contains(r#"{ on = [ "c", "n" ], run = "copy name_without_ext""#),
-            "default yazi keymap should expose stem copy"
+            DEFAULT_YAZI_KEYMAP.contains(r#"\"${name%.*}\"; done | aibox-copy"#),
+            "default yazi keymap should bridge stem copy to the host clipboard"
         );
     }
 

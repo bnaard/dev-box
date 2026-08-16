@@ -285,6 +285,17 @@ fn yazi_keymap_has_content_copy_and_selectable_preview() {
         keymap_toml.contains(r#"{ on = [ "c", "c" ], run = "shell 'aibox-copy < \"$1\"'"#),
         "keymap.toml should copy the hovered file contents through aibox-copy"
     );
+    for bridge in [
+        r#"printf \"%s\\n\" \"$@\" | aibox-copy"#,
+        r#"dirname \"$path\"; done | aibox-copy"#,
+        r#"basename \"$path\"; done | aibox-copy"#,
+        r#"\"${name%.*}\"; done | aibox-copy"#,
+    ] {
+        assert!(
+            keymap_toml.contains(bridge),
+            "keymap.toml should route every path-copy variant through aibox-copy: {bridge}"
+        );
+    }
     assert!(
         keymap_toml.contains(r#"{ on = [ "w", "v" ], run = "shell 'vim -R \"$1\"' --block"#),
         "keymap.toml should expose a read-only Vim surface for selecting preview text"
@@ -301,6 +312,10 @@ fn image_yazi_keymap_matches_content_copy_and_selectable_preview() {
     .expect("read image Yazi keymap");
 
     assert!(image_keymap.contains(r#"aibox-copy < \"$1\""#));
+    assert!(image_keymap.contains(r#"printf \"%s\\n\" \"$@\" | aibox-copy"#));
+    assert!(image_keymap.contains(r#"dirname \"$path\"; done | aibox-copy"#));
+    assert!(image_keymap.contains(r#"basename \"$path\"; done | aibox-copy"#));
+    assert!(image_keymap.contains(r#"\"${name%.*}\"; done | aibox-copy"#));
     assert!(image_keymap.contains(r#"vim -R \"$1\""#));
 }
 

@@ -57,7 +57,7 @@ RUN mkdir -p /build/aibox-runtime-tools/bin && \
 
 # ── Yazi ─────────────────────────────────────────────────────────────────────
 FROM fetch-base AS fetch-yazi
-ARG YAZI_VERSION=26.5.6
+ARG YAZI_VERSION=26.8.15
 RUN ARCH=$(uname -m) && \
     curl -fsSL --retry 5 --retry-delay 3 --retry-all-errors \
       "https://github.com/sxyazi/yazi/releases/download/v${YAZI_VERSION}/yazi-${ARCH}-unknown-linux-musl.zip" \
@@ -278,7 +278,7 @@ COPY --from=build-aibox-runtime-tools /build/aibox-runtime-tools/bin/aibox-diagn
 # image since v0.16.5 (DEC-036) so processkit's PEP 723 MCP server
 # scripts run via `uv run` out of the box. Works against the
 # externally-installed python3 from apt above.
-COPY --from=ghcr.io/astral-sh/uv:0.12.3 /uv /uvx /usr/local/bin/
+COPY --from=ghcr.io/astral-sh/uv:0.12.5 /uv /uvx /usr/local/bin/
 ENV UV_CACHE_DIR=/tmp/aibox/uv-cache
 
 ARG AIBOX_IMAGE_SOURCE_SHA=unknown
