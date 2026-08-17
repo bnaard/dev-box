@@ -282,11 +282,11 @@ fn yazi_keymap_has_content_copy_and_selectable_preview() {
     let keymap_toml = read_yazi_keymap(dir.path());
 
     assert!(
-        keymap_toml.contains(r#"{ on = [ "c", "c" ], run = "shell 'aibox-copy < \"$1\"'"#),
+        keymap_toml.contains(r#"{ on = [ "c", "c" ], run = "shell 'aibox-copy < %h'"#),
         "keymap.toml should copy the hovered file contents through aibox-copy"
     );
     for bridge in [
-        r#"printf \"%s\\n\" \"$@\" | aibox-copy"#,
+        r#"printf \"%s\\n\" %s | aibox-copy"#,
         r#"dirname \"$path\"; done | aibox-copy"#,
         r#"basename \"$path\"; done | aibox-copy"#,
         r#"\"${name%.*}\"; done | aibox-copy"#,
@@ -297,7 +297,7 @@ fn yazi_keymap_has_content_copy_and_selectable_preview() {
         );
     }
     assert!(
-        keymap_toml.contains(r#"{ on = [ "w", "v" ], run = "shell 'vim -R \"$1\"' --block"#),
+        keymap_toml.contains(r#"{ on = [ "w", "v" ], run = "shell 'vim -R %h' --block"#),
         "keymap.toml should expose a read-only Vim surface for selecting preview text"
     );
 }
@@ -311,12 +311,13 @@ fn image_yazi_keymap_matches_content_copy_and_selectable_preview() {
     )
     .expect("read image Yazi keymap");
 
-    assert!(image_keymap.contains(r#"aibox-copy < \"$1\""#));
-    assert!(image_keymap.contains(r#"printf \"%s\\n\" \"$@\" | aibox-copy"#));
+    assert!(image_keymap.contains(r#"aibox-copy < %h"#));
+    assert!(image_keymap.contains(r#"printf \"%s\\n\" %s | aibox-copy"#));
     assert!(image_keymap.contains(r#"dirname \"$path\"; done | aibox-copy"#));
     assert!(image_keymap.contains(r#"basename \"$path\"; done | aibox-copy"#));
     assert!(image_keymap.contains(r#"\"${name%.*}\"; done | aibox-copy"#));
-    assert!(image_keymap.contains(r#"vim -R \"$1\""#));
+    assert!(image_keymap.contains(r#"vim -R %h"#));
+    assert!(!image_keymap.contains("$@") && !image_keymap.contains("$1"));
 }
 
 /// The Yazi keymap should expose the PDF live-watch helper for selected PDFs.

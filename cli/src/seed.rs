@@ -334,10 +334,10 @@ AIBOX_YAZI_EXTRA_PREVIEWERS
 
 [opener]
 edit = [
-    { run = 'vim --cmd "set t_u7=" --cmd "set t_RV=" "$@"', desc = "Edit in-place", block = true },
+    { run = 'vim --cmd "set t_u7=" --cmd "set t_RV=" %s', desc = "Edit in-place", block = true },
 ]
 edit-pane = [
-    { run = 'open-in-editor "$1"', desc = "Open in vim popup", block = false },
+    { run = 'open-in-editor %s1', desc = "Open in vim popup", block = false },
 ]
 
 [open]
@@ -768,23 +768,23 @@ const DEFAULT_LNAV_FORMAT_AIBOX: &str =
 const DEFAULT_YAZI_KEYMAP: &str = r#"[mgr]
 prepend_keymap = [
     { on = "<Enter>", run = "open", desc = "Edit in-place" },
-    { on = "e", run = "shell 'open-in-editor \"$1\"'", desc = "Open in vim popup" },
+    { on = "e", run = "shell 'open-in-editor %h'", desc = "Open in vim popup" },
     { on = "O", run = "open --interactive", desc = "Open interactively" },
-    { on = "p", run = "shell 'aibox-preview \"$1\"' --block", desc = "Full-pane preview" },
+    { on = "p", run = "shell 'aibox-preview %h' --block", desc = "Full-pane preview" },
     { on = [ "z", "h" ], run = "plugin toggle-pane min-parent", desc = "Toggle parent pane" },
     { on = [ "z", "l" ], run = "plugin toggle-pane min-preview", desc = "Toggle preview pane" },
     { on = [ "z", "m" ], run = "plugin toggle-pane max-preview", desc = "Maximize preview pane" },
     { on = [ "z", "c" ], run = "plugin toggle-pane max-current", desc = "Maximize current pane" },
     { on = [ "z", "0" ], run = "plugin toggle-pane", desc = "Reset pane layout" },
-    { on = [ "w", "s" ], run = "shell 'du -sch \"$@\" | ${PAGER:-less}' --block", desc = "Size selected files" },
-    { on = [ "w", "h" ], run = "shell 'bat --color=always --style=plain --paging=never \"$1\" | less -R -S' --block", desc = "Preview with horizontal scroll" },
-    { on = [ "w", "v" ], run = "shell 'vim -R \"$1\"' --block", desc = "Select preview text in read-only Vim" },
-    { on = [ "w", "p" ], run = "shell 'if [ -f \"$HOME/.local/bin/pdf-watch\" ]; then bash \"$HOME/.local/bin/pdf-watch\" \"$1\"; else pdf-watch \"$1\"; fi' --block", desc = "Watch PDF preview" },
-    { on = [ "c", "p" ], run = "shell 'printf \"%s\\n\" \"$@\" | aibox-copy'", desc = "Copy selected paths" },
-    { on = [ "c", "d" ], run = "shell 'for path in \"$@\"; do dirname \"$path\"; done | aibox-copy'", desc = "Copy selected directories" },
-    { on = [ "c", "f" ], run = "shell 'for path in \"$@\"; do basename \"$path\"; done | aibox-copy'", desc = "Copy selected filenames" },
-    { on = [ "c", "n" ], run = "shell 'for path in \"$@\"; do name=${path##*/}; printf \"%s\\n\" \"${name%.*}\"; done | aibox-copy'", desc = "Copy names without extension" },
-    { on = [ "c", "c" ], run = "shell 'aibox-copy < \"$1\"'", desc = "Copy file contents to host clipboard" },
+    { on = [ "w", "s" ], run = "shell 'du -sch %s | ${PAGER:-less}' --block", desc = "Size selected files" },
+    { on = [ "w", "h" ], run = "shell 'bat --color=always --style=plain --paging=never %h | less -R -S' --block", desc = "Preview with horizontal scroll" },
+    { on = [ "w", "v" ], run = "shell 'vim -R %h' --block", desc = "Select preview text in read-only Vim" },
+    { on = [ "w", "p" ], run = "shell 'if [ -f \"$HOME/.local/bin/pdf-watch\" ]; then bash \"$HOME/.local/bin/pdf-watch\" %h; else pdf-watch %h; fi' --block", desc = "Watch PDF preview" },
+    { on = [ "c", "p" ], run = "shell 'printf \"%s\\n\" %s | aibox-copy'", desc = "Copy selected paths" },
+    { on = [ "c", "d" ], run = "shell 'for path in %s; do dirname \"$path\"; done | aibox-copy'", desc = "Copy selected directories" },
+    { on = [ "c", "f" ], run = "shell 'for path in %s; do basename \"$path\"; done | aibox-copy'", desc = "Copy selected filenames" },
+    { on = [ "c", "n" ], run = "shell 'for path in %s; do name=${path##*/}; printf \"%s\\n\" \"${name%.*}\"; done | aibox-copy'", desc = "Copy names without extension" },
+    { on = [ "c", "c" ], run = "shell 'aibox-copy < %h'", desc = "Copy file contents to host clipboard" },
     { on = [ "g", "s" ], run = "shell 'git -c color.status=always status --short --branch --ignored=matching --untracked-files=all | ${PAGER:-less} -R' --block", desc = "Git summary" },
     { on = [ "g", "c" ], run = "shell 'git -c color.status=always status --short --ignored=matching --untracked-files=all | ${PAGER:-less} -R' --block", desc = "Show git changes" },
     { on = [ "g", "r" ], run = "cd .", desc = "Refresh directory" },
@@ -3532,13 +3532,12 @@ rules = [
     #[test]
     fn yazi_navigation_keybindings_seeded() {
         assert!(
-            DEFAULT_YAZI_KEYMAP
-                .contains(r#"{ on = "p", run = "shell 'aibox-preview \"$1\"' --block""#),
+            DEFAULT_YAZI_KEYMAP.contains(r#"{ on = "p", run = "shell 'aibox-preview %h' --block""#),
             "default yazi keymap should expose full-pane preview"
         );
         assert!(
             DEFAULT_YAZI_KEYMAP.contains(
-                r#"{ on = [ "w", "s" ], run = "shell 'du -sch \"$@\" | ${PAGER:-less}' --block""#
+                r#"{ on = [ "w", "s" ], run = "shell 'du -sch %s | ${PAGER:-less}' --block""#
             ),
             "default yazi keymap should expose selected-size calculation"
         );
@@ -3551,7 +3550,7 @@ rules = [
             "default yazi keymap should expose PDF watch helper"
         );
         assert!(
-            DEFAULT_YAZI_KEYMAP.contains(r#"printf \"%s\\n\" \"$@\" | aibox-copy"#),
+            DEFAULT_YAZI_KEYMAP.contains(r#"printf \"%s\\n\" %s | aibox-copy"#),
             "default yazi keymap should bridge path copy to the host clipboard"
         );
         assert!(
@@ -3571,8 +3570,15 @@ rules = [
     #[test]
     fn yazi_vim_openers_harden_terminal_handoff() {
         assert!(
-            DEFAULT_YAZI_CONFIG.contains(r#"vim --cmd "set t_u7=" --cmd "set t_RV=" "$@""#),
+            DEFAULT_YAZI_CONFIG.contains(r#"vim --cmd "set t_u7=" --cmd "set t_RV=" %s"#),
             "in-place Yazi opener should use Vim terminal-query hardening"
+        );
+        assert!(
+            !DEFAULT_YAZI_CONFIG.contains("$@")
+                && !DEFAULT_YAZI_CONFIG.contains("$1")
+                && !DEFAULT_YAZI_KEYMAP.contains("$@")
+                && !DEFAULT_YAZI_KEYMAP.contains("$1"),
+            "Yazi 26.8 templates must use percent-format parameters"
         );
         assert!(
             DEFAULT_VIMRC.contains("set t_u7=")
