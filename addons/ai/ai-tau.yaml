@@ -11,8 +11,8 @@ tools:
   - name: tau
     description: "Tau terminal coding agent"
     default_enabled: true
-    default_version: "0.3.10"
-    supported_versions: ["0.3.5", "0.3.7", "0.3.10"]
+    default_version: "0.3.11"
+    supported_versions: ["0.3.5", "0.3.7", "0.3.10", "0.3.11"]
 
 builder: null
 

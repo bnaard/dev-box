@@ -11,6 +11,7 @@
 ## Changed
 
 - Generated tmux layouts now wrap AI harness processes with safe lifecycle fallbacks while preserving an interactive shell after completion or failure.
+- Updated the default fzf pin to 0.74.3 and Tau harness pin to 0.3.11.
 - Refreshed the generated v0.32.6 runtime and processkit installation baseline used by this project.
 
 ## Fixed

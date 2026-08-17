@@ -273,7 +273,7 @@ enabled = [
 # or use `aibox set addon <name>` (which also pulls in transitive `requires`).
 #
 # Addon catalog — uncomment/comment one block header to enable or remove an addon.
-# Addon catalog fingerprint: d0dfdd84934d2414db4fb3d521adfba47d16a60bd8b37b9eff8f7d1c55472426
+# Addon catalog fingerprint: b65e85f791516b12d24140fb169a91717cd522366f8c6a09c3837e6f2a9232c5
 # Inside an enabled addon, omitted default-enabled tools stay enabled. Uncomment
 # a tool line to pin a version, enable an off-by-default tool, or disable a default-on tool.
 #
@@ -668,6 +668,32 @@ layout = "ai"
 [customization.tmux]
 prefix = "C-g"
 session_name = "aibox"
+
+# tmux terminal/tab title. The runtime attention helper updates the
+# @aibox_attention_* tmux options used by this format.
+# Placeholders: {state_symbol}, {state}, {project}, {session}, {window},
+# {window_index}, {pane}, {directory}, {directory_path}, {repository},
+# {branch}, {harness}, {agent}, {task}, {message}, {elapsed}.
+[customization.tmux.title]
+enabled = true
+format = "{state_symbol}{project}:{window} — {directory}"
+max-length = 60
+directory-style = "basename"  # basename | abbreviated | full
+done-ttl-seconds = 10
+message-max-length = 32
+
+[customization.tmux.title.states]
+working = "● "
+question = "❓ "
+done = "✓ "
+error = "! "
+idle = ""
+
+[customization.tmux.notifications]
+enabled = false  # terminal attention notifications; opt-in
+protocol = "osc-9"  # osc-9 | bell
+states = ["question", "error"]
+include-message = true
 
 # tmux status presentation.
 # - extended: full aibox themed status (legacy alias: powerline)
