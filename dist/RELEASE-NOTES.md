@@ -1,26 +1,29 @@
-# aibox v0.33.0 — 2026-08-17
+# aibox v0.33.1 — 2026-08-17
 
-**Summary:** This minor release makes AI-agent attention visible in tmux-owned terminal titles without binding the experience to a particular terminal or provider. Existing projects can opt into desktop-style notifications and customize title content, symbols, and limits through `aibox.toml`.
+**Summary:** This patch release restores configured AI harness startup after applying v0.33.0 and keeps Yazi directory previews usable when the host CLI and configured image briefly differ. It also makes the tmux status bar easier to scan by matching PowerKit plugin transitions to the established window-tab spacing.
 
 ## Added
 
-- Added configurable tmux terminal titles with project, window, directory, repository, branch, harness, agent, task, message, elapsed-time, and attention-state placeholders.
-- Added provider-neutral `aibox-agent-signal` lifecycle integration for generated AI panes and supported harness hooks, including working, question, done, error, and idle states.
-- Added optional OSC 9 or bell notifications with configurable states and message inclusion.
+- Added the nearest reachable release tag to the Forge status segment.
+- Added an isolated tmux/asciinema regression check for left- and right-side PowerKit plugin transitions.
 
 ## Changed
 
-- Generated tmux layouts now wrap AI harness processes with safe lifecycle fallbacks while preserving an interactive shell after completion or failure.
-- Updated the default fzf pin to 0.74.3 and Tau harness pin to 0.3.11.
-- Refreshed the generated v0.32.6 runtime and processkit installation baseline used by this project.
+- PowerKit plugin spacing now uses side-aware two-chevron transitions matching the tmux window tabs, without rectangular spacer cells.
+- The pinned PowerKit source patch is now fail-closed and idempotent so upstream drift cannot silently produce malformed status segments.
 
 ## Fixed
 
-- Updated generated Yazi directory previews to use the Yazi 26 theme icon matcher instead of the removed file icon method.
-- Serialized processkit gateway startup so concurrent harnesses do not race to launch the shared daemon.
+- Fixed generated AI harness layouts failing before Codex, Claude, or another configured harness could start because the lifecycle exit variable was expanded under nounset.
+- Fixed Yazi directory previews crashing on the icon matcher when a v0.33 CLI refreshed managed files for a project still running an older configured image.
+- Kept the Yazi compatibility fallback free of the deprecated file icon method.
+
+## Removed
+
+- Removed the legacy one-cell rectangular PowerKit spacing workaround.
 
 ## Upgrade notes
 
-Upgrade the host CLI to v0.33.0 and run `aibox apply` to generate the attention helper, harness hooks, and tmux title configuration. Notifications remain disabled unless explicitly enabled.
+Upgrade the host CLI to v0.33.1, set release_version to latest or 0.33.1, then run aibox apply, aibox down, and aibox up to regenerate the layouts and align the runtime image.
 
-[v0.33.0]: https://github.com/projectious-work/aibox/compare/v0.32.6...v0.33.0
+[v0.33.1]: https://github.com/projectious-work/aibox/compare/v0.33.0...v0.33.1

@@ -155,7 +155,7 @@ agent_tool_shell() {{
   # Start/finish/error are lifecycle fallbacks for harnesses without native
   # hooks. Native integrations may refine the state (for example, a question)
   # while the process is running. Always return to a usable bash pane.
-  printf "bash -lc 'aibox-agent-signal working --harness %q >/dev/null 2>&1 || true; if command -v %q >/dev/null 2>&1; then %q; rc=\\$?; if [ \\$rc -eq 0 ]; then aibox-agent-signal done --harness %q >/dev/null 2>&1 || true; else aibox-agent-signal error --harness %q >/dev/null 2>&1 || true; fi; else aibox-agent-signal error --harness %q >/dev/null 2>&1 || true; fi; exec bash'" "$harness" "$tool" "$tool" "$harness" "$harness" "$harness"
+  printf "bash -lc 'aibox-agent-signal working --harness %q >/dev/null 2>&1 || true; if command -v %q >/dev/null 2>&1; then if %q; then aibox-agent-signal done --harness %q >/dev/null 2>&1 || true; else aibox-agent-signal error --harness %q >/dev/null 2>&1 || true; fi; else aibox-agent-signal error --harness %q >/dev/null 2>&1 || true; fi; exec bash'" "$harness" "$tool" "$tool" "$harness" "$harness" "$harness"
 }}
 
 if [[ "${{AIBOX_LAYOUT_MODE:-}}" == "rebuild" ]]; then
@@ -263,6 +263,7 @@ exec env AIBOX_TMUX_SESSION="${{session}}" AIBOX_TMUX_SOCKET="${{socket}}" "${{s
 mod tests {
     use super::*;
     use crate::config::AiProvider;
+    use std::process::Command;
 
     fn no_tools() -> Vec<(&'static str, &'static str)> {
         vec![]
@@ -333,6 +334,7 @@ mod tests {
         assert!(body.contains("aibox-agent-signal working"));
         assert!(body.contains("aibox-agent-signal done"));
         assert!(body.contains("aibox-agent-signal error"));
+        assert!(!body.contains("rc="));
         assert!(body.contains("exec bash"));
     }
 
@@ -346,6 +348,27 @@ mod tests {
         assert!(body.contains("aibox-agent-signal working"));
         assert!(body.contains("aibox-agent-signal done"));
         assert!(body.contains("aibox-agent-signal error"));
+    }
+
+    #[test]
+    fn agent_tool_shell_renders_under_nounset() {
+        let providers = vec![AiProvider::Codex];
+        let body = tmux_layout_script(&ConfigLayout::Ai, &providers, true, &no_tools(), "aibox");
+        let start = body.find("is_agent_tool()").unwrap();
+        let end = body.find("if [[").unwrap();
+        let helpers = &body[start..end];
+        let output = Command::new("bash")
+            .args(["-u", "-c", &format!("{helpers}\nagent_tool_shell codex")])
+            .output()
+            .unwrap();
+
+        assert!(
+            output.status.success(),
+            "agent wrapper expanded an unset variable: {}",
+            String::from_utf8_lossy(&output.stderr)
+        );
+        let rendered = String::from_utf8(output.stdout).unwrap();
+        assert!(rendered.contains("if codex; then"));
     }
 
     #[test]

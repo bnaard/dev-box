@@ -2,7 +2,7 @@
 # aibox-shipped PowerKit plugin: forge — multi-provider git forge status.
 #
 # Auto-detects the hosting provider from `git remote get-url origin` and
-# renders a "<LABEL> <branch> I<issues> P<prs> D<discussions>" segment with graceful
+# renders a "<LABEL> <branch> <release-tag> I<issues> P<prs> D<discussions>" segment with graceful
 # degradation when network calls fail or credentials are absent.
 #
 # Supported providers:
@@ -114,6 +114,13 @@ _current_branch() {
         return 0
     fi
     _git rev-parse --short HEAD
+}
+
+_current_release_tag() {
+    # Show the nearest release reachable from the current checkout. This keeps
+    # working between releases, requires no forge API call, and naturally
+    # follows whichever version line the repository has checked out.
+    _git describe --tags --abbrev=0 --match 'v[0-9]*' HEAD
 }
 
 # Detect provider from a remote URL.
@@ -343,7 +350,7 @@ _gh_count_gitea() {
 
 plugin_collect() {
     local remote url provider label owner repo_name api_base
-    local branch show_counts timeout_s issues prs discussions
+    local branch release_tag show_counts timeout_s issues prs discussions
 
     # Must be inside a git repo
     _git rev-parse --is-inside-work-tree >/dev/null || return 0
@@ -363,10 +370,12 @@ plugin_collect() {
     api_base="$_api_base"
 
     branch="$(_current_branch)"
+    release_tag="$(_current_release_tag)"
 
     plugin_data_set "provider"   "$provider"
     plugin_data_set "label"      "$label"
     plugin_data_set "branch"     "$branch"
+    plugin_data_set "release_tag" "$release_tag"
 
     show_counts="$(get_option show_counts)"
     [[ "$show_counts" == "true" ]] || return 0
@@ -399,7 +408,7 @@ plugin_collect() {
 # =============================================================================
 
 plugin_render() {
-    local label branch issues prs discussions show_branch
+    local label branch release_tag issues prs discussions show_branch
     local -a parts=()
 
     # Only render when a provider was detected
@@ -413,6 +422,9 @@ plugin_render() {
     if [[ "$show_branch" == "true" && -n "$branch" ]]; then
         parts+=("$branch")
     fi
+
+    release_tag="$(plugin_data_get release_tag)"
+    [[ -n "$release_tag" ]] && parts+=("$release_tag")
 
     issues="$(plugin_data_get issues)"
     prs="$(plugin_data_get prs)"

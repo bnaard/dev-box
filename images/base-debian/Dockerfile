@@ -333,20 +333,18 @@ RUN mkdir -p /home/aibox/.config/tmux \
 # tmux
 RUN mkdir -p /usr/local/share/aibox/tmux/plugins
 COPY --from=fetch-tmux-plugins /tmux-plugins/ /usr/local/share/aibox/tmux/plugins/
-# ── Temporary local patch: surface-spacer fix for adjacent segment separators ──
-# When @powerkit_elements_spacing="both" the closing separator glyph and the
-# next segment's opening glyph are adjacent with mismatched backgrounds,
-# producing a doubled-arrow rendering artefact.  The fix emits a space cell at
-# spacing_bg between them so both the I2 invariant and the powerline convention
-# are satisfied.
+# ── Temporary local patch: side-aware plugin spacing ─────────────────────────
+# PowerKit's window renderer swaps separator colors for left- versus
+# right-aligned elements, but its plugin-spacing branch uses the right-side
+# orientation on both sides. Patch that branch so plugin gaps use the same
+# two-chevron transition as window tabs without an extra rectangular cell.
 #
 # Tracked by BACK-20260515_1503-RefinedIvy.  Drop this patch block (and bump
 # TMUX_POWERKIT_REF past the fix) once the upstream PR is merged.
-RUN _f=/usr/local/share/aibox/tmux/plugins/tmux-powerkit/src/renderer/segment_builder.sh; \
-    grep -q "AIBOX-FIX-GH-SEPARATOR-MARKER" "$_f" || \
-    sed -i \
-      's|output+="#\[fg=\${current_spacing_fg},bg=\${prev_bg}\]\${spacing_sep}#\[none\]"|output+="#[fg=${current_spacing_fg},bg=${prev_bg}]${spacing_sep}" # AIBOX-FIX-GH-SEPARATOR-MARKER\n                output+="#[fg=${current_spacing_fg},bg=${current_spacing_bg}] #[none]"|' \
-      "$_f"
+COPY config/tmux/patch-powerkit-plugin-spacing.sh /tmp/patch-powerkit-plugin-spacing.sh
+RUN /tmp/patch-powerkit-plugin-spacing.sh \
+      /usr/local/share/aibox/tmux/plugins/tmux-powerkit/src/renderer/segment_builder.sh && \
+    rm -f /tmp/patch-powerkit-plugin-spacing.sh
 COPY config/tmux/powerkit-plugins/aibox.sh /usr/local/share/aibox/tmux/plugins/tmux-powerkit/src/plugins/aibox.sh
 # aibox-metrics path-a split: one plugin script per metric segment so each
 # renders with chevron/color-rotation styling (BACK-20260508_1603-QuietCedar).

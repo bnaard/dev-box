@@ -2711,6 +2711,7 @@ cmd_status() {
 
 cmd_test_visual() {
   info "Running visual smoke tests..."
+  "${SCRIPT_DIR}/test-powerkit-spacing.sh"
   "${SCRIPT_DIR}/test-screencasts.sh" all
 }
 
