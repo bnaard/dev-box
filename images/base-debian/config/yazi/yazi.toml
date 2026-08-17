@@ -67,11 +67,11 @@ prepend_previewers = [
 [opener]
 # Enter: open in vim in-place (suspends yazi, returns on :q)
 edit = [
-    { run = 'vim --cmd "set t_u7=" --cmd "set t_RV=" "$@"', desc = "Edit in-place", block = true },
+    { run = 'vim --cmd "set t_u7=" --cmd "set t_RV=" %s', desc = "Edit in-place", block = true },
 ]
 # For opening in the adjacent vim pane (dev layout: vim is right of yazi)
 edit-pane = [
-    { run = 'open-in-editor "$1"', desc = "Open in vim pane", block = false },
+    { run = 'open-in-editor %s1', desc = "Open in vim pane", block = false },
 ]
 
 [open]

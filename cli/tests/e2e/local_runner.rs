@@ -151,7 +151,9 @@ impl LocalProject {
         if let Some(parent) = destination.parent() {
             fs::create_dir_all(parent).expect("create local E2E parent directory");
         }
-        fs::write(destination, content).expect("write local E2E file");
+        fs::write(&destination, content).unwrap_or_else(|error| {
+            panic!("write local E2E file {}: {error}", destination.display())
+        });
     }
 }
 
