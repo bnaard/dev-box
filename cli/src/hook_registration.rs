@@ -87,6 +87,9 @@ const MANAGED_MARKER: &str = "_processkit_managed";
 /// field. Cursor entries use a different merge strategy (command-path marker)
 /// because Cursor's hook schema is a flat object without room for extra keys.
 const CURSOR_MANAGED_MARKER: &str = "processkit/skill-gate/scripts/";
+/// Substring used to identify aibox attention hook commands on subsequent
+/// syncs.  User hooks are never removed merely because they share an event.
+const AIBOX_SIGNAL_MANAGED_MARKER: &str = "aibox-agent-signal";
 
 // ---------------------------------------------------------------------------
 // Public entry point
@@ -162,6 +165,14 @@ fn claude_hook_entry(matcher: &str, command: &str) -> serde_json::Value {
     })
 }
 
+fn attention_hook_entry(matcher: &str, command: &str) -> serde_json::Value {
+    serde_json::json!({
+        "_aibox_attention_managed": true,
+        "matcher": matcher,
+        "hooks": [{"type": "command", "command": command}]
+    })
+}
+
 // ---------------------------------------------------------------------------
 // Writer 1: Claude Code .claude/settings.json
 // ---------------------------------------------------------------------------
@@ -200,7 +211,15 @@ fn write_claude_settings_hooks(path: &Path) -> Result<()> {
         .ok_or_else(|| anyhow::anyhow!("`hooks` in {} is not a JSON object", path.display()))?;
 
     // For each event key, strip managed entries then append the current ones.
-    let event_keys = ["SessionStart", "UserPromptSubmit", "PreToolUse"];
+    let event_keys = [
+        "SessionStart",
+        "UserPromptSubmit",
+        "PreToolUse",
+        "Notification",
+        "PermissionRequest",
+        "Stop",
+        "StopFailure",
+    ];
     for key in event_keys {
         let arr_val = hooks
             .entry(key.to_string())
@@ -210,11 +229,15 @@ fn write_claude_settings_hooks(path: &Path) -> Result<()> {
         })?;
         // Remove all previously-managed entries.
         arr.retain(|entry| {
-            entry
+            let processkit = entry
                 .get(MANAGED_MARKER)
                 .and_then(|v| v.as_bool())
-                .unwrap_or(false)
-                .not()
+                .unwrap_or(false);
+            let attention = entry
+                .get("_aibox_attention_managed")
+                .and_then(|v| v.as_bool())
+                .unwrap_or(false);
+            !(processkit || attention)
         });
     }
 
@@ -232,6 +255,10 @@ fn write_claude_settings_hooks(path: &Path) -> Result<()> {
     {
         let arr = hooks["UserPromptSubmit"].as_array_mut().unwrap();
         arr.push(claude_hook_entry("", &compliance_cmd));
+        arr.push(attention_hook_entry(
+            "",
+            "aibox-agent-signal working --harness claude",
+        ));
     }
 
     // PreToolUse — gate writes under context/ until contract acknowledged.
@@ -243,6 +270,42 @@ fn write_claude_settings_hooks(path: &Path) -> Result<()> {
             &route_guard_cmd,
         ));
     }
+
+    // Claude's documented lifecycle hooks provide reliable attention signals:
+    // PermissionRequest means the user must answer; Stop/StopFailure mark the
+    // terminal outcome. Notification is restricted below to actionable kinds.
+    hooks["PermissionRequest"]
+        .as_array_mut()
+        .unwrap()
+        .push(attention_hook_entry(
+            "",
+            "aibox-agent-signal question --harness claude",
+        ));
+    // Notification is filtered to user-actionable notification types.  The
+    // matcher excludes informational/auth notifications while covering final
+    // response prompts and elicitation dialogs that do not always surface as
+    // PermissionRequest.
+    hooks["Notification"]
+        .as_array_mut()
+        .unwrap()
+        .push(attention_hook_entry(
+            "permission_prompt|idle_prompt|elicitation_dialog",
+            "aibox-agent-signal question --harness claude",
+        ));
+    hooks["Stop"]
+        .as_array_mut()
+        .unwrap()
+        .push(attention_hook_entry(
+            "",
+            "aibox-agent-signal done --harness claude",
+        ));
+    hooks["StopFailure"]
+        .as_array_mut()
+        .unwrap()
+        .push(attention_hook_entry(
+            "",
+            "aibox-agent-signal error --harness claude",
+        ));
 
     // Ensure parent dir exists.
     if let Some(parent) = path.parent() {
@@ -306,11 +369,26 @@ fn write_codex_hooks_json(path: &Path) -> Result<()> {
     );
     hooks.insert(
         "user_prompt_submit".to_string(),
-        serde_json::json!({"command": compliance_cmd}),
+        serde_json::json!({"command": format!("aibox-agent-signal working --harness codex >/dev/null 2>&1 || true; {compliance_cmd}")}),
     );
     hooks.insert(
         "pre_tool_use".to_string(),
         serde_json::json!({"command": route_guard_cmd}),
+    );
+    // Codex exposes permission_request/stopped lifecycle hooks in current
+    // releases. Older versions ignore these unknown keys and retain the
+    // useful session/user-prompt lifecycle signals above.
+    hooks.insert(
+        "permission_request".to_string(),
+        serde_json::json!({"command": "aibox-agent-signal question --harness codex"}),
+    );
+    hooks.insert(
+        "stopped".to_string(),
+        serde_json::json!({"command": "aibox-agent-signal done --harness codex"}),
+    );
+    hooks.insert(
+        "session_end".to_string(),
+        serde_json::json!({"command": "aibox-agent-signal idle --harness codex"}),
     );
 
     if let Some(parent) = path.parent() {
@@ -405,7 +483,7 @@ fn write_cursor_hooks_json(path: &Path) -> Result<()> {
             .into_iter()
             .filter(|v| {
                 let cmd = v.get("command").and_then(|c| c.as_str()).unwrap_or("");
-                !cmd.contains(CURSOR_MANAGED_MARKER)
+                !cmd.contains(CURSOR_MANAGED_MARKER) && !cmd.contains(AIBOX_SIGNAL_MANAGED_MARKER)
             })
             .collect();
         kept.push(entry.clone());
@@ -415,6 +493,24 @@ fn write_cursor_hooks_json(path: &Path) -> Result<()> {
 
     merge(hooks, "preToolUse", &pre_tool_use_entry)?;
     merge(hooks, "beforeMCPExecution", &before_mcp_entry)?;
+    merge(
+        hooks,
+        "beforeSubmitPrompt",
+        &serde_json::json!({
+            "command": "aibox-agent-signal working --harness cursor",
+            "description": "aibox: mark Cursor agent working",
+            "alwaysApprove": true
+        }),
+    )?;
+    merge(
+        hooks,
+        "stop",
+        &serde_json::json!({
+            "command": "aibox-agent-signal done --harness cursor",
+            "description": "aibox: mark Cursor agent done",
+            "alwaysApprove": true
+        }),
+    )?;
 
     // Ensure parent directory exists.
     if let Some(parent) = path.parent() {
@@ -427,20 +523,6 @@ fn write_cursor_hooks_json(path: &Path) -> Result<()> {
     fs::write(path, formatted).with_context(|| format!("failed to write {}", path.display()))?;
 
     Ok(())
-}
-
-// ---------------------------------------------------------------------------
-// Trait extension — `bool::not()` for readability in `.retain` closures
-// ---------------------------------------------------------------------------
-
-trait BoolExt {
-    fn not(self) -> bool;
-}
-
-impl BoolExt for bool {
-    fn not(self) -> bool {
-        !self
-    }
 }
 
 // ---------------------------------------------------------------------------
@@ -536,6 +618,11 @@ version = "unset"
         let matcher = ptu[0]["matcher"].as_str().unwrap();
         assert!(matcher.contains("Write"), "matcher should include Write");
         assert!(matcher.contains("Edit"), "matcher should include Edit");
+
+        assert!(hooks["PermissionRequest"].to_string().contains("question"));
+        assert!(hooks["Notification"].to_string().contains("idle_prompt"));
+        assert!(hooks["Stop"].to_string().contains(" done "));
+        assert!(hooks["StopFailure"].to_string().contains(" error "));
     }
 
     // -----------------------------------------------------------------------
@@ -620,6 +707,19 @@ version = "unset"
         );
         let ups = hooks["user_prompt_submit"]["command"].as_str().unwrap();
         assert!(ups.contains("emit_compliance_contract.py"));
+        assert!(ups.contains("aibox-agent-signal working"));
+        assert!(
+            hooks["permission_request"]["command"]
+                .as_str()
+                .unwrap()
+                .contains("question")
+        );
+        assert!(
+            hooks["stopped"]["command"]
+                .as_str()
+                .unwrap()
+                .contains("done")
+        );
 
         let ptu = hooks["pre_tool_use"]["command"].as_str().unwrap();
         assert!(ptu.contains("check_route_task_called.py"));
@@ -779,6 +879,8 @@ version = "unset"
             hooks.get("sessionStart").is_none(),
             "sessionStart must not be wired for Cursor (known bug)"
         );
+        assert!(hooks["beforeSubmitPrompt"].to_string().contains("working"));
+        assert!(hooks["stop"].to_string().contains("done"));
     }
 
     #[test]

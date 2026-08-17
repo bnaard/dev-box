@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import argparse
+import contextlib
 import os
 import subprocess
 import sys
@@ -168,6 +169,26 @@ def _spawn_daemon(
         raise
 
 
+@contextlib.contextmanager
+def _daemon_start_lock(host: str, port: int):
+    """Serialize local daemon startup across concurrently starting harnesses."""
+
+    lock_path = Path(f"/tmp/processkit-gateway-{host.replace(':', '_')}-{port}.lock")
+    lock_file = lock_path.open("a+")
+    try:
+        if os.name == "posix":
+            import fcntl
+
+            fcntl.flock(lock_file.fileno(), fcntl.LOCK_EX)
+        yield
+    finally:
+        if os.name == "posix":
+            import fcntl
+
+            fcntl.flock(lock_file.fileno(), fcntl.LOCK_UN)
+        lock_file.close()
+
+
 async def ensure_upstream_daemon(
     config: ProxyConfig,
 ) -> subprocess.Popen[Any] | None:
@@ -181,25 +202,28 @@ async def ensure_upstream_daemon(
         return None
 
     host, port, _path = binding
-    if await _tcp_ready(host, port, timeout=0.2):
-        return None
+    with _daemon_start_lock(host, port):
+        # Recheck after acquiring the cross-process lock: another harness may
+        # have started the shared daemon while this proxy was waiting.
+        if await _tcp_ready(host, port, timeout=0.2):
+            return None
 
-    process = _spawn_daemon(
-        config.daemon_command,
-        log_path=config.daemon_log_path,
-    )
-    if await _tcp_ready(host, port, timeout=config.daemon_start_timeout):
-        return process
+        process = _spawn_daemon(
+            config.daemon_command,
+            log_path=config.daemon_log_path,
+        )
+        if await _tcp_ready(host, port, timeout=config.daemon_start_timeout):
+            return process
 
-    exit_code = process.poll()
-    message = f"gateway daemon did not become ready at {host}:{port}"
-    if exit_code is not None:
-        message += f"; daemon exited with code {exit_code}"
-    else:
-        process.terminate()
-    if config.daemon_log_path is not None:
-        message += f"; see {config.daemon_log_path}"
-    raise RuntimeError(message)
+        exit_code = process.poll()
+        message = f"gateway daemon did not become ready at {host}:{port}"
+        if exit_code is not None:
+            message += f"; daemon exited with code {exit_code}"
+        else:
+            process.terminate()
+        if config.daemon_log_path is not None:
+            message += f"; see {config.daemon_log_path}"
+        raise RuntimeError(message)
 
 
 def load_mcp_sdk() -> McpSdkBindings:

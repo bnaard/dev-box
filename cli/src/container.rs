@@ -1790,6 +1790,76 @@ pub(crate) fn serialize_config_with_comments(config: &AiboxConfig) -> String {
         config.tmux_session_name()
     ));
     out.push('\n');
+    out.push_str("# tmux terminal/tab title. The runtime attention helper updates the\n");
+    out.push_str("# @aibox_attention_* tmux options used by this format.\n");
+    out.push_str("# Placeholders: {state_symbol}, {state}, {project}, {session}, {window},\n");
+    out.push_str("# {window_index}, {pane}, {directory}, {directory_path}, {repository},\n");
+    out.push_str("# {branch}, {harness}, {agent}, {task}, {message}, {elapsed}.\n");
+    out.push_str("[customization.tmux.title]\n");
+    out.push_str(&format!(
+        "enabled = {}\n",
+        config.customization.tmux.title.enabled
+    ));
+    out.push_str(&format!(
+        "format = {}\n",
+        toml_string_value(&config.customization.tmux.title.format)
+    ));
+    out.push_str(&format!(
+        "max-length = {}\n",
+        config.customization.tmux.title.max_length
+    ));
+    out.push_str(&format!(
+        "directory-style = {}  # basename | abbreviated | full\n",
+        toml_string_value(&config.customization.tmux.title.directory_style)
+    ));
+    out.push_str(&format!(
+        "done-ttl-seconds = {}\n",
+        config.customization.tmux.title.done_ttl_seconds
+    ));
+    out.push_str(&format!(
+        "message-max-length = {}\n",
+        config.customization.tmux.title.message_max_length
+    ));
+    out.push_str("\n[customization.tmux.title.states]\n");
+    let title_states = &config.customization.tmux.title.states;
+    out.push_str(&format!(
+        "working = {}\n",
+        toml_string_value(&title_states.working)
+    ));
+    out.push_str(&format!(
+        "question = {}\n",
+        toml_string_value(&title_states.question)
+    ));
+    out.push_str(&format!(
+        "done = {}\n",
+        toml_string_value(&title_states.done)
+    ));
+    out.push_str(&format!(
+        "error = {}\n",
+        toml_string_value(&title_states.error)
+    ));
+    out.push_str(&format!(
+        "idle = {}\n",
+        toml_string_value(&title_states.idle)
+    ));
+    out.push_str("\n[customization.tmux.notifications]\n");
+    out.push_str(&format!(
+        "enabled = {}  # terminal attention notifications; opt-in\n",
+        config.customization.tmux.notifications.enabled
+    ));
+    out.push_str(&format!(
+        "protocol = {}  # osc-9 | bell\n",
+        toml_string_value(&config.customization.tmux.notifications.protocol)
+    ));
+    out.push_str(&format!(
+        "states = {}\n",
+        toml_string_array(&config.customization.tmux.notifications.states)
+    ));
+    out.push_str(&format!(
+        "include-message = {}\n",
+        config.customization.tmux.notifications.include_message
+    ));
+    out.push('\n');
     out.push_str("# tmux status presentation.\n");
     out.push_str("# - extended: full aibox themed status (legacy alias: powerline)\n");
     out.push_str("# - plain: minimal tmux-native status text\n");
