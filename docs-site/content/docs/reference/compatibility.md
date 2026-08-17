@@ -12,6 +12,7 @@ below shows the minimum compatible processkit version for each aibox release.
 
 | aibox version | Min. processkit | Notes |
 |--------------|-----------------|-------|
+| 0.33.1 | v0.28.6 | restores generated AI harness startup under nounset, keeps Yazi directory previews compatible across supported image pins, and aligns PowerKit plugin spacing with window tabs |
 | 0.33.0 | v0.28.6 | adds configurable, terminal-neutral tmux titles and lifecycle attention signals for AI harness panes, with optional notifications |
 | 0.32.6 | v0.28.6 | refreshes curated tool pins, including Go 1.26.6, and routes every Yazi copy action through the tmux and host clipboard bridge |
 | 0.32.5 | v0.28.6 | embeds the canonical addon catalog so stale host installs cannot hide shipped tools, refreshes same-version installs, and adds Yazi/Vim clipboard and selectable-preview workflows |

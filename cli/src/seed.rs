@@ -540,6 +540,13 @@ end
 local function pad(s, w) return s .. string.rep(" ", math.max(0, w - #s)) end
 local function trunc(s, w) return #s <= w and s or s:sub(1, w - 1) .. "~" end
 
+-- th.icon was added after Yazi 26.5.6. A newer aibox CLI can refresh this
+-- managed plugin while a derived project still runs an older configured image,
+-- so omit the icon there instead of crashing or calling the deprecated method.
+local function file_icon(file)
+	return th.icon and th.icon.match and th.icon:match(file) or nil
+end
+
 function M:peek(job)
 	local files, err = fs.read_dir(job.file.url, { resolve = true })
 	if not files then
@@ -570,7 +577,7 @@ function M:peek(job)
 		local gs_style = is_inherited and GIT_STYLES_DIM[gs] or GIT_STYLES[gs]
 		local ignored = direct == "I"
 		gs = is_inherited and (gs:lower() .. " ") or (gs ~= "" and (gs .. " ") or "  ")
-		local icon = th.icon:match(f)
+		local icon = file_icon(f)
 		local size
 		if c.is_dir then
 			local children = fs.read_dir(f.url, {})
@@ -2451,8 +2458,9 @@ mod tests {
             "Directory previews must distinguish direct git status from inherited child status"
         );
         assert!(
-            DEFAULT_YAZI_PLUGIN_DIR_PREVIEW.contains("th.icon:match(f)")
-                && !DEFAULT_YAZI_PLUGIN_DIR_PREVIEW.contains("f:icon()"),
+            DEFAULT_YAZI_PLUGIN_DIR_PREVIEW.contains("th.icon:match(file)")
+                && DEFAULT_YAZI_PLUGIN_DIR_PREVIEW.contains("th.icon and th.icon.match")
+                && !DEFAULT_YAZI_PLUGIN_DIR_PREVIEW.contains(":icon()"),
             "Yazi 26 directory previews must use the theme icon matcher rather than deprecated File:icon()"
         );
     }

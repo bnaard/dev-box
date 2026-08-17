@@ -71,13 +71,20 @@ pr_args="$(<"$TEST_GH_ARGS")"
 [[ "$pr_args" == *"pullRequests(states:OPEN)"* ]]
 [[ "$pr_args" == *"--jq .data.repository.pullRequests.totalCount"* ]]
 
+_git() {
+    [[ "$*" == "describe --tags --abbrev=0 --match v[0-9]* HEAD" ]] || return 1
+    printf 'v0.33.0'
+}
+[[ "$(_current_release_tag)" == "v0.33.0" ]]
+
 plugin_data_set provider github
 plugin_data_set label GH
 plugin_data_set branch main
+plugin_data_set release_tag v0.33.0
 plugin_data_set issues 2
 plugin_data_set prs 3
 plugin_data_set discussions 4
-[[ "$(plugin_render)" == "GH main I2 P3 D4" ]]
+[[ "$(plugin_render)" == "GH main v0.33.0 I2 P3 D4" ]]
 
 TEST_GITHUB_HOSTS="github.com"
 _provider="" _label="" _owner="" _repo_name="" _api_base=""
