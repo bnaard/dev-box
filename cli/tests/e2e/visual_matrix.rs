@@ -426,6 +426,15 @@ echo "window={tab} binary={bin}"
 while true; do sleep 1; done
 "#
         );
+        let fixture_path = runner.root().join(format!(".aibox-home/.local/bin/{bin}"));
+        if std::fs::symlink_metadata(&fixture_path).is_ok() {
+            std::fs::remove_file(&fixture_path).unwrap_or_else(|error| {
+                panic!(
+                    "remove managed harness shim {}: {error}",
+                    fixture_path.display()
+                )
+            });
+        }
         runner.write_file(test_name, &format!(".aibox-home/.local/bin/{bin}"), &script);
         runner.exec(&format!(
             "chmod +x {workspace}/.aibox-home/.local/bin/{bin}"
