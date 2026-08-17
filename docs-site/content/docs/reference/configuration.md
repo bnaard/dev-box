@@ -110,6 +110,28 @@ layout = "dev"                        # tmux layout (4 options)
 [customization.tmux.status]
 mode = "extended"                     # extended | plain | disabled (legacy: powerline -> extended)
 
+[customization.tmux.title]
+# The terminal tab title is owned by tmux while inside tmux.
+enabled = true
+format = "{state_symbol}{project}:{window} — {directory}"
+max-length = 60
+directory-style = "basename"           # basename | abbreviated | full
+done-ttl-seconds = 10
+message-max-length = 32
+
+[customization.tmux.title.states]
+working = "● "
+question = "❓ "
+done = "✓ "
+error = "! "
+idle = ""
+
+[customization.tmux.notifications]
+enabled = false
+protocol = "osc-9"                    # osc-9 | bell
+states = ["question", "error"]
+include-message = true
+
 [customization.tmux.status.layout]
 # Row lists are ordered. Removing a name disables that status element.
 # Allowed line1-left entries:
@@ -822,6 +844,17 @@ Visual and layout configuration. See [Themes](../customization/themes.md) and [L
 | `prompt` | String | No | `"default"` | Starship preset: `default`, `plain`, `arrow`, `minimal`, `nerd-font`, `pastel`, `powerline-pastel`, `bracketed`. Legacy `pastel-powerline` is accepted as an alias. |
 | `layout` | String | No | `"dev"` | tmux layout: `dev`, `focus`, `cowork`, `ai` |
 | `tmux.status.mode` | String | No | `"extended"` | tmux status presentation: `extended` uses the themed multi-line PowerKit status, `plain` keeps minimal tmux text, `disabled` turns the status line off. Legacy `powerline` is accepted as an alias for `extended`. |
+| `tmux.title.enabled` | Boolean | No | `true` | Emit a configurable, state-aware terminal tab title from tmux. Set `false` to leave terminal title ownership to the terminal or shell. |
+| `tmux.title.format` | String | No | `"{state_symbol}{project}:{window} — {directory}"` | Title template. Supported values are documented in [Agent attention titles](../customization/agent-attention-titles.md). |
+| `tmux.title.max-length` | Integer | No | `60` | Maximum rendered title length. Values are truncated safely. |
+| `tmux.title.directory-style` | String | No | `"basename"` | Directory rendering: `basename`, `abbreviated`, or `full`. |
+| `tmux.title.done-ttl-seconds` | Integer | No | `10` | How long a completion marker remains visible before returning to idle. |
+| `tmux.title.message-max-length` | Integer | No | `32` | Maximum length of an agent question/error message inserted into a title. Escape/control characters are removed. |
+| `tmux.title.states.*` | String | No | state symbols | Per-state symbols for `idle`, `working`, `question`, `done`, and `error`. |
+| `tmux.notifications.enabled` | Boolean | No | `false` | Emit optional terminal attention notifications from tmux on configured state transitions. |
+| `tmux.notifications.protocol` | String | No | `"osc-9"` | Notification backend: message-bearing `osc-9` on supporting terminals, or portable `bell`. |
+| `tmux.notifications.states` | Array of strings | No | `["question", "error"]` | Attention states that trigger notifications: `working`, `question`, `done`, `error`, or `idle`. |
+| `tmux.notifications.include-message` | Boolean | No | `true` | Include sanitized question/error text in a notification when available. |
 | `tmux.status.separators.style` | String | No | `"rounded"` | PowerKit separator style: `normal`, `rounded`, `slant`, `slantup`, `trapezoid`, `flame`, `pixel`, `honeycomb`, `none`. |
 | `tmux.status.separators.edge-style` | String | No | `"rounded"` | PowerKit edge separator style for status boundaries. Uses the same values as `style`. |
 | `tmux.status.separators.elements-spacing` | String | No | `"both"` | PowerKit spacing mode: `false`, `true`, `both`, `windows`, `plugins`. |

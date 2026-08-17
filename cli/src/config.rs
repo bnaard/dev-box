@@ -1935,6 +1935,140 @@ fn bool_false() -> bool {
     false
 }
 
+fn default_tmux_title_format() -> String {
+    "{state_symbol}{project}:{window} — {directory}".to_string()
+}
+
+fn default_tmux_title_max_length() -> u32 {
+    60
+}
+
+fn default_tmux_title_done_ttl_seconds() -> u32 {
+    10
+}
+
+fn default_tmux_title_message_max_length() -> u32 {
+    32
+}
+
+fn default_tmux_title_directory_style() -> String {
+    "basename".to_string()
+}
+
+fn default_tmux_title_working_symbol() -> String {
+    "● ".to_string()
+}
+
+fn default_tmux_title_question_symbol() -> String {
+    "❓ ".to_string()
+}
+
+fn default_tmux_title_done_symbol() -> String {
+    "✓ ".to_string()
+}
+
+fn default_tmux_title_error_symbol() -> String {
+    "! ".to_string()
+}
+
+/// Per-attention-state symbols. Fields use serde defaults independently so a
+/// TOML override such as `question = "? "` does not discard other defaults.
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+#[serde(rename_all = "kebab-case")]
+pub struct TmuxTitleStatesSection {
+    #[serde(default = "default_tmux_title_working_symbol")]
+    pub working: String,
+    #[serde(default = "default_tmux_title_question_symbol")]
+    pub question: String,
+    #[serde(default = "default_tmux_title_done_symbol")]
+    pub done: String,
+    #[serde(default = "default_tmux_title_error_symbol")]
+    pub error: String,
+    #[serde(default)]
+    pub idle: String,
+}
+
+impl Default for TmuxTitleStatesSection {
+    fn default() -> Self {
+        Self {
+            working: default_tmux_title_working_symbol(),
+            question: default_tmux_title_question_symbol(),
+            done: default_tmux_title_done_symbol(),
+            error: default_tmux_title_error_symbol(),
+            idle: String::new(),
+        }
+    }
+}
+
+/// Configurable tmux tab-title presentation. Runtime helpers publish the
+/// current attention state through tmux user options; the title format only
+/// controls how that state and workspace metadata are presented.
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+#[serde(rename_all = "kebab-case")]
+pub struct TmuxTitleSection {
+    #[serde(default = "bool_true")]
+    pub enabled: bool,
+    #[serde(default = "default_tmux_title_format")]
+    pub format: String,
+    #[serde(default = "default_tmux_title_max_length")]
+    pub max_length: u32,
+    #[serde(default = "default_tmux_title_directory_style")]
+    pub directory_style: String,
+    #[serde(default = "default_tmux_title_done_ttl_seconds")]
+    pub done_ttl_seconds: u32,
+    #[serde(default = "default_tmux_title_message_max_length")]
+    pub message_max_length: u32,
+    #[serde(default)]
+    pub states: TmuxTitleStatesSection,
+}
+
+impl Default for TmuxTitleSection {
+    fn default() -> Self {
+        Self {
+            enabled: true,
+            format: default_tmux_title_format(),
+            max_length: default_tmux_title_max_length(),
+            directory_style: default_tmux_title_directory_style(),
+            done_ttl_seconds: default_tmux_title_done_ttl_seconds(),
+            message_max_length: default_tmux_title_message_max_length(),
+            states: TmuxTitleStatesSection::default(),
+        }
+    }
+}
+
+fn default_tmux_notification_states() -> Vec<String> {
+    vec!["question".to_string(), "error".to_string()]
+}
+
+fn default_tmux_notification_protocol() -> String {
+    "osc-9".to_string()
+}
+
+/// Optional terminal attention notifications emitted by the runtime helper.
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+#[serde(rename_all = "kebab-case")]
+pub struct TmuxNotificationsSection {
+    #[serde(default = "bool_false")]
+    pub enabled: bool,
+    #[serde(default = "default_tmux_notification_protocol")]
+    pub protocol: String,
+    #[serde(default = "default_tmux_notification_states")]
+    pub states: Vec<String>,
+    #[serde(default = "bool_true")]
+    pub include_message: bool,
+}
+
+impl Default for TmuxNotificationsSection {
+    fn default() -> Self {
+        Self {
+            enabled: false,
+            protocol: default_tmux_notification_protocol(),
+            states: default_tmux_notification_states(),
+            include_message: true,
+        }
+    }
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 #[serde(rename_all = "kebab-case")]
 pub struct TmuxStatusAiboxMetricsSection {
@@ -2706,6 +2840,10 @@ pub struct TmuxSection {
     #[serde(default)]
     pub status: TmuxStatusSection,
     #[serde(default)]
+    pub title: TmuxTitleSection,
+    #[serde(default)]
+    pub notifications: TmuxNotificationsSection,
+    #[serde(default)]
     pub layout_switch: TmuxLayoutSwitchSection,
     #[serde(default)]
     pub theme_switch: TmuxThemeSwitchSection,
@@ -2718,6 +2856,8 @@ impl Default for TmuxSection {
             prefix: default_tmux_prefix(),
             session_name: default_tmux_session_name(),
             status: TmuxStatusSection::default(),
+            title: TmuxTitleSection::default(),
+            notifications: TmuxNotificationsSection::default(),
             layout_switch: TmuxLayoutSwitchSection::default(),
             theme_switch: TmuxThemeSwitchSection::default(),
         }
@@ -4431,6 +4571,8 @@ impl AiboxConfig {
         self.validate_tmux_status_refresh()?;
         self.validate_tmux_status_forge()?;
         self.validate_tmux_model_provider_status()?;
+        self.validate_tmux_title()?;
+        self.validate_tmux_notifications()?;
 
         Ok(())
     }
@@ -4737,6 +4879,142 @@ impl AiboxConfig {
                         checks.iter().copied().collect::<Vec<_>>().join(", ")
                     );
                 }
+            }
+        }
+        Ok(())
+    }
+
+    fn validate_tmux_title(&self) -> Result<()> {
+        const PLACEHOLDERS: &[&str] = &[
+            "state_symbol",
+            "state",
+            "project",
+            "session",
+            "window",
+            "window_index",
+            "pane",
+            "directory",
+            "directory_path",
+            "repository",
+            "branch",
+            "harness",
+            "agent",
+            "task",
+            "message",
+            "elapsed",
+        ];
+        let title = &self.customization.tmux.title;
+        if title.format.trim().is_empty() {
+            bail!("customization.tmux.title.format cannot be empty");
+        }
+        let mut rest = title.format.as_str();
+        while let Some(open) = rest.find('{') {
+            if rest[..open].contains('}') {
+                bail!(
+                    "customization.tmux.title.format contains a closing brace without a placeholder"
+                );
+            }
+            let after_open = &rest[open + 1..];
+            let close = after_open.find('}').ok_or_else(|| {
+                anyhow::anyhow!(
+                    "customization.tmux.title.format contains an unterminated placeholder"
+                )
+            })?;
+            let placeholder = &after_open[..close];
+            if placeholder.contains('{') {
+                bail!("customization.tmux.title.format contains a nested opening brace");
+            }
+            if !PLACEHOLDERS.contains(&placeholder) {
+                bail!(
+                    "customization.tmux.title.format contains unknown placeholder '{{{placeholder}}}'; supported placeholders: {}",
+                    PLACEHOLDERS.join(", ")
+                );
+            }
+            if rest[..open]
+                .chars()
+                .any(|ch| ch.is_control() || matches!(ch as u32, 0x80..=0x9f))
+            {
+                bail!(
+                    "customization.tmux.title.format literals must not contain terminal control characters"
+                );
+            }
+            rest = &after_open[close + 1..];
+        }
+        if rest.contains('}') {
+            bail!("customization.tmux.title.format contains a closing brace without a placeholder");
+        }
+        if rest
+            .chars()
+            .any(|ch| ch.is_control() || matches!(ch as u32, 0x80..=0x9f))
+        {
+            bail!(
+                "customization.tmux.title.format literals must not contain terminal control characters"
+            );
+        }
+        if title.max_length == 0 || title.max_length > 240 {
+            bail!("customization.tmux.title.max-length must be between 1 and 240 characters");
+        }
+        if title.message_max_length == 0 || title.message_max_length > 256 {
+            bail!(
+                "customization.tmux.title.message-max-length must be between 1 and 256 characters"
+            );
+        }
+        if title.done_ttl_seconds > 86_400 {
+            bail!("customization.tmux.title.done-ttl-seconds must be between 0 and 86400 seconds");
+        }
+        if !matches!(
+            title.directory_style.as_str(),
+            "basename" | "abbreviated" | "full"
+        ) {
+            bail!(
+                "customization.tmux.title.directory-style '{}' is unsupported; expected basename, abbreviated, or full",
+                title.directory_style
+            );
+        }
+        let symbols = [
+            ("working", &title.states.working),
+            ("question", &title.states.question),
+            ("done", &title.states.done),
+            ("error", &title.states.error),
+            ("idle", &title.states.idle),
+        ];
+        for (state, symbol) in symbols {
+            if symbol
+                .chars()
+                .any(|ch| ch.is_control() || matches!(ch as u32, 0x80..=0x9f))
+            {
+                bail!("customization.tmux.title.states.{state} must be a single-line string");
+            }
+        }
+        Ok(())
+    }
+
+    fn validate_tmux_notifications(&self) -> Result<()> {
+        const STATES: &[&str] = &["working", "question", "done", "error", "idle"];
+        if !matches!(
+            self.customization.tmux.notifications.protocol.as_str(),
+            "osc-9" | "bell"
+        ) {
+            bail!(
+                "customization.tmux.notifications.protocol '{}' is unsupported; expected osc-9 or bell",
+                self.customization.tmux.notifications.protocol
+            );
+        }
+        let configured = &self.customization.tmux.notifications.states;
+        let mut seen = BTreeSet::new();
+        for state in configured {
+            if !STATES.contains(&state.as_str()) {
+                bail!(
+                    "customization.tmux.notifications.states contains unknown state '{}'; supported states: {}",
+                    state,
+                    STATES.join(", ")
+                );
+            }
+            if !seen.insert(state.as_str()) {
+                bail!(
+                    "customization.tmux.notifications.states contains duplicate state '{}'",
+                    state
+                );
             }
         }
         Ok(())
@@ -5138,10 +5416,45 @@ fn check_customization_table(
         check_child_table(
             customization,
             "tmux",
-            &["layout", "prefix", "session_name", "status"],
+            &[
+                "layout",
+                "prefix",
+                "session_name",
+                "status",
+                "title",
+                "notifications",
+            ],
             mismatches,
         );
         if let Some(tmux) = table_child(customization, "tmux") {
+            check_child_table(
+                tmux,
+                "title",
+                &[
+                    "enabled",
+                    "format",
+                    "max-length",
+                    "directory-style",
+                    "done-ttl-seconds",
+                    "message-max-length",
+                    "states",
+                ],
+                mismatches,
+            );
+            if let Some(title) = table_child(tmux, "title") {
+                check_child_table(
+                    title,
+                    "states",
+                    &["working", "question", "done", "error", "idle"],
+                    mismatches,
+                );
+            }
+            check_child_table(
+                tmux,
+                "notifications",
+                &["enabled", "protocol", "states", "include-message"],
+                mismatches,
+            );
             check_child_table(
                 tmux,
                 "status",
@@ -8138,5 +8451,60 @@ port = 8765
         config.latex.preview.bind = "0.0.0.0".to_string();
         let error = config.validate().unwrap_err().to_string();
         assert!(error.contains("allow_public"));
+    }
+
+    #[test]
+    fn tmux_title_defaults_are_enabled_and_validate() {
+        let config = test_config();
+        config.validate().unwrap();
+        assert!(config.customization.tmux.title.enabled);
+        assert!(!config.customization.tmux.notifications.enabled);
+        assert_eq!(config.customization.tmux.notifications.protocol, "osc-9");
+        assert_eq!(config.customization.tmux.title.states.question, "❓ ");
+    }
+
+    #[test]
+    fn tmux_title_rejects_unknown_placeholders_and_states() {
+        let mut config = test_config();
+        config.customization.tmux.title.format = "{not_a_token}".to_string();
+        let error = config.validate().unwrap_err().to_string();
+        assert!(error.contains("unknown placeholder"));
+
+        let mut config = test_config();
+        config.customization.tmux.notifications.states = vec!["waiting".to_string()];
+        let error = config.validate().unwrap_err().to_string();
+        assert!(error.contains("unknown state"));
+
+        let mut config = test_config();
+        config.customization.tmux.notifications.protocol = "ghostty".to_string();
+        let error = config.validate().unwrap_err().to_string();
+        assert!(error.contains("expected osc-9 or bell"));
+    }
+
+    #[test]
+    fn tmux_title_rejects_terminal_controls() {
+        let mut config = test_config();
+        config.customization.tmux.title.format = "prefix\u{1b}[31m{state}".to_string();
+        let error = config.validate().unwrap_err().to_string();
+        assert!(error.contains("control characters"));
+    }
+
+    #[test]
+    fn tmux_title_state_overrides_are_partial() {
+        let config = parse_toml(
+            r#"
+[aibox]
+config-schema = "1.0.0"
+project-name = "demo"
+[container]
+name = "demo"
+[customization.tmux.title.states]
+question = "? "
+"#,
+        )
+        .unwrap();
+        assert_eq!(config.customization.tmux.title.states.question, "? ");
+        assert_eq!(config.customization.tmux.title.states.working, "● ");
+        assert_eq!(config.customization.tmux.title.states.error, "! ");
     }
 }

@@ -1,19 +1,25 @@
-# aibox v0.32.6 — 2026-08-16
+# aibox v0.33.0 — 2026-08-17
 
-**Summary:** This patch refreshes the v0.x toolchain catalog and makes Yazi's path-copy menu reliably reach the tmux and host clipboard.
+**Summary:** This minor release makes AI-agent attention visible in tmux-owned terminal titles without binding the experience to a particular terminal or provider. Existing projects can opt into desktop-style notifications and customize title content, symbols, and limits through `aibox.toml`.
+
+## Added
+
+- Added configurable tmux terminal titles with project, window, directory, repository, branch, harness, agent, task, message, elapsed-time, and attention-state placeholders.
+- Added provider-neutral `aibox-agent-signal` lifecycle integration for generated AI panes and supported harness hooks, including working, question, done, error, and idle states.
+- Added optional OSC 9 or bell notifications with configurable states and message inclusion.
 
 ## Changed
 
-- Updated curated tool versions, including Go 1.26.6, Yazi 26.8.15, uv 0.12.5, Hugo 0.165.0, pnpm 11.22.0, PDM 2.28.1, Ansible 14.3.1, Helm 4.2.4, Tau 0.3.10, and Zensical 0.0.55.
-- Updated the Rust dependency lockfile to the current compatible patch releases.
+- Generated tmux layouts now wrap AI harness processes with safe lifecycle fallbacks while preserving an interactive shell after completion or failure.
+- Refreshed the generated v0.32.6 runtime and processkit installation baseline used by this project.
 
 ## Fixed
 
-- Fixed `govulncheck` installation failures caused by the previous Go 1.26.5 pin.
-- Fixed Yazi's `c p`, `c d`, `c f`, and `c n` actions so copied paths, directory names, filenames, and stems are sent through `aibox-copy` to both the tmux buffer and host clipboard.
+- Updated generated Yazi directory previews to use the Yazi 26 theme icon matcher instead of the removed file icon method.
+- Serialized processkit gateway startup so concurrent harnesses do not race to launch the shared daemon.
 
 ## Upgrade notes
 
-Upgrade the host CLI to v0.32.6 and run `aibox apply` to regenerate the container and managed Yazi configuration.
+Upgrade the host CLI to v0.33.0 and run `aibox apply` to generate the attention helper, harness hooks, and tmux title configuration. Notifications remain disabled unless explicitly enabled.
 
-[v0.32.6]: https://github.com/projectious-work/aibox/compare/v0.32.5...v0.32.6
+[v0.33.0]: https://github.com/projectious-work/aibox/compare/v0.32.6...v0.33.0

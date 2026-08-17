@@ -48,8 +48,6 @@ _SKIP_DIRS = {
     ".git",
     ".venv",
     "node_modules",
-    "target",
-    "tmp",
     "dist",
     "build",
     ".pytest_cache",
@@ -184,9 +182,7 @@ def _iter_files(root: Path, names: set[str]) -> list[Path]:
         dirnames[:] = [
             d
             for d in dirnames
-            if d not in _SKIP_DIRS
-            and not d.startswith(".")
-            and not (Path(dirpath) / d / ".git").exists()
+            if d not in _SKIP_DIRS and not d.startswith(".")
         ]
         for filename in filenames:
             if _normalize(filename) in wanted:
@@ -240,9 +236,7 @@ def _find_sbom_files(repo_root: Path) -> list[Path]:
         dirnames[:] = [
             d
             for d in dirnames
-            if d not in _SKIP_DIRS
-            and not d.startswith(".")
-            and not (Path(dirpath) / d / ".git").exists()
+            if d not in _SKIP_DIRS and not d.startswith(".")
         ]
         for filename in filenames:
             lower = filename.lower()

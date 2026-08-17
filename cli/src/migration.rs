@@ -863,6 +863,7 @@ fn should_refresh_generated_aibox_toml_comments_for_catalog(
         && (!raw.contains("# Addon catalog — uncomment/comment one block header")
             || !raw.contains(&expected_catalog_marker)
             || !raw.contains("# Skill catalog — uncomment/comment one line")
+            || !raw.contains("[customization.tmux.title]")
             || !raw.contains("disable a default-on tool")
             || raw.contains("config_schema =")
             || raw.contains("[metadata]")
@@ -2872,6 +2873,7 @@ enabled = false
         let base = "# aibox.toml — single source of truth\n\
 # Addon catalog — uncomment/comment one block header\n\
 # Skill catalog — uncomment/comment one line\n\
+# [customization.tmux.title]\n\
 # Inside an enabled addon, omitted default-enabled tools stay enabled. Uncomment\n\
 # a tool line to pin a version, enable an off-by-default tool, or disable a default-on tool.\n";
         let current = format!("{base}# Addon catalog fingerprint: new-catalog\n");

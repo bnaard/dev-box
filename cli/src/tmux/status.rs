@@ -85,6 +85,7 @@ AIBOX_TMUX_LAYOUT_SWITCH_BINDING
 AIBOX_TMUX_THEME_SWITCH_BINDING
 
 set -g status AIBOX_TMUX_STATUS
+AIBOX_TMUX_TITLE_BLOCK
 set -g status-style "bg=AIBOX_TMUX_BG,fg=AIBOX_TMUX_FG"
 set -g window-status-current-style "bg=AIBOX_TMUX_ACCENT,fg=AIBOX_TMUX_BG,bold"
 set -g window-status-format " #I:#W "
@@ -142,6 +143,7 @@ pub fn tmux_conf(config: &AiboxConfig) -> String {
         TmuxStatusMode::Plain | TmuxStatusMode::Disabled => "%H:%M",
     };
     let (powerkit_block, powerkit_plugin, powerkit_formats) = tmux_powerkit_settings(config);
+    let title_block = tmux_title_settings(config);
 
     let mut conf = DEFAULT_TMUX_CONF
         .replace("AIBOX_TMUX_PREFIX", &config.customization.tmux.prefix)
@@ -158,6 +160,7 @@ pub fn tmux_conf(config: &AiboxConfig) -> String {
                 .to_string(),
         )
         .replace("AIBOX_TMUX_STATUS", status)
+        .replace("AIBOX_TMUX_TITLE_BLOCK", &title_block)
         .replace("AIBOX_TMUX_POWERKIT_BLOCK", &powerkit_block)
         .replace("AIBOX_TMUX_POWERKIT_PLUGIN", &powerkit_plugin)
         .replace("AIBOX_TMUX_POWERKIT_FORMATS", &powerkit_formats)
@@ -187,6 +190,139 @@ pub fn tmux_conf(config: &AiboxConfig) -> String {
         );
     }
     conf
+}
+
+/// Render the tmux-owned terminal title. Runtime helpers update the
+/// `@aibox_attention_*` user options; no task/message text is embedded here.
+/// `elapsed` is intentionally a transition snapshot supplied by the helper,
+/// rather than a continuously-updating shell command in tmux's title path.
+fn tmux_title_settings(config: &AiboxConfig) -> String {
+    let title = &config.customization.tmux.title;
+    let mut lines = vec![
+        format!(
+            "set -g set-titles {}",
+            if title.enabled { "on" } else { "off" }
+        ),
+        format!(
+            "set -g @aibox_title_project \"{}\"",
+            tmux_option_escape(&config.aibox.project_name)
+        ),
+        format!(
+            "set -g @aibox_title_message_max_length \"{}\"",
+            title.message_max_length
+        ),
+        format!(
+            "set -g @aibox_done_ttl_seconds \"{}\"",
+            title.done_ttl_seconds
+        ),
+        format!(
+            "set -g @aibox_notifications_enabled \"{}\"",
+            if config.customization.tmux.notifications.enabled {
+                1
+            } else {
+                0
+            }
+        ),
+        format!(
+            "set -g @aibox_notifications_protocol \"{}\"",
+            tmux_option_escape(&config.customization.tmux.notifications.protocol)
+        ),
+        format!(
+            "set -g @aibox_notifications_include_message \"{}\"",
+            if config.customization.tmux.notifications.include_message {
+                1
+            } else {
+                0
+            }
+        ),
+        format!(
+            "set -g @aibox_notification_states \"{}\"",
+            config.customization.tmux.notifications.states.join(",")
+        ),
+    ];
+    if title.enabled {
+        let mut rendered = String::new();
+        let mut rest = title.format.as_str();
+        while let Some(open) = rest.find('{') {
+            rendered.push_str(&tmux_title_literal_escape(&rest[..open]));
+            let after_open = &rest[open + 1..];
+            let Some(close) = after_open.find('}') else {
+                // Validation reports this to users; keep generation non-panicking
+                // for programmatically assembled configs.
+                rendered.push_str(&tmux_title_literal_escape(after_open));
+                break;
+            };
+            rendered.push_str(&title_placeholder_expression(
+                &after_open[..close],
+                &title.directory_style,
+            ));
+            rest = &after_open[close + 1..];
+        }
+        rendered.push_str(&tmux_title_literal_escape(rest));
+        let mut title_expression = format!("#{{={}:{}", title.max_length, rendered);
+        title_expression.push('}');
+        lines.insert(
+            1,
+            format!("set -g set-titles-string \"{title_expression}\""),
+        );
+    }
+    if title.enabled || config.customization.tmux.notifications.enabled {
+        // Refresh aggregate attention state when a source pane exits. Append
+        // rather than replace so a user's existing hook remains authoritative.
+        lines.push(
+            "set-hook -g pane-died[90] 'run-shell -b \"aibox-agent-signal refresh --window \\\"#{window_id}\\\"\"'"
+                .to_string(),
+        );
+    }
+    for (state, symbol) in [
+        ("working", &title.states.working),
+        ("question", &title.states.question),
+        ("done", &title.states.done),
+        ("error", &title.states.error),
+        ("idle", &title.states.idle),
+    ] {
+        lines.push(format!(
+            "set -g @aibox_title_state_{state} \"{}\"",
+            tmux_option_escape(symbol)
+        ));
+    }
+    lines.join("\n")
+}
+
+fn tmux_title_literal_escape(value: &str) -> String {
+    // `#` starts a tmux format expansion. Doubling it makes user-authored
+    // punctuation literal while backslash/quote escaping protects the option.
+    tmux_option_escape(value).replace('#', "##")
+}
+
+fn title_placeholder_expression(placeholder: &str, directory_style: &str) -> String {
+    match placeholder {
+        "state_symbol" => "#{@aibox_attention_symbol}".to_string(),
+        "state" => "#{@aibox_attention_state}".to_string(),
+        // Project is an option rather than a raw config string so even a
+        // user-chosen project name cannot become tmux syntax.
+        "project" => "#{@aibox_title_project}".to_string(),
+        "session" => "#S".to_string(),
+        "window" => "#W".to_string(),
+        "window_index" => "#I".to_string(),
+        "pane" => "#P".to_string(),
+        "directory" => match directory_style {
+            "full" => "#{pane_current_path}".to_string(),
+            "abbreviated" => "#{s|^/home/[^/]*/|~/|:pane_current_path}".to_string(),
+            // tmux's basename modifier is stable across tmux 3.x versions.
+            _ => "#{b:pane_current_path}".to_string(),
+        },
+        "directory_path" => "#{pane_current_path}".to_string(),
+        "repository" => "#{@aibox_attention_repository}".to_string(),
+        "branch" => "#{@aibox_attention_branch}".to_string(),
+        "harness" => "#{@aibox_attention_harness}".to_string(),
+        "agent" => "#{@aibox_attention_agent}".to_string(),
+        "task" => "#{@aibox_attention_task}".to_string(),
+        "message" => "#{@aibox_attention_message}".to_string(),
+        "elapsed" => "#{@aibox_attention_elapsed}".to_string(),
+        // Validation rejects this; generation remains safe if called directly.
+        _ => String::new(),
+    }
 }
 
 /// Slot order constants — intentionally fixed per DEC-20260508_2115-SilentFern.
@@ -2048,5 +2184,31 @@ mod tests {
             conf.contains(r#"bind-key -N "Switch to shell window" s find-window -Z 'shell'"#),
             "leader s must jump to shell window:\n{conf}"
         );
+    }
+
+    #[test]
+    fn tmux_conf_renders_configurable_attention_title_and_runtime_options() {
+        let mut config = crate::config::test_config();
+        config.customization.tmux.title.format =
+            "{state_symbol}{project}:{window} {directory_path} {message}".to_string();
+        config.customization.tmux.title.max_length = 80;
+        config.customization.tmux.notifications.enabled = true;
+        let conf = tmux_conf(&config);
+
+        assert!(conf.contains("set -g set-titles on"));
+        assert!(conf.contains("#{=80:#{@aibox_attention_symbol}#{@aibox_title_project}:#W #{pane_current_path} #{@aibox_attention_message}}"));
+        assert!(conf.contains("set -g @aibox_notifications_enabled \"1\""));
+        assert!(conf.contains("set -g @aibox_notifications_protocol \"osc-9\""));
+        assert!(conf.contains("set -g @aibox_title_state_question \"❓ \""));
+        assert!(conf.contains("set-hook -g pane-died[90]"));
+    }
+
+    #[test]
+    fn tmux_conf_disables_title_without_attention_hook() {
+        let mut config = crate::config::test_config();
+        config.customization.tmux.title.enabled = false;
+        let conf = tmux_conf(&config);
+        assert!(conf.contains("set -g set-titles off"));
+        assert!(!conf.contains("pane-died[90]"));
     }
 }

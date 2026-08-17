@@ -718,6 +718,11 @@ pub static COMPAT_TABLE: &[CompatEntry] = &[
         processkit_version: "v0.28.6",
         note: "Patch release: refreshes curated tool pins, including Go 1.26.6, and routes every Yazi copy action through the tmux and host clipboard bridge.",
     },
+    CompatEntry {
+        aibox_version: "0.33.0",
+        processkit_version: "v0.28.6",
+        note: "Minor release: adds configurable, terminal-neutral tmux titles and lifecycle attention signals for AI harness panes, with optional notifications.",
+    },
 ];
 
 /// Find the minimum compatible processkit version for the given aibox version.
