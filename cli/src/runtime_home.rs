@@ -211,6 +211,14 @@ pub(crate) fn runtime_home_scaffold_dirs(config: &AiboxConfig) -> Vec<PathBuf> {
     if config
         .ai
         .harnesses
+        .contains(&crate::config::AiProvider::Copilot)
+    {
+        dirs.push(PathBuf::from(".copilot/hooks"));
+    }
+
+    if config
+        .ai
+        .harnesses
         .contains(&crate::config::AiProvider::Claude)
     {
         dirs.push(PathBuf::from(".cache/claude"));

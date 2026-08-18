@@ -952,9 +952,13 @@ export const ProcesskitGate: Plugin = async ({ project: _project }) => {
     event: async ({ event }: { event?: { type?: string; properties?: Record<string, unknown> } }) => {
       const type = String(event?.type ?? "");
       const properties = event?.properties ?? {};
-      if (type === "permission.asked") {
+      if (type === "permission.asked" || type === "question.asked") {
         signalAttention("question", String(properties.message ?? ""));
-      } else if (type === "permission.replied") {
+      } else if (
+        type === "permission.replied" ||
+        type === "question.replied" ||
+        type === "question.rejected"
+      ) {
         signalAttention("working");
       } else if (type === "session.error") {
         signalAttention("error", String(properties.message ?? ""));
@@ -971,6 +975,35 @@ export const ProcesskitGate: Plugin = async ({ project: _project }) => {
     },
   };
 };
+"#;
+
+/// GitHub Copilot CLI attention hooks. Copilot discovers all JSON hook files
+/// below `~/.copilot/hooks`, so this dedicated aibox-owned file coexists with
+/// user hook files without requiring a destructive settings merge.
+const DEFAULT_COPILOT_ATTENTION_HOOKS_JSON: &str = r#"{
+  "version": 1,
+  "hooks": {
+    "userPromptSubmitted": [
+      { "type": "command", "bash": "aibox-agent-signal working --harness copilot >/dev/null 2>&1 || true" }
+    ],
+    "permissionRequest": [
+      { "type": "command", "bash": "aibox-agent-signal question --harness copilot >/dev/null 2>&1 || true" }
+    ],
+    "notification": [
+      { "type": "command", "matcher": "permission_prompt|elicitation_dialog", "bash": "aibox-agent-signal question --harness copilot >/dev/null 2>&1 || true" },
+      { "type": "command", "matcher": "agent_idle", "bash": "aibox-agent-signal done --harness copilot >/dev/null 2>&1 || true" }
+    ],
+    "agentStop": [
+      { "type": "command", "bash": "aibox-agent-signal done --harness copilot >/dev/null 2>&1 || true" }
+    ],
+    "errorOccurred": [
+      { "type": "command", "bash": "aibox-agent-signal error --harness copilot >/dev/null 2>&1 || true" }
+    ],
+    "sessionEnd": [
+      { "type": "command", "bash": "aibox-agent-signal idle --harness copilot >/dev/null 2>&1 || true" }
+    ]
+  }
+}
 "#;
 
 /// Create the managed `.aibox-home/` directory structure without writing files.
@@ -1259,10 +1292,17 @@ pub fn managed_runtime_files(config: &AiboxConfig) -> Vec<(std::path::PathBuf, S
         files.push((std::path::PathBuf::from(".claude.json"), "{}\n".to_string()));
     }
 
-    if config.processkit_enabled() && providers.contains(&crate::config::AiProvider::OpenCode) {
+    if providers.contains(&crate::config::AiProvider::OpenCode) {
         files.push((
             std::path::PathBuf::from(".opencode/plugins/processkit-gate.ts"),
             DEFAULT_OPENCODE_PROCESSKIT_GATE_TS.to_string(),
+        ));
+    }
+
+    if providers.contains(&crate::config::AiProvider::Copilot) {
+        files.push((
+            std::path::PathBuf::from(".copilot/hooks/aibox-attention.json"),
+            DEFAULT_COPILOT_ATTENTION_HOOKS_JSON.to_string(),
         ));
     }
 
@@ -2571,10 +2611,45 @@ mod tests {
             body.contains("session.created") && body.contains("tool.execute.before"),
             "plugin must wire both lifecycle hooks"
         );
+        assert!(body.contains("question.asked"));
+        assert!(body.contains("question.replied"));
+        assert!(body.contains("question.rejected"));
         assert!(
             body.contains("acknowledge_contract"),
             "plugin must reference acknowledge_contract as the gate"
         );
+        clear_test_host_root();
+    }
+
+    #[test]
+    #[serial]
+    fn seed_root_dir_seeds_copilot_attention_hooks_when_enabled() {
+        let dir = tempfile::tempdir().unwrap();
+        let root = dir.path().join("root");
+        let mut config = make_config(false, root.clone());
+        config.ai.harnesses = vec![AiProvider::Copilot];
+        seed_root_dir(&config).unwrap();
+
+        let hook_path = root.join(".copilot/hooks/aibox-attention.json");
+        let body = fs::read_to_string(hook_path).unwrap();
+        let parsed: serde_json::Value = serde_json::from_str(&body).unwrap();
+        assert_eq!(parsed["version"].as_u64(), Some(1));
+        assert!(
+            parsed["hooks"]["userPromptSubmitted"]
+                .to_string()
+                .contains("working")
+        );
+        assert!(
+            parsed["hooks"]["permissionRequest"]
+                .to_string()
+                .contains("question")
+        );
+        assert!(
+            parsed["hooks"]["errorOccurred"]
+                .to_string()
+                .contains("error")
+        );
+        assert!(parsed["hooks"]["sessionEnd"].to_string().contains("idle"));
         clear_test_host_root();
     }
 
