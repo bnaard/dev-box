@@ -11,7 +11,7 @@ installed_at = "2026-08-18T16:07:47.800498324+00:00"
 processkit_install_hash = "v2:97e62c0ba86ec14a0d7bb846c17a75a89164d13d0fb35acdc1e74f9c3e6ac2bf"
 
 [addons]
-resolved_at = "2026-08-18T16:07:45Z"
+resolved_at = "2026-08-18T17:16:43Z"
 
 [addons.tools]
 codex = "0.147.0"
@@ -35,7 +35,7 @@ rust = [
 ]
 
 [runtime_home]
-generated_at = "2026-08-18T13:24:40.113635+00:00"
+generated_at = "2026-08-18T16:58:49.299419911+00:00"
 
 [runtime_home.files]
 ".asoundrc" = "f34609b11d315cd613cb5333b561032baec860faf4a7eccb28b5567ae72019af"
@@ -51,10 +51,10 @@ generated_at = "2026-08-18T13:24:40.113635+00:00"
 ".config/tmux/aibox-powerkit-overrides.tmux" = "45f8cd05192ac455c314a6420bf2d47012c8fccbe8e06f02205ca8bf57cd20b2"
 ".config/tmux/aibox-powerkit-theme.sh" = "b7d540f6938f11c78877eb6a7b7f02e15f2720a95b421513aaf7ba8eebe1a59f"
 ".config/tmux/aibox-session.sh" = "a2cb0ad6276471ad6f438d7a6379b6f43bbe29b5743da8f7dc7030d890400c50"
-".config/tmux/layouts/ai.sh" = "8ceeb6797e45454559452a0cbf07cdd3989f6f50774a2f2a68f0fa3839199433"
-".config/tmux/layouts/cowork.sh" = "d7cd03ee42cef1bbdb2389d9f2f2c853cd5c2bc1a34d5a5e7116faa6ebec6b04"
-".config/tmux/layouts/dev.sh" = "fc2377180626559674092b51f3141a0de5064cedf234cc8c4c3499196f27538a"
-".config/tmux/layouts/focus.sh" = "e5c143f060db06c03874c7ab23875f0504b01dd01c076119594e643928b47daf"
+".config/tmux/layouts/ai.sh" = "bbdc6cb4160882b2623f6fc6a0a2305f24dc279fae2e6ec46b0bb354b0e39a3e"
+".config/tmux/layouts/cowork.sh" = "a971fb6520d27db16a45c5ccbbc9c049535a2ed0cf44fa6cde217980dd658150"
+".config/tmux/layouts/dev.sh" = "8a7af7519ca42da55a751c7b6e3ac77545e7eda10c7fdab5985eb52084347cdb"
+".config/tmux/layouts/focus.sh" = "6ab7bd9a4c9d85496a231ec72cad62490bfebb4a7fc0715e3eef1ccf9bf79ce7"
 ".config/tmux/tmux.conf" = "583b94515285086dea8532bd978b27117ef14dc86c24a44a227485f81a845274"
 ".config/yazi/init.lua" = "eae04462c0b3bcbb486ee59aa9c2c9e9595680a0626997c942e5abb2ae5a48d7"
 ".config/yazi/keymap.toml" = "153c719f16e74dc92d127fb64793ca2e4715b258bab2d25a40c4652a9dd0a298"

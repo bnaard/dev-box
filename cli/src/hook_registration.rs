@@ -16,7 +16,8 @@
 //! | Harness     | Hook config file             | Hooks wired                          |
 //! |-------------|------------------------------|--------------------------------------|
 //! | Claude Code | `.claude/settings.json`      | SessionStart, UserPromptSubmit, PreToolUse |
-//! | Codex CLI   | `.codex/hooks.json`          | session_start, user_prompt_submit, pre_tool_use |
+//! | Codex CLI   | `.codex/hooks.json`          | SessionStart, UserPromptSubmit, PreToolUse |
+//! | Gemini CLI  | `.gemini/settings.json`      | BeforeAgent, AfterAgent, Notification, SessionEnd |
 //! | Cursor      | `.cursor/hooks.json`         | preToolUse, beforeMCPExecution (sessionStart skipped — Cursor bug) |
 //!
 //! The merge is non-destructive: only the processkit-managed hook entries
@@ -136,6 +137,17 @@ pub fn regenerate_hook_configs(config: &AiboxConfig, project_root: &Path) -> Res
         write_cursor_hooks_json(&path)?;
         output::ok(&format!(
             "Wrote processkit hook entries to {}",
+            path.display()
+        ));
+    }
+
+    // 4. Gemini CLI -> .gemini/settings.json. This runs after MCP config
+    // generation, so the hook merge preserves Gemini's generated MCP config.
+    if harnesses.contains(&AiProvider::Gemini) {
+        let path = project_root.join(".gemini/settings.json");
+        write_gemini_settings_hooks(&path)?;
+        output::ok(&format!(
+            "Wrote attention hook entries to {}",
             path.display()
         ));
     }
@@ -326,16 +338,12 @@ fn write_claude_settings_hooks(path: &Path) -> Result<()> {
 
 /// Merge processkit hook entries into `.codex/hooks.json`.
 ///
-/// Codex uses a flat `{"hooks": {"session_start": {"command": "..."},
-/// "user_prompt_submit": {"command": "..."}, "pre_tool_use": {"command": "..."}}}`
-/// shape (single command per event, not an array).  Because the value is a single object rather
-/// than an array, there is no meaningful way to preserve multiple
-/// "user" entries alongside managed ones — but in practice users rarely
-/// set Codex hooks manually, so we overwrite the managed event keys and
-/// leave any other top-level keys untouched.
+/// Codex hooks use case-sensitive event names containing matcher-group
+/// arrays, whose `hooks` arrays contain command handlers. We overwrite the
+/// aibox/processkit-managed events and preserve unrelated event keys.
 ///
-/// The managed event keys (`session_start`, `user_prompt_submit`,
-/// `pre_tool_use`) are always overwritten with the processkit values;
+/// The managed event keys (`SessionStart`, `UserPromptSubmit`,
+/// `PreToolUse`, and lifecycle signals) are always overwritten;
 /// unknown sibling keys inside `hooks` are preserved.
 fn write_codex_hooks_json(path: &Path) -> Result<()> {
     // Load or create the top-level object.
@@ -359,36 +367,52 @@ fn write_codex_hooks_json(path: &Path) -> Result<()> {
         .as_object_mut()
         .ok_or_else(|| anyhow::anyhow!("`hooks` in {} is not a JSON object", path.display()))?;
 
+    let command_hook = |command: String| {
+        serde_json::json!([{
+            "hooks": [{"type": "command", "command": command}]
+        }])
+    };
+
+    // Remove the obsolete pre-0.147 flat keys when migrating a generated file.
+    for legacy_key in [
+        "session_start",
+        "user_prompt_submit",
+        "pre_tool_use",
+        "permission_request",
+        "stopped",
+        "session_end",
+    ] {
+        hooks.remove(legacy_key);
+    }
+
     // Overwrite the managed event keys. Codex has no documented project-root
     // env var, so we anchor to the git repo root at hook invocation time.
     let compliance_cmd = gitroot_cmd(COMPLIANCE_SCRIPT_REL);
     let route_guard_cmd = gitroot_cmd(ROUTE_GUARD_SCRIPT_REL);
     hooks.insert(
-        "session_start".to_string(),
-        serde_json::json!({"command": compliance_cmd}),
+        "SessionStart".to_string(),
+        command_hook(compliance_cmd.clone()),
     );
     hooks.insert(
-        "user_prompt_submit".to_string(),
-        serde_json::json!({"command": format!("aibox-agent-signal working --harness codex >/dev/null 2>&1 || true; {compliance_cmd}")}),
+        "UserPromptSubmit".to_string(),
+        command_hook(format!(
+            "aibox-agent-signal working --harness codex >/dev/null 2>&1 || true; {compliance_cmd}"
+        )),
+    );
+    hooks.insert("PreToolUse".to_string(), command_hook(route_guard_cmd));
+    hooks.insert(
+        "PermissionRequest".to_string(),
+        command_hook("aibox-agent-signal question --harness codex".to_string()),
     );
     hooks.insert(
-        "pre_tool_use".to_string(),
-        serde_json::json!({"command": route_guard_cmd}),
-    );
-    // Codex exposes permission_request/stopped lifecycle hooks in current
-    // releases. Older versions ignore these unknown keys and retain the
-    // useful session/user-prompt lifecycle signals above.
-    hooks.insert(
-        "permission_request".to_string(),
-        serde_json::json!({"command": "aibox-agent-signal question --harness codex"}),
+        "Stop".to_string(),
+        command_hook(
+            r#"python3 -c 'import json, subprocess, sys; m=(json.load(sys.stdin).get("last_assistant_message") or "").rstrip(); s="question" if m.endswith(("?", "？")) else "done"; subprocess.run(["aibox-agent-signal", s, "--harness", "codex"], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)'"#.to_string(),
+        ),
     );
     hooks.insert(
-        "stopped".to_string(),
-        serde_json::json!({"command": "aibox-agent-signal done --harness codex"}),
-    );
-    hooks.insert(
-        "session_end".to_string(),
-        serde_json::json!({"command": "aibox-agent-signal idle --harness codex"}),
+        "SessionEnd".to_string(),
+        command_hook("aibox-agent-signal idle --harness codex".to_string()),
     );
 
     if let Some(parent) = path.parent() {
@@ -403,7 +427,105 @@ fn write_codex_hooks_json(path: &Path) -> Result<()> {
 }
 
 // ---------------------------------------------------------------------------
-// Writer 3: Cursor .cursor/hooks.json
+// Writer 3: Gemini CLI .gemini/settings.json
+// ---------------------------------------------------------------------------
+
+/// Merge native attention lifecycle hooks into Gemini CLI settings.
+/// Entries are identified by their `aibox-agent-signal` command, leaving all
+/// user-defined hook entries and unrelated settings untouched.
+fn write_gemini_settings_hooks(path: &Path) -> Result<()> {
+    let mut top: serde_json::Map<String, serde_json::Value> = if path.is_file() {
+        let body = fs::read_to_string(path)
+            .with_context(|| format!("failed to read {}", path.display()))?;
+        if body.trim().is_empty() {
+            serde_json::Map::new()
+        } else {
+            serde_json::from_str(&body)
+                .with_context(|| format!("failed to parse existing JSON at {}", path.display()))?
+        }
+    } else {
+        serde_json::Map::new()
+    };
+
+    let hooks = top
+        .entry("hooks".to_string())
+        .or_insert_with(|| serde_json::Value::Object(serde_json::Map::new()))
+        .as_object_mut()
+        .ok_or_else(|| anyhow::anyhow!("`hooks` in {} is not a JSON object", path.display()))?;
+
+    let merge = |hooks: &mut serde_json::Map<String, serde_json::Value>,
+                 event: &str,
+                 matcher: &str,
+                 command: &str|
+     -> Result<()> {
+        let arr = hooks
+            .entry(event.to_string())
+            .or_insert_with(|| serde_json::Value::Array(Vec::new()))
+            .as_array_mut()
+            .ok_or_else(|| {
+                anyhow::anyhow!("`hooks.{event}` in {} is not a JSON array", path.display())
+            })?;
+        arr.retain(|entry| {
+            !entry
+                .get("hooks")
+                .and_then(|value| value.as_array())
+                .is_some_and(|handlers| {
+                    handlers.iter().any(|handler| {
+                        handler
+                            .get("command")
+                            .and_then(|value| value.as_str())
+                            .is_some_and(|value| value.contains(AIBOX_SIGNAL_MANAGED_MARKER))
+                    })
+                })
+        });
+        arr.push(serde_json::json!({
+            "matcher": matcher,
+            "hooks": [{
+                "type": "command",
+                "name": "aibox attention state",
+                "command": command
+            }]
+        }));
+        Ok(())
+    };
+
+    merge(
+        hooks,
+        "BeforeAgent",
+        "",
+        "aibox-agent-signal working --harness gemini >/dev/null 2>&1 || true",
+    )?;
+    merge(
+        hooks,
+        "AfterAgent",
+        "",
+        r#"python3 -c 'import json, subprocess, sys; m=(json.load(sys.stdin).get("prompt_response") or "").rstrip(); s="question" if m.endswith(("?", "？")) else "done"; subprocess.run(["aibox-agent-signal", s, "--harness", "gemini"], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)'"#,
+    )?;
+    merge(
+        hooks,
+        "Notification",
+        "ToolPermission",
+        "aibox-agent-signal question --harness gemini >/dev/null 2>&1 || true",
+    )?;
+    merge(
+        hooks,
+        "SessionEnd",
+        "",
+        "aibox-agent-signal idle --harness gemini >/dev/null 2>&1 || true",
+    )?;
+
+    if let Some(parent) = path.parent() {
+        fs::create_dir_all(parent)
+            .with_context(|| format!("failed to create directory {}", parent.display()))?;
+    }
+    let formatted =
+        serde_json::to_string_pretty(&top).context("failed to serialize Gemini settings JSON")?;
+    fs::write(path, formatted).with_context(|| format!("failed to write {}", path.display()))?;
+    Ok(())
+}
+
+// ---------------------------------------------------------------------------
+// Writer 4: Cursor .cursor/hooks.json
 // ---------------------------------------------------------------------------
 
 /// Merge processkit enforcement hooks into `.cursor/hooks.json`.
@@ -698,30 +820,24 @@ version = "unset"
         let parsed: serde_json::Value = serde_json::from_str(&body).unwrap();
 
         let hooks = parsed["hooks"].as_object().expect("hooks is object");
-        let ss = hooks["session_start"]["command"].as_str().unwrap();
+        let command = |event: &str| hooks[event][0]["hooks"][0]["command"].as_str().unwrap();
+        let ss = command("SessionStart");
         assert!(ss.contains("emit_compliance_contract.py"));
         assert!(
             ss.contains("git rev-parse"),
             "Codex hook command must anchor to git repo root so it works when \
              Codex CLI is launched from a subdirectory (got: {ss})"
         );
-        let ups = hooks["user_prompt_submit"]["command"].as_str().unwrap();
+        let ups = command("UserPromptSubmit");
         assert!(ups.contains("emit_compliance_contract.py"));
         assert!(ups.contains("aibox-agent-signal working"));
-        assert!(
-            hooks["permission_request"]["command"]
-                .as_str()
-                .unwrap()
-                .contains("question")
-        );
-        assert!(
-            hooks["stopped"]["command"]
-                .as_str()
-                .unwrap()
-                .contains("done")
-        );
+        assert!(command("PermissionRequest").contains("question"));
+        let stop = command("Stop");
+        assert!(stop.contains("last_assistant_message"));
+        assert!(stop.contains("question"));
+        assert!(stop.contains("done"));
 
-        let ptu = hooks["pre_tool_use"]["command"].as_str().unwrap();
+        let ptu = command("PreToolUse");
         assert!(ptu.contains("check_route_task_called.py"));
         assert!(
             ptu.contains("git rev-parse"),
@@ -740,9 +856,7 @@ version = "unset"
             r#"{
   "custom": true,
   "hooks": {
-    "post_tool_use": {
-      "command": "echo user"
-    },
+    "PostToolUse": [{"hooks":[{"type":"command","command":"echo user"}]}],
     "pre_tool_use": {
       "command": "echo stale-managed-value"
     }
@@ -760,15 +874,74 @@ version = "unset"
         let parsed: serde_json::Value = serde_json::from_str(&second).unwrap();
         assert_eq!(parsed["custom"].as_bool(), Some(true));
         assert_eq!(
-            parsed["hooks"]["post_tool_use"]["command"].as_str(),
+            parsed["hooks"]["PostToolUse"][0]["hooks"][0]["command"].as_str(),
             Some("echo user")
         );
         assert!(
-            parsed["hooks"]["pre_tool_use"]["command"]
+            parsed["hooks"]["PreToolUse"][0]["hooks"][0]["command"]
                 .as_str()
                 .unwrap()
                 .contains("check_route_task_called.py")
         );
+        assert!(parsed["hooks"].get("pre_tool_use").is_none());
+    }
+
+    #[test]
+    fn test_gemini_attention_hooks_merge_and_are_idempotent() {
+        let dir = TempDir::new().unwrap();
+        let path = dir.path().join(".gemini/settings.json");
+        fs::create_dir_all(path.parent().unwrap()).unwrap();
+        fs::write(
+            &path,
+            r#"{
+  "theme": "user-theme",
+  "hooks": {
+    "BeforeAgent": [{"matcher":"custom","hooks":[{"type":"command","command":"echo user"}]}]
+  }
+}"#,
+        )
+        .unwrap();
+
+        write_gemini_settings_hooks(&path).unwrap();
+        let first = fs::read_to_string(&path).unwrap();
+        write_gemini_settings_hooks(&path).unwrap();
+        let second = fs::read_to_string(&path).unwrap();
+        assert_eq!(first, second, "Gemini hook merge must be idempotent");
+
+        let parsed: serde_json::Value = serde_json::from_str(&second).unwrap();
+        assert_eq!(parsed["theme"].as_str(), Some("user-theme"));
+        let before = parsed["hooks"]["BeforeAgent"].as_array().unwrap();
+        assert_eq!(before.len(), 2, "user and managed hooks must coexist");
+        assert!(before[0].to_string().contains("echo user"));
+        assert!(before[1].to_string().contains("working"));
+        assert!(
+            parsed["hooks"]["AfterAgent"]
+                .to_string()
+                .contains("prompt_response")
+        );
+        assert!(
+            parsed["hooks"]["AfterAgent"]
+                .to_string()
+                .contains("question")
+        );
+        assert!(
+            parsed["hooks"]["Notification"]
+                .to_string()
+                .contains("ToolPermission")
+        );
+        assert!(parsed["hooks"]["SessionEnd"].to_string().contains(" idle "));
+    }
+
+    #[test]
+    fn test_gemini_hooks_only_written_when_enabled() {
+        let dir = TempDir::new().unwrap();
+        regenerate_hook_configs(&make_config(&["gemini"]), dir.path()).unwrap();
+        assert!(dir.path().join(".gemini/settings.json").is_file());
+        assert!(!dir.path().join(".codex/hooks.json").exists());
+
+        let other = TempDir::new().unwrap();
+        regenerate_hook_configs(&make_config(&["claude"]), other.path()).unwrap();
+        assert!(!other.path().join(".gemini/settings.json").exists());
     }
 
     // -----------------------------------------------------------------------

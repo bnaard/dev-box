@@ -24,10 +24,11 @@ agent_harness_name() {
 agent_tool_shell() {
   local tool="$1" harness
   harness="$(agent_harness_name "$tool")"
-  # Start/finish/error are lifecycle fallbacks for harnesses without native
-  # hooks. Native integrations may refine the state (for example, a question)
-  # while the process is running. Always return to a usable bash pane.
-  printf "bash -lc 'aibox-agent-signal working --harness %q >/dev/null 2>&1 || true; if command -v %q >/dev/null 2>&1; then if %q; then aibox-agent-signal done --harness %q >/dev/null 2>&1 || true; else aibox-agent-signal error --harness %q >/dev/null 2>&1 || true; fi; else aibox-agent-signal error --harness %q >/dev/null 2>&1 || true; fi; exec bash'" "$harness" "$tool" "$tool" "$harness" "$harness" "$harness"
+  # An interactive harness process can live for hours, so its process lifetime
+  # is not a useful "working" signal. Start idle and let native lifecycle hooks
+  # report working/question/done while it runs. Process exit remains a fallback
+  # for done/error. Always return to a usable bash pane.
+  printf "bash -lc 'aibox-agent-signal idle --harness %q >/dev/null 2>&1 || true; if command -v %q >/dev/null 2>&1; then if %q; then aibox-agent-signal done --harness %q >/dev/null 2>&1 || true; else aibox-agent-signal error --harness %q >/dev/null 2>&1 || true; fi; else aibox-agent-signal error --harness %q >/dev/null 2>&1 || true; fi; exec bash'" "$harness" "$tool" "$tool" "$harness" "$harness" "$harness"
 }
 
 if [[ "${AIBOX_LAYOUT_MODE:-}" == "rebuild" ]]; then
