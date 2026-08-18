@@ -1,0 +1,12 @@
+{
+  "mcpServers": {
+    "processkit-supply-chain-audit": {
+      "command": "uv",
+      "args": [
+        "run",
+        "context/skills/processkit/supply-chain-audit/mcp/server.py"
+      ],
+      "env": {}
+    }
+  }
+}
