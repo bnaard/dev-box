@@ -1,0 +1,136 @@
+{
+  "archive_id": "ARCHIVE-20260818_155042-workitem-done",
+  "archive_path": "context/archives/2026/08/ARCHIVE-20260818_155042-workitem-done.tar.gz",
+  "created_at": "2026-08-18T15:50:42+00:00",
+  "entities": [
+    {
+      "apiVersion": "processkit.projectious.work/v2",
+      "body_index": "## Transition note (2026-08-14T14:58:17+00:00)\n\nDerived screenshot and fixture confirm Rich collapses front matter as Markdown soft breaks.\n\n\n## Transition note (2026-08-14T15:03:13+00:00)\n\nImplemented verbatim TOML/YAML front-matter rendering in in-pane and full-pane preview paths; focused and full verification completed.\n\n\n## Transition note (2026-08-14T15:03:14+00:00)\n\nAccepted: front matter retains source rows while the document body keeps normal Markdown wrapping semantics.\n",
+      "id": "BACK-20260814_1458-BrightButter-preserve-yazi-hugo-frontmatter-lines",
+      "kind": "WorkItem",
+      "labels": {},
+      "member_path": "context/workitems/done/2026/08/BACK-20260814_1458-BrightButter-preserve-yazi-hugo-frontmatter-lines.md",
+      "metadata": {
+        "created": "2026-08-14T14:58:11+00:00",
+        "id": "BACK-20260814_1458-BrightButter-preserve-yazi-hugo-frontmatter-lines",
+        "updated": "2026-08-14T15:03:14+00:00"
+      },
+      "original_path": "context/workitems/done/2026/08/BACK-20260814_1458-BrightButter-preserve-yazi-hugo-frontmatter-lines.md",
+      "sha256": "5fc742d966e81b5bf38d775489c86b462bf95324e2daa9cff39e7f6a11884b22",
+      "spec": {
+        "completed_at": "2026-08-14T15:03:14+00:00",
+        "description": "Fix rich-preview so leading TOML (+++) and YAML (---) front matter is rendered verbatim instead of being collapsed by Markdown soft-break semantics. Cover the supplied about.md fixture behavior.",
+        "priority": "high",
+        "started_at": "2026-08-14T14:58:17+00:00",
+        "state": "done",
+        "title": "Preserve Hugo front matter lines in Yazi preview",
+        "type": "bug"
+      },
+      "storage_location": "context/archives/2026/08/ARCHIVE-20260818_155042-workitem-done.tar.gz::context/workitems/done/2026/08/BACK-20260814_1458-BrightButter-preserve-yazi-hugo-frontmatter-lines.md"
+    },
+    {
+      "apiVersion": "processkit.projectious.work/v2",
+      "body_index": "## Transition note (2026-08-14T14:40:09+00:00)\n\nTracing generated rich-preview plugin cache and Yazi job identity before patching.\n\n\n## Transition note (2026-08-14T14:45:08+00:00)\n\nFull-path cache identity implemented; unit/E2E regression, full suite, format, and clippy verified. Parallel tmux timeouts passed serially.\n\n\n## Transition note (2026-08-14T14:45:08+00:00)\n\nAccepted: sibling Markdown files now receive distinct bounded cache keys derived from their complete paths.\n",
+      "id": "BACK-20260814_1440-RoyalPrairie-refresh-yazi-markdown-selection-preview",
+      "kind": "WorkItem",
+      "labels": {},
+      "member_path": "context/workitems/done/2026/08/BACK-20260814_1440-RoyalPrairie-refresh-yazi-markdown-selection-preview.md",
+      "metadata": {
+        "created": "2026-08-14T14:40:04+00:00",
+        "id": "BACK-20260814_1440-RoyalPrairie-refresh-yazi-markdown-selection-preview",
+        "updated": "2026-08-14T14:45:08+00:00"
+      },
+      "original_path": "context/workitems/done/2026/08/BACK-20260814_1440-RoyalPrairie-refresh-yazi-markdown-selection-preview.md",
+      "sha256": "ce43dd0b01bf6c969a7a9e589c4900f0128cdb42178155c8461637a3c94631a8",
+      "spec": {
+        "completed_at": "2026-08-14T14:45:08+00:00",
+        "description": "Reproduce and fix the v0.x Yazi rich Markdown preview retaining the first file in a directory when subsequent Markdown files are selected. Add regression coverage for per-file preview identity and refresh behavior.",
+        "priority": "high",
+        "started_at": "2026-08-14T14:40:09+00:00",
+        "state": "done",
+        "title": "Refresh Yazi Markdown preview when selection changes",
+        "type": "bug"
+      },
+      "storage_location": "context/archives/2026/08/ARCHIVE-20260818_155042-workitem-done.tar.gz::context/workitems/done/2026/08/BACK-20260814_1440-RoyalPrairie-refresh-yazi-markdown-selection-preview.md"
+    },
+    {
+      "apiVersion": "processkit.projectious.work/v2",
+      "body_index": "## Transition note (2026-08-14T14:31:30+00:00)\n\nImplementation and regression testing started after reproducing both causes.\n\n\n## Transition note (2026-08-14T14:38:49+00:00)\n\nImplementation complete and full verification evidence collected.\n\n\n## Transition note (2026-08-14T14:38:50+00:00)\n\nAccepted: major-line latest selection, catalog-change comment refresh, and regression coverage all pass.\n",
+      "id": "BACK-20260814_1431-HardyPine-fix-image-line-addon-comment-refresh",
+      "kind": "WorkItem",
+      "labels": {},
+      "member_path": "context/workitems/done/2026/08/BACK-20260814_1431-HardyPine-fix-image-line-addon-comment-refresh.md",
+      "metadata": {
+        "created": "2026-08-14T14:31:22+00:00",
+        "id": "BACK-20260814_1431-HardyPine-fix-image-line-addon-comment-refresh",
+        "updated": "2026-08-14T14:38:50+00:00"
+      },
+      "original_path": "context/workitems/done/2026/08/BACK-20260814_1431-HardyPine-fix-image-line-addon-comment-refresh.md",
+      "sha256": "b54e03c298dafafae0baa75437d0cf3d90389993a6b89d64dc7d21fd37e3ab17",
+      "spec": {
+        "completed_at": "2026-08-14T14:38:50+00:00",
+        "description": "Fix v0.x CLI image latest resolution so it cannot select v1 prerelease images. Make generated aibox.toml comment refresh detect addon catalog additions such as browser-testing, with regression tests for derived-project upgrades.",
+        "priority": "high",
+        "started_at": "2026-08-14T14:31:30+00:00",
+        "state": "done",
+        "title": "Keep v0 latest image resolution and addon comment catalogs line-correct",
+        "type": "bug"
+      },
+      "storage_location": "context/archives/2026/08/ARCHIVE-20260818_155042-workitem-done.tar.gz::context/workitems/done/2026/08/BACK-20260814_1431-HardyPine-fix-image-line-addon-comment-refresh.md"
+    },
+    {
+      "apiVersion": "processkit.projectious.work/v2",
+      "body_index": "## Transition note (2026-08-14T09:10:37+00:00)\n\nOfficial axe rule documentation confirms the missing level-one heading best-practice violation; implementing semantic fixture and diagnostic evidence.\n\n\n## Transition note (2026-08-14T10:01:09+00:00)\n\nRepository contracts pass and the exact corrected fixture returned [] under the macOS release-host Chromium image.\n\n\n## Transition note (2026-08-14T10:01:09+00:00)\n\nHost-confirmed zero-violation fixture and durable violation detail evidence are complete for v0.32.3.\n",
+      "id": "BACK-20260814_0910-FluentHeron-fix-axe-fixture-heading-diagnostics",
+      "kind": "WorkItem",
+      "labels": {},
+      "member_path": "context/workitems/done/2026/08/BACK-20260814_0910-FluentHeron-fix-axe-fixture-heading-diagnostics.md",
+      "metadata": {
+        "created": "2026-08-14T09:10:30+00:00",
+        "id": "BACK-20260814_0910-FluentHeron-fix-axe-fixture-heading-diagnostics",
+        "updated": "2026-08-14T10:01:09+00:00"
+      },
+      "original_path": "context/workitems/done/2026/08/BACK-20260814_0910-FluentHeron-fix-axe-fixture-heading-diagnostics.md",
+      "sha256": "411809867e854257a1e822f9186b2ec6b4231e80a53188547be0f9b1f1899095",
+      "spec": {
+        "completed_at": "2026-08-14T10:01:09+00:00",
+        "description": "The v0.32.2 addon-tools host probe reports one axe violation because its minimal page lacks an h1. Add a semantic heading and retain violation IDs/help/node summaries in evidence before enforcing zero violations.",
+        "priority": "critical",
+        "started_at": "2026-08-14T09:10:37+00:00",
+        "state": "done",
+        "title": "Make release-host axe fixture accessibility-clean",
+        "type": "bug"
+      },
+      "storage_location": "context/archives/2026/08/ARCHIVE-20260818_155042-workitem-done.tar.gz::context/workitems/done/2026/08/BACK-20260814_0910-FluentHeron-fix-axe-fixture-heading-diagnostics.md"
+    },
+    {
+      "apiVersion": "processkit.projectious.work/v2",
+      "body_index": "## Transition note (2026-08-13T17:28:08+00:00)\n\nReproduced from host evidence: axe-core requires an explicit Playwright BrowserContext.\n\n\n## Transition note (2026-08-13T17:28:32+00:00)\n\nExplicit BrowserContext implementation and regression assertions pass host-gate and release-maintenance contracts.\n\n\n## Transition note (2026-08-13T17:28:32+00:00)\n\nFix complete and ready for v0.32.2 release integration.\n",
+      "id": "BACK-20260813_1728-OpenDeer-fix-axe-playwright-context-host-probe",
+      "kind": "WorkItem",
+      "labels": {},
+      "member_path": "context/workitems/done/2026/08/BACK-20260813_1728-OpenDeer-fix-axe-playwright-context-host-probe.md",
+      "metadata": {
+        "created": "2026-08-13T17:28:04+00:00",
+        "id": "BACK-20260813_1728-OpenDeer-fix-axe-playwright-context-host-probe",
+        "updated": "2026-08-13T17:28:32+00:00"
+      },
+      "original_path": "context/workitems/done/2026/08/BACK-20260813_1728-OpenDeer-fix-axe-playwright-context-host-probe.md",
+      "sha256": "5f9e649d115097d43e6aecbcefc1fdd46bf45e0a3729bee5f8778a00275d6ac6",
+      "spec": {
+        "completed_at": "2026-08-13T17:28:32+00:00",
+        "description": "The v0.32.1 macOS addon-tools host gate reaches Chromium but axe-core rejects browser.newPage(); use browser.newContext() and context.newPage(), close the context, validate, and release v0.32.2.",
+        "priority": "critical",
+        "started_at": "2026-08-13T17:28:08+00:00",
+        "state": "done",
+        "title": "Fix axe Playwright explicit context host probe",
+        "type": "bug"
+      },
+      "storage_location": "context/archives/2026/08/ARCHIVE-20260818_155042-workitem-done.tar.gz::context/workitems/done/2026/08/BACK-20260813_1728-OpenDeer-fix-axe-playwright-context-host-probe.md"
+    }
+  ],
+  "kind": "WorkItem",
+  "older_than_days": 4,
+  "sha256": "6ba0366db13086366fd6443088a522afff061b2e197c8b73f2f99a58eeb4370c",
+  "state": "done"
+}

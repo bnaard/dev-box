@@ -1,0 +1,19 @@
+---
+apiVersion: processkit.projectious.work/v2
+kind: Artifact
+metadata:
+  id: ART-TODO
+  created: TODO
+spec:
+  name: TODO
+  kind: metric-spec
+  description: TODO
+  unit: TODO
+  direction: higher-is-better
+  measurement: TODO
+  target: TODO
+  tolerance: TODO
+  cadence: TODO
+  owner: null
+  active: true
+---
