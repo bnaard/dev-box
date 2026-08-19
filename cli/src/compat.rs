@@ -728,6 +728,11 @@ pub static COMPAT_TABLE: &[CompatEntry] = &[
         processkit_version: "v0.28.6",
         note: "Patch release: restores generated AI harness startup under nounset, keeps Yazi directory previews compatible across supported image pins, and aligns PowerKit plugin spacing with window tabs.",
     },
+    CompatEntry {
+        aibox_version: "0.33.2",
+        processkit_version: "v0.28.6",
+        note: "Patch release: refreshes generated runtime metadata for Codex 0.148.0 and reconciles the completed live tmux layout and theme switching work.",
+    },
 ];
 
 /// Find the minimum compatible processkit version for the given aibox version.
