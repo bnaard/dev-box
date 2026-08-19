@@ -40,3 +40,8 @@ Reported upstream as
   built. The aibox deployment retains its shared `releases.json` manifest for
   legacy archives; a theme-supported manifest-backed menu would make current
   and archived release navigation consistent without consumer JavaScript.
+- When the operating system prefers dark mode and a visitor explicitly chooses
+  Light, v0.3.4 resets the page and text tokens but not `--header-bg`. The
+  header therefore retains its dark gray background. The aibox site uses the
+  public `hooks/styles-end.html` extension point to restore the theme's own
+  light header token until the explicit-light token set is complete upstream.

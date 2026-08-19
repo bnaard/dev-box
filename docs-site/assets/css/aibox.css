@@ -1,0 +1,6 @@
+/* brand-theme-hugo-vanilla v0.3.4 does not restore this token when an
+   OS-dark visitor explicitly selects Light mode. Keep the correction at the
+   token layer so the theme's header component remains authoritative. */
+html[data-theme="light"] {
+  --header-bg: rgba(248, 249, 251, 0.88);
+}

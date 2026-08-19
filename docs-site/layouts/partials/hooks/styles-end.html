@@ -1,0 +1,6 @@
+{{- with resources.Get "css/aibox.css" -}}
+  {{- $out := . -}}
+  {{- if hugo.IsProduction }}{{ $out = $out | minify }}{{ end -}}
+  {{- $fingerprinted := $out | fingerprint -}}
+  <link rel="stylesheet" href="{{ $fingerprinted.RelPermalink }}" integrity="{{ $fingerprinted.Data.Integrity }}">
+{{- end -}}
