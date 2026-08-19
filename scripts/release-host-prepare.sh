@@ -19,17 +19,17 @@ HEAD_COMMIT="$(git -C "${PROJECT_ROOT}" rev-parse HEAD)"
 }
 
 VERSION_LINE="${VERSION%%.*}"
+CHANGED_PATHS_FILE="$(mktemp)"
+trap 'rm -f -- "${CHANGED_PATHS_FILE}"' EXIT
 COMPARISON_TAG="$(git -C "${PROJECT_ROOT}" describe --tags --abbrev=0 \
   --match "v${VERSION_LINE}.*" "${COMMIT}^" 2>/dev/null || true)"
 if [[ -n "${COMPARISON_TAG}" ]]; then
   COMPARISON_COMMIT="$(git -C "${PROJECT_ROOT}" rev-parse "${COMPARISON_TAG}^{commit}")"
-  CHANGED_PATHS_JSON="$(
-    git -C "${PROJECT_ROOT}" diff --name-only "${COMPARISON_COMMIT}" "${COMMIT}" |
-      jq -R -s 'split("\n") | map(select(length > 0))'
-  )"
+  git -C "${PROJECT_ROOT}" diff --name-only "${COMPARISON_COMMIT}" "${COMMIT}" |
+    jq -R -s 'split("\n") | map(select(length > 0))' > "${CHANGED_PATHS_FILE}"
 else
   COMPARISON_COMMIT=""
-  CHANGED_PATHS_JSON='["*"]'
+  printf '["*"]\n' > "${CHANGED_PATHS_FILE}"
 fi
 
 RUN_ID="v${VERSION}-$(date -u +%Y%m%dT%H%M%SZ)-${COMMIT:0:12}"
@@ -46,11 +46,11 @@ jq -n \
   --arg commit "${COMMIT}" \
   --arg comparison_tag "${COMPARISON_TAG}" \
   --arg comparison_commit "${COMPARISON_COMMIT}" \
-  --argjson changed_paths "${CHANGED_PATHS_JSON}" \
+  --slurpfile changed_paths "${CHANGED_PATHS_FILE}" \
   --arg repository "projectious-work/aibox" \
   '{schema_version:2,version:$version,tag:$tag,commit:$commit,
     comparison_tag:$comparison_tag,comparison_commit:$comparison_commit,
-    changed_paths:$changed_paths,repository:$repository,source_archive:"source.tar.gz"}' \
+    changed_paths:$changed_paths[0],repository:$repository,source_archive:"source.tar.gz"}' \
   > "${INPUT_DIR}/provenance.json"
 (
   cd "${INPUT_DIR}"
