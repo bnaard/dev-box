@@ -4,10 +4,10 @@ kind: WorkItem
 metadata:
   id: BACK-20260514_0925-VastHare-tmux-theme-switch-prefix-menu-binding
   created: '2026-05-14T09:25:15+00:00'
-  updated: '2026-05-14T09:46:39+00:00'
+  updated: '2026-08-19T03:38:09+00:00'
 spec:
   title: 'Tmux theme switch: prefix-key menu with two-tier live refresh'
-  state: in-progress
+  state: done
   type: story
   priority: medium
   description: |
@@ -67,8 +67,19 @@ spec:
 
     CLI-side only. No image rebuild required.
   started_at: '2026-05-14T09:46:39+00:00'
+  completed_at: '2026-08-19T03:38:09+00:00'
 ---
 
 ## Transition note (2026-05-14T09:46:39+00:00)
 
 Foundation shipped: schema (TmuxThemeSwitchSection with themes list + include_mode_toggle + confirm_restart_tuis), tmux.conf binding emission (display-menu populating themes dynamically, "Toggle light/dark" entry, "Heavy: restart TUIs" entry gated by AIBOX_THEME_CONFIRM_RESTART_TUIS env), aibox-tmux-refresh-theme helper script wired through seed.rs (send-keys hot-reload for bash/zsh/fish/vim/nvim/yazi; --restart-tuis flag for lazygit/lnav/AI panes). 947 unit tests green incl. 3 new theme_switch_* assertions; tier 1+3 e2e green; helper script passes bash -n.
+
+
+## Transition note (2026-08-19T03:38:04+00:00)
+
+Reconciled against current source: config, tmux bindings, managed helpers, rebuild/refresh behavior, confirmation flow, and executable seeding are implemented. Focused tmux status/layout/seed tests passed on 2026-08-19.
+
+
+## Transition note (2026-08-19T03:38:09+00:00)
+
+Review complete: implementation and focused regression tests satisfy the WorkItem scope. Archived as done.

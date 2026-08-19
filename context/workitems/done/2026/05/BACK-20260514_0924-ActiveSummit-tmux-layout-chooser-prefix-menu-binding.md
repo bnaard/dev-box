@@ -4,10 +4,10 @@ kind: WorkItem
 metadata:
   id: BACK-20260514_0924-ActiveSummit-tmux-layout-chooser-prefix-menu-binding
   created: '2026-05-14T09:24:56+00:00'
-  updated: '2026-05-14T09:46:32+00:00'
+  updated: '2026-08-19T03:38:09+00:00'
 spec:
   title: 'Tmux layout chooser: prefix-key menu for live layout switching'
-  state: in-progress
+  state: done
   type: story
   priority: medium
   description: |
@@ -52,8 +52,19 @@ spec:
 
     CLI-side only. `aibox apply` regenerates tmux.conf + the helper script. No image rebuild required.
   started_at: '2026-05-14T09:46:32+00:00'
+  completed_at: '2026-08-19T03:38:09+00:00'
 ---
 
 ## Transition note (2026-05-14T09:46:32+00:00)
 
 Foundation shipped: schema (TmuxLayoutSwitchSection), rebuild-mode branch (_create_first_window function), tmux.conf binding emission (display-menu default with confirm dispatcher), three managed helper scripts wired through seed.rs. 947 unit tests green; tier 1+3 e2e green; helper scripts pass bash -n.
+
+
+## Transition note (2026-08-19T03:38:03+00:00)
+
+Reconciled against current source: config, tmux bindings, managed helpers, rebuild/refresh behavior, confirmation flow, and executable seeding are implemented. Focused tmux status/layout/seed tests passed on 2026-08-19.
+
+
+## Transition note (2026-08-19T03:38:09+00:00)
+
+Review complete: implementation and focused regression tests satisfy the WorkItem scope. Archived as done.
