@@ -12,7 +12,7 @@ below shows the minimum compatible processkit version for each aibox release.
 
 | aibox version | Min. processkit | Notes |
 |--------------|-----------------|-------|
-| 0.33.2 | v0.28.6 | refreshes generated runtime metadata for Codex 0.148.0 and reconciles the completed live tmux layout and theme switching work |
+| 0.33.2 | v0.28.8 | updates the default processkit release to v0.28.8, refreshes generated runtime metadata for Codex 0.148.0, and reconciles the completed live tmux layout and theme switching work |
 | 0.33.1 | v0.28.6 | restores generated AI harness startup under nounset, keeps Yazi directory previews compatible across supported image pins, and aligns PowerKit plugin spacing with window tabs |
 | 0.33.0 | v0.28.6 | adds configurable, terminal-neutral tmux titles and lifecycle attention signals for AI harness panes, with optional notifications |
 | 0.32.6 | v0.28.6 | refreshes curated tool pins, including Go 1.26.6, and routes every Yazi copy action through the tmux and host clipboard bridge |

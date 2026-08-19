@@ -730,8 +730,8 @@ pub static COMPAT_TABLE: &[CompatEntry] = &[
     },
     CompatEntry {
         aibox_version: "0.33.2",
-        processkit_version: "v0.28.6",
-        note: "Patch release: refreshes generated runtime metadata for Codex 0.148.0 and reconciles the completed live tmux layout and theme switching work.",
+        processkit_version: "v0.28.8",
+        note: "Patch release: updates the default processkit release to v0.28.8, refreshes generated runtime metadata for Codex 0.148.0, and reconciles the completed live tmux layout and theme switching work.",
     },
 ];
 
