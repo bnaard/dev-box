@@ -67,8 +67,9 @@ fn signal_helper_refreshes_terminal_titles_after_state_changes() {
     .expect("read attention helper template");
 
     assert!(
-        helper.contains("tmux refresh-client 2>/dev/null || true"),
-        "attention changes must refresh the complete client so set-titles-string is repainted"
+        helper.contains("tmux list-clients -F '#{client_name}'")
+            && helper.contains("tmux refresh-client -t \"$client_name\""),
+        "attention changes must explicitly refresh every attached client so set-titles-string is repainted"
     );
     assert!(
         !helper.contains("tmux refresh-client -S 2>/dev/null || true"),

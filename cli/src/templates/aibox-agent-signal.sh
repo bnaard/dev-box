@@ -398,8 +398,13 @@ if [[ "$notify_enabled" == 1 && "$previous" != "$aggregate" \
     done < <(tmux list-clients -F '#{client_tty}' 2>/dev/null || true)
 fi
 
-# Refresh the complete client, not only the status line. The attention state is
-# also part of set-titles-string, and `refresh-client -S` can leave the host
-# terminal title stale until another tmux event occurs.
-tmux refresh-client 2>/dev/null || true
+# Refresh every attached client, not only the status line. Lifecycle hooks run
+# through `run-shell` and may not retain a current-client association. An
+# untargeted refresh can therefore succeed without repainting the Ghostty (or
+# other host terminal) title that owns this session. The attention state is
+# part of set-titles-string, so target each attached client explicitly.
+while IFS= read -r client_name; do
+    [[ -n "$client_name" ]] || continue
+    tmux refresh-client -t "$client_name" 2>/dev/null || true
+done < <(tmux list-clients -F '#{client_name}' 2>/dev/null || true)
 exit 0
