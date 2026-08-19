@@ -1,0 +1,13 @@
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>{{ if .IsHome }}{{ site.Title }}{{ else }}{{ .Title }} &middot; {{ site.Title }}{{ end }}</title>
+{{ partial "seo.html" . }}
+<link rel="icon" type="image/svg+xml" href="{{ "favicons/favicon.svg?v=aibox-2" | relURL }}">
+<link rel="icon" type="image/png" href="{{ "favicons/favicon-32x32.png?v=aibox-2" | relURL }}" sizes="32x32">
+<link rel="apple-touch-icon" href="{{ "favicons/apple-touch-icon-180x180.png?v=aibox-2" | relURL }}" sizes="180x180">
+{{ partial "styles.html" . }}
+{{- /* Apply the stored colour mode before first paint. */ -}}
+{{ partial "script.html" (dict "src" "theme.js") }}
+{{ if or .Params.math site.Params.math }}{{ partial "math.html" . }}{{ end }}
+{{ range .AlternativeOutputFormats }}<link rel="{{ .Rel }}" type="{{ .MediaType.Type }}" href="{{ .Permalink }}">
+{{ end }}
