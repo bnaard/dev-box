@@ -1,8 +1,5 @@
 # Existing Project
 
-LLMS index: [llms.txt](/aibox/llms.txt)
-
----
 
 # Existing Project
 
@@ -17,14 +14,11 @@ cd my-existing-project
 aibox init my-existing-project --harness claude
 ```
 
-<div class="alert alert-warning" role="alert"><div class="h4 alert-heading" role="heading">init will not overwrite</div>
-
-
+{{< callout type="warning" title="init will not overwrite" >}}
 
 If `aibox.toml` already exists, `init` will refuse to run. Either delete the existing file or edit it directly.
 
-</div>
-
+{{< /callout >}}
 
 If you prefer to write it by hand:
 
@@ -76,9 +70,7 @@ In harness-only mode, omit `[processkit]`, `[processkit.context]`, and
 `[skills]`; `aibox apply` will not create processkit skill mirrors or
 processkit Migration entities.
 
-<div class="alert alert-success" role="alert"><div class="h4 alert-heading" role="heading">Pin processkit before apply</div>
-
-
+{{< callout type="success" title="Pin processkit before apply" >}}
 
 Set `[processkit].version` to a real tag (e.g. `v0.27.4`) before the first
 `aibox apply`. The default sentinel `unset` skips processkit content
@@ -87,8 +79,7 @@ processes, or processkit-rendered `AGENTS.md` template.
 
 This tip only applies when `[context].mode = "processkit"`.
 
-</div>
-
+{{< /callout >}}
 
 ## Apply Devcontainer Files
 
@@ -164,14 +155,11 @@ If you are upgrading from aibox ≤ v0.3.4, the persisted config directory was r
 mv .root .aibox-home
 ```
 
-<div class="alert alert-warning" role="alert"><div class="h4 alert-heading" role="heading">Do not use `git mv`</div>
-
-
+{{< callout type="warning" title="Do not use `git mv`" >}}
 
 `git mv .root .aibox-home` will fail because `.root/` is listed in `.gitignore` and was never committed. Use a regular `mv` command.
 
-</div>
-
+{{< /callout >}}
 
 aibox will fall back to `.root/` automatically if `.aibox-home/` does not exist, so this migration is optional but recommended.
 
@@ -208,3 +196,7 @@ The workflow is identical to a [new project](new-project.md#build-and-start) fro
 - [CLI commands](../reference/cli-commands.md)
 - [Runtime operations](../container/runtime-operations.md)
 - [Context migration guide](../context/migration.md)
+
+
+---
+Source: https://projectious-work.github.io/aibox/docs/getting-started/existing-project/index.md

@@ -1,8 +1,5 @@
 # Documentation Frameworks
 
-LLMS index: [llms.txt](/aibox/llms.txt)
-
----
 
 # Documentation Framework Addons
 
@@ -29,3 +26,7 @@ docusaurus = {}
 ```
 
 After `aibox apply`, the documentation tool is available inside the container. Initialize your docs project as usual (e.g., `npx create-docusaurus@latest docs classic`).
+
+
+---
+Source: https://projectious-work.github.io/aibox/docs/addons/documentation/index.md

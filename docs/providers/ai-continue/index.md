@@ -1,8 +1,5 @@
 # Continue
 
-LLMS index: [llms.txt](/aibox/llms.txt)
-
----
 
 # Continue CLI
 
@@ -67,3 +64,7 @@ args    = ["-y", "@acme/internal-mcp-server"]
 ## Installation
 
 Continue CLI is installed via npm (`npm install -g @continuedev/cli`).
+
+
+---
+Source: https://projectious-work.github.io/aibox/docs/providers/ai-continue/index.md

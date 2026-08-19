@@ -1,8 +1,5 @@
 # Configuration
 
-LLMS index: [llms.txt](/aibox/llms.txt)
-
----
 
 # Configuration
 
@@ -363,14 +360,11 @@ volume: `/home/aibox/.config/gh` is already persisted through the managed
 `.aibox-home/.config` mount. See [GitHub authentication](./local-config.md#github-authentication)
 for the least-privilege PAT and persistent-login options.
 
-<div class="alert alert-success" role="alert"><div class="h4 alert-heading" role="heading">Customizing ports, packages, volumes, and environment variables</div>
-
-
+{{< callout type="success" title="Customizing ports, packages, volumes, and environment variables" >}}
 Use `Dockerfile.local` for installing additional packages, and `docker-compose.override.yml` for ports and additional services. Both files are scaffolded by `aibox init` and are never overwritten by `aibox apply`.
 
 Environment variables and bind mounts can also be configured directly in `[container.environment]` / `[[container.extra_volumes]]` in `aibox.toml`, or — for secrets and per-developer settings that should not be committed — in [`.aibox-local.toml`](./local-config.md).
-</div>
-
+{{< /callout >}}
 
 ### .aibox-local.toml
 
@@ -778,12 +772,9 @@ deny_patterns   = ["mcp__processkit-dangerous-admin"]  # Deny a specific pattern
 default_mode = "allow"
 ```
 
-<div class="alert alert-success" role="alert"><div class="h4 alert-heading" role="heading">Personal MCP servers</div>
-
-
+{{< callout type="success" title="Personal MCP servers" >}}
 Servers that require personal credentials or are not relevant to all team members belong in `[[mcp.servers]]` in `.aibox-local.toml`, not committed `[[ai.mcp.servers]]`. See [Local Config](./local-config.md).
-</div>
-
+{{< /callout >}}
 
 ### [ai.execution]
 
@@ -915,3 +906,7 @@ Example:
 ```bash
 AIBOX_WORKSPACE_DIR=/home/user/projects/my-app aibox up
 ```
+
+
+---
+Source: https://projectious-work.github.io/aibox/docs/reference/configuration/index.md

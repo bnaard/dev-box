@@ -1,8 +1,5 @@
 # Local Config (.aibox-local.toml)
 
-LLMS index: [llms.txt](/aibox/llms.txt)
-
----
 
 # Local Config (.aibox-local.toml)
 
@@ -176,9 +173,7 @@ file instead of a system keyring. In an aibox container that file is under
 replacements, and image rebuilds. The token is a GitHub bearer credential; it
 is not tied to a particular container ID or image.
 
-<div class="alert alert-warning" role="alert"><div class="h4 alert-heading" role="heading">Remove token environment variables first</div>
-
-
+{{< callout type="warning" title="Remove token environment variables first" >}}
 
 `GH_TOKEN` and `GITHUB_TOKEN` take precedence over credentials saved by
 `gh auth login`. To use the stored login, remove both variables from
@@ -196,8 +191,7 @@ gh api user --jq .login
 
 The first command should produce no output.
 
-</div>
-
+{{< /callout >}}
 
 The stored OAuth token is plaintext in `.aibox-home/.config/gh/hosts.yml`.
 Gitignore prevents accidental normal commits, but it does not encrypt the
@@ -246,8 +240,10 @@ Everything outside of `[container.environment]`, `[[container.extra_volumes]]`, 
 - `[customization]` — theme, mode, prompt, layout
 - `[audio]` — audio bridging
 
-<div class="alert alert-success" role="alert"><div class="h4 alert-heading" role="heading">Applying changes</div>
-
-
+{{< callout type="success" title="Applying changes" >}}
 After editing `.aibox-local.toml`, run `aibox apply` (or `aibox apply --no-build` for a config-only refresh) to regenerate `.devcontainer/` files with the updated environment and volumes, and MCP client config files with the updated server list.
-</div>
+{{< /callout >}}
+
+
+---
+Source: https://projectious-work.github.io/aibox/docs/reference/local-config/index.md

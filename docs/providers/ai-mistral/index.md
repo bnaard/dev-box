@@ -1,17 +1,11 @@
 # Mistral
 
-LLMS index: [llms.txt](/aibox/llms.txt)
-
----
 
 # Mistral (SDK)
 
-<div class="alert alert-secondary" role="alert"><div class="h4 alert-heading" role="heading">SDK addon — not an interactive CLI</div>
-
-
+{{< callout type="note" title="SDK addon — not an interactive CLI" >}}
 The `ai-mistral` addon installs the **mistralai Python SDK**, not an interactive coding CLI. It is intended for projects that call the Mistral API programmatically. For an interactive coding experience, use [Claude](./ai-claude.md), [Gemini](./ai-gemini.md), [OpenAI Codex](./ai-openai.md), or [Copilot](./ai-copilot.md) instead.
-</div>
-
+{{< /callout >}}
 
 [Mistral AI](https://mistral.ai) provides large language models via Python SDK.
 
@@ -51,3 +45,7 @@ aibox generates `.mcp.json` (the Claude Code MCP format) on `aibox apply` when a
 ## Installation
 
 The Mistral AI SDK is installed via pip (`pip install --no-cache-dir mistralai`).
+
+
+---
+Source: https://projectious-work.github.io/aibox/docs/providers/ai-mistral/index.md

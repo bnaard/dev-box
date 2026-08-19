@@ -1,8 +1,5 @@
 # Container Configuration
 
-LLMS index: [llms.txt](/aibox/llms.txt)
-
----
 
 # Container Configuration
 
@@ -129,8 +126,10 @@ services:
       - postgres
 ```
 
-<div class="alert alert-success" role="alert">
-
-
+{{< callout type="success" >}}
 The override file is never overwritten by `aibox apply` — you own it, just like `Dockerfile.local`.
-</div>
+{{< /callout >}}
+
+
+---
+Source: https://projectious-work.github.io/aibox/docs/container/configuration/index.md

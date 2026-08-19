@@ -1,8 +1,5 @@
 # Gemini
 
-LLMS index: [llms.txt](/aibox/llms.txt)
-
----
 
 # Gemini
 
@@ -59,3 +56,7 @@ args    = ["-y", "@acme/internal-mcp-server"]
 ## Installation
 
 Gemini CLI is installed via npm (`npm install -g @google/generative-ai-cli`), with a pip fallback.
+
+
+---
+Source: https://projectious-work.github.io/aibox/docs/providers/ai-gemini/index.md

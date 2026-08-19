@@ -1,8 +1,5 @@
 # Cheatsheet
 
-LLMS index: [llms.txt](/aibox/llms.txt)
-
----
 
 # Keyboard Shortcuts
 
@@ -345,3 +342,7 @@ Quick reference for all tools in the aibox environment. Press the tab for the to
         lazygit is available only when the optional `git-ui` addon selects
         `lazygit`. In generated layouts, aibox adds it as a fullscreen **git**
         tab after any AI-agent tabs.
+
+
+---
+Source: https://projectious-work.github.io/aibox/docs/reference/cheatsheet/index.md

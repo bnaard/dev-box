@@ -1,9 +1,5 @@
 # 
 
-LLMS index: [llms.txt](/aibox/llms.txt)
-
----
-
 # Lockfile schema bump v0.25.6 — what's automatic, what to verify
 
 aibox v0.25.6 extends `aibox.lock` with two new optional sections. The
@@ -50,3 +46,7 @@ A truncated or hand-edited `aibox.lock` may have a malformed `[addons]`
 section. Check that `[addons].resolved_at` is present and is a valid
 ISO 8601 timestamp. If the file is corrupt, delete `aibox.lock` and run
 `aibox apply` — the CLI regenerates it from scratch.
+
+
+---
+Source: https://projectious-work.github.io/aibox/docs/migrations/lockfile-v0-25-6/index.md

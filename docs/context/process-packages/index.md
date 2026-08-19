@@ -1,8 +1,5 @@
 # Skill Selection
 
-LLMS index: [llms.txt](/aibox/llms.txt)
-
----
 
 # Skill Selection
 
@@ -67,3 +64,7 @@ The skills are owned by processkit:
 
 To consume a fork or a private mirror, point `[processkit].source` at it (see
 [`[processkit]` configuration](../reference/configuration.md#processkit)).
+
+
+---
+Source: https://projectious-work.github.io/aibox/docs/context/process-packages/index.md

@@ -1,13 +1,9 @@
 # Addons
 
-LLMS index: [llms.txt](/aibox/llms.txt)
 
----
 
-Section pages:
-
-- [Overview](/aibox/docs/addons/overview/)
-- [Language Runtimes](/aibox/docs/addons/language-runtimes/)
-- [Tool Bundles](/aibox/docs/addons/tool-bundles/)
-- [Documentation Frameworks](/aibox/docs/addons/documentation/)
-- [LaTeX Build and Preview](/aibox/docs/addons/latex-workflow/)
+- [Overview](https://projectious-work.github.io/aibox/docs/addons/overview/index.md)
+- [Language Runtimes](https://projectious-work.github.io/aibox/docs/addons/language-runtimes/index.md)
+- [Tool Bundles](https://projectious-work.github.io/aibox/docs/addons/tool-bundles/index.md)
+- [Documentation Frameworks](https://projectious-work.github.io/aibox/docs/addons/documentation/index.md)
+- [LaTeX Build and Preview](https://projectious-work.github.io/aibox/docs/addons/latex-workflow/index.md)

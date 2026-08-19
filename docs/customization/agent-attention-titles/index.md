@@ -1,8 +1,5 @@
 # Agent attention titles
 
-LLMS index: [llms.txt](/aibox/llms.txt)
-
----
 
 When an AI harness needs a human response, aibox can mark the tmux window in
 the terminal tab title. This is useful when the agent is running in a
@@ -58,8 +55,54 @@ Supported placeholders are:
 | `{directory_path}` | Full current-directory path |
 | `{repository}` / `{branch}` | Git repository and branch, when available |
 | `{harness}` / `{agent}` | Harness and agent identity, when supplied |
+| `{agent_suffix}` | Conditional ` — agent@harness`, ` — harness`, or empty suffix |
 | `{task}` / `{message}` | Short task or question/error text, sanitized and bounded |
 | `{elapsed}` | Elapsed time captured at the most recent state aggregation |
+
+Use `{agent_suffix}` when the same format applies to both agent and non-agent
+windows. It includes its own separator and omits the entire suffix when no
+harness is active, avoiding dangling punctuation:
+
+```toml
+format = "{state_symbol}{repository}{agent_suffix}"
+```
+
+`repository-style` controls the value of `{repository}`:
+
+```toml
+[customization.tmux.title]
+repository-style = "basename" # aibox
+# repository-style = "full"   # projectious-work/aibox
+```
+
+The full form is derived from the configured Git remote path, not from a
+forge API. It therefore works with HTTPS and SSH remotes on GitHub, GitLab,
+Gitea, Forgejo, and compatible self-hosted instances. Nested namespaces are
+preserved (for example, `group/platform/repository`). If no usable remote is
+configured, both styles fall back to the repository root directory name.
+
+`agent-style` controls the value of `{agent}`:
+
+```toml
+[customization.tmux.title]
+agent-style = "basename" # gpt-5.6-sol
+# agent-style = "full"   # gpt-5.6-sol low
+```
+
+The full form appends the active reasoning-effort level when the harness
+exposes one reliably. Codex resolves both values from current local thread
+metadata, Claude reads its hook payload and transcript, Gemini reads the
+documented `BeforeModel` request, and OpenCode reads model-bearing plugin
+events. Copilot and Cursor consume model metadata when their hook payload or
+transcript provides it. Aider, Continue, Hermes, and Tau use their launch-time
+configuration as a guarded fallback; an explicit runtime signal supersedes it
+after an in-session model switch.
+
+Every harness can also supply an exact runtime identity with `--agent MODEL
+--effort LEVEL` or the `AIBOX_AGENT_NAME` and
+`AIBOX_AGENT_REASONING_EFFORT` environment variables.
+`{harness}` remains the CLI harness reporting the lifecycle event. Explicit
+arguments and environment variables take precedence over automatic detection.
 
 State is aggregated across all panes in the window. The precedence is
 `error > question > working > done > idle`, so a question in a background
@@ -146,3 +189,7 @@ Agent-provided messages are stripped of terminal control characters and
 truncated to `message-max-length`, then the complete title is bounded by
 `max-length`. This prevents task text or a question from injecting terminal
 escape sequences.
+
+
+---
+Source: https://projectious-work.github.io/aibox/docs/customization/agent-attention-titles/index.md

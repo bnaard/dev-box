@@ -1,8 +1,5 @@
 # Custom Prompts
 
-LLMS index: [llms.txt](/aibox/llms.txt)
-
----
 
 # Creating Custom Prompts
 
@@ -20,15 +17,16 @@ After `aibox apply`, the Starship config is at:
 
 Edit `.aibox-home/.config/starship.toml` directly with any valid [Starship configuration](https://starship.rs/config/). Changes take effect immediately in new shell sessions.
 
-<div class="alert alert-warning" role="alert"><div class="h4 alert-heading" role="heading">Apply overwrites</div>
-
-
+{{< callout type="warning" title="Apply overwrites" >}}
 `aibox apply` regenerates `starship.toml` from the preset and theme. To preserve manual edits, either avoid running apply or back up your config first.
-</div>
-
+{{< /callout >}}
 
 ## Adding Custom Presets
 
 Custom presets can be added to `cli/src/themes.rs` in the `starship_config()` function. Each preset is a Starship TOML template with color variables (`{bg}`, `{fg}`, `{accent}`, `{green}`) that are replaced with theme-specific values at generation time.
 
 See the existing presets (default, plain, minimal, nerd-font, pastel, powerline-pastel, bracketed, arrow) as reference patterns.
+
+
+---
+Source: https://projectious-work.github.io/aibox/docs/customization/custom-prompts/index.md

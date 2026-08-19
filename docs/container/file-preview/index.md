@@ -1,8 +1,5 @@
 # File Preview
 
-LLMS index: [llms.txt](/aibox/llms.txt)
-
----
 
 # File Preview
 
@@ -100,16 +97,13 @@ Custom plugins (`svg.yazi`, `eps.yazi`) live at `~/.config/yazi/plugins/<name>.y
 
 **`.excalidraw` files** — Excalidraw's native format is JSON. A graphical preview is not possible in a TUI environment. Yazi falls back to the text previewer showing the raw JSON. This is a known limitation — Excalidraw requires a browser to render.
 
-<div class="alert alert-info" role="alert"><div class="h4 alert-heading" role="heading">Image protocol inside tmux</div>
-
-
+{{< callout type="info" title="Image protocol inside tmux" >}}
 
 Image preview support depends on the host terminal and tmux passthrough
 settings. The generated Yazi config favors terminal-safe fallbacks inside tmux;
 use half-block mode when you need predictable rendering across terminals.
 
-</div>
-
+{{< /callout >}}
 
 ---
 
@@ -229,14 +223,11 @@ ls <file> | entr -s '<rasterise-command> && timg --clear <output.png>'
 | SVG | `resvg file.svg /tmp/p.png` |
 | EPS | `gs -dBATCH -dNOPAUSE -sDEVICE=png16m -r150 -sOutputFile=/tmp/p.png file.eps` |
 
-<div class="alert alert-success" role="alert"><div class="h4 alert-heading" role="heading">Pane layout for watch preview</div>
-
-
+{{< callout type="success" title="Pane layout for watch preview" >}}
 
 In the `dev` or `cowork` layouts, open a new horizontal pane below the editor (`Ctrl+g d`) and run the watch command there. The preview refreshes in that pane every time you save. Use `Ctrl+g =` to resize the pane to taste.
 
-</div>
-
+{{< /callout >}}
 
 ---
 
@@ -254,3 +245,7 @@ In the `dev` or `cowork` layouts, open a new horizontal pane below the editor (`
 | PDF | ✓ (poppler) | — | ✓ | ✓ (mutool) |
 | Video | ✓ (ffmpeg) | — | ✓ | — |
 | `.excalidraw` | text fallback | — | — | — |
+
+
+---
+Source: https://projectious-work.github.io/aibox/docs/container/file-preview/index.md

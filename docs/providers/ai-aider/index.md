@@ -1,8 +1,5 @@
 # Aider
 
-LLMS index: [llms.txt](/aibox/llms.txt)
-
----
 
 # Aider
 
@@ -43,3 +40,7 @@ Aider's configuration is persisted in `.aibox-home/.aider/`, mounted at `/home/a
 ## Installation
 
 Aider is installed via `uv tool install aider-chat` — a fast, isolated Python tool installation.
+
+
+---
+Source: https://projectious-work.github.io/aibox/docs/providers/ai-aider/index.md

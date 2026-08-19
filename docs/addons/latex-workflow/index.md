@@ -1,8 +1,5 @@
 # LaTeX Build and Preview
 
-LLMS index: [llms.txt](/aibox/llms.txt)
-
----
 
 # LaTeX Build and Preview
 
@@ -159,3 +156,7 @@ ssh -L 8765:127.0.0.1:8765 user@remote-host
 Then open `http://127.0.0.1:8765/` locally. Publishing on a non-loopback host
 address is rejected unless `allow_public = true` is also set. That opt-in
 exposes an unauthenticated PDF endpoint; prefer an SSH tunnel.
+
+
+---
+Source: https://projectious-work.github.io/aibox/docs/addons/latex-workflow/index.md

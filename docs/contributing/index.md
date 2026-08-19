@@ -1,8 +1,5 @@
 # Contributing
 
-LLMS index: [llms.txt](/aibox/llms.txt)
-
----
 
 # Contributing
 
@@ -47,7 +44,7 @@ Thank you for your interest in contributing to aibox!
 - **`cli/`** — Rust CLI source code
 - **`images/`** — Published container image Dockerfiles
 - **`addons/`** — Addon definitions (language runtimes, tool bundles, AI agents)
-- **`docs-site/`** — Hugo/Docsy documentation source
+- **`docs-site/`** — Hugo documentation source using the projectious.work brand theme
 - **`.devcontainer/`** — This project's own dev environment
 
 > Process content (skills, packages, primitives, processes, the canonical
@@ -96,10 +93,7 @@ When filing an issue, please:
 - Include steps to reproduce (for bugs) or a use case description (for enhancements)
 - Mention the aibox version (`aibox --version`) and container image flavor if relevant
 
----
 
-Section pages:
-
-- [Maintenance](/aibox/docs/contributing/maintenance/)
-- [E2E Test Catalogue](/aibox/docs/contributing/e2e-tests/)
-- [Version-line porting](/aibox/docs/contributing/version-line-porting/)
+- [Maintenance](https://projectious-work.github.io/aibox/docs/contributing/maintenance/index.md)
+- [E2E Test Catalogue](https://projectious-work.github.io/aibox/docs/contributing/e2e-tests/index.md)
+- [Version-line porting](https://projectious-work.github.io/aibox/docs/contributing/version-line-porting/index.md)

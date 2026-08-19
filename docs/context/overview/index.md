@@ -1,8 +1,5 @@
 # Context Overview
 
-LLMS index: [llms.txt](/aibox/llms.txt)
-
----
 
 # Context System Overview
 
@@ -184,3 +181,7 @@ using aibox and the files remain useful.
 
 **Clean boundary between container and content.** aibox owns the box;
 processkit owns what goes in it. Each ships on its own cadence.
+
+
+---
+Source: https://projectious-work.github.io/aibox/docs/context/overview/index.md

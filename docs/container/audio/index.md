@@ -1,8 +1,5 @@
 # Audio Support
 
-LLMS index: [llms.txt](/aibox/llms.txt)
-
----
 
 # Audio Support
 
@@ -127,14 +124,11 @@ pulse_server = "tcp:192.168.64.1:4714"
    pulse_server = "tcp:host.docker.internal:4714"
    ```
 
-<div class="alert alert-warning" role="alert"><div class="h4 alert-heading" role="heading">Firewall</div>
-
-
+{{< callout type="warning" title="Firewall" >}}
 
 Ensure port 4714 is accessible from the container network. On systems with strict firewalls, you may need to allow traffic from the Docker/Podman bridge interface.
 
-</div>
-
+{{< /callout >}}
 
 ## Claude Code OAuth in Containers
 
@@ -142,14 +136,11 @@ When running `claude auth` inside a container with bridge networking (OrbStack, 
 
 **Workaround:** Use `claude setup-token` to authenticate manually, or authenticate on the host first. aibox bind-mounts Claude's `.claude/`, `.claude.json`, and XDG cache/config/state locations, so credentials survive container rebuilds.
 
-<div class="alert alert-info" role="alert"><div class="h4 alert-heading" role="heading">Upstream tracking</div>
-
-
+{{< callout type="info" title="Upstream tracking" >}}
 
 This is tracked at [anthropics/claude-code#14528](https://github.com/anthropics/claude-code/issues/14528). A fix on the Claude Code side (e.g., configurable callback port) would resolve this properly without compromising container network isolation.
 
-</div>
-
+{{< /callout >}}
 
 ## The .asoundrc File
 
@@ -207,3 +198,7 @@ enabled = false
 ```
 
 This removes the `PULSE_SERVER` environment variable from the container. The audio packages (`sox`, `pulseaudio-utils`) remain installed in the base image but are inert without a server to connect to.
+
+
+---
+Source: https://projectious-work.github.io/aibox/docs/container/audio/index.md

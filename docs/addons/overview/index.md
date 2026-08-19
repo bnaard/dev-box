@@ -1,8 +1,5 @@
 # Overview
 
-LLMS index: [llms.txt](/aibox/llms.txt)
-
----
 
 # Addons
 
@@ -193,3 +190,7 @@ Recipe version: 1.0.0
 ```
 
 Tools marked "DEFAULT: yes" are included automatically when you set the addon. Tools marked "no" must be explicitly listed in your `aibox.toml` to be installed.
+
+
+---
+Source: https://projectious-work.github.io/aibox/docs/addons/overview/index.md

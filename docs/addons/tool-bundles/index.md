@@ -1,8 +1,5 @@
 # Tool Bundles
 
-LLMS index: [llms.txt](/aibox/llms.txt)
-
----
 
 # Tool Bundle Addons
 
@@ -212,3 +209,7 @@ azure-cli = {}
 ```
 
 Installs the Azure CLI via pip.
+
+
+---
+Source: https://projectious-work.github.io/aibox/docs/addons/tool-bundles/index.md

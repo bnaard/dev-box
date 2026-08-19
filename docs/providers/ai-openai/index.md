@@ -1,8 +1,5 @@
 # OpenAI (Codex CLI)
 
-LLMS index: [llms.txt](/aibox/llms.txt)
-
----
 
 # OpenAI Codex CLI
 
@@ -116,3 +113,7 @@ warns if the main aibox service uses broad grants such as `privileged: true` or
 `SYS_ADMIN`.
 
 See OpenAI's [Codex sandbox prerequisites](https://developers.openai.com/codex/concepts/sandboxing#prerequisites) for the upstream requirements.
+
+
+---
+Source: https://projectious-work.github.io/aibox/docs/providers/ai-openai/index.md

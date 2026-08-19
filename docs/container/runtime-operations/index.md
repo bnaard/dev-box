@@ -2,11 +2,6 @@
 
 > How to start, inspect, rebuild, and troubleshoot a running aibox workspace.
 
----
-
-LLMS index: [llms.txt](/aibox/llms.txt)
-
----
 
 # Runtime Operations
 
@@ -143,3 +138,7 @@ Podman support depends on the Compose provider behind `podman compose`.
 Generated files follow the Compose Specification, including `init: true`.
 If an older provider rejects a spec key, upgrade the provider instead of
 removing the generated setting.
+
+
+---
+Source: https://projectious-work.github.io/aibox/docs/container/runtime-operations/index.md

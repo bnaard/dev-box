@@ -1,15 +1,11 @@
 # AI Providers
 
-LLMS index: [llms.txt](/aibox/llms.txt)
 
----
 
-Section pages:
-
-- [Claude](/aibox/docs/providers/ai-claude/)
-- [Aider](/aibox/docs/providers/ai-aider/)
-- [Gemini](/aibox/docs/providers/ai-gemini/)
-- [Mistral](/aibox/docs/providers/ai-mistral/)
-- [OpenAI (Codex CLI)](/aibox/docs/providers/ai-openai/)
-- [Copilot (GitHub)](/aibox/docs/providers/ai-copilot/)
-- [Continue](/aibox/docs/providers/ai-continue/)
+- [Claude](https://projectious-work.github.io/aibox/docs/providers/ai-claude/index.md)
+- [Aider](https://projectious-work.github.io/aibox/docs/providers/ai-aider/index.md)
+- [Gemini](https://projectious-work.github.io/aibox/docs/providers/ai-gemini/index.md)
+- [Mistral](https://projectious-work.github.io/aibox/docs/providers/ai-mistral/index.md)
+- [OpenAI (Codex CLI)](https://projectious-work.github.io/aibox/docs/providers/ai-openai/index.md)
+- [Copilot (GitHub)](https://projectious-work.github.io/aibox/docs/providers/ai-copilot/index.md)
+- [Continue](https://projectious-work.github.io/aibox/docs/providers/ai-continue/index.md)

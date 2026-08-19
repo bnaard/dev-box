@@ -1,8 +1,5 @@
 # Layouts
 
-LLMS index: [llms.txt](/aibox/llms.txt)
-
----
 
 # Layouts
 
@@ -67,3 +64,7 @@ aibox up --layout focus
 ```
 
 This does not change the default in `aibox.toml`.
+
+
+---
+Source: https://projectious-work.github.io/aibox/docs/customization/layouts/index.md

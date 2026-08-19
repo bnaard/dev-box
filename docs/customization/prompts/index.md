@@ -1,8 +1,5 @@
 # Prompt Presets
 
-LLMS index: [llms.txt](/aibox/llms.txt)
-
----
 
 # Starship Prompt Presets
 
@@ -127,3 +124,7 @@ The Starship config is regenerated at `.aibox-home/.config/starship.toml`. Color
 | `arrow` | Nerd Font or Powerline font required |
 
 Install a Nerd Font from [nerdfonts.com](https://www.nerdfonts.com/) and configure it in your terminal emulator to use icon-based presets.
+
+
+---
+Source: https://projectious-work.github.io/aibox/docs/customization/prompts/index.md

@@ -1,8 +1,5 @@
 # E2E Test Catalogue
 
-LLMS index: [llms.txt](/aibox/llms.txt)
-
----
 
 # E2E Test Catalogue
 
@@ -175,3 +172,7 @@ or resume publication from an unverified partial run.
 
 The owner must review the entry point before its first real invocation. Any
 later change to the gate or publisher requires a fresh owner review before use.
+
+
+---
+Source: https://projectious-work.github.io/aibox/docs/contributing/e2e-tests/index.md

@@ -1,8 +1,5 @@
 # Version-line porting
 
-LLMS index: [llms.txt](/aibox/llms.txt)
-
----
 
 # Version-line porting
 
@@ -42,3 +39,7 @@ scripts/check-version-line-ports.sh check v1
 
 The release workflow automatically runs the gate for the major version being
 published.
+
+
+---
+Source: https://projectious-work.github.io/aibox/docs/contributing/version-line-porting/index.md

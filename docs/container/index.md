@@ -1,13 +1,9 @@
 # Container
 
-LLMS index: [llms.txt](/aibox/llms.txt)
 
----
 
-Section pages:
-
-- [Base Image](/aibox/docs/container/base-image/)
-- [Container Configuration](/aibox/docs/container/configuration/)
-- [Audio Support](/aibox/docs/container/audio/)
-- [File Preview](/aibox/docs/container/file-preview/)
-- [Runtime Operations](/aibox/docs/container/runtime-operations/): How to start, inspect, rebuild, and troubleshoot a running aibox workspace.
+- [Base Image](https://projectious-work.github.io/aibox/docs/container/base-image/index.md)
+- [Container Configuration](https://projectious-work.github.io/aibox/docs/container/configuration/index.md)
+- [Audio Support](https://projectious-work.github.io/aibox/docs/container/audio/index.md)
+- [File Preview](https://projectious-work.github.io/aibox/docs/container/file-preview/index.md)
+- [Runtime Operations](https://projectious-work.github.io/aibox/docs/container/runtime-operations/index.md) — How to start, inspect, rebuild, and troubleshoot a running aibox workspace.

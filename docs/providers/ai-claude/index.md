@@ -1,8 +1,5 @@
 # Claude
 
-LLMS index: [llms.txt](/aibox/llms.txt)
-
----
 
 # Claude Code
 
@@ -81,3 +78,7 @@ When Claude is configured as a provider, tmux layouts include a dedicated Claude
 - **dev layout:** Claude gets its own window
 - **focus layout:** Claude gets its own window
 - **cowork layout:** Claude appears in a side-by-side pane next to the editor
+
+
+---
+Source: https://projectious-work.github.io/aibox/docs/providers/ai-claude/index.md

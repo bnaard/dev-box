@@ -1,8 +1,5 @@
 # CLI Commands
 
-LLMS index: [llms.txt](/aibox/llms.txt)
-
----
 
 # CLI Commands
 
@@ -288,3 +285,7 @@ The hard-break CLI redesign removed the old top-level command taxonomy.
 | `aibox completions` | `aibox self completion` |
 | `aibox uninstall` | `aibox self uninstall` |
 | `aibox audio check/setup` | `aibox doctor audio` / `aibox apply audio` |
+
+
+---
+Source: https://projectious-work.github.io/aibox/docs/reference/cli-commands/index.md

@@ -1,8 +1,5 @@
 # Copilot (GitHub)
 
-LLMS index: [llms.txt](/aibox/llms.txt)
-
----
 
 # GitHub Copilot CLI
 
@@ -60,3 +57,7 @@ args    = ["-y", "@acme/internal-mcp-server"]
 ## Installation
 
 GitHub Copilot CLI is installed via npm (`npm install -g @github/copilot`).
+
+
+---
+Source: https://projectious-work.github.io/aibox/docs/providers/ai-copilot/index.md

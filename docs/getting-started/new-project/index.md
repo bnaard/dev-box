@@ -1,8 +1,5 @@
 # New Project
 
-LLMS index: [llms.txt](/aibox/llms.txt)
-
----
 
 # New Project
 
@@ -32,7 +29,7 @@ The `init` command accepts these options:
 
 If you omit options, `aibox init` runs interactively and prompts for each value.
 
-<div class="asciinema" data-cast="/aibox/screencasts/init-demo.cast" data-poster="npt:0" data-fit="width"></div>
+{{< asciinema src="/aibox/screencasts/init-demo.cast" poster="npt:0" >}}
 
 ## What Gets Created
 
@@ -76,9 +73,7 @@ selected harness config, `AGENTS.md`, and provider pointer files such as
 hooks/preauth, processkit command adapters, or processkit Migration entities.
 The minimal generated `AGENTS.md` contains no processkit references.
 
-<div class="alert alert-success" role="alert"><div class="h4 alert-heading" role="heading">.aibox-local.toml — secrets and per-developer overrides</div>
-
-
+{{< callout type="success" title=".aibox-local.toml — secrets and per-developer overrides" >}}
 
 `.aibox-local.toml` is added to `.gitignore` by `aibox init`. Use it for API keys and host-specific bind mounts that should not be committed:
 
@@ -93,12 +88,9 @@ Use narrowly scoped PATs by default. For the alternative persistent
 `gh auth login` flow and multi-token commands, see
 [GitHub authentication](../reference/local-config.md#github-authentication).
 
-</div>
+{{< /callout >}}
 
-
-<div class="alert alert-success" role="alert"><div class="h4 alert-heading" role="heading">processkit version</div>
-
-
+{{< callout type="success" title="processkit version" >}}
 
 By default, the interactive `aibox init` picker offers `latest` first, then the
 10 newest stable processkit tags. Choosing `latest` writes
@@ -120,8 +112,7 @@ aibox init my-app --include-prerelease
 
 This picker is skipped when `--context-mode harness-only` is selected.
 
-</div>
-
+{{< /callout >}}
 
 ## The Generated aibox.toml
 
@@ -223,3 +214,7 @@ Both `aibox up` (terminal) and VS Code can use the same container simultaneously
 - [Understand process packages](../context/process-packages.md)
 - [Skills (via processkit)](../skills/index.md)
 - [Full CLI reference](../reference/cli-commands.md)
+
+
+---
+Source: https://projectious-work.github.io/aibox/docs/getting-started/new-project/index.md

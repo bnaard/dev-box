@@ -1,8 +1,5 @@
 # Migration
 
-LLMS index: [llms.txt](/aibox/llms.txt)
-
----
 
 # Migration
 
@@ -13,9 +10,7 @@ schema gaps and produces review artifacts under `.aibox/migration/`.
 Separate processkit content and generated-runtime changes are surfaced as
 Migration entities under `context/migrations/` in processkit mode.
 
-<div class="alert alert-warning" role="alert"><div class="h4 alert-heading" role="heading">v0.16.0 — `context/AIBOX.md` is gone</div>
-
-
+{{< callout type="warning" title="v0.16.0 — `context/AIBOX.md` is gone" >}}
 
 Pre-v0.16 releases generated a `context/AIBOX.md` "universal baseline" file
 on every `aibox apply`. That file has been **removed** as part of the
@@ -29,8 +24,7 @@ Anything you wrote into it by hand should be moved into `AGENTS.md`,
 `context/DECISIONS.md`, or one of the work-instructions files, depending on
 its nature.
 
-</div>
-
+{{< /callout >}}
 
 ## How Version Tracking Works
 
@@ -153,14 +147,11 @@ canonical filenames, canonical directory placement, and updated references.
 3. Follow the migration document's checklist
 4. Run `aibox apply migration <id>` to archive the migration to `context/migrations/applied/`
 
-<div class="alert alert-warning" role="alert"><div class="h4 alert-heading" role="heading">Review before applying</div>
-
-
+{{< callout type="warning" title="Review before applying" >}}
 
 Migration artifacts describe structural changes. They do not migrate content. If a file is renamed, the artifact tells you to create the new file -- but you need to move the content yourself (or have an AI agent do it thoughtfully).
 
-</div>
-
+{{< /callout >}}
 
 ## Best Practices
 
@@ -189,3 +180,7 @@ Schema documents in the `schemas/` directory define the expected structure for e
 - Directory structure requirements
 
 These schemas are used by `doctor` to validate the project and by migration tooling to compute diffs between versions.
+
+
+---
+Source: https://projectious-work.github.io/aibox/docs/context/migration/index.md

@@ -2,11 +2,6 @@
 
 > What aibox does, what it owns, and when to use it.
 
----
-
-LLMS index: [llms.txt](/aibox/llms.txt)
-
----
 
 # Overview
 
@@ -105,3 +100,7 @@ attaches through tmux.
 Run `aibox doctor` when the environment looks wrong. Run
 `aibox get runtime --resources` when the workspace feels slow or agents exit
 without a clean error.
+
+
+---
+Source: https://projectious-work.github.io/aibox/docs/overview/index.md

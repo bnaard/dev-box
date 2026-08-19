@@ -1,8 +1,5 @@
 # Language Runtimes
 
-LLMS index: [llms.txt](/aibox/llms.txt)
-
----
 
 # Language Runtime Addons
 
@@ -133,3 +130,7 @@ your preamble:
 
 Without the fallback configured, emoji characters render as
 missing-glyph boxes even though the font is installed.
+
+
+---
+Source: https://projectious-work.github.io/aibox/docs/addons/language-runtimes/index.md

@@ -1,8 +1,5 @@
 # Installation
 
-LLMS index: [llms.txt](/aibox/llms.txt)
-
----
 
 # Installation
 
@@ -119,3 +116,7 @@ aibox self completion fish | source
 - [Create a new project](new-project.md)
 - [Add aibox to an existing project](existing-project.md)
 - [Read the overview](../overview.md)
+
+
+---
+Source: https://projectious-work.github.io/aibox/docs/getting-started/installation/index.md

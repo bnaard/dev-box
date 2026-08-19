@@ -1,9 +1,5 @@
 # 
 
-LLMS index: [llms.txt](/aibox/llms.txt)
-
----
-
 # Zellij end-of-life migration (v0.25.5 → v0.25.6)
 
 ## TL;DR
@@ -98,3 +94,7 @@ deprecation path.
 Open an issue at <https://github.com/projectious-work/aibox/issues> and
 tag it `zellij-migration`. Include the output of `aibox doctor` and the
 relevant section of your `aibox.toml`.
+
+
+---
+Source: https://projectious-work.github.io/aibox/docs/migrations/zellij-eol/index.md

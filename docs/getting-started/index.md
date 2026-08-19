@@ -1,11 +1,7 @@
 # Getting Started
 
-LLMS index: [llms.txt](/aibox/llms.txt)
 
----
 
-Section pages:
-
-- [Installation](/aibox/docs/getting-started/installation/)
-- [New Project](/aibox/docs/getting-started/new-project/)
-- [Existing Project](/aibox/docs/getting-started/existing-project/)
+- [Installation](https://projectious-work.github.io/aibox/docs/getting-started/installation/index.md)
+- [New Project](https://projectious-work.github.io/aibox/docs/getting-started/new-project/index.md)
+- [Existing Project](https://projectious-work.github.io/aibox/docs/getting-started/existing-project/index.md)

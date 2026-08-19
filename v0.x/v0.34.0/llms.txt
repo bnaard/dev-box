@@ -1,0 +1,75 @@
+# aibox
+
+> Reproducible AI workspaces from one aibox.toml.
+
+Version: v0.x current
+
+
+## Documentation
+
+Configure, operate, extend, and contribute to aibox.
+
+- [Base Image](https://projectious-work.github.io/aibox/v0.x/v0.34.0/docs/container/base-image/)
+- [CLI Commands](https://projectious-work.github.io/aibox/v0.x/v0.34.0/docs/reference/cli-commands/)
+- [Context Overview](https://projectious-work.github.io/aibox/v0.x/v0.34.0/docs/context/overview/)
+- [Installation](https://projectious-work.github.io/aibox/v0.x/v0.34.0/docs/getting-started/installation/)
+- [Overview](https://projectious-work.github.io/aibox/v0.x/v0.34.0/docs/addons/overview/)
+- [Overview](https://projectious-work.github.io/aibox/v0.x/v0.34.0/docs/overview/): What aibox does, what it owns, and when to use it.
+- [Configuration](https://projectious-work.github.io/aibox/v0.x/v0.34.0/docs/reference/configuration/)
+- [Container Configuration](https://projectious-work.github.io/aibox/v0.x/v0.34.0/docs/container/configuration/)
+- [Language Runtimes](https://projectious-work.github.io/aibox/v0.x/v0.34.0/docs/addons/language-runtimes/)
+- [Maintenance](https://projectious-work.github.io/aibox/v0.x/v0.34.0/docs/contributing/maintenance/)
+- [New Project](https://projectious-work.github.io/aibox/v0.x/v0.34.0/docs/getting-started/new-project/)
+- [Prompt Presets](https://projectious-work.github.io/aibox/v0.x/v0.34.0/docs/customization/prompts/)
+- [Skill Selection](https://projectious-work.github.io/aibox/v0.x/v0.34.0/docs/context/process-packages/)
+- [Audio Support](https://projectious-work.github.io/aibox/v0.x/v0.34.0/docs/container/audio/)
+- [Custom Themes](https://projectious-work.github.io/aibox/v0.x/v0.34.0/docs/customization/custom-themes/)
+- [E2E Test Catalogue](https://projectious-work.github.io/aibox/v0.x/v0.34.0/docs/contributing/e2e-tests/)
+- [Existing Project](https://projectious-work.github.io/aibox/v0.x/v0.34.0/docs/getting-started/existing-project/)
+- [Layouts](https://projectious-work.github.io/aibox/v0.x/v0.34.0/docs/customization/layouts/)
+- [Local Config (.aibox-local.toml)](https://projectious-work.github.io/aibox/v0.x/v0.34.0/docs/reference/local-config/)
+- [Migration](https://projectious-work.github.io/aibox/v0.x/v0.34.0/docs/context/migration/)
+- [Tool Bundles](https://projectious-work.github.io/aibox/v0.x/v0.34.0/docs/addons/tool-bundles/)
+- [Cheatsheet](https://projectious-work.github.io/aibox/v0.x/v0.34.0/docs/reference/cheatsheet/)
+- [Custom Prompts](https://projectious-work.github.io/aibox/v0.x/v0.34.0/docs/customization/custom-prompts/)
+- [Documentation Frameworks](https://projectious-work.github.io/aibox/v0.x/v0.34.0/docs/addons/documentation/)
+- [File Preview](https://projectious-work.github.io/aibox/v0.x/v0.34.0/docs/container/file-preview/)
+- [Claude](https://projectious-work.github.io/aibox/v0.x/v0.34.0/docs/providers/ai-claude/)
+- [Runtime Operations](https://projectious-work.github.io/aibox/v0.x/v0.34.0/docs/container/runtime-operations/): How to start, inspect, rebuild, and troubleshoot a running aibox workspace.
+- [Aider](https://projectious-work.github.io/aibox/v0.x/v0.34.0/docs/providers/ai-aider/)
+- [Gemini](https://projectious-work.github.io/aibox/v0.x/v0.34.0/docs/providers/ai-gemini/)
+- [Mistral](https://projectious-work.github.io/aibox/v0.x/v0.34.0/docs/providers/ai-mistral/)
+- [Version-line porting](https://projectious-work.github.io/aibox/v0.x/v0.34.0/docs/contributing/version-line-porting/)
+- [OpenAI (Codex CLI)](https://projectious-work.github.io/aibox/v0.x/v0.34.0/docs/providers/ai-openai/)
+- [Copilot (GitHub)](https://projectious-work.github.io/aibox/v0.x/v0.34.0/docs/providers/ai-copilot/)
+- [Continue](https://projectious-work.github.io/aibox/v0.x/v0.34.0/docs/providers/ai-continue/)
+- [Agent attention titles](https://projectious-work.github.io/aibox/v0.x/v0.34.0/docs/customization/agent-attention-titles/)
+- [Compatibility](https://projectious-work.github.io/aibox/v0.x/v0.34.0/docs/reference/compatibility/)
+- [](https://projectious-work.github.io/aibox/v0.x/v0.34.0/docs/migrations/lockfile-v0-25-6/)
+- [](https://projectious-work.github.io/aibox/v0.x/v0.34.0/docs/migrations/zellij-eol/)
+- [](https://projectious-work.github.io/aibox/v0.x/v0.34.0/docs/reference/security/)
+- [Color Themes](https://projectious-work.github.io/aibox/v0.x/v0.34.0/docs/customization/themes/)
+- [LaTeX Build and Preview](https://projectious-work.github.io/aibox/v0.x/v0.34.0/docs/addons/latex-workflow/)
+
+## Change log
+
+aibox release history.
+
+- [v0.33.2 — runtime and processkit alignment](https://projectious-work.github.io/aibox/v0.x/v0.34.0/changelog/release-v0-33-2/): Refreshes processkit and runtime metadata while reconciling tmux layout and theme switching work.
+- [v0.33.0 — agent-aware terminal titles](https://projectious-work.github.io/aibox/v0.x/v0.34.0/changelog/release-v0-33-0/): Adds configurable, terminal-neutral tmux titles and lifecycle attention signals for agent panes.
+- [v0.33.1 — resilient runtime projections](https://projectious-work.github.io/aibox/v0.x/v0.34.0/changelog/release-v0-33-1/): Repairs generated harness startup, Yazi directory previews, and PowerKit window-tab spacing.
+
+## Features
+
+What aibox provides.
+
+
+## Roadmap
+
+The public aibox delivery roadmap.
+
+- [v0.x](https://projectious-work.github.io/aibox/v0.x/v0.34.0/roadmap/v0/): Mature the current aibox line around dependable containers, addons, agent context, runtime diagnostics, and processkit integration.
+- [v1.x](https://projectious-work.github.io/aibox/v0.x/v0.34.0/roadmap/v1/): Develop the next project-contract architecture while preserving reproducible, provider-neutral workspaces.
+
+## Optional
+
