@@ -186,7 +186,7 @@ RUN npm install -g pnpm@11.22.0 && \
 # npm package: @openai/codex | Binary: codex | Config: ~/.codex/
 # Auth: OPENAI_API_KEY (or ChatGPT Plus/Pro/Team/Enterprise account)
 # To pin a version: set [ai.harness.codex] version in aibox.toml
-RUN npm install -g @openai/codex@0.147.0
+RUN npm install -g @openai/codex
 
 
 # Addon: docs-docusaurus
