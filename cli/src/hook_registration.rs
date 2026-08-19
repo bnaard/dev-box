@@ -261,6 +261,10 @@ fn write_claude_settings_hooks(path: &Path) -> Result<()> {
     {
         let arr = hooks["SessionStart"].as_array_mut().unwrap();
         arr.push(claude_hook_entry("", &compliance_cmd));
+        arr.push(attention_hook_entry(
+            "",
+            "aibox-agent-signal idle --harness claude --hook-input",
+        ));
     }
 
     // UserPromptSubmit — inject compliance contract into every turn.
@@ -269,7 +273,7 @@ fn write_claude_settings_hooks(path: &Path) -> Result<()> {
         arr.push(claude_hook_entry("", &compliance_cmd));
         arr.push(attention_hook_entry(
             "",
-            "aibox-agent-signal working --harness claude",
+            "aibox-agent-signal working --harness claude --hook-input",
         ));
     }
 
@@ -291,7 +295,7 @@ fn write_claude_settings_hooks(path: &Path) -> Result<()> {
         .unwrap()
         .push(attention_hook_entry(
             "",
-            "aibox-agent-signal question --harness claude",
+            "aibox-agent-signal question --harness claude --hook-input",
         ));
     // Notification is filtered to user-actionable notification types.  The
     // matcher excludes informational/auth notifications while covering final
@@ -302,21 +306,21 @@ fn write_claude_settings_hooks(path: &Path) -> Result<()> {
         .unwrap()
         .push(attention_hook_entry(
             "permission_prompt|idle_prompt|elicitation_dialog",
-            "aibox-agent-signal question --harness claude",
+            "aibox-agent-signal question --harness claude --hook-input",
         ));
     hooks["Stop"]
         .as_array_mut()
         .unwrap()
         .push(attention_hook_entry(
             "",
-            "aibox-agent-signal done --harness claude",
+            "aibox-agent-signal done --harness claude --hook-input",
         ));
     hooks["StopFailure"]
         .as_array_mut()
         .unwrap()
         .push(attention_hook_entry(
             "",
-            "aibox-agent-signal error --harness claude",
+            "aibox-agent-signal error --harness claude --hook-input",
         ));
 
     // Ensure parent dir exists.
@@ -391,28 +395,30 @@ fn write_codex_hooks_json(path: &Path) -> Result<()> {
     let route_guard_cmd = gitroot_cmd(ROUTE_GUARD_SCRIPT_REL);
     hooks.insert(
         "SessionStart".to_string(),
-        command_hook(compliance_cmd.clone()),
+        command_hook(format!(
+            "aibox-agent-signal idle --harness codex --hook-input >/dev/null 2>&1 || true; {compliance_cmd}"
+        )),
     );
     hooks.insert(
         "UserPromptSubmit".to_string(),
         command_hook(format!(
-            "aibox-agent-signal working --harness codex >/dev/null 2>&1 || true; {compliance_cmd}"
+            "aibox-agent-signal working --harness codex --hook-input >/dev/null 2>&1 || true; {compliance_cmd}"
         )),
     );
     hooks.insert("PreToolUse".to_string(), command_hook(route_guard_cmd));
     hooks.insert(
         "PermissionRequest".to_string(),
-        command_hook("aibox-agent-signal question --harness codex".to_string()),
+        command_hook("aibox-agent-signal question --harness codex --hook-input".to_string()),
     );
     hooks.insert(
         "Stop".to_string(),
         command_hook(
-            r#"python3 -c 'import json, subprocess, sys; m=(json.load(sys.stdin).get("last_assistant_message") or "").rstrip(); s="question" if m.endswith(("?", "？")) else "done"; subprocess.run(["aibox-agent-signal", s, "--harness", "codex"], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)'"#.to_string(),
+            r#"python3 -c 'import json, subprocess, sys; p=json.load(sys.stdin); m=(p.get("last_assistant_message") or "").rstrip(); s="question" if m.endswith(("?", "？")) else "done"; subprocess.run(["aibox-agent-signal", s, "--harness", "codex", "--hook-input"], input=json.dumps(p), text=True, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)'"#.to_string(),
         ),
     );
     hooks.insert(
         "SessionEnd".to_string(),
-        command_hook("aibox-agent-signal idle --harness codex".to_string()),
+        command_hook("aibox-agent-signal idle --harness codex --hook-input".to_string()),
     );
 
     if let Some(parent) = path.parent() {
@@ -493,25 +499,31 @@ fn write_gemini_settings_hooks(path: &Path) -> Result<()> {
         hooks,
         "BeforeAgent",
         "",
-        "aibox-agent-signal working --harness gemini >/dev/null 2>&1 || true",
+        "aibox-agent-signal working --harness gemini --hook-input >/dev/null 2>&1 || true",
+    )?;
+    merge(
+        hooks,
+        "BeforeModel",
+        "",
+        "aibox-agent-signal working --harness gemini --hook-input >/dev/null 2>&1 || true",
     )?;
     merge(
         hooks,
         "AfterAgent",
         "",
-        r#"python3 -c 'import json, subprocess, sys; m=(json.load(sys.stdin).get("prompt_response") or "").rstrip(); s="question" if m.endswith(("?", "？")) else "done"; subprocess.run(["aibox-agent-signal", s, "--harness", "gemini"], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)'"#,
+        r#"python3 -c 'import json, subprocess, sys; p=json.load(sys.stdin); m=(p.get("prompt_response") or "").rstrip(); s="question" if m.endswith(("?", "？")) else "done"; subprocess.run(["aibox-agent-signal", s, "--harness", "gemini", "--hook-input"], input=json.dumps(p), text=True, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)'"#,
     )?;
     merge(
         hooks,
         "Notification",
         "ToolPermission",
-        "aibox-agent-signal question --harness gemini >/dev/null 2>&1 || true",
+        "aibox-agent-signal question --harness gemini --hook-input >/dev/null 2>&1 || true",
     )?;
     merge(
         hooks,
         "SessionEnd",
         "",
-        "aibox-agent-signal idle --harness gemini >/dev/null 2>&1 || true",
+        "aibox-agent-signal idle --harness gemini --hook-input >/dev/null 2>&1 || true",
     )?;
 
     if let Some(parent) = path.parent() {
@@ -619,7 +631,7 @@ fn write_cursor_hooks_json(path: &Path) -> Result<()> {
         hooks,
         "beforeSubmitPrompt",
         &serde_json::json!({
-            "command": "aibox-agent-signal working --harness cursor",
+            "command": "aibox-agent-signal working --harness cursor --hook-input",
             "description": "aibox: mark Cursor agent working",
             "alwaysApprove": true
         }),
@@ -628,7 +640,7 @@ fn write_cursor_hooks_json(path: &Path) -> Result<()> {
         hooks,
         "stop",
         &serde_json::json!({
-            "command": "aibox-agent-signal done --harness cursor",
+            "command": "aibox-agent-signal done --harness cursor --hook-input",
             "description": "aibox: mark Cursor agent done",
             "alwaysApprove": true
         }),
@@ -823,6 +835,8 @@ version = "unset"
         let command = |event: &str| hooks[event][0]["hooks"][0]["command"].as_str().unwrap();
         let ss = command("SessionStart");
         assert!(ss.contains("emit_compliance_contract.py"));
+        assert!(ss.contains("aibox-agent-signal idle --harness codex"));
+        assert!(ss.contains("--hook-input"));
         assert!(
             ss.contains("git rev-parse"),
             "Codex hook command must anchor to git repo root so it works when \
@@ -831,11 +845,15 @@ version = "unset"
         let ups = command("UserPromptSubmit");
         assert!(ups.contains("emit_compliance_contract.py"));
         assert!(ups.contains("aibox-agent-signal working"));
+        assert!(ups.contains("--hook-input"));
         assert!(command("PermissionRequest").contains("question"));
+        assert!(command("PermissionRequest").contains("--hook-input"));
         let stop = command("Stop");
         assert!(stop.contains("last_assistant_message"));
         assert!(stop.contains("question"));
         assert!(stop.contains("done"));
+        assert!(stop.contains("--hook-input"));
+        assert!(command("SessionEnd").contains("--hook-input"));
 
         let ptu = command("PreToolUse");
         assert!(ptu.contains("check_route_task_called.py"));

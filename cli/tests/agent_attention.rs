@@ -44,8 +44,10 @@ fn generated_catalog_documents_title_configuration() {
     let config = fs::read_to_string(dir.path().join("aibox.toml")).expect("read aibox.toml");
     for expected in [
         "[customization.tmux.title]",
-        "format =",
+        "format = \"{state_symbol}{repository}{agent_suffix}\"",
         "max-length",
+        "repository-style = \"basename\"",
+        "agent-style = \"basename\"",
         "[customization.tmux.title.states]",
         "question =",
     ] {
@@ -103,6 +105,14 @@ fn custom_title_format_reaches_generated_tmux_config() {
         tmux.contains("#{=60:"),
         "custom title max-length was not rendered:\n{tmux}"
     );
+    assert!(
+        tmux.contains("set -g @aibox_title_repository_style \"basename\""),
+        "repository title style was not rendered:\n{tmux}"
+    );
+    assert!(
+        tmux.contains("set -g @aibox_title_agent_style \"basename\""),
+        "agent title style was not rendered:\n{tmux}"
+    );
 }
 
 #[test]
@@ -115,6 +125,41 @@ fn signal_helper_aggregates_panes_and_expires_done() {
     let dir = tempfile::tempdir().expect("create isolated tmux directory");
     let socket = dir.path().join("attention.sock");
     let helper = dir.path().join("aibox-agent-signal");
+    let repository = dir.path().join("checkout");
+    let codex_home = dir.path().join("codex-home");
+    fs::create_dir_all(&repository).expect("create repository");
+    fs::create_dir_all(&codex_home).expect("create Codex home");
+    let database = codex_home.join("state_5.sqlite");
+    let output = Command::new("python3")
+        .arg("-c")
+        .arg("import sqlite3,sys; db=sqlite3.connect(sys.argv[1]); db.execute('create table threads (id text primary key, cwd text, model text, reasoning_effort text, archived integer, updated_at integer, updated_at_ms integer)'); db.execute('insert into threads values (?, ?, ?, ?, ?, ?, ?)', ('thread-test', sys.argv[2], 'gpt-5.6-sol', 'low', 0, 1, 1000)); db.commit()")
+        .arg(&database)
+        .arg(&repository)
+        .output()
+        .expect("create Codex state fixture");
+    assert!(
+        output.status.success(),
+        "failed to create Codex state fixture"
+    );
+    let git = |args: &[&str]| {
+        let output = Command::new("git")
+            .args(args)
+            .current_dir(&repository)
+            .output()
+            .expect("execute git");
+        assert!(
+            output.status.success(),
+            "git {args:?} failed: {}",
+            String::from_utf8_lossy(&output.stderr)
+        );
+    };
+    git(&["init"]);
+    git(&[
+        "remote",
+        "add",
+        "origin",
+        "https://github.com/projectious-work/aibox.git",
+    ]);
     fs::copy(
         format!(
             "{}/src/templates/aibox-agent-signal.sh",
@@ -164,6 +209,8 @@ fn signal_helper_aggregates_panes_and_expires_done() {
         "attention",
         "-n",
         "agents",
+        "-c",
+        repository.to_str().expect("repository path is UTF-8"),
         "sleep 30",
     ]);
     let pane_one = value(&[
@@ -181,6 +228,8 @@ fn signal_helper_aggregates_panes_and_expires_done() {
         .to_string();
     for (key, setting) in [
         ("@aibox_title_message_max_length", "32"),
+        ("@aibox_title_repository_style", "basename"),
+        ("@aibox_title_agent_style", "full"),
         ("@aibox_done_ttl_seconds", "1"),
         ("@aibox_notifications_enabled", "0"),
         ("@aibox_notifications_protocol", "bell"),
@@ -194,24 +243,172 @@ fn signal_helper_aggregates_panes_and_expires_done() {
     }
 
     let signal = |pane: &str, args: &str| {
-        let command = format!("TMUX_PANE='{}' '{}' {}", pane, helper.display(), args);
+        let command = format!(
+            "TMUX_PANE='{}' CODEX_HOME='{}' CODEX_THREAD_ID='' CODEX_SESSION_ID='' '{}' {}",
+            pane,
+            codex_home.display(),
+            helper.display(),
+            args
+        );
+        success(&["run-shell", "-t", pane, &command]);
+    };
+    let signal_hook = |pane: &str, args: &str, payload: &str| {
+        let command = format!(
+            "printf '%s' '{}' | TMUX_PANE='{}' '{}' {} --hook-input",
+            payload,
+            pane,
+            helper.display(),
+            args
+        );
         success(&["run-shell", "-t", pane, &command]);
     };
     let window_value =
         |option: &str| value(&["show-window-option", "-v", "-t", "attention:agents", option]);
 
     signal(&pane_one, "working --harness codex --message build");
-    signal(&pane_two, "question --harness claude --message 'Frage ä?'");
+    assert_eq!(window_value("@aibox_attention_repository"), "aibox");
+    assert_eq!(window_value("@aibox_attention_agent"), "gpt-5.6-sol low");
+    assert_eq!(
+        value(&[
+            "show-option",
+            "-pqv",
+            "-t",
+            &pane_one,
+            "@aibox_attention_agent"
+        ]),
+        "gpt-5.6-sol low"
+    );
+    signal_hook(
+        &pane_two,
+        "question --harness claude --message 'Frage ä?'",
+        r#"{"model":"claude-opus-4-6","effort":{"level":"high"}}"#,
+    );
     assert_eq!(window_value("@aibox_attention_state"), "question");
     assert_eq!(window_value("@aibox_attention_harness"), "claude");
+    assert_eq!(
+        window_value("@aibox_attention_agent"),
+        "claude-opus-4-6 high"
+    );
     assert_eq!(window_value("@aibox_attention_message"), "Frage ä?");
 
-    signal(&pane_two, "clear");
+    for (harness, payload, expected) in [
+        (
+            "gemini",
+            r#"{"llm_request":{"model":"gemini-2.5-pro"}}"#,
+            "gemini-2.5-pro",
+        ),
+        (
+            "copilot",
+            r#"{"message":{"modelId":"claude-sonnet-4.6"}}"#,
+            "claude-sonnet-4.6",
+        ),
+        (
+            "cursor",
+            r#"{"model":"composer-2","reasoningEffort":"high"}"#,
+            "composer-2 high",
+        ),
+    ] {
+        signal_hook(&pane_two, &format!("working --harness {harness}"), payload);
+        assert_eq!(
+            value(&[
+                "show-option",
+                "-pqv",
+                "-t",
+                &pane_two,
+                "@aibox_attention_agent",
+            ]),
+            expected,
+            "unexpected hook-derived identity for {harness}"
+        );
+    }
+    signal(
+        &pane_two,
+        "working --harness opencode --agent openai/gpt-5.2 --effort high",
+    );
+    assert_eq!(
+        value(&[
+            "show-option",
+            "-pqv",
+            "-t",
+            &pane_two,
+            "@aibox_attention_agent",
+        ]),
+        "openai/gpt-5.2 high"
+    );
+    signal_hook(
+        &pane_two,
+        "question --harness claude --message 'Frage ä?'",
+        r#"{"model":"claude-opus-4-6","effort":{"level":"high"}}"#,
+    );
+
+    signal_hook(&pane_two, "clear --harness claude", "{}");
+    assert_eq!(
+        value(&[
+            "show-option",
+            "-pqv",
+            "-t",
+            &pane_two,
+            "@aibox_attention_agent"
+        ]),
+        "claude-opus-4-6 high"
+    );
+    let claude_transcript = dir.path().join("claude-transcript.jsonl");
+    fs::write(
+        &claude_transcript,
+        r#"{"type":"assistant","effort":"medium","message":{"model":"claude-sonnet-4-6"}}"#,
+    )
+    .expect("write Claude transcript fixture");
+    let transcript_payload = format!(r#"{{"transcript_path":"{}"}}"#, claude_transcript.display());
+    signal_hook(&pane_two, "question --harness claude", &transcript_payload);
+    assert_eq!(
+        window_value("@aibox_attention_agent"),
+        "claude-sonnet-4-6 medium"
+    );
+    signal_hook(&pane_two, "clear --harness claude", "{}");
     assert_eq!(window_value("@aibox_attention_state"), "working");
     signal(&pane_one, "done --harness codex");
     assert_eq!(window_value("@aibox_attention_state"), "done");
     std::thread::sleep(std::time::Duration::from_secs(2));
     assert_eq!(window_value("@aibox_attention_state"), "idle");
+    assert_eq!(window_value("@aibox_attention_repository"), "aibox");
+    assert_eq!(window_value("@aibox_attention_harness"), "codex");
+    assert_eq!(window_value("@aibox_attention_agent"), "gpt-5.6-sol low");
+
+    success(&["set-option", "-g", "@aibox_title_agent_style", "basename"]);
+    signal(&pane_one, "idle --harness codex");
+    assert_eq!(window_value("@aibox_attention_agent"), "gpt-5.6-sol");
+    success(&["set-option", "-g", "@aibox_title_agent_style", "full"]);
+
+    success(&["set-option", "-g", "@aibox_title_repository_style", "full"]);
+    for (remote, expected) in [
+        (
+            "https://github.com/projectious-work/aibox.git",
+            "projectious-work/aibox",
+        ),
+        (
+            "git@gitlab.com:projectious-work/platform/aibox.git",
+            "projectious-work/platform/aibox",
+        ),
+        (
+            "ssh://git@gitea.example.net/projectious-work/aibox.git",
+            "projectious-work/aibox",
+        ),
+        (
+            "https://forgejo.example.net/projectious-work/aibox",
+            "projectious-work/aibox",
+        ),
+    ] {
+        git(&["remote", "set-url", "origin", remote]);
+        signal(&pane_one, "idle --harness codex");
+        assert_eq!(
+            window_value("@aibox_attention_repository"),
+            expected,
+            "unexpected full repository name for {remote}"
+        );
+    }
+
+    signal(&pane_one, "working --harness codex --agent Rowan");
+    assert_eq!(window_value("@aibox_attention_agent"), "Rowan");
 
     success(&["kill-server"]);
 }

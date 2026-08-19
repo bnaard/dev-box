@@ -1794,7 +1794,7 @@ pub(crate) fn serialize_config_with_comments(config: &AiboxConfig) -> String {
     out.push_str("# @aibox_attention_* tmux options used by this format.\n");
     out.push_str("# Placeholders: {state_symbol}, {state}, {project}, {session}, {window},\n");
     out.push_str("# {window_index}, {pane}, {directory}, {directory_path}, {repository},\n");
-    out.push_str("# {branch}, {harness}, {agent}, {task}, {message}, {elapsed}.\n");
+    out.push_str("# {branch}, {harness}, {agent}, {agent_suffix}, {task}, {message}, {elapsed}.\n");
     out.push_str("[customization.tmux.title]\n");
     out.push_str(&format!(
         "enabled = {}\n",
@@ -1811,6 +1811,14 @@ pub(crate) fn serialize_config_with_comments(config: &AiboxConfig) -> String {
     out.push_str(&format!(
         "directory-style = {}  # basename | abbreviated | full\n",
         toml_string_value(&config.customization.tmux.title.directory_style)
+    ));
+    out.push_str(&format!(
+        "repository-style = {}  # basename | full (owner/repository)\n",
+        toml_string_value(&config.customization.tmux.title.repository_style)
+    ));
+    out.push_str(&format!(
+        "agent-style = {}  # basename (model) | full (model + reasoning effort)\n",
+        toml_string_value(&config.customization.tmux.title.agent_style)
     ));
     out.push_str(&format!(
         "done-ttl-seconds = {}\n",

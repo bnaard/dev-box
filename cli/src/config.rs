@@ -1936,7 +1936,7 @@ fn bool_false() -> bool {
 }
 
 fn default_tmux_title_format() -> String {
-    "{state_symbol}{project}:{window} — {directory}".to_string()
+    "{state_symbol}{repository}{agent_suffix}".to_string()
 }
 
 fn default_tmux_title_max_length() -> u32 {
@@ -1952,6 +1952,14 @@ fn default_tmux_title_message_max_length() -> u32 {
 }
 
 fn default_tmux_title_directory_style() -> String {
+    "basename".to_string()
+}
+
+fn default_tmux_title_repository_style() -> String {
+    "basename".to_string()
+}
+
+fn default_tmux_title_agent_style() -> String {
     "basename".to_string()
 }
 
@@ -2014,6 +2022,10 @@ pub struct TmuxTitleSection {
     pub max_length: u32,
     #[serde(default = "default_tmux_title_directory_style")]
     pub directory_style: String,
+    #[serde(default = "default_tmux_title_repository_style")]
+    pub repository_style: String,
+    #[serde(default = "default_tmux_title_agent_style")]
+    pub agent_style: String,
     #[serde(default = "default_tmux_title_done_ttl_seconds")]
     pub done_ttl_seconds: u32,
     #[serde(default = "default_tmux_title_message_max_length")]
@@ -2029,6 +2041,8 @@ impl Default for TmuxTitleSection {
             format: default_tmux_title_format(),
             max_length: default_tmux_title_max_length(),
             directory_style: default_tmux_title_directory_style(),
+            repository_style: default_tmux_title_repository_style(),
+            agent_style: default_tmux_title_agent_style(),
             done_ttl_seconds: default_tmux_title_done_ttl_seconds(),
             message_max_length: default_tmux_title_message_max_length(),
             states: TmuxTitleStatesSection::default(),
@@ -4899,6 +4913,7 @@ impl AiboxConfig {
             "branch",
             "harness",
             "agent",
+            "agent_suffix",
             "task",
             "message",
             "elapsed",
@@ -4969,6 +4984,18 @@ impl AiboxConfig {
             bail!(
                 "customization.tmux.title.directory-style '{}' is unsupported; expected basename, abbreviated, or full",
                 title.directory_style
+            );
+        }
+        if !matches!(title.repository_style.as_str(), "basename" | "full") {
+            bail!(
+                "customization.tmux.title.repository-style '{}' is unsupported; expected basename or full",
+                title.repository_style
+            );
+        }
+        if !matches!(title.agent_style.as_str(), "basename" | "full") {
+            bail!(
+                "customization.tmux.title.agent-style '{}' is unsupported; expected basename or full",
+                title.agent_style
             );
         }
         let symbols = [
@@ -5435,6 +5462,8 @@ fn check_customization_table(
                     "format",
                     "max-length",
                     "directory-style",
+                    "repository-style",
+                    "agent-style",
                     "done-ttl-seconds",
                     "message-max-length",
                     "states",
@@ -8461,6 +8490,8 @@ port = 8765
         assert!(!config.customization.tmux.notifications.enabled);
         assert_eq!(config.customization.tmux.notifications.protocol, "osc-9");
         assert_eq!(config.customization.tmux.title.states.question, "❓ ");
+        assert_eq!(config.customization.tmux.title.repository_style, "basename");
+        assert_eq!(config.customization.tmux.title.agent_style, "basename");
     }
 
     #[test]
@@ -8479,6 +8510,16 @@ port = 8765
         config.customization.tmux.notifications.protocol = "ghostty".to_string();
         let error = config.validate().unwrap_err().to_string();
         assert!(error.contains("expected osc-9 or bell"));
+
+        let mut config = test_config();
+        config.customization.tmux.title.repository_style = "host".to_string();
+        let error = config.validate().unwrap_err().to_string();
+        assert!(error.contains("expected basename or full"));
+
+        let mut config = test_config();
+        config.customization.tmux.title.agent_style = "identity".to_string();
+        let error = config.validate().unwrap_err().to_string();
+        assert!(error.contains("expected basename or full"));
     }
 
     #[test]

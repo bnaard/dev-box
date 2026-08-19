@@ -673,12 +673,14 @@ session_name = "aibox"
 # @aibox_attention_* tmux options used by this format.
 # Placeholders: {state_symbol}, {state}, {project}, {session}, {window},
 # {window_index}, {pane}, {directory}, {directory_path}, {repository},
-# {branch}, {harness}, {agent}, {task}, {message}, {elapsed}.
+# {branch}, {harness}, {agent}, {agent_suffix}, {task}, {message}, {elapsed}.
 [customization.tmux.title]
 enabled = true
-format = "{state_symbol}{project}:{window} — {directory}"
-max-length = 60
+format = "{state_symbol}{repository}{agent_suffix}"
+max-length = 120
 directory-style = "basename"  # basename | abbreviated | full
+repository-style = "basename"  # basename | full (owner/repository)
+agent-style = "basename"  # basename (model) | full (model + reasoning effort)
 done-ttl-seconds = 10
 message-max-length = 32
 

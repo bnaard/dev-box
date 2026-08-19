@@ -212,6 +212,14 @@ fn tmux_title_settings(config: &AiboxConfig) -> String {
             title.message_max_length
         ),
         format!(
+            "set -g @aibox_title_repository_style \"{}\"",
+            tmux_option_escape(&title.repository_style)
+        ),
+        format!(
+            "set -g @aibox_title_agent_style \"{}\"",
+            tmux_option_escape(&title.agent_style)
+        ),
+        format!(
             "set -g @aibox_done_ttl_seconds \"{}\"",
             title.done_ttl_seconds
         ),
@@ -317,6 +325,7 @@ fn title_placeholder_expression(placeholder: &str, directory_style: &str) -> Str
         "branch" => "#{@aibox_attention_branch}".to_string(),
         "harness" => "#{@aibox_attention_harness}".to_string(),
         "agent" => "#{@aibox_attention_agent}".to_string(),
+        "agent_suffix" => "#{?#{@aibox_attention_harness}, — #{?#{@aibox_attention_agent},#{@aibox_attention_agent}@,}#{@aibox_attention_harness},}".to_string(),
         "task" => "#{@aibox_attention_task}".to_string(),
         "message" => "#{@aibox_attention_message}".to_string(),
         "elapsed" => "#{@aibox_attention_elapsed}".to_string(),
@@ -2190,13 +2199,13 @@ mod tests {
     fn tmux_conf_renders_configurable_attention_title_and_runtime_options() {
         let mut config = crate::config::test_config();
         config.customization.tmux.title.format =
-            "{state_symbol}{project}:{window} {directory_path} {message}".to_string();
+            "{state_symbol}{project}:{window} {directory_path} {message}{agent_suffix}".to_string();
         config.customization.tmux.title.max_length = 80;
         config.customization.tmux.notifications.enabled = true;
         let conf = tmux_conf(&config);
 
         assert!(conf.contains("set -g set-titles on"));
-        assert!(conf.contains("#{=80:#{@aibox_attention_symbol}#{@aibox_title_project}:#W #{pane_current_path} #{@aibox_attention_message}}"));
+        assert!(conf.contains("#{=80:#{@aibox_attention_symbol}#{@aibox_title_project}:#W #{pane_current_path} #{@aibox_attention_message}#{?#{@aibox_attention_harness}, — #{?#{@aibox_attention_agent},#{@aibox_attention_agent}@,}#{@aibox_attention_harness},}}"));
         assert!(conf.contains("set -g @aibox_notifications_enabled \"1\""));
         assert!(conf.contains("set -g @aibox_notifications_protocol \"osc-9\""));
         assert!(conf.contains("set -g @aibox_title_state_question \"❓ \""));

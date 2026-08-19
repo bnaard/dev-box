@@ -883,9 +883,11 @@ import type { Plugin } from "@opencode-ai/plugin";
 // Attention is deliberately emitted through the shared shell helper.  This
 // keeps OpenCode provider-neutral and lets the helper safely no-op outside
 // tmux.  Bun is the documented OpenCode plugin runtime.
-function signalAttention(state: string, message?: string): void {
+function signalAttention(state: string, message?: string, model?: string, effort?: string): void {
   const args = ["aibox-agent-signal", state, "--harness", "opencode"];
   if (message) args.push("--message", message.slice(0, 160));
+  if (model) args.push("--agent", model);
+  if (effort) args.push("--effort", effort);
   try {
     const child = Bun.spawn(args, { stdout: "ignore", stderr: "ignore" });
     child.unref();
@@ -952,6 +954,10 @@ export const ProcesskitGate: Plugin = async ({ project: _project }) => {
     event: async ({ event }: { event?: { type?: string; properties?: Record<string, unknown> } }) => {
       const type = String(event?.type ?? "");
       const properties = event?.properties ?? {};
+      const info = (properties.info ?? properties.message ?? properties) as Record<string, unknown>;
+      const model = String(info.modelID ?? info.modelId ?? info.model ?? "");
+      const effort = String(info.reasoningEffort ?? info.reasoning_effort ?? info.effort ?? "");
+      if (model) signalAttention("working", undefined, model, effort);
       if (type === "permission.asked" || type === "question.asked") {
         signalAttention("question", String(properties.message ?? ""));
       } else if (
@@ -984,23 +990,23 @@ const DEFAULT_COPILOT_ATTENTION_HOOKS_JSON: &str = r#"{
   "version": 1,
   "hooks": {
     "userPromptSubmitted": [
-      { "type": "command", "bash": "aibox-agent-signal working --harness copilot >/dev/null 2>&1 || true" }
+      { "type": "command", "bash": "aibox-agent-signal working --harness copilot --hook-input >/dev/null 2>&1 || true" }
     ],
     "permissionRequest": [
-      { "type": "command", "bash": "aibox-agent-signal question --harness copilot >/dev/null 2>&1 || true" }
+      { "type": "command", "bash": "aibox-agent-signal question --harness copilot --hook-input >/dev/null 2>&1 || true" }
     ],
     "notification": [
-      { "type": "command", "matcher": "permission_prompt|elicitation_dialog", "bash": "aibox-agent-signal question --harness copilot >/dev/null 2>&1 || true" },
-      { "type": "command", "matcher": "agent_idle", "bash": "aibox-agent-signal done --harness copilot >/dev/null 2>&1 || true" }
+      { "type": "command", "matcher": "permission_prompt|elicitation_dialog", "bash": "aibox-agent-signal question --harness copilot --hook-input >/dev/null 2>&1 || true" },
+      { "type": "command", "matcher": "agent_idle", "bash": "aibox-agent-signal done --harness copilot --hook-input >/dev/null 2>&1 || true" }
     ],
     "agentStop": [
-      { "type": "command", "bash": "aibox-agent-signal done --harness copilot >/dev/null 2>&1 || true" }
+      { "type": "command", "bash": "aibox-agent-signal done --harness copilot --hook-input >/dev/null 2>&1 || true" }
     ],
     "errorOccurred": [
-      { "type": "command", "bash": "aibox-agent-signal error --harness copilot >/dev/null 2>&1 || true" }
+      { "type": "command", "bash": "aibox-agent-signal error --harness copilot --hook-input >/dev/null 2>&1 || true" }
     ],
     "sessionEnd": [
-      { "type": "command", "bash": "aibox-agent-signal idle --harness copilot >/dev/null 2>&1 || true" }
+      { "type": "command", "bash": "aibox-agent-signal idle --harness copilot --hook-input >/dev/null 2>&1 || true" }
     ]
   }
 }
