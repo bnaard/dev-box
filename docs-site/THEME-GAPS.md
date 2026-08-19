@@ -28,3 +28,15 @@ Reported upstream as
   repeats that envelope while reusing the theme's CDN, script, card, and semantic
   classes. A public data-driven gallery or reusable asciinema partial would
   remove this layout-level HTML.
+- The header brand partial hardcodes the `projectious.work` wordmark instead of
+  deriving it from `site.Title` or a configured brand label. The aibox site
+  overrides `brand.html` so the theme mark can be paired with the consumer's
+  own wordmark.
+- The head partial hardcodes theme-owned favicon paths and does not expose
+  favicon parameters or a small override hook. The aibox site overrides
+  `head.html` to use its own SVG, PNG, and Apple touch icons.
+- The theme version menu is generated from a static per-build version list.
+  Archived sites therefore cannot discover releases published after they were
+  built. The aibox deployment retains its shared `releases.json` manifest for
+  legacy archives; a theme-supported manifest-backed menu would make current
+  and archived release navigation consistent without consumer JavaScript.

@@ -83,28 +83,20 @@ release_array() {
 }
 
 v0_releases="$(release_array v0.x)"
-v1_releases="$(release_array v1.x)"
 v0_current="$(jq -r '(.lines[]? | select(.line == "v0.x") | .current.version) // empty' \
   "${PAGES_DIR}/releases.json" 2>/dev/null || true)"
-v1_current="$(jq -r '(.lines[]? | select(.line == "v1.x") | .current.version) // empty' \
-  "${PAGES_DIR}/releases.json" 2>/dev/null || true)"
 [[ "${LINE}" == "v0.x" && -n "${VERSION}" ]] && v0_current="${VERSION}"
-[[ "${LINE}" == "v1.x" && -n "${VERSION}" ]] && v1_current="${VERSION}"
 [[ -n "${v0_current}" ]] || v0_current="v0.x"
-[[ -n "${v1_current}" ]] || v1_current="preview"
 
 jq -n \
   --arg siteBase "${SITE_BASE_URL}" \
   --arg v0Current "${v0_current}" \
-  --arg v1Current "${v1_current}" \
   --argjson v0Releases "${v0_releases}" \
-  --argjson v1Releases "${v1_releases}" \
   '{
     schemaVersion: 1,
     siteBase: $siteBase,
     lines: [
-      {line: "v0.x", current: {version: $v0Current, url: $siteBase}, releases: $v0Releases},
-      {line: "v1.x", current: {version: $v1Current, url: ($siteBase + "v1.x/")}, releases: $v1Releases}
+      {line: "v0.x", current: {version: $v0Current, url: $siteBase}, releases: $v0Releases}
     ]
   }' > "${PAGES_DIR}/releases.json"
 : > "${PAGES_DIR}/.nojekyll"
