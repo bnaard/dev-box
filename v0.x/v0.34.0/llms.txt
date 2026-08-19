@@ -2,7 +2,7 @@
 
 > Reproducible AI workspaces from one aibox.toml.
 
-Version: v0.x current
+Version: v0.34.0
 
 
 ## Documentation
