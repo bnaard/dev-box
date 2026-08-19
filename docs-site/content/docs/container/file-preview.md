@@ -99,13 +99,13 @@ Custom plugins (`svg.yazi`, `eps.yazi`) live at `~/.config/yazi/plugins/<name>.y
 
 **`.excalidraw` files** — Excalidraw's native format is JSON. A graphical preview is not possible in a TUI environment. Yazi falls back to the text previewer showing the raw JSON. This is a known limitation — Excalidraw requires a browser to render.
 
-{{% alert title="Image protocol inside tmux" color="info" %}}
+{{< callout type="info" title="Image protocol inside tmux" >}}
 
 Image preview support depends on the host terminal and tmux passthrough
 settings. The generated Yazi config favors terminal-safe fallbacks inside tmux;
 use half-block mode when you need predictable rendering across terminals.
 
-{{% /alert %}}
+{{< /callout >}}
 
 ---
 
@@ -225,11 +225,11 @@ ls <file> | entr -s '<rasterise-command> && timg --clear <output.png>'
 | SVG | `resvg file.svg /tmp/p.png` |
 | EPS | `gs -dBATCH -dNOPAUSE -sDEVICE=png16m -r150 -sOutputFile=/tmp/p.png file.eps` |
 
-{{% alert title="Pane layout for watch preview" color="success" %}}
+{{< callout type="success" title="Pane layout for watch preview" >}}
 
 In the `dev` or `cowork` layouts, open a new horizontal pane below the editor (`Ctrl+g d`) and run the watch command there. The preview refreshes in that pane every time you save. Use `Ctrl+g =` to resize the pane to taste.
 
-{{% /alert %}}
+{{< /callout >}}
 
 ---
 

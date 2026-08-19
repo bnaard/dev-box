@@ -16,11 +16,11 @@ cd my-existing-project
 aibox init my-existing-project --harness claude
 ```
 
-{{% alert title="init will not overwrite" color="warning" %}}
+{{< callout type="warning" title="init will not overwrite" >}}
 
 If `aibox.toml` already exists, `init` will refuse to run. Either delete the existing file or edit it directly.
 
-{{% /alert %}}
+{{< /callout >}}
 
 If you prefer to write it by hand:
 
@@ -72,7 +72,7 @@ In harness-only mode, omit `[processkit]`, `[processkit.context]`, and
 `[skills]`; `aibox apply` will not create processkit skill mirrors or
 processkit Migration entities.
 
-{{% alert title="Pin processkit before apply" color="success" %}}
+{{< callout type="success" title="Pin processkit before apply" >}}
 
 Set `[processkit].version` to a real tag (e.g. `v0.27.4`) before the first
 `aibox apply`. The default sentinel `unset` skips processkit content
@@ -81,7 +81,7 @@ processes, or processkit-rendered `AGENTS.md` template.
 
 This tip only applies when `[context].mode = "processkit"`.
 
-{{% /alert %}}
+{{< /callout >}}
 
 ## Apply Devcontainer Files
 
@@ -157,11 +157,11 @@ If you are upgrading from aibox ≤ v0.3.4, the persisted config directory was r
 mv .root .aibox-home
 ```
 
-{{% alert title="Do not use `git mv`" color="warning" %}}
+{{< callout type="warning" title="Do not use `git mv`" >}}
 
 `git mv .root .aibox-home` will fail because `.root/` is listed in `.gitignore` and was never committed. Use a regular `mv` command.
 
-{{% /alert %}}
+{{< /callout >}}
 
 aibox will fall back to `.root/` automatically if `.aibox-home/` does not exist, so this migration is optional but recommended.
 

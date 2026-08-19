@@ -46,7 +46,7 @@ Thank you for your interest in contributing to aibox!
 - **`cli/`** — Rust CLI source code
 - **`images/`** — Published container image Dockerfiles
 - **`addons/`** — Addon definitions (language runtimes, tool bundles, AI agents)
-- **`docs-site/`** — Hugo/Docsy documentation source
+- **`docs-site/`** — Hugo documentation source using the projectious.work brand theme
 - **`.devcontainer/`** — This project's own dev environment
 
 > Process content (skills, packages, primitives, processes, the canonical

@@ -307,8 +307,8 @@ hugo = { enabled = true } # Fast Go-based static site generator; default off; op
 # ---- Languages ------------------------------------------------------------
 
 # Languages/go — Go programming language toolchain
-# [addons.go.tools]
-# go = {} # Go compiler, tooling, and module workflow; default on; options: {}, { enabled = true|false }, { version = "1.25.12" | "1.26.3" | "1.26.4" | "1.26.5" | "1.26.6" (default) or "latest" }
+[addons.go.tools]
+go = {} # Go compiler, tooling, and module workflow; default on; options: {}, { enabled = true|false }, { version = "1.25.12" | "1.26.3" | "1.26.4" | "1.26.5" | "1.26.6" (default) or "latest" }
 
 # Languages/go-quality — Production Go formatting, linting, vulnerability, and security tools; requires go
 # [addons.go-quality.tools]

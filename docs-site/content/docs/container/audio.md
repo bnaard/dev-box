@@ -126,11 +126,11 @@ pulse_server = "tcp:192.168.64.1:4714"
    pulse_server = "tcp:host.docker.internal:4714"
    ```
 
-{{% alert title="Firewall" color="warning" %}}
+{{< callout type="warning" title="Firewall" >}}
 
 Ensure port 4714 is accessible from the container network. On systems with strict firewalls, you may need to allow traffic from the Docker/Podman bridge interface.
 
-{{% /alert %}}
+{{< /callout >}}
 
 ## Claude Code OAuth in Containers
 
@@ -138,11 +138,11 @@ When running `claude auth` inside a container with bridge networking (OrbStack, 
 
 **Workaround:** Use `claude setup-token` to authenticate manually, or authenticate on the host first. aibox bind-mounts Claude's `.claude/`, `.claude.json`, and XDG cache/config/state locations, so credentials survive container rebuilds.
 
-{{% alert title="Upstream tracking" color="info" %}}
+{{< callout type="info" title="Upstream tracking" >}}
 
 This is tracked at [anthropics/claude-code#14528](https://github.com/anthropics/claude-code/issues/14528). A fix on the Claude Code side (e.g., configurable callback port) would resolve this properly without compromising container network isolation.
 
-{{% /alert %}}
+{{< /callout >}}
 
 ## The .asoundrc File
 

@@ -5,9 +5,9 @@ title: "Mistral"
 
 # Mistral (SDK)
 
-{{% alert title="SDK addon — not an interactive CLI" color="secondary" %}}
+{{< callout type="note" title="SDK addon — not an interactive CLI" >}}
 The `ai-mistral` addon installs the **mistralai Python SDK**, not an interactive coding CLI. It is intended for projects that call the Mistral API programmatically. For an interactive coding experience, use [Claude](./ai-claude.md), [Gemini](./ai-gemini.md), [OpenAI Codex](./ai-openai.md), or [Copilot](./ai-copilot.md) instead.
-{{% /alert %}}
+{{< /callout >}}
 
 [Mistral AI](https://mistral.ai) provides large language models via Python SDK.
 

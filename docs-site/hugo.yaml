@@ -1,105 +1,93 @@
 baseURL: "https://projectious-work.github.io/aibox/"
 title: aibox
 description: "Reproducible AI workspaces from one aibox.toml"
-theme: [docsy]
+defaultContentLanguage: en
 enableRobotsTXT: true
 enableGitInfo: true
-enableEmoji: true
-
-markup:
-  goldmark:
-    renderer:
-      unsafe: true
-    parser:
-      attribute:
-        block: true
-        title: true
-  highlight:
-    noClasses: false
-  tableOfContents:
-    endLevel: 4
-
-outputs:
-  home: [HTML, RSS]
-  page: [HTML, markdown]
-  section: [HTML, RSS, print, markdown]
-
-params:
-  hugoMinVersion: "0.157.0"
-  productionURL: "https://projectious-work.github.io/aibox/"
-  offlineSearch: true
-  offlineSearchSummaryLength: 200
-  offlineSearchMaxResults: 25
-  version: "v0.x current"
-  version_menu: "Releases"
-  version_menu_pagelinks: true
-  # The deployment script replaces this fallback with the shared
-  # releases.json manifest. Keeping both line aliases here makes the selector
-  # useful in local previews and when the manifest cannot be fetched.
-  versions:
-    - name: "v0.x current"
-      version: "v0.x"
-      url: "https://projectious-work.github.io/aibox/"
-    - name: "v1.x preview"
-      version: "v1.x preview"
-      url: "https://projectious-work.github.io/aibox/v1.x/"
-  github_repo: "https://github.com/projectious-work/aibox"
-  github_branch: "v0.x-dev"
-  path_base_for_github_subdir: "docs-site/content"
-  ui:
-    navbar_logo: true
-    navbar_theme: light
-    showLightDarkModeMenu: true
-    sidebar_menu_compact: true
-    sidebar_menu_foldable: true
-    sidebar_search_disable: false
-    feedback:
-      enable: false
-  links:
-    user:
-      - name: GitHub
-        url: "https://github.com/projectious-work/aibox"
-        icon: "fa-brands fa-github"
-        desc: Source code and issue tracker
-  copyright:
-    authors: "Projectious"
-    from_year: 2026
-
-menu:
-  main:
-    - name: Documentation
-      weight: 10
-      url: "/docs/"
-    - name: Features
-      weight: 20
-      url: "/features/"
-    - name: Themes
-      weight: 30
-      url: "/themes/"
-    - name: Changelog
-      weight: 40
-      url: "/changelog/"
-    - name: GitHub
-      weight: 50
-      url: "https://github.com/projectious-work/aibox"
-      pre: "<i class='fa-brands fa-github' aria-hidden='true'></i>"
-
 module:
-  replacements:
-    - "github.com/FortAwesome/Font-Awesome -> ../node_modules/@fortawesome/fontawesome-free"
-    - "github.com/twbs/bootstrap -> ../node_modules/bootstrap"
+  imports:
+    - path: github.com/projectious-work/brand-theme-hugo-vanilla
   mounts:
     - source: assets
       target: assets
-    - source: static
-      target: static
-    - source: node_modules/bootstrap
-      target: assets/vendor/bootstrap
-    - source: node_modules/@fortawesome/fontawesome-free
-      target: assets/vendor/Font-Awesome
-    - source: node_modules/@fortawesome/fontawesome-free/webfonts
-      target: static/webfonts
-
+    - source: node_modules/@tabler/icons/icons/outline
+      target: assets/tabler-icons/outline
+build:
+  buildStats:
+    enable: true
+security:
+  exec:
+    allow: ["^(dart-)?sass$", "^go$", "^git$", "^node$", "^postcss$", "^tailwindcss$"]
+markup:
+  goldmark:
+    renderer:
+      unsafe: false
+  highlight:
+    noClasses: false
+    lineNos: false
+    guessSyntax: true
+    tabWidth: 2
+  tableOfContents:
+    startLevel: 2
+    endLevel: 3
+outputs:
+  home: [HTML, RSS, SearchIndex, LLMS]
+  page: [HTML, Markdown]
+  section: [HTML, RSS, Print, Markdown]
+outputFormats:
+  SearchIndex:
+    mediaType: application/json
+    baseName: index
+    isPlainText: true
+    notAlternative: true
+  Print:
+    mediaType: text/html
+    baseName: print
+    isHTML: true
+    notAlternative: true
+    permalinkable: true
+  LLMS:
+    mediaType: text/plain
+    baseName: llms
+    isPlainText: true
+    notAlternative: true
+  Markdown:
+    mediaType: text/markdown
+    isPlainText: true
+    permalinkable: true
+pagination:
+  pagerSize: 8
 taxonomies:
   tag: tags
-  category: categories
+menu:
+  main:
+    - name: Documentation
+      pageRef: /docs
+      weight: 10
+    - name: Features
+      pageRef: /features
+      weight: 20
+    - name: Roadmap
+      pageRef: /roadmap
+      weight: 40
+    - name: Change log
+      pageRef: /changelog
+      weight: 50
+params:
+  description: "Reproducible AI workspaces from one aibox.toml."
+  github: "https://github.com/projectious-work/aibox"
+  version: "v0.x current"
+  darkSurface: navy
+  codeTheme: adaptive
+  sidebarOpenDepth: 0
+  sidebarSections: [docs]
+  build:
+    tailwind: true
+  editURL:
+    default: "https://github.com/projectious-work/aibox/edit/v0.x-dev/docs-site/content/"
+  versions:
+    - label: "v0.x current"
+      url: "/"
+      note: latest
+    - label: "v1.x preview"
+      url: "v1.x/"

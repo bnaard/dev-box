@@ -1,0 +1,25 @@
+{{ define "main" }}
+<div class="shell">
+  <main id="main">
+    <div class="hero">
+      <div class="hero__eyebrow">{{ site.Title }}</div>
+      <h1>{{ .Title }}</h1>
+      {{ with .Description }}<p>{{ . }}</p>{{ end }}
+    </div>
+    {{ with .Content }}<div class="prose">{{ . }}</div>{{ end }}
+    <div class="example-changelog">
+      {{ range .Pages.ByWeight.Reverse }}
+      <article>
+        <div class="card__eyebrow">{{ .Params.phase }}</div>
+        <div>
+          <h2><a href="{{ .RelPermalink }}">{{ .LinkTitle }}</a></h2>
+          {{ with .Params.status }}<div class="changelog__badges">{{ partial "badge.html" . }}</div>{{ end }}
+          <p>{{ .Description }}</p>
+          <p><a href="{{ .RelPermalink }}">Explore this phase →</a></p>
+        </div>
+      </article>
+      {{ end }}
+    </div>
+  </main>
+</div>
+{{ end }}

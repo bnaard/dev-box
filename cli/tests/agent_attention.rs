@@ -59,6 +59,24 @@ fn generated_catalog_documents_title_configuration() {
 }
 
 #[test]
+fn signal_helper_refreshes_terminal_titles_after_state_changes() {
+    let helper = fs::read_to_string(format!(
+        "{}/src/templates/aibox-agent-signal.sh",
+        env!("CARGO_MANIFEST_DIR")
+    ))
+    .expect("read attention helper template");
+
+    assert!(
+        helper.contains("tmux refresh-client 2>/dev/null || true"),
+        "attention changes must refresh the complete client so set-titles-string is repainted"
+    );
+    assert!(
+        !helper.contains("tmux refresh-client -S 2>/dev/null || true"),
+        "a status-only refresh can leave the host terminal title stale"
+    );
+}
+
+#[test]
 fn custom_title_format_reaches_generated_tmux_config() {
     let dir = tempfile::tempdir().expect("create temporary project");
     init(dir.path());

@@ -99,13 +99,13 @@ aibox ships four tmux layouts. Select one with `aibox up --layout <name>` (the d
 
 #### dev (default)
 
-<div class="asciinema" data-cast="/aibox/screencasts/layout-dev.cast" data-poster="npt:4" data-autoplay="false" data-controls="false" data-fit="width"></div>
+{{< asciinema src="/aibox/screencasts/layout-dev.cast" poster="npt:4" >}}
 
 Window **work** has Yazi and the 1st harness stacked on the left, with shell on the right. Further harnesses use the **ai** window; lazygit and shell get their own windows.
 
 #### focus -- one tool per window, fullscreen
 
-<div class="asciinema" data-cast="/aibox/screencasts/layout-focus.cast" data-poster="npt:4" data-autoplay="false" data-controls="false" data-fit="width"></div>
+{{< asciinema src="/aibox/screencasts/layout-focus.cast" poster="npt:4" >}}
 
 Each tool gets the entire screen in its own window. Switch with `Ctrl+g [/]` or `Ctrl+g 1-5`.
 
@@ -113,7 +113,7 @@ Windows: **files** (yazi) | one window per harness | optional **lazygit** | **sh
 
 #### cowork -- side-by-side coding with AI
 
-<div class="asciinema" data-cast="/aibox/screencasts/layout-cowork.cast" data-poster="npt:4" data-autoplay="false" data-controls="false" data-fit="width"></div>
+{{< asciinema src="/aibox/screencasts/layout-cowork.cast" poster="npt:4" >}}
 
 Window **work** has Yazi on the left and shell on the right. The **ai** window contains all harnesses split evenly across full-height panes; the lazygit window is generated when enabled.
 
@@ -122,13 +122,13 @@ Window **work** has Yazi on the left and shell on the right. The **ai** window c
 - **`Enter`** -- opens file in vim in-place (suspends Yazi, `:q` returns to Yazi). Works in all layouts.
 - **`e`** -- opens file in a full-screen vim popup and returns to Yazi when vim exits.
 
-{{% alert title="tmux vs Yazi" color="secondary" %}}
+{{< callout type="note" title="tmux vs Yazi" >}}
 
 `Ctrl+g` then `s` opens the tmux session chooser. The sidebar file manager in
 all layouts is **Yazi**, an external terminal file manager with richer features
 (preview, bulk operations, async I/O).
 
-{{% /alert %}}
+{{< /callout >}}
 
 ### Theme
 

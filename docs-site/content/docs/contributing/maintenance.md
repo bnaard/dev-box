@@ -25,10 +25,11 @@ The helper script wraps the same checks:
 
 ## Documentation Site
 
-The public docs live in `docs-site/` and use Hugo with the Docsy theme.
+The public docs live in `docs-site/` and use Hugo with the pinned
+`brand-theme-hugo-vanilla` module. Hugo Extended, Go, and Node.js are required;
+the project devcontainer enables all three through aibox addons.
 
 ```bash
-git submodule update --init --recursive docs-site/themes/docsy
 npm --prefix docs-site ci
 ./scripts/maintain.sh docs-serve
 ./scripts/build-docs.sh
@@ -114,7 +115,7 @@ The command performs:
 - binary version smoke check
 - annotated git tag push
 - GitHub release creation with Linux binaries
-- Hugo/Docsy docs deployment
+- Hugo/projectious.work brand-theme docs deployment
 - `dist/RELEASE-PROMPT.md` for host-side completion
 
 Independent validation gates run concurrently. The default worker limit is

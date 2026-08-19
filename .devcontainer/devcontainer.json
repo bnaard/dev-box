@@ -6,7 +6,8 @@
       "extensions": [
         "ms-python.python",
         "rust-lang.rust-analyzer",
-        "dbaeumer.vscode-eslint"
+        "dbaeumer.vscode-eslint",
+        "golang.go"
       ],
       "settings": {
         "terminal.integrated.defaultProfile.linux": "bash",
