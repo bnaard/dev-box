@@ -19,9 +19,9 @@ After `aibox apply`, the Starship config is at:
 
 Edit `.aibox-home/.config/starship.toml` directly with any valid [Starship configuration](https://starship.rs/config/). Changes take effect immediately in new shell sessions.
 
-{{% alert title="Apply overwrites" color="warning" %}}
+{{< callout type="warning" title="Apply overwrites" >}}
 `aibox apply` regenerates `starship.toml` from the preset and theme. To preserve manual edits, either avoid running apply or back up your config first.
-{{% /alert %}}
+{{< /callout >}}
 
 ## Adding Custom Presets
 

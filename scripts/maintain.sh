@@ -14,8 +14,8 @@
 #   test-e2e-visual   Run all opt-in isolated tmux/asciinema visual E2E tiers
 #   build-images      Build published foundation/runtime images locally
 #   release-runtime-smoke <version> Run generated runtime smoke against a release
-#   docs-serve        Serve Hugo/Docsy locally for preview
-#   docs-deploy       Build Hugo/Docsy and push HTML to gh-pages
+#   docs-serve        Serve Hugo/projectious.work locally for preview
+#   docs-deploy       Build Hugo/projectious.work and push HTML to gh-pages
 #   release <version> Tag, build, compile CLI, generate release prompt
 #   start             Start this project's dev-container
 #   stop              Stop this project's dev-container
@@ -123,9 +123,9 @@ ${bold}Development:${reset}
                            Plan or delete GHCR BuildKit cache package versions
   release-runtime-smoke <version>
                            Run host-side generated-runtime smoke and write logs
-  docs-serve               Serve Hugo/Docsy locally (http://localhost:1316/aibox/)
+  docs-serve               Serve Hugo/projectious.work locally (http://localhost:1316/aibox/)
   docs-deploy --line <v0.x|v1.x> [--version vX.Y.Z] [--dry-run]
-                           Build Hugo/Docsy, retain release snapshots, and push gh-pages
+                           Build Hugo/projectious.work, retain release snapshots, and push gh-pages
   test-visual              Run screencast smoke tests (~40s)
   record-docs              Regenerate all docs screencasts + README GIF
 
@@ -1167,14 +1167,12 @@ cmd_ghcr_prune_buildcache_tags() {
 
 cmd_docs_serve() {
   command -v hugo &>/dev/null || die "Hugo extended not found. Install Hugo >= 0.157.0."
+  command -v go &>/dev/null   || die "Go not found. It is required to resolve the pinned Hugo module."
   command -v npm &>/dev/null  || die "npm not found. Install Node.js."
-  if [[ ! -f "${PROJECT_ROOT}/docs-site/themes/docsy/theme.toml" ]]; then
-    git -C "${PROJECT_ROOT}" submodule update --init --recursive docs-site/themes/docsy
-  fi
   if [[ ! -d "${PROJECT_ROOT}/docs-site/node_modules" ]]; then
     npm --prefix "${PROJECT_ROOT}/docs-site" ci
   fi
-  info "Serving docs with Hugo and Docsy at http://localhost:1316/aibox/ ..."
+  info "Serving docs with Hugo/projectious.work at http://localhost:1316/aibox/ ..."
   hugo server --source "${PROJECT_ROOT}/docs-site" \
     --bind 0.0.0.0 --port 1316 --baseURL "http://localhost:1316/aibox/"
 }
@@ -1208,7 +1206,7 @@ cmd_docs_deploy_legacy() {
   info "Source: ${current_branch}@${commit_sha}"
 
   cd "${PROJECT_ROOT}"
-  info "Building docs with Hugo and Docsy..."
+  info "Building docs with the projectious.work Hugo brand theme..."
   "${PROJECT_ROOT}/scripts/build-docs.sh"
   ok "Site built in docs-site/public/"
 

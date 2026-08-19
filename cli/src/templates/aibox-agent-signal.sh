@@ -398,5 +398,8 @@ if [[ "$notify_enabled" == 1 && "$previous" != "$aggregate" \
     done < <(tmux list-clients -F '#{client_tty}' 2>/dev/null || true)
 fi
 
-tmux refresh-client -S 2>/dev/null || true
+# Refresh the complete client, not only the status line. The attention state is
+# also part of set-titles-string, and `refresh-client -S` can leave the host
+# terminal title stale until another tmux event occurs.
+tmux refresh-client 2>/dev/null || true
 exit 0

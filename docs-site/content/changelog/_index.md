@@ -1,9 +1,11 @@
 ---
-title: Changelog
+title: Change log
 description: "aibox release history."
+aliases: ["/blog/"]
 ---
 
-# Changelog
+# Change log
 
-See [GitHub Releases](https://github.com/projectious-work/aibox/releases) for
-the complete changelog and upgrade notes.
+Release highlights for the current aibox lines. See the
+[GitHub Releases](https://github.com/projectious-work/aibox/releases) for the
+complete changelog and upgrade notes.

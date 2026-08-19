@@ -1,14 +1,19 @@
 # aibox Documentation Site
 
 This directory contains the public aibox documentation site. It uses
-[Hugo](https://gohugo.io/) with the [Docsy](https://www.docsy.dev/) theme and
-the [projectious.work brand system](https://github.com/projectious-work/brand).
+[Hugo](https://gohugo.io/) with the
+[projectious.work brand theme](https://github.com/projectious-work/brand-theme-hugo-vanilla)
+at v0.3.4.
 
 ## Installation
 
+The site requires Hugo Extended, Go for Hugo Modules, and Node.js for the
+theme's Tailwind build.
+
 ```bash
-git submodule update --init --recursive docs-site/themes/docsy
 npm --prefix docs-site ci
+hugo mod get github.com/projectious-work/brand-theme-hugo-vanilla@v0.3.4
+hugo mod tidy
 ```
 
 ## Local Development
@@ -17,7 +22,7 @@ npm --prefix docs-site ci
 ./scripts/maintain.sh docs-serve
 ```
 
-This command starts a local development server and opens up a browser window. Most changes are reflected live without having to restart the server.
+This command starts a local development server on port 1316. Most changes are reflected live without having to restart the server.
 
 ## Build
 

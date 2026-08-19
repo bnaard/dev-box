@@ -128,6 +128,6 @@ services:
       - postgres
 ```
 
-{{% alert color="success" %}}
+{{< callout type="success" >}}
 The override file is never overwritten by `aibox apply` — you own it, just like `Dockerfile.local`.
-{{% /alert %}}
+{{< /callout >}}

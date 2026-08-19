@@ -733,6 +733,11 @@ pub static COMPAT_TABLE: &[CompatEntry] = &[
         processkit_version: "v0.28.8",
         note: "Patch release: updates the default processkit release to v0.28.8, refreshes generated runtime metadata for Codex 0.148.0, and reconciles the completed live tmux layout and theme switching work.",
     },
+    CompatEntry {
+        aibox_version: "0.34.0",
+        processkit_version: "v0.28.8",
+        note: "Minor release: adds configurable agent-aware tmux headers and replaces the legacy documentation stack with the projectious.work Hugo brand theme.",
+    },
 ];
 
 /// Find the minimum compatible processkit version for the given aibox version.
