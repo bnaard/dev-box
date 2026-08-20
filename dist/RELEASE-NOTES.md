@@ -19,6 +19,7 @@
 - Clear Codex's `question` lifecycle state after a permission response so the tmux title resumes its working indicator.
 - Preserve palette-specific selection foreground/background values and light/dark terminal chrome across generated tool configs.
 - Generate Codex theme files only when the Codex harness is enabled.
+- Restore LaTeX addon builds by using a reachable immutable TeX Live 2025 archive for both the installer and package database.
 
 ## Upgrade notes
 
