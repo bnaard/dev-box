@@ -1,27 +1,27 @@
-# aibox v0.34.0 — 2026-08-19
+# aibox v0.34.1 — 2026-08-20
 
-**Summary:** This minor release makes tmux window titles agent-aware and moves the documentation website onto the projectious.work Hugo brand theme. Titles now identify the repository, active model, and harness, while lifecycle symbols expose working, question, completion, and error states without adding suffixes to ordinary shell or lazygit windows.
+**Summary:** This patch release delivers coherent, configurable color themes across the managed terminal toolchain and restores the public theme gallery with faithful screenshots. Codex users also receive exact syntax palettes and a lifecycle fix that clears the question marker after permission prompts are answered.
 
 ## Added
 
-- Configurable tmux title formats, state symbols, agent suffixes, completion TTLs, and terminal-neutral attention notifications.
-- Native Codex and Claude Code lifecycle integration for working, question, done, error, and idle transitions.
-- A projectious.work-branded Hugo documentation site with a public Change log and two-phase Roadmap.
+- Expanded semantic theme palettes covering terminal chrome, tmux, shell tools, editors, syntax highlighting, and supported coding-agent harnesses.
+- Generated TextMate themes consumed by bat, delta, and Codex for exact per-project syntax colors.
+- A screenshot-based theme gallery with all supported theme variants and a reproducible capture script.
 
 ## Changed
 
-- Replaced the legacy Hugo Docsy/Bootstrap/Font Awesome dependency stack with `brand-theme-hugo-vanilla` v0.3.4 and Hugo-native theme constructs.
-- Updated the deployed documentation identity, navigation, compatibility matrix, and release archive.
-- Temporarily removed the terminal theme gallery from publication until its recordings preserve each palette and Nerd Font symbols correctly.
+- Extended theme configuration and documentation to describe every colored semantic token and each tool's native or generated theme support.
+- Replaced fragile terminal recordings in the documentation gallery with deterministic rendered screenshots.
+- Refreshed the generated v0.34.0 dogfood runtime and archived completed migration artifacts.
 
 ## Fixed
 
-- Refresh the complete tmux client after agent-state transitions so host terminal titles immediately repaint their lifecycle symbol.
-- Omit the trailing `@` agent separator for non-agent windows.
-- Keep tmux title ownership stable while switching between Codex, Claude Code, lazygit, and shell windows.
+- Clear Codex's `question` lifecycle state after a permission response so the tmux title resumes its working indicator.
+- Preserve palette-specific selection foreground/background values and light/dark terminal chrome across generated tool configs.
+- Generate Codex theme files only when the Codex harness is enabled.
 
 ## Upgrade notes
 
-Upgrade the host CLI to v0.34.0 and run `aibox apply` to regenerate the managed tmux configuration and lifecycle helper. Existing `customization.tmux.title` settings remain supported; projects without explicit title settings receive the new agent-aware defaults.
+Upgrade the host CLI to v0.34.1 and run `aibox apply` to regenerate managed terminal and harness theme files. Existing theme names remain compatible.
 
-[v0.34.0]: https://github.com/projectious-work/aibox/compare/v0.33.2...v0.34.0
+[v0.34.1]: https://github.com/projectious-work/aibox/compare/v0.34.0...v0.34.1

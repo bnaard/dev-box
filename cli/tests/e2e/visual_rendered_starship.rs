@@ -14,9 +14,9 @@ use std::process::Command;
 // (bg, accent, green, orange) — pulled from themes.rs::theme_palette().
 
 /// GruvboxDark palette slots we assert on.
-const GRUVBOX_DARK_ACCENT: &str = "#D79921";
-const GRUVBOX_DARK_GREEN: &str = "#98971A";
-const GRUVBOX_DARK_ORANGE: &str = "#D65D0E";
+const GRUVBOX_DARK_ACCENT: &str = "#FABD2F";
+const GRUVBOX_DARK_GREEN: &str = "#B8BB26";
+const GRUVBOX_DARK_ORANGE: &str = "#FE8019";
 
 /// CatppuccinMocha palette slots we assert on.
 const CATPPUCCIN_MOCHA_ACCENT: &str = "#89B4FA";

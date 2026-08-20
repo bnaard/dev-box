@@ -12,7 +12,7 @@ use serial_test::serial;
 // variant of catppuccin (latte) is unit-tested in themes::tests but cannot
 // be asserted here because `aibox init` has no --mode flag yet.
 const THEME_SIGNATURES: &[(&str, u8, u8, u8)] = &[
-    ("gruvbox", 152, 151, 26),
+    ("gruvbox", 184, 187, 38),
     ("catppuccin", 166, 227, 161),
     ("dracula", 80, 250, 123),
     ("tokyo-night", 158, 206, 106),

@@ -245,7 +245,11 @@ pub(crate) fn include_github_credential_helper(config: &AiboxConfig) -> bool {
 
 fn managed_git_config(config: &AiboxConfig) -> String {
     let theme = config.customization.resolved_theme();
-    let mut gitconfig = crate::themes::gitconfig_with_delta(&theme);
+    let mut gitconfig = crate::themes::gitconfig_with_delta_and_style(
+        &theme,
+        config.customization.emphasis,
+        &config.customization.emphasis_overrides,
+    );
     if include_github_credential_helper(config) {
         if !gitconfig.ends_with('\n') {
             gitconfig.push('\n');
@@ -1085,7 +1089,11 @@ pub fn managed_runtime_files(config: &AiboxConfig) -> Vec<(std::path::PathBuf, S
         ),
         (
             std::path::PathBuf::from(".vim/colors/aibox.vim"),
-            crate::themes::vim_aibox_colorscheme(&theme),
+            crate::themes::vim_aibox_colorscheme_with_style(
+                &theme,
+                config.customization.emphasis,
+                &config.customization.emphasis_overrides,
+            ),
         ),
         (
             std::path::PathBuf::from(".config/git/config"),
@@ -1093,11 +1101,31 @@ pub fn managed_runtime_files(config: &AiboxConfig) -> Vec<(std::path::PathBuf, S
         ),
         (
             std::path::PathBuf::from(".config/aibox/theme-env.sh"),
-            crate::themes::theme_env_script(&theme),
+            crate::themes::theme_env_script_with_style(
+                &theme,
+                config.customization.emphasis,
+                &config.customization.emphasis_overrides,
+            ),
+        ),
+        (
+            std::path::PathBuf::from(".config/bat/themes/aibox.tmTheme"),
+            crate::themes::bat_tmtheme_with_style(
+                &theme,
+                config.customization.emphasis,
+                &config.customization.emphasis_overrides,
+            ),
         ),
         (
             std::path::PathBuf::from(".config/lnav/config.json"),
-            crate::themes::lnav_config(&theme),
+            crate::themes::lnav_config_with_style(
+                &theme,
+                config.customization.emphasis,
+                &config.customization.emphasis_overrides,
+            ),
+        ),
+        (
+            std::path::PathBuf::from(".config/opencode/themes/aibox.json"),
+            crate::themes::opencode_custom_theme(&theme),
         ),
         (
             std::path::PathBuf::from(".config/tmux/tmux.conf"),
@@ -1109,7 +1137,11 @@ pub fn managed_runtime_files(config: &AiboxConfig) -> Vec<(std::path::PathBuf, S
         ),
         (
             std::path::PathBuf::from(".config/tmux/aibox-powerkit-theme.sh"),
-            crate::themes::tmux_powerkit_custom_theme(&theme),
+            crate::themes::tmux_powerkit_custom_theme_with_style(
+                &theme,
+                config.customization.emphasis,
+                &config.customization.emphasis_overrides,
+            ),
         ),
         (
             std::path::PathBuf::from(".config/tmux/layouts/dev.sh"),
@@ -1165,7 +1197,7 @@ pub fn managed_runtime_files(config: &AiboxConfig) -> Vec<(std::path::PathBuf, S
         ),
         (
             std::path::PathBuf::from(".config/yazi/theme.toml"),
-            crate::themes::yazi_theme_with_separator(
+            crate::themes::yazi_theme_with_style(
                 &theme,
                 &config
                     .customization
@@ -1174,6 +1206,8 @@ pub fn managed_runtime_files(config: &AiboxConfig) -> Vec<(std::path::PathBuf, S
                     .separators
                     .style
                     .to_string(),
+                config.customization.emphasis,
+                &config.customization.emphasis_overrides,
             ),
         ),
         (
@@ -1214,7 +1248,12 @@ pub fn managed_runtime_files(config: &AiboxConfig) -> Vec<(std::path::PathBuf, S
         ),
         (
             std::path::PathBuf::from(".config/starship.toml"),
-            crate::themes::starship_config(&config.customization.prompt, &theme),
+            crate::themes::starship_config_with_style(
+                &config.customization.prompt,
+                &theme,
+                config.customization.emphasis,
+                &config.customization.emphasis_overrides,
+            ),
         ),
         (
             std::path::PathBuf::from(".local/bin/pdf-watch"),
@@ -1280,10 +1319,25 @@ pub fn managed_runtime_files(config: &AiboxConfig) -> Vec<(std::path::PathBuf, S
         ));
     }
 
+    if providers.contains(&crate::config::AiProvider::Codex) {
+        files.push((
+            std::path::PathBuf::from(".codex/themes/aibox.tmTheme"),
+            crate::themes::bat_tmtheme_with_style(
+                &theme,
+                config.customization.emphasis,
+                &config.customization.emphasis_overrides,
+            ),
+        ));
+    }
+
     if include_lazygit {
         files.push((
             std::path::PathBuf::from(".config/lazygit/config.yml"),
-            crate::themes::lazygit_theme(&theme).to_string(),
+            crate::themes::lazygit_theme_with_style(
+                &theme,
+                config.customization.emphasis,
+                &config.customization.emphasis_overrides,
+            ),
         ));
     }
 
@@ -2123,7 +2177,9 @@ fn sync_codex_theme_config(config: &AiboxConfig) -> Result<bool> {
     if !doc.contains_key("tui") {
         doc["tui"] = toml_edit::table();
     }
-    doc["tui"]["theme"] = toml_edit::value(config.customization.resolved_theme().to_string());
+    // Codex resolves custom themes by filename from $CODEX_HOME/themes.
+    // Keep the configured name stable while aibox regenerates the palette.
+    doc["tui"]["theme"] = toml_edit::value("aibox");
     doc["tui"]["status_line_use_colors"] = toml_edit::value(true);
     doc["tui"]["use_theme_colors"] = toml_edit::value(true);
 
@@ -2276,8 +2332,7 @@ fn sync_opencode_theme_config(config: &AiboxConfig) -> Result<bool> {
         .join(".config")
         .join("opencode")
         .join("opencode.json");
-    let theme = config.customization.resolved_theme();
-    let value = crate::themes::opencode_theme(&theme);
+    let value = "aibox";
 
     let mut doc: serde_json::Value = if path.is_file() {
         let body = fs::read_to_string(&path)
@@ -2546,12 +2601,14 @@ mod tests {
 
         assert!(root.join(".codex").is_dir());
         let codex_config = fs::read_to_string(root.join(".codex").join("config.toml")).unwrap();
-        assert!(
-            codex_config.contains("theme = \"nord\""),
-            "Codex home config should inherit the selected aibox theme:\n{codex_config}"
-        );
+        assert!(codex_config.contains("theme = \"aibox\""));
         assert!(codex_config.contains("status_line_use_colors = true"));
         assert!(codex_config.contains("use_theme_colors = true"));
+        let codex_theme = fs::read_to_string(root.join(".codex/themes/aibox.tmTheme")).unwrap();
+        assert!(
+            codex_theme.contains("#88C0D0"),
+            "Codex custom theme should contain the selected Nord palette:\n{codex_theme}"
+        );
         assert!(!root.join(".claude").exists());
         clear_test_host_root();
     }
@@ -2583,7 +2640,12 @@ mod tests {
         assert!(codex_config.contains("model = \"gpt-5.5\""));
         assert!(codex_config.contains("status_line_use_colors = true"));
         assert!(codex_config.contains("use_theme_colors = true"));
-        assert!(codex_config.contains("theme = \"tokyo-night\""));
+        assert!(codex_config.contains("theme = \"aibox\""));
+        let codex_theme = fs::read_to_string(root.join(".codex/themes/aibox.tmTheme")).unwrap();
+        assert!(
+            codex_theme.contains("#7AA2F7"),
+            "Codex custom theme should contain the selected Tokyo Night palette:\n{codex_theme}"
+        );
         clear_test_host_root();
     }
 
@@ -3032,6 +3094,24 @@ mod tests {
                 )
         }));
         clear_test_host_root();
+    }
+
+    #[test]
+    fn managed_runtime_files_only_emit_codex_theme_for_codex() {
+        let mut config = crate::config::test_config();
+        config.ai.harnesses = vec![AiProvider::Claude];
+        assert!(
+            !managed_runtime_files(&config)
+                .iter()
+                .any(|(path, _)| path == std::path::Path::new(".codex/themes/aibox.tmTheme"))
+        );
+
+        config.ai.harnesses = vec![AiProvider::Codex];
+        assert!(
+            managed_runtime_files(&config)
+                .iter()
+                .any(|(path, _)| path == std::path::Path::new(".codex/themes/aibox.tmTheme"))
+        );
     }
 
     #[test]

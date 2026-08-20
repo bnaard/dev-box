@@ -1,177 +1,161 @@
 ---
-title: Color Themes
+title: Color themes
+description: Configure audited color palettes and font decoration across the aibox terminal toolchain.
 ---
 
-# Themes
+# Color themes
 
-aibox supports consistent color theming across all terminal tools. Set a theme in `aibox.toml`:
+aibox themes are coordinated semantic systems, not a terminal-background setting. One selection controls terminal chrome, syntax, diffs, status states, prompts, file managers, Git tools, pagers, and supported AI TUIs.
+
+[Open the complete 76-variant screenshot gallery]({{< relref "/themes" >}}).
+
+## Configure a theme
+
+Choose a family, light or dark mode, an optional family variant, and a font-decoration level:
 
 ```toml
 [customization]
-theme = "gruvbox-dark"
-mode = "auto"
+theme = "projectious"
+mode = "dark"          # auto | light | dark
+variant = "deep"       # optional; family-specific
+emphasis = "auto"      # auto | full | standard | minimal | none
 ```
 
-Or during project initialization:
+Run `aibox apply` after editing. `mode = "auto"` follows the host appearance when aibox can detect it and otherwise resolves to dark. Containers do not receive host appearance changes live, so apply again after changing the host setting.
 
-```bash
-aibox init --theme catppuccin-mocha
-```
+Legacy concrete names such as `catppuccin-mocha` still parse, but the family form is canonical.
 
-The selected theme is applied to **tmux**, **Vim**, **Yazi**, **lazygit**, and **Starship** simultaneously.
+## Font decoration
 
-`mode = "auto"` follows the host OS light/dark appearance when a host signal is detectable during `aibox apply`, `aibox up`, or `aibox set theme.*`. Containers do not receive live macOS/Windows/Linux appearance-change events, so rerun one of those commands to regenerate mounted runtime theme files after changing the host appearance. If the host appearance cannot be detected, `auto` preserves the selected concrete theme.
+Color is only one information channel. `emphasis` carries meaning through bold, italic, dim, underline, and strikethrough where the target tool supports them.
 
-`mode = "light"` and host-light `auto` use the selected theme family's light partner when one exists. Genuinely dark-only themes stay on the selected concrete theme instead of falling back to an unrelated light theme.
-
-## Available Themes
-
-aibox supports the tmux-powerkit popular theme roster plus aibox-specific
-extensions:
-
-- `tokyo-night`, `tokyo-night-storm`, `tokyo-night-day`
-- `catppuccin-mocha`, `catppuccin-macchiato`, `catppuccin-frappe`, `catppuccin-latte`
-- `dracula`, `dracula-soft`, `nord`, `gruvbox-dark`, `gruvbox-light`
-- `rose-pine`, `rose-pine-moon`, `rose-pine-dawn`
-- `material`, `material-ocean`, `material-palenight`, `material-lighter`, `material-darker`
-- `solarized-dark`, `solarized-light`
-- `github-dark`, `github-dark-dimmed`, `github-dark-high-contrast`, `github-light`, `github-light-high-contrast`
-- `ayu-dark`, `ayu-mirage`, `ayu-light`, `night-owl`, `night-owl-light`, `moonlight`
-- `everforest-dark`, `everforest-light`, `kanagawa-wave`, `kanagawa-dragon`, `kanagawa-lotus`
-- `min-dark`, `min-light`, `one-dark-pro`, `one-light`, `slack-dark`, `slack-ochin`
-- `vitesse-dark`, `vitesse-light`, `vitesse-black`, `vscode-dark-plus`, `vscode-light-plus`
-- `andromeeda`, `aurora-x`, `houston`, `laserwave`, `monokai`, `plastic`, `poimandres`, `red`, `snazzy-light`, `synthwave-84`, `vesper`
-- `projectious`
-
-## Light/Dark Partners
-
-| Family | Dark variants | Light variant |
+| Value | Decorations | Intended use |
 |---|---|---|
-| Tokyo Night | `tokyo-night`, `tokyo-night-storm` | `tokyo-night-day` |
-| Catppuccin | `catppuccin-mocha`, `catppuccin-macchiato`, `catppuccin-frappe` | `catppuccin-latte` |
-| Gruvbox | `gruvbox-dark` | `gruvbox-light` |
-| Rose Pine | `rose-pine`, `rose-pine-moon` | `rose-pine-dawn` |
-| Material | `material`, `material-ocean`, `material-palenight` | `material-lighter` |
-| Solarized | `solarized-dark` | `solarized-light` |
-| GitHub | `github-dark` | `github-light` |
-| Ayu | `ayu-dark`, `ayu-mirage` | `ayu-light` |
-| Night Owl | `night-owl` | `night-owl-light` |
-| Everforest | `everforest-dark` | `everforest-light` |
-| Kanagawa | `kanagawa-wave`, `kanagawa-dragon` | `kanagawa-lotus` |
-| Min | `min-dark` | `min-light` |
-| One Dark | `one-dark-pro` | `one-light` |
-| Slack | `slack-dark` | `slack-ochin` |
-| Vitesse | `vitesse-dark`, `vitesse-black` | `vitesse-light` |
-| VS Code | `vscode-dark-plus` | `vscode-light-plus` |
+| `auto` | Capability detection, then graceful degradation | Recommended default |
+| `full` | Bold, italic, dim, underline, strikethrough | Terminals and fonts with complete style support |
+| `standard` | Bold, italic, dim | Normal capable terminals |
+| `minimal` | Bold, dim | Fonts without a true italic face |
+| `none` | No font decoration | Color-only compatibility mode |
 
-Dark-only or single-variant themes with no light partner: `andromeeda`,
-`aurora-x`, `houston`, `laserwave`, `monokai`, `moonlight`, `nord`, `plastic`,
-`poimandres`, `projectious`, `red`, `snazzy-light`, `synthwave-84`, and `vesper`.
+`NO_COLOR` makes `auto` resolve to `none`. When terminfo is available, aibox checks italic and dim capabilities; an inconclusive probe assumes `standard`.
 
-### gruvbox-dark (default)
+Unsupported attributes degrade to another channel: italic becomes dim, underline becomes bold, and strikethrough becomes dim. Bold is retained. Mono and high-contrast variants require at least the standard typography channel; `max` requires explicit `emphasis = "full"` because several semantic roles intentionally share a color.
 
-Retro groove color scheme with warm, earthy tones. High contrast and easy on the eyes.
+Override individual semantic roles when a project needs a stronger cue:
 
-- **Background:** `#282828` (dark brown-gray)
-- **Accent:** `#D79921` (warm yellow)
-- **Style:** Dark, warm, retro
+```toml
+[customization.emphasis_overrides]
+code_comment = "italic dim"
+status_error = "bold underline"
+```
 
-{{< asciinema src="/aibox/screencasts/theme-gruvbox-dark.cast" poster="npt:2" loop="true" >}}
+Keys are semantic roles rather than tool-specific settings. Values may contain `bold`, `italic`, `dim`, `underline`, and `strikethrough`; aibox validates them, clamps them to the selected level, and degrades unsupported attributes per tool. An explicit `emphasis = "none"` still disables overrides.
 
-### catppuccin-mocha
+![Projectious navy terminal example](/img/themes/variants/projectious-navy.png)
 
-Soothing pastel theme with a dark background. The most popular modern terminal theme.
+## Families and variants
 
-- **Background:** `#1E1E2E` (deep purple-black)
-- **Accent:** `#89B4FA` (soft blue)
-- **Style:** Dark, pastel, modern
+Set the value in the Variant column with `variant = "…"`. Leave it unset for the default shown first.
 
-{{< asciinema src="/aibox/screencasts/theme-catppuccin-mocha.cast" poster="npt:2" loop="true" >}}
+Single-mode families reject an incompatible explicit mode, and every family rejects unknown or mode-incompatible variants with a message listing its available choices.
 
-### catppuccin-latte
+| Family | Dark | Light | Variants |
+|---|---|---|---|
+| `andromeeda` | default | — | — |
+| `aurora-x` | default | — | — |
+| `ayu` | default, mirage | default | `mirage` |
+| `catppuccin` | mocha, macchiato, frappe | latte | `macchiato`, `frappe` |
+| `contrast` | high, max | high, max | `max` |
+| `contrast-mono` | high, max | high, max | `max` |
+| `dracula` | default, soft | — | `soft` |
+| `everforest` | default | default | — |
+| `github` | default, dimmed, high contrast | default, high contrast | `dimmed`, `high-contrast-dark`, `high-contrast-light` |
+| `gruvbox` | default | default | — |
+| `houston` | default | — | — |
+| `kanagawa` | wave, dragon | lotus | `dragon` |
+| `laserwave` | default | — | — |
+| `material` | default, ocean, palenight, darker | lighter | `ocean`, `palenight`, `darker` |
+| `min` | default | default | — |
+| `mono` | default | default | — |
+| `monokai` | default | — | — |
+| `moonlight` | default | — | — |
+| `night-owl` | default | default | — |
+| `nord` | default | — | — |
+| `one-dark` | pro | one light | — |
+| `plastic` | default | — | — |
+| `poimandres` | default | — | — |
+| `projectious` | navy, deep, high contrast | default, high contrast | `deep`, `high-contrast-dark`, `high-contrast-light` |
+| `red` | default | — | — |
+| `rose-pine` | default, moon | dawn | `moon` |
+| `slack` | default | ochin | `ochin` |
+| `snazzy` | — | default | — |
+| `solarized` | default | default | — |
+| `synthwave-84` | default | — | — |
+| `tokyo-night` | default, storm | day | `storm` |
+| `vesper` | default | — | — |
+| `vitesse` | default, black | default | `black` |
+| `vscode` | Dark+ | Light+ | — |
 
-Light variant of Catppuccin. Clean and readable in bright environments.
+### Accessibility families
 
-- **Background:** `#EFF1F5` (warm white)
-- **Accent:** `#1E66F5` (vivid blue)
-- **Style:** Light, pastel, modern
+`mono` is a practical grayscale theme with a 4.5:1 text floor. `contrast` keeps distinct hues while raising every text role to at least 7:1 in `high` and 12:1 in `max`. `contrast-mono` combines those floors with grayscale and therefore depends most strongly on font decoration.
 
-{{< asciinema src="/aibox/screencasts/theme-catppuccin-latte.cast" poster="npt:2" loop="true" >}}
+![Contrast dark max terminal example](/img/themes/variants/contrast-dark-max.png)
 
-### dracula
+![Contrast mono light max terminal example](/img/themes/variants/contrast-mono-light-max.png)
 
-Dark theme with vibrant colors. A classic among developers.
+### Projectious
 
-- **Background:** `#282A36` (dark gray-blue)
-- **Accent:** `#BD93F9` (purple)
-- **Style:** Dark, vibrant, bold
+Projectious is now a five-variant brand family. Navy is the default dark page, deep preserves the older code-panel depth, and both modes have high-contrast alternatives. Selection colors use a stronger midnight step so short selected ranges remain visible.
 
-{{< asciinema src="/aibox/screencasts/theme-dracula.cast" poster="npt:2" loop="true" >}}
+![Projectious high-contrast light terminal example](/img/themes/variants/projectious-hclight.png)
 
-### tokyo-night
+## Semantic colors
 
-Inspired by Tokyo's night lights. Clean and modern with blue tones.
+Every concrete variant authors or derives the following roles:
 
-- **Background:** `#1A1B26` (deep blue-black)
-- **Accent:** `#7AA2F7` (bright blue)
-- **Style:** Dark, cool, modern
+- Base text: background, foreground, comments/metadata, accent, green, red, yellow, orange, cyan, and magenta.
+- Chrome: surface, active and inactive borders, active-tab ink, inactive-pane foreground/background, cursor and cursor text.
+- Interaction: selection foreground/background and search states.
+- Diffs: add, delete, change, word-level emphasis, headers, and hunks.
+- Syntax: plain text, comments, operators, keywords, types, functions, strings, numbers, decorators/macros, invalid, and deprecated code.
+- Status and Git: success, information, warning, error, disabled, modified, staged, untracked, ignored, and conflicted.
 
-{{< asciinema src="/aibox/screencasts/theme-tokyo-night.cast" poster="npt:2" loop="true" >}}
+The shipped audit enforces a 7:1 floor for normal foreground text, 4.5:1 for colored text roles, 3:1 for non-text borders, and a visible surface/selection step.
 
-### nord
+## Governed tools
 
-Arctic, north-bluish color palette. Minimalist and calm.
+| Surface | Generated configuration |
+|---|---|
+| tmux and PowerKit | Pane borders, active/inactive tabs and titles, status surfaces and states |
+| Vim | Complete generated syntax/UI colorscheme, selection, search, diff, and decorations |
+| Yazi | Manager, tabs, modes, status, pickers, Git states, and file types |
+| Starship | Prompt palette and supported style attributes |
+| LazyGit | Borders, search, state colors, and supported emphasis |
+| bat and delta | Shared generated TextMate syntax theme plus audited diff backgrounds |
+| fzf | Selection, prompts, matches, borders, disabled state, and attributes |
+| eza | File types, Git states, metadata, and ANSI attributes |
+| less and man | Heading, option, search, and status capabilities |
+| lnav | Generated native theme definition for text, selection, status, warnings, and errors |
+| OpenCode | Exact generated JSON palette for UI, Markdown, diffs, and syntax |
+| Codex | Exact generated TextMate palette at `.codex/themes/aibox.tmTheme`; `tui.theme = "aibox"` selects it |
+| Claude Code | Built-in dark/light modes; mono and contrast families use the ANSI modes |
+| Gemini CLI | Closest supported built-in Gemini theme |
+| Aider | Light/dark mode plus the closest supported Pygments code theme |
+| Tau, Hermes, Copilot, Continue, Cursor | Terminal/tmux inheritance; these harnesses currently have no aibox-generated native palette |
 
-- **Background:** `#2E3440` (dark blue-gray)
-- **Accent:** `#88C0D0` (frost blue)
-- **Style:** Dark, cool, minimalist
+Generated files live below `.aibox-home/` and are refreshed by `aibox apply` or the theme-switch command. Running TUI processes may need a restart.
 
-{{< asciinema src="/aibox/screencasts/theme-nord.cast" poster="npt:2" loop="true" >}}
-
-### projectious
-
-The projectious.work brand theme. Deep navy base with a vivid orange accent.
-
-- **Background:** `#1d3352` (midnight navy)
-- **Accent:** `#E05232` (ember orange)
-- **Midtone:** `#546a82` (slate blue)
-- **Style:** Dark, professional
-
-<!-- recording pending -->
-
-## How It Works
-
-Each theme is a coordinated set of config files applied to all tools when `aibox apply`, `aibox up`, or `aibox set theme.*` regenerates managed runtime files:
-
-| Tool | Config file | What's themed |
-|------|------------|---------------|
-| **tmux** | `.config/tmux/themes/<name>.conf` | Pane borders, status bar, window colors |
-| **Vim** | `.vim/colors/<name>.vim` | Syntax highlighting, UI elements |
-| **Yazi** | `.config/yazi/theme.toml` | File colors, status bar, selection |
-| **lazygit** | `.config/lazygit/config.yml` | Borders, selection, diff colors |
-| **Starship** | `.config/starship.toml` | Prompt segment colors |
-
-Claude Code inherits terminal colors automatically — no separate theme file needed.
-
-## Changing Themes
-
-To switch light/dark mode in an existing project:
+## Switch without rebuilding
 
 ```bash
-aibox set theme.mode auto
-aibox set theme.mode light
+aibox set theme.name projectious
 aibox set theme.mode dark
-aibox set theme.name tokyo-night
+aibox apply
 ```
 
-This updates `[customization].mode` in `aibox.toml` and regenerates the mounted runtime theme files under `.aibox-home/`. The running container is not stopped.
-
-If the project tmux session is running, refresh and attach it without stopping the container:
+To recreate the checked-in gallery after changing audited data:
 
 ```bash
-aibox set theme.mode dark --restart-session
+node scripts/capture-theme-variants.mjs
 ```
-
-{{< callout type="note" title="Theme files are force-updated by apply" >}}
-`aibox apply` and `aibox set theme.mode/name` overwrite theme-dependent config files (tmux theme, Vim colorscheme, Yazi theme, lazygit config, Starship config) to match the selected theme. You do not need to rebuild or restart the container to change themes; running TUI processes may need to be restarted.
-{{< /callout >}}

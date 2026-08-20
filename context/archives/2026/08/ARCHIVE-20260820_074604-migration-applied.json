@@ -1,0 +1,177 @@
+{
+  "archive_id": "ARCHIVE-20260820_074604-migration-applied",
+  "archive_path": "context/archives/2026/08/ARCHIVE-20260820_074604-migration-applied.tar.gz",
+  "created_at": "2026-08-20T07:46:04+00:00",
+  "entities": [
+    {
+      "apiVersion": "processkit.projectious.work/v2",
+      "body_index": "# Migration briefing\n\n## Summary\n\nCanonicalize the Note spec key order so required type and state metadata precede the body block scalar. This preserves content while avoiding the v0.27.5 pk-doctor parser defect tracked as projectious-work/processkit#88.\n\n## Plan\n\n1. Preserve the Note content and all metadata.\n2. Reorder spec keys to title, type, state, body, then the remaining fields using the processkit entity serializer.\n3. Re-run pk-doctor and apply this migration after validation.\n",
+      "id": "MIG-20260720_1408-SnappyComet-canonicalize-note-spec-key-order-for",
+      "kind": "Migration",
+      "labels": {},
+      "member_path": "context/migrations/applied/MIG-20260720_1408-SnappyComet-canonicalize-note-spec-key-order-for.md",
+      "metadata": {
+        "created": "2026-07-20T14:08:59+00:00",
+        "id": "MIG-20260720_1408-SnappyComet-canonicalize-note-spec-key-order-for",
+        "updated": "2026-07-20T14:09:21+00:00"
+      },
+      "original_path": "context/migrations/applied/MIG-20260720_1408-SnappyComet-canonicalize-note-spec-key-order-for.md",
+      "sha256": "c2f3badf67773ed8817a144888d98a01a47e30e5c9090d91b32cff5f3116a0ed",
+      "spec": {
+        "affected_files": [
+          {
+            "classification": "changed-locally-only",
+            "path": "context/notes/2026/06/NOTE-20260609_1604-ZestfulQuail-aibox-multitarget-devcontainer-snapshot.md"
+          }
+        ],
+        "affected_groups": [],
+        "applied_at": "2026-07-20T14:09:21+00:00",
+        "apply_mode": "one-shot",
+        "generated_at": "2026-07-20T14:08:59+00:00",
+        "generated_by": "migration-management.draft_migration",
+        "kind": "data-fix",
+        "plan": "",
+        "progress_notes": [
+          {
+            "actor": "mcp",
+            "note": "Canonicalized spec key order using the processkit entity serializer; content and metadata preserved. Focused schema_filename doctor passes with zero errors. Upstream parser regression tracked in processkit#88.",
+            "timestamp": "2026-07-20T14:09:21+00:00"
+          }
+        ],
+        "source": "local-project",
+        "source_api_version": "processkit.projectious.work/v2",
+        "source_processkit_version": "2.0.0-alpha.1",
+        "started_at": "2026-07-20T14:09:21+00:00",
+        "state": "applied",
+        "summary": "Canonicalize Note spec key order for v0.27.5 doctor",
+        "target_api_version": "processkit.projectious.work/v2",
+        "target_processkit_version": "2.0.0-alpha.1"
+      },
+      "storage_location": "context/archives/2026/08/ARCHIVE-20260820_074604-migration-applied.tar.gz::context/migrations/applied/MIG-20260720_1408-SnappyComet-canonicalize-note-spec-key-order-for.md"
+    },
+    {
+      "apiVersion": "processkit.projectious.work/v1",
+      "body_index": "# Migration MIG-20260720_1350-ContentSync-processkit-content-sync\n\nFrom `v0.27.4` to `v0.27.5` (source: `https://github.com/projectious-work/processkit.git`).\n\n0 changed upstream, 0 conflicts, 17 new, 1 removed, 0 stale-removed (5 groups affected)\n\n## Counts\n\n- unchanged: 706\n- changed-locally-only: 1\n- changed-upstream-only: 0\n- conflict: 0\n- new-upstream: 17\n- removed-upstream: 1\n- removed-upstream-stale: 0\n\n## Changes by group\n\n### AGENTS\n\n**changed-locally-only**\n\n- `AGENTS.md` \u2192 `AGENTS.md`\n\n### lib\n\n**new-upstream**\n\n- `context/skills/_lib/processkit/schema_generation.py` \u2192 `context/skills/_lib/processkit/schema_generation.py`\n\n### schemas/_generated\n\n**new-upstream**\n\n- `context/schemas/_generated/binding.yaml` \u2192 `context/schemas/_generated/binding.yaml`\n- `context/schemas/_generated/decisionrecord.yaml` \u2192 `context/schemas/_generated/decisionrecord.yaml`\n- `context/schemas/_generated/workitem.yaml` \u2192 `context/schemas/_generated/workitem.yaml`\n- `context/schemas/_generated/logentry.yaml` \u2192 `context/schemas/_generated/logentry.yaml`\n\n### schemas/src\n\n**new-upstream**\n\n- `context/schemas/src/fragments/record.yaml` \u2192 `context/schemas/src/fragments/record.yaml`\n- `context/schemas",
+      "id": "MIG-20260720_1350-ContentSync-processkit-content-sync",
+      "kind": "Migration",
+      "labels": {},
+      "member_path": "context/migrations/applied/MIG-20260720_1350-ContentSync-processkit-content-sync.md",
+      "metadata": {
+        "created": "2026-07-20T13:50:36+00:00",
+        "id": "MIG-20260720_1350-ContentSync-processkit-content-sync",
+        "updated": "2026-07-20T13:50:58+00:00"
+      },
+      "original_path": "context/migrations/applied/MIG-20260720_1350-ContentSync-processkit-content-sync.md",
+      "sha256": "9e47473822593d1fe94e4f14ea1f684a210839157072cc92c66db235696ed3f4",
+      "spec": {
+        "affected_files": [
+          {
+            "classification": "changed-locally-only",
+            "path": "AGENTS.md"
+          },
+          {
+            "classification": "new-upstream",
+            "path": "context/schemas/_generated/binding.yaml"
+          },
+          {
+            "classification": "new-upstream",
+            "path": "context/schemas/_generated/decisionrecord.yaml"
+          },
+          {
+            "classification": "new-upstream",
+            "path": "context/schemas/_generated/logentry.yaml"
+          },
+          {
+            "classification": "new-upstream",
+            "path": "context/schemas/_generated/workitem.yaml"
+          },
+          {
+            "classification": "new-upstream",
+            "path": "context/schemas/src/compositions/decisionrecord.yaml"
+          },
+          {
+            "classification": "new-upstream",
+            "path": "context/schemas/src/compositions/logentry.yaml"
+          },
+          {
+            "classification": "new-upstream",
+            "path": "context/schemas/src/fragments/entity.yaml"
+          },
+          {
+            "classification": "new-upstream",
+            "path": "context/schemas/src/fragments/generation.yaml.j2"
+          },
+          {
+            "classification": "new-upstream",
+            "path": "context/schemas/src/fragments/record.yaml"
+          },
+          {
+            "classification": "new-upstream",
+            "path": "context/schemas/src/fragments/relationship.yaml"
+          },
+          {
+            "classification": "new-upstream",
+            "path": "context/schemas/src/fragments/versioned.yaml"
+          },
+          {
+            "classification": "new-upstream",
+            "path": "context/schemas/src/primitives/binding.yaml"
+          },
+          {
+            "classification": "new-upstream",
+            "path": "context/schemas/src/primitives/workitem.yaml"
+          },
+          {
+            "classification": "new-upstream",
+            "path": "context/schemas/src/registry.yaml"
+          },
+          {
+            "classification": "new-upstream",
+            "path": "context/schemas/src/templates/schema.yaml.j2"
+          },
+          {
+            "classification": "new-upstream",
+            "path": "context/skills/_lib/processkit/schema_generation.py"
+          },
+          {
+            "classification": "removed-upstream",
+            "path": "context/skills/processkit/pk-doctor/scripts/test_pk_doctor_mcp.py"
+          },
+          {
+            "classification": "new-upstream",
+            "path": "context/skills/processkit/repository-portfolio-review/SKILL.md"
+          }
+        ],
+        "affected_groups": [
+          "AGENTS",
+          "lib",
+          "schemas/_generated",
+          "schemas/src",
+          "skills/processkit"
+        ],
+        "applied_at": "2026-07-20T13:50:58+00:00",
+        "from_version": "v0.27.4",
+        "generated_at": "2026-07-20T13:50:36+00:00",
+        "generated_by": "aibox apply",
+        "progress_notes": [
+          {
+            "actor": "mcp",
+            "note": "Reviewed processkit v0.27.5 integration: FORMAT.md unchanged, no conflicts, 17 schema/skill additions, one upstream test removal, and AGENTS.md preserved as local-only.",
+            "timestamp": "2026-07-20T13:50:58+00:00"
+          }
+        ],
+        "source": "processkit",
+        "source_url": "https://github.com/projectious-work/processkit.git",
+        "started_at": "2026-07-20T13:50:58+00:00",
+        "state": "applied",
+        "summary": "0 changed upstream, 0 conflicts, 17 new, 1 removed, 0 stale-removed (5 groups affected)",
+        "to_version": "v0.27.5"
+      },
+      "storage_location": "context/archives/2026/08/ARCHIVE-20260820_074604-migration-applied.tar.gz::context/migrations/applied/MIG-20260720_1350-ContentSync-processkit-content-sync.md"
+    }
+  ],
+  "kind": "Migration",
+  "older_than_days": 30,
+  "sha256": "9f1241e008c24c8e8d6794767db78692594d9ee331c5479ad079a0af04184a02",
+  "state": "applied"
+}

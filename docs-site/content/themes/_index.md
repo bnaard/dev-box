@@ -1,12 +1,9 @@
 ---
 title: Theme Gallery
-description: "Browse real terminal recordings for every aibox theme."
+description: "Compare terminal examples for every audited aibox theme variant."
 layout: themes
-build:
-  render: never
-  list: never
-  publishResources: false
 ---
 
-The gallery is generated from the checked-in theme recording index. Filter by
-family or mode, then play a real aibox terminal session.
+The gallery is generated from the same audited palette data used by the CLI.
+Each static specimen shows the background, status surface, active tab, syntax
+roles, emphasis, and selection colors without requiring video playback.

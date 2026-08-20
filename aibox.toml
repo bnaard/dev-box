@@ -616,17 +616,18 @@ schema_version = "1.0.0"      # Context schema version — updated automatically
 # [customization] — color theme, shell prompt, and tmux layout
 # =============================================================================
 # Theme is applied consistently across tmux, Vim, Yazi, lazygit, and bat.
-# Theme families (31 total):
+# Theme families (34 total):
 #   Multi-variant: ayu, catppuccin, dracula, everforest, github, gruvbox,
-#     kanagawa, material, min, night-owl, one-dark, rose-pine, slack,
-#     solarized, tokyo-night, vitesse, vscode
-#   Solo (mode ignored): andromeeda, aurora-x, houston, laserwave,
-#     monokai, moonlight, nord, plastic, poimandres, projectious, red,
+#     kanagawa, material, min, mono, night-owl, one-dark, projectious,
+#     rose-pine, slack, solarized, tokyo-night, vitesse, vscode, contrast,
+#     contrast-mono
+#   Single-mode: andromeeda, aurora-x, houston, laserwave,
+#     monokai, moonlight, nord, plastic, poimandres, red,
 #     snazzy, synthwave-84, vesper
 [customization]
 theme  = "github"
 # Light/dark variant. `auto` follows host OS appearance when detectable.
-# Solo families (see list above) ignore mode.
+# Single-mode families reject an incompatible explicit mode.
 # Options: auto | light | dark
 mode   = "dark"
 # Optional alternate variant override (per family). Default = unset.
@@ -635,7 +636,12 @@ mode   = "dark"
 #   kanagawa: "dragon"      material: "ocean" | "palenight" | "darker"
 #   rose-pine: "moon"       slack: "ochin"
 #   tokyo-night: "storm"    vitesse: "black"
+#   projectious: "deep" | "high-contrast-dark" | "high-contrast-light"
+#   contrast, contrast-mono: "max"
 # variant = "<name>"
+# Font-decoration channel: auto | full | standard | minimal | none.
+# Mono/high-contrast themes require standard or stronger; max requires full.
+emphasis = "auto"
 # Starship prompt preset.
 # Options: default | plain | minimal | nerd-font | pastel | powerline-pastel | bracketed | arrow
 # ASCII sketches:
@@ -664,6 +670,13 @@ prompt = "powerline-pastel"
 # Extra windows: ai holds additional harnesses; lazygit and shell open when enabled.
 layout = "ai"
 
+# Optional semantic role overrides. Attribute values are space-separated.
+# Roles include code_comment, code_invalid, status_error, search_current,
+# active_foreground, git_untracked, and the other documented semantic roles.
+[customization.emphasis_overrides]
+# code_comment = "italic dim"
+# status_error = "bold underline"
+
 # tmux runtime options. `layout` may override [customization].layout for tmux only.
 [customization.tmux]
 prefix = "C-g"
@@ -680,7 +693,7 @@ format = "{state_symbol}{repository}{agent_suffix}"
 max-length = 120
 directory-style = "basename"  # basename | abbreviated | full
 repository-style = "basename"  # basename | full (owner/repository)
-agent-style = "basename"  # basename (model) | full (model + reasoning effort)
+agent-style = "full"  # basename (model) | full (model + reasoning effort)
 done-ttl-seconds = 10
 message-max-length = 32
 

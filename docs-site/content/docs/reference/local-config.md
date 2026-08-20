@@ -239,7 +239,7 @@ Everything outside of `[container.environment]`, `[[container.extra_volumes]]`, 
 - `[processkit]` — content source and version pin when processkit mode is enabled
 - `[skills]` — enabled/disabled lists when processkit mode is enabled
 - `[ai]` — harnesses, agents, and team MCP servers
-- `[customization]` — theme, mode, prompt, layout
+- `[customization]` — theme, mode, variant, emphasis, semantic emphasis overrides, prompt, layout
 - `[audio]` — audio bridging
 
 {{< callout type="success" title="Applying changes" >}}

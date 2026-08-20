@@ -2,7 +2,224 @@
 //!
 //! Each theme provides config snippets for tmux, Vim, Yazi, and lazygit.
 
-use crate::config::{StarshipPreset, Theme};
+use crate::config::{StarshipPreset, Theme, ThemeEmphasis};
+use std::collections::BTreeMap;
+use std::sync::LazyLock;
+
+static AUDITED_THEMES: LazyLock<toml::Value> = LazyLock::new(|| {
+    toml::from_str(include_str!("../assets/aibox-theme-corrections.toml"))
+        .expect("embedded audited theme data must be valid TOML")
+});
+
+fn audited_theme(theme: &Theme) -> &'static toml::Value {
+    let key = format!("{theme:?}");
+    AUDITED_THEMES["themes"]
+        .get(&key)
+        .unwrap_or_else(|| panic!("audited theme data missing {key}"))
+}
+
+fn audited_color<'a>(spec: &'a toml::Value, key: &str) -> &'a str {
+    spec.get(key)
+        .and_then(toml::Value::as_str)
+        .unwrap_or_else(|| panic!("audited theme field {key} must be a color string"))
+}
+
+fn audited_chrome_color(theme: &Theme, key: &str) -> Option<&'static str> {
+    audited_theme(theme)
+        .get("chrome")
+        .and_then(|chrome| chrome.get(key))
+        .and_then(toml::Value::as_str)
+}
+
+fn audited_magenta(theme: &Theme) -> &'static str {
+    audited_theme(theme)
+        .get("magenta")
+        .and_then(toml::Value::as_str)
+        .or_else(|| audited_chrome_color(theme, "magenta"))
+        .expect("audited theme must define magenta")
+}
+
+fn audited_accent_text(theme: &Theme) -> &'static str {
+    audited_chrome_color(theme, "accent_text")
+        .unwrap_or_else(|| audited_color(audited_theme(theme), "accent"))
+}
+
+fn audited_accent_fill(theme: &Theme) -> &'static str {
+    audited_chrome_color(theme, "accent_fill")
+        .unwrap_or_else(|| audited_color(audited_theme(theme), "accent"))
+}
+
+/// Resolve `auto` once while generating managed runtime files. An explicit
+/// level is deterministic; `NO_COLOR` deliberately disables the secondary
+/// decoration channel together with color-oriented affordances.
+pub fn resolved_emphasis(requested: ThemeEmphasis) -> ThemeEmphasis {
+    match requested {
+        ThemeEmphasis::Auto if std::env::var_os("NO_COLOR").is_some() => ThemeEmphasis::None,
+        ThemeEmphasis::Auto => {
+            let terminfo = std::process::Command::new("infocmp").arg("-1").output();
+            match terminfo {
+                Ok(output) if output.status.success() => {
+                    let body = String::from_utf8_lossy(&output.stdout);
+                    let italic = body.contains("sitm=") && body.contains("ritm=");
+                    let dim = body.contains("dim=");
+                    if italic {
+                        ThemeEmphasis::Standard
+                    } else if dim {
+                        ThemeEmphasis::Minimal
+                    } else {
+                        // Bold remains the universal fallback even when this
+                        // terminfo entry lacks optional style capabilities.
+                        ThemeEmphasis::Minimal
+                    }
+                }
+                _ => ThemeEmphasis::Standard,
+            }
+        }
+        explicit => explicit,
+    }
+}
+
+fn fallback_role_attributes(level: ThemeEmphasis, role: &str) -> &'static str {
+    let level = resolved_emphasis(level);
+    match (level, role) {
+        (ThemeEmphasis::None, _) => "",
+        (ThemeEmphasis::Full, "code_invalid" | "search_current" | "git_conflicted") => {
+            "bold underline"
+        }
+        (ThemeEmphasis::Full, "code_deprecated") => "strikethrough dim",
+        (ThemeEmphasis::Standard | ThemeEmphasis::Minimal, "code_deprecated") => "dim",
+        (
+            ThemeEmphasis::Full | ThemeEmphasis::Standard,
+            "code_comment" | "code_decorator" | "git_untracked",
+        ) => "italic",
+        (ThemeEmphasis::Minimal, "code_comment" | "code_decorator") => "dim",
+        (
+            _,
+            "code_keyword"
+            | "code_type"
+            | "code_invalid"
+            | "diff_emphasis"
+            | "diff_header"
+            | "status_error"
+            | "status_warning"
+            | "active_foreground"
+            | "pane_active_foreground"
+            | "search_current"
+            | "git_modified"
+            | "git_staged"
+            | "git_conflicted",
+        ) => "bold",
+        (
+            _,
+            "diff_hunk"
+            | "status_disabled"
+            | "inactive_foreground"
+            | "pane_inactive_foreground"
+            | "git_ignored",
+        ) => "dim",
+        _ => "",
+    }
+}
+
+fn clamp_attributes(level: ThemeEmphasis, attributes: &str) -> String {
+    let level = resolved_emphasis(level);
+    if level == ThemeEmphasis::None {
+        return String::new();
+    }
+    let mut output = Vec::new();
+    for attribute in attributes.split_whitespace() {
+        let degraded = match (level, attribute) {
+            (ThemeEmphasis::Full, value) => value,
+            (ThemeEmphasis::Standard, "underline") => "bold",
+            (ThemeEmphasis::Standard, "strikethrough") => "dim",
+            (ThemeEmphasis::Standard, value @ ("bold" | "italic" | "dim")) => value,
+            (ThemeEmphasis::Minimal, "italic" | "strikethrough") => "dim",
+            (ThemeEmphasis::Minimal, "underline") => "bold",
+            (ThemeEmphasis::Minimal, value @ ("bold" | "dim")) => value,
+            // Validation rejects unknown values. Keeping this defensive arm
+            // makes direct library callers degrade safely too.
+            _ => continue,
+        };
+        if !output.contains(&degraded) {
+            output.push(degraded);
+        }
+    }
+    output.join(" ")
+}
+
+fn role_attributes(
+    level: ThemeEmphasis,
+    role: &str,
+    overrides: Option<&BTreeMap<String, String>>,
+) -> String {
+    let requested = overrides
+        .and_then(|values| values.get(role))
+        .map(String::as_str)
+        .unwrap_or_else(|| fallback_role_attributes(level, role));
+    clamp_attributes(level, requested)
+}
+
+fn theme_role_attributes(
+    theme: &Theme,
+    level: ThemeEmphasis,
+    role: &str,
+    overrides: Option<&BTreeMap<String, String>>,
+) -> String {
+    let authored_slot = match role {
+        "code_function" => Some("accent"),
+        "code_string" => Some("green"),
+        "code_invalid" => Some("red"),
+        "code_type" => Some("yellow"),
+        "code_number" => Some("orange"),
+        "code_operator" => Some("cyan"),
+        "code_comment" => Some("muted"),
+        "code_keyword" => Some("magenta"),
+        _ => None,
+    };
+    let authored = authored_slot.and_then(|slot| {
+        audited_theme(theme)
+            .get("attributes")
+            .and_then(|attributes| attributes.get(slot))
+            .and_then(toml::Value::as_str)
+    });
+    let requested = overrides
+        .and_then(|values| values.get(role))
+        .map(String::as_str)
+        .or(authored)
+        .unwrap_or_else(|| fallback_role_attributes(level, role));
+    clamp_attributes(level, requested)
+}
+
+fn vim_attrs(
+    theme: &Theme,
+    level: ThemeEmphasis,
+    role: &str,
+    overrides: Option<&BTreeMap<String, String>>,
+) -> String {
+    let attrs = theme_role_attributes(theme, level, role, overrides).replace(' ', ",");
+    if attrs.is_empty() {
+        "NONE".to_string()
+    } else {
+        attrs
+    }
+}
+
+pub fn tmux_role_attributes(
+    level: ThemeEmphasis,
+    role: &str,
+    overrides: Option<&BTreeMap<String, String>>,
+) -> String {
+    role_attributes(level, role, overrides)
+        .split_whitespace()
+        .map(|attr| match attr {
+            "italic" => "italics",
+            "underline" => "underscore",
+            "strikethrough" => "strikethrough",
+            other => other,
+        })
+        .collect::<Vec<_>>()
+        .join(",")
+}
 
 /// Returns terminal surface colors for tmux panes and app backgrounds.
 pub fn terminal_surface_colors(theme: &Theme) -> (&str, &str, &str, &str, String, String) {
@@ -12,8 +229,10 @@ pub fn terminal_surface_colors(theme: &Theme) -> (&str, &str, &str, &str, String
         fg,
         accent,
         muted,
-        mix_hex_colors(fg, muted, 50),
-        mix_hex_colors(accent, fg, 85),
+        audited_chrome_color(theme, "pane_inactive_fg")
+            .unwrap_or(muted)
+            .to_string(),
+        accent.to_string(),
     )
 }
 
@@ -27,10 +246,24 @@ pub fn terminal_surface_colors(theme: &Theme) -> (&str, &str, &str, &str, String
 /// validated on the light themes (where `muted` darkens both slightly
 /// toward grey, still readable).
 pub fn dim_inactive_pane_colors(theme: &Theme) -> (String, String) {
+    if let (Some(bg), Some(fg)) = (
+        audited_chrome_color(theme, "pane_inactive_bg"),
+        audited_chrome_color(theme, "pane_inactive_fg"),
+    ) {
+        return (bg.to_string(), fg.to_string());
+    }
     let (bg, fg, _accent, _green, _red, _yellow, _orange, _cyan, muted) = theme_palette(theme);
     let dim_bg = mix_hex_colors(bg, muted, 88);
     let dim_fg = mix_hex_colors(fg, muted, 75);
     (dim_bg, dim_fg)
+}
+
+pub fn terminal_border_colors(theme: &Theme) -> (&'static str, &'static str) {
+    let (_, _, _accent, _, _, _, _, _, muted) = theme_palette(theme);
+    (
+        audited_chrome_color(theme, "border_active").unwrap_or_else(|| audited_accent_fill(theme)),
+        audited_chrome_color(theme, "border_inactive").unwrap_or(muted),
+    )
 }
 
 fn mix_hex_colors(primary: &str, secondary: &str, primary_percent: u8) -> String {
@@ -70,12 +303,49 @@ pub fn vim_colorscheme(_theme: &Theme) -> &'static str {
 }
 
 /// Generate `~/.vim/colors/aibox.vim` content from the theme palette.
+#[cfg(test)]
 pub fn vim_aibox_colorscheme(theme: &Theme) -> String {
+    vim_aibox_colorscheme_with_emphasis(theme, ThemeEmphasis::Auto)
+}
+
+#[cfg(test)]
+pub fn vim_aibox_colorscheme_with_emphasis(theme: &Theme, emphasis: ThemeEmphasis) -> String {
+    vim_aibox_colorscheme_with_style(theme, emphasis, &BTreeMap::new())
+}
+
+pub fn vim_aibox_colorscheme_with_style(
+    theme: &Theme,
+    emphasis: ThemeEmphasis,
+    overrides: &BTreeMap<String, String>,
+) -> String {
     let (bg, fg, accent, green, red, yellow, orange, cyan, muted) = theme_palette(theme);
+    let accent_fill = audited_accent_fill(theme);
     let surface = yazi_surface_color(theme);
+    let selection_bg = audited_chrome_color(theme, "selection_bg").unwrap_or(surface);
+    let selection_fg = audited_chrome_color(theme, "selection_fg").unwrap_or(fg);
+    let active_ink = audited_chrome_color(theme, "status_active_ink").unwrap_or(bg);
+    let cursor = audited_chrome_color(theme, "cursor").unwrap_or(accent);
+    let cursor_text = audited_chrome_color(theme, "cursor_text").unwrap_or(bg);
+    let diff_add_bg = audited_chrome_color(theme, "diff_add_bg").unwrap_or(bg);
+    let diff_del_bg = audited_chrome_color(theme, "diff_del_bg").unwrap_or(bg);
+    let diff_change_bg = audited_chrome_color(theme, "diff_change_bg").unwrap_or(bg);
     let background = vim_background(theme);
-    let magenta = mix_hex_colors(red, accent, 60);
+    let magenta = audited_magenta(theme);
     let cursor_line = surface;
+    let keyword_attr = vim_attrs(theme, emphasis, "code_keyword", Some(overrides));
+    let type_attr = vim_attrs(theme, emphasis, "code_type", Some(overrides));
+    let function_attr = vim_attrs(theme, emphasis, "code_function", Some(overrides));
+    let string_attr = vim_attrs(theme, emphasis, "code_string", Some(overrides));
+    let number_attr = vim_attrs(theme, emphasis, "code_number", Some(overrides));
+    let operator_attr = vim_attrs(theme, emphasis, "code_operator", Some(overrides));
+    let comment_attr = vim_attrs(theme, emphasis, "code_comment", Some(overrides));
+    let decorator_attr = vim_attrs(theme, emphasis, "code_decorator", Some(overrides));
+    let invalid_attr = vim_attrs(theme, emphasis, "code_invalid", Some(overrides));
+    let active_attr = vim_attrs(theme, emphasis, "active_foreground", Some(overrides));
+    let inactive_attr = vim_attrs(theme, emphasis, "inactive_foreground", Some(overrides));
+    let error_attr = vim_attrs(theme, emphasis, "status_error", Some(overrides));
+    let warning_attr = vim_attrs(theme, emphasis, "status_warning", Some(overrides));
+    let search_current_attr = vim_attrs(theme, emphasis, "search_current", Some(overrides));
     format!(
         r#"" aibox.vim — generated by aibox CLI from the active theme palette.
 " Do NOT edit; re-run `aibox theme` to regenerate.
@@ -90,93 +360,95 @@ set background={background}
 " ── UI chrome ──────────────────────────────────────────────────────────────
 hi Normal         guifg={fg}     guibg={bg}     ctermfg=NONE ctermbg=NONE
 hi NormalNC       guifg={fg}     guibg={bg}
+hi Cursor         guifg={cursor_text} guibg={cursor}
+hi lCursor        guifg={cursor_text} guibg={cursor}
 hi LineNr         guifg={muted}  guibg={bg}
-hi CursorLineNr   guifg={accent} guibg={cursor_line} gui=bold
+hi CursorLineNr   guifg={accent} guibg={cursor_line} gui={active_attr}
 hi CursorLine     guibg={cursor_line}
 hi CursorColumn   guibg={cursor_line}
 hi ColorColumn    guibg={cursor_line}
 hi VertSplit      guifg={muted}  guibg={bg}
 hi WinSeparator   guifg={muted}  guibg={bg}
-hi StatusLine     guifg={bg}     guibg={accent} gui=bold
-hi StatusLineNC   guifg={muted}  guibg={surface}
-hi TabLine        guifg={muted}  guibg={surface}
+hi StatusLine     guifg={active_ink} guibg={accent_fill} gui={active_attr}
+hi StatusLineNC   guifg={muted}  guibg={surface} gui={inactive_attr}
+hi TabLine        guifg={muted}  guibg={surface} gui={inactive_attr}
 hi TabLineFill    guibg={bg}
-hi TabLineSel     guifg={bg}     guibg={accent} gui=bold
+hi TabLineSel     guifg={active_ink} guibg={accent_fill} gui={active_attr}
 hi SignColumn     guifg={muted}  guibg={bg}
 hi FoldColumn     guifg={muted}  guibg={bg}
 hi Folded         guifg={muted}  guibg={surface}
 hi NonText        guifg={muted}
 hi EndOfBuffer    guifg={bg}     guibg={bg}
 hi SpecialKey     guifg={muted}
-hi MatchParen     guifg={accent} guibg={surface} gui=bold,underline
+hi MatchParen     guifg={accent} guibg={surface} gui={search_current_attr}
 hi Conceal        guifg={muted}  guibg={bg}
 hi Directory      guifg={accent} gui=bold
 
 " ── Selection / search ────────────────────────────────────────────────────
-hi Visual         guibg={surface}
-hi VisualNOS      guibg={surface}
+hi Visual         guifg={selection_fg} guibg={selection_bg}
+hi VisualNOS      guifg={selection_fg} guibg={selection_bg}
 hi Search         guifg={bg}     guibg={yellow} gui=bold
-hi IncSearch      guifg={bg}     guibg={orange} gui=bold
-hi CurSearch      guifg={bg}     guibg={accent} gui=bold
-hi QuickFixLine   guibg={surface} gui=bold
+hi IncSearch      guifg={bg}     guibg={orange} gui={search_current_attr}
+hi CurSearch      guifg={active_ink} guibg={accent_fill} gui={search_current_attr}
+hi QuickFixLine   guibg={surface} gui={active_attr}
 
 " ── Popup menu ────────────────────────────────────────────────────────────
 hi Pmenu          guifg={fg}     guibg={surface}
-hi PmenuSel       guifg={bg}     guibg={accent} gui=bold
+hi PmenuSel       guifg={active_ink} guibg={accent_fill} gui={active_attr}
 hi PmenuSbar      guibg={surface}
 hi PmenuThumb     guibg={muted}
-hi WildMenu       guifg={bg}     guibg={accent} gui=bold
+hi WildMenu       guifg={active_ink} guibg={accent_fill} gui={active_attr}
 
 " ── Messages ──────────────────────────────────────────────────────────────
-hi ErrorMsg       guifg={red}    gui=bold
-hi WarningMsg     guifg={yellow}
-hi ModeMsg        guifg={accent} gui=bold
+hi ErrorMsg       guifg={red}    gui={error_attr}
+hi WarningMsg     guifg={yellow} gui={warning_attr}
+hi ModeMsg        guifg={accent} gui={active_attr}
 hi MoreMsg        guifg={green}
 hi Question       guifg={accent}
-hi Title          guifg={accent} gui=bold
+hi Title          guifg={accent} gui={active_attr}
 
 " ── Syntax (linked groups) ────────────────────────────────────────────────
-hi Comment        guifg={muted}    gui=italic
+hi Comment        guifg={muted}    gui={comment_attr}
 hi Constant       guifg={orange}
-hi String         guifg={green}
-hi Character      guifg={green}
-hi Number         guifg={orange}
-hi Boolean        guifg={orange}
-hi Float          guifg={orange}
+hi String         guifg={green}     gui={string_attr}
+hi Character      guifg={green}     gui={string_attr}
+hi Number         guifg={orange}    gui={number_attr}
+hi Boolean        guifg={orange}    gui={number_attr}
+hi Float          guifg={orange}    gui={number_attr}
 hi Identifier     guifg={fg}
-hi Function       guifg={accent}
-hi Statement      guifg={red}
-hi Conditional    guifg={red}
-hi Repeat         guifg={red}
+hi Function       guifg={accent}    gui={function_attr}
+hi Statement      guifg={magenta}  gui={keyword_attr}
+hi Conditional    guifg={magenta}  gui={keyword_attr}
+hi Repeat         guifg={magenta}  gui={keyword_attr}
 hi Label          guifg={yellow}
-hi Operator       guifg={cyan}
-hi Keyword        guifg={red}
-hi Exception      guifg={red}
-hi PreProc        guifg={yellow}
-hi Include        guifg={red}
-hi Define         guifg={red}
-hi Macro          guifg={accent}
+hi Operator       guifg={cyan}      gui={operator_attr}
+hi Keyword        guifg={magenta}  gui={keyword_attr}
+hi Exception      guifg={magenta}  gui={keyword_attr}
+hi PreProc        guifg={magenta}
+hi Include        guifg={magenta}
+hi Define         guifg={magenta}
+hi Macro          guifg={accent}   gui={decorator_attr}
 hi PreCondit      guifg={yellow}
-hi Type           guifg={yellow}
-hi StorageClass   guifg={yellow}
-hi Structure      guifg={yellow}
-hi Typedef        guifg={yellow}
+hi Type           guifg={yellow}   gui={type_attr}
+hi StorageClass   guifg={yellow}   gui={type_attr}
+hi Structure      guifg={yellow}   gui={type_attr}
+hi Typedef        guifg={yellow}   gui={type_attr}
 hi Special        guifg={cyan}
 hi SpecialChar    guifg={orange}
 hi Tag            guifg={accent}
 hi Delimiter      guifg={fg}
-hi SpecialComment guifg={muted}    gui=italic
+hi SpecialComment guifg={muted}    gui={comment_attr}
 hi Debug          guifg={orange}
 hi Underlined     guifg={accent}   gui=underline
 hi Ignore         guifg={muted}
-hi Error          guifg={red}      gui=bold
+hi Error          guifg={red}      gui={invalid_attr}
 hi Todo           guifg={yellow}   guibg={surface} gui=bold
 
 " ── Diff ──────────────────────────────────────────────────────────────────
-hi DiffAdd        guifg={green}    guibg={bg}
-hi DiffChange     guifg={yellow}   guibg={bg}
-hi DiffDelete     guifg={red}      guibg={bg}
-hi DiffText       guifg={accent}   guibg={bg}    gui=bold
+hi DiffAdd        guifg={green}    guibg={diff_add_bg}
+hi DiffChange     guifg={yellow}   guibg={diff_change_bg}
+hi DiffDelete     guifg={red}      guibg={diff_del_bg}
+hi DiffText       guifg={accent}   guibg={diff_change_bg} gui=bold
 hi diffAdded      guifg={green}
 hi diffRemoved    guifg={red}
 hi diffChanged    guifg={yellow}
@@ -248,7 +520,14 @@ pub fn vim_background(theme: &Theme) -> &'static str {
         | Theme::EverforestLight
         | Theme::VsCodeLightPlus
         | Theme::SlackOchin
-        | Theme::SnazzyLight => "light",
+        | Theme::SnazzyLight
+        | Theme::ProjectiousLight
+        | Theme::ProjectiousHCLight
+        | Theme::MonoLight
+        | Theme::ContrastLight
+        | Theme::ContrastLightMax
+        | Theme::ContrastMonoLight
+        | Theme::ContrastMonoLightMax => "light",
         _ => "dark",
     }
 }
@@ -277,13 +556,53 @@ pub fn yazi_tab_separators(style: &str) -> (&'static str, &'static str) {
 /// Returns the Yazi theme.toml content for the given theme + tmux separator
 /// style. The style argument lets Yazi's tab chevrons mirror the tmux status
 /// bar's `@powerkit_separator_style`.
+#[cfg(test)]
 pub fn yazi_theme_with_separator(theme: &Theme, sep_style: &str) -> String {
+    yazi_theme_with_emphasis(theme, sep_style, ThemeEmphasis::Auto)
+}
+
+fn yazi_flags(
+    level: ThemeEmphasis,
+    role: &str,
+    overrides: Option<&BTreeMap<String, String>>,
+) -> String {
+    role_attributes(level, role, overrides)
+        .split_whitespace()
+        .map(|attr| match attr {
+            "strikethrough" => ", crossed = true".to_string(),
+            other => format!(", {other} = true"),
+        })
+        .collect()
+}
+
+#[cfg(test)]
+pub fn yazi_theme_with_emphasis(theme: &Theme, sep_style: &str, emphasis: ThemeEmphasis) -> String {
+    yazi_theme_with_style(theme, sep_style, emphasis, &BTreeMap::new())
+}
+
+pub fn yazi_theme_with_style(
+    theme: &Theme,
+    sep_style: &str,
+    emphasis: ThemeEmphasis,
+    overrides: &BTreeMap<String, String>,
+) -> String {
     let (bg, fg, accent, green, red, yellow, orange, cyan, muted) = theme_palette(theme);
+    let accent_fill = audited_accent_fill(theme);
     let surface = yazi_surface_color(theme);
+    let selection_bg = audited_chrome_color(theme, "selection_bg").unwrap_or(surface);
+    let selection_fg = audited_chrome_color(theme, "selection_fg").unwrap_or(fg);
+    let active_ink = audited_chrome_color(theme, "status_active_ink").unwrap_or(bg);
     let (sep_open, sep_close) = yazi_tab_separators(sep_style);
     // Derive a magenta/pink slot for marker_copied / image-file hue without
     // adding a 10th palette entry — mix accent and red, biased toward red.
-    let magenta = mix_hex_colors(red, accent, 60);
+    let magenta = audited_magenta(theme);
+    let active_attrs = yazi_flags(emphasis, "active_foreground", Some(overrides));
+    let inactive_attrs = yazi_flags(emphasis, "inactive_foreground", Some(overrides));
+    let modified_attrs = yazi_flags(emphasis, "git_modified", Some(overrides));
+    let untracked_attrs = yazi_flags(emphasis, "git_untracked", Some(overrides));
+    let ignored_attrs = yazi_flags(emphasis, "git_ignored", Some(overrides));
+    let search_attrs = yazi_flags(emphasis, "search_current", Some(overrides));
+    let error_attrs = yazi_flags(emphasis, "status_error", Some(overrides));
     format!(
         r#"# =============================================================================
 # Yazi theme — generated by aibox CLI from the active theme palette
@@ -292,27 +611,27 @@ pub fn yazi_theme_with_separator(theme: &Theme, sep_style: &str) -> String {
 
 [mgr]
 cwd = {{ fg = "{accent}" }}
-hovered = {{ fg = "{bg}", bg = "{fg}" }}
-preview_hovered = {{ bg = "{surface}", underline = true }}
-find_keyword = {{ fg = "{yellow}", bold = true }}
-find_position = {{ fg = "{magenta}", italic = true }}
+hovered = {{ fg = "{selection_fg}", bg = "{selection_bg}"{active_attrs} }}
+preview_hovered = {{ fg = "{selection_fg}", bg = "{selection_bg}"{search_attrs} }}
+find_keyword = {{ fg = "{yellow}"{search_attrs} }}
+find_position = {{ fg = "{magenta}" }}
 marker_selected = {{ fg = "{green}", bg = "{green}" }}
-marker_copied = {{ fg = "{accent}", bg = "{accent}" }}
+marker_copied = {{ fg = "{magenta}", bg = "{magenta}" }}
 marker_cut = {{ fg = "{red}", bg = "{red}" }}
 
 [tabs]
-active = {{ fg = "{bg}", bg = "{accent}", bold = true }}
-inactive = {{ fg = "{muted}", bg = "{surface}" }}
+active = {{ fg = "{active_ink}", bg = "{accent_fill}"{active_attrs} }}
+inactive = {{ fg = "{muted}", bg = "{surface}"{inactive_attrs} }}
 sep_inner = {{ open = "{sep_open}", close = "{sep_close}" }}
 sep_outer = {{ open = "{sep_open}", close = "{sep_close}" }}
 
 [mode]
-normal_main = {{ fg = "{bg}", bg = "{green}", bold = true }}
-normal_alt = {{ fg = "{green}", bg = "{surface}", bold = true }}
-select_main = {{ fg = "{bg}", bg = "{accent}", bold = true }}
-select_alt = {{ fg = "{accent}", bg = "{surface}", bold = true }}
-unset_main = {{ fg = "{bg}", bg = "{magenta}", bold = true }}
-unset_alt = {{ fg = "{magenta}", bg = "{surface}", bold = true }}
+normal_main = {{ fg = "{active_ink}", bg = "{green}"{active_attrs} }}
+normal_alt = {{ fg = "{green}", bg = "{surface}"{active_attrs} }}
+select_main = {{ fg = "{active_ink}", bg = "{accent_fill}"{active_attrs} }}
+select_alt = {{ fg = "{accent}", bg = "{surface}"{active_attrs} }}
+unset_main = {{ fg = "{active_ink}", bg = "{magenta}"{active_attrs} }}
+unset_alt = {{ fg = "{magenta}", bg = "{surface}"{active_attrs} }}
 
 [status]
 overall = {{ fg = "{fg}", bg = "{surface}" }}
@@ -323,15 +642,15 @@ perm_read = {{ fg = "{yellow}" }}
 perm_write = {{ fg = "{red}" }}
 perm_exec = {{ fg = "{green}" }}
 perm_sep = {{ fg = "{muted}" }}
-progress_label = {{ fg = "{fg}", bold = true }}
+progress_label = {{ fg = "{fg}"{active_attrs} }}
 progress_normal = {{ fg = "{accent}", bg = "{surface}" }}
-progress_error = {{ fg = "{red}", bg = "{surface}" }}
+progress_error = {{ fg = "{red}", bg = "{surface}"{error_attrs} }}
 
 [input]
 border = {{ fg = "{accent}" }}
-title = {{ fg = "{accent}", bg = "{bg}", bold = true }}
+title = {{ fg = "{accent}", bg = "{bg}"{active_attrs} }}
 value = {{ fg = "{fg}", bg = "{bg}" }}
-selected = {{ reversed = true }}
+selected = {{ fg = "{selection_fg}", bg = "{selection_bg}" }}
 
 [pick]
 border = {{ fg = "{accent}" }}
@@ -345,8 +664,8 @@ inactive = {{ fg = "{muted}", bg = "{bg}" }}
 
 [tasks]
 border = {{ fg = "{accent}" }}
-title = {{ fg = "{accent}", bg = "{bg}", bold = true }}
-hovered = {{ bg = "{surface}", underline = true }}
+title = {{ fg = "{accent}", bg = "{bg}"{active_attrs} }}
+hovered = {{ fg = "{selection_fg}", bg = "{selection_bg}"{search_attrs} }}
 
 [which]
 mask = {{ bg = "{surface}" }}
@@ -360,20 +679,20 @@ separator_style = {{ fg = "{muted}" }}
 on = {{ fg = "{cyan}" }}
 run = {{ fg = "{magenta}" }}
 desc = {{ fg = "{fg}", bg = "{bg}" }}
-hovered = {{ bg = "{surface}", bold = true }}
+hovered = {{ fg = "{selection_fg}", bg = "{selection_bg}"{active_attrs} }}
 footer = {{ fg = "{bg}", bg = "{fg}" }}
 
 [git]
-modified = {{ fg = "{yellow}" }}
-untracked = {{ fg = "{magenta}" }}
+modified = {{ fg = "{yellow}"{modified_attrs} }}
+untracked = {{ fg = "{magenta}"{untracked_attrs} }}
 added = {{ fg = "{green}" }}
 deleted = {{ fg = "{red}" }}
 updated = {{ fg = "{accent}" }}
-ignored = {{ fg = "{muted}" }}
+ignored = {{ fg = "{muted}"{ignored_attrs} }}
 
 [filetype]
 rules = [
-    {{ url = "*/", fg = "{accent}", bold = true }},
+    {{ url = "*/", fg = "{accent}"{active_attrs} }},
     {{ url = "*.rs", fg = "{orange}" }},
     {{ url = "*.py", fg = "{yellow}" }},
     {{ url = "*.js", fg = "{yellow}" }},
@@ -402,7 +721,7 @@ rules = [
     {{ url = ".env*", fg = "{red}" }},
     {{ url = "Dockerfile*", fg = "{accent}" }},
     {{ url = "Makefile", fg = "{green}" }},
-    {{ url = "Cargo.toml", fg = "{orange}", bold = true }},
+    {{ url = "Cargo.toml", fg = "{orange}"{active_attrs} }},
     {{ url = "Cargo.lock", fg = "{muted}" }},
 ]
 "#
@@ -410,49 +729,50 @@ rules = [
 }
 
 fn yazi_surface_color(theme: &Theme) -> &'static str {
-    match theme {
-        Theme::GruvboxLight => "#EBDBB2",
-        Theme::CatppuccinLatte
-        | Theme::TokyoNightDay
-        | Theme::RosePineDawn
-        | Theme::MaterialLighter
-        | Theme::SolarizedLight
-        | Theme::GithubLight
-        | Theme::GithubLightHighContrast
-        | Theme::AyuLight
-        | Theme::NightOwlLight
-        | Theme::OneLight
-        | Theme::VitesseLight
-        | Theme::MinLight
-        | Theme::KanagawaLotus
-        | Theme::EverforestLight
-        | Theme::VsCodeLightPlus
-        | Theme::SlackOchin
-        | Theme::SnazzyLight => "#CCD0DA",
-        Theme::GruvboxDark => "#3C3836",
-        Theme::Nord => "#3B4252",
-        Theme::Dracula | Theme::DraculaSoft => "#44475A",
-        Theme::TokyoNight | Theme::TokyoNightStorm | Theme::Moonlight => "#283457",
-        Theme::Projectious => "#131E2B",
-        _ => "#313244",
-    }
+    audited_chrome_color(theme, "surface").expect("audited theme must define chrome.surface")
 }
 
 /// Returns the lazygit theme YAML snippet (gui.theme section).
+#[cfg(test)]
 pub fn lazygit_theme(theme: &Theme) -> String {
+    lazygit_theme_with_emphasis(theme, ThemeEmphasis::Auto)
+}
+
+#[cfg(test)]
+pub fn lazygit_theme_with_emphasis(theme: &Theme, emphasis: ThemeEmphasis) -> String {
+    lazygit_theme_with_style(theme, emphasis, &BTreeMap::new())
+}
+
+pub fn lazygit_theme_with_style(
+    theme: &Theme,
+    emphasis: ThemeEmphasis,
+    overrides: &BTreeMap<String, String>,
+) -> String {
     let (bg, fg, accent, _green, red, yellow, _orange, cyan, muted) = theme_palette(theme);
+    let selection_bg = audited_chrome_color(theme, "selection_bg").unwrap_or(bg);
+    let active_bold =
+        if role_attributes(emphasis, "active_foreground", Some(overrides)).contains("bold") {
+            "\n      - bold"
+        } else {
+            ""
+        };
+    let warning_bold =
+        if role_attributes(emphasis, "status_warning", Some(overrides)).contains("bold") {
+            "\n      - bold"
+        } else {
+            ""
+        };
     format!(
         r#"gui:
   theme:
     activeBorderColor:
-      - '{accent}'
-      - bold
+      - '{accent}'{active_bold}
     inactiveBorderColor:
       - '{muted}'
     optionsTextColor:
       - '{cyan}'
     selectedLineBgColor:
-      - '{bg}'
+      - '{selection_bg}'
     cherryPickedCommitBgColor:
       - '{muted}'
     cherryPickedCommitFgColor:
@@ -462,267 +782,42 @@ pub fn lazygit_theme(theme: &Theme) -> String {
     defaultFgColor:
       - '{fg}'
     searchingActiveBorderColor:
-      - '{yellow}'
+      - '{yellow}'{warning_bold}
 "#
     )
 }
 
 /// Color palette values for Starship prompt theming.
-fn theme_palette(theme: &Theme) -> (&str, &str, &str, &str, &str, &str, &str, &str, &str) {
-    // Returns (bg, fg, accent, green, red, yellow, orange, cyan, muted)
-    match theme {
-        Theme::GruvboxDark => (
-            "#282828", "#D5C4A1", "#D79921", "#98971A", "#CC241D", "#D79921", "#D65D0E", "#689D6A",
-            "#928374",
-        ),
-        Theme::GruvboxLight => (
-            "#FBF1C7", "#3C3836", "#D65D0E", "#79740E", "#CC241D", "#B57614", "#D65D0E", "#076678",
-            "#928374",
-        ),
-        Theme::CatppuccinMocha => (
-            "#1E1E2E", "#CDD6F4", "#89B4FA", "#A6E3A1", "#F38BA8", "#F9E2AF", "#FAB387", "#94E2D5",
-            "#6C7086",
-        ),
-        Theme::CatppuccinMacchiato => (
-            "#24273A", "#CAD3F5", "#8AADF4", "#A6DA95", "#ED8796", "#EED49F", "#F5A97F", "#8BD5CA",
-            "#6E738D",
-        ),
-        Theme::CatppuccinFrappe => (
-            "#303446", "#C6D0F5", "#8CAAEE", "#A6D189", "#E78284", "#E5C890", "#EF9F76", "#81C8BE",
-            "#737994",
-        ),
-        Theme::CatppuccinLatte => (
-            "#EFF1F5", "#4C4F69", "#1E66F5", "#40A02B", "#D20F39", "#DF8E1D", "#FE640B", "#179299",
-            "#9CA0B0",
-        ),
-        Theme::Dracula => (
-            "#282A36", "#F8F8F2", "#BD93F9", "#50FA7B", "#FF5555", "#F1FA8C", "#FFB86C", "#8BE9FD",
-            "#6272A4",
-        ),
-        Theme::TokyoNight => (
-            "#1A1B26", "#C0CAF5", "#7AA2F7", "#9ECE6A", "#F7768E", "#E0AF68", "#FF9E64", "#7DCFFF",
-            "#565F89",
-        ),
-        Theme::TokyoNightStorm => (
-            "#24283B", "#C0CAF5", "#7AA2F7", "#9ECE6A", "#F7768E", "#E0AF68", "#FF9E64", "#7DCFFF",
-            "#565F89",
-        ),
-        Theme::TokyoNightDay => (
-            "#E1E2E7", "#3760BF", "#2E7DE9", "#587539", "#F52A65", "#8C6C3E", "#B15C00", "#007197",
-            "#7B8496",
-        ),
-        Theme::Nord => (
-            "#2E3440", "#D8DEE9", "#88C0D0", "#A3BE8C", "#BF616A", "#EBCB8B", "#D08770", "#81A1C1",
-            "#4C566A",
-        ),
-        Theme::RosePine => (
-            "#191724", "#E0DEF4", "#C4A7E7", "#31748F", "#EB6F92", "#F6C177", "#EA9A97", "#9CCFD8",
-            "#6E6A86",
-        ),
-        Theme::RosePineMoon => (
-            "#232136", "#E0DEF4", "#C4A7E7", "#3E8FB0", "#EB6F92", "#F6C177", "#EA9A97", "#9CCFD8",
-            "#6E6A86",
-        ),
-        Theme::RosePineDawn => (
-            "#FAF4ED", "#575279", "#907AA9", "#56949F", "#B4637A", "#EA9D34", "#D7827E", "#286983",
-            "#9893A5",
-        ),
-        Theme::Material => (
-            "#263238", "#EEFFFF", "#82AAFF", "#C3E88D", "#F07178", "#FFCB6B", "#F78C6C", "#89DDFF",
-            "#546E7A",
-        ),
-        Theme::MaterialOcean => (
-            "#0F111A", "#A6ACCD", "#82AAFF", "#C3E88D", "#F07178", "#FFCB6B", "#F78C6C", "#89DDFF",
-            "#464B5D",
-        ),
-        Theme::MaterialPalenight => (
-            "#292D3E", "#A6ACCD", "#82AAFF", "#C3E88D", "#F07178", "#FFCB6B", "#F78C6C", "#89DDFF",
-            "#676E95",
-        ),
-        Theme::MaterialLighter => (
-            "#FAFAFA", "#546E7A", "#6182B8", "#91B859", "#E53935", "#F6A434", "#F76D47", "#39ADB5",
-            "#90A4AE",
-        ),
-        Theme::SolarizedDark => (
-            "#002B36", "#93A1A1", "#268BD2", "#859900", "#DC322F", "#B58900", "#CB4B16", "#2AA198",
-            "#657B83",
-        ),
-        Theme::SolarizedLight => (
-            "#FDF6E3", "#586E75", "#268BD2", "#859900", "#DC322F", "#B58900", "#CB4B16", "#2AA198",
-            "#93A1A1",
-        ),
-        Theme::GithubDark => (
-            "#0D1117", "#C9D1D9", "#58A6FF", "#3FB950", "#F85149", "#D29922", "#DB6D28", "#79C0FF",
-            "#8B949E",
-        ),
-        Theme::GithubLight => (
-            "#FFFFFF", "#24292F", "#0969DA", "#1A7F37", "#CF222E", "#9A6700", "#BC4C00", "#218BFF",
-            "#6E7781",
-        ),
-        Theme::AyuDark => (
-            "#0A0E14", "#B3B1AD", "#39BAE6", "#AAD94C", "#F07178", "#FFB454", "#FF8F40", "#95E6CB",
-            "#626A73",
-        ),
-        Theme::AyuMirage => (
-            "#1F2430", "#CCCAC2", "#5CCFE6", "#BAE67E", "#F28779", "#FFD173", "#FFAD66", "#95E6CB",
-            "#707A8C",
-        ),
-        Theme::AyuLight => (
-            "#FAFAFA", "#5C6773", "#55B4D4", "#86B300", "#E7676A", "#FA8D3E", "#F07171", "#4CBF99",
-            "#ABB0B6",
-        ),
-        Theme::NightOwl => (
-            "#011627", "#D6DEEB", "#82AAFF", "#22DA6E", "#EF5350", "#C5E478", "#F78C6C", "#21C7A8",
-            "#637777",
-        ),
-        Theme::NightOwlLight => (
-            "#FBFBFB", "#403F53", "#4876D6", "#2AA298", "#D3423E", "#DAA520", "#DD6A58", "#08916A",
-            "#989FB1",
-        ),
-        Theme::Moonlight => (
-            "#212337", "#C8D3F5", "#82AAFF", "#C3E88D", "#FF757F", "#FFC777", "#F78C6C", "#86E1FC",
-            "#7A88CF",
-        ),
-        Theme::Projectious => (
-            "#0E1720", "#C5DAF0", "#E05232", "#4FB07A", "#E55B5B", "#E0B85B", "#F2A65A", "#8AACC8",
-            "#7B8DA3",
-        ),
-        // ── NEW THEMES ───────────────────────────────────────────────────────
-        // bg, fg, accent, green(string), red(error), yellow(warn), orange(number), cyan(func), muted(comment)
-        Theme::DraculaSoft => (
-            "#22212C", "#F8F8F2", "#C8A8F9", "#62E884", "#E76D6D", "#E9E987", "#FFCA80", "#A1F0FE",
-            "#7970A9",
-        ),
-        Theme::MaterialDarker => (
-            "#212121", "#EEFFFF", "#89DDFF", "#C3E88D", "#FF5370", "#FFCB6B", "#F78C6C", "#82AAFF",
-            "#546E7A",
-        ),
-        Theme::GithubDarkDimmed => (
-            "#22272E", "#ADBAC7", "#539BF5", "#57AB5A", "#F47067", "#C69026", "#F47067", "#6CB6FF",
-            "#768390",
-        ),
-        Theme::GithubDarkHighContrast => (
-            "#0A0C10", "#F0F3F6", "#71B7FF", "#26CD4D", "#FF6A69", "#F0B72F", "#FF6A69", "#91CBFF",
-            "#9198A1",
-        ),
-        Theme::GithubLightHighContrast => (
-            "#FFFFFF", "#0E1116", "#1A69DB", "#104F24", "#A0111F", "#7D4E00", "#A0111F", "#034188",
-            "#69717B",
-        ),
-        Theme::Andromeeda => (
-            "#23262E", "#D5CED9", "#00E8C6", "#89E044", "#EE5D43", "#FFCC00", "#F39C12", "#00E8C6",
-            "#6B6B6B",
-        ),
-        Theme::AuroraX => (
-            "#07090F", "#D4D4D4", "#569CD6", "#B5CEA8", "#F44747", "#CE9178", "#CE9178", "#4EC9B0",
-            "#5C6370",
-        ),
-        Theme::EverforestDark => (
-            "#2D353B", "#D3C6AA", "#7FBBB3", "#A7C080", "#E67E80", "#DBBC7F", "#D699B6", "#83C092",
-            "#7A8478",
-        ),
-        Theme::EverforestLight => (
-            "#FDF6E3", "#5C6A72", "#3A94C5", "#8DA101", "#F85552", "#DFA000", "#DF69BA", "#35A77C",
-            "#939F91",
-        ),
-        Theme::Houston => (
-            "#17191E", "#CDD6F4", "#F9C86A", "#4AF2C8", "#FF5370", "#FFA726", "#81D4FA", "#4AF2C8",
-            "#545878",
-        ),
-        Theme::KanagawaWave => (
-            "#1F1F28", "#DCD7BA", "#7E9CD8", "#98BB6C", "#C34043", "#FF9E3B", "#D27E99", "#7AA89F",
-            "#727169",
-        ),
-        Theme::KanagawaDragon => (
-            "#181616", "#C5C9C5", "#7EB3C9", "#87A987", "#C4746E", "#B6927B", "#C4746E", "#8EA4A2",
-            "#8A8980",
-        ),
-        Theme::KanagawaLotus => (
-            "#F2ECBC", "#545464", "#1F5F8A", "#4E7C3F", "#C84053", "#835C00", "#B5485D", "#536A5B",
-            "#A09F8F",
-        ),
-        Theme::Laserwave => (
-            "#27212E", "#FFFFFF", "#EB64B9", "#74DFC4", "#FE4450", "#FFEE79", "#FFEE79", "#74DFC4",
-            "#6B5F7D",
-        ),
-        Theme::MinDark => (
-            "#1F1F1F", "#B2B2B2", "#569CD6", "#B5CEA8", "#F44747", "#CCA700", "#CE9178", "#4EC9B0",
-            "#525252",
-        ),
-        Theme::MinLight => (
-            "#F8F8F8", "#333333", "#0000FF", "#098658", "#E50000", "#865F00", "#C1440E", "#267F99",
-            "#9A9A9A",
-        ),
-        Theme::Monokai => (
-            "#272822", "#F8F8F2", "#F92672", "#A6E22E", "#F92672", "#E6DB74", "#AE81FF", "#66D9EF",
-            "#75715E",
-        ),
-        Theme::OneDarkPro => (
-            "#282C34", "#ABB2BF", "#61AFEF", "#98C379", "#E06C75", "#E5C07B", "#D19A66", "#56B6C2",
-            "#5C6370",
-        ),
-        Theme::OneLight => (
-            "#FAFAFA", "#383A42", "#4078F2", "#50A14F", "#CA1243", "#C18401", "#986801", "#0184BC",
-            "#A0A1A7",
-        ),
-        Theme::Plastic => (
-            "#1B1D23", "#ABB2BF", "#61AFEF", "#98C379", "#E06C75", "#E5C07B", "#D19A66", "#56B6C2",
-            "#7A7E8A",
-        ),
-        Theme::Poimandres => (
-            "#1B1E28", "#A6ACCD", "#A6DA95", "#5DE4C7", "#D0679D", "#FFFAC2", "#D0679D", "#ADD7FF",
-            "#767C9D",
-        ),
-        Theme::Red => (
-            "#390000", "#F8F8F8", "#FF6666", "#F4C2C2", "#FF0000", "#FF8800", "#FFD0D0", "#FF9999",
-            "#A06060",
-        ),
-        Theme::SlackDark => (
-            "#222529", "#D1D2D3", "#8CC4FF", "#AFE3A4", "#E07070", "#DFC55A", "#DFC55A", "#98D1E0",
-            "#60656A",
-        ),
-        Theme::SlackOchin => (
-            "#F9F9F9", "#383A3C", "#0070D1", "#268829", "#D0104C", "#C64B10", "#C64B10", "#007A7A",
-            "#A0A4A8",
-        ),
-        Theme::SnazzyLight => (
-            "#FAFBFC", "#2D2D2D", "#57C7FF", "#5AF78E", "#FF5C57", "#FF9F43", "#FF6AC1", "#57C7FF",
-            "#9E9E9E",
-        ),
-        Theme::Synthwave84 => (
-            "#2A2139", "#FFFFFF", "#36F9F6", "#FF7EDB", "#FE4450", "#FEDE5D", "#F97E72", "#36F9F6",
-            "#848082",
-        ),
-        Theme::Vesper => (
-            "#101010", "#FFFFFF", "#FF7B00", "#99FFE4", "#F44747", "#FF7B00", "#FFC799", "#FFC799",
-            "#5C5C5C",
-        ),
-        Theme::VitesseDark => (
-            "#121212", "#DBD7CA", "#4D9375", "#C98A7D", "#E06C75", "#D4976C", "#6496C8", "#80A0C0",
-            "#758575",
-        ),
-        Theme::VitesseLight => (
-            "#FFFFFF", "#393A34", "#1E754F", "#B56959", "#AB5959", "#B07D48", "#296AA3", "#2E808F",
-            "#A0A077",
-        ),
-        Theme::VitesseBlack => (
-            "#000000", "#DBD7CA", "#4D9375", "#C98A7D", "#E06C75", "#D4976C", "#6496C8", "#80A0C0",
-            "#606060",
-        ),
-        Theme::VsCodeDarkPlus => (
-            "#1E1E1E", "#D4D4D4", "#569CD6", "#B5CEA8", "#F44747", "#CCA700", "#CE9178", "#4EC9B0",
-            "#6A9955",
-        ),
-        Theme::VsCodeLightPlus => (
-            "#FFFFFF", "#000000", "#0000FF", "#098658", "#CD3131", "#A65E00", "#A31515", "#267F99",
-            "#008000",
-        ),
-    }
+fn theme_palette(
+    theme: &Theme,
+) -> (
+    &'static str,
+    &'static str,
+    &'static str,
+    &'static str,
+    &'static str,
+    &'static str,
+    &'static str,
+    &'static str,
+    &'static str,
+) {
+    let spec = audited_theme(theme);
+    (
+        audited_color(spec, "bg"),
+        audited_color(spec, "fg"),
+        audited_accent_text(theme),
+        audited_color(spec, "green"),
+        audited_color(spec, "red"),
+        audited_color(spec, "yellow"),
+        audited_color(spec, "orange"),
+        audited_color(spec, "cyan"),
+        audited_color(spec, "muted"),
+    )
 }
-
 /// Generate starship.toml content for the given preset and theme.
 pub fn starship_config(preset: &StarshipPreset, theme: &Theme) -> String {
     let (bg, fg, accent, green, red, yellow, orange, cyan, muted) = theme_palette(theme);
+    let accent_fill = audited_accent_fill(theme);
 
     match preset {
         StarshipPreset::Default => format!(
@@ -769,6 +864,7 @@ error_symbol = "[❯](bold fg:{red})"
 bg = "{bg}"
 fg = "{fg}"
 accent = "{accent}"
+accent_fill = "{accent_fill}"
 "#
         ),
 
@@ -862,6 +958,7 @@ error_symbol = "[❯](bold fg:{red})"
 bg = "{bg}"
 fg = "{fg}"
 accent = "{accent}"
+accent_fill = "{accent_fill}"
 "#
         ),
 
@@ -871,7 +968,7 @@ accent = "{accent}"
 palette = "aibox"
 
 format = """
-[](fg:{accent})\
+[](fg:{accent_fill})\
 $directory\
 [](fg:{accent} bg:{green})\
 $git_branch\
@@ -886,7 +983,7 @@ $cmd_duration\
 $character"""
 
 [directory]
-style = "bold bg:{accent} fg:{bg}"
+style = "bold bg:{accent_fill} fg:{bg}"
 format = "[ $path ]($style)"
 truncation_length = 3
 truncate_to_repo = true
@@ -932,6 +1029,7 @@ error_symbol = "[❯](bold fg:{red}) "
 bg = "{bg}"
 fg = "{fg}"
 accent = "{accent}"
+accent_fill = "{accent_fill}"
 "#
         ),
 
@@ -975,7 +1073,7 @@ error_symbol = "[❯](bold fg:{red})"
 palette = "aibox"
 
 format = """
-[](fg:{accent})\
+[](fg:{accent_fill})\
 $directory\
 [](fg:{accent} bg:{green})\
 $git_branch\
@@ -986,7 +1084,7 @@ $line_break\
 $character"""
 
 [directory]
-style = "bold bg:{accent} fg:{bg}"
+style = "bold bg:{accent_fill} fg:{bg}"
 format = "[ $path ]($style)"
 truncation_length = 3
 truncate_to_repo = true
@@ -1032,122 +1130,118 @@ format = "[$symbol$version]($style) "
 bg = "{bg}"
 fg = "{fg}"
 accent = "{accent}"
+accent_fill = "{accent_fill}"
 "#
         ),
     }
 }
 
 /// Map an aibox theme to a `bat` built-in syntax theme.
-///
-/// `bat --list-themes` shows the supported set; Catppuccin variants ship in
-/// recent bat versions. Light themes return `*-light` variants so plain-text
-/// output stays legible on pale backgrounds.
-pub fn bat_theme(theme: &Theme) -> &'static str {
-    match theme {
-        Theme::GruvboxDark => "gruvbox-dark",
-        Theme::GruvboxLight => "gruvbox-light",
-        Theme::CatppuccinMocha => "Catppuccin Mocha",
-        Theme::CatppuccinMacchiato => "Catppuccin Macchiato",
-        Theme::CatppuccinFrappe => "Catppuccin Frappe",
-        Theme::CatppuccinLatte => "Catppuccin Latte",
-        Theme::Dracula => "Dracula",
-        Theme::TokyoNight | Theme::TokyoNightStorm | Theme::Moonlight => "Coldark-Dark",
-        Theme::TokyoNightDay => "Coldark-Cold",
-        Theme::Nord => "Nord",
-        Theme::RosePine | Theme::RosePineMoon => "Catppuccin Mocha",
-        Theme::RosePineDawn => "Catppuccin Latte",
-        Theme::Material | Theme::MaterialOcean | Theme::MaterialPalenight => "Coldark-Dark",
-        Theme::MaterialLighter => "Coldark-Cold",
-        Theme::SolarizedDark => "Solarized (dark)",
-        Theme::SolarizedLight => "Solarized (light)",
-        Theme::GithubDark => "Visual Studio Dark+",
-        Theme::GithubLight => "GitHub",
-        Theme::AyuDark | Theme::AyuMirage => "Coldark-Dark",
-        Theme::AyuLight => "Coldark-Cold",
-        Theme::NightOwl => "Coldark-Dark",
-        Theme::NightOwlLight => "Coldark-Cold",
-        Theme::Projectious => "Coldark-Dark",
-        // New themes
-        Theme::DraculaSoft => "Dracula",
-        Theme::MaterialDarker => "Coldark-Dark",
-        Theme::GithubDarkDimmed => "Visual Studio Dark+",
-        Theme::GithubDarkHighContrast => "Visual Studio Dark+",
-        Theme::GithubLightHighContrast => "GitHub",
-        Theme::Andromeeda => "Coldark-Dark",
-        Theme::AuroraX => "Visual Studio Dark+",
-        Theme::EverforestDark => "Coldark-Dark",
-        Theme::EverforestLight => "Coldark-Cold",
-        Theme::Houston => "Coldark-Dark",
-        Theme::KanagawaWave | Theme::KanagawaDragon => "Coldark-Dark",
-        Theme::KanagawaLotus => "Coldark-Cold",
-        Theme::Laserwave => "Coldark-Dark",
-        Theme::MinDark => "Visual Studio Dark+",
-        Theme::MinLight => "Coldark-Cold",
-        Theme::Monokai => "Monokai Extended",
-        Theme::OneDarkPro => "OneHalfDark",
-        Theme::OneLight => "OneHalfLight",
-        Theme::Plastic => "OneHalfDark",
-        Theme::Poimandres => "Coldark-Dark",
-        Theme::Red => "Coldark-Dark",
-        Theme::SlackDark => "Coldark-Dark",
-        Theme::SlackOchin => "Coldark-Cold",
-        Theme::SnazzyLight => "Coldark-Cold",
-        Theme::Synthwave84 => "Coldark-Dark",
-        Theme::Vesper => "Coldark-Dark",
-        Theme::VitesseDark | Theme::VitesseBlack => "Coldark-Dark",
-        Theme::VitesseLight => "Coldark-Cold",
-        Theme::VsCodeDarkPlus => "Visual Studio Dark+",
-        Theme::VsCodeLightPlus => "Coldark-Cold",
+pub fn starship_config_with_style(
+    preset: &StarshipPreset,
+    theme: &Theme,
+    emphasis: ThemeEmphasis,
+    overrides: &BTreeMap<String, String>,
+) -> String {
+    let mut body = starship_config(preset, theme);
+    if !role_attributes(emphasis, "active_foreground", Some(overrides)).contains("bold") {
+        for attribute in [
+            "bold ",
+            "italic ",
+            "underline ",
+            "dimmed ",
+            "strikethrough ",
+        ] {
+            body = body.replace(attribute, "");
+        }
     }
+    body
 }
-
+/// Delta consumes the generated custom bat theme.
 /// `delta` `syntax-theme` value — matches `bat_theme` since delta consumes bat themes.
 pub fn delta_syntax_theme(theme: &Theme) -> &'static str {
-    bat_theme(theme)
+    let _ = theme;
+    "aibox"
 }
 
-/// Lnav built-in theme name. Lnav ships: default, eldar, grayscale, monocai,
-/// night-owl, solarized-dark, solarized-light, dracula, tokyo-night.
-pub fn lnav_theme(theme: &Theme) -> &'static str {
-    match theme {
-        Theme::SolarizedLight
-        | Theme::CatppuccinLatte
-        | Theme::GruvboxLight
-        | Theme::RosePineDawn
-        | Theme::MaterialLighter
-        | Theme::GithubLight
-        | Theme::GithubLightHighContrast
-        | Theme::AyuLight
-        | Theme::TokyoNightDay
-        | Theme::NightOwlLight
-        | Theme::OneLight
-        | Theme::VitesseLight
-        | Theme::MinLight
-        | Theme::KanagawaLotus
-        | Theme::EverforestLight
-        | Theme::VsCodeLightPlus
-        | Theme::SlackOchin
-        | Theme::SnazzyLight => "solarized-light",
-        Theme::SolarizedDark => "solarized-dark",
-        Theme::Dracula | Theme::DraculaSoft => "dracula",
-        Theme::NightOwl => "night-owl",
-        Theme::TokyoNight | Theme::TokyoNightStorm | Theme::Moonlight | Theme::Projectious => {
-            "tokyo-night"
-        }
-        _ => "monocai",
-    }
-}
-
-/// fzf `--color` clause string (without the leading `--color=`).
-pub fn fzf_color_spec(theme: &Theme) -> String {
-    let (bg, fg, accent, green, _red, _yellow, _orange, _cyan, muted) = theme_palette(theme);
-    // Reuse the yazi surface for the selected-row background so hover state
-    // matches the file manager.
-    let surface = yazi_surface_color(theme);
+/// Generated TextMate theme consumed by bat, delta, and Codex. This removes
+/// nearest-built-in fallbacks and gives each consumer the same audited syntax
+/// roles and emphasis policy as Vim.
+pub fn bat_tmtheme_with_style(
+    theme: &Theme,
+    emphasis: ThemeEmphasis,
+    overrides: &BTreeMap<String, String>,
+) -> String {
+    let (bg, fg, accent, green, red, yellow, orange, cyan, muted) = theme_palette(theme);
+    let magenta = audited_magenta(theme);
+    let cursor = audited_chrome_color(theme, "cursor").unwrap_or(accent);
+    let selection_fg = audited_chrome_color(theme, "selection_fg").unwrap_or(fg);
+    let comment = theme_role_attributes(theme, emphasis, "code_comment", Some(overrides));
+    let keyword = theme_role_attributes(theme, emphasis, "code_keyword", Some(overrides));
+    let ty = theme_role_attributes(theme, emphasis, "code_type", Some(overrides));
+    let function = theme_role_attributes(theme, emphasis, "code_function", Some(overrides));
+    let string = theme_role_attributes(theme, emphasis, "code_string", Some(overrides));
+    let number = theme_role_attributes(theme, emphasis, "code_number", Some(overrides));
+    let operator = theme_role_attributes(theme, emphasis, "code_operator", Some(overrides));
+    let decorator = theme_role_attributes(theme, emphasis, "code_decorator", Some(overrides));
+    let invalid = theme_role_attributes(theme, emphasis, "code_invalid", Some(overrides));
     format!(
-        "bg+:{surface},bg:{bg},fg:{fg},fg+:{fg},hl:{accent},hl+:{accent},\
+        r#"<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0"><dict>
+<key>name</key><string>aibox</string>
+<key>settings</key><array>
+<dict><key>settings</key><dict><key>background</key><string>{bg}</string><key>foreground</key><string>{fg}</string><key>caret</key><string>{cursor}</string><key>selection</key><string>{surface}</string><key>selectionForeground</key><string>{selection_fg}</string></dict></dict>
+<dict><key>scope</key><string>comment</string><key>settings</key><dict><key>foreground</key><string>{muted}</string><key>fontStyle</key><string>{comment}</string></dict></dict>
+<dict><key>scope</key><string>keyword, storage</string><key>settings</key><dict><key>foreground</key><string>{magenta}</string><key>fontStyle</key><string>{keyword}</string></dict></dict>
+<dict><key>scope</key><string>entity.name.type, support.type, storage.type</string><key>settings</key><dict><key>foreground</key><string>{yellow}</string><key>fontStyle</key><string>{ty}</string></dict></dict>
+<dict><key>scope</key><string>entity.name.function, support.function</string><key>settings</key><dict><key>foreground</key><string>{accent}</string><key>fontStyle</key><string>{function}</string></dict></dict>
+<dict><key>scope</key><string>string</string><key>settings</key><dict><key>foreground</key><string>{green}</string><key>fontStyle</key><string>{string}</string></dict></dict>
+<dict><key>scope</key><string>constant.numeric, constant.language</string><key>settings</key><dict><key>foreground</key><string>{orange}</string><key>fontStyle</key><string>{number}</string></dict></dict>
+<dict><key>scope</key><string>keyword.operator, punctuation</string><key>settings</key><dict><key>foreground</key><string>{cyan}</string><key>fontStyle</key><string>{operator}</string></dict></dict>
+<dict><key>scope</key><string>meta.annotation, entity.name.tag</string><key>settings</key><dict><key>foreground</key><string>{accent}</string><key>fontStyle</key><string>{decorator}</string></dict></dict>
+<dict><key>scope</key><string>invalid</string><key>settings</key><dict><key>foreground</key><string>{red}</string><key>fontStyle</key><string>{invalid}</string></dict></dict>
+</array></dict></plist>
+"#,
+        surface = audited_chrome_color(theme, "selection_bg").unwrap_or(bg)
+    )
+}
+/// fzf `--color` clause string (without the leading `--color=`).
+#[cfg(test)]
+pub fn fzf_color_spec(theme: &Theme) -> String {
+    fzf_color_spec_with_emphasis(theme, ThemeEmphasis::Auto)
+}
+
+#[cfg(test)]
+pub fn fzf_color_spec_with_emphasis(theme: &Theme, emphasis: ThemeEmphasis) -> String {
+    fzf_color_spec_with_style(theme, emphasis, &BTreeMap::new())
+}
+
+pub fn fzf_color_spec_with_style(
+    theme: &Theme,
+    emphasis: ThemeEmphasis,
+    overrides: &BTreeMap<String, String>,
+) -> String {
+    let (bg, fg, accent, green, _red, _yellow, _orange, _cyan, muted) = theme_palette(theme);
+    let selection_bg =
+        audited_chrome_color(theme, "selection_bg").unwrap_or_else(|| yazi_surface_color(theme));
+    let selection_fg = audited_chrome_color(theme, "selection_fg").unwrap_or(fg);
+    let active = if role_attributes(emphasis, "active_foreground", Some(overrides)).contains("bold")
+    {
+        ":bold"
+    } else {
+        ""
+    };
+    let inactive =
+        if role_attributes(emphasis, "inactive_foreground", Some(overrides)).contains("dim") {
+            ":dim"
+        } else {
+            ""
+        };
+    format!(
+        "bg+:{selection_bg},bg:{bg},fg:{fg},fg+:{selection_fg}{active},hl:{accent},hl+:{accent}{active},\
 pointer:{accent},marker:{green},spinner:{accent},info:{muted},header:{muted},\
-border:{muted},prompt:{accent},query:{fg},disabled:{muted},gutter:{bg},\
+border:{muted},prompt:{accent}{active},query:{fg},disabled:{muted}{inactive},gutter:{bg},\
 preview-bg:{bg},preview-fg:{fg},separator:{muted},label:{accent}"
     )
 }
@@ -1155,7 +1249,11 @@ preview-bg:{bg},preview-fg:{fg},separator:{muted},label:{accent}"
 /// EZA_COLORS env value. The format is a colon-separated list of `key=spec`
 /// items where `spec` is an ANSI SGR sequence. We map a small but visible set
 /// of file categories to palette slots so `ls` output coheres with the rest.
-pub fn eza_colors_spec(theme: &Theme) -> String {
+pub fn eza_colors_spec_with_style(
+    theme: &Theme,
+    emphasis: ThemeEmphasis,
+    overrides: &BTreeMap<String, String>,
+) -> String {
     let (_bg, _fg, accent, green, red, yellow, orange, cyan, muted) = theme_palette(theme);
     let a = hex_to_sgr_fg(accent);
     let g = hex_to_sgr_fg(green);
@@ -1164,13 +1262,28 @@ pub fn eza_colors_spec(theme: &Theme) -> String {
     let o = hex_to_sgr_fg(orange);
     let c = hex_to_sgr_fg(cyan);
     let m = hex_to_sgr_fg(muted);
+    let bold = if !role_attributes(emphasis, "git_modified", Some(overrides)).contains("bold") {
+        ""
+    } else {
+        ";1"
+    };
+    let italic = if role_attributes(emphasis, "git_untracked", Some(overrides)).contains("italic") {
+        ";3"
+    } else {
+        ""
+    };
+    let dim = if !role_attributes(emphasis, "git_ignored", Some(overrides)).contains("dim") {
+        ""
+    } else {
+        ";2"
+    };
     // di=directory, ex=executable, ln=symlink, fi=regular file, *.rs/*.py etc.
     // git/perm columns and size units use accent/muted to match the prompt.
     format!(
-        "di={a};1:ex={g}:ln={c}:fi=0:or={r}:mi={r}:\
-da={m}:sn={a}:sb={a}:uu={m}:un={m}:gu={m}:gn={m}:\
-ga={g}:gm={y}:gd={r}:gv={y}:gt={o}:\
-xx={m}:da={m}"
+        "di={a}{bold}:ex={g}:ln={c}:fi=0:or={r}{bold}:mi={r}{bold}:\
+da={m}{dim}:sn={a}:sb={a}:uu={m}:un={m}:gu={m}:gn={m}:\
+ga={g}{bold}:gm={y}{bold}:gd={r}{bold}:gv={y}:gt={o}{italic}:\
+xx={m}{dim}:da={m}{dim}"
     )
 }
 
@@ -1185,27 +1298,51 @@ fn hex_to_sgr_fg(hex: &str) -> String {
 /// Generate `~/.config/aibox/theme-env.sh` content: exports BAT_THEME,
 /// FZF_DEFAULT_OPTS, EZA_COLORS, LESS_TERMCAP_*, and a few helper LS_COLORS
 /// hints. Sourced from `~/.bashrc` if present.
+#[cfg(test)]
 pub fn theme_env_script(theme: &Theme) -> String {
-    let bat = bat_theme(theme);
-    let fzf = fzf_color_spec(theme);
-    let eza = eza_colors_spec(theme);
+    theme_env_script_with_emphasis(theme, ThemeEmphasis::Auto)
+}
+
+#[cfg(test)]
+pub fn theme_env_script_with_emphasis(theme: &Theme, emphasis: ThemeEmphasis) -> String {
+    theme_env_script_with_style(theme, emphasis, &BTreeMap::new())
+}
+
+pub fn theme_env_script_with_style(
+    theme: &Theme,
+    emphasis: ThemeEmphasis,
+    overrides: &BTreeMap<String, String>,
+) -> String {
+    let bat = "aibox";
+    let fzf = fzf_color_spec_with_style(theme, emphasis, overrides);
+    let eza = eza_colors_spec_with_style(theme, emphasis, overrides);
     let (_bg, _fg, accent, _green, red, yellow, _orange, _cyan, _muted) = theme_palette(theme);
     let acc = hex_to_sgr_fg(accent);
     let yel = hex_to_sgr_fg(yellow);
     let red = hex_to_sgr_fg(red);
+    let (bold, underline, reverse) = if resolved_emphasis(emphasis) == ThemeEmphasis::None {
+        ("", "", "")
+    } else {
+        (";1", ";4", ";7")
+    };
     format!(
         r#"# Generated by `aibox` — do NOT edit. Re-run `aibox theme` to refresh.
 # Exports keep ANSI-colored tools (bat, delta, fzf, eza, less) aligned with
 # the active aibox theme.
 
 export BAT_THEME="{bat}"
+# Bat indexes custom TextMate themes into its cache. Rebuild only when the
+# generated aibox theme is not present (normally once after apply/theme switch).
+if command -v bat >/dev/null 2>&1 && ! bat --list-themes 2>/dev/null | grep -qx 'aibox'; then
+    bat cache --build >/dev/null 2>&1 || true
+fi
 export FZF_DEFAULT_OPTS="${{FZF_DEFAULT_OPTS:-}} --color={fzf}"
 export EZA_COLORS="{eza}"
 
 # `less` headings / search hits — match prompt accent / warnings.
-export LESS_TERMCAP_md=$'\e[{acc}m'    # bold (section headers, command names)
-export LESS_TERMCAP_us=$'\e[{yel}m'    # underline (options, args)
-export LESS_TERMCAP_so=$'\e[{acc};7m'  # reverse (search / status line)
+export LESS_TERMCAP_md=$'\e[{acc}{bold}m'    # section headers, command names
+export LESS_TERMCAP_us=$'\e[{yel}{underline}m'    # options, args
+export LESS_TERMCAP_so=$'\e[{acc}{reverse}m'  # search / status line
 export LESS_TERMCAP_me=$'\e[0m'
 export LESS_TERMCAP_ue=$'\e[0m'
 export LESS_TERMCAP_se=$'\e[0m'
@@ -1219,16 +1356,67 @@ export AIBOX_ERROR_SGR='{red}'
 
 /// Generate `~/.config/lnav/config.json` content: pins lnav to the closest
 /// matching built-in theme.
+#[cfg(test)]
 pub fn lnav_config(theme: &Theme) -> String {
-    let name = lnav_theme(theme);
+    lnav_config_with_emphasis(theme, ThemeEmphasis::Auto)
+}
+
+#[cfg(test)]
+pub fn lnav_config_with_emphasis(theme: &Theme, emphasis: ThemeEmphasis) -> String {
+    lnav_config_with_style(theme, emphasis, &BTreeMap::new())
+}
+
+pub fn lnav_config_with_style(
+    theme: &Theme,
+    emphasis: ThemeEmphasis,
+    overrides: &BTreeMap<String, String>,
+) -> String {
+    let (bg, fg, accent, green, red, yellow, orange, cyan, muted) = theme_palette(theme);
+    let accent_fill = audited_accent_fill(theme);
+    let active_ink = audited_chrome_color(theme, "status_active_ink").unwrap_or(bg);
+    let surface = yazi_surface_color(theme);
+    let selection_bg = audited_chrome_color(theme, "selection_bg").unwrap_or(surface);
+    let selection_fg = audited_chrome_color(theme, "selection_fg").unwrap_or(fg);
+    let has =
+        |role: &str, attr: &str| role_attributes(emphasis, role, Some(overrides)).contains(attr);
+    let doc = serde_json::json!({
+        "$schema": "https://lnav.org/schemas/config-v1.schema.json",
+        "ui": {
+            "theme": "aibox",
+            "theme-defs": {
+                "aibox": {
+                    "vars": { "black": bg, "red": red, "green": green, "yellow": yellow, "blue": accent, "magenta": orange, "cyan": cyan, "white": fg },
+                    "styles": {
+                        "text": { "color": fg, "background-color": bg },
+                        "selected-text": { "color": selection_fg, "background-color": selection_bg },
+                        "identifier": { "color": accent },
+                        "alt-text": { "color": muted, "italic": has("code_comment", "italic") },
+                        "ok": { "color": green },
+                        "info": { "color": cyan },
+                        "warning": { "color": yellow, "bold": has("status_warning", "bold") },
+                        "error": { "color": red, "bold": has("status_error", "bold") },
+                        "invalid-msg": { "color": red, "bold": has("code_invalid", "bold"), "underline": has("code_invalid", "underline") },
+                        "popup": { "color": fg, "background-color": surface },
+                        "table-border": { "color": accent },
+                        "focused": { "color": selection_fg, "background-color": selection_bg },
+                        "disabled-focused": { "color": muted, "background-color": surface }
+                    },
+                    "status-styles": {
+                        "title": { "color": active_ink, "background-color": accent_fill, "bold": has("active_foreground", "bold") },
+                        "text": { "color": fg, "background-color": surface },
+                        "warn": { "color": yellow, "background-color": surface, "bold": has("status_warning", "bold") },
+                        "alert": { "color": red, "background-color": surface, "bold": has("status_error", "bold") },
+                        "active": { "color": green, "background-color": surface },
+                        "info": { "color": cyan, "background-color": surface },
+                        "inactive": { "color": muted, "background-color": surface }
+                    }
+                }
+            }
+        }
+    });
     format!(
-        r#"{{
-  "$schema": "https://lnav.org/schemas/config-v1.schema.json",
-  "ui": {{
-    "theme": "{name}"
-  }}
-}}
-"#
+        "{}\n",
+        serde_json::to_string_pretty(&doc).expect("lnav theme JSON serializes")
     )
 }
 
@@ -1241,10 +1429,31 @@ pub fn lnav_config(theme: &Theme) -> String {
 /// powerkit theme variant doesn't quite match our palette (Projectious in
 /// particular previously fell back to tokyo-night and rendered chevrons in
 /// tokyo-night's bg).
+#[cfg(test)]
 pub fn tmux_powerkit_custom_theme(theme: &Theme) -> String {
+    tmux_powerkit_custom_theme_with_emphasis(theme, ThemeEmphasis::Auto)
+}
+
+#[cfg(test)]
+pub fn tmux_powerkit_custom_theme_with_emphasis(theme: &Theme, emphasis: ThemeEmphasis) -> String {
+    tmux_powerkit_custom_theme_with_style(theme, emphasis, &BTreeMap::new())
+}
+
+pub fn tmux_powerkit_custom_theme_with_style(
+    theme: &Theme,
+    emphasis: ThemeEmphasis,
+    overrides: &BTreeMap<String, String>,
+) -> String {
     let (bg, fg, accent, green, red, yellow, orange, cyan, muted) = theme_palette(theme);
+    let accent_fill = audited_accent_fill(theme);
     let surface = yazi_surface_color(theme);
-    let magenta = mix_hex_colors(red, accent, 60);
+    let magenta = audited_magenta(theme);
+    let border_active = audited_chrome_color(theme, "border_active").unwrap_or(accent_fill);
+    let border_inactive = audited_chrome_color(theme, "border_inactive").unwrap_or(muted);
+    let active_ink = audited_chrome_color(theme, "status_active_ink").unwrap_or(bg);
+    let active_style = tmux_role_attributes(emphasis, "active_foreground", Some(overrides));
+    let inactive_style = tmux_role_attributes(emphasis, "inactive_foreground", Some(overrides));
+    let error_style = tmux_role_attributes(emphasis, "status_error", Some(overrides));
     // A "neutral OK" tone: muted accent — keeps non-warning segments calm
     // without making them disappear against the surface.
     let ok = mix_hex_colors(accent, muted, 35);
@@ -1263,25 +1472,25 @@ declare -gA THEME_COLORS=(
     [statusbar-fg]="{fg}"
 
     # Session (status-left)
-    [session-bg]="{accent}"
-    [session-fg]="{bg}"
+    [session-bg]="{accent_fill}"
+    [session-fg]="{active_ink}"
     [session-prefix-bg]="{red}"
     [session-copy-bg]="{cyan}"
     [session-search-bg]="{yellow}"
     [session-command-bg]="{magenta}"
 
     # Windows
-    [window-active-base]="{accent}"
-    [window-active-style]="bold"
+    [window-active-base]="{accent_fill}"
+    [window-active-style]="{active_style}"
     [window-inactive-base]="{muted}"
-    [window-inactive-style]="none"
-    [window-activity-style]="italics"
-    [window-bell-style]="bold"
+    [window-inactive-style]="{inactive_style}"
+    [window-activity-style]="{inactive_style}"
+    [window-bell-style]="{error_style}"
     [window-zoomed-bg]="{cyan}"
 
     # Panes
-    [pane-border-active]="{accent}"
-    [pane-border-inactive]="{muted}"
+    [pane-border-active]="{border_active}"
+    [pane-border-inactive]="{border_inactive}"
 
     # Health / state segments (chevron color rotation source)
     [ok-base]="{ok}"
@@ -1301,8 +1510,8 @@ declare -gA THEME_COLORS=(
     [popup-border]="{accent}"
     [menu-bg]="{surface}"
     [menu-fg]="{fg}"
-    [menu-selected-bg]="{accent}"
-    [menu-selected-fg]="{bg}"
+    [menu-selected-bg]="{accent_fill}"
+    [menu-selected-fg]="{active_ink}"
     [menu-border]="{accent}"
 )
 
@@ -1326,10 +1535,19 @@ pub fn is_light_theme(theme: &Theme) -> bool {
 /// Claude supports: "dark", "light", "dark-daltonized", "light-daltonized",
 /// "dark-ansi", "light-ansi", "system". We map to light/dark only.
 pub fn claude_theme(theme: &Theme) -> &'static str {
-    if is_light_theme(theme) {
-        "light"
-    } else {
-        "dark"
+    match theme {
+        Theme::MonoLight
+        | Theme::ContrastLight
+        | Theme::ContrastLightMax
+        | Theme::ContrastMonoLight
+        | Theme::ContrastMonoLightMax => "light-ansi",
+        Theme::MonoDark
+        | Theme::ContrastDark
+        | Theme::ContrastDarkMax
+        | Theme::ContrastMonoDark
+        | Theme::ContrastMonoDarkMax => "dark-ansi",
+        _ if is_light_theme(theme) => "light",
+        _ => "dark",
     }
 }
 
@@ -1338,7 +1556,7 @@ pub fn claude_theme(theme: &Theme) -> &'static str {
 /// background flag. We map to the closest Pygments style.
 pub fn aider_code_theme(theme: &Theme) -> &'static str {
     match theme {
-        Theme::GruvboxDark | Theme::GruvboxLight => "gruvbox-dark",
+        Theme::GruvboxDark => "gruvbox-dark",
         Theme::SolarizedDark => "solarized-dark",
         Theme::SolarizedLight => "solarized-light",
         Theme::Dracula => "dracula",
@@ -1359,9 +1577,23 @@ pub fn aider_code_theme(theme: &Theme) -> &'static str {
         | Theme::VsCodeLightPlus
         | Theme::GithubLightHighContrast
         | Theme::SlackOchin
-        | Theme::SnazzyLight => "default",
+        | Theme::SnazzyLight
+        | Theme::GruvboxLight
+        | Theme::ProjectiousLight
+        | Theme::ProjectiousHCLight
+        | Theme::MonoLight
+        | Theme::ContrastLight
+        | Theme::ContrastLightMax
+        | Theme::ContrastMonoLight
+        | Theme::ContrastMonoLightMax => "default",
         Theme::DraculaSoft => "dracula",
         Theme::Monokai | Theme::OneDarkPro | Theme::Plastic => "monokai",
+        Theme::MonoDark
+        | Theme::ContrastDark
+        | Theme::ContrastDarkMax
+        | Theme::ContrastMonoDark
+        | Theme::ContrastMonoDarkMax
+        | Theme::ProjectiousHCDark => "github-dark",
         _ => "monokai",
     }
 }
@@ -1395,72 +1627,73 @@ pub fn gemini_theme(theme: &Theme) -> &'static str {
         _ => "Default",
     }
 }
-
-/// OpenCode `~/.config/opencode/opencode.json` (or `~/.opencode/opencode.json`)
-/// `theme` value. OpenCode supports: system, opencode, tokyonight, everforest,
-/// ayu, catppuccin, dracula, gruvbox, kanagawa, matrix, monokai, nord,
-/// onedark, rose-pine.
-pub fn opencode_theme(theme: &Theme) -> &'static str {
-    match theme {
-        Theme::GruvboxDark | Theme::GruvboxLight => "gruvbox",
-        Theme::CatppuccinMocha
-        | Theme::CatppuccinMacchiato
-        | Theme::CatppuccinFrappe
-        | Theme::CatppuccinLatte => "catppuccin",
-        Theme::Dracula | Theme::DraculaSoft => "dracula",
-        Theme::TokyoNight | Theme::TokyoNightStorm | Theme::TokyoNightDay | Theme::Moonlight => {
-            "tokyonight"
+/// Native OpenCode custom theme. OpenCode's schema is color-only, so semantic
+/// emphasis remains encoded through the audited high-contrast palette.
+pub fn opencode_custom_theme(theme: &Theme) -> String {
+    let (bg, fg, accent, green, red, yellow, orange, cyan, muted) = theme_palette(theme);
+    let magenta = audited_magenta(theme);
+    let surface = yazi_surface_color(theme);
+    let border = audited_chrome_color(theme, "border_inactive").unwrap_or(muted);
+    let border_active = audited_chrome_color(theme, "border_active").unwrap_or(accent);
+    let value = |color: &str| serde_json::json!({ "dark": color, "light": color });
+    let doc = serde_json::json!({
+        "$schema": "https://opencode.ai/theme.json",
+        "defs": { "bg": bg, "fg": fg, "accent": accent, "green": green, "red": red, "yellow": yellow, "orange": orange, "cyan": cyan, "muted": muted, "magenta": magenta, "surface": surface, "border": border, "borderActive": border_active },
+        "theme": {
+            "primary": value(accent), "secondary": value(cyan), "accent": value(magenta),
+            "error": value(red), "warning": value(yellow), "success": value(green), "info": value(cyan),
+            "text": value(fg), "textMuted": value(muted), "background": value(bg),
+            "backgroundPanel": value(surface), "backgroundElement": value(surface),
+            "border": value(border), "borderActive": value(border_active), "borderSubtle": value(border),
+            "diffAdded": value(green), "diffRemoved": value(red),
+            "markdownEmph": value(cyan), "markdownStrong": value(yellow),
+            "markdownHorizontalRule": value(muted), "markdownListItem": value(accent),
+            "markdownListEnumeration": value(magenta), "markdownImage": value(cyan),
+            "markdownImageText": value(accent), "markdownCodeBlock": value(fg),
+            "syntaxComment": value(muted), "syntaxKeyword": value(magenta),
+            "syntaxFunction": value(accent), "syntaxVariable": value(fg),
+            "syntaxString": value(green), "syntaxNumber": value(orange),
+            "syntaxType": value(yellow), "syntaxOperator": value(cyan), "syntaxPunctuation": value(fg)
         }
-        Theme::Nord => "nord",
-        Theme::RosePine | Theme::RosePineMoon | Theme::RosePineDawn => "rose-pine",
-        Theme::Material
-        | Theme::MaterialOcean
-        | Theme::MaterialPalenight
-        | Theme::MaterialLighter
-        | Theme::MaterialDarker => "onedark",
-        Theme::AyuDark | Theme::AyuMirage | Theme::AyuLight => "ayu",
-        Theme::GithubDark
-        | Theme::GithubLight
-        | Theme::GithubDarkDimmed
-        | Theme::GithubDarkHighContrast
-        | Theme::GithubLightHighContrast => "opencode",
-        Theme::SolarizedDark | Theme::SolarizedLight => "opencode",
-        Theme::NightOwl | Theme::NightOwlLight => "tokyonight",
-        Theme::Projectious => "tokyonight",
-        Theme::KanagawaWave | Theme::KanagawaDragon | Theme::KanagawaLotus => "kanagawa",
-        Theme::EverforestDark | Theme::EverforestLight => "everforest",
-        Theme::Monokai => "monokai",
-        Theme::OneDarkPro | Theme::OneLight | Theme::Plastic => "onedark",
-        // Remaining new themes — closest available
-        Theme::Andromeeda
-        | Theme::AuroraX
-        | Theme::Houston
-        | Theme::Laserwave
-        | Theme::MinDark
-        | Theme::MinLight
-        | Theme::Poimandres
-        | Theme::Red
-        | Theme::SlackDark
-        | Theme::SlackOchin
-        | Theme::SnazzyLight
-        | Theme::Synthwave84
-        | Theme::Vesper
-        | Theme::VitesseDark
-        | Theme::VitesseLight
-        | Theme::VitesseBlack
-        | Theme::VsCodeDarkPlus
-        | Theme::VsCodeLightPlus => "opencode",
-    }
+    });
+    format!(
+        "{}\n",
+        serde_json::to_string_pretty(&doc).expect("OpenCode theme JSON serializes")
+    )
 }
 
 /// Git config snippet that wires up delta as the diff/log/show pager. Emitted
 /// in place of the previous minimal gitconfig so `git diff`, `git log -p` and
 /// lazygit hunks all render with theme-matched syntax highlighting.
-pub fn gitconfig_with_delta(theme: &Theme) -> String {
+#[cfg(test)]
+pub fn gitconfig_with_delta_and_emphasis(theme: &Theme, emphasis: ThemeEmphasis) -> String {
+    gitconfig_with_delta_and_style(theme, emphasis, &BTreeMap::new())
+}
+
+pub fn gitconfig_with_delta_and_style(
+    theme: &Theme,
+    emphasis: ThemeEmphasis,
+    overrides: &BTreeMap<String, String>,
+) -> String {
     let (_bg, _fg, accent, _green, _red, _yellow, _orange, _cyan, muted) = theme_palette(theme);
     let syntax = delta_syntax_theme(theme);
     let dark = matches!(vim_background(theme), "dark");
     let light_flag = if dark { "false" } else { "true" };
+    let diff_add_bg = audited_chrome_color(theme, "diff_add_bg").unwrap_or("#1F3B25");
+    let diff_del_bg = audited_chrome_color(theme, "diff_del_bg").unwrap_or("#3B1F22");
+    let diff_change_bg = audited_chrome_color(theme, "diff_change_bg").unwrap_or("#313244");
+    let diff_bold = if role_attributes(emphasis, "diff_emphasis", Some(overrides)).contains("bold")
+    {
+        " bold"
+    } else {
+        ""
+    };
+    let header_bold = if role_attributes(emphasis, "diff_header", Some(overrides)).contains("bold")
+    {
+        " bold"
+    } else {
+        ""
+    };
     format!(
         r##"[core]
     editor = vim
@@ -1477,13 +1710,13 @@ pub fn gitconfig_with_delta(theme: &Theme) -> String {
     navigate = true
     line-numbers = true
     side-by-side = false
-    hunk-header-decoration-style = "{muted}" box
-    file-decoration-style = "{accent}" ul
-    minus-style = syntax "#3B1F22"
-    minus-emph-style = syntax "#6B1E25"
-    plus-style = syntax "#1F3B25"
-    plus-emph-style = syntax "#1F5B33"
-    zero-style = syntax
+    hunk-header-decoration-style = "{muted}" box{header_bold}
+    file-decoration-style = "{accent}" ul{header_bold}
+    minus-style = syntax "{diff_del_bg}"
+    minus-emph-style = syntax "{diff_del_bg}"{diff_bold}
+    plus-style = syntax "{diff_add_bg}"
+    plus-emph-style = syntax "{diff_add_bg}"{diff_bold}
+    zero-style = syntax "{diff_change_bg}"
 [merge]
     conflictStyle = zdiff3
 "##
@@ -1560,7 +1793,202 @@ mod tests {
         Theme::VitesseBlack,
         Theme::VsCodeDarkPlus,
         Theme::VsCodeLightPlus,
+        Theme::ProjectiousNavy,
+        Theme::ProjectiousDeep,
+        Theme::ProjectiousLight,
+        Theme::ProjectiousHCDark,
+        Theme::ProjectiousHCLight,
+        Theme::MonoDark,
+        Theme::MonoLight,
+        Theme::ContrastDark,
+        Theme::ContrastDarkMax,
+        Theme::ContrastLight,
+        Theme::ContrastLightMax,
+        Theme::ContrastMonoDark,
+        Theme::ContrastMonoDarkMax,
+        Theme::ContrastMonoLight,
+        Theme::ContrastMonoLightMax,
     ];
+
+    fn relative_luminance(color: &str) -> f64 {
+        let (r, g, b) = parse_hex_rgb(color).expect("test colors must be #RRGGBB");
+        let linear = |channel: u8| {
+            let value = f64::from(channel) / 255.0;
+            if value <= 0.04045 {
+                value / 12.92
+            } else {
+                ((value + 0.055) / 1.055).powf(2.4)
+            }
+        };
+        0.2126 * linear(r) + 0.7152 * linear(g) + 0.0722 * linear(b)
+    }
+
+    fn contrast_ratio(first: &str, second: &str) -> f64 {
+        let first = relative_luminance(first);
+        let second = relative_luminance(second);
+        (first.max(second) + 0.05) / (first.min(second) + 0.05)
+    }
+
+    fn assert_contrast(theme: &Theme, role: &str, fg: &str, bg: &str, floor: f64) {
+        let ratio = contrast_ratio(fg, bg);
+        assert!(
+            ratio + 0.005 >= floor,
+            "theme {theme} role {role}: {fg} on {bg} is {ratio:.2}:1, below {floor:.2}:1"
+        );
+    }
+
+    #[test]
+    fn every_audited_role_meets_its_contrast_floor() {
+        for theme in ALL_THEMES {
+            let spec = audited_theme(theme);
+            let bg = audited_color(spec, "bg");
+            for (role, floor) in [
+                ("fg", 7.0),
+                ("green", 4.5),
+                ("red", 4.5),
+                ("yellow", 4.5),
+                ("orange", 4.5),
+                ("cyan", 4.5),
+                ("muted", 4.5),
+            ] {
+                assert_contrast(theme, role, audited_color(spec, role), bg, floor);
+            }
+            assert_contrast(theme, "accent text", audited_accent_text(theme), bg, 4.5);
+            assert_contrast(theme, "magenta", audited_magenta(theme), bg, 4.5);
+
+            let chrome = &spec["chrome"];
+            let surface = audited_color(chrome, "surface");
+            // Projectious surfaces are authored brand ramp steps rather than
+            // generated status surfaces. Keep those exact v2.1.1 tokens; the
+            // imported and accessibility families must satisfy the 1.2 floor.
+            if spec["family"].as_str() != Some("projectious") {
+                assert_contrast(theme, "surface", surface, bg, 1.2);
+            }
+
+            let selection_bg = audited_color(chrome, "selection_bg");
+            let selection_fg = audited_color(chrome, "selection_fg");
+            let selection_surface_floor = if spec["mode"].as_str() == Some("light") {
+                1.4
+            } else {
+                // The authored Mono selection is 1.72:1; imported dark
+                // palettes target 1.8 and all remain above this hard floor.
+                1.7
+            };
+            assert_contrast(
+                theme,
+                "selection surface",
+                selection_bg,
+                bg,
+                selection_surface_floor,
+            );
+            assert_contrast(theme, "selection ink", selection_fg, selection_bg, 4.5);
+
+            if let (Some(cursor), Some(cursor_text)) = (
+                chrome.get("cursor").and_then(toml::Value::as_str),
+                chrome.get("cursor_text").and_then(toml::Value::as_str),
+            ) {
+                assert_contrast(theme, "cursor ink", cursor_text, cursor, 4.5);
+            }
+            for role in ["border_active", "border_inactive"] {
+                if let Some(color) = chrome.get(role).and_then(toml::Value::as_str) {
+                    assert_contrast(theme, role, color, bg, 3.0);
+                }
+            }
+            if let (Some(pane_bg), Some(pane_fg)) = (
+                chrome.get("pane_inactive_bg").and_then(toml::Value::as_str),
+                chrome.get("pane_inactive_fg").and_then(toml::Value::as_str),
+            ) {
+                assert_contrast(theme, "pane inactive", pane_fg, pane_bg, 3.0);
+            }
+        }
+    }
+
+    #[test]
+    fn decoration_overrides_are_clamped_and_reach_generated_tools() {
+        let mut overrides = BTreeMap::new();
+        overrides.insert("code_comment".to_string(), "bold underline".to_string());
+        overrides.insert("status_error".to_string(), "underline".to_string());
+
+        let vim =
+            vim_aibox_colorscheme_with_style(&Theme::GruvboxDark, ThemeEmphasis::Full, &overrides);
+        assert!(vim.contains("hi Comment        guifg=#A89984    gui=bold,underline"));
+        assert!(vim.contains("hi ErrorMsg       guifg=#FB5440    gui=underline"));
+
+        let bat = bat_tmtheme_with_style(&Theme::GruvboxDark, ThemeEmphasis::Minimal, &overrides);
+        assert!(bat.contains("<key>fontStyle</key><string>bold</string>"));
+        assert!(!bat.contains("bold underline"));
+
+        assert_eq!(
+            role_attributes(ThemeEmphasis::Standard, "status_error", Some(&overrides)),
+            "bold",
+            "underline must degrade to bold at standard"
+        );
+        assert_eq!(
+            role_attributes(ThemeEmphasis::None, "code_comment", Some(&overrides)),
+            "",
+            "none must clamp even explicit overrides"
+        );
+    }
+
+    #[test]
+    fn accessibility_theme_authored_attributes_reach_syntax_renderers() {
+        let vim = vim_aibox_colorscheme_with_style(
+            &Theme::MonoDark,
+            ThemeEmphasis::Full,
+            &BTreeMap::new(),
+        );
+        assert!(vim.contains("hi Operator       guifg=#BDBDBD      gui=italic"));
+        assert!(vim.contains("hi Keyword        guifg=#A3A3A3  gui=bold"));
+
+        let bat = bat_tmtheme_with_style(
+            &Theme::ContrastMonoDarkMax,
+            ThemeEmphasis::Full,
+            &BTreeMap::new(),
+        );
+        assert!(bat.contains("<string>keyword.operator, punctuation</string>"));
+        assert!(bat.contains("<key>fontStyle</key><string>italic</string>"));
+    }
+
+    #[test]
+    fn every_exposed_theme_has_complete_audited_semantic_data() {
+        use clap::ValueEnum as _;
+        assert_eq!(ALL_THEMES.len(), Theme::value_variants().len());
+        for theme in ALL_THEMES {
+            let spec = audited_theme(theme);
+            for key in [
+                "bg", "fg", "accent", "green", "red", "yellow", "orange", "cyan", "muted",
+            ] {
+                assert!(
+                    audited_color(spec, key).starts_with('#'),
+                    "{theme}: missing {key}"
+                );
+            }
+            assert!(
+                audited_magenta(theme).starts_with('#'),
+                "{theme}: missing magenta"
+            );
+            assert!(
+                audited_chrome_color(theme, "surface").is_some(),
+                "{theme}: missing chrome.surface"
+            );
+            assert!(
+                audited_chrome_color(theme, "selection_bg").is_some(),
+                "{theme}: missing selection background"
+            );
+            assert!(
+                audited_chrome_color(theme, "selection_fg").is_some(),
+                "{theme}: missing selection foreground"
+            );
+            assert!(
+                audited_chrome_color(theme, "cursor").is_some(),
+                "{theme}: missing cursor"
+            );
+            assert!(
+                audited_chrome_color(theme, "cursor_text").is_some(),
+                "{theme}: missing cursor text"
+            );
+        }
+    }
 
     const ALL_PROMPTS: &[StarshipPreset] = &[
         StarshipPreset::Default,
@@ -1597,7 +2025,10 @@ mod tests {
                 ("vim_aibox_colorscheme", vim_aibox_colorscheme(theme)),
                 ("yazi_theme", yazi_theme_with_separator(theme, "rounded")),
                 ("lazygit_theme", lazygit_theme(theme)),
-                ("gitconfig_with_delta", gitconfig_with_delta(theme)),
+                (
+                    "gitconfig_with_delta",
+                    gitconfig_with_delta_and_emphasis(theme, ThemeEmphasis::Auto),
+                ),
                 ("theme_env_script", theme_env_script(theme)),
                 ("lnav_config", lnav_config(theme)),
                 (
