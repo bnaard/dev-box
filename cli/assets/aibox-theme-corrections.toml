@@ -1,0 +1,2492 @@
+# aibox — corrected theme values
+# Generated from the audit. Slot order matches cli/src/themes.rs.
+# kind: canon = upstream correction · step = another step of the same palette
+#       lift  = computed for contrast · kept = unchanged
+# ratio = WCAG 2.1 contrast against this variant's background.
+
+[meta]
+source = "THEME-DESIGN-AGENT-BRIEFING.md (v0.x snapshot, 2026-08-20)"
+families = 34
+variants = 76
+canonical_corrections = 53
+contrast_corrections = 141
+failing_pairs_before = 145
+failing_pairs_after = 0
+
+[floors]
+fg = { min = 7, reason = "body text, read for hours — AAA for the one colour every character uses" }
+muted = { min = 4.5, reason = "comments and metadata are text, not decoration — SC 1.4.3 applies" }
+accent = { min = 4.5, reason = "accent is drawn as text (directories, titles, function names), not only as a fill" }
+green = { min = 4.5, reason = "syntax + success status, both carrying text" }
+red = { min = 4.5, reason = "syntax + error status — the one colour a user must never miss" }
+yellow = { min = 4.5, reason = "syntax types + warning status" }
+orange = { min = 4.5, reason = "numbers and constants — dense small glyphs" }
+cyan = { min = 4.5, reason = "operators and info status" }
+magenta = { min = 4.5, reason = "keywords/preprocessor once it becomes first-class" }
+surface = { min = 1.2, reason = "status bars and popups must be *visible* against the page, not readable — a luminance step, not a text pair" }
+pane_inactive_fg = { min = 3, reason = "deliberately dim, still legible: SC 1.4.3 large-text floor" }
+border = { min = 3, reason = "non-text UI contrast, SC 1.4.11" }
+
+[themes.Andromeeda]
+family = "andromeeda"
+mode = "dark"
+variant = "solo"
+bg = "#23262E"
+fg = "#D5CED9"
+accent = "#00E8C6"
+green = "#96E072"  # canon: was #89E044 — terminal.ansiGreen / string token is #96E072; #89E044 appears nowhere upstream
+red = "#EE5D43"
+yellow = "#FFE66D"  # canon: was #FFCC00 — terminal.ansiYellow / type token is #FFE66D; #FFCC00 appears nowhere upstream
+orange = "#F39C12"
+cyan = "#00E8C6"
+muted = "#A0A1A7"  # canon: was #6B6B6B — comment token is #A0A1A7cc; #6B6B6B is invented and fails as text
+magenta = "#CB5BEE"  # new first-class slot (upstream palette)
+
+[themes.Andromeeda.chrome]
+surface = "#31333C"  # derived from this theme's own bg/fg
+selection_bg = "#1A5856"  # bg + accent tint
+diff_add_bg = "#3C4F3D"  # bg + green tint
+diff_del_bg = "#503233"  # bg + red tint
+diff_change_bg = "#53503C"  # bg + yellow tint
+cursor = "#00E8C6"  # accent
+cursor_text = "#000000"  # readable ink on the cursor fill
+selection_fg = "#FFFFFF"  # readable ink on the selection tint
+border_active = "#00E8C6"  # accent at the 3:1 non-text floor
+border_inactive = "#A0A1A7"  # muted at the 3:1 non-text floor
+pane_inactive_bg = "#32353D"  # existing derivation, kept
+pane_inactive_fg = "#C8C3CD"  # existing derivation + 3:1 floor
+status_active_ink = "#000000"  # computed ink on the accent fill
+
+[themes.AuroraX]
+family = "aurora-x"
+mode = "dark"
+variant = "solo"
+suspect = "Every slot equals VS Code Dark+ (#569CD6/#B5CEA8/#F44747/#CE9178/#4EC9B0). Aurora X only shares its background. Treat as an unfilled palette, not a theme."
+bg = "#07090F"
+fg = "#D4D4D4"
+accent = "#569CD6"
+green = "#B5CEA8"
+red = "#F44747"
+yellow = "#CE9178"
+orange = "#CE9178"
+cyan = "#4EC9B0"
+muted = "#737984"  # lift: was #5C6370 — Computed lift #5C6370→#737984: 3.29:1 misses the 4.5:1 floor.
+magenta = "#C586C0"  # new first-class slot (upstream palette)
+
+[themes.AuroraX.chrome]
+surface = "#1E1F25"  # derived from this theme's own bg/fg
+selection_bg = "#25415B"  # bg + accent tint
+diff_add_bg = "#2D3431"  # bg + green tint
+diff_del_bg = "#3B171B"  # bg + red tint
+diff_change_bg = "#332726"  # bg + yellow tint
+cursor = "#569CD6"  # accent
+cursor_text = "#000000"  # readable ink on the cursor fill
+selection_fg = "#FFFFFF"  # readable ink on the selection tint
+border_active = "#569CD6"  # accent at the 3:1 non-text floor
+border_inactive = "#737984"  # muted at the 3:1 non-text floor
+pane_inactive_bg = "#14161D"  # existing derivation, kept
+pane_inactive_fg = "#BCBDC0"  # existing derivation + 3:1 floor
+status_active_ink = "#000000"  # computed ink on the accent fill
+
+[themes.AyuDark]
+family = "ayu"
+mode = "dark"
+variant = "default"
+bg = "#0A0E14"
+fg = "#B3B1AD"
+accent = "#39BAE6"
+green = "#AAD94C"
+red = "#F07178"
+yellow = "#FFB454"
+orange = "#FF8F40"
+cyan = "#95E6CB"
+muted = "#757C84"  # lift: was #626A73 — Computed lift #626A73→#757C84: 3.53:1 misses the 4.5:1 floor.
+magenta = "#D2A6FF"  # new first-class slot (upstream palette)
+
+[themes.AyuDark.chrome]
+surface = "#1E2226"  # derived from this theme's own bg/fg
+selection_bg = "#194557"  # bg + accent tint
+diff_add_bg = "#2D3B20"  # bg + green tint
+diff_del_bg = "#3D242A"  # bg + red tint
+diff_change_bg = "#403322"  # bg + yellow tint
+cursor = "#39BAE6"  # accent
+cursor_text = "#000000"  # readable ink on the cursor fill
+selection_fg = "#FFFFFF"  # readable ink on the selection tint
+border_active = "#39BAE6"  # accent at the 3:1 non-text floor
+border_inactive = "#757C84"  # muted at the 3:1 non-text floor
+pane_inactive_bg = "#171B21"  # existing derivation, kept
+pane_inactive_fg = "#A4A4A3"  # existing derivation + 3:1 floor
+status_active_ink = "#000000"  # computed ink on the accent fill
+
+[themes.AyuMirage]
+family = "ayu"
+mode = "dark"
+variant = "mirage"
+bg = "#1F2430"
+fg = "#CCCAC2"
+accent = "#5CCFE6"
+green = "#BAE67E"
+red = "#F28779"
+yellow = "#FFD173"
+orange = "#FFAD66"
+cyan = "#95E6CB"
+muted = "#848D9C"  # lift: was #707A8C — Computed lift #707A8C→#848D9C: 3.58:1 misses the 4.5:1 floor.
+magenta = "#D4BFFF"  # new first-class slot (upstream palette)
+
+[themes.AyuMirage.chrome]
+surface = "#2F333D"  # derived from this theme's own bg/fg
+selection_bg = "#305463"  # bg + accent tint
+diff_add_bg = "#414F41"  # bg + green tint
+diff_del_bg = "#4D3A40"  # bg + red tint
+diff_change_bg = "#504A3F"  # bg + yellow tint
+cursor = "#5CCFE6"  # accent
+cursor_text = "#000000"  # readable ink on the cursor fill
+selection_fg = "#FFFFFF"  # readable ink on the selection tint
+border_active = "#5CCFE6"  # accent at the 3:1 non-text floor
+border_inactive = "#848D9C"  # muted at the 3:1 non-text floor
+pane_inactive_bg = "#2B313D"  # existing derivation, kept
+pane_inactive_fg = "#BABBB9"  # existing derivation + 3:1 floor
+status_active_ink = "#000000"  # computed ink on the accent fill
+
+[themes.AyuLight]
+family = "ayu"
+mode = "light"
+variant = "default"
+bg = "#FAFAFA"
+fg = "#4D5761"  # lift: was #5C6773 — Computed lift #5C6773→#4D5761: 5.52:1 misses the 7:1 floor.
+accent = "#3A7A90"  # lift: was #55B4D4 — Computed lift #55B4D4→#3A7A90: 2.27:1 misses the 4.5:1 floor.
+green = "#5E7D00"  # lift: was #86B300 — Computed lift #86B300→#5E7D00: 2.38:1 misses the 4.5:1 floor.
+red = "#B95255"  # lift: was #E7676A — Computed lift #E7676A→#B95255: 3.07:1 misses the 4.5:1 floor.
+yellow = "#AA602A"  # lift: was #FA8D3E — Computed lift #FA8D3E→#AA602A: 2.25:1 misses the 4.5:1 floor.
+orange = "#B65656"  # lift: was #F07171 — Computed lift #F07171→#B65656: 2.75:1 misses the 4.5:1 floor.
+cyan = "#327E65"  # lift: was #4CBF99 — Computed lift #4CBF99→#327E65: 2.18:1 misses the 4.5:1 floor.
+muted = "#6D7174"  # lift: was #ABB0B6 — Computed lift #ABB0B6→#6D7174: 2.09:1 misses the 4.5:1 floor.
+magenta = "#8664A7"  # new first-class slot (upstream palette)
+
+[themes.AyuLight.chrome]
+surface = "#E4E5E6"  # derived from this theme's own bg/fg
+selection_bg = "#C4D6DC"  # bg + accent tint
+diff_add_bg = "#E1E6D2"  # bg + green tint
+diff_del_bg = "#F0DFE0"  # bg + red tint
+diff_change_bg = "#EDE1D9"  # bg + yellow tint
+cursor = "#3A7A90"  # accent
+cursor_text = "#FFFFFF"  # readable ink on the cursor fill
+selection_fg = "#000000"  # readable ink on the selection tint
+border_active = "#3A7A90"  # accent at the 3:1 non-text floor
+border_inactive = "#6D7174"  # muted at the 3:1 non-text floor
+pane_inactive_bg = "#E9EAEA"  # existing derivation, kept
+pane_inactive_fg = "#555E66"  # existing derivation + 3:1 floor
+status_active_ink = "#FFFFFF"  # computed ink on the accent fill
+
+[themes.CatppuccinMocha]
+family = "catppuccin"
+mode = "dark"
+variant = "default"
+bg = "#1E1E2E"
+fg = "#CDD6F4"
+accent = "#89B4FA"
+green = "#A6E3A1"
+red = "#F38BA8"
+yellow = "#F9E2AF"
+orange = "#FAB387"
+cyan = "#94E2D5"
+muted = "#9399B2"  # step: was #6C7086 — Lifted to the in-palette step overlay2 for 4.5:1.
+magenta = "#CBA6F7"  # new first-class slot (upstream palette)
+
+[themes.CatppuccinMocha.chrome]
+surface = "#2C2D3E"  # derived from this theme's own bg/fg
+selection_bg = "#3C4867"  # bg + accent tint
+diff_add_bg = "#3C4947"  # bg + green tint
+diff_del_bg = "#4D3649"  # bg + red tint
+diff_change_bg = "#4E494A"  # bg + yellow tint
+cursor = "#89B4FA"  # accent
+cursor_text = "#000000"  # readable ink on the cursor fill
+selection_fg = "#FFFFFF"  # readable ink on the selection tint
+border_active = "#89B4FA"  # accent at the 3:1 non-text floor
+border_inactive = "#9399B2"  # muted at the 3:1 non-text floor
+pane_inactive_bg = "#2C2D3E"  # existing derivation, kept
+pane_inactive_fg = "#BFC7E4"  # existing derivation + 3:1 floor
+status_active_ink = "#000000"  # computed ink on the accent fill
+
+[themes.CatppuccinMacchiato]
+family = "catppuccin"
+mode = "dark"
+variant = "macchiato"
+bg = "#24273A"
+fg = "#CAD3F5"
+accent = "#8AADF4"
+green = "#A6DA95"
+red = "#ED8796"
+yellow = "#EED49F"
+orange = "#F5A97F"
+cyan = "#8BD5CA"
+muted = "#939AB7"  # step: was #6E738D — Lifted to the in-palette step overlay2 for 4.5:1.
+magenta = "#C6A0F6"  # new first-class slot (upstream palette)
+
+[themes.CatppuccinMacchiato.chrome]
+surface = "#313549"  # derived from this theme's own bg/fg
+selection_bg = "#434F72"  # bg + accent tint
+diff_add_bg = "#414E4E"  # bg + green tint
+diff_del_bg = "#503C4E"  # bg + red tint
+diff_change_bg = "#504D50"  # bg + yellow tint
+cursor = "#8AADF4"  # accent
+cursor_text = "#000000"  # readable ink on the cursor fill
+selection_fg = "#FFFFFF"  # readable ink on the selection tint
+border_active = "#8AADF4"  # accent at the 3:1 non-text floor
+border_inactive = "#939AB7"  # muted at the 3:1 non-text floor
+pane_inactive_bg = "#313549"  # existing derivation, kept
+pane_inactive_fg = "#BCC5E6"  # existing derivation + 3:1 floor
+status_active_ink = "#000000"  # computed ink on the accent fill
+
+[themes.CatppuccinFrappe]
+family = "catppuccin"
+mode = "dark"
+variant = "frappe"
+bg = "#303446"
+fg = "#C6D0F5"
+accent = "#8CAAEE"
+green = "#A6D189"
+red = "#E78284"
+yellow = "#E5C890"
+orange = "#EF9F76"
+cyan = "#81C8BE"
+muted = "#949CBB"  # step: was #737994 — Lifted to the in-palette step overlay2 for 4.5:1.
+magenta = "#CA9EE6"  # new first-class slot (upstream palette)
+
+[themes.CatppuccinFrappe.chrome]
+surface = "#3C4054"  # derived from this theme's own bg/fg
+selection_bg = "#4F5C7F"  # bg + accent tint
+diff_add_bg = "#4A5755"  # bg + green tint
+diff_del_bg = "#584554"  # bg + red tint
+diff_change_bg = "#585556"  # bg + yellow tint
+cursor = "#8CAAEE"  # accent
+cursor_text = "#000000"  # readable ink on the cursor fill
+selection_fg = "#FFFFFF"  # readable ink on the selection tint
+border_active = "#8CAAEE"  # accent at the 3:1 non-text floor
+border_inactive = "#949CBB"  # muted at the 3:1 non-text floor
+pane_inactive_bg = "#3C4054"  # existing derivation, kept
+pane_inactive_fg = "#BAC3E7"  # existing derivation + 3:1 floor
+status_active_ink = "#000000"  # computed ink on the accent fill
+
+[themes.CatppuccinLatte]
+family = "catppuccin"
+mode = "light"
+variant = "default"
+bg = "#EFF1F5"
+fg = "#4C4F69"
+accent = "#1D62EB"  # lift: was #1E66F5 — Computed lift #1E66F5→#1D62EB: 4.34:1 misses the 4.5:1 floor.
+green = "#327D22"  # lift: was #40A02B — Computed lift #40A02B→#327D22: 2.96:1 misses the 4.5:1 floor.
+red = "#D20F39"
+yellow = "#986114"  # lift: was #DF8E1D — Computed lift #DF8E1D→#986114: 2.31:1 misses the 4.5:1 floor.
+orange = "#BC4A08"  # lift: was #FE640B — Computed lift #FE640B→#BC4A08: 2.64:1 misses the 4.5:1 floor.
+cyan = "#13787D"  # lift: was #179299 — Computed lift #179299→#13787D: 3.31:1 misses the 4.5:1 floor.
+muted = "#6A6D82"  # lift: was #9CA0B0 — Lifted to the in-palette step subtext0 for 4.5:1. Computed lift #6C6F85→#6A6D82: 4.37:1 misses the 4.5:1 floor.
+magenta = "#8839EF"  # new first-class slot (upstream palette)
+
+[themes.CatppuccinLatte.chrome]
+surface = "#DADCE3"  # derived from this theme's own bg/fg
+selection_bg = "#B8CCF2"  # bg + accent tint
+diff_add_bg = "#D1DED3"  # bg + green tint
+diff_del_bg = "#EACDD7"  # bg + red tint
+diff_change_bg = "#E1DAD1"  # bg + yellow tint
+cursor = "#1D62EB"  # accent
+cursor_text = "#FFFFFF"  # readable ink on the cursor fill
+selection_fg = "#000000"  # readable ink on the selection tint
+border_active = "#1D62EB"  # accent at the 3:1 non-text floor
+border_inactive = "#6A6D82"  # muted at the 3:1 non-text floor
+pane_inactive_bg = "#DFE1E7"  # existing derivation, kept
+pane_inactive_fg = "#54576F"  # existing derivation + 3:1 floor
+status_active_ink = "#FFFFFF"  # computed ink on the accent fill
+
+[themes.Dracula]
+family = "dracula"
+mode = "dark"
+variant = "default"
+bg = "#282A36"
+fg = "#F8F8F2"
+accent = "#BD93F9"
+green = "#50FA7B"
+red = "#FF5555"
+yellow = "#F1FA8C"
+orange = "#FFB86C"
+cyan = "#8BE9FD"
+muted = "#8591B8"  # lift: was #6272A4 — Computed lift #6272A4→#8591B8: 3.03:1 misses the 4.5:1 floor.
+magenta = "#FF79C6"  # new first-class slot (upstream palette)
+
+[themes.Dracula.chrome]
+surface = "#373843"  # derived from this theme's own bg/fg
+selection_bg = "#584C74"  # bg + accent tint
+diff_add_bg = "#315845"  # bg + green tint
+diff_del_bg = "#57333D"  # bg + red tint
+diff_change_bg = "#545849"  # bg + yellow tint
+cursor = "#BD93F9"  # accent
+cursor_text = "#000000"  # readable ink on the cursor fill
+selection_fg = "#FFFFFF"  # readable ink on the selection tint
+border_active = "#BD93F9"  # accent at the 3:1 non-text floor
+border_inactive = "#8591B8"  # muted at the 3:1 non-text floor
+pane_inactive_bg = "#333646"  # existing derivation, kept
+pane_inactive_fg = "#DBDEE4"  # existing derivation + 3:1 floor
+status_active_ink = "#000000"  # computed ink on the accent fill
+
+[themes.DraculaSoft]
+family = "dracula"
+mode = "dark"
+variant = "soft"
+suspect = "Unverified against dracula-soft.json; bg #22212C matches Dracula Pro, not Dracula Soft."
+bg = "#22212C"
+fg = "#F8F8F2"
+accent = "#C8A8F9"
+green = "#62E884"
+red = "#E76D6D"
+yellow = "#E9E987"
+orange = "#FFCA80"
+cyan = "#A1F0FE"
+muted = "#8C84B5"  # lift: was #7970A9 — Computed lift #7970A9→#8C84B5: 3.56:1 misses the 4.5:1 floor.
+magenta = "#FF79C6"  # new first-class slot (upstream palette)
+
+[themes.DraculaSoft.chrome]
+surface = "#31303A"  # derived from this theme's own bg/fg
+selection_bg = "#504765"  # bg + accent tint
+diff_add_bg = "#304D3F"  # bg + green tint
+diff_del_bg = "#4D323A"  # bg + red tint
+diff_change_bg = "#4E4D40"  # bg + yellow tint
+cursor = "#C8A8F9"  # accent
+cursor_text = "#000000"  # readable ink on the cursor fill
+selection_fg = "#FFFFFF"  # readable ink on the selection tint
+border_active = "#C8A8F9"  # accent at the 3:1 non-text floor
+border_inactive = "#8C84B5"  # muted at the 3:1 non-text floor
+pane_inactive_bg = "#2F2D3C"  # existing derivation, kept
+pane_inactive_fg = "#DDDBE3"  # existing derivation + 3:1 floor
+status_active_ink = "#000000"  # computed ink on the accent fill
+
+[themes.EverforestDark]
+family = "everforest"
+mode = "dark"
+variant = "default"
+bg = "#2D353B"
+fg = "#D3C6AA"
+accent = "#7FBBB3"
+green = "#A7C080"
+red = "#E67E80"
+yellow = "#DBBC7F"
+orange = "#E69875"  # canon: was #D699B6 — #D699B6 is Everforest *purple*; the orange role is #E69875
+cyan = "#83C092"
+muted = "#949F97"  # canon+lift: was #7A8478 — grey1 is the comment/UI-text grey; grey0 (#7A8478) is line numbers Computed lift #859289→#949F97: 3.84:1 misses the 4.5:1 floor.
+magenta = "#D699B6"  # new first-class slot (upstream palette)
+
+[themes.EverforestDark.chrome]
+surface = "#3C4245"  # derived from this theme's own bg/fg
+selection_bg = "#476061"  # bg + accent tint
+diff_add_bg = "#48544A"  # bg + green tint
+diff_del_bg = "#56454A"  # bg + red tint
+diff_change_bg = "#53534A"  # bg + yellow tint
+cursor = "#7FBBB3"  # accent
+cursor_text = "#000000"  # readable ink on the cursor fill
+selection_fg = "#FFFFFF"  # readable ink on the selection tint
+border_active = "#7FBBB3"  # accent at the 3:1 non-text floor
+border_inactive = "#949F97"  # muted at the 3:1 non-text floor
+pane_inactive_bg = "#394246"  # existing derivation, kept
+pane_inactive_fg = "#C3BCA5"  # existing derivation + 3:1 floor
+status_active_ink = "#000000"  # computed ink on the accent fill
+
+[themes.EverforestLight]
+family = "everforest"
+mode = "light"
+variant = "default"
+bg = "#FDF6E3"
+fg = "#4A555B"  # lift: was #5C6A72 — Computed lift #5C6A72→#4A555B: 5.18:1 misses the 7:1 floor.
+accent = "#2E769E"  # lift: was #3A94C5 — Computed lift #3A94C5→#2E769E: 3.13:1 misses the 4.5:1 floor.
+green = "#687701"  # lift: was #8DA101 — Computed lift #8DA101→#687701: 2.69:1 misses the 4.5:1 floor.
+red = "#C64442"  # lift: was #F85552 — Computed lift #F85552→#C64442: 3.04:1 misses the 4.5:1 floor.
+yellow = "#936A00"  # lift: was #DFA000 — Computed lift #DFA000→#936A00: 2.12:1 misses the 4.5:1 floor.
+orange = "#B05A1B"  # canon+lift: was #DF69BA — #DF69BA is Everforest *purple*; the orange role is #F57D26 Computed lift #F57D26→#B05A1B: 2.48:1 misses the 4.5:1 floor.
+cyan = "#287F5E"  # lift: was #35A77C — Computed lift #35A77C→#287F5E: 2.79:1 misses the 4.5:1 floor.
+muted = "#6A7268"  # lift: was #939F91 — Computed lift #939F91→#6A7268: 2.56:1 misses the 4.5:1 floor.
+magenta = "#A9508D"  # new first-class slot (upstream palette)
+
+[themes.EverforestLight.chrome]
+surface = "#E6E1D1"  # derived from this theme's own bg/fg
+selection_bg = "#C7D5D1"  # bg + accent tint
+diff_add_bg = "#E5E2BF"  # bg + green tint
+diff_del_bg = "#F4DAC9"  # bg + red tint
+diff_change_bg = "#ECE0BF"  # bg + yellow tint
+cursor = "#2E769E"  # accent
+cursor_text = "#FFFFFF"  # readable ink on the cursor fill
+selection_fg = "#000000"  # readable ink on the selection tint
+border_active = "#2E769E"  # accent at the 3:1 non-text floor
+border_inactive = "#6A7268"  # muted at the 3:1 non-text floor
+pane_inactive_bg = "#EBE6D4"  # existing derivation, kept
+pane_inactive_fg = "#525C5E"  # existing derivation + 3:1 floor
+status_active_ink = "#FFFFFF"  # computed ink on the accent fill
+
+[themes.GithubDark]
+family = "github"
+mode = "dark"
+variant = "default"
+bg = "#0D1117"
+fg = "#E6EDF3"  # canon: was #C9D1D9 — fgColor.default moved to #e6edf3; #c9d1d9 is the retired 2021 value
+accent = "#58A6FF"
+green = "#3FB950"
+red = "#F85149"
+yellow = "#D29922"
+orange = "#DB6D28"
+cyan = "#79C0FF"
+muted = "#8B949E"
+magenta = "#D2A8FF"  # new first-class slot (upstream palette)
+
+[themes.GithubDark.chrome]
+surface = "#21252B"  # derived from this theme's own bg/fg
+selection_bg = "#254161"  # bg + accent tint
+diff_add_bg = "#183624"  # bg + green tint
+diff_del_bg = "#411F22"  # bg + red tint
+diff_change_bg = "#382F19"  # bg + yellow tint
+cursor = "#58A6FF"  # accent
+cursor_text = "#000000"  # readable ink on the cursor fill
+selection_fg = "#FFFFFF"  # readable ink on the selection tint
+border_active = "#58A6FF"  # accent at the 3:1 non-text floor
+border_inactive = "#8B949E"  # muted at the 3:1 non-text floor
+pane_inactive_bg = "#1C2127"  # existing derivation, kept
+pane_inactive_fg = "#CFD7DE"  # existing derivation + 3:1 floor
+status_active_ink = "#000000"  # computed ink on the accent fill
+
+[themes.GithubLight]
+family = "github"
+mode = "light"
+variant = "default"
+bg = "#FFFFFF"
+fg = "#24292F"
+accent = "#0969DA"
+green = "#1A7F37"
+red = "#CF222E"
+yellow = "#9A6700"
+orange = "#BC4C00"
+cyan = "#1C75D6"  # lift: was #218BFF — Computed lift #218BFF→#1C75D6: 3.39:1 misses the 4.5:1 floor.
+muted = "#6E7781"
+magenta = "#8250DF"  # new first-class slot (upstream palette)
+
+[themes.GithubLight.chrome]
+surface = "#E9EAEA"  # derived from this theme's own bg/fg
+selection_bg = "#C4DBF6"  # bg + accent tint
+diff_add_bg = "#DAEBDF"  # bg + green tint
+diff_del_bg = "#F7DCDE"  # bg + red tint
+diff_change_bg = "#EFE7D6"  # bg + yellow tint
+cursor = "#0969DA"  # accent
+cursor_text = "#FFFFFF"  # readable ink on the cursor fill
+selection_fg = "#000000"  # readable ink on the selection tint
+border_active = "#0969DA"  # accent at the 3:1 non-text floor
+border_inactive = "#6E7781"  # muted at the 3:1 non-text floor
+pane_inactive_bg = "#EEEFF0"  # existing derivation, kept
+pane_inactive_fg = "#373D44"  # existing derivation + 3:1 floor
+status_active_ink = "#FFFFFF"  # computed ink on the accent fill
+
+[themes.GithubDarkDimmed]
+family = "github"
+mode = "dark"
+variant = "dimmed"
+bg = "#22272E"
+fg = "#ADBAC7"
+accent = "#539BF5"
+green = "#57AB5A"
+red = "#F47067"
+yellow = "#C69026"
+orange = "#E0823D"  # canon: was #F47067 — orange was duplicating red (#F47067); dimmed fgColor.orange is #e0823d
+cyan = "#6CB6FF"
+muted = "#848F9B"  # lift: was #768390 — Computed lift #768390→#848F9B: 3.88:1 misses the 4.5:1 floor.
+magenta = "#DCBDFB"  # new first-class slot (upstream palette)
+
+[themes.GithubDarkDimmed.chrome]
+surface = "#2F343C"  # derived from this theme's own bg/fg
+selection_bg = "#345176"  # bg + accent tint
+diff_add_bg = "#2E4438"  # bg + green tint
+diff_del_bg = "#50373B"  # bg + red tint
+diff_change_bg = "#463E2C"  # bg + yellow tint
+cursor = "#539BF5"  # accent
+cursor_text = "#000000"  # readable ink on the cursor fill
+selection_fg = "#FFFFFF"  # readable ink on the selection tint
+border_active = "#539BF5"  # accent at the 3:1 non-text floor
+border_inactive = "#848F9B"  # muted at the 3:1 non-text floor
+pane_inactive_bg = "#2E333B"  # existing derivation, kept
+pane_inactive_fg = "#A3AFBC"  # existing derivation + 3:1 floor
+status_active_ink = "#000000"  # computed ink on the accent fill
+
+[themes.GithubDarkHighContrast]
+family = "github"
+mode = "dark"
+variant = "high-contrast-dark"
+bg = "#0A0C10"
+fg = "#F0F3F6"
+accent = "#71B7FF"
+green = "#26CD4D"
+red = "#FF6A69"
+yellow = "#F0B72F"
+orange = "#FFA657"  # canon: was #FF6A69 — orange was duplicating red (#FF6A69)
+cyan = "#91CBFF"
+muted = "#9198A1"
+magenta = "#DBB7FF"  # new first-class slot (upstream palette)
+
+[themes.GithubDarkHighContrast.chrome]
+surface = "#1F2125"  # derived from this theme's own bg/fg
+selection_bg = "#293F58"  # bg + accent tint
+diff_add_bg = "#10361D"  # bg + green tint
+diff_del_bg = "#402124"  # bg + red tint
+diff_change_bg = "#3D3217"  # bg + yellow tint
+cursor = "#71B7FF"  # accent
+cursor_text = "#000000"  # readable ink on the cursor fill
+selection_fg = "#FFFFFF"  # readable ink on the selection tint
+border_active = "#71B7FF"  # accent at the 3:1 non-text floor
+border_inactive = "#9198A1"  # muted at the 3:1 non-text floor
+pane_inactive_bg = "#1A1D21"  # existing derivation, kept
+pane_inactive_fg = "#D8DCE1"  # existing derivation + 3:1 floor
+status_active_ink = "#000000"  # computed ink on the accent fill
+
+[themes.GithubLightHighContrast]
+family = "github"
+mode = "light"
+variant = "high-contrast-light"
+bg = "#FFFFFF"
+fg = "#0E1116"
+accent = "#1A69DB"
+green = "#104F24"
+red = "#A0111F"
+yellow = "#7D4E00"
+orange = "#702C00"  # canon: was #A0111F — orange was duplicating red (#A0111F)
+cyan = "#034188"
+muted = "#69717B"
+magenta = "#5A1E96"  # new first-class slot (upstream palette)
+
+[themes.GithubLightHighContrast.chrome]
+surface = "#E9EAEA"  # derived from this theme's own bg/fg
+selection_bg = "#C8DBF6"  # bg + accent tint
+diff_add_bg = "#D9E3DC"  # bg + green tint
+diff_del_bg = "#F0D9DB"  # bg + red tint
+diff_change_bg = "#EAE3D6"  # bg + yellow tint
+cursor = "#1A69DB"  # accent
+cursor_text = "#FFFFFF"  # readable ink on the cursor fill
+selection_fg = "#000000"  # readable ink on the selection tint
+border_active = "#1A69DB"  # accent at the 3:1 non-text floor
+border_inactive = "#69717B"  # muted at the 3:1 non-text floor
+pane_inactive_bg = "#EDEEEF"  # existing derivation, kept
+pane_inactive_fg = "#25292F"  # existing derivation + 3:1 floor
+status_active_ink = "#FFFFFF"  # computed ink on the accent fill
+
+[themes.GruvboxDark]
+family = "gruvbox"
+mode = "dark"
+variant = "default"
+bg = "#282828"
+fg = "#EBDBB2"  # canon: was #D5C4A1 — fg is fg1 #ebdbb2; #d5c4a1 is fg2
+accent = "#FABD2F"  # canon: was #D79921 — on a dark bg gruvbox uses the *bright* set; neutral #d79921 is the light-mode yellow
+green = "#B8BB26"  # canon: was #98971A — bright green — neutral #98971a measures 3.4:1 on #282828
+red = "#FB5440"  # canon+lift: was #CC241D — bright red — neutral #cc241d measures 2.4:1 on #282828 Computed lift #FB4934→#FB5440: 4.29:1 misses the 4.5:1 floor.
+yellow = "#FABD2F"  # canon: was #D79921 — bright yellow
+orange = "#FE8019"  # canon: was #D65D0E — bright orange
+cyan = "#8EC07C"  # canon: was #689D6A — bright aqua — neutral #689d6a measures 3.4:1
+muted = "#A89984"  # step: was #928374 — Lifted to the in-palette step gray/light4 for 4.5:1.
+magenta = "#D3869B"  # new first-class slot (upstream palette)
+
+[themes.GruvboxDark.chrome]
+surface = "#363532"  # derived from this theme's own bg/fg
+selection_bg = "#5F4F2A"  # bg + accent tint
+diff_add_bg = "#484828"  # bg + green tint
+diff_del_bg = "#56322D"  # bg + red tint
+diff_change_bg = "#56492A"  # bg + yellow tint
+cursor = "#FABD2F"  # accent
+cursor_text = "#000000"  # readable ink on the cursor fill
+selection_fg = "#FFFFFF"  # readable ink on the selection tint
+border_active = "#FABD2F"  # accent at the 3:1 non-text floor
+border_inactive = "#A89984"  # muted at the 3:1 non-text floor
+pane_inactive_bg = "#373633"  # existing derivation, kept
+pane_inactive_fg = "#DACBA7"  # existing derivation + 3:1 floor
+status_active_ink = "#000000"  # computed ink on the accent fill
+
+[themes.GruvboxLight]
+family = "gruvbox"
+mode = "light"
+variant = "default"
+bg = "#FBF1C7"
+fg = "#3C3836"
+accent = "#AF3A03"  # canon: was #D65D0E — light mode uses the *faded* set; #d65d0e is the neutral orange
+green = "#746F0D"  # lift: was #79740E — Computed lift #79740E→#746F0D: 4.29:1 misses the 4.5:1 floor.
+red = "#9D0006"  # canon: was #CC241D — faded red — neutral #cc241d measures 3.9:1 on #fbf1c7
+yellow = "#946110"  # lift: was #B57614 — Computed lift #B57614→#946110: 3.33:1 misses the 4.5:1 floor.
+orange = "#AF3A03"  # canon: was #D65D0E — faded orange
+cyan = "#417956"  # canon+lift: was #076678 — faded aqua; #076678 is the faded *blue*, a different slot Computed lift #427B58→#417956: 4.4:1 misses the 4.5:1 floor.
+muted = "#786B5F"  # lift: was #928374 — Computed lift #928374→#786B5F: 3.24:1 misses the 4.5:1 floor.
+magenta = "#8F3F71"  # new first-class slot (upstream palette)
+
+[themes.GruvboxLight.chrome]
+surface = "#E6DDB7"  # derived from this theme's own bg/fg
+selection_bg = "#E9C598"  # bg + accent tint
+diff_add_bg = "#E5DCA9"  # bg + green tint
+diff_del_bg = "#ECCAA8"  # bg + red tint
+diff_change_bg = "#EBDAAA"  # bg + yellow tint
+cursor = "#AF3A03"  # accent
+cursor_text = "#FFFFFF"  # readable ink on the cursor fill
+selection_fg = "#000000"  # readable ink on the selection tint
+border_active = "#AF3A03"  # accent at the 3:1 non-text floor
+border_inactive = "#786B5F"  # muted at the 3:1 non-text floor
+pane_inactive_bg = "#EBE1BB"  # existing derivation, kept
+pane_inactive_fg = "#4B4540"  # existing derivation + 3:1 floor
+status_active_ink = "#FFFFFF"  # computed ink on the accent fill
+
+[themes.Houston]
+family = "houston"
+mode = "dark"
+variant = "solo"
+bg = "#17191E"
+fg = "#CDD6F4"
+accent = "#F9C86A"
+green = "#4AF2C8"
+red = "#FF5370"
+yellow = "#FFA726"
+orange = "#81D4FA"
+cyan = "#4AF2C8"
+muted = "#7D8098"  # lift: was #545878 — Computed lift #545878→#7D8098: 2.55:1 misses the 4.5:1 floor.
+magenta = "#FF6BCB"  # new first-class slot (upstream palette)
+
+[themes.Houston.chrome]
+surface = "#272A31"  # derived from this theme's own bg/fg
+selection_bg = "#4D4330"  # bg + accent tint
+diff_add_bg = "#224943"  # bg + green tint
+diff_del_bg = "#4A2630"  # bg + red tint
+diff_change_bg = "#4A3820"  # bg + yellow tint
+cursor = "#F9C86A"  # accent
+cursor_text = "#000000"  # readable ink on the cursor fill
+selection_fg = "#FFFFFF"  # readable ink on the selection tint
+border_active = "#F9C86A"  # accent at the 3:1 non-text floor
+border_inactive = "#7D8098"  # muted at the 3:1 non-text floor
+pane_inactive_bg = "#23252D"  # existing derivation, kept
+pane_inactive_fg = "#B9C1DD"  # existing derivation + 3:1 floor
+status_active_ink = "#000000"  # computed ink on the accent fill
+
+[themes.KanagawaWave]
+family = "kanagawa"
+mode = "dark"
+variant = "default"
+bg = "#1F1F28"
+fg = "#DCD7BA"
+accent = "#7E9CD8"
+green = "#98BB6C"
+red = "#E46876"  # canon: was #C34043 — waveRed — autumnRed #C34043 is the diff/diag red and measures 3.4:1 on sumiInk3
+yellow = "#E6C384"  # canon: was #FF9E3B — carpYellow is the type/yellow role; #FF9E3B is roninYellow (diagnostic warning)
+orange = "#FFA066"  # canon: was #D27E99 — surimiOrange — #D27E99 is sakuraPink, a different hue entirely
+cyan = "#7AA89F"
+muted = "#938AA9"  # step: was #727169 — Lifted to the in-palette step springViolet1 for 4.5:1.
+magenta = "#957FB8"  # new first-class slot (upstream palette)
+
+[themes.KanagawaWave.chrome]
+surface = "#2E2E34"  # derived from this theme's own bg/fg
+selection_bg = "#3F4A64"  # bg + accent tint
+diff_add_bg = "#3A4137"  # bg + green tint
+diff_del_bg = "#4A2F39"  # bg + red tint
+diff_change_bg = "#4B433C"  # bg + yellow tint
+cursor = "#7E9CD8"  # accent
+cursor_text = "#000000"  # readable ink on the cursor fill
+selection_fg = "#FFFFFF"  # readable ink on the selection tint
+border_active = "#7E9CD8"  # accent at the 3:1 non-text floor
+border_inactive = "#938AA9"  # muted at the 3:1 non-text floor
+pane_inactive_bg = "#2D2C37"  # existing derivation, kept
+pane_inactive_fg = "#CAC4B6"  # existing derivation + 3:1 floor
+status_active_ink = "#000000"  # computed ink on the accent fill
+
+[themes.KanagawaDragon]
+family = "kanagawa"
+mode = "dark"
+variant = "dragon"
+bg = "#181616"
+fg = "#C5C9C5"
+accent = "#8BA4B0"  # canon: was #7EB3C9 — dragonBlue2 — #7EB3C9 exists nowhere in the kanagawa palette
+green = "#87A987"
+red = "#C4746E"
+yellow = "#C4B28A"  # canon: was #B6927B — dragonYellow — #B6927B is dragonOrange
+orange = "#B6927B"  # canon: was #C4746E — dragonOrange; orange was duplicating red
+cyan = "#8EA4A2"
+muted = "#9E9B93"  # canon: was #8A8980 — dragonGray2 — #8A8980 is lotusGray3, a light-theme value
+magenta = "#A292A3"  # new first-class slot (upstream palette)
+
+[themes.KanagawaDragon.chrome]
+surface = "#292828"  # derived from this theme's own bg/fg
+selection_bg = "#3F464A"  # bg + accent tint
+diff_add_bg = "#30362F"  # bg + green tint
+diff_del_bg = "#3E2B29"  # bg + red tint
+diff_change_bg = "#3E3830"  # bg + yellow tint
+cursor = "#8BA4B0"  # accent
+cursor_text = "#000000"  # readable ink on the cursor fill
+selection_fg = "#FFFFFF"  # readable ink on the selection tint
+border_active = "#8BA4B0"  # accent at the 3:1 non-text floor
+border_inactive = "#9E9B93"  # muted at the 3:1 non-text floor
+pane_inactive_bg = "#282625"  # existing derivation, kept
+pane_inactive_fg = "#BBBEB9"  # existing derivation + 3:1 floor
+status_active_ink = "#000000"  # computed ink on the accent fill
+
+[themes.KanagawaLotus]
+family = "kanagawa"
+mode = "light"
+variant = "default"
+bg = "#F2ECBC"
+fg = "#4C4C5A"  # lift: was #545464 — Computed lift #545464→#4C4C5A: 6.19:1 misses the 7:1 floor.
+accent = "#4D699B"  # canon: was #1F5F8A — lotusBlue4 — #1F5F8A is not in the palette
+green = "#5B7040"  # canon+lift: was #4E7C3F — lotusGreen — #4E7C3F is not in the palette Computed lift #6F894E→#5B7040: 3.26:1 misses the 4.5:1 floor.
+red = "#B83B4C"  # lift: was #C84053 — Computed lift #C84053→#B83B4C: 4.06:1 misses the 4.5:1 floor.
+yellow = "#796644"  # canon+lift: was #835C00 — lotusYellow2 — #835C00 is not in the palette Computed lift #836F4A→#796644: 4.03:1 misses the 4.5:1 floor.
+orange = "#9F5500"  # canon+lift: was #B5485D — lotusOrange — #B5485D is not in the palette (reads as red) Computed lift #CC6D00→#9F5500: 3.04:1 misses the 4.5:1 floor.
+cyan = "#506F69"  # canon+lift: was #536A5B — lotusAqua — #536A5B is not in the palette Computed lift #597B75→#506F69: 3.88:1 misses the 4.5:1 floor.
+muted = "#6C6A5D"  # canon+lift: was #A09F8F — lotusGray2 — #A09F8F is not in the palette and measures 2.3:1 Computed lift #716E61→#6C6A5D: 4.26:1 misses the 4.5:1 floor.
+magenta = "#9E506A"  # new first-class slot (upstream palette)
+
+[themes.KanagawaLotus.chrome]
+surface = "#DCD7AF"  # derived from this theme's own bg/fg
+selection_bg = "#C4C7B3"  # bg + accent tint
+diff_add_bg = "#DAD8A8"  # bg + green tint
+diff_del_bg = "#E9D0AA"  # bg + red tint
+diff_change_bg = "#DFD7A9"  # bg + yellow tint
+cursor = "#4D699B"  # accent
+cursor_text = "#FFFFFF"  # readable ink on the cursor fill
+selection_fg = "#000000"  # readable ink on the selection tint
+border_active = "#4D699B"  # accent at the 3:1 non-text floor
+border_inactive = "#6C6A5D"  # muted at the 3:1 non-text floor
+pane_inactive_bg = "#E2DCB1"  # existing derivation, kept
+pane_inactive_fg = "#54545B"  # existing derivation + 3:1 floor
+status_active_ink = "#FFFFFF"  # computed ink on the accent fill
+
+[themes.Laserwave]
+family = "laserwave"
+mode = "dark"
+variant = "solo"
+bg = "#27212E"
+fg = "#FFFFFF"
+accent = "#EB64B9"
+green = "#74DFC4"
+red = "#FF3E7B"  # canon: was #FE4450 — editorError.foreground; #FE4450 is Synthwave '84's red
+yellow = "#FFE261"  # canon: was #FFEE79 — constant.language token; #FFEE79 is not a LaserWave value
+orange = "#FFB85B"  # canon: was #FFEE79 — the theme's own orange token — orange was duplicating yellow
+cyan = "#B4DCE7"  # canon: was #74DFC4 — terminal.ansiCyan; #74DFC4 is ansiGreen (already the green slot)
+muted = "#91889B"  # canon: was #6B5F7D — comment token; #6B5F7D is the punctuation grey
+magenta = "#B381C5"  # new first-class slot (upstream palette)
+
+[themes.Laserwave.chrome]
+surface = "#36313D"  # derived from this theme's own bg/fg
+selection_bg = "#713A63"  # bg + accent tint
+diff_add_bg = "#384B4F"  # bg + green tint
+diff_del_bg = "#57273F"  # bg + red tint
+diff_change_bg = "#574B39"  # bg + yellow tint
+cursor = "#EB64B9"  # accent
+cursor_text = "#000000"  # readable ink on the cursor fill
+selection_fg = "#FFFFFF"  # readable ink on the selection tint
+border_active = "#EB64B9"  # accent at the 3:1 non-text floor
+border_inactive = "#91889B"  # muted at the 3:1 non-text floor
+pane_inactive_bg = "#342D3B"  # existing derivation, kept
+pane_inactive_fg = "#E4E1E6"  # existing derivation + 3:1 floor
+status_active_ink = "#000000"  # computed ink on the accent fill
+
+[themes.Material]
+family = "material"
+mode = "dark"
+variant = "default"
+bg = "#263238"
+fg = "#EEFFFF"
+accent = "#82AAFF"
+green = "#C3E88D"
+red = "#F07178"
+yellow = "#FFCB6B"
+orange = "#F78C6C"
+cyan = "#89DDFF"
+muted = "#8B9CA5"  # lift: was #546E7A — Computed lift #546E7A→#8B9CA5: 2.44:1 misses the 4.5:1 floor.
+magenta = "#C792EA"  # new first-class slot (upstream palette)
+
+[themes.Material.chrome]
+surface = "#344046"  # derived from this theme's own bg/fg
+selection_bg = "#435878"  # bg + accent tint
+diff_add_bg = "#495A4B"  # bg + green tint
+diff_del_bg = "#524046"  # bg + red tint
+diff_change_bg = "#565443"  # bg + yellow tint
+cursor = "#82AAFF"  # accent
+cursor_text = "#000000"  # readable ink on the cursor fill
+selection_fg = "#FFFFFF"  # readable ink on the selection tint
+border_active = "#82AAFF"  # accent at the 3:1 non-text floor
+border_inactive = "#8B9CA5"  # muted at the 3:1 non-text floor
+pane_inactive_bg = "#323F45"  # existing derivation, kept
+pane_inactive_fg = "#D5E6E9"  # existing derivation + 3:1 floor
+status_active_ink = "#000000"  # computed ink on the accent fill
+
+[themes.MaterialOcean]
+family = "material"
+mode = "dark"
+variant = "ocean"
+bg = "#0F111A"
+fg = "#A6ACCD"
+accent = "#82AAFF"
+green = "#C3E88D"
+red = "#F07178"
+yellow = "#FFCB6B"
+orange = "#F78C6C"
+cyan = "#89DDFF"
+muted = "#7A7D8A"  # lift: was #464B5D — Computed lift #464B5D→#7A7D8A: 2.17:1 misses the 4.5:1 floor.
+magenta = "#C792EA"  # new first-class slot (upstream palette)
+
+[themes.MaterialOcean.chrome]
+surface = "#21242F"  # derived from this theme's own bg/fg
+selection_bg = "#323F5F"  # bg + accent tint
+diff_add_bg = "#374033"  # bg + green tint
+diff_del_bg = "#41262F"  # bg + red tint
+diff_change_bg = "#443A2C"  # bg + yellow tint
+cursor = "#82AAFF"  # accent
+cursor_text = "#000000"  # readable ink on the cursor fill
+selection_fg = "#FFFFFF"  # readable ink on the selection tint
+border_active = "#82AAFF"  # accent at the 3:1 non-text floor
+border_inactive = "#7A7D8A"  # muted at the 3:1 non-text floor
+pane_inactive_bg = "#1C1E27"  # existing derivation, kept
+pane_inactive_fg = "#9BA0BC"  # existing derivation + 3:1 floor
+status_active_ink = "#000000"  # computed ink on the accent fill
+
+[themes.MaterialPalenight]
+family = "material"
+mode = "dark"
+variant = "palenight"
+bg = "#292D3E"
+fg = "#B4B9D5"  # lift: was #A6ACCD — Computed lift #A6ACCD→#B4B9D5: 6.11:1 misses the 7:1 floor.
+accent = "#82AAFF"
+green = "#C3E88D"
+red = "#F07178"
+yellow = "#FFCB6B"
+orange = "#F78C6C"
+cyan = "#89DDFF"
+muted = "#8F94B1"  # lift: was #676E95 — Computed lift #676E95→#8F94B1: 2.76:1 misses the 4.5:1 floor.
+magenta = "#C792EA"  # new first-class slot (upstream palette)
+
+[themes.MaterialPalenight.chrome]
+surface = "#363A4C"  # derived from this theme's own bg/fg
+selection_bg = "#45557C"  # bg + accent tint
+diff_add_bg = "#4B564F"  # bg + green tint
+diff_del_bg = "#553C4B"  # bg + red tint
+diff_change_bg = "#585048"  # bg + yellow tint
+cursor = "#82AAFF"  # accent
+cursor_text = "#000000"  # readable ink on the cursor fill
+selection_fg = "#FFFFFF"  # readable ink on the selection tint
+border_active = "#82AAFF"  # accent at the 3:1 non-text floor
+border_inactive = "#8F94B1"  # muted at the 3:1 non-text floor
+pane_inactive_bg = "#35394C"  # existing derivation, kept
+pane_inactive_fg = "#ABB0CC"  # existing derivation + 3:1 floor
+status_active_ink = "#000000"  # computed ink on the accent fill
+
+[themes.MaterialLighter]
+family = "material"
+mode = "light"
+variant = "default"
+bg = "#FAFAFA"
+fg = "#435862"  # lift: was #546E7A — Computed lift #546E7A→#435862: 5.17:1 misses the 7:1 floor.
+accent = "#5572A2"  # lift: was #6182B8 — Computed lift #6182B8→#5572A2: 3.73:1 misses the 4.5:1 floor.
+green = "#60793B"  # lift: was #91B859 — Computed lift #91B859→#60793B: 2.19:1 misses the 4.5:1 floor.
+red = "#D73632"  # lift: was #E53935 — Computed lift #E53935→#D73632: 4.05:1 misses the 4.5:1 floor.
+yellow = "#996620"  # lift: was #F6A434 — Computed lift #F6A434→#996620: 1.96:1 misses the 4.5:1 floor.
+orange = "#BC5336"  # lift: was #F76D47 — Computed lift #F76D47→#BC5336: 2.78:1 misses the 4.5:1 floor.
+cyan = "#297D82"  # lift: was #39ADB5 — Computed lift #39ADB5→#297D82: 2.57:1 misses the 4.5:1 floor.
+muted = "#65737A"  # lift: was #90A4AE — Computed lift #90A4AE→#65737A: 2.48:1 misses the 4.5:1 floor.
+magenta = "#7C4DFF"  # new first-class slot (upstream palette)
+
+[themes.MaterialLighter.chrome]
+surface = "#E2E5E6"  # derived from this theme's own bg/fg
+selection_bg = "#CCD4E1"  # bg + accent tint
+diff_add_bg = "#E1E5DB"  # bg + green tint
+diff_del_bg = "#F4DBDA"  # bg + red tint
+diff_change_bg = "#EAE2D7"  # bg + yellow tint
+cursor = "#5572A2"  # accent
+cursor_text = "#FFFFFF"  # readable ink on the cursor fill
+selection_fg = "#000000"  # readable ink on the selection tint
+border_active = "#5572A2"  # accent at the 3:1 non-text floor
+border_inactive = "#65737A"  # muted at the 3:1 non-text floor
+pane_inactive_bg = "#E8EAEB"  # existing derivation, kept
+pane_inactive_fg = "#4C5F68"  # existing derivation + 3:1 floor
+status_active_ink = "#FFFFFF"  # computed ink on the accent fill
+
+[themes.MaterialDarker]
+family = "material"
+mode = "dark"
+variant = "darker"
+bg = "#212121"
+fg = "#EEFFFF"
+accent = "#89DDFF"
+green = "#C3E88D"
+red = "#FF5370"
+yellow = "#FFCB6B"
+orange = "#F78C6C"
+cyan = "#82AAFF"
+muted = "#768B95"  # lift: was #546E7A — Computed lift #546E7A→#768B95: 2.98:1 misses the 4.5:1 floor.
+magenta = "#C792EA"  # new first-class slot (upstream palette)
+
+[themes.MaterialDarker.chrome]
+surface = "#2F3131"  # derived from this theme's own bg/fg
+selection_bg = "#3A4E56"  # bg + accent tint
+diff_add_bg = "#454D39"  # bg + green tint
+diff_del_bg = "#522C32"  # bg + red tint
+diff_change_bg = "#524631"  # bg + yellow tint
+cursor = "#89DDFF"  # accent
+cursor_text = "#000000"  # readable ink on the cursor fill
+selection_fg = "#FFFFFF"  # readable ink on the selection tint
+border_active = "#89DDFF"  # accent at the 3:1 non-text floor
+border_inactive = "#768B95"  # muted at the 3:1 non-text floor
+pane_inactive_bg = "#2B2E2F"  # existing derivation, kept
+pane_inactive_fg = "#D0E2E5"  # existing derivation + 3:1 floor
+status_active_ink = "#000000"  # computed ink on the accent fill
+
+[themes.MinDark]
+family = "min"
+mode = "dark"
+variant = "default"
+suspect = "Min has no green and no cyan. Both slots were filled with VS Code Dark+ values; they must be derived and labelled as derived."
+bg = "#1F1F1F"
+fg = "#F8F8F8"  # canon: was #B2B2B2 — constant/plain token ink; #B2B2B2 is invented
+accent = "#79B8FF"  # canon: was #569CD6 — Min's blue — #569CD6 is VS Code Dark+
+green = "#B5CEA8"
+red = "#F97583"  # canon: was #F44747 — keyword token — #F44747 is VS Code Dark+
+yellow = "#FF9800"  # canon: was #CCA700 — parameter token — #CCA700 is VS Code Dark+
+orange = "#FFAB70"  # canon: was #CE9178 — string/tag token — #CE9178 is VS Code Dark+
+cyan = "#4EC9B0"
+muted = "#80878E"  # canon+lift: was #525252 — comment token — #525252 is invented Computed lift #6B737C→#80878E: 3.43:1 misses the 4.5:1 floor.
+magenta = "#B392F0"  # new first-class slot (upstream palette)
+
+[themes.MinDark.chrome]
+surface = "#2E2E2E"  # derived from this theme's own bg/fg
+selection_bg = "#384A5E"  # bg + accent tint
+diff_add_bg = "#40463D"  # bg + green tint
+diff_del_bg = "#4F3235"  # bg + red tint
+diff_change_bg = "#503A18"  # bg + yellow tint
+cursor = "#79B8FF"  # accent
+cursor_text = "#000000"  # readable ink on the cursor fill
+selection_fg = "#FFFFFF"  # readable ink on the selection tint
+border_active = "#79B8FF"  # accent at the 3:1 non-text floor
+border_inactive = "#80878E"  # muted at the 3:1 non-text floor
+pane_inactive_bg = "#2B2B2C"  # existing derivation, kept
+pane_inactive_fg = "#DADCDE"  # existing derivation + 3:1 floor
+status_active_ink = "#000000"  # computed ink on the accent fill
+
+[themes.MinLight]
+family = "min"
+mode = "light"
+variant = "default"
+suspect = "Every slot equals VS Code Light+ (#0000FF/#098658/#E50000/#865F00/#267F99). Min Light shares none of them beyond the background."
+bg = "#F8F8F8"
+fg = "#333333"
+accent = "#0000FF"
+green = "#098356"  # lift: was #098658 — Computed lift #098658→#098356: 4.33:1 misses the 4.5:1 floor.
+red = "#E50000"
+yellow = "#865F00"
+orange = "#C1440E"
+cyan = "#247A93"  # lift: was #267F99 — Computed lift #267F99→#247A93: 4.32:1 misses the 4.5:1 floor.
+muted = "#727272"  # lift: was #9A9A9A — Computed lift #9A9A9A→#727272: 2.65:1 misses the 4.5:1 floor.
+magenta = "#AF00DB"  # new first-class slot (upstream palette)
+
+[themes.MinLight.chrome]
+surface = "#E2E2E2"  # derived from this theme's own bg/fg
+selection_bg = "#D0D0F9"  # bg + accent tint
+diff_add_bg = "#D2E5DE"  # bg + green tint
+diff_del_bg = "#F5D0D0"  # bg + red tint
+diff_change_bg = "#E6E0D0"  # bg + yellow tint
+cursor = "#0000FF"  # accent
+cursor_text = "#FFFFFF"  # readable ink on the cursor fill
+selection_fg = "#000000"  # readable ink on the selection tint
+border_active = "#0000FF"  # accent at the 3:1 non-text floor
+border_inactive = "#727272"  # muted at the 3:1 non-text floor
+pane_inactive_bg = "#E8E8E8"  # existing derivation, kept
+pane_inactive_fg = "#434343"  # existing derivation + 3:1 floor
+status_active_ink = "#FFFFFF"  # computed ink on the accent fill
+
+[themes.Monokai]
+family = "monokai"
+mode = "dark"
+variant = "solo"
+bg = "#272822"
+fg = "#F8F8F2"
+accent = "#FA4989"  # lift: was #F92672 — Computed lift #F92672→#FA4989: 3.93:1 misses the 4.5:1 floor.
+green = "#A6E22E"
+red = "#FA4989"  # lift: was #F92672 — Computed lift #F92672→#FA4989: 3.93:1 misses the 4.5:1 floor.
+yellow = "#E6DB74"
+orange = "#FD971F"  # canon: was #AE81FF — Monokai's orange; #AE81FF is its purple, which belongs in the new magenta slot
+cyan = "#66D9EF"
+muted = "#939081"  # lift: was #75715E — Computed lift #75715E→#939081: 3.03:1 misses the 4.5:1 floor.
+magenta = "#AE81FF"  # new first-class slot (upstream palette)
+
+[themes.Monokai.chrome]
+surface = "#363731"  # derived from this theme's own bg/fg
+selection_bg = "#80364D"  # bg + accent tint
+diff_add_bg = "#435125"  # bg + green tint
+diff_del_bg = "#552F39"  # bg + red tint
+diff_change_bg = "#514F34"  # bg + yellow tint
+cursor = "#FA4989"  # accent
+cursor_text = "#000000"  # readable ink on the cursor fill
+selection_fg = "#FFFFFF"  # readable ink on the selection tint
+border_active = "#FA4989"  # accent at the 3:1 non-text floor
+border_inactive = "#939081"  # muted at the 3:1 non-text floor
+pane_inactive_bg = "#34342D"  # existing derivation, kept
+pane_inactive_fg = "#DFDED6"  # existing derivation + 3:1 floor
+status_active_ink = "#000000"  # computed ink on the accent fill
+
+[themes.Moonlight]
+family = "moonlight"
+mode = "dark"
+variant = "solo"
+bg = "#212337"
+fg = "#C8D3F5"
+accent = "#82AAFF"
+green = "#C3E88D"
+red = "#FF757F"
+yellow = "#FFC777"
+orange = "#F78C6C"
+cyan = "#86E1FC"
+muted = "#7A88CF"
+magenta = "#C099FF"  # new first-class slot (upstream palette)
+
+[themes.Moonlight.chrome]
+surface = "#2E3146"  # derived from this theme's own bg/fg
+selection_bg = "#3E4C73"  # bg + accent tint
+diff_add_bg = "#454E4A"  # bg + green tint
+diff_del_bg = "#523547"  # bg + red tint
+diff_change_bg = "#524745"  # bg + yellow tint
+cursor = "#82AAFF"  # accent
+cursor_text = "#000000"  # readable ink on the cursor fill
+selection_fg = "#FFFFFF"  # readable ink on the selection tint
+border_active = "#82AAFF"  # accent at the 3:1 non-text floor
+border_inactive = "#7A88CF"  # muted at the 3:1 non-text floor
+pane_inactive_bg = "#2C2F49"  # existing derivation, kept
+pane_inactive_fg = "#B5C0EC"  # existing derivation + 3:1 floor
+status_active_ink = "#000000"  # computed ink on the accent fill
+
+[themes.NightOwl]
+family = "night-owl"
+mode = "dark"
+variant = "default"
+bg = "#011627"
+fg = "#D6DEEB"
+accent = "#82AAFF"
+green = "#22DA6E"
+red = "#EF5350"
+yellow = "#ECC48D"  # canon: was #C5E478 — strings/yellow role; #C5E478 is the green-yellow already covered by green
+orange = "#F78C6C"
+cyan = "#21C7A8"
+muted = "#6F8282"  # lift: was #637777 — Computed lift #637777→#6F8282: 3.87:1 misses the 4.5:1 floor.
+magenta = "#C792EA"  # new first-class slot (upstream palette)
+
+[themes.NightOwl.chrome]
+surface = "#142839"  # derived from this theme's own bg/fg
+selection_bg = "#284268"  # bg + accent tint
+diff_add_bg = "#084137"  # bg + green tint
+diff_del_bg = "#352330"  # bg + red tint
+diff_change_bg = "#353C3D"  # bg + yellow tint
+cursor = "#82AAFF"  # accent
+cursor_text = "#000000"  # readable ink on the cursor fill
+selection_fg = "#FFFFFF"  # readable ink on the selection tint
+border_active = "#82AAFF"  # accent at the 3:1 non-text floor
+border_inactive = "#6F8282"  # muted at the 3:1 non-text floor
+pane_inactive_bg = "#0E2332"  # existing derivation, kept
+pane_inactive_fg = "#BCC7D1"  # existing derivation + 3:1 floor
+status_active_ink = "#000000"  # computed ink on the accent fill
+
+[themes.NightOwlLight]
+family = "night-owl"
+mode = "light"
+variant = "default"
+bg = "#FBFBFB"
+fg = "#403F53"
+accent = "#4571CD"  # lift: was #4876D6 — Computed lift #4876D6→#4571CD: 4.19:1 misses the 4.5:1 floor.
+green = "#217E77"  # lift: was #2AA298 — Computed lift #2AA298→#217E77: 3.02:1 misses the 4.5:1 floor.
+red = "#CF413D"  # lift: was #D3423E — Computed lift #D3423E→#CF413D: 4.39:1 misses the 4.5:1 floor.
+yellow = "#906D15"  # lift: was #DAA520 — Computed lift #DAA520→#906D15: 2.16:1 misses the 4.5:1 floor.
+orange = "#B55748"  # lift: was #DD6A58 — Computed lift #DD6A58→#B55748: 3.23:1 misses the 4.5:1 floor.
+cyan = "#07835F"  # lift: was #08916A — Computed lift #08916A→#07835F: 3.85:1 misses the 4.5:1 floor.
+muted = "#6D727F"  # lift: was #989FB1 — Computed lift #989FB1→#6D727F: 2.56:1 misses the 4.5:1 floor.
+magenta = "#994CC3"  # new first-class slot (upstream palette)
+
+[themes.NightOwlLight.chrome]
+surface = "#E6E6E9"  # derived from this theme's own bg/fg
+selection_bg = "#C8D4EE"  # bg + accent tint
+diff_add_bg = "#D8E7E6"  # bg + green tint
+diff_del_bg = "#F4DDDD"  # bg + red tint
+diff_change_bg = "#EAE4D6"  # bg + yellow tint
+cursor = "#4571CD"  # accent
+cursor_text = "#FFFFFF"  # readable ink on the cursor fill
+selection_fg = "#000000"  # readable ink on the selection tint
+border_active = "#4571CD"  # accent at the 3:1 non-text floor
+border_inactive = "#6D727F"  # muted at the 3:1 non-text floor
+pane_inactive_bg = "#EAEBEC"  # existing derivation, kept
+pane_inactive_fg = "#4B4C5E"  # existing derivation + 3:1 floor
+status_active_ink = "#FFFFFF"  # computed ink on the accent fill
+
+[themes.Nord]
+family = "nord"
+mode = "dark"
+variant = "solo"
+bg = "#2E3440"
+fg = "#D8DEE9"
+accent = "#88C0D0"
+green = "#A3BE8C"
+red = "#D08A91"  # lift: was #BF616A — Computed lift #BF616A→#D08A91: 3.05:1 misses the 4.5:1 floor.
+yellow = "#EBCB8B"
+orange = "#D28C76"  # lift: was #D08770 — Computed lift #D08770→#D28C76: 4.39:1 misses the 4.5:1 floor.
+cyan = "#8FBCBB"  # canon: was #81A1C1 — nord7 is cyan; #81A1C1 is nord9, the blue
+muted = "#979DA9"  # lift: was #4C566A — Computed lift #4C566A→#979DA9: 1.69:1 misses the 4.5:1 floor.
+magenta = "#B690AF"  # new first-class slot (upstream palette)
+
+[themes.Nord.chrome]
+surface = "#3C424E"  # derived from this theme's own bg/fg
+selection_bg = "#495E6B"  # bg + accent tint
+diff_add_bg = "#485251"  # bg + green tint
+diff_del_bg = "#524752"  # bg + red tint
+diff_change_bg = "#585551"  # bg + yellow tint
+cursor = "#88C0D0"  # accent
+cursor_text = "#000000"  # readable ink on the cursor fill
+selection_fg = "#FFFFFF"  # readable ink on the selection tint
+border_active = "#88C0D0"  # accent at the 3:1 non-text floor
+border_inactive = "#979DA9"  # muted at the 3:1 non-text floor
+pane_inactive_bg = "#3B414D"  # existing derivation, kept
+pane_inactive_fg = "#C8CED9"  # existing derivation + 3:1 floor
+status_active_ink = "#000000"  # computed ink on the accent fill
+
+[themes.OneDarkPro]
+family = "one-dark"
+mode = "dark"
+variant = "default"
+bg = "#282C34"
+fg = "#B2B8C4"  # lift: was #ABB2BF — Computed lift #ABB2BF→#B2B8C4: 6.57:1 misses the 7:1 floor.
+accent = "#61AFEF"
+green = "#98C379"
+red = "#E1727B"  # lift: was #E06C75 — Computed lift #E06C75→#E1727B: 4.38:1 misses the 4.5:1 floor.
+yellow = "#E5C07B"
+orange = "#D19A66"
+cyan = "#56B6C2"
+muted = "#90959E"  # lift: was #5C6370 — Computed lift #5C6370→#90959E: 2.32:1 misses the 4.5:1 floor.
+magenta = "#C678DD"  # new first-class slot (upstream palette)
+
+[themes.OneDarkPro.chrome]
+surface = "#343941"  # derived from this theme's own bg/fg
+selection_bg = "#3A5670"  # bg + accent tint
+diff_add_bg = "#414D43"  # bg + green tint
+diff_del_bg = "#513B44"  # bg + red tint
+diff_change_bg = "#524D44"  # bg + yellow tint
+cursor = "#61AFEF"  # accent
+cursor_text = "#000000"  # readable ink on the cursor fill
+selection_fg = "#FFFFFF"  # readable ink on the selection tint
+border_active = "#61AFEF"  # accent at the 3:1 non-text floor
+border_inactive = "#90959E"  # muted at the 3:1 non-text floor
+pane_inactive_bg = "#343941"  # existing derivation, kept
+pane_inactive_fg = "#AAAFBB"  # existing derivation + 3:1 floor
+status_active_ink = "#000000"  # computed ink on the accent fill
+
+[themes.OneLight]
+family = "one-dark"
+mode = "light"
+variant = "default"
+bg = "#FAFAFA"
+fg = "#383A42"
+accent = "#3A6CDA"  # lift: was #4078F2 — Computed lift #4078F2→#3A6CDA: 3.88:1 misses the 4.5:1 floor.
+green = "#40813F"  # lift: was #50A14F — Computed lift #50A14F→#40813F: 3.07:1 misses the 4.5:1 floor.
+red = "#CA1243"
+yellow = "#9A6A01"  # lift: was #C18401 — Computed lift #C18401→#9A6A01: 3.06:1 misses the 4.5:1 floor.
+orange = "#986801"
+cyan = "#0179AD"  # lift: was #0184BC — Computed lift #0184BC→#0179AD: 4:1 misses the 4.5:1 floor.
+muted = "#707175"  # lift: was #A0A1A7 — Computed lift #A0A1A7→#707175: 2.47:1 misses the 4.5:1 floor.
+magenta = "#A626A4"  # new first-class slot (upstream palette)
+
+[themes.OneLight.chrome]
+surface = "#E5E5E6"  # derived from this theme's own bg/fg
+selection_bg = "#C8D5F2"  # bg + accent tint
+diff_add_bg = "#DCE7DC"  # bg + green tint
+diff_del_bg = "#F2D5DD"  # bg + red tint
+diff_change_bg = "#EBE3D2"  # bg + yellow tint
+cursor = "#3A6CDA"  # accent
+cursor_text = "#FFFFFF"  # readable ink on the cursor fill
+selection_fg = "#000000"  # readable ink on the selection tint
+border_active = "#3A6CDA"  # accent at the 3:1 non-text floor
+border_inactive = "#707175"  # muted at the 3:1 non-text floor
+pane_inactive_bg = "#E9EAEA"  # existing derivation, kept
+pane_inactive_fg = "#46484F"  # existing derivation + 3:1 floor
+status_active_ink = "#FFFFFF"  # computed ink on the accent fill
+
+[themes.Plastic]
+family = "plastic"
+mode = "dark"
+variant = "solo"
+bg = "#1B1D23"
+fg = "#ABB2BF"
+accent = "#61AFEF"
+green = "#98C379"
+red = "#E06C75"
+yellow = "#E5C07B"
+orange = "#D19A66"
+cyan = "#56B6C2"
+muted = "#828691"  # lift: was #7A7E8A — Computed lift #7A7E8A→#828691: 4.15:1 misses the 4.5:1 floor.
+magenta = "#C678DD"  # new first-class slot (upstream palette)
+
+[themes.Plastic.chrome]
+surface = "#292C33"  # derived from this theme's own bg/fg
+selection_bg = "#304960"  # bg + accent tint
+diff_add_bg = "#374236"  # bg + green tint
+diff_del_bg = "#462E35"  # bg + red tint
+diff_change_bg = "#474136"  # bg + yellow tint
+cursor = "#61AFEF"  # accent
+cursor_text = "#000000"  # readable ink on the cursor fill
+selection_fg = "#FFFFFF"  # readable ink on the selection tint
+border_active = "#61AFEF"  # accent at the 3:1 non-text floor
+border_inactive = "#828691"  # muted at the 3:1 non-text floor
+pane_inactive_bg = "#272A30"  # existing derivation, kept
+pane_inactive_fg = "#A1A7B4"  # existing derivation + 3:1 floor
+status_active_ink = "#000000"  # computed ink on the accent fill
+
+[themes.Poimandres]
+family = "poimandres"
+mode = "dark"
+variant = "solo"
+bg = "#1B1E28"
+fg = "#A6ACCD"
+accent = "#A6DA95"
+green = "#5DE4C7"
+red = "#D0679D"
+yellow = "#FFFAC2"
+orange = "#D0679D"
+cyan = "#ADD7FF"
+muted = "#7E84A3"  # lift: was #767C9D — Computed lift #767C9D→#7E84A3: 4.07:1 misses the 4.5:1 floor.
+magenta = "#FCC5E9"  # new first-class slot (upstream palette)
+
+[themes.Poimandres.chrome]
+surface = "#2A2E3A"  # derived from this theme's own bg/fg
+selection_bg = "#3C4B42"  # bg + accent tint
+diff_add_bg = "#2A4A4B"  # bg + green tint
+diff_del_bg = "#432E42"  # bg + red tint
+diff_change_bg = "#4D4E4A"  # bg + yellow tint
+cursor = "#A6DA95"  # accent
+cursor_text = "#000000"  # readable ink on the cursor fill
+selection_fg = "#FFFFFF"  # readable ink on the selection tint
+border_active = "#A6DA95"  # accent at the 3:1 non-text floor
+border_inactive = "#7E84A3"  # muted at the 3:1 non-text floor
+pane_inactive_bg = "#272A37"  # existing derivation, kept
+pane_inactive_fg = "#9CA2C3"  # existing derivation + 3:1 floor
+status_active_ink = "#000000"  # computed ink on the accent fill
+
+[themes.Projectious]
+family = "projectious"
+mode = "dark"
+variant = "solo"
+bg = "#0E1720"
+fg = "#C5DAF0"
+accent = "#E05232"
+green = "#4FB07A"
+red = "#E55B5B"
+yellow = "#E0B85B"
+orange = "#F2A65A"
+cyan = "#8AACC8"
+muted = "#7B8DA3"
+magenta = "#D491B4"  # new first-class slot (upstream palette)
+
+[themes.Projectious.chrome]
+surface = "#1E2933"  # derived from this theme's own bg/fg
+selection_bg = "#6F3228"  # bg + accent tint
+diff_add_bg = "#1C3934"  # bg + green tint
+diff_del_bg = "#3D262D"  # bg + red tint
+diff_change_bg = "#3C3A2D"  # bg + yellow tint
+cursor = "#E05232"  # accent
+cursor_text = "#000000"  # readable ink on the cursor fill
+selection_fg = "#FFFFFF"  # readable ink on the selection tint
+border_active = "#E05232"  # accent at the 3:1 non-text floor
+border_inactive = "#7B8DA3"  # muted at the 3:1 non-text floor
+pane_inactive_bg = "#1B2530"  # existing derivation, kept
+pane_inactive_fg = "#B3C7DD"  # existing derivation + 3:1 floor
+status_active_ink = "#000000"  # computed ink on the accent fill
+
+[themes.Red]
+family = "red"
+mode = "dark"
+variant = "solo"
+suspect = "green #F4C2C2 and orange #FFD0D0 are pale pinks, not a green or an orange. Semantic status colour is unreadable as status."
+bg = "#390000"
+fg = "#F8F8F8"
+accent = "#FF6666"
+green = "#F4C2C2"
+red = "#FF0A0A"  # lift: was #FF0000 — Computed lift #FF0000→#FF0A0A: 4.47:1 misses the 4.5:1 floor.
+yellow = "#FF8800"
+orange = "#FFD0D0"
+cyan = "#FF9999"
+muted = "#AB7373"  # lift: was #A06060 — Computed lift #A06060→#AB7373: 3.69:1 misses the 4.5:1 floor.
+magenta = "#FF99CC"  # new first-class slot (upstream palette)
+
+[themes.Red.chrome]
+surface = "#4A1616"  # derived from this theme's own bg/fg
+selection_bg = "#7C2323"  # bg + accent tint
+diff_add_bg = "#622B2B"  # bg + green tint
+diff_del_bg = "#650202"  # bg + red tint
+diff_change_bg = "#651E00"  # bg + yellow tint
+cursor = "#FF6666"  # accent
+cursor_text = "#000000"  # readable ink on the cursor fill
+selection_fg = "#FFFFFF"  # readable ink on the selection tint
+border_active = "#FF6666"  # accent at the 3:1 non-text floor
+border_inactive = "#AB7373"  # muted at the 3:1 non-text floor
+pane_inactive_bg = "#470E0E"  # existing derivation, kept
+pane_inactive_fg = "#E5D7D7"  # existing derivation + 3:1 floor
+status_active_ink = "#000000"  # computed ink on the accent fill
+
+[themes.RosePine]
+family = "rose-pine"
+mode = "dark"
+variant = "default"
+bg = "#191724"
+fg = "#E0DEF4"
+accent = "#C4A7E7"
+green = "#528AA1"  # lift: was #31748F — Computed lift #31748F→#528AA1: 3.38:1 misses the 4.5:1 floor.
+red = "#EB6F92"
+yellow = "#F6C177"
+orange = "#EA9A97"
+cyan = "#9CCFD8"
+muted = "#908CAA"  # step: was #6E6A86 — Lifted to the in-palette step subtle for 4.5:1.
+magenta = "#C4A7E7"  # new first-class slot (upstream palette)
+
+[themes.RosePine.chrome]
+surface = "#292735"  # derived from this theme's own bg/fg
+selection_bg = "#493F5B"  # bg + accent tint
+diff_add_bg = "#263040"  # bg + green tint
+diff_del_bg = "#472A3C"  # bg + red tint
+diff_change_bg = "#4A3C36"  # bg + yellow tint
+cursor = "#C4A7E7"  # accent
+cursor_text = "#000000"  # readable ink on the cursor fill
+selection_fg = "#FFFFFF"  # readable ink on the selection tint
+border_active = "#C4A7E7"  # accent at the 3:1 non-text floor
+border_inactive = "#908CAA"  # muted at the 3:1 non-text floor
+pane_inactive_bg = "#272534"  # existing derivation, kept
+pane_inactive_fg = "#CCCAE2"  # existing derivation + 3:1 floor
+status_active_ink = "#000000"  # computed ink on the accent fill
+
+[themes.RosePineMoon]
+family = "rose-pine"
+mode = "dark"
+variant = "moon"
+bg = "#232136"
+fg = "#E0DEF4"
+accent = "#C4A7E7"
+green = "#4693B3"  # lift: was #3E8FB0 — Computed lift #3E8FB0→#4693B3: 4.29:1 misses the 4.5:1 floor.
+red = "#EB6F92"
+yellow = "#F6C177"
+orange = "#EA9A97"
+cyan = "#9CCFD8"
+muted = "#908CAA"  # step: was #6E6A86 — Lifted to the in-palette step subtle for 4.5:1.
+magenta = "#C4A7E7"  # new first-class slot (upstream palette)
+
+[themes.RosePineMoon.chrome]
+surface = "#323045"  # derived from this theme's own bg/fg
+selection_bg = "#504768"  # bg + accent tint
+diff_add_bg = "#2B3A52"  # bg + green tint
+diff_del_bg = "#4F324A"  # bg + red tint
+diff_change_bg = "#514444"  # bg + yellow tint
+cursor = "#C4A7E7"  # accent
+cursor_text = "#000000"  # readable ink on the cursor fill
+selection_fg = "#FFFFFF"  # readable ink on the selection tint
+border_active = "#C4A7E7"  # accent at the 3:1 non-text floor
+border_inactive = "#908CAA"  # muted at the 3:1 non-text floor
+pane_inactive_bg = "#302E44"  # existing derivation, kept
+pane_inactive_fg = "#CCCAE2"  # existing derivation + 3:1 floor
+status_active_ink = "#000000"  # computed ink on the accent fill
+
+[themes.RosePineDawn]
+family = "rose-pine"
+mode = "light"
+variant = "default"
+bg = "#FAF4ED"
+fg = "#524D72"  # lift: was #575279 — Computed lift #575279→#524D72: 6.66:1 misses the 7:1 floor.
+accent = "#79668E"  # lift: was #907AA9 — Computed lift #907AA9→#79668E: 3.47:1 misses the 4.5:1 floor.
+green = "#45767F"  # lift: was #56949F — Computed lift #56949F→#45767F: 3.14:1 misses the 4.5:1 floor.
+red = "#A2596E"  # lift: was #B4637A — Computed lift #B4637A→#A2596E: 3.84:1 misses the 4.5:1 floor.
+yellow = "#966421"  # lift: was #EA9D34 — Computed lift #EA9D34→#966421: 2.05:1 misses the 4.5:1 floor.
+orange = "#9B5E5B"  # lift: was #D7827E — Computed lift #D7827E→#9B5E5B: 2.6:1 misses the 4.5:1 floor.
+cyan = "#286983"
+muted = "#706D7A"  # lift: was #9893A5 — Computed lift #9893A5→#706D7A: 2.73:1 misses the 4.5:1 floor.
+magenta = "#79668E"  # new first-class slot (upstream palette)
+
+[themes.RosePineDawn.chrome]
+surface = "#E4DEDD"  # derived from this theme's own bg/fg
+selection_bg = "#D6CCD2"  # bg + accent tint
+diff_add_bg = "#DDE0DB"  # bg + green tint
+diff_del_bg = "#ECDBD9"  # bg + red tint
+diff_change_bg = "#EADDCC"  # bg + yellow tint
+cursor = "#79668E"  # accent
+cursor_text = "#FFFFFF"  # readable ink on the cursor fill
+selection_fg = "#000000"  # readable ink on the selection tint
+border_active = "#79668E"  # accent at the 3:1 non-text floor
+border_inactive = "#706D7A"  # muted at the 3:1 non-text floor
+pane_inactive_bg = "#E9E4DF"  # existing derivation, kept
+pane_inactive_fg = "#5A5574"  # existing derivation + 3:1 floor
+status_active_ink = "#FFFFFF"  # computed ink on the accent fill
+
+[themes.SlackDark]
+family = "slack"
+mode = "dark"
+variant = "default"
+bg = "#222529"
+fg = "#D1D2D3"
+accent = "#8CC4FF"
+green = "#AFE3A4"
+red = "#E07070"
+yellow = "#DFC55A"
+orange = "#DFC55A"
+cyan = "#98D1E0"
+muted = "#898D91"  # lift: was #60656A — Computed lift #60656A→#898D91: 2.61:1 misses the 4.5:1 floor.
+magenta = "#D6A6E0"  # new first-class slot (upstream palette)
+
+[themes.SlackDark.chrome]
+surface = "#303337"  # derived from this theme's own bg/fg
+selection_bg = "#3E4E61"  # bg + accent tint
+diff_add_bg = "#414F44"  # bg + green tint
+diff_del_bg = "#4C3639"  # bg + red tint
+diff_change_bg = "#4C4834"  # bg + yellow tint
+cursor = "#8CC4FF"  # accent
+cursor_text = "#000000"  # readable ink on the cursor fill
+selection_fg = "#FFFFFF"  # readable ink on the selection tint
+border_active = "#8CC4FF"  # accent at the 3:1 non-text floor
+border_inactive = "#898D91"  # muted at the 3:1 non-text floor
+pane_inactive_bg = "#2E3135"  # existing derivation, kept
+pane_inactive_fg = "#BFC1C3"  # existing derivation + 3:1 floor
+status_active_ink = "#000000"  # computed ink on the accent fill
+
+[themes.SlackOchin]
+family = "slack"
+mode = "light"
+variant = "ochin"
+bg = "#F9F9F9"
+fg = "#383A3C"
+accent = "#0070D1"
+green = "#248327"  # lift: was #268829 — Computed lift #268829→#248327: 4.3:1 misses the 4.5:1 floor.
+red = "#D0104C"
+yellow = "#C64B10"
+orange = "#C64B10"
+cyan = "#007A7A"
+muted = "#707376"  # lift: was #A0A4A8 — Computed lift #A0A4A8→#707376: 2.38:1 misses the 4.5:1 floor.
+magenta = "#8E4EC6"  # new first-class slot (upstream palette)
+
+[themes.SlackOchin.chrome]
+surface = "#E4E4E4"  # derived from this theme's own bg/fg
+selection_bg = "#BDD8EF"  # bg + accent tint
+diff_add_bg = "#D7E6D7"  # bg + green tint
+diff_del_bg = "#F2D4DD"  # bg + red tint
+diff_change_bg = "#F1DDD4"  # bg + yellow tint
+cursor = "#0070D1"  # accent
+cursor_text = "#FFFFFF"  # readable ink on the cursor fill
+selection_fg = "#000000"  # readable ink on the selection tint
+border_active = "#0070D1"  # accent at the 3:1 non-text floor
+border_inactive = "#707376"  # muted at the 3:1 non-text floor
+pane_inactive_bg = "#E9E9E9"  # existing derivation, kept
+pane_inactive_fg = "#46484B"  # existing derivation + 3:1 floor
+status_active_ink = "#FFFFFF"  # computed ink on the accent fill
+
+[themes.SnazzyLight]
+family = "snazzy"
+mode = "light"
+variant = "solo"
+bg = "#FAFBFC"
+fg = "#2D2D2D"
+accent = "#367B9E"  # lift: was #57C7FF — Computed lift #57C7FF→#367B9E: 1.84:1 misses the 4.5:1 floor.
+green = "#2F804A"  # lift: was #5AF78E — Computed lift #5AF78E→#2F804A: 1.34:1 misses the 4.5:1 floor.
+red = "#C74844"  # lift: was #FF5C57 — Computed lift #FF5C57→#C74844: 2.93:1 misses the 4.5:1 floor.
+yellow = "#A3662B"  # lift: was #FF9F43 — Computed lift #FF9F43→#A3662B: 1.97:1 misses the 4.5:1 floor.
+orange = "#B84C8B"  # lift: was #FF6AC1 — Computed lift #FF6AC1→#B84C8B: 2.51:1 misses the 4.5:1 floor.
+cyan = "#367B9E"  # lift: was #57C7FF — Computed lift #57C7FF→#367B9E: 1.84:1 misses the 4.5:1 floor.
+muted = "#727272"  # lift: was #9E9E9E — Computed lift #9E9E9E→#727272: 2.59:1 misses the 4.5:1 floor.
+magenta = "#B84C8B"  # new first-class slot (upstream palette)
+
+[themes.SnazzyLight.chrome]
+surface = "#E6E6E7"  # derived from this theme's own bg/fg
+selection_bg = "#C3D7E2"  # bg + accent tint
+diff_add_bg = "#DAE7E0"  # bg + green tint
+diff_del_bg = "#F2DEDF"  # bg + red tint
+diff_change_bg = "#ECE3DB"  # bg + yellow tint
+cursor = "#367B9E"  # accent
+cursor_text = "#FFFFFF"  # readable ink on the cursor fill
+selection_fg = "#000000"  # readable ink on the selection tint
+border_active = "#367B9E"  # accent at the 3:1 non-text floor
+border_inactive = "#727272"  # muted at the 3:1 non-text floor
+pane_inactive_bg = "#EAEBEB"  # existing derivation, kept
+pane_inactive_fg = "#3E3E3E"  # existing derivation + 3:1 floor
+status_active_ink = "#FFFFFF"  # computed ink on the accent fill
+
+[themes.SolarizedDark]
+family = "solarized"
+mode = "dark"
+variant = "default"
+bg = "#002B36"
+fg = "#A9B4B4"  # lift: was #93A1A1 — Computed lift #93A1A1→#A9B4B4: 5.61:1 misses the 7:1 floor.
+accent = "#3794D6"  # lift: was #268BD2 — Computed lift #268BD2→#3794D6: 4.08:1 misses the 4.5:1 floor.
+green = "#859900"
+red = "#E56765"  # lift: was #DC322F — Computed lift #DC322F→#E56765: 3.25:1 misses the 4.5:1 floor.
+yellow = "#B58900"
+orange = "#D67349"  # lift: was #CB4B16 — Computed lift #CB4B16→#D67349: 3.26:1 misses the 4.5:1 floor.
+cyan = "#2AA198"
+muted = "#7E9097"  # lift: was #657B83 — Computed lift #657B83→#7E9097: 3.37:1 misses the 4.5:1 floor.
+magenta = "#DD629E"  # new first-class slot (upstream palette)
+
+[themes.SolarizedDark.chrome]
+surface = "#113943"  # derived from this theme's own bg/fg
+selection_bg = "#165576"  # bg + accent tint
+diff_add_bg = "#1D432A"  # bg + green tint
+diff_del_bg = "#323840"  # bg + red tint
+diff_change_bg = "#28402A"  # bg + yellow tint
+cursor = "#3794D6"  # accent
+cursor_text = "#000000"  # readable ink on the cursor fill
+selection_fg = "#FFFFFF"  # readable ink on the selection tint
+border_active = "#3794D6"  # accent at the 3:1 non-text floor
+border_inactive = "#7E9097"  # muted at the 3:1 non-text floor
+pane_inactive_bg = "#0F3742"  # existing derivation, kept
+pane_inactive_fg = "#9EABAD"  # existing derivation + 3:1 floor
+status_active_ink = "#000000"  # computed ink on the accent fill
+
+[themes.SolarizedLight]
+family = "solarized"
+mode = "light"
+variant = "default"
+bg = "#FDF6E3"
+fg = "#45565B"  # lift: was #586E75 — Computed lift #586E75→#45565B: 4.99:1 misses the 7:1 floor.
+accent = "#2075B0"  # lift: was #268BD2 — Computed lift #268BD2→#2075B0: 3.41:1 misses the 4.5:1 floor.
+green = "#687700"  # lift: was #859900 — Computed lift #859900→#687700: 2.97:1 misses the 4.5:1 floor.
+red = "#D3302D"  # lift: was #DC322F — Computed lift #DC322F→#D3302D: 4.29:1 misses the 4.5:1 floor.
+yellow = "#8D6B00"  # lift: was #B58900 — Computed lift #B58900→#8D6B00: 2.98:1 misses the 4.5:1 floor.
+orange = "#C34815"  # lift: was #CB4B16 — Computed lift #CB4B16→#C34815: 4.27:1 misses the 4.5:1 floor.
+cyan = "#217E77"  # lift: was #2AA198 — Computed lift #2AA198→#217E77: 2.93:1 misses the 4.5:1 floor.
+muted = "#677171"  # lift: was #93A1A1 — Computed lift #93A1A1→#677171: 2.48:1 misses the 4.5:1 floor.
+magenta = "#C6337A"  # new first-class slot (upstream palette)
+
+[themes.SolarizedLight.chrome]
+surface = "#E5E1D1"  # derived from this theme's own bg/fg
+selection_bg = "#C4D4D6"  # bg + accent tint
+diff_add_bg = "#E5E2BF"  # bg + green tint
+diff_del_bg = "#F6D6C6"  # bg + red tint
+diff_change_bg = "#EBE0BF"  # bg + yellow tint
+cursor = "#2075B0"  # accent
+cursor_text = "#FFFFFF"  # readable ink on the cursor fill
+selection_fg = "#000000"  # readable ink on the selection tint
+border_active = "#2075B0"  # accent at the 3:1 non-text floor
+border_inactive = "#677171"  # muted at the 3:1 non-text floor
+pane_inactive_bg = "#EBE6D5"  # existing derivation, kept
+pane_inactive_fg = "#4E5D61"  # existing derivation + 3:1 floor
+status_active_ink = "#FFFFFF"  # computed ink on the accent fill
+
+[themes.Synthwave84]
+family = "synthwave-84"
+mode = "dark"
+variant = "solo"
+bg = "#2A2139"
+fg = "#FFFFFF"
+accent = "#36F9F6"
+green = "#FF7EDB"
+red = "#FE4854"  # lift: was #FE4450 — Computed lift #FE4450→#FE4854: 4.48:1 misses the 4.5:1 floor.
+yellow = "#FEDE5D"
+orange = "#F97E72"
+cyan = "#36F9F6"
+muted = "#908D8F"  # lift: was #848082 — Computed lift #848082→#908D8F: 3.92:1 misses the 4.5:1 floor.
+magenta = "#FF7EDB"  # new first-class slot (upstream palette)
+
+[themes.Synthwave84.chrome]
+surface = "#393147"  # derived from this theme's own bg/fg
+selection_bg = "#2D5566"  # bg + accent tint
+diff_add_bg = "#59355D"  # bg + green tint
+diff_del_bg = "#592A3F"  # bg + red tint
+diff_change_bg = "#594B41"  # bg + yellow tint
+cursor = "#36F9F6"  # accent
+cursor_text = "#000000"  # readable ink on the cursor fill
+selection_fg = "#FFFFFF"  # readable ink on the selection tint
+border_active = "#36F9F6"  # accent at the 3:1 non-text floor
+border_inactive = "#908D8F"  # muted at the 3:1 non-text floor
+pane_inactive_bg = "#362E43"  # existing derivation, kept
+pane_inactive_fg = "#E3E3E3"  # existing derivation + 3:1 floor
+status_active_ink = "#000000"  # computed ink on the accent fill
+
+[themes.TokyoNight]
+family = "tokyo-night"
+mode = "dark"
+variant = "default"
+bg = "#1A1B26"
+fg = "#C0CAF5"
+accent = "#7AA2F7"
+green = "#9ECE6A"
+red = "#F7768E"
+yellow = "#E0AF68"
+orange = "#FF9E64"
+cyan = "#7DCFFF"
+muted = "#7982A9"  # step: was #565F89 — Lifted to the in-palette step comment (lifted step) for 4.5:1.
+magenta = "#BB9AF7"  # new first-class slot (upstream palette)
+
+[themes.TokyoNight.chrome]
+surface = "#292B39"  # derived from this theme's own bg/fg
+selection_bg = "#394669"  # bg + accent tint
+diff_add_bg = "#374235"  # bg + green tint
+diff_del_bg = "#4B2F3D"  # bg + red tint
+diff_change_bg = "#463C35"  # bg + yellow tint
+cursor = "#7AA2F7"  # accent
+cursor_text = "#000000"  # readable ink on the cursor fill
+selection_fg = "#FFFFFF"  # readable ink on the selection tint
+border_active = "#7AA2F7"  # accent at the 3:1 non-text floor
+border_inactive = "#7982A9"  # muted at the 3:1 non-text floor
+pane_inactive_bg = "#252736"  # existing derivation, kept
+pane_inactive_fg = "#AEB8E2"  # existing derivation + 3:1 floor
+status_active_ink = "#000000"  # computed ink on the accent fill
+
+[themes.TokyoNightStorm]
+family = "tokyo-night"
+mode = "dark"
+variant = "storm"
+bg = "#24283B"
+fg = "#C0CAF5"
+accent = "#7AA2F7"
+green = "#9ECE6A"
+red = "#F7768E"
+yellow = "#E0AF68"
+orange = "#FF9E64"
+cyan = "#7DCFFF"
+muted = "#898FAC"  # lift: was #565F89 — Computed lift #565F89→#898FAC: 2.35:1 misses the 4.5:1 floor.
+magenta = "#BB9AF7"  # new first-class slot (upstream palette)
+
+[themes.TokyoNightStorm.chrome]
+surface = "#30354A"  # derived from this theme's own bg/fg
+selection_bg = "#404F77"  # bg + accent tint
+diff_add_bg = "#3F4D45"  # bg + green tint
+diff_del_bg = "#52394D"  # bg + red tint
+diff_change_bg = "#4D4645"  # bg + yellow tint
+cursor = "#7AA2F7"  # accent
+cursor_text = "#000000"  # readable ink on the cursor fill
+selection_fg = "#FFFFFF"  # readable ink on the selection tint
+border_active = "#7AA2F7"  # accent at the 3:1 non-text floor
+border_inactive = "#898FAC"  # muted at the 3:1 non-text floor
+pane_inactive_bg = "#303449"  # existing derivation, kept
+pane_inactive_fg = "#B2BBE3"  # existing derivation + 3:1 floor
+status_active_ink = "#000000"  # computed ink on the accent fill
+
+[themes.TokyoNightDay]
+family = "tokyo-night"
+mode = "light"
+variant = "default"
+bg = "#E1E2E7"
+fg = "#28458A"  # lift: was #3760BF — Computed lift #3760BF→#28458A: 4.52:1 misses the 7:1 floor.
+accent = "#2462B6"  # lift: was #2E7DE9 — Computed lift #2E7DE9→#2462B6: 3.11:1 misses the 4.5:1 floor.
+green = "#516C34"  # lift: was #587539 — Computed lift #587539→#516C34: 4.04:1 misses the 4.5:1 floor.
+red = "#BF214F"  # lift: was #F52A65 — Computed lift #F52A65→#BF214F: 3.01:1 misses the 4.5:1 floor.
+yellow = "#7B5F37"  # lift: was #8C6C3E — Computed lift #8C6C3E→#7B5F37: 3.75:1 misses the 4.5:1 floor.
+orange = "#9C5100"  # lift: was #B15C00 — Computed lift #B15C00→#9C5100: 3.69:1 misses the 4.5:1 floor.
+cyan = "#006C91"  # lift: was #007197 — Computed lift #007197→#006C91: 4.26:1 misses the 4.5:1 floor.
+muted = "#5D6472"  # lift: was #7B8496 — Computed lift #7B8496→#5D6472: 2.91:1 misses the 4.5:1 floor.
+magenta = "#7D45C6"  # new first-class slot (upstream palette)
+
+[themes.TokyoNightDay.chrome]
+surface = "#CBCFDC"  # derived from this theme's own bg/fg
+selection_bg = "#B0C1DA"  # bg + accent tint
+diff_add_bg = "#CACFCA"  # bg + green tint
+diff_del_bg = "#DCC3CF"  # bg + red tint
+diff_change_bg = "#D1CDCB"  # bg + yellow tint
+cursor = "#2462B6"  # accent
+cursor_text = "#FFFFFF"  # readable ink on the cursor fill
+selection_fg = "#000000"  # readable ink on the selection tint
+border_active = "#2462B6"  # accent at the 3:1 non-text floor
+border_inactive = "#5D6472"  # muted at the 3:1 non-text floor
+pane_inactive_bg = "#D1D3D9"  # existing derivation, kept
+pane_inactive_fg = "#354D84"  # existing derivation + 3:1 floor
+status_active_ink = "#FFFFFF"  # computed ink on the accent fill
+
+[themes.Vesper]
+family = "vesper"
+mode = "dark"
+variant = "solo"
+bg = "#101010"
+fg = "#FFFFFF"
+accent = "#FFC799"  # canon: was #FF7B00 — the theme's single accent (button/focus/tab border); #FF7B00 is not a Vesper value
+green = "#99FFE4"
+red = "#FF8080"  # canon: was #F44747 — editorError.foreground — #F44747 is VS Code Dark+
+yellow = "#FFC799"  # canon: was #FF7B00 — editorWarning.foreground — Vesper has one warm hue by design
+orange = "#FFC799"
+cyan = "#99FFE4"  # canon: was #FFC799 — the mint/aqua; cyan was duplicating orange
+muted = "#A0A0A0"  # canon: was #5C5C5C — keyword/UI grey; #5C5C5C is below the comment token's effective ink
+magenta = "#FFC799"  # new first-class slot (upstream palette)
+
+[themes.Vesper.chrome]
+surface = "#232323"  # derived from this theme's own bg/fg
+selection_bg = "#4E4034"  # bg + accent tint
+diff_add_bg = "#2E453F"  # bg + green tint
+diff_del_bg = "#452929"  # bg + red tint
+diff_change_bg = "#45382E"  # bg + yellow tint
+cursor = "#FFC799"  # accent
+cursor_text = "#000000"  # readable ink on the cursor fill
+selection_fg = "#FFFFFF"  # readable ink on the selection tint
+border_active = "#FFC799"  # accent at the 3:1 non-text floor
+border_inactive = "#A0A0A0"  # muted at the 3:1 non-text floor
+pane_inactive_bg = "#212121"  # existing derivation, kept
+pane_inactive_fg = "#E7E7E7"  # existing derivation + 3:1 floor
+status_active_ink = "#000000"  # computed ink on the accent fill
+
+[themes.VitesseDark]
+family = "vitesse"
+mode = "dark"
+variant = "default"
+bg = "#121212"
+fg = "#DBD7CA"
+accent = "#4D9375"
+green = "#C98A7D"
+red = "#E06C75"
+yellow = "#D4976C"
+orange = "#6496C8"
+cyan = "#80A0C0"
+muted = "#758575"
+magenta = "#CB7676"  # new first-class slot (upstream palette)
+
+[themes.VitesseDark.chrome]
+surface = "#242423"  # derived from this theme's own bg/fg
+selection_bg = "#2A463A"  # bg + accent tint
+diff_add_bg = "#3A2C2A"  # bg + green tint
+diff_del_bg = "#3F2628"  # bg + red tint
+diff_change_bg = "#3D2F26"  # bg + yellow tint
+cursor = "#4D9375"  # accent
+cursor_text = "#000000"  # readable ink on the cursor fill
+selection_fg = "#FFFFFF"  # readable ink on the selection tint
+border_active = "#4D9375"  # accent at the 3:1 non-text floor
+border_inactive = "#758575"  # muted at the 3:1 non-text floor
+pane_inactive_bg = "#1E201E"  # existing derivation, kept
+pane_inactive_fg = "#C2C3B5"  # existing derivation + 3:1 floor
+status_active_ink = "#000000"  # computed ink on the accent fill
+
+[themes.VitesseLight]
+family = "vitesse"
+mode = "light"
+variant = "default"
+bg = "#FFFFFF"
+fg = "#393A34"
+accent = "#1E754F"
+green = "#AA6354"  # lift: was #B56959 — Computed lift #B56959→#AA6354: 4.09:1 misses the 4.5:1 floor.
+red = "#AB5959"
+yellow = "#976C3E"  # lift: was #B07D48 — Computed lift #B07D48→#976C3E: 3.58:1 misses the 4.5:1 floor.
+orange = "#296AA3"
+cyan = "#2E808F"
+muted = "#767658"  # lift: was #A0A077 — Computed lift #A0A077→#767658: 2.7:1 misses the 4.5:1 floor.
+magenta = "#AA6354"  # new first-class slot (upstream palette)
+
+[themes.VitesseLight.chrome]
+surface = "#E9E9E9"  # derived from this theme's own bg/fg
+selection_bg = "#C9DED5"  # bg + accent tint
+diff_add_bg = "#F1E6E4"  # bg + green tint
+diff_del_bg = "#F2E4E4"  # bg + red tint
+diff_change_bg = "#EEE7E0"  # bg + yellow tint
+cursor = "#1E754F"  # accent
+cursor_text = "#FFFFFF"  # readable ink on the cursor fill
+selection_fg = "#000000"  # readable ink on the selection tint
+border_active = "#1E754F"  # accent at the 3:1 non-text floor
+border_inactive = "#767658"  # muted at the 3:1 non-text floor
+pane_inactive_bg = "#EFEFEB"  # existing derivation, kept
+pane_inactive_fg = "#48493D"  # existing derivation + 3:1 floor
+status_active_ink = "#FFFFFF"  # computed ink on the accent fill
+
+[themes.VitesseBlack]
+family = "vitesse"
+mode = "dark"
+variant = "black"
+bg = "#000000"
+fg = "#DBD7CA"
+accent = "#4D9375"
+green = "#C98A7D"
+red = "#E06C75"
+yellow = "#D4976C"
+orange = "#6496C8"
+cyan = "#80A0C0"
+muted = "#767676"  # lift: was #606060 — Computed lift #606060→#767676: 3.34:1 misses the 4.5:1 floor.
+magenta = "#CB7676"  # new first-class slot (upstream palette)
+
+[themes.VitesseBlack.chrome]
+surface = "#1A1A18"  # derived from this theme's own bg/fg
+selection_bg = "#224133"  # bg + accent tint
+diff_add_bg = "#2C1E1C"  # bg + green tint
+diff_del_bg = "#31181A"  # bg + red tint
+diff_change_bg = "#2F2118"  # bg + yellow tint
+cursor = "#4D9375"  # accent
+cursor_text = "#000000"  # readable ink on the cursor fill
+selection_fg = "#FFFFFF"  # readable ink on the selection tint
+border_active = "#4D9375"  # accent at the 3:1 non-text floor
+border_inactive = "#767676"  # muted at the 3:1 non-text floor
+pane_inactive_bg = "#0E0E0E"  # existing derivation, kept
+pane_inactive_fg = "#C2BFB5"  # existing derivation + 3:1 floor
+status_active_ink = "#000000"  # computed ink on the accent fill
+
+[themes.VsCodeDarkPlus]
+family = "vscode"
+mode = "dark"
+variant = "default"
+bg = "#1E1E1E"
+fg = "#D4D4D4"
+accent = "#569CD6"
+green = "#B5CEA8"
+red = "#F44747"
+yellow = "#CCA700"
+orange = "#CE9178"
+cyan = "#4EC9B0"
+muted = "#6A9955"
+magenta = "#C586C0"  # new first-class slot (upstream palette)
+
+[themes.VsCodeDarkPlus.chrome]
+surface = "#2D2D2D"  # derived from this theme's own bg/fg
+selection_bg = "#324B60"  # bg + accent tint
+diff_add_bg = "#3F453C"  # bg + green tint
+diff_del_bg = "#4D2727"  # bg + red tint
+diff_change_bg = "#443C17"  # bg + yellow tint
+cursor = "#569CD6"  # accent
+cursor_text = "#000000"  # readable ink on the cursor fill
+selection_fg = "#FFFFFF"  # readable ink on the selection tint
+border_active = "#569CD6"  # accent at the 3:1 non-text floor
+border_inactive = "#6A9955"  # muted at the 3:1 non-text floor
+pane_inactive_bg = "#272D25"  # existing derivation, kept
+pane_inactive_fg = "#BAC5B4"  # existing derivation + 3:1 floor
+status_active_ink = "#000000"  # computed ink on the accent fill
+
+[themes.VsCodeLightPlus]
+family = "vscode"
+mode = "light"
+variant = "default"
+bg = "#FFFFFF"
+fg = "#000000"
+accent = "#0000FF"
+green = "#098658"
+red = "#CD3131"
+yellow = "#A65E00"
+orange = "#A31515"
+cyan = "#267F99"
+muted = "#008000"
+magenta = "#AF00DB"  # new first-class slot (upstream palette)
+
+[themes.VsCodeLightPlus.chrome]
+surface = "#E4E4E4"  # derived from this theme's own bg/fg
+selection_bg = "#D6D6FF"  # bg + accent tint
+diff_add_bg = "#D8ECE4"  # bg + green tint
+diff_del_bg = "#F7DEDE"  # bg + red tint
+diff_change_bg = "#F1E5D6"  # bg + yellow tint
+cursor = "#0000FF"  # accent
+cursor_text = "#FFFFFF"  # readable ink on the cursor fill
+selection_fg = "#000000"  # readable ink on the selection tint
+border_active = "#0000FF"  # accent at the 3:1 non-text floor
+border_inactive = "#008000"  # muted at the 3:1 non-text floor
+pane_inactive_bg = "#E0F0E0"  # existing derivation, kept
+pane_inactive_fg = "#002000"  # existing derivation + 3:1 floor
+status_active_ink = "#FFFFFF"  # computed ink on the accent fill
+
+[themes.ProjectiousNavy]
+family = "projectious"
+mode = "dark"
+variant = "default (navy)"
+note = "Brand default dark. Page is midnight-1 dark (#132440); code panels stay on #0e1720 so a code block still reads as an inset panel."
+bg = "#132440"
+fg = "#C5DAF0"
+accent = "#E05232"
+green = "#6CC090"
+red = "#F08B80"
+yellow = "#E0A92A"
+orange = "#EA7558"
+cyan = "#74C0C9"
+muted = "#97A8B8"
+
+[themes.ProjectiousNavy.chrome]
+surface = "#1A2B3E"
+magenta = "#D491B4"
+border_inactive = "#7B8DA3"
+cursor = "#E05232"
+cursor_text = "#0E1720"
+selection_bg = "#3A5C7E"
+selection_fg = "#C5DAF0"
+accent_text = "#EA7558"
+code_panel = "#0E1720"
+terminal = "#0E1720"
+
+[themes.ProjectiousDeep]
+family = "projectious"
+mode = "dark"
+variant = "deep"
+note = "The bottom of the midnight ramp. Same ink, deeper page — panels lift by surface step, not shadow."
+bg = "#0E1720"
+fg = "#C5DAF0"
+accent = "#E05232"
+green = "#6CC090"
+red = "#F08B80"
+yellow = "#E0A92A"
+orange = "#EA7558"
+cyan = "#74C0C9"
+muted = "#97A8B8"
+
+[themes.ProjectiousDeep.chrome]
+surface = "#131E2B"
+magenta = "#D491B4"
+border_inactive = "#7B8DA3"
+cursor = "#E05232"
+cursor_text = "#0E1720"
+selection_bg = "#2E4B68"
+selection_fg = "#C5DAF0"
+accent_text = "#EA7558"
+code_panel = "#131E2B"
+terminal = "#0E1720"
+
+[themes.ProjectiousLight]
+family = "projectious"
+mode = "light"
+variant = "default"
+note = "Page is midnight-1 (#f8f9fb), not white; white returns as the raised surface. Accent text takes orange-11, never orange-9."
+bg = "#F8F9FB"
+fg = "#142438"
+accent = "#C04424"
+green = "#276754"
+red = "#A8261C"
+yellow = "#8B6508"
+orange = "#C94208"
+cyan = "#1C6B6B"
+muted = "#5C6F82"
+
+[themes.ProjectiousLight.chrome]
+surface = "#FFFFFF"
+magenta = "#8A3F6E"
+border_inactive = "#7B8DA3" # corrected to the next brand ramp step for 3:1 UI contrast
+cursor = "#E05232"
+cursor_text = "#000000" # corrected: brand paper was only 3.55:1 on the cursor fill
+selection_bg = "#C3D1E3"
+selection_fg = "#142438"
+accent_fill = "#CC4528"
+code_panel = "#0E1720"
+terminal = "#0E1720"
+
+[themes.ProjectiousHCDark]
+family = "projectious"
+mode = "dark"
+variant = "high-contrast-dark"
+note = "data-contrast=high, dark. Text roles pushed to the ends of the ramp; accent lifted to #ff8161 so it clears AA as text."
+bg = "#0E1720"
+fg = "#FFFFFF"
+accent = "#FF8161"
+green = "#A8E6C4"
+red = "#FFC0B8"
+yellow = "#FFDF94"
+orange = "#FFB49C"
+cyan = "#9BD6DD"
+muted = "#C5DAF0"
+
+[themes.ProjectiousHCDark.chrome]
+surface = "#1A2B3E"
+magenta = "#F0B6D3"
+border_inactive = "#C5DAF0"
+cursor = "#FF8161"
+cursor_text = "#0E1720"
+selection_bg = "#3A5C7E"
+selection_fg = "#FFFFFF"
+code_panel = "#0E1720"
+terminal = "#0E1720"
+
+[themes.ProjectiousHCLight]
+family = "projectious"
+mode = "light"
+variant = "high-contrast-light"
+note = "data-contrast=high, light. Tints flatten to solid borders; every text role sits at the dark end of its scale."
+bg = "#FFFFFF"
+fg = "#000000"
+accent = "#A02F16"
+green = "#0F4D3A"
+red = "#7A1610"
+yellow = "#4A3400"
+orange = "#8A2E0A"
+cyan = "#0F4C4C"
+muted = "#1E2B38"
+
+[themes.ProjectiousHCLight.chrome]
+surface = "#F8F9FB"
+magenta = "#6E1A50"
+border_inactive = "#1E2B38"
+cursor = "#A02F16"
+cursor_text = "#FFFFFF"
+selection_bg = "#B0C1D6"
+selection_fg = "#000000"
+code_panel = "#0E1720"
+terminal = "#0E1720"
+
+
+# ── Emphasis — bold/italic/dim as a second channel ─────────────────────────
+# Precedence: upstream theme fontStyle (harvested at build time from the tm theme)
+#             → the aibox fallback spec below
+#             → clamped by [emphasis.levels]
+#             → clamped by [emphasis.tools] capability
+# Degradation substitutes another channel; it never silently drops state.
+
+[emphasis]
+default = "auto"                       # auto | full | standard | minimal | none
+probe_order = ["terminfo sitm/ritm", "terminfo dim", "TERM_PROGRAM", "NO_COLOR"]
+no_color_forces = "none"
+
+[emphasis.levels]
+full     = ["bold", "italic", "dim", "underline", "strikethrough"]
+standard = ["bold", "italic", "dim"]
+minimal  = ["bold", "dim"]
+none     = []
+
+[emphasis.degradation]
+italic        = "dim"      # comments must still read as secondary
+underline     = "bold"     # current search match must stay distinct from other matches
+strikethrough = "dim"      # deprecated stays de-emphasised
+dim           = ""         # safe to drop; colour still separates it
+bold          = ""         # never dropped
+
+# Roles absent from this table are deliberately plain.
+[emphasis.roles]
+code_keyword    = { full = "bold", standard = "bold", minimal = "bold" }
+code_type       = { full = "bold", standard = "bold", minimal = "bold" }
+code_comment    = { full = "italic", standard = "italic", minimal = "dim" }
+code_decorator  = { full = "italic", standard = "italic", minimal = "dim" }
+code_invalid    = { full = "bold underline", standard = "bold", minimal = "bold" }
+code_deprecated = { full = "strikethrough dim", standard = "dim", minimal = "dim" }
+diff_emphasis   = { full = "bold", standard = "bold", minimal = "bold" }
+diff_header     = { full = "bold", standard = "bold", minimal = "bold" }
+diff_hunk       = { full = "dim", standard = "dim", minimal = "dim" }
+status_error    = { full = "bold", standard = "bold", minimal = "bold" }
+status_warning  = { full = "bold", standard = "bold", minimal = "bold" }
+status_disabled = { full = "dim", standard = "dim", minimal = "dim" }
+active_foreground        = { full = "bold", standard = "bold", minimal = "bold" }
+pane_active_foreground   = { full = "bold", standard = "bold", minimal = "bold" }
+inactive_foreground      = { full = "dim", standard = "dim", minimal = "dim" }
+pane_inactive_foreground = { full = "dim", standard = "dim", minimal = "dim" }
+search_current  = { full = "bold underline", standard = "bold", minimal = "bold" }
+git_modified    = { full = "bold", standard = "bold", minimal = "bold" }
+git_staged      = { full = "bold", standard = "bold", minimal = "bold" }
+git_untracked   = { full = "italic", standard = "italic", minimal = "" }
+git_ignored     = { full = "dim", standard = "dim", minimal = "dim" }
+git_conflicted  = { full = "bold underline", standard = "bold", minimal = "bold" }
+
+[emphasis.tools]
+vim       = { supports = ["bold","italic","underline","undercurl","strikethrough","reverse"] }
+tmux      = { supports = ["bold","dim","italics","underscore","reverse"], requires = "terminal-overrides sitm/ritm" }
+yazi      = { supports = ["bold","dim","italic","underline","crossed","reverse"] }
+eza       = { supports = ["bold","dim","italic","underline","strikethrough"] }
+starship  = { supports = ["bold","italic","underline","dimmed","strikethrough","inverted"] }
+delta     = { supports = ["bold","italic","underline"], note = "decorations only; syntax comes from the bat theme" }
+bat       = { supports = ["bold","italic","underline"], requires = "generated .tmTheme" }
+fzf       = { supports = ["bold","italic","underline","dim","reverse","strikethrough"], requires = "fzf >= 0.35 for italic/strikethrough" }
+less      = { supports = ["bold","underline","standout"], note = "no italic — degrades to dim/standout" }
+lnav      = { supports = ["bold","underline"] }
+lazygit   = { supports = ["bold","underline","reverse"] }
+claude_code = { supports = [] }
+gemini    = { supports = [] }
+opencode  = { supports = [] }
+aider     = { supports = [], note = "inherited from the Pygments theme" }
+
+# projectious — the brand's own weight/style map, shared by all five variants.
+[emphasis.projectious]
+shared_across_variants = true
+keyword    = { brand = "700", attr = "bold" }
+type       = { brand = "600", attr = "bold" }
+invalid    = { brand = "600", attr = "bold", full = "bold underline" }
+function   = { brand = "500", attr = "", note = "no terminal equivalent for weight 500 — stays plain" }
+comment    = { brand = "400 italic", attr = "italic", minimal = "dim" }
+decorator  = { brand = "400 italic", attr = "italic", minimal = "dim" }
+other      = { brand = "400", attr = "" }
+
+# ── New families: grayscale and high contrast ─────────────────────────────
+# Authored for this audit. Floors verified by the same engine as the other 61.
+# Role separation is a PAIR: lightness step + attribute. Two roles may share a
+# step only when their attributes differ.
+
+[themes.MonoDark]
+family = "mono"
+mode = "dark"
+variant = "solo"
+contrast_floor = 4.5
+emphasis_min = "standard"
+note = "A working grayscale theme, not an accessibility mode. Six roles sit on four lightness steps; the attribute disambiguates same-step pairs (orange plain vs red bold-underline, green plain vs cyan italic)."
+bg = "#121212"
+fg = "#EDEDED"  # 16:1
+accent = "#FFFFFF"  # bold · 18.73:1
+green = "#BDBDBD"  # 9.97:1
+red = "#EDEDED"  # bold underline · 16:1
+yellow = "#D6D6D6"  # bold · 12.89:1
+orange = "#D6D6D6"  # 12.89:1
+cyan = "#BDBDBD"  # italic · 9.97:1
+muted = "#8A8A8A"  # italic · 5.43:1
+magenta = "#A3A3A3"  # bold · 7.43:1
+
+[themes.MonoDark.attributes]
+accent = "bold"
+red = "bold underline"
+yellow = "bold"
+cyan = "italic"
+muted = "italic"
+magenta = "bold"
+
+[themes.MonoDark.chrome]
+surface = "#262626"
+selection_bg = "#3D3D3D"
+selection_fg = "#FFFFFF"
+cursor = "#FFFFFF"
+cursor_text = "#121212"
+border_active = "#FFFFFF"
+border_inactive = "#757575"
+diff_add_bg = "#1E1E1E"
+diff_del_bg = "#2B2B2B"
+diff_change_bg = "#242424"
+surface_step_ratio = 1.24
+selection_ink_ratio = 10.86
+
+[themes.MonoLight]
+family = "mono"
+mode = "light"
+variant = "solo"
+contrast_floor = 4.5
+emphasis_min = "standard"
+note = "The dark ladder inverted: darkest step plus bold is the accent, and the page stays off-white so a white surface can still lift off it."
+bg = "#FAFAFA"
+fg = "#1A1A1A"  # 16.67:1
+accent = "#000000"  # bold · 20.12:1
+green = "#545454"  # 7.26:1
+red = "#1A1A1A"  # bold underline · 16.67:1
+yellow = "#383838"  # bold · 11.23:1
+orange = "#383838"  # 11.23:1
+cyan = "#545454"  # italic · 7.26:1
+muted = "#6B6B6B"  # italic · 5.11:1
+magenta = "#454545"  # bold · 9.19:1
+
+[themes.MonoLight.attributes]
+accent = "bold"
+red = "bold underline"
+yellow = "bold"
+cyan = "italic"
+muted = "italic"
+magenta = "bold"
+
+[themes.MonoLight.chrome]
+surface = "#E4E4E4"
+selection_bg = "#D5D5D5" # corrected to meet the light inline-selection surface floor
+selection_fg = "#000000"
+cursor = "#000000"
+cursor_text = "#FAFAFA"
+border_active = "#000000"
+border_inactive = "#8A8A8A"
+diff_add_bg = "#EFEFEF"
+diff_del_bg = "#E2E2E2"
+diff_change_bg = "#E9E9E9"
+surface_step_ratio = 1.22
+selection_ink_ratio = 15.61
+
+[themes.ContrastDark]
+family = "contrast"
+mode = "dark"
+variant = "high"
+contrast_floor = 7
+emphasis_min = "standard"
+note = "AAA for every text role, hues kept far apart in hue angle rather than merely light. Yellow and orange are the closest pair, so orange stays plain and yellow takes bold."
+bg = "#0B0B0B"
+fg = "#F5F5F5"  # 18.05:1
+accent = "#7FB8FF"  # bold · 9.56:1
+green = "#5FD98A"  # 11.04:1
+red = "#FF8A80"  # bold · 8.62:1
+yellow = "#F2D65C"  # bold · 13.64:1
+orange = "#FFAB5E"  # 10.53:1
+cyan = "#6FE0E0"  # italic · 12.57:1
+muted = "#B0B8C0"  # italic · 9.81:1
+magenta = "#F09AE0"  # bold · 9.75:1
+
+[themes.ContrastDark.attributes]
+accent = "bold"
+red = "bold"
+yellow = "bold"
+cyan = "italic"
+muted = "italic"
+magenta = "bold"
+
+[themes.ContrastDark.chrome]
+surface = "#242424"
+selection_bg = "#2E3A46"
+selection_fg = "#FFFFFF"
+cursor = "#7FB8FF"
+cursor_text = "#0B0B0B"
+border_active = "#7FB8FF"
+border_inactive = "#B0B8C0"
+diff_add_bg = "#0F2416"
+diff_del_bg = "#2A1210"
+diff_change_bg = "#241E0C"
+surface_step_ratio = 1.27
+selection_ink_ratio = 11.6
+
+[themes.ContrastDarkMax]
+family = "contrast"
+mode = "dark"
+variant = "max"
+contrast_floor = 12
+emphasis_min = "full"
+emphasis_none_allowed = false  # would collapse 0 shared steps into indistinguishable roles
+note = "Pure black page, every text role at 12:1 or better. Hues survive because they are pushed toward their light end rather than desaturated; underline returns as a third channel for error and current match."
+bg = "#000000"
+fg = "#FFFFFF"  # 21:1
+accent = "#A8D4FF"  # bold · 13.53:1
+green = "#7CF0A8"  # 14.89:1
+red = "#FFB3AC"  # bold underline · 12.3:1
+yellow = "#FFE066"  # bold · 16.11:1
+orange = "#FFC98A"  # 13.97:1
+cyan = "#8FF5F5"  # italic · 16.55:1
+muted = "#D0D0D0"  # italic · 13.62:1
+magenta = "#FFB3F0"  # bold · 12.96:1
+
+[themes.ContrastDarkMax.attributes]
+accent = "bold"
+red = "bold underline"
+yellow = "bold"
+cyan = "italic"
+muted = "italic"
+magenta = "bold"
+
+[themes.ContrastDarkMax.chrome]
+surface = "#1A1A1A"
+selection_bg = "#33404D"
+selection_fg = "#FFFFFF"
+cursor = "#A8D4FF"
+cursor_text = "#000000"
+border_active = "#A8D4FF"
+border_inactive = "#D0D0D0"
+diff_add_bg = "#0A2614"
+diff_del_bg = "#2B0F0C"
+diff_change_bg = "#26200A"
+surface_step_ratio = 1.21
+selection_ink_ratio = 10.6
+
+[themes.ContrastLight]
+family = "contrast"
+mode = "light"
+variant = "high"
+contrast_floor = 7
+emphasis_min = "standard"
+note = "White page — the one place white is correct, because any tint spends contrast the dark text needs. Hues are the dark end of each ramp, all AAA."
+bg = "#FFFFFF"
+fg = "#121212"  # 18.73:1
+accent = "#0B4FA8"  # bold · 7.78:1
+green = "#14663D"  # 7.01:1
+red = "#A3121A"  # bold · 7.9:1
+yellow = "#6B4C00"  # bold · 7.9:1
+orange = "#8A3200"  # 8.28:1
+cyan = "#0B5C5C"  # italic · 7.78:1
+muted = "#4A4A4A"  # italic · 8.86:1
+magenta = "#7A0F6B"  # bold · 9.96:1
+
+[themes.ContrastLight.attributes]
+accent = "bold"
+red = "bold"
+yellow = "bold"
+cyan = "italic"
+muted = "italic"
+magenta = "bold"
+
+[themes.ContrastLight.chrome]
+surface = "#E6E6E6"
+selection_bg = "#C8DBF2" # corrected to meet the light inline-selection surface floor
+selection_fg = "#0B1A2B"
+cursor = "#0B4FA8"
+cursor_text = "#FFFFFF"
+border_active = "#0B4FA8"
+border_inactive = "#4A4A4A"
+diff_add_bg = "#E4F2E8"
+diff_del_bg = "#F7E4E4"
+diff_change_bg = "#F5EEDC"
+surface_step_ratio = 1.25
+selection_ink_ratio = 13.06
+
+[themes.ContrastLightMax]
+family = "contrast"
+mode = "light"
+variant = "max"
+contrast_floor = 12
+emphasis_min = "full"
+emphasis_none_allowed = false  # would collapse 0 shared steps into indistinguishable roles
+note = "Black text on white, hues at 12:1 or better. At this level hue is nearly exhausted as a channel — the darkest blue and the darkest cyan differ by little — so attributes are mandatory, not optional."
+bg = "#FFFFFF"
+fg = "#000000"  # 21:1
+accent = "#002B6B"  # bold · 13.48:1
+green = "#003D22"  # 12.42:1
+red = "#6B0008"  # bold underline · 12.89:1
+yellow = "#3D2A00"  # bold · 13.73:1
+orange = "#4F1A00"  # 14.19:1
+cyan = "#00363A"  # italic · 13.22:1
+muted = "#262626"  # italic · 15.13:1
+magenta = "#4A0040"  # bold · 15.38:1
+
+[themes.ContrastLightMax.attributes]
+accent = "bold"
+red = "bold underline"
+yellow = "bold"
+cyan = "italic"
+muted = "italic"
+magenta = "bold"
+
+[themes.ContrastLightMax.chrome]
+surface = "#E0E0E0"
+selection_bg = "#C2D4EB"
+selection_fg = "#000000"
+cursor = "#002B6B"
+cursor_text = "#FFFFFF"
+border_active = "#002B6B"
+border_inactive = "#262626"
+diff_add_bg = "#DCEBE2"
+diff_del_bg = "#F2DCDC"
+diff_change_bg = "#EDE6D2"
+surface_step_ratio = 1.32
+selection_ink_ratio = 13.91
+
+[themes.ContrastMonoDark]
+family = "contrast-mono"
+mode = "dark"
+variant = "high"
+contrast_floor = 7
+emphasis_min = "standard"
+note = "Grayscale at AAA. Five usable steps remain above 7:1, so two roles share a step wherever their attributes differ."
+bg = "#000000"
+fg = "#F0F0F0"  # 18.43:1
+accent = "#FFFFFF"  # bold · 21:1
+green = "#A6A6A6"  # 8.63:1
+red = "#F0F0F0"  # bold underline · 18.43:1
+yellow = "#D4D4D4"  # bold · 14.17:1
+orange = "#D4D4D4"  # 14.17:1
+cyan = "#A6A6A6"  # italic · 8.63:1
+muted = "#959595"  # italic · 7.01:1
+magenta = "#BFBFBF"  # bold · 11.42:1
+
+[themes.ContrastMonoDark.attributes]
+accent = "bold"
+red = "bold underline"
+yellow = "bold"
+cyan = "italic"
+muted = "italic"
+magenta = "bold"
+
+[themes.ContrastMonoDark.chrome]
+surface = "#1F1F1F"
+selection_bg = "#383838"
+selection_fg = "#FFFFFF"
+cursor = "#FFFFFF"
+cursor_text = "#000000"
+border_active = "#FFFFFF"
+border_inactive = "#8C8C8C"
+diff_add_bg = "#171717"
+diff_del_bg = "#242424"
+diff_change_bg = "#1D1D1D"
+surface_step_ratio = 1.27
+selection_ink_ratio = 11.73
+
+[themes.ContrastMonoDarkMax]
+family = "contrast-mono"
+mode = "dark"
+variant = "max"
+contrast_floor = 12
+emphasis_min = "full"
+emphasis_none_allowed = false  # would collapse 3 shared steps into indistinguishable roles
+note = "The honest hard case: above 12:1 on black the ramp holds three steps. Nine roles onto three steps means typography is the primary channel and lightness the secondary one — the inverse of every other theme here. This variant must refuse emphasis = none."
+bg = "#000000"
+fg = "#E6E6E6"  # 16.83:1
+accent = "#FFFFFF"  # bold · 21:1
+green = "#CCCCCC"  # 13.08:1
+red = "#FFFFFF"  # bold underline · 21:1
+yellow = "#E6E6E6"  # bold · 16.83:1
+orange = "#CCCCCC"  # bold · 13.08:1
+cyan = "#E6E6E6"  # italic · 16.83:1
+muted = "#CCCCCC"  # italic · 13.08:1
+magenta = "#FFFFFF"  # italic · 21:1
+
+[themes.ContrastMonoDarkMax.attributes]
+accent = "bold"
+red = "bold underline"
+yellow = "bold"
+orange = "bold"
+cyan = "italic"
+muted = "italic"
+magenta = "italic"
+
+[themes.ContrastMonoDarkMax.chrome]
+surface = "#1A1A1A"
+selection_bg = "#353535" # corrected to meet the dark inline-selection surface floor
+selection_fg = "#FFFFFF"
+cursor = "#FFFFFF"
+cursor_text = "#000000"
+border_active = "#FFFFFF"
+border_inactive = "#CCCCCC"
+diff_add_bg = "#141414"
+diff_del_bg = "#222222"
+diff_change_bg = "#1B1B1B"
+surface_step_ratio = 1.21
+selection_ink_ratio = 12.63
+
+[themes.ContrastMonoLight]
+family = "contrast-mono"
+mode = "light"
+variant = "high"
+contrast_floor = 7
+emphasis_min = "standard"
+note = "Grayscale at AAA on white. The same ladder as the dark variant, inverted."
+bg = "#FFFFFF"
+fg = "#141414"  # 18.42:1
+accent = "#000000"  # bold · 21:1
+green = "#4F4F4F"  # 8.19:1
+red = "#141414"  # bold underline · 18.42:1
+yellow = "#333333"  # bold · 12.63:1
+orange = "#333333"  # 12.63:1
+cyan = "#4F4F4F"  # italic · 8.19:1
+muted = "#595959"  # italic · 7:1
+magenta = "#404040"  # bold · 10.37:1
+
+[themes.ContrastMonoLight.attributes]
+accent = "bold"
+red = "bold underline"
+yellow = "bold"
+cyan = "italic"
+muted = "italic"
+magenta = "bold"
+
+[themes.ContrastMonoLight.chrome]
+surface = "#E6E6E6"
+selection_bg = "#D6D6D6"
+selection_fg = "#000000"
+cursor = "#000000"
+cursor_text = "#FFFFFF"
+border_active = "#000000"
+border_inactive = "#616161"
+diff_add_bg = "#EDEDED"
+diff_del_bg = "#E0E0E0"
+diff_change_bg = "#E8E8E8"
+surface_step_ratio = 1.25
+selection_ink_ratio = 14.45
+
+[themes.ContrastMonoLightMax]
+family = "contrast-mono"
+mode = "light"
+variant = "max"
+contrast_floor = 12
+emphasis_min = "full"
+emphasis_none_allowed = false  # would collapse 3 shared steps into indistinguishable roles
+note = "Three steps again, at the dark end. Print-safe by construction: it survives a photocopier, a projector and greyscale printing unchanged."
+bg = "#FFFFFF"
+fg = "#1A1A1A"  # 17.4:1
+accent = "#000000"  # bold · 21:1
+green = "#333333"  # 12.63:1
+red = "#000000"  # bold underline · 21:1
+yellow = "#1A1A1A"  # bold · 17.4:1
+orange = "#333333"  # bold · 12.63:1
+cyan = "#1A1A1A"  # italic · 17.4:1
+muted = "#333333"  # italic · 12.63:1
+magenta = "#000000"  # italic · 21:1
+
+[themes.ContrastMonoLightMax.attributes]
+accent = "bold"
+red = "bold underline"
+yellow = "bold"
+orange = "bold"
+cyan = "italic"
+muted = "italic"
+magenta = "italic"
+
+[themes.ContrastMonoLightMax.chrome]
+surface = "#E0E0E0"
+selection_bg = "#CCCCCC"
+selection_fg = "#000000"
+cursor = "#000000"
+cursor_text = "#FFFFFF"
+border_active = "#000000"
+border_inactive = "#333333"
+diff_add_bg = "#EAEAEA"
+diff_del_bg = "#DEDEDE"
+diff_change_bg = "#E5E5E5"
+surface_step_ratio = 1.32
+selection_ink_ratio = 13.08
+
+
+[selection_floor]
+dark = 1.8    # a selection is a short inline run inside a page of the same colour
+light = 1.4
+note = "1.20 is a status-bar floor — enough for a large filled region, not for inline selection."

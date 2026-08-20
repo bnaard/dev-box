@@ -12,6 +12,7 @@ below shows the minimum compatible processkit version for each aibox release.
 
 | aibox version | Min. processkit | Notes |
 |--------------|-----------------|-------|
+| 0.34.1 | v0.28.8 | expands theme palettes across the managed terminal toolchain, adds exact Codex syntax themes, restores the visual theme gallery, and clears Codex question state after permission answers |
 | 0.34.0 | v0.28.8 | adds configurable agent-aware tmux headers and replaces the legacy documentation stack with the projectious.work Hugo brand theme |
 | 0.33.2 | v0.28.8 | updates the default processkit release to v0.28.8, refreshes generated runtime metadata for Codex 0.148.0, and reconciles the completed live tmux layout and theme switching work |
 | 0.33.1 | v0.28.6 | restores generated AI harness startup under nounset, keeps Yazi directory previews compatible across supported image pins, and aligns PowerKit plugin spacing with window tabs |

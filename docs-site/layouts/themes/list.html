@@ -1,5 +1,5 @@
 {{ define "main" }}
-{{- $catalog := transform.Unmarshal (os.ReadFile "static/asciinema/themes/index.json") -}}
+{{- $catalog := transform.Unmarshal (os.ReadFile "static/img/themes/variants/manifest.json") -}}
 <div class="shell">
   <main id="main">
     <div class="hero">
@@ -8,27 +8,12 @@
       {{ with .Description }}<p>{{ . }}</p>{{ end }}
     </div>
     {{ with .Content }}<div class="prose">{{ . }}</div>{{ end }}
-    <link rel="stylesheet" href="{{ partial "cdn-url.html" (dict "pkg" "asciinema" "file" "css") }}"{{ if not site.Params.selfHostAssets }} crossorigin="anonymous"{{ end }}>
-    <script src="{{ partial "cdn-url.html" (dict "pkg" "asciinema" "file" "js") }}"{{ if not site.Params.selfHostAssets }} crossorigin="anonymous"{{ end }}></script>
-    {{ partial "script.html" (dict "src" "asciinema.js" "defer" true) }}
     <div class="cards">
-      {{ range $catalog.themes }}
+      {{ range $catalog }}
       <article class="card">
         <div class="card__eyebrow">{{ delimit (slice .family .mode .variant) " · " }}</div>
         <h2 class="card__title">{{ .slug }}</h2>
-        {{ if .cast }}
-        {{- $options := dict
-          "src" (printf "asciinema/themes/%s.cast" .slug | relURL)
-          "cols" 160 "rows" 45 "idleTimeLimit" 2 "speed" 1
-          "autoPlay" false "loop" false "poster" "npt:0:05"
-          "title" .slug
-          "terminalFontFamily" "'IBM Plex Mono', ui-monospace, monospace" -}}
-        <div class="cast" data-cast aria-label="{{ .slug }} terminal recording">
-          <script type="application/json" data-cast-options>{{ $options | jsonify | safeJS }}</script>
-        </div>
-        {{ else }}
-        <p>Recording not available yet.</p>
-        {{ end }}
+        <img src="{{ .image | relURL }}" alt="{{ .id }} terminal theme example" loading="lazy" width="840" height="162">
       </article>
       {{ end }}
     </div>

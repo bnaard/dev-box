@@ -87,7 +87,7 @@ AIBOX_TMUX_THEME_SWITCH_BINDING
 set -g status AIBOX_TMUX_STATUS
 AIBOX_TMUX_TITLE_BLOCK
 set -g status-style "bg=AIBOX_TMUX_BG,fg=AIBOX_TMUX_FG"
-set -g window-status-current-style "bg=AIBOX_TMUX_ACCENT,fg=AIBOX_TMUX_BG,bold"
+set -g window-status-current-style "bg=AIBOX_TMUX_ACCENT,fg=AIBOX_TMUX_BGAIBOX_TMUX_ACTIVE_ATTR"
 set -g window-status-format " #I:#W "
 set -g window-status-current-format " #I:#W "
 # Inactive panes are dimmed a touch (bg+fg both biased ~12% toward
@@ -174,6 +174,18 @@ pub fn tmux_conf(config: &AiboxConfig) -> String {
         )
         .replace("AIBOX_TMUX_DIM_BG", &dim_bg)
         .replace("AIBOX_TMUX_DIM_FG", &dim_fg)
+        .replace("AIBOX_TMUX_ACTIVE_ATTR", &{
+            let attr = crate::themes::tmux_role_attributes(
+                config.customization.emphasis,
+                "active_foreground",
+                Some(&config.customization.emphasis_overrides),
+            );
+            if attr.is_empty() {
+                attr
+            } else {
+                format!(",{attr}")
+            }
+        })
         .replace("AIBOX_TMUX_BG", bg)
         .replace("AIBOX_TMUX_FG", fg)
         .replace("AIBOX_TMUX_ACCENT", accent)
@@ -412,14 +424,15 @@ struct TmuxSurfaceColors {
 }
 
 fn tmux_surface_colors(theme: &crate::config::Theme) -> TmuxSurfaceColors {
-    let (bg, _fg, accent, muted, dim_fg, active_title_fg) =
+    let (bg, _fg, _accent, _muted, dim_fg, active_title_fg) =
         crate::themes::terminal_surface_colors(theme);
+    let (border_active, border_inactive) = crate::themes::terminal_border_colors(theme);
     TmuxSurfaceColors {
         bg: bg.to_string(),
         active_title_fg,
         dim_fg,
-        accent: accent.to_string(),
-        muted: muted.to_string(),
+        accent: border_active.to_string(),
+        muted: border_inactive.to_string(),
     }
 }
 
@@ -661,6 +674,8 @@ set -g @powerkit_plugin_netspeed_speed_width "7"{}{}{}{}{}"##,
         &line2_left,
         &line2_right,
         &surface,
+        config.customization.emphasis,
+        &config.customization.emphasis_overrides,
     );
     (powerkit_block, powerkit_plugin, powerkit_formats)
 }
@@ -701,6 +716,8 @@ pub fn tmux_powerkit_overrides(config: &AiboxConfig) -> String {
         &resolved_layout.line2_left,
         &resolved_layout.line2_right,
         &surface,
+        config.customization.emphasis,
+        &config.customization.emphasis_overrides,
     )
 }
 
@@ -1058,9 +1075,33 @@ fn tmux_powerkit_post_render_overrides(
     line2_left: &[String],
     line2_right: &[String],
     surface: &TmuxSurfaceColors,
+    emphasis: crate::config::ThemeEmphasis,
+    emphasis_overrides: &std::collections::BTreeMap<String, String>,
 ) -> String {
     let status_formats =
         tmux_powerkit_status_formats(line1_left, line1_right, line2_left, line2_right);
+    let active_attr = crate::themes::tmux_role_attributes(
+        emphasis,
+        "pane_active_foreground",
+        Some(emphasis_overrides),
+    );
+    let active_attr = if active_attr.is_empty() {
+        String::new()
+    } else {
+        format!("#[{active_attr}]")
+    };
+    let inactive_attr = crate::themes::tmux_role_attributes(
+        emphasis,
+        "pane_inactive_foreground",
+        Some(emphasis_overrides),
+    );
+    let inactive_attr = if inactive_attr.is_empty() {
+        String::new()
+    } else {
+        format!("#[{inactive_attr}]")
+    };
+    let active_style = format!("#[fg={}]{}", surface.active_title_fg, active_attr);
+    let inactive_style = format!("#[fg={}]{}", surface.dim_fg, inactive_attr);
     format!(
         r##"{}
 
@@ -1070,7 +1111,7 @@ fn tmux_powerkit_post_render_overrides(
 # render pass.
 set -g pane-border-style "fg={},bg={}"
 set -g pane-active-border-style "fg={},bg={}"
-set -g pane-border-format "#[bg={}]#{{?pane_active,#[fg={}]#[bold],#[fg={}]}} #{{?client_prefix,PREFIX,NORMAL}} #{{pane_title}} #{{pane_current_command}} #[bg={},fg={}] "
+set -g pane-border-format "#[bg={}]#{{?pane_active,{},{} }} #{{?client_prefix,PREFIX,NORMAL}} #{{pane_title}} #{{pane_current_command}} #[bg={},fg={}] "
 "##,
         status_formats,
         surface.muted,
@@ -1078,8 +1119,8 @@ set -g pane-border-format "#[bg={}]#{{?pane_active,#[fg={}]#[bold],#[fg={}]}} #{
         surface.accent,
         surface.bg,
         surface.bg,
-        surface.active_title_fg,
-        surface.dim_fg,
+        active_style,
+        inactive_style,
         surface.bg,
         surface.bg,
     )
@@ -1376,8 +1417,8 @@ mod tests {
                 && conf.contains(r#"@powerkit_status_interval "15""#)
                 && conf.contains(r#"@powerkit_transparent "false""#)
                 && conf.contains(r#"@powerkit_pane_border_status "top""#)
-                && conf.contains(r##"@powerkit_active_pane_border_color "#D79921""##)
-                && conf.contains(r##"@powerkit_inactive_pane_border_color "#928374""##)
+                && conf.contains(r##"@powerkit_active_pane_border_color "#FABD2F""##)
+                && conf.contains(r##"@powerkit_inactive_pane_border_color "#A89984""##)
                 && conf.contains(r##"@powerkit_pane_border_status_bg "#282828""##)
                 && conf.contains(r##"@powerkit_pane_border_format "#{?client_prefix,PREFIX,NORMAL} #{pane_title} #{pane_current_command}""##)
                 && conf.contains(r#"@powerkit_line1_right "aibox_log,aibox_oom,aibox_proc,aibox_ai,aibox_mcp,aibox_mig,weather,uptime,datetime""#)
@@ -1583,10 +1624,10 @@ mod tests {
             "line 1 must keep the compact window list on the left and PowerKit metrics on the right:\n{line1_format}"
         );
         assert!(
-            conf.contains("set -g pane-border-style \"fg=#928374,bg=#282828\"")
-                && conf.contains("set -g popup-style \"bg=#282828,fg=#D5C4A1\"")
-                && conf.contains("#[fg=#D69F34]")
-                && conf.contains("#[fg=#B3A38A]"),
+            conf.contains("set -g pane-border-style \"fg=#A89984,bg=#282828\"")
+                && conf.contains("set -g popup-style \"bg=#282828,fg=#EBDBB2\"")
+                && conf.contains("#[fg=#FABD2F]")
+                && conf.contains("#[fg=#DACBA7]"),
             "tmux surface styles should be generated from the resolved theme:\n{conf}"
         );
 

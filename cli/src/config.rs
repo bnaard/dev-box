@@ -1273,11 +1273,26 @@ pub enum Theme {
     VitesseBlack,
     VsCodeDarkPlus,
     VsCodeLightPlus,
+    ProjectiousNavy,
+    ProjectiousDeep,
+    ProjectiousLight,
+    ProjectiousHCDark,
+    ProjectiousHCLight,
+    MonoDark,
+    MonoLight,
+    ContrastDark,
+    ContrastDarkMax,
+    ContrastLight,
+    ContrastLightMax,
+    ContrastMonoDark,
+    ContrastMonoDarkMax,
+    ContrastMonoLight,
+    ContrastMonoLightMax,
 }
 
 /// User-facing theme family selector. Pairs with `ThemeMode` (and optional
-/// `variant`) to resolve to a concrete `Theme`. Solo families (dracula, moonlight,
-/// nord, projectious) have no light/dark partner and ignore mode.
+/// `variant`) to resolve to a concrete `Theme`. Families without a light/dark
+/// partner reject an incompatible explicit mode during config validation.
 #[derive(Debug, Clone, Default, Serialize, Deserialize, PartialEq, clap::ValueEnum)]
 #[serde(rename_all = "kebab-case")]
 #[clap(rename_all = "kebab-case")]
@@ -1297,6 +1312,7 @@ pub enum ThemeFamily {
     Material,
     Min,
     Monokai,
+    Mono,
     Moonlight,
     NightOwl,
     Nord,
@@ -1304,6 +1320,8 @@ pub enum ThemeFamily {
     Plastic,
     Poimandres,
     Projectious,
+    Contrast,
+    ContrastMono,
     Red,
     RosePine,
     Slack,
@@ -1335,6 +1353,7 @@ impl std::fmt::Display for ThemeFamily {
             ThemeFamily::Material => write!(f, "material"),
             ThemeFamily::Min => write!(f, "min"),
             ThemeFamily::Monokai => write!(f, "monokai"),
+            ThemeFamily::Mono => write!(f, "mono"),
             ThemeFamily::Moonlight => write!(f, "moonlight"),
             ThemeFamily::NightOwl => write!(f, "night-owl"),
             ThemeFamily::Nord => write!(f, "nord"),
@@ -1342,6 +1361,8 @@ impl std::fmt::Display for ThemeFamily {
             ThemeFamily::Plastic => write!(f, "plastic"),
             ThemeFamily::Poimandres => write!(f, "poimandres"),
             ThemeFamily::Projectious => write!(f, "projectious"),
+            ThemeFamily::Contrast => write!(f, "contrast"),
+            ThemeFamily::ContrastMono => write!(f, "contrast-mono"),
             ThemeFamily::Red => write!(f, "red"),
             ThemeFamily::RosePine => write!(f, "rose-pine"),
             ThemeFamily::Slack => write!(f, "slack"),
@@ -1379,7 +1400,21 @@ pub fn family_of(theme: &Theme) -> ThemeFamily {
         Theme::Moonlight => ThemeFamily::Moonlight,
         Theme::NightOwl | Theme::NightOwlLight => ThemeFamily::NightOwl,
         Theme::Nord => ThemeFamily::Nord,
-        Theme::Projectious => ThemeFamily::Projectious,
+        Theme::Projectious
+        | Theme::ProjectiousNavy
+        | Theme::ProjectiousDeep
+        | Theme::ProjectiousLight
+        | Theme::ProjectiousHCDark
+        | Theme::ProjectiousHCLight => ThemeFamily::Projectious,
+        Theme::MonoDark | Theme::MonoLight => ThemeFamily::Mono,
+        Theme::ContrastDark
+        | Theme::ContrastDarkMax
+        | Theme::ContrastLight
+        | Theme::ContrastLightMax => ThemeFamily::Contrast,
+        Theme::ContrastMonoDark
+        | Theme::ContrastMonoDarkMax
+        | Theme::ContrastMonoLight
+        | Theme::ContrastMonoLightMax => ThemeFamily::ContrastMono,
         Theme::RosePine | Theme::RosePineMoon | Theme::RosePineDawn => ThemeFamily::RosePine,
         Theme::SolarizedDark | Theme::SolarizedLight => ThemeFamily::Solarized,
         Theme::TokyoNight | Theme::TokyoNightStorm | Theme::TokyoNightDay => {
@@ -1427,6 +1462,13 @@ pub fn variant_name_of(theme: &Theme) -> Option<&'static str> {
         Theme::SlackOchin => Some("ochin"),
         Theme::TokyoNightStorm => Some("storm"),
         Theme::VitesseBlack => Some("black"),
+        Theme::ProjectiousDeep => Some("deep"),
+        Theme::ProjectiousHCDark => Some("high-contrast-dark"),
+        Theme::ProjectiousHCLight => Some("high-contrast-light"),
+        Theme::ContrastDarkMax
+        | Theme::ContrastLightMax
+        | Theme::ContrastMonoDarkMax
+        | Theme::ContrastMonoLightMax => Some("max"),
         _ => None,
     }
 }
@@ -1440,7 +1482,8 @@ pub(crate) fn resolve_theme_from_family(
     mode: ThemeMode,
     variant: Option<&str>,
 ) -> Theme {
-    // Solo families ignore both mode and variant.
+    // Mode and variant compatibility is checked by `AiboxConfig::validate`.
+    // These direct returns keep resolution total for programmatic callers.
     match family {
         ThemeFamily::Andromeeda => return Theme::Andromeeda,
         ThemeFamily::AuroraX => return Theme::AuroraX,
@@ -1451,7 +1494,6 @@ pub(crate) fn resolve_theme_from_family(
         ThemeFamily::Nord => return Theme::Nord,
         ThemeFamily::Plastic => return Theme::Plastic,
         ThemeFamily::Poimandres => return Theme::Poimandres,
-        ThemeFamily::Projectious => return Theme::Projectious,
         ThemeFamily::Red => return Theme::Red,
         ThemeFamily::Snazzy => return Theme::SnazzyLight,
         ThemeFamily::Synthwave84 => return Theme::Synthwave84,
@@ -1473,6 +1515,19 @@ pub(crate) fn resolve_theme_from_family(
             ThemeFamily::Kanagawa => Theme::KanagawaLotus,
             ThemeFamily::Material => Theme::MaterialLighter,
             ThemeFamily::Min => Theme::MinLight,
+            ThemeFamily::Mono => Theme::MonoLight,
+            ThemeFamily::Contrast => match variant {
+                Some("max") => Theme::ContrastLightMax,
+                _ => Theme::ContrastLight,
+            },
+            ThemeFamily::ContrastMono => match variant {
+                Some("max") => Theme::ContrastMonoLightMax,
+                _ => Theme::ContrastMonoLight,
+            },
+            ThemeFamily::Projectious => match variant {
+                Some("high-contrast-light") => Theme::ProjectiousHCLight,
+                _ => Theme::ProjectiousLight,
+            },
             ThemeFamily::NightOwl => Theme::NightOwlLight,
             ThemeFamily::OneDark => Theme::OneLight,
             ThemeFamily::RosePine => Theme::RosePineDawn,
@@ -1491,7 +1546,6 @@ pub(crate) fn resolve_theme_from_family(
             | ThemeFamily::Nord
             | ThemeFamily::Plastic
             | ThemeFamily::Poimandres
-            | ThemeFamily::Projectious
             | ThemeFamily::Red
             | ThemeFamily::Snazzy
             | ThemeFamily::Synthwave84
@@ -1531,6 +1585,20 @@ pub(crate) fn resolve_theme_from_family(
                 _ => Theme::Material,
             },
             ThemeFamily::Min => Theme::MinDark,
+            ThemeFamily::Mono => Theme::MonoDark,
+            ThemeFamily::Contrast => match variant {
+                Some("max") => Theme::ContrastDarkMax,
+                _ => Theme::ContrastDark,
+            },
+            ThemeFamily::ContrastMono => match variant {
+                Some("max") => Theme::ContrastMonoDarkMax,
+                _ => Theme::ContrastMonoDark,
+            },
+            ThemeFamily::Projectious => match variant {
+                Some("deep") => Theme::ProjectiousDeep,
+                Some("high-contrast-dark") => Theme::ProjectiousHCDark,
+                _ => Theme::ProjectiousNavy,
+            },
             ThemeFamily::NightOwl => Theme::NightOwl,
             ThemeFamily::OneDark => Theme::OneDarkPro,
             ThemeFamily::RosePine => match variant {
@@ -1558,7 +1626,6 @@ pub(crate) fn resolve_theme_from_family(
             | ThemeFamily::Nord
             | ThemeFamily::Plastic
             | ThemeFamily::Poimandres
-            | ThemeFamily::Projectious
             | ThemeFamily::Red
             | ThemeFamily::Snazzy
             | ThemeFamily::Synthwave84
@@ -1584,6 +1651,40 @@ pub enum ThemeMode {
     /// Prefer a dark concrete palette. Keeps dark themes unchanged and maps
     /// known light variants to their dark counterpart.
     Dark,
+}
+
+/// Font-decoration policy used as a second semantic channel alongside color.
+#[derive(Debug, Clone, Copy, Default, Serialize, Deserialize, PartialEq, clap::ValueEnum)]
+#[serde(rename_all = "kebab-case")]
+#[clap(rename_all = "kebab-case")]
+pub enum ThemeEmphasis {
+    /// Detect terminal capabilities; defaults to standard when detection is inconclusive.
+    #[default]
+    Auto,
+    /// Bold, italic, dim, underline, and strikethrough where supported.
+    Full,
+    /// Bold, italic, and dim.
+    Standard,
+    /// Bold and dim; suitable for fonts without a true italic face.
+    Minimal,
+    /// Color only.
+    None,
+}
+
+impl std::fmt::Display for ThemeEmphasis {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(
+            f,
+            "{}",
+            match self {
+                Self::Auto => "auto",
+                Self::Full => "full",
+                Self::Standard => "standard",
+                Self::Minimal => "minimal",
+                Self::None => "none",
+            }
+        )
+    }
 }
 
 impl std::fmt::Display for ThemeMode {
@@ -1811,6 +1912,21 @@ impl std::fmt::Display for Theme {
             Theme::VitesseBlack => write!(f, "vitesse-black"),
             Theme::VsCodeDarkPlus => write!(f, "vscode-dark-plus"),
             Theme::VsCodeLightPlus => write!(f, "vscode-light-plus"),
+            Theme::ProjectiousNavy => write!(f, "projectious-navy"),
+            Theme::ProjectiousDeep => write!(f, "projectious-deep"),
+            Theme::ProjectiousLight => write!(f, "projectious-light"),
+            Theme::ProjectiousHCDark => write!(f, "projectious-hc-dark"),
+            Theme::ProjectiousHCLight => write!(f, "projectious-hc-light"),
+            Theme::MonoDark => write!(f, "mono-dark"),
+            Theme::MonoLight => write!(f, "mono-light"),
+            Theme::ContrastDark => write!(f, "contrast-dark"),
+            Theme::ContrastDarkMax => write!(f, "contrast-dark-max"),
+            Theme::ContrastLight => write!(f, "contrast-light"),
+            Theme::ContrastLightMax => write!(f, "contrast-light-max"),
+            Theme::ContrastMonoDark => write!(f, "contrast-mono-dark"),
+            Theme::ContrastMonoDarkMax => write!(f, "contrast-mono-dark-max"),
+            Theme::ContrastMonoLight => write!(f, "contrast-mono-light"),
+            Theme::ContrastMonoLightMax => write!(f, "contrast-mono-light-max"),
         }
     }
 }
@@ -2984,6 +3100,11 @@ pub struct CustomizationSection {
     /// Optional alternate variant override (per-family). Validated at resolve
     /// time; unknown values fall through to the family default.
     pub variant: Option<String>,
+    pub emphasis: ThemeEmphasis,
+    /// Optional semantic-role decoration overrides. Keys use the generated
+    /// role spelling (`code_comment`, `status_error`, ...); values are a
+    /// whitespace-separated attribute list.
+    pub emphasis_overrides: std::collections::BTreeMap<String, String>,
     pub prompt: StarshipPreset,
     pub layout: ConfigLayout,
     pub tmux: TmuxSection,
@@ -2999,13 +3120,15 @@ impl Serialize for CustomizationSection {
     fn serialize<S: serde::Serializer>(&self, serializer: S) -> Result<S::Ok, S::Error> {
         use serde::ser::SerializeStruct;
         // Always serialize as the family form; legacy_theme is deliberately omitted.
-        let field_count = 5 + self.variant.is_some() as usize;
+        let field_count = 7 + self.variant.is_some() as usize;
         let mut s = serializer.serialize_struct("CustomizationSection", field_count)?;
         s.serialize_field("theme", &self.theme)?;
         s.serialize_field("mode", &self.mode)?;
         if let Some(ref v) = self.variant {
             s.serialize_field("variant", v)?;
         }
+        s.serialize_field("emphasis", &self.emphasis)?;
+        s.serialize_field("emphasis_overrides", &self.emphasis_overrides)?;
         s.serialize_field("prompt", &self.prompt)?;
         s.serialize_field("layout", &self.layout)?;
         s.serialize_field("tmux", &self.tmux)?;
@@ -3032,6 +3155,9 @@ impl<'de> serde::Deserialize<'de> for CustomizationSection {
                 let mut raw_theme: Option<String> = None;
                 let mut mode: Option<ThemeMode> = None;
                 let mut variant: Option<String> = None;
+                let mut emphasis: Option<ThemeEmphasis> = None;
+                let mut emphasis_overrides: Option<std::collections::BTreeMap<String, String>> =
+                    None;
                 let mut prompt: Option<StarshipPreset> = None;
                 let mut layout: Option<ConfigLayout> = None;
                 let mut tmux: Option<TmuxSection> = None;
@@ -3046,6 +3172,12 @@ impl<'de> serde::Deserialize<'de> for CustomizationSection {
                         }
                         "variant" => {
                             variant = Some(map.next_value()?);
+                        }
+                        "emphasis" => {
+                            emphasis = Some(map.next_value()?);
+                        }
+                        "emphasis_overrides" => {
+                            emphasis_overrides = Some(map.next_value()?);
                         }
                         "prompt" => {
                             prompt = Some(map.next_value()?);
@@ -3140,6 +3272,8 @@ impl<'de> serde::Deserialize<'de> for CustomizationSection {
                     // resolve to AyuDark via the auto fallback.
                     mode: derived_mode.unwrap_or_else(|| mode.unwrap_or_default()),
                     variant: derived_variant.or(variant),
+                    emphasis: emphasis.unwrap_or_default(),
+                    emphasis_overrides: emphasis_overrides.unwrap_or_default(),
                     prompt: prompt.unwrap_or_default(),
                     layout: layout.unwrap_or_else(default_layout),
                     tmux: tmux.unwrap_or_default(),
@@ -3183,12 +3317,173 @@ impl CustomizationSection {
     }
 }
 
+fn theme_selection_capabilities(
+    family: &ThemeFamily,
+) -> (
+    &'static [ThemeMode],
+    &'static [&'static str],
+    &'static [&'static str],
+) {
+    use ThemeFamily::*;
+    use ThemeMode::{Dark, Light};
+
+    const DARK: &[ThemeMode] = &[Dark];
+    const LIGHT: &[ThemeMode] = &[Light];
+    const BOTH: &[ThemeMode] = &[Dark, Light];
+    const NONE: &[&str] = &[];
+
+    match family {
+        Andromeeda | AuroraX | Houston | Laserwave | Monokai | Moonlight | Nord | Plastic
+        | Poimandres | Red | Synthwave84 | Vesper => (DARK, NONE, NONE),
+        Snazzy => (LIGHT, NONE, NONE),
+        Ayu => (BOTH, &["mirage"], NONE),
+        Catppuccin => (BOTH, &["macchiato", "frappe"], NONE),
+        Dracula => (DARK, &["soft"], NONE),
+        Everforest | Gruvbox | Min | Mono | NightOwl | OneDark | Solarized | VsCode => {
+            (BOTH, NONE, NONE)
+        }
+        Github => (
+            BOTH,
+            &["dimmed", "high-contrast-dark"],
+            &["high-contrast-light"],
+        ),
+        Kanagawa => (BOTH, &["dragon"], NONE),
+        Material => (BOTH, &["ocean", "palenight", "darker"], NONE),
+        Projectious => (
+            BOTH,
+            &["deep", "high-contrast-dark"],
+            &["high-contrast-light"],
+        ),
+        Contrast | ContrastMono => (BOTH, &["high", "max"], &["high", "max"]),
+        RosePine => (BOTH, &["moon"], NONE),
+        Slack => (BOTH, NONE, &["ochin"]),
+        TokyoNight => (BOTH, &["storm"], NONE),
+        Vitesse => (BOTH, &["black"], NONE),
+    }
+}
+
+fn validate_theme_selection(customization: &CustomizationSection) -> Result<()> {
+    if customization.legacy_theme.is_some() {
+        return Ok(());
+    }
+
+    let (modes, dark_variants, light_variants) = theme_selection_capabilities(&customization.theme);
+    if customization.mode != ThemeMode::Auto && !modes.contains(&customization.mode) {
+        let available = modes
+            .iter()
+            .map(ToString::to_string)
+            .collect::<Vec<_>>()
+            .join(", ");
+        bail!(
+            "theme family \"{}\" does not support mode = \"{}\"; available mode: {}",
+            customization.theme,
+            customization.mode,
+            available
+        );
+    }
+
+    if let Some(variant) = customization.variant.as_deref() {
+        let allowed = match customization.mode {
+            ThemeMode::Dark => dark_variants,
+            ThemeMode::Light => light_variants,
+            ThemeMode::Auto => {
+                if dark_variants.contains(&variant) || light_variants.contains(&variant) {
+                    return Ok(());
+                }
+                &[]
+            }
+        };
+        if !allowed.contains(&variant) {
+            let mut available = dark_variants
+                .iter()
+                .chain(light_variants.iter())
+                .copied()
+                .collect::<Vec<_>>();
+            available.sort_unstable();
+            available.dedup();
+            let available = if available.is_empty() {
+                "no named variants".to_string()
+            } else {
+                format!("variants: {}", available.join(", "))
+            };
+            bail!(
+                "theme family \"{}\" does not support variant = \"{}\" with mode = \"{}\"; available {}",
+                customization.theme,
+                variant,
+                customization.mode,
+                available
+            );
+        }
+    }
+    Ok(())
+}
+
+fn validate_emphasis_overrides(customization: &CustomizationSection) -> Result<()> {
+    const ROLES: &[&str] = &[
+        "code_keyword",
+        "code_type",
+        "code_function",
+        "code_string",
+        "code_number",
+        "code_operator",
+        "code_comment",
+        "code_decorator",
+        "code_invalid",
+        "code_deprecated",
+        "diff_add",
+        "diff_delete",
+        "diff_change",
+        "diff_emphasis",
+        "diff_header",
+        "diff_hunk",
+        "status_error",
+        "status_warning",
+        "status_success",
+        "status_info",
+        "status_ok",
+        "status_disabled",
+        "active_foreground",
+        "pane_active_foreground",
+        "inactive_foreground",
+        "pane_inactive_foreground",
+        "border_active",
+        "border_inactive",
+        "search_match",
+        "search_current",
+        "git_modified",
+        "git_staged",
+        "git_untracked",
+        "git_ignored",
+        "git_conflicted",
+    ];
+    const ATTRIBUTES: &[&str] = &["bold", "italic", "dim", "underline", "strikethrough"];
+
+    for (role, value) in &customization.emphasis_overrides {
+        if !ROLES.contains(&role.as_str()) {
+            bail!(
+                "unknown customization.emphasis_overrides role \"{role}\"; use a documented semantic role"
+            );
+        }
+        for attribute in value.split_whitespace() {
+            if !ATTRIBUTES.contains(&attribute) {
+                bail!(
+                    "unknown decoration \"{attribute}\" for customization.emphasis_overrides.{role}; available: {}",
+                    ATTRIBUTES.join(", ")
+                );
+            }
+        }
+    }
+    Ok(())
+}
+
 impl Default for CustomizationSection {
     fn default() -> Self {
         Self {
             theme: ThemeFamily::default(),
             mode: default_theme_mode(),
             variant: None,
+            emphasis: ThemeEmphasis::default(),
+            emphasis_overrides: std::collections::BTreeMap::new(),
             prompt: default_prompt(),
             layout: default_layout(),
             tmux: TmuxSection::default(),
@@ -4464,6 +4759,39 @@ impl AiboxConfig {
             )
         })?;
 
+        validate_theme_selection(&self.customization)?;
+        validate_emphasis_overrides(&self.customization)?;
+        let resolved_theme = self.customization.resolved_theme();
+        if matches!(
+            resolved_theme,
+            Theme::ContrastDarkMax
+                | Theme::ContrastLightMax
+                | Theme::ContrastMonoDarkMax
+                | Theme::ContrastMonoLightMax
+        ) && self.customization.emphasis != ThemeEmphasis::Full
+        {
+            bail!(
+                "max-contrast variants require customization.emphasis = \"full\"; typography is the primary channel for roles that share a color"
+            );
+        }
+        if matches!(
+            resolved_theme,
+            Theme::MonoDark
+                | Theme::MonoLight
+                | Theme::ContrastDark
+                | Theme::ContrastLight
+                | Theme::ContrastMonoDark
+                | Theme::ContrastMonoLight
+        ) && matches!(
+            self.customization.emphasis,
+            ThemeEmphasis::Minimal | ThemeEmphasis::None
+        ) {
+            bail!(
+                "theme family \"{}\" requires customization.emphasis = \"auto\", \"standard\", or \"full\"; typography distinguishes roles that share a color",
+                self.customization.theme
+            );
+        }
+
         // Validate published image version is valid semver (allow "latest" sentinel)
         if self.container.image.version != "latest" {
             semver::Version::parse(&self.container.image.version).with_context(|| {
@@ -5436,7 +5764,16 @@ fn check_customization_table(
     check_child_table(
         root,
         key,
-        &["theme", "mode", "variant", "prompt", "layout", "tmux"],
+        &[
+            "theme",
+            "mode",
+            "variant",
+            "emphasis",
+            "emphasis_overrides",
+            "prompt",
+            "layout",
+            "tmux",
+        ],
         mismatches,
     );
     if let Some(customization) = table_child(root, key) {
@@ -7266,7 +7603,7 @@ theme = "{input}"
 
     #[test]
     fn appearance_mode_resolves_concrete_theme() {
-        // Solo family (dracula): ignores mode, always returns Dracula.
+        // Dark-only families reject an explicit incompatible mode.
         let toml = r#"
 [aibox]
 version = "0.9.0"
@@ -7278,10 +7615,9 @@ name = "test"
 theme = "dracula"
 mode = "light"
 "#;
-        let config = parse_toml(toml).unwrap();
-        assert_eq!(config.customization.theme, ThemeFamily::Dracula);
-        assert_eq!(config.customization.mode, ThemeMode::Light);
-        assert_eq!(config.customization.resolved_theme(), Theme::Dracula);
+        let error = parse_toml(toml).unwrap_err().to_string();
+        assert!(error.contains("does not support mode = \"light\""));
+        assert!(error.contains("available mode: dark"));
 
         // Legacy concrete name (catppuccin-latte) is locked — mode override does NOT flip it.
         let toml = r#"
@@ -7382,17 +7718,148 @@ mode = "dark"
     }
 
     #[test]
-    fn resolved_theme_for_solo_family_ignores_mode_and_variant() {
-        // Nord stays Nord regardless of mode and variant.
+    fn projectious_and_accessibility_families_resolve_all_modes_and_variants() {
+        let mut config = test_config();
+        config.customization.theme = ThemeFamily::Projectious;
+        config.customization.mode = ThemeMode::Dark;
+        assert_eq!(
+            config.customization.resolved_theme(),
+            Theme::ProjectiousNavy
+        );
+        config.customization.variant = Some("deep".to_string());
+        assert_eq!(
+            config.customization.resolved_theme(),
+            Theme::ProjectiousDeep
+        );
+        config.customization.mode = ThemeMode::Light;
+        config.customization.variant = Some("high-contrast-light".to_string());
+        assert_eq!(
+            config.customization.resolved_theme(),
+            Theme::ProjectiousHCLight
+        );
+
+        config.customization.theme = ThemeFamily::ContrastMono;
+        config.customization.mode = ThemeMode::Dark;
+        config.customization.variant = Some("max".to_string());
+        assert_eq!(
+            config.customization.resolved_theme(),
+            Theme::ContrastMonoDarkMax
+        );
+    }
+
+    #[test]
+    fn emphasis_parses_and_max_contrast_refuses_color_only_mode() {
+        let toml = r#"
+[aibox]
+version = "0.9.0"
+[container]
+name = "test"
+[customization]
+theme = "contrast-mono"
+mode = "dark"
+variant = "max"
+emphasis = "none"
+"#;
+        assert!(
+            parse_toml(toml)
+                .unwrap_err()
+                .to_string()
+                .contains("emphasis = \"full\"")
+        );
+
+        let high_without_typography = toml
+            .replace("variant = \"max\"\n", "")
+            .replace("emphasis = \"none\"", "emphasis = \"minimal\"");
+        assert!(
+            parse_toml(&high_without_typography)
+                .unwrap_err()
+                .to_string()
+                .contains("requires customization.emphasis")
+        );
+    }
+
+    #[test]
+    fn emphasis_overrides_parse_and_reject_unknown_roles_or_attributes() {
+        let toml = r#"
+[aibox]
+version = "0.9.0"
+[container]
+name = "test"
+[customization]
+theme = "github"
+emphasis = "standard"
+[customization.emphasis_overrides]
+code_comment = "italic dim"
+status_error = "bold underline"
+"#;
+        let config = parse_toml(toml).unwrap();
+        assert_eq!(
+            config.customization.emphasis_overrides["code_comment"],
+            "italic dim"
+        );
+
+        let mut invalid_role = config.clone();
+        invalid_role
+            .customization
+            .emphasis_overrides
+            .insert("made_up".to_string(), "bold".to_string());
+        assert!(
+            invalid_role
+                .validate()
+                .unwrap_err()
+                .to_string()
+                .contains("unknown customization.emphasis_overrides role")
+        );
+
+        let mut invalid_attribute = config;
+        invalid_attribute
+            .customization
+            .emphasis_overrides
+            .insert("code_comment".to_string(), "blink".to_string());
+        assert!(
+            invalid_attribute
+                .validate()
+                .unwrap_err()
+                .to_string()
+                .contains("unknown decoration \"blink\"")
+        );
+    }
+
+    #[test]
+    fn solo_family_rejects_incompatible_mode_and_unknown_variant() {
         let mut config = test_config();
         config.customization.theme = ThemeFamily::Nord;
         config.customization.mode = ThemeMode::Light;
+        let error = config.validate().unwrap_err().to_string();
+        assert!(error.contains("available mode: dark"));
+
+        config.customization.mode = ThemeMode::Dark;
         config.customization.variant = Some("anything".to_string());
-        assert_eq!(config.customization.resolved_theme(), Theme::Nord);
+        let error = config.validate().unwrap_err().to_string();
+        assert!(error.contains("no named variants"));
 
         config.customization.theme = ThemeFamily::Dracula;
         config.customization.mode = ThemeMode::Auto;
+        config.customization.variant = None;
+        config.validate().unwrap();
         assert_eq!(config.customization.resolved_theme(), Theme::Dracula);
+    }
+
+    #[test]
+    fn family_rejects_variant_from_the_other_mode_or_unknown_variant() {
+        let mut config = test_config();
+        config.customization.theme = ThemeFamily::Github;
+        config.customization.mode = ThemeMode::Light;
+        config.customization.variant = Some("dimmed".to_string());
+        let error = config.validate().unwrap_err().to_string();
+        assert!(error.contains("variant = \"dimmed\""));
+        assert!(error.contains("mode = \"light\""));
+
+        config.customization.mode = ThemeMode::Dark;
+        config.customization.variant = Some("unknown".to_string());
+        let error = config.validate().unwrap_err().to_string();
+        assert!(error.contains("high-contrast-dark"));
+        assert!(error.contains("high-contrast-light"));
     }
 
     #[test]

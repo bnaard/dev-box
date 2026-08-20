@@ -1716,12 +1716,13 @@ pub(crate) fn serialize_config_with_comments(config: &AiboxConfig) -> String {
     out.push_str("# [customization] — color theme, shell prompt, and tmux layout\n");
     out.push_str(sep);
     out.push_str("# Theme is applied consistently across tmux, Vim, Yazi, lazygit, and bat.\n");
-    out.push_str("# Theme families (31 total):\n");
+    out.push_str("# Theme families (34 total):\n");
     out.push_str("#   Multi-variant: ayu, catppuccin, dracula, everforest, github, gruvbox,\n");
-    out.push_str("#     kanagawa, material, min, night-owl, one-dark, rose-pine, slack,\n");
-    out.push_str("#     solarized, tokyo-night, vitesse, vscode\n");
-    out.push_str("#   Solo (mode ignored): andromeeda, aurora-x, houston, laserwave,\n");
-    out.push_str("#     monokai, moonlight, nord, plastic, poimandres, projectious, red,\n");
+    out.push_str("#     kanagawa, material, min, mono, night-owl, one-dark, projectious,\n");
+    out.push_str("#     rose-pine, slack, solarized, tokyo-night, vitesse, vscode, contrast,\n");
+    out.push_str("#     contrast-mono\n");
+    out.push_str("#   Single-mode: andromeeda, aurora-x, houston, laserwave,\n");
+    out.push_str("#     monokai, moonlight, nord, plastic, poimandres, red,\n");
     out.push_str("#     snazzy, synthwave-84, vesper\n");
     out.push_str("[customization]\n");
     // Always emit the family form. If the user had a legacy concrete name and
@@ -1729,7 +1730,7 @@ pub(crate) fn serialize_config_with_comments(config: &AiboxConfig) -> String {
     // correct (the deserializer derived it). The legacy lock is runtime-only.
     out.push_str(&format!("theme  = \"{}\"\n", config.customization.theme));
     out.push_str("# Light/dark variant. `auto` follows host OS appearance when detectable.\n");
-    out.push_str("# Solo families (see list above) ignore mode.\n");
+    out.push_str("# Single-mode families reject an incompatible explicit mode.\n");
     out.push_str("# Options: auto | light | dark\n");
     out.push_str(&format!("mode   = \"{}\"\n", config.customization.mode));
     out.push_str("# Optional alternate variant override (per family). Default = unset.\n");
@@ -1742,11 +1743,19 @@ pub(crate) fn serialize_config_with_comments(config: &AiboxConfig) -> String {
     );
     out.push_str("#   rose-pine: \"moon\"       slack: \"ochin\"\n");
     out.push_str("#   tokyo-night: \"storm\"    vitesse: \"black\"\n");
+    out.push_str("#   projectious: \"deep\" | \"high-contrast-dark\" | \"high-contrast-light\"\n");
+    out.push_str("#   contrast, contrast-mono: \"max\"\n");
     if let Some(ref v) = config.customization.variant {
         out.push_str(&format!("variant = \"{v}\"\n"));
     } else {
         out.push_str("# variant = \"<name>\"\n");
     }
+    out.push_str("# Font-decoration channel: auto | full | standard | minimal | none.\n");
+    out.push_str("# Mono/high-contrast themes require standard or stronger; max requires full.\n");
+    out.push_str(&format!(
+        "emphasis = \"{}\"\n",
+        config.customization.emphasis
+    ));
     out.push_str("# Starship prompt preset.\n");
     out.push_str("# Options: default | plain | minimal | nerd-font | pastel | powerline-pastel | bracketed | arrow\n");
     out.push_str("# ASCII sketches:\n");
@@ -1776,6 +1785,18 @@ pub(crate) fn serialize_config_with_comments(config: &AiboxConfig) -> String {
         "# Extra windows: ai holds additional harnesses; lazygit and shell open when enabled.\n",
     );
     out.push_str(&format!("layout = \"{}\"\n", config.customization.layout));
+    out.push('\n');
+    out.push_str("# Optional semantic role overrides. Attribute values are space-separated.\n");
+    out.push_str("# Roles include code_comment, code_invalid, status_error, search_current,\n");
+    out.push_str("# active_foreground, git_untracked, and the other documented semantic roles.\n");
+    out.push_str("[customization.emphasis_overrides]\n");
+    for (role, attributes) in &config.customization.emphasis_overrides {
+        out.push_str(&format!("{} = {}\n", role, toml_string_value(attributes)));
+    }
+    if config.customization.emphasis_overrides.is_empty() {
+        out.push_str("# code_comment = \"italic dim\"\n");
+        out.push_str("# status_error = \"bold underline\"\n");
+    }
     out.push('\n');
     out.push_str(
         "# tmux runtime options. `layout` may override [customization].layout for tmux only.\n",
@@ -3143,6 +3164,8 @@ pub fn cmd_init(config_path: &Option<String>, params: InitParams) -> Result<()> 
             theme: params.theme.unwrap_or_default(),
             mode: ThemeMode::Auto,
             variant: None,
+            emphasis: crate::config::ThemeEmphasis::Auto,
+            emphasis_overrides: std::collections::BTreeMap::new(),
             prompt: params.prompt.unwrap_or_default(),
             layout: crate::config::ConfigLayout::default(),
             tmux: crate::config::TmuxSection {

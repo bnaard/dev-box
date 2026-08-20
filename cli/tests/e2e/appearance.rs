@@ -186,9 +186,9 @@ fn theme_change_auto_applies_untouched_runtime_files() {
     let aibox_home = dir.path().join(".aibox-home");
 
     let tmux_before = fs::read_to_string(aibox_home.join(".config/tmux/tmux.conf")).unwrap();
-    assert!(tmux_before.contains("#D79921"));
+    assert!(tmux_before.contains("#FABD2F"));
     let aibox_vim_before = fs::read_to_string(aibox_home.join(".vim/colors/aibox.vim")).unwrap();
-    assert!(aibox_vim_before.contains("#D79921"));
+    assert!(aibox_vim_before.contains("#FABD2F"));
     let yazi_before = fs::read_to_string(aibox_home.join(".config/yazi/theme.toml")).unwrap();
     assert!(!yazi_before.is_empty(), "yazi theme should not be empty");
 

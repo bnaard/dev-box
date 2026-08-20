@@ -346,8 +346,9 @@ fn write_claude_settings_hooks(path: &Path) -> Result<()> {
 /// arrays, whose `hooks` arrays contain command handlers. We overwrite the
 /// aibox/processkit-managed events and preserve unrelated event keys.
 ///
-/// The managed event keys (`SessionStart`, `UserPromptSubmit`,
-/// `PreToolUse`, and lifecycle signals) are always overwritten;
+/// The exclusively managed event keys (`SessionStart`, `UserPromptSubmit`,
+/// `PreToolUse`, and lifecycle signals) are overwritten. `PostToolUse` is
+/// merged because users commonly attach their own post-tool handlers there;
 /// unknown sibling keys inside `hooks` are preserved.
 fn write_codex_hooks_json(path: &Path) -> Result<()> {
     // Load or create the top-level object.
@@ -375,6 +376,35 @@ fn write_codex_hooks_json(path: &Path) -> Result<()> {
         serde_json::json!([{
             "hooks": [{"type": "command", "command": command}]
         }])
+    };
+    let merge_attention_hook = |hooks: &mut serde_json::Map<String, serde_json::Value>,
+                                event: &str,
+                                command: &str|
+     -> Result<()> {
+        let groups = hooks
+            .entry(event.to_string())
+            .or_insert_with(|| serde_json::Value::Array(Vec::new()))
+            .as_array_mut()
+            .ok_or_else(|| {
+                anyhow::anyhow!("`hooks.{event}` in {} is not an array", path.display())
+            })?;
+        groups.retain(|group| {
+            !group
+                .get("hooks")
+                .and_then(|value| value.as_array())
+                .is_some_and(|handlers| {
+                    handlers.iter().any(|handler| {
+                        handler
+                            .get("command")
+                            .and_then(|value| value.as_str())
+                            .is_some_and(|value| value.contains(AIBOX_SIGNAL_MANAGED_MARKER))
+                    })
+                })
+        });
+        groups.push(serde_json::json!({
+            "hooks": [{"type": "command", "command": command}]
+        }));
+        Ok(())
     };
 
     // Remove the obsolete pre-0.147 flat keys when migrating a generated file.
@@ -405,7 +435,23 @@ fn write_codex_hooks_json(path: &Path) -> Result<()> {
             "aibox-agent-signal working --harness codex --hook-input >/dev/null 2>&1 || true; {compliance_cmd}"
         )),
     );
-    hooks.insert("PreToolUse".to_string(), command_hook(route_guard_cmd));
+    // A permission approval resumes the existing turn rather than submitting
+    // a new user prompt, so UserPromptSubmit does not reliably clear the
+    // question state. Signal working on both sides of tool execution: the
+    // pre-tool event clears it as soon as Codex resumes after approval, while
+    // PostToolUse is a fallback for hook/approval orderings where the
+    // PermissionRequest event is emitted after PreToolUse.
+    hooks.insert(
+        "PreToolUse".to_string(),
+        command_hook(format!(
+            "aibox-agent-signal working --harness codex --hook-input >/dev/null 2>&1 || true; {route_guard_cmd}"
+        )),
+    );
+    merge_attention_hook(
+        hooks,
+        "PostToolUse",
+        "aibox-agent-signal working --harness codex --hook-input >/dev/null 2>&1 || true",
+    )?;
     hooks.insert(
         "PermissionRequest".to_string(),
         command_hook("aibox-agent-signal question --harness codex --hook-input".to_string()),
@@ -848,6 +894,12 @@ version = "unset"
         assert!(ups.contains("--hook-input"));
         assert!(command("PermissionRequest").contains("question"));
         assert!(command("PermissionRequest").contains("--hook-input"));
+        let pre_tool = command("PreToolUse");
+        assert!(pre_tool.contains("aibox-agent-signal working"));
+        assert!(pre_tool.contains("--hook-input"));
+        let post_tool = command("PostToolUse");
+        assert!(post_tool.contains("aibox-agent-signal working"));
+        assert!(post_tool.contains("--hook-input"));
         let stop = command("Stop");
         assert!(stop.contains("last_assistant_message"));
         assert!(stop.contains("question"));
@@ -855,12 +907,11 @@ version = "unset"
         assert!(stop.contains("--hook-input"));
         assert!(command("SessionEnd").contains("--hook-input"));
 
-        let ptu = command("PreToolUse");
-        assert!(ptu.contains("check_route_task_called.py"));
+        assert!(pre_tool.contains("check_route_task_called.py"));
         assert!(
-            ptu.contains("git rev-parse"),
+            pre_tool.contains("git rev-parse"),
             "Codex pre_tool_use command must anchor to git repo root so it works when \
-             Codex CLI is launched from a subdirectory (got: {ptu})"
+             Codex CLI is launched from a subdirectory (got: {pre_tool})"
         );
     }
 
@@ -894,6 +945,13 @@ version = "unset"
         assert_eq!(
             parsed["hooks"]["PostToolUse"][0]["hooks"][0]["command"].as_str(),
             Some("echo user")
+        );
+        assert_eq!(parsed["hooks"]["PostToolUse"].as_array().unwrap().len(), 2);
+        assert!(
+            parsed["hooks"]["PostToolUse"][1]["hooks"][0]["command"]
+                .as_str()
+                .unwrap()
+                .contains("aibox-agent-signal working")
         );
         assert!(
             parsed["hooks"]["PreToolUse"][0]["hooks"][0]["command"]
