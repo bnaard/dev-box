@@ -31,9 +31,10 @@ const DRACULA_GREEN: &str = "#50FA7B";
 const DRACULA_ORANGE: &str = "#FFB86C";
 
 /// Projectious palette slots we assert on.
-const PROJECTIOUS_ACCENT: &str = "#E05232";
-const PROJECTIOUS_GREEN: &str = "#4FB07A";
-const PROJECTIOUS_ORANGE: &str = "#F2A65A";
+// Starship uses the contrast-safe accent text slot for painted prompt cells.
+const PROJECTIOUS_ACCENT: &str = "#EA7558";
+const PROJECTIOUS_GREEN: &str = "#6CC090";
+const PROJECTIOUS_ORANGE: &str = "#EA7558";
 
 // ── Helpers (mirrors appearance.rs; duplicated to keep this file self-contained) ──
 
