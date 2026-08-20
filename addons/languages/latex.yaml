@@ -96,7 +96,7 @@ builder: |
   # and TLS transport (HTTPS).
   # TODO(sec): add a pinned sha256sum check once tug.org publishes per-release
   # hashes at the mirror path.
-  ARG CTAN_MIRROR=https://texlive.info/historic/systems/texlive/2025/tlnet-final
+  ARG CTAN_MIRROR=https://ftp.tu-chemnitz.de/pub/tug/historic/systems/texlive/2025/tlnet-final
   RUN mkdir -p /tmp/texlive-installer && cd /tmp/texlive-installer \
       && wget -q "${CTAN_MIRROR}/install-tl-unx.tar.gz" \
       && tar -xzf install-tl-unx.tar.gz --strip-components=1 \

@@ -955,6 +955,20 @@ runtime: |
     }
 
     #[test]
+    fn latex_addon_uses_reachable_immutable_texlive_archive() {
+        let addon = load_repo_addon("latex");
+        let rendered = render_builder(&addon, &all_enabled_tools(&addon))
+            .unwrap()
+            .expect("latex should define a builder stage");
+
+        assert!(rendered.contains(
+            "https://ftp.tu-chemnitz.de/pub/tug/historic/systems/texlive/2025/tlnet-final"
+        ));
+        assert!(!rendered.contains("https://texlive.info/historic/"));
+        assert!(rendered.contains("--repository \"${CTAN_MIRROR}\""));
+    }
+
+    #[test]
     fn every_language_exposes_consistent_shared_groups() {
         for language in ["go", "rust", "python", "node", "typst", "latex"] {
             let addon = load_repo_addon(language);

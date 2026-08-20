@@ -558,7 +558,7 @@ line "Python defaults are curated in the addon catalog and installed through uv 
 section "LaTeX And Apt-Managed Addon Inputs"
 line "| Tool/Input | Package | Candidate | Status |"
 line "|---|---|---:|---|"
-line "| TeX Live mirror | \`texlive.info/historic/systems/texlive/2025/tlnet-final\` | \`2025 final\` | pinned immutable TeX Live archive; update requires a deliberate TeX Live year bump and rebuild |"
+line "| TeX Live mirror | \`ftp.tu-chemnitz.de/pub/tug/historic/systems/texlive/2025/tlnet-final\` | \`2025 final\` | pinned immutable TeX Live archive; update requires a deliberate TeX Live year bump and rebuild |"
 check_apt_managed "LaTeX runtime Perl" "perl"
 check_apt_managed "LaTeX fontconfig" "fontconfig"
 check_apt_managed "Emoji fonts" "fonts-noto-color-emoji"
