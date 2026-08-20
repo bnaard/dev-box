@@ -55,6 +55,7 @@ Configure, operate, extend, and contribute to aibox.
 
 aibox release history.
 
+- [v0.34.0 — agent-aware tmux and branded documentation](https://projectious-work.github.io/aibox/changelog/release-v0-34-0/): Adds configurable agent lifecycle titles and moves the documentation site to the projectious.work Hugo brand theme.
 - [v0.33.2 — runtime and processkit alignment](https://projectious-work.github.io/aibox/changelog/release-v0-33-2/): Refreshes processkit and runtime metadata while reconciling tmux layout and theme switching work.
 - [v0.33.0 — agent-aware terminal titles](https://projectious-work.github.io/aibox/changelog/release-v0-33-0/): Adds configurable, terminal-neutral tmux titles and lifecycle attention signals for agent panes.
 - [v0.33.1 — resilient runtime projections](https://projectious-work.github.io/aibox/changelog/release-v0-33-1/): Repairs generated harness startup, Yazi directory previews, and PowerKit window-tab spacing.
