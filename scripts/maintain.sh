@@ -2203,6 +2203,18 @@ release_write_timing_report() {
   ok "Release timing evidence written to ${report}"
 }
 
+release_host_prompt_path() {
+  local run_dir="$1"
+  case "${run_dir}" in
+    "${PROJECT_ROOT}"/tmp/host-gates/aibox-release/*)
+      printf './%s\n' "${run_dir#"${PROJECT_ROOT}"/}"
+      ;;
+    *)
+      die "Prepared host run directory is outside the project release-gate root: ${run_dir}"
+      ;;
+  esac
+}
+
 cmd_release() {
   local version="${1:-}"
   local release_started_epoch="$(date +%s)"
@@ -2434,8 +2446,9 @@ cmd_release() {
 
   if release_step_requested prompt; then
     local prompt_file="${DIST_DIR}/RELEASE-PROMPT.md"
-    local host_run_dir
+    local host_run_dir host_prompt_path
     host_run_dir="$("${SCRIPT_DIR}/release-host-prepare.sh" "${version}")"
+    host_prompt_path="$(release_host_prompt_path "${host_run_dir}")"
     {
       echo "# Host-side steps for aibox ${tag}"
       echo ""
@@ -2446,7 +2459,7 @@ cmd_release() {
       echo "git fetch origin ${release_branch}"
       echo "git switch ${release_branch}"
       echo "git reset --keep origin/${release_branch}"
-      echo "./scripts/maintain.sh release-host ${host_run_dir}"
+      echo "./scripts/maintain.sh release-host ${host_prompt_path}"
       echo "\`\`\`"
       echo ""
       echo "This will:"

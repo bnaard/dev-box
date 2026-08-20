@@ -20,6 +20,12 @@ grep -Fq 'X.Y.Z or X.Y.Z-prerelease' "${SCRIPT_DIR}/release-runtime-smoke.sh" \
   || die "release runtime smoke must accept prerelease SemVer"
 declare -F publish_release_candidate >/dev/null \
   || die "release candidate protected-branch publisher is missing"
+[[ "$(release_host_prompt_path "${PROJECT_ROOT}/tmp/host-gates/aibox-release/v9.9.9-test")" == \
+   "./tmp/host-gates/aibox-release/v9.9.9-test" ]] \
+  || die "release host prompt path must be project-relative and explicitly rooted with ./"
+if (release_host_prompt_path "/tmp/outside-project" >/dev/null 2>&1); then
+  die "release host prompt path accepted a run directory outside the project gate root"
+fi
 grep -Fq 'cargo test -- --test-threads=1' "${SCRIPT_DIR}/maintain.sh" \
   || die "canonical release test gate must serialize process-level visual contracts"
 grep -Fq 'cargo test --test e2e -- --test-threads=1' "${SCRIPT_DIR}/maintain.sh" \
