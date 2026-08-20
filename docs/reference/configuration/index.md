@@ -100,10 +100,16 @@ args    = ["-y", "@acme/team-server"] # Arguments
 # API_KEY = "..."
 
 [customization]
-theme  = "gruvbox"                    # Theme family; concrete legacy names still parse
+theme  = "ayu"                        # Theme family; concrete legacy names still parse
 mode   = "auto"                       # Theme mode: auto, light, dark
+variant = "mirage"                    # Optional family-specific variant
+emphasis = "auto"                     # auto, full, standard, minimal, none
 prompt = "default"                    # Starship preset (8 options)
 layout = "dev"                        # tmux layout (4 options)
+
+[customization.emphasis_overrides]
+code_comment = "italic dim"           # Optional semantic role override
+status_error = "bold underline"
 
 [customization.tmux.status]
 mode = "extended"                     # extended | plain | disabled (legacy: powerline -> extended)
@@ -837,8 +843,11 @@ Visual and layout configuration. See [Themes](../customization/themes.md) and [L
 
 | Field | Type | Required | Default | Description |
 |-------|------|----------|---------|-------------|
-| `theme` | String | No | `"gruvbox-dark"` | Color theme. Supports the tmux-powerkit popular theme roster and variants, plus `projectious`; see [Themes](../customization/themes.md). |
+| `theme` | String | No | `"gruvbox"` | One of 34 theme families, including Projectious, mono, contrast, and contrast-mono; see [Themes](../customization/themes.md). |
 | `mode` | String | No | `"auto"` | Global theme mode overlay: `auto`, `light`, `dark`. `auto` follows the host OS appearance when detectable during `aibox apply`, `aibox up`, or `aibox set theme.*`; otherwise it preserves the selected concrete theme. |
+| `variant` | String | No | unset | Optional family-specific variant such as `mirage`, `deep`, `high-contrast-dark`, or `max`. Invalid variants and incompatible explicit modes are rejected with the available choices. |
+| `emphasis` | String | No | `"auto"` | Semantic font-decoration level: `auto`, `full`, `standard`, `minimal`, or `none`. `auto` probes terminal capabilities; `NO_COLOR` forces `none`. Max-contrast variants reject `none`. |
+| `emphasis_overrides.*` | String | No | unset | Per-role whitespace-separated attributes (`bold`, `italic`, `dim`, `underline`, `strikethrough`). Unsupported attributes degrade according to the selected emphasis level and each tool's capabilities. |
 | `prompt` | String | No | `"default"` | Starship preset: `default`, `plain`, `arrow`, `minimal`, `nerd-font`, `pastel`, `powerline-pastel`, `bracketed`. Legacy `pastel-powerline` is accepted as an alias. |
 | `layout` | String | No | `"dev"` | tmux layout: `dev`, `focus`, `cowork`, `ai` |
 | `tmux.status.mode` | String | No | `"extended"` | tmux status presentation: `extended` uses the themed multi-line PowerKit status, `plain` keeps minimal tmux text, `disabled` turns the status line off. Legacy `powerline` is accepted as an alias for `extended`. |

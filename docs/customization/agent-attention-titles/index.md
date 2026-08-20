@@ -125,7 +125,7 @@ Current generated integrations:
 | Harness | Tier | Native signals |
 |---|---|---|
 | Claude Code | Native | prompt, permission/elicitation, stop, failure |
-| Codex CLI | Native | prompt, permission, stop, session end |
+| Codex CLI | Native | prompt, permission, tool resumption/completion, stop, session end |
 | OpenCode | Native | session status, permission, explicit question, error, idle |
 | Gemini CLI | Native | before/after agent, tool permission, session end |
 | GitHub Copilot CLI | Native | prompt, permission/elicitation, stop, error, session end |
@@ -135,6 +135,9 @@ Gemini and Codex classify an after-turn response ending in a question mark as
 `question`. OpenCode uses its explicit `question.asked`, `question.replied`,
 and `question.rejected` events. Copilot reports permission and elicitation
 dialogs as questions; its stop payload does not expose final response text.
+Codex permission replies resume the current turn without submitting a new
+prompt, so aibox also maps Codex pre- and post-tool lifecycle events to
+`working`; this clears the question marker when approved work continues.
 
 aibox does not infer a question from process idleness. For a harness without a
 question hook, signal it explicitly, for example:

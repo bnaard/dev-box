@@ -1,49 +1,67 @@
-# Custom Themes
+# Extending the theme catalog
 
 
-# Creating Custom Themes
+# Extending the theme catalog
 
-aibox ships 7 built-in themes. You can create a custom theme by adding entries to the CLI source code.
+The built-in catalog is generated from one audited semantic dataset at `cli/assets/aibox-theme-corrections.toml`. Do not add a palette by copying unrelated built-in themes into individual tools: every concrete variant must define the same semantic contract and pass the same contrast checks.
 
-## Theme Structure
+## Required palette roles
 
-Each theme defines colors for 5 tools:
+Each variant defines:
 
-| Tool | Config Location | Format |
-|------|----------------|--------|
-| **tmux** | `.config/tmux/themes/<name>.conf` | tmux style settings |
-| **Vim** | `.vim/colors/<name>.vim` | Vim colorscheme |
-| **Yazi** | `.config/yazi/theme.toml` | TOML with hex colors |
-| **lazygit** | `.config/lazygit/config.yml` | YAML gui.theme section |
-| **Starship** | `.config/starship.toml` | TOML with palette |
+- `bg`, `fg`, `accent`, `green`, `red`, `yellow`, `orange`, `cyan`, `muted`, and `magenta`;
+- a chrome surface, cursor and cursor text;
+- selection foreground and background;
+- active and inactive borders;
+- inactive-pane foreground and background;
+- add, delete, and change diff backgrounds;
+- readable ink for accent-filled active controls.
 
-## Color Mapping
+A family also declares its mode and variant name. Add the corresponding concrete `Theme` and user-facing `ThemeFamily` resolution entries in `cli/src/config.rs`.
 
-A theme needs these terminal color slots for tmux:
+## Decoration roles
 
-| Slot | Purpose |
-|------|---------|
-| `fg` | Default foreground text |
-| `bg` | Background |
-| `black` | Dark background variant |
-| `red` | Errors, unstaged changes |
-| `green` | Success, staged changes |
-| `yellow` | Warnings, search highlights |
-| `blue` | Primary accent |
-| `magenta` | Secondary accent |
-| `cyan` | Tertiary accent, links |
-| `white` | Bright foreground |
-| `orange` | Special highlights |
+The shared emphasis model maps semantic roles—not individual color literals—to attributes. Syntax keywords and types are bold; comments and decorators are italic or dim; invalid and conflicted states gain bold and, at the full level, underline. Inactive and disabled roles are dim.
 
-## Adding a Theme
+When adding a renderer, clamp those roles to the target tool's supported attributes and use the documented degradation rules. Never silently remove the only channel distinguishing two roles.
 
-To add a new theme to aibox, you need to modify `cli/src/themes.rs` (theme data) and `cli/src/config.rs` (Theme enum). See the existing themes as reference patterns.
+## Generated consumers
 
-The `projectious` theme (`cli/src/themes.rs`) is a good starting point — it uses a simple palette with clear semantic mappings.
+A palette is complete only when these generated outputs use it:
 
-## Manual Overrides
+| Consumer | Output |
+|---|---|
+| tmux and PowerKit | Chrome, panes, tabs, menus, status states |
+| Vim | UI, syntax, search, selection, diffs |
+| Yazi | Manager, tabs, modes, status, Git and file types |
+| Starship | Prompt palette and decorations |
+| LazyGit | Borders, selection, search and Git states |
+| bat and delta | Generated TextMate theme and diff surfaces |
+| fzf and eza | Color and attribute environment specifications |
+| less/man | Terminal capability sequences |
+| lnav | Native generated theme definition |
+| OpenCode | Native generated JSON theme |
+| Codex | Native generated TextMate theme in `$CODEX_HOME/themes/aibox.tmTheme` |
+| Other AI TUIs | Their exposed native theme controls and terminal inheritance |
 
-If you don't want to modify the CLI, you can manually edit the config files in `.aibox-home/` after `aibox apply`. Note that `aibox apply` will overwrite theme-dependent files, so manual edits need to be reapplied after each apply.
+Run the theme matrix tests after any dataset or mapping change. They assert that every exposed concrete `Theme` has audited palette, chrome, cursor, and selection values and that every generated renderer resolves without placeholders.
+
+## Gallery assets
+
+The gallery is reproducible from the design review and audited TOML:
+
+```bash
+cd docs-site
+npm install
+cd ..
+node scripts/capture-theme-variants.mjs
+```
+
+The script captures the 61 approved Variant Board specimens and renders the additional Projectious and accessibility variants from the same TOML, producing 76 static images plus a manifest under `docs-site/static/img/themes/variants/`.
+
+## Local overrides
+
+Files below `.aibox-home/` are managed output and are overwritten by `aibox apply`. For durable project-specific changes, extend the audited dataset and generator in source instead of patching generated files.
 
 
 ---

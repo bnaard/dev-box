@@ -23,9 +23,9 @@ Configure, operate, extend, and contribute to aibox.
 - [Prompt Presets](https://projectious-work.github.io/aibox/docs/customization/prompts/)
 - [Skill Selection](https://projectious-work.github.io/aibox/docs/context/process-packages/)
 - [Audio Support](https://projectious-work.github.io/aibox/docs/container/audio/)
-- [Custom Themes](https://projectious-work.github.io/aibox/docs/customization/custom-themes/)
 - [E2E Test Catalogue](https://projectious-work.github.io/aibox/docs/contributing/e2e-tests/)
 - [Existing Project](https://projectious-work.github.io/aibox/docs/getting-started/existing-project/)
+- [Extending the theme catalog](https://projectious-work.github.io/aibox/docs/customization/custom-themes/)
 - [Layouts](https://projectious-work.github.io/aibox/docs/customization/layouts/)
 - [Local Config (.aibox-local.toml)](https://projectious-work.github.io/aibox/docs/reference/local-config/)
 - [Migration](https://projectious-work.github.io/aibox/docs/context/migration/)
@@ -48,7 +48,7 @@ Configure, operate, extend, and contribute to aibox.
 - [](https://projectious-work.github.io/aibox/docs/migrations/lockfile-v0-25-6/)
 - [](https://projectious-work.github.io/aibox/docs/migrations/zellij-eol/)
 - [](https://projectious-work.github.io/aibox/docs/reference/security/)
-- [Color Themes](https://projectious-work.github.io/aibox/docs/customization/themes/)
+- [Color themes](https://projectious-work.github.io/aibox/docs/customization/themes/): Configure audited color palettes and font decoration across the aibox terminal toolchain.
 - [LaTeX Build and Preview](https://projectious-work.github.io/aibox/docs/addons/latex-workflow/)
 
 ## Change log
@@ -71,6 +71,11 @@ The public aibox delivery roadmap.
 
 - [v0.x](https://projectious-work.github.io/aibox/roadmap/v0/): Mature the current aibox line around dependable containers, addons, agent context, runtime diagnostics, and processkit integration.
 - [v1.x](https://projectious-work.github.io/aibox/roadmap/v1/): Develop the next project-contract architecture while preserving reproducible, provider-neutral workspaces.
+
+## Theme Gallery
+
+Compare terminal examples for every audited aibox theme variant.
+
 
 ## Optional
 

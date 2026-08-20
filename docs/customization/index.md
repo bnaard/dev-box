@@ -6,8 +6,8 @@ titles](agent-attention-titles.md), themes, prompts, and tmux layouts.
 
 
 - [Prompt Presets](https://projectious-work.github.io/aibox/docs/customization/prompts/index.md)
-- [Custom Themes](https://projectious-work.github.io/aibox/docs/customization/custom-themes/index.md)
+- [Extending the theme catalog](https://projectious-work.github.io/aibox/docs/customization/custom-themes/index.md)
 - [Layouts](https://projectious-work.github.io/aibox/docs/customization/layouts/index.md)
 - [Custom Prompts](https://projectious-work.github.io/aibox/docs/customization/custom-prompts/index.md)
 - [Agent attention titles](https://projectious-work.github.io/aibox/docs/customization/agent-attention-titles/index.md)
-- [Color Themes](https://projectious-work.github.io/aibox/docs/customization/themes/index.md)
+- [Color themes](https://projectious-work.github.io/aibox/docs/customization/themes/index.md) — Configure audited color palettes and font decoration across the aibox terminal toolchain.
