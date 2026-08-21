@@ -70,14 +70,15 @@ fn generated_catalog_documents_title_configuration() {
     let codex_config =
         fs::read_to_string(dir.path().join(".codex/config.toml")).expect("read Codex config");
     assert!(
-        codex_config.contains(r#"notify = ["aibox-codex-notify"]"#),
-        "Codex completion callback must be registered through config.toml:\n{codex_config}"
+        !codex_config.contains("notify"),
+        "project-local Codex config must not contain the unsupported notify key:\n{codex_config}"
     );
     let codex_hooks =
         fs::read_to_string(dir.path().join(".codex/hooks.json")).expect("read Codex hooks");
     assert!(
-        !codex_hooks.contains(r#""Stop""#),
-        "the ineffective Codex Stop hook must not be generated:\n{codex_hooks}"
+        codex_hooks.contains(r#""Stop""#)
+            && codex_hooks.contains("aibox-agent-signal done --harness codex"),
+        "Codex completion must be registered through the project Stop hook:\n{codex_hooks}"
     );
     let notify = dir.path().join(".aibox-home/.local/bin/aibox-codex-notify");
     assert!(notify.is_file(), "Codex notify adapter must be generated");

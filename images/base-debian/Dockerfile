@@ -345,6 +345,10 @@ COPY config/tmux/patch-powerkit-plugin-spacing.sh /tmp/patch-powerkit-plugin-spa
 RUN /tmp/patch-powerkit-plugin-spacing.sh \
       /usr/local/share/aibox/tmux/plugins/tmux-powerkit/src/renderer/segment_builder.sh && \
     rm -f /tmp/patch-powerkit-plugin-spacing.sh
+COPY config/tmux/patch-powerkit-window-separators.sh /tmp/patch-powerkit-window-separators.sh
+RUN /tmp/patch-powerkit-window-separators.sh \
+      /usr/local/share/aibox/tmux/plugins/tmux-powerkit/src/renderer/entities/windows.sh && \
+    rm -f /tmp/patch-powerkit-window-separators.sh
 COPY config/tmux/powerkit-plugins/aibox.sh /usr/local/share/aibox/tmux/plugins/tmux-powerkit/src/plugins/aibox.sh
 # aibox-metrics path-a split: one plugin script per metric segment so each
 # renders with chevron/color-rotation styling (BACK-20260508_1603-QuietCedar).

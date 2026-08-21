@@ -214,10 +214,12 @@ fi
 # Fresh mode: short-circuit if the session is already up; otherwise build
 # from scratch and attach.
 if tmux -S "$socket" -f "$config" has-session -t "$session" 2>/dev/null; then
+  printf '\033[22;0t' > /dev/tty 2>/dev/null || true
   exec tmux -S "$socket" -f "$config" attach-session -t "$session"
 fi
 
-{layout_body}exec tmux -S "$socket" -f "$config" attach-session -t "$session"
+{layout_body}printf '\033[22;0t' > /dev/tty 2>/dev/null || true
+exec tmux -S "$socket" -f "$config" attach-session -t "$session"
 "#
     )
 }

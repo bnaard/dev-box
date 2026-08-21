@@ -64,7 +64,9 @@ bind-key -N "Split pane down" d split-window -v -c "#{pane_current_path}"
 bind-key -N "Kill pane" x kill-pane
 bind-key -N "Toggle pane zoom" f resize-pane -Z
 bind-key -N "Toggle pane zoom (alias)" z resize-pane -Z
-bind-key -N "Kill tmux session" q confirm-before -p "kill tmux session AIBOX_TMUX_SESSION? (y/n)" kill-session
+# Clear tmux's last OSC title before returning control to the host terminal.
+# An empty title lets the outer terminal resume its own default title policy.
+bind-key -N "Kill tmux session" q confirm-before -p "kill tmux session AIBOX_TMUX_SESSION? (y/n)" "run-shell 'client_tty=##{client_tty}; if [ -n \"\$client_tty\" ] && [ -w \"\$client_tty\" ]; then printf \"\\033]0;\\007\\033[23;0t\" >\"\$client_tty\"; fi' ; kill-session"
 bind-key -N "Reload tmux config" R source-file ~/.config/tmux/tmux.conf \; display-message "aibox tmux config reloaded"
 bind-key -N "Open log pane (lnav)" o display-popup -E -w 90% -h 80% "aibox-log-viewer"
 
@@ -286,6 +288,12 @@ fn tmux_title_settings(config: &AiboxConfig) -> String {
             1,
             format!("set -g set-titles-string \"{title_expression}\""),
         );
+    } else {
+        // tmux retains option values that are omitted by a later source-file.
+        // Clear the previous expression as well as disabling future updates so
+        // a project that turns titles off cannot keep displaying a stale agent
+        // title from the earlier enabled configuration.
+        lines.insert(1, "set -g set-titles-string \"\"".to_string());
     }
     if title.enabled || config.customization.tmux.notifications.enabled {
         // Refresh aggregate attention state when a source pane exits. Append
@@ -418,6 +426,8 @@ pub(crate) struct ResolvedTmuxStatusLayout {
 
 struct TmuxSurfaceColors {
     bg: String,
+    fg: String,
+    dim_bg: String,
     active_title_fg: String,
     dim_fg: String,
     accent: String,
@@ -425,11 +435,14 @@ struct TmuxSurfaceColors {
 }
 
 fn tmux_surface_colors(theme: &crate::config::Theme) -> TmuxSurfaceColors {
-    let (bg, _fg, _accent, _muted, dim_fg, active_title_fg) =
+    let (bg, fg, _accent, _muted, _legacy_dim_fg, active_title_fg) =
         crate::themes::terminal_surface_colors(theme);
+    let (dim_bg, dim_fg) = crate::themes::dim_inactive_pane_colors(theme);
     let (border_active, border_inactive) = crate::themes::terminal_border_colors(theme);
     TmuxSurfaceColors {
         bg: bg.to_string(),
+        fg: fg.to_string(),
+        dim_bg,
         active_title_fg,
         dim_fg,
         accent: border_active.to_string(),
@@ -1110,12 +1123,18 @@ fn tmux_powerkit_post_render_overrides(
 # PowerKit's renderer owns status-format and pane styles when it loads. Keep
 # the aibox two-row status shape and pane surfaces authoritative after that
 # render pass.
+set -g window-style "bg={},fg={}"
+set -g window-active-style "bg={},fg={}"
 set -g pane-border-style "fg={},bg={}"
 set -g pane-active-border-style "fg={},bg={}"
 set -g pane-border-indicators both
 set -g pane-border-format "#[bg={}]#{{?pane_active,{},{} }} #{{?client_prefix,PREFIX,NORMAL}} #{{pane_title}} #{{pane_current_command}} #[bg={},fg={}] "
 "##,
         status_formats,
+        surface.dim_bg,
+        surface.dim_fg,
+        surface.bg,
+        surface.fg,
         surface.muted,
         surface.bg,
         surface.accent,
@@ -1878,6 +1897,15 @@ mod tests {
             conf.contains(&format!("set -g window-active-style \"bg={bg},fg={fg}\"")),
             "active window-style must keep the original palette bg/fg:\n{conf}"
         );
+        let post_render = conf
+            .split("# aibox post-PowerKit overrides.")
+            .nth(1)
+            .expect("PowerKit post-render override block");
+        assert!(
+            post_render.contains(&format!("set -g window-style \"bg={dim_bg},fg={dim_fg}\""))
+                && post_render.contains(&format!("set -g window-active-style \"bg={bg},fg={fg}\"")),
+            "PowerKit must not erase the active/inactive pane surface distinction:\n{post_render}"
+        );
         assert!(
             conf.contains("set -g pane-border-indicators both"),
             "the active pane needs an explicit border indicator around full-screen TUIs:\n{conf}"
@@ -2243,6 +2271,16 @@ mod tests {
     }
 
     #[test]
+    fn tmux_quit_clears_terminal_title_before_killing_session() {
+        let config = crate::config::test_config();
+        let conf = tmux_conf(&config);
+
+        assert!(conf.contains(r#"printf \"\\033]0;\\007\\033[23;0t\" >\"\$client_tty\""#));
+        assert!(conf.contains("client_tty=##{client_tty}"));
+        assert!(conf.contains(r#"; kill-session""#));
+    }
+
+    #[test]
     fn tmux_conf_renders_configurable_attention_title_and_runtime_options() {
         let mut config = crate::config::test_config();
         config.customization.tmux.title.format =
@@ -2265,6 +2303,7 @@ mod tests {
         config.customization.tmux.title.enabled = false;
         let conf = tmux_conf(&config);
         assert!(conf.contains("set -g set-titles off"));
+        assert!(conf.contains("set -g set-titles-string \"\""));
         assert!(!conf.contains("pane-died[90]"));
     }
 }

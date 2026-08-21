@@ -620,13 +620,13 @@ hovered = {{ fg = "{selection_fg}", bg = "{selection_bg}"{active_attrs} }}
 preview_hovered = {{ fg = "{selection_fg}", bg = "{selection_bg}"{search_attrs} }}
 find_keyword = {{ fg = "{yellow}"{search_attrs} }}
 find_position = {{ fg = "{magenta}" }}
-marker_selected = {{ fg = "{green}", bg = "{green}" }}
-marker_copied = {{ fg = "{magenta}", bg = "{magenta}" }}
-marker_cut = {{ fg = "{red}", bg = "{red}" }}
+marker_selected = {{ fg = "{green}" }}
+marker_copied = {{ fg = "{magenta}" }}
+marker_cut = {{ fg = "{red}" }}
 
 [indicator]
 parent = {{ fg = "{muted}" }}
-current = {{ fg = "{accent_fill}", bg = "{accent_fill}"{active_attrs} }}
+current = {{ fg = "{active_ink}", bg = "{accent_fill}"{active_attrs} }}
 preview = {{ fg = "{cyan}" }}
 padding = {{ open = "▐", close = "▌" }}
 
@@ -1933,6 +1933,7 @@ mod tests {
             let active_ink = audited_color(chrome, "status_active_ink");
             let accent_fill = audited_accent_fill(theme);
             let cyan = audited_color(spec, "cyan");
+            let green = audited_color(spec, "green");
 
             let vim = vim_aibox_colorscheme(theme);
             assert!(
@@ -1955,8 +1956,19 @@ mod tests {
             );
             assert!(yazi.contains("[indicator]"));
             assert!(yazi.contains(&format!(
-                "current = {{ fg = \"{accent_fill}\", bg = \"{accent_fill}\""
+                "current = {{ fg = \"{active_ink}\", bg = \"{accent_fill}\""
             )));
+            assert!(yazi.contains(&format!("marker_selected = {{ fg = \"{green}\" }}")));
+            for marker in ["marker_selected", "marker_copied", "marker_cut"] {
+                let line = yazi
+                    .lines()
+                    .find(|line| line.starts_with(marker))
+                    .expect("Yazi marker style");
+                assert!(
+                    !line.contains("bg ="),
+                    "{marker} must not paint over filenames: {line}"
+                );
+            }
 
             let bat = bat_tmtheme_with_style(theme, ThemeEmphasis::Auto, &BTreeMap::new());
             assert!(

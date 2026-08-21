@@ -122,11 +122,10 @@ pub fn regenerate_hook_configs(config: &AiboxConfig, project_root: &Path) -> Res
         let path = project_root.join(".codex/hooks.json");
         write_codex_hooks_json(&path)?;
         let config_path = project_root.join(".codex/config.toml");
-        write_codex_notify_config(&config_path)?;
+        remove_managed_codex_notify_config(&config_path)?;
         output::ok(&format!(
-            "Wrote processkit hook entries to {} and completion notify to {}",
-            path.display(),
-            config_path.display()
+            "Wrote processkit hook entries to {}",
+            path.display()
         ));
     }
 
@@ -459,15 +458,11 @@ fn write_codex_hooks_json(path: &Path) -> Result<()> {
         "PermissionRequest".to_string(),
         command_hook("aibox-agent-signal question --harness codex --hook-input".to_string()),
     );
-    // Codex 0.148 does not dispatch a project hooks.json Stop entry for a
-    // normal completed turn. Remove our historical dead entry; completion is
-    // registered through config.toml `notify` below.
-    if hooks
-        .get("Stop")
-        .is_some_and(|groups| groups.to_string().contains(AIBOX_SIGNAL_MANAGED_MARKER))
-    {
-        hooks.remove("Stop");
-    }
+    merge_attention_hook(
+        hooks,
+        "Stop",
+        "aibox-agent-signal done --harness codex --hook-input >/dev/null 2>&1 || true",
+    )?;
     hooks.insert(
         "SessionEnd".to_string(),
         command_hook("aibox-agent-signal idle --harness codex --hook-input".to_string()),
@@ -484,11 +479,15 @@ fn write_codex_hooks_json(path: &Path) -> Result<()> {
     Ok(())
 }
 
-/// Register Codex's reliable legacy completion callback without discarding a
-/// pre-existing project-local notify command. The adapter delegates to that
-/// command after updating aibox attention state.
-fn write_codex_notify_config(path: &Path) -> Result<()> {
-    use toml_edit::{Array, DocumentMut, value};
+/// Remove the aibox-managed legacy `notify` callback from project config.
+/// Codex ignores notification keys at project scope; completion is now
+/// delivered by the project-local `Stop` lifecycle hook instead.
+fn remove_managed_codex_notify_config(path: &Path) -> Result<()> {
+    use toml_edit::DocumentMut;
+
+    if !path.is_file() {
+        return Ok(());
+    }
 
     let mut doc: DocumentMut = if path.is_file() {
         let body = fs::read_to_string(path)
@@ -500,7 +499,7 @@ fn write_codex_notify_config(path: &Path) -> Result<()> {
     };
 
     let existing = match doc.get("notify") {
-        None => Vec::new(),
+        None => return Ok(()),
         Some(item) => item
             .as_array()
             .ok_or_else(|| anyhow::anyhow!("`notify` in {} is not an array", path.display()))?
@@ -513,36 +512,28 @@ fn write_codex_notify_config(path: &Path) -> Result<()> {
             .collect::<Result<Vec<_>>>()?,
     };
 
-    let managed = existing
-        .first()
-        .is_some_and(|value| value == "aibox-codex-notify");
-    let mut command = if managed {
-        existing
-    } else {
-        let mut command = vec!["aibox-codex-notify".to_string()];
-        if !existing.is_empty() {
-            command.push("--delegate-json".to_string());
-            command.push(
-                serde_json::to_string(&existing)
-                    .context("failed to preserve existing Codex notify command")?,
-            );
+    if existing.first().map(String::as_str) != Some("aibox-codex-notify") {
+        return Ok(());
+    }
+
+    if existing.get(1).map(String::as_str) == Some("--delegate-json") {
+        let delegated = existing.get(2).ok_or_else(|| {
+            anyhow::anyhow!(
+                "managed `notify` in {} has no delegate payload",
+                path.display()
+            )
+        })?;
+        let command: Vec<String> = serde_json::from_str(delegated)
+            .context("failed to restore delegated Codex notify command")?;
+        let mut array = toml_edit::Array::new();
+        for part in command {
+            array.push(part);
         }
-        command
-    };
-    if command.is_empty() {
-        command.push("aibox-codex-notify".to_string());
+        doc["notify"] = toml_edit::value(array);
+    } else {
+        doc.remove("notify");
     }
 
-    let mut array = Array::new();
-    for part in command {
-        array.push(part);
-    }
-    doc["notify"] = value(array);
-
-    if let Some(parent) = path.parent() {
-        fs::create_dir_all(parent)
-            .with_context(|| format!("failed to create directory {}", parent.display()))?;
-    }
     fs::write(path, doc.to_string())
         .with_context(|| format!("failed to write {}", path.display()))?;
     Ok(())
@@ -970,10 +961,7 @@ version = "unset"
         let post_tool = command("PostToolUse");
         assert!(post_tool.contains("aibox-agent-signal working"));
         assert!(post_tool.contains("--hook-input"));
-        assert!(
-            hooks.get("Stop").is_none(),
-            "Codex turn completion belongs in config.toml notify, not hooks.json Stop"
-        );
+        assert!(command("Stop").contains("aibox-agent-signal done"));
         assert!(command("SessionEnd").contains("--hook-input"));
 
         assert!(pre_tool.contains("check_route_task_called.py"));
@@ -1032,27 +1020,43 @@ version = "unset"
     }
 
     #[test]
-    fn test_codex_notify_preserves_user_command_and_is_idempotent() {
+    fn test_codex_managed_notify_is_removed_and_delegated_command_restored() {
         let dir = TempDir::new().unwrap();
         let path = dir.path().join(".codex/config.toml");
         fs::create_dir_all(path.parent().unwrap()).unwrap();
         fs::write(
             &path,
-            "model = \"gpt-5.6-sol\"\nnotify = [\"python3\", \"notify-team.py\"]\n",
+            "model = \"gpt-5.6-sol\"\nnotify = [\"aibox-codex-notify\", \"--delegate-json\", '[\"python3\",\"notify-team.py\"]']\n",
         )
         .unwrap();
-
-        write_codex_notify_config(&path).expect("first write should succeed");
+        remove_managed_codex_notify_config(&path).expect("first write should succeed");
         let first = fs::read_to_string(&path).unwrap();
-        write_codex_notify_config(&path).expect("second write should succeed");
+        remove_managed_codex_notify_config(&path).expect("second write should succeed");
         let second = fs::read_to_string(&path).unwrap();
         assert_eq!(first, second, "Codex notify merge must be idempotent");
 
         let parsed: toml::Value = toml::from_str(&second).unwrap();
         let notify = parsed["notify"].as_array().unwrap();
-        assert_eq!(notify[0].as_str(), Some("aibox-codex-notify"));
-        assert_eq!(notify[1].as_str(), Some("--delegate-json"));
-        assert_eq!(notify[2].as_str(), Some(r#"["python3","notify-team.py"]"#));
+        assert_eq!(notify[0].as_str(), Some("python3"));
+        assert_eq!(notify[1].as_str(), Some("notify-team.py"));
+        assert_eq!(parsed["model"].as_str(), Some("gpt-5.6-sol"));
+    }
+
+    #[test]
+    fn test_codex_managed_notify_without_delegate_is_removed() {
+        let dir = TempDir::new().unwrap();
+        let path = dir.path().join(".codex/config.toml");
+        fs::create_dir_all(path.parent().unwrap()).unwrap();
+        fs::write(
+            &path,
+            "model = \"gpt-5.6-sol\"\nnotify = [\"aibox-codex-notify\"]\n",
+        )
+        .unwrap();
+
+        remove_managed_codex_notify_config(&path).unwrap();
+
+        let parsed: toml::Value = toml::from_str(&fs::read_to_string(path).unwrap()).unwrap();
+        assert!(parsed.get("notify").is_none());
         assert_eq!(parsed["model"].as_str(), Some("gpt-5.6-sol"));
     }
 

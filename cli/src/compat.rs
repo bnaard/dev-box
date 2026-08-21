@@ -748,6 +748,11 @@ pub static COMPAT_TABLE: &[CompatEntry] = &[
         processkit_version: "v0.28.8",
         note: "Patch release: publishes the generated theme gallery and chooser, aligns terminal themes with the design reference, reliably clears answered Codex question state, and improves active tmux pane visibility.",
     },
+    CompatEntry {
+        aibox_version: "0.34.3",
+        processkit_version: "v0.28.8",
+        note: "Patch release: restores readable Yazi marked items across every theme, repairs PowerKit separator colors, preserves active-pane emphasis, uses supported Codex lifecycle hooks, and reliably restores the outer terminal title.",
+    },
 ];
 
 /// Find the minimum compatible processkit version for the given aibox version.

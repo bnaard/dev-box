@@ -90,7 +90,7 @@ RUN ARCH=$(uname -m) && \
     fi
 
 
-FROM ghcr.io/projectious-work/aibox:base-debian-runtime-v0.34.1 AS aibox
+FROM ghcr.io/projectious-work/aibox:base-debian-runtime-v0.34.2 AS aibox
 
 ENV SHELL=/bin/bash
 ENV UV_CACHE_DIR=/tmp/aibox/uv-cache
@@ -212,7 +212,7 @@ RUN npm install -g pnpm@11.22.0 && \
 # npm package: @openai/codex | Binary: codex | Config: ~/.codex/
 # Auth: OPENAI_API_KEY (or ChatGPT Plus/Pro/Team/Enterprise account)
 # To pin a version: set [ai.harness.codex] version in aibox.toml
-RUN npm install -g @openai/codex@0.148.0
+RUN npm install -g @openai/codex@0.149.0
 
 
 # Addon: docs-docusaurus
@@ -319,6 +319,6 @@ EOF
 
 # Record image version inside container for runtime checks
 USER root
-LABEL aibox.version="0.34.1"
+LABEL aibox.version="0.34.2"
 LABEL aibox.profile="human-dev"
-RUN echo "0.34.1" > /etc/aibox-version
+RUN echo "0.34.2" > /etc/aibox-version
