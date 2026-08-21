@@ -1,0 +1,6 @@
+User-agent: *
+Allow: /
+Disallow: /aibox/v0.x/v0.34.3/search/
+Disallow: *print.html
+
+Sitemap: https://projectious-work.github.io/aibox/v0.x/v0.34.3/sitemap.xml

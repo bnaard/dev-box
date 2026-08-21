@@ -10,6 +10,7 @@ below shows the minimum compatible processkit version for each aibox release.
 
 | aibox version | Min. processkit | Notes |
 |--------------|-----------------|-------|
+| 0.34.3 | v0.28.8 | restores readable Yazi marked items across every theme, repairs PowerKit separator colors, preserves active-pane emphasis, uses supported Codex lifecycle hooks, and reliably restores the outer terminal title |
 | 0.34.2 | v0.28.8 | publishes the generated theme gallery and chooser, aligns terminal themes with the design reference, reliably clears answered Codex question state, and improves active tmux pane visibility |
 | 0.34.1 | v0.28.8 | expands theme palettes across the managed terminal toolchain, adds exact Codex syntax themes, restores the visual theme gallery, and clears Codex question state after permission answers |
 | 0.34.0 | v0.28.8 | adds configurable agent-aware tmux headers and replaces the legacy documentation stack with the projectious.work Hugo brand theme |
