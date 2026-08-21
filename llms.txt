@@ -2,7 +2,7 @@
 
 > Reproducible AI workspaces from one aibox.toml.
 
-Version: v0.34.0
+Version: v0.34.2
 
 
 ## Documentation
@@ -55,7 +55,9 @@ Configure, operate, extend, and contribute to aibox.
 
 aibox release history.
 
+- [v0.34.2 — accurate themes and reliable agent state](https://projectious-work.github.io/aibox/changelog/release-v0-34-2/): Adds the theme gallery and chooser, aligns generated themes with their references, and fixes Codex and tmux attention state.
 - [v0.34.0 — agent-aware tmux and branded documentation](https://projectious-work.github.io/aibox/changelog/release-v0-34-0/): Adds configurable agent lifecycle titles and moves the documentation site to the projectious.work Hugo brand theme.
+- [v0.34.1 — coherent terminal themes](https://projectious-work.github.io/aibox/changelog/release-v0-34-1/): Unifies configurable colors across the managed terminal toolchain, restores the theme gallery, and fixes Codex lifecycle and LaTeX builds.
 - [v0.33.2 — runtime and processkit alignment](https://projectious-work.github.io/aibox/changelog/release-v0-33-2/): Refreshes processkit and runtime metadata while reconciling tmux layout and theme switching work.
 - [v0.33.0 — agent-aware terminal titles](https://projectious-work.github.io/aibox/changelog/release-v0-33-0/): Adds configurable, terminal-neutral tmux titles and lifecycle attention signals for agent panes.
 - [v0.33.1 — resilient runtime projections](https://projectious-work.github.io/aibox/changelog/release-v0-33-1/): Repairs generated harness startup, Yazi directory previews, and PowerKit window-tab spacing.
@@ -72,10 +74,12 @@ The public aibox delivery roadmap.
 - [v0.x](https://projectious-work.github.io/aibox/roadmap/v0/): Mature the current aibox line around dependable containers, addons, agent context, runtime diagnostics, and processkit integration.
 - [v1.x](https://projectious-work.github.io/aibox/roadmap/v1/): Develop the next project-contract architecture while preserving reproducible, provider-neutral workspaces.
 
-## Theme Gallery
+## Themes
 
-Compare terminal examples for every audited aibox theme variant.
+Compare every aibox theme, its semantic palette, emphasis, tool support, and terminal appearance.
 
+- [Theme chooser](https://projectious-work.github.io/aibox/themes/chooser/): Find themes by appearance, contrast, and required tool integration.
+- [Tool support](https://projectious-work.github.io/aibox/themes/tool-support/): See how each supported terminal tool consumes the shared semantic theme.
 
 ## Optional
 
