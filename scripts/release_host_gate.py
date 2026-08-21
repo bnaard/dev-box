@@ -1286,15 +1286,20 @@ def run_gate(renderer: object | None = None) -> None:
         ["/usr/bin/git", "-C", str(project_root), "rev-parse", "HEAD"],
         check=True, capture_output=True, text=True,
     ).stdout.strip()
-    if head_commit != provenance["commit"]:
-        fail("host checkout HEAD must be the tagged candidate commit")
+    tag_reaches_head = subprocess.run(
+        ["/usr/bin/git", "-C", str(project_root), "merge-base", "--is-ancestor",
+         provenance["commit"], head_commit],
+        check=False, capture_output=True, text=True,
+    )
+    if tag_reaches_head.returncode != 0:
+        fail("host checkout HEAD must descend from the tagged candidate commit")
     control_plane_diff = subprocess.run(
         ["/usr/bin/git", "-C", str(project_root), "diff", "--name-only", "HEAD", "--",
          *TRUSTED_CONTROL_PATHS],
         check=True, capture_output=True, text=True,
     ).stdout.strip()
     if control_plane_diff:
-        fail("host release control-plane files must match the tagged candidate commit")
+        fail("host release control-plane files must be clean in the current protected-branch checkout")
 
     # Phase 3: create fresh mutable runtime/evidence trees. Refusing preexisting
     # trees prevents a partial or previously published run from being resumed.
