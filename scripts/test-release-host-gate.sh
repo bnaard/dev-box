@@ -149,6 +149,8 @@ source = (script_dir / "release_host_gate.py").read_text()
 assert '"CARGO_HOME": str(cargo_home)' in source
 assert '"CARGO_TARGET_DIR": str(cargo_target_dir)' in source
 assert '"cargo_cache_scope": provenance["commit"]' in source
+assert '"merge-base", "--is-ancestor"' in source
+assert 'host checkout HEAD must descend from the tagged candidate commit' in source
 assert '"cargo", "fetch", "--locked"' in source
 assert 'fetch_env = {**fixed_env, "CARGO_NET_OFFLINE": "false"}' in source
 assert '"DOCKER_BUILDKIT": "1"' in source
