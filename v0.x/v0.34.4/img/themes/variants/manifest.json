@@ -1,0 +1,610 @@
+[
+  {
+    "id": "Andromeeda",
+    "slug": "andromeeda",
+    "image": "/img/themes/variants/andromeeda.png",
+    "family": "andromeeda",
+    "mode": "dark",
+    "variant": "solo"
+  },
+  {
+    "id": "AuroraX",
+    "slug": "aurora-x",
+    "image": "/img/themes/variants/aurora-x.png",
+    "family": "aurora-x",
+    "mode": "dark",
+    "variant": "solo"
+  },
+  {
+    "id": "AyuDark",
+    "slug": "ayu-dark",
+    "image": "/img/themes/variants/ayu-dark.png",
+    "family": "ayu",
+    "mode": "dark",
+    "variant": "default"
+  },
+  {
+    "id": "AyuMirage",
+    "slug": "ayu-mirage",
+    "image": "/img/themes/variants/ayu-mirage.png",
+    "family": "ayu",
+    "mode": "dark",
+    "variant": "mirage"
+  },
+  {
+    "id": "AyuLight",
+    "slug": "ayu-light",
+    "image": "/img/themes/variants/ayu-light.png",
+    "family": "ayu",
+    "mode": "light",
+    "variant": "default"
+  },
+  {
+    "id": "CatppuccinFrappe",
+    "slug": "catppuccin-frappe",
+    "image": "/img/themes/variants/catppuccin-frappe.png",
+    "family": "catppuccin",
+    "mode": "dark",
+    "variant": "frappe"
+  },
+  {
+    "id": "CatppuccinMacchiato",
+    "slug": "catppuccin-macchiato",
+    "image": "/img/themes/variants/catppuccin-macchiato.png",
+    "family": "catppuccin",
+    "mode": "dark",
+    "variant": "macchiato"
+  },
+  {
+    "id": "CatppuccinMocha",
+    "slug": "catppuccin-mocha",
+    "image": "/img/themes/variants/catppuccin-mocha.png",
+    "family": "catppuccin",
+    "mode": "dark",
+    "variant": "default"
+  },
+  {
+    "id": "CatppuccinLatte",
+    "slug": "catppuccin-latte",
+    "image": "/img/themes/variants/catppuccin-latte.png",
+    "family": "catppuccin",
+    "mode": "light",
+    "variant": "default"
+  },
+  {
+    "id": "ContrastDark",
+    "slug": "contrast-dark",
+    "image": "/img/themes/variants/contrast-dark.png",
+    "family": "contrast",
+    "mode": "dark",
+    "variant": "high"
+  },
+  {
+    "id": "ContrastDarkMax",
+    "slug": "contrast-dark-max",
+    "image": "/img/themes/variants/contrast-dark-max.png",
+    "family": "contrast",
+    "mode": "dark",
+    "variant": "max"
+  },
+  {
+    "id": "ContrastLight",
+    "slug": "contrast-light",
+    "image": "/img/themes/variants/contrast-light.png",
+    "family": "contrast",
+    "mode": "light",
+    "variant": "high"
+  },
+  {
+    "id": "ContrastLightMax",
+    "slug": "contrast-light-max",
+    "image": "/img/themes/variants/contrast-light-max.png",
+    "family": "contrast",
+    "mode": "light",
+    "variant": "max"
+  },
+  {
+    "id": "ContrastMonoDark",
+    "slug": "contrast-mono-dark",
+    "image": "/img/themes/variants/contrast-mono-dark.png",
+    "family": "contrast-mono",
+    "mode": "dark",
+    "variant": "high"
+  },
+  {
+    "id": "ContrastMonoDarkMax",
+    "slug": "contrast-mono-dark-max",
+    "image": "/img/themes/variants/contrast-mono-dark-max.png",
+    "family": "contrast-mono",
+    "mode": "dark",
+    "variant": "max"
+  },
+  {
+    "id": "ContrastMonoLight",
+    "slug": "contrast-mono-light",
+    "image": "/img/themes/variants/contrast-mono-light.png",
+    "family": "contrast-mono",
+    "mode": "light",
+    "variant": "high"
+  },
+  {
+    "id": "ContrastMonoLightMax",
+    "slug": "contrast-mono-light-max",
+    "image": "/img/themes/variants/contrast-mono-light-max.png",
+    "family": "contrast-mono",
+    "mode": "light",
+    "variant": "max"
+  },
+  {
+    "id": "Dracula",
+    "slug": "dracula",
+    "image": "/img/themes/variants/dracula.png",
+    "family": "dracula",
+    "mode": "dark",
+    "variant": "default"
+  },
+  {
+    "id": "DraculaSoft",
+    "slug": "dracula-soft",
+    "image": "/img/themes/variants/dracula-soft.png",
+    "family": "dracula",
+    "mode": "dark",
+    "variant": "soft"
+  },
+  {
+    "id": "EverforestDark",
+    "slug": "everforest-dark",
+    "image": "/img/themes/variants/everforest-dark.png",
+    "family": "everforest",
+    "mode": "dark",
+    "variant": "default"
+  },
+  {
+    "id": "EverforestLight",
+    "slug": "everforest-light",
+    "image": "/img/themes/variants/everforest-light.png",
+    "family": "everforest",
+    "mode": "light",
+    "variant": "default"
+  },
+  {
+    "id": "GithubDark",
+    "slug": "github-dark",
+    "image": "/img/themes/variants/github-dark.png",
+    "family": "github",
+    "mode": "dark",
+    "variant": "default"
+  },
+  {
+    "id": "GithubDarkDimmed",
+    "slug": "github-dark-dimmed",
+    "image": "/img/themes/variants/github-dark-dimmed.png",
+    "family": "github",
+    "mode": "dark",
+    "variant": "dimmed"
+  },
+  {
+    "id": "GithubDarkHighContrast",
+    "slug": "github-dark-high-contrast",
+    "image": "/img/themes/variants/github-dark-high-contrast.png",
+    "family": "github",
+    "mode": "dark",
+    "variant": "high-contrast-dark"
+  },
+  {
+    "id": "GithubLight",
+    "slug": "github-light",
+    "image": "/img/themes/variants/github-light.png",
+    "family": "github",
+    "mode": "light",
+    "variant": "default"
+  },
+  {
+    "id": "GithubLightHighContrast",
+    "slug": "github-light-high-contrast",
+    "image": "/img/themes/variants/github-light-high-contrast.png",
+    "family": "github",
+    "mode": "light",
+    "variant": "high-contrast-light"
+  },
+  {
+    "id": "GruvboxDark",
+    "slug": "gruvbox-dark",
+    "image": "/img/themes/variants/gruvbox-dark.png",
+    "family": "gruvbox",
+    "mode": "dark",
+    "variant": "default"
+  },
+  {
+    "id": "GruvboxLight",
+    "slug": "gruvbox-light",
+    "image": "/img/themes/variants/gruvbox-light.png",
+    "family": "gruvbox",
+    "mode": "light",
+    "variant": "default"
+  },
+  {
+    "id": "Houston",
+    "slug": "houston",
+    "image": "/img/themes/variants/houston.png",
+    "family": "houston",
+    "mode": "dark",
+    "variant": "solo"
+  },
+  {
+    "id": "KanagawaDragon",
+    "slug": "kanagawa-dragon",
+    "image": "/img/themes/variants/kanagawa-dragon.png",
+    "family": "kanagawa",
+    "mode": "dark",
+    "variant": "dragon"
+  },
+  {
+    "id": "KanagawaWave",
+    "slug": "kanagawa-wave",
+    "image": "/img/themes/variants/kanagawa-wave.png",
+    "family": "kanagawa",
+    "mode": "dark",
+    "variant": "default"
+  },
+  {
+    "id": "KanagawaLotus",
+    "slug": "kanagawa-lotus",
+    "image": "/img/themes/variants/kanagawa-lotus.png",
+    "family": "kanagawa",
+    "mode": "light",
+    "variant": "default"
+  },
+  {
+    "id": "Laserwave",
+    "slug": "laserwave",
+    "image": "/img/themes/variants/laserwave.png",
+    "family": "laserwave",
+    "mode": "dark",
+    "variant": "solo"
+  },
+  {
+    "id": "Material",
+    "slug": "material",
+    "image": "/img/themes/variants/material.png",
+    "family": "material",
+    "mode": "dark",
+    "variant": "default"
+  },
+  {
+    "id": "MaterialDarker",
+    "slug": "material-darker",
+    "image": "/img/themes/variants/material-darker.png",
+    "family": "material",
+    "mode": "dark",
+    "variant": "darker"
+  },
+  {
+    "id": "MaterialOcean",
+    "slug": "material-ocean",
+    "image": "/img/themes/variants/material-ocean.png",
+    "family": "material",
+    "mode": "dark",
+    "variant": "ocean"
+  },
+  {
+    "id": "MaterialPalenight",
+    "slug": "material-palenight",
+    "image": "/img/themes/variants/material-palenight.png",
+    "family": "material",
+    "mode": "dark",
+    "variant": "palenight"
+  },
+  {
+    "id": "MaterialLighter",
+    "slug": "material-lighter",
+    "image": "/img/themes/variants/material-lighter.png",
+    "family": "material",
+    "mode": "light",
+    "variant": "default"
+  },
+  {
+    "id": "MinDark",
+    "slug": "min-dark",
+    "image": "/img/themes/variants/min-dark.png",
+    "family": "min",
+    "mode": "dark",
+    "variant": "default"
+  },
+  {
+    "id": "MinLight",
+    "slug": "min-light",
+    "image": "/img/themes/variants/min-light.png",
+    "family": "min",
+    "mode": "light",
+    "variant": "default"
+  },
+  {
+    "id": "MonoDark",
+    "slug": "mono-dark",
+    "image": "/img/themes/variants/mono-dark.png",
+    "family": "mono",
+    "mode": "dark",
+    "variant": "solo"
+  },
+  {
+    "id": "MonoLight",
+    "slug": "mono-light",
+    "image": "/img/themes/variants/mono-light.png",
+    "family": "mono",
+    "mode": "light",
+    "variant": "solo"
+  },
+  {
+    "id": "Monokai",
+    "slug": "monokai",
+    "image": "/img/themes/variants/monokai.png",
+    "family": "monokai",
+    "mode": "dark",
+    "variant": "solo"
+  },
+  {
+    "id": "Moonlight",
+    "slug": "moonlight",
+    "image": "/img/themes/variants/moonlight.png",
+    "family": "moonlight",
+    "mode": "dark",
+    "variant": "solo"
+  },
+  {
+    "id": "NightOwl",
+    "slug": "night-owl",
+    "image": "/img/themes/variants/night-owl.png",
+    "family": "night-owl",
+    "mode": "dark",
+    "variant": "default"
+  },
+  {
+    "id": "NightOwlLight",
+    "slug": "night-owl-light",
+    "image": "/img/themes/variants/night-owl-light.png",
+    "family": "night-owl",
+    "mode": "light",
+    "variant": "default"
+  },
+  {
+    "id": "Nord",
+    "slug": "nord",
+    "image": "/img/themes/variants/nord.png",
+    "family": "nord",
+    "mode": "dark",
+    "variant": "solo"
+  },
+  {
+    "id": "OneDarkPro",
+    "slug": "one-dark-pro",
+    "image": "/img/themes/variants/one-dark-pro.png",
+    "family": "one-dark",
+    "mode": "dark",
+    "variant": "default"
+  },
+  {
+    "id": "OneLight",
+    "slug": "one-light",
+    "image": "/img/themes/variants/one-light.png",
+    "family": "one-dark",
+    "mode": "light",
+    "variant": "default"
+  },
+  {
+    "id": "Plastic",
+    "slug": "plastic",
+    "image": "/img/themes/variants/plastic.png",
+    "family": "plastic",
+    "mode": "dark",
+    "variant": "solo"
+  },
+  {
+    "id": "Poimandres",
+    "slug": "poimandres",
+    "image": "/img/themes/variants/poimandres.png",
+    "family": "poimandres",
+    "mode": "dark",
+    "variant": "solo"
+  },
+  {
+    "id": "Projectious",
+    "slug": "projectious",
+    "image": "/img/themes/variants/projectious.png",
+    "family": "projectious",
+    "mode": "dark",
+    "variant": "solo"
+  },
+  {
+    "id": "ProjectiousDeep",
+    "slug": "projectious-deep",
+    "image": "/img/themes/variants/projectious-deep.png",
+    "family": "projectious",
+    "mode": "dark",
+    "variant": "deep"
+  },
+  {
+    "id": "ProjectiousHCDark",
+    "slug": "projectious-hcdark",
+    "image": "/img/themes/variants/projectious-hcdark.png",
+    "family": "projectious",
+    "mode": "dark",
+    "variant": "high-contrast-dark"
+  },
+  {
+    "id": "ProjectiousNavy",
+    "slug": "projectious-navy",
+    "image": "/img/themes/variants/projectious-navy.png",
+    "family": "projectious",
+    "mode": "dark",
+    "variant": "default (navy)"
+  },
+  {
+    "id": "ProjectiousHCLight",
+    "slug": "projectious-hclight",
+    "image": "/img/themes/variants/projectious-hclight.png",
+    "family": "projectious",
+    "mode": "light",
+    "variant": "high-contrast-light"
+  },
+  {
+    "id": "ProjectiousLight",
+    "slug": "projectious-light",
+    "image": "/img/themes/variants/projectious-light.png",
+    "family": "projectious",
+    "mode": "light",
+    "variant": "default"
+  },
+  {
+    "id": "Red",
+    "slug": "red",
+    "image": "/img/themes/variants/red.png",
+    "family": "red",
+    "mode": "dark",
+    "variant": "solo"
+  },
+  {
+    "id": "RosePine",
+    "slug": "rose-pine",
+    "image": "/img/themes/variants/rose-pine.png",
+    "family": "rose-pine",
+    "mode": "dark",
+    "variant": "default"
+  },
+  {
+    "id": "RosePineMoon",
+    "slug": "rose-pine-moon",
+    "image": "/img/themes/variants/rose-pine-moon.png",
+    "family": "rose-pine",
+    "mode": "dark",
+    "variant": "moon"
+  },
+  {
+    "id": "RosePineDawn",
+    "slug": "rose-pine-dawn",
+    "image": "/img/themes/variants/rose-pine-dawn.png",
+    "family": "rose-pine",
+    "mode": "light",
+    "variant": "default"
+  },
+  {
+    "id": "SlackDark",
+    "slug": "slack-dark",
+    "image": "/img/themes/variants/slack-dark.png",
+    "family": "slack",
+    "mode": "dark",
+    "variant": "default"
+  },
+  {
+    "id": "SlackOchin",
+    "slug": "slack-ochin",
+    "image": "/img/themes/variants/slack-ochin.png",
+    "family": "slack",
+    "mode": "light",
+    "variant": "ochin"
+  },
+  {
+    "id": "SnazzyLight",
+    "slug": "snazzy-light",
+    "image": "/img/themes/variants/snazzy-light.png",
+    "family": "snazzy",
+    "mode": "light",
+    "variant": "solo"
+  },
+  {
+    "id": "SolarizedDark",
+    "slug": "solarized-dark",
+    "image": "/img/themes/variants/solarized-dark.png",
+    "family": "solarized",
+    "mode": "dark",
+    "variant": "default"
+  },
+  {
+    "id": "SolarizedLight",
+    "slug": "solarized-light",
+    "image": "/img/themes/variants/solarized-light.png",
+    "family": "solarized",
+    "mode": "light",
+    "variant": "default"
+  },
+  {
+    "id": "Synthwave84",
+    "slug": "synthwave84",
+    "image": "/img/themes/variants/synthwave84.png",
+    "family": "synthwave-84",
+    "mode": "dark",
+    "variant": "solo"
+  },
+  {
+    "id": "TokyoNight",
+    "slug": "tokyo-night",
+    "image": "/img/themes/variants/tokyo-night.png",
+    "family": "tokyo-night",
+    "mode": "dark",
+    "variant": "default"
+  },
+  {
+    "id": "TokyoNightStorm",
+    "slug": "tokyo-night-storm",
+    "image": "/img/themes/variants/tokyo-night-storm.png",
+    "family": "tokyo-night",
+    "mode": "dark",
+    "variant": "storm"
+  },
+  {
+    "id": "TokyoNightDay",
+    "slug": "tokyo-night-day",
+    "image": "/img/themes/variants/tokyo-night-day.png",
+    "family": "tokyo-night",
+    "mode": "light",
+    "variant": "default"
+  },
+  {
+    "id": "Vesper",
+    "slug": "vesper",
+    "image": "/img/themes/variants/vesper.png",
+    "family": "vesper",
+    "mode": "dark",
+    "variant": "solo"
+  },
+  {
+    "id": "VitesseBlack",
+    "slug": "vitesse-black",
+    "image": "/img/themes/variants/vitesse-black.png",
+    "family": "vitesse",
+    "mode": "dark",
+    "variant": "black"
+  },
+  {
+    "id": "VitesseDark",
+    "slug": "vitesse-dark",
+    "image": "/img/themes/variants/vitesse-dark.png",
+    "family": "vitesse",
+    "mode": "dark",
+    "variant": "default"
+  },
+  {
+    "id": "VitesseLight",
+    "slug": "vitesse-light",
+    "image": "/img/themes/variants/vitesse-light.png",
+    "family": "vitesse",
+    "mode": "light",
+    "variant": "default"
+  },
+  {
+    "id": "VsCodeDarkPlus",
+    "slug": "vs-code-dark-plus",
+    "image": "/img/themes/variants/vs-code-dark-plus.png",
+    "family": "vscode",
+    "mode": "dark",
+    "variant": "default"
+  },
+  {
+    "id": "VsCodeLightPlus",
+    "slug": "vs-code-light-plus",
+    "image": "/img/themes/variants/vs-code-light-plus.png",
+    "family": "vscode",
+    "mode": "light",
+    "variant": "default"
+  }
+]
