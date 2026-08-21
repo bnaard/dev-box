@@ -1,5 +1,5 @@
 [aibox]
-cli_version = "0.34.2"
+cli_version = "0.34.4"
 synced_at = "2026-08-18T16:07:47.800498324+00:00"
 
 [processkit]
@@ -11,7 +11,7 @@ installed_at = "2026-08-18T16:07:47.800498324+00:00"
 processkit_install_hash = "v2:97e62c0ba86ec14a0d7bb846c17a75a89164d13d0fb35acdc1e74f9c3e6ac2bf"
 
 [addons]
-resolved_at = "2026-08-21T15:46:10Z"
+resolved_at = "2026-08-21T16:25:53Z"
 
 [addons.tools]
 codex = "0.149.0"
@@ -35,7 +35,7 @@ rust = [
 ]
 
 [runtime_home]
-generated_at = "2026-08-21T15:24:48.264891534+00:00"
+generated_at = "2026-08-21T16:25:54.053413963+00:00"
 
 [runtime_home.files]
 ".asoundrc" = "f34609b11d315cd613cb5333b561032baec860faf4a7eccb28b5567ae72019af"
@@ -58,7 +58,7 @@ generated_at = "2026-08-21T15:24:48.264891534+00:00"
 ".config/tmux/layouts/cowork.sh" = "5225c769f95f11eb2578f186478d839a9ad156dd673a89300f3a413475ddf08c"
 ".config/tmux/layouts/dev.sh" = "f9bf82db698c2de794b5e6404438dd36e3d9e9fa33303ab2ad35c7ba160d8198"
 ".config/tmux/layouts/focus.sh" = "22b74d4797c83612a598d128d24cccba0ade85feda6ac3abcb81693ad3e276a0"
-".config/tmux/tmux.conf" = "4e21b01b4fcf04baf1af341c472ae5e927b97bca0291c6d91fb30db8fb81178a"
+".config/tmux/tmux.conf" = "07a35f36d5a23f7994848bb0e13153ba0d91fafd247062b7f78d7bd8d6468f5a"
 ".config/yazi/init.lua" = "eae04462c0b3bcbb486ee59aa9c2c9e9595680a0626997c942e5abb2ae5a48d7"
 ".config/yazi/keymap.toml" = "153c719f16e74dc92d127fb64793ca2e4715b258bab2d25a40c4652a9dd0a298"
 ".config/yazi/plugins/dir-preview.yazi/main.lua" = "61daef7bfea36e0274532a774e3d686e2dac71fa57b92c36bb2a4ebb921a848b"
@@ -68,7 +68,7 @@ generated_at = "2026-08-21T15:24:48.264891534+00:00"
 ".config/yazi/plugins/rich-preview.yazi/main.lua" = "e36493fd73d9e580bb1e0b2be2353d2d81558e63ed3621b1d0edfbdc07c71f6e"
 ".config/yazi/plugins/status-git.yazi/main.lua" = "bedc0ba5bf4ea01605b1b7cb444ee3a09b0a4ba35ce99306d974d5977a4d32d2"
 ".config/yazi/plugins/svg.yazi/init.lua" = "ba5e7ebbb9870eda80d7be179010494cac3896b4b29fb8f1011809e217ecc278"
-".config/yazi/plugins/toggle-pane.yazi/main.lua" = "86b2306f6c9d880f0a6f777bdefb451393eb6a0c88718be355ebe31495e59f1c"
+".config/yazi/plugins/toggle-pane.yazi/main.lua" = "a3a1e685d65f304e12be75c6874141f9a8c786a00460ab9e7fff575a12f1c6e6"
 ".config/yazi/theme.toml" = "182f4eb9d125d685711f18cbf4bdb9242aca5c6761164d49cc09049cf99aed37"
 ".config/yazi/yazi.toml" = "8d68bae77fa90031419dc37bc180fdfda600d870740e23c09a38f8f7c9148529"
 ".inputrc" = "3763b3a9d37f05ca7c035579bc5419b664c3b33c5ce9a0c4ce5d00fbe75ec237"
