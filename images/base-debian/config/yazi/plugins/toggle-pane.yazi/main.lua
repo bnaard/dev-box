@@ -3,20 +3,21 @@
 
 local function entry(st, job)
 	local R = rt.mgr.ratio
+	local base = { parent = R[1], current = R[2], preview = R[3] }
 	job = type(job) == "string" and { args = { job } } or job
 
-	st.parent = st.parent or R.parent
-	st.current = st.current or R.current
-	st.preview = st.preview or R.preview
+	st.parent = st.parent or base.parent
+	st.current = st.current or base.current
+	st.preview = st.preview or base.preview
 
 	local act, to = string.match(job.args[1] or "", "(.-)-(.+)")
 	if act == "min" then
-		st[to] = st[to] == R[to] and 0 or R[to]
+		st[to] = st[to] == base[to] and 0 or base[to]
 	elseif act == "max" then
-		local max = st[to] == 65535 and R[to] or 65535
-		st.parent = st.parent == 65535 and R.parent or st.parent
-		st.current = st.current == 65535 and R.current or st.current
-		st.preview = st.preview == 65535 and R.preview or st.preview
+		local max = st[to] == 65535 and base[to] or 65535
+		st.parent = st.parent == 65535 and base.parent or st.parent
+		st.current = st.current == 65535 and base.current or st.current
+		st.preview = st.preview == 65535 and base.preview or st.preview
 		st[to] = max
 	end
 

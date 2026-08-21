@@ -3708,6 +3708,16 @@ rules = [
     }
 
     #[test]
+    fn yazi_toggle_pane_uses_current_ratio_api() {
+        assert!(DEFAULT_YAZI_PLUGIN_TOGGLE_PANE.contains("R[1]"));
+        assert!(DEFAULT_YAZI_PLUGIN_TOGGLE_PANE.contains("R[2]"));
+        assert!(DEFAULT_YAZI_PLUGIN_TOGGLE_PANE.contains("R[3]"));
+        assert!(!DEFAULT_YAZI_PLUGIN_TOGGLE_PANE.contains("R.parent"));
+        assert!(!DEFAULT_YAZI_PLUGIN_TOGGLE_PANE.contains("R.current"));
+        assert!(!DEFAULT_YAZI_PLUGIN_TOGGLE_PANE.contains("R.preview"));
+    }
+
+    #[test]
     fn yazi_navigation_keybindings_seeded() {
         assert!(
             DEFAULT_YAZI_KEYMAP.contains(r#"{ on = "p", run = "shell 'aibox-preview %h' --block""#),
