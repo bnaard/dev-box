@@ -21,4 +21,6 @@
 
 Upgrade the host CLI to v0.34.3 and run `aibox apply`. Recreate or rebuild the container to receive the corrected baked PowerKit renderer; restart existing Yazi processes so they reload the generated theme.
 
+Routine upstream toolchain updates discovered during Phase 0 are intentionally deferred to [BACK-20260821_1557-AgileEmber](https://github.com/projectious-work/aibox/blob/v0.x-release/context/workitems/2026/08/BACK-20260821_1557-AgileEmber-review-deferred-dependency-updates-v0343.md) for dedicated image and cross-line validation; `cargo audit` is clean.
+
 [v0.34.3]: https://github.com/projectious-work/aibox/compare/v0.34.2...v0.34.3
