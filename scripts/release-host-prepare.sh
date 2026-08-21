@@ -13,8 +13,8 @@ fi
 
 COMMIT="$(git -C "${PROJECT_ROOT}" rev-parse "v${VERSION}^{commit}")"
 HEAD_COMMIT="$(git -C "${PROJECT_ROOT}" rev-parse HEAD)"
-[[ "${COMMIT}" == "${HEAD_COMMIT}" ]] || {
-  echo "Release tag v${VERSION} must point at HEAD before preparing host inputs." >&2
+git -C "${PROJECT_ROOT}" merge-base --is-ancestor "${COMMIT}" "${HEAD_COMMIT}" || {
+  echo "Release tag v${VERSION} must be reachable from HEAD before preparing host inputs." >&2
   exit 1
 }
 
@@ -58,4 +58,4 @@ jq -n \
 )
 chmod 0444 "${INPUT_DIR}"/*
 chmod 0555 "${INPUT_DIR}"
-printf '%s\n' "${RUN_DIR}"
+printf './%s\n' "${RUN_DIR#"${PROJECT_ROOT}"/}"
