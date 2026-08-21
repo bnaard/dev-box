@@ -1,26 +1,16 @@
-# aibox v0.34.3 — 2026-08-21
+# aibox v0.34.4 — 2026-08-21
 
-**Summary:** This patch makes themed terminal state reliably readable and restores terminal ownership when leaving aibox. Projects using Yazi, tmux, or Codex should upgrade and run `aibox apply` to regenerate the corrected runtime configuration.
-
-## Changed
-
-- Use Codex's supported project-local `Stop` lifecycle hook for completion state instead of the unsupported project-local `notify` configuration key.
-- Save the outer terminal title before attaching tmux and restore it when the aibox session exits.
-- Keep inactive and active tmux pane surfaces authoritative after PowerKit renders its status layout.
-- Register v0.34.3 against processkit v0.28.8 in the CLI and documentation compatibility tables.
+**Summary:** This follow-up patch updates the bundled Yazi pane-toggle plugin to the current pane-ratio API, eliminating deprecation warnings found during the v0.34.3 visual release gate.
 
 ## Fixed
 
-- Keep selected, copied, and cut Yazi entries readable across every generated theme by coloring marker glyphs without painting filenames with the same color.
-- Give Yazi's current-column indicator contrasting foreground and background colors.
-- Remove malformed trailing `#` characters from PowerKit window-separator color attributes that produced dark or mismatched divider wedges.
-- Clear retained `set-titles-string` state when project title management is disabled, preventing stale agent titles after reloads and exits.
-- Preserve and restore a user's pre-existing Codex notification command when migrating away from the aibox-managed legacy adapter.
+- Read Yazi's parent, current, and preview ratios through the supported indexed API.
+- Preserve pane hide, maximize, restore, and reset behavior without deprecated field access.
+- Add a regression test that rejects the deprecated ratio field names in the generated plugin.
+- Register v0.34.4 against processkit v0.28.8 in the CLI and documentation compatibility tables.
 
 ## Upgrade notes
 
-Upgrade the host CLI to v0.34.3 and run `aibox apply`. Recreate or rebuild the container to receive the corrected baked PowerKit renderer; restart existing Yazi processes so they reload the generated theme.
+Upgrade the host CLI to v0.34.4, run `aibox apply`, and restart existing Yazi processes so they load the refreshed plugin.
 
-Routine upstream toolchain updates discovered during Phase 0 are intentionally deferred to [BACK-20260821_1557-AgileEmber](https://github.com/projectious-work/aibox/blob/v0.x-release/context/workitems/2026/08/BACK-20260821_1557-AgileEmber-review-deferred-dependency-updates-v0343.md) for dedicated image and cross-line validation; `cargo audit` is clean.
-
-[v0.34.3]: https://github.com/projectious-work/aibox/compare/v0.34.2...v0.34.3
+[v0.34.4]: https://github.com/projectious-work/aibox/compare/v0.34.3...v0.34.4

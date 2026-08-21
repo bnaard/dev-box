@@ -753,6 +753,11 @@ pub static COMPAT_TABLE: &[CompatEntry] = &[
         processkit_version: "v0.28.8",
         note: "Patch release: restores readable Yazi marked items across every theme, repairs PowerKit separator colors, preserves active-pane emphasis, uses supported Codex lifecycle hooks, and reliably restores the outer terminal title.",
     },
+    CompatEntry {
+        aibox_version: "0.34.4",
+        processkit_version: "v0.28.8",
+        note: "Patch release: updates the bundled Yazi pane-toggle plugin to the current indexed ratio API and removes runtime deprecation warnings.",
+    },
 ];
 
 /// Find the minimum compatible processkit version for the given aibox version.
