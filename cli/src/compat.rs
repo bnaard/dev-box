@@ -743,6 +743,11 @@ pub static COMPAT_TABLE: &[CompatEntry] = &[
         processkit_version: "v0.28.8",
         note: "Patch release: expands theme palettes across the managed terminal toolchain, adds exact Codex syntax themes, restores the visual theme gallery, and clears Codex question state after permission answers.",
     },
+    CompatEntry {
+        aibox_version: "0.34.2",
+        processkit_version: "v0.28.8",
+        note: "Patch release: publishes the generated theme gallery and chooser, aligns terminal themes with the design reference, reliably clears answered Codex question state, and improves active tmux pane visibility.",
+    },
 ];
 
 /// Find the minimum compatible processkit version for the given aibox version.
