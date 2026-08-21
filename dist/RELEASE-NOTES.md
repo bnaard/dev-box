@@ -1,28 +1,27 @@
-# aibox v0.34.1 — 2026-08-20
+# aibox v0.34.2 — 2026-08-21
 
-**Summary:** This patch release delivers coherent, configurable color themes across the managed terminal toolchain and restores the public theme gallery with faithful screenshots. Codex users also receive exact syntax palettes and a lifecycle fix that clears the question marker after permission prompts are answered.
+**Summary:** This patch adds a first-class theme gallery and chooser generated from the canonical theme correction data, aligns managed terminal colors with the design reference, and makes Codex/tmux attention state reliable after inline questions are answered.
 
 ## Added
 
-- Expanded semantic theme palettes covering terminal chrome, tmux, shell tools, editors, syntax highlighting, and supported coding-agent harnesses.
-- Generated TextMate themes consumed by bat, delta, and Codex for exact per-project syntax colors.
-- A screenshot-based theme gallery with all supported theme variants and a reproducible capture script.
+- A Hugo theme overview with 76 generated variants, interactive qualitative filtering, per-theme configuration examples, and a dedicated tool-support reference.
+- A managed Codex `notify` adapter that updates aibox attention state while preserving an existing project-local notify command.
+- Explicit Yazi selection indicators and stronger active-pane styling for tmux panes containing Yazi.
 
 ## Changed
 
-- Extended theme configuration and documentation to describe every colored semantic token and each tool's native or generated theme support.
-- Replaced fragile terminal recordings in the documentation gallery with deterministic rendered screenshots.
-- Refreshed the generated v0.34.0 dogfood runtime and archived completed migration artifacts.
+- Corrected generated theme foregrounds, active inks, syntax roles, and Contrast-family terminal previews against the Variant Board reference.
+- Generate the documentation catalog from the same correction source used to scaffold addon theme files.
+- Register v0.34.2 against processkit v0.28.8 in the CLI and documentation compatibility tables.
 
 ## Fixed
 
-- Clear Codex's `question` lifecycle state after a permission response so the tmux title resumes its working indicator.
-- Preserve palette-specific selection foreground/background values and light/dark terminal chrome across generated tool configs.
-- Generate Codex theme files only when the Codex harness is enabled.
-- Restore LaTeX addon builds by using a reachable immutable TeX Live 2025 archive for both the installer and package database.
+- Replace a stale Codex question marker with working state as soon as the inline answer reaches the transcript, and with done state when Codex reports turn completion.
+- Avoid Vim `E418: Illegal value: dim` by omitting the unsupported highlight attribute.
+- Make the active tmux pane visually distinct without depending on Yazi's internal pane selection.
 
 ## Upgrade notes
 
-Upgrade the host CLI to v0.34.1 and run `aibox apply` to regenerate managed terminal and harness theme files. Existing theme names remain compatible.
+Upgrade the host CLI to v0.34.2 and run `aibox apply` so managed Codex hooks, tmux configuration, Vim colors, Yazi configuration, and theme files are regenerated. Existing Codex notify commands are retained behind the aibox adapter.
 
-[v0.34.1]: https://github.com/projectious-work/aibox/compare/v0.34.0...v0.34.1
+[v0.34.2]: https://github.com/projectious-work/aibox/compare/v0.34.1...v0.34.2
