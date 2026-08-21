@@ -26,6 +26,10 @@ declare -F publish_release_candidate >/dev/null \
 if (release_host_prompt_path "/tmp/outside-project" >/dev/null 2>&1); then
   die "release host prompt path accepted a run directory outside the project gate root"
 fi
+grep -Fq 'release-host-prepare ${version}' "${SCRIPT_DIR}/maintain.sh" \
+  || die "release prompt must prepare immutable inputs on the host"
+grep -Fq 'release-host \"\${host_run_dir}\"' "${SCRIPT_DIR}/maintain.sh" \
+  || die "release prompt must pass the prepared host-relative run directory"
 grep -Fq 'cargo test -- --test-threads=1' "${SCRIPT_DIR}/maintain.sh" \
   || die "canonical release test gate must serialize process-level visual contracts"
 grep -Fq 'cargo test --test e2e -- --test-threads=1' "${SCRIPT_DIR}/maintain.sh" \

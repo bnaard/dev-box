@@ -2447,9 +2447,6 @@ cmd_release() {
 
   if release_step_requested prompt; then
     local prompt_file="${DIST_DIR}/RELEASE-PROMPT.md"
-    local host_run_dir host_prompt_path
-    host_run_dir="$("${SCRIPT_DIR}/release-host-prepare.sh" "${version}")"
-    host_prompt_path="$(release_host_prompt_path "${host_run_dir}")"
     {
       echo "# Host-side steps for aibox ${tag}"
       echo ""
@@ -2460,7 +2457,8 @@ cmd_release() {
       echo "git fetch origin ${release_branch}"
       echo "git switch ${release_branch}"
       echo "git reset --keep origin/${release_branch}"
-      echo "./scripts/maintain.sh release-host ${host_prompt_path}"
+      echo "host_run_dir=\"\$(./scripts/maintain.sh release-host-prepare ${version})\""
+      echo "./scripts/maintain.sh release-host \"\${host_run_dir}\""
       echo "\`\`\`"
       echo ""
       echo "This will:"
