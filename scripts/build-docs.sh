@@ -43,6 +43,8 @@ if [[ ! -d "${DOCS_ROOT}/node_modules" ]]; then
   npm --prefix "${DOCS_ROOT}" ci
 fi
 
+node "${PROJECT_ROOT}/scripts/generate-theme-catalog.mjs"
+
 hugo --source "${DOCS_ROOT}" --gc --minify --cleanDestinationDir \
   --baseURL "${DOCS_BASE_URL}" "${BUILD_ARGS[@]}"
 

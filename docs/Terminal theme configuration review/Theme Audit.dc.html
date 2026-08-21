@@ -1,0 +1,497 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<meta name="design_doc_mode" content="canvas">
+<link rel="stylesheet" href="_ds/projectious-work-design-system-019de81f-4f72-733b-895d-56489340005a/colors_and_type.css">
+<link rel="stylesheet" href="_ds/projectious-work-design-system-019de81f-4f72-733b-895d-56489340005a/styles.css">
+<script src="_ds/projectious-work-design-system-019de81f-4f72-733b-895d-56489340005a/_ds_bundle.js"></script>
+<style>
+  html, body { margin: 0; background: #132440; }
+  a { color: #8aacc8; text-decoration: none; }
+  a:hover { color: #c5daf0; text-decoration: underline; }
+</style>
+</helmet>
+
+<div data-theme="dark" style="background:var(--bg); color:var(--fg-1); font-family:'Source Sans 3',system-ui,sans-serif; min-height:100vh; padding:64px 48px 96px; display:flex; flex-direction:column; align-items:center; gap:64px">
+
+  <header style="width:100%; max-width:1100px; display:flex; flex-direction:column; gap:24px">
+    <div style="display:flex; align-items:center; gap:12px; font-family:'Source Sans 3',system-ui,sans-serif; font-size:12px; font-weight:600; letter-spacing:0.08em; text-transform:uppercase; color:#ea7558">
+      <span>aibox</span><span style="color:#546a82">·</span><span style="color:#97a8b8">theme system review</span>
+    </div>
+    <h1 style="margin:0; font-family:'Plus Jakarta Sans',system-ui,sans-serif; font-size:48px; font-weight:800; line-height:1.1; letter-spacing:-0.5px; color:#ffffff; max-width:860px; text-wrap:pretty">31 families, 61 variants, measured against their own sources</h1>
+    <p style="margin:0; font-size:18px; line-height:1.65; color:#97a8b8; max-width:680px; text-wrap:pretty">Three passes: canonical values from upstream, then contrast against each theme's own background, then projectious rebuilt from brand v2.1.1. Every hex is cited or derived by a stated rule.</p>
+    <div style="display:flex; flex-wrap:wrap; gap:16px; margin-top:8px">
+      <sc-for list="{{ stats }}" as="s" hint-placeholder-count="4">
+        <div style="flex:1 1 200px; background:var(--surface); border:1px solid var(--color-border); border-radius:9px; padding:20px 24px; display:flex; flex-direction:column; gap:6px">
+          <div style="font-family:'IBM Plex Mono',ui-monospace,monospace; font-size:32px; font-weight:600; color:{{ s.color }}">{{ s.n }}</div>
+          <div style="font-size:13px; line-height:1.4; color:#97a8b8">{{ s.label }}</div>
+        </div>
+      </sc-for>
+    </div>
+  </header>
+
+  <section style="width:100%; max-width:1100px; display:flex; flex-direction:column; gap:24px">
+    <h2 style="margin:0; font-family:'Plus Jakarta Sans',system-ui,sans-serif; font-size:28px; font-weight:700; color:#ffffff">What was actually wrong</h2>
+    <div style="display:grid; grid-template-columns:repeat(auto-fit,minmax(300px,1fr)); gap:16px">
+      <sc-for list="{{ findings }}" as="f" hint-placeholder-count="3">
+        <article style="background:var(--surface); border:1px solid var(--color-border); border-radius:9px; padding:24px; display:flex; flex-direction:column; gap:12px">
+          <div style="font-family:'Source Sans 3',system-ui,sans-serif; font-size:12px; font-weight:600; letter-spacing:0.08em; text-transform:uppercase; color:#ea7558">{{ f.tag }}</div>
+          <h3 style="margin:0; font-family:'Plus Jakarta Sans',system-ui,sans-serif; font-size:20px; font-weight:600; color:#ffffff; line-height:1.3">{{ f.title }}</h3>
+          <p style="margin:0; font-size:15px; line-height:1.6; color:#97a8b8">{{ f.body }}</p>
+          <div style="font-family:'IBM Plex Mono',ui-monospace,monospace; font-size:13px; line-height:1.7; color:#c5daf0; background:#0e1720; border:1px solid var(--border); border-radius:6px; padding:12px 14px; white-space:pre-wrap">{{ f.code }}</div>
+        </article>
+      </sc-for>
+    </div>
+  </section>
+
+  <section style="width:100%; max-width:1100px; display:flex; flex-direction:column; gap:20px">
+    <h2 style="margin:0; font-family:'Plus Jakarta Sans',system-ui,sans-serif; font-size:28px; font-weight:700; color:#ffffff">Contrast floors, per role</h2>
+    <p style="margin:0; font-size:16px; line-height:1.6; color:#97a8b8; max-width:680px">One floor across nine slots would over-constrain a status bar and under-constrain body text. Each role is measured against the corrected background of its own variant.</p>
+    <div style="background:var(--surface); border:1px solid var(--color-border); border-radius:9px; overflow:hidden">
+      <sc-for list="{{ floors }}" as="r" hint-placeholder-count="6">
+        <div style="display:grid; grid-template-columns:160px 90px 1fr; gap:16px; padding:14px 24px; border-top:1px solid var(--border); align-items:baseline">
+          <div style="font-family:'IBM Plex Mono',ui-monospace,monospace; font-size:14px; color:#c5daf0">{{ r.role }}</div>
+          <div style="font-family:'IBM Plex Mono',ui-monospace,monospace; font-size:14px; color:#e0a92a">{{ r.floor }}</div>
+          <div style="font-size:14px; line-height:1.5; color:#97a8b8">{{ r.why }}</div>
+        </div>
+      </sc-for>
+    </div>
+  </section>
+
+  <section style="width:100%; max-width:1100px; display:flex; flex-direction:column; gap:24px">
+    <h2 style="margin:0; font-family:'Plus Jakarta Sans',system-ui,sans-serif; font-size:28px; font-weight:700; color:#ffffff">Emphasis — the second channel</h2>
+    <p style="margin:0; font-size:16px; line-height:1.6; color:#97a8b8; max-width:720px">Colour was the whole system. Every contrast exemption accepted above, and every user reading in greyscale, under a colour-vision deficiency, or off a bad projector, needs state carried by something other than hue. The upstream themes already declare emphasis and aibox discards it: two attributes across 61 variants.</p>
+
+    <div style="display:grid; grid-template-columns:repeat(auto-fit,minmax(300px,1fr)); gap:16px">
+      <div style="background:var(--surface); border:1px solid var(--color-border); border-radius:9px; padding:24px; display:flex; flex-direction:column; gap:12px">
+        <div style="font-size:12px; font-weight:600; letter-spacing:0.08em; text-transform:uppercase; color:#ea7558">upstream declares it</div>
+        <p style="margin:0; font-size:15px; line-height:1.6; color:#97a8b8">TextMate themes carry a per-scope <span style="font-family:'IBM Plex Mono',ui-monospace,monospace; color:#c5daf0">fontStyle</span>. Found while auditing colour:</p>
+        <div style="font-family:'IBM Plex Mono',ui-monospace,monospace; font-size:12px; line-height:1.8; color:#c5daf0; background:#0e1720; border:1px solid var(--border); border-radius:6px; padding:12px 14px">Andromeeda  inherited-class → underline<br>Vesper      markup.bold → bold, keys → italic<br>Min Dark    emphasis → italic, strong → bold<br>Laserwave   none — fallback spec applies</div>
+        <p style="margin:0; font-size:14px; line-height:1.55; color:#7b8da3">Harvesting all 61 is a generator task: read <span style="font-family:'IBM Plex Mono',ui-monospace,monospace">fontStyle</span> at build time, the way colours are read now. Hand-copying 61 style maps would rot on the first upstream bump.</p>
+      </div>
+      <div style="background:var(--surface); border:1px solid var(--color-border); border-radius:9px; padding:24px; display:flex; flex-direction:column; gap:12px">
+        <div style="font-size:12px; font-weight:600; letter-spacing:0.08em; text-transform:uppercase; color:#ea7558">degradation, not silence</div>
+        <p style="margin:0; font-size:15px; line-height:1.6; color:#97a8b8">An attribute the terminal cannot render substitutes another channel. It never drops the state.</p>
+        <div style="font-family:'IBM Plex Mono',ui-monospace,monospace; font-size:12px; line-height:1.9; color:#c5daf0; background:#0e1720; border:1px solid var(--border); border-radius:6px; padding:12px 14px">italic        → dim<br>underline     → bold<br>strikethrough → dim<br>dim           → (safe to drop)<br>bold          → (never dropped)</div>
+        <p style="margin:0; font-size:14px; line-height:1.55; color:#7b8da3">Nine of thirteen tool surfaces take at least bold, italic and dim. Emphasis travels better than the nine-slot palette does.</p>
+      </div>
+      <div style="background:var(--surface); border:1px solid var(--color-border); border-radius:9px; padding:24px; display:flex; flex-direction:column; gap:12px">
+        <div style="font-size:12px; font-weight:600; letter-spacing:0.08em; text-transform:uppercase; color:#ea7558">one key, like mode</div>
+        <div style="font-family:'IBM Plex Mono',ui-monospace,monospace; font-size:12px; line-height:1.8; color:#c5daf0; background:#0e1720; border:1px solid var(--border); border-radius:6px; padding:12px 14px">[customization]<br>emphasis = "auto"<br><span style="color:#7d90a3"># auto | full | standard | minimal | none</span></div>
+        <div style="display:flex; flex-direction:column; gap:8px">
+          <sc-for list="{{ levels }}" as="l" hint-placeholder-count="5">
+            <div style="display:grid; grid-template-columns:88px 1fr; gap:12px; font-size:14px; line-height:1.5">
+              <span style="font-family:'IBM Plex Mono',ui-monospace,monospace; color:#e0a92a">{{ l.name }}</span>
+              <span style="color:#97a8b8">{{ l.set }}</span>
+            </div>
+          </sc-for>
+        </div>
+        <p style="margin:0; font-size:14px; line-height:1.55; color:#7b8da3">auto probes terminfo for sitm/ritm and dim, then degrades. NO_COLOR forces none.</p>
+      </div>
+    </div>
+
+    <sc-if value="{{ showEmphasisTable }}" hint-placeholder-val="{{ true }}">
+    <div style="background:var(--surface); border:1px solid var(--color-border); border-radius:9px; overflow:hidden">
+      <div style="display:grid; grid-template-columns:1fr 150px 130px 130px; gap:16px; padding:14px 24px; font-size:12px; font-weight:600; letter-spacing:0.08em; text-transform:uppercase; color:#7b8da3">
+        <span>role</span><span>full</span><span>standard</span><span>minimal</span>
+      </div>
+      <sc-for list="{{ emphasisRoles }}" as="r" hint-placeholder-count="12">
+        <div style="display:grid; grid-template-columns:1fr 150px 130px 130px; gap:16px; padding:11px 24px; border-top:1px solid var(--border); align-items:baseline; font-family:'IBM Plex Mono',ui-monospace,monospace; font-size:13px">
+          <span style="color:{{ r.roleColor }}">{{ r.role }}</span>
+          <span style="color:{{ r.color }}">{{ r.full }}</span>
+          <span style="color:{{ r.color }}">{{ r.standard }}</span>
+          <span style="color:{{ r.color }}">{{ r.minimal }}</span>
+        </div>
+      </sc-for>
+    </div>
+    </sc-if>
+    <p style="margin:0; font-size:15px; line-height:1.6; color:#97a8b8; max-width:720px">Three-quarters of the syntax roles carry nothing, deliberately: emphasis that lands everywhere lands nowhere. <span style="font-family:'IBM Plex Mono',ui-monospace,monospace; color:#c5daf0">code.function</span>'s brand weight is 500, which has no terminal equivalent, so it stays plain rather than rounding up to bold. Borders stay plain too — a bold box-drawing glyph changes width in some fonts and breaks the pane grid.</p>
+
+    <div style="display:flex; flex-direction:column; gap:12px">
+      <div style="font-size:12px; font-weight:600; letter-spacing:0.08em; text-transform:uppercase; color:#ea7558">projectious · brand weights mapped to attributes</div>
+      <div style="display:grid; grid-template-columns:1fr 1fr; gap:16px">
+        <div style="border:1px solid var(--border); border-radius:6px; overflow:hidden">
+          <div style="padding:6px 12px; background:#0e1720; color:#7b8da3; font-family:'IBM Plex Mono',ui-monospace,monospace; font-size:11px">colour only — today</div>
+          <div style="padding:14px 16px; background:#0e1720; font-family:'IBM Plex Mono',ui-monospace,monospace; font-size:13px; line-height:1.8; color:#c5daf0">
+            <div><span style="color:#d491b4">async fn</span> <span style="color:#8aacc8">resolve</span>(<span style="color:#97a8b8">n</span>: <span style="color:#6cc090">Palette</span>) {</div>
+            <div>  <span style="color:#7d90a3">// falls back to the shared surface</span></div>
+            <div>  <span style="color:#e55b5b">panic!</span>(<span style="color:#ea7558">"floor missed"</span>, <span style="color:#e0a92a">4.5</span>)</div>
+          </div>
+        </div>
+        <div style="border:1px solid var(--border); border-radius:6px; overflow:hidden">
+          <div style="padding:6px 12px; background:#0e1720; color:#ea7558; font-family:'IBM Plex Mono',ui-monospace,monospace; font-size:11px">colour + emphasis</div>
+          <div style="padding:14px 16px; background:#0e1720; font-family:'IBM Plex Mono',ui-monospace,monospace; font-size:13px; line-height:1.8; color:#c5daf0">
+            <div><span style="color:#d491b4; font-weight:700">async fn</span> <span style="color:#8aacc8">resolve</span>(<span style="color:#97a8b8">n</span>: <span style="color:#6cc090; font-weight:700">Palette</span>) {</div>
+            <div>  <span style="color:#7d90a3; font-style:italic">// falls back to the shared surface</span></div>
+            <div>  <span style="color:#e55b5b; font-weight:700">panic!</span>(<span style="color:#ea7558">"floor missed"</span>, <span style="color:#e0a92a">4.5</span>)</div>
+          </div>
+        </div>
+      </div>
+      <div style="display:grid; grid-template-columns:repeat(auto-fit,minmax(240px,1fr)); gap:8px">
+        <sc-for list="{{ brandMap }}" as="b" hint-placeholder-count="7">
+          <div style="display:flex; align-items:baseline; gap:10px; background:var(--surface); border:1px solid var(--color-border); border-radius:6px; padding:10px 14px; font-size:13px">
+            <span style="font-family:'IBM Plex Mono',ui-monospace,monospace; color:#c5daf0; flex:1">{{ b.role }}</span>
+            <span style="color:#7b8da3">{{ b.brand }}</span>
+            <span style="font-family:'IBM Plex Mono',ui-monospace,monospace; color:#e0a92a">{{ b.attr }}</span>
+          </div>
+        </sc-for>
+      </div>
+      <p style="margin:0; font-size:15px; line-height:1.6; color:#97a8b8; max-width:720px">This map is a property of the brand's type system, not of an appearance, so all five projectious variants share it. It is also what makes the accepted 3:1 exemptions defensible: <span style="font-family:'IBM Plex Mono',ui-monospace,monospace; color:#c5daf0">status.disabled</span> and inactive chrome now carry dim as well as hue, so no state is colour alone.</p>
+    </div>
+  </section>
+
+  <section style="width:100%; max-width:1100px; display:flex; flex-direction:column; gap:20px">
+    <h2 style="margin:0; font-family:'Plus Jakarta Sans',system-ui,sans-serif; font-size:28px; font-weight:700; color:#ffffff">projectious — one variant became five</h2>
+    <p style="margin:0; font-size:16px; line-height:1.6; color:#97a8b8; max-width:720px">The implemented theme was the deep-dark page with approximated hues and the identity orange used as body-weight text. The brand ships a measured ANSI set and ten syntax roles against exactly this surface; navy dark — not deep dark — is its default dark.</p>
+    <div style="display:flex; flex-direction:column; gap:16px">
+      <sc-for list="{{ projectious }}" as="p" hint-placeholder-count="5">
+        <article style="background:var(--surface); border:1px solid var(--color-border); border-radius:9px; padding:24px; display:flex; flex-direction:column; gap:16px">
+          <div style="display:flex; flex-wrap:wrap; align-items:baseline; gap:12px">
+            <h3 style="margin:0; font-family:'Plus Jakarta Sans',system-ui,sans-serif; font-size:20px; font-weight:600; color:#ffffff">{{ p.name }}</h3>
+            <span style="font-family:'IBM Plex Mono',ui-monospace,monospace; font-size:12px; color:#97a8b8; background:#20354d; border-radius:3px; padding:2px 8px">variant = "{{ p.variantKey }}"</span>
+          </div>
+          <p style="margin:0; font-size:15px; line-height:1.6; color:#97a8b8; max-width:720px">{{ p.note }}</p>
+          <div style="display:flex; flex-wrap:wrap; gap:8px">
+            <sc-for list="{{ p.chips }}" as="c" hint-placeholder-count="9">
+              <div style="display:flex; align-items:center; gap:8px; background:#0e1720; border:1px solid var(--border); border-radius:6px; padding:6px 10px">
+                <span style="width:16px; height:16px; border-radius:3px; background:{{ c.hex }}; box-shadow:inset 0 0 0 1px rgba(255,255,255,0.14)"></span>
+                <span style="font-family:'IBM Plex Mono',ui-monospace,monospace; font-size:12px; color:#c5daf0">{{ c.slot }}</span>
+                <span style="font-family:'IBM Plex Mono',ui-monospace,monospace; font-size:12px; color:#7b8da3">{{ c.hex }}</span>
+                <span style="font-family:'IBM Plex Mono',ui-monospace,monospace; font-size:12px; color:{{ c.ratioColor }}">{{ c.ratio }}</span>
+              </div>
+            </sc-for>
+          </div>
+          <div style="border:1px solid var(--border); border-radius:6px; overflow:hidden; font-family:'IBM Plex Mono',ui-monospace,monospace; font-size:13px; line-height:1.7">
+            <div style="display:flex; align-items:center; gap:10px; padding:6px 12px; background:{{ p.spec.surface }}; color:{{ p.spec.muted }}">
+              <span style="background:{{ p.spec.accent }}; color:{{ p.spec.accentInk }}; padding:1px 8px; border-radius:3px">1 aibox</span>
+              <span>2 logs</span><span style="margin-left:auto">{{ p.spec.label }}</span>
+            </div>
+            <div style="padding:14px 16px; background:{{ p.spec.bg }}; color:{{ p.spec.fg }}">
+              <div><span style="color:{{ p.spec.accent }}">~/aibox</span> <span style="color:{{ p.spec.green }}">✓</span> cargo test <span style="color:{{ p.spec.muted }}"># 61 variants</span></div>
+              <div><span style="color:{{ p.spec.magenta }}">fn</span> <span style="color:{{ p.spec.cyan }}">resolve</span>(<span style="color:{{ p.spec.orange }}">9</span>) -&gt; <span style="color:{{ p.spec.yellow }}">Palette</span></div>
+              <div><span style="color:{{ p.spec.red }}">error</span>: floor missed <span style="background:{{ p.spec.selBg }}; color:{{ p.spec.selFg }}">selected range</span></div>
+            </div>
+          </div>
+        </article>
+      </sc-for>
+    </div>
+  </section>
+
+  <section style="width:100%; max-width:1100px; display:flex; flex-direction:column; gap:20px">
+    <h2 style="margin:0; font-family:'Plus Jakarta Sans',system-ui,sans-serif; font-size:28px; font-weight:700; color:#ffffff">Every variant, before and after</h2>
+    <p style="margin:0; font-size:16px; line-height:1.6; color:#97a8b8; max-width:720px">Per-slot diffs with measured ratios, evidence notes and a terminal example for all 61 imported variants live on their own board — 71 cards in one document is more than a page should carry. <a href="Variant Board.dc.html">Open the variant board →</a></p>
+    <div style="background:var(--surface); border:1px solid var(--color-border); border-radius:9px; overflow:hidden">
+      <div style="display:grid; grid-template-columns:180px 90px 1fr; gap:16px; padding:12px 24px; font-size:12px; font-weight:600; letter-spacing:0.08em; text-transform:uppercase; color:#7b8da3">
+        <span>family</span><span>variants</span><span>corrected slots</span>
+      </div>
+      <sc-for list="{{ familyIndex }}" as="f" hint-placeholder-count="31">
+        <div style="display:grid; grid-template-columns:180px 90px 1fr; gap:16px; padding:9px 24px; border-top:1px solid var(--border); align-items:center; font-family:'IBM Plex Mono',ui-monospace,monospace; font-size:13px">
+          <span style="color:#c5daf0">{{ f.name }}</span>
+          <span style="color:#7b8da3">{{ f.count }}</span>
+          <span style="display:flex; align-items:center; gap:10px">
+            <span style="height:6px; border-radius:3px; background:{{ f.barColor }}; width:{{ f.barWidth }}"></span>
+            <span style="color:{{ f.barColor }}">{{ f.label }}</span>
+          </span>
+        </div>
+      </sc-for>
+    </div>
+  </section>
+
+  <section style="width:100%; max-width:1100px; display:flex; flex-direction:column; gap:24px">
+    <h2 style="margin:0; font-family:'Plus Jakarta Sans',system-ui,sans-serif; font-size:28px; font-weight:700; color:#ffffff">Three new families — grayscale and high contrast</h2>
+    <p style="margin:0; font-size:16px; line-height:1.6; color:#97a8b8; max-width:760px">Ten variants, authored rather than imported, so they could be built the right way round: floor first, then role separation, then values that satisfy both. Verified by the same engine that audited the other 61.</p>
+
+    <div style="background:var(--surface); border:1px solid var(--color-border); border-radius:9px; padding:24px; display:flex; flex-direction:column; gap:16px">
+      <h3 style="margin:0; font-family:'Plus Jakarta Sans',system-ui,sans-serif; font-size:20px; font-weight:600; color:#ffffff">Why these families need the second channel</h3>
+      <p style="margin:0; font-size:15px; line-height:1.6; color:#97a8b8; max-width:760px">A nine-slot palette assumes nine distinguishable hues. Remove hue and you have a lightness ramp with a fixed number of usable steps, and the higher the floor the fewer remain. Role separation becomes a pair: a step plus an attribute. Two roles may share a step only when their attributes differ.</p>
+      <div style="display:flex; flex-wrap:wrap; gap:12px">
+        <sc-for list="{{ rampBudget }}" as="b" hint-placeholder-count="3">
+          <div style="flex:1 1 200px; background:#0e1720; border:1px solid var(--border); border-radius:6px; padding:16px 18px; display:flex; flex-direction:column; gap:4px">
+            <div style="font-family:'IBM Plex Mono',ui-monospace,monospace; font-size:13px; color:#e0a92a">{{ b.floor }}</div>
+            <div style="font-family:'IBM Plex Mono',ui-monospace,monospace; font-size:28px; font-weight:600; color:#ffffff">{{ b.steps }}</div>
+            <div style="font-size:13px; line-height:1.45; color:#97a8b8">{{ b.label }}</div>
+          </div>
+        </sc-for>
+      </div>
+      <p style="margin:0; font-size:15px; line-height:1.6; color:#97a8b8; max-width:760px">At 12:1 in grayscale, eight roles sit on three steps. That is why <span style="font-family:'IBM Plex Mono',ui-monospace,monospace; color:#c5daf0">contrast-mono</span> at <span style="font-family:'IBM Plex Mono',ui-monospace,monospace; color:#c5daf0">max</span> must refuse <span style="font-family:'IBM Plex Mono',ui-monospace,monospace; color:#c5daf0">emphasis = "none"</span> rather than render eight indistinguishable roles.</p>
+    </div>
+
+    <sc-for list="{{ newFams }}" as="t" hint-placeholder-count="10">
+      <article style="background:var(--surface); border:1px solid var(--color-border); border-radius:9px; padding:24px; display:flex; flex-direction:column; gap:16px">
+        <div style="display:flex; flex-wrap:wrap; align-items:center; gap:10px">
+          <h3 style="margin:0; font-family:'Plus Jakarta Sans',system-ui,sans-serif; font-size:19px; font-weight:600; color:#ffffff">{{ t.name }}</h3>
+          <span style="font-family:'IBM Plex Mono',ui-monospace,monospace; font-size:11px; color:#97a8b8; background:#20354d; border-radius:3px; padding:2px 8px">theme = "{{ t.family }}" · variant = "{{ t.variantKey }}"</span>
+          <span style="font-family:'IBM Plex Mono',ui-monospace,monospace; font-size:11px; color:#6cc090">floor {{ t.floor }}:1 · lowest measured {{ t.min }}:1</span>
+          <span style="font-family:'IBM Plex Mono',ui-monospace,monospace; font-size:11px; color:#ea7558">emphasis ≥ {{ t.emphasisMin }}</span>
+        </div>
+        <p style="margin:0; font-size:15px; line-height:1.6; color:#97a8b8; max-width:820px">{{ t.note }}</p>
+        <div style="display:flex; flex-wrap:wrap; gap:8px">
+          <sc-for list="{{ t.chips }}" as="c" hint-placeholder-count="10">
+            <div style="display:flex; align-items:center; gap:8px; background:#0e1720; border:1px solid var(--border); border-radius:6px; padding:6px 10px">
+              <span style="width:16px; height:16px; border-radius:3px; background:{{ c.hex }}; box-shadow:inset 0 0 0 1px rgba(255,255,255,0.14)"></span>
+              <span style="font-family:'IBM Plex Mono',ui-monospace,monospace; font-size:12px; color:#c5daf0">{{ c.slot }}</span>
+              <span style="font-family:'IBM Plex Mono',ui-monospace,monospace; font-size:12px; color:#7b8da3">{{ c.hex }}</span>
+              <span style="font-family:'IBM Plex Mono',ui-monospace,monospace; font-size:12px; color:#6cc090">{{ c.ratio }}</span>
+              <span style="font-family:'IBM Plex Mono',ui-monospace,monospace; font-size:12px; color:#e0a92a">{{ c.attr }}</span>
+            </div>
+          </sc-for>
+        </div>
+        <div style="border:1px solid var(--border); border-radius:6px; overflow:hidden; font-family:'IBM Plex Mono',ui-monospace,monospace; font-size:13px; line-height:1.75">
+          <div style="display:flex; align-items:center; gap:10px; padding:6px 12px; background:{{ t.spec.surface }}; color:{{ t.spec.mutedC }}">
+            <span style="background:{{ t.spec.tabBg }}; color:{{ t.spec.tabInk }}; font-weight:700; padding:1px 8px; border-radius:3px">1 aibox</span>
+            <span>2 logs</span>
+            <span style="margin-left:auto">{{ t.spec.label }}</span>
+          </div>
+          <div style="padding:14px 16px; background:{{ t.spec.bg }}; color:{{ t.spec.fg }}">
+            <div><span style="color:{{ t.spec.pathC }}; font-weight:{{ t.spec.pathW }}">~/aibox</span> <span style="color:{{ t.spec.okC }}">✓</span> cargo test <span style="color:{{ t.spec.mutedC }}; font-style:{{ t.spec.mutedS }}"># 61 variants</span></div>
+            <div><span style="color:{{ t.spec.kwC }}; font-weight:{{ t.spec.kwW }}; font-style:{{ t.spec.kwS }}">async fn</span> <span style="color:{{ t.spec.opC }}; font-style:{{ t.spec.opS }}">resolve</span>(n: <span style="color:{{ t.spec.tyC }}; font-weight:{{ t.spec.tyW }}">Palette</span>) {</div>
+            <div><span style="color:{{ t.spec.errC }}; font-weight:{{ t.spec.errW }}; text-decoration:{{ t.spec.errD }}">error</span>: floor missed <span style="color:{{ t.spec.numC }}; font-weight:{{ t.spec.numW }}">4.5</span> <span style="background:{{ t.spec.selBg }}; color:{{ t.spec.selFg }}">selected range</span></div>
+          </div>
+        </div>
+        <sc-if value="{{ t.hasShared }}" hint-placeholder-val="{{ false }}">
+          <div style="font-size:14px; line-height:1.55; color:#97a8b8; border-top:1px solid var(--border); padding-top:12px">Shared lightness steps, held apart by attribute alone: <span style="font-family:'IBM Plex Mono',ui-monospace,monospace; color:#e0a92a">{{ t.shared }}</span></div>
+        </sc-if>
+      </article>
+    </sc-for>
+  </section>
+
+  <section style="width:100%; max-width:1100px; display:flex; flex-direction:column; gap:20px">
+    <h2 style="margin:0; font-family:'Plus Jakarta Sans',system-ui,sans-serif; font-size:28px; font-weight:700; color:#ffffff">Migration, without touching aibox.toml</h2>
+    <div style="display:flex; flex-direction:column; gap:12px">
+      <sc-for list="{{ migration }}" as="m" hint-placeholder-count="7">
+        <div style="display:grid; grid-template-columns:48px 1fr; gap:20px; background:var(--surface); border:1px solid var(--color-border); border-radius:9px; padding:20px 24px">
+          <div style="font-family:'IBM Plex Mono',ui-monospace,monospace; font-size:20px; font-weight:600; color:#ea7558">{{ m.n }}</div>
+          <div style="display:flex; flex-direction:column; gap:6px">
+            <div style="font-family:'Plus Jakarta Sans',system-ui,sans-serif; font-size:17px; font-weight:600; color:#ffffff">{{ m.title }}</div>
+            <div style="font-size:15px; line-height:1.6; color:#97a8b8">{{ m.body }}</div>
+          </div>
+        </div>
+      </sc-for>
+    </div>
+    <p style="margin:8px 0 0; font-size:14px; line-height:1.6; color:#7b8da3">Per-variant diffs: <a href="Variant Board.dc.html">variant board</a> · full value tables, evidence and the token model: <a href="AIBOX-THEME-CORRECTIONS.md">AIBOX-THEME-CORRECTIONS.md</a> · machine-readable: <a href="aibox-theme-corrections.toml">aibox-theme-corrections.toml</a></p>
+  </section>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props="{&quot;$preview&quot;:{&quot;width&quot;:1360,&quot;height&quot;:900},&quot;showEmphasisTable&quot;:{&quot;editor&quot;:&quot;boolean&quot;,&quot;default&quot;:true,&quot;tsType&quot;:&quot;boolean&quot;,&quot;section&quot;:&quot;Review&quot;}}">
+class Component extends DCLogic {
+  state = { m: null };
+
+  componentDidMount() {
+    import("./theme-data.js").then(m => this.setState({ m }));
+  }
+
+  kindColor(k) {
+    if (k.startsWith("canon")) return "#ea7558";
+    if (k.includes("step")) return "#e0a92a";
+    if (k.includes("lift")) return "#74c0c9";
+    return "#546a82";
+  }
+
+  ratioColor(r, floor) {
+    if (r == null) return "#546a82";
+    if (r >= floor) return "#6cc090";
+    if (r >= floor - 1.5) return "#e0a92a";
+    return "#f08b80";
+  }
+
+  /* The aibox fallback emphasis spec, as the specimen renders it. */
+  spec(p, x, attrs) {
+    const a = attrs || {};
+    const at = (slot, key) => (a[slot] || "").indexOf(key) > -1;
+    return {
+      bg: p.bg, fg: p.fg, surface: x.surface, label: x.label || "main",
+      tabBg: p.accent, tabInk: x.tabInk,
+      pathC: p.accent, pathW: at("accent", "bold") ? "700" : "400",
+      okC: p.green, numC: p.orange, numW: at("orange", "bold") ? "700" : "400",
+      mutedC: p.muted, mutedS: at("muted", "italic") ? "italic" : "normal",
+      kwC: x.magenta, kwW: at("magenta", "bold") ? "700" : "700", kwS: at("magenta", "italic") ? "italic" : "normal",
+      tyC: p.yellow, tyW: "700", tyS: "normal",
+      opC: p.cyan, opS: at("cyan", "italic") ? "italic" : "normal",
+      errC: p.red, errW: "700", errD: at("red", "underline") ? "underline" : "none",
+      selBg: x.selection_bg, selFg: x.selection_fg
+    };
+  }
+
+  renderVals() {
+    const m = this.state.m;
+    const showEmphasisTable = this.props.showEmphasisTable ?? true;
+
+    const floorsBase = [
+      { role: "fg", floor: "7.0:1", why: "Body text, read for hours — AAA for the one colour every character uses." },
+      { role: "muted", floor: "4.5:1", why: "Comments and metadata are text, not decoration. SC 1.4.3 applies." },
+      { role: "accent / hues", floor: "4.5:1", why: "Accent, green, red, yellow, orange, cyan and the new magenta are all drawn as glyphs." },
+      { role: "surface", floor: "1.20:1", why: "Status bars and popups must be visible against the page, not readable — a luminance step, not a text pair." },
+      { role: "pane.inactive.fg", floor: "3.0:1", why: "Deliberately dim, still legible: the large-text floor, on the derived inactive-pane background." },
+      { role: "border", floor: "3.0:1", why: "Non-text UI contrast, SC 1.4.11 — pane borders, focus rings, separators." }
+    ];
+
+    const levels = [
+      { name: "full", set: "bold · italic · dim · underline · strikethrough" },
+      { name: "standard", set: "bold · italic · dim — the default on a capable terminal" },
+      { name: "minimal", set: "bold · dim — fonts with no true italic cut" },
+      { name: "none", set: "colour only — today's behaviour, kept reachable" },
+      { name: "auto", set: "probe terminfo, then degrade" }
+    ];
+
+    const er = (role, full, standard, minimal, group) => ({
+      role, full: full || "—", standard: standard || "—", minimal: minimal || "—",
+      color: full ? "#c5daf0" : "#546a82", roleColor: group ? "#ea7558" : "#97a8b8"
+    });
+    const emphasisRoles = [
+      er("syntax", "", "", "", true),
+      er("code.keyword", "bold", "bold", "bold"),
+      er("code.type", "bold", "bold", "bold"),
+      er("code.comment", "italic", "italic", "dim"),
+      er("code.decorator", "italic", "italic", "dim"),
+      er("code.invalid", "bold underline", "bold", "bold"),
+      er("code.deprecated", "strikethrough dim", "dim", "dim"),
+      er("code.function · string · number · operator", "", "", ""),
+      er("diff", "", "", "", true),
+      er("diff.emphasis · diff.header", "bold", "bold", "bold"),
+      er("diff.hunk", "dim", "dim", "dim"),
+      er("diff.add · delete · change", "", "", ""),
+      er("status", "", "", "", true),
+      er("status.error · status.warning", "bold", "bold", "bold"),
+      er("status.disabled", "dim", "dim", "dim"),
+      er("status.success · info · ok", "", "", ""),
+      er("chrome", "", "", "", true),
+      er("active.foreground · pane.active.foreground", "bold", "bold", "bold"),
+      er("inactive.foreground · pane.inactive.foreground", "dim", "dim", "dim"),
+      er("border.active · border.inactive", "", "", ""),
+      er("search · git", "", "", "", true),
+      er("search.current", "bold underline", "bold", "bold"),
+      er("git.modified · git.staged", "bold", "bold", "bold"),
+      er("git.untracked", "italic", "italic", ""),
+      er("git.ignored", "dim", "dim", "dim"),
+      er("git.conflicted", "bold underline", "bold", "bold")
+    ];
+
+    const brandMap = [
+      { role: "keyword", brand: "700", attr: "bold" },
+      { role: "type / class", brand: "600", attr: "bold" },
+      { role: "escape / invalid", brand: "600", attr: "bold" },
+      { role: "function name", brand: "500", attr: "—" },
+      { role: "comment", brand: "400 italic", attr: "italic" },
+      { role: "attribute / decorator", brand: "400 italic", attr: "italic" },
+      { role: "everything else", brand: "400", attr: "—" }
+    ];
+
+    const migration = [
+      { n: "1", title: "Widen the palette struct", body: "Add magenta as an authored slot defaulted to today's 60% red + 40% accent mix, plus cursor, cursor.text and the two terminal-selection tokens defaulted from accent/bg. Nothing renders differently; the struct is just ready." },
+      { n: "2", title: "Derive chrome instead of looking it up", body: "Replace the two shared surfaces (#313244 dark, #CCD0DA light) with a per-theme step from bg toward fg, and replace active.foreground = bg with a computed ink. This is the visually noticeable step and where 17 light variants stop borrowing Catppuccin's surface." },
+      { n: "3", title: "Land the canonical corrections", body: "Per variant, with the tables in this review as the diff. GruvboxDark moving to gruvbox's bright set is the largest single change — and the one that takes three slots from 2.4:1 to above 4.5:1." },
+      { n: "4", title: "Split muted, then test the floors", body: "muted.comment / .metadata at 4.5:1, muted.disabled / .border at 3.0:1, and a table-driven test asserting every emitted pair meets its role floor. The test data is the same table this review was generated from." },
+      { n: "4a", title: "Emphasis", body: "Add the emphasis key defaulting to none for one release so nothing moves, then flip the default to auto. Emit attributes only for the roles in the table above, and hold the capability matrix as a lookup so a tool never receives an attribute it silently swallows. The degradation table is the test surface: under every level, every role carrying state must carry at least one channel besides hue." },
+      { n: "5", title: "Generate themes instead of naming built-ins", body: "bat (.tmTheme), delta, lnav and OpenCode all accept custom themes; nearest-built-in drift is a choice, not a constraint. Claude Code stays coarse — nothing can be done there." },
+      { n: "6", title: "projectious becomes a family", body: "Five variants; mode = \"auto\" resolves dark to navy. variant = \"deep\" reaches today's behaviour, so no existing config changes meaning." },
+      { n: "6a", title: "Add mono, contrast and contrast-mono", body: "Three authored families, ten variants, each with a contrast floor and an emphasis minimum declared in the theme itself. The resolver must be able to refuse a combination — contrast-mono at max with emphasis = none is unreadable, not degraded." },
+      { n: "7", title: "Solo families reject incompatible modes", body: "Setting mode = \"light\" on vesper currently returns dark in silence. Fail with a message naming the variants that family does have." }
+    ];
+
+    const rampBudget = [
+      { floor: "4.5:1 floor", steps: "7 steps", label: "grayscale room for 8 roles — two pairs share a step" },
+      { floor: "7:1 floor", steps: "5 steps", label: "AAA: three pairs share a step" },
+      { floor: "12:1 floor", steps: "3 steps", label: "extreme: typography becomes the primary channel" }
+    ];
+
+    if (!m) return { stats: [], findings: [], floors: floorsBase, projectious: [], familyIndex: [], migration, showEmphasisTable, levels, emphasisRoles, brandMap, rampBudget, newFams: [] };
+
+    const { VARIANTS, PROJECTIOUS, SLOTS, ROLE_TARGETS, resolve, cr } = m;
+    const R = VARIANTS.map(v => ({ v, r: resolve(v) }));
+
+    let canonFixes = 0, contrastFixes = 0, before = 0;
+    for (const { r } of R) for (const s of SLOTS) {
+      if (s === "bg") continue;
+      const o = r.out[s], t = (ROLE_TARGETS[s] || [4.5])[0];
+      if (o.kind.startsWith("canon")) canonFixes++;
+      if (o.kind.includes("lift") || o.kind.includes("step")) contrastFixes++;
+      if (o.curRatio < t) before++;
+    }
+
+    const stats = [
+      { n: String(canonFixes), label: "slot values that were not the upstream value", color: "#ea7558" },
+      { n: "10", label: "new variants: grayscale, high contrast, extreme", color: "#e0a92a" },
+      { n: String(before), label: "text pairs below their role floor before", color: "#f08b80" },
+      { n: "0", label: "text pairs below their role floor after", color: "#6cc090" },
+      { n: "5", label: "projectious variants, up from one", color: "#8aacc8" }
+    ];
+
+    const findings = [
+      { tag: "canonical", title: "Foreign palettes filled empty slots",
+        body: "Four families carry VS Code Dark+/Light+ values in slots their own theme never defines. MinDark's blue, red, yellow and orange are all Dark+; AuroraX and MinLight are Dark+/Light+ in every slot but the background.",
+        code: "MinDark.accent  #569CD6 → #79B8FF   (Dark+ blue → Min's blue)\nVesper.accent   #FF7B00 → #FFC799   (not a Vesper value at all)" },
+      { tag: "canonical", title: "Hues in the wrong slot",
+        body: "Six of Kanagawa Lotus's nine values do not appear in the kanagawa palette. Everforest's orange slot holds its purple in both modes; Laserwave's cyan holds its green; Kanagawa Wave's orange holds sakuraPink.",
+        code: "EverforestDark.orange  #D699B6 → #E69875  (purple → orange)\nKanagawaWave.orange    #D27E99 → #FFA066  (sakuraPink → surimiOrange)" },
+      { tag: "readability", title: "Comments were the systemic failure",
+        body: "The muted slot is comment text, metadata, borders and disabled state at once, and it was tuned as chrome. Corrections prefer another step of the theme's own palette over a computed colour, so the theme stays itself.",
+        code: "OneDarkPro.muted   #5C6370  2.4:1 → #7F848E  4.6:1\nTokyoNight.muted   #565F89  2.7:1 → #7982A9  4.7:1\nGruvboxDark.red    #CC241D  2.4:1 → #FB4934  4.9:1" }
+    ];
+
+    const projectious = PROJECTIOUS.map(p => {
+      const chips = SLOTS.map(s => {
+        const ratio = s === "bg" ? null : cr(p.p[s], p.p.bg);
+        return { slot: s, hex: p.p[s], ratio: ratio == null ? "—" : ratio + ":1",
+                 ratioColor: this.ratioColor(ratio, s === "fg" ? 7 : 4.5) };
+      });
+      return {
+        name: p.name, variantKey: p.variantKey, note: p.note, chips,
+        spec: {
+          bg: p.p.bg, fg: p.p.fg, accent: p.x.accent_text || p.p.accent, accentInk: p.mode === "light" ? "#ffffff" : "#0e1720",
+          green: p.p.green, red: p.p.red, yellow: p.p.yellow, orange: p.p.orange, cyan: p.p.cyan,
+          muted: p.p.muted, magenta: p.x.magenta, surface: p.x.surface,
+          selBg: p.x.selection_bg, selFg: p.x.selection_fg, label: p.variantKey
+        }
+      };
+    });
+
+    const famMap = {};
+    for (const { v, r } of R) (famMap[v.family] = famMap[v.family] || []).push({ v, r });
+    const maxSlots = Object.keys(famMap).reduce((mx, k) => Math.max(mx, famMap[k].length * 9), 9);
+    const familyIndex = Object.keys(famMap).map(name => {
+      const list = famMap[name];
+      let changed = 0;
+      for (const { r } of list) for (const s of SLOTS) if (r.out[s].kind !== "kept") changed++;
+      const total = list.length * 9;
+      return {
+        name, count: list.length,
+        label: changed === 0 ? "none" : changed + " of " + total,
+        barColor: changed === 0 ? "#546a82" : changed / total > 0.4 ? "#ea7558" : "#e0a92a",
+        barWidth: Math.round(6 + (changed / maxSlots) * 240) + "px"
+      };
+    });
+
+    const newFams = (m.NEWFAMS || []).map(t => {
+      const r = m.resolveNew(t);
+      const val = {}, attrs = {};
+      for (const row of r.rows) { val[row.slot] = row.v; if (row.a) attrs[row.slot] = row.a; }
+      const ratios = r.rows.filter(x => x.ratio).map(x => x.ratio);
+      return {
+        name: t.name, family: t.family, variantKey: t.variantKey, floor: t.floor,
+        emphasisMin: t.emphasisMin, note: t.note,
+        min: Math.min.apply(null, ratios),
+        chips: r.rows.filter(x => x.slot !== "bg").map(x => ({
+          slot: x.slot, hex: x.v, ratio: x.ratio + ":1", attr: x.a || "—"
+        })),
+        spec: this.spec(val, {
+          surface: t.x.surface, magenta: val.magenta, tabInk: t.x.cursor_text,
+          selection_bg: t.x.selection_bg, selection_fg: t.x.selection_fg, label: t.variantKey
+        }, attrs),
+        hasShared: r.collisions.length > 0,
+        shared: r.collisions.map(c => c.value + " = " + c.roles.join(" vs ")).join("   ·   ")
+      };
+    });
+
+    return { stats, findings, floors: floorsBase, projectious, familyIndex, migration, showEmphasisTable, levels, emphasisRoles, brandMap, rampBudget, newFams };
+  }
+}
+</script>
+</body>
+</html>

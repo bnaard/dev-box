@@ -1,0 +1,32 @@
+{{ define "main" }}
+<div class="docs">
+  {{ partial "sidebar.html" . }}
+  <main id="main" class="docs__main">
+    {{ partial "breadcrumbs.html" . }}
+    <details class="toc-mobile">
+      <summary>{{ partial "icon.html" (dict "name" "list" "class" "ico--sm") }}<span>Themes</span>{{ partial "icon.html" (dict "name" "chevron-down" "class" "ico--sm") }}</summary>
+      <nav aria-label="Themes"><ul>
+        {{ with site.GetPage "/themes" }}<li><a href="{{ .RelPermalink }}">Overview</a></li>{{ end }}
+        {{ range (site.GetPage "/themes").Pages.ByWeight }}<li><a href="{{ .RelPermalink }}">{{ .LinkTitle }}</a></li>{{ end }}
+      </ul></nav>
+    </details>
+    <article class="prose">
+      <h1>{{ .Title }}</h1>
+      {{ with .Description }}<p class="lede">{{ . }}</p>{{ end }}
+      {{ .Content }}
+      {{ if eq .Params.themeView "chooser" }}
+        {{ partial "theme-chooser.html" . }}
+      {{ else if eq .Params.themeView "tool-support" }}
+        {{ partial "theme-tool-support.html" . }}
+      {{ end }}
+    </article>
+  </main>
+  <aside class="toc">
+    <div class="toc__label">Themes</div>
+    <nav aria-label="Themes"><ul>
+      {{ with site.GetPage "/themes" }}<li><a href="{{ .RelPermalink }}">Overview</a></li>{{ end }}
+      {{ range (site.GetPage "/themes").Pages.ByWeight }}<li><a href="{{ .RelPermalink }}"{{ if eq . $ }} aria-current="true"{{ end }}>{{ .LinkTitle }}</a></li>{{ end }}
+    </ul></nav>
+  </aside>
+</div>
+{{ end }}

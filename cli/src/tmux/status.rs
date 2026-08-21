@@ -90,13 +90,14 @@ set -g status-style "bg=AIBOX_TMUX_BG,fg=AIBOX_TMUX_FG"
 set -g window-status-current-style "bg=AIBOX_TMUX_ACCENT,fg=AIBOX_TMUX_BGAIBOX_TMUX_ACTIVE_ATTR"
 set -g window-status-format " #I:#W "
 set -g window-status-current-format " #I:#W "
-# Inactive panes are dimmed a touch (bg+fg both biased ~12% toward
-# muted) so the focused pane stands out without making non-focus
-# content hard to read. Tweak via `themes::dim_inactive_pane_colors`.
+# Inactive panes use the audited dim surface while the active border also gets
+# tmux's directional indicators. This remains visible around full-screen TUIs
+# such as Yazi where content otherwise obscures the focus change.
 set -g window-style "bg=AIBOX_TMUX_DIM_BG,fg=AIBOX_TMUX_DIM_FG"
 set -g window-active-style "bg=AIBOX_TMUX_BG,fg=AIBOX_TMUX_FG"
 set -g pane-border-style "fg=AIBOX_TMUX_MUTED,bg=AIBOX_TMUX_BG"
 set -g pane-active-border-style "fg=AIBOX_TMUX_ACCENT,bg=AIBOX_TMUX_BG"
+set -g pane-border-indicators both
 set -g message-style "bg=AIBOX_TMUX_ACCENT,fg=AIBOX_TMUX_BG"
 set -g message-command-style "bg=AIBOX_TMUX_ACCENT,fg=AIBOX_TMUX_BG"
 set -g mode-style "bg=AIBOX_TMUX_ACCENT,fg=AIBOX_TMUX_BG"
@@ -1111,6 +1112,7 @@ fn tmux_powerkit_post_render_overrides(
 # render pass.
 set -g pane-border-style "fg={},bg={}"
 set -g pane-active-border-style "fg={},bg={}"
+set -g pane-border-indicators both
 set -g pane-border-format "#[bg={}]#{{?pane_active,{},{} }} #{{?client_prefix,PREFIX,NORMAL}} #{{pane_title}} #{{pane_current_command}} #[bg={},fg={}] "
 "##,
         status_formats,
@@ -1875,6 +1877,10 @@ mod tests {
         assert!(
             conf.contains(&format!("set -g window-active-style \"bg={bg},fg={fg}\"")),
             "active window-style must keep the original palette bg/fg:\n{conf}"
+        );
+        assert!(
+            conf.contains("set -g pane-border-indicators both"),
+            "the active pane needs an explicit border indicator around full-screen TUIs:\n{conf}"
         );
     }
 

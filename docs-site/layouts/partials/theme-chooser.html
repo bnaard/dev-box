@@ -1,0 +1,38 @@
+{{- $catalog := hugo.Data.theme_catalog -}}
+{{- $overview := site.GetPage "/themes" -}}
+<section class="theme-chooser" data-theme-chooser>
+  <fieldset data-filter="mode">
+    <legend>Appearance mode</legend>
+    <div class="filters">
+      <button type="button" aria-pressed="true" data-value="any">Any</button>
+      <button type="button" aria-pressed="false" data-value="dark">Dark-ish</button>
+      <button type="button" aria-pressed="false" data-value="light">Light-ish</button>
+    </div>
+  </fieldset>
+  <fieldset data-filter="appearance">
+    <legend>General appearance</legend>
+    <div class="filters">
+      <button type="button" aria-pressed="true" data-value="any">Any</button>
+      {{ range $catalog.filters.appearances }}<button type="button" aria-pressed="false" data-value="{{ . }}">{{ . | strings.FirstUpper }}-ish</button>{{ end }}
+    </div>
+  </fieldset>
+  <fieldset data-filter="contrast">
+    <legend>Contrast</legend>
+    <div class="filters">
+      <button type="button" aria-pressed="true" data-value="any">Any</button>
+      <button type="button" aria-pressed="false" data-value="soft">Softer</button>
+      <button type="button" aria-pressed="false" data-value="high">High</button>
+      <button type="button" aria-pressed="false" data-value="maximum">Maximum</button>
+    </div>
+  </fieldset>
+  <label for="theme-tool">Required tool support</label>
+  <select id="theme-tool" data-theme-tool>
+    <option value="any">Any supported tool</option>
+    {{ range $catalog.tools }}<option value="{{ .id }}">{{ .name }}</option>{{ end }}
+  </select>
+
+  <p class="theme-chooser__status" role="status" aria-live="polite"><strong data-match-count>{{ len $catalog.themes }}</strong> matching themes</p>
+  <ul class="theme-chooser__matches" data-theme-matches>
+    {{ range $catalog.themes }}<li data-match data-mode="{{ .mode }}" data-appearance="{{ .general_appearance }}" data-contrast="{{ .contrast }}" data-tools="{{ delimit .tools " " }}"><a href="{{ $overview.RelPermalink }}#{{ .slug }}">{{ .id }}</a> <small>{{ .mode }} · {{ .general_appearance }}-ish · {{ .contrast }}</small></li>{{ end }}
+  </ul>
+</section>

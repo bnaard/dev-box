@@ -1,0 +1,193 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<meta name="design_doc_mode" content="canvas">
+<link rel="stylesheet" href="_ds/projectious-work-design-system-019de81f-4f72-733b-895d-56489340005a/colors_and_type.css">
+<link rel="stylesheet" href="_ds/projectious-work-design-system-019de81f-4f72-733b-895d-56489340005a/styles.css">
+<script src="_ds/projectious-work-design-system-019de81f-4f72-733b-895d-56489340005a/_ds_bundle.js"></script>
+<style>
+  html, body { margin: 0; background: #132440; }
+  a { color: #8aacc8; text-decoration: none; }
+  a:hover { color: #c5daf0; text-decoration: underline; }
+</style>
+</helmet>
+
+<div data-theme="dark" style="background:var(--bg); color:var(--fg-1); font-family:'Source Sans 3',system-ui,sans-serif; min-height:100vh; padding:56px 48px 96px; display:flex; flex-direction:column; align-items:center; gap:40px">
+
+  <header style="width:100%; max-width:1240px; display:flex; flex-direction:column; gap:16px">
+    <div style="display:flex; align-items:center; gap:12px; font-size:12px; font-weight:600; letter-spacing:0.08em; text-transform:uppercase; color:#ea7558">
+      <span>aibox</span><span style="color:#546a82">·</span><span style="color:#97a8b8">variant board</span>
+    </div>
+    <h1 style="margin:0; font-family:'Plus Jakarta Sans',system-ui,sans-serif; font-size:36px; font-weight:700; line-height:1.15; letter-spacing:-0.5px; color:#ffffff">Every variant, before and after</h1>
+    <p style="margin:0; font-size:16px; line-height:1.6; color:#97a8b8; max-width:760px; text-wrap:pretty">Left swatch is the value in the briefing with its measured ratio, right swatch the corrected value. <span style="color:#ea7558">canon</span> is an upstream correction, <span style="color:#e0a92a">step</span> moves to another step of the same palette, <span style="color:#74c0c9">lift</span> is computed for contrast. Each card carries a terminal example drawn with its corrected palette and the emphasis spec applied.</p>
+    <p style="margin:0; font-size:14px; line-height:1.6; color:#7b8da3">By default a card shows only its corrected rows — turn off <span style="font-family:'IBM Plex Mono',ui-monospace,monospace">onlyChanged</span> in Tweaks for all nine. The review itself: <a href="Theme Audit.dc.html">Theme Audit</a> · values: <a href="AIBOX-THEME-CORRECTIONS.md">AIBOX-THEME-CORRECTIONS.md</a></p>
+  </header>
+
+  <sc-for list="{{ families }}" as="fam" hint-placeholder-count="8">
+    <section style="width:100%; max-width:1240px; display:flex; flex-direction:column; gap:12px">
+      <div style="display:flex; align-items:baseline; gap:12px; border-bottom:1px solid var(--color-border); padding-bottom:8px">
+        <h2 style="margin:0; font-family:'IBM Plex Mono',ui-monospace,monospace; font-size:18px; font-weight:600; color:#ffffff">{{ fam.name }}</h2>
+        <span style="font-size:13px; color:#7b8da3">{{ fam.summary }}</span>
+      </div>
+      <sc-for list="{{ fam.variants }}" as="v" hint-placeholder-count="2">
+        <article style="background:var(--surface); border:1px solid var(--color-border); border-radius:9px; padding:20px 24px; display:flex; flex-direction:column; gap:14px">
+          <div style="display:flex; flex-wrap:wrap; align-items:center; gap:10px">
+            <h3 style="margin:0; font-family:'Plus Jakarta Sans',system-ui,sans-serif; font-size:17px; font-weight:600; color:#ffffff">{{ v.id }}</h3>
+            <span style="font-family:'IBM Plex Mono',ui-monospace,monospace; font-size:11px; color:#97a8b8; background:#20354d; border-radius:3px; padding:2px 8px">{{ v.mode }} · {{ v.variantKey }}</span>
+            <span style="font-family:'IBM Plex Mono',ui-monospace,monospace; font-size:11px; color:{{ v.changeColor }}">{{ v.changeLabel }}</span>
+          </div>
+          <sc-if value="{{ v.suspect }}" hint-placeholder-val="{{ false }}">
+            <div style="background:#3a1c19; border:1px solid #6e2714; border-radius:6px; padding:12px 14px; font-size:14px; line-height:1.55; color:#f08b80">{{ v.suspect }}</div>
+          </sc-if>
+          <div style="display:grid; grid-template-columns:repeat(auto-fill,minmax(400px,1fr)); gap:8px 24px">
+            <sc-for list="{{ v.rows }}" as="r" hint-placeholder-count="4">
+              <div style="display:grid; grid-template-columns:64px 1fr 14px 1fr 88px; gap:8px; align-items:center; font-family:'IBM Plex Mono',ui-monospace,monospace; font-size:12px">
+                <span style="color:#7b8da3">{{ r.slot }}</span>
+                <span style="display:flex; align-items:center; gap:6px; min-width:0; overflow:hidden">
+                  <span style="width:14px; height:14px; border-radius:3px; background:{{ r.cur }}; box-shadow:inset 0 0 0 1px rgba(255,255,255,0.14)"></span>
+                  <span style="color:#97a8b8">{{ r.cur }}</span>
+                  <span style="color:{{ r.curColor }}">{{ r.curRatio }}</span>
+                </span>
+                <span style="color:#546a82">{{ r.arrow }}</span>
+                <span style="display:flex; align-items:center; gap:6px; min-width:0; overflow:hidden">
+                  <span style="width:14px; height:14px; border-radius:3px; background:{{ r.val }}; box-shadow:inset 0 0 0 1px rgba(255,255,255,0.14)"></span>
+                  <span style="color:{{ r.valInk }}">{{ r.val }}</span>
+                  <span style="color:{{ r.valColor }}">{{ r.ratio }}</span>
+                </span>
+                <span style="color:{{ r.kindColor }}; text-align:right">{{ r.kind }}</span>
+              </div>
+            </sc-for>
+          </div>
+          <sc-if value="{{ v.hasNotes }}" hint-placeholder-val="{{ false }}">
+            <div style="display:flex; flex-direction:column; gap:6px; border-top:1px solid var(--border); padding-top:12px">
+              <sc-for list="{{ v.notes }}" as="n" hint-placeholder-count="2">
+                <div style="font-size:13px; line-height:1.55; color:#97a8b8"><span style="font-family:'IBM Plex Mono',ui-monospace,monospace; color:#ea7558">{{ n.slot }}</span> {{ n.why }} <span style="color:#7b8da3">{{ n.ev }}</span></div>
+              </sc-for>
+            </div>
+          </sc-if>
+          <sc-if value="{{ showChrome }}" hint-placeholder-val="{{ false }}">
+            <div style="display:flex; flex-wrap:wrap; gap:6px; border-top:1px solid var(--border); padding-top:12px">
+              <sc-for list="{{ v.chrome }}" as="c" hint-placeholder-count="6">
+                <div style="display:flex; align-items:center; gap:6px; background:#0e1720; border:1px solid #263f5a; border-radius:3px; padding:4px 8px; font-family:'IBM Plex Mono',ui-monospace,monospace; font-size:11px">
+                  <span style="width:12px; height:12px; border-radius:2px; background:{{ c.hex }}; box-shadow:inset 0 0 0 1px rgba(255,255,255,0.14)"></span>
+                  <span style="color:#7b8da3">{{ c.key }}</span>
+                  <span style="color:#97a8b8">{{ c.hex }}</span>
+                </div>
+              </sc-for>
+            </div>
+          </sc-if>
+          <div style="border:1px solid var(--border); border-radius:6px; overflow:hidden; font-family:'IBM Plex Mono',ui-monospace,monospace; font-size:12px; line-height:1.75">
+            <div style="display:flex; align-items:center; gap:10px; padding:5px 12px; background:{{ v.spec.surface }}; color:{{ v.spec.mutedC }}">
+              <span style="background:{{ v.spec.tabBg }}; color:{{ v.spec.tabInk }}; font-weight:700; padding:1px 8px; border-radius:3px">1 aibox</span>
+              <span>2 logs</span>
+              <span style="margin-left:auto">{{ v.spec.label }}</span>
+            </div>
+            <div style="padding:12px 14px; background:{{ v.spec.bg }}; color:{{ v.spec.fg }}">
+              <div><span style="color:{{ v.spec.pathC }}">~/aibox</span> <span style="color:{{ v.spec.okC }}">✓</span> cargo test <span style="color:{{ v.spec.mutedC }}; font-style:{{ v.spec.mutedS }}"># 61 variants</span></div>
+              <div><span style="color:{{ v.spec.kwC }}; font-weight:700">async fn</span> <span style="color:{{ v.spec.opC }}; font-style:{{ v.spec.opS }}">resolve</span>(n: <span style="color:{{ v.spec.tyC }}; font-weight:700">Palette</span>) {</div>
+              <div><span style="color:{{ v.spec.errC }}; font-weight:700">error</span>: floor missed <span style="color:{{ v.spec.numC }}">4.5</span> <span style="background:{{ v.spec.selBg }}; color:{{ v.spec.selFg }}">selected range</span></div>
+            </div>
+          </div>
+        </article>
+      </sc-for>
+    </section>
+  </sc-for>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props="{&quot;$preview&quot;:{&quot;width&quot;:1360,&quot;height&quot;:900},&quot;onlyChanged&quot;:{&quot;editor&quot;:&quot;boolean&quot;,&quot;default&quot;:true,&quot;tsType&quot;:&quot;boolean&quot;,&quot;section&quot;:&quot;Board density&quot;},&quot;showChrome&quot;:{&quot;editor&quot;:&quot;boolean&quot;,&quot;default&quot;:false,&quot;tsType&quot;:&quot;boolean&quot;,&quot;section&quot;:&quot;Board density&quot;}}">
+class Component extends DCLogic {
+  state = { m: null };
+
+  componentDidMount() {
+    import("./theme-data.js").then(m => this.setState({ m }));
+  }
+
+  kindColor(k) {
+    if (k.startsWith("canon")) return "#ea7558";
+    if (k.includes("step")) return "#e0a92a";
+    if (k.includes("lift")) return "#74c0c9";
+    return "#546a82";
+  }
+
+  ratioColor(r, floor) {
+    if (r == null) return "#546a82";
+    if (r >= floor) return "#6cc090";
+    if (r >= floor - 1.5) return "#e0a92a";
+    return "#f08b80";
+  }
+
+  renderVals() {
+    const m = this.state.m;
+    const showChrome = this.props.showChrome ?? false;
+    const onlyChanged = this.props.onlyChanged ?? true;
+    if (!m) return { families: [], showChrome };
+
+    const { VARIANTS, SLOTS, ROLE_TARGETS, resolve } = m;
+    const famMap = {};
+    for (const v of VARIANTS) (famMap[v.family] = famMap[v.family] || []).push({ v, r: resolve(v) });
+
+    const families = Object.keys(famMap).map(name => {
+      const list = famMap[name];
+      let changed = 0;
+      for (const { r } of list) for (const s of SLOTS) if (r.out[s].kind !== "kept") changed++;
+      return {
+        name,
+        summary: list.length + (list.length === 1 ? " variant · " : " variants · ") + changed + " corrected slots",
+        variants: list.map(({ v, r }) => {
+          const nChanged = SLOTS.filter(s => r.out[s].kind !== "kept").length;
+          const shown = SLOTS.filter(s => s !== "bg" && (!onlyChanged || r.out[s].kind !== "kept"));
+          const rows = shown.map(s => {
+            const o = r.out[s], t = (ROLE_TARGETS[s] || [4.5])[0];
+            return {
+              slot: s, cur: o.cur, val: o.val, kind: o.kind,
+              curRatio: o.curRatio == null ? "—" : o.curRatio, ratio: o.ratio == null ? "—" : o.ratio,
+              curColor: this.ratioColor(o.curRatio, t), valColor: this.ratioColor(o.ratio, t),
+              valInk: o.kind === "kept" ? "#97a8b8" : "#c5daf0",
+              kindColor: this.kindColor(o.kind), arrow: o.kind === "kept" ? "=" : "→"
+            };
+          });
+          const notes = SLOTS.filter(s => r.out[s].why).map(s => ({
+            slot: s, why: r.out[s].why,
+            ev: r.out[s].ev ? "— " + (m.EVIDENCE[r.out[s].ev] || r.out[s].ev) : ""
+          }));
+          const e = r.ext;
+          return {
+            id: v.id, mode: v.mode, variantKey: v.variantKey, suspect: r.suspect, rows, notes,
+            hasNotes: notes.length > 0,
+            changeLabel: nChanged === 0 ? "unchanged — all nine already upstream and above floor" : nChanged + " of 9 corrected",
+            changeColor: nChanged === 0 ? "#546a82" : "#ea7558",
+            chrome: [
+              { key: "magenta", hex: e.magenta.val }, { key: "surface", hex: e.surface.val },
+              { key: "selection", hex: e.selection_bg.val }, { key: "sel.ink", hex: e.selection_fg.val },
+              { key: "cursor", hex: e.cursor.val }, { key: "cursor.text", hex: e.cursor_text.val },
+              { key: "border.on", hex: e.border_active.val }, { key: "border.off", hex: e.border_inactive.val },
+              { key: "pane.off.bg", hex: e.pane_inactive_bg.val }, { key: "pane.off.fg", hex: e.pane_inactive_fg.val },
+              { key: "diff.add", hex: e.diff_add_bg.val }, { key: "diff.change", hex: e.diff_change_bg.val },
+              { key: "diff.del", hex: e.diff_del_bg.val }, { key: "active.ink", hex: e.status_active_ink.val }
+            ],
+            spec: {
+              bg: r.out.bg.val, fg: r.out.fg.val, surface: e.surface.val, label: v.variantKey,
+              tabBg: r.out.accent.val, tabInk: e.status_active_ink.val,
+              pathC: r.out.accent.val, okC: r.out.green.val, numC: r.out.orange.val,
+              mutedC: r.out.muted.val, mutedS: "italic",
+              kwC: e.magenta.val, tyC: r.out.yellow.val,
+              opC: r.out.cyan.val, opS: "italic", errC: r.out.red.val,
+              selBg: e.selection_bg.val, selFg: e.selection_fg.val
+            }
+          };
+        })
+      };
+    });
+    return { families, showChrome };
+  }
+}
+</script>
+</body>
+</html>

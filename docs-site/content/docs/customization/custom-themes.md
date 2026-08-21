@@ -56,10 +56,12 @@ The gallery is reproducible from the design review and audited TOML:
 cd docs-site
 npm install
 cd ..
-node scripts/capture-theme-variants.mjs
+node scripts/generate-theme-catalog.mjs
 ```
 
-The script captures the 61 approved Variant Board specimens and renders the additional Projectious and accessibility variants from the same TOML, producing 76 static images plus a manifest under `docs-site/static/img/themes/variants/`.
+The script exports all approved, Projectious, and accessibility variants from
+the same TOML into `docs-site/data/theme_catalog.json`. Hugo renders the
+catalogue and terminal specimens as responsive HTML.
 
 ## Local overrides
 

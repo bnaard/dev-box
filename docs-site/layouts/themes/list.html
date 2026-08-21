@@ -1,22 +1,72 @@
 {{ define "main" }}
-{{- $catalog := transform.Unmarshal (os.ReadFile "static/img/themes/variants/manifest.json") -}}
-<div class="shell">
-  <main id="main">
-    <div class="hero">
-      <div class="hero__eyebrow">{{ site.Title }}</div>
+{{- $catalog := hugo.Data.theme_catalog -}}
+<div class="docs">
+  {{ partial "sidebar.html" . }}
+  <main id="main" class="docs__main">
+    {{ partial "breadcrumbs.html" . }}
+    <details class="toc-mobile">
+      <summary>{{ partial "icon.html" (dict "name" "list" "class" "ico--sm") }}<span>On this page</span>{{ partial "icon.html" (dict "name" "chevron-down" "class" "ico--sm") }}</summary>
+      <nav aria-label="On this page"><ul><li><a href="#catalogue">Theme catalogue</a></li></ul></nav>
+    </details>
+    <article class="prose">
       <h1>{{ .Title }}</h1>
-      {{ with .Description }}<p>{{ . }}</p>{{ end }}
-    </div>
-    {{ with .Content }}<div class="prose">{{ . }}</div>{{ end }}
-    <div class="cards">
-      {{ range $catalog }}
-      <article class="card">
-        <div class="card__eyebrow">{{ delimit (slice .family .mode .variant) " · " }}</div>
-        <h2 class="card__title">{{ .slug }}</h2>
-        <img src="{{ .image | relURL }}" alt="{{ .id }} terminal theme example" loading="lazy" width="840" height="162">
-      </article>
+      {{ with .Description }}<p class="lede">{{ . }}</p>{{ end }}
+      {{ .Content }}
+
+      <h2 id="catalogue">Theme catalogue</h2>
+      <p>{{ len $catalog.themes }} variants across {{ $catalog.meta.families }} theme families. Each preview uses the exact generated palette values.</p>
+
+      {{ range $catalog.themes }}
+      {{- $terminalStyle := printf "--term-bg:%s;--term-fg:%s;--term-accent:%s;--term-green:%s;--term-red:%s;--term-yellow:%s;--term-orange:%s;--term-cyan:%s;--term-magenta:%s;--term-muted:%s;--term-surface:%s;--term-selection:%s;--term-selection-fg:%s;--term-active-ink:%s;--term-border:%s" .render.background .render.foreground .render.path .render.success .render.error .render.type .render.number .render.function .render.keyword .render.muted .render.surface .render.selection_background .render.selection_foreground .render.tab_foreground .render.border -}}
+      <section aria-labelledby="{{ .slug }}">
+        <h3 id="{{ .slug }}"><a href="#{{ .slug }}">{{ .id }}</a></h3>
+        <p><code>{{ .family }}</code> family · <code>{{ .mode }}</code> mode · {{ if .config_variant }}<code>{{ .config_variant }}</code> variant{{ else }}default variant{{ end }} · {{ .general_appearance }}-ish appearance · {{ .contrast }} contrast ({{ .contrast_ratio }}:1)</p>
+        {{ with .suspect }}<blockquote><strong>Review note:</strong> {{ . }}</blockquote>{{ end }}
+
+        <div class="fake-terminal" style="{{ $terminalStyle | safeCSS }}" aria-label="{{ .id }} terminal theme example">
+          <div class="fake-terminal__bar"><span class="fake-terminal__tab">1 aibox</span><span>2 logs</span><span class="fake-terminal__variant">{{ if .config_variant }}{{ .config_variant }}{{ else }}default{{ end }}</span></div>
+          <div class="fake-terminal__body">
+            <div><span class="t-accent">~/aibox</span> <span class="t-green">✓</span> cargo test <span class="t-muted"># {{ $catalog.meta.variants }} variants</span></div>
+            <div><span class="t-keyword">async fn</span> <span class="t-function">resolve</span>(n: <span class="t-type">Palette</span>) {</div>
+            <div><span class="t-error">error</span>: floor missed <span class="t-number">4.5</span> <span class="t-selection">selected range</span></div>
+          </div>
+        </div>
+
+        <details class="details">
+          <summary>{{ partial "icon.html" (dict "name" "chevron-right" "class" "ico--sm") }}Configuration, palette, and characteristics</summary>
+          <div class="details__body">
+            <h4>aibox configuration</h4>
+            <pre><code class="language-toml">[customization]
+theme = "{{ .family }}"
+mode = "{{ .mode }}"
+variant = "{{ .config_variant }}"
+emphasis = "auto"</code></pre>
+            {{ if ne .emphasis_min "none" }}<p>This theme requires at least <code>emphasis = "{{ .emphasis_min }}"</code>; <code>auto</code> applies that floor automatically.</p>{{ end }}
+
+            <div class="tablewrap" tabindex="0" role="region" aria-label="{{ .id }} palette">
+              <table><thead><tr><th>Group</th><th>Role</th><th>Value</th></tr></thead><tbody>
+                {{ range .palette }}<tr><td>Semantic palette</td><td><code>{{ .slot }}</code></td><td><code>{{ .value }}</code></td></tr>{{ end }}
+                {{ range .chrome }}<tr><td>Interface role</td><td><code>{{ .slot }}</code></td><td><code>{{ .value }}</code></td></tr>{{ end }}
+              </tbody></table>
+            </div>
+            <h4>Authored font emphasis</h4>
+            {{ if .attributes }}
+            <div class="tablewrap" tabindex="0" role="region" aria-label="{{ .id }} font emphasis"><table><thead><tr><th>Role</th><th>Emphasis</th></tr></thead><tbody>{{ range .attributes }}<tr><td><code>{{ .slot }}</code></td><td>{{ .value }}</td></tr>{{ end }}</tbody></table></div>
+            {{ else }}<p>Uses the shared semantic emphasis rules and degrades unsupported attributes per tool.</p>{{ end }}
+          </div>
+        </details>
+      </section>
       {{ end }}
-    </div>
+
+    </article>
   </main>
+  <aside class="toc">
+    <div class="toc__label">On this page</div>
+    <nav aria-label="On this page"><ul>
+      <li><a href="#catalogue">Theme catalogue</a><ul>
+        {{ range $catalog.themes }}<li><a href="#{{ .slug }}">{{ .id }}</a></li>{{ end }}
+      </ul></li>
+    </ul></nav>
+  </aside>
 </div>
 {{ end }}

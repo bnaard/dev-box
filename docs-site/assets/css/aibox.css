@@ -4,3 +4,67 @@
 html[data-theme="light"] {
   --header-bg: rgba(248, 249, 251, 0.88);
 }
+
+/* The chooser uses brand tokens and the theme's native filter buttons; page
+   structure, typography, tables, disclosures, and navigation stay native. */
+.theme-chooser {
+  margin-block: 2rem;
+  padding: 1.25rem;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
+  background: var(--color-surface);
+}
+.prose .theme-chooser h2 { margin-top: 0; }
+.theme-chooser fieldset { margin: 1rem 0; padding: 0; border: 0; }
+.theme-chooser legend,
+.theme-chooser > label { font-family: var(--font-heading); font-weight: 600; }
+.theme-chooser select {
+  display: block;
+  width: min(100%, 24rem);
+  margin-top: 0.5rem;
+  padding: 0.55rem 0.7rem;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  background: var(--color-surface);
+  color: var(--color-text-primary);
+  font: inherit;
+}
+.theme-chooser__status { margin-top: 1.25rem; }
+.theme-chooser__matches {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 14rem), 1fr));
+  gap: 0.4rem 1rem;
+  max-height: 18rem;
+  overflow-y: auto;
+  padding: 0.75rem 1rem 0.75rem 2.25rem;
+  border-block: 1px solid var(--color-border);
+}
+.theme-chooser__matches small { color: var(--color-text-secondary); }
+
+.fake-terminal {
+  overflow: hidden;
+  border: 1px solid var(--term-border);
+  border-radius: 0.5rem;
+  background: var(--term-bg);
+  color: var(--term-fg);
+  font-family: var(--font-mono);
+  font-size: clamp(0.72rem, 1.45vw, 0.96rem);
+  line-height: 1.65;
+}
+.fake-terminal__bar { display: flex; align-items: center; gap: 0.9rem; padding: 0.42rem 0.8rem; background: var(--term-surface); color: var(--term-muted); }
+.fake-terminal__tab { border-radius: 0.25rem; padding-inline: 0.65rem; background: var(--term-accent); color: var(--term-active-ink); font-weight: 700; }
+.fake-terminal__variant { margin-left: auto; }
+.fake-terminal__body { padding: 0.8rem 1rem; white-space: nowrap; }
+.t-accent { color: var(--term-accent); }
+.t-green { color: var(--term-green); }
+.t-muted { color: var(--term-muted); font-style: italic; }
+.t-keyword { color: var(--term-magenta); font-weight: 700; }
+.t-function { color: var(--term-cyan); font-style: italic; }
+.t-type { color: var(--term-yellow); font-weight: 700; }
+.t-error { color: var(--term-red); font-weight: 700; }
+.t-number { color: var(--term-orange); }
+.t-selection { padding-inline: 0.12rem; background: var(--term-selection); color: var(--term-selection-fg); }
+
+@media (max-width: 42rem) {
+  .fake-terminal { overflow-x: auto; }
+}
