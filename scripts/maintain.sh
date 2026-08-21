@@ -1172,6 +1172,7 @@ cmd_docs_serve() {
   if [[ ! -d "${PROJECT_ROOT}/docs-site/node_modules" ]]; then
     npm --prefix "${PROJECT_ROOT}/docs-site" ci
   fi
+  node "${PROJECT_ROOT}/scripts/generate-theme-catalog.mjs"
   info "Serving docs with Hugo/projectious.work at http://localhost:1316/aibox/ ..."
   hugo server --source "${PROJECT_ROOT}/docs-site" \
     --bind 0.0.0.0 --port 1316 --baseURL "http://localhost:1316/aibox/"

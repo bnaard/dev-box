@@ -1,0 +1,807 @@
+/* projectious.work — Colors & Typography
+ * Synced from projectious-work/brand @ v2.1.1 — brand/tokens/variables.css
+ * Upstream is GENERATED from src/data/brand.yaml. Treat this file as a mirror:
+ * change values upstream, then re-sync. Base element styles below are local.
+ * Self-contained: includes Google Font @import for the three brand families. */
+
+@import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=Source+Sans+3:wght@400;500;600&family=IBM+Plex+Mono:ital,wght@0,400;0,500;0,600;0,700;1,400;1,500;1,600;1,700&display=swap');
+
+:root {
+  /* ── Named brand colors — shortcuts into the scales, not a separate palette ── */
+  --color-primary:        #1d3352;  /* Text, headings, primary surfaces */
+  --color-primary-light:  #2b4d78;  /* Hover states, dark-mode primary */
+  --color-primary-dark:   #132440;  /* Dark backgrounds, navbar, code blocks */
+  --color-accent:         #e05232;  /* Identity accent — marks, borders, active states, syntax */
+  --color-accent-light:   #ea7558;  /* Accent hover on dark, syntax strings */
+  --color-accent-dark:    #b84228;  /* Accent pressed state */
+  --color-accent-solid:   #cc4528;  /* Fill for solid controls with white text (4.72:1) */
+  --color-secondary:      #546a82;  /* Supporting text, borders */
+
+  /* ── Step roles for all three scales ────────────────────────────────────
+     1 app bg · 2 subtle bg · 3 elem bg · 4 hover bg · 5 active bg · 6 subtle brd
+     7 border · 8 strong brd · 9 solid bg · 10 solid hvr · 11 lo text · 12 hi text
+     Only 11 and 12 are text roles. Step 9 is constant across modes. */
+
+  /* Midnight — Primary. Structure, text, and the calm end of the system. */
+  --midnight-1:  #f8f9fb;  --midnight-2:  #f0f3f8;  --midnight-3:  #e2e9f2;
+  --midnight-4:  #d3deec;  --midnight-5:  #c3d1e3;  --midnight-6:  #b0c1d6;
+  --midnight-7:  #96abc6;  --midnight-8:  #7490b2;  --midnight-9:  #1d3352;
+  --midnight-10: #162944;  --midnight-11: #3a5a82;  --midnight-12: #142438;
+
+  /* Orange — Accent. Calls to action, active states, emphasis. Used sparingly. */
+  --orange-1:  #fef9f7;  --orange-2:  #fef0ea;  --orange-3:  #fde0d5;
+  --orange-4:  #fccebd;  --orange-5:  #f8baa5;  --orange-6:  #f0a48c;
+  --orange-7:  #e58a6e;  --orange-8:  #d86e4e;  --orange-9:  #e05232;
+  --orange-10: #cc4528;  --orange-11: #c04424;  --orange-12: #6e2714;
+
+  /* Slate — Secondary. Supporting text, borders, neutral surfaces. */
+  --slate-1:  #f9f9fa;  --slate-2:  #f1f2f4;  --slate-3:  #e6e8eb;
+  --slate-4:  #dadce0;  --slate-5:  #cdd0d5;  --slate-6:  #bec2c8;
+  --slate-7:  #adb2ba;  --slate-8:  #9299a4;  --slate-9:  #546a82;
+  --slate-10: #4a5e74;  --slate-11: #5c6f82;  --slate-12: #1e2b38;
+
+  /* ── Mode-pinned ramps ──────────────────────────────────────────────────
+     The names above swap with the mode; these never do. Use them when your
+     dark-mode switch is a class or attribute this file does not know about. */
+  --midnight-light-1:#f8f9fb; --midnight-light-2:#f0f3f8; --midnight-light-3:#e2e9f2;
+  --midnight-light-4:#d3deec; --midnight-light-5:#c3d1e3; --midnight-light-6:#b0c1d6;
+  --midnight-light-7:#96abc6; --midnight-light-8:#7490b2; --midnight-light-9:#1d3352;
+  --midnight-light-10:#162944;--midnight-light-11:#3a5a82;--midnight-light-12:#142438;
+  --midnight-dark-1:#0e1720;  --midnight-dark-2:#131e2b;  --midnight-dark-3:#1a2b3e;
+  --midnight-dark-4:#20354d;  --midnight-dark-5:#263f5a;  --midnight-dark-6:#2e4b68;
+  --midnight-dark-7:#3a5c7e;  --midnight-dark-8:#4d7098;  --midnight-dark-9:#1d3352;
+  --midnight-dark-10:#2b4d78; --midnight-dark-11:#8aacc8; --midnight-dark-12:#c5daf0;
+
+  --orange-light-1:#fef9f7; --orange-light-2:#fef0ea; --orange-light-3:#fde0d5;
+  --orange-light-4:#fccebd; --orange-light-5:#f8baa5; --orange-light-6:#f0a48c;
+  --orange-light-7:#e58a6e; --orange-light-8:#d86e4e; --orange-light-9:#e05232;
+  --orange-light-10:#cc4528;--orange-light-11:#c04424;--orange-light-12:#6e2714;
+  --orange-dark-1:#1c110d;  --orange-dark-2:#271610;  --orange-dark-3:#3d1e13;
+  --orange-dark-4:#522616;  --orange-dark-5:#643019;  --orange-dark-6:#7a3c20;
+  --orange-dark-7:#974b28;  --orange-dark-8:#b85c32;  --orange-dark-9:#e05232;
+  --orange-dark-10:#ea7558; --orange-dark-11:#f09878; --orange-dark-12:#fcddd2;
+
+  --slate-light-1:#f9f9fa; --slate-light-2:#f1f2f4; --slate-light-3:#e6e8eb;
+  --slate-light-4:#dadce0; --slate-light-5:#cdd0d5; --slate-light-6:#bec2c8;
+  --slate-light-7:#adb2ba; --slate-light-8:#9299a4; --slate-light-9:#546a82;
+  --slate-light-10:#4a5e74;--slate-light-11:#5c6f82;--slate-light-12:#1e2b38;
+  --slate-dark-1:#111416;  --slate-dark-2:#171b1f;  --slate-dark-3:#20262c;
+  --slate-dark-4:#283038;  --slate-dark-5:#303a43;  --slate-dark-6:#3a454f;
+  --slate-dark-7:#47545f;  --slate-dark-8:#5a6a78;  --slate-dark-9:#546a82;
+  --slate-dark-10:#627a92; --slate-dark-11:#97a8b8; --slate-dark-12:#d5dee8;
+
+  /* ── Semantic colors. `-fg` is the foreground for the matching tint, where
+        the solid value does not clear AA against it. ─────────────────────── */
+  --color-success: #2f7d65;  --color-success-bg: #d1ebe0;  --color-success-fg: #276754;  /* 5.28:1 */
+  --color-warning: #8b6508;  --color-warning-bg: #f5ecd0;  --color-warning-fg: #6f5106;  /* 6.23:1 */
+  --color-danger:  #a8261c;  --color-danger-bg:  #fce8e8;  --color-danger-fg:  #a8261c;  /* 6.03:1 */
+  --color-info:    #3a5a82;  --color-info-bg:    #dae2ec;  --color-info-fg:    #3a5a82;  /* 5.42:1 */
+
+  /* Mode-pinned semantics */
+  --color-success-light:#2f7d65; --color-success-light-bg:#d1ebe0; --color-success-light-fg:#276754;
+  --color-success-dark: #6cc090; --color-success-dark-bg: #16302a; --color-success-dark-fg: #6cc090;
+  --color-warning-light:#8b6508; --color-warning-light-bg:#f5ecd0; --color-warning-light-fg:#6f5106;
+  --color-warning-dark: #e0a92a; --color-warning-dark-bg: #33280d; --color-warning-dark-fg: #e0a92a;
+  --color-danger-light: #a8261c; --color-danger-light-bg: #fce8e8; --color-danger-light-fg: #a8261c;
+  --color-danger-dark:  #f08b80; --color-danger-dark-bg:  #3a1c19; --color-danger-dark-fg:  #f08b80;
+  --color-info-light:   #3a5a82; --color-info-light-bg:   #dae2ec; --color-info-light-fg:   #3a5a82;
+  --color-info-dark:    #8aacc8; --color-info-dark-bg:    #1a2b3e; --color-info-dark-fg:    #8aacc8;
+
+  /* ── App surfaces and text ──────────────────────────────────────────── */
+  --color-bg:             #f8f9fb;  /* midnight-1 — app background, NOT white */
+  --color-surface:        #ffffff;  /* raised surface — a card lifts off the page */
+  --color-text-primary:   #142438;  /* 14.89:1 */
+  --color-text-secondary: #546a82;  /* 5.30:1 */
+  --color-text-muted:     #5c6f82;  /* 4.92:1 */
+  --color-border:         #cdd0d5;  /* slate-5 */
+
+  --color-bg-light:#f8f9fb;             --color-bg-dark:#0e1720;
+  --color-surface-light:#ffffff;        --color-surface-dark:#131e2b;
+  --color-text-primary-light:#142438;   --color-text-primary-dark:#c5daf0;
+  --color-text-secondary-light:#546a82; --color-text-secondary-dark:#97a8b8;
+  --color-text-muted-light:#5c6f82;     --color-text-muted-dark:#97a8b8;
+  --color-border-light:#cdd0d5;         --color-border-dark:#263f5a;
+
+  /* ── Short aliases used across this project's artifacts ─────────────── */
+  --bg:            var(--color-bg);
+  --surface:       var(--color-surface);
+  --surface-2:     var(--midnight-2);
+  --border:        var(--color-border);
+  --border-strong: var(--slate-6);
+  --fg-1:          var(--color-text-primary);
+  --fg-2:          var(--color-text-secondary);
+  --fg-3:          var(--color-text-muted);
+
+  /* Tag / badge tints */
+  --tag-bg:          #dae2ec;  --tag-text:        #1d3352;
+  --tag-bg-accent:   #fde0d5;  --tag-text-accent: #6e2714;  /* orange-12 on orange-3 — 8.54:1 */
+
+  /* ── Typography ─────────────────────────────────────────────────────── */
+  --font-heading: 'Plus Jakarta Sans', system-ui, sans-serif;  /* Conviction */
+  --font-body:    'Source Sans 3',     system-ui, sans-serif;  /* Clarity */
+  --font-code:    'IBM Plex Mono',     ui-monospace, monospace; /* Precision */
+
+  /* --font-scale multiplies every size below — see the Accessibility section.
+     Reset to 1 by default; data-font-size on <html> changes it, nothing else.
+     LOCAL DIVERGENCE from upstream brand.yaml: the readable band (body,
+     body-l, caption, overline, code, h5, h4, h3) was lifted one step for
+     legibility. Display/H1/H2 are unchanged, so the display hierarchy and
+     the 1280×720 slide layouts still hold. */
+  --font-scale: 1;
+  --type-display-size: calc(48px * var(--font-scale));  --type-display-weight: 800;  --type-display-lh: 1.1;
+  --type-h1-size: calc(36px * var(--font-scale));       --type-h1-weight: 700;       --type-h1-lh: 1.15;
+  --type-h2-size: calc(28px * var(--font-scale));       --type-h2-weight: 700;       --type-h2-lh: 1.2;
+  --type-h3-size: calc(24px * var(--font-scale));       --type-h3-weight: 600;       --type-h3-lh: 1.25;
+  --type-h4-size: calc(20px * var(--font-scale));       --type-h4-weight: 600;       --type-h4-lh: 1.3;
+  --type-h5-size: calc(17px * var(--font-scale));       --type-h5-weight: 600;       --type-h5-lh: 1.35;
+  --type-body-l-size: calc(18px * var(--font-scale));   --type-body-l-weight: 400;   --type-body-l-lh: 1.65;
+  --type-body-size:   calc(16px * var(--font-scale));   --type-body-lh:   1.6;
+  --type-caption-size: calc(13px * var(--font-scale));  --type-caption-weight: 400;  --type-caption-lh: 1.5;
+  --type-overline-size: calc(12px * var(--font-scale)); --type-overline-weight: 600; --type-overline-lh: 1.3; --type-overline-tracking: 0.08em;
+  --type-code-size:   calc(14px * var(--font-scale));   --type-code-weight: 400;     --type-code-lh:   1.6;
+
+  /* ── Spacing (4px base) ─────────────────────────────────────────────── */
+  --space-1: 4px;   --space-2: 8px;   --space-3: 12px;
+  --space-4: 16px;  --space-5: 24px;  --space-6: 32px;
+  --space-7: 48px;  --space-8: 64px;  --space-9: 96px;
+
+  /* ── Radii ──────────────────────────────────────────────────────────── */
+  --radius-sm:   3px;    /* Tags, chips, small indicators */
+  --radius-md:   6px;    /* Buttons, inputs, code blocks */
+  --radius-lg:   9px;    /* Cards, panels */
+  --radius-xl:   13px;   /* Large panels, modals */
+  --radius-full: 9999px; /* Pills, avatars */
+
+  /* ── Elevation ──────────────────────────────────────────────────────── */
+  --shadow-0: none;                          /* Flat surfaces, default */
+  --shadow-1: 0 1px 3px rgba(0,0,0,0.06);    /* Subtle lift — cards at rest */
+  --shadow-2: 0 4px 12px rgba(0,0,0,0.08);   /* Raised — hover, dropdowns */
+  --shadow-3: 0 8px 24px rgba(0,0,0,0.12);   /* Overlay — modals, popovers */
+  /* Elevation on a dark surface cannot be carried by a black shadow — there is
+     nothing for it to darken. On the dark appearances the shadow deepens AND
+     the surface steps up the midnight ramp; the step is what the eye reads.
+     Pair --shadow-N with --elevated-N as the background. */
+  --elevated-0: var(--bg);
+  --elevated-1: var(--surface);
+  --elevated-2: var(--surface);
+  --elevated-3: var(--surface);
+  --rim-1: 0 0 0 0 rgba(0,0,0,0); /* @kind shadow */ --rim-2: 0 0 0 0 rgba(0,0,0,0); /* @kind shadow */ --rim-3: 0 0 0 0 rgba(0,0,0,0); /* @kind shadow */
+
+  /* ── Motion ─────────────────────────────────────────────────────────── */
+  /* micro: color and opacity · standard: hover, focus, small moves
+     expand: height/width, accordions · page: route and view transitions */
+  --duration-micro:    100ms; /* @kind other */
+  --duration-standard: 200ms; /* @kind other */
+  --duration-expand:   300ms; /* @kind other */
+  --duration-page:     400ms; /* @kind other */
+  /* ease-out for things entering, ease-in for things leaving */
+  --ease-out: cubic-bezier(0.33, 1, 0.68, 1); /* @kind other */
+  --ease-in:  cubic-bezier(0.32, 0, 0.67, 0); /* @kind other */
+
+  /* ── Breakpoints. Below sm is the base, not a breakpoint. Custom properties
+        cannot be used in a media query — these are for calc() and JS. ───── */
+  --breakpoint-sm: 640px;   /* Large phone, landscape phone */
+  --breakpoint-md: 768px;   /* Small tablet — the first two-column layout */
+  --breakpoint-lg: 1024px;  /* Tablet landscape, small laptop — sidebars appear */
+  --breakpoint-xl: 1280px;  /* Desktop — the 1100px measure is fully margined */
+
+  /* ── Layout ─────────────────────────────────────────────────────────── */
+  --container-max: 1100px;
+  --grid-gutter:   16px;
+  --touch-target:  44px;  /* floor for any tap target */
+  --measure:       65ch;  /* comfortable line length for running text */
+  --scrim:         rgba(20,36,56,0.72);  /* modal backdrop */
+
+  /* ── Overlays and scrims. Named so component CSS never carries a bare
+        rgba() literal — the generator fails on undocumented literals. ──── */
+  --scrim-modal:            rgba(20,36,56,0.72);
+  --scrim-palette:          rgba(14,23,32,0.50);
+  --scrim-lightbox:         rgba(14,23,32,0.82);
+  --tint-accent-active:     rgba(224,82,50,0.12);  /* dark-surface active row */
+  --shadow-focus-light:     rgba(29,51,82,0.15);
+  --tint-code-header:       rgba(20,36,56,0.03);   /* on light */
+  --tint-highlight-line:    rgba(20,36,56,0.06);   /* on light */
+  --tint-code-header-dark:  rgba(255,255,255,0.04);
+  --tint-code-divider-dark: rgba(255,255,255,0.08);
+  --tint-code-control-dark: rgba(255,255,255,0.14);
+
+  /* ── Fixed UI — values that must NOT follow the theme: white on a solid
+        control, print output, and the reduced-transparency fallback. ──── */
+  --fixed-control-text:      #ffffff;
+  /* Marketing hero slab. Light: a deliberate dark panel. Dark appearances: the
+     page's own raised surface, so the hero is not a black rectangle dropped
+     onto an already-dark layout. */
+  --header-bg: rgba(248,249,251,0.88);
+  --logo-accent: #e05232;
+  --hero-bg: #0e1720; --hero-fg: #c5daf0; --hero-title: #ffffff;
+  --hero-eyebrow: #ea7558; --hero-body: #97a8b8;
+  /* Text ON a solid status fill. Light mode's status solids are dark, so white
+     sits on them; the dark modes' solids are light tints, where white fails
+     (white on #f08b80 is 2.41) and the text must go dark instead. */
+  --on-solid-success: #ffffff;
+  --on-solid-warning: #ffffff;
+  --on-solid-danger:  #ffffff;
+  --on-solid-info:    #ffffff;
+  --fixed-code-control-text: #c7d3de;
+  --fixed-reduced-transparency-bg: #0e1720;
+  --fixed-print-page:        #ffffff;
+  --fixed-print-code-bg:     #f1f2f4;
+  --fixed-print-code-border: #cdd0d5;
+  --fixed-print-code-text:   #142438;
+  --fixed-print-external-url:#546a82;
+  --fixed-notebook-image-bg: #ffffff;
+  /* Print — the LIGHT values, always. Paper does not follow data-theme, so a
+     print stylesheet needs tokens that never switch. Complete set: */
+  --fixed-print-text:        #142438;
+  --fixed-print-muted:       #546a82;
+  --fixed-print-border:      #cdd0d5;
+  --fixed-print-panel:       #f1f2f4;
+  --fixed-print-panel-bar:   #e6e8ec;
+
+  /* Focus ring, as tokens rather than literals in the rules below.
+     --focus-ring-default is the legacy faint ring and does NOT meet WCAG
+     1.4.11 (~1.2:1). --focus-ring-strong is the conforming one, applied by
+     data-focus="strong"; it re-picks per appearance. */
+  --focus-ring-default: var(--shadow-focus-light);
+  --focus-ring-strong:  var(--midnight-9);   /* 8.59:1 on --color-bg */
+
+  /* Hero roles — named, so a marketing surface never restates ramp literals. */
+  --hero-title-size:  var(--type-display-size);
+  --hero-lede-size:   var(--type-body-l-size);
+  --hero-pad-block:   88px;
+  --hero-pad-inline:  72px;
+
+  /* ── Terminal — one dark surface, sixteen ANSI slots plus chrome.
+        Measured against --terminal-surface; floor 4.95:1. ──────────────── */
+  --terminal-surface: #0e1720;
+  /* Code panels use their own surface, one step up from the terminal's. Same
+     value in both dark appearances: lighter than the deep-dark page, darker
+     than the navy page, and every syntax role clears 4.79:1 on it. */
+  --code-panel-surface: #131e2b;
+  --code-panel-border:  #2e4b68;
+  --code-panel-foreground: #c5daf0;
+  /* Selection on a code panel. The page pair (--orange-3 under
+     --color-primary-dark) is unreadable over a dark panel, so code carries its
+     own; applied to pre by the base styles below. Both pairs clear 4.5:1. */
+  --code-panel-selection-bg: #20354d;        --code-panel-selection-fg: #c5daf0;
+  --code-panel-light-selection-bg: #dae2ec;  --code-panel-light-selection-fg: #142438;
+  --terminal-border:    #2e4b68;
+  --terminal-ansi-0:  #0e1720;  /* black */
+  --terminal-ansi-1:  #e55b5b;  /* red */
+  --terminal-ansi-2:  #3f9d74;  /* green */
+  --terminal-ansi-3:  #c08a1e;  /* yellow */
+  --terminal-ansi-4:  #6289b3;  /* blue */
+  --terminal-ansi-5:  #bd6d96;  /* magenta */
+  --terminal-ansi-6:  #3f97a3;  /* cyan */
+  --terminal-ansi-7:  #97a8b8;  /* white */
+  --terminal-ansi-8:  #2e4b68;  /* bright black */
+  --terminal-ansi-9:  #f08b80;  /* bright red */
+  --terminal-ansi-10: #6cc090;  /* bright green */
+  --terminal-ansi-11: #e0a92a;  /* bright yellow */
+  --terminal-ansi-12: #8aacc8;  /* bright blue */
+  --terminal-ansi-13: #d491b4;  /* bright magenta */
+  --terminal-ansi-14: #74c0c9;  /* bright cyan */
+  --terminal-ansi-15: #c5daf0;  /* bright white */
+  --terminal-background: #0e1720;
+  --terminal-foreground: #c5daf0;
+  --terminal-cursor: #e05232;
+  --terminal-cursor-text: #0e1720;
+  --terminal-selection-background: #20354d;
+  --terminal-selection-text: #c5daf0;
+  --terminal-dim-comment: #72889d;
+  --terminal-status-bar-surface: #131e2b;
+  --terminal-status-bar-text: #c5daf0;
+  --terminal-inactive-tab-and-pane-label: #7b8da3;
+  --terminal-active-tab-fill: #e05232;
+  /* Text ON the active-tab fill. White on #e05232 measures 3.76:1 — same trap as
+     the light status solids in dark mode, so the ink goes dark instead (4.81:1). */
+  --terminal-active-tab-text: #0e1720;
+  --terminal-active-pane-border: #e05232;
+  --terminal-inactive-pane-border: #7b8da3;
+
+  /* ── Syntax roles (ten). Hues assigned by measured perceptual distance —
+        see CHANGELOG v2.0.2. All values are terminal-palette steps. ────── */
+  --syntax-plain:      #c5daf0;
+  --syntax-comment:    #7d90a3;
+  --syntax-operator:   #97a8b8;
+  --syntax-keyword:    #d491b4;  /* keywords and modifiers */
+  --syntax-type:       #6cc090;  /* types and classes */
+  --syntax-function:   #8aacc8;
+  --syntax-string:     #ea7558;
+  --syntax-number:     #e0a92a;
+  --syntax-macro:      #74c0c9;  /* decorators and macros */
+  --syntax-invalid:    #e55b5b;  /* invalid and deprecated */
+
+  /* ── Syntax roles — on light. Optional companion set: same ten roles,
+        darkened for a light panel (~4.7:1+ on white). Nothing switches to
+        these automatically — a component opts in by using the token. ──── */
+  --syntax-plain-light:      #0f1c2e;
+  --syntax-comment-light:    #5e7082;
+  --syntax-operator-light:   #54697f;
+  --syntax-keyword-light:    #c2117f;
+  --syntax-type-light:       #08804e;
+  --syntax-function-light:   #1668d8;
+  --syntax-string-light:     #c94208;
+  --syntax-number-light:     #94620a;
+  --syntax-macro-light:      #0d7d82;
+  --syntax-invalid-light:    #d81420;
+
+  /* ── Terminal — on light. Optional companion to the dark terminal above.
+        The brand default for real terminal chrome stays dark ("code blocks
+        always dark", see base element styles below) — this palette is for
+        the rare light-surface code specimen, not a mode switch. Panel is a
+        warm near-white, not pure white, to hold the ansi set together.
+        Floor 4.5:1 for the 8 base tones, 3:1 for bright/cursor/UI chrome. ── */
+  --terminal-light-surface:    #f4f5f7;
+  --code-panel-surface-light:  #f4f5f7;
+  --code-panel-border-light:   #cdd0d5;
+  --terminal-border-light:     #cdd0d5;
+  --terminal-light-ansi-0:     #1e2b38;  /* black */
+  --terminal-light-ansi-1:     #b8352f;  /* red */
+  --terminal-light-ansi-2:     #276754;  /* green */
+  --terminal-light-ansi-3:     #8b6508;  /* yellow */
+  --terminal-light-ansi-4:     #3a5a82;  /* blue */
+  --terminal-light-ansi-5:     #8a3f6e;  /* magenta */
+  --terminal-light-ansi-6:     #1c6b6b;  /* cyan */
+  --terminal-light-ansi-7:     #546a82;  /* white */
+  --terminal-light-ansi-8:     #4a5e74;  /* bright black */
+  --terminal-light-ansi-9:     #a8261c;  /* bright red */
+  --terminal-light-ansi-10:    #1f7a52;  /* bright green */
+  --terminal-light-ansi-11:    #6f5106;  /* bright yellow */
+  --terminal-light-ansi-12:    #1d3352;  /* bright blue */
+  --terminal-light-ansi-13:    #752f5c;  /* bright magenta */
+  --terminal-light-ansi-14:    #125555;  /* bright cyan */
+  --terminal-light-ansi-15:    #142438;  /* bright white */
+  --terminal-light-background: #f4f5f7;
+  --terminal-light-foreground: #142438;
+  --terminal-light-cursor: #e05232;
+  --terminal-light-cursor-text: #f4f5f7;
+  --terminal-light-selection-background: #dae2ec;
+  --terminal-light-selection-text: #142438;
+  --terminal-light-dim-comment: #5c6f82;
+  --terminal-light-status-bar-surface: #e6e8eb;
+  --terminal-light-status-bar-text: #142438;
+  --terminal-light-inactive-tab-and-pane-label: #4a5e74;
+  --terminal-light-active-tab-fill: #e05232;
+  --terminal-light-active-tab-text: #0e1720;
+  --terminal-light-active-pane-border: #e05232;
+  --terminal-light-inactive-pane-border: #adb2ba;
+}
+
+/* ── Dark mode. Scales, semantics and surface aliases have a dark variant;
+      everything else is mode-independent. Step 9 is constant by design. ── */
+@media (prefers-color-scheme: dark) {
+  :root {
+    --midnight-1:#132440; --midnight-2:#1a2b3e; --midnight-3:#20354d;
+    --midnight-4:#263f5a; --midnight-5:#2e4b68; --midnight-6:#2e4b68;
+    --midnight-7:#3a5c7e; --midnight-8:#4d7098; --midnight-9:#1d3352;
+    --midnight-10:#2b4d78;--midnight-11:#8aacc8;--midnight-12:#c5daf0;
+    --orange-1:#1c110d; --orange-2:#271610; --orange-3:#3d1e13;
+    --orange-4:#522616; --orange-5:#643019; --orange-6:#7a3c20;
+    --orange-7:#974b28; --orange-8:#b85c32; --orange-9:#e05232;
+    --orange-10:#ea7558;--orange-11:#f09878;--orange-12:#fcddd2;
+    --slate-1:#111416; --slate-2:#171b1f; --slate-3:#20262c;
+    --slate-4:#283038; --slate-5:#303a43; --slate-6:#3a454f;
+    --slate-7:#47545f; --slate-8:#5a6a78; --slate-9:#546a82;
+    --slate-10:#627a92;--slate-11:#97a8b8;--slate-12:#d5dee8;
+    --color-success:#6cc090; --color-success-bg:#16302a; --color-success-fg:#6cc090;
+    --color-warning:#eda44a; --color-warning-bg:#3a2611; --color-warning-fg:#eda44a;
+    --color-danger: #f08b80; --color-danger-bg: #3a1c19; --color-danger-fg: #f08b80;
+    --color-info:   #8aacc8; --color-info-bg:   #1a2b3e; --color-info-fg:   #8aacc8;
+    --color-bg:#132440; --color-surface:#1a2b3e;
+    --color-text-primary:#c5daf0; --color-text-secondary:#97a8b8;
+    --color-text-muted:#97a8b8;   --color-border:#2e4b68;
+    --surface-2: #20354d;
+    --border-strong: #4d7098;
+    --tag-bg:#20354d; --tag-text:#c5daf0;
+    --tag-bg-accent:#3d1e13; --tag-text-accent:#f09878;
+    --focus-ring-strong: var(--midnight-12);
+  }
+}
+
+/* Explicit light opt-out — wins over the prefers-color-scheme block above
+   for pages that must stay light regardless of the OS setting. */
+html[data-theme="light"] {
+  --midnight-1:#f8f9fb; --midnight-2:#f0f3f8; --midnight-3:#e2e9f2;
+  --midnight-4:#d3deec; --midnight-5:#c3d1e3; --midnight-6:#b0c1d6;
+  --midnight-7:#96abc6; --midnight-8:#7490b2; --midnight-9:#1d3352;
+  --midnight-10:#162944;--midnight-11:#3a5a82;--midnight-12:#142438;
+  --orange-1:#fef9f7; --orange-2:#fef0ea; --orange-3:#fde0d5;
+  --orange-4:#fccebd; --orange-5:#f8baa5; --orange-6:#f0a48c;
+  --orange-7:#e58a6e; --orange-8:#d86e4e; --orange-9:#e05232;
+  --orange-10:#cc4528;--orange-11:#c04424;--orange-12:#6e2714;
+  --slate-1:#f9f9fa; --slate-2:#f1f2f4; --slate-3:#e6e8eb;
+  --slate-4:#dadce0; --slate-5:#cdd0d5; --slate-6:#bec2c8;
+  --slate-7:#adb2ba; --slate-8:#9299a4; --slate-9:#546a82;
+  --slate-10:#4a5e74;--slate-11:#5c6f82;--slate-12:#1e2b38;
+  --color-success:#17945f; --color-success-bg:#d1ebe0; --color-success-fg:#17734c;
+  --color-warning:#ef8b0b; --color-warning-bg:#fff1e0; --color-warning-fg:#b3520c;
+  --color-danger: #d92d20; --color-danger-bg: #fce8e8; --color-danger-fg: #b3261e;
+  --color-info:   #2563c9; --color-info-bg:   #dae2ec; --color-info-fg:   #2f5fa8;
+  --color-bg:#f8f9fb; --color-surface:#ffffff;
+  --color-text-primary:#142438; --color-text-secondary:#546a82;
+  --color-text-muted:#5c6f82;   --color-border:#cdd0d5;
+  --surface-2: #f0f3f8;
+  --border-strong: #bec2c8;
+  --tag-bg:#dae2ec; --tag-text:#1d3352;
+  --tag-bg-accent:#fde0d5; --tag-text-accent:#6e2714;
+}
+
+/* Light, declared as an attribute block as well as the :root default, so a
+   subtree (a preview card, an embedded example) can pin light without relying
+   on an <html> attribute that may not survive being embedded. */
+[data-theme="light"] {
+  --midnight-1:#f8f9fb; --midnight-2:#f0f3f8; --midnight-3:#e2e9f2;
+  --midnight-4:#d3deec; --midnight-5:#c3d1e3; --midnight-6:#b0c1d6;
+  --midnight-7:#96abc6; --midnight-8:#7490b2; --midnight-9:#1d3352;
+  --midnight-10:#162944;--midnight-11:#3a5a82;--midnight-12:#142438;
+  --orange-1:#fef9f7; --orange-2:#fef0ea; --orange-3:#fde0d5;
+  --orange-4:#fccebd; --orange-5:#f8baa5; --orange-6:#f0a48c;
+  --orange-7:#e58a6e; --orange-8:#d86e4e; --orange-9:#e05232;
+  --orange-10:#cc4528;--orange-11:#c04424;--orange-12:#6e2714;
+  --slate-1:#f9f9fa; --slate-2:#f1f2f4; --slate-3:#e6e8eb;
+  --slate-4:#dadce0; --slate-5:#cdd0d5; --slate-6:#bec2c8;
+  --slate-7:#adb2ba; --slate-8:#9299a4; --slate-9:#546a82;
+  --slate-10:#4a5e74;--slate-11:#5c6f82;--slate-12:#1e2b38;
+  --color-success:#17945f; --color-success-bg:#d1ebe0; --color-success-fg:#17734c;
+  --color-warning:#ef8b0b; --color-warning-bg:#fff1e0; --color-warning-fg:#b3520c;
+  --color-danger: #d92d20; --color-danger-bg: #fce8e8; --color-danger-fg: #b3261e;
+  --color-info:   #2563c9; --color-info-bg:   #dae2ec; --color-info-fg:   #2f5fa8;
+  --color-bg:#f8f9fb; --color-surface:#ffffff;
+  --color-text-primary:#142438; --color-text-secondary:#546a82;
+  --color-text-muted:#5c6f82;   --color-border:#cdd0d5;
+  --bg:#f8f9fb; --surface:#ffffff; --surface-2:#f0f3f8;
+  --border:#cdd0d5; --border-strong:#bec2c8;
+  --fg-1:#142438; --fg-2:#546a82; --fg-3:#5c6f82;
+  --tag-bg:#dae2ec; --tag-text:#1d3352;
+  --tag-bg-accent:#fde0d5; --tag-text-accent:#6e2714;
+}
+
+[data-theme="dark"] {
+  --midnight-1:#132440; --midnight-2:#1a2b3e; --midnight-3:#20354d;
+  --midnight-4:#263f5a; --midnight-5:#2e4b68; --midnight-6:#2e4b68;
+  --midnight-7:#3a5c7e; --midnight-8:#4d7098; --midnight-9:#1d3352;
+  --midnight-10:#2b4d78;--midnight-11:#8aacc8;--midnight-12:#c5daf0;
+  --orange-1:#1c110d; --orange-2:#271610; --orange-3:#3d1e13;
+  --orange-4:#522616; --orange-5:#643019; --orange-6:#7a3c20;
+  --orange-7:#974b28; --orange-8:#b85c32; --orange-9:#e05232;
+  --orange-10:#ea7558;--orange-11:#f09878;--orange-12:#fcddd2;
+  --slate-1:#111416; --slate-2:#171b1f; --slate-3:#20262c;
+  --slate-4:#283038; --slate-5:#303a43; --slate-6:#3a454f;
+  --slate-7:#47545f; --slate-8:#5a6a78; --slate-9:#546a82;
+  --slate-10:#627a92;--slate-11:#97a8b8;--slate-12:#d5dee8;
+  --color-success:#6cc090; --color-success-bg:#16302a; --color-success-fg:#6cc090;
+  --color-warning:#eda44a; --color-warning-bg:#3a2611; --color-warning-fg:#eda44a;
+  --color-danger: #f08b80; --color-danger-bg: #3a1c19; --color-danger-fg: #f08b80;
+  --color-info:   #8aacc8; --color-info-bg:   #1a2b3e; --color-info-fg:   #8aacc8;
+  --color-bg:#132440; --color-surface:#1a2b3e;
+  --color-text-primary:#c5daf0; --color-text-secondary:#97a8b8;
+  --color-text-muted:#97a8b8;   --color-border:#2e4b68;
+  --surface-2: #20354d;
+  --border-strong: #4d7098;
+  --tag-bg:#20354d; --tag-text:#c5daf0;
+  --tag-bg-accent:#3d1e13; --tag-text-accent:#f09878;
+  /* Deeper shadow plus a rising surface step — see --elevated-* above. */
+  --shadow-1: 0 1px 3px rgba(0,0,0,0.40);
+  --shadow-2: 0 4px 12px rgba(0,0,0,0.50);
+  --shadow-3: 0 8px 24px rgba(0,0,0,0.60);
+  --elevated-0: var(--midnight-1);
+  --elevated-1: var(--midnight-3);
+  --elevated-2: var(--midnight-5);
+  --elevated-3: var(--midnight-7);
+  --rim-1: inset 0 1px 0 rgba(255,255,255,0.05); /* @kind shadow */
+  --rim-2: inset 0 1px 0 rgba(255,255,255,0.09); /* @kind shadow */
+  --rim-3: inset 0 1px 0 rgba(255,255,255,0.14); /* @kind shadow */
+  --on-solid-success: #0e1720;
+  --on-solid-warning: #0e1720;
+  --on-solid-danger:  #0e1720;
+  --on-solid-info:    #0e1720;
+  --header-bg: rgba(19,30,43,0.88);
+  --logo-accent: #ea7558;
+  --hero-bg: var(--color-surface); --hero-fg: var(--color-text-primary); --hero-title: var(--midnight-12);
+  --hero-eyebrow: var(--orange-11); --hero-body: var(--color-text-secondary);
+  --bg:#132440;
+  --surface:#1a2b3e;
+  --border:#2e4b68;
+  --focus-ring-strong: var(--midnight-12);
+}
+
+/* ── Navy dark — the second dark appearance. A documented derivative of deep
+      dark, not a separate theme: it inherits every deep-dark value and
+      overrides only the five low midnight steps and the surfaces, borders and
+      neutral tag background that read off them. Orange, slate, text, status,
+      terminal and syntax are all deep dark's.
+
+      Code and terminal panels deliberately stay on #0e1720 — deeper than the
+      navy page, so a code block still reads as an inset panel rather than
+      merging into the surface behind it.
+
+      OVERRIDE MANIFEST — the complete set, so a consumer can diff mechanically
+      instead of by eye. Exactly these fourteen names differ between the two dark
+      appearances; everything else is shared:
+        --midnight-1 --midnight-2 --midnight-3 --midnight-4 --midnight-5
+        --color-bg --color-surface --color-border
+        --bg --surface --surface-2 --border --border-strong --tag-bg
+      (--elevated-* and --rim-* resolve through --midnight-*, so they follow
+      without being restated.) ─────────────────────────────────── */
+[data-theme="dark"][data-surface="deep"] {
+  --midnight-1:#0e1720;
+  --midnight-2:#131e2b;
+  --midnight-3:#1a2b3e;
+  --midnight-4:#20354d;
+  --midnight-5:#263f5a;
+  --color-bg:#0e1720;
+  --color-surface:#131e2b;
+  --color-border:#263f5a;
+  --bg:#0e1720;
+  --surface:#131e2b;
+  --surface-2:#1a2b3e;
+  --border:#263f5a;
+  --border-strong:#3a5c7e;
+  --tag-bg:#1a2b3e;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root[data-surface="deep"] {
+    --midnight-1:#0e1720;
+    --midnight-2:#131e2b;
+    --midnight-3:#1a2b3e;
+    --midnight-4:#20354d;
+    --midnight-5:#263f5a;
+    --color-bg:#0e1720;
+    --color-surface:#131e2b;
+    --color-border:#263f5a;
+    --bg:#0e1720;
+    --surface:#131e2b;
+    --surface-2:#1a2b3e;
+    --border:#263f5a;
+    --border-strong:#3a5c7e;
+    --tag-bg:#1a2b3e;
+  }
+
+}
+
+/* ─────────────────────────────────────────────────────────────────────
+   Semantic element styles — apply directly to h1, p, code, etc.
+   ───────────────────────────────────────────────────────────────────── */
+
+html { -webkit-font-smoothing: antialiased; -moz-osx-font-smoothing: grayscale; }
+
+body {
+  font-family: var(--font-body);
+  font-size: var(--type-body-size);
+  line-height: var(--type-body-lh);
+  color: var(--color-text-primary);
+  background: var(--color-bg);
+}
+
+h1, h2, h3, h4, h5, h6 {
+  font-family: var(--font-heading);
+  color: var(--color-text-primary);
+  letter-spacing: -0.3px;
+}
+h1 { font-size: var(--type-h1-size); font-weight: var(--type-h1-weight); line-height: var(--type-h1-lh); }
+h2 { font-size: var(--type-h2-size); font-weight: var(--type-h2-weight); line-height: var(--type-h2-lh); }
+h3 { font-size: var(--type-h3-size); font-weight: var(--type-h3-weight); line-height: var(--type-h3-lh); }
+h4 { font-size: var(--type-h4-size); font-weight: var(--type-h4-weight); line-height: var(--type-h4-lh); }
+h5 { font-size: var(--type-h5-size); font-weight: var(--type-h5-weight); line-height: var(--type-h5-lh); letter-spacing: 0; }
+
+.display { font-family: var(--font-heading); font-size: var(--type-display-size); font-weight: var(--type-display-weight); line-height: var(--type-display-lh); letter-spacing: -0.5px; color: var(--color-text-primary); }
+.body-l  { font-size: var(--type-body-l-size); line-height: var(--type-body-l-lh); }
+.caption { font-size: var(--type-caption-size); line-height: var(--type-caption-lh); color: var(--color-text-secondary); }
+.overline { font-family: var(--font-body); font-size: var(--type-overline-size); font-weight: var(--type-overline-weight); line-height: var(--type-overline-lh); letter-spacing: var(--type-overline-tracking); text-transform: uppercase; color: var(--color-text-secondary); }
+
+p { margin: 0 0 var(--space-3); color: var(--color-text-primary); }
+
+/* Links take midnight-11, not the identity accent — the accent measures
+   3.87:1 as text. See CHANGELOG v2.1.0. */
+a { color: var(--midnight-11); text-decoration: none; transition: opacity var(--duration-micro) var(--ease-out); }
+a:hover { color: var(--midnight-11); opacity: 0.78; text-decoration: underline; }
+
+code, kbd, samp, pre {
+  font-family: var(--font-code);
+  font-size: var(--type-code-size);
+  line-height: var(--type-code-lh);
+}
+code { padding: 1px 5px; background: var(--surface-2); border-radius: var(--radius-sm); color: var(--color-text-primary); }
+
+pre {
+  background: var(--terminal-surface); /* code blocks always dark */
+  color: var(--terminal-foreground);
+  padding: var(--space-4);
+  border-radius: var(--radius-md);
+  overflow-x: auto;
+}
+pre code { background: transparent; padding: 0; color: inherit; }
+
+hr { border: 0; height: 1px; background: var(--color-border); margin: var(--space-5) 0; }
+
+/* Selection follows the appearance: orange-3 tint under orange-12 text reads
+   in light (7.4:1) and in dark (10.1:1). A fixed dark ink over the dark-mode
+   tint measured ~1.2:1 — see CHANGELOG. */
+::selection { background: var(--orange-3); color: var(--orange-12); }
+/* Code panels are dark in every appearance, so they take their own pair.
+   A light code specimen opts in with data-code-surface="light". */
+pre::selection, pre *::selection { background: var(--code-panel-selection-bg); color: var(--code-panel-selection-fg); }
+[data-code-surface="light"]::selection, [data-code-surface="light"] *::selection { background: var(--code-panel-light-selection-bg); color: var(--code-panel-light-selection-fg); }
+
+/* Focus ring — 2px at midnight-9, 15% alpha.
+   NOTE: this default measures ~1.2:1 and does not meet WCAG 1.4.11 (3:1).
+   The conforming ring is available opt-in as data-focus="strong" below. */
+:focus-visible { outline: none; box-shadow: 0 0 0 2px var(--focus-ring-default); }
+
+/* ─────────────────────────────────────────────────────────────────────
+   Accessibility — every setting is OPT-IN. Nothing in this section
+   applies until an attribute is set on <html>, so adopting the system
+   never changes how an existing page renders. Compose freely:
+
+     <html data-a11y="auto" data-focus="strong" data-link-underline="on">
+
+   · data-a11y="auto"                follow the OS preferences below
+   · data-font-size="lg|xl|xxl|xxxl" 112.5% · 125% · 150% · 200%
+   · data-contrast="high"            solid borders, text at scale extremes
+   · data-focus="strong"             3:1 focus ring (WCAG 1.4.11)
+   · data-link-underline="on"        underline prose links (WCAG 1.4.1)
+   · data-motion="reduced"           near-zero transitions (WCAG 2.3.3)
+   · data-transparency="reduced"     drop blur, solidify alpha surfaces
+   · data-text-spacing="loose"       WCAG 1.4.12 spacing — a clipping test
+   · data-theme="light|dark"         pin the mode, ignoring the OS
+
+   Utility classes (.sr-only, .skip-link, .target, .measure) are opt-in by
+   nature — they do nothing unless applied.
+   ───────────────────────────────────────────────────────────────────── */
+
+/* ── Larger text. Every --type-*-size scales via --font-scale, so this
+      needs no per-component work. 200% is the WCAG 1.4.4 target. ─────── */
+html[data-font-size="lg"]   { --font-scale: 1.125; }
+html[data-font-size="xl"]   { --font-scale: 1.25; }
+html[data-font-size="xxl"]  { --font-scale: 1.5; }
+html[data-font-size="xxxl"] { --font-scale: 2; }
+
+/* ── Focus ring — solid and offset, measured against both surfaces.
+      outline (not box-shadow) so overflow can never clip it. ─────────── */
+html[data-focus="strong"] :focus-visible {
+  outline: 2px solid var(--focus-ring-strong);
+  outline-offset: 2px;
+  box-shadow: none;
+}
+html[data-focus="strong"][data-theme="dark"] :focus-visible,
+html[data-focus="strong"] [data-theme="dark"] :focus-visible { outline-color: var(--midnight-12); }
+@media (prefers-color-scheme: dark) {
+  html[data-focus="strong"] :focus-visible { outline-color: var(--midnight-12); }
+  html[data-focus="strong"][data-theme="light"] :focus-visible { outline-color: var(--midnight-9); }
+}
+
+/* ── Prose links carry an underline, not colour alone. Scoped to running
+      text; nav, toolbars and cards opt out with .link-plain. ─────────── */
+html[data-link-underline="on"] p a,
+html[data-link-underline="on"] li a,
+html[data-link-underline="on"] dd a,
+html[data-link-underline="on"] figcaption a,
+html[data-link-underline="on"] blockquote a,
+html[data-link-underline="on"] .prose a { text-decoration: underline; text-underline-offset: 2px; text-decoration-thickness: 1px; }
+.link-plain, html[data-link-underline="on"] .link-plain { text-decoration: none; }
+
+/* ── High contrast — flattens tints to solid borders and pushes text
+      roles to the ends of their scale. Same roles, stronger values. ──── */
+html[data-contrast="high"] {
+  --color-text-primary: #000000;   --color-text-secondary: #1e2b38;  --color-text-muted: #1e2b38;
+  --fg-1: #000000; --fg-2: #1e2b38; --fg-3: #1e2b38;
+  --border: #000000;
+  --color-border: #000000;         --border-strong: #000000;
+  --midnight-11: #10203a;          --slate-11: #1e2b38;
+  --orange-11: #a02f16;            --orange-9: #a02f16;
+  --color-success-fg: #0f4d3a;     --color-warning-fg: #4a3400;
+  --color-danger-fg: #7a1610;      --color-info-fg: #10203a;
+  --tag-text: #000000;             --tag-text-accent: #a02f16;
+}
+html[data-contrast="high"][data-theme="dark"], html[data-contrast="high"] [data-theme="dark"] {
+  --color-text-primary: #ffffff;   --color-text-secondary: #e2e9f2;  --color-text-muted: #e2e9f2;
+  --fg-1: #ffffff; --fg-2: #e2e9f2; --fg-3: #e2e9f2;
+  --border: #ffffff;
+  --color-border: #ffffff;         --border-strong: #ffffff;
+  --midnight-11: #c5daf0;          --slate-11: #e2e9f2;
+  --orange-11: #ffb49c;            --orange-9: #ff8161;
+  --color-success-fg: #a8e6c4;     --color-warning-fg: #ffdf94;
+  --color-danger-fg: #ffc0b8;      --color-info-fg: #c5daf0;
+  --tag-text: #ffffff;             --tag-text-accent: #ffb49c;
+}
+@media (prefers-color-scheme: dark) {
+  html[data-contrast="high"] {
+    --color-text-primary: #ffffff; --color-text-secondary: #e2e9f2; --color-text-muted: #e2e9f2;
+    --fg-1: #ffffff; --fg-2: #e2e9f2; --fg-3: #e2e9f2;
+    --border: #ffffff;
+    --color-border: #ffffff;       --border-strong: #ffffff;
+    --midnight-11: #c5daf0;        --slate-11: #e2e9f2;
+    --orange-11: #ffb49c;          --orange-9: #ff8161;
+    --color-success-fg: #a8e6c4;   --color-warning-fg: #ffdf94;
+    --color-danger-fg: #ffc0b8;    --color-info-fg: #c5daf0;
+    --tag-text: #ffffff;           --tag-text-accent: #ffb49c;
+  }
+  /* ...unless the page pinned itself light. */
+  html[data-contrast="high"][data-theme="light"] {
+    --color-text-primary: #000000; --color-text-secondary: #1e2b38; --color-text-muted: #1e2b38;
+    --color-border: #000000;       --border-strong: #000000;
+    --midnight-11: #10203a;        --slate-11: #1e2b38;
+    --orange-11: #a02f16;          --orange-9: #a02f16;
+    --color-success-fg: #0f4d3a;   --color-warning-fg: #4a3400;
+    --color-danger-fg: #7a1610;    --color-info-fg: #10203a;
+    --tag-text: #000000;           --tag-text-accent: #a02f16;
+  }
+}
+html[data-contrast="high"] :focus-visible { outline: 3px solid var(--midnight-9); outline-offset: 2px; box-shadow: none; }
+html[data-contrast="high"][data-theme="dark"] :focus-visible,
+html[data-contrast="high"] [data-theme="dark"] :focus-visible { outline-color: #ffffff; }
+html[data-contrast="high"] * { border-color: currentColor; }
+html[data-contrast="high"] a { text-decoration: underline; }
+
+/* ── Reduced motion (WCAG 2.3.3) ─────────────────────────────────────── */
+html[data-motion="reduced"] *, html[data-motion="reduced"] *::before, html[data-motion="reduced"] *::after {
+  animation-duration: 0.001ms !important; animation-iteration-count: 1 !important;
+  transition-duration: 0.001ms !important; scroll-behavior: auto !important;
+}
+
+/* ── Reduced transparency — blur is costly to parse visually, and alpha
+      surfaces lower effective contrast against whatever sits behind. ─── */
+html[data-transparency="reduced"] * { backdrop-filter: none !important; -webkit-backdrop-filter: none !important; }
+html[data-transparency="reduced"] { --scrim: rgba(20,36,56,0.94); --scrim-modal: rgba(20,36,56,0.94); --scrim-palette: rgba(14,23,32,0.96); --scrim-lightbox: var(--fixed-reduced-transparency-bg); }
+
+/* ── Text spacing (WCAG 1.4.12) — a diagnostic, not a house style. Set it
+      to prove nothing clips at the required minimums. ────────────────── */
+html[data-text-spacing="loose"] body, html[data-text-spacing="loose"] body * {
+  line-height: 1.5 !important;
+  letter-spacing: 0.12em !important;
+  word-spacing: 0.16em !important;
+}
+html[data-text-spacing="loose"] p { margin-bottom: 2em !important; }
+
+/* ── OS preferences, followed only when asked ────────────────────────── */
+@media (prefers-reduced-motion: reduce) {
+  html[data-a11y="auto"] *, html[data-a11y="auto"] *::before, html[data-a11y="auto"] *::after {
+    animation-duration: 0.001ms !important; animation-iteration-count: 1 !important;
+    transition-duration: 0.001ms !important; scroll-behavior: auto !important;
+  }
+}
+@media (prefers-reduced-transparency: reduce) {
+  html[data-a11y="auto"] * { backdrop-filter: none !important; -webkit-backdrop-filter: none !important; }
+}
+@media (prefers-contrast: more) {
+  html[data-a11y="auto"] {
+    --color-text-secondary: #1e2b38; --color-text-muted: #1e2b38;
+    --color-border: #546a82;         --border-strong: #1e2b38;
+  }
+}
+
+/* ── Utilities ───────────────────────────────────────────────────────── */
+
+/* Visually hidden, still announced — the accessible name for icon-only
+   controls. An aria-label works too; this survives page translation. */
+.sr-only {
+  position: absolute; width: 1px; height: 1px; padding: 0;
+  margin: -1px; overflow: hidden; clip-path: inset(50%);
+  white-space: nowrap; border: 0;
+}
+/* Same, but reveals itself on focus — the skip link's base. */
+.sr-only-focusable:not(:focus):not(:focus-within) {
+  position: absolute; width: 1px; height: 1px; padding: 0;
+  margin: -1px; overflow: hidden; clip-path: inset(50%);
+  white-space: nowrap; border: 0;
+}
+
+/* Skip to content — the first focusable element in the document. */
+.skip-link {
+  position: absolute; left: var(--space-4); top: var(--space-4); z-index: 999;
+  transform: translateY(calc(-100% - var(--space-5)));
+  padding: var(--space-2) var(--space-4);
+  background: var(--color-primary); color: #fff;
+  font-family: var(--font-heading); font-size: var(--type-h5-size); font-weight: 600;
+  border-radius: var(--radius-md); text-decoration: none;
+  transition: transform var(--duration-standard) var(--ease-out);
+}
+.skip-link:focus { transform: translateY(0); }
+
+/* Minimum target size — WCAG 2.5.8 asks 24px; the brand floor is 44px. */
+.target { min-width: var(--touch-target); min-height: var(--touch-target); }
+
+/* Comfortable measure — caps line length for running text. */
+.measure { max-width: var(--measure); }

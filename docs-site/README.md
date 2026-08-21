@@ -30,7 +30,8 @@ This command starts a local development server on port 1316. Most changes are re
 ./scripts/build-docs.sh
 ```
 
-This command generates static content into `docs-site/public/`.
+This command refreshes `data/theme_catalog.json` from the CLI's audited theme
+source, then generates static content into `docs-site/public/`.
 
 ## Deployment
 

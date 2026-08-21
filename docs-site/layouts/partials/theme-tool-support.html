@@ -1,0 +1,6 @@
+{{- $catalog := hugo.Data.theme_catalog -}}
+<div class="tablewrap" tabindex="0" role="region" aria-label="Theme support by tool">
+  <table><thead><tr><th>Tool</th><th>Rendered elements</th><th>Supported emphasis</th><th>Notes</th></tr></thead><tbody>
+  {{ range $catalog.tools }}<tr><th scope="row">{{ .name }}</th><td>{{ .uses }}</td><td>{{ if .supports }}{{ delimit .supports ", " }}{{ else }}Terminal inheritance{{ end }}</td><td>{{ if and .requires .note }}{{ .requires }}; {{ .note }}{{ else if .requires }}{{ .requires }}{{ else if .note }}{{ .note }}{{ else }}&mdash;{{ end }}</td></tr>{{ end }}
+  </tbody></table>
+</div>

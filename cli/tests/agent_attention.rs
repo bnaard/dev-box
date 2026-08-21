@@ -28,7 +28,17 @@ fn run(dir: &std::path::Path, args: &[&str]) -> std::process::Output {
 }
 
 fn init(dir: &std::path::Path) {
-    let output = run(dir, &["init", "attention-test", "--base", "debian"]);
+    let output = run(
+        dir,
+        &[
+            "init",
+            "attention-test",
+            "--base",
+            "debian",
+            "--harness",
+            "codex",
+        ],
+    );
     assert!(
         output.status.success(),
         "aibox init failed:\n{}",
@@ -56,6 +66,26 @@ fn generated_catalog_documents_title_configuration() {
             "generated aibox.toml is missing title contract entry {expected:?}:\n{config}"
         );
     }
+
+    let codex_config =
+        fs::read_to_string(dir.path().join(".codex/config.toml")).expect("read Codex config");
+    assert!(
+        codex_config.contains(r#"notify = ["aibox-codex-notify"]"#),
+        "Codex completion callback must be registered through config.toml:\n{codex_config}"
+    );
+    let codex_hooks =
+        fs::read_to_string(dir.path().join(".codex/hooks.json")).expect("read Codex hooks");
+    assert!(
+        !codex_hooks.contains(r#""Stop""#),
+        "the ineffective Codex Stop hook must not be generated:\n{codex_hooks}"
+    );
+    let notify = dir.path().join(".aibox-home/.local/bin/aibox-codex-notify");
+    assert!(notify.is_file(), "Codex notify adapter must be generated");
+    assert_ne!(
+        fs::metadata(notify).unwrap().permissions().mode() & 0o111,
+        0,
+        "Codex notify adapter must be executable"
+    );
 }
 
 #[test]
@@ -144,6 +174,7 @@ fn signal_helper_aggregates_panes_and_expires_done() {
     let dir = tempfile::tempdir().expect("create isolated tmux directory");
     let socket = dir.path().join("attention.sock");
     let helper = dir.path().join("aibox-agent-signal");
+    let codex_notify = dir.path().join("aibox-codex-notify");
     let repository = dir.path().join("checkout");
     let codex_home = dir.path().join("codex-home");
     fs::create_dir_all(&repository).expect("create repository");
@@ -187,11 +218,24 @@ fn signal_helper_aggregates_panes_and_expires_done() {
         &helper,
     )
     .expect("copy attention helper");
+    fs::copy(
+        format!(
+            "{}/src/templates/aibox-codex-notify.sh",
+            env!("CARGO_MANIFEST_DIR")
+        ),
+        &codex_notify,
+    )
+    .expect("copy Codex notify adapter");
     let mut permissions = fs::metadata(&helper)
         .expect("helper metadata")
         .permissions();
     permissions.set_mode(0o755);
     fs::set_permissions(&helper, permissions).expect("make helper executable");
+    let mut permissions = fs::metadata(&codex_notify)
+        .expect("Codex notify metadata")
+        .permissions();
+    permissions.set_mode(0o755);
+    fs::set_permissions(&codex_notify, permissions).expect("make Codex notify executable");
 
     let tmux = |args: &[&str]| {
         Command::new("tmux")
@@ -385,7 +429,42 @@ fn signal_helper_aggregates_panes_and_expires_done() {
     );
     signal_hook(&pane_two, "clear --harness claude", "{}");
     assert_eq!(window_value("@aibox_attention_state"), "working");
-    signal(&pane_one, "done --harness codex");
+
+    let codex_transcript = dir.path().join("codex-transcript.jsonl");
+    fs::write(
+        &codex_transcript,
+        r#"{"type":"response_item","payload":{"type":"custom_tool_call","name":"request_user_input"}}"#,
+    )
+    .expect("write Codex transcript fixture");
+    let codex_question_payload =
+        format!(r#"{{"transcript_path":"{}"}}"#, codex_transcript.display());
+    signal_hook(
+        &pane_one,
+        "question --harness codex",
+        &codex_question_payload,
+    );
+    assert_eq!(window_value("@aibox_attention_state"), "question");
+    use std::io::Write as _;
+    writeln!(
+        fs::OpenOptions::new()
+            .append(true)
+            .open(&codex_transcript)
+            .expect("open Codex transcript fixture"),
+        r#"{{"type":"response_item","payload":{{"type":"custom_tool_call_output","output":"accepted"}}}}"#,
+    )
+    .expect("append Codex inline response");
+    std::thread::sleep(std::time::Duration::from_secs(2));
+    assert_eq!(window_value("@aibox_attention_state"), "working");
+
+    let notify_payload = r#"{"type":"agent-turn-complete","last-assistant-message":"Finished."}"#;
+    let notify_command = format!(
+        "PATH='{}':\"$PATH\" TMUX_PANE='{}' '{}' '{}'",
+        dir.path().display(),
+        pane_one,
+        codex_notify.display(),
+        notify_payload
+    );
+    success(&["run-shell", "-t", &pane_one, &notify_command]);
     assert_eq!(window_value("@aibox_attention_state"), "done");
     std::thread::sleep(std::time::Duration::from_secs(2));
     assert_eq!(window_value("@aibox_attention_state"), "idle");

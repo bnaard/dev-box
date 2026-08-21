@@ -154,8 +154,8 @@ aibox set theme.mode dark
 aibox apply
 ```
 
-To recreate the checked-in gallery after changing audited data:
+To recreate the data-driven theme catalogue after changing audited data:
 
 ```bash
-node scripts/capture-theme-variants.mjs
+node scripts/generate-theme-catalog.mjs
 ```

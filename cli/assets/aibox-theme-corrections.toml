@@ -1848,7 +1848,7 @@ muted = "#008000"
 magenta = "#AF00DB"  # new first-class slot (upstream palette)
 
 [themes.VsCodeLightPlus.chrome]
-surface = "#E4E4E4"  # derived from this theme's own bg/fg
+surface = "#E8E8E8"  # derived from this theme's own bg/fg; matches the reference board surface step
 selection_bg = "#D6D6FF"  # bg + accent tint
 diff_add_bg = "#D8ECE4"  # bg + green tint
 diff_del_bg = "#F7DEDE"  # bg + red tint
@@ -1888,6 +1888,7 @@ selection_fg = "#C5DAF0"
 accent_text = "#EA7558"
 code_panel = "#0E1720"
 terminal = "#0E1720"
+status_active_ink = "#0E1720"
 
 [themes.ProjectiousDeep]
 family = "projectious"
@@ -1915,6 +1916,7 @@ selection_fg = "#C5DAF0"
 accent_text = "#EA7558"
 code_panel = "#131E2B"
 terminal = "#0E1720"
+status_active_ink = "#0E1720"
 
 [themes.ProjectiousLight]
 family = "projectious"
@@ -1942,6 +1944,7 @@ selection_fg = "#142438"
 accent_fill = "#CC4528"
 code_panel = "#0E1720"
 terminal = "#0E1720"
+status_active_ink = "#FFFFFF"
 
 [themes.ProjectiousHCDark]
 family = "projectious"
@@ -1968,6 +1971,7 @@ selection_bg = "#3A5C7E"
 selection_fg = "#FFFFFF"
 code_panel = "#0E1720"
 terminal = "#0E1720"
+status_active_ink = "#0E1720"
 
 [themes.ProjectiousHCLight]
 family = "projectious"
@@ -1994,6 +1998,7 @@ selection_bg = "#B0C1D6"
 selection_fg = "#000000"
 code_panel = "#0E1720"
 terminal = "#0E1720"
+status_active_ink = "#FFFFFF"
 
 
 # ── Emphasis — bold/italic/dim as a second channel ─────────────────────────
@@ -2118,6 +2123,7 @@ diff_del_bg = "#2B2B2B"
 diff_change_bg = "#242424"
 surface_step_ratio = 1.24
 selection_ink_ratio = 10.86
+status_active_ink = "#121212"
 
 [themes.MonoLight]
 family = "mono"
@@ -2158,6 +2164,7 @@ diff_del_bg = "#E2E2E2"
 diff_change_bg = "#E9E9E9"
 surface_step_ratio = 1.22
 selection_ink_ratio = 15.61
+status_active_ink = "#FAFAFA"
 
 [themes.ContrastDark]
 family = "contrast"
@@ -2198,6 +2205,7 @@ diff_del_bg = "#2A1210"
 diff_change_bg = "#241E0C"
 surface_step_ratio = 1.27
 selection_ink_ratio = 11.6
+status_active_ink = "#000000"
 
 [themes.ContrastDarkMax]
 family = "contrast"
@@ -2239,6 +2247,7 @@ diff_del_bg = "#2B0F0C"
 diff_change_bg = "#26200A"
 surface_step_ratio = 1.21
 selection_ink_ratio = 10.6
+status_active_ink = "#000000"
 
 [themes.ContrastLight]
 family = "contrast"
@@ -2279,6 +2288,7 @@ diff_del_bg = "#F7E4E4"
 diff_change_bg = "#F5EEDC"
 surface_step_ratio = 1.25
 selection_ink_ratio = 13.06
+status_active_ink = "#FFFFFF"
 
 [themes.ContrastLightMax]
 family = "contrast"
@@ -2320,6 +2330,7 @@ diff_del_bg = "#F2DCDC"
 diff_change_bg = "#EDE6D2"
 surface_step_ratio = 1.32
 selection_ink_ratio = 13.91
+status_active_ink = "#FFFFFF"
 
 [themes.ContrastMonoDark]
 family = "contrast-mono"
@@ -2360,6 +2371,7 @@ diff_del_bg = "#242424"
 diff_change_bg = "#1D1D1D"
 surface_step_ratio = 1.27
 selection_ink_ratio = 11.73
+status_active_ink = "#000000"
 
 [themes.ContrastMonoDarkMax]
 family = "contrast-mono"
@@ -2402,6 +2414,7 @@ diff_del_bg = "#222222"
 diff_change_bg = "#1B1B1B"
 surface_step_ratio = 1.21
 selection_ink_ratio = 12.63
+status_active_ink = "#000000"
 
 [themes.ContrastMonoLight]
 family = "contrast-mono"
@@ -2442,6 +2455,7 @@ diff_del_bg = "#E0E0E0"
 diff_change_bg = "#E8E8E8"
 surface_step_ratio = 1.25
 selection_ink_ratio = 14.45
+status_active_ink = "#FFFFFF"
 
 [themes.ContrastMonoLightMax]
 family = "contrast-mono"
@@ -2484,6 +2498,7 @@ diff_del_bg = "#DEDEDE"
 diff_change_bg = "#E5E5E5"
 surface_step_ratio = 1.32
 selection_ink_ratio = 13.08
+status_active_ink = "#FFFFFF"
 
 
 [selection_floor]

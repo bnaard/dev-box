@@ -121,9 +121,12 @@ pub fn regenerate_hook_configs(config: &AiboxConfig, project_root: &Path) -> Res
     if harnesses.contains(&AiProvider::Codex) {
         let path = project_root.join(".codex/hooks.json");
         write_codex_hooks_json(&path)?;
+        let config_path = project_root.join(".codex/config.toml");
+        write_codex_notify_config(&config_path)?;
         output::ok(&format!(
-            "Wrote processkit hook entries to {}",
-            path.display()
+            "Wrote processkit hook entries to {} and completion notify to {}",
+            path.display(),
+            config_path.display()
         ));
     }
 
@@ -456,12 +459,15 @@ fn write_codex_hooks_json(path: &Path) -> Result<()> {
         "PermissionRequest".to_string(),
         command_hook("aibox-agent-signal question --harness codex --hook-input".to_string()),
     );
-    hooks.insert(
-        "Stop".to_string(),
-        command_hook(
-            r#"python3 -c 'import json, subprocess, sys; p=json.load(sys.stdin); m=(p.get("last_assistant_message") or "").rstrip(); s="question" if m.endswith(("?", "？")) else "done"; subprocess.run(["aibox-agent-signal", s, "--harness", "codex", "--hook-input"], input=json.dumps(p), text=True, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)'"#.to_string(),
-        ),
-    );
+    // Codex 0.148 does not dispatch a project hooks.json Stop entry for a
+    // normal completed turn. Remove our historical dead entry; completion is
+    // registered through config.toml `notify` below.
+    if hooks
+        .get("Stop")
+        .is_some_and(|groups| groups.to_string().contains(AIBOX_SIGNAL_MANAGED_MARKER))
+    {
+        hooks.remove("Stop");
+    }
     hooks.insert(
         "SessionEnd".to_string(),
         command_hook("aibox-agent-signal idle --harness codex --hook-input".to_string()),
@@ -475,6 +481,70 @@ fn write_codex_hooks_json(path: &Path) -> Result<()> {
     let formatted = serde_json::to_string_pretty(&top).context("failed to serialize hooks JSON")?;
     fs::write(path, formatted).with_context(|| format!("failed to write {}", path.display()))?;
 
+    Ok(())
+}
+
+/// Register Codex's reliable legacy completion callback without discarding a
+/// pre-existing project-local notify command. The adapter delegates to that
+/// command after updating aibox attention state.
+fn write_codex_notify_config(path: &Path) -> Result<()> {
+    use toml_edit::{Array, DocumentMut, value};
+
+    let mut doc: DocumentMut = if path.is_file() {
+        let body = fs::read_to_string(path)
+            .with_context(|| format!("failed to read {}", path.display()))?;
+        body.parse()
+            .with_context(|| format!("failed to parse existing TOML at {}", path.display()))?
+    } else {
+        DocumentMut::new()
+    };
+
+    let existing = match doc.get("notify") {
+        None => Vec::new(),
+        Some(item) => item
+            .as_array()
+            .ok_or_else(|| anyhow::anyhow!("`notify` in {} is not an array", path.display()))?
+            .iter()
+            .map(|value| {
+                value.as_str().map(str::to_string).ok_or_else(|| {
+                    anyhow::anyhow!("`notify` in {} must contain only strings", path.display())
+                })
+            })
+            .collect::<Result<Vec<_>>>()?,
+    };
+
+    let managed = existing
+        .first()
+        .is_some_and(|value| value == "aibox-codex-notify");
+    let mut command = if managed {
+        existing
+    } else {
+        let mut command = vec!["aibox-codex-notify".to_string()];
+        if !existing.is_empty() {
+            command.push("--delegate-json".to_string());
+            command.push(
+                serde_json::to_string(&existing)
+                    .context("failed to preserve existing Codex notify command")?,
+            );
+        }
+        command
+    };
+    if command.is_empty() {
+        command.push("aibox-codex-notify".to_string());
+    }
+
+    let mut array = Array::new();
+    for part in command {
+        array.push(part);
+    }
+    doc["notify"] = value(array);
+
+    if let Some(parent) = path.parent() {
+        fs::create_dir_all(parent)
+            .with_context(|| format!("failed to create directory {}", parent.display()))?;
+    }
+    fs::write(path, doc.to_string())
+        .with_context(|| format!("failed to write {}", path.display()))?;
     Ok(())
 }
 
@@ -900,11 +970,10 @@ version = "unset"
         let post_tool = command("PostToolUse");
         assert!(post_tool.contains("aibox-agent-signal working"));
         assert!(post_tool.contains("--hook-input"));
-        let stop = command("Stop");
-        assert!(stop.contains("last_assistant_message"));
-        assert!(stop.contains("question"));
-        assert!(stop.contains("done"));
-        assert!(stop.contains("--hook-input"));
+        assert!(
+            hooks.get("Stop").is_none(),
+            "Codex turn completion belongs in config.toml notify, not hooks.json Stop"
+        );
         assert!(command("SessionEnd").contains("--hook-input"));
 
         assert!(pre_tool.contains("check_route_task_called.py"));
@@ -960,6 +1029,31 @@ version = "unset"
                 .contains("check_route_task_called.py")
         );
         assert!(parsed["hooks"].get("pre_tool_use").is_none());
+    }
+
+    #[test]
+    fn test_codex_notify_preserves_user_command_and_is_idempotent() {
+        let dir = TempDir::new().unwrap();
+        let path = dir.path().join(".codex/config.toml");
+        fs::create_dir_all(path.parent().unwrap()).unwrap();
+        fs::write(
+            &path,
+            "model = \"gpt-5.6-sol\"\nnotify = [\"python3\", \"notify-team.py\"]\n",
+        )
+        .unwrap();
+
+        write_codex_notify_config(&path).expect("first write should succeed");
+        let first = fs::read_to_string(&path).unwrap();
+        write_codex_notify_config(&path).expect("second write should succeed");
+        let second = fs::read_to_string(&path).unwrap();
+        assert_eq!(first, second, "Codex notify merge must be idempotent");
+
+        let parsed: toml::Value = toml::from_str(&second).unwrap();
+        let notify = parsed["notify"].as_array().unwrap();
+        assert_eq!(notify[0].as_str(), Some("aibox-codex-notify"));
+        assert_eq!(notify[1].as_str(), Some("--delegate-json"));
+        assert_eq!(notify[2].as_str(), Some(r#"["python3","notify-team.py"]"#));
+        assert_eq!(parsed["model"].as_str(), Some("gpt-5.6-sol"));
     }
 
     #[test]

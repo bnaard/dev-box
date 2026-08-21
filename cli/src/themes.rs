@@ -196,7 +196,14 @@ fn vim_attrs(
     role: &str,
     overrides: Option<&BTreeMap<String, String>>,
 ) -> String {
-    let attrs = theme_role_attributes(theme, level, role, overrides).replace(' ', ",");
+    // Vim does not accept `dim` as a :highlight gui attribute (E418). Color
+    // still provides the secondary channel for muted/inactive roles, so drop
+    // the unsupported attribute instead of emitting an invalid colorscheme.
+    let attrs = theme_role_attributes(theme, level, role, overrides)
+        .split_whitespace()
+        .filter(|attr| *attr != "dim")
+        .collect::<Vec<_>>()
+        .join(",");
     if attrs.is_empty() {
         "NONE".to_string()
     } else {
@@ -236,15 +243,13 @@ pub fn terminal_surface_colors(theme: &Theme) -> (&str, &str, &str, &str, String
     )
 }
 
-/// Subtly dimmed (bg, fg) for *inactive* tmux panes — used by
-/// `window-style` so the non-focused panes recede a touch without
-/// becoming hard to read.
+/// Dimmed (bg, fg) for *inactive* tmux panes — used by `window-style`
+/// so the focused pane is immediately identifiable even when a full-screen
+/// TUI such as Yazi paints every pane edge-to-edge.
 ///
-/// Bias is ~12% toward `muted` for both bg and fg, which is enough to
-/// be noticeable side-by-side but invisible on a single un-split view.
-/// Tuned by eye against the dark themes (where it shows up most) and
-/// validated on the light themes (where `muted` darkens both slightly
-/// toward grey, still readable).
+/// Themes with audited pane colors keep those exact values. Other themes use
+/// a stronger muted bias than the old subtle treatment: 22% for the surface
+/// and 38% for text. Contrast tests keep the inactive content readable.
 pub fn dim_inactive_pane_colors(theme: &Theme) -> (String, String) {
     if let (Some(bg), Some(fg)) = (
         audited_chrome_color(theme, "pane_inactive_bg"),
@@ -253,8 +258,8 @@ pub fn dim_inactive_pane_colors(theme: &Theme) -> (String, String) {
         return (bg.to_string(), fg.to_string());
     }
     let (bg, fg, _accent, _green, _red, _yellow, _orange, _cyan, muted) = theme_palette(theme);
-    let dim_bg = mix_hex_colors(bg, muted, 88);
-    let dim_fg = mix_hex_colors(fg, muted, 75);
+    let dim_bg = mix_hex_colors(bg, muted, 78);
+    let dim_fg = mix_hex_colors(fg, muted, 62);
     (dim_bg, dim_fg)
 }
 
@@ -416,7 +421,7 @@ hi Number         guifg={orange}    gui={number_attr}
 hi Boolean        guifg={orange}    gui={number_attr}
 hi Float          guifg={orange}    gui={number_attr}
 hi Identifier     guifg={fg}
-hi Function       guifg={accent}    gui={function_attr}
+hi Function       guifg={cyan}      gui={function_attr}
 hi Statement      guifg={magenta}  gui={keyword_attr}
 hi Conditional    guifg={magenta}  gui={keyword_attr}
 hi Repeat         guifg={magenta}  gui={keyword_attr}
@@ -618,6 +623,12 @@ find_position = {{ fg = "{magenta}" }}
 marker_selected = {{ fg = "{green}", bg = "{green}" }}
 marker_copied = {{ fg = "{magenta}", bg = "{magenta}" }}
 marker_cut = {{ fg = "{red}", bg = "{red}" }}
+
+[indicator]
+parent = {{ fg = "{muted}" }}
+current = {{ fg = "{accent_fill}", bg = "{accent_fill}"{active_attrs} }}
+preview = {{ fg = "{cyan}" }}
+padding = {{ open = "▐", close = "▌" }}
 
 [tabs]
 active = {{ fg = "{active_ink}", bg = "{accent_fill}"{active_attrs} }}
@@ -1195,7 +1206,7 @@ pub fn bat_tmtheme_with_style(
 <dict><key>scope</key><string>comment</string><key>settings</key><dict><key>foreground</key><string>{muted}</string><key>fontStyle</key><string>{comment}</string></dict></dict>
 <dict><key>scope</key><string>keyword, storage</string><key>settings</key><dict><key>foreground</key><string>{magenta}</string><key>fontStyle</key><string>{keyword}</string></dict></dict>
 <dict><key>scope</key><string>entity.name.type, support.type, storage.type</string><key>settings</key><dict><key>foreground</key><string>{yellow}</string><key>fontStyle</key><string>{ty}</string></dict></dict>
-<dict><key>scope</key><string>entity.name.function, support.function</string><key>settings</key><dict><key>foreground</key><string>{accent}</string><key>fontStyle</key><string>{function}</string></dict></dict>
+<dict><key>scope</key><string>entity.name.function, support.function</string><key>settings</key><dict><key>foreground</key><string>{cyan}</string><key>fontStyle</key><string>{function}</string></dict></dict>
 <dict><key>scope</key><string>string</string><key>settings</key><dict><key>foreground</key><string>{green}</string><key>fontStyle</key><string>{string}</string></dict></dict>
 <dict><key>scope</key><string>constant.numeric, constant.language</string><key>settings</key><dict><key>foreground</key><string>{orange}</string><key>fontStyle</key><string>{number}</string></dict></dict>
 <dict><key>scope</key><string>keyword.operator, punctuation</string><key>settings</key><dict><key>foreground</key><string>{cyan}</string><key>fontStyle</key><string>{operator}</string></dict></dict>
@@ -1651,7 +1662,7 @@ pub fn opencode_custom_theme(theme: &Theme) -> String {
             "markdownListEnumeration": value(magenta), "markdownImage": value(cyan),
             "markdownImageText": value(accent), "markdownCodeBlock": value(fg),
             "syntaxComment": value(muted), "syntaxKeyword": value(magenta),
-            "syntaxFunction": value(accent), "syntaxVariable": value(fg),
+            "syntaxFunction": value(cyan), "syntaxVariable": value(fg),
             "syntaxString": value(green), "syntaxNumber": value(orange),
             "syntaxType": value(yellow), "syntaxOperator": value(cyan), "syntaxPunctuation": value(fg)
         }
@@ -1900,6 +1911,73 @@ mod tests {
             ) {
                 assert_contrast(theme, "pane inactive", pane_fg, pane_bg, 3.0);
             }
+
+            let active_ink = audited_color(chrome, "status_active_ink");
+            assert_contrast(
+                theme,
+                "active status ink",
+                active_ink,
+                audited_accent_fill(theme),
+                4.5,
+            );
+            let (pane_bg, pane_fg) = dim_inactive_pane_colors(theme);
+            assert_contrast(theme, "generated inactive pane", &pane_fg, &pane_bg, 3.0);
+        }
+    }
+
+    #[test]
+    fn generated_tools_share_the_audited_active_ink_and_function_role() {
+        for theme in ALL_THEMES {
+            let spec = audited_theme(theme);
+            let chrome = &spec["chrome"];
+            let active_ink = audited_color(chrome, "status_active_ink");
+            let accent_fill = audited_accent_fill(theme);
+            let cyan = audited_color(spec, "cyan");
+
+            let vim = vim_aibox_colorscheme(theme);
+            assert!(
+                vim.contains(&format!(
+                    "hi StatusLine     guifg={active_ink} guibg={accent_fill}"
+                )),
+                "Vim active status differs from the audited source for {theme}"
+            );
+            assert!(
+                vim.contains(&format!("hi Function       guifg={cyan}")),
+                "Vim function role differs from the reference sample for {theme}"
+            );
+
+            let yazi = yazi_theme_with_separator(theme, "powerline");
+            assert!(
+                yazi.contains(&format!(
+                    "active = {{ fg = \"{active_ink}\", bg = \"{accent_fill}\""
+                )),
+                "Yazi active tab differs from the audited source for {theme}"
+            );
+            assert!(yazi.contains("[indicator]"));
+            assert!(yazi.contains(&format!(
+                "current = {{ fg = \"{accent_fill}\", bg = \"{accent_fill}\""
+            )));
+
+            let bat = bat_tmtheme_with_style(theme, ThemeEmphasis::Auto, &BTreeMap::new());
+            assert!(
+                bat.contains(&format!(
+                    "<string>entity.name.function, support.function</string><key>settings</key><dict><key>foreground</key><string>{cyan}</string>"
+                )),
+                "bat/delta function role differs from the reference sample for {theme}"
+            );
+
+            let opencode = opencode_custom_theme(theme);
+            let opencode: serde_json::Value =
+                serde_json::from_str(&opencode).expect("generated OpenCode theme is valid JSON");
+            assert_eq!(
+                opencode["theme"]["syntaxFunction"]["dark"].as_str(),
+                Some(cyan),
+                "OpenCode function role differs from the reference sample for {theme}"
+            );
+
+            let tmux = tmux_powerkit_custom_theme(theme);
+            assert!(tmux.contains(&format!("[session-fg]=\"{active_ink}\"")));
+            assert!(tmux.contains(&format!("[session-bg]=\"{accent_fill}\"")));
         }
     }
 
@@ -1928,6 +2006,21 @@ mod tests {
             "",
             "none must clamp even explicit overrides"
         );
+    }
+
+    #[test]
+    fn vim_colorscheme_omits_unsupported_dim_attribute() {
+        for emphasis in [ThemeEmphasis::Standard, ThemeEmphasis::Minimal] {
+            let vim =
+                vim_aibox_colorscheme_with_style(&Theme::GruvboxDark, emphasis, &BTreeMap::new());
+            assert!(!vim.lines().any(|line| {
+                line.split_whitespace().any(|field| {
+                    field
+                        .strip_prefix("gui=")
+                        .is_some_and(|attrs| attrs.split(',').any(|attr| attr == "dim"))
+                })
+            }));
+        }
     }
 
     #[test]

@@ -769,6 +769,10 @@ fi
 /// call this through PATH; it is also available for manual integrations.
 const DEFAULT_AIBOX_AGENT_SIGNAL_SH: &str = include_str!("templates/aibox-agent-signal.sh");
 
+/// Codex's `notify` callback is the reliable end-of-turn signal. This adapter
+/// translates `agent-turn-complete` into the provider-neutral attention state.
+const DEFAULT_AIBOX_CODEX_NOTIFY_SH: &str = include_str!("templates/aibox-codex-notify.sh");
+
 /// lnav format file describing the aibox NDJSON log shape — read by
 /// `Prefix L` in tmux to surface logs with timestamps, levels, and
 /// search/filter (BR-LOG-PANEL, v0.25.6).
@@ -1294,6 +1298,10 @@ pub fn managed_runtime_files(config: &AiboxConfig) -> Vec<(std::path::PathBuf, S
         (
             std::path::PathBuf::from(".local/bin/aibox-agent-signal"),
             DEFAULT_AIBOX_AGENT_SIGNAL_SH.to_string(),
+        ),
+        (
+            std::path::PathBuf::from(".local/bin/aibox-codex-notify"),
+            DEFAULT_AIBOX_CODEX_NOTIFY_SH.to_string(),
         ),
         (
             std::path::PathBuf::from(".local/bin/aibox-powerkit-render-list"),
@@ -2146,6 +2154,7 @@ fn is_executable_managed_runtime_file(rel_path: &Path) -> bool {
         || rel_path == Path::new(".local/bin/aibox-tmux-cheatsheet")
         || rel_path == Path::new(".local/bin/aibox-copy")
         || rel_path == Path::new(".local/bin/aibox-agent-signal")
+        || rel_path == Path::new(".local/bin/aibox-codex-notify")
         || rel_path == Path::new(".local/bin/aibox-powerkit-render-list")
         || rel_path == Path::new(".local/bin/aibox-powerkit-render-session")
         || rel_path == Path::new(crate::latex::BUILD_SCRIPT_PATH)
