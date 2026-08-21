@@ -48,6 +48,7 @@ tmuxcf() {
 }
 
 if tmuxc has-session -t "${session}" 2>/dev/null; then
+    printf '\033[22;0t' > /dev/tty 2>/dev/null || true
     exec tmuxcf attach-session -t "${session}"
 fi
 
@@ -105,4 +106,5 @@ case "${layout}" in
 esac
 
 tmuxc select-window -t "${session}:1"
+printf '\033[22;0t' > /dev/tty 2>/dev/null || true
 exec tmuxcf attach-session -t "${session}"

@@ -52,6 +52,9 @@ and only reproducible on one machine. aibox keeps the moving parts explicit:
 - **Runtime visibility:** `aibox get runtime --resources` and `aibox doctor`
   surface memory pressure, OOM signals, and process count risks before they turn
   into unexplained agent exits.
+- **Coherent terminal themes:** the audited palette drives tmux, Yazi, Vim, and
+  the wider managed toolchain together. Marked files remain readable, active
+  panes stay prominent, and status separators use the selected theme's colors.
 
 ## Install
 

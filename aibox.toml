@@ -688,7 +688,7 @@ session_name = "aibox"
 # {window_index}, {pane}, {directory}, {directory_path}, {repository},
 # {branch}, {harness}, {agent}, {agent_suffix}, {task}, {message}, {elapsed}.
 [customization.tmux.title]
-enabled = true
+enabled = false
 format = "{state_symbol}{repository}{agent_suffix}"
 max-length = 120
 directory-style = "basename"  # basename | abbreviated | full
