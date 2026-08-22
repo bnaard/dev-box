@@ -30,6 +30,24 @@ cp -R "$POWERKIT_SOURCE" "$tmpdir/powerkit"
 bash -n "$tmpdir/powerkit/src/renderer/segment_builder.sh"
 bash -n "$tmpdir/powerkit/src/renderer/entities/windows.sh"
 
+# Upstream may add legitimate conditional branches without changing the
+# separator contract. Reproduce the pinned 6ac71f0 shape (one extra escaped
+# branch) and ensure the downstream compatibility patch remains structural
+# instead of rejecting the file by global occurrence count.
+expanded_windows="$tmpdir/windows-expanded.sh"
+cp "$tmpdir/powerkit/src/renderer/entities/windows.sh" "$expanded_windows"
+sed -i '0,/if \[\[ "$side" == "left" || "$side" == "center" \]\]; then/{
+    /if \[\[ "$side" == "left" || "$side" == "center" \]\]; then/i\
+    if false; then printf '\''#{?expanded,#[none]#[fg=%s#,bg=%s]x,}'\'' x x; fi
+}' "$expanded_windows"
+"${PROJECT_ROOT}/images/base-debian/config/tmux/patch-powerkit-window-separators.sh" \
+    "$expanded_windows"
+bash -n "$expanded_windows"
+[[ "$(grep -o 'fg=%s#,bg=%s' "$expanded_windows" | wc -l | tr -d ' ')" -gt 8 ]] || {
+    echo "Expanded PowerKit fixture did not exercise the former exact-count failure" >&2
+    exit 1
+}
+
 tmux -L "$socket_label" new-session -d -s "$session" -x 160 -y 12
 tmux -L "$socket_label" set-option -g status on
 tmux -L "$socket_label" set-option -g status-interval 1
