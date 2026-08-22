@@ -93,6 +93,9 @@ params:
       url: "https://projectious-work.github.io/aibox/"
       note: latest
       probe: false
+    - label: "v0.34.4"
+      url: "https://projectious-work.github.io/aibox/v0.x/v0.34.4/"
+      probe: false
     - label: "v0.34.3"
       url: "https://projectious-work.github.io/aibox/v0.x/v0.34.3/"
       probe: false
