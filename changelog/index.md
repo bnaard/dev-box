@@ -11,6 +11,7 @@ complete changelog and upgrade notes.
 
 
 - [v0.34.5 — consistent tmux window separators](https://projectious-work.github.io/aibox/changelog/release-v0-34-5/index.md) — Restores PowerKit separator colors across all themes and makes visual regressions release-blocking.
+- [v0.34.6 — restored host runtime builds](https://projectious-work.github.io/aibox/changelog/release-v0-34-6/index.md) — Accepts PowerKit's expanded pinned renderer while retaining structural separator validation.
 - [v0.34.2 — accurate themes and reliable agent state](https://projectious-work.github.io/aibox/changelog/release-v0-34-2/index.md) — Adds the theme gallery and chooser, aligns generated themes with their references, and fixes Codex and tmux attention state.
 - [v0.34.3 — readable themes and restored terminal titles](https://projectious-work.github.io/aibox/changelog/release-v0-34-3/index.md) — Repairs Yazi marks and PowerKit dividers across all themes, preserves active-pane emphasis, and restores terminal titles on exit.
 - [v0.34.4 — warning-free Yazi pane toggles](https://projectious-work.github.io/aibox/changelog/release-v0-34-4/index.md) — Updates the bundled pane-toggle plugin for Yazi's current ratio API.
