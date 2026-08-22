@@ -1,6 +1,6 @@
 [package]
 name = "aibox"
-version = "0.34.4"
+version = "0.34.5"
 edition = "2024"
 description = "aibox — manage AI-ready development container environments"
 license = "MIT"
