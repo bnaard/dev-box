@@ -1,28 +1,25 @@
-# aibox v0.34.5 — 2026-08-22
+# aibox v0.34.6 — 2026-08-22
 
-**Summary:** This patch gives every bundled theme the intended tmux window separators and makes visual regressions release-blocking. Upgrade the CLI and run `aibox apply` to refresh the managed tmux configuration.
+**Summary:** This patch restores macOS host runtime image builds for the PowerKit separator fix. Use v0.34.6 for host Phase 2; v0.34.5 host builds cannot succeed because their immutable source contains the obsolete exact-count assertion.
 
 ## Added
 
-- Add structural and rendered regressions for escaped tmux conditionals, separator color continuity, attribute resets, and all bundled themes.
+- Add a regression that expands the PowerKit renderer with another legitimate conditional branch and verifies the compatibility patch remains valid.
 
 ## Changed
 
-- Run visual E2E and the isolated all-theme cast sweep as mandatory release gates.
-- Refresh deferred pins for Go, Rust, Bun, PDM, OpenTofu, kubectl, Tau, Zensical, and the Rust `cc` and `rustls-webpki` crates.
+- Validate conditional comma escaping, canonical helper signatures and calls, and inherited-style resets structurally instead of counting global occurrences.
 
 ## Fixed
 
-- Preserve PowerKit's escaped conditional commas so tmux no longer renders fragments such as `bg=#21252B]`.
-- Give outgoing arrows the same background color as their window-name segment and reset inherited dim styling.
-- Isolate every theme capture on its own tmux server and validate the palette actually loaded before recording.
+- Accept the nine escaped conditional color attributes in pinned PowerKit commit `6ac71f0d` so the runtime Docker target builds successfully.
 
 ## Removed
 
-- Remove persistent documentation-cast writes from the release regression path; validation evidence is disposable and cannot overwrite the theme gallery.
+- Remove the brittle requirement that PowerKit contain exactly eight escaped conditional color attributes.
 
 ## Upgrade notes
 
-Upgrade the host CLI to v0.34.5 and run `aibox apply` to refresh the managed tmux configuration. No processkit migration is required.
+Discard any prepared v0.34.5 host-run directory. Upgrade the host checkout to v0.34.6 and create a new host run; no processkit migration is required.
 
-[v0.34.5]: https://github.com/projectious-work/aibox/compare/v0.34.4...v0.34.5
+[v0.34.6]: https://github.com/projectious-work/aibox/compare/v0.34.5...v0.34.6
