@@ -1,16 +1,28 @@
-# aibox v0.34.4 — 2026-08-21
+# aibox v0.34.5 — 2026-08-22
 
-**Summary:** This follow-up patch updates the bundled Yazi pane-toggle plugin to the current pane-ratio API, eliminating deprecation warnings found during the v0.34.3 visual release gate.
+**Summary:** This patch gives every bundled theme the intended tmux window separators and makes visual regressions release-blocking. Upgrade the CLI and run `aibox apply` to refresh the managed tmux configuration.
+
+## Added
+
+- Add structural and rendered regressions for escaped tmux conditionals, separator color continuity, attribute resets, and all bundled themes.
+
+## Changed
+
+- Run visual E2E and the isolated all-theme cast sweep as mandatory release gates.
+- Refresh deferred pins for Go, Rust, Bun, PDM, OpenTofu, kubectl, Tau, Zensical, and the Rust `cc` crate.
 
 ## Fixed
 
-- Read Yazi's parent, current, and preview ratios through the supported indexed API.
-- Preserve pane hide, maximize, restore, and reset behavior without deprecated field access.
-- Add a regression test that rejects the deprecated ratio field names in the generated plugin.
-- Register v0.34.4 against processkit v0.28.8 in the CLI and documentation compatibility tables.
+- Preserve PowerKit's escaped conditional commas so tmux no longer renders fragments such as `bg=#21252B]`.
+- Give outgoing arrows the same background color as their window-name segment and reset inherited dim styling.
+- Isolate every theme capture on its own tmux server and validate the palette actually loaded before recording.
+
+## Removed
+
+- Remove persistent documentation-cast writes from the release regression path; validation evidence is disposable and cannot overwrite the theme gallery.
 
 ## Upgrade notes
 
-Upgrade the host CLI to v0.34.4, run `aibox apply`, and restart existing Yazi processes so they load the refreshed plugin.
+Upgrade the host CLI to v0.34.5 and run `aibox apply` to refresh the managed tmux configuration. No processkit migration is required.
 
-[v0.34.4]: https://github.com/projectious-work/aibox/compare/v0.34.3...v0.34.4
+[v0.34.5]: https://github.com/projectious-work/aibox/compare/v0.34.4...v0.34.5

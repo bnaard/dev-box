@@ -34,9 +34,47 @@ grep -Fq 'cargo test -- --test-threads=1' "${SCRIPT_DIR}/maintain.sh" \
   || die "canonical release test gate must serialize process-level visual contracts"
 grep -Fq 'cargo test --test e2e -- --test-threads=1' "${SCRIPT_DIR}/maintain.sh" \
   || die "canonical local E2E gate must serialize process-level visual contracts"
+declare -f release_visual_gate | grep -Fq 'test-screencasts.sh" themes' \
+  || die "release visual gate must run the all-theme cast-invariants sweep"
+! grep -Eq '#\[ignore.*visual' "${PROJECT_ROOT}/cli/tests/e2e/visual_matrix.rs" \
+  || die "mandatory visual matrix tests must not be ignored"
+grep -Fq 'socket_label="aibox-recordings-${slug' "${SCRIPT_DIR}/test-screencasts.sh" \
+  || die "theme matrix must use a distinct test-owned tmux server per theme"
+grep -Fq -- '-f /dev/null new-session' "${SCRIPT_DIR}/test-screencasts.sh" \
+  || die "theme matrix must not preload the live user tmux configuration"
+grep -Fq 'PowerKit palette mismatch' "${SCRIPT_DIR}/test-screencasts.sh" \
+  || die "theme matrix must fail closed when PowerKit loads the wrong palette"
 
 test_root="$(mktemp -d)"
 trap 'rm -rf "${test_root}"' EXIT
+
+changelog_project="${test_root}/changelog-project"
+mkdir -p "${changelog_project}/docs-site/content/changelog"
+cat > "${changelog_project}/docs-site/content/changelog/release-v9-9-8.md" <<'EOF'
+---
+title: "v9.9.8 — older"
+date: 2026-08-20
+---
+[Full v9.9.8 release notes](https://github.com/projectious-work/aibox/releases/tag/v9.9.8)
+EOF
+cat > "${changelog_project}/docs-site/content/changelog/release-v9-9-9.md" <<'EOF'
+---
+title: "v9.9.9 — current"
+date: 2026-08-21
+---
+[Full v9.9.9 release notes](https://github.com/projectious-work/aibox/releases/tag/v9.9.9)
+EOF
+saved_project_root="${PROJECT_ROOT}"
+PROJECT_ROOT="${changelog_project}"
+release_changelog_gate 9.9.9 >/dev/null \
+  || die "valid exact/latest changelog entry was rejected"
+if release_changelog_gate 9.9.7 >/dev/null 2>&1; then
+  die "missing exact changelog entry was accepted"
+fi
+if release_changelog_gate 9.9.8 >/dev/null 2>&1; then
+  die "non-latest changelog entry was accepted"
+fi
+PROJECT_ROOT="${saved_project_root}"
 
 DIST_DIR="${test_root}/dist"
 RELEASE_EVIDENCE_DIR="${DIST_DIR}/evidence"

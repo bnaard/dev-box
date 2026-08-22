@@ -15,8 +15,8 @@ tools:
   - name: kubectl
     description: "Kubernetes command-line client"
     default_enabled: true
-    default_version: "1.36.3"
-    supported_versions: ["1.36.1", "1.36.2", "1.36.3"]
+    default_version: "1.36.4"
+    supported_versions: ["1.36.1", "1.36.2", "1.36.3", "1.36.4"]
   - name: helm
     description: "Kubernetes package manager for charts"
     default_enabled: true

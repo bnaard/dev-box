@@ -23,8 +23,8 @@ tools:
   - name: go
     description: "Go compiler, tooling, and module workflow"
     default_enabled: true
-    default_version: "1.26.6"
-    supported_versions: ["1.25.12", "1.26.3", "1.26.4", "1.26.5", "1.26.6"]
+    default_version: "1.27.0"
+    supported_versions: ["1.25.12", "1.26.3", "1.26.4", "1.26.5", "1.26.6", "1.27.0"]
 
 builder: null
 
@@ -43,6 +43,8 @@ runtime: |
         1.26.5:arm64) GO_SHA256="fe4789e92b1f33358680864bbe8704289e7bb5fc207d80623c308935bd696d49" ;; \
         1.26.6:amd64) GO_SHA256="708effb774be8237570d0add163225abbdfaf4fca28b2611df167beba4feef89" ;; \
         1.26.6:arm64) GO_SHA256="d0507e9e9d7fe012aae570108cbd76c15de879e17130ab8cb90d4d7445cb1f2e" ;; \
+        1.27.0:amd64) GO_SHA256="675c26c449cbb18fc24b74650de1eabbae6e16f64326fd85a283fb3b58280685" ;; \
+        1.27.0:arm64) GO_SHA256="51798d2c42d0e1c6ed7fd9f48728b4193abac9e8aad6dbac2fe96a81f5909bda" ;; \
         *) echo "Unsupported Go version/architecture: ${GO_VERSION}/${ARCH}" >&2; exit 1 ;; \
       esac && \
       curl -fsSL "https://go.dev/dl/go${GO_VERSION}.linux-${ARCH}.tar.gz" \

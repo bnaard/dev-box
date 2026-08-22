@@ -1885,7 +1885,7 @@ mod tests {
         generate_dockerfile(&config, dir.path(), &test_env()).unwrap();
         let content = fs::read_to_string(dir.path().join("Dockerfile")).unwrap();
         assert!(
-            content.contains("UV_TOOL_DIR=/opt/aibox/uv-tools uv tool install tau-ai==0.3.11"),
+            content.contains("UV_TOOL_DIR=/opt/aibox/uv-tools uv tool install tau-ai==0.3.13"),
             "Tau should be installed from its pinned PyPI package: {content}"
         );
         assert!(

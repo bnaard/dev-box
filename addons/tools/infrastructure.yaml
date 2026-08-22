@@ -14,8 +14,8 @@ tools:
   - name: opentofu
     description: "Open-source Terraform-compatible infrastructure as code CLI"
     default_enabled: true
-    default_version: "1.12.5"
-    supported_versions: ["1.9.0", "1.12.0", "1.12.1", "1.12.3", "1.12.5"]
+    default_version: "1.12.6"
+    supported_versions: ["1.9.0", "1.12.0", "1.12.1", "1.12.3", "1.12.5", "1.12.6"]
   - name: ansible
     description: "Configuration management and automation engine"
     default_enabled: true

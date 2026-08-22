@@ -45,7 +45,7 @@ RUN ARCH="$(uname -m)" && \
     (cd /tmp && sha256sum -c rustup-init.sha256) && \
     chmod +x /tmp/rustup-init && \
     /tmp/rustup-init -y \
-      --default-toolchain 1.97.1 \
+      --default-toolchain 1.98.0 \
       --component clippy \
       --component rustfmt && \
     rm /tmp/rustup-init /tmp/rustup-init.sha256
@@ -90,7 +90,7 @@ RUN ARCH=$(uname -m) && \
     fi
 
 
-FROM ghcr.io/projectious-work/aibox:base-debian-runtime-v0.34.2 AS aibox
+FROM ghcr.io/projectious-work/aibox:base-debian-runtime-v0.34.4 AS aibox
 
 ENV SHELL=/bin/bash
 ENV UV_CACHE_DIR=/tmp/aibox/uv-cache
@@ -160,7 +160,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 
 # Addon: go (runtime)
 RUN ARCH=$(dpkg --print-architecture) && \
-    GO_VERSION="1.26.6" && \
+    GO_VERSION="1.27.0" && \
     case "${GO_VERSION}:${ARCH}" in \
       1.25.12:amd64) GO_SHA256="234828b7a89e0e303d2556310ee549fbcf253d28de937bac3da13d6294262ac1" ;; \
       1.25.12:arm64) GO_SHA256="8b5884aef89600aef5b0b051fb971f11f49bb996521e911f30f02a66884f7bd2" ;; \
@@ -172,6 +172,8 @@ RUN ARCH=$(dpkg --print-architecture) && \
       1.26.5:arm64) GO_SHA256="fe4789e92b1f33358680864bbe8704289e7bb5fc207d80623c308935bd696d49" ;; \
       1.26.6:amd64) GO_SHA256="708effb774be8237570d0add163225abbdfaf4fca28b2611df167beba4feef89" ;; \
       1.26.6:arm64) GO_SHA256="d0507e9e9d7fe012aae570108cbd76c15de879e17130ab8cb90d4d7445cb1f2e" ;; \
+      1.27.0:amd64) GO_SHA256="675c26c449cbb18fc24b74650de1eabbae6e16f64326fd85a283fb3b58280685" ;; \
+      1.27.0:arm64) GO_SHA256="51798d2c42d0e1c6ed7fd9f48728b4193abac9e8aad6dbac2fe96a81f5909bda" ;; \
       *) echo "Unsupported Go version/architecture: ${GO_VERSION}/${ARCH}" >&2; exit 1 ;; \
     esac && \
     curl -fsSL "https://go.dev/dl/go${GO_VERSION}.linux-${ARCH}.tar.gz" \
@@ -212,7 +214,7 @@ RUN npm install -g pnpm@11.22.0 && \
 # npm package: @openai/codex | Binary: codex | Config: ~/.codex/
 # Auth: OPENAI_API_KEY (or ChatGPT Plus/Pro/Team/Enterprise account)
 # To pin a version: set [ai.harness.codex] version in aibox.toml
-RUN npm install -g @openai/codex@0.149.0
+RUN npm install -g @openai/codex
 
 
 # Addon: docs-docusaurus
@@ -319,6 +321,6 @@ EOF
 
 # Record image version inside container for runtime checks
 USER root
-LABEL aibox.version="0.34.2"
+LABEL aibox.version="0.34.4"
 LABEL aibox.profile="human-dev"
-RUN echo "0.34.2" > /etc/aibox-version
+RUN echo "0.34.4" > /etc/aibox-version

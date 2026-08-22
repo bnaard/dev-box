@@ -974,7 +974,7 @@ impl AiSection {
     pub fn migrate_legacy(&mut self) {
         if self.harnesses.is_empty() && !self.providers.is_empty() {
             // Legacy format: move providers → harnesses
-            self.harnesses = self.providers.drain(..).collect();
+            self.harnesses = std::mem::take(&mut self.providers);
         }
         for harness in AiHarness::all() {
             let Some(config) = self.harness.get(harness) else {
