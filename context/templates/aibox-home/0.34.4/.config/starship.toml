@@ -18,7 +18,7 @@ $cmd_duration\
 $character"""
 
 [directory]
-style = "bg:#58A6FF fg:#0D1117"
+style = "bold bg:#58A6FF fg:#0D1117"
 format = "[ $path ]($style)"
 truncation_length = 3
 truncate_to_repo = true
@@ -57,8 +57,8 @@ min_time = 2_000
 format = "[ $duration ]($style)"
 
 [character]
-success_symbol = "[❯](fg:#58A6FF) "
-error_symbol = "[❯](fg:#F85149) "
+success_symbol = "[❯](bold fg:#58A6FF) "
+error_symbol = "[❯](bold fg:#F85149) "
 
 [palettes.aibox]
 bg = "#0D1117"

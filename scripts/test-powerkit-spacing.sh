@@ -25,7 +25,10 @@ trap cleanup EXIT
 cp -R "$POWERKIT_SOURCE" "$tmpdir/powerkit"
 "${PROJECT_ROOT}/images/base-debian/config/tmux/patch-powerkit-plugin-spacing.sh" \
     "$tmpdir/powerkit/src/renderer/segment_builder.sh"
+"${PROJECT_ROOT}/images/base-debian/config/tmux/patch-powerkit-window-separators.sh" \
+    "$tmpdir/powerkit/src/renderer/entities/windows.sh"
 bash -n "$tmpdir/powerkit/src/renderer/segment_builder.sh"
+bash -n "$tmpdir/powerkit/src/renderer/entities/windows.sh"
 
 tmux -L "$socket_label" new-session -d -s "$session" -x 160 -y 12
 tmux -L "$socket_label" set-option -g status on
@@ -37,6 +40,7 @@ tmux -L "$socket_label" set-option -g @powerkit_separator_style normal
 tmux -L "$socket_label" set-option -g @powerkit_edge_separator_style rounded
 tmux -L "$socket_label" set-option -g @powerkit_elements_spacing both
 tmux -L "$socket_label" set-option -g @powerkit_transparent false
+tmux -L "$socket_label" new-window -d -t "$session" -n second
 
 socket_path="$(tmux -L "$socket_label" display-message -p '#{socket_path}')"
 tmux -L "$socket_label" set-environment -g POWERKIT_ROOT "$tmpdir/powerkit"
@@ -80,6 +84,67 @@ assert right_boundary["next"] != right_boundary["gap"]
 PY
 
 echo "PowerKit left/right separator format invariants passed"
+
+# Load the patched renderer into a real isolated tmux server. A comma inside a
+# conditional style must be written as `#,`; otherwise tmux treats it as the
+# branch delimiter, drops the separator, and renders the remainder literally.
+env "TMUX=$(tmux -L "$socket_label" display-message -p '#{socket_path}'),0,0" \
+    POWERKIT_ROOT="$tmpdir/powerkit" \
+    bash -c '. "$POWERKIT_ROOT/src/core/bootstrap.sh"; powerkit_bootstrap; . "$POWERKIT_ROOT/src/renderer/entities/windows.sh"; windows_configure left'
+
+window_format="$(tmux -L "$socket_label" show-option -gv window-status-format)"
+current_format="$(tmux -L "$socket_label" show-option -gv window-status-current-format)"
+[[ "$window_format" == *'#,bg='* && "$current_format" == *'#,bg='* ]] || {
+    echo "Window formats lost their escaped conditional commas" >&2
+    exit 1
+}
+
+session_format="$(env "TMUX=$(tmux -L "$socket_label" display-message -p '#{socket_path}'),0,0" \
+    POWERKIT_ROOT="$tmpdir/powerkit" \
+    "$HOME/.local/bin/aibox-powerkit-render-session")"
+
+python3 - "$session_format" "$window_format" "$current_format" <<'PY'
+import re
+import sys
+
+session = sys.argv[1]
+formats = (("inactive", sys.argv[2]), ("active", sys.argv[3]))
+
+session_end = re.search(r"#\[fg=.+,bg=(#[0-9A-Fa-f]{6})\](.)$", session)
+assert session_end, f"session lacks a colored closing edge: {session}"
+status_bg, session_glyph = session_end.groups()
+assert session_glyph == "", f"session edge is not rounded: {session}"
+
+for label, value in formats:
+    assert value.count("#[none]#[fg=") >= 3, (
+        f"{label} separators do not reset inherited text attributes: {value}"
+    )
+    colors = re.findall(r"#\[fg=(#[0-9A-Fa-f]{6})#?,bg=(#[0-9A-Fa-f]{6})(?:,[^]]+)?\]", value)
+    assert len(colors) >= 5, f"{label} window format lacks expected color segments: {value}"
+    incoming, index, index_arrow, name, outgoing = colors[:5]
+    assert incoming[0] == status_bg == outgoing[1], (
+        f"{label} status gap is not session -> incoming peak / outgoing background: {value}"
+    )
+    assert incoming[1] == index[1] == index_arrow[0], (
+        f"{label} light index background/arrow sequence is discontinuous: {value}"
+    )
+    assert index_arrow[1] == name[1] == outgoing[0], (
+        f"{label} window-name background/arrow sequence is discontinuous: {value}"
+    )
+PY
+
+expanded_windows="$(tmux -L "$socket_label" display-message -p '#{W:#{T:window-status-format},#{T:window-status-current-format}}')"
+visible_windows="$(printf '%s' "$expanded_windows" | sed 's/#\[[^]]*\]//g')"
+[[ "$visible_windows" != *'bg=#'* && "$visible_windows" != *',}'* ]] || {
+    echo "tmux leaked a conditional colour branch: $expanded_windows" >&2
+    exit 1
+}
+[[ "$visible_windows" == *'1'* && "$visible_windows" == *'2'* && "$visible_windows" == *''* ]] || {
+    echo "tmux did not render both spaced window segments: $expanded_windows" >&2
+    exit 1
+}
+
+echo "PowerKit window conditional separator regression passed"
 
 if command -v asciinema >/dev/null 2>&1; then
     cast="${AIBOX_POWERKIT_SPACING_CAST:-${PROJECT_ROOT}/tmp/powerkit-spacing.cast}"

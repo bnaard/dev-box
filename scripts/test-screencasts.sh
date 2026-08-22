@@ -21,8 +21,9 @@ FAILURES=0
 PASSES=0
 SKIPS=0
 
-# Output directory for docs-site recordings (persists across test runs)
-DOCS_CAST_DIR="${PROJECT_ROOT}/docs-site/static/asciinema/themes"
+# Test casts are disposable evidence. Documentation recordings are managed by
+# record-asciinema.sh and must not be rewritten by a release validation gate.
+THEME_TEST_CAST_DIR="${TEST_DIR}/themes"
 
 # Full list of all 61 theme slug → palette tuples.
 # Format: "theme-slug:bg:fg:accent:green:orange:cyan:muted"
@@ -108,7 +109,11 @@ cleanup_tmux() {
 
 cleanup_demo_tmux() {
   local slug="$1"
-  tmux -L aibox-recordings kill-session -t "demo-${slug}" 2>/dev/null || true
+  local socket_label="aibox-recordings-${slug//[^a-zA-Z0-9_-]/-}"
+  # Each theme owns its tmux server. PowerKit caches parsed theme roles in
+  # server-global options, so reusing one server across the matrix can render
+  # the previous (or live) palette while labelling the cast as the next theme.
+  tmux -L "${socket_label}" kill-server 2>/dev/null || true
   sleep 0.3
 }
 
@@ -210,6 +215,7 @@ CAST_INVARIANTS_PY='
 import sys
 import json
 import re
+import copy
 
 # ---------------------------------------------------------------------------
 # Parse CLI args: cast_path theme slug bg fg accent green orange cyan muted surface
@@ -520,8 +526,26 @@ def replay_cast(path):
                     trim += 1  # skip noise events too
                 else:
                     break
+            last_status_screen = None
             for payload in events[: len(events) - trim]:
                 screen.feed(payload)
+                edge_rows = [0, 1, screen.rows - 2, screen.rows - 1]
+                if any(
+                    cell.bg != "default"
+                    for row in edge_rows
+                    for cell in screen.grid[row]
+                ):
+                    last_status_screen = copy.deepcopy(screen)
+            # Some terminals split the detach clear across multiple cast
+            # events, so the regex above cannot always trim it atomically.
+            # Preserve the last painted status state instead of validating a
+            # final all-default screen and producing a timing-dependent I0.
+            if not any(
+                cell.bg != "default"
+                for row in [0, 1, screen.rows - 2, screen.rows - 1]
+                for cell in screen.grid[row]
+            ) and last_status_screen is not None:
+                screen = last_status_screen
     except OSError as exc:
         print(f"ERROR: cannot open cast: {exc}")
         sys.exit(1)
@@ -898,7 +922,7 @@ test_themes() {
 
   local fail_dir="/tmp/aibox-cast-failures"
   mkdir -p "${fail_dir}"
-  mkdir -p "${DOCS_CAST_DIR}"
+  mkdir -p "${THEME_TEST_CAST_DIR}"
 
   # Detect optional tools once; fall back gracefully if absent.
   local HAS_YAZI=0 HAS_VIM=0 HAS_STARSHIP=0 HAS_POWERKIT=0
@@ -924,10 +948,13 @@ test_themes() {
   for palette_str in "${THEME_PALETTE_TABLE[@]}"; do
     local slug bg fg accent green orange cyan muted surface
     IFS=: read -r slug bg fg accent green orange cyan muted surface <<< "${palette_str}"
+    if [ -n "${AIBOX_SCREENCAST_THEME_FILTER:-}" ] \
+      && [ "${slug}" != "${AIBOX_SCREENCAST_THEME_FILTER}" ]; then
+      continue
+    fi
 
     cleanup_demo_tmux "${slug}"
-    # Cast is written directly to the docs-site static dir so it persists.
-    local cast="${DOCS_CAST_DIR}/${slug}.cast"
+    local cast="${THEME_TEST_CAST_DIR}/${slug}.cast"
 
     # ── Per-theme powerkit theme file ────────────────────────────────────────
     # Write a minimal aibox-powerkit-theme.sh for this theme slug so powerkit
@@ -985,8 +1012,11 @@ declare -gA THEME_EXTRA=(
 )
 THEMEEOF
 
-    # Recording socket path (tmux uses /tmp/tmux-UID/LABEL)
-    local rec_socket_path="/tmp/tmux-$(id -u)/aibox-recordings"
+    # PowerKit keeps theme-loader state in tmux server globals. Give every
+    # theme a distinct test-owned server so no live or preceding palette can
+    # bleed into this cast.
+    local socket_label="aibox-recordings-${slug//[^a-zA-Z0-9_-]/-}"
+    local rec_socket_path="/tmp/tmux-$(id -u)/${socket_label}"
     # Cache dir isolated from the user's live powerkit cache
     local pk_cache="${theme_tmpdir}/powerkit-cache"
     mkdir -p "${pk_cache}"
@@ -1051,7 +1081,7 @@ export XDG_CACHE_HOME="${pk_cache}"
 # Make HOME explicit so render scripts resolve ~/.local/bin correctly
 export HOME="${HOME}"
 
-SOCK=aibox-recordings
+SOCK="${socket_label}"
 SESSION="demo-${slug}"
 
 # Clean up any stale session on this socket
@@ -1059,7 +1089,7 @@ tmux -L "\${SOCK}" kill-session -t "\${SESSION}" 2>/dev/null || true
 
 # ── Create 3-pane cowork-style layout ──────────────────────────────────────
 # Left pane (full height): file navigator / ls fallback
-tmux -L "\${SOCK}" new-session -d -s "\${SESSION}" -x 160 -y 45 \
+tmux -L "\${SOCK}" -f /dev/null new-session -d -s "\${SESSION}" -x 160 -y 45 \
   -n cowork "${left_cmd}"
 
 # Split right half: top-right = editor
@@ -1120,6 +1150,17 @@ if [ "\${HAS_POWERKIT}" -eq 1 ]; then
   #    status-format strings that invoke the real renderer.
   TMUX="\${AIBOX_TMUX_SOCKET},0,0" POWERKIT_ROOT="${POWERKIT_ROOT}" \
     bash "${POWERKIT_TMUX}" 2>/dev/null || true
+
+  # Fail closed before recording: the renderer's loaded custom-theme roles
+  # must match this matrix row, not merely the requested slug or file path.
+  _loaded_status_bg="\$(TMUX="\${AIBOX_TMUX_SOCKET},0,0" POWERKIT_ROOT="${POWERKIT_ROOT}" bash -c '. "\$POWERKIT_ROOT/src/core/bootstrap.sh"; powerkit_bootstrap; get_color "statusbar-bg"' 2>/dev/null || true)"
+  _loaded_active_bg="\$(TMUX="\${AIBOX_TMUX_SOCKET},0,0" POWERKIT_ROOT="${POWERKIT_ROOT}" bash -c '. "\$POWERKIT_ROOT/src/core/bootstrap.sh"; powerkit_bootstrap; get_color "window-active-base"' 2>/dev/null || true)"
+  if [ "\${_loaded_status_bg^^}" != "${surface^^}" ] || [ "\${_loaded_active_bg^^}" != "${accent^^}" ]; then
+    _loaded_path="\$(tmux -L "\${SOCK}" show-option -gv @powerkit_custom_theme_path 2>/dev/null || true)"
+    printf 'PowerKit palette mismatch for %s: status=%s active=%s expected=%s/%s path=%s\n' \
+      "${slug}" "\${_loaded_status_bg}" "\${_loaded_active_bg}" "${surface}" "${accent}" "\${_loaded_path}" >&2
+    exit 42
+  fi
 
   # 4. Source the aibox-powerkit-overrides (sets 2-row status-format strings
   #    and pane-border-format).  Guard: only source if the file exists.
@@ -1192,8 +1233,12 @@ DRIVEREOF
 
     asciinema rec --cols 160 --rows 45 --idle-time-limit 1 --overwrite \
       -c "${driver}" "${cast}" 2>/dev/null || true
-    rm -f "${driver}"
-    rm -rf "${theme_tmpdir}"
+    if [ "${AIBOX_SCREENCAST_KEEP_TMP:-0}" = "1" ]; then
+      info "Kept theme debug files: ${theme_tmpdir} ${driver}"
+    else
+      rm -f "${driver}"
+      rm -rf "${theme_tmpdir}"
+    fi
     cleanup_demo_tmux "${slug}"
 
     if validate_cast "${cast}" "theme:${slug}" 10 2000; then
@@ -1201,9 +1246,6 @@ DRIVEREOF
     fi
   done
 
-  # Write the index JSON after all recordings
-  write_themes_index "${DOCS_CAST_DIR}"
-  pass "themes index.json written"
 }
 
 # ─── Tool smoke tests ────────────────────────────────────────────────────────

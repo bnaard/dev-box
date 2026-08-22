@@ -2197,6 +2197,39 @@ mod tests {
     }
 
     #[test]
+    fn every_theme_defines_complete_powerkit_window_separator_roles() {
+        fn role<'a>(body: &'a str, key: &str) -> &'a str {
+            let prefix = format!("    [{key}]=\"");
+            body.lines()
+                .find_map(|line| line.strip_prefix(&prefix)?.strip_suffix('"'))
+                .unwrap_or_else(|| panic!("missing PowerKit role {key}:\n{body}"))
+        }
+
+        for theme in ALL_THEMES {
+            let body = tmux_powerkit_custom_theme(theme);
+            for key in [
+                "statusbar-bg",
+                "session-bg",
+                "window-active-base",
+                "window-inactive-base",
+            ] {
+                let color = role(&body, key);
+                assert!(
+                    parse_hex_rgb(color).is_some(),
+                    "theme {theme}: PowerKit role {key} is not #RRGGBB: {color}"
+                );
+            }
+            for key in ["window-active-style", "window-inactive-style"] {
+                let style = role(&body, key);
+                assert!(
+                    matches!(style, "" | "bold" | "dim" | "italics" | "underscore"),
+                    "theme {theme}: unsupported PowerKit role {key}: {style}"
+                );
+            }
+        }
+    }
+
+    #[test]
     fn fzf_color_spec_avoids_nth_color() {
         let spec = fzf_color_spec(&Theme::Nord);
         assert!(

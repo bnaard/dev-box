@@ -14,24 +14,24 @@ hi NormalNC       guifg=#E6EDF3     guibg=#0D1117
 hi Cursor         guifg=#000000 guibg=#58A6FF
 hi lCursor        guifg=#000000 guibg=#58A6FF
 hi LineNr         guifg=#8B949E  guibg=#0D1117
-hi CursorLineNr   guifg=#58A6FF guibg=#21252B gui=NONE
+hi CursorLineNr   guifg=#58A6FF guibg=#21252B gui=bold
 hi CursorLine     guibg=#21252B
 hi CursorColumn   guibg=#21252B
 hi ColorColumn    guibg=#21252B
 hi VertSplit      guifg=#8B949E  guibg=#0D1117
 hi WinSeparator   guifg=#8B949E  guibg=#0D1117
-hi StatusLine     guifg=#000000 guibg=#58A6FF gui=NONE
+hi StatusLine     guifg=#000000 guibg=#58A6FF gui=bold
 hi StatusLineNC   guifg=#8B949E  guibg=#21252B gui=NONE
 hi TabLine        guifg=#8B949E  guibg=#21252B gui=NONE
 hi TabLineFill    guibg=#0D1117
-hi TabLineSel     guifg=#000000 guibg=#58A6FF gui=NONE
+hi TabLineSel     guifg=#000000 guibg=#58A6FF gui=bold
 hi SignColumn     guifg=#8B949E  guibg=#0D1117
 hi FoldColumn     guifg=#8B949E  guibg=#0D1117
 hi Folded         guifg=#8B949E  guibg=#21252B
 hi NonText        guifg=#8B949E
 hi EndOfBuffer    guifg=#0D1117     guibg=#0D1117
 hi SpecialKey     guifg=#8B949E
-hi MatchParen     guifg=#58A6FF guibg=#21252B gui=NONE
+hi MatchParen     guifg=#58A6FF guibg=#21252B gui=bold
 hi Conceal        guifg=#8B949E  guibg=#0D1117
 hi Directory      guifg=#58A6FF gui=bold
 
@@ -39,27 +39,27 @@ hi Directory      guifg=#58A6FF gui=bold
 hi Visual         guifg=#FFFFFF guibg=#254161
 hi VisualNOS      guifg=#FFFFFF guibg=#254161
 hi Search         guifg=#0D1117     guibg=#D29922 gui=bold
-hi IncSearch      guifg=#0D1117     guibg=#DB6D28 gui=NONE
-hi CurSearch      guifg=#000000 guibg=#58A6FF gui=NONE
-hi QuickFixLine   guibg=#21252B gui=NONE
+hi IncSearch      guifg=#0D1117     guibg=#DB6D28 gui=bold
+hi CurSearch      guifg=#000000 guibg=#58A6FF gui=bold
+hi QuickFixLine   guibg=#21252B gui=bold
 
 " ── Popup menu ────────────────────────────────────────────────────────────
 hi Pmenu          guifg=#E6EDF3     guibg=#21252B
-hi PmenuSel       guifg=#000000 guibg=#58A6FF gui=NONE
+hi PmenuSel       guifg=#000000 guibg=#58A6FF gui=bold
 hi PmenuSbar      guibg=#21252B
 hi PmenuThumb     guibg=#8B949E
-hi WildMenu       guifg=#000000 guibg=#58A6FF gui=NONE
+hi WildMenu       guifg=#000000 guibg=#58A6FF gui=bold
 
 " ── Messages ──────────────────────────────────────────────────────────────
-hi ErrorMsg       guifg=#F85149    gui=NONE
-hi WarningMsg     guifg=#D29922 gui=NONE
-hi ModeMsg        guifg=#58A6FF gui=NONE
+hi ErrorMsg       guifg=#F85149    gui=bold
+hi WarningMsg     guifg=#D29922 gui=bold
+hi ModeMsg        guifg=#58A6FF gui=bold
 hi MoreMsg        guifg=#3FB950
 hi Question       guifg=#58A6FF
-hi Title          guifg=#58A6FF gui=NONE
+hi Title          guifg=#58A6FF gui=bold
 
 " ── Syntax (linked groups) ────────────────────────────────────────────────
-hi Comment        guifg=#8B949E    gui=NONE
+hi Comment        guifg=#8B949E    gui=italic
 hi Constant       guifg=#DB6D28
 hi String         guifg=#3FB950     gui=NONE
 hi Character      guifg=#3FB950     gui=NONE
@@ -68,31 +68,31 @@ hi Boolean        guifg=#DB6D28    gui=NONE
 hi Float          guifg=#DB6D28    gui=NONE
 hi Identifier     guifg=#E6EDF3
 hi Function       guifg=#79C0FF      gui=NONE
-hi Statement      guifg=#D2A8FF  gui=NONE
-hi Conditional    guifg=#D2A8FF  gui=NONE
-hi Repeat         guifg=#D2A8FF  gui=NONE
+hi Statement      guifg=#D2A8FF  gui=bold
+hi Conditional    guifg=#D2A8FF  gui=bold
+hi Repeat         guifg=#D2A8FF  gui=bold
 hi Label          guifg=#D29922
 hi Operator       guifg=#79C0FF      gui=NONE
-hi Keyword        guifg=#D2A8FF  gui=NONE
-hi Exception      guifg=#D2A8FF  gui=NONE
+hi Keyword        guifg=#D2A8FF  gui=bold
+hi Exception      guifg=#D2A8FF  gui=bold
 hi PreProc        guifg=#D2A8FF
 hi Include        guifg=#D2A8FF
 hi Define         guifg=#D2A8FF
-hi Macro          guifg=#58A6FF   gui=NONE
+hi Macro          guifg=#58A6FF   gui=italic
 hi PreCondit      guifg=#D29922
-hi Type           guifg=#D29922   gui=NONE
-hi StorageClass   guifg=#D29922   gui=NONE
-hi Structure      guifg=#D29922   gui=NONE
-hi Typedef        guifg=#D29922   gui=NONE
+hi Type           guifg=#D29922   gui=bold
+hi StorageClass   guifg=#D29922   gui=bold
+hi Structure      guifg=#D29922   gui=bold
+hi Typedef        guifg=#D29922   gui=bold
 hi Special        guifg=#79C0FF
 hi SpecialChar    guifg=#DB6D28
 hi Tag            guifg=#58A6FF
 hi Delimiter      guifg=#E6EDF3
-hi SpecialComment guifg=#8B949E    gui=NONE
+hi SpecialComment guifg=#8B949E    gui=italic
 hi Debug          guifg=#DB6D28
 hi Underlined     guifg=#58A6FF   gui=underline
 hi Ignore         guifg=#8B949E
-hi Error          guifg=#F85149      gui=NONE
+hi Error          guifg=#F85149      gui=bold
 hi Todo           guifg=#D29922   guibg=#21252B gui=bold
 
 " ── Diff ──────────────────────────────────────────────────────────────────

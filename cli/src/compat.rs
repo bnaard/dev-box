@@ -758,6 +758,11 @@ pub static COMPAT_TABLE: &[CompatEntry] = &[
         processkit_version: "v0.28.8",
         note: "Patch release: updates the bundled Yazi pane-toggle plugin to the current indexed ratio API and removes runtime deprecation warnings.",
     },
+    CompatEntry {
+        aibox_version: "0.34.5",
+        processkit_version: "v0.28.8",
+        note: "Patch release: restores PowerKit window-separator color continuity across every theme, makes isolated visual regressions mandatory for releases, and refreshes deferred tool pins.",
+    },
 ];
 
 /// Find the minimum compatible processkit version for the given aibox version.

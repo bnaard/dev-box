@@ -12,4 +12,4 @@ set -g window-active-style "bg=#0D1117,fg=#E6EDF3"
 set -g pane-border-style "fg=#8B949E,bg=#0D1117"
 set -g pane-active-border-style "fg=#58A6FF,bg=#0D1117"
 set -g pane-border-indicators both
-set -g pane-border-format "#[bg=#0D1117]#{?pane_active,#[fg=#58A6FF],#[fg=#CFD7DE] } #{?client_prefix,PREFIX,NORMAL} #{pane_title} #{pane_current_command} #[bg=#0D1117,fg=#0D1117] "
+set -g pane-border-format "#[bg=#0D1117]#{?pane_active,#[fg=#58A6FF]#[bold],#[fg=#CFD7DE]#[dim] } #{?client_prefix,PREFIX,NORMAL} #{pane_title} #{pane_current_command} #[bg=#0D1117,fg=#0D1117] "

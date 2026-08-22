@@ -21,11 +21,11 @@ declare -gA THEME_COLORS=(
 
     # Windows
     [window-active-base]="#58A6FF"
-    [window-active-style]=""
+    [window-active-style]="bold"
     [window-inactive-base]="#8B949E"
-    [window-inactive-style]=""
-    [window-activity-style]=""
-    [window-bell-style]=""
+    [window-inactive-style]="dim"
+    [window-activity-style]="dim"
+    [window-bell-style]="bold"
     [window-zoomed-bg]="#79C0FF"
 
     # Panes

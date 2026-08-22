@@ -11,7 +11,7 @@
           },
           "alert": {
             "background-color": "#21252B",
-            "bold": false,
+            "bold": true,
             "color": "#F85149"
           },
           "inactive": {
@@ -28,26 +28,26 @@
           },
           "title": {
             "background-color": "#58A6FF",
-            "bold": false,
+            "bold": true,
             "color": "#000000"
           },
           "warn": {
             "background-color": "#21252B",
-            "bold": false,
+            "bold": true,
             "color": "#D29922"
           }
         },
         "styles": {
           "alt-text": {
             "color": "#8B949E",
-            "italic": false
+            "italic": true
           },
           "disabled-focused": {
             "background-color": "#21252B",
             "color": "#8B949E"
           },
           "error": {
-            "bold": false,
+            "bold": true,
             "color": "#F85149"
           },
           "focused": {
@@ -61,7 +61,7 @@
             "color": "#79C0FF"
           },
           "invalid-msg": {
-            "bold": false,
+            "bold": true,
             "color": "#F85149",
             "underline": false
           },
@@ -84,7 +84,7 @@
             "color": "#E6EDF3"
           },
           "warning": {
-            "bold": false,
+            "bold": true,
             "color": "#D29922"
           }
         },

@@ -12,6 +12,7 @@ below shows the minimum compatible processkit version for each aibox release.
 
 | aibox version | Min. processkit | Notes |
 |--------------|-----------------|-------|
+| 0.34.5 | v0.28.8 | restores PowerKit window-separator color continuity across every theme, makes isolated visual regressions mandatory for releases, and refreshes deferred tool pins |
 | 0.34.4 | v0.28.8 | updates the bundled Yazi pane-toggle plugin to the current indexed ratio API and removes runtime deprecation warnings |
 | 0.34.3 | v0.28.8 | restores readable Yazi marked items across every theme, repairs PowerKit separator colors, preserves active-pane emphasis, uses supported Codex lifecycle hooks, and reliably restores the outer terminal title |
 | 0.34.2 | v0.28.8 | publishes the generated theme gallery and chooser, aligns terminal themes with the design reference, reliably clears answered Codex question state, and improves active tmux pane visibility |

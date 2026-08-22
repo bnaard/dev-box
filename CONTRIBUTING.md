@@ -49,9 +49,8 @@ builds, the LaTeX watcher/preview lifecycle, and the rootless Podman readiness p
 ### Visual E2E tiers
 
 The generated tmux/Yazi visual tests run real isolated tmux/asciinema sessions
-inside the development container. They are intentionally opt-in because they are slower and
-because release validation should choose the tier that matches the changed
-surface:
+inside the development container. The focused commands remain useful during
+development:
 
 ```bash
 ./scripts/maintain.sh test-e2e-visual-status # layouts, themes, tmux status rows
@@ -59,6 +58,11 @@ surface:
 ./scripts/maintain.sh test-e2e-visual-yazi   # Yazi previews, git symbols, plugins
 ./scripts/maintain.sh test-e2e-visual        # all visual tiers
 ```
+
+The release workflow always runs all three visual tiers plus
+`scripts/test-screencasts.sh themes`, which validates every palette using a
+test-owned tmux server. `AIBOX_RELEASE_SKIP_VISUAL=1` is an emergency-only
+override and emits a prominent warning.
 
 To generate current-release source artifacts for documentation screenshots or
 screencasts:
@@ -103,6 +107,10 @@ See `context/notes/NOTE-20260411_0000-LoyalSpruce-aibox-release-process.md` for 
 Quick summary: `./scripts/maintain.sh release X.Y.Z` in the container prepares
 an immutable run directory. On macOS, run the single run-directory command
 printed in `dist/RELEASE-PROMPT.md`.
+
+Before publication, the release checks also require
+`docs-site/content/changelog/release-vX-Y-Z.md` to contain the exact version,
+link to its GitHub release tag, and sort as the newest public changelog entry.
 
 To rehearse the complete host validation and evidence path without uploading
 artifacts or pushing images, append `--dry-run` to that command. A successful

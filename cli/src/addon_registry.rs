@@ -199,8 +199,34 @@ mod tests {
         ensure_loaded();
         let addon = get_addon("rust").unwrap();
         let rustc = addon.tools.iter().find(|t| t.name == "rustc").unwrap();
-        assert!(rustc.supported_versions.contains(&"1.97.1"));
-        assert_eq!(rustc.default_version, "1.97.1");
+        assert!(rustc.supported_versions.contains(&"1.98.0"));
+        assert_eq!(rustc.default_version, "1.98.0");
+    }
+
+    #[test]
+    fn deferred_v0_dependency_defaults_are_consolidated() {
+        ensure_loaded();
+        for (addon_name, tool_name, expected) in [
+            ("docs-zensical", "zensical", "0.0.56"),
+            ("go", "go", "1.27.0"),
+            ("node", "bun", "1.4.0"),
+            ("python", "pdm", "2.28.2"),
+            ("infrastructure", "opentofu", "1.12.6"),
+            ("kubernetes", "kubectl", "1.36.4"),
+            ("ai-tau", "tau", "0.3.13"),
+        ] {
+            let addon = get_addon(addon_name).unwrap();
+            let tool = addon
+                .tools
+                .iter()
+                .find(|candidate| candidate.name == tool_name)
+                .unwrap();
+            assert_eq!(tool.default_version, expected, "{addon_name}/{tool_name}");
+            assert!(
+                tool.supported_versions.contains(&expected),
+                "{addon_name}/{tool_name} does not support its default {expected}"
+            );
+        }
     }
 
     #[test]

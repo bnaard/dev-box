@@ -8,13 +8,13 @@ export BAT_THEME="aibox"
 if command -v bat >/dev/null 2>&1 && ! bat --list-themes 2>/dev/null | grep -qx 'aibox'; then
     bat cache --build >/dev/null 2>&1 || true
 fi
-export FZF_DEFAULT_OPTS="${FZF_DEFAULT_OPTS:-} --color=bg+:#254161,bg:#0D1117,fg:#E6EDF3,fg+:#FFFFFF,hl:#58A6FF,hl+:#58A6FF,pointer:#58A6FF,marker:#3FB950,spinner:#58A6FF,info:#8B949E,header:#8B949E,border:#8B949E,prompt:#58A6FF,query:#E6EDF3,disabled:#8B949E,gutter:#0D1117,preview-bg:#0D1117,preview-fg:#E6EDF3,separator:#8B949E,label:#58A6FF"
-export EZA_COLORS="di=38;2;88;166;255:ex=38;2;63;185;80:ln=38;2;121;192;255:fi=0:or=38;2;248;81;73:mi=38;2;248;81;73:da=38;2;139;148;158:sn=38;2;88;166;255:sb=38;2;88;166;255:uu=38;2;139;148;158:un=38;2;139;148;158:gu=38;2;139;148;158:gn=38;2;139;148;158:ga=38;2;63;185;80:gm=38;2;210;153;34:gd=38;2;248;81;73:gv=38;2;210;153;34:gt=38;2;219;109;40:xx=38;2;139;148;158:da=38;2;139;148;158"
+export FZF_DEFAULT_OPTS="${FZF_DEFAULT_OPTS:-} --color=bg+:#254161,bg:#0D1117,fg:#E6EDF3,fg+:#FFFFFF:bold,hl:#58A6FF,hl+:#58A6FF:bold,pointer:#58A6FF,marker:#3FB950,spinner:#58A6FF,info:#8B949E,header:#8B949E,border:#8B949E,prompt:#58A6FF:bold,query:#E6EDF3,disabled:#8B949E:dim,gutter:#0D1117,preview-bg:#0D1117,preview-fg:#E6EDF3,separator:#8B949E,label:#58A6FF"
+export EZA_COLORS="di=38;2;88;166;255;1:ex=38;2;63;185;80:ln=38;2;121;192;255:fi=0:or=38;2;248;81;73;1:mi=38;2;248;81;73;1:da=38;2;139;148;158;2:sn=38;2;88;166;255:sb=38;2;88;166;255:uu=38;2;139;148;158:un=38;2;139;148;158:gu=38;2;139;148;158:gn=38;2;139;148;158:ga=38;2;63;185;80;1:gm=38;2;210;153;34;1:gd=38;2;248;81;73;1:gv=38;2;210;153;34:gt=38;2;219;109;40;3:xx=38;2;139;148;158;2:da=38;2;139;148;158;2"
 
 # `less` headings / search hits — match prompt accent / warnings.
-export LESS_TERMCAP_md=$'\e[38;2;88;166;255m'    # section headers, command names
-export LESS_TERMCAP_us=$'\e[38;2;210;153;34m'    # options, args
-export LESS_TERMCAP_so=$'\e[38;2;88;166;255m'  # search / status line
+export LESS_TERMCAP_md=$'\e[38;2;88;166;255;1m'    # section headers, command names
+export LESS_TERMCAP_us=$'\e[38;2;210;153;34;4m'    # options, args
+export LESS_TERMCAP_so=$'\e[38;2;88;166;255;7m'  # search / status line
 export LESS_TERMCAP_me=$'\e[0m'
 export LESS_TERMCAP_ue=$'\e[0m'
 export LESS_TERMCAP_se=$'\e[0m'

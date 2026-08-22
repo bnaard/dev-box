@@ -242,31 +242,31 @@ cmd_test_e2e() {
 }
 
 cmd_test_e2e_visual_status() {
-  info "Running opt-in visual E2E: generated tmux layouts, themes, and status line..."
+  info "Running visual E2E: generated tmux layouts, themes, and status line..."
   (cd "${CLI_DIR}" && cargo test --test e2e \
-    visual_generated_layouts_render_across_all_themes -- --ignored --nocapture --test-threads=1) \
+    visual_generated_layouts_render_across_all_themes -- --nocapture --test-threads=1) \
     || die "Visual E2E status/theme matrix failed"
   ok "Visual E2E status/theme matrix passed"
 }
 
 cmd_test_e2e_visual_tabs() {
-  info "Running opt-in visual E2E: generated tmux windows, tools, and harnesses..."
+  info "Running visual E2E: generated tmux windows, tools, and harnesses..."
   (cd "${CLI_DIR}" && cargo test --test e2e \
-    visual_generated_tools_and_harness_windows_render_when_enabled -- --ignored --nocapture --test-threads=1) \
+    visual_generated_tools_and_harness_windows_render_when_enabled -- --nocapture --test-threads=1) \
     || die "Visual E2E generated window traversal failed"
   ok "Visual E2E generated window traversal passed"
 }
 
 cmd_test_e2e_visual_yazi() {
-  info "Running opt-in visual E2E: Yazi previews, git symbols, and plugins..."
+  info "Running visual E2E: Yazi previews, git symbols, and plugins..."
   (cd "${CLI_DIR}" && cargo test --test e2e \
-    visual_yazi_previews_git_symbols_and_optional_plugins_render -- --ignored --nocapture --test-threads=1) \
+    visual_yazi_previews_git_symbols_and_optional_plugins_render -- --nocapture --test-threads=1) \
     || die "Visual E2E Yazi preview matrix failed"
   ok "Visual E2E Yazi preview matrix passed"
 }
 
 cmd_test_e2e_visual() {
-  info "Running all opt-in visual E2E tiers..."
+  info "Running all visual E2E tiers..."
   info "Visual E2E tier 1/3: generated layouts, themes, and tmux status line"
   cmd_test_e2e_visual_status
   info "Visual E2E tier 2/3: generated windows, tools, and harnesses"
@@ -1546,9 +1546,9 @@ release_usage() {
 release_list_steps() {
   cat <<'STEPS'
 Release step aliases:
-  all       state,doctors,sync,version,test,visual,audit,build-linux,version-smoke,push-main,notes,tag,github-release,docs,prompt
+  all       state,doctors,sync,version,test,visual,changelog,audit,build-linux,version-smoke,push-main,notes,tag,github-release,docs,prompt
   phase0    state,doctors
-  checks    sync,version,test,visual,audit
+  checks    sync,version,test,visual,changelog,audit
   build     build-linux,version-smoke
   publish   push-main,notes,tag,github-release
 
@@ -1558,7 +1558,8 @@ Concrete release steps:
   sync            Check/sync processkit default version
   version         Bump cli/Cargo.toml and Cargo.lock if needed, then commit
   test            Run fmt, clippy, and unit/integration tests
-  visual          Run the selected visual E2E tier from AIBOX_RELEASE_VISUAL_E2E
+  visual          Run mandatory visual E2E matrix and all-theme cast invariants
+  changelog       Require the exact release to be the newest public changelog entry
   audit           Run cargo audit
   build-linux     Build Linux release archives and checksums
   version-smoke   Verify the native release binary reports the requested version
@@ -1580,6 +1581,7 @@ Heavy E2E controls:
   AIBOX_RELEASE_IMPACT_BASE_REF=<ref>          Override the comparison base for auto selection
   AIBOX_RELEASE_ADDON_PARALLELISM=<count>      Concurrent addon shard limit (default: 2)
   AIBOX_RELEASE_PROGRESS_INTERVAL_SECONDS=<s>  Long-running-step progress interval (default: 30)
+  AIBOX_RELEASE_SKIP_VISUAL=1                  Emergency-only override for mandatory visual gates
 STEPS
 }
 
@@ -1611,6 +1613,7 @@ release_expand_step_token() {
       release_add_step version
       release_add_step test
       release_add_step visual
+      release_add_step changelog
       release_add_step audit
       ;;
     build)
@@ -1623,7 +1626,7 @@ release_expand_step_token() {
       release_add_step tag
       release_add_step github-release
       ;;
-    state|doctors|sync|version|test|visual|audit|build-linux|version-smoke|push-main|notes|tag|github-release|docs|prompt)
+    state|doctors|sync|version|test|visual|changelog|audit|build-linux|version-smoke|push-main|notes|tag|github-release|docs|prompt)
       release_add_step "${token}"
       ;;
     "")
@@ -1927,24 +1930,57 @@ release_local_test_gate() {
 }
 
 release_visual_gate() {
-  case "${AIBOX_RELEASE_VISUAL_E2E:-skip}" in
-    status) cmd_test_e2e_visual_status ;;
-    tabs|tools) cmd_test_e2e_visual_tabs ;;
-    yazi) cmd_test_e2e_visual_yazi ;;
-    render)
-      cmd_test_e2e_render_tmux
-      cmd_test_e2e_render_yazi
-      ;;
-    full)
-      cmd_test_e2e_visual
-      cmd_test_e2e_render_tmux
-      cmd_test_e2e_render_yazi
-      ;;
-    docs|captures) cmd_test_e2e_doc_captures ;;
-    *)
-      die "Unknown AIBOX_RELEASE_VISUAL_E2E=${AIBOX_RELEASE_VISUAL_E2E:-}; expected skip, status, tabs, yazi, render, full, or docs"
-      ;;
-  esac
+  cmd_test_e2e_visual
+  "${SCRIPT_DIR}/test-screencasts.sh" themes
+}
+
+release_changelog_gate() {
+  local version="$1"
+  local changelog_dir="${PROJECT_ROOT}/docs-site/content/changelog"
+  python3 - "${changelog_dir}" "${version}" <<'PY'
+import datetime as dt
+import pathlib
+import re
+import sys
+
+root = pathlib.Path(sys.argv[1])
+version = sys.argv[2]
+expected = root / f"release-v{version.replace('.', '-')}.md"
+if not expected.is_file():
+    raise SystemExit(f"missing public changelog entry: {expected}")
+
+def metadata(path: pathlib.Path):
+    text = path.read_text(encoding="utf-8")
+    if not text.startswith("---\n"):
+        raise SystemExit(f"invalid changelog front matter: {path}")
+    front = text.split("---\n", 2)[1]
+    title_match = re.search(r'^title:\s*["\']?([^"\'\n]+)', front, re.M)
+    date_match = re.search(r'^date:\s*([0-9]{4}-[0-9]{2}-[0-9]{2})\s*$', front, re.M)
+    version_match = re.fullmatch(r"release-v(\d+)-(\d+)-(\d+)\.md", path.name)
+    if not title_match or not date_match or not version_match:
+        raise SystemExit(f"incomplete changelog metadata: {path}")
+    return (
+        dt.date.fromisoformat(date_match.group(1)),
+        tuple(map(int, version_match.groups())),
+        title_match.group(1),
+        text,
+    )
+
+entries = [(metadata(path), path) for path in root.glob("release-v*.md")]
+if not entries:
+    raise SystemExit(f"no public changelog entries found in {root}")
+latest_meta, latest_path = max(entries, key=lambda item: (item[0][0], item[0][1]))
+expected_meta = metadata(expected)
+if f"v{version}" not in expected_meta[2]:
+    raise SystemExit(f"changelog title does not contain exact version v{version}: {expected_meta[2]}")
+if f"/releases/tag/v{version}" not in expected_meta[3]:
+    raise SystemExit(f"changelog entry does not link to release tag v{version}: {expected}")
+if latest_path != expected:
+    raise SystemExit(
+        f"v{version} is not the newest changelog entry; Hugo will render {latest_path.name} first"
+    )
+print(f"public changelog gate passed: {expected.name} is newest")
+PY
 }
 
 release_audit_gate() {
@@ -2365,15 +2401,20 @@ cmd_release() {
   fi
 
   if release_step_requested visual; then
-    case "${AIBOX_RELEASE_VISUAL_E2E:-skip}" in
-      skip|"")
-        warn "Skipping opt-in visual E2E during release. The release agent must justify this in notes or handover, or run AIBOX_RELEASE_VISUAL_E2E=<status|tabs|yazi|render|full|docs>."
+    case "${AIBOX_RELEASE_SKIP_VISUAL:-}" in
+      1|true|yes)
+        warn "EMERGENCY OVERRIDE: skipping mandatory visual matrix and theme sweep because AIBOX_RELEASE_SKIP_VISUAL=${AIBOX_RELEASE_SKIP_VISUAL}."
         ;;
       *)
-        release_run_evidenced_step "visual-${AIBOX_RELEASE_VISUAL_E2E}" "${version}" \
-          "Visual E2E (${AIBOX_RELEASE_VISUAL_E2E})" release_visual_gate
+        release_run_evidenced_step "visual-mandatory" "${version}" \
+          "Mandatory visual E2E matrix and all-theme cast invariants" release_visual_gate
         ;;
     esac
+  fi
+
+  if release_step_requested changelog; then
+    release_run_evidenced_step "changelog" "${version}" \
+      "Exact and newest public changelog entry" release_changelog_gate "${version}"
   fi
 
   if release_step_requested version-smoke; then
