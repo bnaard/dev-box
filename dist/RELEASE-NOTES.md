@@ -9,7 +9,7 @@
 ## Changed
 
 - Run visual E2E and the isolated all-theme cast sweep as mandatory release gates.
-- Refresh deferred pins for Go, Rust, Bun, PDM, OpenTofu, kubectl, Tau, Zensical, and the Rust `cc` crate.
+- Refresh deferred pins for Go, Rust, Bun, PDM, OpenTofu, kubectl, Tau, Zensical, and the Rust `cc` and `rustls-webpki` crates.
 
 ## Fixed
 
