@@ -12,6 +12,7 @@ below shows the minimum compatible processkit version for each aibox release.
 
 | aibox version | Min. processkit | Notes |
 |--------------|-----------------|-------|
+| 0.34.7 | v0.28.8 | adds persistent Yazi line-number and wrapping controls, explicit preview scrolling, and tabular recursive directory-size reports with visible hierarchy totals |
 | 0.34.6 | v0.28.8 | makes the PowerKit separator compatibility patch accept the expanded pinned renderer while retaining structural format validation, restoring host runtime image builds |
 | 0.34.5 | v0.28.8 | restores PowerKit window-separator color continuity across every theme, makes isolated visual regressions mandatory for releases, and refreshes deferred tool pins |
 | 0.34.4 | v0.28.8 | updates the bundled Yazi pane-toggle plugin to the current indexed ratio API and removes runtime deprecation warnings |
