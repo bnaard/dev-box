@@ -37,11 +37,15 @@ sed -i \
     -e '/AIBOX-FIX-WINDOW-SEPARATOR-COLOURS/d' \
     "$target"
 
-escaped="$(grep -o 'fg=%s#,bg=%s' "$target" | wc -l | tr -d ' ')"
-[[ "$escaped" -eq 8 ]] || {
-    echo "Expected 8 escaped conditional colour attributes in $target, found $escaped" >&2
+# Validate the semantic boundary instead of an upstream-global occurrence
+# count. PowerKit 6ac71f0 added another legitimate rounded-edge branch, taking
+# this file from eight to nine escaped attributes without changing the format
+# contract. Every conditional printf targeted above must have escaped commas.
+if grep -q "printf '%s#\\[fg=%s,bg=%s" "$target" \
+    || sed -n "/printf '#{?/p" "$target" | grep -q 'fg=%s,bg=%s'; then
+    echo "Window renderer still contains an unescaped conditional colour attribute" >&2
     exit 1
-}
+fi
 
 grep -q 'local side="$1" index_bg="$2" previous_bg="$3"$' "$target" || {
     echo "Window separator helper signature is not canonical" >&2
@@ -51,7 +55,15 @@ grep -q 'local side="$1" index_bg="$2" previous_bg="$3"$' "$target" || {
     echo "Expected both window format builders to use the canonical separator call" >&2
     exit 1
 }
-[[ "$(grep -o '#\[none\]#\[fg=' "$target" | wc -l | tr -d ' ')" -eq 11 ]] || {
+awk '
+    /^_windows_build_(separator|index_sep|spacing)\(\)/ { in_helper = 1 }
+    in_helper && /printf/ && /#\[fg=/ {
+        saw_format = 1
+        if ($0 !~ /#\[none\]#\[fg=/) bad = 1
+    }
+    in_helper && /^}/ { in_helper = 0 }
+    END { exit !(saw_format && !bad) }
+' "$target" || {
     echo "Window separator glyphs do not consistently reset inherited styles" >&2
     exit 1
 }
