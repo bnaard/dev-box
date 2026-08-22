@@ -768,6 +768,11 @@ pub static COMPAT_TABLE: &[CompatEntry] = &[
         processkit_version: "v0.28.8",
         note: "Patch release: makes the PowerKit separator compatibility patch accept the expanded pinned renderer while retaining structural format validation, restoring host runtime image builds.",
     },
+    CompatEntry {
+        aibox_version: "0.34.7",
+        processkit_version: "v0.28.8",
+        note: "Patch release: adds persistent Yazi line-number and wrapping controls, explicit preview scrolling, and tabular recursive directory-size reports with visible hierarchy totals.",
+    },
 ];
 
 /// Find the minimum compatible processkit version for the given aibox version.

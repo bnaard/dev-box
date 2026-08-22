@@ -55,6 +55,9 @@ and only reproducible on one machine. aibox keeps the moving parts explicit:
 - **Coherent terminal themes:** the audited palette drives tmux, Yazi, Vim, and
   the wider managed toolchain together. Marked files remain readable, active
   panes stay prominent, and status separators use the selected theme's colors.
+- **Practical file inspection:** Yazi previews support persistent line-number
+  and pane-width wrapping toggles, dedicated preview scrolling, selectable
+  pager/Vim views, and recursive tabular directory-size reports.
 
 ## Install
 
