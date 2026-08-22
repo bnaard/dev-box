@@ -50,6 +50,8 @@ prepend_previewers = [
     { url = "*.svg", run = "svg" },
     # EPS: convert to PNG with ghostscript, then display as image
     { url = "*.eps", run = "eps" },
+    # Text: aibox presentation toggles (w n line numbers, w l wrapping)
+    { mime = "text/*", run = "preview-options" },
     # Raster images — explicit name rules ensure all extensions are covered
     # even if MIME detection fails (e.g. for BMP/TIFF without magic bytes).
     { url = "*.jpg",  run = "image" },

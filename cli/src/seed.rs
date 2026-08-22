@@ -325,6 +325,7 @@ prepend_previewers = [
 AIBOX_YAZI_EXTRA_PREVIEWERS
     { url = "*.svg",  run = "svg" },
     { url = "*.eps",  run = "eps" },
+    { mime = "text/*", run = "preview-options" },
     { url = "*.jpg",  run = "image" },
     { url = "*.jpeg", run = "image" },
     { url = "*.png",  run = "image" },
@@ -695,6 +696,10 @@ const DEFAULT_YAZI_PLUGIN_STATUS_GIT: &str =
 const DEFAULT_YAZI_PLUGIN_TOGGLE_PANE: &str =
     include_str!("../../images/base-debian/config/yazi/plugins/toggle-pane.yazi/main.lua");
 
+/// preview-options.yazi plugin — persistent line-number and wrapping toggles.
+const DEFAULT_YAZI_PLUGIN_PREVIEW_OPTIONS: &str =
+    include_str!("../../images/base-debian/config/yazi/plugins/preview-options.yazi/main.lua");
+
 /// rich-preview.yazi plugin — terminal-rich preview for markdown and data files.
 const DEFAULT_YAZI_PLUGIN_RICH_PREVIEW: &str =
     include_str!("../../images/base-debian/config/yazi/plugins/rich-preview.yazi/main.lua");
@@ -715,6 +720,9 @@ const DEFAULT_OPEN_IN_EDITOR_SH: &str =
 /// aibox-preview helper — full-pane rich previews from Yazi.
 const DEFAULT_AIBOX_PREVIEW_SH: &str =
     include_str!("../../images/base-debian/config/bin/aibox-preview.sh");
+/// aibox-size-tree helper — tabular recursive disk-usage report for Yazi.
+const DEFAULT_AIBOX_SIZE_TREE_PY: &str =
+    include_str!("../../images/base-debian/config/bin/aibox-size-tree.py");
 /// aibox-status-toggle helper — toggle the tmux runtime status line.
 const DEFAULT_AIBOX_STATUS_TOGGLE_SH: &str =
     include_str!("../../images/base-debian/config/bin/aibox-status-toggle.sh");
@@ -791,10 +799,14 @@ prepend_keymap = [
     { on = [ "z", "m" ], run = "plugin toggle-pane max-preview", desc = "Maximize preview pane" },
     { on = [ "z", "c" ], run = "plugin toggle-pane max-current", desc = "Maximize current pane" },
     { on = [ "z", "0" ], run = "plugin toggle-pane", desc = "Reset pane layout" },
-    { on = [ "w", "s" ], run = "shell 'du -sch %s | ${PAGER:-less}' --block", desc = "Size selected files" },
+    { on = [ "w", "s" ], run = "shell 'aibox-size-tree %s | ${PAGER:-less} -R -S' --block", desc = "Tree size details" },
     { on = [ "w", "h" ], run = "shell 'bat --color=always --style=plain --paging=never %h | less -R -S' --block", desc = "Preview with horizontal scroll" },
     { on = [ "w", "v" ], run = "shell 'vim -R %h' --block", desc = "Select preview text in read-only Vim" },
     { on = [ "w", "p" ], run = "shell 'if [ -f \"$HOME/.local/bin/pdf-watch\" ]; then bash \"$HOME/.local/bin/pdf-watch\" %h; else pdf-watch %h; fi' --block", desc = "Watch PDF preview" },
+    { on = [ "w", "n" ], run = "plugin preview-options toggle-numbers", desc = "Toggle preview line numbers" },
+    { on = [ "w", "l" ], run = "plugin preview-options toggle-wrap", desc = "Toggle preview line wrapping" },
+    { on = "J", run = "seek 5",  desc = "Scroll preview down" },
+    { on = "K", run = "seek -5", desc = "Scroll preview up" },
     { on = [ "c", "p" ], run = "shell 'printf \"%s\\n\" %s | aibox-copy'", desc = "Copy selected paths" },
     { on = [ "c", "d" ], run = "shell 'for path in %s; do dirname \"$path\"; done | aibox-copy'", desc = "Copy selected directories" },
     { on = [ "c", "f" ], run = "shell 'for path in %s; do basename \"$path\"; done | aibox-copy'", desc = "Copy selected filenames" },
@@ -818,7 +830,9 @@ const DEFAULT_CHEATSHEET: &str = r#"  aibox Quick Reference  (prefix = Ctrl+g)
   prefix x        Kill pane   g s      Git summary
   prefix f/z      Zoom pane   g c      Git changes
   prefix c        New window  w s      Size selection
-  prefix 1-9      Jump window w h      Horizontal preview
+  prefix 1-9      Jump window J/K      Scroll preview vertically
+                              w h      Horizontal preview
+                              w n/l    Toggle line numbers/wrap
                               w v      Select/yank preview text
   prefix g/s      lazygit/shell win
   prefix L        Layout menu c p/d/f  Copy path/dir/name
@@ -1247,6 +1261,10 @@ pub fn managed_runtime_files(config: &AiboxConfig) -> Vec<(std::path::PathBuf, S
             DEFAULT_YAZI_PLUGIN_TOGGLE_PANE.to_string(),
         ),
         (
+            std::path::PathBuf::from(".config/yazi/plugins/preview-options.yazi/main.lua"),
+            DEFAULT_YAZI_PLUGIN_PREVIEW_OPTIONS.to_string(),
+        ),
+        (
             std::path::PathBuf::from(".config/cheatsheet.txt"),
             DEFAULT_CHEATSHEET.to_string(),
         ),
@@ -1270,6 +1288,10 @@ pub fn managed_runtime_files(config: &AiboxConfig) -> Vec<(std::path::PathBuf, S
         (
             std::path::PathBuf::from(".local/bin/aibox-preview"),
             DEFAULT_AIBOX_PREVIEW_SH.to_string(),
+        ),
+        (
+            std::path::PathBuf::from(".local/bin/aibox-size-tree"),
+            DEFAULT_AIBOX_SIZE_TREE_PY.to_string(),
         ),
         (
             std::path::PathBuf::from(".local/bin/aibox-status-toggle"),
@@ -2147,6 +2169,7 @@ fn is_executable_managed_runtime_file(rel_path: &Path) -> bool {
     rel_path == Path::new(".local/bin/pdf-watch")
         || rel_path == Path::new(".local/bin/open-in-editor")
         || rel_path == Path::new(".local/bin/aibox-preview")
+        || rel_path == Path::new(".local/bin/aibox-size-tree")
         || rel_path == Path::new(".local/bin/aibox-status-toggle")
         || rel_path == Path::new(".local/bin/aibox-tmux-switch-layout")
         || rel_path == Path::new(".local/bin/aibox-tmux-confirm-and-switch")
@@ -2415,6 +2438,7 @@ pub fn sync_managed_runtime_permissions(config: &AiboxConfig) -> Result<Vec<Stri
         ".local/bin/pdf-watch",
         ".local/bin/open-in-editor",
         ".local/bin/aibox-preview",
+        ".local/bin/aibox-size-tree",
         ".local/bin/aibox-status-toggle",
         ".local/bin/aibox-tmux-switch-layout",
         ".local/bin/aibox-tmux-confirm-and-switch",
@@ -2796,6 +2820,12 @@ mod tests {
                 .exists()
         );
         assert!(
+            root.join(".local")
+                .join("bin")
+                .join("aibox-size-tree")
+                .exists()
+        );
+        assert!(
             !root
                 .join(".local")
                 .join("bin")
@@ -2838,6 +2868,16 @@ mod tests {
                 & 0o111,
             0,
             "aibox-preview should be executable"
+        );
+        #[cfg(unix)]
+        assert_ne!(
+            fs::metadata(root.join(".local").join("bin").join("aibox-size-tree"))
+                .unwrap()
+                .permissions()
+                .mode()
+                & 0o111,
+            0,
+            "aibox-size-tree should be executable"
         );
         let open_in_editor =
             fs::read_to_string(root.join(".local").join("bin").join("open-in-editor")).unwrap();
@@ -3725,9 +3765,19 @@ rules = [
         );
         assert!(
             DEFAULT_YAZI_KEYMAP.contains(
-                r#"{ on = [ "w", "s" ], run = "shell 'du -sch %s | ${PAGER:-less}' --block""#
+                r#"{ on = [ "w", "s" ], run = "shell 'aibox-size-tree %s | ${PAGER:-less} -R -S' --block""#
             ),
-            "default yazi keymap should expose selected-size calculation"
+            "default yazi keymap should expose tabular tree-size details"
+        );
+        assert!(
+            DEFAULT_YAZI_KEYMAP.contains("plugin preview-options toggle-numbers")
+                && DEFAULT_YAZI_KEYMAP.contains("plugin preview-options toggle-wrap"),
+            "default yazi keymap should expose line-number and wrapping toggles"
+        );
+        assert!(
+            DEFAULT_YAZI_KEYMAP.contains(r#"{ on = "J", run = "seek 5""#)
+                && DEFAULT_YAZI_KEYMAP.contains(r#"{ on = "K", run = "seek -5""#),
+            "default yazi keymap should scroll the preview with uppercase J/K"
         );
         assert!(
             DEFAULT_YAZI_KEYMAP.contains("less -R -S"),
@@ -3753,6 +3803,30 @@ rules = [
             DEFAULT_YAZI_KEYMAP.contains(r#"\"${name%.*}\"; done | aibox-copy"#),
             "default yazi keymap should bridge stem copy to the host clipboard"
         );
+    }
+
+    #[test]
+    fn yazi_preview_options_are_shared_and_refresh_preview() {
+        assert!(DEFAULT_YAZI_CONFIG.contains(r#"{ mime = "text/*", run = "preview-options" }"#));
+        assert!(DEFAULT_YAZI_PLUGIN_PREVIEW_OPTIONS.contains("aibox-yazi-preview-options"));
+        assert!(DEFAULT_YAZI_PLUGIN_PREVIEW_OPTIONS.contains("fs.cha"));
+        assert!(DEFAULT_YAZI_PLUGIN_PREVIEW_OPTIONS.contains("fs.write"));
+        assert!(DEFAULT_YAZI_PLUGIN_PREVIEW_OPTIONS.contains("toggle-numbers"));
+        assert!(DEFAULT_YAZI_PLUGIN_PREVIEW_OPTIONS.contains("toggle-wrap"));
+        assert!(DEFAULT_YAZI_PLUGIN_PREVIEW_OPTIONS.contains(r#"ya.emit("peek""#));
+        assert!(DEFAULT_YAZI_PLUGIN_RICH_PREVIEW.contains(r#"require("preview-options")"#));
+        assert!(!DEFAULT_YAZI_PLUGIN_RICH_PREVIEW.contains("line_numbers=True"));
+    }
+
+    #[test]
+    fn yazi_size_tree_is_tabular_with_indented_terminal_size_column() {
+        assert!(DEFAULT_AIBOX_SIZE_TREE_PY.contains("TREE"));
+        assert!(DEFAULT_AIBOX_SIZE_TREE_PY.contains("MODE"));
+        assert!(DEFAULT_AIBOX_SIZE_TREE_PY.contains("LINKS"));
+        assert!(DEFAULT_AIBOX_SIZE_TREE_PY.contains("OWNER"));
+        assert!(DEFAULT_AIBOX_SIZE_TREE_PY.contains("GROUP"));
+        assert!(DEFAULT_AIBOX_SIZE_TREE_PY.contains("MODIFIED"));
+        assert!(DEFAULT_AIBOX_SIZE_TREE_PY.contains(r#"size = "  " * row.depth + row.size"#));
     }
 
     #[test]

@@ -400,6 +400,7 @@ COPY config/yazi/plugins/              /home/aibox/.config/yazi/plugins/
 # Helper scripts (chmod via COPY --chmod to avoid extra layer)
 COPY --chmod=755 config/bin/open-in-editor.sh /usr/local/bin/open-in-editor
 COPY --chmod=755 config/bin/aibox-preview.sh   /usr/local/bin/aibox-preview
+COPY --chmod=755 config/bin/aibox-size-tree.py /usr/local/bin/aibox-size-tree
 COPY --chmod=755 config/bin/vim-loop.sh       /usr/local/bin/vim-loop
 COPY --chmod=755 config/bin/pdf-watch.sh      /usr/local/bin/pdf-watch
 COPY --chmod=755 config/bin/aibox-latex-preview.py /usr/local/bin/aibox-latex-preview
