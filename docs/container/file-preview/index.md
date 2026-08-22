@@ -43,7 +43,7 @@ When you open Yazi (`Ctrl+g s` from the file manager pane, or via the layout sid
 | CSV / TSV | `.csv` `.tsv` | `tabular-preview.yazi` plugin | `data-preview` addon |
 | Excel | `.xls` `.xlsx` | `tabular-preview.yazi` plugin | `data-preview` addon |
 | Video | `.mp4` `.mkv` `.webm` `.avi` | `video` (built-in) | `ffmpeg` (addon) |
-| Text / code | most text formats | `code` (built-in) | — |
+| Text / code | most text formats | `preview-options.yazi` | `bat` |
 
 Raster image, SVG, PDF, archive, and standalone terminal viewers require the
 **preview-archive** addon. SQLite, CSV/TSV, and Excel previews require the
@@ -78,6 +78,22 @@ prepend_previewers = [
 ```
 
 Custom plugins (`svg.yazi`, `eps.yazi`) live at `~/.config/yazi/plugins/<name>.yazi/init.lua`. They are seeded into `.aibox-home/.config/yazi/` on first `aibox init`.
+
+### Preview controls
+
+| Keys | Action |
+|------|--------|
+| `J` / `K` | Scroll the preview vertically down/up without moving the selected file |
+| `w h` | Open the selected file in a non-wrapping pager; use Left/Right for horizontal scrolling |
+| `w n` | Toggle line numbers for textual previews |
+| `w l` | Toggle wrapping textual previews to the current preview-pane width |
+| `w s` | Show selected paths as a recursive, ls-like table with tree structure and directory disk-usage totals |
+| `w v` | Open selectable preview text read-only in Vim |
+| `w p` | Watch and refresh the selected PDF |
+
+Lowercase `j` and `k` move the selected file. Preview scrolling deliberately
+uses uppercase `J` and `K` so browsing and inspecting a long preview remain
+separate operations. The `w n` and `w l` settings persist across Yazi sessions.
 
 ### Format notes
 

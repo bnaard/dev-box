@@ -2,7 +2,7 @@
 
 > Reproducible AI workspaces from one aibox.toml.
 
-Version: v0.34.6
+Version: v0.34.7
 
 
 ## Documentation
@@ -57,6 +57,7 @@ aibox release history.
 
 - [v0.34.5 — consistent tmux window separators](https://projectious-work.github.io/aibox/changelog/release-v0-34-5/): Restores PowerKit separator colors across all themes and makes visual regressions release-blocking.
 - [v0.34.6 — restored host runtime builds](https://projectious-work.github.io/aibox/changelog/release-v0-34-6/): Accepts PowerKit's expanded pinned renderer while retaining structural separator validation.
+- [v0.34.7 — configurable Yazi previews](https://projectious-work.github.io/aibox/changelog/release-v0-34-7/): Adds persistent line numbers and wrapping, explicit preview scrolling, and hierarchical tabular size reports.
 - [v0.34.2 — accurate themes and reliable agent state](https://projectious-work.github.io/aibox/changelog/release-v0-34-2/): Adds the theme gallery and chooser, aligns generated themes with their references, and fixes Codex and tmux attention state.
 - [v0.34.3 — readable themes and restored terminal titles](https://projectious-work.github.io/aibox/changelog/release-v0-34-3/): Repairs Yazi marks and PowerKit dividers across all themes, preserves active-pane emphasis, and restores terminal titles on exit.
 - [v0.34.4 — warning-free Yazi pane toggles](https://projectious-work.github.io/aibox/changelog/release-v0-34-4/): Updates the bundled pane-toggle plugin for Yazi's current ratio API.
