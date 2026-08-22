@@ -207,7 +207,7 @@ mod tests {
     fn deferred_v0_dependency_defaults_are_consolidated() {
         ensure_loaded();
         for (addon_name, tool_name, expected) in [
-            ("docs-zensical", "zensical", "0.0.56"),
+            ("docs-zensical", "zensical", "0.0.57"),
             ("go", "go", "1.27.0"),
             ("node", "bun", "1.4.0"),
             ("python", "pdm", "2.28.2"),

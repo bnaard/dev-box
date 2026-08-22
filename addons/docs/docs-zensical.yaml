@@ -17,8 +17,8 @@ tools:
   - name: zensical
     description: "Python documentation site generator"
     default_enabled: true
-    default_version: "0.0.56"
-    supported_versions: ["0.0.43", "0.0.44", "0.0.47", "0.0.51", "0.0.52", "0.0.53", "0.0.55", "0.0.56"]
+    default_version: "0.0.57"
+    supported_versions: ["0.0.43", "0.0.44", "0.0.47", "0.0.51", "0.0.52", "0.0.53", "0.0.55", "0.0.56", "0.0.57"]
 
 builder: null
 
