@@ -87,7 +87,7 @@ if src.suffix.lower() in {".md", ".markdown"}:
         console.print(Markdown(body))
 else:
     language = src.suffix.lstrip(".") or "text"
-    console.print(Syntax(text, language, theme="ansi_dark", line_numbers=True, word_wrap=False))
+    console.print(Syntax(text, language, theme="ansi_dark", line_numbers=False, word_wrap=False))
 
 lines = buf.getvalue().splitlines()
 
@@ -176,6 +176,7 @@ local function read_window(path, skip, height)
 end
 
 function M:peek(job)
+	local preview_opts = require("preview-options"):options()
 	local cha = job.file.cha
 	local mtime = math.floor((cha and cha.mtime) or 0)
 	local cpath = cache_file(job.file.url, mtime, job.area.w)
@@ -221,6 +222,14 @@ function M:peek(job)
 	end
 
 	lines = lines:gsub("\t", string.rep(" ", rt.preview.tab_size))
+	if preview_opts.numbers then
+		local numbered, current = {}, job.skip + 1
+		for line in (lines .. "\n"):gmatch("(.-)\n") do
+			numbered[#numbered + 1] = string.format("%5d │ %s", current, line)
+			current = current + 1
+		end
+		lines = table.concat(numbered, "\n")
+	end
 
 	-- Build the position indicator. `total == 0` (renderer fell back to
 	-- raw text) → suppress the indicator since it would be misleading.
@@ -267,7 +276,7 @@ function M:peek(job)
 	ya.preview_widget(job, {
 		ui.Text.parse(lines)
 			:area(content_area)
-			:wrap(rt.preview.wrap == "yes" and ui.Wrap.YES or ui.Wrap.NO),
+			:wrap(preview_opts.wrap and ui.Wrap.YES or ui.Wrap.NO),
 		ui.Text(indicator_line):area(indicator_area):style(ui.Style():reverse()),
 	})
 end
