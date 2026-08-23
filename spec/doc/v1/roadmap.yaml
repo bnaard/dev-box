@@ -1,0 +1,172 @@
+schemaVersion: projectious.work/roadmap/v1
+product: aibox
+majorLine: v1
+groups:
+  - label: Foundation
+    note: accepted product and contract boundary
+    phases:
+      - id: "0"
+        title: Product and engineering specification
+        summary: >-
+          Accept the v1 boundary, Go architecture, template model, native
+          escape hatches, target execution model, security design, acceptance
+          journeys, and implementation sequence.
+        status: in_progress
+        decisions:
+          - DEC-20260823_1428-CalmWolf-define-aibox-v1-x-rewrite-architecture
+      - id: "1"
+        title: Go application foundation
+        summary: >-
+          Establish the host CLI and optional aiboxctl modules, command shell,
+          typed results, process/filesystem boundaries, developer tooling,
+          tests, and Linux/macOS builds.
+        status: planned
+        dependencies: ["0"]
+      - id: "2"
+        title: Owned contracts and deterministic migration
+        summary: >-
+          Publish schemas and fixtures for intent, local operations, template
+          manifests, locks, bundles, machine results, and runtime features;
+          implement effective configuration and deterministic v0 diagnosis and
+          migration.
+        status: planned
+        dependencies: ["1"]
+      - id: "3"
+        title: Template acquisition and compilation
+        summary: >-
+          Resolve immutable local/Git template sources, lock content and addon
+          versions, compile secret-free target-native bundles, preserve native
+          overrides, and expose deterministic provenance.
+        status: planned
+        dependencies: ["2"]
+
+  - label: Local lifecycle
+    note: first useful Docker-compatible workflow
+    phases:
+      - id: "4"
+        title: Image build and local Compose lifecycle
+        summary: >-
+          Build through standard Dockerfile/BuildKit and Dev Container inputs,
+          invoke Compose for apply/up/down/delete, probe supported local engine
+          capabilities, and prove exact readiness and cleanup.
+        status: planned
+        dependencies: ["3"]
+      - id: "5"
+        title: Interactive exec and runtime controller
+        summary: >-
+          Add protected exec/attach, dedicated tmux workspace startup, and the
+          optional bounded aiboxctl contract for template-declared themes,
+          layouts, and other runtime-changeable features.
+        status: planned
+        dependencies: ["4"]
+
+  - label: Remote and cluster targets
+    note: native tools execute at explicit authority boundaries
+    phases:
+      - id: "6"
+        title: Remote Compose over SSH
+        summary: >-
+          Transfer verified bundles, source, and explicit overrides; execute
+          Compose on remote hosts; use SSH-protected engine exec/attach; and
+          provide interruption recovery and exact cleanup.
+        status: planned
+        dependencies: ["4", "5"]
+      - id: "7"
+        title: Kubernetes manifests and exec/attach
+        summary: >-
+          Render manifests/Kustomize overlays, apply from an authorized client,
+          validate context/namespace/resources and readiness, and support
+          cluster-native exec/attach without requiring SSH in Pods.
+        status: planned
+        dependencies: ["3"]
+      - id: "8"
+        title: Ainfra target handover consumer
+        summary: >-
+          Consume and verify the versioned non-secret ainfra target projection,
+          including capabilities, endpoints, access paths, provider and trust
+          references, provenance binding, and compatibility diagnostics.
+        status: idea
+        dependencies: ["6", "7"]
+
+  - label: Secret providers and delivery
+    note: provider and exposure scope remain orthogonal
+    phases:
+      - id: "9"
+        title: SOPS user-mediated secrets
+        summary: >-
+          Integrate host/remote SOPS with OS-keychain or declared identities,
+          temporary Compose environment inputs, exec-scoped environment,
+          mounted-file lifecycle, BuildKit secrets, redaction, and recovery.
+        status: planned
+        dependencies: ["4", "5", "6"]
+      - id: "10"
+        title: OpenBao brokered secrets
+        summary: >-
+          Support standard OpenBao API, Agent, and Kubernetes integration for
+          local, remote, interactive, headless, renewable, and audited secret
+          delivery without making aibox or aiboxctl a vault.
+        status: planned
+        dependencies: ["7", "9"]
+
+  - label: Authoring and ecosystem
+    note: templates own product features
+    phases:
+      - id: "11"
+        title: Template authoring and clean-room conformance
+        summary: >-
+          Publish schemas, examples, standard-tool guidance, addon/version
+          composition, native override conventions, tests, and human/AI
+          documentation; prove clean-room authoring without engine source.
+        status: planned
+        dependencies: ["5", "7", "10"]
+      - id: "12"
+        title: Initial certified template set
+        summary: >-
+          Certify useful interactive and headless templates across local and
+          remote Compose and Kubernetes while treating processkit, harnesses,
+          editors, previews, themes, and toolchains as ordinary template
+          features.
+        status: idea
+        dependencies: ["11"]
+      - id: "13"
+        title: Public documentation and read-only MCP
+        summary: >-
+          Publish version-aligned human and AI-readable product documentation,
+          generative discovery, schemas, and a read-only MCP resource server
+          under the company open-source standards.
+        status: planned
+        dependencies: ["11"]
+
+  - label: Hardening and release
+    note: evidence-backed v1 availability
+    phases:
+      - id: "14"
+        title: Compatibility, recovery, and security hardening
+        summary: >-
+          Complete the Docker Desktop, OrbStack, Podman, remote-host, and
+          Kubernetes matrices; adversarial and failure tests; migrations;
+          evidence; and host-gated conformance.
+        status: planned
+        dependencies: ["10", "11"]
+      - id: "15"
+        title: v1 prerelease and stable promotion
+        summary: >-
+          Produce signed/attested Linux and macOS artifacts, SBOMs, migration
+          guidance, release-aligned documentation, and disposable acceptance
+          evidence, then promote through the company version-line workflow.
+        status: planned
+        dependencies: ["13", "14"]
+
+  - label: Confidential workloads
+    note: future attested infrastructure and secret release
+    phases:
+      - id: "16"
+        title: Confidential computing and live attestation
+        summary: >-
+          Consume ainfra confidential target handover, bind measured workload
+          identity and reference-value policy to deployment, verify fresh live
+          or remote attestation, and integrate attestation-gated KBS secret
+          release without moving infrastructure or secret authority into
+          aibox.
+        status: idea
+        dependencies: ["8", "15"]

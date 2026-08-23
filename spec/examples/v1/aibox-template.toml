@@ -1,0 +1,38 @@
+schema = "aibox.template/v1"
+name = "go-dev"
+version = "1.2.0"
+license = "Apache-2.0"
+
+[compatibility]
+aibox = ">=1.0.0-0 <2.0.0"
+architectures = ["linux/amd64", "linux/arm64"]
+workloads = ["user-dev", "headless"]
+targets = ["local", "remote-host", "kubernetes"]
+interactions = ["exec-attach", "none"]
+
+[image]
+dockerfile = "image/Dockerfile"
+devcontainer = "image/devcontainer.json"
+
+[deploy.compose]
+file = "deploy/compose.yaml"
+
+[deploy.kubernetes]
+kustomization = "deploy/kubernetes/kustomization.yaml"
+
+[addons.go]
+defaultEnabled = true
+versions = ["1.26.5"]
+
+[addons.processkit]
+defaultEnabled = false
+versions = ["0.30.0"]
+
+[runtime]
+contract = "runtime/aiboxctl.toml"
+
+[[secretRequirements]]
+name = "github-token"
+phases = ["interactive-entry"]
+deliveries = ["exec-env", "agent-file"]
+optional = true

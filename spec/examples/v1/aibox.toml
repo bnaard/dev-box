@@ -1,0 +1,47 @@
+schema = "aibox.project/v1"
+
+[template]
+source = "git+https://github.com/example/aibox-templates.git//go-dev"
+version = "1.2.0"
+
+[environment]
+name = "remote-dev"
+workload = "user-dev"
+target = "remote-host"
+interaction = "exec-attach"
+
+[source]
+mode = "sync"
+target = "~/work/example"
+
+[addons.go]
+enabled = true
+version = "1.26.5"
+
+[addons.processkit]
+enabled = true
+version = "0.30.0"
+
+[runtime.theme]
+default = "projectious-dark"
+changeable = true
+
+[runtime.tmux-layout]
+default = "focus"
+changeable = true
+
+[[secrets]]
+name = "github-token"
+provider = "developer-sops"
+phase = "interactive-entry"
+delivery = "exec-env"
+scope = "process-tree"
+target = "GH_TOKEN"
+
+[[secrets]]
+name = "registry-auth"
+provider = "team-openbao"
+phase = "runtime"
+delivery = "agent-file"
+scope = "application"
+target = "/run/secrets/registry-auth"
