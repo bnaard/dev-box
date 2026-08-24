@@ -1,34 +1,35 @@
-schema = "aibox.project/v1"
-
-[template]
-source = "git+https://github.com/example/aibox-templates.git//go-dev"
-version = "1.2.0"
+schema_version = "1"
 
 [environment]
-name = "remote-dev"
-workload = "user-dev"
-target = "remote-host"
-interaction = "exec-attach"
+definition = ".devcontainer/devcontainer.json"
+purpose = "agent-workspace"
 
-[source]
-mode = "sync"
-target = "~/work/example"
+[profiles.local]
+target = "local"
+interaction = "human-ui"
 
-[addons.go]
-enabled = true
-version = "1.26.5"
+[profiles.local.runtime]
+candidates = ["devcontainer-cli"]
 
-[addons.processkit]
-enabled = true
-version = "0.30.0"
+[profiles.local.security]
+policy = "developer-interactive"
 
-[runtime.theme]
-default = "projectious-dark"
-changeable = true
+[profiles.local.storage.home]
+class = "persistent"
+implementation = "volume"
 
-[runtime.tmux-layout]
-default = "focus"
-changeable = true
+[profiles.remote-agent]
+target = "ainfra://development/agent-runners"
+interaction = "headless"
+
+[profiles.remote-agent.runtime]
+candidates = ["envbuilder", "kubernetes-native"]
+
+[profiles.remote-agent.security]
+policy = "headless-agent"
+secret_provider = "team-openbao"
+require_feature_provenance = true
+allow_target_agent = false
 
 [[secrets]]
 name = "github-token"

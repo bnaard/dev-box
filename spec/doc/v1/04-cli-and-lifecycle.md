@@ -1,111 +1,130 @@
 ## Command surface
 
+The primary lifecycle deliberately follows ainfra.
+
 | Command | Purpose |
 |---|---|
-| `aibox init [PATH]` | Create minimal intent and select a template/profile without installing template-owned content implicitly. |
-| `aibox apply [ENVIRONMENT]` | Validate/migrate intent, resolve locks, compile the bundle, and reconcile declared generated project artifacts. |
-| `aibox plan [ENVIRONMENT]` | Show compilation, transfer, build, deployment, secret-delivery, and cleanup actions without executing them. |
-| `aibox up [ENVIRONMENT]` | Apply if required, transfer when remote, invoke the native deployment tool, and reach declared readiness. |
-| `aibox enter [ENVIRONMENT]` | Start or attach to the declared interactive process through runtime-native exec/attach. |
-| `aibox down [ENVIRONMENT]` | Stop the deployment through its native tool without deleting durable declared data unless native configuration says so. |
-| `aibox delete environment ENVIRONMENT` | Delete the selected environment after an exact-target confirmation boundary. |
-| `aibox build [ENVIRONMENT]` | Build the selected image using the template-declared standard builder. |
-| `aibox doctor [ENVIRONMENT]` | Diagnose project, template, target, provider, runtime, generated output, and drift. |
-| `aibox config migrate [--check]` | Deterministically migrate owned configuration or report required changes. |
-| `aibox config show [--format json]` | Show redacted effective configuration and provenance. |
-| `aibox template validate PATH` | Validate a template and run bounded available conformance checks. |
-| `aibox version` | Report product, contract, and build identity. |
-| `aibox self update` | Update only the CLI binary; never mutate project configuration. |
+| `aibox init [DEPLOYMENT]` | Initialize minimal deployment intent and optionally apply a standard Dev Container Template without overwriting existing files. |
+| `aibox doctor [TARGET]` | Diagnose environment definition, deployment profile, target, tools, policy, storage, latest run, and safe remediation. |
+| `aibox plan [DEPLOYMENT] [--destroy]` | Create a saved apply or destroy plan bound to native inputs, target identity, adapter/tool versions, policy, and storage effects. |
+| `aibox apply [DEPLOYMENT] --plan RUN_ID` | Verify all bindings and apply the exact reviewed plan. |
+| `aibox output [DEPLOYMENT] --run RUN_ID` | Show the sanitized standardized environment result. |
+| `aibox status [DEPLOYMENT]` | Summarize desired/deployed state, readiness, failures, interruption, and recovery. |
+| `aibox destroy [DEPLOYMENT] --plan RUN_ID` | Apply the exact reviewed destroy plan and record retained storage. |
+| `aibox build [DEPLOYMENT]` | Build through the selected conforming runtime adapter without deploying. |
+| `aibox start|stop [DEPLOYMENT]` | Start or stop an existing environment without changing durable data. |
+| `aibox attach [DEPLOYMENT]` | Attach through runtime-native exec/attach or explicit SSH where selected. |
+| `aibox exec [DEPLOYMENT] -- COMMAND...` | Execute a bounded command through the runtime adapter. |
+| `aibox up [DEPLOYMENT]` | Local interactive convenience for doctor, plan, authorized apply, and attach using the same application core. |
+| `aibox config migrate [--check]` | Deterministically migrate owned aibox configuration or report required choices. |
+| `aibox config show [--format json]` | Show redacted effective deployment configuration and provenance. |
+| `aibox template apply OCI_REF` | Apply a standard Dev Container Template as explicit scaffolding. |
+| `aibox version` / `aibox self update` | Report or update the aibox binary; self update never mutates project files. |
 
-Subcommand names are normative design intent but MAY receive minor usability
-adjustments before CLI contract freeze. `aibox apply` remains the ordinary
-place for deterministic configuration migration because it consumes project
-intent; `self update` does not.
+Remote, headless, shared, privileged, and destructive operations default to the
+explicit `plan` then `apply`/`destroy` sequence. `up` MUST retain a saved plan,
+run ID, and evidence and MUST NOT bypass authorization.
 
 ## Common lifecycle
 
-1. Discover project and configuration layers.
-2. Parse the declared schema version without reinterpretation.
-3. Preview or apply deterministic owned-document migrations.
-4. Acquire and verify the locked template.
-5. Resolve addons and target/profile constraints.
-6. Compile or reuse an input-bound secret-free bundle.
-7. Probe required standard-tool and target capabilities.
-8. Acquire secrets only at the phase that needs them.
-9. Build, transfer, deploy, or exec through bounded adapters.
-10. Record redacted results and exact cleanup.
+1. Discover standard environment files and aibox configuration layers.
+2. Preview or apply deterministic owned-document migrations.
+3. Validate the Dev Container definition and native target material.
+4. Resolve and lock Features, images, target handover, and policy inputs.
+5. Probe internal adapters and installed external tools.
+6. Select a conforming adapter deterministically.
+7. Create a secret-free saved plan.
+8. Verify plan binding and authorization.
+9. Acquire secrets only for the phase that needs them.
+10. Build, transfer, deploy, attach, or delete through the selected adapter.
+11. Record sanitized result, events, retained storage, and exact cleanup.
 
-- **AIBOX-CLI-001:** commands MUST support deterministic plain output for
-  non-interactive use and a versioned JSON result envelope where specified.
-- **AIBOX-CLI-002:** dry-run/plan MUST NOT decrypt secrets, mutate targets,
-  create containers, apply Kubernetes resources, or transfer sensitive data.
-- **AIBOX-CLI-003:** cancellation and signals MUST reach child tools and remote
-  operations, after which aibox MUST record partial state and attempt only
-  exact owned cleanup.
-- **AIBOX-CLI-004:** diagnostics MUST name the failing layer and the direct
-  standard-tool command or remediation where safe.
+- **AIBOX-CLI-001:** commands MUST provide deterministic human output and a
+  versioned machine-result envelope where specified.
+- **AIBOX-CLI-002:** plan MUST NOT decrypt secrets, mutate targets, create
+  workloads, or transfer sensitive data.
+- **AIBOX-CLI-003:** cancellation MUST reach child tools and remote operations;
+  partial state and safe next actions are recorded.
+- **AIBOX-CLI-004:** diagnostics MUST name the failing definition, target,
+  policy, adapter, external tool, or provider layer.
+- **AIBOX-CLI-005:** apply and destroy MUST reject changes to any saved-plan
+  binding rather than silently re-plan.
 
-## Apply and configuration migration
+## Target execution
 
-`apply` MAY migrate `aibox.toml` automatically only when every transition is
-deterministic, semantics-preserving, atomic, and covered by fixtures. It first
-creates a recoverable backup or uses atomic replacement. A semantic choice,
-removed feature without a unique mapping, or conflicting user edit produces a
-preview and refusal rather than probabilistic rewriting.
+Local Docker/Compose initially uses the official Dev Container CLI and Compose.
+For a remote Compose target, aibox transfers exact staged native inputs over SSH
+and invokes the required standard tooling on the remote host. Kubernetes uses a
+local or approved bastion client against the Kubernetes API; it does not require
+login to a control-plane node. Envbuilder MAY be selected for a Kubernetes build
+only when its probed conformance satisfies the plan.
 
-Comments and unknown user ordering SHOULD be preserved when the TOML editing
-library permits. Canonical meaning is defined by the schema and normalized
-diagnostics, not by forcing one textual serialization.
+The environment creates its declared PID 1. `attach` separately connects to the
+user or agent workload through engine exec/attach, Kubernetes exec/attach, or
+explicitly selected workload SSH. A successful native deployment command is not
+itself readiness.
 
-## Up
+## Whole-stack workflow
 
-For a local Compose target, aibox invokes local Compose. For a remote Compose
-target, the default is to transfer the bundle over SSH and invoke Compose on
-the remote host. For Kubernetes, aibox invokes the selected local or bastion
-client against the target API; it does not log into a control-plane node.
+```sh
+# Provision target infrastructure.
+ainfra doctor deployment development
+ainfra plan development
+ainfra apply development --plan INFRA_RUN
+ainfra output development --run INFRA_RUN
 
-Readiness is template-declared and bounded. A successful `compose up` or
-`kubectl apply` is not by itself proof that the user workload is ready.
+# Bind and deploy the environment onto the signed result.
+aibox doctor agent-runner
+aibox plan agent-runner --target ainfra://development/runs/INFRA_RUN
+aibox apply agent-runner --plan AIBOX_RUN
+aibox output agent-runner --run AIBOX_RUN
 
-## Enter
+# Use the environment when interactive.
+aibox attach agent-runner
+```
 
-The deployment creates the container or Pod and its template-defined PID 1.
-`enter` separately starts or attaches to the user workspace:
+CLI and MCP operations preserve the same order: ainfra produces the target
+result; aibox consumes it, produces a reviewed environment plan, and returns an
+environment result suitable for kaits or another authorized consumer.
 
-- Docker-compatible engine: exec/attach through a protected local socket or
-  SSH-protected engine connection;
-- Kubernetes: Kubernetes exec/attach API;
-- SSH inside the workload: only when explicitly selected and supported by the
-  template/target, never a Kubernetes requirement.
+## Optional aiboxctl
 
-An interactive template MAY start a dedicated tmux server. Exec-scoped
-environment values belong to that tmux server and its descendants, not to
-unrelated existing container processes.
+`aiboxctl` manages only the current environment. Its CLI and stdio MCP mode use
+one bounded application core. It MUST NOT know template-specific implementations
+such as a LaTeX companion API, Yazi plugin layout, or theme file format.
 
-## Down and delete
+Instead, a Template or Feature MAY install runtime capability providers and
+signed/locked provider manifests. A provider knows its own companion or native
+configuration. `aiboxctl` discovers provider metadata, applies policy, starts
+the fixed executable without a shell, routes versioned structured requests,
+namespaces MCP tools, and records changes.
 
-`down` delegates normal stop behavior to the native deployment tool. `delete`
-resolves exact environment identity, previews resources and retained data,
-requires explicit authorization appropriate to interactivity, and performs no
-broad prune. Cleanup targets only run-owned temporary files, tunnels, and
-known deployment resources.
+```text
+aiboxctl CLI/MCP
+       │ authorize and route
+       ├── theme provider ── native theme files
+       ├── tmux provider ─── tmux server
+       └── latex provider ── scoped companion API
+```
 
-## Optional `aiboxctl`
-
-`aiboxctl` MAY expose template-declared runtime settings such as themes and
-tmux layouts through a small CLI or tmux popup. It reads a versioned runtime
-feature contract and invokes allowlisted template-provided operations.
+The LaTeX provider may call a private service-network HTTP endpoint or another
+template-owned local protocol. It receives no host, engine, Kubernetes, aibox,
+or general secret-provider authority.
 
 - **AIBOX-CTL-001:** `aiboxctl` MUST NOT acquire, store, broker, or receive
-  general secret values.
-- **AIBOX-CTL-002:** it MUST NOT deploy infrastructure or containers.
-- **AIBOX-CTL-003:** its absence MUST be valid for headless templates and
-  templates without runtime-changeable features.
-- **AIBOX-CTL-004:** runtime changes MUST be reversible or document why not,
-  and MUST distinguish ephemeral from persisted user preference.
-- **AIBOX-CTL-005:** `aiboxctl` MUST reject any operation addressed to another
-  environment and MUST NOT access deployment, remote, container-engine,
-  Kubernetes, template-acquisition, or secret-provider authority.
-- **AIBOX-CTL-006:** aibox and `aiboxctl` MUST NOT communicate through an
-  implicit creator/guest bridge; their responsibilities meet only through
-  versioned template and runtime-feature artifacts.
+  general secret values and MUST NOT deploy infrastructure or containers.
+- **AIBOX-CTL-002:** absence of `aiboxctl` and providers is conforming.
+- **AIBOX-CTL-003:** provider operations MUST be addressed only to the current
+  environment, namespaced, schema-validated, time-bounded, and audited.
+- **AIBOX-CTL-004:** provider manifests MUST declare executable identity, tool
+  metadata, mutability class, persistence effect, required approval, and
+  protocol compatibility; shell command strings are prohibited.
+- **AIBOX-CTL-005:** providers run with current-environment authority only and
+  MUST NOT receive a host socket, creator callback, deployment credential, or
+  implicit bridge to aibox.
+- **AIBOX-CTL-006:** `aiboxctl mcp serve --stdio` MUST expose only built-in
+  inspection plus the policy-allowed namespaced tools of discovered providers;
+  it MUST NOT be a generic shell or network listener.
+- **AIBOX-CTL-007:** runtime changes distinguish ephemeral preference,
+  persistent home state, and project-owned configuration and MUST NOT rewrite
+  project-owned files without an explicit provider contract and authorization.

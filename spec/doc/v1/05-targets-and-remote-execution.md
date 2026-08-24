@@ -1,7 +1,7 @@
 ## Target principle
 
-Deployment compilation and deployment execution are separate. Aibox compiles
-where the user invokes it, then runs the standard deployment tool in an
+Deployment planning and execution are separate. Aibox resolves and plans where
+the user invokes it, then runs the standard deployment tool in an
 authorized environment whose filesystem and API semantics are unambiguous.
 The executor is not a managed target. When aibox runs in a container, it may
 manage a distinct remote host, cluster, nested isolated runtime, or other
@@ -22,10 +22,10 @@ remote API endpoint is the normal cluster boundary.
 The default remote flow is:
 
 ```text
-local intent/template/override
-          │ compile
+local deployment intent and native definition
+          │ resolve + plan
           ▼
-secret-free deployment bundle
+secret-free staged native inputs
           │ verify + SSH transfer
           ▼
 remote user-private deployment directory
@@ -64,7 +64,7 @@ Source placement is explicit and template-constrained:
 
 - `sync`: aibox transfers selected source with excludes and digest evidence;
 - `git`: the remote host checks out a declared immutable or user-selected
-  revision using credentials outside the bundle;
+  revision using credentials outside staged inputs;
 - `remote-path`: the user declares an existing remote directory; or
 - `image`: no host source mount is required.
 
@@ -109,9 +109,10 @@ Initial probed capabilities include:
 
 ## Kubernetes targets
 
-Templates provide standard manifests and optional Kustomize bases/overlays.
-Aibox compiles references, validates declared capabilities, invokes the native
-client, and records sanitized results. Kubernetes owns scheduling, Pod state,
+Projects or Templates provide standard manifests and optional Kustomize
+bases/overlays. Aibox validates references and capabilities, selects a
+conforming Kubernetes/envbuilder adapter, invokes the native client, and records
+sanitized results. Kubernetes owns scheduling, Pod state,
 Secret objects, volumes, exec/attach, rollout, and deletion semantics.
 
 - **AIBOX-K8S-001:** Kubernetes interaction MUST use kubeconfig/context and

@@ -6,7 +6,7 @@
 | Specification version | 1.0.0-draft.1 |
 | Intended product line | aibox v1.x |
 | Primary implementation | New Go CLI and optional Go `aiboxctl` |
-| Last updated | 2026-08-23 |
+| Last updated | 2026-08-24 |
 
 This directory is the canonical draft specification for the from-scratch aibox
 v1 implementation. The existing Rust implementation and v0 configuration are
@@ -20,22 +20,24 @@ for implementation plans, tests, reviews, documentation, and release evidence.
 ## Product statement
 
 aibox is the agent-native environment execution boundary for reproducible AI
-workspaces. Its MCP and CLI adapters compile versioned project intent and
-standards-based templates into inspectable container-image and deployment
-bundles, then delegate build and deployment to native tools. It supports local
+workspaces. Its MCP and CLI adapters validate standard Dev Container
+definitions, bind them to authorized targets through saved deployment plans,
+and delegate build and lifecycle mechanics to established tools through
+internal Go adapters. It supports local
 and remote Docker-compatible hosts, Kubernetes targets, interactive and
 headless workloads, and an optional in-container `aiboxctl` for bounded runtime
-customization of the current environment.
+customization of the current environment through both CLI and bounded MCP.
 
-Templates own image content, addons, deployment topology, and runtime features.
-The engine knows their contracts, not their installed tools. Processkit is an
-ordinary template-selected addon rather than an aibox subsystem.
+Standard Dev Container Templates, Features, Dockerfiles, Compose, Kubernetes
+material, and native configuration own environment content. Aibox defines no
+parallel addon/component/value language. Processkit and harnesses are ordinary
+Features or project tooling rather than aibox subsystems.
 
 ## Specification map
 
 1. [Product boundary](01-product-boundary.md)
 2. [Concepts, dimensions, and layouts](02-concepts-and-layouts.md)
-3. [Intent, templates, and compilation contracts](03-contracts-and-compilation.md)
+3. [Deployment intent, planning, and runtime adapters](03-contracts-and-compilation.md)
 4. [CLI and lifecycle](04-cli-and-lifecycle.md)
 5. [Targets and remote execution](05-targets-and-remote-execution.md)
 6. [Security and secrets](06-security-and-secrets.md)
@@ -52,7 +54,8 @@ Supporting material:
 - [Implementation roadmap](roadmap.yaml)
 - [Illustrative project intent](../../examples/v1/aibox.toml)
 - [Illustrative local operational configuration](../../examples/v1/aibox-local.toml.example)
-- [Illustrative template manifest](../../examples/v1/aibox-template.toml)
+- [Illustrative Dev Container Template metadata](../../examples/v1/devcontainer-template.json)
+- [Illustrative Dev Container definition](../../examples/v1/devcontainer.json)
 
 The examples are design fixtures. They become conformance fixtures when their
 schemas are introduced during the contracts phase.
@@ -70,6 +73,11 @@ It also incorporates
 aibox manages only other environments, `aiboxctl` manages only the current
 environment, and no bridge gives a managed environment authority over its
 creator.
+
+The standard-artifact and runtime-adoption amendment incorporates
+`DEC-20260824_0946-AbleDew-base-aibox-v1-on-standard-dev`,
+`DEC-20260824_0946-ShinyLily-compile-runtime-adapters-into-the-aibox`, and
+`DEC-20260824_0946-CrispPlum-align-aibox-lifecycle-ux-with-ainfra`.
 
 The checked-in specification is self-contained. External discussion or a
 decision record is provenance, not hidden normative authority. A changed
@@ -89,17 +97,17 @@ roadmap entry.
 There are four independent claims:
 
 - **CLI conformance:** the host `aibox` binary satisfies its lifecycle,
-  compilation, security, output, and compatibility requirements.
+  planning, adapter, security, output, and compatibility requirements.
 - **MCP conformance:** `aibox mcp serve` exposes guarded agent operations over
   the same application core with CLI-equivalent lifecycle and recovery.
-- **Template conformance:** a template satisfies its manifest, source,
-  documentation, feature, target, and fixture contracts.
-- **Bundle conformance:** a rendered bundle is secret-free, deterministic for
-  declared inputs, attributable to its template and intent, and consumable by
-  the declared standard tools.
-- **Runtime-controller conformance:** optional `aiboxctl` satisfies only its
-  declared in-container customization contract and does not become a secret
-  manager or deployment engine.
+- **Definition conformance:** standard Templates, Features, native sources,
+  documentation, target material, and fixtures satisfy upstream and aibox
+  policy requirements.
+- **Plan conformance:** a saved plan is secret-free, bound to declared inputs,
+  target, adapter/tool versions, policy and authorization, and exactly applied.
+- **Runtime-controller conformance:** optional `aiboxctl` and its stdio MCP
+  projection route only policy-allowed current-environment providers and do not
+  become a secret manager or deployment engine.
 
 Schemas validate owned document structure. They do not replace behavioral,
 security, lifecycle, or target-tool requirements.

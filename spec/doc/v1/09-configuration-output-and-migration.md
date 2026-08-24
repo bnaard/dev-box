@@ -38,9 +38,9 @@ or conflicts with native user-owned files stops with an actionable preview.
 AI-assisted migration MAY be documented as a user workflow but is not an
 automatic conformance mechanism and cannot be required for headless operation.
 
-Generated bundles are replaced from inputs rather than migrated in place.
-User-owned Compose overrides, Kubernetes overlays, Dockerfiles, and Dev
-Container files are never rewritten by the generic migrator.
+Generated plans and run staging are replaced from inputs rather than migrated
+in place. User-owned Compose overrides, Kubernetes overlays, Dockerfiles, and
+Dev Container files are never rewritten by the generic migrator.
 
 ## Output, logs, and evidence
 
@@ -65,7 +65,7 @@ Evidence records, as applicable:
 
 - command, actor/executor attribution, timestamps and outcome;
 - product and contract versions;
-- normalized non-secret input, template, lock and bundle digests;
+- normalized non-secret input, standard definition, lock and plan digests;
 - target-handover identity and verified signer/freshness status;
 - effective native configuration digest;
 - selected capabilities and adapter versions;

@@ -1,11 +1,11 @@
 ## Agent-native product posture
 
 aibox is the agent-native environment execution boundary for reproducible AI
-workspaces. Agents may interpret goals, select or author templates, explain
-plans, and propose remediation. Aibox validates and migrates intent, resolves
-and locks templates, compiles secret-free bundles, verifies authority, invokes
-native tools, records evidence, and recovers through deterministic product
-mechanisms.
+workspaces. Agents may interpret goals, select or author standard Dev Container
+definitions, explain plans, and propose remediation. Aibox validates deployment
+intent and definitions, resolves immutable inputs, creates secret-free saved
+plans, verifies authority, invokes established tools through internal adapters,
+records evidence, and recovers through deterministic product mechanisms.
 
 The product follows the company
 [agent-native product interfaces standard][agent-standard]. MCP is the primary
@@ -30,7 +30,7 @@ reproducible for declared inputs, attributable, and recoverable.
 ## Executor and target boundary
 
 The **executor environment** is the environment in which the `aibox` process
-runs. A **target environment** is a distinct environment that aibox compiles,
+runs. A **target environment** is a distinct environment that aibox plans,
 builds, deploys, inspects, connects to, stops, or deletes.
 
 An aibox process may run on a bare host, in an independently managed container,
@@ -43,9 +43,10 @@ install aibox as an ordinary tool when the workload is intended to author
 templates or manage distinct downstream environments. That does not grant the
 current environment control over its creator or underlying host.
 
-`aiboxctl` has the inverse scope: it manages only bounded template-declared
-runtime features of its current environment. It does not manage another
-environment and cannot proxy aibox deployment authority.
+`aiboxctl` has the inverse scope: it manages only bounded runtime-provider
+capabilities of its current environment. It does not manage another environment
+and cannot proxy aibox deployment authority. Its CLI and stdio MCP mode share
+the same application core.
 
 - **AIBOX-AGENT-010:** aibox MUST NOT include its executor environment or the
   resources that create or control it in the managed target set. A shared
@@ -58,9 +59,10 @@ environment and cannot proxy aibox deployment authority.
   relationship checks, and residual limitations MUST be explicit before
   mutation and retained in redacted evidence.
 - **AIBOX-AGENT-013:** `aiboxctl` MUST operate only on its current environment's
-  runtime-feature contract and MUST NOT expose aibox lifecycle operations.
-- **AIBOX-AGENT-014:** `aiboxctl` MUST NOT provide MCP in v1; an agent in the
-  current environment may use its bounded CLI when that template includes it.
+  provider registry and MUST NOT expose aibox lifecycle operations.
+- **AIBOX-AGENT-014:** `aiboxctl mcp serve --stdio` MAY expose built-in
+  inspection and policy-allowed namespaced provider tools; it MUST NOT expose a
+  network listener, generic shell, deployment lifecycle, or creator bridge.
 
 ## MCP command and transport
 
@@ -87,10 +89,10 @@ explicit server-start allowlists; visibility is not approval.
 
 | Capability | Bounded application operations |
 |---|---|
-| Default read-only | Inspect intent, effective configuration, template, lock, bundle, target capabilities, status, readiness, sanitized evidence/logs, drift, and diagnostics. |
-| `planning` | Preview migration, compilation, build, transfer, deployment, connection, stop, deletion, secret delivery, and cleanup without acquiring secret values or mutating a target. |
+| Default read-only | Inspect intent, effective configuration, standard definition, lock, saved plan, target capabilities, status, readiness, sanitized evidence/logs, drift, and diagnostics. |
+| `planning` | Preview validation, resolution, build, transfer, deployment, connection, stop, deletion, secret delivery, and cleanup without acquiring secret values or mutating a target. |
 | `build` | Execute an authorized, input-bound image-build operation through the selected standard builder. |
-| `deployment` | Apply owned project artifacts, transfer a bundle, deploy/start/update an environment, and perform bounded non-destructive runtime operations. |
+| `deployment` | Apply an exact saved plan, transfer staged native inputs, deploy/start/update an environment, and perform bounded non-destructive runtime operations. |
 | `connection` | Prepare a declared non-interactive exec or return a short-lived typed connection reference for an authorized external client. |
 | `destruction` | Stop or delete the exact recorded target; deletion requires separate explicit authorization. |
 
@@ -102,7 +104,7 @@ the command/process contract is template-declared and allowlisted.
 - **AIBOX-AGENT-020:** every tool MUST represent one bounded application use
   case with strict versioned schemas, stable result codes, side-effect class,
   affected project/target identity, timeout, and cancellation behavior.
-- **AIBOX-AGENT-021:** templates, addons, overrides, images, remote hosts, and
+- **AIBOX-AGENT-021:** Templates, Features, overrides, images, remote hosts, and
   Kubernetes resources MUST NOT add or alter tool names, descriptions, schemas,
   annotations, capability membership, or authorization rules.
 - **AIBOX-AGENT-022:** the server MUST reject duplicate, shadowed, ambiguous,
@@ -140,14 +142,14 @@ authorization, or evidence.
   diagnostics, explanations, and evidence MUST NOT carry secret values.
 - **AIBOX-AGENT-032:** generated next actions MUST reference registered aibox
   operations and MUST NOT reflect executable instructions from untrusted
-  template, addon, override, image, native-tool, or target output.
+  Template, Feature, override, image, native-tool, or target output.
 - **AIBOX-AGENT-033:** lost-session recovery MUST never depend on private
   conversation state or chain-of-thought.
 
 ## Agent-specific security and acceptance
 
-The threat model and negative tests include prompt injection through template
-documentation, addons, Dockerfiles, image/build output, Compose metadata,
+The threat model and negative tests include prompt injection through Template
+documentation, Features, Dockerfiles, image/build output, Compose metadata,
 Kubernetes objects, remote-host output, and native overrides; tool poisoning,
 rug pulls, collision, and shadowing; target/root/context/namespace substitution;
 host-engine access; credential extraction; unsafe remediation; self-approval;
@@ -161,10 +163,10 @@ Acceptance proves:
 2. the CLI produces equivalent lifecycle effects, evidence, and recovery;
 3. aibox running inside one environment manages a distinct remote/headless
    target without a bridge to its creator or underlying host;
-4. a normal template without aibox or aiboxctl remains fully conforming;
-5. a template-engineering environment may install aibox as an ordinary tool
+4. a normal Dev Container definition without aibox or aiboxctl remains fully conforming;
+5. a Template-engineering environment may install aibox as an ordinary tool
    without gaining creator authority;
-6. `aiboxctl` changes only its current declared runtime features; and
+6. `aiboxctl` changes only its current policy-allowed provider capabilities; and
 7. every adversarial case is refused before unauthorized native-tool effects.
 
 [agent-standard]: https://github.com/projectious-work/internal/blob/main/docs/standards/agent-native-product-interfaces.md

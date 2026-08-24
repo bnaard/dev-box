@@ -1,49 +1,51 @@
 ## Concepts
 
-### Project intent
+### Environment definition
 
-`aibox.toml` is committed, human-readable intent. It identifies contract
-version, template, selected target/profile dimensions, addon selections and
-supported version overrides, runtime-feature defaults, source strategy, and
-secret references or policies. It contains no secret values and does not
-duplicate complete native deployment schemas.
+The portable environment definition is the standard `.devcontainer/` tree:
+`devcontainer.json`, referenced Dockerfiles or images, Compose files, Dev
+Container Features, and native application configuration. These files are
+canonical and user-editable; aibox does not regenerate them from another
+content description.
 
-### Local operational configuration
+### Dev Container Template and Feature
 
-`.aibox-local.toml` is optional, uncommitted configuration for target endpoints,
-local path selections, credential references, and invocation defaults. It does
-not legitimize plaintext secrets; secrets remain provider inputs.
+A Template is the standard OCI-distributed Dev Container scaffolding package.
+Applying it initializes project-owned files. A Feature is the standard local,
+tarball, or OCI-distributed unit for installing tools and container metadata.
+Aibox defines neither a competing template format nor addon/component model.
 
-### Template
+### Deployment intent
 
-A template is a versioned package containing a manifest, image sources,
-standards-based deployment sources, addon definitions or references, runtime
-assets, documentation, examples, and conformance fixtures. Processkit is one
-possible addon selected by a template or project.
+`aibox.toml` is committed, human-readable deployment intent. It binds the
+environment definition to named deployment profiles, interaction and workload
+requirements, target references, security policy, storage classes, runtime
+adapter candidates, and symbolic secret-provider references. It MUST NOT mirror
+Feature options, Dockerfile content, application configuration, or arbitrary
+Compose/Kubernetes fields.
 
-### Lock
+`.aibox-local.toml` is optional, uncommitted operational binding for concrete
+endpoints, local paths, ainfra results, secret-provider configuration, and
+invocation defaults. It contains references rather than secret values.
 
-`aibox.lock` records exact template identity, content digest, addon resolution,
-tool or image selections that affect reproducibility, and compatible contract
-versions. It contains no credentials or target-local secret values.
+### Lock, plan, materialization, environment and run
 
-### Deployment bundle
+`aibox.lock` records immutable identities and digests for the Dev Container
+definition, Features, images, selected runtime tools, and compatible contracts.
+A plan binds normalized deployment intent, native inputs, target identity,
+adapter/tool versions, security findings, storage choices, and intended actions.
+A materialization is the runtime-native result produced by applying that saved
+plan; it is not a second source of environment truth. An environment is the
+named deployed instance. A run is one bounded operation with correlation ID,
+events, result, diagnostics, and cleanup evidence.
 
-A bundle is the compilation result. It is a directory, not an opaque binary.
-It contains target-native sources, a redacted manifest, locks, and provenance.
-Humans can inspect it and invoke its declared standard tools without aibox.
+### Runtime capability provider
 
-### Environment and run
-
-An environment is a named desired deployment such as `local-dev` or
-`remote-runner`. A run is one bounded aibox operation with correlation ID,
-inputs, result, diagnostics, and cleanup evidence.
-
-### Addon and runtime feature
-
-An addon changes image or deployment content. A runtime feature changes
-declared behavior of an already-running environment when the template supports
-it. Themes and tmux layouts are examples; neither is an engine concern.
+A runtime capability provider is a template- or Feature-installed executable
+inside the current environment. It implements a versioned local protocol for a
+bounded domain such as theme selection, tmux layouts, or a LaTeX companion.
+`aiboxctl` discovers, authorizes, routes, and audits providers without knowing
+their implementation.
 
 ## Orthogonal dimensions
 
@@ -51,89 +53,82 @@ it. Themes and tmux layouts are examples; neither is an engine concern.
 |---|---|
 | Workload | `user-dev`, `headless` |
 | Target | `local`, `remote-host`, `kubernetes` |
-| Interaction | `exec-attach`, `ssh` only when the target explicitly requires it, `none` |
-| Image origin | build from template, use pinned published image |
-| Deployment engine | Compose-compatible, Kubernetes manifests/Kustomize; later Helm when justified |
+| Interaction | `exec-attach`, explicit SSH, `none` |
+| Definition | image, Dockerfile, Docker Compose |
+| Deployment runtime | Dev Container CLI, Compose, Kubernetes API/kubectl, envbuilder where conforming |
 | Secret provider | user-managed, SOPS, OpenBao; future KBS/custom |
 | Secret phase | build, deploy/create, interactive entry, runtime |
 | Secret delivery | build secret, container environment, exec environment, mounted file, agent/CSI, application API |
 | Secret scope | build step, container, service/file, process tree, application |
+| Storage class | persistent, rebuildable cache, ephemeral, confidential |
 | Source placement | local, synchronized remote, remote-native, image-baked |
 
 - **AIBOX-CONCEPT-001:** these dimensions MUST remain independently
-  representable; a target MUST NOT silently imply an unrelated workload,
-  interaction, provider, or feature choice.
-- **AIBOX-CONCEPT-002:** templates MAY constrain invalid combinations and MUST
-  publish those constraints as capabilities with actionable diagnostics.
-- **AIBOX-CONCEPT-003:** security policy MAY prohibit a technically possible
-  combination, but a default recommendation MUST NOT be represented as a
-  runtime impossibility.
+  representable; a target MUST NOT silently imply workload, interaction,
+  provider, persistence, or runtime choice.
+- **AIBOX-CONCEPT-002:** native definitions and selected policy MAY constrain
+  invalid combinations and MUST produce actionable diagnostics.
+- **AIBOX-CONCEPT-003:** runtime selection MUST be capability-based and MUST
+  fail rather than silently omit unsupported semantics.
 
 ## Project layout
 
 ```text
 project/
-├── aibox.toml
+├── .devcontainer/
+│   ├── devcontainer.json
+│   ├── Dockerfile                    # optional
+│   ├── compose.yaml                  # optional
+│   ├── compose.override.yaml         # optional, user-owned
+│   ├── features/                     # optional local Features
+│   └── runtime/                      # optional native configs/providers
+├── deploy/kubernetes/                # optional native target material
+├── aibox.toml                        # deployment intent
 ├── aibox.lock
-├── .aibox-local.toml                # optional, ignored
-├── docker-compose.override.yaml     # optional, user-owned
-├── .devcontainer/                   # optional standard user-owned inputs
-├── deploy/                          # optional Kustomize/manifests/overlays
+├── .aibox-local.toml                 # optional, ignored
 └── .aibox/
-    ├── bundles/                     # generated, disposable/reproducible
-    ├── runs/                        # redacted run evidence
-    └── cache/                       # content-addressed template cache
+    ├── plans/
+    ├── runs/
+    └── cache/
 ```
 
-The established `.aibox-local.toml` spelling remains the v1 migration input and
-initial local-operations filename. Any later rename is a public contract change
-and requires a deterministic migration and specification amendment.
+The established `.aibox-local.toml` spelling remains the initial local
+operations filename. A later rename requires deterministic migration.
 
-## Template layout
+## Standard Template layout
 
 ```text
 template/
-├── aibox-template.toml
-├── README.md
-├── image/
+├── devcontainer-template.json
+├── .devcontainer/
+│   ├── devcontainer.json
 │   ├── Dockerfile
-│   └── devcontainer-feature.json    # optional standard feature package
-├── deploy/
-│   ├── compose.yaml                 # optional
-│   └── kubernetes/                  # optional manifests/Kustomize
-├── addons/
-├── runtime/
-│   ├── aiboxctl.toml                # optional feature contract
-│   └── assets/
-├── examples/
+│   ├── compose.yaml
+│   ├── features/
+│   └── runtime/
+├── deploy/kubernetes/                # optional aibox-compatible extension
+├── README.md
 └── tests/
 ```
 
-Templates SHOULD reuse Dev Container Features where the standard expresses the
-installation cleanly. Dockerfile/BuildKit remains the universal image-build
-escape hatch. Compose and Kubernetes sources remain authoritative for target
-topology.
+Applying a Template is an explicit scaffolding operation. Resulting files belong
+to the project. Aibox MAY record provenance and offer an explicit three-way
+upgrade preview, but `up` and `apply` MUST NOT silently regenerate edited files.
 
-## Bundle layout
+## Storage model
 
-```text
-bundle/
-├── bundle.json
-├── aibox.lock
-├── compose.yaml                     # when selected
-├── compose.override.yaml            # copied local override, when selected
-├── kubernetes/                      # when selected
-├── image/
-├── runtime/
-└── provenance/
-    ├── inputs.json
-    └── digests.json
-```
+Logical stores are distinct: workspace source, user home, rebuildable cache,
+durable application data, and ephemeral secret delivery. Native definitions
+declare mount points; deployment profiles bind storage implementation and
+retention policy. Local home persistence defaults to a named engine volume,
+with an explicit host bind supported. Remote hosts use remote volumes or paths;
+Kubernetes uses PVCs; disposable headless runs may use ephemeral volumes or
+tmpfs; confidential profiles require approved encrypted/attested storage.
 
-- **AIBOX-LAYOUT-001:** generated bundles MUST contain no secret values.
-- **AIBOX-LAYOUT-002:** generated files MUST carry ownership markers and MUST
-  NOT be silently merged with user edits.
-- **AIBOX-LAYOUT-003:** local and remote-native overrides MUST be distinguishable
-  in effective-configuration and provenance output.
-- **AIBOX-LAYOUT-004:** bundle paths MUST be relocatable; producer-local
-  absolute paths MAY be diagnostic metadata but MUST NOT be the only locator.
+- **AIBOX-LAYOUT-001:** plans and run evidence MUST contain no secret values.
+- **AIBOX-LAYOUT-002:** aibox MUST NOT overwrite canonical Dev Container or
+  native deployment files during ordinary lifecycle operations.
+- **AIBOX-LAYOUT-003:** local and target-native overrides MUST remain
+  distinguishable in effective configuration and provenance.
+- **AIBOX-LAYOUT-004:** storage retention and deletion effects MUST be explicit
+  in every destructive plan.

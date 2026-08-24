@@ -1,107 +1,96 @@
-## Authoring promise
+## Authoring posture
 
-A template author can create a conforming template from published schemas,
-examples, documentation, and `aibox template validate` without reading aibox
-implementation source.
+Aibox-compatible Templates are standard Dev Container Templates. Authors use
+`devcontainer-template.json`, `.devcontainer/devcontainer.json`, Dockerfiles,
+standard Features, Compose, native application configuration, and optional
+Kubernetes material. There is no `aibox-template.toml`, addon DSL, component
+format, or `values.toml` contract.
 
-## Manifest responsibilities
+Template options are limited to standard scaffolding choices. Detailed Feature
+options remain directly on Feature references. Application settings remain in
+their native files. After application, generated project files are canonical
+and user-owned.
 
-The template manifest declares:
+- **AIBOX-TEMPLATE-001:** a conforming Template MUST satisfy the upstream Dev
+  Container Template format and include a valid environment definition.
+- **AIBOX-TEMPLATE-002:** installable tool contributions SHOULD use existing
+  or local Dev Container Features before custom Dockerfile logic.
+- **AIBOX-TEMPLATE-003:** local Features MUST remain contained below the
+  `.devcontainer/` tree and receive the same digest and policy evaluation as
+  remote Features.
+- **AIBOX-TEMPLATE-004:** target-specific topology uses Compose or
+  Kubernetes-native sources; aibox configuration MUST NOT duplicate it.
+- **AIBOX-TEMPLATE-005:** Template application and upgrade are explicit; normal
+  lifecycle commands MUST NOT overwrite user-edited standard files.
 
-- identity, version, license, source and compatibility;
-- supported workload, target, interaction, architecture, and builder
-  dimensions;
-- image and deployment entry points;
-- addons, defaults, dependencies, conflicts, version choices and checks;
-- runtime-changeable features and their allowed values;
-- required target and native-tool capabilities;
-- named secret requirements without values;
-- generated/user-owned paths; and
-- examples, tests, migration notices, and documentation.
+## Former v0.x features
 
-- **AIBOX-TEMPLATE-001:** templates MUST NOT rely on undocumented engine
-  behavior or known-template branching.
-- **AIBOX-TEMPLATE-002:** every installed addon version MUST be explicit,
-  constrained, or deliberately `latest` with a visible reproducibility warning.
-- **AIBOX-TEMPLATE-003:** addon disablement MUST remove its declared image and
-  deployment contributions on the next clean compilation/build.
-- **AIBOX-TEMPLATE-004:** conflicts and prerequisites MUST be declarative and
-  diagnosed before build.
-- **AIBOX-TEMPLATE-005:** a template MUST document native escape hatches and
-  the effect of user overrides on its support claim.
+| Concern | v1 authoring location |
+|---|---|
+| Languages, CLIs, harnesses | Dev Container Features |
+| Processkit binary/tool setup | ordinary Feature; repository context remains processkit-owned |
+| Base operating system | image or Dockerfile |
+| tmux, Yazi, prompts, themes | Feature-installed and template/project-native configuration |
+| Yazi preview dependencies/plugins | Feature plus native Yazi configuration |
+| LaTeX toolchain | Feature |
+| LaTeX preview companion | Compose service/include and Kubernetes-native equivalent |
+| Audio client | Feature |
+| Audio host/container connection | target-native mount/network configuration plus adapter capability and policy |
+| Auxiliary n8n/database/browser service | Compose include or Kubernetes-native resource |
 
-## Image tooling
+A definition may support terminal/tmux operation and VS Code simultaneously.
+Editor customizations are optional standard `customizations` entries and do not
+change the terminal-first runtime.
 
-Dev Container configuration is a first-class interoperability surface, not the
-entire aibox template. A template may provide `devcontainer.json`, Features,
-Dockerfile/BuildKit sources, and Compose. Aibox does not invent another package
-installation language.
+## Runtime capability providers
 
-Templates SHOULD use multi-stage builds, verified downloads, non-root runtime
-users, explicit base-image identity, build cache boundaries, and native secret
-mounts. They MUST publish supported builders and architectures.
+Complex runtime behavior is implemented by a provider installed with the
+Template or Feature, not by adding domain code to `aiboxctl`.
 
-## Deployment tooling
-
-Compose templates publish a generated base file. Users may add
-`docker-compose.override.yaml`; aibox neither rewrites nor mirrors its complete
-option surface in TOML.
-
-Kubernetes templates publish manifests/Kustomize with documented overlay
-points. Cluster-specific admission, policy, service mesh, storage, ingress,
-Secret, and workload settings remain native configuration.
-
-## Feature location
-
-Previously built-in features move to templates/addons, including:
-
-- processkit and AI harness installation;
-- editor and terminal tools;
-- yazi integrations and previews;
-- archive preview;
-- themes and prompts;
-- tmux layouts and status configuration;
-- language and cloud toolchains; and
-- documentation/LaTeX helpers.
-
-The engine can select and compose them only through generic contracts.
-
-## Runtime-changeable features
-
-A template may declare a bounded runtime contract:
-
-```toml
-schema = "aibox.runtime-features/v1"
-
-[features.theme]
-values = ["projectious-dark", "projectious-light"]
-default = "projectious-dark"
-apply = ["/usr/local/libexec/aibox/apply-theme"]
-
-[features.tmux-layout]
-values = ["focus", "review"]
-default = "focus"
-apply = ["/usr/local/libexec/aibox/apply-tmux-layout"]
+```text
+.devcontainer/runtime/providers/latex/
+├── provider.json
+└── aiboxctl-latex-provider
 ```
 
-`aiboxctl` validates values and invokes only manifest-declared executable/argv
-templates installed in trusted image locations. It may display a terminal UI
-or tmux popup, but the non-interactive CLI contract remains complete.
+Illustrative metadata:
 
-- **AIBOX-RUNTIME-001:** runtime-feature commands MUST NOT be supplied by
-  mutable project content unless the selected policy explicitly trusts it.
-- **AIBOX-RUNTIME-002:** runtime settings MUST identify persistence scope:
-  process/session, environment volume, or user preference.
-- **AIBOX-RUNTIME-003:** features MUST document conflicts, restart needs,
-  reversibility, and headless behavior.
-- **AIBOX-RUNTIME-004:** `aiboxctl` MUST operate without container-engine
-  socket, deployment credentials, SOPS keys, vault root tokens, or KBS policy
-  authority.
+```json
+{
+  "schemaVersion": "aibox.runtime-provider/v1",
+  "id": "latex",
+  "command": ["/usr/local/libexec/aiboxctl-latex-provider", "serve"],
+  "protocol": "mcp-stdio",
+  "tools": [
+    {"name": "build", "mutability": "workspace-write"},
+    {"name": "watch", "mutability": "runtime"},
+    {"name": "preview_status", "mutability": "read-only"}
+  ]
+}
+```
+
+The concrete provider owns the companion endpoint, tmux command, file layout,
+or application API. `aiboxctl` owns only generic provider lifecycle and policy.
+Simple domains MAY use a constrained declarative action provider; complex
+domains use a dedicated executable. Neither path permits shell command strings.
+
+- **AIBOX-RUNTIME-001:** provider identity and bytes MUST be covered by the
+  environment definition/image provenance and retained in runtime evidence.
+- **AIBOX-RUNTIME-002:** provider tools MUST be namespaced and collision-free,
+  with input/output schemas, mutability, persistence effect, timeout, and
+  approval metadata.
+- **AIBOX-RUNTIME-003:** providers MUST run as the environment user unless an
+  explicit current-environment policy authorizes narrower elevation.
+- **AIBOX-RUNTIME-004:** providers MUST NOT receive host, creator, deployment,
+  engine, Kubernetes, or general secret-provider authority.
+- **AIBOX-RUNTIME-005:** a provider controlling a sidecar uses a scoped
+  template-owned service-network protocol; it never reaches through a host
+  lifecycle bridge.
 
 ## Conformance
 
-Template validation includes schema and unknown-field checks, contained paths,
-supported dimension combinations, addon graph resolution, example compilation,
-native config validation when tools are available, secret-reference checks,
-generated/user ownership, and documentation presence. Clean-room authoring is
-required before claiming the v1 template contract stable.
+Template and Feature conformance combines upstream validation with aibox checks
+for provenance, secure-agent policy compatibility, target declarations,
+runtime-provider manifests, native material, storage effects, and fixtures.
+Checks run in disposable environments and must cover both expected success and
+unsupported combinations.

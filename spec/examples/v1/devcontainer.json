@@ -1,0 +1,10 @@
+{
+  "name": "Secure agent workspace",
+  "build": {
+    "dockerfile": "Dockerfile"
+  },
+  "features": {
+    "./features/projectious-runtime": {}
+  },
+  "remoteUser": "aibox"
+}

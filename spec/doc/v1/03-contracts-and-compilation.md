@@ -1,153 +1,153 @@
 ## Contract families
 
-Aibox owns independently versioned schemas for:
+Aibox owns versioned schemas for deployment intent, local operational binding,
+lockfile, saved plan, target handover, machine command result, runtime-adapter
+capabilities, run evidence, and the optional aiboxctl provider registry. It does
+not own schemas for Dev Container Templates, Features, `devcontainer.json`,
+Dockerfiles, Compose, or Kubernetes resources.
 
-- project intent;
-- local operational configuration;
-- template manifest;
-- lockfile;
-- deployment-bundle manifest;
-- target handover consumed from ainfra or another provisioner;
-- machine command results; and
-- optional runtime-feature contract consumed by `aiboxctl`.
+## Deployment intent
 
-Each contract defines unknown-version and unknown-field behavior, supported
-version window, compatibility rules, deprecation, migration, and positive and
-negative fixtures.
-
-## Project intent
-
-Illustrative intent:
+Illustrative `aibox.toml`:
 
 ```toml
-schema = "aibox.project/v1"
-
-[template]
-source = "git+https://github.com/example/aibox-templates.git//go-dev"
-version = "1.2.0"
+schema_version = "1"
 
 [environment]
-workload = "user-dev"
-target = "remote-host"
-interaction = "exec-attach"
+definition = ".devcontainer/devcontainer.json"
+purpose = "agent-workspace"
 
-[addons.processkit]
-enabled = true
-version = "0.30.0"
+[profiles.local]
+target = "local"
+interaction = "human-ui"
 
-[addons.go]
-enabled = true
-version = "1.26.5"
+[profiles.local.runtime]
+candidates = ["devcontainer-cli"]
 
-[runtime.theme]
-default = "projectious-dark"
-changeable = true
+[profiles.local.security]
+policy = "developer-interactive"
 
-[[secrets]]
-name = "github-token"
-provider = "developer-sops"
-phase = "interactive-entry"
-delivery = "exec-env"
-scope = "process-tree"
-target = "GH_TOKEN"
+[profiles.local.storage.home]
+class = "persistent"
+implementation = "volume"
+
+[profiles.remote-agent]
+target = "ainfra://development/agent-runners"
+interaction = "headless"
+
+[profiles.remote-agent.runtime]
+candidates = ["envbuilder", "kubernetes-native"]
+
+[profiles.remote-agent.security]
+policy = "headless-agent"
+secret_provider = "team-openbao"
+require_feature_provenance = true
+allow_target_agent = false
 ```
 
-Addon selection MUST preserve the current useful controls: enable/disable,
-supported explicit version, template default, and deliberately unpinned/latest
-where policy permits. A template, not the CLI, defines addon names, defaults,
-dependencies, conflicts, supported versions, installation, and checks.
+Feature selection and options remain directly in `devcontainer.json`. Local
+Features MAY be checked in below `.devcontainer/`; tarball and OCI references
+are also valid when the selected Dev Container implementation supports them.
 
-## Native overrides and the inner-system boundary
+- **AIBOX-CONTRACT-001:** aibox configuration MUST NOT duplicate Feature,
+  Compose, Kubernetes, Dockerfile, or native application configuration.
+- **AIBOX-CONTRACT-002:** unknown deployment-profile fields MUST follow the
+  declared schema compatibility policy and MUST never be silently ignored when
+  security or lifecycle behavior could change.
+- **AIBOX-CONTRACT-003:** secrets are symbolic references with phase, delivery,
+  and exposure policy; committed configuration contains no value.
+- **AIBOX-CONTRACT-004:** project-owned standard files remain directly usable
+  with their native tools as an escape path.
 
-For Compose targets, a user-owned `docker-compose.override.yaml` MAY augment or
-override generated Compose. A local override may be copied into the bundle; a
-remote-native override may be selected from the target host. Aibox MUST NOT
-rewrite either.
-
-For Kubernetes, templates and users use native manifests and Kustomize
-overlays/patches initially. Helm support MAY be added after its ownership,
-rendering, and provenance contract is specified.
-
-- **AIBOX-CONTRACT-001:** aibox configuration MUST NOT duplicate arbitrary
-  Compose or Kubernetes fields.
-- **AIBOX-CONTRACT-002:** aibox MUST expose the effective native deployment
-  configuration and identify generated, local override, and remote override
-  provenance.
-- **AIBOX-CONTRACT-003:** aibox MAY warn when an override weakens a recommended
-  posture; it MUST reject it only when technically invalid or prohibited by an
-  explicitly selected security policy.
-- **AIBOX-CONTRACT-004:** invoking native tools directly on the bundle MUST be
-  documented and supported as an escape path.
-
-## Compilation flow
+## Resolution and planning flow
 
 ```text
-aibox.toml + local operation config
-        + template + lock
-        + selected native overrides
-                    │
-                    ▼
-          validate and resolve
-                    │
-                    ▼
-       deterministic compilation
-                    │
-                    ▼
-  secret-free target-native bundle
-                    │
-           ┌────────┴─────────┐
-           ▼                  ▼
-   image builder       Compose/Kubernetes
+standard Dev Container definition + native target material
+        + aibox deployment profile + local binding
+        + target/ainfra handover + selected policy
+                            │
+                            ▼
+             validate and resolve immutable inputs
+                            │
+                            ▼
+        probe internal runtime adapters and external tools
+                            │
+                            ▼
+             create secret-free normalized saved plan
+                            │
+                            ▼
+     apply exact plan through selected established tooling
 ```
 
-Compilation is pure with respect to declared inputs. Capability discovery and
-remote state are explicit inputs or later lifecycle checks, not hidden
-template-rendering variables.
+Aibox does not compile a proprietary deployment bundle. It may stage a
+relocatable execution directory containing exact native inputs, generated
+adapter metadata, locks, and provenance. Staging does not replace the canonical
+project files and contains no secret values.
 
-- **AIBOX-COMPILE-001:** identical normalized intent, lock, template bytes,
-  selected override bytes, compiler version, and declared capability inputs
-  MUST produce semantically identical bundle content.
-- **AIBOX-COMPILE-002:** compilation MUST NOT execute template-supplied shell
-  snippets on the host.
-- **AIBOX-COMPILE-003:** generated native sources MUST be inspectable before
-  build or deployment.
-- **AIBOX-COMPILE-004:** bundle metadata MUST bind normalized input digests,
-  template identity, addon resolution, compiler identity, and output digests.
-- **AIBOX-COMPILE-005:** secret references MAY appear in the bundle; resolved
-  secret values MUST NOT.
+- **AIBOX-COMPILE-001:** identical normalized inputs, locks, target capability
+  facts, adapter/tool versions, and policy MUST produce a semantically identical
+  normalized plan.
+- **AIBOX-COMPILE-002:** planning MUST NOT execute environment-supplied host
+  shell snippets, decrypt secrets, or mutate a target.
+- **AIBOX-COMPILE-003:** the plan MUST expose native inputs, effective runtime
+  adapter, required target agent, privilege changes, storage effects, secret
+  delivery metadata, and cleanup scope.
+- **AIBOX-COMPILE-004:** apply MUST verify the saved plan binding immediately
+  before mutation and refuse drift.
+- **AIBOX-COMPILE-005:** resolved secret values MUST be absent from plans,
+  staging directories, locks, command arguments, logs, and evidence.
 
-## Template sources and locking
+## Standard source and provenance
 
-Initial sources are contained local directories and immutable Git repository
-revisions with optional subdirectories. Mutable references are resolved to an
-immutable revision and content digest before compilation. Archives are
-validated for traversal, links, special files, size, and entry limits.
+Dev Container Templates and remote Features use their standard OCI identity and
+distribution. Mutable tags resolve to immutable digests before a sensitive
+build or deployment when selected policy requires it. Local Features and native
+files are content-digested. Template application is explicit scaffolding; aibox
+records origin when known but does not treat the applied Template as a perpetual
+generator of project files.
 
-- **AIBOX-SOURCE-001:** production use MUST lock immutable source identity and
-  digest.
-- **AIBOX-SOURCE-002:** source acquisition MUST fail closed on checksum,
-  containment, or compatibility failure.
-- **AIBOX-SOURCE-003:** credentials used to acquire private templates MUST NOT
-  enter locks, bundles, logs, or evidence.
+- **AIBOX-SOURCE-001:** sensitive profiles MUST lock immutable identities for
+  every remote Template, Feature, image, and runtime tool input that affects the
+  result.
+- **AIBOX-SOURCE-002:** acquisition MUST fail closed on checksum, containment,
+  provenance, policy, or compatibility failure.
+- **AIBOX-SOURCE-003:** private-registry credentials MUST remain outside locks,
+  plans, staging directories, logs, and evidence.
+
+## Runtime adapter contract
+
+Adapters are internal Go packages compiled into `aibox`. Initial adapters wrap
+the official Dev Container CLI, Compose, bounded SSH execution, Kubernetes
+API/kubectl, and envbuilder where its conformance profile fits. DevPod is not a
+supported dependency or adapter. A public third-party plugin protocol is out of
+scope for v1.
+
+Each adapter implements the applicable subset of `probe`, `resolve`, `plan`,
+`build`, `deploy`, `inspect`, `exec`, `attach`, `stop`, `delete`, and evidence
+collection. Capability discovery states supported definitions, targets,
+headless/interactive behavior, multi-service fidelity, build-secret behavior,
+structured results, and whether a target-resident agent is required.
+
+- **AIBOX-ADAPTER-001:** missing required capability MUST refuse rather than
+  silently degrade or omit native semantics.
+- **AIBOX-ADAPTER-002:** adapters MUST NOT decide authorization, secret policy,
+  target identity, creator-boundary exceptions, or evidence signing.
+- **AIBOX-ADAPTER-003:** every external command uses fixed executable/argument
+  construction, cancellation, redaction, version probing, and result capture.
+- **AIBOX-ADAPTER-004:** the internal interface MUST remain implementable by a
+  future native adapter without making one necessary before a demonstrated gap.
 
 ## ainfra target handover
 
-Aibox MAY consume a versioned, non-secret ainfra target projection describing
-capabilities, endpoints, access paths, symbolic credential and secret-provider
-references, trust material references, and deployment provenance. Aibox MUST
-not attempt broad infrastructure autodiscovery.
+Aibox MAY consume the standardized, non-secret ainfra result projection with
+capabilities, endpoints, access paths, symbolic secret-provider references,
+trust material references, and deployment provenance. It does not perform broad
+infrastructure autodiscovery.
 
-The handover is one result-contract projection, not a competing Ansible
-inventory. Ainfra owns production; aibox owns validation and consumption.
-Signatures prove binding to declared bytes and execution provenance; until the
-future confidential phase, they do not prove that remote infrastructure is
-currently live or still matches those bytes.
-
-- **AIBOX-HANDOVER-001:** target handover MUST contain no secret value or
-  private key.
-- **AIBOX-HANDOVER-002:** aibox MUST verify schema, digest, compatibility,
-  signer/freshness policy when required, and declared target capabilities.
-- **AIBOX-HANDOVER-003:** absent or incompatible handover data MUST produce an
-  actionable refusal; aibox MUST NOT guess endpoints or credentials.
-- **AIBOX-HANDOVER-004:** live/remote attestation is reserved for the future
+- **AIBOX-HANDOVER-001:** handover contains no secret value or private key.
+- **AIBOX-HANDOVER-002:** aibox verifies schema, digest, compatibility,
+  signer/freshness policy, target identity, and required capabilities.
+- **AIBOX-HANDOVER-003:** absent or incompatible handover data produces an
+  actionable refusal; aibox does not guess endpoints or credentials.
+- **AIBOX-HANDOVER-004:** live/remote attestation remains part of the future
   confidential-computing contract.

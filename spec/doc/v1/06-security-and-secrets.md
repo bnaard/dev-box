@@ -12,7 +12,7 @@ that warning into a refusal.
 
 Protected assets include secret values and decryption identities, source and
 template integrity, project files, remote host and cluster credentials,
-container-engine authority, workload source, generated bundles, and run
+container-engine authority, workload source, staged native inputs, and run
 evidence.
 
 Trust boundaries include:
@@ -35,7 +35,7 @@ or root access may observe workload secrets regardless of aibox delivery
 choices. Aibox documentation MUST state this boundary plainly.
 
 Agent-interface threats include prompt injection in template documentation,
-addons, Dockerfiles, image/build output, Compose metadata, Kubernetes objects,
+Features, Dockerfiles, image/build output, Compose metadata, Kubernetes objects,
 remote-host output, native overrides, diagnostics, and logs; tool poisoning,
 rug pulls, collision, and shadowing; project, target, engine, SSH host,
 Kubernetes context/namespace, credential, and operation substitution;
@@ -67,7 +67,7 @@ authority over the executor or creator boundary.
 | Authentication | user/keychain, remote user/machine identity, workload identity, attestation |
 | Renewal | none/static, on recreate, on re-entry, provider-managed lease/rotation |
 
-- **AIBOX-SEC-001:** `aibox.toml`, locks, bundles, provenance, logs, evidence,
+- **AIBOX-SEC-001:** `aibox.toml`, locks, plans, staging, provenance, logs, evidence,
   examples, and test fixtures MUST contain references or placeholders, never
   resolved secret values.
 - **AIBOX-SEC-002:** redaction MUST occur before buffering, rendering, logging,
@@ -210,7 +210,7 @@ Build secrets use the selected builder's native secret mount, initially
 BuildKit/Compose build secrets. SOPS or OpenBao supplies the input on the build
 execution side. Dockerfile `ARG`, `ENV`, `COPY`, generated source, and ordinary
 build context MUST NOT carry secret values. Tests MUST prove the value is
-absent from final layers, image configuration, bundle, logs, and provenance.
+absent from final layers, image configuration, plans, staging, logs, and provenance.
 
 ## Scenario recommendations
 
@@ -254,7 +254,7 @@ configuration came from a template.
 
 ## Confidential computing roadmap boundary
 
-The ordinary v1 phases may bind a deployment to signed bundle and ainfra
+The ordinary v1 phases may bind a deployment to signed plan/native-input and ainfra
 handover provenance, but exclude live/remote attestation. The future
 confidential phase adds measured workload identity, reference-value policy,
 attestation verification, KBS secret release, freshness, revocation, and

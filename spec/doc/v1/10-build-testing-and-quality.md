@@ -21,8 +21,8 @@ them but cannot be the only interface.
 | Layer | Required coverage |
 |---|---|
 | Unit | parsers, normalization, migration, merge, graphs, redaction, path containment, capability decisions |
-| Component | compiler, bundle writer, provider/delivery orchestration, remote transfer, child-process contracts |
-| Black box | CLI help/errors/results, config precedence, migration, plan/apply/up/enter/down/delete with fakes |
+| Component | definition resolver, plan binding, internal runtime adapters, provider/delivery orchestration, remote transfer, child-process contracts |
+| Black box | CLI help/errors/results, config precedence, migration, plan/apply/up/attach/stop/destroy with fakes |
 | MCP contract | Capability discovery, strict schemas, CLI parity, authorization, durable operations, transport, and adversarial agent-interface behavior |
 | Integration | supported Compose engines, Docker/OrbStack/Podman capabilities, SSH, kubectl/Kustomize, SOPS, OpenBao contracts |
 | Disposable E2E | local/remote interactive and headless deployments, Kubernetes, build secrets, recovery and exact cleanup |
@@ -36,12 +36,12 @@ isolation, timeout, and cleanup.
 
 - positive and negative fixtures for every owned schema/version;
 - migration idempotence and comment/semantic preservation;
-- generated/user ownership and native override merging;
+- canonical user ownership and native override handling;
 - archive/path traversal, symlink, special-file, size, and race attacks;
 - argument injection and malicious template/remote output;
 - redaction across chunks, concurrency, errors, logs, evidence, and machine
   output;
-- secret absence from bundles, args, layers, image config, logs, evidence, and
+- secret absence from plans/staging, args, layers, image config, logs, evidence, and
   fixtures;
 - temporary-file cleanup on success, failure, cancellation, restart, and
   reboot-recovery simulation;
@@ -60,6 +60,9 @@ isolation, timeout, and cleanup.
   process inside one container managing only a distinct downstream target; and
 - proof that no host bridge or engine socket is projected into managed
   environments and `aiboxctl` cannot reach external lifecycle authority.
+- runtime-provider discovery, namespace collision, protocol mismatch, fixed
+  executable invocation, MCP policy, timeout, persistence effect, and refusal
+  of host/deployment authority;
 
 ## Runtime compatibility matrix
 

@@ -83,6 +83,13 @@ agent-native environment-execution posture, presents an MCP journey beside the
 equivalent CLI journey, and explains the executor/target and aibox/aiboxctl
 boundaries.
 
+Runtime documentation identifies the official Dev Container CLI (MIT) and
+envbuilder (Apache-2.0) as external standard tools, records supported versions,
+and carries applicable licenses, notices, and transitive dependency review when
+a distribution bundles them. DevPod is not a supported runtime dependency.
+Local Features below `.devcontainer/`, direct tarball references, and OCI
+Features receive equivalent executable-content trust warnings.
+
 - **AIBOX-DOC-001:** documentation MUST NOT describe a host bridge, creator
   callback, mounted engine socket, or `aiboxctl` lifecycle proxy as supported.
 - **AIBOX-DOC-002:** documentation MUST state that most managed environments do
@@ -107,8 +114,8 @@ The intended host CLI matrix is Linux/macOS `amd64` and `arm64`. Release
 artifacts contain binaries, checksums, SBOMs, licenses/notices, provenance,
 signatures/attestations, changelog/release notes, and documented verification.
 If `aiboxctl` is shipped separately, its platform/image artifact identity is
-equally bound. Published template packages carry independent identity, digest,
-compatibility, license, and provenance.
+equally bound. Published standard Dev Container Template and Feature packages
+carry independent identity, digest, compatibility, license, and provenance.
 
 - **AIBOX-REL-001:** no release is built from a dirty worktree or unaccepted
   specification state.

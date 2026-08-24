@@ -2,23 +2,25 @@
 
 ### Local interactive development
 
-1. Initialize intent from a conforming template.
-2. Select explicit addon enablement/version overrides, including processkit as
-   an ordinary addon.
-3. Apply and inspect a secret-free Compose/image bundle.
+1. Apply a standard Dev Container Template or use an existing definition.
+2. Select local or OCI Features directly in `devcontainer.json`, including
+   processkit as ordinary project tooling where desired.
+3. Create, review, and apply a secret-free saved plan.
 4. Merge a user-owned Compose override without aibox rewriting it.
 5. Build and start on a supported Docker-compatible engine.
 6. Decrypt a SOPS reference with an OS-keychain identity and start a dedicated
    tmux process tree through exec-scoped environment delivery.
 7. Prove unrelated existing processes and container configuration did not
    receive the exec-only value.
-8. Change a template-declared theme/layout with optional `aiboxctl`.
-9. Down/delete with exact resource and temporary-material cleanup.
+8. Change a provider-declared theme/layout through optional `aiboxctl` CLI and
+   MCP without domain knowledge in aiboxctl.
+9. Plan and apply destroy with exact resource, storage-retention, and
+   temporary-material cleanup.
 
 ### Remote interactive development
 
 1. Consume explicit remote target information or a verified ainfra handover.
-2. Compile locally and transfer the verified secret-free bundle over SSH.
+2. Stage and transfer exact verified native inputs over SSH.
 3. Combine a local copied or explicit remote-native Compose override and
    inspect its effective digest.
 4. Invoke Compose on the remote host and validate readiness.
@@ -29,11 +31,11 @@
 
 ### Headless workload
 
-1. Compile a headless template without `aiboxctl`, tmux, SSH, or UI features.
+1. Validate a headless definition without `aiboxctl`, tmux, SSH, or UI features.
 2. Deploy locally and remotely using native Compose.
 3. Use OpenBao workload/agent delivery with denial, renewal, rotation, and
    restart behavior.
-4. Prove no secret value entered bundle, args, logs, evidence, or image.
+4. Prove no secret value entered plans, staging, args, logs, evidence, or image.
 
 ### Kubernetes workload
 
@@ -50,12 +52,12 @@
 1. Supply a SOPS- or OpenBao-derived value through a BuildKit secret mount.
 2. Complete the build locally and through a remote builder path.
 3. Prove the value is absent from source, context, layers, image config,
-   cache-export contract, logs, bundle, and evidence.
+   cache-export contract, logs, staging, and evidence.
 
 ### Agent-native MCP lifecycle
 
 1. Start a read-only stdio server bound to one project and explicit target set;
-   inspect intent, template, lock, bundle, target capabilities, status,
+   inspect intent, standard definition, lock, plan, target capabilities, status,
    sanitized evidence, and diagnostics.
 2. Enable planning and produce input-bound build/deployment/delete previews
    without acquiring secrets or mutating a target.
@@ -78,9 +80,10 @@
 
 - Diagnose representative v0 configurations without mutation.
 - Deterministically migrate fields with a unique semantic mapping.
-- Preserve addon enable/disable and supported explicit version intent.
-- Convert processkit integration into ordinary addon intent where the selected
-  template supplies that addon.
+- Convert addon selections with unique mappings into direct local or OCI
+  Feature references and preserve supported explicit version intent.
+- Convert processkit installation into ordinary Feature/project tooling where
+  a unique mapping exists.
 - Identify themes, harnesses, yazi/tmux customization, and other former engine
   features requiring template selection or native override.
 - Refuse ambiguous conversions with an actionable report usable in headless
@@ -92,7 +95,7 @@
 
 - Threat model and trust boundaries are public and tested.
 - Redaction precedes every output/log/evidence sink.
-- No secret values occur in committed intent, locks, bundles, command args,
+- No secret values occur in committed intent, locks, plans, staging, command args,
   examples, fixtures, generated YAML, image layers, or run evidence.
 - Temporary secret artifacts use exact lifecycle cleanup and recovery.
 - Provider denial, expired identity, unavailable broker, lease rotation,
@@ -111,9 +114,10 @@
 
 ## Template acceptance
 
-- A clean-room author produces a template using only public authoring material.
-- The template composes addons and supports explicit versions without engine
-  feature conditionals.
+- A clean-room author produces a standard Dev Container Template using only
+  public upstream and aibox conformance material.
+- The Template composes local and OCI Features with explicit versions without
+  engine feature conditionals or an aibox content DSL.
 - At least one interactive, one headless, one remote Compose, and one
   Kubernetes template/profile combination passes disposable conformance.
 - Native overrides/overlays work without aibox schema duplication.

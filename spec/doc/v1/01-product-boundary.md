@@ -2,9 +2,9 @@
 
 - Replace the current implementation with a maintainable Go CLI and a small,
   optional Go `aiboxctl` binary.
-- Compile human-readable project intent and versioned templates into
-  inspectable, target-native image and deployment artifacts.
-- Keep engine behavior independent of template-installed tools, addons,
+- Treat standard Dev Container definitions as canonical and bind them through
+  human-readable deployment intent to authorized targets and established tools.
+- Keep engine behavior independent of template-installed tools, Features,
   harnesses, themes, and processkit.
 - Support interactive and headless workloads on local and remote
   Docker-compatible hosts and Kubernetes clusters.
@@ -15,7 +15,7 @@
 - Integrate with ainfra through a versioned, non-secret target handover while
   keeping infrastructure provisioning outside aibox.
 - Provide MCP as the primary agent interface and a complete equivalent CLI over
-  one application core.
+  one application core, plus bounded CLI/MCP access from optional `aiboxctl`.
 - Preserve a one-way trust boundary: aibox manages distinct other
   environments, while optional `aiboxctl` manages only its current environment.
 
@@ -33,16 +33,15 @@
 
 1. Initialize a project from a template and explicit target/profile choices.
 2. Validate and migrate project intent deterministically.
-3. Resolve and lock a template plus selected addon versions.
-4. Compile a secret-free image/deployment bundle and inspect the effective
-   native configuration.
+3. Resolve and lock standard Templates, Features, images, and runtime tools.
+4. Create and inspect a secret-free saved deployment plan.
 5. Build and start a local interactive container.
-6. Transfer a bundle over SSH and run Compose on a remote development host.
-7. Apply rendered resources to a local or remote Kubernetes API.
+6. Transfer staged native inputs over SSH and run standard tooling remotely.
+7. Apply project-owned native resources to a local or remote Kubernetes API.
 8. Enter an interactive environment through runtime-native exec/attach.
 9. Run a headless workload with brokered, renewable secrets.
-10. Change template-declared runtime features such as theme or tmux layout
-    through optional `aiboxctl` without rebuilding the image.
+10. Change provider-declared runtime capabilities through optional `aiboxctl`
+    CLI or MCP without hard-coding their implementation.
 11. Perform the bounded lifecycle against a distinct target through guarded
     MCP tools with equivalent CLI recovery.
 
@@ -75,22 +74,22 @@
 
 | Owner | Responsibilities |
 |---|---|
-| aibox application core | Intent parsing, deterministic migration, template acquisition and lock, compilation, capability probing, bundle transfer, native-tool invocation, diagnostics, evidence, cleanup for distinct target environments |
+| aibox application core | Deployment intent, target/policy/secret/storage binding, saved plans, adapter selection, native-tool invocation, diagnostics, durable operations, evidence, and cleanup for distinct target environments |
 | MCP and CLI adapters | Typed request conversion, capability presentation, result rendering, transport behavior, and delegation to identical application use cases |
-| Template | Image sources, addons, supported versions, deployment sources, interaction features, runtime assets, target/profile support, documentation and tests |
+| Standard Dev Container artifacts | Template scaffolding, environment definition, Features, image sources, Compose topology, native configuration, documentation, and tests |
 | Native tools | Dev Container interpretation, image builds, Compose merging/lifecycle, Kubernetes rendering/apply, runtime exec/attach |
-| `aiboxctl` | Optional bounded application of template-declared runtime settings inside its current running environment only |
+| `aiboxctl` | Optional bounded CLI/MCP router for current-environment runtime capability providers |
 | Secret provider | Encryption, storage, authentication, authorization, lease/renewal, revocation, or attested release |
 | ainfra/platform | Infrastructure provisioning, target capabilities and endpoints, trust and credential references, OpenBao/KBS deployment |
 | User override/overlay | Native target-specific customization and accepted security consequences |
 
 - **AIBOX-BOUNDARY-001:** production engine code MUST NOT branch on a known
-  addon, processkit, harness, editor, theme, or template feature name.
-- **AIBOX-BOUNDARY-002:** a template MUST express installation and deployment
-  specifics through native sources and versioned declarative metadata, not
+  Feature, processkit, harness, editor, theme, or runtime-provider domain name.
+- **AIBOX-BOUNDARY-002:** a Template MUST express installation and deployment
+  specifics through standard Features and native sources, not
   arbitrary snippets executed by a privileged aibox shell.
-- **AIBOX-BOUNDARY-003:** aibox MUST preserve a documented path from generated
-  output to direct use of the underlying standard tools.
+- **AIBOX-BOUNDARY-003:** aibox MUST preserve direct use of canonical standard
+  files with their underlying tools as a documented escape path.
 - **AIBOX-BOUNDARY-004:** an aibox installation MAY itself run in any suitable
   executor, including a container, but every managed target MUST be a distinct
   environment with no authority path back to its creator.
