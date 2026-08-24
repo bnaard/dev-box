@@ -14,7 +14,8 @@
 - Offer secure, composable secret-provider and delivery choices without
   forcing one provider, exposure scope, or runtime mechanism on every user.
 - Integrate with ainfra through a versioned, non-secret target handover while
-  keeping infrastructure provisioning outside aibox.
+  keeping infrastructure provisioning outside aibox, without requiring
+  ainfra for local or independently configured targets.
 - Provide MCP as the primary agent interface and a complete equivalent CLI over
   one application core, plus bounded CLI/MCP access from optional `aiboxctl`.
 - Preserve a one-way trust boundary: aibox manages distinct other
@@ -73,6 +74,9 @@
   engine, cluster authority, or lifecycle credentials.
 - **AIBOX-NONGOAL-010:** `aiboxctl` is not a proxy for aibox and does not manage
   another environment.
+- **AIBOX-NONGOAL-011:** aibox does not implement Airunner's agent loop or
+  Processkit's repository memory. Either product is optional box content
+  installed through standard Features or native image configuration.
 
 ## Ownership boundary
 
@@ -104,6 +108,30 @@
   platform makes allocation inseparable from creating the declared container
   workload; it MUST NOT generalize that exception into infrastructure
   provisioning.
+- **AIBOX-BOUNDARY-007:** a valid aibox installation MUST support local use
+  without ainfra. Remote targets MAY come from an immutable ainfra result or
+  from explicit target configuration owned by another authority.
+
+## First beta boundary
+
+The first beta proves reproducible agent boxes rather than the entire target,
+provider, and secret matrix. It supports:
+
+- a local interactive box for tmux, shells, editors, and ordinary harness
+  CLIs; and
+- a headless box that runs an arbitrary unattended loop harness as PID 1 with
+  durable status, logs, stop, cleanup, and declared persistent state.
+
+Processkit and Airunner are reference Features, not engine dependencies.
+Remote Compose is the first remote proving path. Kubernetes, managed-container
+GPU targets, OpenBao, confidential computing, and broad provider coverage may
+progress independently after the beta unless a narrower dependency is proven.
+
+- **AIBOX-BETA-001:** beta acceptance MUST NOT require Airunner itself; a
+  conforming third-party or fixture headless harness proves the workload
+  boundary.
+- **AIBOX-BETA-002:** interactive and headless beta journeys MUST use the same
+  planning, evidence, recovery, and cleanup application core.
 
 ## Supported delivery
 

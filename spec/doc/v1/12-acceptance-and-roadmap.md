@@ -1,5 +1,18 @@
 ## Product acceptance journeys
 
+### First beta acceptance
+
+The first beta is releasable when the local interactive and local/remote
+headless agent-box journeys pass with deterministic plans, durable status,
+evidence, recovery, and cleanup. It MUST NOT be blocked on Kubernetes,
+managed-container targets, OpenBao, confidential computing, Airunner itself,
+or an ainfra handover. Those capabilities retain their own later acceptance
+criteria.
+
+The beta uses standard Features to prove optional Processkit installation and
+an arbitrary interactive or headless harness. An Airunner Feature may be added
+when Airunner has an independently accepted contract.
+
 ### Local interactive development
 
 1. Apply a standard Dev Container Template or use an existing definition.

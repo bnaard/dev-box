@@ -66,14 +66,18 @@ groups:
         dependencies: ["4"]
 
   - label: Remote and cluster targets
-    note: native tools execute at explicit authority boundaries
+    note: prove the agent-box beta before broadening target coverage
     phases:
       - id: "6"
-        title: Remote Compose over SSH
+        title: Interactive and headless agent-box beta
         summary: >-
-          Transfer verified staged native inputs, source, and explicit overrides; execute
-          Compose on remote hosts; use SSH-protected engine exec/attach; and
-          provide interruption recovery and exact cleanup.
+          Prove local interactive tmux and harness-CLI boxes plus local and
+          remote headless PID-1 harness boxes; transfer verified staged native
+          inputs for the remote Compose path, preserve SSH-protected
+          exec/attach, persistent declared state, durable status, logs,
+          interruption recovery, and exact cleanup. Release the first beta
+          without requiring Kubernetes, managed compute, OpenBao, Airunner, or
+          the ainfra handover.
         status: planned
         dependencies: ["4", "5"]
       - id: "7"
@@ -91,8 +95,8 @@ groups:
           Consume and verify the versioned non-secret ainfra target projection,
           including capabilities, endpoints, access paths, provider and trust
           references, provenance binding, and compatibility diagnostics.
-        status: idea
-        dependencies: ["6", "7"]
+        status: planned
+        dependencies: ["6"]
       - id: "9"
         title: Managed-container target adapter
         summary: >-

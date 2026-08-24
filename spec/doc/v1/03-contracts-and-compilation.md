@@ -1,10 +1,11 @@
 ## Contract families
 
 Aibox owns versioned schemas for deployment intent, local operational binding,
-lockfile, saved plan, target handover, machine command result, runtime-adapter
-capabilities, run evidence, and the optional aiboxctl capability-driver registry. It does
-not own schemas for Dev Container Templates, Features, `devcontainer.json`,
-Dockerfiles, Compose, or Kubernetes resources.
+lockfile, saved plan, target import/binding, machine command result,
+environment result, runtime-adapter capabilities, run evidence, and the
+optional aiboxctl capability-driver registry. It does not own the ainfra
+infrastructure-result schema or schemas for Dev Container Templates, Features,
+`devcontainer.json`, Dockerfiles, Compose, or Kubernetes resources.
 
 ## Deployment intent
 
@@ -66,7 +67,7 @@ are also valid when the selected Dev Container implementation supports them.
 ```text
 standard Dev Container definition + native target material
         + aibox deployment profile + local binding
-        + target/ainfra handover + selected policy
+        + local, explicit, or imported target + selected policy
                             │
                             ▼
              validate and resolve immutable inputs
@@ -167,3 +168,11 @@ infrastructure autodiscovery.
   actionable refusal; aibox does not guess endpoints or credentials.
 - **AIBOX-HANDOVER-004:** live/remote attestation remains part of the future
   confidential-computing contract.
+- **AIBOX-HANDOVER-005:** ainfra owns and versions the infrastructure result.
+  Aibox MUST preserve the imported artifact or its immutable content-addressed
+  reference and MUST NOT add environment or workload state to it.
+- **AIBOX-HANDOVER-006:** after consuming a target, aibox MUST emit a separate
+  Aibox-owned environment result for the operation it performed.
+- **AIBOX-HANDOVER-007:** target acquisition MUST support three independent
+  modes: local target, explicit existing target, and optional ainfra-result
+  import. Absence of ainfra data MUST NOT be an error in the first two modes.

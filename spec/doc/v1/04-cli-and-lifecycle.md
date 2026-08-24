@@ -72,6 +72,23 @@ user or agent workload through engine exec/attach, Kubernetes exec/attach, or
 explicitly selected workload SSH. A successful native deployment command is not
 itself readiness.
 
+Airunner is one possible PID 1, installed and configured as standard box
+content. Aibox does not interpret Airunner assignments, model turns,
+heartbeats, checkpoints, or registration. An orchestrator such as Kaits MAY
+pass opaque feature configuration and correlation metadata, then determines
+agent availability from Airunner's independent registration or health
+contract. Aibox success means that the requested environment and workload were
+deployed and reached their declared generic readiness condition.
+
+- **AIBOX-LIFECYCLE-020:** Airunner, Processkit, and other harness/runtime
+  products MUST remain optional Features or native image content and MUST NOT
+  create domain branches in the Aibox application core.
+- **AIBOX-LIFECYCLE-021:** a caller-supplied correlation identifier is opaque
+  evidence metadata. It MUST NOT grant authority, select secrets, or become an
+  Aibox resource identity.
+- **AIBOX-LIFECYCLE-022:** mutating operations MUST accept an idempotency key
+  or equivalent durable replay guard suitable for an external orchestrator.
+
 ## Autonomous headless and batch workloads
 
 Headless operation is a first-class service lifecycle, not an interactive

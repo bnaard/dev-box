@@ -42,6 +42,19 @@ Generated plans and run staging are replaced from inputs rather than migrated
 in place. User-owned Compose overrides, Kubernetes overlays, Dockerfiles, and
 Dev Container files are never rewritten by the generic migrator.
 
+Before the clean implementation replaces Aibox v0 or the Rust v1 experiments,
+the project MUST publish a concise lessons and capability disposition matrix.
+Material behavior is classified as retain, redesign, discard, defer, or
+investigate. Retained behavior becomes a requirement or black-box fixture; old
+source code and module boundaries are not reused by default.
+
+- **AIBOX-MIGRATION-010:** the disposition matrix MUST cover user-visible
+  lifecycle behavior, migrations, ownership safeguards, evidence and recovery,
+  packaging/platform failures, and downstream contracts that previously
+  exposed defects or operational value.
+- **AIBOX-MIGRATION-011:** the matrix is not a compatibility promise and MUST
+  NOT require copying implementation code from Aibox v0 or the Rust line.
+
 ## Output, logs, and evidence
 
 Three channels remain separate:
@@ -78,6 +91,28 @@ Evidence does not contain Compose/Kubernetes secret values, SOPS plaintext,
 private target data not necessary for recovery, raw environment dumps, or
 vault tokens. A future attestation phase adds live confidential evidence
 without retroactively overstating ordinary run records.
+
+## Standard environment result
+
+Every successful create or update operation produces one Aibox-owned,
+versioned environment result. It describes the environment and workload facts
+Aibox can substantiate, including stable environment and workload IDs, target
+binding, resolved definition and image provenance, generic lifecycle and
+readiness state, declared connection methods, retained storage, and evidence
+references.
+
+The result MAY reference an imported ainfra infrastructure result by immutable
+identity and digest. It MUST NOT copy, extend, or claim ownership of that
+artifact. Airunner registration, agent availability, model activity, and
+Processkit entity state remain outside the Aibox result.
+
+- **AIBOX-RESULT-001:** an environment result MUST remain useful when the
+  target is local or explicitly configured and no ainfra result exists.
+- **AIBOX-RESULT-002:** Aibox results MUST distinguish generic workload
+  process readiness from application-specific readiness determined by Kaits,
+  Airunner, or another consumer.
+- **AIBOX-RESULT-003:** product resource IDs and an optional opaque external
+  correlation ID MUST remain separate fields with separate semantics.
 
 ## Locking and recovery
 
