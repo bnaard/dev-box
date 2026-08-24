@@ -15,6 +15,7 @@ groups:
         status: in_progress
         decisions:
           - DEC-20260823_1428-CalmWolf-define-aibox-v1-x-rewrite-architecture
+          - DEC-20260824_1056-SoundSpruce-define-managed-container-targets-and-script
       - id: "1"
         title: Go application foundation
         summary: >-
@@ -28,7 +29,7 @@ groups:
         summary: >-
           Publish schemas and fixtures for deployment intent, local bindings,
           locks, saved plans, adapter capabilities, machine results, storage,
-          and runtime-provider registries; implement effective configuration
+          and runtime-capability-driver registries; implement effective configuration
           and deterministic v0 diagnosis and migration.
         status: planned
         dependencies: ["1"]
@@ -59,7 +60,8 @@ groups:
         summary: >-
           Add protected exec/attach, dedicated tmux workspace startup, and the
           optional bounded aiboxctl CLI/MCP application with template-installed
-          runtime capability providers and no domain-specific controller code.
+          runtime capability drivers, POSIX-shell-first fixed actions, and no
+          domain-specific controller code.
         status: planned
         dependencies: ["4"]
 
@@ -91,11 +93,21 @@ groups:
           references, provenance binding, and compatibility diagnostics.
         status: idea
         dependencies: ["6", "7"]
+      - id: "9"
+        title: Managed-container target adapter
+        summary: >-
+          Qualify and implement the internal adapter contract for platforms
+          whose atomic operation allocates capacity and creates the declared
+          OCI workload; use Vast.ai as the reference evaluation, keep platform
+          deployment credentials outside workloads, and prove plan-bound cost,
+          interruption, readiness, access, storage, and exact deletion effects.
+        status: idea
+        dependencies: ["3", "4"]
 
   - label: Secret providers and delivery
     note: provider and exposure scope remain orthogonal
     phases:
-      - id: "9"
+      - id: "10"
         title: SOPS user-mediated secrets
         summary: >-
           Integrate host/remote SOPS with OS-keychain or declared identities,
@@ -103,49 +115,50 @@ groups:
           mounted-file lifecycle, BuildKit secrets, redaction, and recovery.
         status: planned
         dependencies: ["4", "5", "6"]
-      - id: "10"
+      - id: "11"
         title: OpenBao brokered secrets
         summary: >-
           Support standard OpenBao API, Agent, and Kubernetes integration for
           local, remote, interactive, headless, renewable, and audited secret
           delivery without making aibox or aiboxctl a vault.
         status: planned
-        dependencies: ["7", "9"]
+        dependencies: ["7", "10"]
 
   - label: Authoring and ecosystem
     note: standard Templates and Features own environment content
     phases:
-      - id: "11"
+      - id: "12"
         title: Template authoring and clean-room conformance
         summary: >-
           Publish upstream-compatible examples, local/OCI Feature guidance,
-          native override and runtime-provider conventions, tests, and human/AI
+          native override and runtime-capability-driver conventions, tests, and human/AI
           documentation; prove clean-room authoring without engine source or a
           proprietary content DSL.
         status: planned
-        dependencies: ["5", "7", "10"]
-      - id: "12"
+        dependencies: ["5", "7", "9", "11"]
+      - id: "13"
         title: Initial certified template set
         summary: >-
-          Certify useful interactive and headless templates across local and
-          remote Compose and Kubernetes while treating processkit, harnesses,
+          Certify useful interactive, autonomous headless-service, and batch
+          templates across local and remote Compose, Kubernetes, and a
+          managed-container target while treating processkit, harnesses,
           editors, previews, themes, and toolchains as standard Features or
           native configuration.
         status: idea
-        dependencies: ["11"]
-      - id: "13"
+        dependencies: ["12"]
+      - id: "14"
         title: Public documentation and read-only MCP resources
         summary: >-
           Publish version-aligned human and AI-readable product documentation,
           generative discovery, schemas, and a read-only MCP resource server
           under the company open-source standards.
         status: planned
-        dependencies: ["11"]
+        dependencies: ["12"]
 
   - label: Agent interface
     note: guarded operations over the shared application core
     phases:
-      - id: "14"
+      - id: "15"
         title: Guarded MCP lifecycle interface
         summary: >-
           Make MCP the primary agent experience with read-only defaults and
@@ -155,34 +168,35 @@ groups:
           actions, prompt/tool attack defenses, and lost-session recovery;
           prove that aibox manages only distinct environments and never adds a
           bridge to its creator, while aiboxctl remains current-environment-
-          only and exposes only bounded stdio MCP provider tools.
+          only and exposes only bounded capability-driver tools.
         status: planned
-        dependencies: ["6", "7", "10", "11", "13"]
+        dependencies: ["6", "7", "9", "11", "12", "14"]
 
   - label: Hardening and release
     note: evidence-backed v1 availability
     phases:
-      - id: "15"
+      - id: "16"
         title: Compatibility, recovery, and security hardening
         summary: >-
-          Complete the Docker Desktop, OrbStack, Podman, remote-host, and
-          Kubernetes matrices; adversarial and failure tests; migrations;
-          evidence; and host-gated conformance.
+          Complete the Docker Desktop, OrbStack, Podman, remote-host,
+          Kubernetes, managed-container, autonomous-service, and batch
+          matrices; adversarial and failure tests; migrations; evidence; and
+          host-gated conformance.
         status: planned
-        dependencies: ["10", "11"]
-      - id: "16"
+        dependencies: ["11", "12"]
+      - id: "17"
         title: v1 prerelease and stable promotion
         summary: >-
           Produce signed/attested Linux and macOS artifacts, SBOMs, migration
           guidance, release-aligned documentation, and disposable acceptance
           evidence, then promote through the company version-line workflow.
         status: planned
-        dependencies: ["14", "15"]
+        dependencies: ["15", "16"]
 
   - label: Confidential workloads
     note: future attested infrastructure and secret release
     phases:
-      - id: "17"
+      - id: "18"
         title: Confidential computing and live attestation
         summary: >-
           Consume ainfra confidential target handover, bind measured workload
@@ -191,4 +205,4 @@ groups:
           release without moving infrastructure or secret authority into
           aibox.
         status: idea
-        dependencies: ["8", "16"]
+        dependencies: ["8", "17"]

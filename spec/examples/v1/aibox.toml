@@ -6,6 +6,7 @@ purpose = "agent-workspace"
 
 [profiles.local]
 target = "local"
+workload = "user-dev"
 interaction = "human-ui"
 
 [profiles.local.runtime]
@@ -20,7 +21,8 @@ implementation = "volume"
 
 [profiles.remote-agent]
 target = "ainfra://development/agent-runners"
-interaction = "headless"
+workload = "headless-service"
+interaction = "none"
 
 [profiles.remote-agent.runtime]
 candidates = ["envbuilder", "kubernetes-native"]

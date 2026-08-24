@@ -43,7 +43,7 @@ install aibox as an ordinary tool when the workload is intended to author
 templates or manage distinct downstream environments. That does not grant the
 current environment control over its creator or underlying host.
 
-`aiboxctl` has the inverse scope: it manages only bounded runtime-provider
+`aiboxctl` has the inverse scope: it manages only bounded runtime-capability
 capabilities of its current environment. It does not manage another environment
 and cannot proxy aibox deployment authority. Its CLI and stdio MCP mode share
 the same application core.
@@ -59,9 +59,9 @@ the same application core.
   relationship checks, and residual limitations MUST be explicit before
   mutation and retained in redacted evidence.
 - **AIBOX-AGENT-013:** `aiboxctl` MUST operate only on its current environment's
-  provider registry and MUST NOT expose aibox lifecycle operations.
+  capability-driver registry and MUST NOT expose aibox lifecycle operations.
 - **AIBOX-AGENT-014:** `aiboxctl mcp serve --stdio` MAY expose built-in
-  inspection and policy-allowed namespaced provider tools; it MUST NOT expose a
+  inspection and policy-allowed namespaced driver tools; it MUST NOT expose a
   network listener, generic shell, deployment lifecycle, or creator bridge.
 
 ## MCP command and transport

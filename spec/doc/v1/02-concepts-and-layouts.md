@@ -39,23 +39,25 @@ plan; it is not a second source of environment truth. An environment is the
 named deployed instance. A run is one bounded operation with correlation ID,
 events, result, diagnostics, and cleanup evidence.
 
-### Runtime capability provider
+### Runtime capability driver
 
-A runtime capability provider is a template- or Feature-installed executable
-inside the current environment. It implements a versioned local protocol for a
-bounded domain such as theme selection, tmux layouts, or a LaTeX companion.
-`aiboxctl` discovers, authorizes, routes, and audits providers without knowing
-their implementation.
+A runtime capability driver is template- or Feature-owned current-environment
+content: a versioned descriptor plus one or more fixed executables. Official
+projectious.work capabilities use small POSIX shell scripts where practical and
+invoke established tools; they do not require another fleet of compiled helper
+binaries. A richer implementation MAY expose the same bounded domain through a
+language-neutral stdio protocol. `aiboxctl` discovers, authorizes, invokes, and
+audits drivers without knowing their implementation.
 
 ## Orthogonal dimensions
 
 | Dimension | Initial values |
 |---|---|
-| Workload | `user-dev`, `headless` |
-| Target | `local`, `remote-host`, `kubernetes` |
-| Interaction | `exec-attach`, explicit SSH, `none` |
+| Workload | `user-dev`, `headless-service`, `batch` |
+| Target | `local`, `remote-host`, `kubernetes`, managed-container platform |
+| Interaction | `human-ui`, `exec-attach`, explicit SSH, `none` |
 | Definition | image, Dockerfile, Docker Compose |
-| Deployment runtime | Dev Container CLI, Compose, Kubernetes API/kubectl, envbuilder where conforming |
+| Deployment runtime | Dev Container CLI, Compose, Kubernetes API/kubectl, envbuilder where conforming, managed-container API/CLI adapter |
 | Secret provider | user-managed, SOPS, OpenBao; future KBS/custom |
 | Secret phase | build, deploy/create, interactive entry, runtime |
 | Secret delivery | build secret, container environment, exec environment, mounted file, agent/CSI, application API |

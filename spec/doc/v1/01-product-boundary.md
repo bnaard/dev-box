@@ -6,8 +6,9 @@
   human-readable deployment intent to authorized targets and established tools.
 - Keep engine behavior independent of template-installed tools, Features,
   harnesses, themes, and processkit.
-- Support interactive and headless workloads on local and remote
-  Docker-compatible hosts and Kubernetes clusters.
+- Support interactive, autonomous headless-service, and batch workloads on
+  local and remote Docker-compatible hosts, Kubernetes clusters, and qualified
+  managed-container platforms.
 - Preserve standard Compose and Kubernetes customization rather than
   reproducing those systems in aibox configuration.
 - Offer secure, composable secret-provider and delivery choices without
@@ -39,10 +40,13 @@
 6. Transfer staged native inputs over SSH and run standard tooling remotely.
 7. Apply project-owned native resources to a local or remote Kubernetes API.
 8. Enter an interactive environment through runtime-native exec/attach.
-9. Run a headless workload with brokered, renewable secrets.
-10. Change provider-declared runtime capabilities through optional `aiboxctl`
+9. Run an autonomous headless workload with brokered, renewable secrets,
+   bounded resources, health/restart policy, durable state, and a kill switch.
+10. Deploy an OCI workload through a managed-container adapter when platform
+    capacity allocation and container creation are one atomic operation.
+11. Change driver-declared runtime capabilities through optional `aiboxctl`
     CLI or MCP without hard-coding their implementation.
-11. Perform the bounded lifecycle against a distinct target through guarded
+12. Perform the bounded lifecycle against a distinct target through guarded
     MCP tools with equivalent CLI recovery.
 
 ## Non-goals
@@ -78,13 +82,14 @@
 | MCP and CLI adapters | Typed request conversion, capability presentation, result rendering, transport behavior, and delegation to identical application use cases |
 | Standard Dev Container artifacts | Template scaffolding, environment definition, Features, image sources, Compose topology, native configuration, documentation, and tests |
 | Native tools | Dev Container interpretation, image builds, Compose merging/lifecycle, Kubernetes rendering/apply, runtime exec/attach |
-| `aiboxctl` | Optional bounded CLI/MCP router for current-environment runtime capability providers |
+| `aiboxctl` | Optional bounded CLI/MCP router for current-environment runtime capability drivers |
 | Secret provider | Encryption, storage, authentication, authorization, lease/renewal, revocation, or attested release |
-| ainfra/platform | Infrastructure provisioning, target capabilities and endpoints, trust and credential references, OpenBao/KBS deployment |
+| ainfra/platform | Independently usable infrastructure provisioning, target capabilities and endpoints, trust and credential references, OpenBao/KBS deployment |
 | User override/overlay | Native target-specific customization and accepted security consequences |
 
 - **AIBOX-BOUNDARY-001:** production engine code MUST NOT branch on a known
-  Feature, processkit, harness, editor, theme, or runtime-provider domain name.
+  Feature, processkit, harness, editor, theme, or runtime-capability domain
+  name.
 - **AIBOX-BOUNDARY-002:** a Template MUST express installation and deployment
   specifics through standard Features and native sources, not
   arbitrary snippets executed by a privileged aibox shell.
@@ -95,6 +100,10 @@
   environment with no authority path back to its creator.
 - **AIBOX-BOUNDARY-005:** ordinary templates MUST NOT require aibox or
   `aiboxctl`; installing either is an explicit template/workload choice.
+- **AIBOX-BOUNDARY-006:** aibox MAY allocate capacity only where the target
+  platform makes allocation inseparable from creating the declared container
+  workload; it MUST NOT generalize that exception into infrastructure
+  provisioning.
 
 ## Supported delivery
 

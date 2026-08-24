@@ -31,11 +31,39 @@
 
 ### Headless workload
 
-1. Validate a headless definition without `aiboxctl`, tmux, SSH, or UI features.
-2. Deploy locally and remotely using native Compose.
-3. Use OpenBao workload/agent delivery with denial, renewal, rotation, and
-   restart behavior.
-4. Prove no secret value entered plans, staging, args, logs, evidence, or image.
+1. Validate autonomous service and batch definitions without `aiboxctl`, tmux,
+   SSH, or UI assumptions.
+2. Run an autonomous agent harness as the foreground workload, restore only
+   declared durable state, enter its heartbeat/work loop, and report distinct
+   startup, readiness, liveness, progress, and terminal outcomes.
+3. Deploy locally and remotely using native Compose and on Kubernetes with
+   equivalent target-native restart, health, resource, and storage semantics.
+4. Exercise graceful shutdown, forced termination, restart budgets, duplicate
+   agent prevention after controller loss, pause/kill-switch policy, and
+   immutable upgrade/rollback.
+5. Use OpenBao workload/agent delivery with denial, unattended authentication,
+   renewal, rotation, outage, and restart behavior.
+6. Enforce bounded CPU/GPU/memory/spend, controlled egress, structured logs,
+   durable evidence, and separation of workspace, agent state, cache, and
+   ephemeral secrets.
+7. Prove no secret value entered plans, staging, args, logs, evidence, or image
+   and no lifecycle or creator authority entered the workload.
+
+### Managed-container GPU workload
+
+1. Materialize and lock an OCI image for a headless model server or autonomous
+   agent.
+2. Plan a Vast.ai-style target through an internal managed-container adapter,
+   including GPU/VRAM, reliability, price bounds, storage, ports, interruption
+   policy, deployment credentials, and exact teardown effects.
+3. Apply through a reviewed official platform API or machine-readable CLI,
+   verify assigned access paths and readiness, and exercise logs and attach
+   where supported.
+4. Prove the platform credential never enters the workload and runtime secrets
+   remain separately scoped and delivered.
+5. Stop and delete the exact workload while honoring declared retained storage.
+6. Demonstrate that an independently usable host/cluster instead follows the
+   ordinary ainfra handover and aibox deployment path.
 
 ### Kubernetes workload
 
@@ -118,8 +146,9 @@
   public upstream and aibox conformance material.
 - The Template composes local and OCI Features with explicit versions without
   engine feature conditionals or an aibox content DSL.
-- At least one interactive, one headless, one remote Compose, and one
-  Kubernetes template/profile combination passes disposable conformance.
+- At least one interactive, one autonomous headless-service, one batch, one
+  remote Compose, one Kubernetes, and one managed-container template/profile
+  combination passes disposable conformance.
 - Native overrides/overlays work without aibox schema duplication.
 - Unsupported combinations fail during validation with precise capability
   diagnostics.

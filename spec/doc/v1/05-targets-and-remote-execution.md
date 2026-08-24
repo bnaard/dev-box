@@ -13,6 +13,7 @@ executor.
 | Local Docker-compatible | Local host | Compose-compatible CLI and engine API |
 | Remote Docker-compatible | Remote workload host over SSH | Remote Compose-compatible CLI; protected engine API for bounded exec/inspect |
 | Kubernetes | Local host or authorized bastion | `kubectl`/Kustomize against cluster API |
+| Managed-container platform | Authorized aibox executor | Reviewed platform API or machine-readable CLI |
 
 Kubernetes deployment never requires `kubectl` on a control-plane node. A
 remote API endpoint is the normal cluster boundary.
@@ -134,3 +135,34 @@ access paths, then return a non-secret target handover. Aibox consumes that
 contract. It does not mutate ainfra state or assume that a signed historical
 handover proves current liveness. `doctor` performs bounded connectivity and
 capability checks appropriate to the requested action.
+
+Ainfra prepares independently usable infrastructure. Aibox deploys container
+workloads into it. When a managed service exposes no empty host or cluster and
+its atomic operation both allocates capacity and creates the requested
+container, there is no mandatory ainfra step for that workload. Ainfra may
+still provide independent storage, networking, DNS, gateways, observability,
+OpenBao/KBS, registries, or account handover data.
+
+## Managed-container platforms
+
+A managed-container adapter treats the OCI image as the leading workload
+artifact and the platform allocation as part of applying that workload. Vast.ai
+is the initial reference evaluation: the adapter plans GPU/VRAM, reliability,
+price, storage, network exposure and interruption policy; uses a reviewed
+official API or CLI to create the image-backed instance; discovers assigned
+access paths and ports; verifies readiness; and owns exact stop/delete effects.
+
+- **AIBOX-MANAGED-001:** the adapter MUST show capacity, cost or bid bounds,
+  image digest, storage retention, network exposure, interruption semantics,
+  and destructive effects in the saved plan.
+- **AIBOX-MANAGED-002:** platform API credentials are deploy-phase adapter
+  credentials and MUST NOT be projected into the workload.
+- **AIBOX-MANAGED-003:** the adapter MUST prefer immutable image identity and
+  MUST report when a platform cannot prove the image digest actually started.
+- **AIBOX-MANAGED-004:** public inference or agent endpoints require explicit
+  exposure and policy; a secure tunnel, private route, or authenticated TLS
+  gateway is preferred over an unauthenticated public port.
+- **AIBOX-MANAGED-005:** a platform with an independently usable host or
+  cluster follows the ordinary ainfra handover plus aibox deployment flow;
+  atomic managed-container creation MUST NOT be misclassified solely because
+  an OpenTofu provider exists.

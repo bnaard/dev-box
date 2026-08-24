@@ -28,7 +28,8 @@ internal/
 │   ├── compose/          # Compose adapter
 │   ├── ssh/              # bounded remote execution
 │   ├── kubernetes/       # API/kubectl adapter
-│   └── envbuilder/       # conforming Kubernetes build adapter
+│   ├── envbuilder/       # conforming Kubernetes build adapter
+│   └── managed/          # managed-container APIs/CLIs; Vast.ai reference
 ├── target/               # target identity, capabilities, ainfra handover
 ├── policy/               # secure-agent and deployment policy
 ├── secret/               # provider/delivery orchestration
@@ -91,11 +92,13 @@ protocol helpers, diagnostics, and redaction packages. `aiboxctl` does not link
 deployment, target, remote, container-engine, Kubernetes, template-acquisition,
 or secret-provider adapters.
 
-`aiboxctl` may load current-environment capability providers through a narrow
-versioned local protocol. This is not the host runtime-adapter interface. A
-provider is installed as environment content, runs without a shell and without
-elevated creator authority, and owns all implementation knowledge for its
-domain. The aiboxctl core owns discovery, namespace collision checks, policy,
+`aiboxctl` may load current-environment capability drivers through a narrow
+versioned descriptor. This is not the host runtime-adapter interface. The
+normal projectious.work driver is a descriptor plus small Feature-owned POSIX
+shell scripts invoked as fixed argument vectors without shell evaluation. A
+richer driver may use a language-neutral stdio protocol when justified. The
+driver owns all implementation knowledge for its domain; the aiboxctl core owns
+only discovery, namespace collision checks, schema validation, policy,
 approval, timeouts, result normalization, audit, and MCP/CLI projection.
 
 ## Concurrency and dependencies

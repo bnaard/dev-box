@@ -59,10 +59,45 @@ local or approved bastion client against the Kubernetes API; it does not require
 login to a control-plane node. Envbuilder MAY be selected for a Kubernetes build
 only when its probed conformance satisfies the plan.
 
+For a managed-container platform, a target adapter MAY use the platform's
+reviewed official API or machine-readable CLI to select capacity and create the
+declared OCI workload when those are one atomic platform operation. The adapter
+then owns inspection, readiness, logs, attach where supported, stop, and exact
+deletion. It MUST NOT introduce OpenTofu state merely because a community
+provider exists; selection of API, CLI, or provider is an implementation-time
+qualification decision.
+
 The environment creates its declared PID 1. `attach` separately connects to the
 user or agent workload through engine exec/attach, Kubernetes exec/attach, or
 explicitly selected workload SSH. A successful native deployment command is not
 itself readiness.
+
+## Autonomous headless and batch workloads
+
+Headless operation is a first-class service lifecycle, not an interactive
+container with its terminal removed. An autonomous agent harness normally runs
+as the declared foreground process and owns its heartbeat/work loop. Aibox
+deploys, observes, stops, and replaces that workload; it does not implement the
+agent loop or require tmux, SSH, aiboxctl, or a UI.
+
+- **AIBOX-HEADLESS-001:** intent MUST distinguish `headless-service` from
+  finite `batch` work and MUST declare applicable startup, readiness, liveness,
+  progress, completion, restart, and failure-budget semantics.
+- **AIBOX-HEADLESS-002:** durable agent state, workspace, rebuildable model/tool
+  cache, and ephemeral secret material MUST be independently bindable storage
+  classes.
+- **AIBOX-HEADLESS-003:** unattended workloads MUST declare authentication and
+  secret-renewal behavior, resource and spend bounds where the target supports
+  them, network-egress policy, graceful shutdown, forced termination, and
+  operator pause or kill-switch behavior.
+- **AIBOX-HEADLESS-004:** recovery after executor or controller loss MUST avoid
+  creating a second active agent for the same exclusive workload identity.
+- **AIBOX-HEADLESS-005:** updates bind immutable image identity and declared
+  state compatibility and retain a target-native rollback or actionable
+  recovery path.
+- **AIBOX-HEADLESS-006:** structured logs, progress, terminal outcome, restart
+  history, and sanitized deployment evidence MUST remain observable without
+  interactive attachment.
 
 ## Whole-stack workflow
 
@@ -93,30 +128,34 @@ environment result suitable for kaits or another authorized consumer.
 one bounded application core. It MUST NOT know template-specific implementations
 such as a LaTeX companion API, Yazi plugin layout, or theme file format.
 
-Instead, a Template or Feature MAY install runtime capability providers and
-signed/locked provider manifests. A provider knows its own companion or native
-configuration. `aiboxctl` discovers provider metadata, applies policy, starts
-the fixed executable without a shell, routes versioned structured requests,
-namespaces MCP tools, and records changes.
+Instead, a Template or Feature MAY install runtime capability drivers and
+signed/locked descriptors. A driver knows its own companion or native
+configuration. For simple domains the descriptor maps typed actions to fixed
+Feature-owned scripts; richer domains MAY use a versioned stdio provider.
+`aiboxctl` discovers metadata, applies policy, invokes fixed argument vectors
+without shell evaluation, namespaces MCP tools, and records changes.
 
 ```text
 aiboxctl CLI/MCP
        │ authorize and route
-       ├── theme provider ── native theme files
-       ├── tmux provider ─── tmux server
-       └── latex provider ── scoped companion API
+       ├── theme driver ── Feature-owned script ── native theme files
+       ├── tmux driver ─── Feature-owned script ── tmux server
+       └── latex driver ── Feature-owned scripts ── tool/companion API
 ```
 
-The LaTeX provider may call a private service-network HTTP endpoint or another
-template-owned local protocol. It receives no host, engine, Kubernetes, aibox,
-or general secret-provider authority.
+For example, an official LaTeX Feature may install POSIX shell scripts named
+`aibox-latex-build`, `aibox-latex-watch`, and `aibox-latex-status`. Those
+scripts validate typed inputs and invoke established tools such as `latexmk`
+or a scoped private service endpoint. The Feature, not aiboxctl, owns and
+versions the scripts and companion behavior. They receive no host, engine,
+Kubernetes, aibox, or general secret-provider authority.
 
 - **AIBOX-CTL-001:** `aiboxctl` MUST NOT acquire, store, broker, or receive
   general secret values and MUST NOT deploy infrastructure or containers.
 - **AIBOX-CTL-002:** absence of `aiboxctl` and providers is conforming.
 - **AIBOX-CTL-003:** provider operations MUST be addressed only to the current
   environment, namespaced, schema-validated, time-bounded, and audited.
-- **AIBOX-CTL-004:** provider manifests MUST declare executable identity, tool
+- **AIBOX-CTL-004:** driver descriptors MUST declare executable identity, tool
   metadata, mutability class, persistence effect, required approval, and
   protocol compatibility; shell command strings are prohibited.
 - **AIBOX-CTL-005:** providers run with current-environment authority only and
@@ -128,3 +167,7 @@ or general secret-provider authority.
 - **AIBOX-CTL-007:** runtime changes distinguish ephemeral preference,
   persistent home state, and project-owned configuration and MUST NOT rewrite
   project-owned files without an explicit provider contract and authorization.
+- **AIBOX-CTL-008:** official projectious.work runtime drivers SHOULD use
+  auditable POSIX shell scripts that orchestrate established tools; Bash,
+  Python, a dedicated executable, or an MCP-over-stdio process requires a
+  documented need and does not become part of the aiboxctl domain model.

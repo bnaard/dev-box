@@ -24,8 +24,8 @@ them but cannot be the only interface.
 | Component | definition resolver, plan binding, internal runtime adapters, provider/delivery orchestration, remote transfer, child-process contracts |
 | Black box | CLI help/errors/results, config precedence, migration, plan/apply/up/attach/stop/destroy with fakes |
 | MCP contract | Capability discovery, strict schemas, CLI parity, authorization, durable operations, transport, and adversarial agent-interface behavior |
-| Integration | supported Compose engines, Docker/OrbStack/Podman capabilities, SSH, kubectl/Kustomize, SOPS, OpenBao contracts |
-| Disposable E2E | local/remote interactive and headless deployments, Kubernetes, build secrets, recovery and exact cleanup |
+| Integration | supported Compose engines, Docker/OrbStack/Podman capabilities, SSH, kubectl/Kustomize, managed-container API/CLI, SOPS, OpenBao contracts |
+| Disposable E2E | local/remote interactive, autonomous headless-service and batch deployments, Kubernetes, managed-container targets, build secrets, recovery and exact cleanup |
 
 Default tests are deterministic, credential-free, offline, parallel-safe, and
 isolated from real user home, keychain, Docker context, kubeconfig, SSH config,
@@ -50,6 +50,11 @@ isolation, timeout, and cleanup.
   override drift, timeout, and cancellation;
 - Kubernetes context/namespace authority, apply refusal, rollout failure,
   exec/attach, Secret state warnings, and cleanup;
+- managed-container capacity/cost binding, immutable image identity, platform
+  credential isolation, interruption, dynamic access paths, and exact deletion;
+- autonomous-agent startup/readiness/liveness/progress, restart budget, durable
+  state recovery, duplicate prevention, resource/spend bounds, egress policy,
+  graceful/forced termination, kill switch, and rollback;
 - tmux new/existing-server environment behavior;
 - OpenBao authentication, lease/rotation, outage, denial, and revocation; and
 - future KBS reference/attestation negative cases before that phase ships.
@@ -60,7 +65,7 @@ isolation, timeout, and cleanup.
   process inside one container managing only a distinct downstream target; and
 - proof that no host bridge or engine socket is projected into managed
   environments and `aiboxctl` cannot reach external lifecycle authority.
-- runtime-provider discovery, namespace collision, protocol mismatch, fixed
+- runtime-capability-driver discovery, namespace collision, protocol mismatch, fixed
   executable invocation, MCP policy, timeout, persistence effect, and refusal
   of host/deployment authority;
 

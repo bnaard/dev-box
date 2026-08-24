@@ -2,7 +2,7 @@
 
 Aibox owns versioned schemas for deployment intent, local operational binding,
 lockfile, saved plan, target handover, machine command result, runtime-adapter
-capabilities, run evidence, and the optional aiboxctl provider registry. It does
+capabilities, run evidence, and the optional aiboxctl capability-driver registry. It does
 not own schemas for Dev Container Templates, Features, `devcontainer.json`,
 Dockerfiles, Compose, or Kubernetes resources.
 
@@ -19,6 +19,7 @@ purpose = "agent-workspace"
 
 [profiles.local]
 target = "local"
+workload = "user-dev"
 interaction = "human-ui"
 
 [profiles.local.runtime]
@@ -33,7 +34,8 @@ implementation = "volume"
 
 [profiles.remote-agent]
 target = "ainfra://development/agent-runners"
-interaction = "headless"
+workload = "headless-service"
+interaction = "none"
 
 [profiles.remote-agent.runtime]
 candidates = ["envbuilder", "kubernetes-native"]
@@ -119,14 +121,23 @@ generator of project files.
 Adapters are internal Go packages compiled into `aibox`. Initial adapters wrap
 the official Dev Container CLI, Compose, bounded SSH execution, Kubernetes
 API/kubectl, and envbuilder where its conformance profile fits. DevPod is not a
-supported dependency or adapter. A public third-party plugin protocol is out of
-scope for v1.
+supported dependency or adapter. Managed-container platforms whose atomic API
+operation rents capacity and creates the declared OCI workload require a target
+adapter of the same kind; Vast.ai is the reference evaluation case. A public
+third-party plugin protocol is out of scope for v1.
 
 Each adapter implements the applicable subset of `probe`, `resolve`, `plan`,
 `build`, `deploy`, `inspect`, `exec`, `attach`, `stop`, `delete`, and evidence
 collection. Capability discovery states supported definitions, targets,
 headless/interactive behavior, multi-service fidelity, build-secret behavior,
 structured results, and whether a target-resident agent is required.
+
+Adapter ownership follows the lifecycle operation, not the implementation
+technology. The existence of an OpenTofu provider does not make container
+deployment an ainfra concern. If a service exposes an independently usable
+host or cluster, ainfra may provision it and aibox subsequently deploys onto
+it. If the service's atomic operation creates the declared container workload,
+the aibox adapter owns that operation and its lifecycle state.
 
 - **AIBOX-ADAPTER-001:** missing required capability MUST refuse rather than
   silently degrade or omit native semantics.
@@ -136,6 +147,11 @@ structured results, and whether a target-resident agent is required.
   construction, cancellation, redaction, version probing, and result capture.
 - **AIBOX-ADAPTER-004:** the internal interface MUST remain implementable by a
   future native adapter without making one necessary before a demonstrated gap.
+- **AIBOX-ADAPTER-005:** deployment credentials used by a managed-container
+  adapter MUST remain distinct from secrets delivered to the workload.
+- **AIBOX-ADAPTER-006:** a managed-container plan MUST bind immutable image
+  identity, capacity and price constraints, storage, networking, lifecycle and
+  deletion effects before the platform creates or rents a workload.
 
 ## ainfra target handover
 
