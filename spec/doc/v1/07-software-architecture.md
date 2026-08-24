@@ -20,6 +20,7 @@ cmd/
 internal/
 ├── app/              # use cases and orchestration
 ├── command/          # CLI parsing and rendering
+├── mcp/              # guarded MCP adapter; no lifecycle semantics
 ├── contract/         # schemas, version negotiation, normalized models
 ├── config/           # layered config and migration
 ├── template/         # acquisition, verification, manifest, lock
@@ -69,6 +70,9 @@ processkit, or an addon implementation.
 - **AIBOX-ARCH-005:** target support is selected through manifest and probed
   capability contracts, not runtime-brand switches except for documented
   compatibility workarounds isolated in adapters.
+- **AIBOX-ARCH-006:** CLI and MCP adapters MUST depend on the same application
+  use cases; domain/application packages MUST NOT import MCP SDK or transport
+  types.
 
 ## Template-engine boundary
 
@@ -95,6 +99,10 @@ The binaries MAY share contract and pure domain packages, but they are separate
 applications and release artifacts. `aiboxctl` does not import deployment,
 remote, container-engine, template acquisition, or secret-provider adapters.
 Its binary size and dependency set remain deliberately small.
+
+`aiboxctl` also does not import the MCP adapter. It controls only declared
+runtime features of its current environment. The shared contract packages do
+not provide a communication channel or lifecycle bridge between the binaries.
 
 ## Concurrency and cancellation
 

@@ -3,6 +3,10 @@
 Deployment compilation and deployment execution are separate. Aibox compiles
 where the user invokes it, then runs the standard deployment tool in an
 authorized environment whose filesystem and API semantics are unambiguous.
+The executor is not a managed target. When aibox runs in a container, it may
+manage a distinct remote host, cluster, nested isolated runtime, or other
+explicit target, but it receives no bridge to the host/engine that created the
+executor.
 
 | Target | Default execution location | Native tool |
 |---|---|---|
@@ -96,6 +100,12 @@ Initial probed capabilities include:
   mutually authenticated TLS; unauthenticated TCP sockets are prohibited.
 - **AIBOX-TARGET-011:** missing capabilities produce a refusal or a documented
   alternative adapter, never silent behavior degradation.
+- **AIBOX-TARGET-012:** target probing MUST establish sufficient identity,
+  topology, and resource scope to reject the executor itself and detected
+  resources that create or control it before mutation.
+- **AIBOX-TARGET-013:** inability to distinguish a proposed target from the
+  executor or its creator boundary MUST fail closed; a user acknowledgement is
+  not a substitute for target identity.
 
 ## Kubernetes targets
 

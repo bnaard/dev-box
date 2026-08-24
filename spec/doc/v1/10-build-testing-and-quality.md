@@ -23,6 +23,7 @@ them but cannot be the only interface.
 | Unit | parsers, normalization, migration, merge, graphs, redaction, path containment, capability decisions |
 | Component | compiler, bundle writer, provider/delivery orchestration, remote transfer, child-process contracts |
 | Black box | CLI help/errors/results, config precedence, migration, plan/apply/up/enter/down/delete with fakes |
+| MCP contract | Capability discovery, strict schemas, CLI parity, authorization, durable operations, transport, and adversarial agent-interface behavior |
 | Integration | supported Compose engines, Docker/OrbStack/Podman capabilities, SSH, kubectl/Kustomize, SOPS, OpenBao contracts |
 | Disposable E2E | local/remote interactive and headless deployments, Kubernetes, build secrets, recovery and exact cleanup |
 
@@ -52,6 +53,13 @@ isolation, timeout, and cleanup.
 - tmux new/existing-server environment behavior;
 - OpenBao authentication, lease/rotation, outage, denial, and revocation; and
 - future KBS reference/attestation negative cases before that phase ships.
+- MCP prompt/tool injection, immutable tool manifests, collision/shadowing,
+  capability and authorization denial, target substitution, secret extraction,
+  retry/replay, cancellation, and lost-session recovery;
+- executor/target identity and creator-boundary refusal, including an aibox
+  process inside one container managing only a distinct downstream target; and
+- proof that no host bridge or engine socket is projected into managed
+  environments and `aiboxctl` cannot reach external lifecycle authority.
 
 ## Runtime compatibility matrix
 

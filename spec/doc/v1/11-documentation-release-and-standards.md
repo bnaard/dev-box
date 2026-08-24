@@ -13,7 +13,8 @@ The specification adopts the current projectious.work standards:
 - spec-driven development cycle;
 - human-controlled host-phase execution and host-gated conformance;
 - open-source documentation strategy; and
-- AI-agent accessibility and generative discovery.
+- AI-agent accessibility and generative discovery; and
+- agent-native product interfaces.
 
 The company coordination repository remains the canonical source of those
 standards. This chapter records their aibox-specific application so the product
@@ -74,6 +75,22 @@ Optional product tools may validate intent/template content or return proposed
 starter content. Mutating deployment tools are not required to satisfy the
 discovery standard and need an independent authority/security specification
 before inclusion.
+
+The guarded operational MCP surface defined in
+[Agent-native posture and guarded MCP](13-agent-native-mcp.md) is separate from
+this read-only discovery baseline. Public documentation leads with the
+agent-native environment-execution posture, presents an MCP journey beside the
+equivalent CLI journey, and explains the executor/target and aibox/aiboxctl
+boundaries.
+
+- **AIBOX-DOC-001:** documentation MUST NOT describe a host bridge, creator
+  callback, mounted engine socket, or `aiboxctl` lifecycle proxy as supported.
+- **AIBOX-DOC-002:** documentation MUST state that most managed environments do
+  not install aibox; template/environment engineering workloads may install it
+  to manage distinct downstream targets.
+- **AIBOX-DOC-003:** documentation MUST distinguish probabilistic intent and
+  template authoring from deterministic validation, authorization, execution,
+  evidence, cleanup, and recovery.
 
 ## Spec-driven development
 

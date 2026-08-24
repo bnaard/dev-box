@@ -129,7 +129,7 @@ groups:
         status: idea
         dependencies: ["11"]
       - id: "13"
-        title: Public documentation and read-only MCP
+        title: Public documentation and read-only MCP resources
         summary: >-
           Publish version-aligned human and AI-readable product documentation,
           generative discovery, schemas, and a read-only MCP resource server
@@ -137,10 +137,27 @@ groups:
         status: planned
         dependencies: ["11"]
 
+  - label: Agent interface
+    note: guarded operations over the shared application core
+    phases:
+      - id: "14"
+        title: Guarded MCP lifecycle interface
+        summary: >-
+          Make MCP the primary agent experience with read-only defaults and
+          explicit planning, build, deployment, connection, and destruction
+          capabilities; preserve complete CLI parity, durable operation
+          identity, independent authorization, target containment, typed next
+          actions, prompt/tool attack defenses, and lost-session recovery;
+          prove that aibox manages only distinct environments and never adds a
+          bridge to its creator, while aiboxctl remains current-environment-
+          only and CLI-only.
+        status: planned
+        dependencies: ["6", "7", "10", "11", "13"]
+
   - label: Hardening and release
     note: evidence-backed v1 availability
     phases:
-      - id: "14"
+      - id: "15"
         title: Compatibility, recovery, and security hardening
         summary: >-
           Complete the Docker Desktop, OrbStack, Podman, remote-host, and
@@ -148,19 +165,19 @@ groups:
           evidence; and host-gated conformance.
         status: planned
         dependencies: ["10", "11"]
-      - id: "15"
+      - id: "16"
         title: v1 prerelease and stable promotion
         summary: >-
           Produce signed/attested Linux and macOS artifacts, SBOMs, migration
           guidance, release-aligned documentation, and disposable acceptance
           evidence, then promote through the company version-line workflow.
         status: planned
-        dependencies: ["13", "14"]
+        dependencies: ["14", "15"]
 
   - label: Confidential workloads
     note: future attested infrastructure and secret release
     phases:
-      - id: "16"
+      - id: "17"
         title: Confidential computing and live attestation
         summary: >-
           Consume ainfra confidential target handover, bind measured workload
@@ -169,4 +186,4 @@ groups:
           release without moving infrastructure or secret authority into
           aibox.
         status: idea
-        dependencies: ["8", "15"]
+        dependencies: ["8", "16"]

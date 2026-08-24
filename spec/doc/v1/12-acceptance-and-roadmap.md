@@ -52,6 +52,28 @@
 3. Prove the value is absent from source, context, layers, image config,
    cache-export contract, logs, bundle, and evidence.
 
+### Agent-native MCP lifecycle
+
+1. Start a read-only stdio server bound to one project and explicit target set;
+   inspect intent, template, lock, bundle, target capabilities, status,
+   sanitized evidence, and diagnostics.
+2. Enable planning and produce input-bound build/deployment/delete previews
+   without acquiring secrets or mutating a target.
+3. Independently authorize and execute build and deployment against a distinct
+   disposable target, then recover durable status through a new MCP client and
+   the CLI after simulated session loss.
+4. Prepare a bounded connection reference without proxying an arbitrary
+   terminal or accepting an arbitrary process command.
+5. Stop and delete the exact target with separate destruction capability and
+   authorization; prove CLI-equivalent effects, evidence, cleanup, and
+   recovery.
+6. Run aibox inside one isolated environment and manage a distinct downstream
+   remote/headless target without creator callback, host bridge, mounted engine
+   socket, or projected lifecycle credentials.
+7. Prove that an ordinary environment without aibox/aiboxctl conforms, while a
+   template-engineering environment may install aibox as a normal tool and
+   `aiboxctl` remains current-environment-only.
+
 ## Migration acceptance
 
 - Diagnose representative v0 configurations without mutation.
@@ -80,6 +102,12 @@
 - Native weaker options remain available with accurate assessment unless an
   explicit policy prohibits them.
 - Future KBS claims do not ship before live attestation conformance exists.
+- Prompt injection, tool poisoning/rug-pull/shadowing, capability escalation,
+  project/target/context/namespace substitution, conversational self-approval,
+  secret extraction, unsafe remediation, replay, and session loss are refused
+  before unauthorized native-tool effects.
+- Executor and creator-boundary checks fail closed; no managed environment
+  receives a host bridge, engine socket, or aibox lifecycle authority.
 
 ## Template acceptance
 
@@ -118,6 +146,7 @@ review, fixtures, and documentation:
 | SSH implementation | host verification, agent/keychain support, proxy/bastion, structured args, cancellation, transfer integrity |
 | SOPS invocation | version support, stdin/file modes, keychain identities, redaction, temporary-material behavior |
 | OpenBao integration modes | standard API/Agent/CSI, workload authentication, renewal, denial, outage and version support |
+| MCP SDK and protocol version | maintained implementation, strict schema/resource/tool support, cancellation, stdio interoperability, low domain coupling, and compatibility with the company agent-native interface standard |
 | Bundle signing | subject model, DSSE/in-toto compatibility, signer/freshness policy, keyless availability, offline verification |
 
 An implementation convenience does not become a durable product contract

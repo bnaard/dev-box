@@ -103,3 +103,9 @@ feature contract and invokes allowlisted template-provided operations.
   templates without runtime-changeable features.
 - **AIBOX-CTL-004:** runtime changes MUST be reversible or document why not,
   and MUST distinguish ephemeral from persisted user preference.
+- **AIBOX-CTL-005:** `aiboxctl` MUST reject any operation addressed to another
+  environment and MUST NOT access deployment, remote, container-engine,
+  Kubernetes, template-acquisition, or secret-provider authority.
+- **AIBOX-CTL-006:** aibox and `aiboxctl` MUST NOT communicate through an
+  implicit creator/guest bridge; their responsibilities meet only through
+  versioned template and runtime-feature artifacts.

@@ -24,11 +24,37 @@ Trust boundaries include:
 - workload versus secret provider;
 - ainfra-produced target handover versus current target state; and
 - ordinary workload identity versus future attested confidential identity.
+- MCP client versus the aibox application and its allowed project/targets;
+- aibox executor environment versus every distinct managed target; and
+- current-environment `aiboxctl` authority versus external aibox lifecycle
+  authority, with no bridge between them.
 
 Container-engine socket access is highly privileged. Remote hosts, cluster
 administrators, runtime administrators, and processes with sufficient same-UID
 or root access may observe workload secrets regardless of aibox delivery
 choices. Aibox documentation MUST state this boundary plainly.
+
+Agent-interface threats include prompt injection in template documentation,
+addons, Dockerfiles, image/build output, Compose metadata, Kubernetes objects,
+remote-host output, native overrides, diagnostics, and logs; tool poisoning,
+rug pulls, collision, and shadowing; project, target, engine, SSH host,
+Kubernetes context/namespace, credential, and operation substitution;
+conversational approval; unsafe generated remediation; credential extraction;
+request flooding; replay, cancellation, and session loss; and attempts to gain
+authority over the executor or creator boundary.
+
+- **AIBOX-SEC-007:** MCP tools, resources, schemas, descriptions, annotations,
+  namespaces, and capability membership MUST be trusted versioned aibox assets
+  and MUST NOT be supplied or modified by templates or target content.
+- **AIBOX-SEC-008:** a managed environment MUST NOT receive the executor's
+  container-engine socket, lifecycle credentials, MCP authority, or an implicit
+  route to its creator as an aibox implementation mechanism.
+- **AIBOX-SEC-009:** mutating MCP operations MUST have durable replay-resistant
+  identity and fail closed on ambiguous target identity, authority, prior
+  effects, or session-loss recovery.
+- **AIBOX-SEC-010:** diagnostics, explanations, and next actions MUST treat
+  template and target output as untrusted data and MUST NOT reflect arbitrary
+  executable instructions.
 
 ## Secret model
 

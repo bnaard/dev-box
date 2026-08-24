@@ -19,12 +19,13 @@ for implementation plans, tests, reviews, documentation, and release evidence.
 
 ## Product statement
 
-aibox is a small, transparent CLI that compiles versioned project intent and
+aibox is the agent-native environment execution boundary for reproducible AI
+workspaces. Its MCP and CLI adapters compile versioned project intent and
 standards-based templates into inspectable container-image and deployment
-bundles, then delegates build and deployment to native tools. It supports local
+bundles, then delegate build and deployment to native tools. It supports local
 and remote Docker-compatible hosts, Kubernetes targets, interactive and
 headless workloads, and an optional in-container `aiboxctl` for bounded runtime
-customization.
+customization of the current environment.
 
 Templates own image content, addons, deployment topology, and runtime features.
 The engine knows their contracts, not their installed tools. Processkit is an
@@ -44,6 +45,7 @@ ordinary template-selected addon rather than an aibox subsystem.
 10. [Build, testing, and quality](10-build-testing-and-quality.md)
 11. [Documentation, releases, and company standards](11-documentation-release-and-standards.md)
 12. [Acceptance and implementation roadmap](12-acceptance-and-roadmap.md)
+13. [Agent-native posture and guarded MCP](13-agent-native-mcp.md)
 
 Supporting material:
 
@@ -62,6 +64,12 @@ This specification incorporates the accepted company decision
 aibox and optional aiboxctl in Go; separate engine and templates; preserve
 native deployment escape hatches; model targets and secret delivery as
 orthogonal dimensions; support SOPS, OpenBao, and future attestation-gated KBS.
+
+It also incorporates
+`DEC-20260824_0139-TenderFlame-separate-aibox-external-environment-management-from`:
+aibox manages only other environments, `aiboxctl` manages only the current
+environment, and no bridge gives a managed environment authority over its
+creator.
 
 The checked-in specification is self-contained. External discussion or a
 decision record is provenance, not hidden normative authority. A changed
@@ -82,6 +90,8 @@ There are four independent claims:
 
 - **CLI conformance:** the host `aibox` binary satisfies its lifecycle,
   compilation, security, output, and compatibility requirements.
+- **MCP conformance:** `aibox mcp serve` exposes guarded agent operations over
+  the same application core with CLI-equivalent lifecycle and recovery.
 - **Template conformance:** a template satisfies its manifest, source,
   documentation, feature, target, and fixture contracts.
 - **Bundle conformance:** a rendered bundle is secret-free, deterministic for
