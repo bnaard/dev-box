@@ -845,7 +845,7 @@ Visual and layout configuration. See [Themes](../customization/themes.md) and [L
 
 | Field | Type | Required | Default | Description |
 |-------|------|----------|---------|-------------|
-| `theme` | String | No | `"gruvbox"` | One of 34 theme families, including Projectious, mono, contrast, and contrast-mono; see [Themes](../customization/themes.md). |
+| `theme` | String | No | `"gruvbox"` | One of 37 theme families, including Projectious, accessibility, and period-terminal families; see [Themes](../customization/themes.md). |
 | `mode` | String | No | `"auto"` | Global theme mode overlay: `auto`, `light`, `dark`. `auto` follows the host OS appearance when detectable during `aibox apply`, `aibox up`, or `aibox set theme.*`; otherwise it preserves the selected concrete theme. |
 | `variant` | String | No | unset | Optional family-specific variant such as `mirage`, `deep`, `high-contrast-dark`, or `max`. Invalid variants and incompatible explicit modes are rejected with the available choices. |
 | `emphasis` | String | No | `"auto"` | Semantic font-decoration level: `auto`, `full`, `standard`, `minimal`, or `none`. `auto` probes terminal capabilities; `NO_COLOR` forces `none`. Max-contrast variants reject `none`. |

@@ -1716,11 +1716,13 @@ pub(crate) fn serialize_config_with_comments(config: &AiboxConfig) -> String {
     out.push_str("# [customization] — color theme, shell prompt, and tmux layout\n");
     out.push_str(sep);
     out.push_str("# Theme is applied consistently across tmux, Vim, Yazi, lazygit, and bat.\n");
-    out.push_str("# Theme families (34 total):\n");
-    out.push_str("#   Multi-variant: ayu, catppuccin, dracula, everforest, github, gruvbox,\n");
+    out.push_str("# Theme families (37 total):\n");
+    out.push_str(
+        "#   Multi-variant: ayu, borland, catppuccin, dracula, everforest, github, gruvbox,\n",
+    );
     out.push_str("#     kanagawa, material, min, mono, night-owl, one-dark, projectious,\n");
     out.push_str("#     rose-pine, slack, solarized, tokyo-night, vitesse, vscode, contrast,\n");
-    out.push_str("#     contrast-mono\n");
+    out.push_str("#     contrast-mono, norton, phosphor\n");
     out.push_str("#   Single-mode: andromeeda, aurora-x, houston, laserwave,\n");
     out.push_str("#     monokai, moonlight, nord, plastic, poimandres, red,\n");
     out.push_str("#     snazzy, synthwave-84, vesper\n");
@@ -1745,6 +1747,7 @@ pub(crate) fn serialize_config_with_comments(config: &AiboxConfig) -> String {
     out.push_str("#   tokyo-night: \"storm\"    vitesse: \"black\"\n");
     out.push_str("#   projectious: \"deep\" | \"high-contrast-dark\" | \"high-contrast-light\"\n");
     out.push_str("#   contrast, contrast-mono: \"max\"\n");
+    out.push_str("#   borland, norton, phosphor: \"classic\" | \"optimized\"\n");
     if let Some(ref v) = config.customization.variant {
         out.push_str(&format!("variant = \"{v}\"\n"));
     } else {

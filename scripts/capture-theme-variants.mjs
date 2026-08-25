@@ -9,7 +9,7 @@ const root = path.resolve(import.meta.dirname, "..");
 const require = createRequire(path.join(root, "docs-site/package.json"));
 const { chromium } = require("playwright");
 const { parse: parseToml } = require("smol-toml");
-const source = path.join(root, "tmp/Terminal theme configuration review/Variant Board.dc.html");
+const source = path.join(root, "docs/Terminal theme configuration review/Variant Board.dc.html");
 const output = path.join(root, "docs-site/static/img/themes/variants");
 await mkdir(output, { recursive: true });
 

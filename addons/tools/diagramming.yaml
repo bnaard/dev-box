@@ -1,0 +1,56 @@
+name: diagramming
+version: "1.0.0"
+description: "Build-time diagram rendering with D2 and Graphviz"
+profile_intent: build
+usage_class: automated
+profiles: ["human-dev", "headless-runner"]
+exported_surfaces: ["build-toolchain", "cli-binary"]
+builder_weight: "light"
+
+skills:
+  - documentation
+
+tools:
+  - name: d2
+    description: "D2 declarative diagram renderer"
+    default_enabled: true
+    default_version: "0.7.1"
+    supported_versions: ["0.7.1"]
+  - name: graphviz
+    description: "Graphviz graph layout and rendering commands"
+    default_enabled: true
+    default_version: ""
+    supported_versions: []
+
+builder: null
+
+runtime: |
+  # Addon: diagramming — native D2 and Graphviz renderers.
+  USER root
+  {% if tools.d2.enabled %}
+  RUN ARCH="$(uname -m)" && \
+      D2_VERSION="v{{ tools.d2.version }}" && \
+      case "${D2_VERSION}:${ARCH}" in \
+        v0.7.1:x86_64) D2_ARCH="amd64"; D2_SHA256="eb172adf59f38d1e5a70ab177591356754ffaf9bebb84e0ca8b767dfb421dad7" ;; \
+        v0.7.1:aarch64) D2_ARCH="arm64"; D2_SHA256="ce3a0b985a8f91335a826c254b3a88736fd81afcdd08b58f6c749d2add6864b0" ;; \
+        *) echo "Unsupported D2 version/architecture: ${D2_VERSION}/${ARCH}" >&2; exit 1 ;; \
+      esac && \
+      D2_ASSET="d2-${D2_VERSION}-linux-${D2_ARCH}.tar.gz" && \
+      curl -fsSL --retry 5 --retry-all-errors --retry-delay 2 --connect-timeout 30 \
+        "https://github.com/d2lang/d2/releases/download/${D2_VERSION}/${D2_ASSET}" \
+        -o /tmp/d2.tar.gz && \
+      echo "${D2_SHA256}  /tmp/d2.tar.gz" | sha256sum -c - && \
+      tar -xzf /tmp/d2.tar.gz -C /tmp "d2-${D2_VERSION}/bin/d2" && \
+      install -m 0755 "/tmp/d2-${D2_VERSION}/bin/d2" /usr/local/bin/d2 && \
+      rm -rf /tmp/d2.tar.gz "/tmp/d2-${D2_VERSION}"
+  {% else %}
+  RUN rm -f /usr/local/bin/d2
+  {% endif %}
+  {% if tools.graphviz.enabled %}
+  RUN apt-get update && apt-get install -y --no-install-recommends graphviz \
+      && rm -rf /var/lib/apt/lists/*
+  {% else %}
+  RUN if dpkg-query -W -f='${Status}' graphviz 2>/dev/null | grep -q 'install ok installed'; then \
+        apt-get purge -y --auto-remove graphviz; \
+      fi && rm -rf /var/lib/apt/lists/*
+  {% endif %}

@@ -1,12 +1,12 @@
 {
   "meta": {
     "source": "THEME-DESIGN-AGENT-BRIEFING.md (v0.x snapshot, 2026-08-20)",
-    "families": 34,
-    "variants": 76,
+    "families": 37,
+    "variants": 82,
     "canonical_corrections": 53,
     "contrast_corrections": 141,
     "failing_pairs_before": 145,
-    "failing_pairs_after": 0
+    "failing_pairs_after": 4
   },
   "roles": {
     "code_keyword": {
@@ -1046,6 +1046,322 @@
         }
       ],
       "attributes": []
+    },
+    {
+      "id": "BorlandClassic",
+      "slug": "borland-classic",
+      "family": "borland",
+      "mode": "dark",
+      "variant": "classic",
+      "config_variant": "classic",
+      "emphasis_min": "standard",
+      "suspect": "",
+      "general_appearance": "blue",
+      "contrast_ratio": 12.46,
+      "contrast": "high",
+      "tools": [
+        "vim",
+        "tmux",
+        "yazi",
+        "eza",
+        "starship",
+        "delta",
+        "bat",
+        "fzf",
+        "less",
+        "lnav",
+        "lazygit",
+        "claude_code",
+        "gemini",
+        "opencode",
+        "aider"
+      ],
+      "render": {
+        "background": "#0000AA",
+        "foreground": "#FFFF55",
+        "surface": "#000066",
+        "tab_background": "#FFFFFF",
+        "tab_foreground": "#0000AA",
+        "path": "#FFFFFF",
+        "success": "#55FF55",
+        "muted": "#AAAAAA",
+        "keyword": "#FF55FF",
+        "function": "#55FFFF",
+        "type": "#FFFF55",
+        "error": "#FF5555",
+        "number": "#AA5500",
+        "selection_background": "#008888",
+        "selection_foreground": "#000000",
+        "border": "#AAAAAA"
+      },
+      "palette": [
+        {
+          "slot": "bg",
+          "value": "#0000AA"
+        },
+        {
+          "slot": "fg",
+          "value": "#FFFF55"
+        },
+        {
+          "slot": "accent",
+          "value": "#FFFFFF"
+        },
+        {
+          "slot": "green",
+          "value": "#55FF55"
+        },
+        {
+          "slot": "red",
+          "value": "#FF5555"
+        },
+        {
+          "slot": "yellow",
+          "value": "#FFFF55"
+        },
+        {
+          "slot": "orange",
+          "value": "#AA5500"
+        },
+        {
+          "slot": "cyan",
+          "value": "#55FFFF"
+        },
+        {
+          "slot": "muted",
+          "value": "#AAAAAA"
+        },
+        {
+          "slot": "magenta",
+          "value": "#FF55FF"
+        }
+      ],
+      "chrome": [
+        {
+          "slot": "surface",
+          "value": "#000066"
+        },
+        {
+          "slot": "selection_bg",
+          "value": "#008888"
+        },
+        {
+          "slot": "selection_fg",
+          "value": "#000000"
+        },
+        {
+          "slot": "cursor",
+          "value": "#FFFFFF"
+        },
+        {
+          "slot": "cursor_text",
+          "value": "#0000AA"
+        },
+        {
+          "slot": "border_active",
+          "value": "#FFFFFF"
+        },
+        {
+          "slot": "border_inactive",
+          "value": "#AAAAAA"
+        },
+        {
+          "slot": "diff_add_bg",
+          "value": "#003366"
+        },
+        {
+          "slot": "diff_change_bg",
+          "value": "#554400"
+        },
+        {
+          "slot": "diff_del_bg",
+          "value": "#550055"
+        },
+        {
+          "slot": "status_active_ink",
+          "value": "#0000AA"
+        }
+      ],
+      "attributes": [
+        {
+          "slot": "accent",
+          "value": "bold"
+        },
+        {
+          "slot": "red",
+          "value": "bold"
+        },
+        {
+          "slot": "yellow",
+          "value": "bold"
+        },
+        {
+          "slot": "muted",
+          "value": "italic"
+        },
+        {
+          "slot": "magenta",
+          "value": "bold"
+        }
+      ]
+    },
+    {
+      "id": "BorlandOptimized",
+      "slug": "borland-optimized",
+      "family": "borland",
+      "mode": "dark",
+      "variant": "optimized",
+      "config_variant": "optimized",
+      "emphasis_min": "standard",
+      "suspect": "",
+      "general_appearance": "blue",
+      "contrast_ratio": 12.46,
+      "contrast": "high",
+      "tools": [
+        "vim",
+        "tmux",
+        "yazi",
+        "eza",
+        "starship",
+        "delta",
+        "bat",
+        "fzf",
+        "less",
+        "lnav",
+        "lazygit",
+        "claude_code",
+        "gemini",
+        "opencode",
+        "aider"
+      ],
+      "render": {
+        "background": "#0000AA",
+        "foreground": "#FFFF55",
+        "surface": "#000066",
+        "tab_background": "#FFFFFF",
+        "tab_foreground": "#0000AA",
+        "path": "#FFFFFF",
+        "success": "#55FF55",
+        "muted": "#C4C4C4",
+        "keyword": "#FF8AFF",
+        "function": "#55FFFF",
+        "type": "#FFFF55",
+        "error": "#FF7B7B",
+        "number": "#FFAA55",
+        "selection_background": "#008888",
+        "selection_foreground": "#000000",
+        "border": "#C4C4C4"
+      },
+      "palette": [
+        {
+          "slot": "bg",
+          "value": "#0000AA"
+        },
+        {
+          "slot": "fg",
+          "value": "#FFFF55"
+        },
+        {
+          "slot": "accent",
+          "value": "#FFFFFF"
+        },
+        {
+          "slot": "green",
+          "value": "#55FF55"
+        },
+        {
+          "slot": "red",
+          "value": "#FF7B7B"
+        },
+        {
+          "slot": "yellow",
+          "value": "#FFFF55"
+        },
+        {
+          "slot": "orange",
+          "value": "#FFAA55"
+        },
+        {
+          "slot": "cyan",
+          "value": "#55FFFF"
+        },
+        {
+          "slot": "muted",
+          "value": "#C4C4C4"
+        },
+        {
+          "slot": "magenta",
+          "value": "#FF8AFF"
+        }
+      ],
+      "chrome": [
+        {
+          "slot": "surface",
+          "value": "#000066"
+        },
+        {
+          "slot": "selection_bg",
+          "value": "#008888"
+        },
+        {
+          "slot": "selection_fg",
+          "value": "#000000"
+        },
+        {
+          "slot": "cursor",
+          "value": "#FFFFFF"
+        },
+        {
+          "slot": "cursor_text",
+          "value": "#0000AA"
+        },
+        {
+          "slot": "border_active",
+          "value": "#FFFFFF"
+        },
+        {
+          "slot": "border_inactive",
+          "value": "#C4C4C4"
+        },
+        {
+          "slot": "diff_add_bg",
+          "value": "#003366"
+        },
+        {
+          "slot": "diff_change_bg",
+          "value": "#554400"
+        },
+        {
+          "slot": "diff_del_bg",
+          "value": "#550055"
+        },
+        {
+          "slot": "status_active_ink",
+          "value": "#0000AA"
+        }
+      ],
+      "attributes": [
+        {
+          "slot": "accent",
+          "value": "bold"
+        },
+        {
+          "slot": "red",
+          "value": "bold"
+        },
+        {
+          "slot": "yellow",
+          "value": "bold"
+        },
+        {
+          "slot": "muted",
+          "value": "italic"
+        },
+        {
+          "slot": "magenta",
+          "value": "bold"
+        }
+      ]
     },
     {
       "id": "CatppuccinFrappe",
@@ -7316,6 +7632,322 @@
       "attributes": []
     },
     {
+      "id": "NortonClassic",
+      "slug": "norton-classic",
+      "family": "norton",
+      "mode": "dark",
+      "variant": "classic",
+      "config_variant": "classic",
+      "emphasis_min": "standard",
+      "suspect": "",
+      "general_appearance": "blue",
+      "contrast_ratio": 10.84,
+      "contrast": "high",
+      "tools": [
+        "vim",
+        "tmux",
+        "yazi",
+        "eza",
+        "starship",
+        "delta",
+        "bat",
+        "fzf",
+        "less",
+        "lnav",
+        "lazygit",
+        "claude_code",
+        "gemini",
+        "opencode",
+        "aider"
+      ],
+      "render": {
+        "background": "#0000AA",
+        "foreground": "#55FFFF",
+        "surface": "#000066",
+        "tab_background": "#FFFF55",
+        "tab_foreground": "#0000AA",
+        "path": "#FFFF55",
+        "success": "#55FF55",
+        "muted": "#AAAAAA",
+        "keyword": "#FF55FF",
+        "function": "#55FFFF",
+        "type": "#FFFF55",
+        "error": "#FF5555",
+        "number": "#AA5500",
+        "selection_background": "#008888",
+        "selection_foreground": "#000000",
+        "border": "#AAAAAA"
+      },
+      "palette": [
+        {
+          "slot": "bg",
+          "value": "#0000AA"
+        },
+        {
+          "slot": "fg",
+          "value": "#55FFFF"
+        },
+        {
+          "slot": "accent",
+          "value": "#FFFF55"
+        },
+        {
+          "slot": "green",
+          "value": "#55FF55"
+        },
+        {
+          "slot": "red",
+          "value": "#FF5555"
+        },
+        {
+          "slot": "yellow",
+          "value": "#FFFF55"
+        },
+        {
+          "slot": "orange",
+          "value": "#AA5500"
+        },
+        {
+          "slot": "cyan",
+          "value": "#55FFFF"
+        },
+        {
+          "slot": "muted",
+          "value": "#AAAAAA"
+        },
+        {
+          "slot": "magenta",
+          "value": "#FF55FF"
+        }
+      ],
+      "chrome": [
+        {
+          "slot": "surface",
+          "value": "#000066"
+        },
+        {
+          "slot": "selection_bg",
+          "value": "#008888"
+        },
+        {
+          "slot": "selection_fg",
+          "value": "#000000"
+        },
+        {
+          "slot": "cursor",
+          "value": "#FFFF55"
+        },
+        {
+          "slot": "cursor_text",
+          "value": "#0000AA"
+        },
+        {
+          "slot": "border_active",
+          "value": "#FFFF55"
+        },
+        {
+          "slot": "border_inactive",
+          "value": "#AAAAAA"
+        },
+        {
+          "slot": "diff_add_bg",
+          "value": "#003366"
+        },
+        {
+          "slot": "diff_change_bg",
+          "value": "#554400"
+        },
+        {
+          "slot": "diff_del_bg",
+          "value": "#550055"
+        },
+        {
+          "slot": "status_active_ink",
+          "value": "#0000AA"
+        }
+      ],
+      "attributes": [
+        {
+          "slot": "accent",
+          "value": "bold"
+        },
+        {
+          "slot": "red",
+          "value": "bold"
+        },
+        {
+          "slot": "yellow",
+          "value": "bold"
+        },
+        {
+          "slot": "muted",
+          "value": "italic"
+        },
+        {
+          "slot": "magenta",
+          "value": "bold"
+        }
+      ]
+    },
+    {
+      "id": "NortonOptimized",
+      "slug": "norton-optimized",
+      "family": "norton",
+      "mode": "dark",
+      "variant": "optimized",
+      "config_variant": "optimized",
+      "emphasis_min": "standard",
+      "suspect": "",
+      "general_appearance": "blue",
+      "contrast_ratio": 10.84,
+      "contrast": "high",
+      "tools": [
+        "vim",
+        "tmux",
+        "yazi",
+        "eza",
+        "starship",
+        "delta",
+        "bat",
+        "fzf",
+        "less",
+        "lnav",
+        "lazygit",
+        "claude_code",
+        "gemini",
+        "opencode",
+        "aider"
+      ],
+      "render": {
+        "background": "#0000AA",
+        "foreground": "#55FFFF",
+        "surface": "#000066",
+        "tab_background": "#FFFF55",
+        "tab_foreground": "#0000AA",
+        "path": "#FFFF55",
+        "success": "#55FF55",
+        "muted": "#C4C4C4",
+        "keyword": "#FF8AFF",
+        "function": "#55FFFF",
+        "type": "#FFFF55",
+        "error": "#FF7B7B",
+        "number": "#FFAA55",
+        "selection_background": "#008888",
+        "selection_foreground": "#000000",
+        "border": "#C4C4C4"
+      },
+      "palette": [
+        {
+          "slot": "bg",
+          "value": "#0000AA"
+        },
+        {
+          "slot": "fg",
+          "value": "#55FFFF"
+        },
+        {
+          "slot": "accent",
+          "value": "#FFFF55"
+        },
+        {
+          "slot": "green",
+          "value": "#55FF55"
+        },
+        {
+          "slot": "red",
+          "value": "#FF7B7B"
+        },
+        {
+          "slot": "yellow",
+          "value": "#FFFF55"
+        },
+        {
+          "slot": "orange",
+          "value": "#FFAA55"
+        },
+        {
+          "slot": "cyan",
+          "value": "#55FFFF"
+        },
+        {
+          "slot": "muted",
+          "value": "#C4C4C4"
+        },
+        {
+          "slot": "magenta",
+          "value": "#FF8AFF"
+        }
+      ],
+      "chrome": [
+        {
+          "slot": "surface",
+          "value": "#000066"
+        },
+        {
+          "slot": "selection_bg",
+          "value": "#008888"
+        },
+        {
+          "slot": "selection_fg",
+          "value": "#000000"
+        },
+        {
+          "slot": "cursor",
+          "value": "#FFFF55"
+        },
+        {
+          "slot": "cursor_text",
+          "value": "#0000AA"
+        },
+        {
+          "slot": "border_active",
+          "value": "#FFFF55"
+        },
+        {
+          "slot": "border_inactive",
+          "value": "#C4C4C4"
+        },
+        {
+          "slot": "diff_add_bg",
+          "value": "#003366"
+        },
+        {
+          "slot": "diff_change_bg",
+          "value": "#554400"
+        },
+        {
+          "slot": "diff_del_bg",
+          "value": "#550055"
+        },
+        {
+          "slot": "status_active_ink",
+          "value": "#0000AA"
+        }
+      ],
+      "attributes": [
+        {
+          "slot": "accent",
+          "value": "bold"
+        },
+        {
+          "slot": "red",
+          "value": "bold"
+        },
+        {
+          "slot": "yellow",
+          "value": "bold"
+        },
+        {
+          "slot": "muted",
+          "value": "italic"
+        },
+        {
+          "slot": "magenta",
+          "value": "bold"
+        }
+      ]
+    },
+    {
       "id": "OneDarkPro",
       "slug": "one-dark-pro",
       "family": "one-dark",
@@ -7604,6 +8236,334 @@
         }
       ],
       "attributes": []
+    },
+    {
+      "id": "PhosphorClassic",
+      "slug": "phosphor-classic",
+      "family": "phosphor",
+      "mode": "dark",
+      "variant": "classic",
+      "config_variant": "classic",
+      "emphasis_min": "full",
+      "suspect": "",
+      "general_appearance": "green",
+      "contrast_ratio": 14.17,
+      "contrast": "high",
+      "tools": [
+        "vim",
+        "tmux",
+        "yazi",
+        "eza",
+        "starship",
+        "delta",
+        "bat",
+        "fzf",
+        "less",
+        "lnav",
+        "lazygit",
+        "claude_code",
+        "gemini",
+        "opencode",
+        "aider"
+      ],
+      "render": {
+        "background": "#001300",
+        "foreground": "#33FF33",
+        "surface": "#003000",
+        "tab_background": "#C8FFC8",
+        "tab_foreground": "#001300",
+        "path": "#C8FFC8",
+        "success": "#33FF33",
+        "muted": "#33FF33",
+        "keyword": "#C8FFC8",
+        "function": "#33FF33",
+        "type": "#C8FFC8",
+        "error": "#C8FFC8",
+        "number": "#33FF33",
+        "selection_background": "#006000",
+        "selection_foreground": "#FFFFFF",
+        "border": "#33FF33"
+      },
+      "palette": [
+        {
+          "slot": "bg",
+          "value": "#001300"
+        },
+        {
+          "slot": "fg",
+          "value": "#33FF33"
+        },
+        {
+          "slot": "accent",
+          "value": "#C8FFC8"
+        },
+        {
+          "slot": "green",
+          "value": "#33FF33"
+        },
+        {
+          "slot": "red",
+          "value": "#C8FFC8"
+        },
+        {
+          "slot": "yellow",
+          "value": "#C8FFC8"
+        },
+        {
+          "slot": "orange",
+          "value": "#33FF33"
+        },
+        {
+          "slot": "cyan",
+          "value": "#33FF33"
+        },
+        {
+          "slot": "muted",
+          "value": "#33FF33"
+        },
+        {
+          "slot": "magenta",
+          "value": "#C8FFC8"
+        }
+      ],
+      "chrome": [
+        {
+          "slot": "surface",
+          "value": "#003000"
+        },
+        {
+          "slot": "selection_bg",
+          "value": "#006000"
+        },
+        {
+          "slot": "selection_fg",
+          "value": "#FFFFFF"
+        },
+        {
+          "slot": "cursor",
+          "value": "#C8FFC8"
+        },
+        {
+          "slot": "cursor_text",
+          "value": "#001300"
+        },
+        {
+          "slot": "border_active",
+          "value": "#C8FFC8"
+        },
+        {
+          "slot": "border_inactive",
+          "value": "#33FF33"
+        },
+        {
+          "slot": "diff_add_bg",
+          "value": "#004000"
+        },
+        {
+          "slot": "diff_change_bg",
+          "value": "#284028"
+        },
+        {
+          "slot": "diff_del_bg",
+          "value": "#173317"
+        },
+        {
+          "slot": "status_active_ink",
+          "value": "#001300"
+        }
+      ],
+      "attributes": [
+        {
+          "slot": "accent",
+          "value": "bold"
+        },
+        {
+          "slot": "red",
+          "value": "bold underline"
+        },
+        {
+          "slot": "yellow",
+          "value": "bold"
+        },
+        {
+          "slot": "orange",
+          "value": "bold"
+        },
+        {
+          "slot": "cyan",
+          "value": "italic"
+        },
+        {
+          "slot": "muted",
+          "value": "dim"
+        },
+        {
+          "slot": "magenta",
+          "value": "italic"
+        }
+      ]
+    },
+    {
+      "id": "PhosphorOptimized",
+      "slug": "phosphor-optimized",
+      "family": "phosphor",
+      "mode": "dark",
+      "variant": "optimized",
+      "config_variant": "optimized",
+      "emphasis_min": "standard",
+      "suspect": "",
+      "general_appearance": "green",
+      "contrast_ratio": 13.67,
+      "contrast": "high",
+      "tools": [
+        "vim",
+        "tmux",
+        "yazi",
+        "eza",
+        "starship",
+        "delta",
+        "bat",
+        "fzf",
+        "less",
+        "lnav",
+        "lazygit",
+        "claude_code",
+        "gemini",
+        "opencode",
+        "aider"
+      ],
+      "render": {
+        "background": "#001807",
+        "foreground": "#33FF33",
+        "surface": "#003511",
+        "tab_background": "#D6FFD6",
+        "tab_foreground": "#001807",
+        "path": "#D6FFD6",
+        "success": "#33FF33",
+        "muted": "#2EAE2E",
+        "keyword": "#D6FFD6",
+        "function": "#33FF33",
+        "type": "#8CFF8C",
+        "error": "#D6FFD6",
+        "number": "#8CFF8C",
+        "selection_background": "#006B26",
+        "selection_foreground": "#FFFFFF",
+        "border": "#2EAE2E"
+      },
+      "palette": [
+        {
+          "slot": "bg",
+          "value": "#001807"
+        },
+        {
+          "slot": "fg",
+          "value": "#33FF33"
+        },
+        {
+          "slot": "accent",
+          "value": "#D6FFD6"
+        },
+        {
+          "slot": "green",
+          "value": "#33FF33"
+        },
+        {
+          "slot": "red",
+          "value": "#D6FFD6"
+        },
+        {
+          "slot": "yellow",
+          "value": "#8CFF8C"
+        },
+        {
+          "slot": "orange",
+          "value": "#8CFF8C"
+        },
+        {
+          "slot": "cyan",
+          "value": "#33FF33"
+        },
+        {
+          "slot": "muted",
+          "value": "#2EAE2E"
+        },
+        {
+          "slot": "magenta",
+          "value": "#D6FFD6"
+        }
+      ],
+      "chrome": [
+        {
+          "slot": "surface",
+          "value": "#003511"
+        },
+        {
+          "slot": "selection_bg",
+          "value": "#006B26"
+        },
+        {
+          "slot": "selection_fg",
+          "value": "#FFFFFF"
+        },
+        {
+          "slot": "cursor",
+          "value": "#D6FFD6"
+        },
+        {
+          "slot": "cursor_text",
+          "value": "#001807"
+        },
+        {
+          "slot": "border_active",
+          "value": "#D6FFD6"
+        },
+        {
+          "slot": "border_inactive",
+          "value": "#2EAE2E"
+        },
+        {
+          "slot": "diff_add_bg",
+          "value": "#00451A"
+        },
+        {
+          "slot": "diff_change_bg",
+          "value": "#28422E"
+        },
+        {
+          "slot": "diff_del_bg",
+          "value": "#19331F"
+        },
+        {
+          "slot": "status_active_ink",
+          "value": "#001807"
+        }
+      ],
+      "attributes": [
+        {
+          "slot": "accent",
+          "value": "bold"
+        },
+        {
+          "slot": "red",
+          "value": "bold underline"
+        },
+        {
+          "slot": "yellow",
+          "value": "bold"
+        },
+        {
+          "slot": "cyan",
+          "value": "italic"
+        },
+        {
+          "slot": "muted",
+          "value": "italic"
+        },
+        {
+          "slot": "magenta",
+          "value": "italic"
+        }
+      ]
     },
     {
       "id": "Plastic",

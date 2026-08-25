@@ -6,12 +6,12 @@
 
 [meta]
 source = "THEME-DESIGN-AGENT-BRIEFING.md (v0.x snapshot, 2026-08-20)"
-families = 34
-variants = 76
+families = 37
+variants = 82
 canonical_corrections = 53
 contrast_corrections = 141
 failing_pairs_before = 145
-failing_pairs_after = 0
+failing_pairs_after = 4
 
 [floors]
 fg = { min = 7, reason = "body text, read for hours — AAA for the one colour every character uses" }
@@ -2499,6 +2499,250 @@ diff_change_bg = "#E5E5E5"
 surface_step_ratio = 1.32
 selection_ink_ratio = 13.08
 status_active_ink = "#FFFFFF"
+
+# ── Period terminal recreations ────────────────────────────────────────────
+# Classic variants preserve the original CGA-era palette, including the two
+# deliberately sub-AA warm slots. Optimized variants keep the identity while
+# lifting every text role above 4.5:1.
+
+[themes.BorlandClassic]
+family = "borland"
+mode = "dark"
+variant = "classic"
+contrast_floor = 4.5
+emphasis_min = "standard"
+note = "Faithful Borland IDE recreation on CGA blue. Red and brown-orange intentionally retain their period values; choose optimized for AA text contrast."
+bg = "#0000AA"
+fg = "#FFFF55"
+accent = "#FFFFFF"
+green = "#55FF55"
+red = "#FF5555"
+yellow = "#FFFF55"
+orange = "#AA5500"
+cyan = "#55FFFF"
+muted = "#AAAAAA"
+magenta = "#FF55FF"
+
+[themes.BorlandClassic.contrast_floors]
+red = 4.0
+orange = 2.5
+
+[themes.BorlandClassic.attributes]
+accent = "bold"
+red = "bold"
+yellow = "bold"
+muted = "italic"
+magenta = "bold"
+
+[themes.BorlandClassic.chrome]
+surface = "#000066"
+selection_bg = "#008888"
+selection_fg = "#000000"
+cursor = "#FFFFFF"
+cursor_text = "#0000AA"
+border_active = "#FFFFFF"
+border_inactive = "#AAAAAA"
+diff_add_bg = "#003366"
+diff_del_bg = "#550055"
+diff_change_bg = "#554400"
+status_active_ink = "#0000AA"
+
+[themes.BorlandOptimized]
+family = "borland"
+mode = "dark"
+variant = "optimized"
+contrast_floor = 4.5
+emphasis_min = "standard"
+note = "Borland blue with the warm, muted, and magenta slots lifted for sustained modern terminal use."
+bg = "#0000AA"
+fg = "#FFFF55"
+accent = "#FFFFFF"
+green = "#55FF55"
+red = "#FF7B7B"
+yellow = "#FFFF55"
+orange = "#FFAA55"
+cyan = "#55FFFF"
+muted = "#C4C4C4"
+magenta = "#FF8AFF"
+
+[themes.BorlandOptimized.attributes]
+accent = "bold"
+red = "bold"
+yellow = "bold"
+muted = "italic"
+magenta = "bold"
+
+[themes.BorlandOptimized.chrome]
+surface = "#000066"
+selection_bg = "#008888"
+selection_fg = "#000000"
+cursor = "#FFFFFF"
+cursor_text = "#0000AA"
+border_active = "#FFFFFF"
+border_inactive = "#C4C4C4"
+diff_add_bg = "#003366"
+diff_del_bg = "#550055"
+diff_change_bg = "#554400"
+status_active_ink = "#0000AA"
+
+[themes.NortonClassic]
+family = "norton"
+mode = "dark"
+variant = "classic"
+contrast_floor = 4.5
+emphasis_min = "standard"
+note = "Faithful Norton Utilities recreation: cyan body text and yellow command chrome on CGA blue. Choose optimized for AA warm colors."
+bg = "#0000AA"
+fg = "#55FFFF"
+accent = "#FFFF55"
+green = "#55FF55"
+red = "#FF5555"
+yellow = "#FFFF55"
+orange = "#AA5500"
+cyan = "#55FFFF"
+muted = "#AAAAAA"
+magenta = "#FF55FF"
+
+[themes.NortonClassic.contrast_floors]
+red = 4.0
+orange = 2.5
+
+[themes.NortonClassic.attributes]
+accent = "bold"
+red = "bold"
+yellow = "bold"
+muted = "italic"
+magenta = "bold"
+
+[themes.NortonClassic.chrome]
+surface = "#000066"
+selection_bg = "#008888"
+selection_fg = "#000000"
+cursor = "#FFFF55"
+cursor_text = "#0000AA"
+border_active = "#FFFF55"
+border_inactive = "#AAAAAA"
+diff_add_bg = "#003366"
+diff_del_bg = "#550055"
+diff_change_bg = "#554400"
+status_active_ink = "#0000AA"
+
+[themes.NortonOptimized]
+family = "norton"
+mode = "dark"
+variant = "optimized"
+contrast_floor = 4.5
+emphasis_min = "standard"
+note = "Norton cyan/yellow identity with the warm, muted, and magenta slots lifted above AA."
+bg = "#0000AA"
+fg = "#55FFFF"
+accent = "#FFFF55"
+green = "#55FF55"
+red = "#FF7B7B"
+yellow = "#FFFF55"
+orange = "#FFAA55"
+cyan = "#55FFFF"
+muted = "#C4C4C4"
+magenta = "#FF8AFF"
+
+[themes.NortonOptimized.attributes]
+accent = "bold"
+red = "bold"
+yellow = "bold"
+muted = "italic"
+magenta = "bold"
+
+[themes.NortonOptimized.chrome]
+surface = "#000066"
+selection_bg = "#008888"
+selection_fg = "#000000"
+cursor = "#FFFF55"
+cursor_text = "#0000AA"
+border_active = "#FFFF55"
+border_inactive = "#C4C4C4"
+diff_add_bg = "#003366"
+diff_del_bg = "#550055"
+diff_change_bg = "#554400"
+status_active_ink = "#0000AA"
+
+[themes.PhosphorClassic]
+family = "phosphor"
+mode = "dark"
+variant = "classic"
+contrast_floor = 4.5
+emphasis_min = "full"
+note = "Single-hue green phosphor recreation. Typography is the second channel when semantic roles share one of two phosphor intensities."
+bg = "#001300"
+fg = "#33FF33"
+accent = "#C8FFC8"
+green = "#33FF33"
+red = "#C8FFC8"
+yellow = "#C8FFC8"
+orange = "#33FF33"
+cyan = "#33FF33"
+muted = "#33FF33"
+magenta = "#C8FFC8"
+
+[themes.PhosphorClassic.attributes]
+accent = "bold"
+red = "bold underline"
+yellow = "bold"
+orange = "bold"
+cyan = "italic"
+muted = "dim"
+magenta = "italic"
+
+[themes.PhosphorClassic.chrome]
+surface = "#003000"
+selection_bg = "#006000"
+selection_fg = "#FFFFFF"
+cursor = "#C8FFC8"
+cursor_text = "#001300"
+border_active = "#C8FFC8"
+border_inactive = "#33FF33"
+diff_add_bg = "#004000"
+diff_del_bg = "#173317"
+diff_change_bg = "#284028"
+status_active_ink = "#001300"
+
+[themes.PhosphorOptimized]
+family = "phosphor"
+mode = "dark"
+variant = "optimized"
+contrast_floor = 4.5
+emphasis_min = "standard"
+note = "Green phosphor identity with four intensity steps and a distinct readable muted role."
+bg = "#001807"
+fg = "#33FF33"
+accent = "#D6FFD6"
+green = "#33FF33"
+red = "#D6FFD6"
+yellow = "#8CFF8C"
+orange = "#8CFF8C"
+cyan = "#33FF33"
+muted = "#2EAE2E"
+magenta = "#D6FFD6"
+
+[themes.PhosphorOptimized.attributes]
+accent = "bold"
+red = "bold underline"
+yellow = "bold"
+cyan = "italic"
+muted = "italic"
+magenta = "italic"
+
+[themes.PhosphorOptimized.chrome]
+surface = "#003511"
+selection_bg = "#006B26"
+selection_fg = "#FFFFFF"
+cursor = "#D6FFD6"
+cursor_text = "#001807"
+border_active = "#D6FFD6"
+border_inactive = "#2EAE2E"
+diff_add_bg = "#00451A"
+diff_del_bg = "#19331F"
+diff_change_bg = "#28422E"
+status_active_ink = "#001807"
 
 
 [selection_floor]

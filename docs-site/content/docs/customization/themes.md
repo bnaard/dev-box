@@ -64,6 +64,7 @@ Single-mode families reject an incompatible explicit mode, and every family reje
 | `andromeeda` | default | — | — |
 | `aurora-x` | default | — | — |
 | `ayu` | default, mirage | default | `mirage` |
+| `borland` | optimized, classic | — | `optimized`, `classic` |
 | `catppuccin` | mocha, macchiato, frappe | latte | `macchiato`, `frappe` |
 | `contrast` | high, max | high, max | `max` |
 | `contrast-mono` | high, max | high, max | `max` |
@@ -81,9 +82,11 @@ Single-mode families reject an incompatible explicit mode, and every family reje
 | `moonlight` | default | — | — |
 | `night-owl` | default | default | — |
 | `nord` | default | — | — |
+| `norton` | optimized, classic | — | `optimized`, `classic` |
 | `one-dark` | pro | one light | — |
 | `plastic` | default | — | — |
 | `poimandres` | default | — | — |
+| `phosphor` | optimized, classic | — | `optimized`, `classic` |
 | `projectious` | navy, deep, high contrast | default, high contrast | `deep`, `high-contrast-dark`, `high-contrast-light` |
 | `red` | default | — | — |
 | `rose-pine` | default, moon | dawn | `moon` |
@@ -103,6 +106,10 @@ Single-mode families reject an incompatible explicit mode, and every family reje
 ![Contrast dark max terminal example](/img/themes/variants/contrast-dark-max.png)
 
 ![Contrast mono light max terminal example](/img/themes/variants/contrast-mono-light-max.png)
+
+### Period terminal families
+
+`borland`, `norton`, and `phosphor` recreate characteristic DOS-era terminal palettes. Their `classic` variants prioritize historical fidelity; Borland and Norton therefore retain the original low-contrast red and brown-orange slots. The default `optimized` variants preserve the family identity while lifting text roles for sustained modern use. Phosphor relies on font emphasis as a second semantic channel because several roles intentionally share the same green intensity.
 
 ### Projectious
 

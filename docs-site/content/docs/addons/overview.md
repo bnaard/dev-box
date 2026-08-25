@@ -94,6 +94,9 @@ After editing `aibox.toml`, run `aibox apply` to regenerate the Dockerfile and r
 | `cloud-gcp` | gcloud-cli | — |
 | `cloud-azure` | azure-cli | — |
 | `browser-testing` | @playwright/test, @axe-core/playwright, Chromium | Firefox, WebKit |
+| `diagramming` | D2, Graphviz | Either renderer can be disabled independently |
+| `data-visualization` | Vega CLI, Vega-Lite CLI | Either CLI can be disabled independently |
+| `mermaid` | Mermaid CLI, Puppeteer Chrome headless shell | Puppeteer can be disabled when an external browser is configured |
 
 ### Documentation Frameworks
 

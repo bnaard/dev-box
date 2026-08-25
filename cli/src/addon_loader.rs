@@ -955,6 +955,54 @@ runtime: |
     }
 
     #[test]
+    fn graphics_renderer_addons_pin_tools_dependencies_and_purge_paths() {
+        let diagramming = load_repo_addon("diagramming");
+        assert!(diagramming.requires.is_empty());
+        let d2 = diagramming
+            .tools
+            .iter()
+            .find(|tool| tool.name == "d2")
+            .expect("diagramming should define D2");
+        assert_eq!(d2.default_version, "0.7.1");
+        assert_eq!(d2.supported_versions, ["0.7.1"]);
+        let rendered = render_runtime(&diagramming, &all_enabled_tools(&diagramming)).unwrap();
+        assert!(rendered.contains("D2_VERSION=\"v0.7.1\""));
+        assert!(rendered.contains("D2_ASSET=\"d2-${D2_VERSION}-linux-${D2_ARCH}.tar.gz\""));
+        assert!(
+            rendered.contains("eb172adf59f38d1e5a70ab177591356754ffaf9bebb84e0ca8b767dfb421dad7")
+        );
+        assert!(
+            rendered.contains("ce3a0b985a8f91335a826c254b3a88736fd81afcdd08b58f6c749d2add6864b0")
+        );
+        assert!(rendered.contains("apt-get install -y --no-install-recommends graphviz"));
+        let disabled = render_runtime(&diagramming, &all_disabled_tools(&diagramming)).unwrap();
+        assert!(disabled.contains("rm -f /usr/local/bin/d2"));
+        assert!(disabled.contains("apt-get purge -y --auto-remove graphviz"));
+
+        let visualization = load_repo_addon("data-visualization");
+        assert_eq!(visualization.requires, ["node"]);
+        let rendered = render_runtime(&visualization, &all_enabled_tools(&visualization)).unwrap();
+        assert!(rendered.contains("vega-cli@6.4.0"));
+        assert!(rendered.contains("vega-lite@6.4.3"));
+        let disabled = render_runtime(&visualization, &all_disabled_tools(&visualization)).unwrap();
+        assert!(disabled.contains("npm uninstall -g vega-cli"));
+        assert!(disabled.contains("npm uninstall -g vega-lite"));
+
+        let mermaid = load_repo_addon("mermaid");
+        assert_eq!(mermaid.requires, ["node"]);
+        let rendered = render_runtime(&mermaid, &all_enabled_tools(&mermaid)).unwrap();
+        assert!(rendered.contains("@mermaid-js/mermaid-cli@11.16.0"));
+        assert!(rendered.contains("puppeteer@25.9.0"));
+        assert!(
+            rendered.contains("puppeteer browsers install chrome-headless-shell --install-deps")
+        );
+        assert!(rendered.contains("PUPPETEER_CACHE_DIR=/ms-puppeteer"));
+        let disabled = render_runtime(&mermaid, &all_disabled_tools(&mermaid)).unwrap();
+        assert!(disabled.contains("npm uninstall -g @mermaid-js/mermaid-cli"));
+        assert!(disabled.contains("rm -rf /ms-puppeteer"));
+    }
+
+    #[test]
     fn latex_addon_uses_reachable_immutable_texlive_archive() {
         let addon = load_repo_addon("latex");
         let rendered = render_builder(&addon, &all_enabled_tools(&addon))

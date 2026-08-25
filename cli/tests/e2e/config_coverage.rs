@@ -511,6 +511,44 @@ webkit = { enabled = true }
     );
 }
 
+#[test]
+fn graphics_renderer_addons_render_pinned_tools_and_dependencies() {
+    let dir = tempfile::tempdir().unwrap();
+    init_project(dir.path(), "addon-graphics-renderers");
+    patch_toml(
+        dir.path(),
+        r#"
+[addons.diagramming.tools]
+
+[addons.data-visualization.tools]
+
+[addons.mermaid.tools]
+"#,
+    );
+    sync_project(dir.path());
+    let dockerfile = read_generated(dir.path(), ".devcontainer/Dockerfile");
+    assert!(
+        dockerfile.contains("D2_VERSION=\"v0.7.1\"")
+            && dockerfile.contains("D2_ASSET=\"d2-${D2_VERSION}-linux-${D2_ARCH}.tar.gz\"")
+            && dockerfile.contains("graphviz"),
+        "diagramming must render pinned D2 and Graphviz installation:\n{dockerfile}"
+    );
+    assert!(
+        dockerfile.contains("vega-cli@6.4.0") && dockerfile.contains("vega-lite@6.4.3"),
+        "data-visualization must render pinned Vega tooling:\n{dockerfile}"
+    );
+    assert!(
+        dockerfile.contains("@mermaid-js/mermaid-cli@11.16.0")
+            && dockerfile.contains("puppeteer@25.9.0")
+            && dockerfile.contains("chrome-headless-shell --install-deps"),
+        "mermaid must render its pinned CLI and browser runtime:\n{dockerfile}"
+    );
+    assert!(
+        dockerfile.contains("# Addon: node"),
+        "Node must be selected transitively for Node-based graphics addons:\n{dockerfile}"
+    );
+}
+
 // ─── processkit package selection tests ──────────────────────────────────────
 //
 // Since v0.16.0 aibox no longer scaffolds context-doc files (BACKLOG.md,
