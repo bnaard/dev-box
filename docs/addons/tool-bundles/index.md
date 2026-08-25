@@ -106,6 +106,48 @@ behavior, accessibility assertions, and screenshot-baseline matrix. aibox
 tests validate the addon installation, generated contract, browser launch, and
 a minimal fixture; they do not prescribe an application's visual matrix.
 
+## Build-time Graphics Rendering
+
+Graphics renderers are separate opt-in addons. They are not implicit
+dependencies of `docs-hugo`, so a documentation project installs only the
+renderers used by its Hugo hooks or shortcodes.
+
+```toml
+[addons.diagramming.tools]
+d2 = { version = "0.7.1" }
+graphviz = {}
+
+[addons.data-visualization.tools]
+vega-cli = { version = "6.4.0" }
+vega-lite = { version = "6.4.3" }
+
+[addons.mermaid.tools]
+mermaid-cli = { version = "11.16.0" }
+puppeteer = { version = "25.9.0" }
+```
+
+`diagramming` installs the checksum-verified D2 release for Linux AMD64 or
+ARM64 and the Graphviz command family (`dot`, `neato`, `fdp`, `sfdp`, `circo`,
+and `twopi`). A minimal Hugo build hook can invoke `d2 input.d2 output.svg` or
+`dot -Tsvg input.dot -o output.svg`.
+
+`data-visualization` requires the `node` addon. It installs the pinned
+`vega-cli` commands (`vg2svg`, `vg2png`, and `vg2pdf`) and the pinned
+`vega-lite` commands (`vl2vg`, `vl2svg`, `vl2png`, and `vl2pdf`). For example,
+`vl2svg chart.vl.json > chart.svg` produces a static asset during the Hugo
+build.
+
+`mermaid` also requires `node`. By default it installs `mmdc`, pinned
+Puppeteer, and Puppeteer's compatible Chrome headless shell plus its Linux
+system dependencies. This is intentionally a heavy, opt-in addon. Projects
+that provide their own compatible Chrome executable may disable the
+`puppeteer` tool and pass an appropriate Puppeteer configuration to `mmdc`.
+
+CeTZ does not need another executable: it remains a Typst package loaded by
+the existing `typst` addon. Projects that require offline builds should pin
+the CeTZ package version in their Typst source and pre-populate the package
+cache as part of their own reproducible build inputs.
+
 ## Preview and Archive Tools
 
 ```toml
