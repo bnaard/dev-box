@@ -1,5 +1,5 @@
 [aibox]
-cli_version = "0.34.4"
+cli_version = "0.34.7"
 synced_at = "2026-08-18T16:07:47.800498324+00:00"
 
 [processkit]
@@ -11,10 +11,10 @@ installed_at = "2026-08-18T16:07:47.800498324+00:00"
 processkit_install_hash = "v2:97e62c0ba86ec14a0d7bb846c17a75a89164d13d0fb35acdc1e74f9c3e6ac2bf"
 
 [addons]
-resolved_at = "2026-08-21T17:25:25Z"
+resolved_at = "2026-08-24T16:15:29Z"
 
 [addons.tools]
-codex = "0.149.0"
+codex = "0.149.1"
 
 [addons.previous_selection]
 docs-docusaurus = ["docusaurus"]
@@ -35,7 +35,7 @@ rust = [
 ]
 
 [runtime_home]
-generated_at = "2026-08-21T17:25:26.889591+00:00"
+generated_at = "2026-08-24T16:15:30.863219+00:00"
 
 [runtime_home.files]
 ".asoundrc" = "f34609b11d315cd613cb5333b561032baec860faf4a7eccb28b5567ae72019af"
@@ -43,7 +43,7 @@ generated_at = "2026-08-21T17:25:26.889591+00:00"
 ".codex/themes/aibox.tmTheme" = "aec04b9eff314e77ce208f271bff5b1eaf5a018c5fc7d5cf778adf32a2bc8fa0"
 ".config/aibox/theme-env.sh" = "d695c73e5fa72f79b2b07ac3c19c2b5e36a7a07968fe51f9e425015df7480878"
 ".config/bat/themes/aibox.tmTheme" = "aec04b9eff314e77ce208f271bff5b1eaf5a018c5fc7d5cf778adf32a2bc8fa0"
-".config/cheatsheet.txt" = "204c6aba64405c63d2fe6c7067de6c08efee9fc1eb72435324a21d9b808c8607"
+".config/cheatsheet.txt" = "0c2452f15b602cbe38eb76b8504150ba968b10aa7562eb5eda30bf35395f3b18"
 ".config/git/aibox-github.inc" = "e60ec3914a092744bdd505724030bb3a3757133df8d90917332a96ad8d05a765"
 ".config/git/config" = "247357814a9a8eb60c35cba8b2cc493c102df20211e5526ecefb36374a3345d6"
 ".config/lazygit/config.yml" = "d6ee27d21dc20cd26e4467c78ee8d2b4fd490c5c8b61d0bd7d480056736e3633"
@@ -60,17 +60,18 @@ generated_at = "2026-08-21T17:25:26.889591+00:00"
 ".config/tmux/layouts/focus.sh" = "22b74d4797c83612a598d128d24cccba0ade85feda6ac3abcb81693ad3e276a0"
 ".config/tmux/tmux.conf" = "1cfa298cf7dbf287a25f04a0a4188f9545854082a8d81d5c134d752362b43676"
 ".config/yazi/init.lua" = "eae04462c0b3bcbb486ee59aa9c2c9e9595680a0626997c942e5abb2ae5a48d7"
-".config/yazi/keymap.toml" = "153c719f16e74dc92d127fb64793ca2e4715b258bab2d25a40c4652a9dd0a298"
+".config/yazi/keymap.toml" = "1b90f90590d7dc6910f7f93acbdf3fac7b4129268e33dd1fe2f564d415c0a4f8"
 ".config/yazi/plugins/dir-preview.yazi/main.lua" = "61daef7bfea36e0274532a774e3d686e2dac71fa57b92c36bb2a4ebb921a848b"
 ".config/yazi/plugins/eps.yazi/init.lua" = "edeaadeff1411fc9749eeae43c77754fd749db74790591ba75e9286ff36e94c5"
 ".config/yazi/plugins/git.yazi/main.lua" = "855f6bdf0ee33f503f575c2d75795c98ab1a9893c655940caf333d8fc87dc477"
 ".config/yazi/plugins/git.yazi/types.lua" = "16c54022dd327c35f533534f0b6995d800965e96d76f2e610b8b2fca0e5b4549"
-".config/yazi/plugins/rich-preview.yazi/main.lua" = "e36493fd73d9e580bb1e0b2be2353d2d81558e63ed3621b1d0edfbdc07c71f6e"
+".config/yazi/plugins/preview-options.yazi/main.lua" = "fca622821517d6a80d9acad4749065d42b2dae112ab34afd8fb1683e34a25df4"
+".config/yazi/plugins/rich-preview.yazi/main.lua" = "46e690205e80a5b2045115564f6b96060e228acc94b80552009fdd0b6e66b95e"
 ".config/yazi/plugins/status-git.yazi/main.lua" = "bedc0ba5bf4ea01605b1b7cb444ee3a09b0a4ba35ce99306d974d5977a4d32d2"
 ".config/yazi/plugins/svg.yazi/init.lua" = "ba5e7ebbb9870eda80d7be179010494cac3896b4b29fb8f1011809e217ecc278"
 ".config/yazi/plugins/toggle-pane.yazi/main.lua" = "a3a1e685d65f304e12be75c6874141f9a8c786a00460ab9e7fff575a12f1c6e6"
 ".config/yazi/theme.toml" = "19151d967381dec313219358c11265f11589b72dc34e2251e62f96ed42d449ee"
-".config/yazi/yazi.toml" = "8d68bae77fa90031419dc37bc180fdfda600d870740e23c09a38f8f7c9148529"
+".config/yazi/yazi.toml" = "5b345ae2c3d60573b990d25928df0c57660d4e2ba6d7c92c626ce02f78752892"
 ".inputrc" = "3763b3a9d37f05ca7c035579bc5419b664c3b33c5ce9a0c4ce5d00fbe75ec237"
 ".local/bin/aibox-agent-signal" = "0902610c48afcf647151d5692080c3988cd30fb027b59383dd840c13f5c84f21"
 ".local/bin/aibox-codex-notify" = "184ea90ef2670ef589feccc19466a2c9caf5aaa78a48815b1ae86844881af874"
@@ -78,6 +79,7 @@ generated_at = "2026-08-21T17:25:26.889591+00:00"
 ".local/bin/aibox-powerkit-render-list" = "2fee132c86c69deb2198d2ed32d895d008c77ca7f5c68f910d1793e6edadfdbc"
 ".local/bin/aibox-powerkit-render-session" = "3e5ca872bdc0bcec25616f5a2f469d64ec13bb9342415344171b204c42c28b77"
 ".local/bin/aibox-preview" = "23dd64645a9c95aa944e4af20091349fd22e3214e48ef15f5757646b5bc375f6"
+".local/bin/aibox-size-tree" = "f048c6c32f436d36c3b45f964542c08499fdeca7fcba4f0123a8296900561d71"
 ".local/bin/aibox-status-toggle" = "026c6a1dc7f1bcf650aa0bd4f587adfb5de6744df66fc138bef9b435bad1049a"
 ".local/bin/aibox-tmux-cheatsheet" = "2e3f8745cbb2039c521354f8bf48fa4059600f0c8b7bb462a8a8ed086d0473d9"
 ".local/bin/aibox-tmux-confirm-and-switch" = "a8771bb55db28dc35a7c1cfb742ec60299784b96cd8550e45aaac1cae19446f2"

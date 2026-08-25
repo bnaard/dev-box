@@ -8,7 +8,7 @@ None.
 
 None.
 
-## Applied (6)
+## Applied (7)
 
 | Date       | Migration                                | Notes |
 |------------|------------------------------------------|-------|
@@ -18,6 +18,7 @@ None.
 | 2026-08-20 | MIG-20260820_0727-RuntimeSync-aibox-runtime — aibox-runtime-home 0.33.2 → 0.34.0 | 0 changed upstream, 0 conflicts, 0 new, 0 removed (0 groups affected) |
 | 2026-08-21 | MIG-20260820_1714-RuntimeSync-aibox-runtime — aibox-runtime-home 0.34.0 → 0.34.1 | 0 changed upstream, 0 conflicts, 0 new, 0 removed (0 groups affected) |
 | 2026-08-21 | MIG-20260821_1434-RuntimeSync-aibox-runtime — aibox-runtime-home 0.34.1 → 0.34.2 | 0 changed upstream, 0 conflicts, 1 new, 0 removed (1 groups affected) |
+| 2026-08-25 | MIG-20260824_1615-RuntimeSync-aibox-runtime — aibox-runtime-home 0.34.4 → 0.34.7 | 0 changed upstream, 0 conflicts, 2 new, 0 removed (2 groups affected) |
 
 ## Rejected (3)
 

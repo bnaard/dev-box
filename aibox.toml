@@ -273,7 +273,7 @@ enabled = [
 # or use `aibox set addon <name>` (which also pulls in transitive `requires`).
 #
 # Addon catalog — uncomment/comment one block header to enable or remove an addon.
-# Addon catalog fingerprint: b65e85f791516b12d24140fb169a91717cd522366f8c6a09c3837e6f2a9232c5
+# Addon catalog fingerprint: 6f01e53165c5edf085fef209a98a83ca2233e93e049b8818495ea967e33ad61c
 # Inside an enabled addon, omitted default-enabled tools stay enabled. Uncomment
 # a tool line to pin a version, enable an off-by-default tool, or disable a default-on tool.
 #

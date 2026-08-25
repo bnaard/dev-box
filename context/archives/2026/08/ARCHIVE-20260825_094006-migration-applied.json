@@ -1,0 +1,144 @@
+{
+  "archive_id": "ARCHIVE-20260825_094006-migration-applied",
+  "archive_path": "context/archives/2026/08/ARCHIVE-20260825_094006-migration-applied.tar.gz",
+  "created_at": "2026-08-25T09:40:06+00:00",
+  "entities": [
+    {
+      "apiVersion": "processkit.projectious.work/v1",
+      "body_index": "# Migration MIG-20260722_1623-ContentSync-processkit-content-sync\n\nFrom `v0.27.5` to `v0.28.1` (source: `https://github.com/projectious-work/processkit.git`).\n\n0 changed upstream, 0 conflicts, 5 new, 16 removed, 0 stale-removed (6 groups affected)\n\n## Counts\n\n- unchanged: 707\n- changed-locally-only: 1\n- changed-upstream-only: 0\n- conflict: 0\n- new-upstream: 5\n- removed-upstream: 16\n- removed-upstream-stale: 0\n\n## Changes by group\n\n### AGENTS\n\n**changed-locally-only**\n\n- `AGENTS.md` \u2192 `AGENTS.md`\n\n### lib\n\n**removed-upstream**\n\n- `context/skills/_lib/processkit/schema_generation.py` \u2192 `context/skills/_lib/processkit/schema_generation.py`\n\n### schemas/_generated\n\n**removed-upstream**\n\n- `context/schemas/_generated/binding.yaml` \u2192 `context/schemas/_generated/binding.yaml`\n- `context/schemas/_generated/decisionrecord.yaml` \u2192 `context/schemas/_generated/decisionrecord.yaml`\n- `context/schemas/_generated/workitem.yaml` \u2192 `context/schemas/_generated/workitem.yaml`\n- `context/schemas/_generated/logentry.yaml` \u2192 `context/schemas/_generated/logentry.yaml`\n\n### schemas/src\n\n**removed-upstream**\n\n- `context/schemas/src/fragments/record.yaml` \u2192 `context/schemas/src/fragments/record.yaml`\n- `con",
+      "id": "MIG-20260722_1623-ContentSync-processkit-content-sync",
+      "kind": "Migration",
+      "labels": {},
+      "member_path": "context/migrations/applied/MIG-20260722_1623-ContentSync-processkit-content-sync.md",
+      "metadata": {
+        "created": "2026-07-22T16:23:25+00:00",
+        "id": "MIG-20260722_1623-ContentSync-processkit-content-sync",
+        "updated": "2026-07-22T17:47:31+00:00"
+      },
+      "original_path": "context/migrations/applied/MIG-20260722_1623-ContentSync-processkit-content-sync.md",
+      "sha256": "cd85cabdae4de63d9c14d9f0f6fe0ed4fb24753432c529f77c8db3eb1749f780",
+      "spec": {
+        "affected_files": [
+          {
+            "classification": "changed-locally-only",
+            "path": "AGENTS.md"
+          },
+          {
+            "classification": "removed-upstream",
+            "path": "context/schemas/_generated/binding.yaml"
+          },
+          {
+            "classification": "removed-upstream",
+            "path": "context/schemas/_generated/decisionrecord.yaml"
+          },
+          {
+            "classification": "removed-upstream",
+            "path": "context/schemas/_generated/logentry.yaml"
+          },
+          {
+            "classification": "removed-upstream",
+            "path": "context/schemas/_generated/workitem.yaml"
+          },
+          {
+            "classification": "removed-upstream",
+            "path": "context/schemas/src/compositions/decisionrecord.yaml"
+          },
+          {
+            "classification": "removed-upstream",
+            "path": "context/schemas/src/compositions/logentry.yaml"
+          },
+          {
+            "classification": "removed-upstream",
+            "path": "context/schemas/src/fragments/entity.yaml"
+          },
+          {
+            "classification": "removed-upstream",
+            "path": "context/schemas/src/fragments/generation.yaml.j2"
+          },
+          {
+            "classification": "removed-upstream",
+            "path": "context/schemas/src/fragments/record.yaml"
+          },
+          {
+            "classification": "removed-upstream",
+            "path": "context/schemas/src/fragments/relationship.yaml"
+          },
+          {
+            "classification": "removed-upstream",
+            "path": "context/schemas/src/fragments/versioned.yaml"
+          },
+          {
+            "classification": "removed-upstream",
+            "path": "context/schemas/src/primitives/binding.yaml"
+          },
+          {
+            "classification": "removed-upstream",
+            "path": "context/schemas/src/primitives/workitem.yaml"
+          },
+          {
+            "classification": "removed-upstream",
+            "path": "context/schemas/src/registry.yaml"
+          },
+          {
+            "classification": "removed-upstream",
+            "path": "context/schemas/src/templates/schema.yaml.j2"
+          },
+          {
+            "classification": "removed-upstream",
+            "path": "context/skills/_lib/processkit/schema_generation.py"
+          },
+          {
+            "classification": "new-upstream",
+            "path": "context/skills/engineering/git-branching/SKILL.md"
+          },
+          {
+            "classification": "new-upstream",
+            "path": "context/skills/engineering/git-branching/references/strategies.md"
+          },
+          {
+            "classification": "new-upstream",
+            "path": "context/skills/processkit/pk-doctor/scripts/test_pk_doctor_mcp.py"
+          },
+          {
+            "classification": "new-upstream",
+            "path": "context/skills/processkit/project-reconciliation/SKILL.md"
+          },
+          {
+            "classification": "new-upstream",
+            "path": "context/skills/processkit/project-reconciliation/commands/pk-reconcile.md"
+          }
+        ],
+        "affected_groups": [
+          "AGENTS",
+          "lib",
+          "schemas/_generated",
+          "schemas/src",
+          "skills/engineering",
+          "skills/processkit"
+        ],
+        "applied_at": "2026-07-22T17:47:31+00:00",
+        "from_version": "v0.27.5",
+        "generated_at": "2026-07-22T16:23:25+00:00",
+        "generated_by": "aibox apply",
+        "progress_notes": [
+          {
+            "actor": "mcp",
+            "note": "Applied with owner authorization during pk-reconcile; removes upstream-retired schema generation files and adds processkit reconciliation content.",
+            "timestamp": "2026-07-22T17:47:31+00:00"
+          }
+        ],
+        "source": "processkit",
+        "source_url": "https://github.com/projectious-work/processkit.git",
+        "started_at": "2026-07-22T17:47:30+00:00",
+        "state": "applied",
+        "summary": "0 changed upstream, 0 conflicts, 5 new, 16 removed, 0 stale-removed (6 groups affected)",
+        "to_version": "v0.28.1"
+      },
+      "storage_location": "context/archives/2026/08/ARCHIVE-20260825_094006-migration-applied.tar.gz::context/migrations/applied/MIG-20260722_1623-ContentSync-processkit-content-sync.md"
+    }
+  ],
+  "kind": "Migration",
+  "older_than_days": 30,
+  "sha256": "71aa84b270a391e98ffe9ad54541f17fbb2e09d6cc05a76657faca60f8502c34",
+  "state": "applied"
+}
