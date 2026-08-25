@@ -238,7 +238,10 @@ main() {
     tools/cloudflare.yaml
     tools/audio-voice.yaml
     tools/data-preview.yaml
+    tools/data-visualization.yaml
+    tools/diagramming.yaml
     tools/git-ui.yaml
+    tools/mermaid.yaml
     tools/preview-archive.yaml
     tools/preview-enhanced.yaml
     docs/docs-mkdocs.yaml
