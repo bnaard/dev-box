@@ -1,0 +1,49 @@
+name: mermaid
+version: "1.0.0"
+description: "Build-time Mermaid rendering with a pinned headless browser"
+profile_intent: build
+usage_class: automated
+profiles: ["human-dev", "headless-runner"]
+exported_surfaces: ["build-toolchain", "cli-binary"]
+builder_weight: "heavy"
+requires: ["node"]
+
+skills:
+  - documentation
+
+tools:
+  - name: mermaid-cli
+    description: "Mermaid CLI (mmdc) for static SVG, PNG, and PDF rendering"
+    default_enabled: true
+    default_version: "11.16.0"
+    supported_versions: ["11.16.0"]
+  - name: puppeteer
+    description: "Pinned Puppeteer and compatible Chrome headless shell runtime"
+    default_enabled: true
+    default_version: "25.9.0"
+    supported_versions: ["25.9.0"]
+
+builder: null
+
+runtime: |
+  # Addon: mermaid — mmdc plus its explicitly pinned browser runtime.
+  USER root
+  ENV NODE_PATH=/usr/local/lib/node_modules
+  ENV PUPPETEER_CACHE_DIR=/ms-puppeteer
+  {% if tools["mermaid-cli"].enabled %}
+  RUN PUPPETEER_SKIP_DOWNLOAD=true npm install -g --no-fund --no-audit \
+        @mermaid-js/mermaid-cli@{{ tools["mermaid-cli"].version }} \
+  {% if tools.puppeteer.enabled %}
+        puppeteer@{{ tools.puppeteer.version }} \
+  {% endif %}
+      && npm cache clean --force
+  {% else %}
+  RUN npm uninstall -g @mermaid-js/mermaid-cli || true
+  {% endif %}
+  {% if tools["mermaid-cli"].enabled and tools.puppeteer.enabled %}
+  RUN mkdir -p /ms-puppeteer && \
+      puppeteer browsers install chrome-headless-shell --install-deps && \
+      chmod -R a+rX /ms-puppeteer
+  {% else %}
+  RUN npm uninstall -g puppeteer || true && rm -rf /ms-puppeteer
+  {% endif %}

@@ -93,11 +93,14 @@ function drivingColor(hex) {
 
 const familyAppearance = {
   andromeeda: "cyan", "aurora-x": "blue", ayu: "blue", catppuccin: "purple",
+  borland: "blue",
   contrast: "blue", "contrast-mono": "neutral", dracula: "purple", everforest: "green",
   github: "blue", gruvbox: "orange", houston: "orange", kanagawa: "blue",
   laserwave: "purple", material: "blue", min: "blue", mono: "neutral",
   monokai: "green", moonlight: "blue", "night-owl": "blue", nord: "blue",
+  norton: "blue",
   "one-dark": "blue", plastic: "blue", poimandres: "green", red: "red",
+  phosphor: "green",
   "rose-pine": "purple", slack: "purple", snazzy: "purple", solarized: "blue",
   "synthwave-84": "purple", "tokyo-night": "blue", vesper: "orange",
   vitesse: "green", vscode: "blue",

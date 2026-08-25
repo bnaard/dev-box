@@ -1288,6 +1288,12 @@ pub enum Theme {
     ContrastMonoDarkMax,
     ContrastMonoLight,
     ContrastMonoLightMax,
+    BorlandClassic,
+    BorlandOptimized,
+    NortonClassic,
+    NortonOptimized,
+    PhosphorClassic,
+    PhosphorOptimized,
 }
 
 /// User-facing theme family selector. Pairs with `ThemeMode` (and optional
@@ -1300,6 +1306,7 @@ pub enum ThemeFamily {
     Andromeeda,
     AuroraX,
     Ayu,
+    Borland,
     Catppuccin,
     Dracula,
     Everforest,
@@ -1316,9 +1323,11 @@ pub enum ThemeFamily {
     Moonlight,
     NightOwl,
     Nord,
+    Norton,
     OneDark,
     Plastic,
     Poimandres,
+    Phosphor,
     Projectious,
     Contrast,
     ContrastMono,
@@ -1342,6 +1351,7 @@ impl std::fmt::Display for ThemeFamily {
             ThemeFamily::Andromeeda => write!(f, "andromeeda"),
             ThemeFamily::AuroraX => write!(f, "aurora-x"),
             ThemeFamily::Ayu => write!(f, "ayu"),
+            ThemeFamily::Borland => write!(f, "borland"),
             ThemeFamily::Catppuccin => write!(f, "catppuccin"),
             ThemeFamily::Dracula => write!(f, "dracula"),
             ThemeFamily::Everforest => write!(f, "everforest"),
@@ -1357,9 +1367,11 @@ impl std::fmt::Display for ThemeFamily {
             ThemeFamily::Moonlight => write!(f, "moonlight"),
             ThemeFamily::NightOwl => write!(f, "night-owl"),
             ThemeFamily::Nord => write!(f, "nord"),
+            ThemeFamily::Norton => write!(f, "norton"),
             ThemeFamily::OneDark => write!(f, "one-dark"),
             ThemeFamily::Plastic => write!(f, "plastic"),
             ThemeFamily::Poimandres => write!(f, "poimandres"),
+            ThemeFamily::Phosphor => write!(f, "phosphor"),
             ThemeFamily::Projectious => write!(f, "projectious"),
             ThemeFamily::Contrast => write!(f, "contrast"),
             ThemeFamily::ContrastMono => write!(f, "contrast-mono"),
@@ -1415,6 +1427,9 @@ pub fn family_of(theme: &Theme) -> ThemeFamily {
         | Theme::ContrastMonoDarkMax
         | Theme::ContrastMonoLight
         | Theme::ContrastMonoLightMax => ThemeFamily::ContrastMono,
+        Theme::BorlandClassic | Theme::BorlandOptimized => ThemeFamily::Borland,
+        Theme::NortonClassic | Theme::NortonOptimized => ThemeFamily::Norton,
+        Theme::PhosphorClassic | Theme::PhosphorOptimized => ThemeFamily::Phosphor,
         Theme::RosePine | Theme::RosePineMoon | Theme::RosePineDawn => ThemeFamily::RosePine,
         Theme::SolarizedDark | Theme::SolarizedLight => ThemeFamily::Solarized,
         Theme::TokyoNight | Theme::TokyoNightStorm | Theme::TokyoNightDay => {
@@ -1469,6 +1484,10 @@ pub fn variant_name_of(theme: &Theme) -> Option<&'static str> {
         | Theme::ContrastLightMax
         | Theme::ContrastMonoDarkMax
         | Theme::ContrastMonoLightMax => Some("max"),
+        Theme::BorlandClassic | Theme::NortonClassic | Theme::PhosphorClassic => Some("classic"),
+        Theme::BorlandOptimized | Theme::NortonOptimized | Theme::PhosphorOptimized => {
+            Some("optimized")
+        }
         _ => None,
     }
 }
@@ -1504,6 +1523,10 @@ pub(crate) fn resolve_theme_from_family(
     match mode {
         ThemeMode::Light => match family {
             ThemeFamily::Ayu => Theme::AyuLight,
+            ThemeFamily::Borland => match variant {
+                Some("classic") => Theme::BorlandClassic,
+                _ => Theme::BorlandOptimized,
+            },
             ThemeFamily::Catppuccin => Theme::CatppuccinLatte,
             ThemeFamily::Dracula => Theme::Dracula, // no light variant — return dark canonical
             ThemeFamily::Everforest => Theme::EverforestLight,
@@ -1529,7 +1552,15 @@ pub(crate) fn resolve_theme_from_family(
                 _ => Theme::ProjectiousLight,
             },
             ThemeFamily::NightOwl => Theme::NightOwlLight,
+            ThemeFamily::Norton => match variant {
+                Some("classic") => Theme::NortonClassic,
+                _ => Theme::NortonOptimized,
+            },
             ThemeFamily::OneDark => Theme::OneLight,
+            ThemeFamily::Phosphor => match variant {
+                Some("classic") => Theme::PhosphorClassic,
+                _ => Theme::PhosphorOptimized,
+            },
             ThemeFamily::RosePine => Theme::RosePineDawn,
             ThemeFamily::Slack => Theme::SlackOchin,
             ThemeFamily::Solarized => Theme::SolarizedLight,
@@ -1557,6 +1588,10 @@ pub(crate) fn resolve_theme_from_family(
             ThemeFamily::Ayu => match variant {
                 Some("mirage") => Theme::AyuMirage,
                 _ => Theme::AyuDark,
+            },
+            ThemeFamily::Borland => match variant {
+                Some("classic") => Theme::BorlandClassic,
+                _ => Theme::BorlandOptimized,
             },
             ThemeFamily::Catppuccin => match variant {
                 Some("macchiato") => Theme::CatppuccinMacchiato,
@@ -1600,7 +1635,15 @@ pub(crate) fn resolve_theme_from_family(
                 _ => Theme::ProjectiousNavy,
             },
             ThemeFamily::NightOwl => Theme::NightOwl,
+            ThemeFamily::Norton => match variant {
+                Some("classic") => Theme::NortonClassic,
+                _ => Theme::NortonOptimized,
+            },
             ThemeFamily::OneDark => Theme::OneDarkPro,
+            ThemeFamily::Phosphor => match variant {
+                Some("classic") => Theme::PhosphorClassic,
+                _ => Theme::PhosphorOptimized,
+            },
             ThemeFamily::RosePine => match variant {
                 Some("moon") => Theme::RosePineMoon,
                 _ => Theme::RosePine,
@@ -1927,6 +1970,12 @@ impl std::fmt::Display for Theme {
             Theme::ContrastMonoDarkMax => write!(f, "contrast-mono-dark-max"),
             Theme::ContrastMonoLight => write!(f, "contrast-mono-light"),
             Theme::ContrastMonoLightMax => write!(f, "contrast-mono-light-max"),
+            Theme::BorlandClassic => write!(f, "borland-classic"),
+            Theme::BorlandOptimized => write!(f, "borland-optimized"),
+            Theme::NortonClassic => write!(f, "norton-classic"),
+            Theme::NortonOptimized => write!(f, "norton-optimized"),
+            Theme::PhosphorClassic => write!(f, "phosphor-classic"),
+            Theme::PhosphorOptimized => write!(f, "phosphor-optimized"),
         }
     }
 }
@@ -3355,6 +3404,7 @@ fn theme_selection_capabilities(
             &["high-contrast-light"],
         ),
         Contrast | ContrastMono => (BOTH, &["high", "max"], &["high", "max"]),
+        Borland | Norton | Phosphor => (DARK, &["classic", "optimized"], NONE),
         RosePine => (BOTH, &["moon"], NONE),
         Slack => (BOTH, NONE, &["ochin"]),
         TokyoNight => (BOTH, &["storm"], NONE),
@@ -7745,6 +7795,38 @@ mode = "dark"
             config.customization.resolved_theme(),
             Theme::ContrastMonoDarkMax
         );
+    }
+
+    #[test]
+    fn period_terminal_families_default_to_optimized_and_accept_classic() {
+        for (family, optimized, classic) in [
+            (
+                ThemeFamily::Borland,
+                Theme::BorlandOptimized,
+                Theme::BorlandClassic,
+            ),
+            (
+                ThemeFamily::Norton,
+                Theme::NortonOptimized,
+                Theme::NortonClassic,
+            ),
+            (
+                ThemeFamily::Phosphor,
+                Theme::PhosphorOptimized,
+                Theme::PhosphorClassic,
+            ),
+        ] {
+            let mut config = test_config();
+            config.customization.theme = family;
+            config.customization.mode = ThemeMode::Dark;
+            assert_eq!(config.customization.resolved_theme(), optimized);
+            config.customization.variant = Some("classic".to_string());
+            assert_eq!(config.customization.resolved_theme(), classic);
+            config.validate().unwrap();
+
+            config.customization.mode = ThemeMode::Light;
+            assert!(config.validate().is_err());
+        }
     }
 
     #[test]

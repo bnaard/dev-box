@@ -1819,6 +1819,12 @@ mod tests {
         Theme::ContrastMonoDarkMax,
         Theme::ContrastMonoLight,
         Theme::ContrastMonoLightMax,
+        Theme::BorlandClassic,
+        Theme::BorlandOptimized,
+        Theme::NortonClassic,
+        Theme::NortonOptimized,
+        Theme::PhosphorClassic,
+        Theme::PhosphorOptimized,
     ];
 
     fn relative_luminance(color: &str) -> f64 {
@@ -1853,7 +1859,7 @@ mod tests {
         for theme in ALL_THEMES {
             let spec = audited_theme(theme);
             let bg = audited_color(spec, "bg");
-            for (role, floor) in [
+            for (role, default_floor) in [
                 ("fg", 7.0),
                 ("green", 4.5),
                 ("red", 4.5),
@@ -1862,6 +1868,11 @@ mod tests {
                 ("cyan", 4.5),
                 ("muted", 4.5),
             ] {
+                let floor = spec
+                    .get("contrast_floors")
+                    .and_then(|floors| floors.get(role))
+                    .and_then(toml::Value::as_float)
+                    .unwrap_or(default_floor);
                 assert_contrast(theme, role, audited_color(spec, role), bg, floor);
             }
             assert_contrast(theme, "accent text", audited_accent_text(theme), bg, 4.5);

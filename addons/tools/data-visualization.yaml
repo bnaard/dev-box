@@ -1,0 +1,47 @@
+name: data-visualization
+version: "1.0.0"
+description: "Build-time Vega and Vega-Lite visualization rendering"
+profile_intent: build
+usage_class: automated
+profiles: ["human-dev", "headless-runner"]
+exported_surfaces: ["build-toolchain", "cli-binary"]
+builder_weight: "medium"
+requires: ["node"]
+
+skills:
+  - documentation
+
+tools:
+  - name: vega-cli
+    description: "Vega SVG, PNG, and PDF command-line renderers"
+    default_enabled: true
+    default_version: "6.4.0"
+    supported_versions: ["6.4.0"]
+  - name: vega-lite
+    description: "Vega-Lite compiler and SVG, PNG, and PDF command-line renderers"
+    default_enabled: true
+    default_version: "6.4.3"
+    supported_versions: ["6.4.3"]
+
+builder: null
+
+runtime: |
+  # Addon: data-visualization — pinned Node-based Vega renderers.
+  USER root
+  ENV NODE_PATH=/usr/local/lib/node_modules
+  {% if tools["vega-cli"].enabled or tools["vega-lite"].enabled %}
+  RUN npm install -g --no-fund --no-audit \
+  {% if tools["vega-cli"].enabled %}
+      vega-cli@{{ tools["vega-cli"].version }} \
+  {% endif %}
+  {% if tools["vega-lite"].enabled %}
+      vega-lite@{{ tools["vega-lite"].version }} \
+  {% endif %}
+      && npm cache clean --force
+  {% endif %}
+  {% if not tools["vega-cli"].enabled %}
+  RUN npm uninstall -g vega-cli || true
+  {% endif %}
+  {% if not tools["vega-lite"].enabled %}
+  RUN npm uninstall -g vega-lite || true
+  {% endif %}

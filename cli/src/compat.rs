@@ -773,6 +773,11 @@ pub static COMPAT_TABLE: &[CompatEntry] = &[
         processkit_version: "v0.28.8",
         note: "Patch release: adds persistent Yazi line-number and wrapping controls, explicit preview scrolling, and tabular recursive directory-size reports with visible hierarchy totals.",
     },
+    CompatEntry {
+        aibox_version: "0.35.0",
+        processkit_version: "v0.28.8",
+        note: "Minor release: adds Borland, Norton, and Phosphor terminal theme families plus opt-in D2, Graphviz, Vega, Vega-Lite, and Mermaid build-time graphics addons.",
+    },
 ];
 
 /// Find the minimum compatible processkit version for the given aibox version.

@@ -273,7 +273,7 @@ enabled = [
 # or use `aibox set addon <name>` (which also pulls in transitive `requires`).
 #
 # Addon catalog — uncomment/comment one block header to enable or remove an addon.
-# Addon catalog fingerprint: 6f01e53165c5edf085fef209a98a83ca2233e93e049b8818495ea967e33ad61c
+# Addon catalog fingerprint: fdf99ef147c6cc1b7e9885e458b3e4bb70c972a7fd0b34a670c882c2736a3b06
 # Inside an enabled addon, omitted default-enabled tools stay enabled. Uncomment
 # a tool line to pin a version, enable an off-by-default tool, or disable a default-on tool.
 #
@@ -390,6 +390,16 @@ cargo-audit = {} # Rust dependency vulnerability scanner; default on; options: {
 # sqlite3 = {} # SQLite shell used to preview database schemas and tables; default on; options: {}, { enabled = true|false }, { version = "x.y.z" or "latest" }
 # csvkit = {} # CSV and TSV inspection utilities for tabular previews; default on; options: {}, { enabled = true|false }, { version = "x.y.z" or "latest" }
 
+# Tools/data-visualization — Build-time Vega and Vega-Lite visualization rendering; requires node
+# [addons.data-visualization.tools]
+# vega-cli = {} # Vega SVG, PNG, and PDF command-line renderers; default on; options: {}, { enabled = true|false }, { version = "6.4.0" (default) or "latest" }
+# vega-lite = {} # Vega-Lite compiler and SVG, PNG, and PDF command-line renderers; default on; options: {}, { enabled = true|false }, { version = "6.4.3" (default) or "latest" }
+
+# Tools/diagramming — Build-time diagram rendering with D2 and Graphviz
+# [addons.diagramming.tools]
+# d2 = {} # D2 declarative diagram renderer; default on; options: {}, { enabled = true|false }, { version = "0.7.1" (default) or "latest" }
+# graphviz = {} # Graphviz graph layout and rendering commands; default on; options: {}, { enabled = true|false }, { version = "x.y.z" or "latest" }
+
 # Tools/git-ui — GitHub CLI and lazygit interactive Git UI
 [addons.git-ui.tools]
 gh = {} # GitHub CLI for issues, PRs, releases, and auth; default on; options: {}, { enabled = true|false }, { version = "x.y.z" or "latest" }
@@ -412,6 +422,11 @@ lazygit = { enabled = true } # Interactive terminal UI for Git status, commits, 
 # helm = {} # Kubernetes package manager for charts; default on; options: {}, { enabled = true|false }, { version = "3.17.2" | "4.2.0" | "4.2.2" | "4.2.3" | "4.2.4" (default) or "latest" }
 # kustomize = {} # Kubernetes manifest overlay and patching tool; default on; options: {}, { enabled = true|false }, { version = "5.6.0" | "5.8.1" (default) or "latest" }
 # k9s = { enabled = true } # Interactive terminal UI for Kubernetes clusters; default off; options: {}, { enabled = true|false }, { version = "0.50.18" | "0.51.0" (default) or "latest" }
+
+# Tools/mermaid — Build-time Mermaid rendering with a pinned headless browser; requires node
+# [addons.mermaid.tools]
+# mermaid-cli = {} # Mermaid CLI (mmdc) for static SVG, PNG, and PDF rendering; default on; options: {}, { enabled = true|false }, { version = "11.16.0" (default) or "latest" }
+# puppeteer = {} # Pinned Puppeteer and compatible Chrome headless shell runtime; default on; options: {}, { enabled = true|false }, { version = "25.9.0" (default) or "latest" }
 
 # Tools/preview-archive — Yazi image/PDF/SVG preview helpers plus archive preview/extraction tools
 [addons.preview-archive.tools]
@@ -616,11 +631,11 @@ schema_version = "1.0.0"      # Context schema version — updated automatically
 # [customization] — color theme, shell prompt, and tmux layout
 # =============================================================================
 # Theme is applied consistently across tmux, Vim, Yazi, lazygit, and bat.
-# Theme families (34 total):
-#   Multi-variant: ayu, catppuccin, dracula, everforest, github, gruvbox,
+# Theme families (37 total):
+#   Multi-variant: ayu, borland, catppuccin, dracula, everforest, github, gruvbox,
 #     kanagawa, material, min, mono, night-owl, one-dark, projectious,
 #     rose-pine, slack, solarized, tokyo-night, vitesse, vscode, contrast,
-#     contrast-mono
+#     contrast-mono, norton, phosphor
 #   Single-mode: andromeeda, aurora-x, houston, laserwave,
 #     monokai, moonlight, nord, plastic, poimandres, red,
 #     snazzy, synthwave-84, vesper
@@ -638,6 +653,7 @@ mode   = "dark"
 #   tokyo-night: "storm"    vitesse: "black"
 #   projectious: "deep" | "high-contrast-dark" | "high-contrast-light"
 #   contrast, contrast-mono: "max"
+#   borland, norton, phosphor: "classic" | "optimized"
 # variant = "<name>"
 # Font-decoration channel: auto | full | standard | minimal | none.
 # Mono/high-contrast themes require standard or stronger; max requires full.
