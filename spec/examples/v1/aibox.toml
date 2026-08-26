@@ -1,0 +1,50 @@
+schema_version = "1"
+
+[environment]
+definition = ".devcontainer/devcontainer.json"
+purpose = "agent-workspace"
+
+[profiles.local]
+target = "local"
+workload = "user-dev"
+interaction = "human-ui"
+
+[profiles.local.runtime]
+candidates = ["devcontainer-cli"]
+
+[profiles.local.security]
+policy = "developer-interactive"
+
+[profiles.local.storage.home]
+class = "persistent"
+implementation = "volume"
+
+[profiles.remote-agent]
+target = "ainfra://development/agent-runners"
+workload = "headless-service"
+interaction = "none"
+
+[profiles.remote-agent.runtime]
+candidates = ["envbuilder", "kubernetes-native"]
+
+[profiles.remote-agent.security]
+policy = "headless-agent"
+secret_provider = "team-openbao"
+require_feature_provenance = true
+allow_target_agent = false
+
+[[secrets]]
+name = "github-token"
+provider = "developer-sops"
+phase = "interactive-entry"
+delivery = "exec-env"
+scope = "process-tree"
+target = "GH_TOKEN"
+
+[[secrets]]
+name = "registry-auth"
+provider = "team-openbao"
+phase = "runtime"
+delivery = "agent-file"
+scope = "application"
+target = "/run/secrets/registry-auth"
