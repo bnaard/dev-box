@@ -1,0 +1,2982 @@
+{
+  "archive_id": "ARCHIVE-20260826_104056-migration-applied",
+  "archive_path": "context/archives/2026/08/ARCHIVE-20260826_104056-migration-applied.tar.gz",
+  "created_at": "2026-08-26T10:40:56+00:00",
+  "entities": [
+    {
+      "apiVersion": "processkit.projectious.work/v1",
+      "body_index": "# Migration MIG-20260726_1903-ContentSync-processkit-content-sync\n\nFrom `v0.28.3` to `v0.28.4` (source: `https://github.com/projectious-work/processkit.git`).\n\n0 changed upstream, 0 conflicts, 722 new, 0 removed, 0 stale-removed (44 groups affected)\n\n## Counts\n\n- unchanged: 0\n- changed-locally-only: 0\n- changed-upstream-only: 0\n- conflict: 0\n- new-upstream: 722\n- removed-upstream: 0\n- removed-upstream-stale: 0\n\n## Changes by group\n\n### (ungrouped)\n\n**new-upstream**\n\n- `INDEX.md` \u2192 `context/INDEX.md`\n\n### AGENTS\n\n**new-upstream**\n\n- `AGENTS.md` \u2192 `AGENTS.md`\n\n### context\n\n**new-upstream**\n\n- `context/.processkit-mcp-manifest.json` \u2192 `context/.processkit-mcp-manifest.json`\n\n### context/artifacts\n\n**new-upstream**\n\n- `context/artifacts/ART-20260503_1424-ModelSpec-anthropic-claude-haiku.md` \u2192 `context/artifacts/ART-20260503_1424-ModelSpec-anthropic-claude-haiku.md`\n- `context/artifacts/ART-20260503_1424-ModelSpec-mistral-codestral.md` \u2192 `context/artifacts/ART-20260503_1424-ModelSpec-mistral-codestral.md`\n- `context/artifacts/ART-20260503_1424-ModelSpec-deepseek-deepseek-v.md` \u2192 `context/artifacts/ART-20260503_1424-ModelSpec-deepseek-deepseek-v.md`\n- `context/artifacts/ART-20260503_1424",
+      "id": "MIG-20260726_1903-ContentSync-processkit-content-sync",
+      "kind": "Migration",
+      "labels": {},
+      "member_path": "context/migrations/applied/MIG-20260726_1903-ContentSync-processkit-content-sync.md",
+      "metadata": {
+        "created": "2026-07-26T19:03:38+00:00",
+        "id": "MIG-20260726_1903-ContentSync-processkit-content-sync",
+        "updated": "2026-07-26T19:16:52+00:00"
+      },
+      "original_path": "context/migrations/applied/MIG-20260726_1903-ContentSync-processkit-content-sync.md",
+      "sha256": "721613dbc749f1f389d8c0a75773264e83096ea78b9d0dfaf110cd7aa16205b1",
+      "spec": {
+        "affected_files": [
+          {
+            "classification": "new-upstream",
+            "path": "AGENTS.md"
+          },
+          {
+            "classification": "new-upstream",
+            "path": "INDEX.md"
+          },
+          {
+            "classification": "new-upstream",
+            "path": "context/.processkit-mcp-manifest.json"
+          },
+          {
+            "classification": "new-upstream",
+            "path": "context/artifacts/ART-20260503_1424-ModelSpec-alibaba-qwen2-5-72b.md"
+          },
+          {
+            "classification": "new-upstream",
+            "path": "context/artifacts/ART-20260503_1424-ModelSpec-alibaba-qwen2-5-coder-32b.md"
+          },
+          {
+            "classification": "new-upstream",
+            "path": "context/artifacts/ART-20260503_1424-ModelSpec-alibaba-qwen3-235b.md"
+          },
+          {
+            "classification": "new-upstream",
+            "path": "context/artifacts/ART-20260503_1424-ModelSpec-alibaba-qwen3-6-flash.md"
+          },
+          {
+            "classification": "new-upstream",
+            "path": "context/artifacts/ART-20260503_1424-ModelSpec-alibaba-qwen3-6-max-preview.md"
+          },
+          {
+            "classification": "new-upstream",
+            "path": "context/artifacts/ART-20260503_1424-ModelSpec-alibaba-qwen3-6-plus.md"
+          },
+          {
+            "classification": "new-upstream",
+            "path": "context/artifacts/ART-20260503_1424-ModelSpec-alibaba-qwen3-7-max.md"
+          },
+          {
+            "classification": "new-upstream",
+            "path": "context/artifacts/ART-20260503_1424-ModelSpec-alibaba-qwen3-8-max-preview.md"
+          },
+          {
+            "classification": "new-upstream",
+            "path": "context/artifacts/ART-20260503_1424-ModelSpec-alibaba-qwen3-coder.md"
+          },
+          {
+            "classification": "new-upstream",
+            "path": "context/artifacts/ART-20260503_1424-ModelSpec-anthropic-claude-haiku.md"
+          },
+          {
+            "classification": "new-upstream",
+            "path": "context/artifacts/ART-20260503_1424-ModelSpec-anthropic-claude-opus.md"
+          },
+          {
+            "classification": "new-upstream",
+            "path": "context/artifacts/ART-20260503_1424-ModelSpec-anthropic-claude-sonnet.md"
+          },
+          {
+            "classification": "new-upstream",
+            "path": "context/artifacts/ART-20260503_1424-ModelSpec-aws-amazon-nova-2-lite.md"
+          },
+          {
+            "classification": "new-upstream",
+            "path": "context/artifacts/ART-20260503_1424-ModelSpec-cohere-command-a.md"
+          },
+          {
+            "classification": "new-upstream",
+            "path": "context/artifacts/ART-20260503_1424-ModelSpec-cohere-command-r-plus.md"
+          },
+          {
+            "classification": "new-upstream",
+            "path": "context/artifacts/ART-20260503_1424-ModelSpec-deepseek-deepseek-r.md"
+          },
+          {
+            "classification": "new-upstream",
+            "path": "context/artifacts/ART-20260503_1424-ModelSpec-deepseek-deepseek-v.md"
+          },
+          {
+            "classification": "new-upstream",
+            "path": "context/artifacts/ART-20260503_1424-ModelSpec-deepseek-deepseek-v4-flash.md"
+          },
+          {
+            "classification": "new-upstream",
+            "path": "context/artifacts/ART-20260503_1424-ModelSpec-deepseek-deepseek-v4-pro.md"
+          },
+          {
+            "classification": "new-upstream",
+            "path": "context/artifacts/ART-20260503_1424-ModelSpec-google-gemini-2-5-flash.md"
+          },
+          {
+            "classification": "new-upstream",
+            "path": "context/artifacts/ART-20260503_1424-ModelSpec-google-gemini-2-5-pro.md"
+          },
+          {
+            "classification": "new-upstream",
+            "path": "context/artifacts/ART-20260503_1424-ModelSpec-google-gemini-3-1-pro.md"
+          },
+          {
+            "classification": "new-upstream",
+            "path": "context/artifacts/ART-20260503_1424-ModelSpec-google-gemini-3-6-flash.md"
+          },
+          {
+            "classification": "new-upstream",
+            "path": "context/artifacts/ART-20260503_1424-ModelSpec-google-gemini-3-flash-preview.md"
+          },
+          {
+            "classification": "new-upstream",
+            "path": "context/artifacts/ART-20260503_1424-ModelSpec-google-gemini-3-flash.md"
+          },
+          {
+            "classification": "new-upstream",
+            "path": "context/artifacts/ART-20260503_1424-ModelSpec-google-gemini-3-pro-preview.md"
+          },
+          {
+            "classification": "new-upstream",
+            "path": "context/artifacts/ART-20260503_1424-ModelSpec-google-gemini-flash.md"
+          },
+          {
+            "classification": "new-upstream",
+            "path": "context/artifacts/ART-20260503_1424-ModelSpec-google-gemma-3-27b.md"
+          },
+          {
+            "classification": "new-upstream",
+            "path": "context/artifacts/ART-20260503_1424-ModelSpec-meta-llama-3-70b.md"
+          },
+          {
+            "classification": "new-upstream",
+            "path": "context/artifacts/ART-20260503_1424-ModelSpec-meta-llama-4-maverick.md"
+          },
+          {
+            "classification": "new-upstream",
+            "path": "context/artifacts/ART-20260503_1424-ModelSpec-meta-llama-4-scout.md"
+          },
+          {
+            "classification": "new-upstream",
+            "path": "context/artifacts/ART-20260503_1424-ModelSpec-microsoft-phi.md"
+          },
+          {
+            "classification": "new-upstream",
+            "path": "context/artifacts/ART-20260503_1424-ModelSpec-minimax-minimax-m.md"
+          },
+          {
+            "classification": "new-upstream",
+            "path": "context/artifacts/ART-20260503_1424-ModelSpec-minimax-minimax-m3.md"
+          },
+          {
+            "classification": "new-upstream",
+            "path": "context/artifacts/ART-20260503_1424-ModelSpec-minimax-minimax-text.md"
+          },
+          {
+            "classification": "new-upstream",
+            "path": "context/artifacts/ART-20260503_1424-ModelSpec-mistral-codestral.md"
+          },
+          {
+            "classification": "new-upstream",
+            "path": "context/artifacts/ART-20260503_1424-ModelSpec-mistral-devstral.md"
+          },
+          {
+            "classification": "new-upstream",
+            "path": "context/artifacts/ART-20260503_1424-ModelSpec-mistral-mistral-deep-think.md"
+          },
+          {
+            "classification": "new-upstream",
+            "path": "context/artifacts/ART-20260503_1424-ModelSpec-mistral-mistral-large.md"
+          },
+          {
+            "classification": "new-upstream",
+            "path": "context/artifacts/ART-20260503_1424-ModelSpec-mistral-mistral-medium.md"
+          },
+          {
+            "classification": "new-upstream",
+            "path": "context/artifacts/ART-20260503_1424-ModelSpec-mistral-mistral-small.md"
+          },
+          {
+            "classification": "new-upstream",
+            "path": "context/artifacts/ART-20260503_1424-ModelSpec-moonshot-kimi-k2-6.md"
+          },
+          {
+            "classification": "new-upstream",
+            "path": "context/artifacts/ART-20260503_1424-ModelSpec-moonshot-kimi-k3.md"
+          },
+          {
+            "classification": "new-upstream",
+            "path": "context/artifacts/ART-20260503_1424-ModelSpec-nvidia-nvidia-nemotron-3-super-120b.md"
+          },
+          {
+            "classification": "new-upstream",
+            "path": "context/artifacts/ART-20260503_1424-ModelSpec-openai-gpt-4o.md"
+          },
+          {
+            "classification": "new-upstream",
+            "path": "context/artifacts/ART-20260503_1424-ModelSpec-openai-gpt-5-2-codex.md"
+          },
+          {
+            "classification": "new-upstream",
+            "path": "context/artifacts/ART-20260503_1424-ModelSpec-openai-gpt-5-2-pro.md"
+          },
+          {
+            "classification": "new-upstream",
+            "path": "context/artifacts/ART-20260503_1424-ModelSpec-openai-gpt-5-3-codex-spark.md"
+          },
+          {
+            "classification": "new-upstream",
+            "path": "context/artifacts/ART-20260503_1424-ModelSpec-openai-gpt-5-5-pro.md"
+          },
+          {
+            "classification": "new-upstream",
+            "path": "context/artifacts/ART-20260503_1424-ModelSpec-openai-gpt-5-pro.md"
+          },
+          {
+            "classification": "new-upstream",
+            "path": "context/artifacts/ART-20260503_1424-ModelSpec-openai-gpt-5.md"
+          },
+          {
+            "classification": "new-upstream",
+            "path": "context/artifacts/ART-20260503_1424-ModelSpec-openai-gpt.md"
+          },
+          {
+            "classification": "new-upstream",
+            "path": "context/artifacts/ART-20260503_1424-ModelSpec-openai-o3.md"
+          },
+          {
+            "classification": "new-upstream",
+            "path": "context/artifacts/ART-20260503_1424-ModelSpec-openai-o4-mini.md"
+          },
+          {
+            "classification": "new-upstream",
+            "path": "context/artifacts/ART-20260503_1424-ModelSpec-subquadratic-subq-1-1-small.md"
+          },
+          {
+            "classification": "new-upstream",
+            "path": "context/artifacts/ART-20260503_1424-ModelSpec-xai-grok-3-5.md"
+          },
+          {
+            "classification": "new-upstream",
+            "path": "context/artifacts/ART-20260503_1424-ModelSpec-xai-grok-3.md"
+          },
+          {
+            "classification": "new-upstream",
+            "path": "context/artifacts/ART-20260503_1424-ModelSpec-xai-grok-4-1-fast.md"
+          },
+          {
+            "classification": "new-upstream",
+            "path": "context/artifacts/ART-20260503_1424-ModelSpec-xai-grok-4-1.md"
+          },
+          {
+            "classification": "new-upstream",
+            "path": "context/artifacts/ART-20260503_1424-ModelSpec-xai-grok-4-heavy.md"
+          },
+          {
+            "classification": "new-upstream",
+            "path": "context/artifacts/ART-20260503_1424-ModelSpec-xai-grok-4.md"
+          },
+          {
+            "classification": "new-upstream",
+            "path": "context/artifacts/ART-20260503_1424-ModelSpec-xai-grok.md"
+          },
+          {
+            "classification": "new-upstream",
+            "path": "context/artifacts/ART-20260503_1424-ModelSpec-xiaomi-mimo-7b.md"
+          },
+          {
+            "classification": "new-upstream",
+            "path": "context/artifacts/ART-20260503_1424-ModelSpec-zai-glm.md"
+          },
+          {
+            "classification": "new-upstream",
+            "path": "context/artifacts/ART-20260503_1832-ModelProfile-code-balanced.md"
+          },
+          {
+            "classification": "new-upstream",
+            "path": "context/artifacts/ART-20260503_1832-ModelProfile-code-deep.md"
+          },
+          {
+            "classification": "new-upstream",
+            "path": "context/artifacts/ART-20260503_1832-ModelProfile-code-fast.md"
+          },
+          {
+            "classification": "new-upstream",
+            "path": "context/artifacts/ART-20260503_1832-ModelProfile-general-balanced.md"
+          },
+          {
+            "classification": "new-upstream",
+            "path": "context/artifacts/ART-20260503_1832-ModelProfile-general-deep.md"
+          },
+          {
+            "classification": "new-upstream",
+            "path": "context/artifacts/ART-20260503_1832-ModelProfile-general-fast.md"
+          },
+          {
+            "classification": "new-upstream",
+            "path": "context/artifacts/ART-20260503_1832-ModelProfile-governed-deep.md"
+          },
+          {
+            "classification": "new-upstream",
+            "path": "context/artifacts/ART-20260503_1832-ModelProfile-research-deep.md"
+          },
+          {
+            "classification": "new-upstream",
+            "path": "context/artifacts/ART-20260503_1832-ModelProfile-writing-balanced.md"
+          },
+          {
+            "classification": "new-upstream",
+            "path": "context/artifacts/ART-20260504_1425-ModelSpec-openai-gpt-5-3-codex-spark.md"
+          },
+          {
+            "classification": "new-upstream",
+            "path": "context/artifacts/ART-20260505_1545-ModelSpec-xiaomi-mimo-7b.md"
+          },
+          {
+            "classification": "new-upstream",
+            "path": "context/bindings/BIND-ai-research-scientist-expert-r1-h3ea4c0.md"
+          },
+          {
+            "classification": "new-upstream",
+            "path": "context/bindings/BIND-ai-research-scientist-junior-ha25e5b.md"
+          },
+          {
+            "classification": "new-upstream",
+            "path": "context/bindings/BIND-ai-research-scientist-principal-h5e96d8.md"
+          },
+          {
+            "classification": "new-upstream",
+            "path": "context/bindings/BIND-ai-research-scientist-senior-h18c312.md"
+          },
+          {
+            "classification": "new-upstream",
+            "path": "context/bindings/BIND-ai-research-scientist-specialist-r1-h52964c.md"
+          },
+          {
+            "classification": "new-upstream",
+            "path": "context/bindings/BIND-assistant-expert-r1-h67ab7c.md"
+          },
+          {
+            "classification": "new-upstream",
+            "path": "context/bindings/BIND-assistant-junior-hae1bfb.md"
+          },
+          {
+            "classification": "new-upstream",
+            "path": "context/bindings/BIND-assistant-principal-hb5ac7b.md"
+          },
+          {
+            "classification": "new-upstream",
+            "path": "context/bindings/BIND-assistant-senior-h771629.md"
+          },
+          {
+            "classification": "new-upstream",
+            "path": "context/bindings/BIND-assistant-specialist-r1-he4f117.md"
+          },
+          {
+            "classification": "new-upstream",
+            "path": "context/bindings/BIND-cora-default-r1-h299cb7.md"
+          },
+          {
+            "classification": "new-upstream",
+            "path": "context/bindings/BIND-data-scientist-expert-r1-hb8654f.md"
+          },
+          {
+            "classification": "new-upstream",
+            "path": "context/bindings/BIND-data-scientist-junior-he28d96.md"
+          },
+          {
+            "classification": "new-upstream",
+            "path": "context/bindings/BIND-data-scientist-principal-h192434.md"
+          },
+          {
+            "classification": "new-upstream",
+            "path": "context/bindings/BIND-data-scientist-senior-h8816d2.md"
+          },
+          {
+            "classification": "new-upstream",
+            "path": "context/bindings/BIND-data-scientist-specialist-r1-h5f7da2.md"
+          },
+          {
+            "classification": "new-upstream",
+            "path": "context/bindings/BIND-database-engineer-senior-r1-h39bdeb.md"
+          },
+          {
+            "classification": "new-upstream",
+            "path": "context/bindings/BIND-machine-learning-engineer-senior-r1-hd54ded.md"
+          },
+          {
+            "classification": "new-upstream",
+            "path": "context/bindings/BIND-product-manager-expert-r1-hf330ef.md"
+          },
+          {
+            "classification": "new-upstream",
+            "path": "context/bindings/BIND-product-manager-junior-h9275a0.md"
+          },
+          {
+            "classification": "new-upstream",
+            "path": "context/bindings/BIND-product-manager-principal-h723e55.md"
+          },
+          {
+            "classification": "new-upstream",
+            "path": "context/bindings/BIND-product-manager-senior-hf3f8e9.md"
+          },
+          {
+            "classification": "new-upstream",
+            "path": "context/bindings/BIND-product-manager-senior-r1-hf96017.md"
+          },
+          {
+            "classification": "new-upstream",
+            "path": "context/bindings/BIND-product-manager-specialist-r1-h42cae9.md"
+          },
+          {
+            "classification": "new-upstream",
+            "path": "context/bindings/BIND-qa-engineer-expert-r1-h68a730.md"
+          },
+          {
+            "classification": "new-upstream",
+            "path": "context/bindings/BIND-qa-engineer-junior-h796cc2.md"
+          },
+          {
+            "classification": "new-upstream",
+            "path": "context/bindings/BIND-qa-engineer-principal-h07f4cd.md"
+          },
+          {
+            "classification": "new-upstream",
+            "path": "context/bindings/BIND-qa-engineer-senior-h0436ab.md"
+          },
+          {
+            "classification": "new-upstream",
+            "path": "context/bindings/BIND-qa-engineer-senior-r1-h4db0e9.md"
+          },
+          {
+            "classification": "new-upstream",
+            "path": "context/bindings/BIND-qa-engineer-senior-r1-h522915.md"
+          },
+          {
+            "classification": "new-upstream",
+            "path": "context/bindings/BIND-qa-engineer-specialist-r1-he98ba3.md"
+          },
+          {
+            "classification": "new-upstream",
+            "path": "context/bindings/BIND-research-scientist-expert-r1-h3e65e9.md"
+          },
+          {
+            "classification": "new-upstream",
+            "path": "context/bindings/BIND-research-scientist-junior-h87372f.md"
+          },
+          {
+            "classification": "new-upstream",
+            "path": "context/bindings/BIND-research-scientist-principal-hb4e3bb.md"
+          },
+          {
+            "classification": "new-upstream",
+            "path": "context/bindings/BIND-research-scientist-senior-h14c6d3.md"
+          },
+          {
+            "classification": "new-upstream",
+            "path": "context/bindings/BIND-research-scientist-specialist-r1-hf66b32.md"
+          },
+          {
+            "classification": "new-upstream",
+            "path": "context/bindings/BIND-security-architect-expert-r1-h636811.md"
+          },
+          {
+            "classification": "new-upstream",
+            "path": "context/bindings/BIND-security-architect-junior-hf79510.md"
+          },
+          {
+            "classification": "new-upstream",
+            "path": "context/bindings/BIND-security-architect-principal-h2c8917.md"
+          },
+          {
+            "classification": "new-upstream",
+            "path": "context/bindings/BIND-security-architect-senior-h142586.md"
+          },
+          {
+            "classification": "new-upstream",
+            "path": "context/bindings/BIND-security-architect-specialist-r1-hc3ae4a.md"
+          },
+          {
+            "classification": "new-upstream",
+            "path": "context/bindings/BIND-software-engineer-expert-r1-ha8eea0.md"
+          },
+          {
+            "classification": "new-upstream",
+            "path": "context/bindings/BIND-software-engineer-junior-h92feb2.md"
+          },
+          {
+            "classification": "new-upstream",
+            "path": "context/bindings/BIND-software-engineer-principal-ha71725.md"
+          },
+          {
+            "classification": "new-upstream",
+            "path": "context/bindings/BIND-software-engineer-senior-h7bd319.md"
+          },
+          {
+            "classification": "new-upstream",
+            "path": "context/bindings/BIND-software-engineer-senior-r1-h79acd6.md"
+          },
+          {
+            "classification": "new-upstream",
+            "path": "context/bindings/BIND-software-engineer-senior-r1-h8ea632.md"
+          },
+          {
+            "classification": "new-upstream",
+            "path": "context/bindings/BIND-software-engineer-specialist-r1-h5a5377.md"
+          },
+          {
+            "classification": "new-upstream",
+            "path": "context/bindings/BIND-solutions-architect-expert-r1-h850329.md"
+          },
+          {
+            "classification": "new-upstream",
+            "path": "context/bindings/BIND-solutions-architect-junior-heb66a8.md"
+          },
+          {
+            "classification": "new-upstream",
+            "path": "context/bindings/BIND-solutions-architect-principal-h5264ce.md"
+          },
+          {
+            "classification": "new-upstream",
+            "path": "context/bindings/BIND-solutions-architect-senior-h603b59.md"
+          },
+          {
+            "classification": "new-upstream",
+            "path": "context/bindings/BIND-solutions-architect-specialist-r1-h1125a0.md"
+          },
+          {
+            "classification": "new-upstream",
+            "path": "context/bindings/BIND-technical-writer-expert-r1-h103b62.md"
+          },
+          {
+            "classification": "new-upstream",
+            "path": "context/bindings/BIND-technical-writer-junior-h431a38.md"
+          },
+          {
+            "classification": "new-upstream",
+            "path": "context/bindings/BIND-technical-writer-principal-h56b361.md"
+          },
+          {
+            "classification": "new-upstream",
+            "path": "context/bindings/BIND-technical-writer-senior-hb93488.md"
+          },
+          {
+            "classification": "new-upstream",
+            "path": "context/bindings/BIND-technical-writer-senior-r1-h63fa44.md"
+          },
+          {
+            "classification": "new-upstream",
+            "path": "context/bindings/BIND-technical-writer-senior-r1-h93e646.md"
+          },
+          {
+            "classification": "new-upstream",
+            "path": "context/bindings/BIND-technical-writer-specialist-r1-h920232.md"
+          },
+          {
+            "classification": "new-upstream",
+            "path": "context/roles/ROLE-account-executive.md"
+          },
+          {
+            "classification": "new-upstream",
+            "path": "context/roles/ROLE-ai-research-scientist.md"
+          },
+          {
+            "classification": "new-upstream",
+            "path": "context/roles/ROLE-assistant.md"
+          },
+          {
+            "classification": "new-upstream",
+            "path": "context/roles/ROLE-brand-manager.md"
+          },
+          {
+            "classification": "new-upstream",
+            "path": "context/roles/ROLE-business-operations-analyst.md"
+          },
+          {
+            "classification": "new-upstream",
+            "path": "context/roles/ROLE-ceo.md"
+          },
+          {
+            "classification": "new-upstream",
+            "path": "context/roles/ROLE-cfo.md"
+          },
+          {
+            "classification": "new-upstream",
+            "path": "context/roles/ROLE-chief-of-staff.md"
+          },
+          {
+            "classification": "new-upstream",
+            "path": "context/roles/ROLE-cloud-architect.md"
+          },
+          {
+            "classification": "new-upstream",
+            "path": "context/roles/ROLE-cloud-engineer.md"
+          },
+          {
+            "classification": "new-upstream",
+            "path": "context/roles/ROLE-cmo.md"
+          },
+          {
+            "classification": "new-upstream",
+            "path": "context/roles/ROLE-community-manager.md"
+          },
+          {
+            "classification": "new-upstream",
+            "path": "context/roles/ROLE-compliance-officer.md"
+          },
+          {
+            "classification": "new-upstream",
+            "path": "context/roles/ROLE-content-marketer.md"
+          },
+          {
+            "classification": "new-upstream",
+            "path": "context/roles/ROLE-controller.md"
+          },
+          {
+            "classification": "new-upstream",
+            "path": "context/roles/ROLE-coo.md"
+          },
+          {
+            "classification": "new-upstream",
+            "path": "context/roles/ROLE-cpo.md"
+          },
+          {
+            "classification": "new-upstream",
+            "path": "context/roles/ROLE-cto.md"
+          },
+          {
+            "classification": "new-upstream",
+            "path": "context/roles/ROLE-customer-success-manager.md"
+          },
+          {
+            "classification": "new-upstream",
+            "path": "context/roles/ROLE-data-architect.md"
+          },
+          {
+            "classification": "new-upstream",
+            "path": "context/roles/ROLE-data-protection-officer.md"
+          },
+          {
+            "classification": "new-upstream",
+            "path": "context/roles/ROLE-data-scientist.md"
+          },
+          {
+            "classification": "new-upstream",
+            "path": "context/roles/ROLE-database-engineer.md"
+          },
+          {
+            "classification": "new-upstream",
+            "path": "context/roles/ROLE-devops-engineer.md"
+          },
+          {
+            "classification": "new-upstream",
+            "path": "context/roles/ROLE-embedded-engineer.md"
+          },
+          {
+            "classification": "new-upstream",
+            "path": "context/roles/ROLE-enterprise-architect.md"
+          },
+          {
+            "classification": "new-upstream",
+            "path": "context/roles/ROLE-financial-analyst.md"
+          },
+          {
+            "classification": "new-upstream",
+            "path": "context/roles/ROLE-general-counsel.md"
+          },
+          {
+            "classification": "new-upstream",
+            "path": "context/roles/ROLE-learning-development-manager.md"
+          },
+          {
+            "classification": "new-upstream",
+            "path": "context/roles/ROLE-machine-learning-engineer.md"
+          },
+          {
+            "classification": "new-upstream",
+            "path": "context/roles/ROLE-observability-engineer.md"
+          },
+          {
+            "classification": "new-upstream",
+            "path": "context/roles/ROLE-pr-manager.md"
+          },
+          {
+            "classification": "new-upstream",
+            "path": "context/roles/ROLE-product-designer.md"
+          },
+          {
+            "classification": "new-upstream",
+            "path": "context/roles/ROLE-product-manager.md"
+          },
+          {
+            "classification": "new-upstream",
+            "path": "context/roles/ROLE-product-marketing-manager.md"
+          },
+          {
+            "classification": "new-upstream",
+            "path": "context/roles/ROLE-product-owner.md"
+          },
+          {
+            "classification": "new-upstream",
+            "path": "context/roles/ROLE-program-manager.md"
+          },
+          {
+            "classification": "new-upstream",
+            "path": "context/roles/ROLE-qa-engineer.md"
+          },
+          {
+            "classification": "new-upstream",
+            "path": "context/roles/ROLE-recruiter.md"
+          },
+          {
+            "classification": "new-upstream",
+            "path": "context/roles/ROLE-research-scientist.md"
+          },
+          {
+            "classification": "new-upstream",
+            "path": "context/roles/ROLE-sales-engineer.md"
+          },
+          {
+            "classification": "new-upstream",
+            "path": "context/roles/ROLE-scrum-master.md"
+          },
+          {
+            "classification": "new-upstream",
+            "path": "context/roles/ROLE-security-architect.md"
+          },
+          {
+            "classification": "new-upstream",
+            "path": "context/roles/ROLE-security-operations-engineer.md"
+          },
+          {
+            "classification": "new-upstream",
+            "path": "context/roles/ROLE-seo-specialist.md"
+          },
+          {
+            "classification": "new-upstream",
+            "path": "context/roles/ROLE-site-reliability-engineer.md"
+          },
+          {
+            "classification": "new-upstream",
+            "path": "context/roles/ROLE-software-engineer.md"
+          },
+          {
+            "classification": "new-upstream",
+            "path": "context/roles/ROLE-solutions-architect.md"
+          },
+          {
+            "classification": "new-upstream",
+            "path": "context/roles/ROLE-technical-writer.md"
+          },
+          {
+            "classification": "new-upstream",
+            "path": "context/roles/ROLE-treasury-analyst.md"
+          },
+          {
+            "classification": "new-upstream",
+            "path": "context/roles/ROLE-ux-designer.md"
+          },
+          {
+            "classification": "new-upstream",
+            "path": "context/schemas/INDEX.md"
+          },
+          {
+            "classification": "new-upstream",
+            "path": "context/schemas/actor.yaml"
+          },
+          {
+            "classification": "new-upstream",
+            "path": "context/schemas/artifact.yaml"
+          },
+          {
+            "classification": "new-upstream",
+            "path": "context/schemas/binding.yaml"
+          },
+          {
+            "classification": "new-upstream",
+            "path": "context/schemas/category.yaml"
+          },
+          {
+            "classification": "new-upstream",
+            "path": "context/schemas/constraint.yaml"
+          },
+          {
+            "classification": "new-upstream",
+            "path": "context/schemas/context.yaml"
+          },
+          {
+            "classification": "new-upstream",
+            "path": "context/schemas/decisionrecord.yaml"
+          },
+          {
+            "classification": "new-upstream",
+            "path": "context/schemas/discussion.yaml"
+          },
+          {
+            "classification": "new-upstream",
+            "path": "context/schemas/gate.yaml"
+          },
+          {
+            "classification": "new-upstream",
+            "path": "context/schemas/logentry.yaml"
+          },
+          {
+            "classification": "new-upstream",
+            "path": "context/schemas/migration.yaml"
+          },
+          {
+            "classification": "new-upstream",
+            "path": "context/schemas/note.yaml"
+          },
+          {
+            "classification": "new-upstream",
+            "path": "context/schemas/role.yaml"
+          },
+          {
+            "classification": "new-upstream",
+            "path": "context/schemas/roleslot.yaml"
+          },
+          {
+            "classification": "new-upstream",
+            "path": "context/schemas/scope.yaml"
+          },
+          {
+            "classification": "new-upstream",
+            "path": "context/schemas/team-member.yaml"
+          },
+          {
+            "classification": "new-upstream",
+            "path": "context/schemas/workitem.yaml"
+          },
+          {
+            "classification": "new-upstream",
+            "path": "context/skills/INDEX.md"
+          },
+          {
+            "classification": "new-upstream",
+            "path": "context/skills/_lib/README.md"
+          },
+          {
+            "classification": "new-upstream",
+            "path": "context/skills/_lib/processkit/__init__.py"
+          },
+          {
+            "classification": "new-upstream",
+            "path": "context/skills/_lib/processkit/config.py"
+          },
+          {
+            "classification": "new-upstream",
+            "path": "context/skills/_lib/processkit/entity.py"
+          },
+          {
+            "classification": "new-upstream",
+            "path": "context/skills/_lib/processkit/frontmatter.py"
+          },
+          {
+            "classification": "new-upstream",
+            "path": "context/skills/_lib/processkit/gateway/__init__.py"
+          },
+          {
+            "classification": "new-upstream",
+            "path": "context/skills/_lib/processkit/gateway/catalog.py"
+          },
+          {
+            "classification": "new-upstream",
+            "path": "context/skills/_lib/processkit/gateway/lazy.py"
+          },
+          {
+            "classification": "new-upstream",
+            "path": "context/skills/_lib/processkit/gateway/loader.py"
+          },
+          {
+            "classification": "new-upstream",
+            "path": "context/skills/_lib/processkit/gateway/naming.py"
+          },
+          {
+            "classification": "new-upstream",
+            "path": "context/skills/_lib/processkit/gateway/permissions.py"
+          },
+          {
+            "classification": "new-upstream",
+            "path": "context/skills/_lib/processkit/gateway/proxy.py"
+          },
+          {
+            "classification": "new-upstream",
+            "path": "context/skills/_lib/processkit/gateway/registry.py"
+          },
+          {
+            "classification": "new-upstream",
+            "path": "context/skills/_lib/processkit/gateway/runtime.py"
+          },
+          {
+            "classification": "new-upstream",
+            "path": "context/skills/_lib/processkit/gateway/session.py"
+          },
+          {
+            "classification": "new-upstream",
+            "path": "context/skills/_lib/processkit/gateway/transports.py"
+          },
+          {
+            "classification": "new-upstream",
+            "path": "context/skills/_lib/processkit/ids.py"
+          },
+          {
+            "classification": "new-upstream",
+            "path": "context/skills/_lib/processkit/index.py"
+          },
+          {
+            "classification": "new-upstream",
+            "path": "context/skills/_lib/processkit/log.py"
+          },
+          {
+            "classification": "new-upstream",
+            "path": "context/skills/_lib/processkit/paths.py"
+          },
+          {
+            "classification": "new-upstream",
+            "path": "context/skills/_lib/processkit/schema.py"
+          },
+          {
+            "classification": "new-upstream",
+            "path": "context/skills/_lib/processkit/state_machine.py"
+          },
+          {
+            "classification": "new-upstream",
+            "path": "context/skills/_lib/processkit/test_frontmatter.py"
+          },
+          {
+            "classification": "new-upstream",
+            "path": "context/skills/_lib/processkit/test_ids.py"
+          },
+          {
+            "classification": "new-upstream",
+            "path": "context/skills/data-ai/ai-fundamentals/SKILL.md"
+          },
+          {
+            "classification": "new-upstream",
+            "path": "context/skills/data-ai/ai-fundamentals/references/math-foundations.md"
+          },
+          {
+            "classification": "new-upstream",
+            "path": "context/skills/data-ai/ai-fundamentals/references/ml-concepts.md"
+          },
+          {
+            "classification": "new-upstream",
+            "path": "context/skills/data-ai/data-pipeline/SKILL.md"
+          },
+          {
+            "classification": "new-upstream",
+            "path": "context/skills/data-ai/data-quality/SKILL.md"
+          },
+          {
+            "classification": "new-upstream",
+            "path": "context/skills/data-ai/data-science/SKILL.md"
+          },
+          {
+            "classification": "new-upstream",
+            "path": "context/skills/data-ai/data-science/references/statistical-methods.md"
+          },
+          {
+            "classification": "new-upstream",
+            "path": "context/skills/data-ai/data-science/references/tidy-data-principles.md"
+          },
+          {
+            "classification": "new-upstream",
+            "path": "context/skills/data-ai/data-science/references/visualization-guidelines.md"
+          },
+          {
+            "classification": "new-upstream",
+            "path": "context/skills/data-ai/embedding-vectordb/SKILL.md"
+          },
+          {
+            "classification": "new-upstream",
+            "path": "context/skills/data-ai/feature-engineering/SKILL.md"
+          },
+          {
+            "classification": "new-upstream",
+            "path": "context/skills/data-ai/llm-evaluation/SKILL.md"
+          },
+          {
+            "classification": "new-upstream",
+            "path": "context/skills/data-ai/ml-pipeline/SKILL.md"
+          },
+          {
+            "classification": "new-upstream",
+            "path": "context/skills/data-ai/ml-pipeline/references/pipeline-stages.md"
+          },
+          {
+            "classification": "new-upstream",
+            "path": "context/skills/data-ai/pandas-polars/SKILL.md"
+          },
+          {
+            "classification": "new-upstream",
+            "path": "context/skills/data-ai/pandas-polars/references/api-comparison.md"
+          },
+          {
+            "classification": "new-upstream",
+            "path": "context/skills/data-ai/prompt-engineering/SKILL.md"
+          },
+          {
+            "classification": "new-upstream",
+            "path": "context/skills/data-ai/prompt-engineering/references/techniques-catalog.md"
+          },
+          {
+            "classification": "new-upstream",
+            "path": "context/skills/data-ai/rag-engineering/SKILL.md"
+          },
+          {
+            "classification": "new-upstream",
+            "path": "context/skills/data-ai/rag-engineering/references/chunking-strategies.md"
+          },
+          {
+            "classification": "new-upstream",
+            "path": "context/skills/data-ai/rag-engineering/references/evaluation.md"
+          },
+          {
+            "classification": "new-upstream",
+            "path": "context/skills/data-ai/rag-engineering/references/retrieval-patterns.md"
+          },
+          {
+            "classification": "new-upstream",
+            "path": "context/skills/design/excalidraw/SKILL.md"
+          },
+          {
+            "classification": "new-upstream",
+            "path": "context/skills/design/excalidraw/references/json-schema.md"
+          },
+          {
+            "classification": "new-upstream",
+            "path": "context/skills/design/frontend-design/SKILL.md"
+          },
+          {
+            "classification": "new-upstream",
+            "path": "context/skills/design/frontend-design/references/accessibility-checklist.md"
+          },
+          {
+            "classification": "new-upstream",
+            "path": "context/skills/design/logo-design/SKILL.md"
+          },
+          {
+            "classification": "new-upstream",
+            "path": "context/skills/design/logo-design/references/design-principles.md"
+          },
+          {
+            "classification": "new-upstream",
+            "path": "context/skills/design/mobile-app-design/SKILL.md"
+          },
+          {
+            "classification": "new-upstream",
+            "path": "context/skills/design/mobile-app-design/references/platform-guidelines.md"
+          },
+          {
+            "classification": "new-upstream",
+            "path": "context/skills/design/seo-optimization/SKILL.md"
+          },
+          {
+            "classification": "new-upstream",
+            "path": "context/skills/design/seo-optimization/references/technical-seo-checklist.md"
+          },
+          {
+            "classification": "new-upstream",
+            "path": "context/skills/devops/alerting-oncall/SKILL.md"
+          },
+          {
+            "classification": "new-upstream",
+            "path": "context/skills/devops/ci-cd-setup/SKILL.md"
+          },
+          {
+            "classification": "new-upstream",
+            "path": "context/skills/devops/container-orchestration/SKILL.md"
+          },
+          {
+            "classification": "new-upstream",
+            "path": "context/skills/devops/container-orchestration/references/compose-patterns.md"
+          },
+          {
+            "classification": "new-upstream",
+            "path": "context/skills/devops/distributed-tracing/SKILL.md"
+          },
+          {
+            "classification": "new-upstream",
+            "path": "context/skills/devops/dns-networking/SKILL.md"
+          },
+          {
+            "classification": "new-upstream",
+            "path": "context/skills/devops/dns-networking/references/protocol-reference.md"
+          },
+          {
+            "classification": "new-upstream",
+            "path": "context/skills/devops/dns-networking/references/troubleshooting-tools.md"
+          },
+          {
+            "classification": "new-upstream",
+            "path": "context/skills/devops/dockerfile-review/SKILL.md"
+          },
+          {
+            "classification": "new-upstream",
+            "path": "context/skills/devops/incident-response/SKILL.md"
+          },
+          {
+            "classification": "new-upstream",
+            "path": "context/skills/devops/kubernetes-basics/SKILL.md"
+          },
+          {
+            "classification": "new-upstream",
+            "path": "context/skills/devops/kubernetes-basics/references/cluster-architecture.md"
+          },
+          {
+            "classification": "new-upstream",
+            "path": "context/skills/devops/kubernetes-basics/references/resource-cheatsheet.md"
+          },
+          {
+            "classification": "new-upstream",
+            "path": "context/skills/devops/kubernetes-basics/references/troubleshooting.md"
+          },
+          {
+            "classification": "new-upstream",
+            "path": "context/skills/devops/linux-administration/SKILL.md"
+          },
+          {
+            "classification": "new-upstream",
+            "path": "context/skills/devops/linux-administration/references/commands-cheatsheet.md"
+          },
+          {
+            "classification": "new-upstream",
+            "path": "context/skills/devops/linux-administration/references/systemd-reference.md"
+          },
+          {
+            "classification": "new-upstream",
+            "path": "context/skills/devops/logging-strategy/SKILL.md"
+          },
+          {
+            "classification": "new-upstream",
+            "path": "context/skills/devops/logging-strategy/references/structured-logging.md"
+          },
+          {
+            "classification": "new-upstream",
+            "path": "context/skills/devops/metrics-management/SKILL.md"
+          },
+          {
+            "classification": "new-upstream",
+            "path": "context/skills/devops/metrics-management/assets/metric-spec.yaml"
+          },
+          {
+            "classification": "new-upstream",
+            "path": "context/skills/devops/metrics-monitoring/SKILL.md"
+          },
+          {
+            "classification": "new-upstream",
+            "path": "context/skills/devops/metrics-monitoring/references/metric-types.md"
+          },
+          {
+            "classification": "new-upstream",
+            "path": "context/skills/devops/postmortem-writing/SKILL.md"
+          },
+          {
+            "classification": "new-upstream",
+            "path": "context/skills/devops/release-semver/SKILL.md"
+          },
+          {
+            "classification": "new-upstream",
+            "path": "context/skills/devops/release-semver/commands/pk-publish.md"
+          },
+          {
+            "classification": "new-upstream",
+            "path": "context/skills/devops/release-semver/commands/pk-release.md"
+          },
+          {
+            "classification": "new-upstream",
+            "path": "context/skills/devops/repo-management/SKILL.md"
+          },
+          {
+            "classification": "new-upstream",
+            "path": "context/skills/devops/repo-management/commands/pk-repo-reconcile.md"
+          },
+          {
+            "classification": "new-upstream",
+            "path": "context/skills/devops/repo-management/mcp/SERVER.md"
+          },
+          {
+            "classification": "new-upstream",
+            "path": "context/skills/devops/repo-management/mcp/mcp-config.json"
+          },
+          {
+            "classification": "new-upstream",
+            "path": "context/skills/devops/repo-management/mcp/server.py"
+          },
+          {
+            "classification": "new-upstream",
+            "path": "context/skills/devops/repo-management/scripts/test_repo_management.py"
+          },
+          {
+            "classification": "new-upstream",
+            "path": "context/skills/devops/terraform-basics/SKILL.md"
+          },
+          {
+            "classification": "new-upstream",
+            "path": "context/skills/documents/data-storytelling/SKILL.md"
+          },
+          {
+            "classification": "new-upstream",
+            "path": "context/skills/documents/data-visualization/SKILL.md"
+          },
+          {
+            "classification": "new-upstream",
+            "path": "context/skills/documents/data-visualization/references/chart-selection.md"
+          },
+          {
+            "classification": "new-upstream",
+            "path": "context/skills/documents/docx-authoring/SKILL.md"
+          },
+          {
+            "classification": "new-upstream",
+            "path": "context/skills/documents/infographics/SKILL.md"
+          },
+          {
+            "classification": "new-upstream",
+            "path": "context/skills/documents/infographics/references/best-practices.md"
+          },
+          {
+            "classification": "new-upstream",
+            "path": "context/skills/documents/latex-authoring/SKILL.md"
+          },
+          {
+            "classification": "new-upstream",
+            "path": "context/skills/documents/latex-authoring/references/math-reference.md"
+          },
+          {
+            "classification": "new-upstream",
+            "path": "context/skills/documents/latex-authoring/references/packages.md"
+          },
+          {
+            "classification": "new-upstream",
+            "path": "context/skills/documents/latex-authoring/references/tikz-reference.md"
+          },
+          {
+            "classification": "new-upstream",
+            "path": "context/skills/documents/pdf-workflow/SKILL.md"
+          },
+          {
+            "classification": "new-upstream",
+            "path": "context/skills/documents/pptx-authoring/SKILL.md"
+          },
+          {
+            "classification": "new-upstream",
+            "path": "context/skills/documents/xlsx-modeling/SKILL.md"
+          },
+          {
+            "classification": "new-upstream",
+            "path": "context/skills/engineering/api-design/SKILL.md"
+          },
+          {
+            "classification": "new-upstream",
+            "path": "context/skills/engineering/api-design/references/openapi-patterns.md"
+          },
+          {
+            "classification": "new-upstream",
+            "path": "context/skills/engineering/api-design/references/rest-conventions.md"
+          },
+          {
+            "classification": "new-upstream",
+            "path": "context/skills/engineering/auth-patterns/SKILL.md"
+          },
+          {
+            "classification": "new-upstream",
+            "path": "context/skills/engineering/auth-patterns/references/jwt-reference.md"
+          },
+          {
+            "classification": "new-upstream",
+            "path": "context/skills/engineering/auth-patterns/references/oauth-flows.md"
+          },
+          {
+            "classification": "new-upstream",
+            "path": "context/skills/engineering/caching-strategies/SKILL.md"
+          },
+          {
+            "classification": "new-upstream",
+            "path": "context/skills/engineering/changelog/SKILL.md"
+          },
+          {
+            "classification": "new-upstream",
+            "path": "context/skills/engineering/code-generation/SKILL.md"
+          },
+          {
+            "classification": "new-upstream",
+            "path": "context/skills/engineering/code-review/SKILL.md"
+          },
+          {
+            "classification": "new-upstream",
+            "path": "context/skills/engineering/concurrency-patterns/SKILL.md"
+          },
+          {
+            "classification": "new-upstream",
+            "path": "context/skills/engineering/concurrency-patterns/references/patterns-catalog.md"
+          },
+          {
+            "classification": "new-upstream",
+            "path": "context/skills/engineering/database-migration/SKILL.md"
+          },
+          {
+            "classification": "new-upstream",
+            "path": "context/skills/engineering/database-modeling/SKILL.md"
+          },
+          {
+            "classification": "new-upstream",
+            "path": "context/skills/engineering/database-modeling/references/modeling-patterns.md"
+          },
+          {
+            "classification": "new-upstream",
+            "path": "context/skills/engineering/debugging/SKILL.md"
+          },
+          {
+            "classification": "new-upstream",
+            "path": "context/skills/engineering/dependency-audit/SKILL.md"
+          },
+          {
+            "classification": "new-upstream",
+            "path": "context/skills/engineering/dependency-management/SKILL.md"
+          },
+          {
+            "classification": "new-upstream",
+            "path": "context/skills/engineering/domain-driven-design/SKILL.md"
+          },
+          {
+            "classification": "new-upstream",
+            "path": "context/skills/engineering/domain-driven-design/references/ddd-building-blocks.md"
+          },
+          {
+            "classification": "new-upstream",
+            "path": "context/skills/engineering/error-handling/SKILL.md"
+          },
+          {
+            "classification": "new-upstream",
+            "path": "context/skills/engineering/event-driven-architecture/SKILL.md"
+          },
+          {
+            "classification": "new-upstream",
+            "path": "context/skills/engineering/event-driven-architecture/references/messaging-patterns.md"
+          },
+          {
+            "classification": "new-upstream",
+            "path": "context/skills/engineering/fastapi-patterns/SKILL.md"
+          },
+          {
+            "classification": "new-upstream",
+            "path": "context/skills/engineering/fastapi-patterns/references/endpoint-patterns.md"
+          },
+          {
+            "classification": "new-upstream",
+            "path": "context/skills/engineering/flutter-development/SKILL.md"
+          },
+          {
+            "classification": "new-upstream",
+            "path": "context/skills/engineering/flutter-development/references/widget-catalog.md"
+          },
+          {
+            "classification": "new-upstream",
+            "path": "context/skills/engineering/git-branching/SKILL.md"
+          },
+          {
+            "classification": "new-upstream",
+            "path": "context/skills/engineering/git-branching/references/strategies.md"
+          },
+          {
+            "classification": "new-upstream",
+            "path": "context/skills/engineering/git-workflow/SKILL.md"
+          },
+          {
+            "classification": "new-upstream",
+            "path": "context/skills/engineering/go-conventions/SKILL.md"
+          },
+          {
+            "classification": "new-upstream",
+            "path": "context/skills/engineering/go-conventions/references/go-patterns.md"
+          },
+          {
+            "classification": "new-upstream",
+            "path": "context/skills/engineering/graphql-patterns/SKILL.md"
+          },
+          {
+            "classification": "new-upstream",
+            "path": "context/skills/engineering/grpc-protobuf/SKILL.md"
+          },
+          {
+            "classification": "new-upstream",
+            "path": "context/skills/engineering/grpc-protobuf/references/proto-conventions.md"
+          },
+          {
+            "classification": "new-upstream",
+            "path": "context/skills/engineering/integration-testing/SKILL.md"
+          },
+          {
+            "classification": "new-upstream",
+            "path": "context/skills/engineering/integration-testing/references/test-fixtures.md"
+          },
+          {
+            "classification": "new-upstream",
+            "path": "context/skills/engineering/java-patterns/SKILL.md"
+          },
+          {
+            "classification": "new-upstream",
+            "path": "context/skills/engineering/load-testing/SKILL.md"
+          },
+          {
+            "classification": "new-upstream",
+            "path": "context/skills/engineering/microservice-creation/SKILL.md"
+          },
+          {
+            "classification": "new-upstream",
+            "path": "context/skills/engineering/nosql-patterns/SKILL.md"
+          },
+          {
+            "classification": "new-upstream",
+            "path": "context/skills/engineering/performance-profiling/SKILL.md"
+          },
+          {
+            "classification": "new-upstream",
+            "path": "context/skills/engineering/performance-profiling/references/profiling-tools.md"
+          },
+          {
+            "classification": "new-upstream",
+            "path": "context/skills/engineering/pixijs-gamedev/SKILL.md"
+          },
+          {
+            "classification": "new-upstream",
+            "path": "context/skills/engineering/pixijs-gamedev/references/api-cheatsheet.md"
+          },
+          {
+            "classification": "new-upstream",
+            "path": "context/skills/engineering/python-best-practices/SKILL.md"
+          },
+          {
+            "classification": "new-upstream",
+            "path": "context/skills/engineering/refactoring/SKILL.md"
+          },
+          {
+            "classification": "new-upstream",
+            "path": "context/skills/engineering/refactoring/references/code-smells.md"
+          },
+          {
+            "classification": "new-upstream",
+            "path": "context/skills/engineering/refactoring/references/gof-patterns.md"
+          },
+          {
+            "classification": "new-upstream",
+            "path": "context/skills/engineering/reflex-python/SKILL.md"
+          },
+          {
+            "classification": "new-upstream",
+            "path": "context/skills/engineering/reflex-python/references/component-reference.md"
+          },
+          {
+            "classification": "new-upstream",
+            "path": "context/skills/engineering/rust-conventions/SKILL.md"
+          },
+          {
+            "classification": "new-upstream",
+            "path": "context/skills/engineering/secret-management/SKILL.md"
+          },
+          {
+            "classification": "new-upstream",
+            "path": "context/skills/engineering/secure-coding/SKILL.md"
+          },
+          {
+            "classification": "new-upstream",
+            "path": "context/skills/engineering/secure-coding/references/owasp-checklist.md"
+          },
+          {
+            "classification": "new-upstream",
+            "path": "context/skills/engineering/shell-scripting/SKILL.md"
+          },
+          {
+            "classification": "new-upstream",
+            "path": "context/skills/engineering/shell-scripting/references/bash-patterns.md"
+          },
+          {
+            "classification": "new-upstream",
+            "path": "context/skills/engineering/software-architecture/SKILL.md"
+          },
+          {
+            "classification": "new-upstream",
+            "path": "context/skills/engineering/software-architecture/references/patterns.md"
+          },
+          {
+            "classification": "new-upstream",
+            "path": "context/skills/engineering/software-modularization/SKILL.md"
+          },
+          {
+            "classification": "new-upstream",
+            "path": "context/skills/engineering/sql-patterns/SKILL.md"
+          },
+          {
+            "classification": "new-upstream",
+            "path": "context/skills/engineering/sql-patterns/references/query-patterns.md"
+          },
+          {
+            "classification": "new-upstream",
+            "path": "context/skills/engineering/sql-patterns/references/schema-design.md"
+          },
+          {
+            "classification": "new-upstream",
+            "path": "context/skills/engineering/sql-style-guide/SKILL.md"
+          },
+          {
+            "classification": "new-upstream",
+            "path": "context/skills/engineering/system-design/SKILL.md"
+          },
+          {
+            "classification": "new-upstream",
+            "path": "context/skills/engineering/system-design/references/estimation-cheatsheet.md"
+          },
+          {
+            "classification": "new-upstream",
+            "path": "context/skills/engineering/tailwind/SKILL.md"
+          },
+          {
+            "classification": "new-upstream",
+            "path": "context/skills/engineering/tailwind/references/cheatsheet.md"
+          },
+          {
+            "classification": "new-upstream",
+            "path": "context/skills/engineering/tdd-workflow/SKILL.md"
+          },
+          {
+            "classification": "new-upstream",
+            "path": "context/skills/engineering/testing-strategy/SKILL.md"
+          },
+          {
+            "classification": "new-upstream",
+            "path": "context/skills/engineering/threat-modeling/SKILL.md"
+          },
+          {
+            "classification": "new-upstream",
+            "path": "context/skills/engineering/typescript-patterns/SKILL.md"
+          },
+          {
+            "classification": "new-upstream",
+            "path": "context/skills/engineering/webhook-integration/SKILL.md"
+          },
+          {
+            "classification": "new-upstream",
+            "path": "context/skills/processkit/actor-profile/SKILL.md"
+          },
+          {
+            "classification": "new-upstream",
+            "path": "context/skills/processkit/actor-profile/assets/actor-agent.yaml"
+          },
+          {
+            "classification": "new-upstream",
+            "path": "context/skills/processkit/actor-profile/assets/actor-human.yaml"
+          },
+          {
+            "classification": "new-upstream",
+            "path": "context/skills/processkit/actor-profile/mcp/SERVER.md"
+          },
+          {
+            "classification": "new-upstream",
+            "path": "context/skills/processkit/actor-profile/mcp/mcp-config.json"
+          },
+          {
+            "classification": "new-upstream",
+            "path": "context/skills/processkit/actor-profile/mcp/server.py"
+          },
+          {
+            "classification": "new-upstream",
+            "path": "context/skills/processkit/agent-card/SKILL.md"
+          },
+          {
+            "classification": "new-upstream",
+            "path": "context/skills/processkit/agent-card/mcp/SERVER.md"
+          },
+          {
+            "classification": "new-upstream",
+            "path": "context/skills/processkit/agent-card/mcp/mcp-config.json"
+          },
+          {
+            "classification": "new-upstream",
+            "path": "context/skills/processkit/agent-card/mcp/server.py"
+          },
+          {
+            "classification": "new-upstream",
+            "path": "context/skills/processkit/agent-management/SKILL.md"
+          },
+          {
+            "classification": "new-upstream",
+            "path": "context/skills/processkit/agent-management/references/coordination-patterns.md"
+          },
+          {
+            "classification": "new-upstream",
+            "path": "context/skills/processkit/aggregate-mcp/SKILL.md"
+          },
+          {
+            "classification": "new-upstream",
+            "path": "context/skills/processkit/aggregate-mcp/mcp/mcp-config.aggregate.json"
+          },
+          {
+            "classification": "new-upstream",
+            "path": "context/skills/processkit/aggregate-mcp/mcp/server.py"
+          },
+          {
+            "classification": "new-upstream",
+            "path": "context/skills/processkit/aggregate-mcp/scripts/test_aggregate_mcp.py"
+          },
+          {
+            "classification": "new-upstream",
+            "path": "context/skills/processkit/artifact-management/SKILL.md"
+          },
+          {
+            "classification": "new-upstream",
+            "path": "context/skills/processkit/artifact-management/mcp/SERVER.md"
+          },
+          {
+            "classification": "new-upstream",
+            "path": "context/skills/processkit/artifact-management/mcp/mcp-config.json"
+          },
+          {
+            "classification": "new-upstream",
+            "path": "context/skills/processkit/artifact-management/mcp/server.py"
+          },
+          {
+            "classification": "new-upstream",
+            "path": "context/skills/processkit/binding-management/SKILL.md"
+          },
+          {
+            "classification": "new-upstream",
+            "path": "context/skills/processkit/binding-management/assets/binding.yaml"
+          },
+          {
+            "classification": "new-upstream",
+            "path": "context/skills/processkit/binding-management/mcp/SERVER.md"
+          },
+          {
+            "classification": "new-upstream",
+            "path": "context/skills/processkit/binding-management/mcp/mcp-config.json"
+          },
+          {
+            "classification": "new-upstream",
+            "path": "context/skills/processkit/binding-management/mcp/server.py"
+          },
+          {
+            "classification": "new-upstream",
+            "path": "context/skills/processkit/binding-management/scripts/test_binding_management.py"
+          },
+          {
+            "classification": "new-upstream",
+            "path": "context/skills/processkit/category-management/SKILL.md"
+          },
+          {
+            "classification": "new-upstream",
+            "path": "context/skills/processkit/category-management/assets/category.yaml"
+          },
+          {
+            "classification": "new-upstream",
+            "path": "context/skills/processkit/constraint-management/SKILL.md"
+          },
+          {
+            "classification": "new-upstream",
+            "path": "context/skills/processkit/constraint-management/assets/constraint.yaml"
+          },
+          {
+            "classification": "new-upstream",
+            "path": "context/skills/processkit/context-archiving/SKILL.md"
+          },
+          {
+            "classification": "new-upstream",
+            "path": "context/skills/processkit/context-archiving/mcp/server.py"
+          },
+          {
+            "classification": "new-upstream",
+            "path": "context/skills/processkit/context-archiving/scripts/test_context_archiving.py"
+          },
+          {
+            "classification": "new-upstream",
+            "path": "context/skills/processkit/context-grooming/SKILL.md"
+          },
+          {
+            "classification": "new-upstream",
+            "path": "context/skills/processkit/context-grooming/assets/grooming-report.md"
+          },
+          {
+            "classification": "new-upstream",
+            "path": "context/skills/processkit/context-grooming/commands/pk-groom.md"
+          },
+          {
+            "classification": "new-upstream",
+            "path": "context/skills/processkit/cross-reference-management/SKILL.md"
+          },
+          {
+            "classification": "new-upstream",
+            "path": "context/skills/processkit/decision-record/SKILL.md"
+          },
+          {
+            "classification": "new-upstream",
+            "path": "context/skills/processkit/decision-record/assets/decisionrecord.yaml"
+          },
+          {
+            "classification": "new-upstream",
+            "path": "context/skills/processkit/decision-record/commands/pk-dec-find.md"
+          },
+          {
+            "classification": "new-upstream",
+            "path": "context/skills/processkit/decision-record/commands/pk-dec.md"
+          },
+          {
+            "classification": "new-upstream",
+            "path": "context/skills/processkit/decision-record/mcp/SERVER.md"
+          },
+          {
+            "classification": "new-upstream",
+            "path": "context/skills/processkit/decision-record/mcp/mcp-config.json"
+          },
+          {
+            "classification": "new-upstream",
+            "path": "context/skills/processkit/decision-record/mcp/server.py"
+          },
+          {
+            "classification": "new-upstream",
+            "path": "context/skills/processkit/discussion-management/SKILL.md"
+          },
+          {
+            "classification": "new-upstream",
+            "path": "context/skills/processkit/discussion-management/assets/discussion.yaml"
+          },
+          {
+            "classification": "new-upstream",
+            "path": "context/skills/processkit/discussion-management/commands/pk-discuss.md"
+          },
+          {
+            "classification": "new-upstream",
+            "path": "context/skills/processkit/discussion-management/mcp/SERVER.md"
+          },
+          {
+            "classification": "new-upstream",
+            "path": "context/skills/processkit/discussion-management/mcp/mcp-config.json"
+          },
+          {
+            "classification": "new-upstream",
+            "path": "context/skills/processkit/discussion-management/mcp/server.py"
+          },
+          {
+            "classification": "new-upstream",
+            "path": "context/skills/processkit/eval-gate-authoring/SKILL.md"
+          },
+          {
+            "classification": "new-upstream",
+            "path": "context/skills/processkit/eval-gate-authoring/mcp/SERVER.md"
+          },
+          {
+            "classification": "new-upstream",
+            "path": "context/skills/processkit/eval-gate-authoring/mcp/mcp-config.json"
+          },
+          {
+            "classification": "new-upstream",
+            "path": "context/skills/processkit/eval-gate-authoring/mcp/server.py"
+          },
+          {
+            "classification": "new-upstream",
+            "path": "context/skills/processkit/eval-gate-authoring/scripts/test_eval_gate_authoring.py"
+          },
+          {
+            "classification": "new-upstream",
+            "path": "context/skills/processkit/event-log/SKILL.md"
+          },
+          {
+            "classification": "new-upstream",
+            "path": "context/skills/processkit/event-log/assets/logentry.yaml"
+          },
+          {
+            "classification": "new-upstream",
+            "path": "context/skills/processkit/event-log/examples/workitem-transitioned.md"
+          },
+          {
+            "classification": "new-upstream",
+            "path": "context/skills/processkit/event-log/mcp/SERVER.md"
+          },
+          {
+            "classification": "new-upstream",
+            "path": "context/skills/processkit/event-log/mcp/mcp-config.json"
+          },
+          {
+            "classification": "new-upstream",
+            "path": "context/skills/processkit/event-log/mcp/server.py"
+          },
+          {
+            "classification": "new-upstream",
+            "path": "context/skills/processkit/event-log/scripts/test_log_event.py"
+          },
+          {
+            "classification": "new-upstream",
+            "path": "context/skills/processkit/gate-management/SKILL.md"
+          },
+          {
+            "classification": "new-upstream",
+            "path": "context/skills/processkit/gate-management/assets/gate.yaml"
+          },
+          {
+            "classification": "new-upstream",
+            "path": "context/skills/processkit/gate-management/mcp/SERVER.md"
+          },
+          {
+            "classification": "new-upstream",
+            "path": "context/skills/processkit/gate-management/mcp/mcp-config.json"
+          },
+          {
+            "classification": "new-upstream",
+            "path": "context/skills/processkit/gate-management/mcp/server.py"
+          },
+          {
+            "classification": "new-upstream",
+            "path": "context/skills/processkit/gate-management/scripts/test_gate_management.py"
+          },
+          {
+            "classification": "new-upstream",
+            "path": "context/skills/processkit/id-management/SKILL.md"
+          },
+          {
+            "classification": "new-upstream",
+            "path": "context/skills/processkit/id-management/config/settings.toml"
+          },
+          {
+            "classification": "new-upstream",
+            "path": "context/skills/processkit/id-management/mcp/SERVER.md"
+          },
+          {
+            "classification": "new-upstream",
+            "path": "context/skills/processkit/id-management/mcp/mcp-config.json"
+          },
+          {
+            "classification": "new-upstream",
+            "path": "context/skills/processkit/id-management/mcp/server.py"
+          },
+          {
+            "classification": "new-upstream",
+            "path": "context/skills/processkit/index-management/SKILL.md"
+          },
+          {
+            "classification": "new-upstream",
+            "path": "context/skills/processkit/index-management/config/settings.toml"
+          },
+          {
+            "classification": "new-upstream",
+            "path": "context/skills/processkit/index-management/mcp/SERVER.md"
+          },
+          {
+            "classification": "new-upstream",
+            "path": "context/skills/processkit/index-management/mcp/mcp-config.json"
+          },
+          {
+            "classification": "new-upstream",
+            "path": "context/skills/processkit/index-management/mcp/server.py"
+          },
+          {
+            "classification": "new-upstream",
+            "path": "context/skills/processkit/index-management/scripts/test_db_result_limits.py"
+          },
+          {
+            "classification": "new-upstream",
+            "path": "context/skills/processkit/index-management/scripts/test_get_entity_by_path_and_list_entities.py"
+          },
+          {
+            "classification": "new-upstream",
+            "path": "context/skills/processkit/index-management/scripts/test_index_management_v1_penalty.py"
+          },
+          {
+            "classification": "new-upstream",
+            "path": "context/skills/processkit/migration-management/SKILL.md"
+          },
+          {
+            "classification": "new-upstream",
+            "path": "context/skills/processkit/migration-management/assets/migration.yaml"
+          },
+          {
+            "classification": "new-upstream",
+            "path": "context/skills/processkit/migration-management/mcp/SERVER.md"
+          },
+          {
+            "classification": "new-upstream",
+            "path": "context/skills/processkit/migration-management/mcp/mcp-config.json"
+          },
+          {
+            "classification": "new-upstream",
+            "path": "context/skills/processkit/migration-management/mcp/server.py"
+          },
+          {
+            "classification": "new-upstream",
+            "path": "context/skills/processkit/migration-management/scripts/test_migration_management.py"
+          },
+          {
+            "classification": "new-upstream",
+            "path": "context/skills/processkit/model-recommender/SKILL.md"
+          },
+          {
+            "classification": "new-upstream",
+            "path": "context/skills/processkit/model-recommender/commands/pk-explain-routing.md"
+          },
+          {
+            "classification": "new-upstream",
+            "path": "context/skills/processkit/model-recommender/commands/pk-model-refresh.md"
+          },
+          {
+            "classification": "new-upstream",
+            "path": "context/skills/processkit/model-recommender/commands/pk-model-setup.md"
+          },
+          {
+            "classification": "new-upstream",
+            "path": "context/skills/processkit/model-recommender/commands/pk-route.md"
+          },
+          {
+            "classification": "new-upstream",
+            "path": "context/skills/processkit/model-recommender/default-bindings/MANIFEST.yaml"
+          },
+          {
+            "classification": "new-upstream",
+            "path": "context/skills/processkit/model-recommender/examples/profile-view.md"
+          },
+          {
+            "classification": "new-upstream",
+            "path": "context/skills/processkit/model-recommender/examples/task-routing.md"
+          },
+          {
+            "classification": "new-upstream",
+            "path": "context/skills/processkit/model-recommender/mcp/SERVER.md"
+          },
+          {
+            "classification": "new-upstream",
+            "path": "context/skills/processkit/model-recommender/mcp/mcp-config.json"
+          },
+          {
+            "classification": "new-upstream",
+            "path": "context/skills/processkit/model-recommender/mcp/model_scores.json"
+          },
+          {
+            "classification": "new-upstream",
+            "path": "context/skills/processkit/model-recommender/mcp/server.py"
+          },
+          {
+            "classification": "new-upstream",
+            "path": "context/skills/processkit/model-recommender/mcp/user_config.json"
+          },
+          {
+            "classification": "new-upstream",
+            "path": "context/skills/processkit/model-recommender/references/dimension-specs.md"
+          },
+          {
+            "classification": "new-upstream",
+            "path": "context/skills/processkit/model-recommender/references/model-characteristics.md"
+          },
+          {
+            "classification": "new-upstream",
+            "path": "context/skills/processkit/model-recommender/references/model-profiles.md"
+          },
+          {
+            "classification": "new-upstream",
+            "path": "context/skills/processkit/model-recommender/references/roster-quick-ref.md"
+          },
+          {
+            "classification": "new-upstream",
+            "path": "context/skills/processkit/model-recommender/scripts/migrate_model_profiles.py"
+          },
+          {
+            "classification": "new-upstream",
+            "path": "context/skills/processkit/model-recommender/scripts/migrate_models.py"
+          },
+          {
+            "classification": "new-upstream",
+            "path": "context/skills/processkit/model-recommender/scripts/resolver.py"
+          },
+          {
+            "classification": "new-upstream",
+            "path": "context/skills/processkit/model-recommender/scripts/test_default_bindings_coverage.py"
+          },
+          {
+            "classification": "new-upstream",
+            "path": "context/skills/processkit/model-recommender/scripts/test_migrate_models.py"
+          },
+          {
+            "classification": "new-upstream",
+            "path": "context/skills/processkit/model-recommender/scripts/test_query_models_filters.py"
+          },
+          {
+            "classification": "new-upstream",
+            "path": "context/skills/processkit/model-recommender/scripts/test_resolver.py"
+          },
+          {
+            "classification": "new-upstream",
+            "path": "context/skills/processkit/note-management/SKILL.md"
+          },
+          {
+            "classification": "new-upstream",
+            "path": "context/skills/processkit/note-management/commands/pk-note-promote.md"
+          },
+          {
+            "classification": "new-upstream",
+            "path": "context/skills/processkit/note-management/commands/pk-note-review.md"
+          },
+          {
+            "classification": "new-upstream",
+            "path": "context/skills/processkit/note-management/commands/pk-note.md"
+          },
+          {
+            "classification": "new-upstream",
+            "path": "context/skills/processkit/note-management/mcp/SERVER.md"
+          },
+          {
+            "classification": "new-upstream",
+            "path": "context/skills/processkit/note-management/mcp/mcp-config.json"
+          },
+          {
+            "classification": "new-upstream",
+            "path": "context/skills/processkit/note-management/mcp/server.py"
+          },
+          {
+            "classification": "new-upstream",
+            "path": "context/skills/processkit/owner-profiling/SKILL.md"
+          },
+          {
+            "classification": "new-upstream",
+            "path": "context/skills/processkit/owner-profiling/assets/OWNER-20260409_2054-GoalsAnd-context.md"
+          },
+          {
+            "classification": "new-upstream",
+            "path": "context/skills/processkit/owner-profiling/assets/OWNER-20260409_2054-TeamAnd-relationships.md"
+          },
+          {
+            "classification": "new-upstream",
+            "path": "context/skills/processkit/owner-profiling/assets/OWNER-20260409_2054-WorkingStyle.md"
+          },
+          {
+            "classification": "new-upstream",
+            "path": "context/skills/processkit/owner-profiling/assets/goals-and-context.md"
+          },
+          {
+            "classification": "new-upstream",
+            "path": "context/skills/processkit/owner-profiling/assets/identity.md"
+          },
+          {
+            "classification": "new-upstream",
+            "path": "context/skills/processkit/owner-profiling/assets/team-and-relationships.md"
+          },
+          {
+            "classification": "new-upstream",
+            "path": "context/skills/processkit/owner-profiling/assets/working-style.md"
+          },
+          {
+            "classification": "new-upstream",
+            "path": "context/skills/processkit/owner-profiling/commands/pk-observe.md"
+          },
+          {
+            "classification": "new-upstream",
+            "path": "context/skills/processkit/owner-profiling/commands/pk-owner-bootstrap.md"
+          },
+          {
+            "classification": "new-upstream",
+            "path": "context/skills/processkit/owner-profiling/references/interview-protocol.md"
+          },
+          {
+            "classification": "new-upstream",
+            "path": "context/skills/processkit/owner-profiling/references/observable-signals.md"
+          },
+          {
+            "classification": "new-upstream",
+            "path": "context/skills/processkit/pk-doctor/SKILL.md"
+          },
+          {
+            "classification": "new-upstream",
+            "path": "context/skills/processkit/pk-doctor/commands/pk-doctor.md"
+          },
+          {
+            "classification": "new-upstream",
+            "path": "context/skills/processkit/pk-doctor/mcp/mcp-config.json"
+          },
+          {
+            "classification": "new-upstream",
+            "path": "context/skills/processkit/pk-doctor/mcp/server.py"
+          },
+          {
+            "classification": "new-upstream",
+            "path": "context/skills/processkit/pk-doctor/scripts/checks/__init__.py"
+          },
+          {
+            "classification": "new-upstream",
+            "path": "context/skills/processkit/pk-doctor/scripts/checks/agents_md_hygiene.py"
+          },
+          {
+            "classification": "new-upstream",
+            "path": "context/skills/processkit/pk-doctor/scripts/checks/commands_consistency.py"
+          },
+          {
+            "classification": "new-upstream",
+            "path": "context/skills/processkit/pk-doctor/scripts/checks/common.py"
+          },
+          {
+            "classification": "new-upstream",
+            "path": "context/skills/processkit/pk-doctor/scripts/checks/context_consumption.py"
+          },
+          {
+            "classification": "new-upstream",
+            "path": "context/skills/processkit/pk-doctor/scripts/checks/context_hygiene.py"
+          },
+          {
+            "classification": "new-upstream",
+            "path": "context/skills/processkit/pk-doctor/scripts/checks/doctor_boundary.py"
+          },
+          {
+            "classification": "new-upstream",
+            "path": "context/skills/processkit/pk-doctor/scripts/checks/drift.py"
+          },
+          {
+            "classification": "new-upstream",
+            "path": "context/skills/processkit/pk-doctor/scripts/checks/entity_storage_hygiene.py"
+          },
+          {
+            "classification": "new-upstream",
+            "path": "context/skills/processkit/pk-doctor/scripts/checks/id_vocabulary.py"
+          },
+          {
+            "classification": "new-upstream",
+            "path": "context/skills/processkit/pk-doctor/scripts/checks/mcp_config_drift.py"
+          },
+          {
+            "classification": "new-upstream",
+            "path": "context/skills/processkit/pk-doctor/scripts/checks/mcp_gateway.py"
+          },
+          {
+            "classification": "new-upstream",
+            "path": "context/skills/processkit/pk-doctor/scripts/checks/migration_integrity.py"
+          },
+          {
+            "classification": "new-upstream",
+            "path": "context/skills/processkit/pk-doctor/scripts/checks/migrations.py"
+          },
+          {
+            "classification": "new-upstream",
+            "path": "context/skills/processkit/pk-doctor/scripts/checks/preauth_applied.py"
+          },
+          {
+            "classification": "new-upstream",
+            "path": "context/skills/processkit/pk-doctor/scripts/checks/release_integrity.py"
+          },
+          {
+            "classification": "new-upstream",
+            "path": "context/skills/processkit/pk-doctor/scripts/checks/runtime_health.py"
+          },
+          {
+            "classification": "new-upstream",
+            "path": "context/skills/processkit/pk-doctor/scripts/checks/schema_filename.py"
+          },
+          {
+            "classification": "new-upstream",
+            "path": "context/skills/processkit/pk-doctor/scripts/checks/schema_vocabulary.py"
+          },
+          {
+            "classification": "new-upstream",
+            "path": "context/skills/processkit/pk-doctor/scripts/checks/sensitive_data.py"
+          },
+          {
+            "classification": "new-upstream",
+            "path": "context/skills/processkit/pk-doctor/scripts/checks/server_header_drift.py"
+          },
+          {
+            "classification": "new-upstream",
+            "path": "context/skills/processkit/pk-doctor/scripts/checks/sharding.py"
+          },
+          {
+            "classification": "new-upstream",
+            "path": "context/skills/processkit/pk-doctor/scripts/checks/skill_dag.py"
+          },
+          {
+            "classification": "new-upstream",
+            "path": "context/skills/processkit/pk-doctor/scripts/checks/supply_chain.py"
+          },
+          {
+            "classification": "new-upstream",
+            "path": "context/skills/processkit/pk-doctor/scripts/checks/team_consistency.py"
+          },
+          {
+            "classification": "new-upstream",
+            "path": "context/skills/processkit/pk-doctor/scripts/checks/team_member_exports.py"
+          },
+          {
+            "classification": "new-upstream",
+            "path": "context/skills/processkit/pk-doctor/scripts/checks/v1_entity_drift.py"
+          },
+          {
+            "classification": "new-upstream",
+            "path": "context/skills/processkit/pk-doctor/scripts/checks/v2_contracts.py"
+          },
+          {
+            "classification": "new-upstream",
+            "path": "context/skills/processkit/pk-doctor/scripts/doctor.py"
+          },
+          {
+            "classification": "new-upstream",
+            "path": "context/skills/processkit/pk-doctor/scripts/test_doctor.py"
+          },
+          {
+            "classification": "new-upstream",
+            "path": "context/skills/processkit/pk-doctor/scripts/test_id_vocabulary.py"
+          },
+          {
+            "classification": "new-upstream",
+            "path": "context/skills/processkit/pk-doctor/scripts/test_pk_doctor_json.py"
+          },
+          {
+            "classification": "new-upstream",
+            "path": "context/skills/processkit/pk-doctor/scripts/test_pk_doctor_mcp.py"
+          },
+          {
+            "classification": "new-upstream",
+            "path": "context/skills/processkit/process-management/SKILL.md"
+          },
+          {
+            "classification": "new-upstream",
+            "path": "context/skills/processkit/processkit-gateway/SKILL.md"
+          },
+          {
+            "classification": "new-upstream",
+            "path": "context/skills/processkit/processkit-gateway/mcp/mcp-config.json"
+          },
+          {
+            "classification": "new-upstream",
+            "path": "context/skills/processkit/processkit-gateway/mcp/server.py"
+          },
+          {
+            "classification": "new-upstream",
+            "path": "context/skills/processkit/processkit-gateway/mcp/tool-catalog.json"
+          },
+          {
+            "classification": "new-upstream",
+            "path": "context/skills/processkit/processkit-gateway/scripts/test_daemon_runtime.py"
+          },
+          {
+            "classification": "new-upstream",
+            "path": "context/skills/processkit/processkit-gateway/scripts/test_gateway.py"
+          },
+          {
+            "classification": "new-upstream",
+            "path": "context/skills/processkit/processkit-gateway/scripts/test_proxy.py"
+          },
+          {
+            "classification": "new-upstream",
+            "path": "context/skills/processkit/project-reconciliation/SKILL.md"
+          },
+          {
+            "classification": "new-upstream",
+            "path": "context/skills/processkit/project-reconciliation/commands/pk-reconcile.md"
+          },
+          {
+            "classification": "new-upstream",
+            "path": "context/skills/processkit/release-audit/SKILL.md"
+          },
+          {
+            "classification": "new-upstream",
+            "path": "context/skills/processkit/release-audit/commands/pk-release-audit.md"
+          },
+          {
+            "classification": "new-upstream",
+            "path": "context/skills/processkit/release-audit/mcp/server.py"
+          },
+          {
+            "classification": "new-upstream",
+            "path": "context/skills/processkit/release-audit/scripts/release_audit.py"
+          },
+          {
+            "classification": "new-upstream",
+            "path": "context/skills/processkit/release-audit/scripts/test_release_audit.py"
+          },
+          {
+            "classification": "new-upstream",
+            "path": "context/skills/processkit/release-audit/scripts/test_release_audit_json.py"
+          },
+          {
+            "classification": "new-upstream",
+            "path": "context/skills/processkit/repository-portfolio-review/SKILL.md"
+          },
+          {
+            "classification": "new-upstream",
+            "path": "context/skills/processkit/retrospective/SKILL.md"
+          },
+          {
+            "classification": "new-upstream",
+            "path": "context/skills/processkit/retrospective/commands/pk-retro.md"
+          },
+          {
+            "classification": "new-upstream",
+            "path": "context/skills/processkit/retrospective/scripts/pk_retro.py"
+          },
+          {
+            "classification": "new-upstream",
+            "path": "context/skills/processkit/retrospective/scripts/signals/__init__.py"
+          },
+          {
+            "classification": "new-upstream",
+            "path": "context/skills/processkit/retrospective/scripts/signals/drift.py"
+          },
+          {
+            "classification": "new-upstream",
+            "path": "context/skills/processkit/retrospective/scripts/signals/release_summary.py"
+          },
+          {
+            "classification": "new-upstream",
+            "path": "context/skills/processkit/retrospective/scripts/signals/timeline.py"
+          },
+          {
+            "classification": "new-upstream",
+            "path": "context/skills/processkit/retrospective/scripts/signals/workitems.py"
+          },
+          {
+            "classification": "new-upstream",
+            "path": "context/skills/processkit/retrospective/scripts/test_retro.py"
+          },
+          {
+            "classification": "new-upstream",
+            "path": "context/skills/processkit/role-management/SKILL.md"
+          },
+          {
+            "classification": "new-upstream",
+            "path": "context/skills/processkit/role-management/assets/role.yaml"
+          },
+          {
+            "classification": "new-upstream",
+            "path": "context/skills/processkit/role-management/mcp/SERVER.md"
+          },
+          {
+            "classification": "new-upstream",
+            "path": "context/skills/processkit/role-management/mcp/mcp-config.json"
+          },
+          {
+            "classification": "new-upstream",
+            "path": "context/skills/processkit/role-management/mcp/server.py"
+          },
+          {
+            "classification": "new-upstream",
+            "path": "context/skills/processkit/runtime-prune/SKILL.md"
+          },
+          {
+            "classification": "new-upstream",
+            "path": "context/skills/processkit/runtime-prune/mcp/SERVER.md"
+          },
+          {
+            "classification": "new-upstream",
+            "path": "context/skills/processkit/runtime-prune/mcp/mcp-config.json"
+          },
+          {
+            "classification": "new-upstream",
+            "path": "context/skills/processkit/runtime-prune/mcp/server.py"
+          },
+          {
+            "classification": "new-upstream",
+            "path": "context/skills/processkit/runtime-prune/scripts/test_runtime_prune.py"
+          },
+          {
+            "classification": "new-upstream",
+            "path": "context/skills/processkit/schedule-management/SKILL.md"
+          },
+          {
+            "classification": "new-upstream",
+            "path": "context/skills/processkit/scope-management/SKILL.md"
+          },
+          {
+            "classification": "new-upstream",
+            "path": "context/skills/processkit/scope-management/assets/scope.yaml"
+          },
+          {
+            "classification": "new-upstream",
+            "path": "context/skills/processkit/scope-management/mcp/SERVER.md"
+          },
+          {
+            "classification": "new-upstream",
+            "path": "context/skills/processkit/scope-management/mcp/mcp-config.json"
+          },
+          {
+            "classification": "new-upstream",
+            "path": "context/skills/processkit/scope-management/mcp/server.py"
+          },
+          {
+            "classification": "new-upstream",
+            "path": "context/skills/processkit/security-projections/SKILL.md"
+          },
+          {
+            "classification": "new-upstream",
+            "path": "context/skills/processkit/security-projections/mcp/SERVER.md"
+          },
+          {
+            "classification": "new-upstream",
+            "path": "context/skills/processkit/security-projections/mcp/mcp-config.json"
+          },
+          {
+            "classification": "new-upstream",
+            "path": "context/skills/processkit/security-projections/mcp/server.py"
+          },
+          {
+            "classification": "new-upstream",
+            "path": "context/skills/processkit/session-handover/SKILL.md"
+          },
+          {
+            "classification": "new-upstream",
+            "path": "context/skills/processkit/session-handover/commands/pk-wrapup.md"
+          },
+          {
+            "classification": "new-upstream",
+            "path": "context/skills/processkit/skill-builder/SKILL.md"
+          },
+          {
+            "classification": "new-upstream",
+            "path": "context/skills/processkit/skill-builder/assets/skill-template.md"
+          },
+          {
+            "classification": "new-upstream",
+            "path": "context/skills/processkit/skill-builder/commands/pk-skill-new.md"
+          },
+          {
+            "classification": "new-upstream",
+            "path": "context/skills/processkit/skill-builder/references/library-expert-template.md"
+          },
+          {
+            "classification": "new-upstream",
+            "path": "context/skills/processkit/skill-finder/SKILL.md"
+          },
+          {
+            "classification": "new-upstream",
+            "path": "context/skills/processkit/skill-finder/mcp/SERVER.md"
+          },
+          {
+            "classification": "new-upstream",
+            "path": "context/skills/processkit/skill-finder/mcp/mcp-config.json"
+          },
+          {
+            "classification": "new-upstream",
+            "path": "context/skills/processkit/skill-finder/mcp/server.py"
+          },
+          {
+            "classification": "new-upstream",
+            "path": "context/skills/processkit/skill-finder/scripts/test_catalog.py"
+          },
+          {
+            "classification": "new-upstream",
+            "path": "context/skills/processkit/skill-gate/SKILL.md"
+          },
+          {
+            "classification": "new-upstream",
+            "path": "context/skills/processkit/skill-gate/assets/compliance-contract.md"
+          },
+          {
+            "classification": "new-upstream",
+            "path": "context/skills/processkit/skill-gate/assets/preauth.json"
+          },
+          {
+            "classification": "new-upstream",
+            "path": "context/skills/processkit/skill-gate/commands/pk-build.md"
+          },
+          {
+            "classification": "new-upstream",
+            "path": "context/skills/processkit/skill-gate/commands/pk-lint.md"
+          },
+          {
+            "classification": "new-upstream",
+            "path": "context/skills/processkit/skill-gate/commands/pk-review.md"
+          },
+          {
+            "classification": "new-upstream",
+            "path": "context/skills/processkit/skill-gate/commands/pk-test.md"
+          },
+          {
+            "classification": "new-upstream",
+            "path": "context/skills/processkit/skill-gate/mcp/SERVER.md"
+          },
+          {
+            "classification": "new-upstream",
+            "path": "context/skills/processkit/skill-gate/mcp/mcp-config.json"
+          },
+          {
+            "classification": "new-upstream",
+            "path": "context/skills/processkit/skill-gate/mcp/server.py"
+          },
+          {
+            "classification": "new-upstream",
+            "path": "context/skills/processkit/skill-gate/scripts/README.md"
+          },
+          {
+            "classification": "new-upstream",
+            "path": "context/skills/processkit/skill-gate/scripts/check_decision_captured.py"
+          },
+          {
+            "classification": "new-upstream",
+            "path": "context/skills/processkit/skill-gate/scripts/check_entity_read.py"
+          },
+          {
+            "classification": "new-upstream",
+            "path": "context/skills/processkit/skill-gate/scripts/check_route_task_before_agent.py"
+          },
+          {
+            "classification": "new-upstream",
+            "path": "context/skills/processkit/skill-gate/scripts/check_route_task_called.py"
+          },
+          {
+            "classification": "new-upstream",
+            "path": "context/skills/processkit/skill-gate/scripts/decision_markers.py"
+          },
+          {
+            "classification": "new-upstream",
+            "path": "context/skills/processkit/skill-gate/scripts/decision_sweeper.py"
+          },
+          {
+            "classification": "new-upstream",
+            "path": "context/skills/processkit/skill-gate/scripts/emit_compliance_contract.py"
+          },
+          {
+            "classification": "new-upstream",
+            "path": "context/skills/processkit/skill-gate/scripts/fixtures/claude-code-pre-tool-use.json"
+          },
+          {
+            "classification": "new-upstream",
+            "path": "context/skills/processkit/skill-gate/scripts/fixtures/claude-code-pretooluse-sample.json"
+          },
+          {
+            "classification": "new-upstream",
+            "path": "context/skills/processkit/skill-gate/scripts/fixtures/claude-code-pretooluse-with-transcript.json"
+          },
+          {
+            "classification": "new-upstream",
+            "path": "context/skills/processkit/skill-gate/scripts/fixtures/claude-code-session-start.json"
+          },
+          {
+            "classification": "new-upstream",
+            "path": "context/skills/processkit/skill-gate/scripts/fixtures/claude-code-sessionend.json"
+          },
+          {
+            "classification": "new-upstream",
+            "path": "context/skills/processkit/skill-gate/scripts/fixtures/sample-transcript-no-decisions.jsonl"
+          },
+          {
+            "classification": "new-upstream",
+            "path": "context/skills/processkit/skill-gate/scripts/fixtures/sample-transcript-with-decisions.jsonl"
+          },
+          {
+            "classification": "new-upstream",
+            "path": "context/skills/processkit/skill-gate/scripts/fixtures/sample-transcript-with-poison-entries.jsonl"
+          },
+          {
+            "classification": "new-upstream",
+            "path": "context/skills/processkit/skill-gate/scripts/record_decision_observer.py"
+          },
+          {
+            "classification": "new-upstream",
+            "path": "context/skills/processkit/skill-gate/scripts/test_entity_read_and_agent_hooks.py"
+          },
+          {
+            "classification": "new-upstream",
+            "path": "context/skills/processkit/skill-gate/scripts/test_hooks.py"
+          },
+          {
+            "classification": "new-upstream",
+            "path": "context/skills/processkit/skill-reviewer/SKILL.md"
+          },
+          {
+            "classification": "new-upstream",
+            "path": "context/skills/processkit/skill-reviewer/commands/pk-skill-audit.md"
+          },
+          {
+            "classification": "new-upstream",
+            "path": "context/skills/processkit/standup-context/SKILL.md"
+          },
+          {
+            "classification": "new-upstream",
+            "path": "context/skills/processkit/standup-context/commands/pk-standup.md"
+          },
+          {
+            "classification": "new-upstream",
+            "path": "context/skills/processkit/standup-context/commands/pk-status.md"
+          },
+          {
+            "classification": "new-upstream",
+            "path": "context/skills/processkit/state-machine-management/SKILL.md"
+          },
+          {
+            "classification": "new-upstream",
+            "path": "context/skills/processkit/status-briefing/SKILL.md"
+          },
+          {
+            "classification": "new-upstream",
+            "path": "context/skills/processkit/status-briefing/commands/pk-resume.md"
+          },
+          {
+            "classification": "new-upstream",
+            "path": "context/skills/processkit/status-update-writer/SKILL.md"
+          },
+          {
+            "classification": "new-upstream",
+            "path": "context/skills/processkit/supply-chain-audit/SKILL.md"
+          },
+          {
+            "classification": "new-upstream",
+            "path": "context/skills/processkit/supply-chain-audit/commands/pk-supply-chain.md"
+          },
+          {
+            "classification": "new-upstream",
+            "path": "context/skills/processkit/supply-chain-audit/mcp/SERVER.md"
+          },
+          {
+            "classification": "new-upstream",
+            "path": "context/skills/processkit/supply-chain-audit/mcp/mcp-config.json"
+          },
+          {
+            "classification": "new-upstream",
+            "path": "context/skills/processkit/supply-chain-audit/mcp/server.py"
+          },
+          {
+            "classification": "new-upstream",
+            "path": "context/skills/processkit/supply-chain-audit/scripts/supply_chain_audit.py"
+          },
+          {
+            "classification": "new-upstream",
+            "path": "context/skills/processkit/supply-chain-audit/scripts/test_supply_chain_audit.py"
+          },
+          {
+            "classification": "new-upstream",
+            "path": "context/skills/processkit/task-router/SKILL.md"
+          },
+          {
+            "classification": "new-upstream",
+            "path": "context/skills/processkit/task-router/mcp/SERVER.md"
+          },
+          {
+            "classification": "new-upstream",
+            "path": "context/skills/processkit/task-router/mcp/mcp-config.json"
+          },
+          {
+            "classification": "new-upstream",
+            "path": "context/skills/processkit/task-router/mcp/server.py"
+          },
+          {
+            "classification": "new-upstream",
+            "path": "context/skills/processkit/task-router/mcp/user_config.json"
+          },
+          {
+            "classification": "new-upstream",
+            "path": "context/skills/processkit/task-router/scripts/test_task_router.py"
+          },
+          {
+            "classification": "new-upstream",
+            "path": "context/skills/processkit/team-creator/SKILL.md"
+          },
+          {
+            "classification": "new-upstream",
+            "path": "context/skills/processkit/team-creator/assets/archetype-catalog-mapping.yaml"
+          },
+          {
+            "classification": "new-upstream",
+            "path": "context/skills/processkit/team-creator/commands/pk-team-create.md"
+          },
+          {
+            "classification": "new-upstream",
+            "path": "context/skills/processkit/team-creator/commands/pk-team-rebalance.md"
+          },
+          {
+            "classification": "new-upstream",
+            "path": "context/skills/processkit/team-creator/commands/pk-team-review.md"
+          },
+          {
+            "classification": "new-upstream",
+            "path": "context/skills/processkit/team-creator/references/landscape-resolution.md"
+          },
+          {
+            "classification": "new-upstream",
+            "path": "context/skills/processkit/team-creator/references/role-archetypes-override.md"
+          },
+          {
+            "classification": "new-upstream",
+            "path": "context/skills/processkit/team-creator/references/role-archetypes.md"
+          },
+          {
+            "classification": "new-upstream",
+            "path": "context/skills/processkit/team-creator/references/team-weights-decision-schema.md"
+          },
+          {
+            "classification": "new-upstream",
+            "path": "context/skills/processkit/team-creator/references/tiering-formula.md"
+          },
+          {
+            "classification": "new-upstream",
+            "path": "context/skills/processkit/team-creator/scripts/team_creator_lib.py"
+          },
+          {
+            "classification": "new-upstream",
+            "path": "context/skills/processkit/team-manager/SKILL.md"
+          },
+          {
+            "classification": "new-upstream",
+            "path": "context/skills/processkit/team-manager/assets/agent-card.schema.json"
+          },
+          {
+            "classification": "new-upstream",
+            "path": "context/skills/processkit/team-manager/assets/memory-file-header.schema.json"
+          },
+          {
+            "classification": "new-upstream",
+            "path": "context/skills/processkit/team-manager/assets/team-member-ai-agent.yaml"
+          },
+          {
+            "classification": "new-upstream",
+            "path": "context/skills/processkit/team-manager/assets/team-member-human.yaml"
+          },
+          {
+            "classification": "new-upstream",
+            "path": "context/skills/processkit/team-manager/data/name-pool.yaml"
+          },
+          {
+            "classification": "new-upstream",
+            "path": "context/skills/processkit/team-manager/mcp/SERVER.md"
+          },
+          {
+            "classification": "new-upstream",
+            "path": "context/skills/processkit/team-manager/mcp/mcp-config.json"
+          },
+          {
+            "classification": "new-upstream",
+            "path": "context/skills/processkit/team-manager/mcp/server.py"
+          },
+          {
+            "classification": "new-upstream",
+            "path": "context/skills/processkit/team-manager/scripts/apply_migration_2139.py"
+          },
+          {
+            "classification": "new-upstream",
+            "path": "context/skills/processkit/team-manager/scripts/consistency.py"
+          },
+          {
+            "classification": "new-upstream",
+            "path": "context/skills/processkit/team-manager/scripts/export_import.py"
+          },
+          {
+            "classification": "new-upstream",
+            "path": "context/skills/processkit/team-manager/scripts/memory_tree.py"
+          },
+          {
+            "classification": "new-upstream",
+            "path": "context/skills/processkit/team-manager/scripts/name_pool.py"
+          },
+          {
+            "classification": "new-upstream",
+            "path": "context/skills/processkit/team-manager/scripts/test_team_manager.py"
+          },
+          {
+            "classification": "new-upstream",
+            "path": "context/skills/processkit/workitem-management/SKILL.md"
+          },
+          {
+            "classification": "new-upstream",
+            "path": "context/skills/processkit/workitem-management/assets/workitem-bug.yaml"
+          },
+          {
+            "classification": "new-upstream",
+            "path": "context/skills/processkit/workitem-management/assets/workitem-story.yaml"
+          },
+          {
+            "classification": "new-upstream",
+            "path": "context/skills/processkit/workitem-management/assets/workitem.yaml"
+          },
+          {
+            "classification": "new-upstream",
+            "path": "context/skills/processkit/workitem-management/commands/pk-work.md"
+          },
+          {
+            "classification": "new-upstream",
+            "path": "context/skills/processkit/workitem-management/examples/create-feature.md"
+          },
+          {
+            "classification": "new-upstream",
+            "path": "context/skills/processkit/workitem-management/mcp/SERVER.md"
+          },
+          {
+            "classification": "new-upstream",
+            "path": "context/skills/processkit/workitem-management/mcp/mcp-config.json"
+          },
+          {
+            "classification": "new-upstream",
+            "path": "context/skills/processkit/workitem-management/mcp/server.py"
+          },
+          {
+            "classification": "new-upstream",
+            "path": "context/skills/processkit/workitem-management/scripts/test_workitem_management.py"
+          },
+          {
+            "classification": "new-upstream",
+            "path": "context/skills/product/board-of-advisors/SKILL.md"
+          },
+          {
+            "classification": "new-upstream",
+            "path": "context/skills/product/devils-advocate/SKILL.md"
+          },
+          {
+            "classification": "new-upstream",
+            "path": "context/skills/product/documentation/SKILL.md"
+          },
+          {
+            "classification": "new-upstream",
+            "path": "context/skills/product/email-drafter/SKILL.md"
+          },
+          {
+            "classification": "new-upstream",
+            "path": "context/skills/product/estimation-planning/SKILL.md"
+          },
+          {
+            "classification": "new-upstream",
+            "path": "context/skills/product/legal-review/SKILL.md"
+          },
+          {
+            "classification": "new-upstream",
+            "path": "context/skills/product/onboarding-guide/SKILL.md"
+          },
+          {
+            "classification": "new-upstream",
+            "path": "context/skills/product/prd-writing/SKILL.md"
+          },
+          {
+            "classification": "new-upstream",
+            "path": "context/skills/product/research-with-confidence/SKILL.md"
+          },
+          {
+            "classification": "new-upstream",
+            "path": "context/skills/product/research-with-confidence/commands/pk-research.md"
+          },
+          {
+            "classification": "new-upstream",
+            "path": "context/skills/product/sprint-retrospective/SKILL.md"
+          },
+          {
+            "classification": "new-upstream",
+            "path": "context/skills/product/user-research/SKILL.md"
+          },
+          {
+            "classification": "new-upstream",
+            "path": "context/state-machines/INDEX.md"
+          },
+          {
+            "classification": "new-upstream",
+            "path": "context/state-machines/decisionrecord.yaml"
+          },
+          {
+            "classification": "new-upstream",
+            "path": "context/state-machines/discussion.yaml"
+          },
+          {
+            "classification": "new-upstream",
+            "path": "context/state-machines/migration.yaml"
+          },
+          {
+            "classification": "new-upstream",
+            "path": "context/state-machines/note.yaml"
+          },
+          {
+            "classification": "new-upstream",
+            "path": "context/state-machines/scope.yaml"
+          },
+          {
+            "classification": "new-upstream",
+            "path": "context/state-machines/workitem.yaml"
+          },
+          {
+            "classification": "new-upstream",
+            "path": "context/team-members/cora/card.json"
+          },
+          {
+            "classification": "new-upstream",
+            "path": "context/team-members/cora/persona.md"
+          },
+          {
+            "classification": "new-upstream",
+            "path": "context/team-members/cora/relations/thrifty-otter.md"
+          },
+          {
+            "classification": "new-upstream",
+            "path": "context/team-members/cora/team-member.md"
+          },
+          {
+            "classification": "new-upstream",
+            "path": "context/team-members/thrifty-otter/card.json"
+          },
+          {
+            "classification": "new-upstream",
+            "path": "context/team-members/thrifty-otter/persona.md"
+          },
+          {
+            "classification": "new-upstream",
+            "path": "context/team-members/thrifty-otter/team-member.md"
+          },
+          {
+            "classification": "new-upstream",
+            "path": "context/team/roster.md"
+          }
+        ],
+        "affected_groups": [
+          "",
+          "AGENTS",
+          "context",
+          "context/artifacts",
+          "context/bindings",
+          "context/roles",
+          "context/team",
+          "context/team-members/cora",
+          "context/team-members/cora/relations",
+          "context/team-members/thrifty-otter",
+          "lib",
+          "schemas/INDEX",
+          "schemas/actor",
+          "schemas/artifact",
+          "schemas/binding",
+          "schemas/category",
+          "schemas/constraint",
+          "schemas/context",
+          "schemas/decisionrecord",
+          "schemas/discussion",
+          "schemas/gate",
+          "schemas/logentry",
+          "schemas/migration",
+          "schemas/note",
+          "schemas/role",
+          "schemas/roleslot",
+          "schemas/scope",
+          "schemas/team-member",
+          "schemas/workitem",
+          "skills/INDEX.md",
+          "skills/data-ai",
+          "skills/design",
+          "skills/devops",
+          "skills/documents",
+          "skills/engineering",
+          "skills/processkit",
+          "skills/product",
+          "state-machines/INDEX",
+          "state-machines/decisionrecord",
+          "state-machines/discussion",
+          "state-machines/migration",
+          "state-machines/note",
+          "state-machines/scope",
+          "state-machines/workitem"
+        ],
+        "applied_at": "2026-07-26T19:16:52+00:00",
+        "from_version": "v0.28.3",
+        "generated_at": "2026-07-26T19:03:38+00:00",
+        "generated_by": "aibox apply",
+        "progress_notes": [
+          {
+            "actor": "mcp",
+            "note": "Applied during pk-reconcile session-start: pure additive content sync (0 conflicts, 722 new, 0 removed) \u2014 unambiguous.",
+            "timestamp": "2026-07-26T19:16:52+00:00"
+          }
+        ],
+        "source": "processkit",
+        "source_url": "https://github.com/projectious-work/processkit.git",
+        "started_at": "2026-07-26T19:16:51+00:00",
+        "state": "applied",
+        "summary": "0 changed upstream, 0 conflicts, 722 new, 0 removed, 0 stale-removed (44 groups affected)",
+        "to_version": "v0.28.4"
+      },
+      "storage_location": "context/archives/2026/08/ARCHIVE-20260826_104056-migration-applied.tar.gz::context/migrations/applied/MIG-20260726_1903-ContentSync-processkit-content-sync.md"
+    }
+  ],
+  "kind": "Migration",
+  "older_than_days": 30,
+  "sha256": "9cf718f41cab0a05096f3fcedae63abf7ec415b5cffc8b2d5fcd8303744f35cc",
+  "state": "applied"
+}

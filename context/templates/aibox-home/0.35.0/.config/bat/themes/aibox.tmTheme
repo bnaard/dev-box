@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0"><dict>
+<key>name</key><string>aibox</string>
+<key>settings</key><array>
+<dict><key>settings</key><dict><key>background</key><string>#0D1117</string><key>foreground</key><string>#E6EDF3</string><key>caret</key><string>#58A6FF</string><key>selection</key><string>#254161</string><key>selectionForeground</key><string>#FFFFFF</string></dict></dict>
+<dict><key>scope</key><string>comment</string><key>settings</key><dict><key>foreground</key><string>#8B949E</string><key>fontStyle</key><string>italic</string></dict></dict>
+<dict><key>scope</key><string>keyword, storage</string><key>settings</key><dict><key>foreground</key><string>#D2A8FF</string><key>fontStyle</key><string>bold</string></dict></dict>
+<dict><key>scope</key><string>entity.name.type, support.type, storage.type</string><key>settings</key><dict><key>foreground</key><string>#D29922</string><key>fontStyle</key><string>bold</string></dict></dict>
+<dict><key>scope</key><string>entity.name.function, support.function</string><key>settings</key><dict><key>foreground</key><string>#79C0FF</string><key>fontStyle</key><string></string></dict></dict>
+<dict><key>scope</key><string>string</string><key>settings</key><dict><key>foreground</key><string>#3FB950</string><key>fontStyle</key><string></string></dict></dict>
+<dict><key>scope</key><string>constant.numeric, constant.language</string><key>settings</key><dict><key>foreground</key><string>#DB6D28</string><key>fontStyle</key><string></string></dict></dict>
+<dict><key>scope</key><string>keyword.operator, punctuation</string><key>settings</key><dict><key>foreground</key><string>#79C0FF</string><key>fontStyle</key><string></string></dict></dict>
+<dict><key>scope</key><string>meta.annotation, entity.name.tag</string><key>settings</key><dict><key>foreground</key><string>#58A6FF</string><key>fontStyle</key><string>italic</string></dict></dict>
+<dict><key>scope</key><string>invalid</string><key>settings</key><dict><key>foreground</key><string>#F85149</string><key>fontStyle</key><string>bold</string></dict></dict>
+</array></dict></plist>
