@@ -1,8 +1,0 @@
-{
-  "id": "secure-agent-workspace",
-  "version": "1.0.0",
-  "name": "Secure agent workspace",
-  "description": "Example standard Dev Container Template for aibox",
-  "documentationURL": "https://example.invalid/secure-agent-workspace",
-  "platforms": ["Any"]
-}
